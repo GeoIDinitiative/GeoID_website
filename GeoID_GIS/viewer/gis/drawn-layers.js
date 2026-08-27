@@ -13,10 +13,23 @@
  * you can operate on, and it should not have to be captured twice.
  */
 
-import { buildVectorLayerResult } from "./vector-render.js?v=20260827-29377ee";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260827-29377ee";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260827-54182f4";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260827-54182f4";
 
 let counter = 0;
+
+/**
+ * The name the next drawn shape will take.
+ *
+ * Exported on the seam because the VIEWER writes it too: the annotation
+ * inside the polygon names the shape while it is still being drawn, and a
+ * label that predicts a different name from the one the layer ends up with
+ * is two names for one thing — the fault `renameLayer` in import-manager.js
+ * documents at length.
+ */
+export function nextDrawnName() {
+  return `Study area ${counter + 1}`;
+}
 
 function areaOf(ring) {
   try {
@@ -50,7 +63,7 @@ export function drawnFeature(geometry, options) {
   return {
     type: "Feature",
     properties: {
-      name: name || `Drawn area ${counter + 1}`,
+      name: name || nextDrawnName(),
       kind,
       vertices: ring.length - 1,
       // Computed from the ring rather than read off the draw tool: the study
@@ -176,5 +189,5 @@ export function captureDrawnLine(vertices, { name = null, stampedAt = null } = {
 }
 
 if (typeof window !== "undefined") {
-  window.GeoIDDrawnLayers = { captureDrawn, captureDrawnLine, drawnFeature };
+  window.GeoIDDrawnLayers = { captureDrawn, captureDrawnLine, drawnFeature, nextDrawnName };
 }

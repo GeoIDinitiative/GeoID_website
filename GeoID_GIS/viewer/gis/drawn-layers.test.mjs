@@ -59,8 +59,8 @@ check("the area and vertex count travel as attributes", () => {
 check("a name can be given, and null options are survivable", () => {
   const shape = box([[1, 1], [1, 2], [2, 2]]);
   eq(drawnFeature(shape, { name: "Site A" }).properties.name, "Site A", "given");
-  eq(drawnFeature(shape).properties.name.startsWith("Drawn area"), true, "default");
-  eq(drawnFeature(shape, null).properties.name.startsWith("Drawn area"), true, "explicit null");
+  eq(drawnFeature(shape).properties.name.startsWith("Study area"), true, "default");
+  eq(drawnFeature(shape, null).properties.name.startsWith("Study area"), true, "explicit null");
 });
 
 check("a vertex with a bad coordinate is dropped, not made NaN", () => {

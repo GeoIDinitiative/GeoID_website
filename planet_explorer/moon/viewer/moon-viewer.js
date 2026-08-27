@@ -14864,10 +14864,32 @@ uniform float uViewportWidth;`,
         return handleHost;
       }
 
+      /**
+       * Project through the frame the GEOMETRY is in, not the one above it.
+       *
+       * `measureGroup` carries the globe's spin (`rotation.y = _spinDelta`,
+       * set every frame) and the drawn outline is a child of it, while this
+       * projected through `marsGroup` — the parent, which does not. So the
+       * handles were drawn in the BASELINE frame and the shape in the spun
+       * one, and the two parted by exactly however far the planet had turned
+       * since the page opened. Measured on Mars against the viewer's own
+       * cursor readout: every corner off by the same ~10° of longitude — 592
+       * km, which is the "massive offset from the actual bounds" it looked
+       * like. Latitude was exact throughout, which is the signature of a
+       * rotation about the pole rather than a coordinate-convention error.
+       *
+       * The moon branch matters for the same reason: a moon's measurements
+       * go into `moonMeasureGroup`, which is turned by its own rule.
+       */
+      function measureFrameGroup(context) {
+        const isMoon = context?.kind === "moon" || Boolean(activeMoonViewerFeature);
+        return (isMoon && moonMeasureGroup) ? moonMeasureGroup : measureGroup;
+      }
+
       function studyRectScreenPoint(lat, lon, context) {
         const local = sampleMeasureSurfacePoint(lat, lon,
           getMeasureDisplayLift(context), context);
-        const world = marsGroup.localToWorld(local.clone());
+        const world = measureFrameGroup(context).localToWorld(local.clone());
         const projected = world.project(camera);
         if (projected.z > 1) return null;
         const box = renderer.domElement.getBoundingClientRect();
@@ -14932,15 +14954,25 @@ uniform float uViewportWidth;`,
         if (!label) {
           label = document.createElement("div");
           label.id = "gis-area-label";
+          /**
+           * An ANNOTATION, not a card.
+           *
+           * A box with a fill and a border sits ON TOP of the polygon and
+           * hides the ground the polygon was drawn to look at — which is the
+           * whole reason for putting the number inside the shape rather than
+           * in the corner. So there is no background and no border: the text
+           * is written on the map the way a place name is, and stays legible
+           * over anything by carrying its own dark halo rather than its own
+           * dark box. Three shadows, because one soft glow disappears against
+           * bright imagery and one hard outline looks stamped-on over dark.
+           */
           Object.assign(label.style, {
             position: "fixed", zIndex: 13, pointerEvents: "none",
-            padding: "0.2rem 0.5rem", borderRadius: "0.35rem",
             transform: "translate(-50%, -50%)", textAlign: "center",
-            border: "1px solid rgba(82,228,232,0.45)",
-            background: "rgba(8,13,20,0.82)", color: "#bdf3f5",
-            font: "700 0.78rem/1.15 'Exo 2', sans-serif",
-            letterSpacing: "0.04em", whiteSpace: "nowrap",
-            textShadow: "0 1px 3px rgba(0,0,0,0.9)",
+            color: "#ffffff", whiteSpace: "nowrap",
+            font: "700 0.95rem/1.25 'Exo 2', sans-serif",
+            textShadow: "0 0 3px rgba(0,0,0,0.95), 0 0 7px rgba(0,0,0,0.85),"
+              + " 0 1px 2px rgba(0,0,0,1)",
           });
           document.body.appendChild(label);
         }
@@ -15003,8 +15035,15 @@ uniform float uViewportWidth;`,
         }
         const area = areaNumber(areaKm2);
         if (!area) { label.hidden = true; return; }
-        label.innerHTML = `<span style="font-size:1.05em">${area} km²</span>`
-          + (second ? `<br><span style="font-weight:500;opacity:0.78;font-size:0.86em">${second}</span>` : "");
+        // The name the shape will KEEP — `nextDrawnName` is the same function
+        // `drawnFeature` uses, so what is annotated while drawing is what the
+        // layer row says after Done, rather than two names for one thing.
+        const name = window.GeoIDDrawnLayers?.nextDrawnName?.() || "Study area";
+        label.innerHTML =
+          `<span style="display:block;font:600 0.6rem/1.3 'Exo 2',sans-serif;`
+          + `letter-spacing:0.14em;text-transform:uppercase;opacity:0.82">${name}</span>`
+          + `<span>${area} km²</span>`
+          + (second ? `<br><span style="font-weight:500;font-size:0.7em;opacity:0.85;letter-spacing:0.05em">${second}</span>` : "");
         label.hidden = false;
 
         /**
