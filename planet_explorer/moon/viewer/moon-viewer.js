@@ -14974,13 +14974,40 @@ uniform float uViewportWidth;`,
             ? `${areaNumber(perimeterKm)} km around` : "";
         }
         const area = areaNumber(areaKm2);
-        label.innerHTML = area
-          ? `<span style="font-size:1.05em">${area} km²</span>`
-            + (second ? `<br><span style="font-weight:500;opacity:0.78;font-size:0.86em">${second}</span>` : "")
-          : "";
-        label.style.left = `${at.x}px`;
-        label.style.top = `${at.y}px`;
-        label.hidden = !area;
+        if (!area) { label.hidden = true; return; }
+        label.innerHTML = `<span style="font-size:1.05em">${area} km²</span>`
+          + (second ? `<br><span style="font-weight:500;opacity:0.78;font-size:0.86em">${second}</span>` : "");
+        label.hidden = false;
+
+        /**
+         * Inside when it fits, above when it does not.
+         *
+         * Measured: a box dragged out 14 x 10 px on screen was given a
+         * 94 x 38 px label — the text swamping the shape it describes and
+         * covering the corner handles you would reach for next. So the
+         * shape's own screen box is sampled (a dozen vertices is plenty for
+         * an extent, and this runs every frame) and the label steps outside
+         * when the shape cannot hold it. Standard cartographic behaviour,
+         * and the reason it is not simply "always above" is that a label
+         * inside its polygon needs no leader line to say what it belongs to.
+         */
+        const step = Math.max(1, Math.floor(measurePoints.length / 12));
+        let minX = Infinity; let maxX = -Infinity;
+        let minY = Infinity; let maxY = -Infinity;
+        for (let i = 0; i < measurePoints.length; i += step) {
+          const p = studyRectScreenPoint(measurePoints[i].lat, measurePoints[i].lon, context);
+          if (!p) continue;
+          minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+          minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+        }
+        const fits = Number.isFinite(minX)
+          && (maxX - minX) >= label.offsetWidth + 10
+          && (maxY - minY) >= label.offsetHeight + 10;
+        label.style.left = `${fits || !Number.isFinite(minX) ? at.x : (minX + maxX) / 2}px`;
+        label.style.top = `${fits || !Number.isFinite(minX) ? at.y : minY}px`;
+        // -50% centres it on the point; -115% lifts it clear of the top edge
+        // with a hair of separation from the outline.
+        label.style.transform = `translate(-50%, ${fits || !Number.isFinite(minX) ? "-50%" : "-115%"})`;
       }
 
       (function handleLoop() {
