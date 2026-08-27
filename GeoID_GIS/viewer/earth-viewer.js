@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260827-184b3d2";
+  from "./gis/geo-utils.js?v=20260827-170d4fd";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -20599,6 +20599,10 @@ uniform float uViewportWidth;`,
           if (!Array.isArray(vertices) || vertices.length < 3) return false;
           activateStudyArea(vertices);
           syncGisPanel();
+          // Announced like an edit: the pipeline sync (project study_area,
+          // hub metadata) listens here, so every creator — presets, the
+          // weather box, a restored area — keeps the project current.
+          document.dispatchEvent(new Event("geoid-study-area-edited"));
           return measurePoints.length >= 3;
         },
         // The drawn overlay, taken down — used once a fetch has CAPTURED the

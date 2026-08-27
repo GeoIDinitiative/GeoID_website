@@ -1406,6 +1406,33 @@ delta comparisons use wrapped lon distance) and hand-drawn polygons are
 left alone — no corners a rectangle rule may move. The zoom pill's ends
 are − and + now, not arrows.
 
+## The pipeline follows the pen: drawing syncs GIS, Model and Research live
+
+Three seams keep what the user draws and what the pipeline knows in step,
+with no button between them:
+
+- **`setStudyAreaPolygon` announces** (`geoid-study-area-edited`) — every
+  creator flows through it (presets, the weather box, restored areas) and
+  drag edits already announced, so one dispatch covers all of them.
+  `gis/pipeline-sync.js` listens and, 900 ms after the shape settles,
+  writes the OPEN project's `study_area` bounds and
+  `metadata/study_area.geojson` via the bridge's own captureStudyArea.
+  Silent when no project is open (the ordinary state) and when the bridge
+  refuses an antimeridian-crossing area.
+- **`captureDrawn` registers the shape as a DATASET**: alongside the
+  processed artefact it now calls `registerImportedLayer` with a File
+  built from the GeoJSON, so the drawn shape lands in the project's data
+  registry with a `data/raw/` copy — the same standing as any import.
+- **"To Model" in the layer drawer** for drawn polygon layers hands the
+  ring's bounds to the Meshing Studio through the same `sendToStudio` the
+  Research Hub's button uses.
+
+Drawn layers were ALREADY live inputs to clipping, zonal statistics and
+extraction (they are ordinary vector layers; the tool selects list them
+on layers-changed) — measured, not assumed. The layer drawer's tile is
+`.layer-options` opened from the ROW; a probe that greps page-wide
+buttons reads the catalogue's Symbology and misses the drawer entirely.
+
 ## Volcanoes, and three services asked about a place
 
 **The Smithsonian catalogue is BAKED** (`services/bake-volcanoes.py` →

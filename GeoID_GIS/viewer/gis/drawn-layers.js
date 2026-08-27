@@ -13,8 +13,8 @@
  * you can operate on, and it should not have to be captured twice.
  */
 
-import { buildVectorLayerResult } from "./vector-render.js?v=20260827-184b3d2";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260827-184b3d2";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260827-170d4fd";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260827-170d4fd";
 
 let counter = 0;
 
@@ -95,10 +95,17 @@ export function captureDrawn({ name = null, stampedAt = null } = {}) {
   // project. A shape you drew and then lost with the tab is not a record.
   void (async () => {
     try {
-      const { saveProcessed } = await import(`./research/bridge.js${new URL(import.meta.url).search}`);
-      await saveProcessed(`${layerName.replace(/\s+/g, "_").toLowerCase()}.geojson`,
-        JSON.stringify(fc),
+      const bridge = await import(`./research/bridge.js${new URL(import.meta.url).search}`);
+      const json = JSON.stringify(fc);
+      await bridge.saveProcessed(`${layerName.replace(/\s+/g, "_").toLowerCase()}.geojson`,
+        json,
         { mime: "application/geo+json", provenance: { tool: "draw", inputs: [] } });
+      // And into the DATA REGISTRY with a data/raw copy: a drawn shape is a
+      // dataset the pipeline can pick up — model definition, clipping,
+      // extraction — not only a processed artefact in a folder.
+      await bridge.registerImportedLayer(layer,
+        new File([json], `${layerName.replace(/\s+/g, "_").toLowerCase()}.geojson`,
+          { type: "application/geo+json" }));
     } catch (error) {
       /* never fail the draw because the project is closed */
     }

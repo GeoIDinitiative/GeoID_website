@@ -10,11 +10,11 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260827-184b3d2";
-import { samplerToRaster } from "./raster-analysis.js?v=20260827-184b3d2";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260827-184b3d2";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260827-184b3d2";
-import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260827-184b3d2";
+import { currentBody } from "./bodies.js?v=20260827-170d4fd";
+import { samplerToRaster } from "./raster-analysis.js?v=20260827-170d4fd";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260827-170d4fd";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260827-170d4fd";
+import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260827-170d4fd";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -587,6 +587,30 @@ function optionsTile(layer) {
     act("Symbology", () => openSymbologyDialog(layer));
   }
   act("Export", () => window.GeoIDLayerExport?.open?.(layer));
+  /**
+   * A drawn polygon is a MODEL EXTENT waiting to be used: one action hands
+   * its bounds to the Meshing Studio through the same sendToStudio the
+   * Research Hub's own button uses — the pipeline connection, from the
+   * layer that IS the shape.
+   */
+  const drawnRing = (layer.ext === "drawn"
+    || layer.collection?.features?.[0]?.properties?.drawn_at)
+    ? layer.collection?.features?.[0]?.geometry?.coordinates?.[0] : null;
+  if (drawnRing?.length) {
+    act("To Model", async () => {
+      try {
+        const bridge = await import(`./research/bridge.js${new URL(import.meta.url).search}`);
+        const lons = drawnRing.map((c) => c[0]);
+        const lats = drawnRing.map((c) => c[1]);
+        await bridge.sendToStudio({
+          min_lat: Math.min(...lats), max_lat: Math.max(...lats),
+          min_lon: Math.min(...lons), max_lon: Math.max(...lons),
+        });
+      } catch (error) {
+        window.alert?.(`Could not open the studio: ${error.message}`);
+      }
+    });
+  }
 
   /**
    * The last mile of the one output rule: tool results, drawn areas and
