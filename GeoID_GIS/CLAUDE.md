@@ -1665,6 +1665,53 @@ on layers-changed) — measured, not assumed. The layer drawer's tile is
 `.layer-options` opened from the ROW; a probe that greps page-wide
 buttons reads the catalogue's Symbology and misses the drawer entirely.
 
+## Active fires, and the two things that made the first attempt unreadable
+
+**A large CATALOGUE is not a point CLOUD, and the count cannot tell them
+apart.** `renderFeatureCollection` switched to world-space sizing above 20,000
+points — right for a LiDAR return or an XYZ surface, where the points ARE the
+ground and a fixed pixel size would paint the globe solid. Applied to 90,987
+fire detections it drew each one at 0.018 WORLD units: sub-pixel from orbit,
+enormous up close, and never the same size twice. Ninety thousand detections
+are ninety thousand PLACES. `pointStyle: "places"` on the entry overrides the
+count; past 20,000 the mark shrinks to 3.4 screen pixels and drops its white
+ring, because below about six pixels the disc and its outline are the same
+three pixels of screen and the ring only doubles the fill.
+
+**And confidence was the wrong variable.** It answers "is this real"; FRP
+answers "how big is it", which is what a fire map is for. Measured today,
+0.08 to 443 MW on VIIRS and up to 10,407 on MODIS — a spread no categorical
+palette can show. Entries may now carry `colourRange` (field, method, classes,
+ramp), which routes to `paintByRange` — the same classing the rasters use, so
+a vector and a raster cut the same numbers the same way. **Quantile, not equal
+interval**: a handful of enormous fires would otherwise put every ordinary one
+in the bottom class and the map would be one colour.
+
+### Real mapped polygons exist, for the United States
+
+A detection is a hot pixel; a **perimeter** is a surveyed boundary with a
+name, a cause and a containment figure — the one thing the satellite feeds
+cannot give. NIFC's WFIGS layer is public ArcGIS, CORS `*`, no key: measured,
+**234 current perimeters**, and Big Grass in Oregon reads 575,163 acres at 93%
+contained. `attr_` is the incident record and `poly_` the mapped polygon, and
+they disagree about size on purpose — the declared acreage and the drawn one
+are different facts, so both are kept and both are labelled. Discovery time
+arrives as epoch MILLISECONDS; a bare number in a card is not a date.
+
+US only, and the layer's own name says so. EFFIS/GWIS publishes burnt AREA
+rather than active perimeter and its services are fragmented per country, so
+there is no browser-reachable global equivalent to promise.
+
+### Why not the FIRMS API, given a key
+
+**It sends no `Access-Control-Allow-Origin` header at all** — measured on both
+the area endpoint and data-availability, on the error responses too. A browser
+cannot call it with a key or without one; it would need the sidecar or a
+relay. Esri's Living Atlas hosts the same VIIRS stream with CORS `*` and 2.6
+million rolling records, and it is refused for a different reason: Esri's own
+FAQ lists Living Atlas commercial use under "you may not". GIBS is NASA's own,
+keyless, and carries no commercial clause.
+
 ## Active fires: FIRMS through GIBS vector tiles, not through FIRMS
 
 The Events tab's EONET wildfires do NOT cover this, and the two are different
