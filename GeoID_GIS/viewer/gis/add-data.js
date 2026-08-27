@@ -30,9 +30,9 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260828-bd15287";
-import { readHead, validateMapping } from "./delimited.js?v=20260828-bd15287";
-import { RAMP_NAMES } from "./symbology.js?v=20260828-bd15287";
+import { CRS_OPTIONS } from "./projection.js?v=20260828-6993c3a";
+import { readHead, validateMapping } from "./delimited.js?v=20260828-6993c3a";
+import { RAMP_NAMES } from "./symbology.js?v=20260828-6993c3a";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
@@ -790,12 +790,6 @@ function addButtonFor(role) {
   // The vector tab's third doorway: capturing the drawn area. The button
   // lives in the shared markup (polygons.js wires it there) and is ADOPTED
   // into this row, so the three ways data arrives sit side by side.
-  if (role.panel === "gis-group-polygons") {
-    // By document, not by panel: the capture button rides the control-stack,
-    // which dockLayers may already have moved into the Workspace box.
-    const custom = document.getElementById("polygon-capture-drawn");
-    if (custom) row.appendChild(custom);
-  }
   // Model Builder gets its own Custom: the drawn area captured as a layer,
   // which is the shape a mesh starts from. Same amber, same capture.
   if (role.panel === "gis-group-mesh") {

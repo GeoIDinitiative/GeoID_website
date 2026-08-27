@@ -1733,6 +1733,21 @@ its metadata.
 
 ## Drawing: press-drag boxes, visible handles, one gesture grammar
 
+**The Points tool** (`gis/point-tool.js`, Earth's page only) is the third
+way data comes in: a rail button arms it, each CANVAS tap (window-level
+capture gated on `event.target === renderer.domElement`, or every panel
+click drops a point under the sidebar) picks the ground through the
+viewer's own `surfaceLatLonAt`, live preview dots ride the spin through
+`GeoIDProjectLatLon` (HTML overlay at z 5 — no THREE owned), and Done
+files the set through `importFileList` as "Points N" (`frame: false` — the
+points were just placed on screen), so symbology, extraction, the project
+registry and the data-tag arrival card all just happen. Escape/Cancel
+discards; an armed measure tool is stood down on arm and yields taps
+either way. `pointsToGeoJSON` is pure and pinned (viewer 0–360 → signed).
+It REPLACED the Workspace "Custom" capture button, whose only unique
+moment — shape drawn but not captured — the Draw HUD's Done already
+answers, and whose empty press could only nag, stacking a note per press.
+
 **Point letters are PROFILE furniture; the clocks can wear a zone.** The
 A/B/C letters `addMeasureMarker` drew on every measure point now draw only
 in profile mode — a profile is read against its chart whose axis runs

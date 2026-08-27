@@ -1,7 +1,7 @@
 import {
   addDataset, grouped, datasetById, layerForDataset,
-} from "./global-data.js?v=20260828-bd15287";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260828-bd15287";
+} from "./global-data.js?v=20260828-6993c3a";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260828-6993c3a";
 
 /**
  * Polygons: the register of vector overlays -- coastlines, boundaries, basins,
@@ -212,17 +212,7 @@ function init() {
     input.value = "";
   });
 
-  document.getElementById("polygon-capture-drawn")?.addEventListener("click", () => {
-    const out = window.GeoIDDrawnLayers?.captureDrawn?.();
-    const host = document.getElementById("polygon-list");
-    if (host && out && !out.ok) {
-      const note = document.createElement("div");
-      note.className = "gis-metric";
-      note.textContent = out.message;
-      host.prepend(note);
-    }
-  });
-  window.GeoIDImportManager?.onChange?.(() => {
+    window.GeoIDImportManager?.onChange?.(() => {
     render();
     // Whoever took it off — this list, the layer box, a tab — the tick follows.
     drawCatalogue();
