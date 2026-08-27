@@ -18,7 +18,7 @@
  * in extraction and in export without this file knowing anything about them.
  */
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260827-cf5b909";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260827-c21ab4c";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -50,6 +50,14 @@ const STYLE = `
   cursor: pointer;
 }
 .gis-catalogue-row.is-busy .gis-catalogue-name { opacity: 0.6; font-style: italic; }
+.gis-catalogue-detail {
+  flex: 0 0 3.4rem;
+  width: 3.4rem;
+  height: 0.9rem;
+  margin: 0;
+  accent-color: rgba(82, 228, 232, 0.9);
+  cursor: pointer;
+}
 .gis-catalogue-sym {
   flex: 0 0 auto;
   font: 500 0.54rem/1 'Exo 2', sans-serif;
@@ -386,6 +394,45 @@ export function renderCatalogue(host, entries, hooks) {
       sym.title = `Colour ${entry.label} by one of its own columns`;
       sym.addEventListener("click", () => hooks.symbology(layer));
       row.appendChild(sym);
+    }
+    /**
+     * How deep the names go — for ANY catalogue layer that carries them.
+     *
+     * The volcanoes had this as bespoke markup in their own subsection, which
+     * is the only place it could be while they were the only labelled
+     * catalogue. The submarine cables are labelled too and live in a list with
+     * no subsection to put a slider in, so the control belongs on the row that
+     * turns the layer on — one implementation, and every future labelled
+     * dataset gets it without a second copy.
+     *
+     * Compact and unlabelled by design: it sits between the Symbology button
+     * and the tick, and its `title` carries the level's own words (the same
+     * `DETAIL_COPY` the volcano caption reads).
+     */
+    const labels = window.GeoIDPointLabels;
+    if (layer && labels?.canLabel?.(layer)) {
+      const detail = document.createElement("input");
+      detail.type = "range";
+      detail.className = "gis-catalogue-detail";
+      detail.min = "1";
+      detail.max = "5";
+      detail.step = "1";
+      detail.value = String(labels.detailLevelOf?.(layer) ?? labels.DEFAULT_DETAIL ?? 3);
+      const caption = () => {
+        detail.title = `Label detail: ${labels.DETAIL_COPY?.[Number(detail.value)] || detail.value}`;
+      };
+      caption();
+      // The tooltip tracks the drag; the rebuild waits for the release, because
+      // rebuilding a label set is a texture per name.
+      detail.addEventListener("input", caption);
+      detail.addEventListener("change", () => {
+        caption();
+        labels.setDetailLevel?.(layer, Number(detail.value));
+      });
+      // A range inside a row that toggles the layer: the drag must not reach
+      // the row's own handlers.
+      detail.addEventListener("click", (event) => event.stopPropagation());
+      row.appendChild(detail);
     }
     if (info) row.appendChild(info);
     row.appendChild(tick);

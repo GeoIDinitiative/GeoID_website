@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260827-cf5b909";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260827-cf5b909";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260827-c21ab4c";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260827-c21ab4c";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -1275,10 +1275,10 @@ function install() {
      * viewer's card is the one anchored to its label, so where its raycaster
      * claims the click, this popup stays quiet.
      */
-    const claimedByLabel = Boolean(
-      window.GeoIDViewer?.interactiveFeatureAt?.(event.clientX, event.clientY));
+    const labelHit = window.GeoIDViewer?.interactiveFeatureAt?.(event.clientX, event.clientY);
+    const claimedByLabel = Boolean(labelHit);
     const at = window.GeoIDViewer?.surfaceLatLonAt?.(event.clientX, event.clientY);
-    if (!at) { if (!claimedByLabel) hidePopup(); return; }
+    if (!at && !claimedByLabel) { hidePopup(); return; }
     /**
      * The HIGHLIGHT does not care which card wins.
      *
@@ -1291,7 +1291,21 @@ function install() {
      * draws the card, so it happens first and for both paths.
      */
     if (claimedByLabel) {
-      const claimed = featuresAt(at.lat, at.lon)[0];
+      /**
+       * A label is not where its feature is, so pick at the ANCHOR.
+       *
+       * The chip is drawn beside the thing it names, sometimes a leader line
+       * away — so `surfaceLatLonAt` at the CLICKED pixel answers with the
+       * ground under the label, which for a submarine cable is open ocean
+       * some way off the cable, and the highlight found nothing. The label's
+       * own item carries the coordinate it was anchored to (for a line, the
+       * middle vertex of its longest part), and that is on the feature by
+       * construction.
+       */
+      const item = labelHit?.object?.userData?.feature;
+      const anchor = Number.isFinite(item?.lat) && Number.isFinite(item?.lon)
+        ? { lat: item.lat, lon: item.lon } : at;
+      const claimed = anchor ? featuresAt(anchor.lat, anchor.lon)[0] : null;
       if (claimed) void showOutline(claimed.feature); else clearPin();
       return;
     }
