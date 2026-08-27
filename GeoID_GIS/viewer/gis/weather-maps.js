@@ -24,9 +24,9 @@
  * registry is the seam, and nothing else here would change.
  */
 
-import { drape } from "./gee.js?v=20260827-e45d095";
-import { currentBodyId } from "./bodies.js?v=20260827-e45d095";
-import { rectangleVertices } from "./draw-area.js?v=20260827-e45d095";
+import { drape } from "./gee.js?v=20260827-4a02f87";
+import { currentBodyId } from "./bodies.js?v=20260827-4a02f87";
+import { rectangleVertices } from "./draw-area.js?v=20260827-4a02f87";
 
 const byId = (id) => document.getElementById(id);
 
@@ -501,7 +501,28 @@ async function fetchMap() {
         return painted;
       };
     } else {
-      layer.info = { source: source.citation, summary: "Most recent composite frame." };
+      layer.info = {
+        source: source.citation,
+        summary: "Most recent composite frame. Colours are RainViewer's "
+          + "universal scheme over radar reflectivity.",
+      };
+      /**
+       * The reflectivity scale, so the legend is a ramp with magnitudes
+       * rather than one anonymous swatch. The stops trace RainViewer's
+       * universal-blue scheme — pale blue drizzle through blue rain,
+       * yellow/orange moderate, red heavy, magenta extreme — against the
+       * dBZ spans every radar legend uses. Approximate by nature (the
+       * palette is the composite's own, baked into its tiles) and labelled
+       * as reflectivity, not rain rate, because dBZ is what radar measures.
+       */
+      layer.legendInfo = {
+        label: "Radar reflectivity",
+        min: 0,
+        max: 60,
+        unit: "dBZ",
+        palette: ["a6e5f5", "4aa3df", "1957a8", "0b2f7a", "f5e942",
+          "f5a623", "e53210", "b3121b", "d81fa4"],
+      };
     }
     window.GeoIDLayerHierarchy?.setOpacity?.(layer, 0.85);
     window.GeoIDLayerHierarchy?.render?.();
