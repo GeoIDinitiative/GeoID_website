@@ -17328,44 +17328,89 @@ uniform float uViewportWidth;`,
           dot.style.top = `${at.y}px`;
         });
       }
-      function updateRectDims() {
-        let chip = document.getElementById("gis-rect-dims");
-        if (!chip) {
-          chip = document.createElement("div");
-          chip.id = "gis-rect-dims";
-          Object.assign(chip.style, {
+      /** Kilometres at a readable precision — 8.4, 340, 1,410,000. */
+      function areaNumber(value) {
+        if (!Number.isFinite(value)) return null;
+        if (value < 10) return value.toFixed(2);
+        if (value < 1000) return value.toFixed(1);
+        return Math.round(value).toLocaleString("en-GB");
+      }
+
+      /**
+       * The shape says how big it is, ON the shape.
+       *
+       * This used to be two things: a "W × H km" chip clipped to the top edge,
+       * and the area in a card pinned to the corner of the window — so the
+       * number describing the polygon was the one thing not near the polygon,
+       * and with two boxes drawn you could not tell which card was about
+       * which. A label at the centroid needs no such correspondence: it is
+       * inside the thing it measures.
+       *
+       * The GEOMETRY belongs here — area, and the width × height of a
+       * rectangle or the perimeter of a free shape. What is UNDER the polygon
+       * — elevation range, mean slope, geology, the histogram — stays in the
+       * Study Area panel, which already carried all of it and more. That
+       * split is why removing the card costs nothing.
+       */
+      function updateAreaLabel() {
+        let label = document.getElementById("gis-area-label");
+        if (!label) {
+          label = document.createElement("div");
+          label.id = "gis-area-label";
+          Object.assign(label.style, {
             position: "fixed", zIndex: 13, pointerEvents: "none",
-            padding: "0.14rem 0.45rem", borderRadius: "0.3rem",
-            transform: "translate(-50%, -170%)",
-            border: "1px solid rgba(82,228,232,0.4)",
-            background: "rgba(8,13,20,0.92)", color: "#9fe8ec",
-            font: "600 0.62rem/1.2 'Exo 2', sans-serif",
-            letterSpacing: "0.05em", whiteSpace: "nowrap",
+            padding: "0.2rem 0.5rem", borderRadius: "0.35rem",
+            transform: "translate(-50%, -50%)", textAlign: "center",
+            border: "1px solid rgba(82,228,232,0.45)",
+            background: "rgba(8,13,20,0.82)", color: "#bdf3f5",
+            font: "700 0.78rem/1.15 'Exo 2', sans-serif",
+            letterSpacing: "0.04em", whiteSpace: "nowrap",
+            textShadow: "0 1px 3px rgba(0,0,0,0.9)",
           });
-          document.body.appendChild(chip);
+          document.body.appendChild(label);
         }
-        const bounds = (measureMode === "area" && !measureDrawActive)
-          ? rectFromMeasurePoints() : null;
-        const anchorDot = handleHost?.children[5];
-        if (!bounds || !anchorDot || anchorDot.style.display === "none"
-          || studyDrag || boxDraw) {
-          chip.hidden = true;
-          return;
+        // Hidden while a drag is live: the chip at the cursor is already
+        // reporting the size, and two numbers moving together is noise.
+        const live = measureMode === "area" && !measureDrawActive
+          && !studyDrag && !boxDraw && measurePoints.length >= 3;
+        if (!live) { label.hidden = true; return; }
+
+        const centre = polygonCentroidLatLon(measurePoints);
+        if (!centre || !Number.isFinite(centre.lat)) { label.hidden = true; return; }
+        const context = measurePoints[0]?.context || getActiveMeasureContext();
+        const at = studyRectScreenPoint(centre.lat, centre.lon, context);
+        // Behind the limb, or off the canvas: `studyRectScreenPoint` answers
+        // null past the horizon, which is exactly when a label would be a
+        // number floating over empty space.
+        if (!at) { label.hidden = true; return; }
+
+        const areaKm2 = sphericalPolygonAreaKm2(measurePoints);
+        const bounds = rectFromMeasurePoints();
+        let second;
+        if (bounds) {
+          const midLat = (bounds.south + bounds.north) / 2;
+          const heightKm = (bounds.north - bounds.south) * DRAW_KM_PER_DEG;
+          const widthKm = (bounds.east - bounds.west) * DRAW_KM_PER_DEG
+            * Math.cos((midLat * Math.PI) / 180);
+          second = `${Math.round(widthKm)} × ${Math.round(heightKm)} km`;
+        } else {
+          const perimeterKm = polygonPerimeterKm(measurePoints);
+          second = Number.isFinite(perimeterKm)
+            ? `${areaNumber(perimeterKm)} km around` : "";
         }
-        const midLat = (bounds.south + bounds.north) / 2;
-        const heightKm = (bounds.north - bounds.south) * DRAW_KM_PER_DEG;
-        const widthKm = (bounds.east - bounds.west) * DRAW_KM_PER_DEG
-          * Math.cos((midLat * Math.PI) / 180);
-        chip.textContent = `${Math.round(widthKm)} × ${Math.round(heightKm)} km`;
-        const box = anchorDot.getBoundingClientRect();
-        chip.style.left = `${box.left + 4.5}px`;
-        chip.style.top = `${box.top}px`;
-        chip.hidden = false;
+        const area = areaNumber(areaKm2);
+        label.innerHTML = area
+          ? `<span style="font-size:1.05em">${area} km²</span>`
+            + (second ? `<br><span style="font-weight:500;opacity:0.78;font-size:0.86em">${second}</span>` : "")
+          : "";
+        label.style.left = `${at.x}px`;
+        label.style.top = `${at.y}px`;
+        label.hidden = !area;
       }
 
       (function handleLoop() {
         updateRectHandles();
-        updateRectDims();
+        updateAreaLabel();
         window.requestAnimationFrame(handleLoop);
       }());
 
