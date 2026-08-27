@@ -1083,12 +1083,16 @@ Inside the Basemaps tab the two catalogues are titled for what they hold —
 **Basemaps** (the base-texture radio plus raster overlays, from
 map-layers-panel) over **Overlays** (the vector reference shapes, from
 polygons.js) — and the old "Street map & satellite imagery" collapsible is
-GONE: its whole-globe path was the catalogue tick said twice. What
-survives is a plain FOOTER under the Basemaps catalogue holding only what
-the catalogue cannot do — the study-area detail drape, the sharpen-on-zoom
-toggle, and the credit + licence lines that track `base-layer-select`
-(the attribution discipline lives there; do not remove the footer without
-rehoming those lines). The
+GONE: its whole-globe path was the catalogue tick said twice. The footer
+then slimmed AGAIN on report ("what is all this? … remove"): the
+detail-from select, sharpen toggle, study-area drape button and the
+tile-count status are gone — sharpening simply runs whenever a tile
+basemap is selected, and `drapeStudyArea` survives exported but doorless.
+What remains is ONE compact credit line and a short-form licence tag
+(full text in the tooltip; split on dash or SENTENCE stop — a bare [.]
+split cut "CC BY-NC-SA 4.0" at its own decimal). The attribution CANNOT
+be removed outright: EOX and Esri license on condition of being named,
+and it still tracks `base-layer-select` both ways. The
 rule that filed it: Live holds what HAPPENED (timestamped feeds), Hazards
 what COULD, Geology what the ground IS — one dataset, one home. Metadata
 stays a single tab on purpose: provenance is a property of a layer, not a

@@ -37,12 +37,12 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260827-c748cb5";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260827-c748cb5";
-import { isEarth } from "./bodies.js?v=20260827-c748cb5";
-import { streamRings, cacheStats } from "./tile-streamer.js?v=20260827-c748cb5";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260827-90bd2a2";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260827-90bd2a2";
+import { isEarth } from "./bodies.js?v=20260827-90bd2a2";
+import { streamRings, cacheStats } from "./tile-streamer.js?v=20260827-90bd2a2";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260827-c748cb5";
+  from "./view-extent.js?v=20260827-90bd2a2";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -609,150 +609,62 @@ function buildPanel() {
   listBaseLayerOptions();
 
   /**
-   * A FOOTER under the Basemaps catalogue, not a section of its own.
+   * ONE LINE of attribution, and nothing else.
    *
-   * This box used to be a "Street map & satellite imagery" collapsible with
-   * a Source select and a whole-globe path — which, once the base-texture
-   * catalogue listed every tile service as a tickable radio, was the same
-   * choice offered twice on one panel and was reported as exactly that.
-   * What survives is only what the catalogue cannot do: the STUDY-AREA
-   * drape (full detail as its own layer), the sharpen-on-zoom toggle, and
-   * the credit + licence lines that track whatever basemap is actually on
-   * the sphere. The whole-globe path lives on in the catalogue tick, which
-   * runs through `watchBaseLayerSelection` and the same `installBaseLayer`.
+   * This footer once held a source select, a sharpen toggle, a study-area
+   * drape button and a tile-count status line — reported as diagnostics
+   * nobody needed, and removed. What CANNOT go is the credit: EOX's
+   * Sentinel-2 mosaic and Esri's imagery are licensed ON CONDITION of
+   * attribution, so a public page showing their tiles must name them. It
+   * tracks `base-layer-select` — what is actually on the sphere — both
+   * ways, with the licence compressed to its short form (full text in the
+   * tooltip) and the NonCommercial warning kept as a colour.
+   *
+   * Refinement no longer has a toggle: sharpening on zoom IS the point of
+   * a tile basemap, so it simply runs whenever one is selected.
    */
   const box = document.createElement("div");
   box.id = "basemap-drape-tool";
   box.innerHTML = `
-      <div class="row">
-        <label for="basemap-drape-source">Detail from</label>
-        <select id="basemap-drape-source" class="mini-select"></select>
-      </div>
-      <label class="row" for="basemap-drape-refine" style="gap:0.4rem;">
-        <input id="basemap-drape-refine" type="checkbox" checked>
-        <span>Sharpen as I zoom in</span>
-      </label>
-      <button id="basemap-drape-run" class="tool-button" type="button">Full detail over study area</button>
-      <div id="basemap-drape-status" class="gis-metric">Draws the study area at metres per pixel, as its own layer.</div>
-      <div id="basemap-drape-credit" class="gis-metric" hidden></div>
-      <div id="basemap-drape-licence" class="gis-metric" hidden></div>`;
-  // Directly under the catalogue it de-duplicates, above the contour rows.
+      <div id="basemap-drape-credit" class="gis-metric" hidden
+        style="font-size:0.56rem;opacity:0.7;line-height:1.35;"></div>
+      <div id="basemap-drape-licence" class="gis-metric" hidden
+        style="font-size:0.56rem;opacity:0.7;"></div>`;
+  // Directly under the catalogue whose choice it credits.
   const catalogueStatus = document.getElementById("basemap-catalogue-status");
   if (catalogueStatus) catalogueStatus.after(box);
   else host.appendChild(box);
 
-  const select = box.querySelector("#basemap-drape-source");
-  Object.keys(TILE_SOURCES).forEach((name) => {
-    const option = document.createElement("option");
-    option.value = name;
-    option.textContent = name;
-    select.appendChild(option);
-  });
-  select.value = DEFAULT_SOURCE;
-
-  const status = box.querySelector("#basemap-drape-status");
   const credit = box.querySelector("#basemap-drape-credit");
-  const run = box.querySelector("#basemap-drape-run");
-  const refine = box.querySelector("#basemap-drape-refine");
   const licence = box.querySelector("#basemap-drape-licence");
 
-  const showResolution = (out) => (out.metresPerPixel >= 1000
-    ? `${Math.round(out.metresPerPixel / 1000)} km/px`
-    : `${Math.round(out.metresPerPixel)} m/px`);
-
-  /**
-   * The credit, on screen and permanent while the basemap is showing.
-   *
-   * A drape burns it into the image; a basemap cannot, because reprojected the
-   * bottom of the texture is the south pole. So it lives here, which is where
-   * Leaflet, Mapbox and every other web map put it.
-   */
   const showCredit = (text) => {
     credit.textContent = text || "";
     credit.hidden = !text;
   };
-
-  /**
-   * The licence, shown where the choice is made.
-   *
-   * Esri's World Imagery is free of charge on that endpoint and NOT licensed
-   * for unrestricted embedding — a distinction invisible at the point of
-   * clicking it, which is exactly where it matters.
-   */
-  const showLicence = (sourceName = select.value) => {
+  const showLicence = (sourceName) => {
     const src = TILE_SOURCES[sourceName];
-    licence.textContent = src?.licence || "";
-    licence.hidden = !src?.licence;
+    const full = src?.licence || "";
+    // The short form: up to the first dash or SENTENCE-ending stop — a bare
+    // [.] split cut "CC BY-NC-SA 4.0" at its own decimal point. The whole
+    // licence paragraph read as a wall; the wall survives in the tooltip.
+    licence.textContent = full.split(/—|\.\s/)[0].trim();
+    licence.title = full;
+    licence.hidden = !full;
     licence.classList.toggle("is-warn", Boolean(src) && src.freeToStream === false);
   };
-  select.addEventListener("change", () => showLicence());
 
-  run.addEventListener("click", async () => {
-    run.disabled = true;
-    const source = select.value;
-    const progress = (done, total) => { status.textContent = `Fetching tiles ${done}/${total}…`; };
-    status.textContent = "Working out the zoom…";
-    try {
-      // The study-area drape is the one job this footer still owns; making a
-      // source the whole-globe basemap is the catalogue tick above it.
-      const out = await drapeStudyArea({ source, extent: "study", onProgress: progress });
-      status.textContent = `${out.drawn}/${out.tiles} tiles at zoom ${out.zoom} `
-        + `(${showResolution(out)}). It is in Active Layers.`;
-      showCredit("");   // a study-area drape carries its own credit in the image
-    } catch (error) {
-      status.textContent = error.message;
-    } finally {
-      run.disabled = false;
-    }
-  });
-
-  /**
-   * The credit follows the dropdown, not the button that installed it.
-   *
-   * Hooking it to the button alone was an attribution hole: once a tile basemap
-   * is in the list it can be chosen again later, or switched away from and back,
-   * and the licence line simply never reappeared. Crediting a service that is
-   * not on screen would be wrong in the other direction, so it tracks the actual
-   * selection both ways.
-   */
   const sourceForId = (id) => Object.entries(TILE_SOURCES)
     .find(([name]) => baseLayerIdFor(name) === id)?.[0] || "";
   document.getElementById("base-layer-select")?.addEventListener("change", (event) => {
     const id = event.target.value || "";
-    /**
-     * The credit and the licence must name the SAME map.
-     *
-     * The credit followed this dropdown — what is actually on the globe — and
-     * the licence followed only the drape tool's own source select beside it,
-     * so choosing a basemap here left the two describing different services.
-     * Measured with Sentinel-2 selected: EOX's credit above OpenStreetMap's
-     * "ODbL. Free to use with attribution", which tells a reader that
-     * NonCommercial imagery is free to use commercially. A wrong licence line
-     * is worse than none, and it read as authoritative because the credit
-     * beside it was right.
-     */
     const name = sourceForId(id);
     showCredit(name ? TILE_SOURCES[name].credit : "");
     showLicence(name);
-    // Refinement belongs to the tile basemap. Left running under Blue Marble it
-    // would keep fetching tiles for a basemap nobody is looking at.
-    if (id.startsWith("tiles-")) {
-      if (refine.checked) startRefining({ onStatus: (m) => { status.textContent = m; } });
-    } else {
-      stopRefining();
-    }
-  });
-
-  showLicence();
-
-  refine.addEventListener("change", () => {
-    if (refine.checked && tileBasemapSource()) {
-      startRefining({ onStatus: (m) => { status.textContent = m; } });
-      status.textContent = "Sharpening on. Fly in and it will fetch detail when you stop.";
-    } else {
-      stopRefining();
-      status.textContent = "Sharpening off — the basemap stays at its global resolution.";
-    }
+    // Refinement belongs to the tile basemap. Left running under Blue Marble
+    // it would keep fetching tiles for a basemap nobody is looking at.
+    if (id.startsWith("tiles-")) startRefining({});
+    else stopRefining();
   });
 }
 
