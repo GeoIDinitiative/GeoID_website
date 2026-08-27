@@ -110,6 +110,27 @@ export const SOURCES = [
   },
 
 
+  /**
+   * ── GDACS floods ─────────────────────────────────────────────────────────
+   *
+   * Point-located flood events from the EC Joint Research Centre with
+   * Green/Orange/Red alert levels — measured at 63 events for one month
+   * against EONET's curated handful. It OVERLAPS the EONET floods row the
+   * way the seismicity windows overlap each other: two views of the same
+   * hazard, ids from different registries, both worth having.
+   */
+  {
+    id: "gdacs-floods",
+    kind: "gdacs",
+    category: "floods",
+    group: "water",
+    label: "Floods — live (GDACS)",
+    note: "point-located floods with EU JRC alert levels, last 14 days",
+    licence: "GDACS — European Commission Joint Research Centre",
+    url: gdacsUrl,
+    defaultOn: true,
+  },
+
   /* ── the EONET categories ─────────────────────────────────────────────── */
   eonet("volcanoes", "volcanic", "Volcanic activity (EONET)",
     "eruptions and unrest currently reported open"),
@@ -225,6 +246,47 @@ export function restoreSources(saved) {
  * - **A feed carries events with a null magnitude.** Those are real records
  *   with an undetermined size, and printing "M null" is worse than saying so.
  */
+/**
+ * The GDACS flood window: the last `days` of events with any alert level.
+ * SEARCH is the endpoint that actually answers with parameters — MAP with
+ * arguments returns 400 (measured), and this is somebody else's API.
+ */
+export function gdacsUrl(days = 14) {
+  const to = new Date();
+  const from = new Date(to.getTime() - days * 86400000);
+  const day = (d) => d.toISOString().slice(0, 10);
+  return "https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH"
+    + `?fromDate=${day(from)}&toDate=${day(to)}`
+    + "&alertlevel=Green;Orange;Red&eventlist=FL";
+}
+
+/**
+ * GDACS GeoJSON to this feed's own event shape. Pure and tested. The
+ * category is EONET's "floods" so the markers wear the flood colour the
+ * legend already explains; the alert level rides in the title, because
+ * Green/Orange/Red is the one fact GDACS adds over EONET.
+ */
+export function gdacsPoints(payload, source) {
+  return (payload?.features || []).map((f) => {
+    const c = f?.geometry?.coordinates;
+    if (!Array.isArray(c) || !Number.isFinite(c[0]) || !Number.isFinite(c[1])) return null;
+    const p = f.properties || {};
+    const level = p.alertlevel || "";
+    return {
+      id: `gdacs:${p.eventid ?? `${c[0]},${c[1]}`}`,
+      title: `${p.name || p.eventname || "Flood"}${level ? ` — ${level} alert` : ""}`,
+      link: p.url?.report || p.url?.details || null,
+      sourceId: source.id,
+      categoryId: "floods",
+      categoryTitle: "Floods",
+      lat: c[1],
+      lon: c[0],
+      date: p.todate || p.fromdate || null,
+      alertLevel: level || null,
+    };
+  }).filter(Boolean);
+}
+
 export function usgsPoints(payload, source) {
   return (payload?.features || []).map((f) => {
     const c = f?.geometry?.coordinates;

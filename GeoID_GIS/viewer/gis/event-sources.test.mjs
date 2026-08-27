@@ -11,8 +11,8 @@
 import {
   SOURCES, FEED_GROUPS, sourceById, sourcesInGroup, activeGroups, groupState,
   defaultEnabled, usgsPoints, magnitudeSize, recencyOpacity,
-  MAGNITUDE_RAMP, magnitudeColour, restoreSources,
-} from "./event-sources.js";
+  MAGNITUDE_RAMP, magnitudeColour, restoreSources, gdacsPoints, gdacsUrl,
+}  from "./event-sources.js";
 
 let pass = 0;
 let fail = 0;
@@ -265,3 +265,28 @@ check("no timestamp gets a sensible middle", recencyOpacity(null, now, day), 0.8
 
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exitCode = 1;
+
+/* ── GDACS floods ────────────────────────────────────────────────────────── */
+
+{
+  const payload = { features: [
+    { type: "Feature", geometry: { type: "Point", coordinates: [138.78, -35.45] },
+      properties: { eventtype: "FL", eventid: 102938, name: "Flood in Australia",
+        alertlevel: "Orange", fromdate: "2026-08-24T01:00:00", todate: "2026-08-26T01:00:00",
+        url: { report: "https://www.gdacs.org/report.aspx?eventid=102938" } } },
+    { type: "Feature", geometry: { type: "Point", coordinates: [null, 3] }, properties: {} },
+  ] };
+  const points = gdacsPoints(payload, { id: "gdacs-floods" });
+  check("a GDACS flood converts with its alert level in the title",
+    points.length === 1 && points[0].title === "Flood in Australia — Orange alert");
+  check("its id is namespaced against every other registry",
+    points[0].id === "gdacs:102938");
+  check("the flood wears EONET's flood category so the symbols agree",
+    points[0].categoryId === "floods");
+  check("the report link and the window's end survive",
+    points[0].link.includes("102938") && points[0].date === "2026-08-26T01:00:00");
+  check("a feature with no coordinates is dropped, not a crash",
+    gdacsPoints({ features: [{ geometry: {} }] }, { id: "x" }).length === 0);
+  check("the url asks SEARCH for FL with all alert levels",
+    /SEARCH\?fromDate=\d{4}-\d{2}-\d{2}&toDate=\d{4}-\d{2}-\d{2}&alertlevel=Green;Orange;Red&eventlist=FL$/.test(gdacsUrl()));
+}

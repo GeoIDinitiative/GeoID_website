@@ -12,8 +12,7 @@
 
 import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity, magnitudeColour,
-  activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources,
-} from "./event-sources.js?v=20260827-2d7acfd";
+  activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, gdacsPoints } from "./event-sources.js?v=20260827-c45a74e";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -338,9 +337,31 @@ async function fetchQuakes() {
   };
 }
 
+/** The GDACS flood rows that are on, fetched and converted. */
+async function fetchGdacs() {
+  const wanted = SOURCES.filter((src) => src.kind === "gdacs" && enabled.has(src.id));
+  const answers = await Promise.all(wanted.map(async (src) => {
+    try {
+      const url = typeof src.url === "function" ? src.url() : src.url;
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return gdacsPoints(await response.json(), src);
+    } catch (error) {
+      return null;
+    }
+  }));
+  return {
+    points: answers.filter(Boolean).flat(),
+    asked: wanted.length,
+    reached: answers.filter(Boolean).length,
+  };
+}
+
 async function fetchEvents() {
   status("Fetching…");
   const quakes = await fetchQuakes();
+  const gdacs = await fetchGdacs();
+  missingFeeds = gdacs.asked - gdacs.reached;
   /**
    * The seismicity feeds overlap ON PURPOSE.
    *
@@ -354,8 +375,8 @@ async function fetchEvents() {
   quakes.points.forEach((q) => seismic.set(q.id, q));
 
   if (!feedUrls().length) {
-    events = [...seismic.values()];
-    missingFeeds = quakes.asked - quakes.reached;
+    events = [...gdacs.points, ...seismic.values()];
+    missingFeeds += quakes.asked - quakes.reached;
     reportCounts(quakes);
     renderPanel();
     renderMarkers();
@@ -384,7 +405,7 @@ async function fetchEvents() {
       if (event?.id) merged.set(event.id, event);
     });
     const data = { events: [...merged.values()] };
-    missingFeeds = urls.length - reached;
+    missingFeeds += urls.length - reached;
     events = (data.events || []).map((event) => {
       const point = latestPoint(event);
       const category = event.categories?.[0] || {};
@@ -397,7 +418,7 @@ async function fetchEvents() {
         ...point,
       } : null;
     }).filter(Boolean);
-    events = [...events, ...seismic.values()];
+    events = [...events, ...gdacs.points, ...seismic.values()];
     missingFeeds += quakes.asked - quakes.reached;
     reportCounts(quakes);
   } catch (error) {
@@ -1706,8 +1727,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260827-2d7acfd"),
-    import("./research/dsp.js?v=20260827-2d7acfd"),
+    import("./seismogram-plot.js?v=20260827-c45a74e"),
+    import("./research/dsp.js?v=20260827-c45a74e"),
   ]);
   if (stale()) return;
 
