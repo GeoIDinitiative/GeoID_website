@@ -1463,6 +1463,52 @@ delta comparisons use wrapped lon distance) and hand-drawn polygons are
 left alone — no corners a rectangle rule may move. The zoom pill's ends
 are − and + now, not arrows.
 
+### A drawn polygon is an OUTLINE, and its annotation survives the save
+
+A saved shape came back as an opaque fill over the ground it was drawn
+around — which is the opposite of what an extent is for. A geological unit
+wants a fill because the fill IS the statement; a study area wants an edge.
+`renderFeatureCollection` takes `outlineOnly`, which sends the rings to the
+lifted depth-tested LINE buffer (with their colour) instead of to
+`fillTriangles` and the coplanar `seal` — the seal has nothing to seal
+against with no fill beneath it. `captureDrawn` passes it; ordinary imports
+are unchanged.
+
+**The mode rides with the LAYER, not with a paint call.** `repaint` is called
+by every symbology path — the default paint on load, the dialog's Apply, a
+catalogue palette — and none of them knows or should know whether this layer
+is filled. `setFillMode`/`getFillMode` hold it on the layer and re-run the
+LAST paint, so the fill mode and the palette are independent: verified that
+applying an orange changed the colour and left the layer an outline.
+
+The dialog gained two rows, both applying immediately (they are independent
+of the palette, so there is nothing to hold back for): **Polygons**
+(outline/solid, offered only where `setFillMode` exists — a layer with no
+polygons would get a control that does nothing) and **Annotation** (on/off,
+offered only for `ext === "drawn"`).
+
+**Its Style row now opens on One colour.** A drawn shape is ONE feature, so
+every column holds exactly one value and every one is disabled by the
+two-distinct-values rule — "By attribute" opened a picker in which nothing
+could be picked. `classable` is that test hoisted out of the option list.
+
+**`gis/area-labels.js` keeps the writing on a saved shape**, following it as
+the planet turns, scoped to `ext === "drawn"` on purpose: a geological map is
+thousands of polygons and an area written in each is a wall of type over the
+map it describes. It projects through **`window.GeoIDProjectLatLon`**, which
+the viewer exposes from the same block that places the drag handles — a
+module deriving its own screen position would be a second copy of an
+arithmetic this file already records getting wrong. A plain global rather
+than a viewer-seam property because the seam literal is built BEFORE that
+block on the planet viewers and AFTER it on Earth; assigning into it would
+work on five worlds and miss the sixth. That seam sits ABOVE the three
+listener registrations, which are the porter's end anchor — put it below and
+it never reaches the planets.
+
+`vector-fill-mode.test.mjs` asserts on the GEOMETRY (a fill is a Mesh, an
+outline is LineSegments) rather than on the option being accepted, because a
+silently-ignored option draws exactly as before with no error anywhere.
+
 ### The handles were drawn in the WRONG FRAME
 
 `measureGroup` carries the globe's spin — `rotation.y = _spinDelta`, set every

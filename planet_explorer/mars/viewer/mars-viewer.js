@@ -17669,6 +17669,33 @@ uniform float uViewportWidth;`,
         }
       });
 
+      /**
+       * Where a coordinate is ON SCREEN — the seam for writing on the map.
+       *
+       * `gis/area-labels.js` keeps a saved shape's annotation over the shape
+       * itself, which needs the same projection the handles use and, more to
+       * the point, the same FRAME: through `measureGroup`, which carries the
+       * globe's spin. A module doing its own arithmetic would be a second
+       * derivation of that, and this file has a fault on record from exactly
+       * that.
+       *
+       * A plain global rather than a property of the viewer seam, because the
+       * seam literal is built BEFORE this block on the planet viewers and
+       * AFTER it on Earth — assigning into it would work on five worlds and
+       * silently miss the sixth. Same idiom as `window.GeoIDDrawShape`.
+       *
+       * Note for the porter: this must stay ABOVE the three listener
+       * registrations below, which are the end anchor of the copied block.
+       */
+      window.GeoIDProjectLatLon = (lat, lon) => {
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+        try {
+          return studyRectScreenPoint(lat, lon, getActiveMeasureContext());
+        } catch (error) {
+          return null;
+        }
+      };
+
       renderer.domElement.addEventListener("pointerdown", drawPointerDown, true);
       window.addEventListener("pointermove", drawPointerMove, true);
       window.addEventListener("pointerup", drawPointerUp, true);

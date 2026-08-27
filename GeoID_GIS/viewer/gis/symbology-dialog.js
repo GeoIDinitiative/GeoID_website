@@ -24,11 +24,11 @@
  * polygon comes out white with a perfectly correct legend beside it.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260827-c752b05";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260827-80c964b";
 import {
   RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP, METHODS,
   categoricalSymbology, buildSymbology, colourOf, legendInfoFrom, fmtBound,
-} from "./symbology.js?v=20260827-c752b05";
+} from "./symbology.js?v=20260827-80c964b";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -804,6 +804,40 @@ function buildVectorForm(layer, body, note, hooks) {
     });
     fillRow.append(fillLabel, fillSelect);
     body.appendChild(fillRow);
+  }
+
+  /**
+   * The writing inside the shape, on or off.
+   *
+   * Only for shapes somebody DREW. `gis/area-labels.js` annotates those and
+   * nothing else, for the reason that file gives: a geological map is
+   * thousands of polygons and an area written in each one is a wall of type
+   * over the map it describes. Offering the switch on a layer that has no
+   * label would be a control that does nothing — the same test the fill row
+   * above makes.
+   *
+   * Applies immediately, like the fill mode: the label loop reads the flag
+   * every frame, so there is nothing to hold back for and seeing it happen
+   * is the point.
+   */
+  if (layer.ext === "drawn") {
+    const textRow = document.createElement("div");
+    textRow.className = "sym-row";
+    const textLabel = document.createElement("label");
+    textLabel.textContent = "Annotation";
+    const textSelect = document.createElement("select");
+    [["on", "Name and area"], ["off", "Hidden"]].forEach(([value, text]) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = text;
+      if ((layer.showAreaLabel !== false) === (value === "on")) option.selected = true;
+      textSelect.appendChild(option);
+    });
+    textSelect.addEventListener("change", () => {
+      layer.showAreaLabel = textSelect.value === "on";
+    });
+    textRow.append(textLabel, textSelect);
+    body.appendChild(textRow);
   }
 
   const fieldRow = document.createElement("div");
