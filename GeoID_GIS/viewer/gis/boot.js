@@ -1,4 +1,4 @@
-import { ready } from "./shell.js?v=20260827-e09f543";
+import { ready } from "./shell.js?v=20260827-63cd180";
 
 /**
  * The GIS layer's entry point on a planet page.
@@ -24,6 +24,10 @@ const MODULES = [
   "./import-manager.js",
   "./analysis-panel.js",
   "./draw-panel.js",
+  // The gesture bar over the canvas. Earth lists it as a script tag; the
+  // rocky worlds carry the same press-drag apparatus now (ported by
+  // services/port-draw-tools.py), so they need the HUD that names it.
+  "./draw-hud.js",
   "./add-data.js",
   "./section-activity.js",
   "./pipeline-sync.js",
@@ -65,7 +69,7 @@ const MODULES = [
   "./atlas-assistant.js",
 ];
 
-const VERSION = "?v=20260827-e09f543";
+const VERSION = "?v=20260827-63cd180";
 
 async function boot() {
   const shell = await ready;

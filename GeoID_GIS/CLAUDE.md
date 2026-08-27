@@ -1419,7 +1419,55 @@ delta comparisons use wrapped lon distance) and hand-drawn polygons are
 left alone — no corners a rectangle rule may move. The zoom pill's ends
 are − and + now, not arrows.
 
-## The pipeline follows the pen: drawing syncs GIS, Model and Research live
+### The drawing tools are on the rocky worlds too, by GENERATOR
+
+The press-drag box, the eight handles, the size chips, the hover cursors
+and the Escape cancel now run on Mars, the Moon, Mercury, Venus and Pluto.
+There is no module they could share — every planet viewer is a
+self-contained copy, and `stamp.py` deliberately does not sweep
+`planet_explorer/**/*.js` — so the choice was five hand-maintained copies
+or one generator. **`services/port-draw-tools.py` is the generator**: it
+lifts the block out of earth-viewer.js between two fixed anchors, rewrites
+the three things that are per-body, and writes it between markers so
+re-running REPLACES rather than duplicates. `--check` exits non-zero when a
+copy is stale. **Edit Earth's copy and re-run it; never edit a generated
+block** — that is the lesson the polygon-area formula cost, the same
+arithmetic written out in ten places and corrected in one.
+
+The three per-body rewrites, each a real bug if skipped:
+
+- **Kilometres.** 111.32 is Earth's and nobody else's, so it comes off each
+  viewer's own mean-radius constant. Measured on Mars: the same box reads
+  697 x 1410 km with Mars's radius and would have claimed 1312 x 2654 with
+  Earth's — the exact shape of the `MARS_MEAN_RADIUS_KM = 58232` fault, and
+  invisible without a number to check it against.
+- **The scene group.** The handles project through it; Mercury, Venus and
+  Pluto each have their own, and the wrong one puts every handle off the
+  canvas. Verified on Mercury: 8 of 8 handles inside the canvas box.
+- **`lonDelta`.** These files already have a `const lonDelta`, and a
+  hoisted function declaration beside it is a SyntaxError — one that would
+  have bitten only the worlds whose file happens to have both.
+
+**A gas giant gets no HUD, and the test is the SEAM not the button.** All
+four carry `tool-rail-area` in their markup but have no
+`activateStudyArea` behind it, so keying the HUD on the button put Box,
+Circle, Polygon and Done on Jupiter with all four inert — "wire it or
+leave it disabled". `draw-hud.js` gates on
+`window.GeoIDViewer.setStudyAreaPolygon` instead, with a bounded retry
+(the viewer boots async, so a missing seam early is usually just early;
+120 tries then stop, rather than polling Jupiter for the life of the
+page). Verified: Jupiter builds no HUD and keeps its zoom.
+
+Two seams the port had to add to all five: `clearStudyArea` (the HUD's
+Done and Cancel call it) and the `geoid-study-area-edited` dispatch inside
+`setStudyAreaPolygon`, which is what `gis/pipeline-sync.js` listens for —
+without it the planets drew shapes the project never heard about.
+
+`draw-port.test.mjs` asserts each generated block is byte-for-byte what
+the porter would write today, that no Earth kilometres survive in any of
+them, and that the four gas giants are untouched.
+
+**The pipeline follows the pen: drawing syncs GIS, Model and Research live**
 
 Three seams keep what the user draws and what the pipeline knows in step,
 with no button between them:

@@ -28,6 +28,7 @@ const HINTS = {
 
 let shape = "box";
 let visible = false;
+let initTries = 0;
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -197,9 +198,29 @@ function refresh() {
   }
 }
 
+/**
+ * A world that cannot hold a study area gets no HUD.
+ *
+ * The four gas giants carry the Draw button in their markup but have no
+ * `activateStudyArea` behind it — there is no surface to draw on, which is
+ * a fact about the bodies rather than a gap. Keying on the BUTTON would
+ * put Box, Circle, Polygon and Done on Jupiter, all four inert. The seam
+ * is the honest test, and it is the same one every drawing path here goes
+ * through.
+ */
+function canDraw() {
+  return typeof window.GeoIDViewer?.setStudyAreaPolygon === "function";
+}
+
 function init() {
-  if (!byId("tool-rail-area")) {
-    window.setTimeout(init, 500);
+  if (!byId("tool-rail-area") || !canDraw()) {
+    // The viewer boots async, so a missing seam this early is usually just
+    // early. Keep looking, and stop after a minute rather than polling a
+    // gas giant for the life of the page.
+    if (initTries < 120) {
+      initTries += 1;
+      window.setTimeout(init, 500);
+    }
     return;
   }
   build();
