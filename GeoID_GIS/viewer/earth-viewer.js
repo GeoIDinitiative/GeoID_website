@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260827-2a7b4b9";
+  from "./gis/geo-utils.js?v=20260827-ecca897";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -1288,18 +1288,59 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
         }
       }
     }
+    /**
+     * The user's chosen display zone, as minutes east of UTC — Settings ▸
+     * Clock timezone. DISPLAY only: the model, the scrubber field and every
+     * fetch date stay UTC, because a request stamped in somebody's summer
+     * time is the ambiguity time zones exist to cause. Read per tick rather
+     * than cached, so a change in Settings shows on the next quarter-second.
+     */
+    const CLOCK_TZ_KEY = "geoid-gis:utc-offset-min";
+    function clockOffsetMin() {
+      try {
+        const v = Number(window.localStorage.getItem(CLOCK_TZ_KEY));
+        return Number.isFinite(v) ? v : 0;
+      } catch (error) { return 0; }
+    }
+    function clockOffsetLabel(min = clockOffsetMin()) {
+      if (!min) return "UTC";
+      const sign = min < 0 ? "−" : "+";
+      const abs = Math.abs(min);
+      const h = Math.floor(abs / 60);
+      const m = abs % 60;
+      return `UTC${sign}${h}${m ? `:${String(m).padStart(2, "0")}` : ""}`;
+    }
+    const scrubUtcEl = timeScrubBtn?.querySelector(".scrub-utc");
     function updateCornerClock() {
       if (!scrubDateEl || !scrubClockCanvas) return;
-      const d = new Date(getSimulatedUtcMs());
+      const offset = clockOffsetMin();
+      const d = new Date(getSimulatedUtcMs() + offset * 60000);
       const pad = (n) => String(n).padStart(2, "0");
       scrubDateEl.textContent = `${pad(d.getUTCDate())}/${pad(d.getUTCMonth() + 1)}/`
         + `${pad(d.getUTCFullYear() % 100)}`;
       drawSevenSegClock(`${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`);
+      if (scrubUtcEl) scrubUtcEl.textContent = clockOffsetLabel(offset);
     }
     if (scrubClockCanvas) {
       window.setInterval(updateCornerClock, 250);
       updateCornerClock();
     }
+    // The Settings select: synced from storage when it appears (the panel
+    // renders on its own schedule), persisted on change via a document-level
+    // listener so this code does not care where the panel lives.
+    (function wireClockTz() {
+      const select = document.getElementById("gis-clock-tz");
+      if (!select) { window.setTimeout(wireClockTz, 700); return; }
+      select.value = String(clockOffsetMin());
+      if (select.value === "") select.value = "0";
+    })();
+    document.addEventListener("change", (event) => {
+      if (event.target?.id !== "gis-clock-tz") return;
+      try { window.localStorage.setItem(CLOCK_TZ_KEY, String(Number(event.target.value) || 0)); } catch (error) { /* ignore */ }
+      lastClockBucket = null;
+      updateCornerClock();
+      updateGmtClock();
+    });
 
     document.getElementById("time-scrub-go")?.addEventListener("click", () => {
       // The field is UTC — the clock beside it reads GMT, and a scrub target
@@ -1341,13 +1382,15 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
       if (bucket === lastClockBucket) return;
       lastClockBucket = bucket;
       const snappedUtcMs = bucket * CLOCK_TICK_INTERVAL_MS;
-      const simulatedDate = new Date(snappedUtcMs);
+      // The same display offset the corner clock wears; the readout names
+      // the zone it is showing, so "(GMT)" became the label of the choice.
+      const simulatedDate = new Date(snappedUtcMs + clockOffsetMin() * 60000);
       const dd = String(simulatedDate.getUTCDate()).padStart(2, "0");
       const mo = String(simulatedDate.getUTCMonth() + 1).padStart(2, "0");
       const yy = String(simulatedDate.getUTCFullYear() % 100).padStart(2, "0");
       const hh = String(simulatedDate.getUTCHours()).padStart(2, "0");
       const mm = String(simulatedDate.getUTCMinutes()).padStart(2, "0");
-      gmtClock.textContent = `${dd}/${mo}/${yy} ${hh}:${mm} (GMT)`;
+      gmtClock.textContent = `${dd}/${mo}/${yy} ${hh}:${mm} (${clockOffsetLabel()})`;
     }
     function pauseSpin() {
       if (!spinPaused) {
@@ -17961,7 +18004,30 @@ uniform float uViewportWidth;`,
         marker.frustumCulled = false;
         targetGroup.add(marker);
 
-        // Point label ("A", "B", "C"…)
+        /**
+         * Point letters ("A", "B", "C"…) are PROFILE furniture only. A
+         * profile is read against its chart, whose axis runs A→B, so the
+         * letters are the join between picture and plot. On a drawn polygon
+         * they were noise over the shape's own annotation, and on distance
+         * and route the segment readouts already say which end is which.
+         */
+        if (measureMode !== "profile") {
+          measureVisuals.push({
+            contextKind: context.kind,
+            marker,
+            labelSprite: null,
+            markerAnchor: surfaceAnchor.clone(),
+            surfaceNormal: surfaceNormal.clone(),
+            markerEmbedFactor,
+            labelDirection: surfaceNormal.clone(),
+            baseMarkerRadius,
+            baseSpriteScale: 0,
+            baseLabelOffset: 0,
+            targetMarkerPx: isMoon ? 11 : inMoonViewer ? 10 : (isCtxMosaicBasemap ? 6 : 8),
+            targetLabelPx: 0,
+          });
+          return;
+        }
         const letter = String.fromCharCode(65 + (index || 0));
         const labelCanvas = document.createElement("canvas");
         const fontSize = isMoon ? 14 : inMoonViewer ? 10 : 26;
@@ -18017,7 +18083,8 @@ uniform float uViewportWidth;`,
         const fovScale = viewportHeight / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) * 0.5));
         const markerWorldPosition = new THREE.Vector3();
         for (const visual of measureVisuals) {
-          if (!visual.marker || !visual.labelSprite) {
+          // A letterless point (every mode but profile) still scales its dot.
+          if (!visual.marker) {
             continue;
           }
           visual.marker.getWorldPosition(markerWorldPosition);
@@ -18030,6 +18097,9 @@ uniform float uViewportWidth;`,
             visual.surfaceNormal,
             -(visual.baseMarkerRadius * markerScale * (visual.markerEmbedFactor || 0)),
           );
+          if (!visual.labelSprite) {
+            continue;
+          }
           visual.labelSprite.scale.set(
             spriteScale,
             spriteScale,

@@ -1657,6 +1657,23 @@ its metadata.
 
 ## Drawing: press-drag boxes, visible handles, one gesture grammar
 
+**Point letters are PROFILE furniture; the clocks can wear a zone.** The
+A/B/C letters `addMeasureMarker` drew on every measure point now draw only
+in profile mode — a profile is read against its chart whose axis runs
+A→B, while a polygon's own annotation and the distance/route readouts
+already say everything (verified: 4 dots 0 letters on a drawn box, 2 dots
+2 letters on a profile). The letterless visuals push `labelSprite: null`
+and the per-frame scaler now scales the dot before bailing on the label —
+the old guard skipped the WHOLE visual. This is Earth-only code (outside
+the porter's block; planets keep their own copies). And Settings ▸ Clock
+timezone (`#gis-clock-tz`, stored as minutes in
+`geoid-gis:utc-offset-min`) offsets BOTH clock displays — the
+seven-segment corner clock and `#gmt-clock`, each naming the zone it
+shows ("UTC+1") — while the model, the scrubber field and every fetch
+date stay UTC on purpose: a request stamped in somebody's summer time is
+the ambiguity zones exist to cause. The offset is read per tick, so a
+Settings change shows within a quarter second, no reload.
+
 With the Draw tool armed, PRESS on the globe and DRAG — a box grows live
 under the pointer with its size in km beside the cursor; release and it
 stands with eight visible handles (four corner squares that resize, four
