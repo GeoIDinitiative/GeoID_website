@@ -56,7 +56,7 @@ ok("seismicity holds the three USGS windows",
 // the ground, so they are vector layers like a coastline is, and they live in
 // global-data.js under Tectonics with every other one.
 check("nothing here is a standing feature rather than an event",
-  SOURCES.filter((s) => !["eonet", "usgs"].includes(s.kind)).length, 0);
+  SOURCES.filter((s) => !["eonet", "usgs", "gdacs"].includes(s.kind)).length, 0);
 check("faults are not offered as a feed", sourceById("faults"), null);
 check("nor are plate boundaries", sourceById("plates"), null);
 check("every source names a category to colour and group by",

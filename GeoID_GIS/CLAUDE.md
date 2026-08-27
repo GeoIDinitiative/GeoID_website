@@ -1693,6 +1693,16 @@ nearly always empty (EONET curates by hand, the USGS publishes within the
 minute) and where it did carry one it would double a USGS event under a
 different id.
 
+**GDACS floods** (kind "gdacs") joined the Storms and water group:
+point-located flood events from the EC JRC with Green/Orange/Red alert
+levels riding in the title — measured at 63 events for one month against
+EONET's curated handful. SEARCH is the GDACS endpoint that answers with
+parameters (MAP with arguments returns 400, measured), CORS `*`. It
+overlaps the EONET floods row the way the seismicity windows overlap:
+two registries, one hazard, both worth having. `gdacsPoints` is pure and
+pinned in event-sources.test.mjs; the registry test's "kinds that are
+events" list must learn each new kind or it fails the suite.
+
 **Everything in this list HAPPENED**, with a time and a place. Faults and plate
 boundaries were briefly rows in it, on the reasoning that seismicity is read
 against them — true, and not a reason to file them here: a fault is a permanent
