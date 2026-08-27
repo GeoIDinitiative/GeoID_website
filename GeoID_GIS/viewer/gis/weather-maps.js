@@ -24,9 +24,9 @@
  * registry is the seam, and nothing else here would change.
  */
 
-import { drape } from "./gee.js?v=20260827-bfdcca0";
-import { currentBodyId } from "./bodies.js?v=20260827-bfdcca0";
-import { rectangleVertices } from "./draw-area.js?v=20260827-bfdcca0";
+import { drape } from "./gee.js?v=20260827-1b4ae4e";
+import { currentBodyId } from "./bodies.js?v=20260827-1b4ae4e";
+import { rectangleVertices } from "./draw-area.js?v=20260827-1b4ae4e";
 
 const byId = (id) => document.getElementById(id);
 
@@ -302,11 +302,13 @@ async function gridCanvas(bounds, source) {
     }
   }
   ctx.putImageData(image, 0, 0);
+  const bandValues = values.map((v) => (Number.isFinite(v) ? v : NaN));
   const time = source.hourlySum
     ? cells.find((c) => c?.hourly?.time?.length)?.hourly?.time?.at(-1)
     : cells.find((c) => c?.current?.time)?.current?.time;
   return {
     canvas: out, min, max,
+    values: bandValues,
     flatZero: min === 0 && max === 0,
     time: time ? new Date(time) : new Date(),
     palette: ramp.map((c) => c.map((v) => v.toString(16).padStart(2, "0")).join("")),
@@ -381,6 +383,43 @@ async function fetchMap() {
       layer.info = {
         source: source.citation,
         summary: `${GRID}×${GRID} sample grid over the box — coarse by construction.`,
+      };
+      /**
+       * The SYMBOLOGY contract, so the layer box's drawer offers the editor:
+       * `raster.band` is what the dialog classes, and `repaint` re-inks the
+       * SAME canvas the drape is showing — the texture's image is pointed at
+       * it once and re-uploaded per repaint, so recolouring never rebuilds
+       * the mesh. fn(value) → [r,g,b] is the raster contract; null leaves
+       * the cell transparent.
+       */
+      const values = result.values;
+      const canvas = result.canvas;
+      layer.raster = { band: values, noData: null };
+      layer.repaint = (colourOf) => {
+        const ctx = canvas.getContext("2d");
+        const image = ctx.createImageData(GRID, GRID);
+        for (let j = 0; j < GRID; j += 1) {
+          for (let i = 0; i < GRID; i += 1) {
+            const value = values[j * GRID + i];
+            if (!Number.isFinite(value)) continue;
+            const colour = colourOf(value);
+            if (!colour) continue;
+            const at = ((GRID - 1 - j) * GRID + i) * 4;
+            [image.data[at], image.data[at + 1], image.data[at + 2]] = colour;
+            image.data[at + 3] = 195;
+          }
+        }
+        ctx.putImageData(image, 0, 0);
+        let painted = false;
+        object3D.traverse((node) => {
+          const material = node.material;
+          if (material?.map) {
+            material.map.image = canvas;
+            material.map.needsUpdate = true;
+            painted = true;
+          }
+        });
+        return painted;
       };
     } else {
       layer.info = { source: source.citation, summary: "Most recent composite frame." };
