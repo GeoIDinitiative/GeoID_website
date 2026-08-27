@@ -24,9 +24,9 @@
  * registry is the seam, and nothing else here would change.
  */
 
-import { drape } from "./gee.js?v=20260827-1668938";
-import { currentBodyId } from "./bodies.js?v=20260827-1668938";
-import { rectangleVertices } from "./draw-area.js?v=20260827-1668938";
+import { drape } from "./gee.js?v=20260827-1576c2c";
+import { currentBodyId } from "./bodies.js?v=20260827-1576c2c";
+import { rectangleVertices } from "./draw-area.js?v=20260827-1576c2c";
 
 const byId = (id) => document.getElementById(id);
 
@@ -88,7 +88,9 @@ function chosenBounds() {
   const mode = byId("weather-extent")?.value || "box";
   if (mode === "box") {
     // A box already on the globe — dragged, resized, or just drawn — is the
-    // truth; the inputs are how one is created or replaced.
+    // truth; the inputs are how one is created or replaced. With no live
+    // overlay, a previously CAPTURED extent layer serves: that is the reuse
+    // the capture exists for.
     const drawn = window.GeoIDViewer?.getExtractionGeometry?.();
     if (drawn?.vertices?.length && !chosenBounds.forceRebuild) {
       const lats = drawn.vertices.map((v) => v.lat);
@@ -97,6 +99,10 @@ function chosenBounds() {
         west: Math.min(...lons), south: Math.min(...lats),
         east: Math.max(...lons), north: Math.max(...lats),
       };
+    }
+    if (!chosenBounds.forceRebuild) {
+      const kept = capturedExtentBounds();
+      if (kept) return kept;
     }
     chosenBounds.forceRebuild = false;
     /**
@@ -321,6 +327,41 @@ async function gridCanvas(bounds, source) {
   };
 }
 
+/** The newest captured fetch-extent layer's bounds, signed, or null. */
+function capturedExtentBounds() {
+  const layers = (window.GeoIDImportManager?.getLayers?.() || [])
+    .filter((layer) => layer.weatherExtent && layer.visible !== false);
+  const layer = layers[layers.length - 1];
+  const ring = layer?.collection?.features?.[0]?.geometry?.coordinates?.[0];
+  if (!ring?.length) return null;
+  const lons = ring.map((c) => c[0]);
+  const lats = ring.map((c) => c[1]);
+  return {
+    west: Math.min(...lons), south: Math.min(...lats),
+    east: Math.max(...lons), north: Math.max(...lats),
+  };
+}
+
+/**
+ * The drawn extent becomes a LAYER the moment data is pulled over it: a row
+ * in Layer Visibility, relief-hugging (the vector renderer's lines follow
+ * the ground, where the drawing overlay floats at its display lift), saved
+ * to the open project, and reusable — the next fetch finds it when no fresh
+ * overlay is drawn. `captureDrawn` is idempotent by shape, so refetching the
+ * same box never stacks a duplicate. The floating overlay then stands down.
+ */
+function persistExtent(bounds) {
+  const capture = window.GeoIDDrawnLayers?.captureDrawn?.({
+    name: `Fetch extent ${(bounds.east - bounds.west).toFixed(1)}×`
+      + `${(bounds.north - bounds.south).toFixed(1)}°`,
+  });
+  if (capture?.ok && capture.layer) {
+    capture.layer.weatherExtent = true;
+    window.GeoIDViewer?.clearStudyArea?.();
+    hideAreaCard();
+  }
+}
+
 /**
  * The study-area STATS card is furniture from the analysis flow; while the
  * weather card owns the box it covers the very corner the fetch reports
@@ -364,6 +405,7 @@ async function fetchMap() {
     const result = source.kind === "radar"
       ? await radarCanvas(bounds)
       : await gridCanvas(bounds, source);
+    persistExtent(bounds);
     if (result.flatZero) {
       say(`${source.label}: zero everywhere in this box — nothing to map. `
         + "(The fetch worked; the field is genuinely flat here.)");

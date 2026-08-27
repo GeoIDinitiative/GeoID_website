@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260827-1668938";
+  from "./gis/geo-utils.js?v=20260827-1576c2c";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -20249,6 +20249,12 @@ uniform float uViewportWidth;`,
           activateStudyArea(vertices);
           syncGisPanel();
           return measurePoints.length >= 3;
+        },
+        // The drawn overlay, taken down — used once a fetch has CAPTURED the
+        // shape as a real layer, so the floating outline does not double the
+        // relief-hugging one beneath it.
+        clearStudyArea() {
+          resetActiveMeasurement();
         },
         /**
          * What the camera is over, so a box can be centred on the view.
