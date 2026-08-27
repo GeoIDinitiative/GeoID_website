@@ -1062,13 +1062,15 @@ Three traps, all found by measuring:
 
 ## The nav bar is the subject taxonomy, two tiers deep
 
-The tab column reads: Explorer, then **Live** (the Events group renamed),
+The tab column reads: **Workspace** first (Vector & Shapefiles renamed —
+the working set opens the column), then **Live** (the Events group renamed),
+then Explorer,
 **Hazards** (Geohazards renamed, the myGeoID mode bar nested at its top),
 **Earth System Observation** (Atmosphere renamed, with Hydrology AND the
 whole Satellites section nested as level-2 sub-tabs), **Geology**,
 **Basemaps** (Basemap and Relief renamed — the imagery, GEBCO and the GEE
-DEM share), **My Data** (Vector & Shapefiles renamed — imports and drawn
-shapes only: the homeless global catalogue of reference shapes, graticule,
+DEM share), then Basemaps, Geology, Earth System Observation, Hazards (Workspace
+holds imports and drawn shapes only: the homeless global catalogue of reference shapes, graticule,
 borders, countries and the submarine cables, mounts in Basemaps now via
 the `#polygon-catalogue` host moved into Earth's markup, which also stops
 Earth reference shapes being offered on Mars), then Meshes and Metadata.

@@ -1,6 +1,6 @@
-import { CRS_OPTIONS, transform } from "./projection.js?v=20260827-a703d7f";
-import { currentBody } from "./bodies.js?v=20260827-a703d7f";
-import { rowsToCsv, downloadText } from "./extraction.js?v=20260827-a703d7f";
+import { CRS_OPTIONS, transform } from "./projection.js?v=20260827-abab75d";
+import { currentBody } from "./bodies.js?v=20260827-abab75d";
+import { rowsToCsv, downloadText } from "./extraction.js?v=20260827-abab75d";
 
 // GIS mode presents a toolbox rather than a control centre: the whole GeoID
 // control set folds into one group, and the tool groups stack beneath it.
@@ -97,26 +97,22 @@ const MOVES = [
  * straight back on the next `orderTabs`, which runs on every mode change.
  */
 const TAB_ORDER = [
-  // Explorer leads. It holds the controls for the thing on the screen -- the
-  // globe, where it is pointed, what is drawn on it. The myGeoID mode bar is
-  // no longer above it: it nests inside Hazards (see MOVES), where the
-  // product it arms is filed.
-  "geoid-controls-group",
   /**
-   * Then the subject taxonomy: Live, Hazards, Earth System Observation,
-   * Geology, Basemaps, My Data — what is happening, what could happen, how
-   * the planet works and what watches it, what the ground is, what dresses
-   * the sphere, what you brought. Hydrology, Satellites and the myGeoID bar
+   * Workspace leads: what you brought, drew and fetched is the working set,
+   * so it opens the column. Then Live (what is happening), Explorer (the
+   * globe itself), Basemaps (what dresses the sphere), Geology, Earth
+   * System Observation, Hazards. Hydrology, Satellites and the myGeoID bar
    * are NOT entries: they nest inside Earth System Observation and Hazards
    * (see MOVES), except on a body where the parent is dropped —
    * `tabsForBody` re-lists them there.
    */
-  "gis-group-events",
-  "modelled-data-section",
-  "gis-group-modelled",
-  "geology-section",
-  "basemap-relief-section",
   "gis-group-polygons",
+  "gis-group-events",
+  "geoid-controls-group",
+  "basemap-relief-section",
+  "geology-section",
+  "gis-group-modelled",
+  "modelled-data-section",
   // Meshes are a Model concern rather than a GIS layer, so they sit after the
   // data tabs and before the outputs. Built by add-data.js, not by the shared
   // markup -- see that module for why.
