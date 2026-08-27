@@ -1067,8 +1067,11 @@ The tab column reads: Explorer, then **Live** (the Events group renamed),
 **Earth System Observation** (Atmosphere renamed, with Hydrology AND the
 whole Satellites section nested as level-2 sub-tabs), **Geology**,
 **Basemaps** (Basemap and Relief renamed — the imagery, GEBCO and the GEE
-DEM share), **My Data** (Vector & Shapefiles renamed), then Meshes and
-Metadata. The
+DEM share), **My Data** (Vector & Shapefiles renamed — imports and drawn
+shapes only: the homeless global catalogue of reference shapes, graticule,
+borders, countries and the submarine cables, mounts in Basemaps now via
+the `#polygon-catalogue` host moved into Earth's markup, which also stops
+Earth reference shapes being offered on Mars), then Meshes and Metadata. The
 rule that filed it: Live holds what HAPPENED (timestamped feeds), Hazards
 what COULD, Geology what the ground IS — one dataset, one home. Metadata
 stays a single tab on purpose: provenance is a property of a layer, not a

@@ -16,8 +16,8 @@
 
 import {
   grouped as globalGrouped, layerForDataset,
-} from "./global-data.js?v=20260827-343e2f9";
-import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20260827-343e2f9";
+} from "./global-data.js?v=20260827-b8725c5";
+import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20260827-b8725c5";
 
 const HOME_SECTION = {
   hydrology: "sea-level-section",
@@ -56,7 +56,9 @@ function activeSections() {
     const layer = layerForDataset(entry.id);
     if (!layer) return;
     claimed.add(layer.id);
-    if (isOn(layer)) active.add(HOME_SECTION[entry.home] || "gis-group-polygons");
+    // The homeless catalogue (graticule, borders, countries, cables) is
+    // offered from the Basemaps tab now, so its ticks light that header.
+    if (isOn(layer)) active.add(HOME_SECTION[entry.home] || "basemap-relief-section");
   }));
   MAP_LAYERS.forEach((entry) => {
     const layer = layerForMap(entry.id);
