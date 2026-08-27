@@ -26,7 +26,7 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260827-fce9819";
+import { runConnector } from "./research/connectors.js?v=20260827-e44795a";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -260,20 +260,26 @@ export const DATASETS = [
     id: "conn-submarine-cables",
     featureNoun: "Submarine cable",
     group: "Live services",
-    label: "Submarine cables — live (OpenStreetMap)",
+    label: "Submarine cables — live (Greg's Cable Map)",
     connector: "submarine-cables",
-    name: "Submarine cables (OpenStreetMap).geojson",
-    // The cost of the licence-clean source, said where it will be read rather
-    // than discovered: OSM maps 199 named systems against TeleGeography's
-    // roughly 600. submarinecablemap.com is the fuller map and cannot be used
-    // here — it sends no CORS header, so a browser cannot fetch it at all, and
-    // TeleGeography licenses the geocoded data annually (the map itself is
-    // NonCommercial).
-    summary: "The world's named submarine communication cables from the "
-      + "Overpass API — 199 systems, labelled and clickable. Global: a cable "
-      + "is not a thing a study area can usefully clip.",
+    name: "Submarine cables (Greg's Cable Map).geojson",
+    summary: "285 of the world's submarine cables with capacity, length and "
+      + "service year — labelled and clickable. Pair it with the landing "
+      + "stations below for the ends.",
+    colourBy: "status",
+    licence: "Greg's Cable Map — GNU GPL",
+  },
+  {
+    id: "conn-cable-landings",
+    featureNoun: "Cable landing station",
+    group: "Live services",
+    label: "Cable landing stations — live (Greg's Cable Map)",
+    connector: "cable-landings",
+    name: "Cable landing stations (Greg's Cable Map).geojson",
+    summary: "737 points where submarine cables come ashore, with country and "
+      + "owner. The dots to the cables' paths.",
     colourBy: "kind",
-    licence: "© OpenStreetMap contributors (ODbL)",
+    licence: "Greg's Cable Map — GNU GPL",
   },
   {
     id: "conn-bgs-bedrock",

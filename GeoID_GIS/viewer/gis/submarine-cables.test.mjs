@@ -1,18 +1,19 @@
 /**
- * Submarine cables: the grouping, the ranking, and where a line's name goes.
+ * Submarine cables and their landing stations, and where a line's name goes.
  *
- * Two things here fail silently. Ungrouped, a system mapped as several ways
- * writes its name on the map once per way and counts one cable as three —
- * measured on the real feed, 656 ways for 199 names, MAYA-1 alone appearing
- * three times. And a LINE handed to the label engine's point path reads
- * `coordinates[1]` as a latitude when it is a POSITION ARRAY, which puts every
- * label at NaN with no error anywhere.
+ * The failures here are silent ones. A stated distance of zero read as a
+ * length gives a cable of length nought and a rank to match. A LINE handed to
+ * the label engine's point path reads `coordinates[1]` as a latitude when it
+ * is a POSITION ARRAY — every label at NaN, no error anywhere. And a landing
+ * station ranked level with a cable buries the cable names under a chip at
+ * every landfall.
  *
  * Run: node GeoID_GIS/viewer/gis/submarine-cables.test.mjs
  */
 
 import {
   submarineCablesUrl, submarineCablesToGeoJSON,
+  cableLandingsUrl, cableLandingsToGeoJSON,
 } from "./research/connectors.js";
 import { labelAnchor, featureToItem } from "./point-labels.js";
 
@@ -27,61 +28,83 @@ function check(name, got, want) {
   }
 }
 
-const way = (name, coords, tags = {}) => ({
-  type: "way",
-  tags: { communication: "line", submarine: "yes", ...(name ? { name } : {}), ...tags },
-  geometry: coords.map(([lon, lat]) => ({ lon, lat })),
-});
-
 // ── The query ────────────────────────────────────────────────────────────
+/* Greg's Cable Map through an ArcGIS FeatureServer, not submarinecablemap.com:
+   TeleGeography sends no CORS header (so a browser cannot read it at all) and
+   licenses the geocoded data annually. This one is GPL and answers CORS *. */
 const url = submarineCablesUrl();
-check("asks Overpass", url.startsWith("https://overpass-api.de/api/interpreter?data="), true);
-const query = decodeURIComponent(url.split("data=")[1]);
-check("asks for submarine communication lines",
-  query.includes('["communication"="line"]') && query.includes('["submarine"="yes"]'), true);
-check("asks for the geometry, not just ids", query.includes("out geom"), true);
-/* Global on purpose: a cable is thousands of km long and clipping it to a
-   study area cuts the very thing that makes it legible. No bbox in the query. */
-check("is not clipped to a bounding box", /\(\s*-?\d/.test(query), false);
+check("asks the cable FeatureServer", url.includes("Global_Submarine_Cable_Map/FeatureServer/1/query"), true);
+check("asks for GeoJSON directly", url.includes("f=geojson"), true);
+check("pins WGS84", url.includes("outSR=4326"), true);
+check("asks for every attribute", url.includes("outFields=*"), true);
+check("the landings are the OTHER layer of the same service",
+  cableLandingsUrl().includes("FeatureServer/0/query"), true);
 
-// ── Grouping ─────────────────────────────────────────────────────────────
-const payload = {
-  elements: [
-    way("MAYA-1", [[-90, 20], [-85, 19], [-80, 18]], { operator: "Telxius" }),
-    way("MAYA-1", [[-80, 18], [-79, 15]]),
-    way("MAYA-1", [[-79, 15], [-78, 10]]),
-    way("Seabras-1", [[-74, 40], [-40, 10], [-43, -23]]),
-    way(null, [[10, 55], [11, 56]]),
-    way("too-short", [[1, 1]]),
+// ── Cables ───────────────────────────────────────────────────────────────
+const cablePayload = {
+  features: [
+    {
+      properties: {
+        Name: "SEACOM", Capacity_G: 1280, Distance_K: 15000, InService: 2009,
+        NotLive: 0, URL1: "http://www.seacom.mu/", URL2: "http://en.wikipedia.org/wiki/SEACOM",
+        Notes: " ",
+      },
+      geometry: { type: "MultiLineString", coordinates: [[[30, -30], [40, -20]], [[40, -20], [50, 0]]] },
+    },
+    {
+      properties: { Name: "Short hop", Distance_K: 0, NotLive: 1, InService: 2020 },
+      geometry: { type: "LineString", coordinates: [[10, 50], [10.5, 50.2]] },
+    },
+    { properties: { Name: "no geometry" }, geometry: null },
   ],
 };
-const fc = submarineCablesToGeoJSON(payload);
+const fc = submarineCablesToGeoJSON(cablePayload);
 const byName = new Map(fc.features.map((f) => [f.properties.name, f]));
 
-check("one feature per SYSTEM, not per way", fc.features.length, 3);
-check("MAYA-1's three ways became one feature", byName.has("MAYA-1"), true);
-check("and it kept all three as parts", byName.get("MAYA-1").properties.segments, 3);
-check("grouped geometry is a MultiLineString",
-  byName.get("MAYA-1").geometry.type, "MultiLineString");
-check("the operator rides along", byName.get("MAYA-1").properties.operator, "Telxius");
-check("a way with one node cannot be a line", byName.has("too-short"), false);
+check("a feature per cable", fc.features.length, 2);
+check("a cable with no geometry is dropped", byName.has("no geometry"), false);
+check("a LineString is normalised to MultiLineString",
+  byName.get("Short hop").geometry.type, "MultiLineString");
 
-/* An unnamed way is real cable on the seabed — kept, so the map is not a lie
-   about where cables run, but at rank 0 so it never competes for a name. */
-const anon = fc.features.filter((f) => !f.properties.name);
-check("an unnamed way is still drawn", anon.length, 1);
-check("but never labelled", anon[0].properties.label_rank, 0);
-check("an unnamed way stays a plain LineString", anon[0].geometry.type, "LineString");
+const seacom = byName.get("SEACOM");
+/* The SURVEY's own distance wins over the drawn polyline's: that is the
+   operator's figure for the cable, where the geometry is a generalisation. */
+check("the stated distance is preferred", seacom.properties.length_km, 15000);
+check("and it ranks top", seacom.properties.label_rank, 5);
+check("capacity is carried", seacom.properties.capacity_gbps, 1280);
+check("as is the service year", seacom.properties.in_service, 2009);
+check("links are carried for the card", seacom.properties.wikipedia.includes("wikipedia"), true);
+check("blank notes do not become whitespace", seacom.properties.notes, "");
+check("the kicker names what it is", seacom.properties.kind, "Submarine cable");
 
-// ── Rank is LENGTH, which the geometry itself supports ───────────────────
-const seabras = byName.get("Seabras-1");
-check("a transoceanic cable measures thousands of km",
-  seabras.properties.length_km > 5000, true);
-check("and ranks top", seabras.properties.label_rank, 5);
-const maya = byName.get("MAYA-1");
-check("a shorter system ranks lower", maya.properties.label_rank < 5, true);
-check("every named system carries a length", Number.isFinite(maya.properties.length_km), true);
-check("the kicker names what it is", maya.properties.kind, "Submarine cable");
+/* A zero/absent Distance_K must fall back to measuring the line, not record a
+   cable of length nought. */
+const hop = byName.get("Short hop");
+check("a missing distance is measured from the geometry", hop.properties.length_km > 0, true);
+check("a short cable ranks low", hop.properties.label_rank, 1);
+/* NotLive is carried, never filtered: a retired or planned cable is a true
+   fact about the seabed and the card should say which. */
+check("a dead cable is kept", Boolean(hop), true);
+check("and says so", hop.properties.status, "Not in service");
+check("a live one says so too", seacom.properties.status, "In service");
+
+// ── Landing stations ─────────────────────────────────────────────────────
+const landings = cableLandingsToGeoJSON({
+  features: [
+    { properties: { Name: "Mombasa", Country: "Kenya", Owner: "SEACOM", ExactLocat: "1" },
+      geometry: { type: "Point", coordinates: [39.66, -4.05] } },
+    { properties: { Name: "broken" }, geometry: { type: "Point", coordinates: [null, 5] } },
+  ],
+});
+check("a landing station becomes a point", landings.features.length, 1);
+check("it keeps its country", landings.features[0].properties.country, "Kenya");
+check("and its owner", landings.features[0].properties.owner, "SEACOM");
+check("its kicker is its own", landings.features[0].properties.kind, "Cable landing station");
+/* Ranked BELOW the cables: with both layers on, a name at every landfall
+   would bury the cable names, and the cable is what the map is about. */
+check("a landing ranks below a cable", landings.features[0].properties.label_rank, 1);
+check("a point with no usable coordinates is dropped",
+  landings.features.some((f) => f.properties.name === "broken"), false);
 
 // ── The label anchor ─────────────────────────────────────────────────────
 check("a point anchors to itself",
@@ -103,19 +126,20 @@ check("a missing geometry has no anchor", labelAnchor(null), null);
 /* The whole point of the anchor: a cable must reach the label engine with
    NUMBERS for lat/lon. Before it, `coordinates[1]` on a line was a position
    array and every label landed at NaN. */
-const item = featureToItem(seabras);
+const item = featureToItem(seacom);
 check("a cable becomes a label item", Boolean(item), true);
 check("its latitude is a number", Number.isFinite(item.lat), true);
 check("its longitude is a number", Number.isFinite(item.lon), true);
-check("it is named for the system", item.name, "Seabras-1");
+check("it is named for the system", item.name, "SEACOM");
 check("and the card kicker says what it is", item.type, "Submarine cable");
 
-// An unnamed cable must not produce a label item at all.
-check("an unnamed cable yields no label", featureToItem(anon[0]), null);
+// A feature with no name must not produce a label item at all.
+check("a nameless feature yields no label",
+  featureToItem({ properties: { label_rank: 3 }, geometry: { type: "LineString", coordinates: [[0, 0], [1, 1]] } }), null);
 
 // ── Nothing in, nothing out ──────────────────────────────────────────────
 check("an empty payload is an empty collection",
-  submarineCablesToGeoJSON({ elements: [] }).features.length, 0);
+  submarineCablesToGeoJSON({ features: [] }).features.length, 0);
 check("a missing payload does not throw",
   submarineCablesToGeoJSON(null).features.length, 0);
 

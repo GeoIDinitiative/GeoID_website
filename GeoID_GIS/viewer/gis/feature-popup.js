@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260827-fce9819";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260827-fce9819";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260827-e44795a";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260827-e44795a";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -706,6 +706,118 @@ function markerGroup() {
  * The outline stays, because the card cannot say WHICH polygon answered on a
  * map of hundreds of them.
  */
+/**
+ * The shape of what answered, as overlay geometry — whatever shape that is.
+ *
+ * This drew POLYGON rings and nothing else, so a click on a coastline, a
+ * fault, a submarine cable or a landing station highlighted nothing: the card
+ * opened and the map gave no sign which of three hundred lines it was about.
+ * Lines and points are now built too, which is what the satellite tracker has
+ * always done for an orbit and its dot.
+ *
+ * Long edges are split for the reason every other surface line here is: a
+ * straight chord across 1° of arc already dips below the terrain.
+ */
+function buildHighlight(THREE, feature, { colour, opacity, width = 1, lift = 0.004 }) {
+  const viewer = window.GeoIDViewer;
+  const nodes = [];
+  const geometry = feature?.geometry;
+  const type = geometry?.type;
+  const coords = geometry?.coordinates;
+  if (!type || !coords) return nodes;
+
+  const walk = (path, close) => {
+    const points = [];
+    const last = close ? path.length : path.length - 1;
+    for (let i = 0; i < last; i += 1) {
+      const a = path[i];
+      const b = path[(i + 1) % path.length];
+      if (!Array.isArray(a) || !Array.isArray(b)) continue;
+      const steps = Math.max(1, Math.ceil(
+        Math.max(Math.abs(b[1] - a[1]), Math.abs(b[0] - a[0])) / 1));
+      for (let k = 0; k < steps; k += 1) {
+        const t = k / steps;
+        points.push(viewer.surfacePoint(a[1] + (b[1] - a[1]) * t, a[0] + (b[0] - a[0]) * t, lift));
+      }
+    }
+    if (close && path.length) {
+      points.push(viewer.surfacePoint(path[0][1], path[0][0], lift));
+    }
+    if (points.length < 2) return;
+    const line = new THREE[close ? "LineLoop" : "Line"](
+      new THREE.BufferGeometry().setFromPoints(points),
+      new THREE.LineBasicMaterial({
+        color: colour, depthTest: false, transparent: true, opacity, linewidth: width,
+      }),
+    );
+    line.renderOrder = 239;
+    nodes.push(line);
+  };
+
+  const dots = (positions) => {
+    const points = positions
+      .filter((c) => Array.isArray(c) && Number.isFinite(c[0]) && Number.isFinite(c[1]))
+      .map((c) => viewer.surfacePoint(c[1], c[0], lift));
+    if (!points.length) return;
+    const cloud = new THREE.Points(
+      new THREE.BufferGeometry().setFromPoints(points),
+      new THREE.PointsMaterial({
+        color: colour, size: 14, sizeAttenuation: false,
+        depthTest: false, transparent: true, opacity,
+      }),
+    );
+    cloud.renderOrder = 240;
+    nodes.push(cloud);
+  };
+
+  if (type === "Polygon") coords.slice(0, 24).forEach((ring) => walk(ring, true));
+  else if (type === "MultiPolygon") coords.flat().slice(0, 24).forEach((ring) => walk(ring, true));
+  else if (type === "LineString") walk(coords, false);
+  // A cable is mapped as many parts; 60 is well past any real one and stops a
+  // pathological geometry from building thousands of draw objects on a hover.
+  else if (type === "MultiLineString") coords.slice(0, 60).forEach((part) => walk(part, false));
+  else if (type === "Point") dots([coords]);
+  else if (type === "MultiPoint") dots(coords);
+  return nodes;
+}
+
+/**
+ * The selection PULSES, the way a selected satellite does.
+ *
+ * One shared phase rather than one per node — per-object phases read as
+ * shimmer, which is the lesson the event markers already record. Shallow and
+ * slow (1.6 s), because a map that will not sit still cannot be read and a
+ * fast pulse reads as an alarm. The loop ends itself when the selection is
+ * cleared, so nothing has to remember to stop it.
+ */
+function startPulse(nodes, baseOpacity) {
+  const started = performance.now();
+  const sizes = nodes.map((n) => n.material?.size || 0);
+  const tick = () => {
+    if (!pinState || !nodes.length || !nodes[0].parent) return;
+    const phase = Math.sin(((performance.now() - started) / 1600) * Math.PI * 2);
+    nodes.forEach((node, i) => {
+      if (!node.material) return;
+      node.material.opacity = baseOpacity * (0.62 + 0.38 * (phase * 0.5 + 0.5));
+      if (sizes[i]) node.material.size = sizes[i] * (1 + 0.16 * phase);
+    });
+    window.requestAnimationFrame(tick);
+  };
+  window.requestAnimationFrame(tick);
+}
+
+/**
+ * The outline of what answered -- and nothing else on the surface.
+ *
+ * There used to be a marker here too: a sphere sized from the view distance,
+ * which is the right way to size a thing in scene units and the wrong thing to
+ * have at all. The viewer's card carries its own anchor and stem, drawn in the
+ * page and tracking the point as the globe turns, so a second marker was a
+ * magenta disc painted over the map it was pointing at.
+ *
+ * The outline stays, because the card cannot say WHICH feature answered on a
+ * map of hundreds of them — and now it pulses, so it says so at a glance.
+ */
 async function showOutline(feature) {
   const viewer = window.GeoIDViewer;
   const group = markerGroup();
@@ -715,37 +827,15 @@ async function showOutline(feature) {
   clearPin();
   const holder = new THREE.Group();
   holder.name = "GeoID-FeatureOutline";
-
-  // Long edges
-  // are split for the same reason every other surface line is: a straight chord
-  // across 1 degree of arc already dips below the terrain.
-  const rings = feature?.geometry
-    ? (feature.geometry.type === "Polygon" ? feature.geometry.coordinates
-      : feature.geometry.type === "MultiPolygon" ? feature.geometry.coordinates.flat() : [])
-    : [];
-  rings.slice(0, 24).forEach((ring) => {
-    const points = [];
-    for (let i = 0; i < ring.length; i += 1) {
-      const [a, b] = [ring[i], ring[(i + 1) % ring.length]];
-      const steps = Math.max(1, Math.ceil(
-        Math.max(Math.abs(b[1] - a[1]), Math.abs(b[0] - a[0])) / 1,
-      ));
-      for (let k = 0; k < steps; k += 1) {
-        const t = k / steps;
-        points.push(viewer.surfacePoint(a[1] + (b[1] - a[1]) * t, a[0] + (b[0] - a[0]) * t, 0.004));
-      }
-    }
-    if (points.length < 2) return;
-    const loop = new THREE.LineLoop(
-      new THREE.BufferGeometry().setFromPoints(points),
-      new THREE.LineBasicMaterial({ color: 0xffffff, depthTest: false, transparent: true, opacity: 0.9 }),
-    );
-    loop.renderOrder = 239;
-    holder.add(loop);
-  });
+  // The same gold the viewer's own label selection wears, so one colour means
+  // "this is the thing you picked" everywhere on the globe.
+  const nodes = buildHighlight(THREE, feature, { colour: 0xffd166, opacity: 0.95, lift: 0.004 });
+  nodes.forEach((node) => holder.add(node));
+  if (!nodes.length) return;
 
   group.add(holder);
   pinState = holder;
+  startPulse(nodes, 0.95);
 }
 
 export function clearPin() {
@@ -753,6 +843,78 @@ export function clearPin() {
   pinState.parent?.remove(pinState);
   pinState.traverse?.((n) => { n.geometry?.dispose?.(); n.material?.dispose?.(); });
   pinState = null;
+}
+
+/* ── Hover ───────────────────────────────────────────────────────────────
+   What is under the cursor, brightened, before you commit to clicking it.
+
+   The satellites do this for an orbit and it is the affordance that says a
+   line is a THING rather than decoration. Throttled hard: `featuresAt` walks
+   every feature of every vector layer, and running that per mousemove turns a
+   pan into a slideshow — the same reason the orbit hover is throttled. */
+let hoverState = null;
+/* The feature OBJECT, compared by identity rather than by a key built from
+   its properties: an unnamed cable has no name to key on, so every unnamed
+   feature in a layer would share one key and hovering between them would
+   never rebuild the overlay. */
+let hoverFeature = null;
+let hoverAt = 0;
+
+function clearHover() {
+  if (!hoverState) return;
+  hoverState.parent?.remove(hoverState);
+  hoverState.traverse?.((n) => { n.geometry?.dispose?.(); n.material?.dispose?.(); });
+  hoverState = null;
+  hoverFeature = null;
+}
+
+async function showHover(feature) {
+  const viewer = window.GeoIDViewer;
+  const group = markerGroup();
+  if (!viewer?.surfacePoint || !group) return;
+  const THREE = await import("../vendor/three.module.js");
+  // Another hover may have overtaken this await.
+  if (hoverFeature !== feature) return;
+  const stale = hoverState;
+  if (stale) {
+    stale.parent?.remove(stale);
+    stale.traverse?.((n) => { n.geometry?.dispose?.(); n.material?.dispose?.(); });
+  }
+  const holder = new THREE.Group();
+  holder.name = "GeoID-FeatureHover";
+  // Dimmer and cooler than the selection gold: hover is "you could pick this",
+  // selection is "you did". Two states have to look like two states.
+  const nodes = buildHighlight(THREE, feature, { colour: 0x8ef6ff, opacity: 0.55, lift: 0.0035 });
+  if (!nodes.length) { hoverState = null; return; }
+  nodes.forEach((node) => holder.add(node));
+  group.add(holder);
+  hoverState = holder;
+}
+
+function handleHover(event) {
+  const now = performance.now();
+  if (now - hoverAt < 90) return;
+  hoverAt = now;
+  const canvas = viewerCanvas();
+  if (!canvas) return;
+  const viewer = window.GeoIDViewer;
+  // The drawing tools own the canvas while armed, and a highlight under a
+  // half-drawn box is noise.
+  if (viewer?.isMeasuring?.()) { clearHover(); return; }
+  const at = viewer?.surfaceLatLonAt?.(event.clientX, event.clientY);
+  if (!at) { clearHover(); if (canvas.style.cursor === "pointer") canvas.style.cursor = ""; return; }
+  const hit = featureAt(at.lat, at.lon);
+  if (!hit) {
+    clearHover();
+    if (canvas.style.cursor === "pointer") canvas.style.cursor = "";
+    return;
+  }
+  canvas.style.cursor = "pointer";
+  // Identity, so moving ALONG one cable does not rebuild its overlay every
+  // 90 ms: a 60-part MultiLineString is real geometry to build.
+  if (hit.feature === hoverFeature) return;
+  hoverFeature = hit.feature;
+  void showHover(hit.feature);
 }
 
 function showPopup(x, y, layerName, feature, layerRecord = null) {
@@ -1088,6 +1250,12 @@ function install() {
   canvas.addEventListener("pointerdown", (event) => {
     downAt = { x: event.clientX, y: event.clientY };
   }, true);
+
+  canvas.addEventListener("pointermove", handleHover);
+  canvas.addEventListener("pointerleave", () => {
+    clearHover();
+    if (canvas.style.cursor === "pointer") canvas.style.cursor = "";
+  });
 
   canvas.addEventListener("click", (event) => {
     const moved = downAt

@@ -171,114 +171,131 @@ export function usgsWaterToGeoJSON(payload) {
   return { type: "FeatureCollection", features };
 }
 
-// ── Submarine communication cables (OpenStreetMap via Overpass) ───────────────
+// ── Submarine cables and landing stations (Greg's Cable Map, via ArcGIS) ─────
 /**
- * The world's submarine cables, from OpenStreetMap.
+ * The world's submarine cables, and where they come ashore.
  *
- * NOT from submarinecablemap.com, and both reasons are hard blocks. That
- * service answers with **no `Access-Control-Allow-Origin` header** — measured,
- * 200 and 739 KB to curl, unreadable to a browser — so a page cannot fetch it
- * whatever the licence said. And the licence does not permit it either:
- * TeleGeography sells an annual licence for the geocoded map data, and the map
- * is published CC BY-NC-SA (NonCommercial). The public forks of their old repo
- * are stale (2013–2022) and carry no licence at all, which would be shipping
- * years-old data scraped from a NonCommercial source.
+ * **Not** submarinecablemap.com, and not for want of trying: TeleGeography's
+ * API answers 200 to curl and sends **no `Access-Control-Allow-Origin`
+ * header**, so a browser cannot read it whatever the licence says — and the
+ * licence does not allow it either, since TeleGeography sells an annual
+ * licence for the geocoded data and publishes the map CC BY-NC-SA
+ * (NonCommercial).
  *
- * OSM is ODbL: free, commercial use included, attribution required. The cost
- * is coverage, and it is worth stating plainly — measured globally, 656 ways
- * making **199 named cable systems**, against TeleGeography's roughly 600. So
- * this is the well-mapped third of the world's cables, not all of them.
+ * This is **Greg's Cable Map** — an independent survey, published under the
+ * **GNU GPL**, which permits commercial use with attribution — served as an
+ * ArcGIS FeatureServer that answers `f=geojson` with CORS `*`. Measured: 285
+ * cables and 737 landing stations, each complete in ONE request (285 against
+ * a maxRecordCount of 2000, `exceededTransferLimit` absent), 780 KB and
+ * 150 KB.
  *
- * Global rather than bbox-scoped, unlike the other Overpass connector here: a
- * cable is thousands of kilometres long and clipping it to a study area cuts
- * the very thing that makes it legible. 656 ways is small enough to ask for.
+ * An OpenStreetMap version came first and was replaced: ODbL and honest, but
+ * 199 systems to this one's 285, and with no landing points at all. The two
+ * layers here are the pair the satellite tracker draws — the PATH and the
+ * DOT — which is why they arrive together.
+ *
+ * Honest limit: the survey's own currency. `InService` years run to the late
+ * 2010s, so cables lit since are missing. TeleGeography's roughly 600 systems
+ * remains the fuller map, behind their licence.
  */
-export function submarineCablesUrl() {
-  const query = '[out:json][timeout:180];'
-    + 'way["communication"="line"]["submarine"="yes"];'
-    + "out geom qt;";
-  return `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+const CABLE_SERVICE = "https://services.arcgis.com/bDAhvQYMG4WL8O5o/arcgis/rest"
+  + "/services/Global_Submarine_Cable_Map/FeatureServer";
+
+/** ArcGIS speaks GeoJSON directly when asked; outSR pins it to WGS84. */
+function cableLayerUrl(layerId) {
+  const params = new URLSearchParams({
+    where: "1=1", outFields: "*", outSR: "4326", f: "geojson",
+  });
+  return `${CABLE_SERVICE}/${layerId}/query?${params}`;
+}
+
+export function submarineCablesUrl() { return cableLayerUrl(1); }
+export function cableLandingsUrl() { return cableLayerUrl(0); }
+
+/** Kilometres along a lon/lat path. */
+function pathKm(line) {
+  const R = 6371;
+  const toRad = (d) => (d * Math.PI) / 180;
+  let km = 0;
+  for (let i = 1; i < line.length; i += 1) {
+    const [x1, y1] = line[i - 1];
+    const [x2, y2] = line[i];
+    const a = Math.sin(toRad(y2 - y1) / 2) ** 2
+      + Math.cos(toRad(y1)) * Math.cos(toRad(y2)) * Math.sin(toRad(x2 - x1) / 2) ** 2;
+    km += 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+  }
+  return km;
 }
 
 /**
- * Ways to one feature per cable SYSTEM.
+ * Cables to the shape the label engine and the click card already read.
  *
- * A system is mapped as several ways — measured, 656 ways for 199 names, with
- * MAYA-1 alone appearing three times — so one feature per way would write the
- * same name on the map three times and count one cable as three. Grouped by
- * name into a MultiLineString, each system is one feature, one label, one row
- * in the attribute table and one click.
+ * `label_rank` is LENGTH in bands — significance the geometry itself supports,
+ * so the layer never invents any. The survey's own `Distance_K` is preferred
+ * where it has one, because that is the operator's figure for the cable rather
+ * than the drawn polyline's.
  *
- * `label_rank` is LENGTH, banded: a transoceanic trunk is more significant
- * than a harbour crossing and its own geometry says so, which keeps the rule
- * "never invent significance the record does not support". Unnamed ways are
- * kept — they are real cable on the seabed — at rank 0, so they draw without
- * ever competing for a name.
+ * `NotLive` is carried rather than filtered: a planned or retired cable is a
+ * true fact about the seabed, and the card says which it is.
  */
 export function submarineCablesToGeoJSON(payload) {
-  const R = 6371;
-  const toRad = (d) => (d * Math.PI) / 180;
-  const spanKm = (line) => {
-    let km = 0;
-    for (let i = 1; i < line.length; i += 1) {
-      const [x1, y1] = line[i - 1];
-      const [x2, y2] = line[i];
-      const dLat = toRad(y2 - y1);
-      const dLon = toRad(x2 - x1);
-      const a = Math.sin(dLat / 2) ** 2
-        + Math.cos(toRad(y1)) * Math.cos(toRad(y2)) * Math.sin(dLon / 2) ** 2;
-      km += 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
-    }
-    return km;
-  };
-
-  const systems = new Map();
-  const unnamed = [];
-  (payload?.elements || []).forEach((el) => {
-    const line = (el?.geometry || [])
-      .filter((n) => Number.isFinite(n?.lon) && Number.isFinite(n?.lat))
-      .map((n) => [n.lon, n.lat]);
-    if (line.length < 2) return;
-    const tags = el.tags || {};
-    const name = (tags.name || "").trim();
-    if (!name) { unnamed.push({ line, tags }); return; }
-    if (!systems.has(name)) systems.set(name, { lines: [], tags });
-    systems.get(name).lines.push(line);
-  });
-
-  const features = [];
-  systems.forEach(({ lines, tags }, name) => {
-    const km = lines.reduce((sum, line) => sum + spanKm(line), 0);
-    // Bands, not a continuous scale: the label engine reads rank 1-5 and the
-    // thresholds are round numbers a reader could check.
-    const rank = km >= 5000 ? 5 : km >= 2000 ? 4 : km >= 500 ? 3 : km >= 100 ? 2 : 1;
-    features.push({
+  const features = (payload?.features || []).map((f) => {
+    const p = f?.properties || {};
+    const parts = f?.geometry?.type === "MultiLineString" ? f.geometry.coordinates
+      : (f?.geometry?.type === "LineString" ? [f.geometry.coordinates] : []);
+    if (!parts.length) return null;
+    const name = String(p.Name || "").trim();
+    const stated = Number(p.Distance_K);
+    const km = Number.isFinite(stated) && stated > 0
+      ? stated : parts.reduce((sum, part) => sum + pathKm(part), 0);
+    const rank = km >= 10000 ? 5 : km >= 4000 ? 4 : km >= 1500 ? 3 : km >= 300 ? 2 : 1;
+    return {
       type: "Feature",
-      geometry: { type: "MultiLineString", coordinates: lines },
+      geometry: { type: "MultiLineString", coordinates: parts },
       properties: {
         name,
         kind: "Submarine cable",
-        operator: tags.operator || "",
-        length_km: Number(km.toFixed(1)),
-        segments: lines.length,
-        label_rank: rank,
+        length_km: Math.round(km),
+        capacity_gbps: Number(p.Capacity_G) || null,
+        in_service: Number(p.InService) || null,
+        status: p.NotLive ? "Not in service" : "In service",
+        homepage: p.URL1 || "",
+        wikipedia: p.URL2 || "",
+        notes: String(p.Notes || "").trim(),
+        label_rank: name ? rank : 0,
       },
-    });
-  });
-  unnamed.forEach(({ line, tags }) => {
-    features.push({
+    };
+  }).filter(Boolean);
+  return { type: "FeatureCollection", features };
+}
+
+/**
+ * Landing stations — the DOTS the cables run between.
+ *
+ * Ranked below the cables on purpose: with both layers on, a name every time
+ * a cable touches land would bury the cable names, and the cable is the thing
+ * the map is about. `label_rank: 1` puts them at the bottom of the same
+ * declutter the volcanoes use, so they appear as you come in.
+ */
+export function cableLandingsToGeoJSON(payload) {
+  const features = (payload?.features || []).map((f) => {
+    const p = f?.properties || {};
+    const c = f?.geometry?.coordinates;
+    if (!Array.isArray(c) || !Number.isFinite(c[0]) || !Number.isFinite(c[1])) return null;
+    const name = String(p.Name || "").trim();
+    return {
       type: "Feature",
-      geometry: { type: "LineString", coordinates: line },
+      geometry: { type: "Point", coordinates: [c[0], c[1]] },
       properties: {
-        name: "",
-        kind: "Submarine cable",
-        operator: tags.operator || "",
-        length_km: Number(spanKm(line).toFixed(1)),
-        segments: 1,
-        label_rank: 0,
+        name,
+        kind: "Cable landing station",
+        country: String(p.Country || "").trim(),
+        owner: String(p.Owner || "").trim(),
+        location: String(p.ExactLocat || "").trim(),
+        label_rank: name ? 1 : 0,
       },
-    });
-  });
+    };
+  }).filter(Boolean);
   return { type: "FeatureCollection", features };
 }
 
@@ -453,12 +470,20 @@ export const CONNECTORS = {
     defaults: {},
   },
   "submarine-cables": {
-    label: "Submarine cables (OpenStreetMap)",
+    label: "Submarine cables (Greg's Cable Map)",
     kind: "vector",
     url: submarineCablesUrl,
     toGeoJSON: submarineCablesToGeoJSON,
     filename: () => "submarine_cables.geojson",
-    attribution: "© OpenStreetMap contributors (ODbL)",
+    attribution: "Greg's Cable Map (GNU GPL)",
+  },
+  "cable-landings": {
+    label: "Cable landing stations (Greg's Cable Map)",
+    kind: "vector",
+    url: cableLandingsUrl,
+    toGeoJSON: cableLandingsToGeoJSON,
+    filename: () => "cable_landing_stations.geojson",
+    attribution: "Greg's Cable Map (GNU GPL)",
   },
   "osm-places": {
     label: "OSM places",
