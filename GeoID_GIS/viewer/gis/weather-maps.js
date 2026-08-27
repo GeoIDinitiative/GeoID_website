@@ -24,14 +24,14 @@
  * registry is the seam, and nothing else here would change.
  */
 
-import { drape } from "./gee.js?v=20260827-4323be2";
-import { currentBodyId } from "./bodies.js?v=20260827-4323be2";
-import { rectangleVertices } from "./draw-area.js?v=20260827-4323be2";
+import { drape } from "./gee.js?v=20260827-1dc3d92";
+import { currentBodyId } from "./bodies.js?v=20260827-1dc3d92";
+import { rectangleVertices } from "./draw-area.js?v=20260827-1dc3d92";
 import {
   signedLon, drawnPolygonLayers, layerBounds, capturedExtentBounds,
   promptDrawTool, hideAreaCard, persistExtent, refreshPolygonOptions,
   resolvePolygonExtent,
-} from "./extent-picker.js?v=20260827-4323be2";
+} from "./extent-picker.js?v=20260827-1dc3d92";
 
 const byId = (id) => document.getElementById(id);
 
@@ -510,7 +510,11 @@ async function fetchMap() {
       nine planets that have no weather radar. ── */
 
 function buildCard() {
-  const groupBody = document.querySelector("#gis-group-modelled > .section-body");
+  // Into the Atmosphere sub-section's own host — weather is atmosphere —
+  // with the group body kept as the fallback for any page whose markup
+  // predates the host.
+  const groupBody = document.getElementById("atmosphere-weather-host")
+    || document.querySelector("#gis-group-modelled > .section-body");
   if (!groupBody || byId("weather-maps-card")) return false;
   const card = document.createElement("details");
   card.className = "gis-tool-section";

@@ -10,16 +10,16 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260827-4323be2";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260827-4323be2";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260827-4323be2";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260827-1dc3d92";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260827-1dc3d92";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260827-1dc3d92";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260827-4323be2";
+  from "./view-extent.js?v=20260827-1dc3d92";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260827-4323be2";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260827-4323be2";
+} from "./extent-picker.js?v=20260827-1dc3d92";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260827-1dc3d92";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -1009,6 +1009,11 @@ function init() {
     // an override someone has set.
     field.placeholder = DEFAULT_ENDPOINT;
   }
+  // The Service card lives in Settings now and ships HIDDEN: this module is
+  // the only thing that wires it, and it only runs on Earth — un-hiding it
+  // here is what keeps a dead endpoint form off the nine planet pages.
+  const serviceSection = byId("gee-service-section");
+  if (serviceSection) serviceSection.hidden = false;
   byId("gee-endpoint-save")?.addEventListener("click", () => {
     setEndpoint(byId("gee-endpoint")?.value.trim() || "");
     loadCatalogue();

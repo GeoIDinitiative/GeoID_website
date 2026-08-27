@@ -1066,8 +1066,13 @@ The tab column reads: **Workspace** first (Vector & Shapefiles renamed —
 the working set opens the column), then **Live** (the Events group renamed),
 then Explorer,
 **Hazards** (Geohazards renamed, the myGeoID mode bar nested at its top),
-**Earth System Observation** (Atmosphere renamed, with Hydrology AND the
-whole Satellites section nested as level-2 sub-tabs), **Geology**,
+**Earth System Observation** (Atmosphere renamed, reading Atmosphere /
+Hydrology / Satellites as level-2 sub-tabs — the Atmosphere one wraps the
+weather card, which mounts into `#atmosphere-weather-host`, and the Earth
+Engine datasets; the GEE **Service** endpoint form is configuration, so it
+lives in the Settings group markup, shipped `hidden` and un-hidden by
+gee.js, which only runs on Earth — that gate is what keeps a dead
+endpoint form off the nine planet pages), **Geology**,
 **Basemaps** (Basemap and Relief renamed — the imagery, GEBCO and the GEE
 DEM share), then Basemaps, Geology, Earth System Observation, Hazards (Workspace
 holds imports and drawn shapes only: the homeless global catalogue of reference shapes, graticule,
