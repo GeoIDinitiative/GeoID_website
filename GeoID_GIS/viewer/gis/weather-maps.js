@@ -24,9 +24,14 @@
  * registry is the seam, and nothing else here would change.
  */
 
-import { drape } from "./gee.js?v=20260827-4620e3d";
-import { currentBodyId } from "./bodies.js?v=20260827-4620e3d";
-import { rectangleVertices } from "./draw-area.js?v=20260827-4620e3d";
+import { drape } from "./gee.js?v=20260827-34af40c";
+import { currentBodyId } from "./bodies.js?v=20260827-34af40c";
+import { rectangleVertices } from "./draw-area.js?v=20260827-34af40c";
+import {
+  signedLon, drawnPolygonLayers, layerBounds, capturedExtentBounds,
+  promptDrawTool, hideAreaCard, persistExtent, refreshPolygonOptions,
+  resolvePolygonExtent,
+} from "./extent-picker.js?v=20260827-34af40c";
 
 const byId = (id) => document.getElementById(id);
 
@@ -81,16 +86,13 @@ function say(message) {
   if (node) node.textContent = message || "";
 }
 
-const signedLon = (lon) => ((lon + 540) % 360) - 180;
-
 /** The chosen extent as {west, south, east, north} in signed degrees, or null. */
 function chosenBounds() {
   const mode = byId("weather-extent")?.value || "box";
-  if (mode.startsWith("layer:")) {
-    const layer = drawnPolygonLayers().find((l) => String(l.id) === mode.slice(6));
-    if (!layer) return { error: "That polygon is no longer on the globe — pick another extent." };
-    return layerBounds(layer);
-  }
+  // A named polygon is the shared resolver's business, and so is the whole
+  // hand-drawn fallback chain at the foot of this function.
+  const named = resolvePolygonExtent(mode);
+  if (named) return named;
   if (mode === "box") {
     // A box already on the globe — dragged, resized, or just drawn — is the
     // truth; the inputs are how one is created or replaced. With no live
@@ -156,20 +158,7 @@ function chosenBounds() {
     }
     return bounds;
   }
-  const area = window.GeoIDViewer?.getExtractionGeometry?.();
-  const vertices = area?.vertices;
-  if (!vertices?.length) {
-    const kept = capturedExtentBounds();
-    if (kept) return kept;
-    promptDrawTool();
-    return { error: "Draw the box on the globe, then press Fetch — the Draw tool is now active." };
-  }
-  const lats = vertices.map((v) => v.lat);
-  const lons = vertices.map((v) => signedLon(v.lon));
-  return {
-    west: Math.min(...lons), south: Math.min(...lats),
-    east: Math.max(...lons), north: Math.max(...lats),
-  };
+  return resolvePolygonExtent("drawn");
 }
 
 /* ── Mercator helpers, for the radar tiles ──────────────────────────────── */
@@ -341,32 +330,9 @@ async function gridCanvas(bounds, source) {
  * "Fetch Polygon 1" is a CHOICE rather than a guess about which one the
  * fallback would take.
  */
-function drawnPolygonLayers() {
-  return (window.GeoIDImportManager?.getLayers?.() || [])
-    .filter((layer) => (
-      layer.weatherExtent
-      || layer.ext === "drawn"
-      || layer.collection?.features?.[0]?.properties?.drawn_at)
-      && layer.collection?.features?.[0]?.geometry?.coordinates?.[0]?.length);
-}
 
-function layerBounds(layer) {
-  const ring = layer?.collection?.features?.[0]?.geometry?.coordinates?.[0];
-  if (!ring?.length) return null;
-  const lons = ring.map((c) => c[0]);
-  const lats = ring.map((c) => c[1]);
-  return {
-    west: Math.min(...lons), south: Math.min(...lats),
-    east: Math.max(...lons), north: Math.max(...lats),
-    reusedFrom: layer.name,
-  };
-}
 
 /** The newest VISIBLE drawn polygon's bounds — the no-overlay fallback. */
-function capturedExtentBounds() {
-  const layers = drawnPolygonLayers().filter((layer) => layer.visible !== false);
-  return layers.length ? layerBounds(layers[layers.length - 1]) : null;
-}
 
 /**
  * The drawn extent becomes a LAYER the moment data is pulled over it: a row
@@ -376,29 +342,12 @@ function capturedExtentBounds() {
  * overlay is drawn. `captureDrawn` is idempotent by shape, so refetching the
  * same box never stacks a duplicate. The floating overlay then stands down.
  */
-function persistExtent(bounds) {
-  const capture = window.GeoIDDrawnLayers?.captureDrawn?.({
-    name: `Fetch extent ${(bounds.east - bounds.west).toFixed(1)}×`
-      + `${(bounds.north - bounds.south).toFixed(1)}°`,
-  });
-  if (capture?.ok && capture.layer) {
-    capture.layer.weatherExtent = true;
-    window.GeoIDViewer?.clearStudyArea?.();
-  }
-  // Whatever the capture decided, a fetch is not the analysis flow the
-  // stats card narrates — it stands down for every source.
-  hideAreaCard();
-}
 
 /**
  * The study-area STATS card is furniture from the analysis flow; while the
  * weather card owns the box it covers the very corner the fetch reports
  * into, so it stands down. A hand-drawn area keeps it.
  */
-function hideAreaCard() {
-  const card = document.getElementById("measurement-result-card");
-  if (card) card.hidden = true;
-}
 
 /**
  * Raise the square-polygon drawer: the tool rail's own Draw button, which
@@ -406,10 +355,6 @@ function hideAreaCard() {
  * same press a hand on the rail would make, so there is one drawer and one
  * way it is armed.
  */
-function promptDrawTool() {
-  const button = byId("tool-rail-area");
-  if (button && !button.classList.contains("is-active")) button.click();
-}
 
 /* ── Fetch, drape, register ─────────────────────────────────────────────── */
 
@@ -435,7 +380,7 @@ async function fetchMap() {
     const result = source.kind === "radar"
       ? await radarCanvas(bounds)
       : await gridCanvas(bounds, source);
-    persistExtent(bounds);
+    persistExtent(bounds, { mark: "weatherExtent" });
     if (result.flatZero) {
       say(`${source.label}: zero everywhere in this box — nothing to map. `
         + "(The fetch worked; the field is genuinely flat here.)");
@@ -613,22 +558,8 @@ function buildCard() {
       <div id="weather-maps-status" class="gis-metric">Radar frames are ~10 minutes apart; forecast fields refresh hourly.</div>
     </div>`;
   groupBody.insertBefore(card, groupBody.firstElementChild?.nextElementSibling || null);
-  const refreshExtentOptions = () => {
-    const select = byId("weather-extent");
-    if (!select) return;
-    const chosen = select.value;
-    select.querySelectorAll("option[data-polygon]").forEach((option) => option.remove());
-    drawnPolygonLayers().forEach((layer) => {
-      const option = document.createElement("option");
-      option.value = `layer:${layer.id}`;
-      option.dataset.polygon = "1";
-      option.textContent = `▱ ${layer.name}`;
-      select.appendChild(option);
-    });
-    // A choice that vanished with its layer falls back to the box.
-    if (![...select.options].some((option) => option.value === chosen)) select.value = "box";
-    else select.value = chosen;
-  };
+  // A choice that vanished with its layer falls back to the box.
+  const refreshExtentOptions = () => refreshPolygonOptions(byId("weather-extent"), "box");
   refreshExtentOptions();
   window.GeoIDImportManager?.onChange?.(refreshExtentOptions);
 

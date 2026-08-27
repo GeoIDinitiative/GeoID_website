@@ -10,12 +10,15 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260827-4620e3d";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260827-4620e3d";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260827-4620e3d";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260827-34af40c";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260827-34af40c";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260827-34af40c";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260827-4620e3d";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260827-4620e3d";
+  from "./view-extent.js?v=20260827-34af40c";
+import {
+  resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
+} from "./extent-picker.js?v=20260827-34af40c";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260827-34af40c";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -69,7 +72,22 @@ function status(message) {
   if (node) node.textContent = message || "";
 }
 
-/** The extent to ask for: what is on screen, or a drawn polygon. */
+/**
+ * The extent to ask for: everywhere, what is on screen, or a polygon.
+ *
+ * The polygon half is `extent-picker.js`, shared with the weather card, so a
+ * drawn area means the same thing to both and there is one fallback chain
+ * rather than two that drift. What it adds over the old branch is everything
+ * that made that branch a dead end: a named polygon still on the globe can be
+ * CHOSEN (`layer:<id>`), an area captured by an earlier fetch is found when no
+ * live overlay is up, and with neither the Draw tool arms itself and says so
+ * instead of returning null into a status line reading "no extent".
+ *
+ * It also fixes a real longitude bug that was here: the viewer answers in
+ * 0–360 east and this passed those numbers straight through, so a polygon over
+ * the Atlantic asked Earth Engine for a bbox at longitude 315 — the middle of
+ * Asia. `signedLon` is applied inside the picker now.
+ */
 function requestBounds() {
   const choice = byId("gee-extent")?.value || "global";
   // The default. A climate product is global by nature, and a whole-earth
@@ -79,22 +97,17 @@ function requestBounds() {
   if (choice === "global") {
     return { minX: -180, minY: -85, maxX: 180, maxY: 85 };
   }
-  if (choice === "polygon") {
-    // The viewer returns "vertices"; reading "points" found nothing, so the
-    // polygon option always reported that no shape had been drawn.
-    const geometry = window.GeoIDViewer?.getExtractionGeometry?.("polygon");
-    const vertices = geometry?.vertices;
-    if (Array.isArray(vertices) && vertices.length >= 3) {
-      const lons = vertices.map((v) => v.lon);
-      const lats = vertices.map((v) => v.lat);
-      return {
-        minX: Math.min(...lons), maxX: Math.max(...lons),
-        minY: Math.min(...lats), maxY: Math.max(...lats),
-      };
-    }
+  if (choice === "view") return viewBounds();
+  const picked = resolvePolygonExtent(choice);
+  if (!picked) return viewBounds();
+  if (picked.error) {
+    status(picked.error);
     return null;
   }
-  return viewBounds();
+  return {
+    minX: picked.west, maxX: picked.east,
+    minY: picked.south, maxY: picked.north,
+  };
 }
 
 /**
@@ -686,8 +699,13 @@ function ensureGeeDialog() {
     '<label>Extent<select id="gee-add-extent">',
     '<option value="global">Global</option>',
     '<option value="view">Current view</option>',
-    '<option value="polygon">Drawn polygon</option>',
+    '<option value="drawn">An area drawn by hand</option>',
     "</select></label>",
+    // The button the extent select could not be: a modal covers the globe,
+    // so "draw an area" cannot be a thing you do WITH the dialog open. It
+    // arms the tool, stands the dialog down, and remembers the dataset and
+    // dates so coming back is not starting again.
+    '<button id="gee-add-draw" class="button secondary" type="button">✏ Draw a new area on the globe</button>',
     '<div id="gee-add-status"></div>',
     '<div id="gee-add-actions">',
     '<button id="gee-add-request" class="button primary" type="button">Request</button>',
@@ -697,6 +715,33 @@ function ensureGeeDialog() {
   document.body.appendChild(backdrop);
   backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeGeeDialog(); });
   byId("gee-add-close").addEventListener("click", closeGeeDialog);
+  /**
+   * Draw, then come back to a dialog that remembers where you were.
+   *
+   * `pendingDialog` holds the dataset and dates across the round trip, so the
+   * flow is one gesture with an interruption rather than two separate visits
+   * — losing a chosen dataset because somebody drew a box is exactly the
+   * "side quest to another tool" the weather card was built to avoid.
+   */
+  byId("gee-add-draw").addEventListener("click", () => {
+    pendingDialog = {
+      home: dialogHome,
+      dataset: byId("gee-add-dataset")?.value || "",
+      from: byId("gee-add-from")?.value || "",
+      to: byId("gee-add-to")?.value || "",
+    };
+    closeGeeDialog();
+    promptDrawTool();
+    status("Draw the area on the globe, then press “+ GEE” again — your dataset is remembered.");
+  });
+  // The named polygons are rebuilt on every layer change, exactly as the
+  // weather card's are: a captured extent should be offerable the moment it
+  // exists, without reopening anything.
+  window.GeoIDImportManager?.onChange?.(() => {
+    if (!byId("gee-add-backdrop")?.hidden) {
+      refreshPolygonOptions(byId("gee-add-extent"), "drawn");
+    }
+  });
   byId("gee-add-request").addEventListener("click", async () => {
     const dataset = byId("gee-add-dataset").value;
     if (!dataset) return;
@@ -727,11 +772,20 @@ function closeGeeDialog() {
   if (backdrop) backdrop.hidden = true;
 }
 
+/** What the dialog was showing when "draw an area" took it off screen. */
+let pendingDialog = null;
+let dialogHome = "";
+
 function openGeeDialog(homeName) {
   ensureGeeDialog();
+  // Reopened after a detour to the Draw tool: come back to that tab's
+  // subject rather than to whichever button was pressed second.
+  const resumed = pendingDialog;
+  pendingDialog = null;
+  dialogHome = resumed ? resumed.home : homeName;
   const entries = catalogueEntries();
-  const subset = homeName
-    ? entries.filter((entry) => geeHomeOf(entry.id) === homeName)
+  const subset = dialogHome
+    ? entries.filter((entry) => geeHomeOf(entry.id) === dialogHome)
     : entries;
   const offered = subset.length ? subset : entries;
   const picker = byId("gee-add-dataset");
@@ -742,8 +796,28 @@ function openGeeDialog(homeName) {
   const tf = byId("gee-date-to");
   if (ff?.value) byId("gee-add-from").value = ff.value;
   if (tf?.value) byId("gee-add-to").value = tf.value;
+  /**
+   * Every drawn polygon, by name, and the shape just drawn preselected.
+   *
+   * Coming back from the Draw tool with an overlay standing and the extent
+   * still reading "Global" would silently throw the area away — the one
+   * outcome this whole round trip exists to prevent.
+   */
+  const extent = byId("gee-add-extent");
+  refreshPolygonOptions(extent, "drawn");
+  if (resumed) {
+    if (resumed.dataset && [...picker.options].some((o) => o.value === resumed.dataset)) {
+      picker.value = resumed.dataset;
+    }
+    if (resumed.from) byId("gee-add-from").value = resumed.from;
+    if (resumed.to) byId("gee-add-to").value = resumed.to;
+    if (extent && drawnOverlayBounds()) extent.value = "drawn";
+  }
   const node = byId("gee-add-status");
-  if (node) node.textContent = "";
+  if (node) {
+    node.textContent = resumed && drawnOverlayBounds()
+      ? "Using the area you just drew." : "";
+  }
   byId("gee-add-backdrop").hidden = false;
 }
 
@@ -918,9 +992,34 @@ function init() {
     loadCatalogue();
   });
   byId("gee-request")?.addEventListener("click", request);
+  /**
+   * The tab's own extent control gets the same picker the dialog has.
+   *
+   * "any GEE pull" means this one too — it is the control the Atmosphere tab
+   * has always shown, and it offered one drawn polygon: whatever happened to
+   * be on the globe. Every captured area is now listed by name beside it, so
+   * re-running a dataset over the SAME box a week later is a choice rather
+   * than a redraw.
+   */
+  const extentSelect = byId("gee-extent");
+  if (extentSelect) {
+    refreshPolygonOptions(extentSelect, "global");
+    extentSelect.addEventListener("change", () => {
+      // Choosing "an area drawn by hand" with nothing drawn is a dead end
+      // unless the drawer comes to you — the weather card's rule.
+      if (extentSelect.value === "drawn" && !drawnOverlayBounds()) {
+        promptDrawTool();
+        status("Draw the area on the globe — the Draw tool is active — then press Request.");
+      }
+    });
+  }
   // The ticks follow the layers, whoever removed one: this list, the layer box,
-  // or a tab being switched off.
-  window.GeoIDImportManager?.onChange?.(drawCatalogue);
+  // or a tab being switched off. The named extents follow them for the same
+  // reason: a polygon captured by any fetch should be offerable at once.
+  window.GeoIDImportManager?.onChange?.(() => {
+    drawCatalogue();
+    refreshPolygonOptions(byId("gee-extent"), "global");
+  });
   drawCatalogue();
   // Choosing a dataset fetches what it actually holds, states it, and fills the
   // boxes with the last sixty days of availability -- so the offered dates are

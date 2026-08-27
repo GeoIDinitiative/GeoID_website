@@ -1332,6 +1332,50 @@ Verified: the dialog from Geohazards offers exactly NDVI and Burned area,
 requesting drapes the cached snapshot with the honest resolution note, and
 a tick in the relocated Basemap list still drapes NASADEM.
 
+## "Which patch of ground?" is asked once — `extent-picker.js`
+
+The weather card grew a good answer to that question and Earth Engine had a
+third of one: a "Drawn polygon" option that read the live overlay and
+**returned null** when there was not one — a dead end wearing the clothes of a
+control, with the status line saying nothing. `gis/extent-picker.js` is the
+weather card's answer lifted out so both ask it. Not copied: copied is how the
+polygon-area formula came to be wrong in ten files and how the credit and
+licence lines came to describe different maps.
+
+The fallback chain is the whole point, and every step of it fails silently
+without one: the live overlay, else the last CAPTURED extent still visible on
+the globe, else arm the Draw tool and say so. Above that, any drawn polygon
+still on the globe can be chosen BY NAME (`layer:<id>`, listed as "▱ Drawn
+area 1"), so re-running a dataset over the same box next week is a choice
+rather than a guess about which one a fallback would take. A `layer:` id whose
+layer has been removed is an ERROR, not a silent resolve to undefined that
+lets the request go out global. A hidden polygon is never the fallback — it is
+not on the globe to be reused.
+
+**It fixed a real longitude bug in gee.js.** `requestBounds` read the viewer's
+`getExtractionGeometry` and passed those numbers straight through, but the
+viewer carries **east-positive 0–360** — so a polygon over the Atlantic asked
+Earth Engine for a bbox at longitude 315, the middle of Asia. Same trap
+`signedLon` in bridge.js exists for; the conversion is inside the picker now
+and `extent-picker.test.mjs` pins it (`resolvePolygonExtent` over a 350–355°
+overlay must answer −10 to −5).
+
+**A modal covers the globe, so "draw an area" cannot be done WITH the dialog
+open.** The GEE dialog's ✏ button therefore arms the tool, stands the dialog
+down, and holds the dataset, dates and tab subject in `pendingDialog` — so
+reopening comes back to what you had, with the extent preselected to the shape
+you just drew and the status saying "Using the area you just drew." Losing a
+chosen dataset because somebody drew a box is exactly the side quest the
+weather card was built to avoid. Verified live: SMAP + 2026-01-05/2026-02-05
+survived the round trip, extent came back "drawn".
+
+The Atmosphere tab's own `#gee-extent` gets the same list and the same
+arm-on-select, because "any GEE pull" means that control too. Its option was
+renamed `polygon` → `drawn`; `resolvePolygonExtent` accepts BOTH spellings, or
+the rename would have broken the tab it was meant to improve. The GFS card
+(`gee-live.js`) is deliberately untouched — it already has a broader picker
+listing every vector layer, plus its own draw button.
+
 ## Live fetch: the hub's connectors in the catalogues, and weather by extent
 
 **The Research Hub's fetch services are catalogue rows now.** Six of the
