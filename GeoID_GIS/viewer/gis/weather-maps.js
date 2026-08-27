@@ -24,9 +24,9 @@
  * registry is the seam, and nothing else here would change.
  */
 
-import { drape } from "./gee.js?v=20260827-5faa79d";
-import { currentBodyId } from "./bodies.js?v=20260827-5faa79d";
-import { rectangleVertices } from "./draw-area.js?v=20260827-5faa79d";
+import { drape } from "./gee.js?v=20260827-9ff2e4a";
+import { currentBodyId } from "./bodies.js?v=20260827-9ff2e4a";
+import { rectangleVertices } from "./draw-area.js?v=20260827-9ff2e4a";
 
 const byId = (id) => document.getElementById(id);
 
@@ -539,6 +539,17 @@ async function fetchMap() {
       };
     }
     window.GeoIDLayerHierarchy?.setOpacity?.(layer, 0.85);
+    /**
+     * The extent polygon has done its job the moment the map lands — left
+     * visible it draws OVER the fetched data (both are annotation-band
+     * layers, and the polygon registered later). Its row keeps its place in
+     * Layer Visibility with the eye switched off, one click from coming
+     * back, and the named entry in the Extent picker still offers it for
+     * the next pull whatever its visibility.
+     */
+    (window.GeoIDImportManager?.getLayers?.() || [])
+      .filter((extent) => extent.weatherExtent && extent.visible !== false)
+      .forEach((extent) => window.GeoIDLayerHierarchy?.setVisible?.(extent, false));
     window.GeoIDLayerHierarchy?.render?.();
     say(`${name} on the globe. ${source.citation}.`);
   } catch (error) {
