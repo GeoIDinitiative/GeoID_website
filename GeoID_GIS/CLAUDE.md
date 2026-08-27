@@ -1361,6 +1361,37 @@ bounds one minute after it was taken; a temperature field 12.8–22.5 °C
 with its legend; HadUK pulling 112 cells with the full ArcGIS endpoint in
 its metadata.
 
+## Drawing: press-drag boxes, visible handles, one gesture grammar
+
+With the Draw tool armed, PRESS on the globe and DRAG — a box grows live
+under the pointer with its size in km beside the cursor; release and it
+stands with eight visible handles (four corner squares that resize, four
+edge dots that move). A TAP without movement still places a polygon
+vertex — the decision is 5 px of movement, controls stand down at press
+(in draw mode a drag draws), and a press-start stray vertex left by what
+becomes a drag is erased by the first rect rebuild. Esc cancels any drag.
+
+Three measured traps live in this apparatus:
+
+- **Classify grabs by the PICTURE, not the ground.** The handles project
+  the LIFTED surface point; the raycast hits the ground beneath — at
+  oblique views they part by tens of pixels, so a grab classified by
+  ground tolerance misses the very square it shows. `handleAt()` tests
+  the pointer against the DOM dots; the drag itself still moves by ground
+  hits.
+- **Corners move by the drag's DELTA**, anchored to the corner's original
+  position — the absolute ground hit sits a parallax-width inside the
+  box, and min/max against it SHRINKS the span you meant to grow.
+- **The vertex add is the canvas's own `pointerup`** (≤10 px gate against
+  its recorded pointerdown) — a synthetic pointerup dispatched on
+  `window` never reaches it, which reads as a broken tap and is a broken
+  TEST. Target the canvas.
+
+Rect editing is wrap-safe (bounds renormalise on rebuild; corner/edge/
+delta comparisons use wrapped lon distance) and hand-drawn polygons are
+left alone — no corners a rectangle rule may move. The zoom pill's ends
+are − and + now, not arrows.
+
 ## Volcanoes, and three services asked about a place
 
 **The Smithsonian catalogue is BAKED** (`services/bake-volcanoes.py` →

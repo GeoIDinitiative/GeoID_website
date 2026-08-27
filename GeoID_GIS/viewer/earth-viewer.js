@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260827-9ff2e4a";
+  from "./gis/geo-utils.js?v=20260827-63219c2";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -17305,6 +17305,19 @@ uniform float uViewportWidth;`,
         if (!bounds) return;
         const hit = intersectMeasurementSurface(event.clientX, event.clientY);
         if (!hit) return;
+        const grabbed = handleAt(event.clientX, event.clientY);
+        if (grabbed) {
+          studyDrag = {
+            kind: grabbed.kind,
+            corner: grabbed.corner ?? -1,
+            start: { lat: hit.lat, lon: hit.lon },
+            orig: { ...bounds },
+          };
+          if (viewerControls) viewerControls.enabled = false;
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
         const tol = studyDegTolerance(14);
         const corners = [
           { lat: bounds.south, lon: bounds.west }, { lat: bounds.south, lon: bounds.east },
@@ -17349,14 +17362,24 @@ uniform float uViewportWidth;`,
             west: o.west + dLon, east: o.east + dLon,
           });
         } else {
-          // The grabbed corner follows the pointer; its opposite holds still.
+          /**
+           * The corner moves by the DRAG'S DELTA from wherever the grab
+           * landed, anchored to the corner's original position — not to the
+           * absolute ground hit, which sits a parallax-width inside the box
+           * (the handle projects the lifted point, the raycast hits the
+           * ground). Deltas make the offset irrelevant: what the hand moves
+           * is what the corner does.
+           */
+          const dLat = hit.lat - studyDrag.start.lat;
+          const dLon = ((hit.lon - studyDrag.start.lon + 540) % 360) - 180;
+          const cornerLat = (studyDrag.corner < 2 ? o.south : o.north) + dLat;
+          const cornerLon = ((studyDrag.corner === 1 || studyDrag.corner === 2)
+            ? o.east : o.west) + dLon;
           const oppLat = studyDrag.corner < 2 ? o.north : o.south;
           const oppLon = (studyDrag.corner === 1 || studyDrag.corner === 2) ? o.west : o.east;
-          // The hit longitude in the box's own frame, seam and all.
-          const hitLon = oppLon + (((hit.lon - oppLon + 540) % 360) - 180);
           rebuildStudyRect({
-            south: Math.min(hit.lat, oppLat), north: Math.max(hit.lat, oppLat),
-            west: Math.min(hitLon, oppLon), east: Math.max(hitLon, oppLon),
+            south: Math.min(cornerLat, oppLat), north: Math.max(cornerLat, oppLat),
+            west: Math.min(cornerLon, oppLon), east: Math.max(cornerLon, oppLon),
           });
         }
       }
@@ -17372,9 +17395,275 @@ uniform float uViewportWidth;`,
         document.dispatchEvent(new Event("geoid-study-area-edited"));
       }
 
-      renderer.domElement.addEventListener("pointerdown", studyPointerDown, true);
-      window.addEventListener("pointermove", studyPointerMove, true);
-      window.addEventListener("pointerup", studyPointerUp, true);
+      /* ── Press-drag box creation, visible handles, live size ──────────
+         The industry gesture: with the Draw tool armed, PRESS on the globe
+         and DRAG — a box grows live under the pointer with its size in km
+         beside the cursor; release and it stands with visible corner and
+         edge handles. A tap without movement still places a polygon vertex,
+         so the click-out shape is untouched. */
+      let pendingBox = null;   // pressed, not yet decided tap-or-drag
+      let boxDraw = null;      // dragging a new box out
+      let suppressDrawClick = false;
+
+      function studySizeChip() {
+        let chip = document.getElementById("gis-draw-size");
+        if (!chip) {
+          chip = document.createElement("div");
+          chip.id = "gis-draw-size";
+          Object.assign(chip.style, {
+            position: "fixed", zIndex: 40, pointerEvents: "none", hidden: true,
+            padding: "0.18rem 0.5rem", borderRadius: "0.35rem",
+            border: "1px solid rgba(82,228,232,0.5)",
+            background: "rgba(8,13,20,0.95)", color: "#bdf3f5",
+            font: "600 0.68rem/1.2 'Exo 2', sans-serif",
+            letterSpacing: "0.05em", whiteSpace: "nowrap",
+          });
+          chip.hidden = true;
+          document.body.appendChild(chip);
+        }
+        return chip;
+      }
+
+      function showSizeChip(clientX, clientY, bounds) {
+        const chip = studySizeChip();
+        const midLat = (bounds.south + bounds.north) / 2;
+        const heightKm = (bounds.north - bounds.south) * 111.32;
+        const widthKm = (bounds.east - bounds.west) * 111.32
+          * Math.cos((midLat * Math.PI) / 180);
+        chip.textContent = `${Math.round(widthKm)} × ${Math.round(heightKm)} km`;
+        chip.style.left = `${clientX + 16}px`;
+        chip.style.top = `${clientY + 16}px`;
+        chip.hidden = false;
+      }
+
+      function hideSizeChip() {
+        const chip = document.getElementById("gis-draw-size");
+        if (chip) chip.hidden = true;
+      }
+
+      /* Handles: eight quiet squares on the rect — four corners that resize,
+         four edge midpoints that move — drawn as a DOM overlay so hover glow
+         and cursors are ordinary CSS. Purely visual (pointer-events none);
+         the grabbing itself stays with the ground raycasts, so the picture
+         and the physics cannot disagree. */
+      let handleHost = null;
+      function ensureHandleHost() {
+        if (handleHost) return handleHost;
+        handleHost = document.createElement("div");
+        handleHost.id = "gis-rect-handles";
+        Object.assign(handleHost.style, {
+          position: "fixed", inset: "0", zIndex: 13, pointerEvents: "none",
+        });
+        for (let i = 0; i < 8; i += 1) {
+          const dot = document.createElement("div");
+          Object.assign(dot.style, {
+            position: "absolute", width: "9px", height: "9px",
+            marginLeft: "-4.5px", marginTop: "-4.5px",
+            borderRadius: i < 4 ? "2px" : "50%",
+            border: "1.5px solid rgba(82,228,232,0.95)",
+            background: "rgba(8,13,20,0.9)",
+            boxShadow: "0 0 6px rgba(82,228,232,0.6)",
+            display: "none",
+          });
+          handleHost.appendChild(dot);
+        }
+        document.body.appendChild(handleHost);
+        return handleHost;
+      }
+
+      function studyRectScreenPoint(lat, lon, context) {
+        const local = sampleMeasureSurfacePoint(lat, lon,
+          getMeasureDisplayLift(context), context);
+        const world = marsGroup.localToWorld(local.clone());
+        const projected = world.project(camera);
+        if (projected.z > 1) return null;
+        const box = renderer.domElement.getBoundingClientRect();
+        return {
+          x: (projected.x * 0.5 + 0.5) * box.width + box.left,
+          y: (-projected.y * 0.5 + 0.5) * box.height + box.top,
+        };
+      }
+
+      function updateRectHandles() {
+        const host = ensureHandleHost();
+        const bounds = (measureMode === "area") ? rectFromMeasurePoints() : null;
+        const dots = host.children;
+        if (!bounds || measureDrawActive) {
+          for (const dot of dots) dot.style.display = "none";
+          return;
+        }
+        const context = measurePoints[0]?.context || getActiveMeasureContext();
+        const midLat = (bounds.south + bounds.north) / 2;
+        const midLon = (bounds.west + bounds.east) / 2;
+        const spots = [
+          [bounds.south, bounds.west], [bounds.south, bounds.east],
+          [bounds.north, bounds.east], [bounds.north, bounds.west],
+          [bounds.south, midLon], [bounds.north, midLon],
+          [midLat, bounds.west], [midLat, bounds.east],
+        ];
+        spots.forEach((spot, i) => {
+          const at = studyRectScreenPoint(spot[0], spot[1], context);
+          const dot = dots[i];
+          if (!at) { dot.style.display = "none"; return; }
+          dot.style.display = "block";
+          dot.style.left = `${at.x}px`;
+          dot.style.top = `${at.y}px`;
+        });
+      }
+      (function handleLoop() {
+        updateRectHandles();
+        window.requestAnimationFrame(handleLoop);
+      }());
+
+      /* Cursor feedback while merely hovering: resize over a corner, move
+         over an edge — the affordance that tells a hand the rect is live. */
+      let hoverCursorAt = 0;
+      function studyHoverCursor(event) {
+        if (studyDrag || boxDraw || pendingBox) return;
+        const now = performance.now();
+        if (now - hoverCursorAt < 80) return;
+        hoverCursorAt = now;
+        const bounds = (measureMode === "area" && !measureDrawActive)
+          ? rectFromMeasurePoints() : null;
+        const canvas = renderer.domElement;
+        if (!bounds) { if (canvas.style.cursor) canvas.style.cursor = ""; return; }
+        const grabbed = handleAt(event.clientX, event.clientY);
+        if (grabbed) {
+          // Corner 0 is SW, 2 is NE — the nesw diagonal; 1 and 3 the nwse.
+          canvas.style.cursor = grabbed.kind === "move" ? "move"
+            : (grabbed.corner % 2 === 0 ? "nesw-resize" : "nwse-resize");
+          return;
+        }
+        const hit = intersectMeasurementSurface(event.clientX, event.clientY);
+        if (!hit) { if (canvas.style.cursor) canvas.style.cursor = ""; return; }
+        const tol = studyDegTolerance(14);
+        const nearLat = Math.abs(hit.lat - bounds.south) < tol || Math.abs(hit.lat - bounds.north) < tol;
+        const nearLon = lonDelta(hit.lon, bounds.west) < tol || lonDelta(hit.lon, bounds.east) < tol;
+        const withinLat = hit.lat > bounds.south - tol && hit.lat < bounds.north + tol;
+        const withinLon = lonDelta(hit.lon, (bounds.west + bounds.east) / 2)
+          < (bounds.east - bounds.west) / 2 + tol;
+        canvas.style.cursor = ((nearLat && withinLon) || (nearLon && withinLat)) ? "move" : "";
+      }
+
+      /**
+       * The handle under the pointer, measured against the DOM dots the eye
+       * is aiming at. The handles project the lifted surface point, the
+       * raycast hits the ground beneath — at oblique views the two part by
+       * tens of pixels (the measure-marker parallax lesson), so a grab
+       * classified by ground tolerance misses the very square it shows.
+       * Classify by the picture; the drag itself still moves by ground hits.
+       */
+      function handleAt(clientX, clientY) {
+        if (!handleHost) return null;
+        const dots = handleHost.children;
+        for (let i = 0; i < dots.length; i += 1) {
+          if (dots[i].style.display === "none") continue;
+          const box = dots[i].getBoundingClientRect();
+          const dx = clientX - (box.left + box.width / 2);
+          const dy = clientY - (box.top + box.height / 2);
+          if (Math.hypot(dx, dy) <= 12) {
+            return i < 4 ? { kind: "corner", corner: i } : { kind: "move" };
+          }
+        }
+        return null;
+      }
+
+      function drawPointerDown(event) {
+        if (event.button !== 0) return;
+        // Editing an existing rect wins over starting a new one.
+        studyPointerDown(event);
+        if (studyDrag) return;
+        if (!measureDrawActive || measureMode !== "area") return;
+        const hit = intersectMeasurementSurface(event.clientX, event.clientY);
+        if (!hit) return;
+        // Armed but undecided: a tap stays a polygon vertex, a drag becomes
+        // a box. Controls stand down either way — in draw mode a drag draws.
+        // The event itself keeps propagating: the viewer's own vertex-add
+        // path must still hear a tap, and a press-start vertex left by what
+        // turns out to be a drag is erased by the first rect rebuild.
+        pendingBox = {
+          x: event.clientX, y: event.clientY,
+          anchor: { lat: hit.lat, lon: hit.lon },
+        };
+        if (viewerControls) viewerControls.enabled = false;
+      }
+
+      function drawPointerMove(event) {
+        if (pendingBox && !boxDraw) {
+          if (Math.hypot(event.clientX - pendingBox.x, event.clientY - pendingBox.y) > 5) {
+            boxDraw = pendingBox;
+            suppressDrawClick = true;
+          }
+        }
+        if (boxDraw) {
+          event.preventDefault();
+          event.stopPropagation();
+          const now = performance.now();
+          if (now - studyDragLast < 60) return;
+          studyDragLast = now;
+          const hit = intersectMeasurementSurface(event.clientX, event.clientY);
+          if (!hit) return;
+          const a = boxDraw.anchor;
+          const hitLon = a.lon + (((hit.lon - a.lon + 540) % 360) - 180);
+          const bounds = {
+            south: Math.min(a.lat, hit.lat), north: Math.max(a.lat, hit.lat),
+            west: Math.min(a.lon, hitLon), east: Math.max(a.lon, hitLon),
+          };
+          if (bounds.north - bounds.south > 0.02 && bounds.east - bounds.west > 0.02) {
+            rebuildStudyRect(bounds);
+            showSizeChip(event.clientX, event.clientY, bounds);
+          }
+          return;
+        }
+        if (studyDrag) {
+          const bounds = rectFromMeasurePoints();
+          if (bounds) showSizeChip(event.clientX, event.clientY, bounds);
+        }
+        studyPointerMove(event);
+        studyHoverCursor(event);
+      }
+
+      function drawPointerUp(event) {
+        if (pendingBox || boxDraw) {
+          const drew = Boolean(boxDraw);
+          pendingBox = null;
+          boxDraw = null;
+          hideSizeChip();
+          if (viewerControls) viewerControls.enabled = true;
+          if (drew) {
+            event.preventDefault();
+            event.stopPropagation();
+            document.dispatchEvent(new Event("geoid-study-area-edited"));
+          }
+          // A tap falls through: the click event that follows places the
+          // vertex exactly as before.
+          return;
+        }
+        hideSizeChip();
+        studyPointerUp(event);
+      }
+
+      // One drag must not ALSO be the click that adds a stray vertex.
+      renderer.domElement.addEventListener("click", (event) => {
+        if (suppressDrawClick) {
+          suppressDrawClick = false;
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      }, true);
+      window.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && (boxDraw || pendingBox || studyDrag)) {
+          pendingBox = null;
+          boxDraw = null;
+          studyDrag = null;
+          hideSizeChip();
+          if (viewerControls) viewerControls.enabled = true;
+        }
+      });
+
+      renderer.domElement.addEventListener("pointerdown", drawPointerDown, true);
+      window.addEventListener("pointermove", drawPointerMove, true);
+      window.addEventListener("pointerup", drawPointerUp, true);
 
       function getMeasurePointContext(pointLike) {
         if (pointLike?.context) {

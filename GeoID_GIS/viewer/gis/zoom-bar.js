@@ -214,9 +214,9 @@ export function installZoomBar() {
   const box = document.createElement("div");
   box.id = "geoid-zoom-step";
   box.innerHTML = `
-    <button class="zs-step" id="zs-out" type="button" title="Zoom out" aria-label="Zoom out">‹</button>
+    <button class="zs-step" id="zs-out" type="button" title="Zoom out" aria-label="Zoom out">−</button>
     <button class="zs-band" id="zs-band" type="button" title="Scale">Global</button>
-    <button class="zs-step" id="zs-in" type="button" title="Zoom in — hold to keep going" aria-label="Zoom in">›</button>`;
+    <button class="zs-step" id="zs-in" type="button" title="Zoom in — hold to keep going" aria-label="Zoom in">+</button>`;
   document.body.appendChild(box);
 
   const out = box.querySelector("#zs-out");
