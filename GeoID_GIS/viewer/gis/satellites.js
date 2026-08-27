@@ -539,7 +539,7 @@ function showOrbitOverlay(overlay, record) {
 const tagTextures = new Map();
 
 function makePillTexture(name, colour) {
-  const key = `v6|${colour}|${name}`;
+  const key = `v7|${colour}|${name}`;
   if (tagTextures.has(key)) return tagTextures.get(key);
   /**
    * The viewer's OWN pill, through the seam the volcano labels use — the
@@ -567,7 +567,9 @@ function makePillTexture(name, colour) {
    */
   const label = make(name, {
     backingScale: Math.max(1, Math.ceil(window.devicePixelRatio || 1)),
-    titleFont: "700 15px 'Exo 2', sans-serif",
+    // No titleFont override: the pill wears the engine's own face, the same
+    // one every other location label uses. The blur was never the face — it
+    // was the 7.5x minification the sharp baking above removed.
     customPalette: {
       bg: "rgba(6, 10, 18, 0.82)",
       stroke: `${colour}88`,
@@ -704,14 +706,8 @@ function updateLabels() {
     // ratio stretches every tag (the fault the volcano labels documented).
     sprite.position.set(positions.getX(candidate.i), positions.getY(candidate.i),
       positions.getZ(candidate.i));
-    // The BASE scale, kept for the selection pulse: the pulse multiplies
-    // this each frame and deselect restores it, so the declutter pass and
-    // the pulse never fight over one number.
-    sprite.userData.baseScale = {
-      x: ((heightPx * sprite.userData.aspect) / rect.width) * 2,
-      y: (heightPx / rect.height) * 2,
-    };
-    sprite.scale.set(sprite.userData.baseScale.x, sprite.userData.baseScale.y, 1);
+    sprite.scale.set(((heightPx * sprite.userData.aspect) / rect.width) * 2,
+      (heightPx / rect.height) * 2, 1);
     sprite.center.set(-0.1, 0.5);
   });
 }
@@ -1014,6 +1010,18 @@ function select(record) {
     active.group.add(active.pulseDot);
   }
   if (active.rings) showOrbitOverlay(active.rings.userData.pulse, record);
+  /**
+   * The selected PILL goes GOLD — the same gold the dot and orbit wear — by
+   * swapping to a rebaked chip in that colour, never by tinting: a material
+   * tint multiplies the whole texture and muddies the text. The rest-state
+   * map is kept on the sprite so deselect is a swap back, not a rebake.
+   */
+  const tag = active.labels.get(record.norad);
+  if (tag) {
+    if (!tag.userData.restMap) tag.userData.restMap = tag.material.map;
+    tag.material.map = makePillTexture(record.name, "#ffbf6f").texture;
+    tag.material.needsUpdate = true;
+  }
   if (!active.pulseFrame) pulseLoop();
 }
 
@@ -1023,11 +1031,13 @@ function deselect() {
   active.selected = null;
   if (active.pulseDot) active.pulseDot.visible = false;
   if (active.rings?.userData.pulse) active.rings.userData.pulse.visible = false;
-  // The pill goes back to rest — mid-breath scale and opacity must not
-  // survive the selection they belonged to.
+  // The pill goes back to its rest chip and full opacity.
   const tag = was ? active.labels.get(was.norad) : null;
-  if (tag?.userData.baseScale) {
-    tag.scale.set(tag.userData.baseScale.x, tag.userData.baseScale.y, 1);
+  if (tag) {
+    if (tag.userData.restMap) {
+      tag.material.map = tag.userData.restMap;
+      tag.material.needsUpdate = true;
+    }
     tag.material.opacity = 1;
   }
 }
@@ -1057,17 +1067,12 @@ function pulseLoop() {
   const ringPulse = active.rings?.userData.pulse;
   if (ringPulse?.visible) ringPulse.material.opacity = 0.35 + pulse * 0.6;
   /**
-   * The PILL pulses with its dot and its orbit — one selection, one rhythm.
-   * Scale about the base the declutter recorded (breathing, ±14%) and a
-   * lifted opacity floor; the declutter pass writes only `baseScale`, so
-   * the two never fight over the live number.
+   * The gold pill GLOWS, it does not breathe: a label that changes size
+   * cannot be read while you look at it. Opacity is the whole pulse; the
+   * gold itself is the highlight, swapped in by select().
    */
   const tag = active.labels.get(record.norad);
-  if (tag?.visible && tag.userData.baseScale) {
-    const grow = 1 + 0.14 * pulse;
-    tag.scale.set(tag.userData.baseScale.x * grow, tag.userData.baseScale.y * grow, 1);
-    tag.material.opacity = 0.78 + 0.22 * pulse;
-  }
+  if (tag?.visible) tag.material.opacity = 0.72 + 0.28 * pulse;
   active.pulseFrame = window.requestAnimationFrame(pulseLoop);
 }
 
@@ -1415,7 +1420,7 @@ function init() {
       say("Turn the tracker on first — symbology colours the live layer.");
       return;
     }
-    const dialog = await import("./symbology-dialog.js?v=20260827-504d610");
+    const dialog = await import("./symbology-dialog.js?v=20260827-9881366");
     dialog.openSymbologyDialog(layer);
   });
   // The layer box can remove the layer without asking: the tracker must not

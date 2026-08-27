@@ -885,11 +885,19 @@ Petch", so naming it first fell through the stack while looking like a
 choice (my own first fix did exactly that, and "the labels are unchanged"
 was the report). `makeLabelTexture` takes `titleFont`; cache key v6.
 
-**The pill pulses with its dot and its orbit** — one selection, one rhythm.
-The declutter writes only `userData.baseScale`; the pulse loop multiplies
-it (±14%, opacity 0.78–1.0) and deselect restores it, so the two never
-fight over the live number. Measured: 13.8% swing on a clicked pill while
-its card stands.
+**The selected pill goes GOLD and glows — it does not breathe.** A label
+that changes size cannot be read while you look at it, so the scale pulse
+was replaced the day after it shipped: select() swaps the sprite's map to a
+REBAKED chip in the selection gold (#ffbf6f, the dot and orbit's own) —
+never a material tint, which multiplies the whole texture and muddies the
+text — and the pulse loop varies opacity alone (0.72–1.0). The rest-state
+map rides on the sprite; deselect swaps it back. Deselect-on-card-close is
+the pulse loop's own rAF poll, the mechanism the dot and orbit always used
+— which also means NONE of the glow is measurable in a hidden pane, where
+rAF is throttled to ~1 frame/1.5 s (measured); state checks (map swapped,
+scale constant) are the verifiable part there. The pill's FACE is the
+engine's own default again — the same as every other location label — the
+blur having been the minification, not the font.
 Verified: 4 of 4 clicks on pill right-thirds open that pill's own card.
 
 **The rotation control is ONE pill in a three-state loop** — LIVE (real
