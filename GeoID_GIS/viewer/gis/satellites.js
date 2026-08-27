@@ -105,17 +105,6 @@ const LABEL_LEVEL_COPY = {
   3: "Every satellite competes for a name",
 };
 const MAX_LABELS = 40;
-/**
- * The pill's on-screen height at close zoom; the texture is baked to match
- * it texel-for-pixel (see makePillTexture), so this number can be chosen
- * for LOOK alone — sharpness no longer depends on it.
- *
- * 17, to sit beside the curated location labels: those are world-sized
- * (34/200 x 0.66 = 0.112 units) and measure ~18 px at the default globe
- * view, which is where the two kinds of chip are seen together. 24 was
- * tried and reported massive — it read as UI, not annotation.
- */
-const TAG_HEIGHT_PX = 17;
 const LABEL_SPACING_PX = 64;
 
 const LAYER_NAME = "Live satellites (CelesTrak)";
@@ -538,35 +527,35 @@ function showOrbitOverlay(overlay, record) {
 /* ── labels ──────────────────────────────────────────────────────────────── */
 
 /**
- * The satellite tag: bare type, no box.
+ * The satellite tag: the Explorer location chip, in every respect.
  *
- * The strip version — translucent backing, chamfer, underline — read as
- * forty dark plaques stuck over the planet at a global view. What a tracker
- * HUD actually needs is the NAME and nothing else: micro uppercase type
- * with a tight dark halo for legibility over stars and orbit lines, and a
- * short leader dash in the category colour tying it to its dot. The ink is
- * a fraction of the strip's, so the same count of labels reads far quieter.
+ * Texture, palette, face, layout, baking AND sizing all come from the label
+ * engine's own path — the only things this module keeps are the anchor (a
+ * moving dot at altitude, which the engine cannot serve) and the selection
+ * gold. Every departure tried here was reported as a different app bolted
+ * onto this one.
  */
 const tagTextures = new Map();
 
 function makePillTexture(name, variant = "rest") {
-  const key = `v11|${variant}|${name}`;
+  const key = `v12|${variant}|${name}`;
   if (tagTextures.has(key)) return tagTextures.get(key);
   /**
    * VERBATIM the Explorer location chip — the engine's own default palette,
-   * face and layout, nothing overridden. Every custom look tried here (a
-   * chamfered strip, bare haloed type, a category-coloured space-HUD skin)
-   * was reported as a different app bolted onto this one; the category
-   * colour lives on the dot, the ring and the legend, where it always did.
-   * The one thing kept custom is the SIZE of the baking (texel-for-pixel,
-   * below), which changes sharpness and not looks.
+   * face, layout AND baking, nothing overridden. Every custom look tried
+   * here (a chamfered strip, bare haloed type, a category-coloured space-HUD
+   * skin, a texel-for-pixel bespoke bake) was reported as a different app
+   * bolted onto this one; the category colour lives on the dot, the ring and
+   * the legend, where it always did. Now that the sprites SIZE like the
+   * Explorer chips too (world units, the engine's own scale law), the bake
+   * is drawn at the same range of sizes the curated chips are, so the
+   * engine's default backing is the matching sharpness by construction.
    *
    * "gold" is the selection variant: the same chip re-inked in the
    * selection gold the dot and orbit overlays wear.
    */
   const make = window.GeoIDViewer?.makeLabelTexture;
   const label = make(name, {
-    backingScale: (TAG_HEIGHT_PX * (window.devicePixelRatio || 1)) / 34,
     // No minimum width: satellite names run to three letters, and under the
     // engine's 110 px floor "HST" was a chip mostly made of empty backing.
     // The chip hugs its text plus the engine's own padding, nothing else
@@ -626,28 +615,23 @@ function updateLabels() {
     return;
   }
   /**
-   * The tags shrink and thin out as the camera pulls away.
+   * SIZED BY THE EXPLORER LABELS' OWN LAW, not by a pixel constant.
    *
-   * A fixed size reads right when the globe fills the screen and enormous
-   * when the whole GNSS shell is in frame and the Earth is a coin — the
-   * tag stays, the world it annotates shrinks. Height eases 10 → 6.5 px
-   * (bare type, so that is ~7.5 px letters down to ~5 px) and the declutter
-   * spacing widens 64 → 130 px as the camera runs out from 5 to 25 units,
-   * so a distant view carries fewer, smaller names.
+   * Five rounds of "the labels are unchanged / massive / oversized" all had
+   * one root: the pills were pinned to a fixed screen size
+   * (`sizeAttenuation: false`) while the curated location chips are
+   * WORLD-SIZED sprites whose scale eases with camera distance — so the two
+   * kinds of chip only ever matched at the one view the constant was tuned
+   * for, and every texture fix looked like no fix from anywhere else. The
+   * formula below is earth-viewer's label pass verbatim: base scale
+   * `(texture/200) × 0.66`, `labelScale` easing 0.12 → 1.35 on
+   * `((distance − 0.2) / 6.2) ^ 0.85`, capped at 24 px of drawn height.
+   * Same numbers at the same camera distance as every curated chip.
    */
   const camDist = viewer.camera.position.length();
   const far = Math.max(0, Math.min(1, (camDist - 5) / 20));
-  // Pill height on screen: the chip is 34 logical px tall, shown at
-  // 18 px easing to 13 as the camera runs out — 15 px was reported
-  // unreadable, and the backing renders at 3x for the minification.
-  /**
-   * TAG_HEIGHT_PX near, four fifths of it far. At the old 18 px the title —
-   * 15 of the layout's 34 — came out ~8 px tall, and no face is legible at
-   * 8 px; "change the font" was reported three times and the size was the
-   * fault each time. 24 px puts the type at ~11 px, the small end of what
-   * HUD text can carry.
-   */
-  const heightPx = TAG_HEIGHT_PX - (TAG_HEIGHT_PX / 5) * far;
+  const fovScale = rect.height
+    / (2 * Math.tan(THREE.MathUtils.degToRad(viewer.camera.fov) * 0.5));
   const spacingPx = LABEL_SPACING_PX + 66 * far;
   const camDir = viewer.camera.position.clone().normalize();
   const positions = active.geometry.attributes.position;
@@ -662,11 +646,13 @@ function updateLabels() {
     // The tags draw with the depth test off (they must beat the orbit
     // spaghetti), so the planet's occlusion is answered geometrically.
     if (occludedByGlobe(world, viewer.camera)) return;
+    const distance = viewer.camera.position.distanceTo(world);
     const p = world.clone().project(viewer.camera);
     if (p.z > 1 || Math.abs(p.x) > 1 || Math.abs(p.y) > 1) return;
     candidates.push({
       record,
       i,
+      distance,
       x: (p.x * 0.5 + 0.5) * rect.width,
       y: (-p.y * 0.5 + 0.5) * rect.height,
       priority: LABEL_PRIORITY.indexOf(record.category),
@@ -696,9 +682,12 @@ function updateLabels() {
       const tag = makePillTexture(record.name);
       sprite = new THREE.Sprite(new THREE.SpriteMaterial({
         map: tag.texture, transparent: true, depthTest: false, depthWrite: false,
-        sizeAttenuation: false,
       }));
-      sprite.userData.aspect = tag.width / tag.height;
+      // The curated chips' own base scale: (texture px / 200) × 0.66 world
+      // units. sizeAttenuation stays at its default TRUE — that is the whole
+      // point; the chip is a thing in the world, like every other label.
+      sprite.userData.baseScale = new THREE.Vector2(
+        (tag.width / 200) * 0.66, (tag.height / 200) * 0.66);
       sprite.userData.record = record;
       active.labelGroup.add(sprite);
       active.labels.set(record.norad, sprite);
@@ -706,13 +695,20 @@ function updateLabels() {
     sprite.visible = true;
     // In the group's own frame, exactly where the dot is; the offset is the
     // sprite's centre, in fractions of its own size, so it clears the dot by
-    // the same margin at every zoom. Each axis converts against its own
-    // canvas dimension — width against width — or the viewport's aspect
-    // ratio stretches every tag (the fault the volcano labels documented).
+    // the same margin at every zoom.
     sprite.position.set(positions.getX(candidate.i), positions.getY(candidate.i),
       positions.getZ(candidate.i));
-    sprite.scale.set(((heightPx * sprite.userData.aspect) / rect.width) * 2,
-      (heightPx / rect.height) * 2, 1);
+    // earth-viewer's label scale pass, verbatim, against the tag's own
+    // camera distance (a curated chip's anchor is the ground; this chip's
+    // anchor is the dot itself, so its distance is measured there).
+    const base = sprite.userData.baseScale;
+    const t = Math.max(0, Math.min(1, (candidate.distance - 0.2) / 6.2));
+    const easedT = Math.pow(t, 0.85);
+    let labelScale = 0.12 + (1.35 - 0.12) * easedT;
+    const spritePxPerUnit = fovScale / Math.max(candidate.distance - 0.24, 0.05);
+    labelScale = Math.min(labelScale,
+      24 / Math.max(base.y * spritePxPerUnit, 1e-6));
+    sprite.scale.set(base.x * labelScale, base.y * labelScale, 1);
     sprite.center.set(-0.1, 0.5);
   });
 }
@@ -860,24 +856,29 @@ function castAt(clientX, clientY) {
 /**
  * The tag under a pointer position, tested in SCREEN space.
  *
- * A raycast cannot serve here: the sprites render with
- * `sizeAttenuation: false`, so their drawn size is a screen fact the
- * raycaster's world-space math does not see. The same projection that
- * places a tag answers whether a click landed on it.
+ * The sprites are world-sized now, so their drawn size is world scale times
+ * the pixels-per-world-unit at their own distance — the same conversion the
+ * scale pass uses. The same projection that places a tag answers whether a
+ * click landed on it.
  */
 function tagAt(clientX, clientY) {
   const viewer = window.GeoIDViewer;
   const canvas = viewer?.renderer?.domElement;
   if (!canvas || !active) return null;
   const rect = canvas.getBoundingClientRect();
+  const fovScale = rect.height
+    / (2 * Math.tan(THREE.MathUtils.degToRad(viewer.camera.fov) * 0.5));
   const world = new THREE.Vector3();
   for (const sprite of active.labels.values()) {
     if (!sprite.visible) continue;
-    sprite.getWorldPosition(world).project(viewer.camera);
+    sprite.getWorldPosition(world);
+    const pxPerUnit = fovScale
+      / Math.max(viewer.camera.position.distanceTo(world), 0.001);
+    world.project(viewer.camera);
     const ax = (world.x * 0.5 + 0.5) * rect.width + rect.left;
     const ay = (-world.y * 0.5 + 0.5) * rect.height + rect.top;
-    const w = (sprite.scale.x * rect.width) / 2;
-    const h = (sprite.scale.y * rect.height) / 2;
+    const w = sprite.scale.x * pxPerUnit;
+    const h = sprite.scale.y * pxPerUnit;
     /**
      * sprite.center is (-0.1, 0.5): the quad's centre sits 0.6 widths right
      * of the anchor, level with it — and `(0.5 - center.x) * w` IS that
@@ -1425,7 +1426,7 @@ function init() {
       say("Turn the tracker on first — symbology colours the live layer.");
       return;
     }
-    const dialog = await import("./symbology-dialog.js?v=20260827-4fa9fc3");
+    const dialog = await import("./symbology-dialog.js?v=20260827-78af64b");
     dialog.openSymbologyDialog(layer);
   });
   // The layer box can remove the layer without asking: the tracker must not

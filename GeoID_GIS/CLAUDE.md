@@ -931,6 +931,28 @@ for the selection gold #ffbf6f — a selected HST reads as "the old amber
 chip is back" when it is the gold variant doing its job.
 Verified: 4 of 4 clicks on pill right-thirds open that pill's own card.
 
+**"Copy the labels verbatim" includes the SIZING LAW, and that was the last
+and largest gap.** Five rounds of texture fixes (font, backing, palette,
+minimum width) all landed while the pills were still pinned to a fixed
+screen size (`sizeAttenuation: false`, 13.6–17 px) — and the curated chips
+are WORLD-SIZED sprites whose scale runs the engine's own easing
+(`labelScale` 0.12 → 1.35 on `((distance − 0.2)/6.2)^0.85`, capped at 24 px
+drawn). Two chips can share every texel and still not match anywhere but
+the single view the constant was tuned for; from any other zoom, every
+texture fix reads as "zero change", which is exactly what was reported. The
+pills now carry the curated base scale (`texture/200 × 0.66` world units,
+sizeAttenuation default TRUE) and earth-viewer's scale pass verbatim,
+against each tag's own camera distance (its anchor is the dot, not the
+ground). With the sizes now matching by construction the bespoke
+texel-for-pixel bake went too — the engine default backing IS the matching
+sharpness. `tagAt` converts the world scale back to pixels through the same
+`fovScale / distance` the scale pass uses. Measured: 13–19 px at the
+default view (curated band 13.7–18), ~21 px at 4,000 km easing into the
+cap, 2–6 px with the whole GNSS shell in frame — and a click on ASTROSAT's
+pill opens ASTROSAT. When a chip "looks wrong" beside a reference chip,
+diff the SIZING MODEL before the texture: a screen-pinned sprite and a
+world-sized one can never agree at more than one distance.
+
 **The rotation control is ONE pill in a three-state loop** — LIVE (real
 rate, clock snapped to now; the BOOT DEFAULT) → ×720 (the two-minute
 showcase day) → PAUSED (rotation held) → LIVE. It absorbed the old
