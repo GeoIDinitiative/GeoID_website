@@ -1147,6 +1147,22 @@ beside a hierarchy row was two controls for one layer; their "N polygons"
 count text was noise), and the dock body grew to min(42vh, 20rem) for its
 new contents (both stylesheets).
 
+**The Add-data dialog is FORMAT-ADAPTIVE and asks for classification.**
+One dialog, never subwindows: on file choice it says what it understood
+("— imported as a 3D mesh (local model) / a raster, draped on the terrain
+/ a table of points — map the columns below / a vector layer"), flips CRS
+to "none" for meshes AND back to EPSG:4326 when a georeferenced file
+replaces one ("none" was the mesh's answer, not a choice about this
+file), keeps the CSV column mapper, and hides whichever symbology row
+does not apply (ramp for flat-colour vectors, colour for graded rasters)
+instead of merely disclaiming it. A **Classification** fieldset carries
+the data-tags type — guessed live from the file via `inferType`, frozen
+once the user touches it (`dtypeTouched`) — and the note; on submit the
+tag lands on the imported layers found by DIFFING ids (the importer names
+layers its own way), and `suppressNextArrival(1)` keeps the arrival card
+quiet for an import the dialog already classified — one question, one
+box.
+
 **The Workspace add row is the ONE doorway for user data.** The per-tab
 + Data / + GEE pairs are gone — `add-data.js` injects only the vector
 role's row, into `#workspace-add-host` — and that role's dialog became

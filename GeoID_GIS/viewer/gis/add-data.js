@@ -30,9 +30,10 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260828-6993c3a";
-import { readHead, validateMapping } from "./delimited.js?v=20260828-6993c3a";
-import { RAMP_NAMES } from "./symbology.js?v=20260828-6993c3a";
+import { CRS_OPTIONS } from "./projection.js?v=20260828-680b893";
+import { readHead, validateMapping } from "./delimited.js?v=20260828-680b893";
+import { RAMP_NAMES } from "./symbology.js?v=20260828-680b893";
+import { DATA_TYPES, inferType, applyTag, suppressNextArrival } from "./data-tags.js?v=20260828-680b893";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
@@ -308,10 +309,15 @@ function describeSymbology() {
     ui.symNote.textContent = "";
     return;
   }
+  // The irrelevant control is HIDDEN, not merely disclaimed: a ramp row
+  // under a flat-colour vector was the dialog asking a question it had just
+  // said it would ignore.
+  ui.colourRow.hidden = mode === "ramp";
+  ui.rampRow.hidden = mode === "colour";
   ui.symNote.textContent = mode === "ramp"
-    ? "This layer has values to grade, so the ramp is used and the colour is ignored."
+    ? "This layer has values to grade, so the ramp applies."
     : mode === "colour"
-      ? "Nothing here to grade, so the flat colour is used and the ramp is ignored."
+      ? "Nothing here to grade, so the flat colour applies."
       : "";
 }
 
@@ -319,7 +325,7 @@ function describeSymbology() {
 
 let backdrop = null;
 let ui = null;
-const state = { role: ROLES[0], files: [], head: null, mapping: null };
+const state = { role: ROLES[0], files: [], head: null, mapping: null, dtypeTouched: false };
 
 function say(message, warning = false) {
   if (!ui?.note) return;
@@ -443,8 +449,28 @@ function build() {
   );
   const symNote = document.createElement("p");
   symNote.className = "add-note";
-  symSet.append(symLegend, row("Colour", colour), row("Opacity", opacity),
-    row("Ramp", ramp), symNote);
+  const colourRow = row("Colour", colour);
+  const rampRow = row("Ramp", ramp);
+  symSet.append(symLegend, colourRow, row("Opacity", opacity), rampRow, symNote);
+
+  // ── Classification ──
+  // The data-tags taxonomy, asked at the door: the type the layer will wear
+  // as its chip, and the note that says what this input is FOR. Guessed live
+  // from the chosen file and correctable here — the arrival card then stays
+  // quiet for this import (suppressNextArrival), one question, one box.
+  const classSet = document.createElement("fieldset");
+  const classLegend = document.createElement("legend");
+  classLegend.textContent = "Classification";
+  const dtype = select(
+    Object.entries(DATA_TYPES).map(([value, t]) => ({ value, label: t.label })),
+    "vector",
+  );
+  dtype.addEventListener("change", () => { state.dtypeTouched = true; });
+  const dnote = document.createElement("input");
+  dnote.className = "input";
+  dnote.type = "text";
+  dnote.placeholder = "Optional note — what is this input for?";
+  classSet.append(classLegend, row("Type", dtype), row("Note", dnote));
 
   // ── Name ──
   const nameSet = document.createElement("fieldset");
@@ -459,7 +485,7 @@ function build() {
   const note = document.createElement("p");
   note.className = "add-note";
 
-  body.append(fileSet, crsSet, colSet, symSet, nameSet, note);
+  body.append(fileSet, crsSet, colSet, symSet, classSet, nameSet, note);
 
   const foot = document.createElement("div");
   foot.className = "add-foot";
@@ -483,6 +509,7 @@ function build() {
     title, hint, drop, fileInput, chosen, crs, crsNote, symSet,
     colSet, tableWrap, colRows, colNote,
     colour, opacity, ramp, symNote, name, note, add,
+    colourRow, rampRow, dtype, dnote,
   };
 
   // A click on the backdrop dismisses; a click inside must not.
@@ -519,13 +546,41 @@ async function takeFiles(fileList) {
   // a mesh has no CRS to declare, and defaulting it to EPSG:4326 offered a
   // georeference the format cannot carry.
   const MESH_EXT = new Set(["stl", "msh", "obj", "ply"]);
-  if (files.every((f) => MESH_EXT.has(extensionOf(f.name)))) {
+  const RASTER_EXT = new Set(["tif", "tiff", "asc", "png", "jpg", "jpeg"]);
+  const isMesh = files.every((f) => MESH_EXT.has(extensionOf(f.name)));
+  const mainFile = files.find((f) => !["prj", "dbf", "shx", "tfw", "pgw", "jgw", "cpg"]
+    .includes(extensionOf(f.name))) || files[0];
+  const mainExt = extensionOf(mainFile.name);
+  const kind = isMesh ? "mesh"
+    : RASTER_EXT.has(mainExt) ? "raster"
+      : DELIMITED.has(mainExt) ? "points" : "vector";
+  if (isMesh) {
     ui.crs.value = "none";
     ui.crs.dispatchEvent(new Event("change"));
+  } else if (ui.crs.value === "none") {
+    // Swapping a mesh out for a georeferenced file must bring the CRS back —
+    // "none" was the MESH's answer, not a choice about this file.
+    ui.crs.value = "epsg:4326";
+    ui.crs.dispatchEvent(new Event("change"));
   }
-  ui.chosen.textContent = files.length === 1
+  // The dialog says what it UNDERSTOOD, beside the file names — a .tif read
+  // as a raster and an .stl read as a local mesh are different imports, and
+  // which one is about to happen should not be a surprise.
+  const KIND_COPY = {
+    mesh: "a 3D mesh (local model)",
+    raster: "a raster, draped on the terrain",
+    points: "a table of points — map the columns below",
+    vector: "a vector layer",
+  };
+  state.kindCopy = KIND_COPY[kind];
+  // The classification follows the file until the user takes it over.
+  if (!state.dtypeTouched && ui.dtype) {
+    ui.dtype.value = inferType({ ext: mainExt, name: mainFile.name, raster: kind === "raster" });
+  }
+  ui.chosen.textContent = (files.length === 1
     ? files[0].name
-    : `${files.length} files — ${files.map((f) => f.name).join(", ")}`;
+    : `${files.length} files — ${files.map((f) => f.name).join(", ")}`)
+    + (state.kindCopy ? ` — imported as ${state.kindCopy}` : "");
   if (!ui.name.value) {
     ui.name.placeholder = files[0].name;
   }
@@ -667,7 +722,16 @@ async function submit() {
   ui.add.disabled = true;
   say("Adding…");
   try {
+    // The dialog asked for type and note itself, so the arrival card stays
+    // quiet for this import; the tag lands on whatever layers the import
+    // produced, found by diffing ids — the importer names layers its own way.
+    suppressNextArrival(1);
+    const before = new Set((manager.getLayers?.() || []).map((l) => l.id));
     await manager.importFileList(state.files, options);
+    const tag = { type: ui.dtype.value, description: ui.dnote.value.trim() };
+    (manager.getLayers?.() || [])
+      .filter((l) => !before.has(l.id))
+      .forEach((l) => applyTag(l, tag));
     close();
   } catch (error) {
     say(`Could not add that: ${error.message}`, true);
@@ -694,6 +758,9 @@ export function open(roleId) {
   ui.crsNote.textContent = "";
   ui.symNote.textContent = "";
   ui.symSet.hidden = false;
+  ui.dtype.value = "vector";
+  ui.dnote.value = "";
+  state.dtypeTouched = false;
   // A mesh has no map projection to speak of, so it opens on "not
   // georeferenced" rather than asking a question with no honest answer.
   ui.crs.value = state.role.id === "mesh" ? "none" : "epsg:4326";

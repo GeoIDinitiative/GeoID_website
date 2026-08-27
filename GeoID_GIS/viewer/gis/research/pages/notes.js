@@ -1,6 +1,6 @@
-import { registerPage } from "../stages.js?v=20260828-6993c3a";
-import * as store from "../project-store.js?v=20260828-6993c3a";
-import { needProject } from "./common.js?v=20260828-6993c3a";
+import { registerPage } from "../stages.js?v=20260828-680b893";
+import * as store from "../project-store.js?v=20260828-680b893";
+import { needProject } from "./common.js?v=20260828-680b893";
 
 /**
  * Research Notes: markdown files in the project's notes/ folder.

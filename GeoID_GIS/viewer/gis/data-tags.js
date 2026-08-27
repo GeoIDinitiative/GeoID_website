@@ -209,6 +209,14 @@ export function isUserInput(layer) {
 
 const seen = new Set();
 
+/**
+ * The Add-data dialog asks for type and note UP FRONT now, so an import it
+ * ran must not also raise the arrival card — the same question twice in two
+ * boxes. The dialog claims the next arrival before importing.
+ */
+let suppressCards = 0;
+export function suppressNextArrival(count = 1) { suppressCards += count; }
+
 function arrivalCard(layer) {
   /**
    * Anchored under the Workspace box's add-row, NOT inside #polygon-list:
@@ -278,8 +286,12 @@ function watchArrivals() {
       seen.add(layer.id);
       // Tag every arrival in real time, silently…
       applyTag(layer, {});
-      // …and ask only about the user's own inputs.
-      if (isUserInput(layer)) arrivalCard(layer);
+      // …and ask only about the user's own inputs — unless the Add-data
+      // dialog already asked (suppressNextArrival).
+      if (isUserInput(layer)) {
+        if (suppressCards > 0) suppressCards -= 1;
+        else arrivalCard(layer);
+      }
     });
   });
 }
