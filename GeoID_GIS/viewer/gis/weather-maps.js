@@ -24,9 +24,9 @@
  * registry is the seam, and nothing else here would change.
  */
 
-import { drape } from "./gee.js?v=20260827-1576c2c";
-import { currentBodyId } from "./bodies.js?v=20260827-1576c2c";
-import { rectangleVertices } from "./draw-area.js?v=20260827-1576c2c";
+import { drape } from "./gee.js?v=20260827-1928668";
+import { currentBodyId } from "./bodies.js?v=20260827-1928668";
+import { rectangleVertices } from "./draw-area.js?v=20260827-1928668";
 
 const byId = (id) => document.getElementById(id);
 
@@ -358,8 +358,10 @@ function persistExtent(bounds) {
   if (capture?.ok && capture.layer) {
     capture.layer.weatherExtent = true;
     window.GeoIDViewer?.clearStudyArea?.();
-    hideAreaCard();
   }
+  // Whatever the capture decided, a fetch is not the analysis flow the
+  // stats card narrates — it stands down for every source.
+  hideAreaCard();
 }
 
 /**
@@ -398,6 +400,7 @@ async function fetchMap() {
     return;
   }
   busy = true;
+  hideAreaCard();
   const button = byId("weather-fetch");
   if (button) button.disabled = true;
   try {
