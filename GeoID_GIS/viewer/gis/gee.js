@@ -10,15 +10,15 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260827-1673b82";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260827-1673b82";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260827-1673b82";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260827-deb1359";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260827-deb1359";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260827-deb1359";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260827-1673b82";
+  from "./view-extent.js?v=20260827-deb1359";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
-} from "./extent-picker.js?v=20260827-1673b82";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260827-1673b82";
+} from "./extent-picker.js?v=20260827-deb1359";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260827-deb1359";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -1013,6 +1013,18 @@ function init() {
       }
     });
   }
+  /**
+   * The BUTTON form of the same gesture — one press instead of knowing the
+   * select's "drawn" option is the way in. It replaces the GFS forecast
+   * subsection's own draw button, which was the only reason that card was
+   * missed when it went: arm the tool, point the extent at the drawing, and
+   * the next Request uses whatever lands on the globe.
+   */
+  byId("gee-draw-area")?.addEventListener("click", () => {
+    if (extentSelect) extentSelect.value = "drawn";
+    promptDrawTool();
+    status("Draw the area on the globe — box, circle or polygon — then press Request.");
+  });
   // The ticks follow the layers, whoever removed one: this list, the layer box,
   // or a tab being switched off. The named extents follow them for the same
   // reason: a polygon captured by any fetch should be offerable at once.

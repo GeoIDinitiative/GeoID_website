@@ -1376,6 +1376,19 @@ the rename would have broken the tab it was meant to improve. The GFS card
 (`gee-live.js`) is deliberately untouched — it already has a broader picker
 listing every vector layer, plus its own draw button.
 
+**The GFS forecast (Earth Engine) subsection is GONE**, removed from the
+panels.js MARKUP — the one source all ten worlds render from, so one edit
+removed it everywhere. Its checked-first precondition held: `gee-live.js`
+guards every control lookup (`if (!select) return`, `?.` throughout) and
+nothing else reads `gee-gfs-*`, so no hidden-input dance was needed — unlike
+`geology-structures-toggle`, which earth-viewer reads unguarded. The module
+stays for its pure, unit-tested half; its wiring no-ops without the card.
+What the card uniquely had — a DRAW-AREA button — moved to the Atmospheric
+datasets section as `#gee-draw-area`, wired in gee.js: one press arms the
+Draw tool, points `#gee-extent` at "drawn", and the next Request uses the
+shape. The button form of the gesture the extent select's "drawn" option
+already performed, for whoever does not know the option is the way in.
+
 ## Live fetch: the hub's connectors in the catalogues, and weather by extent
 
 **The Research Hub's fetch services are catalogue rows now.** Six of the
