@@ -1667,6 +1667,95 @@ buttons reads the catalogue's Symbology and misses the drawer entirely.
 
 ## Submarine cables, and why NOT from submarinecablemap.com
 
+**The source is Greg's Cable Map**, served as an ArcGIS FeatureServer that
+answers `f=geojson` with CORS `*` — **285 cables and 737 landing stations**,
+each complete in one request, under the **GNU GPL** (commercial use permitted
+with attribution; the item's own `licenseInfo` says so). An OpenStreetMap
+version came first and was replaced: ODbL and honest, but 199 systems and no
+landing points at all. The two layers are the PATH and the DOT, the pair the
+satellite tracker draws.
+
+TeleGeography is still out, for two independent reasons either of which is
+fatal: `submarinecablemap.com` answers 200 to curl and sends **no
+`Access-Control-Allow-Origin` header**, so a browser cannot read it whatever
+the licence says — and they sell an annual licence for the geocoded data, the
+map itself being CC BY-NC-SA. Their ~600 systems remains the fuller map,
+behind that licence. Greg's own currency is the honest limit here: `InService`
+years run to the late 2010s.
+
+### The interactions that make a vector layer feel alive
+
+All of this is in `feature-popup.js`, on the SHARED vector path, so every
+layer gets it — coastlines, faults, cables, landings — rather than the
+satellites having it alone:
+
+- **`buildHighlight` draws any geometry**, not just polygon rings. It drew
+  rings and nothing else, so a click on a line or a point highlighted nothing:
+  the card opened and the map of three hundred lines gave no sign which.
+- **Selection PULSES**, one shared phase across the overlay's nodes (per-node
+  phases read as shimmer), 1.6 s, ending itself when the selection clears.
+- **Hover brightens** what is under the cursor in cyan against the selection's
+  gold — two states must look like two states — throttled to 90 ms because
+  `featuresAt` walks every feature of every vector layer, and keyed by feature
+  IDENTITY rather than by a name (an unnamed feature has no name to key on).
+- **The highlight does not care which card wins.** A labelled layer's click is
+  claimed by the viewer's own label path, and standing down took the highlight
+  with it. Marking what was picked belongs to the pick.
+- **A label is not where its feature is.** The chip is drawn beside the thing
+  it names, so `surfaceLatLonAt` at the clicked pixel answers with the ground
+  under the LABEL — open ocean, some way off the cable. The label's own item
+  carries the anchor it was placed from, and that is on the feature by
+  construction. Verified: clicking AKORN Alaska-Oregon's pill opens the card
+  and pulses the line together.
+
+### A marker is a NODE, and it may not be depth-tested
+
+The triangle is gone; markers are a disc in the symbology colour inside a
+heavy white ring. The triangle existed because a plain circle vanished into
+round terrain features on imagery — sound about a *plain* circle, and what it
+lacked was a hard edge. `MARKER_OUTLINE_EXTRA` went 3.4 → 5.2, because a
+triangle carries its own silhouette and a circle has none.
+
+Making them bigger exposed the event markers' lesson again: **every fragment
+of a point sprite carries the CENTRE's depth**, so a depth-tested marker is
+sliced wherever terrain in front of it is nearer the camera than its own
+centre — most of the ground around it, on a sphere seen obliquely. A small dot
+got away with it; a ringed node takes visible bites out of the curve. Lifting
+it would trade the cut for parallax, so `depthTest: false` and the far
+hemisphere is culled by FACING (`followRelief(..., { cullFarSide: true })`),
+which on a sphere is exact — every vertex's outward normal is its own
+direction, already carried as `aDir`.
+
+### The label detail slider is per-DATASET, and so are its words
+
+The slider was bespoke markup in the Volcanoes subsection, the only place it
+could be while volcanoes were the only labelled catalogue. It is a control on
+any catalogue ROW whose layer `canLabel` now, so the cables get one and so
+does every future labelled dataset.
+
+**Generalising the control without generalising its words put "Erupted since
+1500" on the submarine cables.** `DETAIL_COPY` is the VOLCANOES' wording, read
+off `label_rank`'s bands in bake-volcanoes.py; `label_rank` means eruption
+recency there and cable length here. So an entry may carry its own
+`detailCopy` (the cables', matching `submarineCablesToGeoJSON`'s thresholds
+exactly), with `GENERIC_DETAIL_COPY` as a fallback that claims nothing about
+what the rank measures. **Both catalogue projections had to carry it** —
+`polygons.js` and `catalogue-panels.js` each reshape entries into a reduced
+object, and a field dropped there falls back silently.
+
+### Where a LINE's name goes
+
+`featureToItem` read `coordinates[1]` as a latitude, which for a LineString is
+a POSITION ARRAY — every label at NaN, silently. `labelAnchor` takes the
+middle vertex of the longest part: the MIDDLE because a name at a line's end
+reads as belonging to whatever else is at that coast, the LONGEST part because
+a system is often a trunk plus a stub. That one helper is what makes labelled
+polylines work through the engine the volcanoes already use.
+
+### The OSM attempt, kept for the licence reasoning
+
+
+
 Asked for TeleGeography's map; shipped OpenStreetMap's, because that request
 is blocked twice over and either block alone is fatal:
 
