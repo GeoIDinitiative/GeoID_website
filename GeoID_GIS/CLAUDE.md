@@ -3172,6 +3172,20 @@ and the drape's own lift — 10 km down to 1.2 km, because **a 10 km lift IS a
 10 km floor**; the camera cannot get under its own basemap. Safe to shrink
 because the drape material does not depth test.
 
+**The globe opens on Sentinel-2 Cloudless, not Esri.** A default is not the
+same decision as an option: what every visitor is handed without choosing it
+should carry the fewest strings, and Esri's own FAQ conditions every
+permission on holding an ArcGIS subscription. Esri stays in the list one
+click away, where picking it is a choice somebody made. Verified on a cold
+load: the globe settles on Sentinel-2 and **zero** tiles are requested from
+`arcgisonline.com`. The cost is real and visible — Sentinel-2 caps at zoom
+14 (the sensor's own 10 m) where Esri reaches 19, so full zoom is ~7.5 m/px
+rather than 0.3. Measured flying to 120 km: "Detail at zoom 11 (72 m/px)
+over 5 levels", nothing requested above 14, because both the drape and the
+refine read `source.maxZoom`. Note this default is NonCommercial-licensed;
+`NASA VIIRS Daily` is the only unconditional imagery here and is the right
+default for a deployment that would rather not make that judgement.
+
 **Two imagery alternatives sit beside Esri, and their licences are not
 alike.** `Sentinel-2 Cloudless` (EOX, a cloud-free Copernicus mosaic) is the
 nearest thing to Esri's imagery that does not go through Esri — and it is

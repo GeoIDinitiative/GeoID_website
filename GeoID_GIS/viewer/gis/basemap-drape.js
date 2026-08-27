@@ -37,12 +37,12 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260827-6ed43a4";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260827-6ed43a4";
-import { isEarth } from "./bodies.js?v=20260827-6ed43a4";
-import { streamRings, cacheStats } from "./tile-streamer.js?v=20260827-6ed43a4";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260827-4620e3d";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260827-4620e3d";
+import { isEarth } from "./bodies.js?v=20260827-4620e3d";
+import { streamRings, cacheStats } from "./tile-streamer.js?v=20260827-4620e3d";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260827-6ed43a4";
+  from "./view-extent.js?v=20260827-4620e3d";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -799,15 +799,29 @@ let defaultApplied = false;
  * every attempt would fight a user who changed the basemap in the first
  * twenty seconds.
  *
- * LICENCE, because a default is not the same decision as an option. Esri's
- * World Imagery is free of charge on this endpoint and is NOT licensed for
- * unrestricted or commercial embedding — `tile-sources.js` carries the detail
- * and marks it `freeToStream: false`. As an option somebody picks, that is
- * their choice; as the default it is every visitor to a public page. Esri's
- * supported route is ArcGIS Location Platform with an API key and a metered
- * free tier.
+ * LICENCE, because a default is not the same decision as an option. What every
+ * visitor to a public page is handed without choosing it should be the source
+ * with the fewest strings, so this is **Sentinel-2 Cloudless** rather than
+ * Esri's World Imagery: Esri's is free of charge on that endpoint and is NOT
+ * licensed for unrestricted or commercial embedding, and Esri's own FAQ
+ * conditions every permission on holding an ArcGIS subscription. Esri stays in
+ * the list, one click away, where picking it is a choice somebody made.
+ *
+ * Sentinel-2 Cloudless is not unconditional either and the file says so —
+ * EOX releases it CC BY-NC-SA, so **NonCommercial**, with commercial use sold
+ * separately. That judgement belongs to whoever runs the deployment, which is
+ * why the licence rides beside the picker rather than being decided here.
+ * `NASA VIIRS Daily` is the only imagery in the list with no condition at all,
+ * and is the right default for anyone who would rather not make the call.
+ *
+ * THE COST, stated because it is visible: Sentinel-2 caps at zoom 14 — the
+ * sensor's own 10 m — where Esri reaches 19. Full zoom is therefore about
+ * 7.5 m/px rather than 0.3 m/px. Against the 8 km/px shipped texture this is
+ * still three orders of magnitude better, and the study-area drape and the
+ * refine path both read `source.maxZoom`, so neither asks EOX for the
+ * interpolated tiles it would happily serve above 14.
  */
-const DEFAULT_TILE_SOURCE = "ESRI Satellite";
+const DEFAULT_TILE_SOURCE = "Sentinel-2 Cloudless";
 
 function applyDefaultBasemap() {
   if (defaultApplied) return;
