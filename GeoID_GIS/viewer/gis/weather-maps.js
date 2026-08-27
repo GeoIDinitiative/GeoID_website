@@ -24,9 +24,9 @@
  * registry is the seam, and nothing else here would change.
  */
 
-import { drape } from "./gee.js?v=20260827-1b4ae4e";
-import { currentBodyId } from "./bodies.js?v=20260827-1b4ae4e";
-import { rectangleVertices } from "./draw-area.js?v=20260827-1b4ae4e";
+import { drape } from "./gee.js?v=20260827-1668938";
+import { currentBodyId } from "./bodies.js?v=20260827-1668938";
+import { rectangleVertices } from "./draw-area.js?v=20260827-1668938";
 
 const byId = (id) => document.getElementById(id);
 
@@ -125,6 +125,7 @@ function chosenBounds() {
     });
     if (!rect) return { error: "That size did not make a box — check the kilometres." };
     window.GeoIDViewer?.setStudyAreaPolygon?.(rect.vertices);
+    hideAreaCard();
     return {
       west: signedLon(rect.bounds.west), south: rect.bounds.south,
       east: signedLon(rect.bounds.east), north: rect.bounds.north,
@@ -240,7 +241,12 @@ async function radarCanvas(bounds) {
     const lat = bounds.north - ((row + 0.5) / out.height) * (bounds.north - bounds.south);
     octx.drawImage(merc, sx, py(lat) - 0.5, sw, 1, 0, row, out.width, 1);
   }
-  return { canvas: out, time: new Date(frame.time * 1000) };
+  // A dry box composites to a fully transparent canvas, which drapes as
+  // nothing and reads as a failed fetch. Count the ink and say so instead.
+  const sample = octx.getImageData(0, 0, out.width, out.height).data;
+  let inked = 0;
+  for (let i = 3; i < sample.length; i += 4) if (sample[i] > 8) inked += 1;
+  return { canvas: out, time: new Date(frame.time * 1000), empty: inked === 0 };
 }
 
 /* ── Open-Meteo grid fields ─────────────────────────────────────────────── */
@@ -316,6 +322,16 @@ async function gridCanvas(bounds, source) {
 }
 
 /**
+ * The study-area STATS card is furniture from the analysis flow; while the
+ * weather card owns the box it covers the very corner the fetch reports
+ * into, so it stands down. A hand-drawn area keeps it.
+ */
+function hideAreaCard() {
+  const card = document.getElementById("measurement-result-card");
+  if (card) card.hidden = true;
+}
+
+/**
  * Raise the square-polygon drawer: the tool rail's own Draw button, which
  * activates area mode and opens the draw card with its box preset — the
  * same press a hand on the rail would make, so there is one drawer and one
@@ -351,6 +367,11 @@ async function fetchMap() {
     if (result.flatZero) {
       say(`${source.label}: zero everywhere in this box — nothing to map. `
         + "(The fetch worked; the field is genuinely flat here.)");
+      return;
+    }
+    if (result.empty) {
+      say("No radar echoes in this box right now — the frame is dry here. "
+        + "(The fetch worked; there is simply nothing to draw.)");
       return;
     }
     const stampText = `${String(result.time.getUTCHours()).padStart(2, "0")}:`
@@ -517,6 +538,7 @@ function buildCard() {
   });
   // A corner drag reports the new size back into the inputs.
   document.addEventListener("geoid-study-area-edited", () => {
+    if (byId("weather-extent")?.value === "box") hideAreaCard();
     const drawn = window.GeoIDViewer?.getExtractionGeometry?.();
     if (!drawn?.vertices?.length) return;
     const lats = drawn.vertices.map((v) => v.lat);
