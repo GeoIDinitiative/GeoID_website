@@ -848,6 +848,36 @@ assigns by frequency, and filtering changes the frequencies). The type list
 draws on the `symbology` announce event, because the legend it is built from
 lands a beat after the layer registers.
 
+**The satellites master toggle: set BOTH boxes before telling EITHER.** The
+old master handler ticked the tracker, then POLLED for `active` before
+ticking the orbits — and the poll was the bug, not just redundant. While it
+waited, the tracker's own handler finished start() and ran syncMaster, which
+saw tracker-on/orbits-off, unticked the master ("all" was not yet true), and
+the poll's stale-check read that untick as the user changing their mind and
+aborted: dots plotted, master off, orbits never drawn. start() reads the
+orbits box ITSELF at its finish line, so with both checked states set first
+one start plots dots and paths together, any mid-start sync sees settled
+intent, and no poll exists. The orbits box is `checked` from birth in the
+markup — the paths are half of what the tracker shows. Verified: every state
+sample through a full CelesTrak load reads master/tracker/orbits = 1/1/1.
+
+**Satellite labels: three faults, one report.** (1) `tagAt` computed the
+pill's centre and then subtracted ANOTHER half width — the hit zone sat half
+a pill left of the pill, right half dead. (2) The layer's feature
+coordinates are live SUBSATELLITE points, so the shared ground picker
+(hover + click) caught clicks on the SURFACE three Earth radii under the
+dot and drew its highlight down there — and a missed pill click closed the
+card the satellites' own picker had just opened. `groundPick: false` on the
+layer record opts it out; `featuresAt` honours the flag. (3) Pick order is
+PAINT order: tags render at 206 above the dot cloud, but dots were tried
+first with a 12 px threshold, so a dot near a pill's face stole its click —
+measured, a click on FREGAT DEB's pill opened ONEWEB-0085's card. Tags
+first now; a bare dot still answers through the dot path since its own pill
+sits beside it, not over it. Also the pill FONT: Orbitron at pill sizes
+minifies to mush; `makeLabelTexture` takes a `titleFont` option and the
+satellites pass Chakra Petch at full backingScale 4 (cache key v5).
+Verified: 4 of 4 clicks on pill right-thirds open that pill's own card.
+
 **The rotation control is ONE pill in a three-state loop** — LIVE (real
 rate, clock snapped to now; the BOOT DEFAULT) → ×720 (the two-minute
 showcase day) → PAUSED (rotation held) → LIVE. It absorbed the old

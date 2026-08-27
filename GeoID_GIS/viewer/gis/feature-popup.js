@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260827-10c08b6";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260827-10c08b6";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260827-5caec2a";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260827-5caec2a";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -1136,6 +1136,15 @@ export function featuresAt(lat, lon) {
     const layer = layers[i];
     if (layer.visible === false) continue;
     if (layer.object3D && layer.object3D.visible === false) continue;
+    /**
+     * A layer may refuse ground picking outright. The satellites' feature
+     * coordinates are live subsatellite points — the dot is at altitude and
+     * the layer runs its own true-3D picker — so answering for them here put
+     * the hover highlight and the click catchment on the SURFACE beneath the
+     * dot, and a missed pill click then closed the card their own picker had
+     * just opened.
+     */
+    if (layer.groundPick === false) continue;
     const found = featureInLayer(layer, point, tolerance, pointTolerance);
     if (found) hits.push({ layer, feature: found });
   }

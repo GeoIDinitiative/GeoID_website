@@ -539,7 +539,7 @@ function showOrbitOverlay(overlay, record) {
 const tagTextures = new Map();
 
 function makePillTexture(name, colour) {
-  const key = `v4|${colour}|${name}`;
+  const key = `v5|${colour}|${name}`;
   if (tagTextures.has(key)) return tagTextures.get(key);
   /**
    * The viewer's OWN pill, through the seam the volcano labels use — the
@@ -551,7 +551,15 @@ function makePillTexture(name, colour) {
    */
   const make = window.GeoIDViewer?.makeLabelTexture;
   const label = make(name, {
-    backingScale: 3,
+    /**
+     * Full backing (the engine's own 4), and a face that survives 10 px.
+     * Orbitron is the viewer's display face and reads as mush at pill
+     * sizes — wide techno glyphs blur into each other under minification,
+     * which is the "blurry" report. Chakra Petch is the page's own body
+     * face: narrow, square-cornered, legible at HUD sizes.
+     */
+    backingScale: 4,
+    titleFont: "600 15px 'Chakra Petch', 'Exo 2', sans-serif",
     customPalette: {
       bg: "rgba(6, 10, 18, 0.82)",
       stroke: `${colour}88`,
@@ -849,9 +857,15 @@ function tagAt(clientX, clientY) {
     const ay = (-world.y * 0.5 + 0.5) * rect.height + rect.top;
     const w = (sprite.scale.x * rect.width) / 2;
     const h = (sprite.scale.y * rect.height) / 2;
-    // sprite.center is (-0.1, 0.5): the quad's centre sits 0.6 widths
-    // right of the anchor, level with it.
-    const cx = ax + (0.5 - sprite.center.x) * w - w / 2;
+    /**
+     * sprite.center is (-0.1, 0.5): the quad's centre sits 0.6 widths right
+     * of the anchor, level with it — and `(0.5 - center.x) * w` IS that
+     * offset, complete. A further `- w/2` was subtracted here, shifting the
+     * hit zone half a pill LEFT of the pill: its right half was dead and
+     * the zone hung over the empty space beside the dot, which is exactly
+     * "the label pill itself is not interactive".
+     */
+    const cx = ax + (0.5 - sprite.center.x) * w;
     const cy = ay + (sprite.center.y - 0.5) * h;
     if (Math.abs(clientX - cx) <= w / 2 + 4 && Math.abs(clientY - cy) <= h / 2 + 4) {
       return sprite.userData.record || null;
@@ -860,19 +874,27 @@ function tagAt(clientX, clientY) {
   return null;
 }
 
-/** The satellite under a pointer: its dot, then its tag, then its orbit. */
+/** The satellite under a pointer: its tag, then its dot, then its orbit. */
 function recordAt(clientX, clientY) {
   if (!active) return null;
   const cast = castAt(clientX, clientY);
   if (!cast) return null;
   const { raycaster, worldPerPixel } = cast;
+  /**
+   * TAGS BEFORE DOTS, because that is the stacking order on screen. The
+   * pills render at 206, above the dot cloud — and with dots tried first,
+   * any dot within the 12 px threshold of a pill's face stole the click:
+   * measured, a click on FREGAT DEB's pill opened ONEWEB-0085's card. Pick
+   * order is paint order; a click lands on what it looks like it lands on.
+   * A bare dot is untouched — its own pill sits beside it, not over it.
+   */
+  const tagged = tagAt(clientX, clientY);
+  if (tagged) return tagged;
   raycaster.params.Points.threshold = 12 * worldPerPixel;
   const dotHit = raycaster.intersectObject(active.fill, false)
     .filter((h) => !active.records[h.index]?.dead && !active.records[h.index]?.hidden)
     .sort((a, b) => a.distanceToRay - b.distanceToRay)[0];
   if (dotHit) return active.records[dotHit.index];
-  const tagged = tagAt(clientX, clientY);
-  if (tagged) return tagged;
   if (active.rings?.visible) {
     raycaster.params.Line.threshold = 7 * worldPerPixel;
     const meshes = (active.rings.userData.ringMeshes || []).filter((m) => m.visible);
@@ -1172,6 +1194,16 @@ async function start() {
   const layer = window.GeoIDImportManager?.addDerivedLayer?.(LAYER_NAME, {
     object3D: group,
     georeferenced: true,   // the imported-geo group carries the spin for us
+    /**
+     * NOT pickable from the ground. The records' feature coordinates are the
+     * live SUBSATELLITE points — right for the card's readout, wrong as a hit
+     * target: the shared vector picker (hover highlight, click cards) works
+     * in ground coordinates, so it caught clicks on the SURFACE three Earth
+     * radii under the dot and drew its highlight down there. This layer runs
+     * its own true-3D picking (dots, tags, rings); the ground picker must
+     * leave it alone.
+     */
+    groundPick: false,
     legendInfo,
     info: {
       source: "CelesTrak orbital elements, SGP4-propagated in the browser",
@@ -1295,27 +1327,34 @@ function init() {
     syncMaster();
   });
   orbitsBox?.addEventListener("change", syncMaster);
-  master?.addEventListener("change", async () => {
+  /**
+   * BOTH boxes are set before EITHER is told, and that ordering is the fix.
+   *
+   * The old shape set the tracker first and polled for `active` before
+   * ticking the orbits — because start() is async and rings need a live
+   * tracker. But start() reads the orbits box itself at its finish line, so
+   * the poll was never needed: with the box already ticked, one start plots
+   * dots AND paths together. And the poll was not merely redundant — it was
+   * the bug. While it waited, the tracker's own change handler finished
+   * start() and ran syncMaster, which saw tracker-on/orbits-off, unticked
+   * this master ("all" was not yet true), and the poll's stale-check then
+   * read that untick as the user changing their mind and aborted: dots
+   * plotted, master off, orbits never drawn — exactly as reported.
+   *
+   * Setting both CHECKED states first means any sync that runs mid-start
+   * sees the settled intent, never a half-applied one. The orbits box gets
+   * its own dispatch only when the tracker is not being started or stopped:
+   * a starting tracker applies the box itself, a stopping one takes the
+   * rings down with the layer, and setRings guards on `active` anyway.
+   */
+  master?.addEventListener("change", () => {
     const on = master.checked;
-    if (tickBox.checked !== on) {
-      tickBox.checked = on;
-      tickBox.dispatchEvent(new Event("change"));
-      // start() is async; the orbits tick below finds `active` because the
-      // change handler above awaited it before returning… it did not — the
-      // dispatch returns immediately. So wait for the tracker to be up.
-      if (on) {
-        for (let i = 0; i < 100 && !active; i += 1) {
-          await new Promise((resolve) => { setTimeout(resolve, 200); });
-          // The user changed their mind mid-fetch: this handler's plan is
-          // stale, and the newer change event owns the outcome.
-          if (master.checked !== on) return;
-        }
-      }
-    }
-    if (orbitsBox && orbitsBox.checked !== on) {
-      orbitsBox.checked = on;
-      orbitsBox.dispatchEvent(new Event("change"));
-    }
+    const trackerChanged = tickBox.checked !== on;
+    const orbitsChanged = Boolean(orbitsBox) && orbitsBox.checked !== on;
+    if (orbitsBox) orbitsBox.checked = on;
+    tickBox.checked = on;
+    if (trackerChanged) tickBox.dispatchEvent(new Event("change"));
+    else if (orbitsChanged) orbitsBox.dispatchEvent(new Event("change"));
     syncMaster();
   });
   document.getElementById("satellites-orbits")?.addEventListener("change", (event) => {
@@ -1336,7 +1375,7 @@ function init() {
       say("Turn the tracker on first — symbology colours the live layer.");
       return;
     }
-    const dialog = await import("./symbology-dialog.js?v=20260827-10c08b6");
+    const dialog = await import("./symbology-dialog.js?v=20260827-5caec2a");
     dialog.openSymbologyDialog(layer);
   });
   // The layer box can remove the layer without asking: the tracker must not

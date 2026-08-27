@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260827-10c08b6";
+  from "./gis/geo-utils.js?v=20260827-5caec2a";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -6943,7 +6943,11 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
       const paddingX = 14;
       const accentWidth = 6;
       const bodyLeft = paddingX + accentWidth + 7;
-      const titleFont = "600 15px Orbitron, 'Exo 2', Aldrich, 'Trebuchet MS', sans-serif";
+      // Overridable: Orbitron is right for the curated place labels it was
+      // built for and mush at satellite-pill sizes; a caller that knows its
+      // drawn size may bring a face that survives it.
+      const titleFont = options.titleFont
+        || "600 15px Orbitron, 'Exo 2', Aldrich, 'Trebuchet MS', sans-serif";
       context.font = titleFont;
       const textWidth = Math.ceil(context.measureText(text).width);
       const logicalWidth = Math.max(110, textWidth + bodyLeft + paddingX);
