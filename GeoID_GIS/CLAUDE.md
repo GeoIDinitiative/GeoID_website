@@ -1529,6 +1529,22 @@ a tick in the relocated Basemap list still drapes NASADEM.
 
 ## "Which patch of ground?" is asked once — `extent-picker.js`
 
+**Workspace and the fetchers are one loop, in both directions.** Every
+extent select — the Atmosphere tab's `#gee-extent`, the GEE dialog's
+`#gee-add-extent` AND the weather card's `#weather-extent` — passes
+`{ allLayers: true }`, so any loaded Workspace layer (an uploaded
+shapefile, a catalogue tick, a drawn shape) is offered as an extent by its
+bounding box. And the reverse: a GEE pull whose extent is the LIVE drawn
+overlay calls `persistExtent(..., { mark: "fetchExtent" })` on success —
+the weather card's keep-the-ground rule — so the shape becomes a named,
+project-registered Workspace layer ("Fetch extent W×H°", ▱-listed in the
+selects, idempotent by shape) and the floating overlay stands down.
+Guarded on `drawnOverlayBounds()`: an extent chosen from a named layer has
+no overlay, so nothing double-captures. Verified end to end with a mocked
+service: fetch over a drawn box → "Fetch extent 5.0×4.0°" lands in
+Workspace, is offered ▱-marked in the extent select, and resolves back to
+its own ring.
+
 The weather card grew a good answer to that question and Earth Engine had a
 third of one: a "Drawn polygon" option that read the live overlay and
 **returned null** when there was not one — a dead end wearing the clothes of a

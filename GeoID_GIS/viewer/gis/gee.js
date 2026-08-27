@@ -10,15 +10,16 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260827-abab75d";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260827-abab75d";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260827-abab75d";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260827-2a7b4b9";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260827-2a7b4b9";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260827-2a7b4b9";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260827-abab75d";
+  from "./view-extent.js?v=20260827-2a7b4b9";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
-} from "./extent-picker.js?v=20260827-abab75d";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260827-abab75d";
+  persistExtent,
+} from "./extent-picker.js?v=20260827-2a7b4b9";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260827-2a7b4b9";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -443,6 +444,24 @@ async function request() {
       "gee",
     );
     if (layer) {
+      /**
+       * The fetch KEEPS its ground — the weather card's rule, applied to
+       * every GEE pull. A shape still standing as the live drawing overlay
+       * is captured into Workspace the moment data has been pulled over it,
+       * so the extent is a named, project-registered layer the next fetch
+       * (or the extent selects, which list Workspace layers) can reuse.
+       * Guarded on the overlay standing: an extent chosen from a NAMED
+       * layer has no overlay, and `captureDrawn` underneath is idempotent
+       * by shape, so nothing double-captures.
+       */
+      const extentChoice = byId("gee-extent")?.value || "global";
+      if ((extentChoice === "drawn" || extentChoice === "polygon") && drawnOverlayBounds()) {
+        persistExtent({
+          west: bounds.minX, south: bounds.minY,
+          east: bounds.maxX, north: bounds.maxY,
+        }, { mark: "fetchExtent" });
+        refreshPolygonOptions(byId("gee-extent"), "global", { allLayers: true });
+      }
       // Onto the globe itself, so the imagery turns with the texture it
       // annotates. In the group beside it, the patch held still while the
       // planet rotated underneath, drifting a degree every four minutes.
@@ -739,7 +758,7 @@ function ensureGeeDialog() {
   // exists, without reopening anything.
   window.GeoIDImportManager?.onChange?.(() => {
     if (!byId("gee-add-backdrop")?.hidden) {
-      refreshPolygonOptions(byId("gee-add-extent"), "drawn");
+      refreshPolygonOptions(byId("gee-add-extent"), "drawn", { allLayers: true });
     }
   });
   byId("gee-add-request").addEventListener("click", async () => {
@@ -804,7 +823,10 @@ function openGeeDialog(homeName) {
    * outcome this whole round trip exists to prevent.
    */
   const extent = byId("gee-add-extent");
-  refreshPolygonOptions(extent, "drawn");
+  // Every loaded Workspace layer is a possible extent here too — a shapefile
+  // somebody brought answers "over where?" by its bounding box, exactly as
+  // the Atmosphere tab's own select already offers.
+  refreshPolygonOptions(extent, "drawn", { allLayers: true });
   if (resumed) {
     if (resumed.dataset && [...picker.options].some((o) => o.value === resumed.dataset)) {
       picker.value = resumed.dataset;

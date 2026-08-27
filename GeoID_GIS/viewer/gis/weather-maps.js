@@ -24,14 +24,14 @@
  * registry is the seam, and nothing else here would change.
  */
 
-import { drape } from "./gee.js?v=20260827-abab75d";
-import { currentBodyId } from "./bodies.js?v=20260827-abab75d";
-import { rectangleVertices } from "./draw-area.js?v=20260827-abab75d";
+import { drape } from "./gee.js?v=20260827-2a7b4b9";
+import { currentBodyId } from "./bodies.js?v=20260827-2a7b4b9";
+import { rectangleVertices } from "./draw-area.js?v=20260827-2a7b4b9";
 import {
   signedLon, drawnPolygonLayers, layerBounds, capturedExtentBounds,
   promptDrawTool, hideAreaCard, persistExtent, refreshPolygonOptions,
   resolvePolygonExtent,
-} from "./extent-picker.js?v=20260827-abab75d";
+} from "./extent-picker.js?v=20260827-2a7b4b9";
 
 const byId = (id) => document.getElementById(id);
 
@@ -559,7 +559,7 @@ function buildCard() {
     </div>`;
   groupBody.insertBefore(card, groupBody.firstElementChild?.nextElementSibling || null);
   // A choice that vanished with its layer falls back to the box.
-  const refreshExtentOptions = () => refreshPolygonOptions(byId("weather-extent"), "box");
+  const refreshExtentOptions = () => refreshPolygonOptions(byId("weather-extent"), "box", { allLayers: true });
   refreshExtentOptions();
   window.GeoIDImportManager?.onChange?.(refreshExtentOptions);
 
