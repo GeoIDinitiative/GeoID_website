@@ -29,8 +29,8 @@
 
 import {
   HOMES, grouped, addDataset, datasetById, layerForDataset,
-} from "./global-data.js?v=20260827-a921e54";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260827-a921e54";
+} from "./global-data.js?v=20260827-0dbbe3e";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260827-0dbbe3e";
 
 const byId = (id) => document.getElementById(id);
 
@@ -62,6 +62,10 @@ function draw(home, hostId) {
         label: entry.label,
         title: `${entry.summary} — ${entry.licence}`,
         info: { summary: entry.summary, citation: entry.licence },
+        // Same reason as polygons.js: the row's label-detail slider captions
+        // itself from the dataset's own words, and a projection that drops
+        // this falls back to wording written for another catalogue.
+        detailCopy: entry.detailCopy,
       }))),
     ...geeEntries,
   ];
