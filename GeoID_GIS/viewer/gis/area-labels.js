@@ -45,7 +45,7 @@ function host() {
     node = document.createElement("div");
     node.id = HOST_ID;
     Object.assign(node.style, {
-      position: "fixed", inset: "0", zIndex: 12, pointerEvents: "none",
+      position: "fixed", inset: "0", zIndex: 4, pointerEvents: "none",
     });
     document.body.appendChild(node);
   }
@@ -61,9 +61,11 @@ function host() {
  * halo instead, three shadows deep, because one soft glow disappears against
  * bright imagery and one hard outline looks stamped-on over dark.
  *
- * z-index 12 puts these UNDER the live drawing label (13): while you are
+ * z-index 4 puts these UNDER the live drawing label (5) — while you are
  * drawing a new shape over an old one, the one in your hand is the one to
- * read.
+ * read — and BOTH sit under every piece of chrome: the sidebar is z 10,
+ * and at 12/13 the annotations painted straight over the nav bar whenever
+ * a shape sat behind it. An annotation belongs to the map.
  */
 function makeLabel() {
   const el = document.createElement("div");

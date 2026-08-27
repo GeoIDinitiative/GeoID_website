@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260827-ecca897";
+  from "./gis/geo-utils.js?v=20260827-4323be2";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -17627,8 +17627,15 @@ uniform float uViewportWidth;`,
            * dark box. Three shadows, because one soft glow disappears against
            * bright imagery and one hard outline looks stamped-on over dark.
            */
+          /**
+           * z-index 5: an annotation belongs to the MAP, so it slides UNDER
+           * every piece of chrome — the sidebar is 10, and at 13 the area
+           * text painted straight over the nav bar whenever the shape sat
+           * behind it. Above the canvas (0), above the saved-shape labels
+           * (4, area-labels.js), below everything with a panel.
+           */
           Object.assign(label.style, {
-            position: "fixed", zIndex: 13, pointerEvents: "none",
+            position: "fixed", zIndex: 5, pointerEvents: "none",
             transform: "translate(-50%, -50%)", textAlign: "center",
             color: "#ffffff", whiteSpace: "nowrap",
             font: "700 0.95rem/1.25 'Exo 2', sans-serif",
