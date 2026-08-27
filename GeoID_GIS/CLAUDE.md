@@ -1463,6 +1463,45 @@ delta comparisons use wrapped lon distance) and hand-drawn polygons are
 left alone — no corners a rectangle rule may move. The zoom pill's ends
 are − and + now, not arrows.
 
+### The area is written ON the polygon, not in the corner
+
+A number describing a shape belongs on the shape. The area used to arrive as
+a card pinned to the corner of the window and the dimensions as a "W x H km"
+chip clipped to the rect's top edge — so the one thing not near the polygon
+was the number about it, and with two boxes drawn neither box said which card
+was its own. `updateAreaLabel` replaces both with one label at the shape's
+centre: area as the headline, and beneath it the width x height of a
+rectangle or the perimeter of a free shape.
+
+Nothing is lost by dropping the card. What it also held — elevation range,
+mean slope, geology, the histogram — is in the Study Area panel, which
+carries strictly more of it. The split is the point: the label says what the
+shape IS, the panel says what is UNDER it. Distance and Route keep their
+cards, because a line has no inside to write in.
+
+**The centroid is the wrong centre for placement.** `polygonCentroidLatLon`
+is right for arithmetic and wrong for a label: the globe curves away, so the
+projected midpoint of a large box sits ABOVE the middle of the outline you
+can see. Measured on a 225 x 144 px box: horizontally exact, vertically
+**20 px high** — a seventh of the shape, and it read as sitting on the top
+edge. Placement samples the shape's own SCREEN box instead (a dozen vertices
+is plenty, and it runs every frame), which measured 0 px offset in both axes;
+the centroid survives only as the fallback for when the projection cannot
+answer.
+
+**Inside when it fits, above when it does not.** Measured: a box dragged out
+14 x 10 px on screen was given a 94 x 38 px label — text swamping its own
+shape and covering the corner handles you would reach for next. The label
+steps above the top edge when the shape cannot hold it, which is what a map
+does; "always above" would be worse, because a label inside its polygon needs
+no leader line to say what it belongs to. Hidden entirely while a drag is
+live — the chip at the cursor is already reporting the size, and two numbers
+moving together is noise.
+
+Being inside the ported block, one edit reached all six worlds. Verified on
+Mars: centred to 3 px, and 2,333 km where Earth's constant would have said
+4,389.
+
 ### The drawing tools are on the rocky worlds too, by GENERATOR
 
 The press-drag box, the eight handles, the size chips, the hover cursors

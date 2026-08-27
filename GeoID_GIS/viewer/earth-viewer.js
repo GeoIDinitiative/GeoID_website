@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260827-26f6ad3";
+  from "./gis/geo-utils.js?v=20260827-29377ee";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -17557,13 +17557,41 @@ uniform float uViewportWidth;`,
           && !studyDrag && !boxDraw && measurePoints.length >= 3;
         if (!live) { label.hidden = true; return; }
 
-        const centre = polygonCentroidLatLon(measurePoints);
-        if (!centre || !Number.isFinite(centre.lat)) { label.hidden = true; return; }
         const context = measurePoints[0]?.context || getActiveMeasureContext();
-        const at = studyRectScreenPoint(centre.lat, centre.lon, context);
-        // Behind the limb, or off the canvas: `studyRectScreenPoint` answers
-        // null past the horizon, which is exactly when a label would be a
-        // number floating over empty space.
+        /**
+         * The shape's own box ON SCREEN — which is where its middle is.
+         *
+         * The lat/lon centroid is the right centre for arithmetic and the
+         * wrong one for placement: the globe curves away, so projecting the
+         * midpoint of a large box puts it ABOVE the middle of the shape you
+         * can see. Measured on a 225 x 144 px box: horizontally exact,
+         * vertically 20 px high — a seventh of the shape, and it read as
+         * sitting on the top edge. What "in its centre" means to a reader is
+         * the centre of the drawn outline, so that is what is used, with the
+         * centroid kept only for when the projection cannot answer.
+         *
+         * A dozen vertices is plenty for an extent's box, and this runs every
+         * frame.
+         */
+        const step = Math.max(1, Math.floor(measurePoints.length / 12));
+        let minX = Infinity; let maxX = -Infinity;
+        let minY = Infinity; let maxY = -Infinity;
+        for (let i = 0; i < measurePoints.length; i += step) {
+          const p = studyRectScreenPoint(measurePoints[i].lat, measurePoints[i].lon, context);
+          if (!p) continue;
+          minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+          minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+        }
+        const projected = Number.isFinite(minX);
+        let at = projected ? { x: (minX + maxX) / 2, y: (minY + maxY) / 2 } : null;
+        if (!at) {
+          const centre = polygonCentroidLatLon(measurePoints);
+          at = centre && Number.isFinite(centre.lat)
+            ? studyRectScreenPoint(centre.lat, centre.lon, context) : null;
+        }
+        // Behind the limb: every sample and the centroid answer null past the
+        // horizon, which is exactly when a label would be a number floating
+        // over empty space.
         if (!at) { label.hidden = true; return; }
 
         const areaKm2 = sphericalPolygonAreaKm2(measurePoints);
@@ -17591,30 +17619,19 @@ uniform float uViewportWidth;`,
          *
          * Measured: a box dragged out 14 x 10 px on screen was given a
          * 94 x 38 px label — the text swamping the shape it describes and
-         * covering the corner handles you would reach for next. So the
-         * shape's own screen box is sampled (a dozen vertices is plenty for
-         * an extent, and this runs every frame) and the label steps outside
-         * when the shape cannot hold it. Standard cartographic behaviour,
-         * and the reason it is not simply "always above" is that a label
-         * inside its polygon needs no leader line to say what it belongs to.
+         * covering the corner handles you would reach for next. Standard
+         * cartographic behaviour, and the reason it is not simply "always
+         * above" is that a label inside its polygon needs no leader line to
+         * say what it belongs to.
          */
-        const step = Math.max(1, Math.floor(measurePoints.length / 12));
-        let minX = Infinity; let maxX = -Infinity;
-        let minY = Infinity; let maxY = -Infinity;
-        for (let i = 0; i < measurePoints.length; i += step) {
-          const p = studyRectScreenPoint(measurePoints[i].lat, measurePoints[i].lon, context);
-          if (!p) continue;
-          minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
-          minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
-        }
-        const fits = Number.isFinite(minX)
+        const fits = projected
           && (maxX - minX) >= label.offsetWidth + 10
           && (maxY - minY) >= label.offsetHeight + 10;
-        label.style.left = `${fits || !Number.isFinite(minX) ? at.x : (minX + maxX) / 2}px`;
-        label.style.top = `${fits || !Number.isFinite(minX) ? at.y : minY}px`;
+        label.style.left = `${at.x}px`;
+        label.style.top = `${fits || !projected ? at.y : minY}px`;
         // -50% centres it on the point; -115% lifts it clear of the top edge
         // with a hair of separation from the outline.
-        label.style.transform = `translate(-50%, ${fits || !Number.isFinite(minX) ? "-50%" : "-115%"})`;
+        label.style.transform = `translate(-50%, ${fits || !projected ? "-50%" : "-115%"})`;
       }
 
       (function handleLoop() {
