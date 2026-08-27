@@ -278,15 +278,15 @@ if (fail) process.exitCode = 1;
   ] };
   const points = gdacsPoints(payload, { id: "gdacs-floods" });
   check("a GDACS flood converts with its alert level in the title",
-    points.length === 1 && points[0].title === "Flood in Australia — Orange alert");
+    points.length === 1 && points[0].title === "Flood in Australia — Orange alert", true);
   check("its id is namespaced against every other registry",
-    points[0].id === "gdacs:102938");
+    points[0].id === "gdacs:102938", true);
   check("the flood wears EONET's flood category so the symbols agree",
-    points[0].categoryId === "floods");
+    points[0].categoryId === "floods", true);
   check("the report link and the window's end survive",
-    points[0].link.includes("102938") && points[0].date === "2026-08-26T01:00:00");
+    points[0].link.includes("102938") && points[0].date === "2026-08-26T01:00:00", true);
   check("a feature with no coordinates is dropped, not a crash",
-    gdacsPoints({ features: [{ geometry: {} }] }, { id: "x" }).length === 0);
+    gdacsPoints({ features: [{ geometry: {} }] }, { id: "x" }).length === 0, true);
   check("the url asks SEARCH for FL with all alert levels",
-    /SEARCH\?fromDate=\d{4}-\d{2}-\d{2}&toDate=\d{4}-\d{2}-\d{2}&alertlevel=Green;Orange;Red&eventlist=FL$/.test(gdacsUrl()));
+    /SEARCH\?fromDate=\d{4}-\d{2}-\d{2}&toDate=\d{4}-\d{2}-\d{2}&alertlevel=Green;Orange;Red&eventlist=FL$/.test(gdacsUrl()), true);
 }
