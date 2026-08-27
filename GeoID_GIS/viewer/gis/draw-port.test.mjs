@@ -79,8 +79,19 @@ for (const [folder, viewer, group, radiusConst] of BODIES) {
   check(`${folder} measures kilometres with its OWN radius`,
     found.includes(`(2 * Math.PI * ${radiusConst}) / 360`), true);
   check(`${folder} has no Earth kilometres left in it`, found.includes("111.32"), false);
-  check(`${folder} projects handles through its own scene group`,
-    found.includes(`${group}.localToWorld`), true);
+  /* Handles and labels must project through the frame the GEOMETRY is in.
+     `measureGroup` carries the globe's spin and the drawn outline is its
+     child; the body group above it does not. Projecting through the parent
+     drew the handles in the baseline frame and the shape in the spun one, so
+     the two parted by however far the planet had turned — measured on Mars
+     as ~10° of longitude, 592 km, at every corner with latitude exact. The
+     variable is named `measureGroup` in every viewer and parented to that
+     body's own group, so this needs no per-body rewrite; what it does need
+     is never to go back to the parent. */
+  check(`${folder} projects through the spin-carrying measure frame`,
+    found.includes("measureFrameGroup(context).localToWorld"), true);
+  check(`${folder} does NOT project through the body group above it`,
+    found.includes(`${group}.localToWorld`), false);
   // The seams the HUD's Done and Cancel call, and the announcement
   // gis/pipeline-sync.js listens for.
   check(`${folder} exposes clearStudyArea`, text.includes("clearStudyArea()"), true);

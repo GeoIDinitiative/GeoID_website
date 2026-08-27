@@ -1463,15 +1463,57 @@ delta comparisons use wrapped lon distance) and hand-drawn polygons are
 left alone — no corners a rectangle rule may move. The zoom pill's ends
 are − and + now, not arrows.
 
+### The handles were drawn in the WRONG FRAME
+
+`measureGroup` carries the globe's spin — `rotation.y = _spinDelta`, set every
+frame — and the drawn outline is its child. `studyRectScreenPoint` projected
+through `marsGroup`, the parent, which does not. So the handles were drawn in
+the BASELINE frame and the shape in the spun one, and the two parted by
+exactly however far the planet had turned since the page opened.
+
+Measured on Mars against the viewer's own cursor readout, hovering each
+handle: every corner off by the same **~10° of longitude — 592 km** — with
+latitude exact to a fraction of a degree. *Latitude exact and longitude
+uniformly wrong is the signature of a rotation about the pole*, which is what
+separates this from a coordinate-convention error; look for that before
+suspecting the CRS. Reported as "the click and drag to resize points have a
+massive offset from the actual bounds of the shape", and it was.
+
+`measureFrameGroup(context)` returns the frame the geometry actually went
+into — `moonMeasureGroup` for a moon, `measureGroup` otherwise. The variable
+is called `measureGroup` in all six viewers and is parented to each body's own
+group, so this needs **no per-body rewrite**; the porter's group substitution
+now only touches comment prose. `draw-port.test.mjs` pins both halves: it must
+project through `measureFrameGroup`, and it must NOT project through the body
+group above it. After the fix, with the planet still spinning, every corner is
+within 0.8° on Mars and 0.25° on Earth — the documented sub-degree marker
+parallax, not a frame error.
+
 ### The area is written ON the polygon, not in the corner
 
 A number describing a shape belongs on the shape. The area used to arrive as
 a card pinned to the corner of the window and the dimensions as a "W x H km"
 chip clipped to the rect's top edge — so the one thing not near the polygon
 was the number about it, and with two boxes drawn neither box said which card
-was its own. `updateAreaLabel` replaces both with one label at the shape's
-centre: area as the headline, and beneath it the width x height of a
-rectangle or the perimeter of a free shape.
+was its own. `updateAreaLabel` replaces both with one ANNOTATION at the shape's
+centre: its name, the area as the headline, and beneath that the width x
+height of a rectangle or the perimeter of a free shape.
+
+**An annotation, not a card.** A fill and a border sit on top of the polygon
+and hide the ground it was drawn to look at, which is the whole reason for
+putting the number inside the shape at all. So there is no background and no
+border — the text is written on the map the way a place name is, staying
+legible by carrying its own dark halo (three shadows: one soft glow vanishes
+against bright imagery, one hard outline looks stamped-on over dark).
+
+**The name is the one the shape will KEEP.** `nextDrawnName()` is exported
+from drawn-layers.js and used by BOTH the annotation and `drawnFeature`, so
+what is labelled while drawing is what the layer row says after Done. The
+prefix is "Study area N" rather than the old "Drawn area N" because that is
+the app's own word for this thing — the panel, `setStudyAreaPolygon` and
+`activateStudyArea` all say so — and a label predicting a different name from
+the one the layer takes is the two-names-for-one-thing fault `renameLayer`
+documents at length.
 
 Nothing is lost by dropping the card. What it also held — elevation range,
 mean slope, geology, the histogram — is in the Study Area panel, which
