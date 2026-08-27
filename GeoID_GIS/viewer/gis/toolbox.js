@@ -1,6 +1,6 @@
-import { CRS_OPTIONS, transform } from "./projection.js?v=20260827-f2f9202";
-import { currentBody } from "./bodies.js?v=20260827-f2f9202";
-import { rowsToCsv, downloadText } from "./extraction.js?v=20260827-f2f9202";
+import { CRS_OPTIONS, transform } from "./projection.js?v=20260827-a82856f";
+import { currentBody } from "./bodies.js?v=20260827-a82856f";
+import { rowsToCsv, downloadText } from "./extraction.js?v=20260827-a82856f";
 
 // GIS mode presents a toolbox rather than a control centre: the whole GeoID
 // control set folds into one group, and the tool groups stack beneath it.
@@ -65,19 +65,23 @@ const MOVES = [
   { id: "geology-section", host: "gis-toolbox-panels", promote: true },
   { id: "modelled-data-section", host: "gis-toolbox-panels", promote: true },
   /**
-   * The two-tier bar: Satellites nests under Live (everything with a
-   * timestamp) and Hydrology under Earth System. Nested, not promoted, so
-   * they wear the level-2 styling — a sub-tab inside the tab that owns the
-   * subject.
+   * The two-tier bar: Satellites nests under Earth Observation (the tracker
+   * lives with the sensors it flies), Hydrology under Earth System, and the
+   * myGeoID mode bar under Hazards — the Factor-of-Safety pipeline IS the
+   * landslide hazard product, so its doorway leads that tab. Nested, not
+   * promoted, so they wear the level-2 styling.
    *
    * `unlessDropped`: on a body whose registry drops the would-be parent
    * (planets drop the Earth Engine group), the section is NOT nested into a
    * hidden tab — it stays a top tab of its own, which is how Mars keeps its
    * sea level reachable. `tabsForBody` makes the matching call on the other
-   * side, re-listing the section as a tab exactly when the nest is skipped.
+   * side, re-listing the section as a tab exactly when the nest is skipped —
+   * unless the section is itself dropped on that body, as the myGeoID bar
+   * is off Earth.
    */
-  { id: "satellites-section", host: "live-satellites-host", unlessDropped: "gis-group-events" },
+  { id: "satellites-section", host: "earth-observation-satellites-host", unlessDropped: "basemap-relief-section" },
   { id: "sea-level-section", host: "earth-system-water-host", unlessDropped: "gis-group-modelled" },
+  { id: "gis-group-geoid", host: "hazards-mygeoid-host", unlessDropped: "modelled-data-section" },
   // Sources and metadata belong with the layer provenance they sit beside.
   { id: "metadata-section", host: "geoid-metadata-host" },
 ];
@@ -94,22 +98,18 @@ const MOVES = [
  */
 const TAB_ORDER = [
   // Explorer leads. It holds the controls for the thing on the screen -- the
-  // globe, where it is pointed, what is drawn on it -- and it was sitting fifth
-  // behind three tabs about bringing data in, so the first thing a viewer
-  // offered was import rather than the world it had just loaded.
-  //
-  // One entry serves both halves of that: Earth keeps the Analysis Hub above it,
-  // and every other world drops gis-group-geoid in the body registry, so on
-  // those pages the filter leaves Explorer at the top with nothing to move.
-  "gis-group-geoid",
+  // globe, where it is pointed, what is drawn on it. The myGeoID mode bar is
+  // no longer above it: it nests inside Hazards (see MOVES), where the
+  // product it arms is filed.
   "geoid-controls-group",
   /**
    * Then the subject taxonomy: Live, Hazards, Earth System, Geology, Earth
    * Observation, My Data — what is happening, what could happen, how the
    * planet works, what the ground is, what the sensors saw, what you
-   * brought. Satellites and Hydrology are NOT entries: they nest inside
-   * Live and Earth System (see MOVES), except on a body where the parent is
-   * dropped — `tabsForBody` re-lists them there.
+   * brought. Satellites, Hydrology and the myGeoID bar are NOT entries:
+   * they nest inside Earth Observation, Earth System and Hazards (see
+   * MOVES), except on a body where the parent is dropped — `tabsForBody`
+   * re-lists them there.
    */
   "gis-group-events",
   "modelled-data-section",
@@ -156,6 +156,10 @@ function tabsForBody() {
    */
   MOVES.forEach((move) => {
     if (!move.unlessDropped || !drop.has(move.unlessDropped)) return;
+    // A section this body drops in its own right stays dropped — the myGeoID
+    // bar's parent (Hazards) is dropped off Earth AND so is the bar itself,
+    // and re-listing it here would resurrect an Earth-only tab on Mars.
+    if (drop.has(move.id)) return;
     const at = TAB_ORDER.indexOf(move.unlessDropped);
     const before = TAB_ORDER.slice(at + 1).find((id) => tabs.includes(id));
     tabs.splice(before ? tabs.indexOf(before) : tabs.length, 0, move.id);

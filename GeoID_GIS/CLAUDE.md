@@ -1075,12 +1075,17 @@ subject, and each layer's row already carries its own source line —
 splitting it per tab is seven filtered copies of one registry.
 
 Mechanics worth knowing before touching it: the nests are MOVES entries
-(`satellites-section` → `live-satellites-host`, `sea-level-section` →
-`earth-system-water-host`) carrying **`unlessDropped`** — on a body whose
+(`satellites-section` → `earth-observation-satellites-host`,
+`sea-level-section` → `earth-system-water-host`, `gis-group-geoid` →
+`hazards-mygeoid-host` — the myGeoID mode bar leads the Hazards tab,
+because the FoS pipeline IS the landslide product, and the tracker lives
+with the sensors it flies) carrying **`unlessDropped`** — on a body whose
 registry drops the parent tab, the child is NOT nested into a hidden tab;
 `tabsForBody` re-lists it as a top tab at the parent's own position, which
 is how Mars keeps its Sea Level reachable while Earth folds it into Earth
-System. Section IDS ARE UNCHANGED everywhere (the `sea-level-section`
+System — and a section a body drops in its own right is never re-listed
+by that rule, or Mars would resurrect the Earth-only myGeoID bar. Section
+IDS ARE UNCHANGED everywhere (the `sea-level-section`
 lesson: three modules address them by id); only heading text moved.
 `section-activity` propagates a nested section's `has-active-data` to its
 closest `.toolbox-group` ancestor read from the DOM — the nesting is
