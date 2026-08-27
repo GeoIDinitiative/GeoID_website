@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260827-e44795a";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260827-e44795a";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260827-a055e70";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260827-a055e70";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -1275,9 +1275,26 @@ function install() {
      * viewer's card is the one anchored to its label, so where its raycaster
      * claims the click, this popup stays quiet.
      */
-    if (window.GeoIDViewer?.interactiveFeatureAt?.(event.clientX, event.clientY)) return;
+    const claimedByLabel = Boolean(
+      window.GeoIDViewer?.interactiveFeatureAt?.(event.clientX, event.clientY));
     const at = window.GeoIDViewer?.surfaceLatLonAt?.(event.clientX, event.clientY);
-    if (!at) { hidePopup(); return; }
+    if (!at) { if (!claimedByLabel) hidePopup(); return; }
+    /**
+     * The HIGHLIGHT does not care which card wins.
+     *
+     * A labelled layer's click is claimed by the viewer's own label path — it
+     * opens the anchored scene card, and this popup stands down so one click
+     * does not raise two cards. But standing down took the highlight with it,
+     * so clicking a submarine cable named on the map lit nothing: the card
+     * said which cable, and the map of three hundred lines gave no sign which
+     * one it was. Marking what was picked belongs to the pick, not to whoever
+     * draws the card, so it happens first and for both paths.
+     */
+    if (claimedByLabel) {
+      const claimed = featuresAt(at.lat, at.lon)[0];
+      if (claimed) void showOutline(claimed.feature); else clearPin();
+      return;
+    }
     /**
      * Geology belongs to the viewer's own interactive path.
      *
