@@ -47,6 +47,28 @@ export const DETAIL_LEVELS = {
 export const DEFAULT_DETAIL = 3;
 
 /**
+ * What a detail level means when the dataset has not said.
+ *
+ * `DETAIL_COPY` below is the VOLCANOES' wording — "Erupted since 1500" — read
+ * off `label_rank`'s own bands in bake-volcanoes.py. That was the only
+ * labelled catalogue when it was written, and generalising the slider to every
+ * labelled layer without generalising the words put "Erupted since 1500" on
+ * the submarine cables, which is nonsense wearing the clothes of a caption.
+ *
+ * `label_rank` means something different in every dataset, so the words belong
+ * to the dataset: a catalogue entry may carry its own `detailCopy`, and this
+ * is the fallback for one that does not — true of any ranking, and claiming
+ * nothing about what the rank measures.
+ */
+export const GENERIC_DETAIL_COPY = {
+  1: "Only the most significant",
+  2: "The major ones",
+  3: "A readable selection",
+  4: "Most of them",
+  5: "Every one that will fit",
+};
+
+/**
  * What each position admits — the caption under the slider.
  *
  * The words follow `label_rank`'s own bands in bake-volcanoes.py (5: erupted
@@ -405,6 +427,6 @@ if (typeof window !== "undefined") {
   window.GeoIDPointLabels = {
     setLabels, setDetailLevel, detailLevelOf, isLabelled, canLabel,
     toLabelItems, featureToItem, sceneItemFor,
-    DETAIL_LEVELS, DETAIL_COPY, DEFAULT_DETAIL,
+    DETAIL_LEVELS, DETAIL_COPY, GENERIC_DETAIL_COPY, DEFAULT_DETAIL,
   };
 }

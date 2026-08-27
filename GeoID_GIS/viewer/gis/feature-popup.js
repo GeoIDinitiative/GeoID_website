@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260827-c21ab4c";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260827-c21ab4c";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260827-a921e54";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260827-a921e54";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital

@@ -26,7 +26,7 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260827-c21ab4c";
+import { runConnector } from "./research/connectors.js?v=20260827-a921e54";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -267,6 +267,16 @@ export const DATASETS = [
       + "service year — labelled and clickable. Pair it with the landing "
       + "stations below for the ends.",
     colourBy: "status",
+    // The rank is LENGTH here, not eruption recency, so the slider says so.
+    // Bands match submarineCablesToGeoJSON's thresholds exactly — a caption
+    // that disagrees with the rule behind it is worse than no caption.
+    detailCopy: {
+      1: "Transoceanic only (10,000 km+)",
+      2: "Long-haul (4,000 km+)",
+      3: "Regional and longer (1,500 km+)",
+      4: "Down to short hops (300 km+)",
+      5: "Every named cable",
+    },
     licence: "Greg's Cable Map — GNU GPL",
   },
   {

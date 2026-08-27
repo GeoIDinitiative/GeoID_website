@@ -18,7 +18,7 @@
  * in extraction and in export without this file knowing anything about them.
  */
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260827-c21ab4c";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260827-a921e54";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -418,8 +418,17 @@ export function renderCatalogue(host, entries, hooks) {
       detail.max = "5";
       detail.step = "1";
       detail.value = String(labels.detailLevelOf?.(layer) ?? labels.DEFAULT_DETAIL ?? 3);
+      /**
+       * The dataset's OWN words, never the volcanoes'.
+       *
+       * `label_rank` means eruption recency in one catalogue and cable length
+       * in another, so `DETAIL_COPY` — which is the volcanoes' bands — cannot
+       * caption both. An entry may carry `detailCopy`; anything that does not
+       * gets wording that is true of any ranking.
+       */
+      const copy = entry.detailCopy || labels.GENERIC_DETAIL_COPY || {};
       const caption = () => {
-        detail.title = `Label detail: ${labels.DETAIL_COPY?.[Number(detail.value)] || detail.value}`;
+        detail.title = `Label detail: ${copy[Number(detail.value)] || detail.value}`;
       };
       caption();
       // The tooltip tracks the drag; the rebuild waits for the release, because
