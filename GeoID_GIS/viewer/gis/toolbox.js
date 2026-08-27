@@ -1,6 +1,6 @@
-import { CRS_OPTIONS, transform } from "./projection.js?v=20260827-3ce0c71";
-import { currentBody } from "./bodies.js?v=20260827-3ce0c71";
-import { rowsToCsv, downloadText } from "./extraction.js?v=20260827-3ce0c71";
+import { CRS_OPTIONS, transform } from "./projection.js?v=20260827-a2e8ca3";
+import { currentBody } from "./bodies.js?v=20260827-a2e8ca3";
+import { rowsToCsv, downloadText } from "./extraction.js?v=20260827-a2e8ca3";
 
 // GIS mode presents a toolbox rather than a control centre: the whole GeoID
 // control set folds into one group, and the tool groups stack beneath it.
@@ -74,7 +74,7 @@ const MOVES = [
 // the sequence is this list and the spacing is one rule, rather than an
 // accident of which container each panel happened to be moved into.
 /**
- * Pre-processing and Extraction & Analysis are NOT here.
+ * Pre-processing, Extraction & Analysis, Export and Settings are NOT here.
  *
  * They live on the tool rail as workbenches (`gis/side-panels.js`), which moves
  * their groups out of this column. Leaving them in this list would append them
@@ -106,15 +106,13 @@ const TAB_ORDER = [
   // data tabs and before the outputs. Built by add-data.js, not by the shared
   // markup -- see that module for why.
   "gis-group-mesh",
-  "gis-group-export",
   "gis-group-metadata",
-  // Settings last: configuration goes below the data, the analysis and the
-  // provenance. It has to be an entry here rather than a position in the
-  // markup, because this list is what decides the column -- every other group
-  // is APPENDED into the toolbox and a group left out stays behind in
-  // `gis-panel-host`, which is the toolbox's first child. That is why Settings
-  // read as pinned to the top: it was the one panel nothing moved.
-  "gis-group-settings",
+  // Export and Settings used to close this list; both are rail workbenches
+  // now (see the note above the list). The trap their absence leaves behind:
+  // a group in the markup that is neither listed here nor moved by
+  // side-panels.js stays behind in `gis-panel-host`, the toolbox's FIRST
+  // child, and reads as pinned to the top of the column — which is exactly
+  // how Settings once earned its entry.
 ];
 
 /**

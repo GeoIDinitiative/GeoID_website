@@ -49,6 +49,31 @@ const PANELS = [
       + '<path d="M7.4 19.6v-6.6M12 19.6V5.8M16.6 19.6v-9.4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>',
   },
   {
+    // The old Export sidebar tab, repackaged: exporting is something you do
+    // and finish, not a place you dwell — a workbench, like the two above.
+    id: "export",
+    group: "gis-group-export",
+    label: "Export",
+    title: "Export",
+    hint: "Export layers, maps and views",
+    // The sidebar tab's own glyph at rail scale: up and out of a tray.
+    icon: '<path d="M12 15.4V4.8M7.8 9 12 4.8 16.2 9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>'
+      + '<path d="M4.8 19.2h14.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>',
+  },
+  {
+    // The old Settings sidebar tab (the gear), same move: configuration is
+    // opened, changed and closed, and it was the tab pinned under nine
+    // others that nobody scrolled to.
+    id: "settings",
+    group: "gis-group-settings",
+    label: "Settings",
+    title: "Settings",
+    hint: "Settings",
+    // The gear, matching the sidebar tab it replaces.
+    icon: '<circle cx="12" cy="12" r="3.4" fill="none" stroke="currentColor" stroke-width="1.6"/>'
+      + '<path d="M12 3v2.6M12 18.4V21M21 12h-2.6M5.6 12H3M18.4 5.6l-1.9 1.9M7.5 16.5l-1.9 1.9M18.4 18.4l-1.9-1.9M7.5 7.5 5.6 5.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+  },
+  {
     // Not a panel: the palette is already the one door to all 46 tools, and it
     // was reachable only by knowing to press "/". A rail button under the
     // Atlas mark, built by the same function as Process and Analysis, is the

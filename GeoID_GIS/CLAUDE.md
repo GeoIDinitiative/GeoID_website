@@ -1060,6 +1060,27 @@ Three traps, all found by measuring:
   `kind` (the kicker for non-volcano layers) and `dimension`.
 - satellite.js v5 calls the mean motion `no`, not `no_kozai`.
 
+## Workbenches: the rail owns what you pick up and put down
+
+`gis/side-panels.js` moves whole sidebar groups onto the right-hand tool
+rail as workbenches — Pre-processing, Extraction & Analysis, and now
+**Export and Settings** (the gear). The group is MOVED, never rebuilt, so
+every id and handler inside survives (settings-panel.js, the export
+wiring, toolbox.js's own MOVES all keep working untouched), and the panel
+shell is read off `#ui` at build time so it is the sidebar on the other
+side of the screen. Adding one is a PANELS entry plus removing the id from
+toolbox.js's `TAB_ORDER` — leaving it in that list re-appends the group to
+the sidebar on the next mode change, and a group in neither place stays
+behind in `gis-panel-host`, the toolbox's first child, pinned to the top
+of the column (which is how Settings originally earned its TAB_ORDER
+entry). One workbench opens at a time; the rail shrinks to icons while one
+is up. The Settings copy also carried a double-escaped `\\u2014` in
+panels.js's MARKUP string that rendered literally — remember the markup is
+a JS string, so an escape typo survives to the DOM. And verifying any of
+this needs a COMMITTED stamp: the uncommitted edit re-stamps to the same
+sha and the browser serves its cached module (the reused-stamp trap, hit
+again here).
+
 ## The Geology tab is subsections, and dead controls are gone
 
 The tab's top level held a dropdown, an "Add to globe" button, a manual
