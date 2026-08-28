@@ -421,6 +421,21 @@ const STYLE = `
  * ground, summary padding — and open is the same SOLID accent fill with
  * dark ink the tool sections say it with. !important where the skin pins
  * the same properties. */
+/* ── One card colour, wherever the card sits ────────────────────────────
+ *
+ * The cards were translucent white (3%) over the panel — and the panel is a
+ * VERTICAL GRADIENT, light at the top and dark at the foot. Measured: an
+ * events card sits 275 px down the panel and renders about rgb(24,13,47);
+ * an Explorer card sits 698 px down, past the gradient's dark end, and
+ * renders about rgb(17,9,32). Same rule, same computed style, visibly
+ * different colour — which is why every property comparison said MATCHES
+ * while the eye said otherwise. An OPAQUE fill (the events card's own
+ * rendered colour) makes a sub-tab the same colour at the top of the
+ * column and at the bottom. */
+.gis-tool-section,
+.control-section:not(.toolbox-group) {
+  background: rgb(24, 13, 47) !important;
+}
 .control-section:not(.toolbox-group) {
   border: 1px solid rgba(var(--nav-accent-rgb), 0.18) !important;
   /* No inset ring, no glow: the page sheets give a closed level-2 section a

@@ -1231,6 +1231,18 @@ wrapper), and the last 2.8 px was `.section-title` being a BLOCK around
 an inline-flex row, so it took a line box taller than its content. A head
 that carries a control (Tour Mode's ENTER) sizes it down to the row.
 
+**And the last difference was not a style at all — it was POSITION.**
+Every property matched and the cards still looked different colours: the
+cards were 3% white over `#ui`, which paints a VERTICAL GRADIENT (light
+at the top, dark at the foot), so the same translucent fill composites
+differently depending on where the card sits. Measured: an events card
+275 px down the panel rendered ~rgb(24,13,47); an Explorer card 698 px
+down rendered ~rgb(17,9,32). Sub-tab cards now take an OPAQUE fill (the
+events card's own rendered colour, rgb(24,13,47)), so a card is the same
+colour at the top of the column and at the bottom. When computed styles
+agree and the eye does not, suspect a translucent fill over a gradient
+before suspecting the rules.
+
 **Three more differences, found by walking the ANCESTOR CHAIN** rather
 than comparing the two cards alone: Explorer's sub-tabs sit inside a
 `.controls` wrapper that paints its own magenta ring and bloom (the
