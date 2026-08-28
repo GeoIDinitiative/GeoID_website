@@ -3074,6 +3074,25 @@ connected while the hub was talking to it happily. Exactly the module-identity
 trap above: `stamp.py` only rewrites stamps that already exist, so a new tag must
 be given one by hand once.
 
+## The music player, and the tracks that were not there
+
+`music.js` (one copy per viewer, ten of them) shuffles a playlist and
+plays it. Two tracks — Andromeda.mp3 and infinity.mp3, 9.1 MB and 6.9 MB
+— were deleted from `assets/music/` in a size cleanup on 25 Aug 2026
+while every viewer went on listing them. Because the playlist is
+SHUFFLED, whenever it started on one of the dead entries the audio
+element errored, `ended` never fired (an error is not an end), and the
+button sat there doing nothing: reported simply as "music player is
+broken", and intermittent by construction. The dead entries are gone from
+all ten modules, and an `error` listener now ADVANCES to the next track —
+with a consecutive-failure count so a playlist where everything fails
+stops rather than spinning. Verified by wrapping `window.Audio` to catch
+the element the module creates: Nebula (1).mp3 loads, plays, clock
+advancing, no error. Note the paths differ by viewer on purpose: Earth's
+copy uses `/assets/music/...` (absolute) and the planet copies
+`../../../assets/music/...`, because a planet page is three directories
+deep.
+
 ## Running and testing
 
 `python3 serve.py` (repo root) starts the static site *and* the sidecar together
