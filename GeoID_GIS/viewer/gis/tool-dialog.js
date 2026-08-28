@@ -39,14 +39,87 @@
  * law is honoured by having nothing to exempt.
  */
 
-import { prefs, mergeParams } from "./tool-prefs.js?v=20260828-ca4e80a";
+import { prefs, mergeParams } from "./tool-prefs.js?v=20260828-57ef453";
 
-const RUNNER_URL = "./tool-runner.js?v=20260828-ca4e80a";
+const RUNNER_URL = "./tool-runner.js?v=20260828-57ef453";
 
 /* ── Dialog-only styles, injected as the house pattern dictates.
       NEVER a backtick inside this literal — it ends the string and kills the
       module silently (module-css.test.mjs pins this). ───────────────────── */
 const STYLE = `
+/* ── The form, in the sub-tab voice ─────────────────────────────────────────
+   These rows inherited the page's generic .row: a two-column grid whose
+   label track squeezed "Observations" to "Observatio", teal controls and a
+   bare Run — cookie-cutter beside a nav bar that has one voice (Exo 2 600
+   uppercase letterspaced labels in the data cyan, dark full-width fields,
+   the accent reserved for the primary act). Scoped under the dialog's own
+   id so the page rules lose on specificity, not on luck. Labels sit ABOVE
+   their fields: this panel's labels are sentences ("Outcome field (blank =
+   all are occurrences)") and no side column is wide enough for those. */
+#gis-tool-dialog .row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.18rem;
+  margin: 0.45rem 0 0;
+}
+#gis-tool-dialog .row label {
+  font: 600 0.6rem/1.35 'Exo 2', sans-serif;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--skin-data, #7ee7ff);
+  opacity: 0.85;
+}
+#gis-tool-dialog .row .input,
+#gis-tool-dialog .row .mini-select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0.38rem 0.5rem;
+  border-radius: 0.45rem;
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.28);
+  background: rgb(16, 7, 36);
+  color: var(--text);
+  font: 500 0.74rem/1.3 'Exo 2', sans-serif;
+  color-scheme: dark;
+}
+#gis-tool-dialog .row .input:focus,
+#gis-tool-dialog .row .mini-select:focus {
+  outline: none;
+  border-color: rgba(var(--nav-accent-rgb), 0.75);
+  box-shadow: 0 0 0 1px rgba(var(--nav-accent-rgb), 0.35);
+}
+/* A select POPUP composites over the platform's white unless the options
+   carry an opaque ground of their own -- the symbology dialog's lesson. */
+#gis-tool-dialog option, #gis-tool-dialog optgroup { background-color: #100724; }
+#gis-tool-dialog input[type="checkbox"] { width: auto; align-self: flex-start; }
+#gis-tool-dialog .tool-copy {
+  margin: 0 0 0.2rem;
+  font: 400 0.68rem/1.45 'Exo 2', sans-serif;
+  opacity: 0.75;
+}
+/* Run is the one accented act on the card -- the active pill's own fill and
+   dark ink; Defaults stays the quiet secondary beside it. */
+#gis-tool-dialog .gis-btn-row { margin-top: 0.6rem; }
+/* !important against viewer-skin, which paints every .tool-button's colour
+   and background with !important of its own -- without it Run wore the
+   accent fill under CYAN ink, measured rgb(255,43,214) behind srgb data
+   blue. Same cascade the workbench buttons already fight. */
+#gis-tool-dialog #gis-tool-run {
+  background: rgb(var(--nav-accent-rgb)) !important;
+  border: 1px solid rgb(var(--nav-accent-rgb)) !important;
+  color: var(--skin-chrome-ink, #2b0030) !important;
+  font: 700 0.68rem/1.2 'Exo 2', sans-serif;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+  box-shadow: 0 0 14px -4px rgba(var(--nav-accent-rgb), 0.7);
+}
+#gis-tool-dialog #gis-tool-run:hover { filter: brightness(1.12); background: rgb(var(--nav-accent-rgb)) !important; }
+#gis-tool-dialog #gis-tool-run:disabled { opacity: 0.5; cursor: default; box-shadow: none; }
+
 /* The favourite star in the panel header: quiet outline until it is one.
    Filled accent when favourited, matching the palette's star spec. */
 .gis-tool-fav {
