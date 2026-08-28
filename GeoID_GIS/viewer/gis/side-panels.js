@@ -198,6 +198,28 @@ const STYLE = `
 .control-section.toolbox-group[open] > .section-toggle::before {
   transform: rotate(90deg);
 }
+/* ONE GAP BETWEEN SUB-TABS, wherever they sit.
+ *
+ * A tab's body is a grid at 7.2 px, but Explorer's later sub-tabs live inside
+ * a .controls wrapper with a 10.4 px gap of its own and a 12 px top margin,
+ * and the first section carries a 10.4 px bottom margin nothing else has. So
+ * the column measured 17.5, 19.2, then 10.4 nine times over — three different
+ * spacings in one list, which is what "even spacing" was asking for.
+ *
+ * The wrapper's 10.4 wins because it is what most of the column already uses:
+ * matching the body to it moves two gaps rather than nine. The margins are
+ * zeroed rather than subtracted from, or the next section to be added would
+ * inherit whichever of them it happened to sit next to.
+ *
+ * !important because both of the rules being overruled are ID selectors --
+ * #geoid-controls-host sets the body gap and #flightsim-section its own
+ * bottom margin -- and a class list cannot outrank an id however long it is.
+ * Measured before: 17.6, 7.2, then 10.4 seven times. */
+.toolbox-group > .section-body,
+.toolbox-group > .section-body > .controls { row-gap: 0.65rem !important; }
+.toolbox-group > .section-body > .controls { margin-top: 0 !important; }
+.toolbox-group > .section-body > .control-section { margin-bottom: 0 !important; }
+
 /* The chevron leads, then the icon, then the name — spaced like a sub-tab
    row so the two tiers read as one family. */
 .control-section.toolbox-group > .section-toggle { gap: 0.55rem !important; }
