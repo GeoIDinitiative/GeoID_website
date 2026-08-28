@@ -2713,6 +2713,49 @@ them at a twentieth of the size ran at 61. The registration is gated on
 which is the shape to watch for: a helper that sets a property as a side
 effect, reused on a path that means something else by it.
 
+## The tool registry was swept from the DIALOG, and that is the test that counts
+
+All 47 tools run through `openTool`, the real controls and the real Run
+button, against fixtures with closed-form answers (a collinear polygon pair,
+attributed points, a line, a gaussian-hill DEM imported as `.asc` — the ASCII
+grid is the cheap way to a genuine raster fixture). Six faults, none of which
+a seam test had shown, all fixed:
+
+- **The boolean degeneracy is now guarded in ALL THREE ops.** Collinear
+  overlapping edges defeat `segmentIntersection` (zero denominator), leaving
+  an odd crossing count; the traversal then returns the subject whole OR
+  shreds into near-zero fragments. `unionRings` accepts exactly two shapes of
+  answer (one ring covering both, or the inputs back with area intact);
+  `intersectRings` bounds-checks every piece against the overlap box;
+  `subtractRings` audits by TILING against the checked intersection. All
+  retry against a ~0.1 mm nudged mask and fall back honestly. Clip +
+  difference of any subject must tile it — that invariant is pinned.
+- **`{ value, label }` options passed the dialog and failed the validator**
+  (`o.id === value` only): mosaic refused every choice INCLUDING ITS DEFAULT
+  from the day it shipped. A registry with two option spellings needs every
+  consumer to read both.
+- **A field param can be `optional: true`** — blank reaches the engine as
+  "whole layer". Dissolve (merge-everything had no door) and rocAuc/confusion
+  (whose labels promised blank worked while validation refused it) carry it;
+  the dialog offers a "— whole layer —" row.
+- **`of:` on a field param is not decoration**: without it the field list is
+  built from the FIRST input, and for raster-first tools that is a layer with
+  no fields — an empty select and a refusal for a value that could never be
+  chosen.
+- **An error message must name the actual fault**: reclassify's comma-only
+  split kept "a; b" whole and taught `min..max:class` when the SYNTAX was
+  right and the separator was the problem. Separators are commas, semicolons
+  or whitespace now.
+- **The dialog's output-name resolver got only the FIRST input**, so
+  templates naming a second (`dist_{features}`) reached the Workspace with
+  braces in the layer name.
+
+The sweep also proved the answers, not just the runs: clip 2225.5 vs 2225
+km², difference 1731 vs 1731, blank dissolve 3832.9 vs 3833, ROC AUC 0.5 on
+deliberately uncorrelated observations — which is the CORRECT answer, and a
+tidy reminder that a validation tool agreeing with chance is sometimes the
+data, not a bug.
+
 ## Buffers have SHAPES, and the multi-ring is graded on arrival
 
 `GP.buffer(fc, m, { shape })` — "round" | "square" | "flat" — and
