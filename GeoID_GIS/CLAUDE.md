@@ -2247,6 +2247,51 @@ it never reaches the planets.
 outline is LineSegments) rather than on the option being accepted, because a
 silently-ignored option draws exactly as before with no error anywhere.
 
+### A preset shape is a DRAFT, and it has to re-sample as you fly in
+
+"The header draw pill works perfectly, the issues lie in the preset shapes"
+is the most useful bug report in this file: two paths make the same geometry
+and only one looked right, so the difference is never in the maths. Four
+faults, all in the preset path:
+
+- **Placing COMMITTED.** `place()` called `captureDrawn()` the moment a
+  preset was pressed, so choosing "square" stamped a permanent Study area N
+  before you had said what size you wanted — and the capture is idempotent
+  by SHAPE, so a resized box is a different shape and stamped ANOTHER.
+  Measured: three presses left three layers on one patch of ground, one size
+  change took 2 to 3, and at close zoom those stacked rings at different
+  sizes are what "deformed" looked like. The standing overlay is the draft
+  now, exactly as a drag-drawn box is; the HUD's Done is the one thing that
+  saves it. One gesture grammar for both ways of making a shape.
+- **A preset had no handles.** `rectFromMeasurePoints` needed EIGHT points;
+  a drag-drawn box arrives subdivided and clears it, a preset square is its
+  four corners. The floor is four now, with a sparse shape having to be a
+  rectangle EXACTLY — every point at both extremes, i.e. a corner — because
+  a triangle's three vertices all touch their own bounding box and rectangle
+  handles would let a drag turn it into something it is not. This gate is
+  INSIDE the ported block, so `port-draw-tools.py` re-runs with it.
+- **The size field fired on `change` only**, so typing 25 left the 10 km box
+  on screen until you clicked elsewhere and the field read as inert. It
+  re-places on `input`, debounced, skipping half-typed values.
+- **No preset took an XY extent.** Every one was regular, so a single side
+  said everything about it, and a study area rarely is. The Rectangle uses
+  `rectangleVertices`, which draw-area.js had exported and nothing used.
+
+**And the lift is baked at build time, which is why a preset floated.**
+`getMeasureDisplayLift` is a fraction of the distance to the surface — right,
+and `activateStudyArea` samples each vertex ONCE. Measured on a 40 km square
+placed at 3,006 km and then viewed from 20 km: the ring sat at radius 3.23591
+where the ground is 3.2006, **about seventy kilometres above the terrain**,
+and obliquely that reads as a deformed shape rather than a floating one. A
+drag never showed it because a drag rebuilds on every pointermove at the
+distance you are drawing from. `refreshMeasureForViewDistance` makes the
+render loop rebuild when the viewing distance changes by a third either way,
+never mid-drag — the same call the terrain slider already made for the other
+input that moves the ground. Verified: the shape comes down 70.2 km by
+itself. **Earth only**: the planet viewers re-project every measure point
+with the CURRENT lift (`projectMeasurePoint`'s default) instead of baking
+one, so they never had it.
+
 ### The handles were drawn in the WRONG FRAME
 
 `measureGroup` carries the globe's spin — `rotation.y = _spinDelta`, set every
