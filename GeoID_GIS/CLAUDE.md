@@ -1240,7 +1240,10 @@ shared template, and the title is the only handle they share — with a
 neutral bracket fallback so a NEW subsection is never a gap; painted on
 a 700 ms poll because the panels rebuild constantly, each summary marked
 so a pass is cheap. Icon-to-text gap is 0.55rem everywhere (level-2 rows,
-tool rows, feed groups, and the outer toggle). The terrain slider is
+tool rows, feed groups, and the outer toggle) — and it takes
+`!important`, because the line-box flattening rule that zeroes the
+toggle-main GRID gap had `.section-title-row` in its selector list too,
+which jammed every glyph against its words (measured 0 px, now 9). The terrain slider is
 **Vertical exaggeration** on all ten pages. Because the styling lives in
 the shared module, the planets inherit it — verified on Mars: every
 level-2 section MATCHES the tool-summary voice property for property,

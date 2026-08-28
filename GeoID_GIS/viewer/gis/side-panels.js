@@ -209,7 +209,7 @@ const STYLE = `
   text-shadow: none !important;
   filter: none;
 }
-.gis-tool-section:not(.event-feed-group) > summary { display: flex; align-items: center; gap: 0.55rem; }
+.gis-tool-section:not(.event-feed-group) > summary { display: flex; align-items: center; gap: 0.55rem !important; }
 .tool-section-icon { flex: none; display: inline-flex; width: 0.85rem; height: 0.85rem; }
 .tool-section-icon svg { width: 0.85rem; height: 0.85rem; display: block; }
 .gis-tool-section:not(.event-feed-group) > summary > * { min-width: 0; }
@@ -446,8 +446,12 @@ const STYLE = `
 }
 /* Reported: the glyph sat too close to its words. One gap value for every
    sub-tab row, icon and text alike. */
-.control-section:not(.toolbox-group) > .section-toggle .section-title-row { gap: 0.55rem; }
-.event-feed-group > summary { gap: 0.55rem; }
+.control-section:not(.toolbox-group) > .section-toggle .section-title-row {
+  gap: 0.55rem !important;
+  column-gap: 0.55rem !important;
+  align-items: center;
+}
+.event-feed-group > summary { gap: 0.55rem !important; }
 /* The WRAPPER, not just the glyph: .section-icon is a 20x20 flex box, so
    sizing the svg alone left a 20 px row stretching the header to 44 px
    against the feed groups' 39. NO BACKTICKS in here - this block is a
@@ -469,8 +473,11 @@ const STYLE = `
    like its template. */
 .control-section:not(.toolbox-group) > .section-toggle .section-toggle-main,
 .control-section:not(.toolbox-group) > .section-toggle .section-heading,
-.control-section:not(.toolbox-group) > .section-toggle .section-title,
-.control-section:not(.toolbox-group) > .section-toggle .section-title-row {
+.control-section:not(.toolbox-group) > .section-toggle .section-title {
+  /* NOTE: the gap: 0 below is for the toggle-main GRID only — see the
+     title-row rule further down, which puts the icon-to-text gap back.
+     Listing .section-title-row here as well is what zeroed that gap and
+     jammed every glyph against its words. */
   /* 1rem flat, so the content box is the feed groups' 16 px and the card
      stands at their 39 px rather than 42: line-height normal on nested
      wrappers rounds up a little at each level. */
