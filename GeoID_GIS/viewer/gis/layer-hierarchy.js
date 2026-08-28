@@ -10,12 +10,12 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260829-81cc54c";
-import { samplerToRaster } from "./raster-analysis.js?v=20260829-81cc54c";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-81cc54c";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260829-81cc54c";
-import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260829-81cc54c";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260829-81cc54c";
+import { currentBody } from "./bodies.js?v=20260829-6f75897";
+import { samplerToRaster } from "./raster-analysis.js?v=20260829-6f75897";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-6f75897";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260829-6f75897";
+import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260829-6f75897";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260829-6f75897";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -1259,15 +1259,55 @@ function buildLayerCard(layer) {
 }
 
 /** Whatever the layer is actually drawn in, so the key matches the map. */
+/**
+ * Linear light to sRGB, because that is what a vertex colour is stored as.
+ *
+ * `THREE.Color.set` converts on the way IN under colour management, so reading
+ * the attribute back gives linear values and formatting them as hex reports
+ * something far more saturated than what is drawn -- sRGB #ffbe28 reads back
+ * as #ff8005. The events feed's colour probe already paid for this once.
+ */
+function linearToSrgbByte(value) {
+  const c = Math.min(Math.max(Number(value) || 0, 0), 1);
+  const s = c <= 0.0031308 ? c * 12.92 : 1.055 * (c ** (1 / 2.4)) - 0.055;
+  return Math.round(s * 255);
+}
+
+function hexOf(r, g, b) {
+  return `#${[r, g, b].map((v) => linearToSrgbByte(v).toString(16).padStart(2, "0")).join("")}`;
+}
+
+/**
+ * The colour a layer is actually DRAWN in.
+ *
+ * Read the GEOMETRY, not the material. `renderFeatureCollection` draws with
+ * `vertexColors: true`, and a vertex-coloured material's own colour is WHITE --
+ * it is the multiplier, not the paint. Reading it gave every drawn shape a
+ * white swatch, so four study areas in the legend were four identical blank
+ * boxes: the swatch column present, and carrying no information at all. This
+ * file's own notes record the rule ("read the geometry, not the material") for
+ * checking a paint; the legend was not following it.
+ */
 function layerColour(layer) {
   if (layer.colour || layer.color) return layer.colour || layer.color;
-  let found = null;
+  let fromVertex = null;
+  let fromMaterial = null;
   layer.object3D?.traverse?.((node) => {
-    if (found) return;
+    if (fromVertex) return;
+    const attr = node.geometry?.attributes?.color;
+    if (attr && attr.count > 0) {
+      fromVertex = hexOf(attr.getX(0), attr.getY(0), attr.getZ(0));
+      return;
+    }
+    if (fromMaterial) return;
     const material = Array.isArray(node.material) ? node.material[0] : node.material;
-    if (material?.color) found = `#${material.color.getHexString()}`;
+    // A vertex-coloured material's white is a multiplier and not a colour, so
+    // it is never the answer while a geometry further down may hold the paint.
+    if (material?.color && !material.vertexColors) {
+      fromMaterial = `#${material.color.getHexString()}`;
+    }
   });
-  return found || "#52e4e8";
+  return fromVertex || fromMaterial || "#52e4e8";
 }
 
 /**
