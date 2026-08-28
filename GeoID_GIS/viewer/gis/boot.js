@@ -1,4 +1,4 @@
-import { ready } from "./shell.js?v=20260828-33dc3d8";
+import { ready } from "./shell.js?v=20260828-b191bed";
 
 /**
  * The GIS layer's entry point on a planet page.
@@ -45,6 +45,9 @@ const MODULES = [
   "./location-tools.js",
   "./point-extract.js",
   "./drawn-layers.js",
+  // Click-to-drop points, filed as a layer; self-gates on the seams a
+  // world offers (gas giants never build the button).
+  "./point-tool.js",
   // Keeps a saved shape's area written inside it, on every world.
   "./area-labels.js",
   "./panel-styles.js",
@@ -71,7 +74,7 @@ const MODULES = [
   "./atlas-assistant.js",
 ];
 
-const VERSION = "?v=20260828-33dc3d8";
+const VERSION = "?v=20260828-b191bed";
 
 async function boot() {
   const shell = await ready;

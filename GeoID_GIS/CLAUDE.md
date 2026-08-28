@@ -1759,7 +1759,16 @@ points were just placed on screen), so symbology, extraction, the project
 registry and the data-tag arrival card all just happen. Escape/Cancel
 discards; an armed measure tool is stood down on arm and yields taps
 either way. `pointsToGeoJSON` is pure and pinned (viewer 0–360 → signed).
-It REPLACED the Workspace "Custom" capture button, whose only unique
+The tool runs on the PLANETS too (boot.js MODULES): where
+`surfaceLatLonAt` is absent it chains the world's own `pickOnGlobe` seam
+in a loop — that pick resolves on pointerdown and swallows the event, so
+orbiting while armed is not possible there (arm, click, Done), an epoch
+counter guards the stale pick a mid-pick Done leaves armed, and disarm
+synthesises Escape to settle it. Gas giants (no `setStudyAreaPolygon`)
+never build the button. The Workspace + GEE button is Earth-gated in
+add-data.js — gee.js never runs on the planet pages. Verified: Mars picks
+two points into "Points 1" with Mars coordinates; Jupiter builds no
+button. It REPLACED the Workspace "Custom" capture button, whose only unique
 moment — shape drawn but not captured — the Draw HUD's Done already
 answers, and whose empty press could only nag, stacking a note per press.
 

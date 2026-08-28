@@ -30,10 +30,11 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260828-33dc3d8";
-import { readHead, validateMapping } from "./delimited.js?v=20260828-33dc3d8";
-import { RAMP_NAMES } from "./symbology.js?v=20260828-33dc3d8";
-import { DATA_TYPES, inferType, applyTag, suppressNextArrival } from "./data-tags.js?v=20260828-33dc3d8";
+import { CRS_OPTIONS } from "./projection.js?v=20260828-b191bed";
+import { readHead, validateMapping } from "./delimited.js?v=20260828-b191bed";
+import { RAMP_NAMES } from "./symbology.js?v=20260828-b191bed";
+import { isEarth } from "./bodies.js?v=20260828-b191bed";
+import { DATA_TYPES, inferType, applyTag, suppressNextArrival } from "./data-tags.js?v=20260828-b191bed";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
@@ -844,7 +845,9 @@ function addButtonFor(role) {
     open(role.id);
   });
   row.appendChild(button);
-  const geeHome = GEE_HOME_BY_PANEL[role.panel];
+  // Earth only: gee.js never runs on the planet pages, and a + GEE that
+  // opens nothing is a dead control wearing a live one's clothes.
+  const geeHome = isEarth() ? GEE_HOME_BY_PANEL[role.panel] : undefined;
   if (geeHome !== undefined) {
     const gee = document.createElement("button");
     gee.type = "button";

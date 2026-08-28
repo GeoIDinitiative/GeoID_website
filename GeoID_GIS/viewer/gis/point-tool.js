@@ -10,8 +10,14 @@
  * GeoJSON uses — so symbology, extraction, the project registry and the
  * data-tag card all just happen, and Cancel or Escape throws them away.
  *
- * Built on three existing seams and nothing else:
- *  - `surfaceLatLonAt(x, y)` — the viewer's own ground pick, spin included;
+ * Built on existing seams and nothing else:
+ *  - Earth: `surfaceLatLonAt(x, y)` — the viewer's own ground pick, taps
+ *    gated so orbit drags stay drags;
+ *  - the rocky planets: `pickOnGlobe()` — the seam every world carries —
+ *    chained in a loop while the tool is armed. Its one-shot pick resolves
+ *    on pointerdown and swallows the event, so orbiting while armed is not
+ *    possible there: arm, click your points, Done. Gas giants have no
+ *    surface to mark and never build the button;
  *  - `GeoIDProjectLatLon` — the spin-aware projection the drag handles and
  *    area labels already use, so the preview dots ride the turning globe
  *    without this module owning any 3D;
@@ -32,6 +38,8 @@ const state = {
   chip: null,           // the floating Done/Cancel bar
   raf: 0,
   savedCursor: "",
+  pickPending: false,
+  epoch: 0,
   counter: 1,           // "Points N" layer naming across one session
 };
 
@@ -162,6 +170,41 @@ function onKey(event) {
   if (event.key === "Enter" && state.points.length) finish();
 }
 
+/** Which pick path this world offers. */
+function pickMode() {
+  const v = window.GeoIDViewer;
+  if (v?.surfaceLatLonAt) return "taps";
+  if (v?.pickOnGlobe && window.GeoIDProjectLatLon && v?.setStudyAreaPolygon) return "picker";
+  return null;
+}
+
+/**
+ * The planet path: chain the seam's one-shot pick while armed. The epoch
+ * guards a stale loop — Done during a pending pick leaves that pick armed
+ * until its next click, and its resolution must not write into a set that
+ * has since been filed.
+ */
+async function pickLoop() {
+  const epoch = state.epoch;
+  while (state.armed && state.epoch === epoch) {
+    let at;
+    try {
+      state.pickPending = true;
+      at = await window.GeoIDViewer.pickOnGlobe();
+    } catch (error) {
+      // Escape inside the pick: the tool stands down with it.
+      if (state.epoch === epoch) disarm(true);
+      return;
+    } finally {
+      state.pickPending = false;
+    }
+    if (!state.armed || state.epoch !== epoch) return;
+    state.points.push({ lat: at.lat, lon: at.lon });
+    redrawPreview();
+    syncChip();
+  }
+}
+
 function arm() {
   if (state.armed) return;
   state.armed = true;
@@ -176,10 +219,17 @@ function arm() {
   syncChip();
   cancelAnimationFrame(state.raf);
   previewLoop();
+  if (pickMode() === "picker") pickLoop();
 }
 
 function disarm(discard) {
   state.armed = false;
+  state.epoch += 1;
+  // A pending one-shot pick keeps its own listeners until it settles; its
+  // Escape path is the one handle we have on it from outside.
+  if (state.pickPending) {
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+  }
   if (discard) state.points = [];
   byId("tool-rail-points-btn")?.classList.remove("is-active");
   const canvas = window.GeoIDViewer?.renderer?.domElement;
@@ -233,7 +283,7 @@ if (typeof document !== "undefined") {
   // The rail exists in markup; the seams boot async. Retry until both stand.
   let tries = 0;
   const attempt = () => {
-    const ready = window.GeoIDViewer?.surfaceLatLonAt && buildRailButton();
+    const ready = pickMode() && buildRailButton();
     if (ready) {
       window.addEventListener("pointerdown", onPointerDown, true);
       window.addEventListener("pointerup", onPointerUp, true);
