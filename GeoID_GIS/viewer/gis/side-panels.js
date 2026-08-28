@@ -169,19 +169,34 @@ const STYLE = `
   line-height: 1.2;
 }
 
-/* The close mark, matching the Atlas panel's .atlas-close: no border, no
-   fill, quiet until hovered. It is a dismissal, not an action. */
+/* The header controls wear the Workspace header's icon-button treatment:
+   small bordered squares pinned right, glyph inside — one language for
+   every boxed header in the GUI. */
+.gis-side-panel .brand-toprow-actions { display: flex; gap: 0.28rem; align-items: center; }
+.gis-side-panel .brand-toprow-actions .info-btn,
 .gis-side-panel-close {
-  background: none;
-  border: none;
+  width: 1.55rem;
+  height: 1.55rem;
+  min-height: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.45);
+  border-radius: 0.38rem;
+  background: transparent;
+  color: var(--text);
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.78rem;
   line-height: 1;
-  padding: 2px 4px;
-  color: inherit;
-  opacity: 0.6;
+  opacity: 0.85;
 }
-.gis-side-panel-close:hover { opacity: 1; }
+.gis-side-panel .brand-toprow-actions .info-btn:hover,
+.gis-side-panel-close:hover {
+  opacity: 1;
+  border-color: rgb(var(--nav-accent-rgb));
+  color: rgb(var(--nav-accent-rgb));
+}
 
 .gis-side-panel {
   position: fixed;

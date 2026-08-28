@@ -10,12 +10,12 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260828-db653b7";
-import { samplerToRaster } from "./raster-analysis.js?v=20260828-db653b7";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260828-db653b7";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260828-db653b7";
-import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260828-db653b7";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260828-db653b7";
+import { currentBody } from "./bodies.js?v=20260828-b5c086d";
+import { samplerToRaster } from "./raster-analysis.js?v=20260828-b5c086d";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260828-b5c086d";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260828-b5c086d";
+import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260828-b5c086d";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260828-b5c086d";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -39,18 +39,24 @@ const STYLE = `
  * folds.
  */
 #layer-dock {
-  border-radius: 0.55rem;
-  border-color: rgba(var(--nav-accent-rgb), 0.28);
+  border-radius: 0.6rem;
+  border-color: rgba(var(--nav-accent-rgb), 0.55);
+  box-shadow:
+    0 0 24px -6px rgba(var(--nav-accent-rgb), 0.45),
+    0 12px 28px rgba(0, 0, 0, 0.42),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02);
 }
 #layer-dock .layer-dock-head {
   min-height: 2.1rem;
   padding: 0.4rem 0.6rem;
-  background: rgba(255, 255, 255, 0.025);
+  background: linear-gradient(180deg,
+    rgba(var(--nav-accent-rgb), 0.20), rgba(var(--nav-accent-rgb), 0.05));
   border-left: 0;
-  border-bottom: 1px solid rgba(var(--nav-accent-rgb), 0.18);
+  border-bottom: 1px solid rgba(var(--nav-accent-rgb), 0.4);
 }
 #layer-dock .layer-dock-head:hover {
-  background: rgba(var(--nav-accent-rgb), 0.08);
+  background: linear-gradient(180deg,
+    rgba(var(--nav-accent-rgb), 0.3), rgba(var(--nav-accent-rgb), 0.08));
   box-shadow: none;
 }
 /* The groups above draw a +/- through .section-toggle::after. This has its own
@@ -63,21 +69,21 @@ const STYLE = `
 #layer-dock.is-collapsed > .layer-dock-head::after {
   content: "▾";
   margin-left: auto;
-  color: rgba(var(--nav-accent-rgb), 0.75);
+  color: rgb(var(--nav-accent-rgb));
   font-size: 0.62rem;
   transition: transform 0.2s ease;
 }
 #layer-dock.is-collapsed > .layer-dock-head::after { transform: rotate(-90deg); }
 #layer-dock .layer-dock-head .section-title {
-  font-family: inherit;
-  font-weight: 500;
-  font-size: 0.68rem;
-  letter-spacing: 0.02em;
-  text-transform: none;
-  color: var(--muted) !important;
+  font-family: "Exo 2", "Segoe UI", sans-serif;
+  font-weight: 600;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text) !important;
   text-shadow: none !important;
 }
-#layer-dock .layer-dock-head .section-icon { color: rgba(var(--nav-accent-rgb), 0.7) !important; }
+#layer-dock .layer-dock-head .section-icon { color: rgb(var(--nav-accent-rgb)) !important; }
 /* Seven columns now: grip, disclosure, eye, name, kind, opacity, moves. */
 .layer-stack .layer-row {
   grid-template-columns: auto auto auto 1fr auto 4.5rem auto;

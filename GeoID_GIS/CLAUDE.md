@@ -1202,6 +1202,15 @@ the chip into its row template and does not hear the tag event —
 
 ## Workbenches: the rail owns what you pick up and put down
 
+**The Workspace tile wears the theme, and every boxed header speaks one
+language.** The dock's deliberately-quiet skin (muted head, faint border)
+was reported as out of keeping once the tile became THE workspace: it now
+carries an accent border with a glow, a magenta gradient head, the icon
+and caret at full accent, and the title in full-ink uppercase Exo 2 —
+vibrant without borrowing the tab bar's solid fill. The workbench panels'
+collapse (‹) and close (✕) marks became the same small bordered icon
+squares the Workspace header buttons wear (side-panels.js STYLE).
+
 **The Workspace doorways are ICON buttons in the box's header** — plus
 (+ Data), cloud (+ GEE, Earth only), tray (Export) — pinned right of the
 WORKSPACE title with names in the tooltips: three full-width text buttons
