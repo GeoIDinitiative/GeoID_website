@@ -117,7 +117,9 @@ body.is-embedded[data-hub-armed="true"] #gmt-clock {
 .gis-side-panel-body textarea.input,
 .gis-side-panel-body code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.68rem;
+  /* 0.7rem to agree with #extract-points' own declaration above -- two
+     monospace sizes one rule apart is the mismatch this block exists to end. */
+  font-size: 0.7rem;
 }
 .gis-sym-ramp-option { font: inherit; color: inherit; }
 .gis-side-panel-close { font-family: 'Exo 2', sans-serif; }
