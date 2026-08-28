@@ -1243,8 +1243,13 @@ heading type matched to the tool-summary voice (Exo 2 600 0.76rem/0.1em,
 full ink, skin glow killed with !important), and icons throughout — the
 six feed groups gained their own 16px glyphs (rings, volcano, flame,
 snowflake, raincloud, leaf) carried on FEED_GROUPS as `icon` and drawn
-into each summary. Level-1 tabs keep their +/- (a different tier speaks
-a different mark); the feed groups' native chevron rule still stands and
+into each summary. Level-1 tabs kept a +/- for a while as a tier mark and then took the
+chevron too, on report: the column was speaking two fold languages at
+once, and the tier is already said by a tab's fill, size and icon. One
+mark, one edge, one direction, with chevron-icon-name spacing matched
+across both tiers (8.8 px, `!important` — the base `.section-toggle` sets
+`gap: 0` and `justify-content: space-between`), and an OPEN tab's
+`::before` added to the dark-ink list its filled bar needs; the feed groups' native chevron rule still stands and
 mine excludes them, or they would wear two. On a further report the
 LEVEL-2 SECTIONS BECAME THE TOOL CARD VERBATIM — border, 0.78rem radius
 (!important; the page sheets pin 0.6rem at higher specificity), ground,

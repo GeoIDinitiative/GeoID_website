@@ -183,6 +183,32 @@ const STYLE = `
  * reading as different apps. !important where the page stylesheets or the
  * skin set the same properties. Double backslash on the chevron entity —
  * a single one is an OCTAL escape inside this template literal. */
+/* ── Level 1 folds the same way ─────────────────────────────────────────
+ *
+ * The tabs kept a +/- on the right while every sub-tab had moved to a left
+ * chevron, so the column spoke two fold languages at once. One mark now,
+ * at the same edge, turning the same way — the tier is already said by the
+ * tab's own fill, size and icon, which is enough. */
+.control-section.toolbox-group > .section-toggle::after { content: none !important; }
+.control-section.toolbox-group > .section-toggle::before {
+  content: "\\203A";
+  flex: 0 0 auto;
+  width: 0.7rem;
+  text-align: center;
+  font-size: 1.15rem;
+  line-height: 1;
+  color: rgba(var(--nav-accent-rgb), 0.9);
+  transform: rotate(0deg);
+  transition: transform 0.15s ease;
+}
+.control-section.toolbox-group[open] > .section-toggle::before {
+  transform: rotate(90deg);
+}
+/* The chevron leads, then the icon, then the name — spaced like a sub-tab
+   row so the two tiers read as one family. */
+.control-section.toolbox-group > .section-toggle { gap: 0.55rem !important; }
+.control-section.toolbox-group > .section-toggle .section-title-row { gap: 0.55rem !important; }
+
 .control-section:not(.toolbox-group) > .section-toggle::after { content: none !important; }
 .control-section:not(.toolbox-group) > .section-toggle::before {
   content: "\\203A";
@@ -379,6 +405,7 @@ body[data-hub-armed="true"] .map-legend {
 .control-section.toolbox-group[open] > .section-toggle .section-heading,
 .control-section.toolbox-group[open] > .section-toggle .section-icon,
 .control-section.toolbox-group[open] > .section-toggle .section-sub,
+.control-section.toolbox-group[open] > .section-toggle::before,
 .control-section.toolbox-group[open] > .section-toggle::after {
   color: var(--skin-chrome-ink, #2b0030) !important;
   text-shadow: none !important;
