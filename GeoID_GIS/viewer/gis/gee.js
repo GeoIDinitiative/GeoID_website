@@ -10,22 +10,22 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260828-3970c61";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260828-3970c61";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260828-3970c61";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260828-0044c07";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260828-0044c07";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260828-0044c07";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260828-3970c61";
+  from "./view-extent.js?v=20260828-0044c07";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260828-3970c61";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260828-3970c61";
+} from "./extent-picker.js?v=20260828-0044c07";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260828-0044c07";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
-} from "./gee-catalogue-index.js?v=20260828-3970c61";
+} from "./gee-catalogue-index.js?v=20260828-0044c07";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -1389,7 +1389,7 @@ async function openGeeDialog(homeName) {
   // The map is built on first open, never at module load: `createMap`
   // measures its host, and a host inside a hidden backdrop has no size.
   if (!geeMap) {
-    mapLibrary = mapLibrary || await import("./research/map2d.js?v=20260828-3970c61");
+    mapLibrary = mapLibrary || await import("./research/map2d.js?v=20260828-0044c07");
     const picker = byId("gee-add-basemap");
     picker.innerHTML = Object.keys(mapLibrary.BASEMAPS)
       .map((name) => `<option value="${name}">${name}</option>`).join("");
