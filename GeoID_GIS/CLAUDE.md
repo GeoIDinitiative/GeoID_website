@@ -1216,7 +1216,13 @@ six feed groups gained their own 16px glyphs (rings, volcano, flame,
 snowflake, raincloud, leaf) carried on FEED_GROUPS as `icon` and drawn
 into each summary. Level-1 tabs keep their +/- (a different tier speaks
 a different mark); the feed groups' native chevron rule still stands and
-mine excludes them, or they would wear two.
+mine excludes them, or they would wear two. On a further report the
+LEVEL-2 SECTIONS BECAME THE TOOL CARD VERBATIM — border, 0.78rem radius
+(!important; the page sheets pin 0.6rem at higher specificity), ground,
+0.7rem summary padding, chevron in the card's own ink — and their open
+state is the tool sections' solid accent fill with dark ink, replacing
+the old deep-gradient level-2 treatment. Measured equal, computed value
+for computed value, against a live feed group.
 Trap paid for twice in one edit: "\203A" inside a JS template literal is
 an OCTAL escape and a SyntaxError — the file needs a double backslash —
 and a `;` instead of `&&` before the commit let the broken file commit

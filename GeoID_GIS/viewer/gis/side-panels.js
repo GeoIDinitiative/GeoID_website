@@ -189,12 +189,11 @@ const STYLE = `
   flex: 0 0 auto;
   width: 0.6rem;
   text-align: center;
-  font-size: 1.05rem;
+  font-size: 1rem;
   line-height: 1;
-  color: rgba(var(--nav-accent-rgb), 0.86);
   transform: rotate(0deg);
   transition: transform 0.15s ease;
-  opacity: 0.85;
+  opacity: 0.75;
 }
 .control-section:not(.toolbox-group)[open] > .section-toggle::before {
   transform: rotate(90deg);
@@ -410,25 +409,58 @@ const STYLE = `
   filter: brightness(1.1);
 }
 
-/* ── Level 2: what is open inside it ──────────────────────────────────── */
-.control-section:not(.toolbox-group)[open] > .section-toggle {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, rgb(var(--nav-accent-rgb)) 46%, #17021b),
-    color-mix(in srgb, rgb(var(--nav-accent-rgb)) 28%, #17021b)
-  );
-  border-left-color: rgba(var(--nav-accent-rgb), 0.9);
-  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+/* ── Level 2 IS the tool card, verbatim ─────────────────────────────────
+ *
+ * The Live Events feed groups are .gis-tool-section cards and were the look
+ * that was liked; the level-2 control-sections (Tour Mode, Locations,
+ * Atmosphere…) wore a taller toggle, a rounder frame and a deep-gradient
+ * open state, and read as a different app one card away. So the tool
+ * card's chrome is copied onto them value for value — border, radius,
+ * ground, summary padding — and open is the same SOLID accent fill with
+ * dark ink the tool sections say it with. !important where the skin pins
+ * the same properties. */
+.control-section:not(.toolbox-group) {
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.18) !important;
+  /* !important: the page sheets set a 0.6rem radius at higher specificity. */
+  border-radius: 0.78rem !important;
+  background: rgba(255, 255, 255, 0.03);
+  overflow: hidden;
 }
-/* On the deep bar the marker and icon were accent-on-accent. White reads, and
-   the title keeps the pale ink the skin gives it -- the bar is dark enough. */
+.control-section:not(.toolbox-group) > .section-toggle {
+  min-height: 0;
+  padding: 0.7rem 0.78rem;
+  border-left: 0;
+  background: none;
+}
+.control-section:not(.toolbox-group)[open] > .section-toggle {
+  background: rgb(var(--nav-accent-rgb));
+  border-bottom-color: rgba(0, 0, 0, 0.22);
+}
+.control-section:not(.toolbox-group)[open] > .section-toggle .section-title,
+.control-section:not(.toolbox-group)[open] > .section-toggle .section-heading,
 .control-section:not(.toolbox-group)[open] > .section-toggle .section-icon,
-.control-section:not(.toolbox-group)[open] > .section-toggle::after {
-  color: rgba(255, 255, 255, 0.92) !important;
+.control-section:not(.toolbox-group)[open] > .section-toggle::before {
+  color: var(--skin-chrome-ink, #2b0030) !important;
+  text-shadow: none !important;
   filter: none;
 }
+.control-section:not(.toolbox-group)[open] > .section-toggle .section-toggle-controls button {
+  color: var(--skin-chrome-ink, #2b0030) !important;
+  background: rgba(255, 255, 255, 0.24) !important;
+  border-color: rgba(0, 0, 0, 0.42) !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+.control-section:not(.toolbox-group)[open] > .section-toggle .section-toggle-controls input {
+  accent-color: var(--skin-chrome-ink, #2b0030);
+}
+.control-section:not(.toolbox-group)[open] {
+  border-color: rgb(var(--nav-accent-rgb)) !important;
+  box-shadow: 0 0 18px -6px rgba(var(--nav-accent-rgb), 0.55);
+}
 .control-section:not(.toolbox-group)[open]:hover > .section-toggle {
-  filter: brightness(1.12);
+  background: rgb(var(--nav-accent-rgb));
+  filter: brightness(1.1);
 }
 /* The primary button: an accent fill with ink dark enough to sit on it.
  *
