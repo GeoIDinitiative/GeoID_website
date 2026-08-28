@@ -1202,6 +1202,13 @@ the chip into its row template and does not hear the tag event —
 
 ## Workbenches: the rail owns what you pick up and put down
 
+**Export's door moved into the Workspace row** — third button on Earth
+(+ Data, + GEE, Export), second on the planets — because exporting is an
+act on the working set the box holds. The workbench PANEL survives in
+side-panels.js under `rail: false` (panel built, no rail button; setOpen
+tolerates a button-less entry), and the Workspace button opens it via
+`GeoIDSidePanels.open("export")`.
+
 `gis/side-panels.js` moves whole sidebar groups onto the right-hand tool
 rail as workbenches — Pre-processing, Extraction & Analysis, and now
 **Export and Settings** (the gear). The group is MOVED, never rebuilt, so

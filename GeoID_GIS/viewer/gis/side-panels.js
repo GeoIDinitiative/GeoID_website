@@ -49,9 +49,13 @@ const PANELS = [
       + '<path d="M7.4 19.6v-6.6M12 19.6V5.8M16.6 19.6v-9.4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>',
   },
   {
-    // The old Export sidebar tab, repackaged: exporting is something you do
-    // and finish, not a place you dwell — a workbench, like the two above.
+    // The old Export sidebar tab, repackaged twice: first a rail workbench,
+    // now opened from the WORKSPACE box's own row (add-data.js builds the
+    // button) — exporting is an act on the working set, so its door sits
+    // beside + Data. `rail: false` keeps the workbench panel without a rail
+    // button of its own.
     id: "export",
+    rail: false,
     group: "gis-group-export",
     label: "Export",
     title: "Export",
@@ -436,8 +440,8 @@ function setOpen(id, open) {
     const on = key === id ? open : false;
     if (on) any = true;
     entry.panel.hidden = !on;
-    entry.button.classList.toggle("is-open", on);
-    entry.button.setAttribute("aria-expanded", on ? "true" : "false");
+    entry.button?.classList.toggle("is-open", on);
+    entry.button?.setAttribute("aria-expanded", on ? "true" : "false");
   });
   /**
    * With a workbench open the rail steps back: the tools you are not using
@@ -604,8 +608,12 @@ export function init() {
   PANELS.forEach((spec, index) => {
     const group = groups[index];
     if (!group) return;
-    const { item, button } = buildRailItem(spec);
-    rail.appendChild(item);
+    let button = null;
+    if (spec.rail !== false) {
+      const built = buildRailItem(spec);
+      rail.appendChild(built.item);
+      button = built.button;
+    }
     if (spec.action) return;                    // a button, not a workbench
     panels.set(spec.id, { panel: buildPanel(spec, group), button });
   });

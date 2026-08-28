@@ -30,11 +30,11 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260828-b191bed";
-import { readHead, validateMapping } from "./delimited.js?v=20260828-b191bed";
-import { RAMP_NAMES } from "./symbology.js?v=20260828-b191bed";
-import { isEarth } from "./bodies.js?v=20260828-b191bed";
-import { DATA_TYPES, inferType, applyTag, suppressNextArrival } from "./data-tags.js?v=20260828-b191bed";
+import { CRS_OPTIONS } from "./projection.js?v=20260828-53716a9";
+import { readHead, validateMapping } from "./delimited.js?v=20260828-53716a9";
+import { RAMP_NAMES } from "./symbology.js?v=20260828-53716a9";
+import { isEarth } from "./bodies.js?v=20260828-53716a9";
+import { DATA_TYPES, inferType, applyTag, suppressNextArrival } from "./data-tags.js?v=20260828-53716a9";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
@@ -856,6 +856,25 @@ function addButtonFor(role) {
     gee.textContent = "+ GEE";
     gee.title = "Request a Google Earth Engine dataset draped over the globe";
     row.appendChild(gee);
+  }
+  /**
+   * Export, the third door in the row (second off Earth): an act on the
+   * working set this box holds, so it opens the Export workbench from here
+   * rather than from a rail button of its own (side-panels keeps the panel,
+   * `rail: false`).
+   */
+  if (role.panel === "gis-group-polygons") {
+    const exp = document.createElement("button");
+    exp.type = "button";
+    exp.className = "button secondary gis-export-button";
+    exp.textContent = "Export";
+    exp.title = "Export layers, maps and views";
+    exp.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      window.GeoIDSidePanels?.open?.("export");
+    });
+    row.appendChild(exp);
   }
   // The vector tab's third doorway: capturing the drawn area. The button
   // lives in the shared markup (polygons.js wires it there) and is ADOPTED
