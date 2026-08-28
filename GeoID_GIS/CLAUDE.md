@@ -3833,6 +3833,48 @@ that spec and mesh into a deck (`setup.txt` patched to `dim 3`,
 `mesh_2core.txt`, the spec's time stepping; `props.txt` carrying the
 domain step's materials).
 
+## Drawn shapes are ONE legend entry, and a swatch reads the geometry
+
+A card per drawn shape was the legend describing the reader's own working
+set back to them a line at a time — each with a heading and a full-width
+ramp bar under it, so a handful of study areas pushed the datasets the map
+is about off the bottom of the panel. They are all the same KIND of thing,
+which is what a legend groups. `drawnAreasCard` (layer-hierarchy) collapses
+every `ext === "drawn"` layer into one card built in the CLASSED legend's
+shape — swatch left, name right, the geology key's own `legend-class` rows —
+placed where the first drawn layer sat so the legend still reads in draw
+order.
+
+- **The card's key is FIXED** (`dataset.legendKey = "Drawn areas"`, with the
+  count only in the badge). `titleOf` prefers that dataset key, and the dock
+  springs the panel open when a key it has not seen appears — so a title
+  carrying the count would be a new key on every capture and the legend
+  would fly open each time somebody drew a box. The first drawn shape still
+  opens it, because that entry genuinely is new.
+- **Past ten rows it scrolls** (`.legend-classes.is-scrolling`, 12.4rem —
+  ten single-line rows plus their gaps). A drawn set has no upper bound and
+  the panel does. Scrolling, never truncating: every row stays in the list.
+- The rows carry no `.legend-symbol-label`, so `signatureOf` falls back to
+  the title and the card cannot collide with another source's.
+
+**Every swatch was WHITE, and that is this file's own documented trap read
+from the other end.** `renderFeatureCollection` draws with
+`vertexColors: true`, so a vertex-coloured material's own colour is white —
+it is the MULTIPLIER, not the paint — and `layerColour` was reading exactly
+that. Four study areas came out as four identical blank boxes: the swatch
+column present and carrying no information at all. The note "read the
+geometry, not the material" already existed for *checking* a paint; the
+legend itself was not following it.
+
+`layerColour` now takes the first vertex colour off `geometry.attributes.color`
+and converts **linear → sRGB** on the way out, because `THREE.Color.set`
+converts on the way IN under colour management and formatting the attribute
+straight to hex reports something far more saturated than what is drawn. A
+material colour is consulted only where that material is NOT vertex-coloured.
+Verified live by painting one shape `#ff8c1a` through its own `repaint` and
+reading the swatch back as `rgb(255, 140, 26)` — exact — while the untouched
+shapes showed the drawn default `#4e79a7`.
+
 ## The music player, and the tracks that were not there
 
 `music.js` (one copy per viewer, ten of them) shuffles a playlist and
