@@ -1835,6 +1835,79 @@ one thing. Verified end to end: a box drawn on the map, SMAP requested live
 over it, "Soil moisture (SMAP) · 2025-04-28–2025-06-27" draped and
 "Fetch extent 23.3×15.0°" in Workspace.
 
+**The catalogue is GOOGLE'S WHOLE ONE, not the thirteen someone typed out.**
+The service held an allowlist and the page read it, so the app offered 13 of
+the 1,139 datasets Earth Engine publishes and answered 400 for every other
+id. Two halves, and both were needed — a browser listing everything over a
+service that serves thirteen is a shop window onto a locked room.
+
+`services/bake-gee-catalogue.py` walks Earth Engine's public STAC catalogue
+(keyless, `access-control-allow-origin: *`) and writes
+`data/global/gee-catalogue.json` — 975 KB, 136 KB over the wire — carrying
+each dataset's id, title, one-line summary, type, status, Google's own
+categories and keywords, extent, resolution, licence, and its DEFAULT
+VISUALISATION. It is baked because it cannot be walked in a page: the tree is
+1 root + 130 provider catalogs whose entries are flattened ids with no title,
+so a browser would need eleven hundred requests before it could show a
+searchable list. Same discipline as the volcano and geology bakes. Re-run it
+to refresh; the file records `baked` so the panel can say how old it is.
+
+`gis/gee-catalogue-index.js` owns that file (fetched on FIRST OPEN of the
+dialog, not at module load — most sessions never open it) and holds the
+search. The ordering rule that matters: a title or id PREFIX beats a body
+match and a shorter id wins ties, or "landsat 8" puts
+`LANDSAT/LC08/C02/T1_L2/LC08_001004_20140524` — one scene — above the
+collection somebody meant. `gee-catalogue-index.test.mjs` pins that against
+the real baked file.
+
+**The service resolves anything outside the curated list from that same
+STAC**, at request time. The allowlist existed so the service could not be
+pointed at arbitrary assets, and that boundary is KEPT and stated
+differently: an id has to appear in Google's published catalogue to be
+requestable, so a private or user asset still cannot be named. The rendering
+is the publisher's own `gee:visualizations` — bands, stretch, palette, gamma
+— so an arbitrary dataset arrives looking the way its publisher meant it to
+rather than under a guess. `?dates` for a catalogue dataset is READ from the
+published extent rather than queried: the same answer without a round trip.
+`services/gee-tiles/stac.test.mjs` runs the whole resolution against real
+records with no Earth Engine, credential or deployment.
+
+Four things measured rather than assumed, each of which is a wrong map:
+
+- **The record URL cannot be derived from the id.** 109 of the 1,139 are
+  named `projects/<owner>/assets/…` and filed under a provider folder named
+  nothing like their first path segment. The bake carries the href; the
+  service tries the derived URL and falls back to an index it builds once
+  per warm instance (131 requests, ~2 s, then never again).
+- **Land cover publishes NO stretch.** The band carries `gee:classes` — a
+  value, a colour and a name each — and that is what Earth Engine's own
+  catalogue draws it from. The values are arbitrary (10, 20, … 95), so the
+  service remaps them onto 0..n-1 and hands `visualize` a palette in class
+  order; stretching the raw values paints a land cover map as a grey ramp.
+  The layer then takes the dock's OWN classed `legendInfo` shape (`classed`
+  + `categorical` + parallel palette/labels), because a ramp would invent an
+  order between "grassland" and "built-up".
+- **LANDFIRE publishes 24,201 classes**, and three such datasets took the
+  baked file from 869 KB to 8.5 MB. Past 200 a class table is neither a
+  legend nor a palette, so those keep their entry and are marked as having
+  no default rendering — as are the 68 records that publish bands and
+  nothing to draw them with. 947 of the 1,139 are drapeable by default.
+- **The old service's error names the DATASET**, which is the one thing not
+  at fault when a real published dataset meets an older deployment. The
+  updated build names the catalogue in its `?list` reply; the browser reads
+  that and says what is actually wrong, in the list before anything is
+  pressed and again if a request is made anyway. **Deploying the function is
+  what turns the other thousand on** — the page half works without it and
+  says so.
+
+The list stays honest rather than tidy: 60 cards are drawn and the remainder
+COUNTED ("1,021 more match — add a word"), 253 superseded datasets are hidden
+behind a tick and counted, and the tables and unrenderable rasters are
+counted too rather than being offered and then failing. The subject filter is
+Google's own taxonomy with counts, because deciding which of 1,139 datasets
+is "geology" would be 1,139 judgements nobody here is qualified to make and
+every wrong one invisible.
+
 **A modal covers the globe — so the modal grew its own ground.** The old ✏
 button had to CLOSE the whole dialog to arm the Draw tool and restore state
 through a `pendingDialog` on the way back; that round trip is gone with the
