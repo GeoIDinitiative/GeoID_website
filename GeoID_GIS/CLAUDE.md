@@ -1222,7 +1222,23 @@ LEVEL-2 SECTIONS BECAME THE TOOL CARD VERBATIM — border, 0.78rem radius
 0.7rem summary padding, chevron in the card's own ink — and their open
 state is the tool sections' solid accent fill with dark ink, replacing
 the old deep-gradient level-2 treatment. Measured equal, computed value
-for computed value, against a live feed group.
+for computed value, against a live feed group — and getting there took a
+property-by-property DIFF rather than eyeballing, which found what the
+first pass had missed: the rules had been aimed at the `.section-title`
+SPAN while the toggle was the element that differed (46 px tall, 16 px
+inherited type, no gap or letterspacing, near-white border, 20 px icon
+wrapper), and the last 2.8 px was `.section-title` being a BLOCK around
+an inline-flex row, so it took a line box taller than its content. A head
+that carries a control (Tour Mode's ENTER) sizes it down to the row.
+
+**And the whole stylesheet was silently dead for two rounds**: a CSS
+comment I added said `.section-icon` IN BACKTICKS — inside the STYLE
+template literal, which ends it — so the module threw "icon is not
+defined", never ran, and every rule it injects vanished, making the
+parity work look like it had changed nothing. The file's own header warns
+about exactly this; the edit script now asserts no backtick survives
+inside the literal, and `import()` in the browser console is the fastest
+way to see a module that is not running at all.
 Trap paid for twice in one edit: "\203A" inside a JS template literal is
 an OCTAL escape and a SyntaxError — the file needs a double backslash —
 and a `;` instead of `&&` before the commit let the broken file commit

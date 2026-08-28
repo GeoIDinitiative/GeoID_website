@@ -442,9 +442,11 @@ const STYLE = `
   font-family: "Exo 2", "Segoe UI", sans-serif !important;
   border-bottom: 1px solid rgba(var(--nav-accent-rgb), 0.08) !important;
 }
-/* The WRAPPER, not just the glyph: `.section-icon` is a 20x20 flex box, so
+/* The WRAPPER, not just the glyph: .section-icon is a 20x20 flex box, so
    sizing the svg alone left a 20 px row stretching the header to 44 px
-   against the feed groups' 39. */
+   against the feed groups' 39. NO BACKTICKS in here - this block is a
+   template literal and one ends it, which is how this whole stylesheet
+   silently stopped applying (module threw "icon is not defined"). */
 .control-section:not(.toolbox-group) > .section-toggle .section-icon {
   width: 0.85rem;
   height: 0.85rem;
@@ -463,8 +465,33 @@ const STYLE = `
 .control-section:not(.toolbox-group) > .section-toggle .section-heading,
 .control-section:not(.toolbox-group) > .section-toggle .section-title,
 .control-section:not(.toolbox-group) > .section-toggle .section-title-row {
-  line-height: 1.32;
+  /* 1rem flat, so the content box is the feed groups' 16 px and the card
+     stands at their 39 px rather than 42: line-height normal on nested
+     wrappers rounds up a little at each level. */
+  line-height: 1rem;
   min-height: 0;
+  align-items: center;
+  /* section-toggle-main is a GRID whose row gap added 2.8 px on top of the
+     text: 18.8 px against the feed groups' 16, which is the whole
+     remaining height difference. */
+  gap: 0;
+  row-gap: 0;
+}
+/* The last 2.8 px: .section-title is a BLOCK wrapping an inline-flex row,
+   so it takes an inline line box taller than the 16 px row inside it.
+   Made a flex container, the wrapper is exactly its content. */
+.control-section:not(.toolbox-group) > .section-toggle .section-title {
+  display: flex;
+  align-items: center;
+}
+/* A head that carries a control (Tour Mode's ENTER, the master ticks) sizes
+   it to the row rather than letting it set the row: everything else in the
+   column stands at the feed groups' height. */
+.control-section:not(.toolbox-group) > .section-toggle .section-toggle-controls button {
+  min-height: 0;
+  padding: 0.16rem 0.5rem;
+  font-size: 0.58rem;
+  line-height: 1.1;
 }
 .control-section:not(.toolbox-group) > .section-toggle .section-sub { display: none; }
 .control-section:not(.toolbox-group)[open] > .section-toggle {
