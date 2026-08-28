@@ -1166,6 +1166,55 @@ provenance and it changes as they are ticked. Verified rendered: "Format
 live GeoJSON feed · Source USGS earthquake catalogue · GDACS (EC JRC) ·
 NASA EONET · CRS EPSG:4326 · Features 428 · Citation …".
 
+## The attribute table is a window, and a CSV had nothing in it to edit
+
+`gis/table-editor.js` — "Table" in a layer's own drawer — opens the rows over
+the globe. The window was the small half of this.
+
+**A CSV's columns were thrown away on import.** `csv`/`xyz`/`pts`/`txt` all
+go through `loadXyzPoints`, which keeps x, y, z and a magnitude and drops
+everything else: right for a point cloud, and it means a list of sample sites
+arrives on the globe with its names, depths and notes already gone — the
+values existed only in a file the app no longer held. The reader keeps the
+source TEXT on the layer now (`layer.source`, capped at 8 MB; a LiDAR dump is
+not a spreadsheet) and the window edits that: every column, as it came.
+
+**A delimited layer saves as a file of the SAME KIND**, re-read by the same
+reader with `columns: layer.source.mapping` — the mapping it was read with,
+or the reader re-guesses and a hand-chosen lat/lon pairing is undone by a save
+that changed nothing else. Saving it as GeoJSON would quietly change what the
+layer IS: a point cloud becoming a feature collection, drawn and sampled
+differently, on an edit that was only ever about its numbers.
+
+Feature layers are edited as features, lat and lon first for point layers
+because that is where a CSV puts them. Lines and polygons keep their
+geometry. Saving goes through `importFileList` — the one importer — so this
+is not a second path into the renderer; the edit is therefore a NEW layer and
+visibility, opacity, the data tag and its note are carried across by hand,
+which is the rebuild rule the tiled geology documents.
+
+Four ways a grid editor loses data silently, all pinned in
+`table-editor.test.mjs`:
+
+- **Geometry looked up by INDEX** hands row 3's outline to row 2 the moment a
+  row above them is deleted — every attribute right, every shape one place
+  out. It rides on the row instead.
+- **`Number("")` is ZERO**, so a blanked latitude passes `isFinite` and
+  writes a point at 0°N 0°E. This codebase has been to the Gulf of Guinea
+  once already, with a station list whose blank rows came back as real
+  stations; an emptied cell means "no coordinate" and the row is dropped,
+  counted, and reported.
+- **Rows past the display cap** are kept, or a save deletes the part of the
+  layer nobody could see.
+- **`data_type`/`data_note` are the app's own bookkeeping** (data-tags mirrors
+  the classification into the first feature so a project restores it). Hidden
+  from the grid, since the drawer owns that control and two places to edit one
+  value is how they drift — and carried through a save untouched.
+
+**The drawer opens from the row's `[data-role="disclose"]`, not from the
+row.** A probe that clicks the row finds nothing and reads as a missing
+button; the same trap the layer-drawer note already records.
+
 ## Workspace IS the corner box, and every input wears a data tag
 
 The always-visible corner box (`#layer-dock`, headed "Workspace") holds
