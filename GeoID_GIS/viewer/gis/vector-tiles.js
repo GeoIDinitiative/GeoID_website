@@ -35,8 +35,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds } from "./mvt.js?v=20260828-45f735e";
-import { renderFeatureCollection } from "./vector-render.js?v=20260828-45f735e";
+import { decodeTile, tilesForBounds } from "./mvt.js?v=20260828-5c22652";
+import { renderFeatureCollection } from "./vector-render.js?v=20260828-5c22652";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 

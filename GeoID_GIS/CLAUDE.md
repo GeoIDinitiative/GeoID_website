@@ -1274,10 +1274,13 @@ burned-area catalogue sat directly in the Hazards body under a heading
 while every other entry in the column lives in a `gis-tool-section`; it
 is now a **Wildfires** subtab (flame, the Live Events wildfire glyph),
 and the group heading inside it names the SOURCE ("Earth Engine")
-because the subtab already names the subject. `NO_TOOL_ICON` is the
-other half: "NI prototype" is a named worked example rather than a
-subject, so it takes no glyph at all — the fallback bracket would be
-furniture.
+because the subtab already names the subject. The NI prototype then nested inside a
+**Landslides** subtab of its own (a slope shedding debris): the prototype
+is a worked example OF landslide susceptibility, so the SUBJECT takes the
+subtab and the glyph. `NO_TOOL_ICON` is the other half of that rule —
+"NI prototype" is a named example rather than a subject, so it keeps a
+bare title inside; the fallback bracket would be furniture. Hazards now
+reads: myGeoID mode, Wildfires, Landslides.
 
 **Icons on EVERY subsection, and one gap value.** The ~54 (Earth) / 39
 (Mars) `gis-tool-section` summaries had no glyphs while the level-2
