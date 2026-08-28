@@ -30,11 +30,11 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260828-eacf7cb";
-import { readHead, validateMapping } from "./delimited.js?v=20260828-eacf7cb";
-import { RAMP_NAMES } from "./symbology.js?v=20260828-eacf7cb";
-import { isEarth } from "./bodies.js?v=20260828-eacf7cb";
-import { DATA_TYPES, inferType, applyTag, markUserInput, suppressNextArrival } from "./data-tags.js?v=20260828-eacf7cb";
+import { CRS_OPTIONS } from "./projection.js?v=20260828-67015c9";
+import { readHead, validateMapping } from "./delimited.js?v=20260828-67015c9";
+import { RAMP_NAMES } from "./symbology.js?v=20260828-67015c9";
+import { isEarth } from "./bodies.js?v=20260828-67015c9";
+import { DATA_TYPES, inferType, applyTag, markUserInput, suppressNextArrival } from "./data-tags.js?v=20260828-67015c9";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
@@ -888,7 +888,15 @@ function addButtonFor(role) {
     gee.className = "button secondary gis-gee-button";
     gee.dataset.geeAdd = geeHome;
     gee.textContent = "+ GEE";
-    gee.title = "Request a Google Earth Engine dataset draped over the globe";
+    gee.title = "Browse the Google Earth Engine catalogue and draw a fetch extent";
+    // Wired to the seam, not left to gee.js's document listener: in the dock
+    // header this row swallows its own clicks, so a bubbling listener never
+    // hears this button. Same shape as Export and Settings below.
+    gee.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      window.GeoIDGeeCatalogue?.open?.(geeHome);
+    });
     row.appendChild(gee);
   }
   /**

@@ -10,16 +10,16 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260828-eacf7cb";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260828-eacf7cb";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260828-eacf7cb";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260828-67015c9";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260828-67015c9";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260828-67015c9";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260828-eacf7cb";
+  from "./view-extent.js?v=20260828-67015c9";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260828-eacf7cb";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260828-eacf7cb";
+} from "./extent-picker.js?v=20260828-67015c9";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260828-67015c9";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -616,6 +616,15 @@ function catalogueHooks(entries) {
  */
 function geeCatalogueSeam() {
   return {
+    /**
+     * Open the browser on a subject. A seam rather than only the document
+     * click listener, because the Workspace header row deliberately swallows
+     * its own clicks so a press cannot fold the box — which also swallowed
+     * the one that used to reach that listener, leaving + GEE dead. The
+     * buttons beside it (Export, Settings) were always wired directly; this
+     * lets + GEE be wired the same way.
+     */
+    open(homeName) { return openGeeDialog(homeName || ""); },
     entriesFor(homeName) {
       return catalogueEntries()
         .filter((entry) => geeHomeOf(entry.id) === homeName)
@@ -1125,7 +1134,7 @@ async function openGeeDialog(homeName) {
   // The map is built on first open, never at module load: `createMap`
   // measures its host, and a host inside a hidden backdrop has no size.
   if (!geeMap) {
-    mapLibrary = mapLibrary || await import("./research/map2d.js?v=20260828-eacf7cb");
+    mapLibrary = mapLibrary || await import("./research/map2d.js?v=20260828-67015c9");
     const picker = byId("gee-add-basemap");
     picker.innerHTML = Object.keys(mapLibrary.BASEMAPS)
       .map((name) => `<option value="${name}">${name}</option>`).join("");
