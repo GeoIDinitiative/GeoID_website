@@ -2724,9 +2724,15 @@ flags it always raises are DESIGN, not defects: the `.button`
 cyan-at-rest / dark-ink-primary split (the viewer skin's own convention) and
 the cyan-caption/white-value span split (the label/readout language).
 
-Run on Mars and Mercury, the workbenches came back clean first pass — the
+Run on ALL TEN WORLDS, the workbenches came back clean first pass — the
 whole Earth theme rode in on the shared modules, which is what shared
-modules are for. The page-wide sweep found one real category on every world:
+modules are for. And the GIS tools genuinely run everywhere: on every world
+including the four gas giants, a point layer imported through
+`importFileList` is offered in the tools dialog and Buffer runs through the
+real form to a real layer (measured, 2 features out on each of the ten).
+The gas giants lack the DRAW tools — no surface to draw on — but the
+import-and-process pipeline is whole there; drawing is the only per-body
+gate. The page-wide sweep found one real category on every world:
 **form controls default to the UA's Arial**, hidden on checkboxes and
 sliders, visible the moment a control carries a glyph or a word. And
 `font-family: inherit` DOES NOT FIX IT — measured still-Arial on Mars,
