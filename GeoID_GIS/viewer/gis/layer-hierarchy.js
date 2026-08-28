@@ -10,12 +10,12 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260828-90f68be";
-import { samplerToRaster } from "./raster-analysis.js?v=20260828-90f68be";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260828-90f68be";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260828-90f68be";
-import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260828-90f68be";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260828-90f68be";
+import { currentBody } from "./bodies.js?v=20260829-81cc54c";
+import { samplerToRaster } from "./raster-analysis.js?v=20260829-81cc54c";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-81cc54c";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260829-81cc54c";
+import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260829-81cc54c";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260829-81cc54c";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -955,9 +955,36 @@ function renderLegend(stack) {
    * row in the layer box, its eye, its opacity and its place in the draw
    * order. This says only that the legend is not the place it is explained.
    */
-  dock.publish("layers", stack
-    .filter((layer) => layer.visible !== false && !layer.legendHidden)
-    .map((layer) => buildLayerCard(layer)));
+  const visible = stack.filter((layer) => layer.visible !== false && !layer.legendHidden);
+  /**
+   * Every shape SOMEBODY DREW is one entry, not one entry each.
+   *
+   * A card per drawn shape is the legend describing the reader's own working
+   * set back to them a line at a time: ten study areas took ten headed cards,
+   * each with a full-width ramp bar under it, and pushed the datasets the map
+   * is actually about off the bottom of the panel. They are all the same KIND
+   * of thing, which is exactly what a legend groups.
+   *
+   * So they collapse into one card built like the geology key -- a swatch and
+   * a name per row -- and it sits where the first of them sat, so the legend
+   * still reads in draw order rather than hoisting the user's shapes above the
+   * map.
+   */
+  const drawn = visible.filter(isDrawnLayer);
+  const cards = [];
+  let placedDrawn = false;
+  visible.forEach((layer) => {
+    if (isDrawnLayer(layer)) {
+      // At the position of the FIRST drawn layer, once.
+      if (!placedDrawn) {
+        placedDrawn = true;
+        cards.push(drawnAreasCard(drawn));
+      }
+      return;
+    }
+    cards.push(buildLayerCard(layer));
+  });
+  dock.publish("layers", cards);
   // Its own source rather than the tail of this one, so it sits below every
   // other source the dock collects -- the overlays and the interior cutaway
   // included -- rather than merely below the imported layers.
@@ -1057,6 +1084,57 @@ function symbolLabel(layer) {
     return `${layer.info.width} x ${layer.info.height} raster`;
   }
   return layer.name || "layer";
+}
+
+/** A shape somebody drew on the globe, rather than a dataset they loaded. */
+const isDrawnLayer = (layer) => layer?.ext === "drawn";
+
+/** Rows shown before the list scrolls instead of growing the panel. */
+const DRAWN_LEGEND_ROWS = 10;
+
+/**
+ * One card for every drawn shape, in the classed legend's own shape.
+ *
+ * Two details are load-bearing:
+ *
+ * - **The key is fixed** (`legendKey`), so drawing a shape is not an ARRIVAL.
+ *   The dock springs the panel open when a key it has not seen appears, and a
+ *   title carrying the count would be a new key on every capture -- the legend
+ *   thrown open each time somebody drew a box, which is the annoyance the
+ *   basemap card already documents. The first drawn shape still opens it,
+ *   because that entry genuinely is new.
+ * - **Past ten rows it scrolls** rather than growing. A drawn set has no upper
+ *   bound and the panel does: without the cap, twenty shapes push the basemap
+ *   and every dataset out of reach.
+ */
+function drawnAreasCard(layers) {
+  const card = document.createElement("section");
+  card.className = "legend-entry";
+  card.dataset.legendKey = "Drawn areas";
+
+  const badge = document.createElement("p");
+  badge.className = "layer-type-badge";
+  badge.textContent = layers.length === 1
+    ? "Drawn area" : `Drawn areas (${layers.length})`;
+  card.appendChild(badge);
+
+  const block = document.createElement("div");
+  block.className = "legend-classes";
+  if (layers.length > DRAWN_LEGEND_ROWS) block.classList.add("is-scrolling");
+  layers.forEach((layer) => {
+    const line = document.createElement("div");
+    line.className = "legend-class";
+    const swatch = document.createElement("span");
+    swatch.className = "legend-class-swatch";
+    swatch.style.background = layerColour(layer);
+    const text = document.createElement("span");
+    text.className = "legend-class-label";
+    text.textContent = layer.name || "drawn area";
+    line.append(swatch, text);
+    block.appendChild(line);
+  });
+  card.appendChild(block);
+  return card;
 }
 
 function buildLayerCard(layer) {

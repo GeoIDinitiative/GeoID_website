@@ -182,6 +182,16 @@ const STYLE = `
   border-radius: 0.2rem;
   border: 1px solid rgba(255, 255, 255, 0.35);
 }
+/* A drawn set has no upper bound and this panel does. Past ten shapes the list
+   scrolls instead of pushing the basemap and every dataset off the bottom; the
+   bar takes the app's cyan from the :root scrollbar-color rule, so there is
+   nothing to restate here. Ten single-line rows at 0.72rem/1.35 plus their
+   0.28rem gaps is what the height is measured from. */
+#map-legend-panel .legend-classes.is-scrolling {
+  max-height: 12.4rem;
+  overflow-y: auto;
+  padding-right: 0.3rem;
+}
 #map-legend-panel .legend-class-label {
   font-size: 0.72rem;
   line-height: 1.35;
