@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260828-53769a0";
+  from "./gis/geo-utils.js?v=20260828-f00d0ce";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -17371,6 +17371,15 @@ uniform float uViewportWidth;`,
         return (worldPerPixel / 3.2) * (180 / Math.PI) * px;
       }
 
+      /**
+       * Which shapes drag out as a ring, and how many sides each has. Not in
+       * this table (box) drags out as a rectangle; "poly" and "line" are taps.
+       * Forty-eight is within 0.2% of a circle's area at this size.
+       */
+      const DRAG_RING_SIDES = {
+        circle: 48, triangle: 3, square: 4, pentagon: 5, hexagon: 6,
+      };
+
       function studyPointerDown(event) {
         if (event.button !== 0 || measureDrawActive || studyDrag) return;
         const bounds = rectFromMeasurePoints();
@@ -17866,15 +17875,30 @@ uniform float uViewportWidth;`,
           if (!hit) return;
           const a = boxDraw.anchor;
           const hitLon = a.lon + (((hit.lon - a.lon + 540) % 360) - 180);
-          if ((window.GeoIDDrawShape || "box") === "circle") {
-            // Press the centre, drag the radius — the other classic gesture.
+          /**
+           * Press the centre, drag the radius — the circle's gesture, now
+           * every regular shape's.
+           *
+           * The preset CARD is gone: it sized a triangle by typing a number
+           * into a field, which is a different grammar from the one the rest
+           * of this tool uses, and it was where every fault lived. A ring of
+           * N segments is the circle's own code with one number changed, so
+           * a hexagon is drawn exactly as a circle is and nothing new has to
+           * be learned or maintained.
+           *
+           * The square is turned 45° so a drag gives the axis-aligned box
+           * everybody means by "square"; the odd-sided shapes point north.
+           */
+          const ringSides = DRAG_RING_SIDES[window.GeoIDDrawShape || "box"];
+          if (ringSides) {
             const dLat = hit.lat - a.lat;
             const dLon = (hitLon - a.lon) * Math.cos((a.lat * Math.PI) / 180);
             const radiusKm = Math.hypot(dLat, dLon) * 111.32;
             if (radiusKm > 2) {
+              const spin = (window.GeoIDDrawShape === "square") ? 45 : 0;
               const ring = [];
-              for (let k = 0; k < 48; k += 1) {
-                const t = (k / 48) * 2 * Math.PI;
+              for (let k = 0; k < ringSides; k += 1) {
+                const t = ((spin + (k * 360) / ringSides) * Math.PI) / 180;
                 const lat = a.lat + (radiusKm * Math.cos(t)) / 111.32;
                 const lon = a.lon + (radiusKm * Math.sin(t))
                   / (111.32 * Math.max(0.05, Math.cos((lat * Math.PI) / 180)));
@@ -17882,7 +17906,9 @@ uniform float uViewportWidth;`,
               }
               activateStudyArea(ring);
               const chip = studySizeChip();
-              chip.textContent = `⌀ ${Math.round(radiusKm * 2)} km`;
+              chip.textContent = ringSides >= 24
+                ? `⌀ ${Math.round(radiusKm * 2)} km`
+                : `${Math.round(radiusKm * 2)} km across`;
               chip.style.left = `${event.clientX + 16}px`;
               chip.style.top = `${event.clientY + 16}px`;
               chip.hidden = false;

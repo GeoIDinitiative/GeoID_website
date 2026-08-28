@@ -21,6 +21,10 @@ const byId = (id) => document.getElementById(id);
 const HINTS = {
   box: "Press and drag on the globe to draw a box · corners resize, edges move",
   circle: "Press the centre and drag the radius",
+  triangle: "Press the centre and drag the size",
+  square: "Press the centre and drag the size",
+  pentagon: "Press the centre and drag the size",
+  hexagon: "Press the centre and drag the size",
   poly: "Click to place vertices · Done saves the shape",
   shaped: "Drag corners to resize, edges to move · Done saves it as a layer · Enter = Done",
   line: "Click two points for a transect · the measure panel exports it",
@@ -75,6 +79,17 @@ function installStyle() {
   cursor: pointer;
 }
 .draw-hud-btn:hover { border-color: rgba(82, 228, 232, 0.7); color: #ffffff; }
+.draw-hud-btn.is-glyph { padding: 0.2rem 0.42rem; line-height: 0; }
+.draw-hud-btn.is-glyph svg { width: 1rem; height: 1rem; display: block; }
+#gis-draw-export-slot { display: flex; align-items: center; gap: 0.3rem; }
+#gis-draw-export-slot:empty { display: none; }
+#gis-draw-export-slot::before {
+  content: "";
+  width: 1px;
+  align-self: stretch;
+  margin: 0.1rem 0.15rem 0.1rem 0.05rem;
+  background: rgba(255, 255, 255, 0.16);
+}
 .draw-hud-btn.is-on {
   border-color: rgba(82, 228, 232, 0.9);
   background: rgba(82, 228, 232, 0.18);
@@ -150,8 +165,36 @@ function build() {
     row.appendChild(button);
     return button;
   };
+  /**
+   * The regular shapes come in as GLYPHS, not words.
+   *
+   * They arrived from the preset card, which drew them as icons; four more
+   * words would take this bar from about 300 px to over 700 and push it off
+   * a narrow screen, and "Triangle" says nothing a triangle does not. The
+   * four that were already here keep their words — that half was reported
+   * as working, and it is not what changed.
+   */
+  const glyph = (id, label, sides, spin) => {
+    const button = make(id, "", `${label} — press the centre, drag the size`);
+    button.classList.add("is-glyph");
+    button.setAttribute("aria-label", label);
+    const points = [];
+    for (let i = 0; i < sides; i += 1) {
+      const a = ((spin + (i * 360) / sides) * Math.PI) / 180;
+      points.push(`${(11 + 7.2 * Math.sin(a)).toFixed(2)} ${(11 - 7.2 * Math.cos(a)).toFixed(2)}`);
+    }
+    button.innerHTML = '<svg viewBox="0 0 22 22" aria-hidden="true">'
+      + `<path d="M${points.join("L")}Z" fill="none" stroke="currentColor"`
+      + ' stroke-width="1.8" stroke-linejoin="round"/></svg>';
+    return button;
+  };
+
   make("box", "Box", "Press and drag to draw a box");
   make("circle", "Circle", "Press the centre, drag the radius");
+  glyph("triangle", "Triangle", 3, 0);
+  glyph("square", "Square", 4, 45);
+  glyph("pentagon", "Pentagon", 5, 0);
+  glyph("hexagon", "Hexagon", 6, 0);
   make("poly", "Polygon", "Click out vertices");
   make("line", "Line", "A transect through the Distance tool");
   const doneBtn = el("button", "draw-hud-btn is-done", "Done");
@@ -162,7 +205,11 @@ function build() {
   cancelBtn.type = "button";
   cancelBtn.title = "Clear and put the tool away";
   cancelBtn.addEventListener("click", cancel);
-  row.append(doneBtn, cancelBtn);
+  // Where the viewer's own Export CSV is parked while the bar is up. Empty
+  // until there is something to export, and `:empty` keeps the divider off.
+  const exportSlot = el("div");
+  exportSlot.id = "gis-draw-export-slot";
+  row.append(doneBtn, cancelBtn, exportSlot);
   const hint = el("div", "", "");
   hint.id = "gis-draw-hint";
   hud.append(row, hint);
@@ -179,6 +226,36 @@ function build() {
   });
 }
 
+/**
+ * Export CSV is the VIEWER'S OWN button, moved in rather than copied.
+ *
+ * The viewer holds a live reference to that node and shows or hides it as a
+ * measurement comes and goes, so a copy here would be a dead twin of a
+ * working control. A comment marks where it came from, so it goes back when
+ * the bar stands down. Lifted verbatim from the preset card this replaced —
+ * it is the one part of that card worth keeping.
+ */
+const EXPORT_SELECTOR = '[data-measure-actions="area"]';
+let exportHome = null;
+
+function borrowExport() {
+  const actions = document.querySelector(EXPORT_SELECTOR);
+  const slot = byId("gis-draw-export-slot");
+  if (!actions || !slot || actions.parentNode === slot) return;
+  if (!exportHome) {
+    exportHome = document.createComment("export csv lives on the draw bar while it is up");
+    actions.parentNode?.insertBefore(exportHome, actions);
+  }
+  slot.appendChild(actions);
+}
+
+function returnExport() {
+  const actions = byId("gis-draw-export-slot")?.firstElementChild;
+  if (actions && exportHome?.parentNode) {
+    exportHome.parentNode.insertBefore(actions, exportHome);
+  }
+}
+
 function refresh() {
   const hud = byId("gis-draw-hud");
   if (!hud) return;
@@ -186,6 +263,20 @@ function refresh() {
   const line = lineArmed();
   const show = area || line;
   if (hud.hidden === show) hud.hidden = !show;
+  /**
+   * Borrow on the TRANSITION, not on every tick.
+   *
+   * `refresh` is polled, and the viewer moves and rebuilds
+   * `.measure-rail-actions` itself as a measurement comes and goes — so
+   * calling borrow/return each pass had the two of them passing the node
+   * back and forth: measured, Done sent it to the rail and standing the
+   * tool down sent it back to the bar, the exact opposite of both. The
+   * card this replaced borrowed on open and returned on close; so does this.
+   */
+  if (show !== visible) {
+    visible = show;
+    if (show) borrowExport(); else returnExport();
+  }
   if (!show) return;
   const current = line ? "line" : shape;
   hud.querySelectorAll("[data-shape]").forEach((button) => {

@@ -141,30 +141,24 @@ const STYLE = `
  * NEVER a backtick in here -- this whole block is a template literal and one
  * ends it, which module-css.test.mjs catches and a browser does not.
  *
- * has-draw-card is the Draw tool (draw-panel.js) asking for the same thing. It
- * is a second class rather than a share of this one because setOpen below
- * recomputes has-open-panel from ITS panels alone -- one class between them and
- * each would switch the other off. */
-#tool-rail.has-open-panel .tool-rail-btn,
-#tool-rail.has-draw-card .tool-rail-btn {
+ * There was a second class here, has-draw-card, for the Draw tool's preset
+ * card asking the same favour. That card is gone — its shapes drag out on the
+ * Draw bar now — so nothing sets it and its selectors went with it. */
+#tool-rail.has-open-panel .tool-rail-btn {
   width: 2.3rem;
   min-height: 2.3rem;
   padding: 0.3rem 0.18rem;
   transition: width 0.15s ease, min-height 0.15s ease;
 }
-#tool-rail.has-open-panel .tool-rail-btn span,
-#tool-rail.has-draw-card .tool-rail-btn span { display: none; }
-#tool-rail.has-open-panel .tool-rail-btn svg,
-#tool-rail.has-draw-card .tool-rail-btn svg { width: 1rem; height: 1rem; }
+#tool-rail.has-open-panel .tool-rail-btn span { display: none; }
+#tool-rail.has-open-panel .tool-rail-btn svg { width: 1rem; height: 1rem; }
 
 /* The measure tools' Export CSV sits under its button and is not one, so it
    keeps its full width while everything above it halves -- which is the one
    thing that still made the shrunk rail ragged. It is not hidden: exporting the
    measurement is the point of having made one. */
-#tool-rail.has-open-panel .measure-rail-actions,
-#tool-rail.has-draw-card .measure-rail-actions { width: 2.3rem; }
-#tool-rail.has-open-panel .tool-rail-action-btn,
-#tool-rail.has-draw-card .tool-rail-action-btn {
+#tool-rail.has-open-panel .measure-rail-actions { width: 2.3rem; }
+#tool-rail.has-open-panel .tool-rail-action-btn {
   width: 100%;
   padding: 0.24rem 0.1rem;
   font-size: 0.45rem;
