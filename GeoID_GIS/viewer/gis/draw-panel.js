@@ -23,7 +23,8 @@
  * instead of a study area (`captureDrawnLine`), which is what a transect is.
  */
 
-import { regularPolygonVertices, lineVertices } from "./draw-area.js?v=20260828-e0ac21c";
+import { regularPolygonVertices, lineVertices, rectangleVertices }
+  from "./draw-area.js?v=20260828-5dbf95c";
 
 /* ── The shapes ──────────────────────────────────────────────────────────────
  *
@@ -72,6 +73,17 @@ const SHAPES = [
       + ' stroke-linecap="round"/>'
       + '<circle cx="5.5" cy="18" r="1.6" fill="currentColor"/>'
       + '<circle cx="18.5" cy="6" r="1.6" fill="currentColor"/>',
+  },
+  {
+    id: "rectangle",
+    label: "Rectangle",
+    hint: "A box with its own width and height",
+    // The only preset that takes TWO numbers. Every other shape here is
+    // regular, so one side says everything about it; a study area rarely is.
+    rect: true,
+    sizeLabel: "Width (km)",
+    icon: '<rect x="3.5" y="6.5" width="17" height="11" rx="1" fill="none"'
+      + ' stroke="currentColor" stroke-width="1.7"/>',
   },
   { id: "triangle", label: "Triangle", sides: 3, rotationDeg: 0 },
   { id: "square", label: "Square", sides: 4, rotationDeg: 45 },
@@ -303,14 +315,20 @@ function place(shape) {
     return;
   }
 
-  const built = regularPolygonVertices({
-    lat: centre.lat,
-    lon: centre.lon,
-    sides: shape.sides,
-    rotationDeg: shape.rotationDeg,
-    ...(shape.bySpan ? { spanKm: sizeKm } : { sideKm: sizeKm }),
-    radiusKm,
-  });
+  const built = shape.rect
+    ? rectangleVertices({
+      lat: centre.lat, lon: centre.lon,
+      widthKm: sizeKm, heightKm: Number(nodes.height?.value) || sizeKm,
+      radiusKm,
+    })
+    : regularPolygonVertices({
+      lat: centre.lat,
+      lon: centre.lon,
+      sides: shape.sides,
+      rotationDeg: shape.rotationDeg,
+      ...(shape.bySpan ? { spanKm: sizeKm } : { sideKm: sizeKm }),
+      radiusKm,
+    });
   if (!built) {
     say(`Give the ${shape.label.toLowerCase()} a size in kilometres.`);
     return;
@@ -319,14 +337,28 @@ function place(shape) {
     say("The viewer would not take that shape.");
     return;
   }
-  // A shape is both the place you are working and a polygon you can operate on,
-  // and it should not have to be captured twice.
-  window.GeoIDDrawnLayers?.captureDrawn?.();
+  /**
+   * PLACED, NOT SAVED. It used to call `captureDrawn()` right here, on the
+   * reasoning that a shape is both where you are working and a polygon to
+   * operate on — true, and it made the tool unusable: pressing a preset
+   * stamped a permanent "Study area N" before you had said what size you
+   * wanted, and every later adjustment stamped ANOTHER, because the capture
+   * is idempotent by SHAPE and a resized box is a different shape. Three
+   * presses left three layers stacked on one patch of ground.
+   *
+   * The standing overlay is the draft, exactly as a drag-drawn box is: it
+   * carries the handles, it resizes with the fields, and the Draw HUD's Done
+   * — which already calls `captureDrawn` — is the one thing that saves it.
+   * One gesture grammar for both ways of making a shape.
+   */
   // Not prose, but not silence either. The card said nothing at all after a
   // placement, so changing the size and pressing a shape again looked like it
   // had done nothing -- a 10 km box and a 100 km box are the same handful of
   // pixels from orbit. The numbers are the confirmation.
-  say(`${shape.label} · ${sizeKm} km · ${Math.round(built.areaHintKm2).toLocaleString()} km²`);
+  const sizeText = shape.rect
+    ? `${sizeKm} × ${Number(nodes.height?.value) || sizeKm} km`
+    : `${sizeKm} km`;
+  say(`${shape.label} · ${sizeText} · ${Math.round(built.areaHintKm2).toLocaleString()} km²`);
 }
 
 
@@ -390,6 +422,7 @@ function selectShape(id) {
   nodes.buttons.forEach((button, key) => button.classList.toggle("is-active", key === id));
   const freehand = id === "freehand";
   nodes.sizeRow.hidden = freehand;
+  nodes.heightRow.hidden = freehand || !shape.rect;
   nodes.bearingRow.hidden = freehand || !shape.line;
   nodes.centreRow.hidden = freehand;
   nodes.manualRow.hidden = freehand || nodes.centre.value !== "manual";
@@ -492,6 +525,19 @@ function buildCard() {
   const sizeRow = row("Side (km)", size);
   sizeRow.label.htmlFor = size.id;
 
+  // The rectangle's second number. Its own row rather than a pair beside the
+  // width, so the label above each field says which one it is — a bare pair
+  // of boxes under "Size (km)" is a guess about which is which.
+  const height = document.createElement("input");
+  height.className = "input";
+  height.type = "number";
+  height.min = "0.05";
+  height.step = "1";
+  height.value = "10";
+  height.id = "gis-draw-height";
+  const heightRow = row("Height (km)", height);
+  heightRow.label.htmlFor = height.id;
+
   const bearing = document.createElement("input");
   bearing.className = "input";
   bearing.type = "number";
@@ -549,13 +595,14 @@ function buildCard() {
   const status = document.createElement("div");
   status.id = "gis-draw-status";
 
-  body.append(grid, sizeRow.wrap, bearingRow.wrap, centreRow.wrap, manualRow.wrap,
+  body.append(grid, sizeRow.wrap, heightRow.wrap, bearingRow.wrap, centreRow.wrap, manualRow.wrap,
     finishRow, exportSlot, status);
   card.append(head, body);
   document.body.appendChild(card);
 
   nodes = {
     buttons, size, sizeLabel: sizeRow.label, sizeRow: sizeRow.wrap,
+    height, heightRow: heightRow.wrap,
     bearing, bearingRow: bearingRow.wrap,
     centre, centreRow: centreRow.wrap, manualRow: manualRow.wrap, lat, lon,
     exportSlot, status, finishRow, finish, finishCount,
@@ -563,11 +610,30 @@ function buildCard() {
   centre.addEventListener("change", () => {
     nodes.manualRow.hidden = state.shape === "freehand" || centre.value !== "manual";
   });
-  // Changing a size re-places the shape that is up, so the number and the thing
-  // on the globe agree without a second button to press.
+  /**
+   * Changing a size re-places the shape that is up, WHILE YOU TYPE.
+   *
+   * `change` alone fires on blur, so typing "25" left the globe showing the
+   * 10 km box until you clicked somewhere else — the field looked inert,
+   * which is half of "we cannot manipulate its size". `input` fires per
+   * keystroke, so it is debounced, and a half-typed value ("", "-", "2." on
+   * the way to "2.5") is skipped rather than drawn: re-placing at every
+   * intermediate number would fight the person typing.
+   */
+  let replaceTimer = 0;
   const replace = () => { if (state.shape !== "freehand") place(shapeById(state.shape)); };
-  size.addEventListener("change", replace);
-  bearing.addEventListener("change", replace);
+  const replaceSoon = () => {
+    if (state.shape === "freehand") return;
+    const width = Number(size.value);
+    const tall = nodes.heightRow.hidden ? width : Number(height.value);
+    if (!(width > 0) || !(tall > 0)) return;
+    clearTimeout(replaceTimer);
+    replaceTimer = setTimeout(replace, 180);
+  };
+  [size, height, bearing].forEach((field) => {
+    field.addEventListener("input", replaceSoon);
+    field.addEventListener("change", replace);
+  });
 }
 
 /** Anchored to the Draw button, on the sidebar side of the rail. */

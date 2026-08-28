@@ -14252,7 +14252,12 @@ uniform float uViewportWidth;`,
       let studyDragLast = 0;
 
       function rectFromMeasurePoints() {
-        if (measureMode !== "area" || measurePoints.length < 8) return null;
+        // Four is the floor, not eight. A drag-drawn box arrives subdivided
+        // and easily clears eight; a box from the SIZE PRESETS is its four
+        // corners and nothing more, so the old floor silently denied every
+        // preset shape its handles — placed, and then not draggable, which
+        // is most of what "we cannot manipulate its size" meant.
+        if (measureMode !== "area" || measurePoints.length < 4) return null;
         const lats = measurePoints.map((p) => p.lat);
         const lons = measurePoints.map((p) => p.lon);
         const south = Math.min(...lats);
@@ -14262,9 +14267,22 @@ uniform float uViewportWidth;`,
         if (east - west > 350) return null;   // wraps the seam; leave it be
         const epsLat = (north - south) * 0.03 + 1e-6;
         const epsLon = (east - west) * 0.03 + 1e-6;
-        const onEdge = measurePoints.every((point) =>
-          Math.abs(point.lat - south) < epsLat || Math.abs(point.lat - north) < epsLat
-          || Math.abs(point.lon - west) < epsLon || Math.abs(point.lon - east) < epsLon);
+        const atLat = (point) => Math.abs(point.lat - south) < epsLat
+          || Math.abs(point.lat - north) < epsLat;
+        const atLon = (point) => Math.abs(point.lon - west) < epsLon
+          || Math.abs(point.lon - east) < epsLon;
+        // A sparse shape has to be a rectangle EXACTLY — every point at both
+        // extremes, i.e. a corner. On the edge alone is not enough down here:
+        // a triangle's three vertices all touch their own bounding box, and
+        // giving that rectangle handles would let a drag turn it into
+        // something it is not. Subdivided shapes keep the looser edge test,
+        // which is what admits a box whose sides carry midpoints.
+        if (measurePoints.length < 8) {
+          return (measurePoints.length === 4
+            && measurePoints.every((point) => atLat(point) && atLon(point)))
+            ? { south, north, west, east } : null;
+        }
+        const onEdge = measurePoints.every((point) => atLat(point) || atLon(point));
         return onEdge ? { south, north, west, east } : null;
       }
 
