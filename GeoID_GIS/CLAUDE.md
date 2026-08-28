@@ -1342,6 +1342,19 @@ while a stale /tmp test log read "all passed".
 
 ## Workbenches: the rail owns what you pick up and put down
 
+**An open workbench pushes the corner furniture left.** Settings and
+Export open over the top-right corner, where the legend drop-down and the
+events list live, and they sat UNDER it. The hazard readout had already
+solved this shape — publish the clearance as a LENGTH and let the
+stylesheet consume it — so `place()` publishes `--workbench-w` (viewport
+edge → panel left edge → plus the panel's own width and a gap, measured,
+never written down) and `.map-legend` takes `max()` of that and whatever
+corner clearance it already had, so neither shift is lost when both
+apply. The events drop-down needs no rule of its own: it positions from
+the legend's measured box and just needs `GeoIDEvents.reflow()` after the
+legend moves. Measured: legend 1204 → 837 px with a panel at 947, events
+1066 → 699, both back on close.
+
 **Every basemap row carries the same ⓘ the overlay rows do** — tile
 services answer from their own TILE_SOURCES records (credit + licence,
 matched by the `tiles-<slug>` id basemap-drape registers), shipped

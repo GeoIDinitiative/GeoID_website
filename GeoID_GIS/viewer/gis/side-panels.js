@@ -227,6 +227,15 @@ const STYLE = `
 }
 /* The feed groups' own icons, in the same seat every other sub-tab gives
    theirs. */
+/* The corner furniture clears an open workbench, the same way it clears the
+   hazard readout. max() so whichever is wider wins and neither is lost. */
+.map-legend {
+  right: max(5.5rem, var(--workbench-w, 0px)) !important;
+}
+body[data-hub-armed="true"] .map-legend {
+  right: max(var(--hazard-rail-w, 5.5rem), var(--workbench-w, 0px)) !important;
+}
+
 .event-feed-icon { flex: none; display: inline-flex; }
 .event-feed-icon svg { width: 0.85rem; height: 0.85rem; display: block; }
 
@@ -782,6 +791,12 @@ function setOpen(id, open) {
  * breakpoint and its top moves when the hub arms. The height stops short of the
  * scale bar, which owns the bottom of this side.
  */
+/** The width an open workbench occupies — the sidebar's, which it adopts. */
+function panelWidth() {
+  const any = [...panels.values()].find((entry) => !entry.panel.hidden);
+  return any ? Math.round(any.panel.getBoundingClientRect().width) : 0;
+}
+
 function place() {
   const rail = document.getElementById("tool-rail");
   if (!rail) return;
@@ -798,6 +813,21 @@ function place() {
    */
   const sidebar = document.getElementById("ui");
   const top = Math.round(sidebar?.getBoundingClientRect().top ?? 16);
+  /**
+   * An open workbench takes the right of the screen, where the legend and
+   * the events drop-down live — and they sat UNDER it. The hazard readout
+   * already solved this shape: publish how far the corner furniture must
+   * step left as a length, and let the stylesheet consume it. Measured from
+   * the viewport edge to the panel's left edge, so it is right whatever
+   * inset the panel takes at this breakpoint.
+   */
+  let openLeft = 0;
+  panels.forEach(({ panel }) => { if (!panel.hidden) openLeft = Math.max(openLeft, right); });
+  document.documentElement.style.setProperty(
+    "--workbench-w", openLeft ? `${openLeft + panelWidth() + 8}px` : "0px");
+  // The events drop-down positions itself from the legend's measured box, so
+  // it follows once the legend has moved — but only if it is told to look.
+  window.GeoIDEvents?.reflow?.();
   panels.forEach(({ panel }) => {
     if (panel.hidden) return;
     panel.style.right = `${right}px`;
