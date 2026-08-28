@@ -12,7 +12,7 @@
 
 import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity, magnitudeColour,
-  activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, gdacsPoints } from "./event-sources.js?v=20260828-5c22652";
+  activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, gdacsPoints } from "./event-sources.js?v=20260828-3353e2b";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -256,6 +256,7 @@ export function setSourceEnabled(id, on) {
   if (on) enabled.add(id); else enabled.delete(id);
   rememberSources();
   renderFeeds();
+  syncFeedProxies();
   // Ticking a feed is asking to see it, so it arms the mode rather than
   // filling a list nobody has opened.
   if (on && !active) { void setActive(true); return; }
@@ -1728,8 +1729,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260828-5c22652"),
-    import("./research/dsp.js?v=20260828-5c22652"),
+    import("./seismogram-plot.js?v=20260828-3353e2b"),
+    import("./research/dsp.js?v=20260828-3353e2b"),
   ]);
   if (stale()) return;
 
@@ -1899,8 +1900,35 @@ if (document.readyState === "loading") {
   init();
 }
 
+/**
+ * Feed tick boxes OUTSIDE this tab.
+ *
+ * A hazard subtab (Hazards ▸ Flood, ▸ Drought) offers the live feed for its
+ * own subject, so somebody reading about flood susceptibility can switch the
+ * flood events on where they are rather than hunting the Live Events tab for
+ * the row. It is the SAME source and the same state — `data-feed-toggle`
+ * carries the source id, the box mirrors `enabled`, and ticking it goes
+ * through `setSourceEnabled`, which arms the mode exactly as the tab's own
+ * row does. One feed, one state, two places to reach it.
+ */
+function syncFeedProxies() {
+  document.querySelectorAll("[data-feed-toggle]").forEach((box) => {
+    const id = box.dataset.feedToggle;
+    if (!box.dataset.feedWired) {
+      box.dataset.feedWired = "1";
+      box.addEventListener("change", () => setSourceEnabled(id, box.checked));
+    }
+    box.checked = enabled.has(id);
+  });
+}
+if (typeof document !== "undefined") {
+  document.addEventListener("geoid-gis:layers-changed", syncFeedProxies);
+  window.setInterval(syncFeedProxies, 900);
+}
+
 window.GeoIDEvents = {
   setActive, isActive: () => active, getEvents: () => events, SYMBOLS,
+  setSourceEnabled, isSourceEnabled: (id) => enabled.has(id),
   // Re-seat the feed when the rail moves under it -- arming the hub
   // shifts the whole rail left of the hazard readout.
   reflow: placeOverlay,

@@ -1280,7 +1280,16 @@ is a worked example OF landslide susceptibility, so the SUBJECT takes the
 subtab and the glyph. `NO_TOOL_ICON` is the other half of that rule —
 "NI prototype" is a named example rather than a subject, so it keeps a
 bare title inside; the fallback bracket would be furniture. Hazards now
-reads: myGeoID mode, Wildfires, Landslides.
+reads: myGeoID mode, Wildfires, Landslides, Flood, Drought. **Flood took
+the NI prototype's flood-susceptibility map** — it had been sitting in
+the landslide list, which is a statement about where it was built rather
+than what it is. And where a subject has no product of its own yet, the
+subtab offers what it HONESTLY has: the live feed. `data-feed-toggle`
+(events.js) makes a tick box a PROXY for an event source — it mirrors the
+same `enabled` set and commits through `setSourceEnabled`, so the Flood
+and Drought boxes and the Live Events tab's own rows are one state seen
+twice, never two states to keep in step. Verified: ticking the Hazards
+proxy flips `isSourceEnabled` and the Live tab's row shows checked.
 
 **Icons on EVERY subsection, and one gap value.** The ~54 (Earth) / 39
 (Mars) `gis-tool-section` summaries had no glyphs while the level-2
