@@ -1237,6 +1237,43 @@ it anchors after `#workspace-add-host` instead; (3) the hierarchy bakes
 the chip into its row template and does not hear the tag event —
 `applyTag` calls `GeoIDLayerHierarchy.render()` itself.
 
+**A BLOCK around an inline-flex row baseline-aligns it, at BOTH tiers.**
+The level-2 fix was noted long ago and the same fault sat in tier 1
+unnoticed: `.section-title` is a block, the row inside it sits on the line
+box's baseline, and the strut's descender makes that box taller than the row
+(23.5 px against 19.5) — so the icon and the name rode 2 px above the
+chevron, which is a flex item of the toggle and therefore properly centred.
+Making the title `display: flex; align-items: center` collapses the box onto
+its content. Measured across every tab on Earth and Mars: 0.00 px. When a
+mark and its label look a hair out, measure the ROW against the TOGGLE
+centre before touching either one's padding.
+
+**The Workspace tile folds like a tab, so it says so like a tab.** It wore a
+"▾" on the far RIGHT — a second fold language in a column that had settled
+on one, and on the wrong edge. It takes the tabs' own left chevron now. Two
+things that bite: the `::after` has to be EMPTIED at the specificity
+styles.css and shell.css draw their `+/-` at
+(`#layer-dock:not(.is-collapsed) > .layer-dock-head::after`), or the tab
+marker comes straight back; and the polarity is inverted against a
+`<details>` — `.is-collapsed` is the CLOSED state, so the chevron rotates
+BACK on that class rather than forward on an open one.
+
+**`\203A` needs a DOUBLE backslash in these stylesheets, and `node --check`
+will not tell you.** Single, it is an octal escape inside a template literal
+— `import()` reports "Octal escape sequences are not allowed in template
+strings", `node --check` passes it happily, and the module simply never
+loads. That took the whole layer-hierarchy module out, so the Workspace
+layer LIST vanished along with the chevron being styled, and the `+/-` the
+new rule was meant to replace came back looking like a cascade problem. Run
+`tests/run.mjs` after touching a CSS-in-JS block; it imports every module
+and it is what caught this. Third time this trap has been paid for.
+
+**Reading a transform straight after toggling a class reads the TRANSITION,
+not the target.** These chevrons carry `transition: transform 0.15s`, so a
+`getComputedStyle` immediately after `classList.add` returns an interpolated
+matrix — the collapsed state measured as though the rule had not applied at
+all. Wait past the transition before believing the number.
+
 **Every SUB-tab speaks the Live groups' language**: a LEFT chevron ("›"
 turning down on open — moved from the right on report), the level-2
 heading type matched to the tool-summary voice (Exo 2 600 0.76rem/0.1em,
