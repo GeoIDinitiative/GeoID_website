@@ -7,8 +7,9 @@
  * file knows is only which catalogue to draw and where to put it.
  */
 
-import { grouped, addMapLayer, removeMapLayer, layerForMap, layerById } from "./map-layers.js?v=20260828-728d464";
-import { renderCatalogue } from "./catalogue-list.js?v=20260828-728d464";
+import { grouped, addMapLayer, removeMapLayer, layerForMap, layerById } from "./map-layers.js?v=20260828-2fe26ec";
+import { renderCatalogue } from "./catalogue-list.js?v=20260828-2fe26ec";
+import { TILE_SOURCES } from "./tile-sources.js?v=20260828-2fe26ec";
 
 const byId = (id) => document.getElementById(id);
 
@@ -35,6 +36,47 @@ function baseSelect() {
   return byId("base-layer-select");
 }
 
+/**
+ * Every base texture explains itself through the same ⓘ the overlay rows
+ * carry. Tile services answer from their OWN records in TILE_SOURCES
+ * (credit + licence — the same pair the source line under the catalogue
+ * shows), matched by the id slug basemap-drape registers them under; the
+ * shipped textures carry their provenance here, since nothing else records
+ * it. A texture in neither table still gets a row, just without the ⓘ —
+ * a button opening an empty card would be worse than none.
+ */
+const tileSlug = (name) => `tiles-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+const SHIPPED_BASE_INFO = {
+  "blue-marble": {
+    summary: "NASA's Blue Marble composite — the texture the globe ships with, on the sphere before any network call.",
+    citation: "NASA Earth Observatory (Blue Marble). Public domain.",
+  },
+  "earth-visible": {
+    summary: "NASA's Earth surface texture: cloud-free land and ocean colour.",
+    citation: "NASA Earth Observatory. Public domain.",
+  },
+  "derived-hillshade": {
+    summary: "Hillshade derived from the GEBCO 2025 global bathymetry and topography grid (~450 m).",
+    citation: "GEBCO Compilation Group (2025). Public domain, attribution requested.",
+  },
+  "gebco-bathy-context": {
+    summary: "Bathymetric and topographic relief context derived from the GEBCO 2025 global grid.",
+    citation: "GEBCO Compilation Group (2025). Public domain, attribution requested.",
+  },
+  "elevation-dem": {
+    summary: "The GEBCO 2025 elevation grid drawn directly as a colour-mapped DEM, Mariana Trench to Everest.",
+    citation: "GEBCO Compilation Group (2025). Public domain, attribution requested.",
+  },
+};
+function baseInfoFor(value) {
+  if (SHIPPED_BASE_INFO[value]) return SHIPPED_BASE_INFO[value];
+  const match = Object.entries(TILE_SOURCES)
+    .find(([name]) => tileSlug(name) === value);
+  if (!match) return null;
+  const [, source] = match;
+  return { summary: source.credit || "", citation: source.licence || "" };
+}
+
 function baseEntries() {
   const select = baseSelect();
   return [...(select?.options || [])].map((option) => ({
@@ -42,6 +84,7 @@ function baseEntries() {
     group: BASE_GROUP,
     label: option.textContent.trim(),
     title: option.title || "The sphere's own texture — one at a time.",
+    info: baseInfoFor(option.value),
   }));
 }
 

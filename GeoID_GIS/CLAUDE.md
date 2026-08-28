@@ -1210,6 +1210,18 @@ the chip into its row template and does not hear the tag event —
 
 ## Workbenches: the rail owns what you pick up and put down
 
+**Every basemap row carries the same ⓘ the overlay rows do** — tile
+services answer from their own TILE_SOURCES records (credit + licence,
+matched by the `tiles-<slug>` id basemap-drape registers), shipped
+textures from `SHIPPED_BASE_INFO` in map-layers-panel — whose keys are
+the SELECT'S OWN option values (`earth-visible`, `derived-hillshade`,
+`gebco-bathy-context`), not the display names; guessing them cost a
+round. A texture in neither table gets a row without the ⓘ rather than a
+button opening an empty card. And on the PLANET pages the Settings gear
+lives in the Workspace header icons (+ Data, Export, ⚙ — add-data builds
+it, `railEarthOnly` on side-panels' entry drops the rail button there);
+Earth keeps the gear on the rail.
+
 **The Workspace tile wears the theme, and every boxed header speaks one
 language.** The dock's deliberately-quiet skin (muted head, faint border)
 was reported as out of keeping once the tile became THE workspace: it now

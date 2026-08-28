@@ -30,11 +30,11 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260828-728d464";
-import { readHead, validateMapping } from "./delimited.js?v=20260828-728d464";
-import { RAMP_NAMES } from "./symbology.js?v=20260828-728d464";
-import { isEarth } from "./bodies.js?v=20260828-728d464";
-import { DATA_TYPES, inferType, applyTag, suppressNextArrival } from "./data-tags.js?v=20260828-728d464";
+import { CRS_OPTIONS } from "./projection.js?v=20260828-2fe26ec";
+import { readHead, validateMapping } from "./delimited.js?v=20260828-2fe26ec";
+import { RAMP_NAMES } from "./symbology.js?v=20260828-2fe26ec";
+import { isEarth } from "./bodies.js?v=20260828-2fe26ec";
+import { DATA_TYPES, inferType, applyTag, suppressNextArrival } from "./data-tags.js?v=20260828-2fe26ec";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
@@ -909,6 +909,21 @@ function addButtonFor(role) {
       window.GeoIDSidePanels?.open?.("export");
     });
     row.appendChild(exp);
+    // The gear rides here on the PLANET pages — their rail does not carry
+    // Settings (side-panels railEarthOnly); Earth keeps it on the rail.
+    if (!isEarth()) {
+      const cfg = document.createElement("button");
+      cfg.type = "button";
+      cfg.className = "button secondary gis-settings-button";
+      cfg.textContent = "Settings";
+      cfg.title = "Settings";
+      cfg.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.GeoIDSidePanels?.open?.("settings");
+      });
+      row.appendChild(cfg);
+    }
   }
   if (dockHost) {
     // Icon-only in the header: the name moves into the tooltip, and the row
@@ -922,6 +937,8 @@ function addButtonFor(role) {
         + '<path d="M12 13v6.4m-2.4-2.4 2.4 2.4 2.4-2.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>',
       Export: '<path d="M12 15.4V4.8M7.8 9 12 4.8 16.2 9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>'
         + '<path d="M4.8 19.2h14.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+      Settings: '<circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.7"/>'
+        + '<path d="M12 3.4v2.4M12 18.2v2.4M20.6 12h-2.4M5.8 12H3.4M18.1 5.9l-1.7 1.7M7.6 16.4l-1.7 1.7M18.1 18.1l-1.7-1.7M7.6 7.6 5.9 5.9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
     };
     [...row.querySelectorAll("button")].forEach((b) => {
       const label = b.textContent.trim();

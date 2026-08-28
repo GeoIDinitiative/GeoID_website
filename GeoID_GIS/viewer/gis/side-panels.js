@@ -1,3 +1,5 @@
+import { isEarth } from "./bodies.js?v=20260828-2fe26ec";
+
 /**
  * Pre-processing and Extraction & Analysis, as buttons on the tool rail.
  *
@@ -69,6 +71,9 @@ const PANELS = [
     // opened, changed and closed, and it was the tab pinned under nine
     // others that nobody scrolled to.
     id: "settings",
+    // On the PLANET pages the gear lives in the Workspace tile's header
+    // (add-data.js builds it there); the rail button is Earth's only.
+    railEarthOnly: true,
     group: "gis-group-settings",
     label: "Settings",
     title: "Settings",
@@ -624,7 +629,7 @@ export function init() {
     const group = groups[index];
     if (!group) return;
     let button = null;
-    if (spec.rail !== false) {
+    if (spec.rail !== false && !(spec.railEarthOnly && !isEarth())) {
       const built = buildRailItem(spec);
       rail.appendChild(built.item);
       button = built.button;
