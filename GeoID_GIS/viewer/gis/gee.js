@@ -10,16 +10,16 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260828-67015c9";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260828-67015c9";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260828-67015c9";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260828-6e7f7fe";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260828-6e7f7fe";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260828-6e7f7fe";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260828-67015c9";
+  from "./view-extent.js?v=20260828-6e7f7fe";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260828-67015c9";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260828-67015c9";
+} from "./extent-picker.js?v=20260828-6e7f7fe";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260828-6e7f7fe";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -862,6 +862,11 @@ function ensureGeeDialog() {
     '<label>Extent<select id="gee-add-extent">',
     '<option value="global">Global</option>',
     '<option value="view">Current globe view</option>',
+    // "drawn" is the LIVE overlay — the box just dragged out on the map, which
+    // is pushed to the globe as a study area, or one drawn on the globe itself.
+    // refreshPolygonOptions only appends the named layers; this option has to
+    // be in the markup, which is how its absence left a drawn box unselectable.
+    '<option value="drawn">Area drawn on the map</option>',
     "</select></label>",
     '<button id="gee-add-draw" class="button secondary" type="button">▭ Draw on map</button>',
     '<label style="flex: 0 0 9rem">Map<select id="gee-add-basemap"></select></label>',
@@ -1134,7 +1139,7 @@ async function openGeeDialog(homeName) {
   // The map is built on first open, never at module load: `createMap`
   // measures its host, and a host inside a hidden backdrop has no size.
   if (!geeMap) {
-    mapLibrary = mapLibrary || await import("./research/map2d.js?v=20260828-67015c9");
+    mapLibrary = mapLibrary || await import("./research/map2d.js?v=20260828-6e7f7fe");
     const picker = byId("gee-add-basemap");
     picker.innerHTML = Object.keys(mapLibrary.BASEMAPS)
       .map((name) => `<option value="${name}">${name}</option>`).join("");
