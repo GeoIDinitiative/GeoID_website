@@ -10,16 +10,16 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260828-3535974";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260828-3535974";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260828-3535974";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260828-4f564d5";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260828-4f564d5";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260828-4f564d5";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260828-3535974";
+  from "./view-extent.js?v=20260828-4f564d5";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260828-3535974";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260828-3535974";
+} from "./extent-picker.js?v=20260828-4f564d5";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260828-4f564d5";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -33,6 +33,8 @@ const ENDPOINT_KEY = "geoid-gis:gee-endpoint";
 const byId = (id) => document.getElementById(id);
 
 let THREE = null;
+/** The in-flight dataset availability probe, so a request can wait for it. */
+let datesProbe = null;
 
 // The two sources the dataset list is built from. Cached snapshots ship with
 // the app and always work, offline and with no credential; the live service
@@ -1088,7 +1090,11 @@ async function requestFromDialog() {
     }
     select.value = dataset;
     select.dispatchEvent(new Event("change"));
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    // Waited for, not slept past: the probe writes the status line and the
+    // date boxes when it lands, and landing mid-request is how "Requesting…"
+    // came to be replaced by an availability note for the length of the pull.
+    dialogStatus("Checking what this dataset holds…");
+    await datesProbe?.catch(() => {});
   }
   const from = byId("gee-add-from").value;
   const to = byId("gee-add-to").value;
@@ -1139,7 +1145,7 @@ async function openGeeDialog(homeName) {
   // The map is built on first open, never at module load: `createMap`
   // measures its host, and a host inside a hidden backdrop has no size.
   if (!geeMap) {
-    mapLibrary = mapLibrary || await import("./research/map2d.js?v=20260828-3535974");
+    mapLibrary = mapLibrary || await import("./research/map2d.js?v=20260828-4f564d5");
     const picker = byId("gee-add-basemap");
     picker.innerHTML = Object.keys(mapLibrary.BASEMAPS)
       .map((name) => `<option value="${name}">${name}</option>`).join("");
@@ -1398,11 +1404,21 @@ function init() {
   // Choosing a dataset fetches what it actually holds, states it, and fills the
   // boxes with the last sixty days of availability -- so the offered dates are
   // real ones rather than guesses to be refused later.
-  byId("gee-dataset")?.addEventListener("change", async (e) => {
-    const id = e.target.value;
+  // The probe is HELD as a promise, not just fired: it writes the status and
+  // fills the date boxes when it lands, so anything that sets a dataset and
+  // then requests it — the browser dialog does exactly that — must be able to
+  // wait for it. Without the handle, "Requesting…" was overwritten by
+  // "Static dataset — the date range is ignored." for the whole 30 seconds a
+  // live pull takes, and a chosen date range could be replaced by the probe's
+  // own sixty-day window a beat after it was written.
+  byId("gee-dataset")?.addEventListener("change", (e) => {
+    datesProbe = probeDataset(e.target);
+  });
+  async function probeDataset(select) {
+    const id = select.value;
     if (!id) return;
     // A cached snapshot carries its own fixed window; no availability call.
-    if (e.target.selectedOptions?.[0]?.dataset.source === "cache") {
+    if (select.selectedOptions?.[0]?.dataset.source === "cache") {
       const entry = cacheEntries.find((c) => c.dataset === id);
       status(entry ? `Cached snapshot · ${entry.from} to ${entry.to}. Draped from disk.`
         : "Cached snapshot.");
@@ -1430,7 +1446,7 @@ function init() {
     } catch (error) {
       status(`Availability unknown: ${error.message}`);
     }
-  });
+  }
   // A click on a date opens its picker, rather than dropping a text caret into
   // the field and highlighting part of the date.
   ["gee-date-from", "gee-date-to"].forEach((id) => {
