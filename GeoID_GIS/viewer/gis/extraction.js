@@ -1,11 +1,11 @@
-import { computeBounds2D } from "./geo-utils.js?v=20260828-2492c45";
+import { computeBounds2D } from "./geo-utils.js?v=20260828-45f96e8";
 
 // Sampling a polygon on a lat/lon grid: the spacing is expressed in km and
 // converted per-row, because a degree of longitude shrinks toward the poles.
 import {
   clip as clipCollection, featureCollection, feature as makeFeature,
-} from "./geoprocessing.js?v=20260828-2492c45";
-import { splitLine } from "./delimited.js?v=20260828-2492c45";
+} from "./geoprocessing.js?v=20260828-45f96e8";
+import { splitLine } from "./delimited.js?v=20260828-45f96e8";
 
 const KM_PER_DEG_LAT = 111.32;
 const MAX_SAMPLES = 250000;
@@ -127,7 +127,12 @@ export function extractPolygonSamples({
     minY: Math.min(...perRing.map((b) => b.minY)),
     maxY: Math.max(...perRing.map((b) => b.maxY)),
   };
-  const stepLat = Math.max(stepKm, 0.001) / KM_PER_DEG_LAT;
+  // A kilometre is not a degree anywhere except Earth: sized on this body's
+  // own radius, or a 0.5 km step on Mars quietly becomes 0.27 km and the
+  // grid claims a resolution it does not have.
+  const kmPerDegLat = viewer?.bodyRadiusKm
+    ? (Math.PI * viewer.bodyRadiusKm) / 180 : KM_PER_DEG_LAT;
+  const stepLat = Math.max(stepKm, 0.001) / kmPerDegLat;
 
   const rows = [];
   let truncated = false;
