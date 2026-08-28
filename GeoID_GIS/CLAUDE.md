@@ -1242,7 +1242,11 @@ events card's own rendered colour, rgb(24,13,47)), so a card is the same
 colour at the top of the column and at the bottom. The tab BODIES behind
 them needed the same treatment for the same reason (measured: the events
 body sits at -1% of the panel, Explorer's at 61%) — one opaque ground,
-rgb(16,7,36), a shade under the cards so those still read as raised.
+rgb(16,7,36), a shade under the cards so those still read as raised —
+applied to every surface that holds these cards: the tab bodies, the
+Workspace tile's body and the rail workbenches. Because the rules live in
+the shared module the planets inherit them; verified on Mars (7 grounds,
+56 cards) and Earth (10 grounds, 72 cards), one distinct value each.
 When computed styles agree and the eye does not, suspect a translucent
 fill over a gradient before suspecting the rules.
 

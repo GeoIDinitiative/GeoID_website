@@ -442,7 +442,12 @@ const STYLE = `
    two tabs had visibly different grounds. One opaque colour, a shade
    under the cards so they still read as raised. */
 .toolbox-group > .section-body,
-.section-body.toolbox-group-body {
+.section-body.toolbox-group-body,
+/* The same ground for every panel that holds these cards: the Workspace
+   tile's body and the rail workbenches (Process, Analysis, Export,
+   Settings), which were left transparent and so rode the gradient too. */
+.gis-side-panel-body,
+.layer-dock-body {
   background: rgb(16, 7, 36) !important;
 }
 .control-section:not(.toolbox-group) {
