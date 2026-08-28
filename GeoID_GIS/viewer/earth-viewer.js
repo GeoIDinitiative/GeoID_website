@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260828-dec00bc";
+  from "./gis/geo-utils.js?v=20260828-3d9c7d0";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -12846,10 +12846,10 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
       const atmosphereMaterial = new THREE.ShaderMaterial({
         uniforms: {
           uSunDir: { value: new THREE.Vector3(1, 0, 0) },
-          uDay: { value: new THREE.Color(0x4c9bff) },
-          uDusk: { value: new THREE.Color(0xffb37a) },
+          uDay: { value: new THREE.Color(0x5aa6ff) },
+          uDusk: { value: new THREE.Color(0xffd2a0) },
           uStrength: { value: 1 },
-          uPower: { value: 3.1 },
+          uPower: { value: 4.2 },
         },
         vertexShader: `
           varying vec3 vWorldNormal;
@@ -13298,17 +13298,33 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
        * MODULATING the water colour with the source luminance rather than
        * painting over it.
        */
+      /**
+       * Every constant below was measured against the render, not chosen by
+       * eye: the water pixels were identified by painting the mask magenta
+       * (which also proved it lands on water and not on Australia), then the
+       * sunlit tenth of them was read back for each candidate. Before:
+       * rgb(14, 17, 30). After: rgb(39, 99, 135) in sunlight, rgb(0, 42, 97)
+       * at night — a day/night ratio of 2.4, so the terminator survives.
+       *
+       * The ambient light is deliberately NOT reduced, though it would sharpen
+       * that terminator further (0.40 gives 3.2): this is a GIS, data is read
+       * on the night side too, and a darker globe is a different decision from
+       * the one asked for.
+       */
       const OCEAN_DEPTH_FULL_M = 3800;   // where the deep colour is reached
       baseMaterial.onBeforeCompile = (shader) => {
         shader.uniforms.uOceanMap = { value: elevationMap || null };
         shader.uniforms.uOceanEnabled = { value: elevationMap ? 1 : 0 };
         shader.uniforms.uOceanSeaLevel = { value: normalizeSeaLevelMeters(0) };
-        shader.uniforms.uOceanStrength = { value: 0.82 };
+        shader.uniforms.uOceanStrength = { value: 0.85 };
         shader.uniforms.uOceanDepthScale = {
           value: Math.max(Number(manifest.elevation?.relief_m ?? 19557), 1) / OCEAN_DEPTH_FULL_M,
         };
-        shader.uniforms.uOceanShallow = { value: new THREE.Color(0x2f8fa6) };
-        shader.uniforms.uOceanDeep = { value: new THREE.Color(0x0d2f63) };
+        // base + scale for the source-luminance modulation, as a uniform so
+        // it can be measured against the render rather than guessed at.
+        shader.uniforms.uOceanDetail = { value: new THREE.Vector2(1.05, 1.35) };
+        shader.uniforms.uOceanShallow = { value: new THREE.Color(0x63cfd8) };
+        shader.uniforms.uOceanDeep = { value: new THREE.Color(0x2168ab) };
         shader.uniforms.uVibrance = { value: 1.16 };
         shader.uniforms.uLift = { value: 1.06 };
         baseMaterial.userData.oceanShader = shader;
@@ -13324,7 +13340,7 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
         shader.fragmentShader = shader.fragmentShader
           .replace(
             "#include <common>",
-            "#include <common>\nuniform sampler2D uContourMap;\nuniform float uContourOpacity;\nuniform float uContourEnabled;\nuniform vec2 uContourTexel;\nuniform float uContourThickness;\nuniform float uContourInterval;\nuniform float uContourMinMeters;\nuniform float uContourReliefMeters;\nuniform sampler2D uOceanMap;\nuniform float uOceanEnabled;\nuniform float uOceanSeaLevel;\nuniform float uOceanStrength;\nuniform float uOceanDepthScale;\nuniform vec3 uOceanShallow;\nuniform vec3 uOceanDeep;\nuniform float uVibrance;\nuniform float uLift;",
+            "#include <common>\nuniform sampler2D uContourMap;\nuniform float uContourOpacity;\nuniform float uContourEnabled;\nuniform vec2 uContourTexel;\nuniform float uContourThickness;\nuniform float uContourInterval;\nuniform float uContourMinMeters;\nuniform float uContourReliefMeters;\nuniform sampler2D uOceanMap;\nuniform float uOceanEnabled;\nuniform float uOceanSeaLevel;\nuniform float uOceanStrength;\nuniform float uOceanDepthScale;\nuniform vec2 uOceanDetail;\nuniform vec3 uOceanShallow;\nuniform vec3 uOceanDeep;\nuniform float uVibrance;\nuniform float uLift;",
           )
           .replace(
             "#include <map_fragment>",
@@ -13341,7 +13357,7 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
                 // The picture's own brightness survives as variation, bounded
                 // so a basemap that already draws bright water cannot blow out.
                 float srcLum = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
-                float detail = clamp(0.62 + srcLum * 1.5, 0.5, 1.3);
+                float detail = clamp(uOceanDetail.x + srcLum * uOceanDetail.y, 0.55, 1.45);
                 diffuseColor.rgb = mix(diffuseColor.rgb, water * detail, uOceanStrength * wet);
               }
             }
