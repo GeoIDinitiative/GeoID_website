@@ -602,6 +602,54 @@ convention S1 ≥ S2 ≥ S3, but wsm00025 carries S1 11.5, S2 5.5, S3 6.3 MPa, a
 "intermediate" over a number smaller than the one below it is the app inventing
 an order the record does not have.
 
+## The ocean is recoloured from the DEM, and the UV is the whole story
+
+The default basemap is Sentinel-2 cloudless, a LAND mosaic whose water is
+nearly black — mid-ocean measured rgb(3, 7, 25). The water is therefore
+recoloured in the base material's own shader, shallow-teal to deep-blue on
+real bathymetry. **Only the water**: land measured rgb(60, 55, 43) before
+and rgb(60, 55, 43) after, identical byte for byte.
+
+**Sample the elevation raster in the SPHERE'S OWN `uv`, never `vMapUv`.**
+`vMapUv` is the MAP's transformed coordinates, so on any base layer carrying
+a texture transform the mask slides off the coastlines and rings every
+continent in cyan under a haze — shipped once, reported as "an absolute
+mess", and reverted. The raw `uv` is carried through as its own varying,
+which is what three.js's own displacement sampling does on this same mesh,
+so the mask is identical whatever picture is on the globe by construction.
+Unflipped in y: 18 disagreements against 164 for the flipped form.
+
+**The check that would have caught it: run it on EVERY basemap.** Paint the
+mask magenta and compare it against the viewer's own
+`sampleElevationMeters` at coordinates taken from `surfaceLatLonAt`, which
+keeps `GeoIDProjectLatLon` out of the loop. All twelve basemaps disagree on
+**17–18 of 1,508** sampled pixels — the same count every time, which is what
+"no map dependency" looks like as a measurement — and those sit on
+coastlines a 100 km screen pixel straddles. Two basemaps agreeing proves
+nothing; the first attempt checked two.
+
+Three harness faults, each of which reads as a broken feature:
+
+- **A plain string replace takes the FIRST match in the file.** The uniform
+  declarations landed in a different material's `#include <common>`
+  replacement, so the ocean block referenced undeclared uniforms, the
+  program failed, and the globe rendered normally with the change simply
+  absent. The tell was that toggling a uniform changed the measurement not
+  at all — identical numbers from two different settings means the shader is
+  not running, not that both settings are equally wrong.
+- **Pause the spin between sampling coordinates and reading pixels.** Left
+  turning, the globe moved under a sample list built from `surfaceLatLonAt`
+  and 94% of the mask measured wrong. Assert it froze
+  (`getSpinDeltaRadians` twice) rather than trusting the call.
+- **A magenta probe is an ALBEDO**, so the night side dims it below whatever
+  threshold is meant to detect it. Flatten the lighting for the probe
+  (ambient up, key to zero) and test the HUE, not the brightness.
+
+Bounded luminance modulation (`uOceanDetail`, clamped 0.55–1.45) keeps the
+imagery's own variation — ice, sediment, cloud, glint — and stops a basemap
+that already draws bright water from blowing out: zero blown pixels on Esri
+Topo, CartoDB Positron, Blue Marble and Esri Satellite.
+
 ## The globe opens on Esri imagery, and the labels are the planet viewers'
 
 **Default basemap.** `blue-marble` still paints the first frame — it ships with
