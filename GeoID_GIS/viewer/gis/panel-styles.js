@@ -81,7 +81,58 @@ body.is-embedded[data-hub-armed="true"] #gmt-clock {
 .gis-sym-bar > span { flex: 1 1 auto; }
 .gis-sym-rows { display: flex; flex-direction: column; gap: 0.1rem; font-size: 0.64rem; }
 .gis-sym-rows > div { display: flex; gap: 0.35rem; align-items: center; }
-.gis-sym-swatch { width: 0.7rem; height: 0.7rem; border-radius: 0.15rem; flex: 0 0 auto;
+.gis-sym-swatch { width: 0.7rem; height: 0.7rem; border-radius: 0.15rem; flex: 0 0 auto; }
+/* The brace above was MISSING, and CSS error recovery ate everything from
+   here to its next stray close: the whole ramp gallery below parsed to
+   nothing, so the chips fell back to the platform's white ButtonFace while
+   the rules that should have painted them sat in the same tag, unread.
+   Diagnosed by comparing sheet.cssRules (40) against the selectors in the
+   tag's own text (51) and finding where the two diverge -- a stylesheet
+   that half-parses looks exactly like a theme half-implemented. */
+
+/* ── The tool-section form voice, matching the tools window ────────────────
+   The generic label.row is a two-column grid with 16 px sentence-case
+   captions -- the cookie-cutter look. Stacked rows, the instrument caption
+   (Exo 2 600 uppercase letterspaced, data cyan) above a full-width field on
+   the workbench ground: one voice across the Analysis and Preprocess panels
+   and the tools window alike. Checkbox rows stay inline -- a lone tick under
+   a full-width caption reads as a missing field. */
+.gis-tool-body label.row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.18rem;
+  margin: 0.45rem 0 0;
+}
+.gis-tool-body label.row > span {
+  font: 600 0.6rem/1.35 'Exo 2', sans-serif;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--skin-data, #7ee7ff);
+  opacity: 0.85;
+}
+.gis-tool-body label.row > .input,
+.gis-tool-body label.row > select,
+.gis-tool-body label.row > input:not([type="checkbox"]) {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0.38rem 0.5rem;
+  border-radius: 0.45rem;
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.28);
+  background: rgb(16, 7, 36);
+  color: var(--text);
+  font: 500 0.74rem/1.3 'Exo 2', sans-serif;
+  color-scheme: dark;
+}
+.gis-tool-body label.row:has(> input[type="checkbox"]) {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.gis-tool-body label.row > input[type="checkbox"] { flex: 0 0 auto; }
+.gis-tool-body option, .gis-tool-body optgroup { background-color: #100724; }
 
 /* ── Symbology: ramps you can see, classes you can edit ────────────────────
  *
@@ -217,7 +268,11 @@ input.layer-name-input {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-  border: 1px solid rgba(255,255,255,0.2); }
+/* An orphaned "border: ...; }" fragment sat here -- a property with no
+   selector, left by some earlier edit. Harmless-looking, and it was the
+   RECOVERY POINT that let the unclosed .gis-sym-swatch brace above swallow
+   the ramp gallery in silence: the two faults cancelled into a sheet that
+   parsed without error and simply lacked eleven rules. */
 
 /* Batch: the layer list is a checklist, not a select — you pick several. */
 .gis-batch-list { max-height: 120px; overflow-y: auto; margin: 0.4rem 0;

@@ -68,6 +68,27 @@ for (const file of files) {
     const tail = block.body.trimEnd().slice(-1);
     check(`${file}: ${block.name} ends on a complete rule`, tail === "}",
       tail === "}" ? "" : `last character is ${JSON.stringify(tail)}`);
+    /**
+     * BRACES BALANCE, comments stripped first.
+     *
+     * The failure this catches is quieter than either check above: one
+     * unclosed rule mid-sheet parses without an error anywhere -- CSS error
+     * recovery just swallows every rule from the missing brace to the next
+     * stray close. panel-styles.js shipped exactly that (`.gis-sym-swatch {`
+     * never closed), and the whole ramp gallery below it silently fell back
+     * to platform-white buttons while this suite reported the file clean:
+     * a stylesheet that half-parses looks like a theme half-implemented.
+     */
+    const stripped = block.body.replace(/\/\*[\s\S]*?\*\//g, "");
+    let depth = 0;
+    let minDepth = 0;
+    for (const ch of stripped) {
+      if (ch === "{") depth += 1;
+      else if (ch === "}") { depth -= 1; if (depth < minDepth) minDepth = depth; }
+    }
+    check(`${file}: ${block.name} braces balance`, depth === 0 && minDepth === 0,
+      depth === 0 && minDepth === 0 ? ""
+        : `${depth > 0 ? `${depth} unclosed {` : `${-Math.min(depth, minDepth)} stray }`}`);
   }
 }
 
