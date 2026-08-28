@@ -68,6 +68,15 @@
     }
 
 
+
+/* Form controls inherit the app face. Buttons and inputs default to the
+   UA's Arial, which mostly hides on checkboxes and sliders and then shows
+   the moment a control carries a glyph or a word (the nav collapse, the
+   audio play, a modal button). One inherit ends the whole category; the
+   audit that found it was listing every control whose computed family was
+   not the app's. */
+button, input, select, textarea { font-family: inherit; }
+
 /* NO WHITE SCROLLBARS, ANYWHERE. scrollbar-color is an INHERITED property,
    so one declaration at the root reaches every scroller the app ever makes
    — the studio panes, the popups, the tool palette, and whatever is built
