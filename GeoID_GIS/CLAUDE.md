@@ -1820,15 +1820,62 @@ to atmosphere so a new live dataset is never invisible.
 
 Beside each tab's add-data controls sits an **"Add data via GEE…"** button
 (`data-gee-add="<home>"`, an empty value meaning the whole catalogue —
-that one is on Vector & Shapefiles). All of them open ONE dialog
-(`openGeeDialog` in gee.js): dataset (scoped to the tab's subject), date
-range, extent. It drives the SAME hidden form and the same `request()` the
+that one is on Vector & Shapefiles). All of them open ONE window
+(`openGeeDialog` in gee.js), which is a BROWSER now rather than three
+controls in a 24rem card: the catalogue on the left — searchable by name or
+Earth Engine id, filtered by the subject chips, each card saying whether it
+drapes from disk or comes from the live service — and the Map Composer's own
+slippy map (`research/map2d.js`) on the right, where a drag draws the fetch
+extent in place. It drives the SAME hidden form and the same `request()` the
 Atmosphere tab's own controls use — the hidden `#gee-dataset` select still
 carries the state, the dialog's status mirrors `#gee-status` via a
-MutationObserver, and there is deliberately no second request path.
-Verified: the dialog from Geohazards offers exactly NDVI and Burned area,
-requesting drapes the cached snapshot with the honest resolution note, and
-a tick in the relocated Basemap list still drapes NASADEM.
+MutationObserver, and there is deliberately no second request path. It stays
+OPEN after a request, because browsing a catalogue means pulling more than
+one thing. Verified end to end: a box drawn on the map, SMAP requested live
+over it, "Soil moisture (SMAP) · 2025-04-28–2025-06-27" draped and
+"Fetch extent 23.3×15.0°" in Workspace.
+
+**A modal covers the globe — so the modal grew its own ground.** The old ✏
+button had to CLOSE the whole dialog to arm the Draw tool and restore state
+through a `pendingDialog` on the way back; that round trip is gone with the
+state it carried. The box drawn on the 2D map is pushed to the globe through
+`setStudyAreaPolygon` as it is dragged (a ring subdivided at 1°, the
+chord-sag rule), so the planet behind the window shows the same extent and
+the request then travels the ORDINARY "drawn" path — which is what makes the
+extent land in Workspace on success without a line of code for it.
+`map2d.js` gained `setDrawMode(on, onBox)` plus `project`/`unproject` rather
+than a second copy of the projection maths living in the dialog.
+
+Four faults found building it, each silent:
+
+- **`+ GEE` was a dead button, and had been.** The Workspace header row stops
+  `click` and `pointerdown` so a press cannot fold the box — which also
+  stopped the one event gee.js's document-level listener was waiting for, so
+  the app's only Earth Engine doorway opened nothing. Anything in that row
+  must be wired DIRECTLY, as Export and Settings always were; the catalogue
+  seam gained `open(home)` for it.
+- **`refreshPolygonOptions` never adds a "drawn" option** — it appends the
+  named polygon layers and nothing else, so `<option value="drawn">` has to
+  be in the markup. Without it the draw completed, the ring reached the
+  globe, and the extent select fell back to nothing.
+- **The availability probe must be AWAITED, not slept past.** Choosing a
+  dataset fires a `?dates` call that writes the status line and fills the
+  date boxes when it lands; a window that chooses a dataset and requests it
+  in one gesture gets that landing MID-REQUEST — "Requesting…" replaced by
+  "Static dataset — the date range is ignored." for the thirty seconds a live
+  pull takes, and a typed date range overwritten by the probe's own sixty-day
+  window. `datesProbe` is the promise handle.
+- **`viewBounds` needs THREE loaded**, and gee.js imports it lazily on the
+  first request — so "Current globe view" answered null and did nothing at
+  all on a page where nothing had been requested yet.
+
+Two things about `map2d.js` a caller has to know: `drawLayer` returns early
+on `!layer.visible`, so a bbox layer without `visible: true` is computed,
+handed over and never painted; and **CARTO's free tile CDN now answers 200
+with an "API KEY REQUIRED" watermark** rather than a tile (measured: 17
+distinct colours in a zoom-3 `dark_all` tile), which is why this map opens on
+OpenStreetMap. The globe's own basemap catalogue still offers CartoDB Dark
+and Positron through `basemap-drape.js` and will wear the same watermark.
 
 ## "Which patch of ground?" is asked once — `extent-picker.js`
 
