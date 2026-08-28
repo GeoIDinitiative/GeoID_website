@@ -24,7 +24,7 @@
  * tiled geology already documents.
  */
 
-import { splitLine } from "./delimited.js?v=20260828-57ef453";
+import { splitLine } from "./delimited.js?v=20260828-d29e5e5";
 
 const byId = (id) => document.getElementById(id);
 
@@ -247,6 +247,28 @@ const STYLE = `
 #gis-table-card .tbl-sub { font: 400 0.66rem/1.3 'Exo 2', sans-serif; opacity: 0.7; }
 #gis-table-card .tbl-head .button { margin-left: auto; }
 #gis-table-body { flex: 1; min-height: 0; overflow: auto; }
+/* No white scrollbars: the standard pair carries modern Chrome and Firefox,
+   the webkit pseudos carry Safari, both in the panel cyan so it does not
+   matter which answers -- the events panel's documented discipline. */
+#gis-table-body {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(82, 228, 232, 0.38) transparent;
+}
+#gis-table-body::-webkit-scrollbar { width: 8px; height: 8px; }
+#gis-table-body::-webkit-scrollbar-thumb { background: rgba(82, 228, 232, 0.38); border-radius: 4px; }
+#gis-table-body::-webkit-scrollbar-track { background: transparent; }
+
+/* No white scrollbars: the standard pair carries modern Chrome and Firefox,
+   the webkit pseudos carry Safari, both in the panel cyan so it does not
+   matter which answers -- the events panel's documented discipline. */
+#gis-table-body {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(82, 228, 232, 0.38) transparent;
+}
+#gis-table-body::-webkit-scrollbar { width: 8px; height: 8px; }
+#gis-table-body::-webkit-scrollbar-thumb { background: rgba(82, 228, 232, 0.38); border-radius: 4px; }
+#gis-table-body::-webkit-scrollbar-track { background: transparent; }
+
 #gis-table-body table { border-collapse: collapse; width: max-content; min-width: 100%; }
 #gis-table-body th, #gis-table-body td {
   border: 1px solid rgba(255, 255, 255, 0.09); padding: 0; white-space: nowrap;

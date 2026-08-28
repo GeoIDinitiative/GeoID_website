@@ -10,22 +10,22 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260828-57ef453";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260828-57ef453";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260828-57ef453";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260828-d29e5e5";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260828-d29e5e5";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260828-d29e5e5";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260828-57ef453";
+  from "./view-extent.js?v=20260828-d29e5e5";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260828-57ef453";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260828-57ef453";
+} from "./extent-picker.js?v=20260828-d29e5e5";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260828-d29e5e5";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
-} from "./gee-catalogue-index.js?v=20260828-57ef453";
+} from "./gee-catalogue-index.js?v=20260828-d29e5e5";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -834,6 +834,7 @@ function ensureGeeDialog() {
     "#gee-add-chips button.is-on { background: var(--nav-accent, #ff2bd6);",
     "  border-color: var(--nav-accent, #ff2bd6); color: #12040f; }",
     "#gee-add-list { flex: 1; min-height: 0; overflow-y: auto; display: flex;",
+    "  scrollbar-width: thin; scrollbar-color: rgba(82,228,232,0.38) transparent;",
     "  flex-direction: column; gap: 0.3rem; padding-right: 0.2rem; }",
     "#gee-add-list .gee-card { text-align: left; width: 100%; cursor: pointer;",
     "  border: 1px solid rgba(255,255,255,0.14); border-radius: 0.6rem;",
@@ -850,6 +851,10 @@ function ensureGeeDialog() {
     "  padding: 0 0.35rem; border-radius: 999px; border: 1px solid currentColor; }",
     "#gee-add-list .gee-card .gee-badge.is-cache { color: #4fd1a5; }",
     "#gee-add-list .gee-card .gee-badge.is-live { color: #52e4e8; }",
+    "#gee-add-list::-webkit-scrollbar { width: 8px; }",
+    "#gee-add-list::-webkit-scrollbar-thumb { background: rgba(82,228,232,0.38);",
+    "  border-radius: 4px; }",
+    "#gee-add-list::-webkit-scrollbar-track { background: transparent; }",
     "#gee-add-list .gee-empty { font-size: 0.64rem; line-height: 1.45; opacity: 0.72;",
     "  padding: 0.4rem 0.2rem; }",
     "#gee-add-list .gee-group { font: 600 0.55rem/1.6 'Exo 2', sans-serif;",
@@ -1389,7 +1394,7 @@ async function openGeeDialog(homeName) {
   // The map is built on first open, never at module load: `createMap`
   // measures its host, and a host inside a hidden backdrop has no size.
   if (!geeMap) {
-    mapLibrary = mapLibrary || await import("./research/map2d.js?v=20260828-57ef453");
+    mapLibrary = mapLibrary || await import("./research/map2d.js?v=20260828-d29e5e5");
     const picker = byId("gee-add-basemap");
     picker.innerHTML = Object.keys(mapLibrary.BASEMAPS)
       .map((name) => `<option value="${name}">${name}</option>`).join("");

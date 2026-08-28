@@ -67,6 +67,19 @@
       outline-offset: -6px;
     }
 
+
+/* NO WHITE SCROLLBARS, ANYWHERE. scrollbar-color is an INHERITED property,
+   so one declaration at the root reaches every scroller the app ever makes
+   — the studio panes, the popups, the tool palette, and whatever is built
+   next — unless a rule closer in overrides it deliberately. The audit that
+   forced this found thirteen scrollables wearing the platform's white bar
+   after the panels had each been fixed by hand; per-element fixing is a
+   treadmill, inheritance is a decision. */
+:root {
+  scrollbar-color: rgba(82, 228, 232, 0.38) transparent;
+  scrollbar-width: thin;
+}
+
     #ui-scroll-body {
       flex: 1;
       min-height: 0;

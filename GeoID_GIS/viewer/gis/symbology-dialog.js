@@ -24,11 +24,11 @@
  * polygon comes out white with a perfectly correct legend beside it.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260828-57ef453";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260828-d29e5e5";
 import {
   RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP, METHODS,
   categoricalSymbology, buildSymbology, colourOf, legendInfoFrom, fmtBound,
-} from "./symbology.js?v=20260828-57ef453";
+} from "./symbology.js?v=20260828-d29e5e5";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -198,6 +198,25 @@ const STYLE = `
   flex-direction: column;
   gap: 0.15rem;
 }
+/* No white scrollbars: the standard pair carries modern Chrome and Firefox,
+   the webkit pseudos carry Safari, both in the panel cyan so it does not
+   matter which answers -- the events panel's documented discipline. */
+#gis-sym-dialog .sym-body,
+#gis-sym-dialog .sym-head-wrap,
+#gis-sym-dialog .sym-classes {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(82, 228, 232, 0.38) transparent;
+}
+#gis-sym-dialog .sym-body::-webkit-scrollbar,
+#gis-sym-dialog .sym-head-wrap::-webkit-scrollbar,
+#gis-sym-dialog .sym-classes::-webkit-scrollbar { width: 8px; height: 8px; }
+#gis-sym-dialog .sym-body::-webkit-scrollbar-thumb,
+#gis-sym-dialog .sym-head-wrap::-webkit-scrollbar-thumb,
+#gis-sym-dialog .sym-classes::-webkit-scrollbar-thumb { background: rgba(82, 228, 232, 0.38); border-radius: 4px; }
+#gis-sym-dialog .sym-body::-webkit-scrollbar-track,
+#gis-sym-dialog .sym-head-wrap::-webkit-scrollbar-track,
+#gis-sym-dialog .sym-classes::-webkit-scrollbar-track { background: transparent; }
+
 #gis-sym-dialog .sym-class {
   display: flex;
   align-items: center;

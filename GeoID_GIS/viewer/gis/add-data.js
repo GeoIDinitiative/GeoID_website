@@ -30,11 +30,11 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260828-57ef453";
-import { readHead, validateMapping } from "./delimited.js?v=20260828-57ef453";
-import { RAMP_NAMES } from "./symbology.js?v=20260828-57ef453";
-import { isEarth } from "./bodies.js?v=20260828-57ef453";
-import { DATA_TYPES, inferType, applyTag, markUserInput, suppressNextArrival } from "./data-tags.js?v=20260828-57ef453";
+import { CRS_OPTIONS } from "./projection.js?v=20260828-d29e5e5";
+import { readHead, validateMapping } from "./delimited.js?v=20260828-d29e5e5";
+import { RAMP_NAMES } from "./symbology.js?v=20260828-d29e5e5";
+import { isEarth } from "./bodies.js?v=20260828-d29e5e5";
+import { DATA_TYPES, inferType, applyTag, markUserInput, suppressNextArrival } from "./data-tags.js?v=20260828-d29e5e5";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
@@ -161,6 +161,17 @@ const STYLE = `
   overflow-y: auto;
   min-height: 0;
 }
+/* No white scrollbars: the standard pair carries modern Chrome and Firefox,
+   the webkit pseudos carry Safari, both in the panel cyan so it does not
+   matter which answers -- the events panel's documented discipline. */
+#gis-add-data .add-body {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(82, 228, 232, 0.38) transparent;
+}
+#gis-add-data .add-body::-webkit-scrollbar { width: 8px; height: 8px; }
+#gis-add-data .add-body::-webkit-scrollbar-thumb { background: rgba(82, 228, 232, 0.38); border-radius: 4px; }
+#gis-add-data .add-body::-webkit-scrollbar-track { background: transparent; }
+
 #gis-add-data .add-foot {
   display: flex;
   gap: 0.5rem;

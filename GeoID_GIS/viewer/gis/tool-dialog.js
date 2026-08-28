@@ -39,9 +39,9 @@
  * law is honoured by having nothing to exempt.
  */
 
-import { prefs, mergeParams } from "./tool-prefs.js?v=20260828-57ef453";
+import { prefs, mergeParams } from "./tool-prefs.js?v=20260828-d29e5e5";
 
-const RUNNER_URL = "./tool-runner.js?v=20260828-57ef453";
+const RUNNER_URL = "./tool-runner.js?v=20260828-d29e5e5";
 
 /* ── Dialog-only styles, injected as the house pattern dictates.
       NEVER a backtick inside this literal — it ends the string and kills the
@@ -219,6 +219,45 @@ const STYLE = `
   overflow-y: auto;
   overflow-x: hidden;
   padding: 0.5rem 0.55rem 0.85rem;
+  /* The one scroller in this window, and it wore the platform's WHITE bar --
+     scrollbar-color was never set here, only on the workbench body this
+     shell stands in for. Both APIs, the events panel's discipline: Chrome
+     121+ ignores the webkit pseudos on any element that also sets the
+     standard properties, so the standard pair carries modern browsers and
+     the pseudos carry Safari, in the same cyan so it does not matter which
+     answers. */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(82, 228, 232, 0.38) transparent;
+}
+.gis-tool-dialog-fallback-body::-webkit-scrollbar { width: 8px; }
+.gis-tool-dialog-fallback-body::-webkit-scrollbar-thumb {
+  background: rgba(82, 228, 232, 0.38);
+  border-radius: 4px;
+}
+.gis-tool-dialog-fallback-body::-webkit-scrollbar-track { background: transparent; }
+
+/* Run and Defaults split the row EVENLY. The page rule .gis-btn-row .button
+   stretches Defaults with flex: 1, and Run is a .tool-button that no such
+   rule touches -- measured 56 px of RUN beside 180 px of Defaults, the
+   primary act reduced to a chip beside its own escape hatch. */
+#gis-tool-dialog .gis-btn-row { display: flex; gap: 0.45rem; }
+#gis-tool-dialog .gis-btn-row > button { flex: 1 1 0; min-height: 2.15rem; }
+
+/* The chain chips inherit .measure-actions -- a THREE-column grid for the
+   rail's three short verbs -- so two sentence-length buttons rendered as
+   99 px towers of wrapped type. A column of full-width rows reads at a
+   glance and never wraps mid-word. */
+#gis-tool-dialog #gis-tool-chain {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+#gis-tool-dialog #gis-tool-chain > button {
+  width: 100%;
+  min-height: 2rem;
+  padding: 0.3rem 0.6rem;
+  white-space: nowrap;
+  font-size: 0.66rem;
 }
 `;
 
