@@ -1286,6 +1286,30 @@ it anchors after `#workspace-add-host` instead; (3) the hierarchy bakes
 the chip into its row template and does not hear the tag event —
 `applyTag` calls `GeoIDLayerHierarchy.render()` itself.
 
+**ONE GAP BETWEEN SUB-TABS, and it has to be spelled out per wrapper.**
+Explorer's column measured 17.6, then 7.2, then 10.4 seven times — three
+spacings in one list, all structural: a tab body is a grid at 7.2 px, but the
+later sub-tabs sit in a `.controls` wrapper with a 10.4 px gap and a 12 px top
+margin, and the first section carries a 10.4 px bottom margin nothing else
+has. Checking the other viewers then found the nine planets uniform at 10.4
+and EARTH carrying three values — 8 px in the Live Events feed groups, 9.6 in
+Explorer, Geology and Hazards, 10.4 in the plain bodies. Each list was even in
+isolation, which is why nothing looked broken.
+
+CSS cannot select "the parent of a run of sections", so every wrapper the
+column uses is named in the rule — `.controls`, `.control-stack`,
+`.event-sources`, the body itself, and `#geoid-controls-host`. **A new wrapper
+will need adding there**; that is the cost of the approach and the rule says
+so. Measured after: Earth 13 gaps across four tabs and Mars 7, one value each.
+
+**Against another `!important`, SPECIFICITY decides — and an id always wins.**
+Earth's stylesheet pins `#geoid-controls-host > .controls` at `0.6rem
+!important`, which no length of class list can outrank; the fix is to match
+the id and rely on being the later sheet. Finding it needed printing the
+MATCHING MEMBER of a six-selector list: `el.matches(rule.selectorText)` says
+the element matches the rule, and the reason was the one id-bearing selector
+hidden in a truncated string.
+
 **A pseudo-element is not reached by `> summary *`, and the chevron is one.**
 A tier-1 tab holding a hidden active layer takes the solid accent fill and
 puts its title and icon into dark ink — but the chevron sets its OWN colour
