@@ -2713,6 +2713,35 @@ them at a twentieth of the size ran at 61. The registration is gated on
 which is the shape to watch for: a helper that sets a property as a side
 effect, reused on a path that means something else by it.
 
+## The tools window wears the sub-tab voice, and scrollbars are settled at the root
+
+`#gis-tool-dialog`'s form rows are scoped in tool-dialog.js: labels ABOVE
+full-width fields (this panel's labels are sentences — "Outcome field (blank
+= all are occurrences)" — and the page's generic two-column `.row` squeezed
+"Observations" to "Observatio"), Exo 2 uppercase letterspaced data-cyan
+captions, fields on the workbench ground with an accent hairline, and Run as
+the one accented act — which needs `!important` because viewer-skin paints
+every `.tool-button`'s colour with `!important` of its own (measured: accent
+fill under CYAN ink without it).
+
+Three sizing traps in that window, each measured: `.gis-btn-row .button`
+stretches only Defaults (Run is a `.tool-button` no flex rule touches — 56 px
+of RUN beside 180 px of Defaults); the chain chips inherit
+`.measure-actions`, a THREE-column grid for the rail's short verbs, so two
+sentence-length buttons rendered as 99 px towers; and the window's scroller
+is the FALLBACK shell body, which had no scrollbar colour of its own.
+
+**`scrollbar-color` is an INHERITED property — settle it at `:root`.** The
+audit (walk every element whose computed overflow can scroll, flag
+`scrollbarColor === "auto"`) found four modal windows and thirteen
+viewer-level scrollables wearing the platform's white bar after the panels
+had each been fixed by hand. One `:root` declaration in styles.css and
+shell.css reaches every scroller the app ever makes; per-element fixing is a
+treadmill. Verified: 51 scrollables, zero `auto`. And the verification
+itself hit the reused-stamp trap AGAIN — the pre-commit re-audit read "22
+still white" from a CACHED stylesheet; after commit-stamp-amend the same
+rule measured clean everywhere. Commit first, then verify.
+
 ## The tool registry was swept from the DIALOG, and that is the test that counts
 
 All 47 tools run through `openTool`, the real controls and the real Run
