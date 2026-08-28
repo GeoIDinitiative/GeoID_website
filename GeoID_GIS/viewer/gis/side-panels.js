@@ -211,14 +211,33 @@ const STYLE = `
  * zeroed rather than subtracted from, or the next section to be added would
  * inherit whichever of them it happened to sit next to.
  *
- * !important because both of the rules being overruled are ID selectors --
- * #geoid-controls-host sets the body gap and #flightsim-section its own
- * bottom margin -- and a class list cannot outrank an id however long it is.
- * Measured before: 17.6, 7.2, then 10.4 seven times. */
-.toolbox-group > .section-body,
-.toolbox-group > .section-body > .controls { row-gap: 0.65rem !important; }
-.toolbox-group > .section-body > .controls { margin-top: 0 !important; }
-.toolbox-group > .section-body > .control-section { margin-bottom: 0 !important; }
+ * !important because the rules being overruled are an ID selector and another
+ * !important: #geoid-controls-host sets the body gap, #flightsim-section its
+ * own bottom margin, and a .section-body > .control-stack rule in styles.css
+ * pins 0.6rem !important. Against another !important the winner is decided by
+ * SPECIFICITY, which is why the ancestor here is spelled .control-section
+ * .toolbox-group rather than just .toolbox-group.
+ *
+ * The containers are named individually because they are all there is: CSS
+ * cannot select "the parent of a run of sections", so every wrapper the
+ * column actually uses -- .controls, .control-stack, .event-sources, and the
+ * body itself -- has to be listed. A new wrapper will need adding here, which
+ * is the honest cost of the approach.
+ *
+ * #geoid-controls-host is in the list because Earth's own stylesheet pins
+ * that one and its .controls child with an ID at !important, and no length of
+ * class list outranks an id -- against an equal id the later sheet wins, and
+ * this one is injected at runtime. Measured before: three values across the
+ * app -- 8 px in the Live Events feed groups, 9.6 in Explorer, Geology and
+ * Hazards, 10.4 on all nine planets. */
+.control-section.toolbox-group > .section-body,
+.control-section.toolbox-group .section-body .controls,
+.control-section.toolbox-group .section-body .control-stack,
+.control-section.toolbox-group .section-body .event-sources,
+#geoid-controls-host,
+#geoid-controls-host > .controls { row-gap: 0.65rem !important; }
+.control-section.toolbox-group > .section-body > .controls { margin-top: 0 !important; }
+.control-section.toolbox-group > .section-body > .control-section { margin-bottom: 0 !important; }
 
 /* The chevron leads, then the icon, then the name — spaced like a sub-tab
    row so the two tiers read as one family. */
