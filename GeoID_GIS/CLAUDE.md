@@ -3692,6 +3692,55 @@ connected while the hub was talking to it happily. Exactly the module-identity
 trap above: `stamp.py` only rewrites stamps that already exist, so a new tag must
 be given one by hand once.
 
+## Extraction within ANY polygon, from every active layer
+
+Extract From Layers packages a study area: a **Within** select (the drawn or
+boxed area, or any loaded POLYGON layer by name), tick lists per dataset with
+per-column folds, and Run producing one package — the sample grid, every
+ticked vector layer truly clipped, every ticked point cloud filtered. Export
+CSV / Export GeoJSON write the WHOLE package, one file per layer, each filed
+into the open project through `downloadText`. `window.GeoIDExtraction`
+(`run`, `getLastPackage`) is the Model Builder's seam — a package is
+`{bounds, grid, vectors, clouds}` already cut to the study area.
+
+- **`overlay()` dropped LINES whole in clip and ALL points in difference.**
+  Clip kept a line only if a vertex was inside (a crossing transect vanished);
+  difference had no point branch at all. `clipLineToMasks` cuts each segment
+  at every mask-edge crossing and classifies runs by midpoint (holes
+  honoured); points are kept by containment in BOTH modes. Pinned closed-form
+  in geoprocessing.test.mjs: clip of [-1,0.5]→[2,0.5] through the unit square
+  is exactly [[0,0.5],[1,0.5]] and the difference is the two outside stubs.
+- **A point cloud extracts from the FILE, not the renderer.** The delimited
+  reader keeps `layer.source` (the table window's seam); `extractDelimitedWithin`
+  re-parses it, so every column the file had is a tick — not the x/y/z/mag
+  the renderer kept. `delimitedColumns` is the ONE naming rule (header row,
+  else `column_N`) shared by the panel's tick list and the extractor, and
+  lat/lon always ride along whatever is unticked.
+- **The bounds layer excludes itself** from the vector list at run time —
+  clipping a polygon by itself returns itself, which is a copy, not an
+  extract. Drawn bounds have no layer id, so there every polygon layer
+  (the captured study area included) is an ordinary extract subject.
+- **Fields narrow properties, never geometry**, and `fields: null` means
+  "all" — the panel passes null when every column is ticked, so a layer
+  with more properties than the FIELD_CAP lists is not silently stripped.
+- **`pointInAnyRing(lat, lon, rings)` — LAT FIRST.** The test suite itself
+  passed (lon, lat) and read a correct membership function as broken for a
+  round; the extraction module speaks {lat, lon} objects and lat-first calls
+  throughout, unlike GeoJSON's [lon, lat].
+
+**The five rocky planet pages still carried the dead `#gis-extract-modal`**
+that Earth removed — the second instance of the documented id-collision:
+`getElementById("gis-extract-run")` found the modal's button first, the
+shared panel's listener bound to it, and Run Extraction did nothing on any
+planet while every list around it rendered perfectly (renders look elements
+up per call; wiring happens once at init). The modal markup is gone from all
+five, their Extract buttons open the Extract From Layers panel (via
+`GeoIDSidePanels.open("analysis")` — on the planets the section lives in the
+workbench, so un-hiding the section alone is not enough), and the modal-only
+wiring is removed so the freed ids cannot rebind to the panel's controls.
+When a shared-panel control is dead on ONE lineage of pages, count its id
+(`querySelectorAll`) before reading any code.
+
 ## The music player, and the tracks that were not there
 
 `music.js` (one copy per viewer, ten of them) shuffles a playlist and
