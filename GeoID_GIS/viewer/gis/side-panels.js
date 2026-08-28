@@ -426,15 +426,50 @@ const STYLE = `
   background: rgba(255, 255, 255, 0.03);
   overflow: hidden;
 }
+/* Measured against a live feed group on the deployed site, property by
+   property: the toggle stood 46 px to their 39, inherited 16 px type with
+   no gap or letterspacing, drew a near-white border-bottom, and gave its
+   icon 20 px to their 14. Styling the TITLE SPAN alone (the first attempt)
+   never touched any of that — the toggle is the element that differs. */
 .control-section:not(.toolbox-group) > .section-toggle {
-  min-height: 0;
-  padding: 0.7rem 0.78rem;
+  min-height: 0 !important;
+  padding: 0.7rem 0.78rem !important;
   border-left: 0;
   background: none;
+  gap: 0.45rem;
+  font-size: 0.76rem !important;
+  letter-spacing: 0.1em !important;
+  font-family: "Exo 2", "Segoe UI", sans-serif !important;
+  border-bottom: 1px solid rgba(var(--nav-accent-rgb), 0.08) !important;
 }
+/* The WRAPPER, not just the glyph: `.section-icon` is a 20x20 flex box, so
+   sizing the svg alone left a 20 px row stretching the header to 44 px
+   against the feed groups' 39. */
+.control-section:not(.toolbox-group) > .section-toggle .section-icon {
+  width: 0.85rem;
+  height: 0.85rem;
+  min-height: 0;
+  flex: none;
+}
+.control-section:not(.toolbox-group) > .section-toggle .section-icon svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+/* Same padding (11.2 px both) but a 21 px content box against the feed
+   groups' 16: the nested toggle-main / heading / title wrappers each add a
+   line box of their own. Flattened to one line so the card stands 39 px
+   like its template. */
+.control-section:not(.toolbox-group) > .section-toggle .section-toggle-main,
+.control-section:not(.toolbox-group) > .section-toggle .section-heading,
+.control-section:not(.toolbox-group) > .section-toggle .section-title,
+.control-section:not(.toolbox-group) > .section-toggle .section-title-row {
+  line-height: 1.32;
+  min-height: 0;
+}
+.control-section:not(.toolbox-group) > .section-toggle .section-sub { display: none; }
 .control-section:not(.toolbox-group)[open] > .section-toggle {
   background: rgb(var(--nav-accent-rgb));
-  border-bottom-color: rgba(0, 0, 0, 0.22);
+  border-bottom-color: rgba(0, 0, 0, 0.22) !important;
 }
 .control-section:not(.toolbox-group)[open] > .section-toggle .section-title,
 .control-section:not(.toolbox-group)[open] > .section-toggle .section-heading,
