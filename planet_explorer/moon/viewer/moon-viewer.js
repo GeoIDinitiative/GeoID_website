@@ -17274,34 +17274,27 @@ uniform float uViewportWidth;`,
           if (csvPlotterCanvas) exportCanvasPng(csvPlotterCanvas, "mars_csv_plot.png");
         });
       }
+      /**
+       * Both Extract buttons open the Extract From Layers panel -- the same
+       * fix Earth's viewer documents: the old modal's ids collided with the
+       * panel's, so getElementById handed the modal's dead Run button the
+       * panel's listener and the panel's own button did nothing. The panel
+       * does strictly more (every active layer, tick lists, the project),
+       * so the modal markup is gone from this page.
+       */
+      const openExtractPanel = () => {
+        window.GeoIDSidePanels?.open?.("analysis");
+        const section = document.getElementById("gis-analysis-section");
+        if (!section) return;
+        section.hidden = false;
+        section.open = true;
+        section.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      };
       if (gisStudyExtractButton) {
-        gisStudyExtractButton.addEventListener("click", () => {
-          if (gisExtractSource) gisExtractSource.value = "study";
-          if (gisExtractModal) gisExtractModal.hidden = false;
-        });
+        gisStudyExtractButton.addEventListener("click", openExtractPanel);
       }
       if (gisBufferExtractButton) {
-        gisBufferExtractButton.addEventListener("click", () => {
-          if (gisExtractSource) gisExtractSource.value = "buffer";
-          if (gisExtractModal) gisExtractModal.hidden = false;
-        });
-      }
-      if (gisExtractClose) {
-        gisExtractClose.addEventListener("click", () => hideGisExtractModal());
-      }
-      if (gisExtractRun) {
-        gisExtractRun.addEventListener("click", () => {
-          const selectedColumns = [...(gisExtractColumns?.querySelectorAll('input[type="checkbox"]:checked') || [])]
-            .map((node) => node.value);
-          const result = exportPolygonSampleCsv(
-            gisExtractSource?.value || "study",
-            Number(gisExtractStep?.value || 25),
-            selectedColumns,
-          );
-          if (gisExtractMeta) {
-            gisExtractMeta.textContent = result.message;
-          }
-        });
+        gisBufferExtractButton.addEventListener("click", openExtractPanel);
       }
 
       featureSearchGo.addEventListener("click", () => {

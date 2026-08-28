@@ -9,8 +9,8 @@ import {
   vectorRows,
   extractDelimitedWithin,
   delimitedColumns,
-} from "./extraction.js?v=20260828-705b5a2";
-import { rectangleVertices } from "./draw-area.js?v=20260828-705b5a2";
+} from "./extraction.js?v=20260828-4c2b14d";
+import { rectangleVertices } from "./draw-area.js?v=20260828-4c2b14d";
 
 let lastResult = null;
 // The whole extraction as one object -- bounds, grid, vectors, clouds. This is

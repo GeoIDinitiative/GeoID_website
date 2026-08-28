@@ -8,13 +8,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260828-705b5a2">
+  <link rel="stylesheet" href="styles.css?v=20260828-4c2b14d">
   <link rel="stylesheet" href="/styles/flightsim.css">
   <link rel="stylesheet" href="/styles/viewer-skin.css">
-  <script src="/scripts/tour-enter.js?v=20260828-705b5a2" defer></script>
-  <script src="/scripts/ui-sound.js?v=20260828-705b5a2" defer></script>
+  <script src="/scripts/tour-enter.js?v=20260828-4c2b14d" defer></script>
+  <script src="/scripts/ui-sound.js?v=20260828-4c2b14d" defer></script>
   <!-- The GIS layer: shared shell markup, styling and modules. -->
-  <link rel="stylesheet" href="/GeoID_GIS/viewer/gis/shell.css?v=20260828-705b5a2">
+  <link rel="stylesheet" href="/GeoID_GIS/viewer/gis/shell.css?v=20260828-4c2b14d">
 </head>
 <body class="viewer-page">
   <div id="app"></div>
@@ -1170,44 +1170,6 @@
       <canvas id="csv-plotter-canvas" class="profile-modal-canvas" width="760" height="360" style="margin-top:0.75rem;"></canvas>
     </div>
   </div>
-  <div id="gis-extract-modal" class="profile-modal" hidden>
-    <div class="profile-dialog">
-      <div class="profile-header">
-        <div>
-          <h2 class="profile-title">Extract Polygon Data</h2>
-          <p class="profile-subtitle">Sample data inside the current study area or active buffer and export it to CSV.</p>
-        </div>
-        <button id="gis-extract-close" class="button secondary metadata-close" type="button">Close</button>
-      </div>
-      <div class="row">
-        <label for="gis-extract-source">Source geometry</label>
-        <select id="gis-extract-source" class="mini-select">
-          <option value="study">Current study area</option>
-          <option value="buffer">Active buffer</option>
-        </select>
-      </div>
-      <div class="row">
-        <label for="gis-extract-step">Sampling step (km)</label>
-        <input id="gis-extract-step" class="search-input" type="number" min="1" step="1" value="25">
-      </div>
-      <div id="gis-extract-columns" class="gis-checkbox-grid">
-        <label><input type="checkbox" value="lat" checked> Lat</label>
-        <label><input type="checkbox" value="lon" checked> Lon</label>
-        <label><input type="checkbox" value="elevation" checked> Elevation</label>
-        <label><input type="checkbox" value="slope" checked> Slope</label>
-        <label><input type="checkbox" value="temperature" checked> Temperature</label>
-        <label><input type="checkbox" value="pressure" checked> Pressure</label>
-        <label><input type="checkbox" value="wind" checked> Wind</label>
-        <label><input type="checkbox" value="irradiance" checked> Irradiance</label>
-        <label><input type="checkbox" value="radiation" checked> Radiation</label>
-        <label><input type="checkbox" value="geology" checked> Geology</label>
-      </div>
-      <div class="measure-actions" style="margin-top:0.75rem;">
-        <button id="gis-extract-run" class="tool-button" type="button">Export CSV</button>
-      </div>
-      <div id="gis-extract-meta" class="gis-metric" style="margin-top:0.75rem;">No extraction run yet.</div>
-    </div>
-  </div>
   <div id="metadata-modal" class="metadata-modal" hidden>
     <div class="metadata-dialog">
       <div class="metadata-header">
@@ -1301,7 +1263,7 @@
 </script>
 <script src="ui-controls.js" defer></script>
 <button id="music-btn" class="is-paused" title="Play music">▶ MUSIC</button>
-<script src="music.js?v=20260828-705b5a2" defer></script>
+<script src="music.js?v=20260828-4c2b14d" defer></script>
 
 
   <div id="portrait-advisory" role="status" aria-live="polite">
@@ -1322,8 +1284,8 @@
       });
     })();
   </script>
-<script src="/scripts/flightsim.js?v=20260828-705b5a2-atmos2" defer></script>
+<script src="/scripts/flightsim.js?v=20260828-4c2b14d-atmos2" defer></script>
   <script>if (window.self !== window.top) document.body.classList.add("is-embedded");</script>
-  <script type="module" src="/GeoID_GIS/viewer/gis/boot.js?v=20260828-705b5a2"></script>
+  <script type="module" src="/GeoID_GIS/viewer/gis/boot.js?v=20260828-4c2b14d"></script>
 </body>
 </html>
