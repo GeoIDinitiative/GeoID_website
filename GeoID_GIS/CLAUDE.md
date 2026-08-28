@@ -3755,6 +3755,84 @@ wiring is removed so the freed ids cannot rebind to the panel's controls.
 When a shared-panel control is dead on ONE lineage of pages, count its id
 (`querySelectorAll`) before reading any code.
 
+## The Model Builder is a PIPELINE, and it ends in a real mesh
+
+The tab was a `+ Data`/`Custom` row and nothing else. It is six numbered
+steps now, each unlocked by the one before — **study area → layers and roles
+→ surface → domain → conditions and points → build** — because packaging a
+study for a solver is a sequence where every decision depends on an earlier
+one (a boundary condition needs surfaces, surfaces need a domain, a domain
+needs ground), and a flat panel of eighteen controls hides that order behind
+the reader's guesswork. A blocked step says which step would unblock it.
+
+`model-build.js` is the pure half and is checked in Node against closed
+forms; `model-pipeline.js` is the panel and the project writes. What comes
+out: `meshes/<name>_surface.stl` (the terrain skin), `meshes/<name>_domain.stl`
+(watertight), `meshes/<name>_gmsh.py`, and `fem_runs/<run>/spec.json` in the
+shape the FEM pages AND the sidecar's deck prepare already read — never a
+format of its own.
+
+- **A FEM domain is a BLOCK, in metres.** The polygon says where; the model
+  is the axis-aligned box over it, because a mesh that follows a hand-drawn
+  outline inherits every jag as a sliver element. The frame is local
+  east/north metres about the study centre on THIS body's radius.
+- **gmsh meshes a WATERTIGHT surface, so the terrain skin alone is useless.**
+  `classifySurfaces` + `createGeometry` + one `addVolume` needs the boundary
+  closed: the domain STL is terrain + skirt walls + base. The base is a FAN
+  from its own centre to the perimeter nodes, not two big triangles — two
+  would leave the walls' subdivisions meeting one long edge, T-junctions that
+  read as watertight to the eye and open to a mesher. `stlStats` MEASURES it
+  (every edge in exactly two triangles, V−E+F=2) rather than assuming.
+- **Wind every facet against a known outward direction.** `triangleWriter`
+  takes a hint and flips the winding when the computed normal disagrees;
+  deriving winding by hand per face is where a closed surface silently
+  becomes an inside-out one. The test catches it as a NEGATIVE enclosed
+  volume.
+- **The boundary NAMES are the whole point of the physical groups.** A FEM
+  condition names a surface, and `classifySurfaces` numbers its output
+  arbitrarily, so the script assigns top/base/north/south/east/west by where
+  each surface sits. Verified in a real mesh: 8 physical groups, and the
+  spec's `boundary[].surface` refers to names that exist.
+- **An embedded point is a mesh NODE, not a coordinate in a file.**
+  `gmsh.model.mesh.embed` forces one exactly there, which is what makes a
+  borehole or a probe worth recording. Measured on real gmsh output: both
+  points 0.000000 m from a node.
+- **A node cap must actually hold.** One scaled guess put 51×51 against a
+  2500 ceiling (the +1 and the rounding), so the step is walked up until it
+  fits. Coarsen, never truncate: a clipped domain is a different study.
+
+**Native resolution is MEASURED, and on Earth it is 19.6 km.** The sampler
+interpolates bilinearly, so between pixel centres the values run exactly
+linearly and every kink in the second difference is a pixel boundary; the
+median spacing of those kinks is the raster's own sampling, needing no seam
+any viewer would have to grow. The consequence is the honest part: a 10 km
+study is a fraction of ONE global-DEM pixel, so sampling at 83 m is a smooth
+mesh and NOT new ground detail, and the surface step says which it is rather
+than letting a 121×121 grid imply the ground was measured that finely. Same
+discipline as the imagery zoom ceiling and Earth Engine's `scale`.
+
+**Two faults the live run showed, both invisible to a seam test**: the Build
+surface handler CLOSED OVER the step computed when its card was rendered —
+which is before step 2's measurement exists — so measuring the native
+resolution changed the quoted number and not the sampling (read the plan at
+press, and re-render after the probe). And `window.GeoIDResearch.sidecar`
+**was never published**: the Meshing Studio's gmsh button had addressed it
+for as long as it has existed and always reported "connect the sidecar"
+with one connected, probed and answering. A seam a module addresses is part
+of the contract whether or not it was written down.
+
+**The step NUMBER is the card's mark**, so the pipeline stamps
+`summary.dataset.toolIcon` — the shared icon painter's own documented skip —
+rather than wearing its fallback bracket beside a numbered chip.
+
+Verified end to end, not inferred: the browser wrote its package into a
+sidecar-backed project on disk, real gmsh (4.11.1) meshed the browser's OWN
+STL and script — **1,524 nodes, 8,315 elements, 8 physical groups, both
+400 m boreholes exact nodes** — and the sidecar's GALES prepare then took
+that spec and mesh into a deck (`setup.txt` patched to `dim 3`,
+`mesh_2core.txt`, the spec's time stepping; `props.txt` carrying the
+domain step's materials).
+
 ## The music player, and the tracks that were not there
 
 `music.js` (one copy per viewer, ten of them) shuffles a playlist and
