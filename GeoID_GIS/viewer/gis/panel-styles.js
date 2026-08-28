@@ -90,6 +90,38 @@ body.is-embedded[data-hub-armed="true"] #gmt-clock {
    tag's own text (51) and finding where the two diverge -- a stylesheet
    that half-parses looks exactly like a theme half-implemented. */
 
+/* ── Workbench normalisation: one font, one control scale ──────────────────
+   An audit of every visible element's computed font and colour found the
+   leaks a theme pass by eye cannot: five .input fields at the page's 16 px
+   beside eight themed ones (they sit OUTSIDE any .row, which the form voice
+   below keys on), .button at 16 px against the tools window's 0.72rem, the
+   ramp chips' BUTTON element in the UA's Arial-on-ButtonFace while its
+   children were styled, four bare inputs likewise, two textareas whose
+   monospace stacks disagreed, and the panel close glyph in Arial. Controls
+   inherit the app face by rule, not by luck. */
+.gis-side-panel button,
+.gis-side-panel input,
+.gis-side-panel select,
+.gis-side-panel textarea {
+  font-family: inherit;
+  color: inherit;
+}
+.gis-side-panel-body .button { font-size: 0.72rem; line-height: 1.25; }
+.gis-side-panel-body input.input,
+.gis-side-panel-body select.input,
+.gis-side-panel-body select.mini-select {
+  font-size: 0.74rem;
+}
+/* Every monospace surface on ONE stack: two textareas said ui-monospace and
+   the rest fell to Courier New, which renders wider and lighter. */
+.gis-side-panel-body textarea.input,
+.gis-side-panel-body code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.68rem;
+}
+.gis-sym-ramp-option { font: inherit; color: inherit; }
+.gis-side-panel-close { font-family: 'Exo 2', sans-serif; }
+
 /* ── The workbench form voice, matching the tools window ───────────────────
    The generic .row is a two-column grid with 16 px sentence-case captions --
    the cookie-cutter look. Stacked rows, the instrument caption (Exo 2 600
