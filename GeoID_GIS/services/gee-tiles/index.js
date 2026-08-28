@@ -13,9 +13,13 @@
 
 const ee = require("@google/earthengine");
 
-// Collections offered to the page. Kept here rather than accepted from the
-// request so the service cannot be pointed at arbitrary assets by a caller,
-// and so each one can carry the band choice and stretch that make it legible.
+// Collections offered to the page, CURATED: each carries a band choice, a
+// stretch and a legend chosen for legibility, and the two anomaly products
+// exist only here. Anything not in this list is resolved from Earth Engine's
+// own public STAC catalogue instead (see `stacConfig`), so the service serves
+// the whole catalogue without a caller being able to name an arbitrary asset:
+// an id has to appear in Google's published catalogue to be requestable, and
+// a private or user asset does not.
 const DATASETS = {
   "COPERNICUS/S2_SR_HARMONIZED": {
     startDate: "2017-03-28",
@@ -164,6 +168,182 @@ const DATASETS = {
 
 const MAX_PIXELS = 1024;
 
+/* ── The rest of the catalogue, from Earth Engine's own STAC ─────────────── */
+
+const STAC_ROOT = "https://storage.googleapis.com/earthengine-stac/catalog/catalog.json";
+const stacCache = new Map();     // id -> config | null (a miss is worth caching)
+let stacIndexPromise = null;     // id -> record URL, for the ids that need it
+
+async function getJson(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`HTTP ${response.status} for ${url}`);
+  return response.json();
+}
+
+/**
+ * Every dataset's record URL, built once per warm instance.
+ *
+ * Only reached when the derived URL misses: 109 of the 1,139 datasets are
+ * named `projects/<owner>/assets/…` and filed under a provider folder that
+ * is nothing like their first path segment, so the id alone cannot locate
+ * them. 131 small requests, about two seconds, and then never again.
+ */
+function stacIndex() {
+  if (stacIndexPromise) return stacIndexPromise;
+  stacIndexPromise = (async () => {
+    const root = await getJson(STAC_ROOT);
+    const providers = root.links.filter((l) => l.rel === "child").map((l) => l.href);
+    const catalogs = await Promise.all(providers.map((u) => getJson(u).catch(() => null)));
+    const index = new Map();
+    catalogs.filter(Boolean).forEach((catalog) => {
+      (catalog.links || []).filter((l) => l.rel === "child").forEach((link) => {
+        // The child's title is the id with its separators flattened, which is
+        // enough to key on once the same flattening is applied to a query.
+        index.set(String(link.title || ""), link.href);
+      });
+    });
+    return index;
+  })().catch((error) => {
+    stacIndexPromise = null;                 // a failed build must not be cached
+    throw error;
+  });
+  return stacIndexPromise;
+}
+
+async function stacRecord(id) {
+  const flat = id.replace(/\//g, "_");
+  const provider = id.split("/")[0];
+  const derived =
+    `https://storage.googleapis.com/earthengine-stac/catalog/${provider}/${flat}.json`;
+  try {
+    return await getJson(derived);
+  } catch {
+    const index = await stacIndex();
+    const href = index.get(flat);
+    if (!href) return null;
+    return getJson(href);
+  }
+}
+
+/**
+ * A STAC record as this service's own config shape.
+ *
+ * The visualisation is GOOGLE'S OWN — `summaries["gee:visualizations"]` is
+ * how the dataset is drawn in Earth Engine's catalogue — so an arbitrary
+ * dataset arrives looking the way its publisher meant it to, rather than
+ * under a band choice and a stretch this service guessed at.
+ */
+function configFromStac(record) {
+  const kind = record["gee:type"];
+  if (kind !== "image" && kind !== "image_collection") {
+    return { unsupported: `"${record.id}" is a ${kind || "non-image"} dataset. `
+      + "This service drapes rasters; tables are not images." };
+  }
+  const vis = (record.summaries?.["gee:visualizations"] || [])
+    .map((v) => v.image_visualization?.band_vis)
+    .find(Boolean);
+  if (!vis?.bands?.length) {
+    return { unsupported: `"${record.id}" publishes no default visualisation, `
+      + "so there is no band choice to render it with." };
+  }
+  /**
+   * A CLASSIFICATION carries its own colour table instead of a stretch.
+   *
+   * Land cover — ESA WorldCover, Copernicus, Dynamic World — publishes no
+   * min/max at all: the band's `gee:classes` names each value's colour, and
+   * that is what Earth Engine's own catalogue draws it from. The values are
+   * arbitrary (10, 20, 30, 95…), so the render remaps them onto 0..n-1 and
+   * hands `visualize` a palette in that order; stretching the raw values
+   * instead paints a land cover map as a grey ramp.
+   */
+  const classes = classTable(record, vis.bands);
+  if (classes) {
+    return {
+      ...baseFrom(record, vis),
+      classes,
+      bands: vis.bands,
+      min: 0,
+      max: classes.length - 1,
+      palette: classes.map((c) => c.color),
+      legend: null,        // a class list is not a ramp; the page lists them
+      classLegend: classes.map((c) => ({ value: c.value, colour: c.color, label: c.label })),
+    };
+  }
+  if (vis.min === undefined || vis.max === undefined) {
+    return { unsupported: `"${record.id}" publishes neither a stretch nor a `
+      + "class table, so there is nothing to render its bands with." };
+  }
+  return { ...baseFrom(record, vis), bands: vis.bands,
+    min: vis.min, max: vis.max, gamma: vis.gamma,
+    palette: vis.palette || null, legend: legendFrom(record, vis) };
+}
+
+/** Everything a config needs that is not about how the pixels are coloured. */
+function baseFrom(record, vis) {
+  const gsd = record.summaries?.gsd;
+  const scale = Array.isArray(gsd)
+    ? Math.min(...gsd.filter((n) => Number.isFinite(n))) : gsd;
+  const kind = record["gee:type"];
+  return {
+    name: record.title || record.id,
+    scale: Number.isFinite(scale) ? scale : undefined,
+    single: kind === "image",
+    startDate: (record.extent?.temporal?.interval?.[0]?.[0] || "").slice(0, 10) || undefined,
+    endDate: (record.extent?.temporal?.interval?.[0]?.[1] || "").slice(0, 10) || undefined,
+    attribution: [record.providers?.[0]?.name, record.license]
+      .filter(Boolean).join(" · ") || "Google Earth Engine",
+    fromCatalogue: true,
+  };
+}
+
+/** The class table of a single classification band, or null. */
+function classTable(record, bands) {
+  if (bands.length !== 1) return null;
+  const band = (record.summaries?.["eo:bands"] || []).find((b) => b.name === bands[0]);
+  const classes = band?.["gee:classes"] || [];
+  // Past a couple of hundred this is a lookup table rather than a legend, and
+  // LANDFIRE publishes 24,201 of them — a palette no thumbnail can carry.
+  if (!classes.length || classes.length > 200) return null;
+  return classes
+    .filter((c) => c.value !== undefined && c.color)
+    .map((c) => ({ value: c.value, color: c.color, label: c.description || String(c.value) }));
+}
+
+/** A one-band ramp IS a legend; a three-band composite is not. */
+function legendFrom(record, vis) {
+  // Its unit, where the record states one, is what lets the page label the
+  // ramp — and `gee-sample.js` invert it, so an arbitrary drape can be
+  // extracted to numbers like the curated ones.
+  if (vis.bands.length !== 1 || !vis.palette) return null;
+  const units = (record.summaries?.["eo:bands"] || [])
+    .find((b) => b.name === vis.bands[0])?.["gee:units"];
+  const min = first(vis.min);
+  const max = first(vis.max);
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
+  return { label: record.title || record.id, min, max, unit: units || "" };
+}
+
+function first(value) {
+  return Number(Array.isArray(value) ? value[0] : value);
+}
+
+/** The config for any id: the curated one, else the published catalogue's. */
+async function configFor(id) {
+  if (DATASETS[id]) return DATASETS[id];
+  if (stacCache.has(id)) return stacCache.get(id);
+  let config = null;
+  try {
+    const record = await stacRecord(id);
+    config = record ? configFromStac(record) : null;
+  } catch (error) {
+    // Not cached: a transient failure reading a static JSON file must not
+    // make a real dataset permanently unknown to a warm instance.
+    throw new Error(`Could not read the Earth Engine catalogue: ${error.message}`);
+  }
+  stacCache.set(id, config);
+  return config;
+}
+
 let readyPromise = null;
 const dateCache = new Map();
 
@@ -265,14 +445,31 @@ function reduce(collection, config) {
   return config.reducer === "sum" ? collection.sum() : collection.median();
 }
 
+/**
+ * Arbitrary class VALUES onto 0..n-1, so a palette can be handed to
+ * `visualize` in class order. Land cover values are 10, 20, … 95; a palette
+ * indexed against those would give 95 entries of which 11 mean anything.
+ */
+function remapClasses(image, config) {
+  if (!config.classes) return image;
+  return image.remap(
+    config.classes.map((c) => c.value),
+    config.classes.map((_, i) => i),
+  );
+}
+
 function buildImage(id, config, from, to, region) {
   const sourceId = config.source || id;
   // Static datasets have no time dimension. NASADEM is a single Image, and
   // filtering it as a collection by date returned nothing ever; GLO-30 is a
   // static mosaic the date filter wrongly emptied.
-  if (config.single) return ee.Image(sourceId).select(config.bands).clip(region);
+  if (config.single) {
+    return remapClasses(ee.Image(sourceId).select(config.bands), config).clip(region);
+  }
   if (config.mosaic) {
-    return ee.ImageCollection(sourceId).select(config.bands).mosaic().clip(region);
+    return remapClasses(
+      ee.ImageCollection(sourceId).select(config.bands).mosaic(), config,
+    ).clip(region);
   }
   let collection = ee.ImageCollection(sourceId)
     .filterBounds(region)
@@ -284,6 +481,9 @@ function buildImage(id, config, from, to, region) {
   }
 
   let composite = reduce(collection, config).select(config.bands);
+  // A classification must be remapped BEFORE any arithmetic below; there is
+  // none for a class dataset, and mixing the two would be meaningless anyway.
+  if (config.classes) composite = remapClasses(composite, config);
 
   if (config.anomaly) {
     // Compared against the same days of the year across the baseline, so a
@@ -312,6 +512,10 @@ function buildImage(id, config, from, to, region) {
   return composite.clip(region);
 }
 
+// The catalogue resolution is pure and testable without Earth Engine, a
+// credential or a deployment: `stac.test.mjs` runs it over real records.
+exports.__testing = { configFromStac, stacRecord, configFor, DATASETS };
+
 exports.geeImage = async (req, res) => {
   // The page is served from a different origin, so it needs CORS. Restrict to
   // the sites that should be allowed to spend this project's quota.
@@ -333,6 +537,10 @@ exports.geeImage = async (req, res) => {
     // Lets the page build its catalogue from the service rather than keeping a
     // second copy of this list that can drift out of step.
     res.json({
+      // The curated list only. The other eleven hundred are Google's own
+      // published catalogue and the page reads that directly rather than
+      // having this service copy it out.
+      catalogue: "https://storage.googleapis.com/earthengine-stac/catalog/catalog.json",
       datasets: Object.entries(DATASETS).map(([id, d]) => ({
         id, name: d.name, scale: d.scale, attribution: d.attribution,
       })),
@@ -340,12 +548,34 @@ exports.geeImage = async (req, res) => {
     return;
   }
 
-  const config = DATASETS[q.dataset];
-  if (!config) return bad(res, 400, "Unknown or unsupported dataset.");
+  let config;
+  try {
+    config = await configFor(q.dataset);
+  } catch (error) {
+    return bad(res, 502, error.message);
+  }
+  if (!config) {
+    return bad(res, 404, `"${q.dataset}" is not in the Earth Engine data `
+      + "catalogue. Check the id against the catalogue listing.");
+  }
+  if (config.unsupported) return bad(res, 400, config.unsupported);
 
   if (q.dates !== undefined && (config.single || config.mosaic)) {
     // No time dimension: say so, rather than inventing a range.
     return res.json({ dataset: q.dataset, static: true });
+  }
+  /**
+   * A catalogue dataset states its own extent, so it is READ rather than
+   * queried: the Earth Engine walk below costs a round trip per probe and
+   * exists because the curated scene archives are too large to sort. The
+   * published interval is the same answer for free.
+   */
+  if (q.dates !== undefined && config.fromCatalogue) {
+    return res.json({
+      dataset: q.dataset,
+      first: config.startDate || "1970-01-01",
+      last: config.endDate || new Date().toISOString().slice(0, 10),
+    });
   }
   if (q.dates !== undefined) {
     // What the collection actually holds, so the page can offer real dates
@@ -440,6 +670,9 @@ exports.geeImage = async (req, res) => {
 
     const vis = { min: config.min, max: config.max };
     if (config.palette) vis.palette = config.palette;
+    // An RGB composite is usually published with a gamma rather than a
+    // palette; dropping it renders the picture flat and dark.
+    if (config.gamma !== undefined) vis.gamma = config.gamma;
 
     const url = await new Promise((resolve, reject) => {
       image.visualize(vis).getThumbURL({
@@ -461,10 +694,17 @@ exports.geeImage = async (req, res) => {
       to,
       crs: "EPSG:4326",
       attribution: config.attribution,
+      // Which list this came from: the page says "tuned for this app" against
+      // a curated one and "the catalogue's own default rendering" otherwise,
+      // rather than presenting a published default as a considered choice.
+      curated: !config.fromCatalogue,
       // The symbology, so the page's legend can show the ramp and what its
       // ends mean rather than just naming the dataset.
       palette: config.palette || null,
       legend: config.legend || null,
+      // A classification's legend is a LIST, not a ramp: the page draws one
+      // swatch per class with the publisher's own name for it.
+      classes: config.classLegend || null,
     });
   } catch (error) {
     // Reported rather than swallowed: an empty picture because the request
