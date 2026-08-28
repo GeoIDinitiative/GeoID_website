@@ -2713,6 +2713,29 @@ them at a twentieth of the size ran at 61. The registration is gated on
 which is the shape to watch for: a helper that sets a property as a side
 effect, reused on a path that means something else by it.
 
+## The theme audit is a MEASUREMENT, and the planets pass it
+
+The instrument: inventory every visible element's computed font family, size
+and colour, grouped by tag.class, and flag any role with MIXED signatures or
+a non-app face. It finds what an eye pass cannot — five 16 px inputs beside
+eight themed ones, a chip whose children are styled while its host button
+sits in UA Arial-on-ButtonFace, two monospace stacks one rule apart. Two
+flags it always raises are DESIGN, not defects: the `.button`
+cyan-at-rest / dark-ink-primary split (the viewer skin's own convention) and
+the cyan-caption/white-value span split (the label/readout language).
+
+Run on Mars and Mercury, the workbenches came back clean first pass — the
+whole Earth theme rode in on the shared modules, which is what shared
+modules are for. The page-wide sweep found one real category on every world:
+**form controls default to the UA's Arial**, hidden on checkboxes and
+sliders, visible the moment a control carries a glyph or a word. And
+`font-family: inherit` DOES NOT FIX IT — measured still-Arial on Mars,
+because a control's parent chain often sets no family and inherit just
+fetches the UA default from further up. The explicit stack on the bare type
+selector does, and still loses to any classed rule, so deliberate faces
+(the monospace fields) survive. Verified after: zero alien-font controls and
+zero white scrollbars on Mars and Mercury alike.
+
 ## A half-parsed stylesheet looks like a half-implemented theme
 
 "The theming of the gis tools is still incomplete" — it was complete and
