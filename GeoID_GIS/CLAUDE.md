@@ -1208,12 +1208,15 @@ it anchors after `#workspace-add-host` instead; (3) the hierarchy bakes
 the chip into its row template and does not hear the tag event —
 `applyTag` calls `GeoIDLayerHierarchy.render()` itself.
 
-**Every SUB-tab folds with the Live groups' chevron** (side "›" turning
-down when open, on the right where the +/- sat) — level-2
-control-sections and gis-tool-sections both, via side-panels' injected
-sheet with !important over both page stylesheets. Level-1 tabs keep
-their +/- (a different tier speaks a different mark) and the Live feed
-groups keep their own LEFT chevron (excluded, or they would wear two).
+**Every SUB-tab speaks the Live groups' language**: a LEFT chevron ("›"
+turning down on open — moved from the right on report), the level-2
+heading type matched to the tool-summary voice (Exo 2 600 0.76rem/0.1em,
+full ink, skin glow killed with !important), and icons throughout — the
+six feed groups gained their own 16px glyphs (rings, volcano, flame,
+snowflake, raincloud, leaf) carried on FEED_GROUPS as `icon` and drawn
+into each summary. Level-1 tabs keep their +/- (a different tier speaks
+a different mark); the feed groups' native chevron rule still stands and
+mine excludes them, or they would wear two.
 Trap paid for twice in one edit: "\203A" inside a JS template literal is
 an OCTAL escape and a SyntaxError — the file needs a double backslash —
 and a `;` instead of `&&` before the commit let the broken file commit

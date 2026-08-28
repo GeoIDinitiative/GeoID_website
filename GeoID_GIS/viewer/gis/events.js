@@ -12,7 +12,7 @@
 
 import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity, magnitudeColour,
-  activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, gdacsPoints } from "./event-sources.js?v=20260828-f1d529c";
+  activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, gdacsPoints } from "./event-sources.js?v=20260828-cd77936";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -502,6 +502,7 @@ function sourcesBlock() {
     return `<details class="gis-tool-section event-feed-group"${open ? " open" : ""}
         data-group="${group.id}">
         <summary title="${group.note}">
+          <span class="event-feed-icon" aria-hidden="true"><svg viewBox="0 0 16 16">${group.icon || ""}</svg></span>
           <span class="event-feed-name">${group.label}</span>
           <input type="checkbox" class="event-feed-master" data-group-toggle="${group.id}"
             ${state.all ? "checked" : ""}
@@ -1727,8 +1728,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260828-f1d529c"),
-    import("./research/dsp.js?v=20260828-f1d529c"),
+    import("./seismogram-plot.js?v=20260828-cd77936"),
+    import("./research/dsp.js?v=20260828-cd77936"),
   ]);
   if (stale()) return;
 

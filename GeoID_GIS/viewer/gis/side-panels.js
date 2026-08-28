@@ -172,42 +172,62 @@ const STYLE = `
   line-height: 1.2;
 }
 
-/* ── One fold mark for every SUB-tab: the Live groups' chevron ──────────────
+/* ── Every SUB-tab speaks the Live Events groups' language ──────────────────
  *
- * The Live Events feed groups draw a side chevron that turns down when the
- * section opens, and it was liked; every other sub-tab said +/- instead. So
- * level-2 control-sections and every gis-tool-section swap the +/- for the
- * same side-to-down arrow, on the right where the +/- sat. The LEVEL-1 tabs
- * keep their +/- — a different tier speaks a different mark — and the feed
- * groups keep their own left-hand chevron (excluded, or they would wear
- * two). !important because both page stylesheets set the content. */
-.control-section:not(.toolbox-group) > .section-toggle::after {
-  content: "\\203A" !important;
-  transform: rotate(0deg);
-  transition: transform 0.15s ease;
-  font-size: 1.05rem;
-  line-height: 1;
+ * The feed groups' look was liked: a LEFT chevron that turns down on open,
+ * the card voice, an icon beside the name. So level-2 control-sections and
+ * every gis-tool-section wear the same — the chevron on the left where the
+ * feed groups carry theirs, the +/- gone from level-2 (level-1 tabs keep
+ * theirs; a different tier speaks a different mark), and the level-2 heading
+ * type matched to the tool-summary voice so the two kinds of sub-tab stop
+ * reading as different apps. !important where the page stylesheets or the
+ * skin set the same properties. Double backslash on the chevron entity —
+ * a single one is an OCTAL escape inside this template literal. */
+.control-section:not(.toolbox-group) > .section-toggle::after { content: none !important; }
+.control-section:not(.toolbox-group) > .section-toggle::before {
+  content: "\\203A";
+  flex: 0 0 auto;
   width: 0.6rem;
   text-align: center;
+  font-size: 1.05rem;
+  line-height: 1;
+  color: rgba(var(--nav-accent-rgb), 0.86);
+  transform: rotate(0deg);
+  transition: transform 0.15s ease;
+  opacity: 0.85;
 }
-.control-section:not(.toolbox-group)[open] > .section-toggle::after {
+.control-section:not(.toolbox-group)[open] > .section-toggle::before {
   transform: rotate(90deg);
+}
+/* The level-2 heading in the tool-summary voice. */
+.control-section:not(.toolbox-group) > .section-toggle .section-title,
+.control-section:not(.toolbox-group) > .section-toggle .section-heading {
+  color: var(--text) !important;
+  font-family: "Exo 2", "Segoe UI", sans-serif !important;
+  font-weight: 600;
+  font-size: 0.76rem !important;
+  letter-spacing: 0.1em !important;
+  text-shadow: none !important;
+  filter: none;
 }
 .gis-tool-section:not(.event-feed-group) > summary { display: flex; align-items: center; gap: 0.4rem; }
 .gis-tool-section:not(.event-feed-group) > summary > * { min-width: 0; }
-.gis-tool-section:not(.event-feed-group) > summary::after {
+.gis-tool-section:not(.event-feed-group) > summary::before {
   content: "\\203A";
   flex: 0 0 auto;
-  margin-left: auto;
   width: 0.6rem;
   text-align: center;
   transform: rotate(0deg);
   transition: transform 0.15s ease;
-  opacity: 0.8;
+  opacity: 0.75;
 }
-.gis-tool-section:not(.event-feed-group)[open] > summary::after {
+.gis-tool-section:not(.event-feed-group)[open] > summary::before {
   transform: rotate(90deg);
 }
+/* The feed groups' own icons, in the same seat every other sub-tab gives
+   theirs. */
+.event-feed-icon { flex: none; display: inline-flex; }
+.event-feed-icon svg { width: 0.85rem; height: 0.85rem; display: block; }
 
 /* The header controls wear the Workspace header's icon-button treatment:
    small bordered squares pinned right, glyph inside — one language for

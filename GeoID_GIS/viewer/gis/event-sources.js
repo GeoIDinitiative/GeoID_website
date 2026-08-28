@@ -43,12 +43,21 @@ const USGS_SUMMARY = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary"
  * Seismicity first because it is the one most people come for.
  */
 export const FEED_GROUPS = [
-  { id: "seismic", label: "Seismicity", note: "where the ground moved, and how hard" },
-  { id: "volcanic", label: "Volcanic activity", note: "eruptions and unrest reported now" },
-  { id: "fire", label: "Wildfires", note: "open fire incidents worldwide" },
-  { id: "ice", label: "Ice and snow", note: "icebergs, sea and lake ice, snow events" },
-  { id: "water", label: "Storms and water", note: "storms, floods and water quality" },
-  { id: "land", label: "Land and climate", note: "landslides, drought, dust, heat" },
+  // `icon` is 16x16 SVG inner markup in the sidebar's own stroke style, drawn
+  // into each group's summary beside its name — the same glyph language every
+  // other sub-tab carries.
+  { id: "seismic", label: "Seismicity", note: "where the ground moved, and how hard",
+    icon: '<circle cx="8" cy="8" r="1.4" fill="currentColor"/><circle cx="8" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.1"/><circle cx="8" cy="8" r="6.6" fill="none" stroke="currentColor" stroke-width="1" opacity="0.7"/>' },
+  { id: "volcanic", label: "Volcanic activity", note: "eruptions and unrest reported now",
+    icon: '<path d="M5.6 6.6 2.4 13.4h11.2L10.4 6.6Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M8 5.6V3.2M5.8 4.8 4.9 3M10.2 4.8l0.9-1.8" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>' },
+  { id: "fire", label: "Wildfires", note: "open fire incidents worldwide",
+    icon: '<path d="M8 2.6c0.6 2-2.8 3.4-2.8 6.4a2.8 2.8 0 0 0 5.6 0c0-1.1-0.5-1.9-1-2.7-0.4 0.7-0.7 1-1.3 1.2 0.5-1.6-0.1-3.4-0.5-4.9Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>' },
+  { id: "ice", label: "Ice and snow", note: "icebergs, sea and lake ice, snow events",
+    icon: '<path d="M8 1.8v12.4M2.6 4.9l10.8 6.2M13.4 4.9 2.6 11.1M8 1.8 6.6 3.2M8 1.8l1.4 1.4M8 14.2l-1.4-1.4M8 14.2l1.4-1.4" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>' },
+  { id: "water", label: "Storms and water", note: "storms, floods and water quality",
+    icon: '<path d="M4.6 9.4h7a2.6 2.6 0 0 0 0.5-5.1A3.7 3.7 0 0 0 5 3.7a3 3 0 0 0-0.4 5.7Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M5.6 11.4l-0.9 2M8.4 11.4l-0.9 2M11.2 11.4l-0.9 2" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>' },
+  { id: "land", label: "Land and climate", note: "landslides, drought, dust, heat",
+    icon: '<path d="M12.8 3.2C7.4 3.2 3.8 6.4 3.4 12.6c5.8 0.6 9.4-2.8 9.4-9.4Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M4.6 11.4c2-3.2 4.4-5.2 7-6.4" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.8"/>' },
 ];
 
 /** An EONET category as a source row. */
