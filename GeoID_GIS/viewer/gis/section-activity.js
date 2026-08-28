@@ -16,8 +16,8 @@
 
 import {
   grouped as globalGrouped, layerForDataset,
-} from "./global-data.js?v=20260828-e738b7e";
-import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20260828-e738b7e";
+} from "./global-data.js?v=20260828-282632a";
+import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20260828-282632a";
 
 const HOME_SECTION = {
   hydrology: "sea-level-section",
@@ -104,15 +104,77 @@ function activeSections() {
   return active;
 }
 
+/**
+ * The same solid fill, one tier down: a SUB-tab whose own controls have
+ * something switched on.
+ *
+ * Level-1 tabs are marked from the import manager, by mapping each active
+ * layer to the tab that OFFERS it. A sub-tab cannot be found that way —
+ * the mapping is per subject, not per section — so this reads the controls
+ * themselves: a ticked catalogue row, a ticked feed master, a ticked label
+ * toggle. Those boxes ARE the layer's state (the catalogue redraws them
+ * from the import manager on every change), so this says the same thing
+ * the tab headers say, about a smaller box.
+ *
+ * The base-texture rows are excluded: a sphere always wears one, so a rule
+ * that counted them would light Basemaps' first sub-tab permanently and
+ * say nothing. Nested sub-tabs inherit by descent — a parent holding an
+ * active child lights too, which is what makes a folded column readable.
+ */
+/**
+ * Only controls that mean "a dataset is ON" count. Listed rather than
+ * inferred: a first pass took every ticked box and lit Geoprocessing, Map
+ * View and Extract From Layers — whose ticks are OPTIONS (keep attributes,
+ * show grid), not data. A tool with its defaults set is not a tool with
+ * something loaded, and a highlight that cannot tell the two apart is
+ * worse than none.
+ */
+const DATA_CONTROLS = [
+  ".gis-catalogue-row input[type=checkbox]",   // a catalogue dataset
+  ".event-feed-master",                        // a whole feed group
+  ".event-feed-row input[type=checkbox]",      // one live feed
+  "[data-feed-toggle]",                        // a feed proxy (Hazards)
+  "[data-demo]",                               // a shipped demo layer
+  ".section-master-toggle",                    // a section's own master
+].join(",");
+
+/**
+ * Ticks that are NOT "a dataset is on":
+ *  - a base texture (a sphere always wears one),
+ *  - the satellite CATEGORY filters and the orbit-paths option, which say
+ *    what the tracker draws once it is running, not that it is.
+ */
+function countsAsData(box) {
+  if (!box.checked) return false;
+  if (box.closest("#satellites-categories") || box.id === "satellites-orbits") return false;
+  const row = box.closest(".gis-catalogue-row");
+  return !(row && String(row.dataset.entry || "").startsWith("base:"));
+}
+
+function markSubsections(active) {
+  document.querySelectorAll(".gis-tool-section, .control-section:not(.toolbox-group)")
+    .forEach((sub) => {
+      // A section the LAYER pass owns keeps its answer: that pass knows the
+      // tracker is running, which no tick inside the section can say.
+      const fromLayers = sub.id && active.has(sub.id);
+      const on = fromLayers || [...sub.querySelectorAll(DATA_CONTROLS)].some(countsAsData);
+      sub.classList.toggle("has-active-data", on);
+    });
+}
+
 let last = "";
 function refresh() {
   const active = activeSections();
   const key = [...active].sort().join("|");
-  if (key === last) return;
+  // The sub-tab pass runs even when the TAB set is unchanged: ticking a
+  // second dataset inside one tab changes nothing at level 1 and everything
+  // one tier down.
+  if (key === last) { markSubsections(active); return; }
   last = key;
   SECTIONS.forEach((id) => {
     document.getElementById(id)?.classList.toggle("has-active-data", active.has(id));
   });
+  markSubsections(active);
 }
 
 /**
@@ -133,6 +195,14 @@ function installStyle() {
     "  background: rgb(var(--nav-accent-rgb, 255, 43, 214)) !important;",
     "  border-left-color: rgb(var(--nav-accent-rgb, 255, 43, 214)) !important;",
     "  color: var(--skin-chrome-ink, #2b0030) !important;",
+    "}",
+    "details.gis-tool-section.has-active-data:not([open]) > summary {",
+    "  background: rgb(var(--nav-accent-rgb, 255, 43, 214)) !important;",
+    "  color: var(--skin-chrome-ink, #2b0030) !important;",
+    "}",
+    "details.gis-tool-section.has-active-data:not([open]) > summary * {",
+    "  color: var(--skin-chrome-ink, #2b0030) !important;",
+    "  text-shadow: none !important;",
     "}",
     "details.control-section.has-active-data:not([open]) > .section-toggle .section-title,",
     "details.control-section.has-active-data:not([open]) > .section-toggle .section-icon {",

@@ -1060,6 +1060,20 @@ Three traps, all found by measuring:
   `kind` (the kicker for non-volcano layers) and `dimension`.
 - satellite.js v5 calls the mean motion `no`, not `no_kozai`.
 
+**The active-data fill reaches SUB-tabs too** (`markSubsections` in
+section-activity). Level 1 is marked from the import manager by subject;
+a sub-tab cannot be found that way, so it reads its own controls — but
+only ones that mean "a dataset is ON", listed in `DATA_CONTROLS` rather
+than inferred. Two false-positive classes were measured and excluded: a
+first pass counted every ticked box and lit Geoprocessing, Map View and
+Extract From Layers, whose ticks are OPTIONS; and the satellite CATEGORY
+filters plus the orbit-paths default lit Satellites before the tracker
+was running. Base-texture rows are excluded for the same reason (a sphere
+always wears one). And a section the LAYER pass owns keeps that answer —
+`markSubsections` ORs it in rather than overwriting, or the Satellites
+sub-tab would go dark the moment the layer pass and the tick pass
+disagreed.
+
 ## The nav bar is the subject taxonomy, two tiers deep
 
 **The &#9432; help modal (`#viewer-help-overlay`) documents THIS UI.** It
