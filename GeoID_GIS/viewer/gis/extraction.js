@@ -1,7 +1,12 @@
-import { computeBounds2D } from "./geo-utils.js?v=20260828-e9f310d";
+import { computeBounds2D } from "./geo-utils.js?v=20260828-705b5a2";
 
 // Sampling a polygon on a lat/lon grid: the spacing is expressed in km and
 // converted per-row, because a degree of longitude shrinks toward the poles.
+import {
+  clip as clipCollection, featureCollection, feature as makeFeature,
+} from "./geoprocessing.js?v=20260828-705b5a2";
+import { splitLine } from "./delimited.js?v=20260828-705b5a2";
+
 const KM_PER_DEG_LAT = 111.32;
 const MAX_SAMPLES = 250000;
 
@@ -15,7 +20,8 @@ function normalizeLon(lon) {
  * so extraction agrees exactly with what the drawn polygon displays.
  */
 function pointInPolygon(lat, lon, vertices, center) {
-  const viewerFn = window.GeoIDViewer?.pointInProjectedPolygon;
+  const viewerFn = typeof window === "undefined"
+    ? null : window.GeoIDViewer?.pointInProjectedPolygon;
   if (typeof viewerFn === "function" && center) {
     return viewerFn({ lat, lon }, vertices, center);
   }
@@ -59,21 +65,68 @@ function flattenAttributes(prefix, attributes, row) {
  * imported layer exposing a sampler, so a drawn polygon yields one table that
  * combines built-in and user-imported data.
  */
+/**
+ * The BOUNDS as rings, from either shape a caller holds.
+ *
+ * The drawn overlay is one ring of {lat, lon}; a workspace polygon LAYER is a
+ * GeoJSON collection whose features may be Multi and may carry holes. Both
+ * normalise here to [{ vertices, holes, center }], which is what lets "within
+ * any polygon" mean any polygon — including a dissolved multi-part study
+ * area — rather than only the shape the Draw tool happens to be holding.
+ */
+export function ringsFromCollection(collection) {
+  const rings = [];
+  (collection?.features || []).forEach((f) => {
+    const geom = f?.geometry;
+    if (!geom) return;
+    const polys = geom.type === "Polygon" ? [geom.coordinates]
+      : geom.type === "MultiPolygon" ? geom.coordinates : [];
+    polys.forEach((poly) => {
+      if (!poly?.[0]?.length) return;
+      const vertices = poly[0].map(([lon, lat]) => ({ lat, lon }));
+      const centerLat = vertices.reduce((s, v) => s + v.lat, 0) / vertices.length;
+      const centerLon = vertices.reduce((s, v) => s + v.lon, 0) / vertices.length;
+      rings.push({
+        vertices,
+        holes: poly.slice(1).map((h) => h.map(([lon, lat]) => ({ lat, lon }))),
+        center: { lat: centerLat, lon: centerLon },
+      });
+    });
+  });
+  return rings;
+}
+
+export function pointInAnyRing(lat, lon, rings) {
+  return rings.some((ring) => pointInPolygon(lat, lon, ring.vertices, ring.center)
+    && !(ring.holes || []).some((hole) => pointInPolygon(lat, lon, hole, ring.center)));
+}
+
 export function extractPolygonSamples({
   vertices,
   center,
+  rings = null,
   stepKm = 1,
   includeBuiltIn = true,
   includeGeology = false,
   includeClimate = false,
   layers = [],
 } = {}) {
-  if (!Array.isArray(vertices) || vertices.length < 3) {
+  // One ring or many: the single-ring call is the multi-ring call with one.
+  const allRings = rings && rings.length ? rings
+    : (Array.isArray(vertices) && vertices.length >= 3
+      ? [{ vertices, holes: [], center }] : null);
+  if (!allRings) {
     return { ok: false, message: "Draw an area polygon first.", rows: [] };
   }
 
   const viewer = window.GeoIDViewer;
-  const bounds = polygonBounds(vertices);
+  const perRing = allRings.map((r) => polygonBounds(r.vertices));
+  const bounds = {
+    minX: Math.min(...perRing.map((b) => b.minX)),
+    maxX: Math.max(...perRing.map((b) => b.maxX)),
+    minY: Math.min(...perRing.map((b) => b.minY)),
+    maxY: Math.max(...perRing.map((b) => b.maxY)),
+  };
   const stepLat = Math.max(stepKm, 0.001) / KM_PER_DEG_LAT;
 
   const rows = [];
@@ -84,7 +137,7 @@ export function extractPolygonSamples({
     const cosLat = Math.max(Math.cos((lat * Math.PI) / 180), 0.01);
     const stepLon = stepLat / cosLat;
     for (let lon = bounds.minX; lon <= bounds.maxX + stepLon * 0.5; lon += stepLon) {
-      if (!pointInPolygon(lat, lon, vertices, center)) {
+      if (!pointInAnyRing(lat, lon, allRings)) {
         continue;
       }
       if (rows.length >= MAX_SAMPLES) {
@@ -152,8 +205,138 @@ export function extractPolygonSamples({
     ok: true,
     rows,
     truncated,
-    areaKm2: viewer?.sphericalPolygonAreaKm2?.(vertices) ?? null,
+    areaKm2: allRings.length === 1
+      ? (viewer?.sphericalPolygonAreaKm2?.(allRings[0].vertices) ?? null)
+      : (allRings.reduce((sum, r) => sum
+        + (viewer?.sphericalPolygonAreaKm2?.(r.vertices) || 0), 0) || null),
     message: `${rows.length.toLocaleString()} samples${truncated ? " (truncated)" : ""}`,
+  };
+}
+
+/* ── Vector and point-cloud extraction within the same bounds ────────────── */
+
+/**
+ * A mask collection from rings, for the clip path. Signed longitudes, since
+ * that is what every workspace collection speaks.
+ */
+export function maskFromRings(rings) {
+  return featureCollection(rings.map((ring) => makeFeature({
+    type: "Polygon",
+    coordinates: [
+      ring.vertices.map((v) => [normalizeLon(v.lon), v.lat]),
+      ...(ring.holes || []).map((h) => h.map((v) => [normalizeLon(v.lon), v.lat])),
+    ].map((r) => (r.length && (r[0][0] !== r[r.length - 1][0]
+      || r[0][1] !== r[r.length - 1][1]) ? [...r, r[0]] : r)),
+  }, {})));
+}
+
+/**
+ * Every feature of a vector layer that falls WITHIN the mask — points
+ * filtered by containment, lines and polygons genuinely CLIPPED at the
+ * boundary (geoprocessing's clip, which cuts lines now rather than keeping
+ * or dropping them whole).
+ *
+ * `fields` narrows each feature's properties to the ticked columns; null
+ * keeps everything. Geometry always survives — an attribute tick list must
+ * never be able to strip the shape off a shapefile.
+ */
+export function extractVectorWithin(collection, maskFc, { fields = null } = {}) {
+  const total = collection?.features?.length || 0;
+  const clipped = clipCollection(collection || featureCollection([]), maskFc);
+  const narrowed = !fields ? clipped.features
+    : clipped.features.map((f) => makeFeature(f.geometry,
+      Object.fromEntries(Object.entries(f.properties || {})
+        .filter(([key]) => fields.includes(key)))));
+  return {
+    ok: true,
+    collection: featureCollection(narrowed),
+    kept: narrowed.length,
+    total,
+  };
+}
+
+/** Vector features as table rows: lat/lon (point, else centroid) + fields. */
+export function vectorRows(collection) {
+  return (collection?.features || []).map((f) => {
+    const geom = f.geometry || {};
+    let lat = "";
+    let lon = "";
+    if (geom.type === "Point") {
+      [lon, lat] = geom.coordinates;
+    } else {
+      const coords = [];
+      const walk = (c) => (Array.isArray(c?.[0]) ? c.forEach(walk) : coords.push(c));
+      walk(geom.coordinates || []);
+      if (coords.length) {
+        lon = coords.reduce((s, c) => s + c[0], 0) / coords.length;
+        lat = coords.reduce((s, c) => s + c[1], 0) / coords.length;
+      }
+    }
+    return {
+      lat_deg: Number.isFinite(lat) ? +lat.toFixed(6) : "",
+      lon_deg: Number.isFinite(lon) ? +lon.toFixed(6) : "",
+      geometry_type: geom.type || "",
+      ...(f.properties || {}),
+    };
+  });
+}
+
+/**
+ * The column names of a delimited source, by the SAME rule the extractor
+ * uses — the panel's tick list and the extract must agree on what a column
+ * is called, or a ticked name matches nothing.
+ */
+export function delimitedColumns(source) {
+  const text = String(source?.text || "");
+  if (!text) return [];
+  const first = text.split(/\r?\n/).find((l) => l.trim() !== "");
+  if (!first) return [];
+  const cells = splitLine(first, source.delimiter || ",");
+  return source.hasHeader !== false ? cells : cells.map((_, i) => `column_${i + 1}`);
+}
+
+/**
+ * The rows of a delimited point cloud (a CSV/XYZ that kept its source text)
+ * that fall within the rings, with only the ticked columns.
+ *
+ * This is the path that makes a POINT CLOUD extractable at all: the renderer
+ * kept x, y, z and a magnitude, but the file kept everything, and the file
+ * is what this reads. Lat and lon ride along always — a spatial extract
+ * whose rows cannot be placed is a spreadsheet, not an extract.
+ */
+export function extractDelimitedWithin(source, rings, { columns = null } = {}) {
+  const text = String(source?.text || "");
+  if (!text) return { ok: false, message: "This layer kept no source table.", rows: [] };
+  const delimiter = source.delimiter || ",";
+  const lines = text.split(/\r?\n/).filter((l) => l.trim() !== "");
+  const cells = lines.map((l) => splitLine(l, delimiter));
+  const header = source.hasHeader !== false;
+  const names = header ? cells[0] : cells[0].map((_, i) => `column_${i + 1}`);
+  const body = header ? cells.slice(1) : cells;
+  const lonIdx = source.mapping?.lon ?? source.mapping?.lonIndex ?? 0;
+  const latIdx = source.mapping?.lat ?? source.mapping?.latIndex ?? 1;
+  const picked = columns
+    ? names.map((n, i) => ({ n, i })).filter(({ n, i }) =>
+      columns.includes(n) || i === lonIdx || i === latIdx)
+    : names.map((n, i) => ({ n, i }));
+  const rows = [];
+  body.forEach((row) => {
+    const lat = Number(row[latIdx]);
+    const lon = Number(row[lonIdx]);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+    if (!pointInAnyRing(lat, lon, rings)) return;
+    const out = {};
+    picked.forEach(({ n, i }) => { out[n] = row[i] ?? ""; });
+    rows.push(out);
+  });
+  return {
+    ok: true,
+    rows,
+    columns: picked.map(({ n }) => n),
+    latName: names[latIdx],
+    lonName: names[lonIdx],
+    total: body.length,
+    message: `${rows.length.toLocaleString()} of ${body.length.toLocaleString()} rows inside`,
   };
 }
 

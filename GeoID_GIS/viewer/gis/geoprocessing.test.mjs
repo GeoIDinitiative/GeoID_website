@@ -395,5 +395,42 @@ check("dissolve returns one feature per group",
     `got ${merged.features.length}`);
 }
 
+// ---- Lines and points through clip/difference (the extraction contract) ----
+// A crossing transect must be CUT at the boundary, in both modes, and the two
+// modes together must tile the original line. Points must survive difference
+// when they sit outside the mask -- both were silently dropped before.
+{
+  const unit = featureCollection([feature(
+    { type: "Polygon", coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]] }, {})]);
+  const transect = featureCollection([feature(
+    { type: "LineString", coordinates: [[-1, 0.5], [2, 0.5]] }, { name: "t" })]);
+
+  const inPart = clip(transect, unit);
+  check("a line clips to the segment INSIDE the mask",
+    inPart.features.length === 1
+    && JSON.stringify(inPart.features[0].geometry.coordinates)
+      === JSON.stringify([[0, 0.5], [1, 0.5]]),
+    JSON.stringify(inPart.features[0]?.geometry));
+
+  const outPart = difference(transect, unit);
+  const outCoords = outPart.features[0]?.geometry;
+  check("its difference is the TWO outside segments",
+    outPart.features.length === 1 && outCoords?.type === "MultiLineString"
+    && JSON.stringify(outCoords.coordinates)
+      === JSON.stringify([[[-1, 0.5], [0, 0.5]], [[1, 0.5], [2, 0.5]]]),
+    JSON.stringify(outCoords));
+
+  const pts = featureCollection([
+    feature({ type: "Point", coordinates: [0.5, 0.5] }, { name: "in" }),
+    feature({ type: "Point", coordinates: [3, 3] }, { name: "out" }),
+  ]);
+  const kept = clip(pts, unit).features.map((f) => f.properties.name);
+  const dropped = difference(pts, unit).features.map((f) => f.properties.name);
+  check("clip keeps the inside point only",
+    kept.length === 1 && kept[0] === "in", kept.join());
+  check("difference keeps the OUTSIDE point only",
+    dropped.length === 1 && dropped[0] === "out", dropped.join());
+}
+
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");
 process.exit(failures ? 1 : 0);

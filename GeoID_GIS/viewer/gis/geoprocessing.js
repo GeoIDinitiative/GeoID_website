@@ -1,5 +1,5 @@
-import * as G from "./geometry.js?v=20260828-e9f310d";
-import { transform } from "./projection.js?v=20260828-e9f310d";
+import * as G from "./geometry.js?v=20260828-705b5a2";
+import { transform } from "./projection.js?v=20260828-705b5a2";
 
 // Vector geoprocessing on GeoJSON FeatureCollections.
 //
@@ -505,6 +505,66 @@ function orientPolygon(polygon) {
 }
 
 /** Applies a boolean op between every feature and every mask polygon. */
+/**
+ * Clip a polyline against a set of mask polygons, keeping either the inside
+ * or the outside pieces.
+ *
+ * `clip` used to keep a LINE only when one of its VERTICES fell inside a mask
+ * — so a transect drawn straight across a study area, both endpoints outside,
+ * vanished entirely, and a river was kept or dropped whole. Lines are cut at
+ * the boundary now, the way the polygons always were: every segment collects
+ * its crossing parameters against every mask edge (holes included), each
+ * sub-interval is classified by its midpoint with holes honoured, and
+ * consecutive kept pieces are stitched back into runs.
+ */
+function clipLineToMasks(coords, masks, keepInside) {
+  const eps = 1e-12;
+  const inside = (pt) => masks.some((m) => G.pointInPolygon(pt, m.polygon));
+  const pieces = [];
+  let run = [];
+  const flush = () => { if (run.length > 1) pieces.push(run); run = []; };
+  for (let i = 0; i < coords.length - 1; i += 1) {
+    const a = coords[i];
+    const b = coords[i + 1];
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const ts = [0, 1];
+    masks.forEach((m) => m.polygon.forEach((ring) => {
+      for (let j = 0; j < ring.length - 1; j += 1) {
+        const [ex, ey] = ring[j];
+        const [fx2, fy2] = ring[j + 1];
+        const rdx = fx2 - ex;
+        const rdy = fy2 - ey;
+        const denom = dx * rdy - dy * rdx;
+        if (Math.abs(denom) < 1e-15) continue;
+        const t = ((ex - a[0]) * rdy - (ey - a[1]) * rdx) / denom;
+        const u = ((ex - a[0]) * dy - (ey - a[1]) * dx) / denom;
+        if (t > eps && t < 1 - eps && u >= -eps && u <= 1 + eps) ts.push(t);
+      }
+    }));
+    ts.sort((x, y) => x - y);
+    for (let k = 0; k < ts.length - 1; k += 1) {
+      const t0 = ts[k];
+      const t1 = ts[k + 1];
+      if (t1 - t0 < eps) continue;
+      const tm = (t0 + t1) / 2;
+      const keep = inside([a[0] + dx * tm, a[1] + dy * tm]) === keepInside;
+      if (!keep) { flush(); continue; }
+      const p0 = [a[0] + dx * t0, a[1] + dy * t0];
+      const p1 = [a[0] + dx * t1, a[1] + dy * t1];
+      if (run.length && Math.abs(run[run.length - 1][0] - p0[0]) < eps
+        && Math.abs(run[run.length - 1][1] - p0[1]) < eps) {
+        run.push(p1);
+      } else {
+        flush();
+        run = [p0, p1];
+      }
+    }
+  }
+  flush();
+  return pieces;
+}
+
 function overlay(fc, maskFc, mode, propsFrom) {
   const masks = maskFc.features
     .flatMap((f) => polygonsOf(f.geometry))
@@ -548,13 +608,24 @@ function overlay(fc, maskFc, mode, propsFrom) {
         : { type: "MultiPolygon", coordinates: oriented };
       out.push(feature(geometry, propsFrom(f)));
     }
-    // Points and lines are kept or dropped by containment rather than clipped.
-    // Containment now honours holes: a point inside a mask's hole is outside
-    // the mask.
-    if (!polygonsOf(f.geometry).length && mode === "intersection") {
+    // LINES are cut at the boundary, in both modes — see clipLineToMasks.
+    const lineParts = polygonsOf(f.geometry).length ? [] : linesOf(f.geometry);
+    if (lineParts.length) {
+      const kept = lineParts.flatMap((line) =>
+        clipLineToMasks(line, masks, mode === "intersection"));
+      if (kept.length) {
+        out.push(feature(kept.length === 1
+          ? { type: "LineString", coordinates: kept[0] }
+          : { type: "MultiLineString", coordinates: kept }, propsFrom(f)));
+      }
+    }
+    // POINTS are kept or dropped by containment, holes honoured — in BOTH
+    // modes: difference used to drop every point regardless, because only
+    // intersection had a branch here at all.
+    if (!polygonsOf(f.geometry).length && !lineParts.length) {
       const coords = geometryCoords(f.geometry);
       const inside = coords.some((c) => masks.some((m) => G.pointInPolygon(c, m.polygon)));
-      if (inside) {
+      if (inside === (mode === "intersection")) {
         out.push(feature(f.geometry, propsFrom(f)));
       }
     }
