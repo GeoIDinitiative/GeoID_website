@@ -708,7 +708,16 @@ const TOOL_ICONS = {
   "map view": "<path d=\"M2.6 4.2 6 2.8v9L2.6 13.2Zm3.4-1.4 4 1.4v9l-4-1.4Zm4 1.4 3.4-1.4v9L10 13.2Z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/>",
   "layer provenance": "<path d=\"M8 2.6 13.4 5.6 8 8.6 2.6 5.6Z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linejoin=\"round\"/><path d=\"m2.6 8.4 5.4 3 5.4-3\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/>",
   "coordinate transformer": "<circle cx=\"8\" cy=\"8\" r=\"5.4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\"/><path d=\"M2.6 8h10.8M8 2.6c1.8 1.8 1.8 8.8 0 10.8-1.8-2-1.8-9 0-10.8Z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1\"/>",
+  "wildfires": "<path d=\"M8 2.6c0.6 2-2.8 3.4-2.8 6.4a2.8 2.8 0 0 0 5.6 0c0-1.1-0.5-1.9-1-2.7-0.4 0.7-0.7 1-1.3 1.2 0.5-1.6-0.1-3.4-0.5-4.9Z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linejoin=\"round\"/>",
 };
+
+/**
+ * Titles that take NO glyph. "NI prototype" is a named worked example
+ * rather than a subject, and a mark invented for it says nothing — the
+ * fallback bracket would be furniture.
+ */
+const NO_TOOL_ICON = new Set(["ni prototype"]);
+
 const FALLBACK_TOOL_ICON = "<path d=\"M5.6 3.2H3.4v9.6h2.2M10.4 3.2h2.2v9.6h-2.2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\"/>";
 
 /**
@@ -721,6 +730,7 @@ function paintToolIcons() {
     if (summary.dataset.toolIcon || summary.closest(".event-feed-group")) return;
     summary.dataset.toolIcon = "1";
     const key = (summary.textContent || "").trim().toLowerCase();
+    if (NO_TOOL_ICON.has(key)) return;
     const glyph = TOOL_ICONS[key] || FALLBACK_TOOL_ICON;
     const span = document.createElement("span");
     span.className = "section-icon tool-section-icon";

@@ -10,16 +10,16 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260828-8e961d2";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260828-8e961d2";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260828-8e961d2";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260828-45f735e";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260828-45f735e";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260828-45f735e";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260828-8e961d2";
+  from "./view-extent.js?v=20260828-45f735e";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260828-8e961d2";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260828-8e961d2";
+} from "./extent-picker.js?v=20260828-45f735e";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260828-45f735e";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -657,7 +657,9 @@ function drawCatalogue() {
   if (hazardsHost) {
     const subset = entries
       .filter((entry) => geeHomeOf(entry.id) === "geohazards")
-      .map((entry) => ({ ...entry, group: "Hazard indicators (Earth Engine)" }));
+      // The "Wildfires" subtab around this list names the subject, so the
+      // group heading inside it names the SOURCE rather than repeating it.
+      .map((entry) => ({ ...entry, group: "Earth Engine" }));
     if (subset.length) renderCatalogue(hazardsHost, subset, hooks);
     else hazardsHost.textContent = "";
   }

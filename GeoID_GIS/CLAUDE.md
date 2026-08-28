@@ -1269,6 +1269,16 @@ keeps a glow, which the feed groups have too. Verified: Search,
 Locations, Core View, Tour Mode and Atmosphere all MATCH a feed group on
 background, border, radius and shadow, closed AND open.
 
+**Not every title takes a glyph, and a loose row is not a subtab.** The
+burned-area catalogue sat directly in the Hazards body under a heading
+while every other entry in the column lives in a `gis-tool-section`; it
+is now a **Wildfires** subtab (flame, the Live Events wildfire glyph),
+and the group heading inside it names the SOURCE ("Earth Engine")
+because the subtab already names the subject. `NO_TOOL_ICON` is the
+other half: "NI prototype" is a named worked example rather than a
+subject, so it takes no glyph at all — the fallback bracket would be
+furniture.
+
 **Icons on EVERY subsection, and one gap value.** The ~54 (Earth) / 39
 (Mars) `gis-tool-section` summaries had no glyphs while the level-2
 sections and feed groups did, so a column mixing them read as two
