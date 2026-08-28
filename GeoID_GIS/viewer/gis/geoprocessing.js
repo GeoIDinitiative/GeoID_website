@@ -1,5 +1,5 @@
-import * as G from "./geometry.js?v=20260828-af48278";
-import { transform } from "./projection.js?v=20260828-af48278";
+import * as G from "./geometry.js?v=20260828-4030a73";
+import { transform } from "./projection.js?v=20260828-4030a73";
 
 // Vector geoprocessing on GeoJSON FeatureCollections.
 //
@@ -175,7 +175,15 @@ export function multiRingBuffer(fc, distancesM, { segments = 32, shape = "round"
     const inner = i > 0 ? distances[i - 1] : 0;
     const band = (rings && i > 0) ? difference(disks[i], disks[i - 1]) : disks[i];
     band.features.forEach((f) => {
-      out.push(feature(f.geometry, { ...f.properties, buffer_m: d, buffer_min_m: rings ? inner : 0 }));
+      out.push(feature(f.geometry, {
+        ...f.properties,
+        buffer_m: d,
+        buffer_min_m: rings ? inner : 0,
+        // The same numbers in km, because these are what the LEGEND grades:
+        // a band labelled "10–20" reads, "10000–20000" is an axis label.
+        buffer_km: d / 1000,
+        buffer_min_km: (rings ? inner : 0) / 1000,
+      }));
     });
   });
   return featureCollection(out);

@@ -1,13 +1,13 @@
-import * as GP from "./geoprocessing.js?v=20260828-af48278";
-import * as RA from "./raster-analysis.js?v=20260828-af48278";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260828-af48278";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260828-af48278";
-import { CRS_OPTIONS } from "./projection.js?v=20260828-af48278";
-import * as IN from "./interpolation.js?v=20260828-af48278";
-import * as VAL from "./validation.js?v=20260828-af48278";
-import * as EX from "./analysis-extra.js?v=20260828-af48278";
-import * as HY from "./hydrology.js?v=20260828-af48278";
-import * as KR from "./kriging.js?v=20260828-af48278";
+import * as GP from "./geoprocessing.js?v=20260828-4030a73";
+import * as RA from "./raster-analysis.js?v=20260828-4030a73";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260828-4030a73";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260828-4030a73";
+import { CRS_OPTIONS } from "./projection.js?v=20260828-4030a73";
+import * as IN from "./interpolation.js?v=20260828-4030a73";
+import * as VAL from "./validation.js?v=20260828-4030a73";
+import * as EX from "./analysis-extra.js?v=20260828-4030a73";
+import * as HY from "./hydrology.js?v=20260828-4030a73";
+import * as KR from "./kriging.js?v=20260828-4030a73";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -61,11 +61,13 @@ export const TOOLS = [
     id: "buffer",
     label: "Buffer",
     category: "Vector geoprocessing",
-    blurb: "Grow each feature outward by a distance in metres; overlaps dissolve.",
+    blurb: "Grow each feature outward by a distance in kilometres; overlaps dissolve.",
     keywords: ["distance", "offset", "grow", "ring", "zone"],
     inputs: [{ name: "input", label: "Input", type: "vector" }],
     params: [
-      { name: "distance", label: "Distance (m)", kind: "number", default: 1000, step: 100, min: 0.001 },
+      // Kilometres, because that is the scale a globe is worked at: a metre
+      // field defaulting to 1000 made every distance a count-the-zeroes check.
+      { name: "distance", label: "Distance (km)", kind: "number", default: 10, step: 1, min: 0.000001 },
       // What each geometry honestly allows: circles or squares for points,
       // end caps for lines. A polygon outline is offset along its own
       // boundary whichever is chosen -- the outline IS the shape.
@@ -79,7 +81,7 @@ export const TOOLS = [
     outputType: "vector",
     outputName: "buffer_{input}",
     engines: {
-      native: (i, p) => GP.buffer(i.input.collection, p.distance,
+      native: (i, p) => GP.buffer(i.input.collection, p.distance * 1000,
         { dissolve: p.dissolve !== false, shape: p.shape || "round" }),
     },
   },
@@ -92,8 +94,8 @@ export const TOOLS = [
     keywords: ["nested", "concentric", "rings", "zones", "distance", "bands", "multiple"],
     inputs: [{ name: "input", label: "Input", type: "vector" }],
     params: [
-      { name: "distances", label: "Distances (m, comma-separated)", kind: "text",
-        default: "10000, 20000, 30000" },
+      { name: "distances", label: "Distances (km, comma-separated)", kind: "text",
+        default: "10, 20, 30" },
       { name: "shape", label: "Shape", kind: "select", default: "round", options: [
         { id: "round", name: "Round" },
         { id: "square", name: "Square" },
@@ -106,15 +108,19 @@ export const TOOLS = [
     outputName: "rings_{input}",
     // Graded on arrival: every band carries buffer_m, and one class per band
     // is the whole reason the bands exist.
-    paint: { field: "buffer_m", ramp: "viridis" },
+    // Graded on buffer_km, not buffer_m: the legend these classes become is
+    // read by a person, and "10–20" is a distance where "10000–20000" is an
+    // axis label. Discrete: one class per band, whatever the spacing.
+    paint: { field: "buffer_km", minField: "buffer_min_km", unit: "km",
+      ramp: "viridis", discrete: true },
     engines: {
       native: (i, p) => {
         const distances = String(p.distances || "")
           .split(/[\s,;]+/).map(Number).filter((d) => Number.isFinite(d) && d > 0);
         if (!distances.length) {
-          return { ok: false, message: "Give at least one distance in metres, e.g. 10000, 20000." };
+          return { ok: false, message: "Give at least one distance in km, e.g. 10, 20, 30." };
         }
-        return GP.multiRingBuffer(i.input.collection, distances,
+        return GP.multiRingBuffer(i.input.collection, distances.map((d) => d * 1000),
           { shape: p.shape || "round", rings: p.rings !== false });
       },
     },
@@ -1436,7 +1442,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260828-af48278");
+    const client = await import("./sidecar-client.js?v=20260828-4030a73");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -1491,7 +1497,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260828-af48278");
+    const bridge = await import("./research/bridge.js?v=20260828-4030a73");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -1503,12 +1509,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260828-af48278");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260828-4030a73");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260828-af48278");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260828-4030a73");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }
@@ -1564,6 +1570,47 @@ export async function readToolHistory() {
 
 /** Publishes an engine's product as a layer through the same path the legacy
     tiles use, so both kinds of output are identical downstream. */
+async function paintOutput(layer, paint, fc) {
+  const stamp = new URL(import.meta.url).search;
+  const dialog = await import(`./symbology-dialog.js${stamp}`);
+  const values = [...new Set(fc.features
+    .map((f) => f.properties?.[paint.field]).filter(Number.isFinite))]
+    .sort((a, b) => a - b);
+  if (values.length < 2) return;
+  if (!paint.discrete) {
+    dialog.paintByRange(layer, paint.field, {
+      method: "equal", classes: Math.min(values.length, 12), ramp: paint.ramp || "viridis",
+    });
+    return;
+  }
+  const sym = await import(`./symbology.js${stamp}`);
+  const overrides = new Map();
+  const labels = new Map();
+  values.forEach((value, i) => {
+    const t = values.length === 1 ? 1 : i / (values.length - 1);
+    overrides.set(String(value), sym.hex(sym.rampColour(paint.ramp || "viridis", t)));
+    // The band's own span, read off the feature that carries it: "5–15 km"
+    // says what the colour means where a bare "15" says only where it ends.
+    const carrier = fc.features.find((f) => f.properties?.[paint.field] === value);
+    const from = paint.minField ? carrier?.properties?.[paint.minField] : undefined;
+    const unit = paint.unit ? ` ${paint.unit}` : "";
+    labels.set(String(value), Number.isFinite(from)
+      ? `${from}–${value}${unit}` : `${value}${unit}`);
+  });
+  dialog.paintByField(layer, paint.field, { overrides, labels });
+  // Categorical legends order by FREQUENCY; distance bands order by distance.
+  const info = layer.legendInfo;
+  if (info?.values?.length === values.length) {
+    const order = values.map((v) => info.values.indexOf(String(v))).filter((i) => i >= 0);
+    if (order.length === values.length) {
+      ["palette", "labels", "values", "counts"].forEach((key) => {
+        if (Array.isArray(info[key])) info[key] = order.map((i) => info[key][i]);
+      });
+    }
+  }
+  window.GeoIDLayerHierarchy?.render?.();
+}
+
 function register(desc, raw, name) {
   const failShape = (message) => ({ ok: false, message, layer: null, outputType: desc.outputType });
   if (!raw) return failShape("The tool produced nothing.");
@@ -1603,23 +1650,25 @@ function register(desc, raw, name) {
   const result = buildVectorLayerResult(fc, { name, drape: 0.008 });
   const layer = window.GeoIDImportManager?.addDerivedLayer?.(name, result, "derived") || null;
   /**
-   * A tool may declare how its output is READ (`paint: { field, ramp }`), and
-   * the multi-ring buffer does: every band carries `buffer_m`, and one class
-   * per band is the whole reason the bands exist. Dynamic import and
-   * best-effort, in that order of caution -- symbology-dialog is a UI module
-   * this runner must not drag into Node, and a failed paint must never fail
-   * the run that produced the layer.
+   * A tool may declare how its output is READ (`paint`), and the multi-ring
+   * buffer does. Dynamic import and best-effort, in that order of caution --
+   * symbology-dialog is a UI module this runner must not drag into Node, and
+   * a failed paint must never fail the run that produced the layer.
+   *
+   * `discrete: true` means ONE CLASS PER DISTINCT VALUE, categorically. The
+   * first version graded with equal-interval classes, which is only one
+   * class per band when the distances are evenly spaced: asked for
+   * "5, 15, 40" km it put the 5 and 15 km bands under one colour while the
+   * legend claimed three, and left a class ("16.67–28.33") that no band was
+   * in at all. Bands are categories that happen to be numbers; classing them
+   * as a continuum is a different statement about the data. Each band is
+   * coloured by its RANK along the ramp (so near-to-far still reads as a
+   * sequence), labelled with its own span ("5–15 km"), and the legend is
+   * re-sorted by distance -- categorical legends order by frequency, which
+   * for rings is meaningless.
    */
   if (layer && desc.paint?.field && typeof document !== "undefined") {
-    const bands = new Set(fc.features
-      .map((f) => f.properties?.[desc.paint.field]).filter(Number.isFinite));
-    if (bands.size >= 2) {
-      void import(`./symbology-dialog.js${new URL(import.meta.url).search}`)
-        .then((sym) => sym.paintByRange(layer, desc.paint.field, {
-          method: "equal", classes: Math.min(bands.size, 12), ramp: desc.paint.ramp || "viridis",
-        }))
-        .catch(() => {});
-    }
+    void paintOutput(layer, desc.paint, fc).catch(() => {});
   }
   return { ok: true, message: `${name}: ${fc.features.length} features.${note}`, layer, outputType: "vector" };
 }
