@@ -1208,6 +1208,17 @@ it anchors after `#workspace-add-host` instead; (3) the hierarchy bakes
 the chip into its row template and does not hear the tag event —
 `applyTag` calls `GeoIDLayerHierarchy.render()` itself.
 
+**Every SUB-tab folds with the Live groups' chevron** (side "›" turning
+down when open, on the right where the +/- sat) — level-2
+control-sections and gis-tool-sections both, via side-panels' injected
+sheet with !important over both page stylesheets. Level-1 tabs keep
+their +/- (a different tier speaks a different mark) and the Live feed
+groups keep their own LEFT chevron (excluded, or they would wear two).
+Trap paid for twice in one edit: "\203A" inside a JS template literal is
+an OCTAL escape and a SyntaxError — the file needs a double backslash —
+and a `;` instead of `&&` before the commit let the broken file commit
+while a stale /tmp test log read "all passed".
+
 ## Workbenches: the rail owns what you pick up and put down
 
 **Every basemap row carries the same ⓘ the overlay rows do** — tile

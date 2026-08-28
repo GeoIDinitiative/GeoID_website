@@ -10,12 +10,12 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260828-225874c";
-import { samplerToRaster } from "./raster-analysis.js?v=20260828-225874c";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260828-225874c";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260828-225874c";
-import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260828-225874c";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260828-225874c";
+import { currentBody } from "./bodies.js?v=20260828-f1d529c";
+import { samplerToRaster } from "./raster-analysis.js?v=20260828-f1d529c";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260828-f1d529c";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260828-f1d529c";
+import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260828-f1d529c";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260828-f1d529c";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --

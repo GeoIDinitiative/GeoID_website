@@ -172,6 +172,43 @@ const STYLE = `
   line-height: 1.2;
 }
 
+/* ── One fold mark for every SUB-tab: the Live groups' chevron ──────────────
+ *
+ * The Live Events feed groups draw a side chevron that turns down when the
+ * section opens, and it was liked; every other sub-tab said +/- instead. So
+ * level-2 control-sections and every gis-tool-section swap the +/- for the
+ * same side-to-down arrow, on the right where the +/- sat. The LEVEL-1 tabs
+ * keep their +/- — a different tier speaks a different mark — and the feed
+ * groups keep their own left-hand chevron (excluded, or they would wear
+ * two). !important because both page stylesheets set the content. */
+.control-section:not(.toolbox-group) > .section-toggle::after {
+  content: "\\203A" !important;
+  transform: rotate(0deg);
+  transition: transform 0.15s ease;
+  font-size: 1.05rem;
+  line-height: 1;
+  width: 0.6rem;
+  text-align: center;
+}
+.control-section:not(.toolbox-group)[open] > .section-toggle::after {
+  transform: rotate(90deg);
+}
+.gis-tool-section:not(.event-feed-group) > summary { display: flex; align-items: center; gap: 0.4rem; }
+.gis-tool-section:not(.event-feed-group) > summary > * { min-width: 0; }
+.gis-tool-section:not(.event-feed-group) > summary::after {
+  content: "\\203A";
+  flex: 0 0 auto;
+  margin-left: auto;
+  width: 0.6rem;
+  text-align: center;
+  transform: rotate(0deg);
+  transition: transform 0.15s ease;
+  opacity: 0.8;
+}
+.gis-tool-section:not(.event-feed-group)[open] > summary::after {
+  transform: rotate(90deg);
+}
+
 /* The header controls wear the Workspace header's icon-button treatment:
    small bordered squares pinned right, glyph inside — one language for
    every boxed header in the GUI. */
