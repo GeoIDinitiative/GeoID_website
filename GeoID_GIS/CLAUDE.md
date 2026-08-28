@@ -3728,6 +3728,20 @@ into the open project through `downloadText`. `window.GeoIDExtraction`
   round; the extraction module speaks {lat, lon} objects and lat-first calls
   throughout, unlike GeoJSON's [lon, lat].
 
+**The workflow test (new project -> geology + elevation -> 10 km box ->
+extract -> export) found two more per-body faults**, both invisible on Earth:
+the rocky worlds all hold `getGeologyFeatureAtLatLon` internally and NONE put
+it on the seam, so the extraction's geology tick wrote an empty column on
+every planet (the seam entry closes over `geologyInteractiveState`, live once
+that world's geology map loads); and `extractPolygonSamples` converted its
+step with Earth's 111.32 km/deg everywhere, so a 0.5 km grid on Mars was
+really 0.27 km — 1,444 rows claiming a resolution nobody asked for. The step
+now derives from `viewer.bodyRadiusKm` (pi*R/180). Measured after: Mars 21
+rows over a 10 km box, step 0.5000 km on Mars's radius, geology 430/430
+("Mixed layered sedimentary rock"), export filed in `mars/extract-wf-mars`'s
+own exports/. The grid's elevation and geology are the SAME uniform-ground
+grid by construction — one table, one resolution, no interpolation step.
+
 **The five rocky planet pages still carried the dead `#gis-extract-modal`**
 that Earth removed — the second instance of the documented id-collision:
 `getElementById("gis-extract-run")` found the modal's button first, the
