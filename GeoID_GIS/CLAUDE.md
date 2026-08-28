@@ -602,62 +602,6 @@ convention S1 ≥ S2 ≥ S3, but wsm00025 carries S1 11.5, S2 5.5, S3 6.3 MPa, a
 "intermediate" over a number smaller than the one below it is the app inventing
 an order the record does not have.
 
-## The water is graded from the DEM, and the limb wears its air
-
-**The default basemap's ocean is nearly black, and it is not a lighting
-fault.** Sentinel-2 cloudless is a LAND mosaic; measured at the default view
-before this, the whole globe's mean pixel was rgb(15, 18, 30) and mid-ocean
-rgb(3, 7, 25). From orbit the sea is not black.
-
-**The grade is driven by the ELEVATION RASTER, never by the picture's own
-colours.** A hue test catches dark land as readily as water; the DEM already
-bound to this material says exactly where the sea is and how deep, so the
-grade runs shallow-teal to deep-blue on real bathymetry — shelves and reefs
-come up bright, abyssal plains stay dark. The imagery's own variation (ice,
-sediment, cloud, glint) survives by MODULATING the water colour with the
-source luminance rather than painting over it, and that modulation is
-BOUNDED (`uOceanDetail`, clamped 0.55–1.45) so a basemap whose water is
-already blue cannot blow out. Verified on both: Sentinel-2 mean rgb(12, 55,
-104), Blue Marble rgb(12, 56, 109), zero blown pixels in either, and Blue
-Marble's cloud swirls still legible over the sea.
-
-Two constants that were measured rather than chosen:
-
-- **The sunlit water colour.** The water pixels are identified by painting
-  the mask magenta — which is also how the mask was proved to land on water
-  and not on Australia — and the brightest tenth of them read back per
-  candidate palette. rgb(14, 17, 30) before, rgb(39, 99, 135) in sunlight
-  and rgb(0, 42, 97) at night after: a day/night ratio of 2.4, so the
-  terminator survives the brightening. The AMBIENT LIGHT IS DELIBERATELY NOT
-  REDUCED though 0.40 would sharpen that ratio to 3.2 — this is a GIS, data
-  is read on the night side too, and a darker globe is a different decision
-  from the one asked for.
-- **Where the deep colour is reached.** 3,800 m put a wide neon band of
-  shelf colour down every continental margin; 2,600 m keeps the shelf
-  legible as bathymetry without it reading as a coastline drawn in cyan.
-
-**The limb glow is a back-faced shell with a fresnel falloff**, brightest at
-the terminator, where sunlight runs the long way through the air. Three
-things it must not do, each answered by the geometry rather than by a
-special case: it sits at 1.055 radii, clear of terrain that reaches 3.2989
-against a base 3.2 at the default exaggeration; it is additive with
-`depthWrite: false` and back-faced, so it adds light outside the silhouette
-and occludes nothing; and it fades with altitude — measured, full at
-2,000 km, 0.48 at 600, 0.014 at 120, off below 40, because close in the
-imagery is the subject and haze over it is only in the way. `abs()` on the
-fresnel dot is what makes one expression serve the view from outside the
-shell and from within it. Mixing an orange as strong as #ffb37a into the
-blue read as PINK rather than as dawn; #ffd2a0 at power 4.2 reads as a limb.
-
-**Measuring any of this needs an explicit `renderer.render` immediately
-before `gl.readPixels`.** The drawing buffer is cleared on present, so a
-read taken a moment after the frame returns an empty canvas — which looks
-exactly like a viewer that has failed to boot, and was diagnosed as one for
-a round. And compare a FIXED set of pixels: a mean over "pixels brighter
-than a threshold" moves because the SET moves, so brightening the ocean
-dragged the mean red down by admitting six hundred formerly-black pixels,
-which reads as the change having darkened something.
-
 ## The globe opens on Esri imagery, and the labels are the planet viewers'
 
 **Default basemap.** `blue-marble` still paints the first frame — it ships with

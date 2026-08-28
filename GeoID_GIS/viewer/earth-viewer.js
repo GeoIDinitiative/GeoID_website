@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260828-31b1019";
+  from "./gis/geo-utils.js?v=20260828-2dcea52";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -12821,98 +12821,6 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
       scene.add(marsGroup);
       scene.add(buildStarfield(THREE));
 
-      /**
-       * THE LIMB GLOW: a back-faced shell with a fresnel falloff.
-       *
-       * Earth from orbit is ringed by its own air, and the brightest part of
-       * that ring is the terminator, where sunlight runs the long way through
-       * the atmosphere and scatters blue out and orange forward. Both are in
-       * here: `rim` is the fresnel, `dusk` is a narrow band either side of the
-       * day/night line that warms and brightens the colour.
-       *
-       * Three things it must not do, each of which the geometry answers:
-       *  - sit under the mountains. The displaced surface reaches 3.2989 at
-       *    the default exaggeration against a base radius of 3.2, so the
-       *    shell is at 1.055 (3.376) — clear of the terrain at any setting
-       *    the slider offers.
-       *  - occlude anything. Additive, `depthWrite: false`, and back-faced,
-       *    so it adds light at the limb and nothing anywhere else.
-       *  - wash out close-range imagery. It fades with altitude: at a global
-       *    view it is the whole point, and 40 km up it is gone.
-       * It takes no clicks (`nonInteractive`, raycast stubbed), which is the
-       * same courtesy the sun visual pays.
-       */
-      const ATMOSPHERE_RADIUS = 3.2 * 1.055;
-      const atmosphereMaterial = new THREE.ShaderMaterial({
-        uniforms: {
-          uSunDir: { value: new THREE.Vector3(1, 0, 0) },
-          uDay: { value: new THREE.Color(0x5aa6ff) },
-          uDusk: { value: new THREE.Color(0xffd2a0) },
-          uStrength: { value: 1 },
-          uPower: { value: 4.2 },
-        },
-        vertexShader: `
-          varying vec3 vWorldNormal;
-          varying vec3 vWorldPos;
-          void main() {
-            vWorldNormal = normalize(mat3(modelMatrix) * normal);
-            vec4 worldPos = modelMatrix * vec4(position, 1.0);
-            vWorldPos = worldPos.xyz;
-            gl_Position = projectionMatrix * viewMatrix * worldPos;
-          }
-        `,
-        fragmentShader: `
-          uniform vec3 uSunDir;
-          uniform vec3 uDay;
-          uniform vec3 uDusk;
-          uniform float uStrength;
-          uniform float uPower;
-          varying vec3 vWorldNormal;
-          varying vec3 vWorldPos;
-          void main() {
-            vec3 viewDir = normalize(cameraPosition - vWorldPos);
-            // Back faces, so the normal points away from the camera at the
-            // centre and across it at the limb: the absolute value makes one
-            // expression serve both, and from inside the shell as well.
-            float rim = 1.0 - abs(dot(normalize(vWorldNormal), viewDir));
-            float glow = pow(clamp(rim, 0.0, 1.0), uPower);
-            float sun = dot(normalize(vWorldNormal), normalize(uSunDir));
-            float day = smoothstep(-0.45, 0.15, sun);
-            float dusk = exp(-pow(sun * 3.4, 2.0));
-            vec3 colour = mix(uDay, uDusk, dusk * 0.55);
-            float amount = glow * uStrength * (0.12 + day * 1.05 + dusk * 0.35);
-            gl_FragColor = vec4(colour * amount, 1.0);
-          }
-        `,
-        side: THREE.BackSide,
-        blending: THREE.AdditiveBlending,
-        transparent: true,
-        depthWrite: false,
-      });
-      const atmosphereShell = new THREE.Mesh(
-        new THREE.SphereGeometry(ATMOSPHERE_RADIUS, 96, 96),
-        atmosphereMaterial,
-      );
-      atmosphereShell.name = "earth-atmosphere";
-      atmosphereShell.userData.nonInteractive = true;
-      atmosphereShell.userData.keepRenderOrder = true;
-      atmosphereShell.renderOrder = 8;
-      atmosphereShell.raycast = () => {};
-      scene.add(atmosphereShell);
-
-      /** Fade the glow out on the way down; it is a view from orbit. */
-      function updateAtmosphere() {
-        atmosphereMaterial.uniforms.uSunDir.value.copy(_SUN_DIR);
-        const altitude = camera.position.length() - 3.2;
-        // Full strength beyond ~1,200 km, gone by ~40 km: below that the
-        // imagery is the subject and a haze over it is only in the way.
-        const near = 0.02;    // ~40 km in world units
-        const far = 0.6;      // ~1,200 km
-        const t = Math.min(1, Math.max(0, (altitude - near) / (far - near)));
-        atmosphereMaterial.uniforms.uStrength.value = t * t * (3 - 2 * t);
-        atmosphereShell.visible = t > 0.001;
-      }
-
       const _sunLocal = new THREE.Vector3();
       const _sunWorld = new THREE.Vector3();
       const _yAxis = new THREE.Vector3(0, 1, 0);
@@ -13280,58 +13188,7 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
         roughness: 1,
         metalness: 0,
       });
-      /**
-       * WATER IS GRADED FROM THE DEM, not from the picture's own colours.
-       *
-       * The default basemap is Sentinel-2 cloudless, a land mosaic whose
-       * ocean is nearly black — measured over the whole globe at the default
-       * view, the mean pixel was rgb(15, 18, 30) and mid-ocean rgb(3, 7, 25).
-       * From orbit the sea is not black, and a globe that opens looking like
-       * a shadow of itself is the first thing anybody sees.
-       *
-       * A hue test on the texture would catch dark land as readily as water.
-       * The elevation raster already on this material says exactly where the
-       * sea is and HOW DEEP — so the grade runs shallow-teal to deep-blue on
-       * real bathymetry, which is both the honest answer and the one that
-       * looks right: shelves and reefs come up bright, abyssal plains stay
-       * dark. The imagery's own variation (ice, sediment, glint) is kept by
-       * MODULATING the water colour with the source luminance rather than
-       * painting over it.
-       */
-      /**
-       * Every constant below was measured against the render, not chosen by
-       * eye: the water pixels were identified by painting the mask magenta
-       * (which also proved it lands on water and not on Australia), then the
-       * sunlit tenth of them was read back for each candidate. Before:
-       * rgb(14, 17, 30). After: rgb(39, 99, 135) in sunlight, rgb(0, 42, 97)
-       * at night — a day/night ratio of 2.4, so the terminator survives.
-       *
-       * The ambient light is deliberately NOT reduced, though it would sharpen
-       * that terminator further (0.40 gives 3.2): this is a GIS, data is read
-       * on the night side too, and a darker globe is a different decision from
-       * the one asked for.
-       */
-      // Where the deep colour is fully reached. 3,800 m put a wide neon
-      // band of shelf colour down every continental margin; 2,600 m keeps
-      // the shelf legible as bathymetry without it reading as a coastline
-      // drawn in cyan.
-      const OCEAN_DEPTH_FULL_M = 2600;
       baseMaterial.onBeforeCompile = (shader) => {
-        shader.uniforms.uOceanMap = { value: elevationMap || null };
-        shader.uniforms.uOceanEnabled = { value: elevationMap ? 1 : 0 };
-        shader.uniforms.uOceanSeaLevel = { value: normalizeSeaLevelMeters(0) };
-        shader.uniforms.uOceanStrength = { value: 0.85 };
-        shader.uniforms.uOceanDepthScale = {
-          value: Math.max(Number(manifest.elevation?.relief_m ?? 19557), 1) / OCEAN_DEPTH_FULL_M,
-        };
-        // base + scale for the source-luminance modulation, as a uniform so
-        // it can be measured against the render rather than guessed at.
-        shader.uniforms.uOceanDetail = { value: new THREE.Vector2(1.05, 1.35) };
-        shader.uniforms.uOceanShallow = { value: new THREE.Color(0x4ab4c4) };
-        shader.uniforms.uOceanDeep = { value: new THREE.Color(0x2168ab) };
-        shader.uniforms.uVibrance = { value: 1.16 };
-        shader.uniforms.uLift = { value: 1.06 };
-        baseMaterial.userData.oceanShader = shader;
         shader.uniforms.uContourMap = { value: null };
         shader.uniforms.uContourOpacity = { value: Number(contourOpacity?.value || 0.62) };
         shader.uniforms.uContourEnabled = { value: 0 };
@@ -13344,31 +13201,11 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
         shader.fragmentShader = shader.fragmentShader
           .replace(
             "#include <common>",
-            "#include <common>\nuniform sampler2D uContourMap;\nuniform float uContourOpacity;\nuniform float uContourEnabled;\nuniform vec2 uContourTexel;\nuniform float uContourThickness;\nuniform float uContourInterval;\nuniform float uContourMinMeters;\nuniform float uContourReliefMeters;\nuniform sampler2D uOceanMap;\nuniform float uOceanEnabled;\nuniform float uOceanSeaLevel;\nuniform float uOceanStrength;\nuniform float uOceanDepthScale;\nuniform vec2 uOceanDetail;\nuniform vec3 uOceanShallow;\nuniform vec3 uOceanDeep;\nuniform float uVibrance;\nuniform float uLift;",
+            "#include <common>\nuniform sampler2D uContourMap;\nuniform float uContourOpacity;\nuniform float uContourEnabled;\nuniform vec2 uContourTexel;\nuniform float uContourThickness;\nuniform float uContourInterval;\nuniform float uContourMinMeters;\nuniform float uContourReliefMeters;",
           )
           .replace(
             "#include <map_fragment>",
             `#include <map_fragment>
-            if (uOceanEnabled > 0.5) {
-              // The elevation raster's own frame: the same flip the contour
-              // sampling below uses, since both read the same texture.
-              vec2 oceanUv = vec2(fract(vMapUv.x), 1.0 - clamp(vMapUv.y, 0.0, 1.0));
-              float oceanElev = texture2D(uOceanMap, oceanUv).r;
-              float wet = 1.0 - smoothstep(uOceanSeaLevel - 0.0015, uOceanSeaLevel + 0.0015, oceanElev);
-              if (wet > 0.001) {
-                float depth01 = clamp((uOceanSeaLevel - oceanElev) * uOceanDepthScale, 0.0, 1.0);
-                vec3 water = mix(uOceanShallow, uOceanDeep, depth01);
-                // The picture's own brightness survives as variation, bounded
-                // so a basemap that already draws bright water cannot blow out.
-                float srcLum = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
-                float detail = clamp(uOceanDetail.x + srcLum * uOceanDetail.y, 0.55, 1.45);
-                diffuseColor.rgb = mix(diffuseColor.rgb, water * detail, uOceanStrength * wet);
-              }
-            }
-            // A gentle vibrance and lift over everything, land included: the
-            // saturation the imagery loses to atmosphere and to compression.
-            float gradeLum = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
-            diffuseColor.rgb = clamp(mix(vec3(gradeLum), diffuseColor.rgb, uVibrance) * uLift, 0.0, 1.0);
             if (uContourEnabled > 0.5) {
               vec2 contourOffset = uContourTexel * uContourThickness;
               vec2 contourUv = vec2(fract(vMapUv.x), 1.0 - clamp(vMapUv.y, 0.0, 1.0));
@@ -21696,7 +21533,6 @@ ${error && error.message ? error.message : error}`;
           updateGeoSelectorPinTracking();
         }
         updateSolarModel();
-        updateAtmosphere();
         updateGmtClock();
         if (compareShader) {
           compareShader.uniforms.uViewportWidth.value = renderer.domElement.clientWidth || window.innerWidth || 1;
