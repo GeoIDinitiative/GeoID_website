@@ -83,6 +83,39 @@ function installStyle() {
 .draw-hud-btn.is-glyph svg { width: 1rem; height: 1rem; display: block; }
 #gis-draw-export-slot { display: flex; align-items: center; gap: 0.3rem; }
 #gis-draw-export-slot:empty { display: none; }
+/* Export CSV as its icon — a tray taking an arrow — and ONLY while it is
+   parked here. The button belongs to the viewer, which shows and hides it as
+   a measurement comes and goes; restyling the node itself would follow it
+   home to the rail, where it sits under its button and needs its words. So
+   the text is hidden by the SLOT's rule and the glyph is a mask on ::before,
+   which takes currentColor and therefore the button's own hover and accent. */
+#gis-draw-export-slot .tool-rail-action-btn {
+  font-size: 0 !important;
+  width: 1.85rem;
+  min-width: 0;
+  height: 1.55rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+#gis-draw-export-slot .tool-rail-action-btn::before {
+  content: "";
+  width: 0.95rem;
+  height: 0.95rem;
+  background: currentColor;
+  -webkit-mask: var(--export-glyph) center / contain no-repeat;
+  mask: var(--export-glyph) center / contain no-repeat;
+}
+#gis-draw-export-slot {
+  --export-glyph: url("data:image/svg+xml;utf8,\
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>\
+<path d='M12 3v10.5' stroke='black' stroke-width='2' stroke-linecap='round' fill='none'/>\
+<path d='M7.5 9.5 12 14l4.5-4.5' stroke='black' stroke-width='2' stroke-linecap='round' \
+stroke-linejoin='round' fill='none'/>\
+<path d='M4 16v3.2h16V16' stroke='black' stroke-width='2' stroke-linecap='round' \
+stroke-linejoin='round' fill='none'/></svg>");
+}
 #gis-draw-export-slot::before {
   content: "";
   width: 1px;
@@ -166,37 +199,53 @@ function build() {
     return button;
   };
   /**
-   * The regular shapes come in as GLYPHS, not words.
+   * The SHAPES are glyphs; only the two that are not shapes keep words.
    *
-   * They arrived from the preset card, which drew them as icons; four more
-   * words would take this bar from about 300 px to over 700 and push it off
-   * a narrow screen, and "Triangle" says nothing a triangle does not. The
-   * four that were already here keep their words — that half was reported
-   * as working, and it is not what changed.
+   * A row of eight shape names runs past 700 px and off a narrow screen, and
+   * a triangle says "triangle" better than the word does. What stays written
+   * is Custom — click your own vertices, which no glyph states plainly — and
+   * the actions, because Done is a decision and deserves a word.
+   *
+   * BOX is drawn as a RECTANGLE and the square as a square, on purpose: they
+   * are two different gestures (drag out any aspect / drag a regular shape
+   * from its centre) and giving both the same picture would be a lie about
+   * which one you are picking up.
    */
-  const glyph = (id, label, sides, spin) => {
-    const button = make(id, "", `${label} — press the centre, drag the size`);
+  const icon = (id, label, inner, hint) => {
+    const button = make(id, "", `${label} — ${hint}`);
     button.classList.add("is-glyph");
     button.setAttribute("aria-label", label);
+    button.innerHTML = `<svg viewBox="0 0 22 22" aria-hidden="true">${inner}</svg>`;
+    return button;
+  };
+  const ngon = (id, label, sides, spin) => {
     const points = [];
     for (let i = 0; i < sides; i += 1) {
       const a = ((spin + (i * 360) / sides) * Math.PI) / 180;
       points.push(`${(11 + 7.2 * Math.sin(a)).toFixed(2)} ${(11 - 7.2 * Math.cos(a)).toFixed(2)}`);
     }
-    button.innerHTML = '<svg viewBox="0 0 22 22" aria-hidden="true">'
-      + `<path d="M${points.join("L")}Z" fill="none" stroke="currentColor"`
-      + ' stroke-width="1.8" stroke-linejoin="round"/></svg>';
-    return button;
+    return icon(id, label, `<path d="M${points.join("L")}Z" fill="none"`
+      + ' stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
+    "press the centre, drag the size");
   };
 
-  make("box", "Box", "Press and drag to draw a box");
-  make("circle", "Circle", "Press the centre, drag the radius");
-  glyph("triangle", "Triangle", 3, 0);
-  glyph("square", "Square", 4, 45);
-  glyph("pentagon", "Pentagon", 5, 0);
-  glyph("hexagon", "Hexagon", 6, 0);
-  make("poly", "Polygon", "Click out vertices");
-  make("line", "Line", "A transect through the Distance tool");
+  icon("box", "Box",
+    '<rect x="2.6" y="5.6" width="16.8" height="10.8" rx="1" fill="none"'
+    + ' stroke="currentColor" stroke-width="1.8"/>',
+    "press and drag out a box");
+  icon("circle", "Circle",
+    '<circle cx="11" cy="11" r="7.2" fill="none" stroke="currentColor" stroke-width="1.8"/>',
+    "press the centre, drag the radius");
+  ngon("triangle", "Triangle", 3, 0);
+  ngon("square", "Square", 4, 45);
+  ngon("pentagon", "Pentagon", 5, 0);
+  ngon("hexagon", "Hexagon", 6, 0);
+  make("poly", "Custom", "Click out your own vertices");
+  icon("line", "Line",
+    '<path d="M4.5 17 17.5 5" fill="none" stroke="currentColor" stroke-width="1.8"'
+    + ' stroke-linecap="round"/><circle cx="4.5" cy="17" r="1.9" fill="currentColor"/>'
+    + '<circle cx="17.5" cy="5" r="1.9" fill="currentColor"/>',
+    "a transect through the Distance tool");
   const doneBtn = el("button", "draw-hud-btn is-done", "Done");
   doneBtn.type = "button";
   doneBtn.title = "Save the shape as a layer (Enter)";
