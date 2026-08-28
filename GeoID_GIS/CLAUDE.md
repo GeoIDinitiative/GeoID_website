@@ -2713,6 +2713,30 @@ them at a twentieth of the size ran at 61. The registration is gated on
 which is the shape to watch for: a helper that sets a property as a side
 effect, reused on a path that means something else by it.
 
+## A half-parsed stylesheet looks like a half-implemented theme
+
+"The theming of the gis tools is still incomplete" — it was complete and
+UNREAD. `.gis-sym-swatch` in panel-styles.js never closed its brace, and CSS
+error recovery swallowed every rule from there to the next stray close —
+which existed: an orphaned `border: ...; }` fragment with no selector further
+down. The two faults CANCELLED into a sheet that parsed without an error
+anywhere and simply lacked eleven rules, so the ramp gallery fell back to
+platform-white ButtonFace chips while its gradient bars, names, hover and
+active states sat in the same style tag.
+
+The diagnosis that works: compare `tag.sheet.cssRules.length` against the
+selectors in the tag's own TEXT and find where they diverge (40 parsed, 51
+written). Nothing throws, the module runs, module-css.test.mjs's end-of-block
+checks pass — this failure is quieter than the backtick and the octal escape.
+**module-css.test.mjs balances braces now** (comments stripped) in every
+STYLE literal, and it caught the orphan half of the pair the moment the
+missing brace was restored.
+
+The `.gis-tool-body` form rows also carry the tools-window voice from
+panel-styles.js — stacked rows, Exo 2 uppercase data-cyan captions above
+full-width fields, checkbox rows inline — so Analysis, Preprocess and the
+tools window speak as one.
+
 ## The tools window wears the sub-tab voice, and scrollbars are settled at the root
 
 `#gis-tool-dialog`'s form rows are scoped in tool-dialog.js: labels ABOVE
