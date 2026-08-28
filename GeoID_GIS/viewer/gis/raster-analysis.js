@@ -1,5 +1,5 @@
-import * as G from "./geometry.js?v=20260828-4030a73";
-import { featureCollection, feature, polygonsOf } from "./geoprocessing.js?v=20260828-4030a73";
+import * as G from "./geometry.js?v=20260828-ca4e80a";
+import { featureCollection, feature, polygonsOf } from "./geoprocessing.js?v=20260828-ca4e80a";
 
 // Raster analysis equivalents of the QGIS Raster menu / ArcGIS Spatial Analyst
 // surface tools. A raster here is { band, width, height, bounds, noData },
@@ -507,7 +507,13 @@ export function resampleToGrid(raster, template) {
  */
 export function parseReclassifyRules(text) {
   const rules = [];
-  const pieces = String(text || "").split(",").map((piece) => piece.trim()).filter(Boolean);
+  // Commas, semicolons or bare whitespace between rules — a rule has no
+  // spaces inside it, so any run of separators is a separator. Comma-only
+  // splitting kept "0..300:1; 300..700:2" whole and then blamed the SYNTAX
+  // ("use min..max:class") when the syntax was exactly right and the
+  // semicolon was the whole problem: an error that misdirects is worse than
+  // the strictness it reports.
+  const pieces = String(text || "").split(/[\s,;]+/).map((piece) => piece.trim()).filter(Boolean);
   if (!pieces.length) return { ok: false, message: "No rules given." };
   for (const piece of pieces) {
     const m = piece.match(/^(-?\d+(?:\.\d+)?)\.\.(-?\d+(?:\.\d+)?):(-?\d+(?:\.\d+)?)$/);

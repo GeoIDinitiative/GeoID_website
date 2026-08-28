@@ -13,7 +13,7 @@
  */
 
 import {
-  featureCollection, feature, clip, difference, intersect, dissolve,
+  featureCollection, feature, clip, difference, intersect, dissolve, union,
   buffer, multiRingBuffer, convexHull, centroids, simplifyCollection,
   spatialJoin, featureAreaM2, fieldStatistics, fieldCalculator,
 } from "./geoprocessing.js";
@@ -360,6 +360,39 @@ check("dissolve returns one feature per group",
   check("distances are sorted, deduplicated and cleaned",
     dirty.features.map((f) => f.properties.buffer_m).join() === "10000,20000",
     dirty.features.map((f) => f.properties.buffer_m).join());
+}
+
+/* ── Collinear edges through CLIP and DIFFERENCE tile the subject ────────── */
+// The exact pair the dialog sweep caught: the subject's right edge collinear
+// with the mask's, one crossing where the traversal needs pairs, and the
+// subject came through clip UNCUT. Clip and difference must tile the input.
+{
+  const subject = fc(square(10.3, 0.3, 10.7, 0.7, { id: 1 }));   // 0.16 deg²
+  const mask = fc(square(10.2, 0.1, 10.7, 0.6));                  // shares x=10.7
+  const clipped = areaOf(clip(subject, mask));
+  const cut = areaOf(difference(subject, mask));
+  const whole = areaOf(subject);
+  near("collinear-edge clip keeps only the overlap",
+    +(clipped / whole).toFixed(3), 0.75, 0.02);        // 0.4×0.3 of 0.4×0.4
+  near("collinear-edge difference keeps only the rest",
+    +(cut / whole).toFixed(3), 0.25, 0.02);
+  near("clip + difference tile the subject",
+    +((clipped + cut) / whole).toFixed(3), 1, 0.01);
+}
+
+/* ── The shredded-union case: an L-shape against a collinear mask ────────── */
+// dissolve(PolyA) then union with a mask sharing the L's right edge: the raw
+// primitive returned rings of area 0.02 and ~0, which read as "two rings, no
+// overlap" and skipped the nudge. The union must be ONE ring of 0.39 deg².
+{
+  const lShape = dissolve(fc(
+    square(10.0, 0.0, 10.4, 0.4), square(10.3, 0.3, 10.7, 0.7)));
+  const mask = fc(square(10.2, 0.1, 10.7, 0.6));
+  const merged = union(lShape, mask);
+  near("L-shape unions across a collinear shared edge",
+    +(areaOf(merged) / featureAreaM2(square(0, 0, 1, 1))).toFixed(3), 0.39, 0.01);
+  check("that union is one feature", merged.features.length === 1,
+    `got ${merged.features.length}`);
 }
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");

@@ -1,13 +1,13 @@
-import * as GP from "./geoprocessing.js?v=20260828-4030a73";
-import * as RA from "./raster-analysis.js?v=20260828-4030a73";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260828-4030a73";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260828-4030a73";
-import { CRS_OPTIONS } from "./projection.js?v=20260828-4030a73";
-import * as IN from "./interpolation.js?v=20260828-4030a73";
-import * as VAL from "./validation.js?v=20260828-4030a73";
-import * as EX from "./analysis-extra.js?v=20260828-4030a73";
-import * as HY from "./hydrology.js?v=20260828-4030a73";
-import * as KR from "./kriging.js?v=20260828-4030a73";
+import * as GP from "./geoprocessing.js?v=20260828-ca4e80a";
+import * as RA from "./raster-analysis.js?v=20260828-ca4e80a";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260828-ca4e80a";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260828-ca4e80a";
+import { CRS_OPTIONS } from "./projection.js?v=20260828-ca4e80a";
+import * as IN from "./interpolation.js?v=20260828-ca4e80a";
+import * as VAL from "./validation.js?v=20260828-ca4e80a";
+import * as EX from "./analysis-extra.js?v=20260828-ca4e80a";
+import * as HY from "./hydrology.js?v=20260828-ca4e80a";
+import * as KR from "./kriging.js?v=20260828-ca4e80a";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -172,15 +172,19 @@ export const TOOLS = [
   },
   {
     id: "dissolve",
-    label: "Dissolve by field",
+    label: "Dissolve / merge",
     category: "Vector geoprocessing",
-    blurb: "Merge features that share a value in a field into one multi-part feature.",
-    keywords: ["merge", "aggregate", "group", "combine"],
+    blurb: "Merge everything into one shape, or one shape per value of a field; "
+      + "shared boundaries and overlaps are removed.",
+    keywords: ["merge", "aggregate", "group", "combine", "union", "one"],
     inputs: [{ name: "input", label: "Input", type: "vector" }],
-    params: [{ name: "field", label: "Field", kind: "field" }],
+    // Optional: blank means the WHOLE LAYER becomes one feature, which is the
+    // commonest reason anyone opens this. The dialog could not ask for it
+    // while the field was required — merge-into-one simply had no door.
+    params: [{ name: "field", label: "Group by (blank = merge all)", kind: "field", optional: true }],
     outputType: "vector",
     outputName: "dissolve_{input}",
-    engines: { native: (i, p) => GP.dissolve(i.input.collection, p.field) },
+    engines: { native: (i, p) => GP.dissolve(i.input.collection, p.field || undefined) },
   },
   {
     id: "hull",
@@ -1030,7 +1034,13 @@ export const TOOLS = [
       { name: "observations", label: "Observations", type: "vector" },
     ],
     params: [
-      { name: "field", label: "Outcome field (blank = all are occurrences)", kind: "field" },
+      // `of` points the field list at the OBSERVATIONS layer — without it the
+      // dialog listed the raster's fields, of which there are none, so the
+      // select was empty and the run refused. And optional, because the
+      // engine already treats blank as "every row is an occurrence", which
+      // is what the label had promised all along.
+      { name: "field", label: "Outcome field (blank = all are occurrences)", kind: "field",
+        of: "observations", optional: true },
       { name: "positiveValue", label: "Value meaning \u201cit happened\u201d", kind: "text", default: "" },
     ],
     outputType: "table",
@@ -1101,7 +1111,8 @@ export const TOOLS = [
     ],
     params: [
       { name: "threshold", label: "Threshold", kind: "number", default: 0.5, step: 0.1 },
-      { name: "field", label: "Outcome field", kind: "field" },
+      { name: "field", label: "Outcome field (blank = all are occurrences)", kind: "field",
+        of: "observations", optional: true },
     ],
     outputType: "table",
     outputName: "confusion_{input}",
@@ -1442,7 +1453,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260828-4030a73");
+    const client = await import("./sidecar-client.js?v=20260828-ca4e80a");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -1497,7 +1508,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260828-4030a73");
+    const bridge = await import("./research/bridge.js?v=20260828-ca4e80a");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -1509,12 +1520,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260828-4030a73");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260828-ca4e80a");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260828-4030a73");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260828-ca4e80a");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }
@@ -1720,11 +1731,26 @@ export function runTool(toolId, inputs = {}, params = {}, { outputName } = {}) {
       if (p.min !== undefined && value < p.min) return fail(`${p.label} must be at least ${p.min}.`);
       if (p.max !== undefined && value > p.max) return fail(`${p.label} must be at most ${p.max}.`);
     } else if (p.kind === "select") {
-      if (!(p.options || []).some((o) => o.id === value)) {
+      /**
+       * Options come in two shapes — `{ id, name }` and `{ value, label }` —
+       * and the DIALOG renders both (`option.value ?? option.id`). This
+       * validation accepted only `id`, so a tool declared the other way could
+       * never pass it: mosaic refused every choice INCLUDING ITS OWN DEFAULT,
+       * from any UI, since the day it shipped. Found by the dialog sweep;
+       * the registry keeps both spellings because either alone means editing
+       * tools that already work.
+       */
+      if (!(p.options || []).some((o) => (o.id ?? o.value) === value)) {
         return fail(`${p.label}: pick one of the listed options.`);
       }
     } else if (p.kind === "field") {
-      if (!value || typeof value !== "string") return fail(`${p.label} is required.`);
+      // An OPTIONAL field left blank means "the whole layer": dissolve with
+      // no group column merges everything into one, which is the commonest
+      // reason anyone opens it. A required one still refuses.
+      if (!value || typeof value !== "string") {
+        if (p.optional) { resolvedParams[p.name] = ""; continue; }
+        return fail(`${p.label} is required.`);
+      }
       // When the input layer declares its fields, an unknown name is a typo,
       // not a request — GP.dissolve would otherwise group everything under
       // `undefined` and report success.

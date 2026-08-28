@@ -39,9 +39,9 @@
  * law is honoured by having nothing to exempt.
  */
 
-import { prefs, mergeParams } from "./tool-prefs.js?v=20260828-4030a73";
+import { prefs, mergeParams } from "./tool-prefs.js?v=20260828-ca4e80a";
 
-const RUNNER_URL = "./tool-runner.js?v=20260828-4030a73";
+const RUNNER_URL = "./tool-runner.js?v=20260828-ca4e80a";
 
 /* ── Dialog-only styles, injected as the house pattern dictates.
       NEVER a backtick inside this literal — it ends the string and kills the
@@ -282,7 +282,11 @@ function syncFieldParams() {
     // The value to restore: what the user picked, else the merged prefill
     // parked on the node at build time.
     const want = select.value || select.dataset.want || "";
-    fillSelect(select, fields.map((f) => ({ id: f, name: f })));
+    // An optional field gets a blank first row — "the whole layer" — so
+    // merge-everything is something the dialog can actually ask for.
+    const rows = fields.map((f) => ({ id: f, name: f }));
+    if (param?.optional) rows.unshift({ id: "", name: "— whole layer —" });
+    fillSelect(select, rows);
     if (want && [...select.options].some((o) => o.value === want)) {
       select.value = want;
     }
@@ -301,10 +305,19 @@ function resolveOutputName() {
   const firstInput = desc.inputs?.[0];
   const layer = firstInput ? selectedInputLayer(firstInput.name) : null;
   // Prefer the runner's own resolver when it ships one, so the dialog and
-  // the run pipeline cannot disagree about what a template means.
+  // the run pipeline cannot disagree about what a template means. EVERY
+  // selected input goes along, not just the first: "dist_{features}" and
+  // "sampled_{points}" name themselves after their SECOND input, and handed
+  // only the first they came out with the braces still in — a layer
+  // literally called dist_{features} in the Workspace.
   if (typeof runner?.resolveOutputName === "function") {
     try {
-      return runner.resolveOutputName(desc, firstInput ? { [firstInput.name]: layer } : {});
+      const chosen = {};
+      (desc.inputs || []).forEach((spec) => {
+        const picked = selectedInputLayer(spec.name);
+        if (picked) chosen[spec.name] = picked;
+      });
+      return runner.resolveOutputName(desc, chosen);
     } catch {
       /* fall through to the local rules */
     }

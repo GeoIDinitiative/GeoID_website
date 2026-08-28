@@ -1,5 +1,5 @@
-import * as G from "./geometry.js?v=20260828-4030a73";
-import { transform } from "./projection.js?v=20260828-4030a73";
+import * as G from "./geometry.js?v=20260828-ca4e80a";
+import { transform } from "./projection.js?v=20260828-ca4e80a";
 
 // Vector geoprocessing on GeoJSON FeatureCollections.
 //
@@ -222,12 +222,91 @@ function ringArea(ring) {
  */
 const UNION_NUDGE = 1e-9;            // degrees; about 0.1 mm at the equator
 
+function nudgeRing(ring) {
+  return ring.map(([x, y]) => [x + UNION_NUDGE, y + UNION_NUDGE]);
+}
+
+/**
+ * Intersection of two outer rings, CHECKED the way `unionRings` is.
+ *
+ * The same degeneracy, caught in the other two ops by the area audit below:
+ * collinear overlapping edges defeat `segmentIntersection` (its denominator
+ * is zero), which can leave ONE crossing where the traversal needs pairs —
+ * and the result is the subject returned whole. Measured from the tools
+ * dialog: a square sharing its right edge with the clip mask came through
+ * clip UNCUT, and clip + difference of one 0.16°² square summed to 0.32°².
+ *
+ * The check is op-specific because a shared invariant misfires on the
+ * containment fallbacks: an intersection may never leave the overlap of the
+ * two bounding boxes, so any piece outside it is the degeneracy talking.
+ * Retried against a mask nudged ~0.1 mm — far below the precision of
+ * anything drawn on a globe — and still-invalid pieces are dropped rather
+ * than shipped.
+ */
+function intersectRings(subject, mask) {
+  const bs = G.boundsOf(subject);
+  const bm = G.boundsOf(mask);
+  const eps = 1e-9;
+  const within = (ring) => {
+    const b = G.boundsOf(ring);
+    return b.minX >= Math.max(bs.minX, bm.minX) - eps
+      && b.maxX <= Math.min(bs.maxX, bm.maxX) + eps
+      && b.minY >= Math.max(bs.minY, bm.minY) - eps
+      && b.maxY <= Math.min(bs.maxY, bm.maxY) + eps;
+  };
+  let out = G.booleanOp(subject, mask, "intersection").filter(validRing);
+  if (out.every(within)) return out;
+  out = G.booleanOp(subject, nudgeRing(mask), "intersection").filter(validRing);
+  return out.filter(within);
+}
+
+/**
+ * Subject ring minus mask ring, audited by TILING: what the mask cuts away
+ * plus what survives must equal the subject. The remainder's target area is
+ * the subject's minus the CHECKED intersection's, so this leans on
+ * `intersectRings` rather than on a second raw call that could be wrong in
+ * the same way at the same place.
+ */
+function subtractRings(subject, mask) {
+  const aSubject = ringArea(subject);
+  const aInter = intersectRings(subject, mask)
+    .reduce((sum, ring) => sum + ringArea(ring), 0);
+  const good = (rings) => Math.abs(
+    rings.reduce((sum, ring) => sum + ringArea(ring), 0) - (aSubject - aInter),
+  ) <= aSubject * 1e-6 + 1e-12;
+  let out = G.booleanOp(subject, mask, "difference").filter(validRing);
+  if (good(out)) return out;
+  out = G.booleanOp(subject, nudgeRing(mask), "difference").filter(validRing);
+  if (good(out)) return out;
+  // Nothing valid either way: when the mask demonstrably takes no area, the
+  // honest answer is the untouched subject; otherwise the nudged attempt is
+  // the least wrong thing available.
+  return aInter <= aSubject * 1e-6 ? [subject] : out;
+}
+
 function unionRings(a, b) {
+  /**
+   * A union answer is VALID in exactly two shapes, and anything else is the
+   * degeneracy talking: one ring that spans both inputs (a real merge), or
+   * the two inputs handed back with their area intact (no overlap). The
+   * first guard tested only the one-ring case — and the collinear failure
+   * can just as well SHRED into several near-zero fragments, which read as
+   * "two rings, so they did not overlap" and skipped the retry entirely.
+   * Measured from the dialog: the dissolved L-shape unioned with a mask
+   * sharing its right edge came back as rings of 0.02 and 0.0002 area, and
+   * the two stayed separate while the nudged retry gives the exact 0.39.
+   */
+  const areaIn = ringArea(a) + ringArea(b);
+  const valid = (rings) => {
+    if (rings.length === 1) return coversBoth(rings[0], a, b);
+    const total = rings.reduce((sum, ring) => sum + ringArea(ring), 0);
+    return rings.length >= 2
+      && Math.abs(total - areaIn) <= areaIn * 1e-6 + 1e-12;
+  };
   const joined = G.booleanOp(a, b, "union").filter(validRing);
-  if (joined.length !== 1 || coversBoth(joined[0], a, b)) return joined;
-  const nudged = b.map(([x, y]) => [x + UNION_NUDGE, y + UNION_NUDGE]);
-  const retry = G.booleanOp(a, nudged, "union").filter(validRing);
-  if (retry.length === 1 && coversBoth(retry[0], a, b)) return retry;
+  if (valid(joined)) return joined;
+  const retry = G.booleanOp(a, nudgeRing(b), "union").filter(validRing);
+  if (valid(retry)) return retry;
   return [a, b];                     // honestly separate rather than wrongly one
 }
 
@@ -377,7 +456,7 @@ function punchHoles(polygons, holes) {
         if (ringInRing(outer, hole)) return []; // swallowed whole
         return [polygon]; // disjoint
       }
-      const fragments = G.booleanOp(outer, hole, "difference").filter(validRing);
+      const fragments = subtractRings(outer, hole);
       return fragments.map((fragment) => [
         fragment,
         ...existing.filter((h) => ringInRing(h, fragment)),
@@ -389,7 +468,7 @@ function punchHoles(polygons, holes) {
 
 /** Subject polygon ∩ mask polygon → array of polygons. */
 function intersectPolygons(subject, mask) {
-  const outers = G.booleanOp(subject[0], mask[0], "intersection").filter(validRing);
+  const outers = intersectRings(subject[0], mask[0]);
   if (!outers.length) return [];
   // A hole in either input is a hole in the intersection.
   return punchHoles(outers.map((o) => [o]), [...subject.slice(1), ...mask.slice(1)]);
@@ -410,7 +489,7 @@ function subtractPolygons(subject, mask) {
   let out = punchHoles([[subject[0]]], [mask[0]]);
   mask.slice(1).forEach((maskHole) => {
     if (!validRing(maskHole)) return;
-    const restored = G.booleanOp(subject[0], maskHole, "intersection").filter(validRing);
+    const restored = intersectRings(subject[0], maskHole);
     out = out.concat(restored.map((r) => [r]));
   });
   return punchHoles(out, subject.slice(1));
