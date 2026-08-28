@@ -19,7 +19,7 @@
 const byId = (id) => document.getElementById(id);
 
 const HINTS = {
-  box: "Press and drag on the globe to draw a box · corners resize, edges move",
+  box: "Press and drag on the globe to draw a rectangle · corners resize, edges move",
   circle: "Press the centre and drag the radius",
   triangle: "Press the centre and drag the size",
   square: "Press the centre and drag the size",
@@ -229,23 +229,29 @@ function build() {
     "press the centre, drag the size");
   };
 
-  icon("box", "Box",
-    '<rect x="2.6" y="5.6" width="16.8" height="10.8" rx="1" fill="none"'
-    + ' stroke="currentColor" stroke-width="1.8"/>',
-    "press and drag out a box");
-  icon("circle", "Circle",
-    '<circle cx="11" cy="11" r="7.2" fill="none" stroke="currentColor" stroke-width="1.8"/>',
-    "press the centre, drag the radius");
-  ngon("triangle", "Triangle", 3, 0);
-  ngon("square", "Square", 4, 45);
-  ngon("pentagon", "Pentagon", 5, 0);
-  ngon("hexagon", "Hexagon", 6, 0);
-  make("poly", "Custom", "Click out your own vertices");
+  /**
+   * Ordered BY NUMBER OF SIDES: a line, a circle, then three, four, four
+   * again, five, six — and Custom last, because it has as many as you draw.
+   * The two four-sided ones sit together, the regular square before the
+   * rectangle you drag out to any aspect.
+   */
   icon("line", "Line",
     '<path d="M4.5 17 17.5 5" fill="none" stroke="currentColor" stroke-width="1.8"'
     + ' stroke-linecap="round"/><circle cx="4.5" cy="17" r="1.9" fill="currentColor"/>'
     + '<circle cx="17.5" cy="5" r="1.9" fill="currentColor"/>',
     "a transect through the Distance tool");
+  icon("circle", "Circle",
+    '<circle cx="11" cy="11" r="7.2" fill="none" stroke="currentColor" stroke-width="1.8"/>',
+    "press the centre, drag the radius");
+  ngon("triangle", "Triangle", 3, 0);
+  ngon("square", "Square", 4, 45);
+  icon("box", "Rectangle",
+    '<rect x="2.6" y="5.6" width="16.8" height="10.8" rx="1" fill="none"'
+    + ' stroke="currentColor" stroke-width="1.8"/>',
+    "press and drag out a rectangle");
+  ngon("pentagon", "Pentagon", 5, 0);
+  ngon("hexagon", "Hexagon", 6, 0);
+  make("poly", "Custom", "Click out your own vertices");
   const doneBtn = el("button", "draw-hud-btn is-done", "Done");
   doneBtn.type = "button";
   doneBtn.title = "Save the shape as a layer (Enter)";
@@ -258,7 +264,7 @@ function build() {
   // until there is something to export, and `:empty` keeps the divider off.
   const exportSlot = el("div");
   exportSlot.id = "gis-draw-export-slot";
-  row.append(doneBtn, cancelBtn, exportSlot);
+  row.append(doneBtn, exportSlot, cancelBtn);
   const hint = el("div", "", "");
   hint.id = "gis-draw-hint";
   hud.append(row, hint);

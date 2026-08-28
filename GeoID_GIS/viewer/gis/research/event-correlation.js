@@ -1,5 +1,5 @@
-import * as dsp from "./dsp.js?v=20260828-536703d";
-import { parseTable, column } from "./table.js?v=20260828-536703d";
+import * as dsp from "./dsp.js?v=20260828-e363f0f";
+import { parseTable, column } from "./table.js?v=20260828-e363f0f";
 
 /**
  * The Event Correlation Toolkit's analyses, written out.
