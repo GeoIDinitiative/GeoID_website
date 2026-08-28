@@ -1,8 +1,8 @@
 import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
-} from "./model-build.js?v=20260828-e99a04f";
-import { ringsFromCollection } from "./extraction.js?v=20260828-e99a04f";
+} from "./model-build.js?v=20260828-90f68be";
+import { ringsFromCollection } from "./extraction.js?v=20260828-90f68be";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -286,6 +286,11 @@ function render() {
     if (stepDone(step.id)) section.classList.add("is-done");
 
     const summary = el("summary", "section-toggle");
+    // The step NUMBER is this card's mark, so claim the shared icon painter's
+    // own opt-out rather than letting it add its fallback bracket beside it:
+    // two glyphs for one heading, and the bracket says nothing the number does
+    // not. (side-panels' paintToolIcons skips a summary already stamped.)
+    summary.dataset.toolIcon = "1";
     const main = el("div", "section-toggle-main");
     const heading = el("div", "section-heading");
     const title = el("div", "section-title");

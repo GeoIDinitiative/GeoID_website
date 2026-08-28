@@ -19,9 +19,9 @@
  * fetches, samples and draws.
  */
 
-import { fosSeries, wetnessSeries, materialFor, stabilityBand } from "./fos.js?v=20260828-e99a04f";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260828-e99a04f";
-import { SOURCE as WEATHER_SOURCE } from "./forecast.js?v=20260828-e99a04f";
+import { fosSeries, wetnessSeries, materialFor, stabilityBand } from "./fos.js?v=20260828-90f68be";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260828-90f68be";
+import { SOURCE as WEATHER_SOURCE } from "./forecast.js?v=20260828-90f68be";
 
 /* ── 1. the weather SURFACE ─────────────────────────────────────────────── */
 
