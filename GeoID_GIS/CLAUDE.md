@@ -1199,15 +1199,16 @@ stay in their cards.
 **`gis/data-tags.js` classifies every input AS IT ARRIVES.** `inferType`
 is pure (extension → source → name, in that order of authority; pinned in
 data-tags.test.mjs); every layer wears its type as a coloured chip in the
-hierarchy row (replacing the old `layer-kind` column); a small card under
-the add-row asks — optionally, never blocking — when a user's own upload
-or drawn capture lands, with a type select and a free-text note; the
-drawer carries the same controls forever — but ONLY for user inputs:
-prebuilt datasets (catalogue ticks, GEE pulls, live feeds, tile basemaps)
-are classified by where they came from, and `isUserInput` gates both the
-card and the drawer controls, so their chip is fixed — re-filing a
-prebuilt dataset by hand would put the chip and the catalogue in
-disagreement. The tag row also claims a full-width WRAPPED line in the
+hierarchy row (replacing the old `layer-kind` column); ONLY the Add-data dialog asks — its Classification fieldset,
+where somebody is already choosing what to import. An arrival card was
+tried and REMOVED: it fired over prebuilt datasets the app itself defines
+(the Macrostrat world geology arrives through `addDerivedLayer` and is in
+no catalogue registry, so the heuristic took it for an upload). With it
+went the heuristic: `isUserInput` is now an explicit FLAG set by the
+three doorways user data actually enters through — the dialog, a drawn
+capture, the Points tool — because a heuristic here fails OPEN, and
+failing open means asking somebody to file data they did not bring. The
+drawer carries the same controls forever The tag row also claims a full-width WRAPPED line in the
 drawer: jammed into the drawer's nowrap flex line, the note field was
 crushed to nothing. Tags mirror into
 `layer.metadata` (dataType, description) and, for layers that own their

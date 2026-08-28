@@ -12,18 +12,17 @@
  *     and name classify most inputs without a question being asked — a
  *     `.shp` is a shapefile, a GEE pull is filed by its own catalogue home,
  *     a drawn ring is a study area. `inferType` is pure and unit-tested.
- *  2. **The question is an OFFER, not a gate.** When a user-added input
- *     lands (an upload, a drawn capture), a small card appears at the top
- *     of Workspace: the name, the guessed type, a type select and a note
- *     field. Save it, or ignore it — it stands aside on the next input and
- *     nothing downstream waits for it. Fetched and catalogue layers are
- *     classified silently: they already said what they are by where they
- *     were ticked.
- *  3. **A USER input's tag is never locked** — its drawer carries the same
- *     type select and note field forever. A PREBUILT dataset's is: it was
- *     classified by where it came from, and re-filing it by hand would put
- *     the chip and the catalogue in disagreement (`isUserInput` is the
- *     gate, for the card and the drawer both).
+ *  2. **Only the Add-data dialog ASKS.** Its Classification fieldset is
+ *     the one prompt, shown where somebody is already choosing what to
+ *     import. Everything else — a catalogue tick, a GEE pull, a live feed,
+ *     a tiled geology layer — is classified silently. A card that appeared
+ *     on arrival was tried and removed: it fired over prebuilt datasets
+ *     the app itself defines (the Macrostrat world geology), which is
+ *     exactly the data nobody should be asked to file.
+ *  3. **A USER input's tag stays editable** in its drawer; a prebuilt
+ *     dataset's is fixed. `isUserInput` is that gate and it is an explicit
+ *     FLAG (`markUserInput`, set by the three doorways user data enters
+ *     through) rather than a heuristic — see its note.
  *
  * Where it lives on the layer: `layer.dataType` / `layer.description`,
  * mirrored into `layer.metadata` (the provenance surface the registry and
@@ -148,7 +147,7 @@ export function typeSelect(layer) {
   return select;
 }
 
-/* ── The arrival card: classify while it is fresh ───────────────────────── */
+/* ── Chip styling ────────────────────────────────────────────────────── */
 
 const STYLE = `
 .data-tag-chip {
@@ -192,19 +191,25 @@ function injectStyle() {
 }
 
 /**
- * Which layers are the USER'S OWN inputs — uploads and drawn captures,
- * named by files and gestures that say little. They get the arrival card
- * AND the editable type/note controls in the drawer. Everything ticked or
- * fetched from a catalogue already declared its subject by where it was
- * ticked: it is tagged silently and its classification is FIXED — a
- * prebuilt dataset re-filed by hand would put the chip and the catalogue
- * in disagreement about what the data is.
+ * Is this the USER'S own input? An explicit flag, set where user data
+ * actually enters — the Add-data dialog, a drawn capture, the Points tool
+ * — and nowhere else.
+ *
+ * It was a heuristic first (not a catalogue layer, not GEE, not a tile
+ * drape, not named "Live …"), and heuristics fail open: the Macrostrat
+ * world geology arrives through `addDerivedLayer` from the Geology panel,
+ * is in no catalogue registry, and so was taken for an upload — it raised
+ * the classification prompt over a dataset the app itself defines. A flag
+ * cannot make that mistake: anything the app loads is prebuilt unless the
+ * doorway that created it says otherwise.
  */
 export function isUserInput(layer) {
-  if (window.GeoIDGlobalData?.isCatalogueLayer?.(layer)) return false;
-  if (["gee", "tiles"].includes(layer.ext)) return false;
-  if (/^live /i.test(layer.name || "")) return false;
-  return true;
+  return layer?.userInput === true;
+}
+
+/** Stamp a layer as the user's own; the doorways call this. */
+export function markUserInput(layer) {
+  if (layer) layer.userInput = true;
 }
 
 const seen = new Set();
@@ -214,60 +219,12 @@ const seen = new Set();
  * ran must not also raise the arrival card — the same question twice in two
  * boxes. The dialog claims the next arrival before importing.
  */
-let suppressCards = 0;
-export function suppressNextArrival(count = 1) { suppressCards += count; }
-
-function arrivalCard(layer) {
-  /**
-   * Anchored under the Workspace box's add-row, NOT inside #polygon-list:
-   * polygons.js clears that list on every layer change, and this card is
-   * born ON a layer change — measured, added then wiped in the same event.
-   * The add-host's parent is the dock body, which nothing clears wholesale.
-   */
-  const anchor = document.getElementById("workspace-add-host");
-  const host = anchor?.parentElement || document.getElementById("polygon-list");
-  if (!host) return;
-  // One question at a time: a new arrival replaces the last unanswered one.
-  host.querySelectorAll(".data-tag-card").forEach((n) => n.remove());
-
-  const card = document.createElement("div");
-  card.className = "data-tag-card";
-
-  const head = document.createElement("div");
-  head.className = "data-tag-head";
-  head.innerHTML = `<span class="data-tag-name">New input: ${layer.name}</span>${chipHtml(layer)}`;
-  const dismiss = document.createElement("button");
-  dismiss.type = "button";
-  dismiss.className = "data-tag-dismiss";
-  dismiss.textContent = "✕";
-  dismiss.title = "Keep the guessed type";
-  dismiss.addEventListener("click", () => card.remove());
-  head.appendChild(dismiss);
-
-  const row = document.createElement("div");
-  row.className = "data-tag-row";
-  const select = typeSelect(layer);
-  const note = document.createElement("input");
-  note.className = "input";
-  note.type = "text";
-  note.placeholder = "Optional note — what is this input for?";
-  const commit = () => {
-    applyTag(layer, { type: select.value, description: note.value.trim() });
-    card.remove();
-  };
-  select.addEventListener("change", () => applyTag(layer, { type: select.value }));
-  note.addEventListener("keydown", (event) => { if (event.key === "Enter") commit(); });
-  const save = document.createElement("button");
-  save.type = "button";
-  save.className = "button secondary";
-  save.textContent = "Save";
-  save.addEventListener("click", commit);
-  row.append(select, note, save);
-
-  card.append(head, row);
-  if (anchor) anchor.after(card);
-  else host.prepend(card);
-}
+/**
+ * Kept as a no-op: the arrival card is gone, so there is nothing to
+ * suppress, and add-data still calls this. Removing the export would be a
+ * second edit for no behaviour.
+ */
+export function suppressNextArrival() {}
 
 function watchArrivals() {
   const manager = window.GeoIDImportManager;
@@ -284,14 +241,10 @@ function watchArrivals() {
     (manager.getLayers?.() || []).forEach((layer) => {
       if (seen.has(layer.id) || layer.status !== "loaded") return;
       seen.add(layer.id);
-      // Tag every arrival in real time, silently…
+      // Tag every arrival in real time, silently. Nothing is ASKED here:
+      // the only prompt is the Add-data dialog's own Classification
+      // fieldset, where somebody is already choosing what to import.
       applyTag(layer, {});
-      // …and ask only about the user's own inputs — unless the Add-data
-      // dialog already asked (suppressNextArrival).
-      if (isUserInput(layer)) {
-        if (suppressCards > 0) suppressCards -= 1;
-        else arrivalCard(layer);
-      }
     });
   });
 }

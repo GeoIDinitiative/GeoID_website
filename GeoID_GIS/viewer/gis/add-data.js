@@ -30,11 +30,11 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260828-d7a673c";
-import { readHead, validateMapping } from "./delimited.js?v=20260828-d7a673c";
-import { RAMP_NAMES } from "./symbology.js?v=20260828-d7a673c";
-import { isEarth } from "./bodies.js?v=20260828-d7a673c";
-import { DATA_TYPES, inferType, applyTag, suppressNextArrival } from "./data-tags.js?v=20260828-d7a673c";
+import { CRS_OPTIONS } from "./projection.js?v=20260828-e738b7e";
+import { readHead, validateMapping } from "./delimited.js?v=20260828-e738b7e";
+import { RAMP_NAMES } from "./symbology.js?v=20260828-e738b7e";
+import { isEarth } from "./bodies.js?v=20260828-e738b7e";
+import { DATA_TYPES, inferType, applyTag, markUserInput, suppressNextArrival } from "./data-tags.js?v=20260828-e738b7e";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
@@ -759,7 +759,7 @@ async function submit() {
     const tag = { type: ui.dtype.value, description: ui.dnote.value.trim() };
     (manager.getLayers?.() || [])
       .filter((l) => !before.has(l.id))
-      .forEach((l) => applyTag(l, tag));
+      .forEach((l) => { markUserInput(l); applyTag(l, tag); });
     close();
   } catch (error) {
     say(`Could not add that: ${error.message}`, true);

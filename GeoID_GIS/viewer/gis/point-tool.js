@@ -248,7 +248,12 @@ async function finish() {
   disarm(true);
   // frame:false — the points were just placed on screen; flying the camera
   // to their bounds would move the very view they were placed in.
+  const before = new Set((window.GeoIDImportManager?.getLayers?.() || []).map((l) => l.id));
   await window.GeoIDImportManager?.importFileList?.([file], { name, frame: false });
+  // Points somebody placed are their own input — same rule as a drawn shape.
+  (window.GeoIDImportManager?.getLayers?.() || [])
+    .filter((l) => !before.has(l.id))
+    .forEach((l) => { l.userInput = true; });
   state.counter += 1;
 }
 

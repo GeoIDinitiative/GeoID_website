@@ -13,8 +13,8 @@
  * you can operate on, and it should not have to be captured twice.
  */
 
-import { buildVectorLayerResult } from "./vector-render.js?v=20260828-d7a673c";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260828-d7a673c";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260828-e738b7e";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260828-e738b7e";
 
 let counter = 0;
 
@@ -113,6 +113,9 @@ export function captureDrawn({ name = null, stampedAt = null } = {}) {
   const built = buildVectorLayerResult(fc, { name: layerName, outlineOnly: true });
   const layer = window.GeoIDImportManager?.addDerivedLayer?.(layerName, built, "drawn");
   if (!layer) return { ok: false, message: "The layer could not be added — is the globe ready?" };
+  // A shape somebody drew is their own input: it keeps an editable
+  // classification, where a dataset the app defines does not.
+  layer.userInput = true;
   // Same rule as every tool's output: it is a layer AND it is offered to the
   // project. A shape you drew and then lost with the tab is not a record.
   void (async () => {
