@@ -275,5 +275,40 @@ function areaDeg2(collection) {
   near("featureAreaM2 subtracts holes", area / (deg * deg), 12, 0.2);
 }
 
+/* ── Dissolve removes the shared boundary, and the union is CHECKED ──────── */
+
+const ONE_SQ = featureAreaM2(square(0, 0, 1, 1));
+const areaOf = (out) => out.features.reduce((sum, f) => sum + featureAreaM2(f), 0);
+
+// Dissolve used to collect a group into one MultiPolygon WITHOUT merging it,
+// which is ArcGIS's Merge and not its Dissolve: two squares overlapping by
+// half reported the area of two whole squares.
+near("dissolve removes the overlap, not just the row",
+  +(areaOf(dissolve(fc(square(0, 0, 1, 1), square(0.5, 0.5, 1.5, 1.5)))) / ONE_SQ).toFixed(3),
+  1.75, 0.02);
+
+// The degenerate case: Greiner-Hormann does not handle collinear overlapping
+// edges, and two boxes sharing a y-range exactly is the commonest shape in
+// this app. It returned one ring with the area of ONE square, silently.
+near("collinear overlapping edges still union correctly",
+  +(areaOf(dissolve(fc(square(0, 0, 1, 1), square(0.5, 0, 1.5, 1)))) / ONE_SQ).toFixed(3),
+  1.5, 0.02);
+
+near("disjoint shapes keep both areas",
+  +(areaOf(dissolve(fc(square(0, 0, 1, 1), square(5, 0, 6, 1)))) / ONE_SQ).toFixed(3),
+  2, 0.02);
+
+near("edge-touching shapes keep both areas",
+  +(areaOf(dissolve(fc(square(0, 0, 1, 1), square(1, 0, 2, 1)))) / ONE_SQ).toFixed(3),
+  2, 0.02);
+
+near("a contained shape adds nothing",
+  +(areaOf(dissolve(fc(square(0, 0, 2, 2), square(0.5, 0.5, 1.5, 1.5)))) / ONE_SQ).toFixed(3),
+  4, 0.02);
+
+check("dissolve returns one feature per group",
+  dissolve(fc(square(0, 0, 1, 1), square(5, 0, 6, 1))).features.length === 1,
+  "disjoint pieces are one MultiPolygon row");
+
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");
 process.exit(failures ? 1 : 0);

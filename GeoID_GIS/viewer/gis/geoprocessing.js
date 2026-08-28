@@ -1,5 +1,5 @@
-import * as G from "./geometry.js?v=20260828-ab989e3";
-import { transform } from "./projection.js?v=20260828-ab989e3";
+import * as G from "./geometry.js?v=20260828-398b7e7";
+import { transform } from "./projection.js?v=20260828-398b7e7";
 
 // Vector geoprocessing on GeoJSON FeatureCollections.
 //
@@ -123,6 +123,55 @@ export function buffer(fc, distanceM, { segments = 32, dissolve: merge = true } 
  * Attributes cannot survive a merge — the output is one shape made of many
  * inputs — so the caller says what the result should carry.
  */
+/** Planar area of a ring, for checking a union against its own inputs. */
+function ringArea(ring) {
+  return Math.abs(G.signedAreaPlanar(ring));
+}
+
+/**
+ * Union two rings, CHECKED — because the primitive has a degenerate case and
+ * fails silently on it.
+ *
+ * Greiner-Hormann does not handle collinear overlapping edges, and two
+ * rectangles sharing a y-range exactly is the commonest shape in this app: a
+ * box drawn beside another box, or a buffer aligned to a graticule. Measured,
+ * two 1° squares overlapping by half returned a single ring with the area of
+ * ONE square — the union silently lost a third of itself, and nothing about
+ * the result said so.
+ *
+ * A union cannot be smaller than its largest input. Where that is violated
+ * the ring is retried against a copy nudged by a hundredth of a millimetre,
+ * which is enough to break the collinearity and far below the precision of
+ * anything drawn on a globe; if it still fails the two are left UNMERGED,
+ * because two correct shapes are better than one wrong one.
+ */
+const UNION_NUDGE = 1e-9;            // degrees; about 0.1 mm at the equator
+
+function unionRings(a, b) {
+  const joined = G.booleanOp(a, b, "union").filter(validRing);
+  if (joined.length !== 1 || coversBoth(joined[0], a, b)) return joined;
+  const nudged = b.map(([x, y]) => [x + UNION_NUDGE, y + UNION_NUDGE]);
+  const retry = G.booleanOp(a, nudged, "union").filter(validRing);
+  if (retry.length === 1 && coversBoth(retry[0], a, b)) return retry;
+  return [a, b];                     // honestly separate rather than wrongly one
+}
+
+/**
+ * Does this ring reach every corner both inputs reach?
+ *
+ * An AREA floor cannot catch the degenerate case: the wrong answer there is
+ * exactly one of the inputs, so its area equals the largest input's and any
+ * floor passes. Bounds do catch it — a union that does not span both inputs
+ * has lost part of one of them — and they cost four comparisons.
+ */
+function coversBoth(ring, a, b) {
+  const u = G.boundsOf(ring);
+  const want = [G.boundsOf(a), G.boundsOf(b)];
+  const eps = 1e-9;
+  return want.every((w) => u.minX <= w.minX + eps && u.minY <= w.minY + eps
+    && u.maxX >= w.maxX - eps && u.maxY >= w.maxY - eps);
+}
+
 function unionAll(fc, properties = {}) {
   const rings = fc.features
     .flatMap((f) => polygonsOf(f.geometry))
@@ -143,7 +192,7 @@ function unionAll(fc, properties = {}) {
       touched = false;
       for (let i = 0; i < merged.length; i += 1) {
         if (!G.boundsIntersect(G.boundsOf(current), G.boundsOf(merged[i]))) continue;
-        const joined = G.booleanOp(current, merged[i], "union").filter(validRing);
+        const joined = unionRings(current, merged[i]);
         // A union that comes back as two rings means they did not overlap
         // after all -- the primitive returns both inputs. Only a single ring
         // is a real merge.
@@ -384,14 +433,42 @@ export function dissolve(fc, field) {
     group.count += 1;
   });
   const out = [];
+  let holesDropped = 0;
   groups.forEach((group, key) => {
     if (!group.polygons.length) return;
     const properties = field
       ? { [field]: key, dissolved_count: group.count }
       : { dissolved_count: group.count };
-    out.push(feature({ type: "MultiPolygon", coordinates: group.polygons }, properties));
+    /**
+     * DISSOLVE REMOVES THE SHARED BOUNDARY. It used to collect the group's
+     * polygons into one MultiPolygon and stop — which is ArcGIS's MERGE, not
+     * its Dissolve: the features became one row while the shapes stayed
+     * separate, so two squares overlapping by half reported the area of two
+     * whole squares. Measured before this: 24,727 km² for a pair whose union
+     * is 18,545.
+     *
+     * `unionAll` is the same pass the buffer's own dissolve uses, so the two
+     * cannot disagree; it merges what overlaps and leaves what does not, and
+     * a group that dissolves to several disjoint pieces comes back as one
+     * MultiPolygon feature — one row, as a dissolve should be.
+     */
+    const pieces = unionAll(
+      featureCollection(group.polygons.map((polygon) => feature(
+        { type: "Polygon", coordinates: polygon }, {},
+      ))), properties,
+    );
+    holesDropped += group.polygons.filter((polygon) => polygon.length > 1).length;
+    if (!pieces.features.length) return;
+    out.push(feature({
+      type: "MultiPolygon",
+      coordinates: pieces.features.map((f) => f.geometry.coordinates),
+    }, properties));
   });
-  return featureCollection(out);
+  const result = featureCollection(out);
+  // The merge works on OUTER rings, the limit `union` already states. Say so
+  // rather than letting a donut quietly become solid.
+  if (holesDropped) result.holesDropped = holesDropped;
+  return result;
 }
 
 export function convexHull(fc, { byFeature = false } = {}) {
