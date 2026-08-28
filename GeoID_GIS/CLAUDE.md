@@ -1217,10 +1217,10 @@ textures from `SHIPPED_BASE_INFO` in map-layers-panel — whose keys are
 the SELECT'S OWN option values (`earth-visible`, `derived-hillshade`,
 `gebco-bathy-context`), not the display names; guessing them cost a
 round. A texture in neither table gets a row without the ⓘ rather than a
-button opening an empty card. And on the PLANET pages the Settings gear
-lives in the Workspace header icons (+ Data, Export, ⚙ — add-data builds
-it, `railEarthOnly` on side-panels' entry drops the rail button there);
-Earth keeps the gear on the rail.
+button opening an empty card. And the Settings gear lives in the
+Workspace header icons on EVERY world (+ Data, + GEE, Export, ⚙ on
+Earth; + Data, Export, ⚙ on the planets — add-data builds it,
+side-panels' entry is `rail: false` so no rail button exists anywhere).
 
 **The Workspace tile wears the theme, and every boxed header speaks one
 language.** The dock's deliberately-quiet skin (muted head, faint border)

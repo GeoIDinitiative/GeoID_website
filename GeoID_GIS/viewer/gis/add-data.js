@@ -30,11 +30,11 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260828-2fe26ec";
-import { readHead, validateMapping } from "./delimited.js?v=20260828-2fe26ec";
-import { RAMP_NAMES } from "./symbology.js?v=20260828-2fe26ec";
-import { isEarth } from "./bodies.js?v=20260828-2fe26ec";
-import { DATA_TYPES, inferType, applyTag, suppressNextArrival } from "./data-tags.js?v=20260828-2fe26ec";
+import { CRS_OPTIONS } from "./projection.js?v=20260828-8cd2919";
+import { readHead, validateMapping } from "./delimited.js?v=20260828-8cd2919";
+import { RAMP_NAMES } from "./symbology.js?v=20260828-8cd2919";
+import { isEarth } from "./bodies.js?v=20260828-8cd2919";
+import { DATA_TYPES, inferType, applyTag, suppressNextArrival } from "./data-tags.js?v=20260828-8cd2919";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
@@ -909,9 +909,9 @@ function addButtonFor(role) {
       window.GeoIDSidePanels?.open?.("export");
     });
     row.appendChild(exp);
-    // The gear rides here on the PLANET pages — their rail does not carry
-    // Settings (side-panels railEarthOnly); Earth keeps it on the rail.
-    if (!isEarth()) {
+    // The gear rides here on EVERY world — Settings left the rail for the
+    // Workspace header (side-panels' entry is rail: false).
+    {
       const cfg = document.createElement("button");
       cfg.type = "button";
       cfg.className = "button secondary gis-settings-button";
