@@ -436,6 +436,15 @@ const STYLE = `
 .control-section:not(.toolbox-group) {
   background: rgb(24, 13, 47) !important;
 }
+/* The BODY behind the cards is the same story: left transparent it shows
+   the panel gradient at whatever depth the tab happens to sit — measured,
+   the events body sits at -1% of the panel and Explorer's at 61%, so the
+   two tabs had visibly different grounds. One opaque colour, a shade
+   under the cards so they still read as raised. */
+.toolbox-group > .section-body,
+.section-body.toolbox-group-body {
+  background: rgb(16, 7, 36) !important;
+}
 .control-section:not(.toolbox-group) {
   border: 1px solid rgba(var(--nav-accent-rgb), 0.18) !important;
   /* No inset ring, no glow: the page sheets give a closed level-2 section a

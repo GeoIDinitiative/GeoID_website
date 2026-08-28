@@ -1239,9 +1239,12 @@ differently depending on where the card sits. Measured: an events card
 275 px down the panel rendered ~rgb(24,13,47); an Explorer card 698 px
 down rendered ~rgb(17,9,32). Sub-tab cards now take an OPAQUE fill (the
 events card's own rendered colour, rgb(24,13,47)), so a card is the same
-colour at the top of the column and at the bottom. When computed styles
-agree and the eye does not, suspect a translucent fill over a gradient
-before suspecting the rules.
+colour at the top of the column and at the bottom. The tab BODIES behind
+them needed the same treatment for the same reason (measured: the events
+body sits at -1% of the panel, Explorer's at 61%) — one opaque ground,
+rgb(16,7,36), a shade under the cards so those still read as raised.
+When computed styles agree and the eye does not, suspect a translucent
+fill over a gradient before suspecting the rules.
 
 **Three more differences, found by walking the ANCESTOR CHAIN** rather
 than comparing the two cards alone: Explorer's sub-tabs sit inside a

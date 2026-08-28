@@ -1,5 +1,5 @@
 import * as THREE from "../vendor/three.module.js";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260828-be98b1a";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260828-97d53bc";
 
 // Gmsh files routinely reach hundreds of megabytes (the reference Etna mesh is
 // 226MB / 4.7M lines), so the file is streamed and decoded incrementally
