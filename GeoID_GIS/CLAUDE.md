@@ -2713,6 +2713,51 @@ them at a twentieth of the size ran at 61. The registration is gated on
 which is the shape to watch for: a helper that sets a property as a side
 effect, reused on a path that means something else by it.
 
+## Buffers have SHAPES, and the multi-ring is graded on arrival
+
+`GP.buffer(fc, m, { shape })` — "round" | "square" | "flat" — and
+`GP.multiRingBuffer(fc, [m...], { shape, rings })`, surfaced as the Buffer
+tool's Shape select and the new Multi-ring buffer tool. What each word
+honestly means per geometry, stated rather than discovered: points get
+circles or axis-aligned squares (`squareAround`); lines get flat caps, SQUARE
+caps (the corridor extended one distance past each end — ArcGIS's SQUARE end
+type, done by extending the endpoints before offsetting), or ROUND caps built
+by UNIONING end circles onto the flat corridor — stitching semicircle arcs
+into the ring by hand is exactly the seam arithmetic the boolean ops exist to
+avoid. A polygon outline is offset along its own boundary whichever shape is
+asked for; "square" does not mean a bounding box and the param blurb says so.
+
+**Multi-ring bands are TRUE RINGS by default** (each disk minus the previous)
+because solid nested disks STACK: three translucent fills over one centre
+render the drawing order, not the distance. Each band carries `buffer_m` and
+`buffer_min_m`; bands over colliding sources merge through the checked union.
+Distances are cleaned, not trusted — sorted, deduplicated, non-positives
+dropped.
+
+**A tool may declare how its output is READ**: `paint: { field, ramp }` on
+the descriptor, and `register()` grades the new layer through the symbology
+dialog's own `paintByRange` (equal interval, one class per band, capped 12).
+Dynamically imported so tool-runner stays Node-clean, and best-effort so a
+failed paint never fails the run that produced the layer. This is the seam
+any future tool with a self-describing output should use rather than
+repainting from its panel.
+
+Every constant checked against a closed form (square point 402 vs 400 km²,
+square caps +402 vs +400, round caps +314 = one circle, annuli to a fraction
+of a percent) — 14 checks in geoprocessing.test.mjs, which must sit ABOVE
+that file's summary line: it calls process.exit, so anything appended after
+it silently never runs.
+
+**Two realm traps in one verify loop, both already documented elsewhere and
+both walked into again.** `import()` in the harness's top realm gets a module
+whose `window` has no GeoIDImportManager — "Input is required" from a layer
+that plainly existed; import in the IFRAME realm (`fw.eval("import(...)")`).
+And after a reload the spin is BACK ON: a hand-placed camera then reads as
+the zoom "throwing the view away" when it is the planet turning under a
+paused probe that never re-paused it. The layer drawer's own
+`frameLayer` is the reliable way to a layer; hand-building camera positions
+against the zoom easing is not.
+
 ## Submarine cables, and why NOT from submarinecablemap.com
 
 **The source is Greg's Cable Map**, served as an ArcGIS FeatureServer that
