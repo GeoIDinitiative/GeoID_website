@@ -10,12 +10,12 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260828-0044c07";
-import { samplerToRaster } from "./raster-analysis.js?v=20260828-0044c07";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260828-0044c07";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260828-0044c07";
-import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260828-0044c07";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260828-0044c07";
+import { currentBody } from "./bodies.js?v=20260828-e0ac21c";
+import { samplerToRaster } from "./raster-analysis.js?v=20260828-e0ac21c";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260828-e0ac21c";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260828-e0ac21c";
+import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260828-e0ac21c";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260828-e0ac21c";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -59,21 +59,32 @@ const STYLE = `
     rgba(var(--nav-accent-rgb), 0.3), rgba(var(--nav-accent-rgb), 0.08));
   box-shadow: none;
 }
-/* The groups above draw a +/- through .section-toggle::after. This has its own
-   caret, on the other side of the head, so the two are not mistaken for the
-   same control. */
-/* Matched to the specificity of the pair in shell.css that draws the +/- here
+/* The tile folds like a tab, so it says so like a tab: the SAME left chevron,
+   turning the same way. It wore a "▾" on the far right — a second fold
+   language in a column that had settled on one, and on the wrong edge.
+   Matched to the specificity of the pair in shell.css that draws a +/- here
    -- #layer-dock:not(.is-collapsed) > .layer-dock-head::after -- since a
-   shorter selector loses to them and leaves the tab marker in place. */
+   shorter selector loses to them and leaves the tab marker in place; the
+   ::after is emptied at that same specificity rather than merely unstyled. */
 #layer-dock:not(.is-collapsed) > .layer-dock-head::after,
 #layer-dock.is-collapsed > .layer-dock-head::after {
-  content: "▾";
-  margin-left: auto;
-  color: rgb(var(--nav-accent-rgb));
-  font-size: 0.62rem;
-  transition: transform 0.2s ease;
+  content: none;
 }
-#layer-dock.is-collapsed > .layer-dock-head::after { transform: rotate(-90deg); }
+#layer-dock > .layer-dock-head::before {
+  content: "\\203A";
+  flex: 0 0 auto;
+  width: 0.7rem;
+  margin-right: 0.15rem;
+  text-align: center;
+  font-size: 1.15rem;
+  line-height: 1;
+  color: rgba(var(--nav-accent-rgb), 0.9);
+  transform: rotate(90deg);
+  transition: transform 0.15s ease;
+}
+/* Collapsed is the CLOSED state here, which is the opposite polarity to a
+   <details>: the tabs rotate on [open], this rotates back on .is-collapsed. */
+#layer-dock.is-collapsed > .layer-dock-head::before { transform: rotate(0deg); }
 #layer-dock .layer-dock-head .section-title {
   font-family: "Exo 2", "Segoe UI", sans-serif;
   font-weight: 600;

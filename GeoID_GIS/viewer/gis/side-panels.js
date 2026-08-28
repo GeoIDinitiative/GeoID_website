@@ -208,6 +208,16 @@ const STYLE = `
    row so the two tiers read as one family. */
 .control-section.toolbox-group > .section-toggle { gap: 0.55rem !important; }
 .control-section.toolbox-group > .section-toggle .section-title-row { gap: 0.55rem !important; }
+/* A BLOCK around an inline-flex row is the tier-1 half of a fault the level-2
+   rule below already fixes: the row sits on the line box's BASELINE, and the
+   strut's descender makes that box taller than the row (measured 23.5 px
+   against 19.5), so the icon and the name rode 2 px above the chevron, which
+   is a flex item of the toggle and therefore properly centred. Making the
+   title a flex container collapses the box to its content and centres it. */
+.control-section.toolbox-group > .section-toggle .section-title {
+  display: flex;
+  align-items: center;
+}
 
 .control-section:not(.toolbox-group) > .section-toggle::after { content: none !important; }
 .control-section:not(.toolbox-group) > .section-toggle::before {

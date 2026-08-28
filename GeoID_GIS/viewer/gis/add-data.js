@@ -30,11 +30,11 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260828-0044c07";
-import { readHead, validateMapping } from "./delimited.js?v=20260828-0044c07";
-import { RAMP_NAMES } from "./symbology.js?v=20260828-0044c07";
-import { isEarth } from "./bodies.js?v=20260828-0044c07";
-import { DATA_TYPES, inferType, applyTag, markUserInput, suppressNextArrival } from "./data-tags.js?v=20260828-0044c07";
+import { CRS_OPTIONS } from "./projection.js?v=20260828-e0ac21c";
+import { readHead, validateMapping } from "./delimited.js?v=20260828-e0ac21c";
+import { RAMP_NAMES } from "./symbology.js?v=20260828-e0ac21c";
+import { isEarth } from "./bodies.js?v=20260828-e0ac21c";
+import { DATA_TYPES, inferType, applyTag, markUserInput, suppressNextArrival } from "./data-tags.js?v=20260828-e0ac21c";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
@@ -244,20 +244,15 @@ const STYLE = `
 }
 .gis-add-row { display: flex; gap: 0.6rem; align-items: stretch; margin: 0.2rem 0 0.7rem; }
 /* Icon buttons in the Workspace header: small squares pinned right, names
-   in the tooltip. The head's own caret also carries margin-left auto; the
-   two autos share the slack and the caret keeps the far edge. */
+   in the tooltip. */
 .layer-dock-head .gis-add-row-icons {
-  margin: 0 0.35rem 0 auto;
+  margin: 0 0 0 auto;
   gap: 0.28rem;
   align-items: center;
 }
-/* The head's caret carries margin-left auto of its own (layer-hierarchy's
-   sheet); two autos SPLIT the slack and parked the icons mid-header. The
-   row owns the stretch now; the caret just trails it. */
-#layer-dock:not(.is-collapsed) > .layer-dock-head::after,
-#layer-dock.is-collapsed > .layer-dock-head::after {
-  margin-left: 0.35rem !important;
-}
+/* The head's right-hand caret is gone — it leads on the left as a chevron
+   now, like every tab — so the icon row is the only thing claiming the
+   slack and nothing has to be held back from it. */
 .layer-dock-head .gis-add-row-icons .button {
   flex: 0 0 auto;
   width: 1.55rem;
