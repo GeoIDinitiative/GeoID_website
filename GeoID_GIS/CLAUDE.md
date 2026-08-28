@@ -2247,6 +2247,42 @@ it never reaches the planets.
 outline is LineSegments) rather than on the option being accepted, because a
 silently-ignored option draws exactly as before with no error anywhere.
 
+### The Draw bar reaches every rocky world already, and arms UNDECIDED
+
+**Nothing here needs porting by hand.** `draw-hud.js` is one shared module
+loaded by `gis/boot.js` on the planets and by a script tag on Earth, so the
+bar — icons, order, Custom, the export slot — is the same object everywhere.
+The gesture behind it lives in the ported block, so `port-draw-tools.py`
+carries it. Verified live rather than assumed: Mars and Mercury show the
+identical eleven-item bar at 471 px and draw their own shapes on their own
+constants (a hexagon reads 993 × 1134 km on Mars, where Earth's 111.32 would
+have said about 2,100), and Jupiter builds no bar at all because it has no
+`setStudyAreaPolygon`.
+
+**A grep across `planet_explorer/*/viewer/*-viewer.js` can lie.** More than
+one file matches that glob per folder, so `head -1` checked the wrong one and
+reported four of the five worlds as missing a change the porter had in fact
+made. Name the file (`$p-viewer.js`), which is what the porter's own table
+does.
+
+**The bar arms with NOTHING chosen.** It used to arrive on Rectangle — a
+decision made for somebody before they had made it, and the first press drew
+one. It resets to undecided every time the tool is picked up, not just the
+first: coming back to whatever was drawn last is the same decision made twice.
+
+Three states, and the third is the point: `GeoIDDrawShape` UNSET still means
+"box", so a world that loads no Draw bar behaves exactly as it always did,
+while "" is the bar saying it has not been told yet. `chosenDrawShape()` is
+the one reading of that.
+
+**Both gestures have to be held back, and the tap is the awkward one.** The
+drag returns early from `drawPointerDown`; the tap is swallowed in
+`drawPointerUp`, which is a WINDOW CAPTURE-phase listener and therefore runs
+before the viewer's own bubble-phase vertex-add on the canvas — so a stray
+click on an undecided bar cannot start a polygon. Doing it there rather than
+in the click handler is also what carries it to the five rocky worlds, since
+the porter copies that block and not the viewer's click handling.
+
 ### The preset card is gone — the shapes drag out on the Draw bar
 
 It sized a triangle by typing a number into a field, which is a different
