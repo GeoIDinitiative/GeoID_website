@@ -11171,6 +11171,13 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         getExtractionGeometry: (sourceType) => getExtractionGeometry(sourceType),
         sampleElevationMeters: (lat, lon) => sampleElevationMeters(elevationSampler, lat, lon),
         estimateSurfaceSlopeDegrees: (lat, lon) => estimateSurfaceSlopeDegrees(elevationSampler, lat, lon),
+        // The geology class under a point, live once this world's geology map
+        // has loaded (geologyInteractiveState is set by that load) -- it is
+        // what the extraction panel's "geology class" tick reads, and without
+        // this seam entry that tick silently produced an empty column on
+        // every planet while working on Earth.
+        getGeologyFeatureAtLatLon: (lat, lon) =>
+          getGeologyFeatureAtLatLon(lat, lon, geologyInteractiveState),
         sphericalPolygonAreaKm2,
         pointInProjectedPolygon,
         scene, camera, renderer, controls, globe,
