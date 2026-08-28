@@ -2748,6 +2748,26 @@ of a percent) — 14 checks in geoprocessing.test.mjs, which must sit ABOVE
 that file's summary line: it calls process.exit, so anything appended after
 it silently never runs.
 
+**Distance bands are CATEGORIES that happen to be numbers.** The multi-ring
+paint first graded `buffer_km` with equal-interval classes — one class per
+band only when the distances are evenly spaced. Typed into the dialog as
+"5, 15, 40", the breaks fell at 16.67 and 28.33: the 5 and 15 km bands shared
+a colour under a legend claiming three classes, and one class contained no
+band at all. `paint.discrete` colours one class per DISTINCT VALUE (ranked
+along the ramp so near-to-far still reads as a sequence), labels each with
+its own span off `buffer_min_km` ("5–15 km"), and re-sorts the legend by
+distance — categorical legends order by frequency, and for rings frequency
+is meaningless. Found only by driving the DIALOG with a custom list; the
+seam test used even spacing and could never have shown it.
+
+**Units are km at the tool boundary, SI underneath.** Buffer's Distance and
+Multi-ring's list are kilometres, converted in the engine call; features
+carry `buffer_km`/`buffer_min_km` beside `buffer_m` because the legend is
+read by a person ("10–20" is a distance, "10000–20000" is an axis label).
+When a param's unit changes, grep the BLURB too — the tool's still said
+"metres" after the field said km, and a field disagreeing with its blurb is
+how a unit bug gets typed in.
+
 **Two realm traps in one verify loop, both already documented elsewhere and
 both walked into again.** `import()` in the harness's top realm gets a module
 whose `window` has no GeoIDImportManager — "Input is required" from a layer
