@@ -10,16 +10,16 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260828-6e7f7fe";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260828-6e7f7fe";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260828-6e7f7fe";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260828-3535974";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260828-3535974";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260828-3535974";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260828-6e7f7fe";
+  from "./view-extent.js?v=20260828-3535974";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260828-6e7f7fe";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260828-6e7f7fe";
+} from "./extent-picker.js?v=20260828-3535974";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260828-3535974";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -1139,12 +1139,16 @@ async function openGeeDialog(homeName) {
   // The map is built on first open, never at module load: `createMap`
   // measures its host, and a host inside a hidden backdrop has no size.
   if (!geeMap) {
-    mapLibrary = mapLibrary || await import("./research/map2d.js?v=20260828-6e7f7fe");
+    mapLibrary = mapLibrary || await import("./research/map2d.js?v=20260828-3535974");
     const picker = byId("gee-add-basemap");
     picker.innerHTML = Object.keys(mapLibrary.BASEMAPS)
       .map((name) => `<option value="${name}">${name}</option>`).join("");
-    picker.value = "CartoDB Dark";
-    geeMap = mapLibrary.createMap(byId("gee-add-map"), { basemap: "CartoDB Dark" });
+    // OpenStreetMap, not the dark one that suits the panel better: CARTO's
+    // free CDN now answers 200 with an "API KEY REQUIRED" watermark rather
+    // than a tile — measured, 17 distinct colours in a zoom-3 tile — so the
+    // handsome default would open this window on a wall of that text.
+    picker.value = "OpenStreetMap";
+    geeMap = mapLibrary.createMap(byId("gee-add-map"), { basemap: "OpenStreetMap" });
   }
   showChosenExtent();
 }
