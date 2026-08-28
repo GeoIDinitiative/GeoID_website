@@ -1231,6 +1231,17 @@ wrapper), and the last 2.8 px was `.section-title` being a BLOCK around
 an inline-flex row, so it took a line box taller than its content. A head
 that carries a control (Tour Mode's ENTER) sizes it down to the row.
 
+**Three more differences, found by walking the ANCESTOR CHAIN** rather
+than comparing the two cards alone: Explorer's sub-tabs sit inside a
+`.controls` wrapper that paints its own magenta ring and bloom (the
+events chain has no equivalent wrapper — reported as "a larger box
+enclosing Search, Locations and Core View"), an open level-2 BODY is
+filled solid black with an accent hairline where the events body is
+transparent, and an open level-2 header kept near-white ink where the
+events pill writes DARK ink on its accent fill, so the two solid pills
+never read as the same colour. When two cards measure equal and still
+look different, diff their ancestors.
+
 **A closed level-2 section draws NO shadow.** The page sheets give one a
 1px magenta inset ring plus an outer bloom — reported as "interior
 outlines and purple glow" beside the events cards, whose shadow computes

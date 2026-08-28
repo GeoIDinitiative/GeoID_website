@@ -542,6 +542,29 @@ const STYLE = `
   background: rgb(var(--nav-accent-rgb));
   filter: brightness(1.1);
 }
+/* The WRAPPER around Explorer's sub-tabs paints a magenta ring and a bloom
+   of its own — reported as "a larger box enclosing Search, Locations and
+   Core View". The events chain has no such wrapper, so it draws nothing. */
+#geoid-controls-host > .controls,
+.section-body > .controls {
+  box-shadow: none !important;
+  border: 0 !important;
+  background: none !important;
+}
+/* An open card's BODY: the events cards leave it transparent over the
+   panel; the page sheets fill a level-2 body solid black and hairline it
+   in accent, which read as a different background entirely. */
+.control-section:not(.toolbox-group)[open] > .section-body {
+  background: none !important;
+  border-top-color: rgba(var(--nav-accent-rgb), 0.08) !important;
+  padding: 0.72rem 0.78rem 0.8rem !important;
+}
+/* The open header's INK. The events card writes dark ink on its accent
+   fill; the page sheets kept near-white here, which is why the two solid
+   pills did not read as the same colour. */
+.control-section:not(.toolbox-group)[open] > .section-toggle {
+  color: var(--skin-chrome-ink, #2b0030) !important;
+}
 /* The primary button: an accent fill with ink dark enough to sit on it.
  *
  * viewer-skin.css:134 sweeps .button in with .tool-button, .input, .hub-link
