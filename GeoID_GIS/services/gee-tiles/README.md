@@ -57,6 +57,28 @@ Then:
 It listens on http://localhost:8130. Point the viewer's Modelled Data endpoint
 at that and it behaves exactly as the deployed version would.
 
+## What it serves
+
+Two lists, and the difference matters:
+
+- **The curated thirteen** (`DATASETS` in `index.js`) — each with a band
+  choice, a stretch and a legend picked for legibility, plus the two anomaly
+  products, which exist nowhere else.
+- **Everything else Earth Engine publishes**, resolved from Google's own
+  public STAC catalogue at request time. The rendering is the publisher's
+  own `gee:visualizations`, so a dataset arrives looking the way its
+  publisher meant it to rather than under a stretch this service guessed.
+
+The allowlist existed so the service could not be pointed at arbitrary
+assets, and that boundary is kept — it is simply stated differently: an id
+has to appear in **Google's published catalogue** to be requestable, so a
+private or user asset still cannot be named. Redeploying is what turns the
+second list on; the page detects which build it is talking to (`?list`
+names the catalogue) and says so rather than blaming the dataset.
+
+`node stac.test.mjs` exercises that resolution against real records with no
+Earth Engine, credential or deployment.
+
 ## Deploying
 
 As a Cloud Function (2nd gen):

@@ -10,22 +10,22 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260828-c1b047a";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260828-c1b047a";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260828-c1b047a";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260828-7f6e4bf";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260828-7f6e4bf";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260828-7f6e4bf";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260828-c1b047a";
+  from "./view-extent.js?v=20260828-7f6e4bf";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260828-c1b047a";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260828-c1b047a";
+} from "./extent-picker.js?v=20260828-7f6e4bf";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260828-7f6e4bf";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
-} from "./gee-catalogue-index.js?v=20260828-c1b047a";
+} from "./gee-catalogue-index.js?v=20260828-7f6e4bf";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -523,6 +523,15 @@ async function request() {
     // named here because that is the thing that has to be on the service's
     // allowlist, and reading it back is usually enough to spot the mismatch.
     const blocked = /failed to fetch|networkerror|load failed/i.test(error.message || "");
+    // The old service build's word for "not one of my thirteen" names the
+    // dataset, which is the one thing that is fine.
+    if (/unknown or unsupported dataset/i.test(error.message || "")) {
+      status("That dataset is in Earth Engine's catalogue, but the image "
+        + "service deployed for this site is an older build that serves only "
+        + "its own curated list. Redeploy GeoID_GIS/services/gee-tiles to "
+        + "request the rest of the catalogue.");
+      return;
+    }
     status(blocked
       ? `Could not reach the service from ${window.location.origin}. `
         + "That origin is probably not on the service's allowed list, "
@@ -763,6 +772,8 @@ let chosenDataset = "";
 let homeFilter = "";
 /** Why the catalogue could not be read, if it could not. */
 let catalogueError = "";
+/** Whether the deployed image service can render more than the curated list. */
+let serviceServesCatalogue = false;
 
 /**
  * A bounds rectangle as a ring the viewer will accept.
@@ -1080,6 +1091,11 @@ function renderGeeList() {
   rest.forEach((entry) => host.appendChild(catalogueCard(entry)));
 
   const notes = [];
+  if (!serviceServesCatalogue) {
+    notes.push("The image service deployed for this site still serves only the "
+      + "datasets above. These can be browsed now; requesting one needs the "
+      + "updated service (GeoID_GIS/services/gee-tiles).");
+  }
   if (found.total > found.results.length) {
     notes.push(`${(found.total - found.results.length).toLocaleString()} more match — `
       + "add a word to narrow it.");
@@ -1373,7 +1389,7 @@ async function openGeeDialog(homeName) {
   // The map is built on first open, never at module load: `createMap`
   // measures its host, and a host inside a hidden backdrop has no size.
   if (!geeMap) {
-    mapLibrary = mapLibrary || await import("./research/map2d.js?v=20260828-c1b047a");
+    mapLibrary = mapLibrary || await import("./research/map2d.js?v=20260828-7f6e4bf");
     const picker = byId("gee-add-basemap");
     picker.innerHTML = Object.keys(mapLibrary.BASEMAPS)
       .map((name) => `<option value="${name}">${name}</option>`).join("");
@@ -1535,6 +1551,17 @@ async function loadCatalogue() {
     const data = await response.json();
     if (!Array.isArray(data.datasets) || !data.datasets.length) return;
     liveDatasets = data.datasets;
+    /**
+     * Does the deployed service understand the whole catalogue?
+     *
+     * The build that resolves an arbitrary dataset from Earth Engine's STAC
+     * says so by naming that catalogue in its `?list` reply; the one before
+     * it answers 400 "Unknown or unsupported dataset." to everything outside
+     * its thirteen. That error names the DATASET, which is the one thing not
+     * at fault, so the browser has to know which build it is talking to and
+     * say what is actually wrong.
+     */
+    serviceServesCatalogue = Boolean(data.catalogue);
     populateSelect();
     status(`Service connected · ${data.datasets.length} live collection(s), `
       + `${cacheEntries.length} cached.`);
