@@ -359,6 +359,21 @@ const metresToDegLat = (m) => m / 110574;
 const metresToDegLon = (m, lat) => m / (111320 * Math.max(Math.cos(lat * RAD), 1e-6));
 
 /** Circle around a point, in degrees, accounting for latitude convergence. */
+/**
+ * An axis-aligned square "buffer" around a point: the square-cap answer to
+ * `circleAround`, half-width equal to the radius. Traced counter-clockwise
+ * and closed, like every ring the boolean ops consume.
+ */
+export function squareAround([lon, lat], radiusM) {
+  const dLat = metresToDegLat(radiusM);
+  const dLon = metresToDegLon(radiusM, lat);
+  return [
+    [lon - dLon, lat - dLat], [lon + dLon, lat - dLat],
+    [lon + dLon, lat + dLat], [lon - dLon, lat + dLat],
+    [lon - dLon, lat - dLat],
+  ];
+}
+
 export function circleAround([lon, lat], radiusM, segments = 48) {
   const ring = [];
   const dLat = metresToDegLat(radiusM);
@@ -410,9 +425,34 @@ export function offsetRing(ring, distanceM) {
 }
 
 /** Buffers a polyline into a polygon by offsetting both sides. */
-export function bufferLine(coords, distanceM) {
+export function bufferLine(coords, distanceM, cap = "flat") {
   if (coords.length < 2) {
     return coords.length ? circleAround(coords[0], distanceM) : [];
+  }
+  /**
+   * SQUARE caps extend the line by the buffer distance before offsetting, so
+   * the corridor ends one distance past each endpoint — ArcGIS's SQUARE end
+   * type. FLAT (the default, and the only behaviour this function used to
+   * have) ends the corridor at the endpoints. Round caps are not made here:
+   * a semicircle stitched into this ring by hand is exactly the sort of
+   * seam arithmetic the boolean ops exist to avoid, so `buffer()` builds
+   * round ends by unioning end circles onto the flat corridor instead.
+   */
+  if (cap === "square") {
+    const extend = (from, toward) => {
+      const dx = from[0] - toward[0];
+      const dy = from[1] - toward[1];
+      const len = Math.hypot(dx, dy) || 1;
+      return [
+        from[0] + (dx / len) * metresToDegLon(distanceM, from[1]),
+        from[1] + (dy / len) * metresToDegLat(distanceM),
+      ];
+    };
+    coords = [
+      extend(coords[0], coords[1]),
+      ...coords.slice(1, -1),
+      extend(coords[coords.length - 1], coords[coords.length - 2]),
+    ];
   }
   const left = [];
   const right = [];

@@ -1,13 +1,13 @@
-import * as GP from "./geoprocessing.js?v=20260828-398b7e7";
-import * as RA from "./raster-analysis.js?v=20260828-398b7e7";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260828-398b7e7";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260828-398b7e7";
-import { CRS_OPTIONS } from "./projection.js?v=20260828-398b7e7";
-import * as IN from "./interpolation.js?v=20260828-398b7e7";
-import * as VAL from "./validation.js?v=20260828-398b7e7";
-import * as EX from "./analysis-extra.js?v=20260828-398b7e7";
-import * as HY from "./hydrology.js?v=20260828-398b7e7";
-import * as KR from "./kriging.js?v=20260828-398b7e7";
+import * as GP from "./geoprocessing.js?v=20260828-af48278";
+import * as RA from "./raster-analysis.js?v=20260828-af48278";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260828-af48278";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260828-af48278";
+import { CRS_OPTIONS } from "./projection.js?v=20260828-af48278";
+import * as IN from "./interpolation.js?v=20260828-af48278";
+import * as VAL from "./validation.js?v=20260828-af48278";
+import * as EX from "./analysis-extra.js?v=20260828-af48278";
+import * as HY from "./hydrology.js?v=20260828-af48278";
+import * as KR from "./kriging.js?v=20260828-af48278";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -66,11 +66,58 @@ export const TOOLS = [
     inputs: [{ name: "input", label: "Input", type: "vector" }],
     params: [
       { name: "distance", label: "Distance (m)", kind: "number", default: 1000, step: 100, min: 0.001 },
+      // What each geometry honestly allows: circles or squares for points,
+      // end caps for lines. A polygon outline is offset along its own
+      // boundary whichever is chosen -- the outline IS the shape.
+      { name: "shape", label: "Shape", kind: "select", default: "round", options: [
+        { id: "round", name: "Round (circles, round line ends)" },
+        { id: "square", name: "Square (squares, extended line ends)" },
+        { id: "flat", name: "Flat line ends" },
+      ] },
       { name: "dissolve", label: "Merge overlapping buffers", kind: "checkbox", default: true },
     ],
     outputType: "vector",
     outputName: "buffer_{input}",
-    engines: { native: (i, p) => GP.buffer(i.input.collection, p.distance, { dissolve: p.dissolve !== false }) },
+    engines: {
+      native: (i, p) => GP.buffer(i.input.collection, p.distance,
+        { dissolve: p.dissolve !== false, shape: p.shape || "round" }),
+    },
+  },
+  {
+    id: "multiBuffer",
+    label: "Multi-ring buffer",
+    category: "Vector geoprocessing",
+    blurb: "Nested distance bands around the features — 10 km, 20 km, 30 km — "
+      + "as true rings that tile the ground and colour-code by distance.",
+    keywords: ["nested", "concentric", "rings", "zones", "distance", "bands", "multiple"],
+    inputs: [{ name: "input", label: "Input", type: "vector" }],
+    params: [
+      { name: "distances", label: "Distances (m, comma-separated)", kind: "text",
+        default: "10000, 20000, 30000" },
+      { name: "shape", label: "Shape", kind: "select", default: "round", options: [
+        { id: "round", name: "Round" },
+        { id: "square", name: "Square" },
+      ] },
+      // Rings by default: solid nested disks STACK, and three translucent
+      // fills over one centre render the drawing order, not the distance.
+      { name: "rings", label: "Bands as rings (recommended)", kind: "checkbox", default: true },
+    ],
+    outputType: "vector",
+    outputName: "rings_{input}",
+    // Graded on arrival: every band carries buffer_m, and one class per band
+    // is the whole reason the bands exist.
+    paint: { field: "buffer_m", ramp: "viridis" },
+    engines: {
+      native: (i, p) => {
+        const distances = String(p.distances || "")
+          .split(/[\s,;]+/).map(Number).filter((d) => Number.isFinite(d) && d > 0);
+        if (!distances.length) {
+          return { ok: false, message: "Give at least one distance in metres, e.g. 10000, 20000." };
+        }
+        return GP.multiRingBuffer(i.input.collection, distances,
+          { shape: p.shape || "round", rings: p.rings !== false });
+      },
+    },
   },
   {
     id: "clip",
@@ -1389,7 +1436,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260828-398b7e7");
+    const client = await import("./sidecar-client.js?v=20260828-af48278");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -1444,7 +1491,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260828-398b7e7");
+    const bridge = await import("./research/bridge.js?v=20260828-af48278");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -1456,12 +1503,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260828-398b7e7");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260828-af48278");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260828-398b7e7");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260828-af48278");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }
@@ -1555,6 +1602,25 @@ function register(desc, raw, name) {
   }
   const result = buildVectorLayerResult(fc, { name, drape: 0.008 });
   const layer = window.GeoIDImportManager?.addDerivedLayer?.(name, result, "derived") || null;
+  /**
+   * A tool may declare how its output is READ (`paint: { field, ramp }`), and
+   * the multi-ring buffer does: every band carries `buffer_m`, and one class
+   * per band is the whole reason the bands exist. Dynamic import and
+   * best-effort, in that order of caution -- symbology-dialog is a UI module
+   * this runner must not drag into Node, and a failed paint must never fail
+   * the run that produced the layer.
+   */
+  if (layer && desc.paint?.field && typeof document !== "undefined") {
+    const bands = new Set(fc.features
+      .map((f) => f.properties?.[desc.paint.field]).filter(Number.isFinite));
+    if (bands.size >= 2) {
+      void import(`./symbology-dialog.js${new URL(import.meta.url).search}`)
+        .then((sym) => sym.paintByRange(layer, desc.paint.field, {
+          method: "equal", classes: Math.min(bands.size, 12), ramp: desc.paint.ramp || "viridis",
+        }))
+        .catch(() => {});
+    }
+  }
   return { ok: true, message: `${name}: ${fc.features.length} features.${note}`, layer, outputType: "vector" };
 }
 

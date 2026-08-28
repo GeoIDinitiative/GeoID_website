@@ -1,5 +1,5 @@
-import * as G from "./geometry.js?v=20260828-398b7e7";
-import { transform } from "./projection.js?v=20260828-398b7e7";
+import * as G from "./geometry.js?v=20260828-af48278";
+import { transform } from "./projection.js?v=20260828-af48278";
 
 // Vector geoprocessing on GeoJSON FeatureCollections.
 //
@@ -88,21 +88,53 @@ export function featureLengthM(f) {
  * cross. Pass `{ dissolve: false }` to keep one buffer per input feature,
  * which is what you want when the buffer is an attribute of its feature.
  */
-export function buffer(fc, distanceM, { segments = 32, dissolve: merge = true } = {}) {
+/**
+ * Buffer every feature by a distance, with a SHAPE the caller chooses.
+ *
+ * `shape` is one word doing the honest thing each geometry allows:
+ *  - "round"  — circles for points; a corridor with semicircular END CAPS for
+ *    lines, built by unioning end circles onto the flat corridor rather than
+ *    stitching arcs into the ring by hand (seam arithmetic is what the
+ *    boolean ops exist to avoid);
+ *  - "square" — axis-aligned squares for points; a corridor extended one
+ *    distance past each endpoint for lines (ArcGIS's SQUARE end type);
+ *  - "flat"   — the corridor ends at the line's endpoints; for a point,
+ *    which has no ends to cut flat, it means round.
+ * Polygon outlines are offset along their own boundary whichever shape is
+ * asked for — the outline is the shape, and joins are mitred by the bisector
+ * offset. Said here rather than discovered: a polygon fed to "square" does
+ * not become a bounding box.
+ */
+export function buffer(fc, distanceM, { segments = 32, dissolve: merge = true, shape = "round" } = {}) {
   const out = [];
+  const pointRing = (c) => (shape === "square"
+    ? G.squareAround(c, distanceM)
+    : G.circleAround(c, distanceM, segments));
   fc.features.forEach((f) => {
     const props = { ...f.properties, buffer_m: distanceM };
     const geometry = f.geometry;
     if (!geometry) return;
     if (geometry.type === "Point") {
-      out.push(feature({ type: "Polygon", coordinates: [G.circleAround(geometry.coordinates, distanceM, segments)] }, props));
+      out.push(feature({ type: "Polygon", coordinates: [pointRing(geometry.coordinates)] }, props));
     } else if (geometry.type === "MultiPoint") {
       geometry.coordinates.forEach((c) => {
-        out.push(feature({ type: "Polygon", coordinates: [G.circleAround(c, distanceM, segments)] }, props));
+        out.push(feature({ type: "Polygon", coordinates: [pointRing(c)] }, props));
       });
     } else if (linesOf(geometry).length) {
       linesOf(geometry).forEach((line) => {
-        out.push(feature({ type: "Polygon", coordinates: [G.bufferLine(line, distanceM)] }, props));
+        const corridor = G.bufferLine(line, distanceM, shape === "square" ? "square" : "flat");
+        if (shape !== "round" || line.length < 2) {
+          out.push(feature({ type: "Polygon", coordinates: [corridor] }, props));
+          return;
+        }
+        // Round end caps: the flat corridor unioned with a circle at each
+        // end, through the same checked union everything else uses.
+        const capped = unionAll(featureCollection([
+          feature({ type: "Polygon", coordinates: [corridor] }, {}),
+          feature({ type: "Polygon", coordinates: [G.circleAround(line[0], distanceM, segments)] }, {}),
+          feature({ type: "Polygon", coordinates: [G.circleAround(line[line.length - 1], distanceM, segments)] }, {}),
+        ]), props);
+        capped.features.forEach((piece) => out.push(feature(piece.geometry, props)));
       });
     } else {
       polygonsOf(geometry).forEach((polygon) => {
@@ -112,6 +144,41 @@ export function buffer(fc, distanceM, { segments = 32, dissolve: merge = true } 
   });
   const result = featureCollection(out);
   return merge ? unionAll(result, { buffer_m: distanceM }) : result;
+}
+
+/**
+ * Nested buffers in one pass: 10 km, 20 km, 30 km around the same features.
+ *
+ * Each band carries `buffer_m` (its outer edge) and `buffer_min_m` (its
+ * inner), which is what makes the result colour-code without another step —
+ * the symbology dialog grades `buffer_m` and every band takes its own class.
+ *
+ * `rings: true` (the default) makes the bands TRUE RINGS — each one is the
+ * next disk minus the previous, so the bands tile the ground and a graded
+ * fill reads correctly. Solid nested disks stack: at 30 km three translucent
+ * fills lie on top of each other and the innermost zone renders as the sum
+ * of three colours, which is a picture of the drawing order rather than of
+ * distance. `rings: false` keeps the solid disks for whoever wants them.
+ *
+ * Distances are cleaned rather than trusted: sorted ascending, deduplicated,
+ * non-positive entries dropped — "20, 10, 10, 0" means the two bands it can
+ * honestly mean.
+ */
+export function multiRingBuffer(fc, distancesM, { segments = 32, shape = "round", rings = true } = {}) {
+  const distances = [...new Set((distancesM || [])
+    .map(Number).filter((d) => Number.isFinite(d) && d > 0))]
+    .sort((a, b) => a - b);
+  if (!distances.length) return featureCollection([]);
+  const disks = distances.map((d) => buffer(fc, d, { segments, shape, dissolve: true }));
+  const out = [];
+  distances.forEach((d, i) => {
+    const inner = i > 0 ? distances[i - 1] : 0;
+    const band = (rings && i > 0) ? difference(disks[i], disks[i - 1]) : disks[i];
+    band.features.forEach((f) => {
+      out.push(feature(f.geometry, { ...f.properties, buffer_m: d, buffer_min_m: rings ? inner : 0 }));
+    });
+  });
+  return featureCollection(out);
 }
 
 /**

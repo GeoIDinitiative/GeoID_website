@@ -14,8 +14,8 @@
 
 import {
   featureCollection, feature, clip, difference, intersect, dissolve,
-  buffer, convexHull, centroids, simplifyCollection, spatialJoin,
-  featureAreaM2, fieldStatistics, fieldCalculator,
+  buffer, multiRingBuffer, convexHull, centroids, simplifyCollection,
+  spatialJoin, featureAreaM2, fieldStatistics, fieldCalculator,
 } from "./geoprocessing.js";
 import { signedAreaPlanar, pointInPolygon } from "./geometry.js";
 
@@ -309,6 +309,58 @@ near("a contained shape adds nothing",
 check("dissolve returns one feature per group",
   dissolve(fc(square(0, 0, 1, 1), square(5, 0, 6, 1))).features.length === 1,
   "disjoint pieces are one MultiPolygon row");
+
+/* ── Buffer shapes and the multi-ring buffer, against closed-form areas ──── */
+
+{
+  const pt = fc(feature({ type: "Point", coordinates: [0, 0] }));
+  const lineFc = fc(feature({ type: "LineString", coordinates: [[0, 0], [0.5, 0]] }));
+  const kmsq = (out) => areaOf(out) / 1e6;
+
+  near("square point buffer is the 2d × 2d square",
+    +kmsq(buffer(pt, 10000, { shape: "square" })).toFixed(0), 400, 6);
+  near("round point buffer is unchanged by the option",
+    +kmsq(buffer(pt, 10000, { shape: "round" })).toFixed(0), 314, 4);
+
+  // Cap styles, each a closed-form delta on the flat corridor: square adds a
+  // 2d × d rectangle at each end, round adds two semicircles (one circle).
+  const flat = kmsq(buffer(lineFc, 10000, { shape: "flat" }));
+  near("square caps add 2 × (2d × d)",
+    +(kmsq(buffer(lineFc, 10000, { shape: "square" })) - flat).toFixed(0), 400, 8);
+  near("round caps add one circle",
+    +(kmsq(buffer(lineFc, 10000, { shape: "round" })) - flat).toFixed(0), 314, 8);
+  check("round-capped line is one piece",
+    buffer(lineFc, 10000, { shape: "round" }).features.length === 1);
+
+  // Multi-ring: each band is the annulus between its distances.
+  const rings = multiRingBuffer(pt, [10000, 20000, 30000]);
+  check("multi-ring makes one feature per band", rings.features.length === 3,
+    `got ${rings.features.length}`);
+  rings.features.forEach((f) => {
+    const d = f.properties.buffer_m / 1000;
+    const inner = f.properties.buffer_min_m / 1000;
+    near(`band ${inner}–${d} km is its annulus`,
+      +(featureAreaM2(f) / 1e6).toFixed(0), +(Math.PI * (d * d - inner * inner)).toFixed(0), 12);
+  });
+
+  // Colliding sources: the outer ring of two near points merges, so its area
+  // is LESS than two separate annuli.
+  const two = fc(
+    feature({ type: "Point", coordinates: [0, 0] }),
+    feature({ type: "Point", coordinates: [0.25, 0] }),
+  );
+  const outer = multiRingBuffer(two, [10000, 20000]).features
+    .filter((f) => f.properties.buffer_m === 20000)
+    .reduce((sum, f) => sum + featureAreaM2(f), 0) / 1e6;
+  check("colliding 20 km rings merge (area below two separate rings)",
+    outer < 2 * Math.PI * (400 - 100), `got ${outer.toFixed(0)} km²`);
+
+  // A dirty distance list means the bands it can honestly mean.
+  const dirty = multiRingBuffer(pt, [20000, 10000, 10000, 0, -5]);
+  check("distances are sorted, deduplicated and cleaned",
+    dirty.features.map((f) => f.properties.buffer_m).join() === "10000,20000",
+    dirty.features.map((f) => f.properties.buffer_m).join());
+}
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");
 process.exit(failures ? 1 : 0);
