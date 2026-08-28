@@ -209,7 +209,9 @@ const STYLE = `
   text-shadow: none !important;
   filter: none;
 }
-.gis-tool-section:not(.event-feed-group) > summary { display: flex; align-items: center; gap: 0.4rem; }
+.gis-tool-section:not(.event-feed-group) > summary { display: flex; align-items: center; gap: 0.55rem; }
+.tool-section-icon { flex: none; display: inline-flex; width: 0.85rem; height: 0.85rem; }
+.tool-section-icon svg { width: 0.85rem; height: 0.85rem; display: block; }
 .gis-tool-section:not(.event-feed-group) > summary > * { min-width: 0; }
 .gis-tool-section:not(.event-feed-group) > summary::before {
   content: "\\203A";
@@ -436,12 +438,16 @@ const STYLE = `
   padding: 0.7rem 0.78rem !important;
   border-left: 0;
   background: none;
-  gap: 0.45rem;
+  gap: 0.55rem;
   font-size: 0.76rem !important;
   letter-spacing: 0.1em !important;
   font-family: "Exo 2", "Segoe UI", sans-serif !important;
   border-bottom: 1px solid rgba(var(--nav-accent-rgb), 0.08) !important;
 }
+/* Reported: the glyph sat too close to its words. One gap value for every
+   sub-tab row, icon and text alike. */
+.control-section:not(.toolbox-group) > .section-toggle .section-title-row { gap: 0.55rem; }
+.event-feed-group > summary { gap: 0.55rem; }
 /* The WRAPPER, not just the glyph: .section-icon is a 20x20 flex box, so
    sizing the svg alone left a 20 px row stretching the header to 44 px
    against the feed groups' 39. NO BACKTICKS in here - this block is a
@@ -589,6 +595,76 @@ const STYLE = `
 }
 .gis-side-panel-body > .toolbox-group > summary { display: none; }
 `;
+
+/**
+ * A glyph for every tool subsection, keyed by its own title.
+ *
+ * The level-2 sections carry icons in the markup and the Live Events groups
+ * gained theirs; the ~35 gis-tool-section subsections had none, so a column
+ * mixing the two read as two systems. Keyed by lower-case title rather than
+ * by id: these summaries are plain text across ten markup files and a
+ * shared template, and the title is the one thing they all have. Anything
+ * unmatched takes a neutral bracket mark, so a NEW subsection still reads
+ * as one of the family rather than as a gap.
+ */
+const TOOL_ICONS = {
+  "geology": "<path d=\"M2.6 12.4 6 4.2l4 3.2 3.4-2v7Z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linejoin=\"round\"/>",
+  "tectonics": "<path d=\"M1.8 6.2h5l1.6 3 1.8-4.4 1.4 2.2h2.6\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
+  "volcanoes": "<path d=\"M5.6 6.6 2.4 13.4h11.2L10.4 6.6Z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linejoin=\"round\"/><path d=\"M8 5.6V3.2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.1\" stroke-linecap=\"round\"/>",
+  "water bodies": "<path d=\"M8 2.4c2.4 3 3.8 5 3.8 6.8a3.8 3.8 0 0 1-7.6 0c0-1.8 1.4-3.8 3.8-6.8Z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linejoin=\"round\"/>",
+  "ni prototype": "<path d=\"M3 12.6V7.4l3-2.2 3 2.2v5.2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linejoin=\"round\"/><path d=\"M9.6 12.6V9l3.4-1.6v5.2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linejoin=\"round\"/>",
+  "inspect and pin": "<path d=\"M8 14s3.6-4 3.6-6.4A3.6 3.6 0 0 0 8 4a3.6 3.6 0 0 0-3.6 3.6C4.4 10 8 14 8 14Z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\"/><circle cx=\"8\" cy=\"7.4\" r=\"1.2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1\"/>",
+  "study area": "<rect x=\"2.6\" y=\"3.6\" width=\"10.8\" height=\"8.8\" rx=\"0.8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-dasharray=\"2.4 1.6\"/>",
+  "route planner": "<path d=\"M3.4 12.6c3.4 0 1.6-4.8 5-4.8s1.6-4.4 4.2-4.4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\"/><circle cx=\"3.4\" cy=\"12.6\" r=\"1.3\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.1\"/><circle cx=\"12.6\" cy=\"3.4\" r=\"1.3\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.1\"/>",
+  "base sites": "<path d=\"M8 2.6v10.8M8 4.2l4.4 1.8L8 7.8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linejoin=\"round\"/>",
+  "structures": "<path d=\"M2.6 13.4V6l5.4-3.4L13.4 6v7.4Z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linejoin=\"round\"/><path d=\"M6.4 13.4V9.2h3.2v4.2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.1\"/>",
+  "buffered zones": "<circle cx=\"8\" cy=\"8\" r=\"2.2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\"/><circle cx=\"8\" cy=\"8\" r=\"5.4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1\" stroke-dasharray=\"2.2 1.6\"/>",
+  "query and filter": "<path d=\"M2.6 3.6h10.8L9.4 8.4v4.2l-2.8 1.2V8.4Z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linejoin=\"round\"/>",
+  "compare": "<rect x=\"2.4\" y=\"3.4\" width=\"4.8\" height=\"9.2\" rx=\"0.6\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\"/><rect x=\"8.8\" y=\"3.4\" width=\"4.8\" height=\"9.2\" rx=\"0.6\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-dasharray=\"2 1.4\"/>",
+  "saved views and export": "<path d=\"M4 2.8h8v10.4l-4-2.4-4 2.4Z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linejoin=\"round\"/>",
+  "live weather maps": "<path d=\"M4.6 9.4h7a2.6 2.6 0 0 0 .5-5.1A3.7 3.7 0 0 0 5 3.7a3 3 0 0 0-.4 5.7Z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linejoin=\"round\"/><path d=\"M5.6 11.4l-.9 2M8.4 11.4l-.9 2M11.2 11.4l-.9 2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.1\" stroke-linecap=\"round\"/>",
+  "atmospheric datasets (earth engine)": "<path d=\"M2 5.1h7.2a1.8 1.8 0 1 0-1.8-1.8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.3\" stroke-linecap=\"round\"/><path d=\"M2 8.3h10.4a1.9 1.9 0 1 1-1.9 1.9\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.3\" stroke-linecap=\"round\"/><path d=\"M2 11.5h5.6\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.3\" stroke-linecap=\"round\"/>",
+  "service": "<rect x=\"2.4\" y=\"3.2\" width=\"11.2\" height=\"3.6\" rx=\"0.7\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.1\"/><rect x=\"2.4\" y=\"9.2\" width=\"11.2\" height=\"3.6\" rx=\"0.7\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.1\"/><circle cx=\"4.8\" cy=\"5\" r=\"0.7\" fill=\"currentColor\"/><circle cx=\"4.8\" cy=\"11\" r=\"0.7\" fill=\"currentColor\"/>",
+  "georeference an image": "<rect x=\"2.6\" y=\"3.6\" width=\"10.8\" height=\"8.8\" rx=\"0.8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\"/><path d=\"M2.6 8h10.8M8 3.6v8.8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1\" opacity=\"0.7\"/>",
+  "surface analysis": "<path d=\"M2.4 11.6 6 6.8l2.8 2.6 4.8-6\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
+  "zonal statistics": "<path d=\"M3 13V8.4M6.6 13V4.6M10.2 13V7M13.8 13v-3\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\"/>",
+  "sample raster at point": "<rect x=\"2.6\" y=\"2.6\" width=\"10.8\" height=\"10.8\" rx=\"0.8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.1\"/><circle cx=\"9.8\" cy=\"6.2\" r=\"1.4\" fill=\"currentColor\"/>",
+  "geoprocessing": "<circle cx=\"8\" cy=\"8\" r=\"2.4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\"/><path d=\"M8 2.6v1.8M8 11.6v1.8M13.4 8h-1.8M4.4 8H2.6\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1\" stroke-linecap=\"round\"/>",
+  "explore & edit": "<path d=\"M3.2 12.8 4 9.6l6-6 2.4 2.4-6 6Z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linejoin=\"round\"/>",
+  "attribute query": "<circle cx=\"7\" cy=\"7\" r=\"4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\"/><path d=\"m10.2 10.2 3 3\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.3\" stroke-linecap=\"round\"/>",
+  "query syntax": "<path d=\"M6 4.4 2.8 8 6 11.6M10 4.4 13.2 8 10 11.6\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
+  "attribute table": "<rect x=\"2.4\" y=\"3.4\" width=\"11.2\" height=\"9.2\" rx=\"0.7\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.1\"/><path d=\"M2.4 6.4h11.2M6.4 6.4v6.2M9.8 6.4v6.2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1\"/>",
+  "symbology": "<circle cx=\"6.2\" cy=\"6.4\" r=\"3\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\"/><circle cx=\"9.9\" cy=\"9.6\" r=\"3\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" opacity=\"0.7\"/>",
+  "analysis tools": "<path d=\"M4.4 13.2h7.2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\"/><path d=\"M6.4 13.2V8.6M9.6 13.2V5.2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\"/>",
+  "point & pixel extraction": "<circle cx=\"8\" cy=\"8\" r=\"1.6\" fill=\"currentColor\"/><path d=\"M8 2.4v2.6M8 11v2.6M13.6 8H11M5 8H2.4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\"/>",
+  "signal analysis": "<path d=\"M1.8 8h2.2l1.6-4 2.4 8 2-6 1.4 2h2.8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
+  "batch runner": "<path d=\"M4 3.4 11.6 8 4 12.6Z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linejoin=\"round\"/>",
+  "model builder": "<path d=\"M8 2.4 13.4 5.4v5.2L8 13.6 2.6 10.6V5.4Z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linejoin=\"round\"/><path d=\"M2.6 5.4 8 8.4l5.4-3M8 8.4v5.2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1\"/>",
+  "export layers": "<path d=\"M8 10.4V2.8M5.2 5.6 8 2.8l2.8 2.8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M3.2 13h9.6\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\"/>",
+  "map view": "<path d=\"M2.6 4.2 6 2.8v9L2.6 13.2Zm3.4-1.4 4 1.4v9l-4-1.4Zm4 1.4 3.4-1.4v9L10 13.2Z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/>",
+  "layer provenance": "<path d=\"M8 2.6 13.4 5.6 8 8.6 2.6 5.6Z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linejoin=\"round\"/><path d=\"m2.6 8.4 5.4 3 5.4-3\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.1\" stroke-linejoin=\"round\"/>",
+  "coordinate transformer": "<circle cx=\"8\" cy=\"8\" r=\"5.4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\"/><path d=\"M2.6 8h10.8M8 2.6c1.8 1.8 1.8 8.8 0 10.8-1.8-2-1.8-9 0-10.8Z\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1\"/>",
+};
+const FALLBACK_TOOL_ICON = "<path d=\"M5.6 3.2H3.4v9.6h2.2M10.4 3.2h2.2v9.6h-2.2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\"/>";
+
+/**
+ * Paint them, and keep painting as the panels rebuild (catalogues redraw,
+ * workbenches move their groups, the hub arms). A marked summary is
+ * skipped, so each pass is cheap.
+ */
+function paintToolIcons() {
+  document.querySelectorAll(".gis-tool-section > summary").forEach((summary) => {
+    if (summary.dataset.toolIcon || summary.closest(".event-feed-group")) return;
+    summary.dataset.toolIcon = "1";
+    const key = (summary.textContent || "").trim().toLowerCase();
+    const glyph = TOOL_ICONS[key] || FALLBACK_TOOL_ICON;
+    const span = document.createElement("span");
+    span.className = "section-icon tool-section-icon";
+    span.setAttribute("aria-hidden", "true");
+    span.innerHTML = "<svg viewBox=\"0 0 16 16\">" + glyph + "</svg>";
+    summary.insertBefore(span, summary.firstChild);
+  });
+}
 
 let styleInjected = false;
 function injectStyle() {
@@ -787,6 +863,10 @@ export function init() {
     panels.set(spec.id, { panel: buildPanel(spec, group), button });
   });
 
+  paintToolIcons();
+  // The panels rebuild constantly, so this rides the same slow poll place uses.
+  window.setInterval(paintToolIcons, 700);
+  document.addEventListener("geoid-gis:layers-changed", paintToolIcons);
   window.addEventListener("resize", place);
   // The rail moves without a resize -- arming the hub pushes it down, and the
   // Atlas mark above it settles a moment after load.

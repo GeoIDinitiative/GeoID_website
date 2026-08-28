@@ -3,8 +3,8 @@ import {
   rowsToCsv,
   rowsToGeoJson,
   downloadText,
-} from "./extraction.js?v=20260828-12252d5";
-import { rectangleVertices } from "./draw-area.js?v=20260828-12252d5";
+} from "./extraction.js?v=20260828-cb1d4e4";
+import { rectangleVertices } from "./draw-area.js?v=20260828-cb1d4e4";
 
 let lastResult = null;
 

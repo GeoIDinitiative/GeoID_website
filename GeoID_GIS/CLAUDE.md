@@ -1231,6 +1231,25 @@ wrapper), and the last 2.8 px was `.section-title` being a BLOCK around
 an inline-flex row, so it took a line box taller than its content. A head
 that carries a control (Tour Mode's ENTER) sizes it down to the row.
 
+**Icons on EVERY subsection, and one gap value.** The ~54 (Earth) / 39
+(Mars) `gis-tool-section` summaries had no glyphs while the level-2
+sections and feed groups did, so a column mixing them read as two
+systems. `TOOL_ICONS` in side-panels keys a 16px glyph by lower-case
+TITLE — these summaries are plain text across ten markup files and a
+shared template, and the title is the only handle they share — with a
+neutral bracket fallback so a NEW subsection is never a gap; painted on
+a 700 ms poll because the panels rebuild constantly, each summary marked
+so a pass is cheap. Icon-to-text gap is 0.55rem everywhere (level-2 rows,
+tool rows, feed groups, and the outer toggle). The terrain slider is
+**Vertical exaggeration** on all ten pages. Because the styling lives in
+the shared module, the planets inherit it — verified on Mars: every
+level-2 section MATCHES the tool-summary voice property for property,
+all 39 subsections carry icons. Two escaping traps in one edit, both
+caught by the module actually loading: emitting JS strings by swapping
+quote characters breaks embedded quotes (use json.dumps), and a
+`src.find("\\n\`;")` in a quoted heredoc searches for a literal
+backslash-n, so the backtick guard silently passed nothing.
+
 **And the whole stylesheet was silently dead for two rounds**: a CSS
 comment I added said `.section-icon` IN BACKTICKS — inside the STYLE
 template literal, which ends it — so the module threw "icon is not
