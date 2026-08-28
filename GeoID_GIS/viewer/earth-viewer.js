@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260828-e363f0f";
+  from "./gis/geo-utils.js?v=20260828-2ca41ba";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -17380,6 +17380,21 @@ uniform float uViewportWidth;`,
         circle: 48, triangle: 3, square: 4, pentagon: 5, hexagon: 6,
       };
 
+      /**
+       * Which shape the Draw bar is on, or "" while it is WAITING for one.
+       *
+       * The bar used to arm on Rectangle, so picking up the tool already had
+       * a shape chosen and the first press drew one — a decision made for
+       * somebody before they had made it. It now arms undecided, which needs
+       * a third state here: `undefined` still means "box", because a world
+       * with no Draw bar (nothing loads it on the gas giants) must behave as
+       * it always did, while "" is the bar saying it has not been told yet.
+       */
+      function chosenDrawShape() {
+        return window.GeoIDDrawShape === undefined
+          ? "box" : String(window.GeoIDDrawShape || "");
+      }
+
       function studyPointerDown(event) {
         if (event.button !== 0 || measureDrawActive || studyDrag) return;
         const bounds = rectFromMeasurePoints();
@@ -17843,7 +17858,9 @@ uniform float uViewportWidth;`,
         if (!measureDrawActive || measureMode !== "area") return;
         // Polygon mode: taps place vertices and drags stay ORBITS — the
         // shape is chosen on the Draw HUD, and only box/circle drag-draw.
-        if ((window.GeoIDDrawShape || "box") === "poly") return;
+        // "" is the bar waiting to be told which: nothing is drawn until it is.
+        const chosen = chosenDrawShape();
+        if (!chosen || chosen === "poly") return;
         const hit = intersectMeasurementSurface(event.clientX, event.clientY);
         if (!hit) return;
         // Armed but undecided: a tap stays a polygon vertex, a drag becomes
@@ -17934,6 +17951,25 @@ uniform float uViewportWidth;`,
       }
 
       function drawPointerUp(event) {
+        /**
+         * Awaiting a shape: swallow the tap so it cannot place a vertex.
+         *
+         * This listener is on the window in the CAPTURE phase and the
+         * viewer's own vertex-add is a bubble-phase listener on the canvas,
+         * so stopping propagation here is what keeps a stray click on an
+         * undecided bar from starting a polygon nobody asked for. Doing it
+         * from inside this block is also what carries it to the five rocky
+         * worlds, since the porter copies the block and not the viewer's
+         * click handling.
+         */
+        if (measureMode === "area" && !chosenDrawShape()) {
+          pendingBox = null;
+          boxDraw = null;
+          hideSizeChip();
+          if (viewerControls) viewerControls.enabled = true;
+          event.stopPropagation();
+          return;
+        }
         if (pendingBox || boxDraw) {
           const drew = Boolean(boxDraw);
           pendingBox = null;

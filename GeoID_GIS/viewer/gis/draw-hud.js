@@ -28,9 +28,14 @@ const HINTS = {
   poly: "Click to place vertices · Done saves the shape",
   shaped: "Drag corners to resize, edges to move · Done saves it as a layer · Enter = Done",
   line: "Click two points for a transect · the measure panel exports it",
+  none: "Choose a shape to start drawing",
 };
 
-let shape = "box";
+/**
+ * No shape until one is chosen. The bar used to arm on Rectangle, so picking
+ * up the tool had already decided for you and the first press drew one.
+ */
+let shape = "";
 let visible = false;
 let initTries = 0;
 
@@ -158,7 +163,10 @@ function hasShape() {
 
 function setShape(next) {
   shape = next;
-  window.GeoIDDrawShape = next === "line" ? "poly" : next;
+  // "" travels as "": the viewer reads an unset property as the old default
+  // and an empty one as "waiting", which is the difference that lets a world
+  // with no Draw bar behave exactly as it always did.
+  window.GeoIDDrawShape = next ? (next === "line" ? "poly" : next) : "";
   if (next === "line" && !lineArmed()) byId("tool-rail-distance")?.click();
   if (next !== "line" && !areaArmed() && lineArmed()) byId("tool-rail-area")?.click();
   refresh();
@@ -330,17 +338,25 @@ function refresh() {
    */
   if (show !== visible) {
     visible = show;
-    if (show) borrowExport(); else returnExport();
+    if (show) {
+      borrowExport();
+      // Every time the tool is picked up, not just the first: coming back to
+      // whatever was drawn last is the same decision made for somebody twice.
+      if (!line) setShape("");
+    } else {
+      returnExport();
+    }
   }
   if (!show) return;
   const current = line ? "line" : shape;
   hud.querySelectorAll("[data-shape]").forEach((button) => {
-    button.classList.toggle("is-on", button.dataset.shape === current);
+    button.classList.toggle("is-on", Boolean(current) && button.dataset.shape === current);
   });
   const hint = byId("gis-draw-hint");
   if (hint && !hint.dataset.hold) {
     hint.textContent = line ? HINTS.line
-      : (hasShape() && current !== "poly" ? HINTS.shaped : HINTS[current]);
+      : !current ? HINTS.none
+        : (hasShape() && current !== "poly" ? HINTS.shaped : HINTS[current]);
   }
 }
 
