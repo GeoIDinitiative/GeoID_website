@@ -10,16 +10,22 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260828-967d5c2";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260828-967d5c2";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260828-967d5c2";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260828-c1b047a";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260828-c1b047a";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260828-c1b047a";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260828-967d5c2";
+  from "./view-extent.js?v=20260828-c1b047a";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260828-967d5c2";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260828-967d5c2";
+} from "./extent-picker.js?v=20260828-c1b047a";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260828-c1b047a";
+import {
+  // Aliased: this module already has a `loadCatalogue`, which fills the
+  // dropdown from the SERVICE. Two catalogues, and the names have to say so.
+  loadCatalogue as loadGeeCatalogue,
+  catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
+} from "./gee-catalogue-index.js?v=20260828-c1b047a";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -478,9 +484,27 @@ async function request() {
         importedAt: new Date().toISOString(),
       };
       layer.colour = "#4fd1a5";
-      // The symbology, for the legend: the ramp the image was rendered with
-      // and what its ends mean.
-      if (data.legend || data.palette) {
+      /**
+       * The symbology, for the legend.
+       *
+       * A CLASSIFICATION is a list, not a ramp — land cover has no min and
+       * max to label, and drawing its eleven classes as a continuous bar
+       * would invent an order between "grassland" and "built-up". The
+       * service sends `classes` for those, each with the publisher's own
+       * name, and the legend draws one swatch per class.
+       */
+      if (data.classes?.length) {
+        // The dock's OWN classed shape (`classed` + `categorical` + parallel
+        // palette/labels), not one of this module's: it already draws a list
+        // of swatches, and a second shape would be a second renderer.
+        layer.legendInfo = {
+          label: data.name,
+          classed: true,
+          categorical: true,
+          palette: data.classes.map((c) => String(c.colour).replace(/^#/, "")),
+          labels: data.classes.map((c) => c.label),
+        };
+      } else if (data.legend || data.palette) {
         layer.legendInfo = {
           label: data.legend?.label || data.name,
           min: data.legend?.min,
@@ -737,6 +761,8 @@ let mapBox = null;
 let chosenDataset = "";
 /** Which subject filter is applied; "" is everything. */
 let homeFilter = "";
+/** Why the catalogue could not be read, if it could not. */
+let catalogueError = "";
 
 /**
  * A bounds rectangle as a ring the viewer will accept.
@@ -813,7 +839,20 @@ function ensureGeeDialog() {
     "  padding: 0 0.35rem; border-radius: 999px; border: 1px solid currentColor; }",
     "#gee-add-list .gee-card .gee-badge.is-cache { color: #4fd1a5; }",
     "#gee-add-list .gee-card .gee-badge.is-live { color: #52e4e8; }",
-    "#gee-add-list .gee-empty { font-size: 0.66rem; opacity: 0.7; padding: 0.6rem 0.2rem; }",
+    "#gee-add-list .gee-empty { font-size: 0.64rem; line-height: 1.45; opacity: 0.72;",
+    "  padding: 0.4rem 0.2rem; }",
+    "#gee-add-list .gee-group { font: 600 0.55rem/1.6 'Exo 2', sans-serif;",
+    "  letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.6;",
+    "  padding: 0.5rem 0.2rem 0.1rem; position: sticky; top: 0;",
+    "  background: rgb(16, 7, 36); z-index: 1; }",
+    "#gee-add-list .gee-group:first-child { padding-top: 0; }",
+    "#gee-add-list .gee-card small { font-size: 0.58rem; opacity: 0.66; }",
+    "#gee-add-list .gee-card .gee-badge.is-cat { color: #9aa7ff; }",
+    "#gee-add-list .gee-card .gee-badge.is-warn { color: #ffb454; }",
+    "#gee-add-card .gee-tick { flex-direction: row; align-items: center;",
+    "  gap: 0.35rem; text-transform: none; letter-spacing: normal;",
+    "  font-weight: 400; font-size: 0.62rem; opacity: 0.8; cursor: pointer; }",
+    "#gee-add-card .gee-tick input { flex: 0 0 auto; }",
     "#gee-add-map { flex: 1; min-height: 8rem; border-radius: 0.6rem; overflow: hidden;",
     "  border: 1px solid rgba(255,255,255,0.14); background: rgb(16, 7, 36); position: relative; }",
     "#gee-add-map canvas { display: block; width: 100%; height: 100%; }",
@@ -850,8 +889,13 @@ function ensureGeeDialog() {
     "</div>",
     '<div id="gee-add-body">',
     '<div id="gee-add-left">',
-    '<label>Search<input id="gee-add-search" type="search" placeholder="rainfall, elevation, MODIS…"></label>',
+    '<label>Search<input id="gee-add-search" type="search" placeholder="rainfall, land cover, Sentinel…"></label>',
+    '<label>Subject<select id="gee-add-category">',
+    '<option value="">Every subject</option>',
+    "</select></label>",
     '<div id="gee-add-chips"></div>',
+    '<label class="gee-tick"><input id="gee-add-deprecated" type="checkbox">'
+      + "<span>Include superseded datasets</span></label>",
     '<div id="gee-add-list"></div>',
     '<div id="gee-add-idrow">',
     '<label>Any Earth Engine ID<input id="gee-add-id" type="text" placeholder="e.g. ECMWF/ERA5/DAILY"></label>',
@@ -888,6 +932,13 @@ function ensureGeeDialog() {
   backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeGeeDialog(); });
   byId("gee-add-close").addEventListener("click", closeGeeDialog);
   byId("gee-add-search").addEventListener("input", renderGeeList);
+  byId("gee-add-category").addEventListener("change", () => {
+    // A subject of Google's and a subject of ours are different questions;
+    // holding both at once returns nothing whenever they disagree.
+    if (byId("gee-add-category").value) { homeFilter = ""; renderGeeChips(); }
+    renderGeeList();
+  });
+  byId("gee-add-deprecated").addEventListener("change", renderGeeList);
   byId("gee-add-id-use").addEventListener("click", () => {
     const id = byId("gee-add-id").value.trim();
     if (!id) return;
@@ -975,49 +1026,168 @@ function dialogStatus(message) {
   if (node) node.textContent = message;
 }
 
-/** The dataset cards, filtered by the search box and the subject chips. */
+/**
+ * The list: this app's own datasets first, then all 1,139 of Google's.
+ *
+ * The curated ones lead because they are DIFFERENT in kind — a shipped
+ * snapshot needs no service at all, and the tuned ones carry a legend with
+ * real units rather than the catalogue's published default. Everything else
+ * in Earth Engine follows, from the baked index, ranked by the search.
+ *
+ * Capped at 60 drawn cards with the remainder COUNTED rather than dropped
+ * silently: a thousand buttons is a page nobody can scroll and a search
+ * saying "1,021 more" is what tells somebody to type another word.
+ */
 function renderGeeList() {
   const host = byId("gee-add-list");
   if (!host) return;
-  const query = (byId("gee-add-search")?.value || "").trim().toLowerCase();
-  const entries = catalogueEntries().filter((entry) => {
-    if (homeFilter && geeHomeOf(entry.id) !== homeFilter) return false;
-    if (!query) return true;
-    return `${entry.label} ${entry.id}`.toLowerCase().includes(query);
-  });
+  const query = (byId("gee-add-search")?.value || "").trim();
+  const category = byId("gee-add-category")?.value || "";
+  const deprecated = byId("gee-add-deprecated")?.checked || false;
   host.innerHTML = "";
-  if (!entries.length) {
-    const empty = document.createElement("div");
-    empty.className = "gee-empty";
-    empty.textContent = query
-      ? "Nothing in the list matches that. Any Earth Engine dataset ID can be typed in below."
-      : "No datasets are listed for this subject yet.";
-    host.appendChild(empty);
+
+  // The app's own, matched loosely — they are thirteen, not a thousand.
+  const needle = query.toLowerCase();
+  const curated = catalogueEntries().filter((entry) => {
+    if (category) return false;                 // a GEE category is not ours
+    if (homeFilter && geeHomeOf(entry.id) !== homeFilter) return false;
+    if (!needle) return true;
+    return `${entry.label} ${entry.id}`.toLowerCase().includes(needle);
+  });
+  if (curated.length) {
+    host.appendChild(groupHeading(homeFilter
+      ? `Ready in this app · ${HOME_LABELS[homeFilter]}` : "Ready in this app"));
+    curated.forEach((entry) => host.appendChild(curatedCard(entry)));
+  }
+
+  if (!catalogueReady()) {
+    const note = document.createElement("div");
+    note.className = "gee-empty";
+    note.textContent = catalogueError
+      || "Loading Google's Earth Engine catalogue…";
+    host.appendChild(note);
     return;
   }
-  entries.forEach((entry) => {
-    const card = document.createElement("button");
-    card.type = "button";
-    card.className = "gee-card";
-    card.classList.toggle("is-on", entry.id === chosenDataset);
-    const cached = entry.source === "cache";
-    card.innerHTML = [
-      `<span class="gee-badge ${cached ? "is-cache" : "is-live"}">`,
-      cached ? "Offline snapshot" : "Live service", "</span>",
-      `<b>${entry.label}</b>`,
-      `<code>${entry.id}</code>`,
-    ].join("");
-    card.title = entry.title;
-    card.addEventListener("click", () => {
-      chosenDataset = entry.id;
-      renderGeeList();
-      dialogStatus(entry.info.summary);
-    });
-    host.appendChild(card);
+
+  const curatedIds = new Set(curated.map((entry) => entry.id));
+  const found = searchCatalogue({
+    query, category, includeDeprecated: deprecated, limit: 60,
+  });
+  const rest = found.results.filter((entry) => !curatedIds.has(entry.id));
+  host.appendChild(groupHeading(
+    `Earth Engine catalogue · ${found.total.toLocaleString()} match`
+    + (found.total === 1 ? "" : "es")));
+  rest.forEach((entry) => host.appendChild(catalogueCard(entry)));
+
+  const notes = [];
+  if (found.total > found.results.length) {
+    notes.push(`${(found.total - found.results.length).toLocaleString()} more match — `
+      + "add a word to narrow it.");
+  }
+  if (found.deprecated) {
+    notes.push(`${found.deprecated} superseded dataset${found.deprecated === 1 ? "" : "s"} `
+      + "hidden — tick “include superseded” to see them.");
+  }
+  if (found.undrapeable) {
+    notes.push(`${found.undrapeable} more match but cannot be draped: tables, or `
+      + "rasters their publisher gives no default rendering for.");
+  }
+  if (!found.total && !curated.length) {
+    notes.unshift("Nothing matches. Any Earth Engine dataset ID can still be typed in below.");
+  }
+  notes.forEach((text) => {
+    const note = document.createElement("div");
+    note.className = "gee-empty";
+    note.textContent = text;
+    host.appendChild(note);
   });
 }
 
-/** The subject filter chips, drawn from the homes the catalogue actually uses. */
+function groupHeading(text) {
+  const head = document.createElement("div");
+  head.className = "gee-group";
+  head.textContent = text;
+  return head;
+}
+
+/** One of this app's own: a shipped snapshot, or a tuned live product. */
+function curatedCard(entry) {
+  const cached = entry.source === "cache";
+  const card = baseCard(entry.id, entry.label, entry.id);
+  card.prepend(badge(cached ? "Offline snapshot" : "Tuned for this app",
+    cached ? "is-cache" : "is-live"));
+  card.title = entry.title;
+  card.addEventListener("click", () => choose(entry.id, entry.info.summary));
+  return card;
+}
+
+/** One of Google's: what it is, at what resolution, over what years. */
+function catalogueCard(entry) {
+  const card = baseCard(entry.id, entry.title, entry.id);
+  card.prepend(badge(entry.status === "beta" ? "Beta"
+    : entry.status === "deprecated" ? "Superseded" : "Earth Engine",
+  entry.status === "ready" ? "is-cat" : "is-warn"));
+  const line = document.createElement("small");
+  line.textContent = describeDataset(entry);
+  card.appendChild(line);
+  card.title = entry.summary || entry.title;
+  card.addEventListener("click", () => choose(entry.id, describeChosen(entry)));
+  return card;
+}
+
+function baseCard(id, title, subtitle) {
+  const card = document.createElement("button");
+  card.type = "button";
+  card.className = "gee-card";
+  card.classList.toggle("is-on", id === chosenDataset);
+  const name = document.createElement("b");
+  name.textContent = title;
+  const code = document.createElement("code");
+  code.textContent = subtitle;
+  card.append(name, code);
+  return card;
+}
+
+function badge(text, kind) {
+  const span = document.createElement("span");
+  span.className = `gee-badge ${kind}`;
+  span.textContent = text;
+  return span;
+}
+
+/** What the status line says about a catalogue dataset that was just picked. */
+function describeChosen(entry) {
+  const bits = [entry.summary || describeDataset(entry)];
+  if (entry.provider) bits.push(`Published by ${entry.provider}.`);
+  if (entry.licence) bits.push(entry.licence);
+  return bits.filter(Boolean).join(" ");
+}
+
+function choose(id, message) {
+  chosenDataset = id;
+  renderGeeList();
+  dialogStatus(message || "");
+  // The catalogue states each dataset's own extent, so the date boxes are
+  // cleared rather than left carrying the last dataset's window — a range
+  // from another archive is a range this one may not hold.
+  const entry = datasetById(id);
+  const from = byId("gee-add-from");
+  const to = byId("gee-add-to");
+  if (from && to) {
+    from.value = ""; to.value = "";
+    from.min = to.min = entry?.start || "";
+    from.max = to.max = entry?.end || "";
+  }
+}
+
+/**
+ * The filter row: this app's subjects, then Google's own categories.
+ *
+ * Their taxonomy for their catalogue — deciding which of 1,139 datasets is
+ * "geology" would be 1,139 judgements nobody here is qualified to make, and
+ * every wrong one invisible. The chips stay because the button that opened
+ * this window came from a tab with a subject.
+ */
 function renderGeeChips() {
   const host = byId("gee-add-chips");
   if (!host) return;
@@ -1030,11 +1200,27 @@ function renderGeeChips() {
     chip.classList.toggle("is-on", home === homeFilter);
     chip.addEventListener("click", () => {
       homeFilter = home;
+      // A GEE category and one of ours answer different questions; holding
+      // both would silently return nothing whenever they disagreed.
+      const select = byId("gee-add-category");
+      if (select) select.value = "";
       renderGeeChips();
       renderGeeList();
     });
     host.appendChild(chip);
   });
+}
+
+/** Google's categories, commonest first, each carrying its own count. */
+function renderGeeCategories() {
+  const select = byId("gee-add-category");
+  if (!select || !catalogueReady()) return;
+  const chosen = select.value;
+  select.innerHTML = ['<option value="">Every subject</option>']
+    .concat(categories().map((cat) =>
+      `<option value="${cat.id}">${cat.label} (${cat.count})</option>`))
+    .join("");
+  select.value = chosen;
 }
 
 /** Draw the chosen extent on the map, and say how big it is in words. */
@@ -1157,6 +1343,20 @@ async function openGeeDialog(homeName) {
 
   renderGeeChips();
   renderGeeList();
+  /**
+   * The 136 KB index, on FIRST OPEN rather than at module load: most sessions
+   * never open this window, and the curated list above is drawn without it —
+   * so the catalogue arrives into a list that is already usable.
+   */
+  loadGeeCatalogue().then(() => {
+    catalogueError = "";
+    renderGeeCategories();
+    renderGeeList();
+  }).catch((error) => {
+    catalogueError = `Google's catalogue index could not be read (${error.message}). `
+      + "The datasets above still work, and any Earth Engine ID can be typed in below.";
+    renderGeeList();
+  });
 
   const ff = byId("gee-date-from");
   const tf = byId("gee-date-to");
@@ -1173,7 +1373,7 @@ async function openGeeDialog(homeName) {
   // The map is built on first open, never at module load: `createMap`
   // measures its host, and a host inside a hidden backdrop has no size.
   if (!geeMap) {
-    mapLibrary = mapLibrary || await import("./research/map2d.js?v=20260828-967d5c2");
+    mapLibrary = mapLibrary || await import("./research/map2d.js?v=20260828-c1b047a");
     const picker = byId("gee-add-basemap");
     picker.innerHTML = Object.keys(mapLibrary.BASEMAPS)
       .map((name) => `<option value="${name}">${name}</option>`).join("");
