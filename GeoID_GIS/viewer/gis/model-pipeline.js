@@ -1,8 +1,8 @@
 import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
-} from "./model-build.js?v=20260828-63ee33e";
-import { ringsFromCollection } from "./extraction.js?v=20260828-63ee33e";
+} from "./model-build.js?v=20260828-88ca69b";
+import { ringsFromCollection } from "./extraction.js?v=20260828-88ca69b";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -440,6 +440,9 @@ function stepLayers(body) {
         + " source's own interpolation kinks, not declared."
       : "The elevation here is too flat to measure a native step; the study's"
         + " own size sets the resolution instead.");
+    // The Surface step quotes this number, and it was built before the
+    // measurement existed.
+    render();
   });
   body.appendChild(probe);
 }
@@ -452,23 +455,53 @@ function defaultRole(layer) {
   return "ignore";
 }
 
-function resolutionStepM() {
-  if (state.resolution.mode === "step") return Math.max(state.resolution.stepM, 1);
-  if (state.nativeStepM) return state.nativeStepM;
-  // No measurement and no chosen step: a hundred and twenty nodes across the
-  // study is a working default, and the step is REPORTED so it is never a
-  // resolution nobody chose and nobody saw.
+/**
+ * The step the surface is sampled at, and whether it is finer than the source.
+ *
+ * A global DEM has kilometre pixels; a 10 km study area is a fraction of one.
+ * Sampling it at 80 m is legitimate — a mesh needs geometry, and interpolating
+ * between DEM samples is how you get a smooth one — but it is NOT new detail,
+ * and the step says so rather than letting a 121 x 121 grid imply the ground
+ * was measured that finely. Same discipline as the imagery zoom ceiling: a
+ * server answering is not the sensor having seen it.
+ */
+function resolutionPlan() {
   const plan = planGrid({ bounds: state.bounds.bbox, stepM: 1, radiusKm: bodyRadiusKm() });
-  return Math.max(plan.widthM, plan.heightM) / 120;
+  const span = Math.max(plan.widthM, plan.heightM);
+  // A surface needs enough nodes to be a surface, whatever the source's own
+  // sampling: eight cells across is the floor below which a "mesh" is a box.
+  const meshFloor = span / 120;
+  if (state.resolution.mode === "step") {
+    const chosen = Math.max(state.resolution.stepM, 1);
+    return { stepM: chosen, interpolated: state.nativeStepM ? chosen < state.nativeStepM : false };
+  }
+  if (state.nativeStepM) {
+    if (state.nativeStepM <= span / 8) {
+      return { stepM: state.nativeStepM, interpolated: false };
+    }
+    return { stepM: meshFloor, interpolated: true, coarserThanStudy: true };
+  }
+  return { stepM: meshFloor, interpolated: false, unmeasured: true };
 }
 
 function stepSurface(body) {
   const reader = elevationReader();
-  const stepM = resolutionStepM();
-  const plan = planGrid({ bounds: state.bounds.bbox, stepM, radiusKm: bodyRadiusKm() });
+  const res = resolutionPlan();
+  const plan = planGrid({ bounds: state.bounds.bbox, stepM: res.stepM, radiusKm: bodyRadiusKm() });
   body.appendChild(el("div", "gis-metric",
     `${plan.nx} × ${plan.ny} nodes at ${fmt(plan.stepXm)} × ${fmt(plan.stepYm)} m`
-    + `${plan.capped ? " (coarsened to stay inside the node budget)" : ""}.`));
+    + `${plan.capped ? " (coarsened to stay inside the node budget)" : ""}.`
+    + (res.coarserThanStudy
+      ? ` The source samples every ${fmt(state.nativeStepM / 1000, 2)} km — coarser than`
+        + " this whole study area, so the surface is INTERPOLATED between DEM samples."
+        + " That is a smooth mesh, not new ground detail."
+      : res.interpolated
+        ? ` Finer than the source's own ${fmt(state.nativeStepM)} m sampling: interpolated,`
+          + " not new detail."
+        : res.unmeasured
+          ? " Measure the native resolution in step 2 to know whether this is detail"
+            + " or interpolation."
+          : " At the source's own sampling.")));
 
   const build = el("button", "tool-button", "Build surface");
   build.type = "button";
@@ -479,9 +512,13 @@ function stepSurface(body) {
     }
     report("surface", "Sampling…");
     window.requestAnimationFrame(() => {
+      // Read at PRESS time, never from the render that drew the button: the
+      // native measurement in step 2 happens after this card is built, and a
+      // closed-over step silently sampled at the pre-measurement resolution.
+      const live = resolutionPlan();
       const grid = buildSurface({
         bounds: state.bounds.bbox,
-        stepM,
+        stepM: live.stepM,
         radiusKm: bodyRadiusKm(),
         sampleElevation: reader.read,
       });
