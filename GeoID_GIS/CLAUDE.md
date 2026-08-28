@@ -1202,6 +1202,17 @@ the chip into its row template and does not hear the tag event —
 
 ## Workbenches: the rail owns what you pick up and put down
 
+**The Workspace doorways are ICON buttons in the box's header** — plus
+(+ Data), cloud (+ GEE, Earth only), tray (Export) — pinned right of the
+WORKSPACE title with names in the tooltips: three full-width text buttons
+dominated the tile. Three mechanics: the row APPENDS in header mode
+(first-child insertion put the icons left of the title), it swallows
+click/pointerdown so a press never folds the box, and the head's caret
+::after carries `margin-left: auto` in layer-hierarchy's sheet — two autos
+SPLIT the slack and parked the icons mid-header, so add-data overrides the
+caret's to a fixed gap with !important at matched specificity.
+`#workspace-add-host` in the body survives as the arrival card's anchor.
+
 **Export's door moved into the Workspace row** — third button on Earth
 (+ Data, + GEE, Export), second on the planets — because exporting is an
 act on the working set the box holds. The workbench PANEL survives in

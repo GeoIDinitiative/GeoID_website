@@ -30,11 +30,11 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260828-53716a9";
-import { readHead, validateMapping } from "./delimited.js?v=20260828-53716a9";
-import { RAMP_NAMES } from "./symbology.js?v=20260828-53716a9";
-import { isEarth } from "./bodies.js?v=20260828-53716a9";
-import { DATA_TYPES, inferType, applyTag, suppressNextArrival } from "./data-tags.js?v=20260828-53716a9";
+import { CRS_OPTIONS } from "./projection.js?v=20260828-db653b7";
+import { readHead, validateMapping } from "./delimited.js?v=20260828-db653b7";
+import { RAMP_NAMES } from "./symbology.js?v=20260828-db653b7";
+import { isEarth } from "./bodies.js?v=20260828-db653b7";
+import { DATA_TYPES, inferType, applyTag, suppressNextArrival } from "./data-tags.js?v=20260828-db653b7";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
@@ -243,6 +243,33 @@ const STYLE = `
   margin: 0 0 0.5rem;
 }
 .gis-add-row { display: flex; gap: 0.6rem; align-items: stretch; margin: 0.2rem 0 0.7rem; }
+/* Icon buttons in the Workspace header: small squares pinned right, names
+   in the tooltip. The head's own caret also carries margin-left auto; the
+   two autos share the slack and the caret keeps the far edge. */
+.layer-dock-head .gis-add-row-icons {
+  margin: 0 0.35rem 0 auto;
+  gap: 0.28rem;
+  align-items: center;
+}
+/* The head's caret carries margin-left auto of its own (layer-hierarchy's
+   sheet); two autos SPLIT the slack and parked the icons mid-header. The
+   row owns the stretch now; the caret just trails it. */
+#layer-dock:not(.is-collapsed) > .layer-dock-head::after,
+#layer-dock.is-collapsed > .layer-dock-head::after {
+  margin-left: 0.35rem !important;
+}
+.layer-dock-head .gis-add-row-icons .button {
+  flex: 0 0 auto;
+  width: 1.55rem;
+  height: 1.55rem;
+  min-height: 0;
+  padding: 0.28rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.38rem;
+}
+.layer-dock-head .gis-add-row-icons .button svg { width: 100%; height: 100%; display: block; }
 .gis-add-row .button {
   flex: 1 1 0;
   justify-content: center;
@@ -823,8 +850,15 @@ function addButtonFor(role) {
    * duplicate guard searches the DOCUMENT for this role because the row
    * no longer lives inside the panel it is keyed to.
    */
+  /**
+   * Into the Workspace box's HEADER, pinned right as icon buttons — three
+   * full-width text buttons dominated the tile's space, and the header row
+   * had room going spare. `#workspace-add-host` in the body stays as the
+   * data-tag arrival card's anchor and as the fallback host.
+   */
   const dockHost = role.panel === "gis-group-polygons"
-    ? document.getElementById("workspace-add-host") : null;
+    ? (document.querySelector("#layer-dock .layer-dock-head")
+      || document.getElementById("workspace-add-host")) : null;
   const panel = document.getElementById(role.panel);
   if (!panel && !dockHost) return false;
   if (document.querySelector(`[data-add-role="${role.id}"]`)) return false;
@@ -876,6 +910,27 @@ function addButtonFor(role) {
     });
     row.appendChild(exp);
   }
+  if (dockHost) {
+    // Icon-only in the header: the name moves into the tooltip, and the row
+    // swallows its clicks so pressing a button never folds the box.
+    row.classList.add("gis-add-row-icons");
+    ["click", "pointerdown"].forEach((type) =>
+      row.addEventListener(type, (e) => e.stopPropagation()));
+    const ICONS = {
+      "+ Data": '<path d="M12 5.4v13.2M5.4 12h13.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+      "+ GEE": '<path d="M7.2 16.5h9.6a3.6 3.6 0 0 0 .7-7.1 5 5 0 0 0-9.7-1 4.1 4.1 0 0 0-.6 8.1Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>'
+        + '<path d="M12 13v6.4m-2.4-2.4 2.4 2.4 2.4-2.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>',
+      Export: '<path d="M12 15.4V4.8M7.8 9 12 4.8 16.2 9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>'
+        + '<path d="M4.8 19.2h14.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+    };
+    [...row.querySelectorAll("button")].forEach((b) => {
+      const label = b.textContent.trim();
+      if (!ICONS[label]) return;
+      b.title = `${label} — ${b.title || ""}`.replace(/ — $/, "");
+      b.setAttribute("aria-label", b.title);
+      b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[label]}</svg>`;
+    });
+  }
   // The vector tab's third doorway: capturing the drawn area. The button
   // lives in the shared markup (polygons.js wires it there) and is ADOPTED
   // into this row, so the three ways data arrives sit side by side.
@@ -901,7 +956,10 @@ function addButtonFor(role) {
     });
     row.appendChild(custom);
   }
-  body.insertBefore(row, body.firstChild);
+  // First child in a tab body (the doorways lead); LAST in the Workspace
+  // header, so the title keeps the left edge and the icons pin right.
+  if (dockHost) body.appendChild(row);
+  else body.insertBefore(row, body.firstChild);
   return true;
 }
 
