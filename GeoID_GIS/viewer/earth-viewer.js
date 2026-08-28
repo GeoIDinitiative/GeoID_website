@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260828-3d9c7d0";
+  from "./gis/geo-utils.js?v=20260828-31b1019";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -13311,7 +13311,11 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
        * on the night side too, and a darker globe is a different decision from
        * the one asked for.
        */
-      const OCEAN_DEPTH_FULL_M = 3800;   // where the deep colour is reached
+      // Where the deep colour is fully reached. 3,800 m put a wide neon
+      // band of shelf colour down every continental margin; 2,600 m keeps
+      // the shelf legible as bathymetry without it reading as a coastline
+      // drawn in cyan.
+      const OCEAN_DEPTH_FULL_M = 2600;
       baseMaterial.onBeforeCompile = (shader) => {
         shader.uniforms.uOceanMap = { value: elevationMap || null };
         shader.uniforms.uOceanEnabled = { value: elevationMap ? 1 : 0 };
@@ -13323,7 +13327,7 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
         // base + scale for the source-luminance modulation, as a uniform so
         // it can be measured against the render rather than guessed at.
         shader.uniforms.uOceanDetail = { value: new THREE.Vector2(1.05, 1.35) };
-        shader.uniforms.uOceanShallow = { value: new THREE.Color(0x63cfd8) };
+        shader.uniforms.uOceanShallow = { value: new THREE.Color(0x4ab4c4) };
         shader.uniforms.uOceanDeep = { value: new THREE.Color(0x2168ab) };
         shader.uniforms.uVibrance = { value: 1.16 };
         shader.uniforms.uLift = { value: 1.06 };
