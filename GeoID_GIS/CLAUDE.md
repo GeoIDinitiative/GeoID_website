@@ -1237,6 +1237,19 @@ it anchors after `#workspace-add-host` instead; (3) the hierarchy bakes
 the chip into its row template and does not hear the tag event —
 `applyTag` calls `GeoIDLayerHierarchy.render()` itself.
 
+**A pseudo-element is not reached by `> summary *`, and the chevron is one.**
+A tier-1 tab holding a hidden active layer takes the solid accent fill and
+puts its title and icon into dark ink — but the chevron sets its OWN colour
+(the accent at 0.9) rather than inheriting, so it came out
+rgba(255,43,214,0.9) on a rgb(255,43,214) header: the same colour, and
+therefore no arrow. Reported as "the arrow is lost", which is exactly how it
+presents — the rest of the header looks right, so nothing says the fill is at
+fault. `::before`/`::after` are on the dark-ink list in section-activity.js
+now, for both tiers. The sub-tabs never had it (their chevron inherits,
+measured rgb(43,0,48)) and are on the rule anyway so the tiers cannot drift.
+Third instance of magenta-on-magenta in this file; when a mark disappears on
+a FILLED header, look for something setting the accent as its own colour.
+
 **A BLOCK around an inline-flex row baseline-aligns it, at BOTH tiers.**
 The level-2 fix was noted long ago and the same fault sat in tier 1
 unnoticed: `.section-title` is a block, the row inside it sits on the line
