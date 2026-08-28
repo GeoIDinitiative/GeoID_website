@@ -1062,6 +1062,14 @@ Three traps, all found by measuring:
 
 ## The nav bar is the subject taxonomy, two tiers deep
 
+**The &#9432; help modal (`#viewer-help-overlay`) documents THIS UI.** It
+described the pre-GIS viewer for months ("open the Tools panel from the
+right-hand tab") and was rewritten to walk the real one: the taxonomy
+bar, the Workspace box and its icon doorways, the rail tools, fetch by
+extent, the timezone clock, the live feeds and the workflow into the
+Model Builder. When the GUI moves again, this modal moves with it — a
+guide describing a previous app is worse than none.
+
 The tab column reads: **Workspace** first (Vector & Shapefiles renamed —
 the working set opens the column), then **Live** (the Events group renamed),
 then Explorer,
