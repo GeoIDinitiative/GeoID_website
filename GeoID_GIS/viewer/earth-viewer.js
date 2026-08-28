@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260828-5dbf95c";
+  from "./gis/geo-utils.js?v=20260828-53769a0";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -18177,6 +18177,43 @@ uniform float uViewportWidth;`,
         return context.kind === "moon" ? point.add(context.centerLocal) : point;
       }
 
+      /**
+       * The overlay bakes its LIFT at build time, so it has to be rebuilt when
+       * the viewing distance changes.
+       *
+       * `getMeasureDisplayLift` is a fraction of the distance to the surface —
+       * correct, and the reason a shape placed from orbit and then flown into
+       * hangs in the air: `activateStudyArea` samples each vertex ONCE, and
+       * nothing re-sampled it afterwards. Measured on a 40 km square placed at
+       * 3,006 km and then viewed from 20 km, the ring stayed at radius 3.2350
+       * where the ground is 3.2002 — about SEVENTY KILOMETRES above the
+       * terrain it is supposed to sit on, which is exactly the "not tight to
+       * the surface" it was reported as.
+       *
+       * A drag-drawn box never showed it because a drag rebuilds the ring on
+       * every pointermove, at the distance you are drawing from — which is why
+       * the HUD felt right while the presets did not.
+       *
+       * The terrain slider already rebuilt for its own reason; this is the
+       * same call on the other input that moves the ground. Gated on a real
+       * change in distance (a third either way) so a slow zoom rebuilds a
+       * handful of times rather than every frame, and never mid-drag.
+       */
+      let measureLiftDistance = 0;
+      function refreshMeasureForViewDistance() {
+        if (!measureMode || !measurePoints.length) return;
+        if (measureDrawActive || studyDrag) return;
+        const zc = getActiveZoomContext();
+        const distance = zc
+          ? Math.max(1e-6, camera.position.distanceTo(zc.centerWorld) - zc.radiusWorld)
+          : 0.5;
+        if (measureLiftDistance
+          && distance > measureLiftDistance / 1.35
+          && distance < measureLiftDistance * 1.35) return;
+        measureLiftDistance = distance;
+        updateMeasureVisualization();
+      }
+
       function getMeasureDisplayLift(context = getActiveMeasureContext()) {
         if (context.kind === "moon") {
           return context.radiusWorld * 0.02;
@@ -21958,6 +21995,7 @@ ${error && error.message ? error.message : error}`;
           );
         }
         updateMeasureVisualScale();
+        refreshMeasureForViewDistance();
         renderer.render(scene, camera);
         requestAnimationFrame((timestamp) => {
           lastTimestamp = Math.max(16, timestamp - (lastTimestamp || timestamp));

@@ -24,7 +24,7 @@
  */
 
 import { regularPolygonVertices, lineVertices, rectangleVertices }
-  from "./draw-area.js?v=20260828-5dbf95c";
+  from "./draw-area.js?v=20260828-53769a0";
 
 /* ── The shapes ──────────────────────────────────────────────────────────────
  *
