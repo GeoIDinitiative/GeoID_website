@@ -1138,6 +1138,20 @@ per-body, and the DOM is the one place that knows which shape this world
 got. Status copy naming the old tab ("Listed in Vectors & Shapes") moved
 with it ("Listed in My Data") in gee.js and gee-live.js.
 
+**An ADOPTED layer states its provenance on `info`, and the panel read
+only `metadata`.** So Live events showed "Source: user import, CRS:
+unstated" over a NASA feed while the correct credits sat one property
+away, unread — the same for the satellite tracker. Layer Provenance now
+reads BOTH (metadata first, so an import that states both is unchanged),
+and the live layers state their sources BY NAME as well as by licence:
+`sourceNames()` maps each feed's kind to its publisher ("USGS earthquake
+catalogue · GDACS (EC JRC) · NASA EONET") while `sourceCredits()` keeps
+the licence line, and both go onto `metadata` with CRS, format and count
+— restated on every refresh, because which feeds are on IS the
+provenance and it changes as they are ticked. Verified rendered: "Format
+live GeoJSON feed · Source USGS earthquake catalogue · GDACS (EC JRC) ·
+NASA EONET · CRS EPSG:4326 · Features 428 · Citation …".
+
 ## Workspace IS the corner box, and every input wears a data tag
 
 The always-visible corner box (`#layer-dock`, headed "Workspace") holds

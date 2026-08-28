@@ -12,7 +12,7 @@
 
 import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity, magnitudeColour,
-  activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, gdacsPoints } from "./event-sources.js?v=20260828-3353e2b";
+  activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, gdacsPoints } from "./event-sources.js?v=20260828-4d32849";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -1191,6 +1191,18 @@ function renderMarkers() {
 }
 
 /** Who the picture on the globe came from — every feed that is on, credited. */
+/** The feeds that are ON, by name — "NASA EONET · USGS earthquakes". */
+function sourceNames() {
+  const names = [...new Set(
+    SOURCES.filter((src) => enabled.has(src.id))
+      .map((src) => (src.kind === "eonet" ? "NASA EONET"
+        : src.kind === "gdacs" ? "GDACS (EC JRC)"
+          : src.kind === "usgs" ? "USGS earthquake catalogue"
+            : src.provider || src.label)),
+  )];
+  return names.join(" · ") || "no feed selected";
+}
+
 function sourceCredits() {
   // Deduplicated: three USGS feeds are one credit, and a row reading
   // "USGS — public domain · USGS — public domain" says nothing twice.
@@ -1234,7 +1246,7 @@ function publishLayer() {
   const layer = manager.adoptLayer(LAYER_NAME, spun, {
     ext: "events",
     role: "events",
-    info: { source: sourceCredits(), events: events.length },
+    info: { source: sourceNames(), citation: sourceCredits(), crs: "EPSG:4326", events: events.length },
     onRemove: () => setActive(false),
   });
   if (layer) {
@@ -1253,7 +1265,25 @@ function publishLayer() {
       classed: true,
       field: "category",
     };
-    layer.info = { source: sourceCredits(), summary: layerSummary() };
+    layer.info = {
+      source: sourceNames(), citation: sourceCredits(), crs: "EPSG:4326",
+      summary: layerSummary(),
+    };
+    /**
+     * And on `metadata`, which is the surface the project registry and the
+     * Metadata tab read. A live feed has a provenance as real as an
+     * import's — which feeds are on, under what licence, in what CRS — and
+     * it changes as feeds are ticked, so it is restated on every refresh.
+     */
+    layer.metadata = {
+      ...(layer.metadata || {}),
+      source: sourceNames(),
+      citation: sourceCredits(),
+      crs: "EPSG:4326",
+      format: "live GeoJSON feed",
+      featureCount: events.length,
+      importedAt: new Date().toISOString(),
+    };
   }
   // The stack has to be re-applied: a refresh builds new point clouds inside a
   // group whose renderOrder was stamped on the children that existed then, and
@@ -1729,8 +1759,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260828-3353e2b"),
-    import("./research/dsp.js?v=20260828-3353e2b"),
+    import("./seismogram-plot.js?v=20260828-4d32849"),
+    import("./research/dsp.js?v=20260828-4d32849"),
   ]);
   if (stale()) return;
 

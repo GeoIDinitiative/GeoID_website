@@ -10,12 +10,12 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260828-3353e2b";
-import { samplerToRaster } from "./raster-analysis.js?v=20260828-3353e2b";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260828-3353e2b";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260828-3353e2b";
-import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260828-3353e2b";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260828-3353e2b";
+import { currentBody } from "./bodies.js?v=20260828-4d32849";
+import { samplerToRaster } from "./raster-analysis.js?v=20260828-4d32849";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260828-4d32849";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260828-4d32849";
+import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260828-4d32849";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260828-4d32849";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -1243,14 +1243,23 @@ function renderMetadata(stack) {
   }
   host.innerHTML = stack.map((layer) => {
     const meta = layer.metadata || {};
+    /**
+     * An ADOPTED layer states its provenance on `info` — that is the seam
+     * `adoptLayer` takes and what the live feeds (events, satellites) fill
+     * in. Reading only `metadata` meant the credits existed, were correct,
+     * and were never shown: the Live events row said "Source: user import,
+     * CRS: unstated" over a NASA feed. Both surfaces are read, metadata
+     * first, so an import that states both is unchanged.
+     */
+    const info = layer.info || {};
     const bits = [
-      ["Format", layer.format || meta.format || layer.type],
-      ["Source", meta.source || layer.source || layer.fileName || "user import"],
-      ["CRS", meta.crs || layer.crs || "unstated"],
+      ["Format", layer.format || meta.format || info.format || layer.type],
+      ["Source", meta.source || info.source || layer.source || layer.fileName || "user import"],
+      ["CRS", meta.crs || info.crs || layer.crs || "unstated"],
       ["Features", meta.featureCount ?? layer.featureCount],
       ["Cells", meta.cellCount ?? layer.cellCount],
       ["Imported", meta.importedAt || layer.importedAt],
-      ["Citation", meta.citation],
+      ["Citation", meta.citation || info.citation],
     ].filter(([, v]) => v !== undefined && v !== null && v !== "");
     return `<div class="meta-entry"><b>${layer.name || "layer"}</b>`
       + bits.map(([k, v]) => `<span><i>${k}</i> ${v}</span>`).join("")
@@ -1262,9 +1271,10 @@ function renderMetadata(stack) {
 function copyCitations() {
   const text = ordered().map((layer) => {
     const meta = layer.metadata || {};
-    return meta.citation
-      || `${layer.name || "layer"} — ${meta.source || layer.fileName || "user import"}`
-        + `${meta.crs ? ` (${meta.crs})` : ""}`;
+    const info = layer.info || {};
+    return meta.citation || info.citation
+      || `${layer.name || "layer"} — ${meta.source || info.source || layer.fileName || "user import"}`
+        + `${meta.crs || info.crs ? ` (${meta.crs || info.crs})` : ""}`;
   }).join("\n");
   navigator.clipboard?.writeText(text);
 }

@@ -10,16 +10,16 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260828-3353e2b";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260828-3353e2b";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260828-3353e2b";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260828-4d32849";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260828-4d32849";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260828-4d32849";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260828-3353e2b";
+  from "./view-extent.js?v=20260828-4d32849";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260828-3353e2b";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260828-3353e2b";
+} from "./extent-picker.js?v=20260828-4d32849";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260828-4d32849";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:

@@ -1313,6 +1313,9 @@ async function start() {
     legendInfo,
     info: {
       source: "CelesTrak orbital elements, SGP4-propagated in the browser",
+      citation: "Orbital elements courtesy of CelesTrak (celestrak.org). "
+        + "Propagated with satellite.js (SGP4, MIT licence).",
+      crs: "EPSG:4326 (sub-satellite points); drawn at true altitude",
       summary: `${records.length} satellites at their real altitudes: stations, `
         + "the brightest objects, and the navigation constellations",
     },
@@ -1481,7 +1484,7 @@ function init() {
       say("Turn the tracker on first — symbology colours the live layer.");
       return;
     }
-    const dialog = await import("./symbology-dialog.js?v=20260828-3353e2b");
+    const dialog = await import("./symbology-dialog.js?v=20260828-4d32849");
     dialog.openSymbologyDialog(layer);
   });
   // The layer box can remove the layer without asking: the tracker must not
