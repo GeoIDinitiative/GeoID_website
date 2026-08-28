@@ -16,8 +16,8 @@
 
 import {
   grouped as globalGrouped, layerForDataset,
-} from "./global-data.js?v=20260828-2ca41ba";
-import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20260828-2ca41ba";
+} from "./global-data.js?v=20260828-986383a";
+import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20260828-986383a";
 
 const HOME_SECTION = {
   hydrology: "sea-level-section",
@@ -208,6 +208,29 @@ function installStyle() {
     "details.control-section.has-active-data:not([open]) > .section-toggle .section-icon {",
     "  color: var(--skin-chrome-ink, #2b0030) !important;",
     "  filter: none !important;",
+    "  text-shadow: none !important;",
+    "}",
+    /**
+     * THE CHEVRON TOO — it is a pseudo-element, so `> summary *` never
+     * reached it.
+     *
+     * A tier-1 chevron sets its own colour (the accent at 0.9) rather than
+     * inheriting, and this fill IS the accent: measured, chevron
+     * rgba(255,43,214,0.9) on a rgb(255,43,214) header, which is the same
+     * colour and therefore no chevron at all. The title and icon were already
+     * on the dark-ink list and looked right, which is what made the arrow
+     * read as "lost" rather than as the whole header being wrong.
+     *
+     * The sub-tabs never had it: their chevron sets no colour and inherits
+     * the dark ink from the summary (measured rgb(43,0,48)). This is the
+     * same magenta-on-magenta the armed Events header once had.
+     */
+    "details.control-section.has-active-data:not([open]) > .section-toggle::before,",
+    "details.control-section.has-active-data:not([open]) > .section-toggle::after,",
+    "details.gis-tool-section.has-active-data:not([open]) > summary::before,",
+    "details.gis-tool-section.has-active-data:not([open]) > summary::after {",
+    "  color: var(--skin-chrome-ink, #2b0030) !important;",
+    "  opacity: 1 !important;",
     "  text-shadow: none !important;",
     "}",
   ].join("\n");
