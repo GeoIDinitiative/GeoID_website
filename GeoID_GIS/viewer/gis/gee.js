@@ -10,16 +10,16 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260828-4f564d5";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260828-4f564d5";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260828-4f564d5";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260828-e62c6ad";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260828-e62c6ad";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260828-e62c6ad";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260828-4f564d5";
+  from "./view-extent.js?v=20260828-e62c6ad";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260828-4f564d5";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260828-4f564d5";
+} from "./extent-picker.js?v=20260828-e62c6ad";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260828-e62c6ad";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -951,6 +951,25 @@ function ensureGeeDialog() {
   if (source) mirror.observe(source, { childList: true, characterData: true, subtree: true });
 }
 
+/**
+ * Reflect the hidden form's date window into the dialog's own boxes.
+ *
+ * Only where the dialog's are EMPTY: the probe's sixty-day default is a
+ * suggestion, and overwriting a range somebody typed with it would be the
+ * app changing an answer it was given.
+ */
+function syncDialogDates() {
+  [["gee-date-from", "gee-add-from"], ["gee-date-to", "gee-add-to"]]
+    .forEach(([hiddenId, dialogId]) => {
+      const hidden = byId(hiddenId);
+      const shown = byId(dialogId);
+      if (!hidden || !shown) return;
+      if (!shown.value && hidden.value) shown.value = hidden.value;
+      if (hidden.min) shown.min = hidden.min;
+      if (hidden.max) shown.max = hidden.max;
+    });
+}
+
 function dialogStatus(message) {
   const node = byId("gee-add-status");
   if (node) node.textContent = message;
@@ -1096,6 +1115,10 @@ async function requestFromDialog() {
     dialogStatus("Checking what this dataset holds…");
     await datesProbe?.catch(() => {});
   }
+  // What the probe learned, shown where the request is being made: the window
+  // it filled in is the one this pull will use, and a pair of empty date boxes
+  // above a request that silently carries dates says otherwise.
+  syncDialogDates();
   const from = byId("gee-add-from").value;
   const to = byId("gee-add-to").value;
   if (from && byId("gee-date-from")) byId("gee-date-from").value = from;
@@ -1145,7 +1168,7 @@ async function openGeeDialog(homeName) {
   // The map is built on first open, never at module load: `createMap`
   // measures its host, and a host inside a hidden backdrop has no size.
   if (!geeMap) {
-    mapLibrary = mapLibrary || await import("./research/map2d.js?v=20260828-4f564d5");
+    mapLibrary = mapLibrary || await import("./research/map2d.js?v=20260828-e62c6ad");
     const picker = byId("gee-add-basemap");
     picker.innerHTML = Object.keys(mapLibrary.BASEMAPS)
       .map((name) => `<option value="${name}">${name}</option>`).join("");
