@@ -1231,6 +1231,14 @@ wrapper), and the last 2.8 px was `.section-title` being a BLOCK around
 an inline-flex row, so it took a line box taller than its content. A head
 that carries a control (Tour Mode's ENTER) sizes it down to the row.
 
+**A closed level-2 section draws NO shadow.** The page sheets give one a
+1px magenta inset ring plus an outer bloom — reported as "interior
+outlines and purple glow" beside the events cards, whose shadow computes
+to `none`. Killed with `box-shadow: none !important`; only the OPEN state
+keeps a glow, which the feed groups have too. Verified: Search,
+Locations, Core View, Tour Mode and Atmosphere all MATCH a feed group on
+background, border, radius and shadow, closed AND open.
+
 **Icons on EVERY subsection, and one gap value.** The ~54 (Earth) / 39
 (Mars) `gis-tool-section` summaries had no glyphs while the level-2
 sections and feed groups did, so a column mixing them read as two

@@ -1,13 +1,13 @@
-import * as GP from "./geoprocessing.js?v=20260828-2c501eb";
-import * as RA from "./raster-analysis.js?v=20260828-2c501eb";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260828-2c501eb";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260828-2c501eb";
-import { CRS_OPTIONS } from "./projection.js?v=20260828-2c501eb";
-import * as IN from "./interpolation.js?v=20260828-2c501eb";
-import * as VAL from "./validation.js?v=20260828-2c501eb";
-import * as EX from "./analysis-extra.js?v=20260828-2c501eb";
-import * as HY from "./hydrology.js?v=20260828-2c501eb";
-import * as KR from "./kriging.js?v=20260828-2c501eb";
+import * as GP from "./geoprocessing.js?v=20260828-0d4f8a0";
+import * as RA from "./raster-analysis.js?v=20260828-0d4f8a0";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260828-0d4f8a0";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260828-0d4f8a0";
+import { CRS_OPTIONS } from "./projection.js?v=20260828-0d4f8a0";
+import * as IN from "./interpolation.js?v=20260828-0d4f8a0";
+import * as VAL from "./validation.js?v=20260828-0d4f8a0";
+import * as EX from "./analysis-extra.js?v=20260828-0d4f8a0";
+import * as HY from "./hydrology.js?v=20260828-0d4f8a0";
+import * as KR from "./kriging.js?v=20260828-0d4f8a0";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -1389,7 +1389,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260828-2c501eb");
+    const client = await import("./sidecar-client.js?v=20260828-0d4f8a0");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -1444,7 +1444,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260828-2c501eb");
+    const bridge = await import("./research/bridge.js?v=20260828-0d4f8a0");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -1456,12 +1456,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260828-2c501eb");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260828-0d4f8a0");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260828-2c501eb");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260828-0d4f8a0");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }

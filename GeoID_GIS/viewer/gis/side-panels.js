@@ -423,6 +423,11 @@ const STYLE = `
  * the same properties. */
 .control-section:not(.toolbox-group) {
   border: 1px solid rgba(var(--nav-accent-rgb), 0.18) !important;
+  /* No inset ring, no glow: the page sheets give a closed level-2 section a
+     1px magenta inset ring and an outer bloom, which is what read as
+     "interior outlines and purple glow" beside the events cards, whose
+     shadow is none. Only the OPEN state earns a glow (below). */
+  box-shadow: none !important;
   /* !important: the page sheets set a 0.6rem radius at higher specificity. */
   border-radius: 0.78rem !important;
   background: rgba(255, 255, 255, 0.03);
@@ -531,7 +536,7 @@ const STYLE = `
 }
 .control-section:not(.toolbox-group)[open] {
   border-color: rgb(var(--nav-accent-rgb)) !important;
-  box-shadow: 0 0 18px -6px rgba(var(--nav-accent-rgb), 0.55);
+  box-shadow: 0 0 18px -6px rgba(var(--nav-accent-rgb), 0.55) !important;
 }
 .control-section:not(.toolbox-group)[open]:hover > .section-toggle {
   background: rgb(var(--nav-accent-rgb));

@@ -23,7 +23,7 @@
  * instead of a study area (`captureDrawnLine`), which is what a transect is.
  */
 
-import { regularPolygonVertices, lineVertices } from "./draw-area.js?v=20260828-2c501eb";
+import { regularPolygonVertices, lineVertices } from "./draw-area.js?v=20260828-0d4f8a0";
 
 /* ── The shapes ──────────────────────────────────────────────────────────────
  *
