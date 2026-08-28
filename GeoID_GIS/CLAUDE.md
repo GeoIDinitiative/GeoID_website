@@ -2247,6 +2247,41 @@ it never reaches the planets.
 outline is LineSegments) rather than on the option being accepted, because a
 silently-ignored option draws exactly as before with no error anywhere.
 
+### The preset card is gone — the shapes drag out on the Draw bar
+
+It sized a triangle by typing a number into a field, which is a different
+grammar from the one the rest of this tool uses, and it was where every fault
+below lived. **The bar was reported as working perfectly, so the shapes moved
+to the bar rather than the bar growing a card.**
+
+Triangle, square, pentagon and hexagon are the CIRCLE'S OWN GESTURE with one
+number changed — `DRAG_RING_SIDES` maps a shape id to a segment count, and the
+ring branch that drew a 48-segment circle now draws any of them. A hexagon is
+therefore drawn exactly as a circle is and there is no second path to keep
+working. The square is turned 45° so a drag gives the axis-aligned box
+everybody means by "square"; the odd-sided ones point north. Verified with
+REAL mouse drags (`computer left_click_drag`): 3, 4, 5, 6 and 48 vertices.
+
+They come in as GLYPHS and the original four keep their words: four more
+words takes the bar from ~300 px to over 700 and off a narrow screen, and
+"Triangle" says nothing a triangle does not.
+
+**Export CSV is MOVED onto the bar, never copied** — the viewer holds a live
+reference to `[data-measure-actions="area"]` and shows it as a measurement
+comes and goes, so a copy is a dead twin. Borrow it on the TRANSITION, not on
+every pass: `refresh` is polled and the viewer re-parents that node itself, so
+borrowing each tick had the two passing it back and forth — measured, Done
+sent it to the rail and standing the tool down sent it to the bar, the
+opposite of both. The card did it on open/close and so does this.
+
+**Synthetic pointer events do not exercise this drag.** A dispatched
+pointerdown/move/up sequence left the shape untouched and read as a broken
+feature through two rounds of debugging; the same gesture through
+`computer left_click_drag` drew every shape first time. Where a drag is being
+verified, drive the real mouse. (The clamp at ±85° is also real: a ring
+dragged out near a pole collapses its vertices onto the limit, which looks
+like a broken shape and is the clamp doing its job.)
+
 ### A preset shape is a DRAFT, and it has to re-sample as you fly in
 
 "The header draw pill works perfectly, the issues lie in the preset shapes"
