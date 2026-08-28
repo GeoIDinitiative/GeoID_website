@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260828-2dcea52";
+  from "./gis/geo-utils.js?v=20260828-3970c61";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -13188,7 +13188,42 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
         roughness: 1,
         metalness: 0,
       });
+      /**
+       * THE OCEAN IS RECOLOURED, and nothing else is touched.
+       *
+       * The default basemap is Sentinel-2 cloudless, a LAND mosaic whose water
+       * is nearly black — measured over the whole globe at the default view,
+       * mid-ocean read rgb(3, 7, 25). From orbit the sea is not black.
+       *
+       * Where the water IS comes from the elevation raster already bound to
+       * this material, because a hue test would catch dark land as readily as
+       * sea. The one thing that matters is WHICH UV that raster is sampled in:
+       * an earlier attempt used `vMapUv` — the MAP's transformed coordinates —
+       * and on any base layer carrying a texture transform the mask slid off
+       * the coastlines and ringed every continent in cyan. It is sampled in
+       * the sphere's own `uv` here, carried through as its own varying, which
+       * is exactly what three.js does for the displacement map on this same
+       * mesh; the mask is therefore identical whatever picture is on the
+       * globe, by construction rather than by luck.
+       */
+      const OCEAN_DEPTH_FULL_M = 2600;   // where the deep colour is reached
       baseMaterial.onBeforeCompile = (shader) => {
+        shader.uniforms.uOceanMap = { value: elevationMap || null };
+        shader.uniforms.uOceanEnabled = { value: elevationMap ? 1 : 0 };
+        shader.uniforms.uOceanSeaLevel = { value: normalizeSeaLevelMeters(0) };
+        shader.uniforms.uOceanStrength = { value: 0.85 };
+        shader.uniforms.uOceanDepthScale = {
+          value: Math.max(Number(manifest.elevation?.relief_m ?? 19557), 1) / OCEAN_DEPTH_FULL_M,
+        };
+        shader.uniforms.uOceanShallow = { value: new THREE.Color(0x4ab4c4) };
+        shader.uniforms.uOceanDeep = { value: new THREE.Color(0x2168ab) };
+        // base + scale for the source-luminance modulation, bounded so a
+        // basemap that already draws bright water cannot blow out.
+        shader.uniforms.uOceanDetail = { value: new THREE.Vector2(1.05, 1.35) };
+        baseMaterial.userData.oceanShader = shader;
+        shader.vertexShader = shader.vertexShader
+          .replace("#include <common>", "#include <common>\nvarying vec2 vGlobeUv;")
+          .replace("#include <begin_vertex>", "#include <begin_vertex>\nvGlobeUv = uv;");
         shader.uniforms.uContourMap = { value: null };
         shader.uniforms.uContourOpacity = { value: Number(contourOpacity?.value || 0.62) };
         shader.uniforms.uContourEnabled = { value: 0 };
@@ -13201,11 +13236,28 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
         shader.fragmentShader = shader.fragmentShader
           .replace(
             "#include <common>",
-            "#include <common>\nuniform sampler2D uContourMap;\nuniform float uContourOpacity;\nuniform float uContourEnabled;\nuniform vec2 uContourTexel;\nuniform float uContourThickness;\nuniform float uContourInterval;\nuniform float uContourMinMeters;\nuniform float uContourReliefMeters;",
+            "#include <common>\nvarying vec2 vGlobeUv;\nuniform sampler2D uOceanMap;\nuniform float uOceanEnabled;\nuniform float uOceanSeaLevel;\nuniform float uOceanStrength;\nuniform float uOceanDepthScale;\nuniform vec2 uOceanDetail;\nuniform vec3 uOceanShallow;\nuniform vec3 uOceanDeep;\nuniform sampler2D uContourMap;\nuniform float uContourOpacity;\nuniform float uContourEnabled;\nuniform vec2 uContourTexel;\nuniform float uContourThickness;\nuniform float uContourInterval;\nuniform float uContourMinMeters;\nuniform float uContourReliefMeters;",
           )
           .replace(
             "#include <map_fragment>",
             `#include <map_fragment>
+            if (uOceanEnabled > 0.5) {
+              // Unflipped, which is what three.js's own displacement sampling
+              // does on this mesh — and what measured right: 18 disagreements
+              // in 1,508 sampled pixels against 164 for the flipped form.
+              vec2 oceanUv = vec2(fract(vGlobeUv.x), clamp(vGlobeUv.y, 0.0, 1.0));
+              float oceanElev = texture2D(uOceanMap, oceanUv).r;
+              float wet = 1.0 - smoothstep(uOceanSeaLevel - 0.0015, uOceanSeaLevel + 0.0015, oceanElev);
+              if (wet > 0.001) {
+                float depth01 = clamp((uOceanSeaLevel - oceanElev) * uOceanDepthScale, 0.0, 1.0);
+                vec3 water = mix(uOceanShallow, uOceanDeep, depth01);
+                // The picture's own variation — ice, sediment, cloud, glint —
+                // survives as a bounded modulation rather than being painted over.
+                float srcLum = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+                float detail = clamp(uOceanDetail.x + srcLum * uOceanDetail.y, 0.55, 1.45);
+                diffuseColor.rgb = mix(diffuseColor.rgb, water * detail, uOceanStrength * wet);
+              }
+            }
             if (uContourEnabled > 0.5) {
               vec2 contourOffset = uContourTexel * uContourThickness;
               vec2 contourUv = vec2(fract(vMapUv.x), 1.0 - clamp(vMapUv.y, 0.0, 1.0));
