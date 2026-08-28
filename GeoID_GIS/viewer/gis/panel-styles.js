@@ -90,30 +90,54 @@ body.is-embedded[data-hub-armed="true"] #gmt-clock {
    tag's own text (51) and finding where the two diverge -- a stylesheet
    that half-parses looks exactly like a theme half-implemented. */
 
-/* ── The tool-section form voice, matching the tools window ────────────────
-   The generic label.row is a two-column grid with 16 px sentence-case
-   captions -- the cookie-cutter look. Stacked rows, the instrument caption
-   (Exo 2 600 uppercase letterspaced, data cyan) above a full-width field on
-   the workbench ground: one voice across the Analysis and Preprocess panels
-   and the tools window alike. Checkbox rows stay inline -- a lone tick under
-   a full-width caption reads as a missing field. */
-.gis-tool-body label.row {
+/* ── The workbench form voice, matching the tools window ───────────────────
+   The generic .row is a two-column grid with 16 px sentence-case captions --
+   the cookie-cutter look. Stacked rows, the instrument caption (Exo 2 600
+   uppercase letterspaced, data cyan) above a full-width field on the
+   workbench ground: one voice across every workbench panel and the tools
+   window alike. Checkbox rows stay inline -- a lone tick under a full-width
+   caption reads as a missing field.
+
+   TWO row shapes exist and both are covered, because the first pass covered
+   one and the Extract box promptly showed the other still in the old voice:
+   the panels.js sections write label.row with a span caption, while the
+   Extract box and several tool bodies write div.row holding a separate
+   child label. And the rows are scoped to the WORKBENCH COLUMN
+   (.gis-side-panel-body) as well as .gis-tool-body, because the Extract
+   box's rows sit in neither a label nor a tool body. The nav bar's own
+   sections in #ui are deliberately untouched. */
+.gis-tool-body label.row,
+.gis-tool-body div.row,
+.gis-side-panel-body label.row,
+.gis-side-panel-body div.row,
+.gis-draw-box div.row {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: 0.18rem;
   margin: 0.45rem 0 0;
 }
-.gis-tool-body label.row > span {
+.gis-tool-body .row > span,
+.gis-side-panel-body .row > span,
+.gis-draw-box .row > span,
+.gis-tool-body div.row > label,
+.gis-side-panel-body div.row > label,
+.gis-draw-box div.row > label {
   font: 600 0.6rem/1.35 'Exo 2', sans-serif;
   letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--skin-data, #7ee7ff);
   opacity: 0.85;
 }
-.gis-tool-body label.row > .input,
-.gis-tool-body label.row > select,
-.gis-tool-body label.row > input:not([type="checkbox"]) {
+.gis-tool-body .row > .input,
+.gis-side-panel-body .row > .input,
+.gis-draw-box .row > .input,
+.gis-tool-body .row > select,
+.gis-side-panel-body .row > select,
+.gis-draw-box .row > select,
+.gis-tool-body .row > input:not([type="checkbox"]),
+.gis-side-panel-body .row > input:not([type="checkbox"]),
+.gis-draw-box .row > input:not([type="checkbox"]) {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
@@ -125,14 +149,17 @@ body.is-embedded[data-hub-armed="true"] #gmt-clock {
   font: 500 0.74rem/1.3 'Exo 2', sans-serif;
   color-scheme: dark;
 }
-.gis-tool-body label.row:has(> input[type="checkbox"]) {
+.gis-tool-body .row:has(> input[type="checkbox"]),
+.gis-side-panel-body .row:has(> input[type="checkbox"]),
+.gis-draw-box .row:has(> input[type="checkbox"]) {
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
 }
-.gis-tool-body label.row > input[type="checkbox"] { flex: 0 0 auto; }
-.gis-tool-body option, .gis-tool-body optgroup { background-color: #100724; }
+.gis-tool-body .row > input[type="checkbox"] { flex: 0 0 auto; }
+.gis-side-panel-body option, .gis-tool-body option,
+.gis-side-panel-body optgroup, .gis-tool-body optgroup { background-color: #100724; }
 
 /* ── Symbology: ramps you can see, classes you can edit ────────────────────
  *
