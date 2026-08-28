@@ -69,13 +69,13 @@
 
 
 
-/* Form controls inherit the app face. Buttons and inputs default to the
-   UA's Arial, which mostly hides on checkboxes and sliders and then shows
-   the moment a control carries a glyph or a word (the nav collapse, the
-   audio play, a modal button). One inherit ends the whole category; the
-   audit that found it was listing every control whose computed family was
-   not the app's. */
-button, input, select, textarea { font-family: inherit; }
+/* Form controls take the app face EXPLICITLY, not by inherit: `inherit`
+   was tried first and measured as still-Arial on Mars, because a control's
+   parent chain often sets no family at all and inherit just fetches the
+   UA default from further up. A type selector loses to any classed rule,
+   so a control that chose its own face (the seven-segment clock, a
+   monospace field) keeps it. */
+button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; }
 
 /* NO WHITE SCROLLBARS, ANYWHERE. scrollbar-color is an INHERITED property,
    so one declaration at the root reaches every scroller the app ever makes
