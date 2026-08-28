@@ -16,7 +16,7 @@
  * see where something is; a flat map is the right way to lay one out for print.
  */
 
-import { BASEMAPS, ATTRIBUTION } from "../tile-sources.js?v=20260828-60a8a89";
+import { BASEMAPS, ATTRIBUTION } from "../tile-sources.js?v=20260828-eacf7cb";
 
 // Re-exported because the Map Composer page imports the list from here; the
 // list itself is shared with the globe drape so the two cannot drift.
@@ -259,12 +259,39 @@ export function createMap(host, { basemap = "OpenStreetMap" } = {}) {
   }
 
   // ── Interaction ───────────────────────────────────────────────────────────
+  /**
+   * DRAW MODE: the same drag that pans becomes a rubber-band box.
+   *
+   * Added for the Earth Engine browser, which needs an extent chosen inside
+   * a modal — the globe is behind it, so the old flow had to close the
+   * dialog, arm the Draw tool and come back. A map that can draw its own
+   * box removes that round trip entirely. It lives here rather than in the
+   * dialog because this is the map: a second copy of the projection maths
+   * is exactly what `lonToX`/`latToY` being exported is meant to prevent.
+   */
+  let drawMode = null;      // { onBox } while armed
+  let drawing = null;       // the box being dragged out
   let dragging = null;
   canvas.addEventListener("pointerdown", (event) => {
+    const rect = canvas.getBoundingClientRect();
+    if (drawMode) {
+      const [lon, lat] = unproject(event.clientX - rect.left, event.clientY - rect.top);
+      drawing = { lon0: lon, lat0: lat, lon1: lon, lat1: lat };
+      canvas.setPointerCapture(event.pointerId);
+      return;
+    }
     dragging = { x: event.clientX, y: event.clientY };
     canvas.setPointerCapture(event.pointerId);
   });
   canvas.addEventListener("pointermove", (event) => {
+    if (drawing) {
+      const rect = canvas.getBoundingClientRect();
+      const [lon, lat] = unproject(event.clientX - rect.left, event.clientY - rect.top);
+      drawing.lon1 = lon;
+      drawing.lat1 = lat;
+      drawMode.onBox(boxOf(drawing), false);
+      return;
+    }
     if (!dragging) return;
     const s = scale();
     state.cx -= (event.clientX - dragging.x) / s;
@@ -273,7 +300,26 @@ export function createMap(host, { basemap = "OpenStreetMap" } = {}) {
     dragging = { x: event.clientX, y: event.clientY };
     schedule();
   });
-  const endDrag = () => { dragging = null; };
+  /** A dragged box as signed bounds, west/south/east/north, always ordered. */
+  function boxOf(d) {
+    return [
+      Math.min(d.lon0, d.lon1), Math.min(d.lat0, d.lat1),
+      Math.max(d.lon0, d.lon1), Math.max(d.lat0, d.lat1),
+    ];
+  }
+  const endDrag = () => {
+    if (drawing) {
+      const box = boxOf(drawing);
+      drawing = null;
+      // A tap is not a box: without this a stray click would commit a
+      // zero-width extent, which downstream reads as "no area".
+      if (Math.abs(box[2] - box[0]) > 1e-4 && Math.abs(box[3] - box[1]) > 1e-4) {
+        drawMode.onBox(box, true);
+      }
+      return;
+    }
+    dragging = null;
+  };
   canvas.addEventListener("pointerup", endDrag);
   canvas.addEventListener("pointercancel", endDrag);
   canvas.addEventListener("wheel", (event) => {
@@ -298,6 +344,13 @@ export function createMap(host, { basemap = "OpenStreetMap" } = {}) {
     canvas,
     state,
     redraw: schedule,
+    /** Arm or disarm rubber-band drawing. `onBox(bounds, done)` per move. */
+    setDrawMode(on, onBox) {
+      drawMode = on ? { onBox: onBox || (() => {}) } : null;
+      canvas.style.cursor = on ? "crosshair" : "";
+    },
+    project,
+    unproject,
     setBasemap(name) { state.basemap = name; schedule(); },
     setLayers(layers) { state.layers = layers; schedule(); },
     onClick(fn) {

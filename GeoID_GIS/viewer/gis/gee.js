@@ -10,16 +10,16 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260828-60a8a89";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260828-60a8a89";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260828-60a8a89";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260828-eacf7cb";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260828-eacf7cb";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260828-eacf7cb";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260828-60a8a89";
+  from "./view-extent.js?v=20260828-eacf7cb";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260828-60a8a89";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260828-60a8a89";
+} from "./extent-picker.js?v=20260828-eacf7cb";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260828-eacf7cb";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -678,106 +678,253 @@ if (typeof window !== "undefined") {
    path — pick any dataset of the tab's subject, a date range and an extent,
    and it drives the same hidden form and the same request() the Atmosphere
    tab's own controls do. One implementation, many doorways. */
+/**
+ * THE EARTH ENGINE BROWSER: a catalogue you can read and an extent you can draw,
+ * in one window that never has to close.
+ *
+ * The old dialog was three controls in a 24rem card — a dataset select, two
+ * dates, an extent select — and its ✏ button had to CLOSE the whole thing to
+ * let you draw, because the globe is behind the modal. That round trip is the
+ * shape this replaces: the window is now large enough to hold both halves of
+ * the question it asks.
+ *
+ *  - LEFT, the catalogue: every dataset the app knows, searchable by name or
+ *    by Earth Engine id, filtered by subject, each card saying where it comes
+ *    from (a shipped snapshot that drapes offline, or the live service) and
+ *    what it is. Below them, a free-text id — the service accepts ANY Earth
+ *    Engine dataset, and the full EE catalogue cannot be enumerated from a
+ *    page without a credential, so refusing to type one would be pretending
+ *    the list is complete.
+ *  - RIGHT, the ground: a real slippy map (`research/map2d.js`, the Map
+ *    Composer's own), where a drag draws the fetch extent in place. The box
+ *    is pushed to the globe through `setStudyAreaPolygon` as it is drawn, so
+ *    the planet behind the modal is showing the same extent, and the request
+ *    then runs through the ORDINARY "drawn" path — which means the extent is
+ *    captured into Workspace on success exactly as a hand-drawn one is. No
+ *    second request path, no second notion of what an extent is.
+ *
+ * It stays open after a request, because browsing a catalogue means pulling
+ * more than one thing.
+ */
+
+/** Subject names for the filter chips — the tabs each dataset is filed under. */
+const HOME_LABELS = {
+  "": "All",
+  basemap: "Basemaps",
+  atmosphere: "Atmosphere",
+  hydrology: "Hydrology",
+  geology: "Geology",
+  geohazards: "Hazards",
+};
+
+/** The 2D map, built once the dialog is first shown (a hidden host has no size). */
+let geeMap = null;
+let mapLibrary = null;
+/** The extent the map is showing, as [w, s, e, n], or null for global. */
+let mapBox = null;
+/** Which dataset id the browser has selected. */
+let chosenDataset = "";
+/** Which subject filter is applied; "" is everything. */
+let homeFilter = "";
+
+/**
+ * A bounds rectangle as a ring the viewer will accept.
+ *
+ * Edges longer than a degree are subdivided, for the reason draw-area.js
+ * records: a straight chord across 12° of arc dips below the surface, so a
+ * box drawn coarsely cuts through the ground it is meant to sit on.
+ */
+function ringFromBounds([west, south, east, north], maxSegmentDeg = 1) {
+  const corners = [
+    [west, south], [east, south], [east, north], [west, north],
+  ];
+  const ring = [];
+  corners.forEach(([lon, lat], i) => {
+    const [lon2, lat2] = corners[(i + 1) % corners.length];
+    const steps = Math.max(1, Math.ceil(
+      Math.max(Math.abs(lon2 - lon), Math.abs(lat2 - lat)) / maxSegmentDeg));
+    for (let s = 0; s < steps; s += 1) {
+      ring.push({
+        lat: lat + ((lat2 - lat) * s) / steps,
+        lon: lon + ((lon2 - lon) * s) / steps,
+      });
+    }
+  });
+  return ring;
+}
+
 function ensureGeeDialog() {
   if (byId("gee-add-backdrop")) return;
   const style = document.createElement("style");
   style.id = "gee-add-style";
   style.textContent = [
     "#gee-add-backdrop { position: fixed; inset: 0; z-index: 80; display: flex;",
-    "  align-items: center; justify-content: center;",
-    "  background: rgba(4, 2, 12, 0.6); backdrop-filter: blur(2px); }",
+    "  align-items: center; justify-content: center; padding: 1.4rem;",
+    "  background: rgba(4, 2, 12, 0.72); backdrop-filter: blur(2px); }",
     "#gee-add-backdrop[hidden] { display: none !important; }",
-    "#gee-add-card { width: min(24rem, 92vw); padding: 0.9rem 1rem 0.85rem;",
-    "  border-radius: 0.7rem; border: 1px solid rgba(82, 228, 232, 0.35);",
-    "  background: rgba(8, 13, 20, 0.98); box-shadow: 0 18px 44px rgba(0,0,0,0.5);",
-    "  display: flex; flex-direction: column; gap: 0.5rem; color: #dcebf2; }",
-    "#gee-add-card h3 { margin: 0; font-size: 0.8rem; letter-spacing: 0.1em;",
-    "  text-transform: uppercase; color: #bdf3f5; }",
+    "#gee-add-card { width: min(62rem, 100%); height: min(40rem, calc(100vh - 3rem));",
+    "  border-radius: 12px; border: 1px solid rgba(var(--nav-accent-rgb, 255,43,214), 0.45);",
+    "  background: rgba(12, 10, 22, 0.98); box-shadow: 0 18px 60px rgba(0,0,0,0.6);",
+    "  display: flex; flex-direction: column; overflow: hidden; color: var(--text, #eaf6fb); }",
+    "#gee-add-card .gee-head { display: flex; align-items: baseline; gap: 0.8rem;",
+    "  padding: 0.7rem 0.9rem; border-bottom: 1px solid rgba(255,255,255,0.1); }",
+    "#gee-add-card .gee-title { font: 600 0.8rem/1.2 'Exo 2', sans-serif;",
+    "  letter-spacing: 0.08em; text-transform: uppercase; }",
+    "#gee-add-card .gee-hint { font: 400 0.66rem/1.3 'Exo 2', sans-serif; opacity: 0.7; }",
+    "#gee-add-card .gee-head .button { margin-left: auto; }",
+    "#gee-add-body { flex: 1; min-height: 0; display: grid;",
+    "  grid-template-columns: minmax(0, 19rem) minmax(0, 1fr); }",
+    "#gee-add-left { min-height: 0; display: flex; flex-direction: column;",
+    "  gap: 0.45rem; padding: 0.7rem; border-right: 1px solid rgba(255,255,255,0.1); }",
+    "#gee-add-right { min-height: 0; display: flex; flex-direction: column;",
+    "  gap: 0.5rem; padding: 0.7rem; }",
+    "#gee-add-chips { display: flex; flex-wrap: wrap; gap: 0.25rem; }",
+    "#gee-add-chips button { padding: 0.16rem 0.5rem; border-radius: 999px;",
+    "  border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.05);",
+    "  color: inherit; font: 600 0.58rem/1.5 'Exo 2', sans-serif; letter-spacing: 0.07em;",
+    "  text-transform: uppercase; cursor: pointer; }",
+    "#gee-add-chips button.is-on { background: var(--nav-accent, #ff2bd6);",
+    "  border-color: var(--nav-accent, #ff2bd6); color: #12040f; }",
+    "#gee-add-list { flex: 1; min-height: 0; overflow-y: auto; display: flex;",
+    "  flex-direction: column; gap: 0.3rem; padding-right: 0.2rem; }",
+    "#gee-add-list .gee-card { text-align: left; width: 100%; cursor: pointer;",
+    "  border: 1px solid rgba(255,255,255,0.14); border-radius: 0.6rem;",
+    "  background: rgb(24, 13, 47); color: inherit; padding: 0.4rem 0.5rem;",
+    "  display: flex; flex-direction: column; gap: 0.12rem; }",
+    "#gee-add-list .gee-card:hover { border-color: rgba(82,228,232,0.55); }",
+    "#gee-add-list .gee-card.is-on { border-color: var(--nav-accent, #ff2bd6);",
+    "  box-shadow: 0 0 0 1px var(--nav-accent, #ff2bd6) inset; }",
+    "#gee-add-list .gee-card b { font: 600 0.7rem/1.3 'Exo 2', sans-serif; }",
+    "#gee-add-list .gee-card code { font-size: 0.58rem; opacity: 0.72;",
+    "  word-break: break-all; }",
+    "#gee-add-list .gee-card .gee-badge { font: 600 0.52rem/1.5 'Exo 2', sans-serif;",
+    "  letter-spacing: 0.08em; text-transform: uppercase; align-self: flex-start;",
+    "  padding: 0 0.35rem; border-radius: 999px; border: 1px solid currentColor; }",
+    "#gee-add-list .gee-card .gee-badge.is-cache { color: #4fd1a5; }",
+    "#gee-add-list .gee-card .gee-badge.is-live { color: #52e4e8; }",
+    "#gee-add-list .gee-empty { font-size: 0.66rem; opacity: 0.7; padding: 0.6rem 0.2rem; }",
+    "#gee-add-map { flex: 1; min-height: 8rem; border-radius: 0.6rem; overflow: hidden;",
+    "  border: 1px solid rgba(255,255,255,0.14); background: rgb(16, 7, 36); position: relative; }",
+    "#gee-add-map canvas { display: block; width: 100%; height: 100%; }",
     "#gee-add-card label { display: flex; flex-direction: column; gap: 0.18rem;",
-    "  font-size: 0.66rem; letter-spacing: 0.06em; }",
+    "  font: 600 0.6rem/1.4 'Exo 2', sans-serif; letter-spacing: 0.07em;",
+    "  text-transform: uppercase; opacity: 0.85; }",
     "#gee-add-card select, #gee-add-card input { background: rgba(16,24,34,0.98);",
     "  border: 1px solid rgba(255,255,255,0.18); border-radius: 0.4rem;",
-    "  color: #eaf6fb; font-family: inherit; font-size: 0.74rem;",
-    "  padding: 0.3rem 0.4rem; color-scheme: dark; }",
-    "#gee-add-dates { display: flex; gap: 0.45rem; }",
-    "#gee-add-dates label { flex: 1; }",
-    "#gee-add-actions { display: flex; gap: 0.45rem; margin-top: 0.15rem; }",
-    "#gee-add-actions button { flex: 1; }",
-    "#gee-add-status { font-size: 0.66rem; opacity: 0.8; min-height: 1em; }",
+    "  color: #eaf6fb; font-family: inherit; font-size: 0.72rem; text-transform: none;",
+    "  letter-spacing: normal; padding: 0.3rem 0.4rem; color-scheme: dark; }",
+    "#gee-add-card option, #gee-add-card optgroup { background-color: #101822; }",
+    "#gee-add-row { display: flex; gap: 0.45rem; align-items: flex-end; }",
+    "#gee-add-row > * { flex: 1; min-width: 0; }",
+    "#gee-add-row .button { flex: 0 0 auto; }",
+    "#gee-add-idrow { display: flex; gap: 0.35rem; align-items: flex-end; }",
+    "#gee-add-idrow label { flex: 1; min-width: 0; }",
+    "#gee-add-extent-note { font: 400 0.64rem/1.4 'Exo 2', sans-serif; opacity: 0.8; }",
+    "#gee-add-status { font-size: 0.66rem; opacity: 0.85; min-height: 1em; }",
+    "#gee-add-actions { display: flex; gap: 0.45rem; }",
+    "#gee-add-actions .button { flex: 1; }",
+    "#gee-add-draw.is-on { background: var(--nav-accent, #ff2bd6); color: #12040f; }",
   ].join("\n");
   document.head.appendChild(style);
+
   const backdrop = document.createElement("div");
   backdrop.id = "gee-add-backdrop";
   backdrop.hidden = true;
   backdrop.innerHTML = [
-    '<div id="gee-add-card" role="dialog" aria-label="Add data via Google Earth Engine">',
-    "<h3>Add data via Earth Engine</h3>",
-    '<label>Dataset<select id="gee-add-dataset"></select></label>',
-    '<div id="gee-add-dates">',
+    '<div id="gee-add-card" role="dialog" aria-label="Browse the Earth Engine catalogue">',
+    '<div class="gee-head">',
+    '<span class="gee-title">Earth Engine catalogue</span>',
+    '<span class="gee-hint">Pick a dataset, draw the ground, request it.</span>',
+    '<button id="gee-add-close" class="button secondary" type="button">Close</button>',
+    "</div>",
+    '<div id="gee-add-body">',
+    '<div id="gee-add-left">',
+    '<label>Search<input id="gee-add-search" type="search" placeholder="rainfall, elevation, MODIS…"></label>',
+    '<div id="gee-add-chips"></div>',
+    '<div id="gee-add-list"></div>',
+    '<div id="gee-add-idrow">',
+    '<label>Any Earth Engine ID<input id="gee-add-id" type="text" placeholder="e.g. ECMWF/ERA5/DAILY"></label>',
+    '<button id="gee-add-id-use" class="button secondary" type="button">Use</button>',
+    "</div>",
+    "</div>",
+    '<div id="gee-add-right">',
+    '<div id="gee-add-map"></div>',
+    '<div id="gee-add-row">',
+    '<label>Extent<select id="gee-add-extent">',
+    '<option value="global">Global</option>',
+    '<option value="view">Current globe view</option>',
+    "</select></label>",
+    '<button id="gee-add-draw" class="button secondary" type="button">▭ Draw on map</button>',
+    '<label style="flex: 0 0 9rem">Map<select id="gee-add-basemap"></select></label>',
+    "</div>",
+    '<div id="gee-add-extent-note"></div>',
+    '<div id="gee-add-row">',
     '<label>From<input id="gee-add-from" type="date"></label>',
     '<label>To<input id="gee-add-to" type="date"></label>',
     "</div>",
-    '<label>Extent<select id="gee-add-extent">',
-    '<option value="global">Global</option>',
-    '<option value="view">Current view</option>',
-    '<option value="drawn">An area drawn by hand</option>',
-    "</select></label>",
-    // The button the extent select could not be: a modal covers the globe,
-    // so "draw an area" cannot be a thing you do WITH the dialog open. It
-    // arms the tool, stands the dialog down, and remembers the dataset and
-    // dates so coming back is not starting again.
-    '<button id="gee-add-draw" class="button secondary" type="button">✏ Draw a new area on the globe</button>',
     '<div id="gee-add-status"></div>',
     '<div id="gee-add-actions">',
     '<button id="gee-add-request" class="button primary" type="button">Request</button>',
-    '<button id="gee-add-close" class="button secondary" type="button">Close</button>',
-    "</div></div>",
+    "</div></div></div></div>",
   ].join("");
   document.body.appendChild(backdrop);
+
   backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeGeeDialog(); });
   byId("gee-add-close").addEventListener("click", closeGeeDialog);
+  byId("gee-add-search").addEventListener("input", renderGeeList);
+  byId("gee-add-id-use").addEventListener("click", () => {
+    const id = byId("gee-add-id").value.trim();
+    if (!id) return;
+    chosenDataset = id;
+    renderGeeList();
+    dialogStatus(`Will request “${id}” from the live service.`);
+  });
+
   /**
-   * Draw, then come back to a dialog that remembers where you were.
-   *
-   * `pendingDialog` holds the dataset and dates across the round trip, so the
-   * flow is one gesture with an interruption rather than two separate visits
-   * — losing a chosen dataset because somebody drew a box is exactly the
-   * "side quest to another tool" the weather card was built to avoid.
+   * Draw mode: the map's own rubber band. The box is pushed to the GLOBE as
+   * it is dragged, so the planet behind the modal shows the same extent and
+   * the request afterwards travels the ordinary "drawn" path — which is what
+   * makes the extent land in Workspace on success without a line of code here.
    */
   byId("gee-add-draw").addEventListener("click", () => {
-    pendingDialog = {
-      home: dialogHome,
-      dataset: byId("gee-add-dataset")?.value || "",
-      from: byId("gee-add-from")?.value || "",
-      to: byId("gee-add-to")?.value || "",
-    };
-    closeGeeDialog();
-    promptDrawTool();
-    status("Draw the area on the globe, then press “+ GEE” again — your dataset is remembered.");
+    const button = byId("gee-add-draw");
+    const on = !button.classList.contains("is-on");
+    button.classList.toggle("is-on", on);
+    geeMap?.setDrawMode(on, (box, done) => {
+      mapBox = box;
+      paintMapBox();
+      describeExtent(box);
+      if (!done) return;
+      button.classList.remove("is-on");
+      geeMap.setDrawMode(false);
+      window.GeoIDViewer?.setStudyAreaPolygon?.(ringFromBounds(box));
+      const extent = byId("gee-add-extent");
+      refreshPolygonOptions(extent, "drawn", { allLayers: true });
+      extent.value = "drawn";
+      dialogStatus("Extent drawn — it is on the globe behind this window too.");
+    });
+    dialogStatus(on ? "Drag a box on the map." : "");
   });
+
+  byId("gee-add-extent").addEventListener("change", () => showChosenExtent());
+  byId("gee-add-basemap").addEventListener("change", (e) => {
+    geeMap?.setBasemap(e.target.value);
+  });
+
   // The named polygons are rebuilt on every layer change, exactly as the
   // weather card's are: a captured extent should be offerable the moment it
   // exists, without reopening anything.
   window.GeoIDImportManager?.onChange?.(() => {
     if (!byId("gee-add-backdrop")?.hidden) {
-      refreshPolygonOptions(byId("gee-add-extent"), "drawn", { allLayers: true });
+      const extent = byId("gee-add-extent");
+      const keep = extent.value;
+      refreshPolygonOptions(extent, "drawn", { allLayers: true });
+      if ([...extent.options].some((o) => o.value === keep)) extent.value = keep;
     }
   });
-  byId("gee-add-request").addEventListener("click", async () => {
-    const dataset = byId("gee-add-dataset").value;
-    if (!dataset) return;
-    const select = byId("gee-dataset");
-    select.value = dataset;
-    select.dispatchEvent(new Event("change"));
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    const from = byId("gee-add-from").value;
-    const to = byId("gee-add-to").value;
-    if (from && byId("gee-date-from")) byId("gee-date-from").value = from;
-    if (to && byId("gee-date-to")) byId("gee-date-to").value = to;
-    const extent = byId("gee-add-extent").value;
-    if (byId("gee-extent")) byId("gee-extent").value = extent;
-    await request();
-  });
+
+  byId("gee-add-request").addEventListener("click", requestFromDialog);
+
   // The dialog reports through the same status line the form writes; a
   // mirror keeps one source of truth for what the request is doing.
   const mirror = new MutationObserver(() => {
@@ -788,61 +935,204 @@ function ensureGeeDialog() {
   if (source) mirror.observe(source, { childList: true, characterData: true, subtree: true });
 }
 
+function dialogStatus(message) {
+  const node = byId("gee-add-status");
+  if (node) node.textContent = message;
+}
+
+/** The dataset cards, filtered by the search box and the subject chips. */
+function renderGeeList() {
+  const host = byId("gee-add-list");
+  if (!host) return;
+  const query = (byId("gee-add-search")?.value || "").trim().toLowerCase();
+  const entries = catalogueEntries().filter((entry) => {
+    if (homeFilter && geeHomeOf(entry.id) !== homeFilter) return false;
+    if (!query) return true;
+    return `${entry.label} ${entry.id}`.toLowerCase().includes(query);
+  });
+  host.innerHTML = "";
+  if (!entries.length) {
+    const empty = document.createElement("div");
+    empty.className = "gee-empty";
+    empty.textContent = query
+      ? "Nothing in the list matches that. Any Earth Engine dataset ID can be typed in below."
+      : "No datasets are listed for this subject yet.";
+    host.appendChild(empty);
+    return;
+  }
+  entries.forEach((entry) => {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "gee-card";
+    card.classList.toggle("is-on", entry.id === chosenDataset);
+    const cached = entry.source === "cache";
+    card.innerHTML = [
+      `<span class="gee-badge ${cached ? "is-cache" : "is-live"}">`,
+      cached ? "Offline snapshot" : "Live service", "</span>",
+      `<b>${entry.label}</b>`,
+      `<code>${entry.id}</code>`,
+    ].join("");
+    card.title = entry.title;
+    card.addEventListener("click", () => {
+      chosenDataset = entry.id;
+      renderGeeList();
+      dialogStatus(entry.info.summary);
+    });
+    host.appendChild(card);
+  });
+}
+
+/** The subject filter chips, drawn from the homes the catalogue actually uses. */
+function renderGeeChips() {
+  const host = byId("gee-add-chips");
+  if (!host) return;
+  const used = new Set(catalogueEntries().map((entry) => geeHomeOf(entry.id)));
+  host.innerHTML = "";
+  ["", ...Object.keys(HOME_LABELS).filter((h) => h && used.has(h))].forEach((home) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.textContent = HOME_LABELS[home];
+    chip.classList.toggle("is-on", home === homeFilter);
+    chip.addEventListener("click", () => {
+      homeFilter = home;
+      renderGeeChips();
+      renderGeeList();
+    });
+    host.appendChild(chip);
+  });
+}
+
+/** Draw the chosen extent on the map, and say how big it is in words. */
+function paintMapBox() {
+  // `visible` is not optional: drawLayer returns early without it, so the box
+  // is computed, handed over and silently never painted.
+  geeMap?.setLayers(mapBox
+    ? [{ type: "bbox", bbox: mapBox, colour: "#ff2bd6", opacity: 1, visible: true }]
+    : []);
+}
+
+function describeExtent(box) {
+  const note = byId("gee-add-extent-note");
+  if (!note) return;
+  if (!box) { note.textContent = "The whole planet."; return; }
+  const [w, s, e, n] = box;
+  note.textContent = `${(e - w).toFixed(1)} × ${(n - s).toFixed(1)}°  ·  `
+    + `W ${w.toFixed(2)}  S ${s.toFixed(2)}  E ${e.toFixed(2)}  N ${n.toFixed(2)}`;
+}
+
+/**
+ * Show whatever the extent select is pointing at.
+ *
+ * `resolvePolygonExtent` is the one answer to "which patch of ground?", so a
+ * named Workspace layer, the live drawing overlay and a captured fetch extent
+ * all resolve here the same way they will when the request is made — the map
+ * cannot show something different from what is about to be asked for.
+ */
+function showChosenExtent() {
+  const choice = byId("gee-add-extent")?.value || "global";
+  if (choice === "global") {
+    mapBox = null;
+    paintMapBox();
+    describeExtent(null);
+    return;
+  }
+  let box = null;
+  if (choice === "view") {
+    const b = viewBounds();
+    if (b) box = [b.minX, b.minY, b.maxX, b.maxY];
+  } else {
+    const picked = resolvePolygonExtent(choice);
+    if (picked?.error) { dialogStatus(picked.error); return; }
+    if (picked) box = [picked.west, picked.south, picked.east, picked.north];
+  }
+  if (!box) { dialogStatus("That extent could not be resolved."); return; }
+  mapBox = box;
+  paintMapBox();
+  describeExtent(box);
+  geeMap?.fit(box);
+}
+
+/**
+ * One request path: the hidden form still carries the state and `request()`
+ * still makes the call, so everything downstream — the cache branch, the
+ * resolution note, the Workspace capture, the metadata — is untouched.
+ */
+async function requestFromDialog() {
+  const dataset = chosenDataset;
+  if (!dataset) { dialogStatus("Choose a dataset from the list, or type an ID."); return; }
+  const select = byId("gee-dataset");
+  if (select) {
+    // A typed id is not in the hidden select, and the live path reads the
+    // dataset off it — so an id nobody has listed is added as an option
+    // rather than silently falling back to whatever was selected before.
+    if (![...select.options].some((o) => o.value === dataset)) {
+      const option = document.createElement("option");
+      option.value = dataset;
+      option.textContent = dataset;
+      option.dataset.source = "live";
+      select.appendChild(option);
+    }
+    select.value = dataset;
+    select.dispatchEvent(new Event("change"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  const from = byId("gee-add-from").value;
+  const to = byId("gee-add-to").value;
+  if (from && byId("gee-date-from")) byId("gee-date-from").value = from;
+  if (to && byId("gee-date-to")) byId("gee-date-to").value = to;
+  const extent = byId("gee-add-extent").value;
+  if (byId("gee-extent")) {
+    refreshPolygonOptions(byId("gee-extent"), "global", { allLayers: true });
+    byId("gee-extent").value = extent;
+  }
+  await request();
+  // Kept open on purpose: browsing a catalogue means pulling more than one
+  // thing, and a window that closes on every Request makes the second pull a
+  // fresh journey through the same three controls.
+}
+
 function closeGeeDialog() {
   const backdrop = byId("gee-add-backdrop");
   if (backdrop) backdrop.hidden = true;
+  geeMap?.setDrawMode(false);
+  byId("gee-add-draw")?.classList.remove("is-on");
 }
 
-/** What the dialog was showing when "draw an area" took it off screen. */
-let pendingDialog = null;
-let dialogHome = "";
-
-function openGeeDialog(homeName) {
+async function openGeeDialog(homeName) {
   ensureGeeDialog();
-  // Reopened after a detour to the Draw tool: come back to that tab's
-  // subject rather than to whichever button was pressed second.
-  const resumed = pendingDialog;
-  pendingDialog = null;
-  dialogHome = resumed ? resumed.home : homeName;
-  const entries = catalogueEntries();
-  const subset = dialogHome
-    ? entries.filter((entry) => geeHomeOf(entry.id) === dialogHome)
-    : entries;
-  const offered = subset.length ? subset : entries;
-  const picker = byId("gee-add-dataset");
-  picker.innerHTML = offered
-    .map((entry) => `<option value="${entry.id}">${entry.label}</option>`)
-    .join("");
+  // The tab that asked becomes the subject filter — the button on Hazards
+  // still means "the Earth Engine data filed under Hazards" — but the chip is
+  // there to be pressed, which is what "browse the catalogue freely" needs.
+  homeFilter = homeName || "";
+  const backdrop = byId("gee-add-backdrop");
+  backdrop.hidden = false;
+
+  renderGeeChips();
+  renderGeeList();
+
   const ff = byId("gee-date-from");
   const tf = byId("gee-date-to");
   if (ff?.value) byId("gee-add-from").value = ff.value;
   if (tf?.value) byId("gee-add-to").value = tf.value;
-  /**
-   * Every drawn polygon, by name, and the shape just drawn preselected.
-   *
-   * Coming back from the Draw tool with an overlay standing and the extent
-   * still reading "Global" would silently throw the area away — the one
-   * outcome this whole round trip exists to prevent.
-   */
+
   const extent = byId("gee-add-extent");
   // Every loaded Workspace layer is a possible extent here too — a shapefile
   // somebody brought answers "over where?" by its bounding box, exactly as
   // the Atmosphere tab's own select already offers.
   refreshPolygonOptions(extent, "drawn", { allLayers: true });
-  if (resumed) {
-    if (resumed.dataset && [...picker.options].some((o) => o.value === resumed.dataset)) {
-      picker.value = resumed.dataset;
-    }
-    if (resumed.from) byId("gee-add-from").value = resumed.from;
-    if (resumed.to) byId("gee-add-to").value = resumed.to;
-    if (extent && drawnOverlayBounds()) extent.value = "drawn";
+  if (!drawnOverlayBounds()) extent.value = "global";
+
+  // The map is built on first open, never at module load: `createMap`
+  // measures its host, and a host inside a hidden backdrop has no size.
+  if (!geeMap) {
+    mapLibrary = mapLibrary || await import("./research/map2d.js?v=20260828-eacf7cb");
+    const picker = byId("gee-add-basemap");
+    picker.innerHTML = Object.keys(mapLibrary.BASEMAPS)
+      .map((name) => `<option value="${name}">${name}</option>`).join("");
+    picker.value = "CartoDB Dark";
+    geeMap = mapLibrary.createMap(byId("gee-add-map"), { basemap: "CartoDB Dark" });
   }
-  const node = byId("gee-add-status");
-  if (node) {
-    node.textContent = resumed && drawnOverlayBounds()
-      ? "Using the area you just drew." : "";
-  }
-  byId("gee-add-backdrop").hidden = false;
+  showChosenExtent();
 }
 
 // Every themed tab carries an "Add data via GEE…" button; they all open the
