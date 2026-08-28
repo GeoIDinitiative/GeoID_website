@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic, computeBounds2D } from "./geo-utils.js?v=20260828-986383a";
-import { readHead, parseRows, validateMapping } from "./delimited.js?v=20260828-986383a";
-import { rampColour } from "./symbology.js?v=20260828-986383a";
+import { latLonToVector3, drapedRadius, looksLikeGeographic, computeBounds2D } from "./geo-utils.js?v=20260828-073d572";
+import { readHead, parseRows, validateMapping } from "./delimited.js?v=20260828-073d572";
+import { rampColour } from "./symbology.js?v=20260828-073d572";
 
 const MAX_POINTS = 2000000;
 
@@ -68,6 +68,9 @@ function isGradedMapping(mapping) {
  * resort. The difference is that the guess is now visible before the import
  * rather than discovered afterwards from a layer in the wrong ocean.
  */
+/** Past this the file is a survey, not a table: about 8 MB of text. */
+const MAX_SOURCE_CHARS = 8_000_000;
+
 export async function loadXyzPoints(file, options = {}) {
   const text = await file.text();
   const head = readHead(text);
@@ -193,6 +196,20 @@ export async function loadXyzPoints(file, options = {}) {
   return {
     object3D: points,
     georeferenced,
+    /**
+     * The rows AS THEY CAME, so the table window has something to open.
+     *
+     * This reader keeps x, y, z and a magnitude and drops every other column
+     * — which is right for a point cloud and means a CSV of sample sites
+     * arrives on the globe with its names, depths and notes already gone. It
+     * was then unreachable: the values existed in a file the app no longer
+     * held. Keeping the text costs a copy of a file somebody just chose, and
+     * only up to a cap — a hundred-megabyte LiDAR dump is not a spreadsheet
+     * and nobody is going to edit it in a grid.
+     */
+    source: text.length <= MAX_SOURCE_CHARS
+      ? { text, delimiter: head.delimiter, hasHeader: head.hasHeader, mapping }
+      : null,
     bounds: georeferenced ? bounds : null,
     boundingSphere: geometry.boundingSphere?.clone() || null,
     info: {

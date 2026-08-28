@@ -10,12 +10,12 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260828-986383a";
-import { samplerToRaster } from "./raster-analysis.js?v=20260828-986383a";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260828-986383a";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260828-986383a";
-import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260828-986383a";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260828-986383a";
+import { currentBody } from "./bodies.js?v=20260828-073d572";
+import { samplerToRaster } from "./raster-analysis.js?v=20260828-073d572";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260828-073d572";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260828-073d572";
+import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260828-073d572";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260828-073d572";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -633,6 +633,18 @@ function optionsTile(layer) {
    */
   if (typeof layer.repaint === "function" && (layer.raster || layer.features?.length)) {
     act("Symbology", () => openSymbologyDialog(layer));
+  }
+  /**
+   * The attribute table, for the layers that HAVE one.
+   *
+   * A CSV of sample sites becomes points on the globe and then becomes
+   * unreachable: its values are in the click card one feature at a time, and
+   * correcting a typo meant fixing the file outside the app and importing it
+   * again. `isEditable` is the gate — features with attributes, and not a
+   * raster or a tile service somebody else re-fetches.
+   */
+  if (window.GeoIDTableEditor?.isEditable?.(layer)) {
+    act("Table", () => window.GeoIDTableEditor.open(layer));
   }
   act("Export", () => window.GeoIDLayerExport?.open?.(layer));
   /**

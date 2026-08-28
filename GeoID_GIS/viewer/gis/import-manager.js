@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260828-986383a";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260828-986383a";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260828-986383a";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260828-986383a";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260828-073d572";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260828-073d572";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260828-073d572";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260828-073d572";
 import {
   buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude,
   setMarkerSizeFromAltitude,
-} from "./vector-render.js?v=20260828-986383a";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260828-986383a";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260828-986383a";
-import { loadMshFile } from "./msh-adapter.js?v=20260828-986383a";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260828-986383a";
+} from "./vector-render.js?v=20260828-073d572";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260828-073d572";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260828-073d572";
+import { loadMshFile } from "./msh-adapter.js?v=20260828-073d572";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260828-073d572";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -548,6 +548,8 @@ async function importDataset(primaryFile, sidecars, options = {}) {
     layer.info = result.info || null;
     layer.sampler = result.sampler || null;
     layer.features = result.features || null;
+    // The delimited source, for the table window. Null for everything else.
+    layer.source = result.source || null;
     // Retained so the geoprocessing and raster toolboxes can operate on this
     // layer without re-parsing the source file.
     layer.collection = result.collection || null;
@@ -733,6 +735,7 @@ export function addDerivedLayer(name, result, ext = "derived") {
     sampler: result.sampler || null,
     features: result.features || null,
     collection: result.collection || null,
+    source: result.source || null,
     raster: result.raster || null,
     legendInfo: result.legendInfo || null,
     // Carried so a layer can be re-classified without re-importing it.
