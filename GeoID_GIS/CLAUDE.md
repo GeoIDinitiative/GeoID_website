@@ -1231,6 +1231,23 @@ beside a hierarchy row was two controls for one layer; their "N polygons"
 count text was noise), and the dock body grew to min(42vh, 20rem) for its
 new contents (both stylesheets).
 
+**An empty status line is not a line, and it was two thirds of the dock's
+head gap.** A band of dead space sat between the Workspace head and the first
+layer row — measured at **21.6 px** on a dock holding two layers, of which
+only the body's own 7.2 px of padding was intentional. The rest was
+scaffolding for content that was not there: `#polygon-file`, `#polygon-status`
+and `#polygon-list` stay in the dock body because polygons.js addresses them
+by id, and for most of a session all three are empty — but an empty paragraph
+keeps its 4 px top margin, and the `.control-stack` around them is a GRID,
+which lays its 10.4 px gap between two zero-height rows exactly as it would
+between two full ones. `#polygon-status:empty` / `#polygon-list:empty` are
+hidden in layer-hierarchy's own sheet, which collapses the grid to nothing.
+Deliberately `:empty` rather than a blanket `gap: 0`: the moment polygons.js
+writes a message the rule stops matching and the line returns at full height
+with its spacing intact (measured 7.2 → 28.8 px and back on clearing). When a
+container looks too tall, measure its EMPTY children before its padding — a
+grid gap does not care that its rows have no height.
+
 **The Add-data dialog is FORMAT-ADAPTIVE and asks for classification.**
 One dialog, never subwindows: on file choice it says what it understood
 ("— imported as a 3D mesh (local model) / a raster, draped on the terrain
