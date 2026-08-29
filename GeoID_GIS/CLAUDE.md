@@ -3233,7 +3233,8 @@ its job.
 believing the shortfall.** Two rounds of hunting for missing geometry that
 was never missing.
 
-**The gaps: an opaque map keeps the coarse one underneath, and they close.**
+**The gaps: an attempt that had to be REVERTED, recorded so it is not
+retried.**
 They are real but tiny — measured on the live tiles, **44.9% of edges are
 shared by two polygons** and the strays sit tens of metres apart. The seal
 that exists to cover them is a LINE, and **WebGL draws every line one device
@@ -3241,16 +3242,24 @@ pixel wide whatever `linewidth` says** — about 20 m of ground at a 35 km view
 and less as you descend. The seal loses that race by construction, so a wider
 line is not available and would not be the fix if it were.
 
-What made those seams BLACK rather than merely visible is the window: the
+What makes those seams BLACK rather than merely visible is the window: the
 view's tiles cut the coarse backdrop away exactly where they paint, so behind
-a hairline gap there is nothing at all. That window exists for ONE reason — a
-translucent layer drawn over its own coarse copy blends twice and shows a
-colour in nobody's legend — and at full opacity there is nothing to blend:
-the view's tiles draw half a renderOrder step above the backdrop and hide it
-completely, except in the gaps, which is exactly where something underneath
-is wanted. So the window is cut only when the layer is actually translucent,
-and `setOpacity` re-decides it. A gap now shows the same geology one
-generalisation up instead of a hole.
+a hairline gap there is nothing at all. Keeping the backdrop for opaque
+layers closed the seams — verified at 45 km and 120 km — **and was wrong**.
+
+It also paints the coarse map over every place the fine tiles deliberately
+leave BLANK, which is most of the ocean. Measured at a 500 m scale bar off
+the Antrim coast: a continental-scale generalised unit painted green across
+half the screen, over SEA at −37 m, where the zoom-9 tile correctly has no
+polygon at all — and unclickable, because every picker reads the finest
+zoom's features and the backdrop's are not among them. **A hairline seam
+traded for geology over water is not a trade.** Reverted; the comment in
+`maskBackdrop` says why not to retry it.
+
+The seams stay until the seal is a ground-width RIBBON instead of a line.
+There is no version of the current approach that scales, because **WebGL
+draws every line one device pixel wide whatever `linewidth` says** — 20 m of
+ground at a 35 km view, and less as you descend.
 
 **What the gaps were NOT**, each ruled out by measurement rather than by
 argument: the triangulation (55 of 8,997 polygons lose any triangle at all,
@@ -3267,12 +3276,18 @@ reason.
 
 **What this does NOT settle.** The fill is `DoubleSide`, so the black
 scratches are not backface culling; every tile carries its boundary seal; and
-the clip's own mesh is clean. Verified clean at 45 km and
-120 km over Northern Ireland, where the reported shards were plain before.
-What is not proven is every case: a translucent layer still cuts the window
-by design, so a faded geological map can still show its seams, and the honest
-answer there would be a ground-width ribbon seal rather than a line. If the
-tearing ever returns, check the layer's opacity first.
+the clip's own mesh is clean. The seams are back with the revert, and
+that is the honest state: they are a hairline artefact of a source whose
+neighbouring units do not share their boundaries, and the fix is a ribbon
+seal, not a backdrop.
+
+**And there is no finer geology to stream at that scale.** Measured over a
+2 km view off the Antrim coast, features falling inside it: 3 at zoom 7, 1 at
+9, 1 at 11, 2 at 12, 3 at 13, with vertices peaking at 74. A huge polygon
+with a dead-straight contact at a 500 m scale bar is not a rendering fault —
+it is Macrostrat's own generalisation seen at a scale it was never drawn for.
+Streaming deeper cannot help, and interpolating a boundary the source does
+not have would be inventing geology.
 
 **Two probe mistakes worth not repeating.** `repaint(null)` does not restore
 the default colours — it removes the colour function, and with it every fill
