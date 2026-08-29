@@ -2404,6 +2404,41 @@ verified, drive the real mouse. (The clamp at ±85° is also real: a ring
 dragged out near a pole collapses its vertices onto the limit, which looks
 like a broken shape and is the clamp doing its job.)
 
+### stopPropagation in a WINDOW CAPTURE listener also hides the event from OrbitControls
+
+Picking up the Draw tool and pressing once left the globe following the bare
+cursor with nothing held down — reported as "the globe navigation/spin
+becomes fully coupled to the cursor movement".
+
+`drawPointerUp` is registered `window.addEventListener("pointerup", …, true)`.
+The undecided-shape branch called `event.stopPropagation()` to stop a stray
+tap placing a polygon vertex — and in the CAPTURE phase on `window` that does
+not merely hide the release from the viewer's own vertex-add. It hides it
+from **OrbitControls**, which is mid-gesture because the press reached it
+normally. Never told the button came up, it stays latched in `STATE.ROTATE`
+and every later `pointermove` turns the planet. EVERY press-release while the
+bar was undecided left it that way, so one stray click made the globe
+unusable until the next press.
+
+The fix is the mechanism that was already sitting ten lines below:
+`suppressDrawClick`, whose capture-phase `click` swallower on the canvas the
+drag path uses so one gesture is not also a vertex. **The CLICK is what adds
+the vertex and it fires after the pointerup**, so suppressing the click stops
+the vertex while OrbitControls still receives the release it needs to
+unlatch. Inside the ported block, so `port-draw-tools.py` carried it to all
+five rocky worlds.
+
+**The A/B is the whole verification, and it needs a REAL mouse.** Synthetic
+pointer events do not exercise OrbitControls here (this file's own warning),
+so the check re-injected the fault live — a window capture-phase `pointerup`
+calling `stopPropagation` while `GeoIDDrawShape === ""` — and drove real
+clicks and hovers through `computer`. Measured, with the spin PAUSED so any
+motion is the cursor's doing: **10.545 units of camera drift with the fault
+injected, 0.000 with it removed on the identical gesture**, the tap still
+placing no vertex and creating no layer, and a real drag with Square chosen
+still drawing a 4-vertex shape with 0 camera drift. A clean number means
+nothing here without the control that reproduces the fault.
+
 ### A preset shape is a DRAFT, and it has to re-sample as you fly in
 
 "The header draw pill works perfectly, the issues lie in the preset shapes"
