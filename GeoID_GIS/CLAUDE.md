@@ -3279,6 +3279,81 @@ scratches are not backface culling; every tile carries its boundary seal; and
 the clip's own mesh is clean. The seams are back with the revert, and
 that is the honest state: the fix is a ribbon seal, not a backdrop.
 
+### The clipped map went GREY because a new layer re-classes by frequency
+
+"The clipped geology map fails to capture all the data verbatim as it is
+defined within its source global layer... when we reduce the opacity we see
+clearer polygons, polylines that pulse when clicked etc that never manifest
+themselves on the surface." Every word of that is the same fault, and none of
+it is the clip.
+
+**The clip is faithful; its RENDERING was not.** A tool output is a NEW layer,
+so it took the default `categoricalSymbology` — which ranks values by FEATURE
+COUNT, keeps twelve, and folds everything else into one `"(other)"` at
+`#8a8a8a`. The world geology underneath is painted by `paintFromSource` from
+each unit's OWN published `properties.color`, all of them. So the clip of a map
+was drawn in a different language from the map.
+
+**A map is read by AREA and the cap counts POLYGONS**, which is what makes this
+so much worse than "twelve is not many". Measured on the real z9 tiles over
+Northern Ireland — 23 units over 4,146 km2:
+
+| unit | polygons | km2 | fate |
+| --- | --- | --- | --- |
+| Hibernian Greensands / Ulster White Limestone | 45 | 58 | **kept, ranked first** |
+| Unnamed Igneous Intrusion, Late Silurian–Early Devonian | 6 | **240** | grey |
+| Kirkcolm Formation | 3 | 88 | grey |
+| Lough Neagh Clays Group | 3 | 78 | grey |
+| Stewartry Group | 1 | 76 | grey |
+
+**11 units and 572 km2 — 13.8% of the map — folded into one grey**, while the
+unit with the most polygons and a seventh of the area took rank one. The
+ordering is not merely capped, it is close to inverted against what a reader
+sees.
+
+`paintFromSource` now STATES the column it paints from (`sourceColourField`,
+with `sourceLabelField` beside it) and `register()` in tool-runner inherits it:
+a derived layer whose features still carry that column is repainted from it and
+given `legendFrom`'s legend, on the sidecar path as well as the native one, or
+the same clip comes back coloured or grey depending only on how big it was. The
+descriptor's own `paint` still wins — that describes a value the tool COMPUTED,
+where this carries a value the input already had. Carried onto the output too,
+so a clip of a clip is painted the same way again.
+
+**Naming the column instead of re-deriving the paint** is the point: the
+geology panel and the tool runner now read the same `properties.color` through
+the same `legendFrom`, rather than a second implementation drifting from the
+first. `legendFrom` took a `colourField` option to make that possible.
+
+Verified live, A/B on IDENTICAL geometry — 891 features and 45,123 vertices
+either way, one camera, the marker deleted to reproduce the fault:
+
+| | control (pre-fix) | with the fix |
+| --- | --- | --- |
+| units in the clip | 60 | 60 |
+| distinct colours drawn | 13 | **53** |
+| grey vertices | **19,650 = 43.5%** | **0** |
+| colours that are the survey's own | **0 of 13** | **53 of 53** |
+| legend | none | "12 of 60 units" |
+
+**Zero of thirteen** is the number that says what was really happening:
+`categoricalSymbology` was not losing the source's colours at the margin, it
+was replacing every one of them with its own qualitative ramp.
+
+**Read the vertex colours, and convert linear to sRGB.** The check is on
+`geometry.attributes.color`, never on the material (which is white under
+`vertexColors`) and never on the legend — a correct legend over a wrongly
+painted map is this file's longest-running trap, and here the legend was
+ABSENT while the map looked plausible. `THREE.Color.set` converts on the way
+in, so the attribute must be converted back out or every colour reads far more
+saturated than it is drawn.
+
+**And a weak A/B is worth noticing before believing it.** The first control ran
+over a box holding exactly 13 units, so only ONE fell past the cap and the
+grey measured 15 vertices — 0.2%, which reads as "the fault is negligible". The
+same code over a study-area-sized box measured 43.5%. When an A/B says a known
+fault is small, check whether the fixture is big enough to express it.
+
 ### The gaps are WEDGES inside one unit, and the clip is exact
 
 Asked whether the contact polylines are at fault and whether they should be
