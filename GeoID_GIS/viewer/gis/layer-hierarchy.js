@@ -10,13 +10,13 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { bandOf } from "./draw-order.js?v=20260829-61a5260";
-import { currentBody } from "./bodies.js?v=20260829-61a5260";
-import { samplerToRaster } from "./raster-analysis.js?v=20260829-61a5260";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-61a5260";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260829-61a5260";
-import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260829-61a5260";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260829-61a5260";
+import { bandOf } from "./draw-order.js?v=20260829-90e9f42";
+import { currentBody } from "./bodies.js?v=20260829-90e9f42";
+import { samplerToRaster } from "./raster-analysis.js?v=20260829-90e9f42";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-90e9f42";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260829-90e9f42";
+import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260829-90e9f42";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260829-90e9f42";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -340,7 +340,24 @@ function applyStack() {
        * keep taking the stack's order or dragging rows stops working.
        */
       if (node.userData?.keepRenderOrder) return;
-      node.renderOrder = object.renderOrder;
+      /**
+       * A node may also keep a fractional LIFT within the layer's own band.
+       *
+       * The tiled geology draws the view's sharp tiles half a step above the
+       * coarse backdrop they replace — that half step is how the fine map wins
+       * where both cover the same ground — and this stamp was flattening it to
+       * the band value on every hierarchy change, leaving both at 51 with the
+       * winner decided by traversal order. It went unnoticed only because the
+       * backdrop used to be CUT AWAY under the sharp tiles, so the two never
+       * overlapped; the moment the window was kept for opaque layers, the
+       * flattened lift became the coarse map drawing over the fine one.
+       *
+       * `keepRenderOrder` is the wrong tool here: these nodes must still track
+       * the stack, so the layer can be dragged. They keep their offset FROM
+       * it instead.
+       */
+      const lift = Number(node.userData?.renderLift) || 0;
+      node.renderOrder = object.renderOrder + lift;
     });
   });
 }

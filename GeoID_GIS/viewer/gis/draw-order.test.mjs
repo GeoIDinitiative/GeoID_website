@@ -60,6 +60,29 @@ check("but the band is a DEFAULT — a dragged row still wins", () => {
   eq(bandOf({ ...dataset, bandOverride: 4 }), 4, "a hand-dragged dataset");
 });
 
+check("a fractional lift survives the stack stamp — the sharp tiles' half step", () => {
+  /**
+   * applyStack re-stamps every node on each hierarchy change. The tiled
+   * geology draws the view's sharp tiles half a step above the coarse
+   * backdrop, and flattening that leaves both at the band value with the
+   * winner decided by traversal order — which showed up as the coarse map
+   * drawing over the fine one the moment the backdrop stopped being cut away
+   * beneath it. This pins the ARITHMETIC the stamp must use.
+   */
+  const stampOf = (band, node) => band + (Number(node.userData?.renderLift) || 0);
+  const backdropTile = { userData: { renderLift: 0 } };
+  const sharpTile = { userData: { renderLift: 0.5 } };
+  const plain = { userData: {} };
+  eq(stampOf(51, backdropTile), 51, "the backdrop sits on the band");
+  eq(stampOf(51, sharpTile), 51.5, "the view's tiles sit half a step above it");
+  eq(stampOf(51, plain), 51, "ordinary geometry takes the band exactly");
+  ok(stampOf(51, sharpTile) > stampOf(51, backdropTile),
+    "the fine map must outrank the coarse one it replaces");
+  // And the offset RIDES the band, so dragging the layer still moves both.
+  eq(stampOf(55, sharpTile) - stampOf(55, backdropTile), 0.5,
+    "the gap is preserved wherever the layer is dragged to");
+});
+
 if (failures.length) {
   failures.forEach((f) => console.error(`  x ${f}`));
   console.error(`${failures.length} failed, ${passed} passed`);

@@ -35,8 +35,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260829-61a5260";
-import { renderFeatureCollection } from "./vector-render.js?v=20260829-61a5260";
+import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260829-90e9f42";
+import { renderFeatureCollection } from "./vector-render.js?v=20260829-90e9f42";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -507,7 +507,14 @@ export function createTiledVectorLayer({
       if (!tile.node) return;
       tile.node.visible = next.has(id);
       const lift = sharp && sharp.has(id) ? 0.5 : 0;
-      tile.node.traverse((child) => { child.renderOrder = group.renderOrder + lift; });
+      // Recorded on the node as well as applied: `applyStack` re-stamps every
+      // node on each hierarchy change and would otherwise flatten this half
+      // step, which is the only thing keeping the fine map above the coarse
+      // one now that the backdrop is no longer cut away beneath it.
+      tile.node.traverse((child) => {
+        child.userData.renderLift = lift;
+        child.renderOrder = group.renderOrder + lift;
+      });
     });
     visible = next;
     sharpSet = sharp ? new Set(sharp) : new Set();
@@ -581,7 +588,10 @@ export function createTiledVectorLayer({
       if (!needed.includes(id)) return;
       build(tile);
       tile.node.visible = true;
-      tile.node.traverse((child) => { child.renderOrder = group.renderOrder + 0.5; });
+      tile.node.traverse((child) => {
+        child.userData.renderLift = 0.5;
+        child.renderOrder = group.renderOrder + 0.5;
+      });
       visible.add(id);
     };
     const result = await fetchInto(wanted, onProgress, signal, early);
