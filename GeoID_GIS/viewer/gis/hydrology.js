@@ -11,7 +11,7 @@
  * one of those.
  */
 
-import { makeRaster, cellSizeMetres } from "./raster-analysis.js?v=20260829-e9c73b1";
+import { makeRaster, cellSizeMetres } from "./raster-analysis.js?v=20260829-d3cc9f6";
 
 /* A binary heap keyed on elevation. Priority-flood is O(n log n) with one and
    O(n²) without, which on a 1800×1400 DEM is the difference between a second
@@ -169,7 +169,10 @@ export function watershed(raster, lat, lon, { filled = null } = {}) {
     ((lon - bounds.minX) / (bounds.maxX - bounds.minX)) * width)));
   const y = Math.min(height - 1, Math.max(0, Math.floor(
     ((bounds.maxY - lat) / (bounds.maxY - bounds.minY)) * height)));
-  if (lat < bounds.minY || lat > bounds.maxY || lon < bounds.minX || lon > bounds.maxX) {
+  // NaN compares false against everything, so a NaN outlet SLIPPED this check
+  // and seeded nothing -- an empty basin returned as success. Finite first.
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)
+    || lat < bounds.minY || lat > bounds.maxY || lon < bounds.minX || lon > bounds.maxX) {
     return { ok: false, message: "that outlet is outside the DEM" };
   }
   const { dir } = flowDirection(dem);

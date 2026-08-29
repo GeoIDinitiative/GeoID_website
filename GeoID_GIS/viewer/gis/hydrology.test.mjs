@@ -72,6 +72,15 @@ check("a valley drains to its outlet on the edge", () => {
   if (!(out.areaKm2 > 0)) throw new Error("no area reported");
 });
 
+check("a NaN outlet is refused, never an empty success", () => {
+  // NaN compares false against every bound, so it SLIPPED the range check,
+  // seeded no cell, and the watershed tool shipped returning empty rasters
+  // as ok:true -- caught only by checking outputs rather than ok flags.
+  const dem = surface(21, 21, (x, y) => x * 2 + Math.abs(y - 10));
+  const out = watershed(dem, NaN, NaN);
+  eq(out.ok, false, "refused");
+});
+
 check("a filled closed basin drains nowhere, and says so honestly", () => {
   // Worth pinning because it looks like a bug: fill a bowl and its centre is
   // no longer a low point, so its catchment is one cell. That is what filling

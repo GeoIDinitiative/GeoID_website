@@ -1,18 +1,18 @@
-import * as GP from "./geoprocessing.js?v=20260829-e9c73b1";
-import * as RA from "./raster-analysis.js?v=20260829-e9c73b1";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260829-e9c73b1";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-e9c73b1";
+import * as GP from "./geoprocessing.js?v=20260829-d3cc9f6";
+import * as RA from "./raster-analysis.js?v=20260829-d3cc9f6";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260829-d3cc9f6";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-d3cc9f6";
 // Pure and DOM-free, so a static import keeps this module Node-clean AND keeps
 // the terrain engine SYNCHRONOUS -- runTool calls engines.native WITHOUT
 // awaiting it, so an async engine hands register() a Promise and the raster
 // comes out undefined. Measured as: "Cannot read properties of undefined".
-import { buildSurface } from "./model-build.js?v=20260829-e9c73b1";
-import { CRS_OPTIONS } from "./projection.js?v=20260829-e9c73b1";
-import * as IN from "./interpolation.js?v=20260829-e9c73b1";
-import * as VAL from "./validation.js?v=20260829-e9c73b1";
-import * as EX from "./analysis-extra.js?v=20260829-e9c73b1";
-import * as HY from "./hydrology.js?v=20260829-e9c73b1";
-import * as KR from "./kriging.js?v=20260829-e9c73b1";
+import { buildSurface } from "./model-build.js?v=20260829-d3cc9f6";
+import { CRS_OPTIONS } from "./projection.js?v=20260829-d3cc9f6";
+import * as IN from "./interpolation.js?v=20260829-d3cc9f6";
+import * as VAL from "./validation.js?v=20260829-d3cc9f6";
+import * as EX from "./analysis-extra.js?v=20260829-d3cc9f6";
+import * as HY from "./hydrology.js?v=20260829-d3cc9f6";
+import * as KR from "./kriging.js?v=20260829-d3cc9f6";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -797,16 +797,54 @@ export const TOOLS = [
     id: "watershed",
     label: "Watersheds",
     category: "Hydrology",
-    blurb: "Label every cell with the outlet it drains to — catchment boundaries without drawing one.",
+    blurb: "The catchment draining to an outlet point — blank outlet = the main river's exit.",
     keywords: ["catchment", "basin", "divide", "drainage", "hydrology", "outlet"],
     inputs: [{ name: "input", label: "DEM", type: "raster" }],
-    params: [],
+    params: [
+      { name: "lat", label: "Outlet latitude (blank = auto)", kind: "number", default: 0, step: 0.001 },
+      { name: "lon", label: "Outlet longitude (blank = auto)", kind: "number", default: 0, step: 0.001 },
+    ],
     outputType: "raster",
     outputName: "basins_{input}",
     engines: {
       native: (i, p) => {
-        const out = HY.watershed(i.input.raster, Number(p.lat), Number(p.lon));
-        return out.ok ? out.raster : { ok: false, message: out.message };
+        /**
+         * The engine read p.lat and p.lon, and the tool DECLARED NO PARAMS --
+         * so every run since it shipped walked in with (NaN, NaN). The bounds
+         * check passes vacuously (NaN compares false), `out[NaN] = 1` seeds
+         * nothing, and an EMPTY raster returned as success: the quietest kind
+         * of broken, only caught by checking outputs rather than ok flags.
+         *
+         * The untouched default now means "the main river's exit": the DEM is
+         * filled once, flow accumulation found, and the outlet is the
+         * highest-accumulation cell -- which is where the biggest catchment
+         * in the view actually drains. A typed outlet is honoured, and one
+         * off the DEM gets the honest error.
+         */
+        const filled = HY.fillSinks(i.input.raster);
+        let lat = Number(p.lat);
+        let lon = Number(p.lon);
+        const b = i.input.raster.bounds;
+        const inside = Number.isFinite(lat) && Number.isFinite(lon)
+          && lat >= b.minY && lat <= b.maxY && lon >= b.minX && lon <= b.maxX;
+        let placed = "";
+        if (!inside && ((lat === 0 && lon === 0) || !Number.isFinite(lat) || !Number.isFinite(lon))) {
+          const acc = HY.flowAccumulation(filled);
+          const accR = acc.raster || acc;
+          let best = -Infinity; let at = 0;
+          for (let k = 0; k < accR.band.length; k += 1) {
+            if (Number.isFinite(accR.band[k]) && accR.band[k] > best) { best = accR.band[k]; at = k; }
+          }
+          const y = Math.floor(at / accR.width);
+          const x = at % accR.width;
+          lat = b.maxY - ((y + 0.5) / accR.height) * (b.maxY - b.minY);
+          lon = b.minX + ((x + 0.5) / accR.width) * (b.maxX - b.minX);
+          placed = ` Outlet defaulted to the highest-accumulation cell (${lat.toFixed(3)}, ${lon.toFixed(3)}).`;
+        }
+        const out = HY.watershed(i.input.raster, lat, lon, { filled });
+        if (!out.ok) return { ok: false, message: out.message };
+        out.raster.note = `Catchment ${out.areaKm2} km² (${out.cells} cells).${placed}`;
+        return out.raster;
       },
       sidecar: {
         requires: ["numpy"],
@@ -1514,9 +1552,10 @@ function quantileRules(raster, classes) {
   for (let c = 1; c <= n; c += 1) {
     const cut = c === n ? hi : values[Math.min(values.length - 1, Math.floor((values.length * c) / n))];
     if (cut > prev || c === n) {
-      // The last class is closed a hair above the maximum so the max cell
-      // itself is caught by an exclusive-upper rule set.
-      rules.push({ min: prev, max: c === n ? hi + Math.abs(hi) * 1e-9 + 1e-9 : cut, value: rules.length + 1 });
+      // RA.reclassify destructures [min, max, class] ARRAYS -- handing it
+      // objects threw "object is not iterable" in the first live run. The
+      // last class closes a hair above the maximum so the top cell is caught.
+      rules.push([prev, c === n ? hi + Math.abs(hi) * 1e-9 + 1e-9 : cut, rules.length + 1]);
       prev = cut;
     }
   }
@@ -1681,7 +1720,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260829-e9c73b1");
+    const client = await import("./sidecar-client.js?v=20260829-d3cc9f6");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -1736,7 +1775,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260829-e9c73b1");
+    const bridge = await import("./research/bridge.js?v=20260829-d3cc9f6");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -1748,12 +1787,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260829-e9c73b1");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260829-d3cc9f6");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260829-e9c73b1");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260829-d3cc9f6");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }
