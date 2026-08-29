@@ -3885,6 +3885,43 @@ that spec and mesh into a deck (`setup.txt` patched to `dim 3`,
 `mesh_2core.txt`, the spec's time stepping; `props.txt` carrying the
 domain step's materials).
 
+## The events feed's offset was computed, written, and never reached layout
+
+With the legend open the feed sat on top of it — **102 px of overlap**,
+measured. `placeOverlay` was innocent throughout: it read the legend's live
+box, computed the right offset, wrote it to `style.right`, and the value could
+be read straight back off the element. It simply never reached layout.
+
+**A plain inline `right` on that element is IGNORED.** Measured both ways, in
+one synchronous block so nothing could interleave: writing `right: 500px`
+inline left the box exactly where it was — right edge 1306 of a 1394 viewport,
+which is the stylesheet's own 5.5rem — while the identical value written
+`!important` put it at 894, to the pixel. So the write is the fault and the
+arithmetic never was.
+
+The overriding declaration does not surface through enumeration: no rule in
+`document.styleSheets` sets `right` or `inset` with priority (checked by
+`getPropertyPriority`, not by text, so a shorthand could not hide), there are
+no `adoptedStyleSheets`, and the element has no animations. So `placeOverlay`
+writes with `setProperty(..., "important")` — the fix the A/B supports rather
+than a guess at which sheet is at fault — and says so where it does it.
+
+Two traps this cost, both worth remembering:
+
+- **Do not measure a `display: none` element.** Most of the hunt was spent on
+  an overlay whose feed was switched off: `getComputedStyle` reported a stale
+  `right` that disagreed with the inline value, which looked like the bug and
+  was an artefact of reading a box that had never been laid out. Switch the
+  thing ON, then measure.
+- **A probe that cleans up after itself can erase its own evidence.** One
+  round restored `style.right = ""` at the end and the next read was taken
+  against the restored state, which produced a contradiction that sent the
+  hunt sideways. Read, then restore, and never in the same expression.
+
+Verified after: legend closed, feed 956..1196 against a legend at 1204;
+legend open, feed 778..1018 against a legend at 1026 — the feed slides left
+by exactly the 178 px the legend grew, and the gap is 8 px in every state.
+
 ## The legend tile speaks the GUI's own language
 
 The legend was the last surface still wearing a look of its own. The diff
