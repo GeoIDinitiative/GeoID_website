@@ -170,6 +170,25 @@ const LATTICE_25 = vec("lattice25.geojson", Array.from({ length: 25 }, (_, k) =>
   properties: { depth: 250, height: 250, cls: k % 3, present: k < 12 ? 1 : 0 },
   geometry: { type: "Point", coordinates: [0.04 + (k % 5) * 0.03, 0.04 + Math.floor(k / 5) * 0.03] },
 })));
+/**
+ * The shape an Earth Engine drape registers with: a `sampler` and NO `raster`.
+ * Its values are a known function of position, so what sampleLayer produces is
+ * checkable rather than merely non-empty.
+ */
+const sampledValue = (lat, lon) => 100 + 1000 * (lon - BOUNDS.minX) / (BOUNDS.maxX - BOUNDS.minX);
+const SAMPLED = {
+  id: nextId += 1, name: "Rainfall (CHIRPS)", status: "loaded", ext: "gee",
+  bounds: BOUNDS,
+  sampler: (lat, lon) => sampledValue(lat, lon),
+  info: { valueKind: "values", unit: "mm" },
+};
+/** The same thing with no legend to invert: a picture, and it must say so. */
+const COLOUR_ONLY = {
+  id: nextId += 1, name: "Some drape", status: "loaded", ext: "gee",
+  bounds: BOUNDS,
+  sampler: () => ({ r: 10, g: 20, b: 30 }),
+  info: { valueKind: "colour" },
+};
 const LINE = vec("line.geojson", [{
   type: "Feature", properties: { name: "t" },
   geometry: { type: "LineString", coordinates: [[0.02, 0.1], [0.1, 0.1], [0.18, 0.1]] },
@@ -454,6 +473,44 @@ check("toPoints — one point per sampled cell, carrying that cell's value", () 
     const value = f.properties.value ?? f.properties.elevation ?? f.properties.z;
     eq(value, 100 + 10 * col, "point value matches its cell", 1e-3);
   }
+});
+
+check("sampleLayer — a drape with values becomes a raster the tools can read", () => {
+  const out = run("sampleLayer", { area: A, source: SAMPLED }, { cellM: 0 });
+  const r = out.layer.raster;
+  ok(r.width > 2 && r.height > 2, "degenerate grid");
+  const s2 = stats(r);
+  ok(s2.n > 0, "no cell carried a value");
+  // The fixture rises west to east, so the band must too -- and by the amount
+  // the sampler says, not merely "some amount".
+  const lonOf = (x) => r.bounds.minX + ((x + 0.5) / r.width) * (r.bounds.maxX - r.bounds.minX);
+  const latOf = (y) => r.bounds.maxY - ((y + 0.5) / r.height) * (r.bounds.maxY - r.bounds.minY);
+  for (const [x, y] of [[1, 1], [r.width - 2, 1], [r.width >> 1, r.height >> 1]]) {
+    eq(r.band[y * r.width + x], sampledValue(latOf(y), lonOf(x)), `value at ${x},${y}`, 20);
+  }
+  ok(/mm/.test(out.message), `the unit must be reported: ${out.message}`);
+});
+
+check("sampleLayer — the output chains straight into a raster tool", () => {
+  const sampled = run("sampleLayer", { area: A, source: SAMPLED }, { cellM: 0 }, "chain_src");
+  const slope = run("slope", { input: sampled.layer }, {}, "chain_slope");
+  ok(stats(slope.layer.raster).n > 0, "the sampled raster produced an empty slope");
+});
+
+check("sampleLayer — a colour-only drape is REFUSED, not rasterised into nonsense", () => {
+  const out = R.runTool("sampleLayer", { area: A, source: COLOUR_ONLY }, { cellM: 0 },
+    { outputName: "colour_only" });
+  eq(out.ok, false, "refused");
+  ok(/picture|legend/i.test(out.message), `it must say why: ${out.message}`);
+});
+
+check("a sampled layer must not pass as a raster — it holds no grid", () => {
+  // The audit that found the gap, kept: a drape carries VALUES and no grid, so
+  // it belongs in the sampled list and nowhere else. matchesType is private;
+  // the runner is the honest test of it.
+  const bad = R.runTool("slope", { input: SAMPLED }, {}, { outputName: "bad_slope" });
+  eq(bad.ok, false, "a sampled layer must not be accepted as a raster");
+  ok(/must be a raster/i.test(bad.message), `by type, and it should say so: ${bad.message}`);
 });
 
 /* ══ HYDROLOGY ════════════════════════════════════════════════════════ */
@@ -816,7 +873,8 @@ check("every tool runs on its own declared input types with untouched defaults",
           ? (firstRaster[t.id] || PLANE)
           : (secondRaster[t.id] || FLAT);
         rasterSeen += 1;
-      } else if (/point|observation|event/i.test(spec.name)) inputs[spec.name] = LATTICE;
+      } else if (spec.type === "sampled") inputs[spec.name] = SAMPLED;
+      else if (/point|observation|event/i.test(spec.name)) inputs[spec.name] = LATTICE;
       else if (spec.name === "features") inputs[spec.name] = LATTICE;
       else if (/overlay|zones/i.test(spec.name)) inputs[spec.name] = B;
       else inputs[spec.name] = POINT_TOOLS.includes(t.id) ? LATTICE_25 : A;

@@ -1,18 +1,18 @@
-import * as GP from "./geoprocessing.js?v=20260829-2debe52";
-import * as RA from "./raster-analysis.js?v=20260829-2debe52";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260829-2debe52";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-2debe52";
+import * as GP from "./geoprocessing.js?v=20260829-9a71f0d";
+import * as RA from "./raster-analysis.js?v=20260829-9a71f0d";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260829-9a71f0d";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-9a71f0d";
 // Pure and DOM-free, so a static import keeps this module Node-clean AND keeps
 // the terrain engine SYNCHRONOUS -- runTool calls engines.native WITHOUT
 // awaiting it, so an async engine hands register() a Promise and the raster
 // comes out undefined. Measured as: "Cannot read properties of undefined".
-import { buildSurface, nativeStepM } from "./model-build.js?v=20260829-2debe52";
-import { CRS_OPTIONS } from "./projection.js?v=20260829-2debe52";
-import * as IN from "./interpolation.js?v=20260829-2debe52";
-import * as VAL from "./validation.js?v=20260829-2debe52";
-import * as EX from "./analysis-extra.js?v=20260829-2debe52";
-import * as HY from "./hydrology.js?v=20260829-2debe52";
-import * as KR from "./kriging.js?v=20260829-2debe52";
+import { buildSurface, nativeStepM } from "./model-build.js?v=20260829-9a71f0d";
+import { CRS_OPTIONS } from "./projection.js?v=20260829-9a71f0d";
+import * as IN from "./interpolation.js?v=20260829-9a71f0d";
+import * as VAL from "./validation.js?v=20260829-9a71f0d";
+import * as EX from "./analysis-extra.js?v=20260829-9a71f0d";
+import * as HY from "./hydrology.js?v=20260829-9a71f0d";
+import * as KR from "./kriging.js?v=20260829-9a71f0d";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -1474,6 +1474,100 @@ export const TOOLS = [
      * rewritten — it already carries the body-radius conversion, the node cap
      * that holds, and the fill-and-count for nodes the DEM cannot answer.
      */
+    /**
+     * The bridge from a PICTURE on the globe to a raster the tools can read.
+     *
+     * Audited by asking each seam what it could see: an Earth Engine layer
+     * carries a `sampler` -- gee-sample recovers real numbers from the palette
+     * it was painted with -- so extraction and the Model Builder have always
+     * read it. But it carries no `raster`, and `layersByType("raster")` admits
+     * a layer only if it does, so a rainfall map, an NDVI map or a GEE DEM was
+     * invisible to all thirty raster tools. Measured with a CHIRPS layer and a
+     * GEBCO overlay loaded: `layersByType("raster")` returned an EMPTY LIST.
+     * Slope on a GEE elevation map, reclassify on rainfall, zonal statistics
+     * over NDVI -- none of them could see the layer they were for.
+     *
+     * So the same shape as `terrain`, over a different reader: the area says
+     * where, the layer says what, and the answer is an ordinary raster that
+     * chains into everything. A layer whose sampler only knows COLOUR (no
+     * legend to invert) is refused by name rather than rasterised into
+     * numbers that mean nothing.
+     */
+    id: "sampleLayer",
+    label: "Layer to raster (sample)",
+    category: "Surface analysis",
+    blurb: "Sample a draped layer (Earth Engine, and anything else with values) over a polygon into a raster the other tools can read.",
+    keywords: ["gee", "earth engine", "drape", "sample", "raster", "convert", "source", "rainfall", "ndvi"],
+    inputs: [
+      { name: "area", label: "Area (a polygon layer)", type: "vector" },
+      { name: "source", label: "Layer to sample", type: "sampled" },
+    ],
+    params: [
+      { name: "cellM", label: "Cell size (m, 0 = fit the area)", kind: "number",
+        default: 0, min: 0, step: 10 },
+    ],
+    outputType: "raster",
+    outputName: "sampled_{source}",
+    engines: {
+      native: (i, p) => {
+        const viewer = typeof window !== "undefined" ? window.GeoIDViewer : null;
+        const read = i.source.sampler;
+        if (typeof read !== "function") {
+          return { ok: false, message: "that layer cannot be asked for a value" };
+        }
+        const kind = i.source.info?.valueKind;
+        if (kind === "colour") {
+          return { ok: false, message: `"${i.source.name}" is a picture — it carries no legend `
+            + "to read numbers back through, so there is nothing to rasterise." };
+        }
+        const rings = ringsOfCollection(i.area.collection);
+        if (!rings.length) return { ok: false, message: "that layer holds no polygons" };
+        const bbox = ringsBounds(rings);
+        const radiusKm = viewer?.bodyRadiusKm || 6371.0088;
+        const span = Math.max(
+          (bbox.east - bbox.west) * Math.cos((bbox.south + bbox.north) / 2 * Math.PI / 180),
+          bbox.north - bbox.south) * (Math.PI * radiusKm * 1000) / 180;
+        const cell = Number(p.cellM) > 0 ? Number(p.cellM) : Math.max(span / 120, 1);
+        let numbers = 0;
+        const grid = buildSurface({
+          bounds: { west: bbox.west, east: bbox.east, south: bbox.south, north: bbox.north },
+          stepM: cell,
+          radiusKm,
+          sampleElevation: (lat, lon) => {
+            const value = read(lat, lon);
+            // null is outside or off-ramp; an {r,g,b} is a colour, not a value.
+            if (!Number.isFinite(value)) return NaN;
+            numbers += 1;
+            return value;
+          },
+        });
+        if (!grid.ok) return { ok: false, message: grid.message };
+        if (!numbers) {
+          return { ok: false, message: `"${i.source.name}" answered no values over that area — `
+            + "it may not cover this ground, or it may be a colour-only drape." };
+        }
+        // buildSurface indexes south-to-north; a raster band runs top-down.
+        const band = new Float32Array(grid.nx * grid.ny);
+        for (let j = 0; j < grid.ny; j += 1) {
+          const src = (grid.ny - 1 - j) * grid.nx;
+          band.set(grid.z.subarray(src, src + grid.nx), j * grid.nx);
+        }
+        const unit = i.source.info?.unit ? ` ${i.source.info.unit}` : "";
+        return {
+          note: `${Math.round(cell)} m cells, ${grid.nx}x${grid.ny}, `
+            + `${numbers} of ${grid.nx * grid.ny} cells carried a value${unit}.`,
+          raster: {
+            band,
+            width: grid.nx,
+            height: grid.ny,
+            bounds: { minX: bbox.west, maxX: bbox.east, minY: bbox.south, maxY: bbox.north },
+            noData: null,
+          },
+        };
+      },
+    },
+  },
+  {
     id: "terrain",
     label: "Terrain to raster (DEM)",
     category: "Surface analysis",
@@ -1693,6 +1787,7 @@ export function layersByType(type) {
   const loaded = all.filter((l) => l.status === "loaded");
   if (type === "vector") return loaded.filter((l) => l.collection);
   if (type === "raster") return loaded.filter((l) => l.raster);
+  if (type === "sampled") return loaded.filter((l) => typeof l.sampler === "function");
   return loaded;
 }
 
@@ -1731,6 +1826,11 @@ function boundsOfCollection(layer) {
 function matchesType(layer, type) {
   if (type === "vector") return Boolean(layer.collection);
   if (type === "raster") return Boolean(layer.raster);
+  // A layer that can be ASKED for a value at a coordinate but holds no grid of
+  // its own: an Earth Engine drape, whose numbers gee-sample recovers from the
+  // palette it was painted with. Extraction has always read these; until
+  // sampleLayer there was no way to get one into a raster tool.
+  if (type === "sampled") return typeof layer.sampler === "function";
   return true;
 }
 
@@ -1820,7 +1920,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260829-2debe52");
+    const client = await import("./sidecar-client.js?v=20260829-9a71f0d");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -1875,7 +1975,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260829-2debe52");
+    const bridge = await import("./research/bridge.js?v=20260829-9a71f0d");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -1887,12 +1987,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260829-2debe52");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260829-9a71f0d");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260829-2debe52");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260829-9a71f0d");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }
