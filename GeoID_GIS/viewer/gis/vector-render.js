@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260829-cf6abbb";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260829-cf6abbb";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260829-cf6abbb";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260830-6ade004";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260830-6ade004";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260830-6ade004";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -567,6 +567,19 @@ export function renderFeatureCollection(fc, {
    */
   contacts = null,
   /**
+   * The tile's own bounds, when this collection IS one tile.
+   *
+   * Clipping a ring to its tile rect (mvt.js) removes the doubly-drawn buffer
+   * band, and it necessarily leaves the ring running ALONG the tile edge. That
+   * cut is an artefact of tiling, not a geological contact — stroke it and the
+   * bright grid the clip just removed comes back as a dark one.
+   *
+   * So a segment whose two ends both lie on the SAME edge of this rect is
+   * skipped by the seal. Both ends, and the same edge: a real boundary that
+   * merely touches the seam at one vertex still gets its stroke.
+   */
+  edgeBounds = null,
+  /**
    * Is this layer a set of PLACES or a point CLOUD?
    *
    * The count decides by default, and the rule is sound: under 20,000 a layer
@@ -638,6 +651,20 @@ export function renderFeatureCollection(fc, {
    * unit, and the map still reads as its own legend. A flat `ink` is the
    * printed-sheet look and says nothing about which side is which.
    */
+  /**
+   * Does this segment run along the tile's own cut? 1e-6 degrees is the
+   * rounding mvt.js applies when it projects, about 0.1 m, so the tolerance is
+   * a shade above it and far below any real boundary.
+   */
+  const EDGE_EPS = 3e-6;
+  const onTileEdge = edgeBounds
+    ? (a, b) => (
+      (Math.abs(a[0] - edgeBounds.west) < EDGE_EPS && Math.abs(b[0] - edgeBounds.west) < EDGE_EPS)
+      || (Math.abs(a[0] - edgeBounds.east) < EDGE_EPS && Math.abs(b[0] - edgeBounds.east) < EDGE_EPS)
+      || (Math.abs(a[1] - edgeBounds.south) < EDGE_EPS && Math.abs(b[1] - edgeBounds.south) < EDGE_EPS)
+      || (Math.abs(a[1] - edgeBounds.north) < EDGE_EPS && Math.abs(b[1] - edgeBounds.north) < EDGE_EPS))
+    : () => false;
+
   const contactMode = contacts?.mode || "match";
   const contactShade = Number.isFinite(contacts?.shade) ? contacts.shade : 0.45;
   const flatInk = contactMode === "ink"
@@ -702,6 +729,7 @@ export function renderFeatureCollection(fc, {
       rings.forEach((coords) => {
         const before = seal.positions.length;
         for (let i = 0; i + 1 < coords.length; i += 1) {
+          if (onTileEdge(coords[i], coords[i + 1])) continue;
           pushSegment(seal.positions, coords[i], coords[i + 1], FILL_DRAPE);
         }
         for (let i = before; i < seal.positions.length; i += 3) {

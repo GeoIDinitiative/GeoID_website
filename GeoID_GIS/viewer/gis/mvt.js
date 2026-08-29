@@ -176,7 +176,65 @@ function projector(z, x, y, extent) {
   };
 }
 
-function toGeoJSON(gtype, rings, project) {
+/**
+ * Clip a ring to the tile's own square, in TILE units, before it is projected.
+ *
+ * An MVT tile carries a BUFFER: geometry a little way past its own edge, so a
+ * renderer can draw a stroke across the boundary without the join being cut.
+ * Measured on the real Macrostrat tiles, that buffer is **176 m on each side**
+ * at zoom 9 — so every seam between two tiles has a **347 m band that BOTH
+ * tiles describe**, and this app drew both. 1,392 of 30,150 samples across one
+ * seam were covered twice.
+ *
+ * Opaque that is invisible; translucent it is not. Two draws of the same
+ * translucent fill reach 1-(1-a)^2 where the ground either side reaches a, so
+ * the band comes out brighter — reported as "huge gridlines" over the streamed
+ * tiles, in a grid because that is exactly what a tile boundary is. And
+ * because each tile clips its own copy, a unit crossing the seam arrives as
+ * two features that do not join: "the geology polygons do not unify over this
+ * line."
+ *
+ * The buffer is for STROKES. A renderer is expected to scissor fills to the
+ * tile rect, and clipping the ring is how you do that when the geometry is
+ * being merged into one scene rather than drawn per tile.
+ *
+ * Sutherland-Hodgman against the four edges: the clip region is convex, so
+ * each ring clips to exactly one ring and the winding is preserved, which the
+ * hole grouping below depends on. A ring entirely outside clips to nothing and
+ * is dropped by its caller.
+ */
+function clipRingToTile(ring, extent) {
+  const inside = (p, edge) => (edge === 0 ? p[0] >= 0
+    : edge === 1 ? p[0] <= extent
+      : edge === 2 ? p[1] >= 0 : p[1] <= extent);
+  const cut = (a, b, edge) => {
+    const t = edge === 0 ? (0 - a[0]) / (b[0] - a[0])
+      : edge === 1 ? (extent - a[0]) / (b[0] - a[0])
+        : edge === 2 ? (0 - a[1]) / (b[1] - a[1])
+          : (extent - a[1]) / (b[1] - a[1]);
+    return [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])];
+  };
+  let out = ring;
+  for (let edge = 0; edge < 4 && out.length; edge += 1) {
+    const input = out;
+    out = [];
+    for (let i = 0; i < input.length; i += 1) {
+      const cur = input[i];
+      const prev = input[(i + input.length - 1) % input.length];
+      const curIn = inside(cur, edge);
+      const prevIn = inside(prev, edge);
+      if (curIn) {
+        if (!prevIn) out.push(cut(prev, cur, edge));
+        out.push(cur);
+      } else if (prevIn) {
+        out.push(cut(prev, cur, edge));
+      }
+    }
+  }
+  return out;
+}
+
+function toGeoJSON(gtype, rings, project, extent) {
   if (gtype === 1) {
     const points = rings.flat().map(project);
     return points.length === 1
@@ -207,6 +265,10 @@ function toGeoJSON(gtype, rings, project) {
      * nothing becomes its own polygon rather than a hole in something it does
      * not touch.
      */
+    // Clipped FIRST, so the winding, the areas and the hole grouping below all
+    // describe the geometry that is actually going to be drawn.
+    rings = rings.map((r) => clipRingToTile(r, extent)).filter((r) => r.length >= 3);
+    if (!rings.length) return null;
     const areas = rings.map(signedArea);
     const outerSign = Math.sign(areas.find((a) => a !== 0) || 1);
     const closeRing = (points) => {
@@ -296,7 +358,7 @@ export function decodeTile(buffer, { z, x, y, only = null } = {}) {
         type: "Feature",
         id,
         properties,
-        geometry: geometry ? toGeoJSON(gtype, geometry, project) : null,
+        geometry: geometry ? toGeoJSON(gtype, geometry, project, extent) : null,
       };
     }).filter((f) => f.geometry);
   }

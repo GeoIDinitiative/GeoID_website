@@ -35,8 +35,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260829-cf6abbb";
-import { renderFeatureCollection } from "./vector-render.js?v=20260829-cf6abbb";
+import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260830-6ade004";
+import { renderFeatureCollection } from "./vector-render.js?v=20260830-6ade004";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -166,6 +166,8 @@ export function createTiledVectorLayer({
         // contacts were changed must match the ones already on screen, which
         // is the same rule the opacity already follows.
         contacts: contactStyle,
+        // Its own square, so the seal can tell the tile's CUT from a contact.
+        edgeBounds: tileBounds(tile.z, tile.x, tile.y),
         // Only the backdrop carries the window: the view's own tiles are what
         // the window exists to show.
         hole: pinned.has(key(tile.z, tile.x, tile.y)) ? hole : null,
