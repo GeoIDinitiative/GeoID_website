@@ -35,8 +35,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260829-f33b428";
-import { renderFeatureCollection } from "./vector-render.js?v=20260829-f33b428";
+import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260829-dcc721a";
+import { renderFeatureCollection } from "./vector-render.js?v=20260829-dcc721a";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -707,6 +707,27 @@ export function createTiledVectorLayer({
   /** Vertices of the features that actually touch this box — the honest
    *  measure of how much boundary detail a level is giving you. Feature COUNT
    *  is not: a deeper tile can hold fewer, larger pieces of the same ground. */
+  /**
+   * How much boundary detail a level carries OVER THIS GROUND.
+   *
+   * Counted as vertices lying INSIDE the box, and the distinction is the whole
+   * value of the function. It used to count every vertex of any feature that
+   * merely TOUCHED the box — so a coarse level, where one unit sprawls across
+   * several degrees, contributed that whole polygon's thousands of vertices
+   * for the sake of one corner overlapping, while a fine level, where the same
+   * ground arrives as tile-clipped pieces, contributed only what is actually
+   * there. Coarse therefore SCORED HIGHER, the climb picked it, and two barren
+   * levels later it stopped.
+   *
+   * Measured on a 1.2 x 0.5 degree box over the north coast: every budget --
+   * balanced, full and maximum alike -- returned **zoom 8 with 2 tiles**, when
+   * zoom 9 needs six and nothing was anywhere near a budget. The climb was not
+   * being stopped by cost; it was being told that coarser was better.
+   *
+   * That is what "the polygons might exist underneath the grey" was: not
+   * anything hidden, but one generalised unit standing in for ground that
+   * finer levels resolve into several.
+   */
   function detailWithin(features, bounds) {
     let verts = 0;
     for (const f of features) {
@@ -715,18 +736,14 @@ export function createTiledVectorLayer({
       const parts = g.type === "MultiPolygon" ? g.coordinates
         : g.type === "Polygon" ? [g.coordinates] : null;
       if (!parts) continue;
-      let touches = false;
       for (const rings of parts) {
-        for (const [x, y] of rings[0]) {
-          if (x >= bounds.west && x <= bounds.east && y >= bounds.south && y <= bounds.north) {
-            touches = true;
-            break;
+        for (const r of rings) {
+          for (const [x, y] of r) {
+            if (x >= bounds.west && x <= bounds.east
+              && y >= bounds.south && y <= bounds.north) verts += 1;
           }
         }
-        if (touches) break;
       }
-      if (!touches) continue;
-      for (const rings of parts) for (const r of rings) verts += r.length;
     }
     return verts;
   }
