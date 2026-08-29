@@ -3093,23 +3093,52 @@ level, and the map is refused detail that costs nothing.
 
 Measured on that box, features actually TOUCHING it:
 
-| zoom | features in box | vertices | units |
-| --- | --- | --- | --- |
-| 5 | 11 | 283 | 9 |
-| 6 | 81 | 1,314 | 22 |
-| 7 | 88 | **1,853** | 22 |
-| 8 | 88 | 1,856 | 22 |
-| 9 | 88 | 1,793 | 22 |
+| zoom | tiles | features in box | vertices | units |
+| --- | --- | --- | --- | --- |
+| 5 | 1 | 11 | 283 | 9 |
+| 6 | 1 | 81 | 1,314 | 22 |
+| 7 | 1 | 88 | 1,853 | 22 |
+| 8 | 1 | 88 | 1,856 | 22 |
+| 9 | 1 | 88 | 1,793 | 22 |
+| 10 | 4 | 106 | 2,177 | 22 |
+| **11** | 16 | **151** | **2,543** | 22 |
+| 12 | 49 | 123 | 1,466 | 15 |
+| 13 | 156 | 38 | 325 | 8 |
 
-So the map was **exactly one level short of everything Macrostrat holds** for
-that ground, and the missing level is a 41% gain in boundary detail. Past
-zoom 7 the compilation has nothing more to give, which is worth knowing in
-its own right: the ceiling is the data's, not the app's.
+**I first read this curve at zoom 9 and concluded it plateaued at 7. It does
+not** — it dips at 9 and then climbs to its real peak at ELEVEN, nearly
+double the boundary detail of the zoom 6 the display was pinned to. Reading a
+curve to its first flat stretch is how a measurement gets stopped one level
+short of its own answer. Past 11 the compilation goes THINNER rather than
+finer: 123 features at 12, 38 at 13, with the unit count collapsing 22 to 15
+to 8. The ceiling is the data's, and it is a peak rather than a plateau.
 
 The extrapolation is per TILE now, multiplied by the tiles the view actually
 needs — a wide view still pays the tile count, a small one pays only for the
 content. Measured after: the same view reaches **zoom 9** and is refused 10
 and 11, with feature counts of 9,273-10,103 against the 24,000 budget.
+
+**And clipping must not take the SCREEN's level at all.** `featuresIn` asked
+`chooseZoom`, whose feature budget exists to protect the frame rate and is
+irrelevant to an extraction that draws nothing — so a clip captured 81
+features and 1,314 vertices where 151 and 2,543 were there to be had.
+"As deep as possible" is equally wrong, for the reason the table shows.
+
+So it CLIMBS while the ground gets more detailed and stops when the source
+has run out, and two details decide whether that works:
+
+- **Detail is counted in VERTICES of the features touching the box, never in
+  feature count.** A deeper tile can hold fewer, larger pieces of the same
+  ground, and counting pieces would call that an improvement.
+- **The curve dips before it peaks** (1,853 at 7, 1,856 at 8, 1,793 at 9,
+  2,177 at 10, 2,543 at 11), so stopping at the first level that gives less
+  returns zoom 8 and throws away the best of the map two levels on. Two
+  barren levels in a row is the ceiling; the best seen is kept.
+
+A probe costing more tiles than the whole view is refused, and an explicit
+zoom is still honoured exactly, because the display path depends on that.
+Measured through the real Clip tool afterwards: **151 features and 22 units
+against 81 features before**, in 2.4 s.
 
 **What this does NOT settle.** The fill is `DoubleSide`, so the black
 scratches are not backface culling; every tile carries its boundary seal; and
