@@ -1247,20 +1247,25 @@
       opacity: 0.45;
       cursor: not-allowed;
     }
-    /* Gate the underlying UI until the user dismisses the disclaimer. */
+    /* Gate the underlying UI while the disclaimer stands. Only applied once
+       myGeoID is actually armed -- see the gate script. */
     body.demo-disclaimer-active > *:not(.demo-disclaimer-backdrop) {
       pointer-events: none;
       user-select: none;
     }
+    /* The backdrop is display:flex, which outranks the hidden attribute, so
+       the attribute has to be spelled out or the gate shows on every load --
+       which is exactly what it used to do. */
+    .demo-disclaimer-backdrop[hidden] { display: none !important; }
   </style>
   <!-- Site header only — the app UI below keeps its own styling -->
   <link rel="stylesheet" href="/styles/site-nav.css">
   <link rel="stylesheet" href="/styles/geohub-shell.css">
   <link rel="stylesheet" href="/styles/v2-viewer.css">
 </head>
-<body class="demo-disclaimer-active">
+<body>
 
-  <div class="demo-disclaimer-backdrop" id="demo-disclaimer-backdrop" role="dialog" aria-modal="true" aria-labelledby="demo-disclaimer-title">
+  <div class="demo-disclaimer-backdrop" id="demo-disclaimer-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="demo-disclaimer-title">
     <div class="demo-disclaimer-modal">
       <span class="demo-disclaimer-eyebrow">Demonstration only</span>
       <h2 class="demo-disclaimer-title" id="demo-disclaimer-title">myGeoID risk maps are a UI concept, not a live hazard tool</h2>
@@ -1284,43 +1289,91 @@
       </label>
       <div class="demo-disclaimer-actions">
         <button type="button" class="demo-disclaimer-button" id="demo-disclaimer-accept" disabled>Continue</button>
+        <button type="button" class="demo-disclaimer-button demo-disclaimer-cancel" id="demo-disclaimer-cancel">Leave myGeoID</button>
       </div>
     </div>
   </div>
 
   <script>
     /**
-     * Disclaimer gate — runs on every load. Keep UI inert until acknowledged.
+     * Disclaimer gate — armed by myGeoID, not by the page.
      *
-     * TURNED OFF FOR DEVELOPMENT. Set this back to `true` to restore it; the
-     * modal's markup and styles are untouched, so that is the only edit needed.
-     * It is off rather than deleted deliberately — the page still presents
-     * synthetic hazard values as though they were readings, which is exactly
-     * what the gate exists to say out loud, so this should go back on before
-     * anyone outside the project sees it.
+     * It used to run on EVERY LOAD and hold the whole shell inert until it was
+     * acknowledged, which is why it ended up switched off for development: it
+     * stood in front of Earth exploration, the Model Builder and the Research
+     * Hub, none of which show a synthetic hazard value. Off, though, the page
+     * went on presenting myGeoID's made-up numbers as if they were readings,
+     * which is the one thing the gate exists to say out loud.
+     *
+     * So it is scoped to the thing it is about. myGeoID IS "the GIS page with
+     * the hub armed" (mode-manager: `armed = currentMode === "gis" && hubArmed`),
+     * and the viewer already reports exactly that as mode "geoid" over the
+     * postMessage bridge. Arming raises the gate; nothing else does.
+     *
+     * Acknowledged once per SESSION rather than once per arming: a modal that
+     * reappears every time somebody toggles the mode is a nag, and one that
+     * never returns after a browser restart is a claim about a person's memory
+     * that a disclaimer should not make.
+     *
+     * "Leave myGeoID" is the honest second door. A gate whose only action is
+     * Continue is a notice wearing a gate's clothes; declining turns the mode
+     * back off through the viewer's own seam.
      */
-    const DEMO_DISCLAIMER_GATE = false;
+    const DEMO_DISCLAIMER_GATE = true;
+    const DEMO_DISCLAIMER_KEY = "geoid:mygeoid-disclaimer-ack";
 
     (function () {
       const backdrop = document.getElementById("demo-disclaimer-backdrop");
-      if (!DEMO_DISCLAIMER_GATE) {
-        // Take the modal out and release the UI, in that order, so the page is
-        // never left inert with nothing on screen to dismiss.
-        backdrop?.remove();
-        document.body.classList.remove("demo-disclaimer-active");
-        return;
-      }
       const checkbox = document.getElementById("demo-disclaimer-checkbox");
-      const button   = document.getElementById("demo-disclaimer-accept");
-      if (!backdrop || !checkbox || !button) return;
-      checkbox.addEventListener("change", () => { button.disabled = !checkbox.checked; });
-      function dismiss() {
-        if (!checkbox.checked) return;
-        backdrop.remove();
+      const accept   = document.getElementById("demo-disclaimer-accept");
+      const cancel   = document.getElementById("demo-disclaimer-cancel");
+      if (!backdrop || !checkbox || !accept || !cancel) return;
+      if (!DEMO_DISCLAIMER_GATE) { backdrop.remove(); return; }
+
+      const acknowledged = () => {
+        try { return window.sessionStorage.getItem(DEMO_DISCLAIMER_KEY) === "1"; }
+        catch (error) { return false; }   // private mode: ask again, never fail open
+      };
+      const remember = () => {
+        try { window.sessionStorage.setItem(DEMO_DISCLAIMER_KEY, "1"); }
+        catch (error) { /* nothing to remember it with; the gate still worked */ }
+      };
+
+      function close() {
+        backdrop.hidden = true;
         document.body.classList.remove("demo-disclaimer-active");
       }
-      button.addEventListener("click", dismiss);
-      checkbox.addEventListener("keydown", (e) => { if (e.key === "Enter") dismiss(); });
+      function raise() {
+        if (acknowledged() || !backdrop.hidden) return;
+        checkbox.checked = false;
+        accept.disabled = true;
+        backdrop.hidden = false;
+        document.body.classList.add("demo-disclaimer-active");
+        checkbox.focus({ preventScroll: true });
+      }
+
+      checkbox.addEventListener("change", () => { accept.disabled = !checkbox.checked; });
+      accept.addEventListener("click", () => {
+        if (!checkbox.checked) return;
+        remember();
+        close();
+      });
+      cancel.addEventListener("click", () => {
+        close();
+        // Turn the mode back off in the viewer that raised it. Same-origin
+        // iframe, so this reaches mode-manager's own listener.
+        try {
+          document.querySelector("iframe")?.contentWindow
+            ?.postMessage({ type: "geoid:mygeoid-cancel" }, "*");
+        } catch (error) { /* no viewer framed; nothing to stand down */ }
+      });
+
+      // The one thing that raises it: the viewer reporting myGeoID armed.
+      window.addEventListener("message", (event) => {
+        const msg = event.data;
+        if (!msg || typeof msg !== "object") return;
+        if (msg.type === "geoid:mode" && msg.mode === "geoid") raise();
+      });
     })();
   </script>
 

@@ -473,6 +473,22 @@
     document.getElementById("geoid-mode-enter")?.addEventListener("click", () => {
       setHubArmed(!hubArmed);
     });
+
+    /**
+     * The shell's myGeoID disclaimer can decline, and declining must actually
+     * leave the mode.
+     *
+     * Arming reports itself to the shell (the `geoid:mode` post below), which
+     * raises the gate; a gate whose only action is Continue is a notice
+     * wearing a gate's clothes. This is the other half of that handshake, so
+     * "Leave myGeoID" stands the mode down through the same seam the Enter
+     * button uses rather than a second path into the same state.
+     */
+    window.addEventListener("message", (event) => {
+      const msg = event.data;
+      if (!msg || typeof msg !== "object") return;
+      if (msg.type === "geoid:mygeoid-cancel" && hubArmed) setHubArmed(false);
+    });
     let initialMode = "gis";
     try {
       const stored = window.localStorage.getItem(MODE_STORAGE_KEY);
