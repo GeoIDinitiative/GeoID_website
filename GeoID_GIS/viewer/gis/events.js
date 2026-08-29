@@ -12,7 +12,7 @@
 
 import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity, magnitudeColour,
-  activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, gdacsPoints } from "./event-sources.js?v=20260829-2aa662e";
+  activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, gdacsPoints } from "./event-sources.js?v=20260829-7136ef8";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -1365,12 +1365,31 @@ function placeOverlay() {
   // Left of the readout when the hub is armed; in the tool rail's own slot
   // otherwise, which is what the 5.5rem clears.
   const base = rail > 0 ? rail : 5.5 * rem;
+  /**
+   * Written with `!important`, and that is a measurement rather than a habit.
+   *
+   * A plain inline `right` on this element is IGNORED: measured, writing
+   * `right: 500px` inline left the box exactly where it was (right edge 1306
+   * of a 1394 viewport, i.e. the stylesheet's own 5.5rem), while the same
+   * value written `!important` put it at 894 to the pixel. So every offset
+   * this function computed was correct, was written, was readable back off
+   * `style.right` -- and never reached layout. That is why the feed sat on
+   * top of the legend with both open: 102px of overlap, and the arithmetic
+   * here innocent the whole time.
+   *
+   * The overriding declaration does not surface through enumeration -- not in
+   * document.styleSheets (no rule sets right or inset with priority), not in
+   * adoptedStyleSheets, not an animation -- so the honest fix is the one the
+   * A/B supports rather than a guess at which sheet is at fault. If it is ever
+   * found, this can go back to a plain write.
+   */
+  const setRight = (px) => host.style.setProperty("right", `${px}px`, "important");
   if (!legend || legend.hidden) {
-    host.style.right = `${base}px`;
+    setRight(base);
     return;
   }
   const gap = 8;
-  host.style.right = `${window.innerWidth - legend.getBoundingClientRect().left + gap}px`;
+  setRight(window.innerWidth - legend.getBoundingClientRect().left + gap);
 }
 
 /**
@@ -1759,8 +1778,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260829-2aa662e"),
-    import("./research/dsp.js?v=20260829-2aa662e"),
+    import("./seismogram-plot.js?v=20260829-7136ef8"),
+    import("./research/dsp.js?v=20260829-7136ef8"),
   ]);
   if (stale()) return;
 
