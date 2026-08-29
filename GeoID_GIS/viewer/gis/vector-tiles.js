@@ -35,8 +35,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds } from "./mvt.js?v=20260829-82c41da";
-import { renderFeatureCollection } from "./vector-render.js?v=20260829-82c41da";
+import { decodeTile, tilesForBounds } from "./mvt.js?v=20260829-f46ef70";
+import { renderFeatureCollection } from "./vector-render.js?v=20260829-f46ef70";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -596,7 +596,28 @@ export function createTiledVectorLayer({
    */
   async function featuresIn(bounds, { zoom = null, featureBudget = 60000, signal = null } = {}) {
     if (!bounds || !Number.isFinite(bounds.west)) return { features: [], zoom: null, tiles: 0 };
-    const z = chooseZoom(bounds, zoom, featureBudget, 0);
+    /**
+     * The zoom a BOX deserves, because there is no camera to ask.
+     *
+     * `chooseZoom` refines from a starting level and starts at
+     * `Math.round(asked)` — and `Math.round(null)` is ZERO, so passing no zoom
+     * silently asked for the single world tile. That tile holds 5,792 units
+     * for the whole planet, generalised so hard that this file already records
+     * point-in-polygon finding nothing under Northern Ireland; measured, a
+     * study area there clipped 3 features out of it and they were units like
+     * "Precambrian-Phanerozoic crystalline metamorphic rocks". A silent zero
+     * from a null is exactly the NaN-compares-false shape.
+     *
+     * EPSG:4326 is 2x1 at zoom 0, so a tile spans 360/2^(z+1) degrees: the
+     * level where the box covers about two tiles across is log2(720/W) - 1.
+     * chooseZoom then still applies its own budget from there, so this only
+     * sets an honest starting point.
+     */
+    const widthDeg = Math.max(1e-6, Math.abs(bounds.east - bounds.west));
+    const want = zoom == null
+      ? Math.max(0, Math.round(Math.log2(720 / widthDeg) - 1))
+      : zoom;
+    const z = chooseZoom(bounds, want, featureBudget, 0);
     const wanted = tilesForBounds(bounds, z).slice(0, maxTiles);
     if (!wanted.length) return { features: [], zoom: z, tiles: 0 };
     await fetchInto(wanted, null, signal, null);

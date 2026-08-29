@@ -1,11 +1,11 @@
-import { computeBounds2D } from "./geo-utils.js?v=20260829-82c41da";
+import { computeBounds2D } from "./geo-utils.js?v=20260829-f46ef70";
 
 // Sampling a polygon on a lat/lon grid: the spacing is expressed in km and
 // converted per-row, because a degree of longitude shrinks toward the poles.
 import {
   clip as clipCollection, featureCollection, feature as makeFeature,
-} from "./geoprocessing.js?v=20260829-82c41da";
-import { splitLine } from "./delimited.js?v=20260829-82c41da";
+} from "./geoprocessing.js?v=20260829-f46ef70";
+import { splitLine } from "./delimited.js?v=20260829-f46ef70";
 
 const KM_PER_DEG_LAT = 111.32;
 const MAX_SAMPLES = 250000;
@@ -225,6 +225,54 @@ export function extractNative({ rings, layer, max = MAX_SAMPLES }) {
   };
 }
 
+/** Features with their bounding boxes, for a cheap point test per sample. */
+function buildGeologyIndex(features) {
+  if (!Array.isArray(features) || !features.length) return null;
+  const out = [];
+  features.forEach((f) => {
+    const parts = f?.geometry?.type === "MultiPolygon" ? f.geometry.coordinates
+      : (f?.geometry?.type === "Polygon" ? [f.geometry.coordinates] : null);
+    if (!parts) return;
+    let minX = Infinity; let minY = Infinity; let maxX = -Infinity; let maxY = -Infinity;
+    parts.forEach((rings) => rings[0].forEach(([x, y]) => {
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }));
+    const name = f.properties?.name || f.properties?.lith || f.properties?.rock_type || "";
+    if (!name) return;
+    out.push({ parts, minX, minY, maxX, maxY, name });
+  });
+  return out.length ? out : null;
+}
+
+/** The named unit under a point, or null where there is no index to read. */
+function geologyAt(lat, lon, index) {
+  if (!index) return null;
+  for (const entry of index) {
+    if (lon < entry.minX || lon > entry.maxX || lat < entry.minY || lat > entry.maxY) continue;
+    for (const rings of entry.parts) {
+      if (!ringHas(rings[0], lat, lon)) continue;
+      const inHole = rings.slice(1).some((hole) => ringHas(hole, lat, lon));
+      if (!inHole) return entry.name;
+    }
+  }
+  return "";
+}
+
+/** Ray casting over a GeoJSON [lon, lat] ring. */
+function ringHas(ring, lat, lon) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const xi = ring[i][0]; const yi = ring[i][1];
+    const xj = ring[j][0]; const yj = ring[j][1];
+    if ((yi > lat) !== (yj > lat)
+      && lon < ((xj - xi) * (lat - yi)) / (yj - yi || 1e-12) + xi) inside = !inside;
+  }
+  return inside;
+}
+
 export function extractPolygonSamples({
   vertices,
   center,
@@ -233,6 +281,18 @@ export function extractPolygonSamples({
   includeBuiltIn = true,
   includeGeology = false,
   includeClimate = false,
+  /**
+   * The features to read the geology column FROM.
+   *
+   * The viewer's `getGeologyFeatureAtLatLon` answers from the map it currently
+   * has DRAWN, which is right for a click on the globe and wrong for an
+   * extraction: measured with the camera over Indonesia and a study area over
+   * Northern Ireland, the column came back empty for every one of 7,567
+   * samples while the clip beside it returned real units. Given the features
+   * covering the polygon — the same ones the vector clip uses — the column and
+   * the clipped layer cannot disagree, because they are one source of truth.
+   */
+  geologyFeatures = null,
   layers = [],
 } = {}) {
   // One ring or many: the single-ring call is the multi-ring call with one.
@@ -257,6 +317,10 @@ export function extractPolygonSamples({
   const kmPerDegLat = viewer?.bodyRadiusKm
     ? (Math.PI * viewer.bodyRadiusKm) / 180 : KM_PER_DEG_LAT;
   const stepLat = Math.max(stepKm, 0.001) / kmPerDegLat;
+
+  // Bounding boxes once, so the per-sample test rejects almost everything by
+  // four comparisons rather than by walking rings.
+  const geologyIndex = buildGeologyIndex(geologyFeatures);
 
   const rows = [];
   let truncated = false;
@@ -283,8 +347,13 @@ export function extractPolygonSamples({
         const slope = viewer.estimateSurfaceSlopeDegrees?.(lat, lon360);
         row.geoid_slope_deg = Number.isFinite(slope) ? +slope.toFixed(3) : "";
         if (includeGeology) {
-          const feature = viewer.getGeologyFeatureAtLatLon?.(lat, lon360);
-          row.geoid_geology = feature?.rock_type || feature?.name || "";
+          const named = geologyAt(lat, normalizeLon(lon), geologyIndex);
+          if (named !== null) {
+            row.geoid_geology = named;
+          } else {
+            const feature = viewer.getGeologyFeatureAtLatLon?.(lat, lon360);
+            row.geoid_geology = feature?.rock_type || feature?.name || "";
+          }
         }
       }
 

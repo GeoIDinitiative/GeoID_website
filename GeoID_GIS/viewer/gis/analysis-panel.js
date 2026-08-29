@@ -11,8 +11,8 @@ import {
   vectorRows,
   extractDelimitedWithin,
   delimitedColumns,
-} from "./extraction.js?v=20260829-82c41da";
-import { rectangleVertices } from "./draw-area.js?v=20260829-82c41da";
+} from "./extraction.js?v=20260829-f46ef70";
+import { rectangleVertices } from "./draw-area.js?v=20260829-f46ef70";
 
 let lastResult = null;
 // The whole extraction as one object -- bounds, grid, vectors, clouds. This is
@@ -414,6 +414,10 @@ function runExtraction() {
       stepKm,
       includeBuiltIn: builtInChecked("gis-extract-builtin"),
       includeGeology: builtInChecked("gis-extract-geology"),
+      // The SAME features the vector clip below uses, so the column and the
+      // clipped layer cannot disagree about what is under a point.
+      geologyFeatures: loadedLayers()
+        .find((l) => l.geologyDataset)?.collection?.features || null,
       includeClimate: builtInChecked("gis-extract-climate"),
       layers: selectedLayers(),
     });
