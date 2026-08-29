@@ -1,13 +1,18 @@
-import * as GP from "./geoprocessing.js?v=20260829-b26cb25";
-import * as RA from "./raster-analysis.js?v=20260829-b26cb25";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260829-b26cb25";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-b26cb25";
-import { CRS_OPTIONS } from "./projection.js?v=20260829-b26cb25";
-import * as IN from "./interpolation.js?v=20260829-b26cb25";
-import * as VAL from "./validation.js?v=20260829-b26cb25";
-import * as EX from "./analysis-extra.js?v=20260829-b26cb25";
-import * as HY from "./hydrology.js?v=20260829-b26cb25";
-import * as KR from "./kriging.js?v=20260829-b26cb25";
+import * as GP from "./geoprocessing.js?v=20260829-a608593";
+import * as RA from "./raster-analysis.js?v=20260829-a608593";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260829-a608593";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-a608593";
+// Pure and DOM-free, so a static import keeps this module Node-clean AND keeps
+// the terrain engine SYNCHRONOUS -- runTool calls engines.native WITHOUT
+// awaiting it, so an async engine hands register() a Promise and the raster
+// comes out undefined. Measured as: "Cannot read properties of undefined".
+import { buildSurface } from "./model-build.js?v=20260829-a608593";
+import { CRS_OPTIONS } from "./projection.js?v=20260829-a608593";
+import * as IN from "./interpolation.js?v=20260829-a608593";
+import * as VAL from "./validation.js?v=20260829-a608593";
+import * as EX from "./analysis-extra.js?v=20260829-a608593";
+import * as HY from "./hydrology.js?v=20260829-a608593";
+import * as KR from "./kriging.js?v=20260829-a608593";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -1295,7 +1300,7 @@ export const TOOLS = [
     // elevation ramp; see buildRasterLayer's isDem.
     elevationOutput: true,
     engines: {
-      native: async (i, p) => {
+      native: (i, p) => {
         const viewer = typeof window !== "undefined" ? window.GeoIDViewer : null;
         if (!viewer?.sampleElevationMeters) {
           return { ok: false, message: "this world exposes no elevation to sample" };
@@ -1303,7 +1308,6 @@ export const TOOLS = [
         const rings = ringsOfCollection(i.area.collection);
         if (!rings.length) return { ok: false, message: "that layer holds no polygons" };
         const bbox = ringsBounds(rings);
-        const mod = await import("./model-build.js?v=20260829-b26cb25");
         const radiusKm = viewer.bodyRadiusKm || 6371.0088;
         // 0 means "fit the area": ~120 cells across, the same working default
         // the Model Builder uses when nothing finer is asked for.
@@ -1311,7 +1315,7 @@ export const TOOLS = [
           (bbox.east - bbox.west) * Math.cos((bbox.south + bbox.north) / 2 * Math.PI / 180),
           bbox.north - bbox.south) * (Math.PI * radiusKm * 1000) / 180;
         const cell = Number(p.cellM) > 0 ? Number(p.cellM) : Math.max(span / 120, 1);
-        const grid = mod.buildSurface({
+        const grid = buildSurface({
           bounds: { west: bbox.west, east: bbox.east, south: bbox.south, north: bbox.north },
           stepM: cell,
           radiusKm,
@@ -1565,7 +1569,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260829-b26cb25");
+    const client = await import("./sidecar-client.js?v=20260829-a608593");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -1620,7 +1624,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260829-b26cb25");
+    const bridge = await import("./research/bridge.js?v=20260829-a608593");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -1632,12 +1636,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260829-b26cb25");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260829-a608593");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260829-b26cb25");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260829-a608593");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }
