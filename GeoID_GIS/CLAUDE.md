@@ -2965,6 +2965,33 @@ deliberately uncorrelated observations — which is the CORRECT answer, and a
 tidy reminder that a validation tool agreeing with chance is sometimes the
 data, not a bug.
 
+## A container cannot be sized by a child that refuses to give way
+
+The layer drawer under a Workspace row pushed straight through the tile it
+lives in. Measured: a **428 px drawer inside a 382 px dock**, 78 px of it
+past the right edge — while nothing overflowed inside the drawer at all
+(`scrollWidth === clientWidth`). That is why it presents as "the drop-down
+does not fit in its margins" rather than as a row of buttons overflowing:
+the row was not overflowing, it was SIZING its parent.
+
+`.layer-options-actions` was `flex-wrap: nowrap` with `flex: 0 0 auto` — a
+child that can neither wrap nor shrink, so its min-content width becomes the
+drawer's min-content width and the drawer grows to whatever the buttons
+happen to add up to. That was right when the comment beside it was written
+and there were THREE buttons ("the three are alternatives to one another").
+There are eight: Hide, Focus, Symbology, Table, Export, To project, To
+raster, Remove — 383 px of button plus gaps, in 360 px of room.
+
+They wrap now, and the drawer and its sibling `.layer-props-inline` each
+carry `box-sizing: border-box` with `max-width: calc(100% - 1.35rem)` — the
+indent is part of the width — so neither can exceed its row whatever is
+added to them next. Measured after: 340 px drawer, 10 px clear of the dock
+edge, no button outside the tile, every button still at full width on two
+rows. The rule generalises: **when a box is wider than its container and
+nothing inside it is clipped, look for an unshrinkable child, not for a
+missing overflow.** And since this CSS lives in `layer-hierarchy.js`'s STYLE
+block, the fix reached all ten worlds.
+
 ## A drape is painted ON the ground — two constants, neither read in metres
 
 "The mapping of the rasters looks like it's not tight to the surface"
