@@ -35,8 +35,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260829-db4ba38";
-import { renderFeatureCollection } from "./vector-render.js?v=20260829-db4ba38";
+import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260829-6197226";
+import { renderFeatureCollection } from "./vector-render.js?v=20260829-6197226";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -623,7 +623,48 @@ export function createTiledVectorLayer({
    * nothing), and returns those tiles' features — WITHOUT touching `visible`,
    * `generation` or the scene, so extracting never changes the picture.
    */
-  async function featuresIn(bounds, { zoom = null, featureBudget = 60000, signal = null } = {}) {
+  /** Vertices of the features that actually touch this box — the honest
+   *  measure of how much boundary detail a level is giving you. Feature COUNT
+   *  is not: a deeper tile can hold fewer, larger pieces of the same ground. */
+  function detailWithin(features, bounds) {
+    let verts = 0;
+    for (const f of features) {
+      const g = f?.geometry;
+      if (!g) continue;
+      const parts = g.type === "MultiPolygon" ? g.coordinates
+        : g.type === "Polygon" ? [g.coordinates] : null;
+      if (!parts) continue;
+      let touches = false;
+      for (const rings of parts) {
+        for (const [x, y] of rings[0]) {
+          if (x >= bounds.west && x <= bounds.east && y >= bounds.south && y <= bounds.north) {
+            touches = true;
+            break;
+          }
+        }
+        if (touches) break;
+      }
+      if (!touches) continue;
+      for (const rings of parts) for (const r of rings) verts += r.length;
+    }
+    return verts;
+  }
+
+  /** One level, fetched into the cache and read back. Draws nothing. */
+  async function levelFeatures(bounds, z, signal) {
+    const wanted = tilesForBounds(bounds, z).slice(0, maxTiles);
+    if (!wanted.length) return { features: [], zoom: z, tiles: 0 };
+    await fetchInto(wanted, null, signal, null);
+    const out = [];
+    wanted.forEach((t) => {
+      const tile = tiles.get(key(t.z, t.x, t.y));
+      if (tile?.state === "ready") tile.features.forEach((f) => out.push(f));
+    });
+    return { features: out, zoom: z, tiles: wanted.length };
+  }
+
+  async function featuresIn(bounds, { zoom = null, featureBudget = 60000, signal = null,
+    maxProbeTiles = 64 } = {}) {
     if (!bounds || !Number.isFinite(bounds.west)) return { features: [], zoom: null, tiles: 0 };
     /**
      * The zoom a BOX deserves, because there is no camera to ask.
@@ -642,17 +683,62 @@ export function createTiledVectorLayer({
      * chooseZoom then still applies its own budget from there, so this only
      * sets an honest starting point.
      */
-    const want = zoom == null ? zoomForBounds(bounds, { maxZoom }) : zoom;
-    const z = chooseZoom(bounds, want, featureBudget, 0);
-    const wanted = tilesForBounds(bounds, z).slice(0, maxTiles);
-    if (!wanted.length) return { features: [], zoom: z, tiles: 0 };
-    await fetchInto(wanted, null, signal, null);
-    const out = [];
-    wanted.forEach((t) => {
-      const tile = tiles.get(key(t.z, t.x, t.y));
-      if (tile?.state === "ready") tile.features.forEach((f) => out.push(f));
-    });
-    return { features: out, zoom: z, tiles: wanted.length };
+    if (zoom != null) {
+      // An explicit level is honoured exactly — the caller has said what it
+      // wants and the display path depends on that.
+      return levelFeatures(bounds, chooseZoom(bounds, zoom, featureBudget, 0), signal);
+    }
+
+    /**
+     * CLIMB TO THE BEST LEVEL, because an extraction wants the data, not the
+     * picture.
+     *
+     * The display's zoom is chosen under a FEATURE BUDGET whose whole purpose
+     * is to protect the frame rate — irrelevant here, where nothing is drawn.
+     * Clipping at the screen's level took what the screen happened to be
+     * showing: measured on a 0.5 degree study area over Northern Ireland, the
+     * clip captured 81 features and 1,314 vertices where 151 and 2,543 were
+     * there to be had.
+     *
+     * Nor is "as deep as possible" the answer. Macrostrat's tiles have their
+     * own ceiling and go THINNER past it, not finer — measured on the same
+     * box: 88 features at zoom 7, 106 at 10, 151 at 11, then 123 at 12 and 38
+     * at 13, with the unit count collapsing 22 to 15 to 8. Asking for the
+     * deepest level available would have returned a fifth of the map.
+     *
+     * So it climbs while the ground gets MORE detailed and stops at the first
+     * level that gives less, which needs no ceiling written down anywhere and
+     * follows each source's own limit. Detail is counted in VERTICES of the
+     * features touching the box, never in feature count: a deeper tile can
+     * hold fewer, larger pieces of the same ground.
+     */
+    const start = Math.max(0, zoomForBounds(bounds, { maxZoom }) - 2);
+    let best = null;
+    let barren = 0;
+    for (let z = start; z <= maxZoom + 3; z += 1) {
+      const needed = tilesForBounds(bounds, z).length;
+      // A probe costing more tiles than the whole view is not worth the
+      // answer; whatever is already in hand is returned instead.
+      if (best && needed > maxProbeTiles) break;
+      const got = await levelFeatures(bounds, z, signal);
+      const detail = detailWithin(got.features, bounds);
+      if (!best || detail > best.detail) {
+        best = { ...got, detail };
+        barren = 0;
+        continue;
+      }
+      /**
+       * The curve DIPS before it peaks, so one bad level is not the ceiling.
+       * Measured over Northern Ireland: 1,853 vertices at zoom 7, 1,856 at 8,
+       * then 1,793 at 9 — and 2,177 at 10 and 2,543 at 11. Stopping at the
+       * first level that gave less would have returned zoom 8 and thrown away
+       * the best of the map two levels further on. Two barren levels in a row
+       * is the source having actually run out.
+       */
+      barren += 1;
+      if (barren >= 2) break;
+    }
+    return best || { features: [], zoom: start, tiles: 0 };
   }
 
   function featureCount() {
