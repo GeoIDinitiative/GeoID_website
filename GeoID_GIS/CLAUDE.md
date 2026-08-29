@@ -3922,6 +3922,39 @@ Verified after: legend closed, feed 956..1196 against a legend at 1204;
 legend open, feed 778..1018 against a legend at 1026 — the feed slides left
 by exactly the 178 px the legend grew, and the gap is 8 px in every state.
 
+## The planets inherit the GUI work, except what lives in a stylesheet
+
+A useful division came out of checking whether the recent UI work had reached
+the nine planet viewers. **Everything carried by a shared MODULE was already
+there** — measured on Mars, identical to Earth to the pixel: the legend's
+magenta frame `rgba(255,43,214,0.34)` on `rgb(16,7,36)`, the card at
+`rgb(24,13,47)`/12.48px, the head bar spanning 258.4 of 260.4 at 12.16px/600,
+the grouped drawn-areas card with real swatch colours, the Workspace head gap
+at 7.2px and the empty control-stack at 0. Mercury and Jupiter the same
+(Jupiter builds no draw bar, which is the documented per-body gate, and its
+legend frame and collapsed stack are right).
+
+**What did NOT carry was the one thing written in a stylesheet.** Earth's
+`@media (max-height: 560px) and (orientation: landscape)` block — the one the
+Analysis Hub trips by shrinking the iframe to ~400px — pulls the panel and the
+dock in to 0.5rem and 20rem, lifts the dock in front of the panel and caps its
+body at 30vh. That block is in `styles.css`, which only Earth reads; the nine
+planets read `gis/shell.css` and had no answer. Measured side by side in the
+same shell at 1200x520: panel and dock at **16px/384px against Earth's
+8px/320px**, dock **z-index 11 against 21**, dock body **218px against 122px**.
+Not broken — their own `--layer-dock-space` reservation still kept panel and
+dock apart — but visibly a different application beside Earth's.
+
+Ported into shell.css's existing copy of that media query, and verified after:
+Mars matches Earth on every property, with the dock body at 30vh of its own
+frame and no panel/dock overlap.
+
+**The rule of thumb this gives**: after a UI change, ask which FILE it landed
+in. A module under `gis/` reaches all ten worlds for free; anything in
+`styles.css` reaches exactly one, and its twin in `gis/shell.css` has to be
+written by hand. That is the same split the `.gis-tool-body` overflow fix and
+the `:root` scrollbar rule both had to pay for.
+
 ## The legend tile speaks the GUI's own language
 
 The legend was the last surface still wearing a look of its own. The diff
