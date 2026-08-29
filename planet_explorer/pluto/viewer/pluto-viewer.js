@@ -11903,10 +11903,28 @@ uniform float uViewportWidth;`,
         swipe: 2,
       });
       const measureGroup = new THREE.Group();
+      /**
+       * A GROUP sorts before its children do, so this one has to outrank the
+       * data band.
+       *
+       * `reversePainterSortStable` compares groupOrder FIRST, and projectObject
+       * takes groupOrder from the nearest ancestor that isGroup. The measure
+       * geometry carries renderOrder 96-203 of its own — well above the
+       * imported band — and none of it mattered while this group sat at the
+       * default ZERO: every imported layer group carries its band (51 and up),
+       * so the shape being drawn sorted underneath the map it was being drawn
+       * on. Reported as the polygon and its handles hidden behind the geology,
+       * and it is the same fault the event markers had, in the same place.
+       *
+       * 199 is the viewer's own furniture band — pins, labels and selection
+       * rings — which is exactly what a study area being drawn is.
+       */
+      measureGroup.renderOrder = 199;
       plutoGroup.add(measureGroup);
       // Separate group for moon measurements — positioned at the moon center and rotated
       // with the moon's self-rotation each frame so geometry stays surface-locked.
       const moonMeasureGroup = new THREE.Group();
+      moonMeasureGroup.renderOrder = 199;
       plutoGroup.add(moonMeasureGroup);
       const measureVisuals = [];
       const gisBufferGroup = new THREE.Group();

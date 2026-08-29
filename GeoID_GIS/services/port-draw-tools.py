@@ -175,6 +175,20 @@ REWRITES = [
 ]
 
 
+REWRITES.append((
+    # 5. The measure group must outrank the data band.
+    #    reversePainterSortStable compares groupOrder FIRST, taken from the
+    #    nearest isGroup ancestor, so a measure group at the default ZERO puts
+    #    the shape being drawn under every imported layer group (51 and up)
+    #    whatever its own renderOrder says. Reported as the drawn polygon and
+    #    its handles hidden behind the geology; the event markers' fault, again.
+    #    The replacement is lifted from Earth's own copy so the two cannot drift.
+    "      const measureGroup = new THREE.Group();\n",
+    "      const measureGroup = new THREE.Group();\n      /**\n       * A GROUP sorts before its children do, so this one has to outrank the\n       * data band.\n       *\n       * `reversePainterSortStable` compares groupOrder FIRST, and projectObject\n       * takes groupOrder from the nearest ancestor that isGroup. The measure\n       * geometry carries renderOrder 96-203 of its own — well above the\n       * imported band — and none of it mattered while this group sat at the\n       * default ZERO: every imported layer group carries its band (51 and up),\n       * so the shape being drawn sorted underneath the map it was being drawn\n       * on. Reported as the polygon and its handles hidden behind the geology,\n       * and it is the same fault the event markers had, in the same place.\n       *\n       * 199 is the viewer's own furniture band — pins, labels and selection\n       * rings — which is exactly what a study area being drawn is.\n       */\n      measureGroup.renderOrder = 199;\n",
+    "measure group in the furniture band",
+))
+
+
 def rewrite(text: str, folder: str) -> tuple[str, list[str]]:
     """Apply every REWRITE, reporting which ones this viewer still needed."""
     changed = []
