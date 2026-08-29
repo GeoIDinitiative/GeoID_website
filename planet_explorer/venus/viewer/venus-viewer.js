@@ -15103,7 +15103,31 @@ uniform float uViewportWidth;`,
         marker.frustumCulled = false;
         targetGroup.add(marker);
 
-        // Point label ("A", "B", "C"…)
+        /**
+         * Point letters ("A", "B", "C"…) are PROFILE furniture only. A
+         * profile is read against its chart, whose axis runs A→B, so the
+         * letters are the join between picture and plot. On a drawn polygon
+         * they were noise over the shape's own annotation, and on distance
+         * and route the segment readouts already say which end is which.
+         */
+        if (measureMode !== "profile") {
+          measureVisuals.push({
+            contextKind: context.kind,
+            marker,
+            labelSprite: null,
+            markerAnchor: surfaceAnchor.clone(),
+            surfaceNormal: surfaceNormal.clone(),
+            markerEmbedFactor,
+            labelDirection: surfaceNormal.clone(),
+            baseMarkerRadius,
+            baseSpriteScale: 0,
+            baseLabelOffset: 0,
+            maxMarkerWorldRadius: baseMarkerRadius * 40,
+            targetMarkerPx: isMoon ? 11 : inMoonViewer ? 10 : (isCtxMosaicBasemap ? 6 : 8),
+            targetLabelPx: 0,
+          });
+          return;
+        }
         const letter = String.fromCharCode(65 + (index || 0));
         const labelCanvas = document.createElement("canvas");
         const fontSize = isMoon ? 14 : inMoonViewer ? 10 : 26;
@@ -15164,7 +15188,9 @@ uniform float uViewportWidth;`,
         const fovScale = viewportHeight / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) * 0.5));
         const markerWorldPosition = new THREE.Vector3();
         for (const visual of measureVisuals) {
-          if (!visual.marker || !visual.labelSprite) {
+          // A letterless point (every mode but profile) still scales its dot,
+          // so the bail-out on a missing sprite comes AFTER the marker work.
+          if (!visual.marker) {
             continue;
           }
           visual.marker.getWorldPosition(markerWorldPosition);
@@ -15193,6 +15219,9 @@ uniform float uViewportWidth;`,
             visual.surfaceNormal,
             -(baseMarkerRadius * mScale * (visual.markerEmbedFactor || 0)),
           );
+          if (!visual.labelSprite) {
+            continue;
+          }
           visual.labelSprite.scale.set(sScale, sScale, 1);
           visual.labelSprite.position.copy(visual.markerAnchor).addScaledVector(
             visual.labelDirection,
@@ -15531,7 +15560,18 @@ uniform float uViewportWidth;`,
             `Mean slope ${stats?.meanSlope !== null && stats?.meanSlope !== undefined ? stats.meanSlope.toFixed(1) : "n/a"}°`,
             `Geology ${geologyName}`,
           ].join("<br>");
-          showMeasurementResultCard(`Study Area: ${areaKm2.toFixed(0)} km²`, measureMetric.innerHTML, toolRailAreaButton);
+          /**
+           * No corner card for an area — the label at its centroid says it.
+           *
+           * A number describing a polygon belongs on the polygon, not pinned
+           * to the edge of the window, and with two shapes drawn a corner
+           * card cannot say which one it is about. The terrain figures this
+           * card also held — elevation range, mean slope, geology — are in
+           * the Study Area panel, which carries strictly more of them.
+           * Distance and Route keep their cards: a line has no inside to
+           * write in.
+           */
+          hideMeasurementResultCard();
           measureProfileSamples = [];
           profileCanvas.hidden = true;
           hideProfileModal();

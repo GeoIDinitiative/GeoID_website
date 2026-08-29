@@ -81,6 +81,113 @@ SEAM_NEW = """        setStudyAreaPolygon(vertices) {
 """
 
 
+
+# ── Measure furniture the planets never received ─────────────────────────────
+#
+# Three changes made on Earth that live OUTSIDE the block above, so the porter
+# never carried them and five viewers kept the old behaviour. Reported as "the
+# study area pop up window is still occurring" and "polygon points still
+# showing a,b,c annotations", and both were exactly that.
+#
+# Each is (old, new, why). They are applied verbatim per viewer and are
+# idempotent: a rewrite whose `new` is already present is skipped, so a re-run
+# is a no-op and --check can tell stale from ported.
+REWRITES = [
+    (
+        # 1. No corner card for an AREA. A number describing a polygon belongs
+        #    ON the polygon; with two shapes drawn a corner card cannot say
+        #    which one it is about, and everything else it held is in the Study
+        #    Area panel, which carries strictly more.
+        "          showMeasurementResultCard(`Study Area: ${areaKm2.toFixed(0)} km\u00b2`,"
+        " measureMetric.innerHTML, toolRailAreaButton);\n",
+        "          /**\n"
+        "           * No corner card for an area \u2014 the label at its centroid says it.\n"
+        "           *\n"
+        "           * A number describing a polygon belongs on the polygon, not pinned\n"
+        "           * to the edge of the window, and with two shapes drawn a corner\n"
+        "           * card cannot say which one it is about. The terrain figures this\n"
+        "           * card also held \u2014 elevation range, mean slope, geology \u2014 are in\n"
+        "           * the Study Area panel, which carries strictly more of them.\n"
+        "           * Distance and Route keep their cards: a line has no inside to\n"
+        "           * write in.\n"
+        "           */\n"
+        "          hideMeasurementResultCard();\n",
+        "study-area corner card",
+    ),
+    (
+        # 2. Point letters are PROFILE furniture. On a drawn polygon they were
+        #    noise over the shape's own annotation; on distance and route the
+        #    segment readouts already say which end is which.
+        "        // Point label (\"A\", \"B\", \"C\"\u2026)\n"
+        "        const letter = String.fromCharCode(65 + (index || 0));\n",
+        "        /**\n"
+        "         * Point letters (\"A\", \"B\", \"C\"\u2026) are PROFILE furniture only. A\n"
+        "         * profile is read against its chart, whose axis runs A\u2192B, so the\n"
+        "         * letters are the join between picture and plot. On a drawn polygon\n"
+        "         * they were noise over the shape's own annotation, and on distance\n"
+        "         * and route the segment readouts already say which end is which.\n"
+        "         */\n"
+        "        if (measureMode !== \"profile\") {\n"
+        "          measureVisuals.push({\n"
+        "            contextKind: context.kind,\n"
+        "            marker,\n"
+        "            labelSprite: null,\n"
+        "            markerAnchor: surfaceAnchor.clone(),\n"
+        "            surfaceNormal: surfaceNormal.clone(),\n"
+        "            markerEmbedFactor,\n"
+        "            labelDirection: surfaceNormal.clone(),\n"
+        "            baseMarkerRadius,\n"
+        "            baseSpriteScale: 0,\n"
+        "            baseLabelOffset: 0,\n"
+        "            maxMarkerWorldRadius: baseMarkerRadius * 40,\n"
+        "            targetMarkerPx: isMoon ? 11 : inMoonViewer ? 10 : (isCtxMosaicBasemap ? 6 : 8),\n"
+        "            targetLabelPx: 0,\n"
+        "          });\n"
+        "          return;\n"
+        "        }\n"
+        "        const letter = String.fromCharCode(65 + (index || 0));\n",
+        "profile-only point letters",
+    ),
+    (
+        # 3. A letterless point still scales its DOT. The old guard bailed on
+        #    the whole visual when there was no sprite, so every marker drawn
+        #    by rewrite 2 would have frozen at its build size.
+        "        for (const visual of measureVisuals) {\n"
+        "          if (!visual.marker || !visual.labelSprite) {\n"
+        "            continue;\n"
+        "          }\n",
+        "        for (const visual of measureVisuals) {\n"
+        "          // A letterless point (every mode but profile) still scales its dot,\n"
+        "          // so the bail-out on a missing sprite comes AFTER the marker work.\n"
+        "          if (!visual.marker) {\n"
+        "            continue;\n"
+        "          }\n",
+        "letterless dots still scale",
+    ),
+    (
+        "          visual.labelSprite.scale.set(sScale, sScale, 1);\n",
+        "          if (!visual.labelSprite) {\n"
+        "            continue;\n"
+        "          }\n"
+        "          visual.labelSprite.scale.set(sScale, sScale, 1);\n",
+        "sprite work guarded on its own",
+    ),
+]
+
+
+def rewrite(text: str, folder: str) -> tuple[str, list[str]]:
+    """Apply every REWRITE, reporting which ones this viewer still needed."""
+    changed = []
+    for old, new, why in REWRITES:
+        if new in text:
+            continue                      # already ported; a re-run is a no-op
+        if old not in text:
+            raise SystemExit(f"{folder}: cannot find the anchor for {why}")
+        text = text.replace(old, new, 1)
+        changed.append(why)
+    return text, changed
+
+
 def earth_block() -> str:
     """The drawing apparatus, lifted verbatim from the Earth viewer."""
     src = EARTH.read_text(encoding="utf-8")
@@ -138,9 +245,12 @@ def main() -> int:
             updated = updated.replace(SEAM_OLD, SEAM_NEW, 1)
         elif "clearStudyArea()" not in updated:
             raise SystemExit(f"{folder}: setStudyAreaPolygon seam not recognised")
+        updated, rewrote = rewrite(updated, folder)
         if updated == text:
             print(f"  {folder:8s} unchanged")
             continue
+        if rewrote:
+            print(f"  {folder:8s} + {', '.join(rewrote)}")
         stale.append(folder)
         if not check:
             path.write_text(updated, encoding="utf-8")
