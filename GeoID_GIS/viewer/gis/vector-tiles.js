@@ -35,8 +35,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260829-ace04a2";
-import { renderFeatureCollection } from "./vector-render.js?v=20260829-ace04a2";
+import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260829-80c27d1";
+import { renderFeatureCollection } from "./vector-render.js?v=20260829-80c27d1";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -398,6 +398,30 @@ export function createTiledVectorLayer({
      * refined, not as the camera drifts.
      */
     if (!sharpSet.size || !toDir) {
+      hole.on.value = 0;
+      return;
+    }
+    /**
+     * An OPAQUE view keeps the backdrop underneath it, and that is what closes
+     * the gaps.
+     *
+     * The window exists for one reason: a TRANSLUCENT layer drawn over its own
+     * coarse copy blends twice and shows a colour that is in nobody's legend.
+     * At full opacity there is nothing to blend — the view's tiles draw half a
+     * renderOrder step above the backdrop and hide it completely — except in
+     * the hairline gaps between neighbouring units, which is precisely where
+     * cutting the backdrop away turns a seam into BLACK.
+     *
+     * Those gaps are real and small: measured on the live tiles, 44.9% of
+     * edges are shared by two polygons and the strays sit tens of metres
+     * apart, while the seal that covers them is a LINE — and WebGL draws every
+     * line one device pixel wide whatever `linewidth` says, about 20 m of
+     * ground at a 35 km view and less as you descend. So the seal loses that
+     * race by construction, and the honest fix is not a wider line but
+     * something behind: the coarser map, which is the same geology one
+     * generalisation up, and never a hole.
+     */
+    if (opacity >= 0.99) {
       hole.on.value = 0;
       return;
     }
@@ -767,6 +791,10 @@ export function createTiledVectorLayer({
   /** The layer's opacity, remembered so tiles built later match the rest. */
   function setOpacity(value) {
     opacity = Number.isFinite(value) ? value : 1;
+    // The window is now a function of opacity, so fading the layer has to
+    // re-decide it: translucent needs the backdrop cut away, opaque needs it
+    // left underneath to close the seams.
+    try { maskBackdrop(); } catch (error) { /* no backdrop yet is not a fault */ }
   }
 
   function dispose() {
