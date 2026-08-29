@@ -2965,6 +2965,49 @@ deliberately uncorrelated observations — which is the CORRECT answer, and a
 tidy reminder that a validation tool agreeing with chance is sometimes the
 data, not a bug.
 
+## Which of the 47 tools belong on a MAP page: the output type decides
+
+Audited by reading what each descriptor takes and produces, then following the
+result to where it lands. **42 of 47 produce a map layer** (18 vector, 24
+raster) and are unarguably GIS work. **Five produce `outputType: "table"`** —
+`zonalStatistics`, `histogram`, `rocAuc`, `successRate`, `confusion` — and the
+runner says what that means in its own comment: *"outputType table returns
+rows, registers no layer"*, returning `layer: null`.
+
+**Those rows are then discarded.** tool-dialog's result handler reads
+`result.message` and `result.layer` and nothing else; grepping every consumer
+of `.rows` in the tree finds the extraction panel's own rows and tool-search's
+UI list, and no reader of a tool result's rows anywhere. So on the GIS page
+those five compute a real answer, print a one-line status, and throw the
+answer away: no layer, no table, no export, no project file. That is the
+concrete test for "does it belong here" — **a GIS tool's output is a map
+layer, and a page that cannot hold the answer is not that tool's home.**
+
+The five split three ways, and they are not the same case:
+
+- **`rocAuc`, `successRate`, `confusion` — Research.** These score a MODEL
+  against observations; they say nothing about the map. Research already has
+  the home: `stats.js` (correlation, t-test, Mann-Whitney, KS, ANOVA, PCA)
+  and the plotting the Analysis page uses, where a curve and a table can
+  actually be drawn. A success-rate curve is a chart, and there is no chart
+  on the globe.
+- **`zonalStatistics` — belongs in GIS, and is the one to FIX rather than
+  move.** "Raster values inside each polygon" is canonical GIS (ArcGIS's own
+  Zonal Statistics), and its answer is keyed BY POLYGON — which means the
+  right output is the polygon layer with the statistics written back as
+  ATTRIBUTES, i.e. a vector output that draws, symbolises and exports like
+  any other. As a bare table it is the right tool wearing the wrong return
+  type.
+- **`histogram` — re-home rather than move.** A raster's distribution is what
+  you consult to CHOOSE CLASS BREAKS, so its natural place is the symbology
+  dialog beside the classing it informs, not a geoprocessing tool whose table
+  evaporates.
+
+Two entries look like they belong elsewhere and do not: `randomSample` and
+`stratifiedSample` sit in the Validation category but output VECTOR points.
+They are model preparation by intent, and they produce a layer, so the map
+page can hold them honestly — category is not the test, output is.
+
 ## Buffers have SHAPES, and the multi-ring is graded on arrival
 
 `GP.buffer(fc, m, { shape })` — "round" | "square" | "flat" — and
