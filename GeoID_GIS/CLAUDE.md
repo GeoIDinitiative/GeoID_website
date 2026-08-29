@@ -3070,6 +3070,52 @@ raster.** It cost a round: an imported polygon fills by default, draws above
 the drapes, and its legend swatch is the tell. Check what is actually on top
 before diagnosing the layer underneath it.
 
+## Which maps the tools can actually see — audited by asking the seams
+
+"Are all pre-loaded maps and those imported via GEE available for the GIS
+tools, extraction and the Model Builder?" Measured with a user import, a
+Natural Earth catalogue vector, a CHIRPS rainfall drape and a GEBCO overlay
+all on the globe at once — asking `layersByType`, the extraction panel's own
+filter and the Model Builder's list what each one returns:
+
+| layer | `collection` | `raster` | `sampler` | tools | extraction | model |
+| --- | --- | --- | --- | --- | --- | --- |
+| user vector import | yes | no | yes | vector | yes | yes |
+| catalogue vector (coastlines) | yes | no | no | vector | clip | yes |
+| user GeoTIFF / `.asc` | no | **yes** | — | **all 30 raster** | yes | yes |
+| Earth Engine drape (CHIRPS) | no | **no** | yes | **NONE** | yes | yes |
+| shipped overlay (GEBCO relief) | no | no | no | **NONE** | **NONE** | listed only |
+
+**`layersByType("raster")` returned an EMPTY LIST** with a rainfall map and a
+bathymetry overlay drawn on the globe. An Earth Engine layer carries a
+`sampler` — `gee-sample` recovers real numbers from the palette it was
+painted with, which is why extraction has always read it — but it carries no
+GRID, and the thirty raster tools admit a layer only if `layer.raster`
+exists. Slope on a GEE elevation map, reclassify on rainfall, zonal
+statistics over NDVI: none of them could see the layer they exist for.
+
+**`sampleLayer` is the bridge, and it is `terrain` over a different reader.**
+The area says where, the layer says what, and the answer is an ordinary
+raster that chains into everything. `sampled` is a third input KIND that both
+`matchesType` and `layersByType` understand, so the dialog fills that select
+for free (it populates straight from `layersByType(input.type)`) and a drape
+can never pass as a grid. Verified live on a real CHIRPS layer over the Congo
+basin: raster layers 0 → a 121x121 grid at 14.8 km cells, 14,549 of 14,641
+cells carrying a value, 8.2–300 mm — CHIRPS's own range — and reclassify,
+zonal statistics and slope all running off it.
+
+**A colour-only drape is refused BY NAME.** `makeSampler` returns a number
+where the palette is invertible, `null` off-ramp, and an `{r,g,b}` where
+there is no legend at all; rasterising that third case would be inventing
+numbers. The shipped GEBCO and hillshade overlays are in exactly that
+position — pictures with no legend — so they stay pictures, and that is a
+statement about those files rather than a gap in the tools.
+
+The general shape, worth keeping: **a layer's capabilities here are three
+independent booleans** — `collection`, `raster`, `sampler` — and every panel
+filters on one of them. When something "is not available", ask which of the
+three it is missing before looking at the panel.
+
 ## Every tool, individually, IN THE SUITE — and what that found
 
 The browser sweeps each found faults the one before had passed, and a sweep
