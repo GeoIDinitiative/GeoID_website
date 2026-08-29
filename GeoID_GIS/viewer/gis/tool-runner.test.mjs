@@ -61,6 +61,7 @@ globalThis.document = {
 const RA = await import("./raster-analysis.js");
 const { sphericalPolygonAreaKm2 } = await import("./geo-utils.js");
 const R = await import("./tool-runner.js");
+const { readFileSync } = await import("node:fs");
 
 /* ── The seams the runner reaches for ──────────────────────────────────── */
 
@@ -913,12 +914,36 @@ check("every declared param is READ by its own tool", () => {
   for (const t of R.TOOLS) {
     const src = code(t.engines?.native) + code(t.engines?.sidecar?.build);
     for (const p of t.params || []) {
+      // A RUNNER param is read one level up, by runToolAuto rather than by an
+      // engine -- `detail` chooses how deep a streaming input is fetched
+      // BEFORE any engine sees it, and an engine could not read it if it
+      // wanted to. Named, never silently exempted; the next check is what
+      // stops that name becoming a loophole.
+      if (R.RUNNER_PARAMS.has(p.name)) continue;
       if (!new RegExp(`\\b${p.name}\\b`).test(src)) bad.push(`${t.id}.${p.name}`);
     }
   }
   // viewshed collected `height` and read `p.observerHeight`: a form field an
   // engine never reads is the quietest dead control there is.
   eq(bad.join(", "), "", "declared params no engine reads");
+});
+
+check("every RUNNER param is read by the runner, and is a real control", () => {
+  // The runner reads this param one level above any engine, so the check is on
+  // the module's own text rather than on a function it exposes.
+  const src = readFileSync(new URL("./tool-runner.js", import.meta.url), "utf8");
+  const unread = [...R.RUNNER_PARAMS].filter((n) => !new RegExp(`params\\.${n}\\b`).test(src));
+  eq(unread.join(", "), "", "runner params the runner never reads");
+  // and it must still be offered somewhere, or it is a dead control wearing an
+  // exemption -- which is the exact thing the check above exists to catch.
+  const offered = R.TOOLS.filter((t) => (t.params || []).some((p) => R.RUNNER_PARAMS.has(p.name)));
+  eq(offered.length > 0, true, "no tool offers any runner param");
+  for (const t of offered) {
+    for (const p of t.params.filter((q) => R.RUNNER_PARAMS.has(q.name))) {
+      eq(Array.isArray(p.options) && p.options.length >= 2, true, `${t.id}.${p.name} has no choices`);
+      eq(p.options.some((o) => o.id === p.default), true, `${t.id}.${p.name} default is not an option`);
+    }
+  }
 });
 
 check("every tool is complete enough to be offered at all", () => {

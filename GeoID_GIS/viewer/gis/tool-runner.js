@@ -1,19 +1,19 @@
-import * as GP from "./geoprocessing.js?v=20260829-22173ee";
-import * as RA from "./raster-analysis.js?v=20260829-22173ee";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260829-22173ee";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-22173ee";
+import * as GP from "./geoprocessing.js?v=20260829-0b5e89a";
+import * as RA from "./raster-analysis.js?v=20260829-0b5e89a";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260829-0b5e89a";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-0b5e89a";
 // Pure and DOM-free, so a static import keeps this module Node-clean AND keeps
 // the terrain engine SYNCHRONOUS -- runTool calls engines.native WITHOUT
 // awaiting it, so an async engine hands register() a Promise and the raster
 // comes out undefined. Measured as: "Cannot read properties of undefined".
-import { buildSurface, nativeStepM } from "./model-build.js?v=20260829-22173ee";
-import { nativeGridOf } from "./extraction.js?v=20260829-22173ee";
-import { CRS_OPTIONS } from "./projection.js?v=20260829-22173ee";
-import * as IN from "./interpolation.js?v=20260829-22173ee";
-import * as VAL from "./validation.js?v=20260829-22173ee";
-import * as EX from "./analysis-extra.js?v=20260829-22173ee";
-import * as HY from "./hydrology.js?v=20260829-22173ee";
-import * as KR from "./kriging.js?v=20260829-22173ee";
+import { buildSurface, nativeStepM } from "./model-build.js?v=20260829-0b5e89a";
+import { nativeGridOf } from "./extraction.js?v=20260829-0b5e89a";
+import { CRS_OPTIONS } from "./projection.js?v=20260829-0b5e89a";
+import * as IN from "./interpolation.js?v=20260829-0b5e89a";
+import * as VAL from "./validation.js?v=20260829-0b5e89a";
+import * as EX from "./analysis-extra.js?v=20260829-0b5e89a";
+import * as HY from "./hydrology.js?v=20260829-0b5e89a";
+import * as KR from "./kriging.js?v=20260829-0b5e89a";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -60,6 +60,41 @@ function sampleRaster(raster, lat, lon) {
   if (raster.noData != null && Number.isFinite(raster.noData) && v === raster.noData) return NaN;
   return v;
 }
+
+/**
+ * WHICH RESOLUTION TO SHIP, for an input that streams its own features.
+ *
+ * The world geology is not one map, it is a pyramid of them: each level is
+ * generalised on its own, and that generalisation is what opens the gaps at
+ * contacts — 280 dark holes measured at zoom 4, none at zoom 9, because at
+ * native scale neighbouring polygons still share their boundaries. So the
+ * level a clip runs at IS the answer's resolution, and it was chosen silently
+ * by a drawing budget that had nothing to do with the question.
+ *
+ * The choice is named by what it spends rather than by a zoom, because the
+ * levels a source can serve depend on the size of the box: measured over
+ * Northern Ireland, zoom 11 costs 30 tiles for a 0.6 degree study area and 238
+ * for a 2.8 degree one. A fixed zoom would mean something different for each.
+ * The runner reports the level it actually reached either way, and names the
+ * next one and its cost when a budget is what stopped it.
+ *
+ * "Balanced" is the default because it reaches the compilation's own detail
+ * peak (zoom 11) for an ordinary study area, which is the case this is for.
+ */
+const DETAIL_PARAM = {
+  name: "detail",
+  label: "Detail to ship",
+  kind: "select",
+  default: "balanced",
+  blurb: "How deep to stream a tiled input before clipping. Deeper is finer at "
+    + "contacts and costs more tile requests; the result says which level it used.",
+  options: [
+    { id: "fast", label: "Fast — fewest tiles, coarsest polygons" },
+    { id: "balanced", label: "Balanced — full detail for a study area" },
+    { id: "full", label: "Full — full detail for a large region" },
+    { id: "maximum", label: "Maximum — the source's own ceiling" },
+  ],
+};
 
 export const TOOLS = [
   // ── Vector geoprocessing (the legacy VECTOR_OPS table, one row each) ──────
@@ -141,7 +176,7 @@ export const TOOLS = [
       { name: "input", label: "Input", type: "vector" },
       { name: "overlay", label: "Overlay", type: "vector" },
     ],
-    params: [],
+    params: [DETAIL_PARAM],
     outputType: "vector",
     outputName: "clip_{input}",
     engines: { native: (i) => GP.clip(i.input.collection, i.overlay.collection) },
@@ -1982,20 +2017,67 @@ function areaOfInterest(resolved, live) {
  * whatever the camera happened to be showing, and over a study area that is
  * routinely nothing. Same fault the extraction panel had, one layer down.
  */
-async function refreshLiveInputs(desc, inputs) {
+/**
+ * Params the RUNNER reads rather than an engine.
+ *
+ * `tool-runner.test.mjs` requires every declared param to be read by its own
+ * tool, because a form field an engine never reads is the quietest dead
+ * control there is (viewshed collected `height` and read `p.observerHeight`).
+ * A param the runner acts on is not dead — it is simply read one level up —
+ * so it is named here rather than exempted by a rule nobody can see.
+ */
+export const RUNNER_PARAMS = new Set(["detail"]);
+
+/**
+ * How much of somebody else's tile server one run may spend, by name.
+ *
+ * Mirrors `TILE_BUDGETS` in vector-tiles.js. Kept as plain numbers rather than
+ * imported, because this module is imported in Node by the test suite and
+ * vector-tiles pulls in three.js.
+ */
+const DETAIL_BUDGETS = { fast: 16, balanced: 96, full: 320, maximum: 1200 };
+
+/**
+ * What a streaming layer should be asked for, and it is REPORTED afterwards.
+ *
+ * A tiled source is generalised per level, and it is that generalisation which
+ * opens the gaps at contacts — measured in this file's own history, 280 dark
+ * holes at zoom 4 and none at zoom 9, because at native scale the polygons
+ * still share their boundaries. So which level a clip shipped is not a detail
+ * of the plumbing; it is the difference between two different maps, and it was
+ * silent.
+ */
+async function refreshLiveInputs(desc, inputs, params = {}) {
   const resolved = (desc.inputs || []).map((spec) => resolveLayer(inputs[spec.name])).filter(Boolean);
   const live = resolved.filter((l) => typeof l.featuresIn === "function");
-  if (!live.length) return [];
+  if (!live.length) return { borrowed: [], note: "" };
   const box = areaOfInterest(resolved, live);
-  if (!box) return [];
+  if (!box) return { borrowed: [], note: "" };
+  const choice = String(params.detail || "balanced");
+  const tileBudget = DETAIL_BUDGETS[choice] || DETAIL_BUDGETS.balanced;
   const borrowed = [];
+  const notes = [];
   for (const layer of live) {
     // A layer that cannot fetch keeps whatever it had: a failed refresh must
     // never fail the run.
-    try { await layer.featuresIn(box); borrowed.push(layer); }
-    catch (error) { /* keep the snapshot */ }
+    try {
+      await layer.featuresIn(box, { tileBudget });
+      borrowed.push(layer);
+      const f = layer.lastFetch;
+      if (f && Number.isFinite(f.zoom)) {
+        // Named so a coarse answer cannot pass as a full one. When the climb
+        // stopped on the BUDGET rather than on the source, the next level is
+        // offered by name: the reader can spend more deliberately.
+        const deeper = (f.levels || []).find((l) => l.overBudget);
+        notes.push(`${layer.name} at source zoom ${f.zoom}`
+          + ` (${f.tiles} tiles, ${f.features.toLocaleString()} features)`
+          + (f.stoppedFor === "budget" && deeper
+            ? `; zoom ${deeper.zoom} needs ${deeper.tiles} tiles — raise Detail to go deeper.`
+            : "."));
+      }
+    } catch (error) { /* keep the snapshot */ }
   }
-  return borrowed;
+  return { borrowed, note: notes.length ? ` ${notes.join(" ")}` : "" };
 }
 
 export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
@@ -2003,16 +2085,19 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
   if (!desc) return runTool(toolId, inputs, params, opts);
   // Before ANY engine, and before the sidecar decision: a layer that fetches
   // its own features is asked about this run's ground.
-  const borrowed = await refreshLiveInputs(desc, inputs);
+  const { borrowed, note } = await refreshLiveInputs(desc, inputs, params);
   // Whatever was borrowed for this run is given back afterwards, always: a
   // layer left holding one study area's features tells the click picker the
   // rest of the map is not there.
   const giveBack = () => borrowed.forEach((l) => { try { l.restoreLive?.(); } catch (e) { /* keep */ } });
+  // The level shipped rides on the RESULT, or the one fact that decides which
+  // map this is stays known only to the fetch that chose it.
+  const withNote = (out) => (out && note ? { ...out, message: `${out.message || ""}${note}` } : out);
   if (!desc.engines?.sidecar) {
-    try { return runTool(toolId, inputs, params, opts); } finally { giveBack(); }
+    try { return withNote(runTool(toolId, inputs, params, opts)); } finally { giveBack(); }
   }
   try {
-    return await runToolAutoInner(desc, toolId, inputs, params, opts);
+    return withNote(await runToolAutoInner(desc, toolId, inputs, params, opts));
   } finally { giveBack(); }
 }
 
@@ -2024,7 +2109,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260829-22173ee");
+    const client = await import("./sidecar-client.js?v=20260829-0b5e89a");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -2089,7 +2174,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260829-22173ee");
+    const bridge = await import("./research/bridge.js?v=20260829-0b5e89a");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -2101,12 +2186,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260829-22173ee");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260829-0b5e89a");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260829-22173ee");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260829-0b5e89a");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }

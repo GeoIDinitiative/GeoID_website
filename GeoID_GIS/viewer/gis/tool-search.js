@@ -20,13 +20,13 @@
  * other's keys.
  */
 
-import { TOOLS, toolById } from "./tool-runner.js?v=20260829-22173ee";
-import { tokenize } from "./search-text.js?v=20260829-22173ee";
+import { TOOLS, toolById } from "./tool-runner.js?v=20260829-0b5e89a";
+import { tokenize } from "./search-text.js?v=20260829-0b5e89a";
 // Namespace import, not named: the prefs verbs are read through optional
 // access inside try/catch (the house localStorage pattern), so an API-shape
 // difference degrades to "no prefs" instead of a module-link error taking
 // the whole palette down with it.
-import * as toolPrefs from "./tool-prefs.js?v=20260829-22173ee";
+import * as toolPrefs from "./tool-prefs.js?v=20260829-0b5e89a";
 
 /* ── prefs, read defensively ──────────────────────────────────────────────
  *

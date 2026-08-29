@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260829-22173ee";
-import { currentBodyId } from "./bodies.js?v=20260829-22173ee";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260829-22173ee";
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260829-22173ee";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260829-0b5e89a";
+import { currentBodyId } from "./bodies.js?v=20260829-0b5e89a";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260829-0b5e89a";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260829-0b5e89a";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -384,15 +384,36 @@ async function loadTiled(entry, { toView = false, quiet = false } = {}) {
       layer.features = fc.features;
       return fc;
     };
-    layer.featuresIn = async (box) => {
+    /**
+     * `opts` is passed straight through, and the LEVEL SHIPPED is recorded.
+     *
+     * The wrapper used to drop `got.zoom` and `got.tiles` on the floor, so
+     * which generalisation an extraction actually ran on was invisible to
+     * everything downstream — the tool message, the layer row, the reader.
+     * A clip at zoom 8 and a clip at zoom 11 are different maps, and the app
+     * said the same sentence about both.
+     */
+    layer.featuresIn = async (box, opts = {}) => {
       const b = box?.west !== undefined ? box : {
         west: box.minX, south: box.minY, east: box.maxX, north: box.maxY,
       };
-      const got = await controller.featuresIn(b);
+      const got = await controller.featuresIn(b, opts);
       const collection = { type: "FeatureCollection", features: got.features };
       layer.collection = collection;
       layer.features = got.features;
+      layer.lastFetch = {
+        zoom: got.zoom, tiles: got.tiles, features: got.features.length,
+        levels: got.levels || null, stoppedFor: got.stoppedFor || null, budget: got.budget || null,
+      };
       return collection;
+    };
+    /** Which levels this source can serve over a box, and what each costs. */
+    layer.detailLevels = async (box, opts = {}) => {
+      const b = box?.west !== undefined ? box : {
+        west: box.minX, south: box.minY, east: box.maxX, north: box.maxY,
+      };
+      const got = await controller.featuresIn(b, opts);
+      return got.levels || [];
     };
     layer.geologyDataset = entry.id;
     layer.credit = entry.credit;

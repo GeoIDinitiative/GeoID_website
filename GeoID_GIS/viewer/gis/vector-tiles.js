@@ -35,8 +35,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260829-22173ee";
-import { renderFeatureCollection } from "./vector-render.js?v=20260829-22173ee";
+import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260829-0b5e89a";
+import { renderFeatureCollection } from "./vector-render.js?v=20260829-0b5e89a";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -75,6 +75,30 @@ async function loadTile(sources, z, x, y, signal) {
  * @param {function} options.colourFor  feature -> CSS colour, or null
  * @param {number} options.cacheTiles   built tiles kept in memory
  */
+/**
+ * How many tiles a PROBE may fetch, by named level.
+ *
+ * Not the same question as `maxTiles`, which bounds what is DRAWN so a refine
+ * cannot stutter the flight it was meant to serve. A probe draws nothing: what
+ * bounds it is politeness to somebody else's tile server and the patience of
+ * whoever pressed the button.
+ *
+ * Measured over Northern Ireland — tiles a level needs, EPSG:4326 being 2x1 at
+ * zoom 0 so a tile spans 360/2^(z+1) degrees:
+ *
+ *   box            z8    z9    z10   z11   z12
+ *   2.8 x 1.3 deg   9    20    63    238   891
+ *   0.6 x 0.45 deg  2     6    12    30     90
+ *
+ * and the compilation's own detail peaks at **zoom 11**, going THINNER past it
+ * (measured: 151 features at 11, 123 at 12, 38 at 13, the unit count collapsing
+ * 22 to 15 to 8). So `balanced` reaches the peak for an ordinary study area and
+ * `full` reaches it for a large one; `fast` is the old drawing budget, kept as
+ * the way to ask for a quick answer on purpose rather than by accident.
+ */
+export const TILE_BUDGETS = { fast: 16, balanced: 96, full: 320, maximum: 1200 };
+const AUTO_TILE_BUDGET = TILE_BUDGETS.balanced;
+
 export function createTiledVectorLayer({
   name = "vector tiles",
   kind = "units",
@@ -702,20 +726,48 @@ export function createTiledVectorLayer({
   }
 
   /** One level, fetched into the cache and read back. Draws nothing. */
-  async function levelFeatures(bounds, z, signal) {
-    const wanted = tilesForBounds(bounds, z).slice(0, maxTiles);
-    if (!wanted.length) return { features: [], zoom: z, tiles: 0 };
-    await fetchInto(wanted, null, signal, null);
+  /**
+   * A level that cannot be COVERED is REFUSED, never truncated.
+   *
+   * This used to be `tilesForBounds(bounds, z).slice(0, maxTiles)` with
+   * `maxTiles` at SIXTEEN — a silent truncation, and the same fault
+   * `chooseZoom` documents for the display path, left standing on the path
+   * every extraction and clip takes. The damage is worse here, because the
+   * climb in `featuresIn` reads a truncated level as the SOURCE RUNNING OUT:
+   * fewer tiles fetched, fewer vertices counted, `detail` falls, the level is
+   * called barren and the climb stops.
+   *
+   * Measured live over Northern Ireland, before this: a 2.8 x 1.3 degree study
+   * area shipped at **zoom 8** because zoom 9 needs 20 tiles, and a 0.6 x 0.45
+   * degree one at **zoom 10** because zoom 11 needs 30. Both stopped at exactly
+   * the last level fitting under 16 — not at the source's own ceiling, which is
+   * zoom 11. Three levels of generalisation, and it is generalisation that
+   * opens the gaps at contacts: at zoom 4 this file measured 280 dark holes and
+   * at zoom 9 zero, because at native scale the polygons still share their
+   * boundaries.
+   *
+   * `maxTiles` still bounds what is DRAWN, which is what it was written for.
+   * A probe draws nothing and gets its own budget.
+   */
+  async function levelFeatures(bounds, z, signal, cap = maxTiles) {
+    const needed = tilesForBounds(bounds, z);
+    if (!needed.length) return { features: [], zoom: z, tiles: 0, needed: 0 };
+    if (needed.length > cap) {
+      return { features: [], zoom: z, tiles: 0, needed: needed.length, refused: true };
+    }
+    await fetchInto(needed, null, signal, null);
     const out = [];
-    wanted.forEach((t) => {
+    needed.forEach((t) => {
       const tile = tiles.get(key(t.z, t.x, t.y));
       if (tile?.state === "ready") tile.features.forEach((f) => out.push(f));
     });
-    return { features: out, zoom: z, tiles: wanted.length };
+    return { features: out, zoom: z, tiles: needed.length, needed: needed.length };
   }
 
   async function featuresIn(bounds, { zoom = null, featureBudget = 60000, signal = null,
-    maxProbeTiles = 64 } = {}) {
+    tileBudget = AUTO_TILE_BUDGET, maxProbeTiles = null } = {}) {
+    // `maxProbeTiles` was the old name and some callers may still pass it.
+    const budget = Math.max(1, Number(maxProbeTiles ?? tileBudget) || AUTO_TILE_BUDGET);
     if (!bounds || !Number.isFinite(bounds.west)) return { features: [], zoom: null, tiles: 0 };
     /**
      * The zoom a BOX deserves, because there is no camera to ask.
@@ -736,8 +788,17 @@ export function createTiledVectorLayer({
      */
     if (zoom != null) {
       // An explicit level is honoured exactly — the caller has said what it
-      // wants and the display path depends on that.
-      return levelFeatures(bounds, chooseZoom(bounds, zoom, featureBudget, 0), signal);
+      // wants and the display path depends on that. It is still walked DOWN to
+      // something coverable rather than truncated, and says so, because a
+      // half-covered answer read as a whole one is the fault this whole path
+      // was built around.
+      let z = chooseZoom(bounds, zoom, featureBudget, 0);
+      let got = await levelFeatures(bounds, z, signal, budget);
+      while (got.refused && z > 0) {
+        z -= 1;
+        got = await levelFeatures(bounds, z, signal, budget);
+      }
+      return { ...got, asked: zoom, walkedDown: z < chooseZoom(bounds, zoom, featureBudget, 0) };
     }
 
     /**
@@ -766,13 +827,25 @@ export function createTiledVectorLayer({
     const start = Math.max(0, zoomForBounds(bounds, { maxZoom }) - 2);
     let best = null;
     let barren = 0;
+    // What each level would have cost, so a caller can OFFER the levels this
+    // source actually supports over this ground rather than guessing at them.
+    const levels = [];
+    let stoppedFor = null;
     for (let z = start; z <= maxZoom + 3; z += 1) {
       const needed = tilesForBounds(bounds, z).length;
-      // A probe costing more tiles than the whole view is not worth the
-      // answer; whatever is already in hand is returned instead.
-      if (best && needed > maxProbeTiles) break;
-      const got = await levelFeatures(bounds, z, signal);
+      // A probe costing more tiles than the budget allows ends the climb — and
+      // it is recorded as a BUDGET stop, not as the source running out, so the
+      // difference is visible to whoever is deciding what to ship.
+      if (needed > budget) {
+        levels.push({ zoom: z, tiles: needed, overBudget: true });
+        if (best) { stoppedFor = "budget"; break; }
+        // Nothing in hand yet: the box is huge, so take the coarsest level
+        // that does fit rather than returning nothing at all.
+        continue;
+      }
+      const got = await levelFeatures(bounds, z, signal, budget);
       const detail = detailWithin(got.features, bounds);
+      levels.push({ zoom: z, tiles: got.tiles, features: got.features.length, detail });
       if (!best || detail > best.detail) {
         best = { ...got, detail };
         barren = 0;
@@ -787,9 +860,11 @@ export function createTiledVectorLayer({
        * is the source having actually run out.
        */
       barren += 1;
-      if (barren >= 2) break;
+      if (barren >= 2) { stoppedFor = "source"; break; }
     }
-    return best || { features: [], zoom: start, tiles: 0 };
+    return best
+      ? { ...best, levels, stoppedFor: stoppedFor || "source", budget }
+      : { features: [], zoom: start, tiles: 0, levels, stoppedFor, budget };
   }
 
   function featureCount() {

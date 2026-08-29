@@ -20,7 +20,7 @@
  */
 let pass = 0;
 let fail = 0;
-const ok = (name, cond) => { if (cond) { pass += 1; } else { fail += 1; console.log(`FAIL ${name}`); } };
+const ok = (name, cond) => { if (cond) { pass += 1; console.log(`PASS ${name}`); } else { fail += 1; console.log(`FAIL ${name}`); } };
 
 globalThis.window = globalThis;
 
