@@ -2965,6 +2965,67 @@ deliberately uncorrelated observations — which is the CORRECT answer, and a
 tidy reminder that a validation tool agreeing with chance is sometimes the
 data, not a bug.
 
+## The full-development sweep: check OUTPUTS, not ok flags
+
+Every tool run through the real runner with pure DEFAULTS (auto-resolved
+inputs, untouched params) and its OUTPUT inspected — band stats for rasters,
+feature counts for vectors, row shapes for tables — then all 48 dialogs
+opened and their input/field selects checked for real options. Final state:
+**48/48 run with defaults and produce non-empty outputs; 48/48 forms open
+with every select populated.** Six real faults on the way, each invisible to
+an ok-flag sweep:
+
+- **`watershed` had shipped EMPTY since day one.** Its engine read `p.lat`
+  and `p.lon` while the tool declared NO params, so every run walked in with
+  `(NaN, NaN)`: NaN compares false against every bound, the range check
+  passed vacuously, `out[NaN] = 1` seeded nothing, and an empty basin
+  returned as `ok: true`. Outlet params exist now; the untouched default
+  means "the main river's exit" (fill once, flow accumulation, argmax cell,
+  stated in the message with the catchment area), and `hydrology.watershed`
+  refuses a non-finite outlet outright (pinned). Every earlier sweep counted
+  this tool as passing.
+- **`viewshed` ignored the observer height it collected** — the engine read
+  `p.observerHeight`/`p.radiusKm` against params named `height` and nothing:
+  a form field an engine never reads is the quietest dead control. And the
+  observer defaulted to (0, 0), the Gulf of Guinea, so the untouched form
+  always answered "outside the DEM". The default now means the DEM centre
+  and says so; a typed point off the DEM keeps the honest error.
+- **`reclassify`'s default rules were the NI slope classes** — a worked
+  example that silently assumed the input was slope in degrees; on the
+  obvious first raster (a DEM in metres) not one cell matched. Blank rules
+  now mean "cut into N quantile classes" (zero typing on ANY raster;
+  quantile because most rasters here are skewed — the FRP lesson), and a
+  rules miss names the raster's actual range. Two follow-up faults in the
+  fix itself, both caught live and neither by the unit suite: the quantile
+  rules were `{min,max,value}` objects where `RA.reclassify` destructures
+  `[min, max, class]` ARRAYS, and the success note still read the variable
+  the edit had renamed.
+- **`rasterize` was polygon-only**, so an OCCURRENCE layer of points — the
+  commonest rasterize in a susceptibility workflow — produced an empty grid
+  behind an error about polygon overlap. Points stamp their containing cell,
+  lines are walked at half-cell steps (pinned: a diagonal stamps every
+  column it crosses).
+- **`rocAuc` refused presence-only observations** ("ROC needs both
+  outcomes") — exactly what a landslide inventory is. Seeded random
+  background cells now stand in as pseudo-absences (the South Wales
+  validation's own method), and the message says the negatives are
+  background, not observed. Measured on deliberately uncorrelated fixtures:
+  AUC 0.47, which is the CORRECT answer.
+- **`zonalStatistics` answers as the ZONES now, not a discarded table** —
+  the polygons with `zonal_cells/min/max/mean/sum/std` written back as
+  attributes, painted by `zonal_mean` on arrival through the same `paint`
+  seam the multi-ring buffer uses. The join back to features is by IDENTITY
+  of the properties object the engine already carries — results skip
+  zone-less features, so index pairing would hand zone 3's numbers to
+  zone 2. Verified: two symmetric zones, 2,014 cells each, west mean 2,812 m
+  against east 2,044 m over ground that really does fall eastward.
+
+**Harness traps, paid for again in one session:** importing `tool-dialog.js`
+under a fresh `?v=` makes a SECOND instance whose backdrop poisons the
+page's own (every later open "fails"); read the stamp off a live script tag
+and import THAT. And close a dialog through its own button — forcing
+`hidden = true` desyncs the module's internal state so nothing reopens.
+
 ## "Not easily used" measured out as: 30 tools waiting on a raster nobody had
 
 Asking what each tool DEMANDS was more revealing than asking what it produces.
