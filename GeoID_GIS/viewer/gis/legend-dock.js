@@ -117,7 +117,7 @@ const STYLE = `
   /* The head is a BAR across the top of the tile, so the padding belongs to
      the head and the body, never to the card between them. */
   padding: 0;
-  border: 1px solid rgba(var(--nav-accent-rgb), 0.18);
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.16);
   border-radius: 0.78rem;
   /* Opaque, and this is the reason: the panel behind it is a translucent
      sheet over the globe, so a translucent card renders whatever imagery
@@ -129,16 +129,18 @@ const STYLE = `
 /* Filled is OPEN, everywhere in this GUI: the rail buttons, the nav tabs and
    the sub-tab cards all say it with a solid accent and dark ink, and a legend
    card that folds is the same kind of thing. Which head belongs to which body
-   is then never in question with several stacked. */
-#map-legend-panel .legend-entry:not(.is-folded) {
-  border-color: rgb(var(--nav-accent-rgb));
-  box-shadow: 0 0 18px -6px rgba(var(--nav-accent-rgb), 0.55);
-}
+   is then never in question with several stacked.
+   ONE loud thing per tile, though. In the sidebar an open card also takes a
+   bright border and a glow, and it can: it sits on a flat panel with no frame
+   of its own. Here the card sits inside a bordered floating tile, so doing the
+   same stacked three magenta rings inside one another -- panel, card, head --
+   and that is what read as messy. The filled head alone says open; the card
+   keeps its quiet hairline in both states. */
 #map-legend-panel .legend-entry:not(.is-folded) > .legend-entry-head {
   background: rgb(var(--nav-accent-rgb));
   color: var(--skin-chrome-ink, #2b0030);
-  border-bottom-color: rgba(0, 0, 0, 0.22);
 }
+#map-legend-panel .legend-entry:not(.is-folded) > .legend-entry-head * { color: inherit; }
 #map-legend-panel .legend-entry-body {
   /* A shade under the cards, so the tile still reads as raised off it. */
   background: rgb(16, 7, 36);
@@ -160,13 +162,12 @@ const STYLE = `
   max-height: min(62vh, 34rem);
   display: block;
   padding: 0.55rem;
-  border: 1px solid rgba(var(--nav-accent-rgb), 0.55);
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.34);
   border-radius: 0.6rem;
   background: rgb(16, 7, 36);
   box-shadow:
-    0 0 24px -6px rgba(var(--nav-accent-rgb), 0.45),
-    0 12px 28px rgba(0, 0, 0, 0.42),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+    0 0 22px -10px rgba(var(--nav-accent-rgb), 0.5),
+    0 12px 28px rgba(0, 0, 0, 0.45);
 }
 /* ...and the one rule that makes the hidden attribute mean anything here.
    NO BACKTICKS in this block -- it is a template literal and one ends it.
@@ -183,19 +184,34 @@ const STYLE = `
    was "block" and the box was a real size on screen. Assert the PAINT, never
    the property -- the property was right the whole time. */
 #map-legend-panel[hidden] { display: none !important; }
-/* One voice for section heads across the GUI, which is the sidebar's own --
-   measured against a live .gis-tool-section summary: Exo 2 600 at 0.76rem
-   with 0.1em of tracking. The legend was drawing 400 weight at 0.73rem with
-   0.08em, which is what made it read as a lighter, separate system. */
+/* The head is a BAR, and .layer-type-badge is a CHIP everywhere else.
+ *
+ * That class is a pill by definition -- display: inline-flex, width:
+ * fit-content, border-radius: 999px, its own 1px border -- which is right
+ * where it labels a layer inline and wrong as the lid of a tile. Setting only
+ * colour and type on it left a rounded pill floating inside a rounded card
+ * with a gap all round: measured 157.9px of head inside a 260.4px card. Every
+ * one of those chip properties has to be undone by name.
+ *
+ * Square shoulders: the card clips it (overflow: hidden), so the bar meets the
+ * tile's own corners and needs no radius of its own.
+ *
+ * One voice for section heads across the GUI, which is the sidebar's own --
+ * measured against a live .gis-tool-section summary: Exo 2 600 at 0.76rem
+ * with 0.1em of tracking. */
 #map-legend-panel .layer-type-badge {
+  display: flex;
+  width: auto;
   margin: 0;
   padding: 0.7rem 0.78rem;
+  border: 0;
+  border-radius: 0;
+  background: none;
   font-family: "Exo 2", "Segoe UI", sans-serif;
   font-weight: 600;
   font-size: 0.76rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  border-bottom: 1px solid rgba(var(--nav-accent-rgb), 0.08);
 }
 #map-legend-panel .metadata-section-copy { margin: 0 0 0.35rem; font-size: 0.72rem; line-height: 1.45; }
 #map-legend-panel .legend-symbol-list { margin-top: 0.45rem; gap: 0.4rem; }
