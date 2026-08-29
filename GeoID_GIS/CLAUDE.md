@@ -3070,6 +3070,50 @@ raster.** It cost a round: an imported polygon fills by default, draws above
 the drapes, and its legend swatch is the tell. Check what is actually on top
 before diagnosing the layer underneath it.
 
+## Native resolution is a property of the LAYER, and it is measured
+
+Extraction resampled every layer onto one uniform grid whose spacing the user
+typed. That is right for a JOINED table — one row per sample, a column per
+layer, which is what the built-in elevation/geology/climate columns live on
+and what a model wants — and it is not what the DATASET says. Read a 30 m
+GeoTIFF at 1 km and 99.9% of it never appears; read a global Earth Engine
+snapshot at 1 km and ONE pixel is spread over thousands of identical rows.
+Both come back looking equally authoritative.
+
+`nativeGridOf(layer)` answers what grid a layer actually holds, and **nothing
+about it is declared**:
+
+- a RASTER layer (GeoTIFF, `.asc`, any tool output) IS its grid;
+- a DRAPE's grid is the DELIVERED image behind it — a cached global snapshot
+  is 1024 px for the whole world however fine the archive is, so the number
+  must come from the image in hand and never from the catalogue's
+  `nativeScale`. Measured on the real CHIRPS cache: 1024x484, **39,136 m per
+  pixel**;
+- a VECTOR returns null and says so. It has no resolution; it is clipped
+  exactly, never sampled.
+
+`extractNative` walks the polygon's own box **in the layer's grid indices**,
+not the layer — a global drape is millions of cells and a study area is a
+handful, and iterating the layer to find the handful is the difference
+between an answer and a hung tab. Where the polygon is smaller than one cell
+the answer is ONE ROW: that is what the dataset knows about this ground, and
+padding it out is how a single pixel comes to look like a survey.
+
+Both run on every extraction now — the uniform grid as before, plus one
+native table per sampled layer, reported in the status and exported as
+`geoid_native_<layer>` beside it. Verified through the panel itself over a
+drawn study area on the Congo, with a GEE drape and a local DEM ticked:
+*"12,508 samples over 1,234,862 km² · Rainfall (CHIRPS) at its own 39,136 m
+cells: 784 cells; local_dem at its own 9,200 m cells: 14,641 cells."* The
+uniform grid would have spread those 784 real readings across 12,508 rows.
+
+**What native CANNOT do is make a coarse fetch finer.** 39 km a pixel is the
+cached snapshot's own resolution, not CHIRPS's 5.5 km; the way to a finer
+grid is to FETCH the dataset over the drawn extent through the GEE dialog,
+which `resolutionNote` already states as a shortfall against the published
+`nativeScale`. Extraction reports what arrived, which is the only thing it
+can honestly report.
+
 ## Which maps the tools can actually see — audited by asking the seams
 
 "Are all pre-loaded maps and those imported via GEE available for the GIS
