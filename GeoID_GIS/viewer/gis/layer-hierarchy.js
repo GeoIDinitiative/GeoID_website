@@ -10,12 +10,12 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260829-0205201";
-import { samplerToRaster } from "./raster-analysis.js?v=20260829-0205201";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-0205201";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260829-0205201";
-import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260829-0205201";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260829-0205201";
+import { currentBody } from "./bodies.js?v=20260829-2489117";
+import { samplerToRaster } from "./raster-analysis.js?v=20260829-2489117";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-2489117";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260829-2489117";
+import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260829-2489117";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260829-2489117";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -145,27 +145,18 @@ const STYLE = `
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  margin: -0.15rem 0 0.15rem 1.35rem;
-  padding: 0.45rem 0.5rem;
-  /* The indent is part of the width, and the drawer never exceeds its row. */
+  /* FLUSH with the row it belongs to. The 1.35rem indent lined the drawer up
+     with the row's TEXT, which reads as a drawer that has come untucked on one
+     side -- and it was 22 px of the width the buttons needed. */
+  margin: -0.15rem 0 0.15rem 0;
+  padding: 0.45rem 0.35rem;
   box-sizing: border-box;
-  max-width: calc(100% - 1.35rem);
+  max-width: 100%;
   border: 1px solid rgba(var(--nav-accent-rgb), 0.45);
   border-top-color: transparent;
   border-radius: 0 0 0.45rem 0.45rem;
   background: #000;
   font-size: 0.66rem;
-}
-/* The one thing that may be shortened: the buttons must stay whole and
-   readable, and the detail repeats what the layer's own row already says. */
-.layer-options-detail {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--muted);
-  font-size: 0.6rem;
 }
 /* Centred and equal: these are alternatives to one another, so none of them
    leads -- and they WRAP, because there are eight of them now.
@@ -183,15 +174,20 @@ const STYLE = `
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 0.25rem;
+  /* Sized to fit all eight on ONE line at the dock's own width: measured,
+     337 px of buttons in 348 px of drawer. Wrapping stays as the fallback --
+     the dock narrows to 20rem under the short-landscape rule, where one line
+     is not arithmetically possible and two whole buttons beat eight clipped
+     ones. */
+  gap: 0.16rem;
   flex: 0 1 auto;
   min-width: 0;
 }
 .layer-props-inline {
-  margin: -0.15rem 0 0.15rem 1.35rem;
+  margin: -0.15rem 0 0.15rem 0;
   padding: 0.5rem 0.55rem 0.6rem;
   box-sizing: border-box;
-  max-width: calc(100% - 1.35rem);
+  max-width: 100%;
   border: 1px solid rgba(var(--nav-accent-rgb), 0.3);
   border-top: 0;
   border-radius: 0 0 0.45rem 0.45rem;
@@ -208,9 +204,9 @@ const STYLE = `
 .layer-options-btn {
   flex: 0 0 auto;
   width: auto;
-  padding: 0.18rem 0.4rem;
+  padding: 0.18rem 0.24rem;
   border-radius: 0.35rem;
-  font-size: 0.6rem;
+  font-size: 0.55rem;
   white-space: nowrap;
 }
 /* Removing a layer throws work away and cannot be undone, so it does not look
@@ -597,13 +593,12 @@ function optionsTile(layer) {
   const what = manager?.describeLayer?.(layer);
   // No format badge. The row above already carries the layer's kind in its own
   // column, so the tile was repeating it directly underneath -- and the format
-  // is not something you act on, which is what this tile is for.
-  if (what) {
-    const detail = document.createElement("span");
-    detail.className = "layer-options-detail";
-    detail.textContent = what;
-    tile.appendChild(detail);
-  }
+  // is not something you act on, which is what this tile is for -- and NOR IS
+  // THE FEATURE COUNT, which is why it has gone the same way as the badge. It
+  // claimed the whole first line of the drawer ("1 features", centred, above
+  // the buttons) to restate something the layer's own row and its legend entry
+  // both already carry, and it was the reason the drawer needed two lines at
+  // all. A drawer is the things you can DO to a layer.
 
   /**
    * The tag, editable forever — but ONLY on the user's own inputs. A
