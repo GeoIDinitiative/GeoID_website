@@ -140,12 +140,21 @@ async function refine(entry, viewBox, macro) {
     // feature budget and the tile cap, and recording the ask would make the
     // next settle believe it had already arrived there and skip the work.
     entry.zoom = Number.isFinite(got?.zoom) ? got.zoom : zoom;
-    // The layer's own record has to follow, or everything downstream -- the
-    // click picker, an extraction, the legend count -- is reading the level
-    // this layer was BORN at rather than the one it is drawing.
-    const fc = { type: "FeatureCollection", features: entry.controller.features() };
-    entry.layer.features = fc.features;
-    entry.layer.collection = fc;
+    /**
+     * The DRAWN map refines; the layer's FEATURE LIST does not shrink to the
+     * view, and the difference matters.
+     *
+     * `features()` answers the finest zoom on screen, which is right for the
+     * world layer — an extraction must never count the same ground twice. For
+     * a clip it is wrong in a way that loses data silently: measured, flying
+     * to 12 km took the layer's list from 277 features to **39**, the 39 being
+     * the corner in shot, and the legend said "39 polygons". Exporting at that
+     * moment would have written a study area with most of itself missing.
+     *
+     * A clip IS its study area. The list stays the complete area at the pinned
+     * level, and anything that wants finer data for a particular box asks
+     * `featuresIn`, which is the seam every tool already uses for exactly this.
+     */
     entry.layer.dynamicZoom = entry.zoom;
     window.GeoIDLayerHierarchy?.render?.();
   } catch (error) {
