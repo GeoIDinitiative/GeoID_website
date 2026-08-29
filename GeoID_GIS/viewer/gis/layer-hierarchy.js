@@ -10,13 +10,13 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { bandOf } from "./draw-order.js?v=20260829-525555a";
-import { currentBody } from "./bodies.js?v=20260829-525555a";
-import { samplerToRaster } from "./raster-analysis.js?v=20260829-525555a";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-525555a";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260829-525555a";
-import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260829-525555a";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260829-525555a";
+import { bandOf } from "./draw-order.js?v=20260829-09401e6";
+import { currentBody } from "./bodies.js?v=20260829-09401e6";
+import { samplerToRaster } from "./raster-analysis.js?v=20260829-09401e6";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-09401e6";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260829-09401e6";
+import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260829-09401e6";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260829-09401e6";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -389,7 +389,20 @@ function setOpacity(layer, value) {
        * them occlude whatever was drawn after them.
        */
       if (value < 0.999) material.transparent = true;
-      material.opacity = value;
+      /**
+       * A layer's opacity SCALES what an element was drawn at; it does not
+       * replace it.
+       *
+       * The contact stroke is drawn at its own subtle weight, and overwriting
+       * it meant dragging a sheet down to 40% PROMOTED its 25% contacts to
+       * 40% — the boundaries getting heavier as the map faded, which is how
+       * they came to be visible only at low opacity in the first place.
+       * Anything with no weight of its own is unaffected: `baseOpacity`
+       * defaults to 1 and 1 x value is value.
+       */
+      const base = Number.isFinite(material.userData?.baseOpacity)
+        ? material.userData.baseOpacity : 1;
+      material.opacity = value * base;
       material.needsUpdate = true;
     });
   });

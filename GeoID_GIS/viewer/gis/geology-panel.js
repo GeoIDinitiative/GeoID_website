@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260829-525555a";
-import { currentBodyId } from "./bodies.js?v=20260829-525555a";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260829-525555a";
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260829-525555a";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260829-09401e6";
+import { currentBodyId } from "./bodies.js?v=20260829-09401e6";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260829-09401e6";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260829-09401e6";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -165,6 +165,15 @@ const entryById = (id) => [GLOBAL_BASE, ...CATALOGUE].find((d) => d && d.id === 
 /* ── Style ───────────────────────────────────────────────────────────────── */
 
 const STYLE = `
+.gis-geo-contacts {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.5rem; margin-top: 0.3rem;
+}
+.gis-geo-contacts > span {
+  font-family: 'Exo 2', system-ui, sans-serif; font-size: 0.58rem;
+  letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.78;
+}
+.gis-geo-contacts > select { flex: 0 0 auto; font-size: 0.6rem; padding: 0.1rem 0.3rem; }
 /* NEVER a backtick in this block -- it is a template literal and one ends it.
    module-css.test.mjs catches that; a browser does not. */
 #gis-geology-panel { display: flex; flex-direction: column; gap: 0.4rem; }
@@ -241,6 +250,34 @@ const fetched = new Map();
  * because the map refreshed is the same class of fault as the camera jumping:
  * the app undoing something the user did.
  */
+/**
+ * How the unit boundaries are drawn. Remembered, because it is a reading
+ * preference rather than a property of any one dataset.
+ *
+ * "off" is the historic look — the seal in each polygon's own colour, so no
+ * boundary is visible and the sheet reads as flat blocks of unit colour.
+ */
+const CONTACT_STYLES = {
+  off: { mode: "match", opacity: 1 },
+  subtle: { mode: "shade", shade: 0.62, opacity: 0.55 },
+  strong: { mode: "shade", shade: 0.35, opacity: 0.9 },
+  ink: { mode: "ink", colour: 0x140f1a, opacity: 0.8 },
+};
+const CONTACT_KEY = "geoid-gis:geology-contacts";
+const contactChoice = () => {
+  try {
+    const saved = window.localStorage?.getItem(CONTACT_KEY);
+    return saved && CONTACT_STYLES[saved] ? saved : "subtle";
+  } catch (error) { return "subtle"; }
+};
+const setContactChoice = (value) => {
+  try { window.localStorage?.setItem(CONTACT_KEY, value); } catch (error) { /* private window */ }
+  // Every tiled geology layer on the globe, so the control means one thing.
+  loadedLayers().filter((l) => l.tiled?.setContacts).forEach((l) => {
+    l.tiled.setContacts(CONTACT_STYLES[value] || null);
+  });
+};
+
 const styleChoice = new Map();
 
 const loadedLayers = () => (window.GeoIDImportManager?.getLayers?.() || [])
@@ -301,6 +338,23 @@ async function loadTiled(entry, { toView = false, quiet = false } = {}) {
     // Macrostrat ships the colour each polygon is drawn in, so a source-coloured
     // layer is painted as its tiles are built rather than repainted afterwards.
     colourFor: entry.sourceColours ? (f) => f?.properties?.color || null : null,
+    /**
+     * CONTACTS ON, because a geological map draws its boundaries.
+     *
+     * The stroke is the `seal` that was always there — every polygon's own
+     * outline, at the fill's own height, at whatever level the source was
+     * streamed at — and giving it an ink is the whole of "add this detail to
+     * the surface". It costs no geometry and it keeps covering the hairline
+     * gaps it was written for.
+     *
+     * `shade` rather than a flat ink: multiplying each unit's own colour keeps
+     * a contact attributable to the unit it bounds, so the sheet still reads
+     * as its own legend rather than as a net thrown over it. 0.45 is dark
+     * enough to separate two similar units and light enough that a global view
+     * — where 9,000 boundaries are 9,000 one-pixel lines, because WebGL
+     * ignores `linewidth` — does not fill in solid.
+     */
+    contacts: CONTACT_STYLES[contactChoice()] || null,
   });
 
   const box = toView ? (macro.viewBounds() || macro.WORLD) : macro.WORLD;
@@ -1069,6 +1123,40 @@ function render() {
     });
 
     box.append(row, by, opacity);
+    /**
+     * BOUNDARIES, on a tiled layer only.
+     *
+     * The stroke is the seal, which only a filled tiled sheet builds — a
+     * shapefile somebody dropped has its own outline controls in the symbology
+     * dialog, and offering this there would be a second control for one idea.
+     * Changing it rebuilds what is on screen and fetches nothing.
+     */
+    if (layer.tiled?.setContacts) {
+      const line = document.createElement("label");
+      line.className = "gis-geo-contacts";
+      const caption = document.createElement("span");
+      caption.textContent = "Boundaries";
+      const pick = document.createElement("select");
+      pick.className = "input";
+      [["subtle", "Subtle"], ["strong", "Strong"], ["ink", "Ink"], ["off", "None"]]
+        .forEach(([id, label]) => {
+          const option = document.createElement("option");
+          option.value = id;
+          option.textContent = label;
+          pick.appendChild(option);
+        });
+      pick.value = contactChoice();
+      pick.title = "Draw each unit's own contact. Costs no extra data — the "
+        + "boundary is already built to cover the hairline between neighbours.";
+      pick.addEventListener("change", () => {
+        setContactChoice(pick.value);
+        say(pick.value === "off"
+          ? "Unit boundaries hidden."
+          : `Unit boundaries: ${pick.options[pick.selectedIndex].textContent.toLowerCase()}.`);
+      });
+      line.append(caption, pick);
+      box.appendChild(line);
+    }
     nodes.loaded.appendChild(box);
   });
 }

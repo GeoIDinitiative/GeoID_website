@@ -35,8 +35,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260829-525555a";
-import { renderFeatureCollection } from "./vector-render.js?v=20260829-525555a";
+import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260829-09401e6";
+import { renderFeatureCollection } from "./vector-render.js?v=20260829-09401e6";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -107,6 +107,7 @@ export function createTiledVectorLayer({
   cacheTiles = 64,
   maxTiles = 16,
   maxZoom = 13,
+  contacts = null,
 } = {}) {
   // Unversioned, exactly as every other module imports it: a second copy of
   // three.js on the page breaks class identity and nothing is a Mesh any more.
@@ -116,6 +117,7 @@ export function createTiledVectorLayer({
   /** key -> { z, x, y, features, node, used, state } */
   const tiles = new Map();
   let paint = colourFor;
+  let contactStyle = contacts;
   let opacity = 1;
   /**
    * The BACKDROP: the whole world at a coarse zoom, pinned on for good.
@@ -160,6 +162,10 @@ export function createTiledVectorLayer({
       {
         name: `${name} ${tile.z}/${tile.x}/${tile.y}`,
         colourFor: paint,
+        // Read from the live variable, never captured: a tile built after the
+        // contacts were changed must match the ones already on screen, which
+        // is the same rule the opacity already follows.
+        contacts: contactStyle,
         // Only the backdrop carries the window: the view's own tiles are what
         // the window exists to show.
         hole: pinned.has(key(tile.z, tile.x, tile.y)) ? hole : null,
@@ -895,6 +901,19 @@ export function createTiledVectorLayer({
     opacity = Number.isFinite(value) ? value : 1;
   }
 
+  /**
+   * Change how contacts are drawn, rebuilding what is on screen.
+   *
+   * A rebuild rather than a material tweak because the ink is baked into the
+   * seal's per-vertex COLOUR — which is what lets each contact carry its own
+   * unit's hue. Same shape as `repaint`, and it reuses it: the tiles are
+   * already in hand, so this re-triangulates but fetches nothing.
+   */
+  function setContacts(style) {
+    contactStyle = style || null;
+    return repaint(paint);
+  }
+
   function dispose() {
     tiles.forEach((tile) => dropNode(tile));
     tiles.clear();
@@ -907,6 +926,7 @@ export function createTiledVectorLayer({
     pin,
     maskBackdrop,
     setOpacity,
+    setContacts,
     features,
     featuresIn,
     featureCount,

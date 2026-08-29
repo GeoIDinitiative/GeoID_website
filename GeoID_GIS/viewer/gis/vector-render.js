@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260829-525555a";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260829-525555a";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260829-525555a";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260829-09401e6";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260829-09401e6";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260829-09401e6";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -534,6 +534,39 @@ export function renderFeatureCollection(fc, {
    */
   outlineOnly = false,
   /**
+   * CONTACTS: whether a polygon's boundary is DRAWN, and in what.
+   *
+   * The `seal` below already strokes every filled polygon's own outline, at
+   * the fill's own height, at whatever detail the source was streamed at. It
+   * was built to cover a hairline and is painted the polygon's OWN colour, so
+   * it is invisible by construction — the geometry of a full contact network
+   * is on the GPU and nothing can see it.
+   *
+   * That is what the opacity slider was revealing, and it is worth writing
+   * down because it looks like a feature: at alpha < 1 a contact is stroked
+   * TWICE, once by each neighbour, so it accumulates more alpha than either
+   * interior and reads as an outline. Turn the layer opaque and it vanishes
+   * again. Reported as "intricate polygons revealed when we decrease the
+   * opacity" — an accumulation artefact that happens to look like the
+   * cartography anybody would want.
+   *
+   *   "match"  the polygon's own colour — invisible, and the historic default
+   *            for every non-geological vector layer
+   *   "shade"  its own colour DARKENED, so a contact reads as that unit's own
+   *            edge and the map still says what it said
+   *   "ink"    one colour for every contact, the way a printed sheet draws them
+   *
+   * `opacity` is the stroke's own, kept on the material as `baseOpacity` and
+   * MULTIPLIED by the layer slider rather than replaced by it — a layer at 40%
+   * should fade its contacts to 40% OF THEIR OWN weight, not promote them to
+   * 40% when they were meant to be 25%.
+   *
+   * Subtle on purpose: WebGL draws every line one device pixel wide whatever
+   * `linewidth` says, so at a global view 9,000 polygons' boundaries are 9,000
+   * hairlines and a strong ink turns the map into a net.
+   */
+  contacts = null,
+  /**
    * Is this layer a set of PLACES or a point CLOUD?
    *
    * The count decides by default, and the rule is sound: under 20,000 a layer
@@ -597,6 +630,24 @@ export function renderFeatureCollection(fc, {
   const scratch = new THREE.Color();
   let truncated = false;
 
+  /**
+   * What colour a contact is stroked in, resolved ONCE rather than per vertex.
+   *
+   * `shade` multiplies the unit's own colour, which keeps every contact
+   * attributable to the unit it bounds: a dark green edge belongs to the green
+   * unit, and the map still reads as its own legend. A flat `ink` is the
+   * printed-sheet look and says nothing about which side is which.
+   */
+  const contactMode = contacts?.mode || "match";
+  const contactShade = Number.isFinite(contacts?.shade) ? contacts.shade : 0.45;
+  const flatInk = contactMode === "ink"
+    ? new THREE.Color(contacts?.colour ?? 0x1a1420) : null;
+  const sealInk = contactMode === "ink"
+    ? { r: () => flatInk.r, g: () => flatInk.g, b: () => flatInk.b }
+    : contactMode === "shade"
+      ? { r: (c) => c.r * contactShade, g: (c) => c.g * contactShade, b: (c) => c.b * contactShade }
+      : { r: (c) => c.r, g: (c) => c.g, b: (c) => c.b };
+
   fc.features.forEach((feature) => {
     if (linePositions.length >= MAX_LINE_VERTICES) {
       truncated = true;
@@ -654,7 +705,7 @@ export function renderFeatureCollection(fc, {
           pushSegment(seal.positions, coords[i], coords[i + 1], FILL_DRAPE);
         }
         for (let i = before; i < seal.positions.length; i += 3) {
-          seal.colours.push(colour.r, colour.g, colour.b);
+          seal.colours.push(sealInk.r(colour), sealInk.g(colour), sealInk.b(colour));
         }
       });
     }
@@ -727,10 +778,16 @@ export function renderFeatureCollection(fc, {
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(seal.positions, 3));
     geometry.setAttribute("color", new THREE.Float32BufferAttribute(seal.colours, 3));
     attachReliefAttributes(geometry, FILL_DRAPE, builtRelief);
-    const segments = new THREE.LineSegments(geometry, followRelief(new THREE.LineBasicMaterial({
-      vertexColors: true, transparent: true, opacity: 1,
+    const sealOpacity = Number.isFinite(contacts?.opacity) ? contacts.opacity : 1;
+    const sealMaterial = followRelief(new THREE.LineBasicMaterial({
+      vertexColors: true, transparent: true, opacity: sealOpacity,
       depthTest: false, depthWrite: false,
-    }), FILL_DRAPE, { cullFarSide: true, hole }));
+    }), FILL_DRAPE, { cullFarSide: true, hole });
+    // The stroke's OWN weight. `setOpacity` multiplies by this instead of
+    // overwriting it, or the layer slider would promote a 25% contact to 40%
+    // on its way to fading the sheet.
+    sealMaterial.userData.baseOpacity = sealOpacity;
+    const segments = new THREE.LineSegments(geometry, sealMaterial);
     // Named, because `applyStack` rewrites renderOrder on every child and a
     // test that looks for this mesh by draw order finds nothing.
     segments.userData.geoidSeam = true;
