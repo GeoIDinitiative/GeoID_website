@@ -35,8 +35,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260829-80c27d1";
-import { renderFeatureCollection } from "./vector-render.js?v=20260829-80c27d1";
+import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260829-61a5260";
+import { renderFeatureCollection } from "./vector-render.js?v=20260829-61a5260";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -312,6 +312,22 @@ export function createTiledVectorLayer({
       if (weighed !== null) return weighed;
       return Math.max(fromBackdrop?.(level) ?? 0, fromLast?.(level) ?? 0);
     };
+    /**
+     * A level the view cannot be COVERED at is not a level, whatever it costs.
+     *
+     * `update` fetches `tilesForBounds(bounds, z).slice(0, maxTiles)` — a
+     * TRUNCATION, not a refusal — so a zoom needing more tiles than the cap
+     * paints part of the view sharply and leaves the rest to the backdrop.
+     * That is a coarse slab across half the screen with the fine map beside
+     * it, and it appeared the moment the feature budget stopped being the
+     * binding constraint: the deeper levels the per-tile fix unlocked are
+     * exactly the ones that need more tiles than the cap allows.
+     *
+     * Feature budget and tile cap are different limits — one is how long the
+     * triangulation takes, the other is whether the picture is whole — and
+     * only the second can make the map wrong rather than merely slow.
+     */
+    while (z > floorZoom && tilesForBounds(bounds, z).length > maxTiles) z -= 1;
     if (!sources.size && !fromBackdrop && !fromLast) return z;
     while (z > floorZoom && predict(z) > budget) z -= 1;
     return z;
