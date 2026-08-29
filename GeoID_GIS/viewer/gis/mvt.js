@@ -304,6 +304,26 @@ export function decodeTile(buffer, { z, x, y, only = null } = {}) {
 }
 
 /** Which XYZ tiles cover a lon/lat box at one zoom. */
+/**
+ * The zoom a BOX deserves, when there is no camera to ask.
+ *
+ * EPSG:4326 is 2x1 at zoom 0, so a tile spans 360/2^(z+1) degrees; the level
+ * where a box covers about two tiles across is log2(720/W) - 1.
+ *
+ * It exists because the alternative was a NULL, and a null reaching
+ * `Math.round` is ZERO — which asked for the single world tile: 5,792 units
+ * for the whole planet, generalised so hard that point-in-polygon finds
+ * nothing under Northern Ireland. An extraction over a study area came back
+ * with three units, all of them things like "Precambrian-Phanerozoic
+ * crystalline metamorphic rocks". Ask for a zoom by name or compute one; do
+ * not let a missing one mean the coarsest possible answer.
+ */
+export function zoomForBounds({ west, east } = {}, { maxZoom = 12 } = {}) {
+  const width = Math.abs(Number(east) - Number(west));
+  if (!Number.isFinite(width) || width <= 0) return 0;
+  return Math.max(0, Math.min(maxZoom, Math.round(Math.log2(720 / width) - 1)));
+}
+
 export function tilesForBounds({ west, south, east, north }, z) {
   const scale = 2 ** z;
   const xOf = (lon) => Math.floor(((lon + 180) / 360) * scale);

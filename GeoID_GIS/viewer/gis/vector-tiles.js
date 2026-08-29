@@ -35,8 +35,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds } from "./mvt.js?v=20260829-f46ef70";
-import { renderFeatureCollection } from "./vector-render.js?v=20260829-f46ef70";
+import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260829-5cd6a46";
+import { renderFeatureCollection } from "./vector-render.js?v=20260829-5cd6a46";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -613,10 +613,7 @@ export function createTiledVectorLayer({
      * chooseZoom then still applies its own budget from there, so this only
      * sets an honest starting point.
      */
-    const widthDeg = Math.max(1e-6, Math.abs(bounds.east - bounds.west));
-    const want = zoom == null
-      ? Math.max(0, Math.round(Math.log2(720 / widthDeg) - 1))
-      : zoom;
+    const want = zoom == null ? zoomForBounds(bounds, { maxZoom }) : zoom;
     const z = chooseZoom(bounds, want, featureBudget, 0);
     const wanted = tilesForBounds(bounds, z).slice(0, maxTiles);
     if (!wanted.length) return { features: [], zoom: z, tiles: 0 };

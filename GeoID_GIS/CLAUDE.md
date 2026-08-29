@@ -3070,6 +3070,61 @@ raster.** It cost a round: an imported polygon fills by default, draws above
 the drapes, and its legend swatch is the tell. Check what is actually on top
 before diagnosing the layer underneath it.
 
+## An extraction asks about GROUND, never about the screen
+
+Reported as drawing a square polygon and getting no geology data at all out
+of the geology source map. It reproduced first try, with everything as
+shipped: *"Within the drawn area — 7,567 samples over 7,511 km² · 1 vector
+layer: 0 of 0 features within"* — with the geological map plainly drawn on
+the globe, and the panel's OWN tick list beside it reading "9,137 features".
+Both numbers were true and the answer was still nothing.
+
+**Four faults, and each one hid the next.**
+
+- **The geology COLUMN was off by default.** It shipped unchecked, labelled
+  "GeoID geology class (slower)", so the main table — the file anyone
+  actually opens — had no geology column at all whatever was on the globe.
+- **`features()` answers "what is on screen".** That is right for a click
+  card and catastrophic for an extraction: `collection` is a SNAPSHOT of
+  whatever the camera was showing when the layer last rebuilt itself, and the
+  tiled geology rewrites itself on every settle. The tick list counted the
+  screen; the clip read the same screen a moment later, after a rebuild had
+  emptied `visible`. `featuresIn(bounds)` asks the tiler about GROUND
+  instead — it chooses the zoom the box deserves, fetches what is missing
+  (cached, so a second extraction over the same area is free) and returns
+  those features **without touching `visible`, `generation` or the scene**,
+  so extracting never changes the picture. A layer that can do this says so
+  by carrying `featuresIn`, and the panel asks every such layer about the
+  study area before anything is clipped.
+- **`Math.round(null)` is ZERO.** Passing "no particular zoom" to
+  `chooseZoom` asked for the single world tile — 5,792 units for the whole
+  planet, generalised so hard this file already records point-in-polygon
+  finding nothing under Northern Ireland. Measured: 3 features clipped, all
+  of them things like "Precambrian-Phanerozoic crystalline metamorphic
+  rocks". The same shape as NaN-compares-false: a missing value that means
+  the worst possible answer instead of erroring. `zoomForBounds` lives in
+  mvt.js with the rest of the tiling arithmetic and is pinned there.
+- **The geology column asked the VIEWER**, whose `getGeologyFeatureAtLatLon`
+  answers from the map it currently has DRAWN. With the camera over Indonesia
+  and the study area over Northern Ireland it returned nothing for all 7,567
+  samples while the clip beside it returned real units. It reads the features
+  covering the polygon now — the same ones the clip uses — so the column and
+  the clipped layer are ONE SOURCE OF TRUTH and cannot disagree.
+
+Verified under the hardest case available: geology loaded over Northern
+Ireland, camera then flown to Indonesia (7,807 features on screen, all of
+them the wrong ground), study area drawn over Northern Ireland, extraction
+run with nothing touched. **966 features fetched for the box, 358 clipped
+within the polygon, and the geology column filled for 7,477 of 7,567
+samples — 98.8% — with Tyrone Group, Armagh Group, Leitrim Group, Gala
+Group.** The 1.2% empty are samples over sea, which is the honest answer.
+
+**The general rule this leaves:** a self-rebuilding layer's `collection` is a
+snapshot with a timestamp nobody can see. Any consumer that asks a question
+about a PLACE — extraction, clipping, sampling, zonal statistics — must ask
+the layer about that place, not read whatever the layer last happened to
+hold.
+
 ## A drawn shape draws over every dataset mapped
 
 A study area is not a dataset, it is the QUESTION being asked of the

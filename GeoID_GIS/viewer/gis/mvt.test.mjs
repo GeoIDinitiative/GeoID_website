@@ -12,7 +12,7 @@
  * Run: node GeoID_GIS/viewer/gis/mvt.test.mjs
  */
 
-import { decodeTile, tilesForBounds } from "./mvt.js";
+import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js";
 
 let failures = 0;
 function check(name, ok, detail = "") {
@@ -264,6 +264,23 @@ check("Northern Ireland at z8 is a handful of tiles",
   ni.length >= 4 && ni.length <= 12, `${ni.length} tiles`);
 check("and they are the tiles Macrostrat would be asked for",
   ni.some((t) => t.x === 124 && t.y === 80), JSON.stringify(ni));
+
+/* ── The zoom a box deserves ────────────────────────────────────────────────
+   A null zoom used to reach Math.round and become ZERO — the single world
+   tile, 5,792 generalised units for the whole planet. An extraction over a
+   study area then clipped three of them. */
+{
+  // Northern Ireland, about 1.5 degrees across: fine enough to hold real units.
+  const ni = zoomForBounds({ west: -7.6, east: -6.1 });
+  check("a 1.5 degree box asks for a fine zoom", ni >= 7 && ni <= 9, String(ni));
+  // A hemisphere asks for a coarse one.
+  check("a 180 degree box asks for a coarse zoom",
+    zoomForBounds({ west: -180, east: 0 }) <= 2, String(zoomForBounds({ west: -180, east: 0 })));
+  // The whole point: a missing box must not silently mean zoom 0 on real input.
+  check("a small box NEVER answers zoom 0", zoomForBounds({ west: 0, east: 0.5 }) > 0);
+  check("a degenerate box answers 0 honestly", zoomForBounds({}) === 0);
+  check("and it is capped", zoomForBounds({ west: 0, east: 0.0001 }, { maxZoom: 6 }) === 6);
+}
 
 console.log(failures ? `\n${failures} FAILED` : "\nall passed");
 process.exit(failures ? 1 : 0);
