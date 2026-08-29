@@ -3140,14 +3140,49 @@ zoom is still honoured exactly, because the display path depends on that.
 Measured through the real Clip tool afterwards: **151 features and 22 units
 against 81 features before**, in 2.4 s.
 
+**A run BORROWS the study area's features; it must give them back.**
+`featuresIn` swaps them onto the layer so the synchronous readers beside it —
+a tool engine, a clip — see the right ground, and nothing put them back.
+Measured: `layer.collection` reading **216 features while the map drew
+9,137**. `featuresAt`, the click picker, walks exactly that list, so a click
+anywhere outside the last study box matched a leftover from inside it and the
+highlight and pin went with the leftover — reported as the interactive
+element degrading and the pin dropping far from the target. `runToolAuto`
+restores in a `finally` (a throwing engine cannot leave the map amputated
+either) and the extraction panel restores after its package is built;
+`liveCollection()` reads the tiler rather than any snapshot. Verified: 9,137
+before a clip and 9,137 after, the clip still capturing 151, and a real click
+at 54.8951, −6.1968 opening the card for the unit independently computed to
+contain that point.
+
+**And the black wedges are NOT the triangulation — I measured that wrong
+twice.** The first pass compared drawn triangles against `vertices − 2` per
+ring and reported 3.9% missing; the second used `n + 2h − 2` for holed
+polygons and reported a 7.89% shortfall. Both formulas are wrong: ear
+clipping BRIDGES each hole into the contour, so a polygon with n outer and h
+hole vertices yields **n + h** triangles, not n + 2h − 2. Measured against
+outer rings alone, where the arithmetic is unambiguous: **55 polygons of
+8,997 lose any triangle at all — 57 triangles out of 106,131.** Nothing
+throws, no hole is rejected, no ring is too short. The triangulator is doing
+its job.
+
+**When a shortfall is computed rather than counted, check the formula before
+believing the shortfall.** Two rounds of hunting for missing geometry that
+was never missing.
+
 **What this does NOT settle.** The fill is `DoubleSide`, so the black
 scratches are not backface culling; every tile carries its boundary seal; and
-the clip's own mesh is clean. Finer tiles make the slivers smaller but I have
-not shown they are gone. The remaining suspect is the documented one — 
-neighbouring units not sharing their boundary, with a **one-pixel** seal that
-covers a 30 m gap from orbit and cannot cover it from 15 km. If the tearing
-persists at close range, that is where to look next, and the flat-colour test
-(paint every unit magenta; anything dark is a hole) is the instrument.
+the clip's own mesh is clean. Finer tiles make the slivers smaller but they
+are still there. With the fill on `DoubleSide`, the clip's own mesh clean, and
+the triangulation now measured as sound, the remaining suspect is the one this
+file already documents: **neighbouring units do not share their boundary** —
+only 32% of edges at zoom 4 are used by two polygons, and the strays sit
+within about 30 m. A **one-pixel** seal covers 30 m from orbit and cannot
+cover it from 15 km, where 30 m is one and a half pixels and rising. That is
+where to look next: the seal's width should scale with the ground, not stay
+at one pixel. The flat-colour test (paint every unit magenta; anything dark is
+a hole) is the instrument, and it must be run on the VIEW's own tiles — a
+repaint that leaves the view tiles untouched proves nothing about them.
 
 **Two probe mistakes worth not repeating.** `repaint(null)` does not restore
 the default colours — it removes the colour function, and with it every fill
