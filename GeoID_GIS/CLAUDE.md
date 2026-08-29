@@ -2983,14 +2983,37 @@ There are eight: Hide, Focus, Symbology, Table, Export, To project, To
 raster, Remove — 383 px of button plus gaps, in 360 px of room.
 
 They wrap now, and the drawer and its sibling `.layer-props-inline` each
-carry `box-sizing: border-box` with `max-width: calc(100% - 1.35rem)` — the
-indent is part of the width — so neither can exceed its row whatever is
-added to them next. Measured after: 340 px drawer, 10 px clear of the dock
-edge, no button outside the tile, every button still at full width on two
-rows. The rule generalises: **when a box is wider than its container and
+carry `box-sizing: border-box` with a `max-width`, so neither can exceed its
+row whatever is added to them next. The rule generalises: **when a box is wider than its container and
 nothing inside it is clipped, look for an unshrinkable child, not for a
 missing overflow.** And since this CSS lives in `layer-hierarchy.js`'s STYLE
 block, the fix reached all ten worlds.
+
+**Then it went to ONE line, by removing two things rather than by shrinking
+one.** The feature count ("1 features") claimed the drawer's whole first line
+to restate what the layer's own row and its legend entry both already carry —
+gone the same way the format badge went, and for the same reason: a drawer is
+the things you can DO to a layer. And the 1.35rem left indent lined the drawer
+up with the row's TEXT rather than with the row, which reads as a drawer
+untucked on one side and was 22 px of exactly the width the buttons needed.
+With both gone, eight buttons fit one line at 0.55rem / 0.24rem padding /
+0.16rem gap — measured 337 px of buttons in 348 px of drawer, flush with the
+row at both edges, 36 px tall against 81. Wrapping stays as the fallback: at
+the 20rem dock the short-landscape rule imposes, one line is not
+arithmetically possible, and two whole buttons beat eight clipped ones.
+
+**Measure ROWS, not widths, when sizing a row to its container.** The first
+sweep compared the button run against `tile.clientWidth` and every candidate
+"fit" — because a `nowrap` child inflates the tile that holds it, so that
+comparison answers itself. Counting the distinct `top` values of the buttons
+is the question actually being asked.
+
+**And the backtick trap, for the FOURTH time in this file's history** — my own
+new comment said "wrap" in backticks INSIDE the STYLE literal, which ends the
+string and takes the whole module out. `module-css.test.mjs` caught it in the
+same minute, which is the only reason it cost nothing. An edit that touches a
+STYLE literal should ASSERT the literal is backtick-free rather than trusting
+anyone to remember.
 
 ## A drape is painted ON the ground — two constants, neither read in metres
 
