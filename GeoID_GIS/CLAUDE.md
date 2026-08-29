@@ -3279,6 +3279,65 @@ scratches are not backface culling; every tile carries its boundary seal; and
 the clip's own mesh is clean. The seams are back with the revert, and
 that is the honest state: the fix is a ribbon seal, not a backdrop.
 
+### The gridlines were the tile BUFFER, drawn twice
+
+"How do we remove the huge gridlines from the Macrostrat streamed tiles? The
+geology polygons do not unify over this line." Both halves of that sentence are
+the same fact.
+
+An MVT tile carries a **buffer**: geometry a little past its own edge, so a
+renderer drawing that tile on its own can carry a stroke across the boundary
+without cutting the join. Measured on the real tiles at zoom 9, that buffer is
+**176 m on each side** — so every seam has a **347 m band that BOTH tiles
+describe**, and this app, which merges every tile into one scene, drew both.
+1,392 of 30,150 samples across one seam were covered twice.
+
+Opaque, a double draw of the same colour is invisible. Translucent it is not:
+two draws reach 1-(1-a)^2 where the ground either side reaches a, so the band
+comes out **brighter** — a grid, because a tile boundary is a grid. And since
+each tile clips its own copy of a unit that crosses the seam, the same fact
+shows as two features that do not join.
+
+**The buffer is for STROKES; fills are meant to be scissored to the tile rect.**
+A per-tile renderer does that with a clip rectangle. Merging into one scene, the
+equivalent is to clip the geometry — Sutherland-Hodgman against the four edges,
+in TILE units before projection. The clip region is convex, so each ring clips
+to exactly one ring with its winding preserved, which the hole grouping depends
+on.
+
+Measured on the same four tiles, before and after:
+
+| | before | after |
+| --- | --- | --- |
+| buffer, each side | 176 m | **0 m** |
+| samples covered by BOTH tiles | 1,392 | **0** |
+| samples covered by one | 9,172 | 10,556 |
+| ground covered (3.6 m cells) | 810,000 / 810,000 | 810,000 / 810,000 |
+| interior holes, rings and triangles | 0 | **0** |
+
+The ground previously drawn twice is now drawn once, and NOTHING was lost — the
+coverage test is the control that says so. One polygon of 287 disappeared
+because it existed only in the buffer.
+
+**Clipping then leaves the ring running along the tile edge, and that cut is
+not a contact.** With the contact stroke on, stroking it would have traded a
+bright grid for a dark one — the same grid in another colour, which is the
+shape of fix worth catching before shipping it. Each tile passes its own
+`edgeBounds` and the seal skips any segment with BOTH ends on the SAME edge:
+both ends and the same edge, so a real boundary that merely touches the seam at
+one vertex still gets its stroke. Measured on tile 9/247/162: seal vertices
+**4,738 without `edgeBounds`, 4,680 with** — 29 segments of pure tile cut
+removed.
+
+**A side effect worth having**: `features()` no longer returns the same ground
+twice across a seam, so an extraction cannot double-count it.
+
+**The 8 samples that changed state are the boundary coin toss, not a gap.**
+Singly-covered went up by 1,384 where 1,392 stopped being double — the eight
+sit exactly ON the seam longitude, where a point-in-ring test is ambiguous by
+construction. This file already records never sampling a polygon test at its own
+vertices for the same reason.
+
 ### The grey was a real unit — and looking for it found a real bug
 
 "Clipping geology layer is still flawed — the polygons might exist underneath
