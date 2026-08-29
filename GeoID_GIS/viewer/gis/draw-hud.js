@@ -312,6 +312,34 @@ function borrowExport() {
   slot.appendChild(actions);
 }
 
+let exportWatch = null;
+
+/**
+ * Borrow the instant the viewer reveals it, not on the next poll tick.
+ *
+ * `refresh` runs every 250 ms, and the viewer un-hides this node the moment
+ * the Area tool is armed — so between the two the button was visible in its
+ * HOME, in the right-hand rail, directly beneath the very button that had
+ * just been pressed. Measured on Mars: visible at (1340, 260) at 23 ms and
+ * gone to the bar at (860, 79) by 101 ms. Reported, accurately, as the old
+ * Export CSV button flickering beneath the draw tool.
+ *
+ * An observer rather than a click handler on the rail button, because arming
+ * comes from rail clicks, key shortcuts and other modules alike — the same
+ * reason this file polls at all. The callback runs in the mutation's own
+ * microtask, before the browser paints, so there is no frame in which the
+ * button is in the wrong place.
+ */
+function watchExportHome() {
+  if (exportWatch) return;
+  const node = document.querySelector(EXPORT_SELECTOR);
+  if (!node || typeof MutationObserver !== "function") return;
+  exportWatch = new MutationObserver(() => {
+    if (areaArmed() || lineArmed()) borrowExport();
+  });
+  exportWatch.observe(node, { attributes: true, attributeFilter: ["hidden", "style", "class"] });
+}
+
 function returnExport() {
   const actions = byId("gis-draw-export-slot")?.firstElementChild;
   if (actions && exportHome?.parentNode) {
@@ -433,6 +461,7 @@ function init() {
   // The seam is here, however late: the button is usable again.
   reviveDrawButton();
   build();
+  watchExportHome();
   window.GeoIDDrawShape = shape;
   // Tool state changes come from rail clicks, key shortcuts and other
   // modules arming the tool on the user's behalf; a poll keeps the HUD
