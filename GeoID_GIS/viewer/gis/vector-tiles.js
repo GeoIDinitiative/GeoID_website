@@ -35,8 +35,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260829-b2e01b3";
-import { renderFeatureCollection } from "./vector-render.js?v=20260829-b2e01b3";
+import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260829-db4ba38";
+import { renderFeatureCollection } from "./vector-render.js?v=20260829-db4ba38";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -247,6 +247,9 @@ export function createTiledVectorLayer({
      * is where the compilation stops generalising altogether.
      */
     const BEYOND_BAKE_GROWTH = 8;
+    // The same measurement with the tile multiplication taken out: four times
+    // the tiles carrying twice the content each is where the 8 comes from.
+    const PER_TILE_GROWTH = BEYOND_BAKE_GROWTH / 4;
     const baked = Number.isFinite(sources.maxZoom) ? sources.maxZoom : null;
     const weigh = (level) => {
       if (baked === null || level > baked) return null;
@@ -260,13 +263,39 @@ export function createTiledVectorLayer({
       }
       return (bytes / 1024) * FEATURES_PER_KB;
     };
+    /**
+     * Past the bake the growth is PER TILE, and the difference is a whole
+     * level of detail.
+     *
+     * `BEYOND_BAKE_GROWTH` is 8, measured from the WORLD's own totals — the
+     * world is 18.2 MB baked at zoom 5 and about 150 MB at zoom 6. But that 8
+     * is two things multiplied: four times as many tiles, each carrying twice
+     * the content. A view SMALLER THAN ONE TILE gets none of the first half —
+     * `tilesForBounds` returns one tile at zoom 5, one at 6, one at 7 — so
+     * charging it 8x a level over-predicts by four times a level and the map
+     * is refused detail that costs nothing.
+     *
+     * Measured on a 0.5 degree study area over Northern Ireland: the view
+     * deserves zoom 11 by `zoomForBounds` and the budget pinned it at SIX,
+     * while the features actually touching that box go 11 at zoom 5, 81 at
+     * zoom 6, 88 at zoom 7 — and the boundary detail with them, 283 vertices
+     * to 1,314 to 1,853. Past zoom 7 the compilation has nothing more to give
+     * (88 features and ~1,800 vertices at 8 and 9 alike), so the map was
+     * exactly one level short of everything the source holds.
+     *
+     * Scaling per tile and multiplying by the tiles this view actually needs
+     * keeps both halves honest: a wide view still pays the tile count, a
+     * small one pays only for the content.
+     */
+    const tilesAt = (level) => tilesForBounds(bounds, level).length;
     const fromManifest = (level) => {
       if (!sources.size) return null;
       const direct = weigh(level);
       if (direct !== null) return direct;
       const deepest = weigh(baked);
       if (deepest === null) return null;
-      return deepest * (BEYOND_BAKE_GROWTH ** (level - baked));
+      const perTile = deepest / Math.max(1, tilesAt(baked));
+      return perTile * tilesAt(level) * (PER_TILE_GROWTH ** (level - baked));
     };
 
     const fromBackdrop = localArea > 0 && baseZoom !== null
