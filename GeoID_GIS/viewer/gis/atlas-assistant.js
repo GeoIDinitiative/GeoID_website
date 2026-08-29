@@ -770,46 +770,34 @@ function placeLauncher(launcher, panelNode) {
     : 16;
 
   /**
-   * Step aside for an open workbench.
+   * IT DOES NOT STEP ASIDE FOR A WORKBENCH, because a workbench cannot reach
+   * it.
    *
-   * The side panels run from the top of the screen down the right-hand column,
-   * which is the corner this mark sits in. Only a panel that actually reaches
-   * this row counts — one scrolled short of it is no reason to move.
-   */
-  const panel = [...document.querySelectorAll(".gis-side-panel")]
-    .filter((node) => !node.hidden)
-    .map((node) => node.getBoundingClientRect())
-    .find((box) => box.width && box.top <= top + (launcher.offsetHeight || 52) && box.bottom >= top);
-  const right = panel
-    ? Math.max(8, Math.round(window.innerWidth - panel.left + GAP))
-    : 16;
-
-  /**
-   * Having stepped left, it may have stepped onto something else.
+   * It used to: an open panel sent the mark 441 px left, across the middle of
+   * the screen, and back again on close — measured, right 16 to right 457 and
+   * home. That was dodging something guaranteed never to be there.
+   * `side-panels.place()` puts a workbench LEFT OF THE RAIL, sharing its gap
+   * (`innerWidth - rail.left + 10`), so the rail's column is reserved at every
+   * breakpoint by construction — and this mark lives in that column, directly
+   * above the rail. Measured at 1394 px wide with a workbench open: the panel
+   * ends at 1331 and the launcher starts at 1340. It was travelling the width
+   * of the screen to avoid a 9 px gap it was already on the right side of.
+   * (And it is z-index 900 over the panel's 12, so it was never at risk of
+   * being buried either.)
    *
-   * The rotate/freeze cluster and the music button live on that side of the
-   * screen when the page is framed, so the slot left of the panel is already
-   * taken — measured, the mark landed at 369–421 across a cluster at 412–506,
-   * drawn straight over the freeze button. Where that happens it drops below
-   * them rather than shuffling further left, which would only walk it into the
-   * sidebar.
+   * With that gone, the whole clash-with-the-freeze-button branch goes too: it
+   * existed only to catch where the sidestep had landed.
    */
-  let row = top;
-  if (panel) {
-    const size = launcher.offsetHeight || 52;
-    const left = window.innerWidth - right - (launcher.offsetWidth || 52);
-    const clash = ["top-right-controls", "music-btn"]
-      .map((id) => document.getElementById(id))
-      .filter((node) => node && getComputedStyle(node).display !== "none")
-      .map((node) => node.getBoundingClientRect())
-      .filter((b) => b.width && b.right > left && b.left < left + size
-        && b.bottom > row && b.top < row + size);
-    if (clash.length) row = Math.round(Math.max(...clash.map((b) => b.bottom)) + GAP);
-  }
+  const right = 16;
+  const row = top;
 
-  launcher.style.top = `${row}px`;
-  launcher.style.right = `${right}px`;
-  launcher.style.bottom = "auto";
+  // Written only when they CHANGE, so a poll that finds nothing to do leaves
+  // no trace in the style attribute at all.
+  const topPx = `${row}px`;
+  const rightPx = `${right}px`;
+  if (launcher.style.top !== topPx) launcher.style.top = topPx;
+  if (launcher.style.right !== rightPx) launcher.style.right = rightPx;
+  if (launcher.style.bottom !== "auto") launcher.style.bottom = "auto";
 
   // The GIS tools move down to clear the mark. Skipped where the rail is not
   // top-anchored — the narrow embedded layout centres it vertically with
