@@ -14963,22 +14963,31 @@ uniform float uViewportWidth;`,
 
       function drawPointerUp(event) {
         /**
-         * Awaiting a shape: swallow the tap so it cannot place a vertex.
+         * Awaiting a shape: stop the tap placing a vertex, WITHOUT eating the
+         * pointerup itself.
          *
-         * This listener is on the window in the CAPTURE phase and the
-         * viewer's own vertex-add is a bubble-phase listener on the canvas,
-         * so stopping propagation here is what keeps a stray click on an
-         * undecided bar from starting a polygon nobody asked for. Doing it
-         * from inside this block is also what carries it to the five rocky
-         * worlds, since the porter copies the block and not the viewer's
-         * click handling.
+         * This listener is on the window in the CAPTURE phase, so calling
+         * `stopPropagation` here does not merely hide the event from the
+         * viewer's own vertex-add -- it hides it from OrbitControls too, and
+         * OrbitControls is mid-gesture because the press reached it. Never
+         * told the button came up, it stays latched in ROTATE, and the globe
+         * then follows the bare cursor with nothing held down: reported as
+         * "the globe becomes fully coupled to the cursor movement". Every
+         * press-release while the bar was undecided left it that way.
+         *
+         * `suppressDrawClick` is the mechanism that already exists for this
+         * exact job -- the canvas's capture-phase `click` swallower below,
+         * which the drag path uses to stop one gesture also being a vertex.
+         * The CLICK is what adds the vertex, and it fires after the pointerup,
+         * so suppressing it stops the vertex while OrbitControls still gets
+         * the release it needs to unlatch.
          */
         if (measureMode === "area" && !chosenDrawShape()) {
           pendingBox = null;
           boxDraw = null;
           hideSizeChip();
           if (viewerControls) viewerControls.enabled = true;
-          event.stopPropagation();
+          suppressDrawClick = true;
           return;
         }
         if (pendingBox || boxDraw) {
