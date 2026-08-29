@@ -3559,6 +3559,39 @@ zones** — Southern Highland Group 192 cells at a mean of 103.7 m, Tyrone
 Group 94 cells at 37.4 m. That is the whole workflow: map, draw, clip,
 summarise per unit.
 
+## A GROUP sorts before its children do — the measure group at zero
+
+The polygon being DRAWN was hidden behind the geology: its handles showed,
+its outline did not, and it could not be dragged or resized. The handles are
+DOM elements and the outline is WebGL, which is exactly why one survived and
+the other did not — and it is the tell that this is a scene-graph fault, not
+a pointer one.
+
+The live measure geometry carries renderOrder 96-203 of its own, well above
+the imported band. **None of it mattered.** `reversePainterSortStable`
+compares groupOrder FIRST, `projectObject` takes groupOrder from the nearest
+`isGroup` ancestor, and `measureGroup` was constructed with no renderOrder at
+all — so it sorted at ZERO while every imported layer group carries its band
+(51 and up, and 51.5 for the sharp tiles). The shape being drawn went
+underneath the map it was being drawn on.
+
+This is the event-markers fault in a new place, and the constructor itself
+shows the pattern: `geologyBoundaryGroup`, three lines below, sets an
+explicit 111 for precisely this reason. `measureGroup` and `moonMeasureGroup`
+take **199** — the viewer's own furniture band, where the pins, labels and
+selection rings live, which is what a study area being drawn is.
+
+Applied to all six worlds that can draw and carried by `port-draw-tools`, with
+the porter's replacement text lifted from Earth's own copy so the two cannot
+disagree. **NOT the depth buffer**: nothing in either the geology or the
+overlay writes depth and both draw with depth testing off. It was sorting, not
+occlusion — and reaching for `depthTest` here would have changed nothing while
+looking like a fix.
+
+**When something with a high renderOrder is buried, read its ancestors before
+its material.** A Group has no material, its order is decided before any
+child's renderOrder is read, and its default is zero.
+
 ## A drawn shape draws over every dataset mapped
 
 A study area is not a dataset, it is the QUESTION being asked of the
