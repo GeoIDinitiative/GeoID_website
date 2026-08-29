@@ -398,20 +398,40 @@ function standDownDrawButton() {
   button.classList.remove("is-active");
 }
 
+/** A seam that turned up late: give the button back before building. */
+function reviveDrawButton() {
+  const button = byId("tool-rail-area");
+  if (!button || !button.disabled) return;
+  button.disabled = false;
+  button.removeAttribute("aria-disabled");
+  button.title = "";
+}
+
+/**
+ * Ten seconds, not sixty.
+ *
+ * The retry runs to 120 tries because a seam can genuinely be late, but a
+ * button must not sit there enabled and lying for the whole of that: measured
+ * on Mars, both the seam and the HUD are up before a probe fired immediately
+ * after load could even look. So the button is stood down at 20 tries and the
+ * watch continues to 120 — a late seam takes it back.
+ */
+const STAND_DOWN_AFTER = 20;
+
 function init() {
   if (!byId("tool-rail-area") || !canDraw()) {
     // The viewer boots async, so a missing seam this early is usually just
     // early. Keep looking, and stop after a minute rather than polling a
     // gas giant for the life of the page.
+    if (initTries >= STAND_DOWN_AFTER) standDownDrawButton();
     if (initTries < 120) {
       initTries += 1;
       window.setTimeout(init, 500);
-      return;
     }
-    // A minute in with no seam: this body genuinely cannot hold a study area.
-    standDownDrawButton();
     return;
   }
+  // The seam is here, however late: the button is usable again.
+  reviveDrawButton();
   build();
   window.GeoIDDrawShape = shape;
   // Tool state changes come from rail clicks, key shortcuts and other
