@@ -3885,6 +3885,43 @@ that spec and mesh into a deck (`setup.txt` patched to `dim 3`,
 `mesh_2core.txt`, the spec's time stepping; `props.txt` carrying the
 domain step's materials).
 
+## The legend tile speaks the GUI's own language
+
+The legend was the last surface still wearing a look of its own. The diff
+against a LIVE `.gis-tool-section` was the whole brief — measured, not eyed:
+
+| | was | now |
+| --- | --- | --- |
+| panel frame | cyan `rgba(82,228,232,0.3)` | the accent, at the Workspace tile's own values |
+| card ground | translucent white 5% | opaque `rgb(24,13,47)` |
+| card border | white 8% | accent 18% |
+| radius | 0.7rem | 0.78rem |
+| head | Exo 2 **400** / 0.73rem / 0.08em | **600** / 0.76rem / 0.1em |
+| open state | nothing | filled accent head, dark ink |
+
+**The frame mattered most, and it is a rule rather than a preference.** The
+skin's own division is magenta for CHROME — frames, headings, active states —
+and cyan for DATA: field labels, readouts, values. A cyan border says "this
+box is a reading" about the one thing on screen that is a container. The
+replacement values are the Workspace tile's, copied rather than invented, so
+the two floating tiles are one object seen twice.
+
+The card structure already mapped onto the house pattern and nobody had
+noticed: `.legend-entry` is the card, `.legend-entry-head` is the summary,
+`.legend-entry-body` is the body and `.is-folded` is the inverse of `[open]`.
+So an open card now fills its head with the accent in dark ink — how the rail
+buttons, the nav tabs and the sub-tab cards all say open — and which head
+belongs to which body is never in question with several stacked. The caret is
+the column's own left `\203A` chevron turning the same way, not a second fold
+language.
+
+Verified by comparing like with like: a FOLDED legend card against a CLOSED
+`.gis-tool-section` matches on ground, border and radius exactly, and the
+head matches the reference summary on family, size, weight and tracking. An
+open card deliberately differs — accent border plus glow. The first
+comparison read "false" only because it put an open card beside a closed
+reference; compare the same STATE or the number means nothing.
+
 ## Drawn shapes are ONE legend entry, and a swatch reads the geometry
 
 A card per drawn shape was the legend describing the reader's own working
