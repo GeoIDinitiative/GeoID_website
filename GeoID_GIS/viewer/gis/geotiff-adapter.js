@@ -1,5 +1,5 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260829-e9c2d82";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260829-7985cf8";
 
 // Rasters are resampled onto a mesh grid rather than used at native size: a
 // 4000x4000 DEM would otherwise mean 16M vertices. 192 keeps relief readable
@@ -194,8 +194,6 @@ function looksLikeHeightField(band, noData, limit = 40) {
  * classes are sampled from the same ramp, so the reading stays "green is
  * lower, red is worse" whatever the class count.
  */
-let drapeCount = 0;
-
 const CLASS_RAMP = [
   [26, 152, 80], [166, 217, 106], [255, 255, 191], [253, 174, 97], [215, 25, 28],
 ];
@@ -252,13 +250,20 @@ function buildDrapedPatch(grid, gridWidth, gridHeight, bounds, texture, range, i
    * concurrently" looks like; a few metres of separation each, in load order,
    * costs nothing and stacks them predictably.
    */
-  // Scene units: the globe is radius 3.2 for 6371 km, so 0.0015 is THREE
-  // KILOMETRES of clearance — which is why the maps read as floating once the
-  // camera came below about 10 km. The patch does not depth-test, so it draws
-  // over the ground whatever its height and needs no clearance to be visible;
-  // the lift only separates one drape from the next, and 30 m does that
-  // without lifting anything off the surface it is meant to be painted on.
-  const stackLift = 0.000015 * (drapeCount++ % 12);
+  /**
+   * ZERO. A drape is painted ON the ground, and any lift at all is parallax.
+   *
+   * The lift existed to stop two maps fighting for the same pixels — which is
+   * a DEPTH fight, and this material stopped depth-testing long ago. With
+   * `depthTest: false` the depth buffer is not consulted at all, so the later
+   * `renderOrder` wins outright and there is nothing to fight: the stacking
+   * was already being done by the draw order the layer box controls, and the
+   * lift was buying separation that was not needed at the cost of separation
+   * that was not wanted. Measured at 30 m a layer, the twelfth map sat 329 m
+   * off the ground it describes — which at any oblique angle is the map
+   * sliding away from its own terrain.
+   */
+  const stackLift = 0;
   const vertex = new THREE.Vector3();
 
   for (let y = 0; y < gridHeight; y += 1) {
@@ -280,6 +285,7 @@ function buildDrapedPatch(grid, gridWidth, gridHeight, bounds, texture, range, i
   position.needsUpdate = true;
   geometry.computeVertexNormals();
   geometry.computeBoundingSphere();
+  const builtAt = window.GeoIDViewer?.getEffectiveRelief?.();
 
   const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
     map: texture,
@@ -318,7 +324,9 @@ function buildDrapedPatch(grid, gridWidth, gridHeight, bounds, texture, range, i
     pos.needsUpdate = true;
     geometry.computeVertexNormals();
     geometry.computeBoundingSphere();
+    mesh.userData.builtRelief = window.GeoIDViewer?.getEffectiveRelief?.();
   };
+  mesh.userData.builtRelief = builtAt;
   registerDrape(mesh);
   return mesh;
 }
@@ -331,7 +339,26 @@ function buildDrapedPatch(grid, gridWidth, gridHeight, bounds, texture, range, i
  * the terrain itself is re-synced and not otherwise.
  */
 const drapes = new Set();
-let lastRelief = null;
+
+/**
+ * How far the ground may move under a drape before it is re-laid, in METRES.
+ *
+ * The threshold used to be 0.0004 in raw relief units, borrowed from the
+ * viewer's own terrain re-sync — and nobody had converted it: relief scales a
+ * normalised elevation, so 0.0004 is 0.0004/3.2 x 6371 km = **796 METRES** of
+ * ground movement at a peak. A drape was therefore allowed to drift most of a
+ * kilometre from the terrain it paints before anything corrected it, and it
+ * did: measured on four raster layers sitting still at 95 km, every one of
+ * them was 142 m BELOW the surface, and forcing the rebuild snapped all four
+ * back to their intended heights to the metre. That is the whole of "the
+ * rasters do not overlay closely".
+ *
+ * Ten metres is under a pixel at any altitude from which a drape is legible,
+ * and the cost is bounded: the check is a subtraction per mesh, and only the
+ * meshes that are actually stale are re-laid.
+ */
+const REBUILD_METRES = 10;
+const RELIEF_PER_METRE = 3.2 / 6371000;
 
 function registerDrape(mesh) {
   drapes.add(mesh);
@@ -344,10 +371,15 @@ function registerDrape(mesh) {
     const watcher = setInterval(() => {
       const relief = window.GeoIDViewer?.getEffectiveRelief?.();
       if (typeof relief !== "number") return;
-      if (lastRelief !== null && Math.abs(relief - lastRelief) <= 0.0004) return;
-      lastRelief = relief;
+      const tolerance = REBUILD_METRES * RELIEF_PER_METRE;
       drapes.forEach((m) => {
         if (!m.parent) { drapes.delete(m); return; }   // removed layers stop costing
+        // PER MESH, against the relief that mesh was built at. A single shared
+        // `lastRelief` meant a drape created between two rebuilds was measured
+        // against a number that was never its own, and a drape built while the
+        // global sat inside its threshold was never corrected at all.
+        const built = m.userData.builtRelief;
+        if (typeof built === "number" && Math.abs(relief - built) <= tolerance) return;
         try { m.userData.rebuildDrape?.(); } catch { /* one bad patch is not all of them */ }
       });
     }, 250);
