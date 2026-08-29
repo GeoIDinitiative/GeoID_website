@@ -3279,6 +3279,70 @@ scratches are not backface culling; every tile carries its boundary seal; and
 the clip's own mesh is clean. The seams are back with the revert, and
 that is the honest state: the fix is a ribbon seal, not a backdrop.
 
+### The contact network was already on the GPU, painted invisible
+
+"When we decrease the opacity it reveals intricate polygons that have outlines
+that glow when we hover over them — how do we seamlessly add this detail to
+surface level?" The answer is that nothing had to be added. The geometry was
+already there, at full streamed resolution, and it was being painted a colour
+chosen to hide it.
+
+The `seal` strokes EVERY filled polygon's own outline into a LineSegments
+buffer at the fill's own height — measured live on the world geology, **848,456
+vertices across 25 tile objects**. It was written to cover the hairline where
+two neighbours' boundaries disagree, and to cover it invisibly, so it is drawn
+in the polygon's OWN fill colour. A complete contact network, on the GPU, that
+nothing could see.
+
+**What the slider was revealing is alpha ACCUMULATION, and it is worth naming
+because it looks like a feature.** Along every contact the line is stroked
+twice — once by each neighbour — over the fills beneath. At alpha 1 all of it
+is opaque and the seal is exactly its own fill's colour, so there is nothing to
+see. Below 1 that doubled line accumulates more alpha than either interior and
+reads as a crisp outline. Fade the sheet and the map gains detail; turn it back
+up and the detail goes. Precisely backwards.
+
+**And a second fault made it worse in the same direction.** `setOpacity`
+OVERWROTE every material's opacity with the slider's value, so a sheet dragged
+to 40% did not fade its contacts to 40% of their own weight — it PROMOTED them
+from whatever they were to 40%, level with the fill. The stroke now carries
+`userData.baseOpacity` and the slider MULTIPLIES. Measured after, at layer
+opacity 1 / 0.6 / 0.4 / 0.2: the seal sits at 0.55 / 0.33 / 0.22 / 0.11, a
+constant **0.55 of the fill at every setting**, where before it was 1.00 of it
+at every setting.
+
+**So drawing contacts is a colour decision, not new geometry.** `contacts` on
+`renderFeatureCollection` takes a mode:
+
+- `match` — the polygon's own colour. Invisible, and the historic default that
+  every non-geological vector layer keeps.
+- `shade` — its own colour MULTIPLIED. The default for geology, because a
+  contact then stays attributable to the unit it bounds: the sheet still reads
+  as its own legend rather than as a net thrown over it. Verified live, and the
+  multiply is in LINEAR space where the colours live: fill `#7bc771` strokes
+  `#62a15a`, `#d81e5b` strokes `#ae1648`.
+- `ink` — one colour for every contact, the printed-sheet look, which says
+  nothing about which side is which.
+
+**Subtle by default, and the reason is a hard limit rather than taste.** WebGL
+draws every line one device pixel wide whatever `linewidth` says, so at a global
+view 9,000 polygons' boundaries are 9,000 hairlines; a strong ink fills the map
+in solid. `subtle` is shade 0.62 at 0.55 opacity.
+
+A **Boundaries** select (subtle / strong / ink / none) sits on the tiled layer's
+own row, remembered in localStorage, and applies to every tiled geology layer so
+the control means one thing. It goes through `setContacts`, which REBUILDS the
+tiles on screen and fetches nothing — a rebuild rather than a material tweak
+because the ink is baked into the seal's per-vertex colour, which is what lets
+each contact carry its own unit's hue. It is offered only where
+`layer.tiled?.setContacts` exists: a dropped shapefile has its own outline
+controls in the symbology dialog, and two controls for one idea is how they
+drift.
+
+The best part of this is what it did NOT cost: no extra tiles, no second
+geometry, and the seal goes on covering the gaps it was written for — the
+contact stroke and the gap cover are the same line.
+
 ### A clip shipped whatever `maxTiles` allowed, and that is a resolution
 
 "It loses the resolution — ensure that for any geology clip the highest

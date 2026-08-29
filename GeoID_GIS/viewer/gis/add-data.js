@@ -30,11 +30,11 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260829-09401e6";
-import { readHead, validateMapping } from "./delimited.js?v=20260829-09401e6";
-import { RAMP_NAMES } from "./symbology.js?v=20260829-09401e6";
-import { isEarth } from "./bodies.js?v=20260829-09401e6";
-import { DATA_TYPES, inferType, applyTag, markUserInput, suppressNextArrival } from "./data-tags.js?v=20260829-09401e6";
+import { CRS_OPTIONS } from "./projection.js?v=20260829-a9ea5a7";
+import { readHead, validateMapping } from "./delimited.js?v=20260829-a9ea5a7";
+import { RAMP_NAMES } from "./symbology.js?v=20260829-a9ea5a7";
+import { isEarth } from "./bodies.js?v=20260829-a9ea5a7";
+import { DATA_TYPES, inferType, applyTag, markUserInput, suppressNextArrival } from "./data-tags.js?v=20260829-a9ea5a7";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
