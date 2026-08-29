@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260829-4030884";
-import { currentBodyId } from "./bodies.js?v=20260829-4030884";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260829-4030884";
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260829-4030884";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260829-c61ab38";
+import { currentBodyId } from "./bodies.js?v=20260829-c61ab38";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260829-c61ab38";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260829-c61ab38";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -592,6 +592,28 @@ async function paintFromSource(layer, entry, { repaint = true } = {}) {
   const legend = legendFrom(layer.features, { field });
   layer.legendInfo = legend;
   layer.geologyField = field;
+  /**
+   * The layer STATES how it is painted, so anything derived from it can be
+   * painted the same way.
+   *
+   * A tool output is a new layer, and a new layer takes the default
+   * `categoricalSymbology` — which ranks by FEATURE COUNT, keeps twelve and
+   * folds the rest into one grey "(other)". A map is read by AREA, and the two
+   * disagree badly here: measured on the real z9 tiles over Northern Ireland,
+   * 23 units over 4,146 km2, the frequency cap folded **11 units and 572 km2 —
+   * 13.8% of the map — into grey**, including a 240 km2 intrusion that has
+   * only 6 polygons, while a 58 km2 unit with 45 polygons ranked first and
+   * kept a colour. Clipping the world geology therefore produced a grey slab
+   * where the layer underneath it showed a dozen colours, which is exactly how
+   * it was reported: polygons that pulse when clicked and never manifest on
+   * the surface, and clearer polygons visible when the opacity is dropped.
+   *
+   * Naming the column rather than re-deriving the paint keeps this ONE
+   * implementation: `tool-runner` reads this field and paints from the same
+   * `properties.color` this function does.
+   */
+  layer.sourceColourField = "color";
+  layer.sourceLabelField = field;
   // Marked so the card can say the key is a summary rather than the whole map.
   layer.legendIsSummary = legend.total > legend.shown
     ? `${legend.shown} of ${legend.total} units` : null;

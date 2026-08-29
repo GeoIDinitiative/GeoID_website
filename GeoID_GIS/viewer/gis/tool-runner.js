@@ -1,19 +1,19 @@
-import * as GP from "./geoprocessing.js?v=20260829-4030884";
-import * as RA from "./raster-analysis.js?v=20260829-4030884";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260829-4030884";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-4030884";
+import * as GP from "./geoprocessing.js?v=20260829-c61ab38";
+import * as RA from "./raster-analysis.js?v=20260829-c61ab38";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260829-c61ab38";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-c61ab38";
 // Pure and DOM-free, so a static import keeps this module Node-clean AND keeps
 // the terrain engine SYNCHRONOUS -- runTool calls engines.native WITHOUT
 // awaiting it, so an async engine hands register() a Promise and the raster
 // comes out undefined. Measured as: "Cannot read properties of undefined".
-import { buildSurface, nativeStepM } from "./model-build.js?v=20260829-4030884";
-import { nativeGridOf } from "./extraction.js?v=20260829-4030884";
-import { CRS_OPTIONS } from "./projection.js?v=20260829-4030884";
-import * as IN from "./interpolation.js?v=20260829-4030884";
-import * as VAL from "./validation.js?v=20260829-4030884";
-import * as EX from "./analysis-extra.js?v=20260829-4030884";
-import * as HY from "./hydrology.js?v=20260829-4030884";
-import * as KR from "./kriging.js?v=20260829-4030884";
+import { buildSurface, nativeStepM } from "./model-build.js?v=20260829-c61ab38";
+import { nativeGridOf } from "./extraction.js?v=20260829-c61ab38";
+import { CRS_OPTIONS } from "./projection.js?v=20260829-c61ab38";
+import * as IN from "./interpolation.js?v=20260829-c61ab38";
+import * as VAL from "./validation.js?v=20260829-c61ab38";
+import * as EX from "./analysis-extra.js?v=20260829-c61ab38";
+import * as HY from "./hydrology.js?v=20260829-c61ab38";
+import * as KR from "./kriging.js?v=20260829-c61ab38";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -2024,7 +2024,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260829-4030884");
+    const client = await import("./sidecar-client.js?v=20260829-c61ab38");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -2033,6 +2033,16 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
     if (status.ok && big) {
       const out = await client.runSidecarEngine(desc, resolved, params, name);
       if (out.ok) {
+        // The sidecar builds its own layer, so the inheritance has to be
+        // applied on this path too -- otherwise the same clip comes back grey
+        // or coloured depending only on how big it was.
+        if (out.layer?.features && !desc.paint?.field && typeof document !== "undefined") {
+          const inherit = inheritedColouring(resolved, out.layer.features);
+          if (inherit) {
+            void inheritSourceColours(out.layer, out.layer.features,
+              inherit.colourField, inherit.labelField).catch(() => {});
+          }
+        }
         void appendToolHistory({
           tool: desc.id, label: desc.label,
           inputs: Object.values(resolved).filter(Boolean).map((l) => ({ layerId: l.id, name: l.name })),
@@ -2079,7 +2089,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260829-4030884");
+    const bridge = await import("./research/bridge.js?v=20260829-c61ab38");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -2091,12 +2101,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260829-4030884");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260829-c61ab38");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260829-4030884");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260829-c61ab38");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }
@@ -2152,6 +2162,61 @@ export async function readToolHistory() {
 
 /** Publishes an engine's product as a layer through the same path the legacy
     tiles use, so both kinds of output are identical downstream. */
+/**
+ * A derived layer INHERITS the symbology its input declared.
+ *
+ * `paintFromSource` marks a layer with the per-feature colour column it is
+ * painted from (`sourceColourField`). Without this, a tool output is just a
+ * new layer and takes the default `categoricalSymbology`: twelve classes
+ * ranked by FEATURE COUNT, everything else one grey "(other)". A map is read
+ * by AREA, and on the real Macrostrat tiles over Northern Ireland those two
+ * orderings disagree by 13.8% of the mapped ground — 11 units and 572 km2 of
+ * 4,146 turned grey, a 240 km2 intrusion among them because it is drawn as
+ * only 6 polygons. The clip was faithful and its rendering was not.
+ *
+ * The features carry the colour through the geoprocessing untouched (measured:
+ * 142 of 142 clip outputs keep `properties.color`, 13 distinct), so this needs
+ * no lookup back to the input — only its NAME for the column.
+ *
+ * Best-effort and dynamically imported, for `paintOutput`'s own two reasons: a
+ * failed paint must never fail the run that produced the layer, and this
+ * runner must stay importable in Node.
+ */
+async function inheritSourceColours(layer, features, colourField, labelField) {
+  const { legendFrom } = await import(`./macrostrat.js${new URL(import.meta.url).search}`);
+  layer.repaint?.((feature) => feature?.properties?.[colourField] || null);
+  const legend = legendFrom(features, { field: labelField, colourField });
+  if (!legend.shown) return;
+  layer.legendInfo = legend;
+  layer.geologyField = labelField;
+  // Carried on, so a clip OF a clip is painted the same way again.
+  layer.sourceColourField = colourField;
+  layer.sourceLabelField = labelField;
+  // The key is twelve rows of however many units there are, and says so --
+  // the same honesty the world layer's own card carries.
+  layer.legendIsSummary = legend.total > legend.shown
+    ? `${legend.shown} of ${legend.total} units` : null;
+  window.GeoIDLayerHierarchy?.render?.();
+}
+
+/**
+ * Which input, if any, declared a per-feature colour column the OUTPUT still
+ * carries. Every feature must carry it: a partial column would paint some of
+ * the map from the source and leave the rest unpainted, which is worse than
+ * either answer on its own.
+ */
+function inheritedColouring(resolvedInputs, features) {
+  for (const layer of Object.values(resolvedInputs || {})) {
+    const colourField = layer?.sourceColourField;
+    if (!colourField) continue;
+    const labelField = layer.sourceLabelField || layer.geologyField || "name";
+    if (features.every((f) => f?.properties?.[colourField])) {
+      return { colourField, labelField };
+    }
+  }
+  return null;
+}
+
 async function paintOutput(layer, paint, fc) {
   const stamp = new URL(import.meta.url).search;
   const dialog = await import(`./symbology-dialog.js${stamp}`);
@@ -2193,7 +2258,7 @@ async function paintOutput(layer, paint, fc) {
   window.GeoIDLayerHierarchy?.render?.();
 }
 
-function register(desc, raw, name) {
+function register(desc, raw, name, resolvedInputs = {}) {
   const failShape = (message) => ({ ok: false, message, layer: null, outputType: desc.outputType });
   if (!raw) return failShape("The tool produced nothing.");
   if (raw.ok === false) return { ...raw, layer: null, outputType: desc.outputType };
@@ -2249,8 +2314,19 @@ function register(desc, raw, name) {
    * re-sorted by distance -- categorical legends order by frequency, which
    * for rings is meaningless.
    */
-  if (layer && desc.paint?.field && typeof document !== "undefined") {
-    void paintOutput(layer, desc.paint, fc).catch(() => {});
+  if (layer && typeof document !== "undefined") {
+    // A tool that declares how its own output is read wins: it is describing a
+    // value it computed, where the inheritance below is carrying a value the
+    // input already had.
+    if (desc.paint?.field) {
+      void paintOutput(layer, desc.paint, fc).catch(() => {});
+    } else {
+      const inherit = inheritedColouring(resolvedInputs, fc.features);
+      if (inherit) {
+        void inheritSourceColours(layer, fc.features, inherit.colourField, inherit.labelField)
+          .catch(() => {});
+      }
+    }
   }
   return { ok: true, message: `${name}: ${fc.features.length} features.${note}`, layer, outputType: "vector" };
 }
@@ -2359,7 +2435,7 @@ export function runTool(toolId, inputs = {}, params = {}, { outputName } = {}) {
   // "Failed: <message>", console.error("[GeoID GIS] ...").
   let out;
   try {
-    out = register(desc, desc.engines.native(resolvedInputs, resolvedParams), name);
+    out = register(desc, desc.engines.native(resolvedInputs, resolvedParams), name, resolvedInputs);
   } catch (error) {
     console.error(`[GeoID GIS] ${desc.label} failed`, error);
     out = fail(`Failed: ${error.message}`);

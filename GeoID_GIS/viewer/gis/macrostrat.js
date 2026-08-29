@@ -21,8 +21,8 @@
  * not one line about Macrostrat.
  */
 
-import { decodeTile, tilesForBounds } from "./mvt.js?v=20260829-4030884";
-import { visibleBounds } from "./view-extent.js?v=20260829-4030884";
+import { decodeTile, tilesForBounds } from "./mvt.js?v=20260829-c61ab38";
+import { visibleBounds } from "./view-extent.js?v=20260829-c61ab38";
 import * as THREE from "../vendor/three.module.js";
 
 const TILES = "https://tiles.macrostrat.org/carto";
@@ -195,11 +195,12 @@ export async function fetchGeology({
  * A global view holds hundreds of units, so the key is a summary and the caller
  * says so. Twelve rows of the map's own colours beats fifty of ours.
  */
-export function legendFrom(features, { field = "name", count = 12 } = {}) {
+export function legendFrom(features, { field = "name", count = 12,
+  colourField = "color" } = {}) {
   const seen = new Map();
   (features || []).forEach((f) => {
     const label = f?.properties?.[field];
-    const colour = f?.properties?.color;
+    const colour = f?.properties?.[colourField];
     if (!label || !colour) return;
     const row = seen.get(label) || { label, colour, count: 0 };
     row.count += 1;
