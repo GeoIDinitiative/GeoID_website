@@ -3917,10 +3917,28 @@ language.
 
 Verified by comparing like with like: a FOLDED legend card against a CLOSED
 `.gis-tool-section` matches on ground, border and radius exactly, and the
-head matches the reference summary on family, size, weight and tracking. An
-open card deliberately differs — accent border plus glow. The first
-comparison read "false" only because it put an open card beside a closed
-reference; compare the same STATE or the number means nothing.
+head matches the reference summary on family, size, weight and tracking. The
+first comparison read "false" only because it put an open card beside a
+closed reference; compare the same STATE or the number means nothing.
+
+**Matching the computed values was not enough, and the first attempt looked
+unfinished.** Two things a property diff does not catch:
+
+- **`.layer-type-badge` is a CHIP by definition** — `inline-flex`,
+  `width: fit-content`, `border-radius: 999px`, its own 1px border — which is
+  right where it labels a layer inline and wrong as the lid of a tile. Setting
+  colour and type on it left a rounded pill floating inside a rounded card
+  with a gap all round: measured **157.9 px of head inside a 260.4 px card**.
+  Every chip property has to be undone BY NAME (`display`, `width`, `border`,
+  `border-radius`, `background`); the card's `overflow: hidden` then clips the
+  bar into the tile's own corners, so the head needs no radius of its own.
+- **ONE loud thing per tile.** In the sidebar an open card takes a filled head
+  AND a bright border AND a glow, and it can: it sits on a flat panel with no
+  frame of its own. Inside a bordered floating tile the same rules stack three
+  magenta rings inside one another — panel, card, head — which is what read as
+  messy. The filled head alone says open here; the card keeps its quiet
+  hairline in both states and the panel frame is a hairline with a soft bloom.
+  Copying a rule is not the same as copying its CONTEXT.
 
 ## Drawn shapes are ONE legend entry, and a swatch reads the geometry
 
