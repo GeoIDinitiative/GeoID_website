@@ -3279,6 +3279,57 @@ scratches are not backface culling; every tile carries its boundary seal; and
 the clip's own mesh is clean. The seams are back with the revert, and
 that is the honest state: the fix is a ribbon seal, not a backdrop.
 
+### The grey was a real unit — and looking for it found a real bug
+
+"Clipping geology layer is still flawed — the polygons might exist underneath
+the grey." Two answers, and they point opposite ways.
+
+**The grey is not the `(other)` class, and nothing is under it.** Measured on a
+clip of 1,113 features over 48 units: vertices drawn in the bug grey `#8a8a8a`
+came to **ZERO**. The grey is `#969696`, which is **Macrostrat's own published
+colour for the Southern Highland Group** — 4,932 vertices of it — with `#777777`
+for "Fault Zone Rocks, Unassigned". The compilation publishes nine greyish
+colours in this region alone. The grey IS the polygon, and the colour
+inheritance is working: 41 distinct drawn colours, legend "12 of 48".
+
+Worth keeping, because it will come up again: **a survey's own grey and this
+app's no-value grey are four RGB points apart and cannot be told apart by
+eye.** Separate them by counting the exact hex off the geometry.
+
+**But the suspicion was sound, and it found a different fault.**
+`detailWithin` — the measure the zoom climb decides on — counted every vertex of
+any feature that merely TOUCHED the box, rather than the vertices INSIDE it. At
+a coarse level one unit sprawls across several degrees and contributed its whole
+outline for the sake of one corner overlapping; at a fine level the same ground
+arrives as tile-clipped pieces contributing only what is actually there. So
+**coarse scored higher than fine**, the climb picked coarse, and two barren
+levels later it stopped.
+
+Measured on a 1.2 x 0.5 degree box: balanced, full and maximum ALL returned
+**zoom 8 with 2 tiles**, where zoom 9 needs six and nothing was near a budget.
+The climb was not being stopped by cost — it was being told that coarser was
+better, which is the opposite of what it exists to decide.
+
+Counting in-box vertices fixes it. That box now resolves **17 distinct units
+against 15**, and reports `stoppedFor: "source"` honestly — it is mostly
+offshore, where the compilation really does stop improving, which is a different
+statement from "the budget ran out" and now says so.
+
+**No regression where it already worked**, and the numbers are now monotonic
+with depth the way the quantity's name implies:
+
+| detail | zoom | tiles | vertices IN box | clipped | isolated holes |
+| --- | --- | --- | --- | --- | --- |
+| fast | 10 | 12 | 3,204 | 176 | 10 |
+| balanced | 12 | 90 | 4,495 | 342 | 2 |
+| full | 13 | 288 | 6,146 | 654 | 1 |
+
+**The lesson is about the MEASURE, not the map.** A quantity called "detail over
+this ground" that is actually "size of everything overlapping this ground"
+answers a different question, and it answers it confidently. When a chooser
+keeps picking the option you would not, check what it is maximising before
+checking what it is spending.
+
 ### The hover highlight was drawn, and sorted underneath the map
 
 "How come the polygon outlines fail to highlight when hovered over?" They did
