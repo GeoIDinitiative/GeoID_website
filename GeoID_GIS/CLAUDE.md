@@ -3070,6 +3070,53 @@ raster.** It cost a round: an imported polygon fills by default, draws above
 the drapes, and its legend swatch is the tell. Check what is actually on top
 before diagnosing the layer underneath it.
 
+## A drawn shape draws over every dataset mapped
+
+A study area is not a dataset, it is the QUESTION being asked of the
+datasets — the boundary every extraction, clip and zonal statistic is scoped
+to. It sat in band 2 with every ordinary import, so it was above whatever had
+been loaded before it and under everything loaded after. Measured live: a
+captured study area at renderOrder 54 and a DEM mapped a moment later at 55 —
+and because a drape does not depth-test it paints straight OVER the outline
+rather than fighting it for pixels. Drawing a boundary and then mapping the
+data inside it is the ordinary order of work, so the ordinary order of work
+was hiding the boundary every time.
+
+Drawn shapes take a fifth band, above the live feeds, and it is a DEFAULT
+like the other four — `bandOverride` still wins, so a row dragged below
+something lands where it was dropped. Verified with a GEE drape, three
+derived rasters and a late vector import all mapped afterwards: the drawn
+shape stays top at 56 against a highest dataset of 55.
+
+**renderOrder alone would not have proved it.** A drape is
+`depthTest: false, depthWrite: true`; the outline is `depthTest: true`. So
+the outline is only visible if it draws LAST *and* sits above the depth the
+drape wrote. Measured at both: the outline's lowest vertex is **11,945 m**
+above the ground where the drape's highest is **0.2 m**, and it draws at 56
+against 51. Two conditions, both checked, because either alone is satisfiable
+while the thing stays invisible.
+
+**And the number that really decides is groupOrder, not renderOrder.**
+`reversePainterSortStable` compares groupOrder first, taken from the nearest
+`isGroup` ancestor. Measured: a vector layer's `object3D` IS a Group, so it
+carries its band as its groupOrder (drawn 56, a late import 55) — while a
+raster drape is a bare Mesh under the shared `GeoID-ImportedGeoLayers`
+container, whose renderOrder is 0, so **every drape sorts at groupOrder 0**
+and is ordered among its peers by renderOrder alone. The drawn guarantee
+holds either way (56 beats 0 and beats 55), but it means vector layers
+currently outrank raster drapes regardless of the hand order in the layer
+box. Left as found and recorded rather than fixed in passing: making it
+consistent changes how dragging behaves between the two kinds, which is a
+decision about the layer box and not about drawn shapes.
+
+The live, uncaptured overlay needed nothing: measured at renderOrder **80–96**
+in the viewer's own measure band, well clear of the imported band's 56.
+
+`bandOf` moved into `draw-order.js` — its own module, because it is a
+classification and nothing else: no DOM, no scene, no state. Trying to test
+it in place hung the runner on layer-hierarchy's page wiring, which is the
+argument for the split rather than against it.
+
 ## Native resolution is a property of the LAYER, and it is measured
 
 Extraction resampled every layer onto one uniform grid whose spacing the user
