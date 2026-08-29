@@ -125,6 +125,53 @@ export function planGrid({ bounds, stepM, radiusKm, maxNodes = DEFAULT_MAX_NODES
  * with the mean of the ones it could and COUNTED, because a hole silently
  * filled with zero is a sea-level pit in the middle of a mountain.
  */
+/**
+ * The elevation source's OWN sampling, in metres, measured rather than
+ * declared.
+ *
+ * A sampler interpolates bilinearly, so between pixel centres the values run
+ * exactly linearly and every kink in the second difference is a pixel
+ * boundary; the median spacing of those kinks is the raster's own step. No
+ * seam any viewer would have to grow, and it answers the question that decides
+ * whether a fine grid is detail or arithmetic — on Earth the global DEM
+ * measures about 19.6 km, so a 10 km study is a fraction of ONE pixel and a
+ * 92 m grid over it is a smooth interpolation with a pixel boundary running
+ * through it, not ground anybody surveyed.
+ *
+ * Lives here, with the rest of the pure half, because BOTH the Model Builder's
+ * surface step and the terrain tool have to say the same number — and a
+ * second copy of this is how the polygon-area formula came to be wrong in ten
+ * files. Returns null where the ground is too flat to have a measurable kink.
+ */
+export function nativeStepM({ read, lat, lon, radiusKm = 6371.0088 }) {
+  const mPerDegLat = (Math.PI * radiusKm * 1000) / 180;
+  const samples = 512;
+  const spanDeg = 2.0;
+  const values = [];
+  for (let i = 0; i < samples; i += 1) {
+    values.push(read(lat + (spanDeg * i) / (samples - 1) - spanDeg / 2, lon));
+  }
+  if (values.some((v) => !Number.isFinite(v))) return null;
+  const second = [];
+  for (let i = 1; i < values.length - 1; i += 1) {
+    second.push(Math.abs(values[i + 1] - 2 * values[i] + values[i - 1]));
+  }
+  const peak = Math.max(...second);
+  if (!(peak > 0)) return null;
+  const kinks = [];
+  second.forEach((value, i) => { if (value > peak * 0.25) kinks.push(i); });
+  if (kinks.length < 3) return null;
+  const gaps = [];
+  for (let i = 1; i < kinks.length; i += 1) {
+    const gap = kinks[i] - kinks[i - 1];
+    if (gap > 1) gaps.push(gap);
+  }
+  if (!gaps.length) return null;
+  gaps.sort((a, b) => a - b);
+  const medianGap = gaps[Math.floor(gaps.length / 2)];
+  return ((spanDeg / (samples - 1)) * medianGap) * mPerDegLat;
+}
+
 export function buildSurface({
   bounds, stepM, radiusKm, sampleElevation, maxNodes = DEFAULT_MAX_NODES,
 }) {

@@ -1,8 +1,9 @@
 import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
-} from "./model-build.js?v=20260829-7985cf8";
-import { ringsFromCollection } from "./extraction.js?v=20260829-7985cf8";
+  nativeStepM,
+} from "./model-build.js?v=20260829-c9af536";
+import { ringsFromCollection } from "./extraction.js?v=20260829-c9af536";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -126,34 +127,13 @@ function elevationReader() {
  * so rather than inventing a number — "native" then falls back to the study's
  * own size, which is the honest default.
  */
+/**
+ * Moved into model-build.js, which is the pure half and is what the terrain
+ * TOOL imports too — the Surface step and that tool must quote the same
+ * number, and two copies of a measurement is how they stop doing so.
+ */
 function probeNativeStepM(read, lat, lon) {
-  const mPerDegLat = (Math.PI * bodyRadiusKm() * 1000) / 180;
-  const samples = 512;
-  const spanDeg = 2.0;
-  const values = [];
-  for (let i = 0; i < samples; i += 1) {
-    values.push(read(lat + (spanDeg * i) / (samples - 1) - spanDeg / 2, lon));
-  }
-  if (values.some((v) => !Number.isFinite(v))) return null;
-  const second = [];
-  for (let i = 1; i < values.length - 1; i += 1) {
-    second.push(Math.abs(values[i + 1] - 2 * values[i] + values[i - 1]));
-  }
-  const peak = Math.max(...second);
-  if (!(peak > 0)) return null;
-  const kinks = [];
-  second.forEach((value, i) => { if (value > peak * 0.25) kinks.push(i); });
-  if (kinks.length < 3) return null;
-  const gaps = [];
-  for (let i = 1; i < kinks.length; i += 1) {
-    const gap = kinks[i] - kinks[i - 1];
-    if (gap > 1) gaps.push(gap);
-  }
-  if (!gaps.length) return null;
-  gaps.sort((a, b) => a - b);
-  const medianGap = gaps[Math.floor(gaps.length / 2)];
-  const stepDeg = (spanDeg / (samples - 1)) * medianGap;
-  return stepDeg * mPerDegLat;
+  return nativeStepM({ read, lat, lon, radiusKm: bodyRadiusKm() });
 }
 
 /* ── Bounds ──────────────────────────────────────────────────────────────── */

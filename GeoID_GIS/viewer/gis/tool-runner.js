@@ -1,18 +1,18 @@
-import * as GP from "./geoprocessing.js?v=20260829-7985cf8";
-import * as RA from "./raster-analysis.js?v=20260829-7985cf8";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260829-7985cf8";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-7985cf8";
+import * as GP from "./geoprocessing.js?v=20260829-c9af536";
+import * as RA from "./raster-analysis.js?v=20260829-c9af536";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260829-c9af536";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-c9af536";
 // Pure and DOM-free, so a static import keeps this module Node-clean AND keeps
 // the terrain engine SYNCHRONOUS -- runTool calls engines.native WITHOUT
 // awaiting it, so an async engine hands register() a Promise and the raster
 // comes out undefined. Measured as: "Cannot read properties of undefined".
-import { buildSurface } from "./model-build.js?v=20260829-7985cf8";
-import { CRS_OPTIONS } from "./projection.js?v=20260829-7985cf8";
-import * as IN from "./interpolation.js?v=20260829-7985cf8";
-import * as VAL from "./validation.js?v=20260829-7985cf8";
-import * as EX from "./analysis-extra.js?v=20260829-7985cf8";
-import * as HY from "./hydrology.js?v=20260829-7985cf8";
-import * as KR from "./kriging.js?v=20260829-7985cf8";
+import { buildSurface, nativeStepM } from "./model-build.js?v=20260829-c9af536";
+import { CRS_OPTIONS } from "./projection.js?v=20260829-c9af536";
+import * as IN from "./interpolation.js?v=20260829-c9af536";
+import * as VAL from "./validation.js?v=20260829-c9af536";
+import * as EX from "./analysis-extra.js?v=20260829-c9af536";
+import * as HY from "./hydrology.js?v=20260829-c9af536";
+import * as KR from "./kriging.js?v=20260829-c9af536";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -1525,7 +1525,36 @@ export const TOOLS = [
           const src = (grid.ny - 1 - j) * grid.nx;
           band.set(grid.z.subarray(src, src + grid.nx), j * grid.nx);
         }
+        /**
+         * SAY WHICH IT IS: measured ground, or arithmetic between two pixels.
+         *
+         * The sampler will answer at any spacing asked of it, so this tool
+         * will happily return a 92 m grid from a source whose own sampling is
+         * 19.6 km — and everything downstream (slope, aspect, hillshade,
+         * contours) then inherits a precision nobody measured. That is not a
+         * fault to fix, it is the honest limit of a global DEM over a small
+         * study, and it looks exactly like a rendering bug: a smooth colour
+         * ramp with a hard straight seam through it, which is one source pixel
+         * boundary. Reported as "the mapping doesn't overlay closely", and
+         * half of what was meant by it.
+         *
+         * The Model Builder's Surface step already measures this; the SAME
+         * function answers here, so the two cannot quote different numbers.
+         */
+        const native = nativeStepM({
+          read: (la, lo) => viewer.sampleElevationMeters(la, ((lo % 360) + 360) % 360),
+          lat: (bbox.south + bbox.north) / 2,
+          lon: (bbox.west + bbox.east) / 2,
+          radiusKm,
+        });
+        const cellText = `${Math.round(cell)} m cells, ${grid.nx}x${grid.ny}.`;
+        const note = native && native > cell * 1.5
+          ? `${cellText} The source's own sampling here is about `
+            + `${Math.round(native).toLocaleString()} m, so this grid is INTERPOLATED between `
+            + "its pixels — smooth, and not new ground detail."
+          : `${cellText}${native ? ` Source sampling about ${Math.round(native)} m.` : ""}`;
         return {
+          note,
           raster: {
             band,
             width: grid.nx,
@@ -1791,7 +1820,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260829-7985cf8");
+    const client = await import("./sidecar-client.js?v=20260829-c9af536");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -1846,7 +1875,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260829-7985cf8");
+    const bridge = await import("./research/bridge.js?v=20260829-c9af536");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -1858,12 +1887,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260829-7985cf8");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260829-c9af536");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260829-7985cf8");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260829-c9af536");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }
