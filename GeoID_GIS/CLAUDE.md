@@ -3959,6 +3959,59 @@ Verified after: legend closed, feed 956..1196 against a legend at 1204;
 legend open, feed 778..1018 against a legend at 1026 — the feed slides left
 by exactly the 178 px the legend grew, and the gap is 8 px in every state.
 
+## The GIS tools are one shared module set; the SEAM was the gap
+
+Asked whether the tools and the draw procedure are identical on the planets,
+the answer measured out as: the tools yes, the seam no.
+
+**Already identical**, verified live rather than read: 51 shared modules under
+`viewer/gis/` with **none planet-only** (the 9 Earth-only ones are all
+Earth-specific data services — EONET, GEE, satellites, weather, SoilGrids,
+the Earth catalogues); the **same 47-tool registry** with the same ids on
+Earth and Mars; the **same eleven-button draw bar** in the same order. The
+per-viewer draw/measure functions diff clean once body names and Mars's moon
+argument are normalised — `activateStudyArea` differs by the string "Mars" vs
+"Mercury" and nothing else — and the planets' `measureDisplayLiftForView`
+implements Earth's parallax-scaled lift with the SAME constants (0.0015,
+floor 5e-7, ceiling 0.012); Earth's version only generalises the distance so
+it also works in a moon's frame.
+
+**The gap was `window.GeoIDViewer`.** Measured live on Mars: 31 seam keys, and
+three names the shared modules call were simply absent —
+
+| seam | who asks | what breaks |
+| --- | --- | --- |
+| `surfacePoint` | vector-render, drapes | geometry cannot hug the ground |
+| `getEffectiveRelief` | vector-render, geotiff-adapter | relief-following is blind |
+| `elevationNormalized` | vector-render | ditto |
+
+Each is already COMPUTED in every planet viewer — `measureSurfaceRadius`,
+`getEffectiveTerrainRelief`, `sampleElevationNormalized` — and simply never
+published, so a shared module loaded on a planet asked and got `undefined`.
+
+`services/port-viewer-seam.py` publishes them, idempotent with a `--check`
+like the draw-tools porter. **Exposed, never re-derived**: a second copy of
+the radius rule in a shared module is exactly how the polygon-area formula
+came to be wrong in ten files. `surfacePoint` passes an explicit
+`{ kind: "planet" }` rather than letting `measureSurfaceRadius` default to
+`getActiveMeasureContext()`, which would answer in a MOON's frame whenever a
+moon is the active measure target. The four gas giants are untouched: no
+elevation map, no terrain to hug.
+
+Verified on Mars: 34 seam keys, Olympus Mons normalising to 0.9523 against
+0.1671 on the plains, and `surfacePoint` returning radius 3.30475 = exactly
+`3.2 + 0.9523 x 0.11`, the viewer's own rule, with the lift honoured to the
+digit.
+
+**Two lessons about the instrument.** A regex scan of the viewer sources for
+seam names gives FALSE NEGATIVES — it reported `setStudyAreaPolygon` missing
+on all ten worlds while the browser was calling it happily — because the seam
+is built by `Object.assign` in shapes a pattern does not catch. Ask the
+running page (`Object.keys(window.GeoIDViewer)`), never the source. And when
+comparing per-viewer copies, normalise what is legitimately per-body (body
+name, radius constant, group name, moon arguments) or every function reads as
+drift.
+
 ## The planets inherit the GUI work, except what lives in a stylesheet
 
 A useful division came out of checking whether the recent UI work had reached
