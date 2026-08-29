@@ -18,7 +18,7 @@
  * in extraction and in export without this file knowing anything about them.
  */
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260829-8a9afe7";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260829-4030884";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */

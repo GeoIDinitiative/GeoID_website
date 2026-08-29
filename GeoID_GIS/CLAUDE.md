@@ -3277,9 +3277,71 @@ reason.
 **What this does NOT settle.** The fill is `DoubleSide`, so the black
 scratches are not backface culling; every tile carries its boundary seal; and
 the clip's own mesh is clean. The seams are back with the revert, and
-that is the honest state: they are a hairline artefact of a source whose
-neighbouring units do not share their boundaries, and the fix is a ribbon
-seal, not a backdrop.
+that is the honest state: the fix is a ribbon seal, not a backdrop.
+
+### The gaps are WEDGES inside one unit, and the clip is exact
+
+Asked whether the contact polylines are at fault and whether they should be
+dropped in favour of polygons. **They are not, and dropping them would change
+nothing** — only `macrostrat-units` is loaded, and the line objects in it are
+the per-unit SEAL, whose vertex colours are the units' own
+(`0.20,0.57,0.17`, `0.44,0.43,0.16`, …), not dark. Contacts-and-faults is a
+separate opt-in layer in the Tectonics tab.
+
+Four measurements on the real z9 tiles over Northern Ireland, each ruling out
+the layer above it:
+
+- **Neighbouring units DO share their boundaries** — the opposite of what this
+  file said for months. **68.4% of vertices lie at 0.00 m from a different
+  unit's edge**, another 1.2% within 20 m, and then it jumps: p75 258 m,
+  p90 977 m, which is the coastline and the edge of the mapped area, not a
+  contact. There is no 5–50 m near-miss population.
+- **So a vertex SNAP cannot help, and it was tried and reverted.** Rounding
+  decoded tile coordinates onto a coarser lattice (2, 4 and 8 tile units) moved
+  shared edges 39.04% → 39.19% → 39.58% and dropped five rings. A fifth of a
+  percent is not a trade; the theory that the 9 m median was one quantisation
+  step (extent 4096, ≈11 m of ground at z9) was arithmetic that happened to
+  agree with a number it had nothing to do with.
+- **Adjacent tiles OVERLAP rather than gap.** Tile 247 runs to −5.62225 and
+  248 begins at −5.62775 against a seam at −5.62500 — about 176 m of encoder
+  buffer each way, so there is no seam to close there either.
+- **The decode and the triangulation are both airtight.** Rasterised at
+  **3.6 m over 810,000 cells** of pure land: the rings cover every cell, and so
+  do the triangles `fillTriangles` produces from them — 0 empty, 0 interior
+  holes, no throws, no rejected holes.
+
+**And the clip is exact, cell for cell.** Over a study-area-sized box the
+coverage before and after `GP.clip` is **identical**: 84,730 empty of 490,000,
+30 interior holes, 28 of them fully surrounded. The clip reproduces the
+source's own emptiness and adds none of its own — so "the clipped polygons
+show gaps" is the clip faithfully showing gaps that were already there.
+
+**What the gaps actually are.** The 28 isolated holes are not stipple: they
+all lie on ONE corridor, 3,775 m long, and measured perpendicular at 0.25 m
+its width grows **linearly from 4.00 m to 12.25 m** along its length. The unit
+on BOTH SIDES is the same one — "Unnamed Extrusive Rocks, Palaeogene".
+
+A wedge opening at a constant rate between two pieces of the SAME unit is one
+boundary drawn twice and generalised independently: two straight chords at
+marginally different bearings, with the gap between them growing in proportion
+to how far you are from where they last agreed. Nothing about it is a contact,
+which is why removing contact lines would not touch it.
+
+**That also says what the ribbon seal may honestly do.** Where the same unit
+stands on both sides of a gap, filling it with that unit is not inventing
+geology — it is naming ground between two pieces of Palaeogene extrusives as
+Palaeogene extrusives. A ground-width ribbon of about 12 m closes this whole
+corridor at every zoom, where the present 1-device-pixel line loses by
+construction below ~12 m/px. The earlier attempt at *reshaping* polygons to
+close gaps was reverted for misshaping them at 20 km; a seal drawn in the
+polygon's own colour changes no polygon at all.
+
+**The instrument, since it is reusable.** Rasterise the decoded rings and the
+triangulated faces separately over the same window and count cells covered by
+neither, then require an empty cell's whole 8-ring to be covered before calling
+it a hole — a 4-neighbour test counts every notch in a shoreline. And run the
+UNCLIPPED source through the identical grid as the control: without it, 17.3%
+empty reads as the clip losing ground when it is Lough Neagh.
 
 **And there is no finer geology to stream at that scale.** Measured over a
 2 km view off the Antrim coast, features falling inside it: 3 at zoom 7, 1 at
