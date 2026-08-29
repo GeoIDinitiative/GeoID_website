@@ -3070,6 +3070,44 @@ raster.** It cost a round: an imported polygon fills by default, draws above
 the drapes, and its legend swatch is the tell. Check what is actually on top
 before diagnosing the layer underneath it.
 
+## The gas giants: what is absent by design, and the one thing that lied
+
+Audited on Jupiter and Neptune. **What works there, measured:** every radius
+is the correct IAU mean (Jupiter 69,911 — the Saturn mix-up stays fixed;
+Saturn 58,232, Uranus 25,362, Neptune 24,622); the import pipeline is whole;
+buffer, clip and IDW all run on imported data; and an imported polygon's area
+is computed on that body's own radius (Neptune: 2,909,274 km² against a
+predicted 2,909,865, ratio 1.000). `terrain` refuses honestly — "this world
+exposes no elevation to sample" — and the draw HUD is correctly absent,
+because a gas giant has no `setStudyAreaPolygon` and no surface to draw on.
+
+**But the Draw button itself was still live, and lying.** Gating the HUD was
+only half the job: on Jupiter the button was enabled, labelled "Activate draw
+tool", and took the active state on click. Measured — armed, then three
+clicks on the globe produced ZERO measure points, no line and an empty
+readout. That is this tree's own rule pointed at itself: *wire it or leave it
+disabled.*
+
+**Only AREA is dead, and that distinction is the whole fix.** Distance and
+Profile go through the ordinary measure path and work perfectly on Jupiter —
+measured, two points each — so disabling the row wholesale would have taken
+away two tools that do their job. `draw-hud.js` (shared, so one edit reaches
+all four) disables the Area button and titles it with what still works.
+
+**Ten seconds, not sixty.** The retry runs to 120 tries because a seam can
+genuinely be late, but a button must not sit there enabled and lying for a
+minute: measured on Mars, both the seam and the HUD are up before a probe
+fired immediately after load could even look. Stood down at 20 tries, watched
+to 120, and a seam that does turn up late takes the button back.
+
+**The draw bar on the rocky worlds is Earth's, byte for byte.** Reported as
+not matching, and it does: Mars and Earth both render eleven buttons in the
+same order with the same shapes, titles and widths (31/31/31/31/31/31/31/67/
+52/30/31) in a 471x65 bar — Line, Circle, Triangle, Square, Rectangle,
+Pentagon, Hexagon, Custom, Done, Export CSV and close. It is one shared
+module and there is nothing per-body left in it. Where the bar is missing,
+the body is a gas giant and the reason is the surface, not the code.
+
 ## The same audit on the planets: two faults, both per-body
 
 Running the Earth audit on Mars first. **What already worked, measured rather
