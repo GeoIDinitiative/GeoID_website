@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260829-e82dde8";
+  from "./gis/geo-utils.js?v=20260829-4d9de29";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -18444,8 +18444,35 @@ uniform float uViewportWidth;`,
           if (context.kind === "moon") {
             center = centerNormal.multiplyScalar(context.radiusWorld + fillLift);
           } else {
-            const centerLatLon = vectorToLatLon(centerNormal);
-            center = sampleMeasureSurfacePoint(centerLatLon.lat, centerLatLon.lon, fillLift, context);
+            /**
+             * The apex stays in the BOUNDARY'S OWN FRAME.
+             *
+             * It used to be round-tripped through lat/lon -- vectorToLatLon on
+             * the centroid direction, then sampleMeasureSurfacePoint to turn
+             * that back into a position -- and on a west-positive world those
+             * two do not agree about which way longitude runs. Measured on
+             * Mercury with a three-point polygon: the apex came back at
+             * (2.833, -0.199, -1.476) against a true centroid of
+             * (-2.833, -0.199, -1.475). X negated exactly: the apex lands on
+             * the OPPOSITE SIDE OF THE PLANET, 5.67 units away on a globe of
+             * radius 3.2, while the shape itself spans 0.137.
+             *
+             * The fill is a triangle fan from that apex, so all 121 triangles
+             * ran to the far side and projected as a long spike out of an
+             * otherwise correct outline -- reported as "a trailing kink
+             * outside of the 3 defined points". The outline was never wrong,
+             * because the boundary points are never round-tripped.
+             *
+             * The centroid direction and the boundary are already in one
+             * frame, so the apex is placed along that direction at the mean
+             * boundary radius: no lat/lon, no convention to disagree about,
+             * and it sits on the same terrain the boundary was sampled from.
+             * The moon branch above avoids the round trip for exactly this
+             * reason and says so.
+             */
+            const meanRadius = boundary.reduce((sum, point) => sum + point.length(), 0)
+              / boundary.length;
+            center = centerNormal.clone().multiplyScalar(meanRadius);
           }
           for (let index = 0; index < boundary.length; index += 1) {
             const currentPoint = boundary[index];
