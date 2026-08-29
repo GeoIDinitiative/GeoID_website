@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260829-6197226";
-import { currentBodyId } from "./bodies.js?v=20260829-6197226";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260829-6197226";
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260829-6197226";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260829-ace04a2";
+import { currentBodyId } from "./bodies.js?v=20260829-ace04a2";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260829-ace04a2";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260829-ace04a2";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -362,13 +362,34 @@ async function loadTiled(entry, { toView = false, quiet = false } = {}) {
      * and the rest of the app speaks minX/minY/maxX/maxY, and that mismatch is
      * the trap `drape()` already records paying for.
      */
+    /** What the layer is DRAWING, right now — never a snapshot. */
+    layer.liveCollection = () => ({
+      type: "FeatureCollection", features: controller.features(),
+    });
+    /**
+     * Put the drawn set back.
+     *
+     * `featuresIn` swaps the study area's features in so the SYNCHRONOUS
+     * readers beside it (a tool engine, a clip) see the right ground — and
+     * leaving them there afterwards is a lie about what the layer holds. It
+     * cost exactly that: `layer.collection` reading 216 features while the map
+     * drew 9,137, and `featuresAt` — the click picker — walks that list, so a
+     * click anywhere outside the last study box matched a leftover from it and
+     * put the pin somewhere else entirely. A borrowed collection has to be
+     * given back for the same reason the Export button does.
+     */
+    layer.restoreLive = () => {
+      const fc = layer.liveCollection();
+      layer.collection = fc;
+      layer.features = fc.features;
+      return fc;
+    };
     layer.featuresIn = async (box) => {
       const b = box?.west !== undefined ? box : {
         west: box.minX, south: box.minY, east: box.maxX, north: box.maxY,
       };
       const got = await controller.featuresIn(b);
       const collection = { type: "FeatureCollection", features: got.features };
-      // Keep the snapshot honest for the synchronous readers beside us.
       layer.collection = collection;
       layer.features = got.features;
       return collection;

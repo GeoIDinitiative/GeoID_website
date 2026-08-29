@@ -843,6 +843,25 @@ check("the SYNC path refuses rather than answering emptily", () => {
   eq(geology.asked.length, 0, "and the sync path fetches nothing, by design");
 });
 
+check("what a run BORROWS from a live layer is given back", async () => {
+  const geology = tiledLayer();
+  const drawnSet = geology.collection;            // what the layer draws
+  geology.liveCollection = () => drawnSet;
+  geology.restoreLive = () => { geology.collection = drawnSet; geology.features = drawnSet.features; };
+  const out = await R.runToolAuto("clip", { input: geology, overlay: A }, {},
+    { outputName: "clip_borrow" });
+  ok(out.ok, out.message);
+  eq(geology.asked.length, 1, "it was asked about the box");
+  /**
+   * The whole point: after the run the layer holds what it DRAWS again.
+   * Leaving the study area's subset in place made `layer.collection` read 216
+   * features while the map drew 9,137 — and `featuresAt`, the click picker,
+   * walks that list, so a click outside the box matched a leftover and put
+   * the pin somewhere else entirely.
+   */
+  eq(geology.collection, drawnSet, "the drawn set is back on the layer");
+});
+
 check("a layer with a fixed extent is never asked to fetch", async () => {
   // Only self-rebuilding inputs are refreshed; an ordinary import is left alone.
   const out = await R.runToolAuto("clip", { input: A, overlay: B }, {}, { outputName: "clip_plain" });

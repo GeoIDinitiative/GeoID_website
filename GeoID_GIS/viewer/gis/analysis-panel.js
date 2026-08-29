@@ -11,8 +11,8 @@ import {
   vectorRows,
   extractDelimitedWithin,
   delimitedColumns,
-} from "./extraction.js?v=20260829-6197226";
-import { rectangleVertices } from "./draw-area.js?v=20260829-6197226";
+} from "./extraction.js?v=20260829-ace04a2";
+import { rectangleVertices } from "./draw-area.js?v=20260829-ace04a2";
 
 let lastResult = null;
 // The whole extraction as one object -- bounds, grid, vectors, clouds. This is
@@ -402,10 +402,14 @@ function runExtraction() {
       }));
       return { minX, minY, maxX, maxY };
     })() : null;
+    // Borrowed for the extraction, and given back at the end of it — a layer
+    // left holding one study area's features tells the click picker the rest
+    // of the map is not there.
+    const borrowed = [];
     if (boundsBox) {
       const asked = loadedLayers().filter((l) => typeof l.featuresIn === "function");
       for (const layer of asked) {
-        try { await layer.featuresIn(boundsBox); }
+        try { await layer.featuresIn(boundsBox); borrowed.push(layer); }
         catch (error) { /* a layer that cannot fetch keeps whatever it had */ }
       }
     }
@@ -468,6 +472,7 @@ function runExtraction() {
       .filter((n) => n.ok);
 
     lastPackage = { bounds: bounds.label, grid: lastResult, vectors, clouds, native: natives };
+    borrowed.forEach((l) => { try { l.restoreLive?.(); } catch (error) { /* keep */ } });
 
     const parts = [];
     if (result.ok && result.rows.length) {
