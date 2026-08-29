@@ -3170,19 +3170,46 @@ its job.
 believing the shortfall.** Two rounds of hunting for missing geometry that
 was never missing.
 
+**The gaps: an opaque map keeps the coarse one underneath, and they close.**
+They are real but tiny — measured on the live tiles, **44.9% of edges are
+shared by two polygons** and the strays sit tens of metres apart. The seal
+that exists to cover them is a LINE, and **WebGL draws every line one device
+pixel wide whatever `linewidth` says** — about 20 m of ground at a 35 km view
+and less as you descend. The seal loses that race by construction, so a wider
+line is not available and would not be the fix if it were.
+
+What made those seams BLACK rather than merely visible is the window: the
+view's tiles cut the coarse backdrop away exactly where they paint, so behind
+a hairline gap there is nothing at all. That window exists for ONE reason — a
+translucent layer drawn over its own coarse copy blends twice and shows a
+colour in nobody's legend — and at full opacity there is nothing to blend:
+the view's tiles draw half a renderOrder step above the backdrop and hide it
+completely, except in the gaps, which is exactly where something underneath
+is wanted. So the window is cut only when the layer is actually translucent,
+and `setOpacity` re-decides it. A gap now shows the same geology one
+generalisation up instead of a hole.
+
+**What the gaps were NOT**, each ruled out by measurement rather than by
+argument: the triangulation (55 of 8,997 polygons lose any triangle at all,
+57 of 106,131); backface culling (the fill is `DoubleSide`, so an inward
+triangle still draws); a dark unit in the palette (the darkest is a purple at
+luminance 44); and the clip, whose own mesh is clean.
+
+**The flat-colour test is only conclusive if the seal is flat too.** Painting
+every unit magenta showed no holes — and could not have, because the seal was
+magenta as well and covers exactly the gaps in question. What told the story
+was the A/B: identical camera, flat versus real colours, dark only in the
+second. A test that hides the thing it is testing for passes for the wrong
+reason.
+
 **What this does NOT settle.** The fill is `DoubleSide`, so the black
 scratches are not backface culling; every tile carries its boundary seal; and
-the clip's own mesh is clean. Finer tiles make the slivers smaller but they
-are still there. With the fill on `DoubleSide`, the clip's own mesh clean, and
-the triangulation now measured as sound, the remaining suspect is the one this
-file already documents: **neighbouring units do not share their boundary** —
-only 32% of edges at zoom 4 are used by two polygons, and the strays sit
-within about 30 m. A **one-pixel** seal covers 30 m from orbit and cannot
-cover it from 15 km, where 30 m is one and a half pixels and rising. That is
-where to look next: the seal's width should scale with the ground, not stay
-at one pixel. The flat-colour test (paint every unit magenta; anything dark is
-a hole) is the instrument, and it must be run on the VIEW's own tiles — a
-repaint that leaves the view tiles untouched proves nothing about them.
+the clip's own mesh is clean. Verified clean at 45 km and
+120 km over Northern Ireland, where the reported shards were plain before.
+What is not proven is every case: a translucent layer still cuts the window
+by design, so a faded geological map can still show its seams, and the honest
+answer there would be a ground-width ribbon seal rather than a line. If the
+tearing ever returns, check the layer's opacity first.
 
 **Two probe mistakes worth not repeating.** `repaint(null)` does not restore
 the default colours — it removes the colour function, and with it every fill
