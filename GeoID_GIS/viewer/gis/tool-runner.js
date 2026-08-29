@@ -1,19 +1,19 @@
-import * as GP from "./geoprocessing.js?v=20260829-5cd6a46";
-import * as RA from "./raster-analysis.js?v=20260829-5cd6a46";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260829-5cd6a46";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-5cd6a46";
+import * as GP from "./geoprocessing.js?v=20260829-233960f";
+import * as RA from "./raster-analysis.js?v=20260829-233960f";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260829-233960f";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-233960f";
 // Pure and DOM-free, so a static import keeps this module Node-clean AND keeps
 // the terrain engine SYNCHRONOUS -- runTool calls engines.native WITHOUT
 // awaiting it, so an async engine hands register() a Promise and the raster
 // comes out undefined. Measured as: "Cannot read properties of undefined".
-import { buildSurface, nativeStepM } from "./model-build.js?v=20260829-5cd6a46";
-import { nativeGridOf } from "./extraction.js?v=20260829-5cd6a46";
-import { CRS_OPTIONS } from "./projection.js?v=20260829-5cd6a46";
-import * as IN from "./interpolation.js?v=20260829-5cd6a46";
-import * as VAL from "./validation.js?v=20260829-5cd6a46";
-import * as EX from "./analysis-extra.js?v=20260829-5cd6a46";
-import * as HY from "./hydrology.js?v=20260829-5cd6a46";
-import * as KR from "./kriging.js?v=20260829-5cd6a46";
+import { buildSurface, nativeStepM } from "./model-build.js?v=20260829-233960f";
+import { nativeGridOf } from "./extraction.js?v=20260829-233960f";
+import { CRS_OPTIONS } from "./projection.js?v=20260829-233960f";
+import * as IN from "./interpolation.js?v=20260829-233960f";
+import * as VAL from "./validation.js?v=20260829-233960f";
+import * as EX from "./analysis-extra.js?v=20260829-233960f";
+import * as HY from "./hydrology.js?v=20260829-233960f";
+import * as KR from "./kriging.js?v=20260829-233960f";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -1927,9 +1927,81 @@ const STORE_CAP = 200;
  * Async, unlike runTool — the dialog already awaits its result, so this is a
  * drop-in for it.
  */
+/**
+ * The bounds a tool is really ABOUT.
+ *
+ * A self-rebuilding layer's own bounds are the world, so they say nothing —
+ * the useful extent is the one the OTHER inputs have. Clipping geology by a
+ * drawn box is about the box; zonal statistics of a raster over geological
+ * zones is about the raster. Where every input rebuilds itself there is no
+ * such extent and nothing is fetched, which leaves the tool exactly where it
+ * was rather than guessing.
+ */
+function areaOfInterest(resolved, live) {
+  const fixed = resolved.filter((l) => l && !live.includes(l));
+  let minX = Infinity; let minY = Infinity; let maxX = -Infinity; let maxY = -Infinity;
+  fixed.forEach((l) => {
+    // A layer's declared bounds, else the coordinates it actually holds: a
+    // derived or hand-built vector layer need not carry `bounds`, and falling
+    // through on that would silently skip the fetch and leave the tool reading
+    // whatever snapshot it had — the exact fault this exists to close.
+    let b = l.bounds || l.raster?.bounds;
+    if ((!b || !Number.isFinite(Number(b.minX))) && l.collection?.features?.length) {
+      let x0 = Infinity; let y0 = Infinity; let x1 = -Infinity; let y1 = -Infinity;
+      const walk = (coords) => {
+        if (typeof coords[0] === "number") {
+          if (coords[0] < x0) x0 = coords[0];
+          if (coords[0] > x1) x1 = coords[0];
+          if (coords[1] < y0) y0 = coords[1];
+          if (coords[1] > y1) y1 = coords[1];
+          return;
+        }
+        coords.forEach(walk);
+      };
+      l.collection.features.forEach((f) => { if (f?.geometry?.coordinates) walk(f.geometry.coordinates); });
+      if (Number.isFinite(x0)) b = { minX: x0, minY: y0, maxX: x1, maxY: y1 };
+    }
+    if (!b || !Number.isFinite(Number(b.minX))) return;
+    minX = Math.min(minX, Number(b.minX));
+    minY = Math.min(minY, Number(b.minY));
+    maxX = Math.max(maxX, Number(b.maxX));
+    maxY = Math.max(maxY, Number(b.maxY));
+  });
+  if (!Number.isFinite(minX) || maxX <= minX || maxY <= minY) return null;
+  return { minX, minY, maxX, maxY };
+}
+
+/**
+ * Ask every self-rebuilding input about the ground this run is about, BEFORE
+ * any engine sees it.
+ *
+ * `runTool` calls `engines.native(...)` without awaiting, so an engine must be
+ * synchronous and cannot fetch anything — which is why this is here and not
+ * there. The tiled geology's `collection` is a snapshot of whatever was on
+ * screen when it last rebuilt itself, so clipping it by a drawn box returned
+ * whatever the camera happened to be showing, and over a study area that is
+ * routinely nothing. Same fault the extraction panel had, one layer down.
+ */
+async function refreshLiveInputs(desc, inputs) {
+  const resolved = (desc.inputs || []).map((spec) => resolveLayer(inputs[spec.name])).filter(Boolean);
+  const live = resolved.filter((l) => typeof l.featuresIn === "function");
+  if (!live.length) return;
+  const box = areaOfInterest(resolved, live);
+  if (!box) return;
+  for (const layer of live) {
+    // A layer that cannot fetch keeps whatever it had: a failed refresh must
+    // never fail the run.
+    try { await layer.featuresIn(box); } catch (error) { /* keep the snapshot */ }
+  }
+}
+
 export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
   const desc = toolById(toolId);
-  if (!desc?.engines?.sidecar) return runTool(toolId, inputs, params, opts);
+  if (!desc) return runTool(toolId, inputs, params, opts);
+  // Before ANY engine, and before the sidecar decision: a layer that fetches
+  // its own features is asked about this run's ground.
+  await refreshLiveInputs(desc, inputs);
+  if (!desc.engines?.sidecar) return runTool(toolId, inputs, params, opts);
 
   const resolved = {};
   for (const spec of desc.inputs || []) resolved[spec.name] = resolveLayer(inputs[spec.name]);
@@ -1937,7 +2009,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260829-5cd6a46");
+    const client = await import("./sidecar-client.js?v=20260829-233960f");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -1992,7 +2064,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260829-5cd6a46");
+    const bridge = await import("./research/bridge.js?v=20260829-233960f");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -2004,12 +2076,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260829-5cd6a46");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260829-233960f");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260829-5cd6a46");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260829-233960f");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }
@@ -2200,6 +2272,21 @@ export function runTool(toolId, inputs = {}, params = {}, { outputName } = {}) {
     }
     if (!matchesType(layer, spec.type)) {
       return fail(`${spec.label} must be a ${spec.type} layer.`);
+    }
+    /**
+     * A self-rebuilding layer that currently holds NOTHING is refused here
+     * rather than run.
+     *
+     * Its `collection` is a snapshot of what was on screen when it last
+     * rebuilt itself, so an empty one means "the camera is elsewhere", not
+     * "this ground has no geology" — and running anyway produces a confident
+     * empty answer, which is the worst of the three possible outcomes.
+     * `runToolAuto` fetches the right ground first; this is the path that did
+     * not, and it says so instead of guessing.
+     */
+    if (typeof layer.featuresIn === "function" && !layer.collection?.features?.length) {
+      return fail(`${layer.name} holds no features for this view yet — `
+        + "run it from the tools window, which fetches the ground the run is about.");
     }
     resolvedInputs[spec.name] = layer;
   }

@@ -100,10 +100,21 @@ window.GeoIDViewer = {
 
 let passed = 0;
 const failures = [];
+/**
+ * Async checks join a queue drained before the summary, so the summary can
+ * never print while a check is still running — the one way a suite reports
+ * green on work it did not wait for.
+ */
+const pending = [];
 function check(name, fn) {
   try {
-    fn();
-
+    const out = fn();
+    if (out && typeof out.then === "function") {
+      pending.push(out.then(
+        () => { passed += 1; console.log(`PASS ${name}`); },
+        (error) => { failures.push(`${name}: ${error.message}`); console.log(`FAIL ${name}: ${error.message}`); }));
+      return;
+    }
     passed += 1;
     console.log(`PASS ${name}`);
   } catch (error) {
@@ -773,6 +784,71 @@ check("terrain — the DEM reproduces this world's own elevation, north row FIRS
   }
 });
 
+/* ══ SELF-REBUILDING LAYERS ═══════════════════════════════════════════════
+   A tiled layer's `collection` is a snapshot of what was on screen when it
+   last rebuilt itself. Every tool that asks a question about a PLACE has to
+   ask the layer about that place first. */
+
+/** The shape the tiled geology registers with: a world extent and a fetcher. */
+function tiledLayer() {
+  const layer = {
+    id: nextId += 1, name: "World geology (Macrostrat)", status: "loaded", ext: "geology",
+    bounds: { minX: -180, minY: -85, maxX: 180, maxY: 85 },
+    collection: { type: "FeatureCollection", features: [] },   // empty: camera elsewhere
+    asked: [],
+  };
+  layer.featuresIn = async (box) => {
+    layer.asked.push(box);
+    // What the fetcher finds for THIS box: a unit covering the whole of it.
+    const b = box.minX !== undefined ? box
+      : { minX: box.west, minY: box.south, maxX: box.east, maxY: box.north };
+    const pad = 0.02;
+    layer.collection = { type: "FeatureCollection", features: [poly({ name: "Tyrone Group" }, [
+      [b.minX - pad, b.minY - pad], [b.maxX + pad, b.minY - pad],
+      [b.maxX + pad, b.maxY + pad], [b.minX - pad, b.maxY + pad], [b.minX - pad, b.minY - pad],
+    ])] };
+    return layer.collection;
+  };
+  return layer;
+}
+
+check("clip on a self-rebuilding layer FETCHES the ground it is clipped to", async () => {
+  const geology = tiledLayer();
+  const out = await R.runToolAuto("clip", { input: geology, overlay: A }, {},
+    { outputName: "clip_geol" });
+  ok(out.ok, out.message);
+  eq(geology.asked.length, 1, "the layer was asked exactly once");
+  const box = geology.asked[0];
+  // Asked about the OVERLAY's ground, not about its own world extent.
+  eq(box.minX, 0.01, "west of the clip box", 1e-9);
+  eq(box.maxX, 0.11, "east of the clip box", 1e-9);
+  eq(out.layer.collection.features.length, 1, "a feature survived the clip");
+});
+
+check("zonal statistics over self-rebuilding ZONES asks about the raster's ground", async () => {
+  const zones = tiledLayer();
+  const out = await R.runToolAuto("zonalStatistics", { input: FLAT, zones }, {},
+    { outputName: "zs_geol" });
+  ok(out.ok, out.message);
+  eq(zones.asked.length, 1, "asked once");
+  eq(zones.asked[0].minX, BOUNDS.minX, "the raster's own west edge", 1e-9);
+  eq(out.layer.collection.features[0].properties.zonal_mean, 50, "mean over flat ground");
+});
+
+check("the SYNC path refuses rather than answering emptily", () => {
+  const geology = tiledLayer();      // still empty; nothing has fetched for it
+  const out = R.runTool("clip", { input: geology, overlay: A }, {}, { outputName: "clip_sync" });
+  eq(out.ok, false, "refused");
+  ok(/no features for this view/i.test(out.message), `it must say why: ${out.message}`);
+  eq(geology.asked.length, 0, "and the sync path fetches nothing, by design");
+});
+
+check("a layer with a fixed extent is never asked to fetch", async () => {
+  // Only self-rebuilding inputs are refreshed; an ordinary import is left alone.
+  const out = await R.runToolAuto("clip", { input: A, overlay: B }, {}, { outputName: "clip_plain" });
+  ok(out.ok, out.message);
+});
+
 /* ══ STRUCTURAL: the two directions that were the last two bugs ═══════ */
 
 /** The name an engine gives its params argument, or null if it destructures. */
@@ -948,6 +1024,8 @@ function interior(raster) {
   }
   return { min, max, n };
 }
+
+await Promise.all(pending);
 
 if (failures.length) {
   failures.forEach((f) => console.error(`  x ${f}`));
