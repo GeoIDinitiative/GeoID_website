@@ -3070,6 +3070,37 @@ raster.** It cost a round: an imported polygon fills by default, draws above
 the drapes, and its legend swatch is the tell. Check what is actually on top
 before diagnosing the layer underneath it.
 
+## The Export CSV button flashed in the rail before reaching the bar
+
+Reported as the old redundant Export CSV button flickering beneath the draw
+tool when selected, and it measured as exactly that: on arming, the button is
+visible in its HOME in the right-hand rail at **(1340, 260) at 23 ms**, and
+only reaches the draw bar at (860, 79) by **101 ms**. The viewer un-hides
+that node the instant the Area tool is armed; the HUD borrowed it on its next
+250 ms poll. Between the two it sat in the rail — directly beneath the very
+button that had just been pressed, which is why it read as a second,
+redundant control rather than as the same one moving.
+
+**A MutationObserver on the node borrows it in the mutation's own microtask,
+before the browser paints**, so there is no frame in which it is in the wrong
+place. An observer rather than a click handler on the rail button, because
+arming comes from rail clicks, key shortcuts and other modules alike — the
+same reason this file polls at all rather than wiring into each of them.
+
+The borrow-on-transition rule is untouched: the node is still MOVED and never
+copied (a copy is a dead twin — the viewer holds a live reference), and still
+goes home when the tool is put away. This only closes the window between the
+reveal and the move. Measured after, three arm cycles on Earth and three on
+Mars: **never visible in the rail**, on either.
+
+**Two false trails worth recording**, because both cost a round: a synthetic
+pointer drag showed no flicker at all, and neither did a REAL
+`left_click_drag` — the fault is not in drawing, it is in ARMING, and a
+watcher installed after the arm has already missed it. And a snapshot every
+1.5 s reported one stable state four times running; the whole event lasts
+78 ms. **When something is reported as flickering, sample faster than the
+thing being reported and start the watch BEFORE the gesture.**
+
 ## The gas giants: what is absent by design, and the one thing that lied
 
 Audited on Jupiter and Neptune. **What works there, measured:** every radius
