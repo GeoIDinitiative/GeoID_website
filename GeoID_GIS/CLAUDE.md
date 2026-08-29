@@ -3070,6 +3070,52 @@ raster.** It cost a round: an imported polygon fills by default, draws above
 the drapes, and its legend swatch is the tell. Check what is actually on top
 before diagnosing the layer underneath it.
 
+## The whole chain, run end to end through the UI
+
+Draw a polygon, take the DEM inside it, take the geology inside it, extract
+the data within. Run on Northern Ireland through the real controls — the Draw
+bar with a real mouse drag, the tools window, the extraction panel — and every
+number below is what the page reported.
+
+| step | how | result |
+| --- | --- | --- |
+| geology on the globe | Geology tab tick | World geology (Macrostrat) |
+| draw the polygon | Draw bar, Rectangle, real drag, Done | Study area 1, **610.158 km²** |
+| DEM within | tools window → Terrain to raster | **121x111 at 215 m**, −39 to 265 m |
+| geology within | tools window → Clip | **52 polygons, 17 units** |
+| data within | Extract From Layers, 0.5 km | **2,496 samples, 34 columns** |
+| native tables | automatic | dem at its own **213 m** cells, 13,431 |
+| elevation per unit | Zonal statistics | 52 zones, painted by `zonal_mean` |
+
+Checks that make the run mean something rather than merely complete:
+
+- **The area is right by hand**: 0.4015° of longitude at 54.73° is 25.8 km,
+  0.2129° of latitude is 23.7 km, so 612 km² against the 610.158 reported.
+- **The clip fetched the right ground first**: the geology layer held 7,534
+  features (the view it last rebuilt for) and 966 after being asked about the
+  polygon — the `featuresIn` path, working through the dialog.
+- **The geology is real and local**: Tyrone Group, Armagh Group, Sherwood
+  Sandstone Group, Mercia Mudstone Group, Ulster White Limestone, Palaeogene
+  extrusives, Argyll Group, Moine Supergroup.
+- **The column agrees with the clip**: `geoid_geology` filled for 2,465 of
+  2,496 samples (98.8%), 16 distinct units against the clip's 17 — one unit
+  is too small to catch a 0.5 km sample, which is the honest difference.
+- **The answer is geologically coherent.** Elevation by unit: Lough Neagh
+  Clays −34.5 m (the lough itself, and the lowest thing in the box),
+  Palaeogene extrusives 13.1 m at its margin, Sherwood Sandstone 48.7,
+  Armagh Group 53.8, Tyrone Group 112.3, Roe Valley 128.1, Moine Supergroup
+  131.8, Argyll Group 142.8, Ordovician extrusives 196.4 m — basin low,
+  uplands high, in the order the map says.
+- **The exporter writes four files**: the joined grid (2,496 x 34), the DEM's
+  native table (13,431 x 3), and one per clipped vector layer.
+
+**One honest caveat about the numbers, not the chain**: the elevations under
+Lough Neagh are NEGATIVE (−39 m) where the lough surface is about 15 m above
+sea level. That is the global DEM's own treatment of inland water, not
+something the extraction did — the same class of limit as the 9,575 m native
+sampling the terrain tool reports beside its 215 m grid. The chain reports
+what the source says; the source is coarse and wet-blind here.
+
 ## The Export CSV button flashed in the rail before reaching the bar
 
 Reported as the old redundant Export CSV button flickering beneath the draw
