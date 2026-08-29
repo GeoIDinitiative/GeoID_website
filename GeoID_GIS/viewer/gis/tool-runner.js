@@ -1,19 +1,19 @@
-import * as GP from "./geoprocessing.js?v=20260830-c0283cc";
-import * as RA from "./raster-analysis.js?v=20260830-c0283cc";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260830-c0283cc";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260830-c0283cc";
+import * as GP from "./geoprocessing.js?v=20260830-0f45552";
+import * as RA from "./raster-analysis.js?v=20260830-0f45552";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260830-0f45552";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260830-0f45552";
 // Pure and DOM-free, so a static import keeps this module Node-clean AND keeps
 // the terrain engine SYNCHRONOUS -- runTool calls engines.native WITHOUT
 // awaiting it, so an async engine hands register() a Promise and the raster
 // comes out undefined. Measured as: "Cannot read properties of undefined".
-import { buildSurface, nativeStepM } from "./model-build.js?v=20260830-c0283cc";
-import { nativeGridOf } from "./extraction.js?v=20260830-c0283cc";
-import { CRS_OPTIONS } from "./projection.js?v=20260830-c0283cc";
-import * as IN from "./interpolation.js?v=20260830-c0283cc";
-import * as VAL from "./validation.js?v=20260830-c0283cc";
-import * as EX from "./analysis-extra.js?v=20260830-c0283cc";
-import * as HY from "./hydrology.js?v=20260830-c0283cc";
-import * as KR from "./kriging.js?v=20260830-c0283cc";
+import { buildSurface, nativeStepM } from "./model-build.js?v=20260830-0f45552";
+import { nativeGridOf } from "./extraction.js?v=20260830-0f45552";
+import { CRS_OPTIONS } from "./projection.js?v=20260830-0f45552";
+import * as IN from "./interpolation.js?v=20260830-0f45552";
+import * as VAL from "./validation.js?v=20260830-0f45552";
+import * as EX from "./analysis-extra.js?v=20260830-0f45552";
+import * as HY from "./hydrology.js?v=20260830-0f45552";
+import * as KR from "./kriging.js?v=20260830-0f45552";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -2080,11 +2080,63 @@ async function refreshLiveInputs(desc, inputs, params = {}) {
   return { borrowed, note: notes.length ? ` ${notes.join(" ")}` : "" };
 }
 
+/**
+ * Build the clip as a live, self-refining layer, or answer null to fall back.
+ *
+ * `clip-stream.js` is imported dynamically for this module's usual two
+ * reasons: it reaches for three.js and the import manager, and this runner is
+ * imported in Node by the test suite.
+ */
+async function streamingClip(desc, inputs, params, opts) {
+  const input = resolveLayer(inputs[desc.inputs[0]?.name]);
+  const overlay = resolveLayer(inputs[desc.inputs[1]?.name]);
+  if (!input?.tiled?.sources || !overlay) return null;
+  const mask = overlay.collection || overlay.features
+    ? { type: "FeatureCollection", features: overlay.features || overlay.collection.features }
+    : null;
+  const polygons = (mask?.features || []).filter((f) => /Polygon/.test(f?.geometry?.type || ""));
+  if (!polygons.length) return null;
+  const name = (opts.outputName || "").trim()
+    || resolveOutputName(desc, { [desc.inputs[0].name]: input, [desc.inputs[1].name]: overlay });
+  const mod = await import(`./clip-stream.js${new URL(import.meta.url).search}`);
+  const made = await mod.createStreamingClip({
+    source: input,
+    mask: { type: "FeatureCollection", features: polygons },
+    name,
+  });
+  if (!made) return null;
+  return {
+    ok: true,
+    layer: made.layer,
+    outputType: "vector",
+    message: `${name}: ${made.features.toLocaleString()} features at source zoom ${made.zoom}.`
+      + " Refines as you zoom, like the map it came from.",
+  };
+}
+
 export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
   const desc = toolById(toolId);
   if (!desc) return runTool(toolId, inputs, params, opts);
   // Before ANY engine, and before the sidecar decision: a layer that fetches
   // its own features is asked about this run's ground.
+  /**
+   * A clip of a STREAMING map is itself a streaming map.
+   *
+   * Taken before the ordinary path, because the ordinary path's answer is a
+   * snapshot: the features in hand at the moment the tool ran, triangulated
+   * once. The source refines on every settle and the clip of it did not, so
+   * flying in left the two disagreeing.
+   *
+   * Only when the input really streams and the overlay really is polygons.
+   * Clipping a shapefile by a box has nothing to refine and takes the ordinary
+   * path, and so does everything else: a failure here falls through rather
+   * than failing the run, because a snapshot is a worse answer than a live one
+   * and a much better answer than none.
+   */
+  if (toolId === "clip" && typeof document !== "undefined") {
+    const streamed = await streamingClip(desc, inputs, params, opts).catch(() => null);
+    if (streamed) return streamed;
+  }
   const { borrowed, note } = await refreshLiveInputs(desc, inputs, params);
   // Whatever was borrowed for this run is given back afterwards, always: a
   // layer left holding one study area's features tells the click picker the
@@ -2109,7 +2161,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260830-c0283cc");
+    const client = await import("./sidecar-client.js?v=20260830-0f45552");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -2174,7 +2226,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260830-c0283cc");
+    const bridge = await import("./research/bridge.js?v=20260830-0f45552");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -2186,12 +2238,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260830-c0283cc");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260830-0f45552");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260830-c0283cc");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260830-0f45552");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }

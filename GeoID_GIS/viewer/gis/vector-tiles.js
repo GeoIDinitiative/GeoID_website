@@ -35,8 +35,9 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260830-c0283cc";
-import { renderFeatureCollection } from "./vector-render.js?v=20260830-c0283cc";
+import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260830-0f45552";
+import { renderFeatureCollection } from "./vector-render.js?v=20260830-0f45552";
+import * as GP from "./geoprocessing.js?v=20260830-0f45552";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -108,6 +109,22 @@ export function createTiledVectorLayer({
   maxTiles = 16,
   maxZoom = 13,
   contacts = null,
+  /**
+   * Stream only what falls inside this mask.
+   *
+   * A clipped geology layer used to be a SNAPSHOT: the features that happened
+   * to be in hand when the tool ran, triangulated once and never touched
+   * again. The world layer beside it refines on every settle, so zooming in
+   * left the two disagreeing — the source sharpening while the clip of it
+   * stayed at whatever level it was born at.
+   *
+   * Giving the clip its own controller with a mask is what makes the two the
+   * SAME machinery rather than two implementations of streaming. Everything
+   * below — the tile cache, the zoom choice, the refine, the contacts, the
+   * seam handling — is then shared by construction, which is the lesson the
+   * imitated label engine and the polygon-area formula both cost.
+   */
+  clipTo = null,
 } = {}) {
   // Unversioned, exactly as every other module imports it: a second copy of
   // three.js on the page breaks class identity and nothing is a Mesh any more.
@@ -119,6 +136,28 @@ export function createTiledVectorLayer({
   let paint = colourFor;
   let contactStyle = contacts;
   let opacity = 1;
+  let clipMask = clipTo;
+  /**
+   * The clip is per TILE and cached on the tile, because a tile is fetched
+   * once and may be built, rebuilt and asked about many times. Keyed on the
+   * mask so changing the study area invalidates it rather than silently
+   * serving the old ground.
+   */
+  const clipped = (tile) => {
+    if (!clipMask) return tile.features;
+    if (tile.clipFor === clipMask) return tile.clipFeatures;
+    tile.clipFor = clipMask;
+    try {
+      tile.clipFeatures = GP.clip(
+        { type: "FeatureCollection", features: tile.features }, clipMask,
+      ).features;
+    } catch (error) {
+      // A mask this tile cannot be cut by leaves the tile whole rather than
+      // empty: showing too much is recoverable, showing nothing looks broken.
+      tile.clipFeatures = tile.features;
+    }
+    return tile.clipFeatures;
+  };
   /**
    * The BACKDROP: the whole world at a coarse zoom, pinned on for good.
    *
@@ -158,7 +197,7 @@ export function createTiledVectorLayer({
   const build = (tile) => {
     if (tile.node) return tile.node;
     const built = renderFeatureCollection(
-      { type: "FeatureCollection", features: tile.features },
+      { type: "FeatureCollection", features: clipped(tile) },
       {
         name: `${name} ${tile.z}/${tile.x}/${tile.y}`,
         colourFor: paint,
@@ -683,7 +722,7 @@ export function createTiledVectorLayer({
     const finest = Math.max(...shown.map((t) => t.z));
     const out = [];
     shown.filter((t) => t.z === finest).forEach((tile) => {
-      tile.features.forEach((f) => out.push(f));
+      clipped(tile).forEach((f) => out.push(f));
     });
     return out;
   }
@@ -784,7 +823,7 @@ export function createTiledVectorLayer({
     const out = [];
     needed.forEach((t) => {
       const tile = tiles.get(key(t.z, t.x, t.y));
-      if (tile?.state === "ready") tile.features.forEach((f) => out.push(f));
+      if (tile?.state === "ready") clipped(tile).forEach((f) => out.push(f));
     });
     return { features: out, zoom: z, tiles: needed.length, needed: needed.length };
   }
@@ -946,6 +985,11 @@ export function createTiledVectorLayer({
     maskBackdrop,
     setOpacity,
     setContacts,
+    // Published so a CLIPPED layer can be built on the same tile service its
+    // source streams from, rather than being told about it a second time.
+    sources,
+    setClip: (mask) => { clipMask = mask || null; return repaint(paint); },
+    getClip: () => clipMask,
     features,
     featuresIn,
     featureCount,
