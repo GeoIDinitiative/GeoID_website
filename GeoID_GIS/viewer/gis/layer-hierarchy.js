@@ -10,12 +10,12 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260829-98bc938";
-import { samplerToRaster } from "./raster-analysis.js?v=20260829-98bc938";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-98bc938";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260829-98bc938";
-import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260829-98bc938";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260829-98bc938";
+import { currentBody } from "./bodies.js?v=20260829-2a8f918";
+import { samplerToRaster } from "./raster-analysis.js?v=20260829-2a8f918";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-2a8f918";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260829-2a8f918";
+import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260829-2a8f918";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260829-2a8f918";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -208,6 +208,25 @@ const STYLE = `
   background: rgba(220, 70, 70, 0.16) !important;
   color: #fff !important;
 }
+
+/* An EMPTY status line is not a line, and an empty list is not a list.
+ *
+ * The dock body carries three elements that must stay in the page because
+ * polygons.js addresses them by id -- the hidden file input, the status
+ * paragraph and the polygon list -- and for most of a session all three are
+ * empty. They still cost height: the paragraph keeps its 4px top margin, and
+ * the .control-stack around them is a GRID, which lays its 10.4px gap between
+ * two zero-height rows exactly as it would between two full ones. Measured on
+ * a dock holding two layers: 21.6px between the head and the first row, of
+ * which 14.4px was scaffolding for content that was not there.
+ *
+ * Hiding them while empty collapses the grid to nothing and leaves the body's
+ * own 7.2px padding as the only space -- and the moment polygons.js writes a
+ * message the rule stops matching and the line comes back with its spacing
+ * intact, which a blanket gap: 0 would not have done. */
+#layer-dock-body #polygon-status:empty,
+#layer-dock-body #polygon-list:empty { display: none; }
+
 `;
 
 function injectStyle() {
