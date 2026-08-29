@@ -3070,6 +3070,38 @@ raster.** It cost a round: an imported polygon fills by default, draws above
 the drapes, and its legend swatch is the tell. Check what is actually on top
 before diagnosing the layer underneath it.
 
+## The sharp tiles' half step, and the flattening that hid under a window
+
+The map kept showing coarse, misshapen polygons where the streamed fine ones
+belong. Counted BY ZOOM at that view: 16 zoom-2 backdrop tiles visible at
+renderOrder **51**, and the one visible zoom-7 tile also at **51** rather than
+51.5.
+
+`applyStack` re-stamps every node on each hierarchy change and was flattening
+the half step the tiler puts between the view's sharp tiles and the coarse
+backdrop they replace. With both on the same order the winner is TRAVERSAL
+ORDER, so the coarse map could draw over the fine one. It went unnoticed for
+as long as it did because the backdrop used to be CUT AWAY under the sharp
+tiles — the two never overlapped, so the flattened lift cost nothing. Keeping
+the backdrop for opaque layers, which is what closes the hairline seams,
+turned a harmless flattening into the visible fault. **A latent bug is only
+latent until something removes the thing that was hiding it.**
+
+`keepRenderOrder` is the wrong tool here: these nodes must still track the
+stack or dragging the layer stops working. They record a fractional
+`userData.renderLift` and `applyStack` adds it to the band, so the offset
+rides the band wherever the row is dragged to — pinned in
+`draw-order.test.mjs` at both 51 and 55.
+
+**And the verification before it was circular, which is why it reported a fix
+that was not there.** It asked whether any feature covered each sampled
+screen point using `features()` — which returns whatever tiles are SHOWN. With
+only the backdrop shown, that test passes ON the backdrop and says nothing
+about the sharp tiles. **When checking whether the right thing is drawn, count
+the things drawn; do not ask the drawing what it contains.** Counting visible
+tile groups by zoom is the question that was actually being asked, and it
+answered in one pass.
+
 ## A zoom the view cannot be COVERED at is not a zoom
 
 The map broke at a 20 km scale bar: a coarse slab across half the screen with
