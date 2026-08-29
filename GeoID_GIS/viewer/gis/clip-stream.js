@@ -112,15 +112,18 @@ async function refine(entry, viewBox, macro) {
   if (zoom === entry.zoom) return;
   entry.busy = true;
   try {
-    await entry.controller.update({ bounds: box, zoom });
-    entry.zoom = zoom;
+    const got = await entry.controller.update({ bounds: box, zoom });
+    // The ACHIEVED level, not the asked one: `chooseZoom` walks down for the
+    // feature budget and the tile cap, and recording the ask would make the
+    // next settle believe it had already arrived there and skip the work.
+    entry.zoom = Number.isFinite(got?.zoom) ? got.zoom : zoom;
     // The layer's own record has to follow, or everything downstream -- the
     // click picker, an extraction, the legend count -- is reading the level
     // this layer was BORN at rather than the one it is drawing.
     const fc = { type: "FeatureCollection", features: entry.controller.features() };
     entry.layer.features = fc.features;
     entry.layer.collection = fc;
-    entry.layer.dynamicZoom = zoom;
+    entry.layer.dynamicZoom = entry.zoom;
     window.GeoIDLayerHierarchy?.render?.();
   } catch (error) {
     // A refine that fails leaves the layer exactly as it was drawn.
@@ -159,7 +162,21 @@ export async function createStreamingClip({ source, mask, name, contacts = null 
 
   const macro = await import(`./macrostrat.js${stamp}`);
   const zoom = macro.zoomForBounds(bounds);
-  await controller.update({ bounds, zoom });
+  /**
+   * PIN the study area, exactly as the world layer pins the world.
+   *
+   * `features()` and the drawn set are the FINEST zoom on screen, so a refine
+   * that only fetched the view would leave the rest of the study area with
+   * nothing drawn — zoom into one corner and the other three empty out.
+   * Measured before this: refining a 1.0 x 0.6 degree clip at 60 km took it
+   * from 229 features to 127, and the 127 were the corner in shot.
+   *
+   * The world layer's own note says it in one line: the world is PINNED under
+   * the view, or the planet has an empty half. For a clip the study area is
+   * the world. The pinned level stays drawn and the view's own tiles draw half
+   * a renderOrder above it, which is machinery this controller already has.
+   */
+  await controller.pin({ bounds, zoom });
 
   const fc = { type: "FeatureCollection", features: controller.features() };
   const layer = window.GeoIDImportManager?.addDerivedLayer?.(name, {
