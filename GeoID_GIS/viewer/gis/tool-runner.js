@@ -1,18 +1,18 @@
-import * as GP from "./geoprocessing.js?v=20260829-a608593";
-import * as RA from "./raster-analysis.js?v=20260829-a608593";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260829-a608593";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-a608593";
+import * as GP from "./geoprocessing.js?v=20260829-e9c73b1";
+import * as RA from "./raster-analysis.js?v=20260829-e9c73b1";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260829-e9c73b1";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-e9c73b1";
 // Pure and DOM-free, so a static import keeps this module Node-clean AND keeps
 // the terrain engine SYNCHRONOUS -- runTool calls engines.native WITHOUT
 // awaiting it, so an async engine hands register() a Promise and the raster
 // comes out undefined. Measured as: "Cannot read properties of undefined".
-import { buildSurface } from "./model-build.js?v=20260829-a608593";
-import { CRS_OPTIONS } from "./projection.js?v=20260829-a608593";
-import * as IN from "./interpolation.js?v=20260829-a608593";
-import * as VAL from "./validation.js?v=20260829-a608593";
-import * as EX from "./analysis-extra.js?v=20260829-a608593";
-import * as HY from "./hydrology.js?v=20260829-a608593";
-import * as KR from "./kriging.js?v=20260829-a608593";
+import { buildSurface } from "./model-build.js?v=20260829-e9c73b1";
+import { CRS_OPTIONS } from "./projection.js?v=20260829-e9c73b1";
+import * as IN from "./interpolation.js?v=20260829-e9c73b1";
+import * as VAL from "./validation.js?v=20260829-e9c73b1";
+import * as EX from "./analysis-extra.js?v=20260829-e9c73b1";
+import * as HY from "./hydrology.js?v=20260829-e9c73b1";
+import * as KR from "./kriging.js?v=20260829-e9c73b1";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -462,22 +462,46 @@ export const TOOLS = [
     keywords: ["threshold", "classify", "rules", "classes", "score", "bands"],
     inputs: [{ name: "input", label: "Input", type: "raster" }],
     params: [
-      // The default is the NI methodology's slope classes — a working example
-      // that teaches the syntax at the same time.
-      { name: "rules", label: "Rules (min..max:class)", kind: "text",
-        default: "0..2:1, 2..5:2, 5..15:3, 15..35:4, 35..90:5" },
+      /**
+       * The default used to be the NI methodology's slope classes -- a worked
+       * example that taught the syntax and silently assumed the input was a
+       * slope map in degrees. Fed the obvious first raster (a DEM in metres)
+       * it matched not one cell: a default that only works on one kind of
+       * input is a trap wearing a tutorial's clothes. Blank now means "cut
+       * this raster into quantile classes", which works on ANY raster with
+       * zero typing; the rules stay for anyone who has real thresholds.
+       */
+      { name: "rules", label: "Rules (min..max:class — blank = quantile classes)",
+        kind: "text", default: "" },
+      { name: "classes", label: "Classes (when rules are blank)", kind: "number",
+        default: 5, min: 2, max: 12, step: 1 },
     ],
     outputType: "raster",
     outputName: "reclass_{input}",
     engines: {
       native: (i, p) => {
-        const parsed = RA.parseReclassifyRules(p.rules);
-        if (!parsed.ok) return parsed;
-        const out = RA.reclassify(i.input.raster, parsed.rules);
+        let rules;
+        let how = "";
+        if (!String(p.rules || "").trim()) {
+          const q = quantileRules(i.input.raster, Number(p.classes) || 5);
+          if (!q.ok) return q;
+          rules = q.rules;
+          how = ` Cut into ${q.rules.length} quantile classes over `
+            + `${q.lo.toFixed(1)}–${q.hi.toFixed(1)}.`;
+        } else {
+          const parsed = RA.parseReclassifyRules(p.rules);
+          if (!parsed.ok) return parsed;
+          rules = parsed.rules;
+        }
+        const out = RA.reclassify(i.input.raster, rules);
         const stats = RA.rasterStatistics(out);
         if (!stats.count) {
-          return { ok: false, message: "No cell matched any rule — check the ranges against the data." };
+          const inStats = RA.rasterStatistics(i.input.raster);
+          return { ok: false,
+            message: "No cell matched any rule — this raster spans "
+              + `${inStats.min?.toFixed?.(1)} to ${inStats.max?.toFixed?.(1)}.` };
         }
+        if (how) out.note = how;
         return { raster: out, note: `${parsed.rules.length} rules, ${stats.count} cells classified.` };
       },
     },
@@ -571,7 +595,7 @@ export const TOOLS = [
     id: "rasterize",
     label: "Rasterize (vector → raster)",
     category: "Surface analysis",
-    blurb: "Burn a numeric attribute of a vector layer into a raster grid — geology scores become cells.",
+    blurb: "Burn a numeric attribute into a raster grid — polygons, lines and points all stamp their cells.",
     keywords: ["burn", "vector", "convert", "attribute", "geology"],
     inputs: [
       { name: "input", label: "Grid to match", type: "raster" },
@@ -835,16 +859,44 @@ export const TOOLS = [
       { name: "lat", label: "Observer latitude", kind: "number", default: 0, step: 0.001 },
       { name: "lon", label: "Observer longitude", kind: "number", default: 0, step: 0.001 },
       { name: "height", label: "Observer height (m)", kind: "number", default: 1.7, step: 0.5, min: 0 },
+      { name: "radiusKm", label: "Radius (km)", kind: "number", default: 10, step: 1, min: 0.1 },
     ],
     outputType: "raster",
     outputName: "viewshed_{input}",
     engines: {
       native: (i, p) => {
-        const out = HY.viewshed(i.input.raster, Number(p.lat), Number(p.lon), {
-          observerHeight: Number(p.observerHeight) || 1.7,
+        /**
+         * Two faults the sweep caught here, one silent and one loud.
+         *
+         * The engine read `p.observerHeight` and `p.radiusKm` while the params
+         * were named `height` and -- nothing: a typed observer height was
+         * silently ignored (always 1.7 m) and the radius was always 10 km with
+         * no control offering it. A param a form collects and an engine never
+         * reads is the quietest kind of dead control.
+         *
+         * And the observer DEFAULTED to (0, 0) -- the Gulf of Guinea -- so the
+         * untouched form always answered "the observer is outside the DEM".
+         * The untouched default now means "the middle of this DEM", and says
+         * so; a point somebody actually typed that misses the DEM still gets
+         * the honest error.
+         */
+        let lat = Number(p.lat);
+        let lon = Number(p.lon);
+        let placed = "";
+        const b = i.input.raster.bounds;
+        const inside = lat >= b.minY && lat <= b.maxY && lon >= b.minX && lon <= b.maxX;
+        if (lat === 0 && lon === 0 && !inside) {
+          lat = (b.minY + b.maxY) / 2;
+          lon = (b.minX + b.maxX) / 2;
+          placed = ` Observer defaulted to the DEM centre (${lat.toFixed(3)}, ${lon.toFixed(3)}).`;
+        }
+        const out = HY.viewshed(i.input.raster, lat, lon, {
+          observerHeight: Number(p.height) || 1.7,
           radiusKm: Number(p.radiusKm) || 10,
         });
-        return out.ok ? out.raster : { ok: false, message: out.message };
+        if (!out.ok) return { ok: false, message: out.message };
+        if (placed) out.raster.note = placed;
+        return out.raster;
       },
       sidecar: {
         requires: ["numpy"],
@@ -1057,6 +1109,34 @@ export const TOOLS = [
           field: p.field || null,
           positiveValue: p.positiveValue === "" ? null : p.positiveValue,
         });
+        /**
+         * Presence-only observations are the ordinary case -- a landslide
+         * inventory records where slides HAPPENED, never where they did not --
+         * and the old answer was a refusal ("ROC needs both outcomes") that
+         * left the tool unusable on exactly the data it exists for. Standard
+         * practice is pseudo-absences: random background cells stand in for
+         * non-occurrences (the South Wales validation did precisely this).
+         * Seeded, so the same inputs give the same AUC on every run, and the
+         * message SAYS the negatives are background rather than observed.
+         */
+        let bg = 0;
+        if (pairs.length && pairs.every((pr) => pr.positive)) {
+          const r = i.input.raster;
+          const want = Math.min(1000, Math.max(200, pairs.length * 10));
+          let seed = 42 >>> 0;
+          const rand = () => {
+            seed = (seed * 1664525 + 1013904223) >>> 0;
+            return seed / 4294967296;
+          };
+          for (let tries = 0; tries < want * 20 && bg < want; tries += 1) {
+            const v = r.band[Math.floor(rand() * r.band.length)];
+            if (Number.isFinite(v) && (r.noData == null || v !== r.noData)) {
+              pairs.push({ score: v, positive: false });
+              bg += 1;
+            }
+          }
+          if (!bg) return { ok: false, message: "No background cells to stand in for absences." };
+        }
         const roc = VAL.rocCurve(pairs);
         if (!roc.ok) return { ok: false, message: roc.message };
         const best = VAL.bestThreshold(pairs);
@@ -1066,7 +1146,8 @@ export const TOOLS = [
             false_positive_rate: pt.fpr, true_positive_rate: pt.tpr,
           })),
           message: `AUC ${roc.auc} over ${roc.positives} occurrences and ${roc.negatives} `
-            + `non-occurrences. Best split at ${Number(best.threshold).toFixed(3)} `
+            + (bg ? `random background cells (presence-only observations). ` : `non-occurrences. `)
+            + `Best split at ${Number(best.threshold).toFixed(3)} `
             + `(catches ${(best.tpr * 100).toFixed(0)}% for ${(best.fpr * 100).toFixed(0)}% false alarms).`,
         };
       },
@@ -1411,6 +1492,37 @@ export const toolById = (id) => TOOLS.find((t) => t.id === id);
  * away from a layer appearing in half the selects. Both the dialog and, during
  * migration, refreshToolboxSelects call this instead.
  */
+/**
+ * Quantile class rules for a raster: N classes with (near) equal cell counts.
+ * The reclassify tool's blank-rules mode -- equal-count rather than
+ * equal-interval, because most rasters here are skewed (the FRP lesson) and
+ * equal intervals would put nearly everything in one class.
+ */
+function quantileRules(raster, classes) {
+  const values = [];
+  for (let k = 0; k < raster.band.length; k += 1) {
+    const v = raster.band[k];
+    if (Number.isFinite(v) && (raster.noData == null || v !== raster.noData)) values.push(v);
+  }
+  if (!values.length) return { ok: false, message: "The raster holds no values to class." };
+  values.sort((a, b) => a - b);
+  const n = Math.max(2, Math.min(12, Math.round(classes) || 5));
+  const lo = values[0];
+  const hi = values[values.length - 1];
+  const rules = [];
+  let prev = lo;
+  for (let c = 1; c <= n; c += 1) {
+    const cut = c === n ? hi : values[Math.min(values.length - 1, Math.floor((values.length * c) / n))];
+    if (cut > prev || c === n) {
+      // The last class is closed a hair above the maximum so the max cell
+      // itself is caught by an exclusive-upper rule set.
+      rules.push({ min: prev, max: c === n ? hi + Math.abs(hi) * 1e-9 + 1e-9 : cut, value: rules.length + 1 });
+      prev = cut;
+    }
+  }
+  return { ok: true, rules, lo, hi };
+}
+
 /** Polygon rings of a collection, as {lat, lon} vertex lists. */
 function ringsOfCollection(collection) {
   const rings = [];
@@ -1569,7 +1681,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260829-a608593");
+    const client = await import("./sidecar-client.js?v=20260829-e9c73b1");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -1624,7 +1736,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260829-a608593");
+    const bridge = await import("./research/bridge.js?v=20260829-e9c73b1");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -1636,12 +1748,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260829-a608593");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260829-e9c73b1");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260829-a608593");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260829-e9c73b1");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }

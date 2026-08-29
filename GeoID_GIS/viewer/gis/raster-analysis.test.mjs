@@ -515,5 +515,42 @@ const northward = build(8, 8, (_x, y) => (7 - y) * 10);
   check("the hit count is honest", out.sampled === 1);
 }
 
+/* ── rasterize points and lines (the occurrence-layer case) ── */
+
+{
+  // The commonest rasterize is an occurrence layer of POINTS -- and the
+  // polygon-only version returned an empty grid for it. A point stamps the
+  // cell that contains it; a diagonal line leaves no gap along its run.
+  const feats = { type: "FeatureCollection", features: [
+    { type: "Feature", properties: { v: 7 },
+      geometry: { type: "Point", coordinates: [0.31, 0.56] } },
+    { type: "Feature", properties: { v: 3 },
+      geometry: { type: "MultiPoint", coordinates: [[0.9, 0.1]] } },
+  ] };
+  const r = rasterizeByAttribute(feats, "v", flat);
+  // flat is 8x8 over 0..1: lon 0.31 -> col 2; lat 0.56 -> row floor((1-0.56)*8)=3.
+  check("a point stamps its containing cell", r.band[3 * 8 + 2] === 7,
+    `got ${r.band[3 * 8 + 2]}`);
+  check("a MultiPoint member stamps too", r.band[7 * 8 + 7] === 3,
+    `got ${r.band[7 * 8 + 7]}`);
+  const stamped = [...r.band].filter(Number.isFinite).length;
+  check("nothing else is stamped", stamped === 2, `stamped ${stamped}`);
+}
+{
+  const lineFc = { type: "FeatureCollection", features: [
+    { type: "Feature", properties: { v: 4 },
+      geometry: { type: "LineString", coordinates: [[0.05, 0.05], [0.95, 0.95]] } },
+  ] };
+  const r = rasterizeByAttribute(lineFc, "v", flat);
+  // The diagonal must be CONNECTED: every column it crosses holds a cell.
+  let cols = 0;
+  for (let x = 0; x < 8; x += 1) {
+    let hit = false;
+    for (let y = 0; y < 8; y += 1) if (r.band[y * 8 + x] === 4) hit = true;
+    if (hit) cols += 1;
+  }
+  check("a diagonal line stamps every column it crosses", cols === 8, `cols ${cols}`);
+}
+
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");
 process.exit(failures ? 1 : 0);

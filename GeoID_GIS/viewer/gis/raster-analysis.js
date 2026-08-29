@@ -1,5 +1,5 @@
-import * as G from "./geometry.js?v=20260829-a608593";
-import { featureCollection, feature, polygonsOf } from "./geoprocessing.js?v=20260829-a608593";
+import * as G from "./geometry.js?v=20260829-e9c73b1";
+import { featureCollection, feature, polygonsOf } from "./geoprocessing.js?v=20260829-e9c73b1";
 
 // Raster analysis equivalents of the QGIS Raster menu / ArcGIS Spatial Analyst
 // surface tools. A raster here is { band, width, height, bounds, noData },
@@ -624,9 +624,43 @@ export function rasterizeByAttribute(fc, field, template) {
   const { width, height } = template;
   const tb = template.bounds;
   const out = new Float32Array(width * height).fill(NaN);
+  const stamp = (lon, lat, value) => {
+    if (lon < tb.minX || lon > tb.maxX || lat < tb.minY || lat > tb.maxY) return;
+    const x = Math.min(width - 1, Math.floor(((lon - tb.minX) / (tb.maxX - tb.minX)) * width));
+    const y = Math.min(height - 1, Math.floor(((tb.maxY - lat) / (tb.maxY - tb.minY)) * height));
+    out[y * width + x] = value;
+  };
   fc.features.forEach((f) => {
     const value = Number(f.properties?.[field]);
     if (!Number.isFinite(value)) return;
+    /**
+     * Points and lines burn too, not just polygons.
+     *
+     * The commonest rasterize in a susceptibility workflow is an OCCURRENCE
+     * layer -- points -- and the polygon-only version returned an empty grid
+     * for it with an error asking about polygon overlap, which misdirects: the
+     * data was fine, the tool only spoke one geometry. A point stamps its
+     * containing cell; a line is walked at half-cell steps so no cell it
+     * crosses is skipped.
+     */
+    const g = f.geometry || {};
+    if (g.type === "Point") stamp(g.coordinates[0], g.coordinates[1], value);
+    else if (g.type === "MultiPoint") g.coordinates.forEach((c) => stamp(c[0], c[1], value));
+    const lineParts = g.type === "LineString" ? [g.coordinates]
+      : g.type === "MultiLineString" ? g.coordinates : [];
+    lineParts.forEach((part) => {
+      const stepLon = (tb.maxX - tb.minX) / width / 2;
+      const stepLat = (tb.maxY - tb.minY) / height / 2;
+      for (let k = 0; k < part.length - 1; k += 1) {
+        const [x0, y0] = part[k];
+        const [x1, y1] = part[k + 1];
+        const steps = Math.max(1, Math.ceil(Math.max(
+          Math.abs(x1 - x0) / stepLon, Math.abs(y1 - y0) / stepLat)));
+        for (let sIdx = 0; sIdx <= steps; sIdx += 1) {
+          stamp(x0 + ((x1 - x0) * sIdx) / steps, y0 + ((y1 - y0) * sIdx) / steps, value);
+        }
+      }
+    });
     polygonsOf(f.geometry).forEach((polygon) => {
       if (!polygon.length || polygon[0].length < 4) return;
       const pb = G.boundsOf(polygon[0]);
