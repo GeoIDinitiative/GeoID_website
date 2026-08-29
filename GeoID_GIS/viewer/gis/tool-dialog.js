@@ -39,9 +39,9 @@
  * law is honoured by having nothing to exempt.
  */
 
-import { prefs, mergeParams } from "./tool-prefs.js?v=20260829-90e9f42";
+import { prefs, mergeParams } from "./tool-prefs.js?v=20260829-645b128";
 
-const RUNNER_URL = "./tool-runner.js?v=20260829-90e9f42";
+const RUNNER_URL = "./tool-runner.js?v=20260829-645b128";
 
 /* ── Dialog-only styles, injected as the house pattern dictates.
       NEVER a backtick inside this literal — it ends the string and kills the

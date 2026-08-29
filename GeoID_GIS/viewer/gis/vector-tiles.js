@@ -35,8 +35,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260829-90e9f42";
-import { renderFeatureCollection } from "./vector-render.js?v=20260829-90e9f42";
+import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260829-645b128";
+import { renderFeatureCollection } from "./vector-render.js?v=20260829-645b128";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -418,29 +418,30 @@ export function createTiledVectorLayer({
       return;
     }
     /**
-     * An OPAQUE view keeps the backdrop underneath it, and that is what closes
-     * the gaps.
+     * THE BACKDROP IS ALWAYS CUT AWAY UNDER THE VIEW'S TILES, and an attempt
+     * to keep it there for opaque layers is recorded here because it looked
+     * right and was badly wrong.
      *
-     * The window exists for one reason: a TRANSLUCENT layer drawn over its own
-     * coarse copy blends twice and shows a colour that is in nobody's legend.
-     * At full opacity there is nothing to blend — the view's tiles draw half a
-     * renderOrder step above the backdrop and hide it completely — except in
-     * the hairline gaps between neighbouring units, which is precisely where
-     * cutting the backdrop away turns a seam into BLACK.
+     * The idea was to close the hairline seams: neighbouring units do not
+     * share their boundary (44.9% of edges on the live tiles are used by two
+     * polygons), and the seal that covers the strays is a LINE, which WebGL
+     * draws one device pixel wide whatever `linewidth` says — about 20 m of
+     * ground at a 35 km view and less as you descend. Leaving the coarse map
+     * underneath fills those seams with the same geology one generalisation
+     * up instead of with black, and at 45 and 120 km it did exactly that.
      *
-     * Those gaps are real and small: measured on the live tiles, 44.9% of
-     * edges are shared by two polygons and the strays sit tens of metres
-     * apart, while the seal that covers them is a LINE — and WebGL draws every
-     * line one device pixel wide whatever `linewidth` says, about 20 m of
-     * ground at a 35 km view and less as you descend. So the seal loses that
-     * race by construction, and the honest fix is not a wider line but
-     * something behind: the coarser map, which is the same geology one
-     * generalisation up, and never a hole.
+     * What it also does is paint the coarse map over every place the fine
+     * tiles deliberately leave BLANK. Measured at a 500 m scale bar off the
+     * Antrim coast: a continental-scale generalised unit painted green across
+     * half the screen, over SEA at −37 m, where the zoom-9 tile correctly has
+     * no polygon at all — and unclickable, because the pickers read the finest
+     * zoom's features and the backdrop's are not among them. A hairline seam
+     * traded for geology over water is not a trade.
+     *
+     * The seams are the smaller fault and they stay until the seal is a
+     * ground-width RIBBON rather than a line, which is the only fix that
+     * scales. Do not re-try this one.
      */
-    if (opacity >= 0.99) {
-      hole.on.value = 0;
-      return;
-    }
     let west = 180;
     let east = -180;
     let south = 90;
@@ -817,10 +818,6 @@ export function createTiledVectorLayer({
   /** The layer's opacity, remembered so tiles built later match the rest. */
   function setOpacity(value) {
     opacity = Number.isFinite(value) ? value : 1;
-    // The window is now a function of opacity, so fading the layer has to
-    // re-decide it: translucent needs the backdrop cut away, opaque needs it
-    // left underneath to close the seams.
-    try { maskBackdrop(); } catch (error) { /* no backdrop yet is not a fault */ }
   }
 
   function dispose() {
