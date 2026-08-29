@@ -3279,6 +3279,51 @@ scratches are not backface culling; every tile carries its boundary seal; and
 the clip's own mesh is clean. The seams are back with the revert, and
 that is the honest state: the fix is a ribbon seal, not a backdrop.
 
+### The hover highlight was drawn, and sorted underneath the map
+
+"How come the polygon outlines fail to highlight when hovered over?" They did
+not fail. They were drawn, correctly, and painted over — and the screenshot
+that came with the question was of them showing through a FADED sheet, which
+is the tell.
+
+`buildHighlight` builds its outlines at renderOrder **239/240** with
+`depthTest: false`, which is emphatic enough. But the nodes go into a bare
+`new THREE.Group()` parked under `GeoID-ImportedGeoLayers`, itself renderOrder
+0 — and `reversePainterSortStable` compares **groupOrder before renderOrder**,
+with `projectObject` reading groupOrder off the nearest `isGroup` ancestor. The
+holder's default zero became every child's sort key.
+
+Measured live while hovering a geological unit: the overlay EXISTED — nine
+LineLoops, right geometry, right colour, `depthTest` off — sorting at
+**groupOrder 0 against the geology fills' 51**. Drawn first, and the fills do
+not depth-test either, so they painted straight over it. The 239 was never
+consulted by anything.
+
+**This is the FOURTH time this tree has paid for a Group left at zero**: the
+event markers in their `markers` group, `measureGroup` burying the polygon
+being drawn, the satellite bands flattened by `applyStack`, and now this. The
+rule earns its own line: **when something with a high renderOrder is buried,
+read its ANCESTORS before its material.** A `THREE.Group` has no material, its
+order is decided before any child's renderOrder is read, and its default is
+zero.
+
+`bandHolder()` puts both the hover and the selection holder at
+`HIGHLIGHT_BAND = 239`, above the event markers at 230 — a highlight answers
+"this is the thing you are pointing at" and nothing may bury it — and marks
+them `keepRenderOrder` so `applyStack` cannot flatten them back.
+
+**The A/B is the whole verification.** Same camera, same hover, the overlay's
+materials forced white and opaque so a one-pixel cyan line at 0.55 could not be
+argued about in a downscaled screenshot: with the holder at 239 the unit wears
+a traced white outline over the geology; with the holder set back to **0 and
+nothing else changed**, the outline is gone entirely. Measured either side, the
+child's groupOrder reads 239 and 0 against fills at 51.
+
+`draw-order.test.mjs` pins it on the source: no holder may be built as a bare
+`new THREE.Group()`, both must go through `bandHolder`, and the band must
+outrank the event markers. A text check is blunt, and it catches the one thing
+that actually regressed.
+
 ### The contact network was already on the GPU, painted invisible
 
 "When we decrease the opacity it reveals intricate polygons that have outlines
