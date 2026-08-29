@@ -15,6 +15,7 @@
  * data inside it is the ordinary order of work.
  */
 import { bandOf } from "./draw-order.js";
+import { readFileSync } from "node:fs";
 
 
 let passed = 0;
@@ -81,6 +82,34 @@ check("a fractional lift survives the stack stamp — the sharp tiles' half step
   // And the offset RIDES the band, so dragging the layer still moves both.
   eq(stampOf(55, sharpTile) - stampOf(55, backdropTile), 0.5,
     "the gap is preserved wherever the layer is dragged to");
+});
+
+/**
+ * A GROUP added to the scene must carry a band, or its children sort at ZERO.
+ *
+ * `reversePainterSortStable` compares groupOrder before renderOrder and
+ * `projectObject` reads groupOrder off the nearest `isGroup` ancestor, so a
+ * bare `new THREE.Group()` contributes 0 no matter what its children say.
+ * Measured live: the hover highlight existed as nine LineLoops at renderOrder
+ * 239 with depthTest off, sorting at groupOrder 0 against the geology's 51 —
+ * drawn first, painted over, visible only through a faded sheet.
+ *
+ * The check is on the SOURCE because these holders are built inside an async
+ * DOM path that needs a scene, a viewer and three.js. Text is a blunt
+ * instrument and it catches the one thing that actually regressed: a
+ * `new THREE.Group()` reaching the scene without a band.
+ */
+check("every highlight holder is banded above the data layers", () => {
+  const src = readFileSync(new URL("./feature-popup.js", import.meta.url), "utf8");
+  const bare = [...src.matchAll(/const (\w+) = new THREE\.Group\(\);/g)].map((m) => m[1]);
+  eq(bare.join(", "), "", "holders built as a bare Group carry no band");
+  const banded = [...src.matchAll(/const \w+ = bandHolder\(new THREE\.Group\(\)\)/g)].length;
+  eq(banded, 2, "both the hover and the selection holder go through bandHolder");
+  const band = /const HIGHLIGHT_BAND = (\d+);/.exec(src);
+  eq(Boolean(band), true, "HIGHLIGHT_BAND is declared");
+  // Above the imported data band (50+), above the drawn shapes, and above the
+  // event markers at 230 -- a highlight is what you are pointing at.
+  eq(Number(band[1]) > 230, true, "the highlight band outranks the event markers");
 });
 
 if (failures.length) {

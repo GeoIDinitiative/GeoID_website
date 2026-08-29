@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260829-a9ea5a7";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260829-a9ea5a7";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260829-a7616de";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260829-a7616de";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -718,6 +718,42 @@ function markerGroup() {
  * Long edges are split for the reason every other surface line here is: a
  * straight chord across 1° of arc already dips below the terrain.
  */
+/**
+ * The band a highlight holder sorts in, and it has to be ON THE HOLDER.
+ *
+ * `reversePainterSortStable` compares **groupOrder before renderOrder**, and
+ * `projectObject` takes groupOrder from the nearest `isGroup` ancestor — so a
+ * Group with no renderOrder of its own contributes ZERO and every child sorts
+ * at zero whatever its own number says.
+ *
+ * That is exactly what happened here. The outlines are built at renderOrder
+ * 239/240 with `depthTest: false`, and they were added to a bare `THREE.Group`
+ * parked under `GeoID-ImportedGeoLayers` (itself renderOrder 0). Measured live
+ * while hovering a geological unit: the overlay EXISTED — nine LineLoops, right
+ * geometry, right colour — sorting at **groupOrder 0 against the geology's 51**,
+ * so it was drawn first and the fills, which do not depth-test either, painted
+ * straight over it. The highlight only ever showed through a faded sheet, which
+ * is how it was reported: outlines that glow when you drop the opacity.
+ *
+ * 239 puts it above the event markers at 230, which is right — a highlight
+ * answers "this is the thing you are pointing at" and nothing may bury it.
+ *
+ * This is the FOURTH time this file's history records a high renderOrder being
+ * ignored because a Group above it was left at zero (the event markers, the
+ * measure group, the satellite bands). When something with a high renderOrder
+ * is buried, read its ANCESTORS before its material.
+ */
+const HIGHLIGHT_BAND = 239;
+
+/** Put a holder in the highlight band, where `applyStack` will not flatten it. */
+function bandHolder(holder) {
+  holder.renderOrder = HIGHLIGHT_BAND;
+  // The deliberate-nested-band flag: `applyStack` stamps every node it walks,
+  // and a highlight is furniture rather than data in the layer stack.
+  holder.userData.keepRenderOrder = true;
+  return holder;
+}
+
 function buildHighlight(THREE, feature, { colour, opacity, width = 1, lift = 0.004 }) {
   const viewer = window.GeoIDViewer;
   const nodes = [];
@@ -825,7 +861,7 @@ async function showOutline(feature) {
   const THREE = await import("../vendor/three.module.js");
 
   clearPin();
-  const holder = new THREE.Group();
+  const holder = bandHolder(new THREE.Group());
   holder.name = "GeoID-FeatureOutline";
   // The same gold the viewer's own label selection wears, so one colour means
   // "this is the thing you picked" everywhere on the globe.
@@ -880,7 +916,7 @@ async function showHover(feature) {
     stale.parent?.remove(stale);
     stale.traverse?.((n) => { n.geometry?.dispose?.(); n.material?.dispose?.(); });
   }
-  const holder = new THREE.Group();
+  const holder = bandHolder(new THREE.Group());
   holder.name = "GeoID-FeatureHover";
   // Dimmer and cooler than the selection gold: hover is "you could pick this",
   // selection is "you did". Two states have to look like two states.
