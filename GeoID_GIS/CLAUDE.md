@@ -3125,6 +3125,40 @@ about a PLACE — extraction, clipping, sampling, zonal statistics — must ask
 the layer about that place, not read whatever the layer last happened to
 hold.
 
+**The TOOLS had the same fault one layer down, and the fix cannot live in an
+engine.** `runTool` calls `engines.native(...)` WITHOUT awaiting, so an
+engine is synchronous and can fetch nothing. The refresh goes at the top of
+`runToolAuto` — before the sidecar decision, before any engine, and on the
+path the tools window already takes. Every input carrying `featuresIn` is
+asked about the ground THIS RUN is about, and that ground is the extent of
+the OTHER inputs: clipping geology by a drawn box is about the box, zonal
+statistics of a raster over geological zones is about the raster. A
+self-rebuilding layer's own bounds are the world and say nothing, so they are
+excluded from that calculation; where every input rebuilds itself there is no
+extent and nothing is fetched, which leaves the tool where it was rather than
+guessing.
+
+That extent falls back to the coordinates a layer actually HOLDS where it
+carries no `bounds` — a derived or hand-built vector layer need not have
+them, and failing through on that silently skips the fetch and leaves the
+tool on the stale snapshot, which is the exact fault being closed. Found
+because a fixture had no bounds and `clip` alone failed while
+`zonalStatistics` passed.
+
+And the SYNCHRONOUS path now refuses a self-rebuilding layer holding nothing
+rather than running: an empty snapshot means "the camera is elsewhere", not
+"this ground has no geology", and of the three available outcomes the
+confident empty one is the worst.
+
+Verified live with the camera over Indonesia and the study area over Northern
+Ireland: the geology layer held **2** features at the moment the tool was
+pressed, the tool fetched **966** for the box, clip kept **358** (Southern
+Highland Group, Tyrone Group, Argyll Group, Leitrim Group, Roe Valley Group,
+Gala Group) and zonal statistics of a DEM over those units returned **358
+zones** — Southern Highland Group 192 cells at a mean of 103.7 m, Tyrone
+Group 94 cells at 37.4 m. That is the whole workflow: map, draw, clip,
+summarise per unit.
+
 ## A drawn shape draws over every dataset mapped
 
 A study area is not a dataset, it is the QUESTION being asked of the
