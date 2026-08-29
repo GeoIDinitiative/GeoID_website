@@ -1,19 +1,19 @@
-import * as GP from "./geoprocessing.js?v=20260829-5d75f9b";
-import * as RA from "./raster-analysis.js?v=20260829-5d75f9b";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260829-5d75f9b";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-5d75f9b";
+import * as GP from "./geoprocessing.js?v=20260829-008b028";
+import * as RA from "./raster-analysis.js?v=20260829-008b028";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260829-008b028";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-008b028";
 // Pure and DOM-free, so a static import keeps this module Node-clean AND keeps
 // the terrain engine SYNCHRONOUS -- runTool calls engines.native WITHOUT
 // awaiting it, so an async engine hands register() a Promise and the raster
 // comes out undefined. Measured as: "Cannot read properties of undefined".
-import { buildSurface, nativeStepM } from "./model-build.js?v=20260829-5d75f9b";
-import { nativeGridOf } from "./extraction.js?v=20260829-5d75f9b";
-import { CRS_OPTIONS } from "./projection.js?v=20260829-5d75f9b";
-import * as IN from "./interpolation.js?v=20260829-5d75f9b";
-import * as VAL from "./validation.js?v=20260829-5d75f9b";
-import * as EX from "./analysis-extra.js?v=20260829-5d75f9b";
-import * as HY from "./hydrology.js?v=20260829-5d75f9b";
-import * as KR from "./kriging.js?v=20260829-5d75f9b";
+import { buildSurface, nativeStepM } from "./model-build.js?v=20260829-008b028";
+import { nativeGridOf } from "./extraction.js?v=20260829-008b028";
+import { CRS_OPTIONS } from "./projection.js?v=20260829-008b028";
+import * as IN from "./interpolation.js?v=20260829-008b028";
+import * as VAL from "./validation.js?v=20260829-008b028";
+import * as EX from "./analysis-extra.js?v=20260829-008b028";
+import * as HY from "./hydrology.js?v=20260829-008b028";
+import * as KR from "./kriging.js?v=20260829-008b028";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -2009,7 +2009,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260829-5d75f9b");
+    const client = await import("./sidecar-client.js?v=20260829-008b028");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -2064,7 +2064,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260829-5d75f9b");
+    const bridge = await import("./research/bridge.js?v=20260829-008b028");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -2076,12 +2076,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260829-5d75f9b");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260829-008b028");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260829-5d75f9b");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260829-008b028");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }

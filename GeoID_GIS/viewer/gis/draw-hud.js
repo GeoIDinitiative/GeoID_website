@@ -374,6 +374,30 @@ function canDraw() {
   return typeof window.GeoIDViewer?.setStudyAreaPolygon === "function";
 }
 
+/**
+ * A button that cannot do its job is stood down, and says why.
+ *
+ * Gating the HUD was only half of it: the Draw button itself stayed live on
+ * the gas giants, enabled, labelled "Activate draw tool", and taking the
+ * active state on click. Measured on Jupiter — armed, then three clicks on
+ * the globe produced ZERO measure points, no line and an empty readout,
+ * because area routes through `activateStudyArea` and there is none. That is
+ * this file's own rule pointed at itself: wire it or leave it disabled.
+ *
+ * Only AREA. Distance and Profile go through the ordinary measure path and
+ * work perfectly there — measured, two points each on Jupiter — so
+ * disabling the row wholesale would take away two tools that do their job.
+ */
+function standDownDrawButton() {
+  const button = byId("tool-rail-area");
+  if (!button || button.disabled) return;
+  button.disabled = true;
+  button.title = "This world has no surface to draw a study area on. "
+    + "Distance and Profile still work.";
+  button.setAttribute("aria-disabled", "true");
+  button.classList.remove("is-active");
+}
+
 function init() {
   if (!byId("tool-rail-area") || !canDraw()) {
     // The viewer boots async, so a missing seam this early is usually just
@@ -382,7 +406,10 @@ function init() {
     if (initTries < 120) {
       initTries += 1;
       window.setTimeout(init, 500);
+      return;
     }
+    // A minute in with no seam: this body genuinely cannot hold a study area.
+    standDownDrawButton();
     return;
   }
   build();
