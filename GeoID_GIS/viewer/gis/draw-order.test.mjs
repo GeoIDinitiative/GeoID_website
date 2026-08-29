@@ -1,0 +1,68 @@
+/**
+ * The draw-order bands, which decide what is buried under what.
+ *
+ * Every one of them is a DEFAULT — a dragged row takes the band of the row it
+ * displaced — so what is pinned here is the order the app proposes, not a rule
+ * it enforces against the user.
+ *
+ * The band that matters most is the drawn one. A study area is not a dataset,
+ * it is the question being asked of the datasets: the boundary every
+ * extraction, clip and zonal statistic is scoped to. It used to share band 2
+ * with every ordinary import, so it was under anything mapped after it —
+ * measured live, a captured study area at renderOrder 54 and a DEM mapped a
+ * moment later at 55 — and a drape does not depth-test, so it painted over the
+ * outline rather than fighting it. Drawing a boundary and then mapping the
+ * data inside it is the ordinary order of work.
+ */
+import { bandOf } from "./draw-order.js";
+
+
+let passed = 0;
+const failures = [];
+function check(name, fn) {
+  try { fn(); passed += 1; console.log(`PASS ${name}`); }
+  catch (error) { failures.push(`${name}: ${error.message}`); console.log(`FAIL ${name}: ${error.message}`); }
+}
+function eq(a, b, what) { if (a !== b) throw new Error(`${what}: got ${a}, expected ${b}`); }
+function ok(c, what) { if (!c) throw new Error(what); }
+
+const drawn = { ext: "drawn", name: "Study area 1" };
+const dataset = { ext: "geojson", name: "an import" };
+const derived = { ext: "derived", name: "a tool output" };
+const geology = { ext: "geojson", name: "world geology", geologyDataset: "macrostrat" };
+const imagery = { ext: "tiles", name: "a basemap patch" };
+const gee = { ext: "gee", name: "Rainfall (CHIRPS)" };
+const events = { ext: "events", name: "Live events" };
+
+check("a drawn shape outranks EVERY mapped dataset", () => {
+  for (const other of [dataset, derived, geology, imagery, gee, events]) {
+    ok(bandOf(drawn) > bandOf(other),
+      `a drawn shape must outrank ${other.name} (${bandOf(drawn)} vs ${bandOf(other)})`);
+  }
+});
+
+check("the bands below it keep the order they had", () => {
+  ok(bandOf(events) > bandOf(dataset), "a live feed sits over ordinary data");
+  ok(bandOf(dataset) > bandOf(geology), "an import sits over the geological ground");
+  ok(bandOf(geology) > bandOf(imagery), "geology sits over imagery");
+  eq(bandOf(gee), bandOf(imagery), "a GEE drape is imagery");
+});
+
+check("a raster mapped AFTER a drawn shape still sits under it", () => {
+  // The reported case, as a band comparison: the newer layer wins inside a
+  // band, and this is the whole reason the drawn shape needs its own.
+  ok(bandOf(drawn) > bandOf({ ext: "derived", name: "after_dem" }),
+    "a DEM mapped afterwards must not bury the boundary it was cut to");
+});
+
+check("but the band is a DEFAULT — a dragged row still wins", () => {
+  eq(bandOf({ ...drawn, bandOverride: 0 }), 0, "a hand-dragged drawn shape");
+  eq(bandOf({ ...dataset, bandOverride: 4 }), 4, "a hand-dragged dataset");
+});
+
+if (failures.length) {
+  failures.forEach((f) => console.error(`  x ${f}`));
+  console.error(`${failures.length} failed, ${passed} passed`);
+  process.exit(1);
+}
+console.log(`${passed} passed`);

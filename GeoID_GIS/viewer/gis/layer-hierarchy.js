@@ -10,12 +10,13 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260829-602b59b";
-import { samplerToRaster } from "./raster-analysis.js?v=20260829-602b59b";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-602b59b";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260829-602b59b";
-import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260829-602b59b";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260829-602b59b";
+import { bandOf } from "./draw-order.js?v=20260829-b7effe1";
+import { currentBody } from "./bodies.js?v=20260829-b7effe1";
+import { samplerToRaster } from "./raster-analysis.js?v=20260829-b7effe1";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-b7effe1";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260829-b7effe1";
+import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260829-b7effe1";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260829-b7effe1";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -283,36 +284,6 @@ function layers() {
  * pulled event feed goes over that. Within a band the hand order still holds,
  * so dragging a layer up or down does what it always did.
  */
-const IMAGERY_EXT = new Set(["tiles", "gee"]);
-
-/**
- * A fourth band, for things that are being READ rather than mapped — and it is
- * a DEFAULT, not a rule.
- *
- * Event markers are the case: they are what you switched the feed on to look
- * at, so a geological map loaded afterwards must not bury them, and a layer
- * that has to be dug out from under something is not "visible when active".
- * But pinning them there for good takes the layer box's one job away from the
- * user, who asked to be able to swap them.
- *
- * **So every band is a default, and dragging a row overrides it.** That had to
- * be true of all four, not just this one: the first attempt marked the layer
- * as hand-moved and let it fall back to the ordinary band, which was still
- * band 2 — above geology's band 1 — so pressing Down on the events row with
- * only a geological map beneath it moved nothing and looked broken. A layer
- * that is dragged past another one **takes that one's band**, so it lands
- * exactly where it was dropped and stays there. Nothing is unreachable and
- * nothing has to be dragged twice.
- */
-const ON_TOP_EXT = new Set(["events"]);
-
-function bandOf(layer) {
-  // Put there by hand, and a hand beats a default.
-  if (Number.isFinite(layer?.bandOverride)) return layer.bandOverride;
-  if (ON_TOP_EXT.has(layer?.ext)) return 3;
-  if (IMAGERY_EXT.has(layer?.ext)) return 0;
-  return layer?.geologyDataset || layer?.role === "geology" ? 1 : 2;
-}
 
 function ordered() {
   const list = layers();
