@@ -1,18 +1,18 @@
-import * as GP from "./geoprocessing.js?v=20260829-e48729d";
-import * as RA from "./raster-analysis.js?v=20260829-e48729d";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260829-e48729d";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-e48729d";
+import * as GP from "./geoprocessing.js?v=20260829-ffffb8a";
+import * as RA from "./raster-analysis.js?v=20260829-ffffb8a";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260829-ffffb8a";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-ffffb8a";
 // Pure and DOM-free, so a static import keeps this module Node-clean AND keeps
 // the terrain engine SYNCHRONOUS -- runTool calls engines.native WITHOUT
 // awaiting it, so an async engine hands register() a Promise and the raster
 // comes out undefined. Measured as: "Cannot read properties of undefined".
-import { buildSurface } from "./model-build.js?v=20260829-e48729d";
-import { CRS_OPTIONS } from "./projection.js?v=20260829-e48729d";
-import * as IN from "./interpolation.js?v=20260829-e48729d";
-import * as VAL from "./validation.js?v=20260829-e48729d";
-import * as EX from "./analysis-extra.js?v=20260829-e48729d";
-import * as HY from "./hydrology.js?v=20260829-e48729d";
-import * as KR from "./kriging.js?v=20260829-e48729d";
+import { buildSurface } from "./model-build.js?v=20260829-ffffb8a";
+import { CRS_OPTIONS } from "./projection.js?v=20260829-ffffb8a";
+import * as IN from "./interpolation.js?v=20260829-ffffb8a";
+import * as VAL from "./validation.js?v=20260829-ffffb8a";
+import * as EX from "./analysis-extra.js?v=20260829-ffffb8a";
+import * as HY from "./hydrology.js?v=20260829-ffffb8a";
+import * as KR from "./kriging.js?v=20260829-ffffb8a";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -1091,27 +1091,56 @@ export const TOOLS = [
       { name: "zones", label: "Zones", type: "vector" },
     ],
     params: [],
-    outputType: "table",
+    /**
+     * A VECTOR output now, and that is the whole point of the change.
+     *
+     * As a table the answer was computed and then DISCARDED: the dialog reads
+     * result.message and result.layer only, nothing anywhere consumed
+     * result.rows, so the tool printed one status line and threw its numbers
+     * away — no layer, no export, no project file. Zonal statistics is keyed
+     * BY POLYGON, so the honest output is the zones themselves with the
+     * statistics written back as attributes: it draws, symbolises (painted by
+     * mean on arrival), exports, opens in the Table window and chains into
+     * the next tool like any other layer.
+     */
+    outputType: "vector",
     outputName: "zonal_{input}",
+    paint: { field: "zonal_mean", ramp: "viridis" },
     engines: {
       native: (i) => {
         const results = RA.zonalStatistics(i.input.raster, i.zones.collection);
-        const withData = results.filter((r) => r.count > 0);
-        if (!withData.length) {
+        // Results skip zones with no polygons, so order is not 1:1 with the
+        // features — but each result carries the zone's OWN properties object,
+        // and identity is the join key.
+        const byProps = new Map(results.map((r) => [r.properties, r]));
+        const features = [];
+        i.zones.collection.features.forEach((zone) => {
+          const r = byProps.get(zone.properties);
+          if (!r || !(r.count > 0)) return;
+          features.push({
+            type: "Feature",
+            geometry: zone.geometry,
+            properties: {
+              ...zone.properties,
+              zonal_cells: r.count,
+              zonal_min: r.min, zonal_max: r.max,
+              zonal_mean: Number(r.mean.toFixed(3)),
+              zonal_sum: Number(r.sum.toFixed(3)),
+              zonal_std: Number(r.stdDev.toFixed(3)),
+              ...(r.centroidFallback ? { zonal_note: "centroid sample (zone under one cell)" } : {}),
+            },
+          });
+        });
+        if (!features.length) {
           return { ok: false, message: "No raster cells fell inside those zones." };
         }
-        const rows = withData.map((r) => ({
-          ...r.properties, cells: r.count, min: r.min, max: r.max,
-          mean: Number(r.mean.toFixed(3)), sum: Number(r.sum.toFixed(3)),
-          std_dev: Number(r.stdDev.toFixed(3)),
-          centroid_fallback: r.centroidFallback ? "yes" : "",
-        }));
-        const fallbacks = withData.filter((r) => r.centroidFallback).length;
-        const first = withData[0];
+        const fallbacks = features.filter((f) => f.properties.zonal_note).length;
+        const first = features[0].properties;
         return {
-          rows,
-          message: `${withData.length} zones. First: ${first.count} cells, mean ${first.mean.toFixed(1)}.`
-            + (fallbacks ? ` ${fallbacks} zones smaller than a cell used centroid sampling.` : ""),
+          collection: { type: "FeatureCollection", features },
+          note: `${features.length} zones — mean written to zonal_mean `
+            + `(first: ${first.zonal_cells} cells, mean ${first.zonal_mean}).`
+            + (fallbacks ? ` ${fallbacks} zones under one cell used centroid sampling.` : ""),
         };
       },
     },
@@ -1720,7 +1749,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260829-e48729d");
+    const client = await import("./sidecar-client.js?v=20260829-ffffb8a");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -1775,7 +1804,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260829-e48729d");
+    const bridge = await import("./research/bridge.js?v=20260829-ffffb8a");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -1787,12 +1816,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260829-e48729d");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260829-ffffb8a");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260829-e48729d");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260829-ffffb8a");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }
