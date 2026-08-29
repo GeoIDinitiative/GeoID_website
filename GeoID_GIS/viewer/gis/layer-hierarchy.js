@@ -10,12 +10,12 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260829-c9af536";
-import { samplerToRaster } from "./raster-analysis.js?v=20260829-c9af536";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-c9af536";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260829-c9af536";
-import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260829-c9af536";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260829-c9af536";
+import { currentBody } from "./bodies.js?v=20260829-0205201";
+import { samplerToRaster } from "./raster-analysis.js?v=20260829-0205201";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-0205201";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260829-0205201";
+import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260829-0205201";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260829-0205201";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -147,6 +147,9 @@ const STYLE = `
   gap: 0.4rem;
   margin: -0.15rem 0 0.15rem 1.35rem;
   padding: 0.45rem 0.5rem;
+  /* The indent is part of the width, and the drawer never exceeds its row. */
+  box-sizing: border-box;
+  max-width: calc(100% - 1.35rem);
   border: 1px solid rgba(var(--nav-accent-rgb), 0.45);
   border-top-color: transparent;
   border-radius: 0 0 0.45rem 0.45rem;
@@ -164,18 +167,31 @@ const STYLE = `
   color: var(--muted);
   font-size: 0.6rem;
 }
-/* Centred, and equal: the three are alternatives to one another, so none of
-   them leads. */
+/* Centred and equal: these are alternatives to one another, so none of them
+   leads -- and they WRAP, because there are eight of them now.
+
+   nowrap plus flex 0 0 auto was written when there were three, and it makes
+   this row a child that can neither wrap nor shrink: its min-content width
+   becomes the drawer's min-content width, so the drawer grew to whatever the
+   buttons happened to add up to and pushed straight through the Workspace
+   tile it lives in. Measured with eight buttons: a 428 px drawer inside a
+   382 px dock, 78 px of it past the right edge, with nothing overflowing in
+   the row itself -- which is why it presents as the DROP-DOWN not fitting
+   rather than as a row of buttons overflowing. A container cannot be sized
+   by a child that refuses to give way. */
 .layer-options-actions {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   justify-content: center;
   gap: 0.25rem;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 .layer-props-inline {
   margin: -0.15rem 0 0.15rem 1.35rem;
   padding: 0.5rem 0.55rem 0.6rem;
+  box-sizing: border-box;
+  max-width: calc(100% - 1.35rem);
   border: 1px solid rgba(var(--nav-accent-rgb), 0.3);
   border-top: 0;
   border-radius: 0 0 0.45rem 0.45rem;
