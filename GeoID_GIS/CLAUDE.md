@@ -2965,6 +2965,61 @@ deliberately uncorrelated observations — which is the CORRECT answer, and a
 tidy reminder that a validation tool agreeing with chance is sometimes the
 data, not a bug.
 
+## A drape is painted ON the ground — two constants, neither read in metres
+
+"The mapping of the rasters looks like it's not tight to the surface"
+measured out exactly, and neither half was in the placement: four raster
+layers sitting still at 95 km were every one **142 m BELOW** the terrain
+they paint, and forcing the relief rebuild snapped all four onto their
+intended heights to the metre. They were never mis-placed. They were STALE.
+
+- **The rebuild threshold was 796 METRES.** It reads as 0.0004 — borrowed
+  from the viewer's own terrain re-sync — and relief scales a NORMALISED
+  elevation, so 0.0004 / 3.2 x 6371 km is 796 m of ground movement at a peak,
+  tolerated before anything re-lays the patch. Descending tapers the
+  exaggeration away continuously, so a drape drifts the entire time it is
+  being flown toward. `REBUILD_METRES = 10` now, stated in metres with the
+  conversion beside it, and compared **per mesh** against the relief that mesh
+  was built at (`userData.builtRelief`): one shared `lastRelief` measured a
+  drape created between two rebuilds against a number that was never its own,
+  and never corrected a drape built while the global sat inside its
+  threshold. Measured after, flying 2,000 → 8 km through the whole taper
+  (relief 0.11 → 0.0002, some 700 m of ground movement): worst offset
+  **0.3–1.5 m** at every altitude.
+- **The stack lift was pure parallax.** 30 m a layer, so the twelfth map sat
+  **329 m** off the ground. It existed to stop two maps fighting for the same
+  pixels — which is a DEPTH fight, and this material stopped depth-testing
+  long ago. With `depthTest: false` the buffer is never consulted, the higher
+  `renderOrder` wins outright, and the layer box's own draw order was already
+  doing the stacking. Zero now.
+
+`drape-registration.test.mjs` pins both in the only terms that mean anything
+— metres between a drape's vertices and the ground under them — including
+the twelfth drape of a stack, and a drape whose ground moves under it.
+
+**And the OTHER half of that report was not a rendering fault at all.** A
+slope map over an 11 km study reads as a smooth colour ramp with one hard
+straight seam through it, which looks like a bug and is a source pixel
+boundary: measured on the Valais box, **2 curvature kinks in 200 samples
+across 0.1°**, so the whole study area is about ONE global-DEM pixel wide and
+a 92 m grid over it is interpolation, not ground anybody surveyed. The
+sampler answers at any spacing asked of it, and everything downstream —
+slope, aspect, hillshade, contours — inherits the false precision. So the
+`terrain` tool quotes the source's own MEASURED sampling beside the cell size
+it produced and says outright when the grid is interpolated between pixels
+("93 m cells, 84x121. The source's own sampling here is about 9,575 m, so
+this grid is INTERPOLATED between its pixels"). The Model Builder's Surface
+step already measured this, so `probeNativeStepM` **moved into
+`model-build.js`** — the pure half both callers import — rather than being
+written a second time. Same discipline as the imagery zoom ceiling and Earth
+Engine's `scale`: a service will always answer; whether it KNOWS anything at
+that spacing is a separate question, and the one worth printing.
+
+**A green slab over the whole study area is the study-area POLYGON, not the
+raster.** It cost a round: an imported polygon fills by default, draws above
+the drapes, and its legend swatch is the tell. Check what is actually on top
+before diagnosing the layer underneath it.
+
 ## Every tool, individually, IN THE SUITE — and what that found
 
 The browser sweeps each found faults the one before had passed, and a sweep
