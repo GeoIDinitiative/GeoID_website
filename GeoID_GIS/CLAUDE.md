@@ -3070,6 +3070,64 @@ raster.** It cost a round: an imported polygon fills by default, draws above
 the drapes, and its legend swatch is the tell. Check what is actually on top
 before diagnosing the layer underneath it.
 
+## "The clipping is riddled with errors" — the clip was clean, the map was not
+
+Reported against the clipped geology, and the clip is not what is wrong.
+Measured on its output: 52 features, 58 rings, 318 triangles, **zero
+inward-facing, zero degenerate, no bridge triangles**, longest edge 0.009 on a
+shape spanning 0.02. There is nothing torn in it.
+
+What is torn is the map underneath. **The tiled world geology stops refining
+at zoom SIX** while `zoomForBounds` says a 0.5° study area deserves eleven —
+so at any close view you are looking at heavily generalised polygons, and
+their triangulation slivers are what read as tears.
+
+`chooseZoom` refuses the deeper levels, and the reason is a constant that is
+right about the wrong thing. `BEYOND_BAKE_GROWTH = 8` is measured from the
+WORLD's own totals — 18.2 MB baked at zoom 5 against about 150 MB at zoom 6 —
+but that 8 is two things multiplied: **four times as many tiles, each
+carrying twice the content.** A view smaller than one tile gets none of the
+first half: `tilesForBounds` returns one tile at zoom 5, one at 6 and one at 7
+for that box. Charging it 8x a level therefore over-predicts by four times a
+level, and the map is refused detail that costs nothing.
+
+Measured on that box, features actually TOUCHING it:
+
+| zoom | features in box | vertices | units |
+| --- | --- | --- | --- |
+| 5 | 11 | 283 | 9 |
+| 6 | 81 | 1,314 | 22 |
+| 7 | 88 | **1,853** | 22 |
+| 8 | 88 | 1,856 | 22 |
+| 9 | 88 | 1,793 | 22 |
+
+So the map was **exactly one level short of everything Macrostrat holds** for
+that ground, and the missing level is a 41% gain in boundary detail. Past
+zoom 7 the compilation has nothing more to give, which is worth knowing in
+its own right: the ceiling is the data's, not the app's.
+
+The extrapolation is per TILE now, multiplied by the tiles the view actually
+needs — a wide view still pays the tile count, a small one pays only for the
+content. Measured after: the same view reaches **zoom 9** and is refused 10
+and 11, with feature counts of 9,273-10,103 against the 24,000 budget.
+
+**What this does NOT settle.** The fill is `DoubleSide`, so the black
+scratches are not backface culling; every tile carries its boundary seal; and
+the clip's own mesh is clean. Finer tiles make the slivers smaller but I have
+not shown they are gone. The remaining suspect is the documented one — 
+neighbouring units not sharing their boundary, with a **one-pixel** seal that
+covers a 30 m gap from orbit and cannot cover it from 15 km. If the tearing
+persists at close range, that is where to look next, and the flat-colour test
+(paint every unit magenta; anything dark is a hole) is the instrument.
+
+**Two probe mistakes worth not repeating.** `repaint(null)` does not restore
+the default colours — it removes the colour function, and with it every fill
+mesh, leaving only seals; measure a layer only after checking it still has
+fills. And `update({ zoom: null })` hits the same `Math.round(null)` that
+`featuresIn` was fixed for, fetching the single WORLD tile for a study area —
+production computes a zoom so it never sees this, but a probe that passes
+null measures the coarsest thing on the planet and calls it the view.
+
 ## The whole chain, run end to end through the UI
 
 Draw a polygon, take the DEM inside it, take the geology inside it, extract
