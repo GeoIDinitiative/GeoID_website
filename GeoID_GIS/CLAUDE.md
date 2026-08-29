@@ -3070,6 +3070,64 @@ raster.** It cost a round: an imported polygon fills by default, draws above
 the drapes, and its legend swatch is the tell. Check what is actually on top
 before diagnosing the layer underneath it.
 
+## The same audit on the planets: two faults, both per-body
+
+Running the Earth audit on Mars first. **What already worked, measured rather
+than assumed:** the seam is complete (34 keys, none of
+`surfacePoint`/`getEffectiveRelief`/`elevationNormalized`/`sampleElevationMeters`/
+`getGeologyFeatureAtLatLon`/`setStudyAreaPolygon`/`pickOnGlobe` missing);
+geology answers real unit codes (Ave, eHv, HNhu, Nhu); `terrain` reads
+Olympus Mons at 19,837 m and reports **Mars's own** source sampling as
+5,325 m; slope, zonal statistics and the drawn-shape band all behave as on
+Earth, because they are shared modules.
+
+**Every area on a planet was measured on EARTH's radius.** A 4x3 degree study
+box near Olympus Mons recorded 140,689 km² against a true 39,826 — exactly
+the 3.533 that (R⊕/R♂)² predicts; on the Moon it would be 13.4x, on Mercury
+6.8x. `sphericalPolygonAreaKm2` defaults to the Earth mean radius and FOUR
+callers took the default: drawn-layers' `area_km2`, the geology card's mapped
+area, and both of feature-popup's. The number rides on the layer, so it
+reached the annotation, the exports and the project registry alike.
+
+Fixing callers one at a time is what left three wrong after the first was
+found, so **the DEFAULT is what changed**: it reads `bodyRadiusKm` off the
+viewer seam and falls back to Earth only where there is no viewer to ask,
+which is Node and the tests. `area-labels.js` had already taken its
+km-per-degree from `bodyRadiusKm` for the live label — that was the SECOND
+area computation and only it had been made per-body. Same shape as the
+polygon-area formula in ten files: **when a body constant is fixed in one
+place, grep for the others.** Verified on Mercury: 21,318 km² against a true
+21,321 on a 2,439.7 km radius, ratio 1.000.
+
+**And the measure furniture Earth changed never reached the planets**, because
+it lives OUTSIDE `port-draw-tools`' block: the study-area corner card still
+popped up and polygon points still wore A, B, C. Measured on Mars —
+`#measurement-result-card` visible reading "Study Area: 39821 km² / Perimeter
+803.6 km / …" where the same shape on Earth leaves it hidden and unpopulated.
+
+The porter carries four rewrites now, applied verbatim per viewer and
+idempotent (a rewrite already present is skipped, so a re-run is a no-op and
+`--check` tells stale from ported):
+
+1. no corner card for an AREA — `hideMeasurementResultCard()`, not show;
+2. point letters are PROFILE furniture only;
+3. **a letterless point still scales its DOT** — the planets' guard was
+   `!visual.marker || !visual.labelSprite`, which bails on the WHOLE visual,
+   so without this every marker rewrite 2 creates would freeze at its build
+   size. That is precisely the trap Earth's own note records;
+4. the sprite work is guarded on its own, after the marker work.
+
+Each viewer keeps its own scaler body — the planets carry clamping and
+flight-sim attenuation Earth does not have — because the point is to port the
+DECISION, not to overwrite the arithmetic around it. Verified on Mars and
+Mercury: card hidden, 41 marker dots and **0 letter sprites** in the measure
+group, and the dots still resize with the camera (2.728 → 2.586).
+
+**A change made on Earth is only shared if it is inside the ported block.**
+When an Earth fix touches `earth-viewer.js`, check whether it falls between
+the porter's anchors; if it does not, it needs a REWRITES entry or nine
+worlds keep the old behaviour indefinitely.
+
 ## An extraction asks about GROUND, never about the screen
 
 Reported as drawing a square polygon and getting no geology data at all out
