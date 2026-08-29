@@ -1,13 +1,13 @@
-import * as GP from "./geoprocessing.js?v=20260829-571718f";
-import * as RA from "./raster-analysis.js?v=20260829-571718f";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260829-571718f";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-571718f";
-import { CRS_OPTIONS } from "./projection.js?v=20260829-571718f";
-import * as IN from "./interpolation.js?v=20260829-571718f";
-import * as VAL from "./validation.js?v=20260829-571718f";
-import * as EX from "./analysis-extra.js?v=20260829-571718f";
-import * as HY from "./hydrology.js?v=20260829-571718f";
-import * as KR from "./kriging.js?v=20260829-571718f";
+import * as GP from "./geoprocessing.js?v=20260829-b26cb25";
+import * as RA from "./raster-analysis.js?v=20260829-b26cb25";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260829-b26cb25";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-b26cb25";
+import { CRS_OPTIONS } from "./projection.js?v=20260829-b26cb25";
+import * as IN from "./interpolation.js?v=20260829-b26cb25";
+import * as VAL from "./validation.js?v=20260829-b26cb25";
+import * as EX from "./analysis-extra.js?v=20260829-b26cb25";
+import * as HY from "./hydrology.js?v=20260829-b26cb25";
+import * as KR from "./kriging.js?v=20260829-b26cb25";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -1258,6 +1258,92 @@ export const TOOLS = [
     },
   },
   {
+    /**
+     * The tool that makes the other thirty usable.
+     *
+     * Measured across the registry: **30 of the 47 tools need a raster** —
+     * every terrain, hydrology, zonal and validation tool — and a layer only
+     * counts as one if it carries `layer.raster`, which until now arrived by
+     * exactly one route: the user importing a GeoTIFF or .asc themselves. So
+     * on a fresh page, or on any planet, Slope / Hillshade / Contours /
+     * Watershed — the obvious first things anyone tries — could not run at
+     * all, and the tool palette read as mostly broken.
+     *
+     * Meanwhile every world already HAS elevation: it is what the globe is
+     * displaced by, what the cursor readout quotes and what the extraction
+     * panel samples. It simply was not offered as a layer. This hands it over
+     * for a drawn area, so the first tool a reader opens produces the input
+     * every other one was waiting for.
+     *
+     * `buildSurface` is the Model Builder's own sampler, reused rather than
+     * rewritten — it already carries the body-radius conversion, the node cap
+     * that holds, and the fill-and-count for nodes the DEM cannot answer.
+     */
+    id: "terrain",
+    label: "Terrain to raster (DEM)",
+    category: "Surface analysis",
+    blurb: "Sample this world's elevation over a polygon into a DEM — the raster every terrain tool needs.",
+    keywords: ["dem", "elevation", "terrain", "height", "surface", "raster", "source"],
+    inputs: [{ name: "area", label: "Area (a polygon layer)", type: "vector" }],
+    params: [
+      { name: "cellM", label: "Cell size (m, 0 = fit the area)", kind: "number",
+        default: 0, min: 0, step: 10 },
+    ],
+    outputType: "raster",
+    outputName: "dem_{area}",
+    // It IS a height field, so it may displace the surface and wear the
+    // elevation ramp; see buildRasterLayer's isDem.
+    elevationOutput: true,
+    engines: {
+      native: async (i, p) => {
+        const viewer = typeof window !== "undefined" ? window.GeoIDViewer : null;
+        if (!viewer?.sampleElevationMeters) {
+          return { ok: false, message: "this world exposes no elevation to sample" };
+        }
+        const rings = ringsOfCollection(i.area.collection);
+        if (!rings.length) return { ok: false, message: "that layer holds no polygons" };
+        const bbox = ringsBounds(rings);
+        const mod = await import("./model-build.js?v=20260829-b26cb25");
+        const radiusKm = viewer.bodyRadiusKm || 6371.0088;
+        // 0 means "fit the area": ~120 cells across, the same working default
+        // the Model Builder uses when nothing finer is asked for.
+        const span = Math.max(
+          (bbox.east - bbox.west) * Math.cos((bbox.south + bbox.north) / 2 * Math.PI / 180),
+          bbox.north - bbox.south) * (Math.PI * radiusKm * 1000) / 180;
+        const cell = Number(p.cellM) > 0 ? Number(p.cellM) : Math.max(span / 120, 1);
+        const grid = mod.buildSurface({
+          bounds: { west: bbox.west, east: bbox.east, south: bbox.south, north: bbox.north },
+          stepM: cell,
+          radiusKm,
+          // The viewer's DEM is indexed 0-360 east; the trap every sampler here
+          // has to answer for.
+          sampleElevation: (lat, lon) => {
+            const lon360 = ((lon % 360) + 360) % 360;
+            const v = viewer.sampleElevationMeters(lat, lon360);
+            return Number.isFinite(v) ? v : NaN;
+          },
+        });
+        if (!grid.ok) return { ok: false, message: grid.message };
+        // buildSurface indexes south-to-north; a raster band runs top-down, so
+        // the rows are flipped rather than left to read upside down.
+        const band = new Float32Array(grid.nx * grid.ny);
+        for (let j = 0; j < grid.ny; j += 1) {
+          const src = (grid.ny - 1 - j) * grid.nx;
+          band.set(grid.z.subarray(src, src + grid.nx), j * grid.nx);
+        }
+        return {
+          raster: {
+            band,
+            width: grid.nx,
+            height: grid.ny,
+            bounds: { minX: bbox.west, maxX: bbox.east, minY: bbox.south, maxY: bbox.north },
+            noData: null,
+          },
+        };
+      },
+    },
+  },
+  {
     id: "density",
     label: "Point density (KDE)",
     category: "Surface analysis",
@@ -1321,6 +1407,32 @@ export const toolById = (id) => TOOLS.find((t) => t.id === id);
  * away from a layer appearing in half the selects. Both the dialog and, during
  * migration, refreshToolboxSelects call this instead.
  */
+/** Polygon rings of a collection, as {lat, lon} vertex lists. */
+function ringsOfCollection(collection) {
+  const rings = [];
+  (collection?.features || []).forEach((f) => {
+    const g = f?.geometry;
+    if (!g) return;
+    const polys = g.type === "Polygon" ? [g.coordinates]
+      : g.type === "MultiPolygon" ? g.coordinates : [];
+    polys.forEach((poly) => {
+      if (poly?.[0]?.length) rings.push(poly[0].map(([lon, lat]) => ({ lat, lon })));
+    });
+  });
+  return rings;
+}
+
+/** Signed-longitude bounding box of those rings. */
+function ringsBounds(rings) {
+  let west = Infinity; let east = -Infinity; let south = Infinity; let north = -Infinity;
+  rings.forEach((ring) => ring.forEach((v) => {
+    const lon = v.lon > 180 ? v.lon - 360 : v.lon;
+    west = Math.min(west, lon); east = Math.max(east, lon);
+    south = Math.min(south, v.lat); north = Math.max(north, v.lat);
+  }));
+  return { west, east, south, north };
+}
+
 export function layersByType(type) {
   const all = window.GeoIDImportManager?.getLayers?.() || [];
   const loaded = all.filter((l) => l.status === "loaded");
@@ -1453,7 +1565,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260829-571718f");
+    const client = await import("./sidecar-client.js?v=20260829-b26cb25");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -1508,7 +1620,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260829-571718f");
+    const bridge = await import("./research/bridge.js?v=20260829-b26cb25");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -1520,12 +1632,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260829-571718f");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260829-b26cb25");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260829-571718f");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260829-b26cb25");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }
