@@ -5950,11 +5950,27 @@ page tabs, the page filter, the magenta project chip and the five shell actions
 caption are both `hide()`n there — the rail says where you are — so they are
 absent here too rather than reproduced as dead widgets.
 
-**The Atlas mark is top-right, left of the tool rail** — `placeLauncher()` in
-atlas-assistant.js measures whichever of `#tool-rail` and `.map-legend` sits
-furthest left and places against that, because the rail's width changes with the
-breakpoint (3.7rem / 2.3rem / 1.85rem embedded) and the legend shares that
-corner whenever a layer has one. The panel drops **from** the mark rather than
+**The Atlas mark is top-right, in the RAIL'S OWN COLUMN, and it does not
+move.** It used to step aside for an open workbench — 441 px left, across the
+middle of the screen, and back again on close (measured: right 16 to right
+457 and home) — and it was dodging something guaranteed never to be there.
+`side-panels.place()` puts a workbench LEFT OF THE RAIL, sharing its gap
+(`innerWidth - rail.left + 10`), so the rail's column is reserved at every
+breakpoint BY CONSTRUCTION, and the mark lives in that column directly above
+the rail. Measured at 1394 px with a workbench open: the panel ends at 1331
+and the launcher starts at 1340 — it was crossing the screen to avoid a 9 px
+gap it was already on the right side of; at 900 px the same numbers are 837
+and 846, because both derive from the rail. It is also z-index 900 over the
+panel's 12, so it was never at risk of being buried. With the sidestep gone
+the clash-with-the-freeze-button branch went too: that existed only to catch
+where the sidestep had landed. **Before adding a dodge, check whether the
+thing being dodged is already positioned to avoid you.**
+
+What placement still does: clears the hazard readout and the wordmark
+VERTICALLY (they really do take that corner on the pages that have them),
+pushes the rail down to make room, and drops the panel from the mark. It
+writes `top`/`right` only when they change, so the poll leaves no trace when
+there is nothing to do. `placeLauncher()` in atlas-assistant.js. The panel drops **from** the mark rather than
 rising to it, and takes the height that is left rather than the stylesheet's
 bottom-anchored guess — with the hub armed the rail moves down and everything
 measured from it follows. It is polled at 500ms rather than hooked to an event,
