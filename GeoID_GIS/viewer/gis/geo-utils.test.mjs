@@ -114,5 +114,35 @@ check("nothing has no area", sphericalPolygonAreaKm2(null) === 0);
     sphericalPolygonAreaKm2(ring(0, 10, 0, 10, 1)) * (marsR / R) ** 2, 1e-9);
 }
 
+/* ── The radius the area is measured ON ──────────────────────────────────────
+   The default used to be Earth's constant, and four callers took it — so
+   every area quoted on a planet was scaled by (R_earth / R_body)^2. Measured
+   on Mars: a 4x3 degree box near Olympus Mons recorded 140,689 km2 against a
+   true 39,826, which is exactly 3.533. */
+{
+  const box = [
+    { lat: 17, lon: 224 }, { lat: 17, lon: 228 },
+    { lat: 20, lon: 228 }, { lat: 20, lon: 224 },
+  ];
+  const MARS_KM = 3389.5;
+  const onEarth = sphericalPolygonAreaKm2(box);
+  const onMars = sphericalPolygonAreaKm2(box, MARS_KM);
+  check("an explicit radius is honoured",
+    Math.abs(onMars / onEarth - (MARS_KM / 6371.0088) ** 2) < 1e-6,
+    `${(onMars / onEarth).toFixed(4)}`);
+  check("the Mars box is about 39,800 km2, not 140,000",
+    Math.abs(onMars - 39826) < 400, onMars.toFixed(0));
+
+  // With a viewer on the page, the DEFAULT follows the body.
+  const had = typeof globalThis.window !== "undefined" ? globalThis.window : undefined;
+  globalThis.window = { GeoIDViewer: { bodyRadiusKm: MARS_KM } };
+  const byDefault = sphericalPolygonAreaKm2(box);
+  if (had === undefined) delete globalThis.window; else globalThis.window = had;
+  check("and the default is THIS body's radius, not Earth's",
+    Math.abs(byDefault - onMars) < 1e-6, `${byDefault.toFixed(0)} vs ${onMars.toFixed(0)}`);
+  check("with no viewer at all it falls back to Earth",
+    Math.abs(sphericalPolygonAreaKm2(box) - onEarth) < 1e-6);
+}
+
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");
 process.exit(failures ? 1 : 0);

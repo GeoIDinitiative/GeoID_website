@@ -13,8 +13,8 @@
  * you can operate on, and it should not have to be captured twice.
  */
 
-import { buildVectorLayerResult } from "./vector-render.js?v=20260829-233960f";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260829-233960f";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260829-9509145";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260829-9509145";
 
 let counter = 0;
 
@@ -31,8 +31,27 @@ export function nextDrawnName() {
   return `Study area ${counter + 1}`;
 }
 
+/**
+ * On THIS body's radius, which is not Earth's anywhere but Earth.
+ *
+ * `sphericalPolygonAreaKm2` defaults to the Earth mean radius, and this call
+ * did not override it — so every shape drawn on a planet recorded an area
+ * scaled by (R_earth / R_body)^2: measured, a 4x3 degree box near Olympus
+ * Mons reported 140,689 km2 against a true 39,826, exactly the 3.533 that
+ * ratio predicts. On the Moon it would be 13.4x. The number rides on the
+ * layer as `area_km2`, so it reached the annotation, the exports and the
+ * project registry alike.
+ *
+ * area-labels.js already took its km-per-degree from `bodyRadiusKm` for the
+ * live label — this is the SECOND area computation, and only the first had
+ * been made per-body. Same shape as the polygon-area formula in ten files:
+ * when a body constant is fixed in one place, grep for the others.
+ */
 function areaOf(ring) {
   try {
+    // No radius passed on purpose: sphericalPolygonAreaKm2 defaults to THIS
+    // body's, which is the only mechanism, so a fifth caller cannot be added
+    // wrong the way the first four were.
     const km2 = sphericalPolygonAreaKm2(ring.map(([lon, lat]) => ({ lat, lon })));
     return Number.isFinite(km2) ? Number(km2.toFixed(3)) : null;
   } catch (error) {

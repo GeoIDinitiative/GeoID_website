@@ -235,7 +235,25 @@ export const EARTH_MEAN_RADIUS_KM = 6371.0088;
  * `points` are `{lat, lon}` in degrees; longitude may be signed or 0–360, since
  * only differences are used and each is wrapped to the short way round.
  */
-export function sphericalPolygonAreaKm2(points, radiusKm = EARTH_MEAN_RADIUS_KM) {
+/**
+ * The radius to measure on when a caller does not say: THIS body's, and
+ * Earth's only where there is no viewer to ask (Node, the tests).
+ *
+ * The default used to be the Earth constant, and four callers took it —
+ * drawn-layers' `area_km2`, the geology card's mapped area and both of
+ * feature-popup's. So every area quoted on a planet was scaled by
+ * (R_earth / R_body)^2: measured on Mars, a 4x3 degree box near Olympus Mons
+ * recorded 140,689 km2 against a true 39,826, exactly the 3.533 that ratio
+ * predicts; on the Moon it would be 13.4x. Fixing the callers one at a time
+ * is what left three of them wrong after the first was found, so the DEFAULT
+ * is the thing that had to change.
+ */
+function defaultRadiusKm() {
+  const r = typeof window !== "undefined" ? window.GeoIDViewer?.bodyRadiusKm : null;
+  return Number.isFinite(r) && r > 0 ? r : EARTH_MEAN_RADIUS_KM;
+}
+
+export function sphericalPolygonAreaKm2(points, radiusKm = defaultRadiusKm()) {
   if (!Array.isArray(points) || points.length < 3) return 0;
   const rad = (degrees) => (degrees * Math.PI) / 180;
   let sum = 0;
