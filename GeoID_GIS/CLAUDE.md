@@ -2965,6 +2965,96 @@ deliberately uncorrelated observations — which is the CORRECT answer, and a
 tidy reminder that a validation tool agreeing with chance is sometimes the
 data, not a bug.
 
+## Every tool, individually, IN THE SUITE — and what that found
+
+The browser sweeps each found faults the one before had passed, and a sweep
+somebody re-drives by hand stops being run. `tool-runner.test.mjs` is that
+sweep in the suite: all 48 tools through the REAL runner, asserting on
+VALUES against fixtures with closed-form answers (a plane has zero
+curvature; the mean of a symmetric window on a ramp is the centre;
+interpolating a constant field returns that constant; a perfectly separating
+raster scores AUC 1 and the same raster upside down scores 0; clip and
+difference must TILE the subject).
+
+**The runner needs only a `window`.** `resolveLayer` takes a layer RECORD as
+readily as an id, and `addDerivedLayer` is the one seam `register` writes
+through — stubbed in the shape import-manager really returns, so an output
+chains into the next tool exactly as it does on the page. A canvas stub
+covers `buildRasterLayer`'s preview; nothing reads the picture, because the
+`raster` the engine produced rides on the layer record beside it.
+
+**Two STRUCTURAL checks, in both directions, and they are the last two bugs
+generalised.** Every `p.<name>` an engine reads must be a declared param
+(watershed read `p.lat`/`p.lon` while declaring none); every declared param
+must be read by its own tool (viewshed collected `height` and read
+`p.observerHeight`). The scanner strips COMMENTS first — viewshed's own note
+about the bug contains the string `p.observerHeight`, and prose is not a
+read. Five faults on the first run, none of them visible to any browser
+sweep:
+
+- **`difference` returned the subject WHOLE**, silently, whenever the mask
+  shared the subject's y-range — the commonest overlap there is, and the one
+  this file already documents and defends against inside `unionRings`,
+  `intersectRings` and `subtractRings`. **The defence was never reached.**
+  `ringEdgesIntersect`, the gate deciding whether the audited subtraction
+  runs at all, counted only a strictly-interior, non-parallel crossing — and
+  two rectangles sharing a y-range meet ONLY at vertices, so `punchHoles`
+  concluded "disjoint" and handed back the untouched subject. Measured: A
+  minus B returned 123.643 km² of a 123.643 km² subject while clip on the
+  SAME pair correctly returned 24.729. The gate had been written on the same
+  primitive the defence exists to work around. It falls back to sampling
+  now — a boundary with points strictly inside the other ring and points
+  strictly outside CROSSES it, whatever its edges do at the vertices — which
+  also keeps the hole and disjoint branches right by construction (a
+  contained ring has no outside point, a disjoint one no inside point).
+  Sampled at three points per edge, never at the vertices, where a
+  point-in-ring test on a shared boundary is a coin toss; and only after a
+  bounds check, so a map of thousands of polygons pays nothing. Verified
+  live: clip 17.178 + difference 68.712 = 85.890 = the subject, exactly.
+- **A boundary-touching mask used to land on the right ANSWER by accident.**
+  `geoprocessing.test.mjs`'s "difference removes both masks" got exactly 4
+  because the masks read as disjoint and a first-vertex coin toss filed each
+  as a HOLE — a hole touching the outer boundary, a degenerate polygon with
+  the right area. It goes through the audited subtraction now and comes out
+  as one comb-shaped ring whose notches are joined by 1e-9-tall slivers,
+  which is what the nudge strategy has always produced. So the area check
+  carries the nudge's own tolerance, and what the test asserts is WHERE THE
+  GROUND WENT — masked ground gone, unmasked ground kept.
+- **Kriging's two controls were BOTH dead.** The engine read
+  `p.cellSizeDeg`, which no param declares, so the grid was always 0.01°
+  whatever "Cells across" said; and the model select never reached
+  `krigeGrid`, which called `sphericalModel` unconditionally and then
+  REPORTED "spherical variogram" however Exponential was set. The sidecar
+  honoured both, so one form gave two different answers depending on which
+  engine ran. `exponentialModel` exists now and the family is FITTED as well
+  as applied — a range fitted under one family and used under another is a
+  third model nobody chose — and `krigeGrid`'s message, which carries the
+  fitted nugget/sill/range and is the only way to judge whether the surface
+  is worth believing, reaches the user instead of being computed and
+  dropped.
+- **Kriging was then UNFINISHABLE, which is what honouring its own default
+  exposed.** The kriging matrix depends only on the samples and the
+  variogram, never on the cell being estimated, and it was rebuilt and fully
+  eliminated for EVERY CELL — 65,536 of them at the default 256 across. LU
+  once, substitution per cell: same arithmetic, same answer, O(n³) once plus
+  O(n²) a cell. A performance fault that reads as a hang is still a fault.
+- **A zero-variance field came back as an EMPTY raster reported as
+  success** — every semivariance zero, the system singular, every weight
+  null. The kriging estimate of a constant field is that constant, so it is
+  answered directly; and a grid where nothing was estimated is a refusal
+  now, not a blank map that looks like an answer. Same family as watershed.
+- **`rasterize` required an attribute**, so a fault trace or a road network —
+  a line layer with no numeric column at all — could not be rasterized.
+  Blank means PRESENCE. Verified live: 104 cells from a line, no column.
+
+**A raster layer starts a 250 ms relief poll, and that is why any headless
+run hung.** `registerDrape`'s watcher is right on a page and kept the test
+process alive forever with all its work done and printed — 200 s against
+0.44 s. `watcher?.unref?.()` is a no-op in a browser (a browser timer is a
+number) and the whole point outside one: a poll that redraws drapes must
+never be the reason a process cannot exit. **When a headless run of page
+code "hangs" after printing its results, look for a poll, not a deadlock.**
+
 ## The full-development sweep: check OUTPUTS, not ok flags
 
 Every tool run through the real runner with pure DEFAULTS (auto-resolved
