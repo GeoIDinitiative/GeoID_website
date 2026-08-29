@@ -114,13 +114,60 @@ const STYLE = `
   display: block;
   align-items: initial;
   gap: 0;
-  padding: 0.6rem 0.65rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.7rem;
-  background: rgba(255, 255, 255, 0.05);
+  /* The head is a BAR across the top of the tile, so the padding belongs to
+     the head and the body, never to the card between them. */
+  padding: 0;
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.18);
+  border-radius: 0.78rem;
+  /* Opaque, and this is the reason: the panel behind it is a translucent
+     sheet over the globe, so a translucent card renders whatever imagery
+     happens to be under it -- a different colour over ocean than over ice,
+     and never the colour the sub-tab cards are. Same fix, same value. */
+  background: rgb(24, 13, 47);
+  overflow: hidden;
+}
+/* Filled is OPEN, everywhere in this GUI: the rail buttons, the nav tabs and
+   the sub-tab cards all say it with a solid accent and dark ink, and a legend
+   card that folds is the same kind of thing. Which head belongs to which body
+   is then never in question with several stacked. */
+#map-legend-panel .legend-entry:not(.is-folded) {
+  border-color: rgb(var(--nav-accent-rgb));
+  box-shadow: 0 0 18px -6px rgba(var(--nav-accent-rgb), 0.55);
+}
+#map-legend-panel .legend-entry:not(.is-folded) > .legend-entry-head {
+  background: rgb(var(--nav-accent-rgb));
+  color: var(--skin-chrome-ink, #2b0030);
+  border-bottom-color: rgba(0, 0, 0, 0.22);
+}
+#map-legend-panel .legend-entry-body {
+  /* A shade under the cards, so the tile still reads as raised off it. */
+  background: rgb(16, 7, 36);
+  padding: 0.6rem 0.78rem 0.66rem;
 }
 #map-legend-panel .legend-entry + .legend-entry { margin-top: 0.45rem; border-top-width: 1px; }
-#map-legend-panel { width: 17.5rem; max-height: min(62vh, 34rem); display: block; }
+/* The frame is CHROME, so it is magenta.
+ *
+ * The skin's whole rule is magenta for chrome -- frames, headings, active
+ * states -- and cyan for DATA: field labels, readouts, values. This panel
+ * wore a cyan border, which says "this box is a reading" about the one thing
+ * on screen that is a container. Measured before: rgba(82,228,232,0.3) on the
+ * frame while every other floating tile in the app carried the accent.
+ *
+ * The values are the Workspace tile's own, copied rather than invented, so
+ * the two floating tiles are the same object seen twice. */
+#map-legend-panel {
+  width: 17.5rem;
+  max-height: min(62vh, 34rem);
+  display: block;
+  padding: 0.55rem;
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.55);
+  border-radius: 0.6rem;
+  background: rgb(16, 7, 36);
+  box-shadow:
+    0 0 24px -6px rgba(var(--nav-accent-rgb), 0.45),
+    0 12px 28px rgba(0, 0, 0, 0.42),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
 /* ...and the one rule that makes the hidden attribute mean anything here.
    NO BACKTICKS in this block -- it is a template literal and one ends it.
 
@@ -136,7 +183,20 @@ const STYLE = `
    was "block" and the box was a real size on screen. Assert the PAINT, never
    the property -- the property was right the whole time. */
 #map-legend-panel[hidden] { display: none !important; }
-#map-legend-panel .layer-type-badge { margin: 0 0 0.3rem; }
+/* One voice for section heads across the GUI, which is the sidebar's own --
+   measured against a live .gis-tool-section summary: Exo 2 600 at 0.76rem
+   with 0.1em of tracking. The legend was drawing 400 weight at 0.73rem with
+   0.08em, which is what made it read as a lighter, separate system. */
+#map-legend-panel .layer-type-badge {
+  margin: 0;
+  padding: 0.7rem 0.78rem;
+  font-family: "Exo 2", "Segoe UI", sans-serif;
+  font-weight: 600;
+  font-size: 0.76rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(var(--nav-accent-rgb), 0.08);
+}
 #map-legend-panel .metadata-section-copy { margin: 0 0 0.35rem; font-size: 0.72rem; line-height: 1.45; }
 #map-legend-panel .legend-symbol-list { margin-top: 0.45rem; gap: 0.4rem; }
 #map-legend-panel .legend-symbol-label { font-size: 0.74rem; }
@@ -149,14 +209,19 @@ const STYLE = `
   gap: 0.35rem;
 }
 /* The caret is the affordance -- a heading that folds has to look like one. */
+/* The SAME left chevron the tabs, the sub-tabs and the Workspace tile use,
+   turning the same way -- a column that speaks two fold languages at once
+   reads as two apps. DOUBLE backslash: this is a template literal, and a
+   single one is an octal escape that node --check passes and import() then
+   refuses, taking the whole module out. */
 #map-legend-panel .legend-entry-head::before {
-  content: "▾";
-  font-size: 0.6rem;
-  opacity: 0.75;
+  content: "\\203A";
+  font-size: 0.72rem;
+  opacity: 0.9;
+  transform: rotate(90deg);
   transition: transform 0.15s ease;
 }
-#map-legend-panel .legend-entry.is-folded .legend-entry-head::before { transform: rotate(-90deg); }
-#map-legend-panel .legend-entry.is-folded { padding-bottom: 0.45rem; }
+#map-legend-panel .legend-entry.is-folded .legend-entry-head::before { transform: rotate(0deg); }
 #map-legend-panel .legend-entry-body[hidden] { display: none; }
 
 
