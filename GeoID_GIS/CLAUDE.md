@@ -3070,6 +3070,37 @@ raster.** It cost a round: an imported polygon fills by default, draws above
 the drapes, and its legend swatch is the tell. Check what is actually on top
 before diagnosing the layer underneath it.
 
+## A zoom the view cannot be COVERED at is not a zoom
+
+The map broke at a 20 km scale bar: a coarse slab across half the screen with
+the fine map beside it. Measured at that view, the diagnosis was the opposite
+of missing data — "Southern Highland Group" covered EVERY sampled point of
+the grey area, and the sharp tiles were built, coloured and carrying
+`visible: true` while their PARENT node was hidden. Only the zoom-2 backdrop
+was drawing.
+
+`update` fetches `tilesForBounds(bounds, z).slice(0, maxTiles)` — a
+**TRUNCATION, not a refusal** — so a zoom needing more tiles than the cap
+paints part of the view sharply and abandons the rest to the backdrop.
+`chooseZoom` only ever weighed the FEATURE budget, which is how long the
+triangulation takes; it never asked whether the view could be covered at all.
+That did not matter while the feature budget was the binding constraint, and
+the per-tile fix above made the deeper levels reachable — which are exactly
+the levels needing more tiles than the cap allows. **The per-tile fix did not
+create the truncation; it walked the map into it.**
+
+Two limits, and they are not the same kind: the feature budget decides how
+SLOW a view is, the tile cap decides whether the picture is WHOLE. Only the
+second can make the map wrong rather than merely sluggish, so it is checked
+first. Measured after, at the reported 20 km scale bar: **30 of 30 sampled
+screen points carry geology, 100% coverage**, no slab.
+
+**And the window change made this legible rather than causing it.** With the
+backdrop cut away the uncovered ground was BLACK, which reads as tearing;
+keeping it turns the same fault into the coarse map showing through, which
+reads as what it is — coverage. A fault that shows its own shape is worth
+more than one that hides in a colour you already distrust.
+
 ## "The clipping is riddled with errors" — the clip was clean, the map was not
 
 Reported against the clipped geology, and the clip is not what is wrong.
