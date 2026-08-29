@@ -3279,6 +3279,85 @@ scratches are not backface culling; every tile carries its boundary seal; and
 the clip's own mesh is clean. The seams are back with the revert, and
 that is the honest state: the fix is a ribbon seal, not a backdrop.
 
+### A clip shipped whatever `maxTiles` allowed, and that is a resolution
+
+"It loses the resolution — ensure that for any geology clip the highest
+resolution layer is always the one that gets clipped. Currently we are clipping
+low res polygons leading to data gaps at contacts." Measured, and the diagnosis
+is one line: **`levelFeatures` truncated instead of refusing.**
+
+`tilesForBounds(bounds, z).slice(0, maxTiles)` with `maxTiles` at **16** — the
+budget that exists to stop a REFINE stuttering the flight it serves, left
+standing on the path every extraction and clip takes. A probe draws nothing, so
+that budget was answering a question nobody asked. Worse, the climb in
+`featuresIn` reads a truncated level as the SOURCE RUNNING OUT: fewer tiles
+fetched, fewer vertices counted, `detail` falls, the level is called barren and
+the climb stops. This is the same fault `chooseZoom` documents for the display
+path — fixed there, never carried across.
+
+Measured live over Northern Ireland, tiles a level needs (EPSG:4326 is 2x1 at
+zoom 0, so a tile spans 360/2^(z+1) degrees):
+
+| box | z8 | z9 | z10 | z11 | z12 | shipped at |
+| --- | --- | --- | --- | --- | --- | --- |
+| 2.8 x 1.3 deg | 9 | 20 | 63 | 238 | 891 | **zoom 8** |
+| 0.6 x 0.45 deg | 2 | 6 | 12 | 30 | 90 | **zoom 10** |
+
+Both stopped at exactly the last level fitting under 16 — not at the
+compilation's own ceiling, which is zoom 11. **The generalisation is what opens
+the gaps at contacts**, which this file already measured from the other end:
+280 dark holes at zoom 4 and none at zoom 9, because at native scale the
+polygons still share their boundaries. So the clip was manufacturing the very
+gaps it was being blamed for.
+
+**A level that cannot be covered is REFUSED and says so.** `levelFeatures`
+returns `{ refused: true, needed }` rather than a partial answer, `maxTiles`
+goes back to bounding only what is drawn, and a probe gets its own budget.
+
+**And which resolution to ship is a CHOICE at clip time**, not a consequence of
+a drawing constant. `DETAIL_PARAM` on the clip offers fast / balanced / full /
+maximum against `TILE_BUDGETS` (16 / 96 / 320 / 1200). Named by what it SPENDS
+rather than by a zoom, because the level a zoom buys depends on the box: zoom 11
+costs 30 tiles over a 0.6 degree study area and 238 over a 2.8 degree one, so a
+fixed zoom would mean something different for each.
+
+Measured through the real path on one study-area box — and the last column is
+the reported fault:
+
+| detail | zoom | tiles | vertices IN the box | features clipped | isolated holes |
+| --- | --- | --- | --- | --- | --- |
+| fast | 10 | 12 | 4,444 | 176 | **10** |
+| balanced | 12 | 90 | 4,956 | 342 | **2** |
+| full | 13 | 288 | 6,448 | 654 | **1** |
+
+Units clipped stays **13** at every level: no unit is lost, the same geology
+arrives finer. The uncovered ground barely moves (25,953 → 25,945 cells) because
+that is Lough Neagh and the sea, which are honestly unmapped — only the
+ISOLATED holes, the contact seams, fall away.
+
+**Count vertices INSIDE the box, never the totals returned.** A zoom-8 tile
+spans 0.7 degrees and drags in far more surrounding ground than a zoom-12 one,
+so raw feature and vertex totals FALL as resolution rises — measured, 35,643
+vertices at zoom 8 against 23,746 at zoom 10 on the same box, which reads as
+detail being lost when it is being gained. `detailWithin` exists for exactly
+this and my first probe ignored it.
+
+**The level shipped is now REPORTED.** `layer.featuresIn` used to drop
+`got.zoom` on the floor, so which generalisation an extraction ran on was
+invisible to everything downstream: a clip at zoom 8 and a clip at zoom 11 are
+different maps and the app said the same sentence about both. It records
+`layer.lastFetch` and the runner appends the level, the tile count and — when a
+BUDGET rather than the source is what stopped the climb — the next level and
+what it would cost.
+
+**A param the RUNNER reads is named, never silently exempted.** `detail` is
+chosen before any engine sees the inputs, so it cannot be read by one, and
+`tool-runner.test.mjs`'s "every declared param is READ by its own tool" check
+would have called it a dead control. `RUNNER_PARAMS` is that exemption written
+down, with a second check that the runner really does read each name and that
+each is offered as a real control with a valid default — or the exemption
+becomes the loophole the original check exists to close.
+
 ### The clipped map went GREY because a new layer re-classes by frequency
 
 "The clipped geology map fails to capture all the data verbatim as it is
