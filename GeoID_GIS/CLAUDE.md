@@ -69,6 +69,44 @@ Drops `colorWrite`, not `visible`. A mesh that is not drawn writes no depth and
 the planet stops occluding — the moon's orbit line and far-side event markers
 then show through it.
 
+## The myGeoID disclaimer is armed by myGeoID, not by the page
+
+The gate in `geohub/index.html` ran on EVERY LOAD and held the whole shell
+inert until acknowledged — which is why it had been switched off in
+development (`DEMO_DISCLAIMER_GATE = false`, the modal `.remove()`d). Both
+states were wrong: on, it stood in front of Earth exploration, the Model
+Builder and the Research Hub, none of which show a synthetic hazard value;
+off, the page went on presenting myGeoID's made-up numbers as though they
+were readings, which is the one thing the gate exists to say out loud.
+
+It is scoped to its subject now, and the trigger is exact rather than
+approximate. **myGeoID IS "the GIS page with the hub armed"** — mode-manager's
+own `armed = currentMode === "gis" && hubArmed` — and the viewer already
+reports precisely that to the shell as mode `"geoid"` over the postMessage
+bridge. So arming raises the gate and nothing else does. (Worth checking
+before trusting: `"geoid"` looks like it might conflate the myGeoID MODE with
+"GIS + hub armed", and it does not — they are the same state.)
+
+- **Acknowledged once per SESSION** (`sessionStorage`), not per arming: a
+  modal that returns on every toggle is a nag, and one that never returns
+  after a restart makes a claim about somebody's memory that a disclaimer
+  should not make. A storage that throws (private window) asks again rather
+  than failing open.
+- **"Leave myGeoID" is the second door.** A gate whose only action is Continue
+  is a notice wearing a gate's clothes. It stands the mode down through
+  `setHubArmed` — the same seam the Enter button uses — via a `message`
+  listener in mode-manager, so declining cannot leave the mode running behind
+  a dismissed warning.
+- **`.demo-disclaimer-backdrop` is `display: flex`, which outranks the `hidden`
+  attribute**, so `[hidden]` is spelled out with `!important`. Without it the
+  modal shows on every load — exactly the behaviour being removed.
+
+Verified live end to end: nothing on load (page live, `pointer-events: auto`);
+arming raises it with the rest of the shell inert and Continue disabled until
+the box is ticked; Cancel closes it, leaves the key unset AND disarms the
+mode; Accept closes it, keeps the mode armed, and re-arming does not ask
+again this session.
+
 ## The names: GeoHUB, and myGeoID inside it
 
 **GeoHUB is the workspace; myGeoID is a product made in it.** The page at
