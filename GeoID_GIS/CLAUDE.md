@@ -2501,6 +2501,43 @@ itself. **Earth only**: the planet viewers re-project every measure point
 with the CURRENT lift (`projectMeasurePoint`'s default) instead of baking
 one, so they never had it.
 
+### The area fill's APEX was round-tripped through lat/lon, and landed on the far side
+
+A three-point polygon on Mercury drew a correct triangle with a long spike
+trailing out of it — "the trailing kink outside of the 3 defined points". The
+vertex list was innocent: three points, no wrap, no stray, because the OUTLINE
+is built from boundary points that are never converted. The FILL is not. It is
+a triangle FAN — one triangle per edge, all sharing an apex — and that apex was
+derived by `vectorToLatLon` on the centroid direction and then
+`sampleMeasureSurfacePoint` to turn the lat/lon back into a position.
+
+**Those two do not agree about which way longitude runs on a west-positive
+world.** Measured on Mercury: apex `(2.833, -0.199, -1.476)` against a true
+centroid of `(-2.833, -0.199, -1.475)`. X negated exactly — the apex lands on
+the OPPOSITE SIDE OF THE PLANET, 5.67 units away on a globe of radius 3.2,
+while the shape itself spans 0.137. All 121 triangles ran to it, and that is
+the kink.
+
+The fix is to never leave the frame: the centroid direction and the boundary
+are already in one, so the apex goes along that direction at the MEAN BOUNDARY
+RADIUS. No lat/lon, no convention to disagree about, and it sits on the same
+terrain the boundary was sampled from. The `kind === "moon"` branch a few lines
+above already refuses the round trip for exactly this reason and says so — the
+same lesson, learned once and not carried across to the planet branch.
+
+Measured after: Mercury apex-to-centroid **5.6668 → 0.0000**, and Mars (which
+never showed the fault, being east-positive) also 0.0000 with the apex radius
+equal to the boundary mean to four decimals — the fix costs the working worlds
+nothing. Applied to all six viewers that can draw; the four gas giants have no
+such code because they have no surface to draw on.
+
+**The diagnostic that found it**: read the fill mesh's own positions, take the
+first vertex of every triangle as the apex, and compare it with the centroid
+recomputed from the other two. An apex further from the centroid than the
+shape is wide is the spike, stated as a number. The vertex list looked
+perfect throughout — the geometry the USER sees and the geometry the app
+RECORDS are two different things, and only one of them was wrong.
+
 ### The handles were drawn in the WRONG FRAME
 
 `measureGroup` carries the globe's spin — `rotation.y = _spinDelta`, set every
