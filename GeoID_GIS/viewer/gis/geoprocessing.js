@@ -1,5 +1,5 @@
-import * as G from "./geometry.js?v=20260829-ffffb8a";
-import { transform } from "./projection.js?v=20260829-ffffb8a";
+import * as G from "./geometry.js?v=20260829-e9c2d82";
+import { transform } from "./projection.js?v=20260829-e9c2d82";
 
 // Vector geoprocessing on GeoJSON FeatureCollections.
 //
@@ -403,6 +403,35 @@ export function union(fcA, fcB) {
 // this section is GeoJSON's [outer, ...holes] coordinate array.
 
 /** Do any two edges of the rings cross? O(n·m), fine at toolbox sizes. */
+/**
+ * Do these two rings' boundaries CROSS — one passing both inside and outside
+ * the other? This gate decides whether `punchHoles` calls the audited
+ * `subtractRings` at all, so a false answer here bypasses the retry, the
+ * tiling audit and the honest fallback in one step.
+ *
+ * IT WAS ANSWERING FALSE ON THE COMMONEST OVERLAP THERE IS. The test was a
+ * proper crossing and only that: `Math.abs(d) < 1e-18` skips parallel edges,
+ * and the `t`/`u` bounds exclude a crossing at an endpoint. Two rectangles
+ * sharing a y-range exactly — a box drawn beside another box, a buffer
+ * aligned to a graticule, the extent of one study area against another —
+ * meet ONLY at vertices, so every candidate crossing was excluded and the
+ * rings read as disjoint. `punchHoles` then returned the subject untouched
+ * and `difference` handed back the whole feature, silently, as its answer.
+ * Measured: A minus B over exactly that pair returned 123.643 km² of a
+ * 123.643 km² subject, with clip on the SAME pair correctly returning 24.7.
+ *
+ * That degeneracy is the one this file already documents at length and
+ * defends against inside `unionRings`, `intersectRings` and `subtractRings`.
+ * The defence was simply never reached, because the gate above it was written
+ * on the same primitive the defence exists to work around.
+ *
+ * So the crossing test is a SAMPLING one where the algebraic one is blind:
+ * a boundary that has points strictly inside the other ring and points
+ * strictly outside it crosses it, whatever its edges do at the vertices. That
+ * characterisation is also what keeps the other two branches of `punchHoles`
+ * intact — a wholly contained ring has no outside point and is still a HOLE,
+ * a disjoint one has no inside point and still removes nothing.
+ */
 function ringEdgesIntersect(a, b) {
   for (let i = 0; i < a.length - 1; i += 1) {
     const [x1, y1] = a[i];
@@ -415,6 +444,33 @@ function ringEdgesIntersect(a, b) {
       const t = ((x3 - x1) * (y4 - y3) - (y3 - y1) * (x4 - x3)) / d;
       const u = ((x3 - x1) * (y2 - y1) - (y3 - y1) * (x2 - x1)) / d;
       if (t > 1e-12 && t < 1 - 1e-12 && u > 1e-12 && u < 1 - 1e-12) return true;
+    }
+  }
+  // The sampling pass runs only when the algebraic one found nothing, and
+  // never for rings whose bounds miss — which is the overwhelmingly common
+  // case on a map of thousands of polygons, and the reason this stays cheap.
+  if (!G.boundsIntersect(G.boundsOf(a), G.boundsOf(b))) return false;
+  return boundaryCrosses(b, a) || boundaryCrosses(a, b);
+}
+
+/**
+ * Does `ring`'s boundary have points strictly inside AND strictly outside
+ * `other`? Sampled at three points per edge rather than at the vertices: a
+ * vertex of a degenerate pair usually lies exactly ON the other boundary,
+ * where a point-in-ring test is a coin toss, and three interior samples make
+ * every edge of a shared boundary land on the same wrong answer at once
+ * vanishingly unlikely.
+ */
+function boundaryCrosses(ring, other) {
+  let inside = false;
+  let outside = false;
+  for (let i = 0; i < ring.length - 1; i += 1) {
+    const [x1, y1] = ring[i];
+    const [x2, y2] = ring[i + 1];
+    for (const t of [0.25, 0.5, 0.75]) {
+      if (G.pointInRing([x1 + (x2 - x1) * t, y1 + (y2 - y1) * t], other)) inside = true;
+      else outside = true;
+      if (inside && outside) return true;
     }
   }
   return false;

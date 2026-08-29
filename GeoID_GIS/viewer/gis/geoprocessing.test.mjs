@@ -150,7 +150,24 @@ function areaDeg2(collection) {
 {
   const masks = fc(square(0, 0, 1, 1), square(3, 0, 4, 1));
   const out = difference(fc(square(-1, 0, 5, 1)), masks);
-  near("difference removes both masks", areaDeg2(out), 4, 1e-9);
+  // Each mask shares the subject's y-range EXACTLY, so this is the collinear
+  // degeneracy. It used to land on 4 exactly by accident: the masks read as
+  // disjoint, and a first-vertex point-in-ring coin toss on the shared corner
+  // filed each one as a HOLE — a hole touching the outer boundary, which is a
+  // degenerate polygon that happens to have the right area. It goes through
+  // the audited subtraction now and comes out as three proper fragments, so
+  // the tolerance is the nudge that subtraction deliberately applies (1e-9
+  // degrees, about 0.1 mm) rather than tighter than it.
+  near("difference removes both masks", areaDeg2(out), 4, 1e-6);
+  // The nudge leaves the three surviving strips joined by 1e-9-tall slivers,
+  // so this is ONE comb-shaped ring rather than three pieces — the shape the
+  // nudge strategy has always produced, and why the area check above is the
+  // one that carries the meaning. What must be true is where the ground went:
+  const ring = out.features[0].geometry.coordinates[0];
+  check("the ground under a mask is gone", !pointInPolygon([0.5, 0.5], [ring]));
+  check("the ground under the other mask is gone", !pointInPolygon([3.5, 0.5], [ring]));
+  check("the ground between the masks survives", pointInPolygon([2, 0.5], [ring]));
+  check("the ground outside both masks survives", pointInPolygon([-0.5, 0.5], [ring]));
 }
 
 /* ── orientation on emit ── */

@@ -1,18 +1,18 @@
-import * as GP from "./geoprocessing.js?v=20260829-ffffb8a";
-import * as RA from "./raster-analysis.js?v=20260829-ffffb8a";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260829-ffffb8a";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-ffffb8a";
+import * as GP from "./geoprocessing.js?v=20260829-e9c2d82";
+import * as RA from "./raster-analysis.js?v=20260829-e9c2d82";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260829-e9c2d82";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260829-e9c2d82";
 // Pure and DOM-free, so a static import keeps this module Node-clean AND keeps
 // the terrain engine SYNCHRONOUS -- runTool calls engines.native WITHOUT
 // awaiting it, so an async engine hands register() a Promise and the raster
 // comes out undefined. Measured as: "Cannot read properties of undefined".
-import { buildSurface } from "./model-build.js?v=20260829-ffffb8a";
-import { CRS_OPTIONS } from "./projection.js?v=20260829-ffffb8a";
-import * as IN from "./interpolation.js?v=20260829-ffffb8a";
-import * as VAL from "./validation.js?v=20260829-ffffb8a";
-import * as EX from "./analysis-extra.js?v=20260829-ffffb8a";
-import * as HY from "./hydrology.js?v=20260829-ffffb8a";
-import * as KR from "./kriging.js?v=20260829-ffffb8a";
+import { buildSurface } from "./model-build.js?v=20260829-e9c2d82";
+import { CRS_OPTIONS } from "./projection.js?v=20260829-e9c2d82";
+import * as IN from "./interpolation.js?v=20260829-e9c2d82";
+import * as VAL from "./validation.js?v=20260829-e9c2d82";
+import * as EX from "./analysis-extra.js?v=20260829-e9c2d82";
+import * as HY from "./hydrology.js?v=20260829-e9c2d82";
+import * as KR from "./kriging.js?v=20260829-e9c2d82";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -602,21 +602,39 @@ export const TOOLS = [
       { name: "features", label: "Vector layer", type: "vector" },
     ],
     params: [
-      { name: "field", label: "Attribute", kind: "field", of: "features" },
+      /**
+       * Optional, and blank means PRESENCE. Rasterizing a fault trace, a road
+       * network or a landslide inventory to a 1/no-data mask is the commonest
+       * rasterize in a susceptibility workflow and there was no door to it:
+       * the field was required, so a layer with no numeric column — which a
+       * line network usually has none of — could not be rasterized at all.
+       */
+      { name: "field", label: "Attribute (blank = presence)", kind: "field",
+        of: "features", optional: true },
     ],
     outputType: "raster",
     outputName: "rasterize_{features}",
     engines: {
       native: (i, p) => {
-        const out = RA.rasterizeByAttribute(i.features.collection, p.field, i.input.raster);
+        const field = String(p.field || "").trim();
+        const source = field ? i.features.collection : {
+          type: "FeatureCollection",
+          features: (i.features.collection?.features || []).map((f) => ({
+            ...f, properties: { ...f.properties, __presence: 1 },
+          })),
+        };
+        const out = RA.rasterizeByAttribute(source, field || "__presence", i.input.raster);
         const stats = RA.rasterStatistics(out);
         if (!stats.count) {
           return {
             ok: false,
-            message: `No cell took a value — is "${p.field}" numeric where the polygons overlap this raster?`,
+            message: field
+              ? `No cell took a value — is "${field}" numeric where the features overlap this raster?`
+              : "No feature fell inside this raster's extent.",
           };
         }
-        return { raster: out, note: `${stats.count} cells burned from "${p.field}".` };
+        return { raster: out,
+          note: `${stats.count} cells burned from ${field ? `"${field}"` : "feature presence"}.` };
       },
       // gdal_rasterize burns straight into a grid matched to the template's
       // size and extent, which is the whole job — no per-feature scan here.
@@ -825,10 +843,17 @@ export const TOOLS = [
         let lat = Number(p.lat);
         let lon = Number(p.lon);
         const b = i.input.raster.bounds;
-        const inside = Number.isFinite(lat) && Number.isFinite(lon)
-          && lat >= b.minY && lat <= b.maxY && lon >= b.minX && lon <= b.maxX;
+        /**
+         * (0, 0) is the UNTOUCHED FORM, and that has to be true even for a DEM
+         * that happens to contain the origin -- otherwise a study area over
+         * the Gulf of Guinea is the one place where the default silently means
+         * "the corner" instead of "auto", which is the least predictable
+         * behaviour available. Anyone who genuinely wants the origin can ask
+         * for 0.0001; the auto outlet is the better answer there anyway.
+         */
+        const untouched = (lat === 0 && lon === 0) || !Number.isFinite(lat) || !Number.isFinite(lon);
         let placed = "";
-        if (!inside && ((lat === 0 && lon === 0) || !Number.isFinite(lat) || !Number.isFinite(lon))) {
+        if (untouched) {
           const acc = HY.flowAccumulation(filled);
           const accR = acc.raster || acc;
           let best = -Infinity; let at = 0;
@@ -922,8 +947,9 @@ export const TOOLS = [
         let lon = Number(p.lon);
         let placed = "";
         const b = i.input.raster.bounds;
-        const inside = lat >= b.minY && lat <= b.maxY && lon >= b.minX && lon <= b.maxX;
-        if (lat === 0 && lon === 0 && !inside) {
+        // (0, 0) is the untouched form even where the DEM contains the origin
+        // — the same rule watershed's outlet states at length.
+        if (lat === 0 && lon === 0) {
           lat = (b.minY + b.maxY) / 2;
           lon = (b.minX + b.maxX) / 2;
           placed = ` Observer defaulted to the DEM centre (${lat.toFixed(3)}, ${lon.toFixed(3)}).`;
@@ -976,11 +1002,27 @@ export const TOOLS = [
           minX: Math.min(acc.minX, q.lon - pad), minY: Math.min(acc.minY, q.lat - pad),
           maxX: Math.max(acc.maxX, q.lon + pad), maxY: Math.max(acc.maxY, q.lat + pad),
         }), { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
+        /**
+         * BOTH of this tool's own controls used to be dead here. The engine
+         * read `p.cellSizeDeg`, which no param declares, so the grid was
+         * always 0.01 degrees whatever "Cells across" said -- and the model
+         * select never reached krigeGrid at all, which hardcoded the
+         * spherical family and then reported "spherical variogram" in the
+         * message however Exponential had been set. The sidecar honoured
+         * both, so the same form gave different answers depending on which
+         * engine happened to run.
+         */
+        const across = Math.max(8, Math.round(Number(p.cellsAcross) || 256));
         const out = KR.krigeGrid(points, bounds, {
-          cellSizeDeg: Number(p.cellSizeDeg) || 0.01,
+          cellSizeDeg: Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY) / across,
+          model: p.model,
         });
         if (!out.ok) return { ok: false, message: out.message };
-        return RA.makeRaster(out.values, out.width, out.height, out.bounds, NaN);
+        // krigeGrid's message carries the FITTED VARIOGRAM — nugget, sill,
+        // range and family — which is the only way to judge whether the
+        // surface is worth believing. It was computed and thrown away.
+        return { raster: RA.makeRaster(out.values, out.width, out.height, out.bounds, NaN),
+          note: out.message };
       },
       sidecar: {
         requires: ["numpy", "scipy"],
@@ -1749,7 +1791,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260829-ffffb8a");
+    const client = await import("./sidecar-client.js?v=20260829-e9c2d82");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -1804,7 +1846,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260829-ffffb8a");
+    const bridge = await import("./research/bridge.js?v=20260829-e9c2d82");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -1816,12 +1858,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260829-ffffb8a");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260829-e9c2d82");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260829-ffffb8a");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260829-e9c2d82");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }

@@ -63,8 +63,32 @@ export function sphericalModel({ nugget, sill, rangeKm }) {
 }
 
 /**
- * Fit a spherical variogram by grid search over range, with nugget and sill
- * read from the empirical curve.
+ * Exponential model: approaches the sill asymptotically, so the "range" is the
+ * PRACTICAL range -- the lag at which 95% of the sill is reached, which is the
+ * convention every geostatistics text uses and the one that makes a fitted
+ * exponential range comparable with a spherical one.
+ *
+ * The tool offered this family from the day it shipped and could not deliver
+ * it: `krigeGrid` called `sphericalModel` unconditionally, so choosing
+ * Exponential fitted and applied a spherical variogram and then REPORTED
+ * "spherical variogram" in the message. A control that quietly does something
+ * else is worse than one that does nothing.
+ */
+export function exponentialModel({ nugget, sill, rangeKm }) {
+  return (h) => {
+    if (h <= 0) return 0;
+    return nugget + (sill - nugget) * (1 - Math.exp((-3 * h) / rangeKm));
+  };
+}
+
+/** The two families, by the id the tool's own select carries. */
+export const VARIOGRAM_MODELS = { spherical: sphericalModel, exponential: exponentialModel };
+
+/**
+ * Fit a variogram by grid search over range, with nugget and sill
+ * read from the empirical curve. The FAMILY is fitted too, not only applied:
+ * a range fitted under a spherical curve and then used exponentially is a
+ * different model from the one the search chose.
  *
  * A grid search rather than Levenberg–Marquardt because there are three
  * parameters, two of them read directly off the data, and a search that cannot
@@ -72,6 +96,8 @@ export function sphericalModel({ nugget, sill, rangeKm }) {
  * that wanders produces a smooth, confident, wrong surface.
  */
 export function fitVariogram(points, options = {}) {
+  const family = VARIOGRAM_MODELS[options.model] ? options.model : "spherical";
+  const makeModel = VARIOGRAM_MODELS[family];
   const empirical = empiricalVariogram(points, options);
   if (empirical.length < 3) {
     return { ok: false, message: "too few point pairs to fit a variogram" };
@@ -82,13 +108,14 @@ export function fitVariogram(points, options = {}) {
   let best = null;
   for (let s = 1; s <= 40; s += 1) {
     const rangeKm = (s / 40) * maxLag * 1.5;
-    const model = sphericalModel({ nugget, sill, rangeKm });
+    const model = makeModel({ nugget, sill, rangeKm });
     const sse = empirical.reduce((acc, e) =>
       acc + e.pairs * (model(e.lagKm) - e.semivariance) ** 2, 0);
     if (!best || sse < best.sse) best = { rangeKm, sse };
   }
   return {
     ok: true,
+    model: family,
     nugget: Number(nugget.toFixed(6)),
     sill: Number(sill.toFixed(6)),
     rangeKm: Number(best.rangeKm.toFixed(4)),
@@ -98,21 +125,89 @@ export function fitVariogram(points, options = {}) {
 
 /* ── the solve ──────────────────────────────────────────────────────────── */
 
-function solveSystem(A, b) {
-  const n = b.length;
-  const M = A.map((row, i) => [...row, b[i]]);
+/**
+ * LU with partial pivoting, computed ONCE.
+ *
+ * The kriging matrix depends only on the sample points and the variogram --
+ * never on the cell being estimated -- and it was being rebuilt and fully
+ * eliminated for EVERY CELL. At the tool's own default of 256 cells across
+ * that is 65,536 eliminations of a matrix as wide as the sample count, which
+ * is not slow so much as unfinishable: the browser sat there. Factorising
+ * once and substituting per cell is the same arithmetic and the same answer
+ * at a fraction of the cost -- O(n^3) once plus O(n^2) a cell, rather than
+ * O(n^3) a cell.
+ */
+function factorise(A) {
+  const n = A.length;
+  const M = A.map((row) => Float64Array.from(row));
+  const piv = new Int32Array(n);
+  for (let i = 0; i < n; i += 1) piv[i] = i;
   for (let c = 0; c < n; c += 1) {
-    let pivot = c;
-    for (let r = c + 1; r < n; r += 1) if (Math.abs(M[r][c]) > Math.abs(M[pivot][c])) pivot = r;
-    if (Math.abs(M[pivot][c]) < 1e-12) return null;
-    [M[c], M[pivot]] = [M[pivot], M[c]];
-    for (let r = 0; r < n; r += 1) {
-      if (r === c) continue;
-      const f = M[r][c] / M[c][c];
-      for (let k = c; k <= n; k += 1) M[r][k] -= f * M[c][k];
+    let p = c;
+    for (let r = c + 1; r < n; r += 1) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+    if (Math.abs(M[p][c]) < 1e-12) return null;
+    if (p !== c) {
+      const row = M[c]; M[c] = M[p]; M[p] = row;
+      const q = piv[c]; piv[c] = piv[p]; piv[p] = q;
+    }
+    const pivot = M[c][c];
+    for (let r = c + 1; r < n; r += 1) {
+      const f = M[r][c] / pivot;
+      M[r][c] = f;
+      for (let k = c + 1; k < n; k += 1) M[r][k] -= f * M[c][k];
     }
   }
-  return M.map((row, i) => row[n] / row[i]);
+  return { M, piv, n };
+}
+
+/** Forward then back substitution against an existing factorisation. */
+function luSolve({ M, piv, n }, b) {
+  const y = new Float64Array(n);
+  for (let i = 0; i < n; i += 1) {
+    let sum = b[piv[i]];
+    for (let k = 0; k < i; k += 1) sum -= M[i][k] * y[k];
+    y[i] = sum;
+  }
+  const x = new Float64Array(n);
+  for (let i = n - 1; i >= 0; i -= 1) {
+    let sum = y[i];
+    for (let k = i + 1; k < n; k += 1) sum -= M[i][k] * x[k];
+    x[i] = sum / M[i][i];
+  }
+  return x;
+}
+
+/**
+ * Build the ordinary-kriging system for a fixed set of samples and return a
+ * function that estimates any location against it.
+ *
+ * The extra row and column are the unbiasedness constraint -- the weights must
+ * sum to one -- and the Lagrange multiplier that enforces it. Dropping them
+ * gives simple kriging against an assumed mean of zero, which on elevation or
+ * rainfall is wrong by the mean.
+ */
+export function krigeSolver(points, model) {
+  const n = points.length;
+  const A = Array.from({ length: n + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 0; i < n; i += 1) {
+    for (let j = 0; j < n; j += 1) A[i][j] = model(distanceKm(points[i], points[j]));
+    A[i][n] = 1;
+    A[n][i] = 1;
+  }
+  A[n][n] = 0;
+  const factored = factorise(A);
+  const b = new Float64Array(n + 1);
+  return (lat, lon) => {
+    if (!factored) return { value: null, variance: null };
+    for (let i = 0; i < n; i += 1) b[i] = model(distanceKm(points[i], { lat, lon }));
+    b[n] = 1;
+    const weights = luSolve(factored, b);
+    let value = 0;
+    for (let i = 0; i < n; i += 1) value += weights[i] * points[i].value;
+    let variance = weights[n];                       // the Lagrange multiplier
+    for (let i = 0; i < n; i += 1) variance += weights[i] * b[i];
+    return { value, variance };
+  };
 }
 
 /**
@@ -124,23 +219,7 @@ function solveSystem(A, b) {
  * rainfall is wrong by the mean.
  */
 export function krigeAt(points, model, lat, lon) {
-  const n = points.length;
-  const A = Array.from({ length: n + 1 }, () => new Array(n + 1).fill(0));
-  for (let i = 0; i < n; i += 1) {
-    for (let j = 0; j < n; j += 1) A[i][j] = model(distanceKm(points[i], points[j]));
-    A[i][n] = 1;
-    A[n][i] = 1;
-  }
-  A[n][n] = 0;
-  const b = points.map((p) => model(distanceKm(p, { lat, lon })));
-  b.push(1);
-  const weights = solveSystem(A, b);
-  if (!weights) return { value: null, variance: null };
-  let value = 0;
-  for (let i = 0; i < n; i += 1) value += weights[i] * points[i].value;
-  let variance = weights[n];                       // the Lagrange multiplier
-  for (let i = 0; i < n; i += 1) variance += weights[i] * b[i];
-  return { value, variance: Math.max(0, variance) };
+  return krigeSolver(points, model)(lat, lon);
 }
 
 /**
@@ -152,7 +231,7 @@ export function krigeAt(points, model, lat, lon) {
  * and beyond about 400 the wait stops being worth it in a browser tab.
  */
 export function krigeGrid(points, bounds, {
-  cellSizeDeg = 0.01, maxPoints = 200, variogram = null,
+  cellSizeDeg = 0.01, maxPoints = 200, variogram = null, model: family = "spherical",
 } = {}) {
   const clean = (points || []).filter((p) =>
     Number.isFinite(p?.lat) && Number.isFinite(p?.lon) && Number.isFinite(p?.value));
@@ -163,9 +242,30 @@ export function krigeGrid(points, bounds, {
     : Array.from({ length: maxPoints }, (_, i) =>
       clean[Math.round((i / (maxPoints - 1)) * (clean.length - 1))]);
 
-  const fit = variogram || fitVariogram(used);
+  /**
+   * A field with NO variance is degenerate, not an error: every semivariance
+   * is zero, so the kriging system is singular, every weight comes back null
+   * and the grid is entirely NaN -- returned, until this guard, as ok:true
+   * with an EMPTY raster. That is the watershed fault wearing a different
+   * hat. The kriging estimate of a constant field is that constant, so it is
+   * answered directly rather than solved for.
+   */
+  const first = used[0].value;
+  if (used.every((q) => q.value === first)) {
+    const w = Math.max(1, Math.round((bounds.maxX - bounds.minX) / cellSizeDeg));
+    const h = Math.max(1, Math.round((bounds.maxY - bounds.minY) / cellSizeDeg));
+    return {
+      ok: true, width: w, height: h, bounds,
+      values: new Float32Array(w * h).fill(first),
+      variance: new Float32Array(w * h).fill(0),
+      variogram: null, samples: used.length,
+      message: `${used.length} samples all read ${first} — a field with no variance `
+        + "is returned as itself; there is nothing for a variogram to fit.",
+    };
+  }
+  const fit = variogram || fitVariogram(used, { model: family });
   if (!fit.ok) return { ok: false, message: fit.message };
-  const model = sphericalModel(fit);
+  const model = (VARIOGRAM_MODELS[fit.model] || sphericalModel)(fit);
 
   const width = Math.max(1, Math.round((bounds.maxX - bounds.minX) / cellSizeDeg));
   const height = Math.max(1, Math.round((bounds.maxY - bounds.minY) / cellSizeDeg));
@@ -174,25 +274,33 @@ export function krigeGrid(points, bounds, {
   }
   const values = new Float32Array(width * height).fill(NaN);
   const variance = new Float32Array(width * height).fill(NaN);
+  const estimate = krigeSolver(used, model);
   for (let y = 0; y < height; y += 1) {
     const lat = bounds.maxY - ((y + 0.5) / height) * (bounds.maxY - bounds.minY);
     for (let x = 0; x < width; x += 1) {
       const lon = bounds.minX + ((x + 0.5) / width) * (bounds.maxX - bounds.minX);
-      const out = krigeAt(used, model, lat, lon);
+      const out = estimate(lat, lon);
       if (out.value != null) {
         values[y * width + x] = out.value;
         variance[y * width + x] = out.variance;
       }
     }
   }
+  // Nothing estimated is a REFUSAL. An all-NaN grid handed back as success is
+  // how an empty map reaches somebody's screen looking like an answer.
+  if (!values.some((v) => Number.isFinite(v))) {
+    return { ok: false, message: "the kriging system was singular at every cell — "
+      + "the samples may be collinear or duplicated" };
+  }
   return {
     ok: true, width, height, bounds, values, variance,
     variogram: fit, samples: used.length,
-    message: `${used.length} samples, spherical variogram: nugget ${fit.nugget}, `
+    message: `${used.length} samples, ${fit.model || "spherical"} variogram: nugget ${fit.nugget}, `
       + `sill ${fit.sill}, range ${fit.rangeKm} km.`,
   };
 }
 
 if (typeof window !== "undefined") {
-  window.GeoIDKriging = { empiricalVariogram, sphericalModel, fitVariogram, krigeAt, krigeGrid };
+  window.GeoIDKriging = { empiricalVariogram, sphericalModel, exponentialModel, krigeSolver,
+    VARIOGRAM_MODELS, fitVariogram, krigeAt, krigeGrid };
 }

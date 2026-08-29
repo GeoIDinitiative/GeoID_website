@@ -1,5 +1,5 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260829-ffffb8a";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260829-e9c2d82";
 
 // Rasters are resampled onto a mesh grid rather than used at native size: a
 // 4000x4000 DEM would otherwise mean 16M vertices. 192 keeps relief readable
@@ -336,7 +336,12 @@ let lastRelief = null;
 function registerDrape(mesh) {
   drapes.add(mesh);
   if (drapes.size === 1 && typeof window !== "undefined") {
-    setInterval(() => {
+    // `.unref()` exists on a Node timer and not on a browser one, so this is a
+    // no-op on the page and the whole point off it: a poll that redraws drapes
+    // must never be the reason a process cannot exit. Without it any headless
+    // run that builds a single raster layer hangs forever, having done all its
+    // work — which is exactly how the tool suite presented before this line.
+    const watcher = setInterval(() => {
       const relief = window.GeoIDViewer?.getEffectiveRelief?.();
       if (typeof relief !== "number") return;
       if (lastRelief !== null && Math.abs(relief - lastRelief) <= 0.0004) return;
@@ -346,6 +351,7 @@ function registerDrape(mesh) {
         try { m.userData.rebuildDrape?.(); } catch { /* one bad patch is not all of them */ }
       });
     }, 250);
+    watcher?.unref?.();
   }
 }
 
