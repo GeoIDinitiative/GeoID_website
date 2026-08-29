@@ -3279,6 +3279,65 @@ scratches are not backface culling; every tile carries its boundary seal; and
 the clip's own mesh is clean. The seams are back with the revert, and
 that is the honest state: the fix is a ribbon seal, not a backdrop.
 
+### A clipped layer streams, or it is a photograph of a map
+
+"Ensure the clipped geology behaves exactly like the current global Macrostrat
+streaming — currently it fails to refine itself as we zoom in." It was a
+SNAPSHOT: the features in hand when the tool ran, triangulated once and never
+touched again, while the source beside it refined on every settle.
+
+**The fix is one controller, not a second refresh path.** `clip-stream.js`
+gives the clip its OWN `createTiledVectorLayer` pointed at the SAME tile
+service, carrying the study area as `clipTo`. The tile cache, the zoom choice,
+the contacts, the seam clipping and the refine are then one implementation used
+twice — the discipline the imitated label engine and the polygon-area formula
+both cost. What is deliberately not shared is the world layer's own watcher: it
+refreshes by dataset id through `loadTiled`, which would rebuild a clip as a
+world map.
+
+Four faults found by flying the camera rather than by reading, each invisible
+to the one before:
+
+- **The refine box is the view CUT TO THE STUDY AREA.** The view alone streams
+  tiles the mask is about to throw away; the mask alone means flying into one
+  corner asks for the whole area at the corner's zoom. Pinned in
+  `clip-stream.test.mjs`, including that a view which has LEFT the area answers
+  null rather than an inside-out box.
+- **The study area must be PINNED, or a clip empties as you zoom.**
+  `features()` and the drawn set are the finest zoom on screen, so a refine
+  that only fetched the view left the rest with nothing drawn — measured, a
+  1.0 x 0.6 degree clip at 60 km went from 229 features to 127 and the 127 were
+  the corner in shot. The world layer's own rule, applied to a clip whose world
+  is its study area.
+- **The world layer's FEATURE BUDGET is wrong for a clip, by a hundredfold.**
+  `chooseZoom` extrapolates 2x per level past the baked ceiling — right when a
+  hemisphere can pull 49,150 features and freeze for twenty seconds. Measured
+  on this clip: `update` was asked for zoom 12, walked itself down to **9**, and
+  the ground it was refusing holds **277 features**. The tile cap still bounds
+  the work to the same `maxTiles` the world layer triangulates on any refine,
+  and a clip cannot run away because its mask will not let it. `minZoom` is the
+  pinned base, or the same walk-down takes a clip pinned at 10 down to 9 —
+  coarser than the sheet it was drawn on. And `refine` records the ACHIEVED
+  zoom, never the asked one, or the next settle believes it has already arrived.
+- **The feature LIST must not shrink to the view.** Refining took the layer's
+  list from 277 to 39 with the legend reading "39 polygons" — an export at that
+  moment would have written a study area with most of itself missing. The drawn
+  map refines; the list stays the complete area at the pinned level, and
+  anything wanting finer data for a box asks `featuresIn`.
+
+Measured flying in, after all four: **zoom 10 at 382 km, 10 at 120, 10 at 40,
+12 at 12 km**, with 28 tiles drawn at the end — 16 pinned base plus 12 view
+tiles. The middle steps hold at 10 because the ground in view still deserves
+10, which is the world layer's own behaviour and not a failure to refine.
+
+**Two traps in the measuring, both of which produced a confident wrong answer.**
+The camera EASES geometrically, and at the few frames per second a software
+renderer manages a descent takes many seconds — sampling on a fixed timer read
+"no refine" from a camera that was still moving and had never settled. Wait on
+the camera's own position going still, then wait again for the fetch. And a
+`void`-ed async watcher swallows its own failures: when a refine does not
+happen, prove the watcher ran before theorising about what it computed.
+
 ### The gridlines were the tile BUFFER, drawn twice
 
 "How do we remove the huge gridlines from the Macrostrat streamed tiles? The
