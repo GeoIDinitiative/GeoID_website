@@ -112,7 +112,30 @@ async function refine(entry, viewBox, macro) {
   if (zoom === entry.zoom) return;
   entry.busy = true;
   try {
-    const got = await entry.controller.update({ bounds: box, zoom });
+    /**
+     * The feature budget is the WORLD layer's protection, and it is wrong here.
+     *
+     * `chooseZoom` extrapolates the feature count 2x per level past the baked
+     * ceiling. Over a whole hemisphere that is the difference between a refine
+     * and a frozen second — measured in this file's history at 49,150 features
+     * and twenty seconds. Over a STUDY AREA it is nonsense: measured on a
+     * 1.0 x 0.6 degree clip, `update` was asked for zoom 12, walked itself down
+     * to **9**, and the ground it was refusing holds **277 features**. A
+     * hundredfold over-prediction, and the reason a clip would not sharpen.
+     *
+     * What actually bounds the work is the TILE CAP, which still applies: at
+     * most `maxTiles` tiles, which is exactly what the world layer triangulates
+     * on any refine. A clip cannot run away because its mask does not let it —
+     * that is the whole difference between the two, and it is why the estimate
+     * built for one is not owed to the other.
+     *
+     * `minZoom` is the pinned base, so a refine can only ever sharpen. Without
+     * it the same walk-down took a clip pinned at 10 down to 9 — coarser than
+     * the sheet it was drawn on.
+     */
+    const got = await entry.controller.update({
+      bounds: box, zoom, featureBudget: Infinity, minZoom: entry.baseZoom,
+    });
     // The ACHIEVED level, not the asked one: `chooseZoom` walks down for the
     // feature budget and the tile cap, and recording the ask would make the
     // next settle believe it had already arrived there and skip the work.
@@ -220,7 +243,7 @@ export async function createStreamingClip({ source, mask, name, contacts = null 
   };
   layer.onRemove = () => { live.delete(layer.id); controller.dispose(); };
 
-  live.set(layer.id, { layer, controller, mask: bounds, zoom, busy: false });
+  live.set(layer.id, { layer, controller, mask: bounds, zoom, baseZoom: zoom, busy: false });
   void watch();
   return { layer, zoom, features: fc.features.length };
 }
