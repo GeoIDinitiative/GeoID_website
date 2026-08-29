@@ -8,6 +8,8 @@
 import {
   ringsFromCollection, pointInAnyRing, maskFromRings,
   extractVectorWithin, extractDelimitedWithin, vectorRows,
+  extractNative,
+  nativeGridOf,
 } from "./extraction.js";
 
 let failed = 0;
@@ -77,6 +79,78 @@ check("ticked column plus the coordinates, nothing else",
   JSON.stringify(cloud.columns.sort()) === JSON.stringify(["depth", "lat", "lon"]),
   cloud.columns.join());
 check("values survive", cloud.rows[0].depth === "10" && cloud.rows[1].depth === "30");
+
+/* ── Native resolution ─────────────────────────────────────────────────────
+   A dataset's own grid is the answer to "what does this layer say here". The
+   uniform grid is a resampling of it, and resampling in either direction
+   lies: read a 30 m raster at 1 km and almost none of it appears; read a
+   global drape at 1 km and one pixel becomes thousands of identical rows. */
+
+const boxRing = (lon, lat, d) => ({
+  vertices: [
+    { lon: lon - d, lat: lat - d }, { lon: lon + d, lat: lat - d },
+    { lon: lon + d, lat: lat + d }, { lon: lon - d, lat: lat + d },
+  ],
+  holes: [],
+  center: { lon, lat },
+});
+
+{
+  // A 10x10 raster over 1 degree: each cell is 0.1 degrees.
+  const band = new Float32Array(100).map((_, k) => k);
+  const raster = { band, width: 10, height: 10,
+    bounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 }, noData: null };
+  const layer = { name: "grid.asc", raster };
+  const grid = nativeGridOf(layer);
+  check("a raster IS its own native grid", grid && grid.width === 10 && grid.height === 10,
+    JSON.stringify(grid && { w: grid.width, h: grid.height }));
+  check("its cell size is measured, not declared",
+    Math.abs(grid.metresPerPixel - (40075017 / 360) * Math.cos(0.5 * Math.PI / 180) / 10) < 1,
+    String(grid.metresPerPixel));
+
+  // A polygon covering the middle four cells, centred on 0.5,0.5.
+  const out = extractNative({ rings: [boxRing(0.5, 0.5, 0.1)], layer });
+  check("native extraction returns the CELLS, not a typed grid", out.ok && out.rows.length === 4,
+    out.message);
+  check("each row carries that cell's own value",
+    out.rows.every((r) => Number.isFinite(r.value)), JSON.stringify(out.rows));
+
+  // A polygon SMALLER than one cell is one row — the honest reading.
+  const tiny = extractNative({ rings: [boxRing(0.55, 0.55, 0.005)], layer });
+  check("a polygon under one cell yields ONE row, not a made-up grid",
+    tiny.ok && tiny.rows.length === 1, tiny.message);
+}
+
+{
+  // A vector has no resolution and must say so rather than being sampled.
+  const layer = { name: "coast.geojson", collection: { type: "FeatureCollection", features: [] } };
+  check("a vector layer has no native grid", nativeGridOf(layer) === null);
+  const out = extractNative({ rings: [boxRing(0, 0, 1)], layer });
+  check("and native extraction refuses it by name",
+    out.ok === false && /clipped exactly/.test(out.message), out.message);
+}
+
+{
+  // A drape: no raster, a sampler, and an image whose size IS its resolution.
+  const layer = {
+    name: "Rainfall (CHIRPS)",
+    bounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 },
+    object3D: { userData: { geeImage: { naturalWidth: 4, naturalHeight: 4 } } },
+    sampler: (lat, lon) => 100 + lon * 10,
+  };
+  const grid = nativeGridOf(layer);
+  check("a drape's grid comes from the DELIVERED image", grid && grid.width === 4,
+    JSON.stringify(grid && { w: grid.width, src: grid.source }));
+  const out = extractNative({ rings: [boxRing(0.5, 0.5, 0.4)], layer });
+  check("a drape extracts on its own 4x4 cells", out.ok && out.rows.length > 0 && out.rows.length <= 16,
+    out.message);
+  check("through its sampler, so the values are real",
+    out.rows.every((r) => Number.isFinite(r.value)), JSON.stringify(out.rows.slice(0, 2)));
+  // The whole point: the same polygon on a uniform 1 km grid would be
+  // thousands of rows over a grid that holds sixteen.
+  check("native never invents more rows than the layer has cells",
+    out.rows.length <= grid.width * grid.height, `${out.rows.length} of ${grid.width * grid.height}`);
+}
 
 console.log(failed ? `\n${failed} failed` : "\nall passed");
 process.exit(failed ? 1 : 0);

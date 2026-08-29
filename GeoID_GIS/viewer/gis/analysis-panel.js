@@ -1,5 +1,7 @@
 import {
   extractPolygonSamples,
+  extractNative,
+  nativeGridOf,
   rowsToCsv,
   rowsToGeoJson,
   downloadText,
@@ -9,8 +11,8 @@ import {
   vectorRows,
   extractDelimitedWithin,
   delimitedColumns,
-} from "./extraction.js?v=20260829-9a71f0d";
-import { rectangleVertices } from "./draw-area.js?v=20260829-9a71f0d";
+} from "./extraction.js?v=20260829-602b59b";
+import { rectangleVertices } from "./draw-area.js?v=20260829-602b59b";
 
 let lastResult = null;
 // The whole extraction as one object -- bounds, grid, vectors, clouds. This is
@@ -412,7 +414,27 @@ function runExtraction() {
           { columns: tickedColumns("cloud", layer.id) }),
       }));
 
-    lastPackage = { bounds: bounds.label, grid: lastResult, vectors, clouds };
+    /**
+     * EVERY sampled layer, ALSO on its own native grid.
+     *
+     * The uniform grid is the joined table -- one row per sample with a column
+     * per layer, which is what a model wants and what the built-in elevation,
+     * geology and climate columns live on. It is not what the DATASET says.
+     * Read a 30 m GeoTIFF at 1 km and 99.9% of it never appears; read a global
+     * Earth Engine snapshot at 1 km and one pixel is spread over thousands of
+     * identical rows. Both come out looking equally authoritative, and neither
+     * is the layer's own answer for this ground.
+     *
+     * So each ticked sampled layer is extracted a second time on the grid it
+     * actually holds, clipped to the same polygon. A vector has no resolution
+     * and is not in this list -- it is clipped exactly, above.
+     */
+    const natives = selectedLayers()
+      .filter((layer) => nativeGridOf(layer))
+      .map((layer) => ({ layer: layer.name, ...extractNative({ rings: bounds.rings, layer }) }))
+      .filter((n) => n.ok);
+
+    lastPackage = { bounds: bounds.label, grid: lastResult, vectors, clouds, native: natives };
 
     const parts = [];
     if (result.ok && result.rows.length) {
@@ -422,6 +444,11 @@ function runExtraction() {
       parts.push(`${result.message}${area}`);
     } else if (!result.ok) {
       parts.push(result.message);
+    }
+    if (natives.length) {
+      parts.push(natives.map((n) => `${n.layer} at its own ${n.grid.metresPerPixel
+        ? Math.round(n.grid.metresPerPixel) + " m" : "native"} cells: `
+        + `${n.rows.length.toLocaleString()} cell${n.rows.length === 1 ? "" : "s"}`).join("; "));
     }
     if (vectors.length) {
       const kept = vectors.reduce((s, v) => s + v.kept, 0);
@@ -465,6 +492,24 @@ function exportAs(kind) {
       downloadText(`${base}.csv`, rowsToCsv(vectorRows(v.collection)), "text/csv");
     } else {
       downloadText(`${base}.geojson`, JSON.stringify(v.collection), "application/geo+json");
+    }
+  });
+  // One file per layer at ITS OWN resolution, named so it cannot be confused
+  // with the uniform grid beside it.
+  (lastPackage?.native || []).forEach((n) => {
+    if (!n.rows?.length) return;
+    const base = `geoid_native_${slugName(n.layer)}_${stamp}`;
+    if (kind === "csv") {
+      downloadText(`${base}.csv`, rowsToCsv(n.rows), "text/csv");
+    } else {
+      downloadText(`${base}.geojson`, JSON.stringify({
+        type: "FeatureCollection",
+        features: n.rows.map((row) => ({
+          type: "Feature",
+          properties: { value: row.value },
+          geometry: { type: "Point", coordinates: [row.lon, row.lat] },
+        })),
+      }), "application/geo+json");
     }
   });
   (lastPackage?.clouds || []).forEach((c) => {

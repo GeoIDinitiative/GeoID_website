@@ -1,11 +1,11 @@
-import { computeBounds2D } from "./geo-utils.js?v=20260829-9a71f0d";
+import { computeBounds2D } from "./geo-utils.js?v=20260829-602b59b";
 
 // Sampling a polygon on a lat/lon grid: the spacing is expressed in km and
 // converted per-row, because a degree of longitude shrinks toward the poles.
 import {
   clip as clipCollection, featureCollection, feature as makeFeature,
-} from "./geoprocessing.js?v=20260829-9a71f0d";
-import { splitLine } from "./delimited.js?v=20260829-9a71f0d";
+} from "./geoprocessing.js?v=20260829-602b59b";
+import { splitLine } from "./delimited.js?v=20260829-602b59b";
 
 const KM_PER_DEG_LAT = 111.32;
 const MAX_SAMPLES = 250000;
@@ -99,6 +99,130 @@ export function ringsFromCollection(collection) {
 export function pointInAnyRing(lat, lon, rings) {
   return rings.some((ring) => pointInPolygon(lat, lon, ring.vertices, ring.center)
     && !(ring.holes || []).some((hole) => pointInPolygon(lat, lon, hole, ring.center)));
+}
+
+/* ── Native resolution ────────────────────────────────────────────────────
+ *
+ * Extraction resampled EVERY layer onto one uniform grid whose spacing the
+ * user typed, which is the right answer for a joined table and the wrong one
+ * for the question "what does this dataset actually say here". A 30 m GeoTIFF
+ * read at 500 m throws away 99.6% of what it holds; a global Earth Engine
+ * snapshot read at 500 m invents 6,000 samples out of a single pixel. Both
+ * come back looking equally authoritative.
+ *
+ * So a layer states the grid it actually has, and extraction can work on THAT.
+ * Nothing here is declared -- each answer is read from what the layer really
+ * carries, because a declared resolution is the thing that has been wrong
+ * every time it has been trusted in this tree.
+ */
+
+/**
+ * The grid a layer actually holds, or null where it has none.
+ *
+ * Three shapes, in the order of how much they know:
+ *   - a RASTER layer (GeoTIFF, .asc, any tool output) IS its grid;
+ *   - an Earth Engine drape carries the delivered image and its bounds, and
+ *     the delivered pixel is not the dataset's native scale — a cached global
+ *     snapshot is 1024 px for the whole world, 39 km a pixel, whatever the
+ *     archive holds. That is exactly why this is measured from the image in
+ *     hand rather than read off the catalogue entry;
+ *   - a VECTOR has no resolution at all, and says so by returning null:
+ *     features are clipped exactly, never sampled.
+ */
+export function nativeGridOf(layer) {
+  if (!layer) return null;
+  const metres = (bounds, width) => {
+    const span = Math.abs(Number(bounds.maxX) - Number(bounds.minX));
+    const midLat = (Number(bounds.minY) + Number(bounds.maxY)) / 2;
+    if (!Number.isFinite(span) || !Number.isFinite(midLat) || !width) return null;
+    return ((span / 360) * 40075017 * Math.cos((midLat * Math.PI) / 180)) / width;
+  };
+  if (layer.raster?.width && layer.raster?.bounds) {
+    const { width, height, bounds } = layer.raster;
+    return { width, height, bounds, metresPerPixel: metres(bounds, width), source: "raster" };
+  }
+  const image = layer.object3D?.userData?.geeImage;
+  const bounds = layer.bounds || layer.info?.bounds;
+  const width = image?.naturalWidth || image?.width;
+  const height = image?.naturalHeight || image?.height;
+  if (width && height && bounds && Number.isFinite(Number(bounds.minX))) {
+    return { width, height, bounds, metresPerPixel: metres(bounds, width), source: "image" };
+  }
+  return null;
+}
+
+/**
+ * One row per NATIVE CELL of this layer whose centre falls inside the polygon.
+ *
+ * Walked over the polygon's own bounding box in the layer's grid indices, not
+ * over the layer -- a global drape is millions of cells and a study area is a
+ * handful of them, and iterating the layer to find the handful is the
+ * difference between an answer and a hung tab.
+ *
+ * Where the polygon is smaller than one cell the answer is ONE ROW, or none,
+ * and that is the honest reading: it is what the dataset knows about this
+ * ground. Padding it out to a grid somebody typed is how a single pixel comes
+ * to look like a survey.
+ */
+export function extractNative({ rings, layer, max = MAX_SAMPLES }) {
+  const grid = nativeGridOf(layer);
+  if (!grid) {
+    return { ok: false, message: `"${layer?.name}" has no grid of its own — a vector layer `
+      + "is clipped exactly rather than sampled.", rows: [] };
+  }
+  const read = layer.sampler || null;
+  const band = layer.raster?.band || null;
+  if (!read && !band) {
+    return { ok: false, message: `"${layer?.name}" cannot be read for values.`, rows: [] };
+  }
+  const allRings = rings && rings.length ? rings : null;
+  if (!allRings) return { ok: false, message: "Draw an area polygon first.", rows: [] };
+
+  const per = allRings.map((r) => polygonBounds(r.vertices));
+  const box = {
+    minX: Math.min(...per.map((b) => b.minX)), maxX: Math.max(...per.map((b) => b.maxX)),
+    minY: Math.min(...per.map((b) => b.minY)), maxY: Math.max(...per.map((b) => b.maxY)),
+  };
+  const { width, height, bounds } = grid;
+  const spanX = Number(bounds.maxX) - Number(bounds.minX);
+  const spanY = Number(bounds.maxY) - Number(bounds.minY);
+  // Cell centres, and the index window the polygon's box covers.
+  const colOf = (lon) => Math.floor(((lon - bounds.minX) / spanX) * width);
+  const rowOf = (lat) => Math.floor(((bounds.maxY - lat) / spanY) * height);
+  const x0 = Math.max(0, colOf(box.minX) - 1);
+  const x1 = Math.min(width - 1, colOf(box.maxX) + 1);
+  const y0 = Math.max(0, rowOf(box.maxY) - 1);
+  const y1 = Math.min(height - 1, rowOf(box.minY) + 1);
+  if (x1 < x0 || y1 < y0) {
+    return { ok: false, message: `"${layer.name}" does not cover that area.`, rows: [] };
+  }
+
+  const rows = [];
+  let truncated = false;
+  for (let y = y0; y <= y1 && !truncated; y += 1) {
+    const lat = bounds.maxY - ((y + 0.5) / height) * spanY;
+    for (let x = x0; x <= x1; x += 1) {
+      const lon = bounds.minX + ((x + 0.5) / width) * spanX;
+      if (!pointInAnyRing(lat, lon, allRings)) continue;
+      if (rows.length >= max) { truncated = true; break; }
+      const value = band ? band[y * width + x] : read(lat, lon);
+      rows.push({
+        lat: Number(lat.toFixed(6)),
+        lon: Number(normalizeLon(lon).toFixed(6)),
+        value: Number.isFinite(value) ? value : null,
+      });
+    }
+  }
+  const withValue = rows.filter((r) => r.value !== null).length;
+  return {
+    ok: true,
+    rows,
+    grid,
+    truncated,
+    message: `${rows.length} native cells (${withValue} with a value) at `
+      + `${grid.metresPerPixel ? Math.round(grid.metresPerPixel) + " m" : "unknown"} per cell`
+      + (truncated ? ` — capped at ${max}` : "") + ".",
+  };
 }
 
 export function extractPolygonSamples({
