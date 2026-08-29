@@ -2965,6 +2965,46 @@ deliberately uncorrelated observations — which is the CORRECT answer, and a
 tidy reminder that a validation tool agreeing with chance is sometimes the
 data, not a bug.
 
+## "Not easily used" measured out as: 30 tools waiting on a raster nobody had
+
+Asking what each tool DEMANDS was more revealing than asking what it produces.
+**30 of the 47 need a raster** — 17 raster-only, 8 raster+vector, 5
+raster+raster — and `layersByType("raster")` admits a layer only if it carries
+`layer.raster`, which arrived by exactly ONE route: the user importing a
+GeoTIFF or `.asc` themselves.
+
+So on a fresh page, and on every planet, Slope / Hillshade / Contours /
+Watershed — the obvious first things anyone opens — could not run at all. The
+palette was two thirds inert, and that is what "too many of these are not
+easily used" is: not obscure parameters, a missing input.
+
+Meanwhile every world already HAS elevation. It displaces the globe, the
+cursor readout quotes it, the extraction panel samples it, and (since the seam
+work) `surfacePoint`/`elevationNormalized` publish it. It was simply never
+offered as a LAYER.
+
+**`terrain` — "Terrain to raster (DEM)"** takes any polygon layer and samples
+this world's elevation into a DEM, so the first tool a reader opens produces
+the input the other thirty were waiting for. It reuses the Model Builder's
+`buildSurface` rather than rewriting it — the body-radius conversion, the node
+cap that holds, and the fill-and-count for nodes the DEM cannot answer all
+come with it. Two details that are bugs if reversed:
+
+- **The band is FLIPPED on the way out.** `buildSurface` indexes
+  south-to-north; a raster row runs top-down. Unflipped, every terrain map
+  derived from it is upside down while looking perfectly plausible.
+- **The engine must be SYNCHRONOUS.** `runTool` calls
+  `desc.engines.native(...)` **without awaiting it**, so an `async` engine
+  hands `register()` a Promise and the raster comes out `undefined` — measured
+  as "Cannot read properties of undefined (reading 'length')". `model-build.js`
+  is pure and DOM-free, so it is imported STATICALLY: the module stays
+  Node-clean and the engine stays sync.
+
+Verified end to end in the browser from a drawn box: a 40 km study area over
+the Valais Alps produced a 121x121 DEM spanning **1,088-3,612 m** (right for
+that ground), and Slope, Hillshade and Contours (27 features at 200 m) then
+ran off it — the raster layer count going 0 to 1 and the rest following.
+
 ## Which of the 47 tools belong on a MAP page: the output type decides
 
 Audited by reading what each descriptor takes and produces, then following the
