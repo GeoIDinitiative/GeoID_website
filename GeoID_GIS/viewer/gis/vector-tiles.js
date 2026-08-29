@@ -35,8 +35,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds } from "./mvt.js?v=20260829-b7effe1";
-import { renderFeatureCollection } from "./vector-render.js?v=20260829-b7effe1";
+import { decodeTile, tilesForBounds } from "./mvt.js?v=20260829-82c41da";
+import { renderFeatureCollection } from "./vector-render.js?v=20260829-82c41da";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -576,6 +576,38 @@ export function createTiledVectorLayer({
     return out;
   }
 
+  /**
+   * The features covering a BOX — fetched if they are not already held.
+   *
+   * `features()` answers "what is on screen", which is right for the click
+   * card and catastrophic for an extraction: a study area is drawn, the camera
+   * is somewhere else or mid-refine, and the polygon comes back with NOTHING
+   * in it. Measured exactly that way — a square over Northern Ireland with the
+   * geological map plainly drawn on the globe, and the panel reporting
+   * "1 vector layer: 0 of 0 features within" while its own tick list said
+   * 9,137 features. The list counted the screen; the clip read the same
+   * screen a moment later, after a rebuild had emptied `visible`.
+   *
+   * An extraction asks about GROUND, so this asks the tiler about ground. It
+   * chooses the zoom the box deserves under a budget, fetches whatever is
+   * missing (the cache means a second extraction over the same area costs
+   * nothing), and returns those tiles' features — WITHOUT touching `visible`,
+   * `generation` or the scene, so extracting never changes the picture.
+   */
+  async function featuresIn(bounds, { zoom = null, featureBudget = 60000, signal = null } = {}) {
+    if (!bounds || !Number.isFinite(bounds.west)) return { features: [], zoom: null, tiles: 0 };
+    const z = chooseZoom(bounds, zoom, featureBudget, 0);
+    const wanted = tilesForBounds(bounds, z).slice(0, maxTiles);
+    if (!wanted.length) return { features: [], zoom: z, tiles: 0 };
+    await fetchInto(wanted, null, signal, null);
+    const out = [];
+    wanted.forEach((t) => {
+      const tile = tiles.get(key(t.z, t.x, t.y));
+      if (tile?.state === "ready") tile.features.forEach((f) => out.push(f));
+    });
+    return { features: out, zoom: z, tiles: wanted.length };
+  }
+
   function featureCount() {
     return shownTiles().reduce((n, tile) => n + tile.features.length, 0);
   }
@@ -617,6 +649,7 @@ export function createTiledVectorLayer({
     maskBackdrop,
     setOpacity,
     features,
+    featuresIn,
     featureCount,
     repaint,
     dispose,

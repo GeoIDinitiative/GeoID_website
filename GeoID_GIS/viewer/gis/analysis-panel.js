@@ -11,8 +11,8 @@ import {
   vectorRows,
   extractDelimitedWithin,
   delimitedColumns,
-} from "./extraction.js?v=20260829-b7effe1";
-import { rectangleVertices } from "./draw-area.js?v=20260829-b7effe1";
+} from "./extraction.js?v=20260829-82c41da";
+import { rectangleVertices } from "./draw-area.js?v=20260829-82c41da";
 
 let lastResult = null;
 // The whole extraction as one object -- bounds, grid, vectors, clouds. This is
@@ -379,7 +379,36 @@ function runExtraction() {
   setExportsEnabled(false);
 
   // Yield once so the status paints before a potentially long synchronous pass.
-  window.requestAnimationFrame(() => {
+  window.requestAnimationFrame(async () => {
+    /**
+     * A SELF-REBUILDING layer is asked about the ground, not about the screen.
+     *
+     * The tiled geology rewrites itself whenever the view settles, so its
+     * `collection` is a snapshot of whatever the camera was showing when it
+     * last did — and over a drawn study area that is routinely nothing.
+     * Measured: a square over Northern Ireland with the geological map plainly
+     * on the globe, and "1 vector layer: 0 of 0 features within". Any layer
+     * that knows how to fetch the features covering a box says so with
+     * `featuresIn`, and it is asked BEFORE anything is clipped.
+     */
+    const boundsBox = bounds.rings?.length ? (() => {
+      let minX = Infinity; let minY = Infinity; let maxX = -Infinity; let maxY = -Infinity;
+      bounds.rings.forEach((r) => r.vertices.forEach((v) => {
+        const lon = v.lon > 180 ? v.lon - 360 : v.lon;
+        if (lon < minX) minX = lon;
+        if (lon > maxX) maxX = lon;
+        if (v.lat < minY) minY = v.lat;
+        if (v.lat > maxY) maxY = v.lat;
+      }));
+      return { minX, minY, maxX, maxY };
+    })() : null;
+    if (boundsBox) {
+      const asked = loadedLayers().filter((l) => typeof l.featuresIn === "function");
+      for (const layer of asked) {
+        try { await layer.featuresIn(boundsBox); }
+        catch (error) { /* a layer that cannot fetch keeps whatever it had */ }
+      }
+    }
     const result = extractPolygonSamples({
       rings: bounds.rings,
       stepKm,

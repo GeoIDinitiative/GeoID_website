@@ -1,11 +1,11 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260829-b7effe1";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260829-b7effe1";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260829-82c41da";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260829-82c41da";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260829-b7effe1";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260829-b7effe1";
-import { downloadText } from "./extraction.js?v=20260829-b7effe1";
+} from "./mesh-volume.js?v=20260829-82c41da";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260829-82c41da";
+import { downloadText } from "./extraction.js?v=20260829-82c41da";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //

@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260829-b7effe1";
-import { currentBodyId } from "./bodies.js?v=20260829-b7effe1";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260829-b7effe1";
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260829-b7effe1";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260829-82c41da";
+import { currentBodyId } from "./bodies.js?v=20260829-82c41da";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260829-82c41da";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260829-82c41da";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -350,6 +350,29 @@ async function loadTiled(entry, { toView = false, quiet = false } = {}) {
       repaint: (colourFn) => controller.repaint(colourFn),
     }, "geology");
     if (!layer) { say(`${entry.label} could not be added.`); return; }
+    /**
+     * The layer can be asked for the features covering a BOX, and that is the
+     * seam every consumer of a self-rebuilding layer needs.
+     *
+     * `collection` is a SNAPSHOT of what was on screen when the layer
+     * registered, and this layer rewrites itself whenever the view settles —
+     * so an extraction reading `collection` gets whatever the camera happened
+     * to be showing, which over a drawn study area is routinely nothing. The
+     * bounds are converted here, once: the tiler speaks west/south/east/north
+     * and the rest of the app speaks minX/minY/maxX/maxY, and that mismatch is
+     * the trap `drape()` already records paying for.
+     */
+    layer.featuresIn = async (box) => {
+      const b = box?.west !== undefined ? box : {
+        west: box.minX, south: box.minY, east: box.maxX, north: box.maxY,
+      };
+      const got = await controller.featuresIn(b);
+      const collection = { type: "FeatureCollection", features: got.features };
+      // Keep the snapshot honest for the synchronous readers beside us.
+      layer.collection = collection;
+      layer.features = got.features;
+      return collection;
+    };
     layer.geologyDataset = entry.id;
     layer.credit = entry.credit;
     layer.dynamicGeology = entry.dynamic;
