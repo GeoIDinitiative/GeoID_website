@@ -1648,26 +1648,53 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
        `--tail-x` is set from the anchor's true screen position, so when the
        card has been pulled sideways to stay on screen the tail still points at
        the ground it describes rather than sliding off with the box. */
+    /* The divot sits on whichever side the dot ended up on. The card is placed
+       above its point by preference, but it is also pulled inside the view and
+       flipped below when there is no room — so the dot can finish on any of the
+       four sides, and a tail welded to the bottom would point at open map. All
+       four are declared and the placement switches one on. */
     .geo-popup::after {
       content: "";
       position: absolute;
-      left: clamp(0.9rem, var(--tail-x, 50%), calc(100% - 0.9rem));
       width: 0;
       height: 0;
-      border-left: 0.55rem solid transparent;
-      border-right: 0.55rem solid transparent;
-      transform: translateX(-50%);
       pointer-events: none;
     }
-    .geo-popup:not(.is-below)::after {
+    .geo-popup[data-tail="bottom"]::after {
       top: 100%;
+      left: clamp(0.9rem, var(--tail-x, 50%), calc(100% - 0.9rem));
+      transform: translateX(-50%);
+      border-left: 0.55rem solid transparent;
+      border-right: 0.55rem solid transparent;
       border-top: 0.6rem solid rgba(6, 11, 17, 0.985);
       filter: drop-shadow(0 1px 0 rgba(var(--nav-accent-rgb), 0.34));
     }
-    .geo-popup.is-below::after {
+    .geo-popup[data-tail="top"]::after {
       bottom: 100%;
+      left: clamp(0.9rem, var(--tail-x, 50%), calc(100% - 0.9rem));
+      transform: translateX(-50%);
+      border-left: 0.55rem solid transparent;
+      border-right: 0.55rem solid transparent;
       border-bottom: 0.6rem solid rgba(18, 28, 38, 0.95);
       filter: drop-shadow(0 -1px 0 rgba(var(--nav-accent-rgb), 0.34));
+    }
+    .geo-popup[data-tail="left"]::after {
+      right: 100%;
+      top: clamp(0.9rem, var(--tail-y, 50%), calc(100% - 0.9rem));
+      transform: translateY(-50%);
+      border-top: 0.55rem solid transparent;
+      border-bottom: 0.55rem solid transparent;
+      border-right: 0.6rem solid rgba(12, 20, 28, 0.985);
+      filter: drop-shadow(-1px 0 0 rgba(var(--nav-accent-rgb), 0.34));
+    }
+    .geo-popup[data-tail="right"]::after {
+      left: 100%;
+      top: clamp(0.9rem, var(--tail-y, 50%), calc(100% - 0.9rem));
+      transform: translateY(-50%);
+      border-top: 0.55rem solid transparent;
+      border-bottom: 0.55rem solid transparent;
+      border-left: 0.6rem solid rgba(12, 20, 28, 0.985);
+      filter: drop-shadow(1px 0 0 rgba(var(--nav-accent-rgb), 0.34));
     }
 
     .scene-popup-detail {

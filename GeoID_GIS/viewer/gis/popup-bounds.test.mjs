@@ -171,6 +171,47 @@ const area = { left: 0, top: 60, right: 1200, bottom: 800, width: 1200, height: 
     tailX(700, 600, 320) === 260);
 }
 
+/**
+ * THE WORLD CARD'S DIVOT GOES ON WHICHEVER SIDE THE DOT LANDS.
+ *
+ * The card is placed above its point by preference, then pulled inside the
+ * view and flipped below when there is no room, so the dot can finish on any
+ * of the four sides. A tail welded to the bottom points at open map the moment
+ * the card steps aside.
+ */
+{
+  const GAP = 1.6 * 16;
+  const sideFor = (sx, sy, px, py, w, h, roomAbove) => {
+    const cardLeft = px - w / 2;
+    const cardTop = roomAbove ? (py - GAP - h) : (py + GAP);
+    if (sy > cardTop + h) return "bottom";
+    if (sy < cardTop) return "top";
+    if (sx < cardLeft) return "left";
+    if (sx > cardLeft + w) return "right";
+    return roomAbove ? "bottom" : "top";
+  };
+  const W = 320, H = 210;
+
+  ok("a card sitting above its dot points DOWN at it",
+    sideFor(600, 500, 600, 500, W, H, true) === "bottom");
+  ok("a card flipped below its dot points UP at it",
+    sideFor(600, 100, 600, 100, W, H, false) === "top");
+  ok("a dot off to the LEFT of a card pushed right takes the left edge",
+    sideFor(100, 400, 600, 620, W, H, true) === "left");
+  ok("a dot off to the RIGHT of a card pushed left takes the right edge",
+    sideFor(1100, 400, 600, 620, W, H, true) === "right");
+  ok("a dot beneath the card body falls back to the card's own side",
+    sideFor(600, 420, 600, 620, W, H, true) === "bottom");
+
+  // The offset along the chosen edge is measured from the card's own corner.
+  const alongX = (sx, px, w) => sx - (px - w / 2);
+  const alongY = (sy, py, h, roomAbove) => sy - (roomAbove ? (py - GAP - h) : (py + GAP));
+  ok("the horizontal offset is taken from the card's left edge",
+    alongX(650, 600, 320) === 210);
+  ok("the vertical offset is taken from the card's top edge",
+    alongY(500, 620, 210, true) === 500 - (620 - GAP - 210));
+}
+
 console.log(`${pass} passed`);
 if (fail) console.log(`${fail} FAILED`);
 process.exit(fail ? 1 : 0);

@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260831-fae74a5";
+  from "./gis/geo-utils.js?v=20260831-b26f122";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -22105,16 +22105,30 @@ ${error && error.message ? error.message : error}`;
                 geoPopup.style.left = px + "px";
                 geoPopup.style.top = py + "px";
                 /**
-                 * The tail points at the DOT, not at the middle of the card.
+                 * The divot goes on WHICHEVER SIDE the dot ended up on.
                  *
-                 * `px` is where the card ended up, `sx` is where the ground it
-                 * describes actually is, and the two part company as soon as
-                 * the card is pulled back inside the view. Feeding the
-                 * difference to the tail keeps it aimed at the point even when
-                 * the box has stepped aside; the CSS clamps it to the card's
-                 * own corners so it can never leave the box it grows from.
+                 * The card is placed above its point by preference, then
+                 * pulled inside the view and flipped below when there is no
+                 * room — so the dot can finish on any of the four sides, and a
+                 * tail welded to the bottom points at open map as soon as the
+                 * card has stepped aside. The card's rect is computed here
+                 * rather than measured, because measuring is a second reflow
+                 * in a loop that already forces one for the size.
                  */
-                geoPopup.style.setProperty("--tail-x", `${(w / 2) + (sx - px)}px`);
+                const cardLeft = px - (w / 2);
+                const cardTop = roomAbove ? (py - gap - h) : (py + gap);
+                let tail;
+                if (sy > cardTop + h) tail = "bottom";
+                else if (sy < cardTop) tail = "top";
+                else if (sx < cardLeft) tail = "left";
+                else if (sx > cardLeft + w) tail = "right";
+                else tail = roomAbove ? "bottom" : "top";   // dot beneath the card
+                geoPopup.dataset.tail = tail;
+                if (tail === "left" || tail === "right") {
+                  geoPopup.style.setProperty("--tail-y", `${sy - cardTop}px`);
+                } else {
+                  geoPopup.style.setProperty("--tail-x", `${sx - cardLeft}px`);
+                }
               }
               if (geoPopupAnchor) {
                 geoPopupAnchor.hidden = false;
