@@ -1,12 +1,12 @@
-import * as GP from "./geoprocessing.js?v=20260830-883d32b";
-import * as RA from "./raster-analysis.js?v=20260830-883d32b";
-import * as VF from "./vector-formats.js?v=20260830-883d32b";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260830-883d32b";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260830-883d32b";
-import { downloadText } from "./extraction.js?v=20260830-883d32b";
-import { CRS_OPTIONS } from "./projection.js?v=20260830-883d32b";
-import { runQuery, QUERY_HELP } from "./query.js?v=20260830-883d32b";
-import { selection } from "./selection.js?v=20260830-883d32b";
+import * as GP from "./geoprocessing.js?v=20260830-974372a";
+import * as RA from "./raster-analysis.js?v=20260830-974372a";
+import * as VF from "./vector-formats.js?v=20260830-974372a";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260830-974372a";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260830-974372a";
+import { downloadText } from "./extraction.js?v=20260830-974372a";
+import { CRS_OPTIONS } from "./projection.js?v=20260830-974372a";
+import { runQuery, QUERY_HELP } from "./query.js?v=20260830-974372a";
+import { selection } from "./selection.js?v=20260830-974372a";
 
 // Wiring between the toolbox UI and the geoprocessing / raster engines. Every
 // operation produces a new layer rather than mutating its input, which is how
@@ -96,6 +96,46 @@ function publishRaster(raster, name, { elevation = false } = {}) {
 
 // ── Vector operations ───────────────────────────────────────────────────────
 
+/**
+ * THE GEOPROCESSING PANEL RUNS THE SAME TOOLS THE TOOLS WINDOW DOES.
+ *
+ * These operations and `tool-runner.js`'s registry are the same work under the
+ * same ids — `clip`, `difference`, `intersect`, `union`, `buffer`, `dissolve`
+ * — and `clip` is even labelled "Clip by layer" in both. Two implementations
+ * of one operation, and they drifted exactly as this file's history predicts:
+ * every fix to the tool-runner clip over the last stretch (asking a streaming
+ * layer about GROUND rather than reading its snapshot, inheriting the source's
+ * own colours and legend, the Detail level, the self-refining output) went to
+ * the tools window while the panel went on calling `GP.clip(a.collection, ...)`
+ * directly. Reported as fix after fix making no difference — and it made none,
+ * because this button never ran any of it.
+ *
+ * So the ops that CAN delegate, do. The panel keeps its own front end; only
+ * the work moves. `runToolAuto` is dynamically imported because this module
+ * loads on every world at boot and the runner drags in the whole tool set.
+ *
+ * NOT YET DELEGATED, and each for a stated reason rather than by omission:
+ * `buffer` (this panel asks metres, the tool asks KILOMETRES — delegating
+ * without converting turns a 1 km buffer into 1,000 km), `dissolve`, `hull`,
+ * `centroids`, `simplify`, `reproject` and `spatialJoin` (each carries panel
+ * params whose units and names have to be checked against the tool's before
+ * they can be handed over), and `union`, which adds a sentence of its own when
+ * a merge fills an interior ring and would lose it. They still read
+ * `.collection`, so they still see a streaming layer's snapshot; that is the
+ * next thing to close here.
+ */
+const DELEGATED = new Set(["clip", "difference", "intersect"]);
+
+async function runThroughRunner(toolId, a, b) {
+  const runner = await import(`./tool-runner.js${new URL(import.meta.url).search}`);
+  const desc = runner.toolById(toolId);
+  const names = (desc.inputs || []).map((i) => i.name);
+  const inputs = {};
+  if (names[0]) inputs[names[0]] = a;
+  if (names[1] && b) inputs[names[1]] = b;
+  return (runner.runToolAuto || runner.runTool)(toolId, inputs, {}, {});
+}
+
 const VECTOR_OPS = {
   buffer: {
     label: "Buffer",
@@ -111,17 +151,17 @@ const VECTOR_OPS = {
   clip: {
     label: "Clip by layer",
     needsSecond: true,
-    run: (a, b) => publishVector(GP.clip(a.collection, b.collection), `clip_${a.name}`),
+    run: (a, b) => runThroughRunner("clip", a, b),
   },
   difference: {
     label: "Difference",
     needsSecond: true,
-    run: (a, b) => publishVector(GP.difference(a.collection, b.collection), `diff_${a.name}`),
+    run: (a, b) => runThroughRunner("difference", a, b),
   },
   intersect: {
     label: "Intersect",
     needsSecond: true,
-    run: (a, b) => publishVector(GP.intersect(a.collection, b.collection), `intersect_${a.name}`),
+    run: (a, b) => runThroughRunner("intersect", a, b),
   },
   dissolve: {
     label: "Dissolve by field",
@@ -260,9 +300,17 @@ function runVectorOp() {
   };
   setText("vec-op-status", `Running ${op.label}...`);
   window.requestAnimationFrame(() => {
+    // An op may answer with a result or with a PROMISE of one: the delegated
+    // ones go through `runToolAuto`, which is async because a streaming input
+    // is asked about this run's ground before any engine sees it. Resolving
+    // either shape here is what lets the two kinds sit in one registry.
     try {
-      const result = op.run(a, b, param, field, extras);
-      setText("vec-op-status", result.message);
+      Promise.resolve(op.run(a, b, param, field, extras)).then((result) => {
+        setText("vec-op-status", result?.message || "Done.");
+      }).catch((error) => {
+        console.error("[GeoID GIS] vector op failed", error);
+        setText("vec-op-status", `Failed: ${error.message}`);
+      });
     } catch (error) {
       console.error("[GeoID GIS] vector op failed", error);
       setText("vec-op-status", `Failed: ${error.message}`);
@@ -678,7 +726,7 @@ async function buildToolCatalogue() {
   if (!host || host.childElementCount) return;
   let runner;
   try {
-    runner = await import("./tool-runner.js?v=20260830-883d32b");
+    runner = await import("./tool-runner.js?v=20260830-974372a");
   } catch {
     host.textContent = "The toolbox is still loading.";
     return;
