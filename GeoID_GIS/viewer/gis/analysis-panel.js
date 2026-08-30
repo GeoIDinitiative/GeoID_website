@@ -11,9 +11,9 @@ import {
   vectorRows,
   extractDelimitedWithin,
   delimitedColumns,
-} from "./extraction.js?v=20260830-a1b9b72";
-import { resolvePolygonRings, refreshPolygonOptions } from "./extent-picker.js?v=20260830-a1b9b72";
-import { rectangleVertices } from "./draw-area.js?v=20260830-a1b9b72";
+} from "./extraction.js?v=20260830-4876766";
+import { resolvePolygonRings, refreshPolygonOptions } from "./extent-picker.js?v=20260830-4876766";
+import { rectangleVertices } from "./draw-area.js?v=20260830-4876766";
 
 let lastResult = null;
 // The whole extraction as one object -- bounds, grid, vectors, clouds. This is
@@ -203,6 +203,32 @@ function renderSources() {
 }
 
 /**
+ * The grid spacing is a question about SAMPLING, so it is asked only when
+ * something is going to be sampled.
+ *
+ * A polygon clip has no resolution to choose — it is exact, and the clipped
+ * layer carries the source's own vertices. Asking for a spacing over vector
+ * work invites a number that changes nothing, and reads as though the answer
+ * depended on it. The row appears when a raster, a drape or a built-in column
+ * is ticked, and goes away when the run is purely a clip.
+ */
+function syncStepRow() {
+  const input = document.getElementById("gis-extract-step");
+  const row = input?.closest(".row");
+  if (!row) return;
+  const sampled = [...document.querySelectorAll(
+    "#gis-extract-sources input[type=checkbox]:checked")].length > 0;
+  const builtIn = ["gis-extract-builtin", "gis-extract-geology", "gis-extract-climate"]
+    .some((id) => document.getElementById(id)?.checked);
+  const needed = sampled || builtIn;
+  row.hidden = !needed;
+  // The note beneath it is about native-resolution tables, which is the same
+  // question, so it travels with the control rather than being left stranded.
+  const note = row.nextElementSibling;
+  if (note?.classList?.contains("tool-copy")) note.hidden = !needed;
+}
+
+/**
  * The bounds select, filled by the SHARED picker.
  *
  * `allLayers` because a coastline, an imported shapefile or a buffer a tool
@@ -212,6 +238,7 @@ function renderSources() {
 function renderWithin() {
   refreshPolygonOptions(document.getElementById("gis-extract-within"), "drawn",
     { allLayers: true });
+  syncStepRow();
 }
 
 const FIELD_CAP = 60;
@@ -348,6 +375,30 @@ function tickedColumns(role, layerId) {
   return ticked.map((input) => input.dataset.column);
 }
 
+/**
+ * Clip one layer by the study area, through the ONE clip implementation.
+ *
+ * Dynamically imported for the runner's usual two reasons — it reaches for
+ * three.js and the import manager, and this panel is loaded on every world.
+ * Best-effort: a clip that fails leaves the caller to fall back to the pure
+ * function, because an extraction that stops because one layer would not cut
+ * is worse than one that reports the cut it managed.
+ */
+async function clipThroughTool(layer, bounds) {
+  try {
+    const runner = await import(`./tool-runner.js${new URL(import.meta.url).search}`);
+    const mask = bounds.layerId
+      ? loadedLayers().find((l) => String(l.id) === bounds.layerId)
+      : { id: null, name: bounds.label, collection: bounds.maskFc, features: bounds.maskFc.features };
+    if (!mask) return null;
+    const out = await runner.runToolAuto("clip", { input: layer, overlay: mask }, {},
+      { outputName: `${layer.name} within ${bounds.label}` });
+    return out?.ok ? out : null;
+  } catch (error) {
+    return null;
+  }
+}
+
 function runExtraction() {
   const bounds = resolveBounds();
   if (bounds.error) {
@@ -409,18 +460,39 @@ function runExtraction() {
     });
     lastResult = result.ok ? result : null;
 
-    // Every ticked vector layer, truly clipped. The bounds layer itself is
-    // skipped -- clipping a polygon by itself returns itself, which is not an
-    // extract, it is a copy.
-    const vectors = tickedLayerIds("vector")
+    /**
+     * Every ticked vector layer, truly clipped — and clipped BY THE TOOL.
+     *
+     * This did its own clipping and kept the result in the export package and
+     * nowhere else. Three complaints, one cause: the clipped geology never
+     * appeared on the globe (it was never a layer), it could not be written as
+     * a shapefile (`layer-export` writes LAYERS), and the panel asked for a
+     * sample resolution over work that has none — a polygon clip is exact.
+     *
+     * Going through the geoprocessing tool makes each clipped layer a real
+     * layer, and everything follows from that: it draws, it takes its place in
+     * the stack, it inherits the source's own colours and legend, it exports in
+     * every format including shapefile, and a STREAMING input is asked about
+     * this ground before it is cut. The package still gets its rows for the
+     * CSV, read back off the layer the tool made.
+     */
+    const vectorLayers = tickedLayerIds("vector")
       .filter((id) => id !== bounds.layerId)
       .map((id) => loadedLayers().find((l) => String(l.id) === id))
-      .filter((layer) => layer?.collection)
-      .map((layer) => ({
-        layer: layer.name,
-        ...extractVectorWithin(layer.collection, bounds.maskFc,
-          { fields: tickedColumns("vector", layer.id) }),
-      }));
+      .filter((layer) => layer?.collection);
+    const vectors = [];
+    for (const layer of vectorLayers) {
+      const before = (layer.collection.features || []).length;
+      // eslint-disable-next-line no-await-in-loop
+      const out = await clipThroughTool(layer, bounds);
+      const kept = out?.layer?.features?.length ?? 0;
+      vectors.push({
+        layer: layer.name, kept, total: before, mapped: Boolean(out?.layer),
+        collection: out?.layer?.collection
+          || extractVectorWithin(layer.collection, bounds.maskFc,
+            { fields: tickedColumns("vector", layer.id) }).collection,
+      });
+    }
 
     // Every ticked point cloud, read from the FILE it kept -- all its columns,
     // not the x/y/z/magnitude the renderer holds.
@@ -592,6 +664,13 @@ function init() {
   syncCentreMode();
 
   document.getElementById("gis-extract-run")?.addEventListener("click", runExtraction);
+  // Any tick can change whether a grid is going to be built at all.
+  document.getElementById("gis-extract-sources")
+    ?.addEventListener("change", syncStepRow);
+  ["gis-extract-builtin", "gis-extract-geology", "gis-extract-climate"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("change", syncStepRow);
+  });
+  syncStepRow();
   document.getElementById("gis-extract-csv")?.addEventListener("click", () => exportAs("csv"));
   document.getElementById("gis-extract-geojson")?.addEventListener("click", () => exportAs("geojson"));
   setExportsEnabled(false);
