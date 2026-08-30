@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260830-2317674";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260830-2317674";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260830-2317674";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260830-97628ed";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260830-97628ed";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260830-97628ed";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -737,11 +737,41 @@ export function renderFeatureCollection(fc, {
         }
       });
     }
-    // A coloured polygon's rings went into the seal above, at the fill's own
-    // height. What is left here is the outline-first pass -- a layer on the
-    // globe before its symbology arrives -- and any LineString features, both
-    // of which keep the lifted, depth-tested treatment lines have always had.
-    [...(colour && !outlineOnly ? [] : rings), ...lines].forEach((coords) => {
+    /**
+     * AN OUTLINED POLYGON HUGS THE GROUND, like the seal — it does not take
+     * the lifted, depth-tested treatment a LineString gets.
+     *
+     * The note that used to be here said the rings could not use the seal
+     * "because with no fill beneath them there is nothing for the seal's
+     * coplanar trick to seal against". That reads the seal backwards: what
+     * makes it hug is `depthTest: false` plus culling the far side BY FACING,
+     * and neither of those needs a fill underneath. Coplanarity was never the
+     * mechanism.
+     *
+     * The cost of getting it wrong is measured, on a drawn study area over
+     * Northern Ireland: the ground there stands at **123.66 km** above the base
+     * globe under the default exaggeration, and the outline sat at **76–102
+     * km** — twenty to forty-seven kilometres UNDER the terrain, and depth
+     * tested, so the hills ate it. Reported as the outline not being tight to
+     * the surface, which is exactly what it was.
+     *
+     * A LineString still takes the lifted path: a river or a fault is a line
+     * in its own right, not the edge of something, and it has always been
+     * drawn that way.
+     */
+    if (colour && outlineOnly) {
+      rings.forEach((coords) => {
+        const before = seal.positions.length;
+        for (let i = 0; i + 1 < coords.length; i += 1) {
+          if (onTileEdge(coords[i], coords[i + 1])) continue;
+          pushSegment(seal.positions, coords[i], coords[i + 1], FILL_DRAPE);
+        }
+        for (let i = before; i < seal.positions.length; i += 3) {
+          seal.colours.push(colour.r, colour.g, colour.b);
+        }
+      });
+    }
+    [...(colour ? [] : rings), ...lines].forEach((coords) => {
       const before = linePositions.length;
       for (let i = 0; i + 1 < coords.length; i += 1) {
         pushSegment(linePositions, coords[i], coords[i + 1], drape);
