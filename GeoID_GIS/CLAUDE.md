@@ -7934,3 +7934,37 @@ OTHER, not each to the ground.
 Pinning the fullest-COVERING level took a clip from zoom 11 polygons to zoom 8:
 flat blocks with straight edges where there had been real boundaries. It covered
 the ground by making the ground coarse.
+
+## Clip the units themselves, not the tiles they were served in
+
+`carto` is a TILE service, and a tile is a cut of the map: a unit crossing a
+tile boundary is delivered as two polygons meeting along a straight edge.
+Stitching tiles can never reproduce the source outlines — measured on a 45 km
+study area at zoom 13, the clip came back as 417 pieces in a visible lattice,
+one unit ruled into two wherever a tile edge crossed it.
+
+The tiles answer the cheap question well: WHICH units are on this ground. The
+JSON API takes `map_id` in batches and answers with the mapped polygon, so the
+ids go there and the clip is cut from those. Same box: 417 pieces became 70
+whole units, none split, 100% coverage, all three surveys.
+
+Ask only for the units the run can use — the borrowed set is the whole study
+area, and fetching all of it asked for 2,475 units to draw 71.
+
+## A clip is a window onto the merge, not a second streaming map
+
+`clip-stream.js` gave the clipped layer its own tile controller so it would
+refine like the map it came from. A tile controller draws exactly ONE level,
+and the answer this source needs is multi-level by construction: `featuresIn`
+fills each survey from ITS OWN deepest level. One level cannot hold that, and
+every symptom followed from asking it to — 21.6% of sampled points matching the
+map it was cut from, colours never inherited because the streaming path
+returned before `inheritedColouring` ever ran. Deleted.
+
+## Two vocabularies for a box is a silent skip
+
+`areaOfInterest` answers in `minX/minY/maxX/maxY`; the tile side speaks
+`west/south/east/north`. Reading the wrong one makes every comparison false —
+no unit is ever "near", the fetch never happens, and the only sign is a missing
+sentence in the message. Same shape as `controller.getContacts?.()` returning
+undefined because the method was never published. Accept both, and test both.

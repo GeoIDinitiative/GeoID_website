@@ -35,9 +35,9 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260830-d21568c";
-import { renderFeatureCollection } from "./vector-render.js?v=20260830-d21568c";
-import * as GP from "./geoprocessing.js?v=20260830-d21568c";
+import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260830-2105aca";
+import { renderFeatureCollection } from "./vector-render.js?v=20260830-2105aca";
+import * as GP from "./geoprocessing.js?v=20260830-2105aca";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -731,19 +731,11 @@ export function createTiledVectorLayer({
    * Returns what happened, in the terms the panel reports: how many tiles the
    * view needed, how many were already in hand, and how many could not be had.
    */
-  // The level the view is actually drawing, so a CLIP of this map can wear the
-  // same one. `chooseZoom` answers from the BOX it is given, and a clip refines
-  // on the study area's intersection with the view — a smaller box, so a
-  // different level, so a different composite of Macrostrat's surveys and
-  // visibly different units over the same ground.
-  let viewZoom = null;
-
   async function update({
     bounds, zoom, onProgress = null, signal = null,
     featureBudget = 24000, minZoom = 0,
   } = {}) {
     const z = chooseZoom(bounds, zoom, featureBudget, minZoom);
-    viewZoom = z;
     const wanted = tilesForBounds(bounds, z).slice(0, maxTiles);
     const mine = ++generation;
     const needed = wanted.map((t) => key(t.z, t.x, t.y));
@@ -1221,8 +1213,6 @@ export function createTiledVectorLayer({
     // clipped layer fell back to the invisible "match" seal, so the source drew
     // its unit boundaries and the clip of it did not.
     getContacts: () => contactStyle,
-    // The level this map is drawing right now, for a clip that must match it.
-    getViewZoom: () => viewZoom,
     // Published so a CLIPPED layer can be built on the same tile service its
     // source streams from, rather than being told about it a second time.
     sources,
