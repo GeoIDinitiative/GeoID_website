@@ -86,7 +86,8 @@ async function watch() {
     const asBounds = { minLon: box.west, maxLon: box.east, minLat: box.south, maxLat: box.north };
     let moved = view.viewChangedEnough(lastBounds, asBounds);
     for (const entry of live.values()) {
-      const wanted = macro.zoomForBounds(refineBox(box, entry.mask) || entry.mask);
+      const asked = macro.zoomForBounds(refineBox(box, entry.mask) || entry.mask);
+      const wanted = Number.isFinite(entry.ceiling) ? Math.min(asked, entry.ceiling) : asked;
       if (wanted !== entry.zoom) moved = true;
     }
     if (!moved) return;
@@ -108,7 +109,24 @@ async function refine(entry, viewBox, macro) {
   if (entry.busy) return;
   const box = refineBox(viewBox, entry.mask);
   if (!box) return;
-  const zoom = macro.zoomForBounds(box);
+  /**
+   * THE REFINE MAY NOT GO DEEPER THAN THE LEVEL THE CLIMB VETTED.
+   *
+   * `featuresIn` gates its climb on coverage and refuses a level that has lost
+   * a survey. `refine` did neither — it asked `zoomForBounds` and called
+   * `update` — so a clip pinned at the vetted zoom 7 was walked to zoom 11 by
+   * the first settle, and at 11 the offshore survey does not exist. Measured
+   * on a 34 km study area: the strip north of the coast is covered 100% at
+   * zooms 4 to 8 and **0% at 9 and deeper**, and the layer arrived pinned at 7
+   * and refined itself to 11, which is why the picture went bare again after
+   * it had been right.
+   *
+   * `ceiling` is the level the climb chose, coverage gate and all. Refining
+   * within it is free; past it is the map losing datasets to buy detail it was
+   * never asked for.
+   */
+  const wanted = macro.zoomForBounds(box);
+  const zoom = Number.isFinite(entry.ceiling) ? Math.min(wanted, entry.ceiling) : wanted;
   if (zoom === entry.zoom) return;
   entry.busy = true;
   try {
@@ -371,7 +389,9 @@ export async function createStreamingClip({ source, mask, name, contacts = null 
   };
   layer.onRemove = () => { live.delete(layer.id); controller.dispose(); };
 
-  live.set(layer.id, { layer, controller, mask: bounds, zoom: baseZoom, baseZoom, busy: false });
+  live.set(layer.id, { layer, controller, mask: bounds, zoom: baseZoom, baseZoom,
+    // The deepest level the climb vetted for coverage.
+    ceiling: Number.isFinite(probe.zoom) ? probe.zoom : baseZoom, busy: false });
   void watch();
   return { layer, zoom: baseZoom, features: fc.features.length };
 }
