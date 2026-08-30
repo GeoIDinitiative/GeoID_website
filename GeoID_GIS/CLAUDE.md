@@ -8011,3 +8011,21 @@ not reach — measured, 1,286 of 3,600 points, which is the offshore geology, an
 symbology change brings the coarse boundaries back.
 
 A measurement made on tiles does not answer a question about the source.
+
+## The picker and the painter must agree about who owns the ground
+
+Survey precedence is not only a drawing rule. `featureInLayer` returns the
+FIRST feature whose polygon contains the point, and `polygonIndex` — the
+sampler behind extraction and the geology readout — is built from the same
+array in the same order. Fix the drawing alone and a click on ground the fine
+survey holds still returns a regional unit that is not even the one on screen:
+reported as selecting "Mesozoic sedimentary rocks", 409 km2 from survey 154,
+over detailed geology.
+
+The two orders are OPPOSITE. Drawing wants coarse first, so the fine fill lands
+on top; picking wants fine first, so the first containing polygon is the right
+one. The renderer sorts its own iteration ascending by rank, which leaves the
+feature array free to carry the descending order the pickers need. Measured
+after: 1,028 of 1,028 points on fine-survey ground pick the fine survey.
+
+Whenever precedence changes, ask what else reads the feature list in order.
