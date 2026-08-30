@@ -221,6 +221,36 @@ export async function createStreamingClip({ source, mask, name, contacts = null 
   }, "geology");
   if (!layer) { controller.dispose(); return null; }
 
+  /**
+   * The clip wears the SOURCE'S OWN key, or it is a different map of the same
+   * ground.
+   *
+   * `colourFor` at construction paints the tiles, and that is not enough on its
+   * own: a derived layer arriving in the workspace is given the default
+   * `categoricalSymbology` — twelve classes by feature count and one grey
+   * "(other)" for the rest — which overwrites the source colours and answers
+   * with a legend of its own. Reported with the two cards side by side: the
+   * world layer keyed by name with its published swatches, and the clip of it
+   * showing a bare gradient bar over a sheet gone grey.
+   *
+   * The static clip path in `tool-runner` already does this through
+   * `inheritSourceColours`; the streaming path was built without it. Same
+   * `legendFrom`, same colour column, so the two cards are the same key by
+   * construction rather than by two functions agreeing.
+   */
+  const colourField = source.sourceColourField;
+  if (colourField) {
+    const labelField = source.sourceLabelField || source.geologyField || "name";
+    controller.repaint((f) => f?.properties?.[colourField] || null);
+    const legend = macro.legendFrom(fc.features, { field: labelField, colourField });
+    if (legend.shown) {
+      layer.legendInfo = legend;
+      layer.geologyField = labelField;
+      layer.legendIsSummary = legend.total > legend.shown
+        ? `${legend.shown} of ${legend.total} units` : null;
+    }
+  }
+
   layer.tiled = controller;
   layer.clipMask = maskFc;
   layer.streamingClip = true;
