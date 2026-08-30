@@ -35,9 +35,9 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260830-bcaa506";
-import { renderFeatureCollection } from "./vector-render.js?v=20260830-bcaa506";
-import * as GP from "./geoprocessing.js?v=20260830-bcaa506";
+import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260830-d307f99";
+import { renderFeatureCollection } from "./vector-render.js?v=20260830-d307f99";
+import * as GP from "./geoprocessing.js?v=20260830-d307f99";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -985,6 +985,10 @@ export function createTiledVectorLayer({
     // The fullest-covering level seen, kept so a deeper, partial level can be
     // filled from it rather than refused outright.
     let fallback = null;
+    // Each SURVEY at the deepest level that carries it, so a dataset that
+    // disappears from the deep tiles is filled from its own best level rather
+    // than from whichever single level happened to cover the most ground.
+    const deepestFor = new Map();
     // What each level would have cost, so a caller can OFFER the levels this
     // source actually supports over this ground rather than guessing at them.
     const levels = [];
@@ -1009,6 +1013,27 @@ export function createTiledVectorLayer({
       if (!fallback || coverage > fallback.coverage + COVERAGE_TOLERANCE) {
         fallback = { features: got.features, coverage, zoom: z };
       }
+      /**
+       * Every SURVEY, remembered at the deepest level that still carries it.
+       *
+       * Filling from one fallback level drops any survey that level does not
+       * have either. Measured over a box across the North Channel: source 7
+       * appears at zoom 5 and 6 and is GONE by 7, while the deepest reachable
+       * level is 8 — so the fill, which read zoom 8, never saw it and the
+       * dataset vanished from the clip entirely. Reported as failing to pull
+       * the bathymetry and the Irish geology.
+       *
+       * A later level overwrites an earlier one for the same key, so each
+       * survey ends up held at its own best level rather than at whichever
+       * level happened to cover the most ground.
+       */
+      const here = new Map();
+      for (const f of got.features) {
+        const k = sourceKey(f);
+        const list = here.get(k) || here.set(k, []).get(k);
+        list.push(f);
+      }
+      for (const [k, list] of here) deepestFor.set(k, { zoom: z, features: list });
 
       /**
        * MERGE THE LEVELS: the finer survey where it exists, the fuller one
@@ -1035,14 +1060,15 @@ export function createTiledVectorLayer({
        * for, which would double-count it in an extraction.
        */
       let filled = 0;
-      if (fallback && coverage < fallback.coverage - COVERAGE_TOLERANCE) {
-        const here = new Set(features.map(sourceKey));
-        const missing = fallback.features.filter((f) => !here.has(sourceKey(f)));
-        if (missing.length) {
-          features = features.concat(missing);
-          filled = missing.length;
-          coverage = coverageWithin(features, bounds);
-        }
+      const carried = new Set(features.map(sourceKey));
+      const missing = [];
+      for (const [k, rec] of deepestFor) {
+        if (!carried.has(k)) missing.push(...rec.features);
+      }
+      if (missing.length) {
+        features = features.concat(missing);
+        filled = missing.length;
+        coverage = coverageWithin(features, bounds);
       }
 
       const detail = detailWithin(features, bounds);

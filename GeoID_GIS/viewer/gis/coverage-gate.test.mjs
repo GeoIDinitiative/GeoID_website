@@ -126,10 +126,35 @@ ok("a line contributes nothing -- only areas cover ground",
 }
 ok("the climb records how much each level was filled by", /filled/.test(src));
 ok("the merge runs BEFORE the coverage refusal", (() => {
-  const merge = src.indexOf("const missing = fallback.features.filter");
+  const merge = src.indexOf("for (const [k, rec] of deepestFor)");
   const refuse = src.lastIndexOf('stoppedFor = "coverage"');
   return merge > 0 && refuse > merge;
 })());
+/**
+ * THE FILL IS PER SURVEY, from the deepest level that carries it.
+ *
+ * Filling from one fallback level drops any survey that level lacks too.
+ * Measured over a box across the North Channel: source 7 appears at zoom 5 and
+ * 6 and is GONE by 7, while the deepest reachable level is 8 — so a fill that
+ * read only zoom 8 never saw it and the dataset vanished from the clip.
+ */
+ok("each survey is remembered at its own deepest level",
+  /const deepestFor = new Map\(\);/.test(src)
+  && /deepestFor\.set\(k, \{ zoom: z, features: list \}\)/.test(src));
+ok("the fill walks every remembered survey, not one level's features",
+  /for \(const \[k, rec\] of deepestFor\)/.test(src));
+ok("and only surveys the deep level does NOT carry are added",
+  /if \(!carried\.has\(k\)\) missing\.push\(\.\.\.rec\.features\)/.test(src));
+{
+  // The algebra, on the measured shape: 23 and 147 reach zoom 8, 7 stops at 6.
+  const deepest = new Map([["23", { zoom: 8 }], ["147", { zoom: 8 }], ["7", { zoom: 6 }]]);
+  const carried = new Set(["23", "147"]);              // what zoom 8 holds
+  const filled = [...deepest.keys()].filter((k) => !carried.has(k));
+  ok("the survey that stops early is the one filled in",
+    filled.length === 1 && filled[0] === "7");
+  ok("and a survey the deep level HAS is never filled from a coarser copy",
+    !filled.includes("23") && !filled.includes("147"));
+}
 
 console.log(`${pass} passed`);
 if (fail) console.log(`${fail} FAILED`);
