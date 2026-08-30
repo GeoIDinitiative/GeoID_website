@@ -238,7 +238,23 @@ export async function createStreamingClip({ source, mask, name, contacts = null 
    * `legendFrom`, same colour column, so the two cards are the same key by
    * construction rather than by two functions agreeing.
    */
-  const colourField = source.sourceColourField;
+  /**
+   * The marker is the FIRST answer, not the only one.
+   *
+   * `sourceColourField` is set by `paintFromSource`, and a source that was
+   * last painted some other way — a field chosen in the symbology dialog, a
+   * catalogue palette, a rebuild that ran `applyField` because `styleChoice`
+   * remembered a hand-picked column — carries no marker at all. The clip then
+   * inherited nothing, got no `legendInfo`, and the dock drew the bare
+   * gradient bar that stands in for a layer with no symbology.
+   *
+   * So the column is PROBED when the marker is missing: if every feature
+   * carries a `color`, that is the source's own key whether or not anything
+   * wrote the marker down. Failing open into "no legend" is the wrong
+   * direction for a card whose whole job is to say what the colours mean.
+   */
+  const colourField = source.sourceColourField
+    || (fc.features.length && fc.features.every((f) => f?.properties?.color) ? "color" : null);
   if (colourField) {
     const labelField = source.sourceLabelField || source.geologyField || "name";
     controller.repaint((f) => f?.properties?.[colourField] || null);
@@ -258,7 +274,7 @@ export async function createStreamingClip({ source, mask, name, contacts = null 
   layer.credit = source.credit || null;
   // Carried so the derived layer keeps the source's own colours and so a clip
   // OF this clip inherits them again.
-  layer.sourceColourField = source.sourceColourField || null;
+  layer.sourceColourField = colourField;
   layer.sourceLabelField = source.sourceLabelField || null;
   // The seam every consumer that asks about GROUND uses. A clipped stream can
   // answer it exactly as the world layer does, and the mask rides along.
