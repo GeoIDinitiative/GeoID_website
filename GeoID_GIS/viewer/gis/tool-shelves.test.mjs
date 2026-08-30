@@ -26,12 +26,11 @@ const shelfOf = (anchor) => __BLOCKS.find((b) => b.anchor === anchor)?.to;
 
 // Produces a map layer -> geoprocessing.
 for (const anchor of ["gis-geo-place", "ras-op-run", "vec-op-run",
-  "attr-query-run", "calc-run", "gis-batch-run"]) {
+  "attr-query-run", "gis-batch-run"]) {
   ok(`${anchor} is geoprocessing — it ends in a layer`, shelfOf(anchor) === GEO);
 }
 // Produces a table, a statistic or a chart -> analysis.
-for (const anchor of ["zonal-run", "raster-sample", "extract-run",
-  "attr-stats-run", "signal-run"]) {
+for (const anchor of ["zonal-run", "raster-sample", "extract-run", "signal-run"]) {
   ok(`${anchor} is analysis — it ends in a table or a chart`, shelfOf(anchor) === ANA);
 }
 
@@ -105,6 +104,23 @@ ok("both shelves are renamed", __HEADINGS[GEO] === "Geoprocessing"
     blockFor({ anchor: "not-here", id: "also-not-here" }) === null);
   delete globalThis.document;
 }
+
+
+/**
+ * ONE SPEC PER BLOCK. `attr-query-run`, `calc-run` and `attr-stats-run` all sit
+ * inside the same "Attribute Table" section, so listing them separately made
+ * each spec move the SAME node and the last one won — the table landed on
+ * whichever shelf happened to be named last. Measured on the live page before
+ * this: query on the analysis shelf, calculator and field statistics reported
+ * missing because their stamped ids never existed.
+ */
+ok("the attribute table is claimed once, not three times",
+  __BLOCKS.filter((b) => ["attr-query-run", "calc-run", "attr-stats-run"]
+    .includes(b.anchor)).length === 1);
+ok("and it is on the geoprocessing shelf — its acts end in a layer",
+  __BLOCKS.find((b) => b.anchor === "attr-query-run").to === "gis-group-preprocess");
+ok("a block whose title would repeat its shelf is retitled",
+  __BLOCKS.find((b) => b.anchor === "vec-op-run").title === "Vector operations");
 
 console.log(`${pass} passed`);
 if (fail) console.log(`${fail} FAILED`);

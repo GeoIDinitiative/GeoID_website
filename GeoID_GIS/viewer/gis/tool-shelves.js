@@ -36,19 +36,29 @@ const BLOCKS = [
   // ── produces a map layer ────────────────────────────────────────────────
   { anchor: "gis-geo-place", id: "gp-georeference", to: GEOPROCESS },
   { anchor: "ras-op-run", id: "gp-raster-ops", to: GEOPROCESS },
-  { anchor: "vec-op-run", id: "gp-vector-ops", to: GEOPROCESS },
-  // A query ends in a selection and a selection becomes a layer; the
-  // calculator writes a column back onto the layer it was run on. Both change
-  // what is on the globe, which is the test.
-  { anchor: "attr-query-run", id: "gp-query-select", to: GEOPROCESS },
-  { anchor: "calc-run", id: "gp-field-calculator", to: GEOPROCESS },
+  // The block is titled "Geoprocessing", which is now the SHELF's name too —
+  // a section repeating the heading above it says nothing about itself.
+  { anchor: "vec-op-run", id: "gp-vector-ops", to: GEOPROCESS, title: "Vector operations" },
+  /**
+   * ONE block, not three. `attr-query-run`, `calc-run` and `attr-stats-run`
+   * all sit inside the same "Attribute Table" section — a query, a calculator
+   * and a field summary over one layer's table, which is one tool and not
+   * three that happen to be adjacent. Listing them separately made each spec
+   * move the SAME node, so the last one won and the block landed on whichever
+   * shelf happened to be named last.
+   *
+   * Its acts end in a changed or new layer — a selection becomes a layer, the
+   * calculator writes a column back — so it is geoprocessing, and the field
+   * statistics it also offers ride along rather than dragging the whole table
+   * onto the other shelf.
+   */
+  { anchor: "attr-query-run", id: "gp-attribute-table", to: GEOPROCESS },
   { anchor: "gis-batch-run", id: "gp-batch", to: GEOPROCESS },
 
   // ── produces a table, a statistic or a chart ────────────────────────────
   { anchor: "zonal-run", id: "an-zonal-stats", to: ANALYSIS },
   { anchor: "raster-sample", id: "an-sample-rasters", to: ANALYSIS },
   { anchor: "extract-run", id: "an-extract-points", to: ANALYSIS },
-  { anchor: "attr-stats-run", id: "an-field-stats", to: ANALYSIS },
   { anchor: "signal-run", id: "an-signal", to: ANALYSIS },
 ];
 
@@ -101,11 +111,22 @@ function applyOnce() {
   if (!shelves[GEOPROCESS] || !shelves[ANALYSIS]) return false;
 
   let moved = 0;
+  // Two specs resolving to ONE block is the fault that put the attribute table
+  // on the wrong shelf: each moved the same node and the last one won. Claimed
+  // once per pass, and a second claim is refused rather than obeyed.
+  const claimed = new Set();
   BLOCKS.forEach((spec) => {
     const block = blockFor(spec);
     const shelf = shelves[spec.to];
     if (!block || !shelf) return;
+    if (claimed.has(block)) return;
+    claimed.add(block);
     if (!block.id) block.id = spec.id;
+    if (spec.title) {
+      const summary = block.querySelector(":scope > summary .section-title-row > span:last-child")
+        || block.querySelector(":scope > summary span:last-child");
+      if (summary && summary.textContent !== spec.title) summary.textContent = spec.title;
+    }
     // Already on the right shelf: nothing to do, and re-appending would
     // reorder the column on every pass.
     if (block.parentElement === shelf) return;
