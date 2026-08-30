@@ -105,6 +105,39 @@ const mask = { west: -8, south: 54, east: -5, north: 56 };
     pick([{ zoom: 12, tiles: 0, ownCoverage: null }]) === undefined);
 }
 
+
+/**
+ * THE DRAWN LEVEL IS CAPPED ON OWN COVERAGE, because the merge defeats the gate.
+ *
+ * The climb's coverage gate compares the POST-MERGE figure, which the merge has
+ * already filled to ~100% at every level — so it can never fire, and the climb
+ * chose zoom 11 where the offshore survey does not exist. The LIST may span
+ * levels; the DRAWN map may not, because the controller shows one level's
+ * tiles. Measured: the strip north of the coast is covered at zooms 4-8 and 0%
+ * at 9 and deeper.
+ */
+{
+  const { __drawableCeiling: ceiling } = await import("./clip-stream.js");
+  const measured = [
+    { zoom: 5, tiles: 1, ownCoverage: 0.993, coverage: 1 },
+    { zoom: 7, tiles: 2, ownCoverage: 1.0, coverage: 1 },
+    { zoom: 8, tiles: 6, ownCoverage: 1.0, coverage: 1 },
+    { zoom: 9, tiles: 9, ownCoverage: 0.0, coverage: 1 },
+    { zoom: 11, tiles: 88, ownCoverage: 0.0, coverage: 1 },
+  ];
+  ok("the ceiling is the DEEPEST level that still covers on its own",
+    ceiling(measured, 7) === 8);
+  ok("a level covering nothing is never the ceiling, whatever its merged figure",
+    ceiling(measured, 7) < 9);
+  ok("with no readings it falls back to the level given",
+    ceiling([], 6) === 6 && ceiling(null, 6) === 6);
+  ok("a level that fetched no tiles is ignored",
+    ceiling([{ zoom: 12, tiles: 0, ownCoverage: 1 }, { zoom: 8, tiles: 4, ownCoverage: 1 }], 5) === 8);
+  ok("small differences in own coverage do not cost a level",
+    ceiling([{ zoom: 8, tiles: 4, ownCoverage: 1.0 },
+             { zoom: 9, tiles: 9, ownCoverage: 0.98 }], 8) === 9);
+}
+
 console.log(`${pass} passed`);
 if (fail) console.log(`${fail} FAILED`);
 process.exit(fail ? 1 : 0);

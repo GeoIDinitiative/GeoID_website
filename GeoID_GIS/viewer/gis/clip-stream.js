@@ -183,6 +183,22 @@ async function refine(entry, viewBox, macro) {
 }
 
 /**
+ * The deepest level whose OWN coverage still matches the best on offer.
+ *
+ * A merged feature list may span levels — the drawn map cannot, because the
+ * controller shows one level's tiles. So the refine is capped here: past this
+ * level the tiles start losing whole surveys, and the map buys detail by
+ * dropping datasets.
+ */
+function drawableCeiling(levels, fallbackZoom) {
+  const usable = (levels || []).filter((l) => Number.isFinite(l.ownCoverage) && l.tiles);
+  if (!usable.length) return fallbackZoom;
+  const best = Math.max(...usable.map((l) => l.ownCoverage));
+  const good = usable.filter((l) => l.ownCoverage >= best - 0.03);
+  return good.length ? Math.max(...good.map((l) => l.zoom)) : fallbackZoom;
+}
+
+/**
  * Build a clipped layer that streams from `source`'s own tile service.
  *
  * Returns null when the source is not a tiled layer or the mask is not
@@ -390,12 +406,23 @@ export async function createStreamingClip({ source, mask, name, contacts = null 
   layer.onRemove = () => { live.delete(layer.id); controller.dispose(); };
 
   live.set(layer.id, { layer, controller, mask: bounds, zoom: baseZoom, baseZoom,
-    // The deepest level the climb vetted for coverage.
-    ceiling: Number.isFinite(probe.zoom) ? probe.zoom : baseZoom, busy: false });
+    /**
+     * The deepest level that still covers this ground ON ITS OWN.
+     *
+     * NOT `probe.zoom`: the climb's own coverage gate compares the POST-MERGE
+     * figure, which the merge has already filled to ~100% at every level — so
+     * the gate can never fire and the climb happily chose zoom 11, where the
+     * offshore survey does not exist. My merge defeated my own gate.
+     *
+     * The list may span levels; the DRAWN level may not. This is the deepest
+     * one that needs no filling in.
+     */
+    ceiling: drawableCeiling(probe.levels, baseZoom), busy: false });
   void watch();
   return { layer, zoom: baseZoom, features: fc.features.length };
 }
 
 /** Exported for the tests: the box a refine would ask for. */
+export const __drawableCeiling = drawableCeiling;
 export const __refineBox = refineBox;
 export const __boundsOfCollection = boundsOfCollection;
