@@ -8072,3 +8072,24 @@ bigger box taking in more coarse-only offshore, and the geometry is verbatim
 from the API, so a unit's detail never varies with the level it was found at.
 Forcing the full tile budget bought 4% more vertices for twice the runtime and
 was reverted.
+
+## A raycast meets the sphere, not the terrain drawn on it
+
+The globe's relief is applied in the VERTEX SHADER, and `raycaster.intersectObject`
+tests the CPU-side geometry — the undisplaced ball. Every pick therefore resolved
+to where the ray crosses radius 3.2, while the ground on screen stands up to
+0.008 above it, and at an oblique angle those are different places.
+
+Measured by projecting a known point to screen and asking what is under that
+pixel: **median 11.07 km, max 16.71 km**, always displaced the same way. After
+refining, **42 m median, 66 m max**.
+
+The fix is a fixed point, not exact geometry: intersect a sphere of the current
+radius, read the terrain height where that lands, use it as the next radius.
+Two or three rounds converge, because the ground moves far less than the ray.
+It belongs in `intersectAnySurface`, which every pick goes through — clicks,
+hover, the feature picker and the drawing tools all at once.
+
+And when a probe reports a wild number, suspect the FRAME first: deriving
+lat/lon from a `measureGroup` child gave a 6,214 px offset, because that group
+carries the globe's spin. Same trap as recovering lat/lon from a vertex.
