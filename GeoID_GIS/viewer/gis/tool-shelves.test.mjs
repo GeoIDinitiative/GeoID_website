@@ -26,11 +26,11 @@ const shelfOf = (anchor) => __BLOCKS.find((b) => b.anchor === anchor)?.to;
 
 // Produces a map layer -> geoprocessing.
 for (const anchor of ["gis-geo-place", "ras-op-run", "vec-op-run",
-  "attr-query-run", "gis-batch-run"]) {
+  "attr-query-run", "gis-batch-run", "extract-run"]) {
   ok(`${anchor} is geoprocessing — it ends in a layer`, shelfOf(anchor) === GEO);
 }
 // Produces a table, a statistic or a chart -> analysis.
-for (const anchor of ["zonal-run", "raster-sample", "extract-run", "signal-run"]) {
+for (const anchor of ["zonal-run", "signal-run"]) {
   ok(`${anchor} is analysis — it ends in a table or a chart`, shelfOf(anchor) === ANA);
 }
 
@@ -47,13 +47,27 @@ ok("both shelves are used", new Set(__BLOCKS.map((b) => b.to)).size === 2);
 // EXTRACTION APPEARS ON BOTH SHELVES, on purpose and as two different
 // questions: clipping layers to a polygon is geospatial and lands on the
 // globe; sampling values at points is data and lands in a table.
-ok("point extraction is on the analysis shelf", shelfOf("extract-run") === ANA);
-ok("and the geospatial clip is a geoprocessing tool, not a second extractor",
-  shelfOf("vec-op-run") === GEO);
+ok("picking points on the globe is geoprocessing — the question is asked in map space",
+  shelfOf("extract-run") === GEO);
+ok("and the clip is geoprocessing too", shelfOf("vec-op-run") === GEO);
+ok("zonal statistics stays on analysis — it answers with a table per zone",
+  shelfOf("zonal-run") === ANA);
 
 // The retired blocks are HIDDEN, never removed: other modules read these ids
 // unguarded at boot, and deleting the element throws on the first frame.
-ok("three blocks are retired", __RETIRED.length === 3);
+ok("six blocks are retired", __RETIRED.length === 6);
+/**
+ * Each of these has a better door elsewhere, and naming the door is the point:
+ * a retirement with no reason beside it is indistinguishable from something
+ * quietly dropped.
+ */
+for (const anchor of ["gis-extract-run", "raster-sample", "builder-run"]) {
+  const spec = __RETIRED.find((r) => r.anchor === anchor);
+  ok(`${anchor} is retired with its replacement named`,
+    Boolean(spec) && spec.why.length > 6);
+  ok(`${anchor} is not ALSO placed on a shelf`,
+    !__BLOCKS.some((b) => b.anchor === anchor));
+}
 ok("each retirement says where the job went",
   __RETIRED.every((r) => typeof r.why === "string" && r.why.length > 3));
 ok("a retirement targets a block or a single button",

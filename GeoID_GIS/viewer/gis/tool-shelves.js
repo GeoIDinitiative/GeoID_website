@@ -57,12 +57,17 @@ const BLOCKS = [
   // it — a help panel stranded on the other shelf explains nothing there.
   { anchor: "vector-query", id: "gp-attribute-query", to: GEOPROCESS },
   { titleMatch: "Query syntax", id: "gp-query-syntax", to: GEOPROCESS },
+  /**
+   * Picking points on the globe and reading what is under them is a GEOSPATIAL
+   * act — the points are placed on the map and the values come off layers by
+   * position. It ends in a table, but so does a query; what puts it here is
+   * that the question is asked in map space.
+   */
+  { anchor: "extract-run", id: "gp-extract-points", to: GEOPROCESS },
   { anchor: "gis-batch-run", id: "gp-batch", to: GEOPROCESS },
 
   // ── produces a table, a statistic or a chart ────────────────────────────
   { anchor: "zonal-run", id: "an-zonal-stats", to: ANALYSIS },
-  { anchor: "raster-sample", id: "an-sample-rasters", to: ANALYSIS },
-  { anchor: "extract-run", id: "an-extract-points", to: ANALYSIS },
   { anchor: "signal-run", id: "an-signal", to: ANALYSIS },
   // Launchers for Charts, the time slider and the attribute editor — every one
   // of them opens something that reads data rather than making a layer.
@@ -83,6 +88,20 @@ const RETIRED = [
   { id: "gis-symbology-host", why: "symbology dialog" },
   // Workspace's + Data is the one doorway for user data.
   { anchor: "open-wfs", why: "Workspace + Data", buttonOnly: true },
+  /**
+   * Extract From Layers clipped every ticked vector layer to a polygon and
+   * sampled a grid over it. The clipping half now goes through the `clip`
+   * tool and arrives as real, mapped, exportable layers, and the picking half
+   * is Point & Pixel Extraction one section up — so what is left is a third
+   * doorway onto work both of them already do.
+   */
+  { anchor: "gis-extract-run", why: "the clip tool + Point & Pixel Extraction" },
+  // One raster read at one typed coordinate, which Point & Pixel Extraction
+  // does by clicking, for every ticked raster at once.
+  { anchor: "raster-sample", why: "Point & Pixel Extraction" },
+  // Model Builder is a tab on the nav bar; a second door to it inside another
+  // panel is the "one layer, one control" rule pointed at a whole workflow.
+  { anchor: "builder-run", why: "the Model Builder nav tab" },
 ];
 
 const HEADINGS = {
