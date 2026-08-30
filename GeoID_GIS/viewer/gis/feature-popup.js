@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260830-ebf4333";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260830-ebf4333";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260831-38766de";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260831-38766de";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -1076,11 +1076,36 @@ function showPopup(x, y, layerName, feature, layerRecord = null) {
   }
 
   host.hidden = false;
-  // Place it beside the click, then pull it back inside the window. Measuring
-  // after it is shown is the only way to know how tall it ended up.
+  /**
+   * Kept inside the MAP, not the window.
+   *
+   * Two faults met here. The clamp read `min(max(8, y), innerHeight - height)`,
+   * and when a card is taller than the space the second term goes NEGATIVE and
+   * `min` takes it — a tall card was positioned off the top of the screen. The
+   * `max` has to come last, so it can never be beaten.
+   *
+   * And the window is the wrong frame. In the hub the map sits UNDER a fixed
+   * nav bar, so a card obediently placed at `top: 8` is 8 px from the top of
+   * the document with the nav drawn over its head — which is exactly how a
+   * popup came to have its first rows hidden. The canvas's own rect is the
+   * ground the reader can actually see.
+   *
+   * The height is capped before measuring, or a very long attribute list
+   * simply cannot fit whatever the arithmetic says.
+   */
+  const MARGIN = 8;
+  const canvas = window.GeoIDViewer?.renderer?.domElement;
+  const rect = canvas?.getBoundingClientRect?.();
+  const area = rect && rect.width > 0 && rect.height > 0
+    ? rect
+    : { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight,
+      width: window.innerWidth, height: window.innerHeight };
+  host.style.maxHeight = `${Math.max(120, area.height - MARGIN * 2)}px`;
   const box = host.getBoundingClientRect();
-  const left = Math.min(Math.max(8, x + 14), window.innerWidth - box.width - 8);
-  const top = Math.min(Math.max(8, y + 12), window.innerHeight - box.height - 8);
+  const left = Math.max(area.left + MARGIN,
+    Math.min(x + 14, area.right - box.width - MARGIN));
+  const top = Math.max(area.top + MARGIN,
+    Math.min(y + 12, area.bottom - box.height - MARGIN));
   host.style.left = `${left}px`;
   host.style.top = `${top}px`;
 }

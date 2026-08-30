@@ -1,0 +1,82 @@
+/**
+ * A FEATURE CARD STAYS INSIDE THE MAP.
+ *
+ * Two faults met in one line. The clamp read
+ * `min(max(8, y), innerHeight - height)`, and when the card is taller than the
+ * space, that second term is NEGATIVE and `min` takes it — the card was placed
+ * off the TOP of the screen. The `max` has to come last so it cannot be beaten.
+ *
+ * And the window was the wrong frame: in the hub the map sits under a fixed
+ * nav bar, so a card at `top: 8` is 8 px from the top of the DOCUMENT with the
+ * nav drawn over its head, which is how a popup lost its first rows.
+ *
+ * The arithmetic is tested here directly, the DOM being a browser's business.
+ */
+let pass = 0;
+let fail = 0;
+const ok = (name, cond) => {
+  if (cond) { pass += 1; console.log(`PASS ${name}`); }
+  else { fail += 1; console.log(`FAIL ${name}`); }
+};
+
+const MARGIN = 8;
+/** The placement the module performs, in one function. */
+const place = (x, y, box, area) => ({
+  left: Math.max(area.left + MARGIN, Math.min(x + 14, area.right - box.width - MARGIN)),
+  top: Math.max(area.top + MARGIN, Math.min(y + 12, area.bottom - box.height - MARGIN)),
+});
+/** The old one, kept to prove the fault it had. */
+const old = (x, y, box, win) => ({
+  left: Math.min(Math.max(MARGIN, x + 14), win.width - box.width - MARGIN),
+  top: Math.min(Math.max(MARGIN, y + 12), win.height - box.height - MARGIN),
+});
+
+// A map area under a 60 px nav bar, as the hub has.
+const area = { left: 0, top: 60, right: 1200, bottom: 800, width: 1200, height: 740 };
+
+{
+  const p = place(400, 300, { width: 320, height: 400 }, area);
+  ok("an ordinary card sits just off the click", p.left === 414 && p.top === 312);
+}
+{
+  // THE REGRESSION: a card taller than the space available.
+  const box = { width: 320, height: 900 };
+  const p = place(400, 700, box, area);
+  ok("a card taller than the map is pinned to the map's top, never above it",
+    p.top === area.top + MARGIN);
+  ok("and the old arithmetic put it off the top of the screen",
+    old(400, 700, box, { width: 1200, height: 800 }).top < 0);
+}
+{
+  const p = place(1190, 300, { width: 320, height: 400 }, area);
+  ok("a click at the right edge pulls the card back inside",
+    p.left === area.right - 320 - MARGIN);
+}
+{
+  const p = place(400, 780, { width: 320, height: 400 }, area);
+  ok("a click near the bottom lifts the card clear of it",
+    p.top === area.bottom - 400 - MARGIN);
+}
+{
+  const p = place(5, 5, { width: 320, height: 400 }, area);
+  ok("a click above the map never places the card over the nav",
+    p.top >= area.top + MARGIN && p.left >= area.left + MARGIN);
+}
+{
+  // The window fallback, when there is no canvas to measure.
+  const win = { left: 0, top: 0, right: 1000, bottom: 600, width: 1000, height: 600 };
+  const p = place(900, 550, { width: 300, height: 300 }, win);
+  ok("the fallback frame clamps just the same",
+    p.left === 1000 - 300 - MARGIN && p.top === 600 - 300 - MARGIN);
+}
+{
+  // Both dimensions impossible at once: the card is pinned to the top-left of
+  // the area and its own max-height does the rest.
+  const p = place(500, 500, { width: 5000, height: 5000 }, area);
+  ok("an impossible card is pinned inside, not flung outside",
+    p.left === area.left + MARGIN && p.top === area.top + MARGIN);
+}
+
+console.log(`${pass} passed`);
+if (fail) console.log(`${fail} FAILED`);
+process.exit(fail ? 1 : 0);
