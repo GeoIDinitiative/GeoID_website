@@ -200,12 +200,19 @@ async function refine(entry, viewBox, macro) {
  * inside its own ground.
  *
  * So the test is COVERAGE, not membership: a survey is filled in when its
- * pinned-level version reaches less of the study area than its merged version
- * does. A survey the tiles already cover contributes nothing, which keeps the
- * mesh to the gaps and avoids drawing a second copy under a layer the user may
- * well be viewing at reduced opacity.
+ * pinned-level version reaches less of the study area than the best version on
+ * offer does. A survey the tiles already cover contributes nothing, which keeps
+ * the mesh to the gaps and avoids drawing a second copy under a layer the user
+ * may well be viewing at reduced opacity.
+ *
+ * And the candidates must include a SHALLOWER level, not just the merged list.
+ * `featuresIn` merges each survey from its own DEEPEST level, so for 147 it
+ * returned the very zoom-12 version that has the hole — the merged list I was
+ * comparing against carried the same gap. Survey 147's complete version lives
+ * at zoom 8. Offering both lets the coarse one fill the ground the fine one
+ * never covers, while the fine tiles still draw on top wherever they exist.
  */
-function fillInSurveys(merged, own, keyOf, { bounds, coverage, tolerance = 0.02 } = {}) {
+function fillInSurveys(candidates, own, keyOf, { bounds, coverage, tolerance = 0.02 } = {}) {
   const byKey = (list) => {
     const out = new Map();
     for (const f of list || []) {
@@ -215,18 +222,31 @@ function fillInSurveys(merged, own, keyOf, { bounds, coverage, tolerance = 0.02 
     }
     return out;
   };
-  const mergedBy = byKey(merged);
   const ownBy = byKey(own);
-  // With no way to measure ground, fall back to the membership test: it is
-  // wrong only where a survey is PARTLY drawn, and never drops what is missing.
   const reach = (list) => (bounds && coverage ? coverage(list, bounds) : (list?.length ? 1 : 0));
+  // Per survey, the version that reaches furthest across the study area.
+  const best = new Map();
+  for (const list of candidates || []) {
+    for (const [key, group] of byKey(list)) {
+      const got = reach(group);
+      const had = best.get(key);
+      if (!had || got > had.reach) best.set(key, { group, reach: got });
+    }
+  }
   const fill = [];
-  for (const [key, group] of mergedBy) {
+  for (const [key, { group, reach: got }] of best) {
     const drawn = ownBy.get(key);
-    if (drawn && reach(drawn) >= reach(group) - tolerance) continue;
+    if (drawn && reach(drawn) >= got - tolerance) continue;
     fill.push(...group);
   }
   return fill;
+}
+
+/** The level that reaches furthest on its own; among equals the cheapest. */
+function bestCoveringLevel(levels) {
+  const usable = (levels || []).filter((l) => Number.isFinite(l.ownCoverage) && l.tiles);
+  if (!usable.length) return null;
+  return usable.slice().sort((a, b) => (b.ownCoverage - a.ownCoverage) || (a.zoom - b.zoom))[0];
 }
 
 export async function createStreamingClip({ source, mask, name, contacts = null }) {
@@ -312,8 +332,15 @@ export async function createStreamingClip({ source, mask, name, contacts = null 
    * nothing finer to refine to.
    */
   const own = await controller.featuresIn(bounds, { zoom: baseZoom });
-  const fillIn = fillInSurveys(probe.features, own.features, tiles.sourceKey,
-    { bounds, coverage: tiles.coverageWithin });
+  const cover = bestCoveringLevel(probe.levels);
+  const shallow = cover && cover.zoom !== baseZoom
+    ? await controller.featuresIn(bounds, { zoom: cover.zoom })
+    : null;
+  const fillIn = fillInSurveys(
+    [probe.features, shallow?.features].filter(Boolean),
+    own.features, tiles.sourceKey,
+    { bounds, coverage: tiles.coverageWithin },
+  );
   if (fillIn.length) {
     const render = await import(`./vector-render.js${stamp}`);
     const built = render.renderFeatureCollection(
@@ -436,5 +463,6 @@ export async function createStreamingClip({ source, mask, name, contacts = null 
 
 /** Exported for the tests: the box a refine would ask for. */
 export const __fillInSurveys = fillInSurveys;
+export const __bestCoveringLevel = bestCoveringLevel;
 export const __refineBox = refineBox;
 export const __boundsOfCollection = boundsOfCollection;

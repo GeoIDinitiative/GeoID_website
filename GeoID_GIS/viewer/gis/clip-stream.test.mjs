@@ -79,20 +79,20 @@ const mask = { west: -8, south: 54, east: -5, north: 56 };
   // Measured on the north coast: the merged list held surveys 23 and 147 while
   // the drawn level carried only 23, and the northern third drew nothing.
   ok("a survey the pinned level lacks is filled in",
-    fill([f(23, "a"), f(147, "b")], [f(23, "a")], key)
+    fill([[f(23, "a"), f(147, "b")]], [f(23, "a")], key)
       .map((x) => x.id).join() === "b");
   ok("a survey the tiles already draw is NOT duplicated underneath",
-    fill([f(23, "a"), f(23, "b")], [f(23, "a")], key).length === 0);
+    fill([[f(23, "a"), f(23, "b")]], [f(23, "a")], key).length === 0);
   ok("every missing survey is filled, not just the first",
-    fill([f(1, "a"), f(2, "b"), f(3, "c")], [f(1, "a")], key).length === 2);
+    fill([[f(1, "a"), f(2, "b"), f(3, "c")]], [f(1, "a")], key).length === 2);
   ok("when the pinned level carries everything there is no mesh at all",
-    fill([f(1, "a"), f(2, "b")], [f(1, "a"), f(2, "b")], key).length === 0);
+    fill([[f(1, "a"), f(2, "b")]], [f(1, "a"), f(2, "b")], key).length === 0);
   // A level that fetched nothing must not suppress the fill — that is the
   // failure where the clip drew a bare box.
   ok("an empty drawn set fills in everything",
-    fill([f(1, "a"), f(2, "b")], [], key).length === 2);
+    fill([[f(1, "a"), f(2, "b")]], [], key).length === 2);
   ok("an empty merged list asks for no mesh",
-    fill([], [f(1, "a")], key).length === 0);
+    fill([[]], [f(1, "a")], key).length === 0);
   ok("missing lists are survivable",
     fill(null, null, key).length === 0);
 
@@ -110,14 +110,30 @@ const mask = { west: -8, south: 54, east: -5, north: 56 };
   const g = (src, reach, id) => ({ src, reach, id });
 
   ok("a survey drawn over only part of its ground is filled in",
-    fill([g(147, 1.0, "full")], [g(147, 0.64, "part")], key, { bounds, coverage: cov })
+    fill([[g(147, 1.0, "full")]], [g(147, 0.64, "part")], key, { bounds, coverage: cov })
       .map((x) => x.id).join() === "full");
   ok("a survey the tiles already cover is not drawn a second time",
-    fill([g(23, 1.0, "a")], [g(23, 1.0, "a")], key, { bounds, coverage: cov }).length === 0);
+    fill([[g(23, 1.0, "a")]], [g(23, 1.0, "a")], key, { bounds, coverage: cov }).length === 0);
   ok("a hair less reach is not worth a second copy under a semi-opaque layer",
-    fill([g(23, 1.0, "a")], [g(23, 0.99, "a")], key, { bounds, coverage: cov }).length === 0);
+    fill([[g(23, 1.0, "a")]], [g(23, 0.99, "a")], key, { bounds, coverage: cov }).length === 0);
   ok("a survey absent from the pinned level is still filled in when measuring",
-    fill([g(154, 1.0, "a")], [g(23, 1.0, "b")], key, { bounds, coverage: cov }).length === 1);
+    fill([[g(154, 1.0, "a")]], [g(23, 1.0, "b")], key, { bounds, coverage: cov }).length === 1);
+
+  /**
+   * THE MERGED LIST CARRIES THE SAME HOLE, so it cannot be the only candidate.
+   *
+   * `featuresIn` merges each survey from its own DEEPEST level. Survey 147's
+   * deepest level IS the pinned zoom 12, the one with the gap, so comparing
+   * against the merged list compared the hole with itself and filled nothing —
+   * 81.6% coverage, unchanged, twice. The complete 147 is at zoom 8.
+   */
+  ok("a shallower, fuller version of the same survey is what fills the gap",
+    fill([[g(147, 0.64, "deep")], [g(147, 1.0, "shallow")]],
+         [g(147, 0.64, "deep")], key, { bounds, coverage: cov })
+      .map((x) => x.id).join() === "shallow");
+  ok("the deeper version still wins when it reaches just as far",
+    fill([[g(147, 1.0, "deep")], [g(147, 1.0, "shallow")]],
+         [g(147, 1.0, "deep")], key, { bounds, coverage: cov }).length === 0);
 }
 
 console.log(`${pass} passed`);
