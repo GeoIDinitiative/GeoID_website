@@ -1,21 +1,21 @@
-import * as GP from "./geoprocessing.js?v=20260830-6505cc7";
-import * as RA from "./raster-analysis.js?v=20260830-6505cc7";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260830-6505cc7";
+import * as GP from "./geoprocessing.js?v=20260830-d46a2f6";
+import * as RA from "./raster-analysis.js?v=20260830-d46a2f6";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260830-d46a2f6";
 // eslint-disable-next-line no-unused-vars
-import { pointInPolygon } from "./geometry.js?v=20260830-6505cc7";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260830-6505cc7";
+import { pointInPolygon } from "./geometry.js?v=20260830-d46a2f6";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260830-d46a2f6";
 // Pure and DOM-free, so a static import keeps this module Node-clean AND keeps
 // the terrain engine SYNCHRONOUS -- runTool calls engines.native WITHOUT
 // awaiting it, so an async engine hands register() a Promise and the raster
 // comes out undefined. Measured as: "Cannot read properties of undefined".
-import { buildSurface, nativeStepM } from "./model-build.js?v=20260830-6505cc7";
-import { nativeGridOf } from "./extraction.js?v=20260830-6505cc7";
-import { CRS_OPTIONS } from "./projection.js?v=20260830-6505cc7";
-import * as IN from "./interpolation.js?v=20260830-6505cc7";
-import * as VAL from "./validation.js?v=20260830-6505cc7";
-import * as EX from "./analysis-extra.js?v=20260830-6505cc7";
-import * as HY from "./hydrology.js?v=20260830-6505cc7";
-import * as KR from "./kriging.js?v=20260830-6505cc7";
+import { buildSurface, nativeStepM } from "./model-build.js?v=20260830-d46a2f6";
+import { nativeGridOf } from "./extraction.js?v=20260830-d46a2f6";
+import { CRS_OPTIONS } from "./projection.js?v=20260830-d46a2f6";
+import * as IN from "./interpolation.js?v=20260830-d46a2f6";
+import * as VAL from "./validation.js?v=20260830-d46a2f6";
+import * as EX from "./analysis-extra.js?v=20260830-d46a2f6";
+import * as HY from "./hydrology.js?v=20260830-d46a2f6";
+import * as KR from "./kriging.js?v=20260830-d46a2f6";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -2297,7 +2297,23 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
    * the result from the source's own `color` column — which the streaming path
    * never reached, because it returned before it.
    */
-  const { borrowed, box, note: liveNote } = await refreshLiveInputs(desc, inputs, params);
+  /**
+   * A CLIP DISCOVERS AT THE SOURCE'S DEEPEST LEVEL, whatever its extent.
+   *
+   * The tile budget picks the level from the BOX, so a study area's resolution
+   * fell off as it grew: measured at one centre, 4.10 vertices per km2 over
+   * 15 km, 2.97 over 45 km and 1.92 over 90 km — a large extent landing on a
+   * shallow level, where `carto` serves the REGIONAL survey, so the clip came
+   * back in clunky blocks while the detailed geology sat there undiscovered
+   * until you zoomed in.
+   *
+   * That budget exists to bound what is DRAWN. A clip draws none of it: the
+   * tiles are asked one question, WHICH units are here, and the geometry then
+   * comes from the JSON API. So the budget is spent in full here and the level
+   * stops falling out of the size of the box.
+   */
+  const runParams = toolId === "clip" ? { ...params, detail: "maximum" } : params;
+  const { borrowed, box, note: liveNote } = await refreshLiveInputs(desc, inputs, runParams);
   /**
    * A clip is meant to be the source map inside a polygon, so it is cut from
    * the units themselves rather than from the tiles they were served in.
@@ -2329,7 +2345,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260830-6505cc7");
+    const client = await import("./sidecar-client.js?v=20260830-d46a2f6");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -2394,7 +2410,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260830-6505cc7");
+    const bridge = await import("./research/bridge.js?v=20260830-d46a2f6");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -2406,12 +2422,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260830-6505cc7");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260830-d46a2f6");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260830-6505cc7");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260830-d46a2f6");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }
