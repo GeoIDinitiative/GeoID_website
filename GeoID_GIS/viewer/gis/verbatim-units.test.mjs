@@ -186,53 +186,87 @@ const answering = (calls) => async (url) => {
 }
 
 /**
- * A COARSE POLYGON A FINER SURVEY ALREADY MAPS IN FULL IS DROPPED.
+ * THE COARSE SURVEY'S GROUND IS TAKEN AWAY WHERE A FINER ONE MAPS IT.
  *
- * Subtracting the finer polygons is the obvious move and `booleanOp` cannot do
- * it. Measured against a coarse 2x2: a finer square in its CORNER (sharing two
- * edges) came back EMPTY — the whole polygon deleted, 3 units of real ground
- * lost — while a finer square strictly INSIDE returned 4.0, no cut at all,
- * because a hole is not expressible as one ring. A cut that deletes a polygon
- * whenever two share an edge is exactly the "gaps in the mapping" this is
- * meant to end, so geometry is left alone and containment decides.
+ * Drawing the finer survey on top is not enough, and dropping only the wholly
+ * covered ones is not either: measured, 3,155 of 3,156 points on detailed
+ * ground still had a regional polygon underneath, because a coarse unit that
+ * runs offshore is only PARTLY covered.
+ *
+ * `geoprocessing.difference` is the engine for it. `geometry.booleanOp` is
+ * not: against a coarse 2x2 with a finer square in its CORNER it returned
+ * EMPTY and deleted the polygon whole, and with one strictly INSIDE it cut
+ * nothing, a hole being inexpressible as one ring.
  */
 {
   const { __dropOutranked: drop } = await import("./tool-runner.js");
-  const { pointInPolygon } = await import("./geometry.js");
+  const GP = await import("./geoprocessing.js");
   const sq = (x0, y0, x1, y1) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]];
-  const feat = (rank, ring, id) => ({ properties: { id, rank },
+  const feat = (rank, ring, id) => ({ type: "Feature", properties: { id, rank },
     geometry: { type: "Polygon", coordinates: [ring] } });
   const rankOf = (f) => f.properties.rank;
-  const ids = (out) => out.map((f) => f.properties.id).sort().join(",");
+  const area = (f) => {
+    const ps = f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates;
+    return ps.reduce((s, poly) => s + poly.reduce((t, r, ri) => {
+      let a = 0;
+      for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+        a += (r[j][0] * r[i][1]) - (r[i][0] * r[j][1]);
+      }
+      return t + (ri === 0 ? 1 : -1) * Math.abs(a / 2);
+    }, 0), 0);
+  };
+  const byId = (out, id) => out.find((f) => f.properties.id === id);
 
-  ok("a coarse polygon a finer survey covers entirely is dropped",
-    ids(drop([feat(1, sq(0, 0, 1, 1), "coarse"), feat(9, sq(-1, -1, 2, 2), "fine")],
-      rankOf, pointInPolygon)) === "fine");
-
-  ok("a partly covered coarse polygon is KEPT, whole",
-    ids(drop([feat(1, sq(0, 0, 2, 2), "coarse"), feat(9, sq(0, 0, 1, 1), "fine")],
-      rankOf, pointInPolygon)) === "coarse,fine");
-
-  // THE OFFSHORE CASE: nothing finer reaches it.
-  ok("ground no finer survey maps is kept",
-    ids(drop([feat(1, sq(10, 10, 12, 12), "offshore"), feat(9, sq(0, 0, 1, 1), "fine")],
-      rankOf, pointInPolygon)) === "fine,offshore");
-
-  ok("a polygon is never dropped by one of EQUAL rank",
-    drop([feat(5, sq(0, 0, 1, 1), "a"), feat(5, sq(-1, -1, 2, 2), "b")],
-      rankOf, pointInPolygon).length === 2);
-
-  ok("a finer polygon is never dropped by a coarser one",
-    ids(drop([feat(9, sq(0, 0, 1, 1), "fine"), feat(1, sq(-1, -1, 2, 2), "coarse")],
-      rankOf, pointInPolygon)) === "coarse,fine");
-
-  ok("two coarse polygons under one finer blanket both go",
-    ids(drop([feat(1, sq(0, 0, 1, 1), "c1"), feat(1, sq(1, 1, 2, 2), "c2"),
-      feat(9, sq(-1, -1, 3, 3), "fine")], rankOf, pointInPolygon)) === "fine");
-
-  ok("nothing in, nothing out", drop([], rankOf, pointInPolygon).length === 0);
-  ok("a feature with no geometry is kept rather than lost",
-    drop([{ properties: { id: "x", rank: 1 }, geometry: null }], rankOf, pointInPolygon).length === 1);
+  {
+    // The real shape of the problem: a coarse unit running offshore, a finer
+    // survey over the land part of it.
+    const out = drop([feat(1, sq(0, 0, 2, 2), "coarse"), feat(9, sq(0.25, 0.25, 0.75, 0.75), "fine")],
+      rankOf, GP.difference);
+    const coarse = byId(out, "coarse");
+    ok("the coarse polygon loses exactly the finer survey's ground",
+      coarse && Math.abs(area(coarse) - 3.75) < 1e-6);
+    ok("and the finer one is untouched", Math.abs(area(byId(out, "fine")) - 0.25) < 1e-9);
+  }
+  {
+    const out = drop([feat(1, sq(0, 0, 1, 1), "coarse"), feat(9, sq(-1, -1, 2, 2), "fine")],
+      rankOf, GP.difference);
+    ok("a wholly covered coarse polygon is gone", !byId(out, "coarse"));
+    ok("leaving only the finer survey", out.length === 1);
+  }
+  {
+    // THE OFFSHORE CASE: nothing finer reaches it, so it keeps every bit.
+    const out = drop([feat(1, sq(10, 10, 12, 12), "offshore"), feat(9, sq(0, 0, 1, 1), "fine")],
+      rankOf, GP.difference);
+    ok("ground no finer survey maps is kept whole",
+      Math.abs(area(byId(out, "offshore")) - 4) < 1e-9);
+  }
+  {
+    const out = drop([feat(5, sq(0, 0, 2, 2), "a"), feat(5, sq(1, 1, 3, 3), "b")],
+      rankOf, GP.difference);
+    ok("polygons of EQUAL rank never cut each other",
+      out.length === 2 && Math.abs(area(out[0]) - 4) < 1e-9 && Math.abs(area(out[1]) - 4) < 1e-9);
+  }
+  {
+    const three = drop([feat(1, sq(0, 0, 3, 3), "coarse"), feat(5, sq(0.5, 0.5, 1, 1), "mid"),
+      feat(9, sq(2, 2, 2.5, 2.5), "fine")], rankOf, GP.difference);
+    ok("three tiers each cut by everything finer",
+      Math.abs(area(byId(three, "coarse")) - (9 - 0.25 - 0.25)) < 1e-6);
+  }
+  {
+    const boom = () => { throw new Error("degenerate"); };
+    const out = drop([feat(1, sq(0, 0, 2, 2), "coarse"), feat(9, sq(0.25, 0.25, 0.75, 0.75), "fine")],
+      rankOf, boom);
+    ok("a failed cut keeps the ground rather than losing it",
+      Math.abs(area(byId(out, "coarse")) - 4) < 1e-9);
+    ok("and a non-collection answer is refused too",
+      Math.abs(area(byId(drop([feat(1, sq(0, 0, 2, 2), "coarse"),
+        feat(9, sq(0.25, 0.25, 0.75, 0.75), "fine")], rankOf, () => null), "coarse")) - 4) < 1e-9);
+  }
+  {
+    ok("one tier is left exactly as it came",
+      drop([feat(5, sq(0, 0, 1, 1), "a")], rankOf, GP.difference).length === 1);
+    ok("nothing in, nothing out", drop([], rankOf, GP.difference).length === 0);
+  }
 }
 
 console.log(`${pass} passed`);

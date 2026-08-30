@@ -1,20 +1,21 @@
-import * as GP from "./geoprocessing.js?v=20260830-b9baa90";
-import * as RA from "./raster-analysis.js?v=20260830-b9baa90";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260830-b9baa90";
-import { pointInPolygon } from "./geometry.js?v=20260830-b9baa90";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260830-b9baa90";
+import * as GP from "./geoprocessing.js?v=20260830-6505cc7";
+import * as RA from "./raster-analysis.js?v=20260830-6505cc7";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260830-6505cc7";
+// eslint-disable-next-line no-unused-vars
+import { pointInPolygon } from "./geometry.js?v=20260830-6505cc7";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260830-6505cc7";
 // Pure and DOM-free, so a static import keeps this module Node-clean AND keeps
 // the terrain engine SYNCHRONOUS -- runTool calls engines.native WITHOUT
 // awaiting it, so an async engine hands register() a Promise and the raster
 // comes out undefined. Measured as: "Cannot read properties of undefined".
-import { buildSurface, nativeStepM } from "./model-build.js?v=20260830-b9baa90";
-import { nativeGridOf } from "./extraction.js?v=20260830-b9baa90";
-import { CRS_OPTIONS } from "./projection.js?v=20260830-b9baa90";
-import * as IN from "./interpolation.js?v=20260830-b9baa90";
-import * as VAL from "./validation.js?v=20260830-b9baa90";
-import * as EX from "./analysis-extra.js?v=20260830-b9baa90";
-import * as HY from "./hydrology.js?v=20260830-b9baa90";
-import * as KR from "./kriging.js?v=20260830-b9baa90";
+import { buildSurface, nativeStepM } from "./model-build.js?v=20260830-6505cc7";
+import { nativeGridOf } from "./extraction.js?v=20260830-6505cc7";
+import { CRS_OPTIONS } from "./projection.js?v=20260830-6505cc7";
+import * as IN from "./interpolation.js?v=20260830-6505cc7";
+import * as VAL from "./validation.js?v=20260830-6505cc7";
+import * as EX from "./analysis-extra.js?v=20260830-6505cc7";
+import * as HY from "./hydrology.js?v=20260830-6505cc7";
+import * as KR from "./kriging.js?v=20260830-6505cc7";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -2159,73 +2160,56 @@ function surveyRanks(features) {
 }
 
 /**
- * DROP A COARSE POLYGON THAT A FINER SURVEY ALREADY MAPS IN FULL.
+ * TAKE THE COARSE SURVEY'S GROUND AWAY WHERE A FINER ONE MAPS IT.
  *
- * Drawing the finer survey on top is not enough: the coarse polygon stays in
- * the picker, the attribute table, the export and the area sums, so the layer
- * says two things about one piece of ground.
+ * Drawing the finer survey on top is not enough. The coarse polygon is still
+ * THERE — in the picker, the attribute table, an export, the area sums — and
+ * it lingers wherever the fine fill does not exactly cover it. Measured before
+ * this: of 3,156 sample points on ground the detailed survey maps, 3,155 still
+ * had a regional polygon underneath, because a coarse unit that runs offshore
+ * is only PARTLY covered and so cannot simply be dropped.
  *
- * The obvious move is to SUBTRACT the finer polygons, and this file's own
- * `booleanOp` cannot do it. Measured against a coarse 2x2 square:
+ * `geoprocessing.difference` is the engine the Difference tool uses, and it is
+ * the one to use here. Its raw counterpart in `geometry.js` is not: measured
+ * against a coarse 2x2 square with a finer square in its CORNER, sharing two
+ * edges, `booleanOp` returned EMPTY and deleted the whole polygon — three
+ * units of real ground lost — and with the finer square strictly INSIDE it cut
+ * nothing at all, a hole being inexpressible as one ring.
  *
- *   - a finer square in its CORNER, sharing two edges -> the coarse polygon
- *     comes back EMPTY and is dropped whole, losing 3 units of real ground;
- *   - a finer square strictly INSIDE it -> 4.0 returned, no cut at all, because
- *     a difference with an interior hole is not expressible as one ring and
- *     Greiner-Hormann finds no crossings to work from;
- *   - a finer square touching ONE edge -> 4.0 again.
+ * `difference` gets both right (3.75 for the hole case, 0 when wholly covered,
+ * 4 when disjoint). It does NOT cut when the two share an edge exactly, which
+ * is a no-op that keeps the ground — the safe direction to fail, and rare
+ * between two independent surveys.
  *
- * A cut that silently does nothing is survivable. A cut that deletes a polygon
- * whenever the two happen to share an edge is exactly the "gaps in the
- * mapping" this is meant to end, so geometry is left alone.
- *
- * What is safe is a containment test: a coarse polygon whose ground is
- * ENTIRELY mapped by finer surveys has nothing left to say and is dropped.
- * One that is only partly covered is kept whole, and the drawn precedence
- * shows it only where the finer survey does not reach — which is how the
- * offshore and bathymetry cover survives.
+ * Cutters are the ORIGINAL finer shapes, never the cut ones, or a tier three
+ * deep would be subtracted with geometry that has already lost its middle.
  */
-function dropOutranked(features, rankOf, pointInPoly, samples = 12) {
-  const polysOf = (g) => (!g ? []
-    : g.type === "Polygon" ? [g.coordinates]
-      : g.type === "MultiPolygon" ? g.coordinates : []);
-  const bboxOf = (poly) => {
-    let minX = Infinity; let minY = Infinity; let maxX = -Infinity; let maxY = -Infinity;
-    poly[0].forEach(([x, y]) => {
-      if (x < minX) minX = x; if (x > maxX) maxX = x;
-      if (y < minY) minY = y; if (y > maxY) maxY = y;
-    });
-    return { minX, minY, maxX, maxY };
-  };
-  const order = features.map((f) => ({ f, rank: rankOf(f) || 0 }))
-    .sort((a, b) => b.rank - a.rank);
-  const finer = [];
+function dropOutranked(features, rankOf, differenceOf) {
+  const tiers = [...new Set(features.map((f) => rankOf(f) || 0))].sort((a, b) => b - a);
+  if (tiers.length < 2) return features;
   const kept = [];
-  for (const { f, rank } of order) {
-    const polys = polysOf(f.geometry);
-    const usable = polys.filter((p) => p[0] && p[0].length >= 4);
-    if (!usable.length) { kept.push(f); continue; }
-    const covered = usable.every((poly) => {
-      const b = bboxOf(poly);
-      let tested = 0;
-      for (let i = 0; i < samples; i += 1) {
-        for (let j = 0; j < samples; j += 1) {
-          const x = b.minX + ((b.maxX - b.minX) * (i + 0.5)) / samples;
-          const y = b.minY + ((b.maxY - b.minY) * (j + 0.5)) / samples;
-          if (!pointInPoly([x, y], poly)) continue;   // only its own ground
-          tested += 1;
-          const under = finer.some((c) => c.rank > rank
-            && x >= c.box.minX && x <= c.box.maxX && y >= c.box.minY && y <= c.box.maxY
-            && pointInPoly([x, y], c.poly));
-          if (!under) return false;
-        }
-      }
-      // Nothing sampled inside means a sliver too thin to judge: keep it.
-      return tested > 0;
-    });
-    if (covered) continue;
-    kept.push(f);
-    usable.forEach((poly) => finer.push({ rank, poly, box: bboxOf(poly) }));
+  const finer = [];
+  for (const tier of tiers) {
+    const here = features.filter((f) => (rankOf(f) || 0) === tier);
+    if (!finer.length) {
+      kept.push(...here);
+      finer.push(...here);
+      continue;
+    }
+    let out = here;
+    try {
+      const cut = differenceOf(
+        { type: "FeatureCollection", features: here },
+        { type: "FeatureCollection", features: finer },
+      );
+      // A failed or empty answer must not silently empty the map: only trust
+      // it when it IS a collection.
+      if (cut && Array.isArray(cut.features)) out = cut.features.filter((f) => f?.geometry);
+    } catch (error) {
+      out = here;   // keep the ground rather than lose it
+    }
+    kept.push(...out);
+    finer.push(...here);
   }
   return kept;
 }
@@ -2345,7 +2329,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260830-b9baa90");
+    const client = await import("./sidecar-client.js?v=20260830-6505cc7");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -2410,7 +2394,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260830-b9baa90");
+    const bridge = await import("./research/bridge.js?v=20260830-6505cc7");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -2422,12 +2406,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260830-b9baa90");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260830-6505cc7");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260830-b9baa90");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260830-6505cc7");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }
@@ -2631,7 +2615,7 @@ function register(desc, raw, name, resolvedInputs = {}) {
    * sums, and lingers wherever the fine fill does not exactly cover it.
    */
   const shown = rankOf
-    ? { ...fc, features: dropOutranked(fc.features, rankOf, pointInPolygon) }
+    ? { ...fc, features: dropOutranked(fc.features, rankOf, GP.difference) }
     : fc;
   /**
    * THE PICKER READS THIS ARRAY IN ORDER, so the finest survey goes first.
