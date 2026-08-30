@@ -3279,6 +3279,48 @@ scratches are not backface culling; every tile carries its boundary seal; and
 the clip's own mesh is clean. The seams are back with the revert, and
 that is the honest state: the fix is a ribbon seal, not a backdrop.
 
+### A DEEPER tile level can be a different, PARTIAL survey
+
+"It must be an issue with different countries' datasets and offshore. When we
+clip we want all the geology data that exists from the Macrostrat server within
+the drawn bounds." The hypothesis was right and the effect is larger than it
+sounds.
+
+Macrostrat's `carto` layer is not one map drawn at many scales: it COMPOSITES
+several source surveys and switches between them by zoom. Measured over a box
+straddling the Northern Ireland border (60x60 sample grid, real tiles):
+
+| zoom | tiles | coverage | units | source datasets | vertices in box |
+| --- | --- | --- | --- | --- | --- |
+| 5 | 1 | 99.6% | 14 | 1 | 428 |
+| 6 | 1 | 99.6% | 32 | **2** | 3,091 |
+| 8 | 4 | **99.9%** | **33** | **2** | 5,872 |
+| 9 | 9 | **56.1%** | 24 | **1** | 6,551 |
+| 10 | 30 | **56.1%** | 24 | **1** | 8,026 |
+
+Past zoom 8 the Republic's survey is simply not in the tiles. **1,579 of 3,600
+sample points lose their geology — 44% of the ground — while the VERTEX COUNT
+RISES**, because the one surviving survey is drawn more finely.
+
+**So the climb's ruler said "better" about a level that had thrown half the map
+away.** Detail and coverage are different questions and it only asked one. This
+is the second time in two days that this ruler has been the fault and the
+lesson is the same one sharpened: *when a chooser keeps picking the option you
+would not, check what it is maximising* — and check that what it maximises is
+the whole of what you want.
+
+A level that has LOST ground is now refused whatever its detail
+(`coverageWithin`, sampled on a 24x24 grid with a bounds reject first, gated at
+`COVERAGE_TOLERANCE = 0.03` — generalisation wobble along a coast, nowhere near
+a survey going missing). Measured after, on the same box: the climb probes 6
+(99.5%), 7 (99.8%), 8 (100%), refuses 9 at 56.3% and stops for `"coverage"` —
+**zoom 8, 100% covered, 70 units, 2 source datasets, 923 features**, where
+before it went to zoom 10 with 24 units from one.
+
+**Deeper is not more.** Where a source composites surveys, "the deepest level
+available" and "everything that exists here" are different requests, and only
+the second is what a clip means.
+
 ### The duplicate audit: 26 of 26, and the runner is the superset
 
 Asked to audit the rest and keep the most developed of each. Measured by

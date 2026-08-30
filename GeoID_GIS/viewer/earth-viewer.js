@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260830-d29d5e8";
+  from "./gis/geo-utils.js?v=20260830-b2925b9";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {

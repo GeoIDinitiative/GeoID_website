@@ -1,4 +1,4 @@
-import { featureCollection, feature, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260830-d29d5e8";
+import { featureCollection, feature, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260830-b2925b9";
 
 // Readers and writers for the interchange formats a GIS is expected to handle.
 // Everything normalises to / from GeoJSON so the toolbox only ever sees one
