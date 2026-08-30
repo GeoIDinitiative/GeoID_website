@@ -1,19 +1,19 @@
-import * as GP from "./geoprocessing.js?v=20260830-f36fa2c";
-import * as RA from "./raster-analysis.js?v=20260830-f36fa2c";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260830-f36fa2c";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260830-f36fa2c";
+import * as GP from "./geoprocessing.js?v=20260830-78b3fc0";
+import * as RA from "./raster-analysis.js?v=20260830-78b3fc0";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260830-78b3fc0";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260830-78b3fc0";
 // Pure and DOM-free, so a static import keeps this module Node-clean AND keeps
 // the terrain engine SYNCHRONOUS -- runTool calls engines.native WITHOUT
 // awaiting it, so an async engine hands register() a Promise and the raster
 // comes out undefined. Measured as: "Cannot read properties of undefined".
-import { buildSurface, nativeStepM } from "./model-build.js?v=20260830-f36fa2c";
-import { nativeGridOf } from "./extraction.js?v=20260830-f36fa2c";
-import { CRS_OPTIONS } from "./projection.js?v=20260830-f36fa2c";
-import * as IN from "./interpolation.js?v=20260830-f36fa2c";
-import * as VAL from "./validation.js?v=20260830-f36fa2c";
-import * as EX from "./analysis-extra.js?v=20260830-f36fa2c";
-import * as HY from "./hydrology.js?v=20260830-f36fa2c";
-import * as KR from "./kriging.js?v=20260830-f36fa2c";
+import { buildSurface, nativeStepM } from "./model-build.js?v=20260830-78b3fc0";
+import { nativeGridOf } from "./extraction.js?v=20260830-78b3fc0";
+import { CRS_OPTIONS } from "./projection.js?v=20260830-78b3fc0";
+import * as IN from "./interpolation.js?v=20260830-78b3fc0";
+import * as VAL from "./validation.js?v=20260830-78b3fc0";
+import * as EX from "./analysis-extra.js?v=20260830-78b3fc0";
+import * as HY from "./hydrology.js?v=20260830-78b3fc0";
+import * as KR from "./kriging.js?v=20260830-78b3fc0";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -2272,7 +2272,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260830-f36fa2c");
+    const client = await import("./sidecar-client.js?v=20260830-78b3fc0");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -2337,7 +2337,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260830-f36fa2c");
+    const bridge = await import("./research/bridge.js?v=20260830-78b3fc0");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -2349,12 +2349,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260830-f36fa2c");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260830-78b3fc0");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260830-f36fa2c");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260830-78b3fc0");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }
@@ -2552,6 +2552,22 @@ function register(desc, raw, name, resolvedInputs = {}) {
   const rankOf = ranks.size > 1
     ? (f) => ranks.get(String(f?.properties?.source_id ?? "")) || 0
     : null;
+  /**
+   * THE PICKER READS THIS ARRAY IN ORDER, so the finest survey goes first.
+   *
+   * `featureInLayer` returns the FIRST feature whose polygon contains the
+   * point, and `polygonIndex` — the sampler behind extraction and the geology
+   * readout — is built from this array in the same order. Left as fetched, a
+   * click on ground the fine survey holds returned a regional unit that is not
+   * even the one drawn there: reported as selecting "Mesozoic sedimentary
+   * rocks", 409 km2 from survey 154, over detailed geology.
+   *
+   * The draw order is the OPPOSITE — coarse first, so the fine fill lands on
+   * top — and the renderer sorts its own iteration for that. So the array is
+   * free to carry the order the pickers need, and the two no longer disagree
+   * about which survey owns a piece of ground.
+   */
+  if (rankOf) fc.features.sort((a, b) => rankOf(b) - rankOf(a));
   const result = buildVectorLayerResult(fc, { name, drape: 0.008, rankOf });
   const layer = window.GeoIDImportManager?.addDerivedLayer?.(name, result, "derived") || null;
   /**

@@ -155,6 +155,36 @@ const answering = (calls) => async (url) => {
     rr.get("23") > rr.get("147"));
 }
 
+/**
+ * THE PICKER AND THE PAINTER MUST AGREE ABOUT WHO OWNS THE GROUND.
+ *
+ * `featureInLayer` returns the FIRST feature whose polygon contains the point,
+ * and the extraction sampler is built from the same array in the same order.
+ * The draw order is the opposite — coarse first, so the fine fill lands on top.
+ * Left as fetched, a click on ground the fine survey holds came back as a
+ * regional unit that was not even the one drawn there.
+ */
+{
+  const { __surveyRanks: ranks } = await import("./tool-runner.js");
+  const square = (source, extra) => ({
+    properties: { source_id: source },
+    geometry: { type: "Polygon", coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1],
+      ...Array.from({ length: extra }, (_, i) => [1 - (i + 1) / (extra + 1), 1]), [0, 0]]] },
+  });
+  const features = [square(154, 0), square(23, 40)];   // coarse first, as fetched
+  const r = ranks(features);
+  const rankOf = (f) => r.get(String(f.properties.source_id)) || 0;
+  const forPicking = [...features].sort((a, b) => rankOf(b) - rankOf(a));
+  const forDrawing = [...features].sort((a, b) => rankOf(a) - rankOf(b));
+
+  ok("the picker meets the FINEST survey first",
+    forPicking[0].properties.source_id === 23);
+  ok("the painter draws the finest survey LAST, so it lands on top",
+    forDrawing[forDrawing.length - 1].properties.source_id === 23);
+  ok("the two orders are exact opposites",
+    forPicking[0] === forDrawing[forDrawing.length - 1]);
+}
+
 console.log(`${pass} passed`);
 if (fail) console.log(`${fail} FAILED`);
 process.exit(fail ? 1 : 0);
