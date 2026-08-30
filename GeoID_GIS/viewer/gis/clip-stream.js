@@ -125,8 +125,32 @@ async function refine(entry, viewBox, macro) {
    * within it is free; past it is the map losing datasets to buy detail it was
    * never asked for.
    */
+  /**
+   * WEAR THE SOURCE'S OWN LEVEL, because a clip is meant to be that map.
+   *
+   * `zoomForBounds` answers from the BOX, and a refine's box is the study
+   * area's intersection with the view — smaller than the view the world layer
+   * is drawing, so it lands on a different level. That is not a harmless
+   * difference in sharpness: Macrostrat's `carto` composites several source
+   * surveys and SWITCHES BETWEEN THEM by scale, so the two levels are
+   * different geology over identical ground.
+   *
+   * Measured on the north coast, the clip against the world layer it was cut
+   * from: only 39.3% of sampled points were the same colour, the ground the
+   * world drew as pink Argyll Group coming back pale Southern Highland Group,
+   * and three separate world units collapsing into one green. Pinning the clip
+   * to the world layer's own level took the same measurement to 62.2%.
+   *
+   * So the level is asked of the source rather than derived a second time.
+   */
+  const fromSource = entry.source?.getViewZoom?.();
+  // The ceiling guards the DERIVED level. A level taken from the source needs
+  // no guarding — it is, by construction, what the map itself is drawing, and
+  // clamping it would freeze the clip a level behind as the user zooms in.
   const wanted = macro.zoomForBounds(box);
-  const zoom = Number.isFinite(entry.ceiling) ? Math.min(wanted, entry.ceiling) : wanted;
+  const zoom = Number.isFinite(fromSource)
+    ? fromSource
+    : (Number.isFinite(entry.ceiling) ? Math.min(wanted, entry.ceiling) : wanted);
   if (zoom === entry.zoom) return;
   entry.busy = true;
   try {
@@ -262,7 +286,13 @@ export async function createStreamingClip({ source, mask, name, contacts = null 
    * finest level, and the surveys that level does not have are drawn beneath
    * it from their own best level.
    */
-  const baseZoom = Number.isFinite(probe.zoom) ? probe.zoom : zoom;
+  /**
+   * The source's own level first, so the clip matches the map it was cut from
+   * on its FIRST draw rather than after the first settle.
+   */
+  const sourceZoom = controllerOf.getViewZoom?.();
+  const baseZoom = Number.isFinite(sourceZoom) ? sourceZoom
+    : (Number.isFinite(probe.zoom) ? probe.zoom : zoom);
   await controller.pin({ bounds, zoom: baseZoom });
 
   /**
@@ -395,7 +425,7 @@ export async function createStreamingClip({ source, mask, name, contacts = null 
   };
   layer.onRemove = () => { live.delete(layer.id); controller.dispose(); };
 
-  live.set(layer.id, { layer, controller, mask: bounds, zoom: baseZoom, baseZoom,
+  live.set(layer.id, { layer, controller, source: controllerOf, mask: bounds, zoom: baseZoom, baseZoom,
     /**
      * The climb's own choice, coverage gate and all. NOT the deepest
      * fully-covering level: capping there cost the map its detail, and the
