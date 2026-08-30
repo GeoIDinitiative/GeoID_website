@@ -53,6 +53,10 @@ const BLOCKS = [
    * onto the other shelf.
    */
   { anchor: "attr-query-run", id: "gp-attribute-table", to: GEOPROCESS },
+  // A query ends in a SELECTION on the map, and its syntax card travels with
+  // it — a help panel stranded on the other shelf explains nothing there.
+  { anchor: "vector-query", id: "gp-attribute-query", to: GEOPROCESS },
+  { titleMatch: "Query syntax", id: "gp-query-syntax", to: GEOPROCESS },
   { anchor: "gis-batch-run", id: "gp-batch", to: GEOPROCESS },
 
   // ── produces a table, a statistic or a chart ────────────────────────────
@@ -60,6 +64,9 @@ const BLOCKS = [
   { anchor: "raster-sample", id: "an-sample-rasters", to: ANALYSIS },
   { anchor: "extract-run", id: "an-extract-points", to: ANALYSIS },
   { anchor: "signal-run", id: "an-signal", to: ANALYSIS },
+  // Launchers for Charts, the time slider and the attribute editor — every one
+  // of them opens something that reads data rather than making a layer.
+  { anchor: "open-charts", id: "an-explore", to: ANALYSIS },
 ];
 
 /**
@@ -102,8 +109,26 @@ const bodyOf = (groupId) => document.getElementById(groupId)
 function blockFor(spec) {
   const known = spec.id ? document.getElementById(spec.id) : null;
   if (known) return known;
-  const anchor = spec.anchor ? document.getElementById(spec.anchor) : null;
-  return anchor ? anchor.closest("details") : null;
+  if (spec.anchor) {
+    const anchor = document.getElementById(spec.anchor);
+    return anchor ? anchor.closest("details") : null;
+  }
+  /**
+   * Some blocks hold no control at all — a syntax card is prose — so there is
+   * nothing to anchor on but the words in its own summary. Scoped to the two
+   * shelves so a title used elsewhere on the page cannot be dragged in.
+   */
+  if (spec.titleMatch) {
+    for (const groupId of [GEOPROCESS, ANALYSIS]) {
+      const body = bodyOf(groupId);
+      if (!body) continue;
+      const hit = [...body.children].find((n) => n.tagName === "DETAILS"
+        && (n.querySelector(":scope > summary")?.textContent || "").trim()
+          .startsWith(spec.titleMatch));
+      if (hit) return hit;
+    }
+  }
+  return null;
 }
 
 function applyOnce() {
@@ -122,10 +147,19 @@ function applyOnce() {
     if (claimed.has(block)) return;
     claimed.add(block);
     if (!block.id) block.id = spec.id;
+    /**
+     * Retitling writes into the span that HOLDS THE WORDS, which is not
+     * reliably the last one: these summaries carry an icon span beside the
+     * text, and writing into the wrong child left both strings in place —
+     * "Vector operationsGeoprocessing" on the live page. The text span is the
+     * one with no element children of its own.
+     */
     if (spec.title) {
-      const summary = block.querySelector(":scope > summary .section-title-row > span:last-child")
-        || block.querySelector(":scope > summary span:last-child");
-      if (summary && summary.textContent !== spec.title) summary.textContent = spec.title;
+      const summary = block.querySelector(":scope > summary");
+      const span = summary && [...summary.querySelectorAll("span")]
+        .filter((n) => !n.children.length && n.textContent.trim())
+        .pop();
+      if (span && span.textContent.trim() !== spec.title) span.textContent = spec.title;
     }
     // Already on the right shelf: nothing to do, and re-appending would
     // reorder the column on every pass.

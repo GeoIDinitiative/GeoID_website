@@ -10,13 +10,13 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { bandOf } from "./draw-order.js?v=20260830-428b0e1";
-import { currentBody } from "./bodies.js?v=20260830-428b0e1";
-import { samplerToRaster } from "./raster-analysis.js?v=20260830-428b0e1";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260830-428b0e1";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260830-428b0e1";
-import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260830-428b0e1";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260830-428b0e1";
+import { bandOf } from "./draw-order.js?v=20260830-d644fbd";
+import { currentBody } from "./bodies.js?v=20260830-d644fbd";
+import { samplerToRaster } from "./raster-analysis.js?v=20260830-d644fbd";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260830-d644fbd";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260830-d644fbd";
+import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260830-d644fbd";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260830-d644fbd";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
