@@ -208,7 +208,28 @@ export async function createStreamingClip({ source, mask, name, contacts = null 
    * the world. The pinned level stays drawn and the view's own tiles draw half
    * a renderOrder above it, which is machinery this controller already has.
    */
-  await controller.pin({ bounds, zoom });
+  /**
+   * PIN THE LEVEL THAT COVERS THE STUDY AREA, not the one its size suggests.
+   *
+   * `zoomForBounds` answers "how deep does a box this size deserve", and for a
+   * 38 km study area that is deep — where this source has often dropped a
+   * survey. Measured on the north coast: `featuresIn` returns 100% coverage
+   * from surveys 23 AND 147, while the level a 38 km box "deserves" carries
+   * only 23, so the northern third of the clip drew nothing at all. The data
+   * was never missing; the picture was built from one level and the merge that
+   * finds the rest lives in `featuresIn`.
+   *
+   * So the base is the level with the BEST COVERAGE, which the climb already
+   * measures and reports per level. The view's own tiles still draw above it,
+   * so nothing is lost in detail — the pinned level is a floor, not a ceiling.
+   */
+  const probe = await controller.featuresIn(bounds);
+  const levels = (probe.levels || []).filter((l) => l.coverage != null && l.tiles);
+  // Best coverage wins; among equals the SHALLOWEST, because a floor should be
+  // cheap — the view's tiles are what carry the detail.
+  const base = levels.slice().sort((a, b) => (b.coverage - a.coverage) || (a.zoom - b.zoom))[0];
+  const baseZoom = base ? base.zoom : zoom;
+  await controller.pin({ bounds, zoom: baseZoom });
 
   const fc = { type: "FeatureCollection", features: controller.features() };
   const layer = window.GeoIDImportManager?.addDerivedLayer?.(name, {
@@ -270,7 +291,7 @@ export async function createStreamingClip({ source, mask, name, contacts = null 
   layer.tiled = controller;
   layer.clipMask = maskFc;
   layer.streamingClip = true;
-  layer.dynamicZoom = zoom;
+  layer.dynamicZoom = baseZoom;
   layer.credit = source.credit || null;
   // Carried so the derived layer keeps the source's own colours and so a clip
   // OF this clip inherits them again.
@@ -298,9 +319,9 @@ export async function createStreamingClip({ source, mask, name, contacts = null 
   };
   layer.onRemove = () => { live.delete(layer.id); controller.dispose(); };
 
-  live.set(layer.id, { layer, controller, mask: bounds, zoom, baseZoom: zoom, busy: false });
+  live.set(layer.id, { layer, controller, mask: bounds, zoom: baseZoom, baseZoom, busy: false });
   void watch();
-  return { layer, zoom, features: fc.features.length };
+  return { layer, zoom: baseZoom, features: fc.features.length };
 }
 
 /** Exported for the tests: the box a refine would ask for. */
