@@ -3367,6 +3367,55 @@ before it went to zoom 10 with 24 units from one.
 available" and "everything that exists here" are different requests, and only
 the second is what a clip means.
 
+### The clipped layer was never a LAYER, and three complaints followed
+
+"Still 2 functions in extraction and preprocessing. We shouldn't need to define
+the resolution (as they are polygons), can't export as shp, and it fails to map
+the clipped map — unify the functions into the geoprocessing tool."
+
+Four reports, and after measuring, **one cause**: the extraction panel did its
+OWN vector clipping and kept the result in the export package and nowhere else.
+It was never a layer, so:
+
+- it **could not be mapped** — nothing was ever added to the globe;
+- it **could not be exported as a shapefile** — `layer-export.js` writes
+  LAYERS, and `shapefile-writer.js` was already there, already tested, already
+  wired for every ordinary layer;
+- and the panel asked for a **sample resolution over work that has none** — a
+  polygon clip is exact, and the spacing governs only the sample grid.
+
+The duplication was the same shape as the other two this week: not a duplicated
+algorithm, but the same operation reached from a second surface that had since
+missed everything the first one learned. `Analyse · Prepare` runs the vector
+ops (`vec-op` = "Clip by layer"); `Extract From Layers` clipped again on its
+own.
+
+**Routing the panel's clip through `runToolAuto("clip", …)` fixes all four at
+once**, because being a real layer is what every one of them wanted: it draws,
+it takes its place in the stack, it inherits the source's own colours and
+legend, `formatsFor` offers **shp** (measured: `shp, geojson *suggested, kml,
+wkt, csv`), and a STREAMING input is asked about this ground before it is cut.
+The package still gets its rows for the CSV, read back off the layer the tool
+made, and a clip that fails falls back to the pure function rather than
+stopping the whole run.
+
+Measured end to end, Within set to a drawn study area: *"Within Study area 1 —
+4,340 samples over 4,286.9 km2 · 1 vector layer: 277 of 921 features within"*,
+and the new layer **"World geology (Macrostrat) within Study area 1"** on the
+globe with legend "12 of 15".
+
+**And hiding the resolution exposed a second fault of my own making.** With the
+grid-spacing row hidden for a pure clip, the run STILL produced 4,340 samples —
+so a control I had just hidden was still governing the run. A hidden control
+that still does something is worse than a visible one that does not apply. The
+grid is skipped entirely when no sampled layer and no built-in column is
+ticked, which is what makes hiding the spacing honest.
+
+**`node --check` is not a parse check.** The ternary this went in as was
+malformed (`}); : { … }`) and `node --check` passed it; `module-css.test.mjs`,
+which actually imports every module, failed it. Second time this session. Run
+the suite, not the syntax check.
+
 ### The THIRD area picker, and why a captured shape could not be reused
 
 "We still have duplicate extract-by-layer functions — we need this fundamental
