@@ -3279,6 +3279,52 @@ scratches are not backface culling; every tile carries its boundary seal; and
 the clip's own mesh is clean. The seams are back with the revert, and
 that is the honest state: the fix is a ribbon seal, not a backdrop.
 
+### Merging the levels: the finer survey where it exists, by SOURCE
+
+Refusing a partial deep level keeps the map whole and throws away real detail
+where the finer survey does reach; taking it whole loses 44% of the ground.
+Neither is "all the geology that exists within these bounds", which is the
+actual requirement.
+
+**The fill is by SOURCE DATASET, not by geometry, and that is exact here
+because the surveys MOSAIC.** Measured over the cross-border box: of 4,900
+sample points, **ONE** was covered by more than one source. So the ground a
+deep level is missing is precisely the ground of the surveys it does not carry
+— measured, **2,155 of the 2,158 points (99.86%)** the deep level missed. The
+deep level keeps everything it has and only the ABSENT surveys are added, which
+costs no boolean geometry and cannot double-cover.
+
+Measured live on the same box, and it beats both earlier states on every count:
+
+| | deep level alone | coverage gate only | with the merge |
+| --- | --- | --- | --- |
+| zoom | 10 | 8 | **11** |
+| coverage | 56% | 100% | 99.8% |
+| distinct units | 24 | 70 | **94** |
+| source datasets | 1 | 2 | **3** |
+| vertices in box | 8,026 | 5,872 | **10,184** |
+
+Per source at zoom 11: **23** = 612 features (the fine survey, at its own
+level), **147** = 211 and **7** = 23, both filled from zoom 8. It stops at
+zoom 12 on the tile budget — 323 tiles — and says so.
+
+**The 0.2% that stays uncovered is deliberate.** It is a survey the deep level
+DOES carry, generalising differently along the coast. Filling it would mean
+laying a coarser copy over ground the finer map has already spoken for, and an
+extraction would then count it twice. A hairline of honest gap beats a
+double-counted one.
+
+**A source with no `source_id` is treated as ONE unnamed survey**, so the merge
+is a no-op rather than a wrong answer on a dataset that does not composite —
+the fill can only ever add surveys the deep level lacks, and with one key there
+are none.
+
+**Where this applies.** `featuresIn` is the seam every tool, extraction and clip
+uses to ask about GROUND, so the merge reaches all of them. The streaming
+clip's DRAWN map keeps its full coverage a different way — the study area is
+pinned underneath and the view's tiles draw above it — so the two are
+consistent without the render path needing the merge as well.
+
 ### A DEEPER tile level can be a different, PARTIAL survey
 
 "It must be an issue with different countries' datasets and offshore. When we
