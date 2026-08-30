@@ -3367,6 +3367,48 @@ before it went to zoom 10 with 24 units from one.
 available" and "everything that exists here" are different requests, and only
 the second is what a clip means.
 
+### The THIRD area picker, and why a captured shape could not be reused
+
+"We still have duplicate extract-by-layer functions — we need this fundamental
+fix where preexisting drawn polygons can be used."
+
+The extraction ENGINE was never duplicated — one `runExtraction`, one
+`extractPolygonSamples`. What was duplicated is the question in front of it:
+**which patch of ground**. `extent-picker.js` exists because that question had
+already been answered three ways (the weather card, Earth Engine's third of an
+answer, and the GFS card) and was lifted out so it would be answered once.
+`analysis-panel.js` never adopted it and kept its own `renderWithin` and
+`resolveBounds`.
+
+**And the copy was missing the one thing the original exists for: the FALLBACK
+CHAIN.** `extent-picker` resolves "drawn" as live overlay → the last captured
+polygon still ON the globe → arm the tool. Extraction's copy read the live
+overlay and stopped. Pressing **Done captures the shape and clears that
+overlay**, so the moment a drawing became a real layer the panel answered "Mark
+out an area first" about a polygon sitting in front of the user. A shape you
+already drew is the commonest case there is, and it was the one case with no
+way to express it.
+
+**Two shapes of answer, one chain.** A fetcher wants a BOUNDING BOX because
+that is what a tile service takes; a clip wants the POLYGON, and handing a clip
+a box would quietly widen every study area to its own extent — which is why
+extraction could not simply call `resolvePolygonExtent`. So the picker grew
+`resolvePolygonRings`: same modes, same option list, same fallback, answered as
+rings with the layer's own collection as the mask (rebuilding it from the rings
+would be a second copy of the same polygons).
+
+Verified live on the sequence that failed — draw, press Done, leave Within on
+"Drawn / boxed area", Run — with the live overlay confirmed **cleared**:
+*"Within Study area 1 — 250,000 samples over 6,516,679 km2."* It names the
+layer it fell back to, so the reuse is visible rather than silent.
+
+**The general shape, which is now three for three in this file**: a duplicate
+is rarely a duplicated ALGORITHM. It is the same question asked in two places,
+where one of them has since learned something the other has not — the clip
+button that never got the streaming fixes, the panel ops that never got the
+runner's, and this. When something "cannot be done", check first whether some
+other surface can already do it.
+
 ### The duplicate audit: 26 of 26, and the runner is the superset
 
 Asked to audit the rest and keep the most developed of each. Measured by
