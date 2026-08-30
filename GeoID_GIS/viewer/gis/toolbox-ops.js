@@ -1,12 +1,12 @@
-import * as GP from "./geoprocessing.js?v=20260830-36de138";
-import * as RA from "./raster-analysis.js?v=20260830-36de138";
-import * as VF from "./vector-formats.js?v=20260830-36de138";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260830-36de138";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260830-36de138";
-import { downloadText } from "./extraction.js?v=20260830-36de138";
-import { CRS_OPTIONS } from "./projection.js?v=20260830-36de138";
-import { runQuery, QUERY_HELP } from "./query.js?v=20260830-36de138";
-import { selection } from "./selection.js?v=20260830-36de138";
+import * as GP from "./geoprocessing.js?v=20260830-854b0f9";
+import * as RA from "./raster-analysis.js?v=20260830-854b0f9";
+import * as VF from "./vector-formats.js?v=20260830-854b0f9";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260830-854b0f9";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260830-854b0f9";
+import { downloadText } from "./extraction.js?v=20260830-854b0f9";
+import { CRS_OPTIONS } from "./projection.js?v=20260830-854b0f9";
+import { runQuery, QUERY_HELP } from "./query.js?v=20260830-854b0f9";
+import { selection } from "./selection.js?v=20260830-854b0f9";
 
 // Wiring between the toolbox UI and the geoprocessing / raster engines. Every
 // operation produces a new layer rather than mutating its input, which is how
@@ -114,26 +114,58 @@ function publishRaster(raster, name, { elevation = false } = {}) {
  * the work moves. `runToolAuto` is dynamically imported because this module
  * loads on every world at boot and the runner drags in the whole tool set.
  *
- * NOT YET DELEGATED, and each for a stated reason rather than by omission:
- * `buffer` (this panel asks metres, the tool asks KILOMETRES — delegating
- * without converting turns a 1 km buffer into 1,000 km), `dissolve`, `hull`,
- * `centroids`, `simplify`, `reproject` and `spatialJoin` (each carries panel
- * params whose units and names have to be checked against the tool's before
- * they can be handed over), and `union`, which adds a sentence of its own when
- * a merge fills an interior ring and would lose it. They still read
- * `.collection`, so they still see a streaming layer's snapshot; that is the
- * next thing to close here.
+ * Audited in full: **26 of 26** panel ops exist in the runner and NONE is
+ * panel-only, so the runner is a strict superset — 22 further tools, sidecar
+ * engines, more params, and the structural tests that pin them. Where the
+ * panel looked richer it was not: `spatialJoin`'s "N matched", `reproject`'s
+ * same-CRS refusal and `contours` deriving its levels from the raster's own
+ * statistics are all in the runner too. So 25 of the 26 delegate.
+ *
+ * Two do NOT, each for a stated reason rather than by omission:
+ *   `union`   adds a sentence when a ring-level merge fills an interior ring,
+ *             which the runner does not say.
+ *   `overlay` builds its weight entries from SEVERAL layers by name out of one
+ *             text field; the tool takes a weights string against its declared
+ *             inputs, and the two are not the same control.
+ * Those two still read `.collection`, so they still see a streaming layer's
+ * snapshot. That is the remaining duplication, and it is written down rather
+ * than left to be rediscovered.
+ *
+ * The one conversion worth naming: `buffer` asks METRES here and KILOMETRES in
+ * the tool, so it is delegated with `param / 1000`. Handing it over unconverted
+ * would turn a 1 km buffer into 1,000 km.
  */
-const DELEGATED = new Set(["clip", "difference", "intersect"]);
+const DELEGATED = new Set([
+  "buffer", "clip", "difference", "intersect", "dissolve", "hull", "centroids",
+  "simplify", "reproject", "spatialJoin",
+  "slope", "aspect", "hillshade", "curvature", "roughness", "resample",
+  "distance", "clipByPolygon", "contours", "focal", "reclassify", "calculator",
+  "rasterize", "samplePoints", "toPoints",
+]);
 
-async function runThroughRunner(toolId, a, b) {
+async function runThroughRunner(toolId, a, b, params = {}) {
   const runner = await import(`./tool-runner.js${new URL(import.meta.url).search}`);
   const desc = runner.toolById(toolId);
   const names = (desc.inputs || []).map((i) => i.name);
   const inputs = {};
   if (names[0]) inputs[names[0]] = a;
   if (names[1] && b) inputs[names[1]] = b;
-  return (runner.runToolAuto || runner.runTool)(toolId, inputs, {}, {});
+  return (runner.runToolAuto || runner.runTool)(toolId, inputs, params, {});
+}
+
+/**
+ * The raster panel offers TWO kinds of second input — another raster
+ * (`ras-op-b`) and a vector layer of zones (`ras-op-zones`) — in two different
+ * controls, while the runner declares which kind each tool wants. Reading that
+ * declaration is what stops a zones tool being handed a raster: picking by the
+ * op's name would be a third list to keep in step with the other two.
+ */
+async function runRasterThroughRunner(toolId, layer, extras, params = {}) {
+  const runner = await import(`./tool-runner.js${new URL(import.meta.url).search}`);
+  const second = runner.toolById(toolId)?.inputs?.[1];
+  const other = !second ? null
+    : (second.type === "vector" || second.type === "sampled" ? extras.zones : extras.b);
+  return runThroughRunner(toolId, layer, other, params);
 }
 
 const VECTOR_OPS = {
@@ -144,9 +176,11 @@ const VECTOR_OPS = {
     // Merging is the right default (QGIS's too), but per-feature rings are a
     // real product — service areas around individual sites — so it is a choice.
     check: { label: "Merge overlapping buffers", value: true },
-    run: (a, _b, param, _field, extras) => publishVector(
-      GP.buffer(a.collection, param, { dissolve: extras.check !== false }), `buffer_${a.name}`,
-    ),
+    // metres HERE, kilometres in the tool -- the conversion is the whole
+    // reason this one could not simply be pointed at the runner.
+    run: (a, _b, param, _field, extras) => runThroughRunner("buffer", a, null, {
+      distance: param / 1000, dissolve: extras.check !== false,
+    }),
   },
   clip: {
     label: "Clip by layer",
@@ -167,17 +201,17 @@ const VECTOR_OPS = {
     label: "Dissolve by field",
     needsSecond: false,
     usesField: true,
-    run: (a, _b, _param, field) => publishVector(GP.dissolve(a.collection, field), `dissolve_${a.name}`),
+    run: (a, _b, _param, field) => runThroughRunner("dissolve", a, null, { field }),
   },
   hull: {
     label: "Convex hull",
     needsSecond: false,
-    run: (a) => publishVector(GP.convexHull(a.collection), `hull_${a.name}`),
+    run: (a) => runThroughRunner("hull", a),
   },
   centroids: {
     label: "Centroids",
     needsSecond: false,
-    run: (a) => publishVector(GP.centroids(a.collection), `centroids_${a.name}`),
+    run: (a) => runThroughRunner("centroids", a),
   },
   simplify: {
     label: "Simplify",
@@ -187,7 +221,7 @@ const VECTOR_OPS = {
     // other and had no meaning anyone could reason about. 100 m is a sane
     // default for coastline-scale data.
     param: { label: "Tolerance (m)", value: 100, step: 10 },
-    run: (a, _b, param) => publishVector(GP.simplifyCollection(a.collection, param), `simplify_${a.name}`),
+    run: (a, _b, param) => runThroughRunner("simplify", a, null, { tolerance: param }),
   },
   union: {
     label: "Union (merge layers)",
@@ -208,26 +242,19 @@ const VECTOR_OPS = {
     needsSecond: false,
     crs: true,
     run: (a, _b, _param, _field, extras) => {
+      // The empty-select guard stays here: the runner cannot know that this
+      // panel has two dropdowns one of which nobody has touched.
       if (!extras.fromCrs || !extras.toCrs) {
         return { ok: false, message: "Pick both coordinate systems." };
       }
-      if (extras.fromCrs === extras.toCrs) {
-        return { ok: false, message: "Source and target CRS are the same." };
-      }
-      return publishVector(
-        GP.reproject(a.collection, extras.fromCrs, extras.toCrs),
-        `reproject_${a.name}`,
-      );
+      return runThroughRunner("reproject", a, null,
+        { fromCrs: extras.fromCrs, toCrs: extras.toCrs });
     },
   },
   spatialJoin: {
     label: "Spatial join",
     needsSecond: true,
-    run: (a, b) => {
-      const joined = GP.spatialJoin(a.collection, b.collection);
-      const result = publishVector(joined, `join_${a.name}`);
-      return { ...result, message: `${result.message} ${joined.matched} matched.` };
-    },
+    run: (a, b) => runThroughRunner("spatialJoin", a, b),
   },
 };
 
@@ -321,139 +348,70 @@ function runVectorOp() {
 // ── Raster operations ───────────────────────────────────────────────────────
 
 const RASTER_OPS = {
-  slope: { label: "Slope (degrees)", run: (r, n) => publishRaster(RA.slope(r.raster), `slope_${n}`) },
-  aspect: { label: "Aspect", run: (r, n) => publishRaster(RA.aspect(r.raster), `aspect_${n}`) },
-  hillshade: { label: "Hillshade", run: (r, n) => publishRaster(RA.hillshade(r.raster), `hillshade_${n}`) },
+  slope: { label: "Slope (degrees)", run: (r) => runThroughRunner("slope", r) },
+  aspect: { label: "Aspect", run: (r) => runThroughRunner("aspect", r) },
+  hillshade: { label: "Hillshade", run: (r) => runThroughRunner("hillshade", r) },
   curvature: {
     label: "Curvature",
-    run: (r, n) => publishRaster(RA.curvature(r.raster), `curv_${n}`),
+    run: (r) => runThroughRunner("curvature", r),
   },
   roughness: {
     label: "Roughness",
-    run: (r, n) => publishRaster(RA.roughness(r.raster), `rough_${n}`),
+    run: (r) => runThroughRunner("roughness", r),
   },
   focal: {
     label: "Focal statistics",
     param: { label: "Radius (cells)", value: 1, step: 1 },
     text: { label: "Statistic (mean/min/max/sum/range/std)", value: "mean" },
-    run: (r, n, param, extras) => {
-      const stat = (extras.text || "mean").trim().toLowerCase();
-      if (!["mean", "min", "max", "sum", "range", "std"].includes(stat)) {
-        return { ok: false, message: `"${stat}" is not one of mean, min, max, sum, range, std.` };
-      }
-      const radius = Math.max(1, Math.round(param));
-      return publishRaster(
-        RA.focalStatistics(r.raster, { radius, stat }), `focal_${stat}_${n}`,
-      );
-    },
+    run: (r, _n, param, extras) => runThroughRunner("focal", r, null,
+      { radius: param, stat: extras.text || "mean" }),
   },
   contours: {
     label: "Contours",
     param: { label: "Interval", value: 250, step: 50 },
-    run: (r, n, param) => {
-      const stats = RA.rasterStatistics(r.raster);
-      const levels = [];
-      for (let v = Math.ceil(stats.min / param) * param; v < stats.max; v += param) {
-        levels.push(v);
-      }
-      if (!levels.length) {
-        return { ok: false, message: "Interval is larger than the value range." };
-      }
-      return publishVector(RA.contours(r.raster, levels), `contours_${n}`);
-    },
+    run: (r, _n, param) => runThroughRunner("contours", r, null, { interval: param }),
   },
   reclassify: {
     label: "Reclassify (rules)",
     // The default rules are the NI methodology's slope classes — a working
     // example that teaches the syntax at the same time.
     text: { label: "Rules (min..max:class)", value: "0..2:1, 2..5:2, 5..15:3, 15..35:4, 35..90:5" },
-    run: (r, n, _param, extras) => {
-      const parsed = RA.parseReclassifyRules(extras.text);
-      if (!parsed.ok) return parsed;
-      const out = RA.reclassify(r.raster, parsed.rules);
-      const stats = RA.rasterStatistics(out);
-      if (!stats.count) {
-        return { ok: false, message: "No cell matched any rule — check the ranges against the data." };
-      }
-      const result = publishRaster(out, `reclass_${n}`);
-      return { ...result, message: `${result.message} ${parsed.rules.length} rules, ${stats.count} cells classified.` };
-    },
+    run: (r, _n, _param, extras) => runRasterThroughRunner("reclassify", r, extras,
+      { rules: extras.text }),
   },
   calculator: {
     label: "Raster calculator",
     needsSecond: true,
     text: { label: "Expression", value: "(a - b) / (a + b)" },
-    run: (r, n, _param, extras) => {
-      const other = extras.b || null;
-      let b = other?.raster || null;
-      let note = "";
-      // Mismatched grids are resampled rather than refused: "resample first"
-      // was a correct answer that made the user do the tool's job.
-      if (b && !gridsMatch(b, r.raster)) {
-        b = RA.resampleToGrid(b, r.raster);
-        note = ` ${other.name} was resampled onto the first raster's grid (nearest).`;
-      }
-      const res = RA.rasterCalculator(r.raster, b, extras.text || "a");
-      if (!res.ok) return res;
-      const result = publishRaster(res.raster, `calc_${n}`);
-      return { ...result, message: result.message + note };
-    },
+    run: (r, _n, _param, extras) => runRasterThroughRunner("calculator", r, extras,
+      { expression: extras.text || "a" }),
   },
   resample: {
     label: "Resample to grid",
     needsSecond: true,
-    run: (r, n, _param, extras) => {
-      if (!extras.b) return { ok: false, message: "Pick the raster (B) whose grid to match." };
-      if (extras.b.id === r.id) return { ok: false, message: "A raster is already on its own grid." };
-      return publishRaster(RA.resampleToGrid(r.raster, extras.b.raster), `resample_${n}`, { elevation: true });
-    },
+    run: (r, _n, _param, extras) => runRasterThroughRunner("resample", r, extras),
   },
   distance: {
     label: "Distance to features (m)",
     zones: true,
     zonesLabel: "Features",
-    run: (r, _n, _param, extras) => {
-      if (!extras.zones) {
-        return { ok: false, message: "Pick the vector layer to measure distance to." };
-      }
-      const out = RA.distanceRaster(extras.zones.collection, r.raster);
-      const to = extras.zones.name.replace(/\.[^.]+$/, "");
-      return publishRaster(out, `dist_${to}`);
-    },
+    run: (r, _n, _param, extras) => runRasterThroughRunner("distance", r, extras),
   },
   rasterize: {
     label: "Rasterize (vector → raster)",
     zones: true,
     zonesLabel: "Vector layer",
     usesField: true,
-    run: (r, _n, _param, extras) => {
-      if (!extras.zones) return { ok: false, message: "Pick the vector layer to burn in." };
-      if (!extras.field) return { ok: false, message: "Pick the attribute to burn." };
-      const out = RA.rasterizeByAttribute(extras.zones.collection, extras.field, r.raster);
-      const stats = RA.rasterStatistics(out);
-      if (!stats.count) {
-        return { ok: false, message: `No cell took a value — is "${extras.field}" numeric where the polygons overlap this raster?` };
-      }
-      const name = extras.zones.name.replace(/\.[^.]+$/, "");
-      const result = publishRaster(out, `rasterize_${name}`);
-      return { ...result, message: `${result.message} ${stats.count} cells burned from "${extras.field}".` };
-    },
+    run: (r, _n, _param, extras) => runRasterThroughRunner("rasterize", r, extras,
+      { field: extras.field }),
   },
   samplePoints: {
     label: "Sample raster at points",
     zones: true,
     zonesLabel: "Points",
     text: { label: "New attribute name", value: "sampled" },
-    run: (r, _n, _param, extras) => {
-      if (!extras.zones) return { ok: false, message: "Pick the point layer to sample at." };
-      const attr = (extras.text || "sampled").trim().replace(/[^\w]/g, "_") || "sampled";
-      const fc = RA.sampleAtPoints(r.raster, extras.zones.collection, attr);
-      if (!fc.features.length) return { ok: false, message: "That layer has no point features." };
-      const name = extras.zones.name.replace(/\.[^.]+$/, "");
-      const result = publishVector(fc, `sampled_${name}`);
-      if (!result.ok) return result;
-      return { ...result, message: `${result.message} ${fc.sampled} of ${fc.features.length} points read a value into "${attr}".` };
-    },
+    run: (r, _n, _param, extras) => runRasterThroughRunner("samplePoints", r, extras,
+      { attr: extras.text || "sampled" }),
   },
   overlay: {
     label: "Weighted overlay",
@@ -505,21 +463,12 @@ const RASTER_OPS = {
   clipByPolygon: {
     label: "Clip by polygon",
     zones: true,
-    run: (r, n, _param, extras) => {
-      if (!extras.zones) {
-        return { ok: false, message: "Pick a polygon layer to clip by." };
-      }
-      return publishRaster(
-        RA.clipRasterByPolygon(r.raster, extras.zones.collection), `clip_${n}`,
-      );
-    },
+    run: (r, _n, _param, extras) => runRasterThroughRunner("clipByPolygon", r, extras),
   },
   toPoints: {
     label: "Raster to points",
     param: { label: "Sample every N cells", value: 8, step: 1 },
-    run: (r, n, param) => publishVector(
-      RA.rasterToPoints(r.raster, { step: Math.max(1, Math.round(param)) }), `points_${n}`,
-    ),
+    run: (r, _n, param) => runThroughRunner("toPoints", r, null, { step: param }),
   },
 };
 
@@ -726,7 +675,7 @@ async function buildToolCatalogue() {
   if (!host || host.childElementCount) return;
   let runner;
   try {
-    runner = await import("./tool-runner.js?v=20260830-36de138");
+    runner = await import("./tool-runner.js?v=20260830-854b0f9");
   } catch {
     host.textContent = "The toolbox is still loading.";
     return;

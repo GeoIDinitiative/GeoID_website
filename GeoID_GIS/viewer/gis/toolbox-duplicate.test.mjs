@@ -44,13 +44,16 @@ ok("the runner's tool ids were found", toolIds.size >= 30);
 ok("something is delegated", delegated.size > 0);
 
 // Every delegated op must actually route through the runner, not just be named.
+// Either helper counts: the raster one picks the second input by the tool's own
+// declared type, which is still the runner deciding.
 for (const id of delegated) {
-  const re = new RegExp(`\\b${id}: \\{[\\s\\S]{0,240}?runThroughRunner\\("${id}"`);
+  const re = new RegExp(`^  ${id}: \\{[\\s\\S]*?run(?:Raster)?ThroughRunner\\("${id}"`, "m");
   ok(`${id} really routes through the runner`, re.test(ops));
 }
 
 // Every SHARED id is either delegated or named in the "not yet delegated" note.
-const note = ops.slice(ops.indexOf("NOT YET DELEGATED"), ops.indexOf("const DELEGATED"));
+// The whole doc comment above the set, so a reason may be written anywhere in it.
+const note = ops.slice(ops.indexOf("THE GEOPROCESSING PANEL RUNS"), ops.indexOf("const DELEGATED"));
 const shared = vectorOps.filter((id) => toolIds.has(id));
 const unexplained = shared.filter((id) => !delegated.has(id) && !note.includes(`\`${id}\``));
 ok(`every shared id is delegated or explained (${shared.length} shared)`,
@@ -59,10 +62,11 @@ ok(`every shared id is delegated or explained (${shared.length} shared)`,
 // The delegated ops must no longer call the engine directly -- that is the
 // duplication, and leaving one behind is how it comes back.
 for (const id of delegated) {
-  const fn = { clip: "GP.clip", difference: "GP.difference", intersect: "GP.intersect" }[id];
-  if (!fn) continue;
-  const re = new RegExp(`${id}: \\{[\\s\\S]{0,240}?${fn.replace(".", "\\.")}\\(`);
-  ok(`${id} no longer calls ${fn} directly`, !re.test(ops));
+  // A delegated op must not still call an engine itself -- that is the
+  // duplication, and leaving one behind is how it comes back.
+  const re = new RegExp(`^  ${id}: \\{[\\s\\S]*?\\n  \\},$`, "m");
+  const block = (re.exec(ops) || [""])[0];
+  ok(`${id} no longer calls an engine directly`, !/\b(GP|RA)\.[a-zA-Z]+\(/.test(block));
 }
 
 // And the panel must be able to receive a promise, or a delegated op's status
