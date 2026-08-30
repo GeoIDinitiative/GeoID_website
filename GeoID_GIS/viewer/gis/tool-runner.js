@@ -1,19 +1,19 @@
-import * as GP from "./geoprocessing.js?v=20260830-449cf9b";
-import * as RA from "./raster-analysis.js?v=20260830-449cf9b";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260830-449cf9b";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260830-449cf9b";
+import * as GP from "./geoprocessing.js?v=20260830-a9980c7";
+import * as RA from "./raster-analysis.js?v=20260830-a9980c7";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260830-a9980c7";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260830-a9980c7";
 // Pure and DOM-free, so a static import keeps this module Node-clean AND keeps
 // the terrain engine SYNCHRONOUS -- runTool calls engines.native WITHOUT
 // awaiting it, so an async engine hands register() a Promise and the raster
 // comes out undefined. Measured as: "Cannot read properties of undefined".
-import { buildSurface, nativeStepM } from "./model-build.js?v=20260830-449cf9b";
-import { nativeGridOf } from "./extraction.js?v=20260830-449cf9b";
-import { CRS_OPTIONS } from "./projection.js?v=20260830-449cf9b";
-import * as IN from "./interpolation.js?v=20260830-449cf9b";
-import * as VAL from "./validation.js?v=20260830-449cf9b";
-import * as EX from "./analysis-extra.js?v=20260830-449cf9b";
-import * as HY from "./hydrology.js?v=20260830-449cf9b";
-import * as KR from "./kriging.js?v=20260830-449cf9b";
+import { buildSurface, nativeStepM } from "./model-build.js?v=20260830-a9980c7";
+import { nativeGridOf } from "./extraction.js?v=20260830-a9980c7";
+import { CRS_OPTIONS } from "./projection.js?v=20260830-a9980c7";
+import * as IN from "./interpolation.js?v=20260830-a9980c7";
+import * as VAL from "./validation.js?v=20260830-a9980c7";
+import * as EX from "./analysis-extra.js?v=20260830-a9980c7";
+import * as HY from "./hydrology.js?v=20260830-a9980c7";
+import * as KR from "./kriging.js?v=20260830-a9980c7";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -2050,9 +2050,9 @@ const DETAIL_BUDGETS = { fast: 16, balanced: 96, full: 320, maximum: 1200 };
 async function refreshLiveInputs(desc, inputs, params = {}) {
   const resolved = (desc.inputs || []).map((spec) => resolveLayer(inputs[spec.name])).filter(Boolean);
   const live = resolved.filter((l) => typeof l.featuresIn === "function");
-  if (!live.length) return { borrowed: [], note: "" };
+  if (!live.length) return { borrowed: [], box: null, note: "" };
   const box = areaOfInterest(resolved, live);
-  if (!box) return { borrowed: [], note: "" };
+  if (!box) return { borrowed: [], box: null, note: "" };
   const choice = String(params.detail || "balanced");
   const tileBudget = DETAIL_BUDGETS[choice] || DETAIL_BUDGETS.balanced;
   const borrowed = [];
@@ -2077,7 +2077,26 @@ async function refreshLiveInputs(desc, inputs, params = {}) {
       }
     } catch (error) { /* keep the snapshot */ }
   }
-  return { borrowed, note: notes.length ? ` ${notes.join(" ")}` : "" };
+  return { borrowed, box, note: notes.length ? ` ${notes.join(" ")}` : "" };
+}
+
+/** Does any part of this feature reach into the box? */
+function touches(feature, box) {
+  const g = feature?.geometry;
+  if (!g) return false;
+  let minX = Infinity; let minY = Infinity; let maxX = -Infinity; let maxY = -Infinity;
+  const walk = (c) => {
+    if (typeof c[0] === "number") {
+      if (c[0] < minX) minX = c[0];
+      if (c[0] > maxX) maxX = c[0];
+      if (c[1] < minY) minY = c[1];
+      if (c[1] > maxY) maxY = c[1];
+      return;
+    }
+    c.forEach(walk);
+  };
+  walk(g.coordinates || []);
+  return maxX >= box.west && minX <= box.east && maxY >= box.south && minY <= box.north;
 }
 
 /**
@@ -2097,7 +2116,7 @@ async function refreshLiveInputs(desc, inputs, params = {}) {
  * The layer is holding borrowed features at this point and `giveBack` puts the
  * live ones back afterwards, so this swap lasts exactly as long as the run.
  */
-async function verbatimGeometry(borrowed) {
+async function verbatimGeometry(borrowed, box) {
   const layers = (borrowed || []).filter(
     (l) => l?.geologyDataset && Array.isArray(l.features) && l.features.length,
   );
@@ -2106,7 +2125,17 @@ async function verbatimGeometry(borrowed) {
   const notes = [];
   for (const layer of layers) {
     const idOf = (f) => f?.properties?.map_id;
-    const ids = layer.features.map(idOf).filter((v) => Number.isFinite(Number(v)));
+    /**
+     * Only the units this run can actually use.
+     *
+     * The borrowed set is the whole fetched study area, and a clip keeps what
+     * falls inside one polygon: asking the API for all of it fetched 2,475
+     * units to draw 71. The touch test is a bounding box, which is generous on
+     * purpose — the clip engine decides what really survives, and over-asking
+     * by a little is far cheaper than a missing unit.
+     */
+    const near = box ? layer.features.filter((f) => touches(f, box)) : layer.features;
+    const ids = near.map(idOf).filter((v) => Number.isFinite(Number(v)));
     if (!ids.length) continue;
     let fc = null;
     try {
@@ -2153,13 +2182,13 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
    * the result from the source's own `color` column — which the streaming path
    * never reached, because it returned before it.
    */
-  const { borrowed, note: liveNote } = await refreshLiveInputs(desc, inputs, params);
+  const { borrowed, box, note: liveNote } = await refreshLiveInputs(desc, inputs, params);
   /**
    * A clip is meant to be the source map inside a polygon, so it is cut from
    * the units themselves rather than from the tiles they were served in.
    */
   const verbatimNote = toolId === "clip" && typeof document !== "undefined"
-    ? await verbatimGeometry(borrowed).catch(() => "")
+    ? await verbatimGeometry(borrowed, box).catch(() => "")
     : "";
   const note = `${liveNote}${verbatimNote}`;
   // Whatever was borrowed for this run is given back afterwards, always: a
@@ -2185,7 +2214,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260830-449cf9b");
+    const client = await import("./sidecar-client.js?v=20260830-a9980c7");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -2250,7 +2279,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260830-449cf9b");
+    const bridge = await import("./research/bridge.js?v=20260830-a9980c7");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -2262,12 +2291,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260830-449cf9b");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260830-a9980c7");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260830-449cf9b");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260830-a9980c7");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }
