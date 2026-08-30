@@ -3367,6 +3367,42 @@ before it went to zoom 10 with 24 units from one.
 available" and "everything that exists here" are different requests, and only
 the second is what a clip means.
 
+### Renaming a panel means renaming it in every place it is NAMED
+
+"Why is it still being read as preprocessing and extraction and analysis?"
+Because renaming the SECTION renamed one of the three places these shelves are
+named, and not the one most people read.
+
+- `tool-shelves.js` renames the `<details>` summary — the heading you see with
+  the tools column open.
+- **`side-panels.js` names the RAIL BUTTON and the WORKBENCH HEADER**, and
+  carried its own strings: `label: "Process"`, `hint: "Pre-processing
+  toolbox"`, `hint: "Extraction and analysis"`. These groups are moved onto the
+  tool rail as workbenches, so for anyone working from the rail the old names
+  were the names on screen, and they are on screen most of the time.
+- **The Research Hub's own pages** told the reader where to go: Raster Tools
+  and Vector Tools both said "the GIS page's Pre-processing Toolbox".
+
+One `SHELF_NAMES` constant now, read by the workbench title and its tooltip,
+and pinned against the section headings by a test — with COMMENTS STRIPPED
+FIRST, since the note explaining this fault quotes the old strings and prose
+is not a name (the same reason tool-runner's param scanner strips them).
+
+**The rail CAPTION is deliberately not the shelf name.** The rail is a column
+of icons with a caption under each, and "Pre-proc" once wrapped to two lines
+and made its button taller than the measure tools beside it — the reason that
+caption was shortened in the first place. It reads "GIS tools"; the full name
+is the header and the tooltip, where there is room for it.
+
+Verified on the live page, every surface at once: rail captions "GIS tools" /
+"Analysis" with tooltips "Geoprocessing — tools that make a map layer" and
+"Analysis — tables, statistics and plots"; workbench headers **Geoprocessing**
+and **Analysis**; section headings the same.
+
+**The general rule, which this file keeps paying for at every level:** a name
+lives in as many places as there are surfaces that show it. When something is
+"still called the old thing", grep the old string before assuming a cache.
+
 ### Two shelves: Geoprocessing and Analysis, and the OUTPUT decides
 
 `Analyse · Prepare` and `Analyse · Tools & Results` had grown by accretion —
