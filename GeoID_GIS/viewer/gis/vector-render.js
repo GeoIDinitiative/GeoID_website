@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260830-2105aca";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260830-2105aca";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260830-2105aca";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260830-ec51523";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260830-ec51523";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260830-ec51523";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -675,6 +675,50 @@ export function renderFeatureCollection(fc, {
       ? { r: (c) => c.r * contactShade, g: (c) => c.g * contactShade, b: (c) => c.b * contactShade }
       : { r: (c) => c.r, g: (c) => c.g, b: (c) => c.b };
 
+  /**
+   * A CONTACT SEPARATES TWO DIFFERENT UNITS. Anything else is a line ruled
+   * through ground that has no boundary in it.
+   *
+   * Every polygon inks its own rings, so where two polygons abut, their shared
+   * edge is drawn twice — and when both are the same unit, or two units the
+   * map paints the same colour, that ink lands in the middle of what a reader
+   * sees as ONE area. Measured on a 45 km clip of Macrostrat: of 1,801 distinct
+   * segments, 717 divided different colours and **265 divided identical ones**,
+   * which is exactly the "outlines that don't exist in reality" a reader picks
+   * out immediately — they are the only lines crossing a flat field of colour.
+   *
+   * So the rings are walked once before anything is built, and a segment is
+   * inked only if the polygons meeting along it disagree about their colour.
+   * The pass is O(vertices) and answers with rounding matched to `mvt.js`'s own
+   * 1e-6 projection, so coincident edges actually meet.
+   */
+  const SEG_ROUND = 1e6;
+  const segKey = (a, b) => {
+    const ka = `${Math.round(a[0] * SEG_ROUND)},${Math.round(a[1] * SEG_ROUND)}`;
+    const kb = `${Math.round(b[0] * SEG_ROUND)},${Math.round(b[1] * SEG_ROUND)}`;
+    return ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
+  };
+  const sharedSameColour = new Set();
+  if (contacts) {
+    const seen = new Map();
+    fc.features.forEach((feature) => {
+      const geometry = feature?.geometry;
+      if (!geometry) return;
+      const css = colourFor ? (colourFor(feature) || "#8a8a8a") : "#";
+      polygonsOf(geometry).flat().forEach((ring) => {
+        for (let i = 0; i + 1 < ring.length; i += 1) {
+          const key = segKey(ring[i], ring[i + 1]);
+          const had = seen.get(key);
+          if (had === undefined) seen.set(key, css);
+          else if (had === css) sharedSameColour.add(key);
+          else sharedSameColour.delete(key);
+        }
+      });
+    });
+  }
+  /** Drawn once, however many polygons claim it: shared ink doubles up. */
+  const inked = new Set();
+
   fc.features.forEach((feature) => {
     if (linePositions.length >= MAX_LINE_VERTICES) {
       truncated = true;
@@ -730,6 +774,11 @@ export function renderFeatureCollection(fc, {
         const before = seal.positions.length;
         for (let i = 0; i + 1 < coords.length; i += 1) {
           if (onTileEdge(coords[i], coords[i + 1])) continue;
+          const key = segKey(coords[i], coords[i + 1]);
+          // No boundary between two polygons the map paints alike, and no
+          // second helping of ink on a boundary that is really there.
+          if (sharedSameColour.has(key) || inked.has(key)) continue;
+          inked.add(key);
           pushSegment(seal.positions, coords[i], coords[i + 1], FILL_DRAPE);
         }
         for (let i = before; i < seal.positions.length; i += 3) {
