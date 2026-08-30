@@ -3279,6 +3279,63 @@ scratches are not backface culling; every tile carries its boundary seal; and
 the clip's own mesh is clean. The seams are back with the revert, and
 that is the honest state: the fix is a ribbon seal, not a backdrop.
 
+### The duplicate audit: 26 of 26, and the runner is the superset
+
+Asked to audit the rest and keep the most developed of each. Measured by
+parsing both registries rather than reading them:
+
+- **26 panel ops** (11 vector, 15 raster) against **48 runner tools**.
+- **26 of 26 are shared** — every id in the panel exists in the runner.
+- **ZERO are panel-only.** The runner is a strict superset, with 22 further
+  tools (kriging, IDW, TIN, voronoi, watershed, viewshed, terrain, zonal
+  statistics, the validation set…), sidecar engines on five, more params, and
+  the structural tests that pin every param to a reader.
+
+**Where the panel LOOKED richer, it was not.** `spatialJoin`'s "N matched",
+`reproject`'s same-CRS refusal and `contours` deriving its levels from the
+raster's own statistics are all present in the runner too — its versions were
+built from the panel's and then improved. So "keep the most developed" resolves
+to the runner in every single case, which is not what an audit usually finds
+and is worth stating plainly.
+
+**25 of the 26 now delegate.** The panel keeps its own front end; only the work
+moves. Two do not, each with the reason written beside it rather than left as a
+silent omission:
+
+- `union` adds a sentence when a ring-level merge fills an interior ring.
+- `overlay` builds its weight entries from SEVERAL layers by name out of one
+  text field; the tool takes a weights string against its declared inputs, and
+  the two are not the same control.
+
+**`buffer` carried the one conversion that mattered**: METRES in the panel,
+KILOMETRES in the tool, so it is delegated as `param / 1000`. Handing it over
+unconverted would have turned a 1 km buffer into 1,000 km — a duplicate is
+dangerous to remove carelessly as well as to keep. `reproject` keeps its
+empty-select guard, which the runner cannot make because it cannot see two
+dropdowns nobody has touched.
+
+**The raster panel offers two KINDS of second input** — another raster
+(`ras-op-b`) and a vector layer of zones (`ras-op-zones`) — in two controls,
+where the runner declares which kind each tool wants. `runRasterThroughRunner`
+reads that declaration instead of keeping a third list of which op wants which.
+
+**`runZonalStats` is NOT a duplicate**, and the distinction is worth keeping:
+it produces an exportable TABLE where the tool produces a painted LAYER. Two
+products over one engine call, which is the opposite of two implementations of
+one product. `fieldStatistics` and `fieldCalculator` are panel-only.
+
+Verified live on `buffer`, the one with the conversion: the old panel call
+(`GP.buffer(fc, 50000)`), the new tool call (`GP.buffer(fc, 50 * 1000)`) and
+what the panel actually DREW all agree to six decimal places.
+
+**One thing the check turned up that is NOT about duplication**: a 50 km buffer
+of a 1-degree square pads its extent by **35.4 km, exactly 1/sqrt(2) of what was
+asked**. Identical before and after, so it is `GP.buffer`'s own polygon
+behaviour and not a regression — but a polygon offset should run parallel to
+each edge, which puts the extent pad at the full distance. It reads as corner
+vertices being offset along their 45-degree bisector with no mid-edge point to
+carry the extent. Recorded here rather than fixed in an audit.
+
 ### There were TWO "Clip by layer" buttons, and I was fixing the other one
 
 "Have I been using a duplicate clip function in the geoprocessing tab?" Yes —
