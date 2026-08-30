@@ -8029,3 +8029,20 @@ feature array free to carry the descending order the pickers need. Measured
 after: 1,028 of 1,028 points on fine-survey ground pick the fine survey.
 
 Whenever precedence changes, ask what else reads the feature list in order.
+
+## "Same colour" is not "same unit"
+
+Suppressing every same-colour shared edge deleted real contacts: this source
+paints many different formations alike, so the rule removed boundaries that
+genuinely separate two units and the WORLD map lost outline detail it had
+always drawn. Measured on the world layer's own features — 2,044 features,
+23,143 distinct segments, 9,587 shared — the colour rule would have deleted
+**1,863 real contacts**, while keying on the unit suppresses **4**.
+
+Identity is `map_id`, else `legend_id`, else the name, and a feature with no
+identity is always drawn. That is the tile-cut and multipart case the rule was
+written for, and nothing else.
+
+The test reimplemented the rule locally and kept passing against a copy of
+itself — the same trap as the level-picking test. A test that re-derives the
+behaviour it is checking proves only that the copy agrees with itself.
