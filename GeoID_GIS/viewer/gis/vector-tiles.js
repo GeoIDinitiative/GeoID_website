@@ -35,9 +35,9 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260830-f494dda";
-import { renderFeatureCollection } from "./vector-render.js?v=20260830-f494dda";
-import * as GP from "./geoprocessing.js?v=20260830-f494dda";
+import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260830-bc1639d";
+import { renderFeatureCollection } from "./vector-render.js?v=20260830-bc1639d";
+import * as GP from "./geoprocessing.js?v=20260830-bc1639d";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -106,6 +106,16 @@ const AUTO_TILE_BUDGET = TILE_BUDGETS.balanced;
  * a source dataset disappearing.
  */
 const COVERAGE_TOLERANCE = 0.03;
+
+/**
+ * How many levels BELOW the one a box's size deserves the sweep still looks at.
+ *
+ * Enough to reach the levels where a composited source keeps its other
+ * surveys: measured on Macrostrat, the offshore survey lives at zooms 5 and 6
+ * and is gone by 7, while a 34 km study area starts its climb at 10. Four
+ * levels down covers that and costs one or two tiles a level.
+ */
+const SHALLOW_LOOKBACK = 5;
 
 /**
  * Which SURVEY a feature came from. Macrostrat names it `source_id`; anything
@@ -980,6 +990,23 @@ export function createTiledVectorLayer({
      * hold fewer, larger pieces of the same ground.
      */
     const start = Math.max(0, zoomForBounds(bounds, { maxZoom }) - 2);
+    /**
+     * LOOK SHALLOWER FIRST, or a small box never meets the other surveys.
+     *
+     * The climb starts near the level a box's SIZE deserves and only goes
+     * deeper. That is right for choosing detail and wrong for finding
+     * datasets: this source composites several surveys and switches between
+     * them by scale, so a survey that lives at zoom 5-6 is invisible to a box
+     * whose climb starts at 10. Measured — a 34 km study area on the north
+     * coast starts at zoom 10 and never sees the offshore survey at all, while
+     * a degree-wide box starts at 5 and finds it immediately. The merge could
+     * only ever fill from levels it had actually looked at.
+     *
+     * So the sweep begins below the start and walks up. The shallow levels are
+     * one or two tiles each — this costs almost nothing, and it is the only
+     * way `deepestFor` can know a survey exists at all.
+     */
+    const floor = Math.max(0, start - SHALLOW_LOOKBACK);
     let best = null;
     let barren = 0;
     // The fullest-covering level seen, kept so a deeper, partial level can be
@@ -993,7 +1020,7 @@ export function createTiledVectorLayer({
     // source actually supports over this ground rather than guessing at them.
     const levels = [];
     let stoppedFor = null;
-    for (let z = start; z <= maxZoom + 3; z += 1) {
+    for (let z = floor; z <= maxZoom + 3; z += 1) {
       const needed = tilesForBounds(bounds, z).length;
       // A probe costing more tiles than the budget allows ends the climb — and
       // it is recorded as a BUDGET stop, not as the source running out, so the
@@ -1112,6 +1139,13 @@ export function createTiledVectorLayer({
        * the best of the map two levels further on. Two barren levels in a row
        * is the source having actually run out.
        */
+      /**
+       * The barren counter only runs once the sweep has reached the level the
+       * box actually deserves. Below that it is walking UP to the interesting
+       * levels, and a shallow level giving less detail than the one below it
+       * is the ordinary shape of a pyramid, not the source running out.
+       */
+      if (z < start) continue;
       barren += 1;
       if (barren >= 2) { stoppedFor = "source"; break; }
     }

@@ -156,6 +156,43 @@ ok("and only surveys the deep level does NOT carry are added",
     !filled.includes("23") && !filled.includes("147"));
 }
 
+
+/**
+ * THE SWEEP MUST LOOK SHALLOWER THAN THE BOX'S OWN LEVEL.
+ *
+ * The climb started near the level a box's SIZE deserves and only went deeper.
+ * Right for choosing detail, wrong for finding datasets: this source
+ * composites surveys and switches between them by scale, so a survey living at
+ * zoom 5-6 is invisible to a box whose climb starts at 10. Measured — a 34 km
+ * study area starts at zoom 10 and never sees the offshore survey at all,
+ * while a degree-wide box starts at 5 and finds it immediately. Every earlier
+ * success was on a wide box, which is why this survived so long.
+ */
+ok("a shallow lookback is declared", /const SHALLOW_LOOKBACK = \d+;/.test(src));
+{
+  const back = Number(/const SHALLOW_LOOKBACK = (\d+);/.exec(src)[1]);
+  // A 34 km box deserves ~zoom 12, so the climb starts at 10; the surveys that
+  // went missing live at 5 and 6.
+  ok("the lookback reaches the levels where the other surveys live", 10 - back <= 6);
+  ok("and it does not sweep the whole pyramid", back <= 6);
+}
+ok("the sweep begins at the floor, not the deserved level",
+  /for \(let z = floor; z <= maxZoom \+ 3; z \+= 1\)/.test(src));
+ok("the floor is the deserved level minus the lookback",
+  /const floor = Math\.max\(0, start - SHALLOW_LOOKBACK\);/.test(src));
+/**
+ * And the barren counter must not fire while the sweep is still WALKING UP to
+ * the interesting levels: a shallow level giving less detail than the one
+ * below it is the ordinary shape of a pyramid, not the source running out.
+ */
+ok("the barren counter is held until the deserved level is reached",
+  /if \(z < start\) continue;/.test(src));
+{
+  const guard = src.indexOf("if (z < start) continue;");
+  const barren = src.indexOf("barren += 1;", guard);
+  ok("the guard comes BEFORE the counter it protects", guard > 0 && barren > guard);
+}
+
 console.log(`${pass} passed`);
 if (fail) console.log(`${fail} FAILED`);
 process.exit(fail ? 1 : 0);
