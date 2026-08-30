@@ -95,6 +95,29 @@ const mask = { west: -8, south: 54, east: -5, north: 56 };
     fill([], [f(1, "a")], key).length === 0);
   ok("missing lists are survivable",
     fill(null, null, key).length === 0);
+
+  /**
+   * THE CASE THAT MEMBERSHIP GOT WRONG.
+   *
+   * Measured on the north coast: survey 147 is present at the pinned zoom 12
+   * and covers only part of the study area there, because the deeper tiles for
+   * the rest of its extent are empty. Membership called it drawn; the pixels
+   * called it 404 unpainted sample points.
+   */
+  const bounds = { west: 0, east: 1, south: 0, north: 1 };
+  // A stand-in for the real grid measure: each feature declares its reach.
+  const cov = (list) => Math.max(0, ...(list || []).map((f) => f.reach || 0));
+  const g = (src, reach, id) => ({ src, reach, id });
+
+  ok("a survey drawn over only part of its ground is filled in",
+    fill([g(147, 1.0, "full")], [g(147, 0.64, "part")], key, { bounds, coverage: cov })
+      .map((x) => x.id).join() === "full");
+  ok("a survey the tiles already cover is not drawn a second time",
+    fill([g(23, 1.0, "a")], [g(23, 1.0, "a")], key, { bounds, coverage: cov }).length === 0);
+  ok("a hair less reach is not worth a second copy under a semi-opaque layer",
+    fill([g(23, 1.0, "a")], [g(23, 0.99, "a")], key, { bounds, coverage: cov }).length === 0);
+  ok("a survey absent from the pinned level is still filled in when measuring",
+    fill([g(154, 1.0, "a")], [g(23, 1.0, "b")], key, { bounds, coverage: cov }).length === 1);
 }
 
 console.log(`${pass} passed`);

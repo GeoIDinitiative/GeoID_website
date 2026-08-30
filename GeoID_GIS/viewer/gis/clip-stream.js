@@ -190,16 +190,43 @@ async function refine(entry, viewBox, macro) {
  * right answer for clipping a shapefile by a box.
  */
 /**
- * The surveys the pinned level does NOT carry.
+ * The merged features the pinned level does NOT already draw over this ground.
  *
- * `featuresIn` merges each survey from its own deepest level, so the merged
- * list spans levels by construction while the controller only ever draws one
- * level's tiles. Everything the tiles will not draw is returned here, to be
- * drawn once as a static mesh underneath them.
+ * The first version of this asked, per SURVEY, "is this survey in the pinned
+ * level at all?" — which is the wrong question, and measured as such: on the
+ * north coast survey 147 IS present at zoom 12, but only over part of the box,
+ * because the deeper tiles for the rest of its extent are empty. The rule saw
+ * it in the drawn set, skipped it, and left 404 of 424 unpainted sample points
+ * inside its own ground.
+ *
+ * So the test is COVERAGE, not membership: a survey is filled in when its
+ * pinned-level version reaches less of the study area than its merged version
+ * does. A survey the tiles already cover contributes nothing, which keeps the
+ * mesh to the gaps and avoids drawing a second copy under a layer the user may
+ * well be viewing at reduced opacity.
  */
-function fillInSurveys(merged, own, keyOf) {
-  const drawn = new Set((own || []).map(keyOf));
-  return (merged || []).filter((f) => !drawn.has(keyOf(f)));
+function fillInSurveys(merged, own, keyOf, { bounds, coverage, tolerance = 0.02 } = {}) {
+  const byKey = (list) => {
+    const out = new Map();
+    for (const f of list || []) {
+      const k = keyOf(f);
+      if (!out.has(k)) out.set(k, []);
+      out.get(k).push(f);
+    }
+    return out;
+  };
+  const mergedBy = byKey(merged);
+  const ownBy = byKey(own);
+  // With no way to measure ground, fall back to the membership test: it is
+  // wrong only where a survey is PARTLY drawn, and never drops what is missing.
+  const reach = (list) => (bounds && coverage ? coverage(list, bounds) : (list?.length ? 1 : 0));
+  const fill = [];
+  for (const [key, group] of mergedBy) {
+    const drawn = ownBy.get(key);
+    if (drawn && reach(drawn) >= reach(group) - tolerance) continue;
+    fill.push(...group);
+  }
+  return fill;
 }
 
 export async function createStreamingClip({ source, mask, name, contacts = null }) {
@@ -285,7 +312,8 @@ export async function createStreamingClip({ source, mask, name, contacts = null 
    * nothing finer to refine to.
    */
   const own = await controller.featuresIn(bounds, { zoom: baseZoom });
-  const fillIn = fillInSurveys(probe.features, own.features, tiles.sourceKey);
+  const fillIn = fillInSurveys(probe.features, own.features, tiles.sourceKey,
+    { bounds, coverage: tiles.coverageWithin });
   if (fillIn.length) {
     const render = await import(`./vector-render.js${stamp}`);
     const built = render.renderFeatureCollection(
