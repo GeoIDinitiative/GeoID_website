@@ -3447,6 +3447,44 @@ and **Analysis**; section headings the same.
 lives in as many places as there are surfaces that show it. When something is
 "still called the old thing", grep the old string before assuming a cache.
 
+### The highlight floated 7 km up, and a lift is an altitude
+
+"The polygon outlines float way above the surface — looking like a massive
+offset." The thin cyan line in that screenshot is the HOVER HIGHLIGHT
+(`0x8ef6ff`), not the drawn outline, and it was doing exactly what it looked
+like.
+
+`buildHighlight` raised the selection `0.004` scene units and the hover
+`0.0035`. The globe is 3.2 units to 6,371 km, so those are **7.96 km** and
+**6.97 km** above the terrain. Straight down that costs nothing, which is how
+it survived; at a few kilometres across with any obliquity at all the outline
+stands visibly off the unit it is tracing.
+
+**This is the measure marker's fault in a second place**, and that note already
+states the rule: *a lift is an altitude, and an altitude parallaxes.* Worth
+having written twice, because both times the number looked harmless in the
+source — 0.004 of anything reads as a hair.
+
+**The lift was never needed.** These nodes draw with `depthTest: false` in the
+highlight band (239), above every data layer, so nothing can bury them at any
+height — the lift was solving a depth fight that sorting had already settled.
+Set to zero. Measured against the feature's OWN coordinates: **6,968 m before,
+0 m now.**
+
+**And `FILL_DRAPE` is already 0**, which is why the fills and the seal were
+never the problem. The remaining fixed lifts are the LINE path (`drape` 0.006,
+about 11.9 km) and a tool output's (`0.008`, about 15.9 km) — those govern
+LineStrings and points, not polygon edges, and a river or a fault is a line in
+its own right that has always been drawn lifted and depth-tested.
+
+**A measurement trap paid for in the same session.** The first live check
+recovered lat/lon by inverting a vertex position and compared that against
+`surfacePoint` — and reported a 63 km offset. The inversion ignored the spin
+frame, so it was comparing two DIFFERENT places on terrain that varies by
+~120 km at the default exaggeration; 63 km was the relief, not the lift.
+Compare against the feature's own coordinates, never against a lat/lon
+recovered from the geometry.
+
 ### The drawn outline was UNDER the terrain, and Export was dead markup
 
 Two of three complaints about the clip procedure measured out to faults with
