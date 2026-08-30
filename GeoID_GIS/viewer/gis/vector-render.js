@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260830-ec51523";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260830-ec51523";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260830-ec51523";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260830-eaf4a61";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260830-eaf4a61";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260830-eaf4a61";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -699,7 +699,12 @@ export function renderFeatureCollection(fc, {
     return ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
   };
   const sharedSameColour = new Set();
-  if (contacts) {
+  // NOT gated on `contacts`. The seal inks polygon rings whenever the layer is
+  // coloured, whatever the contact style is — a clip built through the tool
+  // carries no contact style at all, and that is exactly the layer the phantom
+  // lines were reported on. Guarding this pass on `contacts` left it switched
+  // off precisely where it was needed.
+  {
     const seen = new Map();
     fc.features.forEach((feature) => {
       const geometry = feature?.geometry;
