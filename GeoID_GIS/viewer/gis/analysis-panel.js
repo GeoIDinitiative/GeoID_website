@@ -11,8 +11,9 @@ import {
   vectorRows,
   extractDelimitedWithin,
   delimitedColumns,
-} from "./extraction.js?v=20260830-f26914f";
-import { rectangleVertices } from "./draw-area.js?v=20260830-f26914f";
+} from "./extraction.js?v=20260830-331a341";
+import { resolvePolygonRings, refreshPolygonOptions } from "./extent-picker.js?v=20260830-331a341";
+import { rectangleVertices } from "./draw-area.js?v=20260830-331a341";
 
 let lastResult = null;
 // The whole extraction as one object -- bounds, grid, vectors, clouds. This is
@@ -138,30 +139,19 @@ function builtInChecked(id) {
  */
 function resolveBounds() {
   const value = document.getElementById("gis-extract-within")?.value || "drawn";
-  if (value.startsWith("layer:")) {
-    const id = value.slice(6);
-    const layer = loadedLayers().find((l) => String(l.id) === id);
-    if (!layer?.collection) {
-      return { error: "That bounds layer is no longer loaded — pick another." };
-    }
-    const rings = ringsFromCollection(layer.collection);
-    if (!rings.length) {
-      return { error: "That layer holds no polygons to bound with." };
-    }
-    // The layer's own collection is the mask, holes and all — rebuilding it
-    // from the rings would be a second copy of the same polygons.
-    return { label: layer.name, rings, maskFc: layer.collection, layerId: String(layer.id) };
-  }
-  const viewer = window.GeoIDViewer;
-  // Whatever the Draw tool currently holds -- clicked out, or a preset box --
-  // or a buffer. There is deliberately no second polygon workflow here.
-  const geometry = viewer?.getExtractionGeometry?.("study")
-    || viewer?.getExtractionGeometry?.("buffer");
-  if (!geometry) {
-    return { error: "Mark out an area first — the Draw tool, the box above, or pick a polygon layer." };
-  }
-  const rings = [{ vertices: geometry.vertices, holes: [], center: geometry.center }];
-  return { label: "the drawn area", rings, maskFc: maskFromRings(rings), layerId: null };
+  /**
+   * One picker, two shapes of answer.
+   *
+   * This used to resolve the area itself — its own option list and its own
+   * "drawn" branch reading the LIVE overlay and nothing else. Pressing Done
+   * captures a shape and clears that overlay, so the moment a drawing became a
+   * real layer the panel said "Mark out an area first" about a polygon sitting
+   * in front of the user. `extent-picker` already had the fallback chain, and
+   * was lifted out precisely so this question would not be answered three
+   * different ways.
+   */
+  return resolvePolygonRings(value)
+    || { error: "Mark out an area first — the Draw tool, the box above, or pick a polygon layer." };
 }
 
 /**
@@ -212,24 +202,16 @@ function renderSources() {
   });
 }
 
-/** The bounds select: the drawn area, plus every loaded polygon layer. */
+/**
+ * The bounds select, filled by the SHARED picker.
+ *
+ * `allLayers` because a coastline, an imported shapefile or a buffer a tool
+ * produced is a perfectly good study area — and the drawn shapes keep their
+ * ▱ and come first, since those are the deliberate ones.
+ */
 function renderWithin() {
-  const select = document.getElementById("gis-extract-within");
-  if (!select) return;
-  const previous = select.value;
-  [...select.querySelectorAll("option")].slice(1).forEach((option) => option.remove());
-  loadedLayers()
-    .filter((layer) => (layer.collection?.features || []).some((f) =>
-      f?.geometry?.type === "Polygon" || f?.geometry?.type === "MultiPolygon"))
-    .forEach((layer) => {
-      const option = document.createElement("option");
-      option.value = `layer:${layer.id}`;
-      option.textContent = `▱ ${layer.name}`;
-      select.appendChild(option);
-    });
-  if ([...select.options].some((option) => option.value === previous)) {
-    select.value = previous;
-  }
+  refreshPolygonOptions(document.getElementById("gis-extract-within"), "drawn",
+    { allLayers: true });
 }
 
 const FIELD_CAP = 60;

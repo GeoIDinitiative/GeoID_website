@@ -20,6 +20,7 @@
  * longitude 315 and reads as mid-Atlantic downstream, which is the same trap
  * `signedLon` in bridge.js exists for.
  */
+import { ringsFromCollection, maskFromRings } from "./extraction.js?v=20260830-331a341";
 
 const byId = (id) => document.getElementById(id);
 
@@ -142,6 +143,60 @@ export function resolvePolygonExtent(mode, { arm = true } = {}) {
   return {
     error: arm
       ? "Draw the area on the globe — the Draw tool is now active — then request again."
+      : "Nothing is drawn yet. Draw an area on the globe first.",
+  };
+}
+
+/**
+ * The same choice, answered as RINGS rather than as a box.
+ *
+ * Two shapes of answer, one chain. A fetcher wants a bounding box because that
+ * is what a tile service takes; a CLIP wants the polygon itself, and giving it
+ * a box would quietly widen every study area to its own extent. So the modes,
+ * the option list and above all the FALLBACK are shared, and only the shape of
+ * the answer differs.
+ *
+ * The fallback is what this was missing. Extraction resolved "the drawn area"
+ * from the LIVE overlay alone — and pressing Done captures the shape and
+ * clears that overlay, so the moment a drawing became a real layer the panel
+ * answered "Mark out an area first" about a polygon sitting in front of the
+ * user. A shape you already drew is the commonest case there is.
+ */
+export function resolvePolygonRings(mode, { arm = true } = {}) {
+  const fromLayer = (layer) => {
+    if (!layer?.collection) {
+      return { error: "That bounds layer is no longer loaded — pick another." };
+    }
+    const rings = ringsFromCollection(layer.collection);
+    if (!rings.length) return { error: "That layer holds no polygons to bound with." };
+    // The layer's OWN collection is the mask, holes and all -- rebuilding it
+    // from the rings would be a second copy of the same polygons.
+    return { label: layer.name, rings, maskFc: layer.collection, layerId: String(layer.id) };
+  };
+
+  if (typeof mode === "string" && mode.startsWith("layer:")) {
+    const id = mode.slice(6);
+    return fromLayer((window.GeoIDImportManager?.getLayers?.() || [])
+      .find((l) => String(l.id) === id));
+  }
+  if (mode !== "drawn" && mode !== "polygon") return null;
+
+  // 1. whatever the Draw tool is holding right now
+  const viewer = window.GeoIDViewer;
+  const geometry = viewer?.getExtractionGeometry?.("study")
+    || viewer?.getExtractionGeometry?.("buffer");
+  if (geometry?.vertices?.length) {
+    const rings = [{ vertices: geometry.vertices, holes: [], center: geometry.center }];
+    return { label: "the drawn area", rings, maskFc: maskFromRings(rings), layerId: null };
+  }
+  // 2. the last drawn polygon still ON the globe -- captured, but right there
+  const kept = drawnPolygonLayers().filter((l) => l.visible !== false);
+  if (kept.length) return fromLayer(kept[kept.length - 1]);
+  // 3. nothing to work with: raise the tool rather than describing where it is
+  if (arm) promptDrawTool();
+  return {
+    error: arm
+      ? "Draw the area on the globe — the Draw tool is now active — then run again."
       : "Nothing is drawn yet. Draw an area on the globe first.",
   };
 }
