@@ -91,6 +91,32 @@ const answering = (calls) => async (url) => {
     fc.features[0].properties.map_id === 11);
 }
 
+/**
+ * BOTH BOX VOCABULARIES, or the fetch is skipped in silence.
+ *
+ * `areaOfInterest` answers in minX/minY/maxX/maxY and the tile side speaks
+ * west/south/east/north. Reading the wrong one makes every comparison false,
+ * so no unit is ever "near", the API is never asked, and the clip falls back
+ * to tile pieces with nothing in the message to say so. That shipped once.
+ */
+{
+  const { __touches: touches } = await import("./tool-runner.js");
+  const unit = {
+    geometry: { type: "Polygon", coordinates: [[[-7.2, 54.95], [-7.0, 54.95], [-7.0, 55.1], [-7.2, 54.95]]] },
+  };
+  const geo = { west: -7.3, east: -6.6, south: 54.9, north: 55.25 };
+  const cart = { minX: -7.3, maxX: -6.6, minY: 54.9, maxY: 55.25 };
+  ok("a unit inside is near, in tile words", touches(unit, geo) === true);
+  ok("a unit inside is near, in extent words", touches(unit, cart) === true);
+  const far = { minX: 10, maxX: 11, minY: 10, maxY: 11 };
+  ok("a unit far away is not near", touches(unit, far) === false);
+  ok("a unit merely OVERLAPPING the edge still counts",
+    touches(unit, { minX: -7.05, maxX: 0, minY: 50, maxY: 60 }) === true);
+  ok("an unreadable box asks for everything rather than nothing",
+    touches(unit, { left: 1, right: 2 }) === true);
+  ok("a feature with no geometry is not near", touches({}, cart) === false);
+}
+
 console.log(`${pass} passed`);
 if (fail) console.log(`${fail} FAILED`);
 process.exit(fail ? 1 : 0);

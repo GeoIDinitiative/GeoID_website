@@ -1,19 +1,19 @@
-import * as GP from "./geoprocessing.js?v=20260830-a9980c7";
-import * as RA from "./raster-analysis.js?v=20260830-a9980c7";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260830-a9980c7";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260830-a9980c7";
+import * as GP from "./geoprocessing.js?v=20260830-d21568c";
+import * as RA from "./raster-analysis.js?v=20260830-d21568c";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260830-d21568c";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260830-d21568c";
 // Pure and DOM-free, so a static import keeps this module Node-clean AND keeps
 // the terrain engine SYNCHRONOUS -- runTool calls engines.native WITHOUT
 // awaiting it, so an async engine hands register() a Promise and the raster
 // comes out undefined. Measured as: "Cannot read properties of undefined".
-import { buildSurface, nativeStepM } from "./model-build.js?v=20260830-a9980c7";
-import { nativeGridOf } from "./extraction.js?v=20260830-a9980c7";
-import { CRS_OPTIONS } from "./projection.js?v=20260830-a9980c7";
-import * as IN from "./interpolation.js?v=20260830-a9980c7";
-import * as VAL from "./validation.js?v=20260830-a9980c7";
-import * as EX from "./analysis-extra.js?v=20260830-a9980c7";
-import * as HY from "./hydrology.js?v=20260830-a9980c7";
-import * as KR from "./kriging.js?v=20260830-a9980c7";
+import { buildSurface, nativeStepM } from "./model-build.js?v=20260830-d21568c";
+import { nativeGridOf } from "./extraction.js?v=20260830-d21568c";
+import { CRS_OPTIONS } from "./projection.js?v=20260830-d21568c";
+import * as IN from "./interpolation.js?v=20260830-d21568c";
+import * as VAL from "./validation.js?v=20260830-d21568c";
+import * as EX from "./analysis-extra.js?v=20260830-d21568c";
+import * as HY from "./hydrology.js?v=20260830-d21568c";
+import * as KR from "./kriging.js?v=20260830-d21568c";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -2080,8 +2080,22 @@ async function refreshLiveInputs(desc, inputs, params = {}) {
   return { borrowed, box, note: notes.length ? ` ${notes.join(" ")}` : "" };
 }
 
-/** Does any part of this feature reach into the box? */
+/**
+ * Does any part of this feature reach into the box?
+ *
+ * Both vocabularies are accepted on purpose. `areaOfInterest` answers in
+ * `minX/minY/maxX/maxY` and the tile side speaks `west/south/east/north`;
+ * reading the wrong one gives `undefined`, every comparison is false, no unit
+ * is ever near, and the fetch is skipped in silence — which is exactly how
+ * this shipped once already, the clip quietly falling back to tile pieces with
+ * nothing in the message to say so.
+ */
 function touches(feature, box) {
+  const west = box.west ?? box.minX;
+  const east = box.east ?? box.maxX;
+  const south = box.south ?? box.minY;
+  const north = box.north ?? box.maxY;
+  if (![west, east, south, north].every(Number.isFinite)) return true;
   const g = feature?.geometry;
   if (!g) return false;
   let minX = Infinity; let minY = Infinity; let maxX = -Infinity; let maxY = -Infinity;
@@ -2096,7 +2110,7 @@ function touches(feature, box) {
     c.forEach(walk);
   };
   walk(g.coordinates || []);
-  return maxX >= box.west && minX <= box.east && maxY >= box.south && minY <= box.north;
+  return maxX >= west && minX <= east && maxY >= south && minY <= north;
 }
 
 /**
@@ -2214,7 +2228,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260830-a9980c7");
+    const client = await import("./sidecar-client.js?v=20260830-d21568c");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -2279,7 +2293,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260830-a9980c7");
+    const bridge = await import("./research/bridge.js?v=20260830-d21568c");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -2291,12 +2305,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260830-a9980c7");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260830-d21568c");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260830-a9980c7");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260830-d21568c");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }
@@ -2661,3 +2675,6 @@ export function runTool(toolId, inputs = {}, params = {}, { outputName } = {}) {
   }
   return out;
 }
+
+/** Exported for the tests: the box vocabularies must both work. */
+export const __touches = touches;
