@@ -1,19 +1,19 @@
-import * as GP from "./geoprocessing.js?v=20260830-c879e4f";
-import * as RA from "./raster-analysis.js?v=20260830-c879e4f";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260830-c879e4f";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260830-c879e4f";
+import * as GP from "./geoprocessing.js?v=20260830-ef00e07";
+import * as RA from "./raster-analysis.js?v=20260830-ef00e07";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260830-ef00e07";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260830-ef00e07";
 // Pure and DOM-free, so a static import keeps this module Node-clean AND keeps
 // the terrain engine SYNCHRONOUS -- runTool calls engines.native WITHOUT
 // awaiting it, so an async engine hands register() a Promise and the raster
 // comes out undefined. Measured as: "Cannot read properties of undefined".
-import { buildSurface, nativeStepM } from "./model-build.js?v=20260830-c879e4f";
-import { nativeGridOf } from "./extraction.js?v=20260830-c879e4f";
-import { CRS_OPTIONS } from "./projection.js?v=20260830-c879e4f";
-import * as IN from "./interpolation.js?v=20260830-c879e4f";
-import * as VAL from "./validation.js?v=20260830-c879e4f";
-import * as EX from "./analysis-extra.js?v=20260830-c879e4f";
-import * as HY from "./hydrology.js?v=20260830-c879e4f";
-import * as KR from "./kriging.js?v=20260830-c879e4f";
+import { buildSurface, nativeStepM } from "./model-build.js?v=20260830-ef00e07";
+import { nativeGridOf } from "./extraction.js?v=20260830-ef00e07";
+import { CRS_OPTIONS } from "./projection.js?v=20260830-ef00e07";
+import * as IN from "./interpolation.js?v=20260830-ef00e07";
+import * as VAL from "./validation.js?v=20260830-ef00e07";
+import * as EX from "./analysis-extra.js?v=20260830-ef00e07";
+import * as HY from "./hydrology.js?v=20260830-ef00e07";
+import * as KR from "./kriging.js?v=20260830-ef00e07";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -2114,6 +2114,50 @@ function touches(feature, box) {
 }
 
 /**
+ * HOW FINELY EACH SURVEY MAPS THE GROUND, measured from the features it sent.
+ *
+ * Macrostrat's tiles hide this: `carto` picks ONE survey per scale, so a tile
+ * carries a single survey's polygons over any given ground. Fetching whole
+ * units from the API brings every survey back, and they overlap — measured on
+ * a 45 km clip, 80% of it is covered by more than one survey and 2,888 of
+ * 4,900 sample points by all three. Drawn flat, a regional survey's boundaries
+ * are ruled straight across the detailed survey's geology.
+ *
+ * `/defs/sources` answers empty for these ids, so the rank is taken from the
+ * geometry itself: VERTICES PER UNIT AREA, which is what "more finely mapped"
+ * means — boundary detail per unit of ground. On that same clip it separates
+ * them cleanly: survey 23 at 14,624 with 51 units averaging 0.0031 deg2, and
+ * 154 and 147 at 1,549 and 1,008 with 4 and 15 much larger units. Deriving it
+ * from the data rather than a table means any source with overlapping surveys
+ * is ranked without a list to maintain.
+ */
+function surveyRanks(features) {
+  const stats = new Map();
+  const ringArea = (ring) => {
+    let a = 0;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      a += (ring[j][0] * ring[i][1]) - (ring[i][0] * ring[j][1]);
+    }
+    return Math.abs(a / 2);
+  };
+  for (const f of features || []) {
+    const key = String(f?.properties?.source_id ?? "");
+    if (!key) continue;
+    const g = f.geometry;
+    if (!g) continue;
+    const rings = g.type === "Polygon" ? g.coordinates
+      : g.type === "MultiPolygon" ? g.coordinates.flat() : [];
+    if (!rings.length) continue;
+    const e = stats.get(key) || { verts: 0, area: 0 };
+    rings.forEach((r) => { e.verts += r.length; e.area += ringArea(r); });
+    stats.set(key, e);
+  }
+  const rank = new Map();
+  for (const [key, e] of stats) rank.set(key, e.area > 0 ? e.verts / e.area : 0);
+  return rank;
+}
+
+/**
  * SWAP THE TILED PIECES FOR THE UNITS THEMSELVES.
  *
  * The tiles are how we learn WHICH units are on this ground, which they answer
@@ -2228,7 +2272,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260830-c879e4f");
+    const client = await import("./sidecar-client.js?v=20260830-ef00e07");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -2293,7 +2337,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260830-c879e4f");
+    const bridge = await import("./research/bridge.js?v=20260830-ef00e07");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -2305,12 +2349,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260830-c879e4f");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260830-ef00e07");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260830-c879e4f");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260830-ef00e07");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }
@@ -2498,7 +2542,17 @@ function register(desc, raw, name, resolvedInputs = {}) {
   if (!fc.features || !fc.features.length) {
     return failShape("Operation produced no features.");
   }
-  const result = buildVectorLayerResult(fc, { name, drape: 0.008 });
+  /**
+   * Overlapping surveys are ranked, so the finer one is the map.
+   *
+   * Only where there is more than one survey to choose between: a single-source
+   * layer ranks everything equally and the renderer's ordinary path runs.
+   */
+  const ranks = surveyRanks(fc.features);
+  const rankOf = ranks.size > 1
+    ? (f) => ranks.get(String(f?.properties?.source_id ?? "")) || 0
+    : null;
+  const result = buildVectorLayerResult(fc, { name, drape: 0.008, rankOf });
   const layer = window.GeoIDImportManager?.addDerivedLayer?.(name, result, "derived") || null;
   /**
    * A tool may declare how its output is READ (`paint`), and the multi-ring
@@ -2676,5 +2730,7 @@ export function runTool(toolId, inputs = {}, params = {}, { outputName } = {}) {
   return out;
 }
 
+/** Exported for the tests. */
+export const __surveyRanks = surveyRanks;
 /** Exported for the tests: the box vocabularies must both work. */
 export const __touches = touches;

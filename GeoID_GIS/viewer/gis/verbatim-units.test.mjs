@@ -117,6 +117,44 @@ const answering = (calls) => async (url) => {
   ok("a feature with no geometry is not near", touches({}, cart) === false);
 }
 
+/**
+ * WHERE TWO SURVEYS COVER THE SAME GROUND, THE FINER ONE IS THE MAP.
+ *
+ * Macrostrat's tiles hide the overlap — `carto` picks one survey per scale —
+ * so fetching whole units brings every survey back on top of each other:
+ * measured on a 45 km clip, 80% of it covered by more than one survey, 2,888
+ * of 4,900 points by all three. `/defs/sources` answers empty for these ids, so
+ * the rank comes from the geometry: VERTICES PER UNIT AREA, boundary detail per
+ * unit of ground.
+ */
+{
+  const { __surveyRanks: ranks } = await import("./tool-runner.js");
+  // A unit square, so area is 1 and the rank is just the vertex count.
+  const square = (id, source, extra = 0) => ({
+    properties: { map_id: id, source_id: source },
+    geometry: { type: "Polygon", coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1],
+      ...Array.from({ length: extra }, (_, i) => [1 - (i + 1) / (extra + 1), 1]), [0, 0]]] },
+  });
+  const r = ranks([square(1, 23, 40), square(2, 147, 0)]);
+  ok("the more finely drawn survey ranks higher",
+    r.get("23") > r.get("147"));
+  ok("every survey present is ranked", r.size === 2);
+  ok("a survey with no area is not ranked above a real one",
+    ranks([{ properties: { source_id: 9 }, geometry: { type: "Polygon", coordinates: [[[0, 0], [0, 0], [0, 0]]] } }])
+      .get("9") === 0);
+  ok("features with no source are skipped", ranks([{ properties: {}, geometry: null }]).size === 0);
+  ok("nothing in, nothing out", ranks([]).size === 0 && ranks(null).size === 0);
+
+  // The measured ordering on the real clip, as a regression:
+  // 23 at 14,624 verts/deg2 beat 154 at 1,549 and 147 at 1,008.
+  const many = [];
+  for (let i = 0; i < 51; i += 1) many.push(square(i, 23, 43));
+  for (let i = 0; i < 15; i += 1) many.push(square(100 + i, 147, 12));
+  const rr = ranks(many);
+  ok("the detailed land survey outranks the regional ones",
+    rr.get("23") > rr.get("147"));
+}
+
 console.log(`${pass} passed`);
 if (fail) console.log(`${fail} FAILED`);
 process.exit(fail ? 1 : 0);

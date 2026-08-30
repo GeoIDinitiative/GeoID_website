@@ -1,7 +1,8 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260830-c879e4f";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260830-c879e4f";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260830-c879e4f";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260830-ef00e07";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260830-ef00e07";
+import { pointInPolygon } from "./geometry.js?v=20260830-ef00e07";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260830-ef00e07";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -580,6 +581,22 @@ export function renderFeatureCollection(fc, {
    */
   edgeBounds = null,
   /**
+   * WHERE TWO SURVEYS COVER THE SAME GROUND, THE FINER ONE IS THE MAP.
+   *
+   * Macrostrat's tiles never show this: `carto` picks ONE survey per scale, so
+   * a tile carries one survey's polygons for any given ground. Fetching whole
+   * units from the API brings all of them back — measured on a 45 km clip,
+   * **80% of it is covered by more than one survey** and 2,888 of 4,900 sample
+   * points by all three. Drawn flat, a regional survey's boundaries are ruled
+   * straight across a detailed survey's geology.
+   *
+   * `rankOf` answers how finely a feature's source maps the ground. Higher
+   * wins: its fill is drawn last, and a coarser feature's contact is not inked
+   * where a finer one covers it. The coarse survey still shows wherever the
+   * fine one does not reach, which is what keeps the offshore geology.
+   */
+  rankOf = null,
+  /**
    * Is this layer a set of PLACES or a point CLOUD?
    *
    * The count decides by default, and the rule is sound: under 20,000 a layer
@@ -706,7 +723,7 @@ export function renderFeatureCollection(fc, {
   // off precisely where it was needed.
   {
     const seen = new Map();
-    fc.features.forEach((feature) => {
+    (rankOf ? [...fc.features] : fc.features).forEach((feature) => {
       const geometry = feature?.geometry;
       if (!geometry) return;
       const css = colourFor ? (colourFor(feature) || "#8a8a8a") : "#";
@@ -724,7 +741,26 @@ export function renderFeatureCollection(fc, {
   /** Drawn once, however many polygons claim it: shared ink doubles up. */
   const inked = new Set();
 
-  fc.features.forEach((feature) => {
+  const ordered = rankOf
+    ? [...fc.features].sort((a, b) => (rankOf(a) || 0) - (rankOf(b) || 0))
+    : fc.features;
+  /** The finer-covering features, for the contact test. Bboxes reject early. */
+  const finer = rankOf
+    ? ordered.map((f) => {
+      const polys = polygonsOf(f.geometry || {});
+      let minX = Infinity; let minY = Infinity; let maxX = -Infinity; let maxY = -Infinity;
+      polys.flat().forEach((ring) => ring.forEach(([x, y]) => {
+        if (x < minX) minX = x; if (x > maxX) maxX = x;
+        if (y < minY) minY = y; if (y > maxY) maxY = y;
+      }));
+      return { rank: rankOf(f) || 0, polys, minX, minY, maxX, maxY };
+    }).filter((e) => e.polys.length)
+    : [];
+  const coveredByFiner = (x, y, rank) => finer.some((e) => e.rank > rank
+    && x >= e.minX && x <= e.maxX && y >= e.minY && y <= e.maxY
+    && e.polys.some((poly) => pointInPolygon([x, y], poly)));
+
+  ordered.forEach((feature) => {
     if (linePositions.length >= MAX_LINE_VERTICES) {
       truncated = true;
       return;
@@ -783,6 +819,12 @@ export function renderFeatureCollection(fc, {
           // No boundary between two polygons the map paints alike, and no
           // second helping of ink on a boundary that is really there.
           if (sharedSameColour.has(key) || inked.has(key)) continue;
+          // Nor a coarser survey's boundary ruled across finer geology.
+          if (rankOf && coveredByFiner(
+            (coords[i][0] + coords[i + 1][0]) / 2,
+            (coords[i][1] + coords[i + 1][1]) / 2,
+            rankOf(feature) || 0,
+          )) continue;
           inked.add(key);
           pushSegment(seal.positions, coords[i], coords[i + 1], FILL_DRAPE);
         }
@@ -1164,6 +1206,7 @@ function defaultSymbology(fc) {
 
 export function buildVectorLayerResult(fc, {
   name, fields = [], drape = 0.006, outlineOnly = false, pointStyle = "auto",
+  rankOf = null,
 } = {}) {
   /**
    * The fill mode rides with the LAYER, not with a paint call.
@@ -1186,7 +1229,7 @@ export function buildVectorLayerResult(fc, {
   // minutes where it used to take seconds. The geometry is the same either
   // way; what changes is that the layer is on the globe immediately and gains
   // its colours a moment later, instead of the user waiting for both.
-  const { object3D, truncated } = renderFeatureCollection(fc, { name, drape, pointStyle });
+  const { object3D, truncated } = renderFeatureCollection(fc, { name, drape, pointStyle, rankOf });
   let lastColourFor = null;
 
   /**
@@ -1200,7 +1243,10 @@ export function buildVectorLayerResult(fc, {
   const repaintVector = (colourFor) => {
     lastColourFor = colourFor;
     const next = renderFeatureCollection(fc, {
-      name, drape, colourFor, pointStyle, outlineOnly: fillMode === "outline",
+      // `rankOf` rides through every repaint: a recolour must not undo the
+      // survey precedence, or the coarse boundaries come back on the next
+      // symbology change.
+      name, drape, colourFor, pointStyle, rankOf, outlineOnly: fillMode === "outline",
     });
     [...object3D.children].forEach((child) => {
       child.geometry?.dispose?.();
