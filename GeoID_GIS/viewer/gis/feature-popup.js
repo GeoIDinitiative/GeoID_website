@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260830-ecc1aa5";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260830-ecc1aa5";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260830-9155dd7";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260830-9155dd7";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -754,7 +754,26 @@ function bandHolder(holder) {
   return holder;
 }
 
-function buildHighlight(THREE, feature, { colour, opacity, width = 1, lift = 0.004 }) {
+/**
+ * NO LIFT. The highlight sits on the ground it is highlighting.
+ *
+ * It used to be raised 0.004 scene units for the selection and 0.0035 for the
+ * hover — and the globe is 3.2 units to 6,371 km, so those are **7.96 km** and
+ * **6.97 km** above the terrain. Straight down that costs nothing, which is
+ * why it survived; at a few kilometres across and any obliquity at all it is
+ * ruinous, and the outline stands visibly off the unit it is meant to be
+ * tracing. Reported as the outlines floating way above the surface, and that
+ * is literally what they were doing.
+ *
+ * This is the measure marker's fault in a second place, and its note already
+ * states the rule: **a lift is an altitude, and an altitude parallaxes.**
+ *
+ * The lift is not needed for anything. These nodes draw with
+ * `depthTest: false` in the highlight band (239), well above every data
+ * layer, so nothing can bury them whatever height they sit at — the lift was
+ * solving a depth fight that had already been settled by sorting.
+ */
+function buildHighlight(THREE, feature, { colour, opacity, width = 1, lift = 0 }) {
   const viewer = window.GeoIDViewer;
   const nodes = [];
   const geometry = feature?.geometry;
@@ -865,7 +884,7 @@ async function showOutline(feature) {
   holder.name = "GeoID-FeatureOutline";
   // The same gold the viewer's own label selection wears, so one colour means
   // "this is the thing you picked" everywhere on the globe.
-  const nodes = buildHighlight(THREE, feature, { colour: 0xffd166, opacity: 0.95, lift: 0.004 });
+  const nodes = buildHighlight(THREE, feature, { colour: 0xffd166, opacity: 0.95 });
   nodes.forEach((node) => holder.add(node));
   if (!nodes.length) return;
 
@@ -920,7 +939,7 @@ async function showHover(feature) {
   holder.name = "GeoID-FeatureHover";
   // Dimmer and cooler than the selection gold: hover is "you could pick this",
   // selection is "you did". Two states have to look like two states.
-  const nodes = buildHighlight(THREE, feature, { colour: 0x8ef6ff, opacity: 0.55, lift: 0.0035 });
+  const nodes = buildHighlight(THREE, feature, { colour: 0x8ef6ff, opacity: 0.55 });
   if (!nodes.length) { hoverState = null; return; }
   nodes.forEach((node) => holder.add(node));
   group.add(holder);
