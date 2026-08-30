@@ -190,63 +190,16 @@ async function refine(entry, viewBox, macro) {
  * right answer for clipping a shapefile by a box.
  */
 /**
- * The merged features the pinned level does NOT already draw over this ground.
+ * The surveys the pinned level does NOT carry.
  *
- * The first version of this asked, per SURVEY, "is this survey in the pinned
- * level at all?" — which is the wrong question, and measured as such: on the
- * north coast survey 147 IS present at zoom 12, but only over part of the box,
- * because the deeper tiles for the rest of its extent are empty. The rule saw
- * it in the drawn set, skipped it, and left 404 of 424 unpainted sample points
- * inside its own ground.
- *
- * So the test is COVERAGE, not membership: a survey is filled in when its
- * pinned-level version reaches less of the study area than the best version on
- * offer does. A survey the tiles already cover contributes nothing, which keeps
- * the mesh to the gaps and avoids drawing a second copy under a layer the user
- * may well be viewing at reduced opacity.
- *
- * And the candidates must include a SHALLOWER level, not just the merged list.
- * `featuresIn` merges each survey from its own DEEPEST level, so for 147 it
- * returned the very zoom-12 version that has the hole — the merged list I was
- * comparing against carried the same gap. Survey 147's complete version lives
- * at zoom 8. Offering both lets the coarse one fill the ground the fine one
- * never covers, while the fine tiles still draw on top wherever they exist.
+ * `featuresIn` merges each survey from its own deepest level, so the merged
+ * list spans levels by construction while the controller only ever draws one
+ * level's tiles. Everything the tiles will not draw is returned here, to be
+ * drawn once as a static mesh underneath them.
  */
-function fillInSurveys(candidates, own, keyOf, { bounds, coverage, tolerance = 0.02 } = {}) {
-  const byKey = (list) => {
-    const out = new Map();
-    for (const f of list || []) {
-      const k = keyOf(f);
-      if (!out.has(k)) out.set(k, []);
-      out.get(k).push(f);
-    }
-    return out;
-  };
-  const ownBy = byKey(own);
-  const reach = (list) => (bounds && coverage ? coverage(list, bounds) : (list?.length ? 1 : 0));
-  // Per survey, the version that reaches furthest across the study area.
-  const best = new Map();
-  for (const list of candidates || []) {
-    for (const [key, group] of byKey(list)) {
-      const got = reach(group);
-      const had = best.get(key);
-      if (!had || got > had.reach) best.set(key, { group, reach: got });
-    }
-  }
-  const fill = [];
-  for (const [key, { group, reach: got }] of best) {
-    const drawn = ownBy.get(key);
-    if (drawn && reach(drawn) >= got - tolerance) continue;
-    fill.push(...group);
-  }
-  return fill;
-}
-
-/** The level that reaches furthest on its own; among equals the cheapest. */
-function bestCoveringLevel(levels) {
-  const usable = (levels || []).filter((l) => Number.isFinite(l.ownCoverage) && l.tiles);
-  if (!usable.length) return null;
-  return usable.slice().sort((a, b) => (b.ownCoverage - a.ownCoverage) || (a.zoom - b.zoom))[0];
+function fillInSurveys(merged, own, keyOf) {
+  const drawn = new Set((own || []).map(keyOf));
+  return (merged || []).filter((f) => !drawn.has(keyOf(f)));
 }
 
 export async function createStreamingClip({ source, mask, name, contacts = null }) {
@@ -332,15 +285,7 @@ export async function createStreamingClip({ source, mask, name, contacts = null 
    * nothing finer to refine to.
    */
   const own = await controller.featuresIn(bounds, { zoom: baseZoom });
-  const cover = bestCoveringLevel(probe.levels);
-  const shallow = cover && cover.zoom !== baseZoom
-    ? await controller.featuresIn(bounds, { zoom: cover.zoom })
-    : null;
-  const fillIn = fillInSurveys(
-    [probe.features, shallow?.features].filter(Boolean),
-    own.features, tiles.sourceKey,
-    { bounds, coverage: tiles.coverageWithin },
-  );
+  const fillIn = fillInSurveys(probe.features, own.features, tiles.sourceKey);
   if (fillIn.length) {
     const render = await import(`./vector-render.js${stamp}`);
     const built = render.renderFeatureCollection(
@@ -463,6 +408,5 @@ export async function createStreamingClip({ source, mask, name, contacts = null 
 
 /** Exported for the tests: the box a refine would ask for. */
 export const __fillInSurveys = fillInSurveys;
-export const __bestCoveringLevel = bestCoveringLevel;
 export const __refineBox = refineBox;
 export const __boundsOfCollection = boundsOfCollection;
