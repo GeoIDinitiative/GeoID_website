@@ -3279,6 +3279,43 @@ scratches are not backface culling; every tile carries its boundary seal; and
 the clip's own mesh is clean. The seams are back with the revert, and
 that is the honest state: the fix is a ribbon seal, not a backdrop.
 
+### A SECOND construction path needs the symbology too
+
+"It's not assigning the correct legend entries — assigning many polygons as
+other — see the legend for the source world geology and the clipped layer, they
+are not the same." The two cards side by side were the whole diagnosis: the
+world layer keyed by name with its published swatches, and the clip of it
+showing a bare GRADIENT BAR.
+
+A gradient bar means no `legendInfo` at all. The streaming clip was built with
+`colourFor` at construction — which paints the tiles — and nothing else: no
+repaint pinning that paint against a later recolour, and no legend. The static
+clip path in `tool-runner` had done this properly for weeks through
+`inheritSourceColours`; the streaming path was written beside it and inherited
+none of it.
+
+That is the shape to watch for: **when a feature grows a second construction
+path, everything the first path does AFTER building the geometry has to be
+carried across, and none of it will fail loudly.** The colours were half right
+— the tiles were painted at build — so the map looked plausible while the key
+beside it was empty.
+
+Fixed by calling the same `legendFrom` with the same colour column, so the two
+cards are one key by construction rather than by two functions agreeing.
+
+**The parity check that means something is over the SAME GROUND at the SAME
+LEVEL.** Compared straight after the clip, the two legends share **zero** units
+— and that is correct, not a fault: the world layer was at zoom 2 calling the
+ground "Cenozoic sedimentary rocks" where the clip at zoom 10 calls it "Gala
+Group". Macrostrat renames its units per level, so two layers at different
+zooms can never agree and comparing them says nothing.
+
+With the world layer refined to the same view (zoom 6 against the clip's 10):
+**15 of 15 clip units present in the source, 0 colours disagreeing**, and 0
+units the clip invented — `#fd9a52`, `#fdc07a`, `#a6d84a`, `#9ad9dd`, `#9400a7`,
+`#2b9841` identical on both. Drawn vertices in the no-value grey `#8a8a8a`:
+zero.
+
 ### A clipped layer streams, or it is a photograph of a map
 
 "Ensure the clipped geology behaves exactly like the current global Macrostrat
