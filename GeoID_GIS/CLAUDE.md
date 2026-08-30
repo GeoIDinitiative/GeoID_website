@@ -3279,6 +3279,57 @@ scratches are not backface culling; every tile carries its boundary seal; and
 the clip's own mesh is clean. The seams are back with the revert, and
 that is the honest state: the fix is a ribbon seal, not a backdrop.
 
+### There were TWO "Clip by layer" buttons, and I was fixing the other one
+
+"Have I been using a duplicate clip function in the geoprocessing tab?" Yes —
+and it is the answer to a whole run of reports that each fix changed nothing.
+
+`toolbox-ops.js` and `tool-runner.js` grew the SAME operations under the SAME
+ids: `clip`, `difference`, `intersect`, `union`, `buffer`, `dissolve`, `hull`,
+`centroids`, `simplify`, `reproject`, `spatialJoin` — eleven shared — plus most
+of the raster set. `clip` is even labelled **"Clip by layer" in both**. One is
+behind the Geoprocessing panel's `#vec-op` select, the other behind the tools
+window, and nothing on screen says which is which.
+
+They drifted exactly as this file predicts a duplicate will. Every fix to the
+tool-runner clip over a long stretch — asking a streaming layer about GROUND
+instead of reading its snapshot, inheriting the source's own colours and
+legend, the Detail level, the self-refining output — went to the tools window,
+while the panel went on calling `GP.clip(a.collection, b.collection)` directly.
+The output name is `clip_{name}` on both paths, so the layer and its legend card
+looked identical and the reports read as "no change" four times over.
+
+**The lesson is about the DIAGNOSIS, not the code.** When a verified fix makes
+no difference to the user, the first hypothesis should be that the button they
+press is not the code you changed — before stale caches, before browser state,
+before re-reading the fix. I asked them to reload twice. What settled it was
+one question from the user and one `grep` for every caller of the engine:
+three call sites, one of which nobody had mentioned.
+
+`clip`, `difference` and `intersect` now delegate to `runToolAuto`; the panel
+keeps its own front end and only the work moves, and `runVectorOp` resolves an
+op that answers with a promise (the delegated ones are async, because a
+streaming input is asked about this run's ground before any engine sees it).
+
+**The rest are named with a reason rather than left silent.** `buffer` above
+all: the panel asks **metres** and the tool asks **KILOMETRES**, so delegating
+it unconverted turns a 1 km buffer into 1,000 km — a duplicate is dangerous to
+remove carelessly as well as to keep. `union` adds a sentence of its own when a
+merge fills an interior ring. Those still read `.collection`, so they still see
+a streaming layer's snapshot, and that is the next thing to close.
+
+`toolbox-duplicate.test.mjs` pins the shape: every id shared between the two
+registries is either DELEGATED — and really routes, and no longer calls the
+engine directly — or named in the "not yet delegated" note with its reason. A
+new shared id has to be a decision.
+
+Verified through the panel itself, on the user's own sequence (draw the polygon
+first, then load the geology, then Clip by layer): status
+"clip_World geology (Macrostrat): 50 features at source zoom 5. Refines as you
+zoom, like the map it came from", `streamingClip: true`, legend **12 of 15
+units** rendering 12 class rows, 14 distinct drawn colours and **zero** in the
+no-value grey.
+
 ### A GRADIENT BAR in the legend means NO legendInfo, not a bad palette
 
 "The rock types still aren't registering on the legend" — and the card showed a
