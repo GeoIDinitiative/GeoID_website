@@ -134,6 +134,43 @@ const area = { left: 0, top: 60, right: 1200, bottom: 800, width: 1200, height: 
   }
 }
 
+/**
+ * THE TAIL POINTS AT THE GROUND, on whichever edge faces it.
+ *
+ * The card is placed beside the point and then pulled inside the map, so it can
+ * end up on any side of the thing it describes; a tail welded to one edge would
+ * point at open ground half the time.
+ */
+{
+  const edgeFor = (x, y, box) => {
+    if (x < box.left) return "left";
+    if (x > box.left + box.w) return "right";
+    if (y < box.top) return "top";
+    if (y > box.top + box.h) return "bottom";
+    return "left";
+  };
+  const card = { left: 400, top: 300, w: 320, h: 200 };
+  ok("a click to the LEFT of the card puts the tail on its left edge",
+    edgeFor(380, 400, card) === "left");
+  ok("a click to the RIGHT puts it on the right edge",
+    edgeFor(760, 400, card) === "right");
+  ok("a click ABOVE puts it on the top edge",
+    edgeFor(500, 280, card) === "top");
+  ok("a click BELOW puts it on the bottom edge",
+    edgeFor(500, 560, card) === "bottom");
+  ok("a click under the card falls back rather than guessing",
+    edgeFor(500, 400, card) === "left");
+
+  // The world-geology card aims its tail by the DIFFERENCE between where the
+  // card ended up and where the ground actually is.
+  const tailX = (sx, px, w) => (w / 2) + (sx - px);
+  ok("an unclamped card aims its tail at its own middle", tailX(600, 600, 320) === 160);
+  ok("a card pulled right aims its tail back to the left",
+    tailX(500, 600, 320) === 60);
+  ok("a card pulled left aims its tail back to the right",
+    tailX(700, 600, 320) === 260);
+}
+
 console.log(`${pass} passed`);
 if (fail) console.log(`${fail} FAILED`);
 process.exit(fail ? 1 : 0);

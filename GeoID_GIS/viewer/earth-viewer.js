@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260831-609a8fc";
+  from "./gis/geo-utils.js?v=20260831-e3b7688";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -22027,6 +22027,22 @@ ${error && error.message ? error.message : error}`;
           }
         }
 
+        /**
+         * THE SELECTED UNIT'S OUTLINE PULSES, so a card and an outline read as
+         * one answer.
+         *
+         * The clipped layer's outline has pulsed since it was built — it is a
+         * set of 3D lines and its own loop breathes their opacity. This one is
+         * a canvas texture on a shell over the globe, so there are no lines to
+         * animate: the MATERIAL's opacity is what breathes instead. Same
+         * period, so two layers selected at once beat together rather than
+         * against each other.
+         */
+        if (selectedGeologyOutline?.mesh?.visible && selectedGeologyOutline.mesh.material) {
+          const phase = Math.sin((performance.now() / 1600) * Math.PI * 2);
+          selectedGeologyOutline.mesh.material.opacity = 0.92 * (0.55 + 0.45 * (phase * 0.5 + 0.5));
+        }
+
         // Geo popup: reproject world-space hit point to screen each frame using differential rotation
         if (activeGeoPopupLocalPos && activeGeoPopupFeature) {
           try {
@@ -22078,14 +22094,27 @@ ${error && error.message ? error.message : error}`;
                 let py;
                 if (roomAbove) {
                   geoPopup.style.transform = "translate(-50%, calc(-100% - 1.6rem))";
+                  geoPopup.classList.remove("is-below");
                   py = Math.min(sy, view.bottom - margin + gap);
                 } else {
                   geoPopup.style.transform = "translate(-50%, 1.6rem)";
+                  geoPopup.classList.add("is-below");
                   py = Math.max(view.top + margin - gap,
                     Math.min(sy, view.bottom - margin - gap - h));
                 }
                 geoPopup.style.left = px + "px";
                 geoPopup.style.top = py + "px";
+                /**
+                 * The tail points at the DOT, not at the middle of the card.
+                 *
+                 * `px` is where the card ended up, `sx` is where the ground it
+                 * describes actually is, and the two part company as soon as
+                 * the card is pulled back inside the view. Feeding the
+                 * difference to the tail keeps it aimed at the point even when
+                 * the box has stepped aside; the CSS clamps it to the card's
+                 * own corners so it can never leave the box it grows from.
+                 */
+                geoPopup.style.setProperty("--tail-x", `${(w / 2) + (sx - px)}px`);
               }
               if (geoPopupAnchor) {
                 geoPopupAnchor.hidden = false;

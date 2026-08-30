@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260831-609a8fc";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260831-609a8fc";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260831-e3b7688";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260831-e3b7688";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -57,6 +57,48 @@ const STYLE = `
   color: var(--text, #e8e2f2);
 }
 #gis-feature-popup[hidden] { display: none; }
+/* The card points back at the ground it describes. Which EDGE carries the tail
+   depends on where the card had to go to stay on screen, so all four are
+   declared and one is switched on per placement. */
+#gis-feature-popup::after {
+  content: "";
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+#gis-feature-popup[data-tail="left"]::after {
+  right: 100%;
+  top: clamp(0.9rem, var(--tail-y, 50%), calc(100% - 0.9rem));
+  transform: translateY(-50%);
+  border-top: 0.5rem solid transparent;
+  border-bottom: 0.5rem solid transparent;
+  border-right: 0.58rem solid rgba(14, 20, 30, 0.97);
+}
+#gis-feature-popup[data-tail="right"]::after {
+  left: 100%;
+  top: clamp(0.9rem, var(--tail-y, 50%), calc(100% - 0.9rem));
+  transform: translateY(-50%);
+  border-top: 0.5rem solid transparent;
+  border-bottom: 0.5rem solid transparent;
+  border-left: 0.58rem solid rgba(14, 20, 30, 0.97);
+}
+#gis-feature-popup[data-tail="top"]::after {
+  bottom: 100%;
+  left: clamp(0.9rem, var(--tail-x, 50%), calc(100% - 0.9rem));
+  transform: translateX(-50%);
+  border-left: 0.5rem solid transparent;
+  border-right: 0.5rem solid transparent;
+  border-bottom: 0.58rem solid rgba(14, 20, 30, 0.97);
+}
+#gis-feature-popup[data-tail="bottom"]::after {
+  top: 100%;
+  left: clamp(0.9rem, var(--tail-x, 50%), calc(100% - 0.9rem));
+  transform: translateX(-50%);
+  border-left: 0.5rem solid transparent;
+  border-right: 0.5rem solid transparent;
+  border-top: 0.58rem solid rgba(14, 20, 30, 0.97);
+}
 #gis-feature-popup .gis-fp-head {
   display: flex; align-items: flex-start; gap: 0.5rem;
   margin-bottom: 0.4rem;
@@ -850,10 +892,15 @@ function startPulse(nodes, baseOpacity) {
   const sizes = nodes.map((n) => n.material?.size || 0);
   const tick = () => {
     if (!pinState || !nodes.length || !nodes[0].parent) return;
-    const phase = Math.sin(((performance.now() - started) / 1600) * Math.PI * 2);
+    // Phase from the CLOCK, not from when this outline began, so a clipped
+    // unit and a world-geology unit selected moments apart still beat
+    // together — two outlines breathing out of step read as two answers.
+    const phase = Math.sin((performance.now() / 1600) * Math.PI * 2);
     nodes.forEach((node, i) => {
       if (!node.material) return;
-      node.material.opacity = baseOpacity * (0.62 + 0.38 * (phase * 0.5 + 0.5));
+      // Deeper than it was: at 0.62 the breath was there and easy to miss, and
+      // the outline is what says WHICH of several hundred polygons answered.
+      node.material.opacity = baseOpacity * (0.45 + 0.55 * (phase * 0.5 + 0.5));
       if (sizes[i]) node.material.size = sizes[i] * (1 + 0.16 * phase);
     });
     window.requestAnimationFrame(tick);
@@ -1108,6 +1155,29 @@ function showPopup(x, y, layerName, feature, layerRecord = null) {
     Math.min(y + 12, area.bottom - box.height - MARGIN));
   host.style.left = `${left}px`;
   host.style.top = `${top}px`;
+  /**
+   * The tail points back at the CLICK, on whichever edge faces it.
+   *
+   * The card is placed beside the point and then pulled inside the map, so it
+   * can end up on any side of the thing it describes — a tail welded to one
+   * edge would point at open ground half the time. The click's offset from the
+   * placed box decides the edge, and the CSS clamps the position so the tail
+   * cannot slide off the corner it grows from.
+   */
+  const w = box.width;
+  const h = box.height;
+  let edge = "left";
+  if (x < left) edge = "left";
+  else if (x > left + w) edge = "right";
+  else if (y < top) edge = "top";
+  else if (y > top + h) edge = "bottom";
+  else edge = "left";           // the click is under the card: keep it simple
+  host.dataset.tail = edge;
+  if (edge === "left" || edge === "right") {
+    host.style.setProperty("--tail-y", `${y - top}px`);
+  } else {
+    host.style.setProperty("--tail-x", `${x - left}px`);
+  }
 }
 
 /* ── hit testing ────────────────────────────────────────────────────────── */
