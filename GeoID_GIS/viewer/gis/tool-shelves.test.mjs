@@ -63,6 +63,49 @@ ok("a retirement targets a block or a single button",
 ok("both shelves are renamed", __HEADINGS[GEO] === "Geoprocessing"
   && __HEADINGS[ANA] === "Analysis");
 
+
+// ── the resolver, on a page where nothing has been stamped yet ──────────────
+/**
+ * `id` means two things — on a RETIRED spec it names an element that exists,
+ * on a BLOCK it names the id to STAMP — and checking id first found nothing on
+ * the first pass, so no block ever moved. The headings and retirements either
+ * side of that loop still worked, which made it look as though the module had
+ * run correctly. This is that first pass.
+ */
+{
+  const nodes = new Map();
+  const mk = (id, parent) => { const n = { id, hidden: false, tagName: "DETAILS",
+    children: [], parentElement: parent || null,
+    closest: (sel) => (sel === "details" ? n.__wrap : null) };
+    nodes.set(id, n); return n; };
+  const body = { className: "section-body", children: [],
+    appendChild(n) { n.parentElement = this; this.children.push(n); } };
+  // an unnamed block holding the anchor control, sitting in a shelf body
+  const block = { id: "", tagName: "DETAILS", hidden: false, parentElement: body };
+  const anchor = { id: "zonal-run", closest: () => block };
+  nodes.set("zonal-run", anchor);
+
+  globalThis.document = { getElementById: (id) => nodes.get(id) || null };
+  // the resolver's contract, restated here because the module's copy is private
+  const blockFor = (spec) => {
+    const known = spec.id ? document.getElementById(spec.id) : null;
+    if (known) return known;
+    const a = spec.anchor ? document.getElementById(spec.anchor) : null;
+    return a ? a.closest("details") : null;
+  };
+  const spec = { anchor: "zonal-run", id: "an-zonal-stats" };
+  ok("a block resolves by its ANCHOR when its id has not been stamped yet",
+    blockFor(spec) === block);
+  block.id = "an-zonal-stats";
+  nodes.set("an-zonal-stats", block);
+  ok("and by its stamped id on every pass after", blockFor(spec) === block);
+  ok("a spec naming only an id still resolves",
+    blockFor({ id: "an-zonal-stats" }) === block);
+  ok("a spec whose anchor is absent answers null",
+    blockFor({ anchor: "not-here", id: "also-not-here" }) === null);
+  delete globalThis.document;
+}
+
 console.log(`${pass} passed`);
 if (fail) console.log(`${fail} FAILED`);
 process.exit(fail ? 1 : 0);

@@ -76,9 +76,23 @@ const HEADINGS = {
 const bodyOf = (groupId) => document.getElementById(groupId)
   ?.querySelector(":scope > .section-body");
 
+/**
+ * An existing element by id first, else the block holding the anchor control.
+ *
+ * `id` means two things and that cost a whole verify loop: on a RETIRED spec
+ * it names an element that already exists, and on a BLOCK it names the id to
+ * STAMP. Checking id first and returning early therefore found nothing on the
+ * first pass — nothing had been stamped yet — so no block ever moved, while
+ * the headings and the retirements either side of that loop worked perfectly
+ * and made it look as though the module had run correctly.
+ *
+ * Falling through is what makes one function serve both: the anchor finds the
+ * block the first time, the stamped id finds it every time after.
+ */
 function blockFor(spec) {
-  if (spec.id) return document.getElementById(spec.id);
-  const anchor = document.getElementById(spec.anchor);
+  const known = spec.id ? document.getElementById(spec.id) : null;
+  if (known) return known;
+  const anchor = spec.anchor ? document.getElementById(spec.anchor) : null;
   return anchor ? anchor.closest("details") : null;
 }
 
