@@ -8093,3 +8093,26 @@ hover, the feature picker and the drawing tools all at once.
 And when a probe reports a wild number, suspect the FRAME first: deriving
 lat/lon from a `measureGroup` child gave a 6,214 px offset, because that group
 carries the globe's spin. Same trap as recovering lat/lon from a vertex.
+
+## The dot, the card and the outline are one answer
+
+The pin's stem is gone: with a card that points at the dot and an outline that
+breathes, a line between them was a third thing to read. `.geo-popup-anchor`
+keeps its dot (`::before`) and loses its body.
+
+Both cards point. The world card aims its tail by `(w/2) + (sx - px)` — the
+difference between where the card ENDED UP and where the ground actually is —
+so a card pulled back inside the view still points at the point; the tail flips
+edge with the card. The clipped card is placed beside the click and can end up
+on any side of it, so all four edges are declared and the offset picks one.
+
+Both outlines pulse, phase taken from the CLOCK rather than from when each
+began, or two units selected moments apart beat out of step and read as two
+answers.
+
+And marking what was picked belongs to the PICK, not to whoever draws the card.
+Geology is handed to the viewer's own card, and that branch never lit the
+ground — so a click raised a card and left the reader to find which of several
+hundred polygons it meant. The labelled path already followed this rule; the
+geology path now does too, and the dismissal branch had to learn that a geology
+hit is not "nothing".
