@@ -1,13 +1,15 @@
 /**
- * A CONTACT SEPARATES TWO DIFFERENT UNITS.
+ * A CONTACT SEPARATES TWO DIFFERENT UNITS — and "different" means a different
+ * UNIT, never merely a different colour.
  *
- * Every polygon inks its own rings, so where two abut, the shared edge is
- * drawn twice — and when both are the same unit, or two units the map paints
- * alike, that ink lands in the middle of what a reader sees as one area.
- * Measured on a 45 km clip of Macrostrat: of 1,801 distinct segments, 717
- * divided different colours and 265 divided identical ones. The 265 are the
- * "outlines that don't exist in reality": the only lines crossing a flat field
- * of colour.
+ * Every polygon inks its own rings, so where two abut the shared edge is drawn
+ * twice, and where a unit was cut into pieces that doubled ink rules a line
+ * through ground with no boundary in it.
+ *
+ * Keying this on COLOUR was a regression: this source paints many different
+ * units alike, so it deleted boundaries that genuinely separate two formations
+ * and the world map lost outline detail it had always drawn. The key is the
+ * unit — map_id, else legend_id, else name.
  *
  * The pairing rule is what is tested here, on the same arithmetic the renderer
  * uses, because the renderer itself needs a WebGL context to run.
@@ -27,11 +29,12 @@ const segKey = (a, b) => {
 };
 
 /** The renderer's pre-pass, verbatim in behaviour. */
-const suppressed = (features, colourOf) => {
+const suppressed = (features, keyOf) => {
   const seen = new Map();
   const same = new Set();
   features.forEach((f) => {
-    const css = colourOf(f);
+    const css = keyOf(f);
+    if (css === null || css === undefined) return;
     (f.rings || []).forEach((ring) => {
       for (let i = 0; i + 1 < ring.length; i += 1) {
         const key = segKey(ring[i], ring[i + 1]);
@@ -45,42 +48,54 @@ const suppressed = (features, colourOf) => {
   return same;
 };
 
-const colourOf = (f) => f.colour;
+const unitOf = (f) => f.unit;
 // Two squares meeting along x = 1.
-const left = (colour) => ({ colour, rings: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]] });
-const right = (colour) => ({ colour, rings: [[[1, 0], [2, 0], [2, 1], [1, 1], [1, 0]]] });
+const left = (unit) => ({ unit, rings: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]] });
+const right = (unit) => ({ unit, rings: [[[1, 0], [2, 0], [2, 1], [1, 1], [1, 0]]] });
 const shared = segKey([1, 0], [1, 1]);
 
 {
-  const same = suppressed([left("#aaa"), right("#aaa")], colourOf);
-  ok("a shared edge between two polygons painted alike is suppressed", same.has(shared));
-  ok("and nothing else is", same.size === 1);
+  const same = suppressed([left("A"), right("A")], unitOf);
+  ok("two pieces of ONE unit do not get a boundary between them", same.has(shared));
+  ok("and nothing else is suppressed", same.size === 1);
 }
 {
-  const same = suppressed([left("#aaa"), right("#bbb")], colourOf);
-  ok("a shared edge between different colours is a real contact", !same.has(shared));
+  const same = suppressed([left("A"), right("B")], unitOf);
+  ok("two different units keep their contact", !same.has(shared));
   ok("so nothing is suppressed at all", same.size === 0);
 }
 {
-  // The outer boundary of a lone polygon is drawn: nothing shares it.
-  const same = suppressed([left("#aaa")], colourOf);
+  // THE REGRESSION: different units the map paints identically. Keying on
+  // colour deleted this boundary and the world map lost outline detail.
+  const painted = [{ unit: "A", colour: "#aaa", rings: left("A").rings },
+                   { unit: "B", colour: "#aaa", rings: right("B").rings }];
+  ok("a real contact survives even when both sides are painted alike",
+    !suppressed(painted, unitOf).has(shared));
+  ok("whereas keying on colour would have deleted it",
+    suppressed(painted, (f) => f.colour).has(shared));
+}
+{
+  const same = suppressed([left("A")], unitOf);
   ok("an edge no one else claims is never suppressed", same.size === 0);
 }
 {
-  // Direction must not matter: rings wind opposite ways along a shared edge.
-  const flipped = { colour: "#aaa", rings: [[[1, 1], [1, 0], [2, 0], [2, 1], [1, 1]]] };
-  const same = suppressed([left("#aaa"), flipped], colourOf);
-  ok("winding direction does not hide a shared edge", same.has(shared));
+  const flipped = { unit: "A", rings: [[[1, 1], [1, 0], [2, 0], [2, 1], [1, 1]]] };
+  ok("winding direction does not hide a shared edge",
+    suppressed([left("A"), flipped], unitOf).has(shared));
 }
 {
-  // Three-way: same, then different, must end up DRAWN — a real contact wins.
-  const same = suppressed([left("#aaa"), right("#aaa"), { colour: "#ccc", rings: [[[1, 0], [1, 1]]] }], colourOf);
-  ok("a third polygon of another colour restores the contact", !same.has(shared));
+  const third = { unit: "C", rings: [[[1, 0], [1, 1]]] };
+  ok("a third piece of another unit restores the contact",
+    !suppressed([left("A"), right("A"), third], unitOf).has(shared));
 }
 {
-  const near = { colour: "#aaa", rings: [[[1.0000001, 0], [1.0000001, 1]]] };
-  const same = suppressed([left("#aaa"), near], colourOf);
-  ok("coincident to within the projection's own rounding still pairs", same.has(shared));
+  const near = { unit: "A", rings: [[[1.0000001, 0], [1.0000001, 1]]] };
+  ok("coincident to within the projection's own rounding still pairs",
+    suppressed([left("A"), near], unitOf).has(shared));
+}
+{
+  ok("a feature with no identity is always drawn",
+    suppressed([left("A"), { unit: null, rings: right("A").rings }], unitOf).size === 0);
 }
 
 console.log(`${pass} passed`);

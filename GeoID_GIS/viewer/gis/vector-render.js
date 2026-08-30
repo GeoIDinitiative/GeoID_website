@@ -1,8 +1,8 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260830-9dd9e79";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260830-9dd9e79";
-import { pointInPolygon } from "./geometry.js?v=20260830-9dd9e79";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260830-9dd9e79";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260830-8ea2e6c";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260830-8ea2e6c";
+import { pointInPolygon } from "./geometry.js?v=20260830-8ea2e6c";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260830-8ea2e6c";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -693,21 +693,24 @@ export function renderFeatureCollection(fc, {
       : { r: (c) => c.r, g: (c) => c.g, b: (c) => c.b };
 
   /**
-   * A CONTACT SEPARATES TWO DIFFERENT UNITS. Anything else is a line ruled
-   * through ground that has no boundary in it.
+   * A CONTACT SEPARATES TWO DIFFERENT UNITS — and "different" means a
+   * different UNIT, never merely a different colour.
    *
    * Every polygon inks its own rings, so where two polygons abut, their shared
-   * edge is drawn twice — and when both are the same unit, or two units the
-   * map paints the same colour, that ink lands in the middle of what a reader
-   * sees as ONE area. Measured on a 45 km clip of Macrostrat: of 1,801 distinct
-   * segments, 717 divided different colours and **265 divided identical ones**,
-   * which is exactly the "outlines that don't exist in reality" a reader picks
-   * out immediately — they are the only lines crossing a flat field of colour.
+   * edge is drawn twice, and where a unit has been cut into pieces — by a tile
+   * boundary, or by arriving as several parts — that doubled ink rules a line
+   * through ground with no boundary in it.
    *
-   * So the rings are walked once before anything is built, and a segment is
-   * inked only if the polygons meeting along it disagree about their colour.
-   * The pass is O(vertices) and answers with rounding matched to `mvt.js`'s own
-   * 1e-6 projection, so coincident edges actually meet.
+   * KEYED ON THE UNIT, NOT THE COLOUR. Keying on colour cost real contacts:
+   * this source paints many different units alike, so "same colour" deleted
+   * boundaries that genuinely separate two formations, and the world map lost
+   * outline detail it had always drawn. Identity is `map_id`, else `legend_id`,
+   * else the name — and only when two pieces agree on it is their shared edge
+   * left uninked. A boundary between two different units always survives, even
+   * when the map paints both of them the same.
+   *
+   * The pass is O(vertices), with rounding matched to `mvt.js`'s own 1e-6
+   * projection so coincident edges actually meet.
    */
   const SEG_ROUND = 1e6;
   const segKey = (a, b) => {
@@ -715,7 +718,13 @@ export function renderFeatureCollection(fc, {
     const kb = `${Math.round(b[0] * SEG_ROUND)},${Math.round(b[1] * SEG_ROUND)}`;
     return ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
   };
-  const sharedSameColour = new Set();
+  const sharedSameUnit = new Set();
+  /** What makes two polygons pieces of ONE unit rather than two. */
+  const unitKey = (f) => {
+    const p = f?.properties || {};
+    const id = p.map_id ?? p.legend_id ?? p.name;
+    return id === undefined || id === null ? null : String(id);
+  };
   // NOT gated on `contacts`. The seal inks polygon rings whenever the layer is
   // coloured, whatever the contact style is — a clip built through the tool
   // carries no contact style at all, and that is exactly the layer the phantom
@@ -726,14 +735,16 @@ export function renderFeatureCollection(fc, {
     (rankOf ? [...fc.features] : fc.features).forEach((feature) => {
       const geometry = feature?.geometry;
       if (!geometry) return;
-      const css = colourFor ? (colourFor(feature) || "#8a8a8a") : "#";
+      // No identity means nothing can be proved the same: draw it.
+      const unit = unitKey(feature);
+      if (unit === null) return;
       polygonsOf(geometry).flat().forEach((ring) => {
         for (let i = 0; i + 1 < ring.length; i += 1) {
           const key = segKey(ring[i], ring[i + 1]);
           const had = seen.get(key);
-          if (had === undefined) seen.set(key, css);
-          else if (had === css) sharedSameColour.add(key);
-          else sharedSameColour.delete(key);
+          if (had === undefined) seen.set(key, unit);
+          else if (had === unit) sharedSameUnit.add(key);
+          else sharedSameUnit.delete(key);
         }
       });
     });
@@ -816,9 +827,9 @@ export function renderFeatureCollection(fc, {
         for (let i = 0; i + 1 < coords.length; i += 1) {
           if (onTileEdge(coords[i], coords[i + 1])) continue;
           const key = segKey(coords[i], coords[i + 1]);
-          // No boundary between two polygons the map paints alike, and no
-          // second helping of ink on a boundary that is really there.
-          if (sharedSameColour.has(key) || inked.has(key)) continue;
+          // No boundary between two pieces of ONE unit, and no second helping
+          // of ink on a boundary that is really there.
+          if (sharedSameUnit.has(key) || inked.has(key)) continue;
           // Nor a coarser survey's boundary ruled across finer geology.
           if (rankOf && coveredByFiner(
             (coords[i][0] + coords[i + 1][0]) / 2,
