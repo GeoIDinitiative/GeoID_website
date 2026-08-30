@@ -3279,6 +3279,44 @@ scratches are not backface culling; every tile carries its boundary seal; and
 the clip's own mesh is clean. The seams are back with the revert, and
 that is the honest state: the fix is a ribbon seal, not a backdrop.
 
+### The clip HAD the geology and did not DRAW it
+
+"It's not pulling all geology within the bounds of the polygon." Mapped on a
+38 km box on the north coast, and the two halves of the layer disagreed:
+
+- `featuresIn` returned **100% coverage** at zoom 12 from surveys 23 AND 147,
+  and the layer's own feature list held all 40 of them;
+- what was **DRAWN** held survey 23 alone — 27 features, **42.9% coverage** —
+  which is the northern third of the box empty.
+
+**The merge is multi-level and the picture was single-level.** `featuresIn`
+fills each survey from its own deepest level; the clip's picture comes from
+`pin()` plus `update()`, and each of those takes ONE level. A level that has
+dropped a survey draws nothing where that survey was, however complete the
+feature list beside it is.
+
+The controller can already draw two levels at once — that is what pinning is,
+with the view's tiles half a renderOrder above — so the fix is which level to
+pin. `zoomForBounds` answers "how deep does a box this size deserve", which for
+38 km is deep, and deep is exactly where a survey goes missing. The floor is
+now the level with the best coverage instead.
+
+**And the first version of that fix picked on the wrong number**, which is
+worth recording because it read as correct: `levels[].coverage` is measured
+AFTER the merge, so every level reports near-100% and choosing on it is
+choosing at random. It picked zoom 8 — a level covering **42.9%** of that
+study area on its own — while appearing to have everything. Levels now carry
+`ownCoverage` beside the merged figure, and the floor is chosen on that.
+
+Measured after: **40 drawn features, both surveys, 100% coverage**, and the
+drawn set equal to the layer's list.
+
+**A quantity that is measured after a correction cannot be used to decide the
+correction.** That is the same shape as `detailWithin` counting whole features
+instead of the part inside the box, twice in one week: when a chooser keeps
+picking oddly, check what its number actually measures before checking the
+choice.
+
 ### Fill each survey from ITS OWN deepest level, not from one fallback
 
 "When we clip the geology it doesn't take all available datasets — it fails to
