@@ -82,6 +82,55 @@ ok("a line contributes nothing -- only areas cover ground",
   ok("the real z8 -> z9 collapse would be refused", (2020 / 3600) < 0.999 - tol);
 }
 
+
+// ── merging the levels ──────────────────────────────────────────────────────
+/**
+ * The fill is BY SOURCE DATASET, which is only exact because the surveys
+ * MOSAIC: measured over a cross-border box, one sample point of 4,900 was
+ * covered by more than one source. If they overlapped, filling by source would
+ * double-cover ground and an extraction would count it twice.
+ */
+{
+  const { sourceKey } = await import("./vector-tiles.js");
+  ok("a feature's survey is its source_id",
+    sourceKey({ properties: { source_id: 147 } }) === "147");
+  ok("a source with no source_id is one unnamed survey",
+    sourceKey({ properties: {} }) === "" && sourceKey(null) === "");
+
+  // The merge itself, as the climb performs it: keep the deep level whole and
+  // add only the surveys it does not carry.
+  const deep = [{ properties: { source_id: 23, name: "fine A" } },
+    { properties: { source_id: 23, name: "fine B" } }];
+  const base = [{ properties: { source_id: 23, name: "coarse A" } },
+    { properties: { source_id: 147, name: "other survey" } }];
+  const here = new Set(deep.map(sourceKey));
+  const missing = base.filter((f) => !here.has(sourceKey(f)));
+  ok("only the absent survey is filled in", missing.length === 1
+    && missing[0].properties.name === "other survey");
+  ok("the deep level's own survey is NOT duplicated from the coarse level",
+    !missing.some((f) => sourceKey(f) === "23"));
+
+  const merged = deep.concat(missing);
+  ok("the merge keeps every fine feature", merged.filter((f) => sourceKey(f) === "23").length === 2);
+  ok("and carries both surveys", new Set(merged.map(sourceKey)).size === 2);
+}
+{
+  // A source that does NOT composite must come out unchanged: every feature
+  // shares one key, so nothing is ever filled and the merge is a no-op.
+  const { sourceKey } = await import("./vector-tiles.js");
+  const deep = [{ properties: { name: "a" } }];
+  const base = [{ properties: { name: "b" } }, { properties: { name: "c" } }];
+  const here = new Set(deep.map(sourceKey));
+  ok("a single-survey source fills nothing",
+    base.filter((f) => !here.has(sourceKey(f))).length === 0);
+}
+ok("the climb records how much each level was filled by", /filled/.test(src));
+ok("the merge runs BEFORE the coverage refusal", (() => {
+  const merge = src.indexOf("const missing = fallback.features.filter");
+  const refuse = src.lastIndexOf('stoppedFor = "coverage"');
+  return merge > 0 && refuse > merge;
+})());
+
 console.log(`${pass} passed`);
 if (fail) console.log(`${fail} FAILED`);
 process.exit(fail ? 1 : 0);

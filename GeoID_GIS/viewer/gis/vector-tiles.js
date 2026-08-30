@@ -35,9 +35,9 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260830-b2925b9";
-import { renderFeatureCollection } from "./vector-render.js?v=20260830-b2925b9";
-import * as GP from "./geoprocessing.js?v=20260830-b2925b9";
+import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260830-0af4d12";
+import { renderFeatureCollection } from "./vector-render.js?v=20260830-0af4d12";
+import * as GP from "./geoprocessing.js?v=20260830-0af4d12";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -106,6 +106,13 @@ const AUTO_TILE_BUDGET = TILE_BUDGETS.balanced;
  * a source dataset disappearing.
  */
 const COVERAGE_TOLERANCE = 0.03;
+
+/**
+ * Which SURVEY a feature came from. Macrostrat names it `source_id`; anything
+ * without one is treated as a single unnamed survey, which makes the merge a
+ * no-op rather than a wrong answer on a source that does not composite.
+ */
+export const sourceKey = (f) => String(f?.properties?.source_id ?? "");
 
 /**
  * How much of the box actually HAS geology at this level.
@@ -975,6 +982,9 @@ export function createTiledVectorLayer({
     const start = Math.max(0, zoomForBounds(bounds, { maxZoom }) - 2);
     let best = null;
     let barren = 0;
+    // The fullest-covering level seen, kept so a deeper, partial level can be
+    // filled from it rather than refused outright.
+    let fallback = null;
     // What each level would have cost, so a caller can OFFER the levels this
     // source actually supports over this ground rather than guessing at them.
     const levels = [];
@@ -992,19 +1002,65 @@ export function createTiledVectorLayer({
         continue;
       }
       const got = await levelFeatures(bounds, z, signal, budget);
-      const detail = detailWithin(got.features, bounds);
-      const coverage = coverageWithin(got.features, bounds);
-      levels.push({ zoom: z, tiles: got.tiles, features: got.features.length, detail, coverage });
+      let features = got.features;
+      let coverage = coverageWithin(features, bounds);
+
+      // The fullest-covering level seen so far is what gaps are filled FROM.
+      if (!fallback || coverage > fallback.coverage + COVERAGE_TOLERANCE) {
+        fallback = { features: got.features, coverage, zoom: z };
+      }
+
       /**
-       * COVERAGE FIRST. A level that has lost ground is not a better level,
-       * however finely it draws what is left. The tolerance is for the
-       * ordinary wobble of generalisation along a coastline, not for a survey
-       * going missing: 56% against 99.9% is nowhere near it.
+       * MERGE THE LEVELS: the finer survey where it exists, the fuller one
+       * where it does not.
+       *
+       * A deeper level here is not a finer drawing of the same ground — it can
+       * be a different, PARTIAL survey, because this source composites several
+       * and switches between them by scale. Refusing the deeper level keeps the
+       * map whole but throws away real detail where the finer survey DOES
+       * reach. Taking it whole loses 44% of the ground. Neither is "all the
+       * geology that exists within these bounds".
+       *
+       * The fill is BY SOURCE DATASET, which is exact rather than geometric
+       * because the surveys MOSAIC: measured over a cross-border box, of 4,900
+       * sample points **one** was covered by more than one source. So the
+       * ground a deep level is missing is precisely the ground belonging to
+       * the surveys it does not carry — measured, **2,155 of the 2,158 points
+       * (99.86%)** the deep level missed. Filling those in costs no boolean
+       * geometry and cannot double-cover.
+       *
+       * The last 0.14% is a survey the deep level DOES carry that generalises
+       * differently at the coast. It stays uncovered rather than being papered
+       * over with a coarser copy of ground the finer map has already spoken
+       * for, which would double-count it in an extraction.
        */
-      if (best && coverage < best.coverage - COVERAGE_TOLERANCE) {
+      let filled = 0;
+      if (fallback && coverage < fallback.coverage - COVERAGE_TOLERANCE) {
+        const here = new Set(features.map(sourceKey));
+        const missing = fallback.features.filter((f) => !here.has(sourceKey(f)));
+        if (missing.length) {
+          features = features.concat(missing);
+          filled = missing.length;
+          coverage = coverageWithin(features, bounds);
+        }
+      }
+
+      const detail = detailWithin(features, bounds);
+      levels.push({
+        zoom: z, tiles: got.tiles, features: features.length, detail, coverage, filled,
+      });
+
+      /**
+       * COVERAGE FIRST, and only once the merge has had its chance. A level
+       * still short of the ground after filling has lost something the fill
+       * cannot replace, and is not a better level however finely it draws
+       * what is left.
+       */
+      if (fallback && coverage < fallback.coverage - COVERAGE_TOLERANCE) {
         stoppedFor = "coverage";
         break;
       }
+      got.features = features;
       if (!best || detail > best.detail) {
         best = { ...got, detail, coverage };
         barren = 0;
