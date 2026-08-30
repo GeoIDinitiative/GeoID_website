@@ -7968,3 +7968,22 @@ returned before `inheritedColouring` ever ran. Deleted.
 no unit is ever "near", the fetch never happens, and the only sign is a missing
 sentence in the message. Same shape as `controller.getContacts?.()` returning
 undefined because the method was never published. Accept both, and test both.
+
+## A contact separates two DIFFERENT units
+
+Every polygon inks its own rings, so where two abut the shared edge is drawn
+twice — and when both are the same unit, or two units the map paints alike,
+that ink lands in the middle of what a reader sees as ONE area. Measured on a
+45 km clip of Macrostrat: of 1,801 distinct segments, 717 divided different
+colours and **265 divided identical ones**. The 265 are the only lines crossing
+a flat field of colour, which is why a reader picks them out at once as
+"outlines that don't exist in reality".
+
+Walk the rings once first; ink a segment only where the polygons meeting along
+it disagree about colour, and only once however many claim it. A third polygon
+of another colour restores the contact, so a real boundary is never lost.
+
+And do NOT gate that pass on `contacts`: the seal inks rings whenever the layer
+is coloured, and a clip built through the tool carries no contact style at all
+— which is exactly the layer the phantom lines were reported on. Gated, the
+dedupe fired (2,784 → 1,801) while all 265 phantom divisions survived.
