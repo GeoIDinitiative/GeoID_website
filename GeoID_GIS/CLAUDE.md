@@ -7987,3 +7987,27 @@ And do NOT gate that pass on `contacts`: the seal inks rings whenever the layer
 is coloured, and a clip built through the tool carries no contact style at all
 — which is exactly the layer the phantom lines were reported on. Gated, the
 dedupe fired (2,784 → 1,801) while all 265 phantom divisions survived.
+
+## Fetching whole units reintroduces overlap the tiles had already resolved
+
+`carto` picks ONE survey per scale, so a tile carries a single survey's
+polygons over any given ground — which is why an earlier tile-based measurement
+found 1 of 4,900 sample points double-covered and concluded the surveys mosaic.
+They do not. Fetching whole units from the JSON API brings every survey back on
+top of each other: **80% of the same clip covered by more than one survey**,
+2,888 of 4,900 points by all three. Drawn flat, a regional survey's boundaries
+are ruled straight across the detailed survey's geology.
+
+Rank by VERTICES PER UNIT AREA — boundary detail per unit of ground, which is
+what "more finely mapped" means, and derivable from the features themselves
+(`/defs/sources` answers empty for these ids). On that clip: survey 23 at
+14,624 with 51 units averaging 0.0031 deg2, against 154 and 147 at 1,549 and
+1,008 with 4 and 15 much larger units.
+
+Higher rank wins: fill drawn last, and a coarser contact not inked where a
+finer survey covers it. The coarse survey still shows where the fine one does
+not reach — measured, 1,286 of 3,600 points, which is the offshore geology, and
+0 points left bare. The rank must ride through every repaint, or the next
+symbology change brings the coarse boundaries back.
+
+A measurement made on tiles does not answer a question about the source.
