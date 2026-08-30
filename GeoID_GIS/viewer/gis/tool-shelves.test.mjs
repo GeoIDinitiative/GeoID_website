@@ -122,6 +122,35 @@ ok("and it is on the geoprocessing shelf — its acts end in a layer",
 ok("a block whose title would repeat its shelf is retitled",
   __BLOCKS.find((b) => b.anchor === "vec-op-run").title === "Vector operations");
 
+
+/**
+ * The shelf name is written in TWO modules and must not drift.
+ *
+ * `tool-shelves.js` renames the section; `side-panels.js` names the rail
+ * button and the workbench header. Renaming only the first left the rail
+ * still saying "Process" with the tooltip "Pre-processing toolbox" — reported
+ * as "why is it still being read as preprocessing", because for anyone
+ * working from the rail it WAS still called that.
+ */
+{
+  const panels = (await import("node:fs")).readFileSync(
+    new URL("./side-panels.js", import.meta.url), "utf8");
+  const m = /const SHELF_NAMES = \{ geoprocess: "([^"]+)", analysis: "([^"]+)" \};/.exec(panels);
+  ok("side-panels declares the shelf names in one constant", Boolean(m));
+  ok("and the rail's geoprocessing name matches the section's",
+    m && m[1] === __HEADINGS["gis-group-preprocess"]);
+  ok("and the rail's analysis name matches the section's",
+    m && m[2] === __HEADINGS["gis-group-analysis"]);
+  // COMMENTS STRIPPED FIRST: the note explaining this very fault quotes the
+  // old strings, and prose is not a name. The same reason tool-runner's param
+  // scanner strips them before looking for reads.
+  const code = panels.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  ok("no workbench writes the old names out again",
+    !/"Pre-processing toolbox"|"Extraction and analysis"|label: "Process"/.test(code));
+  ok("the workbench titles are read from the constant, not retyped",
+    /title: SHELF_NAMES\.geoprocess/.test(panels) && /title: SHELF_NAMES\.analysis/.test(panels));
+}
+
 console.log(`${pass} passed`);
 if (fail) console.log(`${fail} FAILED`);
 process.exit(fail ? 1 : 0);

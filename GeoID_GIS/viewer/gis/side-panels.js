@@ -27,13 +27,39 @@
  * measure tools beside it, so the rail read as two kinds of thing. The longer
  * name survives as the tooltip, where there is room for it.
  */
+/**
+ * The two shelf names, and the ONE place they are written.
+ *
+ * `tool-shelves.js` sorts the blocks onto these shelves and renames the
+ * sections; this module names the rail button and the workbench header. They
+ * are the same two shelves, so they read the same two strings — a constant
+ * rather than an import, because side-panels loads before the shelf module on
+ * some worlds and a name is not worth a load-order dependency.
+ */
+const SHELF_NAMES = { geoprocess: "Geoprocessing", analysis: "Analysis" };
+
 const PANELS = [
   {
     id: "preprocess",
     group: "gis-group-preprocess",
-    label: "Process",
-    title: "Process",
-    hint: "Pre-processing toolbox",
+    /**
+     * The shelf's name lives in `tool-shelves.js` and is read from there.
+     *
+     * It used to be written out again here — "Process", tooltip
+     * "Pre-processing toolbox" — so renaming the panel renamed the SECTION and
+     * left the rail button and the workbench header still saying
+     * pre-processing. Reported as exactly that: "why is it still being read as
+     * preprocessing". One name in two places is the fault this file has now
+     * paid for at every level of this column.
+     *
+     * `label` stays short on purpose and is NOT the shelf name: the rail is a
+     * column of icons with a caption under each, and "Pre-proc" once wrapped
+     * to two lines and made its button taller than the measure tools beside
+     * it. The full name is the header and the tooltip, where there is room.
+     */
+    label: "GIS tools",
+    title: SHELF_NAMES.geoprocess,
+    hint: `${SHELF_NAMES.geoprocess} — tools that make a map layer`,
     // A funnel: raw in, tidy out.
     icon: '<path d="M3.5 4.5h17l-6.5 7.6v6.4l-4 2.4v-8.8z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>',
   },
@@ -41,8 +67,8 @@ const PANELS = [
     id: "analysis",
     group: "gis-group-analysis",
     label: "Analysis",
-    title: "Analysis",
-    hint: "Extraction and analysis",
+    title: SHELF_NAMES.analysis,
+    hint: `${SHELF_NAMES.analysis} — tables, statistics and plots`,
     // A bar chart on a baseline: values pulled out of layers. Not a zigzag --
     // the Profile tool one button up already wears that line.
     icon: '<path d="M4.4 19.6h15.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>'

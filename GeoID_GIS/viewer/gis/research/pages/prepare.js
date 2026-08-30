@@ -1,14 +1,14 @@
-import { registerPage } from "../stages.js?v=20260830-58824cf";
-import * as store from "../project-store.js?v=20260830-58824cf";
-import { column } from "../table.js?v=20260830-58824cf";
-import { linePlot } from "../plot.js?v=20260830-58824cf";
-import { detrend, bandpass, statistics } from "../dsp.js?v=20260830-58824cf";
+import { registerPage } from "../stages.js?v=20260830-14d2b0c";
+import * as store from "../project-store.js?v=20260830-14d2b0c";
+import { column } from "../table.js?v=20260830-14d2b0c";
+import { linePlot } from "../plot.js?v=20260830-14d2b0c";
+import { detrend, bandpass, statistics } from "../dsp.js?v=20260830-14d2b0c";
 import {
   el, card, field, input, selectOf, button, row, statGrid, statusLine,
   guard, crossPage, findTables, loadTable, inferSampling, saveTable,
   pageHeader, toolbar, inlineLabel, collapsible, dataTable, console_,
   tabbedPanel,
-} from "./common.js?v=20260830-58824cf";
+} from "./common.js?v=20260830-14d2b0c";
 
 /**
  * The Preprocessing stage.
@@ -553,7 +553,7 @@ registerPage("Raster Tools", {
   mount: crossPage("Raster Tools", {
     blurb: "Slope, aspect, hillshade, contours, reclassify, raster calculator, "
       + "zonal statistics and clipping.",
-    note: "These run on the GIS page's Pre-processing Toolbox, against the "
+    note: "These run on the GIS page's Geoprocessing panel, against the "
       + "layers loaded there. Results register against this project.",
     mode: "gis",
     section: "gis-group-preprocess",
@@ -564,7 +564,7 @@ registerPage("Vector Tools", {
   mount: crossPage("Vector Tools", {
     blurb: "Buffer, clip, difference, intersect, dissolve, hull, centroids, "
       + "simplify, spatial join and reprojection.",
-    note: "These run on the GIS page's Pre-processing Toolbox. Imports there "
+    note: "These run on the GIS page's Geoprocessing panel. Imports there "
       + "are recorded against this project automatically.",
     mode: "gis",
     section: "gis-group-preprocess",
