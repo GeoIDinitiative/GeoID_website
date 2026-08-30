@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260830-c299dad";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260830-c299dad";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260830-c299dad";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260830-cc355e1";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260830-cc355e1";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260830-cc355e1";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -863,9 +863,29 @@ export function renderFeatureCollection(fc, {
     } else {
       material.color = lineColor;
     }
-    attachReliefAttributes(geometry, drape, builtRelief);
+    /**
+     * LINES HUG THE GROUND TOO, by the seal's rule rather than by a lift.
+     *
+     * A line was drawn LIFTED and depth-tested — `drape` is 0.006 scene units,
+     * and the globe is 3.2 units to 6,371 km, so that is **11.9 km above the
+     * terrain**. Straight down it costs nothing; obliquely and close in the
+     * line stands visibly off the coast it is tracing, which is what "the
+     * outlines are still not tight to the surface" is.
+     *
+     * The lift existed because a line has no facing, so nothing culls the far
+     * hemisphere for it and a ground-hugging line showed through the planet —
+     * this file's own note about Australia's outline over the Atlantic. That
+     * is solved by CULLING BY FACING, which is what the seal does and what
+     * `followRelief(..., { cullFarSide: true })` is for. With the far side
+     * discarded the depth test is not needed either, so the line can sit on
+     * the ground where it belongs.
+     */
+    attachReliefAttributes(geometry, FILL_DRAPE, builtRelief);
+    material.depthTest = false;
     const segments = new THREE.LineSegments(
-      geometry, followRelief(new THREE.LineBasicMaterial(material), drape, { lifted: true }),
+      geometry,
+      followRelief(new THREE.LineBasicMaterial(material), FILL_DRAPE,
+        { cullFarSide: true, hole }),
     );
     segments.renderOrder = 3;
     segments.frustumCulled = false;

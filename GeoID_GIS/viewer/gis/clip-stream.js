@@ -212,6 +212,17 @@ export async function createStreamingClip({ source, mask, name, contacts = null 
   const bounds = boundsOfCollection(maskFc);
   if (!bounds) return null;
 
+  /**
+   * The clip wears the SOURCE'S contacts, resolved once.
+   *
+   * `controllerOf.getContacts?.()` used to be silently undefined — the
+   * controller never published it — so every clipped layer fell back to the
+   * invisible "match" seal. The world geology drew its unit boundaries and the
+   * clip of it drew none, which is exactly the difference reported: the clip
+   * should behave like the layer it came from.
+   */
+  const contactStyle = contacts || controllerOf.getContacts?.() || null;
+
   const tiles = await import(`./vector-tiles.js${stamp}`);
   const controller = tiles.createTiledVectorLayer({
     name,
@@ -222,7 +233,7 @@ export async function createStreamingClip({ source, mask, name, contacts = null 
     colourFor: source.sourceColourField
       ? (f) => f?.properties?.[source.sourceColourField] || null
       : null,
-    contacts: contacts || controllerOf.getContacts?.() || null,
+    contacts: contactStyle,
     clipTo: maskFc,
   });
 
@@ -305,7 +316,7 @@ export async function createStreamingClip({ source, mask, name, contacts = null 
         colourFor: source.sourceColourField
           ? (f) => f?.properties?.[source.sourceColourField] || null
           : null,
-        contacts: contacts || null,
+        contacts: contactStyle,
       },
     );
     if (built?.object3D) {

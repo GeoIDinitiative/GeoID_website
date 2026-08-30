@@ -35,9 +35,9 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260830-c299dad";
-import { renderFeatureCollection } from "./vector-render.js?v=20260830-c299dad";
-import * as GP from "./geoprocessing.js?v=20260830-c299dad";
+import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260830-cc355e1";
+import { renderFeatureCollection } from "./vector-render.js?v=20260830-cc355e1";
+import * as GP from "./geoprocessing.js?v=20260830-cc355e1";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -1208,6 +1208,11 @@ export function createTiledVectorLayer({
     maskBackdrop,
     setOpacity,
     setContacts,
+    // Published so a CLIP can wear the same contacts as the map it came from.
+    // Without it `controller.getContacts?.()` was silently undefined and every
+    // clipped layer fell back to the invisible "match" seal, so the source drew
+    // its unit boundaries and the clip of it did not.
+    getContacts: () => contactStyle,
     // Published so a CLIPPED layer can be built on the same tile service its
     // source streams from, rather than being told about it a second time.
     sources,
