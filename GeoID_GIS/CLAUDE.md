@@ -7904,3 +7904,33 @@ follows the store, and the page behind it used to keep reporting the project
 before. `watchProject()` in hub.js keys that on the project's *folder*, not on
 every store announcement: `updateMetadata()` also announces, and it fires while
 someone is typing into a metadata form.
+
+## A clip must wear the source's level, not derive its own
+
+`zoomForBounds` answers from the BOX it is given, and a clip's refine box is the
+study area's intersection with the view — smaller than the view the world layer
+draws, so it lands on a different level. Macrostrat's `carto` composites several
+source surveys and SWITCHES BETWEEN THEM by scale, so that is not a difference
+in sharpness: it is different geology over identical ground. The controller now
+publishes `getViewZoom()` and the clip asks for it.
+
+## Measure after the load settles, not on the first frame
+
+424 sample points inside one survey read as unpainted and I built two fixes on
+it. Re-measured with the tiles given time to land, the same box read 98.5%
+covered and pinning at zoom 8 or 12 drew the IDENTICAL 17,937 vertices. The gap
+was tiles still in flight. Both fixes were backed out.
+
+## Coverage is not correctness
+
+A framebuffer diff against the basemap counts ANY painted pixel as covered,
+including a flat slab of the wrong unit. The clip read 98.5% "covered" while
+matching the world layer it was cut from on 21.6% of sampled points. When the
+question is "does this look like the source", compare the two layers to EACH
+OTHER, not each to the ground.
+
+## Detail is not the thing to trade for coverage
+
+Pinning the fullest-COVERING level took a clip from zoom 11 polygons to zoom 8:
+flat blocks with straight edges where there had been real boundaries. It covered
+the ground by making the ground coarse.
