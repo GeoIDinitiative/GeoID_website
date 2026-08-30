@@ -59,83 +59,42 @@ const mask = { west: -8, south: 54, east: -5, north: 56 };
 
 
 /**
- * THE PINNED BASE IS THE BEST-COVERING LEVEL, not the one the box's size says.
+ * THE PINNED LEVEL IS THE CLIMB'S OWN, and the fill-in mesh carries coverage.
  *
- * `zoomForBounds` answers "how deep does a box this size deserve", and for a
- * 38 km study area that is deep — where this source has often dropped a
- * survey. Measured on the north coast: `featuresIn` returns 100% coverage from
- * surveys 23 AND 147, while the level a 38 km box deserves carries only 23, so
- * the northern third of the clip drew nothing. The data was never missing; the
- * picture was built from one level.
+ * An earlier version pinned the fullest-COVERING level and capped the refine
+ * there. It did cover the ground — with zoom 8 polygons where the clip had been
+ * drawing zoom 11, so a map of real boundaries became flat blocks with straight
+ * edges. Detail and coverage do not have to be bought with each other: the
+ * tiles draw the finest level, and the surveys that level lacks are drawn
+ * beneath it from their own best level.
+ *
+ * So the rule under test is the SELECTION, not the level: whatever the pinned
+ * tiles will not draw is what the mesh must draw.
  */
 {
-  const pick = (levels) => levels
-    .filter((l) => l.ownCoverage != null && l.tiles)
-    .slice()
-    .sort((a, b) => (b.ownCoverage - a.ownCoverage) || (a.zoom - b.zoom))[0];
+  const { __fillInSurveys: fill } = await import("./clip-stream.js");
+  const key = (f) => String(f.src);
+  const f = (src, id) => ({ src, id });
 
-  ok("the level with the best OWN reach is pinned, not the deepest", pick([
-    { zoom: 9, tiles: 4, ownCoverage: 1.0 },
-    { zoom: 11, tiles: 30, ownCoverage: 0.62 },
-    { zoom: 12, tiles: 64, ownCoverage: 0.62 },
-  ]).zoom === 9);
-
-  ok("among equally covering levels the SHALLOWEST wins — a floor should be cheap",
-    pick([
-      { zoom: 8, tiles: 2, ownCoverage: 1.0 },
-      { zoom: 10, tiles: 12, ownCoverage: 1.0 },
-    ]).zoom === 8);
-
-  ok("a level that fetched no tiles is not a candidate", pick([
-    { zoom: 13, tiles: 0, ownCoverage: 1.0 },
-    { zoom: 9, tiles: 4, ownCoverage: 0.99 },
-  ]).zoom === 9);
-
-  ok("a level with no coverage reading is skipped", pick([
-    { zoom: 12, tiles: 40, ownCoverage: null },
-    { zoom: 9, tiles: 4, ownCoverage: 0.98 },
-  ]).zoom === 9);
-
-  // The merged figure must NOT be what decides: it is ~100% at every level.
-  ok("a level's merged coverage is ignored when choosing the floor", pick([
-    { zoom: 12, tiles: 64, coverage: 1.0, ownCoverage: 0.43 },
-    { zoom: 8, tiles: 4, coverage: 1.0, ownCoverage: 1.0 },
-  ]).zoom === 8);
-  ok("with nothing measurable there is no candidate and the caller falls back",
-    pick([{ zoom: 12, tiles: 0, ownCoverage: null }]) === undefined);
-}
-
-
-/**
- * THE DRAWN LEVEL IS CAPPED ON OWN COVERAGE, because the merge defeats the gate.
- *
- * The climb's coverage gate compares the POST-MERGE figure, which the merge has
- * already filled to ~100% at every level — so it can never fire, and the climb
- * chose zoom 11 where the offshore survey does not exist. The LIST may span
- * levels; the DRAWN map may not, because the controller shows one level's
- * tiles. Measured: the strip north of the coast is covered at zooms 4-8 and 0%
- * at 9 and deeper.
- */
-{
-  const { __drawableCeiling: ceiling } = await import("./clip-stream.js");
-  const measured = [
-    { zoom: 5, tiles: 1, ownCoverage: 0.993, coverage: 1 },
-    { zoom: 7, tiles: 2, ownCoverage: 1.0, coverage: 1 },
-    { zoom: 8, tiles: 6, ownCoverage: 1.0, coverage: 1 },
-    { zoom: 9, tiles: 9, ownCoverage: 0.0, coverage: 1 },
-    { zoom: 11, tiles: 88, ownCoverage: 0.0, coverage: 1 },
-  ];
-  ok("the ceiling is the DEEPEST level that still covers on its own",
-    ceiling(measured, 7) === 8);
-  ok("a level covering nothing is never the ceiling, whatever its merged figure",
-    ceiling(measured, 7) < 9);
-  ok("with no readings it falls back to the level given",
-    ceiling([], 6) === 6 && ceiling(null, 6) === 6);
-  ok("a level that fetched no tiles is ignored",
-    ceiling([{ zoom: 12, tiles: 0, ownCoverage: 1 }, { zoom: 8, tiles: 4, ownCoverage: 1 }], 5) === 8);
-  ok("small differences in own coverage do not cost a level",
-    ceiling([{ zoom: 8, tiles: 4, ownCoverage: 1.0 },
-             { zoom: 9, tiles: 9, ownCoverage: 0.98 }], 8) === 9);
+  // Measured on the north coast: the merged list held surveys 23 and 147 while
+  // the drawn level carried only 23, and the northern third drew nothing.
+  ok("a survey the pinned level lacks is filled in",
+    fill([f(23, "a"), f(147, "b")], [f(23, "a")], key)
+      .map((x) => x.id).join() === "b");
+  ok("a survey the tiles already draw is NOT duplicated underneath",
+    fill([f(23, "a"), f(23, "b")], [f(23, "a")], key).length === 0);
+  ok("every missing survey is filled, not just the first",
+    fill([f(1, "a"), f(2, "b"), f(3, "c")], [f(1, "a")], key).length === 2);
+  ok("when the pinned level carries everything there is no mesh at all",
+    fill([f(1, "a"), f(2, "b")], [f(1, "a"), f(2, "b")], key).length === 0);
+  // A level that fetched nothing must not suppress the fill — that is the
+  // failure where the clip drew a bare box.
+  ok("an empty drawn set fills in everything",
+    fill([f(1, "a"), f(2, "b")], [], key).length === 2);
+  ok("an empty merged list asks for no mesh",
+    fill([], [f(1, "a")], key).length === 0);
+  ok("missing lists are survivable",
+    fill(null, null, key).length === 0);
 }
 
 console.log(`${pass} passed`);

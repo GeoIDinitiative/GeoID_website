@@ -183,28 +183,25 @@ async function refine(entry, viewBox, macro) {
 }
 
 /**
- * The deepest level whose OWN coverage still matches the best on offer.
- *
- * A merged feature list may span levels — the drawn map cannot, because the
- * controller shows one level's tiles. So the refine is capped here: past this
- * level the tiles start losing whole surveys, and the map buys detail by
- * dropping datasets.
- */
-function drawableCeiling(levels, fallbackZoom) {
-  const usable = (levels || []).filter((l) => Number.isFinite(l.ownCoverage) && l.tiles);
-  if (!usable.length) return fallbackZoom;
-  const best = Math.max(...usable.map((l) => l.ownCoverage));
-  const good = usable.filter((l) => l.ownCoverage >= best - 0.03);
-  return good.length ? Math.max(...good.map((l) => l.zoom)) : fallbackZoom;
-}
-
-/**
  * Build a clipped layer that streams from `source`'s own tile service.
  *
  * Returns null when the source is not a tiled layer or the mask is not
  * polygons — the caller then takes the ordinary static path, which is the
  * right answer for clipping a shapefile by a box.
  */
+/**
+ * The surveys the pinned level does NOT carry.
+ *
+ * `featuresIn` merges each survey from its own deepest level, so the merged
+ * list spans levels by construction while the controller only ever draws one
+ * level's tiles. Everything the tiles will not draw is returned here, to be
+ * drawn once as a static mesh underneath them.
+ */
+function fillInSurveys(merged, own, keyOf) {
+  const drawn = new Set((own || []).map(keyOf));
+  return (merged || []).filter((f) => !drawn.has(keyOf(f)));
+}
+
 export async function createStreamingClip({ source, mask, name, contacts = null }) {
   const controllerOf = source?.tiled;
   if (!controllerOf?.sources || typeof controllerOf.update !== "function") return null;
@@ -253,36 +250,19 @@ export async function createStreamingClip({ source, mask, name, contacts = null 
    * the world. The pinned level stays drawn and the view's own tiles draw half
    * a renderOrder above it, which is machinery this controller already has.
    */
-  /**
-   * PIN THE LEVEL THAT COVERS THE STUDY AREA, not the one its size suggests.
-   *
-   * `zoomForBounds` answers "how deep does a box this size deserve", and for a
-   * 38 km study area that is deep — where this source has often dropped a
-   * survey. Measured on the north coast: `featuresIn` returns 100% coverage
-   * from surveys 23 AND 147, while the level a 38 km box "deserves" carries
-   * only 23, so the northern third of the clip drew nothing at all. The data
-   * was never missing; the picture was built from one level and the merge that
-   * finds the rest lives in `featuresIn`.
-   *
-   * So the base is the level with the BEST COVERAGE, which the climb already
-   * measures and reports per level. The view's own tiles still draw above it,
-   * so nothing is lost in detail — the pinned level is a floor, not a ceiling.
-   */
   const probe = await controller.featuresIn(bounds);
   /**
-   * `ownCoverage`, never `coverage`: the latter is measured AFTER the merge, so
-   * every level reads near-100% and choosing on it picked a level that covers
-   * 42.9% of the study area while appearing to have everything. Measured on
-   * the north coast, that is exactly what drew — survey 23 alone, the northern
-   * third of the box empty, while the layer's own feature list held both
-   * surveys.
+   * PIN THE DEEP LEVEL. Detail is not the thing to trade away.
+   *
+   * A previous version pinned the fullest-COVERING level and capped the refine
+   * there, so a clip that had been drawing zoom 11 polygons fell back to zoom
+   * 8 — flat blocks with straight edges where there had been real boundaries.
+   * That bought coverage with detail, and the whole point of the fill-in mesh
+   * below is that neither has to be bought with the other: the TILES carry the
+   * finest level, and the surveys that level does not have are drawn beneath
+   * it from their own best level.
    */
-  const levels = (probe.levels || []).filter((l) => l.ownCoverage != null && l.tiles);
-  // Best own reach wins; among equals the SHALLOWEST, because a floor should be
-  // cheap — the view's tiles are what carry the detail.
-  const base = levels.slice()
-    .sort((a, b) => (b.ownCoverage - a.ownCoverage) || (a.zoom - b.zoom))[0];
-  const baseZoom = base ? base.zoom : zoom;
+  const baseZoom = Number.isFinite(probe.zoom) ? probe.zoom : zoom;
   await controller.pin({ bounds, zoom: baseZoom });
 
   /**
@@ -305,8 +285,7 @@ export async function createStreamingClip({ source, mask, name, contacts = null 
    * nothing finer to refine to.
    */
   const own = await controller.featuresIn(bounds, { zoom: baseZoom });
-  const ownSurveys = new Set(own.features.map(tiles.sourceKey));
-  const fillIn = (probe.features || []).filter((f) => !ownSurveys.has(tiles.sourceKey(f)));
+  const fillIn = fillInSurveys(probe.features, own.features, tiles.sourceKey);
   if (fillIn.length) {
     const render = await import(`./vector-render.js${stamp}`);
     const built = render.renderFeatureCollection(
@@ -418,22 +397,16 @@ export async function createStreamingClip({ source, mask, name, contacts = null 
 
   live.set(layer.id, { layer, controller, mask: bounds, zoom: baseZoom, baseZoom,
     /**
-     * The deepest level that still covers this ground ON ITS OWN.
-     *
-     * NOT `probe.zoom`: the climb's own coverage gate compares the POST-MERGE
-     * figure, which the merge has already filled to ~100% at every level — so
-     * the gate can never fire and the climb happily chose zoom 11, where the
-     * offshore survey does not exist. My merge defeated my own gate.
-     *
-     * The list may span levels; the DRAWN level may not. This is the deepest
-     * one that needs no filling in.
+     * The climb's own choice, coverage gate and all. NOT the deepest
+     * fully-covering level: capping there cost the map its detail, and the
+     * fill-in mesh is what keeps the coverage instead.
      */
-    ceiling: drawableCeiling(probe.levels, baseZoom), busy: false });
+    ceiling: baseZoom, busy: false });
   void watch();
   return { layer, zoom: baseZoom, features: fc.features.length };
 }
 
 /** Exported for the tests: the box a refine would ask for. */
-export const __drawableCeiling = drawableCeiling;
+export const __fillInSurveys = fillInSurveys;
 export const __refineBox = refineBox;
 export const __boundsOfCollection = boundsOfCollection;
