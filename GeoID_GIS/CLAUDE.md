@@ -3279,6 +3279,53 @@ scratches are not backface culling; every tile carries its boundary seal; and
 the clip's own mesh is clean. The seams are back with the revert, and
 that is the honest state: the fix is a ribbon seal, not a backdrop.
 
+### MEASURE THE PIXELS. Geometry coverage is not what the user sees
+
+Five fixes in a row measured 100% coverage and changed nothing on screen. The
+cause was the instrument: **every one of those numbers came from geometry** —
+`coverageWithin` over a feature LIST — and the complaint was about pixels.
+
+Reading the framebuffer settles it in one number. `renderer.render()` then
+`gl.readPixels`, with the layer toggled visible/hidden and the two frames
+diffed, so "is there geology at this pixel" is answered by the image CHANGING
+rather than by guessing at colours. On the reported 34 km study area:
+
+| | pixels |
+| --- | --- |
+| as reported | **41.2%** |
+| after drawing the filled-in surveys | 50.4% |
+| after capping the refine on own coverage | **100%** |
+
+The geometry said 100% throughout.
+
+**Two mechanisms, and I had built both.**
+
+1. **The merge is a LIST; the controller draws TILES.** `featuresIn` fills each
+   survey from its own deepest level and concatenates the result — but those
+   features belong to another level's tiles, which are never shown. So the
+   merged surveys were in the layer's list, its legend and every extraction,
+   and were never rendered. What the tiles cannot draw is now drawn as one
+   static mesh beneath them.
+
+2. **My merge defeated my own coverage gate.** The gate compares the
+   POST-MERGE coverage, which the merge has just filled to ~100% at every
+   level — so it can never fire. The climb chose zoom 11 and the refine
+   followed it there, where the offshore survey does not exist at all
+   (measured: that strip is covered at zooms 4–8 and **0% at 9 and deeper**).
+   The LIST may span levels; the DRAWN map may not. The refine is capped at
+   the deepest level whose OWN coverage still matches the best on offer.
+
+**And the refine ran AFTER every check I made.** The clip arrived pinned at a
+good level and walked itself to a bad one on the first settle, so a probe taken
+straight after the run measured a picture that no longer existed by the time
+anyone looked. Any verification of a self-refining layer has to wait past its
+settle.
+
+**The rule.** When a report is about what is on screen, the test reads the
+screen. A number derived from the data structures answers a different question,
+and it will keep answering it correctly while the user keeps seeing something
+else.
+
 ### A SMALL box never met the other surveys, and my test boxes hid it
 
 Four fixes in a row — the coverage gate, the per-survey merge, the pinned
