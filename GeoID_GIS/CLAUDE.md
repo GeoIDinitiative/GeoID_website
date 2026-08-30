@@ -3403,6 +3403,50 @@ and **Analysis**; section headings the same.
 lives in as many places as there are surfaces that show it. When something is
 "still called the old thing", grep the old string before assuming a cache.
 
+### The drawn outline was UNDER the terrain, and Export was dead markup
+
+Two of three complaints about the clip procedure measured out to faults with
+nothing to do with clipping.
+
+**The drawn outline sat below the ground.** Measured on a drawn study area
+over Northern Ireland: the terrain there stands at **123.66 km** above the base
+globe at the default exaggeration, and the outline's vertices sat at **76–102
+km** — twenty to forty-seven kilometres UNDER it — and were **depth tested**,
+so the hills ate the line. That is exactly what "not tight to the surface"
+looks like.
+
+The seal had already solved this for geology contacts and the outline path
+never got the treatment. The note explaining why was wrong in an interesting
+way: it said outlined rings could not use the seal "because with no fill
+beneath them there is nothing for the seal's coplanar trick to seal against" —
+which reads the seal backwards. What makes it hug is `depthTest: false` plus
+culling the far side BY FACING, and neither needs a fill underneath.
+Coplanarity was never the mechanism.
+
+Routed into the seal buffer, measured again over 91 ring vertices against the
+ground under each: **median 0.1 m, worst 0.3 m.** A LineString still takes the
+lifted, depth-tested path — a river or a fault is a line in its own right, not
+the edge of something.
+
+**And the Export panel had never been wired.** `#export-layer`,
+`#export-format`, `#export-crs` and `#export-run` live in `panels.js` and NO
+module addresses them: measured live, the layer select held zero options, the
+button did nothing, and there was no status node for it to report into. Its
+format list — geojson, csv, xyz, wkt, stl, msh, obj — has no `shp` in it
+either, so even wired it could not have written one.
+
+**The shapefile writer itself is sound**, which is worth recording because it
+was the natural suspect: `buildShapefileZip` over 60 real Macrostrat polygons,
+read back with GDAL — 60 features, Polygon, correct extent, WGS84 written, **0
+invalid, 0 empty, 0 warnings**, and no DBF field-name collisions from the
+ten-character limit. The bug was never in the writing; it was that the panel
+somebody presses could not reach it.
+
+Wired to `layer-export-dialog`, which is the one export surface and offers
+shapefile first for a polygon layer. Third time this week the answer to "X
+does not work" has been *the control you are pressing is not the code that
+does X*.
+
 ### Two shelves: Geoprocessing and Analysis, and the OUTPUT decides
 
 `Analyse · Prepare` and `Analyse · Tools & Results` had grown by accretion —
