@@ -3279,6 +3279,50 @@ scratches are not backface culling; every tile carries its boundary seal; and
 the clip's own mesh is clean. The seams are back with the revert, and
 that is the honest state: the fix is a ribbon seal, not a backdrop.
 
+### Fill each survey from ITS OWN deepest level, not from one fallback
+
+"When we clip the geology it doesn't take all available datasets — it fails to
+pull the bathymetry and the Irish geology."
+
+The level merge filled from a SINGLE fallback level: the fullest-covering one
+seen during the climb. That drops any survey the fallback lacks as well.
+Measured over a box across the North Channel, surveys present per level:
+
+| zoom | 23 | 147 | 7 |
+| --- | --- | --- | --- |
+| 5 | — | 924 | **37** |
+| 6 | 3,634 | 421 | **23** |
+| 7 | 1,862 | 182 | — |
+| 8 | 1,254 | 174 | — |
+| 9–11 | present | — | — |
+
+**Source 7 exists only at zooms 5 and 6.** The climb reached 11, the fallback
+was a 100%-coverage level at 9, and neither carries 7 — so the fill never saw
+it and the dataset left the clip entirely. Source 147 goes the same way past
+zoom 8. Two datasets, both dropped, which is exactly the two the report names.
+
+Every survey is now remembered at the DEEPEST LEVEL THAT CARRIES IT
+(`deepestFor`), and the merge adds each one the deep level does not have. A
+later level overwrites an earlier one for the same key, so a survey ends up
+held at its own best level rather than at whichever level happened to cover the
+most ground.
+
+Measured after, same box: zoom 11, 88 tiles, 954 features, **coverage 100%**,
+and all three surveys present — **23: 757, 147: 174, 7: 23** — with 7 filled
+from zoom 6 and 147 from zoom 8. The `filled` count grows down the climb
+(0 at z6, 23 at z7–8, 197 at z9–11) as each survey drops out and is carried
+forward.
+
+**The mosaic property survives the per-survey fill**, which is the thing that
+had to be checked rather than assumed: of 2,304 sample points, **one** was
+covered by more than one survey. Filling from three different levels does not
+double-count the ground, because the surveys still tile it rather than overlap.
+
+**The general shape.** "Take the best level" and "take everything that exists"
+are different requests whenever a source COMPOSITES several datasets and
+switches between them by scale — and the second one cannot be answered by any
+single level, because no single level has it all.
+
 ### Merging the levels: the finer survey where it exists, by SOURCE
 
 Refusing a partial deep level keeps the map whole and throws away real detail
