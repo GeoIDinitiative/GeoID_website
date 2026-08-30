@@ -8046,3 +8046,29 @@ written for, and nothing else.
 The test reimplemented the rule locally and kept passing against a copy of
 itself — the same trap as the level-picking test. A test that re-derives the
 behaviour it is checking proves only that the copy agrees with itself.
+
+## The coarse survey's ground is taken away, not merely covered
+
+Drawing the finer survey on top leaves the coarse polygon in the picker, the
+attribute table, an export and the area sums — measured, 3,155 of 3,156 sample
+points on detailed ground still had a regional polygon underneath. Dropping
+only the WHOLLY covered ones fixes almost none of it, because a coarse unit
+running offshore is only partly covered.
+
+Use `geoprocessing.difference`, never `geometry.booleanOp`. Measured against a
+coarse 2x2 square: `booleanOp` with a finer square in the CORNER, sharing two
+edges, returned EMPTY and deleted the polygon whole — three units of real
+ground — and with one strictly INSIDE cut nothing at all, a hole being
+inexpressible as one ring. `difference` gets both right; its one failure is not
+cutting when two share an edge exactly, which keeps ground rather than losing
+it. After it: overlap 3,155 -> 1,540 points, coverage 99.94%.
+
+## Resolution does not fall with a clip's extent — check composition first
+
+A clip's vertices-per-km2 fell 4.10 -> 2.97 -> 1.92 across 15, 45 and 90 km
+boxes, which reads as a large extent losing detail. Per SURVEY it is flat: the
+detailed survey is found at 317, 396 and 374 units per deg2. The decline was a
+bigger box taking in more coarse-only offshore, and the geometry is verbatim
+from the API, so a unit's detail never varies with the level it was found at.
+Forcing the full tile budget bought 4% more vertices for twice the runtime and
+was reverted.
