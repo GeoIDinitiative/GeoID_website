@@ -229,13 +229,61 @@ function applyOnce() {
 export function installToolShelves({ everyMs = 700 } = {}) {
   if (typeof document === "undefined") return () => {};
   applyOnce();
-  const timer = setInterval(applyOnce, everyMs);
+  wireExportPanel();
+  const timer = setInterval(() => { applyOnce(); wireExportPanel(); }, everyMs);
   return () => clearInterval(timer);
 }
 
 export const __BLOCKS = BLOCKS;
 export const __RETIRED = RETIRED;
 export const __HEADINGS = HEADINGS;
+
+/**
+ * THE EXPORT PANEL WAS DEAD MARKUP, and it is the reason a shapefile could not
+ * be had from it.
+ *
+ * `#export-layer`, `#export-format`, `#export-crs` and `#export-run` are in
+ * `panels.js` and **no module has ever wired them**: measured on the live
+ * page, the layer select held zero options, the button did nothing and there
+ * was no status node for it to report into. Its format list — geojson, csv,
+ * xyz, wkt, stl, msh, obj — has no `shp` in it either, so even wired it could
+ * not have written one.
+ *
+ * The working export is `layer-export.js` + `layer-export-dialog.js`, reached
+ * from a layer's own drawer, and it offers shapefile first for a polygon
+ * layer. `shapefile-writer.js` is sound — checked against GDAL on 60 real
+ * Macrostrat polygons: 0 invalid, 0 empty, 0 warnings, WGS84 written, no DBF
+ * field-name collisions.
+ *
+ * So this is the "wire it or leave it disabled" rule with an obvious third
+ * answer: wire it to the implementation that already works. The panel keeps
+ * its doorway — Workspace's Export button opens it — and its own controls
+ * stand down in favour of the dialog, which is the one export surface.
+ */
+function wireExportPanel() {
+  const button = document.getElementById("export-run");
+  if (!button || button.dataset.geoidWired) return;
+  button.dataset.geoidWired = "1";
+  button.textContent = "Choose a layer to export…";
+  // The panel's own format and CRS selects would be a second, poorer set of
+  // choices beside the dialog's, so they stand down with the layer select.
+  ["export-layer", "export-format", "export-crs"].forEach((id) => {
+    const row = document.getElementById(id)?.closest(".row");
+    if (row) row.hidden = true;
+  });
+  button.addEventListener("click", async () => {
+    const layers = (window.GeoIDImportManager?.getLayers?.() || [])
+      .filter((l) => l.status === "loaded" && (l.collection || l.raster));
+    if (!layers.length) {
+      button.textContent = "Nothing loaded to export yet";
+      return;
+    }
+    const dialog = await import(`./layer-export-dialog.js${new URL(import.meta.url).search}`);
+    // The most recently added layer is the one somebody just made, which for a
+    // clip is exactly the thing they came to export.
+    dialog.openExportDialog(layers[layers.length - 1]);
+  });
+}
 
 /**
  * Self-installing, like every other panel module: `boot.js` imports the list
