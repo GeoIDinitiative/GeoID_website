@@ -185,6 +185,56 @@ const answering = (calls) => async (url) => {
     forPicking[0] === forDrawing[forDrawing.length - 1]);
 }
 
+/**
+ * A COARSE POLYGON A FINER SURVEY ALREADY MAPS IN FULL IS DROPPED.
+ *
+ * Subtracting the finer polygons is the obvious move and `booleanOp` cannot do
+ * it. Measured against a coarse 2x2: a finer square in its CORNER (sharing two
+ * edges) came back EMPTY — the whole polygon deleted, 3 units of real ground
+ * lost — while a finer square strictly INSIDE returned 4.0, no cut at all,
+ * because a hole is not expressible as one ring. A cut that deletes a polygon
+ * whenever two share an edge is exactly the "gaps in the mapping" this is
+ * meant to end, so geometry is left alone and containment decides.
+ */
+{
+  const { __dropOutranked: drop } = await import("./tool-runner.js");
+  const { pointInPolygon } = await import("./geometry.js");
+  const sq = (x0, y0, x1, y1) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]];
+  const feat = (rank, ring, id) => ({ properties: { id, rank },
+    geometry: { type: "Polygon", coordinates: [ring] } });
+  const rankOf = (f) => f.properties.rank;
+  const ids = (out) => out.map((f) => f.properties.id).sort().join(",");
+
+  ok("a coarse polygon a finer survey covers entirely is dropped",
+    ids(drop([feat(1, sq(0, 0, 1, 1), "coarse"), feat(9, sq(-1, -1, 2, 2), "fine")],
+      rankOf, pointInPolygon)) === "fine");
+
+  ok("a partly covered coarse polygon is KEPT, whole",
+    ids(drop([feat(1, sq(0, 0, 2, 2), "coarse"), feat(9, sq(0, 0, 1, 1), "fine")],
+      rankOf, pointInPolygon)) === "coarse,fine");
+
+  // THE OFFSHORE CASE: nothing finer reaches it.
+  ok("ground no finer survey maps is kept",
+    ids(drop([feat(1, sq(10, 10, 12, 12), "offshore"), feat(9, sq(0, 0, 1, 1), "fine")],
+      rankOf, pointInPolygon)) === "fine,offshore");
+
+  ok("a polygon is never dropped by one of EQUAL rank",
+    drop([feat(5, sq(0, 0, 1, 1), "a"), feat(5, sq(-1, -1, 2, 2), "b")],
+      rankOf, pointInPolygon).length === 2);
+
+  ok("a finer polygon is never dropped by a coarser one",
+    ids(drop([feat(9, sq(0, 0, 1, 1), "fine"), feat(1, sq(-1, -1, 2, 2), "coarse")],
+      rankOf, pointInPolygon)) === "coarse,fine");
+
+  ok("two coarse polygons under one finer blanket both go",
+    ids(drop([feat(1, sq(0, 0, 1, 1), "c1"), feat(1, sq(1, 1, 2, 2), "c2"),
+      feat(9, sq(-1, -1, 3, 3), "fine")], rankOf, pointInPolygon)) === "fine");
+
+  ok("nothing in, nothing out", drop([], rankOf, pointInPolygon).length === 0);
+  ok("a feature with no geometry is kept rather than lost",
+    drop([{ properties: { id: "x", rank: 1 }, geometry: null }], rankOf, pointInPolygon).length === 1);
+}
+
 console.log(`${pass} passed`);
 if (fail) console.log(`${fail} FAILED`);
 process.exit(fail ? 1 : 0);

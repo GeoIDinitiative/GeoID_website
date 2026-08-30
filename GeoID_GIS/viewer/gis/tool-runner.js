@@ -1,19 +1,20 @@
-import * as GP from "./geoprocessing.js?v=20260830-59d51c3";
-import * as RA from "./raster-analysis.js?v=20260830-59d51c3";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260830-59d51c3";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260830-59d51c3";
+import * as GP from "./geoprocessing.js?v=20260830-53d5a1c";
+import * as RA from "./raster-analysis.js?v=20260830-53d5a1c";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260830-53d5a1c";
+import { pointInPolygon } from "./geometry.js?v=20260830-53d5a1c";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260830-53d5a1c";
 // Pure and DOM-free, so a static import keeps this module Node-clean AND keeps
 // the terrain engine SYNCHRONOUS -- runTool calls engines.native WITHOUT
 // awaiting it, so an async engine hands register() a Promise and the raster
 // comes out undefined. Measured as: "Cannot read properties of undefined".
-import { buildSurface, nativeStepM } from "./model-build.js?v=20260830-59d51c3";
-import { nativeGridOf } from "./extraction.js?v=20260830-59d51c3";
-import { CRS_OPTIONS } from "./projection.js?v=20260830-59d51c3";
-import * as IN from "./interpolation.js?v=20260830-59d51c3";
-import * as VAL from "./validation.js?v=20260830-59d51c3";
-import * as EX from "./analysis-extra.js?v=20260830-59d51c3";
-import * as HY from "./hydrology.js?v=20260830-59d51c3";
-import * as KR from "./kriging.js?v=20260830-59d51c3";
+import { buildSurface, nativeStepM } from "./model-build.js?v=20260830-53d5a1c";
+import { nativeGridOf } from "./extraction.js?v=20260830-53d5a1c";
+import { CRS_OPTIONS } from "./projection.js?v=20260830-53d5a1c";
+import * as IN from "./interpolation.js?v=20260830-53d5a1c";
+import * as VAL from "./validation.js?v=20260830-53d5a1c";
+import * as EX from "./analysis-extra.js?v=20260830-53d5a1c";
+import * as HY from "./hydrology.js?v=20260830-53d5a1c";
+import * as KR from "./kriging.js?v=20260830-53d5a1c";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -2158,6 +2159,78 @@ function surveyRanks(features) {
 }
 
 /**
+ * DROP A COARSE POLYGON THAT A FINER SURVEY ALREADY MAPS IN FULL.
+ *
+ * Drawing the finer survey on top is not enough: the coarse polygon stays in
+ * the picker, the attribute table, the export and the area sums, so the layer
+ * says two things about one piece of ground.
+ *
+ * The obvious move is to SUBTRACT the finer polygons, and this file's own
+ * `booleanOp` cannot do it. Measured against a coarse 2x2 square:
+ *
+ *   - a finer square in its CORNER, sharing two edges -> the coarse polygon
+ *     comes back EMPTY and is dropped whole, losing 3 units of real ground;
+ *   - a finer square strictly INSIDE it -> 4.0 returned, no cut at all, because
+ *     a difference with an interior hole is not expressible as one ring and
+ *     Greiner-Hormann finds no crossings to work from;
+ *   - a finer square touching ONE edge -> 4.0 again.
+ *
+ * A cut that silently does nothing is survivable. A cut that deletes a polygon
+ * whenever the two happen to share an edge is exactly the "gaps in the
+ * mapping" this is meant to end, so geometry is left alone.
+ *
+ * What is safe is a containment test: a coarse polygon whose ground is
+ * ENTIRELY mapped by finer surveys has nothing left to say and is dropped.
+ * One that is only partly covered is kept whole, and the drawn precedence
+ * shows it only where the finer survey does not reach — which is how the
+ * offshore and bathymetry cover survives.
+ */
+function dropOutranked(features, rankOf, pointInPoly, samples = 12) {
+  const polysOf = (g) => (!g ? []
+    : g.type === "Polygon" ? [g.coordinates]
+      : g.type === "MultiPolygon" ? g.coordinates : []);
+  const bboxOf = (poly) => {
+    let minX = Infinity; let minY = Infinity; let maxX = -Infinity; let maxY = -Infinity;
+    poly[0].forEach(([x, y]) => {
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+    });
+    return { minX, minY, maxX, maxY };
+  };
+  const order = features.map((f) => ({ f, rank: rankOf(f) || 0 }))
+    .sort((a, b) => b.rank - a.rank);
+  const finer = [];
+  const kept = [];
+  for (const { f, rank } of order) {
+    const polys = polysOf(f.geometry);
+    const usable = polys.filter((p) => p[0] && p[0].length >= 4);
+    if (!usable.length) { kept.push(f); continue; }
+    const covered = usable.every((poly) => {
+      const b = bboxOf(poly);
+      let tested = 0;
+      for (let i = 0; i < samples; i += 1) {
+        for (let j = 0; j < samples; j += 1) {
+          const x = b.minX + ((b.maxX - b.minX) * (i + 0.5)) / samples;
+          const y = b.minY + ((b.maxY - b.minY) * (j + 0.5)) / samples;
+          if (!pointInPoly([x, y], poly)) continue;   // only its own ground
+          tested += 1;
+          const under = finer.some((c) => c.rank > rank
+            && x >= c.box.minX && x <= c.box.maxX && y >= c.box.minY && y <= c.box.maxY
+            && pointInPoly([x, y], c.poly));
+          if (!under) return false;
+        }
+      }
+      // Nothing sampled inside means a sliver too thin to judge: keep it.
+      return tested > 0;
+    });
+    if (covered) continue;
+    kept.push(f);
+    usable.forEach((poly) => finer.push({ rank, poly, box: bboxOf(poly) }));
+  }
+  return kept;
+}
+
+/**
  * SWAP THE TILED PIECES FOR THE UNITS THEMSELVES.
  *
  * The tiles are how we learn WHICH units are on this ground, which they answer
@@ -2272,7 +2345,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260830-59d51c3");
+    const client = await import("./sidecar-client.js?v=20260830-53d5a1c");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -2337,7 +2410,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260830-59d51c3");
+    const bridge = await import("./research/bridge.js?v=20260830-53d5a1c");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -2349,12 +2422,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260830-59d51c3");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260830-53d5a1c");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260830-59d51c3");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260830-53d5a1c");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }
@@ -2549,9 +2622,18 @@ function register(desc, raw, name, resolvedInputs = {}) {
    * layer ranks everything equally and the renderer's ordinary path runs.
    */
   const ranks = surveyRanks(fc.features);
-  const rankOf = ranks.size > 1
+  let rankOf = ranks.size > 1
     ? (f) => ranks.get(String(f?.properties?.source_id ?? "")) || 0
     : null;
+  /**
+   * The coarse survey is CUT AWAY where a finer one maps the same ground, not
+   * merely covered by it. Drawn precedence alone left the coarse polygon in
+   * the picker, the table, the export and the area sums, and lingering
+   * wherever the fine fill did not exactly cover it.
+   */
+  if (rankOf) {
+    fc = { ...fc, features: dropOutranked(fc.features, rankOf, pointInPolygon) };
+  }
   /**
    * THE PICKER READS THIS ARRAY IN ORDER, so the finest survey goes first.
    *
@@ -2748,5 +2830,6 @@ export function runTool(toolId, inputs = {}, params = {}, { outputName } = {}) {
 
 /** Exported for the tests. */
 export const __surveyRanks = surveyRanks;
+export const __dropOutranked = dropOutranked;
 /** Exported for the tests: the box vocabularies must both work. */
 export const __touches = touches;
