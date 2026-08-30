@@ -240,6 +240,49 @@ export async function createStreamingClip({ source, mask, name, contacts = null 
   const baseZoom = base ? base.zoom : zoom;
   await controller.pin({ bounds, zoom: baseZoom });
 
+  /**
+   * DRAW THE FILLED-IN SURVEYS. The merge is a LIST; the controller draws
+   * TILES.
+   *
+   * `featuresIn` fills each survey from its own deepest level and concatenates
+   * the result — but those features belong to another level's tiles, and the
+   * controller only ever shows one level's. So the merged surveys were in the
+   * layer's feature list, in its legend and in every extraction, and were
+   * NEVER RENDERED. Measured by reading the framebuffer over a 34 km study
+   * area: the geometry said 100% coverage and the PIXELS said **41.2%**, with
+   * the northern 40% of the box bare — while 13 of the layer's features
+   * touched exactly that ground.
+   *
+   * No amount of choosing a better single level can fix that, because the
+   * merged set spans levels by construction. What the tiles cannot draw is
+   * drawn here instead: one static mesh for the surveys the pinned level does
+   * not carry, under the tiles, refined by nothing because a coarse survey has
+   * nothing finer to refine to.
+   */
+  const own = await controller.featuresIn(bounds, { zoom: baseZoom });
+  const ownSurveys = new Set(own.features.map(tiles.sourceKey));
+  const fillIn = (probe.features || []).filter((f) => !ownSurveys.has(tiles.sourceKey(f)));
+  if (fillIn.length) {
+    const render = await import(`./vector-render.js${stamp}`);
+    const built = render.renderFeatureCollection(
+      { type: "FeatureCollection", features: fillIn },
+      {
+        name: `${name} — other surveys`,
+        colourFor: source.sourceColourField
+          ? (f) => f?.properties?.[source.sourceColourField] || null
+          : null,
+        contacts: contacts || null,
+      },
+    );
+    if (built?.object3D) {
+      // Under the tiles: where a tiled survey has this ground, its own finer
+      // polygons should be what shows.
+      built.object3D.renderOrder = -1;
+      built.object3D.userData.geoidFillIn = true;
+      controller.group.add(built.object3D);
+    }
+  }
+
   const fc = { type: "FeatureCollection", features: controller.features() };
   const layer = window.GeoIDImportManager?.addDerivedLayer?.(name, {
     object3D: controller.group,
