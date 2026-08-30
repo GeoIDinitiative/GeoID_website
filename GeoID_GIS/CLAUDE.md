@@ -3416,12 +3416,36 @@ OR A CHART is analysis.**
 
 | Geoprocessing | Analysis |
 | --- | --- |
-| Georeference an image | Point & Pixel Extraction |
+| Georeference an image | Signal Analysis |
 | Surface Analysis (raster ops) | Zonal Statistics |
-| Vector operations | Sample Raster At Point |
-| Attribute Query + Query syntax | Signal Analysis |
-| Attribute Table | Explore & Edit (Charts / Time / Editor) |
-| Batch runner, History | Charts, Time, Seismograms, Model Builder |
+| Vector operations | Explore & Edit (Charts / Time / Editor) |
+| Attribute Query + Query syntax | Charts, Time |
+| Attribute Table | Seismograms (FDSN) |
+| Point & Pixel Extraction | |
+| All tools (the 49-tool registry) | |
+| Batch runner, History | |
+
+**Six blocks retire**, each with the better door named beside it in the code:
+
+| retired | because |
+| --- | --- |
+| the four export buttons | the Export group |
+| the symbology accordion | the symbology dialog |
+| Add WFS layer | Workspace's + Data |
+| Extract From Layers | its clipping half goes through the `clip` tool and arrives as real mapped layers; its picking half is Point & Pixel Extraction |
+| Sample Raster At Point | one raster at one typed coordinate, which Point & Pixel Extraction does by clicking, for every ticked raster |
+| the Model Builder block | Model Builder is a tab on the nav bar |
+
+**Point & Pixel Extraction is GEOPROCESSING, not analysis**, and it is the one
+placement the output rule alone gets wrong. It ends in a table — but so does a
+query. What decides it is that the question is asked IN MAP SPACE: the points
+are placed on the globe and the values come off layers by position.
+
+**And "Analysis tools" was the whole 49-tool REGISTRY.** It sat on the analysis
+shelf holding Vector geoprocessing (12), Surface analysis (21), Hydrology (5)
+and Interpolation (4) — and this file's own audit found **42 of the 49 produce
+a map layer**. The name described the panel it happened to be in rather than
+what it held; it is "All tools" on the Geoprocessing shelf now.
 
 **Extraction appears on BOTH shelves on purpose**, and they are different
 questions: clipping layers to a polygon is geospatial and lands on the globe;
