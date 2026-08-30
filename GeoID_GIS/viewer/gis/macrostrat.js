@@ -21,11 +21,13 @@
  * not one line about Macrostrat.
  */
 
-import { decodeTile, tilesForBounds } from "./mvt.js?v=20260830-dc5ff7e";
-import { visibleBounds } from "./view-extent.js?v=20260830-dc5ff7e";
+import { decodeTile, tilesForBounds } from "./mvt.js?v=20260830-449cf9b";
+import { visibleBounds } from "./view-extent.js?v=20260830-449cf9b";
 import * as THREE from "../vendor/three.module.js";
 
 const TILES = "https://tiles.macrostrat.org/carto";
+/** The JSON API, which answers with real geometry rather than tiles. */
+const API = "https://macrostrat.org/api/v2";
 
 /** The service's own limit; asking past it returns the deepest it has. */
 const MAX_ZOOM = 13;
@@ -228,15 +230,64 @@ export function legendFrom(features, { field = "name", count = 12,
  * ground the layer is not covering.
  */
 export async function unitAt(lat, lon, { signal = null } = {}) {
-  const url = `https://macrostrat.org/api/v2/geologic_units/map?lat=${lat}&lng=${lon}`;
+  const url = `${API}/geologic_units/map?lat=${lat}&lng=${lon}`;
   const response = await fetch(url, { signal });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const body = await response.json();
   return body?.success?.data?.[0] || null;
 }
 
+/**
+ * THE UNITS THEMSELVES, not the tiles they were served in.
+ *
+ * `carto` is a TILE service, and a tile is a cut of the map: a unit crossing a
+ * tile boundary arrives as two polygons sharing a straight cut edge. Stitching
+ * tiles can therefore never reproduce the source outlines — measured on a
+ * 45 km study area at zoom 13, the clip came back as 417 pieces laid out in a
+ * visible lattice, one unit split into two wherever a tile edge crossed it.
+ *
+ * The JSON API answers with the mapped polygon itself, and takes `map_id` in
+ * batches, so the tiles can be used for the cheap question they are good at —
+ * WHICH units are here — and the true geometry fetched for the answer.
+ *
+ * Ids that the API does not return are simply absent: the caller keeps its
+ * tiled version of those rather than losing the ground, because a hole is a
+ * worse answer than a seam.
+ */
+export async function unitsByMapId(ids, { batch = 50, concurrency = 4, signal = null,
+  onProgress = null } = {}) {
+  const wanted = [...new Set((ids || []).map(Number).filter(Number.isFinite))];
+  if (!wanted.length) return { type: "FeatureCollection", features: [] };
+  const chunks = [];
+  for (let i = 0; i < wanted.length; i += batch) chunks.push(wanted.slice(i, i + batch));
+
+  const features = [];
+  let done = 0;
+  let next = 0;
+  const worker = async () => {
+    while (next < chunks.length) {
+      const chunk = chunks[next++];
+      const url = `${API}/geologic_units/map?map_id=${chunk.join(",")}&format=geojson_bare`;
+      try {
+        const response = await fetch(url, { signal });
+        if (response.ok) {
+          const body = await response.json();
+          for (const f of body?.features || []) if (f?.geometry) features.push(f);
+        }
+      } catch (error) {
+        // One batch failing costs its units, not the run.
+      }
+      done += 1;
+      onProgress?.(done / chunks.length);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, chunks.length) }, worker));
+  return { type: "FeatureCollection", features };
+}
+
 if (typeof window !== "undefined") {
   window.GeoIDMacrostrat = {
-    fetchGeology, legendFrom, unitAt, viewBounds, zoomForBounds, WORLD, WORLD_ZOOM,
+    fetchGeology, legendFrom, unitAt, unitsByMapId, viewBounds, zoomForBounds,
+    WORLD, WORLD_ZOOM,
   };
 }

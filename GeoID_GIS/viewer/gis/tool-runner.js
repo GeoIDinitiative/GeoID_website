@@ -1,19 +1,19 @@
-import * as GP from "./geoprocessing.js?v=20260830-dc5ff7e";
-import * as RA from "./raster-analysis.js?v=20260830-dc5ff7e";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260830-dc5ff7e";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260830-dc5ff7e";
+import * as GP from "./geoprocessing.js?v=20260830-449cf9b";
+import * as RA from "./raster-analysis.js?v=20260830-449cf9b";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260830-449cf9b";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260830-449cf9b";
 // Pure and DOM-free, so a static import keeps this module Node-clean AND keeps
 // the terrain engine SYNCHRONOUS -- runTool calls engines.native WITHOUT
 // awaiting it, so an async engine hands register() a Promise and the raster
 // comes out undefined. Measured as: "Cannot read properties of undefined".
-import { buildSurface, nativeStepM } from "./model-build.js?v=20260830-dc5ff7e";
-import { nativeGridOf } from "./extraction.js?v=20260830-dc5ff7e";
-import { CRS_OPTIONS } from "./projection.js?v=20260830-dc5ff7e";
-import * as IN from "./interpolation.js?v=20260830-dc5ff7e";
-import * as VAL from "./validation.js?v=20260830-dc5ff7e";
-import * as EX from "./analysis-extra.js?v=20260830-dc5ff7e";
-import * as HY from "./hydrology.js?v=20260830-dc5ff7e";
-import * as KR from "./kriging.js?v=20260830-dc5ff7e";
+import { buildSurface, nativeStepM } from "./model-build.js?v=20260830-449cf9b";
+import { nativeGridOf } from "./extraction.js?v=20260830-449cf9b";
+import { CRS_OPTIONS } from "./projection.js?v=20260830-449cf9b";
+import * as IN from "./interpolation.js?v=20260830-449cf9b";
+import * as VAL from "./validation.js?v=20260830-449cf9b";
+import * as EX from "./analysis-extra.js?v=20260830-449cf9b";
+import * as HY from "./hydrology.js?v=20260830-449cf9b";
+import * as KR from "./kriging.js?v=20260830-449cf9b";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -2080,6 +2080,52 @@ async function refreshLiveInputs(desc, inputs, params = {}) {
   return { borrowed, note: notes.length ? ` ${notes.join(" ")}` : "" };
 }
 
+/**
+ * SWAP THE TILED PIECES FOR THE UNITS THEMSELVES.
+ *
+ * The tiles are how we learn WHICH units are on this ground, which they answer
+ * cheaply and well. They are not how the units are SHAPED: a tile is a cut of
+ * the map, so a unit crossing a tile boundary is delivered as two polygons
+ * meeting along a straight edge. Measured on a 45 km study area at zoom 13,
+ * that is 417 pieces in a visible lattice — the "one unit split into two" a
+ * reader sees as grid lines ruled across the geology.
+ *
+ * So the ids go to the JSON API and come back as the mapped polygons. Anything
+ * the API does not return keeps its tiled version: a seam is a worse answer
+ * than the source, and a HOLE is worse than either.
+ *
+ * The layer is holding borrowed features at this point and `giveBack` puts the
+ * live ones back afterwards, so this swap lasts exactly as long as the run.
+ */
+async function verbatimGeometry(borrowed) {
+  const layers = (borrowed || []).filter(
+    (l) => l?.geologyDataset && Array.isArray(l.features) && l.features.length,
+  );
+  if (!layers.length) return "";
+  const macro = await import(`./macrostrat.js${new URL(import.meta.url).search}`);
+  const notes = [];
+  for (const layer of layers) {
+    const idOf = (f) => f?.properties?.map_id;
+    const ids = layer.features.map(idOf).filter((v) => Number.isFinite(Number(v)));
+    if (!ids.length) continue;
+    let fc = null;
+    try {
+      fc = await macro.unitsByMapId(ids);
+    } catch (error) {
+      continue;   // the tiled pieces are still a map
+    }
+    if (!fc?.features?.length) continue;
+    const got = new Set(fc.features.map((f) => String(idOf(f))));
+    const kept = layer.features.filter((f) => !got.has(String(idOf(f))));
+    const merged = fc.features.concat(kept);
+    layer.collection = { type: "FeatureCollection", features: merged };
+    layer.features = merged;
+    notes.push(`${layer.name}: ${fc.features.length} units at source geometry`
+      + (kept.length ? `, ${kept.length} tiled pieces kept.` : "."));
+  }
+  return notes.length ? ` ${notes.join(" ")}` : "";
+}
+
 export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
   const desc = toolById(toolId);
   if (!desc) return runTool(toolId, inputs, params, opts);
@@ -2107,7 +2153,15 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
    * the result from the source's own `color` column — which the streaming path
    * never reached, because it returned before it.
    */
-  const { borrowed, note } = await refreshLiveInputs(desc, inputs, params);
+  const { borrowed, note: liveNote } = await refreshLiveInputs(desc, inputs, params);
+  /**
+   * A clip is meant to be the source map inside a polygon, so it is cut from
+   * the units themselves rather than from the tiles they were served in.
+   */
+  const verbatimNote = toolId === "clip" && typeof document !== "undefined"
+    ? await verbatimGeometry(borrowed).catch(() => "")
+    : "";
+  const note = `${liveNote}${verbatimNote}`;
   // Whatever was borrowed for this run is given back afterwards, always: a
   // layer left holding one study area's features tells the click picker the
   // rest of the map is not there.
@@ -2131,7 +2185,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260830-dc5ff7e");
+    const client = await import("./sidecar-client.js?v=20260830-449cf9b");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -2196,7 +2250,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260830-dc5ff7e");
+    const bridge = await import("./research/bridge.js?v=20260830-449cf9b");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -2208,12 +2262,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260830-dc5ff7e");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260830-449cf9b");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260830-dc5ff7e");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260830-449cf9b");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }
