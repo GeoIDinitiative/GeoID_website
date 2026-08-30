@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260830-290eb7b";
+  from "./gis/geo-utils.js?v=20260830-262805a";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -17244,6 +17244,55 @@ uniform float uViewportWidth;`,
         };
       }
 
+      /**
+       * THE RAY MUST MEET THE TERRAIN, NOT THE SPHERE UNDER IT.
+       *
+       * The globe's relief is applied in the VERTEX SHADER, and a raycast
+       * tests the CPU-side geometry — the undisplaced ball. So every pick
+       * resolved to where the ray crosses radius 3.2, while the ground the
+       * user is looking at stands up to 0.008 above that, and at any oblique
+       * angle those are different places on the map.
+       *
+       * Measured before this, projecting a known point to screen and asking
+       * what is under that pixel: a MEDIAN ERROR OF 11.07 KM and a maximum of
+       * 16.71, always displaced the same way — reported as the click target
+       * being inaccurate on the clipped geology.
+       *
+       * Solving it exactly would mean intersecting displaced geometry. Two or
+       * three steps of a much cheaper fixed point do it: intersect a sphere of
+       * the current radius, read the terrain height where that lands, and use
+       * it as the next radius. It converges in a couple of rounds because the
+       * ground moves far less than the ray does.
+       */
+      function refineGlobeHitToTerrain(hit) {
+        if (!hit || hit.context || !elevationMap) return hit;
+        const relief = getEffectiveTerrainRelief();
+        if (!(relief > 0)) return hit;
+        const inverse = new THREE.Matrix4().copy(marsGroup.matrixWorld).invert();
+        const origin = raycaster.ray.origin.clone().applyMatrix4(inverse);
+        const direction = raycaster.ray.direction.clone().transformDirection(inverse).normalize();
+        const unspin = new THREE.Euler(0, -(globe.rotation.y - Math.PI), 0);
+        let radius = 3.2;
+        let local = null;
+        for (let step = 0; step < 4; step += 1) {
+          const b = origin.dot(direction);
+          const c = origin.dot(origin) - radius * radius;
+          const disc = b * b - c;
+          // A shell the ray misses entirely: keep the hit we already have.
+          if (!(disc >= 0)) return hit;
+          const t = -b - Math.sqrt(disc);
+          if (!(t > 0)) return hit;
+          local = origin.clone().addScaledVector(direction, t);
+          const latLon = vectorToLatLon(local.clone().applyEuler(unspin));
+          if (!Number.isFinite(latLon.lat) || !Number.isFinite(latLon.lon)) return hit;
+          const next = 3.2 + sampleElevationNormalized(elevationSampler, latLon.lat, latLon.lon) * relief;
+          if (Math.abs(next - radius) < 1e-7) { radius = next; break; }
+          radius = next;
+        }
+        if (!local) return hit;
+        return { ...hit, point: marsGroup.localToWorld(local.clone()) };
+      }
+
       function intersectAnySurface(clientX, clientY) {
         const rect = renderer.domElement.getBoundingClientRect();
         pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
@@ -17268,7 +17317,9 @@ uniform float uViewportWidth;`,
         }
         if (!candidates.length) return null;
         candidates.sort((a, b) => a.distance - b.distance);
-        return candidates[0];
+        // The globe's own hit is refined onto the relief it is drawn with; a
+        // moon carries its own frame and is already answered in lat/lon.
+        return refineGlobeHitToTerrain(candidates[0]);
       }
 
       function intersectMarsSurface(clientX, clientY) {
