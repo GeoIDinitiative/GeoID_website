@@ -11,9 +11,9 @@ import {
   vectorRows,
   extractDelimitedWithin,
   delimitedColumns,
-} from "./extraction.js?v=20260830-4876766";
-import { resolvePolygonRings, refreshPolygonOptions } from "./extent-picker.js?v=20260830-4876766";
-import { rectangleVertices } from "./draw-area.js?v=20260830-4876766";
+} from "./extraction.js?v=20260830-7fe2a24";
+import { resolvePolygonRings, refreshPolygonOptions } from "./extent-picker.js?v=20260830-7fe2a24";
+import { rectangleVertices } from "./draw-area.js?v=20260830-7fe2a24";
 
 let lastResult = null;
 // The whole extraction as one object -- bounds, grid, vectors, clouds. This is
@@ -446,7 +446,20 @@ function runExtraction() {
         catch (error) { /* a layer that cannot fetch keeps whatever it had */ }
       }
     }
-    const result = extractPolygonSamples({
+    /**
+     * NO COLUMNS, NO GRID.
+     *
+     * The uniform grid exists to carry sampled values; with nothing ticked to
+     * fill it, it is thousands of rows of bare latitude and longitude. Worse,
+     * it made the grid-spacing control matter in a run that is purely a clip —
+     * and a control that is hidden because it does not apply must not still
+     * be doing something. Measured: unticking every source still produced
+     * 4,340 samples over a 4,287 km2 study area.
+     */
+    const wantsGrid = selectedLayers().length > 0
+      || ["gis-extract-builtin", "gis-extract-geology", "gis-extract-climate"]
+        .some((id) => builtInChecked(id));
+    const result = wantsGrid ? extractPolygonSamples({
       rings: bounds.rings,
       stepKm,
       includeBuiltIn: builtInChecked("gis-extract-builtin"),
@@ -457,7 +470,7 @@ function runExtraction() {
         .find((l) => l.geologyDataset)?.collection?.features || null,
       includeClimate: builtInChecked("gis-extract-climate"),
       layers: selectedLayers(),
-    });
+    }) : { ok: false, rows: [] };
     lastResult = result.ok ? result : null;
 
     /**
