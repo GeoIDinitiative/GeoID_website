@@ -35,9 +35,9 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260830-538554b";
-import { renderFeatureCollection } from "./vector-render.js?v=20260830-538554b";
-import * as GP from "./geoprocessing.js?v=20260830-538554b";
+import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260830-d29d5e8";
+import { renderFeatureCollection } from "./vector-render.js?v=20260830-d29d5e8";
+import * as GP from "./geoprocessing.js?v=20260830-d29d5e8";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -99,6 +99,90 @@ async function loadTile(sources, z, x, y, signal) {
  */
 export const TILE_BUDGETS = { fast: 16, balanced: 96, full: 320, maximum: 1200 };
 const AUTO_TILE_BUDGET = TILE_BUDGETS.balanced;
+
+/**
+ * How much coverage a deeper level may lose before it is refused: three
+ * percentage points, which is generalisation wobble along a coast rather than
+ * a source dataset disappearing.
+ */
+const COVERAGE_TOLERANCE = 0.03;
+
+/**
+ * How much of the box actually HAS geology at this level.
+ *
+ * Detail and coverage are different questions, and the climb only asked one.
+ * Macrostrat's carto layer composites SEVERAL source maps and switches
+ * between them by scale — so a deeper level is not a finer drawing of the
+ * same ground, it can be a different, PARTIAL survey. Measured over a box
+ * straddling the Northern Ireland border:
+ *
+ *   zoom   tiles   coverage   units   source datasets   vertices in box
+ *     5      1       99.6%      14           1                428
+ *     6      1       99.6%      32           2              3,091
+ *     8      4       99.9%      33           2              5,872
+ *     9      9       56.1%      24           1              6,551
+ *    10     30       56.1%      24           1              8,026
+ *
+ * Past zoom 8 the Republic's survey is simply not in the tiles: **1,579 of
+ * 3,600 sample points lose their geology, 44% of the ground** — while the
+ * vertex count RISES, because the one surviving survey is drawn more finely.
+ * So the ruler said "better" about a level that had thrown half the map
+ * away, and the climb went there.
+ *
+ * A level that covers materially LESS ground is refused, whatever its
+ * detail. Asked for a clip, "all the geology that exists within these
+ * bounds" is the requirement, and a 44% loss is not a refinement of it.
+ *
+ * Sampled on a coarse grid with a bounds reject first: a few hundred points
+ * against polygons that mostly fail on their box is nothing beside the tile
+ * fetch it is deciding about.
+ */
+export function coverageWithin(features, bounds) {
+  const N = 24;
+  const boxed = [];
+  for (const f of features) {
+    const g = f?.geometry;
+    if (!g) continue;
+    const parts = g.type === "MultiPolygon" ? g.coordinates
+      : g.type === "Polygon" ? [g.coordinates] : null;
+    if (!parts) continue;
+    for (const rings of parts) {
+      let w = Infinity; let s = Infinity; let e = -Infinity; let n = -Infinity;
+      for (const [x, y] of rings[0]) {
+        if (x < w) w = x; if (x > e) e = x; if (y < s) s = y; if (y > n) n = y;
+      }
+      boxed.push({ rings, bb: [w, s, e, n] });
+    }
+  }
+  if (!boxed.length) return 0;
+  const inRing = (lo, la, r) => {
+    let hit = false;
+    for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+      const [xi, yi] = r[i];
+      const [xj, yj] = r[j];
+      if ((yi > la) !== (yj > la) && lo < ((xj - xi) * (la - yi)) / (yj - yi) + xi) hit = !hit;
+    }
+    return hit;
+  };
+  let hits = 0;
+  for (let j = 0; j < N; j += 1) {
+    const la = bounds.south + ((bounds.north - bounds.south) * (j + 0.5)) / N;
+    for (let i = 0; i < N; i += 1) {
+      const lo = bounds.west + ((bounds.east - bounds.west) * (i + 0.5)) / N;
+      for (const p of boxed) {
+        const b = p.bb;
+        if (lo < b[0] || lo > b[2] || la < b[1] || la > b[3]) continue;
+        if (!inRing(lo, la, p.rings[0])) continue;
+        let hole = false;
+        for (let k = 1; k < p.rings.length; k += 1) {
+          if (inRing(lo, la, p.rings[k])) { hole = true; break; }
+        }
+        if (!hole) { hits += 1; break; }
+      }
+    }
+  }
+  return hits / (N * N);
+}
 
 export function createTiledVectorLayer({
   name = "vector tiles",
@@ -909,9 +993,20 @@ export function createTiledVectorLayer({
       }
       const got = await levelFeatures(bounds, z, signal, budget);
       const detail = detailWithin(got.features, bounds);
-      levels.push({ zoom: z, tiles: got.tiles, features: got.features.length, detail });
+      const coverage = coverageWithin(got.features, bounds);
+      levels.push({ zoom: z, tiles: got.tiles, features: got.features.length, detail, coverage });
+      /**
+       * COVERAGE FIRST. A level that has lost ground is not a better level,
+       * however finely it draws what is left. The tolerance is for the
+       * ordinary wobble of generalisation along a coastline, not for a survey
+       * going missing: 56% against 99.9% is nowhere near it.
+       */
+      if (best && coverage < best.coverage - COVERAGE_TOLERANCE) {
+        stoppedFor = "coverage";
+        break;
+      }
       if (!best || detail > best.detail) {
-        best = { ...got, detail };
+        best = { ...got, detail, coverage };
         barren = 0;
         continue;
       }
