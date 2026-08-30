@@ -3279,6 +3279,45 @@ scratches are not backface culling; every tile carries its boundary seal; and
 the clip's own mesh is clean. The seams are back with the revert, and
 that is the honest state: the fix is a ribbon seal, not a backdrop.
 
+### A clip must wear the source's contacts, and a LINE hugs the ground
+
+"Clipped geology should behave exactly like the world geology layer. Currently
+clipped omits the polygon lines visible on surface." Two faults in one
+screenshot of a 64 km clip.
+
+**The clip drew no unit boundaries at all.** `clip-stream` asked for
+`controllerOf.getContacts?.()` — and the controller never published it, so the
+optional call was silently `undefined` and every clipped layer fell back to
+`null`, which is the invisible "match" seal. The world geology drew its
+contacts and the clip of it drew none. An `?.()` on a method that does not
+exist fails EXACTLY like a method that returned nothing, which is why it
+read as "contacts are off" rather than as a missing seam.
+
+Published as `getContacts`, resolved once in the clip and used for the tiles
+and the fill-in mesh alike. Measured after, on a 64 km clip: **4,664 seal
+vertices at 0.55 opacity, 18 distinct contact colours, ZERO of them shared
+with the fill colours** — every contact a darkened version of its own unit,
+which is what the world layer does.
+
+**And a LINE was drawn 11.9 km above the terrain.** `drape` is 0.006 scene
+units against a globe of 3.2 units to 6,371 km. Straight down that costs
+nothing; obliquely the line stands visibly off the coast it traces.
+
+The lift was there for a real reason — *a line has no facing, so nothing culls
+the far hemisphere for it*, and this file already records a hugging line
+putting Australia's outline across the Atlantic. But the answer to that is
+culling BY FACING, which the seal has used all along: with the far side
+discarded by `followRelief(..., { cullFarSide: true })` the depth test is
+unnecessary and the line can sit on the ground. Third lift removed this
+session, after the drawn outline (21–47 km UNDER the terrain) and the hover
+highlight (6.97 km above it).
+
+**The pattern across all three.** Every one was a constant that looks like
+nothing in the source — `0.004`, `0.006`, `0.0035` — and is kilometres on a
+globe whose radius is 3.2 units. **In this scene, one scene unit is 1,991 km.**
+Any lift written as a bare decimal should be read in those terms before it is
+believed.
+
 ### MEASURE THE PIXELS. Geometry coverage is not what the user sees
 
 Five fixes in a row measured 100% coverage and changed nothing on screen. The
