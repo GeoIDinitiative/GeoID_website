@@ -3367,6 +3367,68 @@ before it went to zoom 10 with 24 units from one.
 available" and "everything that exists here" are different requests, and only
 the second is what a clip means.
 
+### Two shelves: Geoprocessing and Analysis, and the OUTPUT decides
+
+`Analyse · Prepare` and `Analyse · Tools & Results` had grown by accretion —
+raster ops beside zonal statistics, a field calculator beside a signal
+spectrum, four export buttons beside an Export group that already existed. The
+names said nothing, so the answer to "where is that tool" was "open both".
+
+**The rule is the one already applied to the 47-tool registry: a tool that
+produces a MAP LAYER is geoprocessing; one that produces a TABLE, A STATISTIC
+OR A CHART is analysis.**
+
+| Geoprocessing | Analysis |
+| --- | --- |
+| Georeference an image | Point & Pixel Extraction |
+| Surface Analysis (raster ops) | Zonal Statistics |
+| Vector operations | Sample Raster At Point |
+| Attribute Query + Query syntax | Signal Analysis |
+| Attribute Table | Explore & Edit (Charts / Time / Editor) |
+| Batch runner, History | Charts, Time, Seismograms, Model Builder |
+
+**Extraction appears on BOTH shelves on purpose**, and they are different
+questions: clipping layers to a polygon is geospatial and lands on the globe;
+sampling values at points is data and lands in a table.
+
+Three blocks retire to homes that already existed — the export buttons to the
+Export group, the symbology accordion to the symbology dialog, Add WFS to
+Workspace's + Data. **Hidden, never removed**: other modules read those ids
+unguarded at boot, which is the lesson `geology-structures-toggle` already
+records.
+
+**Moved after render, not rearranged in `panels.js`.** That MARKUP is one
+string rendering all ten worlds and every id in it is addressed by some other
+module; moving the node keeps every id, handler and world intact. Blocks are
+found by a CONTROL THEY CONTAIN — they have no ids of their own — and the move
+stamps one on so later passes are cheap.
+
+Four faults in getting there, every one of which looked like something else:
+
+- **`id` meant two things.** On a RETIRED spec it names an element that exists;
+  on a BLOCK it names the id to STAMP. `blockFor` checked id first and returned
+  early, so on the first pass nothing resolved and NO BLOCK EVER MOVED — while
+  the headings and retirements either side of that loop worked perfectly and
+  made the module look correct. The panels were renamed while every tool sat
+  where it always had.
+- **Three anchors, one block.** `attr-query-run`, `calc-run` and
+  `attr-stats-run` all live inside one "Attribute Table" section — one tool,
+  not three that happen to be adjacent — so each spec moved the SAME node and
+  the last one won. Claimed once per pass now, and a second claim is refused.
+- **A block titled like its shelf.** The vector block was itself called
+  "Geoprocessing", which says nothing inside a shelf of that name.
+- **A section title is a bare TEXT NODE**, not a span: these summaries read
+  `<span class="section-icon">…</span>Geoprocessing`. Two span-based retitles
+  failed differently and both read as one bug — the first APPENDED
+  ("Vector operationsGeoprocessing"), the second found no span with text and
+  silently did nothing. When a retitle will not take, print the summary's
+  innerHTML before guessing at another selector.
+
+**And the probe that misled me was one I had mangled myself.** The first
+collision check ran on a page where I had already hand-moved a block while
+debugging, so it reported a structure the fresh page did not have. Re-measure
+on a reload before trusting a DOM audit.
+
 ### The clipped layer was never a LAYER, and three complaints followed
 
 "Still 2 functions in extraction and preprocessing. We shouldn't need to define
