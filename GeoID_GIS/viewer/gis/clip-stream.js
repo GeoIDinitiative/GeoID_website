@@ -224,10 +224,19 @@ export async function createStreamingClip({ source, mask, name, contacts = null 
    * so nothing is lost in detail — the pinned level is a floor, not a ceiling.
    */
   const probe = await controller.featuresIn(bounds);
-  const levels = (probe.levels || []).filter((l) => l.coverage != null && l.tiles);
-  // Best coverage wins; among equals the SHALLOWEST, because a floor should be
+  /**
+   * `ownCoverage`, never `coverage`: the latter is measured AFTER the merge, so
+   * every level reads near-100% and choosing on it picked a level that covers
+   * 42.9% of the study area while appearing to have everything. Measured on
+   * the north coast, that is exactly what drew — survey 23 alone, the northern
+   * third of the box empty, while the layer's own feature list held both
+   * surveys.
+   */
+  const levels = (probe.levels || []).filter((l) => l.ownCoverage != null && l.tiles);
+  // Best own reach wins; among equals the SHALLOWEST, because a floor should be
   // cheap — the view's tiles are what carry the detail.
-  const base = levels.slice().sort((a, b) => (b.coverage - a.coverage) || (a.zoom - b.zoom))[0];
+  const base = levels.slice()
+    .sort((a, b) => (b.ownCoverage - a.ownCoverage) || (a.zoom - b.zoom))[0];
   const baseZoom = base ? base.zoom : zoom;
   await controller.pin({ bounds, zoom: baseZoom });
 

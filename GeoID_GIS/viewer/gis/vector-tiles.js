@@ -35,9 +35,9 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260830-2d13106";
-import { renderFeatureCollection } from "./vector-render.js?v=20260830-2d13106";
-import * as GP from "./geoprocessing.js?v=20260830-2d13106";
+import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260830-ef806e4";
+import { renderFeatureCollection } from "./vector-render.js?v=20260830-ef806e4";
+import * as GP from "./geoprocessing.js?v=20260830-ef806e4";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -1008,6 +1008,17 @@ export function createTiledVectorLayer({
       const got = await levelFeatures(bounds, z, signal, budget);
       let features = got.features;
       let coverage = coverageWithin(features, bounds);
+      /**
+       * What this level covers ON ITS OWN, before anything is filled in.
+       *
+       * `coverage` below is measured AFTER the merge, so every level reads
+       * near-100% and is useless for choosing between them. A caller that
+       * wants to know which single level to DRAW — the streaming clip picks a
+       * pinned floor this way — needs the level's own reach, and picking on
+       * the merged figure chose a level covering 42.9% while believing it had
+       * everything.
+       */
+      const ownCoverage = coverage;
 
       // The fullest-covering level seen so far is what gaps are filled FROM.
       if (!fallback || coverage > fallback.coverage + COVERAGE_TOLERANCE) {
@@ -1073,7 +1084,8 @@ export function createTiledVectorLayer({
 
       const detail = detailWithin(features, bounds);
       levels.push({
-        zoom: z, tiles: got.tiles, features: features.length, detail, coverage, filled,
+        zoom: z, tiles: got.tiles, features: features.length, detail, coverage,
+        ownCoverage, filled,
       });
 
       /**

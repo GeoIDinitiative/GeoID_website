@@ -70,34 +70,39 @@ const mask = { west: -8, south: 54, east: -5, north: 56 };
  */
 {
   const pick = (levels) => levels
-    .filter((l) => l.coverage != null && l.tiles)
+    .filter((l) => l.ownCoverage != null && l.tiles)
     .slice()
-    .sort((a, b) => (b.coverage - a.coverage) || (a.zoom - b.zoom))[0];
+    .sort((a, b) => (b.ownCoverage - a.ownCoverage) || (a.zoom - b.zoom))[0];
 
-  ok("the fullest-covering level is pinned, not the deepest", pick([
-    { zoom: 9, tiles: 4, coverage: 1.0 },
-    { zoom: 11, tiles: 30, coverage: 0.62 },
-    { zoom: 12, tiles: 64, coverage: 0.62 },
+  ok("the level with the best OWN reach is pinned, not the deepest", pick([
+    { zoom: 9, tiles: 4, ownCoverage: 1.0 },
+    { zoom: 11, tiles: 30, ownCoverage: 0.62 },
+    { zoom: 12, tiles: 64, ownCoverage: 0.62 },
   ]).zoom === 9);
 
   ok("among equally covering levels the SHALLOWEST wins — a floor should be cheap",
     pick([
-      { zoom: 8, tiles: 2, coverage: 1.0 },
-      { zoom: 10, tiles: 12, coverage: 1.0 },
+      { zoom: 8, tiles: 2, ownCoverage: 1.0 },
+      { zoom: 10, tiles: 12, ownCoverage: 1.0 },
     ]).zoom === 8);
 
   ok("a level that fetched no tiles is not a candidate", pick([
-    { zoom: 13, tiles: 0, coverage: 1.0 },
-    { zoom: 9, tiles: 4, coverage: 0.99 },
+    { zoom: 13, tiles: 0, ownCoverage: 1.0 },
+    { zoom: 9, tiles: 4, ownCoverage: 0.99 },
   ]).zoom === 9);
 
   ok("a level with no coverage reading is skipped", pick([
-    { zoom: 12, tiles: 40, coverage: null },
-    { zoom: 9, tiles: 4, coverage: 0.98 },
+    { zoom: 12, tiles: 40, ownCoverage: null },
+    { zoom: 9, tiles: 4, ownCoverage: 0.98 },
   ]).zoom === 9);
 
+  // The merged figure must NOT be what decides: it is ~100% at every level.
+  ok("a level's merged coverage is ignored when choosing the floor", pick([
+    { zoom: 12, tiles: 64, coverage: 1.0, ownCoverage: 0.43 },
+    { zoom: 8, tiles: 4, coverage: 1.0, ownCoverage: 1.0 },
+  ]).zoom === 8);
   ok("with nothing measurable there is no candidate and the caller falls back",
-    pick([{ zoom: 12, tiles: 0, coverage: null }]) === undefined);
+    pick([{ zoom: 12, tiles: 0, ownCoverage: null }]) === undefined);
 }
 
 console.log(`${pass} passed`);
