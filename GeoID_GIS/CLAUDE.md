@@ -3279,6 +3279,35 @@ scratches are not backface culling; every tile carries its boundary seal; and
 the clip's own mesh is clean. The seams are back with the revert, and
 that is the honest state: the fix is a ribbon seal, not a backdrop.
 
+### A GRADIENT BAR in the legend means NO legendInfo, not a bad palette
+
+"The rock types still aren't registering on the legend" — and the card showed a
+smooth gradient where the source's card showed named swatches. That bar is not
+a palette anybody chose: it is the dock's STAND-IN for a layer carrying no
+`legendInfo` at all. Read it that way and it names its own cause.
+
+Which also means it identifies the layer for you. Measured on the live DOM,
+the four cards in that corner were: the clip with **12 class rows**, "Study
+area 1" with **0 rows and a ramp**, the world layer with 12 rows, and the
+basemap. A drawn polygon has no symbology and correctly gets the bar — so
+before diagnosing a ramp, check WHICH card it belongs to, because in a stack of
+four the header above it may not be the one you are reading.
+
+**The hole it exposed was real, though.** The streaming clip inherited colours
+only from `sourceColourField`, the marker `paintFromSource` writes. A source
+last painted some OTHER way — a field chosen in the symbology dialog, a
+catalogue palette, a rebuild where `styleChoice` remembered a hand-picked
+column — carries no marker, and the clip then inherited nothing and fell
+through to the bar. The column is PROBED when the marker is absent: every
+feature carrying a `color` IS the source's own key whether or not anything
+wrote the marker down. Failing open into "no legend" is the wrong direction for
+a card whose only job is to say what the colours mean.
+
+Verified by deleting the marker and clipping again — the exact state that
+produced the bar: colour column recovered as `color`, legend **12 of 15**, 15
+distinct drawn colours, **0** vertices in the no-value grey, and the card
+rendering 12 class rows instead of a ramp.
+
 ### A SECOND construction path needs the symbology too
 
 "It's not assigning the correct legend entries — assigning many polygons as
