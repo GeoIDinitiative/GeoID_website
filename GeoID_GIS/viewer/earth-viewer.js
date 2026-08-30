@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260830-4d334dc";
+  from "./gis/geo-utils.js?v=20260830-290eb7b";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -18355,7 +18355,26 @@ uniform float uViewportWidth;`,
         const endVec = getMeasurePointNormal(endPoint, context);
         const angle = Math.acos(clamp(startVec.dot(endVec), -1, 1));
         const segmentCount = Math.max(40, Math.ceil((angle / Math.PI) * 96));
-        const lineLift = context.kind === "planet" ? getMeasureDisplayLift(context) : context.radiusWorld * 0.02;
+        /**
+         * THE BOUNDARY SITS ON THE GROUND. A lift is an altitude, and an
+         * altitude parallaxes.
+         *
+         * `getMeasureDisplayLift` scales with viewing distance up to 0.012 —
+         * **23.9 km** on this globe — which is right for the MARKERS, little
+         * spheres that must not sink into the hill they mark. The boundary is
+         * not a marker: it is the edge of a shape drawn ON the surface, and at
+         * any oblique angle that altitude slides it off the ground, which is
+         * exactly the study area floating clear of the geology it clipped.
+         *
+         * It needs no height to stay visible either. The line is already
+         * `depthTest: false`, so terrain cannot bury it — the same reasoning
+         * that put the geology outlines back on the ground.
+         *
+         * The Mars mosaic and moon paths keep their own tuned lifts.
+         */
+        const lineLift = context.kind !== "planet" ? context.radiusWorld * 0.02
+          : isMeasureCtxMosaicBasemap() ? getMeasureDisplayLift(context)
+            : 0;
         const useExactRadiusBlend = context.kind === "planet" && isMeasureCtxMosaicBasemap();
         const startRadius = useExactRadiusBlend ? getMeasurePointRadius(startPoint, context) : 0;
         const endRadius = useExactRadiusBlend ? getMeasurePointRadius(endPoint, context) : 0;
