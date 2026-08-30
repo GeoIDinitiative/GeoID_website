@@ -77,6 +77,63 @@ const area = { left: 0, top: 60, right: 1200, bottom: 800, width: 1200, height: 
     p.left === area.left + MARGIN && p.top === area.top + MARGIN);
 }
 
+/**
+ * THE WORLD-GEOLOGY CARD, which is a different element with a different rule.
+ *
+ * `#geo-popup` is `position: fixed` and drawn ABOVE its anchor by
+ * `translate(-50%, -100% - 1.6rem)`, and nothing clamped it at all — the render
+ * loop wrote the projected point straight to left/top. A feature near the top
+ * of the map therefore put its card off the top of the window.
+ *
+ * Above by preference; below when there is no room, rather than pinned to an
+ * edge pointing at nothing.
+ */
+{
+  const GAP = 1.6 * 16;
+  const placeGeo = (sx, sy, w, h, view) => {
+    const minX = view.left + w / 2 + MARGIN;
+    const maxX = view.right - w / 2 - MARGIN;
+    const px = minX > maxX ? (view.left + view.right) / 2
+      : Math.min(Math.max(sx, minX), maxX);
+    const roomAbove = (sy - GAP - h) >= (view.top + MARGIN);
+    const py = roomAbove
+      ? Math.min(sy, view.bottom - MARGIN + GAP)
+      : Math.max(view.top + MARGIN - GAP, Math.min(sy, view.bottom - MARGIN - GAP - h));
+    return { px, py, above: roomAbove };
+  };
+  const view = { left: 0, top: 60, right: 1200, bottom: 800 };
+  const W = 320, H = 210;
+
+  {
+    const p = placeGeo(600, 500, W, H, view);
+    ok("with room above, the card stays above its anchor", p.above && p.py === 500);
+    ok("and sits centred on it", p.px === 600);
+  }
+  {
+    // THE REGRESSION: an anchor near the top of the map.
+    const p = placeGeo(600, 100, W, H, view);
+    ok("with no room above, the card flips below instead of leaving the screen", !p.above);
+    ok("and its top edge stays inside the map",
+      p.py + GAP >= view.top + MARGIN - 1);
+  }
+  {
+    const p = placeGeo(20, 500, W, H, view);
+    ok("an anchor at the left edge pulls the card fully inside",
+      p.px - W / 2 >= view.left + MARGIN - 1);
+  }
+  {
+    const p = placeGeo(1190, 500, W, H, view);
+    ok("an anchor at the right edge does too",
+      p.px + W / 2 <= view.right - MARGIN + 1);
+  }
+  {
+    // A map narrower than the card: centred rather than flung sideways.
+    const narrow = { left: 0, top: 0, right: 200, bottom: 800 };
+    const p = placeGeo(10, 500, W, H, narrow);
+    ok("a map narrower than the card centres it", p.px === 100);
+  }
+}
+
 console.log(`${pass} passed`);
 if (fail) console.log(`${fail} FAILED`);
 process.exit(fail ? 1 : 0);

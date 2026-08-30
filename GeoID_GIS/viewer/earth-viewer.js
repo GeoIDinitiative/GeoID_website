@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260831-38766de";
+  from "./gis/geo-utils.js?v=20260831-609a8fc";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -22042,12 +22042,50 @@ ${error && error.message ? error.message : error}`;
               if (geoPopupAnchor) geoPopupAnchor.hidden = true;
             } else {
               const projected = worldPos.clone().project(camera);
-              const sx = (projected.x * 0.5 + 0.5) * window.innerWidth;
-              const sy = (-projected.y * 0.5 + 0.5) * window.innerHeight;
+              /**
+               * Projected into the CANVAS, not the window: the two differ the
+               * moment the map sits under a nav bar, as it does in the hub,
+               * and every card then answers a point the reader is not looking
+               * at.
+               */
+              const view = renderer.domElement.getBoundingClientRect();
+              const sx = view.left + (projected.x * 0.5 + 0.5) * view.width;
+              const sy = view.top + (-projected.y * 0.5 + 0.5) * view.height;
               if (geoPopup) {
                 geoPopup.hidden = false;
-                geoPopup.style.left = sx + "px";
-                geoPopup.style.top = sy + "px";
+                /**
+                 * THE CARD IS KEPT ON SCREEN. It is `position: fixed` and drawn
+                 * ABOVE its anchor by `translate(-50%, -100% - 1.6rem)`, and
+                 * nothing clamped it — so a feature near the top of the map put
+                 * its card off the top of the window, which is how a reader came
+                 * to see one with its first rows cut away.
+                 *
+                 * Above by preference, because that is where it has always been
+                 * and the anchor line reads upward. Below when there is no room,
+                 * rather than pinned to the edge pointing at nothing. The ANCHOR
+                 * dot is never clamped: it marks the true spot even when the
+                 * card has stepped aside.
+                 */
+                const margin = 8;
+                const gap = 1.6 * 16;
+                const w = geoPopup.offsetWidth;
+                const h = geoPopup.offsetHeight;
+                const minX = view.left + w / 2 + margin;
+                const maxX = view.right - w / 2 - margin;
+                const px = minX > maxX ? (view.left + view.right) / 2
+                  : Math.min(Math.max(sx, minX), maxX);
+                const roomAbove = (sy - gap - h) >= (view.top + margin);
+                let py;
+                if (roomAbove) {
+                  geoPopup.style.transform = "translate(-50%, calc(-100% - 1.6rem))";
+                  py = Math.min(sy, view.bottom - margin + gap);
+                } else {
+                  geoPopup.style.transform = "translate(-50%, 1.6rem)";
+                  py = Math.max(view.top + margin - gap,
+                    Math.min(sy, view.bottom - margin - gap - h));
+                }
+                geoPopup.style.left = px + "px";
+                geoPopup.style.top = py + "px";
               }
               if (geoPopupAnchor) {
                 geoPopupAnchor.hidden = false;
