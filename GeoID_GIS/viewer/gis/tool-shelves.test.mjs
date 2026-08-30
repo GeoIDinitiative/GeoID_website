@@ -38,8 +38,16 @@ ok("every block names a shelf that exists",
   __BLOCKS.every((b) => b.to === GEO || b.to === ANA));
 ok("every block has an id to stamp, so it can be addressed after the move",
   __BLOCKS.every((b) => typeof b.id === "string" && b.id.length > 3));
-ok("no anchor is claimed by two blocks",
-  new Set(__BLOCKS.map((b) => b.anchor)).size === __BLOCKS.length);
+{
+  // Only the specs that HAVE an anchor: a block found by its title has none,
+  // and two undefineds are not a collision.
+  const anchors = __BLOCKS.map((b) => b.anchor).filter(Boolean);
+  ok("no anchor is claimed by two blocks", new Set(anchors).size === anchors.length);
+  ok("every spec resolves by an anchor or a title",
+    __BLOCKS.every((b) => Boolean(b.anchor || b.titleMatch)));
+  const titles = __BLOCKS.map((b) => b.titleMatch).filter(Boolean);
+  ok("no title is claimed twice", new Set(titles).size === titles.length);
+}
 ok("no id is used twice",
   new Set(__BLOCKS.map((b) => b.id)).size === __BLOCKS.length);
 ok("both shelves are used", new Set(__BLOCKS.map((b) => b.to)).size === 2);
@@ -163,6 +171,21 @@ ok("a block whose title would repeat its shelf is retitled",
     !/"Pre-processing toolbox"|"Extraction and analysis"|label: "Process"/.test(code));
   ok("the workbench titles are read from the constant, not retyped",
     /title: SHELF_NAMES\.geoprocess/.test(panels) && /title: SHELF_NAMES\.analysis/.test(panels));
+}
+
+
+/**
+ * The tool LIBRARY belongs with the layers it makes. It sat on the analysis
+ * shelf named "Analysis tools" while holding the whole registry — and this
+ * file's own audit found 42 of those 49 produce a map layer. The name
+ * described the panel it happened to be in.
+ */
+{
+  const lib = __BLOCKS.find((b) => b.titleMatch === "Analysis tools");
+  ok("the tool library is on the geoprocessing shelf", lib && lib.to === "gis-group-preprocess");
+  ok("and is renamed for what it holds, not where it sat", lib && lib.title === "All tools");
+  ok("a block with no control of its own is found by its title",
+    __BLOCKS.filter((b) => b.titleMatch).every((b) => !b.anchor));
 }
 
 console.log(`${pass} passed`);

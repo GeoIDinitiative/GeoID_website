@@ -64,6 +64,15 @@ const BLOCKS = [
    * that the question is asked in map space.
    */
   { anchor: "extract-run", id: "gp-extract-points", to: GEOPROCESS },
+  /**
+   * The whole 49-tool registry, which sat on the ANALYSIS shelf under the name
+   * "Analysis tools" while holding Vector geoprocessing (12), Surface analysis
+   * (21), Hydrology (5) and Interpolation (4). Audited earlier in this file:
+   * **42 of the 49 produce a map layer**. It is the tool library, and the name
+   * described the panel it happened to be in rather than what it holds.
+   */
+  { titleMatch: "Analysis tools", id: "gp-tool-library", to: GEOPROCESS,
+    title: "All tools" },
   { anchor: "gis-batch-run", id: "gp-batch", to: GEOPROCESS },
 
   // ── produces a table, a statistic or a chart ────────────────────────────
