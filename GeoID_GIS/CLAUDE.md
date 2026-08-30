@@ -3279,6 +3279,39 @@ scratches are not backface culling; every tile carries its boundary seal; and
 the clip's own mesh is clean. The seams are back with the revert, and
 that is the honest state: the fix is a ribbon seal, not a backdrop.
 
+### A SMALL box never met the other surveys, and my test boxes hid it
+
+Four fixes in a row — the coverage gate, the per-survey merge, the pinned
+floor, `ownCoverage` — each measured clean and each left the user with the same
+half-empty clip. The reason is embarrassing and worth writing down in full.
+
+**The sweep started at the level the box's SIZE deserves and only went
+deeper.** `start = zoomForBounds(bounds) - 2`. That is right for choosing
+detail and wrong for finding datasets: this source composites several surveys
+and switches between them by scale, so a survey living at zoom 5-6 is invisible
+to a box whose sweep starts at 10. The merge can only ever fill from levels the
+sweep actually looked at.
+
+- a degree-wide box → `zoomForBounds` ~7 → starts at 5 → **meets every survey**
+- a 34 km study area → `zoomForBounds` ~12 → starts at 10 → **never sees them**
+
+**Every box I tested was degree-wide.** The user's were 34-38 km. So each fix
+measured 100% coverage on my box and changed nothing on theirs, four times
+over, and I reported success each time. When a fix verifies clean and the
+report says "no change", the fixture is the first thing to doubt — not the
+cache, not the code path, and certainly not the user.
+
+The sweep now begins `SHALLOW_LOOKBACK` (5) levels below the start. Those
+levels are one or two tiles each, so it costs almost nothing, and it is the
+only way `deepestFor` can know a survey exists at all. The barren counter is
+held until the sweep reaches the deserved level, because a shallow level giving
+less detail than the one below it is the ordinary shape of a pyramid rather
+than the source running out.
+
+Measured on a 34 x 34 km box on the north coast, the exact case that kept
+failing: pinned zoom **7** (was 10), **30 features, surveys 23 AND 147, 100%
+coverage drawn**, and the drawn set equal to the layer's own list.
+
 ### The clip HAD the geology and did not DRAW it
 
 "It's not pulling all geology within the bounds of the polygon." Mapped on a
