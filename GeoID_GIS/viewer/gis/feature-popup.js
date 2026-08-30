@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260831-e3b7688";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260831-e3b7688";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260831-43d0fe3";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260831-43d0fe3";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -1481,13 +1481,33 @@ function install() {
      * it, and excluding those by their tab alone left a layer nothing could
      * answer for. A geology layer with no polygons keeps the ordinary card.
      */
-    const hits = featuresAt(at.lat, at.lon)
+    const everything = featuresAt(at.lat, at.lon);
+    /**
+     * A GEOLOGY UNIT IS MARKED TOO, even though the viewer draws its card.
+     *
+     * The rule two comments up already says it: marking what was picked
+     * belongs to the PICK, not to whoever draws the card — and the labelled
+     * path was made to follow it while geology was not. So a click on a unit
+     * raised the viewer's pinned card and lit nothing on the ground, leaving
+     * the reader to find which of several hundred polygons it meant. The
+     * hover outline is no answer: it is a different colour, it does not
+     * breathe, and it vanishes the moment the pointer moves.
+     */
+    const geologyHit = everything.find(
+      (h) => h.layer.geologyDataset && layerHasPolygons(h.layer),
+    );
+    if (geologyHit) void showOutline(geologyHit.feature);
+    const hits = everything
       .filter((h) => !(h.layer.geologyDataset && layerHasPolygons(h.layer)));
     if (!hits.length) {
       // A click on nothing dismisses the selection wholesale — the card in
       // the corner, and the temporary label openSceneFeature raises for a
       // labelless dot. Leaving either standing is the "old popup lingers"
       // report: a reader clicks away to put a card down.
+      //
+      // A geology unit is NOT nothing: its card is the viewer's and its
+      // outline was just pinned above, so this must not sweep either away.
+      if (geologyHit) return;
       window.GeoIDViewer?.clearSceneFlash?.();
       window.GeoIDViewer?.closeSceneFeature?.();
       hidePopup();
