@@ -148,18 +148,22 @@ function applyOnce() {
     claimed.add(block);
     if (!block.id) block.id = spec.id;
     /**
-     * Retitling writes into the span that HOLDS THE WORDS, which is not
-     * reliably the last one: these summaries carry an icon span beside the
-     * text, and writing into the wrong child left both strings in place —
-     * "Vector operationsGeoprocessing" on the live page. The text span is the
-     * one with no element children of its own.
+     * The title is a bare TEXT NODE, not an element.
+     *
+     * These summaries read `<span class="section-icon">…</span>Geoprocessing`
+     * — the words are a sibling of the icon with no wrapper of their own. Two
+     * span-based attempts failed differently and both looked like the same
+     * bug: the first appended, leaving "Vector operationsGeoprocessing" on the
+     * page, and the second found no span with text and silently did nothing.
+     * When a retitle will not take, print the summary's innerHTML before
+     * guessing at another selector.
      */
     if (spec.title) {
       const summary = block.querySelector(":scope > summary");
-      const span = summary && [...summary.querySelectorAll("span")]
-        .filter((n) => !n.children.length && n.textContent.trim())
+      const words = summary && [...summary.childNodes]
+        .filter((n) => n.nodeType === 3 && n.nodeValue.trim())
         .pop();
-      if (span && span.textContent.trim() !== spec.title) span.textContent = spec.title;
+      if (words && words.nodeValue.trim() !== spec.title) words.nodeValue = spec.title;
     }
     // Already on the right shelf: nothing to do, and re-appending would
     // reorder the column on every pass.
