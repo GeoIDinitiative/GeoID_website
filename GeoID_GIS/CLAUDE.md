@@ -8377,3 +8377,34 @@ double-count ground in a table, an area sum or an export. Three separate faults
 have now been worked around rather than fixed, all of them the same missing
 piece: a polygon boolean that is correct for concave clippers. That is a
 vendored clipper and a dependency decision.
+
+## The contacts were drawn all along, in the one invisible colour
+
+"Ensure the outlines are included on the clipped geology surface" was not a
+missing pass. The clip had 4,286 line vertices and drew them at **#FF9ACC on a
+#FF9ACC fill**, while the world layer beside it inked the same boundaries at
+#B86790. `renderFeatureCollection`'s contact mode defaults to `"match"` — the
+polygon's own colour — which is correct for a catchment or a coastline and
+wrong for geology, where the contact IS the information.
+`buildVectorLayerResult` never accepted a `contacts` style, so every derived
+layer took that default.
+
+It now takes one, holds it on the LAYER (like `fillMode`, and for the same
+reason: a style passed per paint is lost the first time anything else
+repaints), and the tool runner INHERITS it from the input's tiled controller
+rather than choosing one — the same pattern as the colour column.
+
+The panel's contact selector also had to learn about derived layers:
+`loadedLayers()` filters on `geologyDataset`, which a clip does not carry, so
+the control moved the tiles and left every clip drawn the old way.
+
+Measured after: clip style `{shade, 0.62, 0.55}` identical to the world layer's,
+strokes #7BAEB1/#537252/#672674 against fills #99D8DC/#678E66/#802F91, and
+**zero** strokes equal to the fill they bound. Driving the panel's own selector
+to "ink" restrokes the clip flat at #1B1620 and back again.
+
+Unrelated wrinkle noticed while testing: the FIRST render writes a feature's
+colour straight through, a repaint puts it through `THREE.Color`, and the two
+encode the same colour differently. Harmless here, but do not compare a
+built layer's bytes against source hexes — compare against that build's own
+fills.
