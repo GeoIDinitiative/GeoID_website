@@ -120,21 +120,10 @@
   border: none;
   text-shadow: none;
   box-shadow: none;
-  transition: color .25s cubic-bezier(0.16, 0.84, 0.44, 1),
-              text-shadow .25s cubic-bezier(0.16, 0.84, 0.44, 1);
+  transition: color .25s cubic-bezier(0.16, 0.84, 0.44, 1);
 }
-/* The Donate button's yellow, on the tabs beside it.
-   #ffd319 is that button's hover, and the glow is its box-shadow read for
-   text: a tab has no filled box to cast one from, so the same light is thrown
-   with `text-shadow` instead. Sharing the colour is the point -- one hover
-   language across the header rather than a tab that dims to grey while the
-   button beside it lights up. */
 .site-nav .nav-links > li > a:hover,
-.site-nav .nav-dropdown-toggle:hover {
-  color: #ffd319;
-  background: none;
-  text-shadow: 0 0 18px rgba(255, 211, 25, 0.55);
-}
+.site-nav .nav-dropdown-toggle:hover { color: var(--nav-ink); background: none; }
 
 /* Active state: a hairline under the label, drawn as ::after so it hugs the
    text rather than the padded box. */
@@ -165,13 +154,7 @@
   color: var(--nav-ink-2);
   border: none;
 }
-/* A menu item follows the tab it dropped out of. The ACTIVE state does not:
-   it says where you are, not what you are pointing at, and lighting both the
-   same leaves a reader unable to tell them apart. */
-.site-nav .nav-dropdown-menu a:hover {
-  color: #ffd319;
-  text-shadow: 0 0 14px rgba(255, 211, 25, 0.45);
-}
+.site-nav .nav-dropdown-menu a:hover,
 .site-nav .nav-dropdown-menu a.active { color: var(--nav-ink); }
 
 /* Colour lives here too, not just type. The myGeoID app shell doesn't load
