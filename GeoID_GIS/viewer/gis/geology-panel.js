@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260831-ef6ec85";
-import { currentBodyId } from "./bodies.js?v=20260831-ef6ec85";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260831-ef6ec85";
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260831-ef6ec85";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260901-f560802";
+import { currentBodyId } from "./bodies.js?v=20260901-f560802";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260901-f560802";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260901-f560802";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -144,6 +144,20 @@ const GLOBAL_BASE = {
   dynamic: "units",
   sourceColours: true,
   colourBy: "name",
+  /**
+   * HALF OPACITY THE MOMENT IT LANDS.
+   *
+   * A world geological map is a sheet of saturated colour over the whole
+   * planet, and at full strength it is the only thing on the globe: the
+   * imagery under it, a study area drawn on it, the coastline that says where
+   * you are, all gone. Half lets the ground read through, which is how a
+   * geologist reads a sheet anyway.
+   *
+   * The INITIAL value only. It is set where the layer is created, so a rebuild
+   * -- and this layer rebuilds itself whenever the view settles -- carries
+   * across whatever the reader set instead.
+   */
+  initialOpacity: 0.5,
   credit: "Macrostrat Burwell compilation, CC BY 4.0 — each polygon carries the "
     + "survey that mapped it.",
 };
@@ -413,6 +427,15 @@ async function loadTiled(entry, { toView = false, quiet = false } = {}) {
       repaint: (colourFn) => controller.repaint(colourFn),
     }, "geology");
     if (!layer) { say(`${entry.label} could not be added.`); return; }
+    /**
+     * A dataset may say how strongly it should land. Applied only here, in the
+     * branch that CREATES the layer, so the reader's own setting survives every
+     * rebuild -- the restore below is what carries it across.
+     */
+    if (Number.isFinite(entry.initialOpacity) && entry.initialOpacity < 1) {
+      window.GeoIDLayerHierarchy?.setOpacity?.(layer, entry.initialOpacity);
+      layer.opacity = entry.initialOpacity;
+    }
     /**
      * The layer can be asked for the features covering a BOX, and that is the
      * seam every consumer of a self-rebuilding layer needs.
