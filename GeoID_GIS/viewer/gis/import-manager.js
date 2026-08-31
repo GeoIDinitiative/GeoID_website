@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260831-3404ce3";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260831-3404ce3";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260831-3404ce3";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260831-3404ce3";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260831-b0a7fcc";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260831-b0a7fcc";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260831-b0a7fcc";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260831-b0a7fcc";
 import {
-  buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude,
+  buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude, setSealWidthFromAltitude,
   setMarkerSizeFromAltitude,
-} from "./vector-render.js?v=20260831-3404ce3";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260831-3404ce3";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260831-3404ce3";
-import { loadMshFile } from "./msh-adapter.js?v=20260831-3404ce3";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260831-3404ce3";
+} from "./vector-render.js?v=20260831-b0a7fcc";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260831-b0a7fcc";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260831-b0a7fcc";
+import { loadMshFile } from "./msh-adapter.js?v=20260831-b0a7fcc";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260831-b0a7fcc";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -146,6 +146,9 @@ function syncSpin(scene) {
     if (zoom) {
       const units = (zoom.metres / 6371000) * 3.2;
       setLineDrapeFromAltitude(units);
+      // The seam ribbon is a WIDTH in ground, and the gaps it covers shrink
+      // with the zoom, so it is given the same distance and scales with them.
+      setSealWidthFromAltitude(units);
       // Marker sprites grow a little as the ground comes up to meet them: a
       // 7 px triangle is right from orbit and lost against full-resolution
       // imagery on the ground.

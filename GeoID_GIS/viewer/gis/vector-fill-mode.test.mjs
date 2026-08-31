@@ -5,8 +5,13 @@
  * renderer that does not read it and the layer draws exactly as before, the
  * control in the dialog appears to do nothing, and there is no error anywhere
  * to say why. So this asserts on the GEOMETRY the renderer actually produced —
- * a fill is triangles in a Mesh, an outline is segments in a LineSegments —
- * rather than on the option having been accepted.
+ * a fill is triangles in a Mesh — rather than on the option having been
+ * accepted.
+ *
+ * The SEAL is a mesh too now: it used to be a one-pixel LineSegments and is a
+ * ground-width ribbon of triangles, so "is it a Mesh" no longer separates a
+ * fill from an edge. It carries `userData.geoidSeam`, which does, and which is
+ * why that flag exists.
  *
  * Run: node GeoID_GIS/viewer/gis/vector-fill-mode.test.mjs
  */
@@ -50,14 +55,22 @@ const square = (name = "Study area 1") => ({
 
 /** What was drawn, by three.js type — the honest read of "filled or not". */
 function shapeOf(object3D) {
-  const kinds = { meshes: 0, lineSegments: 0, points: 0 };
+  const kinds = { meshes: 0, seams: 0, lineSegments: 0, points: 0 };
   object3D.traverse((child) => {
-    if (child.isMesh) kinds.meshes += 1;
+    // The seam ribbon is counted as an EDGE however it is drawn.
+    if (child.userData?.geoidSeam) kinds.seams += 1;
+    else if (child.isMesh) kinds.meshes += 1;
     else if (child.isLineSegments) kinds.lineSegments += 1;
     else if (child.isPoints) kinds.points += 1;
   });
   return kinds;
 }
+
+/** Boundary drawn at all, as a ribbon or as bare lines. */
+const edges = (object3D) => {
+  const k = shapeOf(object3D);
+  return k.seams + k.lineSegments;
+};
 
 const paint = () => "#4fd1a5";
 
@@ -69,8 +82,7 @@ const outlined = renderFeatureCollection(square(), {
 
 check("a coloured polygon is FILLED by default", shapeOf(filled.object3D).meshes >= 1, true);
 check("outlineOnly draws no fill mesh", shapeOf(outlined.object3D).meshes, 0);
-check("outlineOnly still draws the boundary",
-  shapeOf(outlined.object3D).lineSegments >= 1, true);
+check("outlineOnly still draws the boundary", edges(outlined.object3D) >= 1, true);
 
 /* The colour must survive the switch. An outline in the renderer's default
    mint while the legend shows the layer's own colour is the "legend is not

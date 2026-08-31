@@ -33,7 +33,9 @@ const geology = () => fc([
 const strokeColours = (built) => {
   const out = new Set();
   built.object3D.traverse((n) => {
-    if (!(n.isLineSegments || n.isLine)) return;
+    // The seal is a ribbon of triangles, not a line, so it is found by its
+    // flag; a plain line layer is still found by its type.
+    if (!n.userData?.geoidSeam && !(n.isLineSegments || n.isLine)) return;
     const c = n.geometry?.attributes?.color;
     if (!c) return;
     for (let i = 0; i < c.count; i += 1) {
@@ -46,7 +48,9 @@ const strokeColours = (built) => {
 const strokeCount = (built) => {
   let n = 0;
   built.object3D.traverse((x) => {
-    if (x.isLineSegments || x.isLine) n += x.geometry?.attributes?.position?.count || 0;
+    if (x.userData?.geoidSeam || x.isLineSegments || x.isLine) {
+      n += x.geometry?.attributes?.position?.count || 0;
+    }
   });
   return n;
 };

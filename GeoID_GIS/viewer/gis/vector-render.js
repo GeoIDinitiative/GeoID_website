@@ -1,8 +1,8 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260831-3404ce3";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260831-3404ce3";
-import { pointInPolygon } from "./geometry.js?v=20260831-3404ce3";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260831-3404ce3";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260831-b0a7fcc";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260831-b0a7fcc";
+import { pointInPolygon } from "./geometry.js?v=20260831-b0a7fcc";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260831-b0a7fcc";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -237,6 +237,56 @@ export function setLineDrapeFromAltitude(surfaceDistanceUnits) {
   LINE_DRAPE_UNIFORM.value = Math.min(LINE_DRAPE_MAX, Math.max(LINE_DRAPE_MIN, d * 0.02));
 }
 
+/**
+ * HOW WIDE THE SEAL IS, IN GROUND, AND WHY IT CANNOT BE A LINE.
+ *
+ * Neighbouring units do not share their boundary: each survey, and then each
+ * tile generalisation, simplifies its polygons independently, so the line two
+ * units are meant to share becomes two lines a little apart. Measured on an
+ * inland Scotland box at 86 m sampling, the widest gap by level: **4,800 m at
+ * zoom 3, 1,714 at 4, 600 at 5, 343 at 7, 86 at 8** — and 46 m at zoom 13 over
+ * Inishowen. They are not data gaps: Macrostrat returns a unit at their
+ * coordinates and we hold those very polygons.
+ *
+ * A one-device-pixel line cannot close them, because WebGL draws a line one
+ * pixel wide whatever the ground beneath it measures — the seam is wider than
+ * the stroke at every level. Filling from the coarser tiles underneath was
+ * tried and is recorded above as a thing not to re-try: it paints continental
+ * geology over sea the fine tiles correctly leave blank.
+ *
+ * So the seal is a RIBBON with a width in ground units, scaled to the distance
+ * to the surface so it covers about a pixel and a half at any altitude. That
+ * is the only width that works at every zoom: the gaps shrink with the level
+ * and so does this. Each polygon lays half a ribbon either side of its own
+ * boundary, in its own colour, so two neighbours between them cover a gap up
+ * to a full ribbon wide and neither invents ground the other does not claim.
+ */
+const SEAL_RIBBON_UNIFORM = { value: 0.00002 };
+const SEAL_RIBBON_MAX = 0.004;             // 8 km, at a whole-planet view
+const SEAL_RIBBON_MIN = 0.0000002;         // about 0.4 m, on the ground
+
+/**
+ * A pixel and a half of ground, from the distance to the surface.
+ *
+ * At a 45 degree field of view one pixel is about `d * 0.83 / height` of
+ * ground; on a canvas around 850 px that is `d * 0.00097`. Three quarters of
+ * that is the HALF width, so the ribbon spans about 1.5 px whatever the
+ * altitude. Clamped at both ends: a planet-wide view must not smear the map,
+ * and on the ground the seal must not outgrow the polygons it is sealing.
+ */
+export function setSealWidthFromAltitude(surfaceDistanceUnits) {
+  const d = Number(surfaceDistanceUnits);
+  if (!Number.isFinite(d) || d <= 0) return;
+  SEAL_RIBBON_UNIFORM.value = Math.min(SEAL_RIBBON_MAX,
+    Math.max(SEAL_RIBBON_MIN, d * 0.0007));
+}
+
+/** The seal's current half width, in scene units. Read by the tests, and by
+    anything that needs to know how much ground the seam is covering. */
+export function sealWidth() {
+  return SEAL_RIBBON_UNIFORM.value;
+}
+
 function baseRadius() {
   return window.GeoIDViewer?.GLOBE_RADIUS ?? 3.2;
 }
@@ -269,13 +319,71 @@ export function attachReliefAttributes(geometry, drape, builtRelief) {
 }
 
 /**
+ * Turn the seal's segment pairs into a RIBBON: a quad per segment, laid flat
+ * in the tangent plane, widened on the GPU.
+ *
+ * The positions stay exactly where the boundary is -- the width is added in
+ * the shader from `aPerp` and `aSide`, so one geometry serves every altitude
+ * and nothing is rebuilt when the camera moves. `aPerp` is the segment's
+ * direction crossed with the outward radial, which is the tangent
+ * perpendicular: widening along it can never lift a vertex off the surface.
+ *
+ * Indexed, four vertices to a quad rather than six, because a world layer's
+ * seal runs to hundreds of thousands of segments and this is already twice
+ * the vertices the line version needed.
+ *
+ * A segment whose ends coincide has no direction to be perpendicular to and
+ * is dropped: `pushSegment` splits long spans and a split can land twice on
+ * the same point, and a zero-length cross product would come out as NaN and
+ * take the whole draw call with it.
+ */
+function ribbonFromSegments(positions, colours) {
+  const pos = [];
+  const col = [];
+  const perp = [];
+  const side = [];
+  const index = [];
+  const segments = Math.floor(positions.length / 6);
+  for (let s = 0; s < segments; s += 1) {
+    const o = s * 6;
+    const ax = positions[o], ay = positions[o + 1], az = positions[o + 2];
+    const bx = positions[o + 3], by = positions[o + 4], bz = positions[o + 5];
+    let dx = bx - ax, dy = by - ay, dz = bz - az;
+    const dLen = Math.hypot(dx, dy, dz);
+    if (!(dLen > 1e-12)) continue;
+    dx /= dLen; dy /= dLen; dz /= dLen;
+    // The outward normal at the segment's middle: on a sphere that is the
+    // point's own direction.
+    let rx = (ax + bx) / 2, ry = (ay + by) / 2, rz = (az + bz) / 2;
+    const rLen = Math.hypot(rx, ry, rz);
+    if (!(rLen > 1e-12)) continue;
+    rx /= rLen; ry /= rLen; rz /= rLen;
+    let px = dy * rz - dz * ry;
+    let py = dz * rx - dx * rz;
+    let pz = dx * ry - dy * rx;
+    const pLen = Math.hypot(px, py, pz);
+    if (!(pLen > 1e-12)) continue;          // segment parallel to the radial
+    px /= pLen; py /= pLen; pz /= pLen;
+    const base = pos.length / 3;
+    pos.push(ax, ay, az, ax, ay, az, bx, by, bz, bx, by, bz);
+    perp.push(px, py, pz, px, py, pz, px, py, pz, px, py, pz);
+    side.push(-1, 1, -1, 1);
+    const ar = colours[o], ag = colours[o + 1], ab = colours[o + 2];
+    const br = colours[o + 3], bg = colours[o + 4], bb = colours[o + 5];
+    col.push(ar, ag, ab, ar, ag, ab, br, bg, bb, br, bg, bb);
+    index.push(base, base + 2, base + 1, base + 1, base + 2, base + 3);
+  }
+  return { pos, col, perp, side, index };
+}
+
+/**
  * Place the vertex at the CURRENT relief instead of the one it was built at.
  *
  * `lifted` hands the clearance to the shared line uniform above, so it follows
  * the camera down; everything else keeps the fixed clearance it was built with.
  */
 export function followRelief(material, drape, {
-  lifted = false, cullFarSide = false, hole = null,
+  lifted = false, cullFarSide = false, hole = null, ribbon = false,
 } = {}) {
   // `true` means the silhouette itself; a number moves the cut inside it.
   const facingLimit = cullFarSide === true ? 0 : Number(cullFarSide) || 0;
@@ -284,6 +392,7 @@ export function followRelief(material, drape, {
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uRelief = RELIEF_UNIFORM;
     shader.uniforms.uDrape = drapeUniform;
+    if (ribbon) shader.uniforms.uRibbon = SEAL_RIBBON_UNIFORM;
     if (hole) {
       shader.uniforms.uHoleOn = hole.on;
       shader.uniforms.uHoleY = hole.y;
@@ -294,11 +403,15 @@ export function followRelief(material, drape, {
 attribute float aDisp;
 uniform float uRelief;
 uniform float uDrape;
+${ribbon ? "attribute vec3 aPerp;\nattribute float aSide;\nuniform float uRibbon;" : ""}
 ${cullFarSide ? "varying float vFacing;" : ""}
 ${hole ? "varying vec3 vDir;" : ""}
 ${shader.vertexShader}`.replace(
       "#include <begin_vertex>",
       `vec3 transformed = aDir * (${base.toFixed(4)} + aDisp * uRelief + uDrape);`
+      // The ribbon is laid in the TANGENT plane, so widening it never lifts a
+      // vertex off the surface however wide the view makes it.
+      + (ribbon ? "\n  transformed += aPerp * (aSide * uRibbon);" : "")
       + (hole ? "\n  vDir = normalize(aDir);" : "")
       + (cullFarSide
         ? `
@@ -377,7 +490,7 @@ ${shader.fragmentShader}`.replace(
   // Found by bisection: the same injection inlined with a unique key drew
   // perfectly.
   material.customProgramCacheKey = () =>
-    `geoid-relief-${material.type}-${lifted ? "live" : drape}`
+    `geoid-relief-${material.type}-${lifted ? "live" : drape}-${ribbon ? "ribbon" : "flat"}`
     + `${cullFarSide ? `-cull${facingLimit}` : ""}${hole ? "-hole" : ""}`;
   return material;
 }
@@ -957,20 +1070,34 @@ export function renderFeatureCollection(fc, {
     group.add(mesh);
   }
   if (seal.positions.length) {
+    const ribbon = ribbonFromSegments(seal.positions, seal.colours);
     const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.Float32BufferAttribute(seal.positions, 3));
-    geometry.setAttribute("color", new THREE.Float32BufferAttribute(seal.colours, 3));
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(ribbon.pos, 3));
+    geometry.setAttribute("color", new THREE.Float32BufferAttribute(ribbon.col, 3));
+    geometry.setAttribute("aPerp", new THREE.Float32BufferAttribute(ribbon.perp, 3));
+    geometry.setAttribute("aSide", new THREE.Float32BufferAttribute(ribbon.side, 1));
+    geometry.setIndex(ribbon.index);
     attachReliefAttributes(geometry, FILL_DRAPE, builtRelief);
     const sealOpacity = Number.isFinite(contacts?.opacity) ? contacts.opacity : 1;
-    const sealMaterial = followRelief(new THREE.LineBasicMaterial({
+    /**
+     * A MESH now, not a line, and therefore double-sided and depth-free for
+     * the FILL's reasons rather than the line's.
+     *
+     * As a line this had to keep the depth test, because a line has no facing
+     * and would otherwise draw through the planet. A ribbon is triangles: the
+     * shader discards fragments whose outward normal faces away, exactly as
+     * the fill does, so the far hemisphere is culled without a depth test that
+     * a facet coplanar with the fill could never win anyway.
+     */
+    const sealMaterial = followRelief(new THREE.MeshBasicMaterial({
       vertexColors: true, transparent: true, opacity: sealOpacity,
-      depthTest: false, depthWrite: false,
-    }), FILL_DRAPE, { cullFarSide: true, hole });
+      depthTest: false, depthWrite: false, side: THREE.DoubleSide,
+    }), FILL_DRAPE, { cullFarSide: true, hole, ribbon: true });
     // The stroke's OWN weight. `setOpacity` multiplies by this instead of
     // overwriting it, or the layer slider would promote a 25% contact to 40%
     // on its way to fading the sheet.
     sealMaterial.userData.baseOpacity = sealOpacity;
-    const segments = new THREE.LineSegments(geometry, sealMaterial);
+    const segments = new THREE.Mesh(geometry, sealMaterial);
     // Named, because `applyStack` rewrites renderOrder on every child and a
     // test that looks for this mesh by draw order finds nothing.
     segments.userData.geoidSeam = true;
