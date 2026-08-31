@@ -8703,3 +8703,39 @@ five minutes — and a test pins that so the reason is not lost.
 **When an outline floats, look at whether it reached the seal.** Fill and seal
 are at drape 0; only the line buffer is lifted, and rings land there whenever
 `colour` is missing.
+
+## An outline has to follow the ground, not just start on it
+
+Two separate faults make an outline float, and fixing the clearance only fixes
+one of them.
+
+**The clearance.** A lift is an altitude and an altitude parallaxes — recorded
+above for the drawn polygons, the card's dot and the seal.
+
+**The ground moving.** The terrain exaggeration eases as the camera comes in to
+land, so the surface rises and falls a long way while you fly: measured over
+Inishowen, the ground radius runs **3.2024 close in to 3.26199 pulled back**,
+which is 119 km. Anything built as static geometry keeps the height it was
+built at. Measured on the feature highlight — the gold ring on a clicked unit,
+global map and clip alike — a ring that traced its unit to within 40 m close in
+sat **118.6 km underneath the ground** once the camera pulled back.
+
+The vector layers have always carried the answer: `aDir` and `aDisp` per vertex
+and one shared relief uniform, so every vertex is re-placed on the GPU each
+frame. The highlight and the viewer's selected-unit boundary now carry the same
+two attributes and the same shader, at drape **0**, with `cullFarSide` doing
+the work a depth test would otherwise have to do for a line that has no facing.
+
+After: **−1.07 to +0.98 km** at every altitude from 30 km to 2,000 km, against
+−118.6 km before. That residual is not a lift — it is the ring crossing ground
+of different elevations, multiplied by the exaggeration, measured against a
+single reference point.
+
+`GeoID_Earth/viewer` is deliberately left alone: it has no `gis/` modules to
+import the shader from, so its outline keeps its clearance rather than sitting
+at nought with a depth test that would bury it.
+
+**Where outlines live, and what each is:** fill and seal (drape 0, relief
+shader) · the line buffer (lifted, relief shader) · `GeoID-FeatureOutline` from
+`gis/feature-popup.js` (drape 0, relief shader now) · the viewer's
+`selectedGeologyBoundaryGroup` (drape 0, relief shader now).

@@ -24,11 +24,11 @@
  * polygon comes out white with a perfectly correct legend beside it.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260831-c8dc62f";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260831-07f3e3f";
 import {
   RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP, METHODS,
   categoricalSymbology, buildSymbology, colourOf, legendInfoFrom, fmtBound,
-} from "./symbology.js?v=20260831-c8dc62f";
+} from "./symbology.js?v=20260831-07f3e3f";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
