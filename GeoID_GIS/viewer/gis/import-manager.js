@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260831-3294932";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260831-3294932";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260831-3294932";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260831-3294932";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260831-1cd7af4";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260831-1cd7af4";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260831-1cd7af4";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260831-1cd7af4";
 import {
   buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude,
   setMarkerSizeFromAltitude,
-} from "./vector-render.js?v=20260831-3294932";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260831-3294932";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260831-3294932";
-import { loadMshFile } from "./msh-adapter.js?v=20260831-3294932";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260831-3294932";
+} from "./vector-render.js?v=20260831-1cd7af4";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260831-1cd7af4";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260831-1cd7af4";
+import { loadMshFile } from "./msh-adapter.js?v=20260831-1cd7af4";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260831-1cd7af4";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -567,6 +567,31 @@ async function importDataset(primaryFile, sidecars, options = {}) {
      * finer exists" and "nobody asked" look identical in a result message, and
      * only one of them means the reader has the best available data.
      */
+    /**
+     * Painted from the file's own colour column when it has one, before any
+     * default symbology is chosen -- see publishedColourField above.
+     */
+    {
+      const feats = layer.collection?.features || layer.features || [];
+      const colourField = result.publishedColourField || publishedColourField(feats);
+      if (colourField && typeof layer.repaint === "function") {
+        const labelField = publishedLabelField(feats);
+        layer.sourceColourField = colourField;
+        if (labelField) layer.sourceLabelField = labelField;
+        try {
+          const { legendFrom } = await import(`./macrostrat.js${new URL(import.meta.url).search}`);
+          const legend = legendFrom(feats, { field: labelField || colourField, colourField });
+          if (legend.shown) {
+            layer.legendInfo = legend;
+            layer.geologyField = labelField || null;
+            layer.legendIsSummary = legend.total > legend.shown
+              ? `${legend.shown} of ${legend.total} units` : null;
+          }
+        } catch (error) {
+          /* the layer still draws in whatever the default chose */
+        }
+      }
+    }
     if (!layer.refineFor) {
       layer.refineFor = () => (layer.raster
         ? `${layer.name}: imported grid, already at its native resolution.`
@@ -628,6 +653,43 @@ async function importDataset(primaryFile, sidecars, options = {}) {
     setStatus(`Failed to load ${primaryFile.name}: ${error.message}`);
   }
   renderLayerList();
+}
+
+/**
+ * A FILE THAT CARRIES ITS OWN COLOURS IS PAINTED IN THEM.
+ *
+ * A layer exported from here and imported again came back in a thirteen-colour
+ * ramp of this app's choosing, while every feature still held the `color` the
+ * source published: #812B92, #A6A6A6, #FF9BCD. The map looked nothing like the
+ * one it was exported from, the legend read as an undifferentiated band, and
+ * the units whose invented colour landed pale read as missing ground.
+ *
+ * Any shapefile or GeoJSON with a colour column has the same claim -- it is
+ * the publisher saying how their data is meant to look -- so the column is
+ * honoured wherever it is found rather than only on the layers this app made.
+ *
+ * EVERY feature must carry it. A partial column would paint some of the map
+ * from the file and the rest from a ramp, which is worse than either answer on
+ * its own: the same rule the tool runner applies to its own outputs.
+ */
+const COLOUR_COLUMNS = ["color", "colour", "COLOR", "COLOUR", "fill", "FILL"];
+const LABEL_COLUMNS = ["name", "NAME", "unit", "UNIT", "label", "LABEL", "type", "TYPE"];
+
+function publishedColourField(features) {
+  if (!features?.length) return null;
+  const looksLikeColour = (v) => typeof v === "string" && /^#?[0-9a-f]{6}$/i.test(v.trim());
+  for (const key of COLOUR_COLUMNS) {
+    if (features.every((f) => looksLikeColour(f?.properties?.[key]))) return key;
+  }
+  return null;
+}
+
+function publishedLabelField(features) {
+  if (!features?.length) return null;
+  for (const key of LABEL_COLUMNS) {
+    if (features.some((f) => f?.properties?.[key])) return key;
+  }
+  return null;
 }
 
 async function importFileList(fileList, options = {}) {
