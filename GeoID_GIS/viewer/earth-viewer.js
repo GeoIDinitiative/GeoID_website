@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260831-f70f91b";
+  from "./gis/geo-utils.js?v=20260831-3fdac3b";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -980,10 +980,10 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
     const geoPopupAnchor = document.getElementById("geo-popup-anchor");
     let activeGeoPopupFeature = null;
     let activeGeoPopupLocalPos = null;   // THREE.Vector3 in Earth body-local space (unspun)
-    // The same anchor as a PLACE, so it can be rebuilt at the live relief
-    // each frame -- the ground moves under a fixed point as the terrain
-    // exaggeration eases on descent. See `openGeoPopup`.
-    let activeGeoPopupLatLon = null;
+    // The terrain exaggeration the anchor above was built at, so its height
+    // can be rescaled to the live one each frame -- the ground moves under a
+    // fixed point as the exaggeration eases on descent. See `openGeoPopup`.
+    let activeGeoPopupRelief = null;
     let selectedGeologyBoundaryGroup = null;
     let lastTimestamp = 0;
     let activeSearchResults = [];
@@ -6064,17 +6064,23 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
          * visible at 80 km and gone at 40 and every altitude under it.
          * Reported as not being able to zoom in and keep the popup.
          *
-         * So the anchor is remembered as a LATITUDE AND LONGITUDE and the
-         * point rebuilt each frame at whatever relief is live. This is the
-         * same answer `aDisp` and the relief uniform give the vector layers,
-         * for the same reason: a thing pinned to the ground has to move when
-         * the ground does.
+         * So the RELIEF THIS POINT WAS BUILT AT is remembered beside it, and
+         * the point's displacement is rescaled to the live one each frame.
+         * That is what `aDisp` and the relief uniform do for the vector
+         * layers, arrived at for the same reason: a thing pinned to the ground
+         * has to move when the ground does.
+         *
+         * Rescaled rather than re-derived. Converting the point to a latitude
+         * and longitude and rebuilding it through the elevation sampler was
+         * tried first and put the anchor 260 px from the click at a 2 km view
+         * -- a round trip through two conventions and a coarse DEM to recover
+         * a direction that was never in doubt. The clicked direction is kept
+         * exactly; only the height along it is corrected.
          */
-        activeGeoPopupLatLon = vectorToLatLon(localPoint);
+        activeGeoPopupRelief = getTerrainRelief();
       } else {
         activeGeoPopupLocalPos = null;
-      activeGeoPopupLatLon = null;
-        activeGeoPopupLatLon = null;
+        activeGeoPopupRelief = null;
       }
       const interpretation = String(feature.interpretation || "").trim();
       const origin = String(feature.origin || "").trim();
@@ -6171,7 +6177,7 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
     function closeGeoPopup() {
       activeGeoPopupFeature = null;
       activeGeoPopupLocalPos = null;
-      activeGeoPopupLatLon = null;
+      activeGeoPopupRelief = null;
       if (geoPopup) geoPopup.hidden = true;
       if (geoPopupAnchor) geoPopupAnchor.hidden = true;
     }
@@ -22130,13 +22136,22 @@ ${error && error.message ? error.message : error}`;
         // Geo popup: reproject world-space hit point to screen each frame using differential rotation
         if (activeGeoPopupLocalPos && activeGeoPopupFeature) {
           try {
-            // Rebuilt at the LIVE relief -- see `activeGeoPopupLatLon`. Falls
-            // back to the point captured at click time only if the anchor was
-            // never resolved to a place.
-            const anchorLocal = activeGeoPopupLatLon
-              ? getReliefPoint(3.2, elevationSampler, popupElevationCache, getTerrainRelief,
-                activeGeoPopupLatLon.lat, activeGeoPopupLatLon.lon, 0)
-              : activeGeoPopupLocalPos.clone();
+            /**
+             * The clicked direction, at the height the ground is NOW.
+             *
+             * `r = 3.2 + (r_built - 3.2) * (relief_now / relief_built)`: the
+             * displacement is what the exaggeration scales, so scaling it by
+             * the ratio puts the anchor back on the surface at every setting.
+             * See `activeGeoPopupRelief`.
+             */
+            const anchorLocal = activeGeoPopupLocalPos.clone();
+            if (activeGeoPopupRelief > 1e-9) {
+              const built = anchorLocal.length();
+              const scaled = 3.2 + (built - 3.2) * (getTerrainRelief() / activeGeoPopupRelief);
+              if (Number.isFinite(scaled) && scaled > 0 && built > 1e-9) {
+                anchorLocal.multiplyScalar(scaled / built);
+              }
+            }
             const worldPos = marsGroup.localToWorld(
               anchorLocal.clone().applyEuler(new THREE.Euler(0, globe.rotation.y - Math.PI, 0)),
             );
