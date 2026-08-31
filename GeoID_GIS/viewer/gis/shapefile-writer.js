@@ -92,6 +92,58 @@ export function orientRing(ring, wantClockwise) {
 }
 
 /** Every part of a geometry, as flat rings, wound for a shapefile. */
+/**
+ * A RING THAT ENCLOSES NOTHING IS NOT A RING.
+ *
+ * Clipping a polygon along its own edge, and subtracting one survey from
+ * another, both leave collapsed slivers: four or five points that fold back on
+ * themselves and enclose exactly zero area. They are legal bytes and no
+ * reader's header check will object — `ogrinfo` reads them, GEOS calls the
+ * geometry valid, and the file passes every arithmetic test in this module.
+ *
+ * They are also what a renderer trips over. Measured on a 90 km clip of
+ * Macrostrat: 493 rings, of which 2 enclosed EXACTLY zero area and 9 more less
+ * than a square millimetre — and rewriting the same file through GDAL's own
+ * writer changed the bytes in exactly those records, reordering and reversing
+ * the rings around them. QGIS crashed on the file immediately, as both the zip
+ * and the .shp.
+ *
+ * So a degenerate ring is dropped before it is written. The threshold is in
+ * square degrees and deliberately tiny: 1e-14 is about a hundredth of a square
+ * millimetre at this latitude, far below any real geology and far above the
+ * rounding of a double.
+ */
+const DEGENERATE_RING_AREA = 1e-14;
+
+/** Consecutive duplicate points carry no shape and confuse the area test. */
+function withoutRepeats(ring) {
+  const out = [];
+  for (const point of ring) {
+    const last = out[out.length - 1];
+    if (!last || last[0] !== point[0] || last[1] !== point[1]) out.push(point);
+  }
+  return out;
+}
+
+/** Does this ring enclose real ground? */
+export function ringIsDegenerate(ring) {
+  if (!Array.isArray(ring)) return true;
+  const clean = withoutRepeats(ring);
+  // A closed ring repeats its first point, so four entries is three corners.
+  if (clean.length < 4) return true;
+  return Math.abs(ringArea(clean)) < DEGENERATE_RING_AREA;
+}
+
+/**
+ * Drop the collapsed rings from one polygon, and the polygon itself when its
+ * OUTER ring is the collapsed one — a hole without its shell is not a shape.
+ */
+function livingRings(polygon) {
+  if (!Array.isArray(polygon) || !polygon.length) return [];
+  if (ringIsDegenerate(polygon[0])) return [];
+  return [polygon[0], ...polygon.slice(1).filter((r) => !ringIsDegenerate(r))];
+}
+
 export function partsOf(geometry) {
   const type = geometry?.type;
   const coords = geometry?.coordinates || [];
@@ -100,10 +152,11 @@ export function partsOf(geometry) {
   if (type === "LineString") return [coords];
   if (type === "MultiLineString") return coords;
   if (type === "Polygon") {
-    return coords.map((ring, index) => orientRing(ring, index === 0));
+    return livingRings(coords).map((ring, index) => orientRing(ring, index === 0));
   }
   if (type === "MultiPolygon") {
-    return coords.flatMap((polygon) => polygon.map((ring, index) => orientRing(ring, index === 0)));
+    return coords.flatMap((polygon) =>
+      livingRings(polygon).map((ring, index) => orientRing(ring, index === 0)));
   }
   return [];
 }
@@ -577,6 +630,40 @@ export function verifyShapefile(shp, shx, dbf) {
     }
   }
 
+  // Rings that enclose nothing read as valid bytes and crash a renderer.
+  for (let i = 0; i < count; i += 1) {
+    const offset = xv.getInt32(100 + i * 8, false) * 2;
+    if (offset + 44 > shp.length) break;
+    const type = sv.getInt32(offset + 8, true);
+    if (type !== 5 && type !== 3) continue;         // polygons and polylines
+    const nParts = sv.getInt32(offset + 44, true);
+    const nPoints = sv.getInt32(offset + 48, true);
+    if (nParts <= 0 || nPoints <= 0) { problems.push(`record ${i + 1} has no geometry`); continue; }
+    const partsAt = offset + 52;
+    const pointsAt = partsAt + nParts * 4;
+    if (pointsAt + nPoints * 16 > shp.length) { problems.push(`record ${i + 1} runs past the file`); break; }
+    for (let p = 0; p < nParts; p += 1) {
+      const start = sv.getInt32(partsAt + p * 4, true);
+      const end = p + 1 < nParts ? sv.getInt32(partsAt + (p + 1) * 4, true) : nPoints;
+      if (end - start < 4 && type === 5) {
+        problems.push(`record ${i + 1} part ${p + 1} has ${end - start} points`);
+        continue;
+      }
+      if (type !== 5) continue;
+      let twiceArea = 0;
+      for (let k = start; k < end - 1; k += 1) {
+        const x1 = sv.getFloat64(pointsAt + k * 16, true);
+        const y1 = sv.getFloat64(pointsAt + k * 16 + 8, true);
+        const x2 = sv.getFloat64(pointsAt + (k + 1) * 16, true);
+        const y2 = sv.getFloat64(pointsAt + (k + 1) * 16 + 8, true);
+        twiceArea += x1 * y2 - x2 * y1;
+      }
+      if (Math.abs(twiceArea / 2) < 1e-14) {
+        problems.push(`record ${i + 1} part ${p + 1} encloses no area`);
+      }
+    }
+  }
+
   // The table's three sizes have to agree, or rows are read from mid-record.
   const dv = dvOf(dbf);
   const headerLength = dv.getUint16(8, true);
@@ -608,7 +695,14 @@ export function buildShapefileZip(collection, name = "layer", options = {}) {
   // The base name becomes the LAYER's name wherever this is opened, so it is
   // held to the stricter of the two readers' rules. See safeShapefileName.
   const base = safeShapefileName(name);
-  const features = (collection.features || []).filter((f) => f?.geometry);
+  /**
+   * A feature whose every ring collapsed has no shape left to write, and it
+   * must be dropped from BOTH files or the .dbf holds a row the .shp has no
+   * record for and every attribute after it belongs to the wrong polygon.
+   */
+  const features = (collection.features || [])
+    .filter((f) => f?.geometry)
+    .filter((f) => partsOf(f.geometry).length > 0);
   const { shp, shx } = writeShpAndShx(features, shapeType);
   const fields = dbfFields(features);
   const dbf = writeDbf(features, fields, options);
