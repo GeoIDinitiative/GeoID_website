@@ -1,24 +1,33 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260831-c75f011";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260831-c75f011";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260831-c75f011";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260831-c75f011";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260831-9648dd6";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260831-9648dd6";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260831-9648dd6";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260831-9648dd6";
 import {
   buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude, setSealWidthFromAltitude,
   setMarkerSizeFromAltitude,
-} from "./vector-render.js?v=20260831-c75f011";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260831-c75f011";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260831-c75f011";
-import { loadMshFile } from "./msh-adapter.js?v=20260831-c75f011";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260831-c75f011";
+} from "./vector-render.js?v=20260831-9648dd6";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260831-9648dd6";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260831-9648dd6";
+import { loadMshFile } from "./msh-adapter.js?v=20260831-9648dd6";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260831-9648dd6";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
-const SIDECAR_EXTENSIONS = new Set(["dbf", "shx", "prj", "cpg", "sbn", "sbx", "qix", "aux"]);
+// `qml` and `sld` are the styles this app now writes beside a shapefile. They
+// are companions, not layers: without this they arrive as primaries and land as
+// an "unsupported" row apiece next to the map they belong to.
+const SIDECAR_EXTENSIONS = new Set([
+  "dbf", "shx", "prj", "cpg", "sbn", "sbx", "qix", "aux", "qml", "sld", "qpj",
+]);
 
 const RECOGNIZED_EXTENSIONS = new Set([
   "stl", "tif", "tiff", "msh", "xyz", "csv", "pts", "shp", "geojson", "json",
   "kml", "gpx", "wkt", "asc", "obj", "ply",
+  // Recognised so the picker offers it and a drop is not refused before it is
+  // opened; `expandArchives` replaces it with what it holds, so no parser here
+  // ever sees a .zip.
+  "zip",
 ]);
 
 const PARSERS = {
@@ -649,8 +658,81 @@ async function importDataset(primaryFile, sidecars, options = {}) {
   renderLayerList();
 }
 
+/**
+ * A ZIP IS HOW A SHAPEFILE TRAVELS, so it is how one arrives.
+ *
+ * A shapefile is four to seven files that must stay together, which is why
+ * this app exports one as a zip -- and then asked the reader to unzip it and
+ * pick the .shp out by hand before it would read it back. Everything an
+ * archive holds is expanded here and handed to the ordinary path, so a member
+ * is grouped with its sidecars by the same rule a loose file is.
+ *
+ * Stored and deflated entries both, because a zip written anywhere else is
+ * deflated: `DecompressionStream` does the inflating, and an entry it cannot
+ * read is skipped rather than failing the whole archive.
+ *
+ * Folders inside the archive are flattened to their file names -- the grouping
+ * downstream keys on the base name, and a path would put `a/roads.shp` and its
+ * own `a/roads.dbf` in different groups.
+ */
+async function expandArchives(files) {
+  const out = [];
+  for (const file of files) {
+    if (getExtension(file.name) !== "zip") { out.push(file); continue; }
+    try {
+      const members = await readZip(await file.arrayBuffer());
+      if (!members.length) {
+        setStatus(`${file.name} holds nothing this can read.`);
+        continue;
+      }
+      out.push(...members);
+    } catch (error) {
+      setStatus(`${file.name} could not be opened: ${error.message}`);
+    }
+  }
+  return out;
+}
+
+/** Every readable entry in a zip, as Files named by their last path segment. */
+async function readZip(buffer) {
+  const bytes = new Uint8Array(buffer);
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const files = [];
+  let at = 0;
+  while (at + 30 <= bytes.length && view.getUint32(at, true) === 0x04034b50) {
+    const method = view.getUint16(at + 8, true);
+    const flags = view.getUint16(at + 6, true);
+    let size = view.getUint32(at + 18, true);
+    const nameLength = view.getUint16(at + 26, true);
+    const extraLength = view.getUint16(at + 28, true);
+    const name = new TextDecoder().decode(bytes.subarray(at + 30, at + 30 + nameLength));
+    const start = at + 30 + nameLength + extraLength;
+    /**
+     * A streamed zip writes zero into the local header and puts the real sizes
+     * in a descriptor AFTER the data, so the only honest place to read them is
+     * the central directory. Rather than walk it, such an entry is refused --
+     * every zip this app writes carries its sizes up front.
+     */
+    if ((flags & 0x08) && !size) throw new Error("this archive streams its sizes");
+    const body = bytes.subarray(start, start + size);
+    at = start + size;
+    const leaf = name.split("/").pop();
+    if (!leaf || name.endsWith("/")) continue;          // a directory entry
+    if (method === 0) {
+      files.push(new File([body], leaf));
+    } else if (method === 8 && typeof DecompressionStream === "function") {
+      try {
+        const stream = new Blob([body]).stream()
+          .pipeThrough(new DecompressionStream("deflate-raw"));
+        files.push(new File([await new Response(stream).blob()], leaf));
+      } catch (error) { /* one unreadable member is not a broken archive */ }
+    }
+  }
+  return files;
+}
+
 async function importFileList(fileList, options = {}) {
-  const files = Array.from(fileList || []);
+  const files = await expandArchives(Array.from(fileList || []));
   if (!files.length) {
     return;
   }

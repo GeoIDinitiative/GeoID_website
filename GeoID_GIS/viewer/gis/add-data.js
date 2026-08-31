@@ -30,11 +30,11 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260831-c75f011";
-import { readHead, validateMapping } from "./delimited.js?v=20260831-c75f011";
-import { RAMP_NAMES } from "./symbology.js?v=20260831-c75f011";
-import { isEarth } from "./bodies.js?v=20260831-c75f011";
-import { DATA_TYPES, inferType, applyTag, markUserInput, suppressNextArrival } from "./data-tags.js?v=20260831-c75f011";
+import { CRS_OPTIONS } from "./projection.js?v=20260831-9648dd6";
+import { readHead, validateMapping } from "./delimited.js?v=20260831-9648dd6";
+import { RAMP_NAMES } from "./symbology.js?v=20260831-9648dd6";
+import { isEarth } from "./bodies.js?v=20260831-9648dd6";
+import { DATA_TYPES, inferType, applyTag, markUserInput, suppressNextArrival } from "./data-tags.js?v=20260831-9648dd6";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
@@ -57,7 +57,7 @@ const ROLES = [
     panel: "gis-group-polygons",
     title: "Add data",
     hint: "Vectors, rasters or meshes — shapefile, GeoJSON, KML, GPX, CSV/XYZ, GeoTIFF, ASCII grid, STL, Gmsh, OBJ, PLY",
-    accept: ".shp,.dbf,.shx,.prj,.geojson,.json,.kml,.gpx,.wkt,.csv,.xyz,.pts,.txt,"
+    accept: ".zip,.shp,.dbf,.shx,.prj,.geojson,.json,.kml,.gpx,.wkt,.csv,.xyz,.pts,.txt,"
       + ".tif,.tiff,.asc,.png,.jpg,.jpeg,.tfw,.pgw,.jgw,.stl,.msh,.obj,.ply",
   },
   {
@@ -72,14 +72,14 @@ const ROLES = [
     panel: "geology-section",
     title: "Add a geology layer",
     hint: "Shapefile or GeoJSON of mapped units, or a classified raster",
-    accept: ".shp,.dbf,.shx,.prj,.geojson,.json,.kml,.tif,.tiff",
+    accept: ".zip,.shp,.dbf,.shx,.prj,.geojson,.json,.kml,.tif,.tiff",
   },
   {
     id: "hydrology",
     panel: "sea-level-section",
     title: "Add a hydrology layer",
     hint: "Rivers, coastlines, basins — shapefile, GeoJSON, KML, points or a raster",
-    accept: ".shp,.dbf,.shx,.prj,.geojson,.json,.kml,.gpx,.csv,.xyz,.tif,.tiff",
+    accept: ".zip,.shp,.dbf,.shx,.prj,.geojson,.json,.kml,.gpx,.csv,.xyz,.tif,.tiff",
   },
   {
     id: "atmosphere",
@@ -93,7 +93,7 @@ const ROLES = [
     panel: "modelled-data-section",
     title: "Add a hazard layer",
     hint: "Susceptibility or hazard maps — GeoTIFF, ASCII grid, shapefile or GeoJSON",
-    accept: ".tif,.tiff,.asc,.shp,.dbf,.shx,.prj,.geojson,.json,.kml",
+    accept: ".zip,.tif,.tiff,.asc,.shp,.dbf,.shx,.prj,.geojson,.json,.kml",
   },
   {
     id: "mesh",
