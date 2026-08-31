@@ -8819,3 +8819,27 @@ already does on a rebuild. After: 27 objects, all 0.9, no stragglers.
 It predates the half-opacity default — the stragglers were simply fully opaque
 among faded ones, which reads as a patch of stronger colour and is easy to
 blame on the data.
+
+## One uncoloured unit must not cost the others their colours
+
+The published-colour rule demanded that EVERY feature carry a valid hex, on the
+reasoning that a partial column paints half the map from the file and half from
+a ramp. The alternative turned out to be worse, and it is what happened:
+measured on a re-imported clip, blanking **one colour of 96** sent the whole
+layer back to this app's twelve-class ramp with an `(other)` bucket, classified
+on whatever column `suggestCategoryField` liked — which is why a re-import
+appeared with lithology labels and unassigned polygons.
+
+| | colour field | legend | classes |
+|---|---|---|---|
+| all 96 coloured | `COLOR` | by unit | 12 |
+| one blanked, old rule | **null** | app's ramp | 13 incl. `(other)` |
+| four blanked, new rule | `color` | by unit | no `(other)`, one grey row |
+
+The column is used when it covers **four fifths** of the features; the rest are
+drawn in a neutral `#8a8a8a` with a row of their own saying "No colour
+published". Painting most of a map as its survey painted it and admitting the
+remainder beats inventing colours for all of it. Below the threshold the column
+is still ignored — a stray `fill` on a tenth of the rows would otherwise grey
+out the other nine tenths — and the grey row appears only when something is
+drawn in it.
