@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260831-94a5068";
+  from "./gis/geo-utils.js?v=20260831-3f61158";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -17399,13 +17399,33 @@ uniform float uViewportWidth;`,
         return refineGlobeHitToTerrain(candidates[0]);
       }
 
+      /**
+       * THE RAY HITS A SPHERE; THE READER IS LOOKING AT THE RELIEF.
+       *
+       * The terrain's exaggeration is applied in the VERTEX SHADER, so the
+       * globe's CPU geometry is still a plain sphere of radius 3.2 while the
+       * surface on screen stands at 3.26 -- about 120 km of it at the default
+       * setting. A ray aimed at something visible therefore passes through the
+       * ground the reader can see and reports where it pierced the sphere
+       * underneath, which is a different place: measured on one click, the
+       * shader surface answered 54.973/-9.402 and the bare sphere 54.911/
+       * -9.062, **20 km apart**, and every click carried that error.
+       *
+       * `intersectAnySurface` has refined its hit onto the relief for a while;
+       * this one, which the geology click and the geology popup both go
+       * through, never did. Same refiner, so the two paths cannot drift apart
+       * again.
+       */
       function intersectMarsSurface(clientX, clientY) {
         const rect = renderer.domElement.getBoundingClientRect();
         pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
         pointer.y = -(((clientY - rect.top) / rect.height) * 2 - 1);
         raycaster.setFromCamera(pointer, camera);
         const intersections = raycaster.intersectObject(globe, false);
-        return intersections.find((entry) => entry.object.visible) || null;
+        const hit = intersections.find((entry) => entry.object.visible) || null;
+        // Null passes straight through; the refiner returns what it is given
+        // when there is nothing to refine.
+        return refineGlobeHitToTerrain(hit);
       }
 
       function intersectMeasurementSurface(clientX, clientY) {
