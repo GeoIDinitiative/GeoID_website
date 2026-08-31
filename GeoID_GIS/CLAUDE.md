@@ -8505,3 +8505,26 @@ click to a CSS rect reports a 267 px error that does not exist. And a reference
 point found by a coarse grid search was 5.4 km out, which read as the anchor
 drifting 2,800 px at 2 km when it was the reference that was wrong. **Invert
 the thing under test onto the ground and compare grounds, never pixels.**
+
+## A clamp holds a card in; it must not hold it back
+
+The geology card's clamp ran whatever the ground it points at was doing, so
+rotating the globe left the card parked at the margin with its tail aimed at
+whatever happened to be under the edge — a label for a unit nobody can see.
+
+The clamp now applies **only while the anchor is on screen**. That keeps what
+it was written for (a card whose unit is in view is pulled inside the canvas,
+so the hub's nav bar cannot cut off its first rows) and drops what it was not
+(holding a card back from ground that has already gone). Measured: anchor at
+242/528/815 px, card exactly on it; anchor at 1101 with a 320-wide card, card
+pulled in to the 1037 limit; anchor driven off to −3,950 px, card tracking it
+to the pixel the whole way, then hidden when the anchor passed over the
+horizon.
+
+The horizon test is separate and unchanged — that is what stops a card being
+drawn for ground on the far side of the planet.
+
+Note the two geology cards are different objects: this one (`#geo-popup`,
+kicker "GEOLOGIC UNIT") tracks its anchor every frame; the GIS stack card
+(`gis/feature-popup.js`, "MAPPED AREA") is placed once beside the click and
+does not track at all.
