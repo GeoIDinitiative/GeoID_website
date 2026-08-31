@@ -8440,3 +8440,32 @@ exactly the radius of the layer's own fill (3.26169 against 3.26169, 0 km
 apart), so it neither slides nor parallaxes. If a detaching outline is seen
 again, note which layer was selected: these two are different objects with
 different failure modes.
+
+## A lift is an altitude, and an altitude parallaxes — for the third time
+
+Two outlines floated clear of the surface, in two files, for one reason.
+
+**The drawn polygon.** Its vertices were baked at the layer's own `drape` while
+`attachReliefAttributes` recovered their displacement as if the drape were
+nought — so the clearance was welded into `aDisp` and the shader could never
+remove it. At the default 0.006 that is **11.9 km**. Measured on a drawn study
+area over Inishowen: the outline stood **9.68 to 12.83 km** above the ground,
+against a clipped map sitting on it at −1.87 to +3.17. Now baked at
+`FILL_DRAPE` with the line material `lifted`, so `LINE_DRAPE` decides — about
+3 m on the ground, the old 11.9 km only from orbit. After: **−2.27 to +0.88 km**,
+the same band as the map it traces, and the two share one edge on screen.
+
+That the comment above the code already claimed "a LineString still takes the
+lifted path" while the call passed no `lifted` is the lesson in miniature:
+**the bake and the attribute must agree on the drape, or the shader is lied to.**
+
+**The selected unit's outline** (`rebuildSelectedGeologyBoundary`) was raised a
+flat 0.0032 — **6.4 km**. It cannot be nought: it keeps the depth test, and a
+depth-tested line at zero clearance sinks into the relief between its vertices.
+It now takes the same clamped fraction of camera-to-surface distance, floored at
+3 m and capped at the old value, computed at build time since the mesh is only
+rebuilt on selection.
+
+`feature-popup.js` already records this rule for the GIS highlight, and
+`vector-render.js` for fills (`FILL_DRAPE = 0`) and lines. **Before adding any
+clearance, convert it: one scene unit is 1,991 km, so 0.001 is two kilometres.**
