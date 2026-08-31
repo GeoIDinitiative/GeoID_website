@@ -125,10 +125,56 @@ function withoutRepeats(ring) {
   return out;
 }
 
+/**
+ * A SPIKE IS A PATH THAT WALKS OUT AND BACK ALONG ITSELF, enclosing nothing.
+ *
+ * Sutherland-Hodgman clipping is exact for a convex window and still leaves
+ * these: cutting a CONCAVE polygon with a rectangle joins the pieces along the
+ * boundary with zero-width connectors, out to a corner and straight back. The
+ * ring is closed, its area is right, and GEOS calls it a RING SELF-
+ * INTERSECTION -- which is what QGIS was crashing on.
+ *
+ * Measured on a 90 km clip, every one of the eight invalid features had its
+ * reported intersection ON the study area's own edge: 54.645759971254 is the
+ * box's south side to the digit.
+ *
+ * A spike is a vertex whose neighbours are the same point, so removing it and
+ * re-testing until nothing moves takes out a whole antenna however long. The
+ * geometry loses nothing: a zero-width protrusion covers no ground.
+ */
+function withoutSpikes(ring) {
+  let points = withoutRepeats(ring);
+  // The closing point is restored at the end; working on the open path keeps
+  // the wrap-around cases from needing their own arithmetic.
+  const closed = points.length > 1
+    && points[0][0] === points[points.length - 1][0]
+    && points[0][1] === points[points.length - 1][1];
+  if (closed) points = points.slice(0, -1);
+  let changed = true;
+  while (changed && points.length > 2) {
+    changed = false;
+    for (let i = 0; i < points.length; i += 1) {
+      const before = points[(i - 1 + points.length) % points.length];
+      const after = points[(i + 1) % points.length];
+      if (before[0] === after[0] && before[1] === after[1]) {
+        // Drop the tip AND one of the identical neighbours: what remains is
+        // the path as it was before the excursion.
+        points.splice(i, 1);
+        const j = i % points.length;
+        points.splice(j, 1);
+        changed = true;
+        break;
+      }
+    }
+  }
+  if (!points.length) return [];
+  return [...points, points[0]];
+}
+
 /** Does this ring enclose real ground? */
 export function ringIsDegenerate(ring) {
   if (!Array.isArray(ring)) return true;
-  const clean = withoutRepeats(ring);
+  const clean = withoutSpikes(ring);
   // A closed ring repeats its first point, so four entries is three corners.
   if (clean.length < 4) return true;
   return Math.abs(ringArea(clean)) < DEGENERATE_RING_AREA;
@@ -140,8 +186,59 @@ export function ringIsDegenerate(ring) {
  */
 function livingRings(polygon) {
   if (!Array.isArray(polygon) || !polygon.length) return [];
-  if (ringIsDegenerate(polygon[0])) return [];
-  return [polygon[0], ...polygon.slice(1).filter((r) => !ringIsDegenerate(r))];
+  const cleaned = polygon.map(withoutSpikes);
+  if (ringIsDegenerate(cleaned[0])) return [];
+  return [cleaned[0], ...cleaned.slice(1).filter((r) => !ringIsDegenerate(r))];
+}
+
+/** Is this point inside this ring? Ray casting, for hole assignment. */
+function pointInRing(point, ring) {
+  const [x, y] = point;
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    if (((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi)) / ((yj - yi) || 1e-15) + xi)) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+/**
+ * A HOLE IS A RING INSIDE ANOTHER RING, not merely a ring listed second.
+ *
+ * GeoJSON says the rings after the first are holes, and this module used to
+ * take that at its word: ring 0 clockwise, everything after counter-clockwise.
+ * The geoprocessing that feeds it does not always keep that promise — a
+ * difference or a clip can leave a polygon whose later rings sit OUTSIDE the
+ * first, and writing those as holes produces what the format calls an orphaned
+ * hole: a counter-clockwise ring contained by no exterior ring.
+ *
+ * Measured on a 90 km clip, pyshp reported exactly that on two shapes, and
+ * GEOS called seven features invalid. A reader then has to guess, and they
+ * guess differently: OGR re-derives by containment and carries on, QGIS is
+ * where it was reported as an immediate crash.
+ *
+ * So containment decides. A ring inside the outer ring is written as a hole; a
+ * ring outside it is a shape in its own right and becomes its own part.
+ */
+function ringsByContainment(polygon) {
+  const rings = livingRings(polygon);
+  if (rings.length <= 1) return rings.map((ring, i) => orientRing(ring, i === 0));
+  const [outer, ...rest] = rings;
+  const holes = [];
+  const strays = [];
+  for (const ring of rest) {
+    (pointInRing(ring[0], outer) ? holes : strays).push(ring);
+  }
+  return [
+    orientRing(outer, true),
+    ...holes.map((ring) => orientRing(ring, false)),
+    // A stray is not a hole of anything: it is written as its own outer ring,
+    // which is what it is on the ground.
+    ...strays.map((ring) => orientRing(ring, true)),
+  ];
 }
 
 export function partsOf(geometry) {
@@ -151,13 +248,8 @@ export function partsOf(geometry) {
   if (type === "MultiPoint") return [coords];
   if (type === "LineString") return [coords];
   if (type === "MultiLineString") return coords;
-  if (type === "Polygon") {
-    return livingRings(coords).map((ring, index) => orientRing(ring, index === 0));
-  }
-  if (type === "MultiPolygon") {
-    return coords.flatMap((polygon) =>
-      livingRings(polygon).map((ring, index) => orientRing(ring, index === 0)));
-  }
+  if (type === "Polygon") return ringsByContainment(coords);
+  if (type === "MultiPolygon") return coords.flatMap((polygon) => ringsByContainment(polygon));
   return [];
 }
 
