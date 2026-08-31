@@ -8344,3 +8344,36 @@ stops at the border, so the west half of a cross-border study area is source
 147 at its own best level and there is no more detail to fetch. That is the
 source's coverage, not a fault in the pipeline — check `sourceZooms` before
 chasing it again.
+
+## The diagonal line was a chord
+
+`subtractPolygons` walks a ring and joins what survives, so where a concave
+subject is cut into disjoint lobes they come back joined by a **chord** — a
+straight edge through ground that is all one unit. Measured on the Inishowen
+clip: unit 3146589, "Proterozoic III quartzite", is one part of 29 vertices
+after clipping and left the precedence step as 12 parts and 1,673 vertices
+carrying a 25.66 km straight edge, with a near-twin beside it. Clipping alone
+never exceeds 9.4 km over this box, which is what placed it. This is also where
+the export's self-touching rings come from.
+
+The ground was all still there, so a check for LOST ground let it through. The
+shape test is: **a real cut boundary separates covered ground from uncovered.**
+Step 22 m off a long edge either way — if the two sides answer the same about
+the finer survey, the edge separates nothing and the cut is refused.
+
+Both directions of "the same" matter. Checking only "neither side covered"
+caught most of them and left three behind in one feature ("Palaeocene
+undifferentiated", 23.64 / 22.17 / 19.78 km) where the finer survey covered
+BOTH sides — a chord through ground that should have been removed entirely.
+
+After: worst interior edge **9.4 km**, equal to the clip-only figure, and zero
+edges over 10 km. Coverage 100%, north-west quadrant 100%, picker finest-first
+on **766 of 766** overlapping cells, run 11.8 s.
+
+**The overlap is now 47.9% of the box.** Every cut that cannot be made safely
+keeps its coarse feature whole underneath the fine one, and on a dense mosaic
+that is most of them. It costs nothing visually or interactively and it does
+double-count ground in a table, an area sum or an export. Three separate faults
+have now been worked around rather than fixed, all of them the same missing
+piece: a polygon boolean that is correct for concave clippers. That is a
+vendored clipper and a dependency decision.
