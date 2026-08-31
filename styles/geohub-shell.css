@@ -132,9 +132,21 @@ body {
   color: #bff4ff;
   border-color: rgba(0, 229, 255, 0.34);
 }
+/* THE DONATE BUTTON'S YELLOW, for moving tab to tab.
+   #ffd319 is what that button hovers to and its glow is
+   0 0 26px rgba(255,211,25,0.5) -- both taken verbatim, so the header and the
+   tab strip answer a pointer the same way.
+
+   This sheet is the one that decides. The page carries its own .hub-tab-btn
+   rules inline, and this file is linked AFTER them, so a change made up there
+   is overruled and looks like it did nothing.
+
+   The ACTIVE tab below keeps its magenta on purpose: hover says what you are
+   pointing at, active says where you ARE, and lighting both the same leaves a
+   reader unable to tell them apart while moving along a strip of eight. */
 .hub-tab-btn:hover {
-  color: #fff; border-color: #00e5ff;
-  box-shadow: 0 0 16px -2px rgba(0, 229, 255, 0.6);
+  color: #fff3c4; border-color: #ffd319;
+  box-shadow: 0 0 26px rgba(255, 211, 25, 0.5);
 }
 .hub-tab-btn.is-active {
   background: #ff2bd6; border-color: #ff2bd6; color: #2b0030;
