@@ -21,8 +21,8 @@
  * not one line about Macrostrat.
  */
 
-import { decodeTile, tilesForBounds } from "./mvt.js?v=20260831-cc36316";
-import { visibleBounds } from "./view-extent.js?v=20260831-cc36316";
+import { decodeTile, tilesForBounds } from "./mvt.js?v=20260831-dcc4018";
+import { visibleBounds } from "./view-extent.js?v=20260831-dcc4018";
 import * as THREE from "../vendor/three.module.js";
 
 const TILES = "https://tiles.macrostrat.org/carto";
@@ -197,6 +197,38 @@ export async function fetchGeology({
  * A global view holds hundreds of units, so the key is a summary and the caller
  * says so. Twelve rows of the map's own colours beats fifty of ours.
  */
+/**
+ * The ground a ring covers, in square kilometres.
+ *
+ * A legend is read against the MAP, so what earns a row is how much of the
+ * picture a unit occupies. Spherical, because a degree of longitude is 111 km
+ * at the equator and 64 km at 55 N, and a legend that ranked by degrees would
+ * quietly favour the tropics.
+ */
+const EARTH_RADIUS_KM = 6371.0088;
+function ringAreaKm2(ring) {
+  if (!Array.isArray(ring) || ring.length < 4) return 0;
+  const rad = Math.PI / 180;
+  let total = 0;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const [lon1, lat1] = ring[j];
+    const [lon2, lat2] = ring[i];
+    if (![lon1, lat1, lon2, lat2].every(Number.isFinite)) continue;
+    total += (lon2 - lon1) * rad * (2 + Math.sin(lat1 * rad) + Math.sin(lat2 * rad));
+  }
+  return Math.abs((total * EARTH_RADIUS_KM * EARTH_RADIUS_KM) / 2);
+}
+
+/** A feature's ground: outer rings less their holes, across every part. */
+export function featureAreaKm2(feature) {
+  const g = feature?.geometry;
+  if (!g) return 0;
+  const polys = g.type === "Polygon" ? [g.coordinates]
+    : g.type === "MultiPolygon" ? g.coordinates : [];
+  return polys.reduce((sum, poly) => sum
+    + poly.reduce((a, ring, i) => a + (i === 0 ? ringAreaKm2(ring) : -ringAreaKm2(ring)), 0), 0);
+}
+
 export function legendFrom(features, { field = "name", count = 12,
   colourField = "color" } = {}) {
   const seen = new Map();
@@ -204,16 +236,35 @@ export function legendFrom(features, { field = "name", count = 12,
     const label = f?.properties?.[field];
     const colour = f?.properties?.[colourField];
     if (!label || !colour) return;
-    const row = seen.get(label) || { label, colour, count: 0 };
+    const row = seen.get(label) || { label, colour, count: 0, area: 0 };
     row.count += 1;
+    row.area += featureAreaKm2(f);
     seen.set(label, row);
   });
-  const rows = [...seen.values()].sort((a, b) => b.count - a.count).slice(0, count);
+  /**
+   * RANKED BY GROUND, not by how many pieces a unit arrived in.
+   *
+   * Sorting on `count` reads a map by fragmentation: a unit broken into nine
+   * slivers outranks one solid mass, and the mass is what a reader is looking
+   * at. Measured on a 47 km clip, the legend showed "12 of 23 units" and the
+   * one it left out was a SINGLE polygon covering 351 km2 — the pale
+   * "Precambrian-Phanerozoic crystalline metamorphic rocks", which is close
+   * enough to white that with no legend row there was nothing to tell a reader
+   * it was a unit at all rather than a hole in the map. It was reported as a
+   * gap in the data twice.
+   *
+   * Count breaks the tie, so a legend over features with no geometry still
+   * orders sensibly rather than arbitrarily.
+   */
+  const rows = [...seen.values()]
+    .sort((a, b) => (b.area - a.area) || (b.count - a.count))
+    .slice(0, count);
   return {
     palette: rows.map((r) => String(r.colour).replace("#", "")),
     labels: rows.map((r) => r.label),
     values: rows.map((r) => r.label),
     counts: rows.map((r) => r.count),
+    areasKm2: rows.map((r) => Math.round(r.area)),
     categorical: true,
     classed: true,
     field,
