@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260831-4e6f06e";
+  from "./gis/geo-utils.js?v=20260831-b81fbab";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -980,10 +980,10 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
     const geoPopupAnchor = document.getElementById("geo-popup-anchor");
     let activeGeoPopupFeature = null;
     let activeGeoPopupLocalPos = null;   // THREE.Vector3 in Earth body-local space (unspun)
-    // The terrain exaggeration the anchor above was built at, so its height
-    // can be rescaled to the live one each frame -- the ground moves under a
-    // fixed point as the exaggeration eases on descent. See `openGeoPopup`.
-    let activeGeoPopupRelief = null;
+    // The same anchor as a PLACE. The ground moves under a fixed point as the
+    // terrain exaggeration eases on descent, so the point is rebuilt from this
+    // each frame at whatever relief is live. See `openGeoPopup`.
+    let activeGeoPopupLatLon = null;
     let selectedGeologyBoundaryGroup = null;
     let lastTimestamp = 0;
     let activeSearchResults = [];
@@ -6078,17 +6078,21 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
          * exactly; only the height along it is corrected.
          */
         /**
-         * Captured on the first FRAME, not here: `getTerrainRelief` is declared
-         * inside the render scope and is not visible from this one, so reading
-         * it here threw a ReferenceError that aborted the rest of this function
-         * -- leaving a card with nothing in it but the kicker the last click
-         * had put there. Nothing between this click and the next frame moves
-         * the exaggeration, so the value is the same one.
+         * The place itself, resolved HERE and rebuilt into a point in the
+         * render block -- `vectorToLatLon` is in this scope and the elevation
+         * sampler is not.
+         *
+         * An earlier attempt read `getTerrainRelief()` here to rescale the
+         * point instead. That function is declared inside the render scope and
+         * is invisible from this one, so the read threw a ReferenceError which
+         * aborted the rest of this function: every field after it went unset
+         * and the card showed nothing but the kicker the previous click had
+         * left in the DOM.
          */
-        activeGeoPopupRelief = null;
+        activeGeoPopupLatLon = vectorToLatLon(localPoint);
       } else {
         activeGeoPopupLocalPos = null;
-        activeGeoPopupRelief = null;
+        activeGeoPopupLatLon = null;
       }
       const interpretation = String(feature.interpretation || "").trim();
       const origin = String(feature.origin || "").trim();
@@ -6185,7 +6189,7 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
     function closeGeoPopup() {
       activeGeoPopupFeature = null;
       activeGeoPopupLocalPos = null;
-      activeGeoPopupRelief = null;
+      activeGeoPopupLatLon = null;
       if (geoPopup) geoPopup.hidden = true;
       if (geoPopupAnchor) geoPopupAnchor.hidden = true;
     }
@@ -22150,17 +22154,23 @@ ${error && error.message ? error.message : error}`;
              * `r = 3.2 + (r_built - 3.2) * (relief_now / relief_built)`: the
              * displacement is what the exaggeration scales, so scaling it by
              * the ratio puts the anchor back on the surface at every setting.
-             * See `activeGeoPopupRelief`.
              */
-            if (activeGeoPopupRelief == null) activeGeoPopupRelief = getTerrainRelief();
-            const anchorLocal = activeGeoPopupLocalPos.clone();
-            if (activeGeoPopupRelief > 1e-9) {
-              const built = anchorLocal.length();
-              const scaled = 3.2 + (built - 3.2) * (getTerrainRelief() / activeGeoPopupRelief);
-              if (Number.isFinite(scaled) && scaled > 0 && built > 1e-9) {
-                anchorLocal.multiplyScalar(scaled / built);
-              }
-            }
+            /**
+             * REBUILT FROM THE PLACE, through the same sampler the surface
+             * itself uses, so the anchor is on the ground at whatever
+             * exaggeration is live rather than at the one it was clicked
+             * under.
+             *
+             * Rescaling the clicked point by the relief ratio was tried first
+             * and left the anchor creeping 2.4 km between 90 km and 2 km of
+             * altitude -- close, because displacement does scale with the
+             * exaggeration, but not the arithmetic the ground is actually
+             * built with. Asking `getReliefPoint` is.
+             */
+            const anchorLocal = activeGeoPopupLatLon
+              ? getReliefPoint(3.2, elevationSampler, popupElevationCache, getTerrainRelief,
+                activeGeoPopupLatLon.lat, activeGeoPopupLatLon.lon, 0)
+              : activeGeoPopupLocalPos.clone();
             const worldPos = marsGroup.localToWorld(
               anchorLocal.clone().applyEuler(new THREE.Euler(0, globe.rotation.y - Math.PI, 0)),
             );

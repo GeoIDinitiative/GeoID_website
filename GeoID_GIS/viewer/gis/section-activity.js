@@ -16,8 +16,8 @@
 
 import {
   grouped as globalGrouped, layerForDataset,
-} from "./global-data.js?v=20260831-4e6f06e";
-import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20260831-4e6f06e";
+} from "./global-data.js?v=20260831-b81fbab";
+import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20260831-b81fbab";
 
 const HOME_SECTION = {
   hydrology: "sea-level-section",
