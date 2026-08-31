@@ -1609,7 +1609,14 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
       animation: scene-popup-focus-pulse 1.9s ease-in-out infinite;
     }
     .geo-popup-scroll {
-      max-height: min(46vh, 30rem);
+      /* A CARD IS A LABEL, NOT A DOCUMENT.
+         At `min(46vh, 30rem)` a unit with a full attribute list stood 393 px of
+         scroller plus its chrome -- about half the window -- so the card became
+         the thing you were looking at and the map became its background. The
+         cap is the same idea at 40% of that: the first few fields are the
+         label, and the scroller already holds the rest. `min` keeps it honest
+         on a short window, where a percentage alone would still be too tall. */
+      max-height: min(17vh, 11rem);
       overflow-y: auto;
       overflow-x: hidden;
       /* The card lets the pointer through; the scroller has to take it back or

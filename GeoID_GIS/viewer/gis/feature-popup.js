@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260831-4a108ec";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260831-4a108ec";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260831-3404ce3";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260831-3404ce3";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -1220,7 +1220,12 @@ function showPopup(x, y, layerName, feature, layerRecord = null) {
       width: window.innerWidth, height: window.innerHeight };
   // The cap belongs to the scroller — the card must stay unclipped so its
   // tail can hang outside the box.
-  host.style.maxHeight = `${Math.max(120, area.height - MARGIN * 2)}px`;
+  // The same ceiling the viewer's own card keeps -- 40% of what it used to
+  // take -- so the two cards cannot disagree about how much of the map a
+  // readout is allowed to cover. The floor stays: below about 120 px a card
+  // shows its title and nothing else, which is not a readout at all.
+  host.style.maxHeight = `${Math.max(120,
+    Math.min(area.height - MARGIN * 2, Math.round(area.height * 0.17)))}px`;
   const box = outer.getBoundingClientRect();
   const left = Math.max(area.left + MARGIN,
     Math.min(x + 14, area.right - box.width - MARGIN));
