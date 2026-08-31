@@ -1636,7 +1636,7 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
       z-index: 21;
       width: 0;
       height: 0;
-      filter: drop-shadow(0 0 8px rgba(88, 231, 223, 0.34));
+      filter: drop-shadow(0 0 8px rgba(var(--nav-accent-rgb), 0.34));
       transform: translateX(-50%);
       pointer-events: none;
     }
@@ -1649,8 +1649,12 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
       width: 0.72rem;
       height: 0.72rem;
       border-radius: 999px;
-      background: rgba(88, 231, 223, 0.95);
-      border: 2px solid rgba(219, 255, 252, 0.85);
+      /* The dot wears the card's accent too. Card border, tail, dot and the
+         ring around the polygon are one object seen in four places, and a
+         hard-coded cyan matched the label on one theme and argued with it on
+         the next. */
+      background: rgba(var(--nav-accent-rgb), 0.95);
+      border: 2px solid rgba(255, 255, 255, 0.82);
       transform: translate(-50%, -72%);
       box-shadow: 0 0 0 0 rgba(88, 231, 223, 0.22);
       animation: geology-selection-pulse 1.8s ease-out infinite;
