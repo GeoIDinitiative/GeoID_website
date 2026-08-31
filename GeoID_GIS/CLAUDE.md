@@ -8205,3 +8205,35 @@ patch script prints its success line either way. The shapefile test file uses a
 `check`/`failures` harness, not the `ok`/`pass` one, and eleven new tests went
 nowhere while the run still said "68 passed" — the same count as before, which
 is the only thing that gave it away. Assert the anchor, or diff the count.
+
+## A shapefile can be perfectly formed and still not draw
+
+QGIS crashed on an export that passed every structural test: headers, the .shx
+index, per-record and file bounding boxes, ring closure and winding, DBF
+arithmetic, UTF-8 cells, the .prj through PROJ, strict zip integrity, and a
+full `ogrinfo` read of all 257 features. None of it found the fault.
+
+What found it was rewriting our own output through `ogr2ogr` and DIFFING THE
+BYTES. GDAL reordered and reversed rings in exactly four records, and those
+records held the problems:
+
+- **rings enclosing zero area** — collapsed slivers from clipping a polygon
+  along its own edge. 2 exactly zero, 9 more under a square millimetre, out of
+  493. Dropped before writing.
+- **orphaned holes** — `partsOf` made every ring after the first a hole because
+  GeoJSON says so, and the geoprocessing does not keep that promise. Holes are
+  now decided by CONTAINMENT; a ring outside the shell becomes its own part.
+- **spikes** — a path out and back along itself. Removed.
+- **rings that touch themselves** — still there, 7 of 257, every reported
+  intersection ON the study area's edge. Sutherland-Hodgman is exact for a
+  convex window and still joins the pieces of a CONCAVE polygon along the
+  boundary.
+
+**Do not repair a pinched ring by splitting it at the repeated vertex.** Tried:
+the two lobes are both SOLID, the smaller was then judged a hole by
+containment, and 5.5% of the mapped area disappeared (1.26902535 to 1.19963401
+in square degrees). Reverted. A proper repair is a noding pass in the clip
+engine. Until then the export COUNTS them and says so.
+
+`ogrinfo`, GEOS validity, and pyshp each tolerate different faults, so agreeing
+with one proves nothing. Diff against GDAL's own writer.

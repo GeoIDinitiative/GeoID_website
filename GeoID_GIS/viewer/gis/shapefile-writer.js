@@ -781,6 +781,42 @@ export function verifyShapefile(shp, shx, dbf) {
   return problems;
 }
 
+/**
+ * RINGS THAT TOUCH THEMSELVES, counted but not repaired.
+ *
+ * Sutherland-Hodgman is exact for a convex window and still leaves these: when
+ * a CONCAVE polygon is cut by a rectangle the surviving pieces are joined
+ * along the boundary, and the path returns to a vertex it has already used.
+ * The ring closes, its area is right, every structural check in this module
+ * passes, and GEOS calls it a ring self-intersection -- which is where QGIS
+ * stops.
+ *
+ * Repairing it is a noding pass and belongs in the clip engine, not here: an
+ * attempt to split the ring at its pinch point cost 5.5% of the mapped area,
+ * because the two lobes of a pinched ring are both SOLID and the smaller was
+ * then judged a hole. That is recorded so it is not tried again this way.
+ *
+ * Counting is cheap and honest. A repeated vertex is the signature, found in
+ * one pass, and the export says so rather than handing over a file that looks
+ * well formed and will not draw.
+ */
+export function countSelfTouchingRings(collection) {
+  let touched = 0;
+  for (const feature of collection?.features || []) {
+    for (const ring of partsOf(feature?.geometry) || []) {
+      const seen = new Set();
+      let pinched = false;
+      for (let i = 0; i < ring.length - 1; i += 1) {
+        const key = `${ring[i][0]},${ring[i][1]}`;
+        if (seen.has(key)) { pinched = true; break; }
+        seen.add(key);
+      }
+      if (pinched) touched += 1;
+    }
+  }
+  return touched;
+}
+
 export function buildShapefileZip(collection, name = "layer", options = {}) {
   const shapeType = shapeTypeFor(collection);
   if (!shapeType) return null;

@@ -23,7 +23,7 @@
 import {
   shapeTypeFor, ringArea, orientRing, partsOf,
   writeShpAndShx, dbfFields, writeDbf, crc32, zipStore, buildShapefileZip,
-  safeShapefileName, verifyShapefile,
+  safeShapefileName, verifyShapefile, countSelfTouchingRings, ringIsDegenerate,
   PRJ_WGS84, POINT, POLYLINE, POLYGON, MULTIPOINT,
 } from "./shapefile-writer.js";
 
@@ -459,6 +459,60 @@ check("an ordinary name is left exactly as it is",
     const truncated = shp.slice(0, 40);
     check("a truncated .shp is caught rather than read",
       verifyShapefile(truncated, shx, dbf).length > 0);
+  }
+}
+
+/**
+ * DEGENERATE RINGS, HOLES BY CONTAINMENT, AND THE PINCH THAT IS ONLY COUNTED.
+ *
+ * Clipping along a polygon's own edge, and subtracting one survey from
+ * another, leave rings that enclose nothing and rings that touch themselves.
+ * Both are legal bytes: ogrinfo reads them and every arithmetic check in this
+ * module passes. The first is dropped; the second is counted and reported,
+ * because splitting a pinched ring here cost 5.5% of the mapped area — its two
+ * lobes are both solid, and the smaller was then judged a hole.
+ */
+{
+  const sq = (a, b, c, d) => [[a, b], [c, b], [c, d], [a, d], [a, b]];
+  // A ring of four points that folds flat: legal bytes, no ground.
+  const flat = [[0, 0], [1, 1], [2, 2], [0, 0]];
+  check("a ring enclosing no area is degenerate", ringIsDegenerate(flat));
+  check("a ring with fewer than four points is degenerate",
+    ringIsDegenerate([[0, 0], [1, 0], [0, 0]]));
+  check("an honest square is not", !ringIsDegenerate(sq(0, 0, 1, 1)));
+
+  // A degenerate ring never reaches the file.
+  const withJunk = { type: "FeatureCollection", features: [
+    feature({ type: "Polygon", coordinates: [sq(0, 0, 1, 1), flat] }, { a: 1 })] };
+  eq("a collapsed hole is dropped, leaving the shell alone",
+    partsOf(withJunk.features[0].geometry).length, 1);
+
+  // A polygon whose OUTER ring collapsed has nothing left to draw.
+  eq("a polygon whose shell collapsed writes nothing",
+    partsOf({ type: "Polygon", coordinates: [flat, sq(0, 0, 1, 1)] }).length, 0);
+
+  // A ring listed as a hole but lying OUTSIDE the shell is its own shape.
+  {
+    const parts = partsOf({ type: "Polygon", coordinates: [sq(0, 0, 1, 1), sq(5, 5, 6, 6)] });
+    check("an orphaned hole becomes its own part", parts.length === 2);
+    const areas = parts.map(ringArea);
+    check("and is wound as an outer ring, not a hole",
+      areas.every((a) => a < 0), JSON.stringify(areas));
+  }
+  {
+    const parts = partsOf({ type: "Polygon", coordinates: [sq(0, 0, 10, 10), sq(2, 2, 4, 4)] });
+    check("a real hole is still wound as a hole", ringArea(parts[1]) > 0);
+  }
+
+  // The pinch: counted, never silently shipped.
+  {
+    const pinched = [[0, 0], [4, 0], [2, 2], [4, 4], [0, 4], [2, 2], [0, 0]];
+    const fc = { type: "FeatureCollection",
+      features: [feature({ type: "Polygon", coordinates: [pinched] }, { a: 1 })] };
+    check("a ring that revisits a vertex is counted", countSelfTouchingRings(fc) === 1);
+    check("a clean collection counts none", countSelfTouchingRings({
+      type: "FeatureCollection",
+      features: [feature({ type: "Polygon", coordinates: [sq(0, 0, 1, 1)] }, { a: 1 })] }) === 0);
   }
 }
 

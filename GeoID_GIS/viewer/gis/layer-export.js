@@ -21,9 +21,10 @@
  * rather than silently dropping whatever does not fit.
  */
 
-import * as VF from "./vector-formats.js?v=20260831-17da513";
-import { downloadText } from "./extraction.js?v=20260831-17da513";
-import { buildShapefileZip, shapeTypeFor, SHAPE_NAMES, safeShapefileName } from "./shapefile-writer.js?v=20260831-17da513";
+import * as VF from "./vector-formats.js?v=20260831-3294932";
+import { downloadText } from "./extraction.js?v=20260831-3294932";
+import { buildShapefileZip, shapeTypeFor, SHAPE_NAMES, safeShapefileName,
+  countSelfTouchingRings } from "./shapefile-writer.js?v=20260831-3294932";
 
 /**
  * What a layer is, read from its contents rather than its name.
@@ -360,6 +361,16 @@ export function renderExport(layer, formatId) {
   if (kind === "vector" && formatId === "shp") {
     const bytes = buildShapefileZip(collection, base);
     if (!bytes) return null;
+    /**
+     * What the file cannot say for itself.
+     *
+     * A ring that touches itself is well-formed bytes and invalid geometry:
+     * every structural check passes and QGIS still refuses to draw it. The
+     * clip engine leaves them where it cuts a concave polygon along the study
+     * area's edge, and repairing them belongs there rather than here. Saying
+     * so beats handing over a file that looks finished.
+     */
+    const touching = countSelfTouchingRings(collection);
     return {
       // The zip is named like the files inside it. A layer called
       // "clip_World geology (Macrostrat)" otherwise downloads with spaces and
@@ -368,6 +379,12 @@ export function renderExport(layer, formatId) {
       mime: format.mime,
       bytes,
       shapeType: SHAPE_NAMES[shapeTypeFor(collection)],
+      selfTouchingRings: touching,
+      note: touching
+        ? `${touching} ring${touching === 1 ? "" : "s"} touch themselves where the clip `
+          + "cut them. QGIS may refuse to draw those: run Vector > Geometry Tools > "
+          + "Fix Geometries, or Processing > Fix geometries in ArcGIS."
+        : "",
     };
   }
   if (kind === "vector") {
