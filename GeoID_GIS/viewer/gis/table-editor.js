@@ -24,7 +24,7 @@
  * tiled geology already documents.
  */
 
-import { splitLine } from "./delimited.js?v=20260831-0eb96bf";
+import { splitLine } from "./delimited.js?v=20260831-e579da0";
 
 const byId = (id) => document.getElementById(id);
 

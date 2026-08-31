@@ -8683,3 +8683,23 @@ of the ground covered more than once** — coarse features kept whole because
 their cut could not be made safely. It costs nothing on screen or in a click,
 and it double-counts in an area sum or an attribute table. That is the standing
 trade until there is a clipper correct for concave subjects.
+
+### Why a drawn outline floated and the world layer's did not
+
+Rings reach the SEAL only when a colour is available; without one they fall to
+the lifted line buffer, which carries the altitude-scaled clearance. The tiled
+world layer always passes `colourFor: paint`, so its boundaries have always sat
+on the ground. An outline-only layer went through the FIRST render uncoloured
+and so was drawn as lifted lines — measured, **467 m above the ground at a
+23 km view, 11.9 km from orbit** — until the scheduled default paint landed a
+tick later and dropped it onto the surface. A layer whose default paint never
+ran stayed up there for good.
+
+An outline has no fill to defer, so it is now painted in the first pass. The
+two-pass build stays for FILLED layers, which is what it was written for —
+triangulating the BGS sheets inside the import took it from seconds to over
+five minutes — and a test pins that so the reason is not lost.
+
+**When an outline floats, look at whether it reached the seal.** Fill and seal
+are at drape 0; only the line buffer is lifted, and rings land there whenever
+`colour` is missing.
