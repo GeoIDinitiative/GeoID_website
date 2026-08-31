@@ -619,21 +619,20 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
       border-left: 2px solid rgba(var(--nav-accent-rgb), 0);
       transition: background 0.15s, border-color 0.15s;
     }
-    /* THE DONATE BUTTON'S YELLOW, for moving down the tab column.
-       #ffd319 is what that button hovers to and rgba(255,211,25,0.5) at 26px
-       is the glow it throws; both are taken verbatim so a pointer is answered
-       the same way here as in the header.
+    /* A BRIGHTER PURPLE for moving down the tab column.
+       190,120,255 is a luminous violet — brighter than the magenta the column
+       rested on, and far enough from it to stay a different signal.
 
        The OPEN section keeps the accent, deliberately. Hover says what you are
        pointing at and open says where you ARE, and this column shows both at
        once — eight rows with one of them open — so they cannot be the same
        colour without becoming unreadable. */
     .section-toggle:hover {
-      background: linear-gradient(180deg, rgba(255, 211, 25, 0.13), rgba(255, 255, 255, 0.025));
-      border-left-color: rgba(255, 211, 25, 0.95);
+      background: linear-gradient(180deg, rgba(190, 120, 255, 0.15), rgba(255, 255, 255, 0.025));
+      border-left-color: rgba(190, 120, 255, 0.95);
       box-shadow:
-        inset 0 0 0 1px rgba(255, 211, 25, 0.16),
-        0 0 18px rgba(255, 211, 25, 0.28);
+        inset 0 0 0 1px rgba(190, 120, 255, 0.18),
+        0 0 18px rgba(190, 120, 255, 0.34);
     }
     .control-section[open] > .section-toggle {
       border-left-color: rgba(var(--nav-accent-rgb), 0.82);
@@ -644,33 +643,33 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
       color: #f2feff;
       transition: color 0.15s;
     }
-    .section-toggle:hover .section-title { color: #fff6d2; }
+    .section-toggle:hover .section-title { color: #f3e6ff; }
     .section-toggle:hover .section-icon {
-      color: #ffd319;
-      filter: drop-shadow(0 0 8px rgba(255, 211, 25, 0.45));
+      color: #be78ff;
+      filter: drop-shadow(0 0 8px rgba(190, 120, 255, 0.55));
     }
 
     /* The whole ROW is the target a reader actually moves along, so it carries
-       the same yellow at full strength -- the Donate button's own 26px glow. */
+       the same purple at full strength. */
     .control-section:hover {
-      border-color: rgba(255, 211, 25, 0.42);
-      background: linear-gradient(180deg, rgba(255, 211, 25, 0.05), rgba(255, 255, 255, 0.014));
-      box-shadow: 0 0 0 1px rgba(255, 211, 25, 0.12);
+      border-color: rgba(190, 120, 255, 0.46);
+      background: linear-gradient(180deg, rgba(190, 120, 255, 0.06), rgba(255, 255, 255, 0.014));
+      box-shadow: 0 0 0 1px rgba(190, 120, 255, 0.14);
     }
     .control-section:hover > .section-toggle {
-      background: linear-gradient(180deg, rgba(255, 211, 25, 0.18), rgba(255, 255, 255, 0.03));
-      border-left-color: #ffd319;
+      background: linear-gradient(180deg, rgba(190, 120, 255, 0.2), rgba(255, 255, 255, 0.03));
+      border-left-color: #be78ff;
       box-shadow:
-        inset 0 0 0 1px rgba(255, 211, 25, 0.22),
-        0 0 26px rgba(255, 211, 25, 0.5);
+        inset 0 0 0 1px rgba(190, 120, 255, 0.24),
+        0 0 26px rgba(190, 120, 255, 0.55);
     }
     .control-section:hover > .section-toggle .section-title {
-      color: #fff6d2;
+      color: #f3e6ff;
     }
     .control-section:hover > .section-toggle .section-icon,
     .control-section:hover > .section-toggle::after {
-      color: #ffd319;
-      filter: drop-shadow(0 0 9px rgba(255, 211, 25, 0.45));
+      color: #be78ff;
+      filter: drop-shadow(0 0 9px rgba(190, 120, 255, 0.55));
     }
 
     .control-section[open] {
