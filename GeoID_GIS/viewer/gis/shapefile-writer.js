@@ -522,6 +522,86 @@ export function zipStore(files) {
  * Null rather than a best effort: dropping the features that do not fit the
  * chosen type would hand back a file that looks complete and is missing rows.
  */
+
+/**
+ * READ BACK WHAT WAS WRITTEN, and say what is wrong with it.
+ *
+ * Every reader that matters trusts a different part of these files. OGR walks
+ * the .shp from front to back and will happily ignore a broken .shx; QGIS
+ * SEEKS through the .shx to fetch a feature by index, so an offset that reads
+ * past the end of the file is a crash there and silence everywhere else. The
+ * DBF is a third arithmetic again: header length, record length and file size
+ * must agree exactly or every row after the first is read from the wrong byte.
+ *
+ * So the writer checks its own output against the spec rather than against one
+ * reader's tolerance. A file that fails here would have failed on somebody's
+ * desk instead, and a message beats a crash.
+ *
+ * Returns an array of problems: empty means the bytes are well formed.
+ */
+export function verifyShapefile(shp, shx, dbf) {
+  const problems = [];
+  const need = (cond, msg) => { if (!cond) problems.push(msg); };
+  const dvOf = (b) => new DataView(b.buffer, b.byteOffset, b.byteLength);
+
+  if (!shp || shp.length < 100) return ["the .shp is shorter than its own header"];
+  if (!shx || shx.length < 100) return ["the .shx is shorter than its own header"];
+  if (!dbf || dbf.length < 33) return ["the .dbf is shorter than its own header"];
+
+  const sv = dvOf(shp);
+  const xv = dvOf(shx);
+  need(sv.getInt32(0, false) === 9994, "the .shp magic number is not 9994");
+  need(xv.getInt32(0, false) === 9994, "the .shx magic number is not 9994");
+  need(sv.getInt32(28, true) === 1000, "the .shp version is not 1000");
+  need(sv.getInt32(24, false) * 2 === shp.length,
+    `the .shp declares ${sv.getInt32(24, false) * 2} bytes and holds ${shp.length}`);
+  need(xv.getInt32(24, false) * 2 === shx.length,
+    `the .shx declares ${xv.getInt32(24, false) * 2} bytes and holds ${shx.length}`);
+
+  // The index must point at real records, and agree with them.
+  const count = (shx.length - 100) / 8;
+  need(Number.isInteger(count), "the .shx length is not a whole number of records");
+  for (let i = 0; i < count; i += 1) {
+    const offset = xv.getInt32(100 + i * 8, false) * 2;
+    const length = xv.getInt32(100 + i * 8 + 4, false) * 2;
+    if (offset + 8 + length > shp.length) {
+      problems.push(`.shx record ${i + 1} points past the end of the .shp`);
+      break;                                   // the rest will say the same
+    }
+    if (sv.getInt32(offset, false) !== i + 1) {
+      problems.push(`.shp record ${i + 1} is numbered ${sv.getInt32(offset, false)}`);
+    }
+    if (sv.getInt32(offset + 4, false) * 2 !== length) {
+      problems.push(`.shx says record ${i + 1} is ${length} bytes, the .shp says `
+        + `${sv.getInt32(offset + 4, false) * 2}`);
+    }
+  }
+
+  // The table's three sizes have to agree, or rows are read from mid-record.
+  const dv = dvOf(dbf);
+  const headerLength = dv.getUint16(8, true);
+  const recordLength = dv.getUint16(10, true);
+  const records = dv.getUint32(4, true);
+  need(dbf[0] === 0x03, `the .dbf version byte is 0x${dbf[0].toString(16)}, not 0x03`);
+  need((headerLength - 33) % 32 === 0, "the .dbf header is not a whole number of fields");
+  need(dbf[headerLength - 1] === 0x0d, "the .dbf field list is not terminated with 0x0d");
+  need(headerLength + records * recordLength + 1 === dbf.length,
+    `the .dbf declares ${headerLength} + ${records}x${recordLength} and holds ${dbf.length}`);
+  const fields = (headerLength - 33) / 32;
+  let widths = 0;
+  for (let i = 0; i < fields; i += 1) {
+    const at = 32 + i * 32;
+    const type = String.fromCharCode(dbf[at + 11]);
+    const width = dbf[at + 16];
+    widths += width;
+    if (type === "C" && width > 254) problems.push(`.dbf text column ${i + 1} is ${width} wide`);
+    if (type === "N" && width > 18) problems.push(`.dbf number column ${i + 1} is ${width} wide`);
+  }
+  need(recordLength === widths + 1,
+    `the .dbf record is ${recordLength} bytes and its columns need ${widths + 1}`);
+  return problems;
+}
+
 export function buildShapefileZip(collection, name = "layer", options = {}) {
   const shapeType = shapeTypeFor(collection);
   if (!shapeType) return null;
@@ -532,6 +612,17 @@ export function buildShapefileZip(collection, name = "layer", options = {}) {
   const { shp, shx } = writeShpAndShx(features, shapeType);
   const fields = dbfFields(features);
   const dbf = writeDbf(features, fields, options);
+  /**
+   * The file proves itself before it leaves. A reader that seeks by index
+   * crashes on what a reader that walks front-to-back never notices, and the
+   * writer is the only place that can tell the difference cheaply.
+   */
+  const problems = verifyShapefile(shp, shx, dbf);
+  if (problems.length) {
+    const error = new Error(`the shapefile did not verify: ${problems.join("; ")}`);
+    error.problems = problems;
+    throw error;
+  }
   return zipStore([
     { name: `${base}.shp`, data: shp },
     { name: `${base}.shx`, data: shx },

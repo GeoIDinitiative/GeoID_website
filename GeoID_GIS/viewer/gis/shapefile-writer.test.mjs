@@ -23,7 +23,7 @@
 import {
   shapeTypeFor, ringArea, orientRing, partsOf,
   writeShpAndShx, dbfFields, writeDbf, crc32, zipStore, buildShapefileZip,
-  safeShapefileName,
+  safeShapefileName, verifyShapefile,
   PRJ_WGS84, POINT, POLYLINE, POLYGON, MULTIPOINT,
 } from "./shapefile-writer.js";
 
@@ -391,6 +391,75 @@ check("an ordinary name is left exactly as it is",
   const text = new TextDecoder("latin1").decode(named);
   check("the files inside are named safely too",
     text.includes("clip_World_geology_Macrostrat.shp") && !text.includes("(Macrostrat).shp"));
+}
+
+/**
+ * THE WRITER READS BACK WHAT IT WROTE.
+ *
+ * Every reader trusts a different part of these files. OGR walks the .shp
+ * front to back and will ignore a broken .shx entirely; QGIS SEEKS through the
+ * .shx to fetch a feature by index, so an offset past the end of the file is a
+ * crash there and silence everywhere else. The DBF is a third arithmetic:
+ * header length, record length and file size must agree exactly, or every row
+ * after the first is read from the wrong byte.
+ *
+ * The checks below corrupt a known-good file one field at a time, because a
+ * verifier that has never seen a bad file proves nothing.
+ */
+{
+  const good = {
+    type: "FeatureCollection",
+    features: [
+      feature({ type: "Polygon", coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]] }, { a: 1 }),
+      feature({ type: "Polygon", coordinates: [[[2, 2], [3, 2], [3, 3], [2, 3], [2, 2]]] }, { a: 2 }),
+    ],
+  };
+  const { shp, shx } = writeShpAndShx(good.features, POLYGON);
+  const dbf = writeDbf(good.features, dbfFields(good.features));
+  eq("a well-formed shapefile verifies clean", verifyShapefile(shp, shx, dbf), []);
+
+  const bend = (bytes) => Uint8Array.from(bytes);
+  {
+    const bad = bend(shp); new DataView(bad.buffer).setInt32(0, 1234, false);
+    check("a wrong magic number is caught", verifyShapefile(bad, shx, dbf).length > 0);
+  }
+  {
+    const bad = bend(shp); new DataView(bad.buffer).setInt32(24, 99, false);
+    check("a .shp whose declared length is wrong is caught",
+      verifyShapefile(bad, shx, dbf).some((p) => /declares/.test(p)));
+  }
+  {
+    // THE CRASH CASE: an index entry pointing past the end of the .shp.
+    const bad = bend(shx); new DataView(bad.buffer).setInt32(100, 99999, false);
+    const said = verifyShapefile(shp, bad, dbf);
+    check("an .shx offset past the end of the .shp is caught",
+      said.some((p) => /past the end/.test(p)), said.join("; "));
+  }
+  {
+    const bad = bend(shx); new DataView(bad.buffer).setInt32(104, 2, false);
+    check("an .shx record length disagreeing with the .shp is caught",
+      verifyShapefile(shp, bad, dbf).some((p) => /says record/.test(p)));
+  }
+  {
+    const bad = bend(dbf); new DataView(bad.buffer).setUint16(10, 999, true);
+    check("a .dbf record length that does not fit its columns is caught",
+      verifyShapefile(shp, shx, bad).length > 0);
+  }
+  {
+    const bad = bend(dbf); new DataView(bad.buffer).setUint32(4, 500, true);
+    check("a .dbf record count that does not match the file size is caught",
+      verifyShapefile(shp, shx, bad).some((p) => /holds/.test(p)));
+  }
+  {
+    const bad = bend(dbf); bad[dbf.length - 1 - (dbf.length - 1)] = 0x04;
+    check("a wrong .dbf version byte is caught",
+      verifyShapefile(shp, shx, bad).some((p) => /version byte/.test(p)));
+  }
+  {
+    const truncated = shp.slice(0, 40);
+    check("a truncated .shp is caught rather than read",
+      verifyShapefile(truncated, shx, dbf).length > 0);
+  }
 }
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");
