@@ -19440,14 +19440,36 @@ ${error && error.message ? error.message : error}`;
                 const h = geoPopup.offsetHeight;
                 const minX = view.left + w / 2 + margin;
                 const maxX = view.right - w / 2 - margin;
-                const px = minX > maxX ? (view.left + view.right) / 2
-                  : Math.min(Math.max(sx, minX), maxX);
+                /**
+                 * THE CLAMP HOLDS A CARD IN, IT DOES NOT HOLD IT BACK.
+                 *
+                 * Keeping the card inside the map is right while the thing it
+                 * describes is inside the map: that is what stopped cards
+                 * having their first rows cut off by the hub's nav bar. It is
+                 * wrong once the ground it points at has been turned or driven
+                 * out of view, because the card then stops following, parks
+                 * against the edge, and aims its tail at whatever happens to
+                 * be there -- a label for a unit nobody can see, pointing at
+                 * a unit it is not.
+                 *
+                 * So the clamp applies only while the ANCHOR is on screen.
+                 * Past that the card rides with its dot and leaves the view
+                 * with it, which is what a reader rotating the globe expects
+                 * of a thing pinned to the ground. It is still hidden outright
+                 * when the anchor goes over the horizon -- that test is above
+                 * and unchanged.
+                 */
+                const anchorInView = sx >= view.left && sx <= view.right
+                  && sy >= view.top && sy <= view.bottom;
+                const px = !anchorInView ? sx
+                  : minX > maxX ? (view.left + view.right) / 2
+                    : Math.min(Math.max(sx, minX), maxX);
                 const roomAbove = (sy - gap - h) >= (view.top + margin);
                 let py;
-                if (roomAbove) {
+                if (roomAbove || !anchorInView) {
                   geoPopup.style.transform = "translate(-50%, calc(-100% - 1.6rem))";
                   geoPopup.classList.remove("is-below");
-                  py = Math.min(sy, view.bottom - margin + gap);
+                  py = anchorInView ? Math.min(sy, view.bottom - margin + gap) : sy;
                 } else {
                   geoPopup.style.transform = "translate(-50%, 1.6rem)";
                   geoPopup.classList.add("is-below");
@@ -19468,13 +19490,14 @@ ${error && error.message ? error.message : error}`;
                  * in a loop that already forces one for the size.
                  */
                 const cardLeft = px - (w / 2);
-                const cardTop = roomAbove ? (py - gap - h) : (py + gap);
+                const placedAbove = roomAbove || !anchorInView;
+                const cardTop = placedAbove ? (py - gap - h) : (py + gap);
                 let tail;
                 if (sy > cardTop + h) tail = "bottom";
                 else if (sy < cardTop) tail = "top";
                 else if (sx < cardLeft) tail = "left";
                 else if (sx > cardLeft + w) tail = "right";
-                else tail = roomAbove ? "bottom" : "top";   // dot beneath the card
+                else tail = placedAbove ? "bottom" : "top";   // dot beneath the card
                 geoPopup.dataset.tail = tail;
                 if (tail === "left" || tail === "right") {
                   geoPopup.style.setProperty("--tail-y", `${sy - cardTop}px`);
