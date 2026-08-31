@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260831-bd8ef1f";
+  from "./gis/geo-utils.js?v=20260831-8865357";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -21171,8 +21171,16 @@ uniform float uViewportWidth;`,
         showFeatureCard(feature, lat, lon) {
           if (!feature || !Number.isFinite(lat) || !Number.isFinite(lon)) return false;
           const spin = globe.rotation.y - Math.PI;
+          /**
+           * NO LIFT. 0.0008 of a 3.2 radius is **1.6 km**, and an altitude
+           * parallaxes: seen obliquely the dot is drawn to one side of the
+           * ground it marks, while the highlight tracing the same polygon sits
+           * at nought and does not move. Nothing needs the clearance -- the
+           * anchor is a DOM element positioned by projection, so there is no
+           * depth test for it to win.
+           */
           const local = getReliefPoint(3.2, elevationSampler, new Map(),
-            getEffectiveTerrainRelief, lat, lon, 0.0008)
+            getEffectiveTerrainRelief, lat, lon, 0)
             .applyEuler(new THREE.Euler(0, spin, 0));
           openGeoPopup(feature, marsGroup.localToWorld(local), spin);
           return true;
