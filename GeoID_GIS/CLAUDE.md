@@ -8308,3 +8308,39 @@ dependency decision, not a fix to make quietly.
 
 Do not use `GP.difference` as a truth source anywhere else without the same
 verification. The same routine underlies `clip` and `intersect`.
+
+## Which survey is finer is the publisher's answer
+
+Filling the hole with the coarsest survey was a RANK INVERSION, not a filling
+strategy. `surveyRanks` scored surveys by vertices per unit area, which
+measures how geometry was DELIVERED rather than how finely ground was mapped —
+and over Inishowen it inverted: source 154 scored 1,157 against source 147's
+797, because 147's units had been swapped for smooth verbatim API shapes while
+154 was still ragged tile pieces. The regional map then outranked the national
+one and cut it away: 147 fell from 97.3% of the box and 100% of the north-west
+quadrant to 16% and 22%, and 154 filled what was left with flat polygons over
+ground a better survey had already mapped.
+
+Macrostrat composites several surveys and **switches between them by scale**,
+so the deepest zoom a survey is served at IS its scale. Measured on one tile
+stack over Inishowen: zoom 13 serves nothing, zoom 9 serves only source 23,
+zoom 6 serves 7, 23 and 147. `featuresIn` already tracks this per survey in
+`deepestFor` — to fill each survey from its own best level — and then threw it
+away. It now returns `sourceZooms`, `lastFetch` carries it, and `register`
+hands it to `surveyRanks`. Over this box: `{2:3, 7:6, 23:13, 147:8, 154:2}`.
+
+Only used when it places EVERY survey present and separates them: an unplaced
+survey would rank 0 and be cut by everything, and one zoom for all of them
+says nothing. Both fall back to the geometric measure.
+
+After: box coverage 100%, north-west quadrant 100%, source 154 dropped from the
+output entirely, 147 covering 98.3% of that quadrant at verbatim geometry, and
+the picker returning the finest survey on **529 of 529** overlapping cells. The
+cost is 33.1% of the box double-covered, because a coarse feature that cannot
+be cut safely is kept whole underneath.
+
+**Macrostrat has nothing finer than zoom 8 over Donegal.** Source 23 (zoom 13)
+stops at the border, so the west half of a cross-border study area is source
+147 at its own best level and there is no more detail to fetch. That is the
+source's coverage, not a fault in the pipeline — check `sourceZooms` before
+chasing it again.
