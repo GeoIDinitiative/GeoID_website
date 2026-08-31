@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260831-00842e4";
+  from "./gis/geo-utils.js?v=20260831-4e6f06e";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -6077,7 +6077,15 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
          * a direction that was never in doubt. The clicked direction is kept
          * exactly; only the height along it is corrected.
          */
-        activeGeoPopupRelief = getTerrainRelief();
+        /**
+         * Captured on the first FRAME, not here: `getTerrainRelief` is declared
+         * inside the render scope and is not visible from this one, so reading
+         * it here threw a ReferenceError that aborted the rest of this function
+         * -- leaving a card with nothing in it but the kicker the last click
+         * had put there. Nothing between this click and the next frame moves
+         * the exaggeration, so the value is the same one.
+         */
+        activeGeoPopupRelief = null;
       } else {
         activeGeoPopupLocalPos = null;
         activeGeoPopupRelief = null;
@@ -22144,6 +22152,7 @@ ${error && error.message ? error.message : error}`;
              * the ratio puts the anchor back on the surface at every setting.
              * See `activeGeoPopupRelief`.
              */
+            if (activeGeoPopupRelief == null) activeGeoPopupRelief = getTerrainRelief();
             const anchorLocal = activeGeoPopupLocalPos.clone();
             if (activeGeoPopupRelief > 1e-9) {
               const built = anchorLocal.length();

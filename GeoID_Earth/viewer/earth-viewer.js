@@ -5689,7 +5689,15 @@ import * as THREE from "./vendor/three.module.js";
          * a direction that was never in doubt. The clicked direction is kept
          * exactly; only the height along it is corrected.
          */
-        activeGeoPopupRelief = getTerrainRelief();
+        /**
+         * Captured on the first FRAME, not here: `getTerrainRelief` is declared
+         * inside the render scope and is not visible from this one, so reading
+         * it here threw a ReferenceError that aborted the rest of this function
+         * -- leaving a card with nothing in it but the kicker the last click
+         * had put there. Nothing between this click and the next frame moves
+         * the exaggeration, so the value is the same one.
+         */
+        activeGeoPopupRelief = null;
       } else {
         activeGeoPopupLocalPos = null;
         activeGeoPopupRelief = null;
@@ -19390,6 +19398,7 @@ ${error && error.message ? error.message : error}`;
              * the ratio puts the anchor back on the surface at every setting.
              * See `activeGeoPopupRelief`.
              */
+            if (activeGeoPopupRelief == null) activeGeoPopupRelief = getTerrainRelief();
             const anchorLocal = activeGeoPopupLocalPos.clone();
             if (activeGeoPopupRelief > 1e-9) {
               const built = anchorLocal.length();
