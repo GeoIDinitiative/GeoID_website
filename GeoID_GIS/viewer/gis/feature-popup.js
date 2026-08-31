@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260831-b26f122";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260831-b26f122";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260831-b2ed2e1";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260831-b2ed2e1";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -57,9 +57,14 @@ const STYLE = `
   color: var(--text, #e8e2f2);
 }
 #gis-feature-popup[hidden] { display: none; }
-/* The card points back at the ground it describes. Which EDGE carries the tail
-   depends on where the card had to go to stay on screen, so all four are
-   declared and one is switched on per placement. */
+/* THE TAIL IS PART OF THE BUBBLE, not a notch stuck to it. Two triangles make
+   one shape: the ::before is the BORDER, a pixel bigger all round, and the
+   ::after is the FILL over it, so the outline carries around the point.
+   (No backticks in here: this CSS lives in a template literal, and one ends
+   the string mid-rule — which is exactly how it broke the first time.)
+   Which EDGE it grows from depends on where the card had to go to stay on
+   screen, so all four are declared and one is switched on per placement. */
+#gis-feature-popup::before,
 #gis-feature-popup::after {
   content: "";
   position: absolute;
@@ -67,37 +72,67 @@ const STYLE = `
   height: 0;
   pointer-events: none;
 }
+#gis-feature-popup[data-tail="left"]::before,
+#gis-feature-popup[data-tail="left"]::after,
+#gis-feature-popup[data-tail="right"]::before,
+#gis-feature-popup[data-tail="right"]::after {
+  top: clamp(2.1rem, var(--tail-y, 50%), calc(100% - 2.1rem));
+  transform: translateY(-50%);
+}
+#gis-feature-popup[data-tail="top"]::before,
+#gis-feature-popup[data-tail="top"]::after,
+#gis-feature-popup[data-tail="bottom"]::before,
+#gis-feature-popup[data-tail="bottom"]::after {
+  left: clamp(2.1rem, var(--tail-x, 50%), calc(100% - 2.1rem));
+  transform: translateX(-50%);
+}
+#gis-feature-popup[data-tail="left"]::before {
+  right: calc(100% - 1px);
+  border-top: calc(1.6rem + 1px) solid transparent;
+  border-bottom: calc(1.6rem + 1px) solid transparent;
+  border-right: calc(1.5rem + 1px) solid rgba(120, 220, 255, 0.22);
+}
 #gis-feature-popup[data-tail="left"]::after {
   right: 100%;
-  top: clamp(0.9rem, var(--tail-y, 50%), calc(100% - 0.9rem));
-  transform: translateY(-50%);
-  border-top: 0.5rem solid transparent;
-  border-bottom: 0.5rem solid transparent;
-  border-right: 0.58rem solid rgba(14, 20, 30, 0.97);
+  border-top: 1.6rem solid transparent;
+  border-bottom: 1.6rem solid transparent;
+  border-right: 1.5rem solid rgba(14, 20, 30, 0.97);
+}
+#gis-feature-popup[data-tail="right"]::before {
+  left: calc(100% - 1px);
+  border-top: calc(1.6rem + 1px) solid transparent;
+  border-bottom: calc(1.6rem + 1px) solid transparent;
+  border-left: calc(1.5rem + 1px) solid rgba(120, 220, 255, 0.22);
 }
 #gis-feature-popup[data-tail="right"]::after {
   left: 100%;
-  top: clamp(0.9rem, var(--tail-y, 50%), calc(100% - 0.9rem));
-  transform: translateY(-50%);
-  border-top: 0.5rem solid transparent;
-  border-bottom: 0.5rem solid transparent;
-  border-left: 0.58rem solid rgba(14, 20, 30, 0.97);
+  border-top: 1.6rem solid transparent;
+  border-bottom: 1.6rem solid transparent;
+  border-left: 1.5rem solid rgba(14, 20, 30, 0.97);
+}
+#gis-feature-popup[data-tail="top"]::before {
+  bottom: calc(100% - 1px);
+  border-left: calc(1.6rem + 1px) solid transparent;
+  border-right: calc(1.6rem + 1px) solid transparent;
+  border-bottom: calc(1.5rem + 1px) solid rgba(120, 220, 255, 0.22);
 }
 #gis-feature-popup[data-tail="top"]::after {
   bottom: 100%;
-  left: clamp(0.9rem, var(--tail-x, 50%), calc(100% - 0.9rem));
-  transform: translateX(-50%);
-  border-left: 0.5rem solid transparent;
-  border-right: 0.5rem solid transparent;
-  border-bottom: 0.58rem solid rgba(14, 20, 30, 0.97);
+  border-left: 1.6rem solid transparent;
+  border-right: 1.6rem solid transparent;
+  border-bottom: 1.5rem solid rgba(14, 20, 30, 0.97);
+}
+#gis-feature-popup[data-tail="bottom"]::before {
+  top: calc(100% - 1px);
+  border-left: calc(1.6rem + 1px) solid transparent;
+  border-right: calc(1.6rem + 1px) solid transparent;
+  border-top: calc(1.5rem + 1px) solid rgba(120, 220, 255, 0.22);
 }
 #gis-feature-popup[data-tail="bottom"]::after {
   top: 100%;
-  left: clamp(0.9rem, var(--tail-x, 50%), calc(100% - 0.9rem));
-  transform: translateX(-50%);
-  border-left: 0.5rem solid transparent;
-  border-right: 0.5rem solid transparent;
-  border-top: 0.58rem solid rgba(14, 20, 30, 0.97);
+  border-left: 1.6rem solid transparent;
+  border-right: 1.6rem solid transparent;
+  border-top: 1.5rem solid rgba(14, 20, 30, 0.97);
 }
 #gis-feature-popup .gis-fp-head {
   display: flex; align-items: flex-start; gap: 0.5rem;
