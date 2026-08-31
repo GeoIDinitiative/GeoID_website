@@ -313,6 +313,21 @@ const answering = (calls) => async (url) => {
         && Math.abs(area(byId(out, "coarse")) - 4) < 1e-9);
   }
   {
+    /**
+     * And a chord through ground the finer survey covers on BOTH sides is
+     * just as false. Checking only for "neither side covered" left three of
+     * these behind in one feature — "Palaeocene undifferentiated", edges of
+     * 23.64, 22.17 and 19.78 km where clipping alone gives 9.4.
+     */
+    const chordUnderTheFine = (fc) => ({ type: "FeatureCollection",
+      features: fc.features.map((f) => ({ ...f, geometry: { type: "MultiPolygon",
+        coordinates: [[sq(0, 0, 2, 1)], [sq(0, 1, 2, 2)]] } })) });
+    const out = drop([feat(1, sq(0, 0, 2, 2), "coarse"), feat(9, sq(-1, 0.5, 3, 1.5), "fine")],
+      rankOf, chordUnderTheFine);
+    ok("a chord running under the finer survey is refused too",
+      byId(out, "coarse")?.geometry?.type === "Polygon");
+  }
+  {
     // The other side of that rule: an edge with the FINER SURVEY along it is a
     // real boundary and the cut stands, however long the edge is.
     const alongTheMask = (fc) => ({ type: "FeatureCollection", features: fc.features.map((f) => ({
