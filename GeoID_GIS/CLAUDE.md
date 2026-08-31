@@ -8585,3 +8585,37 @@ lift — **1.6 km** — while the highlight outline for the same feature sits at
 nought, so the dot and the outline disagreed at oblique angles. The anchor is a
 DOM element positioned by projection; it has no depth test to win and needs no
 clearance.
+
+## The ribbon seal
+
+The seal is now a quad per boundary segment, laid flat in the tangent plane and
+widened on the GPU from a uniform that follows the camera — about three
+quarters of a pixel of ground either side, so it spans ~1.5 px at any altitude.
+Measured half-widths: **1,769 m at 2,400 km, 299 m at 300 km, 61 m at 60 km,
+9 m at 12 km** — the gaps shrink with the zoom and so does this.
+
+Background pixels inside the map, seal hidden → ribbon on, same view and same
+tiles: **4 → 0** at 2,400 km, **67 → 0** at 300 km, **14 → 0** at 60 km,
+**73 → 7** at 12 km. Note the "before" there is *no seal at all*, which is a
+harsher baseline than the one-pixel line it replaces — the line already covered
+part of these.
+
+The cost is what it repaints: **23–26% of the frame at coarse views**, 0.26–0.36%
+close in. That is not smearing, it is boundary density — at 2,400 km a 1.5 px
+stroke on every contact genuinely covers that much of the screen, and the old
+line covered about two thirds as much for the same reason.
+
+Two implementation notes that will bite anyone editing this:
+
+- The seal is a **Mesh** now, so "is it a Mesh" no longer separates a fill from
+  an edge. It carries `userData.geoidSeam`, which does — two tests identified
+  it by three.js type and had to be corrected.
+- Being triangles it is double-sided and depth-free for the FILL's reasons
+  rather than the line's: the shader discards fragments facing away, so the far
+  hemisphere is culled without a depth test that a facet coplanar with the fill
+  could never win.
+
+`aPerp` is the segment direction crossed with the outward radial — a tangent —
+so widening can never turn into altitude. Zero-length segments are dropped:
+`pushSegment` can hand back a repeated point and a zero cross product would be
+NaN and take the whole draw call with it.
