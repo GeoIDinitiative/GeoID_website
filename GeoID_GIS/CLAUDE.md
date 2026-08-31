@@ -8619,3 +8619,43 @@ Two implementation notes that will bite anyone editing this:
 so widening can never turn into altitude. Zero-length segments are dropped:
 `pushSegment` can hand back a repeated point and a zero cross product would be
 NaN and take the whole draw call with it.
+
+## The shapefile export, audited against GDAL
+
+Reproduced headlessly — the same Macrostrat tiles fetched in Node, through the
+same `geoprocessing.clip` and the same precedence pass, into the same
+`buildShapefileZip`. That harness is worth rebuilding if this ever regresses:
+it needs no browser, runs in seconds, and lets `ogrinfo` be the judge.
+
+**The one real defect** was geometry, not format: `ogrinfo` reported **356 of
+358 features valid**, the two failures both `Ring Self-intersection`, at
+-6.813498/55.168917 and -7.012367/55.078367. Each ring carried one repeated
+vertex enclosing a three-point spur of **exactly zero area**, with the
+remainder holding **100%** of the ring. `unpinch` splits at the repeat and the
+existing degeneracy test drops the spur. After: **358 of 358 valid**, area
+0.6940937994316 against the source's 0.69409380 — unchanged to eight decimals.
+Round-tripped ours → GDAL GeoJSON → GDAL shapefile → back: 358 / 358 valid /
+same area at every hop.
+
+**Everything else already conformed**, and the byte-level audit is recorded so
+nobody re-derives it:
+
+| | |
+|---|---|
+| .shp header | file code 9994, version 1000, **shape type 5 = Polygon (2D)** |
+| Z / M ranges | all zero — a 2D file, not PolygonZ |
+| file length | exact, in 16-bit words |
+| .shx | 358 entries, 0 disagreeing with the .shp |
+| .dbf | dBASE III (0x03), header + n×record + 1 = file size exactly, 0x0D terminator |
+| fields | 22, names unique and ≤10 chars, types C and N only, longest C 127 (limit 254) |
+| .prj / .cpg | ESRI WKT for WGS84 / UTF-8 |
+
+**`countSelfTouchingRings` counts what ARRIVED, not what is written** — the
+writer repairs them now, so counting the output would report zero however bad
+the input. It removes spikes first: a spike repeats a vertex too, and counting
+before that step said 87 rings on a clip where 2 were genuinely pinched.
+
+Note the local GDAL's Python bindings **segfault** on `from osgeo import ogr`
+while the CLI tools work. That is a sick GDAL install on this machine, and it
+is the same stack QGIS sits on — worth remembering next time a file "crashes
+QGIS" and passes every check here.
