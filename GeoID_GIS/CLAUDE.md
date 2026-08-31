@@ -8469,3 +8469,39 @@ rebuilt on selection.
 `feature-popup.js` already records this rule for the GIS highlight, and
 `vector-render.js` for fills (`FILL_DRAPE = 0`) and lines. **Before adding any
 clearance, convert it: one scene unit is 1,991 km, so 0.001 is two kilometres.**
+
+## The ground moves, so anything pinned to it must be re-placed
+
+The geology card could not be zoomed in on: measured over Inishowen, visible at
+80 km and **hidden at 40 km and every altitude below**. The terrain
+exaggeration eases off as the camera comes in to land, so the surface DROPS as
+you descend — measured, the ground fell from radius 3.2626 to 3.2252, which is
+74 km of it. The card's anchor was a world point captured at click time and
+kept that radius. Its visibility test asks whether the camera is on the outward
+side of the anchor, and once the camera is BELOW a stale anchor the answer is
+no, so the card and its dot decided they were over the horizon and hid.
+
+The anchor now remembers the relief it was built at and rescales its
+displacement each frame:
+`r = 3.2 + (r_built − 3.2) × (relief_now / relief_built)`. Same trick as
+`aDisp` and the relief uniform in `vector-render`, arrived at for the same
+reason.
+
+**Rescale, do not re-derive.** Converting the point to a latitude and longitude
+and rebuilding it through `getReliefPoint` was tried first: a round trip
+through two longitude conventions and a coarse elevation sampler, to recover a
+direction that was never in doubt. The clicked direction is exact — only its
+height is wrong.
+
+After: the card holds from 120 km down to 1 km, and inverting the anchor back
+to the ground under it gives 55.0371/−7.0546 at 60 km against
+55.0334/−7.0548 at 5 km — longitude steady to 13 m, latitude drifting 410 m
+across a 12× zoom and then settling. Not perfect; small enough to see the dot
+on the unit it names.
+
+**Two measuring traps met here, both mine, both worth remembering.** Screenshots
+from the browser tool are 800×567 while the page is 1205×855 — comparing a tool
+click to a CSS rect reports a 267 px error that does not exist. And a reference
+point found by a coarse grid search was 5.4 km out, which read as the anchor
+drifting 2,800 px at 2 km when it was the reference that was wrong. **Invert
+the thing under test onto the ground and compare grounds, never pixels.**
