@@ -967,6 +967,10 @@ import * as THREE from "./vendor/three.module.js";
     const geoPopupAnchor = document.getElementById("geo-popup-anchor");
     let activeGeoPopupFeature = null;
     let activeGeoPopupLocalPos = null;   // THREE.Vector3 in Earth body-local space (unspun)
+    // The same anchor as a PLACE, so it can be rebuilt at the live relief
+    // each frame -- the ground moves under a fixed point as the terrain
+    // exaggeration eases on descent. See `openGeoPopup`.
+    let activeGeoPopupLatLon = null;
     let selectedGeologyBoundaryGroup = null;
     let lastTimestamp = 0;
     let activeSearchResults = [];
@@ -5656,8 +5660,33 @@ import * as THREE from "./vendor/three.module.js";
         const spinDelta = (clickSpinDelta !== undefined) ? clickSpinDelta : (earthGlobeRef ? earthGlobeRef.rotation.y - Math.PI : 0);
         localPoint.applyEuler(new THREE.Euler(0, -spinDelta, 0));
         activeGeoPopupLocalPos = localPoint;
+        /**
+         * THE GROUND THIS CARD IS PINNED TO, as a place rather than as a point.
+         *
+         * The terrain exaggeration is not fixed: it eases off as the camera
+         * comes in to land, so the surface DROPS as you descend. A world point
+         * captured at click time keeps the radius the ground had then, and the
+         * ground leaves it behind -- measured over Inishowen, the ground fell
+         * from 3.2626 to 3.2252, which is 74 km of it.
+         *
+         * The card then vanished. Its visibility test asks whether the camera
+         * is on the outward side of the anchor, and once the camera has
+         * descended BELOW a stale anchor the answer is no, so the card and its
+         * dot read as being over the horizon and hid themselves: measured,
+         * visible at 80 km and gone at 40 and every altitude under it.
+         * Reported as not being able to zoom in and keep the popup.
+         *
+         * So the anchor is remembered as a LATITUDE AND LONGITUDE and the
+         * point rebuilt each frame at whatever relief is live. This is the
+         * same answer `aDisp` and the relief uniform give the vector layers,
+         * for the same reason: a thing pinned to the ground has to move when
+         * the ground does.
+         */
+        activeGeoPopupLatLon = vectorToLatLon(localPoint);
       } else {
         activeGeoPopupLocalPos = null;
+      activeGeoPopupLatLon = null;
+        activeGeoPopupLatLon = null;
       }
       const interpretation = String(feature.interpretation || "").trim();
       const origin = String(feature.origin || "").trim();
@@ -5724,6 +5753,7 @@ import * as THREE from "./vendor/three.module.js";
     function closeGeoPopup() {
       activeGeoPopupFeature = null;
       activeGeoPopupLocalPos = null;
+      activeGeoPopupLatLon = null;
       if (geoPopup) geoPopup.hidden = true;
       if (geoPopupAnchor) geoPopupAnchor.hidden = true;
     }
@@ -19346,8 +19376,15 @@ ${error && error.message ? error.message : error}`;
         // Geo popup: reproject world-space hit point to screen each frame using differential rotation
         if (activeGeoPopupLocalPos && activeGeoPopupFeature) {
           try {
+            // Rebuilt at the LIVE relief -- see `activeGeoPopupLatLon`. Falls
+            // back to the point captured at click time only if the anchor was
+            // never resolved to a place.
+            const anchorLocal = activeGeoPopupLatLon
+              ? getReliefPoint(3.2, elevationSampler, popupElevationCache, getTerrainRelief,
+                activeGeoPopupLatLon.lat, activeGeoPopupLatLon.lon, 0)
+              : activeGeoPopupLocalPos.clone();
             const worldPos = marsGroup.localToWorld(
-              activeGeoPopupLocalPos.clone().applyEuler(new THREE.Euler(0, globe.rotation.y - Math.PI, 0)),
+              anchorLocal.clone().applyEuler(new THREE.Euler(0, globe.rotation.y - Math.PI, 0)),
             );
             const planetCenterWorld = marsGroup.localToWorld(new THREE.Vector3(0, 0, 0));
             const surfaceNormalWorld = worldPos.clone().sub(planetCenterWorld).normalize();
