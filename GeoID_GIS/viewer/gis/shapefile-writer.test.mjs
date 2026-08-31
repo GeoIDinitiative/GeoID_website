@@ -504,12 +504,79 @@ check("an ordinary name is left exactly as it is",
     check("a real hole is still wound as a hole", ringArea(parts[1]) > 0);
   }
 
-  // The pinch: counted, never silently shipped.
+  /**
+   * THE PINCH IS REPAIRED, and repairing it must not cost ground.
+   *
+   * GEOS refuses a ring that visits the same point twice -- `Ring
+   * Self-intersection` -- and QGIS is one of the readers that will not draw
+   * the feature. Measured with ogrinfo on a 47 km clip of 358 features taken
+   * through the clip and the precedence pass: 2 were invalid, both for that
+   * reason, and after unpinching 358 of 358 are valid with the total area
+   * unchanged at 0.69409380 square degrees.
+   *
+   * The trap is the hourglass, and it is the reason an earlier attempt at this
+   * was reverted: when BOTH lobes enclose real ground, treating the smaller as
+   * a hole loses it -- 5.5% of the mapped area, measured. A lobe is dropped
+   * for having no area, never for its position.
+   */
   {
     const pinched = [[0, 0], [4, 0], [2, 2], [4, 4], [0, 4], [2, 2], [0, 0]];
     const fc = { type: "FeatureCollection",
       features: [feature({ type: "Polygon", coordinates: [pinched] }, { a: 1 })] };
     check("a ring that revisits a vertex is counted", countSelfTouchingRings(fc) === 1);
+
+    // The hourglass: two solid triangles meeting at a point.
+    const parts = partsOf({ type: "Polygon", coordinates: [pinched] });
+    check("a pinched ring is split rather than shipped",
+      parts.length === 2, `got ${parts.length} rings`);
+    check("and no part of it still revisits a vertex", parts.every((ring) => {
+      const seen = new Set();
+      return ring.slice(0, -1).every((p) => {
+        const k = `${p[0]},${p[1]}`;
+        if (seen.has(k)) return false;
+        seen.add(k); return true;
+      });
+    }));
+    const areaOf = (ring) => Math.abs(ringArea(ring) / 2);
+    const before = areaOf(pinched);
+    const after = parts.reduce((sum, ring) => sum + areaOf(ring), 0);
+    check("BOTH lobes survive, so the ground is unchanged",
+      Math.abs(after - before) < 1e-12, `${after} against ${before}`);
+    check("and both are written as outer rings, neither as a hole",
+      parts.every((ring) => ringArea(ring) < 0),
+      JSON.stringify(parts.map(ringArea)));
+  }
+  {
+    // The ordinary case from the real data: the spur encloses nothing, so it
+    // goes and the remainder keeps every bit of the ring.
+    // The spur's three points are COLLINEAR, so the loop it makes encloses
+    // nothing -- which is what the two real ones looked like. The remainder is
+    // the square, with (2,4) sitting on its top edge.
+    const spurred = [[0, 0], [4, 0], [4, 4], [2, 4], [3, 5], [4, 6], [2, 4], [0, 4], [0, 0]];
+    const parts = partsOf({ type: "Polygon", coordinates: [spurred] });
+    const areaOf = (ring) => Math.abs(ringArea(ring) / 2);
+    check("a zero-area spur is dropped, not kept as a ring",
+      parts.length === 1, `got ${parts.length}`);
+    check("and the square it hung off is intact",
+      Math.abs(areaOf(parts[0]) - 16) < 1e-6, `${areaOf(parts[0])}`);
+  }
+  {
+    // A ring can pinch more than once; the split recurses.
+    const twice = [[0, 0], [4, 0], [2, 2], [4, 4], [0, 4], [2, 2], [0, 0], [1, -2], [0, 0]];
+    const parts = partsOf({ type: "Polygon", coordinates: [twice] });
+    check("a ring pinched twice comes apart at both points",
+      parts.length >= 2 && parts.every((ring) => ring.length >= 4),
+      `got ${parts.length}`);
+  }
+  {
+    // A spike repeats a vertex too, and is not a pinch: counting before spikes
+    // are removed reported 87 rings on a clip where 2 were pinched.
+    const spiked = { type: "FeatureCollection", features: [feature({ type: "Polygon",
+      coordinates: [[[0, 0], [4, 0], [4, 4], [2, 4], [2, 6], [2, 4], [0, 4], [0, 0]]] },
+      { a: 1 })] };
+    check("a spike is not counted as a pinch", countSelfTouchingRings(spiked) === 0);
+  }
+  {
     check("a clean collection counts none", countSelfTouchingRings({
       type: "FeatureCollection",
       features: [feature({ type: "Polygon", coordinates: [sq(0, 0, 1, 1)] }, { a: 1 })] }) === 0);

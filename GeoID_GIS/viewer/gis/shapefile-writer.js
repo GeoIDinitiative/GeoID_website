@@ -184,11 +184,60 @@ export function ringIsDegenerate(ring) {
  * Drop the collapsed rings from one polygon, and the polygon itself when its
  * OUTER ring is the collapsed one — a hole without its shell is not a shape.
  */
+/**
+ * A RING THAT VISITS THE SAME POINT TWICE IS TWO RINGS, and one of them is
+ * usually nothing at all.
+ *
+ * The clip engine walks a ring and joins what survives, so where a concave
+ * unit is cut into pieces along the study-area edge the ring comes back
+ * pinched: it runs out to a point, round a spur, and back through that same
+ * point. GEOS calls it a `Ring Self-intersection` and refuses the geometry --
+ * measured with ogrinfo on a 47 km clip of 358 features, exactly 2 were
+ * invalid and both for that reason, at -6.813498/55.168917 and
+ * -7.012367/55.078367.
+ *
+ * Splitting at the repeated vertex gives the spur and the remainder. Measured
+ * on both: the spur is **three vertices enclosing exactly zero area** and the
+ * remainder carries 100% of the ring. So the spur is dropped by the degeneracy
+ * test that already runs here, and nothing is lost.
+ *
+ * This is NOT the split that was tried before and recorded as a mistake. That
+ * one kept both loops and asked containment which was a hole, and on a ring
+ * whose two lobes are both solid it judged the smaller one a hole and lost
+ * 5.5% of the mapped area. The difference is that a loop is dropped for
+ * having no area, never for its position, and a loop with area keeps whatever
+ * role its parent had.
+ *
+ * Recursive because a ring can pinch more than once, and bounded by the ring
+ * shrinking at every step.
+ */
+function unpinch(ring) {
+  if (!Array.isArray(ring) || ring.length < 4) return [ring];
+  const open = ring.slice(0, -1);
+  const seen = new Map();
+  for (let i = 0; i < open.length; i += 1) {
+    const key = `${open[i][0]},${open[i][1]}`;
+    const first = seen.get(key);
+    if (first === undefined) { seen.set(key, i); continue; }
+    const spur = open.slice(first, i);
+    const rest = open.slice(0, first).concat(open.slice(i));
+    const close = (loop) => (loop.length ? loop.concat([loop[0]]) : loop);
+    return [...unpinch(close(spur)), ...unpinch(close(rest))];
+  }
+  return [ring];
+}
+
 function livingRings(polygon) {
   if (!Array.isArray(polygon) || !polygon.length) return [];
-  const cleaned = polygon.map(withoutSpikes);
-  if (ringIsDegenerate(cleaned[0])) return [];
-  return [cleaned[0], ...cleaned.slice(1).filter((r) => !ringIsDegenerate(r))];
+  // Unpinched BEFORE the degeneracy test, so a zero-area spur becomes a ring of
+  // its own to be dropped rather than a fault hidden inside a ring with area.
+  const alive = (ring) => unpinch(withoutSpikes(ring)).filter((r) => !ringIsDegenerate(r));
+  // The SHELL decides whether the polygon exists at all: a hole without its
+  // shell is not a shape. A shell that unpinches into two solid loops is two
+  // shells, and `ringsByContainment` writes the second as its own outer ring.
+  const shell = alive(polygon[0]);
+  if (!shell.length) return [];
+  return [...shell, ...polygon.slice(1).flatMap(alive)];
 }
 
 /** Is this point inside this ring? Ray casting, for hole assignment. */
@@ -800,10 +849,31 @@ export function verifyShapefile(shp, shx, dbf) {
  * one pass, and the export says so rather than handing over a file that looks
  * well formed and will not draw.
  */
+/**
+ * How many rings ARRIVED pinched — counted on the geometry as given, not on
+ * what is written.
+ *
+ * The writer unpinches these now, so counting the written rings would report
+ * zero however bad the input was. The number is a fact about the source, and
+ * the run says it so a reader knows the clip engine left pinches behind even
+ * though the file that came out is clean.
+ */
+function rawRings(geometry) {
+  const type = geometry?.type;
+  const coords = geometry?.coordinates || [];
+  if (type === "Polygon") return coords;
+  if (type === "MultiPolygon") return coords.flat();
+  return [];
+}
+
 export function countSelfTouchingRings(collection) {
   let touched = 0;
   for (const feature of collection?.features || []) {
-    for (const ring of partsOf(feature?.geometry) || []) {
+    // Spikes first. A ring that walks out and back through a point repeats it,
+    // and that repeat is removed by `withoutSpikes` without any unpinching --
+    // counting before that step reported 87 rings on a clip where 2 were
+    // actually pinched, which is a diagnostic nobody can act on.
+    for (const ring of rawRings(feature?.geometry).map(withoutSpikes)) {
       const seen = new Set();
       let pinched = false;
       for (let i = 0; i < ring.length - 1; i += 1) {
