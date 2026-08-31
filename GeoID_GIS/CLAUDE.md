@@ -8408,3 +8408,35 @@ colour straight through, a repaint puts it through `THREE.Color`, and the two
 encode the same colour differently. Harmless here, but do not compare a
 built layer's bytes against source hexes — compare against that build's own
 fills.
+
+## Furniture that must stay on the ground is turned in ONE block
+
+The selected geology unit's highlight — both parts, the boundary lines
+(`selectedGeologyBoundaryGroup`) and the textured shell
+(`selectedGeologyOutline.mesh`) — is built from the feature's own lat/lon into
+the BASELINE frame and parked on `marsGroup`, which does not spin. Every other
+piece of ground-glued furniture is turned in one block each frame: labels, user
+pins, `gisBufferGroup`, contacts, structures, the CTX streamer, `measureGroup`.
+These two were never added to it. Measured live: globe 7.92851, `_spinDelta`
+4.78691, `GeoID-ImportedGeoLayers` 4.78691, the boundary group **0** — so the
+outline was right for one frame and the map then turned out from under it.
+
+`_spinDelta` is provably the right angle: `import-manager` sets the geo group
+with `geoGroup.rotation.y = globeY - Math.PI`, which is the same expression, so
+the two cannot diverge. The shell takes `globe.rotation.y`, being a textured
+sphere in the globe's own frame like `geologyGlobe` beside it.
+
+Fixed in both live Earth viewers (`GeoID_GIS/viewer`, `GeoID_Earth/viewer`).
+
+**When a highlight, pin or label drifts, check the per-frame spin block first
+and its ANCESTORS second.** This file already records four cases of a high
+`renderOrder` being ignored because a Group above it was left at zero; this is
+the same mistake in the rotation column.
+
+The OTHER highlight — `GeoID-FeatureOutline` from `gis/feature-popup.js`, the
+gold outline on a clicked GIS feature — was measured and is sound: parented to
+`GeoID-ImportedGeoLayers`, drift 0 over a rotation, and its vertices sit at
+exactly the radius of the layer's own fill (3.26169 against 3.26169, 0 km
+apart), so it neither slides nor parallaxes. If a detaching outline is seen
+again, note which layer was selected: these two are different objects with
+different failure modes.
