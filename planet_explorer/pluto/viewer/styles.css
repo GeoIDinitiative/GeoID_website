@@ -1571,9 +1571,18 @@
       color: var(--text);
       pointer-events: auto;
       transform: translate(-50%, calc(-100% - 1.6rem));
+      /* NOT a scroll container. `overflow-y: auto` here clips the card's own
+         ::before/::after to its padding box, so the tail is cropped off at the
+         edge it grows from -- computed, measured, and invisible. The scroll
+         lives on `.geo-popup-scroll` inside. */
+      overflow: visible;
+      animation: scene-popup-focus-pulse 1.9s ease-in-out infinite;
+    }
+    .geo-popup-scroll {
       max-height: min(46vh, 30rem);
       overflow-y: auto;
-      animation: scene-popup-focus-pulse 1.9s ease-in-out infinite;
+      overflow-x: hidden;
+      pointer-events: auto;
     }
     .geo-popup[hidden] { display: none; }
     .geo-popup-close {
@@ -1594,13 +1603,17 @@
     }
     .geo-popup-close:hover { color: var(--text); background: rgba(var(--nav-accent-rgb), 0.12); }
     /* Stem connecting popup to surface point */
+    /* THE DOT, AND NOTHING ELSE. The stem that used to run from the card down
+       to the point was a third thing to read on a map that already has the
+       card and the outline saying where you are; the card now carries a tail
+       that points at this dot, so the line has nothing left to do. The element
+       stays as the dot's anchor, with no body of its own. */
     .geo-popup-anchor {
       position: fixed;
       z-index: 21;
-      width: 3px;
-      height: 1.7rem;
-      background: linear-gradient(to bottom, rgba(88, 231, 223, 0.82), rgba(88, 231, 223, 0));
-      filter: drop-shadow(0 0 8px rgba(88, 231, 223, 0.34));
+      width: 0;
+      height: 0;
+      filter: drop-shadow(0 0 8px rgba(255, 214, 122, 0.42));
       transform: translateX(-50%);
       pointer-events: none;
     }
@@ -1613,12 +1626,112 @@
       width: 0.72rem;
       height: 0.72rem;
       border-radius: 999px;
-      background: rgba(88, 231, 223, 0.95);
-      border: 2px solid rgba(219, 255, 252, 0.85);
+      /* The dot wears the card's accent too. Card border, tail, dot and the
+         ring around the polygon are one object seen in four places, and a
+         hard-coded cyan matched the label on one theme and argued with it on
+         the next. */
+      background: rgba(255, 223, 144, 0.95);
+      border: 2px solid rgba(255, 250, 236, 0.88);
       transform: translate(-50%, -72%);
       box-shadow: 0 0 0 0 rgba(88, 231, 223, 0.22);
       animation: geology-selection-pulse 1.8s ease-out infinite;
     }
+    /* The card's tail, pointing back at the dot.
+       `--tail-x` is set from the anchor's true screen position, so when the
+       card has been pulled sideways to stay on screen the tail still points at
+       the ground it describes rather than sliding off with the box. */
+    /* THE TAIL IS PART OF THE BUBBLE, not a notch stuck to it.
+       The FILL is pulled a pixel BACK OVER the card, so the card's own border
+       is broken where the tail joins it. Sitting flush at the edge instead
+       left that border ruled straight across the base of the divot and the
+       tail read as a separate triangle stuck underneath a closed box. The
+       BORDER triangle sits just outside, so the outline runs down one side of
+       the point and back up the other.
+       Two triangles make one shape: `::before` is the BORDER, a pixel bigger
+       all round and in the card's own border colour, and `::after` is the FILL
+       painted over it, so the card's outline carries around the point instead
+       of stopping at a seam. Sized to read as a speech bubble at arm's length —
+       the notch it replaced was 18px across on a 320px card and vanished
+       against the map.
+
+       Which side it grows from is set by the placement: the card is put above
+       its point by preference, then pulled inside the view and flipped below
+       when there is no room, so the dot can finish on any of the four sides. */
+    .geo-popup::before,
+    .geo-popup::after {
+      content: "";
+      position: absolute;
+      width: 0;
+      height: 0;
+      pointer-events: none;
+    }
+    .geo-popup[data-tail="bottom"]::before,
+    .geo-popup[data-tail="bottom"]::after,
+    .geo-popup[data-tail="top"]::before,
+    .geo-popup[data-tail="top"]::after {
+      left: clamp(2.1rem, var(--tail-x, 50%), calc(100% - 2.1rem));
+      transform: translateX(-50%);
+    }
+    .geo-popup[data-tail="left"]::before,
+    .geo-popup[data-tail="left"]::after,
+    .geo-popup[data-tail="right"]::before,
+    .geo-popup[data-tail="right"]::after {
+      top: clamp(2.1rem, var(--tail-y, 50%), calc(100% - 2.1rem));
+      transform: translateY(-50%);
+    }
+
+    .geo-popup[data-tail="bottom"]::before {
+      top: 100%;
+      border-left: calc(1.6rem + 1px) solid transparent;
+      border-right: calc(1.6rem + 1px) solid transparent;
+      border-top: calc(1.5rem + 1px) solid rgba(255, 223, 144, 0.78);
+    }
+    .geo-popup[data-tail="bottom"]::after {
+      top: calc(100% - 1px);
+      border-left: 1.6rem solid transparent;
+      border-right: 1.6rem solid transparent;
+      border-top: 1.5rem solid rgba(6, 11, 17, 0.985);
+    }
+
+    .geo-popup[data-tail="top"]::before {
+      bottom: 100%;
+      border-left: calc(1.6rem + 1px) solid transparent;
+      border-right: calc(1.6rem + 1px) solid transparent;
+      border-bottom: calc(1.5rem + 1px) solid rgba(255, 223, 144, 0.78);
+    }
+    .geo-popup[data-tail="top"]::after {
+      bottom: calc(100% - 1px);
+      border-left: 1.6rem solid transparent;
+      border-right: 1.6rem solid transparent;
+      border-bottom: 1.5rem solid rgba(18, 28, 38, 0.95);
+    }
+
+    .geo-popup[data-tail="left"]::before {
+      right: 100%;
+      border-top: calc(1.6rem + 1px) solid transparent;
+      border-bottom: calc(1.6rem + 1px) solid transparent;
+      border-right: calc(1.5rem + 1px) solid rgba(255, 223, 144, 0.78);
+    }
+    .geo-popup[data-tail="left"]::after {
+      right: calc(100% - 1px);
+      border-top: 1.6rem solid transparent;
+      border-bottom: 1.6rem solid transparent;
+      border-right: 1.5rem solid rgba(12, 20, 28, 0.985);
+    }
+
+    .geo-popup[data-tail="right"]::before {
+      left: 100%;
+      border-top: calc(1.6rem + 1px) solid transparent;
+      border-bottom: calc(1.6rem + 1px) solid transparent;
+      border-left: calc(1.5rem + 1px) solid rgba(255, 223, 144, 0.78);
+    }
+    .geo-popup[data-tail="right"]::after {
+      left: calc(100% - 1px);
+      border-top: 1.6rem solid transparent;
+      border-bottom: 1.6rem solid transparent;
+      border-left: 1.5rem solid rgba(12, 20, 28, 0.985);
+    }
+
 
     .scene-popup-detail {
       margin-top: 0.7rem;

@@ -8,13 +8,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260831-8e64316">
+  <link rel="stylesheet" href="styles.css?v=20260831-684044c">
   <link rel="stylesheet" href="/styles/flightsim.css">
   <link rel="stylesheet" href="/styles/viewer-skin.css">
-  <script src="/scripts/tour-enter.js?v=20260831-8e64316" defer></script>
-  <script src="/scripts/ui-sound.js?v=20260831-8e64316" defer></script>
+  <script src="/scripts/tour-enter.js?v=20260831-684044c" defer></script>
+  <script src="/scripts/ui-sound.js?v=20260831-684044c" defer></script>
   <!-- The GIS layer: shared shell markup, styling and modules. -->
-  <link rel="stylesheet" href="/GeoID_GIS/viewer/gis/shell.css?v=20260831-8e64316">
+  <link rel="stylesheet" href="/GeoID_GIS/viewer/gis/shell.css?v=20260831-684044c">
 </head>
 <body class="viewer-page">
   <div id="app"></div>
@@ -545,14 +545,23 @@
     <img id="scene-popup-img" class="scene-popup-img" alt="" hidden>
   </div>
   <div id="scene-popup-anchor" class="scene-popup-anchor" hidden></div>
+  <!-- The card SCROLLS INSIDE, so its own box can grow a tail.
+       `overflow-y: auto` makes an element a scroll container, and a scroll
+       container clips its ::before/::after to the padding box — so a tail
+       drawn on the card was cropped off at the edge it grew from, present in
+       the computed styles and invisible on screen. The scrolling belongs to
+       the content; the card keeps a shape. -->
   <div id="geo-popup" class="geo-popup" hidden>
     <button id="geo-popup-close" class="geo-popup-close" type="button" aria-label="Close">&#x2715;</button>
-    <p class="feature-kicker" id="geo-popup-kicker">Geologic unit</p>
-    <h3 class="feature-title" id="geo-popup-title"></h3>
-    <p class="feature-meta" id="geo-popup-meta"></p>
-    <p class="feature-copy" id="geo-popup-copy"></p>
-    <div id="geo-popup-detail" class="scene-popup-detail" hidden></div>
+    <div class="geo-popup-scroll">
+      <p class="feature-kicker" id="geo-popup-kicker">Geologic unit</p>
+      <h3 class="feature-title" id="geo-popup-title"></h3>
+      <p class="feature-meta" id="geo-popup-meta"></p>
+      <p class="feature-copy" id="geo-popup-copy"></p>
+      <div id="geo-popup-detail" class="scene-popup-detail" hidden></div>
+    </div>
   </div>
+
   <div id="geo-popup-anchor" class="geo-popup-anchor" hidden></div>
   <div id="tool-rail" aria-label="Tool launcher">
     <div class="tool-rail-item" data-measure-item="distance">
@@ -1256,7 +1265,7 @@
 </script>
 <script src="ui-controls.js" defer></script>
 <button id="music-btn" class="is-paused" title="Play music">▶ MUSIC</button>
-<script src="music.js?v=20260831-8e64316" defer></script>
+<script src="music.js?v=20260831-684044c" defer></script>
 
 
   <div id="portrait-advisory" role="status" aria-live="polite">
@@ -1277,8 +1286,8 @@
       });
     })();
   </script>
-<script src="/scripts/flightsim.js?v=20260831-8e64316-atmos2" defer></script>
+<script src="/scripts/flightsim.js?v=20260831-684044c-atmos2" defer></script>
   <script>if (window.self !== window.top) document.body.classList.add("is-embedded");</script>
-  <script type="module" src="/GeoID_GIS/viewer/gis/boot.js?v=20260831-8e64316"></script>
+  <script type="module" src="/GeoID_GIS/viewer/gis/boot.js?v=20260831-684044c"></script>
 </body>
 </html>

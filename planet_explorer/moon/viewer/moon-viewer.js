@@ -18953,6 +18953,22 @@ ${error && error.message ? error.message : error}`;
           }
         }
 
+        /**
+         * THE SELECTED UNIT'S OUTLINE PULSES, so a card and an outline read as
+         * one answer.
+         *
+         * The clipped layer's outline has pulsed since it was built — it is a
+         * set of 3D lines and its own loop breathes their opacity. This one is
+         * a canvas texture on a shell over the globe, so there are no lines to
+         * animate: the MATERIAL's opacity is what breathes instead. Same
+         * period, so two layers selected at once beat together rather than
+         * against each other.
+         */
+        if (selectedGeologyOutline?.mesh?.visible && selectedGeologyOutline.mesh.material) {
+          const phase = Math.sin((performance.now() / 1600) * Math.PI * 2);
+          selectedGeologyOutline.mesh.material.opacity = 0.92 * (0.55 + 0.45 * (phase * 0.5 + 0.5));
+        }
+
         // Geo popup: reproject world-space hit point to screen each frame using differential rotation
         if (activeGeoPopupLocalPos && activeGeoPopupFeature) {
           try {
@@ -18968,12 +18984,77 @@ ${error && error.message ? error.message : error}`;
               if (geoPopupAnchor) geoPopupAnchor.hidden = true;
             } else {
               const projected = worldPos.clone().project(camera);
-              const sx = (projected.x * 0.5 + 0.5) * window.innerWidth;
-              const sy = (-projected.y * 0.5 + 0.5) * window.innerHeight;
+              /**
+               * Projected into the CANVAS, not the window: the two differ the
+               * moment the map sits under a nav bar, as it does in the hub,
+               * and every card then answers a point the reader is not looking
+               * at.
+               */
+              const view = renderer.domElement.getBoundingClientRect();
+              const sx = view.left + (projected.x * 0.5 + 0.5) * view.width;
+              const sy = view.top + (-projected.y * 0.5 + 0.5) * view.height;
               if (geoPopup) {
                 geoPopup.hidden = false;
-                geoPopup.style.left = sx + "px";
-                geoPopup.style.top = sy + "px";
+                /**
+                 * THE CARD IS KEPT ON SCREEN. It is `position: fixed` and drawn
+                 * ABOVE its anchor by `translate(-50%, -100% - 1.6rem)`, and
+                 * nothing clamped it — so a feature near the top of the map put
+                 * its card off the top of the window, which is how a reader came
+                 * to see one with its first rows cut away.
+                 *
+                 * Above by preference, because that is where it has always been
+                 * and the anchor line reads upward. Below when there is no room,
+                 * rather than pinned to the edge pointing at nothing. The ANCHOR
+                 * dot is never clamped: it marks the true spot even when the
+                 * card has stepped aside.
+                 */
+                const margin = 8;
+                const gap = 1.6 * 16;
+                const w = geoPopup.offsetWidth;
+                const h = geoPopup.offsetHeight;
+                const minX = view.left + w / 2 + margin;
+                const maxX = view.right - w / 2 - margin;
+                const px = minX > maxX ? (view.left + view.right) / 2
+                  : Math.min(Math.max(sx, minX), maxX);
+                const roomAbove = (sy - gap - h) >= (view.top + margin);
+                let py;
+                if (roomAbove) {
+                  geoPopup.style.transform = "translate(-50%, calc(-100% - 1.6rem))";
+                  geoPopup.classList.remove("is-below");
+                  py = Math.min(sy, view.bottom - margin + gap);
+                } else {
+                  geoPopup.style.transform = "translate(-50%, 1.6rem)";
+                  geoPopup.classList.add("is-below");
+                  py = Math.max(view.top + margin - gap,
+                    Math.min(sy, view.bottom - margin - gap - h));
+                }
+                geoPopup.style.left = px + "px";
+                geoPopup.style.top = py + "px";
+                /**
+                 * The divot goes on WHICHEVER SIDE the dot ended up on.
+                 *
+                 * The card is placed above its point by preference, then
+                 * pulled inside the view and flipped below when there is no
+                 * room — so the dot can finish on any of the four sides, and a
+                 * tail welded to the bottom points at open map as soon as the
+                 * card has stepped aside. The card's rect is computed here
+                 * rather than measured, because measuring is a second reflow
+                 * in a loop that already forces one for the size.
+                 */
+                const cardLeft = px - (w / 2);
+                const cardTop = roomAbove ? (py - gap - h) : (py + gap);
+                let tail;
+                if (sy > cardTop + h) tail = "bottom";
+                else if (sy < cardTop) tail = "top";
+                else if (sx < cardLeft) tail = "left";
+                else if (sx > cardLeft + w) tail = "right";
+                else tail = roomAbove ? "bottom" : "top";   // dot beneath the card
+                geoPopup.dataset.tail = tail;
+                if (tail === "left" || tail === "right") {
+                  geoPopup.style.setProperty("--tail-y", `${sy - cardTop}px`);
+                } else {
+                  geoPopup.style.setProperty("--tail-x", `${sx - cardLeft}px`);
+                }
               }
               if (geoPopupAnchor) {
                 geoPopupAnchor.hidden = false;
