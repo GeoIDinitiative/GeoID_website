@@ -1664,6 +1664,12 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
        card has been pulled sideways to stay on screen the tail still points at
        the ground it describes rather than sliding off with the box. */
     /* THE TAIL IS PART OF THE BUBBLE, not a notch stuck to it.
+       The FILL is pulled a pixel BACK OVER the card, so the card's own border
+       is broken where the tail joins it. Sitting flush at the edge instead
+       left that border ruled straight across the base of the divot and the
+       tail read as a separate triangle stuck underneath a closed box. The
+       BORDER triangle sits just outside, so the outline runs down one side of
+       the point and back up the other.
        Two triangles make one shape: `::before` is the BORDER, a pixel bigger
        all round and in the card's own border colour, and `::after` is the FILL
        painted over it, so the card's outline carries around the point instead
@@ -1698,52 +1704,52 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
     }
 
     .geo-popup[data-tail="bottom"]::before {
-      top: calc(100% - 1px);
+      top: 100%;
       border-left: calc(1.6rem + 1px) solid transparent;
       border-right: calc(1.6rem + 1px) solid transparent;
       border-top: calc(1.5rem + 1px) solid rgba(255, 223, 144, 0.78);
     }
     .geo-popup[data-tail="bottom"]::after {
-      top: 100%;
+      top: calc(100% - 1px);
       border-left: 1.6rem solid transparent;
       border-right: 1.6rem solid transparent;
       border-top: 1.5rem solid rgba(6, 11, 17, 0.985);
     }
 
     .geo-popup[data-tail="top"]::before {
-      bottom: calc(100% - 1px);
+      bottom: 100%;
       border-left: calc(1.6rem + 1px) solid transparent;
       border-right: calc(1.6rem + 1px) solid transparent;
       border-bottom: calc(1.5rem + 1px) solid rgba(255, 223, 144, 0.78);
     }
     .geo-popup[data-tail="top"]::after {
-      bottom: 100%;
+      bottom: calc(100% - 1px);
       border-left: 1.6rem solid transparent;
       border-right: 1.6rem solid transparent;
       border-bottom: 1.5rem solid rgba(18, 28, 38, 0.95);
     }
 
     .geo-popup[data-tail="left"]::before {
-      right: calc(100% - 1px);
+      right: 100%;
       border-top: calc(1.6rem + 1px) solid transparent;
       border-bottom: calc(1.6rem + 1px) solid transparent;
       border-right: calc(1.5rem + 1px) solid rgba(255, 223, 144, 0.78);
     }
     .geo-popup[data-tail="left"]::after {
-      right: 100%;
+      right: calc(100% - 1px);
       border-top: 1.6rem solid transparent;
       border-bottom: 1.6rem solid transparent;
       border-right: 1.5rem solid rgba(12, 20, 28, 0.985);
     }
 
     .geo-popup[data-tail="right"]::before {
-      left: calc(100% - 1px);
+      left: 100%;
       border-top: calc(1.6rem + 1px) solid transparent;
       border-bottom: calc(1.6rem + 1px) solid transparent;
       border-left: calc(1.5rem + 1px) solid rgba(255, 223, 144, 0.78);
     }
     .geo-popup[data-tail="right"]::after {
-      left: 100%;
+      left: calc(100% - 1px);
       border-top: 1.6rem solid transparent;
       border-bottom: 1.6rem solid transparent;
       border-left: 1.5rem solid rgba(12, 20, 28, 0.985);
