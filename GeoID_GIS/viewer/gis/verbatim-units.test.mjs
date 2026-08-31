@@ -333,6 +333,68 @@ const answering = (calls) => async (url) => {
   }
 }
 
+/**
+ * WHICH SURVEY IS FINER IS THE PUBLISHER'S ANSWER, not a guess from geometry.
+ *
+ * Vertices per unit area describes how geometry was DELIVERED, not how finely
+ * ground was mapped. Measured over Inishowen it inverted: Macrostrat's source
+ * 154 scored 1,157 against source 147's 797, because 147's units had been
+ * swapped for smooth verbatim API shapes while 154 was still ragged tile
+ * pieces. The regional map then outranked the national one, cut it away, and
+ * filled the study area with a blanket over ground already better mapped —
+ * "you've used the low resolution polygons, it's missing detailed lines".
+ *
+ * The tile reader knows the real answer while it climbs: this source switches
+ * between surveys BY SCALE, so the deepest zoom a survey is served at is its
+ * scale. `surveyRanks` takes it when it is offered.
+ */
+{
+  const { __surveyRanks: ranks } = await import("./tool-runner.js");
+  const box = (x0, y0, x1, y1) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]];
+  const at = (src, ring) => ({ type: "Feature", properties: { source_id: src },
+    geometry: { type: "Polygon", coordinates: [ring] } });
+  // A smooth verbatim polygon from the fine survey, a ragged tiled sliver from
+  // the coarse one — the exact shape that inverted the measurement.
+  const smoothFine = at(147, box(0, 0, 10, 10));
+  const raggedCoarse = at(154, (() => {
+    const ring = [];
+    for (let i = 0; i <= 60; i += 1) ring.push([i / 6, (i % 2) * 0.01]);
+    for (let i = 60; i >= 0; i -= 1) ring.push([i / 6, 1 + (i % 2) * 0.01]);
+    ring.push(ring[0]);
+    return ring;
+  })());
+  const features = [smoothFine, raggedCoarse];
+
+  ok("geometry alone ranks the ragged coarse survey above the smooth fine one",
+    (ranks(features).get("154") || 0) > (ranks(features).get("147") || 0),
+    "the inversion this guards against must stay reproducible");
+
+  {
+    // Macrostrat serves 147 to zoom 9 over this ground and 154 only to zoom 6.
+    const told = ranks(features, { 147: 9, 154: 6 });
+    ok("the published scale puts the finer survey on top", told.get("147") > told.get("154"));
+    ok("and the rank IS the zoom, so it reads back", told.get("147") === 9);
+  }
+
+  {
+    // An unplaced survey would rank 0 and be cut by everything, so a partial
+    // answer is refused whole and the measurement runs instead.
+    const partial = ranks(features, { 147: 9 });
+    ok("a scale map that does not place every survey present is not used",
+      partial.get("147") !== 9 && (partial.get("154") || 0) > (partial.get("147") || 0),
+      `got ${JSON.stringify([...partial.entries()])}`);
+  }
+
+  ok("one zoom for every survey separates nothing and falls through to geometry",
+    (() => { const r = ranks(features, { 147: 6, 154: 6 });
+      return (r.get("154") || 0) > (r.get("147") || 0); })());
+
+  ok("no scale map at all still ranks by geometry", ranks(features, null).size === 2);
+
+  ok("a single survey is left alone whatever it is told",
+    ranks([smoothFine], { 147: 9 }).size === 1);
+}
+
 console.log(`${pass} passed`);
 if (fail) console.log(`${fail} FAILED`);
 process.exit(fail ? 1 : 0);

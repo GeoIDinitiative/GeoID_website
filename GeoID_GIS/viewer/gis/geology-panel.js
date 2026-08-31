@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260831-89e9667";
-import { currentBodyId } from "./bodies.js?v=20260831-89e9667";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260831-89e9667";
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260831-89e9667";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260831-b365f88";
+import { currentBodyId } from "./bodies.js?v=20260831-b365f88";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260831-b365f88";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260831-b365f88";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -458,6 +458,9 @@ async function loadTiled(entry, { toView = false, quiet = false } = {}) {
       layer.lastFetch = {
         zoom: got.zoom, tiles: got.tiles, features: got.features.length,
         levels: got.levels || null, stoppedFor: got.stoppedFor || null, budget: got.budget || null,
+        // The deepest level each SURVEY survives to, which is the publisher's
+        // own statement of its scale — see `sourceZooms` in vector-tiles.
+        sourceZooms: got.sourceZooms || null,
       };
       return collection;
     };

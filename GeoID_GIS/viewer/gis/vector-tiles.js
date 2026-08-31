@@ -35,9 +35,9 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260831-89e9667";
-import { renderFeatureCollection } from "./vector-render.js?v=20260831-89e9667";
-import * as GP from "./geoprocessing.js?v=20260831-89e9667";
+import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260831-b365f88";
+import { renderFeatureCollection } from "./vector-render.js?v=20260831-b365f88";
+import * as GP from "./geoprocessing.js?v=20260831-b365f88";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -1149,9 +1149,28 @@ export function createTiledVectorLayer({
       barren += 1;
       if (barren >= 2) { stoppedFor = "source"; break; }
     }
+    /**
+     * WHICH SURVEY IS THE FINE ONE, answered by the source rather than guessed.
+     *
+     * `deepestFor` already knows: this source composites several surveys and
+     * switches between them BY SCALE, so the deepest level a survey survives
+     * to is its own scale, stated by the publisher. A regional map stops being
+     * served around zoom 6 and a national one runs to 13.
+     *
+     * It was thrown away here, and everything downstream that needed to know
+     * which survey outranks which had to infer it from the geometry. Vertices
+     * per unit area is the obvious proxy and it is WRONG: measured over
+     * Inishowen it scored Macrostrat's source 154 above source 147 (1,157 to
+     * 797) because 147's units came back from the API as smooth verbatim
+     * shapes while 154 arrived as ragged tile pieces. The coarser map then
+     * outranked the finer one and cut it away, and the study area filled with
+     * a regional blanket over ground a better survey had already mapped.
+     */
+    const sourceZooms = {};
+    for (const [key, rec] of deepestFor) sourceZooms[key] = rec.zoom;
     return best
-      ? { ...best, levels, stoppedFor: stoppedFor || "source", budget }
-      : { features: [], zoom: start, tiles: 0, levels, stoppedFor, budget };
+      ? { ...best, levels, sourceZooms, stoppedFor: stoppedFor || "source", budget }
+      : { features: [], zoom: start, tiles: 0, levels, sourceZooms, stoppedFor, budget };
   }
 
   function featureCount() {

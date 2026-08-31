@@ -1,21 +1,21 @@
-import * as GP from "./geoprocessing.js?v=20260831-89e9667";
-import * as RA from "./raster-analysis.js?v=20260831-89e9667";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260831-89e9667";
+import * as GP from "./geoprocessing.js?v=20260831-b365f88";
+import * as RA from "./raster-analysis.js?v=20260831-b365f88";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260831-b365f88";
 // eslint-disable-next-line no-unused-vars
-import { pointInPolygon } from "./geometry.js?v=20260831-89e9667";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260831-89e9667";
+import { pointInPolygon } from "./geometry.js?v=20260831-b365f88";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260831-b365f88";
 // Pure and DOM-free, so a static import keeps this module Node-clean AND keeps
 // the terrain engine SYNCHRONOUS -- runTool calls engines.native WITHOUT
 // awaiting it, so an async engine hands register() a Promise and the raster
 // comes out undefined. Measured as: "Cannot read properties of undefined".
-import { buildSurface, nativeStepM } from "./model-build.js?v=20260831-89e9667";
-import { nativeGridOf } from "./extraction.js?v=20260831-89e9667";
-import { CRS_OPTIONS } from "./projection.js?v=20260831-89e9667";
-import * as IN from "./interpolation.js?v=20260831-89e9667";
-import * as VAL from "./validation.js?v=20260831-89e9667";
-import * as EX from "./analysis-extra.js?v=20260831-89e9667";
-import * as HY from "./hydrology.js?v=20260831-89e9667";
-import * as KR from "./kriging.js?v=20260831-89e9667";
+import { buildSurface, nativeStepM } from "./model-build.js?v=20260831-b365f88";
+import { nativeGridOf } from "./extraction.js?v=20260831-b365f88";
+import { CRS_OPTIONS } from "./projection.js?v=20260831-b365f88";
+import * as IN from "./interpolation.js?v=20260831-b365f88";
+import * as VAL from "./validation.js?v=20260831-b365f88";
+import * as EX from "./analysis-extra.js?v=20260831-b365f88";
+import * as HY from "./hydrology.js?v=20260831-b365f88";
+import * as KR from "./kriging.js?v=20260831-b365f88";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -2175,7 +2175,36 @@ async function refineInputsForArea(resolved, box, params, refined = []) {
  * from the data rather than a table means any source with overlapping surveys
  * is ranked without a list to maintain.
  */
-function surveyRanks(features) {
+function surveyRanks(features, publishedScales = null) {
+  /**
+   * THE PUBLISHER'S OWN ANSWER FIRST, when there is one.
+   *
+   * Macrostrat composites several surveys and switches between them BY SCALE,
+   * so the deepest zoom a survey is served at IS its scale, and the tile
+   * reader already learns it while climbing. Preferring it matters because the
+   * geometric proxy below is not merely imprecise, it INVERTS: measured over
+   * Inishowen it ranked source 154 above source 147 (1,157 to 797), because
+   * 147's units had been swapped for smooth verbatim API shapes while 154 was
+   * still ragged tile pieces. Vertex density then described how the geometry
+   * had been DELIVERED rather than how finely the ground was mapped, the
+   * regional map outranked the national one and cut it away, and the study
+   * area filled with a coarse blanket over ground a better survey had mapped.
+   *
+   * Only used when it separates the surveys present. A map with one zoom for
+   * everything says nothing, and falls through to the measurement.
+   */
+  const present = new Set((features || [])
+    .map((f) => String(f?.properties?.source_id ?? "")).filter(Boolean));
+  if (publishedScales && present.size > 1) {
+    const zooms = new Map();
+    for (const key of present) {
+      const z = Number(publishedScales[key]);
+      if (Number.isFinite(z)) zooms.set(key, z);
+    }
+    // Every survey has to be placed, or a survey with no answer would rank 0
+    // and be cut by everything.
+    if (zooms.size === present.size && new Set(zooms.values()).size > 1) return zooms;
+  }
   const stats = new Map();
   const ringArea = (ring) => {
     let a = 0;
@@ -2502,7 +2531,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260831-89e9667");
+    const client = await import("./sidecar-client.js?v=20260831-b365f88");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -2567,7 +2596,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260831-89e9667");
+    const bridge = await import("./research/bridge.js?v=20260831-b365f88");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -2579,12 +2608,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260831-89e9667");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260831-b365f88");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260831-89e9667");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260831-b365f88");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }
@@ -2778,7 +2807,22 @@ function register(desc, raw, name, resolvedInputs = {}) {
    * Only where there is more than one survey to choose between: a single-source
    * layer ranks everything equally and the renderer's ordinary path runs.
    */
-  const ranks = surveyRanks(fc.features);
+  /**
+   * What the INPUTS were told about their own surveys' scales, collected from
+   * the fetch that produced these features. `register` already holds the
+   * resolved inputs for exactly this kind of question.
+   */
+  const publishedScales = {};
+  for (const layer of Object.values(resolvedInputs || {})) {
+    const zooms = layer?.lastFetch?.sourceZooms;
+    if (!zooms) continue;
+    for (const [key, zoom] of Object.entries(zooms)) {
+      // The deepest claim wins if two inputs disagree: a survey seen at zoom
+      // 13 by one fetch is a zoom-13 survey whatever a shallower look said.
+      if (!(key in publishedScales) || zoom > publishedScales[key]) publishedScales[key] = zoom;
+    }
+  }
+  const ranks = surveyRanks(fc.features, Object.keys(publishedScales).length ? publishedScales : null);
   const rankOf = ranks.size > 1
     ? (f) => ranks.get(String(f?.properties?.source_id ?? "")) || 0
     : null;
