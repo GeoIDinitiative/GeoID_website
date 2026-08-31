@@ -21,9 +21,9 @@
  * rather than silently dropping whatever does not fit.
  */
 
-import * as VF from "./vector-formats.js?v=20260831-7b1b918";
-import { downloadText } from "./extraction.js?v=20260831-7b1b918";
-import { buildShapefileZip, shapeTypeFor, SHAPE_NAMES } from "./shapefile-writer.js?v=20260831-7b1b918";
+import * as VF from "./vector-formats.js?v=20260831-d44b3c4";
+import { downloadText } from "./extraction.js?v=20260831-d44b3c4";
+import { buildShapefileZip, shapeTypeFor, SHAPE_NAMES, safeShapefileName } from "./shapefile-writer.js?v=20260831-d44b3c4";
 
 /**
  * What a layer is, read from its contents rather than its name.
@@ -361,7 +361,10 @@ export function renderExport(layer, formatId) {
     const bytes = buildShapefileZip(collection, base);
     if (!bytes) return null;
     return {
-      filename: `${base}_shapefile.zip`,
+      // The zip is named like the files inside it. A layer called
+      // "clip_World geology (Macrostrat)" otherwise downloads with spaces and
+      // brackets in the filename while the shapefile within has neither.
+      filename: `${safeShapefileName(base)}_shapefile.zip`,
       mime: format.mime,
       bytes,
       shapeType: SHAPE_NAMES[shapeTypeFor(collection)],

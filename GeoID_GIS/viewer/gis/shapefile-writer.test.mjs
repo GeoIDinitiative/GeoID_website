@@ -23,6 +23,7 @@
 import {
   shapeTypeFor, ringArea, orientRing, partsOf,
   writeShpAndShx, dbfFields, writeDbf, crc32, zipStore, buildShapefileZip,
+  safeShapefileName,
   PRJ_WGS84, POINT, POLYLINE, POLYGON, MULTIPOINT,
 } from "./shapefile-writer.js";
 
@@ -333,6 +334,64 @@ eq("a mixed collection produces nothing rather than a partial file",
     feature({ type: "Point", coordinates: [1, 2] }),
     feature({ type: "Polygon", coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] }),
   ), "mixed"), null);
+
+/**
+ * A NAME BOTH QGIS AND ARCGIS WILL TAKE.
+ *
+ * The base name becomes the LAYER's name wherever the file is opened, and
+ * ArcGIS holds feature class names to the coverage rules: letters, digits and
+ * underscores, not starting with a digit. The clip tool's own output is named
+ * `clip_World geology (Macrostrat)`, which OGR opens happily and ArcGIS will
+ * not take into a geodatabase. QGIS tolerating it is exactly why this could
+ * look fine and still not be ready.
+ */
+check("the clip tool's own name is made safe",
+  safeShapefileName("clip_World geology (Macrostrat)") === "clip_World_geology_Macrostrat",
+  safeShapefileName("clip_World geology (Macrostrat)"));
+check("spaces become single underscores",
+  safeShapefileName("Geology 10km") === "Geology_10km");
+check("a run of punctuation collapses rather than piling up",
+  safeShapefileName("a -- b // c") === "a_b_c", safeShapefileName("a -- b // c"));
+check("leading and trailing punctuation is dropped",
+  safeShapefileName("  (draft) ") === "draft", safeShapefileName("  (draft) "));
+check("a leading digit is moved off the front, which ArcGIS requires",
+  /^x10km/.test(safeShapefileName("10km clip")), safeShapefileName("10km clip"));
+check("an unusable name falls back rather than writing a bare .shp",
+  safeShapefileName("") === "layer" && safeShapefileName("///") === "layer");
+check("a very long name is cut to something a filesystem will take",
+  safeShapefileName("z".repeat(200)).length <= 60);
+check("an ordinary name is left exactly as it is",
+  safeShapefileName("bedrock_units") === "bedrock_units");
+
+/**
+ * A ZIP DATE OF ZERO IS NOT A DATE. All-zero DOS fields mean month 0 and day
+ * 0; unzip reports "1980-00-00" and stricter readers reject the entry. The
+ * format's own epoch is written instead, in BOTH headers -- a reader that
+ * checks one against the other must not find two answers.
+ */
+{
+  const dated = buildShapefileZip({ type: "FeatureCollection", features: [
+    { type: "Feature", properties: { a: 1 },
+      geometry: { type: "Polygon", coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] } }] }, "dated");
+  const view = new DataView(dated.buffer, dated.byteOffset, dated.byteLength);
+  const localDate = view.getUint16(12, true);
+  check("the local header carries 1980-01-01, not zero", localDate === ((1 << 5) | 1), String(localDate));
+  let central = -1;
+  for (let i = 0; i + 4 <= dated.length; i += 1) {
+    if (view.getUint32(i, true) === 0x02014b50) { central = i; break; }
+  }
+  check("a central directory is present", central > 0);
+  check("and carries the same date as the local header",
+    central > 0 && view.getUint16(central + 14, true) === localDate);
+  // The member files are named from the SAFE name, not the one passed in.
+  const named = buildShapefileZip({ type: "FeatureCollection", features: [
+    { type: "Feature", properties: { a: 1 },
+      geometry: { type: "Polygon", coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] } }] },
+    "clip_World geology (Macrostrat)");
+  const text = new TextDecoder("latin1").decode(named);
+  check("the files inside are named safely too",
+    text.includes("clip_World_geology_Macrostrat.shp") && !text.includes("(Macrostrat).shp"));
+}
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");
 process.exit(failures ? 1 : 0);

@@ -427,6 +427,35 @@ export function crc32(bytes) {
  * method 0. The four files must travel together -- that is the whole reason a
  * shapefile export is an archive and not a download.
  */
+/**
+ * A NAME BOTH QGIS AND ARCGIS WILL TAKE.
+ *
+ * A shapefile's base name becomes the LAYER's name in whatever opens it, and
+ * ArcGIS holds feature class names to the old coverage rules: letters, digits
+ * and underscores, not starting with a digit. Spaces and parentheses are out,
+ * and the clip tool's own output is named exactly `clip_World geology
+ * (Macrostrat)` — which OGR opens happily and ArcGIS refuses to bring into a
+ * geodatabase without renaming.
+ *
+ * QGIS tolerates all of it, which is why this can look fine and still not be
+ * "ready for ArcGIS". The strict rule costs nothing on the tolerant side.
+ */
+export function safeShapefileName(name, fallback = "layer") {
+  const cleaned = String(name ?? "")
+    .normalize("NFKD")
+    .replace(/[^A-Za-z0-9]+/g, "_")     // anything else becomes one underscore
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 60)
+    .replace(/_+$/, "");
+  if (!cleaned) return fallback;
+  // A leading digit is legal in a FILE name and not in a feature class name.
+  return /^[0-9]/.test(cleaned) ? `x${cleaned}` : cleaned;
+}
+
+/** 1980-01-01 in DOS date form: year 0 from 1980, month 1, day 1. */
+const DOS_EPOCH_DATE = (0 << 9) | (1 << 5) | 1;
+
 export function zipStore(files) {
   const encoder = new TextEncoder();
   const entries = files.map((file) => ({
@@ -446,6 +475,11 @@ export function zipStore(files) {
     view.setUint32(offset, 0x04034b50, true);      // local file header
     view.setUint16(offset + 4, 20, true);          // version needed
     view.setUint16(offset + 8, 0, true);           // method 0: stored
+    // A DOS date of all zeroes is month 0, day 0 -- not a date. unzip prints it
+    // as "1980-00-00" and stricter readers reject the entry outright, so the
+    // epoch of the format itself is written instead: 1980-01-01, 00:00.
+    view.setUint16(offset + 10, 0, true);           // time
+    view.setUint16(offset + 12, DOS_EPOCH_DATE, true);
     view.setUint32(offset + 14, entry.crc, true);
     view.setUint32(offset + 18, entry.data.length, true);
     view.setUint32(offset + 22, entry.data.length, true);
@@ -460,7 +494,9 @@ export function zipStore(files) {
     view.setUint32(offset, 0x02014b50, true);      // central directory header
     view.setUint16(offset + 4, 20, true);
     view.setUint16(offset + 6, 20, true);
-    view.setUint16(offset + 10, 0, true);
+    view.setUint16(offset + 10, 0, true);          // method 0: stored
+    view.setUint16(offset + 12, 0, true);          // time, matching the local header
+    view.setUint16(offset + 14, DOS_EPOCH_DATE, true);
     view.setUint32(offset + 16, entry.crc, true);
     view.setUint32(offset + 20, entry.data.length, true);
     view.setUint32(offset + 24, entry.data.length, true);
@@ -489,18 +525,21 @@ export function zipStore(files) {
 export function buildShapefileZip(collection, name = "layer", options = {}) {
   const shapeType = shapeTypeFor(collection);
   if (!shapeType) return null;
+  // The base name becomes the LAYER's name wherever this is opened, so it is
+  // held to the stricter of the two readers' rules. See safeShapefileName.
+  const base = safeShapefileName(name);
   const features = (collection.features || []).filter((f) => f?.geometry);
   const { shp, shx } = writeShpAndShx(features, shapeType);
   const fields = dbfFields(features);
   const dbf = writeDbf(features, fields, options);
   return zipStore([
-    { name: `${name}.shp`, data: shp },
-    { name: `${name}.shx`, data: shx },
-    { name: `${name}.dbf`, data: dbf },
-    { name: `${name}.prj`, data: UTF8.encode(PRJ_WGS84) },
+    { name: `${base}.shp`, data: shp },
+    { name: `${base}.shx`, data: shx },
+    { name: `${base}.dbf`, data: dbf },
+    { name: `${base}.prj`, data: UTF8.encode(PRJ_WGS84) },
     // A .dbf carries no encoding of its own, so a reader guesses -- usually at
     // some 1990s code page. This is the file that tells it, and it is why the
     // values above can be UTF-8 at all.
-    { name: `${name}.cpg`, data: UTF8.encode("UTF-8") },
+    { name: `${base}.cpg`, data: UTF8.encode("UTF-8") },
   ]);
 }
