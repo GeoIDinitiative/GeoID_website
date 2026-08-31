@@ -1,8 +1,8 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260831-bc6d692";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260831-bc6d692";
-import { pointInPolygon } from "./geometry.js?v=20260831-bc6d692";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260831-bc6d692";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260831-687d68a";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260831-687d68a";
+import { pointInPolygon } from "./geometry.js?v=20260831-687d68a";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260831-687d68a";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -1215,6 +1215,81 @@ function defaultSymbology(fc) {
   };
 }
 
+/**
+ * Colour columns a dataset publishes about ITSELF, in the spellings the
+ * formats actually use. Shapefile DBF names come back upper case, GeoJSON
+ * keeps whatever the writer chose, so both cases are listed rather than
+ * lower-cased at the lookup -- a property bag is not case-insensitive and
+ * pretending otherwise would match a "Color" that is a rock's colour
+ * description rather than a fill.
+ */
+const PUBLISHED_COLOUR_COLUMNS = [
+  "color", "colour", "COLOR", "COLOUR", "fill", "FILL", "hex", "HEX",
+];
+
+const HEX_COLOUR = /^#?(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
+
+const asHex = (value) => {
+  const text = String(value ?? "").trim();
+  return text.startsWith("#") ? text : `#${text}`;
+};
+
+/**
+ * The column this collection is ALREADY painted in, if it has one.
+ *
+ * A geological map arrives with its colours in the file: Macrostrat writes a
+ * `color` per unit, and so does everything exported from this viewer. Ignoring
+ * that and classifying by feature count instead is how a re-imported clip came
+ * back in twelve arbitrary ramp colours -- the same 97 polygons, none of them
+ * the colour the survey published, which reads as a different map and, where
+ * the invented colour is pale, as missing ground.
+ *
+ * EVERY feature must carry a valid hex, for `inheritedColouring`'s reason: a
+ * partial column paints some of the map from the file and the rest from a
+ * ramp, which is worse than either answer alone.
+ */
+export function publishedColourField(fc) {
+  const features = fc?.features || [];
+  if (!features.length) return null;
+  for (const key of PUBLISHED_COLOUR_COLUMNS) {
+    if (features.every((f) => HEX_COLOUR.test(String(f?.properties?.[key] ?? "").trim()))) {
+      return key;
+    }
+  }
+  return null;
+}
+
+/**
+ * A symbology in the file's own colours, shaped like `categoricalSymbology`
+ * so every path downstream -- the scheduled paint, the legend, the symbology
+ * panel -- treats it as the ordinary classified layer it is.
+ *
+ * Rows are keyed by LABEL AND COLOUR together. Two units can share a colour
+ * (Macrostrat gives every Proterozoic quartzite the same pink) and one name
+ * can appear in two colours across merged surveys; collapsing on either alone
+ * loses a row that is really there.
+ */
+function publishedSymbology(fc, key) {
+  const features = fc?.features || [];
+  const field = suggestCategoryField(features);
+  const rows = new Map();
+  for (const feature of features) {
+    const colour = asHex(feature?.properties?.[key]);
+    const label = field ? String(feature?.properties?.[field] ?? "").trim() : "";
+    const id = `${label}\u0000${colour}`;
+    const row = rows.get(id) || { value: label || colour, count: 0, colour };
+    row.count += 1;
+    rows.set(id, row);
+  }
+  return {
+    ok: true,
+    categorical: true,
+    field: field || null,
+    rows: [...rows.values()].sort((a, b) => b.count - a.count).slice(0, 12),
+    colourOf: (feature) => asHex(feature?.properties?.[key]),
+  };
+}
+
 export function buildVectorLayerResult(fc, {
   name, fields = [], drape = 0.006, outlineOnly = false, pointStyle = "auto",
   rankOf = null,
@@ -1231,7 +1306,9 @@ export function buildVectorLayerResult(fc, {
   let fillMode = outlineOnly ? "outline" : "solid";
   const bounds = collectionBounds(fc);
   const georeferenced = looksLikeGeographic(bounds);
-  const symbology = defaultSymbology(fc);
+  // The file's own colours outrank a classification invented here.
+  const published = publishedColourField(fc);
+  const symbology = published ? publishedSymbology(fc, published) : defaultSymbology(fc);
   // Outlines first, fills straight after — NOT both in one pass.
   //
   // Filling means triangulating every ring and lifting every triangle vertex
@@ -1294,6 +1371,9 @@ export function buildVectorLayerResult(fc, {
   return {
     object3D,
     repaint: repaintVector,
+    // Named so a layer built from published colours can say so, and a tool
+    // run on it can inherit the column rather than re-detect it.
+    publishedColourField: published,
     /**
      * Switch between a filled polygon and its outline.
      *

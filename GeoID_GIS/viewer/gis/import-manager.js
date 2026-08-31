@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260831-bc6d692";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260831-bc6d692";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260831-bc6d692";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260831-bc6d692";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260831-687d68a";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260831-687d68a";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260831-687d68a";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260831-687d68a";
 import {
   buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude,
   setMarkerSizeFromAltitude,
-} from "./vector-render.js?v=20260831-bc6d692";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260831-bc6d692";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260831-bc6d692";
-import { loadMshFile } from "./msh-adapter.js?v=20260831-bc6d692";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260831-bc6d692";
+} from "./vector-render.js?v=20260831-687d68a";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260831-687d68a";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260831-687d68a";
+import { loadMshFile } from "./msh-adapter.js?v=20260831-687d68a";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260831-687d68a";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -576,6 +576,20 @@ async function importDataset(primaryFile, sidecars, options = {}) {
     // to the material's colour, and a textured drape has none worth reading.
     layer.legendInfo = result.legendInfo || null;
     layer.repaint = result.repaint || null;
+    /**
+     * A file that publishes its own colours is MARKED as such.
+     *
+     * The renderer has already painted it in them; recording the column here
+     * is what lets a clip or a buffer of this layer inherit it -- the tool
+     * runner's `inheritedColouring` reads exactly this field, so without it an
+     * imported geological map is faithful on screen and reverts to a ramp the
+     * moment it is cut, which is the round trip that started this.
+     */
+    layer.sourceColourField = result.publishedColourField || null;
+    if (layer.sourceColourField) {
+      layer.sourceLabelField = result.legendInfo?.field || null;
+      layer.geologyField = layer.sourceLabelField;
+    }
     // Symbology chosen in the Add-data dialog, applied through the SAME path the
     // symbology panel's Apply uses -- so a layer looks the same when it lands as
     // it does the moment somebody opens that panel. Imported lazily because the
