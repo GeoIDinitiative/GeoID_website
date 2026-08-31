@@ -8176,3 +8176,32 @@ And the refine works out its OWN ground. `refreshLiveInputs` answers with a box
 only when some input streams features, so gating on that box meant a run whose
 only refinable input was a GEE layer never got asked: measured with a stub
 through the real clip, `refineFor` called zero times and the message silent.
+
+## "Ready for QGIS" and "ready for ArcGIS" are different bars
+
+`ogrinfo` is the arbiter — it is what QGIS reads through, and it is on this
+machine. Put a real export through it before believing anything about a
+shapefile.
+
+The writer itself was sound: a 10 km clip of Macrostrat read back as valid
+polygons in WGS 84 with every attribute, and holes, multipart geometry and
+reversed ring winding all survived. What was NOT ready was everything around
+the geometry:
+
+- **The name.** A shapefile's base name becomes the LAYER's name wherever it
+  is opened, and ArcGIS holds feature class names to the coverage rules —
+  letters, digits, underscores, not starting with a digit. The clip tool names
+  its output `clip_World geology (Macrostrat)`, so the export carried spaces
+  and brackets. OGR opens that happily; ArcGIS will not take it into a
+  geodatabase. QGIS tolerating it is precisely why it looked fine.
+- **The zip date.** All-zero DOS date fields mean month 0, day 0 — not a date.
+  `unzip` prints "1980-00-00" and stricter readers reject the entry. Write the
+  format's epoch in the local header AND the central directory.
+
+## A test that appends against a missing anchor passes silently
+
+`s.replace(old, new)` returns the string unchanged when `old` is absent, so a
+patch script prints its success line either way. The shapefile test file uses a
+`check`/`failures` harness, not the `ok`/`pass` one, and eleven new tests went
+nowhere while the run still said "68 passed" — the same count as before, which
+is the only thing that gave it away. Assert the anchor, or diff the count.
