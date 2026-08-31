@@ -8739,3 +8739,32 @@ at nought with a depth test that would bury it.
 shader) · the line buffer (lifted, relief shader) · `GeoID-FeatureOutline` from
 `gis/feature-popup.js` (drape 0, relief shader now) · the viewer's
 `selectedGeologyBoundaryGroup` (drape 0, relief shader now).
+
+## "Imports as one colour" was the style, not the data
+
+Assessed before changing anything, with `ogrinfo` on the exported 10 km clip:
+**8 of 8 features carried a NAME and a COLOR**, six distinct units, six distinct
+colours — "Argyll Group" / "marble, meta-limestone" / #FF9BCD, and so on down
+the table. Nothing was lost in the export.
+
+A shapefile cannot hold symbology. QGIS therefore opens one in a single
+arbitrary fill with the file name for a legend: everything the reader needs is
+in the file and nothing tells the reader to use it.
+
+The bundle now carries **`<basename>.qml`**, which QGIS loads beside the layer
+without being asked — a categorised renderer on the unit's own column, each
+category taking the colour the survey published. **`.sld`** goes with it for
+readers that will not take a QML. Written only when the layer can say what
+colour it is; inventing a palette in the export would be a different map from
+the one on screen.
+
+Two details decide whether it works at all:
+
+- The style matches on the **DBF column** (uppercased, ASCII, cut to ten
+  characters) while the values are read from the **property**. Confusing them
+  produced a style that matched nothing and silently shipped no file.
+- A unit name is user data. `Sand & Gravel` unescaped closes the attribute
+  early and the document stops being XML.
+
+Verified from the UI's own export: members `shp shx dbf prj qml sld cpg`,
+`attr="NAME"`, six categories, labelled by unit.
