@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260831-64bb8cc";
+  from "./gis/geo-utils.js?v=20260831-8d6bc3a";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -13835,6 +13835,35 @@ uniform float uViewportWidth;`,
           return;
         }
 
+        /**
+         * A LIFT IS AN ALTITUDE, AND AN ALTITUDE PARALLAXES.
+         *
+         * This outline was raised a flat 0.0032, and 0.0032 of a 3.2 radius is
+         * **6.4 km** -- so seen at any obliquity it is painted to one side of
+         * the unit it is tracing, and the closer you come the worse it reads.
+         * Reported, twice now in this file's history and once in the feature
+         * popup's, as an outline floating clear of the surface.
+         *
+         * It cannot simply be nought: this line keeps the depth test, because
+         * a line has no facing and would otherwise draw through the planet, and
+         * a depth-tested line at zero clearance sinks into the relief between
+         * its vertices. So it takes the answer the measure marker and the
+         * vector renderer's `LINE_DRAPE` both arrived at -- a fraction of the
+         * distance to the surface, floored at a few metres and capped at the
+         * old value. The parallax is then a constant small angle at every
+         * scale: unchanged from orbit, metres on the ground.
+         *
+         * Measured at build time rather than per frame because the outline is
+         * a static mesh rebuilt on selection; a camera that then descends is
+         * left with a clearance a little generous rather than one 6.4 km out.
+         */
+        const outlineLift = () => {
+          const centre = marsGroup.localToWorld(new THREE.Vector3(0, 0, 0));
+          const distance = camera.position.distanceTo(centre) - 3.2;
+          if (!Number.isFinite(distance) || distance <= 0) return 0.0000015;
+          return Math.min(0.0032, Math.max(0.0000015, distance * 0.02));
+        };
+
         const buildSegments = (ring) => {
           const segments = [];
           let current = [];
@@ -13848,7 +13877,7 @@ uniform float uViewportWidth;`,
               }
               current = [];
             }
-            current.push(getReliefPoint(3.2, elevationSampler, popupElevationCache, getTerrainRelief, lat, lon, 0.0032));
+            current.push(getReliefPoint(3.2, elevationSampler, popupElevationCache, getTerrainRelief, lat, lon, outlineLift()));
             previousLon = lon;
           }
           if (current.length >= 2) {

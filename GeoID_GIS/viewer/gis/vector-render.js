@@ -1,8 +1,8 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260831-64bb8cc";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260831-64bb8cc";
-import { pointInPolygon } from "./geometry.js?v=20260831-64bb8cc";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260831-64bb8cc";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260831-8d6bc3a";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260831-8d6bc3a";
+import { pointInPolygon } from "./geometry.js?v=20260831-8d6bc3a";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260831-8d6bc3a";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -881,7 +881,25 @@ export function renderFeatureCollection(fc, {
     [...(colour ? [] : rings), ...lines].forEach((coords) => {
       const before = linePositions.length;
       for (let i = 0; i + 1 < coords.length; i += 1) {
-        pushSegment(linePositions, coords[i], coords[i + 1], drape);
+        /**
+         * BAKED ON THE SURFACE, and lifted by the shader instead.
+         *
+         * These vertices used to be baked at the layer's own `drape` while
+         * `attachReliefAttributes` below recovered their displacement as if
+         * the drape were zero — so the clearance was welded into `aDisp` and
+         * the shader could never take it back out. At the default 0.006 that
+         * is **11.9 km**, and measured on a drawn study area over Inishowen
+         * the outline stood 9.68 to 12.83 km above the ground it was tracing.
+         * Seen obliquely it is painted to one side of its own map: reported
+         * as the drawn polygon floating clear of the surface.
+         *
+         * Baking at nought makes `aDisp` honest, and the line material below
+         * takes the LIFTED uniform — a fraction of the distance to the
+         * surface, about 3 m on the ground and the old 11.9 km only from
+         * orbit, where nothing can tell. That is the arrangement `LINE_DRAPE`
+         * was written for and the comment above already claims.
+         */
+        pushSegment(linePositions, coords[i], coords[i + 1], FILL_DRAPE);
       }
       if (colour) {
         // One colour entry per position, added after the fact because
@@ -992,7 +1010,11 @@ export function renderFeatureCollection(fc, {
     const segments = new THREE.LineSegments(
       geometry,
       followRelief(new THREE.LineBasicMaterial(material), FILL_DRAPE,
-        { cullFarSide: true, hole }),
+        // A line has no facing to cull it, so it keeps the depth test to hide
+        // the far hemisphere -- and a depth-tested line at zero clearance
+        // sinks into the relief between its vertices. `lifted` gives it the
+        // altitude-scaled clearance rather than a fixed kilometres-high one.
+        { lifted: true, cullFarSide: true, hole }),
     );
     segments.renderOrder = 3;
     segments.frustumCulled = false;
