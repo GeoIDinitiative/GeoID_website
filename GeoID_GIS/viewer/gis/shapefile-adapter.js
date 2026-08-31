@@ -1,8 +1,8 @@
-import { looksLikeGeographic } from "./geo-utils.js?v=20260831-1cd7af4";
-import { featureCollection, feature } from "./geoprocessing.js?v=20260831-1cd7af4";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260831-1cd7af4";
-import { detectCrs, crsLabel } from "./prj-detect.js?v=20260831-1cd7af4";
-import { projectedToLatLon, CRS_OPTIONS } from "./projection.js?v=20260831-1cd7af4";
+import { looksLikeGeographic } from "./geo-utils.js?v=20260831-bc6d692";
+import { featureCollection, feature } from "./geoprocessing.js?v=20260831-bc6d692";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260831-bc6d692";
+import { detectCrs, crsLabel } from "./prj-detect.js?v=20260831-bc6d692";
+import { projectedToLatLon, CRS_OPTIONS } from "./projection.js?v=20260831-bc6d692";
 
 // ESRI Shapefile technical description 98-016. Only the geometry types that
 // actually appear in GIS exports are handled; anything else is reported rather
@@ -226,67 +226,6 @@ export async function loadShapefile(file, { sidecars = [] } = {}) {
     ({ fields, records } = parseDbf(await dbf.arrayBuffer()));
   }
 
-/**
- * RINGS BACK INTO POLYGONS, by winding and containment.
- *
- * A shapefile record holds every ring of a polygon flat, and the format
- * distinguishes them by DIRECTION: an outer ring runs clockwise, a hole runs
- * counter-clockwise. This reader ignored that and made each ring its own
- * polygon, so every hole came back as a solid shape.
- *
- * Measured by exporting a 62-feature clip and importing it again: the source
- * had 105 outer rings and 19 holes covering 1,886.58 km2, and the round trip
- * returned 1,906.79 -- twenty square kilometres of holes filled in. GDAL reads
- * the same file at 1,888.50, which is how the reader was separated from the
- * writer.
- *
- * A hole is attached to the outer ring that CONTAINS it rather than to
- * whichever came before it, because a record may hold several polygons and the
- * spec does not promise they are interleaved in order. A hole containing
- * nothing to attach to keeps its own polygon: better a filled shape than a
- * dropped one.
- */
-function assemblePolygons(rings) {
-  const signedArea = (ring) => {
-    let sum = 0;
-    for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
-      sum += ring[j][0] * ring[i][1] - ring[i][0] * ring[j][1];
-    }
-    return sum / 2;
-  };
-  const inRing = (point, ring) => {
-    const [x, y] = point;
-    let inside = false;
-    for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
-      const [xi, yi] = ring[i];
-      const [xj, yj] = ring[j];
-      if (((yi > y) !== (yj > y))
-        && (x < ((xj - xi) * (y - yi)) / ((yj - yi) || 1e-15) + xi)) inside = !inside;
-    }
-    return inside;
-  };
-  // Judged over the whole ring: after a clip a hole's first vertex often lies
-  // exactly ON the shell, where a single point-in-ring test is a coin toss.
-  const mostlyInside = (ring, outer) => {
-    let inside = 0;
-    for (let i = 0; i < ring.length - 1; i += 1) if (inRing(ring[i], outer)) inside += 1;
-    return inside * 2 > ring.length - 1;
-  };
-
-  const polygons = [];
-  const orphans = [];
-  for (const ring of rings) {
-    if (signedArea(ring) < 0) polygons.push([ring]);      // clockwise: an outer ring
-    else orphans.push(ring);                              // counter-clockwise: a hole
-  }
-  for (const hole of orphans) {
-    const host = polygons.find((poly) => mostlyInside(hole, poly[0]));
-    if (host) host.push(hole);
-    else polygons.push([hole]);
-  }
-  return polygons;
-}
-
   // Parts are grouped back into one feature per .dbf record, so a multi-ring
   // polygon stays a single feature with a single attribute row.
   const byRecord = new Map();
@@ -316,10 +255,9 @@ function assemblePolygons(rings) {
   byRecord.forEach((entry, recordIndex) => {
     const properties = records[recordIndex] || {};
     if (entry.polygons.length) {
-      const polygons = assemblePolygons(entry.polygons);
-      features.push(feature(polygons.length === 1
-        ? { type: "Polygon", coordinates: polygons[0] }
-        : { type: "MultiPolygon", coordinates: polygons }, properties));
+      features.push(feature(entry.polygons.length === 1
+        ? { type: "Polygon", coordinates: entry.polygons }
+        : { type: "MultiPolygon", coordinates: entry.polygons.map((ring) => [ring]) }, properties));
     }
     if (entry.lines.length) {
       features.push(feature(entry.lines.length === 1

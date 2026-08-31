@@ -1,8 +1,8 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260831-1cd7af4";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260831-1cd7af4";
-import { pointInPolygon } from "./geometry.js?v=20260831-1cd7af4";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260831-1cd7af4";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260831-bc6d692";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260831-bc6d692";
+import { pointInPolygon } from "./geometry.js?v=20260831-bc6d692";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260831-bc6d692";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -1215,29 +1215,6 @@ function defaultSymbology(fc) {
   };
 }
 
-/**
- * THE FILE'S OWN COLOURS BEAT A PALETTE WE CHOSE.
- *
- * A layer exported from here and imported again came back in this app's
- * default ramp while every feature still held the colour its publisher gave
- * it. The map looked nothing like the one it was exported from, and the units
- * whose invented colour landed pale read as missing ground.
- *
- * EVERY feature must carry the column. A partial one would paint some of the
- * map from the file and the rest from a ramp, which is worse than either
- * answer alone -- the rule this codebase already applies to inherited colours.
- */
-const PUBLISHED_COLOUR_KEYS = ["color", "colour", "COLOR", "COLOUR", "fill", "FILL"];
-export function publishedColourField(fc) {
-  const features = fc?.features || [];
-  if (!features.length) return null;
-  const isColour = (v) => typeof v === "string" && /^#?[0-9a-f]{6}$/i.test(v.trim());
-  for (const key of PUBLISHED_COLOUR_KEYS) {
-    if (features.every((f) => isColour(f?.properties?.[key]))) return key;
-  }
-  return null;
-}
-
 export function buildVectorLayerResult(fc, {
   name, fields = [], drape = 0.006, outlineOnly = false, pointStyle = "auto",
   rankOf = null,
@@ -1308,24 +1285,15 @@ export function buildVectorLayerResult(fc, {
   // Scheduled rather than awaited: `addDerivedLayer` puts `object3D` into the
   // scene as soon as this returns, and repaint replaces the children of that
   // same group, so the fills land in a layer that is already visible.
-  // The file's own column if it has one, and only then a palette of ours.
-  const publishedColour = publishedColourField(fc);
-  if (publishedColour || symbology) {
+  if (symbology) {
     setTimeout(() => {
-      try {
-        repaintVector(publishedColour
-          ? (f) => f?.properties?.[publishedColour] || null
-          : (f) => symbology.colourOf(f));
-      } catch (error) { /* outlines stand */ }
+      try { repaintVector((f) => symbology.colourOf(f)); } catch (error) { /* outlines stand */ }
     }, 0);
   }
 
   return {
     object3D,
     repaint: repaintVector,
-    // Told to the caller so the legend can be built from the same column the
-    // map is painted from, rather than from a palette nobody chose.
-    publishedColourField: publishedColour,
     /**
      * Switch between a filled polygon and its outline.
      *

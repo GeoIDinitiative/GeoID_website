@@ -206,32 +206,6 @@ function pointInRing(point, ring) {
 }
 
 /**
- * IS THIS RING INSIDE THAT ONE? Asked of the whole ring, not one vertex.
- *
- * The first version tested `ring[0]` alone, and a clip leaves that vertex lying
- * exactly ON the shell's boundary more often than not — the cut runs along it.
- * Point-in-ring on a boundary point is a coin toss, and losing the toss turned
- * a hole into an outer ring, which ADDS its area instead of subtracting it.
- *
- * Measured on a 62-feature clip: 6 of 19 holes were reclassified that way, the
- * file grew by 1.92 km2 against the source, and pyshp reported orphaned holes
- * on two shapes.
- *
- * A majority of vertices settles it: a hole has nearly all of its points
- * inside the shell and a separate shape has nearly none, so the boundary cases
- * that flip individually cannot flip the verdict.
- */
-function mostlyInside(ring, outer) {
-  let inside = 0;
-  let tested = 0;
-  for (let i = 0; i < ring.length - 1; i += 1) {
-    tested += 1;
-    if (pointInRing(ring[i], outer)) inside += 1;
-  }
-  return tested > 0 && inside * 2 > tested;
-}
-
-/**
  * A HOLE IS A RING INSIDE ANOTHER RING, not merely a ring listed second.
  *
  * GeoJSON says the rings after the first are holes, and this module used to
@@ -256,7 +230,7 @@ function ringsByContainment(polygon) {
   const holes = [];
   const strays = [];
   for (const ring of rest) {
-    (mostlyInside(ring, outer) ? holes : strays).push(ring);
+    (pointInRing(ring[0], outer) ? holes : strays).push(ring);
   }
   return [
     orientRing(outer, true),
