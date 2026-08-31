@@ -8564,3 +8564,24 @@ first and check the popup actually opened. And the anchor is placed by the
 render loop, so measuring in the same tick as the click reads the old position:
 settle a frame or two, or the number is meaningless (this produced a spurious
 482 px and a spurious 291 px before I noticed).
+
+## Click accuracy on clipped layers, measured
+
+The clipped layers were already picking correctly: `gis/feature-popup.js` asks
+`viewer.surfaceLatLonAt`, which goes through `intersectAnySurface` and has been
+refining its globe hit onto the relief all along. It was the VIEWER's own
+geology path that used the unrefined `intersectMarsSurface` — see the entry
+above. Verified rather than assumed, on a 47 km clip of 96 features:
+
+- **323 of 323** sampled screen points return the polygon that actually
+  contains that ground (`featureAt` against a point-in-polygon of the layer's
+  own features). No misses, no wrong units.
+- Real clicks put the card's dot **0–5.5 px** from the cursor, and the residual
+  is the globe turning during the one-second settle — about 2.3 px/s at this
+  zoom.
+
+One inconsistency was closed: `showFeatureCard` built its anchor with a 0.0008
+lift — **1.6 km** — while the highlight outline for the same feature sits at
+nought, so the dot and the outline disagreed at oblique angles. The anchor is a
+DOM element positioned by projection; it has no depth test to win and needs no
+clearance.
