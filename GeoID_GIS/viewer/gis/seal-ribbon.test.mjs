@@ -135,6 +135,45 @@ const ribbon = seam(built.object3D);
   ok("and the ribbon is still built", a.position.count > 0);
 }
 
+/**
+ * AN OUTLINE IS ON THE GROUND FROM THE FIRST FRAME.
+ *
+ * Rings reach the seal only when a colour is available; without one they fall
+ * to the lifted line buffer, which carries the altitude-scaled clearance --
+ * measured, a drawn study area sat 467 m above the ground at a 23 km view and
+ * 11.9 km from orbit until the scheduled paint landed and dropped it. A layer
+ * whose default paint never runs stayed there for good. An outline has no fill
+ * to defer, so it is painted in the first pass.
+ */
+{
+  const { buildVectorLayerResult } = await import("./vector-render.js");
+  const area = () => ({ type: "FeatureCollection", features: [{ type: "Feature",
+    properties: { name: "study area", kind: "drawn" },
+    geometry: { type: "Polygon",
+      coordinates: [[[10, 40], [14, 40], [14, 44], [10, 44], [10, 40]]] } }] });
+
+  const kinds = (built) => {
+    const out = [];
+    built.object3D.traverse((n) => {
+      if (!n.geometry?.attributes?.position) return;
+      out.push(n.userData?.geoidSeam ? "seam" : n.isLineSegments ? "lines" : n.isMesh ? "fill" : n.type);
+    });
+    return out;
+  };
+
+  const outlined = buildVectorLayerResult(area(), { name: "drawn", outlineOnly: true });
+  ok("a drawn outline is a seam on the FIRST render, not a lifted line",
+    kinds(outlined).includes("seam") && !kinds(outlined).includes("lines"),
+    JSON.stringify(kinds(outlined)));
+  ok("and it draws no fill", !kinds(outlined).includes("fill"));
+
+  // A filled layer still defers: the two-pass build is what keeps a heavy
+  // import from blocking on triangulation.
+  const filled = buildVectorLayerResult(area(), { name: "filled" });
+  ok("a FILLED layer still defers its fill to the scheduled paint",
+    !kinds(filled).includes("fill"), JSON.stringify(kinds(filled)));
+}
+
 console.log(`${pass} passed`);
 if (fail) console.log(`${fail} FAILED`);
 process.exit(fail ? 1 : 0);

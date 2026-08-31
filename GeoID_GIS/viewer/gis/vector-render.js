@@ -1,8 +1,8 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260831-cc12052";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260831-cc12052";
-import { pointInPolygon } from "./geometry.js?v=20260831-cc12052";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260831-cc12052";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260831-0eb96bf";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260831-0eb96bf";
+import { pointInPolygon } from "./geometry.js?v=20260831-0eb96bf";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260831-0eb96bf";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -1480,8 +1480,26 @@ export function buildVectorLayerResult(fc, {
   // way; what changes is that the layer is on the globe immediately and gains
   // its colours a moment later, instead of the user waiting for both.
   let contactStyle = contacts || null;
+  /**
+   * AN OUTLINE IS PAINTED IN THE FIRST PASS, because it has no fill to defer.
+   *
+   * The two-pass build exists so a heavy layer reaches the globe before it is
+   * triangulated. An outline-only layer has nothing to triangulate, and going
+   * through the first pass uncoloured cost it its height: rings reach the SEAL
+   * only when a colour is available, so without one they fall to the lifted
+   * line buffer instead -- measured, a drawn study area was 467 m above the
+   * ground at a 23 km view and 11.9 km from orbit, until the scheduled paint
+   * landed a tick later and put it on the surface. Reported as the drawn
+   * outlines floating above the geology while the world layer's sat on it --
+   * the world layer's tiles have always passed a colour.
+   *
+   * Worse than the flash: a layer whose default paint never runs stays up
+   * there for good.
+   */
+  const firstPaint = outlineOnly && symbology ? (f) => symbology.colourOf(f) : null;
   const { object3D, truncated } = renderFeatureCollection(fc, {
     name, drape, pointStyle, rankOf, contacts: contactStyle,
+    outlineOnly, colourFor: firstPaint,
   });
   let lastColourFor = null;
 
