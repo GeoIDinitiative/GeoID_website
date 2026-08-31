@@ -10,13 +10,13 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { bandOf } from "./draw-order.js?v=20260901-f560802";
-import { currentBody } from "./bodies.js?v=20260901-f560802";
-import { samplerToRaster } from "./raster-analysis.js?v=20260901-f560802";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260901-f560802";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260901-f560802";
-import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260901-f560802";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260901-f560802";
+import { bandOf } from "./draw-order.js?v=20260901-46a752d";
+import { currentBody } from "./bodies.js?v=20260901-46a752d";
+import { samplerToRaster } from "./raster-analysis.js?v=20260901-46a752d";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260901-46a752d";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260901-46a752d";
+import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260901-46a752d";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260901-46a752d";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -406,6 +406,22 @@ function setOpacity(layer, value) {
       material.needsUpdate = true;
     });
   });
+  /**
+   * A STREAMING LAYER HAS TO BE TOLD, or the next tile arrives at the old
+   * weight.
+   *
+   * The traversal above reaches the tiles that exist right now. A tiled layer
+   * builds more of them whenever the view settles, each from the opacity the
+   * CONTROLLER remembers -- so a sheet dragged to 90% kept handing new tiles
+   * the value it was set to when it loaded. Measured on the world geology
+   * after dragging it up: 16 objects at 0.9 and 2 still at 0.5, and they stay
+   * that way, because nothing goes back to correct a tile once it is built.
+   *
+   * It was there before the world geology started at half -- the stragglers
+   * were simply fully opaque instead, which reads as a patch of stronger
+   * colour rather than a faded one.
+   */
+  layer.tiled?.setOpacity?.(value);
 }
 
 /**
