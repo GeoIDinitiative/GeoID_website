@@ -17,7 +17,9 @@ const ok = (name, cond, detail = "") => {
   else { fail += 1; console.log(`FAIL ${name}${detail ? `  — ${detail}` : ""}`); }
 };
 
-const { publishedColourField } = await import("./vector-render.js");
+globalThis.window = globalThis.window || {};
+const { publishedColourField, buildVectorLayerResult }
+  = await import("./vector-render.js");
 
 const fc = (features) => ({ type: "FeatureCollection", features });
 const feat = (properties) => ({
@@ -59,12 +61,54 @@ const feat = (properties) => ({
   ok("an empty collection is null", publishedColourField(fc([])) === null);
   ok("a missing collection is null", publishedColourField(null) === null);
 
-  // The rule `inheritedColouring` already uses: a column that covers only part
-  // of the map would paint some features from the file and the rest from a
-  // ramp, which is a worse map than either answer on its own.
-  ok("a column missing on one feature is refused", publishedColourField(fc([
+  /**
+   * A column covering only a fraction of the map is not the map's colouring:
+   * a stray `fill` on a tenth of the rows would grey out the other nine
+   * tenths. Two of three is below the threshold and refused.
+   */
+  ok("a column that covers too little is refused", publishedColourField(fc([
     feat({ color: "#FF9BCD" }), feat({ color: "#7FC64E" }), feat({ name: "no colour" }),
   ])) === null);
+
+  /**
+   * THE ODD UNCOLOURED UNIT DOES NOT COST THE OTHERS THEIR COLOURS.
+   *
+   * Requiring EVERY feature to carry a hex was the first rule here and it was
+   * wrong: measured on a re-imported clip, blanking one colour of 96 sent the
+   * whole layer back to this app's twelve-class ramp with an "(other)" bucket
+   * — a different map from the one the file describes. Reported as the import
+   * failing to assign polygons.
+   */
+  {
+    const nine = Array.from({ length: 9 }, (_, i) =>
+      feat({ name: `unit ${i}`, color: "#FF9BCD" }));
+    const withHole = fc([...nine, feat({ name: "uncoloured unit" })]);
+    ok("nine of ten coloured is still the file's own colouring",
+      publishedColourField(withHole) === "color");
+
+    globalThis.window = globalThis.window || {};
+    const built = buildVectorLayerResult(withHole, { name: "holed" });
+    ok("and the layer is painted from it", built.publishedColourField === "color");
+    const palette = built.legendInfo?.palette || [];
+    const labels = built.legendInfo?.labels || [];
+    ok("the published colour is in the key", palette.includes("FF9BCD"));
+    ok("no ramp colour is", !palette.some((c) =>
+      ["4e79a7", "f28e2b", "59a14f", "e15759"].includes(c)), JSON.stringify(palette));
+    ok("and there is no invented (other) bucket",
+      !labels.some((l) => /other/i.test(String(l))), JSON.stringify(labels));
+    ok("the uncoloured feature gets a row of its own",
+      labels.includes("No colour published"), JSON.stringify(labels));
+    ok("in a neutral grey, listed last",
+      palette[palette.length - 1] === "8a8a8a", JSON.stringify(palette));
+  }
+  {
+    // And that row appears ONLY when something wears it.
+    const allColoured = fc([feat({ name: "a", color: "#FF9BCD" }),
+      feat({ name: "b", color: "#7FC64E" })]);
+    const labels = buildVectorLayerResult(allColoured, { name: "whole" }).legendInfo?.labels || [];
+    ok("a fully coloured layer gets no grey row",
+      !labels.includes("No colour published"), JSON.stringify(labels));
+  }
 
   ok("an empty string is not a colour",
     publishedColourField(fc([feat({ color: "#FF9BCD" }), feat({ color: "" })])) === null);

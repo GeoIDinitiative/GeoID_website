@@ -1,8 +1,8 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260901-9575d66";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260901-9575d66";
-import { pointInPolygon } from "./geometry.js?v=20260901-9575d66";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260901-9575d66";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260901-02924ca";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260901-02924ca";
+import { pointInPolygon } from "./geometry.js?v=20260901-02924ca";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260901-02924ca";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -1393,20 +1393,39 @@ const asHex = (value) => {
  * the colour the survey published, which reads as a different map and, where
  * the invented colour is pale, as missing ground.
  *
- * EVERY feature must carry a valid hex, for `inheritedColouring`'s reason: a
- * partial column paints some of the map from the file and the rest from a
- * ramp, which is worse than either answer alone.
+ * MOST of the features must carry a valid hex -- not all of them, which is
+ * what this demanded at first and was wrong. A survey leaves the odd unit
+ * uncoloured, and requiring every one threw away the other ninety-five:
+ * measured, blanking ONE colour of 96 turned the whole layer back to this
+ * app's twelve-class ramp with an "(other)" bucket, which is a different map
+ * from the one the file describes. Reported as the import failing to assign
+ * polygons and falling back on "(other)".
+ *
+ * So the column is used when it covers the great majority, and the few
+ * features it does not cover are drawn in a neutral grey and SAID so in the
+ * key. Painting most of the map as its survey painted it and admitting the
+ * remainder beats inventing colours for all of it. Below the threshold the
+ * column is not the map's colouring at all -- a stray `fill` on a tenth of the
+ * rows would otherwise grey out the other nine tenths.
  */
+const PUBLISHED_COLOUR_COVERAGE = 0.8;
+
 export function publishedColourField(fc) {
   const features = fc?.features || [];
   if (!features.length) return null;
   for (const key of PUBLISHED_COLOUR_COLUMNS) {
-    if (features.every((f) => HEX_COLOUR.test(String(f?.properties?.[key] ?? "").trim()))) {
-      return key;
+    let valid = 0;
+    for (const feature of features) {
+      if (HEX_COLOUR.test(String(feature?.properties?.[key] ?? "").trim())) valid += 1;
     }
+    if (valid && valid / features.length >= PUBLISHED_COLOUR_COVERAGE) return key;
   }
   return null;
 }
+
+/** What a feature with no published colour is drawn in, and called in the key. */
+const UNPUBLISHED_COLOUR = "#8a8a8a";
+const UNPUBLISHED_LABEL = "No colour published";
 
 /**
  * A symbology in the file's own colours, shaped like `categoricalSymbology`
@@ -1421,21 +1440,33 @@ export function publishedColourField(fc) {
 function publishedSymbology(fc, key) {
   const features = fc?.features || [];
   const field = suggestCategoryField(features);
+  const published = (feature) => {
+    const raw = String(feature?.properties?.[key] ?? "").trim();
+    return HEX_COLOUR.test(raw) ? asHex(raw) : null;
+  };
   const rows = new Map();
+  let unpublished = 0;
   for (const feature of features) {
-    const colour = asHex(feature?.properties?.[key]);
+    const colour = published(feature);
+    if (!colour) { unpublished += 1; continue; }
     const label = field ? String(feature?.properties?.[field] ?? "").trim() : "";
     const id = `${label}\u0000${colour}`;
     const row = rows.get(id) || { value: label || colour, count: 0, colour };
     row.count += 1;
     rows.set(id, row);
   }
+  const listed = [...rows.values()].sort((a, b) => b.count - a.count).slice(0, 12);
+  // The grey is a row of its own, last, and only when something is actually
+  // drawn in it -- a key that lists a colour nothing wears is furniture.
+  if (unpublished) {
+    listed.push({ value: UNPUBLISHED_LABEL, count: unpublished, colour: UNPUBLISHED_COLOUR });
+  }
   return {
     ok: true,
     categorical: true,
     field: field || null,
-    rows: [...rows.values()].sort((a, b) => b.count - a.count).slice(0, 12),
-    colourOf: (feature) => asHex(feature?.properties?.[key]),
+    rows: listed,
+    colourOf: (feature) => published(feature) || UNPUBLISHED_COLOUR,
   };
 }
 
