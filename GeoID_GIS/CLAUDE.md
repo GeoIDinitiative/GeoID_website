@@ -8271,3 +8271,40 @@ clip output twice as `sourceColourField: null` with a Tableau palette, called
 it a regression, and reverted a working change on the strength of it. Read the
 layer a few seconds later, or read it after the repaint lands. Same family of
 mistake as measuring coverage before the tiles finished loading.
+
+## `geoprocessing.difference` is not safe to believe
+
+The clip's north-west quadrant was empty and Macrostrat had data at every point
+in it — two units, sources 147 and 154, at all six sampled coordinates. Staged
+measurement over a 47 km box at Inishowen:
+
+| stage | quadrant covered |
+|---|---|
+| world layer's tiles, source 147 (791 features) | 98.3% |
+| the 726 API units those tiles name | 100% |
+| those units clipped to the box (16 features) | 100% |
+| **after subtracting the finer survey** | **84.8%** |
+
+The finer survey covers **1.5%** of that quadrant. Subtracting it took 15% of
+the coarse survey's ground there and 44% across the whole study area. `overlay`
+subtracts each mask polygon in turn with a Sutherland–Hodgman routine, exact
+only for a **convex** clipper; survey units are not convex, and eighty
+sequential subtractions compound the error. **Nothing failed** — a wrong answer
+and a right one are both FeatureCollections, which is why this was reported
+three times as "missing polygons" with no error anywhere.
+
+`dropOutranked` now cuts one feature at a time and CHECKS the answer: sampled
+points inside the feature and inside no finer survey are ground the cut owes
+back, and a result that no longer holds them is thrown away and the feature
+kept whole. Measured after: box coverage 77.6% → **100%**, the quadrant 23.8% →
+**100%**, at the cost of 21.3% of the box being double-covered — and the picker
+still answers with the finest survey on **341 of 341** overlapping cells,
+because picker order is finest-first and independent of this.
+
+**An overlap is the lesser fault.** It is visible, listed, and can be argued
+with; a hole in a geological map reads as "no data here". The real repair is a
+boolean engine correct for concave clippers — a vendored clipper, which is a
+dependency decision, not a fix to make quietly.
+
+Do not use `GP.difference` as a truth source anywhere else without the same
+verification. The same routine underlies `clip` and `intersect`.
