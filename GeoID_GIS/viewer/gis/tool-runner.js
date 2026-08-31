@@ -1,21 +1,21 @@
-import * as GP from "./geoprocessing.js?v=20260831-60d9930";
-import * as RA from "./raster-analysis.js?v=20260831-60d9930";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260831-60d9930";
+import * as GP from "./geoprocessing.js?v=20260831-e513d83";
+import * as RA from "./raster-analysis.js?v=20260831-e513d83";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260831-e513d83";
 // eslint-disable-next-line no-unused-vars
-import { pointInPolygon } from "./geometry.js?v=20260831-60d9930";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260831-60d9930";
+import { pointInPolygon } from "./geometry.js?v=20260831-e513d83";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260831-e513d83";
 // Pure and DOM-free, so a static import keeps this module Node-clean AND keeps
 // the terrain engine SYNCHRONOUS -- runTool calls engines.native WITHOUT
 // awaiting it, so an async engine hands register() a Promise and the raster
 // comes out undefined. Measured as: "Cannot read properties of undefined".
-import { buildSurface, nativeStepM } from "./model-build.js?v=20260831-60d9930";
-import { nativeGridOf } from "./extraction.js?v=20260831-60d9930";
-import { CRS_OPTIONS } from "./projection.js?v=20260831-60d9930";
-import * as IN from "./interpolation.js?v=20260831-60d9930";
-import * as VAL from "./validation.js?v=20260831-60d9930";
-import * as EX from "./analysis-extra.js?v=20260831-60d9930";
-import * as HY from "./hydrology.js?v=20260831-60d9930";
-import * as KR from "./kriging.js?v=20260831-60d9930";
+import { buildSurface, nativeStepM } from "./model-build.js?v=20260831-e513d83";
+import { nativeGridOf } from "./extraction.js?v=20260831-e513d83";
+import { CRS_OPTIONS } from "./projection.js?v=20260831-e513d83";
+import * as IN from "./interpolation.js?v=20260831-e513d83";
+import * as VAL from "./validation.js?v=20260831-e513d83";
+import * as EX from "./analysis-extra.js?v=20260831-e513d83";
+import * as HY from "./hydrology.js?v=20260831-e513d83";
+import * as KR from "./kriging.js?v=20260831-e513d83";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -2226,6 +2226,87 @@ function surveyRanks(features) {
  * Cutters are the ORIGINAL finer shapes, never the cut ones, or a tier three
  * deep would be subtracted with geometry that has already lost its middle.
  */
+/**
+ * Points spread through a feature's own ground, for checking a cut against.
+ *
+ * A grid over the bounding box, keeping what lands inside the polygon and its
+ * holes honoured. Deterministic, because a verification that samples different
+ * points each run reports a different map each run. The grid tightens once for
+ * a thin or small shape rather than giving up on it: a coastal strip has very
+ * little of its bounding box inside it, and those are exactly the features a
+ * bad cut eats.
+ */
+function samplePointsInside(feature, wanted = 120) {
+  const polygons = GP.polygonsOf(feature?.geometry);
+  if (!polygons.length) return [];
+  let minX = Infinity; let minY = Infinity; let maxX = -Infinity; let maxY = -Infinity;
+  for (const rings of polygons) {
+    for (const [x, y] of rings[0] || []) {
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+    }
+  }
+  if (!Number.isFinite(minX) || maxX <= minX || maxY <= minY) return [];
+  const inside = (p) => polygons.some((rings) => pointInPolygon(p, rings));
+  for (const n of [16, 48]) {
+    const out = [];
+    for (let j = 0; j < n; j += 1) {
+      for (let i = 0; i < n; i += 1) {
+        const p = [minX + ((i + 0.5) * (maxX - minX)) / n, minY + ((j + 0.5) * (maxY - minY)) / n];
+        if (inside(p)) out.push(p);
+      }
+    }
+    if (out.length >= 8) {
+      if (out.length <= wanted) return out;
+      const step = out.length / wanted;
+      const thinned = [];
+      for (let k = 0; k < wanted; k += 1) thinned.push(out[Math.floor(k * step)]);
+      return thinned;
+    }
+  }
+  return [];
+}
+
+/**
+ * A CUT IS NOT TRUSTED UNTIL IT IS CHECKED AGAINST THE GROUND IT OWED.
+ *
+ * `geoprocessing.difference` subtracts each mask polygon in turn with a
+ * Sutherland-Hodgman routine, which is exact only for a CONVEX clipper. A
+ * geological survey's units are not convex, and eighty of them subtracted one
+ * after another compound the error: measured on a 47 km clip over Inishowen,
+ * subtracting a fine survey that covers 1.5% of the north-west quadrant took
+ * 15% of the coarse survey's ground there, and 44% of it across the whole
+ * study area. That missing ground was reported three times as "missing
+ * polygons", and each time it was this.
+ *
+ * So the cut is verified rather than believed. Every sampled point that was
+ * inside the original and is NOT inside any finer survey is ground the cut
+ * OWES back; if the result does not still hold it, the cut is wrong and the
+ * feature is kept whole. An exact cut passes and is used, so the convex cases
+ * that work keep working -- this only refuses the ones that lose ground.
+ *
+ * Keeping a feature whole leaves it overlapping the finer survey it should
+ * have yielded to, which double-counts that ground in a table or an area sum.
+ * That is the lesser fault by a distance: an overlap is visible, listed and
+ * argued with, and a hole in a geological map is read as "no data here".
+ */
+function verdictOnCut(before, after, finer, tolerance = 0.02) {
+  const samples = samplePointsInside(before);
+  // Nothing to check it with: a sliver too thin to sample. Believe the engine
+  // when it returned something, and let it go when it did not.
+  if (!samples.length) return after?.geometry ? "cut" : "drop";
+  const coveredByFiner = (p) => finer.some((f) =>
+    GP.polygonsOf(f.geometry).some((rings) => pointInPolygon(p, rings)));
+  // The ground this feature owes nobody: inside it, and inside no finer
+  // survey. Whatever the cut returns, it has to still hold all of this.
+  const owed = samples.filter((p) => !coveredByFiner(p));
+  if (!owed.length) return "drop";                  // mapped in full by finer
+  if (!after?.geometry) return "whole";             // deleted, but it owed ground
+  const held = owed.filter((p) =>
+    GP.polygonsOf(after.geometry).some((rings) => pointInPolygon(p, rings)));
+  return (owed.length - held.length) / owed.length <= tolerance ? "cut" : "whole";
+}
+
 function dropOutranked(features, rankOf, differenceOf) {
   const tiers = [...new Set(features.map((f) => rankOf(f) || 0))].sort((a, b) => b - a);
   if (tiers.length < 2) return features;
@@ -2238,19 +2319,36 @@ function dropOutranked(features, rankOf, differenceOf) {
       finer.push(...here);
       continue;
     }
-    let out = here;
-    try {
-      const cut = differenceOf(
-        { type: "FeatureCollection", features: here },
-        { type: "FeatureCollection", features: finer },
-      );
-      // A failed or empty answer must not silently empty the map: only trust
-      // it when it IS a collection.
-      if (cut && Array.isArray(cut.features)) out = cut.features.filter((f) => f?.geometry);
-    } catch (error) {
-      out = here;   // keep the ground rather than lose it
+    /**
+     * Cut ONE FEATURE AT A TIME, which is what makes the check possible.
+     *
+     * The engine already loops per feature internally, so this costs nothing
+     * it was not doing; what it buys is knowing which input each output came
+     * from. In a single call a feature that vanishes simply is not in the
+     * result, and "correctly covered in full" and "wrongly deleted" look
+     * exactly alike -- which is how a survey lost most of its ground without
+     * anything registering as a failure.
+     */
+    for (const f of here) {
+      let cut = null;
+      try {
+        const answer = differenceOf(
+          { type: "FeatureCollection", features: [f] },
+          { type: "FeatureCollection", features: finer },
+        );
+        // A failed or malformed answer must not silently empty the map: only
+        // read it when it IS a collection.
+        if (!answer || !Array.isArray(answer.features)) { kept.push(f); continue; }
+        cut = answer.features.filter((x) => x?.geometry)[0] || null;
+      } catch (error) {
+        kept.push(f);   // keep the ground rather than lose it
+        continue;
+      }
+      const verdict = verdictOnCut(f, cut, finer);
+      if (verdict === "cut") kept.push(cut);
+      else if (verdict === "whole") kept.push(f);
+      // "drop": the finer surveys map this ground in full, so it goes.
     }
-    kept.push(...out);
     finer.push(...here);
   }
   return kept;
@@ -2404,7 +2502,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260831-60d9930");
+    const client = await import("./sidecar-client.js?v=20260831-e513d83");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -2469,7 +2567,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260831-60d9930");
+    const bridge = await import("./research/bridge.js?v=20260831-e513d83");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -2481,12 +2579,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260831-60d9930");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260831-e513d83");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260831-60d9930");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260831-e513d83");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }

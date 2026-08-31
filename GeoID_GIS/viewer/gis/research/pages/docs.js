@@ -1,11 +1,11 @@
-import { registerPage } from "../stages.js?v=20260831-60d9930";
-import * as store from "../project-store.js?v=20260831-60d9930";
-import { frameUrl, isConfigured } from "../google-credentials.js?v=20260831-60d9930";
+import { registerPage } from "../stages.js?v=20260831-e513d83";
+import * as store from "../project-store.js?v=20260831-e513d83";
+import { frameUrl, isConfigured } from "../google-credentials.js?v=20260831-e513d83";
 import {
   el, input, button, row, statusLine, guard, field, selectOf,
   pageHeader, splitPanes, tabbedPanel, editorCard, findTables, loadTable,
   toolbar,
-} from "./common.js?v=20260831-60d9930";
+} from "./common.js?v=20260831-e513d83";
 
 /**
  * Docs & Sheets — the Google workspace, ported from `DocsSheetsPage`

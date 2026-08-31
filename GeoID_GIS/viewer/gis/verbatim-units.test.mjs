@@ -252,6 +252,70 @@ const answering = (calls) => async (url) => {
     ok("three tiers each cut by everything finer",
       Math.abs(area(byId(three, "coarse")) - (9 - 0.25 - 0.25)) < 1e-6);
   }
+  /**
+   * A CUT THAT LOSES GROUND IS REFUSED, not believed.
+   *
+   * `geoprocessing.difference` subtracts each mask polygon in turn with a
+   * routine exact only for a CONVEX clipper, and a survey's units are not
+   * convex. Measured on a 47 km clip over Inishowen: subtracting a fine survey
+   * covering 1.5% of the north-west quadrant took 15% of the coarse survey's
+   * ground there and 44% across the study area — reported three times as
+   * "missing polygons". The engine reported no failure either time, because a
+   * wrong answer and a right one are both collections.
+   */
+  {
+    // An engine that eats half the subject and touches nothing it should.
+    const halfEater = (fc) => ({ type: "FeatureCollection", features: fc.features.map((f) => ({
+      ...f, geometry: { type: "Polygon", coordinates: [sq(0, 0, 2, 1)] } })) });
+    const out = drop([feat(1, sq(0, 0, 2, 2), "coarse"), feat(9, sq(0.25, 0.25, 0.75, 0.75), "fine")],
+      rankOf, halfEater);
+    ok("a cut that drops ground no finer survey maps is thrown away",
+      Math.abs(area(byId(out, "coarse")) - 4) < 1e-9,
+      `got ${area(byId(out, "coarse"))}`);
+    ok("and the feature is still there to be kept whole", out.length === 2);
+  }
+  {
+    // An engine that deletes the subject outright, as the real one did to the
+    // coarse survey over Inishowen.
+    const deleter = () => ({ type: "FeatureCollection", features: [] });
+    const out = drop([feat(1, sq(0, 0, 2, 2), "coarse"), feat(9, sq(0.25, 0.25, 0.75, 0.75), "fine")],
+      rankOf, deleter);
+    ok("a feature deleted whole while it still owed ground is kept",
+      byId(out, "coarse") && Math.abs(area(byId(out, "coarse")) - 4) < 1e-9);
+  }
+  {
+    // The other half of the rule: a deletion the finer survey has EARNED
+    // still goes through, so the covered case does not regress.
+    const deleter = () => ({ type: "FeatureCollection", features: [] });
+    const out = drop([feat(1, sq(0, 0, 1, 1), "coarse"), feat(9, sq(-1, -1, 2, 2), "fine")],
+      rankOf, deleter);
+    ok("a wholly covered feature is still dropped when the engine deletes it",
+      !byId(out, "coarse") && out.length === 1);
+  }
+  {
+    // A cut that is a little short is still a cut: verification is a check on
+    // whole missing regions, not a demand for exactness the engine cannot
+    // meet on curved boundaries.
+    const shy = (fc) => ({ type: "FeatureCollection", features: fc.features.map((f) => ({
+      ...f, geometry: { type: "Polygon", coordinates: [sq(0, 0, 2, 1.985)] } })) });
+    const out = drop([feat(1, sq(0, 0, 2, 2), "coarse"), feat(9, sq(0.25, 0.25, 0.75, 0.75), "fine")],
+      rankOf, shy);
+    ok("a cut within tolerance is accepted", area(byId(out, "coarse")) < 4);
+  }
+  {
+    // Each feature is judged on its OWN ground: one bad cut must not condemn
+    // the good ones, and one good cut must not vouch for the bad.
+    const eatsTheSecond = (fc) => ({ type: "FeatureCollection", features: fc.features.map((f) =>
+      (f.properties.id === "b"
+        ? { ...f, geometry: { type: "Polygon", coordinates: [sq(5, 5, 5.1, 5.1)] } }
+        : f)) });
+    const out = drop([
+      feat(1, sq(0, 0, 2, 2), "a"), feat(1, sq(3, 0, 5, 2), "b"),
+      feat(9, sq(0.25, 0.25, 0.75, 0.75), "fine"),
+    ], rankOf, eatsTheSecond);
+    ok("a bad cut on one feature does not condemn another",
+      Math.abs(area(byId(out, "a")) - 4) < 1e-9 && Math.abs(area(byId(out, "b")) - 4) < 1e-9);
+  }
   {
     const boom = () => { throw new Error("degenerate"); };
     const out = drop([feat(1, sq(0, 0, 2, 2), "coarse"), feat(9, sq(0.25, 0.25, 0.75, 0.75), "fine")],
