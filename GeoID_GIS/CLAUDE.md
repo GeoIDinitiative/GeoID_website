@@ -8148,3 +8148,31 @@ hand, and make each edit ALL-OR-NOTHING per file: their card is
 `pointer-events: auto` where the GIS one is `none`, so a greedy match updated
 markup and JS everywhere and left every stylesheet untouched — which is the
 right failure, and only visible because the script reported per file.
+
+## Every input brings its best data for the run's ground
+
+`refineFor(bounds)` is the contract the tool runner puts to every input before
+any run that has a ground. The geology clip proved the shape — use what is in
+hand to learn WHAT is there, then fetch the real thing for the area — and the
+answer differs by KIND rather than by tool, so it belongs on the layer:
+
+- **Earth Engine** renders a fixed pixel budget over whatever extent it is
+  given and takes no scale parameter, so a smaller extent IS the refinement.
+  `bestDimensions` asks for one pixel per native pixel, clamped so the service
+  is never asked for detail the dataset does not hold; `overlapBounds` keeps
+  the request to ground the layer actually covers. A CACHED snapshot says there
+  is nothing finer rather than making a billed call for the same pixels.
+- **WFS** is already exact geometry, so "highest resolution" means something
+  else: the fetch ran under a feature COUNT cap, and what a cap cut off is
+  whole features missing. It re-asks with a bbox, and only when truncated.
+- **An imported file** answers that it is already native. Saying so matters:
+  "nothing finer exists" and "nobody asked" look identical in a result message.
+
+A layer answers by SWAPPING IN its better data and leaving `restoreLive`
+behind, so `giveBack` puts the map back — a clip must not shrink the layer it
+was cut from.
+
+And the refine works out its OWN ground. `refreshLiveInputs` answers with a box
+only when some input streams features, so gating on that box meant a run whose
+only refinable input was a GEE layer never got asked: measured with a stub
+through the real clip, `refineFor` called zero times and the message silent.
