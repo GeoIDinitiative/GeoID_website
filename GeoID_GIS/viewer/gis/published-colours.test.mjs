@@ -127,6 +127,14 @@ const feat = (properties) => ({
     labels.filter((l) => l === "Argyll Group").length === 1);
   ok("the legend says which column it classified by", built.legendInfo?.field === "name");
   ok("the legend is categorical", built.legendInfo?.categorical === true);
+  /**
+   * The dock draws a legend as a gradient unless it is told the rows are
+   * classes, so a key of named units without this is a rainbow bar naming
+   * none of them — which is how 22 geological units, correctly coloured,
+   * still read as "no differentiation".
+   */
+  ok("the legend declares itself a class list, not a ramp",
+    built.legendInfo?.classed === true);
 
   // Two units sharing a colour are two rows: Macrostrat gives every
   // Proterozoic quartzite the same pink, and collapsing on colour would lose
@@ -145,6 +153,12 @@ const feat = (properties) => ({
   ]), { name: "plain" });
   ok("a file with no colour column still gets the default classification",
     plain.publishedColourField === null && (plain.legendInfo?.palette || []).length > 0);
+  ok("that default classification is a class list too", plain.legendInfo?.classed === true);
+
+  // One flat wash is still a row with a name, not a one-colour gradient.
+  const wash = buildVectorLayerResult(fc([feat({ id: 1 }), feat({ id: 2 })]), { name: "wash" });
+  ok("an unclassifiable layer's single row is classed as well",
+    wash.legendInfo === null || wash.legendInfo.classed === true);
 }
 
 console.log(`${pass} passed`);

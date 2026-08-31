@@ -1,8 +1,8 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260831-687d68a";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260831-687d68a";
-import { pointInPolygon } from "./geometry.js?v=20260831-687d68a";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260831-687d68a";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260831-7b28ee3";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260831-7b28ee3";
+import { pointInPolygon } from "./geometry.js?v=20260831-7b28ee3";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260831-7b28ee3";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -1398,6 +1398,23 @@ export function buildVectorLayerResult(fc, {
         palette: symbology.rows.map((r) => r.colour.replace("#", "")),
         labels: symbology.rows.map((r) => r.value),
         categorical: Boolean(symbology.categorical),
+        /**
+         * A CLASS LIST, and the dock has to be told so.
+         *
+         * Without this flag the legend card falls through to its continuous
+         * branch and draws these rows as a smooth left-to-right gradient with
+         * the two ends labelled -- so twenty-two named geological units became
+         * one rainbow bar naming none of them, and every other classified
+         * import with it. Every other legend producer here says `classed`
+         * (macrostrat.js, symbology.js, the symbology dialog); this one was
+         * the only classification that never did, which is why its rows had
+         * nowhere to appear.
+         *
+         * Always true: these rows are a set of named classes even when there
+         * is one of them, and one class as a gradient is no more readable
+         * than twenty-two.
+         */
+        classed: true,
         field: symbology.field || null,
       }
       : null,
