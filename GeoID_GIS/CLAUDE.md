@@ -8530,3 +8530,37 @@ Note the two geology cards are different objects: this one (`#geo-popup`,
 kicker "GEOLOGIC UNIT") tracks its anchor every frame; the GIS stack card
 (`gis/feature-popup.js`, "MAPPED AREA") is placed once beside the click and
 does not track at all.
+
+## The ray hits a sphere; the reader is looking at the relief
+
+Geology clicks were landing 20 km from the cursor. Terrain exaggeration is
+applied in the **vertex shader**, so the globe's CPU geometry is still a plain
+sphere of radius 3.2 while the surface on screen stands at 3.26 — about 120 km
+of relief at the default setting. A ray aimed at something visible passes
+through the ground the reader can see and reports where it pierced the sphere
+underneath.
+
+Raycasting every object under one cursor position showed it plainly:
+
+| object hit | radius | lat/lon it yields |
+|---|---|---|
+| geology tile mesh | 3.2608 | 54.973 / −9.4016 |
+| basemap refine mesh | 3.2602 | 54.9725 / −9.3986 |
+| **bare globe mesh** | **3.1998** | **54.9111 / −9.0615** |
+
+The last one is 20.4 km from the first two, and it was the hit the geology pick
+and its card were built from.
+
+`intersectAnySurface` had refined its globe hit onto the relief for a while —
+which is why `surfaceLatLonAt` agreed with the projection to within 11 m — but
+`intersectMarsSurface`, which the geology click handler and the card both go
+through, never did. It now calls the same `refineGlobeHitToTerrain`. Measured
+after, at four screen positions: **0.1, 3.2, 3.1, 3.1 px** between the click and
+the anchor, and that residual is the globe turning during the one-second settle.
+
+**Two traps when measuring this.** A click that hits nothing leaves the previous
+card standing, so the "error" is measured against a stale anchor — press Escape
+first and check the popup actually opened. And the anchor is placed by the
+render loop, so measuring in the same tick as the click reads the old position:
+settle a frame or two, or the number is meaningless (this produced a spurious
+482 px and a spurious 291 px before I noticed).
