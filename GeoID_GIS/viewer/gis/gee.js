@@ -10,22 +10,22 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260831-2b801ef";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260831-2b801ef";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260831-2b801ef";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260831-fd2a91f";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260831-fd2a91f";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260831-fd2a91f";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260831-2b801ef";
+  from "./view-extent.js?v=20260831-fd2a91f";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260831-2b801ef";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260831-2b801ef";
+} from "./extent-picker.js?v=20260831-fd2a91f";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260831-fd2a91f";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
-} from "./gee-catalogue-index.js?v=20260831-2b801ef";
+} from "./gee-catalogue-index.js?v=20260831-fd2a91f";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -151,6 +151,50 @@ function dateRange() {
   if (fromField) fromField.value = from;
   if (toField) toField.value = to;
   return { from, to };
+}
+
+/**
+ * THE PIXEL BUDGET THAT REACHES THE DATASET'S OWN RESOLUTION.
+ *
+ * The service renders a fixed number of pixels across whatever extent it is
+ * given and takes no scale parameter, so the only lever is HOW MANY pixels for
+ * HOW MUCH GROUND. To land on the dataset's native sample, ask for one pixel
+ * per native pixel: span in metres divided by the native scale.
+ *
+ * Clamped at both ends. Below 256 there is not enough picture to sample; above
+ * 2048 the service is being asked for detail the dataset does not hold, which
+ * costs a bigger render and returns the same information smeared over more
+ * pixels — an over-claim of exactly the kind `deliveredMetresPerPixel` exists
+ * to catch.
+ */
+export function bestDimensions(bounds, nativeScale, cap = 2048) {
+  if (!bounds) return 1024;
+  const spanDeg = Math.abs(Number(bounds.maxX) - Number(bounds.minX));
+  const midLat = (Number(bounds.minY) + Number(bounds.maxY)) / 2;
+  if (!Number.isFinite(spanDeg) || !Number.isFinite(midLat)) return 1024;
+  const spanMetres = (spanDeg / 360) * 40075017 * Math.cos((midLat * Math.PI) / 180);
+  const native = Number(nativeScale);
+  if (!Number.isFinite(native) || native <= 0) return Math.max(256, Math.min(cap, 1024));
+  return Math.max(256, Math.min(cap, Math.round(spanMetres / native)));
+}
+
+/**
+ * The study area, clipped to what the layer actually covers.
+ *
+ * Asking the service for ground the fetch never included returns empty picture
+ * at great expense; asking for the intersection returns the part that exists.
+ * Null when the two do not meet at all, which is the caller's signal to keep
+ * what it had rather than fetch nothing.
+ */
+export function overlapBounds(area, layerBounds) {
+  if (!area) return null;
+  if (!layerBounds) return { ...area };
+  const minX = Math.max(Number(area.minX), Number(layerBounds.minX));
+  const maxX = Math.min(Number(area.maxX), Number(layerBounds.maxX));
+  const minY = Math.max(Number(area.minY), Number(layerBounds.minY));
+  const maxY = Math.min(Number(area.maxY), Number(layerBounds.maxY));
+  if (!(maxX > minX) || !(maxY > minY)) return null;
+  return { minX, minY, maxX, maxY };
 }
 
 /**
@@ -475,6 +519,31 @@ async function request() {
       // planet rotated underneath, drifting a degree every four minutes.
       object3D.userData.geoidLayer = true;
       window.GeoIDViewer?.globe?.add?.(object3D);
+      /**
+       * WHAT A REFETCH NEEDS, kept on the layer.
+       *
+       * The picture that arrives is a render of a fixed pixel budget over the
+       * extent it was asked for, so it is only ever as sharp as that extent
+       * was small. Clipping it later crops those pixels and can never recover
+       * detail the request did not ask for — a global snapshot is 39 km/px,
+       * and no clip of it is finer than 39 km/px.
+       *
+       * Holding the query means a study area can be re-asked at the dataset's
+       * own resolution instead, which is the whole difference between cropping
+       * a picture and fetching the data.
+       */
+      layer.geeQuery = {
+        endpoint: url,
+        dataset: data.dataset || dataset,
+        from: data.from,
+        to: data.to,
+        nativeScale: Number(data.scale) || null,
+        palette: data.palette || null,
+        legend: data.legend || null,
+        name: data.name,
+        live: true,
+      };
+      attachGeeRefine(layer);
       // Recorded so the metadata panel can account for it like any import.
       layer.metadata = {
         source: `Google Earth Engine · ${data.dataset}`,
@@ -1394,7 +1463,7 @@ async function openGeeDialog(homeName) {
   // The map is built on first open, never at module load: `createMap`
   // measures its host, and a host inside a hidden backdrop has no size.
   if (!geeMap) {
-    mapLibrary = mapLibrary || await import("./research/map2d.js?v=20260831-2b801ef");
+    mapLibrary = mapLibrary || await import("./research/map2d.js?v=20260831-fd2a91f");
     const picker = byId("gee-add-basemap");
     picker.innerHTML = Object.keys(mapLibrary.BASEMAPS)
       .map((name) => `<option value="${name}">${name}</option>`).join("");
@@ -1461,6 +1530,84 @@ async function loadCache() {
 }
 
 /**
+ * A GEE LAYER SHARPENS FOR A STUDY AREA instead of being cropped.
+ *
+ * `refineFor` is the contract the tool runner asks every input before a run
+ * that has a ground: bring your best data for THIS area. For Earth Engine that
+ * is a re-request over the smaller extent, because the service spreads a fixed
+ * pixel budget across whatever it is given — the same render over a county
+ * instead of the planet is the same data at three orders of magnitude more
+ * detail.
+ *
+ * The layer's own picture is left alone and put back by `restoreLive`: a clip
+ * must not shrink the layer it was cut from. Only the SAMPLER is swapped, which
+ * is what every tool reads.
+ *
+ * A cached snapshot says so and stops. It is one PNG on disk with nothing
+ * finer behind it, and a request would be a billed call for the same pixels.
+ */
+function attachGeeRefine(layer) {
+  layer.refineFor = async (area) => {
+    const query = layer.geeQuery;
+    if (!query || !query.live) {
+      return `${layer.name}: cached snapshot, nothing finer to fetch.`;
+    }
+    const box = overlapBounds(area, layer.bounds);
+    if (!box) return "";
+    const already = deliveredMetresPerPixel(
+      layer.bounds, layer.object3D?.userData?.geeImage,
+    );
+    const dimensions = bestDimensions(box, query.nativeScale);
+    const params = new URLSearchParams({
+      dataset: query.dataset,
+      bbox: [box.minX, box.minY, box.maxX, box.maxY].map((n) => n.toFixed(4)).join(","),
+      dimensions: String(dimensions),
+    });
+    if (query.from) params.set("from", query.from);
+    if (query.to) params.set("to", query.to);
+    const response = await fetch(`${query.endpoint}?${params}`, { cache: "no-store" });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.imageUrl) {
+      throw new Error(data.error || `HTTP ${response.status}`);
+    }
+    const image = await loadImage(data.imageUrl);
+    const bounds = data.bounds || box;
+    const sampler = geeSamplerFromImage(image, {
+      bounds, palette: query.palette, legend: query.legend,
+    });
+    if (!sampler) return "";
+    const hadSampler = layer.sampler;
+    const hadBounds = layer.bounds;
+    const hadRestore = layer.restoreLive;
+    layer.sampler = sampler;
+    layer.refinedBounds = bounds;
+    layer.restoreLive = () => {
+      layer.sampler = hadSampler;
+      layer.bounds = hadBounds;
+      layer.refinedBounds = null;
+      layer.restoreLive = hadRestore;
+    };
+    const delivered = deliveredMetresPerPixel(bounds, image);
+    const gain = already && delivered ? already / delivered : null;
+    return `${layer.name}: refetched for the study area at ${formatResolution(delivered)}`
+      + (query.nativeScale ? ` (dataset native ${query.nativeScale} m)` : "")
+      + (gain && gain >= 1.5 ? `, ${Math.round(gain)}x the imported picture` : "")
+      + ".";
+  };
+}
+
+/** One image, loaded and decoded, so a sampler can be built from it. */
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("the image did not load"));
+    image.src = src;
+  });
+}
+
+/**
  * Re-request as you zoom, so an import sharpens instead of staying global.
  *
  * The service renders a fixed pixel budget over whatever extent it is given, so
@@ -1518,6 +1665,18 @@ async function requestFromCache(datasetId) {
     if (layer) {
       object3D.userData.geoidLayer = true;
       window.GeoIDViewer?.globe?.add?.(object3D);
+      /**
+       * A cached snapshot records what it IS, so `refineFor` can say there is
+       * nothing finer rather than making a billed call for the same pixels:
+       * one global PNG on disk, and no service behind it.
+       */
+      layer.geeQuery = {
+        dataset: entry.dataset,
+        nativeScale: Number(entry.scale) || null,
+        name: entry.name,
+        live: false,
+      };
+      attachGeeRefine(layer);
       layer.metadata = {
         source: `Google Earth Engine · ${entry.dataset} (cached)`,
         format: "PNG composite",

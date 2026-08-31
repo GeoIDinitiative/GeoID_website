@@ -446,7 +446,24 @@ export async function importFromWfs(base, opts = {}, runOpts = {}) {
     throw new Error(`${name} returned no features`
       + (opts.bbox ? " in this area. Try without the study-area filter." : "."));
   }
+  const before = new Set((manager.getLayers?.() || []).map((l) => l.id));
   await manager.importFileList([makeGeoJsonFile(collection, name, runOpts.FileImpl)]);
+  /**
+   * The QUERY is kept on the layer it produced, so a study area can ask the
+   * service again.
+   *
+   * A WFS layer is already exact geometry — there is no coarser or finer
+   * version of a boundary — so "highest resolution available" means something
+   * different here: the fetch runs under a feature COUNT limit, and what a cap
+   * cut off is not detail smeared away but whole features missing. Re-asking
+   * for a smaller bbox is how they come back.
+   *
+   * `importFileList` answers with nothing, so the layer is found by what
+   * appeared: ids taken before, and the difference after.
+   */
+  const added = (manager.getLayers?.() || []).filter((l) => !before.has(l.id));
+  const layer = added.find((l) => String(l.name || "").startsWith(name)) || added[0] || null;
+  if (layer) attachWfsRefine(layer, base, opts, runOpts, collection);
   return {
     name,
     features: collection.features.length,
@@ -457,12 +474,58 @@ export async function importFromWfs(base, opts = {}, runOpts = {}) {
   };
 }
 
+/**
+ * A WFS LAYER RE-ASKS FOR A STUDY AREA when a cap cut its answer short.
+ *
+ * `refineFor` is the contract the tool runner puts to every input before a run
+ * that has a ground. For a feature service the honest answer has two branches,
+ * and the second one matters as much as the first:
+ *
+ *   - the import was TRUNCATED, so the layer holds the first N features of a
+ *     larger answer and the study area may be mostly in the part that never
+ *     arrived. Re-asking with a bbox returns that ground in full;
+ *   - the import was COMPLETE, and there is nothing to fetch. Saying so beats
+ *     a silent no-op, and beats a request that spends the service's time to
+ *     receive what is already in hand.
+ *
+ * The layer is put back by `restoreLive` either way: a clip must not leave the
+ * map holding one study area's features, which this codebase already records
+ * as the fault that sent click-picks to the wrong polygon.
+ */
+export function attachWfsRefine(layer, base, opts, runOpts, imported) {
+  layer.wfsQuery = { base, opts, truncated: Boolean(imported?.truncated) };
+  layer.refineFor = async (area) => {
+    if (!layer.wfsQuery.truncated) {
+      return `${layer.name}: every feature already in hand, nothing to re-fetch.`;
+    }
+    const bbox = [area.minX, area.minY, area.maxX, area.maxY];
+    const fresh = await fetchAllFeatures(base, { ...opts, bbox }, runOpts);
+    const features = fresh?.features || [];
+    if (!features.length) return "";
+    const had = { collection: layer.collection, features: layer.features };
+    const hadRestore = layer.restoreLive;
+    layer.collection = { type: "FeatureCollection", features };
+    layer.features = features;
+    layer.restoreLive = () => {
+      layer.collection = had.collection;
+      layer.features = had.features;
+      layer.restoreLive = hadRestore;
+    };
+    const was = had.features?.length || 0;
+    return `${layer.name}: re-fetched for the study area, ${features.length} features`
+      + (features.length > was ? ` where the capped import held ${was}` : "")
+      + (fresh.truncated ? " (still capped — narrow the area for the rest)" : "")
+      + ".";
+  };
+}
+
 /* ── the seam ────────────────────────────────────────────────────────────── */
 
 if (typeof window !== "undefined") {
   window.GeoIDWfsImport = Object.assign(window.GeoIDWfsImport || {}, {
     fetchAllFeatures,
     importFromWfs,
+    attachWfsRefine,
     buildFeaturesUrl,
     detectApiKind,
   });

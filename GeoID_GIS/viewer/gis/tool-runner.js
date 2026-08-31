@@ -1,21 +1,21 @@
-import * as GP from "./geoprocessing.js?v=20260831-2b801ef";
-import * as RA from "./raster-analysis.js?v=20260831-2b801ef";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260831-2b801ef";
+import * as GP from "./geoprocessing.js?v=20260831-fd2a91f";
+import * as RA from "./raster-analysis.js?v=20260831-fd2a91f";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260831-fd2a91f";
 // eslint-disable-next-line no-unused-vars
-import { pointInPolygon } from "./geometry.js?v=20260831-2b801ef";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260831-2b801ef";
+import { pointInPolygon } from "./geometry.js?v=20260831-fd2a91f";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260831-fd2a91f";
 // Pure and DOM-free, so a static import keeps this module Node-clean AND keeps
 // the terrain engine SYNCHRONOUS -- runTool calls engines.native WITHOUT
 // awaiting it, so an async engine hands register() a Promise and the raster
 // comes out undefined. Measured as: "Cannot read properties of undefined".
-import { buildSurface, nativeStepM } from "./model-build.js?v=20260831-2b801ef";
-import { nativeGridOf } from "./extraction.js?v=20260831-2b801ef";
-import { CRS_OPTIONS } from "./projection.js?v=20260831-2b801ef";
-import * as IN from "./interpolation.js?v=20260831-2b801ef";
-import * as VAL from "./validation.js?v=20260831-2b801ef";
-import * as EX from "./analysis-extra.js?v=20260831-2b801ef";
-import * as HY from "./hydrology.js?v=20260831-2b801ef";
-import * as KR from "./kriging.js?v=20260831-2b801ef";
+import { buildSurface, nativeStepM } from "./model-build.js?v=20260831-fd2a91f";
+import { nativeGridOf } from "./extraction.js?v=20260831-fd2a91f";
+import { CRS_OPTIONS } from "./projection.js?v=20260831-fd2a91f";
+import * as IN from "./interpolation.js?v=20260831-fd2a91f";
+import * as VAL from "./validation.js?v=20260831-fd2a91f";
+import * as EX from "./analysis-extra.js?v=20260831-fd2a91f";
+import * as HY from "./hydrology.js?v=20260831-fd2a91f";
+import * as KR from "./kriging.js?v=20260831-fd2a91f";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -2116,6 +2116,48 @@ function touches(feature, box) {
 }
 
 /**
+ * EVERY INPUT BRINGS ITS BEST DATA FOR THIS RUN'S GROUND.
+ *
+ * `refreshLiveInputs` above does this for layers that stream FEATURES, which
+ * for a long time meant geology and nothing else. The same question applies to
+ * every kind of source, and the answer differs by kind rather than by tool:
+ *
+ *   - an Earth Engine layer renders a fixed pixel budget over whatever extent
+ *     it is asked for, so a study area is a sharper picture of the same data —
+ *     the difference between 39 km/px on a global snapshot and metres over a
+ *     county, and cropping the global one can never recover it;
+ *   - a WFS layer is fetched under a feature COUNT limit, so a study area is
+ *     the part of the answer that was truncated away;
+ *   - a GeoTIFF is already its own native grid and a shapefile is already exact
+ *     geometry: there is nothing finer to ask for, and saying so is the honest
+ *     answer rather than a silent no-op.
+ *
+ * A layer answers by SWAPPING IN its better data and leaving `restoreLive`
+ * behind, exactly as the live-feature path does — so `giveBack` puts the map
+ * back the way the reader had it, and a clip does not shrink the layer it was
+ * cut from.
+ */
+async function refineInputsForArea(resolved, box, params, refined = []) {
+  if (!box) return "";
+  const notes = [];
+  for (const layer of Object.values(resolved || {})) {
+    if (typeof layer?.refineFor !== "function") continue;
+    try {
+      const note = await layer.refineFor(box, { detail: params?.detail });
+      // Whatever it swapped in has to be given back, so it joins the list
+      // `giveBack` walks — a layer left holding one study area's data is the
+      // same lie as a layer left holding one study area's features.
+      if (typeof layer.restoreLive === "function") refined.push(layer);
+      if (typeof note === "string" && note.trim()) notes.push(note.trim());
+    } catch (error) {
+      // A source that cannot sharpen keeps what it had. Never fail the run for
+      // it: the coarse answer is still an answer.
+    }
+  }
+  return notes.length ? ` ${notes.join(" ")}` : "";
+}
+
+/**
  * HOW FINELY EACH SURVEY MAPS THE GROUND, measured from the features it sent.
  *
  * Macrostrat's tiles hide this: `carto` picks ONE survey per scale, so a tile
@@ -2305,11 +2347,25 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
   const verbatimNote = toolId === "clip" && typeof document !== "undefined"
     ? await verbatimGeometry(borrowed, box).catch(() => "")
     : "";
-  const note = `${liveNote}${verbatimNote}`;
+  /**
+   * And every other kind of source is asked the same question.
+   *
+   * Only when the run HAS a ground to ask about — `box` is the area of
+   * interest `refreshLiveInputs` worked out, and with no mask there is nothing
+   * to sharpen towards.
+   */
+  const resolvedInputs = {};
+  for (const spec of desc.inputs || []) resolvedInputs[spec.name] = resolveLayer(inputs[spec.name]);
+  const refined = [];
+  const refinedNote = typeof document !== "undefined"
+    ? await refineInputsForArea(resolvedInputs, box, params, refined).catch(() => "")
+    : "";
+  const note = `${liveNote}${verbatimNote}${refinedNote}`;
   // Whatever was borrowed for this run is given back afterwards, always: a
   // layer left holding one study area's features tells the click picker the
   // rest of the map is not there.
-  const giveBack = () => borrowed.forEach((l) => { try { l.restoreLive?.(); } catch (e) { /* keep */ } });
+  const giveBack = () => [...borrowed, ...refined]
+    .forEach((l) => { try { l.restoreLive?.(); } catch (e) { /* keep */ } });
   // The level shipped rides on the RESULT, or the one fact that decides which
   // map this is stays known only to the fetch that chose it.
   const withNote = (out) => (out && note ? { ...out, message: `${out.message || ""}${note}` } : out);
@@ -2329,7 +2385,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260831-2b801ef");
+    const client = await import("./sidecar-client.js?v=20260831-fd2a91f");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -2394,7 +2450,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260831-2b801ef");
+    const bridge = await import("./research/bridge.js?v=20260831-fd2a91f");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -2406,12 +2462,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260831-2b801ef");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260831-fd2a91f");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260831-2b801ef");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260831-fd2a91f");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }

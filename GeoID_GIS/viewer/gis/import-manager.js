@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260831-2b801ef";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260831-2b801ef";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260831-2b801ef";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260831-2b801ef";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260831-fd2a91f";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260831-fd2a91f";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260831-fd2a91f";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260831-fd2a91f";
 import {
   buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude,
   setMarkerSizeFromAltitude,
-} from "./vector-render.js?v=20260831-2b801ef";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260831-2b801ef";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260831-2b801ef";
-import { loadMshFile } from "./msh-adapter.js?v=20260831-2b801ef";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260831-2b801ef";
+} from "./vector-render.js?v=20260831-fd2a91f";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260831-fd2a91f";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260831-fd2a91f";
+import { loadMshFile } from "./msh-adapter.js?v=20260831-fd2a91f";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260831-fd2a91f";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -554,6 +554,24 @@ async function importDataset(primaryFile, sidecars, options = {}) {
     // layer without re-parsing the source file.
     layer.collection = result.collection || null;
     layer.raster = result.raster || null;
+    /**
+     * A FILE IS ALREADY ITS OWN BEST RESOLUTION, and says so.
+     *
+     * The tool runner asks every input to bring its best data for a run's
+     * ground. A streamed source answers by fetching — Earth Engine re-renders
+     * at the study area's scale, a feature service re-asks for the bbox. An
+     * imported file has no service behind it: a GeoTIFF is its own grid and a
+     * shapefile its own geometry, and there is nothing finer to ask for.
+     *
+     * Answering explicitly rather than staying silent is the point. "Nothing
+     * finer exists" and "nobody asked" look identical in a result message, and
+     * only one of them means the reader has the best available data.
+     */
+    if (!layer.refineFor) {
+      layer.refineFor = () => (layer.raster
+        ? `${layer.name}: imported grid, already at its native resolution.`
+        : `${layer.name}: imported geometry, already exact.`);
+    }
     // The key has to say what the map is drawn in; without this it fell back
     // to the material's colour, and a textured drape has none worth reading.
     layer.legendInfo = result.legendInfo || null;
