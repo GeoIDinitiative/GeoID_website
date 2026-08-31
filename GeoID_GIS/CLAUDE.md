@@ -8801,3 +8801,21 @@ Three things that make it one layer rather than seven:
 An entry whose local header says zero because its sizes trail the data is
 refused with a message rather than read as empty — every zip this app writes
 carries its sizes up front.
+
+## A streaming layer has to be told about opacity
+
+The world geology now lands at 50% (`initialOpacity` on the dataset, applied
+only in the branch that CREATES the layer, so a rebuild carries across whatever
+the reader set instead).
+
+Setting it surfaced an older bug. `layer-hierarchy.setOpacity` traverses the
+objects that exist when it runs; a tiled layer builds more whenever the view
+settles, each from the opacity the CONTROLLER remembers. So a sheet dragged to
+90% kept handing new tiles the value it had on load — measured, **16 objects at
+0.9 and 2 still at 0.5**, permanently, because nothing revisits a tile once it
+is built. `setOpacity` now tells the controller too, the way the geology panel
+already does on a rebuild. After: 27 objects, all 0.9, no stragglers.
+
+It predates the half-opacity default — the stragglers were simply fully opaque
+among faded ones, which reads as a patch of stronger colour and is easy to
+blame on the data.
