@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260831-c94a0da";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260831-c94a0da";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260831-5edaa65";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260831-5edaa65";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -780,32 +780,20 @@ function markerGroup() {
 }
 
 /**
- * THE CARD'S OWN ACCENT, so the outline and the label are one object.
+ * THE CARD'S OWN GOLD, so the outline and the label are one object.
  *
- * The card's border, its tail and its kicker are all drawn from
- * `--nav-accent-rgb`, which is a THEME variable — teal on the site, magenta on
- * the GIS page — so a hard-coded outline colour matches the label on one page
- * and argues with it on the next. Reading the variable at pick time means the
- * ring around the polygon is the same colour as the box describing it,
- * wherever the viewer is embedded.
+ * A first attempt tied this to `--nav-accent-rgb`, the theme variable the
+ * card's tail and kicker use — and measured against the live card that was
+ * wrong: the box's BORDER is not the accent at all. It pulses gold, between
+ * rgba(255,214,122) and rgba(255,232,166), under `scene-popup-focus-pulse`,
+ * and that gold edge is what a reader sees as the label's own colour.
  *
- * The gold stays for everything else: this file's own note records it as the
- * colour the viewer's label selection wears, so one colour means "this is the
- * thing you picked" across the globe. Only geology, which now has a card built
- * around its accent, follows the card instead.
+ * So the ring around the polygon wears the same gold the border does — which
+ * is also the colour this file already used, and the one the viewer's label
+ * selection wears, so "this is the thing you picked" still reads the same
+ * everywhere on the globe.
  */
-function accentColour(fallback = 0xffd166) {
-  try {
-    const raw = getComputedStyle(document.documentElement)
-      .getPropertyValue("--nav-accent-rgb").trim();
-    const parts = raw.split(",").map((n) => Number(n.trim()));
-    if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) return fallback;
-    const [r, g, b] = parts.map((n) => Math.max(0, Math.min(255, Math.round(n))));
-    return (r << 16) | (g << 8) | b;
-  } catch (error) {
-    return fallback;
-  }
-}
+const SELECTION_GOLD = 0xffd67a;
 
 /**
  * The outline of what answered -- and nothing else on the surface.
@@ -991,7 +979,7 @@ function startPulse(nodes, baseOpacity) {
  * The outline stays, because the card cannot say WHICH feature answered on a
  * map of hundreds of them — and now it pulses, so it says so at a glance.
  */
-async function showOutline(feature, { colour = 0xffd166 } = {}) {
+async function showOutline(feature, { colour = SELECTION_GOLD } = {}) {
   const viewer = window.GeoIDViewer;
   const group = markerGroup();
   if (!viewer?.surfacePoint || !group) return;
@@ -1578,7 +1566,7 @@ function install() {
     const geologyHit = everything.find(
       (h) => h.layer.geologyDataset && layerHasPolygons(h.layer),
     );
-    if (geologyHit) void showOutline(geologyHit.feature, { colour: accentColour() });
+    if (geologyHit) void showOutline(geologyHit.feature);
     const hits = everything
       .filter((h) => !(h.layer.geologyDataset && layerHasPolygons(h.layer)));
     if (!hits.length) {

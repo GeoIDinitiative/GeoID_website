@@ -1636,7 +1636,7 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
       z-index: 21;
       width: 0;
       height: 0;
-      filter: drop-shadow(0 0 8px rgba(var(--nav-accent-rgb), 0.34));
+      filter: drop-shadow(0 0 8px rgba(255, 214, 122, 0.42));
       transform: translateX(-50%);
       pointer-events: none;
     }
@@ -1653,8 +1653,8 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
          ring around the polygon are one object seen in four places, and a
          hard-coded cyan matched the label on one theme and argued with it on
          the next. */
-      background: rgba(var(--nav-accent-rgb), 0.95);
-      border: 2px solid rgba(255, 255, 255, 0.82);
+      background: rgba(255, 223, 144, 0.95);
+      border: 2px solid rgba(255, 250, 236, 0.88);
       transform: translate(-50%, -72%);
       box-shadow: 0 0 0 0 rgba(88, 231, 223, 0.22);
       animation: geology-selection-pulse 1.8s ease-out infinite;
@@ -1701,7 +1701,7 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
       top: calc(100% - 1px);
       border-left: calc(1.6rem + 1px) solid transparent;
       border-right: calc(1.6rem + 1px) solid transparent;
-      border-top: calc(1.5rem + 1px) solid rgba(var(--nav-accent-rgb), 0.34);
+      border-top: calc(1.5rem + 1px) solid rgba(255, 223, 144, 0.78);
     }
     .geo-popup[data-tail="bottom"]::after {
       top: 100%;
@@ -1714,7 +1714,7 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
       bottom: calc(100% - 1px);
       border-left: calc(1.6rem + 1px) solid transparent;
       border-right: calc(1.6rem + 1px) solid transparent;
-      border-bottom: calc(1.5rem + 1px) solid rgba(var(--nav-accent-rgb), 0.34);
+      border-bottom: calc(1.5rem + 1px) solid rgba(255, 223, 144, 0.78);
     }
     .geo-popup[data-tail="top"]::after {
       bottom: 100%;
@@ -1727,7 +1727,7 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
       right: calc(100% - 1px);
       border-top: calc(1.6rem + 1px) solid transparent;
       border-bottom: calc(1.6rem + 1px) solid transparent;
-      border-right: calc(1.5rem + 1px) solid rgba(var(--nav-accent-rgb), 0.34);
+      border-right: calc(1.5rem + 1px) solid rgba(255, 223, 144, 0.78);
     }
     .geo-popup[data-tail="left"]::after {
       right: 100%;
@@ -1740,7 +1740,7 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
       left: calc(100% - 1px);
       border-top: calc(1.6rem + 1px) solid transparent;
       border-bottom: calc(1.6rem + 1px) solid transparent;
-      border-left: calc(1.5rem + 1px) solid rgba(var(--nav-accent-rgb), 0.34);
+      border-left: calc(1.5rem + 1px) solid rgba(255, 223, 144, 0.78);
     }
     .geo-popup[data-tail="right"]::after {
       left: 100%;
