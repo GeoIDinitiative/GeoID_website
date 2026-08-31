@@ -8481,23 +8481,25 @@ kept that radius. Its visibility test asks whether the camera is on the outward
 side of the anchor, and once the camera is BELOW a stale anchor the answer is
 no, so the card and its dot decided they were over the horizon and hid.
 
-The anchor now remembers the relief it was built at and rescales its
-displacement each frame:
-`r = 3.2 + (r_built − 3.2) × (relief_now / relief_built)`. Same trick as
-`aDisp` and the relief uniform in `vector-render`, arrived at for the same
-reason.
+The anchor is now remembered as a **place** — `vectorToLatLon` at click time —
+and the point rebuilt each frame by `getReliefPoint`, the same call the ground
+itself is made with. Measured after: the ground under the anchor is
+55.0163/−6.9852 at 90, 40, 20, 10, 5 and 2 km — identical to four decimals,
+**0 km of drift**, with the card shown and titled throughout.
 
-**Rescale, do not re-derive.** Converting the point to a latitude and longitude
-and rebuilding it through `getReliefPoint` was tried first: a round trip
-through two longitude conventions and a coarse elevation sampler, to recover a
-direction that was never in doubt. The clicked direction is exact — only its
-height is wrong.
+Rescaling the clicked point by the relief ratio instead —
+`r = 3.2 + (r_built − 3.2) × (relief_now / relief_built)` — was tried first and
+is nearly right: displacement does scale with the exaggeration. It left 2.4 km
+of creep between 90 km and 2 km, because it is not the arithmetic the surface
+is built with. **Ask the sampler the ground asks.**
 
-After: the card holds from 120 km down to 1 km, and inverting the anchor back
-to the ground under it gives 55.0371/−7.0546 at 60 km against
-55.0334/−7.0548 at 5 km — longitude steady to 13 m, latitude drifting 410 m
-across a 12× zoom and then settling. Not perfect; small enough to see the dot
-on the unit it names.
+Two scopes matter here. `vectorToLatLon` is visible from the click handler and
+`getTerrainRelief` / `elevationSampler` are NOT — they are declared inside the
+render scope. Reading `getTerrainRelief()` in `openGeoPopup` threw a
+ReferenceError that aborted the rest of the function, so every field after that
+line went unset and the card showed nothing but the kicker the PREVIOUS click
+had left in the DOM. It looked like missing data and was a scope error; the
+symptom is a card with a stale heading and no body.
 
 **Two measuring traps met here, both mine, both worth remembering.** Screenshots
 from the browser tool are 800×567 while the page is 1205×855 — comparing a tool
