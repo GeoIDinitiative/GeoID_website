@@ -8659,3 +8659,27 @@ Note the local GDAL's Python bindings **segfault** on `from osgeo import ogr`
 while the CLI tools work. That is a sick GDAL install on this machine, and it
 is the same stack QGIS sits on — worth remembering next time a file "crashes
 QGIS" and passes every check here.
+
+### The 10 km acceptance run
+
+Clip 10 × 10 km of the world geology, export SHP, import it back — measured end
+to end, with the exported bytes then handed to GDAL:
+
+| | source clip | re-imported |
+|---|---|---|
+| features | 8 | 8 |
+| rings | 8 | 8 |
+| area | 124.288 km² | 124.288 km² (**0% drift**) |
+| colour column | `color` | `COLOR` |
+| legend | 678F66, A6A6A6, 8CB06C, 9AD9DD | in the survey's colours, labelled by unit |
+| pinched rings | 0 arrived | 0 written |
+
+The zip is 8,104 bytes with all five members. GDAL on those exact bytes: driver
+ESRI Shapefile, **Geometry Polygon, 8 features, 8 valid**, extent equal to the
+box, attributes intact including `COLOR = #FF9BCD`.
+
+**The area sum exceeds the box on purpose.** 124.29 km² over 100 km² is **24.3%
+of the ground covered more than once** — coarse features kept whole because
+their cut could not be made safely. It costs nothing on screen or in a click,
+and it double-counts in an area sum or an attribute table. That is the standing
+trade until there is a clipper correct for concave subjects.
