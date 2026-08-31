@@ -8237,3 +8237,37 @@ engine. Until then the export COUNTS them and says so.
 
 `ogrinfo`, GEOS validity, and pyshp each tolerate different faults, so agreeing
 with one proves nothing. Diff against GDAL's own writer.
+
+## A layer that says what colour it is
+
+A 47 km Macrostrat clip exported to GeoJSON and to shapefile and re-imported
+came back whole — 97 of 97 features, every `COLOR` cell intact — and read as a
+different, broken map: painted in this app's qualitative ramp (#E05859,
+#4F78A6, #F28D2F where the survey said #FF9BCD, #EBEBEB, #7FC64E) under a key
+that was a smooth gradient bar naming nothing. Reported as "missing polygons on
+the left" and "the categories are not registering — no differentiation". Two
+separate faults wearing one costume:
+
+- **The colour column was never asked for.** `buildVectorLayerResult` always
+  classified by `suggestCategoryField` + `categoricalSymbology`. It now prefers
+  a column the file itself publishes (`color`/`colour`/`COLOR`/`fill`) when it
+  holds a valid hex on EVERY feature — `inheritedColouring`'s rule, because a
+  partial column paints half the map from the file and half from a ramp. Where
+  the invented colour landed pale, ground read as absent; that is the whole of
+  "missing polygons".
+- **The legend never declared itself a class list.** The dock draws
+  `legendInfo` as a continuous ramp unless `classed` is set, and this was the
+  one producer here that never set it — macrostrat.js, symbology.js and the
+  symbology dialog all do. Every classified vector import, not just this round
+  trip, had its rows fall through to the gradient branch.
+
+`import-manager` records the column as `sourceColourField`, so a clip OF a
+re-imported map inherits it; without that the round trip was faithful on screen
+and reverted to a ramp the moment it was cut.
+
+**`inheritSourceColours` is fire-and-forget, so a layer read the instant
+`runToolAuto` resolves has NOT got its inherited legend yet.** Measured the
+clip output twice as `sourceColourField: null` with a Tableau palette, called
+it a regression, and reverted a working change on the strength of it. Read the
+layer a few seconds later, or read it after the repaint lands. Same family of
+mistake as measuring coverage before the tiles finished loading.
