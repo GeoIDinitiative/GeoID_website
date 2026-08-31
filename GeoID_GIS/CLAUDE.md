@@ -8768,3 +8768,36 @@ Two details decide whether it works at all:
 
 Verified from the UI's own export: members `shp shx dbf prj qml sld cpg`,
 `attr="NAME"`, six categories, labelled by unit.
+
+## A zip is how a shapefile travels, so it is how one arrives
+
+A shapefile is four to seven files that must stay together, which is why this
+app exports one as a zip — and then asked the reader to unzip it and pick the
+.shp out by hand. `polygons.js` even advertised `.zip` in its picker, so the
+file could be chosen and then not opened.
+
+Archives are expanded in `expandArchives` before anything else looks at the
+list, so a member is grouped with its sidecars by the same rule a loose file is
+and no parser ever sees a `.zip`. Verified both ways:
+
+| | stored (ours) | deflated, inside a folder |
+|---|---|---|
+| zip | 18,576 bytes | 5,923 bytes |
+| layers added | **1** | **1** |
+| unsupported rows | 0 | — |
+| features / colour / legend | 8 / COLOR / named | 8 / COLOR / named |
+
+Three things that make it one layer rather than seven:
+
+- `qml` and `sld` had to join `SIDECAR_EXTENSIONS`. They are the styles this
+  app now writes beside a shapefile, and as primaries they landed as an
+  "unsupported" row apiece.
+- Folder paths are flattened to the file name. The grouping keys on the base
+  name, so `a/roads.shp` and `a/roads.dbf` would otherwise be different groups.
+- DEFLATE is the normal case for a zip written anywhere else.
+  `DecompressionStream("deflate-raw")` inflates; a member it cannot read is
+  skipped rather than failing the archive.
+
+An entry whose local header says zero because its sizes trail the data is
+refused with a message rather than read as empty — every zip this app writes
+carries its sizes up front.
