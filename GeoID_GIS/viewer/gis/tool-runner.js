@@ -1,21 +1,21 @@
-import * as GP from "./geoprocessing.js?v=20260831-8d8f261";
-import * as RA from "./raster-analysis.js?v=20260831-8d8f261";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260831-8d8f261";
+import * as GP from "./geoprocessing.js?v=20260831-94ab3f0";
+import * as RA from "./raster-analysis.js?v=20260831-94ab3f0";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260831-94ab3f0";
 // eslint-disable-next-line no-unused-vars
-import { pointInPolygon } from "./geometry.js?v=20260831-8d8f261";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260831-8d8f261";
+import { pointInPolygon } from "./geometry.js?v=20260831-94ab3f0";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260831-94ab3f0";
 // Pure and DOM-free, so a static import keeps this module Node-clean AND keeps
 // the terrain engine SYNCHRONOUS -- runTool calls engines.native WITHOUT
 // awaiting it, so an async engine hands register() a Promise and the raster
 // comes out undefined. Measured as: "Cannot read properties of undefined".
-import { buildSurface, nativeStepM } from "./model-build.js?v=20260831-8d8f261";
-import { nativeGridOf } from "./extraction.js?v=20260831-8d8f261";
-import { CRS_OPTIONS } from "./projection.js?v=20260831-8d8f261";
-import * as IN from "./interpolation.js?v=20260831-8d8f261";
-import * as VAL from "./validation.js?v=20260831-8d8f261";
-import * as EX from "./analysis-extra.js?v=20260831-8d8f261";
-import * as HY from "./hydrology.js?v=20260831-8d8f261";
-import * as KR from "./kriging.js?v=20260831-8d8f261";
+import { buildSurface, nativeStepM } from "./model-build.js?v=20260831-94ab3f0";
+import { nativeGridOf } from "./extraction.js?v=20260831-94ab3f0";
+import { CRS_OPTIONS } from "./projection.js?v=20260831-94ab3f0";
+import * as IN from "./interpolation.js?v=20260831-94ab3f0";
+import * as VAL from "./validation.js?v=20260831-94ab3f0";
+import * as EX from "./analysis-extra.js?v=20260831-94ab3f0";
+import * as HY from "./hydrology.js?v=20260831-94ab3f0";
+import * as KR from "./kriging.js?v=20260831-94ab3f0";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -2596,7 +2596,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260831-8d8f261");
+    const client = await import("./sidecar-client.js?v=20260831-94ab3f0");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -2661,7 +2661,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260831-8d8f261");
+    const bridge = await import("./research/bridge.js?v=20260831-94ab3f0");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -2673,12 +2673,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260831-8d8f261");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260831-94ab3f0");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260831-8d8f261");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260831-94ab3f0");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }
@@ -2915,7 +2915,28 @@ function register(desc, raw, name, resolvedInputs = {}) {
    * about which survey owns a piece of ground.
    */
   if (rankOf) shown.features.sort((a, b) => rankOf(b) - rankOf(a));
-  const result = buildVectorLayerResult(shown, { name, drape: 0.008, rankOf });
+  /**
+   * A DERIVED GEOLOGICAL MAP IS DRAWN LIKE THE ONE IT CAME FROM, contacts
+   * included.
+   *
+   * The renderer's default is "match" — every polygon's outline in its own
+   * fill colour, which is an outline nobody can see. That is the right default
+   * for a catchment or a coastline, and wrong for geology, where the contact
+   * IS the information. Measured on a 47 km clip: 4,286 line vertices drawn in
+   * #FF9ACC on a #FF9ACC fill, while the world layer beside it inked the same
+   * boundaries at #B86790. The lines had been there all along, in the one
+   * colour that cannot be seen against what they bound.
+   *
+   * Taken from the input rather than chosen here, so the panel's contact
+   * selector still governs both, the same way the colour column is inherited
+   * rather than re-guessed.
+   */
+  let contacts = null;
+  for (const layer of Object.values(resolvedInputs || {})) {
+    const style = layer?.tiled?.getContacts?.() ?? layer?.getContacts?.();
+    if (style) { contacts = style; break; }
+  }
+  const result = buildVectorLayerResult(shown, { name, drape: 0.008, rankOf, contacts });
   const layer = window.GeoIDImportManager?.addDerivedLayer?.(name, result, "derived") || null;
   /**
    * A tool may declare how its output is READ (`paint`), and the multi-ring

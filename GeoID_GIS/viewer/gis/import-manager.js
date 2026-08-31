@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260831-8d8f261";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260831-8d8f261";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260831-8d8f261";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260831-8d8f261";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260831-94ab3f0";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260831-94ab3f0";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260831-94ab3f0";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260831-94ab3f0";
 import {
   buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude,
   setMarkerSizeFromAltitude,
-} from "./vector-render.js?v=20260831-8d8f261";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260831-8d8f261";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260831-8d8f261";
-import { loadMshFile } from "./msh-adapter.js?v=20260831-8d8f261";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260831-8d8f261";
+} from "./vector-render.js?v=20260831-94ab3f0";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260831-94ab3f0";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260831-94ab3f0";
+import { loadMshFile } from "./msh-adapter.js?v=20260831-94ab3f0";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260831-94ab3f0";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -576,6 +576,8 @@ async function importDataset(primaryFile, sidecars, options = {}) {
     // to the material's colour, and a textured drape has none worth reading.
     layer.legendInfo = result.legendInfo || null;
     layer.repaint = result.repaint || null;
+    layer.setContacts = result.setContacts || null;
+    layer.getContacts = result.getContacts || null;
     /**
      * A file that publishes its own colours is MARKED as such.
      *
@@ -778,6 +780,10 @@ export function addDerivedLayer(name, result, ext = "derived") {
     // switch off is never given a control that does nothing.
     setFillMode: result.setFillMode || null,
     getFillMode: result.getFillMode || null,
+    // How its contacts are stroked, so the geology panel's one selector
+    // reaches a clip of a geological map as well as the tiles it came from.
+    setContacts: result.setContacts || null,
+    getContacts: result.getContacts || null,
     // A layer whose features are NOT ground positions (the satellites: live
     // subsatellite points, drawn three Earth radii up) opts out of the shared
     // ground picker and runs its own.

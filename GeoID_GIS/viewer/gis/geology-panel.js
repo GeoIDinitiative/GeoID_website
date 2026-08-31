@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260831-8d8f261";
-import { currentBodyId } from "./bodies.js?v=20260831-8d8f261";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260831-8d8f261";
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260831-8d8f261";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260831-94ab3f0";
+import { currentBodyId } from "./bodies.js?v=20260831-94ab3f0";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260831-94ab3f0";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260831-94ab3f0";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -272,10 +272,19 @@ const contactChoice = () => {
 };
 const setContactChoice = (value) => {
   try { window.localStorage?.setItem(CONTACT_KEY, value); } catch (error) { /* private window */ }
-  // Every tiled geology layer on the globe, so the control means one thing.
+  // Every geology layer on the globe, so the control means one thing.
+  //
+  // `loadedLayers` only lists layers with a `geologyDataset`, which a CLIP of
+  // one does not carry — so the selector moved the tiles and left every clip
+  // of them drawn the old way. Derived layers are walked separately and asked
+  // directly: anything that can restroke its contacts, does.
+  const style = CONTACT_STYLES[value] || null;
   loadedLayers().filter((l) => l.tiled?.setContacts).forEach((l) => {
-    l.tiled.setContacts(CONTACT_STYLES[value] || null);
+    l.tiled.setContacts(style);
   });
+  (window.GeoIDImportManager?.getLayers?.() || [])
+    .filter((l) => !l.tiled && typeof l.setContacts === "function" && l.getContacts?.())
+    .forEach((l) => { try { l.setContacts(style); } catch (error) { /* one layer's fault */ } });
 };
 
 const styleChoice = new Map();

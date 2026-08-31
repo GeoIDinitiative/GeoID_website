@@ -1,8 +1,8 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260831-8d8f261";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260831-8d8f261";
-import { pointInPolygon } from "./geometry.js?v=20260831-8d8f261";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260831-8d8f261";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260831-94ab3f0";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260831-94ab3f0";
+import { pointInPolygon } from "./geometry.js?v=20260831-94ab3f0";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260831-94ab3f0";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -1293,6 +1293,19 @@ function publishedSymbology(fc, key) {
 export function buildVectorLayerResult(fc, {
   name, fields = [], drape = 0.006, outlineOnly = false, pointStyle = "auto",
   rankOf = null,
+  /**
+   * How this layer's contacts are stroked — the same object the tiled geology
+   * layers take. Held on the LAYER rather than passed per paint, for the
+   * reason `fillMode` is: every recolour goes back through `repaintVector`,
+   * and a style the caller must re-supply on each one is a style lost the
+   * first time anything else repaints.
+   *
+   * Default null, which `renderFeatureCollection` reads as "match" — the
+   * polygon's own colour, an outline nobody can see. Right for a catchment or
+   * a coastline; wrong for a geological map, where the contact IS the
+   * information.
+   */
+  contacts = null,
 } = {}) {
   /**
    * The fill mode rides with the LAYER, not with a paint call.
@@ -1317,7 +1330,10 @@ export function buildVectorLayerResult(fc, {
   // minutes where it used to take seconds. The geometry is the same either
   // way; what changes is that the layer is on the globe immediately and gains
   // its colours a moment later, instead of the user waiting for both.
-  const { object3D, truncated } = renderFeatureCollection(fc, { name, drape, pointStyle, rankOf });
+  let contactStyle = contacts || null;
+  const { object3D, truncated } = renderFeatureCollection(fc, {
+    name, drape, pointStyle, rankOf, contacts: contactStyle,
+  });
   let lastColourFor = null;
 
   /**
@@ -1335,6 +1351,9 @@ export function buildVectorLayerResult(fc, {
       // survey precedence, or the coarse boundaries come back on the next
       // symbology change.
       name, drape, colourFor, pointStyle, rankOf, outlineOnly: fillMode === "outline",
+      // Rides through every repaint for `rankOf`'s reason: a recolour must not
+      // quietly return the contacts to invisible.
+      contacts: contactStyle,
     });
     [...object3D.children].forEach((child) => {
       child.geometry?.dispose?.();
@@ -1391,6 +1410,20 @@ export function buildVectorLayerResult(fc, {
       return fillMode;
     },
     getFillMode: () => fillMode,
+    /**
+     * Restroke the contacts, so ONE control means one thing.
+     *
+     * The geology panel's contact selector walks every layer that can answer
+     * this. Without it, changing the style moved the tiled layers and left
+     * every clip of them drawn the old way — two maps of the same ground
+     * disagreeing about their own boundaries.
+     */
+    setContacts: (style) => {
+      contactStyle = style || null;
+      if (lastColourFor) repaintVector(lastColourFor);
+      return contactStyle;
+    },
+    getContacts: () => contactStyle,
     // The legend is derived from the symbology that was actually drawn, never
     // from a second guess about it.
     legendInfo: symbology?.rows?.length
