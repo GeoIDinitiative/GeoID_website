@@ -19012,6 +19012,22 @@ ${error && error.message ? error.message : error}`;
           geologyStructureLayer.group.rotation.y = _spinDelta;
           if (ctxDetailStreamer && ctxDetailStreamer.group) ctxDetailStreamer.group.rotation.y = _spinDelta;
           measureGroup.rotation.y = activeMoonViewerFeature ? 0 : _spinDelta;
+          /**
+           * THE SELECTED UNIT'S OUTLINE TURNS WITH THE GROUND IT OUTLINES.
+           *
+           * Both are built from the feature's own lat/lon into the BASELINE
+           * frame and parked on `marsGroup`, which does not spin — while every
+           * other piece of furniture that must stay glued to the ground is
+           * turned right here. So the outline was correct for one frame and
+           * then the map turned out from under it, drifting off the layer it
+           * belonged to. See the same block in GeoID_GIS/viewer/earth-viewer.js.
+           */
+          if (selectedGeologyBoundaryGroup) {
+            selectedGeologyBoundaryGroup.rotation.y = _spinDelta;
+          }
+          if (selectedGeologyOutline && selectedGeologyOutline.mesh) {
+            selectedGeologyOutline.mesh.rotation.y = globe.rotation.y;
+          }
           // Keep moonMeasureGroup centred on the moon and rotating with its self-rotation.
           const _firstMoonMeasure = measurePoints.find((p) => p.context?.kind === "moon");
           if (_firstMoonMeasure) {

@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260831-e69d189";
+  from "./gis/geo-utils.js?v=20260831-bdef46e";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -21757,6 +21757,31 @@ ${error && error.message ? error.message : error}`;
           geologyStructureLayer.group.rotation.y = _spinDelta;
           if (ctxDetailStreamer && ctxDetailStreamer.group) ctxDetailStreamer.group.rotation.y = _spinDelta;
           measureGroup.rotation.y = activeMoonViewerFeature ? 0 : _spinDelta;
+          /**
+           * THE SELECTED UNIT'S OUTLINE TURNS WITH THE GROUND IT OUTLINES.
+           *
+           * Both of these are built from the feature's own lat/lon into the
+           * BASELINE frame and then parked on `marsGroup`, which does not
+           * spin. Every other piece of furniture that has to stay glued to the
+           * ground is turned here — labels, pins, the buffer group, contacts,
+           * the measure group — and these two were never added to the list.
+           * So the outline was correct for exactly one frame and then the map
+           * turned out from under it: reported as the highlight detaching from
+           * the map and drifting outside its bounds while dragging.
+           *
+           * `_spinDelta` is the right angle for the lines because it is what
+           * `GeoID-ImportedGeoLayers` is turned by — measured live, the two
+           * agree to the digit, so the outline and the polygons it traces are
+           * in one frame. The shell takes `globe.rotation.y` because it is a
+           * textured sphere in the globe's own frame, the way `geologyGlobe`
+           * and `mineralGlobe` above it are.
+           */
+          if (selectedGeologyBoundaryGroup) {
+            selectedGeologyBoundaryGroup.rotation.y = _spinDelta;
+          }
+          if (selectedGeologyOutline && selectedGeologyOutline.mesh) {
+            selectedGeologyOutline.mesh.rotation.y = globe.rotation.y;
+          }
           // Keep moonMeasureGroup centred on the moon and rotating with its self-rotation.
           const _firstMoonMeasure = measurePoints.find((p) => p.context?.kind === "moon");
           if (_firstMoonMeasure) {
