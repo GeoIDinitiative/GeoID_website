@@ -20,8 +20,9 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260831-e579da0";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260831-e579da0";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260831-c8dc62f";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260831-c8dc62f";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260831-c8dc62f";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -877,6 +878,36 @@ function bandHolder(holder) {
  * layer, so nothing can bury them whatever height they sit at — the lift was
  * solving a depth fight that had already been settled by sorting.
  */
+/**
+ * THE GROUND MOVES; A HIGHLIGHT BUILT ON IT HAS TO MOVE TOO.
+ *
+ * The terrain exaggeration eases off as the camera comes in to land, so the
+ * surface rises and falls by a great deal as you fly: measured over Inishowen,
+ * the ground radius runs from 3.2024 close in to 3.26199 pulled back, which is
+ * **119 km**. An outline built as static geometry keeps the height it was
+ * built at, so the same ring that traced a unit exactly at one altitude was
+ * measured **118.6 km underneath the ground** at another -- buried looking
+ * down, and standing clear of the map at any obliquity.
+ *
+ * The vector layers solved this long ago: each vertex carries the direction it
+ * lies in and its displacement as a fraction of the relief it was built with,
+ * and one uniform re-places every one of them on the GPU each frame. The
+ * highlight now carries the same two attributes and the same shader, at drape
+ * NOUGHT -- so it sits on the surface at every exaggeration, and `cullFarSide`
+ * hides the half of it facing away, which is what a depth test would otherwise
+ * have to do for a line that has no facing.
+ */
+function followTheGround(THREE, geometry, material) {
+  const relief = window.GeoIDViewer?.getEffectiveRelief?.() ?? 0;
+  try {
+    attachReliefAttributes(geometry, 0, relief);
+    return followRelief(material, 0, { cullFarSide: true });
+  } catch (error) {
+    // A highlight that cannot follow the ground is still better than none.
+    return material;
+  }
+}
+
 function buildHighlight(THREE, feature, { colour, opacity, width = 1, lift = 0 }) {
   const viewer = window.GeoIDViewer;
   const nodes = [];
@@ -903,12 +934,12 @@ function buildHighlight(THREE, feature, { colour, opacity, width = 1, lift = 0 }
       points.push(viewer.surfacePoint(path[0][1], path[0][0], lift));
     }
     if (points.length < 2) return;
-    const line = new THREE[close ? "LineLoop" : "Line"](
-      new THREE.BufferGeometry().setFromPoints(points),
-      new THREE.LineBasicMaterial({
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const line = new THREE[close ? "LineLoop" : "Line"](geometry,
+      followTheGround(THREE, geometry, new THREE.LineBasicMaterial({
         color: colour, depthTest: false, transparent: true, opacity, linewidth: width,
-      }),
-    );
+      })));
+    line.frustumCulled = false;
     line.renderOrder = 239;
     nodes.push(line);
   };
@@ -918,13 +949,13 @@ function buildHighlight(THREE, feature, { colour, opacity, width = 1, lift = 0 }
       .filter((c) => Array.isArray(c) && Number.isFinite(c[0]) && Number.isFinite(c[1]))
       .map((c) => viewer.surfacePoint(c[1], c[0], lift));
     if (!points.length) return;
-    const cloud = new THREE.Points(
-      new THREE.BufferGeometry().setFromPoints(points),
-      new THREE.PointsMaterial({
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const cloud = new THREE.Points(geometry,
+      followTheGround(THREE, geometry, new THREE.PointsMaterial({
         color: colour, size: 14, sizeAttenuation: false,
         depthTest: false, transparent: true, opacity,
-      }),
-    );
+      })));
+    cloud.frustumCulled = false;
     cloud.renderOrder = 240;
     nodes.push(cloud);
   };

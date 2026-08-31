@@ -2,7 +2,9 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260831-e579da0";
+  from "./gis/geo-utils.js?v=20260831-c8dc62f";
+import { attachReliefAttributes, followRelief }
+  from "./gis/vector-render.js?v=20260831-c8dc62f";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -13905,12 +13907,27 @@ uniform float uViewportWidth;`,
          * a static mesh rebuilt on selection; a camera that then descends is
          * left with a clearance a little generous rather than one 6.4 km out.
          */
-        const outlineLift = () => {
-          const centre = marsGroup.localToWorld(new THREE.Vector3(0, 0, 0));
-          const distance = camera.position.distanceTo(centre) - 3.2;
-          if (!Number.isFinite(distance) || distance <= 0) return 0.0000015;
-          return Math.min(0.0032, Math.max(0.0000015, distance * 0.02));
-        };
+        /**
+         * NO LIFT AT ALL, and no altitude to scale.
+         *
+         * This started at a flat 0.0032 -- 6.4 km -- and then at a fraction of
+         * the distance to the surface, which is better and still an altitude:
+         * a couple of hundred metres at a working view, drawn to one side of
+         * the unit it traces the moment you look at it obliquely.
+         *
+         * So it goes on the ground and takes the vector layers' own shader
+         * instead: `aDir` and `aDisp` per vertex, re-placed each frame at
+         * whatever exaggeration is live, `depthTest: false` so nothing can
+         * bury it at zero clearance, and `cullFarSide` to discard the half
+         * facing away -- which is the job the depth test was doing badly.
+         *
+         * Static geometry is the other half of the fault. The exaggeration
+         * eases as the camera descends, so the ground moves under anything
+         * built once: measured on the feature highlight, a ring that traced
+         * its unit exactly close in sat **118.6 km underneath the ground**
+         * pulled back. The shader is what fixes that, not the clearance.
+         */
+        const outlineLift = () => 0;
 
         const buildSegments = (ring) => {
           const segments = [];
@@ -13937,19 +13954,23 @@ uniform float uViewportWidth;`,
         const rings = activePopupFeature.polygons.flatMap((polygon) => [polygon.outer, ...(polygon.holes || [])]);
         for (const ring of rings) {
           for (const segment of buildSegments(ring)) {
-            const line = new THREE.Line(
-              new THREE.BufferGeometry().setFromPoints(segment),
-              new THREE.LineBasicMaterial({
-                color: 0xffbf6f,
-                transparent: true,
-                opacity: 0.92,
-                depthTest: true,
-                depthWrite: false,
-                polygonOffset: true,
-                polygonOffsetFactor: -2,
-                polygonOffsetUnits: -2,
-              }),
-            );
+            const outlineGeometry = new THREE.BufferGeometry().setFromPoints(segment);
+            const outlineMaterial = new THREE.LineBasicMaterial({
+              color: 0xffbf6f,
+              transparent: true,
+              opacity: 0.92,
+              // On the ground and sorted rather than depth-tested: see
+              // `outlineLift`.
+              depthTest: false,
+              depthWrite: false,
+            });
+            let placed = outlineMaterial;
+            try {
+              attachReliefAttributes(outlineGeometry, 0, getTerrainRelief());
+              placed = followRelief(outlineMaterial, 0, { cullFarSide: true });
+            } catch (error) { /* an outline that cannot follow is still an outline */ }
+            const line = new THREE.Line(outlineGeometry, placed);
+            line.frustumCulled = false;
             line.renderOrder = 110;
             line.userData.selectionAccent = true;
             selectedGeologyBoundaryGroup.add(line);
