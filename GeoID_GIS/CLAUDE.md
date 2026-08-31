@@ -8116,3 +8116,35 @@ ground — so a click raised a card and left the reader to find which of several
 hundred polygons it meant. The labelled path already followed this rule; the
 geology path now does too, and the dismissal branch had to learn that a geology
 hit is not "nothing".
+
+## A scroll container clips its own tail
+
+`overflow-y: auto` makes an element a scroll container, and a scroll container
+clips its `::before`/`::after` to the padding box. A tail drawn on a card's
+outside edge is therefore cropped off at the very edge it grows from — present
+in `getComputedStyle` (50 px of fill, 52 px of border) and absent from the
+screen. "No change in label shape" was exactly right while every measurement
+said the CSS was applied: the measurement confirmed the rule EXISTED, not that
+it was painted. The scrolling belongs to an inner wrapper; the card keeps a
+shape.
+
+Two triangles make one bubble: `::before` is the border, a pixel larger, and
+`::after` is the fill pulled a pixel BACK OVER the card so the card's own
+border is broken where the tail joins. Flush at the edge, that border rules
+straight across the base of the divot and the tail reads as a separate shape
+stuck under a closed box.
+
+And check what colour the label actually IS before matching anything to it. The
+card's border is not the theme accent its tail and kicker use — it pulses gold
+under `scene-popup-focus-pulse`, and tying the outline to the accent produced
+four parts in three colours.
+
+## The other viewers are copies, and drift
+
+`planet_explorer`'s five bodies and `GeoID_Earth` carry their own copy of the
+popup markup, CSS and render loop; `flight_sim` has seventeen more and
+`page_backups` snapshots. Drive them from the canonical file rather than by
+hand, and make each edit ALL-OR-NOTHING per file: their card is
+`pointer-events: auto` where the GIS one is `none`, so a greedy match updated
+markup and JS everywhere and left every stylesheet untouched — which is the
+right failure, and only visible because the script reported per file.
