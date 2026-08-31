@@ -1,21 +1,21 @@
-import * as GP from "./geoprocessing.js?v=20260831-3fb0f7c";
-import * as RA from "./raster-analysis.js?v=20260831-3fb0f7c";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260831-3fb0f7c";
+import * as GP from "./geoprocessing.js?v=20260831-1ca9cc0";
+import * as RA from "./raster-analysis.js?v=20260831-1ca9cc0";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260831-1ca9cc0";
 // eslint-disable-next-line no-unused-vars
-import { pointInPolygon } from "./geometry.js?v=20260831-3fb0f7c";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260831-3fb0f7c";
+import { pointInPolygon } from "./geometry.js?v=20260831-1ca9cc0";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260831-1ca9cc0";
 // Pure and DOM-free, so a static import keeps this module Node-clean AND keeps
 // the terrain engine SYNCHRONOUS -- runTool calls engines.native WITHOUT
 // awaiting it, so an async engine hands register() a Promise and the raster
 // comes out undefined. Measured as: "Cannot read properties of undefined".
-import { buildSurface, nativeStepM } from "./model-build.js?v=20260831-3fb0f7c";
-import { nativeGridOf } from "./extraction.js?v=20260831-3fb0f7c";
-import { CRS_OPTIONS } from "./projection.js?v=20260831-3fb0f7c";
-import * as IN from "./interpolation.js?v=20260831-3fb0f7c";
-import * as VAL from "./validation.js?v=20260831-3fb0f7c";
-import * as EX from "./analysis-extra.js?v=20260831-3fb0f7c";
-import * as HY from "./hydrology.js?v=20260831-3fb0f7c";
-import * as KR from "./kriging.js?v=20260831-3fb0f7c";
+import { buildSurface, nativeStepM } from "./model-build.js?v=20260831-1ca9cc0";
+import { nativeGridOf } from "./extraction.js?v=20260831-1ca9cc0";
+import { CRS_OPTIONS } from "./projection.js?v=20260831-1ca9cc0";
+import * as IN from "./interpolation.js?v=20260831-1ca9cc0";
+import * as VAL from "./validation.js?v=20260831-1ca9cc0";
+import * as EX from "./analysis-extra.js?v=20260831-1ca9cc0";
+import * as HY from "./hydrology.js?v=20260831-1ca9cc0";
+import * as KR from "./kriging.js?v=20260831-1ca9cc0";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -2319,6 +2319,60 @@ function samplePointsInside(feature, wanted = 120) {
  * That is the lesser fault by a distance: an overlap is visible, listed and
  * argued with, and a hole in a geological map is read as "no data here".
  */
+/**
+ * A BOUNDARY THAT SEPARATES NOTHING, drawn straight across the map.
+ *
+ * `subtractPolygons` walks a ring and joins what survives, so where a concave
+ * subject is cut into disjoint lobes the pieces are handed back joined by a
+ * CHORD — a straight edge through ground that is all one unit. Measured on the
+ * 47 km Inishowen clip: unit 3146589, "Proterozoic III quartzite", is a single
+ * part of 29 vertices after clipping and comes out of the precedence step as
+ * 12 parts and 1,673 vertices carrying a 25.66 km straight edge. Reported as
+ * "what's with the strange diagonal line?", and it is also where the export's
+ * self-touching rings come from.
+ *
+ * A real cut boundary has the finer survey on one side of it. A chord does
+ * not: step off it in both directions and both sides are the same unit, inside
+ * the original and inside no finer survey. That is the test — 22 m either way
+ * along the edge's normal, which is far enough to clear coordinate noise and
+ * well inside any unit a 2 km edge belongs to.
+ *
+ * Only long edges are examined. A short false edge is invisible and there are
+ * thousands of honest short ones; a chord is long by construction, since it
+ * spans the gap between two lobes of the same polygon.
+ */
+function introducesFalseBoundary(before, after, finer, minKm = 2) {
+  if (!after?.geometry) return false;
+  const insideBefore = (p) => GP.polygonsOf(before.geometry)
+    .some((rings) => pointInPolygon(p, rings));
+  const coveredByFiner = (p) => finer.some((f) =>
+    GP.polygonsOf(f.geometry).some((rings) => pointInPolygon(p, rings)));
+  const OFFSET = 0.0002;            // about 22 m
+  for (const rings of GP.polygonsOf(after.geometry)) {
+    for (const ring of rings) {
+      for (let i = 1; i < ring.length; i += 1) {
+        const a = ring[i - 1];
+        const b = ring[i];
+        const midLat = (a[1] + b[1]) / 2;
+        const dy = (b[1] - a[1]) * 111.32;
+        const dx = (b[0] - a[0]) * 111.32 * Math.cos((midLat * Math.PI) / 180);
+        const len = Math.hypot(dx, dy);
+        if (len < minKm) continue;
+        // The edge's normal, in degrees, so the two probes straddle it.
+        const nx = -(b[1] - a[1]);
+        const ny = b[0] - a[0];
+        const norm = Math.hypot(nx, ny) || 1;
+        const mid = [(a[0] + b[0]) / 2, midLat];
+        const left = [mid[0] + (nx / norm) * OFFSET, mid[1] + (ny / norm) * OFFSET];
+        const right = [mid[0] - (nx / norm) * OFFSET, mid[1] - (ny / norm) * OFFSET];
+        if (insideBefore(left) && insideBefore(right)
+          && !coveredByFiner(left) && !coveredByFiner(right)) return true;
+      }
+    }
+  }
+  return false;
+}
+
 function verdictOnCut(before, after, finer, tolerance = 0.02) {
   const samples = samplePointsInside(before);
   // Nothing to check it with: a sliver too thin to sample. Believe the engine
@@ -2333,7 +2387,11 @@ function verdictOnCut(before, after, finer, tolerance = 0.02) {
   if (!after?.geometry) return "whole";             // deleted, but it owed ground
   const held = owed.filter((p) =>
     GP.polygonsOf(after.geometry).some((rings) => pointInPolygon(p, rings)));
-  return (owed.length - held.length) / owed.length <= tolerance ? "cut" : "whole";
+  if ((owed.length - held.length) / owed.length > tolerance) return "whole";
+  // The ground is all there and the shape can still be wrong: a cut that draws
+  // a boundary through the middle of a unit is refused for the same reason a
+  // cut that eats ground is.
+  return introducesFalseBoundary(before, after, finer) ? "whole" : "cut";
 }
 
 function dropOutranked(features, rankOf, differenceOf) {
@@ -2531,7 +2589,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260831-3fb0f7c");
+    const client = await import("./sidecar-client.js?v=20260831-1ca9cc0");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -2596,7 +2654,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260831-3fb0f7c");
+    const bridge = await import("./research/bridge.js?v=20260831-1ca9cc0");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -2608,12 +2666,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260831-3fb0f7c");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260831-1ca9cc0");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260831-3fb0f7c");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260831-1ca9cc0");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }

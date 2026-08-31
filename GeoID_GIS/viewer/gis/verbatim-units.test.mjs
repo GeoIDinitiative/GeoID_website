@@ -293,14 +293,35 @@ const answering = (calls) => async (url) => {
       !byId(out, "coarse") && out.length === 1);
   }
   {
-    // A cut that is a little short is still a cut: verification is a check on
-    // whole missing regions, not a demand for exactness the engine cannot
-    // meet on curved boundaries.
-    const shy = (fc) => ({ type: "FeatureCollection", features: fc.features.map((f) => ({
-      ...f, geometry: { type: "Polygon", coordinates: [sq(0, 0, 2, 1.985)] } })) });
+    /**
+     * A BOUNDARY THAT SEPARATES NOTHING is refused, even when no ground is
+     * lost. `subtractPolygons` joins the disjoint lobes of a concave subject
+     * with a CHORD — measured on the Inishowen clip, unit 3146589 went from
+     * one part of 29 vertices to 12 parts of 1,673 carrying a 25.66 km
+     * straight edge across the middle of the map. The ground was all still
+     * there, which is why checking only for loss let it through.
+     */
+    const chord = (fc) => ({ type: "FeatureCollection", features: fc.features.map((f) => ({
+      ...f,
+      // The same 2x2 ground, delivered as two lobes joined across the middle:
+      // area intact, with a false edge through one unit.
+      geometry: { type: "MultiPolygon", coordinates: [[sq(0, 0, 2, 1)], [sq(0, 1, 2, 2)]] } })) });
     const out = drop([feat(1, sq(0, 0, 2, 2), "coarse"), feat(9, sq(0.25, 0.25, 0.75, 0.75), "fine")],
-      rankOf, shy);
-    ok("a cut within tolerance is accepted", area(byId(out, "coarse")) < 4);
+      rankOf, chord);
+    ok("a cut that draws a boundary through the middle of a unit is refused",
+      byId(out, "coarse")?.geometry?.type === "Polygon"
+        && Math.abs(area(byId(out, "coarse")) - 4) < 1e-9);
+  }
+  {
+    // The other side of that rule: an edge with the FINER SURVEY along it is a
+    // real boundary and the cut stands, however long the edge is.
+    const alongTheMask = (fc) => ({ type: "FeatureCollection", features: fc.features.map((f) => ({
+      ...f, geometry: { type: "Polygon", coordinates: [sq(0, 0.5, 2, 2)] } })) });
+    const out = drop([feat(1, sq(0, 0, 2, 2), "coarse"), feat(9, sq(0, 0, 2, 0.5), "fine")],
+      rankOf, alongTheMask);
+    ok("a long cut edge that the finer survey lies along is accepted",
+      Math.abs(area(byId(out, "coarse")) - 3) < 1e-9,
+      `got ${area(byId(out, "coarse"))}`);
   }
   {
     // Each feature is judged on its OWN ground: one bad cut must not condemn
