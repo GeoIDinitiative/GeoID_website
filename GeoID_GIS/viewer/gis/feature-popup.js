@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260831-b2ed2e1";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260831-b2ed2e1";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260831-1220b1b";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260831-1220b1b";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -50,13 +50,21 @@ const STYLE = `
   position: fixed;
   z-index: 21;
   max-width: 22rem;
-  max-height: 60vh;
-  overflow-y: auto;
+  /* NOT a scroll container: overflow-y auto clips this card's own ::before and
+     ::after to its padding box, so the tail was cropped off at the edge it
+     grew from -- computed, measured, and invisible on screen. The scroll lives
+     on .gis-fp-scroll inside. */
+  overflow: visible;
   font-family: "Exo 2", system-ui, sans-serif;
   font-size: 0.72rem;
   color: var(--text, #e8e2f2);
 }
 #gis-feature-popup[hidden] { display: none; }
+#gis-feature-popup .gis-fp-scroll {
+  max-height: 60vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
 /* THE TAIL IS PART OF THE BUBBLE, not a notch stuck to it. Two triangles make
    one shape: the ::before is the BORDER, a pixel bigger all round, and the
    ::after is the FILL over it, so the outline carries around the point.
@@ -1055,8 +1063,17 @@ function handleHover(event) {
 }
 
 function showPopup(x, y, layerName, feature, layerRecord = null) {
-  const host = ensurePopup();
-  host.innerHTML = "";
+  const outer = ensurePopup();
+  outer.innerHTML = "";
+  /**
+   * The rows go in a SCROLLER, and the card itself keeps its shape.
+   *
+   * `host` stays the name every line below uses, so this is one wrapper and no
+   * other change: what it points at is the scrolling box rather than the card.
+   */
+  const host = document.createElement("div");
+  host.className = "gis-fp-scroll";
+  outer.appendChild(host);
   const props = feature.properties || {};
 
   const head = document.createElement("div");
@@ -1157,7 +1174,7 @@ function showPopup(x, y, layerName, feature, layerRecord = null) {
     host.appendChild(more);
   }
 
-  host.hidden = false;
+  outer.hidden = false;
   /**
    * Kept inside the MAP, not the window.
    *
@@ -1182,14 +1199,16 @@ function showPopup(x, y, layerName, feature, layerRecord = null) {
     ? rect
     : { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight,
       width: window.innerWidth, height: window.innerHeight };
+  // The cap belongs to the scroller — the card must stay unclipped so its
+  // tail can hang outside the box.
   host.style.maxHeight = `${Math.max(120, area.height - MARGIN * 2)}px`;
-  const box = host.getBoundingClientRect();
+  const box = outer.getBoundingClientRect();
   const left = Math.max(area.left + MARGIN,
     Math.min(x + 14, area.right - box.width - MARGIN));
   const top = Math.max(area.top + MARGIN,
     Math.min(y + 12, area.bottom - box.height - MARGIN));
-  host.style.left = `${left}px`;
-  host.style.top = `${top}px`;
+  outer.style.left = `${left}px`;
+  outer.style.top = `${top}px`;
   /**
    * The tail points back at the CLICK, on whichever edge faces it.
    *
@@ -1207,11 +1226,11 @@ function showPopup(x, y, layerName, feature, layerRecord = null) {
   else if (y < top) edge = "top";
   else if (y > top + h) edge = "bottom";
   else edge = "left";           // the click is under the card: keep it simple
-  host.dataset.tail = edge;
+  outer.dataset.tail = edge;
   if (edge === "left" || edge === "right") {
-    host.style.setProperty("--tail-y", `${y - top}px`);
+    outer.style.setProperty("--tail-y", `${y - top}px`);
   } else {
-    host.style.setProperty("--tail-x", `${x - left}px`);
+    outer.style.setProperty("--tail-x", `${x - left}px`);
   }
 }
 
