@@ -21,10 +21,10 @@
  * rather than silently dropping whatever does not fit.
  */
 
-import * as VF from "./vector-formats.js?v=20260831-07f3e3f";
-import { downloadText } from "./extraction.js?v=20260831-07f3e3f";
+import * as VF from "./vector-formats.js?v=20260831-0feddc3";
+import { downloadText } from "./extraction.js?v=20260831-0feddc3";
 import { buildShapefileZip, shapeTypeFor, SHAPE_NAMES, safeShapefileName,
-  countSelfTouchingRings } from "./shapefile-writer.js?v=20260831-07f3e3f";
+  countSelfTouchingRings } from "./shapefile-writer.js?v=20260831-0feddc3";
 
 /**
  * What a layer is, read from its contents rather than its name.
@@ -359,7 +359,18 @@ export function renderExport(layer, formatId) {
   let text = "";
   const collection = collectionOf(layer);
   if (kind === "vector" && formatId === "shp") {
-    const bytes = buildShapefileZip(collection, base);
+    /**
+     * The layer's own painting, handed to the writer so the bundle can carry a
+     * style. `sourceColourField` is the column the layer is painted from and
+     * `sourceLabelField` the one its legend is keyed on -- the same two the
+     * clip inherits from the survey. Without them the writer ships geometry
+     * and attributes only, which is a shapefile that opens in one flat colour.
+     */
+    const bytes = buildShapefileZip(collection, base, {
+      labelField: layer.sourceLabelField || layer.geologyField
+        || layer.legendInfo?.field || null,
+      colourField: layer.sourceColourField || null,
+    });
     if (!bytes) return null;
     /**
      * What the file cannot say for itself.

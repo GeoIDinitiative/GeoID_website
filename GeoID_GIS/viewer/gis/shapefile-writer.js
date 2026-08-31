@@ -27,6 +27,8 @@
  * not fit.
  */
 
+import { buildQml, buildSld } from "./qgis-style.js?v=20260831-0feddc3";
+
 /* ───────────────────────────── shape types ────────────────────────────── */
 
 export const NULL_SHAPE = 0;
@@ -887,6 +889,15 @@ export function countSelfTouchingRings(collection) {
   return touched;
 }
 
+/**
+ * The DBF name a property ends up under, which is not the property's own name:
+ * columns are uppercased, stripped to ASCII and cut to ten characters, so a
+ * style written against `color` would match nothing.
+ */
+function dbfNameFor(fields, key) {
+  return fields.find((f) => f.key === key)?.name || null;
+}
+
 export function buildShapefileZip(collection, name = "layer", options = {}) {
   const shapeType = shapeTypeFor(collection);
   if (!shapeType) return null;
@@ -915,11 +926,36 @@ export function buildShapefileZip(collection, name = "layer", options = {}) {
     error.problems = problems;
     throw error;
   }
+  /**
+   * THE STYLE TRAVELS WITH THE FILE.
+   *
+   * A shapefile cannot hold symbology, so a layer that arrives with six named
+   * units in six published colours opens as one arbitrary fill with the file
+   * name for a legend. QGIS loads `<basename>.qml` beside the layer without
+   * being asked; `.sld` is the portable form for readers that will not take a
+   * QML. Written only when the data can actually say what colour it is --
+   * inventing a palette here would be a different map from the one on screen.
+   */
+  const styleFiles = [];
+  const labelKey = options.labelField;
+  const colourKey = options.colourField;
+  if (labelKey && colourKey) {
+    const attr = dbfNameFor(fields, labelKey);
+    if (attr) {
+      const qml = buildQml(features,
+        { field: attr, valueKey: labelKey, colourField: colourKey });
+      if (qml) styleFiles.push({ name: `${base}.qml`, data: UTF8.encode(qml) });
+      const sld = buildSld(features,
+        { field: attr, valueKey: labelKey, colourField: colourKey, layerName: base });
+      if (sld) styleFiles.push({ name: `${base}.sld`, data: UTF8.encode(sld) });
+    }
+  }
   return zipStore([
     { name: `${base}.shp`, data: shp },
     { name: `${base}.shx`, data: shx },
     { name: `${base}.dbf`, data: dbf },
     { name: `${base}.prj`, data: UTF8.encode(PRJ_WGS84) },
+    ...styleFiles,
     // A .dbf carries no encoding of its own, so a reader guesses -- usually at
     // some 1990s code page. This is the file that tells it, and it is why the
     // values above can be UTF-8 at all.
