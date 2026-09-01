@@ -26,13 +26,13 @@
  */
 
 import { loadDerivedGeologyMap, removeDerivedGeologyMap }
-  from "./geology-panel.js?v=20260902-c71177e";
-import { loadIceNames, iceNameFor } from "./ice-names.js?v=20260902-c71177e";
-import { loadIceThickness, iceVolumeFor } from "./ice-thickness.js?v=20260902-c71177e";
-import { addDataset } from "./global-data.js?v=20260902-c71177e";
+  from "./geology-panel.js?v=20260902-d57f6c9";
+import { loadIceNames, iceNameFor } from "./ice-names.js?v=20260902-d57f6c9";
+import { loadIceThickness, iceVolumeFor } from "./ice-thickness.js?v=20260902-d57f6c9";
+import { addDataset } from "./global-data.js?v=20260902-d57f6c9";
 import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool,
-  drawnOverlayBounds } from "./extent-picker.js?v=20260902-c71177e";
-import { useIceNames, useIceVolumes } from "./ice-card.js?v=20260902-c71177e";
+  drawnOverlayBounds } from "./extent-picker.js?v=20260902-d57f6c9";
+import { useIceNames, useIceVolumes } from "./ice-card.js?v=20260902-d57f6c9";
 
 /** The glacier inventory, off its own baked tiles. */
 const RGI_LAYER_ID = "glaciers-rgi7";
@@ -388,10 +388,30 @@ function wireChange() {
         bounds: box, from, to, onStatus: say2,
         source: document.getElementById("ice-change-imagery")?.value || "auto",
         colourBy: document.getElementById("ice-change-colour")?.value || "age",
+        outlines: document.getElementById("ice-change-outlines")?.checked !== false,
       });
     } catch (error) {
       say2("The time-lapse could not be built for that area.");
     }
+  });
+
+  /**
+   * THE OUTLINES TICK IS ONE STATE SEEN THREE TIMES — this box, the bar's ◇
+   * and the layer's eye in Workspace. It commits through the hierarchy's own
+   * `setVisible` while a sequence is running, and reads back from the layer on
+   * every layers-changed, so pressing any of the three moves the other two.
+   * With nothing running it is simply what the next build starts as.
+   */
+  const outlines = document.getElementById("ice-change-outlines");
+  const lapseLayer = () => (window.GeoIDImportManager?.getLayers?.() || [])
+    .find((l) => /^Glacier time-lapse/.test(l.name || ""));
+  outlines?.addEventListener("change", () => {
+    const layer = lapseLayer();
+    if (layer) window.GeoIDLayerHierarchy?.setVisible?.(layer, outlines.checked);
+  });
+  window.addEventListener("geoid-gis:layers-changed", () => {
+    const layer = lapseLayer();
+    if (layer && outlines) outlines.checked = layer.visible !== false;
   });
 
   run.addEventListener("click", async () => {

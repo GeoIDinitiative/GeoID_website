@@ -26,7 +26,7 @@
 const search = new URL(import.meta.url).search;
 
 import { startPlayer, stopPlayer, datasetForYear, seasonFor, IMAGERY_SOURCES }
-  from "./timelapse-player.js?v=20260902-c71177e";
+  from "./timelapse-player.js?v=20260902-d57f6c9";
 
 // Re-exported rather than re-implemented: the panel, the tests and this file
 // must be talking about the SAME rule for which satellite covers which year.
@@ -292,7 +292,7 @@ export function stopTimelapse() {
  * same silent cap this file's neighbours keep paying for.
  */
 export async function startTimelapse({ bounds, from = null, to = null,
-  source = "auto", colourBy = "age", onStatus = () => {} }) {
+  source = "auto", colourBy = "age", outlines = true, onStatus = () => {} }) {
   stopTimelapse();
   const [{ runConnector }, render] = await Promise.all([
     import(`./research/connectors.js${search}`),
@@ -397,6 +397,16 @@ export async function startTimelapse({ bounds, from = null, to = null,
 
   const layerNow = () => (window.GeoIDImportManager?.getLayers?.() || [])
     .find((l) => l.id === layer?.id);
+
+  /**
+   * The outlines are BUILT either way and hidden if they were not asked for.
+   * Building is the slow half and it costs the same fetch, so hiding rather
+   * than skipping is what makes the tick box, the bar's toggle and the eye
+   * instant — a toggle that had to re-triangulate 24 frames would not be one.
+   * Somebody who wants no outlines at all wants Basemaps · Imagery over time,
+   * which draws no polygons by construction.
+   */
+  if (!outlines && layer) window.GeoIDLayerHierarchy?.setVisible?.(layer, false);
 
   await startPlayer({
     bounds, epochs, source, frames: groups, noteFor: frameNote, onStatus,

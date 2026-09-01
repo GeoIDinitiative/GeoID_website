@@ -665,6 +665,40 @@ ok("and says how many dates it left out", many.dropped === 35, String(many.dropp
 }
 
 /**
+ * THE OUTLINES ARE THEIR OWN SWITCH, not a side effect of the imagery choice.
+ *
+ * "None — outlines only" made one control answer two questions: turning the
+ * imagery off was the only way to say anything about the polygons, and there
+ * was no way to say it while imagery was on. The dropdown now says only what
+ * it draws, and the tick box beneath it is a THIRD FACE of one state — it, the
+ * bar's toggle and the layer's eye all move the same layer through the
+ * hierarchy's own `setVisible`.
+ */
+{
+  // COMMENTS STRIPPED FIRST: the note beside the control quotes the old
+  // option to explain why it went, and prose is not a control — the same
+  // reason the shelf-name check strips them.
+  const markup = fs.readFileSync(path.join(here, "..", "index.html"), "utf8")
+    .replace(/<!--[\s\S]*?-->/g, "");
+  const panel = fs.readFileSync(path.join(here, "ice-cover-panel.js"), "utf8");
+  const lapse = fs.readFileSync(path.join(here, "glacier-timelapse.js"), "utf8");
+  ok("the imagery dropdown no longer claims anything about outlines",
+    !/None &mdash; outlines only|None — outlines only/.test(markup));
+  ok("but no imagery is still reachable", /<option value="none">None — no imagery/.test(markup));
+  ok("the outlines have a box of their own", /id="ice-change-outlines" type="checkbox" checked/.test(markup));
+  ok("which commits through the hierarchy's own control",
+    /outlines\?\.addEventListener\("change"[\s\S]*?GeoIDLayerHierarchy\?\.setVisible/.test(panel));
+  ok("and follows the layer when the bar or the eye moves it",
+    /geoid-gis:layers-changed[\s\S]*?outlines\.checked = layer\.visible !== false/.test(panel));
+  ok("the build starts from what the box says",
+    /outlines: document\.getElementById\("ice-change-outlines"\)\?\.checked !== false/.test(panel));
+  // Built either way and hidden: hiding rather than skipping is what makes all
+  // three faces instant, since the geometry is the slow half.
+  ok("an unticked sequence still builds its frames and hides them",
+    /if \(!outlines && layer\) window\.GeoIDLayerHierarchy\?\.setVisible\?\.\(layer, false\)/.test(lapse));
+}
+
+/**
  * THE OUTLINES ARE ONE STATE, SEEN TWICE. The bar's toggle drives the layer
  * through the hierarchy's own `setVisible`, so the eye in Workspace shows it
  * and moves it — a second switch for one thing is how two controls drift.
