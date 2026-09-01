@@ -8865,3 +8865,27 @@ Two changes, both borrowed from `legendFrom`, which had already learned them:
 Note `(other)` is NOT this. That bucket belongs to `categoricalSymbology`, the
 ramp path, and seeing it means the published-colour path did not fire at all —
 check the colour column's coverage first.
+
+### The colour-coverage threshold, twice wrong
+
+| coloured features | column used | `(other)` | grey row | ramp colours |
+|---|---|---|---|---|
+| 100% | COLOR | no | no | 0 |
+| 70% | COLOR | no | yes | 0 |
+| 50% | COLOR | no | yes | 0 |
+| 30% | COLOR | no | yes | 0 |
+| 10% | none | **yes** | no | 4 |
+
+Requiring EVERY feature to carry a hex was wrong; requiring four fifths was
+still wrong. Both times the penalty was identical — the whole layer reverts to
+the twelve-class ramp with an `(other)` bucket, a different map from the one
+the file describes.
+
+`color` and `colour` holding hex values are not ambiguous, so they are believed
+once they are more than vestigial (a fifth of the rows). `fill` and `hex` are
+guesses at intent and keep the strict bar, because a leftover `fill` on a
+handful of rows would grey out the rest.
+
+**`(other)` in a key means the published-colour path did not fire at all.** It
+is never produced by the published path — check the colour column's coverage,
+not the legend.
