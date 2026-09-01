@@ -615,11 +615,13 @@ ok("and says how many dates it left out", many.dropped === 35, String(many.dropp
  * area", which reads as a service with no coverage.
  */
 {
-  const lapseSource = fs.readFileSync(path.join(here, "glacier-timelapse.js"), "utf8");
+  // The player is where both animators meet the drape, so the pins live
+  // against IT — the glacier driver hands it a box and nothing else.
+  const playerSource = fs.readFileSync(path.join(here, "timelapse-player.js"), "utf8");
   ok("the time-lapse converts to the drape's own bbox shape",
-    /minLon: bounds\.west, minLat: bounds\.south/.test(lapseSource));
+    /minLon: bounds\.west, minLat: bounds\.south/.test(playerSource));
   ok("and to Earth Engine's, which is a third one",
-    /minX: bounds\.west, minY: bounds\.south/.test(lapseSource));
+    /minX: bounds\.west, minY: bounds\.south/.test(playerSource));
 }
 
 /**
@@ -640,18 +642,18 @@ ok("a southern season crosses the new year",
 ok("the imagery source is a choice, not just a fallback",
   Object.keys(lapse.IMAGERY_SOURCES).join(",") === "auto,gee,gibs,none");
 {
-  const lapseSource = fs.readFileSync(path.join(here, "glacier-timelapse.js"), "utf8");
+  const playerSource = fs.readFileSync(path.join(here, "timelapse-player.js"), "utf8");
   // The GIBS credit is BURNT INTO the texture, which on a frame of a sequence
   // is a caption stamped across the ground; the bar names the source instead.
-  ok("the banner is not burnt into a frame", /credit: false/.test(lapseSource));
-  ok("and the bar still names GIBS", /NASA EOSDIS GIBS/.test(lapseSource));
+  ok("the banner is not burnt into a frame", /credit: false/.test(playerSource));
+  ok("and the bar still names GIBS", /NASA EOSDIS GIBS/.test(playerSource));
   // Nothing is taken away until its replacement is in hand, or every step is
   // imagery → bare basemap → imagery, which reads as a blink.
   ok("the previous frame is only hidden once the next has arrived",
-    lapseSource.indexOf("scene.object3D.visible = true")
-      < lapseSource.indexOf("held.object3D.visible = false"));
+    playerSource.indexOf("scene.object3D.visible = true")
+      < playerSource.indexOf("held.object3D.visible = false"));
   ok("and the next frame is fetched while this one is being looked at",
-    /void sceneOf\(next\)/.test(lapseSource));
+    /void sceneOf\(next\)/.test(playerSource));
 }
 
 const { gibsSourceFor, GIBS_IMAGERY_FROM } = await import("./tile-sources.js");
