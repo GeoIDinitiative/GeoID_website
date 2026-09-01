@@ -2,9 +2,9 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260901-c7d6849";
+  from "./gis/geo-utils.js?v=20260901-aa576c2";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260901-c7d6849";
+  from "./gis/vector-render.js?v=20260901-aa576c2";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -18458,6 +18458,7 @@ uniform float uViewportWidth;`,
        * handful of times rather than every frame, and never mid-drag.
        */
       let measureLiftDistance = 0;
+      let measureBuiltRelief = null;
       function refreshMeasureForViewDistance() {
         if (!measureMode || !measurePoints.length) return;
         if (measureDrawActive || studyDrag) return;
@@ -18465,10 +18466,32 @@ uniform float uViewportWidth;`,
         const distance = zc
           ? Math.max(1e-6, camera.position.distanceTo(zc.centerWorld) - zc.radiusWorld)
           : 0.5;
-        if (measureLiftDistance
+        /**
+         * THE GROUND MOVES INSIDE THE DISTANCE BAND, and that is what strands
+         * the overlay.
+         *
+         * Rebuilding on a third-either-way change of distance is right for the
+         * LIFT, which is a fraction of that distance. It is not enough for the
+         * SURFACE: `getEffectiveTerrainRelief` tapers continuously, so the
+         * ground rises and falls throughout the band while the overlay keeps
+         * the radius it was built at. Measured on a study area set and then
+         * left alone, the ring sat **1.46 km below the ground** -- and a
+         * polygon a kilometre and a half under the surface is drawn to one
+         * side of itself at any obliquity, so locking it in and seeing it land
+         * on the ground reads as the shape jumping.
+         *
+         * 1e-4 of relief is about 200 m of ground at full exaggeration. The
+         * overlay is a handful of vertices, so rebuilding at that resolution
+         * costs nothing next to being wrong.
+         */
+        const relief = getEffectiveTerrainRelief();
+        const groundMoved = measureBuiltRelief === null
+          || Math.abs(relief - measureBuiltRelief) > 1e-4;
+        if (!groundMoved && measureLiftDistance
           && distance > measureLiftDistance / 1.35
           && distance < measureLiftDistance * 1.35) return;
         measureLiftDistance = distance;
+        measureBuiltRelief = relief;
         updateMeasureVisualization();
       }
 
