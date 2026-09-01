@@ -1778,6 +1778,14 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
       border-top: 1px solid rgba(var(--nav-accent-rgb), 0.18);
       padding-top: 0.65rem;
       display: grid;
+      /* A grid's implicit column is `auto`, which sizes to the MAX-CONTENT of
+         its widest row and refuses to shrink below it — so one long property
+         row ("Uniaxial compressive strength (intact) (MPa) 25.0 [5.00-100]")
+         made this box 471px wide inside a 320px card and every value was cut
+         off at the card's edge. The same fault `.gis-tool-body` already
+         records, met again the moment the card gained folds long enough to
+         express it. */
+      grid-template-columns: minmax(0, 1fr);
       gap: 0.5rem;
     }
 
@@ -1798,7 +1806,17 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
 
     .scene-popup-detail-row {
       display: grid;
-      grid-template-columns: max-content 1fr;
+      /* The KEY column may shrink and wrap rather than setting the row's own
+         min-content width: these captions run to forty characters and the card
+         is 320px, so a bare `max-content` here is the same overflow one level
+         down. */
+      /* The key column is CAPPED, not merely shrinkable. Free to take its
+         max-content, a caption like "Geological Strength Index (typical field
+         range) (-)" claimed 259 of the row's 271px and squeezed its own value
+         to nothing. `fit-content` gives a short caption its natural width and
+         wraps a long one at the cap, which is what keeps the numbers on the
+         card. */
+      grid-template-columns: fit-content(9.5rem) minmax(0, 1fr);
       gap: 0.2rem 0.75rem;
       align-items: baseline;
     }
@@ -1816,6 +1834,10 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
       color: var(--soft-light);
       font-size: 0.82rem;
       line-height: 1.4;
+      /* A bracketed range is one long word to the line breaker
+         ("[1.0e-11-1.0e-6]"), and a word wider than the column is what sets a
+         minimum the column cannot go under. */
+      overflow-wrap: anywhere;
     }
 
     .scene-popup-actions {

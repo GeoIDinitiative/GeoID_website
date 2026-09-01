@@ -9383,3 +9383,147 @@ handful of rows would grey out the rest.
 **`(other)` in a key means the published-colour path did not fire at all.** It
 is never produced by the published path — check the colour column's coverage,
 not the legend.
+
+## Ice is not geology, and a card that knows sixteen things has to fold
+
+Three changes, one report: separate the ice cover, keep one popup across the
+geology and rock-property maps, and put the metadata and the properties into
+expandable subtabs inside the card.
+
+**The ice sheets were IN the geological map.** Macrostrat ships them as
+ordinary polygons in the same tiles — named "Phanerozoic ice", carrying a
+BLANK `lith`, so the column that says what the ground is says nothing — and
+measured on the live layer they are **13 of 53 features over Antarctica,
+24.5%**, with 33 more over Greenland. A geological map of those places was
+substantially a map of what is lying on top of the geology.
+
+`gis/ice-cover.js` is ONE predicate used three ways: the geology layer streams
+everything it says no to (`isNotIceCover` on `GLOBAL_BASE`), the Ice cover
+subtab streams everything it says yes to, and both come off the same tiles and
+the same cache. The tiler applies it in `clipped()`, which is the one path
+feeding the drawing, `features()` and `levelFeatures()` — so it governs the
+picker, extraction and clipping alike rather than only the picture. Measured
+over Antarctica: geology 40 features with **0 ice left in it**, the ice layer
+13, all 13 ice.
+
+- **It matches on the NAME, and only because the lithology is empty.** These
+  units state no lithology at all, so the unit's own name is the only thing
+  that says what it is. `lith` is still checked first: a survey that does
+  state one should be believed over a name.
+- **A glacial DEPOSIT is geology and stays on the map.** A till is a soil with
+  a strength and a permeability, and it is exactly the material a landslide
+  model wants. `NOT_ICE` is checked FIRST so "Ice-contact glaciofluvial sand"
+  — a sand, deposited by ice — is not filed as an ice sheet, and the word
+  boundary keeps `Iceland` and `pumice` out on its own.
+- **`featureFilter` is a tiler option, not a panel one.** Filtering after the
+  fact would leave the ice in every extraction the layer answers.
+
+### The card folds, and an open fold needs the room
+
+Sixteen property rows, fourteen citations and twenty attributes do not go
+under a title. The card carries `<details class="scene-popup-fold">` sections
+— Rock properties, Sources, Attributes, Also under this point — built by one
+`fold(title, fill)` helper on both card paths, so the geology sheet and a
+rock-property layer answer in the same card.
+
+**The height cap had to become a fold-aware one.** The card is capped at 17%
+of the canvas so a readout cannot cover the map it describes, and a sixteen-row
+table inside 145px is a scrollbar with three lines showing. A `toggle`
+listener raises the SCROLLER's inline `max-height` to 50% while any fold is
+open and restores the cap when the last one shuts — measured 145px closed,
+428px open, 145px again after, with the card still inside the window. Inline
+from JS rather than in a stylesheet because `styles.css` reaches Earth alone
+and this card is on all ten worlds.
+
+**`renderer` is not visible from `openGeoPopup`.** Reading
+`renderer.domElement` for the canvas height threw "renderer is not defined",
+which aborted the rest of the function — and the card then shows whatever the
+LAST click left in it, which reads as stale data rather than as a crash. This
+file already records the same trap with `elevationSampler` in the same
+function. The canvas is looked up in the DOM.
+
+**And the folds walked the card straight into the `.gis-tool-body` fault.**
+`.scene-popup-detail` is `display: grid` with no columns declared, so its
+implicit column is `auto` — max-content, refusing to shrink — and one long
+property row laid the box out at **471px inside a 320px card**, with every
+value cut off at the edge. `grid-template-columns: minmax(0, 1fr)`, the fix
+that rule's neighbour already carried. Then the ROW's own
+`max-content 1fr` did it one level down: "Geological Strength Index (typical
+field range) (-)" took 259 of 271px and squeezed its value to nothing, so the
+key column is `fit-content(9.5rem)` — natural width for a short caption,
+wrapped at the cap for a long one — with `overflow-wrap: anywhere` on the
+value, since "[1.0e-11–1.0e-6]" is one unbreakable word to the line breaker.
+Measured after: **0 of 17 rows overflowing**, detail box 271px of 271.
+
+**The world geology card had no Attributes at all**, because the geology
+panel's feature builder never set `feature.rows` — the fold existed and had
+nothing to fill it. A card that reads a property off the feature is only as
+good as what the builder put there.
+
+### The card says a thing once, and a citation is not a fact about the rock
+
+The folds arrived and the flat list above them was not re-read. Three rows had
+to go:
+
+- **CLASSIFICATION repeated the KICKER.** "Sedimentary — Continental" is the
+  line above the title and was also the first detail row three lines under it.
+  The duplicate guard that already runs here compares the title against the
+  META parts and never looked at the detail list.
+- **BASIS is the one interpretation on this card**, so it leads **Attributes**,
+  above the survey's own columns — ours first, then theirs.
+- **ORIGIN is a citation**, so it leads **Sources**, above the property
+  citations: the map is the first source, and the rest are sources for the
+  second question. The fold is built outside the properties branch now, since
+  a unit whose lithology the database cannot name still has a survey that
+  mapped it — and the async citation list writes into its OWN node rather than
+  into `host`, or the first `host.textContent = ""` erases the origin line.
+
+The ticket that guards an answer arriving in the wrong card was hoisted with
+it: one `pass` per card open, shared by every async fold.
+
+Measured after: flat list `["Area 8,942.4 km²"]`, Sources leading with
+"Macrostrat Burwell compilation, CC BY 4.0…" then 14 property citations,
+Attributes leading with Basis then `Map id 3136440`, and the kicker still the
+only place the classification is stated.
+
+### A `lith` string is a DATA FORMAT, and the card was printing it raw
+
+The heading read `Major:{claystone}, Minor{siltstone,sandstone,gypsum}` —
+the compilation's own proportion syntax, braces and colons included. Measured
+on one view of the world layer: **203 of 299 distinct `lith` strings are in
+that form**, so this is the normal case rather than an oddity, and both cards
+wore it.
+
+`gis/lithology-label.js` is the display formatter — `Claystone — minor
+siltstone, sandstone, gypsum` — used by the viewer's card and by
+`feature-popup`'s, so a clipped or derived layer reads the same as the sheet.
+
+- **Display only.** `rock-properties.js` gets the string VERBATIM: those
+  proportion words are what weight a mixture, and a prettified string is a
+  second spelling for its parser to learn.
+- **The proportion word is kept**, not dropped. "Minor" is the difference
+  between a claystone and a claystone with gypsum in it, and both a landslide
+  and an aquifer care which.
+- **Splitting on the comma and rejoining with ", " is IDENTITY** for the terms
+  that carry their own comma — "carbonates, consolidated", "gypsum, anhydrite"
+  — so a display split cannot damage them, which is why this needs none of the
+  dictionary machinery `resolveLithology` has.
+- **A rock is named once, at its strongest mention.**
+  `Minor{limestone,siltstone,limestone}` is live data, and a heading that says
+  limestone twice reads as a fault in the map.
+
+Tested against strings pulled off the live tiles, the rock-class rule.
+
+### A card opens at its own top, and SCROLL ANCHORING undoes one `scrollTop = 0`
+
+The scroller is reused for every click, so a card opened after one that had
+been scrolled down came up mid-way through itself — heading, classification
+and name above the fold line — which reads as a card with no title.
+
+Zeroing it once is not enough and the reason is the browser helping: Chrome's
+**scroll anchoring** keeps the reader's place when content above the viewport
+changes size, and the property fold fills in asynchronously. Measured, a fresh
+card set to `scrollTop = 0` came back at **124** with its heading off the top.
+So `overflow-anchor: none` on that element, and the top is retaken on the next
+frame and again at 300 ms — both guarded by the card's own ticket and
+abandoned the moment a fold is open, which is the reader taking over.

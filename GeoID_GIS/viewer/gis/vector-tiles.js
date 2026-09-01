@@ -35,9 +35,9 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260901-6274bf4";
-import { renderFeatureCollection } from "./vector-render.js?v=20260901-6274bf4";
-import * as GP from "./geoprocessing.js?v=20260901-6274bf4";
+import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260901-6ffcdfa";
+import { renderFeatureCollection } from "./vector-render.js?v=20260901-6ffcdfa";
+import * as GP from "./geoprocessing.js?v=20260901-6ffcdfa";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -226,6 +226,23 @@ export function createTiledVectorLayer({
    * imitated label engine and the polygon-area formula both cost.
    */
   clipTo = null,
+  /**
+   * Stream only the features this says yes to.
+   *
+   * `clipTo` cuts by GROUND; this selects by ATTRIBUTE, and the two are not
+   * interchangeable. Ice cover is the case that needed it: Macrostrat's global
+   * compilation maps ice sheets as ordinary polygons named "Phanerozoic ice"
+   * sitting in the same tiles as the bedrock — 24.5% of the features over
+   * Antarctica — so a geological map of that ground is mostly a map of what is
+   * on top of it. One predicate, applied at BUILD, gives the geology every
+   * feature that is not ice and the ice layer every feature that is, off one
+   * set of tiles and one cache.
+   *
+   * At build rather than after, because a tiled layer builds more tiles
+   * whenever the view settles and anything applied afterwards reaches only the
+   * ones that existed when it ran.
+   */
+  featureFilter = null,
 } = {}) {
   // Unversioned, exactly as every other module imports it: a second copy of
   // three.js on the page breaks class identity and nothing is a Mesh any more.
@@ -245,17 +262,22 @@ export function createTiledVectorLayer({
    * serving the old ground.
    */
   const clipped = (tile) => {
-    if (!clipMask) return tile.features;
+    // The attribute filter runs first and is cheap; clipping is the expensive
+    // half, so there is no sense cutting geometry that is about to be dropped.
+    const selected = featureFilter
+      ? tile.features.filter((f) => { try { return featureFilter(f); } catch (e) { return true; } })
+      : tile.features;
+    if (!clipMask) return selected;
     if (tile.clipFor === clipMask) return tile.clipFeatures;
     tile.clipFor = clipMask;
     try {
       tile.clipFeatures = GP.clip(
-        { type: "FeatureCollection", features: tile.features }, clipMask,
+        { type: "FeatureCollection", features: selected }, clipMask,
       ).features;
     } catch (error) {
       // A mask this tile cannot be cut by leaves the tile whole rather than
       // empty: showing too much is recoverable, showing nothing looks broken.
-      tile.clipFeatures = tile.features;
+      tile.clipFeatures = selected;
     }
     return tile.clipFeatures;
   };

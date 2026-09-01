@@ -20,10 +20,11 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260901-6274bf4";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260901-6274bf4";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260901-6274bf4";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260901-6274bf4";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260901-6ffcdfa";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260901-6ffcdfa";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260901-6ffcdfa";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260901-6ffcdfa";
+import { lithologyLabel } from "./lithology-label.js?v=20260901-6ffcdfa";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -715,7 +716,11 @@ function showViewerCard(hits, at) {
      * rockhead"), else its geometry. The line under it never repeats the
      * heading, or the card says the same words twice.
      */
-    rock_type: lithology || name || kind || featureKind(top.feature, top.layer),
+    rock_type: lithologyLabel(lithology) || name || kind || featureKind(top.feature, top.layer),
+    // Carried explicitly so the card's rock-property fold reads the same
+    // lithology on a clipped or derived layer as it does on the world geology.
+    // One card, one implementation, one answer for the same ground.
+    lithology: lithology || null,
     name: null,
     description: lithology ? (name || kind || null) : (name && kind ? kind : null),
     origin: top.layer.name || null,

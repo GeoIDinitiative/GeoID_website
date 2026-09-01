@@ -28,12 +28,13 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260901-6274bf4";
-import { currentBodyId } from "./bodies.js?v=20260901-6274bf4";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260901-6274bf4";
-import { rockClass } from "./rock-class.js?v=20260901-6274bf4";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260901-6ffcdfa";
+import { currentBodyId } from "./bodies.js?v=20260901-6ffcdfa";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260901-6ffcdfa";
+import { rockClass } from "./rock-class.js?v=20260901-6ffcdfa";
+import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260901-6ffcdfa";
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260901-6274bf4";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260901-6ffcdfa";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -146,6 +147,13 @@ const GLOBAL_BASE = {
   dynamic: "units",
   sourceColours: true,
   colourBy: "name",
+  /**
+   * ICE COVER IS NOT GEOLOGY. Macrostrat maps the ice sheets as polygons in
+   * these same tiles -- 24.5% of the features over Antarctica -- so without
+   * this the geological map of a polar region is mostly a map of what is lying
+   * on top of it. They have their own subtab and their own layer.
+   */
+  featureFilter: isNotIceCover,
   /**
    * HALF OPACITY THE MOMENT IT LANDS.
    *
@@ -303,6 +311,23 @@ const setContactChoice = (value) => {
     .forEach((l) => { try { l.setContacts(style); } catch (error) { /* one layer's fault */ } });
 };
 
+/**
+ * Columns the Attributes fold does not show.
+ *
+ * `color` is on the screen; the internal ids that only key the compilation to
+ * itself are not facts about the rock. Everything else the survey ships is
+ * shown, because which columns are worth reading differs by survey and this
+ * panel is in no position to decide that.
+ */
+const ATTRIBUTE_PLUMBING = new Set(["color", "fill", "legend_id", "t_int_id",
+  "b_int_id", "geom", "geometry", "label_rank", "data_type", "data_note"]);
+
+/** A column name as a reader reads it: `best_int_name` -> "Best int name". */
+function attributeLabel(key) {
+  const words = String(key).replace(/[_-]+/g, " ").trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 const styleChoice = new Map();
 
 /**
@@ -387,6 +412,15 @@ async function loadTiled(entry, { toView = false, quiet = false } = {}) {
      */
     colourFor: entry.colourFor
       || (entry.sourceColours ? (f) => f?.properties?.color || null : null),
+    /**
+     * WHICH FEATURES THIS LAYER IS FOR.
+     *
+     * The world geology takes everything that is not ice cover; the Ice cover
+     * subtab takes everything that is. One predicate, one set of tiles, one
+     * cache — and applied at build, so it governs the picker and extraction
+     * as well as the picture.
+     */
+    featureFilter: entry.featureFilter || null,
     /**
      * CONTACTS ON, because a geological map draws its boundaries.
      *
@@ -1062,6 +1096,25 @@ function toInteractiveCatalogue(layers) {
         // "Northern Ireland — superficial" is the layer's name and too long to
         // be a key beside a rock type; "Superficial" is what the row is about.
         dataset_label: datasetLabel(layer.name),
+        /**
+         * THE SOURCE'S OWN COLUMNS, for the card's Attributes fold.
+         *
+         * The card had none for a world-geology click: `rows` is set by
+         * `feature-popup.js` for an imported layer and this builder never set
+         * it, so the fold that exists to show a unit's metadata was empty on
+         * the one layer everybody clicks. Every column the survey ships is
+         * here — map_id, source_id, the stratigraphic name, the age interval,
+         * the reference — under a fold, which is where twenty-two columns
+         * belong.
+         *
+         * PLUMBING IS DROPPED rather than shown: the colour the polygon is
+         * drawn in is on the screen already, and an empty cell is not a fact.
+         */
+        rows: Object.entries(props)
+          .filter(([key, value]) => !ATTRIBUTE_PLUMBING.has(key)
+            && value !== null && value !== undefined && String(value).trim() !== "")
+          .map(([key, value]) => [attributeLabel(key), String(value)])
+          .slice(0, 24),
       });
       if (!unitSeen.has(name)) {
         unitSeen.set(name, paint.get(String(props[field])) || "#8a8a8a");
@@ -1297,7 +1350,8 @@ async function loadDefaults() {
  * not touched -- this is a second, independent layer with its own row, its own
  * legend and its own place in the draw order.
  */
-export async function loadDerivedGeologyMap({ id, label, colourFor, legendInfo }) {
+export async function loadDerivedGeologyMap({ id, label, colourFor, legendInfo,
+  featureFilter = null, sourceColours = false }) {
   const existing = loadedLayers().find((l) => l.geologyDataset === id);
   if (existing) return existing;
   /**
@@ -1306,7 +1360,11 @@ export async function loadDerivedGeologyMap({ id, label, colourFor, legendInfo }
    * thrown away by the branch below -- which is exactly what happened.
    */
   const entry = { ...GLOBAL_BASE, id, label, name: `${label}.geojson`,
-    colourFor, legendInfo, colourBy: null, sourceColours: false,
+    colourFor, legendInfo, colourBy: null, sourceColours,
+    // A derived map may select its own features; the ice layer is the inverse
+    // of the geology's own filter, which is why this has to be overridable
+    // rather than inherited from GLOBAL_BASE.
+    featureFilter: featureFilter || GLOBAL_BASE.featureFilter,
     initialOpacity: 1 };
   DERIVED.set(id, entry);
   await loadTiled(entry, { toView: true });

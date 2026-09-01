@@ -2,11 +2,40 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260901-6274bf4";
+  from "./gis/geo-utils.js?v=20260901-6ffcdfa";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260901-6274bf4";
+  from "./gis/vector-render.js?v=20260901-6ffcdfa";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260901-6274bf4";
+  from "./gis/rock-class.js?v=20260901-6ffcdfa";
+import { lithologyLabel }
+  from "./gis/lithology-label.js?v=20260901-6ffcdfa";
+
+/**
+ * This module's own cache stamp, read off its own URL.
+ *
+ * The property folds import lazily, and a dynamic import with no `?v=` is a
+ * SECOND instance of that module with its own database — the module-identity
+ * trap this tree has paid for repeatedly. Taking the stamp from
+ * `import.meta.url` means the lazy import can never drift from the static ones
+ * above it.
+ */
+const GEOID_STAMP = new URL(import.meta.url).search.replace(/^\?v=/, "");
+
+/** A card ticket, so a slow fold cannot fill a card that has moved on. */
+let geoPopupPass = 0;
+
+/** A property value as a card reads it: 3 figures, or an exponent. */
+function fmtProp(value) {
+  if (!Number.isFinite(value)) return "—";
+  const abs = Math.abs(value);
+  if (abs !== 0 && (abs < 0.01 || abs >= 1e5)) {
+    const e = Math.floor(Math.log10(abs));
+    return `${(value / 10 ** e).toFixed(1)}e${e}`;
+  }
+  if (abs >= 100) return value.toFixed(0);
+  if (abs >= 10) return value.toFixed(1);
+  return value.toFixed(2);
+}
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -6129,7 +6158,16 @@ import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
         || rockClass(lithology, feature.description, geometryName);
       const unitSetting = crustalSetting(lithology, settingElevation);
       const classLabel = rockClassLabel(unitClass, unitSetting);
-      const popupTitle = lithology || interpretation || geometryName || "";
+      /**
+       * The heading is the lithology AS A PERSON WOULD WRITE IT.
+       *
+       * `lithology` is the survey's own brace syntax — Major:{claystone},
+       * Minor{siltstone,sandstone,gypsum} — which is a data format and was
+       * being printed verbatim as the card's title. `lithologyLabel` is for
+       * display only; the raw string still goes to the property database,
+       * whose parser reads those proportion words to weight a mixture.
+       */
+      const popupTitle = lithologyLabel(lithology) || interpretation || geometryName || "";
       const popupCopy = feature.rock_type_detail
         || (
           feature.type === "Geologic structure"
@@ -6179,21 +6217,24 @@ import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
       if (geoPopupDetail) {
         geoPopupDetail.innerHTML = "";
         let hasDetail = false;
+        /**
+         * THE CLASSIFICATION IS NOT PUBLISHED, so the card says who made it —
+         * and says it ONCE. The kicker above the title already reads
+         * "Sedimentary — Continental"; a Classification row under it was the
+         * same sentence a second time, three lines down.
+         *
+         * Neither the rock class nor the crustal setting is a column
+         * Macrostrat ships: the class is read off the unit's own lithology
+         * string and the setting off the rock where the rock is diagnostic,
+         * else the water depth here. That is an interpretation of the source
+         * and a reader has to be able to tell it from the source — so the
+         * BASIS survives, in Attributes, where the rest of what this feature
+         * carries is. The ORIGIN is a citation and belongs under Sources with
+         * the others.
+         */
+        const classBasis = classificationBasis(unitClass, unitSetting, settingElevation);
         const detailRows = [
-          /**
-           * THE CLASSIFICATION IS NOT PUBLISHED, so the card says who made it.
-           *
-           * Neither the rock class nor the crustal setting is a column
-           * Macrostrat ships: the class is read off the unit's own lithology
-           * string and the setting off the rock where the rock is diagnostic,
-           * else the water depth here. That is an interpretation of the source
-           * and a reader has to be able to tell it from the source.
-           */
-          classLabel ? ["Classification", classLabel] : null,
-          classificationBasis(unitClass, unitSetting, settingElevation)
-            ? ["Basis", classificationBasis(unitClass, unitSetting, settingElevation)] : null,
           interpretation ? ["Interpretation", interpretation] : null,
-          origin ? ["Origin", origin] : null,
           feature.preservation ? ["Preservation", feature.preservation] : null,
           feature.dimension ? ["Scale", feature.dimension] : null,
           feature.length_km ? ["Mapped length", `${Number(feature.length_km).toLocaleString()} km`] : null,
@@ -6215,36 +6256,257 @@ import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
           hasDetail = true;
         }
         /**
-         * A layer's own attributes, for a feature that is not a geologic unit.
+         * WHAT THE CARD KNOWS, IN FOLDS RATHER THAN IN A LIST.
          *
-         * The imported-vector popup used to be a second card with its own
-         * heading, its own list and its own magenta marker; it is this card
-         * now, so it needs somewhere to put what it knows. Rows first, then the
-         * stack, because these describe THIS feature and the stack describes
-         * what else is under the same point.
+         * Above this the card says what the ground IS in three lines. Below it
+         * there are three quite different bodies of detail — the source's own
+         * attribute table, the geotechnical properties of this lithology, and
+         * the citations behind them — and stacking all of it flat made a card
+         * that had to be scrolled past to be dismissed.
+         *
+         * Each is a `<details>` that remembers nothing: they open shut every
+         * time, because the card is opened to answer "what is this" and the
+         * folds are for the second question, whichever one you have. The same
+         * builder runs for the world geology and for a rock-property map, so
+         * clicking either gives the same card — which is the point of doing it
+         * here rather than in each panel.
          */
-        for (const [key, value] of feature.rows || []) {
+        const fold = (title, fill) => {
+          const box = document.createElement("details");
+          box.className = "scene-popup-fold";
+          box.style.cssText = "margin-top:0.4rem;border-top:1px solid "
+            + "rgba(255,255,255,0.12);padding-top:0.3rem";
+          const head = document.createElement("summary");
+          head.textContent = title;
+          head.style.cssText = "cursor:pointer;font-size:0.68rem;"
+            + "letter-spacing:0.08em;text-transform:uppercase;opacity:0.75";
+          box.appendChild(head);
+          const body = document.createElement("div");
+          body.style.cssText = "padding-top:0.25rem";
+          box.appendChild(body);
+          geoPopupDetail.appendChild(box);
+          hasDetail = true;
+          if (fill) fill(body);
+          return body;
+        };
+        const detailRow = (host, key, value) => {
           const row = document.createElement("div");
           row.className = "scene-popup-detail-row";
           row.innerHTML = `<span class="scene-popup-detail-key">${key}</span>`
                         + `<span class="scene-popup-detail-val">${value}</span>`;
-          geoPopupDetail.appendChild(row);
-          hasDetail = true;
+          host.appendChild(row);
+        };
+
+        /**
+         * THE ROCK PROPERTIES OF WHATEVER WAS CLICKED.
+         *
+         * Filled asynchronously — the database is a 345 KB fetch and most
+         * sessions never open one of these folds — and guarded by a TICKET
+         * against the card's own identity, because a card can be replaced by
+         * another click while the import is in flight and an answer drawn into
+         * the wrong card is a property table for a different rock.
+         */
+        const lithForProperties = lithology || geometryName;
+        geoPopupPass += 1;
+        const pass = geoPopupPass;
+        if (lithForProperties) {
+          fold("Rock properties", (host) => {
+            host.textContent = "Reading the property database…";
+            void (async () => {
+              try {
+                const mod = await import(
+                  `./gis/rock-properties.js?v=${GEOID_STAMP}`);
+                await mod.loadRockProperties();
+                if (pass !== geoPopupPass) return;
+                const resolved = mod.propertiesFor(lithForProperties);
+                host.textContent = "";
+                if (!resolved || !Object.keys(resolved.parameters).length) {
+                  host.textContent = "No property data for this unit.";
+                  return;
+                }
+                if (resolved.prior) {
+                  const note = document.createElement("p");
+                  note.className = "scene-popup-detail-row";
+                  note.style.cssText = "opacity:0.8;font-style:italic";
+                  note.textContent = "This unit's source states no lithology, "
+                    + "so these are a no-information prior — the weakest values "
+                    + "in the database, and the first to replace.";
+                  host.appendChild(note);
+                }
+                for (const row of Object.values(resolved.parameters)) {
+                  if (row.notApplicable) {
+                    detailRow(host, row.label, "not applicable");
+                    continue;
+                  }
+                  const span = `${fmtProp(row.min)}–${fmtProp(row.max)}`;
+                  // The VALUE with its RANGE beside it, always. A single number
+                  // off a literature range is a false precision the source does
+                  // not support, and the range is the honest part.
+                  detailRow(host, `${row.label} (${row.unit})`,
+                    `${fmtProp(row.value)} <span style="opacity:0.6">[${span}]`
+                    + `${row.confidence ? ` · ${row.confidence}` : ""}</span>`);
+                }
+                const cites = mod.citationsFor(resolved);
+                if (cites.length) {
+                  const foot = document.createElement("p");
+                  foot.className = "scene-popup-detail-row";
+                  foot.style.cssText = "opacity:0.7;margin-top:0.3rem";
+                  foot.textContent = `${cites.length} sources — see Sources below.`;
+                  host.appendChild(foot);
+                }
+              } catch (error) {
+                if (pass === geoPopupPass) host.textContent = "The property database could not be read.";
+              }
+            })();
+          });
+
+        }
+
+        /**
+         * WHERE ALL OF THIS CAME FROM: the map first, then the numbers.
+         *
+         * The compilation's own credit used to be an ORIGIN row in the flat
+         * list, which put a citation among the facts about the rock. It leads
+         * the Sources fold instead — the map is the first source, and the
+         * property citations under it are sources for the second question.
+         *
+         * Outside the properties branch, because a unit whose lithology the
+         * database cannot name still has a survey that mapped it.
+         */
+        if (origin || lithForProperties) {
+          fold("Sources", (host) => {
+            if (origin) {
+              const line = document.createElement("p");
+              line.className = "scene-popup-detail-row";
+              line.style.cssText = "display:block;opacity:0.85;margin:0 0 0.25rem";
+              line.textContent = origin;
+              host.appendChild(line);
+            }
+            if (!lithForProperties) return;
+            const cited = document.createElement("div");
+            cited.textContent = "…";
+            host.appendChild(cited);
+            void (async () => {
+              try {
+                const mod = await import(
+                  `./gis/rock-properties.js?v=${GEOID_STAMP}`);
+                await mod.loadRockProperties();
+                if (pass !== geoPopupPass) return;
+                const cites = mod.citationsFor(mod.propertiesFor(lithForProperties));
+                cited.textContent = "";
+                if (!cites.length) { cited.textContent = "No property sources for this unit."; return; }
+                for (const cite of cites) {
+                  const line = document.createElement("p");
+                  line.className = "scene-popup-detail-row";
+                  line.style.cssText = "display:block;opacity:0.85;margin:0 0 0.25rem";
+                  if (cite.url) {
+                    const link = document.createElement("a");
+                    link.href = cite.url;
+                    link.target = "_blank";
+                    link.rel = "noopener";
+                    link.textContent = cite.citation;
+                    line.appendChild(link);
+                  } else line.textContent = cite.citation;
+                  cited.appendChild(line);
+                }
+              } catch (error) {
+                if (pass === geoPopupPass) cited.textContent = "Property sources could not be read.";
+              }
+            })();
+          });
+        }
+
+        /**
+         * A layer's own attributes, for a feature that is not a geologic unit.
+         *
+         * The imported-vector popup used to be a second card with its own
+         * heading, its own list and its own magenta marker; it is this card
+         * now, so it needs somewhere to put what it knows. In a fold, because
+         * twenty-two columns of a survey's own table is the longest thing on
+         * the card and the least often wanted.
+         */
+        if ((feature.rows || []).length || classBasis) {
+          fold("Attributes", (host) => {
+            // The basis leads, because it is the one line here that is OURS —
+            // everything under it is the survey's own table.
+            if (classBasis) detailRow(host, "Basis", classBasis);
+            for (const [key, value] of feature.rows || []) detailRow(host, key, value);
+          });
         }
         // What the OTHER geology datasets say about the same point, keyed by the
         // sheet each came from. With superficial deposits over bedrock the card
         // reported only the cover, and the rock under it could not be asked
         // about without switching a layer off. Nothing here for a world with one
         // geology sheet, which is every planet.
-        for (const entry of feature.stack || []) {
-          const row = document.createElement("div");
-          row.className = "scene-popup-detail-row";
-          row.innerHTML = `<span class="scene-popup-detail-key">${entry.label}</span>`
-                        + `<span class="scene-popup-detail-val">${entry.unit}</span>`;
-          geoPopupDetail.appendChild(row);
-          hasDetail = true;
+        if ((feature.stack || []).length) {
+          fold("Also under this point", (host) => {
+            for (const entry of feature.stack) detailRow(host, entry.label, entry.unit);
+          });
         }
         geoPopupDetail.hidden = !hasDetail;
+        /**
+         * AN OPEN FOLD NEEDS ROOM, and the closed card must not take any.
+         *
+         * The card is capped at 17% of the canvas — deliberately, so a readout
+         * cannot cover the map it describes — and a sixteen-row property table
+         * inside that is a scrollbar with three lines showing. So the cap moves
+         * while a fold is open and returns the moment the last one shuts: the
+         * card is small when it is answering "what is this" and large when it
+         * has been asked the second question.
+         *
+         * Set on the SCROLLER inline rather than in a stylesheet, because
+         * `styles.css` reaches Earth alone and this card is on all ten worlds
+         * — the split `gis/shell.css` exists for and that this avoids entirely.
+         */
+        const scroller = geoPopup.querySelector(".geo-popup-scroll");
+        if (scroller) {
+          /**
+           * The CANVAS is looked up in the DOM, not read off `renderer` —
+           * that name lives in the render scope and is not visible from here,
+           * and referencing it throws a ReferenceError that takes the rest of
+           * this function with it. The card then shows whatever the LAST click
+           * left in it. This file's own notes record the same trap with
+           * `elevationSampler`; it is met once per person who edits this
+           * function.
+           */
+          const canvasBox = document.querySelector("canvas")?.getBoundingClientRect?.();
+          const height = canvasBox?.height || window.innerHeight;
+          const resize = () => {
+            const anyOpen = geoPopupDetail.querySelector("details.scene-popup-fold[open]");
+            scroller.style.maxHeight =
+              `${Math.round(height * (anyOpen ? 0.5 : 0.17))}px`;
+          };
+          geoPopupDetail.querySelectorAll("details.scene-popup-fold")
+            .forEach((box) => box.addEventListener("toggle", resize));
+          resize();
+          /**
+           * A CARD OPENS AT ITS OWN TOP.
+           *
+           * The scroller is reused for every click, so a card opened after one
+           * that had been scrolled down came up mid-way through itself — its
+           * classification, title and name above the fold line and out of
+           * sight, which reads as a card with no heading.
+           *
+           * Zeroing it once is NOT enough, and the reason is the browser
+           * helping: Chrome's SCROLL ANCHORING keeps the reader's place when
+           * content above the viewport changes size, and this card's property
+           * fold fills in asynchronously — measured, a fresh card set to 0
+           * came back at scrollTop 124 with its heading off the top. So
+           * anchoring is switched off on this element and the top is retaken
+           * on the next frame and once the async folds have had time to land,
+           * both guarded by the card's own ticket and abandoned the moment a
+           * fold is opened, which is the reader taking over.
+           */
+          scroller.style.overflowAnchor = "none";
+          const toTop = () => {
+            if (pass !== geoPopupPass) return;
+            if (geoPopupDetail.querySelector("details.scene-popup-fold[open]")) return;
+            scroller.scrollTop = 0;
+          };
+          toTop();
+          window.requestAnimationFrame(toTop);
+          window.setTimeout(toTop, 300);
+        }
       }
       geoPopup.hidden = false;
       if (geoPopupAnchor) geoPopupAnchor.hidden = false;
@@ -18518,6 +18780,14 @@ uniform float uViewportWidth;`,
        * same call on the other input that moves the ground. Gated on a real
        * change in distance (a third either way) so a slow zoom rebuilds a
        * handful of times rather than every frame, and never mid-drag.
+       */
+      /**
+       * The card's own identity, for the async folds.
+       *
+       * A property table takes a fetch to fill and a card can be replaced by
+       * another click while it is in flight; without a ticket the answer for
+       * one rock is drawn into the card of another. The same guard the
+       * seismogram fetch carries, for the same reason.
        */
       let measureLiftDistance = 0;
       let measureBuiltRelief = null;
