@@ -29,7 +29,7 @@
  */
 
 import { startPlayer, stopPlayer, datasetForYear, seasonFor }
-  from "./timelapse-player.js?v=20260901-7e2d242";
+  from "./timelapse-player.js?v=20260901-6fd0a7e";
 
 export { stopPlayer as stopImageryTimelapse };
 
@@ -166,8 +166,17 @@ export function sourceFor(collection) {
   return "gee";
 }
 
-/** What the bar says under the date: the window this frame composites over. */
+/**
+ * What the bar says under the date: the window this frame composites over.
+ *
+ * Earth Engine answers with the window it ACTUALLY used, so where that matches
+ * the one asked for the bar would carry the same pair of dates twice in a
+ * field that ellipsises at 15rem. The prefix is therefore added only when the
+ * source has not already said it — and it is added when the service narrowed
+ * the window, which is exactly when a reader needs to see both.
+ */
 function frameNote(epoch, tail) {
+  if (String(tail).includes(epoch.from)) return tail;
   return `${epoch.from} to ${epoch.to} · ${tail}`;
 }
 

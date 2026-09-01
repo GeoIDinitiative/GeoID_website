@@ -157,6 +157,30 @@ ok("and so is a missing one", tl.framesFor({ from: "", to: "" }).error);
     /node\.renderOrder = 45/.test(playerSrc));
 }
 
+/**
+ * THE BAR SAYS THE WINDOW ONCE. Earth Engine answers with the window it used,
+ * so a note that always prefixed the asked-for one carried the same pair of
+ * dates twice in a field that ellipsises — and a narrowed window, which is the
+ * case a reader needs both for, looked exactly the same.
+ */
+{
+  const imagery = fs.readFileSync(path.join(here, "imagery-timelapse.js"), "utf8");
+  const noteFor = new Function("epoch", "tail",
+    imagery.slice(imagery.indexOf("function frameNote"),
+      imagery.indexOf("\n}", imagery.indexOf("function frameNote")) + 2)
+    + "\nreturn frameNote(epoch, tail);");
+  const epoch = { from: "2018-05-01", to: "2018-10-31" };
+  ok("a source that names its window is not restated",
+    noteFor(epoch, "Sentinel-2, 10 m · 2018-05-01–2018-10-31 · Earth Engine")
+    === "Sentinel-2, 10 m · 2018-05-01–2018-10-31 · Earth Engine");
+  ok("and one that does not gets the window in front of it",
+    noteFor(epoch, "VIIRS true colour · 250 m · NASA EOSDIS GIBS")
+    === "2018-05-01 to 2018-10-31 · VIIRS true colour · 250 m · NASA EOSDIS GIBS");
+  ok("a narrowed window still shows both",
+    /^2018-05-01 to 2018-10-31 · /.test(
+      noteFor(epoch, "Sentinel-2, 10 m · 2018-07-02–2018-08-30 · Earth Engine")));
+}
+
 // --- the shared rules still say what they said ---
 ok("the player's own season rule is the one the drivers use",
   JSON.stringify(player.seasonFor("2016-08-28", 64))
