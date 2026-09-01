@@ -2,9 +2,11 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260901-3ffe7f1";
+  from "./gis/geo-utils.js?v=20260901-21db11b";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260901-3ffe7f1";
+  from "./gis/vector-render.js?v=20260901-21db11b";
+import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
+  from "./gis/rock-class.js?v=20260901-21db11b";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -6099,7 +6101,35 @@ import { attachReliefAttributes, followRelief }
       const interpretation = String(feature.interpretation || "").trim();
       const origin = String(feature.origin || "").trim();
       const geometryName = String(feature.name || "").trim();
-      const popupTitle = feature.rock_type || interpretation || geometryName || "";
+      /**
+       * WHAT THE ROCK IS, then WHAT IT IS CALLED — and the class over both.
+       *
+       * The card used to head itself "GEOLOGIC UNIT POLYGON" (which is true of
+       * every polygon on the layer and therefore says nothing) over the unit
+       * name, and then repeat that same name as its subtitle: measured on the
+       * world geology, title and subtitle were both "Unnamed Extrusive Rocks,
+       * Palaeogene", because `metaParts` pushed the name whether or not the
+       * title already WAS the name.
+       *
+       * So the three lines each say a different thing now: the classification
+       * on top, the LITHOLOGY as the heading — the one column that says what
+       * the ground actually is — and the unit's name beneath it.
+       *
+       * The setting needs an elevation, and `elevationSampler` is declared in
+       * the render scope where this cannot see it. The seam is the way across;
+       * reading the closure variable directly is the ReferenceError this
+       * function has already been broken by once.
+       */
+      const lithology = String(feature.lithology || feature.rock_type || "").trim();
+      const settingElevation = activeGeoPopupLatLon
+        ? window.GeoIDViewer?.sampleElevationMeters?.(
+          activeGeoPopupLatLon.lat, activeGeoPopupLatLon.lon)
+        : null;
+      const unitClass = feature.rock_class
+        || rockClass(lithology, feature.description, geometryName);
+      const unitSetting = crustalSetting(lithology, settingElevation);
+      const classLabel = rockClassLabel(unitClass, unitSetting);
+      const popupTitle = lithology || interpretation || geometryName || "";
       const popupCopy = feature.rock_type_detail
         || (
           feature.type === "Geologic structure"
@@ -6112,7 +6142,9 @@ import { attachReliefAttributes, followRelief }
             : ""
         );
       // Populate content
-      if (geoPopupKicker) geoPopupKicker.textContent = feature.type || "Geologic unit";
+      if (geoPopupKicker) {
+        geoPopupKicker.textContent = classLabel || feature.type || "Geologic unit";
+      }
       if (geoPopupTitle) geoPopupTitle.textContent = popupTitle;
       const metaParts = [];
       if (feature.type === "Geologic structure") {
@@ -6120,16 +6152,46 @@ import { attachReliefAttributes, followRelief }
           metaParts.push(geometryName);
         }
       } else {
-        if (feature.description || feature.unit_description) metaParts.push(feature.description || feature.unit_description);
-        if (feature.name || feature.unit) metaParts.push(feature.name || feature.unit);
+        // The NAME goes here now, under the lithology that heads the card. The
+        // description follows it only where it is a different sentence -- for
+        // a survey that fills both columns identically, one of them is noise.
+        if (geometryName || feature.unit) metaParts.push(geometryName || feature.unit);
+        const supporting = feature.description || feature.unit_description;
+        if (supporting) metaParts.push(supporting);
       }
-      if (geoPopupMeta) geoPopupMeta.textContent = metaParts.join("  \u00b7  ");
+      /**
+       * NO LINE OF THIS CARD SAYS WHAT ANOTHER LINE ALREADY SAID.
+       *
+       * The duplicate that started this was one column reaching two slots, and
+       * the columns differ per survey -- so the guard is on the TEXT rather
+       * than on any particular pair of fields, and covers the kicker too.
+       */
+      const said = new Set([popupTitle, classLabel].filter(Boolean).map((t) => t.toLowerCase()));
+      const metaShown = metaParts.filter((part) => {
+        const key = String(part || "").trim().toLowerCase();
+        if (!key || said.has(key)) return false;
+        said.add(key);
+        return true;
+      });
+      if (geoPopupMeta) geoPopupMeta.textContent = metaShown.join("  \u00b7  ");
       if (geoPopupCopy) geoPopupCopy.textContent = popupCopy;
       // Detail rows
       if (geoPopupDetail) {
         geoPopupDetail.innerHTML = "";
         let hasDetail = false;
         const detailRows = [
+          /**
+           * THE CLASSIFICATION IS NOT PUBLISHED, so the card says who made it.
+           *
+           * Neither the rock class nor the crustal setting is a column
+           * Macrostrat ships: the class is read off the unit's own lithology
+           * string and the setting off the rock where the rock is diagnostic,
+           * else the water depth here. That is an interpretation of the source
+           * and a reader has to be able to tell it from the source.
+           */
+          classLabel ? ["Classification", classLabel] : null,
+          classificationBasis(unitClass, unitSetting, settingElevation)
+            ? ["Basis", classificationBasis(unitClass, unitSetting, settingElevation)] : null,
           interpretation ? ["Interpretation", interpretation] : null,
           origin ? ["Origin", origin] : null,
           feature.preservation ? ["Preservation", feature.preservation] : null,

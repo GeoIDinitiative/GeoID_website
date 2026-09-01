@@ -7905,6 +7905,73 @@ before. `watchProject()` in hub.js keys that on the project's *folder*, not on
 every store announcement: `updateMetadata()` also announces, and it fires while
 someone is typing into a metadata form.
 
+## The geology card: what the rock IS, what it is CALLED, and its class
+
+Clicking a world geology polygon gave a card headed **GEOLOGIC UNIT POLYGON**
+— true of every polygon on the layer, and therefore saying nothing — over the
+unit name, with that same name repeated as the subtitle. Measured, title and
+subtitle were both "Unnamed Extrusive Rocks, Palaeogene".
+
+The duplicate is one column reaching two slots. `popupTitle` falls through
+`rock_type || interpretation || name`, and `rock_type` is built from
+`props.rcs_d, props.rock_d` — **BGS columns, which Macrostrat does not have**
+— so the title fell through to the name; then `metaParts` pushed the name
+again, unconditionally. On a BGS sheet the two slots hold different columns and
+it never showed.
+
+Three lines, three statements now: the **classification** heads the card, the
+**lithology** is the title (the one column that says what the ground actually
+is), the **name** goes beneath. And the guard against saying the same thing
+twice is on the TEXT rather than on any particular pair of fields, because
+which column reaches which slot differs per survey and that is exactly what the
+field-level version missed.
+
+### The class is DERIVED, because the compilation ships neither half
+
+`lith` is free text — "mafic lava and mafic tuff", "psammite and pelite",
+"Major:{sandstone}, Minor{claystone,conglomerate}" — and there is no rock-class
+column and no crustal-setting column. `gis/rock-class.js` is pure and tested in
+Node against strings pulled off the live tiles, because **a classifier tested
+on the phrasing its author imagined is a classifier tested on its author**.
+
+- **Scored, not first-match.** A lithology routinely names two classes;
+  "marble, meta-limestone" carries one sedimentary term and two metamorphic.
+- **A tie is REFUSED.** "sandstone and basalt" is genuinely both, and a wrong
+  rock class on a geological map is worse than an absent one — the card then
+  falls back to the unit's name and says nothing it cannot support.
+- **Word boundaries, because `tuff` and `tufa` are one letter apart in
+  different classes** — volcanic ash against a freshwater limestone. A
+  substring match files every spring deposit as igneous, silently.
+- **A composition is not a rock.** `mafic gneiss` is a gneiss OF mafic
+  composition; scoring the adjective as a noun made it a tie and then nothing —
+  the single commonest miss on the live layer, **40 polygons**. Modifiers count
+  half.
+- **`meta-` a ROCK, never `meta-` anything.** The first rule was `meta` plus
+  any three letters, which made "metalliferous sandstone" a tie: the prefix has
+  to sit in front of a rock the module already knows.
+- **Plurals**: a survey writes "carbonates, consolidated" as readily as
+  "carbonate", and a word boundary after the `e` refuses the first.
+
+**Oceanic against continental is an inference and the card says so.** Nothing
+in Burwell carries a crustal setting — it is a compilation of LAND geology — so
+it is read from the rock where the rock is diagnostic (an ophiolite is ocean
+floor wherever obduction has since put it, which is why lithology OUTRANKS
+position) and otherwise from the water depth here, at **2,500 m rather than at
+the coast**, because continental crust carries the shelf and most of the slope.
+A `Basis` row on the card names what each half was read off; neither is a
+column, and a reader has to be able to tell an interpretation from its source.
+
+The elevation comes through `window.GeoIDViewer.sampleElevationMeters`, not the
+closure: `elevationSampler` is declared in the render scope and `openGeoPopup`
+cannot see it — the ReferenceError this same function was already broken by
+once, and the reason its whole body silently stopped running.
+
+**Measured over 7,530 loaded polygons: 99.5% classified** — 2,284 igneous,
+1,635 metamorphic, 3,571 sedimentary — with the 40 left over carrying no
+lithology at all, where a null is the right answer. The first pass measured
+98.8%, and reading the 92 misses is what found all three classifier gaps above:
+**the residue of a classification is where its next fix is written down.**
+
 ## The full audit: the data was verbatim, the MAP was not
 
 "Ensure the exported shp contains the contents of the clipped geology map

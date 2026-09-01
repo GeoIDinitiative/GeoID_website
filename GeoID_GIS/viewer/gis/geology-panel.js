@@ -28,10 +28,11 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260901-3ffe7f1";
-import { currentBodyId } from "./bodies.js?v=20260901-3ffe7f1";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260901-3ffe7f1";
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260901-3ffe7f1";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260901-21db11b";
+import { currentBodyId } from "./bodies.js?v=20260901-21db11b";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260901-21db11b";
+import { rockClass } from "./rock-class.js?v=20260901-21db11b";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260901-21db11b";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -971,6 +972,19 @@ function toInteractiveCatalogue(layers) {
         // blank both halves came from the same column: "ALLUVIUM  ·  ALLUVIUM".
         unit_description: val(props.lex_d) === name ? null : val(props.lex_d),
         rock_type: val(props.rcs_d, props.rock_d),
+        /**
+         * THE LITHOLOGY IS THE HEADING, so it is carried rather than left in
+         * the row list.
+         *
+         * Macrostrat's `lith` is the one column that says what the ground IS
+         * ("mafic lava and mafic tuff") where `name` says what it is called
+         * ("Unnamed Extrusive Rocks, Palaeogene"). The card heads itself with
+         * the first and names itself with the second; a survey that ships no
+         * lithology falls back to its rock-type column, which is the same
+         * statement under another name.
+         */
+        lithology: val(props.lith, props.liths, props.rcs_d, props.rock_d),
+        rock_class: rockClass(props.lith, props.rcs_d, props.rock_d, props.descrip),
         rock_type_detail: val(props.lex_rcs_d),
         description: val(props.rcs_d, props.bgstype),
         origin: val(layer.credit, layer.name),

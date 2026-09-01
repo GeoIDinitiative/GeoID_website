@@ -20,9 +20,10 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260901-3ffe7f1";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260901-3ffe7f1";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260901-3ffe7f1";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260901-21db11b";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260901-21db11b";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260901-21db11b";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260901-21db11b";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -687,19 +688,36 @@ function showViewerCard(hits, at) {
     // record in a hundred and thirty worth clicking on.
     .slice(0, 10)
     .map(([key, value]) => [fieldLabel(key), fieldValue(key, value)]);
+  /**
+   * A CLIPPED GEOLOGICAL MAP READS LIKE THE MAP IT WAS CUT FROM.
+   *
+   * A clip carries its source's columns verbatim, so a unit clicked here has
+   * the same `lith` and the same `name` as the same unit clicked on the world
+   * layer -- and until now the two cards said different things about it. The
+   * classification, the lithology heading and the name beneath are the geology
+   * card's, applied wherever the properties can answer them.
+   */
+  const lithology = firstOf(props, ["lith", "liths", "LITH", "rcs_d", "rock_d", "lithology"]);
+  const unitClass = rockClass(lithology, props.descrip, name);
+  const unitSetting = crustalSetting(lithology,
+    at ? window.GeoIDViewer?.sampleElevationMeters?.(at.lat, at.lon) : null);
+  const classLabel = rockClassLabel(unitClass, unitSetting);
   const feature = {
-    type: featureKind(top.feature, top.layer),
+    // The classification heads the card where there is one; the geometry noun
+    // is what a layer with no lithology still has to say for itself.
+    type: classLabel || featureKind(top.feature, top.layer),
     /**
      * The card reads `rock_type` for its heading and `name` for the line
      * under it, so both are set from here rather than left to fall through:
-     * heading is what the thing is CALLED, or what it IS when the data never
-     * names it (a BGS fault has no name and does say "Fault at rockhead"), or
-     * failing both its geometry. The line under it carries the kind only when
-     * the heading is a name, or the card says the same words twice.
+     * heading is what the thing IS where the data says so — the lithology, for
+     * a geological map — else what it is CALLED, else what the data says it is
+     * when it never names it (a BGS fault has no name and does say "Fault at
+     * rockhead"), else its geometry. The line under it never repeats the
+     * heading, or the card says the same words twice.
      */
-    rock_type: name || kind || featureKind(top.feature, top.layer),
+    rock_type: lithology || name || kind || featureKind(top.feature, top.layer),
     name: null,
-    description: name && kind ? kind : null,
+    description: lithology ? (name || kind || null) : (name && kind ? kind : null),
     origin: top.layer.name || null,
     mapped_area_km2: km2 > 0 ? Number(km2.toFixed(km2 >= 100 ? 0 : 2)) : null,
     length_km: km > 0 ? Number(km.toFixed(km >= 100 ? 0 : 2)) : null,
