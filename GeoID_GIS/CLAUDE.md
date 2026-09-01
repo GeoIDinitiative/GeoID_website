@@ -7905,6 +7905,70 @@ before. `watchProject()` in hub.js keys that on the project's *folder*, not on
 every store announcement: `updateMetadata()` also announces, and it fires while
 someone is typing into a metadata form.
 
+## The corner you placed is the one part that was left behind
+
+"When we lock in and save a drawn polygon it shifts/jumps South of its defined
+position." Three earlier passes measured the SAVED layer — coordinates exact,
+0 km drift — and concluded there was nothing to fix. The saved layer was never
+wrong. The PREVIEW was, and only at part of itself.
+
+`buildMeasureArcPoints` samples every interior point of the boundary through
+`sampleMeasureSurfacePoint`, which reads the relief the globe is DRAWN with —
+and then overwrites its two endpoints with `projectMeasurePoint`, which
+returned the exact local hit point stored when the point was placed. That
+position carries the radius it had at whatever exaggeration was live then, and
+`getEffectiveTerrainRelief` tapers continuously as the camera descends.
+
+Measured on a 27 km study area over Inishowen, viewed from 40 km:
+
+| part of the boundary | radius | against a ground of |
+| --- | --- | --- |
+| the 156 SUBDIVIDED points | 3.23473 – 3.23507 | 3.23475 – 3.23562 |
+| the four CORNERS (indices 0, 40, 80, 120) | **3.26207** | — |
+
+52.6 km up, which is exactly the taper — and the four handle markers with them,
+since `addMeasureMarker` projects through the same function. **The one part of
+the shape the user placed by hand was the one part not re-sampled.** A corner
+52 km above its own ground projects a long way from it at any obliquity, so
+locking in and seeing the shape land on the surface reads as the shape jumping.
+
+The fix keeps the two halves of that stored point apart: **the DIRECTION is the
+one that was clicked, the RADIUS is today's.** The note the old code carried was
+right about the direction — a lat/lon round trip loses XYZ precision on the
+surface — and said nothing about the radius, which must move because the ground
+does. The lat/lon is now used only to look the elevation up. The CTX mosaic path
+keeps its exact stored radius: it blends real radii on purpose
+(`useExactRadiusBlend`) and has its own tuned lifts.
+
+Measured after, corner against the ground at its OWN coordinate: **0.000 km at
+1500, 400, 120, 40 and 15 km**, through a taper from relief 0.11 to 0.018 —
+about 180 km of ground movement. Preview and saved layer draw as one outline.
+
+**Three measurement traps in one session, all mine, all worth not repeating:**
+
+- **A vertex list without `matrixWorld` is not a position.** Marker discs are
+  centred on the origin and placed by their matrix, so reading local positions
+  reported every one of them at −6,300 km.
+- **Min and max over a whole ring hide a single stale vertex.** The first read
+  said "the overlay is 54 km up"; the percentiles said p75 = 3.23507 and
+  p100 = 3.26207, which is a different fault with a different fix. **Print the
+  distribution before believing a range.**
+- **Radius is invariant under the spin; SCREEN POSITION is not.** Aiming the
+  camera down a baseline `latLonToVector3` direction is fine for measuring
+  radii and puts the shape thousands of pixels off screen. Aim at the object's
+  own world centroid, and pause the spin.
+
+And a fourth: a vector layer's `geometry.attributes.position` holds the
+positions it was BUILT at (`REFERENCE_RELIEF`), because `followRelief` re-places
+every vertex on the GPU. Comparing those against the ground reports the whole
+taper as an error — 121 km, in this case, on a layer that is drawn correctly.
+
+**The nine planet viewers carry the same override** and are NOT covered by
+`port-draw-tools.py` (this code is outside its anchors). Their
+`getEffectiveTerrainRelief` has no altitude taper — it returns 0 on the CTX
+mosaic and the raw slider otherwise — so the ground only moves there when the
+slider or the basemap changes, which is the same fault with a narrower trigger.
+
 ## Symbology survives a round trip once BOTH ends stop lying
 
 "The symbologies and legend entries are not preserved when a clipped geology

@@ -2,9 +2,9 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260901-c673197";
+  from "./gis/geo-utils.js?v=20260901-c5e9dd8";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260901-c673197";
+  from "./gis/vector-render.js?v=20260901-c5e9dd8";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -18535,10 +18535,45 @@ uniform float uViewportWidth;`,
           // Position relative to moon center (body frame) — moonMeasureGroup applies the rotation.
           return localPoint.clone().sub(context.centerLocal).normalize().multiplyScalar(context.radiusWorld + lift);
         }
-        // Use the exact refined local hit point that was stored on click rather than
-        // converting through lat/lon again, which loses XYZ precision on the surface.
+        /**
+         * THE DIRECTION IS THE ONE THAT WAS CLICKED; THE RADIUS IS TODAY'S.
+         *
+         * The stored local hit point is kept for its DIRECTION — converting
+         * through lat/lon and back loses XYZ precision on the surface, which
+         * is what the note here used to say and is still true. Its RADIUS is
+         * a different matter: it was recorded at whatever exaggeration was
+         * live when the point was placed, and `getEffectiveTerrainRelief`
+         * tapers continuously as the camera descends, so the ground moves out
+         * from under it.
+         *
+         * Measured on a 27 km study area over Inishowen, viewed from 40 km:
+         * the boundary's 156 SUBDIVIDED points sat on the ground (3.23473 to
+         * 3.23507 against a ground of 3.23475 to 3.23562) while its four
+         * CORNERS and the four markers on them stood at 3.26207 — **52.6 km
+         * up**, exactly the taper. `buildMeasureArcPoints` re-samples every
+         * interior point through `sampleMeasureSurfacePoint` and then
+         * overwrites its two endpoints with this function, so the one part of
+         * the shape the user placed by hand was the one part left behind.
+         *
+         * That is the reported "the shape jumps south when we lock it in":
+         * a corner 52 km above its own ground projects a long way from it at
+         * any obliquity, and Done saves the lat/lon — which was exact all
+         * along — so the saved layer lands where the preview was not.
+         *
+         * The lat/lon is only ever used to look the elevation up; the
+         * direction still comes from the stored vector, so nothing is lost.
+         * The CTX mosaic keeps its exact stored radius: that path blends real
+         * radii on purpose (`useExactRadiusBlend`) and has its own lifts.
+         */
         const surfaceNormal = localPoint.clone().normalize();
-        return localPoint.clone().addScaledVector(surfaceNormal, lift);
+        if (isMeasureCtxMosaicBasemap()) {
+          return localPoint.clone().addScaledVector(surfaceNormal, lift);
+        }
+        const latLon = Number.isFinite(pointLike?.lat) && Number.isFinite(pointLike?.lon)
+          ? pointLike
+          : vectorToLatLon(surfaceNormal);
+        return surfaceNormal.multiplyScalar(
+          measureSurfaceRadius(latLon.lat, latLon.lon, lift, context));
       }
 
       function buildMeasureArcPoints(startPoint, endPoint) {
