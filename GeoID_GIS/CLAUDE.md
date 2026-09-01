@@ -7905,6 +7905,116 @@ before. `watchProject()` in hub.js keys that on the project's *folder*, not on
 every store announcement: `updateMetadata()` also announces, and it fires while
 someone is typing into a metadata form.
 
+## The geotechnical property database, and the map painted from it
+
+For the hydrogeological and landslide models: a cited property range for every
+lithology the world geology uses. `services/bake-rock-properties.py` →
+`data/global/rock-properties.json` (270 KB), `gis/rock-properties.js` reads a
+map polygon into it, `gis/rock-property-map.js` paints the streaming geology by
+any of it.
+
+**The key is Macrostrat's OWN published dictionary** — `/defs/lithologies`,
+**214 names**, each with a class, type and group. That is what makes coverage
+structural rather than sampled: every free-text `lith` string on the layer is
+built from those names, so covering them covers the map at every zoom and in
+every survey the compilation composites, rather than covering whatever happened
+to be under the places somebody looked.
+
+**Measured, because "structural" is a claim and not a fact.** Against 3,377
+distinct `lith` strings pulled from twelve surveys' published legends, the 214
+names alone resolve **98.2%**. The remaining 1.8% are three kinds of thing and
+none is an error in the compilation: adjectival forms ("granitic rocks",
+"dioritic-to-gabbroic rocks"), regional vocabulary the dictionary does not list
+(**`siltite`, 264 uses**; `psammite`, `semipelite`, `metasandstone`,
+`calc-silicate` — the British and Belt Supergroup terms), and rare rocks
+(bronzitite, monzogabbro, trachybasalt). An alias table of 63 terms takes it to
+**99.4% of 11,000 map units**. Ice, open water and "mainly blocks (landslide)"
+are left unresolved on purpose: giving a landslide deposit a rock's strength is
+the worst answer this database could give.
+
+57 reference bodies carry values; the other 159 lithologies inherit, with the
+parent and the rule recorded so the inheritance can be argued with.
+
+### Three distinctions the file exists to keep
+
+- **INTACT rock is not rock mass.** UCS, modulus and friction are core-in-a-press
+  values; a slope fails through joints, bedding and weathering at one to two
+  orders of magnitude less. `hoek_brown_mi` and a GSI range travel with every
+  rock so the conversion is made deliberately rather than skipped silently.
+- **MATRIX permeability is not formation permeability.** Granite: 1e-12 m/s
+  intact against 1e-5 m/s fractured. Both are carried and the parameter names
+  say which is which.
+- **RESIDUAL is not peak.** On a surface that has already slipped, clay falls to
+  6–12° — a third of peak or less (Skempton 1964). That is the number that
+  decides a reactivated landslide, and it is carried with a residual cohesion of
+  zero so a model cannot inherit peak cohesion by omission.
+
+### Every value states its BASIS, and that is the honest part
+
+`table` (transcribed from a table read while building this), `compilation` (a
+standard published range, attributed), `derived` (a stated relation — E from
+UCS × modulus ratio), `inherited`. The `table` entries are the strongest and
+came from: **Hoek's Practical Rock Engineering** Table 3 (mi by rock group),
+Table 2 (field strength grades R0–R6) and Table 8 (Deere's modulus ratios);
+**Freeze & Cherry** Table 2.2 and 2.4; **Heath (1983)** USGS WSP 2220; and the
+**BGS Mercia Mudstone report** (RR/01/02).
+
+**The BGS National Geotechnical Properties Database corrected one of my
+ranges**, which is the best argument for citing rather than recalling. Its
+Mercia Mudstone report gives measured field permeability of **1e-6 to 1e-8 m/s
+mainly parallel to bedding** against laboratory values of 1e-9 to 1e-11
+perpendicular — two to three orders ABOVE the Freeze & Cherry shale range,
+"because the mass permeability of highly indurated mudrocks tends to be
+dominated by the presence of fissures". Taking the laboratory number for a
+mudrock aquitard is how a groundwater model under-predicts flow through one.
+The same report gives effective strength BY WEATHERING ZONE (Chandler 1969):
+Zone 1 c'=28 kPa φ'=40°, Zone 3 17 kPa 42–32°, Zone 4 17 kPa 32–25° — a single
+value for "mudstone" spans that whole profile, and the profile is what a slope
+sits in.
+
+### Reading a polygon into it
+
+A MIXTURE IS THE NORMAL CASE. Most `lith` strings name two or more rocks, and
+proportion words change the answer — `Major:{limestone}, Minor:{claystone}` is
+the BGS spelling, "with subordinate shale" the prose one. Reading either as an
+even mixture puts a mudrock's strength into a limestone's map at equal weight,
+and mudrock is the constituent that fails.
+
+**A log quantity is averaged in the LOG**, and hydraulic conductivity is why
+that rule is here. Gravel (3e-3) and clay (1e-11) average arithmetically to
+1.5e-3 — indistinguishable from the gravel alone, because an arithmetic mean
+over eight orders of magnitude IS its largest term. The geometric mean is
+1.7e-7, which is the answer and also what a hydrogeologist means by an average
+permeability. Every parameter declares its own scale; the test asserts the
+geometric answer AND that it is not the arithmetic one.
+
+### The map
+
+`paintByProperty(layer, key)` paints through the layer's OWN `repaint`, so the
+tiles, the refine, the clip, the contacts and the export are unchanged — what
+changes is what the colour means. Two rules:
+
+- **Breaks are fixed over the whole database, never over the view.** A
+  view-relative stretch would recolour the same granite depending on its
+  neighbours, so the map would be about the neighbourhood rather than the
+  ground — and a global view and a local one could not be read against each
+  other, which is the whole point of having both.
+- **A unit with no published value is left UNPAINTED and listed as such.** A
+  soil has no UCS; a `lith` naming two classes at equal weight is refused
+  rather than averaged. A coloured polygon reads as a measurement and a blank
+  one reads as a gap, so filling the blanks with the middle of the range is the
+  one failure this map must not have.
+
+Verified live over Britain at a 700 km view: **10,912 of 11,814 units carry a
+published UCS**, seven classes plus the unpainted row, and the picture is
+geologically coherent — Highland quartzite and gneiss at the strong end, the
+Carboniferous and Triassic basins at the weak one.
+
+**`rampColour` answers `[r, g, b]`, not a string.** A vector repaint wants CSS,
+and handing it the array is not an error: `THREE.Color.set` swallows it and
+every polygon comes out white under a perfectly correct legend. `hex()` is the
+conversion — this file's oldest trap, met again from a new direction.
+
 ## The geology card: what the rock IS, what it is CALLED, and its class
 
 Clicking a world geology polygon gave a card headed **GEOLOGIC UNIT POLYGON**
