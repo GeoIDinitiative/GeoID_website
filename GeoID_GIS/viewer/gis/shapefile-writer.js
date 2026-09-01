@@ -27,7 +27,7 @@
  * not fit.
  */
 
-import { buildQml, buildSld } from "./qgis-style.js?v=20260901-c5e9dd8";
+import { buildQml, buildSld } from "./qgis-style.js?v=20260901-3ffe7f1";
 
 /* ───────────────────────────── shape types ────────────────────────────── */
 
@@ -943,7 +943,8 @@ export function buildShapefileZip(collection, name = "layer", options = {}) {
     const attr = dbfNameFor(fields, labelKey);
     if (attr) {
       const qml = buildQml(features,
-        { field: attr, valueKey: labelKey, colourField: colourKey });
+        { field: attr, valueKey: labelKey, colourField: colourKey,
+          contacts: options.contacts || null });
       if (qml) styleFiles.push({ name: `${base}.qml`, data: UTF8.encode(qml) });
       const sld = buildSld(features,
         { field: attr, valueKey: labelKey, colourField: colourKey, layerName: base });

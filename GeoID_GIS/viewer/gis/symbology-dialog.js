@@ -24,11 +24,11 @@
  * polygon comes out white with a perfectly correct legend beside it.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260901-c5e9dd8";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260901-3ffe7f1";
 import {
   RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP, METHODS,
   categoricalSymbology, buildSymbology, colourOf, legendInfoFrom, fmtBound,
-} from "./symbology.js?v=20260901-c5e9dd8";
+} from "./symbology.js?v=20260901-3ffe7f1";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -467,6 +467,9 @@ export function paintByField(layer, field, {
   // The two modes are exclusive, so classing clears the single colour and
   // vice versa — otherwise reopening proposes the mode you just left.
   layer.symbologySingle = null;
+  // A classing the user asked for is not the source's colours any more, so the
+  // dialog must stop reopening on a mode the layer has left.
+  layer.symbologySource = false;
   if (typeof window !== "undefined") {
     window.GeoIDLayerHierarchy?.render?.();
     announceSymbology();
@@ -550,6 +553,9 @@ export function paintByRange(layer, field, {
   // propose undoing it.
   layer.rangeSpec = { field, method, classes, ramp, reverse };
   layer.symbologySingle = null;
+  // A classing the user asked for is not the source's colours any more, so the
+  // dialog must stop reopening on a mode the layer has left.
+  layer.symbologySource = false;
   if (typeof window !== "undefined") {
     window.GeoIDLayerHierarchy?.render?.();
     announceSymbology();
@@ -611,8 +617,48 @@ export function paintSingle(layer, colour = DEFAULT_SINGLE) {
   };
   layer.symbologySingle = css;
   layer.geologyField = null;
+  layer.symbologySource = false;
   if (typeof window !== "undefined") window.GeoIDLayerHierarchy?.render?.();
   return { ok: true, single: css };
+}
+
+/**
+ * BACK TO THE COLOURS THE FILE PUBLISHED.
+ *
+ * The third mode, and the one a geological map is usually already in. It is
+ * not a ramp and not one flat colour: each unit wears the colour its own
+ * survey chose, which no classing this dialog can perform will reproduce --
+ * `categoricalSymbology` ranks by frequency, keeps twelve and folds the rest
+ * into `(other)`, so "put it back" was unreachable from here.
+ *
+ * The paint is the layer's OWN build-time closure (`sourceSymbology.apply`),
+ * so this cannot drift from what the layer originally wore.
+ */
+export function paintSource(layer) {
+  const source = layer?.sourceSymbology;
+  if (!source?.apply) return { ok: false, message: "This layer publishes no colours of its own." };
+  try { source.apply(); } catch (error) { return { ok: false, message: "The source colours could not be applied." }; }
+  if (source.rows?.length) {
+    layer.legendInfo = {
+      palette: source.rows.map((r) => String(r.colour).replace("#", "")),
+      labels: source.rows.map((r) => String(r.value)),
+      values: source.rows.map((r) => String(r.value)),
+      counts: source.rows.map((r) => r.count),
+      categorical: true,
+      classed: true,
+      field: source.field || null,
+    };
+  }
+  layer.symbologySingle = null;
+  layer.geologyField = source.field || null;
+  layer.geologyLabels = null;
+  layer.rangeSpec = null;
+  layer.symbologySource = true;
+  if (typeof window !== "undefined") {
+    window.GeoIDLayerHierarchy?.render?.();
+    announceSymbology();
+  }
+  return { ok: true, rows: source.rows || [] };
 }
 
 /** Does this layer have any area to fill, or is it only lines and points? */
@@ -706,8 +752,19 @@ function buildVectorForm(layer, body, note, hooks) {
      * drawn area on One colour, which is also the only mode its swatch means
      * anything in.
      */
-    mode: layer.symbologySingle ? "single"
-      : (layer.geologyField ? "field" : ((lines || !classable) ? "single" : "field")),
+    /**
+     * A LAYER WEARING ITS SOURCE'S OWN COLOURS OPENS ON THEM.
+     *
+     * This opened such a layer on "By attribute" with whatever column ranked
+     * first -- measured on a re-imported clip of Macrostrat, "LITH — 20
+     * values", twelve classes and an `(other)` bucket of ten. Not one feature
+     * on that map was grey: the layer was painted from the survey's published
+     * colours, and the dialog was showing a PROPOSAL while looking exactly
+     * like a report. Apply would have carried it out.
+     */
+    mode: layer.symbologySource && layer.sourceSymbology ? "source"
+      : layer.symbologySingle ? "single"
+        : (layer.geologyField ? "field" : ((lines || !classable) ? "single" : "field")),
     single: layer.symbologySingle || DEFAULT_SINGLE,
     field: layer.geologyField || ranked[0] || head6.columns[0]?.key,
     ramp: layer.geologyRamp || QUALITATIVE_RAMP,
@@ -768,7 +825,10 @@ function buildVectorForm(layer, body, note, hooks) {
   const modeLabel = document.createElement("label");
   modeLabel.textContent = "Style";
   const modeSelect = document.createElement("select");
-  [["single", "One colour"], ["field", "By attribute"]].forEach(([value, text]) => {
+  const modes = layer.sourceSymbology
+    ? [["source", "Source colours"], ["single", "One colour"], ["field", "By attribute"]]
+    : [["single", "One colour"], ["field", "By attribute"]];
+  modes.forEach(([value, text]) => {
     const option = document.createElement("option");
     option.value = value;
     option.textContent = text;
@@ -1064,12 +1124,53 @@ function buildVectorForm(layer, body, note, hooks) {
     });
   };
 
+  /**
+   * The published classes, read out rather than offered for editing.
+   *
+   * A source colour is a fact about the file — recolouring one here would be
+   * the dialog quietly inventing a class the survey never published, and the
+   * two controls that do that (`By attribute`, `One colour`) are one select
+   * away. So the swatch and the name are shown and locked.
+   */
+  const drawSourceClasses = (rows) => {
+    classes.replaceChildren();
+    if (!rows.length) {
+      classes.textContent = "This layer publishes no colours of its own.";
+      return;
+    }
+    rows.forEach((row) => {
+      const line = document.createElement("div");
+      line.className = "sym-class";
+      const swatch = document.createElement("input");
+      swatch.type = "color";
+      swatch.value = String(row.colour || "#8a8a8a");
+      swatch.disabled = true;
+      swatch.title = "Published by the source";
+      const label = document.createElement("input");
+      label.type = "text";
+      label.value = String(row.value);
+      label.readOnly = true;
+      label.title = String(row.value);
+      label.addEventListener("keydown", (event) => event.stopPropagation());
+      const count = document.createElement("span");
+      count.className = "sym-class-count";
+      count.textContent = Number(row.count || 0).toLocaleString();
+      line.append(swatch, label, count);
+      classes.appendChild(line);
+    });
+  };
+
   const draw = () => {
     const single = state.mode === "single";
+    const source = state.mode === "source";
     // The CONTROLS of classing are hidden rather than disabled: greyed-out
     // controls still read as "this is what symbology is, and it is broken".
     singleSwatch.hidden = !single;
-    [fieldRow, rampRow, classes].forEach((node) => { node.hidden = single; });
+    // Source mode keeps the CLASS LIST and drops the two controls that would
+    // re-derive it: the column and the ramp are not this map's to choose.
+    fieldRow.hidden = single || source;
+    rampRow.hidden = single || source;
+    classes.hidden = single;
     /**
      * The attribute table stays up in BOTH modes, because it is not a control.
      *
@@ -1083,6 +1184,16 @@ function buildVectorForm(layer, body, note, hooks) {
     if (single) {
       note.textContent = `${head6.count.toLocaleString()} features · `
         + `${head6.columns.length} columns · all one colour`;
+      return;
+    }
+    if (source) {
+      methodRow.hidden = true;
+      const rows = layer.sourceSymbology?.rows || [];
+      drawSourceClasses(rows);
+      note.textContent = `${head6.count.toLocaleString()} features · ${head6.columns.length} columns`
+        + ` · the colours ${layer.sourceSymbology?.declared ? "the style file declares"
+          : "this file publishes"}`
+        + (layer.sourceSymbology?.field ? `, keyed on ${layer.sourceSymbology.field}` : "");
       return;
     }
     const range = isRange(state.field);
@@ -1140,6 +1251,13 @@ function buildVectorForm(layer, body, note, hooks) {
   return {
     draw,
     apply() {
+      if (state.mode === "source") {
+        const out = paintSource(layer);
+        if (!out.ok) return out;
+        hooks.status?.(`${layer.name}: the colours its source published `
+          + `(${out.rows.length} classes).`);
+        return { ok: true, kind: "vector", rows: out.rows, source: true };
+      }
       if (state.mode === "single") {
         const out = paintSingle(layer, state.single);
         if (!out.ok) return out;

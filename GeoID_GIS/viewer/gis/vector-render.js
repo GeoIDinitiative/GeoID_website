@@ -1,9 +1,9 @@
 import * as THREE from "../vendor/three.module.js";
 import { latLonToVector3, drapedRadius, looksLikeGeographic, sphericalPolygonAreaKm2 }
-  from "./geo-utils.js?v=20260901-c5e9dd8";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260901-c5e9dd8";
-import { pointInPolygon } from "./geometry.js?v=20260901-c5e9dd8";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260901-c5e9dd8";
+  from "./geo-utils.js?v=20260901-3ffe7f1";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260901-3ffe7f1";
+import { pointInPolygon } from "./geometry.js?v=20260901-3ffe7f1";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260901-3ffe7f1";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -1608,7 +1608,28 @@ export function buildVectorLayerResult(fc, {
   // A style that came with the file outranks the file's colours, which outrank
   // a classification invented here.
   const declared = styleSymbology(fc, style);
-  const published = declared ? null : publishedColourField(fc);
+  /**
+   * THE COLUMN IS REPORTED EVEN WHEN A DECLARED STYLE DOES THE PAINTING.
+   *
+   * This read `declared ? null : publishedColourField(fc)` — reasonable, since
+   * a style that paints needs nothing inferred. But `publishedColourField` is
+   * not only how the layer gets painted: it is how the layer SAYS what it is
+   * coloured by, and two things downstream ask.
+   *
+   * `import-manager` sets `sourceColourField` from it and `geologyField` with
+   * it, so with it null the Symbology dialog cannot see the layer's own
+   * colouring and opens on a PROPOSAL instead — measured on a re-imported
+   * clip, "By attribute / LITH — 20 values / qualitative", twelve classes and
+   * an `(other)` bucket holding ten features. Nothing on the map is in that
+   * bucket; the layer is wearing the survey's own colours. Pressing Apply on
+   * what the dialog opened with would have replaced every one of them.
+   *
+   * And `inheritedColouring` in the tool runner reads the same field, so a
+   * clip of a re-imported map fell back to the ramp — the exact round trip
+   * this style file was added to close, closed at one end and open at the
+   * other.
+   */
+  const published = publishedColourField(fc);
   const symbology = declared
     || (published ? publishedSymbology(fc, published) : defaultSymbology(fc));
   // Outlines first, fills straight after — NOT both in one pass.
@@ -1700,6 +1721,28 @@ export function buildVectorLayerResult(fc, {
     // Named so a layer built from published colours can say so, and a tool
     // run on it can inherit the column rather than re-detect it.
     publishedColourField: published,
+    /**
+     * PUT THE MAP BACK IN THE COLOURS IT ARRIVED IN.
+     *
+     * The symbology dialog can class a layer by any column, and until now
+     * that was a one-way door: a geological map painted in its survey's own
+     * colours, explored by lithology and then changed back, came back in the
+     * twelve-class ramp because the ramp was the only "categories" the dialog
+     * knew how to apply. The colours the file published are neither a ramp nor
+     * one flat colour, so they need their own way home.
+     *
+     * It is the same closure that painted the layer at build time, so this
+     * cannot drift from what the layer originally wore -- there is no second
+     * derivation to keep in step.
+     */
+    sourceSymbology: symbology && (declared || published)
+      ? {
+        field: symbology.field || null,
+        declared: Boolean(declared),
+        rows: symbology.rows,
+        apply: () => { repaintVector((f) => symbology.colourOf(f)); },
+      }
+      : null,
     /**
      * Switch between a filled polygon and its outline.
      *

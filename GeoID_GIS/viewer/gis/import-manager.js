@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260901-c5e9dd8";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260901-c5e9dd8";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260901-c5e9dd8";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260901-c5e9dd8";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260901-3ffe7f1";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260901-3ffe7f1";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260901-3ffe7f1";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260901-3ffe7f1";
 import {
   buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude, setSealWidthFromAltitude,
   setMarkerSizeFromAltitude,
-} from "./vector-render.js?v=20260901-c5e9dd8";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260901-c5e9dd8";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260901-c5e9dd8";
-import { loadMshFile } from "./msh-adapter.js?v=20260901-c5e9dd8";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260901-c5e9dd8";
+} from "./vector-render.js?v=20260901-3ffe7f1";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260901-3ffe7f1";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260901-3ffe7f1";
+import { loadMshFile } from "./msh-adapter.js?v=20260901-3ffe7f1";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260901-3ffe7f1";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -607,6 +607,19 @@ async function importDataset(primaryFile, sidecars, options = {}) {
       layer.sourceLabelField = result.legendInfo?.field || null;
       layer.geologyField = layer.sourceLabelField;
     }
+    /**
+     * THE WAY BACK TO THE COLOURS THE FILE PUBLISHED.
+     *
+     * `geologyField` above names the column the legend is keyed on, which is
+     * what the symbology dialog opens its picker on -- and that is NOT the
+     * same statement as "this layer is wearing the colours its source
+     * published". The dialog could only offer to re-class that column into
+     * twelve hues plus an `(other)` bucket, so the mode the layer was actually
+     * in was the one mode the control could not express, and Apply on what it
+     * opened with would have thrown the survey's own colours away.
+     */
+    layer.sourceSymbology = result.sourceSymbology || null;
+    layer.symbologySource = Boolean(result.sourceSymbology);
     // Symbology chosen in the Add-data dialog, applied through the SAME path the
     // symbology panel's Apply uses -- so a layer looks the same when it lands as
     // it does the moment somebody opens that panel. Imported lazily because the

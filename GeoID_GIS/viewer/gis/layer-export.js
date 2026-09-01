@@ -21,10 +21,10 @@
  * rather than silently dropping whatever does not fit.
  */
 
-import * as VF from "./vector-formats.js?v=20260901-c5e9dd8";
-import { downloadText } from "./extraction.js?v=20260901-c5e9dd8";
+import * as VF from "./vector-formats.js?v=20260901-3ffe7f1";
+import { downloadText } from "./extraction.js?v=20260901-3ffe7f1";
 import { buildShapefileZip, shapeTypeFor, SHAPE_NAMES, safeShapefileName,
-  countSelfTouchingRings } from "./shapefile-writer.js?v=20260901-c5e9dd8";
+  countSelfTouchingRings } from "./shapefile-writer.js?v=20260901-3ffe7f1";
 
 /**
  * What a layer is, read from its contents rather than its name.
@@ -370,6 +370,17 @@ export function renderExport(layer, formatId) {
       labelField: layer.sourceLabelField || layer.geologyField
         || layer.legendInfo?.field || null,
       colourField: layer.sourceColourField || null,
+      /**
+       * AND HOW ITS BOUNDARIES ARE DRAWN, which is half of a geological map.
+       *
+       * The style shipped the fills and left the contacts to a flat grey
+       * default, so a re-import came back with its unit boundaries invisible:
+       * measured on a 52 km clip, the source drew 32 distinct colours -- 16
+       * fills and 16 contacts, each its unit's own colour darkened -- and the
+       * re-import drew 16, the fills alone. Every colour it drew was one of
+       * the source's, so nothing looked wrong until you looked for the edges.
+       */
+      contacts: layer.getContacts?.() || null,
     });
     if (!bytes) return null;
     /**

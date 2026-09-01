@@ -7905,6 +7905,79 @@ before. `watchProject()` in hub.js keys that on the project's *folder*, not on
 every store announcement: `updateMetadata()` also announces, and it fires while
 someone is typing into a metadata form.
 
+## The full audit: the data was verbatim, the MAP was not
+
+"Ensure the exported shp contains the contents of the clipped geology map
+verbatim — might be clashing/overlapping values, so only extract those that are
+actually visible." Audited a 52 km clip end to end: export, re-import, compare.
+
+**The hypothesis was wrong and the report was right.** The data is verbatim —
+**127 of 127 features, the COLOR column identical on every one**, no feature
+lost, no attribute changed. And nothing is invisible: sampling each feature's
+own bbox, **0 of 127 own no ground**, 3 are partly overlapped, 124 are clean.
+(A first pass over one coarse 260x260 grid said "5 buried" — it was missing
+small features between samples. **Sample a feature against its OWN bbox, never
+against one grid for the whole layer.**) The overlap is real and modest:
+**24.6% of the ground covered twice, never more than twice**, coarse survey 147
+under fine 23 — the standing cost of keeping ground rather than losing it.
+
+What was actually wrong was the STYLE, in three places:
+
+**The contacts never travelled.** A geological map is its fills AND its unit
+boundaries. Measured by reading the vertex colours off both layers: the source
+drew **32 distinct colours** — 16 fills and 16 contacts, each its unit's own
+colour darkened — and the re-import drew **16**, the fills alone, with
+`getContacts()` returning `{shade, 0.62, 0.55}` on one and `null` on the other.
+Every colour the import drew was one of the source's, so nothing looked wrong
+until you looked for the edges. The QML also wrote a flat `35,35,35` outline
+for every category, so the export opened in QGIS as the right fills under
+near-black edges — a different map there too. Each category now takes its own
+edge, and the mode rides in a QGIS custom property, which QGIS carries through
+untouched and a style from anywhere else simply lacks.
+
+**The shade is computed in LINEAR space**, because the renderer multiplies a
+`THREE.Color` and those components are linear. Doing it on the sRGB bytes gives
+a visibly different edge: #7bc771 at 0.62 is `98,161,90` linear against
+`76,123,70` naive. The test pins the linear answer AND asserts it is not the
+naive one, because both look equally plausible in source.
+
+**The layer forgot which column it was coloured by.** `publishedColourField`
+was short-circuited to null whenever a declared style did the painting —
+reasonable, since a style that paints needs nothing inferred, and wrong,
+because that field is also how a layer SAYS what it is coloured by. Two things
+ask: `import-manager` sets `sourceColourField` from it, and `inheritedColouring`
+reads it — so a clip of a re-imported map fell back to the ramp. **The round
+trip was closed at one end and open at the other.**
+
+**And so the Symbology dialog opened on a proposal wearing the clothes of a
+report.** With no colour field to see, it fell to `ranked[0]`: "By attribute /
+LITH — 20 values / qualitative", twelve classes and an `(other)` bucket holding
+ten features — over a map with **nothing grey on it**. Apply would have carried
+it out. That screenshot was the whole report, and none of it was the export.
+
+**"Source colours" is the third mode**, and the one such a layer opens on. It
+is neither a ramp nor one flat colour, so no classing this dialog performs can
+reproduce it: `categoricalSymbology` ranks by frequency, keeps twelve and folds
+the rest into `(other)`. The paint is the layer's own BUILD-TIME closure
+(`sourceSymbology.apply`), so it cannot drift from what the layer originally
+wore — there is no second derivation to keep in step. Its classes are listed and
+locked (a source colour is a fact about the file; the two controls that invent
+one are a select away), and any deliberate paint stands the mode down, so the
+dialog never reopens on a mode the layer has left.
+
+Verified on the committed build: **127/127 features, 32/32 drawn colours,
+identical sets both ways, contacts `{shade, 0.62, 0.55}` on both**, the
+re-import reporting `sourceColourField: "COLOR"`, and the dialog opening on
+Source colours with 12 locked rows, no `(other)`, and "the colours the style
+file declares, keyed on NAME".
+
+**The general shape, for the fourth time in this file:** a round trip is only
+as verbatim as the thing you measure. Feature counts and attribute values
+agreed perfectly while the map on screen was missing half its ink. **Read the
+drawn colours off the geometry of BOTH layers and compare the sets** — that one
+measurement found the contacts, and the count of distinct colours is what makes
+"the fills are fine" and "the map is fine" different statements.
+
 ## The corner you placed is the one part that was left behind
 
 "When we lock in and save a drawn polygon it shifts/jumps South of its defined

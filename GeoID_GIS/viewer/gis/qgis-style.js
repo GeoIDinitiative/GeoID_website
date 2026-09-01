@@ -20,7 +20,7 @@
  * for a categorised fill it is exact.
  */
 
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260901-c5e9dd8";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260901-3ffe7f1";
 
 /** `#RRGGBB` to the `R,G,B,A` triple-plus-alpha QGIS wants. */
 function rgba(hex, alpha = 255) {
@@ -90,13 +90,58 @@ export function categoriesFrom(features, labelKey, colourKey) {
 }
 
 /**
+ * THE CONTACT INK, computed the way the renderer computes it.
+ *
+ * `vector-render` multiplies a unit's own fill by `contacts.shade` to ink its
+ * boundary, so a dark green edge belongs to the green unit and the sheet still
+ * reads as its own legend. The multiply happens on a `THREE.Color`, whose
+ * components are LINEAR — so doing it on the sRGB bytes gives a visibly
+ * different colour, and the exported style would draw the same map in a
+ * different set of edges.
+ *
+ * Written out here rather than imported because this module is loaded in Node
+ * by the tests and must not drag three.js in with it. It is four lines and the
+ * test pins it against the renderer's own arithmetic.
+ */
+function shadeHex(hex, factor) {
+  const text = String(hex || "").trim().replace("#", "");
+  const full = text.length === 3 ? text.split("").map((c) => c + c).join("")
+    : text.padEnd(6, "0").slice(0, 6);
+  const n = Number.parseInt(full, 16);
+  if (!Number.isFinite(n)) return "#8a8a8a";
+  const toLinear = (v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+  const toSrgb = (v) => (v <= 0.0031308 ? v * 12.92 : 1.055 * (v ** (1 / 2.4)) - 0.055);
+  const channel = (byte) => {
+    const lit = toLinear(byte / 255) * factor;
+    const out = Math.round(Math.max(0, Math.min(1, toSrgb(lit))) * 255);
+    return out.toString(16).padStart(2, "0");
+  };
+  return `#${channel((n >> 16) & 255)}${channel((n >> 8) & 255)}${channel(n & 255)}`;
+}
+
+/** The outline a category draws, given the layer's contact style. */
+function outlineFor(colour, contacts) {
+  const mode = contacts?.mode || null;
+  if (mode === "ink") return rgba(contacts?.colour || "#1a1420", 255);
+  if (mode === "shade") {
+    const shade = Number.isFinite(contacts?.shade) ? contacts.shade : 0.45;
+    return rgba(shadeHex(colour, shade), 255);
+  }
+  // "match" draws the boundary in the fill's own colour, which is the renderer
+  // saying "no visible contact" -- and an outline equal to the fill is exactly
+  // that in QGIS too.
+  if (mode === "match") return rgba(colour, 255);
+  return null;
+}
+
+/**
  * A QGIS style document for a categorised fill.
  *
  * `styleCategories="Symbology"` so loading it changes how the layer draws and
  * nothing else — not its name, not its scale limits, not its field aliases.
  */
 export function buildQml(features, {
-  field, valueKey = field, colourField, outline = "35,35,35,255",
+  field, valueKey = field, colourField, outline = "35,35,35,255", contacts = null,
 } = {}) {
   // `field` is the DBF column the style matches on; `valueKey` is the property
   // the VALUES are read from. They differ by definition -- a column is
@@ -104,12 +149,21 @@ export function buildQml(features, {
   // reading with the column name found nothing at all.
   const categories = categoriesFrom(features, valueKey, colourField);
   if (!categories.length) return null;
+  /**
+   * EVERY UNIT'S EDGE IS ITS OWN, not one flat grey for the sheet.
+   *
+   * This wrote `35,35,35,255` for every category, so an export opened in QGIS
+   * as the right fills under near-black contacts -- a different map from the
+   * one on screen, where each boundary is its unit's own colour darkened. The
+   * layer's contact style decides it now, and falls back to the old flat grey
+   * for a layer that declares none.
+   */
   const symbol = (i, colour) => `
     <symbol type="fill" name="${i}" alpha="1" clip_to_extent="1" force_rhr="0">
       <layer class="SimpleFill" enabled="1" locked="0" pass="0">
         <Option type="Map">
           <Option name="color" type="QString" value="${rgba(colour)}"/>
-          <Option name="outline_color" type="QString" value="${outline}"/>
+          <Option name="outline_color" type="QString" value="${outlineFor(colour, contacts) || outline}"/>
           <Option name="outline_style" type="QString" value="solid"/>
           <Option name="outline_width" type="QString" value="0.06"/>
           <Option name="outline_width_unit" type="QString" value="MM"/>
@@ -129,7 +183,12 @@ ${categories.map((c, i) => `      <category render="true" symbol="${i}" value="$
   <blendMode>0</blendMode>
   <featureBlendMode>0</featureBlendMode>
   <layerOpacity>1</layerOpacity>
-</qgis>
+${contacts ? `  <customproperties>
+    <Option type="Map">
+      <Option name="geoid/contacts" type="QString" value="${xml(JSON.stringify(contacts))}"/>
+    </Option>
+  </customproperties>
+` : ""}</qgis>
 `;
 }
 
@@ -210,6 +269,23 @@ function unxml(value) {
  * elsewhere is read by `DOMParser` in the browser, which is where those turn
  * up.
  */
+/**
+ * The contact style the writer recorded, if this QML is one of ours.
+ *
+ * A QGIS custom property is the right shelf for it: QGIS carries it through
+ * untouched and ignores it, while a style written anywhere else simply has
+ * none and the layer falls back to its own default. Read from the raw text so
+ * the DOM and no-DOM paths cannot disagree about it.
+ */
+function contactsFrom(text) {
+  const raw = (/<Option name="geoid\/contacts"[^>]*value="([^"]*)"/.exec(text) || [])[1];
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(unxml(raw));
+    return value && typeof value === "object" && typeof value.mode === "string" ? value : null;
+  } catch (error) { return null; }
+}
+
 function parseQmlWithoutDom(text) {
   const renderer = /<renderer-v2\b([^>]*)>/.exec(text);
   if (!renderer) return null;
@@ -240,7 +316,7 @@ function parseQmlWithoutDom(text) {
     }
     match = pattern.exec(text);
   }
-  return categories.length ? { field, categories } : null;
+  return categories.length ? { field, categories, contacts: contactsFrom(text) } : null;
 }
 
 export function parseQml(text) {
@@ -276,5 +352,5 @@ export function parseQml(text) {
     categories.push({ value, label: category.getAttribute("label") || value, colour: hex });
   });
   if (!categories.length) return null;
-  return { field, categories };
+  return { field, categories, contacts: contactsFrom(text) };
 }

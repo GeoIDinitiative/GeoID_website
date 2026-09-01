@@ -170,6 +170,76 @@ const units = [
     JSON.stringify(mixed.legendInfo?.labels));
 }
 
+/**
+ * THE CONTACTS TRAVEL WITH THE STYLE.
+ *
+ * A geological map is its fills AND its unit boundaries, and the style shipped
+ * only the first: every category was written with a flat `35,35,35` outline,
+ * so an export opened in QGIS as the right fills under near-black edges, and
+ * re-imported here with no contact style at all. Measured on a 52 km clip, the
+ * source drew 32 distinct colours -- 16 fills and 16 contacts, each its unit's
+ * own colour darkened -- and the re-import drew 16. Every colour it drew was
+ * one of the source's, so nothing looked wrong until you looked for the edges.
+ */
+{
+  const features = [
+    { properties: { NAME: "Argyll Group", COLOR: "#7bc771" },
+      geometry: { type: "Polygon", coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]] } },
+    { properties: { NAME: "Gala Group", COLOR: "#d81e5b" },
+      geometry: { type: "Polygon", coordinates: [[[2, 0], [3, 0], [3, 1], [2, 1], [2, 0]]] } },
+  ];
+  const { parseQml } = await import("./qgis-style.js");
+  const opts = { field: "NAME", valueKey: "NAME", colourField: "COLOR" };
+
+  const plain = buildQml(features, opts);
+  ok("with no contact style the flat default still stands",
+    (plain.match(/outline_color" type="QString" value="35,35,35,255"/g) || []).length === 2);
+  ok("and a plain style records no contact property", !/geoid\/contacts/.test(plain));
+
+  const shaded = buildQml(features, { ...opts, contacts: { mode: "shade", shade: 0.62, opacity: 0.55 } });
+  const outlines = [...shaded.matchAll(/outline_color" type="QString" value="([^"]*)"/g)].map((m) => m[1]);
+  ok("every category gets its OWN edge, not one grey for the sheet",
+    outlines.length === 2 && outlines[0] !== outlines[1], outlines.join(" | "));
+  ok("no edge is the flat default any more",
+    outlines.every((o) => o !== "35,35,35,255"), outlines.join(" | "));
+  /**
+   * The renderer multiplies a THREE.Color, whose components are LINEAR. Doing
+   * it on the sRGB bytes gives a visibly different colour, so the check is
+   * against the linear answer and would fail on the naive one: #7bc771 shaded
+   * by 0.62 is 0x62-ish per channel in linear and 0x4c-ish in sRGB.
+   */
+  const toLinear = (v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+  const toSrgb = (v) => (v <= 0.0031308 ? v * 12.92 : 1.055 * (v ** (1 / 2.4)) - 0.055);
+  const expect = [0x7b, 0xc7, 0x71]
+    .map((b) => Math.round(Math.max(0, Math.min(1, toSrgb(toLinear(b / 255) * 0.62))) * 255));
+  ok("the shade is computed in LINEAR space, as the renderer computes it",
+    outlines[0] === `${expect[0]},${expect[1]},${expect[2]},255`,
+    `${outlines[0]} want ${expect.join(",")},255`);
+  const naive = [0x7b, 0xc7, 0x71].map((b) => Math.round(b * 0.62));
+  ok("and is NOT the sRGB-space multiply that looks the same in source",
+    outlines[0] !== `${naive[0]},${naive[1]},${naive[2]},255`);
+
+  ok("the mode is recorded where QGIS will carry it untouched",
+    /Option name="geoid\/contacts"/.test(shaded));
+  const back = parseQml(shaded);
+  ok("and reads back as the style the layer was wearing",
+    back?.contacts?.mode === "shade" && back.contacts.shade === 0.62
+    && back.contacts.opacity === 0.55, JSON.stringify(back?.contacts));
+  ok("the categories still survive alongside it", back?.categories?.length === 2);
+  ok("a style from anywhere else simply has none", parseQml(plain)?.contacts === null);
+
+  const inked = buildQml(features, { ...opts, contacts: { mode: "ink", colour: "#1a1420" } });
+  const inkOutlines = [...inked.matchAll(/outline_color" type="QString" value="([^"]*)"/g)].map((m) => m[1]);
+  ok("one flat ink means one edge colour for every unit",
+    inkOutlines.length === 2 && inkOutlines[0] === inkOutlines[1] && inkOutlines[0] === "26,20,32,255",
+    inkOutlines.join(" | "));
+
+  const matched = buildQml(features, { ...opts, contacts: { mode: "match" } });
+  const matchOutlines = [...matched.matchAll(/outline_color" type="QString" value="([^"]*)"/g)].map((m) => m[1]);
+  ok("\"match\" means no visible contact, which is an edge equal to the fill",
+    matchOutlines[0] === "123,199,113,255", matchOutlines[0]);
+}
+
 console.log(`${pass} passed`);
 if (fail) console.log(`${fail} FAILED`);
 process.exit(fail ? 1 : 0);

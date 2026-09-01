@@ -285,6 +285,62 @@ const feat = (properties) => ({
     JSON.stringify(labels));
 }
 
+/**
+ * A DECLARED STYLE MUST NOT SILENCE THE COLUMN.
+ *
+ * `publishedColourField` is not only how a layer gets painted -- it is how the
+ * layer SAYS what it is coloured by, and two things downstream ask. The build
+ * short-circuited it to null whenever a `.qml` did the painting, so a
+ * re-imported clip reported `sourceColourField: null`: the symbology dialog
+ * could not see the layer's own colouring and opened on a PROPOSAL instead
+ * (measured: "By attribute / LITH — 20 values", twelve classes and an
+ * `(other)` bucket of ten, over a map with nothing grey on it), and
+ * `inheritedColouring` in the tool runner lost the colours on the next clip --
+ * the round trip closed at one end and open at the other.
+ */
+{
+  const styled = fc([
+    feat({ NAME: "Argyll Group", COLOR: "#7bc771" }),
+    feat({ NAME: "Gala Group", COLOR: "#d81e5b" }),
+  ]);
+  const style = {
+    field: "NAME",
+    categories: [
+      { value: "Argyll Group", label: "Argyll Group", colour: "#7bc771" },
+      { value: "Gala Group", label: "Gala Group", colour: "#d81e5b" },
+    ],
+  };
+  const built = buildVectorLayerResult(styled, { name: "styled.shp", style });
+  ok("the style still paints, keyed on its own field",
+    built.legendInfo?.field === "NAME", String(built.legendInfo?.field));
+  ok("and the colour COLUMN is reported all the same",
+    built.publishedColourField === "COLOR", String(built.publishedColourField));
+  ok("so the way back to the source colours is offered",
+    Boolean(built.sourceSymbology?.apply));
+  ok("and it knows it was declared rather than inferred",
+    built.sourceSymbology?.declared === true);
+  ok("its rows are the ones the map is wearing",
+    (built.sourceSymbology?.rows || []).map((r) => r.value).join("|")
+      === (built.legendInfo?.labels || []).join("|"));
+
+  // The inferred half keeps saying so too, and says it is NOT declared.
+  const inferred = buildVectorLayerResult(fc([
+    feat({ name: "Argyll Group", color: "#7bc771" }),
+    feat({ name: "Gala Group", color: "#d81e5b" }),
+  ]), { name: "inferred.geojson" });
+  ok("a file with no style file still reports its column",
+    inferred.publishedColourField === "color");
+  ok("and offers the same way home, undeclared",
+    Boolean(inferred.sourceSymbology?.apply) && inferred.sourceSymbology.declared === false);
+
+  // A layer with nothing published has no way home to offer, and must not
+  // pretend to: the dialog reads exactly this to decide whether to show it.
+  const plain = buildVectorLayerResult(fc([feat({ id: 1 }), feat({ id: 2 })]),
+    { name: "plain.geojson" });
+  ok("a layer that publishes no colours offers no source mode",
+    plain.sourceSymbology === null);
+}
+
 console.log(`${pass} passed`);
 if (fail) console.log(`${fail} FAILED`);
 process.exit(fail ? 1 : 0);
