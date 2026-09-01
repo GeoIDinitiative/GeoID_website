@@ -26,11 +26,11 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260901-6ffcdfa";
+import { runConnector } from "./research/connectors.js?v=20260901-0fb185c";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
-  "UK geology (BGS)", "Hazards", "Live services"];
+  "Ice sheets", "UK geology (BGS)", "Hazards", "Live services"];
 
 /**
  * Which PANEL a dataset belongs on, where it is not the Vectors tab.
@@ -50,6 +50,7 @@ export const HOMES = {
   hydrology: "hydrology-catalogue",
   "geology-tectonics": "tectonics-catalogue",
   "geology-volcanoes": "volcanoes-catalogue",
+  "geology-ice": "ice-catalogue",
 };
 
 export const DATASETS = [
@@ -233,6 +234,51 @@ export const DATASETS = [
    * the Events tab already serves them as live feeds, and a second doorway
    * to the same data is the filing mistake this catalogue exists to end.
    */
+  {
+    id: "ice-sheets",
+    home: "geology-ice",
+    featureNoun: "Ice sheet",
+    group: "Ice sheets",
+    label: "Ice sheets and shelves — Greenland and Antarctica (Natural Earth 1:10m)",
+    path: "/data/global/ice-sheets.geojson",
+    name: "Ice sheets (Natural Earth 10m).geojson",
+    /**
+     * Two reasons this is a FILE where the glaciers are tiles, and the second
+     * is the one that decides it: five polygons that change on no timescale
+     * this map cares about, and Web Mercator stops at 85.05 degrees — tiled,
+     * the Antarctic ice sheet would be a ring of ice around a hole at the pole.
+     */
+    summary: "161 polygons — the ice the Randolph inventory does not map, and "
+      + "about 96% of the ice on Earth: the two grounded ice sheets "
+      + "(12,059,468 km² Antarctica, 1,746,539 Greenland) and the 156 floating "
+      + "shelves around them (1,555,136 km²). A file rather than tiles, "
+      + "because Web Mercator cannot hold the South Pole.",
+    /**
+     * GROUNDED AND FLOATING ARE DIFFERENT ICE, so they are different colours.
+     *
+     * A shelf is the sheet's outflow afloat on the sea, already displacing its
+     * own weight of water — which is the whole of why a shelf collapse and an
+     * ice-sheet loss mean different things for sea level. Both are ice cover;
+     * neither is the other.
+     */
+    colourBy: "kind",
+    colours: { "Ice sheet": "#eaf7ff", "Ice shelf": "#a9d8ef" },
+    licence: "Natural Earth — public domain",
+  },
+  {
+    id: "conn-glims-outlines",
+    home: "geology-ice",
+    featureNoun: "Glacier outline",
+    group: "Live services",
+    label: "Glacier outlines — live (GLIMS archive)",
+    connector: "glims-outlines",
+    name: "GLIMS glacier outlines.geojson",
+    summary: "The archive RGI is curated from, fetched over the drawn study "
+      + "area at its own native resolution — one outline per glacier, the "
+      + "latest imagery date GLIMS holds. Draw an area first: this is a "
+      + "database of hundreds of thousands of outlines.",
+    licence: "GLIMS and NSIDC (2005, updated) — glims.org",
+  },
   {
     id: "conn-usgs-streamflow",
     home: "hydrology",
@@ -426,7 +472,22 @@ function drawnBbox() {
   const signed = (lon) => (lon > 180 ? lon - 360 : lon);
   const lats = vertices.map((v) => v.lat);
   const lons = vertices.map((v) => signed(v.lon));
-  return [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)];
+  /**
+   * THE SHAPE THE CONNECTORS SPEAK, which is an object and not an array.
+   *
+   * This returned `[west, south, east, north]` while every url builder in
+   * `connectors.js` reads `bbox.minLon` / `minLat` / `maxLon` / `maxLat` — so
+   * `[…].minLon` was `undefined` and every live row that takes a study area
+   * sent one with `undefined` in it. Nothing threw: the BGS builder joined four
+   * undefineds into ",,,", the USGS one set four empty parameters, and the
+   * services answered as though no box had been given. Two vocabularies for a
+   * box, which this file's own notes record as a silent skip — met again here,
+   * and closed at the ONE place that builds it rather than in each reader.
+   */
+  return {
+    minLon: Math.min(...lons), minLat: Math.min(...lats),
+    maxLon: Math.max(...lons), maxLat: Math.max(...lats),
+  };
 }
 
 export function datasetById(id) {

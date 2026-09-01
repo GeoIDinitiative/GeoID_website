@@ -127,3 +127,89 @@ offline and cannot be taken out by a CORS header going missing on a cache hit.
 - `summary` is clipped to about 460 characters on a sentence boundary. The
   full text runs to 1,776 and was 39% of the file; `gvp_url` links each record
   to its own page on volcano.si.edu, which is the citable version.
+
+## `ice/` and `ice-sheets.geojson` — the world's glaciers
+
+    python3 GeoID_GIS/services/bake-glaciers.py          # ~400 MB down, ~15 min
+    python3 GeoID_GIS/services/bake-glaciers.py --check   # what is on disk
+
+**`ice/`** is a Mapbox Vector Tile pyramid, z0–6, **806 tiles, 82 MB** —
+**192,869 glacier complexes over 706,744 km²**, which is the Randolph Glacier
+Inventory 7.0's own global total to a fraction of a percent. One layer inside
+each tile, named `ice`. Streamed by the Ice cover subtab through the same
+controller the geology uses, so it refines as you fly in.
+
+**Each level carries only what can be seen at it**, which is what makes the
+world backdrop 1.4 MB rather than 5 MB of polygons quantised to kilometres:
+
+| levels | smallest complex | complexes | share of the world's glacier area |
+| --- | --- | --- | --- |
+| z0–2 | 200 km² | 323 | 75.7% |
+| z3–4 | 20 km² | 1,638 | 86.4% |
+| z5 | 5 km² | 4,978 | 90.9% |
+| z6 | everything | 192,869 | 100% |
+
+The deepest level is baked at `EXTENT=8192` rather than the conventional 4096,
+which halves the grid a vertex is placed on (about 32 m at 65°N) for 17 MB —
+`mvt.js` reads each layer's own extent. `manifest.json` carries a `version`
+fingerprint that the client appends to every tile request, because a tile is an
+ordinary file at an ordinary URL and a browser that has one keeps it.
+
+- **RGI 7.0, complexes (`C`) not glaciers (`G`).** `G` splits an ice mass into
+  flow units by ice divide (274,000 of them); `C` keeps a contiguous ice mass
+  whole, which is what a map of "where is there ice" wants.
+- **RGI Consortium (2023), NSIDC, doi:10.5067/f6jmovy5navz, CC BY 4.0.** NSIDC
+  serves it behind an Earthdata login that a bake script cannot answer, so the
+  files come from the RGI working mirror at the University of Bremen — the same
+  files; the DOI is the citation.
+- **Web Mercator XYZ**, which is what `mvt.js` computes tile bounds on. Baked on
+  EPSG:4326 the first time, on the strength of a note in `GeoID_GIS/CLAUDE.md`
+  that was wrong: every tile decoded, every polygon was valid, and Iceland
+  landed in the Laptev Sea.
+- Zoom 6 places a vertex to about 150 m at the equator and 65 m at 65°N, where
+  most of this ice is. Zoom 7 would halve that and cost 163 MB against a
+  tracked site of 582 MB and a GitHub Pages ceiling of 1 GB; where the source's
+  own 15–30 m outline is wanted, the GLIMS row fetches it live.
+
+**`ice-sheets.geojson`** is the rest of the world's ice from Natural Earth 10m
+(public domain), **161 polygons, 1.3 MB**: the two grounded ice sheets — taken
+by their own names rather than by a bounding box — and the 156 floating ice
+shelves around Antarctica.
+
+|  | area |
+| --- | --- |
+| Antarctic Ice Sheet (grounded) | 12,059,468 km² |
+| Greenland Ice Sheet | 1,746,539 km² |
+| Antarctic ice shelves | 1,555,136 km² |
+
+Two reasons it is a file and not tiles: **RGI does not map any of this** — it
+maps the glaciers and ice caps around them, and this is about 96% of the ice on
+Earth — and **Web Mercator stops at 85.05°**, so tiled, Antarctica would be a
+ring of ice around a hole at the pole. This file reaches 90°S.
+
+`kind` separates **grounded** from **floating**, and the catalogue row colours
+them apart: a shelf is the sheet's outflow afloat on the sea, already displacing
+its own weight of water, which is why a shelf collapse and an ice-sheet loss
+mean different things for sea level.
+
+Two GDAL options are deliberately NOT used on this pair, both settled by
+measurement: `-simplify` on the thin shelves turned one polygon into a
+LineString and two into features with no geometry at all, and `RFC7946=YES`
+re-split antimeridian geometry Natural Earth had already split, emptying half
+of the Ross Ice Shelf — while changing nothing whatever on the ice sheets.
+
+**`ice/names.json`** is what the complexes are CALLED — 38,016 of 192,869
+(19.7%), 1.25 MB, written by `services/name-glaciers.py`. RGI's complexes have
+no name column, so the names come from RGI's own glacier names where a complex
+IS a glacier (37,219), and from GeoNames' ice caps and single glaciers where it
+is not (797). Each entry carries its source, because "this complex is that
+named glacier" and "a gazetteer point falls inside it" are different claims and
+the card says which. Not baked into the tiles: a correction would otherwise
+mean re-baking 82 MB.
+
+**GLIMS is the third door and ships nothing.** `www.glims.org/geoserver` answers
+WFS with `Access-Control-Allow-Origin: *`, so the archive RGI is curated from is
+fetched live over a drawn study area (`glims-outlines` in `research/
+connectors.js`). It is MULTI-TEMPORAL — measured over Iceland, 675 outlines for
+608 glaciers, one of them mapped six times — so the connector keeps one outline
+per `glac_id`, the latest `src_date`, and only `line_type = glac_bound`.

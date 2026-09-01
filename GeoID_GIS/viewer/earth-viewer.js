@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260901-6ffcdfa";
+  from "./gis/geo-utils.js?v=20260901-0fb185c";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260901-6ffcdfa";
+  from "./gis/vector-render.js?v=20260901-0fb185c";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260901-6ffcdfa";
+  from "./gis/rock-class.js?v=20260901-0fb185c";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260901-6ffcdfa";
+  from "./gis/lithology-label.js?v=20260901-0fb185c";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -6154,10 +6154,22 @@ function fmtProp(value) {
         ? window.GeoIDViewer?.sampleElevationMeters?.(
           activeGeoPopupLatLon.lat, activeGeoPopupLatLon.lon)
         : null;
+      /**
+       * ICE HAS ALREADY WRITTEN ITS OWN LINES, and this card must not overwrite
+       * them by classifying it as a rock.
+       *
+       * `rockClass("ice")` is honestly null, but `crustalSetting` still answers
+       * from the ELEVATION — so a click on the Ross Ice Shelf read
+       * "Continental" over a polygon afloat on 500 m of seawater, and the title
+       * read "Ice" where the builder had written "Glacier complex, Iceland".
+       * A feature carrying `ice` has its kicker and title from `ice-card.js`,
+       * which is the one place either is decided for the ice layers.
+       */
       const unitClass = feature.rock_class
         || rockClass(lithology, feature.description, geometryName);
-      const unitSetting = crustalSetting(lithology, settingElevation);
-      const classLabel = rockClassLabel(unitClass, unitSetting);
+      const unitSetting = feature.ice ? null : crustalSetting(lithology, settingElevation);
+      const classLabel = feature.ice
+        ? (feature.type || null) : rockClassLabel(unitClass, unitSetting);
       /**
        * The heading is the lithology AS A PERSON WOULD WRITE IT.
        *
@@ -6167,7 +6179,8 @@ function fmtProp(value) {
        * display only; the raw string still goes to the property database,
        * whose parser reads those proportion words to weight a mixture.
        */
-      const popupTitle = lithologyLabel(lithology) || interpretation || geometryName || "";
+      const popupTitle = (feature.ice ? feature.rock_type : lithologyLabel(lithology))
+        || interpretation || geometryName || "";
       const popupCopy = feature.rock_type_detail
         || (
           feature.type === "Geologic structure"
@@ -6234,6 +6247,16 @@ function fmtProp(value) {
          */
         const classBasis = classificationBasis(unitClass, unitSetting, settingElevation);
         const detailRows = [
+          /**
+           * THE SOURCE'S OWN AREA, beside the one this card measures.
+           *
+           * They are different facts and they disagree: the card measures the
+           * polygon it drew — generalised to the level its tiles were baked
+           * at, and cut where a tile edge crossed the ice — while RGI
+           * publishes what its own analysis found for the whole ice mass.
+           * Showing only ours would be restating the source at our precision.
+           */
+          feature.published_area ? ["Published area", feature.published_area] : null,
           interpretation ? ["Interpretation", interpretation] : null,
           feature.preservation ? ["Preservation", feature.preservation] : null,
           feature.dimension ? ["Scale", feature.dimension] : null,

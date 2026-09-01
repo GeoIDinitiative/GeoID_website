@@ -656,6 +656,94 @@ export function metRainfallToGeoJSON(payload) {
   return passthroughGeoJSON(payload, MET_ATTRIBUTION);
 }
 
+/**
+ * GLIMS — the glacier ARCHIVE, live, over the drawn area.
+ *
+ * `www.glims.org/geoserver` is a public GeoServer that answers WFS with
+ * `Access-Control-Allow-Origin: *`, so a browser can read it with no key and no
+ * login. That matters because the pre-staged database packages GLIMS points at
+ * sit behind an Earthdata login, which a page cannot answer.
+ *
+ * WHAT THIS IS NOT. The shipped ice layer is RGI 7.0, one outline per ice mass
+ * near the year 2000. GLIMS is every outline anybody has submitted, so a
+ * glacier carries as many as it has been mapped times — measured over Iceland,
+ * 675 outlines for 608 glaciers, with one glacier carrying six. Drawn raw that
+ * is the same ice counted six times, which is why RGI exists and why this
+ * keeps ONE outline per `glac_id`.
+ */
+const GLIMS_WFS = "https://www.glims.org/geoserver/GLIMS/ows";
+const GLIMS_ATTRIBUTION = "GLIMS and NSIDC (2005, updated) — Global Land Ice "
+  + "Measurements from Space glacier database, glims.org";
+
+function glimsOutlinesUrl({ bbox, limit = 4000 } = {}) {
+  const params = new URLSearchParams({
+    service: "WFS",
+    version: "2.0.0",
+    request: "GetFeature",
+    typeNames: "GLIMS:GLIMS_Glacier_Outlines",
+    outputFormat: "application/json",
+    srsName: "EPSG:4326",
+    count: String(limit),
+  });
+  /**
+   * A STUDY AREA IS REQUIRED, the way it is for Overpass and USGS streamflow.
+   *
+   * Without one this would not fetch "the world": it would fetch the first
+   * 4,000 outlines the server happens to return, which is a corner of the
+   * archive presented as a global layer. The shipped RGI tiles are the global
+   * answer; this is the archive over a place.
+   */
+  if (!bbox) {
+    throw new Error("GLIMS is an archive of hundreds of thousands of outlines — "
+      + "draw a study area first, then fetch.");
+  }
+  // `minLon/minLat/maxLon/maxLat` is this module's own bbox vocabulary — the
+  // same one every builder above reads.
+  params.set("bbox",
+    `${bbox.minLon},${bbox.minLat},${bbox.maxLon},${bbox.maxLat},EPSG:4326`);
+  return `${GLIMS_WFS}?${params}`;
+}
+
+/**
+ * The LATEST outline per glacier, and it says which date it kept.
+ *
+ * `src_date` is when the imagery was taken, which is the date that matters —
+ * `anlys_time` is when somebody drew it and is often empty. Ties keep the first
+ * seen, which is arbitrary and harmless: two outlines of one glacier from one
+ * image are the same ice.
+ *
+ * `line_type` is not all boundary: the archive also carries internal rock, the
+ * basin, the snowline. Only `glac_bound` is the glacier's own edge, so only
+ * that is kept — the rest would draw as ice.
+ */
+export function glimsOutlinesToGeoJSON(payload) {
+  const all = passthroughGeoJSON(payload, GLIMS_ATTRIBUTION);
+  const best = new Map();
+  for (const feature of all.features) {
+    const props = feature.properties || {};
+    if (props.line_type && props.line_type !== "glac_bound") continue;
+    const id = props.glac_id || `${props.anlys_id ?? ""}:${props.subm_id ?? ""}`;
+    const held = best.get(id);
+    const date = String(props.src_date || "");
+    if (!held || date > String(held.properties.src_date || "")) best.set(id, feature);
+  }
+  return {
+    type: "FeatureCollection",
+    features: [...best.values()].map((feature) => ({
+      ...feature,
+      properties: {
+        ...feature.properties,
+        // The card reads these; GLIMS's own column names are not a card's
+        // words, and the date IS the fact that separates this from RGI.
+        name: feature.properties.glac_name || null,
+        area_km2: feature.properties.db_area ?? null,
+        outline_date: String(feature.properties.src_date || "").slice(0, 10) || null,
+        kind: "Glacier outline (GLIMS)",
+      },
+    })),
+  };
+}
+
 // ── The registry ──────────────────────────────────────────────────────────────
 
 export const CONNECTORS = {
@@ -791,6 +879,14 @@ export const CONNECTORS = {
     toGeoJSON: bgsGeologyToGeoJSON,
     filename: () => "bgs_geology_625k_superficial.geojson",
     defaults: { limit: 1000 },
+  },
+  "glims-outlines": {
+    label: "Glacier outlines (GLIMS, live)",
+    attribution: GLIMS_ATTRIBUTION,
+    url: glimsOutlinesUrl,
+    toGeoJSON: glimsOutlinesToGeoJSON,
+    filename: () => "glims_glacier_outlines.geojson",
+    defaults: { limit: 4000 },
   },
   "met-rainfall-normals": {
     label: "Rainfall normals (HadUK 12km)",

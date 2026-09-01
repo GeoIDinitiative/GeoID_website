@@ -20,11 +20,12 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260901-6ffcdfa";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260901-6ffcdfa";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260901-6ffcdfa";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260901-6ffcdfa";
-import { lithologyLabel } from "./lithology-label.js?v=20260901-6ffcdfa";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260901-0fb185c";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260901-0fb185c";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260901-0fb185c";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260901-0fb185c";
+import { lithologyLabel } from "./lithology-label.js?v=20260901-0fb185c";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260901-0fb185c";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -703,7 +704,40 @@ function showViewerCard(hits, at) {
   const unitSetting = crustalSetting(lithology,
     at ? window.GeoIDViewer?.sampleElevationMeters?.(at.lat, at.lon) : null);
   const classLabel = rockClassLabel(unitClass, unitSetting);
-  const feature = {
+  /**
+   * ICE IS NOT A ROCK, and every line this card knows how to write was written
+   * for one. Measured on the Ross Ice Shelf before this branch existed: the
+   * kicker read "Continental" — `crustalSetting` answering about a polygon
+   * afloat on 500 m of seawater — with no source, no date and nothing saying
+   * whether the ice was grounded or floating.
+   *
+   * `ice-card.js` writes those three lines instead, and the same function
+   * writes them for the tiled RGI inventory over in `geology-panel.js`, so a
+   * glacier reads the same however it arrived. `lithology` is set to "ice"
+   * deliberately rather than left to fall through: it is what the property
+   * fold looks the material up by, and ice has a real entry in that database.
+   */
+  const ice = isIceFeature(props) ? iceCard(props) : null;
+  const feature = ice ? {
+    // The card must not re-derive its own heading from the lithology: see
+    // `earth-viewer.js`, which classifies a rock and would call floating ice
+    // "Continental". This flag is what says the three lines are already written.
+    ice: true,
+    published_area: ice.publishedArea || null,
+    type: ice.kicker,
+    rock_type: ice.title,
+    lithology: "ice",
+    name: null,
+    description: ice.meta || null,
+    origin: `${ice.source} — via ${top.layer.name || "this layer"}`,
+    mapped_area_km2: km2 > 0 ? Number(km2.toFixed(km2 >= 100 ? 0 : 2)) : null,
+    // The ice's own facts first, then whatever columns the source shipped.
+    rows: [...ice.rows, ...rows.filter(([key]) => !/^(kind|name|source|note)$/i.test(key))],
+    stack: beneath.map(({ layer, feature: f }) => ({
+      label: layer.name || "Layer",
+      unit: titleOf(f.properties || {}) || featureKind(f, layer),
+    })),
+  } : {
     // The classification heads the card where there is one; the geometry noun
     // is what a layer with no lithology still has to say for itself.
     type: classLabel || featureKind(top.feature, top.layer),

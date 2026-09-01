@@ -4331,8 +4331,13 @@ fetched, fewer vertices counted, `detail` falls, the level is called barren and
 the climb stops. This is the same fault `chooseZoom` documents for the display
 path — fixed there, never carried across.
 
-Measured live over Northern Ireland, tiles a level needs (EPSG:4326 is 2x1 at
-zoom 0, so a tile spans 360/2^(z+1) degrees):
+Measured live over Northern Ireland, tiles a level needs (Macrostrat's carto
+tiles are **Web Mercator XYZ** — one tile at zoom 0, spanning 360 degrees.
+This line said EPSG:4326 2x1 for months and it is WRONG: `tilesForBounds` in
+`mvt.js` is the ordinary slippy-map formula and is the truth. The 2x1 note
+belongs to GIBS, which really is 4326. Believing it cost a whole glacier
+pyramid baked on the wrong scheme — every tile valid, every polygon valid,
+Iceland decoding into the Laptev Sea):
 
 | box | z8 | z9 | z10 | z11 | z12 | shipped at |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -9527,3 +9532,280 @@ card set to `scrollTop = 0` came back at **124** with its heading off the top.
 So `overflow-anchor: none` on that element, and the top is retaken on the next
 frame and again at 300 ms — both guarded by the card's own ticket and
 abandoned the moment a fold is open, which is the reader taking over.
+
+## The ice layer was a geological map's idea of ice; the world has an inventory
+
+"The ice cover polygons poorly cover the world's glaciers — Eyja and Katla are
+unaccounted for", with a screenshot of Iceland. Both true, and neither is a
+fault in Macrostrat: a geological compilation maps ice the way it maps a rock
+unit, so its ice is a few coarse blobs and the small ice caps are simply not
+in it.
+
+**The Randolph Glacier Inventory 7.0 is the map of ice** — one outline per ice
+mass around the year 2000, the reference product, CC BY 4.0 — and it is baked
+into this site as vector tiles by `services/bake-glaciers.py`:
+**192,869 glacier complexes over 706,744 km², 881 tiles, 98 MB, zoom 0-6**. The
+total is RGI's own published figure to a fraction of a percent, which is the
+check that no region was silently lost.
+
+Four things there are decisions, and each is a wrong map if reversed:
+
+- **Complexes (`C`), not glaciers (`G`).** `G` splits an ice mass into flow
+  units by ice divide — 274,000 of them — and this layer answers "where is
+  there ice", so a contiguous ice cap should be one polygon and not eleven
+  wedges meeting at a dome.
+- **RGI DOES NOT MAP THE TWO ICE SHEETS**, which are about 96% of the ice on
+  Earth: it maps the glaciers and ice caps AROUND them. They come from Natural
+  Earth 10m, by NAME rather than by a bounding box (a box round Greenland also
+  catches its peripheral ice caps, which RGI maps properly and which would then
+  be drawn twice).
+- **The ice sheets are a FILE, not tiles.** Web Mercator stops at 85.05°, so a
+  tiled Antarctic ice sheet is a ring of ice around a hole exactly where the
+  subject is. `data/global/ice-sheets.geojson` reaches 90°S.
+- **AND THE SHELVES, which were missing from the first version.** Asked "is
+  this all the ice", the honest answer was no: `ne_10m_glaciated_areas` is the
+  GROUNDED sheet, and Ross, Filchner-Ronne and Amery all returned nothing when
+  probed — about **1,555,136 km² of floating ice** absent from a layer called
+  ice cover. They ship in the same file under `kind: "Ice shelf"`, coloured
+  apart, because a shelf is the sheet's outflow afloat on the sea and already
+  displacing its own weight of water: a shelf collapse and an ice-sheet loss
+  mean different things for sea level. Totals now: Antarctica 12,059,468 km²
+  grounded, Greenland 1,746,539, shelves 1,555,136.
+- **Neither `-simplify` nor `RFC7946=YES` may touch that file.** Simplifying
+  the thin shelves at 0.002° turned one into a LINESTRING and two into features
+  with no geometry, in a source with no lines in it; RFC7946 re-split
+  antimeridian geometry Natural Earth had already split and EMPTIED half of the
+  Ross Ice Shelf — the largest shelf on Earth, half of it a valid feature with
+  nothing to draw — while changing nothing at all on the ice sheets (measured
+  identical either way). Both are the same shape of fault: a degenerate result
+  that still passes for a feature.
+- **Tiles rather than one file, for the reason the geology already records.**
+  192,869 polygons is twenty times the geology sheet's triangulation budget and
+  tens of megabytes; a cut by size (complexes ≥ 2 km² are 11,467 of 192,869 and
+  carry 93.7% of the area) is an overview pretending to be an inventory.
+
+**A point-in-polygon loop's `j` is the PREVIOUS index.** Written
+`j = i += 1` — which assigns the incremented value — every edge is tested
+against itself and every point is outside every polygon. In the shelf check
+that read as five named ice shelves missing from a file that plainly contained
+them. `j = i, i += 1`.
+
+Measured live over Iceland after: **375 features drawn**, and every ice cap the
+report named is there with its published area — Eyjafjallajökull 80 km²,
+Mýrdalsjökull 597, Vatnajökull 8,087, Hofsjökull 889, Langjökull 921,
+Drangajökull 146, Snæfellsjökull 12.
+
+### The tiling scheme was in this file, and it was wrong
+
+`bake-glaciers.py` baked its first pyramid on **EPSG:4326, two tiles across at
+zoom 0**, because the Macrostrat section above said so. `tilesForBounds` in
+`mvt.js` is the truth and it is the ordinary slippy-map formula —
+`x = (lon + 180) / 360 * 2^z` with a Mercator `y`, ONE tile at zoom 0. The 2×1
+note belongs to GIBS, which really is 4326.
+
+Nothing failed. Every tile decoded, every polygon was valid, the manifest was
+consistent, and an Icelandic complex (`o1region` 06) came out at **142°E,
+78°N** — the Laptev Sea. **A wrong tiling scheme is not an error, it is a
+translation**, and the only thing that catches it is decoding a baked tile and
+asking where it landed. That check is in `ice-cover.test.mjs` now, along with
+the assertion that the bake states no scheme at all and takes GDAL's Mercator
+default. The offending line in this file has been corrected in place.
+
+### GLIMS is the archive; RGI is the answer to "where is there ice"
+
+The pre-staged GLIMS packages sit behind an Earthdata login, which a page
+cannot answer — but **`www.glims.org/geoserver` is a public WFS with
+`Access-Control-Allow-Origin: *`**, so the archive is reachable live with no
+credentials at all: `GLIMS:GLIMS_Glacier_Outlines`, GeoJSON, bbox. Measured, an
+Iceland box returns 675 outlines in 3 seconds.
+
+**It is MULTI-TEMPORAL, and that is what stops it being the cover layer.** One
+glacier carries as many outlines as it has been mapped times — measured over
+Iceland, 675 outlines for 608 glaciers, one of them six times — so drawn raw it
+is the same ice counted six times, at whatever dates different analysts worked.
+RGI is that database curated into one outline per ice mass, which is precisely
+the layer a cover map needs. So the connector keeps **one outline per
+`glac_id`, the latest `src_date`, `line_type = glac_bound` only** (the archive
+also carries internal rock, basins and snowlines, which are not the glacier's
+edge), and it REFUSES a pull with no study area — without one it would not
+fetch "the world", it would fetch the first 4,000 outlines the server happened
+to return. Verified live: 62 outlines over a drawn box, 62 distinct glaciers,
+dates 1999–2003, the endpoint recorded in the layer's provenance.
+
+### `drawnBbox` spoke a different bbox vocabulary from every connector
+
+Found while wiring GLIMS, and it was breaking every live catalogue row that
+takes a study area. `global-data.js` built `[west, south, east, north]`; every
+url builder in `connectors.js` reads `bbox.minLon` / `minLat` / `maxLon` /
+`maxLat`. So `[…].minLon` was `undefined`: the BGS builder joined four
+undefineds into `",,,"`, the USGS one set four empty parameters, and the
+services answered as though no box had been given — a study area silently
+ignored, with the layer arriving looking plausible. Fixed at the ONE place that
+builds the box, not in each reader, and pinned in `ice-cover.test.mjs`.
+This file already records the same shape from the other side (`drape()` taking
+`{minX…}` against `{west…}`); it is worth stating as a rule: **when two modules
+describe a box, one of them must own the vocabulary and the other must be
+tested against it.**
+
+### An ice polygon opens the same card, saying ice things
+
+The ice layers were already clickable — they are ordinary layers — and the card
+said the wrong things about them, because every line it knows how to write was
+written for a rock. Measured on the Ross Ice Shelf: kicker **"Continental"**,
+which is `crustalSetting` answering about a polygon afloat on 500 m of
+seawater; title "Ice"; no source, no date, and nothing anywhere saying whether
+the ice was grounded or floating.
+
+`gis/ice-card.js` writes those three lines, and **both card paths use it** —
+the tiled RGI inventory builds its features in `geology-panel.js`, while the
+ice sheets, the shelves and the live GLIMS outlines are ordinary imports built
+in `feature-popup.js`. One implementation, so a glacier reads the same however
+it arrived.
+
+- **`feature.ice` is what stops the card re-deriving its own heading.**
+  `rockClass("ice")` is honestly null, but `crustalSetting` still answers from
+  the ELEVATION, so the classification was overwriting a heading the builder
+  had already written. A feature carrying the flag keeps its kicker and title.
+- **An unnamed glacier is not a nameless one.** RGI names about a tenth of its
+  complexes and GLIMS about a fifteenth of its outlines, so an unnamed one is
+  titled by WHERE it is — "Glacier complex, Iceland" — with its id on the meta
+  line. "Unnamed" says nothing and reads like a fault in the data.
+- **Grounded or floating leads the card** for the ice sheets and shelves,
+  because it is the difference that decides what a loss means for sea level.
+- **The published area sits beside the measured one**, and they disagree on
+  purpose: 8,087 km² is RGI's own figure for Vatnajökull, 3,379 km² is the
+  piece this card measured — the polygon as the tiles drew it, cut where a tile
+  edge crossed the ice. Showing only ours would be restating the source at our
+  precision.
+- **`lithology: "ice"` is set deliberately**, not left to fall through: it is
+  what the property fold looks the material up by, and ice has a real entry in
+  that database — 900 kg/m³, porosity 2%, and the rest.
+
+Verified live on all three sources: an RGI complex over Vatnajökull, the Ross
+Ice Shelf, and a GLIMS outline over Mýrdalsjökull ("Glacier outline — GLIMS
+archive", `G341024E63606N · imagery 1999-09-09`, published 145 km² against 147
+measured).
+
+**A drawn study area swallows canvas clicks.** Two ice clicks did nothing at
+all while a study box was on the globe, which reads exactly like a layer that
+is not interactive; clearing the area made the same click open the card. Worth
+knowing before diagnosing a picker.
+
+### "Not tight to the surface, and slow" — one cause, in the bake
+
+Two reports in one line, and both were the same thing: **the coarse levels
+carried every glacier on Earth.**
+
+Baked with all 192,869 complexes at every zoom, a zoom-2 tile held tens of
+thousands of polygons quantised to 0.022° — about **2.4 km** — and the layer
+fetches the world backdrop before the view's own tiles. Measured on a tick over
+Iceland: **33 seconds in, the 15 world tiles were still arriving and the view's
+tiles had not been requested at all**, so what was on screen for half a minute
+was ice generalised to kilometres. That is exactly "not tight to the surface,
+view offset" — and the latency was the same fact.
+
+**A polygon smaller than a pixel is not detail, it is bytes.** At zoom 2 a
+pixel is about 20 km of ground at 65°N, where most of this ice is, so nothing
+under 200 km² can be drawn there at all. The bake now cuts by level, and the
+numbers say the coarse levels lose nothing that could have been seen:
+
+| levels | smallest complex | complexes | share of the world's glacier area |
+| --- | --- | --- | --- |
+| z0–2 | 200 km² | 323 | **75.7%** |
+| z3–4 | 20 km² | 1,638 | 86.4% |
+| z5 | 5 km² | 4,978 | 90.9% |
+| z6 | everything | 192,869 | 100% |
+
+GDAL bakes a zoom RANGE per run and has no per-zoom filter, so these are four
+runs merged into one tree — they cannot collide, each owns its own zoom
+directories.
+
+**And the world backdrop no longer blocks the view.** For a layer off its own
+pyramid the pin is fired in the BACKGROUND: the far side still fills in, and a
+reader looking at Iceland waits for Iceland.
+
+Measured, tick to ice on screen: **33 s → 6.1 s (the lighter bake) → 1.2 s (the
+background pin)**, with the view's zoom-6 tiles now requested at 35 ms rather
+than after the whole world. The pyramid also came down from 98 MB to **65 MB**,
+of which the whole world backdrop (z0–2) is **1.4 MB**.
+
+**And the deepest level is placed on a finer grid.** An MVT tile quantises
+every vertex onto its own grid — 4096 units across by convention — which at
+zoom 6 is about 65 m at 65°N, so below roughly 100 m per pixel the outline
+showed the grid as a staircase. `EXTENT=8192` halves the step for **17 MB**
+(z6: 43 → 60, pyramid 65 → 82 MB), where a whole extra zoom level would have
+cost 28 MB for the largest 1,638 complexes alone and left every other glacier
+stepped. `mvt.js` reads each layer's own extent, so nothing else changed.
+Measured on Mýrdalsjökull: **6,238 vertices at a 34 m median edge** against
+2,408 at 93 m, with the bbox still matching RGI's own to 1e-4°.
+
+The remaining limit is the honest one: RGI's outlines are digitised from
+15–30 m imagery, and the GLIMS row fetches those natively for a study area.
+
+### A re-bake is invisible to a browser that already has the tiles
+
+`?v=` versions the MODULES. A tile is an ordinary file at an ordinary URL, so
+after re-baking zoom 6 on a finer grid the page went on drawing the coarse
+tiles it already held — measured, 2,647-vertex outlines from cache while the
+disk held 6,238-vertex ones. A bake that appears to have done nothing.
+
+Two files needed busting, and fixing only the first does nothing: the
+**manifest** carries a `version` fingerprint (`<tiles>-<bytes>`) that
+`vector-tiles.js` appends to every LOCAL tile request — and the manifest is
+itself a file, so it is fetched with the module stamp. Without that second
+half the browser keeps the old manifest, never learns the new version, and
+serves the old tiles from cache. The remote never gets the parameter: that is
+somebody else's cache key.
+
+**And "blocky" was the screenshot, not the map.** The staircase in a
+downscaled 800 px capture of a 1,394 px canvas is the capture's own aliasing on
+a high-contrast white shape. Measured on the drawn outline: **vertices 0.8 px
+apart (median) on a shape spanning 549 × 637 px** — sub-pixel, which is as
+smooth as the screen can show. When a rendered edge looks stepped, project the
+geometry and measure the vertex spacing in PIXELS before believing the picture.
+
+### The glaciers' own names, and why an outlet's name is not the ice cap's
+
+"Surely we can find the real names of the glacier complexes?" — yes, and the
+whole job is deciding which name is honestly the name of THIS ice mass. RGI's
+complexes carry no name column at all: a complex is an id, a region and an
+area, which is why the biggest ice cap in Europe read "Glacier complex,
+Iceland".
+
+`services/name-glaciers.py` writes `data/global/ice/names.json` — **38,016 of
+192,869 complexes named (19.7%)**, 1.25 MB — under three rules applied in
+order, each stricter than the next:
+
+1. **RGI's own, where the complex IS a glacier.** RGI names 57,996 of its
+   274,531 glaciers and every region ships a `CtoG_links.json` saying which
+   glaciers make up each complex. One glacier → that name (35,017). Many
+   glaciers all carrying ONE name over more than 80% of the area → the same
+   (2,202).
+2. **A gazetteer ICE CAP inside it.** GeoNames files an ice cap as `H.CAPG` —
+   **61 in the world** — and where one falls inside a complex that is the ice
+   mass's own name.
+3. **A single gazetteer glacier inside it** (`H.GLCR`, 8,291 points), and only
+   where exactly one falls inside.
+
+**Rule 2 exists because rule 1 gets the big ones wrong.** Vatnajökull is 99
+glaciers in RGI and nine of them are named — Skeiðarárjökull, Brúarjökull, and
+so on, every one an OUTLET. Taking the largest named glacier would have called
+the whole ice cap Skeiðarárjökull, and Mýrdalsjökull would have been
+Öldufellsjökull: a plausible name, on the wrong feature, which is the hardest
+kind of wrong to notice. The rule that produced those was written and measured
+before it was rejected.
+
+- **The card says where the name came from**, because they are different
+  claims: RGI's is that glacier's own name, the gazetteer's is a match by
+  POSITION.
+- **A sidecar, not a tile property.** A name is 20 bytes on a feature that
+  already costs a kilobyte of geometry — and baking it in would mean re-baking
+  an 82 MB pyramid for every correction.
+- **Keys drop the `RGI2000-v7.0-C-` prefix**, which is 14 bytes on every one of
+  forty thousand entries and says nothing.
+- **The lookup is injected into `ice-card.js`**, which stays pure and testable
+  in Node while the table is a 1.25 MB fetch the browser makes once.
+
+Verified live: a click on the ice cap reads **"Glacier or ice cap /
+Mýrdalsjökull / Iceland"**, published area 597 km² against 598.7 measured, with
+"Name from: GeoNames (CC BY 4.0), matched by position" in its Attributes.

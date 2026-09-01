@@ -35,17 +35,23 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260901-6ffcdfa";
-import { renderFeatureCollection } from "./vector-render.js?v=20260901-6ffcdfa";
-import * as GP from "./geoprocessing.js?v=20260901-6ffcdfa";
+import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260901-0fb185c";
+import { renderFeatureCollection } from "./vector-render.js?v=20260901-0fb185c";
+import * as GP from "./geoprocessing.js?v=20260901-0fb185c";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
 /** Fetch one tile, local copy first. */
 async function loadTile(sources, z, x, y, signal) {
   const path = `${z}/${x}/${y}`;
+  /**
+   * The local tile carries the BAKE'S OWN VERSION, because `?v=` versions
+   * modules and a tile is just a file. Re-baked finer, the page went on
+   * drawing the coarse tiles it already had — a bake that appeared to do
+   * nothing. The remote never gets it: that is somebody else's cache key.
+   */
   const local = sources.local && sources.has?.(path)
-    ? `${sources.local}/${path}.mvt`
+    ? `${sources.local}/${path}.mvt${sources.version ? `?v=${sources.version}` : ""}`
     : null;
   const urls = local ? [local] : [];
   if (sources.remote) {
@@ -54,6 +60,19 @@ async function loadTile(sources, z, x, y, signal) {
     // CORS header — see the note in macrostrat.js. One retry, never a loop.
     urls.push(`${sources.remote}/${path}.mvt?cors=1`);
   }
+  /**
+   * A TILE THAT WAS NEVER BAKED, ON A PYRAMID WITH NO REMOTE, IS EMPTY — not
+   * a failure.
+   *
+   * The geology falls through to Macrostrat for anything the bake skipped, so
+   * "not on disk" there means "ask the source". The glacier pyramid has no
+   * source behind it and is SPARSE by nature: ice covers a fraction of the
+   * planet, so most tiles of any view genuinely hold nothing, and counting
+   * each one as a failed fetch would report a working map as a broken one.
+   * An empty buffer decodes to no layers, which is the truth about that
+   * ground.
+   */
+  if (!urls.length) return { buffer: new ArrayBuffer(0), from: "absent" };
   let lastError = null;
   for (const url of urls) {
     try {
@@ -1288,6 +1307,7 @@ export async function loadManifest(url) {
     const index = body.tiles || {};
     return {
       base: url.replace(/\/manifest\.json.*$/, ""),
+      version: body.version || null,
       maxZoom: body.max_zoom ?? 0,
       count: Object.keys(index).length,
       licence: body.licence || null,

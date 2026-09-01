@@ -28,13 +28,14 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260901-6ffcdfa";
-import { currentBodyId } from "./bodies.js?v=20260901-6ffcdfa";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260901-6ffcdfa";
-import { rockClass } from "./rock-class.js?v=20260901-6ffcdfa";
-import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260901-6ffcdfa";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260901-0fb185c";
+import { currentBodyId } from "./bodies.js?v=20260901-0fb185c";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260901-0fb185c";
+import { rockClass } from "./rock-class.js?v=20260901-0fb185c";
+import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260901-0fb185c";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260901-0fb185c";
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260901-6ffcdfa";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260901-0fb185c";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -354,14 +355,31 @@ const loadedLayers = () => (window.GeoIDImportManager?.getLayers?.() || [])
  * constantly and never change, the fine ones are asked for rarely and are
  * where the compilation's own updates land.
  */
-let manifestOnce = null;
-function bakedTiles() {
-  if (!manifestOnce) {
-    manifestOnce = import(`./vector-tiles.js${new URL(import.meta.url).search}`)
-      .then((m) => m.loadManifest("/data/global/geology/manifest.json"))
-      .catch(() => null);
+const GEOLOGY_MANIFEST = "/data/global/geology/manifest.json";
+const manifests = new Map();
+function bakedTiles(url = GEOLOGY_MANIFEST) {
+  /**
+   * Keyed by URL, because there is more than one baked pyramid now: the
+   * geology's, and the world's glaciers under `data/global/ice`. One promise
+   * per index, asked for once and shared.
+   */
+  if (!manifests.has(url)) {
+    const stamp = new URL(import.meta.url).search;
+    manifests.set(url, import(`./vector-tiles.js${stamp}`)
+      /**
+       * THE MANIFEST IS A FILE TOO, so it carries the module stamp.
+       *
+       * The tiles are versioned from inside the manifest — but a browser that
+       * had the OLD manifest never learned the new version and went on serving
+       * the tiles it already held. Measured after a re-bake: the page drew
+       * 2,647-vertex outlines from cache while the disk held 6,238-vertex ones,
+       * which reads as a bake that did nothing. `loadManifest` strips the query
+       * when it derives the tile base, so this costs nothing downstream.
+       */
+      .then((m) => m.loadManifest(`${url}${stamp}`))
+      .catch(() => null));
   }
-  return manifestOnce;
+  return manifests.get(url);
 }
 
 /**
@@ -377,23 +395,47 @@ function bakedTiles() {
 async function loadTiled(entry, { toView = false, quiet = false } = {}) {
   const manager = window.GeoIDImportManager;
   const search = new URL(import.meta.url).search;
+  /**
+   * A DATASET MAY BRING ITS OWN TILES.
+   *
+   * Everything in this panel used to be Macrostrat's pyramid read one way or
+   * another. The glacier inventory is not: it is a different source baked into
+   * `data/global/ice`, with its own layer name inside the tiles, its own
+   * ceiling, and NO remote to fall back on — so `entry.tiles` carries those
+   * three facts and the machinery below is otherwise untouched. That is the
+   * point of putting it here rather than writing a second controller: a
+   * glacier layer then streams, refines on settle, clips, picks and exports
+   * exactly as the geology does.
+   */
+  const ownTiles = entry.tiles || null;
   const [tilesModule, macro, manifest] = await Promise.all([
     import(`./vector-tiles.js${search}`),
     import(`./macrostrat.js${search}`),
-    bakedTiles(),
+    bakedTiles(ownTiles?.manifest || GEOLOGY_MANIFEST),
   ]);
   const existing = loadedLayers().find((l) => l.geologyDataset === entry.id);
   const controller = existing?.tiled || tilesModule.createTiledVectorLayer({
     name: entry.name,
-    kind: entry.dynamic,
+    kind: ownTiles?.kind || entry.dynamic,
+    /**
+     * A LAYER WITH NO REMOTE MAY NOT BE ASKED PAST ITS BAKE.
+     *
+     * The geology falls through to Macrostrat for anything deeper than the
+     * baked levels. A layer whose tiles exist only on disk has nowhere to fall
+     * through TO, so every tile past the ceiling is a failed fetch and the map
+     * empties exactly as you zoom into it. The controller's own ceiling is set
+     * to the manifest's.
+     */
+    maxZoom: ownTiles ? (manifest?.maxZoom ?? 0) : undefined,
     // Local first, then the source. `has` keeps the client from asking for the
     // thousands of ocean tiles that were never baked because they are empty.
     sources: {
       local: manifest?.base || null,
+      version: manifest?.version || null,
       has: manifest?.has || (() => false),
       size: manifest?.size || null,
       maxZoom: manifest?.maxZoom ?? null,
-      remote: "https://tiles.macrostrat.org/carto",
+      remote: ownTiles ? (ownTiles.remote || null) : "https://tiles.macrostrat.org/carto",
     },
     // Macrostrat ships the colour each polygon is drawn in, so a source-coloured
     // layer is painted as its tiles are built rather than repainted afterwards.
@@ -437,7 +479,13 @@ async function loadTiled(entry, { toView = false, quiet = false } = {}) {
      * — where 9,000 boundaries are 9,000 one-pixel lines, because WebGL
      * ignores `linewidth` — does not fill in solid.
      */
-    contacts: CONTACT_STYLES[contactChoice()] || null,
+    /**
+     * A dataset may state its own boundary ink. The geology reads the reader's
+     * Boundaries choice, which is a control about the geological sheet; a
+     * glacier outline is not a geological contact and takes its own.
+     */
+    contacts: entry.contacts !== undefined
+      ? entry.contacts : (CONTACT_STYLES[contactChoice()] || null),
   });
 
   const box = toView ? (macro.viewBounds() || macro.WORLD) : macro.WORLD;
@@ -453,14 +501,30 @@ async function loadTiled(entry, { toView = false, quiet = false } = {}) {
    * tiles, already on disk) means the far side is always mapped, and the view
    * only ever adds detail on top.
    */
+  /**
+   * THE VIEW FIRST, THEN THE WORLD — for a layer off its own pyramid.
+   *
+   * The world backdrop exists so the far side of the planet is never empty,
+   * and the geology fetches it first because its own world tiles are the view
+   * everybody opens on. A reader who ticks the glacier row while looking at
+   * Iceland is waiting for Iceland: measured, the world pin was 15 tiles and
+   * about 4 of the 6 seconds before any ice appeared, all of it ground the
+   * camera was not pointed at.
+   *
+   * So the pinned world is fetched in the BACKGROUND for these layers. It
+   * still lands, the far side still fills in, and nothing waits for it —
+   * failures included, since a missing backdrop tile must not stop the view.
+   */
+  const pinWorld = () => controller.pin({
+    bounds: macro.WORLD,
+    zoom: macro.WORLD_ZOOM,
+    onProgress: (done, total) => {
+      if (!quiet && !ownTiles) say(`${entry.label}: world tile ${done} of ${total}…`);
+    },
+  });
   if (!existing?.tiled) {
-    await controller.pin({
-      bounds: macro.WORLD,
-      zoom: macro.WORLD_ZOOM,
-      onProgress: (done, total) => {
-        if (!quiet) say(`${entry.label}: world tile ${done} of ${total}…`);
-      },
-    });
+    if (ownTiles) void pinWorld().catch(() => {});
+    else await pinWorld();
   }
   const stats = await controller.update({
     bounds: box,
@@ -1059,6 +1123,47 @@ function toInteractiveCatalogue(layers) {
         km2 += sphericalPolygonAreaKm2(p.outer.map(([lon, lat]) => ({ lat, lon })));
       });
       n += 1;
+      /**
+       * AN ICE POLYGON IS NOT A GEOLOGIC UNIT, and this builder makes the
+       * interactive features for every tiled layer — the RGI inventory
+       * included. `ice-card.js` writes its three lines, the same function
+       * `feature-popup.js` uses for the ice sheets, the shelves and the live
+       * GLIMS outlines, so one glacier reads the same however it arrived.
+       */
+      const ice = isIceFeature(props) ? iceCard(props) : null;
+      if (ice) {
+        made.push({
+          id: `geo-${layer.id}-${n}`,
+          name: ice.title,
+          // See the note in `feature-popup.js`: the card classifies a rock from
+          // its lithology unless the feature says its lines are already written.
+          ice: true,
+          published_area: ice.publishedArea || null,
+          type: ice.kicker,
+          rock_type: ice.title,
+          // What the property fold looks the material up by. Ice has a real
+          // entry in that database — a density, a modulus, a friction angle —
+          // and it is the one material on this map that is not a rock.
+          lithology: "ice",
+          unit_description: ice.meta || null,
+          description: ice.meta || null,
+          origin: `${ice.source} — ${val(layer.credit, layer.name) || "this layer"}`,
+          mapped_area_km2: km2 > 0 ? Number(km2.toFixed(1)) : null,
+          polygons,
+          selection_bounds: boundsOfRings(polygons.map((p) => p.outer)),
+          source_layer: layer.name,
+          dataset_label: datasetLabel(layer.name),
+          rows: [...ice.rows, ...Object.entries(props)
+            .filter(([key, value]) => !ATTRIBUTE_PLUMBING.has(key)
+              && !/^(kind|name|source|note|rgi_id|glac_id|o1region|area_km2|db_area)$/.test(key)
+              && value !== null && value !== undefined && String(value).trim() !== "")
+            .map(([key, value]) => [attributeLabel(key), String(value)])],
+        });
+        if (!unitSeen.has(ice.title)) {
+          unitSeen.set(ice.title, paint.get(String(props[field])) || "#cfe8f5");
+        }
+        return;
+      }
       made.push({
         id: `geo-${layer.id}-${n}`,
         name,
@@ -1351,7 +1456,8 @@ async function loadDefaults() {
  * legend and its own place in the draw order.
  */
 export async function loadDerivedGeologyMap({ id, label, colourFor, legendInfo,
-  featureFilter = null, sourceColours = false }) {
+  featureFilter, sourceColours = false, tiles = null, contacts = undefined,
+  initialOpacity = 1 }) {
   const existing = loadedLayers().find((l) => l.geologyDataset === id);
   if (existing) return existing;
   /**
@@ -1360,12 +1466,19 @@ export async function loadDerivedGeologyMap({ id, label, colourFor, legendInfo,
    * thrown away by the branch below -- which is exactly what happened.
    */
   const entry = { ...GLOBAL_BASE, id, label, name: `${label}.geojson`,
-    colourFor, legendInfo, colourBy: null, sourceColours,
-    // A derived map may select its own features; the ice layer is the inverse
-    // of the geology's own filter, which is why this has to be overridable
-    // rather than inherited from GLOBAL_BASE.
-    featureFilter: featureFilter || GLOBAL_BASE.featureFilter,
-    initialOpacity: 1 };
+    colourFor, legendInfo, colourBy: null, sourceColours, tiles,
+    /**
+     * A derived map may select its own features; the Macrostrat ice layer is
+     * the inverse of the geology's own filter, which is why this is
+     * overridable rather than inherited.
+     *
+     * `null` is a VALUE here — "this layer filters nothing" — and a layer off
+     * its own tiles means it: the glacier inventory has no `lith` column for
+     * an ice predicate to read. Only an absent argument inherits.
+     */
+    featureFilter: featureFilter === undefined ? GLOBAL_BASE.featureFilter : featureFilter,
+    initialOpacity };
+  if (contacts !== undefined) entry.contacts = contacts;
   DERIVED.set(id, entry);
   await loadTiled(entry, { toView: true });
   const layer = loadedLayers().find((l) => l.geologyDataset === id);
