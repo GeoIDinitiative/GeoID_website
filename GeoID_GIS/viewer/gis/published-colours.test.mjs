@@ -66,9 +66,21 @@ const feat = (properties) => ({
    * a stray `fill` on a tenth of the rows would grey out the other nine
    * tenths. Two of three is below the threshold and refused.
    */
-  ok("a column that covers too little is refused", publishedColourField(fc([
-    feat({ color: "#FF9BCD" }), feat({ color: "#7FC64E" }), feat({ name: "no colour" }),
-  ])) === null);
+  {
+    // One row in ten is vestigial, not a colouring.
+    const vestigial = fc([feat({ name: "coloured", color: "#FF9BCD" }),
+      ...Array.from({ length: 9 }, (_, i) => feat({ name: `plain ${i}` }))]);
+    ok("a named column on one row in ten is vestigial and refused",
+      publishedColourField(vestigial) === null);
+
+    // A GUESSED column has to prove itself even at four rows in five.
+    const guessed = fc([...Array.from({ length: 3 }, (_, i) =>
+      feat({ name: `u${i}`, fill: "#FF9BCD" })), feat({ name: "u3" }), feat({ name: "u4" })]);
+    ok("a `fill` column below the strict bar is refused",
+      publishedColourField(guessed) === null);
+    const solid = fc(Array.from({ length: 5 }, (_, i) => feat({ name: `u${i}`, fill: "#FF9BCD" })));
+    ok("and taken when it covers everything", publishedColourField(solid) === "fill");
+  }
 
   /**
    * THE ODD UNCOLOURED UNIT DOES NOT COST THE OTHERS THEIR COLOURS.
@@ -110,11 +122,22 @@ const feat = (properties) => ({
       !labels.includes("No colour published"), JSON.stringify(labels));
   }
 
-  ok("an empty string is not a colour",
-    publishedColourField(fc([feat({ color: "#FF9BCD" }), feat({ color: "" })])) === null);
-
-  ok("a null value is not a colour",
-    publishedColourField(fc([feat({ color: "#FF9BCD" }), feat({ color: null })])) === null);
+  /**
+   * A blank is not a colour — but it is one feature's blank, not the column's
+   * disqualification. The value is refused; the column stands.
+   */
+  {
+    const withBlanks = fc([feat({ name: "a", color: "#FF9BCD" }), feat({ name: "b", color: "" }),
+      feat({ name: "c", color: null }), feat({ name: "d", color: "#7FC64E" })]);
+    ok("a blank does not disqualify the column",
+      publishedColourField(withBlanks) === "color");
+    const labels = buildVectorLayerResult(withBlanks, { name: "blanks" }).legendInfo?.labels || [];
+    ok("and the blank features are drawn in the neutral, and said so",
+      labels.includes("No colour published"), JSON.stringify(labels));
+    ok("while the coloured ones keep their own",
+      (buildVectorLayerResult(withBlanks, { name: "blanks2" }).legendInfo?.palette || [])
+        .includes("FF9BCD"));
+  }
 
   // A rock description column called "colour" is prose, not symbology.
   ok("a described colour is not a hex and is refused",

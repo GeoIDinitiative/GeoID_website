@@ -1,9 +1,9 @@
 import * as THREE from "../vendor/three.module.js";
 import { latLonToVector3, drapedRadius, looksLikeGeographic, sphericalPolygonAreaKm2 }
-  from "./geo-utils.js?v=20260901-0ef7ed6";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260901-0ef7ed6";
-import { pointInPolygon } from "./geometry.js?v=20260901-0ef7ed6";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260901-0ef7ed6";
+  from "./geo-utils.js?v=20260901-75f8089";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260901-75f8089";
+import { pointInPolygon } from "./geometry.js?v=20260901-75f8089";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260901-75f8089";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -1373,9 +1373,18 @@ function defaultSymbology(fc) {
  * pretending otherwise would match a "Color" that is a rock's colour
  * description rather than a fill.
  */
-const PUBLISHED_COLOUR_COLUMNS = [
-  "color", "colour", "COLOR", "COLOUR", "fill", "FILL", "hex", "HEX",
-];
+/**
+ * A column NAMED for colour is the map's colouring however patchy it is; a
+ * column that merely might be one has to prove itself.
+ *
+ * `color` holding hex values is not ambiguous -- a survey leaving some units
+ * uncoloured does not make the rest less its own. `fill` and `hex` are guesses
+ * at intent, and a vestigial one on a handful of rows would grey out the
+ * others, so those must cover the great majority before they are believed.
+ */
+const NAMED_COLOUR_COLUMNS = ["color", "colour", "COLOR", "COLOUR"];
+const GUESSED_COLOUR_COLUMNS = ["fill", "FILL", "hex", "HEX"];
+const PUBLISHED_COLOUR_COLUMNS = [...NAMED_COLOUR_COLUMNS, ...GUESSED_COLOUR_COLUMNS];
 
 const HEX_COLOUR = /^#?(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
 
@@ -1409,7 +1418,17 @@ const asHex = (value) => {
  * column is not the map's colouring at all -- a stray `fill` on a tenth of the
  * rows would otherwise grey out the other nine tenths.
  */
-const PUBLISHED_COLOUR_COVERAGE = 0.8;
+/**
+ * How much of a column has to be a colour before it is the map's colouring.
+ *
+ * A NAMED column needs only enough to be more than vestigial: measured, a clip
+ * whose colour column covered less than four fifths fell back to this app's
+ * twelve-class ramp with an "(other)" bucket, which is a different map from
+ * the one the file describes -- and it is the second time this threshold has
+ * been the fault. A GUESSED column keeps the strict bar.
+ */
+const NAMED_COLOUR_COVERAGE = 0.2;
+const GUESSED_COLOUR_COVERAGE = 0.8;
 
 export function publishedColourField(fc) {
   const features = fc?.features || [];
@@ -1419,7 +1438,10 @@ export function publishedColourField(fc) {
     for (const feature of features) {
       if (HEX_COLOUR.test(String(feature?.properties?.[key] ?? "").trim())) valid += 1;
     }
-    if (valid && valid / features.length >= PUBLISHED_COLOUR_COVERAGE) return key;
+    if (!valid) continue;
+    const needed = NAMED_COLOUR_COLUMNS.includes(key)
+      ? NAMED_COLOUR_COVERAGE : GUESSED_COLOUR_COVERAGE;
+    if (valid / features.length >= needed) return key;
   }
   return null;
 }
