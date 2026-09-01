@@ -6492,16 +6492,27 @@ outlines at or before its own.
 
 Two reports on one screenshot, and the second is the more interesting.
 
-**A toggle.** The outlines are a layer, so the control already existed as its
-eye in Workspace — but a reader watching a sequence is looking at the bar, not
-at the dock. The bar has a `◇` button now, and it is NOT a second switch: it
-drives the layer through `GeoIDLayerHierarchy.setVisible`, reads its state back
-off the layer rather than remembering what was last pressed, and re-syncs on
-`geoid-gis:layers-changed` — so the bar and the eye are one state seen twice,
-the `data-feed-toggle` pattern. Verified both directions: the button hides the
-layer and the eye follows, the eye hides it and the button follows. Offered
-only where a driver supplies frames, so the imagery animator gets no button for
-an overlay it does not have.
+**A toggle, and it is ONE STATE SEEN THREE TIMES.** The outlines are a layer,
+so a control already existed as its eye in Workspace — but a reader watching a
+sequence is looking at the bar, and a reader setting one up is looking at the
+panel. So there are three faces and one state: the panel's **Glacier outlines**
+tick, the bar's `◇`, and the layer's eye. Every one of them commits through
+`GeoIDLayerHierarchy.setVisible` and reads its state back off the layer rather
+than remembering what was last pressed — the panel and the bar both re-sync on
+`geoid-gis:layers-changed`. Verified in all three directions: pressing any one
+moves the other two. The bar's button is offered only where a driver supplies
+frames, so the imagery animator gets no button for an overlay it does not have.
+
+**"None — outlines only" made one control answer two questions**, which is why
+it had to go: turning the imagery off was the only way to say anything about
+the polygons, and there was no way to say it at all while imagery was on. The
+dropdown says only what it draws now (`None — no imagery` survives, because
+watching outlines over the basemap with no request spent is a real mode), and
+the tick box beneath it owns the outlines. They are BUILT either way and hidden
+when unticked: building is the slow half and costs the same fetch, so hiding
+rather than skipping is what makes all three faces instant. Somebody who wants
+no outlines at all wants Basemaps · Imagery over time, which draws none by
+construction.
 
 **"The colouring adds nothing as there's no unit of measurement on the
 legend."** Exactly right. The frames were painted bright for "remapped on this
