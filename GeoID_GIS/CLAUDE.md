@@ -6488,6 +6488,77 @@ outlines at or before its own.
   then a visibility flip, and the sequence costs one pass over the archive
   rather than one per frame.
 
+### The outlines say what their colour measures, and they switch off
+
+Two reports on one screenshot, and the second is the more interesting.
+
+**A toggle.** The outlines are a layer, so the control already existed as its
+eye in Workspace — but a reader watching a sequence is looking at the bar, not
+at the dock. The bar has a `◇` button now, and it is NOT a second switch: it
+drives the layer through `GeoIDLayerHierarchy.setVisible`, reads its state back
+off the layer rather than remembering what was last pressed, and re-syncs on
+`geoid-gis:layers-changed` — so the bar and the eye are one state seen twice,
+the `data-feed-toggle` pattern. Verified both directions: the button hides the
+layer and the eye follows, the eye hides it and the button follows. Offered
+only where a driver supplies frames, so the imagery animator gets no button for
+an overlay it does not have.
+
+**"The colouring adds nothing as there's no unit of measurement on the
+legend."** Exactly right. The frames were painted bright for "remapped on this
+date" and pale for "carried forward" — two hues with no scale, which says only
+"these are different", and the dates in the bar had already said it. Worse, the
+layer carried no `legendInfo` at all, so the dock drew its stand-in: a gradient
+bar over the row "66 polygons", which is this file's own documented tell for a
+legend that does not exist.
+
+Both colourings are now a MEASUREMENT with a unit, stated in the legend, and
+chosen before the sequence is built (the colours are baked into each frame's
+vertices, so a control on the bar would silently re-triangulate 24 frames):
+
+- **Outline age, in years** — how old the outline being drawn is at this
+  frame's date. The default, because it is defined for every polygon in every
+  frame, and it is the honest reading of a carried-forward map: where the
+  colour darkens, the archive has not looked recently and the ice may have
+  moved without the map moving.
+- **Area change since first mapped, in per cent** — the subject itself, on a
+  DIVERGING scale because zero means something here: a sequential ramp puts
+  "lost a fifth" and "gained a fifth" at two ends of one scale with no mark
+  where the ice held its ground. Loss warm, gain cool, the convention every
+  published glacier-change map uses.
+- **One colour**, for reading extent alone.
+
+Three things that make the change map honest rather than merely coloured:
+
+- **The baseline is the EARLIEST outline, not the first one returned.** The
+  archive answers in whatever order the server holds submissions.
+- **A glacier the archive holds ONCE is left in the no-value grey**, with a row
+  of its own. Measured against itself it would come out "within 5% of its first
+  outline" — which says the ice held its ground where nothing was measured at
+  all. On the Valais box that is 163,884 of 668,000 drawn vertices.
+- **The classes are fixed across the whole sequence**, so a colour means the
+  same thing in frame 1 and frame 24. A legend recomputed per frame makes the
+  map about the frame rather than about the ice.
+
+**The layer is named for what its colour measures** — "Glacier time-lapse —
+area change since first mapped (%)" — because the legend card's heading is the
+layer's name, and a key of six blues under "Glacier time-lapse" leaves the unit
+nowhere to be said. The GHOST gets a row too: it is drawn in every frame, and a
+thin outline nothing explains reads as a fault in the map.
+
+**And the feature list now follows the frame.** `featuresAt` walks
+`layer.features`, which was left on the whole fetch — so a click on a glacier
+answered with whichever of its outlines came first in the array, an 1850 one
+under a 2016 frame, with a card that was right about the archive and wrong
+about what was on screen. The player calls the driver back on every step, and
+the driver points `features`/`collection` at that frame's set. Measured: 181
+features over 1 date at frame 0, 488 over 37 dates at frame 23.
+
+Verified live on the Valais box: the age map draws in exactly the six classes
+its legend names (read back off the vertex colours, converted linear→sRGB),
+frame 0 entirely "surveyed on this date" and frame 12 spanning all six; the
+change map draws all seven of its classes; the legend card renders seven or
+eight swatched rows with no ramp, where it used to read "66 polygons".
+
 ## Imagery over time: its own sequence, and ONE player behind both
 
 "A separate time animation devoted solely to the imagery over time — no

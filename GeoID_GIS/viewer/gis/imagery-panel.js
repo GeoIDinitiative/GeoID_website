@@ -18,7 +18,7 @@
  */
 
 import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool,
-  drawnOverlayBounds } from "./extent-picker.js?v=20260902-9fcef8f";
+  drawnOverlayBounds } from "./extent-picker.js?v=20260902-c71177e";
 
 const search = new URL(import.meta.url).search;
 const byId = (id) => document.getElementById(id);
