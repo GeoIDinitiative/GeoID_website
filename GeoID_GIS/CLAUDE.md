@@ -8843,3 +8843,25 @@ remainder beats inventing colours for all of it. Below the threshold the column
 is still ignored — a stray `fill` on a tenth of the rows would otherwise grey
 out the other nine tenths — and the grey row appears only when something is
 drawn in it.
+
+## A key that lists twelve of eighteen has to say so
+
+A named polygon looked like it had no legend entry. It had one — the key simply
+stops at twelve rows, and unlike the clip's own card it said nothing about it.
+Measured on a re-imported 47 km clip: **18 distinct units, 12 rows, six units
+absent** with nothing to explain them (Mercia Mudstone Group, Lias Group,
+Middle Triassic claystone).
+
+Two changes, both borrowed from `legendFrom`, which had already learned them:
+
+- `legendSummary` — "12 of 18 units" — set on any layer whose key is a summary,
+  so the card carries the same sentence the clip's own has always carried.
+- The twelve are the twelve largest **by ground**, not the twelve that arrived
+  in the most pieces. When `legendFrom` was first fixed, ranking by count sent
+  572 km² of mapped ground into the unlisted remainder. Ranking by area also
+  promoted the very unit that prompted this report — "Unnamed Extrusive Rocks,
+  Palaeogene" went from outside the list to third.
+
+Note `(other)` is NOT this. That bucket belongs to `categoricalSymbology`, the
+ramp path, and seeing it means the published-colour path did not fire at all —
+check the colour column's coverage first.
