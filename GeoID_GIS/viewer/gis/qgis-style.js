@@ -20,6 +20,8 @@
  * for a categorised fill it is exact.
  */
 
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260901-7091869";
+
 /** `#RRGGBB` to the `R,G,B,A` triple-plus-alpha QGIS wants. */
 function rgba(hex, alpha = 255) {
   const text = String(hex || "").trim().replace("#", "");
@@ -47,6 +49,20 @@ function xml(value) {
  * have one fill, and inventing a second category for a name that reads
  * identically in the legend would be worse than choosing.
  */
+function groundKm2(feature) {
+  const geometry = feature?.geometry;
+  const polygons = geometry?.type === "Polygon" ? [geometry.coordinates]
+    : geometry?.type === "MultiPolygon" ? geometry.coordinates : [];
+  let km2 = 0;
+  for (const rings of polygons) {
+    rings.forEach((ring, i) => {
+      const area = sphericalPolygonAreaKm2(ring.map(([lon, lat]) => ({ lat, lon })));
+      km2 += (i === 0 ? 1 : -1) * Math.abs(area);
+    });
+  }
+  return km2;
+}
+
 export function categoriesFrom(features, labelKey, colourKey) {
   const seen = new Map();
   for (const feature of features || []) {
@@ -55,12 +71,22 @@ export function categoriesFrom(features, labelKey, colourKey) {
     const colour = props[colourKey];
     if (value === null || value === undefined || String(value).trim() === "") continue;
     const key = String(value);
-    if (seen.has(key)) { seen.get(key).count += 1; continue; }
-    seen.set(key, { value: key, colour: String(colour || "").trim(), count: 1 });
+    const row = seen.get(key)
+      || { value: key, colour: String(colour || "").trim(), count: 0, km2: 0 };
+    row.count += 1;
+    row.km2 += groundKm2(feature);
+    seen.set(key, row);
   }
+  /**
+   * RANKED BY GROUND, so the key this file opens with is the key it left with.
+   * The legend on screen ranks by area -- a unit broken into nine slivers
+   * outranks one solid mass on a count, and the mass is what a reader is
+   * looking at -- and a style ordered any other way makes a round trip come
+   * back listing the same units in a different order.
+   */
   return [...seen.values()]
     .filter((c) => /^#?[0-9a-f]{3}([0-9a-f]{3})?$/i.test(c.colour))
-    .sort((a, b) => b.count - a.count);
+    .sort((a, b) => (b.km2 - a.km2) || (b.count - a.count));
 }
 
 /**
