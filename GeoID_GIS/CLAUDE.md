@@ -6554,6 +6554,31 @@ a style tag, call `fetchScene` or composite a tile, and the imagery driver's
   reader needs both for, a window the service narrowed, looked identical. The
   prefix is added only when the source has not already said it.
 
+### The world clock stands down while a sequence is up
+
+The corner pill (LIVE / ×720 / paused) and the seven-segment clock report the
+MODEL's moment — the wall clock the globe spins on and every fetch is stamped
+in. A time-lapse runs on its own clock entirely, and the two on screen together
+say that "2020" and "01/09/26 19:47 UTC" are both the time being shown. So the
+player hides `#time-rate-toggle`, `#time-scrub-toggle` and `#time-scrub-panel`
+while a sequence is up and puts them back when it closes — including when the
+OTHER animator takes over, since starting either stops the one running.
+
+- **An inline `display`, not the `hidden` attribute.** These are laid out by id
+  rules in `styles.css`, and `hidden` is only a UA-level `display: none` that
+  any author rule outranks — the trap the symbology dialog and the Research Hub
+  have both paid for. The previous inline value is stashed and restored, so an
+  element that was already hidden for another reason stays that way.
+- **The spin is held too**, and not merely because the pill that stops it is
+  gone: a sequence is about one box, and a globe turning at 3°/s walks it off
+  the limb while somebody is reading it. Through the viewer's own
+  `setSpinPaused`, the seam `holdTheGlobe()` uses, so nothing turns the globe
+  from outside and the corner pill stays truthful.
+- **Restored, never forced.** A reader who had the globe stopped before
+  pressing play does not want it turning afterwards. Measured both ways: from
+  spinning, the sequence pauses it and closing resumes it; from already paused,
+  closing leaves it paused.
+
 Verified live over a Valais box: GIBS 2016–2020 yearly built 5 frames with
 **one drape visible per frame at renderOrder 45 and zero layers added**, and
 re-visiting a frame fetched nothing; Sentinel-2 2018–2020 on melt seasons
