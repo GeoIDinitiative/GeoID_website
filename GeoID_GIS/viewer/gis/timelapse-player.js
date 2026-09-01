@@ -110,6 +110,50 @@ export function seasonFor(date, lat) {
   return { from: `${year}-05-01`, to: `${year}-10-31` };
 }
 
+/**
+ * THE WORLD CLOCK BELONGS TO THE WORLD, NOT TO A SEQUENCE.
+ *
+ * The corner pill (LIVE / ×720 / paused) and the seven-segment clock report
+ * the MODEL's moment — the wall clock the globe spins on and every fetch is
+ * stamped in. A time-lapse is running on its own clock entirely, and the two
+ * on screen together say that "2020" and "01/09/26 19:47 UTC" are both the
+ * time being shown. So they stand down while a sequence is up, and come back
+ * exactly as they were when it closes.
+ *
+ * The spin goes with them, and not merely because the pill that stops it is
+ * hidden: a sequence is about one box, and a globe turning at 3°/s walks it
+ * off the limb while somebody is reading it. `holdTheGlobe()` already does
+ * this on every import — through the viewer's OWN `setSpinPaused`, so the
+ * corner pill stays truthful — and a sequence is the same kind of moment.
+ *
+ * Restored, never forced: a reader who had the globe paused before pressing
+ * play does not want it turning afterwards.
+ */
+const WORLD_CLOCK = ["time-rate-toggle", "time-scrub-toggle", "time-scrub-panel"];
+
+/**
+ * Hidden with an INLINE display, not the `hidden` attribute: these elements
+ * are laid out by id rules in `styles.css`, and `hidden` is only a UA-level
+ * `display: none` that any author rule outranks — the trap this tree has paid
+ * for in the symbology dialog and the Research Hub both.
+ */
+function holdWorldClock() {
+  const held = [];
+  for (const id of WORLD_CLOCK) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    held.push([el, el.style.display]);
+    el.style.display = "none";
+  }
+  const viewer = window.GeoIDViewer;
+  const wasPaused = viewer?.isSpinPaused?.() ?? null;
+  viewer?.setSpinPaused?.(true);
+  return () => {
+    for (const [el, display] of held) el.style.display = display;
+    if (wasPaused === false) viewer?.setSpinPaused?.(false);
+  };
+}
+
 let state = null;
 
 function styleOnce() {
@@ -332,7 +376,9 @@ export function stopPlayer() {
     void pending.then((scene) => scene?.object3D?.parent?.remove(scene.object3D)).catch(() => {});
   }
   const done = state.onStop;
+  const restore = state.restoreClock;
   state = null;
+  restore?.();
   done?.();
 }
 
@@ -354,7 +400,7 @@ export async function startPlayer({ bounds, epochs, source = "auto", frames = nu
   state = {
     epochs, frames, bounds, source, noteFor, onStop, interval,
     index: 0, timer: null, scenes: new Map(), bar: buildBar(),
-    say: onStatus, playing: false,
+    say: onStatus, playing: false, restoreClock: holdWorldClock(),
   };
   state.bar.slider.max = String(epochs.length - 1);
   await show(0);

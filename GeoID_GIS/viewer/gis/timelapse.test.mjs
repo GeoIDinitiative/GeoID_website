@@ -181,6 +181,30 @@ ok("and so is a missing one", tl.framesFor({ from: "", to: "" }).error);
       noteFor(epoch, "Sentinel-2, 10 m · 2018-07-02–2018-08-30 · Earth Engine")));
 }
 
+/**
+ * THE WORLD CLOCK STANDS DOWN WHILE A SEQUENCE IS UP, and comes back as it
+ * was. Two facts are pinned on the source because the DOM half needs a page:
+ * that it is hidden with an inline display rather than the `hidden` attribute
+ * (which any author `display` rule outranks — the trap the symbology dialog
+ * and the Research Hub both paid for), and that the spin is RESTORED rather
+ * than resumed, so a globe somebody had already stopped stays stopped.
+ */
+{
+  const playerSrc = fs.readFileSync(path.join(here, "timelapse-player.js"), "utf8");
+  ok("the rate pill and the clock both stand down",
+    /"time-rate-toggle", "time-scrub-toggle", "time-scrub-panel"/.test(playerSrc));
+  ok("hidden by an inline display, not the attribute",
+    /el\.style\.display = "none"/.test(playerSrc) && !/\.hidden = true/.test(playerSrc));
+  ok("the spin is held through the viewer's own seam",
+    /setSpinPaused\?\.\(true\)/.test(playerSrc));
+  ok("and only resumed if it was running before",
+    /wasPaused === false/.test(playerSrc));
+  // Restoring on stop is what makes it come back at all — including when the
+  // OTHER animator takes over, since starting either stops the one running.
+  ok("the sequence restores it on the way out",
+    playerSrc.indexOf("restore?.()") > playerSrc.indexOf("state = null"));
+}
+
 // --- the shared rules still say what they said ---
 ok("the player's own season rule is the one the drivers use",
   JSON.stringify(player.seasonFor("2016-08-28", 64))
