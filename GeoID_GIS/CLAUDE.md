@@ -6488,6 +6488,79 @@ outlines at or before its own.
   then a visibility flip, and the sequence costs one pass over the archive
   rather than one per frame.
 
+## Imagery over time: its own sequence, and ONE player behind both
+
+"A separate time animation devoted solely to the imagery over time — no
+polygons (can be overlaid in workspace though)." Two things came out of that,
+and the second is the one that matters for anything added next.
+
+**`gis/imagery-timelapse.js` is the film**, a subtab in **Basemaps** — where
+imagery already lives, since the base textures, the tile services and Earth
+Engine's imagery share are all in that tab. A box, a range of dates, one
+composite per step, and nothing drawn over it. Overlaying is free and needed no
+code: a frame sits at renderOrder **45** and the imported band starts at 50, so
+anything in Workspace draws above the film by construction — measured, a drawn
+study area at **51** over frames at 45.
+
+**`gis/timelapse-player.js` is the player, and there is one of it.** The bar,
+the slider, the play loop, the scene cache, the swap-on-ready, the prefetch,
+the GEE→GIBS→none fallback and the four bbox vocabularies were all in
+`glacier-timelapse.js`; a second animator built by copying them would have
+drifted the first time either was fixed — the polygon-area formula in ten files
+and the imitated label engine are what that costs. The glacier file kept only
+the half that is about ICE. A driver hands the player a box, an ordered list of
+epochs (`{date, from, to, dataset}`) and OPTIONALLY one scene-graph node per
+epoch; the imagery driver passes none, and that is the whole of "no polygons".
+One player also means one bar: starting either animator stops the other, and
+closing the bar runs the driver's own `onStop` — which is what takes the
+glacier outlines off the globe with it.
+
+The tests pin the discipline rather than trusting it: neither driver may build
+a style tag, call `fetchScene` or composite a tile, and the imagery driver's
+`startPlayer` call must carry no `frames`.
+
+### What the imagery driver decides, and why each way
+
+- **A frame is a WINDOW, not an instant.** A single day is one overpass and
+  mostly cloud; Earth Engine's answer to a range is the cloud-masked composite
+  anybody would otherwise build by hand. Steps are yearly, monthly or daily,
+  and a yearly step may take the whole year or that year's **melt season** —
+  the player's own hemisphere-aware rule, shared with the glacier animator,
+  because over ice a whole-year composite is mostly the winter snow that hides
+  the subject.
+- **Every window is CLIPPED to the range asked for.** Without it, 2016-06-01 to
+  2016-08-31 stepped yearly composites the whole of 2016 and presents twelve
+  months as three.
+- **A long range is STRIDED, never truncated.** A time-lapse is about a span,
+  and cutting it off at frame 40 quietly changes which span it is; the far end
+  is kept whatever the stride lands on, and the stride is REPORTED ("one in
+  every 12 months") — a sequence stepping a year at a time under a control
+  saying "monthly" is exactly the silent cap this file keeps paying for.
+- **A pinned collection REFUSES rather than substituting.** Only "best for each
+  year" may fall back to GIBS: quietly serving 250 m MODIS where 10 m
+  Sentinel-2 was asked for is the sensor change the choice exists to prevent —
+  a change that is really a change of instrument is the easiest false reading a
+  time-lapse can produce.
+- **The years a collection flew are carried** (`since`/`until`), so the panel
+  says "15 of these 21 frames are before Sentinel-2 began" BEFORE anybody
+  spends twenty-one requests finding out.
+- **Any Earth Engine dataset id may be typed in**, and it wins over the
+  dropdown: the service renders anything in Google's published catalogue with
+  that publisher's own visualisation, so night lights, NDVI or burned area play
+  here exactly as true colour does.
+- **The bar says a frame's window ONCE.** Earth Engine answers with the window
+  it actually used, so a note that always prefixed the asked-for one carried the
+  same pair of dates twice in a field that ellipsises at 15rem — and the case a
+  reader needs both for, a window the service narrowed, looked identical. The
+  prefix is added only when the source has not already said it.
+
+Verified live over a Valais box: GIBS 2016–2020 yearly built 5 frames with
+**one drape visible per frame at renderOrder 45 and zero layers added**, and
+re-visiting a frame fetched nothing; Sentinel-2 2018–2020 on melt seasons
+returned three real Earth Engine composites; the glacier animator still ran 24
+dates through the extracted player, its ✕ took its outlines with it, and
+starting the imagery sequence left exactly one bar on screen.
+
 ## Running and testing
 
 `python3 serve.py` (repo root) starts the static site *and* the sidecar together
