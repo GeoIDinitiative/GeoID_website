@@ -7905,6 +7905,54 @@ before. `watchProject()` in hub.js keys that on the project's *folder*, not on
 every store announcement: `updateMetadata()` also announces, and it fires while
 someone is typing into a metadata form.
 
+## Symbology survives a round trip once BOTH ends stop lying
+
+"The symbologies and legend entries are not preserved when a clipped geology
+layer is exported and imported back." Two faults, one on each side of the trip,
+and the second only became visible once the first was fixed.
+
+**A shapefile carries no symbology, so this app writes a `.qml` beside it —
+and the import ignored it**, reconstructing the colouring from the attribute
+table. That works while the colour column is complete and collapses when it is
+not: back to the twelve-class ramp with an `(other)` bucket. `parseQml` reads
+the style file (plus `parseQmlWithoutDom` for Node, safe because the writer
+escapes its quotes), `buildVectorLayerResult` takes a `style`, and
+`styleSymbology` **outranks everything inferred** — the file names the column,
+every category and every colour, so nothing has to be guessed.
+
+**Then the two keys still disagreed, and the SOURCE was the wrong one.**
+`dropOutranked` removes every coarse polygon a finer survey maps in full, and
+the colour inheritance read `fc.features` — the set BEFORE that cut. Measured
+on a 52 km clip: the card claimed **"12 of 27 units" over a layer holding 23**,
+and four of its twelve rows named regional units that had been dropped
+("Cenozoic volcanic rocks", "Mesozoic sedimentary rocks", "Paleozoic
+sedimentary rocks", "Precambrian-Phanerozoic crystalline metamorphic rocks").
+Those ghosts took four of the twelve places, so four units that ARE on the map
+had no row.
+
+That is why it presented as the round trip losing the legend: an export carries
+the FEATURES, so a re-import's key lists the units that are really there and
+disagrees with the source's. The sidecar path had read `out.layer.features` all
+along for exactly this reason; the native path now does too, and the result
+message counts the layer's own features rather than the fetch's.
+
+Measured after, source against re-import: **127 / 127 features, labels
+identical, palettes identical, both "12 of 23 units", zero ghost rows, no
+`(other)`, no ramp colours.**
+
+Two things worth keeping from the way there:
+
+- **The threshold was wrong twice.** Requiring EVERY feature to carry a hex,
+  then four fifths, both sent a whole layer back to the ramp over a handful of
+  blanks. `color`/`colour` holding hex are unambiguous and are believed past a
+  fifth of the rows; `fill`/`hex` are guesses at intent and keep the strict bar.
+- **The fault is which VARIABLE is passed, and both are FeatureCollections** —
+  a wrong answer and a right one look identical at runtime, which is the same
+  shape as `GP.difference` returning the subject whole. `verbatim-units.test.mjs`
+  pins it on the SOURCE: no inheritance call may read `fc.features`, and the
+  native one must read `shown.features`. Verified by reverting the line and
+  watching the check fail.
+
 ## A clip must wear the source's level, not derive its own
 
 `zoomForBounds` answers from the BOX it is given, and a clip's refine box is the

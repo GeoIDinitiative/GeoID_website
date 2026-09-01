@@ -7,6 +7,8 @@
  * one unit ruled into two wherever a tile edge crossed it. The JSON API takes
  * `map_id` in batches and answers with the mapped polygon.
  */
+import { readFile } from "node:fs/promises";
+
 let pass = 0;
 let fail = 0;
 const ok = (name, cond) => {
@@ -429,6 +431,37 @@ const answering = (calls) => async (url) => {
 
   ok("a single survey is left alone whatever it is told",
     ranks([smoothFine], { 147: 9 }).size === 1);
+}
+
+/**
+ * THE LEGEND IS BUILT FROM THE FEATURES THE LAYER KEEPS.
+ *
+ * `dropOutranked` removes every coarse polygon a finer survey maps in full,
+ * and the inheritance used to read the set BEFORE that cut — so the key named
+ * units the map does not contain and gave them four of its twelve places.
+ * Measured on a 52 km clip: "12 of 27 units" over a layer holding 23, with
+ * "Cenozoic volcanic rocks" and three other regional units listed and absent.
+ *
+ * A source check, because the fault is which VARIABLE is passed and both are
+ * FeatureCollections — a wrong answer and a right one look identical at
+ * runtime, which is why this went unnoticed until an export disagreed.
+ */
+{
+  const src = await readFile(new URL("./tool-runner.js", import.meta.url), "utf8");
+  const stripped = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  // `void ` skips the declaration, which shares the name and would read as
+  // a third call whose parameter list is innocent by construction.
+  const calls = [...stripped.matchAll(/void inheritSourceColours\(([^)]*)\)/g)].map((m) => m[1]);
+  ok("both inheritance calls exist", calls.length === 2, `found ${calls.length}`);
+  ok("none inherits from the pre-precedence set",
+    calls.every((args) => !/\bfc\.features\b/.test(args)),
+    calls.join(" | "));
+  ok("the native path inherits from the features the layer was built with",
+    calls.some((args) => /\bshown\.features\b/.test(args)), calls.join(" | "));
+  ok("inheritedColouring is asked about the same set",
+    !/inheritedColouring\(resolvedInputs,\s*fc\.features\)/.test(stripped));
+  ok("and the message counts what the layer holds",
+    !/message: `\$\{name\}: \$\{fc\.features\.length\}/.test(stripped));
 }
 
 console.log(`${pass} passed`);
