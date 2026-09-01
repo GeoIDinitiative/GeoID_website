@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260901-02bb108";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260901-02bb108";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260901-02bb108";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260901-02bb108";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260901-0cdb743";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260901-0cdb743";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260901-0cdb743";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260901-0cdb743";
 import {
   buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude, setSealWidthFromAltitude,
   setMarkerSizeFromAltitude,
-} from "./vector-render.js?v=20260901-02bb108";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260901-02bb108";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260901-02bb108";
-import { loadMshFile } from "./msh-adapter.js?v=20260901-02bb108";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260901-02bb108";
+} from "./vector-render.js?v=20260901-0cdb743";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260901-0cdb743";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260901-0cdb743";
+import { loadMshFile } from "./msh-adapter.js?v=20260901-0cdb743";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260901-0cdb743";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -587,6 +587,9 @@ async function importDataset(primaryFile, sidecars, options = {}) {
     // The key has to say what the map is drawn in; without this it fell back
     // to the material's colour, and a textured drape has none worth reading.
     layer.legendInfo = result.legendInfo || null;
+    // The key is twelve rows of however many units there are, and says so --
+    // the same sentence the clip's own card carries.
+    layer.legendIsSummary = result.legendSummary || null;
     layer.repaint = result.repaint || null;
     layer.setContacts = result.setContacts || null;
     layer.getContacts = result.getContacts || null;

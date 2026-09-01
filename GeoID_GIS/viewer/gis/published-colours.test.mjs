@@ -205,6 +205,63 @@ const feat = (properties) => ({
     wash.legendInfo === null || wash.legendInfo.classed === true);
 }
 
+/**
+ * A KEY THAT LISTS TWELVE OF EIGHTEEN SAYS SO.
+ *
+ * Measured on a re-imported 47 km clip: 18 distinct units, 12 legend rows, and
+ * six units — Mercia Mudstone Group, Lias Group, Middle Triassic claystone —
+ * simply absent with nothing to say they had been cut. The clip's own key has
+ * carried "12 of 22 units" since it was written; its exported copy carried
+ * nothing, so a named polygon looked like it had no legend entry at all.
+ *
+ * And the twelve are the twelve largest by GROUND, not the twelve that arrived
+ * in the most pieces — the rule `legendFrom` already follows, where ranking by
+ * count sent 572 km² into the remainder.
+ */
+{
+  globalThis.window = globalThis.window || {};
+  const { buildVectorLayerResult: build } = await import("./vector-render.js");
+  const box = (lon, lat, w, h) => [[
+    [lon, lat], [lon + w, lat], [lon + w, lat + h], [lon, lat + h], [lon, lat]]];
+  const unit = (name, colour, lon, lat, w, h) => ({ type: "Feature",
+    properties: { name, color: colour },
+    geometry: { type: "Polygon", coordinates: box(lon, lat, w, h) } });
+
+  // Fourteen units so the twelve-row cap bites.
+  const many = { type: "FeatureCollection", features: [] };
+  for (let i = 0; i < 14; i += 1) {
+    many.features.push(unit(`unit ${i}`, `#${(i * 17 + 16).toString(16).padStart(2, "0")}9BCD`,
+      i * 2, 0, 1, 1));
+  }
+  const built = build(many, { name: "capped" });
+  ok("the key is capped at twelve rows",
+    (built.legendInfo?.labels || []).length === 12);
+  ok("and says how many units there are",
+    built.legendSummary === "12 of 14 units", `got ${built.legendSummary}`);
+
+  const small = { type: "FeatureCollection", features: [
+    unit("a", "#FF9BCD", 0, 0, 1, 1), unit("b", "#7FC64E", 2, 0, 1, 1)] };
+  ok("a key that lists everything says nothing",
+    build(small, { name: "whole" }).legendSummary === null);
+}
+{
+  // Ground, not pieces: one big unit against a unit shattered into many.
+  globalThis.window = globalThis.window || {};
+  const { buildVectorLayerResult: build } = await import("./vector-render.js");
+  const ring = (lon, lat, w, h) => [[
+    [lon, lat], [lon + w, lat], [lon + w, lat + h], [lon, lat + h], [lon, lat]]];
+  const features = [{ type: "Feature", properties: { name: "one solid mass", color: "#FF9BCD" },
+    geometry: { type: "Polygon", coordinates: ring(0, 0, 4, 4) } }];
+  for (let i = 0; i < 9; i += 1) {
+    features.push({ type: "Feature", properties: { name: "nine slivers", color: "#7FC64E" },
+      geometry: { type: "Polygon", coordinates: ring(10 + i * 0.1, 0, 0.02, 0.02) } });
+  }
+  const labels = build({ type: "FeatureCollection", features }, { name: "ranked" })
+    .legendInfo?.labels || [];
+  ok("the solid mass outranks the nine slivers", labels[0] === "one solid mass",
+    JSON.stringify(labels));
+}
+
 console.log(`${pass} passed`);
 if (fail) console.log(`${fail} FAILED`);
 process.exit(fail ? 1 : 0);

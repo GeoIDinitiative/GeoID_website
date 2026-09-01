@@ -1,8 +1,9 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260901-02bb108";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260901-02bb108";
-import { pointInPolygon } from "./geometry.js?v=20260901-02bb108";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260901-02bb108";
+import { latLonToVector3, drapedRadius, looksLikeGeographic, sphericalPolygonAreaKm2 }
+  from "./geo-utils.js?v=20260901-0cdb743";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260901-0cdb743";
+import { pointInPolygon } from "./geometry.js?v=20260901-0cdb743";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260901-0cdb743";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -1437,6 +1438,18 @@ const UNPUBLISHED_LABEL = "No colour published";
  * can appear in two colours across merged surveys; collapsing on either alone
  * loses a row that is really there.
  */
+/** A feature's ground in km2: outer rings less their holes. */
+function featureGroundKm2(feature) {
+  let km2 = 0;
+  for (const rings of polygonsOf(feature?.geometry)) {
+    rings.forEach((ring, i) => {
+      const area = sphericalPolygonAreaKm2(ring.map(([lon, lat]) => ({ lat, lon })));
+      km2 += (i === 0 ? 1 : -1) * Math.abs(area);
+    });
+  }
+  return km2;
+}
+
 function publishedSymbology(fc, key) {
   const features = fc?.features || [];
   const field = suggestCategoryField(features);
@@ -1451,11 +1464,21 @@ function publishedSymbology(fc, key) {
     if (!colour) { unpublished += 1; continue; }
     const label = field ? String(feature?.properties?.[field] ?? "").trim() : "";
     const id = `${label}\u0000${colour}`;
-    const row = rows.get(id) || { value: label || colour, count: 0, colour };
+    const row = rows.get(id) || { value: label || colour, count: 0, km2: 0, colour };
     row.count += 1;
+    row.km2 += featureGroundKm2(feature);
     rows.set(id, row);
   }
-  const listed = [...rows.values()].sort((a, b) => b.count - a.count).slice(0, 12);
+  /**
+   * RANKED BY GROUND, not by how many pieces a unit arrived in -- the same
+   * rule `legendFrom` follows for the clip's own key, and for the same reason:
+   * a unit broken into nine slivers outranks one solid mass, and the mass is
+   * what a reader is looking at. Measured there, ranking by count sent 572 km2
+   * of mapped ground into the unlisted remainder.
+   */
+  const ranked = [...rows.values()]
+    .sort((a, b) => (b.km2 - a.km2) || (b.count - a.count));
+  const listed = ranked.slice(0, 12);
   // The grey is a row of its own, last, and only when something is actually
   // drawn in it -- a key that lists a colour nothing wears is furniture.
   if (unpublished) {
@@ -1466,6 +1489,13 @@ function publishedSymbology(fc, key) {
     categorical: true,
     field: field || null,
     rows: listed,
+    /**
+     * How many units there ARE, so the key can admit to being a summary.
+     * Without this a named unit outside the top twelve simply is not in the
+     * legend and nothing says why -- reported as a polygon whose name the
+     * legend calls "(other)".
+     */
+    total: ranked.length,
     colourOf: (feature) => published(feature) || UNPUBLISHED_COLOUR,
   };
 }
@@ -1648,6 +1678,15 @@ export function buildVectorLayerResult(fc, {
         classed: true,
         field: symbology.field || null,
       }
+      : null,
+    /**
+     * "12 of 18 units", when the key lists fewer than the layer holds. The
+     * clip's own legend has said this since it was written; an imported copy
+     * of the same map said nothing, so a unit outside the top twelve looked
+     * missing rather than unlisted.
+     */
+    legendSummary: symbology?.total && symbology.total > (symbology.rows?.length || 0)
+      ? `${symbology.rows.length} of ${symbology.total} units`
       : null,
     georeferenced,
     bounds: georeferenced ? bounds : null,
