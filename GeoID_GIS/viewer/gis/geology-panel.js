@@ -28,12 +28,12 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260901-a01c224";
-import { currentBodyId } from "./bodies.js?v=20260901-a01c224";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260901-a01c224";
-import { rockClass } from "./rock-class.js?v=20260901-a01c224";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260901-bd1cc2f";
+import { currentBodyId } from "./bodies.js?v=20260901-bd1cc2f";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260901-bd1cc2f";
+import { rockClass } from "./rock-class.js?v=20260901-bd1cc2f";
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260901-a01c224";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260901-bd1cc2f";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -305,6 +305,16 @@ const setContactChoice = (value) => {
 
 const styleChoice = new Map();
 
+/**
+ * The derived maps this panel has been asked for, by id.
+ *
+ * The refresh watcher rebuilds a dynamic layer from the entry `entryById`
+ * finds, and these are deliberately not in the dataset catalogue -- they are
+ * made on request. Remembered here so a property map refines as you fly in
+ * like every other tiled layer.
+ */
+const DERIVED = new Map();
+
 const loadedLayers = () => (window.GeoIDImportManager?.getLayers?.() || [])
   .filter((l) => l.status === "loaded" && l.geologyDataset);
 
@@ -545,6 +555,27 @@ async function loadTiled(entry, { toView = false, quiet = false } = {}) {
     // The tiles were built in the source's colours already, so this only draws
     // the key — repainting would rebuild every tile in view for nothing.
     await paintFromSource(layer, entry, { repaint: false });
+  } else if (entry.colourFor) {
+    /**
+     * AN ENTRY THAT BROUGHT ITS OWN PAINT IS ALREADY PAINTED.
+     *
+     * The rock-property maps supply a `colourFor` and the controller uses it
+     * as each tile is built -- the same reasoning as the `sourceColours`
+     * branch above. Falling through to `applyField` instead repaints the
+     * whole layer by `colourBy`, which is what happened on the first attempt:
+     * measured on a UCS map, 42.5% of the drawn vertices came back #8a8a8a
+     * (the no-value grey) with the rest in the twelve-class qualitative ramp,
+     * so the map looked like a broken geology sheet rather than a strength
+     * map. The paint was correct and was overwritten a moment later.
+     *
+     * The KEY is the entry's, because it describes classes the layer's own
+     * features cannot be re-derived into -- and it has to be restored here as
+     * well as on first load, or the first refine drops it.
+     */
+    if (entry.legendInfo) {
+      layer.legendInfo = entry.legendInfo;
+      layer.legendIsSummary = null;
+    }
   } else {
     await applyField(layer, entry.colourBy);
   }
@@ -674,6 +705,12 @@ async function loadDataset(entry, { toView = false, replace = false, quiet = fal
         { ramp: chosen.ramp, overrides: chosen.overrides, labels: chosen.labels });
     } else if (entry.sourceColours) {
       await paintFromSource(layer, entry);
+    } else if (entry.colourFor) {
+      // Built in its own colours; see the note on the same branch in loadTiled.
+      if (entry.legendInfo) {
+        layer.legendInfo = entry.legendInfo;
+        layer.legendIsSummary = null;
+      }
     } else {
       applyField(layer, entry.colourBy);
     }
@@ -767,7 +804,17 @@ async function refreshDynamic({ quiet = false } = {}) {
   refreshing = true;
   try {
     for (const layer of live) {
-      const entry = entryById(layer.geologyDataset);
+      /**
+       * A DERIVED MAP IS NOT IN THE CATALOGUE, and the refine has to find it.
+       *
+       * `entryById` reads the dataset list, which the rock-property maps are
+       * deliberately not in -- they are made on request rather than offered as
+       * datasets. Without `DERIVED` beside it the lookup answers null, the
+       * `if (entry)` below skips them, and a property map is the one layer on
+       * the globe that never refines as you fly in.
+       */
+      const entry = entryById(layer.geologyDataset)
+        || DERIVED.get(layer.geologyDataset);
       // In place: the same controller, the same layer record, the same object
       // in the scene. Only the tiles in view change.
       if (entry) await loadTiled(entry, { toView: true, quiet });
@@ -1253,15 +1300,18 @@ async function loadDefaults() {
 export async function loadDerivedGeologyMap({ id, label, colourFor, legendInfo }) {
   const existing = loadedLayers().find((l) => l.geologyDataset === id);
   if (existing) return existing;
+  /**
+   * `colourBy` is dropped, not merely overridden. It is what `applyField`
+   * repaints by, and a derived map that leaves it set gets its own paint
+   * thrown away by the branch below -- which is exactly what happened.
+   */
   const entry = { ...GLOBAL_BASE, id, label, name: `${label}.geojson`,
-    colourFor, sourceColours: false, initialOpacity: 1 };
+    colourFor, legendInfo, colourBy: null, sourceColours: false,
+    initialOpacity: 1 };
+  DERIVED.set(id, entry);
   await loadTiled(entry, { toView: true });
   const layer = loadedLayers().find((l) => l.geologyDataset === id);
-  if (layer && legendInfo) {
-    layer.legendInfo = legendInfo;
-    layer.legendIsSummary = null;
-    window.GeoIDLayerHierarchy?.render?.();
-  }
+  if (layer) window.GeoIDLayerHierarchy?.render?.();
   return layer || null;
 }
 

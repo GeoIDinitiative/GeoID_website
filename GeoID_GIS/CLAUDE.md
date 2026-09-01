@@ -7988,7 +7988,59 @@ over eight orders of magnitude IS its largest term. The geometric mean is
 permeability. Every parameter declares its own scale; the test asserts the
 geometric answer AND that it is not the arithmetic one.
 
-### The map
+### The map is its own LAYER, in its own subtab
+
+The first version put a "Colour by" select on the world geology's own row.
+Wrong twice: it would have repainted the sheet somebody had loaded to look at
+the geology, and it never appeared at all — the control was gated on
+`layer.sourceSymbology`, which `import-manager` sets from a build result, and
+the tiled geology is registered with a HAND-BUILT result that has none. So it
+could not be found, which is exactly how it was reported.
+
+**A rock-property map is a different MAP, not a different colouring.**
+`gis/rock-properties-panel.js` is a "Rock properties" subtab beside Geology,
+Tectonics, Volcanoes and Soil here; each property is a ROW, and ticking one
+loads a SEPARATE layer with its own row in Workspace, its own legend, eye,
+opacity and place in the draw order. The geology sheet is never touched and
+both can be on the globe at once — which is the comparison anybody would
+actually want. Rows rather than a select, because several are worth having at
+once (strength over permeability, peak over residual) and a select expresses
+one.
+
+`loadDerivedGeologyMap` is the seam: the geology's OWN loader with a
+`colourFor` supplied, so a property map streams, refines on settle, clips and
+exports exactly as the sheet does.
+
+**Two faults in one screenshot, and both are about what happens AFTER the
+paint.** `loadTiled` paints at build from the entry's `colourFor` and then runs
+one of three branches: a remembered style choice, `paintFromSource`, else
+`applyField(entry.colourBy)`. A derived entry fell into the else and was
+repainted by name a moment later — measured on a UCS map, **42.5% of drawn
+vertices came back `#8a8a8a`** (the no-value grey) with the rest in the
+twelve-class qualitative ramp, so a strength map looked like a broken geology
+sheet. The paint was correct and was overwritten. There is a branch for it now
+on BOTH the load and the refresh path, `colourBy` is dropped from the entry
+rather than merely overridden, and the KEY is restored on both paths too —
+it describes classes the layer's own features cannot be re-derived into, so
+the first refine would otherwise drop the legend.
+
+And `refreshDynamic` resolves its entry through `entryById`, which reads the
+dataset catalogue — these maps are deliberately not in it. The lookup answered
+null, the `if (entry)` guard skipped them, and a property map would have been
+the one tiled layer on the globe that never refined as you flew in. `DERIVED`
+holds them beside the catalogue.
+
+Measured after, with the geology hidden so only the property map is drawn:
+**0% of the drawn colour in the qualitative ramp**, every vertex either a
+legend class or that class's own contact shade, and 5,350 of 6,232 units
+carrying a published range at a 900 km view over northern Britain.
+
+The cost is stated rather than hidden: a second layer is a second
+triangulation of the same ground. The tiles are already cached so there is
+almost no network in it, which is why these are opt-in rows rather than
+something that arrives with the map.
+
+### How the painting works
 
 `paintByProperty(layer, key)` paints through the layer's OWN `repaint`, so the
 tiles, the refine, the clip, the contacts and the export are unchanged — what
