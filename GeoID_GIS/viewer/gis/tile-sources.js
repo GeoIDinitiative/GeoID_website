@@ -191,6 +191,48 @@ export const ATTRIBUTION = Object.fromEntries(
 export const DEFAULT_SOURCE = "OpenStreetMap";
 
 /** `{z}/{x}/{y}` filled in. Esri orders its path `{z}/{y}/{x}`; the template says so. */
+/**
+ * IMAGERY ON A DATE — the only kind there is, free and keyless.
+ *
+ * GIBS is the one global archive that is addressed by TIME: MODIS Terra from
+ * 2000-02-24 and VIIRS from 2012, both corrected-reflectance true colour at
+ * 250 m, no key, CORS open, and NASA asking only to be acknowledged. Checked
+ * against its own capabilities: there is no Landsat or Sentinel true-colour
+ * mosaic in GIBS, so 250 m is the ceiling — which is context at ice-cap scale
+ * and NOT an outline. A finer time series means Earth Engine (Landsat annual
+ * composites at 30 m) through this site's own GEE service.
+ *
+ * VIIRS where it reaches, because it is the newer instrument and the cleaner
+ * mosaic; MODIS for everything from 2000 to 2012.
+ */
+export const GIBS_IMAGERY_FROM = "2000-02-24";
+const VIIRS_FROM = "2012-01-19";
+
+export function gibsSourceFor(date) {
+  const day = String(date || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || day < GIBS_IMAGERY_FROM) return null;
+  const viirs = day >= VIIRS_FROM;
+  const layer = viirs
+    ? "VIIRS_SNPP_CorrectedReflectance_TrueColor"
+    : "MODIS_Terra_CorrectedReflectance_TrueColor";
+  const id = `gibs-${viirs ? "viirs" : "modis"}-${day}`;
+  if (!TILE_SOURCES[id]) {
+    TILE_SOURCES[id] = {
+      label: `${viirs ? "VIIRS" : "MODIS Terra"} true colour, ${day}`,
+      url: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best"
+        + `/${layer}/default/${day}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`,
+      // Level9 is the deepest the corrected-reflectance mosaics are served at:
+      // asking for zoom 10 is a 400, not a sharper picture.
+      maxZoom: 9,
+      credit: `${viirs ? "VIIRS (Suomi NPP)" : "MODIS (Terra)"} corrected `
+        + `reflectance, ${day} — NASA EOSDIS GIBS / Worldview`,
+      licence: "NASA open data — no restriction; GIBS/Worldview acknowledged.",
+      freeToStream: true,
+    };
+  }
+  return id;
+}
+
 export function tileUrl(name, z, x, y) {
   const source = TILE_SOURCES[name];
   if (!source) throw new Error(`No tile source named "${name}".`);

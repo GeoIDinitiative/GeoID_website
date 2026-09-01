@@ -26,13 +26,13 @@
  */
 
 import { loadDerivedGeologyMap, removeDerivedGeologyMap }
-  from "./geology-panel.js?v=20260901-8fc1fe4";
-import { loadIceNames, iceNameFor } from "./ice-names.js?v=20260901-8fc1fe4";
-import { loadIceThickness, iceVolumeFor } from "./ice-thickness.js?v=20260901-8fc1fe4";
-import { addDataset } from "./global-data.js?v=20260901-8fc1fe4";
+  from "./geology-panel.js?v=20260901-f45e015";
+import { loadIceNames, iceNameFor } from "./ice-names.js?v=20260901-f45e015";
+import { loadIceThickness, iceVolumeFor } from "./ice-thickness.js?v=20260901-f45e015";
+import { addDataset } from "./global-data.js?v=20260901-f45e015";
 import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool,
-  drawnOverlayBounds } from "./extent-picker.js?v=20260901-8fc1fe4";
-import { useIceNames, useIceVolumes } from "./ice-card.js?v=20260901-8fc1fe4";
+  drawnOverlayBounds } from "./extent-picker.js?v=20260901-f45e015";
+import { useIceNames, useIceVolumes } from "./ice-card.js?v=20260901-f45e015";
 
 /** The glacier inventory, off its own baked tiles. */
 const RGI_LAYER_ID = "glaciers-rgi7";
@@ -368,6 +368,29 @@ function wireChange() {
     say2(`Area set: ${drawn.south.toFixed(2)}–${drawn.north.toFixed(2)}°N, `
       + `${drawn.west.toFixed(2)}–${drawn.east.toFixed(2)}°E.`
       + (captured?.ok ? " Listed in Workspace." : ""));
+  });
+
+  /**
+   * THE SEQUENCE, not the summary.
+   *
+   * The change layer answers "how much" in one number per glacier; this plays
+   * the archive's own dates with imagery from each one underneath. Same box,
+   * same window, same fetch — a different reading of it.
+   */
+  document.getElementById("ice-change-play")?.addEventListener("click", async () => {
+    const box = select.value === "bounds" ? typedBounds() : resolvePolygonExtent(select.value);
+    if (!box || box.error) { say2(box?.error || "Mark out an area first."); return; }
+    const from = document.getElementById("ice-change-from")?.value || null;
+    const to = document.getElementById("ice-change-to")?.value || null;
+    try {
+      const mod = await import(`./glacier-timelapse.js${new URL(import.meta.url).search}`);
+      await mod.startTimelapse({
+        bounds: box, from, to, onStatus: say2,
+        source: document.getElementById("ice-change-imagery")?.value || "auto",
+      });
+    } catch (error) {
+      say2("The time-lapse could not be built for that area.");
+    }
   });
 
   run.addEventListener("click", async () => {

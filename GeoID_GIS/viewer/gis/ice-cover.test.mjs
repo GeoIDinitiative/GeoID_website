@@ -533,6 +533,97 @@ ok("an impossible rate is dropped, not drawn", wild.features.length === 0,
     c.rows.some(([, v]) => /not a mass balance/i.test(v)));
 }
 
+// --- the time-lapse: which imagery, and which dates ---
+const lapse = await import("./glacier-timelapse.js");
+/**
+ * Sentinel-2 is 10 m and starts in 2015; Landsat reaches 1984 and is what the
+ * older half of any glacier record needs. Before that there is no imagery at
+ * all, and the bar says so rather than drawing the wrong decade.
+ */
+ok("2020 is Sentinel-2", lapse.datasetForYear(2020).id === "COPERNICUS/S2_SR_HARMONIZED");
+ok("2014 is Landsat 8", lapse.datasetForYear(2014).id === "LANDSAT/LC08/C02/T1_L2");
+ok("2005 is Landsat 7", lapse.datasetForYear(2005).id === "LANDSAT/LE07/C02/T1_L2");
+ok("1990 is Landsat 5", lapse.datasetForYear(1990).id === "LANDSAT/LT05/C02/T1_L2");
+ok("1850 has no satellite", lapse.datasetForYear(1850) === null);
+
+const seq = lapse.epochsFrom([
+  { properties: { outline_date: "2000-08-01" } },
+  { properties: { outline_date: "2000-08-01" } },
+  { properties: { outline_date: "2016-09-01" } },
+  { properties: { src_date: "1985-07-01T00:00:00Z" } },
+  { properties: { outline_date: "not a date" } },
+]);
+ok("epochs are the distinct dates, in order",
+  seq.epochs.map((e) => e.date).join(" ") === "1985-07-01 2000-08-01 2016-09-01",
+  seq.epochs.map((e) => e.date).join(" "));
+ok("and each keeps its own outlines", seq.epochs[1].features.length === 2);
+ok("a date that is not a date is not an epoch", seq.epochs.length === 3);
+
+/**
+ * A slider with two hundred stops is not a control, so the fullest dates win —
+ * and what was dropped is RETURNED rather than swallowed, the way every other
+ * cap in this file is reported.
+ */
+const many = lapse.epochsFrom(
+  Array.from({ length: 40 }, (_, i) => ({
+    properties: { outline_date: `20${String(10 + i).padStart(2, "0")}-08-01` },
+  })), { max: 5 });
+ok("the sequence is capped", many.epochs.length === 5);
+ok("and says how many dates it left out", many.dropped === 35, String(many.dropped));
+
+/**
+ * THE BOX VOCABULARY, pinned — because getting it wrong is silent. Handed
+ * `{west, south, east, north}`, `basemap-drape` reads `undefined` for every
+ * edge, `chooseZoom` falls to 0, and the composite reports "no tiles for this
+ * area", which reads as a service with no coverage.
+ */
+{
+  const lapseSource = fs.readFileSync(path.join(here, "glacier-timelapse.js"), "utf8");
+  ok("the time-lapse converts to the drape's own bbox shape",
+    /minLon: bounds\.west, minLat: bounds\.south/.test(lapseSource));
+  ok("and to Earth Engine's, which is a third one",
+    /minX: bounds\.west, minY: bounds\.south/.test(lapseSource));
+}
+
+/**
+ * THE MELT SEASON, not a few weeks around the date. Measured on the service:
+ * Sentinel-2 over Iceland answered "no imagery" for a 90-day window in 2016 and
+ * returned a picture for the summer — one satellite over one glacier in six
+ * weeks is mostly cloud.
+ */
+ok("a northern season is that year's summer",
+  JSON.stringify(lapse.seasonFor("2016-08-28", 64))
+  === JSON.stringify({ from: "2016-05-01", to: "2016-10-31" }));
+// Southern ice melts in the other half of the year, and a season that ran
+// May-October there would composite the middle of its winter.
+ok("a southern season crosses the new year",
+  JSON.stringify(lapse.seasonFor("2016-02-01", -50))
+  === JSON.stringify({ from: "2015-11-01", to: "2016-04-30" }));
+
+ok("the imagery source is a choice, not just a fallback",
+  Object.keys(lapse.IMAGERY_SOURCES).join(",") === "auto,gee,gibs,none");
+{
+  const lapseSource = fs.readFileSync(path.join(here, "glacier-timelapse.js"), "utf8");
+  // The GIBS credit is BURNT INTO the texture, which on a frame of a sequence
+  // is a caption stamped across the ground; the bar names the source instead.
+  ok("the banner is not burnt into a frame", /credit: false/.test(lapseSource));
+  ok("and the bar still names GIBS", /NASA EOSDIS GIBS/.test(lapseSource));
+  // Nothing is taken away until its replacement is in hand, or every step is
+  // imagery → bare basemap → imagery, which reads as a blink.
+  ok("the previous frame is only hidden once the next has arrived",
+    lapseSource.indexOf("scene.object3D.visible = true")
+      < lapseSource.indexOf("held.object3D.visible = false"));
+  ok("and the next frame is fetched while this one is being looked at",
+    /void sceneOf\(next\)/.test(lapseSource));
+}
+
+const { gibsSourceFor, GIBS_IMAGERY_FROM } = await import("./tile-sources.js");
+ok("GIBS covers 2000 onward", Boolean(gibsSourceFor("2005-08-01")));
+ok("VIIRS takes over from 2012", /viirs/.test(gibsSourceFor("2016-08-01") || ""));
+ok("MODIS carries the years before it", /modis/.test(gibsSourceFor("2005-08-01") || ""));
+ok("and nothing at all before the archive starts",
+  gibsSourceFor("1985-07-01") === null && GIBS_IMAGERY_FROM === "2000-02-24");
+
 // --- the predicate that keeps ice out of the geological map ---
 const { isIceCover, isNotIceCover } = await import("./ice-cover.js");
 const f = (lith, name) => ({ properties: { lith, name } });

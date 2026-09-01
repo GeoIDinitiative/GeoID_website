@@ -9959,3 +9959,99 @@ matched against 8,000 returned. A quarter of an archive drawn as though it were
 all of it is a map answering a different question, so the shortfall rides on
 every feature and both the card and the status line say it — "This fetch held
 8,000 of 15,568 outlines in this area — draw a smaller one to see the rest."
+
+## The time-lapse: the archive's own dates, played
+
+A change map answers "how much" in one number per glacier. Somebody looking at
+a retreating tongue wants to SEE it, and the archive already holds what that
+needs — every outline anybody submitted, each stamped with the date of the
+image it was drawn from. `gis/glacier-timelapse.js` plays them in order with
+imagery from the same date underneath, on a bar over the map: play, step, a
+slider, the date, and what is being drawn.
+
+Every part of it is something this app already had: `glims-outlines` with
+`all: true` (which keeps the older outlines the change layer deliberately
+drops), `renderFeatureCollection` for each epoch's geometry, `gee.js`'s
+`drape` for the picture, and the Draw HUD's own furniture for the bar.
+
+**Imagery, in the order of what is actually there** — and the bar always says
+which of the three it is drawing:
+
+- **Earth Engine** where the service will answer. Sentinel-2 at 10 m from 2015;
+  Landsat back to 1984 the moment the function is redeployed. Measured today,
+  the deployed one answers `Unknown or unsupported dataset` for **every**
+  Landsat id — the allowlist shortfall this file already records — so the
+  fallback is not theoretical.
+- **GIBS** otherwise: MODIS true colour from 2000-02-24, VIIRS from 2012, at
+  250 m, keyless and CORS-open. Checked against GIBS's own capabilities: there
+  is no Landsat or Sentinel true-colour mosaic in it, so 250 m is the ceiling —
+  context at ice-cap scale, and honestly not an outline.
+- **Nothing before 2000**, where the outlines play on the basemap alone.
+
+`fetchScene` was added to `gee.js` for this: `request()` is the Atmosphere
+card's whole flow — read the form, fetch, drape, register a layer, keep the
+ground — and a caller that wants a PICTURE and will place it itself needs the
+middle of that and none of the rest. Every scene is a billed request, so
+nothing is fetched until the bar reaches it and every frame is cached.
+
+Three faults on the way, and two of them are this file's oldest lessons:
+
+- **A FOURTH BOX VOCABULARY.** `basemap-drape` speaks
+  `{minLat, maxLat, minLon, maxLon}`; the extent picker speaks
+  `{west, south, east, north}`; `gee.drape` speaks `{minX, minY, maxX, maxY}`.
+  Handed the wrong one, nothing throws: `lonToPixelX(undefined)` is NaN,
+  `chooseZoom` falls to 0, every tile URL carries `NaN`, and the composite
+  reports **"no tiles for this area"** — which reads as a service with no
+  coverage rather than a mismatched shape.
+- **A drape that is not a LAYER keeps renderOrder 6.** `drape()` hands back a
+  mesh in the viewer's basemap shell band because the GEE path registers it and
+  lets `applyStack` stamp the band on afterwards. A frame of a sequence is not
+  a layer, so it kept 6 and drew *under* the streamed imagery patch at 40:
+  measured, on the globe, visible, and invisible. 45 — above that patch, below
+  the imported band the outlines are in.
+- **The epoch cap is reported**, like every other cap here: the fullest dates
+  win and the count of dropped ones comes back with the sequence.
+
+Verified live over Iceland's south coast, 1999–2020: **6 dates, 72 outlines**,
+playing 1999-09-09 (31 outlines, no imagery that far back) → 2000-08-28 (14,
+MODIS Terra) → 2003-07-16 (12, MODIS Terra), each frame's picture arriving with
+its own date and its credit burnt into the texture.
+
+### Four reports on the time-lapse, and the flicker was three things
+
+**"Are we definitely fetching from GEE?"** Now yes, and proven: a Valais epoch
+reads *"8 outlines · Sentinel-2, 10 m · 2018-05-01–2018-10-31 · Earth Engine"*.
+It was not before, and the reason was the WINDOW, not the wiring: a plus-or-
+minus 45 day window round the outline's date returned "no imagery" from the
+service — one satellite over one glacier in six weeks is mostly cloud — while
+the same box over that summer returned a picture. The window is the MELT SEASON
+of that year now, and it follows the hemisphere: May–October north, November–
+April south, or a southern season composites the middle of its winter.
+
+**The imagery source is a dropdown**, not just a fallback chain: Best
+available / Earth Engine / NASA GIBS / None. A reader comparing two epochs may
+want the SAME instrument in both even where a better one exists for one of
+them — a change that is really a change of sensor is the easiest false reading
+a time-lapse can produce.
+
+**The credit banner is off the picture.** `composite()` burns it into the
+texture, which is right for a drape somebody keeps and wrong for a frame of a
+sequence: a caption stamped across the ground, changing every second. The
+condition is still met — the bar names the instrument, the dates and NASA
+EOSDIS GIBS, in text a reader can actually read.
+
+**The flicker was three faults, not one:**
+
+- **The old frame came down before the new one went up.** Every step went
+  imagery → bare basemap → imagery. Nothing is hidden now until its
+  replacement is in hand, which reads as a dissolve rather than a blink.
+- **Nothing was prefetched.** The next epoch's scene is fetched while the
+  current one is being looked at, and PLAY waits for it — up to four seconds,
+  after which it moves on, because a source that will not answer must not stop
+  the sequence.
+- **"Partial polygons" was the archive, not the renderer.** Each epoch holds
+  only the glaciers somebody mapped that day — 31 outlines on one date here, 12
+  on the next — so stepping made whole glaciers appear and vanish. A GHOST of
+  every glacier in the box (the union, thin outlines, never hidden) is the
+  continuity: what moves between frames is then genuinely the ice that was
+  remapped.

@@ -758,8 +758,30 @@ function glimsOutlinesUrl({ bbox, limit = 4000, from = null, to = null } = {}) {
  * basin, the snowline. Only `glac_bound` is the glacier's own edge, so only
  * that is kept — the rest would draw as ice.
  */
-export function glimsOutlinesToGeoJSON(payload) {
+export function glimsOutlinesToGeoJSON(payload, options = {}) {
   const all = passthroughGeoJSON(payload, GLIMS_ATTRIBUTION);
+  /**
+   * `all` keeps EVERY outline instead of the latest per glacier — what a time
+   * lapse is made of. The dedupe is right for a cover map and wrong for a
+   * sequence: the older outlines ARE the sequence.
+   */
+  if (options.all) {
+    return {
+      type: "FeatureCollection",
+      features: all.features
+        .filter((f) => (f.properties?.line_type || "glac_bound") === "glac_bound")
+        .map((f) => ({
+          ...f,
+          properties: {
+            ...f.properties,
+            name: f.properties.glac_name || null,
+            area_km2: f.properties.db_area ?? null,
+            outline_date: String(f.properties.src_date || "").slice(0, 10) || null,
+            kind: "Glacier outline (GLIMS)",
+          },
+        })),
+    };
+  }
   const best = new Map();
   for (const feature of all.features) {
     const props = feature.properties || {};

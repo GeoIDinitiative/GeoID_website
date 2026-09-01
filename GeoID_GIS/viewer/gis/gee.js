@@ -10,22 +10,22 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260901-8fc1fe4";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260901-8fc1fe4";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260901-8fc1fe4";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260901-f45e015";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260901-f45e015";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260901-f45e015";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260901-8fc1fe4";
+  from "./view-extent.js?v=20260901-f45e015";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260901-8fc1fe4";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260901-8fc1fe4";
+} from "./extent-picker.js?v=20260901-f45e015";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260901-f45e015";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
-} from "./gee-catalogue-index.js?v=20260901-8fc1fe4";
+} from "./gee-catalogue-index.js?v=20260901-f45e015";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -432,6 +432,31 @@ function requestDimensions(bounds) {
   // Aim near 150 m/px, clamped to sane thumbnail sizes.
   const px = Math.round((spanDeg * 111320) / 150);
   return Math.max(256, Math.min(2048, px));
+}
+
+/**
+ * ONE SCENE, fetched and handed back — no layer, no panel, no side effects.
+ *
+ * `request()` below is the Atmosphere card's whole flow: read the form, fetch,
+ * drape, register a layer, keep the ground. A caller that wants a PICTURE and
+ * will place it itself — the glacier time-lapse, which holds a dozen of them
+ * and shows one at a time — needs the middle of that and none of the rest.
+ * Same endpoint, same parameters, same errors.
+ */
+export async function fetchScene({ dataset, bounds, from, to, dimensions = 1024 }) {
+  if (!dataset) throw new Error("No dataset asked for.");
+  const box = bounds;
+  const params = new URLSearchParams({
+    dataset,
+    bbox: [box.minX ?? box.west, box.minY ?? box.south,
+      box.maxX ?? box.east, box.maxY ?? box.north]
+      .map((n) => Number(n).toFixed(4)).join(","),
+    from, to, dimensions: String(dimensions),
+  });
+  const response = await fetch(`${endpoint()}?${params}`, { cache: "no-store" });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+  return data;
 }
 
 async function request() {
@@ -1463,7 +1488,7 @@ async function openGeeDialog(homeName) {
   // The map is built on first open, never at module load: `createMap`
   // measures its host, and a host inside a hidden backdrop has no size.
   if (!geeMap) {
-    mapLibrary = mapLibrary || await import("./research/map2d.js?v=20260901-8fc1fe4");
+    mapLibrary = mapLibrary || await import("./research/map2d.js?v=20260901-f45e015");
     const picker = byId("gee-add-basemap");
     picker.innerHTML = Object.keys(mapLibrary.BASEMAPS)
       .map((name) => `<option value="${name}">${name}</option>`).join("");
