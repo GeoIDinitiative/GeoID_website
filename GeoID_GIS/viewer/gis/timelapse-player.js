@@ -49,6 +49,10 @@ const STYLE = `
   color: var(--text); cursor: pointer; font-size: 0.85rem;
 }
 .geoid-timelapse button:hover { background: rgba(var(--nav-accent-rgb), 0.3); }
+.geoid-timelapse button.tl-overlay.is-off {
+  opacity: 0.45;
+  border-style: dashed;
+}
 .geoid-timelapse input[type="range"] { flex: 1 1 12rem; accent-color: var(--nav-accent); }
 .geoid-timelapse .tl-date {
   font-size: 0.82rem; letter-spacing: 0.06em; color: var(--text);
@@ -155,6 +159,7 @@ function holdWorldClock() {
 }
 
 let state = null;
+let pendingToggle = null;
 
 function styleOnce() {
   if (document.getElementById("geoid-timelapse-style")) return;
@@ -253,6 +258,14 @@ async function show(index) {
   if (!epoch) return;
   state.index = index;
   if (state.frames) state.frames.forEach((node, i) => { node.visible = i === index; });
+  /**
+   * The driver hears the step BEFORE the picture is fetched, because what it
+   * does with it — pointing the layer's feature list at the frame on screen —
+   * is what a click on a polygon reads a moment later. A list left on the
+   * whole fetch answers with whichever of a glacier's outlines came first in
+   * the array, which may be an 1850 one under a 2016 frame.
+   */
+  state.onShow?.(index, epoch);
   state.bar.date.textContent = epoch.label || epoch.date;
   state.bar.slider.value = String(index);
   state.bar.note.textContent = state.noteFor(epoch, epoch.note || "reading imagery…");
@@ -356,15 +369,57 @@ function buildBar() {
   close.textContent = "✕";
   close.title = "Close the time-lapse";
 
+  /**
+   * THE OVERLAY TOGGLE, and only where there is an overlay to toggle.
+   *
+   * A driver that draws something over its frames (the glacier outlines) says
+   * so; the imagery animator passes none and gets no button, because a control
+   * that does nothing is worse than none.
+   *
+   * It is NOT a second switch. It drives the layer through the hierarchy's own
+   * `setVisible`, so the bar and the eye in Workspace are one state seen twice
+   * — the `data-feed-toggle` pattern, and the answer to this tree's own "one
+   * layer, one control".
+   */
+  let overlay = null;
+  if (state?.toggle || pendingToggle) {
+    overlay = document.createElement("button");
+    overlay.className = "tl-overlay";
+    overlay.textContent = "◇";
+    overlay.title = "Show or hide what is drawn over the imagery";
+    overlay.addEventListener("click", () => {
+      state?.toggle?.setOn(!state.toggle.isOn());
+      syncOverlay();
+    });
+  }
+
   back.addEventListener("click", () => { play(false); step(-1); });
   forward.addEventListener("click", () => { play(false); step(1); });
   playBtn.addEventListener("click", () => play(!state?.timer));
   slider.addEventListener("input", () => { play(false); void show(Number(slider.value)); });
   close.addEventListener("click", () => stopPlayer());
 
-  bar.append(back, playBtn, forward, date, slider, note, close);
+  bar.append(back, playBtn, forward, date, slider, note);
+  if (overlay) bar.appendChild(overlay);
+  bar.appendChild(close);
   document.body.appendChild(bar);
-  return { bar, date, slider, note, play: playBtn };
+  return { bar, date, slider, note, play: playBtn, overlay };
+}
+
+/**
+ * The button says what the LAYER says, not what was last pressed — the eye in
+ * Workspace moves the same state, and a bar that disagreed with it would be
+ * the second control this deliberately is not.
+ */
+function syncOverlay() {
+  if (!state?.bar?.overlay || !state.toggle) return;
+  const on = state.toggle.isOn();
+  state.bar.overlay.classList.toggle("is-off", !on);
+  state.bar.overlay.setAttribute("aria-pressed", on ? "true" : "false");
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("geoid-gis:layers-changed", () => syncOverlay());
 }
 
 /** Take the whole thing off the globe, and let the driver clear up its own. */
@@ -395,13 +450,18 @@ export function playerIndex() {
  */
 export async function startPlayer({ bounds, epochs, source = "auto", frames = null,
   noteFor = (epoch, tail) => tail, onStatus = () => {}, onStop = null,
-  interval = 1200 }) {
+  overlayToggle = null, onShow = null, interval = 1200 }) {
   stopPlayer();
+  // `buildBar` needs to know whether there is an overlay before `state` exists.
+  pendingToggle = overlayToggle;
   state = {
-    epochs, frames, bounds, source, noteFor, onStop, interval,
+    epochs, frames, bounds, source, noteFor, onStop, interval, onShow,
+    toggle: overlayToggle,
     index: 0, timer: null, scenes: new Map(), bar: buildBar(),
     say: onStatus, playing: false, restoreClock: holdWorldClock(),
   };
+  pendingToggle = null;
+  syncOverlay();
   state.bar.slider.max = String(epochs.length - 1);
   await show(0);
   return { frames: epochs.length };

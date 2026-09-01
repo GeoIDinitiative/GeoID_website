@@ -26,7 +26,7 @@
 const search = new URL(import.meta.url).search;
 
 import { startPlayer, stopPlayer, datasetForYear, seasonFor, IMAGERY_SOURCES }
-  from "./timelapse-player.js?v=20260901-f62b7c0";
+  from "./timelapse-player.js?v=20260902-9fcef8f";
 
 // Re-exported rather than re-implemented: the panel, the tests and this file
 // must be talking about the SAME rule for which satellite covers which year.
@@ -102,6 +102,173 @@ export function stateAsOf(features, epochs) {
 }
 
 /**
+ * WHAT THE COLOUR MEANS, AND IN WHAT UNIT.
+ *
+ * The first version painted an outline one of two colours — bright if it was
+ * remapped on this date, pale if it was carried forward — and reported that as
+ * a legend nobody could read, correctly: two hues with no scale and no unit
+ * say only "these are different", which the dates in the bar already said.
+ *
+ * Both measures below are computed from the outlines themselves, at build
+ * time, and both are stated in the legend with their unit:
+ *
+ * - **AGE** — how old the outline being drawn is, in years, at this frame's
+ *   date. It is defined for every polygon in every frame, which is why it is
+ *   the default, and it is the honest reading of a carried-forward map: where
+ *   the colour darkens, the archive has not looked recently and the ice may
+ *   have moved without the map moving.
+ * - **CHANGE** — how much area a glacier has gained or lost since its FIRST
+ *   outline in this fetch, as a percentage. This is the subject itself, and it
+ *   is only defined where the archive holds a glacier more than once; the rest
+ *   are drawn in this app's own no-value grey with a row of their own, never
+ *   filled in from a neighbour.
+ *
+ * A rebuild is what changes it — the colours are baked into each frame's
+ * vertices — so it is chosen before the sequence is built rather than being a
+ * control on the bar that would silently re-triangulate 24 frames.
+ */
+const NO_VALUE = "#8a8a8a";
+const GHOST_COLOUR = "#4d7f96";
+
+const AGE_CLASSES = [
+  { max: 0.5, colour: "#ffffff", label: "Surveyed on this date" },
+  { max: 5, colour: "#cfe8f7", label: "Up to 5 years old" },
+  { max: 10, colour: "#8fd3f4", label: "5 to 10 years old" },
+  { max: 20, colour: "#4f9fd0", label: "10 to 20 years old" },
+  { max: 40, colour: "#2f6ba3", label: "20 to 40 years old" },
+  { max: Infinity, colour: "#1b3f6b", label: "Over 40 years old" },
+];
+
+/**
+ * DIVERGING, because zero means something here. A sequential ramp would put
+ * "lost a fifth of itself" and "gained a fifth" at two ends of one scale with
+ * no mark where the ice held its ground. Loss reads warm and gain cool, which
+ * is the convention every published glacier-change map uses.
+ */
+const CHANGE_CLASSES = [
+  { max: -50, colour: "#b2182b", label: "Lost over 50% of its area" },
+  { max: -20, colour: "#ef8a62", label: "Lost 20 to 50%" },
+  { max: -5, colour: "#fddbc7", label: "Lost 5 to 20%" },
+  { max: 5, colour: "#f7f7f7", label: "Within 5% of its first outline" },
+  { max: 20, colour: "#9ecae1", label: "Gained 5 to 20%" },
+  { max: Infinity, colour: "#2166ac", label: "Gained over 20%" },
+];
+
+const YEAR = 365.2425 * 86400000;
+
+/** The colour a class list gives a number, or the no-value grey for null. */
+function classColour(classes, value) {
+  if (!Number.isFinite(value)) return NO_VALUE;
+  for (const band of classes) if (value <= band.max) return band.colour;
+  return classes[classes.length - 1].colour;
+}
+
+/** The date an outline was surveyed, however the archive spelt it. */
+export function outlineDate(feature) {
+  const date = String(feature?.properties?.outline_date
+    || feature?.properties?.src_date || "").slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
+}
+
+/** Its mapped area in km2, from the archive's own column. */
+function outlineArea(feature) {
+  const area = Number(feature?.properties?.area_km2 ?? feature?.properties?.db_area);
+  return Number.isFinite(area) && area > 0 ? area : null;
+}
+
+/**
+ * Each glacier's FIRST mapped area in this fetch, which is what a change is
+ * measured against. First by DATE, never by arrival order: the archive returns
+ * submissions in whatever order the server holds them.
+ */
+export function firstAreas(features) {
+  const first = new Map();
+  for (const feature of features || []) {
+    const id = feature?.properties?.glac_id;
+    const date = outlineDate(feature);
+    const area = outlineArea(feature);
+    if (!id || !date || area === null) continue;
+    const held = first.get(id);
+    if (!held) first.set(id, { date, area, outlines: 1 });
+    else {
+      held.outlines += 1;
+      if (date < held.date) { held.date = date; held.area = area; }
+    }
+  }
+  return first;
+}
+
+/**
+ * The colouring for one frame: a pure function of the feature, plus the legend
+ * that explains it. `kind` is "age", "change" or "flat".
+ */
+export function colouringFor(kind, { date, firstArea = new Map() } = {}) {
+  if (kind === "change") {
+    return {
+      colourFor: (feature) => {
+        const id = feature?.properties?.glac_id;
+        const now = outlineArea(feature);
+        const held = firstArea.get(id);
+        /**
+         * A GLACIER MAPPED ONCE HAS NO CHANGE, and it is its own baseline —
+         * so measuring it against itself would paint it "within 5% of its
+         * first outline", which says the ice held its ground where nothing
+         * was measured at all. The archive has to hold it twice.
+         */
+        if (!id || now === null || !held || held.outlines < 2
+          || !Number.isFinite(held.area) || held.area <= 0) return NO_VALUE;
+        return classColour(CHANGE_CLASSES, ((now - held.area) / held.area) * 100);
+      },
+      legend: legendOf(CHANGE_CLASSES,
+        [[NO_VALUE, "Mapped once — no change to show"]]),
+      measure: "area change since first mapped (%)",
+    };
+  }
+  if (kind === "flat") {
+    return {
+      colourFor: () => "#8fd3f4",
+      legend: legendOf([{ colour: "#8fd3f4", label: "Glacier, as last mapped" }]),
+      measure: null,
+    };
+  }
+  const at = Date.parse(`${date}T00:00:00Z`);
+  return {
+    colourFor: (feature) => {
+      const own = outlineDate(feature);
+      if (!own || !Number.isFinite(at)) return NO_VALUE;
+      return classColour(AGE_CLASSES, (at - Date.parse(`${own}T00:00:00Z`)) / YEAR);
+    },
+    legend: legendOf(AGE_CLASSES),
+    measure: "outline age (years)",
+  };
+}
+
+/**
+ * The legend in the dock's own classed shape — and the GHOST gets a row of its
+ * own, because it is drawn in every frame and a thin outline nothing explains
+ * reads as a fault in the map.
+ *
+ * `categorical: true` with the unit written into each label, rather than the
+ * dock's `unit` suffix: these lists mix a measured band ("Lost 20 to 50%")
+ * with a stated absence ("Mapped once"), and a suffix appended to both would
+ * put a percent sign after the absence.
+ */
+function legendOf(classes, extra = []) {
+  const rows = [...classes.map((c) => [c.colour, c.label]), ...extra,
+    [GHOST_COLOUR, "Not yet mapped at this date (outline only)"]];
+  return {
+    palette: rows.map(([colour]) => String(colour).replace("#", "")),
+    labels: rows.map(([, label]) => label),
+    values: rows.map(([, label]) => label),
+    categorical: true,
+    classed: true,
+    field: "outline",
+    shown: rows.length,
+    total: rows.length,
+  };
+}
+
+/**
  * What the bar says under the date: what is DRAWN, and what changed to make
  * this frame — because "620 glaciers" and "8 remapped on this date" are two
  * different facts and the second is the one that explains the first.
@@ -125,7 +292,7 @@ export function stopTimelapse() {
  * same silent cap this file's neighbours keep paying for.
  */
 export async function startTimelapse({ bounds, from = null, to = null,
-  source = "auto", onStatus = () => {} }) {
+  source = "auto", colourBy = "age", onStatus = () => {} }) {
   stopTimelapse();
   const [{ runConnector }, render] = await Promise.all([
     import(`./research/connectors.js${search}`),
@@ -180,7 +347,7 @@ export async function startTimelapse({ bounds, from = null, to = null,
   }
   const ghost = render.renderFeatureCollection(
     { type: "FeatureCollection", features: ghostFeatures },
-    { colourFor: () => "#4d7f96", outlineOnly: true },
+    { colourFor: () => GHOST_COLOUR, outlineOnly: true },
   );
   const ghostNode = ghost?.object3D || ghost;
   group.add(ghostNode);
@@ -192,22 +359,20 @@ export async function startTimelapse({ bounds, from = null, to = null,
    */
   const frames = stateAsOf(result.geojson.features, epochs);
   epochs.forEach((epoch, i) => { epoch.shown = frames[i].features.length; });
+  /**
+   * ONE SCALE ACROSS EVERY FRAME. The classes are fixed for the whole
+   * sequence, so a colour means the same thing in frame 1 and frame 24 — a
+   * legend recomputed per frame would make the map about the frame rather
+   * than about the ice.
+   */
+  const firstArea = firstAreas(result.geojson.features);
+  const colouring = colouringFor(colourBy, { date: epochs[0].date, firstArea });
   const groups = epochs.map((epoch, i) => {
-    const { features, fresh } = frames[i];
+    const { features } = frames[i];
+    const paint = colouringFor(colourBy, { date: epoch.date, firstArea });
     const built = render.renderFeatureCollection(
       { type: "FeatureCollection", features },
-      {
-        /**
-         * ONE PALETTE ACROSS EVERY FRAME, and the brightness marks what is
-         * NEW rather than which frame this is. Colouring the last epoch apart
-         * made the whole map change colour on the final step — a second jump,
-         * on top of the one `stateAsOf` removes. What a reader wants marked is
-         * the ice that was actually remapped on this date.
-         */
-        colourFor: (feature) =>
-          (fresh.has(feature?.properties?.glac_id) ? "#eaf7ff" : "#8fd3f4"),
-        outlineOnly: false,
-      },
+      { colourFor: paint.colourFor, outlineOnly: false },
     );
     const node = built?.object3D || built;
     node.visible = false;
@@ -215,21 +380,55 @@ export async function startTimelapse({ bounds, from = null, to = null,
     return node;
   });
 
-  const layer = window.GeoIDImportManager?.addDerivedLayer?.("Glacier time-lapse", {
-    object3D: group,
-    georeferenced: true,
-    bounds: { minX: bounds.west, maxX: bounds.east, minY: bounds.south, maxY: bounds.north },
-    features: result.geojson.features,
-    collection: result.geojson,
-  }, "glims");
+  /**
+   * The layer is NAMED for what its colour measures, because the legend card's
+   * heading is the layer's name and a key of six blues over "Glacier
+   * time-lapse" leaves the unit nowhere to be said.
+   */
+  const layer = window.GeoIDImportManager?.addDerivedLayer?.(
+    colouring.measure ? `Glacier time-lapse — ${colouring.measure}` : "Glacier time-lapse", {
+      object3D: group,
+      georeferenced: true,
+      bounds: { minX: bounds.west, maxX: bounds.east, minY: bounds.south, maxY: bounds.north },
+      features: frames[0].features,
+      collection: { type: "FeatureCollection", features: frames[0].features },
+      legendInfo: colouring.legend,
+    }, "glims");
+
+  const layerNow = () => (window.GeoIDImportManager?.getLayers?.() || [])
+    .find((l) => l.id === layer?.id);
 
   await startPlayer({
     bounds, epochs, source, frames: groups, noteFor: frameNote, onStatus,
+    /**
+     * THE FEATURE LIST FOLLOWS THE FRAME. `featuresAt` — the click picker —
+     * walks `layer.features`, so a list left on the whole fetch answers with
+     * whichever of a glacier's outlines came first in the array: an 1850 one
+     * under a 2016 frame, with a card that is right about the archive and
+     * wrong about what is on screen.
+     */
+    onShow: (index) => {
+      const held = layerNow();
+      if (!held) return;
+      held.features = frames[index].features;
+      held.collection = { type: "FeatureCollection", features: frames[index].features };
+    },
+    /**
+     * ONE STATE, SEEN TWICE. The bar's toggle drives the layer through the
+     * hierarchy's own `setVisible`, so the eye in Workspace shows it and moves
+     * it — never a second switch for one thing.
+     */
+    overlayToggle: {
+      isOn: () => layerNow()?.visible !== false,
+      setOn: (on) => {
+        const held = layerNow();
+        if (held) window.GeoIDLayerHierarchy?.setVisible?.(held, on);
+      },
+    },
     // The player owns the bar and the scenes; the outlines are this driver's,
     // so closing the bar has to take them with it.
     onStop: () => {
-      const held = (window.GeoIDImportManager?.getLayers?.() || [])
-        .find((l) => l.id === layer?.id);
+      const held = layerNow();
       if (held) window.GeoIDImportManager?.removeLayer?.(held.id);
     },
   });

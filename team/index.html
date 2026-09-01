@@ -126,12 +126,15 @@
       right: 2rem;
       top: 50%;
       transform: translateY(-50%);
-      height: 80%;
+      height: 66%;
       width: auto;
-      opacity: 0.55;
+      opacity: 0.5;
       pointer-events: none;
       z-index: 3;
-      filter: brightness(1.6) drop-shadow(0 0 32px rgba(88, 198, 179, 0.25));
+      /* No brightness lift: the old wireframe mark was dim line-art and needed
+         it, the current one is already bright and clips its highlights to flat
+         white when pushed. The glow follows the accent, not the old teal. */
+      filter: drop-shadow(0 0 38px rgba(var(--accent-rgb), 0.28));
     }
 
     .hero-actions {
@@ -420,7 +423,7 @@
       <div class="hero-tile" id="hero">
         <div class="hero-bg"></div>
         <div class="hero-overlay"></div>
-        <img class="hero-logo-bg" src="/assets/GeoID_Logo_Transparent.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
+        <img class="hero-logo-bg" src="/assets/GeoID_logo_icon.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
         <div class="hero-content">
           <span class="eyebrow">Our Team</span>
           <h1>Meet the <span>Researchers</span></h1>
@@ -507,7 +510,7 @@
           <div class="footer-content">
             <div class="footer-brand">
               <div class="footer-brand-logo">
-                <img src="/GeoID_initiative/photos/logo_title.png" alt="GeoID Logo" loading="lazy" decoding="async">
+                <img src="/assets/GeoID_logo_icon.png" alt="GeoID Logo" loading="lazy" decoding="async">
               </div>
               <p>Democratizing geohazard science through physics-based modelling and open data. Explorer viewers live now; hazard forecasting in development.</p>
               <p>A non-exclusive, open initiative committed to transparency, open science, and public benefit.</p>

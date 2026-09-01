@@ -920,9 +920,11 @@
   <link rel="stylesheet" href="/styles/v2-site.css">
   <script src="/scripts/v2-site.js" defer></script>
   <style id="v2-page-fixes">
-    /* Neon logo plate in the hero → monochrome white, matching the
-       explorer landings. The nav's small logo keeps its colour. */
-    .hero-logo-img { filter: grayscale(1) brightness(2.1); opacity: 0.95; }
+    /* Brand mark in the hero. It used to be greyscaled to a white plate
+       because the old neon-wireframe logo fought the photo behind it; the
+       current mark is a single clean colour, so it keeps it — the same mark,
+       the same colour, as the one in the nav two rows above. */
+    .hero-logo-img { filter: drop-shadow(0 2px 24px rgba(0,0,0,0.8)); opacity: 1; }
   </style>
   <link rel="stylesheet" href="/styles/skins/synthwave.css">
   <link rel="stylesheet" href="/styles/site-nav.css">
@@ -975,7 +977,7 @@
         </div>
         <div class="hero-overlay"></div>
         <div class="hero-content">
-          <img class="hero-logo-img" src="/GeoID_initiative/photos/logo_title.png" alt="GeoID Logo" loading="lazy" decoding="async">
+          <img class="hero-logo-img" src="/assets/GeoID_logo_icon.png" alt="GeoID Logo" loading="lazy" decoding="async">
           <p class="hero-subtitle">Geodynamic Earth Observation Index for Disaster Mitigation</p>
           <h1>The GeoID Initiative</h1>
           <p class="hero-tagline">Geoscience without gatekeepers — world-class hazard intelligence for everyone</p>
@@ -1188,7 +1190,7 @@
           <div class="footer-content">
             <div class="footer-brand">
               <div class="footer-brand-logo">
-                <img src="/GeoID_initiative/photos/logo_title.png" alt="GeoID Logo" loading="lazy" decoding="async">
+                <img src="/assets/GeoID_logo_icon.png" alt="GeoID Logo" loading="lazy" decoding="async">
               </div>
               <p>Democratising geohazard science through physics-based modelling and open data. Explorer viewers live now; hazard forecasting in development.</p>
               <p>A non-exclusive, open initiative committed to transparency, open science, and public benefit.</p>

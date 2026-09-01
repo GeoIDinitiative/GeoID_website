@@ -609,6 +609,81 @@ ok("and says how many dates it left out", many.dropped === 35, String(many.dropp
 }
 
 /**
+ * WHAT THE COLOUR MEANS, AND IN WHAT UNIT.
+ *
+ * Two hues with no scale — bright for remapped, pale for carried — were
+ * reported as a legend nobody could read, and they were: that says only "these
+ * are different", which the dates in the bar already said. Both measures are
+ * pinned here against numbers whose answers are known, and so is the one thing
+ * that makes a change map honest — that a glacier the archive holds ONCE has
+ * no change to show and is not painted as though it held its ground.
+ */
+{
+  const f = (id, date, area) => ({ properties: { glac_id: id, outline_date: date, area_km2: area } });
+  const feats = [f("A", "2010-01-01", 60), f("A", "1980-01-01", 100), f("B", "2010-01-01", 50)];
+  const firstArea = lapse.firstAreas(feats);
+  ok("the baseline is the EARLIEST outline, not the first one returned",
+    firstArea.get("A").date === "1980-01-01" && firstArea.get("A").area === 100);
+  ok("and it counts how many times the archive holds each glacier",
+    firstArea.get("A").outlines === 2 && firstArea.get("B").outlines === 1);
+
+  const age = lapse.colouringFor("age", { date: "2020-01-01" });
+  ok("age is measured in years against THIS frame's date",
+    age.colourFor(f("A", "2019-06-01")) === "#cfe8f7"
+    && age.colourFor(f("A", "2005-01-01")) === "#4f9fd0"
+    && age.colourFor(f("A", "1960-01-01")) === "#1b3f6b");
+  ok("an outline surveyed on the date is the top class",
+    age.colourFor(f("A", "2020-01-01")) === "#ffffff");
+  ok("and the legend names the measure and its unit",
+    age.measure === "outline age (years)");
+
+  const change = lapse.colouringFor("change", { date: "2020-01-01", firstArea });
+  ok("a shrunken glacier reads as loss", change.colourFor(feats[0]) === "#ef8a62");
+  ok("its own baseline reads as no change", change.colourFor(feats[1]) === "#f7f7f7");
+  // The whole point of the no-value row: measuring a single outline against
+  // itself would paint it "within 5% of its first outline", which says the ice
+  // held its ground where nothing was measured at all.
+  ok("a glacier mapped once is left in the no-value grey",
+    change.colourFor(feats[2]) === "#8a8a8a");
+  ok("and the legend says so rather than leaving it unexplained",
+    change.legend.labels.includes("Mapped once — no change to show"));
+
+  // A classed legend is a LIST in the dock; a layer with none gets the
+  // stand-in ramp and a row reading "66 polygons", which is what was reported.
+  for (const kind of ["age", "change", "flat"]) {
+    const legend = lapse.colouringFor(kind, { date: "2020-01-01", firstArea }).legend;
+    ok(`the ${kind} legend is classed, not a ramp`,
+      legend.classed === true && legend.palette.length === legend.labels.length);
+    // The ghost is drawn in every frame; a thin outline nothing explains reads
+    // as a fault in the map.
+    ok(`and the ${kind} legend explains the ghost outlines`,
+      legend.labels[legend.labels.length - 1].startsWith("Not yet mapped"));
+  }
+  ok("no legend colour carries a #, which is the dock's own palette shape",
+    lapse.colouringFor("age", { date: "2020-01-01" }).legend.palette
+      .every((c) => !c.startsWith("#")));
+}
+
+/**
+ * THE OUTLINES ARE ONE STATE, SEEN TWICE. The bar's toggle drives the layer
+ * through the hierarchy's own `setVisible`, so the eye in Workspace shows it
+ * and moves it — a second switch for one thing is how two controls drift.
+ */
+{
+  const src = fs.readFileSync(path.join(here, "glacier-timelapse.js"), "utf8");
+  ok("the bar's toggle goes through the hierarchy's own control",
+    /GeoIDLayerHierarchy\?\.setVisible/.test(src));
+  ok("and reads the layer rather than remembering its own state",
+    /isOn: \(\) => layerNow\(\)\?\.visible !== false/.test(src));
+  // featuresAt walks layer.features, so a list left on the whole fetch answers
+  // with an 1850 outline under a 2016 frame.
+  ok("the feature list follows the frame on screen",
+    /onShow: \(index\) => \{[\s\S]*?held\.features = frames\[index\]\.features/.test(src));
+  ok("and the layer is named for what its colour measures",
+    /Glacier time-lapse — \$\{colouring\.measure\}/.test(src));
+}
+
+/**
  * THE BOX VOCABULARY, pinned — because getting it wrong is silent. Handed
  * `{west, south, east, north}`, `basemap-drape` reads `undefined` for every
  * edge, `chooseZoom` falls to 0, and the composite reports "no tiles for this

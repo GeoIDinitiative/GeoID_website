@@ -205,6 +205,23 @@ ok("and so is a missing one", tl.framesFor({ from: "", to: "" }).error);
     playerSrc.indexOf("restore?.()") > playerSrc.indexOf("state = null"));
 }
 
+/**
+ * THE OVERLAY TOGGLE IS OFFERED ONLY WHERE THERE IS AN OVERLAY. The imagery
+ * animator draws nothing over its frames, so a button for it would do nothing
+ * — and a control that does nothing is worse than none.
+ */
+{
+  const playerSrc = fs.readFileSync(path.join(here, "timelapse-player.js"), "utf8");
+  const imagery = fs.readFileSync(path.join(here, "imagery-timelapse.js"), "utf8");
+  ok("the button is built only when a driver asks for one",
+    /if \(state\?\.toggle \|\| pendingToggle\)/.test(playerSrc));
+  ok("and the imagery driver asks for none", !/overlayToggle/.test(imagery));
+  // The eye in Workspace moves the same state, so the button has to read the
+  // layer rather than remember what was last pressed.
+  ok("the button re-reads its state when the layers change",
+    /geoid-gis:layers-changed[\s\S]*?syncOverlay/.test(playerSrc));
+}
+
 // --- the shared rules still say what they said ---
 ok("the player's own season rule is the one the drivers use",
   JSON.stringify(player.seasonFor("2016-08-28", 64))

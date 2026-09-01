@@ -26,13 +26,13 @@
  */
 
 import { loadDerivedGeologyMap, removeDerivedGeologyMap }
-  from "./geology-panel.js?v=20260901-f62b7c0";
-import { loadIceNames, iceNameFor } from "./ice-names.js?v=20260901-f62b7c0";
-import { loadIceThickness, iceVolumeFor } from "./ice-thickness.js?v=20260901-f62b7c0";
-import { addDataset } from "./global-data.js?v=20260901-f62b7c0";
+  from "./geology-panel.js?v=20260902-9fcef8f";
+import { loadIceNames, iceNameFor } from "./ice-names.js?v=20260902-9fcef8f";
+import { loadIceThickness, iceVolumeFor } from "./ice-thickness.js?v=20260902-9fcef8f";
+import { addDataset } from "./global-data.js?v=20260902-9fcef8f";
 import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool,
-  drawnOverlayBounds } from "./extent-picker.js?v=20260901-f62b7c0";
-import { useIceNames, useIceVolumes } from "./ice-card.js?v=20260901-f62b7c0";
+  drawnOverlayBounds } from "./extent-picker.js?v=20260902-9fcef8f";
+import { useIceNames, useIceVolumes } from "./ice-card.js?v=20260902-9fcef8f";
 
 /** The glacier inventory, off its own baked tiles. */
 const RGI_LAYER_ID = "glaciers-rgi7";
@@ -387,6 +387,7 @@ function wireChange() {
       await mod.startTimelapse({
         bounds: box, from, to, onStatus: say2,
         source: document.getElementById("ice-change-imagery")?.value || "auto",
+        colourBy: document.getElementById("ice-change-colour")?.value || "age",
       });
     } catch (error) {
       say2("The time-lapse could not be built for that area.");
