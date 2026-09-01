@@ -1,8 +1,9 @@
-import { looksLikeGeographic } from "./geo-utils.js?v=20260901-aa576c2";
-import { featureCollection, feature } from "./geoprocessing.js?v=20260901-aa576c2";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260901-aa576c2";
-import { detectCrs, crsLabel } from "./prj-detect.js?v=20260901-aa576c2";
-import { projectedToLatLon, CRS_OPTIONS } from "./projection.js?v=20260901-aa576c2";
+import { looksLikeGeographic } from "./geo-utils.js?v=20260901-515afd0";
+import { featureCollection, feature } from "./geoprocessing.js?v=20260901-515afd0";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260901-515afd0";
+import { detectCrs, crsLabel } from "./prj-detect.js?v=20260901-515afd0";
+import { parseQml } from "./qgis-style.js?v=20260901-515afd0";
+import { projectedToLatLon, CRS_OPTIONS } from "./projection.js?v=20260901-515afd0";
 
 // ESRI Shapefile technical description 98-016. Only the geometry types that
 // actually appear in GIS exports are handled; anything else is reported rather
@@ -269,7 +270,26 @@ export async function loadShapefile(file, { sidecars = [] } = {}) {
     });
   });
 
-  const result = buildVectorLayerResult(featureCollection(features), { name: file.name, fields });
+  /**
+   * THE STYLE THAT TRAVELLED WITH THE FILE, if one did.
+   *
+   * A shapefile carries no symbology, so this app writes a `.qml` beside it --
+   * and then read the colouring back out of the attribute table instead, which
+   * works while the colour column is complete and collapses when it is not.
+   * The style names the column, every category and every colour, so nothing
+   * has to be inferred and a round trip returns the map it started as.
+   *
+   * Best-effort in every direction: a shapefile from anywhere else has no QML,
+   * one written by QGIS may use a renderer this does not read, and either way
+   * the layer still lands and falls back to its own colouring.
+   */
+  let style = null;
+  const qml = sidecars.find((entry) => entry.name.toLowerCase().endsWith(".qml"));
+  if (qml) {
+    try { style = parseQml(await qml.text()); } catch (error) { style = null; }
+  }
+  const result = buildVectorLayerResult(featureCollection(features),
+    { name: file.name, fields, style });
   result.info.geometryType = SHAPE_TYPES[fileType] || String(fileType);
   result.info.attributeRows = records.length;
   result.info.truncated = truncated || result.info.truncated;

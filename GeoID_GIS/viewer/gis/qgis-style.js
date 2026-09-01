@@ -147,3 +147,108 @@ export function buildSld(features, {
 </StyledLayerDescriptor>
 `;
 }
+
+/**
+ * READ BACK WHAT WE WROTE.
+ *
+ * A shapefile carries no symbology, so the export ships a `.qml` beside it —
+ * and the import ignored it, then tried to reconstruct the colouring from the
+ * attribute table instead. That works when the colour column is complete and
+ * falls off a cliff when it is not: a clip whose column was sparse came back
+ * in this app's ramp with an "(other)" bucket, and the map the file described
+ * was lost even though the file was carrying an exact description of it.
+ *
+ * So the style is read. It names the column, every category and every colour;
+ * nothing has to be inferred, and a round trip through this app returns the
+ * map it started as.
+ *
+ * `DOMParser` rather than a regular expression, because a unit name is user
+ * data: "Sand & Gravel" is escaped in the file and has to come back unescaped,
+ * and a name containing `value="` would end a naive match in the wrong place.
+ */
+/** The five entities `xml()` writes, turned back into the characters. */
+function unxml(value) {
+  return String(value ?? "")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&");
+}
+
+/**
+ * The same read without a DOM, for Node -- the tests run there and a style
+ * that cannot be tested is a style nobody can trust.
+ *
+ * Scanning attributes is safe HERE for the reason the writer escapes them: a
+ * literal quote inside a value is written `&quot;`, so `value="([^"]*)"` can
+ * never end early. That holds for anything this app wrote; a QML from
+ * elsewhere is read by `DOMParser` in the browser, which is where those turn
+ * up.
+ */
+function parseQmlWithoutDom(text) {
+  const renderer = /<renderer-v2\b([^>]*)>/.exec(text);
+  if (!renderer) return null;
+  if (!/type="categorizedSymbol"/.test(renderer[1])) return null;
+  const field = unxml((/attr="([^"]*)"/.exec(renderer[1]) || [])[1] || "");
+  if (!field) return null;
+  const colours = new Map();
+  for (const block of text.split(/<symbol\b/).slice(1)) {
+    const name = (/name="([^"]*)"/.exec(block) || [])[1];
+    const colour = (/<Option name="color"[^>]*value="([^"]*)"/.exec(block) || [])[1];
+    if (name && colour) colours.set(name, colour);
+  }
+  const categories = [];
+  const pattern = /<category\b([^>]*)\/>/g;
+  let match = pattern.exec(text);
+  while (match) {
+    const attrs = match[1];
+    const value = (/value="([^"]*)"/.exec(attrs) || [])[1];
+    const label = (/label="([^"]*)"/.exec(attrs) || [])[1];
+    const rgba = colours.get((/symbol="([^"]*)"/.exec(attrs) || [])[1]);
+    if (value !== undefined && rgba) {
+      const [r, g, b] = String(rgba).split(",").map((n) => Number(n));
+      if ([r, g, b].every((n) => Number.isFinite(n))) {
+        categories.push({ value: unxml(value), label: unxml(label ?? value),
+          colour: `#${[r, g, b].map((n) => Math.max(0, Math.min(255, n))
+            .toString(16).padStart(2, "0")).join("")}` });
+      }
+    }
+    match = pattern.exec(text);
+  }
+  return categories.length ? { field, categories } : null;
+}
+
+export function parseQml(text) {
+  if (!text) return null;
+  if (typeof DOMParser !== "function") return parseQmlWithoutDom(text);
+  let doc;
+  try { doc = new DOMParser().parseFromString(text, "application/xml"); }
+  catch (error) { return null; }
+  if (!doc || doc.querySelector("parsererror")) return null;
+  const renderer = doc.querySelector("renderer-v2");
+  if (!renderer || renderer.getAttribute("type") !== "categorizedSymbol") return null;
+  const field = renderer.getAttribute("attr");
+  if (!field) return null;
+  // symbol name -> fill colour, from the Option map QGIS 3 writes.
+  const colours = new Map();
+  renderer.querySelectorAll("symbols > symbol").forEach((symbol) => {
+    const name = symbol.getAttribute("name");
+    let colour = null;
+    symbol.querySelectorAll("Option").forEach((option) => {
+      if (option.getAttribute("name") === "color") colour = option.getAttribute("value");
+    });
+    if (name && colour) colours.set(name, colour);
+  });
+  const categories = [];
+  renderer.querySelectorAll("categories > category").forEach((category) => {
+    const value = category.getAttribute("value");
+    const rgba = colours.get(category.getAttribute("symbol"));
+    if (value === null || !rgba) return;
+    const [r, g, b] = String(rgba).split(",").map((n) => Number(n));
+    if (![r, g, b].every((n) => Number.isFinite(n))) return;
+    const hex = `#${[r, g, b].map((n) => Math.max(0, Math.min(255, n))
+      .toString(16).padStart(2, "0")).join("")}`;
+    categories.push({ value, label: category.getAttribute("label") || value, colour: hex });
+  });
+  if (!categories.length) return null;
+  return { field, categories };
+}

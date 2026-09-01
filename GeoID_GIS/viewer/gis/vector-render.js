@@ -1,9 +1,9 @@
 import * as THREE from "../vendor/three.module.js";
 import { latLonToVector3, drapedRadius, looksLikeGeographic, sphericalPolygonAreaKm2 }
-  from "./geo-utils.js?v=20260901-aa576c2";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260901-aa576c2";
-import { pointInPolygon } from "./geometry.js?v=20260901-aa576c2";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260901-aa576c2";
+  from "./geo-utils.js?v=20260901-515afd0";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260901-515afd0";
+import { pointInPolygon } from "./geometry.js?v=20260901-515afd0";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260901-515afd0";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -1472,6 +1472,50 @@ function featureGroundKm2(feature) {
   return km2;
 }
 
+/**
+ * The symbology a file declared, turned into the object every path here reads.
+ *
+ * Categories are matched on the value of the style's own field -- which is the
+ * DBF column, so the features carry it under exactly that name. A feature
+ * whose value is in no category keeps the neutral rather than being dropped
+ * into an invented class.
+ */
+function styleSymbology(fc, style) {
+  const field = style?.field;
+  const categories = Array.isArray(style?.categories) ? style.categories : [];
+  if (!field || !categories.length) return null;
+  const features = fc?.features || [];
+  const colourFor = new Map(categories.map((c) => [String(c.value), asHex(c.colour)]));
+  const counts = new Map();
+  let unmatched = 0;
+  for (const feature of features) {
+    const value = String(feature?.properties?.[field] ?? "");
+    if (!colourFor.has(value)) { unmatched += 1; continue; }
+    counts.set(value, (counts.get(value) || 0) + 1);
+  }
+  // Only the categories this file actually uses: a style may describe more
+  // than a clip of it contains, and a key naming units that are not here is
+  // furniture.
+  const rows = categories
+    .filter((c) => counts.has(String(c.value)))
+    .map((c) => ({ value: c.label || c.value, count: counts.get(String(c.value)),
+      colour: asHex(c.colour) }));
+  if (!rows.length) return null;
+  const listed = rows.slice(0, 12);
+  if (unmatched) {
+    listed.push({ value: UNPUBLISHED_LABEL, count: unmatched, colour: UNPUBLISHED_COLOUR });
+  }
+  return {
+    ok: true,
+    categorical: true,
+    field,
+    rows: listed,
+    total: rows.length,
+    colourOf: (feature) =>
+      colourFor.get(String(feature?.properties?.[field] ?? "")) || UNPUBLISHED_COLOUR,
+  };
+}
+
 function publishedSymbology(fc, key) {
   const features = fc?.features || [];
   const field = suggestCategoryField(features);
@@ -1538,6 +1582,16 @@ export function buildVectorLayerResult(fc, {
    * information.
    */
   contacts = null,
+  /**
+   * A style that CAME WITH THE FILE -- `{ field, categories: [{value, colour}] }`,
+   * read from the `.qml` this app writes beside every shapefile it exports.
+   *
+   * It outranks everything inferred here. The attribute table can only be
+   * asked what colour a feature is; the style says what the MAP is, including
+   * for a column that is patchy or absent, which is exactly the case where
+   * inference falls back to a ramp and loses the map the file describes.
+   */
+  style = null,
 } = {}) {
   /**
    * The fill mode rides with the LAYER, not with a paint call.
@@ -1551,9 +1605,12 @@ export function buildVectorLayerResult(fc, {
   let fillMode = outlineOnly ? "outline" : "solid";
   const bounds = collectionBounds(fc);
   const georeferenced = looksLikeGeographic(bounds);
-  // The file's own colours outrank a classification invented here.
-  const published = publishedColourField(fc);
-  const symbology = published ? publishedSymbology(fc, published) : defaultSymbology(fc);
+  // A style that came with the file outranks the file's colours, which outrank
+  // a classification invented here.
+  const declared = styleSymbology(fc, style);
+  const published = declared ? null : publishedColourField(fc);
+  const symbology = declared
+    || (published ? publishedSymbology(fc, published) : defaultSymbology(fc));
   // Outlines first, fills straight after — NOT both in one pass.
   //
   // Filling means triangulating every ring and lifting every triangle vertex
