@@ -7905,6 +7905,86 @@ before. `watchProject()` in hub.js keys that on the project's *folder*, not on
 every store announcement: `updateMetadata()` also announces, and it fires while
 someone is typing into a metadata form.
 
+## Full coverage: every polygon, every parameter, and no guess wearing a
+## measurement's clothes
+
+"We lean too heavily on published values" — right, and for a MODEL it is the
+wrong trade. An honest null is fine on a card and useless as an input: a hole
+in the input is a hole in the output, and a hydrogeological or landslide model
+simply does not run over a polygon with no value. The database was **87.2% of
+its parameter matrix filled**, and the gaps were almost all the SOILS, which is
+most of what a landslide moves.
+
+**Most of those were not missing, only unentered.** A cohesive soil has a real
+unconfined compressive strength (qu = 2cu — clay 0.04–0.4 MPa, till 0.2–0.8,
+peat 0.01–0.05); a cohesionless one has a real **zero**, because its strength
+is entirely friction under confinement; and every soil has a published modulus.
+Those are published values now, not estimates. Leaving them out is what made a
+strength map blank over every alluvial fan.
+
+**What remained is filled by a stated route, and the route is on the value:**
+
+| basis | what it means |
+| --- | --- |
+| `table` / `compilation` | published. Untouched by the completion pass. |
+| `relation` | computed from this material's OWN properties by a named rule — Mohr-Coulomb for UCS from c and φ, the Brazilian ratio for tensile, a modulus ratio for E, a drainable fraction for specific yield, a fracture factor for matrix conductivity. **35 cells.** |
+| `analogue` | the range across every curated reference of the same class and state, median as typical. Data-driven, and the note names the group and its size. **3 cells.** |
+| `not_applicable` | the quantity does not exist for this material. **39 cells.** |
+
+**"Does not apply" is ASSIGNED, not blank.** A soil has no Hoek-Brown mi and no
+GSI: those describe a jointed rock MASS, and a number for them over an alluvial
+fan is invention rather than estimation. The cell carries the refusal, the
+reason, and what to use instead — so a map draws it as its own class rather
+than as a hole, which is the difference between "we do not know" and "the
+question does not apply here".
+
+**Every value carries a `confidence`** — high for a table, medium for a
+compilation, low for a relation, lowest for an analogue, none for the prior
+below — and a mixture takes the WEAKEST of the values behind it. The whole risk
+of filling every cell is that an estimate comes to read like a measurement, so
+the test asserts that no estimated value claims better than low and that every
+one says how it was estimated.
+
+### The last resort, and why it needed one
+
+Measured on the live layer: **521 of 6,232 polygons in view carried a BLANK
+`lith`** — every one from source 147, which ships no lithology in ANY column
+(`descrip`, `strat_name`, `macro_units`, `liths` all empty; the names are ages
+— "Neogene undifferentiated", "submarine continental crust"). There is no rock
+named anywhere on the record, so unlike every other estimate in the file there
+is nothing to derive FROM.
+
+So there is an `unstated` reference: the whole database's range with its median
+as the typical — a **no-information prior**, `confidence: "none"`, and the note
+says the source named no rock. It is a `prior` rather than a `value` at every
+step, and the map gives it **its own colour and legend row**, because the point
+of having it is that a model gets a number while a reader can still see where
+the prior is doing the work rather than the ground.
+
+### Three faults on the way, all of the same shape
+
+- **A not-applicable cell has no numbers**, and feeding one to the class breaks
+  poisons the whole scale — `row.typical ?? (row.min + row.max) / 2` is NaN,
+  `Math.min` over it is NaN, `hi > lo` is false, and the parameter silently has
+  no paint at all. Three of sixteen parameters had no map.
+- **A blank `lith` short-circuited before the prior could be reached.** The
+  database had an answer waiting for exactly that case and 521 polygons still
+  read "unknown".
+- **`rows` was shadowed** inside the prior's loop — that name holds the
+  lithology dictionary in that scope — so the file shipped
+  `vocabulary.count: 45` (the length of the last parameter's pool) while every
+  other count stayed right. A test comparing the declared count against the
+  actual one caught it; nothing at runtime would have.
+
+Vocabulary coverage went 99.4% → **99.95% of 11,000 map units** on the way
+(landslide debris is colluvium — the worst thing to have left blank, and for a
+landslide model the single most important unit on the map; ice and open water
+are materials with their own entries).
+
+**Measured live, 6,232 polygons, all sixteen parameters: 0 unknown.** 5,711
+valued, 521 on the prior, and 319 not-applicable on the three rock-mass
+parameters where the material is a soil.
+
 ## The geotechnical property database, and the map painted from it
 
 For the hydrogeological and landslide models: a cited property range for every

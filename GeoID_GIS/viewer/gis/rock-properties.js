@@ -199,7 +199,33 @@ function combine(values, weights, scale) {
 export function propertiesFor(text, data = database) {
   if (!data) return null;
   const parts = resolveLithology(text, data);
-  if (!parts.length) return { lithologies: [], parameters: {}, unresolved: true };
+  /**
+   * A UNIT WHOSE SOURCE NAMES NO ROCK still gets an answer.
+   *
+   * Measured on the live layer, 521 of 6,232 polygons in view carried a blank
+   * `lith` — all from one survey that ships no lithology in any column. A card
+   * can say "not stated"; a model cannot, so the database carries a
+   * no-information prior (the whole range of ground materials, median typical)
+   * and it is used here. It is flagged `prior` every step of the way so the
+   * map can keep it in its own class and nothing mistakes it for a unit that
+   * was actually mapped.
+   */
+  if (!parts.length) {
+    const fallback = data.references?.unstated;
+    if (!fallback) return { lithologies: [], parameters: {}, unresolved: true };
+    const parameters = {};
+    for (const [key, meta] of Object.entries(data.parameters)) {
+      const row = fallback.properties[key];
+      if (!row || row.basis === "not_applicable") continue;
+      parameters[key] = {
+        ...meta, key, min: row.min, max: row.max,
+        value: row.typical ?? (row.min + row.max) / 2,
+        sources: [], basis: "analogue", confidence: "none",
+        notes: [row.note], from: 0, of: 0, prior: true,
+      };
+    }
+    return { lithologies: [], parameters, unresolved: true, prior: true };
+  }
 
   const weights = parts.map((p) => p.weight);
   const refs = parts.map((p) => data.references[p.entry.reference]);
@@ -208,7 +234,27 @@ export function propertiesFor(text, data = database) {
   for (const [key, meta] of Object.entries(data.parameters)) {
     const rows = refs.map((ref) => ref?.properties?.[key] || null);
     if (!rows.some(Boolean)) continue;
-    const present = rows.map((row, i) => ({ row, w: weights[i] })).filter((r) => r.row);
+    /**
+     * "DOES NOT APPLY" IS AN ANSWER, and a different one from "not known".
+     *
+     * A soil has no Hoek-Brown mi and no GSI — those describe a jointed rock
+     * mass, and a number for them over an alluvial fan would be invention. The
+     * database assigns those cells rather than leaving them empty, and this is
+     * where the two part company: a parameter every constituent refuses is
+     * reported as `notApplicable` with its reason, so a map can draw it as its
+     * own class instead of as a hole, and a model can skip it knowingly.
+     */
+    const applicable = rows.filter((row) => row && row.basis !== "not_applicable");
+    if (!applicable.length) {
+      parameters[key] = {
+        ...meta, key, notApplicable: true,
+        reason: rows.find((row) => row?.reason)?.reason || null,
+        sources: [], basis: "not_applicable", notes: [], from: 0, of: parts.length,
+      };
+      continue;
+    }
+    const present = rows.map((row, i) => ({ row, w: weights[i] }))
+      .filter((r) => r.row && r.row.basis !== "not_applicable");
     const mins = present.map((r) => r.row.min);
     const maxes = present.map((r) => r.row.max);
     const typicals = present.map((r) => (r.row.typical ?? (r.row.min + r.row.max) / 2));
@@ -223,6 +269,13 @@ export function propertiesFor(text, data = database) {
       value: combine(typicals, ws, meta.scale),
       sources,
       basis: bases.length === 1 ? bases[0] : "mixed",
+      /**
+       * The WEAKEST link, because a combined value is only as good as the worst
+       * of the values behind it — an average of a measured range and a
+       * class-analogue guess is a guess.
+       */
+      confidence: ["n/a", "lowest", "low", "medium", "high"].find((level) =>
+        present.some((r) => (r.row.confidence || "low") === level)) || "low",
       notes: present.map((r) => r.row.note).filter(Boolean),
       // Which constituents actually answered: a parameter present for the
       // sandstone half and absent for the mudstone half is not a property of
@@ -248,6 +301,27 @@ export function propertiesFor(text, data = database) {
     parameters,
     unresolved: false,
   };
+}
+
+/**
+ * Which of the three answers this ground has for a parameter.
+ *
+ * `value` — a number. `not_applicable` — the quantity does not exist for this
+ * material, and the reason says why. `unknown` — the lithology string named
+ * nothing this database recognises, which after the alias table is ice-free
+ * ground nobody has mapped rather than a rock nobody has tested.
+ */
+export function parameterState(text, key, data = database) {
+  const resolved = propertiesFor(text, data);
+  if (!resolved) return { state: "unknown" };
+  const row = resolved.parameters?.[key];
+  if (!row) return { state: "unknown" };
+  if (row.notApplicable) return { state: "not_applicable", reason: row.reason };
+  if (!Number.isFinite(row.value)) return { state: "unknown" };
+  // A prior is a VALUE — a model gets a number — and a separate state, so a
+  // map can show where the prior is doing the work rather than the ground.
+  if (row.prior) return { state: "prior", value: row.value, row };
+  return { state: "value", value: row.value, row };
 }
 
 /** One parameter's representative value, for painting a map by it. */
@@ -277,7 +351,8 @@ export function citationsFor(resolved, data = database) {
 if (typeof window !== "undefined") {
   window.GeoIDRockProperties = {
     load: loadRockProperties, now: rockPropertiesNow,
-    resolve: resolveLithology, propertiesFor, parameterValue, parameterList,
+    resolve: resolveLithology, propertiesFor, parameterValue, parameterState,
+    parameterList,
     citationsFor,
   };
 }

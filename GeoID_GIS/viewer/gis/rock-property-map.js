@@ -34,8 +34,8 @@
  * a coloured polygon reads as a measurement and a blank one reads as a gap.
  */
 
-import { loadRockProperties, propertiesFor, parameterValue }
-  from "./rock-properties.js?v=20260901-bd1cc2f";
+import { loadRockProperties, parameterState }
+  from "./rock-properties.js?v=20260901-6274bf4";
 /**
  * `rampColour` answers [r, g, b], not a string -- the raster repaint contract.
  * A VECTOR repaint wants a CSS string, and handing it the array is not an
@@ -43,10 +43,31 @@ import { loadRockProperties, propertiesFor, parameterValue }
  * a perfectly correct legend. `hex` is the conversion, and this module is a
  * vector painter, so it converts once at the boundary.
  */
-import { rampColour, hex } from "./symbology.js?v=20260901-bd1cc2f";
+import { rampColour, hex } from "./symbology.js?v=20260901-6274bf4";
 
-/** Nothing to say about this ground, and the map says nothing. */
-export const NO_VALUE_COLOUR = "#3a3a44";
+/**
+ * THREE ANSWERS, THREE COLOURS, and the last two are not the same thing.
+ *
+ * `NOT_APPLICABLE` is a hatched slate: the quantity does not exist for this
+ * material — a soil has no Hoek-Brown mi — and the map should say so rather
+ * than leave a hole a reader reads as missing data.
+ *
+ * `UNKNOWN` is the honest gap that remains: a lithology string this database
+ * does not recognise. After the alias table that is a handful of polygons in
+ * eleven thousand, and it is worth keeping a colour for them precisely because
+ * it is now rare enough to be interesting when it appears.
+ */
+export const NOT_APPLICABLE_COLOUR = "#4a4a58";
+/**
+ * The no-information prior gets a colour of its own — a flat slate — because
+ * the whole point of having it is that a model gets a number there while a
+ * READER can still see that nobody mapped a rock. Blending it into the numeric
+ * classes would hide exactly the thing worth knowing.
+ */
+export const PRIOR_COLOUR = "#5a5560";
+export const UNKNOWN_COLOUR = "#2a2a30";
+/** Kept for callers that predate the split. */
+export const NO_VALUE_COLOUR = UNKNOWN_COLOUR;
 
 /**
  * The ramp each KIND of parameter is read with.
@@ -88,7 +109,17 @@ export function breaksFor(parameter, data) {
   const values = [];
   for (const ref of Object.values(data.references)) {
     const row = ref.properties?.[parameter];
-    if (row) values.push(row.typical ?? (row.min + row.max) / 2);
+    /**
+     * A NOT-APPLICABLE CELL CARRIES NO NUMBERS, and feeding one to the breaks
+     * poisons the whole scale: `row.typical ?? (row.min + row.max) / 2` is NaN,
+     * `Math.min` over it is NaN, `hi > lo` is false and the parameter silently
+     * has no paint at all. Measured as `propertyPaint` returning null for every
+     * parameter a soil refuses — which after the completion pass is three of
+     * the sixteen.
+     */
+    if (!row || row.basis === "not_applicable") continue;
+    const typical = row.typical ?? (row.min + row.max) / 2;
+    if (Number.isFinite(typical)) values.push(typical);
   }
   if (values.length < 2) return null;
   const meta = data.parameters[parameter];
@@ -97,7 +128,17 @@ export function breaksFor(parameter, data) {
   const inv = (v) => (log ? 10 ** v : v);
   const lo = Math.min(...values.map(t));
   const hi = Math.max(...values.map(t));
-  if (!(hi > lo)) return null;
+  /**
+   * A parameter every material agrees on has one class, not none. Residual
+   * cohesion is very nearly that — it is zero on almost every slip surface —
+   * and returning null there would leave the one map a slope-stability reader
+   * most wants to check unavailable.
+   */
+  if (!(Number.isFinite(lo) && Number.isFinite(hi))) return null;
+  if (hi === lo) {
+    return { edges: Array.from({ length: CLASS_COUNT + 1 }, () => inv(lo)),
+      log, meta, single: true };
+  }
   const edges = [];
   for (let i = 0; i <= CLASS_COUNT; i += 1) {
     edges.push(inv(lo + ((hi - lo) * i) / CLASS_COUNT));
@@ -148,38 +189,64 @@ export function propertyPaint(parameter, data) {
   // draws thousands of polygons -- but a compilation reuses its unit names, so
   // the same handful of strings recur. Cached by string, cleared with the paint.
   const cache = new Map();
-  const valueOf = (feature) => {
+  const stateOf = (feature) => {
     const lith = String(feature?.properties?.lith
       ?? feature?.properties?.LITH ?? "").trim();
-    if (!lith) return null;
+    /**
+     * A BLANK `lith` IS THE PRIOR'S WHOLE PURPOSE, so it must not short-circuit
+     * here. It did, and the prior was never reached: 521 polygons in one live
+     * view read "unknown" while the database had an answer waiting for exactly
+     * that case. The empty string goes through to `parameterState`, which
+     * resolves nothing and falls to the no-information prior.
+     */
     if (cache.has(lith)) return cache.get(lith);
-    const value = parameterValue(lith, parameter, data);
-    cache.set(lith, value);
-    return value;
+    const answer = parameterState(lith, parameter, data);
+    cache.set(lith, answer);
+    return answer;
+  };
+  const valueOf = (feature) => {
+    const answer = stateOf(feature);
+    return answer.state === "value" ? answer.value : null;
   };
 
   const colourOf = (feature) => {
-    const value = valueOf(feature);
-    if (!Number.isFinite(value)) return NO_VALUE_COLOUR;
-    return colourOfClass(classOf(value));
+    const answer = stateOf(feature);
+    if (answer.state === "value") return colourOfClass(classOf(answer.value));
+    if (answer.state === "prior") return PRIOR_COLOUR;
+    if (answer.state === "not_applicable") return NOT_APPLICABLE_COLOUR;
+    return UNKNOWN_COLOUR;
   };
 
   const labels = [];
   const palette = [];
-  for (let i = 0; i < CLASS_COUNT; i += 1) {
-    labels.push(`${formatValue(edges[i], meta)} – ${formatValue(edges[i + 1], meta)}`);
-    palette.push(colourOfClass(i).replace("#", ""));
+  if (breaks.single) {
+    labels.push(`${formatValue(edges[0], meta)} everywhere`);
+    palette.push(colourOfClass(CLASS_COUNT - 1).replace("#", ""));
+  } else {
+    for (let i = 0; i < CLASS_COUNT; i += 1) {
+      labels.push(`${formatValue(edges[i], meta)} – ${formatValue(edges[i + 1], meta)}`);
+      palette.push(colourOfClass(i).replace("#", ""));
+    }
   }
-  // The unpainted class is a LEGEND ROW, not an omission. A reader looking at
-  // a map with holes in it has to be told the holes are an answer.
-  labels.push("No value published");
-  palette.push(NO_VALUE_COLOUR.replace("#", ""));
+  /**
+   * The two non-numeric answers are LEGEND ROWS, not omissions. A reader
+   * looking at a map with grey in it has to be told which grey they are
+   * looking at: a material the question does not apply to, or ground this
+   * database could not name.
+   */
+  labels.push("Not applicable to this material");
+  palette.push(NOT_APPLICABLE_COLOUR.replace("#", ""));
+  labels.push("No lithology stated — prior");
+  palette.push(PRIOR_COLOUR.replace("#", ""));
+  labels.push("Lithology not recognised");
+  palette.push(UNKNOWN_COLOUR.replace("#", ""));
 
   return {
     parameter,
     meta,
     colourOf,
     valueOf,
+    stateOf,
     breaks: edges,
     log,
     legendInfo: {
@@ -237,15 +304,8 @@ export async function paintByProperty(layer, parameter) {
   layer.rockPropertyPaint = paint;
   announce();
 
-  const painted = countPainted(layer, paint);
-  return {
-    ok: true,
-    parameter,
-    label: paint.meta.label,
-    unit: paint.meta.unit,
-    painted: painted.painted,
-    total: painted.total,
-  };
+  return { ok: true, parameter, label: paint.meta.label, unit: paint.meta.unit,
+    ...countPainted(layer, paint) };
 }
 
 /**
@@ -258,10 +318,17 @@ export async function paintByProperty(layer, parameter) {
 export function countPainted(layer, paint) {
   const features = layer?.features || [];
   let painted = 0;
+  let prior = 0;
+  let notApplicable = 0;
+  let unknown = 0;
   for (const feature of features) {
-    if (Number.isFinite(paint.valueOf(feature))) painted += 1;
+    const answer = paint.stateOf(feature);
+    if (answer.state === "value") painted += 1;
+    else if (answer.state === "prior") prior += 1;
+    else if (answer.state === "not_applicable") notApplicable += 1;
+    else unknown += 1;
   }
-  return { painted, total: features.length };
+  return { painted, prior, notApplicable, unknown, total: features.length };
 }
 
 function announce() {

@@ -1094,6 +1094,19 @@ REFERENCE = {
 
     # ---------------- UNCONSOLIDATED / SOIL ----------------
     "gravel": dict(state="soil", props={
+        "ucs": P(0, 0, 0, sources=SOIL,
+            note="COHESIONLESS: an unconfined specimen has no strength at all. "
+                 "This is a real zero, not a missing value -- the strength of a "
+                 "gravel is entirely its friction angle under confinement."),
+        "tensile_strength": P(0, 0, 0, sources=SOIL, note="Cohesionless."),
+        "youngs_modulus": P(0.05, 0.15, 0.10, sources=SOIL,
+            note="50-150 MPa drained. Orders of magnitude below any rock, and "
+                 "strongly stress-dependent."),
+        "matrix_hydraulic_conductivity": P(3e-4, 3e-2, 3e-3, sources=FC,
+            note="A soil has no fracture network, so its matrix and mass "
+                 "conductivity are the same thing."),
+        "specific_yield": P(15, 30, 19, basis="table", sources=["heath-1983"]),
+
         "dry_density": P(1600, 2200, 1900, sources=SOIL),
         "porosity": P(24.0, 40.0, 28.0, basis="table", sources=FC + ["heath-1983"],
             note="Freeze & Cherry Table 2.4: gravel 25-40%. Heath (1983): 20%."),
@@ -1113,6 +1126,13 @@ REFERENCE = {
         "poissons_ratio": P(0.15, 0.35, 0.25, sources=SOIL),
     }),
     "sand": dict(state="soil", props={
+        "ucs": P(0, 0, 0, sources=SOIL, note="Cohesionless: no unconfined strength."),
+        "tensile_strength": P(0, 0, 0, sources=SOIL, note="Cohesionless."),
+        "youngs_modulus": P(0.01, 0.08, 0.03, sources=SOIL,
+            note="10-80 MPa drained, loose to dense."),
+        "matrix_hydraulic_conductivity": P(1e-9, 2e-3, 1e-5, sources=FC,
+            note="No fracture network: matrix and mass are the same."),
+
         "dry_density": P(1400, 2000, 1700, sources=SOIL),
         "porosity": P(25.0, 50.0, 35.0, basis="table", sources=FC + ["heath-1983"],
             note="Freeze & Cherry Table 2.4: sand 25-50%."),
@@ -1130,6 +1150,13 @@ REFERENCE = {
         "poissons_ratio": P(0.20, 0.40, 0.30, sources=SOIL),
     }),
     "silt": dict(state="soil", props={
+        "ucs": P(0.02, 0.15, 0.05, sources=SOIL,
+            note="Unconfined compressive strength qu = 2 x undrained shear "
+                 "strength. Real, and three orders of magnitude below a rock."),
+        "tensile_strength": P(0, 0.01, 0.002, sources=SOIL),
+        "youngs_modulus": P(0.002, 0.02, 0.008, sources=SOIL, note="2-20 MPa."),
+        "matrix_hydraulic_conductivity": P(1e-9, 2e-5, 1e-7, sources=FC),
+
         "dry_density": P(1300, 1900, 1600, sources=SOIL),
         "porosity": P(35.0, 50.0, 42.0, basis="table", sources=FC,
             note="Freeze & Cherry Table 2.4: silt 35-50%."),
@@ -1143,6 +1170,18 @@ REFERENCE = {
         "poissons_ratio": P(0.25, 0.40, 0.32, sources=SOIL),
     }),
     "clay": dict(state="soil", props={
+        "ucs": P(0.04, 0.4, 0.15, sources=SOIL,
+            note="qu = 2 x undrained shear strength, cu 20-200 kPa across soft "
+                 "to hard. A stiff clay and a weak rock overlap here, which is "
+                 "the whole reason the boundary between them is a convention."),
+        "tensile_strength": P(0, 0.02, 0.005, sources=SOIL),
+        "youngs_modulus": P(0.002, 0.05, 0.015, sources=SOIL,
+            note="2-50 MPa undrained, soft to hard."),
+        "matrix_hydraulic_conductivity": P(1e-13, 1e-9, 1e-11, sources=FC,
+            note="No fractures in an intact clay -- but a WEATHERED, fissured "
+                 "clay behaves as a fractured medium and is orders of magnitude "
+                 "above this, which is what decides whether a clay slope drains."),
+
         "dry_density": P(1200, 1900, 1600, sources=SOIL),
         "porosity": P(40.0, 70.0, 50.0, basis="table", sources=FC + ["heath-1983"],
             note="Freeze & Cherry Table 2.4: clay 40-70%. The most porous "
@@ -1174,6 +1213,15 @@ REFERENCE = {
         "poissons_ratio": P(0.30, 0.45, 0.40, sources=SOIL),
     }),
     "till": dict(state="soil", props={
+        "ucs": P(0.2, 0.8, 0.4, sources=SOIL + ["bell-2007"],
+            note="qu = 2cu, cu 100-400 kPa for a lodgement till."),
+        "tensile_strength": P(0, 0.03, 0.01, sources=SOIL),
+        "youngs_modulus": P(0.05, 0.15, 0.09, sources=SOIL + ["bell-2007"]),
+        "matrix_hydraulic_conductivity": P(1e-12, 1e-9, 1e-10, sources=FC,
+            note="The INTACT matrix. The mass value runs six orders higher "
+                 "because a till is fissured and lensed -- the single largest "
+                 "gap between matrix and mass in any soil here."),
+
         "dry_density": P(1800, 2300, 2100, sources=SOIL + ["bell-2007"]),
         "porosity": P(10.0, 35.0, 22.0, sources=FC),
         "hydraulic_conductivity": P(1e-12, 2e-6, 1e-9, basis="table", sources=FC,
@@ -1212,6 +1260,15 @@ REFERENCE = {
         "friction_angle": P(25, 35, 30, sources=["bell-2007"]),
     }),
     "peat": dict(state="soil", props={
+        "ucs": P(0.01, 0.05, 0.02, sources=["bell-2007"],
+            note="qu = 2cu. Weak, and it consolidates under its own load."),
+        "tensile_strength": P(0, 0.01, 0.003, sources=["bell-2007"],
+            note="Fibrous peat has real tensile strength from its fibres, which "
+                 "is unusual for a soil and is why peat slides move as slabs."),
+        "youngs_modulus": P(0.0001, 0.001, 0.0004, sources=["bell-2007"],
+            note="0.1-1 MPa. The most compressible material in this database."),
+        "matrix_hydraulic_conductivity": P(1e-9, 1e-4, 1e-6, sources=["bell-2007"]),
+
         "dry_density": P(80, 300, 150, sources=SOIL + ["bell-2007"],
             note="An order of magnitude below mineral soil: peat is mostly "
                  "water and organic matter."),
@@ -1235,6 +1292,62 @@ REFERENCE = {
                  "cementation carries load until it is broken down."),
         "hydraulic_conductivity": P(1e-8, 1e-4, 1e-6, sources=["bell-2007"]),
         "residual_friction_angle": P(15, 28, 21, sources=["bell-2007"]),
+    }),
+    # ICE AND OPEN WATER, because the map has polygons of them.
+    #
+    # "Ice, snow" and "Water" are real map units, and a model that meets one
+    # needs an answer rather than a hole. Ice is a material with measured
+    # properties; water is not a material at all, and saying so with numbers --
+    # no strength, no friction, effectively unbounded conductivity -- is more
+    # use to a model than a blank, provided nothing pretends it is ground.
+    "ice": dict(state="ice", props={
+        "dry_density": P(830, 917, 900, sources=["schon-2015"],
+            note="Glacier ice; firn and snow run down to about 300."),
+        "porosity": P(0.0, 10.0, 2.0, sources=["schon-2015"],
+            note="Bubble porosity in glacier ice; a snowpack is far higher."),
+        "hydraulic_conductivity": P(1e-9, 1e-2, 1e-5, sources=["bell-2007"],
+            note="Meltwater moves in conduits and at the bed, not through the "
+                 "ice. Darcy's law does not describe it."),
+        "matrix_hydraulic_conductivity": P(1e-12, 1e-9, 1e-11, sources=["bell-2007"]),
+        "specific_yield": P(0, 5, 1, sources=["bell-2007"]),
+        "ucs": P(1, 10, 5, sources=["schon-2015"],
+            note="Strongly rate- and temperature-dependent: ice creeps under "
+                 "sustained load, so a static strength describes only a fast "
+                 "test."),
+        "tensile_strength": P(0.7, 3.1, 1.5, sources=["schon-2015"]),
+        "youngs_modulus": P(8, 10, 9.3, sources=["schon-2015"]),
+        "poissons_ratio": P(0.29, 0.36, 0.33, sources=["schon-2015"]),
+        "friction_angle": P(0, 20, 10, sources=["bell-2007"],
+            note="Basal sliding, not a soil friction angle."),
+        "cohesion": P(0.1, 1.0, 0.4, sources=["schon-2015"]),
+        "residual_friction_angle": P(0, 10, 3, sources=["bell-2007"]),
+        "residual_cohesion": P(0, 0, 0, sources=["bell-2007"]),
+        "slake_durability": P(0, 0, 0, sources=["bell-2007"], note="It melts."),
+    }),
+    "water": dict(state="water", props={
+        "dry_density": P(1000, 1000, 1000, sources=["schon-2015"],
+            note="Fresh water. Not a dry density -- there is no solid phase."),
+        "porosity": P(100, 100, 100, sources=["schon-2015"],
+            note="All void by definition."),
+        "hydraulic_conductivity": P(1, 1e3, 1e2, sources=["freeze-cherry-1979"],
+            note="OPEN WATER IS NOT A POROUS MEDIUM. The number is a stand-in "
+                 "large enough that a groundwater model treats it as a constant "
+                 "head, which is what a lake or the sea actually is. Do not read "
+                 "it as a measurement."),
+        "matrix_hydraulic_conductivity": P(1, 1e3, 1e2, sources=["freeze-cherry-1979"]),
+        "specific_yield": P(100, 100, 100, sources=["freeze-cherry-1979"]),
+        "ucs": P(0, 0, 0, sources=["schon-2015"], note="No shear strength at all."),
+        "tensile_strength": P(0, 0, 0, sources=["schon-2015"]),
+        "youngs_modulus": P(0, 0, 0, sources=["schon-2015"],
+            note="No shear modulus; the bulk modulus (2.2 GPa) is a different "
+                 "quantity and is not what this column means."),
+        "poissons_ratio": P(0.5, 0.5, 0.5, sources=["schon-2015"],
+            note="0.5 is the incompressible limit, which is what a fluid is."),
+        "friction_angle": P(0, 0, 0, sources=["schon-2015"]),
+        "cohesion": P(0, 0, 0, sources=["schon-2015"]),
+        "residual_friction_angle": P(0, 0, 0, sources=["schon-2015"]),
+        "residual_cohesion": P(0, 0, 0, sources=["schon-2015"]),
+        "slake_durability": P(0, 0, 0, sources=["schon-2015"]),
     }),
     "regolith": dict(state="soil", parent="till", props={
         "hydraulic_conductivity": P(1e-8, 1e-4, 1e-6, sources=FC,
@@ -1454,7 +1567,280 @@ ALIASES = {
     # "basic" in the older usage means mafic, and "basic dikes" is the string
     # it appears in. Not "basement", which the word boundary already excludes.
     "basic": "dolerite",
+    # LANDSLIDE DEBRIS IS COLLUVIUM, and it was the worst thing to leave blank.
+    #
+    # "Mainly blocks (landslide)" was refused on the reasoning that giving a
+    # landslide deposit a rock's strength is the worst answer available --
+    # true, and the conclusion was wrong. The right answer is not a rock: it is
+    # COLLUVIUM, which is what landslide debris IS, and which this database
+    # already carries at its residual strength. For a landslide model it is the
+    # single most important material on the map, and it was the one polygon
+    # with no answer at all.
+    "landslide": "colluvium",
+    "landslip": "colluvium",
+    "debris": "colluvium",
+    "slide deposit": "colluvium",
+    "scree": "colluvium",
+    "talus": "colluvium",
+    "solifluction": "colluvium",
+    "head": "colluvium",
+    # Real map units that are not ground.
+    "ice": "ice",
+    "snow": "ice",
+    "glacier": "ice",
+    "firn": "ice",
+    # The tail of the tail, measured on 11,000 units. Deliberately NOT here:
+    # "crystalline" (it would add a gneiss to every "crystalline limestone",
+    # since it is the longer match and is tried first) and "unknown", which is
+    # the survey itself declining to say and must stay an honest gap.
+    "syenitic": "granite",
+    "intrusive": "granite",
+    "tectonite": "mylonite",
+    "melange": "mylonite",
+    "ultramafitite": "peridotite",
+    "supracrustal": "schist",
+    "meta-sediment": "schist",
+    "water": "water",
+    "lake": "water",
+    "sea": "water",
+    "ocean": "water",
 }
+
+# ---------------------------------------------------------------------------
+# COMPLETION: no cell left empty, and no invented number passed off as a
+# measurement.
+#
+# A card can honestly say "not published". A MODEL cannot: a hydrogeological or
+# a landslide model needs a value at every polygon or it does not run there, and
+# a hole in the input is worse than a wide range with its provenance attached.
+# So every reference gets every parameter, by one of four routes, and the route
+# is recorded on the value:
+#
+#   table / compilation   a published value. Unchanged by this pass.
+#   relation              computed from this material's OWN other properties by
+#                         a named physical relation (Mohr-Coulomb, the Brazilian
+#                         ratio, a modulus ratio, a drainable fraction). As good
+#                         as the values it was computed from.
+#   analogue              the range across every curated reference of the same
+#                         CLASS and STATE, with their median as the typical.
+#                         Data-driven rather than invented -- "what the other
+#                         sedimentary rocks that do have a published value say"
+#                         -- and the note names the group and its size.
+#   not_applicable        the quantity does not exist for this material. A soil
+#                         has no Hoek-Brown mi and no GSI: those describe a
+#                         jointed ROCK MASS, and a number for them over an
+#                         alluvial fan would be pure invention. The cell is
+#                         ASSIGNED and carries a reason, so a map can draw it as
+#                         its own class rather than as a gap -- which is the
+#                         difference between "we do not know" and "the question
+#                         does not apply here".
+#
+# `confidence` rides alongside: high for a table, medium for a compilation, low
+# for a relation, and lowest for an analogue. Anything downstream that needs to
+# weight a value has the number to weight it by.
+# ---------------------------------------------------------------------------
+CONFIDENCE = {"table": "high", "compilation": "medium", "derived": "low",
+              "relation": "low", "analogue": "lowest", "inherited": "medium",
+              "not_applicable": "n/a"}
+
+# Which parameters simply do not exist for a material in this state.
+NOT_APPLICABLE = {
+    "soil": {
+        "hoek_brown_mi": "The Hoek-Brown criterion describes a jointed ROCK "
+                         "MASS. A soil has no joints and no intact blocks; use "
+                         "the Mohr-Coulomb pair (friction angle and cohesion), "
+                         "which is carried and is what a soil model wants.",
+        "gsi_typical": "GSI is a field observation of blockiness and joint "
+                       "surface condition. Neither exists in a soil.",
+        "slake_durability": "The slake-durability test is a rock-lump test "
+                            "(ISRM). A soil disaggregates immediately and the "
+                            "index is not defined for it.",
+    },
+    "ice": {
+        "hoek_brown_mi": "Not a jointed rock mass.",
+        "gsi_typical": "Not a jointed rock mass.",
+    },
+    "water": {
+        "hoek_brown_mi": "Not a solid.",
+        "gsi_typical": "Not a solid.",
+        "matrix_hydraulic_conductivity": "There is no matrix.",
+    },
+}
+
+# The drainable fraction of total porosity, by state. Specific yield is what an
+# unconfined aquifer actually gives up, and it is always below porosity -- far
+# below it for a fine-grained material, where the pores hold their water against
+# gravity (Heath 1983: clay, porosity 50%, specific yield 2%).
+DRAINABLE = {"rock": 0.45, "soil": 0.55, "ice": 0.1, "water": 1.0}
+
+# How much of a rock mass's conductivity is the fractures rather than the rock.
+# Freeze & Cherry's own crystalline pair is four orders; a sedimentary rock with
+# real matrix porosity is nearer two.
+FRACTURE_FACTOR = {"igneous": 1e4, "metamorphic": 1e4, "sedimentary": 1e2}
+
+
+def _p(vmin, vmax, typical, basis, note, sources=()):
+    entry = {"min": vmin, "max": vmax, "typical": typical, "basis": basis,
+             "sources": list(sources), "note": note,
+             "confidence": CONFIDENCE.get(basis, "low")}
+    return entry
+
+
+def _median(values):
+    ordered = sorted(values)
+    n = len(ordered)
+    if not n:
+        return None
+    return ordered[n // 2] if n % 2 else (ordered[n // 2 - 1] + ordered[n // 2]) / 2
+
+
+def _typ(row):
+    return row.get("typical", (row["min"] + row["max"]) / 2)
+
+
+def complete(references, classes):
+    """Fill every cell, and say how each one was filled."""
+    counts = {"relation": 0, "analogue": 0, "not_applicable": 0}
+
+    # The analogue pools: every curated value, grouped by (state, class).
+    pools = {}
+    for name, ref in references.items():
+        key = (ref["state"], classes.get(name, "unknown"))
+        for param, row in ref["properties"].items():
+            pools.setdefault((key, param), []).append(row)
+
+    for name, ref in references.items():
+        props = ref["properties"]
+        state = ref["state"]
+        cls = classes.get(name, "unknown")
+
+        for param in PARAMETERS:
+            if param in props:
+                props[param].setdefault("confidence",
+                                        CONFIDENCE.get(props[param]["basis"], "low"))
+                continue
+
+            reason = NOT_APPLICABLE.get(state, {}).get(param)
+            if reason:
+                props[param] = {"basis": "not_applicable", "reason": reason,
+                                "confidence": "n/a", "sources": []}
+                counts["not_applicable"] += 1
+                continue
+
+            row = _relation(param, props, state, cls)
+            if row:
+                props[param] = row
+                counts["relation"] += 1
+                continue
+
+            pool = pools.get(((state, cls), param), [])
+            if len(pool) >= 2:
+                lows = [r["min"] for r in pool]
+                highs = [r["max"] for r in pool]
+                props[param] = _p(
+                    min(lows), max(highs), _median([_typ(r) for r in pool]),
+                    "analogue",
+                    f"No published value for this material. The range across the "
+                    f"{len(pool)} {cls} {state} references that do have one, with "
+                    f"their median as the typical. An analogue, not a measurement.",
+                    sorted({s for r in pool for s in r.get("sources", [])})[:4])
+                counts["analogue"] += 1
+                continue
+
+            # Nothing of its own class to borrow from: widen to the state.
+            wide = [r for (k, prm), rows in pools.items() if prm == param
+                    and k[0] == state for r in rows]
+            if len(wide) >= 2:
+                props[param] = _p(
+                    min(r["min"] for r in wide), max(r["max"] for r in wide),
+                    _median([_typ(r) for r in wide]), "analogue",
+                    f"No published value, and none for this class either. The "
+                    f"range across all {len(wide)} {state} references that have "
+                    f"one. The weakest estimate in this file; treat it as an "
+                    f"order of magnitude.",
+                    sorted({s for r in wide for s in r.get("sources", [])})[:4])
+                counts["analogue"] += 1
+
+    return counts
+
+
+def _relation(param, props, state, cls):
+    """A value computed from this material's OWN properties, by a named rule."""
+    def has(*keys):
+        return all(k in props and props[k]["basis"] != "not_applicable" for k in keys)
+
+    if param == "tensile_strength" and has("ucs"):
+        ucs = props["ucs"]
+        return _p(ucs["min"] / 20, ucs["max"] / 10, _typ(ucs) / 15, "relation",
+                  "Brazilian tensile strength taken as UCS/10 to UCS/20, the "
+                  "ratio observed across intact rock; the typical is UCS/15.",
+                  ucs.get("sources", []))
+
+    if param == "ucs" and has("cohesion", "friction_angle"):
+        import math
+        c = props["cohesion"]
+        phi = props["friction_angle"]
+        def q(cv, pv):
+            r = math.radians(pv)
+            return 2 * cv * math.cos(r) / max(1e-6, 1 - math.sin(r))
+        return _p(q(c["min"], phi["min"]), q(c["max"], phi["max"]),
+                  q(_typ(c), _typ(phi)), "relation",
+                  "Unconfined compressive strength from the Mohr-Coulomb pair: "
+                  "UCS = 2c cos(phi) / (1 - sin(phi)).",
+                  sorted(set(c.get("sources", []) + phi.get("sources", []))))
+
+    if param == "specific_yield" and has("porosity"):
+        n = props["porosity"]
+        f = DRAINABLE.get(state, 0.4)
+        return _p(n["min"] * f * 0.5, n["max"] * f, _typ(n) * f, "relation",
+                  f"Taken as {int(f * 100)}% of total porosity, the drainable "
+                  "fraction for this kind of material. Specific yield is always "
+                  "below porosity and far below it where the pores are fine.",
+                  n.get("sources", []))
+
+    if param == "matrix_hydraulic_conductivity" and has("hydraulic_conductivity"):
+        k = props["hydraulic_conductivity"]
+        if state == "soil":
+            return _p(k["min"], k["max"], _typ(k), "relation",
+                      "A soil has no fracture network, so its matrix and its "
+                      "mass conductivity are the same quantity.",
+                      k.get("sources", []))
+        f = FRACTURE_FACTOR.get(cls, 1e3)
+        return _p(k["min"] / f, k["max"] / f, _typ(k) / f, "relation",
+                  f"The mass value divided by {f:.0e}, the share of a {cls} "
+                  "rock's conductivity that its fractures carry rather than its "
+                  "matrix. An order-of-magnitude estimate of a quantity that "
+                  "spans orders of magnitude.",
+                  k.get("sources", []))
+
+    if param == "youngs_modulus" and has("ucs") and state == "rock":
+        ucs = props["ucs"]
+        return _p(ucs["min"] * 200 / 1000, ucs["max"] * 500 / 1000,
+                  _typ(ucs) * 350 / 1000, "relation",
+                  "E = MR x UCS with a modulus ratio of 200-500, the band Table "
+                  "8 of Hoek's Practical Rock Engineering spans for rocks with "
+                  "no entry of their own (Deere 1968).", MR)
+
+    if param == "poissons_ratio":
+        default = {"rock": (0.10, 0.35, 0.22), "soil": (0.20, 0.45, 0.33),
+                   "ice": (0.29, 0.36, 0.33), "water": (0.5, 0.5, 0.5)}[state]
+        return _p(*default, "analogue",
+                  "The range Poisson's ratio takes across materials in this "
+                  "state. It varies little, which is why a class value is a "
+                  "reasonable stand-in where a specific one is not published.",
+                  GEO if state == "rock" else SOIL)
+
+    return None
+
+
+def _class_of(name, by_name):
+    """A reference the dictionary does not name takes its parent's class."""
+    parent = REFERENCE.get(name, {}).get("parent")
+    if parent:
+        return by_name.get(parent, _class_of(parent, by_name))
+    return {"ice": "ice", "water": "water", "fault_gouge": "metamorphic",
+            "karst": "sedimentary", "dolostone": "sedimentary"}.get(name, "unknown")
+
 
 def load_dictionary():
     """Macrostrat's own lithology dictionary, cached so a re-bake is offline."""
@@ -1534,6 +1920,53 @@ def main():
             "parent": REFERENCE[name].get("parent"),
             "properties": resolve_props(name),
         }
+    # Which class each reference belongs to, for the analogue pools. Taken from
+    # the dictionary where the name is in it, so the grouping is Macrostrat's
+    # own classification rather than a second one invented here.
+    by_name = {r["name"].strip().lower(): r["class"] for r in rows}
+    classes = {name: by_name.get(name, _class_of(name, by_name)) for name in references}
+    filled = complete(references, classes)
+
+    # -----------------------------------------------------------------------
+    # THE LAST RESORT: a unit whose source states no lithology at all.
+    #
+    # Measured on the live layer, 521 of 6,232 polygons in view carried a BLANK
+    # `lith` -- every one of them from source 147, which ships no lithology in
+    # any column: `descrip`, `strat_name`, `macro_units` and `liths` are all
+    # empty and the names are ages ("Neogene undifferentiated", "submarine
+    # continental crust"). There is no rock named anywhere on the record, so
+    # there is nothing to estimate FROM -- which is a different situation from
+    # every other estimate in this file, all of which are derived from
+    # something the source did say.
+    #
+    # A model still needs a number there. So this is the whole database's own
+    # range with its median as the typical: a NO-INFORMATION PRIOR, the weakest
+    # thing in the file, and the map keeps it in a class of its own so it is
+    # never mistaken for a unit that was actually mapped.
+    # -----------------------------------------------------------------------
+    ground = [r for n, r in references.items() if r["state"] in ("rock", "soil")]
+    unstated = {}
+    for param in PARAMETERS:
+        # NOT `rows` -- that name holds the lithology dictionary in this scope,
+        # and shadowing it wrote `vocabulary.count: 45` (the length of the last
+        # parameter's pool) into the file while every other count stayed right.
+        pool = [r["properties"][param] for r in ground
+                if r["properties"].get(param, {}).get("basis") != "not_applicable"
+                and "min" in r["properties"].get(param, {})]
+        if len(pool) < 2:
+            continue
+        unstated[param] = _p(
+            min(r["min"] for r in pool), max(r["max"] for r in pool),
+            _median([_typ(r) for r in pool]), "analogue",
+            f"THE SOURCE STATES NO LITHOLOGY for this unit — no rock is named "
+            f"in any of its columns. This is the range across all {len(pool)} "
+            f"ground materials in this database with their median as the "
+            f"typical: a no-information prior, the weakest value in the file, "
+            f"and the one to replace first.", [])
+        unstated[param]["confidence"] = "none"
+    references["unstated"] = {"state": "unknown", "parent": None,
+                              "properties": unstated}
+    out_unstated = len(unstated)
 
     out = {
         "$comment": "Generated by GeoID_GIS/services/bake-rock-properties.py. "
@@ -1594,6 +2027,15 @@ def main():
         print(f"UNRESOLVED        {len(unresolved)}: {', '.join(unresolved)}")
     size = os.path.getsize(OUT)
     print(f"aliases           {len(ALIASES)}")
+    cells = len(references) * len(PARAMETERS)
+    print(f"parameter cells   {cells}")
+    print(f"  by relation     {filled['relation']}")
+    print(f"  by analogue     {filled['analogue']}")
+    print(f"  not applicable  {filled['not_applicable']}")
+    empty = sum(1 for r in references.values()
+                for p in PARAMETERS if p not in r["properties"])
+    print(f"  STILL EMPTY     {empty}")
+    print(f"no-lithology prior {out_unstated} parameters")
     print(f"written           {OUT} ({size / 1024:.0f} KB)")
     return 1 if unresolved else 0
 

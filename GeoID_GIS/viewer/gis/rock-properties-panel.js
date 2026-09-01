@@ -24,10 +24,10 @@
  * why these are opt-in rows rather than something that arrives with the map.
  */
 
-import { loadRockProperties } from "./rock-properties.js?v=20260901-bd1cc2f";
-import { propertyPaint } from "./rock-property-map.js?v=20260901-bd1cc2f";
+import { loadRockProperties } from "./rock-properties.js?v=20260901-6274bf4";
+import { propertyPaint } from "./rock-property-map.js?v=20260901-6274bf4";
 import { loadDerivedGeologyMap, removeDerivedGeologyMap }
-  from "./geology-panel.js?v=20260901-bd1cc2f";
+  from "./geology-panel.js?v=20260901-6274bf4";
 
 const LAYER_PREFIX = "rock-property-";
 
@@ -106,14 +106,27 @@ function buildRow(parameter, meta) {
        * has no uniaxial compressive strength, and that is a CORRECT map.
        * Without the count it reads as a broken one.
        */
-      const features = layer.features || [];
-      let answered = 0;
-      for (const feature of features) {
-        if (Number.isFinite(paint.valueOf(feature))) answered += 1;
+      const { countPainted } = await import(
+        `./rock-property-map.js${new URL(import.meta.url).search}`);
+      const tally = countPainted(layer, paint);
+      /**
+       * EVERY POLYGON GETS AN ANSWER, and the line says which kind. A cell is
+       * a value, a "does not apply to this material", or a lithology the
+       * database could not name — and after the alias table the last of those
+       * is a handful in eleven thousand.
+       */
+      const parts = [`${tally.painted.toLocaleString()} of `
+        + `${tally.total.toLocaleString()} units valued`];
+      if (tally.prior) {
+        parts.push(`${tally.prior.toLocaleString()} on a no-lithology prior`);
       }
-      say(`${meta.label}: ${answered.toLocaleString()} of ${features.length.toLocaleString()} `
-        + `units carry a published range. Ranges for a rock NAME — a prior for `
-        + `screening, not a measurement of this ground.`);
+      if (tally.notApplicable) {
+        parts.push(`${tally.notApplicable.toLocaleString()} where the quantity `
+          + `does not apply`);
+      }
+      if (tally.unknown) parts.push(`${tally.unknown.toLocaleString()} unrecognised`);
+      say(`${meta.label}: ${parts.join(", ")}. Ranges for a rock NAME — a prior `
+        + `for screening, not a measurement of this ground.`);
     } catch (error) {
       say(`${meta.label} could not be built.`);
       tick.checked = false;

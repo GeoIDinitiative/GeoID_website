@@ -76,6 +76,9 @@ RP.useRockProperties(db);
   const badRanges = [];
   for (const [name, ref] of Object.entries(db.references)) {
     for (const [key, v] of Object.entries(ref.properties)) {
+      // A not-applicable cell carries a reason and no numbers, by design —
+      // that is what distinguishes it from a value of zero.
+      if (v.basis === "not_applicable") continue;
       if (!(Number.isFinite(v.min) && Number.isFinite(v.max) && v.max >= v.min)) {
         badRanges.push(`${name}.${key}`);
       }
@@ -89,7 +92,84 @@ RP.useRockProperties(db);
 
   ok("every value states its basis",
     Object.values(db.references).every((r) => Object.values(r.properties)
-      .every((v) => ["table", "compilation", "derived", "inherited"].includes(v.basis))));
+      .every((v) => ["table", "compilation", "derived", "inherited", "relation",
+        "analogue", "not_applicable"].includes(v.basis))));
+
+  /**
+   * NO CELL IS EMPTY. A card can honestly say "not published"; a model cannot,
+   * because a hole in the input is a hole in the output. Every reference has
+   * every parameter, by one of four routes, and the route is on the value.
+   */
+  {
+    const empty = [];
+    for (const [name, ref] of Object.entries(db.references)) {
+      for (const key of Object.keys(db.parameters)) {
+        if (!ref.properties[key]) empty.push(`${name}.${key}`);
+      }
+    }
+    ok("every reference carries every parameter — no empty cells",
+      empty.length === 0, `${empty.length}: ${empty.slice(0, 6).join(", ")}`);
+  }
+
+  ok("every value carries a confidence",
+    Object.values(db.references).every((r) => Object.values(r.properties)
+      .every((v) => v.confidence)));
+
+  /**
+   * AND COMPLETENESS MUST NOT LAUNDER PROVENANCE. The whole risk of filling
+   * every cell is that an estimate comes to read like a measurement, so an
+   * estimated value has to be distinguishable at a glance and by a machine.
+   */
+  {
+    const estimated = [];
+    for (const ref of Object.values(db.references)) {
+      for (const v of Object.values(ref.properties)) {
+        if (v.basis === "relation" || v.basis === "analogue") estimated.push(v);
+      }
+    }
+    ok("every estimated value says how it was estimated",
+      estimated.every((v) => v.note && v.note.length > 40));
+    ok("and none of them claims better than low confidence",
+      estimated.every((v) => ["low", "lowest", "none"].includes(v.confidence)));
+    ok("a published value still outranks them",
+      db.references.granite.properties.hoek_brown_mi.confidence === "high");
+  }
+
+  /**
+   * "DOES NOT APPLY" IS ASSIGNED, NOT BLANK, and it carries its reason. A soil
+   * has no Hoek-Brown mi: that describes a jointed rock mass, and a number for
+   * it over an alluvial fan would be invention rather than estimation. The cell
+   * is filled with the refusal so a map can draw it as its own class.
+   */
+  {
+    const gravelMi = db.references.gravel.properties.hoek_brown_mi;
+    ok("a soil's Hoek-Brown mi is assigned as not applicable",
+      gravelMi.basis === "not_applicable");
+    ok("and it says why, naming what to use instead",
+      /rock mass/i.test(gravelMi.reason) && /Mohr-Coulomb/i.test(gravelMi.reason),
+      gravelMi.reason);
+    ok("no not-applicable cell carries a number",
+      Object.values(db.references).every((r) => Object.values(r.properties)
+        .every((v) => v.basis !== "not_applicable"
+          || (v.min === undefined && v.max === undefined))));
+  }
+
+  /**
+   * A COHESIONLESS SOIL'S UCS IS A REAL ZERO. An unconfined gravel specimen has
+   * no strength at all — its strength is entirely friction under confinement —
+   * so zero is the measurement, not a stand-in for a missing one. It was
+   * omitted before, which made the strength map blank over every alluvial fan.
+   */
+  ok("gravel has a UCS, and it is zero", db.references.gravel.properties.ucs.max === 0);
+  ok("stated as a real zero rather than a gap",
+    /cohesionless/i.test(db.references.gravel.properties.ucs.note));
+  ok("while a clay has a real, non-zero unconfined strength",
+    db.references.clay.properties.ucs.max > 0);
+
+  /** The map's non-rock units are materials too. */
+  ok("ice is a material with measured properties", db.references.ice.properties.ucs.max > 0);
+  ok("open water says it is not a porous medium",
+    /not a porous medium/i.test(db.references.water.properties.hydraulic_conductivity.note));
 
   /**
    * The distinction the whole file turns on. If these two ever collapse into
@@ -257,26 +337,73 @@ RP.useRockProperties(db);
 {
   ok("a parameter value is available for any resolvable lithology",
     Number.isFinite(RP.parameterValue("basalt", "ucs")));
-  ok("and null where the string names nothing",
-    RP.parameterValue("undivided", "ucs") === null);
-
   /**
-   * A SOIL HAS NO UCS, and answering one would be inventing a rock. The
-   * unconsolidated lithologies are most of a landslide's material, so this is
-   * the commonest place a map painted by strength would otherwise fill in a
-   * number nobody measured.
+   * A STRING NAMING NO ROCK STILL ANSWERS, from the no-information prior — a
+   * model needs a number at every polygon, and 521 of 6,232 in one live view
+   * came from a survey that states no lithology at all. It is a `prior` rather
+   * than a `value` every step of the way, so nothing mistakes it for mapped
+   * ground.
    */
-  ok("an unconsolidated deposit has no intact rock strength",
-    RP.parameterValue("gravel", "ucs") === null,
-    String(RP.parameterValue("gravel", "ucs")));
-  ok("but it does have a friction angle",
+  ok("a string naming no rock answers from the prior",
+    Number.isFinite(RP.parameterValue("undivided", "ucs")));
+  ok("and says it is a prior rather than a measurement",
+    RP.parameterState("undivided", "ucs").state === "prior");
+  ok("the prior carries no confidence at all",
+    RP.propertiesFor("undivided").parameters.ucs.confidence === "none");
+  ok("and its note says the source named no rock",
+    /STATES NO LITHOLOGY/.test(RP.propertiesFor("undivided").parameters.ucs.notes[0]));
+
+  ok("a soil answers with its real zero rather than a blank",
+    RP.parameterValue("gravel", "ucs") === 0);
+  ok("and with a friction angle, which is where its strength actually is",
     Number.isFinite(RP.parameterValue("gravel", "friction_angle")));
 
-  ok("a mixture of rock and soil reports how many answered",
+  /**
+   * THREE ANSWERS, AND THEY ARE NOT INTERCHANGEABLE. A map that paints
+   * "does not apply" and "not known" the same colour is telling a reader that
+   * a soil's missing GSI and an unmapped polygon are the same problem.
+   */
+  ok("a value is reported as a value",
+    RP.parameterState("granite", "ucs").state === "value");
+  ok("a quantity that does not exist for a soil says so, with a reason",
+    RP.parameterState("gravel", "hoek_brown_mi").state === "not_applicable"
+    && /rock mass/i.test(RP.parameterState("gravel", "hoek_brown_mi").reason));
+  ok("and an unrecognised lithology is a third, distinct answer",
+    RP.parameterState("undivided", "ucs").state === "prior");
+
+  /**
+   * A MIXTURE OF ROCK AND SOIL still answers, from the constituent that has an
+   * answer — and says how many of them did.
+   */
+  ok("a rock/soil mixture answers from what applies",
     (() => {
-      const p = RP.propertiesFor("sandstone and gravel").parameters.ucs;
+      const p = RP.propertiesFor("sandstone and gravel").parameters.hoek_brown_mi;
       return p.from === 1 && p.of === 2;
     })());
+  ok("a mixture carries the WEAKEST confidence behind it",
+    ["lowest", "low", "medium", "high"].includes(
+      RP.propertiesFor("sandstone and gravel").parameters.ucs.confidence));
+
+  /**
+   * THE WHOLE POINT, checked over the whole vocabulary: every lithology the map
+   * can name has an answer for every parameter, and none of those answers is a
+   * silent blank.
+   */
+  {
+    const names = [...Object.keys(db.lithologies), ...Object.keys(db.aliases)];
+    const holes = [];
+    for (const name of names) {
+      for (const key of Object.keys(db.parameters)) {
+        const answer = RP.parameterState(name, key);
+        if (answer.state === "unknown") holes.push(`${name}.${key}`);
+        if (answer.state === "value" && !Number.isFinite(answer.value)) {
+          holes.push(`${name}.${key} (not a number)`);
+        }
+      }
+    }
+    ok(`all ${names.length} lithologies answer for all ${Object.keys(db.parameters).length} parameters`,
+      holes.length === 0, `${holes.length}: ${holes.slice(0, 6).join(", ")}`);
+  }
 
   ok("the parameter list is offered for the symbology picker",
     RP.parameterList().length === Object.keys(db.parameters).length);
