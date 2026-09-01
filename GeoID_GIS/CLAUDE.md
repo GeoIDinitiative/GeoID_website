@@ -6454,6 +6454,40 @@ copy uses `/assets/music/...` (absolute) and the planet copies
 `../../../assets/music/...`, because a planet page is three directories
 deep.
 
+### A frame is the state of the ice, not the outlines filed that day
+
+"Why do the polygon fills jump around from frame to frame?" — because each
+frame drew only the outlines SUBMITTED on its own date, and the archive is a
+record of submissions rather than a census. Measured on the Valais box: **410
+outlines filed on 2003-08-13 against 8 on 2018-09-01**, 26 distinct dates. So
+whole glaciers appeared and vanished every step, and what moved between frames
+was which analyst had been working, not the ice.
+
+The ghost layer did not answer it and could not: it is `outlineOnly: true`, so
+it holds no FILL — it marks where the glaciers are and leaves the areas
+blinking.
+
+`stateAsOf` carries each glacier's latest outline forward, so a frame says what
+the ice WAS on that date: a glacier nobody remapped keeps the outline it had,
+which is exactly what a reader means by "then". Nothing is invented — every
+polygon drawn is a real outline with a real date, and the frame only ever holds
+outlines at or before its own.
+
+- **The invariant is that the drawn count NEVER FALLS.** A falling count is a
+  glacier blinking out, which is the whole fault, and it is invisible in a
+  still frame. Pinned in the suite alongside "nothing is drawn before it was
+  filed".
+- **One palette across every frame.** The last epoch used to be drawn in its
+  own colour so the sequence "read forwards" — which, once the geometry stopped
+  jumping, was the remaining jump: the whole map changed colour on the final
+  step. Brightness marks what was REMAPPED on this date instead, which is the
+  new information and is constant in meaning across frames.
+- **The bar says both numbers**, because they are two different facts: "620
+  glaciers · 8 remapped on this date". The second explains the first.
+- **Built once, in order, with a cursor** that never walks back — a step is
+  then a visibility flip, and the sequence costs one pass over the archive
+  rather than one per frame.
+
 ## Running and testing
 
 `python3 serve.py` (repo root) starts the static site *and* the sidecar together

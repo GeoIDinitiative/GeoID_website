@@ -108,6 +108,51 @@ export function epochsFrom(features, { max = 24 } = {}) {
   return { epochs: kept, dropped: Math.max(0, all.length - kept.length) };
 }
 
+/**
+ * THE STATE OF THE ICE AS OF EACH DATE, not the outlines filed on it.
+ *
+ * The archive is a record of SUBMISSIONS, and they are wildly uneven: measured
+ * over one Valais box, 410 outlines were filed on 2003-08-13 and 8 on
+ * 2018-09-01. Drawing each date's own filings made whole glaciers appear and
+ * vanish between frames — reported as the fills jumping around, and they were.
+ *
+ * A frame should say what the ice WAS on that date: for every glacier, the most
+ * recent outline up to and including it. A glacier nobody remapped simply keeps
+ * the outline it had, which is exactly what a reader means by "then", and what
+ * moves between frames is only the ice that was actually remapped.
+ *
+ * Nothing is invented: every polygon drawn is a real outline with a real date,
+ * and the card still names the date THAT outline was taken from.
+ */
+export function stateAsOf(features, epochs) {
+  const held = new Map();
+  const byDate = new Map();
+  for (const feature of features || []) {
+    const date = String(feature?.properties?.outline_date
+      || feature?.properties?.src_date || "").slice(0, 10);
+    const id = feature?.properties?.glac_id;
+    if (!id || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+    if (!byDate.has(date)) byDate.set(date, []);
+    byDate.get(date).push({ id, feature });
+  }
+  const dates = [...byDate.keys()].sort();
+  let next = 0;
+  return epochs.map((epoch) => {
+    // Everything filed at or before this epoch has already been folded in, so
+    // each step only applies what is NEW — the cursor never walks back, and
+    // the sequence is built once, in order, rather than re-scanned per frame.
+    const fresh = new Set();
+    while (next < dates.length && dates[next] <= epoch.date) {
+      for (const { id, feature } of byDate.get(dates[next])) {
+        held.set(id, feature);
+        if (dates[next] === epoch.date) fresh.add(id);
+      }
+      next += 1;
+    }
+    return { features: [...held.values()], fresh };
+  });
+}
+
 let state = null;
 
 function styleOnce() {
@@ -216,6 +261,17 @@ async function sceneFor(epoch, bounds, say, choice = "auto") {
   };
 }
 
+/**
+ * What the bar says under the date: what is DRAWN, and what changed to make
+ * this frame — because "620 glaciers" and "8 remapped on this date" are two
+ * different facts and the second is the one that explains the first.
+ */
+function frameNote(epoch, tail) {
+  const shown = epoch.shown ?? epoch.features.length;
+  return `${shown.toLocaleString()} glaciers · `
+    + `${epoch.features.length} remapped on this date · ${tail}`;
+}
+
 /** The scene for an epoch, fetched at most once and remembered. */
 function sceneOf(epoch) {
   if (!state.scenes.has(epoch.date)) {
@@ -244,13 +300,13 @@ async function show(index, { fetchScene = true } = {}) {
   state.groups.forEach((group, i) => { group.visible = i === index; });
   state.bar.date.textContent = epoch.date;
   state.bar.slider.value = String(index);
-  state.bar.note.textContent = `${epoch.features.length} outlines · ${epoch.note || "reading imagery…"}`;
+  state.bar.note.textContent = frameNote(epoch, epoch.note || "reading imagery…");
   if (!fetchScene) return;
 
   const scene = await sceneOf(epoch);
   if (!state || state.index !== index) return;   // a newer step won the race
   epoch.note = scene.note;
-  state.bar.note.textContent = `${epoch.features.length} outlines · ${scene.note}`;
+  state.bar.note.textContent = frameNote(epoch, scene.note);
 
   if (scene.object3D) {
     if (!scene.object3D.parent) {
@@ -425,12 +481,27 @@ export async function startTimelapse({ bounds, from = null, to = null,
   const ghostNode = ghost?.object3D || ghost;
   group.add(ghostNode);
 
+  /**
+   * Each frame is the ice as it stood, so a glacier nobody remapped keeps its
+   * last outline instead of blinking out. Built once, in order; a step is then
+   * a visibility flip rather than a rebuild.
+   */
+  const frames = stateAsOf(result.geojson.features, epochs);
+  epochs.forEach((epoch, i) => { epoch.shown = frames[i].features.length; });
   const groups = epochs.map((epoch, i) => {
+    const { features, fresh } = frames[i];
     const built = render.renderFeatureCollection(
-      { type: "FeatureCollection", features: epoch.features },
+      { type: "FeatureCollection", features },
       {
-        // The newest epoch is the brightest: a sequence reads forwards.
-        colourFor: () => (i === epochs.length - 1 ? "#eaf7ff" : "#8fd3f4"),
+        /**
+         * ONE PALETTE ACROSS EVERY FRAME, and the brightness marks what is
+         * NEW rather than which frame this is. Colouring the last epoch apart
+         * made the whole map change colour on the final step — a second jump,
+         * on top of the one this fix removes. What a reader wants marked is
+         * the ice that was actually remapped on this date.
+         */
+        colourFor: (feature) =>
+          (fresh.has(feature?.properties?.glac_id) ? "#eaf7ff" : "#8fd3f4"),
         outlineOnly: false,
       },
     );

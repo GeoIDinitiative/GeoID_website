@@ -572,6 +572,43 @@ ok("the sequence is capped", many.epochs.length === 5);
 ok("and says how many dates it left out", many.dropped === 35, String(many.dropped));
 
 /**
+ * A FRAME IS THE STATE OF THE ICE, not the outlines filed that day.
+ *
+ * Measured on the Valais box, 410 outlines were filed on 2003-08-13 and 8 on
+ * 2018-09-01, so drawing each date's own filings made whole glaciers appear
+ * and vanish between frames — reported as the fills jumping around. Carrying
+ * each glacier's latest outline forward is what removes that, and the two
+ * properties below are what "carried forward" has to mean.
+ */
+{
+  const feats = [
+    { properties: { glac_id: "A", outline_date: "2000-01-01" } },
+    { properties: { glac_id: "B", outline_date: "2000-01-01" } },
+    { properties: { glac_id: "A", outline_date: "2010-01-01" } },
+    { properties: { glac_id: "C", outline_date: "2015-01-01" } },
+  ];
+  const { epochs } = lapse.epochsFrom(feats);
+  const frames = lapse.stateAsOf(feats, epochs);
+  const shown = frames.map((f) => f.features.length);
+  ok("a glacier nobody remapped keeps its outline",
+    shown.join(" ") === "2 2 3", shown.join(" "));
+  // The count may never fall: a falling count IS a glacier blinking out, which
+  // is the whole fault, and it is invisible in a still frame.
+  ok("so the drawn count never falls",
+    shown.every((n, i) => i === 0 || n >= shown[i - 1]));
+  ok("and a remapped glacier shows its NEW outline",
+    frames[1].features.find((f) => f.properties.glac_id === "A")
+      .properties.outline_date === "2010-01-01");
+  // Every polygon drawn is a real outline with a real date — nothing is
+  // interpolated, and the frame only ever holds outlines at or before its own.
+  ok("nothing is drawn before it was filed",
+    frames.every((f, i) => f.features.every(
+      (x) => x.properties.outline_date <= epochs[i].date)));
+  ok("what was remapped THIS date is marked",
+    [...frames[1].fresh].join(",") === "A" && [...frames[2].fresh].join(",") === "C");
+}
+
+/**
  * THE BOX VOCABULARY, pinned — because getting it wrong is silent. Handed
  * `{west, south, east, north}`, `basemap-drape` reads `undefined` for every
  * edge, `chooseZoom` falls to 0, and the composite reports "no tiles for this
