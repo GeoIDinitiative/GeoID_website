@@ -51,6 +51,18 @@ const KINDS = {
   "Glacier outline (GLIMS)": {
     kicker: "Glacier outline — GLIMS archive", source: "GLIMS",
   },
+  "Glacier change (GLIMS)": {
+    /**
+     * NOT "repeat outlines", which is how the layer is MADE rather than what
+     * the card is about — reported as not making sense, and it does not.
+     *
+     * Nor "vol. change", which was the wording asked for: what two outlines
+     * give is an AREA, and volume through time is not in this data (IceBoost
+     * is a single epoch). The card would then be claiming a measurement it
+     * cannot show.
+     */
+    kicker: "Glacier — change over time", source: "GLIMS",
+  },
 };
 
 /** Does this feature belong to one of the ice layers? */
@@ -66,14 +78,30 @@ export function isIceFeature(props) {
  * it — no fetch in here, and the tests can hand it a table of two.
  */
 let lookupName = () => null;
+let lookupVolume = () => null;
 
 export function useIceNames(lookup) {
   lookupName = typeof lookup === "function" ? lookup : () => null;
 }
 
+/** The same arrangement for the ice VOLUME table — see `ice-thickness.js`. */
+export function useIceVolumes(lookup) {
+  lookupVolume = typeof lookup === "function" ? lookup : () => null;
+}
+
 const text = (value) => {
   const out = String(value ?? "").trim();
   return out && out !== "null" && out !== "undefined" ? out : null;
+};
+
+/** A number a person reads: 88.6, 0.0132, 8,087. */
+const fmt = (value) => {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "—";
+  if (n >= 100) return Math.round(n).toLocaleString();
+  if (n >= 1) return n.toFixed(1);
+  if (n >= 0.01) return n.toFixed(3);
+  return n.toPrecision(2);
 };
 
 const km2 = (value) => (Number.isFinite(Number(value))
@@ -135,6 +163,85 @@ export function iceCard(props = {}) {
   const rows = [];
   const area = km2(published);
   if (area) rows.push([kind === "Glacier or ice cap" ? "Published area (RGI)" : "Published area", area]);
+
+  /**
+   * HOW MUCH ICE, on the card's own face rather than in a fold.
+   *
+   * The volume is the number every downstream question needs — melt, runoff,
+   * sea level — and it is the one thing an outline cannot say. It comes with
+   * its uncertainty because the model's own is tens of percent: a volume
+   * printed alone would be read as a measurement.
+   *
+   * MEAN THICKNESS is derived here rather than tabulated, from the volume and
+   * the published area — it is the shape of the number a reader pictures, and
+   * deriving it keeps the table to what the model actually produces.
+   */
+  /**
+   * A CHANGE IS TWO READINGS, so the card shows both and the span between
+   * them. The rate is a percentage of the first area per year and nothing
+   * more: an outline moving is not the same measurement as ice being lost, and
+   * the card must not let the second be read out of the first.
+   */
+  if (kind === "Glacier change (GLIMS)") {
+    const pct = Number(props.change_pct);
+    const rate = Number(props.change_pct_yr);
+    const headline = [];
+    if (Number.isFinite(pct)) {
+      headline.push(["Area change",
+        `${pct > 0 ? "+" : ""}${pct.toFixed(1)}%  (${fmt(props.first_area_km2)} → `
+        + `${fmt(props.last_area_km2)} km²)`]);
+    }
+    if (Number.isFinite(rate)) {
+      headline.push(["Rate", `${rate > 0 ? "+" : ""}${rate.toFixed(2)}% a year`]);
+    }
+    headline.push(["Between", `${props.first_date} and ${props.last_date}`
+      + `  ·  ${props.span_years} years`]);
+    return {
+      kicker: spec.kicker,
+      title: name || "Glacier outline",
+      /**
+       * NO META LINE. The id and the outline count were on it, under the
+       * glacier's name — plumbing where the card's second line should be
+       * saying something about the ice. Both are still here, in the rows,
+       * which is where a handle and a tally belong.
+       */
+      meta: "",
+      rows: [
+        ["GLIMS id", text(props.glac_id) || "—"],
+        ["Outlines in the archive", String(props.outlines ?? "—")],
+        ...(text(props.archive_coverage)
+          ? [["This fetch held", text(props.archive_coverage)]] : []),
+        ["Read from", "Two GLIMS outlines — different dates, and usually "
+          + "different analysts and instruments"],
+        ["What it is not", "An area change is not a mass balance: a glacier "
+          + "can thin for years without its outline moving, and late snow can "
+          + "make an outline larger than the ice under it"],
+      ],
+      source: spec.source,
+      publishedArea: km2(props.last_area_km2),
+      headline,
+    };
+  }
+
+  const ice = lookupVolume(props.rgi_id);
+  const headline = [];
+  if (ice?.volumeKm3) {
+    headline.push(["Ice volume", `${fmt(ice.volumeKm3)} ± ${fmt(ice.errorKm3)} km³`]);
+    const areaKm2 = Number(published);
+    if (Number.isFinite(areaKm2) && areaKm2 > 0) {
+      headline.push(["Mean thickness",
+        `${Math.round((ice.volumeKm3 / areaKm2) * 1000).toLocaleString()} m`]);
+    }
+    /**
+     * Sea-level equivalent, and the two things it must not pretend. It is what
+     * this ice would ADD if all of it melted — not a forecast — and the part
+     * already below sea level is subtracted because it is already displacing
+     * its own volume.
+     */
+    headline.push(["Sea-level equivalent",
+      `${ice.seaLevelMm >= 0.01 ? ice.seaLevelMm.toFixed(2) : ice.seaLevelMm.toFixed(3)} mm`]);
+    rows.push(["Ice volume source", "IceBoost v2.0 (Maffezzoli 2026), CC BY 4.0"]);
+  }
   if (region) rows.push(["RGI region", region]);
   if (id) rows.push([kind === "Glacier or ice cap" ? "RGI id" : "GLIMS id", id]);
   if (date) rows.push(["Imagery date", date]);
@@ -159,6 +266,8 @@ export function iceCard(props = {}) {
   return {
     kicker: spec.kicker, title, meta: meta.join("  ·  "), rows,
     source: spec.source, publishedArea: area,
+    /** The lines the card shows without opening anything. */
+    headline,
   };
 }
 

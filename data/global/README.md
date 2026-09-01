@@ -207,6 +207,14 @@ named glacier" and "a gazetteer point falls inside it" are different claims and
 the card says which. Not baked into the tiles: a correction would otherwise
 mean re-baking 82 MB.
 
+**`ice/thickness.json`** is how much ice is in each complex — 192,869 rows,
+5.5 MB, `[volume km³, uncertainty km³, volume below sea level km³]`, written by
+`services/bake-ice-thickness.py` from **IceBoost v2.0** (Maffezzoli 2026,
+CC BY 4.0, doi:10.5281/zenodo.21220985), which is published per RGI 7.0 complex
+— the same key the tiles carry, so the join is by identity. Totals as a check
+on that join: 149,318 km³ of ice (Farinotti's consensus: ~158,000) and 343 mm
+of sea-level equivalent (published: ~324 mm).
+
 **GLIMS is the third door and ships nothing.** `www.glims.org/geoserver` answers
 WFS with `Access-Control-Allow-Origin: *`, so the archive RGI is curated from is
 fetched live over a drawn study area (`glims-outlines` in `research/

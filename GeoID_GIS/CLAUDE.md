@@ -9809,3 +9809,153 @@ before it was rejected.
 Verified live: a click on the ice cap reads **"Glacier or ice cap /
 Mýrdalsjökull / Iceland"**, published area 597 km² against 598.7 measured, with
 "Name from: GeoNames (CC BY 4.0), matched by position" in its Attributes.
+
+## Ice has a volume, and the archive has a memory
+
+Two things the outlines could not answer: how much ice is in one, and what it
+has done since.
+
+### Volume, thickness and sea level — IceBoost, joined by identity
+
+`services/bake-ice-thickness.py` writes `data/global/ice/thickness.json` from
+**IceBoost v2.0** (Maffezzoli 2026, CC BY 4.0, doi:10.5281/zenodo.21220985) — a
+deep-learning ensemble trained on the GlaThiDa measurements, published **per RGI
+7.0 glacier COMPLEX**, which is the very key the tiles carry. So the join is by
+IDENTITY, not by position: 192,869 rows against 192,869 complexes, and the
+table's own area total is 706,744 km² — the inventory's, to the km².
+
+Why not **Farinotti et al. (2019)**, the older consensus estimate: it is keyed
+to RGI **6.0 glaciers**, so it would need a 6-to-7 link table AND a sum from
+glaciers up to complexes, and it ships as about 100 GB of rasters. The
+compiled IceBoost table is 26 MB.
+
+The totals are the check on the join rather than statistics for their own sake:
+**149,318 km³ of ice** against Farinotti's ~158,000 from a different method, and
+**343 mm of sea-level equivalent** against a published ~324 mm. Close enough to
+believe the join; far enough apart that the card quotes the source.
+
+- **The volume never appears without its uncertainty** — the model's own runs
+  to tens of percent, and a bare number reads as a measurement. Verified live:
+  Mýrdalsjökull 208 ± 39.8 km³, mean thickness 349 m, 0.52 mm of sea level;
+  Vatnajökull 3,810 ± 565 km³ and 9.57 mm.
+- **Mean thickness is DERIVED** from the volume and the published area rather
+  than tabulated: it is the number a reader pictures, and deriving it keeps the
+  file to what the model actually produces.
+- **Sea level subtracts the ice already below it.** `vol_bsl` is carried for
+  exactly that: ice below the waterline is already displacing its own volume.
+- **Three significant figures**, because a fourth is noise the uncertainty does
+  not support — and 0.4 MB of it across 192,869 rows.
+- A sidecar again, for the same reason as the names: 5.5 MB that loads once
+  beside an 82 MB pyramid nobody wants to re-bake when a model is revised.
+
+### Change over time — the archive read as pairs
+
+`glims-change` is the same WFS request as the outlines row, read differently:
+group by `glac_id`, take the earliest and latest outline, report the area
+change and its rate. Measured over the Valais Alps: **431 glaciers with repeat
+outlines**, median **−0.3% a year**, and spans reaching back to **1850** —
+GLIMS holds Little Ice Age maximum outlines, so Glacier de la Luette reads
+−61.4% between 1850 and 2016.
+
+Four rules, each because the naive version says something false:
+
+- **Two readings of one summer are not a change.** A pair less than two years
+  apart is dropped.
+- **A glacier does not change by a fifth of itself in a year.** A handful of
+  Alpine pairs came out at **+244 and +432% a year** — not growth, but two
+  outlines of different things under one id, usually an early submission that
+  digitised a single tributary. Past 20% a year they are dropped: a quantile
+  legend that runs to +4,000% makes every real value one colour.
+- **Only `glac_bound`**, or an internal rock outcrop becomes an outline.
+- **The card says what it is NOT.** An area change is not a mass balance: a
+  glacier can thin for a decade without its outline moving, and late-lying snow
+  can make an outline larger than the ice under it. Both dates, both areas and
+  the span are on the card so the reader can weigh it.
+
+The geometry drawn is the LATEST outline, so the map shows the ice as it was
+most recently mapped, and the colour is a DIVERGING quantile ramp because zero
+means something here — a sequential one would hide the sign.
+
+### The card's own face: what it says, and how much of it fits
+
+Three reports on one card, and the third was not what it looked like.
+
+- **"Repeat outlines" is how the layer is MADE, not what the card is about.**
+  The kicker reads "Glacier — change over time" now. It is deliberately NOT
+  "vol. change", which was the wording asked for: two outlines give an AREA,
+  and volume through time is not in this data — IceBoost is a single epoch — so
+  that kicker would claim a measurement the card cannot show.
+- **The id and the outline count came off the second line.** `G007581E46002N ·
+  13 outlines in the archive` is plumbing where the card's meta line should be
+  saying something about the ice; both moved into the rows.
+- **"The change measurement doesn't supply dates or rate of change" — it did,
+  one line below the cut.** The card is capped at 17% of the canvas, which is
+  two rows, and these cards lead with three or four: area change, rate, and the
+  dates between; or volume, mean thickness and sea-level equivalent. The closed
+  cap is now the height of everything ABOVE the first fold, floored at the old
+  17% and ceilinged at 32% — measured on the change card, 145 → 225 px, with
+  all four lines on the face and the folds still below.
+
+**And the fit has to be measured after the card is SHOWN.** That block runs
+while the card is still `hidden`, and a hidden element has no layout:
+`offsetTop` is 0, so "the height above the first fold" came out as nothing and
+the cap silently fell back to its floor every time. Taken again on the next
+frame, after `hidden = false`.
+
+**A centroid is not inside a valley glacier.** Verifying the click cost a
+detour: the mean of Zmuttgletscher's vertices lands outside the glacier, so
+clicking "the middle" of a crescent picked nothing and read as a broken picker.
+Ask the app's own `featuresAt` for a point it accepts before driving a click at
+it.
+
+### Change over time is a FETCH, so it gets a subtab, not a tick
+
+The glacier-change layer shipped as a catalogue row, and a tick is the wrong
+control for it: what it costs and what it covers both depend on the box.
+Measured over one 1.2° × 0.9° box in the Valais Alps, GLIMS holds **15,568
+outlines** — so a tick is either a download nobody asked for, or it silently
+uses whatever shape happens to be on the globe and answers a question the
+reader never put.
+
+It is a subtab now, built like the GFS card and out of the same parts: the
+extent select (`refreshPolygonOptions(..., { allLayers: true })`, so every
+drawn shape and every loaded layer is offerable), the two-press Draw button
+that CLAIMS the shape as a real layer, a Fetch, and a status line that says
+what came back. Verified live: "846 glaciers with repeat outlines, median
+−0.30% a year, spanning 1850–2018."
+
+Two seams this needed, both small and both general:
+
+- **`addDataset` takes an explicit bbox.** It read `drawnBbox()` — right for a
+  catalogue tick, and it threw away the answer of a panel that had just asked
+  the extent picker. The caller's ground first, the drawn overlay second.
+- **A dataset may be `hidden` from every list and still loadable by id.**
+  `grouped()` filters it out; `datasetById` still finds it. Without that the
+  entry either kept its catalogue row — two doors to one layer — or lost its
+  home and fell into the general vectors list, which is worse.
+
+**A WINDOW OF TIME, applied on the SERVER.** The archive runs from the Little
+Ice Age maxima to last year, so "when" is half the question — and GLIMS's
+GeoServer takes CQL, which turns the window into a smaller fetch rather than a
+bigger filter: measured on the Valais box, **15,568 outlines unfiltered against
+12,000 for 1990–2020**. Two things that server is particular about, both found
+by measuring rather than reading: `bbox` and `cql_filter` are **mutually
+exclusive** (HTTP 500, "both specified but are mutually exclusive"), so the box
+goes INSIDE the filter; and `BBOX()` there takes **lat, lon** — the WFS 2.0
+axis order for EPSG:4326 — where lon,lat returns a confident **zero features**.
+The window is applied again on the way in, so an outline outside it can never
+become an endpoint if the server filter is ever dropped.
+
+**AND THE EXTENT LIST OFFERS EVERY GROUND THE APP KNOWS**, the weather card's
+arrangement: an area drawn by hand, typed bounds, and every layer on the globe
+— imported shapefile or shipped catalogue — appended by
+`refreshPolygonOptions(..., { allLayers: true })`. The base options are in the
+MARKUP because that function appends and adds none of its own; the select
+shipped empty for exactly that reason, which the GEE extent select already
+records paying for.
+
+**AND THE CAP IS REPORTED.** GeoServer says how many it had: measured, 15,568
+matched against 8,000 returned. A quarter of an archive drawn as though it were
+all of it is a map answering a different question, so the shortfall rides on
+every feature and both the card and the status line say it — "This fetch held
+8,000 of 15,568 outlines in this area — draw a smaller one to see the rest."

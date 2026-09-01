@@ -26,7 +26,7 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260901-0fb185c";
+import { runConnector } from "./research/connectors.js?v=20260901-8fc1fe4";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -280,6 +280,36 @@ export const DATASETS = [
     licence: "GLIMS and NSIDC (2005, updated) — glims.org",
   },
   {
+    id: "conn-glims-change",
+    /**
+     * NO HOME, so no catalogue row: this one is driven by its own subtab
+     * (`#geology-ice-change`), which asks WHICH GROUND first — the extent
+     * picker, the way the GFS card does it. A tick that silently used
+     * whatever happened to be drawn was the wrong question for a layer whose
+     * whole cost and coverage depend on the box.
+     */
+    hidden: true,
+    featureNoun: "Glacier change",
+    group: "Live services",
+    label: "Glacier change — repeat outlines (GLIMS)",
+    connector: "glims-change",
+    name: "Glacier change (GLIMS).geojson",
+    summary: "Where the archive holds a glacier more than once, the earliest "
+      + "and latest outlines compared: area change and its rate, over the "
+      + "drawn study area. An area change is NOT a mass balance — a glacier "
+      + "can thin for a decade without its outline moving.",
+    /**
+     * A DIVERGING scale, because zero means something here.
+     *
+     * Most glaciers in the archive have shrunk and a few have grown, so a
+     * sequential ramp would put "no change" in the middle of a colour run and
+     * hide the sign. Quantile classing, as the fire layers use, because the
+     * distribution is long-tailed either side.
+     */
+    colourRange: { field: "change_pct_yr", method: "quantile", classes: 5, ramp: "risk-reversed" },
+    licence: "GLIMS and NSIDC (2005, updated) — glims.org",
+  },
+  {
     id: "conn-usgs-streamflow",
     home: "hydrology",
     featureNoun: "Stream gauge",
@@ -496,8 +526,21 @@ export function datasetById(id) {
 
 /** Datasets in group order, for building a grouped picker. */
 export function grouped() {
+  /**
+   * A dataset may be HIDDEN from every list and still be loadable by id.
+   *
+   * The glacier-change layer is driven by its own subtab, which asks which
+   * ground first; a catalogue tick beside it would be a second door to the
+   * same thing, taking the answer from wherever a shape happened to be drawn.
+   * `datasetById` still finds it, so `addDataset` works — this only decides
+   * what is OFFERED. The same discipline the geology panel keeps for the rows
+   * it hides rather than deletes.
+   */
   return GROUPS
-    .map((group) => ({ group, entries: DATASETS.filter((d) => d.group === group) }))
+    .map((group) => ({
+      group,
+      entries: DATASETS.filter((d) => d.group === group && !d.hidden),
+    }))
     .filter((g) => g.entries.length);
 }
 
@@ -541,7 +584,8 @@ const loadedLayer = (entry) => layerForDataset(entry);
  * node: the same catalogue is offered from more than one panel, and each has
  * its own place to say what is happening.
  */
-export async function addDataset(id, onStatus = () => {}) {
+export async function addDataset(id, onStatus = () => {},
+  { bbox: bboxArg = null, ...connectorOptions } = {}) {
   const entry = datasetById(id);
   if (!entry) return { ok: false, message: `No dataset called "${id}".` };
   const manager = window.GeoIDImportManager;
@@ -561,11 +605,26 @@ export async function addDataset(id, onStatus = () => {}) {
     let blob;
     let provenance = null;
     if (entry.connector) {
-      const bbox = drawnBbox();
+      /**
+       * The CALLER's ground first, the drawn overlay second.
+       *
+       * A catalogue tick means "over whatever I have drawn", which is what
+       * `drawnBbox` answers. A panel that asks the extent picker — the Glacier
+       * change subtab, the way the GFS card does it — has already resolved a
+       * box from a named layer, a captured extent or the live overlay, and
+       * that answer must not be thrown away here.
+       */
+      const bbox = bboxArg || drawnBbox();
       onStatus(bbox
         ? `Fetching ${entry.label} over the drawn area…`
         : `Fetching ${entry.label}…`);
-      const result = await runConnector(entry.connector, bbox ? { bbox } : {});
+      /**
+       * Whatever else the caller asked for travels with it — the glacier
+       * change subtab's date window, for one. The connector's own defaults
+       * still fill in the rest.
+       */
+      const result = await runConnector(entry.connector,
+        { ...connectorOptions, ...(bbox ? { bbox } : {}) });
       if (!result.geojson.features.length) {
         const message = `${entry.label}: nothing returned for this area — it `
           + "may be outside the service's coverage.";

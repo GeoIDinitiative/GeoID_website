@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260901-0fb185c";
+  from "./gis/geo-utils.js?v=20260901-8fc1fe4";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260901-0fb185c";
+  from "./gis/vector-render.js?v=20260901-8fc1fe4";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260901-0fb185c";
+  from "./gis/rock-class.js?v=20260901-8fc1fe4";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260901-0fb185c";
+  from "./gis/lithology-label.js?v=20260901-8fc1fe4";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -6257,6 +6257,14 @@ function fmtProp(value) {
            * Showing only ours would be restating the source at our precision.
            */
           feature.published_area ? ["Published area", feature.published_area] : null,
+          /**
+           * ROWS THE FEATURE BROUGHT WITH IT.
+           *
+           * A layer may know something this card has no field for — how much
+           * ice is in a glacier, what it is worth in sea level — and adding a
+           * named field per fact is how a card ends up with thirty of them.
+           */
+          ...(Array.isArray(feature.extra_rows) ? feature.extra_rows : []),
           interpretation ? ["Interpretation", interpretation] : null,
           feature.preservation ? ["Preservation", feature.preservation] : null,
           feature.dimension ? ["Scale", feature.dimension] : null,
@@ -6494,14 +6502,44 @@ function fmtProp(value) {
            */
           const canvasBox = document.querySelector("canvas")?.getBoundingClientRect?.();
           const height = canvasBox?.height || window.innerHeight;
+          /**
+           * THE CLOSED CARD FITS WHAT IT SAYS, up to a third of the canvas.
+           *
+           * A flat 17% is two rows, and the cards now lead with three or four:
+           * a glacier's volume, mean thickness and sea-level equivalent, or a
+           * change layer's area change, rate and the dates it is between.
+           * Reported as the measurement not supplying dates or a rate — it
+           * was, one line below the cut. So the cap is the height of
+           * everything ABOVE the first fold, floored at the old 17% and
+           * ceilinged at 32%: the folds are still the second question, and a
+           * card still cannot cover the map it describes.
+           */
           const resize = () => {
             const anyOpen = geoPopupDetail.querySelector("details.scene-popup-fold[open]");
-            scroller.style.maxHeight =
-              `${Math.round(height * (anyOpen ? 0.5 : 0.17))}px`;
+            if (anyOpen) {
+              scroller.style.maxHeight = `${Math.round(height * 0.5)}px`;
+              return;
+            }
+            const firstFold = geoPopupDetail.querySelector("details.scene-popup-fold");
+            const needed = firstFold
+              ? firstFold.offsetTop - scroller.offsetTop + 6
+              : scroller.scrollHeight;
+            scroller.style.maxHeight = `${Math.round(Math.min(height * 0.32,
+              Math.max(height * 0.17, needed)))}px`;
           };
           geoPopupDetail.querySelectorAll("details.scene-popup-fold")
             .forEach((box) => box.addEventListener("toggle", resize));
+          /**
+           * MEASURED AFTER IT IS SHOWN, not before.
+           *
+           * This block runs while the card is still `hidden`, and a hidden
+           * element has no layout: `offsetTop` is 0, so "the height of
+           * everything above the first fold" came out as nothing and the cap
+           * fell back to its floor every time. The card is un-hidden at the
+           * end of this function, so the fit is taken on the next frame.
+           */
           resize();
+          window.requestAnimationFrame(resize);
           /**
            * A CARD OPENS AT ITS OWN TOP.
            *

@@ -672,10 +672,45 @@ export function metRainfallToGeoJSON(payload) {
  * keeps ONE outline per `glac_id`.
  */
 const GLIMS_WFS = "https://www.glims.org/geoserver/GLIMS/ows";
+
+/**
+ * A date window as CQL, or null for "every date the archive holds".
+ *
+ * One end alone is a real question — "everything since 1990" — so `AFTER` and
+ * `BEFORE` are offered as well as `DURING`. Dates arrive from a date input as
+ * `YYYY-MM-DD` and the server wants an instant.
+ */
+export function glimsDateClause(from, to) {
+  const at = (day, end = false) => {
+    const text = String(day || "").trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return null;
+    return `${text}T${end ? "23:59:59Z" : "00:00:00Z"}`;
+  };
+  const start = at(from);
+  const finish = at(to, true);
+  if (start && finish) return `src_date DURING ${start}/${finish}`;
+  if (start) return `src_date AFTER ${start}`;
+  if (finish) return `src_date BEFORE ${finish}`;
+  return null;
+}
 const GLIMS_ATTRIBUTION = "GLIMS and NSIDC (2005, updated) — Global Land Ice "
   + "Measurements from Space glacier database, glims.org";
 
-function glimsOutlinesUrl({ bbox, limit = 4000 } = {}) {
+/**
+ * The archive over a box, and optionally over a WINDOW OF TIME.
+ *
+ * The date filter is server-side, through CQL — measured on the Valais box,
+ * 15,568 outlines unfiltered against 12,000 for 1990-2020 — which is the
+ * difference between asking for a quarter of an archive and asking for what
+ * the question is about.
+ *
+ * TWO THINGS THE SERVER IS PARTICULAR ABOUT, both found by measuring:
+ * `bbox` and `cql_filter` are mutually exclusive ("both specified but are
+ * mutually exclusive", HTTP 500), so the box goes INSIDE the filter; and
+ * `BBOX()` there takes **lat, lon** order — the WFS 2.0 axis order for
+ * EPSG:4326 — where lon,lat returns a confident zero features.
+ */
+function glimsOutlinesUrl({ bbox, limit = 4000, from = null, to = null } = {}) {
   const params = new URLSearchParams({
     service: "WFS",
     version: "2.0.0",
@@ -699,8 +734,15 @@ function glimsOutlinesUrl({ bbox, limit = 4000 } = {}) {
   }
   // `minLon/minLat/maxLon/maxLat` is this module's own bbox vocabulary — the
   // same one every builder above reads.
-  params.set("bbox",
-    `${bbox.minLon},${bbox.minLat},${bbox.maxLon},${bbox.maxLat},EPSG:4326`);
+  const window = glimsDateClause(from, to);
+  if (window) {
+    params.set("cql_filter",
+      `BBOX(entity_geom,${bbox.minLat},${bbox.minLon},${bbox.maxLat},${bbox.maxLon})`
+      + ` AND ${window}`);
+  } else {
+    params.set("bbox",
+      `${bbox.minLon},${bbox.minLat},${bbox.maxLon},${bbox.maxLat},EPSG:4326`);
+  }
   return `${GLIMS_WFS}?${params}`;
 }
 
@@ -742,6 +784,112 @@ export function glimsOutlinesToGeoJSON(payload) {
       },
     })),
   };
+}
+
+/**
+ * GLACIER CHANGE, out of the same archive — the one question the shipped
+ * inventory cannot answer.
+ *
+ * RGI is a snapshot: one outline per ice mass, around the year 2000. GLIMS is
+ * every outline anybody has submitted, and that is what makes a comparison
+ * possible — measured over Iceland, 675 outlines for 608 glaciers, one of them
+ * mapped six times.
+ *
+ * WHAT THIS IS NOT. Two outlines of one glacier are two people's readings of
+ * two images, on two dates, in two seasons, with two instruments. The area
+ * between them is a real difference and it is NOT a mass balance: a glacier
+ * can thin for a decade without its outline moving, and late-lying snow can
+ * make an outline larger than the ice under it. So the layer reports an area
+ * change with both dates on the card, and never a rate of ice loss.
+ */
+const GLIMS_MIN_YEARS = 2;
+/**
+ * A GLACIER DOES NOT CHANGE BY A FIFTH OF ITSELF IN A YEAR.
+ *
+ * Measured over the Valais Alps: most pairs run between -1 and 0 percent a
+ * year, and a handful came out at +244 and +432 — which is not a glacier
+ * growing, it is two outlines of different things under one id, usually an
+ * early submission that digitised one tributary. Even a surge does not do
+ * that. Anything past this bound is dropped rather than drawn, because a
+ * quantile legend running to +4,000% a year makes every real value one colour.
+ */
+const GLIMS_MAX_RATE = 20;
+
+export function glimsChangeToGeoJSON(payload, options = {}) {
+  const all = passthroughGeoJSON(payload, GLIMS_ATTRIBUTION);
+  /**
+   * WHAT THE SERVER HAD AGAINST WHAT IT SENT.
+   *
+   * The request is capped, and GeoServer says so: measured over the Valais
+   * Alps, `numberMatched` 15,568 against 4,000 returned — a quarter of the
+   * archive's outlines for that box, drawn as if it were all of them. A cap
+   * nobody is told about is a map quietly answering a different question, so
+   * the shortfall rides on every feature and the card says it.
+   */
+  /**
+   * The window again, client-side. The server has already applied it, and
+   * applying it here as well is what keeps the pair honest if the filter is
+   * ever dropped: an outline outside the window must not become an endpoint.
+   */
+  const from = String(options.from || "").slice(0, 10) || null;
+  const to = String(options.to || "").slice(0, 10) || null;
+  const inWindow = (date) => (!from || date >= from) && (!to || date <= to);
+  const matched = Number(payload?.numberMatched);
+  const returned = Number(payload?.numberReturned ?? all.features.length);
+  const shortfall = Number.isFinite(matched) && matched > returned
+    ? `${returned.toLocaleString()} of ${matched.toLocaleString()} outlines in `
+      + "this area — draw a smaller one to see the rest"
+    : null;
+  /** Every outline of one glacier, oldest first. */
+  const byGlacier = new Map();
+  for (const feature of all.features) {
+    const props = feature.properties || {};
+    if (props.line_type && props.line_type !== "glac_bound") continue;
+    const id = props.glac_id;
+    const date = String(props.src_date || "").slice(0, 10);
+    const area = Number(props.db_area);
+    if (!id || !date || !Number.isFinite(area) || area <= 0) continue;
+    if (!inWindow(date)) continue;
+    if (!byGlacier.has(id)) byGlacier.set(id, []);
+    byGlacier.get(id).push({ feature, date, area });
+  }
+
+  const features = [];
+  for (const [id, outlines] of byGlacier) {
+    if (outlines.length < 2) continue;
+    outlines.sort((a, b) => (a.date < b.date ? -1 : 1));
+    const first = outlines[0];
+    const last = outlines[outlines.length - 1];
+    const years = (Date.parse(last.date) - Date.parse(first.date)) / 3.15576e10;
+    // A pair six months apart is two readings of one summer, not a change.
+    if (!(years >= GLIMS_MIN_YEARS)) continue;
+    const change = last.area - first.area;
+    const rate = (change / first.area / years) * 100;
+    if (!Number.isFinite(rate) || Math.abs(rate) > GLIMS_MAX_RATE) continue;
+    features.push({
+      ...last.feature,
+      properties: {
+        ...last.feature.properties,
+        // The LATEST outline is the geometry, so the map shows the ice as it
+        // was most recently mapped; the card carries where it came from.
+        kind: "Glacier change (GLIMS)",
+        name: last.feature.properties.glac_name || null,
+        glac_id: id,
+        first_date: first.date,
+        last_date: last.date,
+        span_years: Math.round(years * 10) / 10,
+        first_area_km2: first.area,
+        last_area_km2: last.area,
+        area_change_km2: Math.round(change * 1000) / 1000,
+        change_pct: Math.round((change / first.area) * 1000) / 10,
+        change_pct_yr: Math.round(rate * 10) / 10,
+        outlines: outlines.length,
+        archive_coverage: shortfall,
+        window: from || to ? `${from || "the earliest"} to ${to || "the latest"}` : null,
+      },
+    });
+  }
+  return { type: "FeatureCollection", features };
 }
 
 // ── The registry ──────────────────────────────────────────────────────────────
@@ -888,6 +1036,19 @@ export const CONNECTORS = {
     filename: () => "glims_glacier_outlines.geojson",
     defaults: { limit: 4000 },
   },
+  "glims-change": {
+    label: "Glacier change (GLIMS repeat outlines)",
+    attribution: GLIMS_ATTRIBUTION,
+    // The same request as the outlines row; only the reading differs, so a
+    // second fetch of the same box comes out of the browser's own cache.
+    url: glimsOutlinesUrl,
+    toGeoJSON: glimsChangeToGeoJSON,
+    filename: () => "glims_glacier_change.geojson",
+    // Higher than the outlines row's: this one needs EVERY outline of a
+    // glacier to pair the first with the last, so a cap costs pairs rather
+    // than duplicates. 8,000 is about 35 MB over a mountain range.
+    defaults: { limit: 8000 },
+  },
   "met-rainfall-normals": {
     label: "Rainfall normals (HadUK 12km)",
     attribution: MET_ATTRIBUTION,
@@ -943,7 +1104,9 @@ export async function runConnector(name, options = {}) {
   }
   if (!response.ok) throw new Error(`${connector.label} returned HTTP ${response.status}.`);
   const payload = await response.json();
-  const geojson = connector.toGeoJSON(payload);
+  // The converter sees the OPTIONS too: a date window is part of how the
+  // answer must be read, not just of how it was asked for.
+  const geojson = connector.toGeoJSON(payload, opts);
   return {
     geojson,
     filename: connector.filename(opts),

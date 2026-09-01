@@ -26,9 +26,13 @@
  */
 
 import { loadDerivedGeologyMap, removeDerivedGeologyMap }
-  from "./geology-panel.js?v=20260901-0fb185c";
-import { loadIceNames, iceNameFor } from "./ice-names.js?v=20260901-0fb185c";
-import { useIceNames } from "./ice-card.js?v=20260901-0fb185c";
+  from "./geology-panel.js?v=20260901-8fc1fe4";
+import { loadIceNames, iceNameFor } from "./ice-names.js?v=20260901-8fc1fe4";
+import { loadIceThickness, iceVolumeFor } from "./ice-thickness.js?v=20260901-8fc1fe4";
+import { addDataset } from "./global-data.js?v=20260901-8fc1fe4";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool,
+  drawnOverlayBounds } from "./extent-picker.js?v=20260901-8fc1fe4";
+import { useIceNames, useIceVolumes } from "./ice-card.js?v=20260901-8fc1fe4";
 
 /** The glacier inventory, off its own baked tiles. */
 const RGI_LAYER_ID = "glaciers-rgi7";
@@ -120,7 +124,14 @@ async function loadInventory() {
    * "Glacier complex, Iceland" over Mýrdalsjökull. Started first and awaited
    * after the layer, so the fetch overlaps the build instead of delaying it.
    */
-  const names = loadIceNames().then(() => useIceNames(iceNameFor)).catch(() => {});
+  const names = Promise.all([
+    loadIceNames().then(() => useIceNames(iceNameFor)),
+    /**
+     * And how much ice is in each one. 5.5 MB, fetched alongside the tiles and
+     * awaited after them, so it overlaps the build rather than delaying it.
+     */
+    loadIceThickness().then(() => useIceVolumes(iceVolumeFor)),
+  ]).catch(() => {});
   const layer = await loadDerivedGeologyMap({
     id: RGI_LAYER_ID,
     label: "Glaciers and ice caps (RGI 7.0)",
@@ -263,6 +274,149 @@ function mountRows(host) {
   host.appendChild(sources);
 }
 
+/**
+ * CHANGE OVER TIME IS A FETCH, so it asks which ground first.
+ *
+ * The layer was a catalogue tick, and a tick is the wrong control for it: what
+ * this costs and what it covers both depend on the box. Measured over the
+ * Valais Alps, GLIMS holds 15,568 outlines for one 1.2° × 0.9° box — a
+ * continent-sized tick would be a download nobody asked for, and a tick that
+ * silently used whatever shape happened to be on the globe would answer a
+ * question the reader never put.
+ *
+ * So it is a subtab built like the GFS card: an extent select listing every
+ * drawn shape and every loaded layer, a two-press Draw button, a Fetch that
+ * runs the same connector, and a status line that says what came back.
+ */
+function say2(message) {
+  const node = document.getElementById("ice-change-status");
+  if (node) node.textContent = message || "";
+}
+
+/** What the fetch actually found, in one line. */
+function summarise(layer) {
+  const features = layer?.features || [];
+  if (!features.length) return "Nothing with repeat outlines in that area.";
+  const rates = features.map((f) => f.properties.change_pct_yr)
+    .filter(Number.isFinite).sort((a, b) => a - b);
+  const median = rates.length ? rates[Math.floor(rates.length / 2)] : null;
+  const dates = features.flatMap((f) => [f.properties.first_date, f.properties.last_date])
+    .filter(Boolean).sort();
+  const coverage = features.find((f) => f.properties.archive_coverage)
+    ?.properties.archive_coverage;
+  const window = features.find((f) => f.properties.window)?.properties.window;
+  return `${features.length.toLocaleString()} glaciers with repeat outlines`
+    + (window ? ` between ${window}` : "")
+    + (median === null ? "" : `, median ${median > 0 ? "+" : ""}${median.toFixed(2)}% a year`)
+    + (dates.length ? `, spanning ${dates[0].slice(0, 4)}–${dates[dates.length - 1].slice(0, 4)}` : "")
+    + ". An area change is not a mass balance."
+    + (coverage ? ` This fetch held ${coverage}.` : "");
+}
+
+/** The typed box, when that is the choice — the weather card's own fallback. */
+function typedBounds() {
+  const read = (id) => Number(document.getElementById(id)?.value);
+  const north = read("ice-change-north");
+  const south = read("ice-change-south");
+  const west = read("ice-change-west");
+  const east = read("ice-change-east");
+  if (![north, south, west, east].every(Number.isFinite)) return null;
+  if (north <= south || east <= west) return null;
+  return { north, south, west, east };
+}
+
+function wireChange() {
+  const select = document.getElementById("ice-change-extent");
+  const draw = document.getElementById("ice-change-draw");
+  const run = document.getElementById("ice-change-run");
+  if (!select || !draw || !run || run.dataset.wired) return;
+  run.dataset.wired = "1";
+
+  /**
+   * EVERY GROUND THE APP KNOWS, in one list: the shapes drawn by hand, the
+   * layers somebody imported, and the catalogue layers this site ships — the
+   * weather card's arrangement, because "which patch of ground" is one
+   * question and this app answers it in one place.
+   */
+  refreshPolygonOptions(select, "drawn", { allLayers: true });
+  const bounds = document.getElementById("ice-change-bounds");
+  const showBounds = () => { if (bounds) bounds.hidden = select.value !== "bounds"; };
+  select.addEventListener("change", showBounds);
+  showBounds();
+  // The named extents follow the layers: a shape captured by any fetch should
+  // be offerable here at once.
+  window.GeoIDImportManager?.onChange?.(() => {
+    refreshPolygonOptions(select, "drawn", { allLayers: true });
+  });
+
+  /**
+   * The GFS card's two-press gesture, kept exactly: the first press with
+   * nothing drawn arms the tool and says so; the second claims the shape as a
+   * real layer, so it can be reused, clipped and exported like any other.
+   */
+  draw.addEventListener("click", () => {
+    const drawn = drawnOverlayBounds();
+    if (!drawn) {
+      select.value = "drawn";
+      promptDrawTool();
+      say2("Draw the area on the globe — box, circle or polygon — then press this again to claim it.");
+      return;
+    }
+    const captured = window.GeoIDDrawnLayers?.captureDrawn?.({ name: "Glacier change fetch area" });
+    refreshPolygonOptions(select, "drawn", { allLayers: true });
+    select.value = captured?.ok && captured.layer ? `layer:${captured.layer.id}` : "drawn";
+    say2(`Area set: ${drawn.south.toFixed(2)}–${drawn.north.toFixed(2)}°N, `
+      + `${drawn.west.toFixed(2)}–${drawn.east.toFixed(2)}°E.`
+      + (captured?.ok ? " Listed in Workspace." : ""));
+  });
+
+  run.addEventListener("click", async () => {
+    const box = select.value === "bounds" ? typedBounds() : resolvePolygonExtent(select.value);
+    if (!box) {
+      say2(select.value === "bounds"
+        ? "Type all four bounds — north above south, east above west."
+        : "Mark out an area first — draw one, or choose a layer to use its extent.");
+      return;
+    }
+    if (box.error) { say2(box.error); return; }
+    /**
+     * A WINDOW OF TIME, applied on the server. Blank ends mean "everything the
+     * archive holds"; one end alone is a real question — "everything since
+     * 1990" — and the connector turns it into CQL either way.
+     */
+    const from = document.getElementById("ice-change-from")?.value || null;
+    const to = document.getElementById("ice-change-to")?.value || null;
+    if (from && to && from >= to) {
+      say2("The From date has to come before the To date.");
+      return;
+    }
+    run.disabled = true;
+    say2("Reading the archive over that area…");
+    try {
+      /**
+       * The picker's box, handed to the ONE import path. `addDataset` fetches
+       * through the connector, files the provenance and paints the graduated
+       * legend, so this subtab adds a question and no second pipeline.
+       */
+      const result = await addDataset("conn-glims-change", say2, {
+        bbox: {
+          minLon: box.west, minLat: box.south,
+          maxLon: box.east, maxLat: box.north,
+        },
+        from, to,
+      });
+      if (!result?.ok) return;
+      const layer = (window.GeoIDImportManager?.getLayers?.() || [])
+        .find((l) => /GLIMS/.test(l.name || "") && /change/i.test(l.name || ""));
+      say2(summarise(layer));
+    } catch (error) {
+      say2("The archive could not be read for that area.");
+    } finally {
+      run.disabled = false;
+    }
+  });
+}
+
 /** Mount when the host exists — the pattern `earth-data-panel.js` documents. */
 function whenHost(selector, place) {
   let tries = 0;
@@ -280,6 +434,7 @@ export function init() {
   // section — every planet — simply never finds the host, which is right: RGI
   // is a map of this planet's ice.
   whenHost("#geology-ice-rows", mountRows);
+  whenHost("#ice-change-run", wireChange);
 }
 
 if (typeof window !== "undefined") {

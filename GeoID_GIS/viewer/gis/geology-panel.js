@@ -28,14 +28,14 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260901-0fb185c";
-import { currentBodyId } from "./bodies.js?v=20260901-0fb185c";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260901-0fb185c";
-import { rockClass } from "./rock-class.js?v=20260901-0fb185c";
-import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260901-0fb185c";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260901-0fb185c";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260901-8fc1fe4";
+import { currentBodyId } from "./bodies.js?v=20260901-8fc1fe4";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260901-8fc1fe4";
+import { rockClass } from "./rock-class.js?v=20260901-8fc1fe4";
+import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260901-8fc1fe4";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260901-8fc1fe4";
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260901-0fb185c";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260901-8fc1fe4";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -1139,6 +1139,7 @@ function toInteractiveCatalogue(layers) {
           // its lithology unless the feature says its lines are already written.
           ice: true,
           published_area: ice.publishedArea || null,
+          extra_rows: ice.headline || null,
           type: ice.kicker,
           rock_type: ice.title,
           // What the property fold looks the material up by. Ice has a real

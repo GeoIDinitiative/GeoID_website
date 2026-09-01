@@ -253,6 +253,54 @@ if (fs.existsSync(namesPath)) {
   card.useIceNames(null);
 }
 
+// --- how much ice is in each complex ---
+const thickPath = path.join(iceDir, "thickness.json");
+ok("the ice volumes ship beside the tiles", fs.existsSync(thickPath));
+if (fs.existsSync(thickPath)) {
+  const vols = JSON.parse(fs.readFileSync(thickPath, "utf8"));
+  const keys = Object.keys(vols);
+  ok("with a row for every complex", keys.length > 190000, `${keys.length}`);
+  /**
+   * The totals are the check on the JOIN, not statistics for their own sake:
+   * 149,318 km³ against Farinotti's consensus of about 158,000, and 343 mm of
+   * sea-level equivalent against a published ~324 mm. A join that had silently
+   * dropped or doubled a region would not land there.
+   */
+  let volume = 0;
+  let below = 0;
+  for (const [v, , b = 0] of Object.values(vols)) { volume += v; below += b; }
+  ok("summing to the world's glacier ice", volume > 120000 && volume < 190000,
+    `${Math.round(volume)} km3`);
+  const sle = ((volume - below) * 0.917) / 361.8;
+  ok("and to about a third of a metre of sea level", sle > 280 && sle < 400,
+    `${sle.toFixed(0)} mm`);
+  ok("Vatnajökull is one of the biggest of them", (vols["06-00209"]?.[0] ?? 0) > 2000,
+    JSON.stringify(vols["06-00209"]));
+  ok("every row carries its uncertainty",
+    Object.values(vols).every((r) => r.length >= 2 && Number.isFinite(r[1])));
+}
+
+{
+  const card = await import("./ice-card.js");
+  card.useIceVolumes(() => ({ volumeKm3: 88.6, errorKm3: 8.9, belowSeaLevelKm3: 0,
+    seaLevelMm: 0.2246 }));
+  const c = card.iceCard({ kind: "Glacier or ice cap",
+    rgi_id: "RGI2000-v7.0-C-06-00201", o1region: "06", area_km2: 596.6 });
+  const head = Object.fromEntries(c.headline);
+  // The volume never appears without its uncertainty: the model's own runs to
+  // tens of percent, and a bare number would be read as a measurement.
+  ok("the card leads with volume and its uncertainty",
+    head["Ice volume"] === "88.6 ± 8.9 km³", JSON.stringify(c.headline));
+  ok("mean thickness is derived from the published area",
+    head["Mean thickness"] === "149 m", head["Mean thickness"]);
+  ok("and the sea-level equivalent is there", head["Sea-level equivalent"] === "0.22 mm");
+  ok("with the source named in the rows",
+    c.rows.some(([k, v]) => k === "Ice volume source" && /IceBoost/.test(v)));
+  card.useIceVolumes(null);
+  const none = card.iceCard({ kind: "Glacier or ice cap", rgi_id: "x", o1region: "06" });
+  ok("a complex with no volume says nothing about volume", none.headline.length === 0);
+}
+
 // --- the GLIMS connector: one outline per glacier, and no global pull ---
 const { CONNECTORS, glimsOutlinesToGeoJSON } = await import("./research/connectors.js");
 ok("GLIMS is a registered connector", Boolean(CONNECTORS["glims-outlines"]));
@@ -351,6 +399,138 @@ for (const [file, what] of [["feature-popup.js", "the imported ice layers"],
   const body = fs.readFileSync(path.join(here, file), "utf8");
   ok(`${what} build their card through ice-card.js`,
     /isIceFeature\(props\)/.test(body) && /iceCard\(props\)/.test(body));
+}
+
+// --- change over time, out of the same archive ---
+const { glimsChangeToGeoJSON } = await import("./research/connectors.js");
+const outline = (id, date, area, extra = {}) => ({
+  type: "Feature",
+  properties: { glac_id: id, src_date: `${date}T00:00:00Z`, db_area: area,
+    line_type: "glac_bound", ...extra },
+  geometry: { type: "Point", coordinates: [0, 0] },
+});
+const changed = glimsChangeToGeoJSON({
+  type: "FeatureCollection",
+  features: [
+    outline("A", "1990-08-01", 10), outline("A", "2010-08-01", 8),
+    // One outline is not a change.
+    outline("B", "2000-01-01", 5),
+    // Two readings of one summer are not a change either.
+    outline("C", "2000-06-01", 3), outline("C", "2000-11-01", 2.9),
+    // An internal rock outcrop is not the glacier's edge.
+    outline("D", "1990-01-01", 4), outline("D", "2015-01-01", 6),
+    outline("D", "2016-01-01", 99, { line_type: "intrnl_rock" }),
+  ],
+});
+ok("only glaciers the archive holds twice, years apart",
+  changed.features.length === 2, String(changed.features.length));
+const byId = Object.fromEntries(changed.features.map((f) => [f.properties.glac_id, f.properties]));
+ok("shrinking is negative", byId.A.change_pct === -20 && byId.A.change_pct_yr === -1,
+  JSON.stringify([byId.A.change_pct, byId.A.change_pct_yr]));
+ok("growing is positive", byId.D.change_pct === 50);
+ok("both dates ride on the feature",
+  byId.A.first_date === "1990-08-01" && byId.A.last_date === "2010-08-01");
+ok("and the geometry is the LATEST outline — the ice as last mapped",
+  byId.A.last_area_km2 === 8 && byId.D.last_area_km2 === 6);
+ok("an internal outcrop never becomes an outline", byId.D.outlines === 2);
+
+/**
+ * A glacier does not change by a fifth of itself in a year. Measured over the
+ * Valais Alps, a handful of pairs came out at +244 and +432% a year — two
+ * outlines of different things under one id, usually an early submission that
+ * digitised one tributary — and a quantile legend running that far makes every
+ * real value one colour.
+ */
+const wild = glimsChangeToGeoJSON({
+  type: "FeatureCollection",
+  features: [outline("E", "2000-01-01", 0.2), outline("E", "2003-01-01", 4)],
+});
+// --- the date window, which the server applies ---
+const { glimsDateClause } = await import("./research/connectors.js");
+ok("both ends are a DURING", glimsDateClause("1990-01-01", "2020-12-31")
+  === "src_date DURING 1990-01-01T00:00:00Z/2020-12-31T23:59:59Z",
+  String(glimsDateClause("1990-01-01", "2020-12-31")));
+// One end alone is a real question — "everything since 1990".
+ok("one end is an AFTER", /^src_date AFTER 1990/.test(glimsDateClause("1990-01-01", null)));
+ok("the other is a BEFORE", /^src_date BEFORE 2020/.test(glimsDateClause(null, "2020-12-31")));
+ok("no dates is no clause", glimsDateClause(null, null) === null);
+ok("and rubbish is no clause", glimsDateClause("last tuesday", "") === null);
+
+/**
+ * THE BOX GOES INSIDE THE FILTER, in lat,lon order — both measured against the
+ * live server: `bbox` and `cql_filter` are mutually exclusive there (HTTP 500),
+ * and BBOX() in lon,lat order returns a confident zero features.
+ */
+const windowed = CONNECTORS["glims-change"].url({
+  bbox: { minLon: 7.4, minLat: 45.7, maxLon: 8.6, maxLat: 46.6 },
+  from: "1990-01-01", to: "2020-12-31",
+});
+const readable = decodeURIComponent(windowed);
+ok("a windowed request filters on the server",
+  /cql_filter=BBOX\(entity_geom,45.7,7.4,46.6,8.6\)/.test(readable)
+  // `URLSearchParams` writes a space as `+`, which `decodeURIComponent` leaves
+  // alone — so the readable form is `src_date+DURING+1990-...`.
+  && /src_date\+DURING\+1990-01-01/.test(readable), readable.slice(-90));
+ok("and never sends both bbox and cql_filter", !/[?&]bbox=/.test(windowed));
+ok("an unwindowed one is the plain bbox",
+  /[?&]bbox=7.4/.test(CONNECTORS["glims-change"].url({
+    bbox: { minLon: 7.4, minLat: 45.7, maxLon: 8.6, maxLat: 46.6 } })));
+
+// The window is applied again on the way in, so an outline outside it can
+// never become an endpoint if the server filter is ever dropped.
+const outside = glimsChangeToGeoJSON({
+  type: "FeatureCollection",
+  features: [outline("H", "1850-01-01", 20), outline("H", "1995-01-01", 12),
+    outline("H", "2015-01-01", 9)],
+}, { from: "1990-01-01", to: "2020-12-31" });
+ok("the pair is taken from inside the window only",
+  outside.features[0].properties.first_date === "1995-01-01"
+  && outside.features[0].properties.first_area_km2 === 12,
+  JSON.stringify(outside.features[0].properties.first_date));
+ok("and the card can say which window it read",
+  outside.features[0].properties.window === "1990-01-01 to 2020-12-31");
+
+/**
+ * NO SILENT CAP. GeoServer says how many it had — measured over the Valais
+ * Alps, 15,568 matched against 4,000 returned — and a quarter of an archive
+ * drawn as though it were all of it is a map answering a different question.
+ */
+const capped = glimsChangeToGeoJSON({
+  type: "FeatureCollection", numberMatched: 15568, numberReturned: 2,
+  features: [outline("F", "1990-01-01", 9), outline("F", "2010-01-01", 7)],
+});
+ok("a truncated fetch says so on the feature",
+  /2 of 15,568 outlines/.test(capped.features[0].properties.archive_coverage || ""),
+  String(capped.features[0].properties.archive_coverage));
+ok("and a complete one claims nothing",
+  glimsChangeToGeoJSON({ type: "FeatureCollection", numberMatched: 2, numberReturned: 2,
+    features: [outline("G", "1990-01-01", 9), outline("G", "2010-01-01", 7)] })
+    .features[0].properties.archive_coverage === null);
+
+ok("an impossible rate is dropped, not drawn", wild.features.length === 0,
+  JSON.stringify(wild.features.map((f) => f.properties.change_pct_yr)));
+
+{
+  const card = await import("./ice-card.js");
+  const c = card.iceCard(byId.A);
+  ok("the change card leads with both areas and the span",
+    /Area change/.test(JSON.stringify(c.headline)) && /Between/.test(JSON.stringify(c.headline)));
+  /**
+   * The kicker names the SUBJECT, not the method. "Repeat outlines" is how the
+   * layer is made; and it is not "vol. change" either, because two outlines
+   * give an area and volume through time is not in this data.
+   */
+  ok("the kicker says what the card is about", c.kicker === "Glacier — change over time", c.kicker);
+  ok("and the id and the tally are rows, not the card's second line",
+    c.meta === "" && c.rows.some(([k]) => k === "GLIMS id")
+    && c.rows.some(([k]) => k === "Outlines in the archive"));
+  /**
+   * AND IT SAYS WHAT IT IS NOT. An outline moving is not ice being weighed:
+   * a glacier can thin for a decade without its edge shifting, and late-lying
+   * snow can make an outline larger than the ice under it.
+   */
+  ok("and says an area change is not a mass balance",
+    c.rows.some(([, v]) => /not a mass balance/i.test(v)));
 }
 
 // --- the predicate that keeps ice out of the geological map ---
