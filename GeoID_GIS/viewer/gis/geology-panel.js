@@ -28,33 +28,12 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260901-1c60388";
-import { currentBodyId } from "./bodies.js?v=20260901-1c60388";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260901-1c60388";
-import { rockClass } from "./rock-class.js?v=20260901-1c60388";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260901-a01c224";
+import { currentBodyId } from "./bodies.js?v=20260901-a01c224";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260901-a01c224";
+import { rockClass } from "./rock-class.js?v=20260901-a01c224";
 
-/**
- * The properties the Colour by list offers, and how they are grouped.
- *
- * Filled from the database on first load rather than written out here, so the
- * control cannot drift from what the file actually carries -- the same rule
- * the contact selector follows about the renderer's own modes.
- */
-const ROCK_PARAMETERS = {};
-const KIND_LABELS = {
-  strength: "Strength", residual: "Residual (after failure)",
-  deformation: "Deformation", hydraulic: "Hydrogeology",
-  physical: "Physical", rockmass: "Rock mass", durability: "Durability",
-};
-void (async () => {
-  try {
-    const { loadRockProperties } = await import(
-      `./rock-properties.js${new URL(import.meta.url).search}`);
-    const data = await loadRockProperties();
-    Object.assign(ROCK_PARAMETERS, data.parameters);
-  } catch (error) { /* the control simply does not appear */ }
-})();
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260901-1c60388";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260901-a01c224";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -383,7 +362,21 @@ async function loadTiled(entry, { toView = false, quiet = false } = {}) {
     },
     // Macrostrat ships the colour each polygon is drawn in, so a source-coloured
     // layer is painted as its tiles are built rather than repainted afterwards.
-    colourFor: entry.sourceColours ? (f) => f?.properties?.color || null : null,
+    /**
+     * A DATASET MAY BRING ITS OWN PAINT.
+     *
+     * The world geology is painted from each unit's published `color` as its
+     * tiles are built. A derived map -- the rock-property maps in their own
+     * subtab -- is the same tiles read a different way, so it supplies its own
+     * `colourFor` and everything else about the layer is unchanged: it streams,
+     * refines, clips and exports exactly as the geology does.
+     *
+     * Painted AT BUILD rather than repainted after, because a tiled layer
+     * builds more tiles whenever the view settles and a repaint only reaches
+     * the ones that exist when it runs.
+     */
+    colourFor: entry.colourFor
+      || (entry.sourceColours ? (f) => f?.properties?.color || null : null),
     /**
      * CONTACTS ON, because a geological map draws its boundaries.
      *
@@ -1229,75 +1222,6 @@ function render() {
       box.appendChild(line);
     }
 
-    /**
-     * COLOUR BY A ROCK PROPERTY, on any layer that publishes its own colours.
-     *
-     * The same tiles, read a different way: every polygon carries a `lith`
-     * string, `rock-properties.js` turns that into a cited property range, and
-     * the layer's own `repaint` paints it. So the map streams, refines, clips
-     * and exports exactly as it did -- what changes is what the colour MEANS.
-     *
-     * Offered wherever the layer can be put back (`sourceSymbology`), because a
-     * one-way door into a derived colouring would lose the survey's own map.
-     */
-    if (layer.repaint && layer.sourceSymbology) {
-      const line = document.createElement("label");
-      line.className = "gis-geo-contacts";
-      const caption = document.createElement("span");
-      caption.textContent = "Colour by";
-      const pick = document.createElement("select");
-      pick.className = "input";
-      const source = document.createElement("option");
-      source.value = "";
-      source.textContent = "Rock type (source colours)";
-      pick.appendChild(source);
-      const groups = new Map();
-      for (const [key, meta] of Object.entries(ROCK_PARAMETERS)) {
-        if (!groups.has(meta.kind)) groups.set(meta.kind, []);
-        groups.get(meta.kind).push([key, meta]);
-      }
-      for (const [kind, entries] of groups) {
-        const group = document.createElement("optgroup");
-        group.label = KIND_LABELS[kind] || kind;
-        for (const [key, meta] of entries) {
-          const option = document.createElement("option");
-          option.value = key;
-          option.textContent = `${meta.label} (${meta.unit})`;
-          option.title = meta.note;
-          group.appendChild(option);
-        }
-        pick.appendChild(group);
-      }
-      pick.value = layer.rockProperty || "";
-      pick.title = "Paint the geology by a geotechnical property, derived from "
-        + "each unit's own lithology. Published ranges for a rock NAME — a "
-        + "prior for screening, not a measurement of this ground.";
-      pick.addEventListener("change", async () => {
-        const key = pick.value || null;
-        say(key ? `Colouring by ${pick.options[pick.selectedIndex].textContent}…`
-          : "Restoring the survey's own colours…");
-        try {
-          const { paintByProperty } = await import(
-            `./rock-property-map.js${new URL(import.meta.url).search}`);
-          const out = await paintByProperty(layer, key);
-          if (!out.ok) { say(out.message); return; }
-          if (out.restored) { say("Rock type — the survey's own colours."); return; }
-          /**
-           * HOW MUCH OF THE MAP GOT AN ANSWER, said out loud.
-           *
-           * A strength map over an alluvial basin is mostly blank because a
-           * soil has no uniaxial compressive strength, and that is a correct
-           * map. Without the count it reads as a broken one.
-           */
-          say(`${out.label} (${out.unit}) — ${out.painted.toLocaleString()} of `
-            + `${out.total.toLocaleString()} units carry a published range.`);
-        } catch (error) {
-          say("The rock property database could not be loaded.");
-        }
-      });
-      line.append(caption, pick);
-      box.appendChild(line);
-    }
     nodes.loaded.appendChild(box);
   });
 }
@@ -1317,6 +1241,37 @@ async function loadDefaults() {
 }
 
 /** Is any mapped-geology layer loaded and showing? The tab's tick box asks. */
+/**
+ * Load a map that is the SAME TILES read a different way.
+ *
+ * The rock-property maps are the one caller: they hand a label, a colour
+ * function and a legend, and get back a layer that streams and refines like
+ * the geology because it IS the geology's loader. The world geology layer is
+ * not touched -- this is a second, independent layer with its own row, its own
+ * legend and its own place in the draw order.
+ */
+export async function loadDerivedGeologyMap({ id, label, colourFor, legendInfo }) {
+  const existing = loadedLayers().find((l) => l.geologyDataset === id);
+  if (existing) return existing;
+  const entry = { ...GLOBAL_BASE, id, label, name: `${label}.geojson`,
+    colourFor, sourceColours: false, initialOpacity: 1 };
+  await loadTiled(entry, { toView: true });
+  const layer = loadedLayers().find((l) => l.geologyDataset === id);
+  if (layer && legendInfo) {
+    layer.legendInfo = legendInfo;
+    layer.legendIsSummary = null;
+    window.GeoIDLayerHierarchy?.render?.();
+  }
+  return layer || null;
+}
+
+/** Take one of those maps off the globe again. */
+export function removeDerivedGeologyMap(id) {
+  const layer = loadedLayers().find((l) => l.geologyDataset === id);
+  if (layer) window.GeoIDImportManager?.removeLayer?.(layer.id);
+  return Boolean(layer);
+}
+
 export function isActive() {
   return loadedLayers().some((l) => l.visible !== false);
 }
