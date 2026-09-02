@@ -33,7 +33,7 @@
     { id: "pixel", name: "8-bit pixel", note: "hard bevels, nothing rounded" },
     { id: "vector", name: "Vector glow", note: "black ground, hairline strokes" },
     { id: "outrun", name: "Outrun", note: "violet ground, neon glow" },
-    { id: "beige", name: "Beige box", note: "90s desktop: grey panels, navy title bars" },
+    { id: "beige", name: "Workstation", note: "90s desktop: grey panels, navy title bars" },
     { id: "hud", name: "HUD", note: "cyan and amber, corner brackets" }
   ];
 

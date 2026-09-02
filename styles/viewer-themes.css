@@ -418,6 +418,63 @@
 }
 /* The wordmark is the app's own title, in the title-bar navy. */
 :root[data-skin="beige"] .brand-title { color: #000082 !important; font-weight: 700; }
+/**
+ * A FIELD CAPTION IS BLACK ON A WORKSTATION, not a tinted accent. `--skin-data`
+ * is #1084d0 here, which is right for a value and about 2.5:1 against the grey
+ * — measured on "THEME", "CLOCK TIMEZONE" and every label beside them, which
+ * is what "the header text isn't visible" was.
+ */
+:root[data-skin="beige"] .row > span,
+:root[data-skin="beige"] .row > label,
+:root[data-skin="beige"] .gis-side-panel-title,
+:root[data-skin="beige"] .legend-entry.is-folded .legend-entry-head,
+:root[data-skin="beige"] .layer-type-badge,
+:root[data-skin="beige"] .gis-catalogue-group,
+:root[data-skin="beige"] .gis-catalogue-head,
+:root[data-skin="beige"] .compact-copy,
+:root[data-skin="beige"] .tool-copy,
+:root[data-skin="beige"] .tool-status {
+  color: #000000 !important;
+  text-shadow: none !important;
+}
+/**
+ * The POPUPS. They were the last dark plate left: their ground is the card
+ * ground now, so the card is grey — and everything in it that was written for
+ * a dark card (the kicker, the copy, the fold headers) has to come back to
+ * black with it.
+ */
+:root[data-skin="beige"] .scene-popup,
+:root[data-skin="beige"] .geo-popup,
+:root[data-skin="beige"] #gis-feature-popup {
+  border: 1px solid #808080 !important;
+  border-radius: 0 !important;
+  box-shadow: inset -1px -1px 0 #0a0a0a, inset 1px 1px 0 #fdfdfd,
+    inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf,
+    3px 3px 0 rgba(0, 0, 0, 0.35) !important;
+}
+:root[data-skin="beige"] .scene-popup *,
+:root[data-skin="beige"] .geo-popup *,
+:root[data-skin="beige"] #gis-feature-popup * {
+  text-shadow: none !important;
+}
+:root[data-skin="beige"] .feature-title,
+:root[data-skin="beige"] .scene-popup-detail,
+:root[data-skin="beige"] .scene-popup-fold summary {
+  color: #000000 !important;
+}
+/* The kicker keeps the accent, because it is the one thing on the card that is
+   a CLASSIFICATION rather than a value — navy reads as a heading here. */
+:root[data-skin="beige"] .feature-kicker { color: #000082 !important; filter: none !important; }
+/**
+ * AN OPEN LEGEND ENTRY IS FILLED NAVY, so its ink is white — the same rule an
+ * open tab already follows. Forcing every legend head black put black on navy
+ * on the one that was open, which is the state a reader is looking at.
+ */
+:root[data-skin="beige"] .legend-entry:not(.is-folded) .legend-entry-head,
+:root[data-skin="beige"] .legend-entry:not(.is-folded) .legend-entry-head * {
+  color: #ffffff !important;
+  text-shadow: none !important;
+}
 
 /* ═══ F · HUD ══════════════════════════════════════════════════════════
    Cyan chrome, amber for anything live, and rows that read as instrument

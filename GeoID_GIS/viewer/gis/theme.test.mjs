@@ -229,6 +229,28 @@ ok("and a received theme is applied without being re-announced",
 }
 
 /**
+ * A GROUND CAN BE A GRADIENT, and `backgroundColor` will not show it.
+ *
+ * The geology card measured as a LIGHT card under the Workstation theme and
+ * rendered dark: its ground is a `background-image` gradient painted over the
+ * colour, so the colour had been tokenised and the gradient had not. When a
+ * surface refuses a theme, read `backgroundImage` before believing
+ * `backgroundColor`.
+ */
+{
+  const styles = read("GeoID_GIS/viewer/styles.css");
+  ok("the popup's gradient ground is a token too",
+    !/rgba\(18, ?28, ?38, ?0\.95\), ?rgba\(6, ?11, ?17/.test(styles)
+    && /linear-gradient\(180deg, var\(--skin-card-ground/.test(styles));
+  // An open legend entry is filled with the accent, so its ink is white —
+  // forcing every head black put black on navy on the one being read.
+  ok("an open legend head keeps white ink on its fill",
+    /:not\(\.is-folded\) \.legend-entry-head[\s\S]{0,120}color: #ffffff/.test(css));
+  ok("and only a FOLDED one is forced black",
+    /\.legend-entry\.is-folded \.legend-entry-head/.test(css));
+}
+
+/**
  * THEME SOUNDS, IN THE ONE SOUND SYSTEM.
  *
  * `ui-sound.js` was already here — on every viewer, enabled by default, with a

@@ -20,12 +20,12 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260902-206ed12";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260902-206ed12";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260902-206ed12";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260902-206ed12";
-import { lithologyLabel } from "./lithology-label.js?v=20260902-206ed12";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260902-206ed12";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260902-4a863a0";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260902-4a863a0";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260902-4a863a0";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260902-4a863a0";
+import { lithologyLabel } from "./lithology-label.js?v=20260902-4a863a0";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260902-4a863a0";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital

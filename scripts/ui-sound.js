@@ -111,8 +111,8 @@
       click: [[1560, 0.07, 0.11, "sine"], [880, 0.10, 0.06, "sine"]] },
     outrun: { hover: [1200, 0.03, 0.04, "triangle"],
       click: [[520, 0.13, 0.11, "sawtooth"], [347, 0.15, 0.06, "sawtooth"]] },
-    beige: { hover: [900, 0.014, 0.03, "square"],
-      click: [[240, 0.024, 0.16, "square"], [180, 0.02, 0.08, "square"]] },
+    beige: { hover: [2600, 0.016, 0.028, "square"],
+      click: [[3100, 0.018, 0.085, "square"], [2200, 0.026, 0.05, "square"]] },
     hud: { hover: [1900, 0.028, 0.035, "triangle"],
       click: [[700, 0.05, 0.09, "triangle"], [1500, 0.075, 0.07, "triangle"]] }
   };
