@@ -33,7 +33,9 @@
     { id: "crt", name: "Arcade — CRT terminal", note: "green phosphor and scanlines" },
     { id: "pixel", name: "Arcade — 8-bit pixel", note: "hard bevels, nothing rounded" },
     { id: "vector", name: "Arcade — vector glow", note: "black ground, hairline strokes" },
-    { id: "outrun", name: "Arcade — outrun", note: "violet ground, neon glow" }
+    { id: "outrun", name: "Arcade — outrun", note: "violet ground, neon glow" },
+    { id: "beige", name: "Retro — beige box", note: "90s desktop: grey panels, navy title bars" },
+    { id: "hud", name: "Retro — HUD", note: "cyan and amber, corner brackets" }
   ];
 
   var KEY = "geoid:skin";
