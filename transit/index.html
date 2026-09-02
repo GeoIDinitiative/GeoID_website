@@ -142,7 +142,7 @@
       font-weight: 700;
       letter-spacing: 0.18em;
       text-transform: uppercase;
-      color: rgba(255, 255, 255, 0.82);
+      color: rgba(255, 255, 255, 0.94);
     }
     .arrival-value {
       font-size: 1rem;
@@ -194,10 +194,11 @@
        retuned, compute where each edge lands before trusting the numbers.
        The LINEAR eased off as the ellipse took over: the two MULTIPLY, so a
        heavy bottom under a heavy vignette makes the lower corners solid. The LINEAR is for the
-       reading matter — the name near the top, then the stats, the journey and
-       the footer, all of them small text that used to sit on a flat panel and
-       now sits on a photograph. It leaves the top third alone, where the shot
-       is the whole point, and settles over the rows below it.
+       reading matter. It leaves the top third alone, where the shot is the
+       whole point, and comes on over the stats — its steepest run is at 44-56%
+       of the card, which is exactly where that row sits. Those labels are
+       0.58rem tracked capitals: over the bright half of a planet a halo alone
+       does not save them, because there is barely any glyph for it to hug.
        On ::after with the children lifted above it, so it covers the picture
        and nothing else. */
     .card::after {
@@ -215,10 +216,10 @@
           rgba(4, 7, 16, 0.80) 100%),
         linear-gradient(to bottom,
           rgba(4, 7, 16, 0.02) 0%,
-          rgba(4, 7, 16, 0.10) 34%,
-          rgba(4, 7, 16, 0.24) 52%,
-          rgba(4, 7, 16, 0.32) 70%,
-          rgba(4, 7, 16, 0.36) 100%);
+          rgba(4, 7, 16, 0.08) 32%,
+          rgba(4, 7, 16, 0.30) 44%,
+          rgba(4, 7, 16, 0.50) 56%,
+          rgba(4, 7, 16, 0.56) 100%);
     }
 
     /* Above the fade. Without this the ::after paints over the words. */
@@ -227,8 +228,15 @@
     /* The reading matter carries its own shadow, so the fade under it does not
        have to be heavy enough to blot the photograph out. Every one of these
        used to sit on a flat panel where none was needed. */
-    .stats, .journey, .footer {
-      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 4px 14px rgba(0, 0, 0, 0.7);
+    .stats, .journey, .footer, .hero-text, .arrival-block {
+      /* A TIGHT halo first, then the soft drop. The small text here sits on a
+         photograph, and a soft shadow alone only greys the area behind a
+         hairline glyph — it does not separate it. The 0/2px pass hugs the
+         letterforms; the rest gives them a ground to sit on. */
+      text-shadow:
+        0 0 2px rgba(0, 0, 0, 0.95),
+        0 1px 3px rgba(0, 0, 0, 0.9),
+        0 3px 12px rgba(0, 0, 0, 0.7);
     }
 
     /* Hero text */
@@ -269,7 +277,7 @@
          the arrival label are on a PHOTOGRAPH now, and against Saturn's rings
          a muted grey is invisible. Near-white at 82%, which still reads as
          secondary next to the name without depending on what is behind it. */
-      color: rgba(255, 255, 255, 0.82);
+      color: rgba(255, 255, 255, 0.95);
       font-size: 0.92rem;
       line-height: 1.55;
       max-width: 34rem;
@@ -295,7 +303,7 @@
       font-size: 0.62rem;
       letter-spacing: 0.18em;
       text-transform: uppercase;
-      color: rgba(214, 194, 255,0.85);
+      color: rgba(255, 255, 255, 0.94);
     }
 
     .stat-value {
@@ -347,7 +355,7 @@
       font-size: 0.58rem;
       letter-spacing: 0.1em;
       text-transform: uppercase;
-      color: rgba(214, 194, 255,0.85);
+      color: rgba(255, 255, 255, 0.94);
       white-space: nowrap;
     }
 
@@ -954,12 +962,43 @@
           setTimeout(() => { viewerFrame.style.pointerEvents = "auto"; }, CROSSFADE_MS);
         }
 
-        window.addEventListener("message", function onReady(e) {
-          if (e.data !== "geoid-ready") return;
-          window.removeEventListener("message", onReady);
-          doCrossfade();
-        });
-        setTimeout(doCrossfade, 600);
+        // WAIT FOR A DRAWN FRAME, not for "geoid-ready".
+        //
+        // The viewers hold their render loop until this page sends
+        // `geoid-reveal`, and then post `geoid-ready` and start rendering — so
+        // that message means "about to draw", not "drawn". Crossfading on it,
+        // or on the blind 600 ms fallback that used to sit beside it, hands
+        // over to a viewer that is still black: the transit completes, the
+        // card fades, and the destination looks like it failed to load. It is
+        // worst on the bodies with most to fetch.
+        //
+        // The frame is same-origin, so this can simply look: a globe, a
+        // texture on it, and at least one frame rendered. Capped, because a
+        // viewer that never draws must still be handed over to rather than
+        // leaving somebody on a countdown that has finished.
+        const READY_CAP_MS = 9000;
+        const readyDeadline = performance.now() + READY_CAP_MS;
+        function viewerHasDrawn() {
+          try {
+            const w = viewerFrame.contentWindow;
+            const v = w && w.GeoIDViewer;
+            if (!v || !v.globe || !v.renderer) return false;
+            if (!(v.renderer.info.render.frame > 0)) return false;
+            let textured = false;
+            v.globe.traverse((o) => {
+              const m = o.material;
+              for (const mat of Array.isArray(m) ? m : [m]) if (mat && mat.map) textured = true;
+            });
+            return textured;
+          } catch (_e) {
+            return true;   // cannot see in; never hold the page on that
+          }
+        }
+        (function waitForFirstFrame() {
+          if (crossed) return;
+          if (viewerHasDrawn() || performance.now() > readyDeadline) { doCrossfade(); return; }
+          requestAnimationFrame(waitForFirstFrame);
+        })();
       }, transitMs);
     }));
 
