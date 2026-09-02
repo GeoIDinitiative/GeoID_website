@@ -6729,6 +6729,77 @@ returned three real Earth Engine composites; the glacier animator still ran 24
 dates through the extracted player, its ✕ took its outlines with it, and
 starting the imagery sequence left exactly one bar on screen.
 
+## Themes: five arcade skins, chosen in Settings, and what a theme can reach
+
+`Settings ▸ Theme` offers the default plus five arcade skins. The whole thing
+is ONE ATTRIBUTE — `data-skin` on `<html>` — which `styles/viewer-themes.css`
+hangs every palette and every signature rule off, and `scripts/theme.js` is
+the only thing that writes it. Switching is an attribute flip: no stylesheet
+to load, nothing to unload, no flash.
+
+**It is a token file because the tree was already token-driven.**
+`viewer-skin.css` resolves every rule through eleven palette tokens — that is
+what makes the Etna ember variant a colour swap rather than a second copy —
+and the GIS panel CSS reads `--nav-accent` in **242 places with no hard-coded
+magenta anywhere**. So a theme is mostly a restatement of those tokens, and it
+reaches the nav bar, the panels, the cards, the dialogs, the legend, the
+Workspace tile and all sixty-four Research Hub pages (whose `atlas.css`
+already resolves through `--skin-*`) without one of those files being edited.
+
+**What a palette cannot say is the structural half**, so each block carries
+its own short list: a pixel theme has no radius anywhere, a CRT has a fixed
+scanline overlay, a cabinet has hard-offset bevels instead of bloom. Aimed at
+the SAME structural classes the base skin already targets, with the same
+`!important`, for the same reason.
+
+Three things had to stop being literals first, and each was a real gap:
+
+- **The GIS panels wrote the DATA colour out 55 times** (`#52e4e8`,
+  `rgba(82, 228, 232, …)`). That is a theme axis — the CRT's data colour is
+  amber and the pixel theme's is NES blue — so they became the token they
+  already were everywhere else.
+- **The SHELL had 39 hard-coded magentas and no tokens at all**, because it is
+  the page AROUND the iframe and never loads `viewer-skin.css`. Its `--hub-*`
+  names resolve through the skin's now, so a theme does not stop at the iframe
+  edge.
+- **The Research Hub's own faces were literals**, so its 64 pages kept the
+  site's type under a theme that had changed everything else.
+
+### The three things that were measured rather than assumed
+
+- **A module cannot apply a theme.** A module is deferred by definition, so a
+  themed page paints once in the old palette and switches a frame later —
+  exactly the flash a picker exists to avoid. `theme.js` is a plain script in
+  `<head>` and stamps at parse time. That costs one blocking kilobyte, and
+  that is the price of not flashing.
+- **The DEFAULT carries no attribute at all.** Not a sixth palette that
+  happens to match: with nothing stamped, the base skin applies exactly as it
+  did before any of this existed, which is what makes the default a true
+  no-op.
+- **`?skin=` had to cross the iframe by being ASKED for.** The shell stamps
+  itself in `<head>`, which is before its iframe exists, so there was nothing
+  to tell — measured, a `?skin=crt` shell around a default viewer. A framed
+  document asks its parent on the way up and the parent answers with what it
+  is SHOWING. Storage covers every other case, because two same-origin
+  documents read the same `localStorage`.
+
+A `?skin=` in the URL wins for that load and is **not persisted**: a link that
+rewrote what the person who opened it had chosen would be changing their
+settings rather than showing them a theme. It also makes the whole set
+screenshot-able in one loop, which is how the live comparison sheet was made.
+
+**THE GeoID MARK IS NEVER RESTYLED.** Last rule in the file so nothing above
+can reach it: no theme filters, tints or blends the logo, and the test pins
+that on the source. Each design makes room for it instead — the cabinet puts
+it on a cream marquee, the CRT makes it the badge on the monitor's chin, the
+pixel theme frames it as a cartridge label.
+
+**What a theme does NOT reach, and should not.** The public site's own header
+(`site-nav.css`) stays in the site's colours — it is the website around the
+app, not the app. And nothing themes the DATA: a geological map keeps the
+survey's own published colours, a glacier legend keeps its measured scale.
+Those are the map, not the chrome.
+
 ## Running and testing
 
 `python3 serve.py` (repo root) starts the static site *and* the sidecar together
