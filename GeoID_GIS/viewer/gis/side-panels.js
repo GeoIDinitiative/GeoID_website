@@ -955,6 +955,26 @@ function adoptSidebarShell(panel) {
   SHELL_PROPS.forEach((prop) => { panel.style[prop] = from[prop]; });
 }
 
+/**
+ * A BORROWED SHELL IS A SNAPSHOT, AND A THEME CHANGE MAKES IT A STALE ONE.
+ *
+ * `adoptSidebarShell` reads `#ui`'s COMPUTED style and writes the resolved
+ * values inline — which is what makes the panel the sidebar rather than a
+ * likeness of it, and also means it is frozen at whatever theme was live when
+ * it was built. Inline styles beat every rule, so no `[data-skin]` block could
+ * reach it: measured, a Workstation-grey header still sitting on a panel whose
+ * body had gone back to magenta.
+ *
+ * Re-borrowing on the theme's own announcement is the whole fix. The sidebar
+ * has already restyled by the time the event fires — it is a stylesheet
+ * switch, not a transition — so one pass is enough.
+ */
+if (typeof window !== "undefined") {
+  window.addEventListener("geoid:skin-changed", () => {
+    panels.forEach(({ panel }) => adoptSidebarShell(panel));
+  });
+}
+
 function buildPanel(spec, group) {
   const panel = document.createElement("section");
   panel.className = "gis-side-panel";

@@ -6957,6 +6957,28 @@ chosen it — the lesson `sea-level-section` records.
 so it is short, high and almost pitchless (3100/2200 Hz at 18 ms). The voice is
 part of the theme's identity, not a decoration on it.
 
+### A borrowed shell is a snapshot
+
+The workbench panels are the SIDEBAR rather than a likeness of it —
+`adoptSidebarShell` reads `#ui`'s COMPUTED style and writes the resolved values
+inline, which is what makes Settings and Export look like the column on the
+other side of the screen. It also freezes them: the panel keeps whatever theme
+was live when it was BUILT, and an inline style beats every rule, so no
+`[data-skin]` block could correct it. Reported as the Settings header stuck on
+Workstation grey over a panel whose body had gone back to magenta.
+
+Re-borrowing on `geoid:skin-changed` is the whole fix — the sidebar has already
+restyled by the time the event fires, because a theme is a stylesheet switch
+rather than a transition, so one pass is enough. Verified through four
+switches: ground, title ink, border and font all follow, and returning to the
+default lands on the original values exactly.
+
+**The general shape, and it is the third kind of surface a theme could not
+reach.** A canvas cannot read a stylesheet; a gradient hides behind
+`backgroundColor`; and a computed style COPIED into inline CSS stops tracking
+the thing it was copied from. Anything that snapshots a resolved value needs an
+invalidation hook, and the theme's own event is it.
+
 ## Running and testing
 
 `python3 serve.py` (repo root) starts the static site *and* the sidecar together

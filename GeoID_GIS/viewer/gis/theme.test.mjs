@@ -229,6 +229,26 @@ ok("and a received theme is applied without being re-announced",
 }
 
 /**
+ * A BORROWED SHELL IS A SNAPSHOT.
+ *
+ * The workbench panels are the SIDEBAR rather than a likeness of it:
+ * `adoptSidebarShell` reads `#ui`'s computed style and writes the resolved
+ * values inline. That also freezes them at whatever theme was live when the
+ * panel was built — and an inline style beats every rule, so no `[data-skin]`
+ * block could reach it. Measured: a Workstation-grey header still sitting on a
+ * panel whose body had gone back to magenta.
+ */
+{
+  const panels = read("GeoID_GIS/viewer/gis/side-panels.js");
+  ok("the panel re-borrows its shell when the theme changes",
+    /geoid:skin-changed[\s\S]{0,120}adoptSidebarShell\(panel\)/.test(panels));
+  // The values are RESOLVED into inline style, which is exactly why a
+  // stylesheet cannot correct them after the fact.
+  ok("and that is why: the shell is copied as resolved inline values",
+    /panel\.style\[prop\] = from\[prop\]/.test(panels));
+}
+
+/**
  * A GROUND CAN BE A GRADIENT, and `backgroundColor` will not show it.
  *
  * The geology card measured as a LIGHT card under the Workstation theme and
