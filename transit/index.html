@@ -984,6 +984,12 @@
             const v = w && w.GeoIDViewer;
             if (!v || !v.globe || !v.renderer) return false;
             if (!(v.renderer.info.render.frame > 0)) return false;
+            // And the GIS layer has to have stopped rearranging itself, or the
+            // card lifts on a panel that is about to reshuffle three times.
+            // A destination that never runs that bootstrap — Earth loads its
+            // modules as its own script tags — leaves the flag undefined,
+            // which is not pending and so does not hold anything up.
+            if (w.GeoIDGisPending) return false;
             let textured = false;
             v.globe.traverse((o) => {
               const m = o.material;

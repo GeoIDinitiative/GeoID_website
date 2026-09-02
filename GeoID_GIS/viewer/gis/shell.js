@@ -28,7 +28,7 @@
  */
 const SHELL_STAMP = new URL(import.meta.url).search || "";
 const SHELL_URL = `/GeoID_GIS/viewer/gis/shell.html${SHELL_STAMP}`;
-const ATLAS_CSS = "/GeoID_GIS/viewer/gis/research/atlas.css?v=20260902-4f840b0";
+const ATLAS_CSS = "/GeoID_GIS/viewer/gis/research/atlas.css?v=20260903-965d9bd";
 
 /**
  * The Research Hub's stylesheet, loaded here rather than from ten <head>s.
@@ -131,6 +131,29 @@ async function inject() {
     console.error("[GeoID GIS] could not load the shared shell:", error.message);
     return { injected: [], error: error.message };
   }
+
+  /**
+   * ARRANGING — the panel is hidden until it has stopped moving.
+   *
+   * A planet page renders the shell in markup order and then rearranges it
+   * four times: modules add sections, side-panels lifts whole groups out to
+   * the tool rail, and toolbox re-sorts what is left into TAB_ORDER. Measured
+   * on a cold Mars load, the panel is on screen at 220 ms and does not settle
+   * until 6.1 s, with the tab column visibly reshuffling three times in the
+   * last second of it.
+   *
+   * Set HERE rather than in the page markup because on these pages the panel
+   * does not exist until this function creates it — there is no first paint to
+   * beat, which is the one thing the `is-embedded` marker has to be inline
+   * for. boot.js clears it on `geoid:gis-ready`.
+   *
+   * The timeout is not decoration. A module that throws takes the rest of the
+   * layer with it (boot catches, but the ready event still fires) — and if
+   * anything ever stopped that event, a permanently invisible panel would be a
+   * far worse fault than the reshuffle this is hiding. It clears regardless.
+   */
+  document.documentElement.classList.add("gis-arranging");
+  setTimeout(() => document.documentElement.classList.remove("gis-arranging"), 15000);
 
   const parsed = new DOMParser().parseFromString(html, "text/html");
   const injected = [];

@@ -1,4 +1,4 @@
-import { ready } from "./shell.js?v=20260902-4f840b0";
+import { ready } from "./shell.js?v=20260903-965d9bd";
 
 /**
  * The GIS layer's entry point on a planet page.
@@ -80,7 +80,7 @@ const MODULES = [
   "./atlas-assistant.js",
 ];
 
-const VERSION = "?v=20260902-4f840b0";
+const VERSION = "?v=20260903-965d9bd";
 
 async function boot() {
   const shell = await ready;
@@ -112,7 +112,23 @@ async function boot() {
   const manager = window.GeoIDModeManager;
   if (manager?.setMode && manager?.getMode) manager.setMode(manager.getMode());
 
+  // Settled: the panel can be shown, and anything waiting outside the page can
+  // stop waiting. `GeoIDGisPending` is set at module evaluation rather than
+  // inside boot(), so a page that never runs this file is simply NOT PENDING —
+  // a watcher cannot tell "not started" from "absent" if the flag only appears
+  // once work begins, and Earth's viewer loads its modules as its own script
+  // tags and never comes through here.
+  document.documentElement.classList.remove("gis-arranging");
+  window.GeoIDGisPending = false;
   document.dispatchEvent(new CustomEvent("geoid:gis-ready"));
 }
 
-void boot();
+window.GeoIDGisPending = true;
+
+void boot().catch((error) => {
+  // The panel must never be left hidden by a failure. The shell's own timeout
+  // would clear it eventually; this clears it at once.
+  console.error("[GeoID GIS] boot failed:", error);
+  document.documentElement.classList.remove("gis-arranging");
+  window.GeoIDGisPending = false;
+});

@@ -1873,3 +1873,28 @@ body[data-view-mode="model"] #gmt-clock {
 #ui {
   max-height: calc(100vh - 2rem - var(--layer-dock-space, 0px));
 }
+
+/* ── The GIS chrome is hidden while it is still being arranged ─────────────
+ *
+ * These pages render the shell in markup order and then rearrange it: modules
+ * add sections, side-panels lifts whole groups out to the tool rail, and
+ * toolbox re-sorts what is left into TAB_ORDER. Measured on a cold Mars load —
+ * panel on screen at 220 ms, settled at 6.1 s, with the tab column visibly
+ * reshuffling three times in the last second. Every one of those states is a
+ * real arrangement of the real controls, and none of them is the one meant.
+ *
+ * `visibility`, not `display`: the layout is computed throughout, so the pieces
+ * measure themselves against their true boxes while hidden and nothing reflows
+ * at the reveal. The three named here are the ones that move.
+ *
+ * Set by shell.js when it injects the panel and cleared by boot.js on
+ * `geoid:gis-ready`, with a 15 s timeout in the shell and a catch in boot so a
+ * failure can never leave the controls invisible.
+ *
+ * Earth is untouched: its markup is already in the page, it never runs the
+ * injector, and this class is never set there. */
+html.gis-arranging #ui,
+html.gis-arranging #tool-rail,
+html.gis-arranging #layer-dock {
+  visibility: hidden;
+}
