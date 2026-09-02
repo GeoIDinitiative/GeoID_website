@@ -240,7 +240,16 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 8px 12px;
+  /**
+   * THE CORNER IS THE ATLAS MARK'S, and the mark says how much of it it needs
+   * (`--atlas-launcher-w`, published by `placeLauncher`). The hub has no tool
+   * rail for the mark to push down, so without this the header's last button
+   * sat underneath it. Right padding rather than a margin on the last child:
+   * it reserves the corner for BOTH rows of the header at once, and the
+   * left-aligned tab row is unaffected by it.
+   */
   padding: 6px 10px;
+  padding-right: calc(var(--atlas-launcher-w, 78px) + 4px);
   background: var(--atlas-panel-soft);
   border-bottom: 1px solid var(--atlas-border);
 }

@@ -799,6 +799,21 @@ function placeLauncher(launcher, panelNode) {
   if (launcher.style.right !== rightPx) launcher.style.right = rightPx;
   if (launcher.style.bottom !== "auto") launcher.style.bottom = "auto";
 
+  /**
+   * THE CLEARANCE IS PUBLISHED AS A LENGTH, because one page has no rail.
+   *
+   * On the GIS page the mark pushes the tool rail down and that is the whole
+   * of it. The RESEARCH HUB owns the screen and has no rail, so nothing moved
+   * for the mark and it sat on the last button of the header row — reported
+   * over "Data Shelf". Rather than the hub guessing this mark's size, the mark
+   * states it and the hub's stylesheet consumes it, which is the seam
+   * `--workbench-w` already uses to keep the legend clear of a workbench.
+   */
+  const clearance = `${Math.round(right + (launcher.offsetWidth || 52) + GAP)}px`;
+  if (document.documentElement.style.getPropertyValue("--atlas-launcher-w") !== clearance) {
+    document.documentElement.style.setProperty("--atlas-launcher-w", clearance);
+  }
+
   // The GIS tools move down to clear the mark. Skipped where the rail is not
   // top-anchored — the narrow embedded layout centres it vertically with
   // `!important`, so there is nothing to clear and nothing we could set.

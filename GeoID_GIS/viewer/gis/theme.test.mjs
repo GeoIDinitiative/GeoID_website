@@ -229,6 +229,32 @@ ok("and a received theme is applied without being re-announced",
 }
 
 /**
+ * THE ATLAS MARK OWNS THE CORNER, and the hub's header has to leave it.
+ *
+ * On the GIS page the mark pushes the tool RAIL down and that is the whole of
+ * it. The hub owns the screen and has no rail, so nothing moved for the mark
+ * and it sat on the header's last button. The mark publishes its own clearance
+ * as a length and the hub consumes it — the seam `--workbench-w` already uses
+ * to keep the legend clear of a workbench — rather than either guessing the
+ * other's size.
+ */
+{
+  const assistant = read("GeoID_GIS/viewer/gis/atlas-assistant.js");
+  const atlas = read("GeoID_GIS/viewer/gis/research/atlas.css");
+  ok("the mark publishes its clearance",
+    /setProperty\("--atlas-launcher-w", clearance\)/.test(assistant));
+  // Written only when it CHANGES, like the rest of placeLauncher, so a poll
+  // that finds nothing to do leaves no trace.
+  ok("and only when it changes",
+    /getPropertyValue\("--atlas-launcher-w"\) !== clearance/.test(assistant));
+  ok("the hub header reserves it",
+    /padding-right: calc\(var\(--atlas-launcher-w, 78px\)/.test(atlas));
+  // Padding on the block, not a margin on the last child: it reserves the
+  // corner for BOTH rows of the header at once.
+  ok("for both rows of the header", /reserves the corner for BOTH rows/.test(atlas));
+}
+
+/**
  * THE MODE SWITCH LEADS THE HUB'S HEADER. It is navigation between the three
  * PAGES of the app, and parked mid-row it read as a sibling of Jobs and Alerts
  * — which are drawers on the page you are already on.
