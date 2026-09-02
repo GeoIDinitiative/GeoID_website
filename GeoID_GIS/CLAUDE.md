@@ -6570,6 +6570,67 @@ frame 0 entirely "surveyed on this date" and frame 12 spanning all six; the
 change map draws all seven of its classes; the legend card renders seven or
 eight swatched rows with no ramp, where it used to read "66 polygons".
 
+## One list per subject, and provenance lives in the Metadata tab
+
+Four reports on one screenshot of the Ice cover subtab, and three of them are
+the same fault: a subtab that had grown its own furniture beside the catalogue
+it already had.
+
+**A TILED LAYER IS A CATALOGUE ROW.** Two of these lists hold a layer
+`global-data.js` cannot describe, because it is not a file: the world's
+contacts and faults, and the glacier inventory. Both are tile services driven
+by `geology-panel.js`'s machinery, and each had grown its OWN bespoke tick —
+the contacts appended after the list by `catalogue-panels.js`, the inventory
+built above it by `ice-cover-panel.js`. Two shapes of control for one kind of
+thing, and the only rows in either list with no ⓘ.
+
+`TILED` in `catalogue-panels.js` is one registry keyed by home: each entry
+declares `ready`, `layerOf`, `load` and `unload` against its own module's seam
+and nothing else, and is merged into the list for its home BEFORE it is drawn —
+so it takes the same row, the same group heading and the same info card as
+everything beside it. `ice-cover-panel.js` keeps only what a catalogue
+genuinely cannot hold (the change subtab) and publishes
+`window.GeoIDIceCover = { load, remove, layerOf }` for the row to drive.
+Measured after: one box, three groups — Global inventory, Ice sheets, Live
+services — three rows, an ⓘ on every one, and the contacts row now inside the
+Tectonics group rather than orphaned under the list.
+
+**A tiled row reports itself like the rows beside it.** An ordinary row's
+`addDataset` writes "X added. <licence>."; the tiled ones wrote nothing, so the
+Tectonics list went silent when the mechanism changed. An entry may carry
+`added` for that — the inventory does not, because it writes its own richer
+line once its tiles have landed and a generic one would overwrite it.
+
+**THE UNTICK IS THE REPORT, on every path.** "Ice sheets and shelves —
+Greenland and Antarctica (Natural Earth 1:10m) taken off the globe." restates
+what the empty box already says, and then sits there describing something no
+longer on the globe. The status is cleared instead — and cleared FIRST, before
+any branch returns, because the tiled path returns early and left the last
+load's message standing over an empty list. That was measured, not reasoned:
+the first version cleared it at the bottom and the contacts row still read
+"added" after being removed.
+
+**PROVENANCE LIVES IN THE METADATA TAB, so it has to actually be there.** The
+subtab carried a "Sources" fold listing RGI, GLIMS and Natural Earth — a fourth
+place to state what the Metadata tab exists for. Removing it exposed two real
+gaps, and both had to be closed first:
+
+- **A tiled layer had no `metadata` at all**, so the glacier inventory read
+  "Source: user import, CRS: unstated". `loadDerivedGeologyMap` takes one now
+  and it rides on the ENTRY rather than being written onto the record, because
+  this layer re-registers itself whenever the view settles and anything written
+  once is gone by the next refine.
+- **A SHIPPED catalogue file had none either.** `addDataset` wrote `metadata`
+  only in the connector branch, so a live BGS layer named its endpoint and its
+  licence while Natural Earth beside it said "user import". Every catalogue
+  layer states source, citation and CRS now. Measured: the ice sheets arrive
+  with `/data/global/ice-sheets.geojson` and "Natural Earth — public domain".
+
+**And "Ice in the geological compilation" is gone from the list.** It was there
+so the geology layer's ice FILTER could be checked, which is a developer's
+question rather than a reader's. The predicate stays exactly where it matters —
+keeping ice out of the geological map — and `ice-cover.js` is untouched.
+
 ## Imagery over time: its own sequence, and ONE player behind both
 
 "A separate time animation devoted solely to the imagery over time — no
