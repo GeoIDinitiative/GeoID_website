@@ -38,6 +38,19 @@ body.fs-flying #sources-section { display: none !important; }
    too — keep the container and drop only the orbit-only buttons within it. */
 body.fs-flying #spin-toggle,
 body.fs-flying #freeze-view-toggle { display: none !important; }
+/* THE PLANET STRIP GOES TOO, in both flight states. It is pinned bottom-centre
+   and the flight HUD is a full-width bar across the same edge, so the planet
+   icons showed THROUGH the readouts — a row of little globes interleaved with
+   HEADING, PITCH, POSITION and GROUND. It is also the wrong offer to be making
+   mid-flight: it navigates to another world, and this one is being flown.
+   Preflight too, which already stands the toolbar and the rail down for the
+   same reason — the site-picking reticle owns the screen.
+   The rule lives HERE rather than in planet-strip.js's own injected style,
+   because this is the flight sim's list of what flight hides and every sibling
+   above is already on it. It reaches the five viewers that load this sheet,
+   which is exactly the set that has a flight sim: the rocky worlds. */
+body.fs-flying .gis-planet-dock,
+body.fs-preflight .gis-planet-dock { display: none !important; }
 /* ENTER — the flight mode entry. A glowing action button, not a tickbox:
    entering flight is a mode change, not a layer you switch on. */
 /* The flight section sits OUTSIDE the wrapper that gives the other sections
