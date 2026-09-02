@@ -183,6 +183,64 @@ ok("the message the two documents pass is one type",
 ok("and a received theme is applied without being re-announced",
   /apply\(data\.skin, \{ tell: false,/.test(script));
 
+/**
+ * THE DRAWN SURFACES. A canvas and a three.js material cannot read a
+ * stylesheet, so the clock, the label chips and the hover highlight stayed in
+ * the default palette under every theme. Each asks the theme for its own
+ * token, and each token defaults to the value it drew before themes existed —
+ * so the default theme is untouched and a theme opts in by restating one line.
+ */
+{
+  const viewer = read("GeoID_GIS/viewer/earth-viewer.js");
+  const popup = read("GeoID_GIS/viewer/gis/feature-popup.js");
+  ok("the theme publishes a token reader for canvases",
+    /function token\(name, fallback\)/.test(script) && /function hex\(name, fallback\)/.test(script));
+  ok("the clock asks for its ink", /token\?\.\("--skin-clock", "#3fe0e6"\)/.test(viewer));
+  ok("the label chip asks for its accent", /token\?\.\("--skin-chip", "#3aeee8"\)/.test(viewer));
+  ok("the hover highlight asks for its colour", /hex\?\.\("--skin-hover", 0x8ef6ff\)/.test(popup));
+  // A theme change moves no digit, so the clock's equality guard would skip
+  // the redraw and leave it in the previous colour — for ever on a paused one.
+  ok("and the clock is invalidated when the theme changes",
+    /geoid:skin-changed[\s\S]{0,120}clockShown = ""/.test(viewer));
+  // Only the CURATED chip follows the theme: a dataset label takes its accent
+  // from its own layer's legend, and overriding that is a theme overruling data.
+  ok("a dataset label's own colour is not overridden",
+    /label already takes its accent from its layer/.test(viewer));
+  for (const t of ["crt", "pixel", "vector", "outrun", "beige", "hud"]) {
+    const at = css.indexOf(`:root[data-skin="${t}"] {`);
+    const block = css.slice(at, css.indexOf("}", at));
+    ok(`${t} sets all three drawn-surface colours`,
+      ["--skin-clock:", "--skin-chip:", "--skin-hover:"].every((k) => block.includes(k)));
+  }
+}
+
+/**
+ * THEME SOUNDS. Synthesised, so there is no asset and no licence, and the
+ * click is defined beside the theme it belongs to.
+ */
+{
+  const sound = read("scripts/theme-sound.js");
+  const voices = [...sound.matchAll(/^    (\w+): \{ kind:/gm)].map((m) => m[1]);
+  ok("every theme but the default has a voice",
+    voices.join(",") === "crt,pixel,vector,outrun,beige,hud", voices.join(","));
+  // Sound is a thing a theme brings, not a thing the app starts doing to
+  // somebody who never asked for it.
+  ok("the default theme is silent", /return skin \? VOICES\[skin\] : null;/.test(sound));
+  ok("it is off until switched on", /getItem\(KEY\) === "on"/.test(sound));
+  ok("and the switch sits beside the picker",
+    /id=\\"gis-skin-sound\\" type=\\"checkbox\\"/.test(read("GeoID_GIS/viewer/gis/panels.js")));
+  // A click on the globe, a drag or a text selection must be silent, or the
+  // sound becomes the reason somebody turns it off.
+  ok("only controls make a sound",
+    /function isControl\(target\)/.test(sound) && /button, summary, a\[href\]/.test(sound));
+  // A browser refuses an AudioContext outside a gesture, and one made at load
+  // would leave a suspended context running for a reader who never asks.
+  ok("the audio context is made on the first click, not at load",
+    sound.indexOf("var ctx = null;") < sound.indexOf("function audio()"));
+  ok("the sound script is deferred, unlike the applier",
+    /theme-sound\.js" defer/.test(read("geohub/index.html")));
+}
+
 console.log(`${pass} passed`);
 if (fail) console.log(`${fail} FAILED`);
 process.exit(fail ? 1 : 0);
