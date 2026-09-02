@@ -7018,6 +7018,37 @@ theme now measures **2**, which is the cleanest of the seven.
 first.** Without that baseline the six false positives read as six bugs, and
 the two real ones are lost in them.
 
+### The planets have their own copy of everything, themes included
+
+Reported as "the Workspace is different on the planet viewers", and it is the
+fork showing through: Earth reads `viewer/styles.css`, the nine planets read
+`gis/shell.css` plus a per-planet `styles.css` each. A tokenisation pass on
+Earth's stylesheet therefore reaches EARTH ALONE, and the dark grounds stayed
+in the planets' copy — the dock, its layer rows, the plot boxes, the planet
+strip.
+
+Fixed in three places, and the reach of each is what decides where a literal
+costs the most:
+
+- **`gis/shell.css`** — 15 grounds and blooms. One file, nine viewers.
+- **`styles/viewer-skin.css`** — the Tour Enter button's ink. One file,
+  ELEVEN viewers, so a literal there is eleven viewers wrong at once.
+- **The nine per-planet `styles.css`** — the wordmark's ink (`#d0dbe0`) and
+  the dark stroke behind it, one occurrence each. The stroke follows
+  `--skin-vignette` rather than staying dark, because on a light theme a dark
+  outline round a dark wordmark is what keeps it legible.
+
+**`theme.test.mjs` now checks BOTH stylesheets for the same list of ground
+literals**, and every planet for the wordmark token. That is the guard that
+matters: the fork cannot drift back one file at a time, and running the check
+immediately found six MORE in Earth's own copy that the first pass had missed.
+
+**And the audit instrument has a floor per page, so read it as a delta.** On
+the Neptune viewer the default theme measures 2 by the contrast walk, and the
+elements it flags come back readable when probed individually — translucent
+controls and headings whose ground the walk resolves optimistically. Compare a
+theme against the DEFAULT's number on the same page, never against zero.
+
 ## Running and testing
 
 `python3 serve.py` (repo root) starts the static site *and* the sidecar together

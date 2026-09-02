@@ -875,7 +875,7 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
       padding: 0.38rem 0.55rem;
       border-radius: 0.45rem;
       border: 1px solid rgba(255, 255, 255, 0.12);
-      background: rgba(8, 13, 19, 0.98);
+      background: var(--skin-card-ground, rgb(24, 13, 47));
       color: var(--text);
       font: inherit;
     }
@@ -1030,7 +1030,7 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
       padding: 0.4rem 0.55rem;
       border-radius: 0.45rem;
       border: 1px solid rgba(255, 255, 255, 0.12);
-      background: rgba(8, 13, 19, 0.98);
+      background: var(--skin-card-ground, rgb(24, 13, 47));
       color: var(--text);
       font: inherit;
     }
@@ -1236,7 +1236,7 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
       padding: 0.7rem 0.8rem;
       border-radius: 0.6rem;
       border: 1px solid rgba(255, 255, 255, 0.12);
-      background: rgba(8, 13, 19, 0.98);
+      background: var(--skin-card-ground, rgb(24, 13, 47));
       color: var(--text);
       font: inherit;
       line-height: 1.45;
@@ -4330,7 +4330,7 @@ canvas {
       padding: 0.16rem 0.3rem;
       border-radius: 0.35rem;
       border: 1px solid rgba(var(--nav-accent-rgb), 0.28);
-      background: rgba(8, 13, 19, 0.96);
+      background: var(--skin-card-ground, rgb(24, 13, 47));
       color: var(--text);
       font: inherit;
       font-size: 0.72rem;
@@ -4345,7 +4345,7 @@ canvas {
       padding: 0.24rem 0.5rem;
       border-radius: 0.4rem;
       border: 1px solid rgba(var(--nav-accent-rgb), 0.28);
-      background: rgba(8, 13, 19, 0.96);
+      background: var(--skin-card-ground, rgb(24, 13, 47));
       color: var(--text);
       font: inherit;
       font-size: 0.72rem;
@@ -4655,7 +4655,7 @@ canvas {
     .meta-entry i { color: var(--soft-light); font-style: normal; margin-right: 0.3rem; }
 
     .gis-code { font-family: "Courier New", monospace; font-size: 0.66rem; line-height: 1.35; resize: vertical; width: 100%; }
-    .gis-plot { min-height: 6rem; margin: 0.4rem 0; border: 1px solid rgba(var(--skin-data-rgb), 0.22); border-radius: 0.4rem; background: rgba(4, 8, 16, 0.85); }
+    .gis-plot { min-height: 6rem; margin: 0.4rem 0; border: 1px solid rgba(var(--skin-data-rgb), 0.22); border-radius: 0.4rem; background: var(--skin-tab-ground, rgb(16, 7, 36)); }
     .gis-checks { display: flex; flex-wrap: wrap; gap: 0.5rem; font-size: 0.66rem; }
     .gis-checks label { display: inline-flex; align-items: center; gap: 0.25rem; }
 

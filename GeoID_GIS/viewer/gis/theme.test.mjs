@@ -229,6 +229,34 @@ ok("and a received theme is applied without being re-announced",
 }
 
 /**
+ * THE PLANETS HAVE THEIR OWN COPY OF EVERYTHING.
+ *
+ * Earth reads `styles.css`; the nine planet viewers read `gis/shell.css` and a
+ * per-planet `styles.css` each. A tokenisation pass on Earth's therefore
+ * reaches Earth alone — reported as the Workspace tile looking different on
+ * Neptune, where the dock and its rows still carried the dark grounds.
+ *
+ * Both stylesheets are checked for the SAME literals, so the fork cannot drift
+ * back one file at a time.
+ */
+{
+  const GROUNDS = /rgba\((10, ?14, ?24|8, ?12, ?20|8, ?13, ?19|6, ?10, ?16|4, ?8, ?16|7, ?13, ?20)/;
+  for (const p of ["GeoID_GIS/viewer/styles.css", "GeoID_GIS/viewer/gis/shell.css"]) {
+    ok(`${p.split("/").pop()} has no dark ground literal`, !GROUNDS.test(read(p)));
+  }
+  // The shared skin reaches all eleven viewers, so a literal there is eleven
+  // viewers wrong at once.
+  const skin = read("styles/viewer-skin.css");
+  ok("the shared skin's Enter button reads the ink token",
+    /\.tour-enter-btn \{[\s\S]*?color: var\(--skin-ink\)/.test(skin));
+  // And the nine forks each carry the wordmark's ink.
+  const forks = ["mercury","venus","moon","mars","jupiter","saturn","uranus","neptune","pluto"];
+  const missed = forks.filter((b) =>
+    !/color: var\(--skin-ink, #d0dbe0\)/.test(read(`planet_explorer/${b}/viewer/styles.css`)));
+  ok("every planet's wordmark follows the theme", missed.length === 0, missed.join(","));
+}
+
+/**
  * THE ATLAS MARK OWNS THE CORNER, and the hub's header has to leave it.
  *
  * On the GIS page the mark pushes the tool RAIL down and that is the whole of

@@ -183,7 +183,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--skin-chrome); 
      as the checkbox rows. */
   padding: 0.22rem 0.72rem;
   border-radius: 0.45rem;
-  color: #dff6ff;
+  color: var(--skin-ink);
   background: linear-gradient(180deg,
     rgba(var(--nav-accent-rgb), 0.28), rgba(var(--nav-accent-rgb), 0.10));
   border: 1px solid rgba(var(--nav-accent-rgb), 0.65);
