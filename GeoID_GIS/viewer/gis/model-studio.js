@@ -1,11 +1,11 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260902-7f14365";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260902-7f14365";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260902-be35469";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260902-be35469";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260902-7f14365";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260902-7f14365";
-import { downloadText } from "./extraction.js?v=20260902-7f14365";
+} from "./mesh-volume.js?v=20260902-be35469";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260902-be35469";
+import { downloadText } from "./extraction.js?v=20260902-be35469";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -1726,13 +1726,45 @@ function applyCameraClip(camera, d) {
  */
 let launchGlobeView = null;
 
+/**
+ * THE VIEW IS REMEMBERED IN THE BODY'S FRAME, never in world space.
+ *
+ * Eight of the nine planet viewers and Earth put their body at the world
+ * origin, so the two frames are the same thing and this is arithmetic on
+ * zero. The MOON does not: Earth holds the origin there and the Moon orbits
+ * it about 708 scene units out, moving the whole time. A view remembered as
+ * world coordinates therefore names a place the Moon has since left, and
+ * restoring it puts the camera and the orbit pivot beside the Moon rather
+ * than on it.
+ *
+ * Measured on a cold load, before the fix: the anchor is exact until
+ * mode-manager sets the opening mode at ~10 s, then jumps 12.06 units off the
+ * Moon's centre in one frame — nearly four Moon radii, on a globe of radius
+ * 3.2 — and stays there, because the render loop's orbital follow adds the
+ * Moon's per-frame delta to camera and target alike and so carries the error
+ * forward for the life of the page. Everything downstream reads the target as
+ * the body centre, so drag-to-orbit swung the Moon across the screen and the
+ * zoom pill reported 4,552 km against a true 10,030 km.
+ *
+ * `viewer.globe` is the body mesh on every one of the eleven viewers, so its
+ * world position is the centre without a new seam to keep in step.
+ */
+function bodyCentreOf(viewer, out) {
+  const centre = out || new THREE.Vector3();
+  const body = viewer?.globe;
+  if (!body) return centre.set(0, 0, 0);
+  body.updateWorldMatrix(true, false);
+  return centre.setFromMatrixPosition(body.matrixWorld);
+}
+
 /** Captured once — the first call wins, so later ones cannot drift it. */
 function rememberGlobeView() {
   const viewer = window.GeoIDViewer;
   if (!viewer?.camera || launchGlobeView) return;
+  const centre = bodyCentreOf(viewer);
   launchGlobeView = {
-    position: viewer.camera.position.clone(),
-    target: viewer.controls?.target.clone() || new THREE.Vector3(),
+    position: viewer.camera.position.clone().sub(centre),
+    target: (viewer.controls?.target.clone() || new THREE.Vector3()).sub(centre),
     up: viewer.camera.up.clone(),
     near: viewer.camera.near,
     far: viewer.camera.far,
@@ -1749,12 +1781,14 @@ function rememberGlobeView() {
 function restoreGlobeView() {
   const viewer = window.GeoIDViewer;
   if (!viewer?.camera || !launchGlobeView) return;
-  viewer.camera.position.copy(launchGlobeView.position);
+  // Re-anchored to where the body is NOW, which is the whole point.
+  const centre = bodyCentreOf(viewer);
+  viewer.camera.position.copy(launchGlobeView.position).add(centre);
   viewer.camera.up.copy(launchGlobeView.up);
   viewer.camera.near = launchGlobeView.near;
   viewer.camera.far = launchGlobeView.far;
   viewer.camera.updateProjectionMatrix();
-  viewer.controls?.target.copy(launchGlobeView.target);
+  viewer.controls?.target.copy(launchGlobeView.target).add(centre);
   viewer.controls?.update();
   // Point the zoom target at where the camera now is, so the easing agrees with
   // the restore instead of undoing it.

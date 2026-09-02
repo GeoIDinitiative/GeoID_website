@@ -5702,32 +5702,68 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       }
     }
 
+    // A FLIGHT IS FLOWN IN THE MOON'S FRAME, not in world space.
+    //
+    // This is the one viewer whose body does not sit at the world origin: Earth
+    // holds that seat and the Moon orbits it on `moonOrbitPivot`, about 708
+    // scene units out. The render loop keeps the view on the Moon by adding the
+    // Moon's per-frame world delta to BOTH `camera.position` and
+    // `controls.target` — and a flight that lerps toward world-space endpoints
+    // overwrites both of them every frame, so that follow is erased for as long
+    // as the flight runs and the camera lands where the Moon USED TO BE.
+    //
+    // Measured on a cold load: the anchor is exact until the first flight and
+    // then jumps 9.4 units off the Moon's centre — three Moon radii, on a globe
+    // of radius 3.2 — where it stays, because the follow then carries the error
+    // forward for the life of the page. Everything downstream believes the
+    // target IS the body centre, so the orbit pivot sat beside the Moon (drag
+    // swung it across the screen) and the zoom bar read 4,552 km against a true
+    // 10,030 km.
+    //
+    // Flying in the body's frame fixes it by construction: the endpoints are
+    // held as offsets from the Moon and re-anchored to its live centre on every
+    // step, so a flight cannot outrun its own destination and the follow has
+    // nothing left to fight over. On a body at the origin the centre is zero and
+    // this is the arithmetic those viewers already do — which is why they never
+    // showed it.
+    const _flightCentreScratch = new THREE.Vector3();
+    function bodyCentreNow(out) {
+      const v = out || _flightCentreScratch;
+      if (marsSceneGroup) return marsSceneGroup.getWorldPosition(v);
+      return v.set(0, 0, 0);
+    }
+
     function animateCameraFlight(camera, controls, nextPosition, nextTarget, durationMs = 1400, onComplete = null) {
       if (!camera || !controls || !nextPosition || !nextTarget) {
         onComplete?.();
         return;
       }
       cancelCameraFlight();
+      // Endpoints as OFFSETS FROM THE MOON, captured against the centre it has
+      // right now — see bodyCentreNow above.
+      const _c0 = bodyCentreNow(new THREE.Vector3());
       const flight = {
         cancelled: false,
         startAt: performance.now(),
-        startPosition: camera.position.clone(),
-        startTarget: controls.target.clone(),
-        endPosition: nextPosition.clone(),
-        endTarget: nextTarget.clone(),
+        startPosition: camera.position.clone().sub(_c0),
+        startTarget: controls.target.clone().sub(_c0),
+        endPosition: nextPosition.clone().sub(_c0),
+        endTarget: nextTarget.clone().sub(_c0),
         durationMs,
         onComplete,
       };
       activeCameraFlight = flight;
 
+      const _cNow = new THREE.Vector3();
       const step = (now) => {
         if (flight.cancelled) {
           return;
         }
         const t = Math.min(1, (now - flight.startAt) / Math.max(flight.durationMs, 1));
         const eased = 1 - ((1 - t) ** 3);
-        camera.position.lerpVectors(flight.startPosition, flight.endPosition, eased);
-        controls.target.lerpVectors(flight.startTarget, flight.endTarget, eased);
+        bodyCentreNow(_cNow);
+        camera.position.lerpVectors(flight.startPosition, flight.endPosition, eased).add(_cNow);
+        controls.target.lerpVectors(flight.startTarget, flight.endTarget, eased).add(_cNow);
         controls.object.position.copy(camera.position);
         controls.update();
         if (t < 1) {
@@ -5751,12 +5787,21 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       }
       cancelCameraFlight();
 
-      const startPosition = camera.position.clone();
-      const startTarget = controls.target.clone();
+      // In the MOON'S FRAME, for the reason bodyCentreNow states — and here the
+      // frame decides the arc as well as the landing. Every radius below is a
+      // distance from the body being toured, and measured from the world origin
+      // they were distances from EARTH: `startDist` read about 708 rather than
+      // 11.6, so CRUISE_DIST could never exceed it, the altitude bump was dead,
+      // and the great-circle slerp arced over Earth instead of over the Moon.
+      const _c0 = bodyCentreNow(new THREE.Vector3());
+      const startPosition = camera.position.clone().sub(_c0);
+      const startTarget = controls.target.clone().sub(_c0);
+      const endPosition = nextPosition.clone().sub(_c0);
+      const endTarget = nextTarget.clone().sub(_c0);
       const startDist = startPosition.length();
-      const endDist = nextPosition.length();
+      const endDist = endPosition.length();
       const startDir = startDist > 0.0001 ? startPosition.clone().normalize() : new THREE.Vector3(0, 1, 0);
-      const endDir = endDist > 0.0001 ? nextPosition.clone().normalize() : startDir.clone();
+      const endDir = endDist > 0.0001 ? endPosition.clone().normalize() : startDir.clone();
 
       // Cruise altitude: always pull back to at least this distance from the planet centre
       const TOUR_GLOBE_R = 3.2;
@@ -5775,6 +5820,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       };
       activeCameraFlight = flight;
 
+      const _cNow = new THREE.Vector3();
       const step = (now) => {
         if (flight.cancelled) return;
 
@@ -5802,8 +5848,9 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         const bump = Math.sin(t * Math.PI) * Math.max(CRUISE_DIST - baseDist, 0);
         const currentDist = baseDist + bump;
 
-        camera.position.copy(currentDir).multiplyScalar(currentDist);
-        controls.target.lerpVectors(startTarget, nextTarget, easedT);
+        bodyCentreNow(_cNow);
+        camera.position.copy(currentDir).multiplyScalar(currentDist).add(_cNow);
+        controls.target.lerpVectors(startTarget, endTarget, easedT).add(_cNow);
         controls.object.position.copy(camera.position);
         controls.update();
 
