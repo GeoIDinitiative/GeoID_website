@@ -83,6 +83,14 @@
     }
 
     /* ── Card ────────────────────────────────────────── */
+    /* THE WHOLE CARD IS THE TILE. The photograph used to sit in the hero band
+       alone, so it stopped at the stats and the lower half of the card was
+       flat panel. It is the card's own background now — behind the stats, the
+       journey track, the countdown and the Return Home button — with the fade
+       below carrying the legibility that the flat panel used to.
+       The card's old near-opaque `linear-gradient(170deg, …0.94 … 0.92)` is
+       gone: a 92% fill over a photograph is a panel with a rumour of a picture
+       under it. The cyan wash stays, over the shot rather than over nothing. */
     .card {
       position: relative;
       width: min(840px, 100%);
@@ -90,6 +98,7 @@
       border: 2px solid rgba(255, 43, 214,0.55);
       background:
         radial-gradient(ellipse 70% 40% at 50% 0%, rgba(0, 229, 255,0.06) 0%, transparent 60%),
+        var(--hero-shot, none) center / cover no-repeat,
         linear-gradient(170deg, rgba(9,17,34,0.94) 0%, rgba(4,9,18,0.92) 100%);
       backdrop-filter: blur(28px);
       box-shadow:
@@ -164,40 +173,54 @@
       gap: 0.5rem;
       min-height: clamp(9rem, 19vw, 13rem);
       padding: 1.1rem clamp(1.25rem, 3vw, 2rem) clamp(1.2rem, 3vw, 1.8rem);
-      background-image: var(--hero-shot);
-      background-size: cover;
-      background-position: center;
-      background-repeat: no-repeat;
     }
 
     /* THE FADE, darkest at the tile's border — and it must stay a FADE.
-       The first version ended on `rgba(..., 1)`, and the corners of a box lie
+       An earlier version ended on `rgba(..., 1)`, and the corners of a box lie
        outside the ellipse that reaches its edges, so all four of them clamped
        to solid black: the picture survived only as a lozenge through the
-       middle and the tile read as not filled. The ellipse is bigger than the
-       box now and stops at 0.46, so the photograph is present into every
-       corner and merely dimmed there.
-       Two layers, because they answer different questions. The ellipse is the
-       fade itself. The linear underneath is for the WORDS: the name sits low
-       and left, where a symmetrical vignette is already dark but not reliably
-       dark enough over a bright cloud deck.
-       Painted in the content layer, so it covers the picture while the
-       positioned text still sits over it. */
-    .hero::after {
+       middle and the tile read as not filled.
+       Two layers, answering different questions. The ELLIPSE is the fade
+       itself: it stops at 0.80 rather than at 1, which is the whole
+       difference between a dark border and a black one — the photograph is
+       still there in every corner, just well down. The LINEAR eased off as the
+       ellipse took over: the two multiply, so a heavy bottom on top of a heavy
+       vignette makes the lower corners solid again. The LINEAR is for the
+       reading matter — the name near the top, then the stats, the journey and
+       the footer, all of them small text that used to sit on a flat panel and
+       now sits on a photograph. It leaves the top third alone, where the shot
+       is the whole point, and settles over the rows below it.
+       On ::after with the children lifted above it, so it covers the picture
+       and nothing else. */
+    .card::after {
       content: "";
       position: absolute;
       inset: 0;
       pointer-events: none;
+      z-index: 0;
       background:
-        radial-gradient(ellipse 104% 116% at 50% 44%,
+        radial-gradient(ellipse 94% 106% at 50% 36%,
           rgba(4, 7, 16, 0) 0%,
-          rgba(4, 7, 16, 0.05) 48%,
-          rgba(4, 7, 16, 0.22) 76%,
-          rgba(4, 7, 16, 0.46) 100%),
-        linear-gradient(to top,
-          rgba(4, 7, 16, 0.70) 0%,
-          rgba(4, 7, 16, 0.32) 30%,
-          rgba(4, 7, 16, 0) 62%);
+          rgba(4, 7, 16, 0.06) 40%,
+          rgba(4, 7, 16, 0.30) 66%,
+          rgba(4, 7, 16, 0.60) 86%,
+          rgba(4, 7, 16, 0.80) 100%),
+        linear-gradient(to bottom,
+          rgba(4, 7, 16, 0.04) 0%,
+          rgba(4, 7, 16, 0.16) 32%,
+          rgba(4, 7, 16, 0.38) 50%,
+          rgba(4, 7, 16, 0.50) 68%,
+          rgba(4, 7, 16, 0.54) 100%);
+    }
+
+    /* Above the fade. Without this the ::after paints over the words. */
+    .card > * { position: relative; z-index: 1; }
+
+    /* The reading matter carries its own shadow, so the fade under it does not
+       have to be heavy enough to blot the photograph out. Every one of these
+       used to sit on a flat panel where none was needed. */
+    .stats, .journey, .footer {
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 4px 14px rgba(0, 0, 0, 0.7);
     }
 
     /* Hero text */
@@ -728,7 +751,7 @@
 
     // The tile IS the destination now: an oblique of the body you are on your
     // way to, rendered from that body's own viewer.
-    document.querySelector(".hero").style.setProperty(
+    document.querySelector(".card").style.setProperty(
       "--hero-shot", `url("${dest.shot}")`);
 
     // Logo path: derive from destination if a planet viewer exists, else Mars fallback
