@@ -6926,6 +6926,37 @@ no-value grey. A theme dresses the chrome; the data keeps its own colours, and
 on a light ground some of them are genuinely low contrast — that is a cost of
 the light theme, not a bug in it.
 
+### A GROUND CAN BE A GRADIENT, and `backgroundColor` will not show it
+
+The geology card MEASURED as a light card under the Workstation theme and
+RENDERED dark — `backgroundColor: rgb(223, 223, 223)`, and a dark plate on
+screen. Its ground is a `background-image`:
+
+    linear-gradient(180deg, rgba(18, 28, 38, 0.95), rgba(6, 11, 17, 0.985))
+
+painted over the colour. The colour had been tokenised; the gradient had not,
+and the probe that read `backgroundColor` reported the fix as landed. Two
+rounds went into looking for a dark CHILD that did not exist.
+
+**When a surface refuses a theme, read `backgroundImage` before believing
+`backgroundColor`** — and when a measurement says a fix landed and the
+screenshot disagrees, the measurement is reading the wrong property.
+
+**An open legend head is FILLED, so its ink is white.** The same pass forced
+every `.legend-entry-head` black for contrast on grey and put black on navy on
+the one entry that was open — which is the one being read. Scoped to
+`.is-folded`, with `:not(.is-folded)` taking white, exactly as an open tab
+already does. A blanket contrast fix has to ask which STATE it is fixing.
+
+**"Beige box" is "Workstation" now**, and the ID stayed `beige`: an id is a
+storage key, and renaming one is a migration for every reader who has already
+chosen it — the lesson `sea-level-section` records.
+
+**And its click became a mouse click.** The first voice was a low square pair
+(240/180 Hz), which is a boop; a workstation's button is a dry mechanical tick,
+so it is short, high and almost pitchless (3100/2200 Hz at 18 ms). The voice is
+part of the theme's identity, not a decoration on it.
+
 ## Running and testing
 
 `python3 serve.py` (repo root) starts the static site *and* the sidecar together
