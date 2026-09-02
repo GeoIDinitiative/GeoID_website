@@ -1,0 +1,179 @@
+/**
+ * GEOHUB THEMES — the applier, shared by the shell and all eleven viewers.
+ *
+ * A theme is one attribute: `data-skin` on <html>, which `viewer-themes.css`
+ * hangs every palette and every signature rule off. This file is the only
+ * thing that writes it.
+ *
+ * IT IS A PLAIN SCRIPT, NOT A MODULE, AND IT RUNS IN <head>. A module is
+ * deferred by definition, so the first paint would land in the previous
+ * theme and switch a frame later — the flash a theme picker exists to avoid.
+ * Loaded synchronously before the body exists, the attribute is already on
+ * the root when the first rule is resolved. It costs one blocking request of
+ * about a kilobyte, and that is the price of not flashing.
+ *
+ * BOTH DOCUMENTS. The GIS viewer is an iframe inside the GeoHUB shell, and a
+ * theme that stopped at the iframe edge would leave the page around it in the
+ * old palette. The two keep in step over the postMessage bridge the shell
+ * already runs: whichever document is asked tells the other, and each stamps
+ * its own root. `localStorage` is shared by same-origin documents, so a
+ * reload in either lands on the same theme without a message at all.
+ */
+(function () {
+  "use strict";
+
+  /**
+   * The registry — id, the name the dropdown shows, and one line saying what
+   * the theme IS. Kept here rather than in the panel markup so the viewer,
+   * the shell and the test all read one list.
+   */
+  var THEMES = [
+    { id: "default", name: "GeoHUB (default)", note: "magenta chrome, cyan data" },
+    { id: "cabinet", name: "Arcade — cabinet marquee", note: "backlit sign, bevelled buttons" },
+    { id: "crt", name: "Arcade — CRT terminal", note: "green phosphor and scanlines" },
+    { id: "pixel", name: "Arcade — 8-bit pixel", note: "hard bevels, nothing rounded" },
+    { id: "vector", name: "Arcade — vector glow", note: "black ground, hairline strokes" },
+    { id: "outrun", name: "Arcade — outrun", note: "violet ground, neon glow" }
+  ];
+
+  var KEY = "geoid:skin";
+
+  function known(id) {
+    for (var i = 0; i < THEMES.length; i += 1) if (THEMES[i].id === id) return true;
+    return false;
+  }
+
+  /** What is stored, or the default — never a value the CSS has no block for. */
+  function stored() {
+    try {
+      var held = window.localStorage.getItem(KEY);
+      return known(held) ? held : "default";
+    } catch (error) {
+      // A private window throws on access. A theme is a preference, so the
+      // right answer to "cannot remember" is the default, not a failure.
+      return "default";
+    }
+  }
+
+  /**
+   * Stamp the root. The DEFAULT carries no attribute at all, so the base skin
+   * applies exactly as it did before this file existed — which is what makes
+   * the default theme a true no-op rather than a sixth palette that happens
+   * to match.
+   */
+  function stamp(id) {
+    var root = document.documentElement;
+    if (!id || id === "default") root.removeAttribute("data-skin");
+    else root.setAttribute("data-skin", id);
+  }
+
+  function tell(id) {
+    // Down into the viewer, and up into the shell: whichever document this is,
+    // the other one is on the far side of exactly one of these.
+    try {
+      var frames = document.querySelectorAll("iframe");
+      for (var i = 0; i < frames.length; i += 1) {
+        if (frames[i].contentWindow) {
+          frames[i].contentWindow.postMessage({ type: "geoid:skin", skin: id }, "*");
+        }
+      }
+    } catch (error) { /* a cross-origin frame is not ours to tell */ }
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: "geoid:skin", skin: id }, "*");
+      }
+    } catch (error) { /* ditto */ }
+  }
+
+  function apply(id, options) {
+    var next = known(id) ? id : "default";
+    stamp(next);
+    if (!options || options.persist !== false) {
+      try { window.localStorage.setItem(KEY, next); } catch (error) { /* private window */ }
+    }
+    if (!options || options.tell !== false) tell(next);
+    try {
+      window.dispatchEvent(new CustomEvent("geoid:skin-changed", { detail: { skin: next } }));
+    } catch (error) { /* CustomEvent is old enough to be safe; belt and braces */ }
+    return next;
+  }
+
+  // The first stamp, before anything is painted.
+  stamp(stored());
+
+  window.addEventListener("message", function (event) {
+    var data = event && event.data;
+    if (!data || data.type !== "geoid:skin") return;
+    // Applied but NOT re-announced: two documents each telling the other is a
+    // loop, and they are already agreed by the time this runs.
+    apply(data.skin, { tell: false });
+  });
+
+  /**
+   * A second tab is a second document with the same storage, so a theme
+   * chosen over there lands here too — without either page being reloaded.
+   */
+  window.addEventListener("storage", function (event) {
+    if (!event || event.key !== KEY) return;
+    apply(event.newValue, { persist: false, tell: true });
+  });
+
+  /**
+   * THE DROPDOWN, wired from here rather than from a panel module.
+   *
+   * The Settings markup is one string rendered on all ten worlds, so the
+   * control exists everywhere; wiring it in a viewer file would reach Earth
+   * alone (which is exactly what happened to the clock timezone beside it).
+   * The panel renders on its own schedule, so the options are filled by a
+   * poll — the clock's own pattern — while the `change` is a document-level
+   * listener that does not care where the panel has been moved to.
+   */
+  function fillSelect() {
+    var select = document.getElementById("gis-skin");
+    if (!select) { window.setTimeout(fillSelect, 700); return; }
+    if (!select.options.length) {
+      for (var i = 0; i < THEMES.length; i += 1) {
+        var option = document.createElement("option");
+        option.value = THEMES[i].id;
+        option.textContent = THEMES[i].name;
+        select.appendChild(option);
+      }
+    }
+    select.value = stored();
+    note(select.value);
+  }
+
+  function note(id) {
+    var node = document.getElementById("gis-skin-note");
+    if (!node) return;
+    for (var i = 0; i < THEMES.length; i += 1) {
+      if (THEMES[i].id === id) { node.textContent = THEMES[i].note; return; }
+    }
+    node.textContent = "";
+  }
+
+  document.addEventListener("change", function (event) {
+    if (!event.target || event.target.id !== "gis-skin") return;
+    note(apply(event.target.value));
+  });
+  // A theme chosen in the shell, or in another tab, moves this select too.
+  window.addEventListener("geoid:skin-changed", function (event) {
+    var select = document.getElementById("gis-skin");
+    var id = event && event.detail && event.detail.skin;
+    if (select && id && select.value !== id) select.value = id;
+    note(id);
+  });
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", fillSelect);
+  } else {
+    fillSelect();
+  }
+
+  window.GeoIDTheme = {
+    THEMES: THEMES,
+    KEY: KEY,
+    get: stored,
+    set: apply,
+    isKnown: known
+  };
+}());

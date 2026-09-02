@@ -1,0 +1,271 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   GeoHUB THEMES — five arcade skins the reader chooses, plus the default
+
+   Loaded LAST, after viewer-skin.css (and after viewer-skin-ember.css on
+   Etna), in every viewer and in the GeoHUB shell. `scripts/theme.js` stamps
+   `data-skin` on <html> and everything below hangs off that attribute, so
+   switching is one attribute flip: no stylesheet to load, nothing to
+   unload, and no flash of the previous palette.
+
+   WHY THIS IS A TOKEN FILE AND NOT FIVE STYLESHEETS. `viewer-skin.css`
+   already resolves every rule through eleven palette tokens — that is what
+   makes the Etna ember variant a colour swap rather than a second copy of
+   the skin — and the GIS panel CSS reads `--nav-accent` in 242 places with
+   NO hard-coded magenta anywhere. So a theme is mostly a restatement of
+   those tokens, and it reaches the nav bar, the panels, the cards, the
+   dialogs, the legend, the Workspace tile and all sixty-four Research Hub
+   pages without one of those files being touched.
+
+   What a palette CANNOT say is the part of a look that is structural — a
+   pixel theme has no rounded corners, a CRT has scanlines, a cabinet has
+   hard-offset bevels rather than glow. Each block below therefore carries
+   its palette and then a short list of signature rules, aimed at the SAME
+   structural classes the base skin already targets.
+
+   THE GeoID MARK IS NEVER RESTYLED. No filter, no tint, no mix-blend on
+   `.brand-logo` or any of its siblings: the mark is the one fixed point,
+   and each theme makes room for it instead.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* The arcade faces, requested the way viewer-skin.css already asks for
+   Orbitron and Exo 2 — same host, already in the connection, no new asset
+   in the repo. Each is loaded only because a theme's identity IS its
+   lettering: VT323 is the CRT, Press Start 2P is the pixel plate, Bungee is
+   the marquee. `font-display: swap` so a theme never blocks first paint. */
+@font-face {
+  font-family: "Press Start 2P";
+  font-style: normal; font-weight: 400; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/pressstart2p/v16/e3t4euO8T-267oIAQAu6jDQyK3nVivM.woff2) format('woff2');
+}
+@font-face {
+  font-family: "VT323";
+  font-style: normal; font-weight: 400; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/vt323/v18/pxiKyp0ihIEF2isfFJU.woff2) format('woff2');
+}
+@font-face {
+  font-family: "Bungee";
+  font-style: normal; font-weight: 400; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/bungee/v17/N0bU2SZBIuF2PU_0DXR1.woff2) format('woff2');
+}
+
+/* ── The two font roles every theme sets ──────────────────────────────
+   DISPLAY is the wordmark and the tab titles; BODY is everything else.
+   Declared on :root so the default theme is the site's own pair and a
+   theme changes them by restating two values. */
+:root {
+  --skin-display: "Orbitron", "Segoe UI", sans-serif;
+  --skin-body: "Exo 2", "Segoe UI", sans-serif;
+  --skin-round: 1;            /* radius multiplier: 0 squares the whole UI */
+}
+
+/* Consumed here rather than in every page's own stylesheet, on the class
+   list the base skin already owns. `!important` for the same reason the
+   base skin uses it: these files are loaded before the page's own CSS in
+   some viewers and after it in others. */
+:root[data-skin] body,
+:root[data-skin] .button, :root[data-skin] .tool-button,
+:root[data-skin] .input, :root[data-skin] .mini-select,
+:root[data-skin] .compact-copy, :root[data-skin] .tool-copy,
+:root[data-skin] .gis-catalogue-name, :root[data-skin] .legend-class-label {
+  font-family: var(--skin-body) !important;
+}
+:root[data-skin] .section-title, :root[data-skin] .section-heading,
+:root[data-skin] .brand-title, :root[data-skin] .feature-title,
+:root[data-skin] .eyebrow, :root[data-skin] .gis-catalogue-head,
+:root[data-skin] .layer-dock-head {
+  font-family: var(--skin-display) !important;
+}
+
+/* ═══ A · CABINET MARQUEE ══════════════════════════════════════════════
+   The panel as the machine: the mark's own magenta and cyan as the
+   cabinet's livery, amber as the third accent, and buttons that sit on a
+   hard offset shadow the way a real one does. */
+:root[data-skin="cabinet"] {
+  --skin-chrome: #d63bbd;
+  --skin-chrome-rgb: 214, 59, 189;
+  --skin-chrome-ink: #2a0026;
+  --skin-data: #ffb020;
+  --skin-data-rgb: 255, 176, 32;
+  --skin-bg: #100b16;
+  --skin-panel: 26, 18, 34;
+  --skin-ink: #f7ecd9;
+  --skin-muted: 226, 205, 176;
+  --skin-vignette: 8, 5, 11;
+  --skin-display: "Bungee", "Orbitron", sans-serif;
+  --skin-body: "Exo 2", "Segoe UI", sans-serif;
+}
+/* A button on a cabinet has a plate under it, not a bloom around it. */
+:root[data-skin="cabinet"] .button,
+:root[data-skin="cabinet"] .tool-button,
+:root[data-skin="cabinet"] .gis-tool-section,
+:root[data-skin="cabinet"] .control-section {
+  border-radius: 0.28rem !important;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.75),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+}
+/* The marquee: the one place the theme goes light, because a backlit sign
+   is what the wordmark sits on. */
+:root[data-skin="cabinet"] .brand,
+:root[data-skin="cabinet"] .layer-dock-head {
+  background: linear-gradient(#fdf3dc, #e9d5ab) !important;
+  border-radius: 0.28rem !important;
+  box-shadow: 0 0 22px rgba(255, 214, 140, 0.28), 0 3px 0 #4a3a1c !important;
+}
+:root[data-skin="cabinet"] .brand-title,
+:root[data-skin="cabinet"] .layer-dock-head,
+:root[data-skin="cabinet"] .layer-dock-head * {
+  color: #1b1020 !important;
+  text-shadow: none !important;
+}
+
+/* ═══ B · CRT TERMINAL ═════════════════════════════════════════════════
+   Green phosphor and scanlines. The mark keeps its own colours — it is the
+   badge on the bezel, not part of the picture — so nothing tints it. */
+:root[data-skin="crt"] {
+  --skin-chrome: #5dff9b;
+  --skin-chrome-rgb: 93, 255, 155;
+  --skin-chrome-ink: #04120a;
+  --skin-data: #ffc447;
+  --skin-data-rgb: 255, 196, 71;
+  --skin-bg: #03070a;
+  --skin-panel: 6, 18, 12;
+  --skin-ink: #b9ffd2;
+  --skin-muted: 122, 214, 158;
+  --skin-vignette: 2, 6, 4;
+  --skin-display: "VT323", monospace;
+  --skin-body: "VT323", monospace;
+}
+/* VT323 is a small face at any given size: without this the whole UI reads
+   a size down from every other theme. */
+:root[data-skin="crt"] body { font-size: 1.06em; letter-spacing: 0.02em; }
+/* The scanlines. One fixed overlay, ignored by the pointer, so it cannot
+   come between a reader and the globe. */
+:root[data-skin="crt"] body::after {
+  content: "";
+  position: fixed; inset: 0; z-index: 9999; pointer-events: none;
+  background: repeating-linear-gradient(rgba(0, 0, 0, 0) 0 2px,
+    rgba(0, 0, 0, 0.22) 2px 3px);
+}
+:root[data-skin="crt"] .control-section,
+:root[data-skin="crt"] .gis-tool-section {
+  border-radius: 0.2rem !important;
+}
+
+/* ═══ C · 8-BIT PIXEL ══════════════════════════════════════════════════
+   Hard bevels, no radius anywhere, an NES palette. The most opinionated of
+   the five and the one that changes the most beyond colour. */
+:root[data-skin="pixel"] {
+  --skin-chrome: #e4004f;
+  --skin-chrome-rgb: 228, 0, 79;
+  --skin-chrome-ink: #ffffff;
+  --skin-data: #00b7ff;
+  --skin-data-rgb: 0, 183, 255;
+  --skin-bg: #0a0a18;
+  --skin-panel: 29, 29, 66;
+  --skin-ink: #e8e8ff;
+  --skin-muted: 138, 138, 181;
+  --skin-vignette: 6, 6, 15;
+  --skin-display: "Press Start 2P", monospace;
+  --skin-body: "Exo 2", "Segoe UI", sans-serif;
+  --skin-round: 0;
+}
+/* Press Start 2P is enormous per character; the display role is titles
+   only, and they need pulling back to fit the same rows. */
+:root[data-skin="pixel"] .section-title,
+:root[data-skin="pixel"] .brand-title,
+:root[data-skin="pixel"] .gis-catalogue-head,
+:root[data-skin="pixel"] .layer-dock-head {
+  font-size: 0.62em !important;
+  letter-spacing: 0 !important;
+  line-height: 1.6 !important;
+}
+/* NOTHING is round, and every plate carries the light-top/dark-bottom
+   bevel that is the whole of the era's button language. */
+:root[data-skin="pixel"] .control-section,
+:root[data-skin="pixel"] .gis-tool-section,
+:root[data-skin="pixel"] .button, :root[data-skin="pixel"] .tool-button,
+:root[data-skin="pixel"] .input, :root[data-skin="pixel"] .mini-select,
+:root[data-skin="pixel"] .gis-catalogue-box, :root[data-skin="pixel"] .map-legend,
+:root[data-skin="pixel"] .layer-dock, :root[data-skin="pixel"] .gis-catalogue-row,
+:root[data-skin="pixel"] .legend-entry, :root[data-skin="pixel"] .scene-popup {
+  border-radius: 0 !important;
+}
+:root[data-skin="pixel"] .button, :root[data-skin="pixel"] .tool-button,
+:root[data-skin="pixel"] .control-section, :root[data-skin="pixel"] .gis-tool-section {
+  box-shadow: inset -3px -3px 0 rgba(0, 0, 0, 0.55),
+    inset 3px 3px 0 rgba(255, 255, 255, 0.14) !important;
+}
+
+/* ═══ D · VECTOR GLOW ══════════════════════════════════════════════════
+   Tempest: pure black, hairline strokes, everything outlined and nothing
+   filled. The lightest of the five over a globe, because it adds almost no
+   solid area. */
+:root[data-skin="vector"] {
+  --skin-chrome: #ff0078;
+  --skin-chrome-rgb: 255, 0, 120;
+  --skin-chrome-ink: #ffffff;
+  --skin-data: #00ffd6;
+  --skin-data-rgb: 0, 255, 214;
+  --skin-bg: #000000;
+  --skin-panel: 0, 0, 0;
+  --skin-ink: #e9fbff;
+  --skin-muted: 150, 226, 236;
+  --skin-vignette: 0, 0, 0;
+  --skin-display: "Orbitron", sans-serif;
+  --skin-body: "Orbitron", "Exo 2", sans-serif;
+}
+:root[data-skin="vector"] body { letter-spacing: 0.06em; }
+/* Outlined, never filled: the ground stays black and the stroke does the
+   work, which is what a vector monitor could actually draw. */
+:root[data-skin="vector"] .control-section,
+:root[data-skin="vector"] .gis-tool-section,
+:root[data-skin="vector"] .gis-catalogue-box,
+:root[data-skin="vector"] .map-legend, :root[data-skin="vector"] .layer-dock {
+  background: rgba(0, 0, 0, 0.82) !important;
+  border-radius: 0.15rem !important;
+  box-shadow: 0 0 12px -2px rgba(var(--skin-chrome-rgb), 0.5),
+    inset 0 0 16px rgba(var(--skin-chrome-rgb), 0.05) !important;
+}
+:root[data-skin="vector"] .button, :root[data-skin="vector"] .tool-button {
+  background: transparent !important;
+  border-radius: 0.15rem !important;
+}
+
+/* ═══ E · OUTRUN ═══════════════════════════════════════════════════════
+   The current palette pushed all the way: the mark's own magenta and cyan,
+   a violet ground, and glow rather than edge. */
+:root[data-skin="outrun"] {
+  --skin-chrome: #ff2e8b;
+  --skin-chrome-rgb: 255, 46, 139;
+  --skin-chrome-ink: #2a0018;
+  --skin-data: #00e5ff;
+  --skin-data-rgb: 0, 229, 255;
+  --skin-bg: #12032a;
+  --skin-panel: 40, 8, 66;
+  --skin-ink: #ffe7f8;
+  --skin-muted: 233, 178, 226;
+  --skin-vignette: 10, 2, 24;
+  --skin-display: "Orbitron", sans-serif;
+  --skin-body: "Exo 2", "Segoe UI", sans-serif;
+}
+:root[data-skin="outrun"] .control-section,
+:root[data-skin="outrun"] .gis-tool-section {
+  border-radius: 0.55rem !important;
+  box-shadow: 0 0 0 1px rgba(var(--skin-chrome-rgb), 0.28),
+    0 0 26px -6px rgba(var(--skin-chrome-rgb), 0.55) !important;
+}
+:root[data-skin="outrun"] .brand-title {
+  font-style: italic;
+  letter-spacing: 0.06em;
+}
+
+/* ── THE MARK IS NEVER RESTYLED ───────────────────────────────────────
+   Last in the file so nothing above can reach it: no theme filters, tints
+   or blends the GeoID logo. Each design makes room for it instead. */
+:root[data-skin] .brand-logo,
+:root[data-skin] .brand-logo-button img,
+:root[data-skin] img[src*="GeoID_logo"] {
+  filter: none !important;
+  mix-blend-mode: normal !important;
+  opacity: 1 !important;
+}
