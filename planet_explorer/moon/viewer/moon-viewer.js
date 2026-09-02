@@ -6451,11 +6451,27 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     function buildStarfield(THREERef) {
       const starCount = 5000;
       const positions = new Float32Array(starCount * 3);
-      // Matches the other planet viewers (radius range + sizeAttenuation) but
-      // scaled out past the WHOLE Earth–Moon system: Earth sits at its real
-      // 708 units now, and a shell starting at 700 embedded it in the stars —
-      // the exact fault the Earth page fixed the day its Moon moved out.
-      // 1150–1900 clears Earth and stays inside the 2000 far plane.
+      // THE SHELL RIDES WITH THE CAMERA — see the update in the render loop.
+      //
+      // Every other viewer centres its starfield on the world origin and gets
+      // away with it, because on those worlds the origin IS the body and the
+      // camera never leaves its neighbourhood. Here the origin is EARTH and the
+      // camera orbits the Moon 708 units out, sweeping a circle wider than the
+      // shell itself, so a fixed shell put its near side 472 units from the
+      // camera against a far side at 2,599 — a 5.5x spread, and with
+      // sizeAttenuation that is a 5.5x spread in drawn SIZE. The near stars
+      // measured 0.0093 rad across, more than twice the largest star Mars
+      // draws, and the whole field slid past as the Moon went round. That is
+      // what reads as the Moon being embedded in the stars rather than in front
+      // of them: not their distance so much as their PARALLAX and their size.
+      //
+      // Centred on the camera there is no parallax at all and no near side: a
+      // star is 1150-1900 units away wherever you stand, nothing is closer than
+      // the shell, and nothing is clipped (the far plane is 2000, and the old
+      // shell's far side at 2,599 was being cut off).
+      //
+      // The size then matches the band Mars draws — 0.0017-0.0028 rad against
+      // Mars's 0.0017-0.0043 — sitting at the small, distant end of it.
       for (let i = 0; i < starCount; i += 1) {
         const radius = 1150 + Math.random() * 750;
         const theta = Math.random() * Math.PI * 2;
@@ -6469,13 +6485,15 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       geometry.setAttribute("position", new THREERef.BufferAttribute(positions, 3));
       const material = new THREERef.PointsMaterial({
         color: 0xf3f7ff,
-        size: 4.4,
+        size: 3.2,
         sizeAttenuation: true,
         depthWrite: false,
       });
       const points = new THREERef.Points(geometry, material);
       points.renderOrder = -1000;
       points.frustumCulled = false;
+      // A star is a direction, not a place: nothing may pick one.
+      points.raycast = () => [];
       return points;
     }
 
@@ -11089,7 +11107,8 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       _resetMeasurementOnContextSwitch = (preserveMode) => {
         if (typeof resetActiveMeasurement === "function") resetActiveMeasurement(preserveMode);
       };
-      scene.add(buildStarfield(THREE));
+      const starfield = buildStarfield(THREE);
+      scene.add(starfield);
       scene.add(buildSunObject());
 
       setStatus("Loading Moon textures...");
@@ -19729,6 +19748,9 @@ ${error && error.message ? error.message : error}`;
           window.__fsTriActive = false;
           try { applyPlanetDisplayState(); } catch (_e) {}
         }
+        // The starfield rides with the camera, so the stars are a backdrop at a
+        // fixed remove rather than a swarm the Moon orbits through.
+        if (starfield) starfield.position.copy(camera.position);
         renderer.render(scene, camera);
         _freeTextureImages();
         requestAnimationFrame((timestamp) => {
