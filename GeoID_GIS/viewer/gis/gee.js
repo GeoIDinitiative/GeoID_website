@@ -10,22 +10,22 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-4f44fbb";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260903-4f44fbb";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260903-4f44fbb";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-c4e52ff";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260903-c4e52ff";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260903-c4e52ff";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260903-4f44fbb";
+  from "./view-extent.js?v=20260903-c4e52ff";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260903-4f44fbb";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-4f44fbb";
+} from "./extent-picker.js?v=20260903-c4e52ff";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-c4e52ff";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
-} from "./gee-catalogue-index.js?v=20260903-4f44fbb";
+} from "./gee-catalogue-index.js?v=20260903-c4e52ff";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -922,10 +922,11 @@ function ensureGeeDialog() {
     "#gee-add-backdrop { position: fixed; left: 0; right: 0; bottom: 0; z-index: 80;",
     "  display: block; background: none; pointer-events: none; }",
     "#gee-add-backdrop[hidden] { display: none !important; }",
-    "#gee-add-card { pointer-events: auto; position: fixed; bottom: 0.55rem;",
+    "#gee-add-card { pointer-events: auto; position: fixed;",
+    "  bottom: var(--gee-strip-bottom, 0.55rem);",
     "  left: var(--gee-strip-left, 0px);",
-    "  right: max(5.5rem, var(--workbench-w, 0px));",
-    "  max-height: min(16rem, 36vh);",
+    "  right: var(--gee-strip-right, 5.5rem);",
+    "  max-height: min(17rem, 35vh);",
     "  border-radius: 0.7rem;",
     "  border: 1px solid rgba(var(--nav-accent-rgb, 255,43,214), 0.5);",
     "  background: rgba(10, 8, 20, 0.97); backdrop-filter: blur(6px);",
@@ -933,7 +934,7 @@ function ensureGeeDialog() {
     "  display: flex; flex-direction: column; overflow: hidden;",
     "  color: var(--text, #eaf6fb); }",
     "#gee-add-card .gee-head { display: flex; align-items: center; gap: 0.6rem;",
-    "  padding: 0.4rem 0.7rem; border-bottom: 1px solid rgba(255,255,255,0.1); }",
+    "  padding: 0.32rem 0.7rem; border-bottom: 1px solid rgba(255,255,255,0.1); }",
     "#gee-add-card .gee-title { font: 600 0.72rem/1.2 'Exo 2', sans-serif;",
     "  letter-spacing: 0.1em; text-transform: uppercase; color: var(--skin-data); }",
     "#gee-add-card .gee-hint { font: 400 0.62rem/1.3 'Exo 2', sans-serif; opacity: 0.7; }",
@@ -955,11 +956,22 @@ function ensureGeeDialog() {
     "#gee-add-strip { flex: 1; min-height: 0; display: flex; gap: 0.5rem;",
     "  overflow-x: auto; overflow-y: hidden; padding: 0.45rem 0.7rem 0.55rem;",
     "  scroll-padding-left: 0.8rem; }",
-    "#gee-add-params { position: sticky; left: 0; z-index: 2; flex: 0 0 19rem;",
-    "  display: flex; flex-direction: column; gap: 0.22rem; overflow-y: auto;",
-    "  padding: 0.55rem; border-radius: 0.6rem;",
+    /* TWO COLUMNS so nothing scrolls. One column of six controls could not fit
+       the height this strip is meant to be, and the tile answered by growing an
+       inner scrollbar that hid the Draw button — the primary gesture — behind
+       it. Side by side, the whole fetch is visible at once. */
+    "#gee-add-params { position: sticky; left: 0; z-index: 2; flex: 0 0 26rem;",
+    "  display: flex; flex-direction: column; gap: 0.3rem;",
+    "  padding: 0.5rem 0.6rem; border-radius: 0.5rem;",
     "  border: 1px solid rgba(var(--nav-accent-rgb, 255,43,214), 0.5);",
     "  background: rgba(20, 14, 34, 0.99); }",
+    "#gee-add-params .gee-param-cols { display: grid; gap: 0.5rem;",
+    "  grid-template-columns: 1fr 1fr; align-items: start; }",
+    "#gee-add-params .gee-param-col { display: flex; flex-direction: column;",
+    "  gap: 0.3rem; min-width: 0; }",
+    "#gee-add-params .gee-param-pair { display: flex; gap: 0.3rem; }",
+    "#gee-add-params .gee-param-pair > * { flex: 1; min-width: 0; }",
+    "#gee-add-params .gee-param-pair > .button { flex: 0 0 auto; }",
     "#gee-add-params .gee-param-title { font: 600 0.52rem/1.4 'Exo 2', sans-serif;",
     "  letter-spacing: 0.14em; text-transform: uppercase; color: var(--skin-data);",
     "  opacity: 0.85; }",
@@ -992,20 +1004,31 @@ function ensureGeeDialog() {
     "#gee-add-strip::-webkit-scrollbar-track { background: transparent; }",
     "#gee-add-list .gee-empty { flex: 0 0 20rem; font-size: 0.62rem; line-height: 1.45;",
     "  opacity: 0.72; align-self: center; }",
-    "#gee-add-list .gee-group { flex: 0 0 auto; writing-mode: vertical-rl;",
-    "  font: 600 0.52rem/1.6 'Exo 2', sans-serif; letter-spacing: 0.14em;",
-    "  text-transform: uppercase; opacity: 0.6; align-self: stretch;",
-    "  display: flex; align-items: center; }",
+    /* No group headings in the strip. A heading rotated on its side to fit a
+       horizontal row read as a stray word — "READY IN THIS APP" down the
+       middle of the catalogue — and it says nothing the badge on every tile
+       does not already say. `groupHeading` returns an empty node here. */
+    "#gee-add-list .gee-group { display: none; }",
     "#gee-add-card .gee-tick { flex-direction: row; align-items: center;",
     "  gap: 0.3rem; font-size: 0.6rem; }",
     "#gee-add-card .gee-tick input { flex: 0 0 auto; }",
     "#gee-add-card label { display: flex; flex-direction: column; gap: 0.1rem;",
     "  font: 600 0.55rem/1.4 'Exo 2', sans-serif; letter-spacing: 0.1em;",
     "  text-transform: uppercase; opacity: 0.85; }",
+    /* ONE CONTROL HEIGHT. A select, a date box and a button sat at three
+       different heights on the same row and none of their labels lined up —
+       which is most of what "messy" was. 1.65rem, box-sizing included, and the
+       button text centred in it rather than baseline-aligned. */
+    "#gee-add-card select, #gee-add-card input, #gee-add-card .button {",
+    "  box-sizing: border-box; height: 1.65rem; }",
     "#gee-add-card select, #gee-add-card input { background: rgba(16,24,34,0.98);",
     "  border: 1px solid rgba(var(--skin-data-rgb),0.3); border-radius: 0.3rem;",
-    "  color: var(--text, #eaf6fb); font: 400 0.66rem/1.4 'Exo 2', sans-serif;",
-    "  letter-spacing: normal; padding: 0.25rem 0.35rem; color-scheme: dark; }",
+    "  color: var(--text, #eaf6fb); font: 400 0.64rem/1.2 'Exo 2', sans-serif;",
+    "  letter-spacing: normal; padding: 0 0.35rem; color-scheme: dark; }",
+    "#gee-add-card .button { display: inline-flex; align-items: center;",
+    "  justify-content: center; padding: 0 0.6rem; white-space: nowrap;",
+    "  font: 600 0.58rem/1 'Exo 2', sans-serif; letter-spacing: 0.06em; }",
+    "#gee-add-card .gee-head .button { height: 1.5rem; }",
     "#gee-add-card option, #gee-add-card optgroup { background-color: #101822; }",
     "#gee-add-row { display: flex; gap: 0.35rem; align-items: flex-end; }",
     "#gee-add-row > * { flex: 1; min-width: 0; }",
@@ -1013,15 +1036,12 @@ function ensureGeeDialog() {
     "#gee-add-idrow { display: flex; gap: 0.3rem; align-items: flex-end; }",
     "#gee-add-idrow label { flex: 1; min-width: 0; }",
     "#gee-add-extent-note { font: 400 0.56rem/1.35 'Exo 2', sans-serif; opacity: 0.8; }",
-    "#gee-add-status { font-size: 0.62rem; opacity: 0.85; min-height: 1em; }",
-    /* PINNED to the foot of its own tile. The tile scrolls — extent, dates and
-       a free-text id do not always fit — and Request scrolling out of reach is
-       the one thing in here that must never happen: it is the button the whole
-       strip exists to press. The background is not decoration; without it the
-       rows underneath show through as it is scrolled past. */
-    "#gee-add-actions { display: flex; gap: 0.4rem; position: sticky; bottom: 0;",
-    "  padding-top: 0.3rem; background: rgba(20, 14, 34, 0.99); }",
-    "#gee-add-actions .button { flex: 1; }",
+    /* NEITHER SHRINKS. Both are flex children of the tile, so they were being
+       squeezed to make room — measured, the Request button rendered 11 px tall
+       against the 26 every other control in here settled on. */
+    "#gee-add-status { flex: 0 0 auto; font-size: 0.58rem; line-height: 1.35;",
+    "  opacity: 0.85; min-height: 1em; margin-top: auto; }",
+    "#gee-add-request { flex: 0 0 auto; width: 100%; }",
     "#gee-add-draw.is-on { background: var(--nav-accent, var(--skin-chrome)); color: #12040f; }",
   ].join("\n");
   document.head.appendChild(style);
@@ -1051,7 +1071,8 @@ function ensureGeeDialog() {
        the window and the Request stay put. */
     '<div id="gee-add-params">',
     '<div class="gee-param-title">Fetch parameters</div>',
-    '<div id="gee-add-row">',
+    '<div class="gee-param-cols">',
+    '<div class="gee-param-col">',
     '<label>Extent<select id="gee-add-extent">',
     '<option value="global">Global</option>',
     '<option value="view">Current globe view</option>',
@@ -1060,21 +1081,22 @@ function ensureGeeDialog() {
     // and its absence is what once left a drawn box unselectable.
     '<option value="drawn">Area drawn on the globe</option>',
     "</select></label>",
-    '<button id="gee-add-draw" class="button secondary" type="button">▭ Draw</button>',
-    "</div>",
+    '<button id="gee-add-draw" class="button secondary" type="button">Draw on globe</button>',
     '<div id="gee-add-extent-note"></div>',
-    '<div id="gee-add-row">',
+    "</div>",
+    '<div class="gee-param-col">',
+    '<div class="gee-param-pair">',
     '<label>From<input id="gee-add-from" type="date"></label>',
     '<label>To<input id="gee-add-to" type="date"></label>',
     "</div>",
-    '<div id="gee-add-idrow">',
-    '<label>Any Earth Engine ID<input id="gee-add-id" type="text" placeholder="e.g. ECMWF/ERA5/DAILY"></label>',
+    '<label>Earth Engine ID<span class="gee-param-pair">',
+    '<input id="gee-add-id" type="text" placeholder="e.g. ECMWF/ERA5/DAILY">',
     '<button id="gee-add-id-use" class="button secondary" type="button">Use</button>',
+    "</span></label>",
+    "</div>",
     "</div>",
     '<div id="gee-add-status"></div>',
-    '<div id="gee-add-actions">',
     '<button id="gee-add-request" class="button primary" type="button">Request</button>',
-    "</div>",
     "</div>",
     '<div id="gee-add-list"></div>',
     "</div></div>",
@@ -1526,10 +1548,35 @@ function placeStrip() {
     const box = el.getBoundingClientRect();
     if (box.width > 0 && box.right > left) left = box.right;
   }
-  const value = `${Math.round(left + STRIP_GAP)}px`;
-  if (document.documentElement.style.getPropertyValue("--gee-strip-left") !== value) {
-    document.documentElement.style.setProperty("--gee-strip-left", value);
+  // The right margin is the tool rail's, measured the same way — 5.5rem was a
+  // guess that left 34 px of dead space between the strip and the rail.
+  let right = 0;
+  const rail = document.getElementById("tool-rail");
+  if (rail && getComputedStyle(rail).display !== "none") {
+    const box = rail.getBoundingClientRect();
+    if (box.width > 0) right = window.innerWidth - box.left;
   }
+  // A workbench opens over that corner and publishes its own clearance; the
+  // legend defers to it and so does this.
+  const workbench = parseFloat(
+    getComputedStyle(document.documentElement).getPropertyValue("--workbench-w")) || 0;
+
+  // The foot lines up with the Workspace tile's, so the two read as one row
+  // rather than two things that nearly agree.
+  const dock = document.getElementById("layer-dock");
+  const dockBox = dock && !dock.hidden ? dock.getBoundingClientRect() : null;
+  const bottom = dockBox && dockBox.height > 0
+    ? Math.max(0, Math.round(window.innerHeight - dockBox.bottom))
+    : null;
+
+  const set = (name, value) => {
+    if (document.documentElement.style.getPropertyValue(name) !== value) {
+      document.documentElement.style.setProperty(name, value);
+    }
+  };
+  set("--gee-strip-left", `${Math.round(left + STRIP_GAP)}px`);
+  set("--gee-strip-right", `${Math.round(Math.max(right + STRIP_GAP, workbench))}px`);
+  if (bottom !== null) set("--gee-strip-bottom", `${bottom}px`);
 }
 
 function watchStripPlacement(on) {
