@@ -116,6 +116,18 @@ for (const p of ["GeoID_GIS/viewer/styles.css", "GeoID_GIS/viewer/gis/shell.css"
     !/#52e4e8|82,\s*228,\s*232/.test(read(p)));
 }
 
+/**
+ * A LINKED THEME IS NOT A CHOSEN ONE. `?skin=` wins for that load so a theme
+ * can be linked and shot, and is deliberately not persisted: a link that
+ * rewrote what the person who opened it had chosen would be changing their
+ * settings rather than showing them a theme.
+ */
+ok("a URL can ask for a theme", /get\("skin"\)/.test(script));
+ok("only one the CSS has a block for", /known\(value\) \? value : null/.test(script));
+ok("and it is stamped without being stored",
+  /stamp\(asked\(\) \|\| stored\(\)\)/.test(script)
+  && !/setItem\([^)]*asked\(\)/.test(script));
+
 ok("the message the two documents pass is one type",
   (script.match(/geoid:skin"/g) || []).length >= 2);
 // Two documents each telling the other is a loop.

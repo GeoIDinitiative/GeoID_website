@@ -98,8 +98,26 @@
     return next;
   }
 
+  /**
+   * A `?skin=` IN THE URL WINS FOR THAT LOAD, and is not remembered.
+   *
+   * It makes a theme linkable — a screenshot, a bug report, "look at it in
+   * outrun" — without the link quietly rewriting what the person who opened
+   * it had chosen. Their stored preference is still there on the next plain
+   * visit, which is the difference between showing someone a theme and
+   * changing their settings for them.
+   */
+  function asked() {
+    try {
+      var value = new URLSearchParams(window.location.search).get("skin");
+      return known(value) ? value : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
   // The first stamp, before anything is painted.
-  stamp(stored());
+  stamp(asked() || stored());
 
   window.addEventListener("message", function (event) {
     var data = event && event.data;
@@ -139,7 +157,7 @@
         select.appendChild(option);
       }
     }
-    select.value = stored();
+    select.value = asked() || stored();
     note(select.value);
   }
 
