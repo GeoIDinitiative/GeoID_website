@@ -1,13 +1,13 @@
-import { registerPage } from "../stages.js?v=20260903-965d9bd";
-import * as store from "../project-store.js?v=20260903-965d9bd";
-import * as stats from "../stats.js?v=20260903-965d9bd";
-import * as dsp from "../dsp.js?v=20260903-965d9bd";
-import { column } from "../table.js?v=20260903-965d9bd";
-import { linePlot } from "../plot.js?v=20260903-965d9bd";
+import { registerPage } from "../stages.js?v=20260903-9fd439f";
+import * as store from "../project-store.js?v=20260903-9fd439f";
+import * as stats from "../stats.js?v=20260903-9fd439f";
+import * as dsp from "../dsp.js?v=20260903-9fd439f";
+import { column } from "../table.js?v=20260903-9fd439f";
+import { linePlot } from "../plot.js?v=20260903-9fd439f";
 import {
   el, button, row, statusLine, guard, pageHeader, toolbar, console_,
   findTables, loadTable, saveFigure,
-} from "./common.js?v=20260903-965d9bd";
+} from "./common.js?v=20260903-9fd439f";
 
 /**
  * Notebook — cells with live output, from `NotebookPage` (app_qt.py:20234).

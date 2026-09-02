@@ -10,22 +10,22 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-965d9bd";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260903-965d9bd";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260903-965d9bd";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-9fd439f";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260903-9fd439f";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260903-9fd439f";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260903-965d9bd";
+  from "./view-extent.js?v=20260903-9fd439f";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260903-965d9bd";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-965d9bd";
+} from "./extent-picker.js?v=20260903-9fd439f";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-9fd439f";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
-} from "./gee-catalogue-index.js?v=20260903-965d9bd";
+} from "./gee-catalogue-index.js?v=20260903-9fd439f";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -817,29 +817,39 @@ if (typeof window !== "undefined") {
    and it drives the same hidden form and the same request() the Atmosphere
    tab's own controls do. One implementation, many doorways. */
 /**
- * THE EARTH ENGINE BROWSER: a catalogue you can read and an extent you can draw,
- * in one window that never has to close.
+ * THE EARTH ENGINE BROWSER: a strip along the foot of the page, with the fetch
+ * itself as its first tile.
  *
- * The old dialog was three controls in a 24rem card — a dataset select, two
- * dates, an extent select — and its ✏ button had to CLOSE the whole thing to
- * let you draw, because the globe is behind the modal. That round trip is the
- * shape this replaces: the window is now large enough to hold both halves of
- * the question it asks.
+ * Two shapes preceded it. A 24rem card of three controls whose ✏ had to CLOSE
+ * the whole thing to let you draw, because the globe was behind it. Then a big
+ * centred modal that solved that by putting a SECOND MAP inside itself — a
+ * slippy map, in front of the globe this app is built around, to answer a
+ * question the globe can already be asked.
  *
- *  - LEFT, the catalogue: every dataset the app knows, searchable by name or
- *    by Earth Engine id, filtered by subject, each card saying where it comes
+ * This is the ice-cover subtab's arrangement instead, widened to a catalogue:
+ *
+ *  - THE FIRST TILE IS THE FETCH. Extent, the two dates, a free-text Earth
+ *    Engine id and Request — the same controls, in the same order, as the
+ *    glacier-change fetch, because "over what ground, across what window" is
+ *    one question and this app answers it in one place. It is STICKY at the
+ *    left edge: every tile to its right is added WITH it, so scrolling the
+ *    catalogue must not scroll it away.
+ *  - THE REST ARE THE DATASETS, one tile each, scrolled horizontally —
+ *    searchable by name or id, filtered by subject, each saying where it comes
  *    from (a shipped snapshot that drapes offline, or the live service) and
- *    what it is. Below them, a free-text id — the service accepts ANY Earth
- *    Engine dataset, and the full EE catalogue cannot be enumerated from a
- *    page without a credential, so refusing to type one would be pretending
- *    the list is complete.
- *  - RIGHT, the ground: a real slippy map (`research/map2d.js`, the Map
- *    Composer's own), where a drag draws the fetch extent in place. The box
- *    is pushed to the globe through `setStudyAreaPolygon` as it is drawn, so
- *    the planet behind the modal is showing the same extent, and the request
- *    then runs through the ORDINARY "drawn" path — which means the extent is
- *    captured into Workspace on success exactly as a hand-drawn one is. No
- *    second request path, no second notion of what an extent is.
+ *    what it is. Each carries its own Add, which chooses it and requests it
+ *    with whatever the first tile holds.
+ *
+ * The extent is drawn ON THE GLOBE, by the two-press gesture the glacier and
+ * weather cards already use: the first press arms the draw tool, the second
+ * claims the shape as a real Workspace layer. That is what the drawer shape
+ * buys — the globe stays visible and usable underneath, so there is nothing to
+ * close and no second map to keep in step with it.
+ *
+ * ONE REQUEST PATH throughout: every Add and the Request button both go through
+ * `requestFromDialog`, which fills the hidden form and calls `request()`. The
+ * cache branch, the resolution note, the Workspace capture and the metadata are
+ * untouched.
  *
  * It stays open after a request, because browsing a catalogue means pulling
  * more than one thing.
@@ -856,10 +866,7 @@ const HOME_LABELS = {
 };
 
 /** The 2D map, built once the dialog is first shown (a hidden host has no size). */
-let geeMap = null;
-let mapLibrary = null;
 /** The extent the map is showing, as [w, s, e, n], or null for global. */
-let mapBox = null;
 /** Which dataset id the browser has selected. */
 let chosenDataset = "";
 /** Which subject filter is applied; "" is everything. */
@@ -900,88 +907,105 @@ function ensureGeeDialog() {
   const style = document.createElement("style");
   style.id = "gee-add-style";
   style.textContent = [
-    "#gee-add-backdrop { position: fixed; inset: 0; z-index: 80; display: flex;",
-    "  align-items: center; justify-content: center; padding: 1.4rem;",
-    "  background: rgba(4, 2, 12, 0.72); backdrop-filter: blur(2px); }",
+    /* A DRAWER OVER THE FOOTER, not a window over the globe.
+       The catalogue used to open as a centred modal with a slippy map beside
+       the list — a second map, in front of the one this app is built around,
+       to answer a question the globe can already be asked. It is a strip along
+       the bottom now: the globe stays visible and usable behind it, which is
+       what makes drawing the extent on the globe the natural gesture. */
+    "#gee-add-backdrop { position: fixed; left: 0; right: 0; bottom: 0; z-index: 80;",
+    "  display: block; background: none; pointer-events: none; }",
     "#gee-add-backdrop[hidden] { display: none !important; }",
-    "#gee-add-card { width: min(62rem, 100%); height: min(40rem, calc(100vh - 3rem));",
-    "  border-radius: 12px; border: 1px solid rgba(var(--nav-accent-rgb, 255,43,214), 0.45);",
-    "  background: rgba(12, 10, 22, 0.98); box-shadow: 0 18px 60px rgba(0,0,0,0.6);",
-    "  display: flex; flex-direction: column; overflow: hidden; color: var(--text, #eaf6fb); }",
-    "#gee-add-card .gee-head { display: flex; align-items: baseline; gap: 0.8rem;",
-    "  padding: 0.7rem 0.9rem; border-bottom: 1px solid rgba(255,255,255,0.1); }",
-    "#gee-add-card .gee-title { font: 600 0.8rem/1.2 'Exo 2', sans-serif;",
-    "  letter-spacing: 0.08em; text-transform: uppercase; }",
-    "#gee-add-card .gee-hint { font: 400 0.66rem/1.3 'Exo 2', sans-serif; opacity: 0.7; }",
-    "#gee-add-card .gee-head .button { margin-left: auto; }",
-    "#gee-add-body { flex: 1; min-height: 0; display: grid;",
-    "  grid-template-columns: minmax(0, 19rem) minmax(0, 1fr); }",
-    "#gee-add-left { min-height: 0; display: flex; flex-direction: column;",
-    "  gap: 0.45rem; padding: 0.7rem; border-right: 1px solid rgba(255,255,255,0.1); }",
-    "#gee-add-right { min-height: 0; display: flex; flex-direction: column;",
-    "  gap: 0.5rem; padding: 0.7rem; }",
-    "#gee-add-chips { display: flex; flex-wrap: wrap; gap: 0.25rem; }",
-    "#gee-add-chips button { padding: 0.16rem 0.5rem; border-radius: 999px;",
-    "  border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.05);",
-    "  color: inherit; font: 600 0.58rem/1.5 'Exo 2', sans-serif; letter-spacing: 0.07em;",
-    "  text-transform: uppercase; cursor: pointer; }",
+    "#gee-add-card { pointer-events: auto; width: 100%;",
+    "  max-height: min(21rem, 46vh);",
+    "  border-top: 1px solid rgba(var(--nav-accent-rgb, 255,43,214), 0.5);",
+    "  background: rgba(10, 8, 20, 0.97); backdrop-filter: blur(6px);",
+    "  box-shadow: 0 -14px 42px rgba(0,0,0,0.55);",
+    "  display: flex; flex-direction: column; overflow: hidden;",
+    "  color: var(--text, #eaf6fb); }",
+    "#gee-add-card .gee-head { display: flex; align-items: center; gap: 0.6rem;",
+    "  padding: 0.5rem 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.1); }",
+    "#gee-add-card .gee-title { font: 600 0.72rem/1.2 'Exo 2', sans-serif;",
+    "  letter-spacing: 0.1em; text-transform: uppercase; color: var(--skin-data); }",
+    "#gee-add-card .gee-hint { font: 400 0.62rem/1.3 'Exo 2', sans-serif; opacity: 0.7; }",
+    "#gee-add-card .gee-head .button { margin-left: auto; flex: 0 0 auto; }",
+    "#gee-add-card .gee-head label { flex: 0 0 auto; flex-direction: row;",
+    "  align-items: center; gap: 0.3rem; }",
+    "#gee-add-card .gee-head input[type=search] { width: 11rem; }",
+    "#gee-add-chips { display: flex; gap: 0.25rem; overflow-x: auto;",
+    "  padding: 0.35rem 0.8rem 0; }",
+    "#gee-add-chips button { flex: 0 0 auto; padding: 0.16rem 0.5rem;",
+    "  border-radius: 999px; font: 600 0.55rem/1.5 'Exo 2', sans-serif;",
+    "  border: 1px solid rgba(var(--skin-data-rgb),0.4); background: transparent;",
+    "  color: var(--skin-data); cursor: pointer; white-space: nowrap; }",
     "#gee-add-chips button.is-on { background: var(--nav-accent, var(--skin-chrome));",
-    "  border-color: var(--nav-accent, var(--skin-chrome)); color: #12040f; }",
-    "#gee-add-list { flex: 1; min-height: 0; overflow-y: auto; display: flex;",
-    "  scrollbar-width: thin; scrollbar-color: rgba(var(--skin-data-rgb),0.38) transparent;",
-    "  flex-direction: column; gap: 0.3rem; padding-right: 0.2rem; }",
-    "#gee-add-list .gee-card { text-align: left; width: 100%; cursor: pointer;",
-    "  border: 1px solid rgba(255,255,255,0.14); border-radius: 0.6rem;",
-    "  background: var(--skin-card-ground, rgb(24, 13, 47)); color: inherit; padding: 0.4rem 0.5rem;",
-    "  display: flex; flex-direction: column; gap: 0.12rem; }",
+    "  border-color: transparent; color: #12040f; }",
+    /* The strip. The parameter tile is STICKY at its left edge: it is what
+       every tile in the row is added WITH, so scrolling away from it would be
+       scrolling away from the controls the next press uses. */
+    "#gee-add-strip { flex: 1; min-height: 0; display: flex; gap: 0.5rem;",
+    "  overflow-x: auto; overflow-y: hidden; padding: 0.55rem 0.8rem 0.7rem;",
+    "  scroll-padding-left: 0.8rem; }",
+    "#gee-add-params { position: sticky; left: 0; z-index: 2; flex: 0 0 17rem;",
+    "  display: flex; flex-direction: column; gap: 0.3rem; overflow-y: auto;",
+    "  padding: 0.55rem; border-radius: 0.6rem;",
+    "  border: 1px solid rgba(var(--nav-accent-rgb, 255,43,214), 0.5);",
+    "  background: rgba(20, 14, 34, 0.99); }",
+    "#gee-add-params .gee-param-title { font: 600 0.55rem/1.6 'Exo 2', sans-serif;",
+    "  letter-spacing: 0.14em; text-transform: uppercase; color: var(--skin-data);",
+    "  opacity: 0.85; }",
+    "#gee-add-list { display: flex; gap: 0.5rem; align-items: stretch; }",
+    "#gee-add-list .gee-card { flex: 0 0 13rem; text-align: left; cursor: pointer;",
+    "  display: flex; flex-direction: column; gap: 0.2rem; padding: 0.55rem;",
+    "  border-radius: 0.6rem; border: 1px solid rgba(255,255,255,0.14);",
+    "  background: rgba(255,255,255,0.045); color: inherit; overflow: hidden; }",
     "#gee-add-list .gee-card:hover { border-color: rgba(var(--skin-data-rgb),0.55); }",
     "#gee-add-list .gee-card.is-on { border-color: var(--nav-accent, var(--skin-chrome));",
-    "  box-shadow: 0 0 0 1px var(--nav-accent, var(--skin-chrome)) inset; }",
+    "  background: rgba(var(--nav-accent-rgb, 255,43,214), 0.12); }",
     "#gee-add-list .gee-card b { font: 600 0.7rem/1.3 'Exo 2', sans-serif; }",
-    "#gee-add-list .gee-card code { font-size: 0.58rem; opacity: 0.72;",
-    "  word-break: break-all; }",
-    "#gee-add-list .gee-card .gee-badge { font: 600 0.52rem/1.5 'Exo 2', sans-serif;",
-    "  letter-spacing: 0.08em; text-transform: uppercase; align-self: flex-start;",
-    "  padding: 0 0.35rem; border-radius: 999px; border: 1px solid currentColor; }",
+    "#gee-add-list .gee-card code { font-size: 0.56rem; opacity: 0.72;",
+    "  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
+    "#gee-add-list .gee-card small { font-size: 0.56rem; opacity: 0.66; }",
+    "#gee-add-list .gee-card .gee-badge { font: 600 0.5rem/1.5 'Exo 2', sans-serif;",
+    "  letter-spacing: 0.1em; text-transform: uppercase; align-self: flex-start; }",
     "#gee-add-list .gee-card .gee-badge.is-cache { color: #4fd1a5; }",
     "#gee-add-list .gee-card .gee-badge.is-live { color: var(--skin-data); }",
-    "#gee-add-list::-webkit-scrollbar { width: 8px; }",
-    "#gee-add-list::-webkit-scrollbar-thumb { background: rgba(var(--skin-data-rgb),0.38);",
-    "  border-radius: 4px; }",
-    "#gee-add-list::-webkit-scrollbar-track { background: transparent; }",
-    "#gee-add-list .gee-empty { font-size: 0.64rem; line-height: 1.45; opacity: 0.72;",
-    "  padding: 0.4rem 0.2rem; }",
-    "#gee-add-list .gee-group { font: 600 0.55rem/1.6 'Exo 2', sans-serif;",
-    "  letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.6;",
-    "  padding: 0.5rem 0.2rem 0.1rem; position: sticky; top: 0;",
-    "  background: var(--skin-tab-ground, rgb(16, 7, 36)); z-index: 1; }",
-    "#gee-add-list .gee-group:first-child { padding-top: 0; }",
-    "#gee-add-list .gee-card small { font-size: 0.58rem; opacity: 0.66; }",
     "#gee-add-list .gee-card .gee-badge.is-cat { color: #9aa7ff; }",
     "#gee-add-list .gee-card .gee-badge.is-warn { color: #ffb454; }",
+    "#gee-add-list .gee-card .gee-add-one { margin-top: auto; align-self: stretch;",
+    "  padding: 0.2rem; border-radius: 0.35rem; cursor: pointer;",
+    "  font: 600 0.55rem/1.5 'Exo 2', sans-serif; letter-spacing: 0.1em;",
+    "  text-transform: uppercase; color: #12040f;",
+    "  background: var(--nav-accent, var(--skin-chrome)); border: 0; }",
+    "#gee-add-strip::-webkit-scrollbar { height: 8px; }",
+    "#gee-add-strip::-webkit-scrollbar-thumb { background: rgba(var(--skin-data-rgb),0.38);",
+    "  border-radius: 999px; }",
+    "#gee-add-strip::-webkit-scrollbar-track { background: transparent; }",
+    "#gee-add-list .gee-empty { flex: 0 0 20rem; font-size: 0.62rem; line-height: 1.45;",
+    "  opacity: 0.72; align-self: center; }",
+    "#gee-add-list .gee-group { flex: 0 0 auto; writing-mode: vertical-rl;",
+    "  font: 600 0.52rem/1.6 'Exo 2', sans-serif; letter-spacing: 0.14em;",
+    "  text-transform: uppercase; opacity: 0.6; align-self: stretch;",
+    "  display: flex; align-items: center; }",
     "#gee-add-card .gee-tick { flex-direction: row; align-items: center;",
-    "  gap: 0.35rem; text-transform: none; letter-spacing: normal;",
-    "  font-weight: 400; font-size: 0.62rem; opacity: 0.8; cursor: pointer; }",
+    "  gap: 0.3rem; font-size: 0.6rem; }",
     "#gee-add-card .gee-tick input { flex: 0 0 auto; }",
-    "#gee-add-map { flex: 1; min-height: 8rem; border-radius: 0.6rem; overflow: hidden;",
-    "  border: 1px solid rgba(255,255,255,0.14); background: var(--skin-tab-ground, rgb(16, 7, 36)); position: relative; }",
-    "#gee-add-map canvas { display: block; width: 100%; height: 100%; }",
     "#gee-add-card label { display: flex; flex-direction: column; gap: 0.18rem;",
-    "  font: 600 0.6rem/1.4 'Exo 2', sans-serif; letter-spacing: 0.07em;",
+    "  font: 600 0.55rem/1.4 'Exo 2', sans-serif; letter-spacing: 0.1em;",
     "  text-transform: uppercase; opacity: 0.85; }",
     "#gee-add-card select, #gee-add-card input { background: rgba(16,24,34,0.98);",
-    "  border: 1px solid rgba(255,255,255,0.18); border-radius: 0.4rem;",
-    "  color: #eaf6fb; font-family: inherit; font-size: 0.72rem; text-transform: none;",
-    "  letter-spacing: normal; padding: 0.3rem 0.4rem; color-scheme: dark; }",
+    "  border: 1px solid rgba(var(--skin-data-rgb),0.3); border-radius: 0.3rem;",
+    "  color: var(--text, #eaf6fb); font: 400 0.66rem/1.4 'Exo 2', sans-serif;",
+    "  letter-spacing: normal; padding: 0.25rem 0.35rem; color-scheme: dark; }",
     "#gee-add-card option, #gee-add-card optgroup { background-color: #101822; }",
-    "#gee-add-row { display: flex; gap: 0.45rem; align-items: flex-end; }",
+    "#gee-add-row { display: flex; gap: 0.35rem; align-items: flex-end; }",
     "#gee-add-row > * { flex: 1; min-width: 0; }",
     "#gee-add-row .button { flex: 0 0 auto; }",
-    "#gee-add-idrow { display: flex; gap: 0.35rem; align-items: flex-end; }",
+    "#gee-add-idrow { display: flex; gap: 0.3rem; align-items: flex-end; }",
     "#gee-add-idrow label { flex: 1; min-width: 0; }",
-    "#gee-add-extent-note { font: 400 0.64rem/1.4 'Exo 2', sans-serif; opacity: 0.8; }",
-    "#gee-add-status { font-size: 0.66rem; opacity: 0.85; min-height: 1em; }",
-    "#gee-add-actions { display: flex; gap: 0.45rem; }",
+    "#gee-add-extent-note { font: 400 0.6rem/1.4 'Exo 2', sans-serif; opacity: 0.8; }",
+    "#gee-add-status { font-size: 0.62rem; opacity: 0.85; min-height: 1em; }",
+    "#gee-add-actions { display: flex; gap: 0.4rem; }",
     "#gee-add-actions .button { flex: 1; }",
     "#gee-add-draw.is-on { background: var(--nav-accent, var(--skin-chrome)); color: #12040f; }",
   ].join("\n");
@@ -993,49 +1017,50 @@ function ensureGeeDialog() {
   backdrop.innerHTML = [
     '<div id="gee-add-card" role="dialog" aria-label="Browse the Earth Engine catalogue">',
     '<div class="gee-head">',
-    '<span class="gee-title">Earth Engine catalogue</span>',
-    '<span class="gee-hint">Pick a dataset, draw the ground, request it.</span>',
-    '<button id="gee-add-close" class="button secondary" type="button">Close</button>',
-    "</div>",
-    '<div id="gee-add-body">',
-    '<div id="gee-add-left">',
-    '<label>Search<input id="gee-add-search" type="search" placeholder="rainfall, land cover, Sentinel…"></label>',
+    '<span class="gee-title">Earth Engine</span>',
+    '<label>Search<input id="gee-add-search" type="search"',
+    ' placeholder="rainfall, land cover, Sentinel…"></label>',
     '<label>Subject<select id="gee-add-category">',
     '<option value="">Every subject</option>',
     "</select></label>",
-    '<div id="gee-add-chips"></div>',
     '<label class="gee-tick"><input id="gee-add-deprecated" type="checkbox">'
-      + "<span>Include superseded datasets</span></label>",
-    '<div id="gee-add-list"></div>',
-    '<div id="gee-add-idrow">',
-    '<label>Any Earth Engine ID<input id="gee-add-id" type="text" placeholder="e.g. ECMWF/ERA5/DAILY"></label>',
-    '<button id="gee-add-id-use" class="button secondary" type="button">Use</button>',
+      + "<span>Superseded</span></label>",
+    '<span class="gee-hint" id="gee-add-hint">Set the ground once, then add datasets.</span>',
+    '<button id="gee-add-close" class="button secondary" type="button">Close</button>',
     "</div>",
-    "</div>",
-    '<div id="gee-add-right">',
-    '<div id="gee-add-map"></div>',
-    '<div id="gee-add-row">',
+    '<div id="gee-add-chips"></div>',
+    '<div id="gee-add-strip">',
+    /* THE FIRST TILE IS THE FETCH ITSELF — the ice-cover subtab's arrangement,
+       in the place a reader looks first. Every tile to its right is added WITH
+       these, which is why it is sticky: scroll the catalogue and the ground,
+       the window and the Request stay put. */
+    '<div id="gee-add-params">',
+    '<div class="gee-param-title">Fetch parameters</div>',
     '<label>Extent<select id="gee-add-extent">',
     '<option value="global">Global</option>',
     '<option value="view">Current globe view</option>',
-    // "drawn" is the LIVE overlay — the box just dragged out on the map, which
-    // is pushed to the globe as a study area, or one drawn on the globe itself.
-    // refreshPolygonOptions only appends the named layers; this option has to
-    // be in the markup, which is how its absence left a drawn box unselectable.
-    '<option value="drawn">Area drawn on the map</option>',
+    // "drawn" is the LIVE overlay — a box dragged out on the globe. It has to
+    // be in the markup: refreshPolygonOptions only appends the NAMED layers,
+    // and its absence is what once left a drawn box unselectable.
+    '<option value="drawn">Area drawn on the globe</option>',
     "</select></label>",
-    '<button id="gee-add-draw" class="button secondary" type="button">▭ Draw on map</button>',
-    '<label style="flex: 0 0 9rem">Map<select id="gee-add-basemap"></select></label>',
-    "</div>",
+    '<button id="gee-add-draw" class="button secondary" type="button">▭ Draw on the globe</button>',
     '<div id="gee-add-extent-note"></div>',
     '<div id="gee-add-row">',
     '<label>From<input id="gee-add-from" type="date"></label>',
     '<label>To<input id="gee-add-to" type="date"></label>',
     "</div>",
+    '<div id="gee-add-idrow">',
+    '<label>Any Earth Engine ID<input id="gee-add-id" type="text" placeholder="e.g. ECMWF/ERA5/DAILY"></label>',
+    '<button id="gee-add-id-use" class="button secondary" type="button">Use</button>',
+    "</div>",
     '<div id="gee-add-status"></div>',
     '<div id="gee-add-actions">',
     '<button id="gee-add-request" class="button primary" type="button">Request</button>',
-    "</div></div></div></div>",
+    "</div>",
+    "</div>",
+    '<div id="gee-add-list"></div>',
+    "</div></div>",
   ].join("");
   document.body.appendChild(backdrop);
 
@@ -1064,30 +1089,25 @@ function ensureGeeDialog() {
    * makes the extent land in Workspace on success without a line of code here.
    */
   byId("gee-add-draw").addEventListener("click", () => {
-    const button = byId("gee-add-draw");
-    const on = !button.classList.contains("is-on");
-    button.classList.toggle("is-on", on);
-    geeMap?.setDrawMode(on, (box, done) => {
-      mapBox = box;
-      paintMapBox();
-      describeExtent(box);
-      if (!done) return;
-      button.classList.remove("is-on");
-      geeMap.setDrawMode(false);
-      window.GeoIDViewer?.setStudyAreaPolygon?.(ringFromBounds(box));
-      const extent = byId("gee-add-extent");
-      refreshPolygonOptions(extent, "drawn", { allLayers: true });
-      extent.value = "drawn";
-      dialogStatus("Extent drawn — it is on the globe behind this window too.");
-    });
-    dialogStatus(on ? "Drag a box on the map." : "");
+    const drawn = drawnOverlayBounds();
+    if (!drawn) {
+      byId("gee-add-extent").value = "drawn";
+      promptDrawTool();
+      dialogStatus("Draw the area on the globe — box, circle or polygon — "
+        + "then press this again to claim it.");
+      return;
+    }
+    const captured = window.GeoIDDrawnLayers?.captureDrawn?.({ name: "Earth Engine fetch area" });
+    const extent = byId("gee-add-extent");
+    refreshPolygonOptions(extent, "drawn", { allLayers: true });
+    extent.value = captured?.ok && captured.layer ? `layer:${captured.layer.id}` : "drawn";
+    dialogStatus(`Area set: ${drawn.south.toFixed(2)}–${drawn.north.toFixed(2)}°N, `
+      + `${drawn.west.toFixed(2)}–${drawn.east.toFixed(2)}°E.`
+      + (captured?.ok ? " Listed in Workspace." : ""));
+    showChosenExtent();
   });
 
   byId("gee-add-extent").addEventListener("change", () => showChosenExtent());
-  byId("gee-add-basemap").addEventListener("change", (e) => {
-    geeMap?.setBasemap(e.target.value);
-  });
-
   // The named polygons are rebuilt on every layer change, exactly as the
   // weather card's are: a captured extent should be offerable the moment it
   // exists, without reopening anything.
@@ -1232,8 +1252,9 @@ function curatedCard(entry) {
   card.prepend(badge(cached ? "Offline snapshot" : "Tuned for this app",
     cached ? "is-cache" : "is-live"));
   card.title = entry.title;
-  card.addEventListener("click", () => choose(entry.id, entry.info.summary));
-  return card;
+  const pick = () => choose(entry.id, entry.info.summary);
+  card.addEventListener("click", pick);
+  return addButton(card, pick);
 }
 
 /** One of Google's: what it is, at what resolution, over what years. */
@@ -1246,20 +1267,50 @@ function catalogueCard(entry) {
   line.textContent = describeDataset(entry);
   card.appendChild(line);
   card.title = entry.summary || entry.title;
-  card.addEventListener("click", () => choose(entry.id, describeChosen(entry)));
-  return card;
+  const pick = () => choose(entry.id, describeChosen(entry));
+  card.addEventListener("click", pick);
+  return addButton(card, pick);
 }
 
+/**
+ * A tile. It is a DIV rather than a button because it now contains one: the
+ * body selects the dataset and the Add inside it selects AND requests, and a
+ * button nested in a button is not markup a browser will honour.
+ */
 function baseCard(id, title, subtitle) {
-  const card = document.createElement("button");
-  card.type = "button";
+  const card = document.createElement("div");
   card.className = "gee-card";
+  card.setAttribute("role", "button");
+  card.tabIndex = 0;
   card.classList.toggle("is-on", id === chosenDataset);
   const name = document.createElement("b");
   name.textContent = title;
   const code = document.createElement("code");
   code.textContent = subtitle;
   card.append(name, code);
+  return card;
+}
+
+/**
+ * The tile's own Add: choose this dataset and request it with whatever the
+ * parameter tile currently holds. One press rather than three, which is the
+ * point of a strip you scroll — and it goes through `requestFromDialog`, so
+ * there is still exactly one request path.
+ */
+function addButton(card, onChoose) {
+  const add = document.createElement("button");
+  add.type = "button";
+  add.className = "gee-add-one";
+  add.textContent = "Add";
+  add.addEventListener("click", (event) => {
+    event.stopPropagation();          // not also a select-only click
+    onChoose();
+    requestFromDialog();
+  });
+  card.appendChild(add);
+  card.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onChoose(); }
+  });
   return card;
 }
 
@@ -1339,14 +1390,6 @@ function renderGeeCategories() {
 }
 
 /** Draw the chosen extent on the map, and say how big it is in words. */
-function paintMapBox() {
-  // `visible` is not optional: drawLayer returns early without it, so the box
-  // is computed, handed over and silently never painted.
-  geeMap?.setLayers(mapBox
-    ? [{ type: "bbox", bbox: mapBox, colour: "var(--skin-chrome)", opacity: 1, visible: true }]
-    : []);
-}
-
 function describeExtent(box) {
   const note = byId("gee-add-extent-note");
   if (!note) return;
@@ -1367,8 +1410,6 @@ function describeExtent(box) {
 async function showChosenExtent() {
   const choice = byId("gee-add-extent")?.value || "global";
   if (choice === "global") {
-    mapBox = null;
-    paintMapBox();
     describeExtent(null);
     return;
   }
@@ -1387,10 +1428,7 @@ async function showChosenExtent() {
     if (picked) box = [picked.west, picked.south, picked.east, picked.north];
   }
   if (!box) { dialogStatus("That extent could not be resolved."); return; }
-  mapBox = box;
-  paintMapBox();
   describeExtent(box);
-  geeMap?.fit(box);
 }
 
 /**
@@ -1443,7 +1481,6 @@ async function requestFromDialog() {
 function closeGeeDialog() {
   const backdrop = byId("gee-add-backdrop");
   if (backdrop) backdrop.hidden = true;
-  geeMap?.setDrawMode(false);
   byId("gee-add-draw")?.classList.remove("is-on");
 }
 
@@ -1485,20 +1522,6 @@ async function openGeeDialog(homeName) {
   refreshPolygonOptions(extent, "drawn", { allLayers: true });
   if (!drawnOverlayBounds()) extent.value = "global";
 
-  // The map is built on first open, never at module load: `createMap`
-  // measures its host, and a host inside a hidden backdrop has no size.
-  if (!geeMap) {
-    mapLibrary = mapLibrary || await import("./research/map2d.js?v=20260903-965d9bd");
-    const picker = byId("gee-add-basemap");
-    picker.innerHTML = Object.keys(mapLibrary.BASEMAPS)
-      .map((name) => `<option value="${name}">${name}</option>`).join("");
-    // OpenStreetMap, not the dark one that suits the panel better: CARTO's
-    // free CDN now answers 200 with an "API KEY REQUIRED" watermark rather
-    // than a tile — measured, 17 distinct colours in a zoom-3 tile — so the
-    // handsome default would open this window on a wall of that text.
-    picker.value = "OpenStreetMap";
-    geeMap = mapLibrary.createMap(byId("gee-add-map"), { basemap: "OpenStreetMap" });
-  }
   showChosenExtent();
 }
 
