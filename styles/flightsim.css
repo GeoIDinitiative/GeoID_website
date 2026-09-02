@@ -398,18 +398,23 @@ body.fs-flying #fs-preflight { display: none; }
   z-index: 38;
   display: flex; flex-direction: column; align-items: flex-end; gap: 0.45rem;
 }
-/* HELP AND CONTROLS SIT BESIDE THE ATLAS MARK, in the top-right row, rather
-   than in the column below it. They are lifted out of #fs-topright — which
-   stays where it is for the touch pad — and placed against the two lengths
-   the mark publishes for exactly this: `--atlas-launcher-w` is its clearance
-   from the right edge, `--atlas-launcher-top` the row it settled on. Both are
-   computed at runtime from whatever else is in that corner, and the corner
-   changes: the Planet Explorer wordmark is there on some screens and not on
-   others, so a fixed `top` would put these level with the mark on one and a
-   hundred pixels off on another. The fallbacks are the mark's own defaults. */
-.fs-tr-buttons {
-  display: flex;
-  gap: 0.3rem;
+.fs-tr-buttons { display: flex; gap: 0.3rem; }
+/* HELP AND CONTROLS SIT BESIDE THE ATLAS MARK — but only when the viewer is
+   FRAMED BY THE HUB, and that is the whole point of the scope.
+   These are the same five pages in two contexts. Standalone they carry the
+   Planet Explorer wordmark in that corner, which is what #fs-topright's
+   `top: 8.4rem` was measured to clear, and they stay exactly where they are.
+   Framed, the shell provides the wordmark and the page drops its own
+   (`body.is-embedded`), so the corner is free and the buttons belong in the
+   top row beside the mark rather than in a column under a logo that is not
+   there.
+   Placed against the two lengths the mark publishes for exactly this:
+   `--atlas-launcher-w` is its clearance from the right edge and
+   `--atlas-launcher-top` the row it settled on, both computed at runtime from
+   whatever else is in the corner. A fixed `top` cannot work here, which is
+   what the two contexts prove: measured on Mars, the launcher sits at 125 px
+   with the wordmark up and at the very top without it. */
+body.is-embedded .fs-tr-buttons {
   position: fixed;
   top: var(--atlas-launcher-top, 1rem);
   right: var(--atlas-launcher-w, 4rem);
