@@ -133,7 +133,7 @@
       font-weight: 700;
       letter-spacing: 0.18em;
       text-transform: uppercase;
-      color: var(--muted);
+      color: rgba(255, 255, 255, 0.82);
     }
     .arrival-value {
       font-size: 1rem;
@@ -170,12 +170,13 @@
       background-repeat: no-repeat;
     }
 
-    /* THE FADE, darkest at the tile's border. A photograph dropped into a
-       panel has four hard edges, and the bottom one cut straight across the
-       card between the picture and the stats. A vignette gives it none: the
-       shot is clear through the middle and goes to the card's own ground at
-       every edge, so it reads as lit from within the tile rather than pasted
-       into it.
+    /* THE FADE, darkest at the tile's border — and it must stay a FADE.
+       The first version ended on `rgba(..., 1)`, and the corners of a box lie
+       outside the ellipse that reaches its edges, so all four of them clamped
+       to solid black: the picture survived only as a lozenge through the
+       middle and the tile read as not filled. The ellipse is bigger than the
+       box now and stops at 0.46, so the photograph is present into every
+       corner and merely dimmed there.
        Two layers, because they answer different questions. The ellipse is the
        fade itself. The linear underneath is for the WORDS: the name sits low
        and left, where a symmetrical vignette is already dark but not reliably
@@ -188,16 +189,15 @@
       inset: 0;
       pointer-events: none;
       background:
-        radial-gradient(ellipse 82% 88% at 52% 46%,
+        radial-gradient(ellipse 104% 116% at 50% 44%,
           rgba(4, 7, 16, 0) 0%,
-          rgba(4, 7, 16, 0.12) 42%,
-          rgba(4, 7, 16, 0.52) 74%,
-          rgba(4, 7, 16, 0.92) 96%,
-          rgba(4, 7, 16, 1) 100%),
+          rgba(4, 7, 16, 0.05) 48%,
+          rgba(4, 7, 16, 0.22) 76%,
+          rgba(4, 7, 16, 0.46) 100%),
         linear-gradient(to top,
-          rgba(4, 7, 16, 0.68) 0%,
-          rgba(4, 7, 16, 0.30) 34%,
-          rgba(4, 7, 16, 0) 66%);
+          rgba(4, 7, 16, 0.70) 0%,
+          rgba(4, 7, 16, 0.32) 30%,
+          rgba(4, 7, 16, 0) 62%);
     }
 
     /* Hero text */
@@ -234,7 +234,11 @@
 
     .dest-sub {
       margin-top: 0.65rem;
-      color: var(--muted);
+      /* NOT `--muted`, which is a grey chosen for a dark panel. Both this and
+         the arrival label are on a PHOTOGRAPH now, and against Saturn's rings
+         a muted grey is invisible. Near-white at 82%, which still reads as
+         secondary next to the name without depending on what is behind it. */
+      color: rgba(255, 255, 255, 0.82);
       font-size: 0.92rem;
       line-height: 1.55;
       max-width: 34rem;
