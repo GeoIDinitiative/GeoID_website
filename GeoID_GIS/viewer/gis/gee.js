@@ -10,22 +10,22 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-3ab48b1";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260903-3ab48b1";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260903-3ab48b1";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-4f44fbb";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260903-4f44fbb";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260903-4f44fbb";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260903-3ab48b1";
+  from "./view-extent.js?v=20260903-4f44fbb";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260903-3ab48b1";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-3ab48b1";
+} from "./extent-picker.js?v=20260903-4f44fbb";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-4f44fbb";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
-} from "./gee-catalogue-index.js?v=20260903-3ab48b1";
+} from "./gee-catalogue-index.js?v=20260903-4f44fbb";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -925,7 +925,7 @@ function ensureGeeDialog() {
     "#gee-add-card { pointer-events: auto; position: fixed; bottom: 0.55rem;",
     "  left: var(--gee-strip-left, 0px);",
     "  right: max(5.5rem, var(--workbench-w, 0px));",
-    "  max-height: min(14.5rem, 34vh);",
+    "  max-height: min(16rem, 36vh);",
     "  border-radius: 0.7rem;",
     "  border: 1px solid rgba(var(--nav-accent-rgb, 255,43,214), 0.5);",
     "  background: rgba(10, 8, 20, 0.97); backdrop-filter: blur(6px);",
@@ -955,12 +955,12 @@ function ensureGeeDialog() {
     "#gee-add-strip { flex: 1; min-height: 0; display: flex; gap: 0.5rem;",
     "  overflow-x: auto; overflow-y: hidden; padding: 0.45rem 0.7rem 0.55rem;",
     "  scroll-padding-left: 0.8rem; }",
-    "#gee-add-params { position: sticky; left: 0; z-index: 2; flex: 0 0 15.5rem;",
-    "  display: flex; flex-direction: column; gap: 0.3rem; overflow-y: auto;",
+    "#gee-add-params { position: sticky; left: 0; z-index: 2; flex: 0 0 19rem;",
+    "  display: flex; flex-direction: column; gap: 0.22rem; overflow-y: auto;",
     "  padding: 0.55rem; border-radius: 0.6rem;",
     "  border: 1px solid rgba(var(--nav-accent-rgb, 255,43,214), 0.5);",
     "  background: rgba(20, 14, 34, 0.99); }",
-    "#gee-add-params .gee-param-title { font: 600 0.55rem/1.6 'Exo 2', sans-serif;",
+    "#gee-add-params .gee-param-title { font: 600 0.52rem/1.4 'Exo 2', sans-serif;",
     "  letter-spacing: 0.14em; text-transform: uppercase; color: var(--skin-data);",
     "  opacity: 0.85; }",
     "#gee-add-list { display: flex; gap: 0.5rem; align-items: stretch; }",
@@ -999,7 +999,7 @@ function ensureGeeDialog() {
     "#gee-add-card .gee-tick { flex-direction: row; align-items: center;",
     "  gap: 0.3rem; font-size: 0.6rem; }",
     "#gee-add-card .gee-tick input { flex: 0 0 auto; }",
-    "#gee-add-card label { display: flex; flex-direction: column; gap: 0.18rem;",
+    "#gee-add-card label { display: flex; flex-direction: column; gap: 0.1rem;",
     "  font: 600 0.55rem/1.4 'Exo 2', sans-serif; letter-spacing: 0.1em;",
     "  text-transform: uppercase; opacity: 0.85; }",
     "#gee-add-card select, #gee-add-card input { background: rgba(16,24,34,0.98);",
@@ -1012,7 +1012,7 @@ function ensureGeeDialog() {
     "#gee-add-row .button { flex: 0 0 auto; }",
     "#gee-add-idrow { display: flex; gap: 0.3rem; align-items: flex-end; }",
     "#gee-add-idrow label { flex: 1; min-width: 0; }",
-    "#gee-add-extent-note { font: 400 0.6rem/1.4 'Exo 2', sans-serif; opacity: 0.8; }",
+    "#gee-add-extent-note { font: 400 0.56rem/1.35 'Exo 2', sans-serif; opacity: 0.8; }",
     "#gee-add-status { font-size: 0.62rem; opacity: 0.85; min-height: 1em; }",
     /* PINNED to the foot of its own tile. The tile scrolls — extent, dates and
        a free-text id do not always fit — and Request scrolling out of reach is
@@ -1051,6 +1051,7 @@ function ensureGeeDialog() {
        the window and the Request stay put. */
     '<div id="gee-add-params">',
     '<div class="gee-param-title">Fetch parameters</div>',
+    '<div id="gee-add-row">',
     '<label>Extent<select id="gee-add-extent">',
     '<option value="global">Global</option>',
     '<option value="view">Current globe view</option>',
@@ -1059,7 +1060,8 @@ function ensureGeeDialog() {
     // and its absence is what once left a drawn box unselectable.
     '<option value="drawn">Area drawn on the globe</option>',
     "</select></label>",
-    '<button id="gee-add-draw" class="button secondary" type="button">▭ Draw on the globe</button>',
+    '<button id="gee-add-draw" class="button secondary" type="button">▭ Draw</button>',
+    "</div>",
     '<div id="gee-add-extent-note"></div>',
     '<div id="gee-add-row">',
     '<label>From<input id="gee-add-from" type="date"></label>',
