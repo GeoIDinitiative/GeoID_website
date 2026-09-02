@@ -10,22 +10,22 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-9fd439f";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260903-9fd439f";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260903-9fd439f";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-bd84f74";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260903-bd84f74";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260903-bd84f74";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260903-9fd439f";
+  from "./view-extent.js?v=20260903-bd84f74";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260903-9fd439f";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-9fd439f";
+} from "./extent-picker.js?v=20260903-bd84f74";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-bd84f74";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
-} from "./gee-catalogue-index.js?v=20260903-9fd439f";
+} from "./gee-catalogue-index.js?v=20260903-bd84f74";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -917,7 +917,7 @@ function ensureGeeDialog() {
     "  display: block; background: none; pointer-events: none; }",
     "#gee-add-backdrop[hidden] { display: none !important; }",
     "#gee-add-card { pointer-events: auto; width: 100%;",
-    "  max-height: min(21rem, 46vh);",
+    "  max-height: min(24rem, 52vh);",
     "  border-top: 1px solid rgba(var(--nav-accent-rgb, 255,43,214), 0.5);",
     "  background: rgba(10, 8, 20, 0.97); backdrop-filter: blur(6px);",
     "  box-shadow: 0 -14px 42px rgba(0,0,0,0.55);",
@@ -1005,7 +1005,13 @@ function ensureGeeDialog() {
     "#gee-add-idrow label { flex: 1; min-width: 0; }",
     "#gee-add-extent-note { font: 400 0.6rem/1.4 'Exo 2', sans-serif; opacity: 0.8; }",
     "#gee-add-status { font-size: 0.62rem; opacity: 0.85; min-height: 1em; }",
-    "#gee-add-actions { display: flex; gap: 0.4rem; }",
+    /* PINNED to the foot of its own tile. The tile scrolls — extent, dates and
+       a free-text id do not always fit — and Request scrolling out of reach is
+       the one thing in here that must never happen: it is the button the whole
+       strip exists to press. The background is not decoration; without it the
+       rows underneath show through as it is scrolled past. */
+    "#gee-add-actions { display: flex; gap: 0.4rem; position: sticky; bottom: 0;",
+    "  padding-top: 0.3rem; background: rgba(20, 14, 34, 0.99); }",
     "#gee-add-actions .button { flex: 1; }",
     "#gee-add-draw.is-on { background: var(--nav-accent, var(--skin-chrome)); color: #12040f; }",
   ].join("\n");
