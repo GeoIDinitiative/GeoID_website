@@ -1,0 +1,86 @@
+# The checks that were discipline-only until now.
+#
+# Everything in GeoID_GIS/CLAUDE.md that begins "run the suite before the
+# commit, not after the browser disagrees" is written down because it was not
+# run: a backtick inside a CSS template literal took a whole module out of the
+# page and was committed anyway, and a `;` where an `&&` belonged let a broken
+# file commit while a stale log still read "all passed". This removes the
+# remembering.
+#
+# It is DELIBERATELY dependency-free, like the tests themselves — no npm
+# install, no lockfile, no build. Node and Python are all that is needed, and
+# the whole run is a few seconds.
+#
+# What it cannot do is worth stating: none of these check what a page LOOKS
+# like. A vignette whose radii put every dark stop outside the box, or a camera
+# that opens on the wrong bearing, are both green here. This is a floor under
+# the discipline, not a replacement for looking.
+
+name: checks
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  unit:
+    name: Unit tests and tree checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # Every *.test.mjs under viewer/ — the DSP, the statistics, the DOF
+      # interpolation, the geoprocessing, the 48-tool registry, the theme pins.
+      # Each runs in its own process; the runner aggregates and exits non-zero.
+      - name: Unit tests
+        run: node GeoID_GIS/tests/run.mjs
+
+      # A SPLIT stamp is the quiet one. Module identity is by URL, so two
+      # stamps in the tree means two copies of a module with two sets of
+      # top-level state — the GIS page and the Research Hub stop sharing a
+      # project store and nothing anywhere fails.
+      - name: Cache-busting stamp is uniform
+        run: python3 GeoID_GIS/services/stamp.py --check
+
+      # The nine planet viewers carry generated copies of Earth's draw tools
+      # and seam. This asserts each is byte-for-byte what the porters would
+      # write today, so a fix made on Earth cannot silently stay on Earth.
+      - name: Generated planet blocks are current
+        run: |
+          node GeoID_GIS/viewer/gis/draw-port.test.mjs
+          python3 GeoID_GIS/services/port-draw-tools.py --check
+          python3 GeoID_GIS/services/port-viewer-seam.py --check
+
+  pages:
+    name: Research Hub pages mount
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # smoke.py SKIPS GREEN when it cannot find a browser, which is right for
+      # a laptop and wrong for CI: a runner that quietly lost Chrome would
+      # report a passing check that never ran. Assert it is there first, and
+      # let find_chrome locate it by name rather than pinning a path that
+      # would fail the same silent way.
+      - name: Chrome is present
+        run: command -v google-chrome || command -v google-chrome-stable
+
+      # Boots the real site in headless Chrome and asserts all 64 Research
+      # pages mount. The registry shape makes it easy for a page to rot
+      # silently; this is the only thing that catches it.
+      - name: Research Hub smoke test
+        run: python3 GeoID_GIS/tests/smoke.py

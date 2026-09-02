@@ -324,6 +324,31 @@ SWEEP_JS = r"""
 """
 
 
+def wait_for_document(cdp: CDP, timeout: float = 30) -> None:
+    """Hold until the navigation has produced a document to talk to.
+
+    `Page.navigate` returns once the navigation has STARTED, not once the new
+    document exists — so a sweep issued straight after it is evaluated against
+    the context that is about to be torn down, and CDP answers
+    "Inspected target navigated or closed". It is a race, which is the worst
+    kind of thing to put in front of a CI check: it passed on this machine for
+    months and then failed twice in a row with nothing in the site to blame.
+
+    Polling readyState settles it, and the error is swallowed rather than
+    retried blindly — during the swap it IS the expected answer.
+    """
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            if cdp.evaluate("document.readyState", await_promise=False,
+                            timeout=5) == "complete":
+                return
+        except RuntimeError:
+            pass          # the context is mid-swap; that is what we are waiting out
+        time.sleep(0.2)
+    raise RuntimeError("The page never reached readyState complete.")
+
+
 def run_smoke() -> int:
     chrome = find_chrome()
     if not chrome:
@@ -338,12 +363,19 @@ def run_smoke() -> int:
     try:
         ws_url = wait_for_page_target(dev_port)
         ws = WebSocket(ws_url)
+        # The socket is opened with a 10 s read timeout, which is right for the
+        # short control calls and far too short for the sweep: it mounts 64
+        # pages and is ALLOWED minutes by its own CDP timeout, so the socket
+        # gave up first and the failure arrived as a bare TimeoutError with
+        # nothing to say. Sized to the longest call this makes.
+        ws.sock.settimeout(READY_TIMEOUT + 120)
         cdp = CDP(ws)
         cdp.call("Page.enable")
         cdp.call("Runtime.enable")
         url = f"http://127.0.0.1:{http_port}{PAGE_PATH}"
         print(f"Booting {url} in headless Chrome …")
         cdp.call("Page.navigate", {"url": url})
+        wait_for_document(cdp)
 
         result = cdp.evaluate(SWEEP_JS, timeout=READY_TIMEOUT + 60)
         if not isinstance(result, dict) or result.get("error"):
