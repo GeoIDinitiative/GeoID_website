@@ -51,6 +51,11 @@ body.fs-flying #freeze-view-toggle { display: none !important; }
    which is exactly the set that has a flight sim: the rocky worlds. */
 body.fs-flying .gis-planet-dock,
 body.fs-preflight .gis-planet-dock { display: none !important; }
+/* The legend goes with it. It is a key to the map layers, and in the cockpit
+   the map is ground going past at a kilometre a second — the readouts along
+   the bottom are the instrumentation that matters here. */
+body.fs-flying #map-legend,
+body.fs-preflight #map-legend { display: none !important; }
 /* ENTER — the flight mode entry. A glowing action button, not a tickbox:
    entering flight is a mode change, not a layer you switch on. */
 /* The flight section sits OUTSIDE the wrapper that gives the other sections
@@ -393,7 +398,24 @@ body.fs-flying #fs-preflight { display: none; }
   z-index: 38;
   display: flex; flex-direction: column; align-items: flex-end; gap: 0.45rem;
 }
-.fs-tr-buttons { display: flex; gap: 0.3rem; }
+/* HELP AND CONTROLS SIT BESIDE THE ATLAS MARK, in the top-right row, rather
+   than in the column below it. They are lifted out of #fs-topright — which
+   stays where it is for the touch pad — and placed against the two lengths
+   the mark publishes for exactly this: `--atlas-launcher-w` is its clearance
+   from the right edge, `--atlas-launcher-top` the row it settled on. Both are
+   computed at runtime from whatever else is in that corner, and the corner
+   changes: the Planet Explorer wordmark is there on some screens and not on
+   others, so a fixed `top` would put these level with the mark on one and a
+   hundred pixels off on another. The fallbacks are the mark's own defaults. */
+.fs-tr-buttons {
+  display: flex;
+  gap: 0.3rem;
+  position: fixed;
+  top: var(--atlas-launcher-top, 1rem);
+  right: var(--atlas-launcher-w, 4rem);
+  z-index: 39;
+  pointer-events: auto;
+}
 #fs-touch {
   display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
 }

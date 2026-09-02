@@ -814,6 +814,16 @@ function placeLauncher(launcher, panelNode) {
     document.documentElement.style.setProperty("--atlas-launcher-w", clearance);
   }
 
+  // The ROW is published for the same reason the clearance is: anything that
+  // wants to sit BESIDE the mark has to know where the mark ended up, and that
+  // is decided here, at runtime, from whatever else is in the corner. The
+  // flight sim's Help and Controls buttons use it — the wordmark is sometimes
+  // in that corner and sometimes not, so a fixed `top` puts them level with the
+  // mark on one screen and a hundred pixels off on another.
+  if (document.documentElement.style.getPropertyValue("--atlas-launcher-top") !== topPx) {
+    document.documentElement.style.setProperty("--atlas-launcher-top", topPx);
+  }
+
   // The GIS tools move down to clear the mark. Skipped where the rail is not
   // top-anchored — the narrow embedded layout centres it vertically with
   // `!important`, so there is nothing to clear and nothing we could set.
