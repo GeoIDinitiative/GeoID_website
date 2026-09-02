@@ -6871,6 +6871,61 @@ The AudioContext is made on the FIRST click and not before: a browser refuses
 one outside a gesture, and one made at load leaves a suspended context running
 for every reader who never turns sound on.
 
+### "The hover and the sound are the same in every theme" — both were true
+
+Two reports in one line, and neither was where the theme work had been looking.
+
+**THE HOVER WAS A VIOLET LITERAL IN TWENTY PLACES.** `rgba(190, 120, 255, …)`
+in `styles.css`, plus `#be78ff` and `#f3e6ff` — a luminous violet chosen to sit
+apart from the column's magenta, and therefore the one state that looked
+identical in every skin. It is `--skin-hover` / `--skin-hover-rgb` /
+`--skin-hover-ink` now, and each theme gives it its own. The map's outline
+under the cursor is a SEPARATE token (`--skin-hover-map`): they have different
+defaults and different jobs, and the row hover is the one a reader sees a
+hundred times an hour, so it keeps the bare name.
+
+**THERE WERE TWO SOUND SYSTEMS, AND THE ONE PLAYING WAS NOT THE THEMED ONE.**
+`scripts/ui-sound.js` predates all of this: it is loaded by every viewer,
+**enabled by default**, and already owns the hover tick, the rate limiting, the
+control selector, the disabled and `data-no-sound` opt-outs and a mute API.
+Adding `theme-sound.js` beside it meant two clicks on one press, with the
+reader hearing whichever fired first — which is exactly what "the sound is the
+same in every theme" sounded like. The second file is deleted; `ui-sound.js`
+carries a VOICES table keyed by `data-skin`, whose `default` entry is the
+values it has always played, so a reader on the GeoHUB theme hears no change.
+
+The rule this is the third instance of: **before adding a capability, grep for
+it.** The clip button, the extraction dialog, and now the click sound.
+
+### A light theme is an audit nobody has to write
+
+The beige box inverts the value scale, so every surface that assumed a dark
+ground announced itself. Measured with a contrast walk — first opaque ancestor
+as the ground, flag anything under 0.16 luminance apart — it went **79
+unreadable elements to 14**, against a floor of **9 in the DEFAULT theme by the
+same instrument**, so what is left is mostly the instrument's own optimism
+about translucent controls.
+
+What the 79 actually were, in order of how well they hid:
+
+- **70 palette literals in the modules' own CSS-in-JS `STYLE` blocks** across
+  19 files — the ⓘ button, the events glyphs, the draw HUD, the dialogs. The
+  earlier pass had tokenised `styles.css` and `shell.css` and stopped there.
+- **Nine more near-black GROUNDS** written per component: the Workspace layer
+  row, the Legend toggle, the zoom pill, the corner cards.
+- **One INLINE STYLE in the markup** — `style="color: #6fd6ff"` on a label.
+  An inline style outranks every rule, so that one label stayed cyan on grey
+  while everything around it changed. When one element resists a theme and its
+  neighbours do not, read its `style` attribute before its stylesheet.
+
+**Four category labels were deliberately LEFT.** Volcanic red, landing amber,
+habitation green and the white moons say what colour their labels are drawn on
+the globe; recolouring them to suit a theme would break the correspondence
+between the tick and the map. The same goes for the event glyphs and the
+no-value grey. A theme dresses the chrome; the data keeps its own colours, and
+on a light ground some of them are genuinely low contrast — that is a cost of
+the light theme, not a bug in it.
+
 ## Running and testing
 
 `python3 serve.py` (repo root) starts the static site *and* the sidecar together

@@ -4630,7 +4630,7 @@ canvas {
       padding: 0.25rem 0.35rem;
       border: 1px solid rgba(var(--skin-data-rgb), 0.22);
       border-radius: 0.4rem;
-      background: rgba(10, 14, 24, 0.75);
+      background: var(--skin-tab-ground, rgb(16, 7, 36));
       font-size: 0.7rem;
       cursor: grab;
     }
@@ -4743,7 +4743,7 @@ canvas {
       padding: 0.4rem 0.6rem;
       border: 1px solid rgba(var(--skin-data-rgb), 0.35);
       border-radius: 0.5rem;
-      background: rgba(8, 12, 20, 0.72);
+      background: var(--skin-tab-ground, rgb(16, 7, 36));
       backdrop-filter: blur(8px);
       color: var(--text);
       font-size: 0.68rem;
@@ -4765,7 +4765,7 @@ canvas {
       border-radius: 0.55rem;
       /* Semi-transparent: the legend describes the scene, so the scene should
          stay readable behind it. */
-      background: rgba(8, 12, 20, 0.62);
+      background: var(--skin-tab-ground, rgb(16, 7, 36));
       backdrop-filter: blur(10px);
       font-size: 0.68rem;
     }
@@ -4809,7 +4809,7 @@ canvas {
       padding: 0.25rem 0.5rem;
       border: 1px solid rgba(var(--skin-data-rgb), 0.35);
       border-radius: 0.45rem;
-      background: rgba(8, 12, 20, 0.6);
+      background: var(--skin-tab-ground, rgb(16, 7, 36));
       color: var(--nav-accent);
       font-size: 0.66rem;
       letter-spacing: 0.14em;
@@ -4839,7 +4839,7 @@ canvas {
       flex-direction: column;
       border: 1px solid rgba(var(--skin-data-rgb), 0.4);
       border-radius: 0.7rem;
-      background: rgba(10, 14, 24, 0.97);
+      background: var(--skin-card-ground, rgb(24, 13, 47));
       box-shadow: 0 1.4rem 3rem rgba(0, 0, 0, 0.55);
     }
     .project-dialog-head {
@@ -5024,7 +5024,7 @@ canvas {
       padding: 0.7rem 0.8rem;
       border: 1px solid rgba(var(--skin-data-rgb), 0.4);
       border-radius: 0.55rem;
-      background: rgba(8, 12, 20, 0.94);
+      background: var(--skin-card-ground, rgb(24, 13, 47));
       backdrop-filter: blur(10px);
       box-shadow: 0 0.8rem 2rem rgba(0, 0, 0, 0.5);
       font-size: 0.68rem;
@@ -5235,7 +5235,7 @@ canvas {
       padding: 0.28rem 0.4rem;
       border: 1px solid rgba(var(--skin-data-rgb), 0.22);
       border-radius: 0.4rem;
-      background: rgba(10, 14, 24, 0.55);
+      background: var(--skin-tab-ground, rgb(16, 7, 36));
       font-size: 0.7rem;
       cursor: pointer;
     }
