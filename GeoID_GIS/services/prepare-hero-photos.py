@@ -6,11 +6,11 @@ placed there by hand. This turns each one into the tile the page actually
 loads: `assets/hero/<body>.jpg`, sized for the tile and cheap enough to sit in
 front of a viewer that is still loading.
 
-WHERE THE OTHER BODIES COME FROM. A photograph exists for seven of the ten
-destinations. Mercury, the Moon and Earth (the ISS destination arrives over
-Earth) keep the oblique RENDERED from their own viewer by bake-hero-tiles.py,
-so no destination is left without a tile and the page needs no special case.
-Drop a matching file into transit/backrounds/ and re-run this to replace one.
+WHERE THE OTHER BODIES COME FROM. A photograph exists for nine of the ten
+destinations. Earth — the ISS destination, which arrives over Earth — keeps the
+oblique RENDERED from its own viewer by bake-hero-tiles.py, so no destination
+is left without a tile and the page needs no special case. Drop a matching file
+into transit/backrounds/ and re-run this to replace one.
 
 The masters are kept rather than being replaced by their output: a derived
 asset should be reproducible from the thing it was derived from, and these were
@@ -36,15 +36,19 @@ ROOT = Path(__file__).resolve().parents[2]
 MASTERS = ROOT / "transit" / "backrounds"
 OUT_DIR = ROOT / "assets" / "hero"
 
-# The tile is ~840 CSS px at its widest; twice that covers a high-DPI screen,
-# and nothing here is large enough to want more.
-MAX_WIDTH = 1680
-QUALITY = 84
+# The tile is ~840 CSS px at its widest. 1440 covers a high-DPI screen with
+# room to spare, and the quality is set for what a tile IS: a photograph under
+# a vignette and a 5rem title, on a page that has to appear at once in front of
+# a viewer that is still loading. At 1680/q84 the Moon's master came out at
+# 371 KB, which is a lot to spend on something nobody looks at closely.
+MAX_WIDTH = 1440
+QUALITY = 80
 
 # Master stem -> destination key in transit/index.html's table.
 KEYS = {
-    "jupiter": "jupiter", "mars": "mars", "neptune": "neptune",
-    "pluto": "pluto", "saturn": "saturn", "uranus": "uranus", "venus": "venus",
+    "jupiter": "jupiter", "mars": "mars", "mercury": "mercury", "moon": "moon",
+    "neptune": "neptune", "pluto": "pluto", "saturn": "saturn",
+    "uranus": "uranus", "venus": "venus",
 }
 
 
@@ -85,9 +89,9 @@ def main() -> int:
               f"{out.stat().st_size // 1024:>4} KB"
               + (f"  (was {before // 1024} KB)" if before else ""))
 
-    rendered = sorted({"mercury", "moon", "earth"})
-    print(f"\n  {len(seen)} from photographs; {', '.join(rendered)} stay as the "
-          f"renders from bake-hero-tiles.py")
+    rendered = sorted({"earth"})
+    print(f"\n  {len(seen)} from photographs; {', '.join(rendered)} stays as "
+          f"the render from bake-hero-tiles.py")
     return 0
 
 
