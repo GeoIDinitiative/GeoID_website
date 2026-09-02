@@ -10729,3 +10729,74 @@ vendor's own no-ops or the cap will fill before the culprit runs.**
 the GeoHUB in Model mode means the next planet viewer opened boots into the
 Meshing Studio with no globe in sight, which reads as that viewer being broken.
 Worth knowing before diagnosing one.
+
+## Posing a viewer's own camera for a still — four things that bite
+
+`services/bake-hero-tiles.py` renders the transit page's hero tiles from the
+viewers themselves: headless Chrome over the smoke test's own hand-rolled CDP,
+posing each viewer's camera and capturing the CANVAS (`toDataURL`), so no
+panel, label or cursor can reach a tile. Rendering rather than sourcing
+photographs keeps the tile on the same basemap the viewer wears, keeps the
+licence question already-answered, and covers the four bodies with no surface
+to photograph. Ten files, 220 KB.
+
+Everything below was found by looking at the output, and every one of them
+produces a plausible-looking wrong picture rather than an error:
+
+- **The aim point must be inside the horizon.** From `alt` body-radii out the
+  horizon is `acos(1/alt)` around the curve; aiming past it points the camera
+  at sky. Half the first tile was black. Parametrise as a FRACTION of that
+  angle and the rule holds at any altitude.
+- **The oblique must swing the way the frame is tall.** `camera.up` is the
+  body's pole, so up in the picture is pole-ward; swinging the aim due east
+  moves the horizon sideways, and every trial came out as a disc pushed against
+  the left edge. Then swing toward the FAR pole, or the ground fills the top of
+  the frame and the sky sits under it.
+- **`controls.update()` clamps to `minDistance`.** These viewers set a zoom
+  floor well outside a still's altitude, so every pose was pushed back out to
+  the floor and only the aim moved — a sweep from alt 1.14 to 1.50 produced
+  four near-identical frames. Lift it for the shot, put it back after.
+- **Pin the clock or the bake is not idempotent.** The globes turn with
+  simulated UTC, so an angle from the camera's current direction names
+  different ground on every run: Earth came out over the Mediterranean in one
+  run and over the Sahel in the next from identical numbers.
+  `setSimulatedUtcMs` where a viewer has it.
+
+**And light the face being shot.** Choosing ground by turning the camera walks
+it onto whatever the sun was already lighting; the first Mars tile came out on
+the night side. Aim the key DirectionalLight down the shot's own axis, lifted
+20-ish degrees so the relief still models — a directional light is a direction
+only, so this is right whether or not the body sits at the origin.
+
+**What belongs in a still: the body and the sky.** Keeping only the meshes
+whose radius is within a fifth of the globe's drops the annotation wholesale.
+Hiding sprites, lines and points is NOT enough — the marker dots are 0.03-radius
+spheres and their hit targets 0.28, and both speckled the first tile. Saturn's
+rings are the deliberate exception: a `RingGeometry`, neither surface nor sky,
+and the most defining thing about that planet.
+
+**A tuning sweep must vary ONE thing from one page load.** These viewers take
+about ten seconds to boot and stream a basemap; several poses per load is the
+difference between tuning and waiting. Spin is the number worth sweeping once
+altitude and framing are settled — it is what decides whether a tile lands on a
+cratered highland, an empty ocean, or the night side.
+
+### Two page-level details, and a .gitignore that ate a file
+
+**A gradient clipped to text takes a `filter: drop-shadow`, never a
+`text-shadow`.** `-webkit-text-fill-color: transparent` with
+`background-clip: text` means a text-shadow paints a solid slab of the letter
+shapes behind them; `filter` follows the rendered alpha. It only started
+mattering when the name moved onto a photograph.
+
+**A `cover` crop is centred, and centred is usually wrong.** The transit tile
+is about 3.7:1 against a 2.4:1 shot, so `cover` throws away two fifths of the
+height — and centred it keeps the band of sky and limb and loses the surface
+the shot is of. Bias it down.
+
+**`.gitignore` carried a bare `moon.jpg`**, which matches every `moon.jpg` in
+the tree. It silently swallowed the Moon's baked tile: the file was on disk,
+the bake reported it, and it simply never reached a commit — found only by
+counting the assets in the commit against the ones on disk. Negated for that
+one path rather than loosening a rule that is presumably protecting something
+larger. **After a bake, count what was COMMITTED, not what was written.**
