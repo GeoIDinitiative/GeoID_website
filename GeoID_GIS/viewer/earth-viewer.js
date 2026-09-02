@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260902-dd8203e";
+  from "./gis/geo-utils.js?v=20260902-e1675c0";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260902-dd8203e";
+  from "./gis/vector-render.js?v=20260902-e1675c0";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260902-dd8203e";
+  from "./gis/rock-class.js?v=20260902-e1675c0";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260902-dd8203e";
+  from "./gis/lithology-label.js?v=20260902-e1675c0";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -1523,7 +1523,12 @@ function fmtProp(value) {
     let _ctxZoomAnimStart = null;
     const CTX_ZOOM_ANIM_MS = 450;
     const DEFAULT_CAMERA_POSITION = Object.freeze({ x: 0, y: 1.4, z: 11.5 });
-    const DEFAULT_CENTER_LAT_DEG = 20.0; // Equator on prime meridian
+    // The view the globe opens on: an oblique of the northern hemisphere down
+    // the Greenwich meridian, which puts Europe, Africa and the Atlantic in
+    // frame with the pole tilted toward the camera. 20°N rather than the
+    // equator — the comment here said "Equator on prime meridian" while the
+    // value said 20, and the value was the one that was right.
+    const DEFAULT_CENTER_LAT_DEG = 20.0;
     const DEFAULT_CENTER_LON_DEG = 0.0;
     function positionCameraOverPrimeMeridian(camera, controls) {
       const cameraDistance = Math.sqrt(
@@ -12892,6 +12897,19 @@ function fmtProp(value) {
 
 	        const startTime = performance.now();
 	        const startDistance = camera.position.length() || defaultCameraDistance;
+	        // THE DIRECTION IS READ EVERY STEP, not captured once.
+	        //
+	        // This animates DISTANCE — it refits the globe inside the embedded
+	        // frame — and a snapshot of the direction turns it into an animation
+	        // of the whole camera, replaying a stale bearing for 280 ms and
+	        // undoing anything that aimed the camera in the meantime. That is
+	        // what stopped the globe opening over Greenwich:
+	        // `positionCameraOverPrimeMeridian` ran, correctly, and then these
+	        // steps put the camera back on the direction it had before.
+	        // Measured on a cold embedded load: the boot camera is (0, 1.4, 16),
+	        // a bearing of 5.00°N, and the globe settled at (0, 1.01, 11.54) —
+	        // that same bearing at the eased distance, with the view centre
+	        // 164°E instead of 0°.
 	        const direction = camera.position.clone().normalize();
 	        if (direction.lengthSq() < 0.0001) direction.set(0, 0.12, 1).normalize();
 
@@ -12899,6 +12917,9 @@ function fmtProp(value) {
 	          const t = clamp((now - startTime) / duration, 0, 1);
 	          const eased = 1 - ((1 - t) ** 3);
 	          const distance = THREE.MathUtils.lerp(startDistance, targetDistance, eased);
+	          if (camera.position.lengthSq() > 0.0001) {
+	            direction.copy(camera.position).normalize();
+	          }
 	          camera.position.copy(direction).multiplyScalar(distance);
 	          controls.object.position.copy(camera.position);
 	          controls.target.set(0, 0, 0);
