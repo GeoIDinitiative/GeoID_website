@@ -493,7 +493,14 @@
 }
 :root[data-skin="beige"] .feature-title,
 :root[data-skin="beige"] .scene-popup-detail,
-:root[data-skin="beige"] .scene-popup-fold summary {
+:root[data-skin="beige"] .scene-popup-fold summary,
+/* The card's BODY COPY and its meta line. `#d6f8f6` is a pale cyan-white —
+   right on a dark card, invisible on a light one, and it is the paragraph the
+   card exists to show: measured on the Moon's "Mare Tranquillitatis", white on
+   grey. Fixed here rather than at the rule, so the six dark themes keep the
+   exact colour they have always drawn. */
+:root[data-skin="beige"] .feature-copy,
+:root[data-skin="beige"] .feature-meta {
   color: #000000 !important;
 }
 /* The kicker keeps the accent, because it is the one thing on the card that is

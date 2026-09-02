@@ -2,8 +2,8 @@ import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
   nativeStepM,
-} from "./model-build.js?v=20260902-7061b5b";
-import { ringsFromCollection } from "./extraction.js?v=20260902-7061b5b";
+} from "./model-build.js?v=20260902-7f14365";
+import { ringsFromCollection } from "./extraction.js?v=20260902-7f14365";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.

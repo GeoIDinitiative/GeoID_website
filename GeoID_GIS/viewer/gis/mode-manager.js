@@ -155,6 +155,12 @@
    */
   function closeWorkbenches() {
     window.GeoIDSidePanels?.closeAll?.();
+    // The scene, geology and measurement cards go with them — same reason,
+    // same moment: they are fixed elements on `body` describing a globe the
+    // next page does not show. Through the viewer's own closers, which also
+    // clear the temporary selection label and the halo.
+    window.GeoIDViewer?.closeCards?.();
+    window.GeoIDFeaturePopup?.hidePopup?.();
   }
 
   function setGisToolboxVisible(visible) {

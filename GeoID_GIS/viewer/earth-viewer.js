@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260902-7061b5b";
+  from "./gis/geo-utils.js?v=20260902-7f14365";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260902-7061b5b";
+  from "./gis/vector-render.js?v=20260902-7f14365";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260902-7061b5b";
+  from "./gis/rock-class.js?v=20260902-7f14365";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260902-7061b5b";
+  from "./gis/lithology-label.js?v=20260902-7f14365";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -21385,6 +21385,24 @@ uniform float uViewportWidth;`,
       }
 
       window.GeoIDViewer = {
+        /**
+         * FLOATING CARDS, so a mode change can dismiss them.
+         *
+         * A scene card is a fixed element on `body`, so nothing that hides the
+         * sidebar touches it: leaving GIS left one standing over the Model
+         * studio and the Research Hub. It closes through each card's OWN
+         * closer, because `closeScenePopup` also clears the temporary
+         * selection label and the selection halo — hiding the element alone
+         * strands a pulsing marker on a globe nobody can see.
+         *
+         * The nine planet viewers carry the same seam, written by
+         * services/port-viewer-seam.py. This copy is Earth's own.
+         */
+        closeCards: () => {
+          if (typeof closeScenePopup === "function") closeScenePopup();
+          if (typeof closeGeoPopup === "function") closeGeoPopup();
+          if (typeof hideMeasurementResultCard === "function") hideMeasurementResultCard();
+        },
         scene,
         camera,
         renderer,
