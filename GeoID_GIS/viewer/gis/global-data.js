@@ -26,7 +26,7 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260902-c02b90e";
+import { runConnector } from "./research/connectors.js?v=20260902-84811cf";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -648,17 +648,28 @@ export async function addDataset(id, onStatus = () => {},
       // point CLOUD and they want opposite treatment; only the entry knows.
       { name: layerNameOf(entry), pointStyle: entry.pointStyle || "auto" },
     );
-    if (provenance) {
-      const layer = loadedLayer(entry);
-      if (layer) {
-        layer.metadata = {
-          source: provenance.attribution,
+    /**
+     * EVERY catalogue layer states its provenance, not only the live ones.
+     *
+     * The Metadata tab reads `layer.metadata`, and a shipped file used to
+     * arrive with none — so a Natural Earth layer read "Source: user import,
+     * CRS: unstated" beside a live connector that named its endpoint and its
+     * licence. That gap was invisible while each subtab carried its own
+     * "Sources" fold; with those gone, the Metadata tab IS where a dataset
+     * says where it came from, and it has to be able to.
+     */
+    const landed = loadedLayer(entry);
+    if (landed) {
+      landed.metadata = {
+        source: provenance?.attribution || entry.path || entry.label,
+        citation: entry.licence,
+        crs: "EPSG:4326",
+        ...(provenance ? {
           endpoint: provenance.endpoint,
           importedAt: provenance.fetched_at,
           features: provenance.features,
-          citation: entry.licence,
-        };
-      }
+        } : {}),
+      };
     }
   } catch (error) {
     const message = `${entry.label} did not load: ${error.message}`;

@@ -609,6 +609,72 @@ ok("and says how many dates it left out", many.dropped === 35, String(many.dropp
 }
 
 /**
+ * ONE LIST, AND ONE SHAPE OF ROW.
+ *
+ * The inventory is a tiled layer `global-data.js` cannot describe, so it was
+ * drawn as a bespoke tick above the catalogue — a second kind of control for
+ * the same kind of thing, and the only row in the subtab with no ⓘ. It is a
+ * TILED entry in `catalogue-panels.js` now, merged into the list for its home,
+ * so it takes the same row, group heading and info card as everything beside
+ * it, and the panel keeps only what a catalogue genuinely cannot hold.
+ */
+{
+  const panels = fs.readFileSync(path.join(here, "catalogue-panels.js"), "utf8");
+  const panel = fs.readFileSync(path.join(here, "ice-cover-panel.js"), "utf8");
+  const markup = fs.readFileSync(path.join(here, "..", "index.html"), "utf8")
+    .replace(/<!--[\s\S]*?-->/g, "");
+  ok("the inventory is a row in the ice catalogue",
+    /"geology-ice": \[\{[\s\S]*?id: "glaciers-rgi7"/.test(panels));
+  ok("with an info card, like every row beside it",
+    /id: "glaciers-rgi7"[\s\S]*?info: \{[\s\S]*?citation:/.test(panels));
+  ok("and its own group heading", /id: "glaciers-rgi7"[\s\S]*?group: "Global inventory"/.test(panels));
+  ok("the panel no longer builds ticks of its own",
+    !/buildRow|mountRows/.test(panel));
+  ok("and the host it built them into is gone",
+    !/geology-ice-rows/.test(markup) && !/geology-ice-rows/.test(panel));
+  // Two shapes of control for one kind of thing is how they drift: the
+  // contacts row was the same bespoke tick in the Tectonics list.
+  ok("the contacts row goes through the same registry",
+    /"geology-tectonics": \[\{[\s\S]*?id: "macrostrat-lines"/.test(panels)
+    && !/function drawMacrostratLines/.test(panels));
+  ok("a tiled row only draws where its module is loaded",
+    /ready: \(\) => Boolean\(window\.GeoIDIceCover\?\.load\)/.test(panels));
+
+  /**
+   * THE COMPILATION'S OWN ICE is gone from the list. The predicate stays —
+   * it is what keeps ice OUT of the geological map, which is its real job.
+   */
+  ok("the geological compilation's ice is not offered as a layer",
+    !/Ice in the geological compilation/.test(panel));
+  ok("but the filter that keeps it out of the geology is untouched",
+    fs.existsSync(path.join(here, "ice-cover.js")));
+
+  /**
+   * WHERE IT CAME FROM IS IN THE METADATA TAB, which is what removing the
+   * "Sources" fold rests on: the tab reads `layer.metadata`, and a tiled layer
+   * had none at all.
+   */
+  // Comments stripped: the note explaining why the fold went names it, and
+  // prose is not a control — the same reason the shelf-name check strips them.
+  const panelCode = panel.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  ok("the Sources fold is gone", !/sourcesSummary|"Sources"/.test(panelCode));
+  ok("and the inventory states its provenance on the layer instead",
+    /metadata: \{[\s\S]*?Randolph Glacier Inventory[\s\S]*?citation:/.test(panel));
+  const geology = fs.readFileSync(path.join(here, "geology-panel.js"), "utf8");
+  // A tiled layer re-registers itself whenever the view settles, so metadata
+  // written once onto the record is gone by the next refine.
+  ok("carried on the ENTRY, so a rebuild re-applies it",
+    /if \(entry\.metadata\) layer\.metadata = /.test(geology));
+  const global = fs.readFileSync(path.join(here, "global-data.js"), "utf8");
+  ok("and every catalogue layer states its own, not only the live ones",
+    /landed\.metadata = \{[\s\S]*?citation: entry\.licence/.test(global));
+  // The untick IS the report; a sentence naming what has just gone describes
+  // something no longer on the globe.
+  ok("unticking a row says nothing rather than narrating itself",
+    !/taken off the globe/.test(panels));
+}
+
+/**
  * WHAT THE COLOUR MEANS, AND IN WHAT UNIT.
  *
  * Two hues with no scale — bright for remapped, pale for carried — were

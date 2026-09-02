@@ -28,14 +28,14 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260902-c02b90e";
-import { currentBodyId } from "./bodies.js?v=20260902-c02b90e";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260902-c02b90e";
-import { rockClass } from "./rock-class.js?v=20260902-c02b90e";
-import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260902-c02b90e";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260902-c02b90e";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260902-84811cf";
+import { currentBodyId } from "./bodies.js?v=20260902-84811cf";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260902-84811cf";
+import { rockClass } from "./rock-class.js?v=20260902-84811cf";
+import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260902-84811cf";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260902-84811cf";
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260902-c02b90e";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260902-84811cf";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -556,6 +556,7 @@ async function loadTiled(entry, { toView = false, quiet = false } = {}) {
      * branch that CREATES the layer, so the reader's own setting survives every
      * rebuild -- the restore below is what carries it across.
      */
+    if (entry.metadata) layer.metadata = { ...(layer.metadata || {}), ...entry.metadata };
     if (Number.isFinite(entry.initialOpacity) && entry.initialOpacity < 1) {
       window.GeoIDLayerHierarchy?.setOpacity?.(layer, entry.initialOpacity);
       layer.opacity = entry.initialOpacity;
@@ -1458,7 +1459,7 @@ async function loadDefaults() {
  */
 export async function loadDerivedGeologyMap({ id, label, colourFor, legendInfo,
   featureFilter, sourceColours = false, tiles = null, contacts = undefined,
-  initialOpacity = 1 }) {
+  metadata = null, initialOpacity = 1 }) {
   const existing = loadedLayers().find((l) => l.geologyDataset === id);
   if (existing) return existing;
   /**
@@ -1478,6 +1479,17 @@ export async function loadDerivedGeologyMap({ id, label, colourFor, legendInfo,
      * an ice predicate to read. Only an absent argument inherits.
      */
     featureFilter: featureFilter === undefined ? GLOBAL_BASE.featureFilter : featureFilter,
+    /**
+     * WHERE IT CAME FROM, on the layer rather than in a fold beside the tick.
+     *
+     * The Metadata tab reads `layer.metadata`, and a tiled layer had none — so
+     * the glacier inventory read "Source: user import" while its citation sat
+     * in a "Sources" disclosure in the panel. It rides on the ENTRY so a
+     * rebuild re-applies it: this layer re-registers itself whenever the view
+     * settles, and anything written once onto the record is gone by the next
+     * refine.
+     */
+    metadata,
     initialOpacity };
   if (contacts !== undefined) entry.contacts = contacts;
   DERIVED.set(id, entry);

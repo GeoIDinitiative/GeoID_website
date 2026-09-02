@@ -26,19 +26,16 @@
  */
 
 import { loadDerivedGeologyMap, removeDerivedGeologyMap }
-  from "./geology-panel.js?v=20260902-c02b90e";
-import { loadIceNames, iceNameFor } from "./ice-names.js?v=20260902-c02b90e";
-import { loadIceThickness, iceVolumeFor } from "./ice-thickness.js?v=20260902-c02b90e";
-import { addDataset } from "./global-data.js?v=20260902-c02b90e";
+  from "./geology-panel.js?v=20260902-84811cf";
+import { loadIceNames, iceNameFor } from "./ice-names.js?v=20260902-84811cf";
+import { loadIceThickness, iceVolumeFor } from "./ice-thickness.js?v=20260902-84811cf";
+import { addDataset } from "./global-data.js?v=20260902-84811cf";
 import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool,
-  drawnOverlayBounds } from "./extent-picker.js?v=20260902-c02b90e";
-import { useIceNames, useIceVolumes } from "./ice-card.js?v=20260902-c02b90e";
+  drawnOverlayBounds } from "./extent-picker.js?v=20260902-84811cf";
+import { useIceNames, useIceVolumes } from "./ice-card.js?v=20260902-84811cf";
 
 /** The glacier inventory, off its own baked tiles. */
 const RGI_LAYER_ID = "glaciers-rgi7";
-/** Macrostrat's own ice, off the geological compilation's tiles. */
-const MACROSTRAT_LAYER_ID = "ice-cover";
-
 const MANIFEST = "/data/global/ice/manifest.json";
 
 /**
@@ -54,16 +51,17 @@ const SHEET_COLOUR = "#eaf7ff";
 /** A pale outline, so two touching ice caps are two ice caps. */
 const ICE_CONTACTS = { mode: "shade", shade: 0.72, opacity: 0.5 };
 
-let statusNode = null;
 let manifestOnce = null;
 
+/**
+ * ONE STATUS LINE for the subtab — `#ice-status`, which is also where
+ * `catalogue-panels` writes (a host's id with `-catalogue` swapped for
+ * `-status`). The panel used to build a second paragraph of its own above the
+ * catalogue's, so a tick and a tiled load reported into two different places.
+ */
 function say(message) {
-  if (statusNode) statusNode.textContent = message || "";
-}
-
-function isOn(id) {
-  return (window.GeoIDImportManager?.getLayers?.() || [])
-    .some((l) => l.geologyDataset === id);
+  const node = document.getElementById("ice-status");
+  if (node) node.textContent = message || "";
 }
 
 /**
@@ -80,40 +78,6 @@ function inventory() {
       .catch(() => null);
   }
   return manifestOnce;
-}
-
-function buildRow({ id, name, title, tick: initial, load }) {
-  const row = document.createElement("label");
-  row.className = "gis-catalogue-row";
-  const tick = document.createElement("input");
-  tick.type = "checkbox";
-  tick.checked = initial;
-  const label = document.createElement("span");
-  label.className = "gis-catalogue-name";
-  label.textContent = name;
-  row.title = title;
-
-  tick.addEventListener("change", async () => {
-    if (!tick.checked) {
-      removeDerivedGeologyMap(id);
-      say(`${name} removed.`);
-      return;
-    }
-    tick.disabled = true;
-    say(`${name}: reading tiles…`);
-    try {
-      const layer = await load();
-      if (!layer) { say(`${name} could not be added.`); tick.checked = false; return; }
-    } catch (error) {
-      say(`${name} could not be built.`);
-      tick.checked = false;
-    } finally {
-      tick.disabled = false;
-    }
-  });
-
-  row.append(tick, label);
-  return row;
 }
 
 async function loadInventory() {
@@ -145,6 +109,21 @@ async function loadInventory() {
     featureFilter: null,
     colourFor: (f) => (f?.properties?.kind === "Ice sheet" ? SHEET_COLOUR : GLACIER_COLOUR),
     contacts: ICE_CONTACTS,
+    /**
+     * WHERE IT CAME FROM, for the Metadata tab — which is where a dataset says
+     * this now that the subtab's own "Sources" fold has gone. Both sources are
+     * named because the layer draws both: RGI's complexes and, from the same
+     * pyramid, the Natural Earth sheets RGI does not map.
+     */
+    metadata: {
+      source: "Randolph Glacier Inventory 7.0 (RGI Consortium 2023, NSIDC) · "
+        + "ice sheets and shelves from Natural Earth 1:10m",
+      citation: "RGI Consortium (2023). Randolph Glacier Inventory — A Dataset "
+        + "of Global Glacier Outlines, Version 7.0. NSIDC, CC BY 4.0, "
+        + "doi:10.5067/f6jmovy5navz. Ice sheets: Natural Earth, public domain.",
+      crs: "EPSG:4326",
+      format: "vector tiles (MVT), baked on this site",
+    },
     legendInfo: {
       palette: [GLACIER_COLOUR.replace("#", ""), SHEET_COLOUR.replace("#", "")],
       labels: ["Glacier or ice cap (RGI 7.0)", "Ice sheet (Natural Earth)"],
@@ -175,103 +154,6 @@ async function loadInventory() {
       + `sheets. ${drawn.toLocaleString()} in view; it sharpens as you fly in.`
     : `${drawn.toLocaleString()} ice polygons in view.`);
   return layer;
-}
-
-async function loadCompilationIce() {
-  const { isIceCover } = await import(
-    `./ice-cover.js${new URL(import.meta.url).search}`);
-  const layer = await loadDerivedGeologyMap({
-    id: MACROSTRAT_LAYER_ID,
-    label: "Ice in the geological compilation (Macrostrat)",
-    featureFilter: isIceCover,
-    colourFor: () => "#b9d9e8",
-    legendInfo: {
-      palette: ["b9d9e8"],
-      labels: ["Ice, as the geological compilation maps it"],
-      values: ["Ice"],
-      categorical: true, classed: true, field: "Ice cover",
-    },
-  });
-  if (!layer) return null;
-  const count = (layer.features || []).length;
-  /**
-   * The count is worth saying because it is usually ZERO, and because a
-   * reader comparing the two rows should see how little of it there is: this
-   * is the ice a geological map happens to carry, not an inventory of ice.
-   */
-  say(count
-    ? `The compilation's own ice: ${count.toLocaleString()} polygons in view.`
-    : "The compilation maps no ice in this view. Fly to Greenland, Antarctica "
-      + "or a high range — and compare it with the inventory above.");
-  return layer;
-}
-
-/**
- * The two STREAMED rows.
- *
- * The ice sheets and the live GLIMS archive are ordinary layers and are
- * catalogue rows in the markup beside this (`#ice-catalogue`, filed under the
- * `geology-ice` home). These two are not: they are tiled layers with their own
- * pyramid, which the catalogue has no vocabulary for, so the panel builds them.
- */
-function mountRows(host) {
-  host.replaceChildren();
-
-  host.appendChild(buildRow({
-    id: RGI_LAYER_ID,
-    name: "Glaciers and ice caps (RGI 7.0)",
-    title: "Randolph Glacier Inventory 7.0 (RGI Consortium 2023, NSIDC, "
-      + "CC BY 4.0), baked into vector tiles on this site — streams and "
-      + "sharpens as you fly in, like the geological map.",
-    tick: isOn(RGI_LAYER_ID),
-    load: loadInventory,
-  }));
-
-  host.appendChild(buildRow({
-    id: MACROSTRAT_LAYER_ID,
-    name: "Ice in the geological compilation",
-    title: "The ice polygons Macrostrat carries in its geological tiles — what "
-      + "the geology layer is filtered against, kept here so the filter can be "
-      + "checked. A geological map's idea of ice, not an inventory of it.",
-    tick: isOn(MACROSTRAT_LAYER_ID),
-    load: loadCompilationIce,
-  }));
-
-  statusNode = document.createElement("p");
-  statusNode.className = "tool-status";
-  host.appendChild(statusNode);
-
-  /** Where the outlines came from, one click away, as the property panel does. */
-  const sources = document.createElement("details");
-  sources.className = "gis-tool-section";
-  const sourcesSummary = document.createElement("summary");
-  sourcesSummary.textContent = "Sources";
-  sources.appendChild(sourcesSummary);
-  const sourceBody = document.createElement("div");
-  sourceBody.className = "gis-tool-body";
-  for (const [text, url] of [
-    ["RGI Consortium (2023). Randolph Glacier Inventory — A Dataset of Global "
-      + "Glacier Outlines, Version 7.0. Boulder, Colorado USA. NSIDC. CC BY 4.0.",
-      "https://doi.org/10.5067/f6jmovy5navz"],
-    ["GLIMS and NSIDC (2005, updated) — the multi-temporal archive RGI is "
-      + "curated from. Live over a drawn area, in the list above.",
-      "https://www.glims.org/glacierdata/"],
-    ["Natural Earth, 10m glaciated areas (public domain) — the Greenland and "
-      + "Antarctic ice sheets, which RGI does not map.",
-      "https://www.naturalearthdata.com/downloads/10m-physical-vectors/"],
-  ]) {
-    const line = document.createElement("p");
-    line.className = "tool-copy";
-    const link = document.createElement("a");
-    link.href = url;
-    link.target = "_blank";
-    link.rel = "noopener";
-    link.textContent = text;
-    line.appendChild(link);
-    sourceBody.appendChild(line);
-  }
-  sources.appendChild(sourceBody);
-  host.appendChild(sources);
 }
 
 /**
@@ -473,15 +355,27 @@ function whenHost(selector, place) {
 }
 
 export function init() {
-  // The SECTION is markup now, like Tectonics and Volcanoes beside it, so this
-  // fills the half of it that is not a catalogue row. A world without the
-  // section — every planet — simply never finds the host, which is right: RGI
-  // is a map of this planet's ice.
-  whenHost("#geology-ice-rows", mountRows);
   whenHost("#ice-change-run", wireChange);
 }
 
+/**
+ * THE INVENTORY IS A CATALOGUE ROW, and this is the seam it is driven from.
+ *
+ * It cannot be a `global-data.js` entry because it is not a file: it is this
+ * site's own baked pyramid, streamed and refined by `geology-panel.js`'s
+ * machinery. So `catalogue-panels.js` draws the row — same shape, same group
+ * heading, same ⓘ as the ice sheets and the live archive beside it — and asks
+ * here to load and unload it. The panel used to draw its own tick above the
+ * catalogue, which is two kinds of control for one kind of thing.
+ */
 if (typeof window !== "undefined") {
+  window.GeoIDIceCover = {
+    load: loadInventory,
+    remove: () => removeDerivedGeologyMap(RGI_LAYER_ID),
+    layerOf: () => (window.GeoIDImportManager?.getLayers?.() || [])
+      .find((l) => l.geologyDataset === RGI_LAYER_ID) || null,
+    say,
+  };
   window.GeoIDIceCoverPanel = { init };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();

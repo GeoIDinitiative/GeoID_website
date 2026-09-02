@@ -28,9 +28,9 @@
  */
 
 import {
-  HOMES, grouped, addDataset, datasetById, layerForDataset,
-} from "./global-data.js?v=20260902-c02b90e";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260902-c02b90e";
+  HOMES, grouped, addDataset, layerForDataset,
+} from "./global-data.js?v=20260902-84811cf";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260902-84811cf";
 
 const byId = (id) => document.getElementById(id);
 
@@ -45,6 +45,82 @@ function say(hostId, message) {
 /** Which of this module's homes carries a share of the GEE catalogue. */
 const GEE_SHARE = { hydrology: "hydrology" };
 
+/**
+ * TILED LAYERS AS CATALOGUE ROWS.
+ *
+ * Two of these lists hold a layer `global-data.js` cannot describe, because it
+ * is not a file: the world's contacts and faults, and the glacier inventory.
+ * Both are tile services driven by `geology-panel.js`'s own machinery, and
+ * both were drawn as a bespoke tick — one appended after the list here, one
+ * built by `ice-cover-panel.js` above it. Two shapes of control for one kind
+ * of thing, and neither carried the ⓘ every row beside it has.
+ *
+ * They are ordinary ENTRIES now, merged into the list for their home before it
+ * is drawn, so they take the same row, the same group heading and the same
+ * info card as everything else. What is per-layer is only how it loads: each
+ * declares `ready`, `layerOf`, `load` and `unload` against its own module's
+ * seam, and this file knows nothing else about either of them.
+ */
+const TILED = {
+  "geology-tectonics": [{
+    id: "macrostrat-lines",
+    group: "Tectonics",
+    label: "World contacts and faults (Macrostrat)",
+    title: "The lines the source maps draw between units — contacts, thrusts, "
+      + "normal faults — from the Macrostrat Burwell compilation, CC BY 4.0. "
+      + "Tiled: follows the view like the world geology does.",
+    info: {
+      summary: "The contacts, thrusts and normal faults the source surveys "
+        + "draw between their units, streamed as vector tiles and refined as "
+        + "you fly in — the line layer of the same compilation the world "
+        + "geological map comes from.",
+      citation: "Macrostrat Burwell compilation — CC BY 4.0",
+    },
+    ready: () => Boolean(window.GeoIDGeology?.load),
+    /**
+     * By dataset id AND by name: `geologyDataset` is stamped a beat after the
+     * layer registers, and the layer-change event that redraws this row fires
+     * in between — matched by id alone, the fresh row read "not loaded" for a
+     * layer that was, and the tick unchecked itself while the lines drew.
+     */
+    layerOf: () => (window.GeoIDImportManager?.getLayers?.() || [])
+      .find((l) => l.geologyDataset === "macrostrat-lines"
+        || l.name === "World contacts and faults (Macrostrat)") || null,
+    load: () => window.GeoIDGeology.load("macrostrat-lines"),
+    unload: (layer) => {
+      // A tiled layer holds GPU buffers for every tile it has built, and
+      // removing the record does not free them.
+      layer?.tiled?.dispose?.();
+      if (layer) window.GeoIDImportManager?.removeLayer?.(layer.id);
+    },
+  }],
+  "geology-ice": [{
+    id: "glaciers-rgi7",
+    group: "Global inventory",
+    label: "Glaciers and ice caps (RGI 7.0)",
+    title: "Randolph Glacier Inventory 7.0 (RGI Consortium 2023, NSIDC, "
+      + "CC BY 4.0), baked into vector tiles on this site — streams and "
+      + "sharpens as you fly in, like the geological map.",
+    info: {
+      summary: "192,869 glacier complexes over 706,744 km² — one outline per "
+        + "ice mass around the year 2000, the reference global inventory. The "
+        + "two ice sheets ride in the same tiles from Natural Earth, because "
+        + "RGI maps the glaciers AROUND them and not the sheets themselves.",
+      citation: "RGI Consortium (2023), NSIDC — CC BY 4.0 · ice sheets from "
+        + "Natural Earth, public domain",
+    },
+    ready: () => Boolean(window.GeoIDIceCover?.load),
+    layerOf: () => window.GeoIDIceCover?.layerOf?.() || null,
+    load: () => window.GeoIDIceCover.load(),
+    unload: () => window.GeoIDIceCover.remove(),
+  }],
+};
+
+/** The tiled rows this home has, and whose module is actually loaded. */
+function tiledFor(home) {
+  return (TILED[home] || []).filter((entry) => entry.ready());
+}
+
 function draw(home, hostId) {
   const host = byId(hostId);
   if (!host) return;
@@ -53,7 +129,12 @@ function draw(home, hostId) {
   // layer's metadata, never a second list of its own.
   const gee = GEE_SHARE[home] ? window.GeoIDGeeCatalogue : null;
   const geeEntries = gee?.entriesFor(GEE_SHARE[home]) || [];
+  const tiled = tiledFor(home);
   const entries = [
+    ...tiled.map((entry) => ({
+      id: entry.id, group: entry.group, label: entry.label,
+      title: entry.title, info: entry.info,
+    })),
     ...grouped().flatMap(({ group, entries: list }) => list
       .filter((entry) => entry.home === home)
       .map((entry) => ({
@@ -70,18 +151,32 @@ function draw(home, hostId) {
     ...geeEntries,
   ];
   if (!entries.length) return;
+  const tiledById = (id) => tiled.find((entry) => entry.id === id);
   renderCatalogue(host, entries, {
     // No dropdown: each list is a handful of rows inside a subsection that is
     // already folded away. A lid on a lid is one press too many.
-    layerFor: (id) => (gee?.owns(id) ? gee.layerFor(id) : layerForDataset(id)),
-    add: (id) => (gee?.owns(id) ? gee.add(id)
-      : addDataset(id, (message) => say(hostId, message))),
+    layerFor: (id) => (tiledById(id)?.layerOf() ?? null)
+      || (gee?.owns(id) ? gee.layerFor(id) : layerForDataset(id)),
+    add: (id) => {
+      const tile = tiledById(id);
+      if (tile) return tile.load();
+      return gee?.owns(id) ? gee.add(id)
+        : addDataset(id, (message) => say(hostId, message));
+    },
     remove: (id) => {
+      const tile = tiledById(id);
+      if (tile) return tile.unload(tile.layerOf());
       if (gee?.owns(id)) return gee.remove(id);
       const layer = layerForDataset(id);
       if (!layer) return undefined;
       window.GeoIDImportManager?.removeLayer?.(layer.id);
-      say(hostId, `${datasetById(id)?.label || "Dataset"} taken off the globe.`);
+      /**
+       * The untick IS the report. A sentence naming the layer that has just
+       * gone restates what the empty box says, in a line that then sits there
+       * describing something no longer on the globe — so the status is cleared
+       * rather than written.
+       */
+      say(hostId, "");
       return undefined;
     },
     symbology: (layer) => {
@@ -96,7 +191,6 @@ if (typeof document !== "undefined") {
 
 function drawAll() {
   Object.entries(HOMES).forEach(([home, hostId]) => draw(home, hostId));
-  drawMacrostratLines();
   drawVolcanoTypes();
 }
 
@@ -173,61 +267,6 @@ function drawVolcanoTypes() {
     row.append(tick, swatch, name);
     host.appendChild(row);
   });
-}
-
-/**
- * The Macrostrat contacts-and-faults layer, as a row in Tectonics.
- *
- * It lived in the Geology dropdown, which is gone — a fault trace belongs
- * beside the plate boundaries and the GEM faults, not behind a picker on
- * another subsection. It cannot be a `global-data.js` entry because it is not
- * a file: it is the tile service's line layer, loaded and refreshed by
- * `geology-panel.js`'s own machinery, so the row talks to that module and is
- * appended after `renderCatalogue` has drawn the ordinary rows (which
- * replaces the host's children, so this runs on every redraw).
- */
-const MACROSTRAT_LINES = "macrostrat-lines";
-
-function drawMacrostratLines() {
-  const host = byId("tectonics-catalogue");
-  const geo = window.GeoIDGeology;
-  if (!host || !geo?.load) return;
-  // By dataset id AND by name: `geologyDataset` is stamped a beat after the
-  // layer registers, and the layer-change event that redraws this row fires
-  // in between — matched by id alone, the fresh row read "not loaded" for a
-  // layer that was, and the tick unchecked itself while the lines drew.
-  const layerOf = () => (window.GeoIDImportManager?.getLayers?.() || [])
-    .find((l) => l.geologyDataset === MACROSTRAT_LINES
-      || l.name === "World contacts and faults (Macrostrat)");
-  const row = document.createElement("div");
-  row.className = "gis-catalogue-row";
-  const tick = document.createElement("input");
-  tick.type = "checkbox";
-  tick.id = "gis-cat-macrostrat-lines";
-  tick.checked = Boolean(layerOf());
-  const name = document.createElement("label");
-  name.className = "gis-catalogue-name";
-  name.htmlFor = tick.id;
-  name.textContent = "World contacts and faults (Macrostrat)";
-  name.title = "The lines the source maps draw between units — contacts, thrusts, "
-    + "normal faults — from the Macrostrat Burwell compilation, CC BY 4.0. "
-    + "Tiled: follows the view like the world geology does.";
-  tick.addEventListener("change", async () => {
-    if (tick.checked) {
-      say("tectonics-catalogue", "Loading contacts and faults…");
-      await geo.load(MACROSTRAT_LINES);
-      say("tectonics-catalogue", "World contacts and faults added. Macrostrat, CC BY 4.0.");
-    } else {
-      const layer = layerOf();
-      // A tiled layer holds GPU buffers for every tile it has built, and
-      // removing the record does not free them.
-      layer?.tiled?.dispose?.();
-      if (layer) window.GeoIDImportManager?.removeLayer?.(layer.id);
-      say("tectonics-catalogue", "Contacts and faults taken off the globe.");
-    }
-  });
-  row.append(tick, name);
-  host.appendChild(row);
 }
 
 /**
