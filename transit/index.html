@@ -160,30 +160,38 @@
       padding-top: clamp(3.5rem, 8vw, 5.5rem);
       background-image: var(--hero-shot);
       background-size: cover;
-      /* Biased DOWN, not centred. The tile is about 3.7:1 and the shots are
-         2.4:1, so `cover` throws away two fifths of the height — and centred
-         it throws away the wrong two fifths, keeping the band of sky and limb
-         and losing the surface the shot is of. */
-      background-position: center 68%;
+      background-position: center;
       background-repeat: no-repeat;
     }
 
-    /* The scrim. A photograph is not a background colour, so the name cannot
-       rely on the card's palette to stay readable over it: the tile darkens
-       toward the bottom, where the words are, and is left alone at the top,
-       where the sky usually is. Painted in the content layer, so it covers the
-       picture while the positioned text still sits over it. */
+    /* THE FADE, darkest at the tile's border. A photograph dropped into a
+       panel has four hard edges, and the bottom one cut straight across the
+       card between the picture and the stats. A vignette gives it none: the
+       shot is clear through the middle and goes to the card's own ground at
+       every edge, so it reads as lit from within the tile rather than pasted
+       into it.
+       Two layers, because they answer different questions. The ellipse is the
+       fade itself. The linear underneath is for the WORDS: the name sits low
+       and left, where a symmetrical vignette is already dark but not reliably
+       dark enough over a bright cloud deck.
+       Painted in the content layer, so it covers the picture while the
+       positioned text still sits over it. */
     .hero::after {
       content: "";
       position: absolute;
       inset: 0;
       pointer-events: none;
       background:
+        radial-gradient(ellipse 82% 88% at 52% 46%,
+          rgba(4, 7, 16, 0) 0%,
+          rgba(4, 7, 16, 0.12) 42%,
+          rgba(4, 7, 16, 0.52) 74%,
+          rgba(4, 7, 16, 0.92) 96%,
+          rgba(4, 7, 16, 1) 100%),
         linear-gradient(to top,
-          rgba(4, 7, 16, 0.92) 0%,
-          rgba(4, 7, 16, 0.70) 38%,
-          rgba(4, 7, 16, 0.16) 72%,
-          rgba(4, 7, 16, 0.02) 100%);
+          rgba(4, 7, 16, 0.68) 0%,
+          rgba(4, 7, 16, 0.30) 34%,
+          rgba(4, 7, 16, 0) 66%);
     }
 
     /* Hero text */
