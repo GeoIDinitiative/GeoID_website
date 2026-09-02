@@ -28,14 +28,13 @@
    * the shell and the test all read one list.
    */
   var THEMES = [
-    { id: "default", name: "GeoHUB (default)", note: "magenta chrome, cyan data" },
-    { id: "cabinet", name: "Arcade — cabinet marquee", note: "backlit sign, bevelled buttons" },
-    { id: "crt", name: "Arcade — CRT terminal", note: "green phosphor and scanlines" },
-    { id: "pixel", name: "Arcade — 8-bit pixel", note: "hard bevels, nothing rounded" },
-    { id: "vector", name: "Arcade — vector glow", note: "black ground, hairline strokes" },
-    { id: "outrun", name: "Arcade — outrun", note: "violet ground, neon glow" },
-    { id: "beige", name: "Retro — beige box", note: "90s desktop: grey panels, navy title bars" },
-    { id: "hud", name: "Retro — HUD", note: "cyan and amber, corner brackets" }
+    { id: "default", name: "GeoHUB", note: "magenta chrome, cyan data" },
+    { id: "crt", name: "CRT terminal", note: "green phosphor and scanlines" },
+    { id: "pixel", name: "8-bit pixel", note: "hard bevels, nothing rounded" },
+    { id: "vector", name: "Vector glow", note: "black ground, hairline strokes" },
+    { id: "outrun", name: "Outrun", note: "violet ground, neon glow" },
+    { id: "beige", name: "Beige box", note: "90s desktop: grey panels, navy title bars" },
+    { id: "hud", name: "HUD", note: "cyan and amber, corner brackets" }
   ];
 
   var KEY = "geoid:skin";
@@ -216,7 +215,39 @@
     fillSelect();
   }
 
+  /**
+   * WHAT A CANVAS ASKS THE THEME.
+   *
+   * Three surfaces are DRAWN rather than styled — the seven-segment clock, the
+   * map's label chips, and the hover highlight on the globe — so no stylesheet
+   * can reach them and they stayed in the default palette under every theme.
+   * They read their colour from a token through here instead, which keeps one
+   * source: the same `viewer-themes.css` block that paints the panels.
+   *
+   * Each has its OWN token with the current value as the fallback, rather than
+   * reusing `--skin-data`: the default theme then draws exactly what it drew
+   * before this existed, and a theme opts in by restating one value.
+   */
+  function token(name, fallback) {
+    try {
+      var value = window.getComputedStyle(document.documentElement)
+        .getPropertyValue(name).trim();
+      return value || fallback;
+    } catch (error) {
+      return fallback;
+    }
+  }
+
+  /** The same, as a three.js colour number. */
+  function hex(name, fallback) {
+    var value = token(name, "");
+    var match = /^#?([0-9a-f]{6})$/i.exec(value);
+    return match ? parseInt(match[1], 16) : fallback;
+  }
+
   window.GeoIDTheme = {
+    token: token,
+    hex: hex,
     THEMES: THEMES,
     KEY: KEY,
     get: stored,

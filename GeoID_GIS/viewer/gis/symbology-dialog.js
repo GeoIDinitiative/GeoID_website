@@ -24,11 +24,11 @@
  * polygon comes out white with a perfectly correct legend beside it.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260902-83b7c03";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260902-0c2fb66";
 import {
   RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP, METHODS,
   categoricalSymbology, buildSymbology, colourOf, legendInfoFrom, fmtBound,
-} from "./symbology.js?v=20260902-83b7c03";
+} from "./symbology.js?v=20260902-0c2fb66";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -52,7 +52,7 @@ const STYLE = `
   border-radius: 0.55rem;
   background: linear-gradient(180deg, rgba(22, 6, 34, 0.98), rgba(10, 4, 20, 0.98));
   box-shadow: 0 1.4rem 3rem rgba(0, 0, 0, 0.55);
-  color: #f2e9ff;
+  color: var(--skin-ink);
 }
 #gis-sym-dialog .sym-head,
 #gis-sym-dialog .sym-foot {
@@ -112,7 +112,7 @@ const STYLE = `
 #gis-sym-dialog input[type="number"],
 #gis-sym-dialog select {
   background: rgba(255, 255, 255, 0.06);
-  color: #f2e9ff;
+  color: var(--skin-ink);
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 0.25rem;
   padding: 0.18rem 0.35rem;
@@ -130,13 +130,13 @@ const STYLE = `
  * translucent fill; the popup and its options are painted solid.
  */
 #gis-sym-dialog select {
-  background-color: #1c0a2b;
+  background-color: var(--skin-card-ground, rgb(24, 13, 47));
   background-image: none;
 }
 #gis-sym-dialog select option,
 #gis-sym-dialog select optgroup {
-  background-color: #1c0a2b;
-  color: #f2e9ff;
+  background-color: var(--skin-card-ground, rgb(24, 13, 47));
+  color: var(--skin-ink);
 }
 #gis-sym-dialog select option:disabled { color: rgba(242, 233, 255, 0.4); }
 #gis-sym-dialog input[type="text"]:focus,

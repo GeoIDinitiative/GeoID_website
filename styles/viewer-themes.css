@@ -17,8 +17,8 @@
    pages without one of those files being touched.
 
    What a palette CANNOT say is the part of a look that is structural — a
-   pixel theme has no rounded corners, a CRT has scanlines, a cabinet has
-   hard-offset bevels rather than glow. Each block below therefore carries
+   pixel theme has no rounded corners, a CRT has scanlines, a beige box has
+   hard bevels rather than glow. Each block below therefore carries
    its palette and then a short list of signature rules, aimed at the SAME
    structural classes the base skin already targets.
 
@@ -30,8 +30,8 @@
 /* The arcade faces, requested the way viewer-skin.css already asks for
    Orbitron and Exo 2 — same host, already in the connection, no new asset
    in the repo. Each is loaded only because a theme's identity IS its
-   lettering: VT323 is the CRT, Press Start 2P is the pixel plate, Bungee is
-   the marquee. `font-display: swap` so a theme never blocks first paint. */
+   lettering: VT323 is the CRT and Press Start 2P is the pixel plate.
+   `font-display: swap`, so a theme never blocks first paint. */
 @font-face {
   font-family: "Press Start 2P";
   font-style: normal; font-weight: 400; font-display: swap;
@@ -80,11 +80,6 @@
   font-style: normal; font-weight: 700; font-display: swap;
   src: url(https://fonts.gstatic.com/s/rajdhani/v17/LDI2apCSOBg7S-QT7pa8FvOreec.woff2) format('woff2');
 }
-@font-face {
-  font-family: "Bungee";
-  font-style: normal; font-weight: 400; font-display: swap;
-  src: url(https://fonts.gstatic.com/s/bungee/v17/N0bU2SZBIuF2PU_0DXR1.woff2) format('woff2');
-}
 
 /* ── The two font roles every theme sets ──────────────────────────────
    DISPLAY is the wordmark and the tab titles; BODY is everything else.
@@ -106,6 +101,16 @@
      measured values exactly, so the default theme is unchanged. */
   --skin-tab-ground: rgb(16, 7, 36);
   --skin-card-ground: rgb(24, 13, 47);
+
+  /* ── The three DRAWN surfaces ────────────────────────────────────────
+     A canvas and a three.js material cannot read a stylesheet, so the
+     seven-segment clock, the map's label chips and the hover highlight on
+     the globe stayed in the default palette under every theme. They ask
+     `GeoIDTheme.token()` for these instead. Each keeps the value it draws
+     today as its default, so the default theme is untouched. */
+  --skin-clock: #3fe0e6;      /* the corner clock's lit segments */
+  --skin-chip: #3aeee8;       /* a curated label chip's accent and stroke */
+  --skin-hover: #8ef6ff;      /* the outline under the cursor, on the globe */
 }
 
 /* Consumed here rather than in every page's own stylesheet, on the class
@@ -126,57 +131,7 @@
   font-family: var(--skin-display) !important;
 }
 
-/* ═══ A · CABINET MARQUEE ══════════════════════════════════════════════
-   The panel as the machine: the mark's own magenta and cyan as the
-   cabinet's livery, amber as the third accent, and buttons that sit on a
-   hard offset shadow the way a real one does. */
-:root[data-skin="cabinet"] {
-  --skin-chrome: #d63bbd;
-  --skin-chrome-rgb: 214, 59, 189;
-  --skin-chrome-ink: #2a0026;
-  --skin-data: #ffb020;
-  --skin-data-rgb: 255, 176, 32;
-  --skin-bg: #100b16;
-  --skin-panel: 26, 18, 34;
-  --skin-ink: #f7ecd9;
-  --skin-muted: 226, 205, 176;
-  --skin-vignette: 8, 5, 11;
-  --skin-display: "Exo 2", "Segoe UI", sans-serif;
-  --skin-body: "Exo 2", "Segoe UI", sans-serif;
-  --skin-tab-ground: rgb(20, 14, 27);
-  --skin-card-ground: rgb(30, 21, 40);
-}
-/* The marquee face belongs to the SIGN and nowhere else. */
-:root[data-skin="cabinet"] .brand-title {
-  font-family: "Bungee", "Orbitron", sans-serif !important;
-  font-size: 1.5rem !important;
-  letter-spacing: 0.02em !important;
-}
-/* A button on a cabinet has a plate under it, not a bloom around it. */
-:root[data-skin="cabinet"] .button,
-:root[data-skin="cabinet"] .tool-button,
-:root[data-skin="cabinet"] .gis-tool-section,
-:root[data-skin="cabinet"] .control-section {
-  border-radius: 0.28rem !important;
-  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.75),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
-}
-/* The marquee: the one place the theme goes light, because a backlit sign
-   is what the wordmark sits on. It paints `.brand`, which spans its whole
-   grid row (see `.brand-hero` in viewer-skin.css), so the sign is exactly as
-   wide as the tab list under it. */
-:root[data-skin="cabinet"] .brand {
-  background: linear-gradient(#fdf3dc, #e9d5ab) !important;
-  border-radius: 0.28rem !important;
-  box-shadow: 0 0 22px rgba(255, 214, 140, 0.28), 0 3px 0 #4a3a1c !important;
-}
-:root[data-skin="cabinet"] .brand-title,
-:root[data-skin="cabinet"] .brand .info-btn {
-  color: #1b1020 !important;
-  text-shadow: none !important;
-}
-
-/* ═══ B · CRT TERMINAL ═════════════════════════════════════════════════
+/* ═══ A · CRT TERMINAL ═════════════════════════════════════════════════
    Green phosphor and scanlines. The mark keeps its own colours — it is the
    badge on the bezel, not part of the picture — so nothing tints it. */
 :root[data-skin="crt"] {
@@ -194,6 +149,9 @@
   --skin-body: "VT323", monospace;
   --skin-tab-ground: rgb(4, 12, 8);
   --skin-card-ground: rgb(7, 20, 13);
+  --skin-clock: #5dff9b;
+  --skin-chip: #5dff9b;
+  --skin-hover: #9dffc4;
 }
 /* VT323 is a small face at any given size: without this the whole UI reads
    a size down from every other theme. */
@@ -211,7 +169,7 @@
   border-radius: 0.2rem !important;
 }
 
-/* ═══ C · 8-BIT PIXEL ══════════════════════════════════════════════════
+/* ═══ B · 8-BIT PIXEL ══════════════════════════════════════════════════
    Hard bevels, no radius anywhere, an NES palette. The most opinionated of
    the five and the one that changes the most beyond colour. */
 :root[data-skin="pixel"] {
@@ -230,6 +188,9 @@
   --skin-round: 0;
   --skin-tab-ground: rgb(18, 18, 43);
   --skin-card-ground: rgb(38, 38, 87);
+  --skin-clock: #00b7ff;
+  --skin-chip: #00b7ff;
+  --skin-hover: #7fe0ff;
 }
 /* Press Start 2P is enormous per character; the display role is titles
    only, and they need pulling back to fit the same rows. */
@@ -262,7 +223,7 @@
     inset 3px 3px 0 rgba(255, 255, 255, 0.14) !important;
 }
 
-/* ═══ D · VECTOR GLOW ══════════════════════════════════════════════════
+/* ═══ C · VECTOR GLOW ══════════════════════════════════════════════════
    Tempest: pure black, hairline strokes, everything outlined and nothing
    filled. The lightest of the five over a globe, because it adds almost no
    solid area. */
@@ -281,6 +242,9 @@
   --skin-body: "Orbitron", "Exo 2", sans-serif;
   --skin-tab-ground: rgb(0, 0, 0);
   --skin-card-ground: rgb(6, 10, 12);
+  --skin-clock: #00ffd6;
+  --skin-chip: #00ffd6;
+  --skin-hover: #8bfff0;
 }
 :root[data-skin="vector"] body { letter-spacing: 0.06em; }
 /* Outlined, never filled: the ground stays black and the stroke does the
@@ -299,7 +263,7 @@
   border-radius: 0.15rem !important;
 }
 
-/* ═══ E · OUTRUN ═══════════════════════════════════════════════════════
+/* ═══ D · OUTRUN ═══════════════════════════════════════════════════════
    The current palette pushed all the way: the mark's own magenta and cyan,
    a violet ground, and glow rather than edge. */
 :root[data-skin="outrun"] {
@@ -317,6 +281,9 @@
   --skin-body: "Exo 2", "Segoe UI", sans-serif;
   --skin-tab-ground: rgb(24, 5, 48);
   --skin-card-ground: rgb(38, 9, 66);
+  --skin-clock: #00e5ff;
+  --skin-chip: #ff2e8b;
+  --skin-hover: #ff8fd0;
 }
 :root[data-skin="outrun"] .control-section,
 :root[data-skin="outrun"] .gis-tool-section {
@@ -329,7 +296,7 @@
   letter-spacing: 0.06em;
 }
 
-/* ═══ F · BEIGE BOX ════════════════════════════════════════════════════
+/* ═══ E · BEIGE BOX ════════════════════════════════════════════════════
    The 90s desktop, and the only theme that INVERTS THE VALUE SCALE: grey
    panels, black ink, navy title bars. Everything the base skin does to make
    a dark UI read — the edge bloom, the heading glow, the pale-on-dark
@@ -352,6 +319,9 @@
   --skin-body: "IBM Plex Sans", "Segoe UI", sans-serif;
   --skin-tab-ground: rgb(195, 195, 195);
   --skin-card-ground: rgb(223, 223, 223);
+  --skin-clock: #000082;
+  --skin-chip: #000082;
+  --skin-hover: #1084d0;
 }
 /* Panels are RAISED, not lit. */
 :root[data-skin="beige"] .control-section,
@@ -425,7 +395,7 @@
 /* The wordmark is the app's own title, in the title-bar navy. */
 :root[data-skin="beige"] .brand-title { color: #000082 !important; font-weight: 700; }
 
-/* ═══ H · HUD ══════════════════════════════════════════════════════════
+/* ═══ F · HUD ══════════════════════════════════════════════════════════
    Cyan chrome, amber for anything live, and rows that read as instrument
    channels: a lit leading edge rather than a box. The panel frames itself
    with drawn CORNER BRACKETS instead of a border — put on the panel
@@ -446,6 +416,9 @@
   --skin-body: "Rajdhani", "Exo 2", sans-serif;
   --skin-tab-ground: rgb(5, 15, 23);
   --skin-card-ground: rgb(9, 26, 38);
+  --skin-clock: #4fd8ff;
+  --skin-chip: #4fd8ff;
+  --skin-hover: #ffb040;
 }
 /* Rajdhani is narrow and small on the body size the site is set at. */
 :root[data-skin="hud"] body { font-size: 1.05em; letter-spacing: 0.03em; }

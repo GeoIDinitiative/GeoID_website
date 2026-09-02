@@ -23,14 +23,14 @@ const STYLE = `
 /* Project contents, at the head of the provenance list. */
 .gis-project-contents { border-bottom: 1px solid rgba(255,255,255,0.12); padding-bottom: 0.4rem;
   margin-bottom: 0.4rem; }
-.gis-project-contents > b { color: var(--nav-accent, #ff3cac); }
+.gis-project-contents > b { color: var(--nav-accent, var(--skin-chrome)); }
 .gis-project-contents .gis-tool-item { margin-top: 0.15rem; }
 
 .layer-options-note { margin-top: 0.25rem; overflow-wrap: anywhere; }
 
 /* Project panel: the map's view of the pipeline it feeds. */
 .gis-project-name { font-weight: 600; font-size: 0.82rem; margin-bottom: 0.2rem;
-  color: var(--nav-accent, #ff3cac); overflow-wrap: anywhere; }
+  color: var(--nav-accent, var(--skin-chrome)); overflow-wrap: anywhere; }
 .gis-project-recent { display: flex; flex-direction: column; gap: 0.15rem; margin-top: 0.4rem; }
 #gis-project-body .button { margin: 0.3rem 0; }
 
@@ -160,7 +160,7 @@ body.is-embedded[data-hub-armed="true"] #gmt-clock {
   font: 600 0.6rem/1.35 'Exo 2', sans-serif;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: var(--skin-data, #7ee7ff);
+  color: var(--skin-data, var(--skin-data));
   opacity: 0.85;
 }
 .gis-tool-body .row > .input,
@@ -193,7 +193,7 @@ body.is-embedded[data-hub-armed="true"] #gmt-clock {
 }
 .gis-tool-body .row > input[type="checkbox"] { flex: 0 0 auto; }
 .gis-side-panel-body option, .gis-tool-body option,
-.gis-side-panel-body optgroup, .gis-tool-body optgroup { background-color: #100724; }
+.gis-side-panel-body optgroup, .gis-tool-body optgroup { background-color: var(--skin-tab-ground, rgb(16, 7, 36)); }
 
 /* ── Symbology: ramps you can see, classes you can edit ────────────────────
  *
@@ -255,7 +255,7 @@ input.gis-sym-edge {
   min-width: 0;
   padding: 0.05rem 0.2rem;
   font: 400 0.62rem/1.3 'Exo 2', sans-serif;
-  color: var(--skin-data, #7ee7ff);
+  color: var(--skin-data, var(--skin-data));
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 0.15rem;
@@ -280,7 +280,7 @@ input.gis-sym-name {
   min-width: 0;
   padding: 0.08rem 0.25rem;
   font: 400 0.63rem/1.35 'Exo 2', sans-serif;
-  color: var(--text, #e8f4ff);
+  color: var(--text, var(--skin-ink));
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 0.15rem;
@@ -318,7 +318,7 @@ input.layer-name-input {
   min-width: 0;
   padding: 0 0.2rem;
   font: inherit;
-  color: var(--text, #e8f4ff);
+  color: var(--text, var(--skin-ink));
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(var(--nav-accent-rgb), 0.8);
   border-radius: 0.15rem;

@@ -39,9 +39,9 @@
  * law is honoured by having nothing to exempt.
  */
 
-import { prefs, mergeParams } from "./tool-prefs.js?v=20260902-83b7c03";
+import { prefs, mergeParams } from "./tool-prefs.js?v=20260902-0c2fb66";
 
-const RUNNER_URL = "./tool-runner.js?v=20260902-83b7c03";
+const RUNNER_URL = "./tool-runner.js?v=20260902-0c2fb66";
 
 /* ── Dialog-only styles, injected as the house pattern dictates.
       NEVER a backtick inside this literal — it ends the string and kills the
@@ -67,7 +67,7 @@ const STYLE = `
   font: 600 0.6rem/1.35 'Exo 2', sans-serif;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: var(--skin-data, #7ee7ff);
+  color: var(--skin-data, var(--skin-data));
   opacity: 0.85;
 }
 #gis-tool-dialog .row .input,
@@ -91,7 +91,7 @@ const STYLE = `
 }
 /* A select POPUP composites over the platform's white unless the options
    carry an opaque ground of their own -- the symbology dialog's lesson. */
-#gis-tool-dialog option, #gis-tool-dialog optgroup { background-color: #100724; }
+#gis-tool-dialog option, #gis-tool-dialog optgroup { background-color: var(--skin-tab-ground, rgb(16, 7, 36)); }
 #gis-tool-dialog input[type="checkbox"] { width: auto; align-self: flex-start; }
 #gis-tool-dialog .tool-copy {
   margin: 0 0 0.2rem;
@@ -108,7 +108,7 @@ const STYLE = `
 #gis-tool-dialog #gis-tool-run {
   background: rgb(var(--nav-accent-rgb)) !important;
   border: 1px solid rgb(var(--nav-accent-rgb)) !important;
-  color: var(--skin-chrome-ink, #2b0030) !important;
+  color: var(--skin-chrome-ink, var(--skin-chrome-ink)) !important;
   font: 700 0.68rem/1.2 'Exo 2', sans-serif;
   letter-spacing: 0.09em;
   text-transform: uppercase;

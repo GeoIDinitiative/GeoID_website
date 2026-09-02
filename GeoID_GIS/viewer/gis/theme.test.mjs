@@ -25,8 +25,8 @@ const script = read("scripts/theme.js");
 const css = read("styles/viewer-themes.css");
 
 const ids = [...script.matchAll(/\{ id: "([a-z]+)"/g)].map((m) => m[1]);
-ok("the registry offers the default and seven skins",
-  ids.join(",") === "default,cabinet,crt,pixel,vector,outrun,beige,hud", ids.join(","));
+ok("the registry offers the default and six skins",
+  ids.join(",") === "default,crt,pixel,vector,outrun,beige,hud", ids.join(","));
 
 // Comments quote the ids while explaining them, so the blocks are counted from
 // the SELECTORS — the same reason the shelf-name check strips prose.

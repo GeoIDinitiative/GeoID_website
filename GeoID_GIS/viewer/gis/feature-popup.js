@@ -20,12 +20,12 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260902-83b7c03";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260902-83b7c03";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260902-83b7c03";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260902-83b7c03";
-import { lithologyLabel } from "./lithology-label.js?v=20260902-83b7c03";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260902-83b7c03";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260902-0c2fb66";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260902-0c2fb66";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260902-0c2fb66";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260902-0c2fb66";
+import { lithologyLabel } from "./lithology-label.js?v=20260902-0c2fb66";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260902-0c2fb66";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -61,7 +61,7 @@ const STYLE = `
   overflow: visible;
   font-family: "Exo 2", system-ui, sans-serif;
   font-size: 0.72rem;
-  color: var(--text, #e8e2f2);
+  color: var(--text, var(--skin-ink));
 }
 #gis-feature-popup[hidden] { display: none; }
 #gis-feature-popup .gis-fp-scroll {
@@ -155,7 +155,7 @@ const STYLE = `
 }
 #gis-feature-popup .gis-fp-title {
   flex: 1; font-weight: 600; line-height: 1.25;
-  color: var(--nav-accent, #ff3cac);
+  color: var(--nav-accent, var(--skin-chrome));
 }
 #gis-feature-popup .gis-fp-close {
   flex: 0 0 auto; width: 1.2rem; height: 1.2rem; padding: 0;
@@ -172,7 +172,7 @@ const STYLE = `
   gap: 0.15rem 0.6rem; margin: 0;
 }
 #gis-feature-popup dt {
-  color: var(--skin-data, #59f2ff); opacity: 0.85;
+  color: var(--skin-data, var(--skin-data)); opacity: 0.85;
   overflow-wrap: anywhere;
 }
 #gis-feature-popup dd { margin: 0; overflow-wrap: anywhere; }
@@ -224,7 +224,7 @@ const STYLE = `
   font: 600 0.62rem/1.3 'Exo 2', sans-serif;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--skin-data, #7ee7ff);
+  color: var(--skin-data, var(--skin-data));
 }
 #gis-feature-popup .gis-fp-edit {
   margin-top: 0.5rem;
@@ -243,14 +243,14 @@ const STYLE = `
 #gis-feature-popup .gis-fp-field span {
   font: 500 0.6rem/1.2 'Exo 2', sans-serif;
   letter-spacing: 0.04em;
-  color: var(--skin-data, #7ee7ff);
+  color: var(--skin-data, var(--skin-data));
 }
 #gis-feature-popup .gis-fp-field input {
   width: 100%;
   min-width: 0;
   padding: 0.12rem 0.3rem;
   font: 400 0.65rem/1.35 'Exo 2', sans-serif;
-  color: var(--text, #e8f4ff);
+  color: var(--text, var(--skin-ink));
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 0.18rem;
@@ -264,7 +264,7 @@ const STYLE = `
   padding: 0.25rem 0.5rem;
   font: 600 0.62rem/1.2 'Exo 2', sans-serif;
   letter-spacing: 0.05em;
-  color: var(--skin-chrome-ink, #2b0030);
+  color: var(--skin-chrome-ink, var(--skin-chrome-ink));
   background: rgb(var(--nav-accent-rgb));
   border: none;
   border-radius: 0.2rem;
@@ -1138,7 +1138,13 @@ async function showHover(feature) {
   holder.name = "GeoID-FeatureHover";
   // Dimmer and cooler than the selection gold: hover is "you could pick this",
   // selection is "you did". Two states have to look like two states.
-  const nodes = buildHighlight(THREE, feature, { colour: 0x8ef6ff, opacity: 0.55 });
+  /**
+   * The outline under the cursor takes the theme's own hover colour. A three.js
+   * material cannot read a stylesheet, so it asks the theme for the token —
+   * which defaults to the cyan this drew before themes existed.
+   */
+  const hover = window.GeoIDTheme?.hex?.("--skin-hover", 0x8ef6ff) ?? 0x8ef6ff;
+  const nodes = buildHighlight(THREE, feature, { colour: hover, opacity: 0.55 });
   if (!nodes.length) { hoverState = null; return; }
   nodes.forEach((node) => holder.add(node));
   group.add(holder);

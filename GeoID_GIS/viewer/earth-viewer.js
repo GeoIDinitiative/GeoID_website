@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260902-83b7c03";
+  from "./gis/geo-utils.js?v=20260902-0c2fb66";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260902-83b7c03";
+  from "./gis/vector-render.js?v=20260902-0c2fb66";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260902-83b7c03";
+  from "./gis/rock-class.js?v=20260902-0c2fb66";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260902-83b7c03";
+  from "./gis/lithology-label.js?v=20260902-0c2fb66";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -1259,9 +1259,34 @@ function fmtProp(value) {
      * skewed like every readout. Redrawn only when the text changes.
      */
     let clockShown = "";
+    /**
+     * A THEME CHANGE MOVES NO DIGIT, so the equality guard below would skip
+     * the redraw and leave the clock in the previous theme's colour until the
+     * next second ticked over — and on a paused clock, for ever.
+     */
+    window.addEventListener("geoid:skin-changed", () => { clockShown = ""; });
+    /**
+     * A CANVAS CANNOT READ A STYLESHEET, so the clock asks the theme for its
+     * colour instead — the same token `viewer-themes.css` sets beside the
+     * palette. `--skin-clock` defaults to the cyan this drew before themes
+     * existed, so the default theme is unchanged; the redraw is forced on a
+     * theme change because the text-equality guard below would otherwise
+     * skip it (the digits have not moved, only their colour).
+     */
+    function clockInk() {
+      return window.GeoIDTheme?.token?.("--skin-clock", "#3fe0e6") || "#3fe0e6";
+    }
+    function clockGlow(ink) {
+      const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(ink);
+      if (!m) return "rgba(40, 200, 210, 0.85)";
+      return `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, 0.85)`;
+    }
     function drawSevenSegClock(text) {
       if (!scrubClockCanvas || text === clockShown) return;
       clockShown = text;
+      const litInk = clockInk();
+      const litGlow = clockGlow(litInk);
+      const dimInk = clockGlow(litInk).replace("0.85)", "0.10)");
       const c = scrubClockCanvas.getContext("2d");
       const W = scrubClockCanvas.width;
       const H = scrubClockCanvas.height;
@@ -1294,12 +1319,12 @@ function fmtProp(value) {
           }
           c.closePath();
           if (on) {
-            c.shadowColor = "rgba(40, 200, 210, 0.85)";
+            c.shadowColor = litGlow;
             c.shadowBlur = 10;
-            c.fillStyle = "#3fe0e6";
+            c.fillStyle = litInk;
           } else {
             c.shadowBlur = 0;
-            c.fillStyle = "rgba(82, 228, 232, 0.10)";
+            c.fillStyle = dimInk;
           }
           c.fill();
         }
@@ -1310,9 +1335,9 @@ function fmtProp(value) {
       for (const ch of text) {
         if (ch === ":") {
           for (const cy of [0.30, 0.70]) {
-            c.shadowColor = "rgba(40, 200, 210, 0.85)";
+            c.shadowColor = litGlow;
             c.shadowBlur = 8;
-            c.fillStyle = "#3fe0e6";
+            c.fillStyle = litInk;
             c.beginPath();
             c.arc(x + colonW / 2, y + cy * dh, 5, 0, Math.PI * 2);
             c.fill();
@@ -7408,6 +7433,14 @@ function fmtProp(value) {
       };
     }
 
+    /** The theme's chip colour at a given alpha, or the cyan it always drew. */
+    function chipInk(alpha) {
+      const ink = window.GeoIDTheme?.token?.("--skin-chip", "#3aeee8") || "#3aeee8";
+      const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(ink);
+      if (!m) return `rgba(58, 214, 208, ${alpha})`;
+      return `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, ${alpha})`;
+    }
+
     function makeLabelTexture(labelInput, options = {}) {
       const isObject = typeof labelInput === "object" && labelInput !== null;
       const text = isObject ? (labelInput.name || "") : String(labelInput);
@@ -7485,8 +7518,14 @@ function fmtProp(value) {
             }
         : {
             bg: "rgba(9, 14, 24, 0.62)",
-            stroke: "rgba(90, 214, 233, 0.28)",
-            accent: "rgba(58, 214, 208, 0.92)",
+            /**
+             * The DEFAULT chip follows the theme. Only this one: a dataset
+             * label already takes its accent from its layer's own legend
+             * (`label_colour`), and a volcano's chip wearing the theme's
+             * colour instead of its class's would be a theme overruling data.
+             */
+            stroke: chipInk(0.28),
+            accent: chipInk(0.92),
             title: "rgba(242, 247, 250, 0.94)",
           });
 
