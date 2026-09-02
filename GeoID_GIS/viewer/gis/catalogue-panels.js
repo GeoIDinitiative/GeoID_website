@@ -29,8 +29,8 @@
 
 import {
   HOMES, grouped, addDataset, layerForDataset,
-} from "./global-data.js?v=20260902-84811cf";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260902-84811cf";
+} from "./global-data.js?v=20260902-792d638";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260902-792d638";
 
 const byId = (id) => document.getElementById(id);
 
@@ -87,6 +87,9 @@ const TILED = {
       .find((l) => l.geologyDataset === "macrostrat-lines"
         || l.name === "World contacts and faults (Macrostrat)") || null,
     load: () => window.GeoIDGeology.load("macrostrat-lines"),
+    // What an ordinary row's `addDataset` reports for itself. The inventory
+    // needs none: it writes its own, richer, line when its tiles have landed.
+    added: "World contacts and faults added. Macrostrat, CC BY 4.0.",
     unload: (layer) => {
       // A tiled layer holds GPU buffers for every tile it has built, and
       // removing the record does not free them.
@@ -157,9 +160,13 @@ function draw(home, hostId) {
     // already folded away. A lid on a lid is one press too many.
     layerFor: (id) => (tiledById(id)?.layerOf() ?? null)
       || (gee?.owns(id) ? gee.layerFor(id) : layerForDataset(id)),
-    add: (id) => {
+    add: async (id) => {
       const tile = tiledById(id);
-      if (tile) return tile.load();
+      if (tile) {
+        const added = await tile.load();
+        if (tile.added) say(hostId, tile.added);
+        return added;
+      }
       return gee?.owns(id) ? gee.add(id)
         : addDataset(id, (message) => say(hostId, message));
     },
