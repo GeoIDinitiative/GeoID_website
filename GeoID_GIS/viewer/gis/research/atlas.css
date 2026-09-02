@@ -68,8 +68,8 @@
   /* Display face for headings, body face for the rest. Both are re-pointed by
      viewer-skin.css, so asking for them by these names is asking for the
      site's own faces. */
-  --atlas-display: "Orbitron", "Exo 2", system-ui, sans-serif;
-  --atlas-body: "Exo 2", "Segoe UI", system-ui, sans-serif;
+  --atlas-display: var(--skin-display, "Orbitron"), "Exo 2", system-ui, sans-serif;
+  --atlas-body: var(--skin-body, "Exo 2"), "Segoe UI", system-ui, sans-serif;
 
   /* The page furniture reads the viewer's own tokens. Rebinding them here
      repaints all sixty-four pages without touching a single page module. */

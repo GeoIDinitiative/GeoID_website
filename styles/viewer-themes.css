@@ -91,8 +91,14 @@
   --skin-ink: #f7ecd9;
   --skin-muted: 226, 205, 176;
   --skin-vignette: 8, 5, 11;
-  --skin-display: "Bungee", "Orbitron", sans-serif;
+  --skin-display: "Exo 2", "Segoe UI", sans-serif;
   --skin-body: "Exo 2", "Segoe UI", sans-serif;
+}
+/* The marquee face belongs to the SIGN and nowhere else. */
+:root[data-skin="cabinet"] .brand-title {
+  font-family: "Bungee", "Orbitron", sans-serif !important;
+  font-size: 1.5rem !important;
+  letter-spacing: 0.02em !important;
 }
 /* A button on a cabinet has a plate under it, not a bloom around it. */
 :root[data-skin="cabinet"] .button,
@@ -105,15 +111,13 @@
 }
 /* The marquee: the one place the theme goes light, because a backlit sign
    is what the wordmark sits on. */
-:root[data-skin="cabinet"] .brand,
-:root[data-skin="cabinet"] .layer-dock-head {
+:root[data-skin="cabinet"] .brand {
   background: linear-gradient(#fdf3dc, #e9d5ab) !important;
   border-radius: 0.28rem !important;
   box-shadow: 0 0 22px rgba(255, 214, 140, 0.28), 0 3px 0 #4a3a1c !important;
 }
 :root[data-skin="cabinet"] .brand-title,
-:root[data-skin="cabinet"] .layer-dock-head,
-:root[data-skin="cabinet"] .layer-dock-head * {
+:root[data-skin="cabinet"] .brand .info-btn {
   color: #1b1020 !important;
   text-shadow: none !important;
 }
@@ -172,12 +176,16 @@
 /* Press Start 2P is enormous per character; the display role is titles
    only, and they need pulling back to fit the same rows. */
 :root[data-skin="pixel"] .section-title,
-:root[data-skin="pixel"] .brand-title,
 :root[data-skin="pixel"] .gis-catalogue-head,
 :root[data-skin="pixel"] .layer-dock-head {
   font-size: 0.62em !important;
   letter-spacing: 0 !important;
   line-height: 1.6 !important;
+}
+:root[data-skin="pixel"] .brand-title {
+  font-size: 1.05rem !important;
+  letter-spacing: 0 !important;
+  text-shadow: 3px 3px 0 rgba(var(--skin-chrome-rgb), 0.9) !important;
 }
 /* NOTHING is round, and every plate carries the light-top/dark-bottom
    bevel that is the whole of the era's button language. */
