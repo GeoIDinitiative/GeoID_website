@@ -2282,7 +2282,7 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
     }
     #time-rate-toggle:hover {
       transform: translateY(-1px);
-      background: rgba(14, 21, 30, 0.98);
+      background: var(--skin-card-ground, rgb(24, 13, 47));
       border-color: rgba(var(--instrument-rust-rgb), 0.38);
       color: #effcff;
     }
@@ -2329,7 +2329,7 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
       padding: 0.26rem 0.7rem 0.22rem;
       border-radius: 0.62rem;
       border: 1px solid rgba(var(--skin-data-rgb), 0.22);
-      background: rgba(8, 13, 20, 0.96);
+      background: var(--skin-tab-ground, rgb(16, 7, 36));
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28),
                   inset 0 0 14px rgba(var(--skin-data-rgb), 0.05);
       color: #d5e8ee;
@@ -2347,7 +2347,7 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
       letter-spacing: 0.18em;
       /* Centre the tracked text: letter-spacing trails the last glyph. */
       margin-right: -0.18em;
-      color: rgba(228, 244, 250, 0.95);
+      color: var(--skin-ink, rgba(228, 244, 250, 0.95));
       font-variant-numeric: tabular-nums;
       line-height: 1;
     }
@@ -2356,7 +2356,7 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
       font-weight: 700;
       letter-spacing: 0.34em;
       margin-right: -0.34em;
-      color: rgba(150, 205, 215, 0.65);
+      color: rgba(var(--skin-muted, 150, 205, 215), 0.65);
       line-height: 1;
     }
     #time-scrub-toggle .scrub-time {

@@ -6800,6 +6800,77 @@ app, not the app. And nothing themes the DATA: a geological map keeps the
 survey's own published colours, a glacier legend keeps its measured scale.
 Those are the map, not the chrome.
 
+### What a theme could not reach, and the light one that found it all
+
+Six skins now (the cabinet marquee was dropped; the "Arcade —" prefix went with
+it, since half of them are not arcade). Adding a LIGHT theme was worth more
+than the theme itself: **the beige box is a value inversion, so every surface
+that assumed a dark ground announced itself at once.** Four kinds turned up.
+
+- **TWO OPAQUE GROUNDS, written out as literals in seven modules.**
+  `rgb(16, 7, 36)` and `rgb(24, 13, 47)` are the tab body and the sub-tab card
+  — filled solid on purpose, because `#ui` paints a vertical gradient and the
+  same translucent fill composites differently at the top of the column and at
+  the foot. No theme could reach them: measured under the beige skin, the
+  purple-black card was still sitting on a grey panel. They are
+  `--skin-tab-ground` / `--skin-card-ground` now, defaulting to those measured
+  values, so the default theme is byte-identical.
+- **Popup and window palettes**, twenty-two literals across `feature-popup`,
+  `panel-styles`, `tool-dialog` and `symbology-dialog`. Each mapped to the
+  token it already meant. `#8a8a8a` (the no-value grey) and the default line
+  colour were deliberately LEFT: those are data semantics, not chrome.
+- **The clock's housing**, which is why the beige theme first drew navy digits
+  on a near-black plate.
+- **Three DRAWN surfaces that no stylesheet can reach at all** — see below.
+
+### A canvas asks the theme what colour it is
+
+The seven-segment clock, the map's label chips and the hover highlight on the
+globe are painted by a canvas or a three.js material, so they stayed in the
+default palette under every skin. `GeoIDTheme.token(name, fallback)` and
+`.hex()` let them ask, which keeps ONE source: the same `viewer-themes.css`
+block that paints the panels.
+
+Each has its own token — `--skin-clock`, `--skin-chip`, `--skin-hover` — with
+the value it drew before themes existed as the fallback, so the default draws
+exactly what it always drew and a theme opts in by restating one line.
+
+- **The clock has to be INVALIDATED on a theme change.** It redraws only when
+  the text changes, and a theme change moves no digit — so it kept the previous
+  colour until the next second ticked over, and on a paused clock for ever.
+  Measured off the canvas pixels: `63,224,230` → `93,255,155` on the switch.
+- **Only the CURATED label chip follows the theme.** A dataset label already
+  takes its accent from its own layer's legend (`label_colour`), and a
+  volcano's chip wearing the theme's colour instead of its class's would be a
+  theme overruling data.
+
+### Theme sounds: synthesised, off by default, and only on controls
+
+Six themes want six clicks, and six audio files would be six downloads, six
+licences and six things to keep in step with a palette. Each voice is a row of
+oscillator parameters in `scripts/theme-sound.js` instead — a soft blip for the
+CRT, a two-step square for the pixel theme (the era's hardware could not
+glide), a sine ping for vector, a saw stab with a fifth under it for outrun,
+filtered noise with no pitch at all for the beige box's mouse tick, a rising
+two-tone chirp for the HUD.
+
+Three rules, and each is the difference between a nice touch and something
+switched off in a fortnight:
+
+- **The default theme is silent.** Sound is a thing a theme brings, not a thing
+  the app starts doing to somebody who never asked for it.
+- **It is off until switched on**, beside the theme picker, and switching it on
+  plays the theme's own click — a silent confirmation is indistinguishable from
+  a broken one.
+- **Only controls make a sound.** A click on the globe, a drag or a text
+  selection is silent: the listener asks whether the target is a button, a tab,
+  a tick or a select first. It listens on `pointerdown`, not `click`, because a
+  control that feels instant has to sound at the press.
+
+The AudioContext is made on the FIRST click and not before: a browser refuses
+one outside a gesture, and one made at load leaves a suspended context running
+for every reader who never turns sound on.
+
 ## Running and testing
 
 `python3 serve.py` (repo root) starts the static site *and* the sidecar together
