@@ -146,6 +146,17 @@
     });
   }
 
+  /**
+   * The workbenches are Geoprocessing, Analysis, Export and Settings — tools
+   * for the GLOBE. They are fixed sections on `body`, so nothing that hides
+   * the sidebar touches them, and one left open stayed over the studio and the
+   * hub. Closed on the way out rather than hidden, so coming back to GIS does
+   * not restore a panel somebody had finished with.
+   */
+  function closeWorkbenches() {
+    window.GeoIDSidePanels?.closeAll?.();
+  }
+
   function setGisToolboxVisible(visible) {
     const toolbar = document.getElementById("toolbar");
     if (toolbar) {
@@ -266,6 +277,7 @@
       setToolboxLayout(false);
       setModelToolboxVisible(false);
       setResearchHubVisible(true);
+      closeWorkbenches();
       setGeoidGroupVisible(false);
       setSpin(false);
       setHazardReadoutVisible(false);
@@ -279,6 +291,7 @@
       setToolboxLayout(false);
       setModelToolboxVisible(true);
       setResearchHubVisible(false);
+      closeWorkbenches();
       setGeoidGroupVisible(false);
       setSpin(false);
       setHazardReadoutVisible(false);

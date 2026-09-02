@@ -6979,6 +6979,45 @@ reach.** A canvas cannot read a stylesheet; a gradient hides behind
 the thing it was copied from. Anything that snapshots a resolved value needs an
 invalidation hook, and the theme's own event is it.
 
+### A workbench outlives the page that opened it
+
+The four workbenches — Geoprocessing, Analysis, Export, Settings — are
+`position: fixed` sections on `body`, so standing the SIDEBAR down does nothing
+to them. One left open in GIS then sat over the Model studio and the Research
+Hub, which own the whole screen. `applyMode` closes them on the way out of GIS
+(`GeoIDSidePanels.closeAll()`), and CLOSES rather than hides: coming back
+should not restore a panel somebody had finished with.
+
+### The Research Hub under a light theme
+
+Two faults, both the same shape: a token that means one thing on a dark panel
+and the opposite on a light one.
+
+- **`--atlas-wash` is an 18% tint of the chrome.** Over a dark panel it is dark
+  and white ink reads; over a light one it is still light and white ink
+  vanishes — measured at **1.3:1** across the rail names, the shell actions,
+  the page pills, the repo selection and the build steps. Six rules wrote
+  `color: #ffffff` directly. They read `--atlas-wash-ink` now, which resolves
+  through a skin token, so a theme flips all six in one line.
+- **`--skin-bg` is the DESKTOP, not the hub's ground.** On the Workstation
+  theme it is the teal a 90s window sits on — right for the globe's page, wrong
+  for a full-screen hub, where the rail and the shell row took it and stayed
+  dark while every panel between them went grey. The hub gets a window ladder
+  instead (ground → panel → card), which is what makes a page of that era read
+  as depth rather than one sheet. It needs `!important`: `atlas.css` declares
+  those on `#research-hub` and is injected at RUNTIME, so it lands after
+  `viewer-themes.css` in the cascade.
+
+**Measured across all seven themes on the Ingest page**, `.button` at 1.0–1.2
+appears in EVERY theme including the default — those are translucent controls
+whose own fill the contrast walk cannot see through, and they are the
+instrument's floor rather than a fault. Against that floor of 6, the light
+theme now measures **2**, which is the cleanest of the seven.
+
+**The rule for auditing a theme: run the DEFAULT through the same instrument
+first.** Without that baseline the six false positives read as six bugs, and
+the two real ones are lost in them.
+
 ## Running and testing
 
 `python3 serve.py` (repo root) starts the static site *and* the sidecar together

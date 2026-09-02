@@ -1064,6 +1064,15 @@ window.GeoIDSidePanels = {
   open: (id) => setOpen(id, true),
   close: (id) => setOpen(id, false),
   isOpen: (id) => panels.get(id)?.panel.hidden === false,
+  /**
+   * Every workbench down.
+   *
+   * A panel is a `position: fixed` section on `body`, so standing the SIDEBAR
+   * down does nothing to it — reported as Settings lingering over the Model
+   * studio and the Research Hub after being opened in GIS. Leaving GIS is the
+   * one moment that has to say so, because these are tools for the globe.
+   */
+  closeAll: () => panels.forEach((entry, id) => setOpen(id, false)),
 };
 
 export function init() {

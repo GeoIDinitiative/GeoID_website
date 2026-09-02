@@ -229,6 +229,47 @@ ok("and a received theme is applied without being re-announced",
 }
 
 /**
+ * THE RESEARCH HUB UNDER A LIGHT THEME.
+ *
+ * Two faults, and both are about a token meaning one thing on a dark panel and
+ * the opposite on a light one.
+ */
+{
+  const atlas = read("GeoID_GIS/viewer/gis/research/atlas.css");
+  // `--atlas-wash` is an 18% tint of the chrome: dark over a dark panel, light
+  // over a light one. White ink on it measured 1.3:1 across the rail, the
+  // shell actions, the page pills and the build steps.
+  ok("ink on the hub's wash is a token, not white by decree",
+    /--atlas-wash-ink: var\(--skin-wash-ink, #ffffff\)/.test(atlas)
+    && !/^\s+color: #ffffff;$/m.test(atlas));
+  ok("and the light theme flips it", /:root\[data-skin="beige"\][\s\S]*?--skin-wash-ink: #000000/.test(css));
+  ok("the rail name follows the hub's own ink",
+    /\.atlas-rail-name \{[\s\S]*?color: var\(--atlas-text\)/.test(atlas));
+  /**
+   * `--skin-bg` is the DESKTOP a 90s window sits on, which is right for the
+   * globe's page and wrong for a full-screen hub: the rail and the shell row
+   * took it and stayed dark while every panel between them went grey.
+   */
+  ok("the hub gets a window ladder rather than the desktop",
+    /\[data-skin="beige"\] #research-hub \{[\s\S]*?--atlas-bg: #a4a4a4 !important/.test(css));
+  // atlas.css declares these on `#research-hub` and is injected at RUNTIME, so
+  // it lands after this file in the cascade — hence `!important`.
+  ok("and says why it needs !important", /injected at runtime, so it lands after this file/.test(css));
+}
+
+/**
+ * A WORKBENCH IS A FIXED SECTION ON `body`, so standing the sidebar down does
+ * nothing to it — Settings lingered over the Model studio and the Research Hub
+ * after being opened in GIS. Leaving GIS is the one moment that has to say so.
+ */
+{
+  const panels = read("GeoID_GIS/viewer/gis/side-panels.js");
+  const modes = read("GeoID_GIS/viewer/gis/mode-manager.js");
+  ok("the panels can all be closed at once", /closeAll: \(\) => panels\.forEach/.test(panels));
+  ok("and leaving GIS closes them", (modes.match(/closeWorkbenches\(\);/g) || []).length >= 2);
+}
+
+/**
  * A BORROWED SHELL IS A SNAPSHOT.
  *
  * The workbench panels are the SIDEBAR rather than a likeness of it:

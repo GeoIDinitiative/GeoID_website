@@ -108,6 +108,10 @@
      the globe stayed in the default palette under every theme. They ask
      `GeoIDTheme.token()` for these instead. Each keeps the value it draws
      today as its default, so the default theme is untouched. */
+  /* Ink on the Research Hub's 18% chrome wash — white on a dark panel, and
+     the thing a light theme has to flip. Read by `atlas.css`. */
+  --skin-wash-ink: #ffffff;
+
   --skin-clock: #3fe0e6;      /* the corner clock's lit segments */
   --skin-chip: #3aeee8;       /* a curated label chip's accent and stroke */
   --skin-hover-map: #8ef6ff;  /* the outline under the cursor, on the globe */
@@ -346,6 +350,7 @@
   --skin-hover: #000082;
   --skin-hover-rgb: 0, 0, 130;
   --skin-hover-ink: #ffffff;
+  --skin-wash-ink: #000000;
 }
 /* Panels are RAISED, not lit. */
 :root[data-skin="beige"] .control-section,
@@ -437,6 +442,35 @@
   color: #000000 !important;
   text-shadow: none !important;
 }
+/**
+ * THE RESEARCH HUB'S GROUND IS NOT THE DESKTOP.
+ *
+ * `--skin-bg` is the teal a 90s desktop shows BEHIND its windows, which is
+ * right for the globe's page and wrong for a full-screen hub: the rail and the
+ * shell row took it and stayed dark while every panel between them went grey.
+ * The hub gets the window ladder instead — ground under panel under card,
+ * which is what makes a page of this era read as depth rather than one sheet.
+ *
+ * `!important` because `atlas.css` declares these on `#research-hub` itself
+ * and is injected at runtime, so it lands after this file in the cascade.
+ */
+:root[data-skin="beige"] #research-hub {
+  --atlas-bg: #a4a4a4 !important;
+  --atlas-panel-soft: #bdbdbd !important;
+  --atlas-panel: #c3c3c3 !important;
+  --atlas-card: #dfdfdf !important;
+  --atlas-panel-alt: #cfcfcf !important;
+}
+/* The rail and the shell row are chrome, so they take the panel grey and the
+   bevel that goes with it rather than a tint of the accent. */
+:root[data-skin="beige"] .atlas-rail,
+:root[data-skin="beige"] .research-shell-row,
+:root[data-skin="beige"] .research-topbar {
+  background: #c3c3c3 !important;
+  box-shadow: inset -1px -1px 0 #0a0a0a, inset 1px 1px 0 #fdfdfd,
+    inset -2px -2px 0 #808080, inset 2px 2px 0 #dfdfdf !important;
+}
+
 /**
  * The POPUPS. They were the last dark plate left: their ground is the card
  * ground now, so the card is grey — and everything in it that was written for
