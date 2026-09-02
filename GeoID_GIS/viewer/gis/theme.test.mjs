@@ -58,6 +58,26 @@ ok("the stylesheet balances its braces",
   (css.match(/\{/g) || []).length === (css.match(/\}/g) || []).length);
 
 /**
+ * THE BRAND ROW ENDS WHERE EVERY OTHER ROW ENDS.
+ *
+ * `.brand-hero` is a two-column grid and nothing has ever mounted in the
+ * second column — all eleven viewers ship one child — so the wordmark's row
+ * was 19.2px narrower than the tab list under it (measured: 30.6–357.8
+ * against 30.6–377). Invisible while the row had no background, and the first
+ * thing you see once a theme paints it.
+ */
+{
+  const skin = read("styles/viewer-skin.css");
+  ok("the brand spans its whole row when it is the only child",
+    /\.brand-hero > \.brand:only-child \{ grid-column: 1 \/ -1; \}/.test(skin));
+  ok("and the row's dead right padding is gone",
+    /\.brand-hero \{ padding-right: 0; \}/.test(skin));
+  // `:only-child`, so a second child — if one is ever added — restores the
+  // two-column behaviour on its own rather than being overlapped.
+  ok("scoped so a second column would still work", /:only-child/.test(skin));
+}
+
+/**
  * THE MARK IS NEVER RESTYLED — the one instruction that outranks every theme.
  * Pinned on the source because a filter added anywhere above would be silent.
  */

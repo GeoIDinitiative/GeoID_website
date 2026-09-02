@@ -110,6 +110,20 @@
   --skin-vignette: 8, 5, 0;
 }
 
+/* ── The brand row ends where every other row ends ──────────────────────
+   `.brand-hero` is a two-column grid — `minmax(0,1fr) auto` with a 1rem
+   column gap and 0.2rem of right padding — and NOTHING has ever mounted in
+   that second column: the markup has one child, `.brand`, in all eleven
+   viewers. So the row the wordmark sits in was 19.2px narrower than the tab
+   list under it (measured: brand 30.6–357.8 against a tab at 30.6–377).
+
+   Invisible while the row had no background, and the first thing you see the
+   moment a theme paints it — which is how it was found. The child spans both
+   columns when it is the only one, so a second child, if one is ever added,
+   restores the two-column behaviour on its own.  */
+.brand-hero { padding-right: 0; }
+.brand-hero > .brand:only-child { grid-column: 1 / -1; }
+
 body { background: var(--bg); }
 ::selection { background: var(--skin-chrome); color: var(--skin-chrome-ink); }
 

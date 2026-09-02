@@ -110,7 +110,9 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
 }
 /* The marquee: the one place the theme goes light, because a backlit sign
-   is what the wordmark sits on. */
+   is what the wordmark sits on. It paints `.brand`, which spans its whole
+   grid row (see `.brand-hero` in viewer-skin.css), so the sign is exactly as
+   wide as the tab list under it. */
 :root[data-skin="cabinet"] .brand {
   background: linear-gradient(#fdf3dc, #e9d5ab) !important;
   border-radius: 0.28rem !important;
