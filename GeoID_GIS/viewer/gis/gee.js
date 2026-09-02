@@ -10,22 +10,22 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-c4e52ff";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260903-c4e52ff";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260903-c4e52ff";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-2c7da07";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260903-2c7da07";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260903-2c7da07";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260903-c4e52ff";
+  from "./view-extent.js?v=20260903-2c7da07";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260903-c4e52ff";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-c4e52ff";
+} from "./extent-picker.js?v=20260903-2c7da07";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-2c7da07";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
-} from "./gee-catalogue-index.js?v=20260903-c4e52ff";
+} from "./gee-catalogue-index.js?v=20260903-2c7da07";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -935,16 +935,22 @@ function ensureGeeDialog() {
     "  color: var(--text, #eaf6fb); }",
     "#gee-add-card .gee-head { display: flex; align-items: center; gap: 0.6rem;",
     "  padding: 0.32rem 0.7rem; border-bottom: 1px solid rgba(255,255,255,0.1); }",
-    "#gee-add-card .gee-title { font: 600 0.72rem/1.2 'Exo 2', sans-serif;",
-    "  letter-spacing: 0.1em; text-transform: uppercase; color: var(--skin-data); }",
-    "#gee-add-card .gee-hint { font: 400 0.62rem/1.3 'Exo 2', sans-serif; opacity: 0.7; }",
+    "#gee-add-card .gee-title { font: 600 0.66rem/1.2 'Exo 2', sans-serif;",
+    "  letter-spacing: 0.08em; text-transform: uppercase; color: var(--skin-data);",
+    "  white-space: nowrap; flex: 0 0 auto; }",
+    "#gee-add-card .gee-hint { font: 400 0.6rem/1.3 'Exo 2', sans-serif; opacity: 0.7;",
+    "  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }",
     "#gee-add-card .gee-head .button { margin-left: auto; flex: 0 0 auto; }",
     "#gee-add-card .gee-head label { flex: 0 0 auto; flex-direction: row;",
-    "  align-items: center; gap: 0.3rem; }",
-    "#gee-add-card .gee-head input[type=search] { width: 11rem; }",
-    "#gee-add-chips { display: flex; gap: 0.25rem; overflow-x: auto;",
-    "  padding: 0.3rem 0.7rem 0; }",
-    "#gee-add-chips button { flex: 0 0 auto; padding: 0.16rem 0.5rem;",
+    "  align-items: center; gap: 0.3rem; white-space: nowrap; }",
+    "#gee-add-card .gee-head input[type=search] { width: 9.5rem; }",
+    "#gee-add-card .gee-head select { max-width: 9rem; }",
+    /* In the header row: they are a filter, and they belong beside the other
+       two rather than on a line of their own eating height the tiles want. */
+    "#gee-add-chips { display: flex; gap: 0.25rem; flex: 0 1 auto;",
+    "  overflow-x: auto; scrollbar-width: none; }",
+    "#gee-add-chips::-webkit-scrollbar { display: none; }",
+    "#gee-add-chips button { flex: 0 0 auto; padding: 0 0.55rem; height: 1.5rem;",
     "  border-radius: 999px; font: 600 0.55rem/1.5 'Exo 2', sans-serif;",
     "  border: 1px solid rgba(var(--skin-data-rgb),0.4); background: transparent;",
     "  color: var(--skin-data); cursor: pointer; white-space: nowrap; }",
@@ -976,25 +982,34 @@ function ensureGeeDialog() {
     "  letter-spacing: 0.14em; text-transform: uppercase; color: var(--skin-data);",
     "  opacity: 0.85; }",
     "#gee-add-list { display: flex; gap: 0.5rem; align-items: stretch; }",
-    "#gee-add-list .gee-card { flex: 0 0 12rem; text-align: left; cursor: pointer;",
-    "  display: flex; flex-direction: column; gap: 0.2rem; padding: 0.55rem;",
-    "  border-radius: 0.6rem; border: 1px solid rgba(255,255,255,0.14);",
+    /* A TILE IS FOUR LINES AND A BUTTON, in that order and with the space
+       between them accounted for: where it comes from, what it is, its id,
+       and a sentence of what it holds — then Add, on the floor. Before this
+       the curated tiles carried no sentence at all, so they were three short
+       labels stranded above a large empty gap. */
+    "#gee-add-list .gee-card { flex: 0 0 12.5rem; text-align: left; cursor: pointer;",
+    "  display: flex; flex-direction: column; gap: 0.16rem; padding: 0.45rem 0.5rem;",
+    "  border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.14);",
     "  background: rgba(255,255,255,0.045); color: inherit; overflow: hidden; }",
     "#gee-add-list .gee-card:hover { border-color: rgba(var(--skin-data-rgb),0.55); }",
     "#gee-add-list .gee-card.is-on { border-color: var(--nav-accent, var(--skin-chrome));",
     "  background: rgba(var(--nav-accent-rgb, 255,43,214), 0.12); }",
-    "#gee-add-list .gee-card b { font: 600 0.7rem/1.3 'Exo 2', sans-serif; }",
+    "#gee-add-list .gee-card b { font: 600 0.68rem/1.25 'Exo 2', sans-serif;",
+    "  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2;",
+    "  -webkit-box-orient: vertical; }",
     "#gee-add-list .gee-card code { font-size: 0.56rem; opacity: 0.72;",
     "  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
-    "#gee-add-list .gee-card small { font-size: 0.56rem; opacity: 0.66; }",
+    "#gee-add-list .gee-card small { font-size: 0.55rem; line-height: 1.35;",
+    "  opacity: 0.66; flex: 1 1 auto; overflow: hidden; display: -webkit-box;",
+    "  -webkit-line-clamp: 3; -webkit-box-orient: vertical; }",
     "#gee-add-list .gee-card .gee-badge { font: 600 0.5rem/1.5 'Exo 2', sans-serif;",
     "  letter-spacing: 0.1em; text-transform: uppercase; align-self: flex-start; }",
     "#gee-add-list .gee-card .gee-badge.is-cache { color: #4fd1a5; }",
     "#gee-add-list .gee-card .gee-badge.is-live { color: var(--skin-data); }",
     "#gee-add-list .gee-card .gee-badge.is-cat { color: #9aa7ff; }",
     "#gee-add-list .gee-card .gee-badge.is-warn { color: #ffb454; }",
-    "#gee-add-list .gee-card .gee-add-one { margin-top: auto; align-self: stretch;",
-    "  padding: 0.2rem; border-radius: 0.35rem; cursor: pointer;",
+    "#gee-add-list .gee-card .gee-add-one { flex: 0 0 auto; align-self: stretch;",
+    "  margin-top: 0.15rem; height: 1.45rem; border-radius: 0.35rem; cursor: pointer;",
     "  font: 600 0.55rem/1.5 'Exo 2', sans-serif; letter-spacing: 0.1em;",
     "  text-transform: uppercase; color: #12040f;",
     "  background: var(--nav-accent, var(--skin-chrome)); border: 0; }",
@@ -1060,10 +1075,10 @@ function ensureGeeDialog() {
     "</select></label>",
     '<label class="gee-tick"><input id="gee-add-deprecated" type="checkbox">'
       + "<span>Superseded</span></label>",
+    '<div id="gee-add-chips"></div>',
     '<span class="gee-hint" id="gee-add-hint">Set the ground once, then add datasets.</span>',
     '<button id="gee-add-close" class="button secondary" type="button">Close</button>',
     "</div>",
-    '<div id="gee-add-chips"></div>',
     '<div id="gee-add-strip">',
     /* THE FIRST TILE IS THE FETCH ITSELF — the ice-cover subtab's arrangement,
        in the place a reader looks first. Every tile to its right is added WITH
@@ -1291,6 +1306,22 @@ function curatedCard(entry) {
   card.prepend(badge(cached ? "Offline snapshot" : "Tuned for this app",
     cached ? "is-cache" : "is-live"));
   card.title = entry.title;
+  /**
+   * WHAT THE DATASET IS, from Google's own record.
+   *
+   * NOT `entry.info.summary` — that describes where the data comes FROM
+   * ("a rendered snapshot shipped with the site…"), it is identical on every
+   * cached entry, and the badge above already says it. A tile repeating its
+   * own badge across six tiles is worse than a tile with one line fewer, so a
+   * dataset the index has nothing for simply gets no sentence.
+   */
+  const record = datasetById(entry.id);
+  const summary = record?.summary || "";
+  if (summary) {
+    const line = document.createElement("small");
+    line.textContent = summary;
+    card.appendChild(line);
+  }
   const pick = () => choose(entry.id, entry.info.summary);
   card.addEventListener("click", pick);
   return addButton(card, pick);
@@ -1548,13 +1579,30 @@ function placeStrip() {
     const box = el.getBoundingClientRect();
     if (box.width > 0 && box.right > left) left = box.right;
   }
-  // The right margin is the tool rail's, measured the same way — 5.5rem was a
-  // guess that left 34 px of dead space between the strip and the rail.
+  /**
+   * THE RIGHT EDGE GOES AS FAR AS THE RAIL'S OWN, not to the left of it.
+   *
+   * Clearing the rail's left edge was still 54 px short of the margin every
+   * other piece of furniture lines up on, because the rail is a 38 px column
+   * inset 16 px — a narrow thing near the corner, not a wall down the side.
+   * The strip runs to that same 16 px, so its right edge and the rail's agree.
+   *
+   * Only while the rail actually ENDS above the strip, which it does: it is a
+   * short stack of buttons at the top-right. If it ever grew down into these
+   * rows the strip would fall back to clearing its left edge, because a
+   * catalogue sliding under live controls is worse than a margin that differs.
+   */
   let right = 0;
   const rail = document.getElementById("tool-rail");
+  const card = byId("gee-add-card");
   if (rail && getComputedStyle(rail).display !== "none") {
     const box = rail.getBoundingClientRect();
-    if (box.width > 0) right = window.innerWidth - box.left;
+    const cardTop = card ? card.getBoundingClientRect().top : window.innerHeight;
+    if (box.width > 0) {
+      right = box.bottom <= cardTop
+        ? Math.max(0, window.innerWidth - box.right) - STRIP_GAP
+        : window.innerWidth - box.left;
+    }
   }
   // A workbench opens over that corner and publishes its own clearance; the
   // legend defers to it and so does this.
