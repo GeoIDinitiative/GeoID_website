@@ -10,22 +10,22 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-bd84f74";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260903-bd84f74";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260903-bd84f74";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-3ab48b1";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260903-3ab48b1";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260903-3ab48b1";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260903-bd84f74";
+  from "./view-extent.js?v=20260903-3ab48b1";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260903-bd84f74";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-bd84f74";
+} from "./extent-picker.js?v=20260903-3ab48b1";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-3ab48b1";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
-} from "./gee-catalogue-index.js?v=20260903-bd84f74";
+} from "./gee-catalogue-index.js?v=20260903-3ab48b1";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -913,18 +913,27 @@ function ensureGeeDialog() {
        to answer a question the globe can already be asked. It is a strip along
        the bottom now: the globe stays visible and usable behind it, which is
        what makes drawing the extent on the globe the natural gesture. */
+    /* IT SITS IN THE MAP'S OWN COLUMN, not across the whole window. `left` is
+       measured — see placeStrip — because the sidebar and the Workspace dock
+       are different widths and either can be the wider at the strip's height.
+       `right` is the expression the LEGEND already uses for the same corner,
+       so the strip clears the tool rail and steps aside for an open workbench
+       exactly as the legend does rather than inventing a second answer. */
     "#gee-add-backdrop { position: fixed; left: 0; right: 0; bottom: 0; z-index: 80;",
     "  display: block; background: none; pointer-events: none; }",
     "#gee-add-backdrop[hidden] { display: none !important; }",
-    "#gee-add-card { pointer-events: auto; width: 100%;",
-    "  max-height: min(24rem, 52vh);",
-    "  border-top: 1px solid rgba(var(--nav-accent-rgb, 255,43,214), 0.5);",
+    "#gee-add-card { pointer-events: auto; position: fixed; bottom: 0.55rem;",
+    "  left: var(--gee-strip-left, 0px);",
+    "  right: max(5.5rem, var(--workbench-w, 0px));",
+    "  max-height: min(14.5rem, 34vh);",
+    "  border-radius: 0.7rem;",
+    "  border: 1px solid rgba(var(--nav-accent-rgb, 255,43,214), 0.5);",
     "  background: rgba(10, 8, 20, 0.97); backdrop-filter: blur(6px);",
-    "  box-shadow: 0 -14px 42px rgba(0,0,0,0.55);",
+    "  box-shadow: 0 14px 42px rgba(0,0,0,0.55);",
     "  display: flex; flex-direction: column; overflow: hidden;",
     "  color: var(--text, #eaf6fb); }",
     "#gee-add-card .gee-head { display: flex; align-items: center; gap: 0.6rem;",
-    "  padding: 0.5rem 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.1); }",
+    "  padding: 0.4rem 0.7rem; border-bottom: 1px solid rgba(255,255,255,0.1); }",
     "#gee-add-card .gee-title { font: 600 0.72rem/1.2 'Exo 2', sans-serif;",
     "  letter-spacing: 0.1em; text-transform: uppercase; color: var(--skin-data); }",
     "#gee-add-card .gee-hint { font: 400 0.62rem/1.3 'Exo 2', sans-serif; opacity: 0.7; }",
@@ -933,7 +942,7 @@ function ensureGeeDialog() {
     "  align-items: center; gap: 0.3rem; }",
     "#gee-add-card .gee-head input[type=search] { width: 11rem; }",
     "#gee-add-chips { display: flex; gap: 0.25rem; overflow-x: auto;",
-    "  padding: 0.35rem 0.8rem 0; }",
+    "  padding: 0.3rem 0.7rem 0; }",
     "#gee-add-chips button { flex: 0 0 auto; padding: 0.16rem 0.5rem;",
     "  border-radius: 999px; font: 600 0.55rem/1.5 'Exo 2', sans-serif;",
     "  border: 1px solid rgba(var(--skin-data-rgb),0.4); background: transparent;",
@@ -944,9 +953,9 @@ function ensureGeeDialog() {
        every tile in the row is added WITH, so scrolling away from it would be
        scrolling away from the controls the next press uses. */
     "#gee-add-strip { flex: 1; min-height: 0; display: flex; gap: 0.5rem;",
-    "  overflow-x: auto; overflow-y: hidden; padding: 0.55rem 0.8rem 0.7rem;",
+    "  overflow-x: auto; overflow-y: hidden; padding: 0.45rem 0.7rem 0.55rem;",
     "  scroll-padding-left: 0.8rem; }",
-    "#gee-add-params { position: sticky; left: 0; z-index: 2; flex: 0 0 17rem;",
+    "#gee-add-params { position: sticky; left: 0; z-index: 2; flex: 0 0 15.5rem;",
     "  display: flex; flex-direction: column; gap: 0.3rem; overflow-y: auto;",
     "  padding: 0.55rem; border-radius: 0.6rem;",
     "  border: 1px solid rgba(var(--nav-accent-rgb, 255,43,214), 0.5);",
@@ -955,7 +964,7 @@ function ensureGeeDialog() {
     "  letter-spacing: 0.14em; text-transform: uppercase; color: var(--skin-data);",
     "  opacity: 0.85; }",
     "#gee-add-list { display: flex; gap: 0.5rem; align-items: stretch; }",
-    "#gee-add-list .gee-card { flex: 0 0 13rem; text-align: left; cursor: pointer;",
+    "#gee-add-list .gee-card { flex: 0 0 12rem; text-align: left; cursor: pointer;",
     "  display: flex; flex-direction: column; gap: 0.2rem; padding: 0.55rem;",
     "  border-radius: 0.6rem; border: 1px solid rgba(255,255,255,0.14);",
     "  background: rgba(255,255,255,0.045); color: inherit; overflow: hidden; }",
@@ -1484,7 +1493,57 @@ async function requestFromDialog() {
   // fresh journey through the same three controls.
 }
 
+/**
+ * WHERE THE STRIP STARTS, measured rather than written down.
+ *
+ * It has to begin clear of the sidebar column — and that column is not one
+ * element: `#ui` is the tab panel and `#layer-dock` is the Workspace tile
+ * beneath it, they are different widths, and at the strip's own height either
+ * can be the wider. Both are measured and the further right wins.
+ *
+ * Neither has a width this file could hard-code in any case: the panel
+ * collapses, the dock folds, and the short-landscape breakpoint narrows both.
+ * Published as a length for the stylesheet to consume, which is the same
+ * arrangement the Atlas mark's clearance and the workbench's already use.
+ *
+ * Polled while the strip is OPEN and not otherwise — a fold or a collapse
+ * changes the answer and neither fires a resize.
+ */
+const STRIP_GAP = 10;
+let stripPlacer = null;
+
+function placeStrip() {
+  const backdrop = byId("gee-add-backdrop");
+  if (!backdrop || backdrop.hidden) return;
+  let left = 0;
+  for (const id of ["ui", "layer-dock"]) {
+    const el = document.getElementById(id);
+    if (!el || el.hidden) continue;
+    const style = getComputedStyle(el);
+    if (style.display === "none" || style.visibility === "hidden") continue;
+    const box = el.getBoundingClientRect();
+    if (box.width > 0 && box.right > left) left = box.right;
+  }
+  const value = `${Math.round(left + STRIP_GAP)}px`;
+  if (document.documentElement.style.getPropertyValue("--gee-strip-left") !== value) {
+    document.documentElement.style.setProperty("--gee-strip-left", value);
+  }
+}
+
+function watchStripPlacement(on) {
+  if (on && !stripPlacer) {
+    placeStrip();
+    stripPlacer = setInterval(placeStrip, 400);
+    window.addEventListener("resize", placeStrip);
+  } else if (!on && stripPlacer) {
+    clearInterval(stripPlacer);
+    stripPlacer = null;
+    window.removeEventListener("resize", placeStrip);
+  }
+}
+
 function closeGeeDialog() {
+  watchStripPlacement(false);
   const backdrop = byId("gee-add-backdrop");
   if (backdrop) backdrop.hidden = true;
   byId("gee-add-draw")?.classList.remove("is-on");
@@ -1498,6 +1557,7 @@ async function openGeeDialog(homeName) {
   homeFilter = homeName || "";
   const backdrop = byId("gee-add-backdrop");
   backdrop.hidden = false;
+  watchStripPlacement(true);
 
   renderGeeChips();
   renderGeeList();
