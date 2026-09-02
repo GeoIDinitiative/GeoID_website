@@ -10650,3 +10650,82 @@ EOSDIS GIBS, in text a reader can actually read.
   every glacier in the box (the union, thin outlines, never hidden) is the
   continuity: what moves between frames is then genuinely the ice that was
   remapped.
+
+## A remembered view names a place ON THE BODY, never a point in the world
+
+"The centre of view/anchor and user navigation is broken on the moon viewer."
+Measured: `controls.target` sat **12.06 scene units off the Moon's centre** on a
+globe of radius 3.2 — nearly four Moon radii — so drag-to-orbit pivoted around
+empty space beside the Moon and swung it across the screen.
+
+**The Moon is the only viewer whose body is not at the world origin.** Earth
+holds that seat and the Moon orbits it on `moonOrbitPivot` at
+`EARTH_MOON_ORBIT_DIST = 708`, moving every frame; a grep across all nine
+planet viewers finds one `OrbitPivot` and one `<body>Group.position.set` away
+from the origin, both in the Moon's. So on ten of the eleven worlds "world
+space" and "the body's frame" are the same thing, and any code that confuses
+them is correct everywhere except here.
+
+Two places confused them, and the boot fault is in a SHARED module:
+
+- **`model-studio.js`'s launch view.** `rememberGlobeView` captures the camera
+  and target once and `restoreGlobeView` puts them back on every return to the
+  globe — including at boot, through `mode-manager.setMode`. Stored as world
+  coordinates, they name a place the Moon has since left.
+- **The Moon viewer's own camera flights.** `animateCameraFlight` lerps toward
+  world-space endpoints and overwrites BOTH `camera.position` and
+  `controls.target` every frame, so the render loop's orbital follow is erased
+  for as long as a flight runs and the camera lands where the Moon was when the
+  flight began. `animateTourFlight` was worse: every radius in it
+  (`startDist`, `endDist`, `CRUISE_DIST`) was measured from the world origin,
+  so it read about **708 rather than 11.6**, the cruise bump was arithmetically
+  dead and the great-circle slerp arced over EARTH.
+
+Both are fixed the same way — hold the endpoints as offsets from the body and
+re-anchor them to its live centre — and `viewer.globe` is the body mesh on all
+eleven viewers, so the centre needs no new seam. On a body at the origin it is
+arithmetic on zero and nothing changes.
+
+**Measured, with the control that reproduces each fault.** Boot anchor error
+12.06 → **0**, held through 19 s; camera 11.585 units from the body centre,
+identical to Mars; the zoom pill 4,552 km against a camera that really is
+4,552 km up, where before it read 4,552 against a true 10,030. A real drag
+orbits at a constant 11.585 with the error still 0. A flight to Copernicus
+lands at 9.62°N, 20.1°W — the crater's own coordinates — with the error 0 on
+every sample; re-injecting the world-space flight and repeating the identical
+click gives **0 → 0.285 units (155 km), permanent**. Mars, Jupiter and Earth
+all measure body at the origin, error 0, unchanged.
+
+### How it was found, because three plausible readings were wrong
+
+- **The theme work was not the cause**, though it was blamed. Those commits
+  touched four lines of each per-planet `styles.css` and nothing else in
+  `planet_explorer/`; the only JS change was an inert `closeCards` seam. Check
+  what a suspect commit actually touched before reasoning about how it could
+  have done this.
+- **`globe.parent.position` is the LOCAL position.** Reading it said the Moon
+  sat still at [708, 0, 0] while the camera flew away around the origin — the
+  opposite of the truth, which is that the Moon orbits and the camera follows
+  it exactly. Read `matrixWorld` for a body hanging off a pivot; this file
+  already records the same trap from the other side.
+- **The orbital follow was innocent, and proving it was what narrowed the
+  hunt.** Logging `controls.target.distanceTo(_prevMoonCtr)` at the top of the
+  follow showed **0 on every frame** — the target is on the Moon when each
+  frame begins — so the drift had to come from a writer between frames, and a
+  frame-by-frame log put it in a single frame at ~10 s.
+
+**The instrument that named the writer: accessors on the target's own x/y/z.**
+`controls.target.x += dx` is a property write, so wrapping `set`/`copy`/
+`lerpVectors` on the instance cannot see it, and the first attempt at that
+filled its 25-entry cap with OrbitControls' own no-op `sub`/`add` pair before
+the real write ever happened. `Object.defineProperty` on the three components,
+recording `new Error().stack` when a component moves more than a unit and the
+stack is not OrbitControls' `clampLength` round trip, named
+`restoreGlobeView` → `mode-manager.setMode` → `boot` in one run. **When a value
+moves and no method call explains it, trap the components, and filter the
+vendor's own no-ops or the cap will fill before the culprit runs.**
+
+**`geoid-gis:view-mode` is shared across every page on the origin.** Leaving
+the GeoHUB in Model mode means the next planet viewer opened boots into the
+Meshing Studio with no globe in sight, which reads as that viewer being broken.
+Worth knowing before diagnosing one.
