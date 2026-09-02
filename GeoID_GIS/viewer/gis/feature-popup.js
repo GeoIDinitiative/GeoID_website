@@ -20,12 +20,12 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260902-5a64b20";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260902-5a64b20";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260902-5a64b20";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260902-5a64b20";
-import { lithologyLabel } from "./lithology-label.js?v=20260902-5a64b20";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260902-5a64b20";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260902-2bc5482";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260902-2bc5482";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260902-2bc5482";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260902-2bc5482";
+import { lithologyLabel } from "./lithology-label.js?v=20260902-2bc5482";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260902-2bc5482";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -105,49 +105,49 @@ const STYLE = `
   right: 100%;
   border-top: calc(1.6rem + 1px) solid transparent;
   border-bottom: calc(1.6rem + 1px) solid transparent;
-  border-right: calc(1.5rem + 1px) solid rgba(120, 220, 255, 0.22);
+  border-right: calc(1.5rem + 1px) solid rgba(var(--skin-data-rgb), 0.22);
 }
 #gis-feature-popup[data-tail="left"]::after {
   right: calc(100% - 1px);
   border-top: 1.6rem solid transparent;
   border-bottom: 1.6rem solid transparent;
-  border-right: 1.5rem solid rgba(14, 20, 30, 0.97);
+  border-right: 1.5rem solid var(--skin-card-ground, rgb(24, 13, 47));
 }
 #gis-feature-popup[data-tail="right"]::before {
   left: 100%;
   border-top: calc(1.6rem + 1px) solid transparent;
   border-bottom: calc(1.6rem + 1px) solid transparent;
-  border-left: calc(1.5rem + 1px) solid rgba(120, 220, 255, 0.22);
+  border-left: calc(1.5rem + 1px) solid rgba(var(--skin-data-rgb), 0.22);
 }
 #gis-feature-popup[data-tail="right"]::after {
   left: calc(100% - 1px);
   border-top: 1.6rem solid transparent;
   border-bottom: 1.6rem solid transparent;
-  border-left: 1.5rem solid rgba(14, 20, 30, 0.97);
+  border-left: 1.5rem solid var(--skin-card-ground, rgb(24, 13, 47));
 }
 #gis-feature-popup[data-tail="top"]::before {
   bottom: 100%;
   border-left: calc(1.6rem + 1px) solid transparent;
   border-right: calc(1.6rem + 1px) solid transparent;
-  border-bottom: calc(1.5rem + 1px) solid rgba(120, 220, 255, 0.22);
+  border-bottom: calc(1.5rem + 1px) solid rgba(var(--skin-data-rgb), 0.22);
 }
 #gis-feature-popup[data-tail="top"]::after {
   bottom: calc(100% - 1px);
   border-left: 1.6rem solid transparent;
   border-right: 1.6rem solid transparent;
-  border-bottom: 1.5rem solid rgba(14, 20, 30, 0.97);
+  border-bottom: 1.5rem solid var(--skin-card-ground, rgb(24, 13, 47));
 }
 #gis-feature-popup[data-tail="bottom"]::before {
   top: 100%;
   border-left: calc(1.6rem + 1px) solid transparent;
   border-right: calc(1.6rem + 1px) solid transparent;
-  border-top: calc(1.5rem + 1px) solid rgba(120, 220, 255, 0.22);
+  border-top: calc(1.5rem + 1px) solid rgba(var(--skin-data-rgb), 0.22);
 }
 #gis-feature-popup[data-tail="bottom"]::after {
   top: calc(100% - 1px);
   border-left: 1.6rem solid transparent;
   border-right: 1.6rem solid transparent;
-  border-top: 1.5rem solid rgba(14, 20, 30, 0.97);
+  border-top: 1.5rem solid var(--skin-card-ground, rgb(24, 13, 47));
 }
 #gis-feature-popup .gis-fp-head {
   display: flex; align-items: flex-start; gap: 0.5rem;
@@ -1143,7 +1143,7 @@ async function showHover(feature) {
    * material cannot read a stylesheet, so it asks the theme for the token —
    * which defaults to the cyan this drew before themes existed.
    */
-  const hover = window.GeoIDTheme?.hex?.("--skin-hover", 0x8ef6ff) ?? 0x8ef6ff;
+  const hover = window.GeoIDTheme?.hex?.("--skin-hover-map", 0x8ef6ff) ?? 0x8ef6ff;
   const nodes = buildHighlight(THREE, feature, { colour: hover, opacity: 0.55 });
   if (!nodes.length) { hoverState = null; return; }
   nodes.forEach((node) => holder.add(node));

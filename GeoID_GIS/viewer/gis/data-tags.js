@@ -39,7 +39,7 @@ export const DATA_TYPES = {
   raster: { label: "Raster", colour: "#c26bff" },
   basemap: { label: "Basemap", colour: "#9aa7ff" },
   atmospheric: { label: "Atmospheric", colour: "#3f8cff" },
-  hydrology: { label: "Hydrology", colour: "#52e4e8" },
+  hydrology: { label: "Hydrology", colour: "var(--skin-data)" },
   geology: { label: "Geology", colour: "#e0a05c" },
   hazard: { label: "Hazard", colour: "#ff5c4d" },
   observation: { label: "Earth observation", colour: "#2ee06a" },

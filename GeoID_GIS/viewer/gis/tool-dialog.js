@@ -39,9 +39,9 @@
  * law is honoured by having nothing to exempt.
  */
 
-import { prefs, mergeParams } from "./tool-prefs.js?v=20260902-5a64b20";
+import { prefs, mergeParams } from "./tool-prefs.js?v=20260902-2bc5482";
 
-const RUNNER_URL = "./tool-runner.js?v=20260902-5a64b20";
+const RUNNER_URL = "./tool-runner.js?v=20260902-2bc5482";
 
 /* ── Dialog-only styles, injected as the house pattern dictates.
       NEVER a backtick inside this literal — it ends the string and kills the
@@ -227,11 +227,11 @@ const STYLE = `
      the pseudos carry Safari, in the same cyan so it does not matter which
      answers. */
   scrollbar-width: thin;
-  scrollbar-color: rgba(82, 228, 232, 0.38) transparent;
+  scrollbar-color: rgba(var(--skin-data-rgb), 0.38) transparent;
 }
 .gis-tool-dialog-fallback-body::-webkit-scrollbar { width: 8px; }
 .gis-tool-dialog-fallback-body::-webkit-scrollbar-thumb {
-  background: rgba(82, 228, 232, 0.38);
+  background: rgba(var(--skin-data-rgb), 0.38);
   border-radius: 4px;
 }
 .gis-tool-dialog-fallback-body::-webkit-scrollbar-track { background: transparent; }

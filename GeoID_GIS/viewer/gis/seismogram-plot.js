@@ -455,7 +455,7 @@ function drawMarks(ctx, marks, { width, height, seconds }) {
  * plotted raw is a flat line hard against one edge of the box.
  */
 export function drawWaveform(canvas, values, {
-  colour = "#52e4e8", height = 84, marks = null, sampleRate = null,
+  colour = "var(--skin-data)", height = 84, marks = null, sampleRate = null,
 } = {}) {
   const { ctx, width, height: h } = fitCanvas(canvas, height);
   ctx.clearRect(0, 0, width, h);

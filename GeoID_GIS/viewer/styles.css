@@ -628,11 +628,11 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
        once — eight rows with one of them open — so they cannot be the same
        colour without becoming unreadable. */
     .section-toggle:hover {
-      background: linear-gradient(180deg, rgba(190, 120, 255, 0.15), rgba(255, 255, 255, 0.025));
-      border-left-color: rgba(190, 120, 255, 0.95);
+      background: linear-gradient(180deg, rgba(var(--skin-hover-rgb),  0.15), rgba(255, 255, 255, 0.025));
+      border-left-color: rgba(var(--skin-hover-rgb),  0.95);
       box-shadow:
-        inset 0 0 0 1px rgba(190, 120, 255, 0.18),
-        0 0 18px rgba(190, 120, 255, 0.34);
+        inset 0 0 0 1px rgba(var(--skin-hover-rgb),  0.18),
+        0 0 18px rgba(var(--skin-hover-rgb),  0.34);
     }
     .control-section[open] > .section-toggle {
       border-left-color: rgba(var(--nav-accent-rgb), 0.82);
@@ -640,36 +640,36 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
       box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.06);
     }
     .section-toggle:hover .section-title {
-      color: #f2feff;
+      color: var(--skin-hover-ink);
       transition: color 0.15s;
     }
-    .section-toggle:hover .section-title { color: #f3e6ff; }
+    .section-toggle:hover .section-title { color: var(--skin-hover-ink); }
     .section-toggle:hover .section-icon {
-      color: #be78ff;
-      filter: drop-shadow(0 0 8px rgba(190, 120, 255, 0.55));
+      color: var(--skin-hover);
+      filter: drop-shadow(0 0 8px rgba(var(--skin-hover-rgb),  0.55));
     }
 
     /* The whole ROW is the target a reader actually moves along, so it carries
        the same purple at full strength. */
     .control-section:hover {
-      border-color: rgba(190, 120, 255, 0.46);
-      background: linear-gradient(180deg, rgba(190, 120, 255, 0.06), rgba(255, 255, 255, 0.014));
-      box-shadow: 0 0 0 1px rgba(190, 120, 255, 0.14);
+      border-color: rgba(var(--skin-hover-rgb),  0.46);
+      background: linear-gradient(180deg, rgba(var(--skin-hover-rgb),  0.06), rgba(255, 255, 255, 0.014));
+      box-shadow: 0 0 0 1px rgba(var(--skin-hover-rgb),  0.14);
     }
     .control-section:hover > .section-toggle {
-      background: linear-gradient(180deg, rgba(190, 120, 255, 0.2), rgba(255, 255, 255, 0.03));
-      border-left-color: #be78ff;
+      background: linear-gradient(180deg, rgba(var(--skin-hover-rgb),  0.2), rgba(255, 255, 255, 0.03));
+      border-left-color: var(--skin-hover);
       box-shadow:
-        inset 0 0 0 1px rgba(190, 120, 255, 0.24),
-        0 0 26px rgba(190, 120, 255, 0.55);
+        inset 0 0 0 1px rgba(var(--skin-hover-rgb),  0.24),
+        0 0 26px rgba(var(--skin-hover-rgb),  0.55);
     }
     .control-section:hover > .section-toggle .section-title {
-      color: #f3e6ff;
+      color: var(--skin-hover-ink);
     }
     .control-section:hover > .section-toggle .section-icon,
     .control-section:hover > .section-toggle::after {
-      color: #be78ff;
-      filter: drop-shadow(0 0 9px rgba(190, 120, 255, 0.55));
+      color: var(--skin-hover);
+      filter: drop-shadow(0 0 9px rgba(var(--skin-hover-rgb),  0.55));
     }
 
     .control-section[open] {
@@ -801,7 +801,7 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
         0 0 16px rgba(var(--nav-accent-rgb), 0.07);
     }
     .control-section.is-pill:hover .section-title {
-      color: #f2feff;
+      color: var(--skin-hover-ink);
       transition: color 0.15s;
     }
 

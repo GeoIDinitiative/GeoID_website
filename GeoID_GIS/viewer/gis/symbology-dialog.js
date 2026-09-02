@@ -24,11 +24,11 @@
  * polygon comes out white with a perfectly correct legend beside it.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260902-5a64b20";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260902-2bc5482";
 import {
   RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP, METHODS,
   categoricalSymbology, buildSymbology, colourOf, legendInfoFrom, fmtBound,
-} from "./symbology.js?v=20260902-5a64b20";
+} from "./symbology.js?v=20260902-2bc5482";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -48,7 +48,7 @@ const STYLE = `
   max-height: 82vh;
   display: flex;
   flex-direction: column;
-  border: 1px solid rgba(255, 45, 210, 0.45);
+  border: 1px solid rgba(var(--skin-chrome-rgb), 0.45);
   border-radius: 0.55rem;
   background: linear-gradient(180deg, rgba(22, 6, 34, 0.98), rgba(10, 4, 20, 0.98));
   box-shadow: 0 1.4rem 3rem rgba(0, 0, 0, 0.55);
@@ -143,7 +143,7 @@ const STYLE = `
 #gis-sym-dialog input[type="number"]:focus,
 #gis-sym-dialog select:focus {
   outline: none;
-  border-color: rgba(255, 45, 210, 0.6);
+  border-color: rgba(var(--skin-chrome-rgb), 0.6);
 }
 #gis-sym-dialog input[type="color"] {
   flex: 0 0 auto;
@@ -190,7 +190,7 @@ const STYLE = `
   cursor: pointer;
 }
 #gis-sym-dialog th small { display: block; font-size: 0.5rem; opacity: 0.6; }
-#gis-sym-dialog .is-colour { background: rgba(255, 45, 210, 0.14); }
+#gis-sym-dialog .is-colour { background: rgba(var(--skin-chrome-rgb), 0.14); }
 #gis-sym-dialog .sym-classes {
   max-height: 13rem;
   overflow-y: auto;
@@ -205,14 +205,14 @@ const STYLE = `
 #gis-sym-dialog .sym-head-wrap,
 #gis-sym-dialog .sym-classes {
   scrollbar-width: thin;
-  scrollbar-color: rgba(82, 228, 232, 0.38) transparent;
+  scrollbar-color: rgba(var(--skin-data-rgb), 0.38) transparent;
 }
 #gis-sym-dialog .sym-body::-webkit-scrollbar,
 #gis-sym-dialog .sym-head-wrap::-webkit-scrollbar,
 #gis-sym-dialog .sym-classes::-webkit-scrollbar { width: 8px; height: 8px; }
 #gis-sym-dialog .sym-body::-webkit-scrollbar-thumb,
 #gis-sym-dialog .sym-head-wrap::-webkit-scrollbar-thumb,
-#gis-sym-dialog .sym-classes::-webkit-scrollbar-thumb { background: rgba(82, 228, 232, 0.38); border-radius: 4px; }
+#gis-sym-dialog .sym-classes::-webkit-scrollbar-thumb { background: rgba(var(--skin-data-rgb), 0.38); border-radius: 4px; }
 #gis-sym-dialog .sym-body::-webkit-scrollbar-track,
 #gis-sym-dialog .sym-head-wrap::-webkit-scrollbar-track,
 #gis-sym-dialog .sym-classes::-webkit-scrollbar-track { background: transparent; }

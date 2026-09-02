@@ -24,7 +24,7 @@
  * tiled geology already documents.
  */
 
-import { splitLine } from "./delimited.js?v=20260902-5a64b20";
+import { splitLine } from "./delimited.js?v=20260902-2bc5482";
 
 const byId = (id) => document.getElementById(id);
 
@@ -252,10 +252,10 @@ const STYLE = `
    matter which answers -- the events panel's documented discipline. */
 #gis-table-body {
   scrollbar-width: thin;
-  scrollbar-color: rgba(82, 228, 232, 0.38) transparent;
+  scrollbar-color: rgba(var(--skin-data-rgb), 0.38) transparent;
 }
 #gis-table-body::-webkit-scrollbar { width: 8px; height: 8px; }
-#gis-table-body::-webkit-scrollbar-thumb { background: rgba(82, 228, 232, 0.38); border-radius: 4px; }
+#gis-table-body::-webkit-scrollbar-thumb { background: rgba(var(--skin-data-rgb), 0.38); border-radius: 4px; }
 #gis-table-body::-webkit-scrollbar-track { background: transparent; }
 
 /* No white scrollbars: the standard pair carries modern Chrome and Firefox,
@@ -263,10 +263,10 @@ const STYLE = `
    matter which answers -- the events panel's documented discipline. */
 #gis-table-body {
   scrollbar-width: thin;
-  scrollbar-color: rgba(82, 228, 232, 0.38) transparent;
+  scrollbar-color: rgba(var(--skin-data-rgb), 0.38) transparent;
 }
 #gis-table-body::-webkit-scrollbar { width: 8px; height: 8px; }
-#gis-table-body::-webkit-scrollbar-thumb { background: rgba(82, 228, 232, 0.38); border-radius: 4px; }
+#gis-table-body::-webkit-scrollbar-thumb { background: rgba(var(--skin-data-rgb), 0.38); border-radius: 4px; }
 #gis-table-body::-webkit-scrollbar-track { background: transparent; }
 
 #gis-table-body table { border-collapse: collapse; width: max-content; min-width: 100%; }
@@ -279,7 +279,7 @@ const STYLE = `
   font: 600 0.6rem/2.1 'Exo 2', sans-serif; letter-spacing: 0.07em;
   text-transform: uppercase; padding: 0 0.5rem; text-align: left;
 }
-#gis-table-body th.is-geo { color: var(--skin-data, #7ee7ff); }
+#gis-table-body th.is-geo { color: var(--skin-data, var(--skin-data)); }
 #gis-table-body td input {
   width: 100%; min-width: 6.5rem; border: 0; background: transparent;
   color: inherit; font: 400 0.72rem/1.9 'Exo 2', sans-serif;

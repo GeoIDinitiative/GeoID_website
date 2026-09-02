@@ -11,7 +11,7 @@
 const AXIS = "rgba(151, 182, 194, 0.55)";
 const GRID = "rgba(151, 182, 194, 0.14)";
 const TEXT = "#cfe6ee";
-const SERIES = ["#52e4e8", "#ff2bd6", "#9df58a", "#ffd36a", "#8ab6ff", "#ff8b8b"];
+const SERIES = ["var(--skin-data)", "var(--skin-chrome)", "#9df58a", "#ffd36a", "#8ab6ff", "#ff8b8b"];
 
 function niceStep(span, target) {
   const raw = span / Math.max(1, target);

@@ -110,7 +110,16 @@
      today as its default, so the default theme is untouched. */
   --skin-clock: #3fe0e6;      /* the corner clock's lit segments */
   --skin-chip: #3aeee8;       /* a curated label chip's accent and stroke */
-  --skin-hover: #8ef6ff;      /* the outline under the cursor, on the globe */
+  --skin-hover-map: #8ef6ff;  /* the outline under the cursor, on the globe */
+
+  /* ── The ROW HOVER ───────────────────────────────────────────────────
+     The violet a tab lights up with under the pointer. It was written out
+     in twenty places in `styles.css` and was therefore the one thing that
+     looked identical in every theme — which is exactly what a reader
+     notices, because it is the state they see most often. */
+  --skin-hover: #be78ff;
+  --skin-hover-rgb: 190, 120, 255;
+  --skin-hover-ink: #f3e6ff;
 }
 
 /* Consumed here rather than in every page's own stylesheet, on the class
@@ -151,7 +160,10 @@
   --skin-card-ground: rgb(7, 20, 13);
   --skin-clock: #5dff9b;
   --skin-chip: #5dff9b;
+  --skin-hover-map: #9dffc4;
   --skin-hover: #9dffc4;
+  --skin-hover-rgb: 157, 255, 196;
+  --skin-hover-ink: #e8fff1;
 }
 /* VT323 is a small face at any given size: without this the whole UI reads
    a size down from every other theme. */
@@ -190,7 +202,10 @@
   --skin-card-ground: rgb(38, 38, 87);
   --skin-clock: #00b7ff;
   --skin-chip: #00b7ff;
+  --skin-hover-map: #7fe0ff;
   --skin-hover: #7fe0ff;
+  --skin-hover-rgb: 127, 224, 255;
+  --skin-hover-ink: #eaf8ff;
 }
 /* Press Start 2P is enormous per character; the display role is titles
    only, and they need pulling back to fit the same rows. */
@@ -244,7 +259,10 @@
   --skin-card-ground: rgb(6, 10, 12);
   --skin-clock: #00ffd6;
   --skin-chip: #00ffd6;
+  --skin-hover-map: #8bfff0;
   --skin-hover: #8bfff0;
+  --skin-hover-rgb: 139, 255, 240;
+  --skin-hover-ink: #e9fffb;
 }
 :root[data-skin="vector"] body { letter-spacing: 0.06em; }
 /* Outlined, never filled: the ground stays black and the stroke does the
@@ -283,7 +301,10 @@
   --skin-card-ground: rgb(38, 9, 66);
   --skin-clock: #00e5ff;
   --skin-chip: #ff2e8b;
+  --skin-hover-map: #ff8fd0;
   --skin-hover: #ff8fd0;
+  --skin-hover-rgb: 255, 143, 208;
+  --skin-hover-ink: #ffe9f6;
 }
 :root[data-skin="outrun"] .control-section,
 :root[data-skin="outrun"] .gis-tool-section {
@@ -321,7 +342,10 @@
   --skin-card-ground: rgb(223, 223, 223);
   --skin-clock: #000082;
   --skin-chip: #000082;
-  --skin-hover: #1084d0;
+  --skin-hover-map: #1084d0;
+  --skin-hover: #000082;
+  --skin-hover-rgb: 0, 0, 130;
+  --skin-hover-ink: #ffffff;
 }
 /* Panels are RAISED, not lit. */
 :root[data-skin="beige"] .control-section,
@@ -418,7 +442,10 @@
   --skin-card-ground: rgb(9, 26, 38);
   --skin-clock: #4fd8ff;
   --skin-chip: #4fd8ff;
+  --skin-hover-map: #ffb040;
   --skin-hover: #ffb040;
+  --skin-hover-rgb: 255, 176, 64;
+  --skin-hover-ink: #fff3e0;
 }
 /* Rajdhani is narrow and small on the body size the site is set at. */
 :root[data-skin="hud"] body { font-size: 1.05em; letter-spacing: 0.03em; }

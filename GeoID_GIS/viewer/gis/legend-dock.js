@@ -152,7 +152,7 @@ const STYLE = `
  * The skin's whole rule is magenta for chrome -- frames, headings, active
  * states -- and cyan for DATA: field labels, readouts, values. This panel
  * wore a cyan border, which says "this box is a reading" about the one thing
- * on screen that is a container. Measured before: rgba(82,228,232,0.3) on the
+ * on screen that is a container. Measured before: rgba(var(--skin-data-rgb),0.3) on the
  * frame while every other floating tile in the app carried the accent.
  *
  * The values are the Workspace tile's own, copied rather than invented, so

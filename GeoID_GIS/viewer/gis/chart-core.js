@@ -309,7 +309,7 @@ export function chartColors(node) {
     // The selection tint is deliberately NOT the accent: a selected mark has to
     // be distinguishable from an ordinary one at a glance, and two shades of
     // the same hue are not.
-    selected: "#ff2bd6",
+    selected: "var(--skin-chrome)",
     muted: "rgba(255, 255, 255, 0.28)",
   };
 }
@@ -605,7 +605,7 @@ export function drawHistogram(ctx, rect, bins, opts = {}) {
   if (range && Number.isFinite(range[0]) && Number.isFinite(range[1])) {
     const a = axes.toX(Math.min(range[0], range[1]));
     const b = axes.toX(Math.max(range[0], range[1]));
-    ctx.fillStyle = "rgba(255, 43, 214, 0.16)";
+    ctx.fillStyle = "rgba(var(--skin-chrome-rgb), 0.16)";
     ctx.fillRect(a, rect.y, Math.max(1, b - a), rect.h);
   }
   const zero = axes.toY(Math.max(0, yRange[0]));
@@ -656,7 +656,7 @@ export function drawBox(ctx, rect, stats, opts = {}) {
     const cx = axes.toX(i);
     const left = cx - boxWidth / 2;
     ctx.strokeStyle = s.selected ? colors.selected : colors.axis;
-    ctx.fillStyle = s.selected ? "rgba(255, 43, 214, 0.22)" : colors.grid;
+    ctx.fillStyle = s.selected ? "rgba(var(--skin-chrome-rgb), 0.22)" : colors.grid;
     ctx.lineWidth = 1;
     // Whiskers first, so the box paints over their ends.
     ctx.beginPath();

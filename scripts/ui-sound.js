@@ -79,6 +79,50 @@
     osc.stop(t + durSec + 0.02);
   }
 
+  /**
+   * WHAT EACH THEME SOUNDS LIKE.
+   *
+   * The hover tick and the two-tone click are the same apparatus for every
+   * skin; only their voices differ. A row here rather than a second sound
+   * system: this file already owns the rate limiting, the control selector,
+   * the disabled and `data-no-sound` opt-outs and the mute API, and a parallel
+   * one meant two clicks on one press with the reader hearing whichever fired
+   * first — which is exactly what "the sound is the same in every theme"
+   * turned out to be.
+   *
+   * The DEFAULT entry is the values this file has always played, so a reader
+   * on the GeoHUB theme hears no change at all.
+   *
+   *   crt      a soft terminal blip, squared off
+   *   pixel    two square steps — the era's hardware could not glide
+   *   vector   a clean sine pair, high and airy
+   *   outrun   a saw stab with a fifth under it
+   *   beige    a dry mechanical tick, almost no pitch movement
+   *   hud      a rising two-tone chirp, quiet and instrument-like
+   */
+  var VOICES = {
+    "default": { hover: [2050, 0.032, 0.045, "sine"],
+      click: [[1350, 0.055, 0.13, "triangle"], [760, 0.065, 0.09, "square"]] },
+    crt: { hover: [1500, 0.026, 0.035, "square"],
+      click: [[1180, 0.046, 0.10, "square"], [880, 0.05, 0.05, "square"]] },
+    pixel: { hover: [1760, 0.022, 0.04, "square"],
+      click: [[660, 0.045, 0.12, "square"], [990, 0.05, 0.10, "square"]] },
+    vector: { hover: [2400, 0.03, 0.04, "sine"],
+      click: [[1560, 0.07, 0.11, "sine"], [880, 0.10, 0.06, "sine"]] },
+    outrun: { hover: [1200, 0.03, 0.04, "triangle"],
+      click: [[520, 0.13, 0.11, "sawtooth"], [347, 0.15, 0.06, "sawtooth"]] },
+    beige: { hover: [900, 0.014, 0.03, "square"],
+      click: [[240, 0.024, 0.16, "square"], [180, 0.02, 0.08, "square"]] },
+    hud: { hover: [1900, 0.028, 0.035, "triangle"],
+      click: [[700, 0.05, 0.09, "triangle"], [1500, 0.075, 0.07, "triangle"]] }
+  };
+
+  /** The voice for whatever theme is stamped on the root, right now. */
+  function voice() {
+    var skin = document.documentElement.getAttribute("data-skin");
+    return (skin && VOICES[skin]) || VOICES["default"];
+  }
+
   function playHover() {
     // Rate-limit: sweeping the pointer across the sidebar shouldn't machine-gun.
     var now = performance.now();
@@ -87,13 +131,16 @@
     // Peaks are pitched to sit above the ambient music bed, which runs its own
     // <audio> element well outside this gain graph -- Atlas's original values
     // were tuned for a silent GUI and got buried here.
-    blip(2050, 0.032, 0.045, "sine"); // crisp high tick
+    var h = voice().hover;
+    blip(h[0], h[1], h[2], h[3]);
   }
 
   function playClick() {
-    // Quick high -> low pair reads as a positive "select".
-    blip(1350, 0.055, 0.13, "triangle");
-    blip(760, 0.065, 0.09, "square");
+    // A PAIR, not a note: two blips read as a positive "select" where one
+    // reads as a beep. Which two is the theme's business.
+    var c = voice().click;
+    blip(c[0][0], c[0][1], c[0][2], c[0][3]);
+    blip(c[1][0], c[1][1], c[1][2], c[1][3]);
   }
 
   // Controls that should feel clicky. <summary> covers every collapsible
@@ -162,5 +209,7 @@
     },
     playHover: playHover,
     playClick: playClick,
+    VOICES: VOICES,
+    voice: voice,
   };
 })();

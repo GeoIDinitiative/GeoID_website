@@ -187,6 +187,8 @@
     }
     select.value = asked() || stored();
     note(select.value);
+    var soundBox = document.getElementById("gis-skin-sound");
+    if (soundBox && window.GeoIDUiSound) soundBox.checked = window.GeoIDUiSound.isEnabled();
   }
 
   function note(id) {
@@ -201,6 +203,22 @@
   document.addEventListener("change", function (event) {
     if (!event.target || event.target.id !== "gis-skin") return;
     note(apply(event.target.value));
+    // The theme's own click, as the confirmation that it took.
+    if (window.GeoIDUiSound && window.GeoIDUiSound.isEnabled()) {
+      window.GeoIDUiSound.playClick();
+    }
+  });
+
+  /**
+   * The sound switch. It drives `ui-sound.js` — the ONE sound system, which
+   * predates the themes, is on by default and now speaks in each theme's own
+   * voice. It had no control anywhere until this one.
+   */
+  document.addEventListener("change", function (event) {
+    if (!event.target || event.target.id !== "gis-skin-sound") return;
+    if (!window.GeoIDUiSound) return;
+    window.GeoIDUiSound.setEnabled(event.target.checked);
+    if (event.target.checked) window.GeoIDUiSound.playClick();
   });
   // A theme chosen in the shell, or in another tab, moves this select too.
   window.addEventListener("geoid:skin-changed", function (event) {

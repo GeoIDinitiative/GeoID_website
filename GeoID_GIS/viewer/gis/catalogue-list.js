@@ -18,7 +18,7 @@
  * in extraction and in export without this file knowing anything about them.
  */
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260902-5a64b20";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260902-2bc5482";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -55,7 +55,7 @@ const STYLE = `
   width: 3.4rem;
   height: 0.9rem;
   margin: 0;
-  accent-color: rgba(82, 228, 232, 0.9);
+  accent-color: rgba(var(--skin-data-rgb), 0.9);
   cursor: pointer;
 }
 .gis-catalogue-sym {
@@ -110,11 +110,11 @@ const STYLE = `
   padding: 0.1rem 0.4rem 0.35rem;
   border-top: 1px solid rgba(var(--nav-accent-rgb), 0.18);
   scrollbar-width: thin;
-  scrollbar-color: rgba(82, 228, 232, 0.38) transparent;
+  scrollbar-color: rgba(var(--skin-data-rgb), 0.38) transparent;
 }
 .gis-catalogue-scroll::-webkit-scrollbar { width: 6px; }
 .gis-catalogue-scroll::-webkit-scrollbar-thumb {
-  background: rgba(82, 228, 232, 0.38);
+  background: rgba(var(--skin-data-rgb), 0.38);
   border-radius: 3px;
 }
 .gis-catalogue-info-btn {
@@ -125,17 +125,17 @@ const STYLE = `
   align-items: center;
   justify-content: center;
   padding: 0;
-  border: 1px solid rgba(82, 228, 232, 0.4);
+  border: 1px solid rgba(var(--skin-data-rgb), 0.4);
   border-radius: 50%;
   background: transparent;
-  color: rgba(82, 228, 232, 0.85);
+  color: rgba(var(--skin-data-rgb), 0.85);
   font: 600 0.62rem/1 'Exo 2', sans-serif;
   cursor: pointer;
 }
 .gis-catalogue-info-btn:hover {
-  border-color: #52e4e8;
+  border-color: var(--skin-data);
   color: #ffffff;
-  background: rgba(82, 228, 232, 0.14);
+  background: rgba(var(--skin-data-rgb), 0.14);
 }
 #gis-catalogue-info-pop {
   position: fixed;
@@ -143,8 +143,8 @@ const STYLE = `
   width: min(19rem, calc(100vw - 2rem));
   padding: 0.6rem 0.75rem 0.65rem;
   border-radius: 0.5rem;
-  border: 1px solid rgba(82, 228, 232, 0.45);
-  background: rgba(8, 13, 20, 0.98);
+  border: 1px solid rgba(var(--skin-data-rgb), 0.45);
+  background: var(--skin-tab-ground, rgb(16, 7, 36));
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
   color: #dcebf2;
 }

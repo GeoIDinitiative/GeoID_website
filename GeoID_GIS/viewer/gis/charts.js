@@ -43,7 +43,7 @@
 import {
   binData, boxStats, chartColors, drawBox, drawHistogram, drawScatter,
   formatNumber, plotRect, prepareCanvas, toNumber,
-} from "./chart-core.js?v=20260902-5a64b20";
+} from "./chart-core.js?v=20260902-2bc5482";
 
 /**
  * What this module calls on window.GeoIDSelection. selection.js ships exactly
@@ -770,8 +770,8 @@ function drawBrushOverlay(ctx) {
   const x = Math.min(brush.x0, brush.x1);
   const w = Math.abs(brush.x1 - brush.x0);
   ctx.save();
-  ctx.strokeStyle = "rgba(255, 43, 214, 0.85)";
-  ctx.fillStyle = "rgba(255, 43, 214, 0.12)";
+  ctx.strokeStyle = "rgba(var(--skin-chrome-rgb), 0.85)";
+  ctx.fillStyle = "rgba(var(--skin-chrome-rgb), 0.12)";
   ctx.lineWidth = 1;
   if (state.kind === "scatter") {
     const y = Math.min(brush.y0, brush.y1);

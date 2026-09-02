@@ -68,8 +68,8 @@ function installStyle() {
   gap: 0.3rem;
   padding: 0.3rem 0.4rem;
   border-radius: 0.6rem;
-  border: 1px solid rgba(82, 228, 232, 0.4);
-  background: rgba(8, 13, 20, 0.94);
+  border: 1px solid rgba(var(--skin-data-rgb), 0.4);
+  background: var(--skin-tab-ground, rgb(16, 7, 36));
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.4);
 }
 .draw-hud-btn {
@@ -83,7 +83,7 @@ function installStyle() {
   text-transform: uppercase;
   cursor: pointer;
 }
-.draw-hud-btn:hover { border-color: rgba(82, 228, 232, 0.7); color: #ffffff; }
+.draw-hud-btn:hover { border-color: rgba(var(--skin-data-rgb), 0.7); color: #ffffff; }
 .draw-hud-btn.is-glyph { padding: 0.2rem 0.42rem; line-height: 0; }
 .draw-hud-btn.is-glyph svg { width: 1rem; height: 1rem; display: block; }
 #gis-draw-export-slot { display: flex; align-items: center; gap: 0.3rem; }
@@ -129,19 +129,19 @@ stroke-linejoin='round' fill='none'/></svg>");
   background: rgba(255, 255, 255, 0.16);
 }
 .draw-hud-btn.is-on {
-  border-color: rgba(82, 228, 232, 0.9);
-  background: rgba(82, 228, 232, 0.18);
+  border-color: rgba(var(--skin-data-rgb), 0.9);
+  background: rgba(var(--skin-data-rgb), 0.18);
   color: #ffffff;
 }
 .draw-hud-btn.is-done {
-  border-color: rgba(255, 43, 214, 0.6);
+  border-color: rgba(var(--skin-chrome-rgb), 0.6);
   color: #ff9bea;
 }
-.draw-hud-btn.is-done:hover { background: rgba(255, 43, 214, 0.16); color: #ffffff; }
+.draw-hud-btn.is-done:hover { background: rgba(var(--skin-chrome-rgb), 0.16); color: #ffffff; }
 #gis-draw-hint {
   padding: 0.18rem 0.6rem;
   border-radius: 0.35rem;
-  background: rgba(8, 13, 20, 0.85);
+  background: var(--skin-tab-ground, rgb(16, 7, 36));
   color: rgba(190, 226, 232, 0.9);
   font: 500 0.6rem/1.3 'Exo 2', sans-serif;
   letter-spacing: 0.04em;

@@ -16,8 +16,8 @@
 
 import {
   grouped as globalGrouped, layerForDataset,
-} from "./global-data.js?v=20260902-5a64b20";
-import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20260902-5a64b20";
+} from "./global-data.js?v=20260902-2bc5482";
+import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20260902-2bc5482";
 
 const HOME_SECTION = {
   hydrology: "sea-level-section",
@@ -216,7 +216,7 @@ function installStyle() {
      *
      * A tier-1 chevron sets its own colour (the accent at 0.9) rather than
      * inheriting, and this fill IS the accent: measured, chevron
-     * rgba(255,43,214,0.9) on a rgb(255,43,214) header, which is the same
+     * rgba(var(--skin-chrome-rgb),0.9) on a rgb(255,43,214) header, which is the same
      * colour and therefore no chevron at all. The title and icon were already
      * on the dark-ink list and looked right, which is what made the arrow
      * read as "lost" rather than as the whole header being wrong.

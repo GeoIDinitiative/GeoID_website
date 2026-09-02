@@ -159,12 +159,12 @@ const STYLE = `
   display: flex; align-items: stretch; gap: 0;
   border: 1px solid rgba(var(--nav-accent-rgb, 120 200 255), 0.32);
   border-radius: 0.4rem; overflow: hidden;
-  background: rgba(8, 10, 22, 0.66); backdrop-filter: blur(6px);
+  background: var(--skin-tab-ground, rgb(16, 7, 36)); backdrop-filter: blur(6px);
   font-family: "Exo 2", system-ui, sans-serif;
 }
 #geoid-zoom-step[hidden] { display: none; }
 #geoid-zoom-step button {
-  background: none; border: 0; color: rgba(226, 236, 255, 0.9);
+  background: none; border: 0; color: rgba(var(--skin-muted, 226, 236, 255), 0.9);
   font: inherit; cursor: pointer; padding: 0 0.5rem; line-height: 1;
   /* A hold is a press, not a gesture: no text selection, no touch scrolling. */
   user-select: none; -webkit-user-select: none; touch-action: none;

@@ -30,11 +30,11 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260902-5a64b20";
-import { readHead, validateMapping } from "./delimited.js?v=20260902-5a64b20";
-import { RAMP_NAMES } from "./symbology.js?v=20260902-5a64b20";
-import { isEarth } from "./bodies.js?v=20260902-5a64b20";
-import { DATA_TYPES, inferType, applyTag, markUserInput, suppressNextArrival } from "./data-tags.js?v=20260902-5a64b20";
+import { CRS_OPTIONS } from "./projection.js?v=20260902-2bc5482";
+import { readHead, validateMapping } from "./delimited.js?v=20260902-2bc5482";
+import { RAMP_NAMES } from "./symbology.js?v=20260902-2bc5482";
+import { isEarth } from "./bodies.js?v=20260902-2bc5482";
+import { DATA_TYPES, inferType, applyTag, markUserInput, suppressNextArrival } from "./data-tags.js?v=20260902-2bc5482";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
@@ -166,10 +166,10 @@ const STYLE = `
    matter which answers -- the events panel's documented discipline. */
 #gis-add-data .add-body {
   scrollbar-width: thin;
-  scrollbar-color: rgba(82, 228, 232, 0.38) transparent;
+  scrollbar-color: rgba(var(--skin-data-rgb), 0.38) transparent;
 }
 #gis-add-data .add-body::-webkit-scrollbar { width: 8px; height: 8px; }
-#gis-add-data .add-body::-webkit-scrollbar-thumb { background: rgba(82, 228, 232, 0.38); border-radius: 4px; }
+#gis-add-data .add-body::-webkit-scrollbar-thumb { background: rgba(var(--skin-data-rgb), 0.38); border-radius: 4px; }
 #gis-add-data .add-body::-webkit-scrollbar-track { background: transparent; }
 
 #gis-add-data .add-foot {
@@ -190,7 +190,7 @@ const STYLE = `
   font: 600 0.62rem/1 'Exo 2', sans-serif;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: var(--skin-data, #7ee7ff);
+  color: var(--skin-data, var(--skin-data));
 }
 #gis-add-data .add-row {
   display: flex;
@@ -201,7 +201,7 @@ const STYLE = `
 #gis-add-data .add-row > label {
   flex: 0 0 8.5rem;
   font: 500 0.66rem/1.25 'Exo 2', sans-serif;
-  color: var(--skin-data, #7ee7ff);
+  color: var(--skin-data, var(--skin-data));
 }
 #gis-add-data .add-row .input { flex: 1 1 auto; min-width: 0; }
 #gis-add-data .drop-zone {
@@ -234,7 +234,7 @@ const STYLE = `
   text-align: left;
 }
 #gis-add-data .head-table th {
-  color: var(--skin-data, #7ee7ff);
+  color: var(--skin-data, var(--skin-data));
   font-weight: 600;
 }
 /* A column that has been given a meaning is tinted, so the table itself shows
@@ -466,7 +466,7 @@ function build() {
   const colour = document.createElement("input");
   colour.type = "color";
   colour.className = "input";
-  colour.value = "#7ee7ff";
+  colour.value = "var(--skin-data)";
   const opacity = document.createElement("input");
   opacity.type = "range";
   opacity.className = "input";

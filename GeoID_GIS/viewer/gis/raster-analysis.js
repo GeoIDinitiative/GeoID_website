@@ -1,5 +1,5 @@
-import * as G from "./geometry.js?v=20260902-5a64b20";
-import { featureCollection, feature, polygonsOf } from "./geoprocessing.js?v=20260902-5a64b20";
+import * as G from "./geometry.js?v=20260902-2bc5482";
+import { featureCollection, feature, polygonsOf } from "./geoprocessing.js?v=20260902-2bc5482";
 
 // Raster analysis equivalents of the QGIS Raster menu / ArcGIS Spatial Analyst
 // surface tools. A raster here is { band, width, height, bounds, noData },

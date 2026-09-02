@@ -197,7 +197,8 @@ ok("and a received theme is applied without being re-announced",
     /function token\(name, fallback\)/.test(script) && /function hex\(name, fallback\)/.test(script));
   ok("the clock asks for its ink", /token\?\.\("--skin-clock", "#3fe0e6"\)/.test(viewer));
   ok("the label chip asks for its accent", /token\?\.\("--skin-chip", "#3aeee8"\)/.test(viewer));
-  ok("the hover highlight asks for its colour", /hex\?\.\("--skin-hover", 0x8ef6ff\)/.test(popup));
+  ok("the map's hover outline asks for its colour",
+    /hex\?\.\("--skin-hover-map", 0x8ef6ff\)/.test(popup));
   // A theme change moves no digit, so the clock's equality guard would skip
   // the redraw and leave it in the previous colour — for ever on a paused one.
   ok("and the clock is invalidated when the theme changes",
@@ -206,39 +207,59 @@ ok("and a received theme is applied without being re-announced",
   // from its own layer's legend, and overriding that is a theme overruling data.
   ok("a dataset label's own colour is not overridden",
     /label already takes its accent from its layer/.test(viewer));
+  /**
+   * THE ROW HOVER was a hard-coded violet in twenty places, which made it the
+   * one state identical in every theme — and it is the state a reader sees
+   * most often, so it was the first thing reported as "still the same".
+   */
+  // Comments stripped: the note explaining the hover quotes the violet it
+  // used to be, and prose is not a colour — the same reason the shelf-name
+  // and the ice-catalogue checks strip them.
+  const styles = read("GeoID_GIS/viewer/styles.css").replace(/\/\*[\s\S]*?\*\//g, "");
+  ok("the row hover is a token, not a violet literal",
+    !/190, ?120, ?255|#be78ff/.test(styles) && /--skin-hover-rgb/.test(styles));
   for (const t of ["crt", "pixel", "vector", "outrun", "beige", "hud"]) {
     const at = css.indexOf(`:root[data-skin="${t}"] {`);
     const block = css.slice(at, css.indexOf("}", at));
+    ok(`${t} gives the row hover its own colour`,
+      ["--skin-hover:", "--skin-hover-rgb:", "--skin-hover-ink:"].every((k) => block.includes(k)));
     ok(`${t} sets all three drawn-surface colours`,
-      ["--skin-clock:", "--skin-chip:", "--skin-hover:"].every((k) => block.includes(k)));
+      ["--skin-clock:", "--skin-chip:", "--skin-hover-map:"].every((k) => block.includes(k)));
   }
 }
 
 /**
- * THEME SOUNDS. Synthesised, so there is no asset and no licence, and the
- * click is defined beside the theme it belongs to.
+ * THEME SOUNDS, IN THE ONE SOUND SYSTEM.
+ *
+ * `ui-sound.js` was already here — on every viewer, enabled by default, with a
+ * hover tick, rate limiting, a control selector and a mute API. A second one
+ * beside it meant two clicks on one press and the reader hearing whichever
+ * fired first, which is exactly what "the sound is the same in every theme"
+ * turned out to be. The voices are a table in that file instead.
  */
 {
-  const sound = read("scripts/theme-sound.js");
-  const voices = [...sound.matchAll(/^    (\w+): \{ kind:/gm)].map((m) => m[1]);
-  ok("every theme but the default has a voice",
-    voices.join(",") === "crt,pixel,vector,outrun,beige,hud", voices.join(","));
-  // Sound is a thing a theme brings, not a thing the app starts doing to
-  // somebody who never asked for it.
-  ok("the default theme is silent", /return skin \? VOICES\[skin\] : null;/.test(sound));
-  ok("it is off until switched on", /getItem\(KEY\) === "on"/.test(sound));
-  ok("and the switch sits beside the picker",
-    /id=\\"gis-skin-sound\\" type=\\"checkbox\\"/.test(read("GeoID_GIS/viewer/gis/panels.js")));
-  // A click on the globe, a drag or a text selection must be silent, or the
-  // sound becomes the reason somebody turns it off.
-  ok("only controls make a sound",
-    /function isControl\(target\)/.test(sound) && /button, summary, a\[href\]/.test(sound));
-  // A browser refuses an AudioContext outside a gesture, and one made at load
-  // would leave a suspended context running for a reader who never asks.
-  ok("the audio context is made on the first click, not at load",
-    sound.indexOf("var ctx = null;") < sound.indexOf("function audio()"));
-  ok("the sound script is deferred, unlike the applier",
-    /theme-sound\.js" defer/.test(read("geohub/index.html")));
+  const sound = read("scripts/ui-sound.js");
+  const voices = [...sound.matchAll(/^    "?(\w+)"?: \{ hover:/gm)].map((m) => m[1]);
+  ok("every theme has a voice, and so does the default",
+    voices.join(",") === "default,crt,pixel,vector,outrun,beige,hud", voices.join(","));
+  ok("the voice is read from the theme on the root",
+    /getAttribute\("data-skin"\)/.test(sound) && /VOICES\[skin\]/.test(sound));
+  // The default entry is what this file always played, so a reader on the
+  // GeoHUB theme hears no change at all.
+  ok("the default voice is the one it always played",
+    /"default": \{ hover: \[2050, 0\.032, 0\.045, "sine"\]/.test(sound)
+    && /click: \[\[1350, 0\.055, 0\.13, "triangle"\], \[760, 0\.065, 0\.09, "square"\]\]/.test(sound));
+  ok("a click is a PAIR, which is what reads as a select rather than a beep",
+    /blip\(c\[0\]\[0\][\s\S]{0,80}blip\(c\[1\]\[0\]/.test(sound));
+  // One system, one switch.
+  ok("there is no second sound system", !fs.existsSync(path.join(root, "scripts/theme-sound.js")));
+  ok("and no page still asks for one",
+    !/theme-sound\.js/.test(read("geohub/index.html"))
+    && !/theme-sound\.js/.test(read("GeoID_GIS/viewer/index.html")));
+  ok("the switch drives the real one",
+    /gis-skin-sound[\s\S]{0,200}GeoIDUiSound\.setEnabled/.test(script));
+  ok("and reads its state back from it",
+    /soundBox\.checked = window\.GeoIDUiSound\.isEnabled\(\)/.test(script));
 }
 
 console.log(`${pass} passed`);

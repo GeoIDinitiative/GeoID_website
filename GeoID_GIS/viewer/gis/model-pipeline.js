@@ -2,8 +2,8 @@ import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
   nativeStepM,
-} from "./model-build.js?v=20260902-5a64b20";
-import { ringsFromCollection } from "./extraction.js?v=20260902-5a64b20";
+} from "./model-build.js?v=20260902-2bc5482";
+import { ringsFromCollection } from "./extraction.js?v=20260902-2bc5482";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -928,10 +928,10 @@ const STYLE = [
   "  width: 1.15rem; height: 1.15rem; border-radius: 999px; flex: 0 0 auto;",
   "  font: 700 0.62rem 'Exo 2','Segoe UI',sans-serif;",
   "  border: 1px solid rgba(var(--nav-accent-rgb, 255,43,214), 0.55);",
-  "  color: var(--skin-data, #52e4e8);",
+  "  color: var(--skin-data, var(--skin-data));",
   "}",
   ".gis-mb-step.is-done > summary .gis-mb-num {",
-  "  background: rgba(82, 228, 232, 0.22); color: var(--skin-data, #52e4e8);",
+  "  background: rgba(var(--skin-data-rgb), 0.22); color: var(--skin-data, var(--skin-data));",
   "}",
   ".gis-mb-step.is-blocked > summary { opacity: 0.55; }",
   ".gis-mb-blurb { margin: 0 0 0.3rem; opacity: 0.75; }",

@@ -11,9 +11,9 @@ import {
   vectorRows,
   extractDelimitedWithin,
   delimitedColumns,
-} from "./extraction.js?v=20260902-5a64b20";
-import { resolvePolygonRings, refreshPolygonOptions } from "./extent-picker.js?v=20260902-5a64b20";
-import { rectangleVertices } from "./draw-area.js?v=20260902-5a64b20";
+} from "./extraction.js?v=20260902-2bc5482";
+import { resolvePolygonRings, refreshPolygonOptions } from "./extent-picker.js?v=20260902-2bc5482";
+import { rectangleVertices } from "./draw-area.js?v=20260902-2bc5482";
 
 let lastResult = null;
 // The whole extraction as one object -- bounds, grid, vectors, clouds. This is
@@ -640,11 +640,11 @@ function exportAs(kind) {
 const STYLE = [
   ".gis-extract-group-title { font: 600 0.6rem 'Exo 2','Segoe UI',sans-serif;",
   "  letter-spacing: 0.07em; text-transform: uppercase;",
-  "  color: var(--skin-data, #52e4e8); margin: 0.45rem 0 0.15rem; }",
+  "  color: var(--skin-data, var(--skin-data)); margin: 0.45rem 0 0.15rem; }",
   ".gis-extract-fields { margin: 0.1rem 0 0.35rem 1.55rem; }",
   ".gis-extract-fields summary { cursor: pointer; font-size: 0.62rem;",
   "  letter-spacing: 0.07em; text-transform: uppercase;",
-  "  color: var(--skin-data, #52e4e8); opacity: 0.85; }",
+  "  color: var(--skin-data, var(--skin-data)); opacity: 0.85; }",
 ].join("\n");
 
 function init() {

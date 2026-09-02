@@ -12,7 +12,7 @@
 
 import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity, magnitudeColour,
-  activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, gdacsPoints } from "./event-sources.js?v=20260902-5a64b20";
+  activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, gdacsPoints } from "./event-sources.js?v=20260902-2bc5482";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -160,8 +160,8 @@ function stopWatchingRelief() {
  */
 const SYMBOLS = {
   wildfires: { colour: "#ff6b2c", glyph: "▲", label: "Wildfires" },
-  volcanoes: { colour: "#ff2bd6", glyph: "▲", label: "Volcanoes" },
-  severeStorms: { colour: "#52e4e8", glyph: "◉", label: "Severe storms" },
+  volcanoes: { colour: "var(--skin-chrome)", glyph: "▲", label: "Volcanoes" },
+  severeStorms: { colour: "var(--skin-data)", glyph: "◉", label: "Severe storms" },
   seaLakeIce: { colour: "#bfe9ff", glyph: "◆", label: "Sea and lake ice" },
   floods: { colour: "#2f6bff", glyph: "▬", label: "Floods" },
   drought: { colour: "#d8b26a", glyph: "▬", label: "Drought" },
@@ -1661,10 +1661,10 @@ function arrivalMarks(event, out, plot) {
   let pAt = null;
   if (p != null) {
     pAt = p;
-    marks.push({ t: p, label: "P", colour: "#52e4e8", dashed: false });
+    marks.push({ t: p, label: "P", colour: "var(--skin-data)", dashed: false });
   } else if (predicted?.inWindow) {
     pAt = predicted.p;
-    marks.push({ t: predicted.p, label: "P", colour: "#52e4e8" });
+    marks.push({ t: predicted.p, label: "P", colour: "var(--skin-data)" });
   }
 
   let sAt = null;
@@ -1672,15 +1672,15 @@ function arrivalMarks(event, out, plot) {
   if (sPicked != null) {
     sAt = sPicked;
     sMeasured = true;
-    marks.push({ t: sPicked, label: "S", colour: "#ff2bd6", dashed: false });
+    marks.push({ t: sPicked, label: "S", colour: "var(--skin-chrome)", dashed: false });
   } else if (pAt != null && expectedGap && inWindow(pAt + expectedGap)) {
     // Anchored to the P that was actually read, not to the model's own P:
     // relative timing survives everything absolute timing gets wrong.
     sAt = pAt + expectedGap;
-    marks.push({ t: sAt, label: "S", colour: "#ff2bd6" });
+    marks.push({ t: sAt, label: "S", colour: "var(--skin-chrome)" });
   } else if (predicted?.sInWindow) {
     sAt = predicted.s;
-    marks.push({ t: predicted.s, label: "S", colour: "#ff2bd6" });
+    marks.push({ t: predicted.s, label: "S", colour: "var(--skin-chrome)" });
   }
 
   const sp = p != null && sMeasured ? sAt - pAt : null;
@@ -1778,8 +1778,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260902-5a64b20"),
-    import("./research/dsp.js?v=20260902-5a64b20"),
+    import("./seismogram-plot.js?v=20260902-2bc5482"),
+    import("./research/dsp.js?v=20260902-2bc5482"),
   ]);
   if (stale()) return;
 

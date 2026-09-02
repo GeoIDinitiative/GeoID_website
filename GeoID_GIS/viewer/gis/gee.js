@@ -10,22 +10,22 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260902-5a64b20";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260902-5a64b20";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260902-5a64b20";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260902-2bc5482";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260902-2bc5482";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260902-2bc5482";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260902-5a64b20";
+  from "./view-extent.js?v=20260902-2bc5482";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260902-5a64b20";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260902-5a64b20";
+} from "./extent-picker.js?v=20260902-2bc5482";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260902-2bc5482";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
-} from "./gee-catalogue-index.js?v=20260902-5a64b20";
+} from "./gee-catalogue-index.js?v=20260902-2bc5482";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -925,18 +925,18 @@ function ensureGeeDialog() {
     "  border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.05);",
     "  color: inherit; font: 600 0.58rem/1.5 'Exo 2', sans-serif; letter-spacing: 0.07em;",
     "  text-transform: uppercase; cursor: pointer; }",
-    "#gee-add-chips button.is-on { background: var(--nav-accent, #ff2bd6);",
-    "  border-color: var(--nav-accent, #ff2bd6); color: #12040f; }",
+    "#gee-add-chips button.is-on { background: var(--nav-accent, var(--skin-chrome));",
+    "  border-color: var(--nav-accent, var(--skin-chrome)); color: #12040f; }",
     "#gee-add-list { flex: 1; min-height: 0; overflow-y: auto; display: flex;",
-    "  scrollbar-width: thin; scrollbar-color: rgba(82,228,232,0.38) transparent;",
+    "  scrollbar-width: thin; scrollbar-color: rgba(var(--skin-data-rgb),0.38) transparent;",
     "  flex-direction: column; gap: 0.3rem; padding-right: 0.2rem; }",
     "#gee-add-list .gee-card { text-align: left; width: 100%; cursor: pointer;",
     "  border: 1px solid rgba(255,255,255,0.14); border-radius: 0.6rem;",
     "  background: var(--skin-card-ground, rgb(24, 13, 47)); color: inherit; padding: 0.4rem 0.5rem;",
     "  display: flex; flex-direction: column; gap: 0.12rem; }",
-    "#gee-add-list .gee-card:hover { border-color: rgba(82,228,232,0.55); }",
-    "#gee-add-list .gee-card.is-on { border-color: var(--nav-accent, #ff2bd6);",
-    "  box-shadow: 0 0 0 1px var(--nav-accent, #ff2bd6) inset; }",
+    "#gee-add-list .gee-card:hover { border-color: rgba(var(--skin-data-rgb),0.55); }",
+    "#gee-add-list .gee-card.is-on { border-color: var(--nav-accent, var(--skin-chrome));",
+    "  box-shadow: 0 0 0 1px var(--nav-accent, var(--skin-chrome)) inset; }",
     "#gee-add-list .gee-card b { font: 600 0.7rem/1.3 'Exo 2', sans-serif; }",
     "#gee-add-list .gee-card code { font-size: 0.58rem; opacity: 0.72;",
     "  word-break: break-all; }",
@@ -944,9 +944,9 @@ function ensureGeeDialog() {
     "  letter-spacing: 0.08em; text-transform: uppercase; align-self: flex-start;",
     "  padding: 0 0.35rem; border-radius: 999px; border: 1px solid currentColor; }",
     "#gee-add-list .gee-card .gee-badge.is-cache { color: #4fd1a5; }",
-    "#gee-add-list .gee-card .gee-badge.is-live { color: #52e4e8; }",
+    "#gee-add-list .gee-card .gee-badge.is-live { color: var(--skin-data); }",
     "#gee-add-list::-webkit-scrollbar { width: 8px; }",
-    "#gee-add-list::-webkit-scrollbar-thumb { background: rgba(82,228,232,0.38);",
+    "#gee-add-list::-webkit-scrollbar-thumb { background: rgba(var(--skin-data-rgb),0.38);",
     "  border-radius: 4px; }",
     "#gee-add-list::-webkit-scrollbar-track { background: transparent; }",
     "#gee-add-list .gee-empty { font-size: 0.64rem; line-height: 1.45; opacity: 0.72;",
@@ -983,7 +983,7 @@ function ensureGeeDialog() {
     "#gee-add-status { font-size: 0.66rem; opacity: 0.85; min-height: 1em; }",
     "#gee-add-actions { display: flex; gap: 0.45rem; }",
     "#gee-add-actions .button { flex: 1; }",
-    "#gee-add-draw.is-on { background: var(--nav-accent, #ff2bd6); color: #12040f; }",
+    "#gee-add-draw.is-on { background: var(--nav-accent, var(--skin-chrome)); color: #12040f; }",
   ].join("\n");
   document.head.appendChild(style);
 
@@ -1343,7 +1343,7 @@ function paintMapBox() {
   // `visible` is not optional: drawLayer returns early without it, so the box
   // is computed, handed over and silently never painted.
   geeMap?.setLayers(mapBox
-    ? [{ type: "bbox", bbox: mapBox, colour: "#ff2bd6", opacity: 1, visible: true }]
+    ? [{ type: "bbox", bbox: mapBox, colour: "var(--skin-chrome)", opacity: 1, visible: true }]
     : []);
 }
 
@@ -1488,7 +1488,7 @@ async function openGeeDialog(homeName) {
   // The map is built on first open, never at module load: `createMap`
   // measures its host, and a host inside a hidden backdrop has no size.
   if (!geeMap) {
-    mapLibrary = mapLibrary || await import("./research/map2d.js?v=20260902-5a64b20");
+    mapLibrary = mapLibrary || await import("./research/map2d.js?v=20260902-2bc5482");
     const picker = byId("gee-add-basemap");
     picker.innerHTML = Object.keys(mapLibrary.BASEMAPS)
       .map((name) => `<option value="${name}">${name}</option>`).join("");
