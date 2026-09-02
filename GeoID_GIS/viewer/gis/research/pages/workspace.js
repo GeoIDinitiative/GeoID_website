@@ -1,8 +1,8 @@
-import { registerPage } from "../stages.js?v=20260902-792d638";
-import * as store from "../project-store.js?v=20260902-792d638";
-import * as bridge from "../bridge.js?v=20260902-792d638";
-import { currentBody } from "../../bodies.js?v=20260902-792d638";
-import { el } from "./common.js?v=20260902-792d638";
+import { registerPage } from "../stages.js?v=20260902-3bc353c";
+import * as store from "../project-store.js?v=20260902-3bc353c";
+import * as bridge from "../bridge.js?v=20260902-3bc353c";
+import { currentBody } from "../../bodies.js?v=20260902-3bc353c";
+import { el } from "./common.js?v=20260902-3bc353c";
 
 /**
  * The Workspace — the curated home of the analysis ecosystem.

@@ -29,8 +29,8 @@
 
 import {
   HOMES, grouped, addDataset, layerForDataset,
-} from "./global-data.js?v=20260902-792d638";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260902-792d638";
+} from "./global-data.js?v=20260902-3bc353c";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260902-3bc353c";
 
 const byId = (id) => document.getElementById(id);
 
@@ -171,19 +171,21 @@ function draw(home, hostId) {
         : addDataset(id, (message) => say(hostId, message));
     },
     remove: (id) => {
+      /**
+       * The untick IS the report, and the status is CLEARED on every path.
+       * A sentence naming the layer that has just gone restates what the empty
+       * box already says — and the line then sits there describing something
+       * no longer on the globe, which is worse than saying nothing. Cleared
+       * first, so a path that returns early cannot leave the last load's
+       * message standing over an empty list.
+       */
+      say(hostId, "");
       const tile = tiledById(id);
       if (tile) return tile.unload(tile.layerOf());
       if (gee?.owns(id)) return gee.remove(id);
       const layer = layerForDataset(id);
       if (!layer) return undefined;
       window.GeoIDImportManager?.removeLayer?.(layer.id);
-      /**
-       * The untick IS the report. A sentence naming the layer that has just
-       * gone restates what the empty box says, in a line that then sits there
-       * describing something no longer on the globe — so the status is cleared
-       * rather than written.
-       */
-      say(hostId, "");
       return undefined;
     },
     symbology: (layer) => {
