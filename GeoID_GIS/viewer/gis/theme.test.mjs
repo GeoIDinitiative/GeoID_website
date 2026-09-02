@@ -128,11 +128,27 @@ ok("and it is stamped without being stored",
   /stamp\(asked\(\) \|\| stored\(\)\)/.test(script)
   && !/setItem\([^)]*asked\(\)/.test(script));
 
+/**
+ * THE SHELL STAMPS ITSELF IN <head>, WHICH IS BEFORE ITS IFRAME EXISTS — so a
+ * `?skin=` on the shell had nothing to tell and the viewer came up in whatever
+ * it had stored. Measured exactly that way: a CRT shell around a default
+ * viewer. The frame asks on the way up; storage covers every other case.
+ */
+ok("a framed document asks its parent what the theme is",
+  /postMessage\(\{ type: "geoid:skin\?" \}/.test(script));
+ok("and the parent answers with what it is SHOWING, not what it stored",
+  /data\.type === "geoid:skin\?"[\s\S]*?skin: current\(\)/.test(script)
+  && /getAttribute\("data-skin"\) \|\| "default"/.test(script));
+// An answer must not overwrite the asker's own stored preference — a linked
+// theme is shown, not adopted.
+ok("an answered theme is applied without being stored",
+  /persist: false \}, "\*"\)/.test(script));
+
 ok("the message the two documents pass is one type",
   (script.match(/geoid:skin"/g) || []).length >= 2);
 // Two documents each telling the other is a loop.
 ok("and a received theme is applied without being re-announced",
-  /apply\(data\.skin, \{ tell: false \}\)/.test(script));
+  /apply\(data\.skin, \{ tell: false,/.test(script));
 
 console.log(`${pass} passed`);
 if (fail) console.log(`${fail} FAILED`);

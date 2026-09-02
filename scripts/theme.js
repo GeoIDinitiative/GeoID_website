@@ -119,13 +119,40 @@
   // The first stamp, before anything is painted.
   stamp(asked() || stored());
 
+  /** What this document is showing right now — the attribute is the truth. */
+  function current() {
+    return document.documentElement.getAttribute("data-skin") || "default";
+  }
+
   window.addEventListener("message", function (event) {
     var data = event && event.data;
-    if (!data || data.type !== "geoid:skin") return;
-    // Applied but NOT re-announced: two documents each telling the other is a
-    // loop, and they are already agreed by the time this runs.
-    apply(data.skin, { tell: false });
+    if (!data) return;
+    if (data.type === "geoid:skin") {
+      // Applied but NOT re-announced: two documents each telling the other is
+      // a loop, and they are already agreed by the time this runs.
+      apply(data.skin, { tell: false, persist: data.persist !== false });
+      return;
+    }
+    /**
+     * A FRAME ASKING WHAT THE THEME IS — and this is not belt and braces, it
+     * is the only thing that carries a `?skin=` across the iframe boundary.
+     * The shell stamps itself in <head>, which is BEFORE its iframe exists, so
+     * there is nothing to tell at that moment and the viewer would come up in
+     * whatever it had stored — measured, a `?skin=crt` shell around a default
+     * viewer. Storage covers the ordinary case; this covers the linked one.
+     */
+    if (data.type === "geoid:skin?" && event.source) {
+      try {
+        event.source.postMessage(
+          { type: "geoid:skin", skin: current(), persist: false }, "*");
+      } catch (error) { /* the frame went away mid-answer */ }
+    }
   });
+
+  // Ask on the way up, once, and only from inside a frame.
+  if (window.parent && window.parent !== window) {
+    try { window.parent.postMessage({ type: "geoid:skin?" }, "*"); } catch (error) { /* not ours */ }
+  }
 
   /**
    * A second tab is a second document with the same storage, so a theme
