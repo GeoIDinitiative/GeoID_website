@@ -287,6 +287,23 @@
 /* Shrinkable and wrapping. Fixed-width it simply ran off the right-hand edge:
    this row carries more than Qt's does (the GIS/Model/Research switch has no
    Qt equivalent), so it has to be able to fold. */
+/**
+ * THE MODE SWITCH LEADS THE HEADER.
+ *
+ * GIS / Model / Research is navigation between the three PAGES of the app, not
+ * one of this page's actions — parked mid-row it read as a sibling of Jobs and
+ * Alerts, which are drawers on the page you are already on. `order` puts it
+ * first and the auto margin keeps everything after it right-aligned, so the
+ * rule holds wherever `mode-manager` happens to drop the switcher into the
+ * slot and needs no change to the markup in either shell.
+ */
+#research-mode-slot {
+  order: -1;
+  margin-right: auto;
+  display: flex;
+  align-items: center;
+}
+
 .shell-actions {
   order: 1;
   flex: 1 1 100%;

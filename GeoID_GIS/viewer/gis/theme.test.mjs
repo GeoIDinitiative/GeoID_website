@@ -229,6 +229,25 @@ ok("and a received theme is applied without being re-announced",
 }
 
 /**
+ * THE MODE SWITCH LEADS THE HUB'S HEADER. It is navigation between the three
+ * PAGES of the app, and parked mid-row it read as a sibling of Jobs and Alerts
+ * — which are drawers on the page you are already on.
+ */
+{
+  const atlas = read("GeoID_GIS/viewer/gis/research/atlas.css");
+  ok("the mode slot is ordered first in the shell row",
+    /#research-mode-slot \{[\s\S]*?order: -1;/.test(atlas));
+  // The row is `justify-content: flex-end`, so the auto margin is what keeps
+  // everything after the switch right-aligned rather than dragging it left.
+  ok("and the rest of the row stays right-aligned",
+    /#research-mode-slot \{[\s\S]*?margin-right: auto;/.test(atlas));
+  // CSS rather than markup, so it holds in both shells and wherever
+  // `mode-manager` drops the switcher into the slot.
+  ok("done in CSS, so both shells get it without an edit",
+    /needs no change to the markup in either shell/.test(atlas));
+}
+
+/**
  * THE RESEARCH HUB UNDER A LIGHT THEME.
  *
  * Two faults, and both are about a token meaning one thing on a dark panel and
