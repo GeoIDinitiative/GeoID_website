@@ -140,54 +140,59 @@
     }
 
     /* ── Hero ────────────────────────────────────────── */
+    /* THE TILE IS THE DESTINATION. It used to be a round icon beside the name —
+       a badge of the very world the journey is toward, at a size that could
+       show nothing of it. The tile now carries an oblique of that body's own
+       surface, rendered from that body's own viewer by
+       GeoID_GIS/services/bake-hero-tiles.py, with the name on it. One column
+       now that the icon has gone. */
     .hero {
+      position: relative;
+      isolation: isolate;
       display: grid;
-      grid-template-columns: auto 1fr;
-      align-items: center;
+      grid-template-columns: 1fr;
+      align-items: end;
       gap: clamp(1.25rem, 4vw, 2rem);
+      min-height: clamp(8rem, 17vw, 12rem);
       /* Reduced top padding: the arrival line above now contributes its own
          height, so the old 1.4rem would push the card taller than before. */
       padding: 0.5rem clamp(1.25rem, 3vw, 2rem) clamp(1.2rem, 3vw, 1.8rem);
+      padding-top: clamp(3.5rem, 8vw, 5.5rem);
+      background-image: var(--hero-shot);
+      background-size: cover;
+      /* Biased DOWN, not centred. The tile is about 3.7:1 and the shots are
+         2.4:1, so `cover` throws away two fifths of the height — and centred
+         it throws away the wrong two fifths, keeping the band of sky and limb
+         and losing the surface the shot is of. */
+      background-position: center 68%;
+      background-repeat: no-repeat;
     }
 
-    /* Planet display */
-    .planet-wrap {
-      position: relative;
-      flex-shrink: 0;
-    }
-
-    .planet-sphere {
-      width: clamp(5.5rem, 13vw, 8.5rem);
-      height: clamp(5.5rem, 13vw, 8.5rem);
-      border-radius: 50%;
+    /* The scrim. A photograph is not a background colour, so the name cannot
+       rely on the card's palette to stay readable over it: the tile darkens
+       toward the bottom, where the words are, and is left alone at the top,
+       where the sky usually is. Painted in the content layer, so it covers the
+       picture while the positioned text still sits over it. */
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
       background:
-        radial-gradient(circle at 30% 28%, rgba(255,255,255,0.42), transparent 30%),
-        linear-gradient(135deg, var(--dest-a, #d78958), var(--dest-b, #7a3927));
-      box-shadow:
-        0 0 0 1px rgba(255,255,255,0.08),
-        0 0 40px var(--dest-glow, rgba(215,137,88,0.32)),
-        0 0 90px var(--dest-glow-far, rgba(215,137,88,0.12));
-      position: relative;
-      overflow: hidden;
-      /* no float animation */
-    }
-
-    .planet-sphere.has-image {
-      background: none;
-      box-shadow: none;     /* drop the coloured halo around image-based icons */
-      overflow: visible;
-    }
-
-    .planet-sphere.has-image img {
-      display: block;
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      /* no border-radius — would clip wide icons like Saturn's rings */
+        linear-gradient(to top,
+          rgba(4, 7, 16, 0.92) 0%,
+          rgba(4, 7, 16, 0.70) 38%,
+          rgba(4, 7, 16, 0.16) 72%,
+          rgba(4, 7, 16, 0.02) 100%);
     }
 
     /* Hero text */
-    .hero-text { min-width: 0; }
+    .hero-text {
+      min-width: 0;
+      position: relative;
+      z-index: 1;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85), 0 8px 26px rgba(0, 0, 0, 0.6);
+    }
 
     .dest-tag { display: none; }
 
@@ -202,6 +207,15 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
+      /* A DROP-SHADOW, not a text-shadow. The fill is a gradient clipped to the
+         glyphs with `-webkit-text-fill-color: transparent`, so a text-shadow
+         paints a solid slab of the letter shapes behind them; `filter` follows
+         the rendered alpha instead. It is needed now the name sits on a
+         photograph — Saturn's cloud deck is nearly as light as the title. */
+      text-shadow: none;
+      filter:
+        drop-shadow(0 2px 3px rgba(0, 0, 0, 0.9))
+        drop-shadow(0 10px 28px rgba(0, 0, 0, 0.55));
     }
 
     .dest-sub {
@@ -395,13 +409,11 @@
 
       /* Hero: stack planet above text */
       .hero {
-        grid-template-columns: 1fr;
         gap: 0.75rem;
-        padding: 1rem 1rem 1rem;
+        padding: 2.5rem 1rem 1rem;
         padding-right: 1rem;
+        min-height: 7rem;
       }
-      .planet-wrap { display: flex; justify-content: center; }
-      .planet-sphere { width: 5.5rem; height: 5.5rem; }
 
       /* Stats: 2-col then full-width third */
       .stats { grid-template-columns: 1fr 1fr; }
@@ -444,11 +456,10 @@
       }
       .logo-img { width: 5.5rem !important; height: 5.5rem !important; top: 0.4rem; right: 0.5rem; }
       .hero {
-        grid-template-columns: 5.5rem 1fr;
         gap: 0.7rem;
-        padding: 0.6rem 0.8rem 0.6rem !important;
+        padding: 1.9rem 0.8rem 0.6rem !important;
+        min-height: 0 !important;
       }
-      .planet-sphere { width: 4.5rem !important; height: 4.5rem !important; }
       .dest-title { font-size: clamp(1.6rem, 7vw, 2.4rem) !important; line-height: 1 !important; }
       .hero-eyebrow, .arrival-eyebrow { font-size: 0.55rem !important; }
       .arrival-value { font-size: 0.75rem !important; }
@@ -556,11 +567,6 @@
       </div>
 
       <div class="hero">
-        <div class="planet-wrap">
-          <div class="planet-sphere has-image" id="planet-sphere">
-            <img id="planet-img" src="" alt="" loading="lazy" decoding="async">
-          </div>
-        </div>
         <div class="hero-text">
           <div class="dest-tag">Destination</div>
           <h1 class="dest-title" id="dest-title">—</h1>
@@ -619,63 +625,63 @@
       mercury: {
         name: "Mercury", km: 91600000, lightYears: 0.00000968, etaDays: 147,
         target: "/planet_explorer/mercury/viewer/",
-        colors: ["#c7b8a3", "#6d6259"], glow: "rgba(199,184,163,0.4)", glowFar: "rgba(199,184,163,0.14)",
-        ringed: false, icon: "/assets/mercury_icon.png"
+        shot: "/assets/hero/mercury.jpg",
+        icon: "/assets/mercury_icon.png"
       },
       venus: {
         name: "Venus", km: 41400000, lightYears: 0.00000438, etaDays: 109,
         target: "/planet_explorer/venus/viewer/",
-        colors: ["#e6c48e", "#9e6f3f"], glow: "rgba(230,196,142,0.4)", glowFar: "rgba(230,196,142,0.14)",
-        ringed: false, icon: "/assets/venus_icon.png"
+        shot: "/assets/hero/venus.jpg",
+        icon: "/assets/venus_icon.png"
       },
       earth: {
         name: "ISS", subtitle: "International Space Station",
         km: 408, lightYears: 0.0000000000431, etaDays: 0.25,
         target: "/earth_explorer/",
-        colors: ["#b0d0f0", "#4a6e99"], glow: "rgba(100,180,255,0.4)", glowFar: "rgba(100,180,255,0.14)",
-        ringed: false, icon: "/assets/ISS_icon.png", originLabel: "Earth"
+        shot: "/assets/hero/earth.jpg",
+        icon: "/assets/ISS_icon.png", originLabel: "Earth"
       },
       moon: {
         name: "Moon", km: 384400, lightYears: 0.0000000406, etaDays: 3,
         target: "/planet_explorer/moon/viewer/",
-        colors: ["#d4d0c8", "#7a7770"], glow: "rgba(212,208,200,0.4)", glowFar: "rgba(212,208,200,0.14)",
-        ringed: false, icon: "/assets/moon_icon.png", originLabel: "Earth"
+        shot: "/assets/hero/moon.jpg",
+        icon: "/assets/moon_icon.png", originLabel: "Earth"
       },
       mars: {
         name: "Mars", km: 225000000, lightYears: 0.000024, etaDays: 222,
         target: "/planet_explorer/mars/viewer/index.html",
-        colors: ["#d78958", "#7a3927"], glow: "rgba(215,137,88,0.38)", glowFar: "rgba(215,137,88,0.13)",
-        ringed: false, icon: "/assets/mars_icon.png"
+        shot: "/assets/hero/mars.jpg",
+        icon: "/assets/mars_icon.png"
       },
       jupiter: {
         name: "Jupiter", km: 628700000, lightYears: 0.00006645, etaDays: 730,
         target: "/planet_explorer/jupiter/viewer/",
-        colors: ["#dbc197", "#8f6038"], glow: "rgba(219,193,151,0.36)", glowFar: "rgba(219,193,151,0.12)",
-        ringed: false, icon: "/assets/jupiter_icon.png"
+        shot: "/assets/hero/jupiter.jpg",
+        icon: "/assets/jupiter_icon.png"
       },
       saturn: {
         name: "Saturn", km: 1275000000, lightYears: 0.00013475, etaDays: 2555,
         target: "/planet_explorer/saturn/viewer/",
-        colors: ["#efd2a4", "#9a7147"], glow: "rgba(239,210,164,0.36)", glowFar: "rgba(239,210,164,0.12)",
-        ringed: true, icon: "/assets/saturn_icon.png"
+        shot: "/assets/hero/saturn.jpg",
+        icon: "/assets/saturn_icon.png"
       },
       uranus: {
         name: "Uranus", km: 2724000000, lightYears: 0.0002879, etaDays: 3285,
         target: "/planet_explorer/uranus/viewer/",
-        colors: ["#b9ecff", "#5a9cb9"], glow: "rgba(132,216,255,0.38)", glowFar: "rgba(132,216,255,0.13)",
-        ringed: true, icon: "/assets/uranus_icon.png"
+        shot: "/assets/hero/uranus.jpg",
+        icon: "/assets/uranus_icon.png"
       },
       neptune: {
         name: "Neptune", km: 4351000000, lightYears: 0.00045983, etaDays: 4380,
         target: "/planet_explorer/neptune/viewer/",
-        colors: ["#5994ff", "#264e9d"], glow: "rgba(89,148,255,0.38)", glowFar: "rgba(89,148,255,0.13)",
-        ringed: true, icon: "/assets/neptune_icon.png"
+        shot: "/assets/hero/neptune.jpg",
+        icon: "/assets/neptune_icon.png"
       },
       pluto: {
         name: "Pluto", km: 5906000000, lightYears: 0.000624, etaDays: 5840,
         target: "/planet_explorer/pluto/viewer/",
-        colors: ["#c39b72", "#7a5c3a"], glow: "rgba(195,155,114,0.36)", glowFar: "rgba(195,155,114,0.12)",
-        ringed: false, icon: "/assets/pluto_icon.png"
+        shot: "/assets/hero/pluto.jpg",
+        icon: "/assets/pluto_icon.png"
       }
     };
 
@@ -703,13 +709,10 @@
     document.getElementById("dest-icon").src          = dest.icon;
     if (dest.originLabel) document.getElementById("origin-label").textContent = dest.originLabel;
 
-    // Planet graphic
-    const sphere = document.getElementById("planet-sphere");
-    const planetImg = document.getElementById("planet-img");
-    planetImg.src = dest.icon;
-    planetImg.alt = dest.name;
-    sphere.style.setProperty("--dest-glow", dest.glow);
-    sphere.style.setProperty("--dest-glow-far", dest.glowFar);
+    // The tile IS the destination now: an oblique of the body you are on your
+    // way to, rendered from that body's own viewer.
+    document.querySelector(".hero").style.setProperty(
+      "--hero-shot", `url("${dest.shot}")`);
 
     // Logo path: derive from destination if a planet viewer exists, else Mars fallback
     const logoViewers = { mars:"mars", saturn:"saturn", jupiter:"jupiter", mercury:"mercury", venus:"venus", uranus:"uranus", neptune:"neptune", pluto:"pluto" };

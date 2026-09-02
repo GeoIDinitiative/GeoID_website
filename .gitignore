@@ -15,6 +15,10 @@ planet_explorer/old/
 planet_explorer/good/
 planet_explorer/.~lock.*
 moon.jpg
+# ...but that bare pattern matches EVERY moon.jpg in the tree, and it
+# silently swallowed the Moon's baked hero tile — the file was on disk,
+# the bake reported it, and it simply never reached a commit.
+!assets/hero/moon.jpg
 /music/
 *.orig
 
