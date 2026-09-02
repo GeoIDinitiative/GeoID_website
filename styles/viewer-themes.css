@@ -94,6 +94,18 @@
   --skin-display: "Orbitron", "Segoe UI", sans-serif;
   --skin-body: "Exo 2", "Segoe UI", sans-serif;
   --skin-round: 1;            /* radius multiplier: 0 squares the whole UI */
+
+  /* ── The two OPAQUE grounds ──────────────────────────────────────────
+     A tab body and a sub-tab card are filled solid rather than tinted,
+     because `#ui` paints a vertical gradient and the same translucent fill
+     composites differently at the top of the column and at the foot — the
+     fault that had two identical cards reading as different colours. Both
+     were written out as literals in seven modules, so no theme could reach
+     them: measured under the beige skin, `rgb(16, 7, 36)` was still sitting
+     behind every tab body on a grey panel. The defaults here are those
+     measured values exactly, so the default theme is unchanged. */
+  --skin-tab-ground: rgb(16, 7, 36);
+  --skin-card-ground: rgb(24, 13, 47);
 }
 
 /* Consumed here rather than in every page's own stylesheet, on the class
@@ -131,6 +143,8 @@
   --skin-vignette: 8, 5, 11;
   --skin-display: "Exo 2", "Segoe UI", sans-serif;
   --skin-body: "Exo 2", "Segoe UI", sans-serif;
+  --skin-tab-ground: rgb(20, 14, 27);
+  --skin-card-ground: rgb(30, 21, 40);
 }
 /* The marquee face belongs to the SIGN and nowhere else. */
 :root[data-skin="cabinet"] .brand-title {
@@ -178,6 +192,8 @@
   --skin-vignette: 2, 6, 4;
   --skin-display: "VT323", monospace;
   --skin-body: "VT323", monospace;
+  --skin-tab-ground: rgb(4, 12, 8);
+  --skin-card-ground: rgb(7, 20, 13);
 }
 /* VT323 is a small face at any given size: without this the whole UI reads
    a size down from every other theme. */
@@ -212,6 +228,8 @@
   --skin-display: "Press Start 2P", monospace;
   --skin-body: "Exo 2", "Segoe UI", sans-serif;
   --skin-round: 0;
+  --skin-tab-ground: rgb(18, 18, 43);
+  --skin-card-ground: rgb(38, 38, 87);
 }
 /* Press Start 2P is enormous per character; the display role is titles
    only, and they need pulling back to fit the same rows. */
@@ -261,6 +279,8 @@
   --skin-vignette: 0, 0, 0;
   --skin-display: "Orbitron", sans-serif;
   --skin-body: "Orbitron", "Exo 2", sans-serif;
+  --skin-tab-ground: rgb(0, 0, 0);
+  --skin-card-ground: rgb(6, 10, 12);
 }
 :root[data-skin="vector"] body { letter-spacing: 0.06em; }
 /* Outlined, never filled: the ground stays black and the stroke does the
@@ -295,6 +315,8 @@
   --skin-vignette: 10, 2, 24;
   --skin-display: "Orbitron", sans-serif;
   --skin-body: "Exo 2", "Segoe UI", sans-serif;
+  --skin-tab-ground: rgb(24, 5, 48);
+  --skin-card-ground: rgb(38, 9, 66);
 }
 :root[data-skin="outrun"] .control-section,
 :root[data-skin="outrun"] .gis-tool-section {
@@ -328,6 +350,8 @@
   --skin-vignette: 223, 223, 223;
   --skin-display: "IBM Plex Sans", "Segoe UI", sans-serif;
   --skin-body: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --skin-tab-ground: rgb(195, 195, 195);
+  --skin-card-ground: rgb(223, 223, 223);
 }
 /* Panels are RAISED, not lit. */
 :root[data-skin="beige"] .control-section,
@@ -420,6 +444,8 @@
   --skin-vignette: 2, 8, 14;
   --skin-display: "Orbitron", sans-serif;
   --skin-body: "Rajdhani", "Exo 2", sans-serif;
+  --skin-tab-ground: rgb(5, 15, 23);
+  --skin-card-ground: rgb(9, 26, 38);
 }
 /* Rajdhani is narrow and small on the body size the site is set at. */
 :root[data-skin="hud"] body { font-size: 1.05em; letter-spacing: 0.03em; }

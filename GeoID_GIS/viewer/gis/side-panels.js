@@ -532,7 +532,7 @@ body[data-hub-armed="true"] .map-legend {
  *
  * The cards were translucent white (3%) over the panel — and the panel is a
  * VERTICAL GRADIENT, light at the top and dark at the foot. Measured: an
- * events card sits 275 px down the panel and renders about rgb(24,13,47);
+ * events card sits 275 px down the panel and renders about var(--skin-card-ground, rgb(24, 13, 47));
  * an Explorer card sits 698 px down, past the gradient's dark end, and
  * renders about rgb(17,9,32). Same rule, same computed style, visibly
  * different colour — which is why every property comparison said MATCHES
@@ -541,7 +541,7 @@ body[data-hub-armed="true"] .map-legend {
  * column and at the bottom. */
 .gis-tool-section,
 .control-section:not(.toolbox-group) {
-  background: rgb(24, 13, 47) !important;
+  background: var(--skin-card-ground, rgb(24, 13, 47)) !important;
 }
 /* The BODY behind the cards is the same story: left transparent it shows
    the panel gradient at whatever depth the tab happens to sit — measured,
@@ -555,7 +555,7 @@ body[data-hub-armed="true"] .map-legend {
    Settings), which were left transparent and so rode the gradient too. */
 .gis-side-panel-body,
 .layer-dock-body {
-  background: rgb(16, 7, 36) !important;
+  background: var(--skin-tab-ground, rgb(16, 7, 36)) !important;
 }
 .control-section:not(.toolbox-group) {
   border: 1px solid rgba(var(--nav-accent-rgb), 0.18) !important;

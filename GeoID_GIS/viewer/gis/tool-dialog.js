@@ -39,9 +39,9 @@
  * law is honoured by having nothing to exempt.
  */
 
-import { prefs, mergeParams } from "./tool-prefs.js?v=20260902-f8f71a8";
+import { prefs, mergeParams } from "./tool-prefs.js?v=20260902-83b7c03";
 
-const RUNNER_URL = "./tool-runner.js?v=20260902-f8f71a8";
+const RUNNER_URL = "./tool-runner.js?v=20260902-83b7c03";
 
 /* ── Dialog-only styles, injected as the house pattern dictates.
       NEVER a backtick inside this literal — it ends the string and kills the
@@ -78,7 +78,7 @@ const STYLE = `
   padding: 0.38rem 0.5rem;
   border-radius: 0.45rem;
   border: 1px solid rgba(var(--nav-accent-rgb), 0.28);
-  background: rgb(16, 7, 36);
+  background: var(--skin-tab-ground, rgb(16, 7, 36));
   color: var(--text);
   font: 500 0.74rem/1.3 'Exo 2', sans-serif;
   color-scheme: dark;

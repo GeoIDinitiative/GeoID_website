@@ -123,7 +123,7 @@ const STYLE = `
      sheet over the globe, so a translucent card renders whatever imagery
      happens to be under it -- a different colour over ocean than over ice,
      and never the colour the sub-tab cards are. Same fix, same value. */
-  background: rgb(24, 13, 47);
+  background: var(--skin-card-ground, rgb(24, 13, 47));
   overflow: hidden;
 }
 /* Filled is OPEN, everywhere in this GUI: the rail buttons, the nav tabs and
@@ -143,7 +143,7 @@ const STYLE = `
 #map-legend-panel .legend-entry:not(.is-folded) > .legend-entry-head * { color: inherit; }
 #map-legend-panel .legend-entry-body {
   /* A shade under the cards, so the tile still reads as raised off it. */
-  background: rgb(16, 7, 36);
+  background: var(--skin-tab-ground, rgb(16, 7, 36));
   padding: 0.6rem 0.78rem 0.66rem;
 }
 #map-legend-panel .legend-entry + .legend-entry { margin-top: 0.45rem; border-top-width: 1px; }
@@ -164,7 +164,7 @@ const STYLE = `
   padding: 0.55rem;
   border: 1px solid rgba(var(--nav-accent-rgb), 0.34);
   border-radius: 0.6rem;
-  background: rgb(16, 7, 36);
+  background: var(--skin-tab-ground, rgb(16, 7, 36));
   box-shadow:
     0 0 22px -10px rgba(var(--nav-accent-rgb), 0.5),
     0 12px 28px rgba(0, 0, 0, 0.45);

@@ -34,7 +34,7 @@ const STYLE = `
   bottom: 5.6rem; z-index: 24;
   display: flex; align-items: center; gap: 0.55rem;
   padding: 0.45rem 0.7rem;
-  background: rgb(16, 7, 36);
+  background: var(--skin-tab-ground, rgb(16, 7, 36));
   border: 1px solid rgba(var(--nav-accent-rgb), 0.55);
   border-radius: 0.78rem;
   box-shadow: 0 0 18px rgba(var(--nav-accent-rgb), 0.22);

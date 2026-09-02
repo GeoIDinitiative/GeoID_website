@@ -24,7 +24,7 @@
  * tiled geology already documents.
  */
 
-import { splitLine } from "./delimited.js?v=20260902-f8f71a8";
+import { splitLine } from "./delimited.js?v=20260902-83b7c03";
 
 const byId = (id) => document.getElementById(id);
 
@@ -275,7 +275,7 @@ const STYLE = `
 }
 #gis-table-body th {
   position: sticky; top: 0; z-index: 1;
-  background: rgb(24, 13, 47);
+  background: var(--skin-card-ground, rgb(24, 13, 47));
   font: 600 0.6rem/2.1 'Exo 2', sans-serif; letter-spacing: 0.07em;
   text-transform: uppercase; padding: 0 0.5rem; text-align: left;
 }
@@ -291,7 +291,7 @@ const STYLE = `
 #gis-table-body tr:nth-child(even) td { background: rgba(255, 255, 255, 0.02); }
 #gis-table-body td.tbl-rownum {
   padding: 0 0.45rem; font: 400 0.58rem/1.9 'Exo 2', sans-serif;
-  opacity: 0.5; text-align: right; background: rgb(16, 7, 36);
+  opacity: 0.5; text-align: right; background: var(--skin-tab-ground, rgb(16, 7, 36));
   position: sticky; left: 0;
 }
 #gis-table-body th.tbl-rownum { position: sticky; left: 0; z-index: 2; }

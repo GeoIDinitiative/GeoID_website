@@ -10,22 +10,22 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260902-f8f71a8";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260902-f8f71a8";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260902-f8f71a8";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260902-83b7c03";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260902-83b7c03";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260902-83b7c03";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260902-f8f71a8";
+  from "./view-extent.js?v=20260902-83b7c03";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260902-f8f71a8";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260902-f8f71a8";
+} from "./extent-picker.js?v=20260902-83b7c03";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260902-83b7c03";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
-} from "./gee-catalogue-index.js?v=20260902-f8f71a8";
+} from "./gee-catalogue-index.js?v=20260902-83b7c03";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -932,7 +932,7 @@ function ensureGeeDialog() {
     "  flex-direction: column; gap: 0.3rem; padding-right: 0.2rem; }",
     "#gee-add-list .gee-card { text-align: left; width: 100%; cursor: pointer;",
     "  border: 1px solid rgba(255,255,255,0.14); border-radius: 0.6rem;",
-    "  background: rgb(24, 13, 47); color: inherit; padding: 0.4rem 0.5rem;",
+    "  background: var(--skin-card-ground, rgb(24, 13, 47)); color: inherit; padding: 0.4rem 0.5rem;",
     "  display: flex; flex-direction: column; gap: 0.12rem; }",
     "#gee-add-list .gee-card:hover { border-color: rgba(82,228,232,0.55); }",
     "#gee-add-list .gee-card.is-on { border-color: var(--nav-accent, #ff2bd6);",
@@ -954,7 +954,7 @@ function ensureGeeDialog() {
     "#gee-add-list .gee-group { font: 600 0.55rem/1.6 'Exo 2', sans-serif;",
     "  letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.6;",
     "  padding: 0.5rem 0.2rem 0.1rem; position: sticky; top: 0;",
-    "  background: rgb(16, 7, 36); z-index: 1; }",
+    "  background: var(--skin-tab-ground, rgb(16, 7, 36)); z-index: 1; }",
     "#gee-add-list .gee-group:first-child { padding-top: 0; }",
     "#gee-add-list .gee-card small { font-size: 0.58rem; opacity: 0.66; }",
     "#gee-add-list .gee-card .gee-badge.is-cat { color: #9aa7ff; }",
@@ -964,7 +964,7 @@ function ensureGeeDialog() {
     "  font-weight: 400; font-size: 0.62rem; opacity: 0.8; cursor: pointer; }",
     "#gee-add-card .gee-tick input { flex: 0 0 auto; }",
     "#gee-add-map { flex: 1; min-height: 8rem; border-radius: 0.6rem; overflow: hidden;",
-    "  border: 1px solid rgba(255,255,255,0.14); background: rgb(16, 7, 36); position: relative; }",
+    "  border: 1px solid rgba(255,255,255,0.14); background: var(--skin-tab-ground, rgb(16, 7, 36)); position: relative; }",
     "#gee-add-map canvas { display: block; width: 100%; height: 100%; }",
     "#gee-add-card label { display: flex; flex-direction: column; gap: 0.18rem;",
     "  font: 600 0.6rem/1.4 'Exo 2', sans-serif; letter-spacing: 0.07em;",
@@ -1488,7 +1488,7 @@ async function openGeeDialog(homeName) {
   // The map is built on first open, never at module load: `createMap`
   // measures its host, and a host inside a hidden backdrop has no size.
   if (!geeMap) {
-    mapLibrary = mapLibrary || await import("./research/map2d.js?v=20260902-f8f71a8");
+    mapLibrary = mapLibrary || await import("./research/map2d.js?v=20260902-83b7c03");
     const picker = byId("gee-add-basemap");
     picker.innerHTML = Object.keys(mapLibrary.BASEMAPS)
       .map((name) => `<option value="${name}">${name}</option>`).join("");

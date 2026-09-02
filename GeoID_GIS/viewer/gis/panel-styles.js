@@ -178,7 +178,7 @@ body.is-embedded[data-hub-armed="true"] #gmt-clock {
   padding: 0.38rem 0.5rem;
   border-radius: 0.45rem;
   border: 1px solid rgba(var(--nav-accent-rgb), 0.28);
-  background: rgb(16, 7, 36);
+  background: var(--skin-tab-ground, rgb(16, 7, 36));
   color: var(--text);
   font: 500 0.74rem/1.3 'Exo 2', sans-serif;
   color-scheme: dark;

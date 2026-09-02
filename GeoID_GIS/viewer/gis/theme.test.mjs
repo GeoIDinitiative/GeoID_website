@@ -45,7 +45,11 @@ ok("the default is a no-op, not a sixth palette",
 // Every theme must restate the whole palette: a block that sets the chrome and
 // forgets the ground inherits half of the previous theme.
 const TOKENS = ["--skin-chrome:", "--skin-chrome-rgb:", "--skin-data:", "--skin-data-rgb:",
-  "--skin-bg:", "--skin-panel:", "--skin-ink:", "--skin-muted:", "--skin-vignette:"];
+  "--skin-bg:", "--skin-panel:", "--skin-ink:", "--skin-muted:", "--skin-vignette:",
+  // The two OPAQUE grounds. A theme that forgets them keeps the previous
+  // theme's ground behind every tab body — measured under the beige skin,
+  // `rgb(16, 7, 36)` was still sitting on a grey panel.
+  "--skin-tab-ground:", "--skin-card-ground:"];
 for (const id of blocks) {
   const at = css.indexOf(`:root[data-skin="${id}"] {`);
   const block = css.slice(at, css.indexOf("}", at));
@@ -134,6 +138,15 @@ ok("no chrome literal survives in a shell RULE",
 for (const p of ["GeoID_GIS/viewer/styles.css", "GeoID_GIS/viewer/gis/shell.css"]) {
   ok(`${p.split("/").pop()} has no data-colour literal left`,
     !/#52e4e8|82,\s*228,\s*232/.test(read(p)));
+}
+// And the two opaque grounds were literals in seven MODULES, which is why a
+// light theme still had a purple-black card in it.
+for (const p of ["gis/legend-dock.js", "gis/side-panels.js", "gis/table-editor.js",
+  "gis/panel-styles.js", "gis/tool-dialog.js", "gis/timelapse-player.js", "gis/gee.js"]) {
+  const src = read(`GeoID_GIS/viewer/${p}`);
+  ok(`${p.split("/").pop()} reads the grounds as tokens`,
+    !/rgb\(16, ?7, ?36\)(?!\))/.test(src.replace(/var\(--skin-\w+-ground, [^)]+\)\)/g, ""))
+    && !/rgb\(24, ?13, ?47\)(?!\))/.test(src.replace(/var\(--skin-\w+-ground, [^)]+\)\)/g, "")));
 }
 
 /**
