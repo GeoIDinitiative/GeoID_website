@@ -56,6 +56,18 @@ body.fs-preflight .gis-planet-dock { display: none !important; }
    the bottom are the instrumentation that matters here. */
 body.fs-flying #map-legend,
 body.fs-preflight #map-legend { display: none !important; }
+/* MUSIC GOES UP INTO THE CORNER — again only when the viewer is framed. Its
+   3.6rem top is clearance for Return Home, which sits at y=20 directly above
+   it; standalone that link is still there in flight and moving the button up
+   would land it on top. Framed, the shell provides Return Home and the page
+   drops it (measured: display none), so the corner is empty and the button
+   was left hanging below a gap.
+   No `!important`: at 1080px and under, the page's own media query pins this
+   button beside the panel with one, and that layout should keep its own
+   answer. Plain specificity beats the base rule everywhere else and yields
+   there, which is the behaviour wanted at both ends. */
+body.is-embedded.fs-flying #music-btn,
+body.is-embedded.fs-preflight #music-btn { top: 1rem; }
 /* ENTER — the flight mode entry. A glowing action button, not a tickbox:
    entering flight is a mode change, not a layer you switch on. */
 /* The flight section sits OUTSIDE the wrapper that gives the other sections
