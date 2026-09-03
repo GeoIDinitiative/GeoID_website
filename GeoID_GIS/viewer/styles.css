@@ -1514,6 +1514,19 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
     }
 
     .scene-popup-close {
+      /*
+       * z-index, or the X cannot be clicked at all.
+       *
+       * The kicker is a full-width static paragraph that runs under the
+       * button's corner, and it wins the hit test: measured, the card's own
+       * close button reported #scene-popup-kicker as the topmost element at
+       * its centre, so a real click landed on the eyebrow text and the card
+       * would not shut. Only ever reachable by keyboard before this.
+       *
+       * The padding-right below keeps a long kicker from running under the
+       * glyph as well -- clickable is not the same as legible.
+       */
+      z-index: 1;
       position: absolute;
       top: 0.45rem;
       right: 0.6rem;
@@ -1530,6 +1543,10 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
     .scene-popup-close:hover {
       color: var(--text);
       background: rgba(var(--nav-accent-rgb), 0.12);
+    }
+
+    #scene-popup .feature-kicker {
+      padding-right: 1.8rem;
     }
 
     .scene-popup-anchor {
