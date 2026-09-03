@@ -29,7 +29,7 @@
  */
 
 import { startPlayer, stopPlayer, datasetForYear, seasonFor }
-  from "./timelapse-player.js?v=20260903-ba10aaf";
+  from "./timelapse-player.js?v=20260903-661eb1e";
 
 export { stopPlayer as stopImageryTimelapse };
 

@@ -10,24 +10,24 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-ba10aaf";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260903-ba10aaf";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260903-ba10aaf";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-661eb1e";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260903-661eb1e";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260903-661eb1e";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260903-ba10aaf";
+  from "./view-extent.js?v=20260903-661eb1e";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260903-ba10aaf";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-ba10aaf";
+} from "./extent-picker.js?v=20260903-661eb1e";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-661eb1e";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
   freshness, isNewDataset, isExtendedDataset, indexedHrefs, bakedOn,
-} from "./gee-catalogue-index.js?v=20260903-ba10aaf";
-import { checkCatalogue, describeCheck } from "./gee-watch.js?v=20260903-ba10aaf";
+} from "./gee-catalogue-index.js?v=20260903-661eb1e";
+import { checkCatalogue, describeCheck } from "./gee-watch.js?v=20260903-661eb1e";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -1276,7 +1276,9 @@ function renderGeeList() {
     // This app's own are matched against the SAME index entry the catalogue
     // half reads, so a curated dataset whose collection gained imagery is
     // marked as such rather than being exempt for being ours.
-    if (freshFilter && !isFresh(datasetById(entry.id))) return false;
+    if (freshFilter && !isFresh(datasetById(entry.id), entry.source === "cache")) {
+      return false;
+    }
     if (homeFilter && geeHomeOf(entry.id) !== homeFilter) return false;
     if (!needle) return true;
     return `${entry.label} ${entry.id}`.toLowerCase().includes(needle);
@@ -1348,9 +1350,24 @@ function renderGeeList() {
   });
 }
 
-/** New, or newly extended. Tolerates an id the index does not carry. */
-function isFresh(entry) {
-  return Boolean(entry) && (isNewDataset(entry) || isExtendedDataset(entry));
+/**
+ * New, or newly extended. Tolerates an id the index does not carry.
+ *
+ * ONE READING, used by the filter and by the badge alike. They were two for a
+ * few minutes and the strip said so immediately: under the New filter, three
+ * offline-snapshot tiles stood in the list wearing no badge to say why they
+ * were there, because the badge excluded a cached entry and the filter did
+ * not. A tile in a filtered list that cannot say what it is doing there is the
+ * filter lying about its own contents.
+ *
+ * Cached is the exclusion that matters. `requestFromCache` drapes a PNG that
+ * shipped with the site, and no amount of imagery reaching Google's servers
+ * moves a file on disk — so "this collection gained imagery" is true of the
+ * dataset and false of the thing this tile will actually add.
+ */
+function isFresh(entry, cached = false) {
+  if (!entry || cached) return false;
+  return isNewDataset(entry) || isExtendedDataset(entry);
 }
 
 function groupHeading(text) {
@@ -1377,9 +1394,7 @@ function curatedCard(entry) {
   // shipped snapshot, so it gains imagery like any other and says so. A cached
   // one never does: what it drapes is a PNG on disk, which no re-bake moves.
   const record = datasetById(entry.id);
-  if (!cached && isExtendedDataset(record)) {
-    card.prepend(badge("New imagery", "is-new"));
-  }
+  if (isFresh(record, cached)) card.prepend(badge("New imagery", "is-new"));
   card.title = entry.title;
   /**
    * WHAT THE DATASET IS, from Google's own record.
