@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260903-d94308a";
+  from "./gis/geo-utils.js?v=20260903-83171fb";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260903-d94308a";
+  from "./gis/vector-render.js?v=20260903-83171fb";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260903-d94308a";
+  from "./gis/rock-class.js?v=20260903-83171fb";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260903-d94308a";
+  from "./gis/lithology-label.js?v=20260903-83171fb";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -13149,7 +13149,29 @@ function fmtProp(value) {
         };
       }
       function getActiveZoomContext() {
-        if (coreToggle.checked) return null;
+        /**
+         * CORE VIEW ZOOMS, and returning null here is why it did not.
+         *
+         * `handleSurfaceWheelZoom` bails on a null context and
+         * `getZoomAltitudeMetres` reports null from the same call, so the wheel,
+         * the trackpad and both arrows of the zoom pill were dead the moment the
+         * cutaway came up — measured, the seam answered null with core view on.
+         *
+         * The cutaway is a clean sphere at the globe radius with no terrain on
+         * it, so it needs none of `computeSafeMinDistance`'s relief and drape
+         * arithmetic; what it needs is to be approachable. The floor is a flat
+         * hair above the surface, which lets the camera come right down to the
+         * cut face where the layers are worth looking at.
+         */
+        if (coreToggle.checked) {
+          marsGroup.getWorldPosition(wheelZoomBodyCenter);
+          return {
+            centerWorld: wheelZoomBodyCenter.clone(),
+            radiusWorld: 3.2,
+            minSurfaceDistance: 0.02,
+            maxSurfaceDistance: Math.max(0.5, controls.maxDistance - 3.2),
+          };
+        }
         if (activeMoonViewerFeature) {
           const moonContext = getMoonMeasureContext(activeMoonViewerFeature);
           if (!moonContext) return null;
@@ -15601,6 +15623,23 @@ uniform float uViewportWidth;`,
 	          ...raycaster.intersectObjects(moonFeatureLabelLayer.interactiveObjects, false),
 	          ...raycaster.intersectObjects(geologyStructureLayer.interactiveObjects, false),
 	          ...raycaster.intersectObjects(geologyContactLayer.interactiveObjects, false),
+	          /**
+	           * THE CUTAWAY'S OWN LABELS, or clicking one opens a card that is
+	           * shut again in the same gesture.
+	           *
+	           * The viewer's hover path already raycasts these, so a core label
+	           * resolves its feature and the scene card is filled — and then
+	           * `feature-popup` asks THIS function, which did not know about
+	           * them, reads null as "a click on nothing" and dismisses the
+	           * selection wholesale. Measured exactly that way: #scene-popup
+	           * carrying "Inner Core" and `hidden` true in the same frame.
+	           *
+	           * Gated on the labels being shown, matching the hover path: with
+	           * them off the hit spheres must not claim a click.
+	           */
+	          ...(cutawayResult && coreToggle.checked && coreLabelsToggle?.checked
+	            ? raycaster.intersectObjects(cutawayResult.interactiveObjects, false)
+	            : []),
 	        ].sort((a, b) => a.distance - b.distance);
 	        return intersections.find((entry) => isObjectActuallyVisible(entry.object) && entry.object.userData.feature) || null;
 	      }
