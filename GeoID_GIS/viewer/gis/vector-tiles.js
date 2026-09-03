@@ -35,9 +35,9 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260903-6a1551b";
-import { renderFeatureCollection } from "./vector-render.js?v=20260903-6a1551b";
-import * as GP from "./geoprocessing.js?v=20260903-6a1551b";
+import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260903-bda9441";
+import { renderFeatureCollection } from "./vector-render.js?v=20260903-bda9441";
+import * as GP from "./geoprocessing.js?v=20260903-bda9441";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -1306,7 +1306,25 @@ export async function loadManifest(url) {
     const body = await response.json();
     const index = body.tiles || {};
     return {
-      base: url.replace(/\/manifest\.json.*$/, ""),
+      /**
+       * WHERE THE TILES ARE, which is not necessarily where the manifest is.
+       *
+       * The base was always derived from the manifest's own URL, which is
+       * right while both sit in the repo. `tiles_base` splits them: the
+       * manifest — 10 to 20 KB — stays with the site, and the tile bytes come
+       * from wherever it names (an R2 bucket, a CDN).
+       *
+       * The manifest is deliberately the half that stays. It carries `has()`
+       * and every tile's SIZE, which is what `chooseZoom` weighs a view
+       * against BEFORE fetching anything — so a slow or unreachable bucket
+       * costs tiles, not the zoom chooser, and the app always knows the shape
+       * of a pyramid it cannot currently read.
+       *
+       * The tiles then travel the `sources.local` path, which appends the
+       * bake's own `?v=`. That is correct here and would not be for
+       * Macrostrat: this bucket is OURS, so its cache key is ours to set.
+       */
+      base: body.tiles_base || url.replace(/\/manifest\.json.*$/, ""),
       version: body.version || null,
       maxZoom: body.max_zoom ?? 0,
       count: Object.keys(index).length,

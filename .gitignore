@@ -65,4 +65,8 @@ data/global/.*-work/
 # The layer reports this honestly: with the pyramid absent the row refuses to
 # tick and says its tiles could not be read. Delete this rule to ship it in the
 # repo, or point `tiles_base` at the bucket once one exists.
-data/global/glim/
+# The TILES only. `manifest.json` and `classes.json` stay with the site: the
+# manifest is 10-20 KB and carries `has()` and every tile's size, which is what
+# chooses a zoom before anything is fetched — so it has to be readable even when
+# the bucket is not.
+data/global/glim/[0-9]*/
