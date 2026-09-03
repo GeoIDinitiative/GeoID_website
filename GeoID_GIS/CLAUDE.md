@@ -11164,3 +11164,43 @@ near a commit. `to_wgs84` REUSES an existing GeoPackage for the same reason —
 reprojecting 1.2 million polygons out of Eckert IV is the expensive half by a
 wide margin, and every tuning pass on the tile bands would otherwise pay it
 again.
+
+### An unreachable pyramid drew empty ground and said it was fine
+
+Found while planning the move of the baked maps to object storage, and it is
+the single thing that plan most needed: GLiM's row was committed before its
+tiles were, so for one afternoon the app had a layer whose pyramid genuinely
+was not there — which is exactly how a bucket that is down, a CORS policy that
+is wrong, or a custom domain that has not propagated will present.
+
+Measured, with the tiles missing: the layer REGISTERED, drew nothing, and the
+status line read **"1,235,259 polygons over 16 classes… 0 in view; it sharpens
+as you fly in"** over Africa. A confident sentence about a map that had not
+loaded, which is the worst of the three available outcomes — worse than an
+error and worse than blank.
+
+Three faults stacked, each hiding the next:
+
+- **`loadManifest` answers `null` on any error**, and `loadTiled` then built a
+  controller with `has: () => false` and no remote — which sends every tile
+  down `loadTile`'s *"a tile that was never baked, on a pyramid with no remote,
+  is EMPTY, not a failure"* branch. That rule is RIGHT per tile (the glacier
+  pyramid is sparse by nature; most tiles of any view hold nothing) and
+  catastrophic for a whole missing manifest. An own-tiles layer now refuses and
+  says so. The world geology is deliberately exempt: it falls through to
+  Macrostrat, so a missing manifest there means "ask the source".
+- **The status line typed its own totals.** "1,235,259 polygons over 16
+  classes" was a literal — a claim about the SOURCE printed whether or not
+  anything loaded. It is counted from the table the bake wrote now, so the
+  sentence and the file cannot disagree.
+- **The tick stayed ON, and the reason was reported into another subtab.**
+  `say()` in the geology panel writes to `#gis-geology-status`, because that is
+  where the loader lives — while the row lives in Soil and surface materials.
+  So a reader ticked a box in one subtab and the explanation appeared in
+  another. `catalogue-panels`' add path checks `layerOf()` after `load()`,
+  reports into the row's OWN host, and redraws so the tick follows the truth.
+
+Verified after, with the pyramid still absent: tick returns to off, the message
+lands beside the row, nothing registers. **`layerOf()` is the truth about
+whether anything reached the globe — a control's state has to be read back from
+it, never from the press that was made.**

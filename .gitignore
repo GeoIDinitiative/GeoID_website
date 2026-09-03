@@ -53,3 +53,16 @@ GeoID_GIS/services/.cache/
 # that produced it, and 376 MB of the soil bake reached a commit before this
 # rule existed. Each bake script recreates its own from the source.
 data/global/.*-work/
+
+# GLiM's pyramid — 169 MB, HELD OUT pending the object-storage decision.
+#
+# Not ignored because it is scratch (it is the artefact), but because the repo
+# is already past the 1 GB GitHub Pages limit and this would add another 169 MB
+# to a history that cannot be shrunk without a rewrite. It was swept into a
+# commit once by `git add -A` after the bake finished, which is precisely why
+# an explicit rule is safer than remembering.
+#
+# The layer reports this honestly: with the pyramid absent the row refuses to
+# tick and says its tiles could not be read. Delete this rule to ship it in the
+# repo, or point `tiles_base` at the bucket once one exists.
+data/global/glim/
