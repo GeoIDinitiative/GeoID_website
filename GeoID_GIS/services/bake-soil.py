@@ -363,10 +363,13 @@ def build_geojson(shp: pathlib.Path, names: dict[str, str],
         # looking like it says something.
         if str(p.get("PERMAFROST") or "").strip() not in ("", "0"):
             new["permafrost"] = "yes"
-        phases = [str(p.get(k) or "").strip() for k in ("PHASE1", "PHASE2")]
-        phases = [x for x in phases if x]
-        if phases:
-            new["phase"] = ", ".join(phases)
+        # PHASE IS A NUMERIC CODE AND NOTHING NAMES IT. The `.lyr` legend that
+        # names every soil unit carries no phase list, and neither does any
+        # workbook in the download — so the card read "Re33-1a · 06", where the
+        # `06` is a bare code a reader can do nothing with. Dropped rather than
+        # displayed, on the same rule `rock-class.js` keeps: an abbreviation
+        # beats a name that was inferred, and no line beats an abbreviation
+        # that names nothing.
         soil = props.get(code.upper())
         if soil:
             new.update(soil)

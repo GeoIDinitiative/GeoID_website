@@ -28,15 +28,15 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260903-52d53dc";
-import { currentBodyId } from "./bodies.js?v=20260903-52d53dc";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260903-52d53dc";
-import { rockClass } from "./rock-class.js?v=20260903-52d53dc";
-import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260903-52d53dc";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260903-52d53dc";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260903-52d53dc";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260903-c5fa13f";
+import { currentBodyId } from "./bodies.js?v=20260903-c5fa13f";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260903-c5fa13f";
+import { rockClass } from "./rock-class.js?v=20260903-c5fa13f";
+import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260903-c5fa13f";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260903-c5fa13f";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260903-c5fa13f";
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260903-52d53dc";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260903-c5fa13f";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -1504,7 +1504,7 @@ async function loadDefaults() {
  */
 export async function loadDerivedGeologyMap({ id, label, colourFor, legendInfo,
   featureFilter, sourceColours = false, tiles = null, contacts = undefined,
-  metadata = null, initialOpacity = 1 }) {
+  metadata = null, initialOpacity = 1, credit = undefined }) {
   const existing = loadedLayers().find((l) => l.geologyDataset === id);
   if (existing) return existing;
   /**
@@ -1514,6 +1514,18 @@ export async function loadDerivedGeologyMap({ id, label, colourFor, legendInfo,
    */
   const entry = { ...GLOBAL_BASE, id, label, name: `${label}.geojson`,
     colourFor, legendInfo, colourBy: null, sourceColours, tiles,
+    /**
+     * ITS OWN CREDIT, and this was a real attribution fault rather than a
+     * tidy-up. Spreading `GLOBAL_BASE` handed every derived map Macrostrat's
+     * credit line, so the card over a soil polygon cited "Macrostrat Burwell
+     * compilation, CC BY 4.0 — each polygon carries the survey that mapped it"
+     * over FAO's map, and the glacier inventory had been citing it over RGI's
+     * outlines for as long as it has existed. Naming the wrong publisher is
+     * the one kind of error a licence-conditional dataset cannot absorb.
+     *
+     * `undefined` inherits, so a derived map that says nothing is unchanged.
+     */
+    credit: credit === undefined ? GLOBAL_BASE.credit : credit,
     /**
      * A derived map may select its own features; the Macrostrat ice layer is
      * the inverse of the geology's own filter, which is why this is

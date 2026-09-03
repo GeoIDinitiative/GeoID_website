@@ -26,13 +26,13 @@
  */
 
 import { loadDerivedGeologyMap, removeDerivedGeologyMap }
-  from "./geology-panel.js?v=20260903-52d53dc";
-import { loadIceNames, iceNameFor } from "./ice-names.js?v=20260903-52d53dc";
-import { loadIceThickness, iceVolumeFor } from "./ice-thickness.js?v=20260903-52d53dc";
-import { addDataset } from "./global-data.js?v=20260903-52d53dc";
+  from "./geology-panel.js?v=20260903-c5fa13f";
+import { loadIceNames, iceNameFor } from "./ice-names.js?v=20260903-c5fa13f";
+import { loadIceThickness, iceVolumeFor } from "./ice-thickness.js?v=20260903-c5fa13f";
+import { addDataset } from "./global-data.js?v=20260903-c5fa13f";
 import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool,
-  drawnOverlayBounds } from "./extent-picker.js?v=20260903-52d53dc";
-import { useIceNames, useIceVolumes } from "./ice-card.js?v=20260903-52d53dc";
+  drawnOverlayBounds } from "./extent-picker.js?v=20260903-c5fa13f";
+import { useIceNames, useIceVolumes } from "./ice-card.js?v=20260903-c5fa13f";
 
 /** The glacier inventory, off its own baked tiles. */
 const RGI_LAYER_ID = "glaciers-rgi7";
@@ -109,6 +109,9 @@ async function loadInventory() {
     featureFilter: null,
     colourFor: (f) => (f?.properties?.kind === "Ice sheet" ? SHEET_COLOUR : GLACIER_COLOUR),
     contacts: ICE_CONTACTS,
+    // RGI's, not Macrostrat's — see the note on `credit` in geology-panel.js.
+    credit: "Randolph Glacier Inventory 7.0 (RGI Consortium 2023, NSIDC), "
+      + "CC BY 4.0; ice sheets from Natural Earth, public domain.",
     /**
      * WHERE IT CAME FROM, for the Metadata tab — which is where a dataset says
      * this now that the subtab's own "Sources" fold has gone. Both sources are

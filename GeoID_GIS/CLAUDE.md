@@ -11048,3 +11048,46 @@ dataset, which was right while every home had files in it — a baked pyramid is
 not a file, so `global-data.js` cannot describe it and the soil home has none.
 Counting one of the two sources called a fully populated tab empty. The
 invariant that matters is unchanged: no home is a heading over nothing.
+
+### A soil is not a rock, and the card had to be taught twice
+
+Clicking a Podzol opened the geology card, which headed it **CONTINENTAL**
+(`crustalSetting` answering from the ELEVATION about something that is not
+crust), titled it **"Unit"** (the geometry noun, since a soil polygon has no
+`lith` column for `lithologyLabel` to read), and then printed **sixteen
+rock-mechanics parameters** about it — uniaxial compressive strength,
+Hoek-Brown mi, Geological Strength Index, slake durability. Every number
+correct for what it claimed to be, and none of it true of the ground clicked.
+
+The route in is worth stating: the rock-property lookup falls back to
+`lithology || geometryName`, so a soil fell through to "Unit", the database
+found nothing, and its NO-INFORMATION PRIOR filled the fold. A prior exists so
+a model gets a number over unmapped ground; it is not a licence to answer a
+question the material does not have. `gis/soil-card.js` writes the three lines
+instead, and `lithForProperties` is refused outright for a soil — the same
+shape as `not_applicable` in the rock database, and for the same reason.
+
+**AND WIRING IT INTO `feature-popup.js` ALONE CHANGED NOTHING AT ALL.** The
+card went on reading "CONTINENTAL / Unit" over the same sixteen parameters,
+because the picker that answers for a tiled geology layer is the VIEWER'S own
+(`#geo-popup`, fed by `geology-panel.js`'s feature builder), not the GIS stack
+card. Both builders need the branch — `ice-card.js` is used from both for
+exactly this reason, and the second call site is easy to miss because the first
+one looks like the whole job. **A card that exists in one of two builders is a
+card that does not exist.** This is the fourth instance in this file of "the
+button you are pressing is not the code you changed".
+
+**A bare code is worse than no line.** The meta read `Re33-1a · 06`, where `06`
+is FAO's phase code — and nothing in the download names the phases: the `.lyr`
+that names every soil unit has no phase list, and neither does any workbook.
+Dropped, on `rock-class.js`'s own rule: an abbreviation beats an inferred name,
+and no line beats an abbreviation that names nothing.
+
+**AND EVERY DERIVED MAP WAS CREDITING MACROSTRAT.** `loadDerivedGeologyMap`
+spreads `GLOBAL_BASE`, whose `credit` is the Burwell compilation's — so the
+card over a soil polygon cited "Macrostrat Burwell compilation, CC BY 4.0 —
+each polygon carries the survey that mapped it" over FAO's map, and **the
+glacier inventory had been citing it over RGI's outlines for as long as it has
+existed**. Naming the wrong publisher is the one error a licence-conditional
+dataset cannot absorb. The function takes a `credit` now, `undefined` inherits,
+and both derived maps state their own.

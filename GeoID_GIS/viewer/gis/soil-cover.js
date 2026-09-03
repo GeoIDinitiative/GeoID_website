@@ -22,7 +22,7 @@
  */
 
 import { loadDerivedGeologyMap, removeDerivedGeologyMap }
-  from "./geology-panel.js?v=20260903-52d53dc";
+  from "./geology-panel.js?v=20260903-c5fa13f";
 
 const STAMP = new URL(import.meta.url).search || "";
 const LAYER_ID = "soil-dsmw";
@@ -120,6 +120,8 @@ async function loadSoil() {
      */
     colourFor: (f) => f?.properties?.colour || FALLBACK_COLOUR,
     contacts: { mode: "shade", shade: 0.62, opacity: 0.55 },
+    credit: "FAO/UNESCO Digital Soil Map of the World, 1:5,000,000 — FAO, "
+      + "CC BY 4.0.",
     metadata: {
       source: "FAO/UNESCO Digital Soil Map of the World (DSMW), 1:5,000,000",
       citation: "FAO/UNESCO (2007). Digital Soil Map of the World, version 3.6. "
