@@ -28,14 +28,15 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260903-6e349d6";
-import { currentBodyId } from "./bodies.js?v=20260903-6e349d6";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260903-6e349d6";
-import { rockClass } from "./rock-class.js?v=20260903-6e349d6";
-import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260903-6e349d6";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260903-6e349d6";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260903-52d53dc";
+import { currentBodyId } from "./bodies.js?v=20260903-52d53dc";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260903-52d53dc";
+import { rockClass } from "./rock-class.js?v=20260903-52d53dc";
+import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260903-52d53dc";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260903-52d53dc";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260903-52d53dc";
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260903-6e349d6";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260903-52d53dc";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -1163,6 +1164,50 @@ function toInteractiveCatalogue(layers) {
         });
         if (!unitSeen.has(ice.title)) {
           unitSeen.set(ice.title, paint.get(String(props[field])) || "#cfe8f5");
+        }
+        return;
+      }
+      /**
+       * AND A SOIL POLYGON IS NOT ONE EITHER — the same branch, for a sharper
+       * reason. THIS builder is what the viewer's own geology card reads, and
+       * wiring the soil card into `feature-popup.js` alone changed nothing at
+       * all: a click on the soil map went on reading "CONTINENTAL / Unit" over
+       * sixteen rock-mechanics parameters, because the picker that answered
+       * was never the one that had been taught. A card that exists in one of
+       * two builders is a card that does not exist.
+       *
+       * `lithology` is left NULL rather than given a stand-in the way ice is:
+       * ice has a real entry in the rock-property database and a soil has
+       * none, so a stand-in would fetch the no-information prior — which is
+       * exactly the sixteen parameters being removed.
+       */
+      const soil = isSoilFeature(props) ? soilCard(props) : null;
+      if (soil) {
+        made.push({
+          id: `geo-${layer.id}-${n}`,
+          name: soil.title,
+          soil: true,
+          type: soil.kicker,
+          rock_type: soil.title,
+          lithology: null,
+          extra_rows: soil.headline || null,
+          unit_description: soil.meta || null,
+          description: soil.meta || null,
+          origin: `${soil.source} — ${val(layer.credit, layer.name) || "this layer"}`,
+          mapped_area_km2: km2 > 0 ? Number(km2.toFixed(1)) : null,
+          polygons,
+          selection_bounds: boundsOfRings(polygons.map((p) => p.outer)),
+          source_layer: layer.name,
+          dataset_label: datasetLabel(layer.name),
+          rows: [...soil.rows, ["Note", soil.note],
+            ...Object.entries(props)
+              .filter(([key, value]) => !ATTRIBUTE_PLUMBING.has(key)
+                && !/^(code|name|group|colour|unit|phase|permafrost|area_km2|sand_pct|silt_pct|clay_pct|ph|organic_carbon_pct|bulk_density)$/.test(key)
+                && value !== null && value !== undefined && String(value).trim() !== "")
+              .map(([key, value]) => [attributeLabel(key), String(value)])],
+        });
+        if (!unitSeen.has(soil.title)) {
+          unitSeen.set(soil.title, props.colour || "#cfe8f5");
         }
         return;
       }

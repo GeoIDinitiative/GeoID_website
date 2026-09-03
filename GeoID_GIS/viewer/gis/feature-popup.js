@@ -20,13 +20,13 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260903-6e349d6";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260903-6e349d6";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-6e349d6";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260903-6e349d6";
-import { lithologyLabel } from "./lithology-label.js?v=20260903-6e349d6";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260903-6e349d6";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260903-6e349d6";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260903-52d53dc";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260903-52d53dc";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-52d53dc";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260903-52d53dc";
+import { lithologyLabel } from "./lithology-label.js?v=20260903-52d53dc";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260903-52d53dc";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260903-52d53dc";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
