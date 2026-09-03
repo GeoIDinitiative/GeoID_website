@@ -11091,3 +11091,76 @@ glacier inventory had been citing it over RGI's outlines for as long as it has
 existed**. Naming the wrong publisher is the one error a licence-conditional
 dataset cannot absorb. The function takes a `credit` now, `undefined` inherits,
 and both derived maps state their own.
+
+## GLiM: the third global polygon map, and the DOI that is not the map
+
+Three global polygon maps now, and they answer different questions rather than
+competing — worth stating plainly, because two of them sound the same:
+
+| layer | what it maps |
+| --- | --- |
+| World geology (Macrostrat) | the BEDROCK — the formation, named and dated |
+| Soils of the world (FAO) | the SOIL that formed on it |
+| Surface lithology (GLiM) | the ROCK AT THE SURFACE, by lithology |
+
+**THE DOI EVERYONE CITES IS NOT THE POLYGON MAP.** `10.1594/PANGAEA.788537`
+publishes GLiM's **0.5 degree GRIDDED** version — a 38 kB zip holding one ASCII
+grid and a list of class codes. Half a degree is about 55 km, so it is far
+COARSER than the 1:5,000,000 FAO soil map already on the site, and baking it
+would have been a step backwards wearing a DOI. Its abstract describes the
+1,235,400 polygons, which is what makes the record so easy to mistake for them.
+The polygons are an ESRI file geodatabase linked from the authors' own project
+page at Hamburg — **1.1 GB** — and `bake-glim.py` reads that.
+
+### Three things the source taught that the FAO map did not
+
+- **IT IS PROJECTED, NOT GEOGRAPHIC.** The geodatabase is in World Eckert IV,
+  an equal-area projection in METRES, where the FAO shapefile was plain degrees
+  with no `.prj` at all. Baked without `-t_srs`, every polygon lands at
+  coordinates in the millions. `-wrapdateline` goes with it, or the polygons
+  straddling the antimeridian come back as ribbons across the whole map — the
+  same seam `bake-stress.py` had to cut by hand.
+- **THE NAMES ARE IN A `.lyr` INSIDE THE GEODATABASE.** `GLiM_v1_1.lyr` carries
+  all sixteen level-1 classes as `Unconsolidated Sediments (SU)` — the same
+  `Name (CODE)` shape the DSMW's miscellaneous units used. Read, not
+  remembered, exactly as FAO's are. It abbreviates two of them to fit a printed
+  key ("Intermediate Plutonic R."), expanded in a named table.
+- **`Litho` IS THREE LEVELS IN ONE STRING.** `scpu__` is carbonate sedimentary
+  (`sc`) plus a level-2 and a level-3 subclass, underscore-padded. Only level 1
+  has published names, so that is what the map is drawn and legended by; the
+  full code rides on the feature.
+
+**A GLiM UNIT IS A ROCK, and that is the difference that decides the card.**
+The soil map needed one of its own because rock-mechanics properties do not
+apply to a Podzol. These polygons ARE rock, so the bake writes each class name
+into **`lith`** — the column the geology card heads itself with, `rock-class.js`
+classifies from, and the rock-property database looks material up by — and they
+go through the ordinary path with nothing added. `isSoilFeature` cannot claim
+them: it requires the FAO map's `unit` column, which GLiM has no equivalent of.
+
+**Its "Ice and Glaciers" class must NOT be filtered out.** The geology layer's
+own ice predicate exists to keep ice out of a map of rock; here ice is a mapped
+class OF the lithological map, and removing it would put a hole in Greenland.
+`featureFilter: null` says so.
+
+### A BAKE'S SCRATCH IS NOT A DELIVERABLE
+
+**376 MB of the soil bake's working directory reached a commit** — the
+intermediate GeoJSON twice over (138 MB + 131 MB), the extracted shapefile, the
+source zip and the tile bands, 578 files — on a repo already over the Pages
+limit. Nothing failed and nothing looked wrong: `git status` was clean, which
+is exactly what being fully committed looks like.
+
+`data/global/.*-work/` is ignored now and `.soil-work` untracked, taking the
+tracked bytes under `data/global` from 575 MB to 199 MB. The pyramid under
+`data/global/<name>/` is the artefact; every bake script recreates its own
+scratch from the source. **Note the history still carries those objects** —
+untracking stops them deploying and stops them growing, and shrinking the pack
+is a rewrite, which is a separate decision.
+
+GLiM makes the point sharply: its working directory is the 1.1 GB download, a
+3 GB reprojected GeoPackage and the tile bands, none of which belongs anywhere
+near a commit. `to_wgs84` REUSES an existing GeoPackage for the same reason —
+reprojecting 1.2 million polygons out of Eckert IV is the expensive half by a
+wide margin, and every tuning pass on the tile bands would otherwise pay it
+again.
