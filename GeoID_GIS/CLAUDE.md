@@ -11553,3 +11553,59 @@ like reports the difference between its author's assumptions and reality, and
 calls it a defect.** Run a new instrument against a state you have already
 verified by other means before believing what it says about a state you have
 not.
+
+## `hotlink-ok` is how images live in the bucket without touching the zone
+
+Cloudflare exempts any path containing `hotlink-ok` from Hotlink Protection, so
+`services/publish-viewer-assets.py` publishes under `assets/hotlink-ok/<key>/`.
+That keeps the public site's protection exactly as it is and needs no dashboard
+change. Measured on one file, path the only variable: **403** at
+`assets/planet-mars/…`, **200** at `assets/hotlink-ok/planet-mars/…`, from a
+localhost Referer — and 200 nested or at the root, so the layout stays tidy.
+
+The cost is that those specific objects are hotlinkable, which on R2 is free
+egress and, for public map textures already served to every visitor, is nothing.
+
+**Migrate an existing prefix with a server-side `rclone copy` between two remote
+paths** rather than re-uploading: Mars moved 229 MB without touching the wire.
+
+### A publisher must walk the INDEX, not the directory
+
+`assets/` folders also hold the raw material somebody baked them from. Walking
+the directory uploaded **1,065 MB of untracked working files** — a 631 MB ArcGIS
+project package under venus, 120 MB of shapefiles and geodatabase tables under
+the moon — none of it tracked, none of it referenced, all of it published
+because it happened to be sitting there. Files are named to rclone explicitly
+now (`--files-from`), never selected by `--min-size`.
+
+**And `tracked` alone is right the first time and wrong every time after.**
+Publishing untracks the files, so a cleanup keyed on it purged **all 66 of
+Mars's live objects** — they were untracked precisely BECAUSE they were
+published. What a site ships is what its code NAMES, so `already_published()`
+reads the bucket URLs already in the source and unions them with the tracked
+set. Restored from the 56 URLs Mars's code names.
+
+### Moving an asset means moving it in the SERVICE WORKER too
+
+`sw-ctx-tiles.js` (three copies) precaches a list of default assets. After the
+planet move, 12 entries per copy named paths that no longer exist. **Nothing
+broke** — the install is `Promise.allSettled(… cache.add …)`, so a failed entry
+is skipped rather than failing the worker — but those assets silently stopped
+being precached, which is a performance regression with no error anywhere. Had
+it been `cache.addAll`, one missing file would have failed the whole install.
+
+Auditing that list found a fault **older than this session**: every Venus and
+Mercury entry was missing its `/viewer/` segment, so neither planet had ever
+been precached. Confirmed pre-existing by diffing `HEAD~6`. **When a list of
+paths is maintained by hand, check the whole list rather than the part you
+changed.**
+
+### Where it ended
+
+**1,743 MB → 643 MB tracked**, against a 1 GB GitHub Pages limit, with the
+bucket at 497 MB. Deliberately NOT moved, and the reason is the same for both:
+`GeoID_Earth/assets` (44 MB) is read by the main GIS viewer, its manifest AND
+three service workers, and `earth_explorer/etna/viewer/assets` (38 MB) has a
+service worker of its own with its own precache list. Both are reachable with
+the technique above; neither is worth doing at the end of a long session on the
+one surface everything else depends on.
