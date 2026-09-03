@@ -23,7 +23,7 @@
  */
 
 import { loadDerivedGeologyMap, removeDerivedGeologyMap }
-  from "./geology-panel.js?v=20260903-601a7cc";
+  from "./geology-panel.js?v=20260903-b66a980";
 
 const STAMP = new URL(import.meta.url).search || "";
 const LAYER_ID = "glim-lithology";
@@ -140,9 +140,9 @@ async function loadGlim() {
    * panel refuses that case out loud now, and this says only what the file it
    * actually read contains, so the two can never disagree.
    */
-  const table = await classes();
-  const total = Object.values(table).reduce((n, c) => n + (c.count || 0), 0);
-  const named = Object.keys(table).length;
+  const counts = await table;
+  const total = Object.values(counts).reduce((n, c) => n + (c.count || 0), 0);
+  const named = Object.keys(counts).length;
   say(total
     ? `GLiM surface lithology — ${total.toLocaleString()} polygons over `
       + `${named} classes, about 1:3,750,000. ${drawn.toLocaleString()} in `
