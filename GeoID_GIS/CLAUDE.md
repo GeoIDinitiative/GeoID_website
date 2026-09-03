@@ -10800,3 +10800,94 @@ the bake reported it, and it simply never reached a commit — found only by
 counting the assets in the commit against the ones on disk. Negated for that
 one path rather than loosening a rule that is presumably protecting something
 larger. **After a bake, count what was COMMITTED, not what was written.**
+
+## "New" is a difference between two bakes, so the bake has to record it
+
+The Earth Engine catalogue is baked because the STAC tree cannot be walked in a
+page. A snapshot then goes stale silently — and worse, **a snapshot cannot be
+asked what changed**, so "what has Google added?" has no answer at all from the
+file the panel reads. It has to be recorded at the moment it can still be
+computed, which is the bake.
+
+`bake-gee-catalogue.py` reads the PREVIOUS `gee-catalogue.json` and stamps two
+dates on every entry: `firstSeen` (the bake it first appeared in) and, where a
+collection's temporal extent has moved forward, `extended`. That second one is
+the honest reading of "new imagery" for something still being flown. Measured
+over one six-day gap: **3 datasets added and 177 collections extended**, with
+Sentinel-2 advancing 2026-08-28 → 2026-09-01 and Sentinel-1, ERA5-Land and the
+Copernicus Marine set alongside it.
+
+**Both are read by EQUALITY against the payload's own `baked`**, never against
+today. An index nobody has re-baked for six months then goes on naming the same
+handful rather than quietly promoting older datasets as the clock runs.
+
+**THE FIRST BAKE MARKS NOTHING NEW.** With no previous file every id is unknown
+and every one would be stamped today — eleven hundred badges, which is
+`atlas-watch`'s first rule in a new costume. That run sets `baseline: true` and
+the page treats the whole file as already seen. A previous file *without* the
+field is a different case and is not a baseline: its ids are known to have
+existed by its own bake date, so they take that date and anything absent from
+it is genuinely new. That distinction is what made the very first diff real
+rather than empty.
+
+### The cheap signal is the BUCKET LISTING, and four things about it were measured
+
+Google publishes the STAC on Cloud Storage, and the JSON API lists a bucket a
+thousand objects at a time — **2 requests against the 1,272 the tree costs**.
+Both endpoints answer CORS (the object endpoint `*`, the listing endpoint by
+reflecting the Origin), which is why no key and no proxy appears in
+`gee-watch.js`. Each of these is a wrong answer if assumed:
+
+- **`updated` is not a change signal.** Google rewrites most of the bucket at
+  once — measured, **1,176 of 1,686 objects carried the same day**. Trusting it
+  announces the whole catalogue as changed. Only the NAMES are read.
+- **The listing is a SUPERSET of the tree**: 1,272 dataset objects against the
+  index's 1,142, because an object can sit in the bucket without being linked
+  from any provider catalog — **130 of them**, most last touched in 2023. So
+  "in the bucket and not in our index" is NOT "new", and a diff against the
+  index alone opens on 130 false alarms.
+- **`-gfstmp-` objects are upload artefacts**, 236 of them, not datasets.
+- **The id cannot be recovered from the path**, which the service already
+  records from the other side. So the watcher compares PATHS and reports paths;
+  it never invents an id it cannot prove.
+
+### The third costume of the first rule, caught by its own test
+
+`describeCheck` reported the count of bucket records the index lacks, framed as
+how far behind the bake had fallen. It reads like the right measure and is not:
+most of it is that unlinked residue, which does not change from one month to
+the next, so the panel would have carried **the same sentence every session
+forever** — a standing false alarm, which is what rule 1 exists to prevent. The
+count is kept as a diagnostic and is deliberately absent from the sentence;
+only a genuine publication speaks. The unit test failed on it before a browser
+ever saw it, which is the argument for `triageCatalogue` being pure.
+
+Verified live, all three legs, because a silent watcher and a broken one look
+identical: a first run stored **1,272 paths and said nothing**; forgetting two
+of them and reloading announced **exactly those two**; a third run was silent
+again.
+
+### Two faults the strip showed immediately
+
+- **A control built from data that arrives LATER must be redrawn when it
+  lands.** `renderGeeChips()` ran once, before the 136 KB index; `freshness()`
+  had no catalogue to count and the New chip never appeared at all. The
+  catalogue's `.then` redrew the list and not the chips. Same race the label
+  colours lost to the symbology.
+- **The filter and the badge must be ONE rule.** They were two for a few
+  minutes, and under the New filter three offline-snapshot tiles stood in the
+  list wearing no badge to say why — because the badge excluded a cached entry
+  and the filter did not. Cached is the exclusion that matters:
+  `requestFromCache` drapes a PNG that shipped with the site, and no imagery
+  reaching Google's servers moves a file on disk. A tile in a filtered list
+  that cannot say what it is doing there is the filter lying about its contents.
+
+### The scheduled half does NOT commit
+
+`.github/workflows/gee-catalogue.yml` re-bakes weekly and writes a job summary
+naming what moved, with the baked file as an artefact. It takes `contents:
+read` and pushes nothing, deliberately: pushing is this repo's one standing
+rule, and a scheduled job that commits to `main` is exactly what that rule
+exists to prevent. `--report-new` prints the last bake's news without fetching
+anything, so the check describes the result rather than walking the catalogue
+twice.
