@@ -10,7 +10,10 @@
 //
 // Bump CACHE_VERSION to force all clients to discard old caches on deploy.
 
-const CACHE_VERSION = 'v133';
+// v134: the default assets moved to the bucket, so this list names
+// absolute bucket URLs now. The version moves with the list or a
+// returning visitor keeps a cache full of paths that no longer exist.
+const CACHE_VERSION = 'v134';
 const TILE_CACHE  = `geoid-ctx-tiles-${CACHE_VERSION}`;
 const ASSET_CACHE = `geoid-assets-${CACHE_VERSION}`;
 
