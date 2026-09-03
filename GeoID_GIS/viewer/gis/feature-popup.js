@@ -20,13 +20,13 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260903-c5fa13f";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260903-c5fa13f";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-c5fa13f";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260903-c5fa13f";
-import { lithologyLabel } from "./lithology-label.js?v=20260903-c5fa13f";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260903-c5fa13f";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260903-c5fa13f";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260903-87ac511";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260903-87ac511";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-87ac511";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260903-87ac511";
+import { lithologyLabel } from "./lithology-label.js?v=20260903-87ac511";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260903-87ac511";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260903-87ac511";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -740,7 +740,7 @@ function showViewerCard(hits, at) {
     name: null,
     description: soil.meta || null,
     extra_rows: soil.headline || null,
-    origin: `${soil.source} — via ${top.layer.name || "this layer"}`,
+    origin: soil.source,
     mapped_area_km2: km2 > 0 ? Number(km2.toFixed(km2 >= 100 ? 0 : 2)) : null,
     // FAO's measured values first, then whatever else the source shipped —
     // minus the columns the three lines above have already said.
@@ -763,7 +763,7 @@ function showViewerCard(hits, at) {
     lithology: "ice",
     name: null,
     description: ice.meta || null,
-    origin: `${ice.source} — via ${top.layer.name || "this layer"}`,
+    origin: ice.source,
     mapped_area_km2: km2 > 0 ? Number(km2.toFixed(km2 >= 100 ? 0 : 2)) : null,
     // The ice's own facts first, then whatever columns the source shipped.
     rows: [...ice.rows, ...rows.filter(([key]) => !/^(kind|name|source|note)$/i.test(key))],

@@ -28,15 +28,15 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260903-c5fa13f";
-import { currentBodyId } from "./bodies.js?v=20260903-c5fa13f";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260903-c5fa13f";
-import { rockClass } from "./rock-class.js?v=20260903-c5fa13f";
-import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260903-c5fa13f";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260903-c5fa13f";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260903-c5fa13f";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260903-87ac511";
+import { currentBodyId } from "./bodies.js?v=20260903-87ac511";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260903-87ac511";
+import { rockClass } from "./rock-class.js?v=20260903-87ac511";
+import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260903-87ac511";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260903-87ac511";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260903-87ac511";
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260903-c5fa13f";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260903-87ac511";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -1150,7 +1150,17 @@ function toInteractiveCatalogue(layers) {
           lithology: "ice",
           unit_description: ice.meta || null,
           description: ice.meta || null,
-          origin: `${ice.source} — ${val(layer.credit, layer.name) || "this layer"}`,
+          /**
+           * THE CREDIT ALONE, not the source AND the credit. This was
+           * `${source} — ${layer.credit}` while the credit was Macrostrat's
+           * and therefore said something different; now that each derived map
+           * states its own, the two say the same thing and the card read
+           * "FAO/UNESCO Digital Soil Map of the World, 1:5,000,000 — FAO/UNESCO
+           * Digital Soil Map of the World, 1:5,000,000 — FAO, CC BY 4.0."
+           * A fix that makes two fields agree has to check what was joining
+           * them.
+           */
+          origin: val(layer.credit, layer.name) || ice.source,
           mapped_area_km2: km2 > 0 ? Number(km2.toFixed(1)) : null,
           polygons,
           selection_bounds: boundsOfRings(polygons.map((p) => p.outer)),
@@ -1193,7 +1203,7 @@ function toInteractiveCatalogue(layers) {
           extra_rows: soil.headline || null,
           unit_description: soil.meta || null,
           description: soil.meta || null,
-          origin: `${soil.source} — ${val(layer.credit, layer.name) || "this layer"}`,
+          origin: val(layer.credit, layer.name) || soil.source,
           mapped_area_km2: km2 > 0 ? Number(km2.toFixed(1)) : null,
           polygons,
           selection_bounds: boundsOfRings(polygons.map((p) => p.outer)),
