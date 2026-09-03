@@ -11714,3 +11714,53 @@ this cost a "the fix does not work" that was only a bad coordinate.
 Locate targets by projecting the scene objects instead: `getWorldPosition` →
 `project(camera)` → rect maths gives the exact page pixel for every label, and
 the hover handler's own `clientX/clientY` confirms the mapping.
+
+### A layer without a `collection` does not exist to this app
+
+An imported CSV of points drew perfectly and was inert: `layersByType("vector")`
+filters on `l.collection`, so IDW's Points list read **"None available"** over
+two hundred points visible on the globe, and every other vector tool agreed —
+buffer, hull, voronoi, centroids, TIN, kriging, rasterize, spatial join, zonal
+statistics, and "sample raster at points", the one anybody would reach for
+first. `layerKind` then fell through to **"mesh"**, so the export menu offered
+STL and OBJ: the CSV could not be written back out as a CSV.
+
+**The test that localised it in one step was importing the same 200 points as
+GeoJSON**, which every tool accepted immediately. Same coordinates, same
+attributes, one difference — a FeatureCollection. When an imported layer is
+ignored by tools, compare formats before reading any tool code.
+
+Both `layer.features` and `layer.collection` must be set: the popup's picker
+walks the first and the tool runner reads the second, and a layer that answers
+one and not the other is clickable but untoolable, or the reverse.
+
+### Constants in a point cloud's rendering, and what each one cost
+
+Three separate numbers, all wrong in the same way — a value that suited one
+dataset, applied to every dataset:
+
+- **`size: 0.012`** scene units is ~24 km at the globe's scale. Every CSV drew
+  as overlapping squares covering far more ground than the survey. World-space
+  sizing meant zoom changed only how many were in shot, which is exactly what
+  "more squares when I zoom out" is.
+- **`baseRadius + height * 0.12`** spreads any Z range across 239 km of
+  altitude. Earthquakes 0.8–13 km deep were drawn 10–249 km up, most of them
+  **above the camera**: 37 of 200 inside the frustum. It read as "most of my
+  points did not import".
+- **no `map` on the PointsMaterial**, so each point is a hard quad. The squares
+  were literally squares.
+
+All three now read off the survey's own span (dot = span/√n, clamped; slab =
+span/4). The rule this leaves: **a point cloud's rendering constants belong to
+the data's extent, never to the scene.** Z stays normalised rather than placed
+at true height on purpose — `depth_km`, `elev_ft` and a bare `z` are all just
+numbers, and no column name can be trusted for units.
+
+### `--check` a refactor's declaration ORDER, not just its syntax
+
+Hoisting the span maths above the placement loop put it above
+`const baseRadius`, which is a TDZ error — `node --check` passes, the tests pass
+(nothing covers this module in node: it needs THREE and a document), and the
+import silently lands as `status: "error"` with a null message. The live import
+caught it in one reload. **For modules the node tests cannot reach, "it parses
+and the suite is green" is not evidence of anything.**

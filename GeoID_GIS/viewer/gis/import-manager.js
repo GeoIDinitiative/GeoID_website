@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260904-2aef194";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260904-2aef194";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260904-2aef194";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260904-2aef194";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260904-15c2f08";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260904-15c2f08";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260904-15c2f08";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260904-15c2f08";
 import {
   buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude, setSealWidthFromAltitude,
   setMarkerSizeFromAltitude,
-} from "./vector-render.js?v=20260904-2aef194";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260904-2aef194";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260904-2aef194";
-import { loadMshFile } from "./msh-adapter.js?v=20260904-2aef194";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260904-2aef194";
+} from "./vector-render.js?v=20260904-15c2f08";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260904-15c2f08";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260904-15c2f08";
+import { loadMshFile } from "./msh-adapter.js?v=20260904-15c2f08";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260904-15c2f08";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -298,6 +298,12 @@ function describeLayer(layer) {
   }
   if (info.truncated) {
     parts.push("truncated - too many vertices");
+  }
+  // A cloud too big for an attribute table SAYS SO. Silently refusing every
+  // vector tool and every vector export format is precisely the bug this limit
+  // replaced, and an unexplained limit is indistinguishable from that bug.
+  if (info.displayOnly) {
+    parts.push("display only - no attribute table");
   }
   return parts.join(" | ");
 }
