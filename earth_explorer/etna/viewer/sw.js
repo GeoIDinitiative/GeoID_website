@@ -20,8 +20,8 @@ const PRECACHE_URLS = [
   './etna-geology-ingv.json',
   './etna-regional-geology.json',
   './etna-tectonic-faults.json',
-  './assets/satellite.jpg?v=409',
-  './assets/etna_banner.jpg',
+  'https://data.geoidinitiative.com/assets/hotlink-ok/etna/satellite.jpg?v=5a32ee59a9eb',
+  'https://data.geoidinitiative.com/assets/hotlink-ok/etna/etna_banner.jpg?v=dc76c4684896',
 ];
 
 self.addEventListener('install', evt => {

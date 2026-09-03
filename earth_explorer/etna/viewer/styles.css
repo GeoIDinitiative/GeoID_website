@@ -109,7 +109,7 @@
       content: '';
       position: absolute;
       inset: 0;
-      background: url('./assets/etna_banner.jpg') center 40% / cover no-repeat;
+      background: url('https://data.geoidinitiative.com/assets/hotlink-ok/etna/etna_banner.jpg?v=dc76c4684896') center 40% / cover no-repeat;
       opacity: 0.72;
       z-index: 0;
     }
@@ -2257,7 +2257,7 @@
 .vl-bg {
   position: absolute;
   inset: 0;
-  background: url('assets/etna.jpg') center / cover no-repeat;
+  background: url('https://data.geoidinitiative.com/assets/hotlink-ok/etna/etna.jpg?v=dc76c4684896') center / cover no-repeat;
 }
 .vl-bg::after {
   content: '';

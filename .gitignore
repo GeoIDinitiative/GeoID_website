@@ -219,3 +219,17 @@ planet_explorer/venus/viewer/assets/venus_geology_sim3292.png
 planet_explorer/venus/viewer/assets/venus_hillshade.jpg
 planet_explorer/venus/viewer/assets/venus_slope.jpg
 planet_explorer/venus/viewer/assets/venus_tes_albedo.png
+
+# The Etna viewer's own imagery, published under assets/hotlink-ok/etna/.
+# Listed file by file for the same reason as the planets: a glob would also
+# exclude the small assets still shipped with the site.
+earth_explorer/etna/viewer/assets/etna.jpg
+earth_explorer/etna/viewer/assets/etna_banner.jpg
+earth_explorer/etna/viewer/assets/etna_geology.png
+earth_explorer/etna/viewer/assets/hillshade.jpg
+earth_explorer/etna/viewer/assets/hillshade_blend.jpg
+earth_explorer/etna/viewer/assets/satellite.jpg
+earth_explorer/etna/viewer/assets/seismic.png
+earth_explorer/etna/viewer/assets/slope.jpg
+earth_explorer/etna/viewer/assets/subsurface.png
+earth_explorer/etna/viewer/assets/zoom_out.png

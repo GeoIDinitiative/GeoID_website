@@ -1173,6 +1173,7 @@
       }
       try {
         const image = new Image();
+        image.crossOrigin = "anonymous";
         image.decoding = "async";
         image.src = path;
         await image.decode();

@@ -26,8 +26,8 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260903-3bb3d6a";
-import { dataUrl } from "./data-base.js?v=20260903-3bb3d6a";
+import { runConnector } from "./research/connectors.js?v=20260903-515af65";
+import { dataUrl } from "./data-base.js?v=20260903-515af65";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",

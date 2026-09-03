@@ -41,7 +41,11 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 CACHE_CONTROL = "public, max-age=31536000, immutable"
-CODE = (".js", ".html", ".json")
+# CSS TOO: a `url(./assets/x.jpg)` in a stylesheet names an asset exactly as a
+# module does, and leaving it out untracked the file while the only remaining
+# reference to it stayed local — a 404 in production and a 200 on the dev
+# server, which is the shape that hides until deploy.
+CODE = (".js", ".html", ".json", ".css")
 
 # THE `hotlink-ok` SEGMENT IS LOAD-BEARING, not decoration. Cloudflare's Hotlink
 # Protection 403s any IMAGE whose Referer is a domain other than the zone, which
@@ -88,6 +92,27 @@ def movable(assets: pathlib.Path, min_bytes: int) -> dict:
     return out
 
 
+def in_bucket(assets: pathlib.Path, remote: str, key: str) -> dict:
+    """
+    Whatever the prefix already holds, matched back to the local file.
+
+    The last gap the other two leave: a file that has been untracked BECAUSE it
+    was published, and whose only surviving reference is a form the earlier run
+    did not rewrite — a `url()` in a stylesheet, say. Tracked says no, the
+    source names no bucket URL for it, and it would be quietly dropped from
+    every later run while still being served. The bucket itself is the record.
+    """
+    out = {}
+    listed = subprocess.run(["rclone", "lsf", "-R", "--files-only",
+                             f"{remote.rstrip('/')}/{PREFIX}/{key}"],
+                            capture_output=True, text=True)
+    for rel in (l for l in listed.stdout.split("\n") if l):
+        p = assets / rel
+        if p.is_file():
+            out[rel] = p
+    return out
+
+
 def already_published(viewer: pathlib.Path, assets: pathlib.Path, key: str) -> dict:
     """
     What a RE-publish must still cover.
@@ -116,21 +141,35 @@ def code_files(viewer: pathlib.Path):
     return [p for p in viewer.rglob("*") if p.suffix in CODE and p.is_file()]
 
 
-def rewrite(viewer: pathlib.Path, names: dict, base: str, key: str) -> int:
+def source_forms(assets: pathlib.Path) -> list[str]:
     """
-    `assets/x.png?v=123` -> `<base>/assets/<key>/x.png?v=<hash>`
+    Every textual prefix a reference to THIS assets folder can wear.
 
-    Both the bare and the `./` form, because a lookbehind that rejects `.`
-    silently misses `./assets/…` — which then goes on returning 200 from the
-    dev server off a file that is no longer tracked, and ships broken.
+    `assets/x.png`, `./assets/x.png` and the absolute
+    `/GeoID_Earth/assets/x.png` are the same file; a rewrite that knows only the
+    first two leaves the third pointing at a path that is about to stop
+    existing. Deriving the absolute form from the folder's own location is what
+    keeps this from also matching another viewer's identically-named file.
     """
+    return ["/" + str(assets.relative_to(ROOT)) + "/", "./assets/", "assets/"]
+
+
+def rewrite(viewer: pathlib.Path, names: dict, base: str, key: str,
+            roots: list[pathlib.Path], assets: pathlib.Path) -> int:
+    """`<any known prefix>x.png?v=123` -> `<base>/<PREFIX>/<key>/x.png?v=<hash>`"""
     changed = 0
-    for f in code_files(viewer):
+    seen = set()
+    for f in [x for r in roots for x in code_files(r)]:
+        if f in seen:
+            continue
+        seen.add(f)
         s = original = f.read_text(errors="surrogateescape")
+        forms = source_forms(assets)
         for rel in sorted(names, key=len, reverse=True):
             url = f"{base.rstrip('/')}/{PREFIX}/{key}/{rel}?v={fingerprint(names[rel])}"
-            s = re.sub(r"(?:\./)?(?<![\w.-])assets/" + re.escape(rel) + r"(?:\?[^\"'`)\s]*)?",
-                       url, s)
+            for form in forms:
+                s = re.sub(r"(?<![\w.-])" + re.escape(form) + re.escape(rel)
+                           + r"(?:\?[^\"'`)\s]*)?", url, s)
         if s != original:
             f.write_text(s, errors="surrogateescape")
             changed += 1
@@ -157,6 +196,9 @@ def main() -> int:
     ap.add_argument("--base", required=True)
     ap.add_argument("--remote", default="r2:geoid-maps")
     ap.add_argument("--min-bytes", type=int, default=256 * 1024)
+    ap.add_argument("--rewrite-in", action="append", default=[],
+                    help="extra directory whose code names these assets "
+                         "(repeatable); the viewer's own tree is always included")
     ap.add_argument("--unpublish", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
@@ -167,11 +209,13 @@ def main() -> int:
         die(f"no assets/ under {args.viewer}")
 
     if args.unpublish:
-        n = restore(viewer, args.base, args.key)
+        roots = [viewer] + [(ROOT / r).resolve() for r in args.rewrite_in]
+        n = sum(restore(r, args.base, args.key) for r in roots)
         print(f"{args.key}: references restored to assets/ in {n} files")
         return 0
 
     names = {**movable(assets, args.min_bytes),
+             **in_bucket(assets, args.remote, args.key),
              **already_published(viewer, assets, args.key)}
     if not names:
         die("nothing at or above the size floor")
@@ -216,7 +260,8 @@ def main() -> int:
             f"(e.g. {absent[0]}) — nothing was rewritten")
     print(f"  verified {len(there)} objects in the bucket")
 
-    n = rewrite(viewer, names, args.base, args.key)
+    roots = [viewer] + [(ROOT / r).resolve() for r in args.rewrite_in]
+    n = rewrite(viewer, names, args.base, args.key, roots, assets)
     print(f"{args.key}: {len(names)} files ({total / 1048576:.1f} MB) now served "
           f"from {args.base.rstrip('/')}/{PREFIX}/{args.key}/, {n} files rewritten")
     return 0

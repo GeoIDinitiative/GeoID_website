@@ -1498,6 +1498,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       }
       try {
         const image = new Image();
+        image.crossOrigin = "anonymous";
         image.decoding = "async";
         image.src = path;
         await image.decode();
@@ -7844,6 +7845,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       // giving instant global coverage before any per-tile streaming begins.
       _loadGlobalBase() {
         const img = new Image();
+        img.crossOrigin = "anonymous";
         img.onload = () => {
           this.context.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
           this.texture.needsUpdate = true;
@@ -7935,6 +7937,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         return await new Promise((resolve, reject) => {
           const objectUrl = URL.createObjectURL(blob);
           const img = new Image();
+          img.crossOrigin = "anonymous";
           img.onload = () => {
             URL.revokeObjectURL(objectUrl);
             resolve(img);

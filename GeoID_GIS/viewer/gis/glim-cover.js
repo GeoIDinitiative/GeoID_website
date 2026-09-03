@@ -23,7 +23,7 @@
  */
 
 import { loadDerivedGeologyMap, removeDerivedGeologyMap }
-  from "./geology-panel.js?v=20260903-3bb3d6a";
+  from "./geology-panel.js?v=20260903-515af65";
 
 const STAMP = new URL(import.meta.url).search || "";
 const LAYER_ID = "glim-lithology";
@@ -135,7 +135,19 @@ async function loadGlim() {
    */
   await new Promise((done) => window.setTimeout(done, 1500));
   const live = layerOf() || layer;
-  const drawn = (live.features || []).length;
+  /**
+   * COUNT WHAT IS DRAWN, and the controller is the only thing that knows.
+   *
+   * `layer.features` is a SNAPSHOT the tiled layer keeps for the pickers, and
+   * on a dense pyramid it can be empty while the map is fully painted —
+   * measured on GLiM, 0 in `features` against 541,082 held by the controller
+   * and sixteen tile objects visible on the globe. Reading the snapshot made
+   * the status line announce "0 in view" over a drawn map, which reads as the
+   * layer having failed to load. This file's own rule, from the other
+   * direction: count the things drawn, do not ask the drawing what it holds.
+   */
+  const drawn = live.tiled?.featureCount?.()
+    ?? (live.features || []).length;
   /**
    * COUNTED FROM THE TABLE THE BAKE WROTE, never typed in.
    *

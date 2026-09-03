@@ -4745,7 +4745,7 @@ function closePanel() {
 // browsers including iOS Safari where createImageBitmap is absent or buggy.
 // ── Basemap texture cache (satellite + hillshade_blend pre-rendered textures) ─
 const _basemapAssets = {
-  satellite: { path: './assets/satellite.jpg?v=409', label: 'satellite imagery', ref: null },
+  satellite: { path: 'https://data.geoidinitiative.com/assets/hotlink-ok/etna/satellite.jpg?v=5a32ee59a9eb', label: 'satellite imagery', ref: null },
 };
 
 async function _loadBasemapTexture(key) {

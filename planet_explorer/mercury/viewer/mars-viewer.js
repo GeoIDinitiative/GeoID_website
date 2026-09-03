@@ -1408,6 +1408,7 @@ import * as THREE from "/GeoID_GIS/viewer/vendor/three.module.js";
       }
       try {
         const image = new Image();
+        image.crossOrigin = "anonymous";
         image.decoding = "async";
         image.src = path;
         await image.decode();
@@ -9107,6 +9108,7 @@ import * as THREE from "/GeoID_GIS/viewer/vendor/three.module.js";
       // giving instant global coverage before any per-tile streaming begins.
       _loadGlobalBase() {
         const img = new Image();
+        img.crossOrigin = "anonymous";
         img.onload = () => {
           this.context.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
           this.texture.needsUpdate = true;
@@ -9198,6 +9200,7 @@ import * as THREE from "/GeoID_GIS/viewer/vendor/three.module.js";
         return await new Promise((resolve, reject) => {
           const objectUrl = URL.createObjectURL(blob);
           const img = new Image();
+          img.crossOrigin = "anonymous";
           img.onload = () => {
             URL.revokeObjectURL(objectUrl);
             resolve(img);
