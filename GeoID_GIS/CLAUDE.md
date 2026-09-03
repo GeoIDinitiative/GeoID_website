@@ -11314,3 +11314,72 @@ rewrite and a separate decision. And after any bake, count what was
 COMMITTED rather than what was written — `git status` being clean is exactly
 what being fully committed looks like, which is how 376 MB of soil scratch
 reached a commit in the first place.
+
+### Untracking a file does not remove it from the commits being pushed
+
+The push to `origin/gis-viewer-mygeoid` failed every time, and not for any
+reason visible in the working tree: `git status` was clean, `.soil-work` was
+gitignored, and nothing oversized was tracked. **GitHub hard-rejects any single
+file over 100 MB**, and the 52 unpushed commits carried four —
+`dsmw.geojson` 137.2 MB and `soil.geojson` at 131.2 / 130.5 / 130.4 MB — swept
+in by `git add -A` in the soil bake and only UNTRACKED four commits later.
+Untracking stops a file growing and stops it deploying; the blob stays in every
+commit that already held it, so the push was 860 MB of blobs and could never
+succeed. Retrying is not a strategy here — the refusal is a permanent property
+of the history.
+
+**The diagnosis is one command**, and worth reaching for before reading any
+error text:
+
+    git rev-list <remote>..HEAD --objects \
+      | git cat-file --batch-check='%(objecttype) %(objectsize) %(rest)' \
+      | awk '$1=="blob" && $2>100000000 {print $2, $3}'
+
+`git filter-repo --invert-paths --path data/global/.soil-work --refs
+<remote>..HEAD --force` purged it: 860 MB → **271 MB**, nothing over 100 MB, all
+52 commits and their messages kept. Three things made that safe rather than
+brave, and all three were checked FIRST:
+
+- **The blobs were confined to unpushed commits.** Every remote branch —
+  `gis-viewer-mygeoid`, `-staging`, `main`, `flight-sim-mars` — was measured to
+  contain zero `.soil-work` objects, so the rewrite could not touch history
+  anyone else holds. `--refs <remote>..HEAD` scopes it to that range.
+- **The TREE must come out byte-identical**, and that is the correctness check
+  rather than the commit count: `git rev-parse HEAD^{tree}` before and after
+  were the same hash (`8f4459b6`), which says the purge changed nothing about
+  the deliverable. A rewrite that alters the tree has removed something real.
+- **A backup ref before the rewrite**, not a bundle. A tag plus a branch at the
+  old HEAD keeps the old objects reachable at zero extra bytes, which matters on
+  a disk at 99%; `git bundle` would have written another gigabyte. Deleting that
+  ref and running `gc` is what finally reclaims the ~580 MB.
+
+**And the branch's upstream was not the branch of the same name.**
+`gis-viewer-mygeoid` tracks `origin/gis-viewer-mygeoid-staging`, 831 commits
+behind, so a bare `git push` aims somewhere quite different from
+`origin/gis-viewer-mygeoid`, which is 52 behind. Push by explicit refspec here,
+or read `git rev-parse --abbrev-ref @{upstream}` before believing a push
+targeted what its branch name suggests.
+
+### 190 MB IS the whole pyramid — the gigabytes are the source and the scratch
+
+Worth stating because the bucket looks too small to be holding two global maps.
+Measured, `rclone size` against the manifests' own byte counts:
+
+| | bucket | objects | manifest says |
+| --- | --- | --- | --- |
+| GLiM | 165.7 MB | 929 = 927 tiles + manifest + classes | 927 tiles, 165.7 MB |
+| soil | 25.0 MB | 564 = 562 tiles + manifest + units | 562 tiles, 25.0 MB |
+
+`rclone check` matches every tile byte for byte (928/929 and 563/564), and the
+single difference in each is `manifest.json` — expected, because `publish-tiles`
+stamps `tiles_base` into the LOCAL copy after uploading, and the site reads the
+local one by design. The bucket's copy is never fetched.
+
+GLiM ships as a 1.1 GB geodatabase, becomes a ~3 GB reprojected GeoPackage and
+leaves 4.4 GB of scratch — and bakes to 169 MB, a hundredfold collapse that is
+the whole point rather than a loss: banded simplification at the source's own
+0.017° accuracy, vertices quantised onto the 4096 grid, only the level-1 class
+name carried, protobuf varints. **A pyramid is not the size of its source, and
+comparing the two is how a complete upload comes to look like a failed one.**
+The check that answers it is object COUNT against the manifest's own tile count,
+never total bytes against the download.

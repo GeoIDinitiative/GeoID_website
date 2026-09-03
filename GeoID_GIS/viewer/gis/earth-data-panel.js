@@ -48,7 +48,7 @@
 import {
   fetchStations, fetchWaveform, FDSN_NODES,
   fetchPopulation, SOILGRIDS, WORLDPOP,
-} from "./earth-data.js?v=20260903-f21c637";
+} from "./earth-data.js?v=20260903-64bcf1b";
 
 const byId = (id) => document.getElementById(id);
 
