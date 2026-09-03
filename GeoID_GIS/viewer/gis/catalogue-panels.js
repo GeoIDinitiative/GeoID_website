@@ -29,8 +29,8 @@
 
 import {
   HOMES, grouped, addDataset, layerForDataset,
-} from "./global-data.js?v=20260903-87ac511";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-87ac511";
+} from "./global-data.js?v=20260903-4088cab";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-4088cab";
 
 const byId = (id) => document.getElementById(id);
 
@@ -124,6 +124,31 @@ const TILED = {
       layer?.tiled?.dispose?.();
       window.GeoIDSoilCover?.remove?.();
       window.GeoIDSoilCover?.say?.("");
+    },
+  },
+  {
+    id: "glim-lithology",
+    group: "Surface lithology",
+    label: "Surface lithology (GLiM)",
+    title: "GLiM — the Global Lithological Map, 1,235,259 polygons of what "
+      + "rock is exposed at the surface, about 1:3,750,000. Baked into vector "
+      + "tiles on this site; streams and sharpens as you fly in.",
+    info: {
+      summary: "What rock is at the SURFACE, which is a different question "
+        + "from both of its neighbours: Macrostrat maps the bedrock formation "
+        + "and FAO maps the soil that formed on it. Sixteen lithological "
+        + "classes — sediments, volcanics, plutonics, metamorphics — about a "
+        + "hundred times the detail of previous global lithological maps, and "
+        + "thirty-six times the polygon count of the soil map.",
+      citation: "Hartmann & Moosdorf (2012), doi:10.1029/2012GC004370",
+    },
+    ready: () => Boolean(window.GeoIDGlimCover?.load),
+    layerOf: () => window.GeoIDGlimCover?.layerOf?.() || null,
+    load: () => window.GeoIDGlimCover.load(),
+    unload: (layer) => {
+      layer?.tiled?.dispose?.();
+      window.GeoIDGlimCover?.remove?.();
+      window.GeoIDGlimCover?.say?.("");
     },
   }],
   "geology-ice": [{

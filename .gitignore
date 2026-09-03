@@ -47,3 +47,9 @@ GeoID_GIS/services/.cache/
 
 # The glacier bake's downloads and merge — 400 MB of RGI tarballs.
 .glacier-bake/
+
+# Bake WORKING DIRECTORIES — downloads, extracted sources and tile bands.
+# The pyramid under data/global/<name>/ is the artefact; these are the scratch
+# that produced it, and 376 MB of the soil bake reached a commit before this
+# rule existed. Each bake script recreates its own from the source.
+data/global/.*-work/
