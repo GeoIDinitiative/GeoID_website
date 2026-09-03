@@ -10,22 +10,22 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-c00bfa0";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260903-c00bfa0";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260903-c00bfa0";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-151413f";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260903-151413f";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260903-151413f";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260903-c00bfa0";
+  from "./view-extent.js?v=20260903-151413f";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260903-c00bfa0";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-c00bfa0";
+} from "./extent-picker.js?v=20260903-151413f";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-151413f";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
-} from "./gee-catalogue-index.js?v=20260903-c00bfa0";
+} from "./gee-catalogue-index.js?v=20260903-151413f";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -966,7 +966,7 @@ function ensureGeeDialog() {
        the height this strip is meant to be, and the tile answered by growing an
        inner scrollbar that hid the Draw button — the primary gesture — behind
        it. Side by side, the whole fetch is visible at once. */
-    "#gee-add-params { position: sticky; left: 0; z-index: 2; flex: 0 0 26rem;",
+    "#gee-add-params { position: sticky; left: 0; z-index: 2; flex: 0 0 22rem;",
     "  display: flex; flex-direction: column; gap: 0.3rem;",
     "  padding: 0.5rem 0.6rem; border-radius: 0.5rem;",
     "  border: 1px solid rgba(var(--nav-accent-rgb, 255,43,214), 0.5);",
@@ -1048,8 +1048,6 @@ function ensureGeeDialog() {
     "#gee-add-row { display: flex; gap: 0.35rem; align-items: flex-end; }",
     "#gee-add-row > * { flex: 1; min-width: 0; }",
     "#gee-add-row .button { flex: 0 0 auto; }",
-    "#gee-add-idrow { display: flex; gap: 0.3rem; align-items: flex-end; }",
-    "#gee-add-idrow label { flex: 1; min-width: 0; }",
     "#gee-add-extent-note { font: 400 0.56rem/1.35 'Exo 2', sans-serif; opacity: 0.8; }",
     /* NEITHER SHRINKS. Both are flex children of the tile, so they were being
        squeezed to make room — measured, the Request button rendered 11 px tall
@@ -1077,7 +1075,6 @@ function ensureGeeDialog() {
     '<label class="gee-tick"><input id="gee-add-deprecated" type="checkbox">'
       + "<span>Superseded</span></label>",
     '<div id="gee-add-chips"></div>',
-    '<span class="gee-hint" id="gee-add-hint">Set the ground and the window here — every tile adds with them.</span>',
     '<button id="gee-add-close" class="button secondary" type="button">Close</button>',
     "</div>",
     '<div id="gee-add-strip">',
@@ -1105,10 +1102,6 @@ function ensureGeeDialog() {
     '<label>From<input id="gee-add-from" type="date"></label>',
     '<label>To<input id="gee-add-to" type="date"></label>',
     "</div>",
-    '<label>Earth Engine ID<span class="gee-param-pair">',
-    '<input id="gee-add-id" type="text" placeholder="e.g. ECMWF/ERA5/DAILY">',
-    '<button id="gee-add-id-use" class="button secondary" type="button">Add</button>',
-    "</span></label>",
     "</div>",
     "</div>",
     '<div id="gee-add-status"></div>',
@@ -1128,34 +1121,6 @@ function ensureGeeDialog() {
     renderGeeList();
   });
   byId("gee-add-deprecated").addEventListener("change", renderGeeList);
-  /**
-   * THE TYPED ID IS A TILE YOU TYPE, so its button adds like one.
-   *
-   * This row exists because the service accepts ANY dataset in Google's
-   * published catalogue and the strip cannot show eleven hundred of them at
-   * once. It used to only SELECT, leaving the parameter tile's Request as the
-   * thing that actually fetched — and once every tile carries its own Add,
-   * that button is the only reason a separate Request would still exist. So
-   * this one requests too, and there is one gesture in here rather than two.
-   */
-  const addTypedId = () => {
-    const id = byId("gee-add-id").value.trim();
-    if (!id) { dialogStatus("Type an Earth Engine dataset id first."); return; }
-    chosenDataset = id;
-    renderGeeList();
-    requestFromDialog();
-  };
-  byId("gee-add-id-use").addEventListener("click", addTypedId);
-  byId("gee-add-id").addEventListener("keydown", (event) => {
-    if (event.key === "Enter") { event.preventDefault(); addTypedId(); }
-  });
-
-  /**
-   * Draw mode: the map's own rubber band. The box is pushed to the GLOBE as
-   * it is dragged, so the planet behind the modal shows the same extent and
-   * the request afterwards travels the ordinary "drawn" path — which is what
-   * makes the extent land in Workspace on success without a line of code here.
-   */
   byId("gee-add-draw").addEventListener("click", () => {
     const drawn = drawnOverlayBounds();
     if (!drawn) {
@@ -1189,14 +1154,19 @@ function ensureGeeDialog() {
   });
 
 
-  // The dialog reports through the same status line the form writes; a
-  // mirror keeps one source of truth for what the request is doing.
-  const mirror = new MutationObserver(() => {
-    const node = byId("gee-add-status");
-    if (node && !backdrop.hidden) node.textContent = byId("gee-status")?.textContent || "";
-  });
-  const source = byId("gee-status");
-  if (source) mirror.observe(source, { childList: true, characterData: true, subtree: true });
+  /**
+   * THE REQUEST'S RUNNING COMMENTARY IS NOT MIRRORED HERE.
+   *
+   * A MutationObserver used to copy `#gee-status` into this line, which put
+   * the whole of a pull's narration into the strip — "Added … from cache —
+   * 39 km/px, 7.8x coarser than this dataset's native 5000 m". True, and
+   * useful, and not what somebody scanning a row of tiles is reading for.
+   *
+   * It is not lost: `request()` still writes it to `#gee-status` on the tab
+   * that owns the form, and the layer carries its own resolution note in its
+   * metadata. What stays here is what this strip itself has to say — the draw
+   * prompts and the refusals, which have nowhere else to appear.
+   */
 }
 
 /**
@@ -1476,7 +1446,9 @@ function renderGeeCategories() {
 function describeExtent(box) {
   const note = byId("gee-add-extent-note");
   if (!note) return;
-  if (!box) { note.textContent = "The whole planet."; return; }
+  // Nothing for Global: the select directly above it already says so, and a
+  // line restating its own control is a line to read past.
+  if (!box) { note.textContent = ""; return; }
   const [w, s, e, n] = box;
   note.textContent = `${(e - w).toFixed(1)} × ${(n - s).toFixed(1)}°  ·  `
     + `W ${w.toFixed(2)}  S ${s.toFixed(2)}  E ${e.toFixed(2)}  N ${n.toFixed(2)}`;
@@ -1521,7 +1493,7 @@ async function showChosenExtent() {
  */
 async function requestFromDialog() {
   const dataset = chosenDataset;
-  if (!dataset) { dialogStatus("Choose a dataset from the list, or type an ID."); return; }
+  if (!dataset) { dialogStatus("Choose a dataset from the strip."); return; }
   const select = byId("gee-dataset");
   if (select) {
     // A typed id is not in the hidden select, and the live path reads the
