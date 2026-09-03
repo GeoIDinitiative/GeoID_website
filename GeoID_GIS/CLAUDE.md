@@ -11659,3 +11659,58 @@ carries 8. So the failures were local, against a working tree that was being
 rewritten at that moment. **`git ls-remote` and one curl of a file that only the
 new branch has settles it in seconds**, and is worth doing before reading any
 code.
+
+### `earth-viewer.js` has TWO copies of the seven-layer intersection block
+
+One is tab-indented and is the real picker, `getInteractiveFeatureHit`
+(~15610); the other is space-indented and belongs to a `geologyLineIntersections`
+branch inside a click handler (~21400). A patch anchored on the space-indented
+form asserted **"exactly one match"**, passed, and went into the wrong function —
+where it would have made a core-view label open a *geology* popup.
+
+The assert was not wrong, it was answering a different question: the anchor text
+was unique **as written**, because indentation is part of the match. So a
+uniqueness check proves the anchor is unambiguous, **it does not prove the
+anchor is the intended site**. After any patch of this file, confirm the change
+landed inside the function it was meant for — `awk 'NR>=<fn start> && NR<=<fn
+end>'` and grep for the marker — before believing the edit.
+
+The tell that it was wrong was available immediately and I did not read it: the
+zoom half of the same commit worked live while the picker half did nothing,
+which localises the fault to the picker before any browser work.
+
+### A `try/catch` returning null makes an error and a miss identical
+
+`interactiveFeatureAt` wraps the picker in `try { … } catch { return null; }`.
+With `cutawayResult` in question that swallowed the interesting case entirely:
+a scope error and "nothing under the cursor" both answer `null`. Temporarily
+stashing the error on `window` was what ruled out a TDZ problem in one reload —
+worth doing FIRST whenever a picker returns nothing, because it splits "did not
+run" from "ran and found nothing", and those have no diagnoses in common.
+
+### The scene card's close button was covered by its own kicker
+
+`.scene-popup-close` is absolutely positioned with no `z-index`; `.feature-kicker`
+is a full-width static paragraph whose box (718→1026 px) runs under the button
+(1005→1033). The kicker won the hit test, so a real click on the ✕ did nothing
+while `btn.click()` closed the card instantly — proof the handler was fine and
+the BUTTON was unreachable, keyboard-only.
+
+**`document.elementFromPoint(centre of the control) === the control`** is the
+check, and it is worth running on any control that sits over flowing text. A
+click-through test alone would have blamed the handler.
+
+This one only surfaced because the label fix worked: until a card could stay
+open, nothing had ever needed to close one.
+
+### The screenshot frame is not the page frame
+
+Screenshots come back 800×635 for a 1077×855 canvas — a 0.7428 scale. The
+`computer` tool maps its own coordinates, but any pixel read OFF a screenshot by
+eye and then passed to page-space JS (`interactiveFeatureAt`, `elementFromPoint`)
+is wrong by a third, and lands plausibly enough to look like a real miss. Twice
+this cost a "the fix does not work" that was only a bad coordinate.
+
+Locate targets by projecting the scene objects instead: `getWorldPosition` →
+`project(camera)` → rect maths gives the exact page pixel for every label, and
+the hover handler's own `clientX/clientY` confirms the mapping.
