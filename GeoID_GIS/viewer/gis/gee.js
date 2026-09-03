@@ -10,22 +10,24 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-c5aa147";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260903-c5aa147";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260903-c5aa147";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-1a7c7d3";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260903-1a7c7d3";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260903-1a7c7d3";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260903-c5aa147";
+  from "./view-extent.js?v=20260903-1a7c7d3";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260903-c5aa147";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-c5aa147";
+} from "./extent-picker.js?v=20260903-1a7c7d3";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-1a7c7d3";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
-} from "./gee-catalogue-index.js?v=20260903-c5aa147";
+  freshness, isNewDataset, isExtendedDataset, indexedHrefs, bakedOn,
+} from "./gee-catalogue-index.js?v=20260903-1a7c7d3";
+import { checkCatalogue, describeCheck } from "./gee-watch.js?v=20260903-1a7c7d3";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -871,6 +873,14 @@ const HOME_LABELS = {
 let chosenDataset = "";
 /** Which subject filter is applied; "" is everything. */
 let homeFilter = "";
+
+/**
+ * The New chip's state. Separate from `homeFilter` rather than another value
+ * of it: "added since the last bake" is not a subject, and folding it into the
+ * subject list would make it exclusive with a tab's own filter — which is
+ * exactly the pairing somebody wants ("what is new in Basemaps").
+ */
+let freshFilter = false;
 /** Why the catalogue could not be read, if it could not. */
 let catalogueError = "";
 /** Whether the deployed image service can render more than the curated list. */
@@ -956,6 +966,13 @@ function ensureGeeDialog() {
     "  color: var(--skin-data); cursor: pointer; white-space: nowrap; }",
     "#gee-add-chips button.is-on { background: var(--nav-accent, var(--skin-chrome));",
     "  border-color: transparent; color: #12040f; }",
+    /* The New chip is filled at REST, because its whole job is to be noticed
+       once and then be gone again at the next bake. Every other chip in the
+       row fills only when it is the one in force. */
+    "#gee-add-chips button.gee-chip-new { background: rgba(var(--skin-data-rgb),0.16);",
+    "  border-color: var(--skin-data); color: var(--skin-data); }",
+    "#gee-add-chips button.gee-chip-new.is-on {",
+    "  background: var(--skin-data); border-color: transparent; color: #06121a; }",
     /* The strip. The parameter tile is STICKY at its left edge: it is what
        every tile in the row is added WITH, so scrolling away from it would be
        scrolling away from the controls the next press uses. */
@@ -1004,6 +1021,10 @@ function ensureGeeDialog() {
     "#gee-add-list .gee-card .gee-badge.is-live { color: var(--skin-data); }",
     "#gee-add-list .gee-card .gee-badge.is-cat { color: #9aa7ff; }",
     "#gee-add-list .gee-card .gee-badge.is-warn { color: #ffb454; }",
+    /* Filled rather than tinted: the New chip filters to these, and once the
+       filter is off they still have to be findable in a row you scroll. */
+    "#gee-add-list .gee-card .gee-badge.is-new { color: #06121a;",
+    "  background: var(--skin-data); border-radius: 999px; padding: 0 0.35rem; }",
     "#gee-add-list .gee-card .gee-add-one { flex: 0 0 auto; align-self: stretch;",
     "  margin-top: 0.15rem; height: 1.45rem; border-radius: 0.35rem; cursor: pointer;",
     "  font: 600 0.55rem/1.5 'Exo 2', sans-serif; letter-spacing: 0.1em;",
@@ -1200,6 +1221,29 @@ function syncDialogDates() {
     });
 }
 
+/**
+ * Ask Google whether it has published anything since this browser last looked.
+ *
+ * Two requests against the bucket listing, once a session, and it speaks only
+ * when the answer is genuinely new — `gee-watch.js` holds why, and its three
+ * rules are what stop this becoming a line somebody reads past. It writes into
+ * the status only when the status is EMPTY: a note about the catalogue must
+ * never overwrite the report of a fetch somebody just pressed for.
+ *
+ * Failing is silent by design. This is a courtesy check against somebody
+ * else's storage bucket, and the panel works perfectly without it — putting
+ * "the watcher could not reach Cloud Storage" in front of a reader who was
+ * adding rainfall would be noise about a thing they did not ask for.
+ */
+function announceCatalogueCheck() {
+  checkCatalogue(indexedHrefs())
+    .then((result) => {
+      const line = describeCheck(result, bakedOn());
+      if (line && !byId("gee-add-status")?.textContent) dialogStatus(line);
+    })
+    .catch(() => {});
+}
+
 function dialogStatus(message) {
   const node = byId("gee-add-status");
   if (node) node.textContent = message;
@@ -1229,6 +1273,10 @@ function renderGeeList() {
   const needle = query.toLowerCase();
   const curated = catalogueEntries().filter((entry) => {
     if (category) return false;                 // a GEE category is not ours
+    // This app's own are matched against the SAME index entry the catalogue
+    // half reads, so a curated dataset whose collection gained imagery is
+    // marked as such rather than being exempt for being ours.
+    if (freshFilter && !isFresh(datasetById(entry.id))) return false;
     if (homeFilter && geeHomeOf(entry.id) !== homeFilter) return false;
     if (!needle) return true;
     return `${entry.label} ${entry.id}`.toLowerCase().includes(needle);
@@ -1250,12 +1298,16 @@ function renderGeeList() {
 
   const curatedIds = new Set(curated.map((entry) => entry.id));
   const found = searchCatalogue({
-    query, category, includeDeprecated: deprecated, limit: 60,
+    query, category, includeDeprecated: deprecated, freshOnly: freshFilter,
+    limit: 60,
   });
   const rest = found.results.filter((entry) => !curatedIds.has(entry.id));
-  host.appendChild(groupHeading(
-    `Earth Engine catalogue · ${found.total.toLocaleString()} match`
-    + (found.total === 1 ? "" : "es")));
+  const fresh = freshness();
+  host.appendChild(groupHeading(freshFilter
+    ? `New since ${fresh.since || "the last bake"} · `
+      + `${found.total.toLocaleString()} of ${fresh.total}`
+    : `Earth Engine catalogue · ${found.total.toLocaleString()} match`
+      + (found.total === 1 ? "" : "es")));
   rest.forEach((entry) => host.appendChild(catalogueCard(entry)));
 
   const notes = [];
@@ -1268,6 +1320,13 @@ function renderGeeList() {
     notes.push(`${(found.total - found.results.length).toLocaleString()} more match — `
       + "add a word to narrow it.");
   }
+  if (freshFilter) {
+    notes.push(`Showing only what changed between the ${fresh.since} and `
+      + `${fresh.baked} bakes of Google's catalogue: ${fresh.added} dataset`
+      + `${fresh.added === 1 ? "" : "s"} added, ${fresh.extended} collection`
+      + `${fresh.extended === 1 ? "" : "s"} whose imagery now reaches further. `
+      + "Press New again for the whole catalogue.");
+  }
   if (found.deprecated) {
     notes.push(`${found.deprecated} superseded dataset${found.deprecated === 1 ? "" : "s"} `
       + "hidden — tick “include superseded” to see them.");
@@ -1277,7 +1336,9 @@ function renderGeeList() {
       + "rasters their publisher gives no default rendering for.");
   }
   if (!found.total && !curated.length) {
-    notes.unshift("Nothing matches. Any Earth Engine dataset ID can still be typed in below.");
+    notes.unshift(freshFilter
+      ? "Nothing new matches. Press New again for the whole catalogue."
+      : "Nothing matches — try a broader word, or a different subject.");
   }
   notes.forEach((text) => {
     const note = document.createElement("div");
@@ -1285,6 +1346,11 @@ function renderGeeList() {
     note.textContent = text;
     host.appendChild(note);
   });
+}
+
+/** New, or newly extended. Tolerates an id the index does not carry. */
+function isFresh(entry) {
+  return Boolean(entry) && (isNewDataset(entry) || isExtendedDataset(entry));
 }
 
 function groupHeading(text) {
@@ -1307,6 +1373,13 @@ function curatedCard(entry) {
    */
   card.prepend(badge(cached ? "Offline snapshot · whole planet" : "Tuned for this app",
     cached ? "is-cache" : "is-live"));
+  // A curated dataset is a LIVE collection like any other unless it is a
+  // shipped snapshot, so it gains imagery like any other and says so. A cached
+  // one never does: what it drapes is a PNG on disk, which no re-bake moves.
+  const record = datasetById(entry.id);
+  if (!cached && isExtendedDataset(record)) {
+    card.prepend(badge("New imagery", "is-new"));
+  }
   card.title = entry.title;
   /**
    * WHAT THE DATASET IS, from Google's own record.
@@ -1317,7 +1390,6 @@ function curatedCard(entry) {
    * own badge across six tiles is worse than a tile with one line fewer, so a
    * dataset the index has nothing for simply gets no sentence.
    */
-  const record = datasetById(entry.id);
   const summary = record?.summary || "";
   if (summary) {
     const line = document.createElement("small");
@@ -1335,6 +1407,12 @@ function catalogueCard(entry) {
   card.prepend(badge(entry.status === "beta" ? "Beta"
     : entry.status === "deprecated" ? "Superseded" : "Earth Engine",
   entry.status === "ready" ? "is-cat" : "is-warn"));
+  // The two kinds of news are different facts and are not collapsed: one is a
+  // dataset that did not exist here last time, the other is a collection still
+  // being flown whose imagery now reaches further. Somebody watching for a
+  // recent scene wants the second; somebody browsing wants the first.
+  if (isNewDataset(entry)) card.prepend(badge("New", "is-new"));
+  else if (isExtendedDataset(entry)) card.prepend(badge("New imagery", "is-new"));
   const line = document.createElement("small");
   line.textContent = describeDataset(entry);
   card.appendChild(line);
@@ -1431,11 +1509,34 @@ function renderGeeChips() {
   if (!host) return;
   const used = new Set(catalogueEntries().map((entry) => geeHomeOf(entry.id)));
   host.innerHTML = "";
+
+  // NEW LEADS THE ROW, and only when there is something to lead it with. A
+  // chip that is present and always reads zero teaches somebody to ignore it;
+  // one that appears when Google publishes is worth a glance. It is a TOGGLE,
+  // not a subject — see `freshFilter`.
+  const fresh = freshness();
+  if (fresh.total) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "gee-chip-new";
+    chip.textContent = `New · ${fresh.total}`;
+    chip.title = `${fresh.added} dataset${fresh.added === 1 ? "" : "s"} added and `
+      + `${fresh.extended} with new imagery since this index was baked`
+      + (fresh.since ? ` on ${fresh.since}` : "");
+    chip.classList.toggle("is-on", freshFilter);
+    chip.addEventListener("click", () => {
+      freshFilter = !freshFilter;
+      renderGeeChips();
+      renderGeeList();
+    });
+    host.appendChild(chip);
+  }
+
   ["", ...Object.keys(HOME_LABELS).filter((h) => h && used.has(h))].forEach((home) => {
     const chip = document.createElement("button");
     chip.type = "button";
     chip.textContent = HOME_LABELS[home];
-    chip.classList.toggle("is-on", home === homeFilter);
+    chip.classList.toggle("is-on", home === homeFilter && !freshFilter);
     chip.addEventListener("click", () => {
       homeFilter = home;
       // A GEE category and one of ours answer different questions; holding
@@ -1675,9 +1776,10 @@ async function openGeeDialog(homeName) {
     catalogueError = "";
     renderGeeCategories();
     renderGeeList();
+    announceCatalogueCheck();
   }).catch((error) => {
     catalogueError = `Google's catalogue index could not be read (${error.message}). `
-      + "The datasets above still work, and any Earth Engine ID can be typed in below.";
+      + "The datasets above still work.";
     renderGeeList();
   });
 

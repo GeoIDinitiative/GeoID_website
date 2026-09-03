@@ -1,0 +1,90 @@
+# Is Google's Earth Engine catalogue ahead of the one this site ships?
+#
+# `data/global/gee-catalogue.json` is baked, because the STAC tree is 1 root +
+# 131 provider catalogs + one JSON per dataset and no page can walk eleven
+# hundred requests at open. A baked index then goes stale SILENTLY: the panel
+# goes on offering last month's catalogue with nothing anywhere saying so, and
+# the New chip in the Earth Engine strip has nothing to be new against.
+#
+# So this job re-bakes on a schedule and REPORTS what moved. It does not commit
+# and it does not push — deliberately:
+#
+#   * pushing is this repo's one standing rule, and a scheduled job that
+#     commits to `main` is exactly the thing that rule exists to prevent;
+#   * the bake is 1,270 requests against somebody else's bucket, and a job that
+#     silently rewrote a shipped 1 MB artefact every week would make the diff
+#     that matters — three genuinely new datasets — impossible to find.
+#
+# What it produces is a JOB SUMMARY naming the counts and the new ids, and the
+# baked file as a downloadable artefact. Re-baking locally is one command; this
+# is the thing that tells you it is worth running.
+#
+#     python3 GeoID_GIS/services/bake-gee-catalogue.py
+#
+# It reads nothing but a public, keyless, CORS-open bucket, so it needs no
+# secret and is given no write permission.
+
+name: gee catalogue
+
+on:
+  schedule:
+    # Mondays, 04:17 UTC. Off the hour on purpose: every runner in the world is
+    # queued at :00, and nothing here is time-critical.
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gee-catalogue
+  cancel-in-progress: false
+
+jobs:
+  bake:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Re-bake the catalogue
+        run: |
+          set -o pipefail
+          python3 GeoID_GIS/services/bake-gee-catalogue.py 2>&1 | tee bake.log
+
+      - name: Prove the readers still agree with it
+        run: |
+          node GeoID_GIS/viewer/gis/gee-catalogue-index.test.mjs
+          node GeoID_GIS/viewer/gis/gee-watch.test.mjs
+
+      - name: Say what moved
+        if: always()
+        run: |
+          {
+            echo "## Earth Engine catalogue"
+            echo
+            if git diff --quiet -- data/global/gee-catalogue.json; then
+              echo "Google's catalogue has not moved since the shipped bake."
+            else
+              # The bake's own summary line is the part worth reading.
+              grep -E 'since [0-9-]+: ' bake.log || true
+              echo
+              python3 GeoID_GIS/services/bake-gee-catalogue.py --report-new
+              echo
+              echo "Re-bake locally to ship it:"
+              echo '```bash'
+              echo "python3 GeoID_GIS/services/bake-gee-catalogue.py"
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the baked file, so it need not be re-fetched to inspect
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gee-catalogue
+          path: data/global/gee-catalogue.json
+          retention-days: 14

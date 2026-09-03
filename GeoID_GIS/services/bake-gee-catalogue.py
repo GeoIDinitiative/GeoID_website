@@ -22,6 +22,16 @@ guessing at bands and a stretch.
 Run it when the catalogue should be refreshed:
 
     python3 GeoID_GIS/services/bake-gee-catalogue.py
+    python3 GeoID_GIS/services/bake-gee-catalogue.py --report-new   # no fetch
+
+WHAT IS NEW IS A DIFFERENCE BETWEEN TWO BAKES, so it has to be recorded at the
+moment it can still be computed — a snapshot cannot be asked what changed. Each
+entry therefore carries `firstSeen` (the bake it first appeared in) and, where
+a collection's temporal extent has moved forward, `extended`. That second one
+is the honest reading of "new imagery" for something still being flown: on one
+six-day gap it caught Sentinel-2 advancing 2026-08-28 to 2026-09-01, along with
+176 other collections. `carry_baseline` holds the rules, including why the
+FIRST bake must mark nothing new.
 
 The file records `baked` so the panel can say how old the list is; the STAC
 is public, keyless and CORS-open (`access-control-allow-origin: *`), which
@@ -224,7 +234,104 @@ def entry_of(record, href=None):
     return entry
 
 
+def carry_baseline(entries, previous):
+    """
+    Stamp each entry with WHEN THIS BAKE FIRST SAW IT, carried from the last one.
+
+    This is what lets the panel say "new" about anything. A catalogue is a
+    snapshot, so "new" cannot be read out of one — it is the difference between
+    two, and the difference has to be recorded at the moment it can still be
+    computed. Two fields, both dates:
+
+      firstSeen  the bake this id first appeared in
+      extended   the bake at which its temporal extent last moved FORWARD,
+                 which is the honest reading of "new imagery" for a collection
+                 that is still being flown
+
+    Read them by EQUALITY against the payload's own `baked`: an entry is new at
+    this bake when `firstSeen == baked`. No date arithmetic in the page, and a
+    stale index cannot make an old dataset look new by the passage of time.
+
+    THE FIRST BAKE ANNOUNCES NOTHING. With no previous file every id is
+    unknown, so every one would be stamped today and the panel would greet
+    somebody with eleven hundred "new" datasets — the same fault `atlas-watch`
+    records as its first rule, in a different costume. That run sets
+    `baseline: true` on the payload and the page treats the whole file as
+    already-seen. A previous file WITHOUT the field is a different case and is
+    not a baseline: its ids are known to have existed by its own bake date, so
+    they take that date and anything absent from it is genuinely new.
+    """
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    known = {e["id"]: e for e in (previous or {}).get("datasets", [])}
+    fallback = (previous or {}).get("baked") or today
+    fresh = extended = 0
+    for entry in entries:
+        was = known.get(entry["id"])
+        if was is None:
+            entry["firstSeen"] = today
+            fresh += 1
+            continue
+        entry["firstSeen"] = was.get("firstSeen") or fallback
+        # An END that has moved forward is the collection gaining imagery. A
+        # missing or open end is not a retreat, so it is carried rather than
+        # cleared: a publisher who stops stating an end has not un-flown the
+        # satellite.
+        moved = entry.get("end") and was.get("end") and entry["end"] > was["end"]
+        if moved:
+            entry["extended"] = today
+            extended += 1
+        elif was.get("extended"):
+            entry["extended"] = was["extended"]
+    return {"new": fresh, "extended": extended, "baseline": previous is None}
+
+
+def read_previous():
+    """The last bake, or None. A corrupt file is treated as absent, loudly."""
+    if not OUT.exists():
+        return None
+    try:
+        return json.loads(OUT.read_text(encoding="utf-8"))
+    except (ValueError, OSError) as error:
+        print(f"  previous {OUT.name} unreadable ({error}); baking a fresh baseline")
+        return None
+
+
+def report_new():
+    """
+    Print what the LAST bake found new, as markdown. Fetches nothing.
+
+    Split from the bake itself so the scheduled check can re-bake once and then
+    describe the result, rather than walking the catalogue a second time to
+    answer a question the file already holds.
+    """
+    payload = read_previous()
+    if not payload:
+        print("_No baked catalogue to report on._")
+        return 1
+    fresh = [e for e in payload["datasets"] if e.get("firstSeen") == payload["baked"]]
+    extended = [e for e in payload["datasets"] if e.get("extended") == payload["baked"]]
+    print("<details><summary>Newly published datasets"
+          f" ({len(fresh)})</summary>\n")
+    for entry in fresh[:40]:
+        print(f"- `{entry['id']}` — {entry['title']}")
+    if not fresh:
+        print("- (none — the change is collections gaining imagery)")
+    if len(fresh) > 40:
+        print(f"- …and {len(fresh) - 40} more")
+    print("\n</details>\n")
+    print("<details><summary>Collections whose imagery now reaches further"
+          f" ({len(extended)})</summary>\n")
+    for entry in extended[:40]:
+        print(f"- `{entry['id']}` — now to {entry.get('end') or 'an open end'}")
+    if len(extended) > 40:
+        print(f"- …and {len(extended) - 40} more")
+    print("\n</details>")
+    return 0
+
+
 def main():
+    if "--report-new" in sys.argv[1:]:
+        return report_new()
     print("Reading the Earth Engine STAC catalogue…")
     root = fetch(ROOT)
     providers = children(root)
@@ -242,8 +349,13 @@ def main():
     entries = sorted((entry_of(r, hrefs.get(r.get("id"))) for r in records),
                      key=lambda e: e["id"])
 
+    previous = read_previous()
+    change = carry_baseline(entries, previous)
     payload = {
         "baked": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "previousBake": (previous or {}).get("baked"),
+        # The panel reads this: a baseline bake has nothing to be new against.
+        "baseline": change["baseline"],
         "source": ROOT,
         "count": len(entries),
         "datasets": entries,
@@ -266,6 +378,13 @@ def main():
     print(f"Wrote {OUT} — {OUT.stat().st_size / 1024:.0f} KB")
     print(f"  by type: {kinds}")
     print(f"  drapeable (image or collection, with a default visualisation): {drapeable}")
+    if change["baseline"]:
+        print("  BASELINE bake — no previous file, so nothing is marked new")
+    else:
+        gone = len({e["id"] for e in previous.get("datasets", [])}
+                   - {e["id"] for e in entries})
+        print(f"  since {previous.get('baked')}: {change['new']} new, "
+              f"{change['extended']} extended, {gone} withdrawn")
     return 0 if entries else 1
 
 

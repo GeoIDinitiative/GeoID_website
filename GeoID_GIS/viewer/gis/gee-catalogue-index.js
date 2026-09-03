@@ -73,6 +73,79 @@ export function bakedOn() { return catalogue?.baked || null; }
 export function datasetCount() { return catalogue?.datasets?.length || 0; }
 
 /**
+ * Every record this index carries, as the BUCKET names it — `catalog/…json`.
+ *
+ * The watcher compares object paths rather than ids, because a record's URL
+ * cannot be derived from its id (109 are filed under `projects/<owner>/…` in
+ * a folder named nothing like their first path segment, which is why the bake
+ * carries the href). Normalised here rather than in the watcher so there is
+ * one place that knows both spellings.
+ */
+export function indexedHrefs() {
+  const paths = new Set();
+  (catalogue?.datasets || []).forEach((entry) => {
+    const href = entry.href || "";
+    const cut = href.indexOf("earthengine-stac/");
+    if (cut >= 0) paths.add(href.slice(cut + "earthengine-stac/".length));
+  });
+  return paths;
+}
+
+/**
+ * WHAT IS NEW, and the one rule that keeps it honest.
+ *
+ * `bake-gee-catalogue.py` stamps every entry with the bake it first appeared
+ * in (`firstSeen`) and the bake at which its temporal extent last moved
+ * forward (`extended`). Both are read by EQUALITY against the payload's own
+ * `baked` date — never by comparing against today — so an index nobody has
+ * re-baked for six months goes on naming the same handful of datasets rather
+ * than quietly promoting older ones as the clock runs.
+ *
+ * A BASELINE BAKE HAS NO NEWS. The first run has no previous file to differ
+ * from, so it stamps every id with its own date and says so on the payload;
+ * without this guard the panel would open on eleven hundred "new" datasets,
+ * which is the same fault `atlas-watch` records as its first rule.
+ */
+export function isNewDataset(entry) {
+  if (!entry || catalogue?.baseline) return false;
+  return entry.firstSeen === catalogue?.baked;
+}
+
+/** Its extent moved forward at this bake — a collection that gained imagery. */
+export function isExtendedDataset(entry) {
+  if (!entry || catalogue?.baseline) return false;
+  return entry.extended === catalogue?.baked;
+}
+
+/** New or newly extended: what the panel's New chip counts and filters to. */
+export function isFreshDataset(entry) {
+  return isNewDataset(entry) || isExtendedDataset(entry);
+}
+
+/**
+ * The counts behind the chip, and the date they are measured from — so the
+ * panel can say "since 28 Aug" rather than "recently", which is not a claim
+ * anybody can check.
+ */
+export function freshness() {
+  const all = catalogue?.datasets || [];
+  let added = 0;
+  let extended = 0;
+  all.forEach((entry) => {
+    if (isNewDataset(entry)) added += 1;
+    else if (isExtendedDataset(entry)) extended += 1;
+  });
+  return {
+    added,
+    extended,
+    total: added + extended,
+    since: catalogue?.previousBake || null,
+    baked: catalogue?.baked || null,
+    baseline: Boolean(catalogue?.baseline),
+  };
+}
+
+/**
  * A dataset by its Earth Engine id — what a card needs to describe one, and
  * what the request path needs to know whether it can be draped at all.
  */
@@ -139,13 +212,16 @@ export function searchCatalogue(options = {}) {
  */
 export function searchDatasets(all, {
   query = "", category = "", includeDeprecated = false, drapeableOnly = true,
-  limit = 60,
+  freshOnly = false, limit = 60,
 } = {}) {
   const needles = String(query).toLowerCase().split(/\s+/).filter(Boolean);
   let deprecated = 0;
   let undrapeable = 0;
   const hits = [];
   for (const entry of all) {
+    // Before every other exclusion, so the deprecated and undrapeable counts
+    // reported alongside describe the set actually being searched.
+    if (freshOnly && !isFreshDataset(entry)) continue;
     if (category && !(entry.cats || []).includes(category)) continue;
     // Built on demand as well as at load, so a caller that did not come
     // through loadCatalogue still searches the same text.
