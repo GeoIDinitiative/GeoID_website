@@ -10891,3 +10891,160 @@ rule, and a scheduled job that commits to `main` is exactly what that rule
 exists to prevent. `--report-new` prints the last bake's news without fetching
 anything, so the check describes the result rather than walking the catalogue
 twice.
+
+## The basemap list said everything twice, and one map was never ours to hand out
+
+Four faults in one box, and only the first is about duplication.
+
+**TWO CATALOGUES LISTED THE SAME SHIPPED ASSETS.** Every entry in
+`map-layers.js` names a `manifest:` id — the same texture the base picker
+offers — so GEBCO hillshade, GEBCO relief context and NASA's surface texture
+each appeared twice in the Basemaps box, once under "Base texture" and once as
+an overlay, under two spellings of one name. Not strictly duplicates in
+function (the base is the sphere's own skin, the overlay is a draped sheet with
+its own opacity and place in the stack) and unarguably two controls wearing one
+name, which is the fault the Polygons tab's double ticks already record.
+
+**The base picker won**, because the sphere must wear something and
+`earth-viewer`, `layer-hierarchy` and `basemap-drape` all read
+`#base-layer-select` unguarded — that control cannot be the one to lose. What
+is left in the overlay catalogue is the one product with no base-texture twin:
+GEBCO slope is in the manifest and is NOT among the select's options, so it is
+reachable that way and no other. `map-layers.test.mjs` names the five ids that
+would restore the duplication rather than counting entries.
+
+**`distribute: false` is a SECOND AXIS on a tile source, and not the same as
+`freeToStream`.** That one describes the LICENCE — whether a condition rides on
+using the tiles at all. This one is the decision taken about that condition for
+this deployment: Esri's World Imagery is the best-looking map on the list and
+its item record puts it under the Master License Agreement, so it is fine to
+work with locally and not something to hand to every visitor to a public page.
+The source stays whole — registered, fetchable, credited, selectable in code —
+and only `listBaseLayerOptions` withholds it. Deleting the entry instead would
+take the implementation with it. Back for a session with `?basemaps=all`, or
+durably with `localStorage["geoid-gis:private-basemaps"] = "1"`; the URL form is
+deliberately not persisted, and a storage that throws answers NO, so the site
+withholds rather than distributes. Verified both ways: 8 options without it, 10
+with, Esri in neither the picker nor the list on an ordinary load.
+
+**CartoDB's two were removed rather than hidden, because they were dead.**
+Their free CDN answers 200 with an "API KEY REQUIRED" watermark instead of a
+tile — already measured and recorded for `map2d.js`, which is why that map
+opens on OpenStreetMap — so both offered a basemap that renders as a nag across
+the planet.
+
+**`blue-marble` is hidden from the LIST and kept in the SELECT.** It ships with
+the site, so it paints the first frame before any network call and the globe is
+never bare while a tile fetch runs; it is also `ensureNavigateBasemap`'s
+fallback. It is not a map anybody chooses now that Sentinel-2 is the default,
+and it cannot leave the element three modules read unguarded. `UNLISTED_BASE`
+in `map-layers-panel.js` is that distinction written down.
+
+**A "same as the default" constant has to change WITH the default.**
+`DEFAULT_NAVIGATE_BASE_LAYER_ID` said `tiles-esri-satellite` with a comment
+claiming it matched what the page opens on. It had not matched since the
+opening default moved to Sentinel-2 over the licence — so it was quietly a
+second, different default, and hiding Esri would have left it naming a service
+the picker no longer offers.
+
+**AND THE EARTH ENGINE GROUP LEFT THE BASEMAP LIST.** It merged in as its own
+group on the reasoning that one list beats a second dropdown, which was right
+about lists and wrong about this one: a row there is a TICK, and an Earth
+Engine layer is a FETCH that needs an extent and a date range before it means
+anything. The tick either sent a request nobody had specified or did nothing
+anybody could see. The strip behind "+ GEE" has the controls the tick never
+had. The seam is still consulted, so an id it owns is still routed correctly if
+one reaches the list another way — only the offer is withdrawn.
+
+## The world's soils are a MAP now, and the highest resolution is not a polygon
+
+"Swap the SoilGrids tab for a global soil polygon map, implemented like geology
+and ice cover — and find the highest possible resolution." The second half of
+that turns out to argue with the first, and the measurement is what settles it.
+
+**THE HIGHEST-RESOLUTION GLOBAL SOIL PRODUCT IS A RASTER.** SoilGrids (ISRIC)
+is 250 m against the FAO map's 1:5,000,000, its WMS at `maps.isric.org` answers
+CORS `*`, and its capabilities advertise `application/vnd.mapbox-vector-tile` —
+which looks like polygons at 250 m until you ask for one. Measured: the
+`MostProbable` layer returns **0 bytes** as MVT and a perfectly good PNG (21
+classes over Ireland) as an image, because MapServer only vectorises vector
+layers and this is a raster. GLDAS is coarser still; HWSD v2.0 is 30 arc-second
+and also a raster.
+
+So "a polygon map" and "the highest resolution" are two different products, not
+one. This is the polygon map; the 250 m raster is its companion and belongs on
+the drape path. Handing over a raster wearing a polygon map's clothes would be
+the same claim-a-precision-you-do-not-have fault the terrain tool's native
+sampling note already records.
+
+**The source is the FAO/UNESCO Digital Soil Map of the World** — 34,112
+polygons, 123 dominant soil units, `services/bake-soil.py` into
+`data/global/soil` — and it is an ordinary tiled vector layer, so the click
+card, the legend, symbology, clipping, extraction, zonal statistics and export
+all work on it with nothing added. That is the whole argument for the swap: the
+old card sampled ONE POINT, so you could not see where a soil began or ended,
+clip to it, or lay it beside the geology under it.
+
+### Four things the source taught, each of which is a wrong map if assumed
+
+- **FAO'S OWN NAMES ARE IN THE `.lyr`,** and they are read rather than
+  remembered. The download ships an ESRI layer file whose labels are plain
+  UTF-16LE, carrying the legend in TWO shapes — `Af-Ferric Acrisols` (code
+  first) and `Water Bodies (WA)` (code last). Reading only the first names 117
+  of 123 codes and leaves water, ice, rock, salt, dunes and no-data as bare
+  abbreviations: **5,505 polygons, a sixth of the map**.
+- **THE DATA AND THE LEGEND DISAGREE ABOUT ONE CODE.** The polygons say `WR`
+  for water; the legend writes `WA`. Unaliased, 3,350 polygons — every lake and
+  inland sea — came through unnamed, which reads as a hole in the legend rather
+  than as a spelling.
+- **COLOUR BY THE CODE'S FIRST LETTER, NEVER BY THE GROUPING'S NAME.** The FAO
+  legend is systematic — the first letter IS the major grouping — so a letter is
+  an exact key that needs no spelling. Keying on the name cost eight units their
+  colour, for two separate reasons: a grouping with ONE unit has no capitalised
+  row at all (Lithosols is just `I`, and it is the commonest unit on the map at
+  4,266 polygons, every one drawn in the no-value grey), and **FAO's own legend
+  is misspelt twice** — `KASTAZNOZEMS` and `VERTSOLS`. Both corrected for
+  display in a named table, so the correction is arguable rather than silent.
+- **FAO WRITES -1 FOR "NOT MEASURED",** and it reached the map: a card read
+  "bulk density -1", which is not a low density, it is an absence wearing a
+  number's clothes. Same family as `Number("")` being 0. All six kept
+  properties are percentages, a pH or a density, so none can be ≤ 0 and one
+  test covers them.
+
+### Banded by SIMPLIFICATION, not by selection — the opposite of the glaciers
+
+The glacier bake drops small complexes at coarse zooms, which is right for a
+SPARSE subject: ice is islands in an empty sea. Soil is CONTINUOUS, so dropping
+a polygon does not thin the map, it puts a HOLE in it — and a hole in a soil
+map reads as "nothing here" about ground that certainly has soil.
+
+What is genuinely wasted at a coarse zoom is VERTICES. Baked flat the pyramid
+came out at **43.9 MB with a 4.2 MB world tile**, which is the glacier bake's
+own measured fault reproduced exactly (33 seconds of world tiles before the
+view's own were requested). Simplifying per band — every polygon surviving at
+every level — took it to **26.8 MB with a 1.8 MB world tile**, and each
+tolerance is a fraction of a PIXEL at its band's coarsest zoom.
+
+**And the ceiling is the SOURCE'S, not the format's.** The glaciers go to zoom
+6 at extent 8192 because RGI is digitised from 15-30 m imagery. This map is
+1:5,000,000 — its own positional accuracy is a couple of kilometres — so zoom 6
+at 8192 was placing vertices to about 32 m: megabytes of a precision FAO never
+claimed. Zoom 5 at the 4096 convention is ~300 m at the equator, still an order
+of magnitude finer than the source.
+
+### What left with the card, stated so it is not missed
+
+The SoilGrids card derived a **screening strength** (φ′ and c′ from clay and
+sand) and flagged **peat** — organic carbon over ~120 g/kg, where the material
+on the slope is not the mapped bedrock and a strength from a lithology table
+describes the wrong thing. `fetchSoil` and `strengthFromTexture` are still
+exported and still tested in `earth-data.js`; only the card is gone. FAO's own
+topsoil texture, pH, organic carbon and bulk density now ride on every polygon,
+so the same derivation can be put on the map's card whenever it is wanted.
+
+**A HOME MAY BE SERVED ENTIRELY BY THE TILED REGISTRY.**
+`catalogue-panels.test.mjs` checked that every home in `HOMES` holds a shipped
+dataset, which was right while every home had files in it — a baked pyramid is
+not a file, so `global-data.js` cannot describe it and the soil home has none.
+Counting one of the two sources called a fully populated tab empty. The
+invariant that matters is unchanged: no home is a heading over nothing.

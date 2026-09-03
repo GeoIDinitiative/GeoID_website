@@ -126,17 +126,66 @@ EXTENT = 4096
 # The miscellaneous land units are deliberately drab: water, ice, rock, salt
 # and dunes are NOT soils, and giving them a soil's saturation would put five
 # false classes at the top of every legend by area.
+# KEYED BY THE CODE'S FIRST LETTER, NOT BY THE GROUPING'S NAME.
+#
+# The FAO legend is systematic — the first letter IS the major grouping, and
+# every subunit inherits it — so a letter is an exact key that needs no
+# spelling. Keying on the name instead cost eight units their colour and took
+# two rounds to see, for two separate reasons:
+#
+#   * A GROUPING WITH ONE UNIT HAS NO CAPITALISED ROW. Lithosols is just `I`;
+#     the legend never writes `I -LITHOSOLS`, so a lookup by grouping name
+#     found nothing — and Lithosols is the commonest unit on the whole map,
+#     4,266 polygons of thin mountain soil, every one of them drawn in the
+#     no-value grey.
+#   * FAO'S OWN LEGEND IS MISSPELT, twice: it writes `KASTAZNOZEMS` for
+#     Kastanozems and `VERTSOLS` for Vertisols. Any palette keyed on the
+#     correct spelling misses both, and any palette keyed on the source's
+#     spelling is one silent correction away from missing them again.
+#
+# Ours, and the manifest says so. One hue per grouping, because 123 units is
+# far past what a palette can separate and the grouping is what a reader can
+# hold in mind. The miscellaneous land units are deliberately drab: water, ice,
+# rock, salt and dunes are NOT soils, and giving them a soil's saturation would
+# put five false classes at the top of every legend by area.
 GROUP_COLOURS = {
-    "ACRISOLS": "#c96f3f", "ANDOSOLS": "#6b4a2f", "ARENOSOLS": "#e8cf87",
-    "CAMBISOLS": "#d9a05b", "CHERNOZEMS": "#3b2a20", "FERRALSOLS": "#b5442f",
-    "FLUVISOLS": "#7fb8d4", "GLEYSOLS": "#5f8fa8", "GREYZEMS": "#8c8f7a",
-    "HISTOSOLS": "#4d3b2a", "KASTANOZEMS": "#a4703c", "LITHOSOLS": "#9a9a93",
-    "LUVISOLS": "#d98f4f", "NITOSOLS": "#a8542f", "PHAEOZEMS": "#5a4632",
-    "PLANOSOLS": "#b0a884", "PODZOLS": "#8e7f9e", "PODZOLUVISOLS": "#a68fb0",
-    "RANKERS": "#8f9a7d", "REGOSOLS": "#c9bda0", "RENDZINAS": "#9fae8f",
-    "SOLONCHAKS": "#d7cfc0", "SOLONETZ": "#c2a878", "VERTISOLS": "#4a4a45",
-    "XEROSOLS": "#dcc79a", "YERMOSOLS": "#e2d3a8",
+    "A": "#c96f3f",   # Acrisols
+    "B": "#d9a05b",   # Cambisols
+    "C": "#3b2a20",   # Chernozems
+    "D": "#a68fb0",   # Podzoluvisols
+    "E": "#9fae8f",   # Rendzinas
+    "F": "#b5442f",   # Ferralsols
+    "G": "#5f8fa8",   # Gleysols
+    "H": "#5a4632",   # Phaeozems
+    "I": "#9a9a93",   # Lithosols
+    "J": "#7fb8d4",   # Fluvisols
+    "K": "#a4703c",   # Kastanozems
+    "L": "#d98f4f",   # Luvisols
+    "M": "#8c8f7a",   # Greyzems
+    "N": "#a8542f",   # Nitosols
+    "O": "#4d3b2a",   # Histosols
+    "P": "#8e7f9e",   # Podzols
+    "Q": "#e8cf87",   # Arenosols
+    "R": "#c9bda0",   # Regosols
+    "S": "#c2a878",   # Solonetz
+    "T": "#6b4a2f",   # Andosols
+    "U": "#8f9a7d",   # Rankers
+    "V": "#4a4a45",   # Vertisols
+    "W": "#b0a884",   # Planosols
+    "X": "#dcc79a",   # Xerosols
+    "Y": "#e2d3a8",   # Yermosols
+    "Z": "#d7cfc0",   # Solonchaks
 }
+
+# THE SOURCE'S OWN TYPOS, corrected for DISPLAY and named so the correction is
+# arguable rather than silent. These are the legend's strings verbatim on the
+# left; a legend row reading "Kastaznozems" reads as our mistake, and carrying
+# it faithfully would be faithfulness nobody can act on.
+LEGEND_TYPOS = {
+    "KASTAZNOZEMS": "KASTANOZEMS",
+    "VERTSOLS": "VERTISOLS",
+}
+
 MISC_COLOURS = {
     "DS": "#efe4c4",   # dunes / shifting sand
     "GL": "#eaf2f7",   # glaciers
@@ -248,6 +297,15 @@ def properties_from_workbook(xls: pathlib.Path) -> dict[str, dict]:
                 value = float(str(sheet.cell_value(r, col)).strip())
             except ValueError:
                 continue
+            # FAO WRITES -1 FOR "NOT MEASURED", and it reached the map: a card
+            # read "bulk density -1", which is not a low density, it is an
+            # absence wearing a number's clothes. Every one of these six is a
+            # percentage, a pH or a density, so none can be zero or negative
+            # and the test is the same for all of them. Same family as
+            # `Number("")` being 0 — a missing value that arrives as a
+            # plausible measurement is worse than one that arrives as nothing.
+            if value <= 0:
+                continue
             row[key] = round(value, 1)
         if row:
             table.setdefault(symbol, row)
@@ -281,9 +339,14 @@ def build_geojson(shp: pathlib.Path, names: dict[str, str],
         # A miscellaneous unit has no grouping and must not borrow one: `WR`
         # would otherwise be filed under W for PLANOSOLS.
         misc = code in MISC_COLOURS
-        group = None if misc else groups.get(code[:1].upper())
+        letter = code[:1].upper()
+        # The legend's own capitalised row where it has one; otherwise the
+        # unit's own name, because a grouping with a single unit (Lithosols)
+        # never gets a row of its own.
+        group = None if misc else (groups.get(letter) or (name or "").upper())
+        group = LEGEND_TYPOS.get(group, group)
         colour = (MISC_COLOURS.get(code)
-                  or GROUP_COLOURS.get(group or "")
+                  or (None if misc else GROUP_COLOURS.get(letter))
                   or UNKNOWN_COLOUR)
         counts["named" if name else "unnamed"] += 1
 
@@ -295,8 +358,11 @@ def build_geojson(shp: pathlib.Path, names: dict[str, str],
             "unit": (p.get("FAOSOIL") or "").strip() or None,
             "area_km2": round(float(p.get("SQKM") or 0), 1),
         }
-        if p.get("PERMAFROST"):
-            new["permafrost"] = str(p["PERMAFROST"]).strip()
+        # A FLAG IS ONLY WORTH CARRYING WHEN IT IS SET. The column is "0" or
+        # "1", and "Permafrost 0" on a card is a row that says nothing while
+        # looking like it says something.
+        if str(p.get("PERMAFROST") or "").strip() not in ("", "0"):
+            new["permafrost"] = "yes"
         phases = [str(p.get(k) or "").strip() for k in ("PHASE1", "PHASE2")]
         phases = [x for x in phases if x]
         if phases:
