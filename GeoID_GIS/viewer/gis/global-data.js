@@ -26,7 +26,8 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260903-fae9a8b";
+import { runConnector } from "./research/connectors.js?v=20260903-707d5b9";
+import { dataUrl } from "./data-base.js?v=20260903-707d5b9";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -639,7 +640,9 @@ export async function addDataset(id, onStatus = () => {},
       blob = new Blob([JSON.stringify(result.geojson)]);
       provenance = result.provenance;
     } else {
-      const response = await fetch(source);
+      // Resolved through the data base: a published file comes from the
+      // bucket with its fingerprint, an unpublished one from the site.
+      const response = await fetch(await dataUrl(source));
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       blob = await response.blob();
     }

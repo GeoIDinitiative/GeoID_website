@@ -1,3 +1,4 @@
+import { dataUrl } from "./data-base.js?v=20260903-707d5b9";
 /**
  * The whole Earth Engine data catalogue, searchable in the page.
  *
@@ -28,7 +29,7 @@ const STAMP = new URL(import.meta.url).search;
 // Absolute, not module-relative: `import.meta.url` here is `…/viewer/gis/`, so
 // a relative "data/global/…" resolves inside `gis/` and 404s — the trap
 // map-layers.js documents from one side and the GEE cache from the other.
-const CATALOGUE_URL = `/data/global/gee-catalogue.json${STAMP}`;
+const CATALOGUE_PATH = "/data/global/gee-catalogue.json";
 
 let loading = null;
 let catalogue = null;
@@ -37,7 +38,10 @@ let catalogue = null;
 export function loadCatalogue() {
   if (catalogue) return Promise.resolve(catalogue);
   if (loading) return loading;
-  loading = fetch(CATALOGUE_URL)
+  // Published, the URL already carries its own content fingerprint;
+  // unpublished it takes the module stamp as it always did.
+  loading = dataUrl(CATALOGUE_PATH)
+    .then((url) => fetch(url === CATALOGUE_PATH ? `${url}${STAMP}` : url))
     .then((response) => {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return response.json();

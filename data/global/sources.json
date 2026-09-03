@@ -1,0 +1,17 @@
+{
+  "base": "https://data.geoidinitiative.com",
+  "files": {
+    "boundaries_10m.geojson": "1d4468f24401",
+    "coastline_10m.geojson": "c6452c1ba53e",
+    "countries_50m.geojson": "8ba71ba1d1db",
+    "gee-catalogue.json": "4b7dd8b4c175",
+    "graticule_lines.geojson": "73d9b9de5016",
+    "ice-sheets.geojson": "a17bf276e5fa",
+    "ice/names.json": "be76c26f91c4",
+    "ice/thickness.json": "6a85ceb416dd",
+    "lakes_10m.geojson": "10c586bba896",
+    "rivers_10m.geojson": "714a01e22009",
+    "stress-vectors.geojson": "4415efd56a27",
+    "volcanoes.geojson": "8b982167efb1"
+  }
+}

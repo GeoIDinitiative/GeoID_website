@@ -14,6 +14,8 @@
  * model that is revised.
  */
 
+import { dataUrl } from "./data-base.js?v=20260903-707d5b9";
+
 const URL_PATH = "/data/global/ice/thickness.json";
 
 /** Ice to water, and water to sea level: 1 km³ over 361.8 million km² of ocean. */
@@ -26,7 +28,14 @@ let table = null;
 export function loadIceThickness() {
   if (!once) {
     const stamp = new URL(import.meta.url).search;
-    once = fetch(`${URL_PATH}${stamp}`)
+    /**
+     * Published, the URL comes back from the bucket carrying its own
+     * content fingerprint, so the module stamp must NOT be appended as
+     * well — that is the `manifest.json?v=X?v=X` fault. Unpublished it
+     * comes back unchanged and still wants the stamp it always had.
+     */
+    once = dataUrl(URL_PATH)
+      .then((url) => fetch(url === URL_PATH ? `${url}${stamp}` : url))
       .then((r) => (r.ok ? r.json() : null))
       .then((body) => { table = body || null; return table; })
       .catch(() => null);

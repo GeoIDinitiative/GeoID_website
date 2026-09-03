@@ -85,3 +85,15 @@ data/global/soil/[0-9]*/
 # are read before — and without — a tile fetch.
 data/global/geology/[0-9]*/
 data/global/ice/[0-9]*/
+
+# The LOOSE data files, published to the bucket by services/publish-data.py
+# (43.9 MB: the Natural Earth vectors, the stress measurements, the volcano
+# catalogue, the ice sheets, the GEE catalogue and the two ice legend
+# sidecars). `sources.json` stays with the site and is what names them — it
+# carries a content fingerprint per file, which is what makes the bucket's
+# immutable cache safe, and it is read before any fetch so it cannot live in
+# the bucket it describes. README.md stays for a reader of the repository.
+data/global/*.geojson
+data/global/gee-catalogue.json
+data/global/ice/names.json
+data/global/ice/thickness.json
