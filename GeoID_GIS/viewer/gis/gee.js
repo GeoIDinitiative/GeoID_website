@@ -10,22 +10,22 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-eee230b";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260903-eee230b";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260903-eee230b";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-fda847e";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260903-fda847e";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260903-fda847e";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260903-eee230b";
+  from "./view-extent.js?v=20260903-fda847e";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260903-eee230b";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-eee230b";
+} from "./extent-picker.js?v=20260903-fda847e";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-fda847e";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
-} from "./gee-catalogue-index.js?v=20260903-eee230b";
+} from "./gee-catalogue-index.js?v=20260903-fda847e";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -966,15 +966,11 @@ function ensureGeeDialog() {
        the height this strip is meant to be, and the tile answered by growing an
        inner scrollbar that hid the Draw button — the primary gesture — behind
        it. Side by side, the whole fetch is visible at once. */
-    "#gee-add-params { position: sticky; left: 0; z-index: 2; flex: 0 0 22rem;",
+    "#gee-add-params { position: sticky; left: 0; z-index: 2; flex: 0 0 13.5rem;",
     "  display: flex; flex-direction: column; gap: 0.3rem;",
     "  padding: 0.5rem 0.6rem; border-radius: 0.5rem;",
     "  border: 1px solid rgba(var(--nav-accent-rgb, 255,43,214), 0.5);",
     "  background: rgba(20, 14, 34, 0.99); }",
-    "#gee-add-params .gee-param-cols { display: grid; gap: 0.5rem;",
-    "  grid-template-columns: 1fr 1fr; align-items: start; }",
-    "#gee-add-params .gee-param-col { display: flex; flex-direction: column;",
-    "  gap: 0.3rem; min-width: 0; }",
     "#gee-add-params .gee-param-pair { display: flex; gap: 0.3rem; }",
     "#gee-add-params .gee-param-pair > * { flex: 1; min-width: 0; }",
     "#gee-add-params .gee-param-pair > .button { flex: 0 0 auto; }",
@@ -1066,6 +1062,7 @@ function ensureGeeDialog() {
     '<div id="gee-add-card" role="dialog" aria-label="Browse the Earth Engine catalogue">',
     '<div class="gee-head">',
     '<span class="gee-title">Earth Engine</span>',
+    '<div id="gee-add-chips"></div>',
     '<label>Search<input id="gee-add-search" type="search"',
     ' placeholder="rainfall, land cover, Sentinel…"></label>',
     '<label>Subject<select id="gee-add-category">',
@@ -1073,7 +1070,6 @@ function ensureGeeDialog() {
     "</select></label>",
     '<label class="gee-tick"><input id="gee-add-deprecated" type="checkbox">'
       + "<span>Superseded</span></label>",
-    '<div id="gee-add-chips"></div>',
     '<button id="gee-add-close" class="button secondary" type="button">Close</button>',
     "</div>",
     '<div id="gee-add-strip">',
@@ -1083,8 +1079,6 @@ function ensureGeeDialog() {
        the window and the Request stay put. */
     '<div id="gee-add-params">',
     '<div class="gee-param-title">Fetch parameters</div>',
-    '<div class="gee-param-cols">',
-    '<div class="gee-param-col">',
     '<label>Extent<select id="gee-add-extent">',
     '<option value="global">Global</option>',
     '<option value="view">Current globe view</option>',
@@ -1093,15 +1087,11 @@ function ensureGeeDialog() {
     // and its absence is what once left a drawn box unselectable.
     '<option value="drawn">Area drawn on the globe</option>',
     "</select></label>",
-    '<div id="gee-add-extent-note"></div>',
-    "</div>",
-    '<div class="gee-param-col">',
     '<div class="gee-param-pair">',
     '<label>From<input id="gee-add-from" type="date"></label>',
     '<label>To<input id="gee-add-to" type="date"></label>',
     "</div>",
-    "</div>",
-    "</div>",
+    '<div id="gee-add-extent-note"></div>',
     '<div id="gee-add-status"></div>',
     "</div>",
     '<div id="gee-add-list"></div>',
@@ -1309,7 +1299,14 @@ function groupHeading(text) {
 function curatedCard(entry) {
   const cached = entry.source === "cache";
   const card = baseCard(entry.id, entry.label, entry.id);
-  card.prepend(badge(cached ? "Offline snapshot" : "Tuned for this app",
+  /**
+   * "Whole planet" is not decoration on this badge — it is the one fact about
+   * a cached tile that changes what Add does. `requestFromCache` drapes the
+   * shipped PNG over the SNAPSHOT'S own bounds, so an extent drawn on the
+   * globe is not used by these and is used by every other tile. Said on the
+   * tile, where the press happens, rather than in a status line afterwards.
+   */
+  card.prepend(badge(cached ? "Offline snapshot · whole planet" : "Tuned for this app",
     cached ? "is-cache" : "is-live"));
   card.title = entry.title;
   /**
@@ -1550,27 +1547,8 @@ async function requestFromDialog() {
     refreshPolygonOptions(byId("gee-extent"), "global", { allLayers: true });
     byId("gee-extent").value = extent;
   }
-  const cached = byId("gee-dataset")?.selectedOptions?.[0]?.dataset.source === "cache";
   await request();
 
-  /**
-   * A CACHED SNAPSHOT IGNORES THE EXTENT, and has to say so here.
-   *
-   * `requestFromCache` drapes the shipped PNG over the snapshot's OWN bounds —
-   * the whole planet — because that is the only ground it has. So somebody who
-   * drew a box, chose it, and pressed Add on an offline tile gets a global
-   * layer and their box unused. That was visible while this line mirrored the
-   * request's narration ("… from cache — 39 km/px"); with the mirror gone it
-   * would be silent, which is the worse half of the trade.
-   *
-   * The extent is not persisted for these either, and that is right rather
-   * than an oversight: nothing was fetched over it, so recording it as a fetch
-   * extent would be a claim about a request that never happened.
-   */
-  if (cached && extent !== "global") {
-    dialogStatus("Added from the shipped snapshot, which covers the whole planet — "
-      + "the extent was not used. Datasets marked Earth Engine fetch over it.");
-  }
   // Kept open on purpose: browsing a catalogue means pulling more than one
   // thing, and a window that closes on every Request makes the second pull a
   // fresh journey through the same three controls.
