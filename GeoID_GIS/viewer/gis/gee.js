@@ -10,22 +10,22 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-151413f";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260903-151413f";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260903-151413f";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-eee230b";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260903-eee230b";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260903-eee230b";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260903-151413f";
+  from "./view-extent.js?v=20260903-eee230b";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260903-151413f";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-151413f";
+} from "./extent-picker.js?v=20260903-eee230b";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-eee230b";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
-} from "./gee-catalogue-index.js?v=20260903-151413f";
+} from "./gee-catalogue-index.js?v=20260903-eee230b";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -1056,7 +1056,6 @@ function ensureGeeDialog() {
     "  opacity: 0.85; min-height: 1em; margin-top: auto;",
     "  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3;",
     "  -webkit-box-orient: vertical; }",
-    "#gee-add-draw.is-on { background: var(--nav-accent, var(--skin-chrome)); color: #12040f; }",
   ].join("\n");
   document.head.appendChild(style);
 
@@ -1094,7 +1093,6 @@ function ensureGeeDialog() {
     // and its absence is what once left a drawn box unselectable.
     '<option value="drawn">Area drawn on the globe</option>',
     "</select></label>",
-    '<button id="gee-add-draw" class="button secondary" type="button">Draw on globe</button>',
     '<div id="gee-add-extent-note"></div>',
     "</div>",
     '<div class="gee-param-col">',
@@ -1121,36 +1119,61 @@ function ensureGeeDialog() {
     renderGeeList();
   });
   byId("gee-add-deprecated").addEventListener("change", renderGeeList);
-  byId("gee-add-draw").addEventListener("click", () => {
-    const drawn = drawnOverlayBounds();
-    if (!drawn) {
-      byId("gee-add-extent").value = "drawn";
+  /**
+   * CHOOSING "drawn" IS THE GESTURE. There is no Draw button.
+   *
+   * A button beside a select that already has an "Area drawn on the globe"
+   * option was a second control for one decision, and it made the user say the
+   * same thing twice — pick the option, then press the thing that arms the
+   * tool. Picking the option arms it.
+   *
+   * Nothing else is asked for afterwards either. Where a shape is already on
+   * the globe it is simply used; where one is not, the draw tool comes up and
+   * whatever is drawn next is wired in by the watcher below. And the SAVING is
+   * already automatic: `request()` calls `persistExtent(…, { mark:
+   * "fetchExtent" })` on success, the weather card's keep-the-ground rule, so
+   * a shape that was fetched over becomes a named Workspace layer without
+   * anybody claiming it by hand.
+   */
+  byId("gee-add-extent").addEventListener("change", () => {
+    const extent = byId("gee-add-extent");
+    if (extent.value === "drawn" && !drawnOverlayBounds()) {
       promptDrawTool();
-      dialogStatus("Draw the area on the globe — box, circle or polygon — "
-        + "then press this again to claim it.");
+      dialogStatus("Draw the area on the globe — box, circle or polygon. "
+        + "It is picked up as soon as it is done.");
       return;
     }
-    const captured = window.GeoIDDrawnLayers?.captureDrawn?.({ name: "Earth Engine fetch area" });
-    const extent = byId("gee-add-extent");
-    refreshPolygonOptions(extent, "drawn", { allLayers: true });
-    extent.value = captured?.ok && captured.layer ? `layer:${captured.layer.id}` : "drawn";
-    dialogStatus(`Area set: ${drawn.south.toFixed(2)}–${drawn.north.toFixed(2)}°N, `
-      + `${drawn.west.toFixed(2)}–${drawn.east.toFixed(2)}°E.`
-      + (captured?.ok ? " Listed in Workspace." : ""));
     showChosenExtent();
   });
 
-  byId("gee-add-extent").addEventListener("change", () => showChosenExtent());
-  // The named polygons are rebuilt on every layer change, exactly as the
-  // weather card's are: a captured extent should be offerable the moment it
-  // exists, without reopening anything.
+  /**
+   * The named polygons are rebuilt on every layer change, exactly as the
+   * weather card's are: a captured extent should be offerable the moment it
+   * exists, without reopening anything.
+   *
+   * And where the choice was "drawn" and the live overlay has since become a
+   * LAYER — the Draw bar's Done, or a fetch persisting it — the select follows
+   * it there. Without that, finishing a drawing leaves the control pointing at
+   * an overlay that no longer exists, which is the "no additional definition
+   * required" this is for.
+   */
   window.GeoIDImportManager?.onChange?.(() => {
-    if (!byId("gee-add-backdrop")?.hidden) {
-      const extent = byId("gee-add-extent");
-      const keep = extent.value;
-      refreshPolygonOptions(extent, "drawn", { allLayers: true });
-      if ([...extent.options].some((o) => o.value === keep)) extent.value = keep;
+    if (byId("gee-add-backdrop")?.hidden) return;
+    const extent = byId("gee-add-extent");
+    const keep = extent.value;
+    refreshPolygonOptions(extent, "drawn", { allLayers: true });
+    if (keep === "drawn" && !drawnOverlayBounds()) {
+      const drawnLayers = (window.GeoIDImportManager?.getLayers?.() || [])
+        .filter((layer) => layer.ext === "drawn");
+      const newest = drawnLayers[drawnLayers.length - 1];
+      const option = newest && [...extent.options].find((o) => o.value === `layer:${newest.id}`);
+      if (option) {
+        extent.value = option.value;
+        showChosenExtent();
+        return;
+      }
     }
+    if ([...extent.options].some((o) => o.value === keep)) extent.value = keep;
   });
 
 
@@ -1527,7 +1550,27 @@ async function requestFromDialog() {
     refreshPolygonOptions(byId("gee-extent"), "global", { allLayers: true });
     byId("gee-extent").value = extent;
   }
+  const cached = byId("gee-dataset")?.selectedOptions?.[0]?.dataset.source === "cache";
   await request();
+
+  /**
+   * A CACHED SNAPSHOT IGNORES THE EXTENT, and has to say so here.
+   *
+   * `requestFromCache` drapes the shipped PNG over the snapshot's OWN bounds —
+   * the whole planet — because that is the only ground it has. So somebody who
+   * drew a box, chose it, and pressed Add on an offline tile gets a global
+   * layer and their box unused. That was visible while this line mirrored the
+   * request's narration ("… from cache — 39 km/px"); with the mirror gone it
+   * would be silent, which is the worse half of the trade.
+   *
+   * The extent is not persisted for these either, and that is right rather
+   * than an oversight: nothing was fetched over it, so recording it as a fetch
+   * extent would be a claim about a request that never happened.
+   */
+  if (cached && extent !== "global") {
+    dialogStatus("Added from the shipped snapshot, which covers the whole planet — "
+      + "the extent was not used. Datasets marked Earth Engine fetch over it.");
+  }
   // Kept open on purpose: browsing a catalogue means pulling more than one
   // thing, and a window that closes on every Request makes the second pull a
   // fresh journey through the same three controls.
@@ -1628,7 +1671,6 @@ function closeGeeDialog() {
   watchStripPlacement(false);
   const backdrop = byId("gee-add-backdrop");
   if (backdrop) backdrop.hidden = true;
-  byId("gee-add-draw")?.classList.remove("is-on");
 }
 
 async function openGeeDialog(homeName) {
