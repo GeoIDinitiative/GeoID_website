@@ -17,9 +17,9 @@ const ASSET_CACHE = `geoid-assets-${CACHE_VERSION}`;
 // Default layers loaded on every first render — pre-cached at install time.
 const DEFAULT_ASSETS = [
   // GeoID Earth (GeoHUB viewer)
-  '/GeoID_Earth/assets/earth_color.jpg',
-  '/GeoID_Earth/assets/earth_elevation.png',
-  '/GeoID_Earth/assets/earth_geology_sim3292.png',
+  'https://data.geoidinitiative.com/assets/hotlink-ok/earth-viewer/earth_color.jpg?v=5e18afce2860',
+  'https://data.geoidinitiative.com/assets/hotlink-ok/earth-viewer/earth_elevation.png?v=6f89e540b82e',
+  'https://data.geoidinitiative.com/assets/hotlink-ok/earth-viewer/earth_geology_sim3292.png?v=0ceabcf21789',
   '/GeoID_Earth/assets/earth_seismic_events.json',
   '/GeoID_Earth/assets/earth_geology_features.json',
 

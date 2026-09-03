@@ -1,12 +1,12 @@
 {
   "texture": {
-    "path": "../assets/earth_color.jpg",
+    "path": "../https://data.geoidinitiative.com/assets/hotlink-ok/earth-viewer/earth_color.jpg?v=5e18afce2860",
     "width": 8192,
     "source_page_url": "https://science.nasa.gov/3d-resources/earth-a/"
   },
   "elevation": {
-    "path": "../assets/earth_elevation.png",
-    "sample_path": "../assets/earth_elevation_sampler.png?v=20260320c",
+    "path": "../https://data.geoidinitiative.com/assets/hotlink-ok/earth-viewer/earth_elevation.png?v=6f89e540b82e",
+    "sample_path": "../https://data.geoidinitiative.com/assets/hotlink-ok/earth-viewer/earth_elevation_sampler.png?v=fed0b2516fc7",
     "encoding": "rgb24",
     "width": 4096,
     "height": 2048,
@@ -16,7 +16,7 @@
     "source_page_url": "https://www.gebco.net/data-products/gridded-bathymetry-data#global"
   },
   "geology": {
-    "path": "../assets/earth_geology_sim3292.png",
+    "path": "../https://data.geoidinitiative.com/assets/hotlink-ok/earth-viewer/earth_geology_sim3292.png?v=0ceabcf21789",
     "size": [
       4096,
       2048
@@ -27,7 +27,7 @@
     {
       "id": "gebco-bathy-context",
       "label": "GEBCO Relief Context",
-      "path": "../assets/earth_geology_sim3292.png",
+      "path": "../https://data.geoidinitiative.com/assets/hotlink-ok/earth-viewer/earth_geology_sim3292.png?v=0ceabcf21789",
       "description": "Derived bathymetry and topography context overlay based on GEBCO 2025.",
       "source_page_url": "https://www.gebco.net/data-products/gridded-bathymetry-data#global",
       "size": [
@@ -49,7 +49,7 @@
     {
       "id": "earth-visible",
       "label": "Earth Surface",
-      "path": "../assets/earth_color.jpg",
+      "path": "../https://data.geoidinitiative.com/assets/hotlink-ok/earth-viewer/earth_color.jpg?v=5e18afce2860",
       "description": "NASA Earth surface texture basemap.",
       "source_page_url": "https://science.nasa.gov/3d-resources/earth-a/",
       "default": true
@@ -57,7 +57,7 @@
     {
       "id": "derived-hillshade",
       "label": "GEBCO Hillshade",
-      "path": "../assets/earth_hillshade.jpg",
+      "path": "../https://data.geoidinitiative.com/assets/hotlink-ok/earth-viewer/earth_hillshade.jpg?v=73b83ab30445",
       "description": "Derived hillshade generated from the GEBCO 2025 global elevation model.",
       "source_page_url": "https://www.gebco.net/data-products/gridded-bathymetry-data#global",
       "size": [

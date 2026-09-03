@@ -233,3 +233,14 @@ earth_explorer/etna/viewer/assets/seismic.png
 earth_explorer/etna/viewer/assets/slope.jpg
 earth_explorer/etna/viewer/assets/subsurface.png
 earth_explorer/etna/viewer/assets/zoom_out.png
+
+# The GeoHUB viewer's own Earth textures, published under
+# assets/hotlink-ok/earth-viewer/. Named by the GIS viewer's manifest AND by
+# three copies of sw-ctx-tiles.js, all repointed at the bucket.
+GeoID_Earth/assets/earth.png
+GeoID_Earth/assets/earth_color.jpg
+GeoID_Earth/assets/earth_elevation.png
+GeoID_Earth/assets/earth_elevation_sampler.png
+GeoID_Earth/assets/earth_geology_sim3292.png
+GeoID_Earth/assets/earth_hillshade.jpg
+GeoID_Earth/assets/earth_weather_color_map.jpg

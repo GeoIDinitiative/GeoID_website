@@ -158,6 +158,7 @@ export async function imageToBands(file, { maxSide = 2048 } = {}) {
   try {
     const image = await new Promise((resolve, reject) => {
       const img = new Image();
+      img.crossOrigin = "anonymous";
       img.onload = () => resolve(img);
       img.onerror = () => reject(new Error("that file is not an image the browser can read"));
       img.src = url;

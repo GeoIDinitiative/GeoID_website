@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260903-515af65";
+  from "./gis/geo-utils.js?v=20260903-7b5a1e0";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260903-515af65";
+  from "./gis/vector-render.js?v=20260903-7b5a1e0";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260903-515af65";
+  from "./gis/rock-class.js?v=20260903-7b5a1e0";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260903-515af65";
+  from "./gis/lithology-label.js?v=20260903-7b5a1e0";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -1885,6 +1885,7 @@ function fmtProp(value) {
       }
       try {
         const image = new Image();
+        image.crossOrigin = "anonymous";
         image.decoding = "async";
         image.src = path;
         await image.decode();
@@ -10273,6 +10274,7 @@ function fmtProp(value) {
       // giving instant global coverage before any per-tile streaming begins.
       _loadGlobalBase() {
         const img = new Image();
+        img.crossOrigin = "anonymous";
         img.onload = () => {
           this.context.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
           this.texture.needsUpdate = true;
@@ -10364,6 +10366,7 @@ function fmtProp(value) {
         return await new Promise((resolve, reject) => {
           const objectUrl = URL.createObjectURL(blob);
           const img = new Image();
+          img.crossOrigin = "anonymous";
           img.onload = () => {
             URL.revokeObjectURL(objectUrl);
             resolve(img);
