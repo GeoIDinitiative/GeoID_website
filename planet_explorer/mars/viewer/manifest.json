@@ -1,11 +1,11 @@
 {
   "texture": {
-    "path": "assets/mars_color.jpg",
+    "path": "https://data.geoidinitiative.com/assets/planet-mars/mars_color.jpg?v=aff5dbff30d7",
     "width": 4096,
     "source_page_url": "https://planetarymaps.usgs.gov/mosaic/Mars_Viking_ClrMosaic_global_925m.tif"
   },
   "elevation": {
-    "path": "assets/mars_elevation_upscaled.png",
+    "path": "https://data.geoidinitiative.com/assets/planet-mars/mars_elevation_upscaled.png?v=36d60c8f04d3",
     "width": 4096,
     "min_m": -8194.0,
     "max_m": 21069.0,
@@ -13,14 +13,14 @@
     "height": 2048
   },
   "geology": {
-    "path": "assets/mars_geology_sim3292.png",
+    "path": "https://data.geoidinitiative.com/assets/planet-mars/mars_geology_sim3292.png?v=c6b825f8e610",
     "size": [
       4096,
       2048
     ]
   },
   "geology_legend": {
-    "path": "assets/mars_geology_legacy_legend.png",
+    "path": "https://data.geoidinitiative.com/assets/planet-mars/mars_geology_legacy_legend.png?v=b59e54aac9fe",
     "size": [
       1200,
       1938
@@ -31,7 +31,7 @@
     {
       "id": "sim3292-units",
       "label": "USGS, Geologic Map of Mars",
-      "path": "assets/mars_geology_sim3292.png",
+      "path": "https://data.geoidinitiative.com/assets/planet-mars/mars_geology_sim3292.png?v=c6b825f8e610",
       "description": "USGS, Geologic Map of Mars geology overlay sourced from Scientific Investigations Map 3292.",
       "source_page_url": "https://pubs.usgs.gov/sim/3292/",
       "size": [
@@ -52,7 +52,7 @@
     {
       "id": "viking-color",
       "label": "Mars Surface — Viking",
-      "path": "assets/mars_color.jpg",
+      "path": "https://data.geoidinitiative.com/assets/planet-mars/mars_color.jpg?v=aff5dbff30d7",
       "description": "USGS Viking global color mosaic basemap.",
       "source_page_url": "https://planetarymaps.usgs.gov/mosaic/Mars_Viking_ClrMosaic_global_925m.tif",
       "default": true
@@ -60,7 +60,7 @@
     {
       "id": "tes-albedo",
       "label": "TES Albedo",
-      "path": "assets/mars_tes_albedo.png",
+      "path": "https://data.geoidinitiative.com/assets/planet-mars/mars_tes_albedo.png?v=c91b449ee156",
       "description": "ASU TES Lambert albedo global product.",
       "source_page_url": "https://www.mars.asu.edu/data/tes_albedo/",
       "size": [
@@ -71,7 +71,7 @@
     {
       "id": "tes-thermal-inertia",
       "label": "TES Thermal Inertia",
-      "path": "assets/mars_tes_thermal_inertia.png",
+      "path": "https://data.geoidinitiative.com/assets/planet-mars/mars_tes_thermal_inertia.png?v=91ea20b51a10",
       "description": "ASU TES thermal inertia global product.",
       "source_page_url": "https://www.mars.asu.edu/data/tes_ti/",
       "size": [
@@ -82,7 +82,7 @@
     {
       "id": "derived-hillshade",
       "label": "Hillshade",
-      "path": "assets/mars_hillshade.jpg",
+      "path": "https://data.geoidinitiative.com/assets/planet-mars/mars_hillshade.jpg?v=6e78b13d6c49",
       "description": "Derived hillshade generated from the global elevation model.",
       "source_page_url": "generated/mars-globe-viewer/mars_elevation.tif",
       "size": [
@@ -93,7 +93,7 @@
     {
       "id": "derived-slope",
       "label": "Slope",
-      "path": "assets/mars_slope.jpg",
+      "path": "https://data.geoidinitiative.com/assets/planet-mars/mars_slope.jpg?v=91dc01e60879",
       "description": "Derived slope basemap generated from the global elevation model.",
       "source_page_url": "generated/mars-globe-viewer/mars_elevation.tif",
       "size": [
@@ -106,8 +106,8 @@
     {
       "id": "mineral-quartz",
       "label": "Quartz",
-      "path": "assets/mars_mineral_quartz.png",
-      "legend_path": "assets/mars_mineral_quartz_legend.png",
+      "path": "https://data.geoidinitiative.com/assets/planet-mars/mars_mineral_quartz.png?v=4cfbb0ec9388",
+      "legend_path": "https://data.geoidinitiative.com/assets/planet-mars/mars_mineral_quartz_legend.png?v=a41be9f31006",
       "description": "ASU TES mineral abundance map for quartz.",
       "source_page_url": "https://tes.mars.asu.edu/products/",
       "size": [
@@ -122,8 +122,8 @@
     {
       "id": "mineral-k_feldspar",
       "label": "K-Feldspar",
-      "path": "assets/mars_mineral_k_feldspar.png",
-      "legend_path": "assets/mars_mineral_k_feldspar_legend.png",
+      "path": "https://data.geoidinitiative.com/assets/planet-mars/mars_mineral_k_feldspar.png?v=d064d66beb5a",
+      "legend_path": "https://data.geoidinitiative.com/assets/planet-mars/mars_mineral_k_feldspar_legend.png?v=84860547a6e3",
       "description": "ASU TES mineral abundance map for k-feldspar.",
       "source_page_url": "https://tes.mars.asu.edu/products/",
       "size": [
@@ -138,8 +138,8 @@
     {
       "id": "mineral-plagioclase",
       "label": "Plagioclase",
-      "path": "assets/mars_mineral_plagioclase.png",
-      "legend_path": "assets/mars_mineral_plagioclase_legend.png",
+      "path": "https://data.geoidinitiative.com/assets/planet-mars/mars_mineral_plagioclase.png?v=a78886c2fc5a",
+      "legend_path": "https://data.geoidinitiative.com/assets/planet-mars/mars_mineral_plagioclase_legend.png?v=d20980cda7d1",
       "description": "ASU TES mineral abundance map for plagioclase.",
       "source_page_url": "https://tes.mars.asu.edu/products/",
       "size": [
@@ -154,8 +154,8 @@
     {
       "id": "mineral-amphibole",
       "label": "Amphibole",
-      "path": "assets/mars_mineral_amphibole.png",
-      "legend_path": "assets/mars_mineral_amphibole_legend.png",
+      "path": "https://data.geoidinitiative.com/assets/planet-mars/mars_mineral_amphibole.png?v=15e813740090",
+      "legend_path": "https://data.geoidinitiative.com/assets/planet-mars/mars_mineral_amphibole_legend.png?v=cee26b241250",
       "description": "ASU TES mineral abundance map for amphibole.",
       "source_page_url": "https://tes.mars.asu.edu/products/",
       "size": [
@@ -170,8 +170,8 @@
     {
       "id": "mineral-low_ca_pyroxene",
       "label": "Low-Ca Pyroxene",
-      "path": "assets/mars_mineral_low_ca_pyroxene.png",
-      "legend_path": "assets/mars_mineral_low_ca_pyroxene_legend.png",
+      "path": "https://data.geoidinitiative.com/assets/planet-mars/mars_mineral_low_ca_pyroxene.png?v=a37bef783628",
+      "legend_path": "https://data.geoidinitiative.com/assets/planet-mars/mars_mineral_low_ca_pyroxene_legend.png?v=ffd4295fb626",
       "description": "ASU TES mineral abundance map for low-ca pyroxene.",
       "source_page_url": "https://tes.mars.asu.edu/products/",
       "size": [
@@ -186,8 +186,8 @@
     {
       "id": "mineral-high_ca_pyroxene",
       "label": "High-Ca Pyroxene",
-      "path": "assets/mars_mineral_high_ca_pyroxene.png",
-      "legend_path": "assets/mars_mineral_high_ca_pyroxene_legend.png",
+      "path": "https://data.geoidinitiative.com/assets/planet-mars/mars_mineral_high_ca_pyroxene.png?v=d3d7f6427f24",
+      "legend_path": "https://data.geoidinitiative.com/assets/planet-mars/mars_mineral_high_ca_pyroxene_legend.png?v=f892d4f83f98",
       "description": "ASU TES mineral abundance map for high-ca pyroxene.",
       "source_page_url": "https://tes.mars.asu.edu/products/",
       "size": [
@@ -202,8 +202,8 @@
     {
       "id": "mineral-olivine",
       "label": "Olivine",
-      "path": "assets/mars_mineral_olivine.png",
-      "legend_path": "assets/mars_mineral_olivine_legend.png",
+      "path": "https://data.geoidinitiative.com/assets/planet-mars/mars_mineral_olivine.png?v=56192f326242",
+      "legend_path": "https://data.geoidinitiative.com/assets/planet-mars/mars_mineral_olivine_legend.png?v=8943757e805f",
       "description": "ASU TES mineral abundance map for olivine.",
       "source_page_url": "https://tes.mars.asu.edu/products/",
       "size": [
@@ -218,8 +218,8 @@
     {
       "id": "mineral-hematite",
       "label": "Hematite",
-      "path": "assets/mars_mineral_hematite.png",
-      "legend_path": "assets/mars_mineral_hematite_legend.png",
+      "path": "https://data.geoidinitiative.com/assets/planet-mars/mars_mineral_hematite.png?v=399c12b586c8",
+      "legend_path": "https://data.geoidinitiative.com/assets/planet-mars/mars_mineral_hematite_legend.png?v=e9f2f0d6dc0a",
       "description": "ASU TES mineral abundance map for hematite.",
       "source_page_url": "https://tes.mars.asu.edu/products/",
       "size": [
@@ -234,8 +234,8 @@
     {
       "id": "mineral-sulfate",
       "label": "Sulfate",
-      "path": "assets/mars_mineral_sulfate.png",
-      "legend_path": "assets/mars_mineral_sulfate_legend.png",
+      "path": "https://data.geoidinitiative.com/assets/planet-mars/mars_mineral_sulfate.png?v=3c67022b9b6f",
+      "legend_path": "https://data.geoidinitiative.com/assets/planet-mars/mars_mineral_sulfate_legend.png?v=865c86d30314",
       "description": "ASU TES mineral abundance map for sulfate.",
       "source_page_url": "https://tes.mars.asu.edu/products/",
       "size": [
@@ -250,8 +250,8 @@
     {
       "id": "mineral-carbonate",
       "label": "Carbonate",
-      "path": "assets/mars_mineral_carbonate.png",
-      "legend_path": "assets/mars_mineral_carbonate_legend.png",
+      "path": "https://data.geoidinitiative.com/assets/planet-mars/mars_mineral_carbonate.png?v=348960912b4b",
+      "legend_path": "https://data.geoidinitiative.com/assets/planet-mars/mars_mineral_carbonate_legend.png?v=d526690071c7",
       "description": "ASU TES mineral abundance map for carbonate.",
       "source_page_url": "https://tes.mars.asu.edu/products/",
       "size": [
@@ -266,8 +266,8 @@
     {
       "id": "mineral-sheet_hi_si_glass",
       "label": "Sheet Silicate / High-Si Glass",
-      "path": "assets/mars_mineral_sheet_hi_si_glass.png",
-      "legend_path": "assets/mars_mineral_sheet_hi_si_glass_legend.png",
+      "path": "https://data.geoidinitiative.com/assets/planet-mars/mars_mineral_sheet_hi_si_glass.png?v=d99dc747c3a0",
+      "legend_path": "https://data.geoidinitiative.com/assets/planet-mars/mars_mineral_sheet_hi_si_glass_legend.png?v=5fbb17391190",
       "description": "ASU TES mineral abundance map for sheet silicate / high-si glass.",
       "source_page_url": "https://tes.mars.asu.edu/products/",
       "size": [
@@ -282,8 +282,8 @@
     {
       "id": "mineral-surface_dust",
       "label": "Surface Dust",
-      "path": "assets/mars_mineral_surface_dust.png",
-      "legend_path": "assets/mars_mineral_surface_dust_legend.png",
+      "path": "https://data.geoidinitiative.com/assets/planet-mars/mars_mineral_surface_dust.png?v=0cb17237cfa9",
+      "legend_path": "https://data.geoidinitiative.com/assets/planet-mars/mars_mineral_surface_dust_legend.png?v=ff75ba821bcb",
       "description": "ASU TES mineral abundance map for surface dust.",
       "source_page_url": "https://tes.mars.asu.edu/products/",
       "size": [
@@ -298,8 +298,8 @@
     {
       "id": "mineral-rms_error",
       "label": "RMS Error",
-      "path": "assets/mars_mineral_rms_error.png",
-      "legend_path": "assets/mars_mineral_rms_error_legend.png",
+      "path": "https://data.geoidinitiative.com/assets/planet-mars/mars_mineral_rms_error.png?v=b184ed9b1f39",
+      "legend_path": "https://data.geoidinitiative.com/assets/planet-mars/mars_mineral_rms_error_legend.png?v=0ed073dffb35",
       "description": "ASU TES mineral abundance map for rms error.",
       "source_page_url": "https://tes.mars.asu.edu/products/",
       "size": [
@@ -334,12 +334,12 @@
     "magnetic_anomaly_page_url": "https://science.nasa.gov/photojournal/global-map-of-magnetic-anomalies-mager/"
   },
   "seismic": {
-    "path": "assets/mars_insight_seismic_events.json",
+    "path": "https://data.geoidinitiative.com/assets/planet-mars/mars_insight_seismic_events.json?v=072e5c50bc29",
     "description": "InSight seismic catalog summary rebuilt from the UMD InSight seismic data downloader catalog.",
     "source_page_url": "https://github.com/UMD-InSight/InSight-seismic-data-downloader"
   },
   "geology_interactive": {
-    "feature_path": "assets/mars_geology_features.json",
+    "feature_path": "https://data.geoidinitiative.com/assets/planet-mars/mars_geology_features.json?v=12bcfcabc5b8",
     "size": [
       4096,
       2048

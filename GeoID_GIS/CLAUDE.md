@@ -11452,3 +11452,66 @@ file is still on the developer's disk and the dev server serves it happily,
 which is exactly the shape that makes it invisible until deploy. The scan strips
 comments first, or the resolver's own header (which names an example path) fails
 its own test.
+
+## CLOUDFLARE HOTLINK PROTECTION BLOCKS IMAGES BY REFERER
+
+Moving a viewer's textures to the bucket is the first thing here that put
+IMAGES behind the custom domain, and it failed in a way that looked like a
+broken upload. Measured on one object, varying only the Referer:
+
+| Referer | |
+| --- | --- |
+| none (curl's default) | 200 |
+| `http://localhost:8125/…` | **403** |
+| `https://geoidinitiative.com/` | 200 |
+| a `.wav` under the same prefix, from localhost | 200 |
+
+So it is images only, and it keys on the Referer being a domain other than the
+zone. That is why the tiles and the vectors never met it: `.mvt` and `.geojson`
+are not images. All 66 Mars objects answer 200 with the production Referer, so
+the deployed site is fine — **local development is what breaks**, and the fix is
+a Cloudflare setting rather than anything in this repository.
+
+**In the browser this presents as `TypeError: Failed to fetch`, not as a 403**,
+because the 403 carries no CORS header, so the page cannot see the status. Two
+requests from the SAME page separate it in one measurement: a `.mvt` from the
+bucket answers `200 type=cors` while a `.jpg` from the same bucket throws. If
+one asset kind works and another does not, suspect a rule keyed on content type
+before suspecting the upload.
+
+### A zero exit is not evidence the files arrived
+
+`rclone --min-size 262144` means **256 GiB**, because rclone reads a bare number
+as KiB. It matched nothing, copied nothing, exited 0 — and the script went on to
+rewrite every reference to a bucket prefix holding **zero objects**. The suffix
+is load-bearing: `--min-size 262144B`.
+
+`publish-viewer-assets.py` now LISTS the prefix and refuses to rewrite unless
+every file it meant to upload is really there. Verifying after rewriting would
+have been useless anyway: the untracked originals are still on the developer's
+disk, so the dev server keeps serving them and the page looks perfect while
+shipping references to nothing.
+
+**And requesting a URL before its object exists poisons the CDN cache with the
+404.** Cloudflare served cached negatives for minutes after the objects landed,
+which reads exactly like a failed upload. Check the bucket with `rclone lsf`
+before believing an HTTP 404, and bust the query when re-testing.
+
+## What is still in git, and what it is
+
+After moving `data/global`, Etna's bake inputs, the flight_sim duplication and
+the Mars textures: **781 MB**, from 1,743 MB. The remaining large items are
+NOT all maps, and the distinction decides whether the bucket is the answer:
+
+| | | |
+| --- | --- | --- |
+| `assets/etna_viewer_demo.webm` | 79 MB | video |
+| `exoplanets/NASA_exoplanets.csv` | 74 MB | a table |
+| `flight_sim/enterprise` | 70 MB | `.obj`/`.max`/`.fbx` models, one a proprietary 3ds Max source |
+| `earth_explorer/etna` | 71 MB | viewer imagery — a map |
+| `GeoID_Earth/assets` | 45 MB | Earth textures — a map |
+| `planet_explorer/moon` and the other eight | ~190 MB | textures — maps |
+
+`du -ch` over a large file list is NOT how to measure this: xargs splits the
+list and `tail -1` reads only the last batch's total, which understated the
+repository by 500 MB and was quoted twice before it was caught. Sum the bytes.

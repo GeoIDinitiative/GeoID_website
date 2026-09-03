@@ -132,3 +132,17 @@ flight_sim/mars/viewer/assets/ctx_base.jpg
 flight_sim/mars/viewer/assets/logo.png
 flight_sim/mars/viewer/assets/logo_pro.png
 flight_sim/mars/viewer/assets/description_pics/
+
+# planet_explorer/mars's own textures, DEMs and mineral sheets — 229 MB,
+# published by services/publish-viewer-assets.py and referenced by absolute
+# bucket URL from BOTH this viewer and flight_sim's copy of it. Only files at
+# or above the 256 KB floor moved: an icon is cheap to ship and every file
+# left alone is one that cannot break.
+planet_explorer/mars/viewer/assets/mars_*.png
+planet_explorer/mars/viewer/assets/mars_*.jpg
+planet_explorer/mars/viewer/assets/mars_*.json
+planet_explorer/mars/viewer/assets/mars_*.wav
+planet_explorer/mars/viewer/assets/mars_*.mp4
+planet_explorer/mars/viewer/assets/mars_*.csv
+planet_explorer/mars/viewer/assets/ctx_base.jpg
+planet_explorer/mars/viewer/assets/description_pics/Olympus_Mons_pic.jpg
