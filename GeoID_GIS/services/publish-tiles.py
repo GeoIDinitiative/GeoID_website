@@ -93,6 +93,33 @@ def upload(path: pathlib.Path, remote: str, dry: bool) -> int:
     return done.returncode
 
 
+def version(body: dict) -> None:
+    """
+    An unversioned pyramid must not be served with an immutable cache.
+
+    `CACHE_CONTROL` promises a year and `immutable`, which is only safe because
+    the client appends the bake's own fingerprint to every tile — a re-bake is
+    then a different URL. A manifest with no `version` gets tiles at a bare
+    path, so a re-baked tile would be invisible to every browser holding the old
+    one, for a year. That is the trap the glacier bake already paid for from the
+    other end, and publishing is what arms it.
+
+    The fingerprint is the bakes' own `<tiles>-<total bytes>`
+    (bake-glim/soil/glaciers all write exactly this), computed here for the
+    older pyramids whose bake predates the convention. Content-derived, so it
+    changes when and only when the tiles do.
+    """
+    if body.get("version"):
+        return
+    tiles = body.get("tiles") or {}
+    if not tiles:
+        die("this manifest lists no tiles, so no version can be derived — "
+            "refusing to publish it behind an immutable cache")
+    body["version"] = f"{len(tiles)}-{sum(tiles.values())}"
+    print(f"  no version in the manifest; derived {body['version']} "
+          "(a bare tile URL under an immutable cache survives a re-bake)")
+
+
 def stamp(path: pathlib.Path, base: str | None) -> dict:
     """
     Point the local manifest at the bucket — or back at itself.
@@ -105,6 +132,7 @@ def stamp(path: pathlib.Path, base: str | None) -> dict:
     body = json.loads(manifest.read_text())
     if base:
         body["tiles_base"] = base.rstrip("/")
+        version(body)
     else:
         body.pop("tiles_base", None)
     manifest.write_text(json.dumps(body, separators=(",", ":")))

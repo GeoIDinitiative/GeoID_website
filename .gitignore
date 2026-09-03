@@ -77,3 +77,11 @@ data/global/glim/[0-9]*/
 # `manifest.json` and `units.json` staying with the site so `has()`, every
 # tile's size and the legend are readable before — and without — a fetch.
 data/global/soil/[0-9]*/
+
+# The geology and glacier pyramids' TILES, on the same terms as GLiM and soil
+# above: 1,089 + 806 tiles / ~128 MB now served from the bucket. Their
+# `manifest.json` (and ice's `names.json` / `thickness.json` legend sidecars)
+# stay with the site, because `has()`, every tile's size and the naming table
+# are read before — and without — a tile fetch.
+data/global/geology/[0-9]*/
+data/global/ice/[0-9]*/
