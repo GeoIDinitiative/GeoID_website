@@ -83,9 +83,25 @@ EXTENT = 4096
 
 # Banded by SIMPLIFICATION, not by selection, for the reason the soil bake
 # records: this is a CONTINUOUS map, so dropping a polygon puts a hole in it
-# rather than thinning it. Each tolerance is a fraction of a pixel at its
-# band's coarsest zoom.
-LEVELS = [(0, 0, 0.2), (1, 1, 0.08), (2, 3, 0.01), (4, 5, 0.0025)]
+# rather than thinning it.
+#
+# THE FLOOR IS THE SOURCE'S ACCURACY, NOT THE TILE GRID — and getting that
+# backwards is what made the first bake 245 MB. The soil map's rule is "a
+# fraction of a pixel at the band's coarsest zoom", which is right while the
+# tile grid is the coarser of the two and degenerates the moment it is not:
+# measured, that rule put the z3 and z5 tolerances at 0.9 of ONE MVT unit,
+# i.e. essentially no simplification at all, on a map whose own positional
+# accuracy is 1.9 km. The deep bands were storing vertices GLiM cannot support
+# and no screen can show.
+#
+# 0.017 degrees IS that 1.9 km. At z5 it is 6 MVT units and still 0.77 of a
+# screen pixel, so nothing visible moves; below z2 the tile grid is coarser
+# again and takes over. The same statement the soil bake makes about max_zoom,
+# one level down: a format that can hold more precision than the source has is
+# not a reason to store it.
+SOURCE_ACCURACY_DEG = 0.017
+LEVELS = [(0, 0, 0.2), (1, 1, 0.08), (2, 3, SOURCE_ACCURACY_DEG),
+          (4, 5, SOURCE_ACCURACY_DEG)]
 
 # Ours, and the manifest says so. The families are grouped by colour the way a
 # geological map groups them — sediments warm, volcanics red, plutonics pink to

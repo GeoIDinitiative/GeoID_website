@@ -23,7 +23,7 @@
  */
 
 import { loadDerivedGeologyMap, removeDerivedGeologyMap }
-  from "./geology-panel.js?v=20260903-7fe01f2";
+  from "./geology-panel.js?v=20260903-601a7cc";
 
 const STAMP = new URL(import.meta.url).search || "";
 const LAYER_ID = "glim-lithology";
@@ -131,8 +131,23 @@ async function loadGlim() {
   await new Promise((done) => window.setTimeout(done, 1500));
   const live = layerOf() || layer;
   const drawn = (live.features || []).length;
-  say(`GLiM surface lithology — 1,235,259 polygons over 16 classes, about `
-    + `1:3,750,000. ${drawn.toLocaleString()} in view; it sharpens as you fly in.`);
+  /**
+   * COUNTED FROM THE TABLE THE BAKE WROTE, never typed in.
+   *
+   * This line read "1,235,259 polygons over 16 classes" as a literal, which is
+   * a claim about the source printed whether or not anything loaded — and with
+   * the pyramid missing it appeared verbatim over a map drawing nothing. The
+   * panel refuses that case out loud now, and this says only what the file it
+   * actually read contains, so the two can never disagree.
+   */
+  const table = await classes();
+  const total = Object.values(table).reduce((n, c) => n + (c.count || 0), 0);
+  const named = Object.keys(table).length;
+  say(total
+    ? `GLiM surface lithology — ${total.toLocaleString()} polygons over `
+      + `${named} classes, about 1:3,750,000. ${drawn.toLocaleString()} in `
+      + "view; it sharpens as you fly in."
+    : `GLiM surface lithology — ${drawn.toLocaleString()} polygons in view.`);
   return layer;
 }
 

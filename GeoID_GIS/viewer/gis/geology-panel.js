@@ -28,15 +28,15 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260903-7fe01f2";
-import { currentBodyId } from "./bodies.js?v=20260903-7fe01f2";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260903-7fe01f2";
-import { rockClass } from "./rock-class.js?v=20260903-7fe01f2";
-import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260903-7fe01f2";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260903-7fe01f2";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260903-7fe01f2";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260903-601a7cc";
+import { currentBodyId } from "./bodies.js?v=20260903-601a7cc";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260903-601a7cc";
+import { rockClass } from "./rock-class.js?v=20260903-601a7cc";
+import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260903-601a7cc";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260903-601a7cc";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260903-601a7cc";
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260903-7fe01f2";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260903-601a7cc";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -414,6 +414,36 @@ async function loadTiled(entry, { toView = false, quiet = false } = {}) {
     import(`./macrostrat.js${search}`),
     bakedTiles(ownTiles?.manifest || GEOLOGY_MANIFEST),
   ]);
+  /**
+   * A PYRAMID WHOSE MANIFEST CANNOT BE READ IS A FAILURE, NOT AN EMPTY MAP.
+   *
+   * `loadManifest` answers null on any error, and everything below then builds
+   * a controller with `has: () => false` and no remote — which sends every
+   * tile down `loadTile`'s "a tile that was never baked, on a pyramid with no
+   * remote, is EMPTY, not a failure" branch. That rule is right PER TILE (the
+   * glacier pyramid is sparse by nature, and most tiles of any view genuinely
+   * hold nothing) and catastrophic when the whole manifest is missing: the
+   * layer registers, draws nothing, and reports no error.
+   *
+   * Measured, with GLiM's pyramid not yet on disk: the status line read
+   * "1,235,259 polygons over 16 classes… 0 in view; it sharpens as you fly in"
+   * over Africa. A confident sentence about a map that had not loaded, which
+   * is the worst of the three available outcomes.
+   *
+   * It matters beyond a missing bake. This is exactly how an unreachable tile
+   * host presents — a bucket that is down, a CORS policy that is wrong, a
+   * custom domain that has not propagated — so the failure has to be said out
+   * loud rather than drawn as empty ground.
+   *
+   * Only for a layer with its OWN tiles: the world geology falls through to
+   * Macrostrat for anything the bake skipped, so a missing manifest there
+   * means "ask the source", which is a working map.
+   */
+  if (ownTiles && !manifest) {
+    say(`${entry.label}: its baked tiles could not be read `
+      + `(${ownTiles.manifest.replace(/\?.*$/, "")}). The layer was not added.`);
+    return null;
+  }
   const existing = loadedLayers().find((l) => l.geologyDataset === entry.id);
   const controller = existing?.tiled || tilesModule.createTiledVectorLayer({
     name: entry.name,
