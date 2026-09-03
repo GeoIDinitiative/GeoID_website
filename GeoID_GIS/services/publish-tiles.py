@@ -135,6 +135,16 @@ def check(body: dict, path: pathlib.Path) -> int:
         # CORS header meaningful. Fetched without an Origin, a bucket looks
         # fine and the page still fails.
         "Origin": "https://geoidinitiative.com",
+        # AND A USER AGENT, because Cloudflare's bot rules 403 the default one.
+        #
+        # Measured on the live bucket, identical URL and Origin: curl/7.81.0
+        # and Mozilla/5.0 both answered 200, Python-urllib/3.10 answered 403.
+        # Without this the check reported "is it publicly readable?" about a
+        # bucket that was serving perfectly — a false negative that sends
+        # somebody into the dashboard hunting a permission problem which does
+        # not exist. The point of this command is to answer the question a
+        # BROWSER would ask, so it has to look like one.
+        "User-Agent": "Mozilla/5.0 (compatible; GeoID publish-tiles check)",
     })
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
