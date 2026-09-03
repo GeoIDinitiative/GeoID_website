@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260903-7b5a1e0";
+  from "./gis/geo-utils.js?v=20260903-d94308a";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260903-7b5a1e0";
+  from "./gis/vector-render.js?v=20260903-d94308a";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260903-7b5a1e0";
+  from "./gis/rock-class.js?v=20260903-d94308a";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260903-7b5a1e0";
+  from "./gis/lithology-label.js?v=20260903-d94308a";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -688,7 +688,10 @@ function fmtProp(value) {
     }
 
     // ── Earth interior model (depth-based) ───────────────────────────────────
-    // Layer boundaries as fraction of planetary radius (PREM model)
+    // Layer boundaries as a fraction of planetary radius. The two core
+    // boundaries are PREM to within 5 km (ICB 1221.5, CMB 3480). The crust
+    // is 32 km, which is CONTINENTAL rather than PREM's 24.4 km global
+    // average — thin enough to be honest, thick enough to see on a globe.
     // rFrac = 0 → centre, rFrac = 1 → surface
     const EARTH_INTERIOR_LAYERS = [
       { name: "Inner Core", rMin: 0.000, rMax: 0.192 },
@@ -696,9 +699,41 @@ function fmtProp(value) {
       { name: "Mantle",     rMin: 0.547, rMax: 0.995 },
       { name: "Crust",      rMin: 0.995, rMax: 1.000 },
     ];
-    // Piecewise-linear T (°C) and P (GPa) profiles keyed on rFrac (PREM-based, sorted low→high)
-    const EARTH_INTERIOR_T_PTS = [[0.000, 5000], [0.192, 5000], [0.547, 3700], [0.995, 400], [1.000, 15]];
-    const EARTH_INTERIOR_P_PTS = [[0.000, 360.0], [0.192, 330.0], [0.547, 135.0], [0.995, 0.4], [1.000, 0.0]];
+    /**
+     * Piecewise-linear T (°C) and P (GPa) against rFrac, sorted low→high.
+     *
+     * THE MANTLE NEEDS INTERIOR ANCHORS, and without them one straight line
+     * spanned 2,854 km from the core-mantle boundary to the Moho. A linear fit
+     * across a convex curve reads high in the middle: pressure at 1,000 km came
+     * out 46.1 GPa against PREM's 38.7 (+19%), and the temperature at the 660 km
+     * discontinuity 1,126 °C against an accepted ~1,600. The 410 and 660 km
+     * discontinuities and a mid-lower-mantle point are the anchors that fix it.
+     *
+     * AND THE MOHO PRESSURE WAS 0.4 GPa, which is not a rounding: lithostatic at
+     * this model's own 32 km crust is 2800 kg/m³ × 9.81 × 32 km ≈ 0.87 GPa, so
+     * the readout was better than a factor of two light at the one depth a
+     * reader is most likely to recognise.
+     *
+     * P is PREM. T is an accepted geotherm rather than PREM, which publishes no
+     * temperature — the centre and the core-mantle boundary are ranges in the
+     * literature (5,100–5,500 and 3,700–4,000 °C) and the midpoints are used.
+     */
+    const EARTH_INTERIOR_T_PTS = [
+      [0.000, 5200], [0.192, 5000], [0.547, 3700],
+      [0.686, 2500],   // ~2,000 km, lower mantle
+      [0.765, 2200],   // ~1,500 km
+      [0.896, 1600],   // 660 km discontinuity
+      [0.936, 1450],   // 410 km discontinuity
+      [0.995, 500], [1.000, 15],
+    ];
+    const EARTH_INTERIOR_P_PTS = [
+      [0.000, 363.9], [0.192, 328.9], [0.547, 135.8],
+      [0.686, 83.2],   // ~2,000 km
+      [0.765, 60.4],   // ~1,500 km
+      [0.896, 23.8],   // 660 km
+      [0.936, 13.4],   // 410 km
+      [0.995, 0.9], [1.000, 0.0],
+    ];
 
     function _interiorInterp(pts, rFrac) {
       const r = Math.max(0, Math.min(1, rFrac));
