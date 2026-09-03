@@ -201,14 +201,14 @@ def audit_viewer_assets() -> None:
         return
     keys = set()
     for p in code_files():
-        keys |= set(re.findall(re.escape(host) + r"/assets/([a-z0-9-]+)/",
+        keys |= set(re.findall(re.escape(host) + r"/assets/(?:hotlink-ok/)?([a-z0-9-]+)/",
                                p.read_text(errors="surrogateescape")))
     for key in sorted(keys):
-        objs = bucket_files(f"assets/{key}")
+        objs = bucket_files(f"assets/hotlink-ok/{key}")
         urls = set()
         for p in code_files():
             urls |= set(re.findall(
-                "(" + re.escape(host) + r"/assets/" + re.escape(key) + r"/[A-Za-z0-9_./-]+(?:\?v=[0-9a-f]+)?)",
+                "(" + re.escape(host) + r"/assets/(?:hotlink-ok/)?" + re.escape(key) + r"/[A-Za-z0-9_./-]+(?:\?v=[0-9a-f]+)?)",
                 p.read_text(errors="surrogateescape")))
         codes = {}
         for u in sorted(urls):

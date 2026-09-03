@@ -43,6 +43,16 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 CACHE_CONTROL = "public, max-age=31536000, immutable"
 CODE = (".js", ".html", ".json")
 
+# THE `hotlink-ok` SEGMENT IS LOAD-BEARING, not decoration. Cloudflare's Hotlink
+# Protection 403s any IMAGE whose Referer is a domain other than the zone, which
+# is right for the public site and fatal for a bucket that exists to be read
+# from it — measured, the identical file answers 200 with no Referer, 200 from
+# geoidinitiative.com and 403 from localhost, while a .wav beside it is
+# untouched. Cloudflare exempts any path containing `hotlink-ok`, so publishing
+# under it keeps the main site's protection intact and makes local development
+# work. Verified both nested and at the root: 200 either way.
+PREFIX = "assets/hotlink-ok"
+
 
 def die(m: str) -> None:
     sys.exit(f"publish-viewer-assets: {m}")
@@ -77,7 +87,7 @@ def rewrite(viewer: pathlib.Path, names: dict, base: str, key: str) -> int:
     for f in code_files(viewer):
         s = original = f.read_text(errors="surrogateescape")
         for rel in sorted(names, key=len, reverse=True):
-            url = f"{base.rstrip('/')}/assets/{key}/{rel}?v={fingerprint(names[rel])}"
+            url = f"{base.rstrip('/')}/{PREFIX}/{key}/{rel}?v={fingerprint(names[rel])}"
             s = re.sub(r"(?:\./)?(?<![\w.-])assets/" + re.escape(rel) + r"(?:\?[^\"'`)\s]*)?",
                        url, s)
         if s != original:
@@ -88,7 +98,7 @@ def rewrite(viewer: pathlib.Path, names: dict, base: str, key: str) -> int:
 
 def restore(viewer: pathlib.Path, base: str, key: str) -> int:
     changed = 0
-    pattern = re.compile(re.escape(base.rstrip("/") + f"/assets/{key}/")
+    pattern = re.compile(re.escape(base.rstrip("/") + f"/{PREFIX}/{key}/")
                          + r"([A-Za-z0-9_./-]+)\?v=[0-9a-f]+")
     for f in code_files(viewer):
         s = original = f.read_text(errors="surrogateescape")
@@ -127,7 +137,7 @@ def main() -> int:
 
     if not shutil.which("rclone"):
         die("rclone is not installed")
-    cmd = ["rclone", "copy", str(assets), f"{args.remote.rstrip('/')}/assets/{args.key}",
+    cmd = ["rclone", "copy", str(assets), f"{args.remote.rstrip('/')}/{PREFIX}/{args.key}",
            "--header-upload", f"Cache-Control: {CACHE_CONTROL}",
            # THE "B" SUFFIX IS LOAD-BEARING: rclone reads a bare number as KiB,
            # so `--min-size 262144` means 256 GiB, matches nothing, copies
@@ -137,7 +147,7 @@ def main() -> int:
            "--transfers", "8", "--checkers", "8", "--stats-one-line"]
     if args.dry_run:
         cmd.append("--dry-run")
-    print(f"  rclone copy -> {args.remote}/assets/{args.key}  "
+    print(f"  rclone copy -> {args.remote}/{PREFIX}/{args.key}  "
           f"({len(names)} files, {total / 1048576:.1f} MB)")
     if subprocess.run(cmd).returncode != 0:
         die("rclone failed; nothing was rewritten")
@@ -151,7 +161,7 @@ def main() -> int:
     # because the files it no longer ships are still sitting on the disk.
     listed = subprocess.run(
         ["rclone", "lsf", "-R", "--files-only",
-         f"{args.remote.rstrip('/')}/assets/{args.key}"],
+         f"{args.remote.rstrip('/')}/{PREFIX}/{args.key}"],
         capture_output=True, text=True)
     there = {line for line in listed.stdout.split("\n") if line}
     absent = [rel for rel in names if rel not in there]
@@ -162,7 +172,7 @@ def main() -> int:
 
     n = rewrite(viewer, names, args.base, args.key)
     print(f"{args.key}: {len(names)} files ({total / 1048576:.1f} MB) now served "
-          f"from {args.base.rstrip('/')}/assets/{args.key}/, {n} files rewritten")
+          f"from {args.base.rstrip('/')}/{PREFIX}/{args.key}/, {n} files rewritten")
     return 0
 
 

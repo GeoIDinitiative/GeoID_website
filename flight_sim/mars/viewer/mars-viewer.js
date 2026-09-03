@@ -9010,7 +9010,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
           this.context.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
           this.texture.needsUpdate = true;
         };
-        img.src = 'https://data.geoidinitiative.com/assets/planet-mars/ctx_base.jpg?v=e2c521247e2a';
+        img.src = 'https://data.geoidinitiative.com/assets/hotlink-ok/planet-mars/ctx_base.jpg?v=e2c521247e2a';
       }
 
       _getTileFailureCooldownMs(status) {
@@ -12800,24 +12800,24 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       const mineralTextures = new Map();
       const mineralSamplerStates = new Map();
       const SC_LAYERS = [
-        { id: "sc-temperature",  label: "Temperature",              path: "https://data.geoidinitiative.com/assets/planet-mars/mars_sc_temperature.png?v=f868efefffde",        scGroup: "Surface Conditions — Atmospheric", scParamKey: "temperature" },
-        { id: "sc-pressure",     label: "Pressure",                 path: "https://data.geoidinitiative.com/assets/planet-mars/mars_sc_pressure.png?v=831ae74a8bb6",           scGroup: "Surface Conditions — Atmospheric", scParamKey: "pressure" },
-        { id: "sc-wind",         label: "Wind Speed",               path: "https://data.geoidinitiative.com/assets/planet-mars/mars_sc_wind.png?v=d8cb9c650c08",               scGroup: "Surface Conditions — Atmospheric", scParamKey: "wind" },
+        { id: "sc-temperature",  label: "Temperature",              path: "https://data.geoidinitiative.com/assets/hotlink-ok/planet-mars/mars_sc_temperature.png?v=f868efefffde",        scGroup: "Surface Conditions — Atmospheric", scParamKey: "temperature" },
+        { id: "sc-pressure",     label: "Pressure",                 path: "https://data.geoidinitiative.com/assets/hotlink-ok/planet-mars/mars_sc_pressure.png?v=831ae74a8bb6",           scGroup: "Surface Conditions — Atmospheric", scParamKey: "pressure" },
+        { id: "sc-wind",         label: "Wind Speed",               path: "https://data.geoidinitiative.com/assets/hotlink-ok/planet-mars/mars_sc_wind.png?v=d8cb9c650c08",               scGroup: "Surface Conditions — Atmospheric", scParamKey: "wind" },
         { id: "sc-irradiance",   label: "Solar Irradiance",         path: "/planet_explorer/mars/viewer/assets/mars_sc_irradiance.png",         scGroup: "Surface Conditions — Atmospheric", scParamKey: "irradiance" },
-        { id: "sc-radiation",    label: "Radiation Dose",           path: "https://data.geoidinitiative.com/assets/planet-mars/mars_sc_radiation.png?v=0a6131ca70e1",          scGroup: "Surface Conditions — Atmospheric", scParamKey: "radiation" },
-        { id: "sc-diurnal",      label: "Diurnal Temp Range",       path: "https://data.geoidinitiative.com/assets/planet-mars/mars_sc_diurnal.png?v=0be5d7e0c183",            scGroup: "Surface Conditions — Atmospheric", scParamKey: "diurnal" },
-        { id: "sc-atm_density",  label: "Atmospheric Density",      path: "https://data.geoidinitiative.com/assets/planet-mars/mars_sc_atm_density.png?v=53f350acab20",        scGroup: "Surface Conditions — Atmospheric", scParamKey: "atm_density" },
-        { id: "sc-sound_speed",  label: "Speed of Sound",           path: "https://data.geoidinitiative.com/assets/planet-mars/mars_sc_sound_speed.png?v=c4d0685ca513",        scGroup: "Surface Conditions — Atmospheric", scParamKey: "sound_speed" },
+        { id: "sc-radiation",    label: "Radiation Dose",           path: "https://data.geoidinitiative.com/assets/hotlink-ok/planet-mars/mars_sc_radiation.png?v=0a6131ca70e1",          scGroup: "Surface Conditions — Atmospheric", scParamKey: "radiation" },
+        { id: "sc-diurnal",      label: "Diurnal Temp Range",       path: "https://data.geoidinitiative.com/assets/hotlink-ok/planet-mars/mars_sc_diurnal.png?v=0be5d7e0c183",            scGroup: "Surface Conditions — Atmospheric", scParamKey: "diurnal" },
+        { id: "sc-atm_density",  label: "Atmospheric Density",      path: "https://data.geoidinitiative.com/assets/hotlink-ok/planet-mars/mars_sc_atm_density.png?v=53f350acab20",        scGroup: "Surface Conditions — Atmospheric", scParamKey: "atm_density" },
+        { id: "sc-sound_speed",  label: "Speed of Sound",           path: "https://data.geoidinitiative.com/assets/hotlink-ok/planet-mars/mars_sc_sound_speed.png?v=c4d0685ca513",        scGroup: "Surface Conditions — Atmospheric", scParamKey: "sound_speed" },
         { id: "sc-co2_frost",    label: "CO₂ Frost Probability",    path: "/planet_explorer/mars/viewer/assets/mars_sc_co2_frost.png",          scGroup: "Surface Conditions — Atmospheric", scParamKey: "co2_frost" },
-        { id: "sc-slope",        label: "Slope Gradient",           path: "https://data.geoidinitiative.com/assets/planet-mars/mars_sc_slope.png?v=8adb56fb47a2",              scGroup: "Surface Conditions — Terrain",      scParamKey: "slope" },
-        { id: "sc-roughness",    label: "Terrain Roughness",        path: "https://data.geoidinitiative.com/assets/planet-mars/mars_sc_roughness.png?v=e7d3953a6ea5",          scGroup: "Surface Conditions — Terrain",      scParamKey: "roughness" },
-        { id: "sc-ice_depth",    label: "Permafrost Thickness",     path: "https://data.geoidinitiative.com/assets/planet-mars/mars_sc_ice_depth.png?v=5b351d6cde0a",          scGroup: "Surface Conditions — Habitability", scParamKey: "ice_depth" },
-        { id: "sc-dust_devil",   label: "Dust Devil Susceptibility",path: "https://data.geoidinitiative.com/assets/planet-mars/mars_sc_dust_devil.png?v=df25bc7fcf87",         scGroup: "Surface Conditions — Habitability", scParamKey: "dust_devil" },
-        { id: "sc-landing",      label: "Landing Zone Score",       path: "https://data.geoidinitiative.com/assets/planet-mars/mars_sc_landing_score.png?v=7f8be69f025e",      scGroup: "Surface Conditions — Habitability", scParamKey: "landing_score" },
-        { id: "sc-solar",        label: "Solar Panel Output",       path: "https://data.geoidinitiative.com/assets/planet-mars/mars_sc_solar_output.png?v=270a76765cdb",       scGroup: "Surface Conditions — Habitability", scParamKey: "solar_output" },
-        { id: "sc-brine",        label: "Brine Stability",          path: "https://data.geoidinitiative.com/assets/planet-mars/mars_sc_brine_stability.png?v=d672c5a37b68",    scGroup: "Surface Conditions — Habitability", scParamKey: "brine_stability" },
-        { id: "sc-magnetic",     label: "Magnetic Shielding",       path: "https://data.geoidinitiative.com/assets/planet-mars/mars_sc_magnetic_shielding.png?v=47ff5327fd90", scGroup: "Surface Conditions — Habitability", scParamKey: "magnetic_shielding" },
-        { id: "sc-habitability", label: "Human Habitability",       path: "https://data.geoidinitiative.com/assets/planet-mars/mars_sc_habitability.png?v=cb1256049af1",       scGroup: "Surface Conditions — Habitability", scParamKey: "habitability" },
+        { id: "sc-slope",        label: "Slope Gradient",           path: "https://data.geoidinitiative.com/assets/hotlink-ok/planet-mars/mars_sc_slope.png?v=8adb56fb47a2",              scGroup: "Surface Conditions — Terrain",      scParamKey: "slope" },
+        { id: "sc-roughness",    label: "Terrain Roughness",        path: "https://data.geoidinitiative.com/assets/hotlink-ok/planet-mars/mars_sc_roughness.png?v=e7d3953a6ea5",          scGroup: "Surface Conditions — Terrain",      scParamKey: "roughness" },
+        { id: "sc-ice_depth",    label: "Permafrost Thickness",     path: "https://data.geoidinitiative.com/assets/hotlink-ok/planet-mars/mars_sc_ice_depth.png?v=5b351d6cde0a",          scGroup: "Surface Conditions — Habitability", scParamKey: "ice_depth" },
+        { id: "sc-dust_devil",   label: "Dust Devil Susceptibility",path: "https://data.geoidinitiative.com/assets/hotlink-ok/planet-mars/mars_sc_dust_devil.png?v=df25bc7fcf87",         scGroup: "Surface Conditions — Habitability", scParamKey: "dust_devil" },
+        { id: "sc-landing",      label: "Landing Zone Score",       path: "https://data.geoidinitiative.com/assets/hotlink-ok/planet-mars/mars_sc_landing_score.png?v=7f8be69f025e",      scGroup: "Surface Conditions — Habitability", scParamKey: "landing_score" },
+        { id: "sc-solar",        label: "Solar Panel Output",       path: "https://data.geoidinitiative.com/assets/hotlink-ok/planet-mars/mars_sc_solar_output.png?v=270a76765cdb",       scGroup: "Surface Conditions — Habitability", scParamKey: "solar_output" },
+        { id: "sc-brine",        label: "Brine Stability",          path: "https://data.geoidinitiative.com/assets/hotlink-ok/planet-mars/mars_sc_brine_stability.png?v=d672c5a37b68",    scGroup: "Surface Conditions — Habitability", scParamKey: "brine_stability" },
+        { id: "sc-magnetic",     label: "Magnetic Shielding",       path: "https://data.geoidinitiative.com/assets/hotlink-ok/planet-mars/mars_sc_magnetic_shielding.png?v=47ff5327fd90", scGroup: "Surface Conditions — Habitability", scParamKey: "magnetic_shielding" },
+        { id: "sc-habitability", label: "Human Habitability",       path: "https://data.geoidinitiative.com/assets/hotlink-ok/planet-mars/mars_sc_habitability.png?v=cb1256049af1",       scGroup: "Surface Conditions — Habitability", scParamKey: "habitability" },
       ];
       baseLayers.push(...SC_LAYERS);
       // SC layers are not shown on first render — initialise as null, load in background.
