@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260903-2983b5d";
+  from "./gis/geo-utils.js?v=20260903-0163770";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260903-2983b5d";
+  from "./gis/vector-render.js?v=20260903-0163770";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260903-2983b5d";
+  from "./gis/rock-class.js?v=20260903-0163770";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260903-2983b5d";
+  from "./gis/lithology-label.js?v=20260903-0163770";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -118,14 +118,20 @@ function fmtProp(value) {
     /**
      * What Navigate and Tour put back under a feature.
      *
-     * The streamed Esri imagery, matching the default the page opens on --
+     * The streamed Sentinel-2 mosaic, matching the default the page opens on --
      * with `blue-marble` as the fallback, because that is the one that ships
      * and the tiles option only exists once `basemap-drape.js` has registered
      * it. `ensureNavigateBasemap` returns early when the option is missing, so
      * on a page without the drape (or before it has run) nothing happens and
      * whatever is showing stays.
+     *
+     * It named ESRI SATELLITE until the Esri services became local-only, and
+     * that was already stale: the opening default moved to Sentinel-2 when the
+     * licence was read, and this comment went on claiming the two matched. A
+     * "same as the default" constant has to be changed WITH the default, or it
+     * quietly becomes a second, different default.
      */
-    const DEFAULT_NAVIGATE_BASE_LAYER_ID = "tiles-esri-satellite";
+    const DEFAULT_NAVIGATE_BASE_LAYER_ID = "tiles-sentinel-2-cloudless";
     const FALLBACK_NAVIGATE_BASE_LAYER_ID = "blue-marble";
     const moonViewerControls = document.getElementById("moon-viewer-controls");
     const moonViewerSelect = document.getElementById("moon-viewer-select");

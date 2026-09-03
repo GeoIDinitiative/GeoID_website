@@ -62,6 +62,21 @@ function gibsDate() {
 
 export const GIBS_DATE = gibsDate();
 
+/**
+ * `distribute: false` — WORKS, BUT IS NOT OFFERED TO A VISITOR.
+ *
+ * A separate axis from `freeToStream`, and the difference matters. That one
+ * describes the LICENCE: whether a condition rides on using the tiles at all.
+ * This one is the decision taken about that condition for THIS deployment —
+ * Esri's imagery is the best-looking map here and its item record puts it
+ * under the Master License Agreement, so it is fine to work with locally and
+ * not something to hand to every visitor to a public page.
+ *
+ * The source stays whole: registered in this table, fetchable, credited and
+ * selectable in code. Only `listBaseLayerOptions` in `basemap-drape.js`
+ * withholds it from the picker, and it says there how to turn it back on.
+ * Deleting these entries instead would take the implementation with them.
+ */
 export const TILE_SOURCES = {
   "OpenStreetMap": {
     url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -73,18 +88,13 @@ export const TILE_SOURCES = {
       + "or buys tiles.",
     freeToStream: true,
   },
-  "CartoDB Dark": {
-    url: "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-    credit: "© OpenStreetMap contributors, © CARTO",
-    maxZoom: 19,
-    kind: "map",
-  },
-  "CartoDB Positron": {
-    url: "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-    credit: "© OpenStreetMap contributors, © CARTO",
-    maxZoom: 19,
-    kind: "map",
-  },
+  /**
+   * CARTO'S TWO ARE GONE, and they were not merely unwanted — they were dead.
+   * Their free CDN answers 200 with an "API KEY REQUIRED" watermark rather
+   * than a tile (measured: 17 distinct colours in a zoom-3 `dark_all` tile),
+   * so both offered the reader a basemap that renders as a nag across the
+   * planet. `map2d.js` already opens on OpenStreetMap for this reason.
+   */
   "ESRI Satellite": {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     credit: "Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community",
@@ -101,6 +111,7 @@ export const TILE_SOURCES = {
       + "not for offline tile export. Esri's supported route is ArcGIS Location "
       + "Platform with an API key and a metered free tier.",
     freeToStream: false,
+    distribute: false,
   },
   /**
    * The nearest thing to Esri's imagery that does not go through Esri.
@@ -168,6 +179,11 @@ export const TILE_SOURCES = {
       + "Esri China (Hong Kong), © OpenStreetMap contributors, and the GIS User Community",
     maxZoom: 19,
     kind: "map",
+    licence: "Esri Master License Agreement, as World Imagery above — no charge "
+      + "on this endpoint, and not licensed for unrestricted or commercial "
+      + "embedding. Offered locally, never on the public site.",
+    freeToStream: false,
+    distribute: false,
   },
 };
 

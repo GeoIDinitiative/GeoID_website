@@ -20,7 +20,7 @@
  * the viewer already shipped and could only ever show alone.
  */
 
-import { drape } from "./gee.js?v=20260903-2983b5d";
+import { drape } from "./gee.js?v=20260903-0163770";
 
 // In the shape the drape and the layer record both read: this app says
 // west/south/east/north in most places and Earth Engine answers
@@ -35,49 +35,36 @@ const GLOBAL_BOUNDS = { minX: -180, maxX: 180, minY: -90, maxY: 90 };
  */
 const GLOBAL_SEGMENTS = 180;
 
+/**
+ * ONE ROW PER ASSET, and this list is the half that had to give way.
+ *
+ * Every entry here names a `manifest:` id — the SAME shipped texture the base
+ * picker offers — so hillshade, relief context and NASA's surface texture each
+ * appeared twice in one box, once as a base texture and once as an overlay.
+ * Two controls wearing the same name, doing different things (the sphere's own
+ * skin against a draped sheet with its own opacity), which is exactly the
+ * fault the Polygons tab's duplicate ticks are recorded for.
+ *
+ * THE BASE PICKER KEPT THEM, because the sphere must wear something and three
+ * modules read `#base-layer-select` unguarded, so that control cannot be the
+ * one to lose. What is left here is the one product with no base-texture twin:
+ * GEBCO slope is in the manifest and is NOT among the select's options, so it
+ * is reachable this way and no other.
+ */
 export const MAP_LAYERS = [
-  {
-    id: "map-hillshade",
-    group: "Terrain",
-    label: "GEBCO hillshade",
-    manifest: "derived-hillshade",
-    summary: "Relief shading from the GEBCO 2025 grid. Over a colour basemap at "
-      + "half opacity it is what makes the terrain read as terrain.",
-    licence: "GEBCO 2025 — free to use with attribution",
-    opacity: 0.5,
-  },
   {
     id: "map-slope",
     group: "Terrain",
     label: "GEBCO slope",
     manifest: "derived-slope",
-    summary: "Steepness from the same grid: the continental shelves, the trenches "
-      + "and the mountain fronts as edges rather than as colours.",
+    summary: "Steepness from the GEBCO 2025 grid: the continental shelves, the "
+      + "trenches and the mountain fronts as edges rather than as colours.",
     licence: "GEBCO 2025 — free to use with attribution",
     opacity: 0.55,
   },
-  {
-    id: "map-relief-context",
-    group: "Terrain",
-    label: "GEBCO relief context",
-    manifest: "gebco-bathy-context",
-    summary: "Bathymetry and topography together, as a tinted relief overlay.",
-    licence: "GEBCO 2025 — free to use with attribution",
-    opacity: 0.6,
-  },
-  {
-    id: "map-earth-surface",
-    group: "Imagery",
-    label: "Earth surface (NASA)",
-    manifest: "earth-visible",
-    summary: "NASA's surface texture, which can sit over the basemap at partial "
-      + "opacity rather than replacing it.",
-    licence: "NASA — public domain",
-    opacity: 0.7,
-  },
 ];
 
-export const GROUPS = ["Terrain", "Imagery"];
+export const GROUPS = ["Terrain"];
 
 export const layerById = (id) => MAP_LAYERS.find((entry) => entry.id === id) || null;
 

@@ -7,9 +7,9 @@
  * file knows is only which catalogue to draw and where to put it.
  */
 
-import { grouped, addMapLayer, removeMapLayer, layerForMap, layerById } from "./map-layers.js?v=20260903-2983b5d";
-import { renderCatalogue } from "./catalogue-list.js?v=20260903-2983b5d";
-import { TILE_SOURCES } from "./tile-sources.js?v=20260903-2983b5d";
+import { grouped, addMapLayer, removeMapLayer, layerForMap, layerById } from "./map-layers.js?v=20260903-0163770";
+import { renderCatalogue } from "./catalogue-list.js?v=20260903-0163770";
+import { TILE_SOURCES } from "./tile-sources.js?v=20260903-0163770";
 
 const byId = (id) => document.getElementById(id);
 
@@ -77,9 +77,27 @@ function baseInfoFor(value) {
   return { summary: source.credit || "", citation: source.licence || "" };
 }
 
+/**
+ * Options that exist so the app works, not so anybody picks them.
+ *
+ * `blue-marble` is the FIRST FRAME: it ships with the site, so it is on the
+ * sphere before any network call and the globe is never bare while a tile
+ * fetch runs. It is also `ensureNavigateBasemap`'s fallback. So it cannot
+ * leave the select — three modules read that element unguarded — and it is not
+ * a map anybody chooses now that Sentinel-2 is the default. Hidden from the
+ * list, kept in the machine.
+ *
+ * The Esri services are withheld a level lower, in `basemap-drape.js`, because
+ * that is a decision about DISTRIBUTION rather than about this list: they are
+ * never registered on an ordinary load, so no row for them reaches here.
+ */
+const UNLISTED_BASE = new Set(["blue-marble"]);
+
 function baseEntries() {
   const select = baseSelect();
-  return [...(select?.options || [])].map((option) => ({
+  return [...(select?.options || [])]
+    .filter((option) => !UNLISTED_BASE.has(option.value))
+    .map((option) => ({
     id: `${BASE_PREFIX}${option.value}`,
     group: BASE_GROUP,
     label: option.textContent.trim(),
@@ -114,14 +132,20 @@ function draw() {
   const host = byId("basemap-catalogue");
   if (!host) return;
   /**
-   * ONE list, Earth Engine included. This tab's share of the GEE catalogue
-   * (imagery, both DEMs) merges in as its own group rather than standing
-   * as a second "Earth Engine" dropdown beneath this one — the rows cite
-   * the service in their tooltip, and the hooks route any id the seam owns
-   * back to gee.js, which is the one request path.
+   * NO EARTH ENGINE GROUP HERE. This tab's share of the GEE catalogue used to
+   * merge in as its own group, on the reasoning that one list beats a second
+   * dropdown. The reasoning was right about lists and wrong about this one: a
+   * row here is a TICK, and an Earth Engine layer is a fetch that needs an
+   * extent and a date range before it means anything — so the tick either sent
+   * a request nobody had specified or did nothing anybody could see.
+   *
+   * The strip behind "+ GEE" is where those datasets live, and it has the
+   * controls the tick never had. The seam is still consulted below, so an id
+   * it owns is still routed to `gee.js` — a layer added there and showing on
+   * the globe is handled correctly if it ever reaches this list by another
+   * route. Only the OFFER is withdrawn.
    */
   const gee = window.GeoIDGeeCatalogue;
-  const geeEntries = gee?.entriesFor("basemap") || [];
   const entries = [
     ...baseEntries(),
     ...grouped().flatMap(({ group, entries: list }) => list.map((entry) => ({
@@ -131,7 +155,6 @@ function draw() {
       title: `${entry.summary} — ${entry.licence}`,
       info: { summary: entry.summary, citation: entry.licence },
     }))),
-    ...geeEntries,
   ];
   renderCatalogue(host, entries, {
     // A lid, because five overlays and their group headings would push the

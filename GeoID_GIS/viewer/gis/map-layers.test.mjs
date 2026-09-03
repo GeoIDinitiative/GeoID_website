@@ -36,10 +36,23 @@ check("every entry sits in a declared group",
   MAP_LAYERS.filter((e) => GROUPS.includes(e.group)).length, MAP_LAYERS.length);
 check("no group is declared and left empty", grouped().length, GROUPS.length);
 check("groups keep their declared order", grouped().map((g) => g.group), GROUPS);
-check("layerById finds one", layerById("map-hillshade")?.group, "Terrain");
+check("layerById finds one", layerById("map-slope")?.group, "Terrain");
 check("and refuses an unknown id", layerById("nope"), null);
 check("the layer takes the entry's own name",
-  layerNameOf(layerById("map-hillshade")), "GEBCO hillshade");
+  layerNameOf(layerById("map-slope")), "GEBCO slope");
+
+// THE DUPLICATION GUARD. Every entry here names a shipped texture by its
+// manifest id, and three of those textures are also rows in the base picker —
+// so hillshade, relief context and NASA's surface texture each appeared twice
+// in one box under two slightly different spellings, which is what got them
+// removed. The base picker won that argument (the sphere must wear something,
+// and three modules read its select unguarded), leaving only the product with
+// no base-texture twin. Re-adding one of these ids brings the duplicate row
+// back, so the id is named rather than the count.
+const OFFERED_AS_A_BASE_TEXTURE = ["derived-hillshade", "gebco-bathy-context",
+  "earth-visible", "blue-marble", "elevation-dem"];
+check("no overlay restates a base texture",
+  MAP_LAYERS.filter((e) => OFFERED_AS_A_BASE_TEXTURE.includes(e.manifest)).length, 0);
 
 // An overlay at full opacity is a replacement, not an overlay: the point of
 // the tab is stacking them.

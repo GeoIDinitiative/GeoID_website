@@ -37,12 +37,12 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260903-2983b5d";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-2983b5d";
-import { isEarth } from "./bodies.js?v=20260903-2983b5d";
-import { streamRings, cacheStats } from "./tile-streamer.js?v=20260903-2983b5d";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260903-0163770";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-0163770";
+import { isEarth } from "./bodies.js?v=20260903-0163770";
+import { streamRings, cacheStats } from "./tile-streamer.js?v=20260903-0163770";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260903-2983b5d";
+  from "./view-extent.js?v=20260903-0163770";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -1008,11 +1008,40 @@ export function isRefining() {
 export function listBaseLayerOptions() {
   const viewer = window.GeoIDViewer;
   if (!viewer?.registerBaseLayer || !isEarth()) return 0;
+  const withheld = !privateBasemapsEnabled();
   let added = 0;
-  for (const name of Object.keys(TILE_SOURCES)) {
+  for (const [name, source] of Object.entries(TILE_SOURCES)) {
+    if (withheld && source.distribute === false) continue;
     if (viewer.registerBaseLayer({ id: baseLayerIdFor(name), label: name })) added += 1;
   }
   return added;
+}
+
+/**
+ * Is this session allowed the `distribute: false` services?
+ *
+ * Esri's imagery is the best map on this list and is licensed in a way that
+ * makes handing it to every visitor a decision nobody here is in a position to
+ * take. It stays fully implemented — see the note on `TILE_SOURCES` — and is
+ * simply not put in the picker on an ordinary load.
+ *
+ * Turned on for a session with `?basemaps=all`, or durably for this browser:
+ *
+ *     localStorage.setItem("geoid-gis:private-basemaps", "1")
+ *
+ * The URL form is deliberately NOT persisted: a link that permanently changed
+ * what somebody is offered would be editing their settings rather than showing
+ * them something. And a storage that throws (a private window) answers no,
+ * which is the safe direction — the site withholds rather than distributes.
+ */
+export function privateBasemapsEnabled() {
+  try {
+    const wanted = new URLSearchParams(window.location.search).get("basemaps");
+    if (wanted === "all") return true;
+    return window.localStorage?.getItem("geoid-gis:private-basemaps") === "1";
+  } catch (error) {
+    return false;
+  }
 }
 
 export function baseLayerIdFor(sourceName) {
