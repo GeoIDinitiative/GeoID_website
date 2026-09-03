@@ -29,8 +29,8 @@
 
 import {
   HOMES, grouped, addDataset, layerForDataset,
-} from "./global-data.js?v=20260903-b66a980";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-b66a980";
+} from "./global-data.js?v=20260903-e9a2f94";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-e9a2f94";
 
 const byId = (id) => document.getElementById(id);
 
@@ -218,6 +218,30 @@ function draw(home, hostId) {
       const tile = tiledById(id);
       if (tile) {
         const added = await tile.load();
+        /**
+         * A LOAD THAT FAILED MUST UNTICK ITSELF, AND SAY SO HERE.
+         *
+         * Two faults in one, both measured with GLiM's pyramid missing from
+         * disk. The box stayed TICKED over a layer that does not exist, which
+         * is the row stating something false about the globe — and the reason
+         * WAS reported, into `#gis-geology-status`, the status line of a
+         * DIFFERENT SUBTAB, because the loader lives in the geology panel
+         * while the row lives here. So a reader ticked a box in "Soil and
+         * surface materials" and the explanation appeared one subtab over.
+         *
+         * This matters well beyond a missing bake: an unreachable tile host —
+         * a bucket that is down, a wrong CORS policy, a custom domain that has
+         * not propagated — presents in exactly this shape.
+         *
+         * `layerOf()` is the truth about whether anything reached the globe;
+         * the redraw reads it and the tick follows.
+         */
+        if (!tile.layerOf?.()) {
+          say(hostId, `${tile.label} could not be added — its data could not `
+            + "be read. Nothing was put on the globe.");
+          draw(home, hostId);
+          return added;
+        }
         if (tile.added) say(hostId, tile.added);
         return added;
       }
