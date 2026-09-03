@@ -70,3 +70,10 @@ data/global/.*-work/
 # chooses a zoom before anything is fetched — so it has to be readable even when
 # the bucket is not.
 data/global/glim/[0-9]*/
+
+# The soil pyramid's TILES, for the same reason and on the same terms as GLiM's
+# above: 562 tiles / 27 MB now served from the bucket
+# (`publish-tiles.py soil --base https://data.geoidinitiative.com/soil`), with
+# `manifest.json` and `units.json` staying with the site so `has()`, every
+# tile's size and the legend are readable before — and without — a fetch.
+data/global/soil/[0-9]*/

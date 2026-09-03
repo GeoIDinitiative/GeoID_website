@@ -22,14 +22,19 @@
  */
 
 import { loadDerivedGeologyMap, removeDerivedGeologyMap }
-  from "./geology-panel.js?v=20260903-9b68b94";
+  from "./geology-panel.js?v=20260903-bf0c481";
 
 const STAMP = new URL(import.meta.url).search || "";
 const LAYER_ID = "soil-dsmw";
 // Absolute, not module-relative: `import.meta.url` here is `…/viewer/gis/`, so
 // a relative "data/global/…" resolves inside `gis/` and 404s — the trap
 // map-layers.js documents from one side and the GEE cache from the other.
-const MANIFEST = `/data/global/soil/manifest.json${STAMP}`;
+// No ${STAMP} here: `bakedTiles` in geology-panel.js appends the module
+// stamp itself (deliberately — a re-bake is invisible to a browser holding
+// the old manifest). Appending it here too produced
+// `manifest.json?v=X?v=X`, which this server tolerates and a stricter one
+// need not. The sidecar tables below DO carry it: nothing else stamps them.
+const MANIFEST = "/data/global/soil/manifest.json";
 const UNITS = `/data/global/soil/units.json${STAMP}`;
 
 /** The soil the sphere shows where the source mapped nothing it could name. */
