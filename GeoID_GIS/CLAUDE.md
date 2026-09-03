@@ -11204,3 +11204,113 @@ Verified after, with the pyramid still absent: tick returns to off, the message
 lands beside the row, nothing registers. **`layerOf()` is the truth about
 whether anything reached the globe — a control's state has to be read back from
 it, never from the press that was made.**
+
+## The tiles moved to a bucket, and a rendering layer proves nothing about where
+
+GLiM (169 MB) and the FAO soil map (27 MB) stream from Cloudflare R2 now —
+`https://data.geoidinitiative.com/{glim,soil}` — and the repo is 173 MB of
+tracked `data/global` against 199 before. `services/publish-tiles.py <name>
+--base <url>` uploads the pyramid through a configured **rclone** remote and
+rewrites the local manifest's `tiles_base` in place; `--check` asks the bucket
+the two questions rclone cannot answer, and `--unpublish` drops the field so
+the pyramid is read locally again.
+
+**THE MANIFEST STAYS WITH THE SITE AND THE TILES MOVE.** That split is the
+whole design: `manifest.json` is 10–20 KB and carries `has()` — which stops the
+client asking for the thousands of ocean tiles that were never baked — and
+every tile's SIZE, which is what `chooseZoom` weighs a view against BEFORE it
+fetches anything. Put the manifest in the bucket too and a slow or unreachable
+bucket stalls the zoom chooser rather than merely costing tiles. The legend
+sidecars (`units.json`, `classes.json`) stay for the same reason: the key is
+drawn before any tile lands.
+
+**CREDENTIALS ARE RCLONE'S, NEVER THE SCRIPT'S.** `publish-tiles.py` shells out
+to a named remote and reads no key, token or secret of its own — there is
+nowhere in the file for one to be typed. Public access, the custom domain and
+the CORS policy are account-level settings it cannot set, which is why `--check`
+exists as a command rather than as an instruction to look at the dashboard.
+
+### A LAYER THAT RENDERS SAYS NOTHING ABOUT WHERE ITS TILES CAME FROM
+
+The local tile directories are still on disk (only untracked), and the browser
+caches a tile like any other file — so "the map draws" is satisfied by three
+different worlds and cannot tell them apart. Measured the wrong way first: the
+network recorder reported **zero tile traffic** while GLiM drew 249,601
+polygons, because **it does not see cross-origin requests**. Read literally that
+says the bucket is not being used, which is the opposite of the truth.
+
+**Wrap the iframe's own `fetch` and count BY HOST.** Installed before the tick,
+recording every `.mvt`:
+
+| | tile requests | host |
+| --- | --- | --- |
+| soil | 24 of 24 | `data.geoidinitiative.com` |
+| GLiM | 20 of 20 | `data.geoidinitiative.com` |
+| both at once | 44 of 44 | `data.geoidinitiative.com`, **none to localhost** |
+
+with soil at 21,157 polygons over 27 legend rows and GLiM at 249,601 over 16,
+both status lines counted from the file rather than typed. That is the only
+instrument that answers the question actually being asked.
+
+**Two traps in driving it.** Ticking both layers at once triangulates 270,000
+polygons and blocks the renderer past the tool's 45 s eval timeout — the state
+is intact, so read it back in a second call rather than concluding a hang. And
+the whole verification has to run on a COMMITTED stamp: the stamp is the git
+sha, so an uncommitted edit re-stamps to the same value and the browser serves
+its cached module. The stamp names the PRE-amend sha, which is what the commit →
+stamp → amend dance produces and is not drift.
+
+### Cloudflare 403s the `Python-urllib` User-Agent
+
+`--check` reported **HTTP 403 — is it publicly readable?** about a bucket that
+was serving perfectly. Isolated on the identical URL and Origin: `curl/7.81.0`
+→ 200, `Mozilla/5.0` → 200, **`Python-urllib/3.10` → 403.** Cloudflare's bot
+rules, not the bucket. A false negative that sends somebody into the dashboard
+hunting a permission problem which does not exist, so the checker sends a
+browser-shaped User-Agent — the point of the command is to answer the question a
+BROWSER would ask, so it has to look like one.
+
+The `Origin` header is the other half: fetched without one, a bucket looks fine
+and the page still fails, because the reply's CORS header is only meaningful in
+answer to an Origin. Measured on the live bucket, `access-control-allow-origin`
+echoes both `https://geoidinitiative.com` and `http://localhost:8125`.
+
+### `cache-control` is set at UPLOAD, and that is safe because of `?v=`
+
+`public, max-age=31536000, immutable`, written by rclone's `--header-upload`.
+Safe only because the client appends the bake's own version fingerprint
+(`<tiles>-<bytes>`) to every tile it asks for, so a re-bake is a different URL
+and can never be served from a stale cache. A pyramid uploaded without that
+header is served with whatever default the bucket has, which for a tile that
+never changes is a wasted round trip on every view. The REMOTE tile path
+deliberately gets no `?v=` — that is Macrostrat's cache key, not ours — which is
+why a published pyramid has to travel the LOCAL path, and why setting `base`
+rather than `remote` is the correct seam. Pinned in `tiles-base.test.mjs`.
+
+### A manifest is stamped ONCE, and by exactly one of the two places that can
+
+`bakedTiles` in `geology-panel.js` appends the module stamp to the manifest URL
+deliberately — a re-bake is invisible to a browser holding the old manifest, and
+that has cost a whole verify loop before. `soil-cover.js` and `glim-cover.js`
+each appended one as well, so the manifest was fetched as
+**`manifest.json?v=X?v=X`**. This server ignores the query and a stricter one
+need not; `ice-cover-panel.js` already had it right by not appending.
+
+The rule generalises past this bug: when two layers of a call chain can both
+decorate a URL, exactly one of them may. The sidecar tables (`units.json`,
+`classes.json`) DO carry the stamp in these modules, because nothing else
+stamps them.
+
+### What `.gitignore` holds out, and on what terms
+
+`data/global/{glim,soil}/[0-9]*/` — the TILES only, never `manifest.json` or the
+legend sidecar. `tiles-base.test.mjs` asserts that no rule matches a whole baked
+pyramid, because a rule one character broader takes the manifest with it and
+defeats the split above.
+
+**Note the history still carries the objects that were committed before.**
+Untracking stops them deploying and stops them growing; shrinking the pack is a
+rewrite and a separate decision. And after any bake, count what was
+COMMITTED rather than what was written — `git status` being clean is exactly
+what being fully committed looks like, which is how 376 MB of soil scratch
+reached a commit in the first place.
