@@ -11609,3 +11609,53 @@ three service workers, and `earth_explorer/etna/viewer/assets` (38 MB) has a
 service worker of its own with its own precache list. Both are reachable with
 the technique above; neither is worth doing at the end of a long session on the
 one surface everything else depends on.
+
+## Cross-origin images TAINT a canvas, and WebGL refuses the upload
+
+Moving a viewer's textures to the bucket is the first thing that made them
+cross-origin, and it broke the flight_sim Mars viewer outright:
+
+    SecurityError: Failed to execute 'texSubImage2D' on 'WebGL2RenderingContext':
+    Tainted canvases may not be loaded.
+
+An `Image` loaded without `crossOrigin` taints any canvas it is drawn into, and
+a tainted canvas cannot be uploaded as a texture. The path was
+`new Image()` → `drawImage(img, …)` → `texture.needsUpdate = true`, with no
+`crossOrigin` anywhere on it. **`map2d.js` has carried that exact line for years
+for the same reason** — the lesson was already in this tree and it was walked
+into from the other side.
+
+41 `Image()` loads across 21 files now set `crossOrigin = "anonymous"`; the
+bucket already allows the origin, so an anonymous request is all that was
+needed. **Set it BEFORE the assets move, not after** — `earth-viewer.js` had
+three such loads and not one of them set it, so publishing `GeoID_Earth/assets`
+would have killed the main GIS globe exactly as it killed Mars.
+
+**It does not present as a 403 or a 404.** The fetch succeeds; the failure is at
+texture upload, so the symptom is a viewer that boots, reports every asset
+present, and draws nothing — with the real message buried in the console.
+
+### `layer.features` can be empty over a map that is fully painted
+
+GLiM reported **"0 in view"** while sixteen tile objects were on the globe with
+**541,082 features** in the controller and every legend class visible. The
+status line reads `layer.features`, which is a SNAPSHOT the tiled layer keeps
+for the pickers, and on a dense pyramid it is empty. Reported as "GLiM fails to
+import/map", and the map was working the whole time.
+
+`glim-cover` and `soil-cover` count `tiled.featureCount()` now. This is this
+file's own rule met from a new direction: **count the things drawn; do not ask
+the drawing what it holds.** Worth knowing the consequence is not only cosmetic
+— `featuresAt` walks that same snapshot, so a dense tiled layer's polygons are
+not clickable while it is empty.
+
+### Check WHICH SITE is being looked at before diagnosing a regression
+
+Three regressions were reported against a live site that could not have had any
+of them: **`geoidinitiative.com` serves `main`**, which is 51 commits behind and
+predates GLiM and soil entirely — `data/global/glim/manifest.json` answers 404
+there. `origin/main` carries 1,910 files under `data/global`; the working branch
+carries 8. So the failures were local, against a working tree that was being
+rewritten at that moment. **`git ls-remote` and one curl of a file that only the
+new branch has settles it in seconds**, and is worth doing before reading any
+code.
