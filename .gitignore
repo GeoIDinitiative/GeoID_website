@@ -97,3 +97,24 @@ data/global/*.geojson
 data/global/gee-catalogue.json
 data/global/ice/names.json
 data/global/ice/thickness.json
+
+# Etna's bake INPUTS and tile caches — 497 MB, 16,967 files, none of it served.
+# The raw INGV KMLs, the shapefiles and GeoJSON derived from them, the seismic
+# catalogue spreadsheets, and two directories literally named `_tile_cache_z14`
+# and `_tile_cache_z15`. Nothing under `viewer/` references any of it; the
+# viewer loads `assets/*` and nothing else. Same rule as the soil bake's
+# `.soil-work`, which is what blocked a push for being over GitHub's 100 MB
+# per-file limit: a bake's scratch is not a deliverable. The files stay on disk
+# so the bakes can be re-run.
+# Data only: git cannot re-include a file whose parent DIRECTORY is excluded,
+# so this excludes the contents (`/**`) and re-admits directories and code.
+# The 16 bake scripts under here are how the viewer's data is reproduced and
+# belong in version control; the gigabytes they consume and emit do not.
+earth_explorer/etna/input/**
+!earth_explorer/etna/input/**/
+!earth_explorer/etna/input/**/*.py
+!earth_explorer/etna/input/**/*.md
+!earth_explorer/etna/input/**/*.txt
+!earth_explorer/etna/input/**/*.json
+# ...except the derived JSON/TXT that is itself bulk or machine-written.
+earth_explorer/etna/input/**/*.geojson
