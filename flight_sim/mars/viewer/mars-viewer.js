@@ -178,7 +178,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       spiritEntry.lon = 175.4;
     }
     const ringLabelData = [];
-    const moonData = [{"name":"Phobos","type": "Major moon","theme":"moon","description":"Mars's larger and inner moon, heavily cratered and tidally locked, orbiting closer to its parent planet than any other moon in the Solar System. Its surface is dominated by Stickney Crater and a network of linear grooves whose origin is still debated.","moon_anchor":[9.376,0.0,0.0],"moon_radius":0.032,"moon_label_lift":0.18,"moon_color":"#b0a090","mean_radius_km":"11.267 km","orbit_distance_km":"~9,376 km","orbit_period_days":0.3189,"texture_source_url":null,"image":"assets/description_pics/Phobos_pic.jpg"},{"name":"Deimos","type": "Major moon","theme":"moon","description":"Mars's smaller and outer moon, with a smoother appearance than Phobos due to a deep regolith layer covering most impact craters. Its surface is blanketed by ~50 m of fine regolith that softens topography and gives it an unusually smooth appearance compared to Phobos.","moon_anchor":[23.46,0.0,0.0],"moon_radius":0.018,"moon_label_lift":0.14,"moon_color":"#c8bfb2","mean_radius_km":"6.2 km","orbit_distance_km":"~23,460 km","orbit_period_days":1.2624,"texture_source_url":null,"image":"assets/description_pics/deimos_pic.jpg"}];
+    const moonData = [{"name":"Phobos","type": "Major moon","theme":"moon","description":"Mars's larger and inner moon, heavily cratered and tidally locked, orbiting closer to its parent planet than any other moon in the Solar System. Its surface is dominated by Stickney Crater and a network of linear grooves whose origin is still debated.","moon_anchor":[9.376,0.0,0.0],"moon_radius":0.032,"moon_label_lift":0.18,"moon_color":"#b0a090","mean_radius_km":"11.267 km","orbit_distance_km":"~9,376 km","orbit_period_days":0.3189,"texture_source_url":null,"image":"/planet_explorer/mars/viewer/assets/description_pics/Phobos_pic.jpg"},{"name":"Deimos","type": "Major moon","theme":"moon","description":"Mars's smaller and outer moon, with a smoother appearance than Phobos due to a deep regolith layer covering most impact craters. Its surface is blanketed by ~50 m of fine regolith that softens topography and gives it an unusually smooth appearance compared to Phobos.","moon_anchor":[23.46,0.0,0.0],"moon_radius":0.018,"moon_label_lift":0.14,"moon_color":"#c8bfb2","mean_radius_km":"6.2 km","orbit_distance_km":"~23,460 km","orbit_period_days":1.2624,"texture_source_url":null,"image":"/planet_explorer/mars/viewer/assets/description_pics/deimos_pic.jpg"}];
     const MOON_ORBIT_ECCENTRICITY = Object.freeze({
       Phobos: 0.0151,
       Deimos: 0.0002,
@@ -1186,8 +1186,8 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     const CTX_ZOOM_ANIM_MS = 450;
     const DEFAULT_CAMERA_POSITION = Object.freeze({ x: 0, y: 1.4, z: 11.5 });
     const MOON_VIEWER_TEXTURES = {
-      "Phobos": "assets/phobos_color_map.jpg",
-      "Deimos": "assets/deimos_color_map.jpg",
+      "Phobos": "/planet_explorer/mars/viewer/assets/phobos_color_map.jpg",
+      "Deimos": "/planet_explorer/mars/viewer/assets/deimos_color_map.jpg",
     };
     let currentMetadataState = null;
     const MARS_MEAN_RADIUS_KM = 3389.5;
@@ -9010,7 +9010,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
           this.context.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
           this.texture.needsUpdate = true;
         };
-        img.src = './assets/ctx_base.jpg';
+        img.src = '/planet_explorer/mars/viewer/assets/ctx_base.jpg';
       }
 
       _getTileFailureCooldownMs(status) {
@@ -12800,24 +12800,24 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       const mineralTextures = new Map();
       const mineralSamplerStates = new Map();
       const SC_LAYERS = [
-        { id: "sc-temperature",  label: "Temperature",              path: "assets/mars_sc_temperature.png",        scGroup: "Surface Conditions — Atmospheric", scParamKey: "temperature" },
-        { id: "sc-pressure",     label: "Pressure",                 path: "assets/mars_sc_pressure.png",           scGroup: "Surface Conditions — Atmospheric", scParamKey: "pressure" },
-        { id: "sc-wind",         label: "Wind Speed",               path: "assets/mars_sc_wind.png",               scGroup: "Surface Conditions — Atmospheric", scParamKey: "wind" },
-        { id: "sc-irradiance",   label: "Solar Irradiance",         path: "assets/mars_sc_irradiance.png",         scGroup: "Surface Conditions — Atmospheric", scParamKey: "irradiance" },
-        { id: "sc-radiation",    label: "Radiation Dose",           path: "assets/mars_sc_radiation.png",          scGroup: "Surface Conditions — Atmospheric", scParamKey: "radiation" },
-        { id: "sc-diurnal",      label: "Diurnal Temp Range",       path: "assets/mars_sc_diurnal.png",            scGroup: "Surface Conditions — Atmospheric", scParamKey: "diurnal" },
-        { id: "sc-atm_density",  label: "Atmospheric Density",      path: "assets/mars_sc_atm_density.png",        scGroup: "Surface Conditions — Atmospheric", scParamKey: "atm_density" },
-        { id: "sc-sound_speed",  label: "Speed of Sound",           path: "assets/mars_sc_sound_speed.png",        scGroup: "Surface Conditions — Atmospheric", scParamKey: "sound_speed" },
-        { id: "sc-co2_frost",    label: "CO₂ Frost Probability",    path: "assets/mars_sc_co2_frost.png",          scGroup: "Surface Conditions — Atmospheric", scParamKey: "co2_frost" },
-        { id: "sc-slope",        label: "Slope Gradient",           path: "assets/mars_sc_slope.png",              scGroup: "Surface Conditions — Terrain",      scParamKey: "slope" },
-        { id: "sc-roughness",    label: "Terrain Roughness",        path: "assets/mars_sc_roughness.png",          scGroup: "Surface Conditions — Terrain",      scParamKey: "roughness" },
-        { id: "sc-ice_depth",    label: "Permafrost Thickness",     path: "assets/mars_sc_ice_depth.png",          scGroup: "Surface Conditions — Habitability", scParamKey: "ice_depth" },
-        { id: "sc-dust_devil",   label: "Dust Devil Susceptibility",path: "assets/mars_sc_dust_devil.png",         scGroup: "Surface Conditions — Habitability", scParamKey: "dust_devil" },
-        { id: "sc-landing",      label: "Landing Zone Score",       path: "assets/mars_sc_landing_score.png",      scGroup: "Surface Conditions — Habitability", scParamKey: "landing_score" },
-        { id: "sc-solar",        label: "Solar Panel Output",       path: "assets/mars_sc_solar_output.png",       scGroup: "Surface Conditions — Habitability", scParamKey: "solar_output" },
-        { id: "sc-brine",        label: "Brine Stability",          path: "assets/mars_sc_brine_stability.png",    scGroup: "Surface Conditions — Habitability", scParamKey: "brine_stability" },
-        { id: "sc-magnetic",     label: "Magnetic Shielding",       path: "assets/mars_sc_magnetic_shielding.png", scGroup: "Surface Conditions — Habitability", scParamKey: "magnetic_shielding" },
-        { id: "sc-habitability", label: "Human Habitability",       path: "assets/mars_sc_habitability.png",       scGroup: "Surface Conditions — Habitability", scParamKey: "habitability" },
+        { id: "sc-temperature",  label: "Temperature",              path: "/planet_explorer/mars/viewer/assets/mars_sc_temperature.png",        scGroup: "Surface Conditions — Atmospheric", scParamKey: "temperature" },
+        { id: "sc-pressure",     label: "Pressure",                 path: "/planet_explorer/mars/viewer/assets/mars_sc_pressure.png",           scGroup: "Surface Conditions — Atmospheric", scParamKey: "pressure" },
+        { id: "sc-wind",         label: "Wind Speed",               path: "/planet_explorer/mars/viewer/assets/mars_sc_wind.png",               scGroup: "Surface Conditions — Atmospheric", scParamKey: "wind" },
+        { id: "sc-irradiance",   label: "Solar Irradiance",         path: "/planet_explorer/mars/viewer/assets/mars_sc_irradiance.png",         scGroup: "Surface Conditions — Atmospheric", scParamKey: "irradiance" },
+        { id: "sc-radiation",    label: "Radiation Dose",           path: "/planet_explorer/mars/viewer/assets/mars_sc_radiation.png",          scGroup: "Surface Conditions — Atmospheric", scParamKey: "radiation" },
+        { id: "sc-diurnal",      label: "Diurnal Temp Range",       path: "/planet_explorer/mars/viewer/assets/mars_sc_diurnal.png",            scGroup: "Surface Conditions — Atmospheric", scParamKey: "diurnal" },
+        { id: "sc-atm_density",  label: "Atmospheric Density",      path: "/planet_explorer/mars/viewer/assets/mars_sc_atm_density.png",        scGroup: "Surface Conditions — Atmospheric", scParamKey: "atm_density" },
+        { id: "sc-sound_speed",  label: "Speed of Sound",           path: "/planet_explorer/mars/viewer/assets/mars_sc_sound_speed.png",        scGroup: "Surface Conditions — Atmospheric", scParamKey: "sound_speed" },
+        { id: "sc-co2_frost",    label: "CO₂ Frost Probability",    path: "/planet_explorer/mars/viewer/assets/mars_sc_co2_frost.png",          scGroup: "Surface Conditions — Atmospheric", scParamKey: "co2_frost" },
+        { id: "sc-slope",        label: "Slope Gradient",           path: "/planet_explorer/mars/viewer/assets/mars_sc_slope.png",              scGroup: "Surface Conditions — Terrain",      scParamKey: "slope" },
+        { id: "sc-roughness",    label: "Terrain Roughness",        path: "/planet_explorer/mars/viewer/assets/mars_sc_roughness.png",          scGroup: "Surface Conditions — Terrain",      scParamKey: "roughness" },
+        { id: "sc-ice_depth",    label: "Permafrost Thickness",     path: "/planet_explorer/mars/viewer/assets/mars_sc_ice_depth.png",          scGroup: "Surface Conditions — Habitability", scParamKey: "ice_depth" },
+        { id: "sc-dust_devil",   label: "Dust Devil Susceptibility",path: "/planet_explorer/mars/viewer/assets/mars_sc_dust_devil.png",         scGroup: "Surface Conditions — Habitability", scParamKey: "dust_devil" },
+        { id: "sc-landing",      label: "Landing Zone Score",       path: "/planet_explorer/mars/viewer/assets/mars_sc_landing_score.png",      scGroup: "Surface Conditions — Habitability", scParamKey: "landing_score" },
+        { id: "sc-solar",        label: "Solar Panel Output",       path: "/planet_explorer/mars/viewer/assets/mars_sc_solar_output.png",       scGroup: "Surface Conditions — Habitability", scParamKey: "solar_output" },
+        { id: "sc-brine",        label: "Brine Stability",          path: "/planet_explorer/mars/viewer/assets/mars_sc_brine_stability.png",    scGroup: "Surface Conditions — Habitability", scParamKey: "brine_stability" },
+        { id: "sc-magnetic",     label: "Magnetic Shielding",       path: "/planet_explorer/mars/viewer/assets/mars_sc_magnetic_shielding.png", scGroup: "Surface Conditions — Habitability", scParamKey: "magnetic_shielding" },
+        { id: "sc-habitability", label: "Human Habitability",       path: "/planet_explorer/mars/viewer/assets/mars_sc_habitability.png",       scGroup: "Surface Conditions — Habitability", scParamKey: "habitability" },
       ];
       baseLayers.push(...SC_LAYERS);
       // SC layers are not shown on first render — initialise as null, load in background.

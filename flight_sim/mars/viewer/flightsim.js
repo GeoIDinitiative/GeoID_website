@@ -1414,7 +1414,7 @@
   function repairBaseTexture() {
     const vk = hooks?.layerTextures?.get?.("viking-color");
     if (!vk || vk.image) return;
-    const path = (window.__marsViewerManifest?.texture?.path) || "assets/mars_color.jpg";
+    const path = (window.__marsViewerManifest?.texture?.path) || "/planet_explorer/mars/viewer/assets/mars_color.jpg";
     let url; try { url = new URL(path, document.baseURI).href; } catch (_e) { url = path; }
     const img = new Image();
     img.crossOrigin = "anonymous";

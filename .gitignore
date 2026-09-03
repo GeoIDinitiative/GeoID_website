@@ -118,3 +118,17 @@ earth_explorer/etna/input/**
 !earth_explorer/etna/input/**/*.json
 # ...except the derived JSON/TXT that is itself bulk or machine-written.
 earth_explorer/etna/input/**/*.geojson
+
+# flight_sim's Mars viewer is a self-contained COPY of the planet explorer's,
+# and 80 of its 102 asset files were byte-identical duplicates — 230 MB stored
+# twice, with zero name conflicts between the two sets. Its references now
+# point at /planet_explorer/mars/viewer/assets/, so both pages draw the same
+# bytes and only one copy ships. The 22 files that are genuinely flight_sim's
+# own (the ship STLs) stay tracked beside this rule.
+flight_sim/mars/viewer/assets/mars_*
+flight_sim/mars/viewer/assets/deimos_*
+flight_sim/mars/viewer/assets/phobos_*
+flight_sim/mars/viewer/assets/ctx_base.jpg
+flight_sim/mars/viewer/assets/logo.png
+flight_sim/mars/viewer/assets/logo_pro.png
+flight_sim/mars/viewer/assets/description_pics/
