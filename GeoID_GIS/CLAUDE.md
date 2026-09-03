@@ -11515,3 +11515,41 @@ NOT all maps, and the distinction decides whether the bucket is the answer:
 `du -ch` over a large file list is NOT how to measure this: xargs splits the
 list and `tail -1` reads only the last batch's total, which understated the
 repository by 500 MB and was quoted twice before it was caught. Sum the bytes.
+
+## The audit is a tool, and its first run found three faults in itself
+
+`services/audit-published.py` asks, of everything moved to the bucket, the
+questions in the order they fail: is the object there, does it match the local
+bytes, does it answer over HTTPS, does it carry CORS, is anything still naming a
+LOCAL path that is no longer tracked, and is the metadata that must ship still
+tracked. `--full` checks every tile rather than a sample.
+
+Measured, `--full`: **geology 1089/1089, GLiM 927/927, ice 806/806, soil
+562/562 tiles all 200, drift 0** on all four; the 12 loose files 200; the 56
+referenced Mars asset URLs 200; 0 dangling local references; 7 metadata files
+all tracked. Runtime, in the browser: **79 data fetches to the bucket and
+exactly 3 to the site** — `sources.json`, `glim/classes.json`, `soil/units.json`
+— which is the split by design.
+
+**Its first run reported 98 problems and all of them were the instrument.**
+Worth writing down, because each is a way to audit something and learn nothing:
+
+- **`dict(r.headers)` keeps the wire casing.** `urllib`'s header object is
+  case-insensitive; converting it to a plain dict is not, so a lookup for
+  `access-control-allow-origin` missed `Access-Control-Allow-Origin` and 35
+  objects read as CORS-less while curl showed the header on both HEAD and GET.
+- **`assets/<word>/` is not ours by default.** The regex matched any host, so the
+  Mars manifest's citation of `d9-wret.s3.amazonaws.com/assets/palladium/…`
+  became a failing audit of somebody else's CDN. The host now comes from what
+  was actually published.
+- **A published file NAMED by its local path is the design, not a dangling
+  reference.** `global-data.js` names `/data/global/coastline_10m.geojson`
+  because that string is what `dataUrl` is HANDED; it resolves to the bucket at
+  runtime. Flagging it reported 24 faults in a mechanism working exactly as
+  built.
+
+The shape is the same each time: **a check that does not know what correct looks
+like reports the difference between its author's assumptions and reality, and
+calls it a defect.** Run a new instrument against a state you have already
+verified by other means before believing what it says about a state you have
+not.
