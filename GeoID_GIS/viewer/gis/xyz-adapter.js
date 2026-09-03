@@ -1,10 +1,10 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic, computeBounds2D } from "./geo-utils.js?v=20260904-d03bd05";
+import { latLonToVector3, drapedRadius, looksLikeGeographic, computeBounds2D } from "./geo-utils.js?v=20260904-2aef194";
 import {
   readHead, parseRows, validateMapping, rowsToPointCollection,
-} from "./delimited.js?v=20260904-d03bd05";
-import { rampColour } from "./symbology.js?v=20260904-d03bd05";
-import { markerDiscTexture } from "./vector-render.js?v=20260904-d03bd05";
+} from "./delimited.js?v=20260904-2aef194";
+import { rampColour } from "./symbology.js?v=20260904-2aef194";
+import { markerDiscTexture } from "./vector-render.js?v=20260904-2aef194";
 
 const MAX_POINTS = 2000000;
 
@@ -164,9 +164,59 @@ export async function loadXyzPoints(file, options = {}) {
   }
   const zRange = zMax - zMin || 1;
 
+  // Declared here because the span, the dot size and the Z slab all read it.
+  const baseRadius = drapedRadius(0.005);
+
+  /**
+   * How wide the survey is, in scene units. Both the dot size and the vertical
+   * exaggeration are read off it, so neither is a constant that happens to
+   * suit one dataset.
+   */
+  const spanDeg = Math.max(
+    (bounds.maxX - bounds.minX)
+      * Math.cos(((bounds.minY + bounds.maxY) / 2) * Math.PI / 180),
+    bounds.maxY - bounds.minY,
+  ) || 0.01;
+  const sceneSpan = georeferenced ? spanDeg * (Math.PI / 180) * baseRadius : 6;
+
+  /**
+   * Point size comes from the DATA, and it used to be a constant.
+   *
+   * `0.012` scene units is about twenty-four kilometres at the globe's scale,
+   * so every imported CSV drew as a field of enormous overlapping squares
+   * covering far more ground than the survey did -- and being world-space, the
+   * only thing zooming changed was how many of them you could see at once.
+   *
+   * Average spacing (span / sqrt(n)) is the natural size: dots that nearly
+   * touch when the cloud is even, and separate when it is sparse. The clamp
+   * keeps both ends honest -- no dot wider than a twentieth of the survey, none
+   * so small that a million-point LiDAR tile renders as nothing at all.
+   */
+  const pointSize = Math.min(
+    sceneSpan / 20,
+    Math.max(sceneSpan / 2000, sceneSpan / Math.sqrt(rawX.length || 1)),
+  );
+
+  /**
+   * The vertical slab the Z range is drawn across, and 0.12 was FAR too much.
+   *
+   * 0.12 scene units is 239 km of altitude, applied whatever the column held:
+   * two hundred earthquakes 0.8-13 km deep were drawn from 10 km to 249 km up,
+   * which put most of them ABOVE the camera -- measured, 37 of 200 were inside
+   * the frustum at a 20 km view, so a complete survey looked like a scattering
+   * of a dozen dots.
+   *
+   * Z is normalised rather than placed at its true height because the column's
+   * units are unknowable: `depth_km`, `elev_ft` and a bare `z` all arrive as
+   * numbers, and guessing metres would bury half the files that use anything
+   * else. What can be known is the survey's own width, so the spread is a
+   * quarter of that -- structure stays readable, and the cloud stays the size
+   * of the ground it covers.
+   */
+  const zSlab = sceneSpan * 0.25;
+
   const positions = new Float32Array(rawX.length * 3);
   const colors = new Float32Array(rawX.length * 3);
-  const baseRadius = drapedRadius(0.005);
   const vertex = new THREE.Vector3();
 
   // Projected data keeps its own units, recentred and normalised so it is
@@ -196,7 +246,7 @@ export async function loadXyzPoints(file, options = {}) {
     if (georeferenced) {
       // Elevation is exaggerated the same way as raster DEMs so point clouds
       // and GeoTIFF terrain read consistently against the globe.
-      vertex.copy(latLonToVector3(rawY[i], rawX[i], baseRadius + height * 0.12));
+      vertex.copy(latLonToVector3(rawY[i], rawX[i], baseRadius + height * zSlab));
     } else {
       vertex.set((rawX[i] - midX) * localScale, height * 1.6, -(rawY[i] - midY) * localScale);
     }
@@ -215,29 +265,6 @@ export async function loadXyzPoints(file, options = {}) {
   geometry.computeBoundingSphere();
 
   const opacity = Number.isFinite(symbology.opacity) ? symbology.opacity : 1;
-  /**
-   * Point size comes from the DATA, and it used to be a constant.
-   *
-   * `0.012` scene units is about twenty-four kilometres at the globe's scale,
-   * so every imported CSV drew as a field of enormous overlapping squares
-   * covering far more ground than the survey did -- and being world-space, the
-   * only thing zooming changed was how many of them you could see at once.
-   *
-   * Average spacing (span / sqrt(n)) is the natural size: dots that nearly
-   * touch when the cloud is even, and separate when it is sparse. The clamp is
-   * what keeps both ends honest -- no dot wider than a twentieth of the survey,
-   * none so small that a million-point LiDAR tile renders as nothing at all.
-   */
-  const spanDeg = Math.max(
-    (bounds.maxX - bounds.minX)
-      * Math.cos(((bounds.minY + bounds.maxY) / 2) * Math.PI / 180),
-    bounds.maxY - bounds.minY,
-  ) || 0.01;
-  const sceneSpan = georeferenced ? spanDeg * (Math.PI / 180) * baseRadius : 6;
-  const pointSize = Math.min(
-    sceneSpan / 20,
-    Math.max(sceneSpan / 2000, sceneSpan / Math.sqrt(rawX.length || 1)),
-  );
   const points = new THREE.Points(geometry, new THREE.PointsMaterial({
     size: pointSize,
     sizeAttenuation: true,
