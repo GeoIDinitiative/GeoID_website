@@ -1,9 +1,9 @@
-import { registerPage } from "../stages.js?v=20260903-2c7da07";
-import * as store from "../project-store.js?v=20260903-2c7da07";
+import { registerPage } from "../stages.js?v=20260903-c00bfa0";
+import * as store from "../project-store.js?v=20260903-c00bfa0";
 import {
   el, field, input, textarea, selectOf, button, row, statusLine, guard,
   pageHeader, toolbar, editorCard, fieldGrid, dataTable, console_,
-} from "./common.js?v=20260903-2c7da07";
+} from "./common.js?v=20260903-c00bfa0";
 
 /**
  * Build New — the guided simulation builder, from `GuidedBuildPage`

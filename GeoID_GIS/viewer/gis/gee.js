@@ -10,22 +10,22 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-2c7da07";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260903-2c7da07";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260903-2c7da07";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-c00bfa0";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260903-c00bfa0";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260903-c00bfa0";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260903-2c7da07";
+  from "./view-extent.js?v=20260903-c00bfa0";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260903-2c7da07";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-2c7da07";
+} from "./extent-picker.js?v=20260903-c00bfa0";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-c00bfa0";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
-} from "./gee-catalogue-index.js?v=20260903-2c7da07";
+} from "./gee-catalogue-index.js?v=20260903-c00bfa0";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -1054,9 +1054,10 @@ function ensureGeeDialog() {
     /* NEITHER SHRINKS. Both are flex children of the tile, so they were being
        squeezed to make room — measured, the Request button rendered 11 px tall
        against the 26 every other control in here settled on. */
-    "#gee-add-status { flex: 0 0 auto; font-size: 0.58rem; line-height: 1.35;",
-    "  opacity: 0.85; min-height: 1em; margin-top: auto; }",
-    "#gee-add-request { flex: 0 0 auto; width: 100%; }",
+    "#gee-add-status { flex: 0 0 auto; font-size: 0.58rem; line-height: 1.4;",
+    "  opacity: 0.85; min-height: 1em; margin-top: auto;",
+    "  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3;",
+    "  -webkit-box-orient: vertical; }",
     "#gee-add-draw.is-on { background: var(--nav-accent, var(--skin-chrome)); color: #12040f; }",
   ].join("\n");
   document.head.appendChild(style);
@@ -1076,7 +1077,7 @@ function ensureGeeDialog() {
     '<label class="gee-tick"><input id="gee-add-deprecated" type="checkbox">'
       + "<span>Superseded</span></label>",
     '<div id="gee-add-chips"></div>',
-    '<span class="gee-hint" id="gee-add-hint">Set the ground once, then add datasets.</span>',
+    '<span class="gee-hint" id="gee-add-hint">Set the ground and the window here — every tile adds with them.</span>',
     '<button id="gee-add-close" class="button secondary" type="button">Close</button>',
     "</div>",
     '<div id="gee-add-strip">',
@@ -1106,12 +1107,11 @@ function ensureGeeDialog() {
     "</div>",
     '<label>Earth Engine ID<span class="gee-param-pair">',
     '<input id="gee-add-id" type="text" placeholder="e.g. ECMWF/ERA5/DAILY">',
-    '<button id="gee-add-id-use" class="button secondary" type="button">Use</button>',
+    '<button id="gee-add-id-use" class="button secondary" type="button">Add</button>',
     "</span></label>",
     "</div>",
     "</div>",
     '<div id="gee-add-status"></div>',
-    '<button id="gee-add-request" class="button primary" type="button">Request</button>',
     "</div>",
     '<div id="gee-add-list"></div>',
     "</div></div>",
@@ -1128,12 +1128,26 @@ function ensureGeeDialog() {
     renderGeeList();
   });
   byId("gee-add-deprecated").addEventListener("change", renderGeeList);
-  byId("gee-add-id-use").addEventListener("click", () => {
+  /**
+   * THE TYPED ID IS A TILE YOU TYPE, so its button adds like one.
+   *
+   * This row exists because the service accepts ANY dataset in Google's
+   * published catalogue and the strip cannot show eleven hundred of them at
+   * once. It used to only SELECT, leaving the parameter tile's Request as the
+   * thing that actually fetched — and once every tile carries its own Add,
+   * that button is the only reason a separate Request would still exist. So
+   * this one requests too, and there is one gesture in here rather than two.
+   */
+  const addTypedId = () => {
     const id = byId("gee-add-id").value.trim();
-    if (!id) return;
+    if (!id) { dialogStatus("Type an Earth Engine dataset id first."); return; }
     chosenDataset = id;
     renderGeeList();
-    dialogStatus(`Will request “${id}” from the live service.`);
+    requestFromDialog();
+  };
+  byId("gee-add-id-use").addEventListener("click", addTypedId);
+  byId("gee-add-id").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") { event.preventDefault(); addTypedId(); }
   });
 
   /**
@@ -1174,7 +1188,6 @@ function ensureGeeDialog() {
     }
   });
 
-  byId("gee-add-request").addEventListener("click", requestFromDialog);
 
   // The dialog reports through the same status line the form writes; a
   // mirror keeps one source of truth for what the request is doing.
