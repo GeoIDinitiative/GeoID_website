@@ -11383,3 +11383,72 @@ name carried, protobuf varints. **A pyramid is not the size of its source, and
 comparing the two is how a complete upload comes to look like a failed one.**
 The check that answers it is object COUNT against the manifest's own tile count,
 never total bytes against the download.
+
+## Everything under data/global now streams, and 173 MB became 88 KB
+
+Four baked pyramids and the loose vector files all live in the bucket. What is
+still tracked is 88 KB: five manifests, two legend tables and `sources.json`.
+
+| | in the bucket | stays with the site |
+| --- | --- | --- |
+| geology | 1,089 tiles, 48 MB | `manifest.json` |
+| glaciers (`ice`) | 806 tiles, 80 MB | `manifest.json` |
+| GLiM | 927 tiles, 169 MB | `manifest.json`, `classes.json` |
+| soil | 562 tiles, 27 MB | `manifest.json`, `units.json` |
+| loose files | 12 files, 43.9 MB | `sources.json` |
+
+**THE BUCKET ROOT MIRRORS `data/global/`.** That is what lets one rule serve
+both kinds: `data/global/glim/0/0/0.mvt` is `<base>/glim/0/0/0.mvt` and
+`data/global/coastline_10m.geojson` is `<base>/coastline_10m.geojson`. Nothing
+downstream has to know which it is holding.
+
+`services/publish-data.py` is `publish-tiles.py`'s counterpart for what has no
+manifest, and `gis/data-base.js` is the one resolver. Verified live by wrapping
+the iframe's `fetch`: volcanoes, coastlines and rivers each from
+`data.geoidinitiative.com` with their fingerprints and **zero** local data
+fetches, drawing 2,666 / 4,133 / 4,224 features — the counts this file already
+records; the two ice sidecars returning 38,016 named glaciers and 192,869
+thickness rows; the GEE catalogue 1,142 datasets. Only `sources.json` is read
+from the site, which is the design.
+
+### The metadata cannot live in the bucket it describes
+
+Three separate reasons, and each was paid for somewhere else first:
+
+- **A manifest carries `has()` and every tile's SIZE**, which `chooseZoom`
+  weighs a view against BEFORE fetching anything. In the bucket, a slow or
+  unreachable bucket stalls the chooser rather than merely costing tiles.
+- **`sources.json` carries a CONTENT FINGERPRINT per file**, which is what makes
+  the bucket's `immutable, max-age=1 year` safe. These files have no version of
+  their own, so a re-baked `volcanoes.geojson` at a bare URL would be invisible
+  for a year.
+- **It is read before any fetch**, so it cannot be behind the thing it is
+  describing. It is a few hundred bytes; the split costs nothing and buys the
+  layer an honest refusal instead of a blank map.
+
+**PUBLISHING IS WHAT ARMS THE CACHE TRAP, so publishing is where it is
+disarmed.** `geology`'s manifest predates the `<tiles>-<bytes>` convention and
+carried no `version`, so its tiles were about to be served at a bare URL for a
+year — `publish-tiles.py` now DERIVES one from the manifest's own byte counts
+(`1089-47682086`) and says so. Uploading with a long cache and no fingerprint is
+the single most expensive mistake available here, because it cannot be undone by
+re-uploading.
+
+### Resolution fails SAFE, at every step
+
+`dataUrl` returns the LOCAL path unchanged when there is no `sources.json`, no
+base, or no entry for that file. So a deployment that has published nothing
+behaves exactly as it always did, and a file added since the last publish is
+still found rather than 404ing. The two ice sidecars and the GEE catalogue keep
+their module stamp when unpublished and drop it when published — the published
+URL already carries its own fingerprint, and appending both is the
+`manifest.json?v=X?v=X` fault.
+
+**The invariant that will break silently later is pinned in
+`data-base.test.mjs`:** any file `.gitignore` holds out of `data/global/` must be
+reached through `dataUrl`, checked across every module in `gis/`. Add a shipped
+file, publish it, forget to wire it, and the fetch 404s IN PRODUCTION ONLY — the
+file is still on the developer's disk and the dev server serves it happily,
+which is exactly the shape that makes it invisible until deploy. The scan strips
+comments first, or the resolver's own header (which names an example path) fails
+its own test.

@@ -8,7 +8,7 @@
  *   node GeoID_GIS/viewer/gis/data-base.test.mjs
  */
 
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dataUrl, resetForTests } from "./data-base.js";
 
@@ -64,6 +64,39 @@ check("the publisher fingerprints every file it lists",
   /def fingerprint/.test(PUB) && /files\[p\.name\] = fingerprint\(p\)/.test(PUB));
 check("sources.json is never itself uploaded",
   /KEEP_LOCAL = \([^)]*"sources\.json"/s.test(PUB));
+
+/**
+ * THE INVARIANT THAT WILL BREAK SILENTLY LATER: any file `.gitignore` holds out
+ * of `data/global/` is not on the site, so every module that names one must
+ * reach it through `dataUrl`. Add a shipped file, publish it, forget to wire
+ * it, and the fetch 404s in production only — the file is still on the
+ * developer's disk and the dev server serves it happily.
+ *
+ * Checked on the SOURCE: any module naming a published file must import
+ * `dataUrl`. The metadata that deliberately stays local (manifests, units,
+ * classes, sources.json) is exempt because it is still shipped.
+ */
+const GIS = fileURLToPath(new URL(".", import.meta.url));
+const SOURCES_JSON = JSON.parse(readFileSync(
+  fileURLToPath(new URL("../../../data/global/sources.json", import.meta.url)), "utf8"));
+const published = Object.keys(SOURCES_JSON.files || {});
+
+let unwired = [];
+for (const file of readdirSync(GIS).filter((f) => f.endsWith(".js"))) {
+  // COMMENTS STRIPPED FIRST — this module's own header names an example path,
+  // and prose is not a fetch. The same reason tool-runner's param scanner and
+  // the shelf-name test strip them.
+  const text = readFileSync(GIS + file, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const names = published.filter((rel) => text.includes(`/data/global/${rel}`));
+  if (names.length && !/from "\.\/data-base\.js/.test(text)) {
+    unwired.push(`${file} names ${names[0]} but does not import dataUrl`);
+  }
+}
+check("every module naming a PUBLISHED file resolves it through dataUrl",
+  unwired.length === 0, unwired.join("; "));
+
+check("sources.json itself is never published (it names the others)",
+  !published.includes("sources.json"));
 
 console.log(failures ? `\n${failures} FAILED` : "\nall checks passed");
 process.exit(failures ? 1 : 0);
