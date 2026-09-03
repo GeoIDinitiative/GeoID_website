@@ -30,6 +30,8 @@ const check = (name, ok, detail = "") => {
 };
 
 const html = readFileSync(join(HERE, "../index.html"), "utf8");
+const panelSource = readFileSync(
+  fileURLToPath(new URL("./catalogue-panels.js", import.meta.url)), "utf8");
 const panels = readFileSync(join(HERE, "catalogue-panels.js"), "utf8");
 const polygons = readFileSync(join(HERE, "polygons.js"), "utf8");
 
@@ -49,9 +51,23 @@ Object.entries(HOMES).forEach(([home, hostId]) => {
   // "added / taken off the globe" is said into nothing.
   check(`and a status line beside it`,
     html.includes(`id="${hostId.replace(/-catalogue$/, "-status")}"`));
+  /**
+   * A HOME MUST HOLD SOMETHING, from EITHER source.
+   *
+   * This counted shipped datasets alone, which was right while every home had
+   * files in it — and the soil map has none: it is a baked tile pyramid, which
+   * `global-data.js` cannot describe because it is not a file, so it arrives
+   * through this module's own TILED registry instead. Counting only one of the
+   * two sources called a fully populated tab empty.
+   *
+   * The invariant that matters is unchanged and is the reason the check exists
+   * at all: no home is a heading over nothing.
+   */
+  const tiled = new RegExp(`"${home}":\\s*\\[`).test(panelSource);
+  const files = DATASETS.filter((d) => d.home === home).map((d) => d.id);
   check(`and at least one dataset lives there`,
-    DATASETS.some((d) => d.home === home),
-    DATASETS.filter((d) => d.home === home).map((d) => d.id).join(", "));
+    files.length > 0 || tiled,
+    files.length ? files.join(", ") : "from the TILED registry");
 });
 
 /* ── exactly one list each ───────────────────────────────────────────────── */

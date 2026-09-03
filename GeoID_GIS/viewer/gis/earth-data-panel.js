@@ -1,14 +1,27 @@
 /**
- * Three open services, each mounted in the tab that already asks its question.
+ * Two open services, each mounted in the tab that already asks its question.
  *
  * They began as a tab of their own -- "Data · Earth systems" -- and that was
- * the wrong shape. A tab is a place you go to do a KIND of work, and none of
- * these three is a kind of work: soil is a fact about the ground under the
- * view, which is what the Geology tab is for; a seismogram is a time series
- * for the analysis pages, which is what Analyse is for; and people in a
- * polygon is a number about the study area, which is what Extract is for.
- * Filed together they were a fourth place to look for something that belonged
- * beside what it answers, and the last one anybody would have looked in.
+ * the wrong shape. A tab is a place you go to do a KIND of work, and neither
+ * of these is a kind of work: a seismogram is a time series for the analysis
+ * pages, which is what Analyse is for, and people in a polygon is a number
+ * about the study area, which is what Extract is for. Filed together they were
+ * a fourth place to look for something that belonged beside what it answers,
+ * and the last one anybody would have looked in.
+ *
+ * THERE WERE THREE, and the soil card is the one that left. It sampled
+ * SoilGrids at the view centre — real 250 m numbers, and not a map: you could
+ * not see where a soil began or ended, clip to it, extract by it, or lay it
+ * beside the geology under it. `gis/soil-cover.js` draws the FAO/UNESCO Soil
+ * Map of the World as an ordinary tiled polygon layer instead, and FAO's own
+ * measured texture, pH, organic carbon and bulk density ride on every polygon.
+ *
+ * What went with the card, and is worth knowing before it is missed: the
+ * texture-to-strength screening (phi-prime and c-prime from clay and sand) and
+ * the PEAT FLAG — organic carbon over roughly 120 g/kg, where the material on
+ * the slope is not the mapped bedrock and a strength from a lithology table
+ * describes the wrong thing. `fetchSoil` and `strengthFromTexture` are still
+ * exported and still tested in `earth-data.js`; only this card is gone.
  *
  * So this module now builds its own cards and mounts each one where its
  * question is already being asked. Nothing about the services changed.
@@ -20,8 +33,7 @@
  * Each takes its place from something the app already knows rather than
  * asking for coordinates:
  *
- *   Soil        the sub-camera point, which is what the readout calls Center
- *   Seismograms the same point, for the station search
+ *   Seismograms the sub-camera point, which is what the readout calls Center
  *   Population  the STUDY AREA, because people are counted in an area and
  *               there is no honest way to answer it for a point
  *
@@ -34,10 +46,9 @@
  */
 
 import {
-  fetchSoil, strengthFromTexture,
   fetchStations, fetchWaveform, FDSN_NODES,
   fetchPopulation, SOILGRIDS, WORLDPOP,
-} from "./earth-data.js?v=20260903-0163770";
+} from "./earth-data.js?v=20260903-94dd2ad";
 
 const byId = (id) => document.getElementById(id);
 
@@ -73,53 +84,6 @@ function distanceKm(a, b) {
   const h = Math.sin(dLat / 2) ** 2
     + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLon / 2) ** 2;
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
-}
-
-/* ── soil ─────────────────────────────────────────────────────────────────── */
-
-async function runSoil() {
-  const p = viewCentre();
-  if (!p) return say("earthdata-soil-out", "Point the globe at somewhere first.");
-  say("earthdata-soil-out", `Asking SoilGrids about ${place(p)}…`);
-  const out = await fetchSoil(p.lat, p.lon);
-  if (!out.ok) return say("earthdata-soil-out", `${out.message}`);
-
-  const rows = out.rows.filter((r) => r.value != null)
-    .map((r) => `<div>${r.label} <span style="opacity:0.6">${r.depth}</span> — `
-      + `<strong>${r.value.toFixed(r.unit === "kg/dm³" ? 2 : 1)}</strong> ${r.unit}</div>`)
-    .join("");
-
-  const clay = out.rows.find((r) => r.property === "clay" && r.value != null);
-  const sand = out.rows.find((r) => r.property === "sand" && r.value != null);
-  const soc = out.rows.find((r) => r.property === "soc" && r.value != null);
-  const strength = clay ? strengthFromTexture(clay.value, sand?.value) : null;
-
-  /**
-   * Peat is called out, because it is the case the lithology table cannot see.
-   *
-   * `fos.js` takes strength from the mapped rock type, and a blanket bog over
-   * schist is filed as schist -- measured on a Sperrins hillside, 285 g/kg
-   * organic carbon under a bedrock unit that says nothing about it. Above
-   * roughly 120 g/kg the material behaving on the slope is organic soil, not
-   * the rock beneath it, and any screening parameter from the map unit is
-   * describing the wrong material.
-   */
-  const peat = soc && soc.value > 120
-    ? `<div style="margin-top:0.35rem;color:#f0b542;">Organic carbon ${soc.value.toFixed(0)} g/kg `
-      + "— this is peat. The mapped bedrock unit is not the material on the slope, "
-      + "so strength from a lithology table describes the wrong thing here.</div>"
-    : "";
-
-  say("earthdata-soil-out",
-    `<div style="opacity:0.7;margin-bottom:0.3rem;">${place(p)} — ${out.message}</div>${rows}`
-    + (strength
-      ? `<div style="margin-top:0.4rem;">Screening strength from texture: `
-        + `<strong>φ′ ${strength.frictionDeg}°</strong>, `
-        + `<strong>c′ ${strength.cohesionKpa} kPa</strong> `
-        + `<span style="opacity:0.6">(${strength.basis})</span></div>`
-      : "")
-    + peat
-    + `<div style="margin-top:0.4rem;opacity:0.6;">${SOILGRIDS.attribution} — ${SOILGRIDS.licence}</div>`);
 }
 
 /* ── seismograms ──────────────────────────────────────────────────────────── */
@@ -401,26 +365,6 @@ function whenHost(selector, place) {
   tick();
 }
 
-function mountSoil() {
-  // Earth only: SoilGrids maps this planet, and `geology-section` is Earth's
-  // own tab. The planet viewers get nothing here, which is correct rather than
-  // a gap.
-  whenHost("#geology-section .section-body .control-stack", (host) => {
-    if (byId("earthdata-soil")) return;
-    host.appendChild(card(
-      "Soil here (SoilGrids)",
-      "Texture, bulk density and organic carbon at 250 m, from ISRIC — the material "
-      + "above the mapped rock. The two strength parameters the slope model needs are "
-      + "derived from the texture and shown beside it.",
-      `<div class="gis-btn-row">
-        <button id="earthdata-soil" class="button" type="button">Sample the view centre</button>
-      </div>
-      <div id="earthdata-soil-out" class="gis-metric"></div>`,
-    ));
-    byId("earthdata-soil")?.addEventListener("click", () => { void runSoil(); });
-  });
-}
-
 function mountSeismograms() {
   whenHost("#gis-group-analysis .section-body", (host) => {
     if (byId("earthdata-waveform")) return;
@@ -576,12 +520,11 @@ async function seismogramNear(lat, lon, timeMs, { focusPanel = true } = {}) {
 /* ── wiring ───────────────────────────────────────────────────────────────── */
 
 function init() {
-  mountSoil();
   mountSeismograms();
   mountPopulation();
   // The seam the events popup calls, so it does not have to import a module
   // that may not be on a given page.
-  window.GeoIDEarthData = { seismogramNear, runSoil, runStations, runWaveform, runPopulation };
+  window.GeoIDEarthData = { seismogramNear, runStations, runWaveform, runPopulation };
 }
 
 if (typeof document !== "undefined") {
@@ -589,4 +532,4 @@ if (typeof document !== "undefined") {
   else init();
 }
 
-export { init, runSoil, runStations, runWaveform, runPopulation, seismogramNear };
+export { init, runStations, runWaveform, runPopulation, seismogramNear };

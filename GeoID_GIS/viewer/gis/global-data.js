@@ -26,7 +26,7 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260903-0163770";
+import { runConnector } from "./research/connectors.js?v=20260903-94dd2ad";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -51,6 +51,11 @@ export const HOMES = {
   "geology-tectonics": "tectonics-catalogue",
   "geology-volcanoes": "volcanoes-catalogue",
   "geology-ice": "ice-catalogue",
+  // No shipped FILE lives under this home — the soil map is a tiled layer, so
+  // it arrives through catalogue-panels' own TILED registry. The home is
+  // declared here anyway because that is where "does this dataset appear
+  // exactly once" is answered, and its test checks every home has a host.
+  "geology-soil": "soil-catalogue",
 };
 
 export const DATASETS = [

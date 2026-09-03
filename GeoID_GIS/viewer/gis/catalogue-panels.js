@@ -29,8 +29,8 @@
 
 import {
   HOMES, grouped, addDataset, layerForDataset,
-} from "./global-data.js?v=20260903-0163770";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-0163770";
+} from "./global-data.js?v=20260903-94dd2ad";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-94dd2ad";
 
 const byId = (id) => document.getElementById(id);
 
@@ -95,6 +95,35 @@ const TILED = {
       // removing the record does not free them.
       layer?.tiled?.dispose?.();
       if (layer) window.GeoIDImportManager?.removeLayer?.(layer.id);
+    },
+  }],
+  "geology-soil": [{
+    id: "soil-dsmw",
+    group: "Global map",
+    label: "Soils of the world (FAO/UNESCO)",
+    title: "The FAO/UNESCO Soil Map of the World — 34,112 polygons over 123 "
+      + "dominant soil units at 1:5,000,000 — baked into vector tiles on this "
+      + "site. Streams and sharpens as you fly in, like the geological map.",
+    info: {
+      summary: "FAO's digitised 1:5,000,000 sheets: every polygon carries its "
+        + "dominant soil unit, that unit's FAO name, and — for 28,144 of them "
+        + "— FAO's own measured topsoil properties: sand, silt and clay "
+        + "percentages, pH, organic carbon and bulk density. Finer soil data "
+        + "exists (SoilGrids is 250 m) and is a raster, so it is a companion "
+        + "to this map rather than a sharper version of it.",
+      citation: "FAO/UNESCO (2007). Digital Soil Map of the World v3.6 — CC BY 4.0",
+    },
+    ready: () => Boolean(window.GeoIDSoilCover?.load),
+    layerOf: () => window.GeoIDSoilCover?.layerOf?.() || null,
+    load: () => window.GeoIDSoilCover.load(),
+    // None: the layer writes its own richer line once its tiles have landed,
+    // the way the glacier inventory does.
+    unload: (layer) => {
+      // A tiled layer holds GPU buffers for every tile it has built, and
+      // removing the record does not free them.
+      layer?.tiled?.dispose?.();
+      window.GeoIDSoilCover?.remove?.();
+      window.GeoIDSoilCover?.say?.("");
     },
   }],
   "geology-ice": [{
