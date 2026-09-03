@@ -37,6 +37,29 @@ export function moonLatLonToVector3(latDegrees, lonDegrees, radius, moonName = "
 }
 
 // buildLabelLayer and updateLabelAnchors receive getReliefPoint as a parameter to avoid importing from the main module.
+/**
+ * The theme's chip colour at a given alpha, or the cyan it always drew.
+ *
+ * A CANVAS CANNOT READ A STYLESHEET, so a baked chip has to ASK the theme —
+ * `earth-viewer.js` has done this for its own labels since themes landed, and
+ * these five viewers are separate copies that never got the seam. Under a retro
+ * skin their chrome went green while every label on the globe stayed the
+ * default magenta and cyan, which over a dark planet with scanlines over it is
+ * what "the text is barely visible" looks like.
+ *
+ * ONLY THE DEFAULT PALETTE follows the skin. A layer that carries its own theme
+ * — volcanic red, mission green — keeps it, because that colour says which CLASS
+ * the feature is, and a skin overruling it would be the theme overruling data.
+ * Same rule earth-viewer states for dataset labels.
+ */
+function chipInk(alpha) {
+  const ink = (typeof window !== "undefined"
+    && window.GeoIDTheme?.token?.("--skin-chip", "#3aeee8")) || "#3aeee8";
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(ink).trim());
+  if (!m) return `rgba(58, 214, 208, ${alpha})`;
+  return `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, ${alpha})`;
+}
+
 export function makeLabelTexture(labelInput, options = {}) {
   const isObject = typeof labelInput === "object" && labelInput !== null;
   const text = isObject ? ((labelInput.name || "").replace(/\s*\([^)]*\)\s*/g, " ").trim()) : String(labelInput);
@@ -121,8 +144,8 @@ export function makeLabelTexture(labelInput, options = {}) {
         }
     : {
         bg: "rgba(9, 14, 24, 0.62)",
-        stroke: "rgba(90, 214, 233, 0.28)",
-        accent: "rgba(58, 214, 208, 0.92)",
+        stroke: chipInk(0.28),
+        accent: chipInk(0.92),
         title: "rgba(242, 247, 250, 0.94)",
       });
 
