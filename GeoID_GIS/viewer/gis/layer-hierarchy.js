@@ -10,13 +10,13 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { bandOf } from "./draw-order.js?v=20260904-15c2f08";
-import { currentBody } from "./bodies.js?v=20260904-15c2f08";
-import { samplerToRaster } from "./raster-analysis.js?v=20260904-15c2f08";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260904-15c2f08";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260904-15c2f08";
-import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260904-15c2f08";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260904-15c2f08";
+import { bandOf } from "./draw-order.js?v=20260904-cf8b853";
+import { currentBody } from "./bodies.js?v=20260904-cf8b853";
+import { samplerToRaster } from "./raster-analysis.js?v=20260904-cf8b853";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260904-cf8b853";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260904-cf8b853";
+import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260904-cf8b853";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260904-cf8b853";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -1127,6 +1127,11 @@ function symbolLabel(layer) {
   if (layer.type) return layer.type;
   const summary = geometrySummary(layer.collection?.features || layer.features);
   if (summary) return summary;
+  // A cloud held as pixels has no features to summarise, and fell through to
+  // the layer's own name -- which the card's title already says.
+  if (Number.isFinite(layer.info?.pointCount)) {
+    return `${layer.info.pointCount.toLocaleString()} points`;
+  }
   if (layer.raster && layer.info?.width && layer.info?.height) {
     return `${layer.info.width} x ${layer.info.height} raster`;
   }
@@ -1227,6 +1232,21 @@ function buildLayerCard(layer) {
   label.className = "legend-symbol-label";
   label.textContent = symbolLabel(layer);
   copyWrap.appendChild(label);
+  /**
+   * A cloud too big for an attribute table says so HERE, beside its own count,
+   * because this is where somebody wondering why no tool will take it looks.
+   * `describeLayer` builds the same sentence and nothing renders it -- its one
+   * live caller returns early for loaded layers and the other assigns the
+   * result to a variable it never uses -- so the limit was invisible, which is
+   * the state it was meant to replace.
+   */
+  if (layer.info?.displayOnly) {
+    const detail = document.createElement("div");
+    detail.className = "legend-symbol-detail";
+    detail.textContent = "display only — no attribute table";
+    if (layer.info.displayOnlyReason) detail.title = layer.info.displayOnlyReason;
+    copyWrap.appendChild(detail);
+  }
   row.appendChild(copyWrap);
   list.appendChild(row);
   if (!graded) card.appendChild(list);
