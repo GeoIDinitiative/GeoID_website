@@ -11,7 +11,7 @@
 
 import {
   readHead, proposeMapping, validateMapping, parseRows, detectDelimiter, looksLikeHeader,
-  attributeHead, rankColourFields,
+  attributeHead, rankColourFields, rowsToPointCollection,
 } from "./delimited.js";
 
 let failures = 0;
@@ -200,6 +200,46 @@ check("a mixed row is a header", looksLikeHeader(["station", "37.75", "1200"]));
     by.flag.numeric === false);
   check("an empty column claims no range", by.blank.numeric === false);
   eq("and no bounds either", [by.blank.min, by.blank.max], [null, null]);
+}
+
+// ── Rows to features ─────────────────────────────────────────────────────────
+/**
+ * A CSV of points was DRAWN and nothing else: no collection meant no vector
+ * tool would list it (IDW said "None available" over two hundred imported
+ * points) and no vector export format was offered. These pin the shape the
+ * rest of the app reads it through.
+ */
+{
+  const text = "station,east_deg,north_deg,depth_km,magnitude\n"
+    + "ET000,14.96477,37.68017,8.60,2.63\n"
+    + "ET001,15.00718,37.72314,4.46,3.25\n";
+  const mapping = { lon: 1, lat: 2, elev: 3, magnitude: 4 };
+  const plain = parseRows(text, mapping, {});
+  check("without keepFields a row carries no columns", plain.points[0].fields === undefined);
+
+  const { points } = parseRows(text, mapping, { keepFields: true });
+  eq("keepFields hands back the whole row", points[0].fields.length, 5);
+
+  const fc = rowsToPointCollection(points, ["station", "east_deg", "north_deg", "depth_km", "magnitude"], mapping);
+  eq("a feature per row", fc.features.length, 2);
+  eq("geometry is lon/lat, in that order", fc.features[0].geometry.coordinates, [14.96477, 37.68017]);
+  check("every column survives, not just the mapped ones",
+    fc.features[0].properties.station === "ET000");
+  check("numbers arrive as numbers", fc.features[1].properties.depth_km === 4.46);
+  check("a text column stays text", typeof fc.features[0].properties.station === "string");
+  // The reading under a name a tool can find without knowing this file.
+  eq("z aliases the mapped elevation", fc.features[0].properties.z, 8.6);
+  eq("and magnitude its own column", fc.features[1].properties.magnitude, 3.25);
+}
+
+{
+  // A file with no header row: columns are positional, and the features must
+  // still carry them rather than dropping everything but x/y/z.
+  const { points } = parseRows("14.9,37.6,100\n15.0,37.7,200\n",
+    { lon: 0, lat: 1, elev: 2 }, { hasHeader: false, keepFields: true });
+  const fc = rowsToPointCollection(points, ["Column 1", "Column 2", "Column 3"], { lon: 0, lat: 1, elev: 2 });
+  eq("headerless rows still become features", fc.features.length, 2);
+  eq("named by position", fc.features[0].properties["Column 3"], 100);
 }
 
 check("no features, no head", attributeHead([]).columns.length === 0);

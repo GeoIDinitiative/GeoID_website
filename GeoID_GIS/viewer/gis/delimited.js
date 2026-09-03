@@ -179,7 +179,18 @@ export function validateMapping(mapping, columnCount) {
  * export with a trailing total line should not cost you the other 40,000 points,
  * but you should be told it happened.
  */
-export function parseRows(text, mapping, { delimiter = ",", hasHeader = true, limit = 2000000 } = {}) {
+/**
+ * `keepFields` hands back the WHOLE row alongside the mapped numbers.
+ *
+ * This reader's job is x, y, z and a magnitude, and everything else in the
+ * line was dropped on the floor -- which is right for a LiDAR dump and wrong
+ * for a CSV of survey sites, whose station names and notes are the reason
+ * somebody has the file. The caller decides: it costs an array per row, so a
+ * two-million-point cloud does not ask for it.
+ */
+export function parseRows(text, mapping, {
+  delimiter = ",", hasHeader = true, limit = 2000000, keepFields = false,
+} = {}) {
   const lines = String(text).split(/\r?\n/);
   const points = [];
   let skipped = 0;
@@ -205,6 +216,7 @@ export function parseRows(text, mapping, { delimiter = ",", hasHeader = true, li
       // about the bottom of its own scale.
       point.magnitude = Number.isFinite(m) ? m : null;
     }
+    if (keepFields) point.fields = fields;
     points.push(point);
   }
   return { points, skipped };
@@ -309,4 +321,38 @@ export function rankColourFields(head, { maxClasses = 60 } = {}) {
     .filter((c) => !c.capped && c.distinct > 1 && c.distinct <= maxClasses && c.distinct < total)
     .sort((a, b) => b.distinct - a.distinct)
     .map((c) => c.key);
+}
+
+/**
+ * The rows as FEATURES, carrying every column the file had.
+ *
+ * The mapped values are written under `z` and `magnitude` as well as their own
+ * column names: a tool looking for the reading should not have to know that
+ * this particular survey called it `depth_km`.
+ */
+export function rowsToPointCollection(points, columns, mapping) {
+  const names = columns.map((c, i) => String(c || `Column ${i + 1}`));
+  const features = points.map((point, index) => {
+    const properties = {};
+    const fields = point.fields;
+    if (fields) {
+      for (let i = 0; i < names.length; i += 1) {
+        const raw = fields[i];
+        if (raw === undefined) continue;
+        const asNumber = Number(raw);
+        properties[names[i]] = raw !== "" && Number.isFinite(asNumber) ? asNumber : raw;
+      }
+    }
+    if (mapping.elev >= 0) properties.z = point.z;
+    if (point.magnitude !== undefined && point.magnitude !== null) {
+      properties.magnitude = point.magnitude;
+    }
+    return {
+      type: "Feature",
+      id: index,
+      geometry: { type: "Point", coordinates: [point.x, point.y] },
+      properties,
+    };
+  });
+  return { type: "FeatureCollection", features };
 }

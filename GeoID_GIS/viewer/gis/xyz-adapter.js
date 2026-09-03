@@ -1,7 +1,10 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic, computeBounds2D } from "./geo-utils.js?v=20260904-d983da6";
-import { readHead, parseRows, validateMapping } from "./delimited.js?v=20260904-d983da6";
-import { rampColour } from "./symbology.js?v=20260904-d983da6";
+import { latLonToVector3, drapedRadius, looksLikeGeographic, computeBounds2D } from "./geo-utils.js?v=20260904-d03bd05";
+import {
+  readHead, parseRows, validateMapping, rowsToPointCollection,
+} from "./delimited.js?v=20260904-d03bd05";
+import { rampColour } from "./symbology.js?v=20260904-d03bd05";
+import { markerDiscTexture } from "./vector-render.js?v=20260904-d03bd05";
 
 const MAX_POINTS = 2000000;
 
@@ -71,6 +74,35 @@ function isGradedMapping(mapping) {
 /** Past this the file is a survey, not a table: about 8 MB of text. */
 const MAX_SOURCE_CHARS = 8_000_000;
 
+/**
+ * Past this many points a cloud stays DISPLAY-ONLY.
+ *
+ * A GeoJSON FeatureCollection is what makes a layer real to the rest of the
+ * app: `layersByType("vector")` filters on `collection`, so without one an
+ * imported CSV was invisible to every vector tool -- IDW offered "None
+ * available" over two hundred points drawn on the globe -- and `layerKind`
+ * fell through to "mesh", so the only export formats were STL and OBJ. The
+ * points could be looked at and nothing else.
+ *
+ * The reason not to build one always is the other end of the range: this
+ * reader accepts two million points, and a feature object apiece is a great
+ * deal of memory and garbage for something no one is going to run a spatial
+ * join over. A hundred thousand is where a table stops being a table.
+ *
+ * Above the line the layer says so in `info.displayOnlyReason`, so the limit
+ * is visible rather than looking like the old silent nothing.
+ */
+const COLLECTION_MAX_POINTS = 100_000;
+
+/** Rows, counted without allocating an array per line. */
+function countLines(text) {
+  let n = 1;
+  for (let i = 0; i < text.length; i += 1) {
+    if (text.charCodeAt(i) === 10) n += 1;
+  }
+  return n;
+}
+
 export async function loadXyzPoints(file, options = {}) {
   const text = await file.text();
   const head = readHead(text);
@@ -86,8 +118,13 @@ export async function loadXyzPoints(file, options = {}) {
   const valid = validateMapping(mapping, head.columns.length);
   if (!valid.ok) throw new Error(valid.problems.join(" "));
 
+  // Decided from the LINE COUNT rather than the parsed length, because the
+  // choice has to be made before the parse that would answer it. It is an
+  // over-estimate -- blank and comment lines are counted -- which errs the
+  // safe way: a file near the line keeps its columns.
+  const keepFields = countLines(text) <= COLLECTION_MAX_POINTS;
   const { points: parsed, skipped } = parseRows(text, mapping, {
-    delimiter: head.delimiter, hasHeader: head.hasHeader, limit: MAX_POINTS,
+    delimiter: head.delimiter, hasHeader: head.hasHeader, limit: MAX_POINTS, keepFields,
   });
 
   const rawX = [];
@@ -178,10 +215,37 @@ export async function loadXyzPoints(file, options = {}) {
   geometry.computeBoundingSphere();
 
   const opacity = Number.isFinite(symbology.opacity) ? symbology.opacity : 1;
+  /**
+   * Point size comes from the DATA, and it used to be a constant.
+   *
+   * `0.012` scene units is about twenty-four kilometres at the globe's scale,
+   * so every imported CSV drew as a field of enormous overlapping squares
+   * covering far more ground than the survey did -- and being world-space, the
+   * only thing zooming changed was how many of them you could see at once.
+   *
+   * Average spacing (span / sqrt(n)) is the natural size: dots that nearly
+   * touch when the cloud is even, and separate when it is sparse. The clamp is
+   * what keeps both ends honest -- no dot wider than a twentieth of the survey,
+   * none so small that a million-point LiDAR tile renders as nothing at all.
+   */
+  const spanDeg = Math.max(
+    (bounds.maxX - bounds.minX)
+      * Math.cos(((bounds.minY + bounds.maxY) / 2) * Math.PI / 180),
+    bounds.maxY - bounds.minY,
+  ) || 0.01;
+  const sceneSpan = georeferenced ? spanDeg * (Math.PI / 180) * baseRadius : 6;
+  const pointSize = Math.min(
+    sceneSpan / 20,
+    Math.max(sceneSpan / 2000, sceneSpan / Math.sqrt(rawX.length || 1)),
+  );
   const points = new THREE.Points(geometry, new THREE.PointsMaterial({
-    size: georeferenced ? 0.012 : 0.05,
+    size: pointSize,
     sizeAttenuation: true,
     vertexColors: true,
+    // Without a map a point is a hard SQUARE; this is the same disc the vector
+    // markers use, and `alphaTest` cuts it round without needing depth sorting.
+    map: markerDiscTexture(),
+    alphaTest: 0.4,
     transparent: opacity < 1,
     opacity,
   }));
@@ -193,9 +257,33 @@ export async function loadXyzPoints(file, options = {}) {
     points.userData.baseScale = 1;
   }
 
+  /**
+   * Only georeferenced clouds get a collection: a projected file's x and y are
+   * metres in some grid, and a FeatureCollection carrying those as if they were
+   * lon/lat would be read as a point off the coast of Africa by every tool that
+   * touched it. Reprojection is the dialog's job, not a silent one here.
+   */
+  const wantCollection = georeferenced && keepFields
+    && parsed.length <= COLLECTION_MAX_POINTS;
+  const collection = wantCollection
+    ? rowsToPointCollection(parsed, head.columns, mapping)
+    : null;
+  const displayOnlyReason = collection ? null
+    : (!georeferenced
+      ? "These coordinates are not lon/lat, so the rows are not offered as a table. "
+        + "Re-import with the file's own reference system to place it on the globe."
+      : `Over ${COLLECTION_MAX_POINTS.toLocaleString()} points, so this is kept as a `
+        + "display cloud: the vector tools and the vector export formats are not "
+        + "offered for it.");
+
   return {
     object3D: points,
     georeferenced,
+    collection,
+    // The popup's picker reads `features` while the tool runner reads
+    // `collection`; they are the same array, and a layer that answers one and
+    // not the other is clickable but untoolable, or the reverse.
+    features: collection ? collection.features : null,
     /**
      * The rows AS THEY CAME, so the table window has something to open.
      *
@@ -222,6 +310,9 @@ export async function loadXyzPoints(file, options = {}) {
       magnitudeRange: hasMagnitude ? { min: mMin, max: mMax } : null,
       skippedRows: skipped,
       truncated: rawX.length >= MAX_POINTS,
+      attributeRows: collection ? collection.features.length : 0,
+      displayOnly: !collection,
+      displayOnlyReason,
     },
   };
 }

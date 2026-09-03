@@ -1,9 +1,9 @@
 import * as THREE from "../vendor/three.module.js";
 import { latLonToVector3, drapedRadius, looksLikeGeographic, sphericalPolygonAreaKm2 }
-  from "./geo-utils.js?v=20260904-d983da6";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260904-d983da6";
-import { pointInPolygon } from "./geometry.js?v=20260904-d983da6";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260904-d983da6";
+  from "./geo-utils.js?v=20260904-d03bd05";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260904-d03bd05";
+import { pointInPolygon } from "./geometry.js?v=20260904-d03bd05";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260904-d03bd05";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -56,7 +56,12 @@ let surfaceCalls = 0;
  * the edge. Two draw calls for the whole layer, not per point.
  */
 let discTexture = null;
-function markerDiscTexture() {
+/**
+ * Exported because a POINT CLOUD needs it too. A `PointsMaterial` with no map
+ * draws a hard square per point, which is what an imported CSV looked like --
+ * a field of overlapping squares rather than dots.
+ */
+export function markerDiscTexture() {
   if (discTexture) return discTexture;
   const size = 64;
   const canvas = document.createElement("canvas");
