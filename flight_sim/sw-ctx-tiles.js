@@ -24,51 +24,51 @@ const DEFAULT_ASSETS = [
   '/GeoID_Earth/assets/earth_geology_features.json',
 
   // Mars
-  '/planet_explorer/mars/viewer/assets/mars_color.jpg',
-  '/planet_explorer/mars/viewer/assets/mars_elevation_upscaled.png',
-  '/planet_explorer/mars/viewer/assets/mars_geology_sim3292.png',
-  '/planet_explorer/mars/viewer/assets/mars_insight_seismic_events.json',
-  '/planet_explorer/mars/viewer/assets/mars_geology_features.json',
+  'https://data.geoidinitiative.com/assets/hotlink-ok/planet-mars/mars_color.jpg?v=aff5dbff30d7',
+  'https://data.geoidinitiative.com/assets/hotlink-ok/planet-mars/mars_elevation_upscaled.png?v=36d60c8f04d3',
+  'https://data.geoidinitiative.com/assets/hotlink-ok/planet-mars/mars_geology_sim3292.png?v=c6b825f8e610',
+  'https://data.geoidinitiative.com/assets/hotlink-ok/planet-mars/mars_insight_seismic_events.json?v=072e5c50bc29',
+  'https://data.geoidinitiative.com/assets/hotlink-ok/planet-mars/mars_geology_features.json?v=12bcfcabc5b8',
 
   // Venus
-  '/planet_explorer/venus/assets/venus_color.jpg',
-  '/planet_explorer/venus/assets/venus_elevation.png',
-  '/planet_explorer/venus/assets/venus_geology_sim3292.png',
-  '/planet_explorer/venus/assets/venus_insight_seismic_events.json',
-  '/planet_explorer/venus/assets/venus_geology_features.json',
+  'https://data.geoidinitiative.com/assets/hotlink-ok/planet-venus/venus_color.jpg?v=bbb8cd8e9a5f',
+  'https://data.geoidinitiative.com/assets/hotlink-ok/planet-venus/venus_elevation.png?v=aa27ba044619',
+  'https://data.geoidinitiative.com/assets/hotlink-ok/planet-venus/venus_geology_sim3292.png?v=bd00fdeb3248',
+  '/planet_explorer/venus/viewer/assets/venus_insight_seismic_events.json',
+  '/planet_explorer/venus/viewer/assets/venus_geology_features.json',
 
   // Mercury
-  '/planet_explorer/mercury/assets/mercury_color.jpg',
-  '/planet_explorer/mercury/assets/mercury_elevation.png',
-  '/planet_explorer/mercury/assets/mercury_geology_sim3292.png',
-  '/planet_explorer/mercury/assets/mercury_insight_seismic_events.json',
-  '/planet_explorer/mercury/assets/mercury_geology_features.json',
+  'https://data.geoidinitiative.com/assets/hotlink-ok/planet-mercury/mercury_color.jpg?v=f0148673d25a',
+  'https://data.geoidinitiative.com/assets/hotlink-ok/planet-mercury/mercury_elevation.png?v=1032ec850126',
+  'https://data.geoidinitiative.com/assets/hotlink-ok/planet-mercury/mercury_geology_sim3292.png?v=68624230d2de',
+  '/planet_explorer/mercury/viewer/assets/mercury_insight_seismic_events.json',
+  '/planet_explorer/mercury/viewer/assets/mercury_geology_features.json',
 
   // Jupiter
-  '/planet_explorer/jupiter/viewer/assets/jupiter_color.jpg',
+  'https://data.geoidinitiative.com/assets/hotlink-ok/planet-jupiter/jupiter_color.jpg?v=6b835ddd8036',
   '/planet_explorer/jupiter/viewer/assets/jupiter_elevation.png',
-  '/planet_explorer/jupiter/viewer/assets/jupiter_geology_sim3292.png',
+  'https://data.geoidinitiative.com/assets/hotlink-ok/planet-jupiter/jupiter_geology_sim3292.png?v=9f5ac25d643f',
   '/planet_explorer/jupiter/viewer/assets/jupiter_insight_seismic_events.json',
   '/planet_explorer/jupiter/viewer/assets/jupiter_geology_features.json',
 
   // Saturn
-  '/planet_explorer/saturn/viewer/assets/saturn_body_color.jpg',
+  'https://data.geoidinitiative.com/assets/hotlink-ok/planet-saturn/saturn_body_color.jpg?v=fe5cffc880ae',
   '/planet_explorer/saturn/viewer/assets/saturn_elevation.png',
-  '/planet_explorer/saturn/viewer/assets/saturn_geology_sim3292.png',
+  'https://data.geoidinitiative.com/assets/hotlink-ok/planet-saturn/saturn_geology_sim3292.png?v=90ad8cc0e799',
   '/planet_explorer/saturn/viewer/assets/saturn_insight_seismic_events.json',
   '/planet_explorer/saturn/viewer/assets/saturn_geology_features.json',
 
   // Uranus
-  '/planet_explorer/uranus/viewer/assets/uranus_body_color.jpg',
+  'https://data.geoidinitiative.com/assets/hotlink-ok/planet-uranus/uranus_body_color.jpg?v=ab7b9dae8f1b',
   '/planet_explorer/uranus/viewer/assets/uranus_elevation.png',
-  '/planet_explorer/uranus/viewer/assets/uranus_geology_sim3292.png',
+  'https://data.geoidinitiative.com/assets/hotlink-ok/planet-uranus/uranus_geology_sim3292.png?v=36c18ceb158b',
   '/planet_explorer/uranus/viewer/assets/uranus_insight_seismic_events.json',
   '/planet_explorer/uranus/viewer/assets/uranus_geology_features.json',
 
   // Neptune
   '/planet_explorer/neptune/viewer/assets/neptune_body_color.jpg',
   '/planet_explorer/neptune/viewer/assets/neptune_elevation.png',
-  '/planet_explorer/neptune/viewer/assets/neptune_geology_sim3292.png',
+  'https://data.geoidinitiative.com/assets/hotlink-ok/planet-neptune/neptune_geology_sim3292.png?v=b20b8e177743',
   '/planet_explorer/neptune/viewer/assets/neptune_insight_seismic_events.json',
   '/planet_explorer/neptune/viewer/assets/neptune_geology_features.json',
 ];
