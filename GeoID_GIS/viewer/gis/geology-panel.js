@@ -28,14 +28,14 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260903-a602189";
-import { currentBodyId } from "./bodies.js?v=20260903-a602189";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260903-a602189";
-import { rockClass } from "./rock-class.js?v=20260903-a602189";
-import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260903-a602189";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260903-a602189";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260903-6e349d6";
+import { currentBodyId } from "./bodies.js?v=20260903-6e349d6";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260903-6e349d6";
+import { rockClass } from "./rock-class.js?v=20260903-6e349d6";
+import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260903-6e349d6";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260903-6e349d6";
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260903-a602189";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260903-6e349d6";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *

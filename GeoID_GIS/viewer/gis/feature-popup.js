@@ -20,12 +20,13 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260903-a602189";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260903-a602189";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-a602189";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260903-a602189";
-import { lithologyLabel } from "./lithology-label.js?v=20260903-a602189";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260903-a602189";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260903-6e349d6";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260903-6e349d6";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-6e349d6";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260903-6e349d6";
+import { lithologyLabel } from "./lithology-label.js?v=20260903-6e349d6";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260903-6e349d6";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260903-6e349d6";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -718,7 +719,38 @@ function showViewerCard(hits, at) {
    * fold looks the material up by, and ice has a real entry in that database.
    */
   const ice = isIceFeature(props) ? iceCard(props) : null;
-  const feature = ice ? {
+  /**
+   * The same treatment for the soil map, and for a sharper version of the
+   * same reason. The ice card exists because a glacier was headed
+   * "Continental"; the soil card exists because a Podzol was headed
+   * "Continental" AND given a uniaxial compressive strength. `soil-card.js`
+   * holds what was on that card and why none of it belonged there.
+   */
+  const soil = !ice && isSoilFeature(props) ? soilCard(props) : null;
+  const feature = soil ? {
+    // The same flag the ice layer uses, and read the same way: it is what
+    // stops `earth-viewer.js` re-deriving a heading from a lithology that is
+    // not there. `lithology` is left NULL rather than set to a stand-in —
+    // that is what refuses the rock-property fold, and refusing it is the
+    // point.
+    soil: true,
+    type: soil.kicker,
+    rock_type: soil.title,
+    lithology: null,
+    name: null,
+    description: soil.meta || null,
+    extra_rows: soil.headline || null,
+    origin: `${soil.source} — via ${top.layer.name || "this layer"}`,
+    mapped_area_km2: km2 > 0 ? Number(km2.toFixed(km2 >= 100 ? 0 : 2)) : null,
+    // FAO's measured values first, then whatever else the source shipped —
+    // minus the columns the three lines above have already said.
+    rows: [...soil.rows, ["Note", soil.note],
+      ...rows.filter(([key]) => !/^(code|name|group|colour|unit|phase|permafrost|sand_pct|silt_pct|clay_pct|ph|organic_carbon_pct|bulk_density)$/i.test(key))],
+    stack: beneath.map(({ layer, feature: f }) => ({
+      label: layer.name || "Layer",
+      unit: titleOf(f.properties || {}) || featureKind(f, layer),
+    })),
+  } : ice ? {
     // The card must not re-derive its own heading from the lithology: see
     // `earth-viewer.js`, which classifies a rock and would call floating ice
     // "Continental". This flag is what says the three lines are already written.

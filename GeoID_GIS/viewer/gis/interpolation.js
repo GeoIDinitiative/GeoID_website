@@ -1,5 +1,5 @@
-import { makeRaster } from "./raster-analysis.js?v=20260903-a602189";
-import { featureCollection, feature } from "./geoprocessing.js?v=20260903-a602189";
+import { makeRaster } from "./raster-analysis.js?v=20260903-6e349d6";
+import { featureCollection, feature } from "./geoprocessing.js?v=20260903-6e349d6";
 
 // Interpolation: scattered observations to a continuous surface.
 //

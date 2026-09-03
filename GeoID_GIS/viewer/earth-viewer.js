@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260903-a602189";
+  from "./gis/geo-utils.js?v=20260903-6e349d6";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260903-a602189";
+  from "./gis/vector-render.js?v=20260903-6e349d6";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260903-a602189";
+  from "./gis/rock-class.js?v=20260903-6e349d6";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260903-a602189";
+  from "./gis/lithology-label.js?v=20260903-6e349d6";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -6203,8 +6203,12 @@ function fmtProp(value) {
        */
       const unitClass = feature.rock_class
         || rockClass(lithology, feature.description, geometryName);
-      const unitSetting = feature.ice ? null : crustalSetting(lithology, settingElevation);
-      const classLabel = feature.ice
+      // A soil is classified the same way ice is: not at all by this card.
+      // `crustalSetting` reads the ELEVATION, so it answers "Continental"
+      // about anything on land — a glacier, a lake, or a Podzol.
+      const written = feature.ice || feature.soil;
+      const unitSetting = written ? null : crustalSetting(lithology, settingElevation);
+      const classLabel = written
         ? (feature.type || null) : rockClassLabel(unitClass, unitSetting);
       /**
        * The heading is the lithology AS A PERSON WOULD WRITE IT.
@@ -6215,7 +6219,7 @@ function fmtProp(value) {
        * display only; the raw string still goes to the property database,
        * whose parser reads those proportion words to weight a mixture.
        */
-      const popupTitle = (feature.ice ? feature.rock_type : lithologyLabel(lithology))
+      const popupTitle = (written ? feature.rock_type : lithologyLabel(lithology))
         || interpretation || geometryName || "";
       const popupCopy = feature.rock_type_detail
         || (
@@ -6373,7 +6377,17 @@ function fmtProp(value) {
          * another click while the import is in flight and an answer drawn into
          * the wrong card is a property table for a different rock.
          */
-        const lithForProperties = lithology || geometryName;
+        /**
+         * NO ROCK PROPERTIES FOR A SOIL, and the fallback to `geometryName` is
+         * exactly how it got them. A soil polygon has no lithology, so this
+         * fell through to "Unit", the database found nothing, and its
+         * no-information prior printed sixteen rock-mechanics parameters —
+         * uniaxial compressive strength, Hoek-Brown mi, slake durability —
+         * about a soil. Every number correct for what it claimed to be and
+         * none of it true of the ground clicked. The soil card says what does
+         * apply and why this does not.
+         */
+        const lithForProperties = feature.soil ? null : (lithology || geometryName);
         geoPopupPass += 1;
         const pass = geoPopupPass;
         if (lithForProperties) {
