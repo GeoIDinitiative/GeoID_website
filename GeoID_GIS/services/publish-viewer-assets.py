@@ -62,12 +62,53 @@ def fingerprint(p: pathlib.Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()[:12]
 
 
+def tracked_files() -> set[str]:
+    out = subprocess.run(["git", "ls-files", "-z"], capture_output=True, text=True, cwd=ROOT)
+    return {x for x in out.stdout.split("\0") if x}
+
+
 def movable(assets: pathlib.Path, min_bytes: int) -> dict:
-    """Relative name -> path, for everything big enough to be worth moving."""
+    """
+    Relative name -> path, for what the SITE ships and is worth moving.
+
+    TRACKED IS THE TEST, not merely present on disk. These assets/ folders also
+    hold the raw material somebody baked them from — a 631 MB ArcGIS project
+    package under venus, 120 MB of shapefiles and geodatabase tables under the
+    moon — none of it tracked, none of it referenced, and all of it uploaded on
+    the first run because it was simply sitting there. A publisher that walks
+    the DIRECTORY publishes the developer's working files; one that walks the
+    INDEX publishes the site.
+    """
+    tracked = tracked_files()
     out = {}
     for p in sorted(assets.rglob("*")):
-        if p.is_file() and p.stat().st_size >= min_bytes:
+        if (p.is_file() and p.stat().st_size >= min_bytes
+                and str(p.relative_to(ROOT)) in tracked):
             out[str(p.relative_to(assets))] = p
+    return out
+
+
+def already_published(viewer: pathlib.Path, assets: pathlib.Path, key: str) -> dict:
+    """
+    What a RE-publish must still cover.
+
+    Tracked alone is right the first time and wrong every time after: publishing
+    untracks the files, so a second run would find nothing to publish and a
+    cleanup keyed on `tracked` would purge the live objects — which it did, to
+    all 66 of Mars's, because they were untracked precisely BECAUSE they were
+    published. What the site ships is what its code NAMES, so the bucket URLs
+    already in the source are the other half of the answer.
+    """
+    out = {}
+    for f in viewer.rglob("*"):
+        if f.suffix not in CODE or not f.is_file():
+            continue
+        for rel in re.findall(r"/" + re.escape(PREFIX) + "/" + re.escape(key)
+                              + r"/([A-Za-z0-9_./-]+?)(?:\?v=[0-9a-f]+)?(?=[\"'`)\s])",
+                              f.read_text(errors="surrogateescape")):
+            p = assets / rel
+            if p.is_file():
+                out[rel] = p
     return out
 
 
@@ -130,20 +171,25 @@ def main() -> int:
         print(f"{args.key}: references restored to assets/ in {n} files")
         return 0
 
-    names = movable(assets, args.min_bytes)
+    names = {**movable(assets, args.min_bytes),
+             **already_published(viewer, assets, args.key)}
     if not names:
         die("nothing at or above the size floor")
     total = sum(p.stat().st_size for p in names.values())
 
     if not shutil.which("rclone"):
         die("rclone is not installed")
+    listing = ROOT / ".git" / "geoid-publish-files.txt"
+    listing.write_text("\n".join(sorted(names)) + "\n")
     cmd = ["rclone", "copy", str(assets), f"{args.remote.rstrip('/')}/{PREFIX}/{args.key}",
            "--header-upload", f"Cache-Control: {CACHE_CONTROL}",
-           # THE "B" SUFFIX IS LOAD-BEARING: rclone reads a bare number as KiB,
-           # so `--min-size 262144` means 256 GiB, matches nothing, copies
-           # nothing — and exits 0. That is how a publish "succeeded" into an
-           # empty bucket prefix while every reference was rewritten to it.
-           "--min-size", f"{args.min_bytes}B",
+           # NAMED EXPLICITLY rather than filtered by size. `--min-size` would
+           # sweep up every untracked working file that happens to be big
+           # enough — and it has: a bare number is KiB to rclone, so an earlier
+           # `--min-size 262144` meant 256 GiB, matched nothing, copied nothing
+           # and exited 0, publishing into an empty prefix that every reference
+           # had already been rewritten to. A file list cannot do either.
+           "--files-from", str(listing),
            "--transfers", "8", "--checkers", "8", "--stats-one-line"]
     if args.dry_run:
         cmd.append("--dry-run")

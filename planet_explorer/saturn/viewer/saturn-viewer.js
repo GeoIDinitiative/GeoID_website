@@ -668,15 +668,15 @@
 
     const MOON_VIEWER_TEXTURES = {
       // Major moons — mission-derived maps
-      Mimas:      "assets/mimas_color_map.jpg",
-      Enceladus:  "assets/enceladus_color_map.jpg",
-      Tethys:     "assets/tethys_color.jpg",
-      Dione:      "assets/Dione_Color_Map.jpg",
-      Rhea:       "assets/rhea_color_map.jpg",
+      Mimas:      "https://data.geoidinitiative.com/assets/hotlink-ok/planet-saturn/mimas_color_map.jpg?v=66c7946c73bf",
+      Enceladus:  "https://data.geoidinitiative.com/assets/hotlink-ok/planet-saturn/enceladus_color_map.jpg?v=16c0063f84c1",
+      Tethys:     "https://data.geoidinitiative.com/assets/hotlink-ok/planet-saturn/tethys_color.jpg?v=8755cad495ab",
+      Dione:      "https://data.geoidinitiative.com/assets/hotlink-ok/planet-saturn/Dione_Color_Map.jpg?v=73e30483b52a",
+      Rhea:       "https://data.geoidinitiative.com/assets/hotlink-ok/planet-saturn/rhea_color_map.jpg?v=9c39a4975c7c",
       Titan:      "assets/titan_color_map.jpg",
-      Iapetus:    "assets/iapetus_color_map.jpg",
-      Hyperion:   "assets/hyperion_color_map.jpg",
-      Phoebe:     "assets/phoebe_color_map.jpg",
+      Iapetus:    "https://data.geoidinitiative.com/assets/hotlink-ok/planet-saturn/iapetus_color_map.jpg?v=f47b751f379d",
+      Hyperion:   "https://data.geoidinitiative.com/assets/hotlink-ok/planet-saturn/hyperion_color_map.jpg?v=b32fa8f4f98a",
+      Phoebe:     "https://data.geoidinitiative.com/assets/hotlink-ok/planet-saturn/phoebe_color_map.jpg?v=f6d1f9b40c54",
       // Mid-sized inner moons — individual Cassini-derived maps
       Epimetheus: "assets/epimetheus_color_map.jpg",
       Janus:      "assets/janus_color_map.jpg",

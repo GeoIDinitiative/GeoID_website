@@ -689,7 +689,7 @@
       return ((360 - sceneLon) % 360);
     }
     const MOON_VIEWER_TEXTURES = {
-      Miranda: "assets/miranda_color_map.jpg",
+      Miranda: "https://data.geoidinitiative.com/assets/hotlink-ok/planet-uranus/miranda_color_map.jpg?v=ec5127d6e6d8",
       Ariel:   "assets/ariel_color_map.jpg",
       Umbriel: "assets/umbriel_color_map.jpg",
       Titania: "assets/titania_color_map.jpg",

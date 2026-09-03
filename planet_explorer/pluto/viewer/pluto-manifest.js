@@ -1,11 +1,11 @@
 const manifest = {
   "texture": {
-    "path": "assets/pluto_color.jpg?v=1778680838",
+    "path": "https://data.geoidinitiative.com/assets/hotlink-ok/planet-pluto/pluto_color.jpg?v=e9e585d4f910",
     "width": 4096,
     "source_page_url": "https://astrogeology.usgs.gov/search/map/pluto_new_horizons_global_mosaic_300m"
   },
   "elevation": {
-    "path": "assets/pluto_elevation.png?v=1778619309",
+    "path": "https://data.geoidinitiative.com/assets/hotlink-ok/planet-pluto/pluto_elevation.png?v=6e6892692582",
     "width": 2048,
     "min_m": -4101.0,
     "max_m": 6491.0,
@@ -29,7 +29,7 @@ const manifest = {
     {
       "id": "nh-color",
       "label": "NH Color Mosaic",
-      "path": "assets/pluto_color.jpg?v=1778680838",
+      "path": "https://data.geoidinitiative.com/assets/hotlink-ok/planet-pluto/pluto_color.jpg?v=e9e585d4f910",
       "description": "New Horizons LORRI/Ralph enhanced-color global mosaic of Pluto.",
       "source_page_url": "https://astrogeology.usgs.gov/search/map/pluto_new_horizons_global_mosaic_300m",
       "default": true
@@ -37,7 +37,7 @@ const manifest = {
     {
       "id": "derived-hillshade",
       "label": "Hillshade",
-      "path": "assets/pluto_hillshade.jpg?v=1778619281",
+      "path": "https://data.geoidinitiative.com/assets/hotlink-ok/planet-pluto/pluto_hillshade.jpg?v=d805aed0a846",
       "description": "Derived hillshade generated from the New Horizons global Pluto topography model.",
       "source_page_url": "https://astrogeology.usgs.gov/search/map/pluto_new_horizons_digital_elevation_model",
       "texture_offset_x": 0.0,
@@ -46,7 +46,7 @@ const manifest = {
     {
       "id": "derived-slope",
       "label": "Slope",
-      "path": "assets/pluto_slope.jpg?v=1778619281",
+      "path": "https://data.geoidinitiative.com/assets/hotlink-ok/planet-pluto/pluto_slope.jpg?v=9bb25d7c3dfb",
       "description": "Derived slope basemap generated from the New Horizons global Pluto topography model.",
       "source_page_url": "https://astrogeology.usgs.gov/search/map/pluto_new_horizons_digital_elevation_model",
       "texture_offset_x": 0.0,

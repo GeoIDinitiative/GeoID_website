@@ -1279,7 +1279,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     const CTX_ZOOM_ANIM_MS = 450;
     const DEFAULT_CAMERA_POSITION = Object.freeze({ x: 0, y: 1.4, z: 11.5 });
     const MOON_VIEWER_TEXTURES = {
-      "Charon": "assets/charon_color.jpg",
+      "Charon": "https://data.geoidinitiative.com/assets/hotlink-ok/planet-pluto/charon_color.jpg?v=1ac61142db08",
       "Nix": "assets/nix_color.jpg",
       "Hydra": "assets/hydra_color.jpg",
     };

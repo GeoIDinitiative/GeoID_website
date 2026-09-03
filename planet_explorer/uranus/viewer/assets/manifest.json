@@ -66,10 +66,10 @@
     "clustered_event_count": 0
   },
   "sources": {
-    "texture_url": "assets/uranus_body_color.jpg",
-    "ring_texture_url": "assets/uranus_rings.png",
+    "texture_url": "https://data.geoidinitiative.com/assets/hotlink-ok/planet-uranus/uranus_body_color.jpg?v=ab7b9dae8f1b",
+    "ring_texture_url": "https://data.geoidinitiative.com/assets/hotlink-ok/planet-uranus/uranus_rings.png?v=d13d632e05b1",
     "dem_url": "synthetic-flat-dem",
-    "geology_url": "assets/uranus_geology_sim3292.png",
+    "geology_url": "https://data.geoidinitiative.com/assets/hotlink-ok/planet-uranus/uranus_geology_sim3292.png?v=36c18ceb158b",
     "geology_database_path": "https://science.nasa.gov/uranus/facts/",
     "tes_albedo_url": "derived-grayscale-band-layer",
     "tes_thermal_inertia_url": "derived-storm-contrast-layer",

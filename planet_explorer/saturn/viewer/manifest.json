@@ -1,6 +1,6 @@
 {
   "texture": {
-    "path": "assets/saturn_body_color.jpg",
+    "path": "https://data.geoidinitiative.com/assets/hotlink-ok/planet-saturn/saturn_body_color.jpg?v=fe5cffc880ae",
     "width": 4096,
     "source_page_url": "https://science.nasa.gov/solar-system/planets/saturn/"
   },
@@ -8,7 +8,7 @@
     "body_scale_y": 0.902,
     "axial_tilt_deg": 26.7,
     "rings": {
-      "path": "assets/saturn_rings.webp",
+      "path": "https://data.geoidinitiative.com/assets/hotlink-ok/planet-saturn/saturn_rings.webp?v=c76294efa28c",
       "inner_km": 74500,
       "outer_km": 136800,
       "inner_radius": 3.955,
@@ -28,7 +28,7 @@
     "source_page_url": "synthetic-flat-dem"
   },
   "geology": {
-    "path": "assets/saturn_geology_sim3292.png",
+    "path": "https://data.geoidinitiative.com/assets/hotlink-ok/planet-saturn/saturn_geology_sim3292.png?v=90ad8cc0e799",
     "size": [
       4096,
       2048
@@ -42,7 +42,7 @@
     {
       "id": "enhanced-atmosphere",
       "label": "Enhanced Atmosphere",
-      "path": "assets/saturn_geology_sim3292.png",
+      "path": "https://data.geoidinitiative.com/assets/hotlink-ok/planet-saturn/saturn_geology_sim3292.png?v=90ad8cc0e799",
       "description": "Locally enhanced atmospheric context derived from the official NASA Saturn image.",
       "source_page_url": "https://science.nasa.gov/solar-system/planets/saturn/",
       "size": [
@@ -56,7 +56,7 @@
     {
       "id": "saturn-visible",
       "label": "Saturn Body",
-      "path": "assets/saturn_body_color.jpg",
+      "path": "https://data.geoidinitiative.com/assets/hotlink-ok/planet-saturn/saturn_body_color.jpg?v=fe5cffc880ae",
       "description": "Derived Saturn body texture for the oblate globe, separated from the ring system.",
       "source_page_url": "https://science.nasa.gov/solar-system/planets/saturn/",
       "default": true
@@ -64,7 +64,7 @@
     {
       "id": "saturn-band-contrast",
       "label": "Band Contrast",
-      "path": "assets/saturn_tes_albedo.png",
+      "path": "https://data.geoidinitiative.com/assets/hotlink-ok/planet-saturn/saturn_tes_albedo.png?v=f995b374e720",
       "description": "Derived grayscale layer emphasizing atmospheric bands and haze structure.",
       "source_page_url": "https://science.nasa.gov/solar-system/planets/saturn/",
       "size": [
@@ -75,7 +75,7 @@
     {
       "id": "saturn-storm-contrast",
       "label": "Storm Contrast",
-      "path": "assets/saturn_tes_thermal_inertia.png",
+      "path": "https://data.geoidinitiative.com/assets/hotlink-ok/planet-saturn/saturn_tes_thermal_inertia.png?v=43ec52b17639",
       "description": "Derived high-contrast layer emphasizing vortices and cloud texture boundaries.",
       "source_page_url": "https://science.nasa.gov/solar-system/planets/saturn/",
       "size": [
@@ -93,10 +93,10 @@
     "clustered_event_count": 0
   },
   "sources": {
-    "texture_url": "assets/saturn_color_upscaled.jpg",
+    "texture_url": "https://data.geoidinitiative.com/assets/hotlink-ok/planet-saturn/saturn_color_upscaled.jpg?v=54054bafe755",
     "ring_texture_url": "https://assets.science.nasa.gov/content/dam/science/missions/hubble/releases/1990/11/STScI-01EVTBDACAJS4TJP8SKB5KW3X6.tif",
     "dem_url": "synthetic-flat-dem",
-    "geology_url": "assets/saturn_color_upscaled.jpg",
+    "geology_url": "https://data.geoidinitiative.com/assets/hotlink-ok/planet-saturn/saturn_color_upscaled.jpg?v=54054bafe755",
     "geology_database_path": "https://science.nasa.gov/saturn/facts/",
     "tes_albedo_url": "derived-grayscale-band-layer",
     "tes_thermal_inertia_url": "derived-storm-contrast-layer",
