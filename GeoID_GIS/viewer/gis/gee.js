@@ -10,22 +10,22 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-fda847e";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260903-fda847e";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260903-fda847e";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260903-c5aa147";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260903-c5aa147";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260903-c5aa147";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260903-fda847e";
+  from "./view-extent.js?v=20260903-c5aa147";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260903-fda847e";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-fda847e";
+} from "./extent-picker.js?v=20260903-c5aa147";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260903-c5aa147";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
-} from "./gee-catalogue-index.js?v=20260903-fda847e";
+} from "./gee-catalogue-index.js?v=20260903-c5aa147";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -1081,7 +1081,6 @@ function ensureGeeDialog() {
     '<div class="gee-param-title">Fetch parameters</div>',
     '<label>Extent<select id="gee-add-extent">',
     '<option value="global">Global</option>',
-    '<option value="view">Current globe view</option>',
     // "drawn" is the LIVE overlay — a box dragged out on the globe. It has to
     // be in the markup: refreshPolygonOptions only appends the NAMED layers,
     // and its absence is what once left a drawn box unselectable.
@@ -1489,19 +1488,23 @@ async function showChosenExtent() {
     return;
   }
   let box = null;
-  if (choice === "view") {
-    // viewBounds raycasts through the camera and needs the three.js module the
-    // request path loads lazily — without this it answers null on a page where
-    // nothing has been requested yet, and "Current globe view" silently did
-    // nothing at all.
-    if (!THREE) THREE = await import("../vendor/three.module.js");
-    const b = viewBounds();
-    if (b) box = [b.minX, b.minY, b.maxX, b.maxY];
-  } else {
-    const picked = resolvePolygonExtent(choice);
-    if (picked?.error) { dialogStatus(picked.error); return; }
-    if (picked) box = [picked.west, picked.south, picked.east, picked.north];
-  }
+  /**
+   * NO "current globe view" HERE.
+   *
+   * It looked like the cheapest way to say "over there" and was the most
+   * expensive: it raycasts through the camera, so it needs three.js loaded —
+   * which the request path does lazily, and it answered NULL and silently did
+   * nothing on any page where nothing had been requested yet. It also names a
+   * different patch of ground every time the globe turns, so the extent a tile
+   * was added with is not the one the next tile gets.
+   *
+   * A drawn shape says the same thing and holds still. `viewBounds` itself
+   * stays — the Atmosphere tab's own select still offers the option, and
+   * `requestBounds` falls back to it.
+   */
+  const picked = resolvePolygonExtent(choice);
+  if (picked?.error) { dialogStatus(picked.error); return; }
+  if (picked) box = [picked.west, picked.south, picked.east, picked.north];
   if (!box) { dialogStatus("That extent could not be resolved."); return; }
   describeExtent(box);
 }
