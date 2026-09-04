@@ -68,7 +68,7 @@
     {
       "id": "derived-slope",
       "label": "GEBCO Slope",
-      "path": "../assets/earth_slope.jpg",
+      "path": "https://data.geoidinitiative.com/assets/hotlink-ok/earth-viewer/earth_slope.jpg?v=a243891e96c3",
       "description": "Derived slope basemap generated from the GEBCO 2025 global elevation model.",
       "source_page_url": "https://www.gebco.net/data-products/gridded-bathymetry-data#global",
       "size": [
