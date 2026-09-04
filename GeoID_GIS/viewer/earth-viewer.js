@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260904-200ef9b";
+  from "./gis/geo-utils.js?v=20260904-8334fff";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260904-200ef9b";
+  from "./gis/vector-render.js?v=20260904-8334fff";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260904-200ef9b";
+  from "./gis/rock-class.js?v=20260904-8334fff";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260904-200ef9b";
+  from "./gis/lithology-label.js?v=20260904-8334fff";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -6280,10 +6280,26 @@ function fmtProp(value) {
             : ""
         );
       // Populate content
-      if (geoPopupKicker) {
-        geoPopupKicker.textContent = classLabel || feature.type || "Geologic unit";
+      const kickerText = classLabel || feature.type || "Geologic unit";
+      if (geoPopupKicker) geoPopupKicker.textContent = kickerText;
+      /**
+       * THE CARD DOES NOT SAY ITS OWN NAME TWICE.
+       *
+       * With nothing but geometry to go on, the kicker and the title were both
+       * the same word: "MAPPED AREA" over "Mapped area" — two lines, one of
+       * them free, spent saying nothing. The existing guard compares the title
+       * against the META parts and never looked at the line directly above it.
+       *
+       * The kicker keeps it, because a kicker is what a card is FOR: the class
+       * of thing, in small caps, over whatever distinguishes this one. Where
+       * nothing distinguishes it, one honest line beats two identical ones.
+       */
+      if (geoPopupTitle) {
+        const sameAsKicker = popupTitle
+          && popupTitle.trim().toLowerCase() === kickerText.trim().toLowerCase();
+        geoPopupTitle.textContent = sameAsKicker ? "" : popupTitle;
+        geoPopupTitle.hidden = Boolean(sameAsKicker);
       }
-      if (geoPopupTitle) geoPopupTitle.textContent = popupTitle;
       const metaParts = [];
       if (feature.type === "Geologic structure") {
         if (geometryName && interpretation && geometryName.toLowerCase() !== interpretation.toLowerCase()) {
@@ -6434,7 +6450,25 @@ function fmtProp(value) {
          * none of it true of the ground clicked. The soil card says what does
          * apply and why this does not.
          */
-        const lithForProperties = feature.soil ? null : (lithology || geometryName);
+        /**
+         * AND NOT FOR ANYTHING THAT MERELY HAS A NAME.
+         *
+         * `lithology` falls back to `rock_type`, which is a DISPLAY string —
+         * for a feature that names no rock it holds the geometry noun. So a
+         * buffer ring arrived with rock_type "Mapped area", that became its
+         * lithology, the database found nothing under it and answered with
+         * its no-information PRIOR: sixteen rock-mechanics parameters about a
+         * ring somebody drew around two points. Exactly the fault the soil
+         * note above records, reached through a different fallback.
+         *
+         * The prior exists for a real geological unit whose survey states no
+         * lithology — 521 polygons of the world map — so the fallback is kept
+         * for those and refused to everything else. `geological` is asked of
+         * the LAYER, because whether this is a geological map is a fact about
+         * the map and not about one polygon.
+         */
+        const namesAMaterial = feature.lithology || (feature.geological && geometryName);
+        const lithForProperties = feature.soil ? null : (namesAMaterial || null);
         geoPopupPass += 1;
         const pass = geoPopupPass;
         if (lithForProperties) {

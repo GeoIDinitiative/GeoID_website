@@ -28,15 +28,15 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260904-200ef9b";
-import { currentBodyId } from "./bodies.js?v=20260904-200ef9b";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260904-200ef9b";
-import { rockClass } from "./rock-class.js?v=20260904-200ef9b";
-import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260904-200ef9b";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260904-200ef9b";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260904-200ef9b";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260904-8334fff";
+import { currentBodyId } from "./bodies.js?v=20260904-8334fff";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260904-8334fff";
+import { rockClass } from "./rock-class.js?v=20260904-8334fff";
+import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260904-8334fff";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260904-8334fff";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260904-8334fff";
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260904-200ef9b";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260904-8334fff";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -1272,6 +1272,18 @@ function toInteractiveCatalogue(layers) {
          * statement under another name.
          */
         lithology: val(props.lith, props.liths, props.rcs_d, props.rock_d),
+        /**
+         * A MAPPED GEOLOGICAL UNIT, said out loud.
+         *
+         * The card's rock-property fold may fall back to the database's
+         * no-information prior, and it should — 521 polygons of the world map
+         * state no lithology at all, and a model over them still needs
+         * numbers. What it must NOT do is answer for anything that merely has
+         * a name, which is how a buffer ring came to carry sixteen
+         * rock-mechanics parameters. This flag is the difference, declared by
+         * the builder that knows it rather than guessed at by the card.
+         */
+        geological: true,
         rock_class: rockClass(props.lith, props.rcs_d, props.rock_d, props.descrip),
         rock_type_detail: val(props.lex_rcs_d),
         description: val(props.rcs_d, props.bgstype),

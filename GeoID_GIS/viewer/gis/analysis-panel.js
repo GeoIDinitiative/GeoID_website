@@ -11,9 +11,9 @@ import {
   vectorRows,
   extractDelimitedWithin,
   delimitedColumns,
-} from "./extraction.js?v=20260904-200ef9b";
-import { resolvePolygonRings, refreshPolygonOptions } from "./extent-picker.js?v=20260904-200ef9b";
-import { rectangleVertices } from "./draw-area.js?v=20260904-200ef9b";
+} from "./extraction.js?v=20260904-8334fff";
+import { resolvePolygonRings, refreshPolygonOptions } from "./extent-picker.js?v=20260904-8334fff";
+import { rectangleVertices } from "./draw-area.js?v=20260904-8334fff";
 
 let lastResult = null;
 // The whole extraction as one object -- bounds, grid, vectors, clouds. This is

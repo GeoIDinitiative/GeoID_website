@@ -1,21 +1,21 @@
-import * as GP from "./geoprocessing.js?v=20260904-200ef9b";
-import * as RA from "./raster-analysis.js?v=20260904-200ef9b";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260904-200ef9b";
+import * as GP from "./geoprocessing.js?v=20260904-8334fff";
+import * as RA from "./raster-analysis.js?v=20260904-8334fff";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260904-8334fff";
 // eslint-disable-next-line no-unused-vars
-import { pointInPolygon } from "./geometry.js?v=20260904-200ef9b";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260904-200ef9b";
+import { pointInPolygon } from "./geometry.js?v=20260904-8334fff";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260904-8334fff";
 // Pure and DOM-free, so a static import keeps this module Node-clean AND keeps
 // the terrain engine SYNCHRONOUS -- runTool calls engines.native WITHOUT
 // awaiting it, so an async engine hands register() a Promise and the raster
 // comes out undefined. Measured as: "Cannot read properties of undefined".
-import { buildSurface, nativeStepM } from "./model-build.js?v=20260904-200ef9b";
-import { nativeGridOf } from "./extraction.js?v=20260904-200ef9b";
-import { CRS_OPTIONS } from "./projection.js?v=20260904-200ef9b";
-import * as IN from "./interpolation.js?v=20260904-200ef9b";
-import * as VAL from "./validation.js?v=20260904-200ef9b";
-import * as EX from "./analysis-extra.js?v=20260904-200ef9b";
-import * as HY from "./hydrology.js?v=20260904-200ef9b";
-import * as KR from "./kriging.js?v=20260904-200ef9b";
+import { buildSurface, nativeStepM } from "./model-build.js?v=20260904-8334fff";
+import { nativeGridOf } from "./extraction.js?v=20260904-8334fff";
+import { CRS_OPTIONS } from "./projection.js?v=20260904-8334fff";
+import * as IN from "./interpolation.js?v=20260904-8334fff";
+import * as VAL from "./validation.js?v=20260904-8334fff";
+import * as EX from "./analysis-extra.js?v=20260904-8334fff";
+import * as HY from "./hydrology.js?v=20260904-8334fff";
+import * as KR from "./kriging.js?v=20260904-8334fff";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -102,6 +102,7 @@ export const TOOLS = [
   // ── Vector geoprocessing (the legacy VECTOR_OPS table, one row each) ──────
   {
     id: "buffer",
+    featureNoun: "Buffer",
     label: "Buffer",
     category: "Vector geoprocessing",
     blurb: "Grow each feature outward by a distance in kilometres; overlaps dissolve.",
@@ -130,6 +131,12 @@ export const TOOLS = [
   },
   {
     id: "multiBuffer",
+    featureNoun: "Buffer band",
+    featureTitle: (props) => {
+      const to = Number(props?.buffer_km);
+      const from = Number(props?.buffer_min_km) || 0;
+      return Number.isFinite(to) ? `${from}\u2013${to} km from the source` : null;
+    },
     label: "Multi-ring buffer",
     category: "Vector geoprocessing",
     blurb: "Nested distance bands around the features — 10 km, 20 km, 30 km — "
@@ -170,6 +177,8 @@ export const TOOLS = [
   },
   {
     id: "clip",
+    // Cuts rather than creates: it is still whatever it was.
+    inheritNoun: true,
     label: "Clip by layer",
     category: "Vector geoprocessing",
     blurb: "Keep only the parts of the input that fall inside the overlay's polygons.",
@@ -185,6 +194,8 @@ export const TOOLS = [
   },
   {
     id: "difference",
+    // Cuts rather than creates: it is still whatever it was.
+    inheritNoun: true,
     label: "Difference",
     category: "Vector geoprocessing",
     blurb: "Remove the overlay's area from the input; what survives lies outside it.",
@@ -200,6 +211,8 @@ export const TOOLS = [
   },
   {
     id: "intersect",
+    // Cuts rather than creates: it is still whatever it was.
+    inheritNoun: true,
     label: "Intersect",
     category: "Vector geoprocessing",
     blurb: "Keep the area common to both layers.",
@@ -215,6 +228,7 @@ export const TOOLS = [
   },
   {
     id: "dissolve",
+    featureNoun: "Merged area",
     label: "Dissolve / merge",
     category: "Vector geoprocessing",
     blurb: "Merge everything into one shape, or one shape per value of a field; "
@@ -231,6 +245,7 @@ export const TOOLS = [
   },
   {
     id: "hull",
+    featureNoun: "Convex hull",
     label: "Convex hull",
     category: "Vector geoprocessing",
     blurb: "The smallest convex polygon that encloses all features.",
@@ -243,6 +258,7 @@ export const TOOLS = [
   },
   {
     id: "centroids",
+    featureNoun: "Centroid",
     label: "Centroids",
     category: "Vector geoprocessing",
     blurb: "One point at the geometric centre of each feature.",
@@ -255,6 +271,8 @@ export const TOOLS = [
   },
   {
     id: "simplify",
+    // Cuts rather than creates: it is still whatever it was.
+    inheritNoun: true,
     label: "Simplify",
     category: "Vector geoprocessing",
     blurb: "Drop vertices within a tolerance in metres while keeping the overall shape.",
@@ -269,6 +287,8 @@ export const TOOLS = [
   },
   {
     id: "union",
+    // Cuts rather than creates: it is still whatever it was.
+    inheritNoun: true,
     label: "Union (merge layers)",
     category: "Vector geoprocessing",
     blurb: "Merge two polygon layers into one; overlapping shapes fuse together.",
@@ -295,6 +315,8 @@ export const TOOLS = [
   },
   {
     id: "reproject",
+    // Cuts rather than creates: it is still whatever it was.
+    inheritNoun: true,
     label: "Reproject (CRS)",
     category: "Vector geoprocessing",
     blurb: "Transform feature coordinates from one coordinate reference system to another.",
@@ -317,6 +339,8 @@ export const TOOLS = [
   },
   {
     id: "spatialJoin",
+    // Cuts rather than creates: it is still whatever it was.
+    inheritNoun: true,
     label: "Spatial join",
     category: "Vector geoprocessing",
     blurb: "Copy attributes onto input features from overlay features that intersect them.",
@@ -472,6 +496,7 @@ export const TOOLS = [
   },
   {
     id: "contours",
+    featureNoun: "Contour",
     label: "Contours",
     category: "Surface analysis",
     blurb: "Trace lines of constant value at a fixed interval — contour lines from a DEM.",
@@ -1153,6 +1178,7 @@ export const TOOLS = [
   },
   {
     id: "voronoi",
+    featureNoun: "Voronoi cell",
     label: "Voronoi polygons",
     category: "Interpolation",
     blurb: "One polygon per point, covering everywhere closer to it than to any other — catchments, service areas, nearest-station zones.",
@@ -1171,6 +1197,8 @@ export const TOOLS = [
   },
   {
     id: "zonalStatistics",
+    // Cuts rather than creates: it is still whatever it was.
+    inheritNoun: true,
     label: "Zonal statistics",
     category: "Zonal statistics",
     blurb: "Min, max, mean, sum and spread of raster values inside each polygon zone.",
@@ -1387,6 +1415,8 @@ export const TOOLS = [
   },
   {
     id: "randomSample",
+    // Cuts rather than creates: it is still whatever it was.
+    inheritNoun: true,
     label: "Random sample points",
     category: "Validation",
     blurb: "Reproducible points spread evenly over a raster's extent, for validation.",
@@ -1419,6 +1449,8 @@ export const TOOLS = [
   },
   {
     id: "stratifiedSample",
+    // Cuts rather than creates: it is still whatever it was.
+    inheritNoun: true,
     label: "Stratified sample points",
     category: "Validation",
     blurb: "Equal numbers from each class, so the rare high class is not missed.",
@@ -2609,7 +2641,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260904-200ef9b");
+    const client = await import("./sidecar-client.js?v=20260904-8334fff");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -2674,7 +2706,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260904-200ef9b");
+    const bridge = await import("./research/bridge.js?v=20260904-8334fff");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -2686,12 +2718,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260904-200ef9b");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260904-8334fff");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260904-200ef9b");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260904-8334fff");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }
@@ -2965,6 +2997,29 @@ function register(desc, raw, name, resolvedInputs = {}) {
   }
   const result = buildVectorLayerResult(shown, { name, drape: 0.008, rankOf, contacts });
   const layer = window.GeoIDImportManager?.addDerivedLayer?.(name, result, "derived") || null;
+  /**
+   * WHAT THE TOOL MADE, so its features can say what they are.
+   *
+   * A derived layer's features fell through to the geometry noun, so clicking
+   * a buffer ring gave a card headed "MAPPED AREA" over the title "Mapped
+   * area" — the same empty word twice, about the one thing on screen the app
+   * had complete knowledge of. The shipped catalogue solved this long ago with
+   * `featureNoun`; a tool knows at least as much about its own output, so it
+   * declares the same thing.
+   *
+   * `inheritNoun` is for the tools that CUT rather than create: a clip of a
+   * geological map is still geological units, so it keeps the source's noun
+   * rather than being renamed after the operation that trimmed it.
+   */
+  if (layer) {
+    const inherited = desc.inheritNoun
+      ? Object.values(resolvedInputs).find((i) => i?.featureNoun)?.featureNoun : null;
+    const noun = desc.featureNoun || inherited;
+    if (noun) layer.featureNoun = noun;
+    // And how to TITLE one, where the tool knows what distinguishes its
+    // features from each other — a band by its distance, and so on.
+    if (typeof desc.featureTitle === "function") layer.featureTitle = desc.featureTitle;
+  }
   /**
    * A tool may declare how its output is READ (`paint`), and the multi-ring
    * buffer does. Dynamic import and best-effort, in that order of caution --

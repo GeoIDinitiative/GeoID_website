@@ -20,18 +20,18 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260904-200ef9b";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260904-200ef9b";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260904-8334fff";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260904-8334fff";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20260904-200ef9b";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260904-200ef9b";
-import { lithologyLabel } from "./lithology-label.js?v=20260904-200ef9b";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260904-200ef9b";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260904-200ef9b";
+} from "./vector-render.js?v=20260904-8334fff";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260904-8334fff";
+import { lithologyLabel } from "./lithology-label.js?v=20260904-8334fff";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260904-8334fff";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260904-8334fff";
 import {
   canEditRow, editableFields, applyRowChange,
-} from "./table-editor.js?v=20260904-200ef9b";
+} from "./table-editor.js?v=20260904-8334fff";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -834,6 +834,32 @@ function buildDetail(feature, props) {
 }
 
 /**
+ * The layer's own provenance line, or nothing.
+ *
+ * `credit` and `metadata.source` are what a shipped or fetched dataset states
+ * about itself; a layer somebody derived thirty seconds ago states nothing,
+ * and its name is not a citation.
+ */
+function layerSource(layer) {
+  const stated = layer?.credit
+    || layer?.metadata?.citation || layer?.metadata?.source || layer?.info?.source;
+  const text = typeof stated === "string" ? stated.trim() : "";
+  return text || null;
+}
+
+/**
+ * A mapped geological unit — asked of the LAYER, because the answer is a fact
+ * about the map rather than about one polygon. A clip of a geological map is
+ * still geology, which is why the dataset marker is checked as well as the
+ * feature's own columns.
+ */
+function isGeological(layer, feature) {
+  if (layer?.geologyDataset || layer?.role === "geology") return true;
+  const props = feature?.properties || {};
+  return Boolean(props.lith || props.liths || props.rock_d || props.rcs_d);
+}
+
+/**
  * What kind of thing was clicked — from the LAYER first, its geometry after.
  *
  * Geometry alone gave "Mapped line", which is equally true of a coastline, a
@@ -998,14 +1024,33 @@ function showViewerCard(hits, at) {
      * rockhead"), else its geometry. The line under it never repeats the
      * heading, or the card says the same words twice.
      */
-    rock_type: lithologyLabel(lithology) || name || kind || featureKind(top.feature, top.layer),
+    rock_type: lithologyLabel(lithology) || name
+      || top.layer?.featureTitle?.(top.feature?.properties || {})
+      || kind || featureKind(top.feature, top.layer),
     // Carried explicitly so the card's rock-property fold reads the same
     // lithology on a clipped or derived layer as it does on the world geology.
     // One card, one implementation, one answer for the same ground.
     lithology: lithology || null,
     name: null,
     description: lithology ? (name || kind || null) : (name && kind ? kind : null),
-    origin: top.layer.name || null,
+    /**
+     * A SOURCE, not a layer name.
+     *
+     * This passed `layer.name`, so every card opened a "Sources" fold whose
+     * one line was the name of the layer already showing in the row above it —
+     * and a buffer somebody made thirty seconds ago was cited as though it
+     * were a survey. A layer that states no provenance has none to state, and
+     * a fold that says nothing is worse than an absent one.
+     */
+    origin: layerSource(top.layer),
+    /**
+     * Whether this is a mapped GEOLOGICAL unit, which is a different question
+     * from whether it happens to name a rock — and it is what decides if the
+     * rock-property fold may fall back to the no-information prior. A unit
+     * whose survey states no lithology still deserves it; a buffer ring does
+     * not.
+     */
+    geological: isGeological(top.layer, top.feature),
     mapped_area_km2: km2 > 0 ? Number(km2.toFixed(km2 >= 100 ? 0 : 2)) : null,
     length_km: km > 0 ? Number(km.toFixed(km >= 100 ? 0 : 2)) : null,
     rows,
