@@ -12397,3 +12397,48 @@ in the data.
 WHOLE frame, empty space included, are not the sheet — nothing drawn on the
 globe can paint the sky. That is the viewer's own scanline skin. The artefacts
 that were real are the ones that stop at the limb.
+
+### The Elevation catalogue: three readings, one pyramid
+
+Asked whether the streamed DEM should also produce slope and hillshade
+basemaps. It should produce them; they should not be basemaps.
+
+**Three READINGS of one source, not three sources.** Slope and hillshade are
+arithmetic ON a DEM, and this app already owns that arithmetic:
+`raster-analysis` exports the same `slope` and `hillshade` the tool registry
+runs and the suite sweeps against closed-form fixtures. So a row derives its
+band from the SAME streamed grid — one cover, one fetch, one set of lessons
+about chord sag and depth. Measured with two rows ticked: **73 tiles held, not
+146.**
+
+**Not basemaps, for three reasons.** The GEBCO hillshade and slope already sit
+in that catalogue, so two more rows would be four controls for two ideas — the
+duplication rule this file keeps paying for. The engines exist and are tested,
+so a pre-built pair would be a second implementation of arithmetic that has
+one. And a GLOBAL streamed slope is no better than what ships: at a world view
+the streamed cover is zoom 3, which is the 19.6 km GEBCO already is. **The gain
+is local, which makes it a view-following layer rather than a basemap.**
+
+Three things decided while building it:
+
+- **A hillshade is three identical bands.** `buildTexture` treats three bands
+  as RGB and one band as a value to run through a colour ramp — and a hillshade
+  through a colour ramp is not a hillshade. Handing it the same greys three
+  times is the whole trick.
+- **A hillshade has no key.** Its values are shade rather than a measurement,
+  so a card reading "82 to 248" beside a colour bar says nothing and the bar is
+  wrong twice over, the layer being grey. `legendHidden` — the events feed's own
+  seam — keeps the row, the eye, the opacity and the draw order, and drops only
+  the card.
+- **The range quoted is of what the row DRAWS**, not of the heights it came
+  from. Slope reports "0 to 32°" over the Alps; quoting the elevation range
+  under a slope map is a number about a different raster.
+
+**And the light controls finally have a job.** `#hillshade-azimuth` and
+`#hillshade-altitude` have been in the page, hidden, read by `earth-viewer.js`,
+for as long as anyone can tell; the streamed hillshade reads them for its own
+lighting with 315/45 as the fallback.
+
+The shipped GEBCO pair stays in Basemaps: global, instant, no fetch. These are
+the local answer at the view's own scale, which is a different product rather
+than a better one.

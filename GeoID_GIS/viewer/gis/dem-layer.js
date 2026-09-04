@@ -18,11 +18,78 @@
  * the displaced surface, and the raster every terrain tool wants as an input.
  */
 
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260904-f8b0917";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260904-f8b0917";
-import * as dem from "./dem-tiles.js?v=20260904-f8b0917";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260905-3edf317";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260905-3edf317";
+import { makeRaster, slope as slopeOf, hillshade as hillshadeOf }
+  from "./raster-analysis.js?v=20260905-3edf317";
+import * as dem from "./dem-tiles.js?v=20260905-3edf317";
 
-export const DEM_LAYER_NAME = "Elevation (streamed DEM)";
+/**
+ * THREE READINGS OF ONE SOURCE, not three sources.
+ *
+ * Slope and hillshade are arithmetic ON a DEM, and this app already owns that
+ * arithmetic: `raster-analysis` exports the same `slope` and `hillshade` the
+ * tool registry runs and the suite sweeps against closed-form fixtures. So a
+ * row here derives its band from the SAME streamed grid rather than fetching
+ * anything of its own — one pyramid, one cover, one set of lessons about chord
+ * sag and depth, three ways to read the ground.
+ *
+ * The shipped GEBCO hillshade and slope stay where they are. They are global,
+ * instant and free of any fetch; these are the LOCAL answer, which is a
+ * different product rather than a better one — at a world view the streamed
+ * cover is the same 19.6 km GEBCO already is.
+ */
+export const SHEETS = {
+  elevation: {
+    id: "dem-elevation",
+    label: "Elevation (streamed DEM)",
+    unit: "m",
+    isDem: true,
+    opacity: 0.7,
+    summary: "Heights as a sheet on the ground, from streamed tiles.",
+    derive: (raster) => [raster.band],
+  },
+  slope: {
+    id: "dem-slope",
+    label: "Slope (from streamed DEM)",
+    unit: "°",
+    isDem: false,
+    opacity: 0.75,
+    summary: "Steepness in degrees, computed from the streamed heights — the "
+      + "layer a Factor-of-Safety pass actually wants, at the view's own scale.",
+    derive: (raster) => [slopeOf(raster, { degrees: true }).band],
+  },
+  hillshade: {
+    id: "dem-hillshade",
+    label: "Hillshade (from streamed DEM)",
+    unit: null,
+    isDem: false,
+    opacity: 0.85,
+    summary: "Shaded relief from the streamed heights, lit from the north-west.",
+    /**
+     * THREE IDENTICAL BANDS, because that is how this builder draws grey.
+     *
+     * `buildTexture` treats three bands as RGB and one band as a value to run
+     * through a colour ramp — and a hillshade through a colour ramp is not a
+     * hillshade. Handing it the same greys three times is the whole trick.
+     */
+    derive: (raster) => {
+      const shade = hillshadeOf(raster, {
+        azimuth: readLight("hillshade-azimuth", 315),
+        altitude: readLight("hillshade-altitude", 45),
+      }).band;
+      return [shade, shade, shade];
+    },
+  },
+};
+
+/** The page's own light controls, which had no job until now. */
+function readLight(id, fallback) {
+  const value = Number(document.getElementById(id)?.value);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+export const DEM_LAYER_NAME = SHEETS.elevation.label;
 
 /** Nothing measured is ever this low, so it reads as "no answer here". */
 const NO_DATA = -32768;
@@ -46,9 +113,21 @@ let watchStop = null;
 let lastBuilt = null;
 let busy = false;
 
-export function demLayer() {
+export function sheetLayer(kind) {
+  const spec = SHEETS[kind];
+  if (!spec) return null;
   return (window.GeoIDImportManager?.getLayers?.() || [])
-    .find((layer) => layer.name === DEM_LAYER_NAME) || null;
+    .find((layer) => layer.name === spec.label) || null;
+}
+
+/** The elevation sheet, for the callers that only ever meant that one. */
+export function demLayer() {
+  return sheetLayer("elevation");
+}
+
+/** Every sheet currently on the globe. The watcher rebuilds all of them. */
+function liveKinds() {
+  return Object.keys(SHEETS).filter((kind) => sheetLayer(kind));
 }
 
 /**
@@ -161,7 +240,9 @@ function targetBounds() {
  * elevation texture costs — and it is asked for only because somebody ticked
  * this row, which is what makes the bill fair.
  */
-async function build({ onStatus = () => {} } = {}) {
+async function build(kind, { onStatus = () => {} } = {}) {
+  const spec = SHEETS[kind];
+  if (!spec) return { ok: false, message: "No such elevation sheet." };
   if (busy) return { ok: false, message: "already building" };
   busy = true;
   try {
@@ -194,14 +275,21 @@ async function build({ onStatus = () => {} } = {}) {
     const rasterBounds = {
       minX: bounds.west, maxX: bounds.east, minY: bounds.south, maxY: bounds.north,
     };
-    const result = buildRasterLayer([band], GRID_W, GRID_H, rasterBounds, {
-      name: DEM_LAYER_NAME,
+    /**
+     * The reading this row asks for, derived from the SAME grid. `makeRaster`
+     * is what the analysis functions take, and it carries the bounds so slope
+     * knows its cell size in metres -- a slope computed on degrees would be
+     * wrong by the cosine of the latitude and look plausible everywhere.
+     */
+    const bands = spec.derive(makeRaster(band, GRID_W, GRID_H, rasterBounds, NO_DATA));
+    const result = buildRasterLayer(bands, GRID_W, GRID_H, rasterBounds, {
+      name: spec.label,
       noData: NO_DATA,
       // Declared, never inferred: a height field with few distinct values in a
       // small view would otherwise be read as a classified raster and lose the
-      // elevation ramp.
-      isDem: true,
-      unit: "m",
+      // elevation ramp -- and slope and hillshade must NOT borrow it.
+      isDem: spec.isDem,
+      unit: spec.unit,
     });
     /**
      * IT MUST NOT STAMP DEPTH IT NEVER TESTS AGAINST.
@@ -217,8 +305,8 @@ async function build({ onStatus = () => {} } = {}) {
       const mats = Array.isArray(node.material) ? node.material : [node.material];
       mats.forEach((m) => { if (m && m.depthTest === false) m.depthWrite = false; });
     });
-    const previous = demLayer();
-    const layer = window.GeoIDImportManager?.addDerivedLayer?.(DEM_LAYER_NAME, result, "tiles");
+    const previous = sheetLayer(kind);
+    const layer = window.GeoIDImportManager?.addDerivedLayer?.(spec.label, result, "tiles");
     if (!layer) return { ok: false, message: "the layer could not be registered" };
     // A rebuild is a new layer object, so what the reader chose is carried
     // across -- the rule the tiled geology already documents.
@@ -233,17 +321,26 @@ async function build({ onStatus = () => {} } = {}) {
      * on every settle would undo the slider a few seconds after it moved.
      */
     const opening = previous && Number.isFinite(previous.opacity)
-      ? previous.opacity : DEFAULT_OPACITY;
+      ? previous.opacity : spec.opacity;
     window.GeoIDLayerHierarchy?.setOpacity?.(layer, opening);
     if (previous) {
       if (previous.visible === false) window.GeoIDLayerHierarchy?.setVisible?.(layer, false);
       window.GeoIDImportManager?.removeLayer?.(previous.id);
     }
-    layer.mapEntryId = "map-dem-streamed";
+    layer.mapEntryId = spec.id;
+    /**
+     * A HILLSHADE HAS NO KEY. Its values are shade, not a measurement, so a
+     * legend card reading "82 to 248" beside a colour bar is furniture that
+     * says nothing — and the bar is a lie twice over, since the layer draws
+     * grey. `legendHidden` is the events feed's own seam: the layer keeps its
+     * row, its eye, its opacity and its place in the draw order, and only the
+     * card goes.
+     */
+    if (!spec.unit) layer.legendHidden = true;
     layer.info = {
       source: dem.TERRARIUM.credit,
-      summary: "Heights streamed as tiles and sampled onto this grid; the cursor "
-        + "readout and the terrain tools read the same source.",
+      summary: `${spec.summary} Streamed as tiles and sampled onto this grid; the `
+        + "cursor readout and the terrain tools read the same source.",
     };
     layer.metadata = {
       ...(layer.metadata || {}),
@@ -256,9 +353,26 @@ async function build({ onStatus = () => {} } = {}) {
     ));
     window.GeoIDLayerHierarchy?.render?.();
     lastBuilt = bounds;
+    /**
+     * The range of what this row DRAWS, not of the heights it came from.
+     *
+     * Quoting the elevation range under a slope map is a number about a
+     * different raster; a hillshade has no range worth quoting at all, its
+     * values being shade rather than a measurement.
+     */
+    let range = "";
+    if (spec.unit) {
+      let lo = Infinity; let hi = -Infinity;
+      for (const v of bands[0]) {
+        if (!Number.isFinite(v) || v === NO_DATA) continue;
+        if (v < lo) lo = v;
+        if (v > hi) hi = v;
+      }
+      if (Number.isFinite(lo)) range = `${Math.round(lo)} to ${Math.round(hi)}${spec.unit}, `;
+    }
     const message = [
-      DEM_LAYER_NAME, ": ", Math.round(min), " to ", Math.round(max), " m, about ",
-      posts, " m posts where nothing finer has streamed. ", dem.TERRARIUM.credit,
+      spec.label, ": ", range, "about ", posts,
+      " m posts where nothing finer has streamed. ", dem.TERRARIUM.credit,
     ].join("");
     onStatus(message);
     return { ok: true, layer, message };
@@ -280,28 +394,41 @@ function watch() {
   const viewer = window.GeoIDViewer;
   if (!viewer) return;
   watchStop = onViewSettled(viewer, () => {
-    if (!demLayer()) return;
+    const kinds = liveKinds();
+    if (!kinds.length) return;
     const next = targetBounds();
     const asView = (b) => ({ minLon: b.west, maxLon: b.east, minLat: b.south, maxLat: b.north });
     if (lastBuilt && !viewChangedEnough(asView(lastBuilt), asView(next))) return;
-    void build();
+    // Every sheet that is on, one after another: they share the cover and the
+    // grid, so the second and third cost arithmetic rather than tiles.
+    void kinds.reduce((chain, kind) => chain.then(() => build(kind)), Promise.resolve());
   }, { settleMs: 700, pollMs: 150 });
 }
 
-export async function addDemLayer(onStatus = () => {}) {
-  if (demLayer()) return { ok: true, message: `${DEM_LAYER_NAME} is already on the globe.` };
+export async function addSheet(kind, onStatus = () => {}) {
+  const spec = SHEETS[kind];
+  if (!spec) return { ok: false, message: "No such elevation sheet." };
+  if (sheetLayer(kind)) return { ok: true, message: `${spec.label} is already on the globe.` };
   if (!three) three = await import("../vendor/three.module.js");
-  const out = await build({ onStatus });
+  const out = await build(kind, { onStatus });
   if (out.ok) watch();
   return out;
 }
 
-export function removeDemLayer() {
-  const layer = demLayer();
-  watchStop?.();
-  watchStop = null;
-  lastBuilt = null;
-  if (!layer) return false;
-  window.GeoIDImportManager?.removeLayer?.(layer.id);
-  return true;
+export function removeSheet(kind) {
+  const layer = sheetLayer(kind);
+  if (layer) window.GeoIDImportManager?.removeLayer?.(layer.id);
+  // The watcher stands down only when the LAST sheet goes: it rebuilds all of
+  // them together, and stopping it while one is still drawn would leave that
+  // one frozen at the view it was built for.
+  if (!liveKinds().length) {
+    watchStop?.();
+    watchStop = null;
+    lastBuilt = null;
+  }
+  return Boolean(layer);
 }
+
+/** The elevation sheet's own doors, kept for the callers that named it. */
+export const addDemLayer = (onStatus) => addSheet("elevation", onStatus);
+export const removeDemLayer = () => removeSheet("elevation");

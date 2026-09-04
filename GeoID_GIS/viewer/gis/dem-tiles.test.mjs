@@ -239,7 +239,7 @@ check("the sheet hands the raster builder the raster's own box shape", () => {
   const src = readFileSync(new URL("./dem-layer.js", import.meta.url), "utf8")
     .replace(/\/\*[\s\S]*?\*\//g, "");
   ok(/minX: bounds\.west/.test(src), "converted at the boundary");
-  ok(/buildRasterLayer\(\[band\], GRID_W, GRID_H, rasterBounds/.test(src),
+  ok(/buildRasterLayer\(bands, GRID_W, GRID_H, rasterBounds/.test(src),
     "and the converted box is what is passed");
 });
 

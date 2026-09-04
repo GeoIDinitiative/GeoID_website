@@ -1,85 +1,75 @@
 /**
- * The streamed DEM's own control, in the Elevation sub-tab.
+ * The elevation catalogue: three readings of the streamed DEM.
  *
- * It was a row in the Basemaps catalogue for an afternoon and that was the
- * wrong shelf: that list is PICTURES to dress the sphere with, and this is the
- * shape of the ground — the same subject as the vertical exaggeration and the
- * contour interval it now sits with.
+ * One row was a tick with a status line; three want the shared catalogue
+ * renderer, so a tick here means what a tick means in the geology, hydrology
+ * and basemap lists — same row, same ⓘ, same behaviour when it fails.
  *
- * One tick, one status line, and the tick is read back off the LAYER rather
- * than remembered here: a tick that says yes over a layer that failed to load
- * is the fault the GLiM row already cost.
+ * They are three READINGS rather than three sources: slope and hillshade are
+ * arithmetic on the same streamed grid, through the same `raster-analysis`
+ * functions the tool registry runs, so ticking all three costs one tile fetch.
+ *
+ * The shipped GEBCO hillshade and slope stay in Basemaps. Those are global and
+ * instant; these are the local answer, at the view's own scale.
  */
 
-import { addDemLayer, removeDemLayer, demLayer, DEM_LAYER_NAME }
-  from "./dem-layer.js?v=20260904-f8b0917";
-import { TERRARIUM } from "./dem-tiles.js?v=20260904-f8b0917";
+import { renderCatalogue } from "./catalogue-list.js?v=20260905-3edf317";
+import { SHEETS, addSheet, removeSheet, sheetLayer } from "./dem-layer.js?v=20260905-3edf317";
+import { TERRARIUM } from "./dem-tiles.js?v=20260905-3edf317";
 
 const HOST_ID = "dem-panel-host";
-
-let statusNode = null;
+const STATUS_ID = "dem-panel-status";
 
 function say(message) {
-  if (statusNode) statusNode.textContent = message || "";
+  const node = document.getElementById(STATUS_ID);
+  if (node) node.textContent = message || "";
 }
 
-function syncTick(tick) {
-  if (tick) tick.checked = Boolean(demLayer());
-}
+const ORDER = ["elevation", "slope", "hillshade"];
 
-function build(host) {
-  host.textContent = "";
-
-  const row = document.createElement("div");
-  row.className = "gis-catalogue-row";
-  const tick = document.createElement("input");
-  tick.type = "checkbox";
-  tick.id = "gis-dem-streamed";
-  tick.className = "checkbox";
-  const label = document.createElement("label");
-  label.className = "gis-catalogue-name";
-  label.setAttribute("for", tick.id);
-  label.textContent = "Streamed elevation (Mapzen)";
-  label.title = `${TERRARIUM.credit} ${TERRARIUM.licence}`;
-  row.append(tick, label);
-
-  const blurb = document.createElement("p");
-  blurb.className = "gis-setting-hint";
-  blurb.textContent = "Real heights as a sheet on the ground — about 19.6 km "
-    + "posts worldwide, sharpening where you fly in. The cursor readout and the "
-    + "terrain tools read the same source whether or not this is drawn.";
-
-  statusNode = document.createElement("p");
-  statusNode.className = "gis-metric";
-
-  tick.addEventListener("change", async () => {
-    if (!tick.checked) {
-      removeDemLayer();
-      say("");
-      syncTick(tick);
-      return;
-    }
-    tick.disabled = true;
-    try {
-      const out = await addDemLayer(say);
-      // The layer is the truth about whether it loaded, never the press.
-      if (!out?.ok) say(out?.message || `${DEM_LAYER_NAME} could not be drawn.`);
-    } finally {
-      tick.disabled = false;
-      syncTick(tick);
-    }
+function entries() {
+  return ORDER.map((kind) => {
+    const spec = SHEETS[kind];
+    return {
+      id: spec.id,
+      group: "Streamed elevation",
+      label: spec.label,
+      title: `${spec.summary} — ${TERRARIUM.licence}`,
+      info: { summary: spec.summary, citation: TERRARIUM.credit },
+    };
   });
+}
 
-  host.append(row, blurb, statusNode);
-  // A layer removed from the layer box has to take the tick with it.
-  document.addEventListener("geoid-gis:layers-changed", () => syncTick(tick));
-  syncTick(tick);
+const kindOf = (id) => ORDER.find((kind) => SHEETS[kind].id === id) || null;
+
+function draw() {
+  const host = document.getElementById(HOST_ID);
+  if (!host) return;
+  renderCatalogue(host, entries(), {
+    // No lid: three rows do not need a dropdown, and the sub-tab is already
+    // one fold deep.
+    layerFor: (id) => sheetLayer(kindOf(id)),
+    add: async (id) => {
+      const out = await addSheet(kindOf(id), say);
+      // The layer is the truth about whether it loaded, never the press.
+      if (!out?.ok) say(out?.message || "That sheet could not be drawn.");
+      return out;
+    },
+    remove: (id) => { removeSheet(kindOf(id)); say(""); return true; },
+    onStatus: say,
+  });
 }
 
 function init() {
   const host = document.getElementById(HOST_ID);
   if (!host) return;
-  build(host);
+  const status = document.createElement("p");
+  status.id = STATUS_ID;
+  status.className = "gis-metric";
+  host.after(status);
+  draw();
+  // A sheet removed from the layer box has to take its tick with it.
+  document.addEventListener("geoid-gis:layers-changed", draw);
 }
 
 if (document.readyState === "loading") {
