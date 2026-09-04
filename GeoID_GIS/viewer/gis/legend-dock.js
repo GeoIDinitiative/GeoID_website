@@ -520,10 +520,37 @@ const seenFold = new Set();
  * and hidden as a block, so this works for any card the dock is handed
  * whatever built it: layer cards, the viewer's overlays, the interior cutaway.
  */
+/**
+ * How many keyed things this card actually shows.
+ *
+ * A ramp is one entry, a class list is one per class, a symbol row is one
+ * each. Anything else in the card -- a credit line, a "display only" note --
+ * is description, not a key.
+ */
+function entryCount(card) {
+  return card.querySelectorAll(".legend-symbol-row").length
+    + card.querySelectorAll(".legend-class").length
+    + card.querySelectorAll(".legend-ramp").length;
+}
+
 function makeFoldable(card) {
   if (!card || card.dataset.foldable === "1") return;
   const badge = card.querySelector(".layer-type-badge, .legend-name");
   if (!badge) return;
+  /**
+   * ONE entry does not fold.
+   *
+   * A single polyline colour, a lone swatch, a single ramp -- there is nothing
+   * behind the chevron but the one line already visible, so the control offers
+   * a choice between seeing it and not seeing it. Folding earns its place when
+   * a card holds a list worth collapsing; below that it is furniture, and a
+   * column of chevrons over single-line cards reads as though something is
+   * hidden under each of them.
+   */
+  if (entryCount(card) <= 1) {
+    card.dataset.foldable = "static";
+    return;
+  }
   card.dataset.foldable = "1";
   const key = card.dataset.legendKey || badge.textContent.trim();
 
