@@ -37,12 +37,12 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260905-0d3d00f";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260905-0d3d00f";
-import { isEarth } from "./bodies.js?v=20260905-0d3d00f";
-import { streamRings, cacheStats } from "./tile-streamer.js?v=20260905-0d3d00f";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260905-7c10ff8";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260905-7c10ff8";
+import { isEarth } from "./bodies.js?v=20260905-7c10ff8";
+import { streamRings, cacheStats } from "./tile-streamer.js?v=20260905-7c10ff8";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260905-0d3d00f";
+  from "./view-extent.js?v=20260905-7c10ff8";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -802,9 +802,32 @@ if (typeof document !== "undefined") {
  *     still costs nothing.
  */
 
-// Above this the whole-globe basemap out-resolves the screen and a patch would
-// be identical to what is already there. Roughly 2000 km up.
-const MIN_REFINE_ALTITUDE = 1.0;
+/**
+ * Above this there is nothing a patch can add, and the number was measured
+ * rather than guessed — the old 1.0 (about 2,000 km) claimed the whole-globe
+ * basemap out-resolved the screen there, and it does not.
+ *
+ * The global composite is zoom 4, which is **9,784 m per pixel** at the
+ * equator. Measured against the screen's own ground resolution on a 1,405 px
+ * canvas:
+ *
+ *     796 km   (0.4u)   screen 1,040 m/px   composite 9.4x coarser
+ *   1,991 km   (1.0u)   screen 3,165 m/px   composite 3.1x coarser  <- old ceiling
+ *   3,982 km   (2.0u)   screen 6,748 m/px   composite 1.45x coarser
+ *   6,570 km   (3.3u)   screen 11,135 m/px  composite finally finer
+ *
+ * So refining stopped while the picture on screen was still three times
+ * coarser than the screen could show — reported as "at a 500 km scale bar the
+ * map is very very grainy", and that is exactly the 3.1x.
+ *
+ * The ceiling is now past the crossover, and the REAL limit is the zoom gate
+ * below it, which needs no altitude at all: `chooseZoom` weighs the box
+ * against the tile budget and lands on 5 at 2 units (77 tiles, 4,892 m/px
+ * against a 6,748 m/px screen — worth having) and on 4 at 3.3 units and above,
+ * where `zoom <= BASE_GLOBE_ZOOM` declines by itself. The altitude test
+ * survives only as a cheap early-out that saves raycasting a hemisphere.
+ */
+const MIN_REFINE_ALTITUDE = 3.2;
 // The base global composite is zoom 4; below that there is nothing to add.
 const BASE_GLOBE_ZOOM = 4;
 

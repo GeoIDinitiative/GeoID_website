@@ -10,16 +10,16 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { bandOf } from "./draw-order.js?v=20260905-0d3d00f";
-import { paintOpacity } from "./layer-opacity.js?v=20260905-0d3d00f";
-import { currentBody } from "./bodies.js?v=20260905-0d3d00f";
-import { samplerToRaster } from "./raster-analysis.js?v=20260905-0d3d00f";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260905-0d3d00f";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260905-0d3d00f";
+import { bandOf } from "./draw-order.js?v=20260905-7c10ff8";
+import { paintOpacity } from "./layer-opacity.js?v=20260905-7c10ff8";
+import { currentBody } from "./bodies.js?v=20260905-7c10ff8";
+import { samplerToRaster } from "./raster-analysis.js?v=20260905-7c10ff8";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260905-7c10ff8";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260905-7c10ff8";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20260905-0d3d00f";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260905-0d3d00f";
+} from "./symbology-dialog.js?v=20260905-7c10ff8";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260905-7c10ff8";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --

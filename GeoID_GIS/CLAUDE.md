@@ -12565,3 +12565,40 @@ screen's 10.32° — a ring of context rather than a shortfall — and the rayca
 box, not the clamp, is now what decides it. This reaches every consumer of
 `visibleBounds` at once: the imagery refine, the elevation sheets, the Earth
 Engine refine and the DEM stream's own follow.
+
+### The refine stopped three times too early, and the zoom gate already knew
+
+"Should we map the Sentinel-2 imagery sooner at low resolution at higher
+altitudes — at a 500 km scale bar the map is very very grainy." Yes, and the
+old ceiling's own comment was the thing to check: it claimed that above about
+2,000 km "the whole-globe basemap out-resolves the screen and a patch would be
+identical to what is already there". Measured, it does not.
+
+The global composite is zoom 4 — **9,784 m per pixel** at the equator. Against
+the screen's own ground resolution on a 1,405 px canvas:
+
+| altitude | | screen | the composite is |
+| --- | --- | --- | --- |
+| 796 km | 0.4u | 1,040 m/px | 9.4× coarser |
+| 1,991 km | 1.0u — the old ceiling | 3,165 m/px | **3.1× coarser** |
+| 3,982 km | 2.0u | 6,748 m/px | 1.45× coarser |
+| 6,570 km | 3.3u | 11,135 m/px | finally finer |
+
+So refining stopped while the picture was still three times coarser than the
+screen could show. The ceiling is 3.2 now, past the crossover.
+
+**And the real limit needs no altitude at all.** `chooseZoom` already weighs
+the box against the tile budget, and it lands exactly where it should: zoom 5
+at 2 units (77 tiles, 4,892 m/px against a 6,748 m/px screen — worth having),
+and zoom 4 at 3.3 units and above, where the existing `zoom <=
+BASE_GLOBE_ZOOM` gate declines and now retires. The altitude test survives only
+as a cheap early-out that saves raycasting a hemisphere.
+
+Verified live: a patch at 2,935 km and at 4,077 km where there was none before,
+and none at 16,525 km. At 2,290 km with a 500 km scale bar — the reported view
+— the imagery reads smooth where it was pixelated.
+
+The cost is 77 tiles a refine at continental scale, inside the 256 the streamer
+already caps at, and cached afterwards. **When a constant carries a claim about
+resolution, measure the claim before trusting the constant**: this one had been
+right about something (a patch IS pointless eventually) and wrong about where.
