@@ -145,13 +145,22 @@ def source_forms(assets: pathlib.Path) -> list[str]:
     """
     Every textual prefix a reference to THIS assets folder can wear.
 
-    `assets/x.png`, `./assets/x.png` and the absolute
+    `assets/x.png`, `./assets/x.png`, `../assets/x.png` and the absolute
     `/GeoID_Earth/assets/x.png` are the same file; a rewrite that knows only the
-    first two leaves the third pointing at a path that is about to stop
+    first two leaves the others pointing at a path that is about to stop
     existing. Deriving the absolute form from the folder's own location is what
     keeps this from also matching another viewer's identically-named file.
+
+    `../assets/` is here because leaving it out did not skip the reference --
+    it half-rewrote it. The bare `assets/` form matched the TAIL and the `../`
+    stayed welded to the front, so a manifest ended up holding
+    `../https://data.geoidinitiative.com/...`, which resolves against the page
+    and 404s. That is what took the Earth DEM off the globe: no elevation map,
+    so the vertical-exaggeration slider disabled itself and every layer built
+    on relief went flat. Longest form first, and the lookbehind below refuses a
+    preceding slash so no prefix can ever be half-eaten again.
     """
-    return ["/" + str(assets.relative_to(ROOT)) + "/", "./assets/", "assets/"]
+    return ["/" + str(assets.relative_to(ROOT)) + "/", "../assets/", "./assets/", "assets/"]
 
 
 def rewrite(viewer: pathlib.Path, names: dict, base: str, key: str,
@@ -168,7 +177,7 @@ def rewrite(viewer: pathlib.Path, names: dict, base: str, key: str,
         for rel in sorted(names, key=len, reverse=True):
             url = f"{base.rstrip('/')}/{PREFIX}/{key}/{rel}?v={fingerprint(names[rel])}"
             for form in forms:
-                s = re.sub(r"(?<![\w.-])" + re.escape(form) + re.escape(rel)
+                s = re.sub(r"(?<![\w./-])" + re.escape(form) + re.escape(rel)
                            + r"(?:\?[^\"'`)\s]*)?", url, s)
         if s != original:
             f.write_text(s, errors="surrogateescape")
