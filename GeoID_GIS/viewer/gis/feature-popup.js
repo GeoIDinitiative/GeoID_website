@@ -20,18 +20,18 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260904-0e4b9ad";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260904-0e4b9ad";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260904-73b249a";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260904-73b249a";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20260904-0e4b9ad";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260904-0e4b9ad";
-import { lithologyLabel } from "./lithology-label.js?v=20260904-0e4b9ad";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260904-0e4b9ad";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260904-0e4b9ad";
+} from "./vector-render.js?v=20260904-73b249a";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260904-73b249a";
+import { lithologyLabel } from "./lithology-label.js?v=20260904-73b249a";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260904-73b249a";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260904-73b249a";
 import {
   canEditRow, editableFields, applyRowChange,
-} from "./table-editor.js?v=20260904-0e4b9ad";
+} from "./table-editor.js?v=20260904-73b249a";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -264,22 +264,6 @@ const STYLE = `
 #gis-feature-popup .gis-fp-field input:focus {
   outline: none;
   border-color: rgba(var(--nav-accent-rgb), 0.85);
-}
-#gis-feature-popup .gis-fp-rowbtns {
-  display: flex;
-  gap: 0.35rem;
-  margin-top: 0.2rem;
-}
-#gis-feature-popup .gis-fp-rowbtns .gis-fp-save { margin-top: 0; flex: 1 1 auto; }
-#gis-feature-popup .gis-fp-danger {
-  background: transparent;
-  color: rgb(255, 138, 138);
-  border: 1px solid rgba(255, 138, 138, 0.55);
-}
-#gis-feature-popup .gis-fp-danger[data-armed="1"] {
-  background: rgb(198, 60, 60);
-  color: #fff;
-  border-color: rgb(198, 60, 60);
 }
 #gis-feature-popup .gis-fp-save {
   margin-top: 0.2rem;
@@ -524,11 +508,89 @@ function orderedEntries(props) {
  * card will not rewrite it -- the same line `buildEditor` draws for drawn
  * shapes, reached from the other side.
  */
+/**
+ * The point editor's own sheet, deliberately unscoped.
+ *
+ * It is appended into whichever card raised the feature, and the card that
+ * normally wins is the VIEWER's -- `#geo-popup` -- which this file's own
+ * stylesheet says nothing about and is not this file's to restyle. So the
+ * editor carries its look with it, and takes its colours from the theme tokens
+ * rather than from a parent it cannot assume.
+ */
+const POINT_EDITOR_STYLE = `
+.gis-pe {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.gis-pe-row { display: flex; gap: 0.35rem; }
+.gis-pe-btn {
+  flex: 1 1 auto;
+  padding: 0.28rem 0.5rem;
+  font: 600 0.62rem/1.2 'Exo 2', sans-serif;
+  letter-spacing: 0.05em;
+  color: var(--skin-chrome-ink, #06121a);
+  background: rgb(var(--nav-accent-rgb, 58 238 232));
+  border: none;
+  border-radius: 0.2rem;
+  cursor: pointer;
+}
+.gis-pe-btn:hover { filter: brightness(1.12); }
+.gis-pe-danger {
+  background: transparent;
+  color: rgb(255, 138, 138);
+  border: 1px solid rgba(255, 138, 138, 0.55);
+}
+.gis-pe-danger[data-armed="1"] {
+  background: rgb(198, 60, 60);
+  color: #fff;
+  border-color: rgb(198, 60, 60);
+}
+.gis-pe-field {
+  display: grid;
+  grid-template-columns: 3.6rem 1fr;
+  gap: 0.35rem;
+  align-items: center;
+}
+.gis-pe-field span {
+  font: 500 0.6rem/1.2 'Exo 2', sans-serif;
+  letter-spacing: 0.04em;
+  opacity: 0.8;
+}
+.gis-pe-field input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.14rem 0.32rem;
+  font: 400 0.66rem/1.35 'Exo 2', sans-serif;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 0.18rem;
+}
+.gis-pe-field input:focus {
+  outline: none;
+  border-color: rgba(var(--nav-accent-rgb, 58 238 232), 0.85);
+}
+.gis-pe-said { font: 400 0.6rem/1.3 'Exo 2', sans-serif; opacity: 0.85; }
+`;
+
+function ensurePointEditorStyle() {
+  if (document.getElementById("gis-point-editor-style")) return;
+  const style = document.createElement("style");
+  style.id = "gis-point-editor-style";
+  style.textContent = POINT_EDITOR_STYLE;
+  document.head.appendChild(style);
+}
+
 function buildPointEditor(layerRecord, feature) {
+  ensurePointEditorStyle();
   const wrap = document.createElement("div");
-  wrap.className = "gis-fp-edit";
+  wrap.className = "gis-pe";
   const said = document.createElement("div");
-  said.className = "gis-fp-said";
+  said.className = "gis-pe-said";
 
   const fields = editableFields(layerRecord);
   const coords = feature.geometry.coordinates;
@@ -538,7 +600,7 @@ function buildPointEditor(layerRecord, feature) {
   form.hidden = true;
   const input = (labelText, value, step) => {
     const row = document.createElement("label");
-    row.className = "gis-fp-field";
+    row.className = "gis-pe-field";
     const span = document.createElement("span");
     span.textContent = labelText;
     const box = document.createElement("input");
@@ -572,7 +634,7 @@ function buildPointEditor(layerRecord, feature) {
 
   const saveBtn = document.createElement("button");
   saveBtn.type = "button";
-  saveBtn.className = "gis-fp-save";
+  saveBtn.className = "gis-pe-btn";
   saveBtn.textContent = "Save point";
   saveBtn.hidden = true;
   saveBtn.addEventListener("click", () => {
@@ -589,7 +651,7 @@ function buildPointEditor(layerRecord, feature) {
 
   const editBtn = document.createElement("button");
   editBtn.type = "button";
-  editBtn.className = "gis-fp-save";
+  editBtn.className = "gis-pe-btn";
   editBtn.textContent = "Edit point";
   editBtn.addEventListener("click", () => {
     form.hidden = !form.hidden;
@@ -605,7 +667,7 @@ function buildPointEditor(layerRecord, feature) {
    */
   const removeBtn = document.createElement("button");
   removeBtn.type = "button";
-  removeBtn.className = "gis-fp-save gis-fp-danger";
+  removeBtn.className = "gis-pe-btn gis-pe-danger";
   removeBtn.textContent = "Remove point";
   let armed = null;
   removeBtn.addEventListener("click", () => {
@@ -626,7 +688,7 @@ function buildPointEditor(layerRecord, feature) {
   });
 
   const buttons = document.createElement("div");
-  buttons.className = "gis-fp-rowbtns";
+  buttons.className = "gis-pe-row";
   buttons.append(editBtn, removeBtn);
   wrap.append(buttons, form, saveBtn, said);
   return wrap;
@@ -949,6 +1011,19 @@ function showViewerCard(hits, at) {
     })),
   };
   if (!viewer?.showFeatureCard?.(feature, at?.lat, at?.lon)) return false;
+  /**
+   * Into the card that actually opened.
+   *
+   * `showPopup` is the drawn-shape and no-viewer path now; every ordinary
+   * click lands in the viewer's own card, so an editor added to the local one
+   * would be correct and never seen. The card rebuilds its body on each open,
+   * so this appends after the raise rather than trying to persist.
+   */
+  if (canEditRow(top.layer, top.feature)) {
+    const host = document.querySelector("#geo-popup .geo-popup-scroll")
+      || document.getElementById("geo-popup");
+    host?.appendChild(buildPointEditor(top.layer, top.feature));
+  }
   // The outline stays: on a map of hundreds of polygons the card alone cannot
   // say WHICH one answered. The pin does not -- the card brings its own.
   if (at) void showOutline(top.feature, { layer: top.layer });
