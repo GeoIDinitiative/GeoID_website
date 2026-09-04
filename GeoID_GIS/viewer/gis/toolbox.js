@@ -1,6 +1,6 @@
-import { CRS_OPTIONS, transform } from "./projection.js?v=20260904-75ef559";
-import { currentBody } from "./bodies.js?v=20260904-75ef559";
-import { rowsToCsv, downloadText } from "./extraction.js?v=20260904-75ef559";
+import { CRS_OPTIONS, transform } from "./projection.js?v=20260904-475003e";
+import { currentBody } from "./bodies.js?v=20260904-475003e";
+import { rowsToCsv, downloadText } from "./extraction.js?v=20260904-475003e";
 
 // GIS mode presents a toolbox rather than a control centre: the whole GeoID
 // control set folds into one group, and the tool groups stack beneath it.
@@ -103,7 +103,7 @@ const TAB_ORDER = [
    * the layer hierarchy. The bar reads: Live (what is happening), Explorer
    * (the globe itself), Basemaps (what dresses the sphere), Geology, Earth
    * System Observation, Hazards. Hydrology, Satellites and the myGeoID bar
-   * are NOT entries either: they nest inside Earth System Observation and
+   * are NOT entries either: they nest inside Earth Observation and
    * Hazards (see MOVES), except on a body where the parent is dropped —
    * `tabsForBody` re-lists them there.
    */

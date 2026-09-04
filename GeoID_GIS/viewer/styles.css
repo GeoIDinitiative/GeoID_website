@@ -5368,3 +5368,33 @@ canvas {
 .section-body .gis-metric:empty,
 .section-body .gis-hint:empty,
 .section-body .compact-copy:empty { display: none; }
+
+/* The Map tab's Basemap sub-tab groups its terrain controls under a heading:
+   contour interval, colour and opacity read as one instrument, and the
+   vertical exaggeration belongs with them rather than floating below the
+   base-texture list. */
+.map-terrain-block {
+  margin-top: 0.55rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.map-subhead {
+  margin: 0 0 0.15rem;
+  font: 500 0.62rem/1.3 'Exo 2', sans-serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+/* The imagery panel is moved between its two homes, so the empty host must not
+   collapse to nothing and leave the section looking broken while it is the
+   other one's turn. */
+.imagery-home:empty::after {
+  content: "Open this section to bring the imagery controls here.";
+  display: block;
+  padding: 0.4rem 0;
+  font: 400 0.72rem/1.4 'Exo 2', sans-serif;
+  opacity: 0.6;
+}
