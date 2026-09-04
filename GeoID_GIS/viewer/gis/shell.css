@@ -1898,3 +1898,26 @@ html.gis-arranging #tool-rail,
 html.gis-arranging #layer-dock {
   visibility: hidden;
 }
+
+/* ── ONE GAP BETWEEN SUB-TABS, wherever they are stacked ─────────────────────
+   Measured before writing: a toolbox-group body is a grid at 10.4 px while a
+   plain tab body is `display: block` with no margins at all, so the Map tab's
+   three sub-tabs sat FLUSH against each other and Geoprocessing's eleven did
+   not. Each list was even in isolation, which is why nothing looked broken
+   until two tabs were opened side by side.
+
+   `:has()` rather than naming every wrapper: the column's own note records
+   that CSS cannot select "the parent of a run of sections", and that a new
+   wrapper therefore has to be added to a list by hand. It can now — this
+   matches any container that directly holds a sub-tab, so the next one is
+   spaced by construction rather than by somebody remembering. */
+.section-body:has(> .gis-tool-section),
+.gis-tool-body:has(> .gis-tool-section),
+.controls:has(> .gis-tool-section),
+.control-stack:has(> .gis-tool-section) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.65rem;
+}
+/* A sub-tab carries no margin of its own, or it doubles the gap above. */
+.gis-tool-section { margin-top: 0 !important; margin-bottom: 0 !important; }
