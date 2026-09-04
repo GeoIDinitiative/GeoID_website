@@ -29,7 +29,8 @@
  */
 
 import { startPlayer, stopPlayer, datasetForYear, seasonFor }
-  from "./timelapse-player.js?v=20260904-475003e";
+  from "./timelapse-player.js?v=20260904-2fd6fa2";
+import { stride as strideEpochs } from "./time-series.js?v=20260904-2fd6fa2";
 
 export { stopPlayer as stopImageryTimelapse };
 
@@ -134,11 +135,13 @@ export function framesFor({ from, to, step = "year", season = "full", lat = 0,
   const all = windowsFor(from, to, step, season, lat);
   if (!all.length) return { epochs: [], error: "That range holds no frames." };
 
-  const stride = Math.max(1, Math.ceil(all.length / max));
-  const kept = all.filter((_, i) => i % stride === 0);
-  // The far end is what a reader is comparing against, so a stride that would
-  // stop short of it keeps it anyway.
-  if (kept[kept.length - 1] !== all[all.length - 1]) kept.push(all[all.length - 1]);
+  // The cap is `time-series.js`'s now, not a second copy of it. The rule is
+  // unchanged -- stride rather than truncate, and keep the far end whatever
+  // the stride lands on -- but it is the one implementation the glacier
+  // animator, this one and any future source all answer to.
+  const capped = strideEpochs(all, max);
+  const kept = capped.epochs;
+  const stride = capped.stride;
 
   let blind = 0;
   const epochs = kept.map((w) => {
