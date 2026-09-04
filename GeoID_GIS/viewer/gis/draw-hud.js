@@ -27,8 +27,9 @@ const HINTS = {
   hexagon: "Press the centre and drag the size",
   poly: "Click to place vertices · Done saves the shape",
   shaped: "Drag corners to resize, edges to move · Done saves it as a layer · Enter = Done",
-  line: "Click two points for a transect · the measure panel exports it",
-  none: "Choose a shape to start drawing",
+  line: "Click two points for a distance · the export button writes the CSV",
+  profile: "Click two points for a terrain section · the export button writes the CSV",
+  none: "Choose a shape, or a measure tool on the right",
 };
 
 /**
@@ -86,6 +87,17 @@ function installStyle() {
 .draw-hud-btn:hover { border-color: rgba(var(--skin-data-rgb), 0.7); color: #ffffff; }
 .draw-hud-btn.is-glyph { padding: 0.2rem 0.42rem; line-height: 0; }
 .draw-hud-btn.is-glyph svg { width: 1rem; height: 1rem; display: block; }
+/* The measure tools are their own group, told apart by a rule rather than by
+   a gap — the same hairline the export slot draws, so the bar reads as three
+   runs (shapes · measures · actions) rather than eleven equal buttons. */
+.draw-hud-measure { display: flex; align-items: center; gap: 0.25rem; }
+.draw-hud-measure::before {
+  content: "";
+  width: 1px;
+  align-self: stretch;
+  margin: 0.1rem 0.2rem 0.1rem 0.1rem;
+  background: rgba(255, 255, 255, 0.16);
+}
 #gis-draw-export-slot { display: flex; align-items: center; gap: 0.3rem; }
 #gis-draw-export-slot:empty { display: none; }
 /* Export CSV as its icon — a tray taking an arrow — and ONLY while it is
@@ -113,10 +125,14 @@ function installStyle() {
   mask: var(--export-glyph) center / contain no-repeat;
 }
 #gis-draw-export-slot {
+  /* The arrow LEAVES the tray. It pointed down into it, which is the glyph
+     every browser and file manager uses for a download — so the one control
+     on this bar that sends data OUT was wearing the icon for bringing data
+     in. Reported as exactly that. Same tray, arrowhead at the top. */
   --export-glyph: url("data:image/svg+xml;utf8,\
 <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>\
-<path d='M12 3v10.5' stroke='black' stroke-width='2' stroke-linecap='round' fill='none'/>\
-<path d='M7.5 9.5 12 14l4.5-4.5' stroke='black' stroke-width='2' stroke-linecap='round' \
+<path d='M12 4v10.5' stroke='black' stroke-width='2' stroke-linecap='round' fill='none'/>\
+<path d='M7.5 8.5 12 4l4.5 4.5' stroke='black' stroke-width='2' stroke-linecap='round' \
 stroke-linejoin='round' fill='none'/>\
 <path d='M4 16v3.2h16V16' stroke='black' stroke-width='2' stroke-linecap='round' \
 stroke-linejoin='round' fill='none'/></svg>");
@@ -155,6 +171,24 @@ function areaArmed() {
 }
 function lineArmed() {
   return byId("tool-rail-distance")?.classList.contains("is-active") || false;
+}
+function profileArmed() {
+  return byId("tool-rail-profile")?.classList.contains("is-active") || false;
+}
+
+/**
+ * WHICH TOOL IS ARMED, read off the rail rather than remembered here.
+ *
+ * The rail's `is-active` is the viewer's own answer, and every path that arms
+ * a tool goes through it — rail clicks, key shortcuts, this bar's own buttons
+ * and other modules alike. Remembering the last press instead is how a bar
+ * comes to disagree with the globe it is sitting on.
+ */
+function armedMode() {
+  if (areaArmed()) return "area";
+  if (lineArmed()) return "distance";
+  if (profileArmed()) return "profile";
+  return null;
 }
 
 function hasShape() {
@@ -243,11 +277,6 @@ function build() {
    * The two four-sided ones sit together, the regular square before the
    * rectangle you drag out to any aspect.
    */
-  icon("line", "Line",
-    '<path d="M4.5 17 17.5 5" fill="none" stroke="currentColor" stroke-width="1.8"'
-    + ' stroke-linecap="round"/><circle cx="4.5" cy="17" r="1.9" fill="currentColor"/>'
-    + '<circle cx="17.5" cy="5" r="1.9" fill="currentColor"/>',
-    "a transect through the Distance tool");
   icon("circle", "Circle",
     '<circle cx="11" cy="11" r="7.2" fill="none" stroke="currentColor" stroke-width="1.8"/>',
     "press the centre, drag the radius");
@@ -260,6 +289,53 @@ function build() {
   ngon("pentagon", "Pentagon", 5, 0);
   ngon("hexagon", "Hexagon", 6, 0);
   make("poly", "Custom", "Click out your own vertices");
+
+  /**
+   * THE MEASURE TOOLS, on the same bar as the shapes.
+   *
+   * Distance and Profile were rail buttons on the other side of the screen
+   * while the bar held everything else the pointer does over the globe — and
+   * the bar was already showing for Distance, because the old "Line" shape
+   * armed exactly that mode. So Line IS this button: keeping both would have
+   * been two controls for one mode, which is the fault this tree records
+   * paying for in the Polygons tab and the clip tools.
+   *
+   * They ARM through the rail's own buttons rather than re-implementing it.
+   * One arming path, the way `setShape` already reaches for the same clicks —
+   * and it is what keeps the rail's active state, the viewer's own mode and
+   * this bar from ever disagreeing.
+   */
+  const measure = el("div", "draw-hud-measure");
+  const mode = (id, label, glyph, hint) => {
+    const button = el("button", "draw-hud-btn is-glyph", "");
+    button.type = "button";
+    button.dataset.mode = id;
+    button.title = `${label} — ${hint}`;
+    button.setAttribute("aria-label", label);
+    button.innerHTML = `<svg viewBox="0 0 22 22" aria-hidden="true">${glyph}</svg>`;
+    button.addEventListener("click", () => {
+      // Pressing the mode you are already in is not a request to leave it:
+      // that would stand the bar down under the hand that just pressed.
+      if (armedMode() === id) return;
+      setShape("");
+      byId(`tool-rail-${id}`)?.click();
+      refresh();
+    });
+    measure.appendChild(button);
+    return button;
+  };
+  mode("distance", "Distance",
+    '<path d="M4.5 17 17.5 5" fill="none" stroke="currentColor" stroke-width="1.8"'
+    + ' stroke-linecap="round"/><circle cx="4.5" cy="17" r="1.9" fill="currentColor"/>'
+    + '<circle cx="17.5" cy="5" r="1.9" fill="currentColor"/>',
+    "click two points for a distance, and a transect");
+  mode("profile", "Profile",
+    '<path d="M3.5 15h3l2.1-5 2.6 2.5 2-5.7 2.3 2.9h3" fill="none"'
+    + ' stroke="currentColor" stroke-width="1.8" stroke-linecap="round"'
+    + ' stroke-linejoin="round"/>',
+    "click two points for a terrain section");
+  row.appendChild(measure);
+
   const doneBtn = el("button", "draw-hud-btn is-done", "Done");
   doneBtn.type = "button";
   doneBtn.title = "Save the shape as a layer (Enter)";
@@ -298,21 +374,50 @@ function build() {
  * the bar stands down. Lifted verbatim from the preset card this replaced —
  * it is the one part of that card worth keeping.
  */
-const EXPORT_SELECTOR = '[data-measure-actions="area"]';
-let exportHome = null;
+const EXPORT_MODES = ["area", "distance", "profile"];
+const exportSelector = (mode) => `[data-measure-actions="${mode}"]`;
+/**
+ * One comment per mode, because each node has its own home to go back to.
+ * A single marker would send whichever node was borrowed last back to
+ * whichever rail item was borrowed from first.
+ */
+const exportHomes = new Map();
 
-function borrowExport() {
-  const actions = document.querySelector(EXPORT_SELECTOR);
+/**
+ * Park the ARMED mode's own export button, and send any other one home.
+ *
+ * It used to borrow `area`'s unconditionally — while the bar has always shown
+ * for the Distance tool too, so measuring a distance offered a button that
+ * exports an AREA. The wrong file, from a control that looked right.
+ */
+function borrowExport(mode = armedMode()) {
   const slot = byId("gis-draw-export-slot");
-  if (!actions || !slot || actions.parentNode === slot) return;
-  if (!exportHome) {
-    exportHome = document.createComment("export csv lives on the draw bar while it is up");
-    actions.parentNode?.insertBefore(exportHome, actions);
+  if (!slot) return;
+  // Anything already parked that is not this mode's goes back first, or two
+  // modes' buttons sit side by side and neither says which it belongs to.
+  [...slot.children].forEach((node) => {
+    if (node.dataset?.measureActions !== mode) returnOne(node);
+  });
+  if (!mode) return;
+  const actions = document.querySelector(exportSelector(mode));
+  if (!actions || actions.parentNode === slot) return;
+  if (!exportHomes.has(mode)) {
+    const marker = document.createComment(`export csv (${mode}) lives on the draw bar`);
+    actions.parentNode?.insertBefore(marker, actions);
+    exportHomes.set(mode, marker);
   }
   slot.appendChild(actions);
 }
 
+/** Put one borrowed node back beside its own marker. */
+function returnOne(node) {
+  const home = exportHomes.get(node?.dataset?.measureActions);
+  if (node && home?.parentNode) home.parentNode.insertBefore(node, home);
+}
+
 let exportWatch = null;
+// The mode whose export button is currently parked on the bar.
+let lastMode = null;
 
 /**
  * Borrow the instant the viewer reveals it, not on the next poll tick.
@@ -331,20 +436,22 @@ let exportWatch = null;
  * button is in the wrong place.
  */
 function watchExportHome() {
-  if (exportWatch) return;
-  const node = document.querySelector(EXPORT_SELECTOR);
-  if (!node || typeof MutationObserver !== "function") return;
+  if (exportWatch || typeof MutationObserver !== "function") return;
+  const nodes = EXPORT_MODES.map(exportSelector)
+    .map((sel) => document.querySelector(sel)).filter(Boolean);
+  if (!nodes.length) return;
   exportWatch = new MutationObserver(() => {
-    if (areaArmed() || lineArmed()) borrowExport();
+    if (armedMode()) borrowExport();
   });
-  exportWatch.observe(node, { attributes: true, attributeFilter: ["hidden", "style", "class"] });
+  // All three, because the tool that is armed decides which one is wanted and
+  // any of them may be revealed while the bar is up.
+  nodes.forEach((node) => exportWatch.observe(node,
+    { attributes: true, attributeFilter: ["hidden", "style", "class"] }));
 }
 
 function returnExport() {
-  const actions = byId("gis-draw-export-slot")?.firstElementChild;
-  if (actions && exportHome?.parentNode) {
-    exportHome.parentNode.insertBefore(actions, exportHome);
-  }
+  const slot = byId("gis-draw-export-slot");
+  if (slot) [...slot.children].forEach(returnOne);
 }
 
 function refresh() {
@@ -352,7 +459,11 @@ function refresh() {
   if (!hud) return;
   const area = areaArmed();
   const line = lineArmed();
-  const show = area || line;
+  const mode = armedMode();
+  // Profile joins the two that already raised the bar, now that its button is
+  // on it: a bar that hides the tool you just armed from it is worse than no
+  // button at all.
+  const show = Boolean(mode);
   if (hud.hidden === show) hud.hidden = !show;
   /**
    * Borrow on the TRANSITION, not on every tick.
@@ -367,24 +478,38 @@ function refresh() {
   if (show !== visible) {
     visible = show;
     if (show) {
-      borrowExport();
+      borrowExport(mode);
       // Every time the tool is picked up, not just the first: coming back to
       // whatever was drawn last is the same decision made for somebody twice.
-      if (!line) setShape("");
+      if (mode === "area") setShape("");
     } else {
       returnExport();
     }
   }
   if (!show) return;
-  const current = line ? "line" : shape;
+  /**
+   * The armed MODE can change without the bar coming down — pressing Profile
+   * while Distance is up — and the parked export button has to follow it, or
+   * the bar offers the previous tool's file.
+   */
+  if (mode !== lastMode) {
+    lastMode = mode;
+    borrowExport(mode);
+  }
+  const current = shape;
   hud.querySelectorAll("[data-shape]").forEach((button) => {
-    button.classList.toggle("is-on", Boolean(current) && button.dataset.shape === current);
+    button.classList.toggle("is-on",
+      mode === "area" && Boolean(current) && button.dataset.shape === current);
+  });
+  hud.querySelectorAll("[data-mode]").forEach((button) => {
+    button.classList.toggle("is-on", button.dataset.mode === mode);
   });
   const hint = byId("gis-draw-hint");
   if (hint && !hint.dataset.hold) {
-    hint.textContent = line ? HINTS.line
-      : !current ? HINTS.none
-        : (hasShape() && current !== "poly" ? HINTS.shaped : HINTS[current]);
+    hint.textContent = mode === "distance" ? HINTS.line
+      : mode === "profile" ? HINTS.profile
+        : !current ? HINTS.none
+          : (hasShape() && current !== "poly" ? HINTS.shaped : HINTS[current]);
   }
 }
 
