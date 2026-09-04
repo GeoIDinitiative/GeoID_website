@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260904-73b249a";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260904-73b249a";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260904-73b249a";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260904-73b249a";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260904-946aa8d";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260904-946aa8d";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260904-946aa8d";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260904-946aa8d";
 import {
   buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude, setSealWidthFromAltitude,
   setMarkerSizeFromAltitude,
-} from "./vector-render.js?v=20260904-73b249a";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260904-73b249a";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260904-73b249a";
-import { loadMshFile } from "./msh-adapter.js?v=20260904-73b249a";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260904-73b249a";
+} from "./vector-render.js?v=20260904-946aa8d";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260904-946aa8d";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260904-946aa8d";
+import { loadMshFile } from "./msh-adapter.js?v=20260904-946aa8d";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260904-946aa8d";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -398,19 +398,28 @@ function renderLayerList() {
   });
 }
 
+/**
+ * A SHARED texture is not this layer's to free.
+ *
+ * The marker disc and the highlight ring are one canvas each for the whole
+ * globe, so freeing them with the first material that happens to reference one
+ * blanks every other layer using it -- and the symptom names nothing: the
+ * layers are in the scene, visible, unculled, in front of the camera, and draw
+ * nothing, because `alphaTest` discards every fragment of a missing map. Found
+ * when a point edit removed the layer it had just rebuilt.
+ */
+function disposeMaterial(material) {
+  if (!material) return;
+  if (!material.map?.userData?.shared) material.map?.dispose?.();
+  material.dispose?.();
+}
+
 function disposeObject(object3D) {
   object3D.traverse?.((child) => {
     child.geometry?.dispose?.();
     const material = child.material;
-    if (Array.isArray(material)) {
-      material.forEach((entry) => {
-        entry?.map?.dispose?.();
-        entry?.dispose?.();
-      });
-    } else if (material) {
-      material.map?.dispose?.();
-      material.dispose?.();
-    }
+    if (Array.isArray(material)) material.forEach(disposeMaterial);
+    else disposeMaterial(material);
   });
 }
 

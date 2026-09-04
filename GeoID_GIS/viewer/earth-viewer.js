@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260904-73b249a";
+  from "./gis/geo-utils.js?v=20260904-946aa8d";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260904-73b249a";
+  from "./gis/vector-render.js?v=20260904-946aa8d";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260904-73b249a";
+  from "./gis/rock-class.js?v=20260904-946aa8d";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260904-73b249a";
+  from "./gis/lithology-label.js?v=20260904-946aa8d";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -21815,6 +21815,14 @@ uniform float uViewportWidth;`,
          * this turns them into the anchored point that tracks the globe, which
          * is the part that was worth not writing twice.
          */
+        /**
+         * Shut the card this raised. The seam had an open and no close, so a
+         * caller that had just deleted the feature on show could only leave it
+         * standing over data that no longer exists.
+         */
+        closeFeatureCard() {
+          closeGeoPopup();
+        },
         showFeatureCard(feature, lat, lon) {
           if (!feature || !Number.isFinite(lat) || !Number.isFinite(lon)) return false;
           const spin = globe.rotation.y - Math.PI;

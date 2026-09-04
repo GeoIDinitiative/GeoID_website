@@ -10,24 +10,24 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260904-73b249a";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260904-73b249a";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260904-73b249a";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260904-946aa8d";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260904-946aa8d";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260904-946aa8d";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260904-73b249a";
+  from "./view-extent.js?v=20260904-946aa8d";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260904-73b249a";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260904-73b249a";
+} from "./extent-picker.js?v=20260904-946aa8d";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260904-946aa8d";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
   freshness, isNewDataset, isExtendedDataset, indexedHrefs, bakedOn,
-} from "./gee-catalogue-index.js?v=20260904-73b249a";
-import { checkCatalogue, describeCheck } from "./gee-watch.js?v=20260904-73b249a";
+} from "./gee-catalogue-index.js?v=20260904-946aa8d";
+import { checkCatalogue, describeCheck } from "./gee-watch.js?v=20260904-946aa8d";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:

@@ -20,18 +20,18 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260904-73b249a";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260904-73b249a";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260904-946aa8d";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260904-946aa8d";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20260904-73b249a";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260904-73b249a";
-import { lithologyLabel } from "./lithology-label.js?v=20260904-73b249a";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260904-73b249a";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260904-73b249a";
+} from "./vector-render.js?v=20260904-946aa8d";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260904-946aa8d";
+import { lithologyLabel } from "./lithology-label.js?v=20260904-946aa8d";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260904-946aa8d";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260904-946aa8d";
 import {
   canEditRow, editableFields, applyRowChange,
-} from "./table-editor.js?v=20260904-73b249a";
+} from "./table-editor.js?v=20260904-946aa8d";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -626,7 +626,11 @@ function buildPointEditor(layerRecord, feature) {
       await applyRowChange(layerRecord, feature, change);
       clearPin();
       clearHover();
+      // Both cards: `hidePopup` shuts this file's, and the one actually on
+      // screen is usually the viewer's. The feature it describes no longer
+      // exists as an object even when the point does -- the layer was rebuilt.
       hidePopup();
+      window.GeoIDViewer?.closeFeatureCard?.();
     } catch (error) {
       said.textContent = `${done} failed: ${error.message}`;
     }

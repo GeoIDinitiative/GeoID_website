@@ -1,9 +1,9 @@
 import * as THREE from "../vendor/three.module.js";
 import { latLonToVector3, drapedRadius, looksLikeGeographic, sphericalPolygonAreaKm2 }
-  from "./geo-utils.js?v=20260904-73b249a";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260904-73b249a";
-import { pointInPolygon } from "./geometry.js?v=20260904-73b249a";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260904-73b249a";
+  from "./geo-utils.js?v=20260904-946aa8d";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260904-946aa8d";
+import { pointInPolygon } from "./geometry.js?v=20260904-946aa8d";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260904-946aa8d";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -78,6 +78,18 @@ export function markerDiscTexture() {
   ctx.fill();
   discTexture = new THREE.CanvasTexture(canvas);
   discTexture.needsUpdate = true;
+  /**
+   * SHARED, so nobody may dispose it.
+   *
+   * One texture serves every marker and every point cloud on the globe, and
+   * `disposeObject` frees `material.map` with the material when a layer is
+   * removed -- so removing ONE layer freed the texture out from under all the
+   * others, and every dot on the planet stopped drawing. It presents as a
+   * layer that is in the scene, visible, unculled and in front of the camera,
+   * rendering nothing at all: `alphaTest` discards every fragment once the
+   * map is gone.
+   */
+  discTexture.userData.shared = true;
   return discTexture;
 }
 
@@ -110,6 +122,18 @@ export function markerRingTexture() {
   ctx.stroke();
   ringTexture = new THREE.CanvasTexture(canvas);
   ringTexture.needsUpdate = true;
+  /**
+   * SHARED, so nobody may dispose it.
+   *
+   * One texture serves every marker and every point cloud on the globe, and
+   * `disposeObject` frees `material.map` with the material when a layer is
+   * removed -- so removing ONE layer freed the texture out from under all the
+   * others, and every dot on the planet stopped drawing. It presents as a
+   * layer that is in the scene, visible, unculled and in front of the camera,
+   * rendering nothing at all: `alphaTest` discards every fragment once the
+   * map is gone.
+   */
+  ringTexture.userData.shared = true;
   return ringTexture;
 }
 
