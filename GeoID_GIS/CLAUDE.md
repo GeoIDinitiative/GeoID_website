@@ -12482,3 +12482,56 @@ continuously all the way down, so each sheet pays 31–41 ms a few times a
 second while descending. That is most of the 3% of frames that still hitch. It
 is shared machinery and every drape uses it, so it was left alone rather than
 tuned from here.
+
+## Declining to refine is not the same as taking the picture down
+
+"The streamed tiles for Sentinel-2 fail to disappear as we zoom back out."
+Measured, and it is one distinction missing in one file.
+
+A streamer has two ways to say "nothing to do here":
+
+- **the view has not changed**, where leaving the picture alone is right;
+- **the view has changed into one this picture does not describe**, where
+  leaving it alone means a patch built at zoom 13 is still drawn over a globe
+  seen from orbit.
+
+`basemap-drape.js` had three of the second kind, all spelled `return null`:
+
+| decline | what stayed on the globe |
+| --- | --- |
+| above `MIN_REFINE_ALTITUDE` (~2,000 km) | the close-in patch — the reported fault |
+| `zoom <= BASE_GLOBE_ZOOM` | the same, one step earlier |
+| the basemap is no longer a tile service | the previous service's imagery |
+
+`retireRefine` disposes the mesh and clears the BOX with it, so coming back
+down is a change from nothing and refines at once instead of being measured
+against a view that is no longer on screen. Measured over a full cycle: patch
+present at 498 km, **gone at 16,525 km**, present again at 498 km — and the
+control against over-fixing, sitting still through six settles, keeps it every
+time.
+
+**And a change of SOURCE is a change.** The test compared boxes only, so
+switching Sentinel-2 to OpenStreetMap from a camera that had not moved declined
+to refine and left the previous service's imagery under the new service's name.
+
+### The rest of the audit, and what was already right
+
+- **The vector tiler is clean, and is the shape the imagery patch was
+  missing.** Every `update` ends by turning on exactly the pinned set plus what
+  the view wants, everything else off, then evicting — so zooming out puts the
+  deep tiles away by construction rather than by a special case.
+- **The GEE drape declines on purpose.** A drape is a LAYER somebody asked for
+  over a chosen extent; it should not evaporate because the camera moved. The
+  same words mean different things for a basemap patch (context, follows the
+  view) and for a dataset (a thing you asked for), and only the first should
+  retire itself.
+- **The DEM stream draws nothing**, so declining costs nothing.
+- **The elevation sheets rebuild to the world** when the view goes wide, so
+  there is no stale-close-up state — but a rebuild that FAILS leaves the last
+  sheet drawn over its own ground. That is left as it is: unlike the imagery
+  patch it is a listed layer with a row, an eye and a remove button, so a
+  reader can see it and take it off.
+
+`tile-retire.test.mjs` pins the distinction on the source of both files: every
+decline that follows a change of ground must retire, the one that follows an
+unchanged view must not, and the tiler must keep its tidy-up pass.

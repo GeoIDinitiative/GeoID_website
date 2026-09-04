@@ -37,12 +37,12 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260905-06107a4";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260905-06107a4";
-import { isEarth } from "./bodies.js?v=20260905-06107a4";
-import { streamRings, cacheStats } from "./tile-streamer.js?v=20260905-06107a4";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260905-4de6468";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260905-4de6468";
+import { isEarth } from "./bodies.js?v=20260905-4de6468";
+import { streamRings, cacheStats } from "./tile-streamer.js?v=20260905-4de6468";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260905-06107a4";
+  from "./view-extent.js?v=20260905-4de6468";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -854,20 +854,58 @@ export function tileBasemapSource() {
   return Object.keys(TILE_SOURCES).find((name) => baseLayerIdFor(name) === id) || null;
 }
 
+/**
+ * TAKE THE PATCH DOWN, which is not the same as declining to build one.
+ *
+ * Every "there is nothing to add here" below used to `return null` and leave
+ * the last patch hanging on the globe. Declining is right for a view that has
+ * not changed; it is wrong for a view that has changed into one this patch
+ * does not describe — reported as the Sentinel-2 tiles failing to disappear on
+ * the way back out, and that is exactly what it is: a close-in patch, built at
+ * zoom 13, still drawn over a globe seen from orbit.
+ *
+ * The bbox goes with the mesh, so coming back down is a change from nothing
+ * and refines immediately rather than being measured against a view that is no
+ * longer on screen.
+ */
+function retireRefine(onStatus) {
+  if (!refineState?.mesh) return null;
+  disposeMesh(refineState.mesh);
+  refineState.mesh = null;
+  refineState.bbox = null;
+  onStatus?.("");
+  return null;
+}
+
 /** One refinement pass: fetch the visible extent and swap the detail patch in. */
 async function refineOnce({ onStatus } = {}) {
   const viewer = window.GeoIDViewer;
   const source = tileBasemapSource();
-  if (!viewer || !source) return null;
-  if (altitudeUnits(viewer) > MIN_REFINE_ALTITUDE) return null;
+  if (!viewer) return null;
+  // The basemap is no longer a tile service. `stopRefining` covers the ordinary
+  // path from the select; this covers every other way the source can go away.
+  if (!source) return retireRefine(onStatus);
+  // Above this the whole-globe texture out-resolves the screen -- so there is
+  // nothing to ADD, and a patch built lower down is now the wrong picture.
+  if (altitudeUnits(viewer) > MIN_REFINE_ALTITUDE) return retireRefine(onStatus);
 
   if (!THREE) THREE = await import("../vendor/three.module.js");
   const bbox = visibleBounds(viewer, THREE);
   if (!bbox) return null;
-  if (!viewChangedEnough(refineState?.bbox, bbox)) return null;
+  /**
+   * A CHANGE OF SOURCE IS A CHANGE, even from a camera that has not moved.
+   *
+   * The test compared boxes only, so switching Sentinel-2 to OpenStreetMap
+   * while sitting still declined to refine and left the previous service's
+   * imagery on the globe under the new service's name.
+   */
+  const sameSource = refineState?.source === source;
+  if (sameSource && !viewChangedEnough(refineState?.bbox, bbox)) return null;
 
   const zoom = chooseZoom(bbox, { maxZoom: TILE_SOURCES[source].maxZoom });
-  if (zoom <= BASE_GLOBE_ZOOM) return null;
+  // The base composite already covers this level: nothing to add, and whatever
+  // was added lower down is now coarser ground drawn sharp.
+  if (zoom <= BASE_GLOBE_ZOOM) return retireRefine(onStatus);
 
   // Claim the request before awaiting, so a second settle while this one is in
   // flight is measured against where we are going rather than where we were.
