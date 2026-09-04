@@ -18,11 +18,11 @@
  * the displaced surface, and the raster every terrain tool wants as an input.
  */
 
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260905-3edf317";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260905-3edf317";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260905-06107a4";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260905-06107a4";
 import { makeRaster, slope as slopeOf, hillshade as hillshadeOf }
-  from "./raster-analysis.js?v=20260905-3edf317";
-import * as dem from "./dem-tiles.js?v=20260905-3edf317";
+  from "./raster-analysis.js?v=20260905-06107a4";
+import * as dem from "./dem-tiles.js?v=20260905-06107a4";
 
 /**
  * THREE READINGS OF ONE SOURCE, not three sources.
@@ -95,13 +95,21 @@ export const DEM_LAYER_NAME = SHEETS.elevation.label;
 const NO_DATA = -32768;
 
 /**
- * The sheet's own grid. 1,024 x 512 over the world is about 39 km a cell —
- * coarser than the zoom-3 tiles behind it on purpose, because this is a
- * PICTURE of the heights and the sampler is what answers questions. Over a
- * small view the same grid is metres.
+ * The sheet's own grid, and the number is a frame-time decision.
+ *
+ * Everything downstream scales with it: the sampling, the slope or hillshade
+ * arithmetic, the texture upload. At 1,024 x 512 a rebuild cost one 199 ms
+ * hitch on an otherwise 60 fps loop; at 768 x 384 it is 0.56 of the work for a
+ * texture that is still finer than the screen shows it (1.5 km a cell over a
+ * 12° view against about 1 km a screen pixel), and the mesh under it is 192
+ * either way.
+ *
+ * Over the WORLD the same grid is about 52 km a cell — coarser than the
+ * zoom-3 tiles behind it on purpose, because this is a PICTURE of the heights
+ * and the sampler is what answers questions.
  */
-const GRID_W = 1024;
-const GRID_H = 512;
+const GRID_W = 768;
+const GRID_H = 384;
 
 const WORLD = { west: -180, east: 180, south: -85, north: 85 };
 
@@ -138,12 +146,27 @@ function liveKinds() {
  * UVs are linear in latitude and the tiles are not, and a pixel copy slides
  * every coastline poleward; asking the sampler where a place is cannot.
  */
-function sampleGridOver(bounds, width, height) {
+/**
+ * Sampled in SLICES, with a breath between them.
+ *
+ * Half a million samples is a fifth of a second even after the tile lookup was
+ * made cheap, and a fifth of a second of blocked main thread on every settle is
+ * a camera that stops dead each time you stop moving it — reported as fighting
+ * all the way down, and with three sheets ticked it was three times that. The
+ * work is the same; what changes is that the render loop gets frames while it
+ * happens, so the zoom easing and the controls keep running.
+ */
+const ROWS_PER_SLICE = 48;
+const breathe = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+async function sampleGridOver(bounds, width, height) {
   const band = new Float32Array(width * height);
   let seen = 0;
   let min = Infinity;
   let max = -Infinity;
   for (let j = 0; j < height; j += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    if (j && j % ROWS_PER_SLICE === 0) await breathe();
     // Top row is north: a raster band runs top-down.
     const lat = bounds.north - ((j + 0.5) / height) * (bounds.north - bounds.south);
     for (let i = 0; i < width; i += 1) {
@@ -254,7 +277,7 @@ async function build(kind, { onStatus = () => {} } = {}) {
     const bounds = targetBounds();
     // Finer tiles where the view is looking, on top of the world cover.
     if (bounds !== WORLD) await dem.ensure(bounds, { maxTiles: 24 });
-    const { band, seen, min, max } = sampleGridOver(bounds, GRID_W, GRID_H);
+    const { band, seen, min, max } = await sampleGridOver(bounds, GRID_W, GRID_H);
     if (!seen) return { ok: false, message: "No elevation was streamed for this view." };
     /**
      * IN THE RASTER VOCABULARY, and this is what made the sheet float.
@@ -402,7 +425,13 @@ function watch() {
     // Every sheet that is on, one after another: they share the cover and the
     // grid, so the second and third cost arithmetic rather than tiles.
     void kinds.reduce((chain, kind) => chain.then(() => build(kind)), Promise.resolve());
-  }, { settleMs: 700, pollMs: 150 });
+    /**
+     * 900 ms rather than the 700 the tilers use. A descent is a run of
+     * settles, and each one here costs a rebuild per ticked sheet; a longer
+     * pause before starting is the cheapest way to stop a slow zoom becoming
+     * a queue of them.
+     */
+  }, { settleMs: 900, pollMs: 150 });
 }
 
 export async function addSheet(kind, onStatus = () => {}) {

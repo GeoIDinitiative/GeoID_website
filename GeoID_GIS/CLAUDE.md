@@ -12442,3 +12442,43 @@ lighting with 315/45 as the fallback.
 The shipped GEBCO pair stays in Basemaps: global, instant, no fetch. These are
 the local answer at the view's own scale, which is a different product rather
 than a better one.
+
+#### The sheets fought the camera, and it was sixteen zoom levels to find two
+
+"As we zoom in on the new slope, DEM, hillshade maps the camera fights us all
+the way." Measured: **1,120 ms of blocked main thread per sheet, per settle** —
+and with three ticked, three of those.
+
+**`heightAt` walked every zoom from 15 down to 0**, building a `z/x/y` string
+and missing two Maps with it at each level, when only ever two levels are held
+(the pinned world and whatever the view pulled). Half a million samples a
+rebuild at 2.14 µs each is the whole cost. Holding the set of zooms that
+actually have tiles and walking only those took the same grid on the same tiles
+from **1,120 ms to 97 ms — 11.6×**.
+
+Three more, each measured rather than assumed:
+
+- **The sampling is CHUNKED**, 48 rows a slice with a breath between them. The
+  work is the same; what changes is that the render loop gets frames while it
+  happens, which is the difference between a camera that stops dead at every
+  settle and one that does not.
+- **The grid is 768 × 384**, not 1,024 × 512. Everything downstream scales with
+  it — the sampling, the slope arithmetic, the texture upload — and 768 is
+  still finer than the screen shows it (1.5 km a cell over a 12° view against
+  about 1 km a screen pixel), with the mesh under it 192 either way.
+- **The settle is 900 ms**, not the tilers' 700. A descent is a RUN of settles
+  and each one costs a rebuild per ticked sheet; waiting longer before starting
+  is the cheapest way to stop a slow zoom becoming a queue of them.
+
+Measured after, with the frame-gap instrument this file already uses. One full
+build: **median 16.6 ms — 60 fps, identical to idle — with exactly one gap over
+50 ms in 771 frames** (165 ms, which is the mesh re-lay and the texture upload,
+both inside the shared raster builder). A real descent from 700 km to 159 km
+with two sheets on: **median 16.7 ms, 10 frames of 300 over 50 ms**.
+
+What is left is the shared drape re-lay: `registerDrape` re-lays a patch's
+36,864 vertices whenever the ground moves 10 m, and the relief taper moves it
+continuously all the way down, so each sheet pays 31–41 ms a few times a
+second while descending. That is most of the 3% of frames that still hitch. It
+is shared machinery and every drape uses it, so it was left alone rather than
+tuned from here.
