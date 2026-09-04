@@ -11817,3 +11817,39 @@ disc), so take the WIDEST or the ring lands inside the mark.
 The texture is a ring rather than the existing disc for a reason worth keeping:
 a filled circle at halo size replaces the mark with a coloured blob, which is a
 highlight that hides its own subject.
+
+### "Loaded, visible, unculled, in front of the camera — and paints nothing"
+
+A point edit rebuilt its layer and the map went blank. Every property said the
+layer was fine: `status: "loaded"`, 200 features, `object3D.visible` true,
+`frustumCulled` false, camera layer masks matching, all 200 vertices projecting
+inside the viewport with `z < 1`, and `renderer.info.render.points` rising by
+exactly 200 when it was shown. **`info.render` counts what was SUBMITTED, not
+what survived rasterisation** — it is not evidence that anything was drawn.
+
+The one measurement that settles it is the framebuffer:
+
+```js
+gl.readPixels(0, 0, c.width, c.height, gl.RGBA, gl.UNSIGNED_BYTE, buf)
+```
+
+taken twice, once with the layer shown and once hidden, counting pixels that
+differ. Colour-matching a specific hue is worse — a viridis ramp is not one
+colour, and a wrong guess reads as "nothing drawn". The difference is robust and
+gives a number to compare between two layers.
+
+Two traps inside that: measure a layer with every OTHER layer hidden, or two
+copies at the same coordinates hide each other's contribution (a fresh import
+measured 90 px against 13,873 purely because a twin was drawn on top of it); and
+a point sprite whose computed `gl_PointSize` exceeds
+`gl.ALIASED_POINT_SIZE_RANGE[1]` — 255 here — is silently DROPPED, so "make it
+huge to find it" hides what it was meant to reveal.
+
+The cause was `transparent: opacity < 1`. At three metres above a 6,371 km
+radius a cloud is inside the depth buffer's noise, so an opaque one draws in the
+opaque pass and loses to the globe; the same 200 points painted 0 pixels opaque
+and 29,144 transparent. It had only ever worked because the Add-data dialog
+defaults opacity to 0.85 — **the touch-tight change made visibility depend on a
+symbology default**, and the first caller that imported without symbology found
+it. Anything drawn that close to the ground must be transparent-pass and
+`depthWrite: false`, which is what the markers already did.
