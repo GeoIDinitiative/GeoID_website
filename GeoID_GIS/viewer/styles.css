@@ -5411,3 +5411,11 @@ canvas {
 }
 /* A sub-tab carries no margin of its own, or it doubles the gap above. */
 .gis-tool-section { margin-top: 0 !important; margin-bottom: 0 !important; }
+
+/* `[hidden]` is only a UA-level display:none, and `.tool-rail-item` sets
+   `display: grid` — so an author rule outranks the attribute and a hidden
+   rail item goes on rendering. Distance, Profile and Points live on the draw
+   bar now; their buttons stay in the page because the bar reads and clicks
+   them, and this is what actually takes them off the rail. The same trap the
+   symbology dialog and the Research Hub have both paid for. */
+#tool-rail .tool-rail-item[hidden] { display: none !important; }

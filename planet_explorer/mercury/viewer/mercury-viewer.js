@@ -14852,9 +14852,98 @@ uniform float uViewportWidth;`,
         label.style.transform = `translate(-50%, ${fits || !projected ? "-50%" : "-115%"})`;
       }
 
+      /**
+       * EVERY LEG STATES ITS OWN LENGTH, written on the line.
+       *
+       * A multi-point line is drawn to learn how far it is, and the corner
+       * readout could only ever report one number for the whole route — so
+       * the distance between two particular points, which is what somebody
+       * placed those two points to find out, was the one thing not on screen.
+       * This is `updateAreaLabel`'s rule applied to a line: the number belongs
+       * ON the thing it measures, written like a place name with its own dark
+       * halo rather than in a box that would cover the ground it describes.
+       *
+       * One label per leg at that leg's screen midpoint, and the running total
+       * at the last point — so a reader gets both without adding anything up.
+       *
+       * The labels are POOLED. A route grows and shrinks a point at a time and
+       * this runs every frame; building and destroying nodes per frame is how
+       * a smooth line becomes a stuttering one.
+       */
+      const routeLabelPool = [];
+      function routeLabelNode(index) {
+        if (routeLabelPool[index]) return routeLabelPool[index];
+        const node = document.createElement("div");
+        node.className = "gis-route-label";
+        Object.assign(node.style, {
+          position: "fixed", zIndex: 5, pointerEvents: "none",
+          transform: "translate(-50%, -50%)", textAlign: "center",
+          color: "#ffffff", whiteSpace: "nowrap",
+          font: "600 0.78rem/1.2 'Exo 2', sans-serif",
+          textShadow: "0 0 3px rgba(0,0,0,0.95), 0 0 7px rgba(0,0,0,0.85),"
+            + " 0 1px 2px rgba(0,0,0,1)",
+        });
+        document.body.appendChild(node);
+        routeLabelPool[index] = node;
+        return node;
+      }
+
+      /** Kilometres a reader can take in: 84.2 km, 1,204 km. */
+      function routeKmText(km) {
+        if (!Number.isFinite(km)) return "";
+        if (km < 1) return `${Math.round(km * 1000)} m`;
+        if (km < 100) return `${km.toFixed(1)} km`;
+        return `${Math.round(km).toLocaleString()} km`;
+      }
+
+      function updateRouteLabels() {
+        const live = measureMode === "route" && measurePoints.length >= 2;
+        if (!live) {
+          routeLabelPool.forEach((node) => { node.hidden = true; });
+          return;
+        }
+        const context = measurePoints[0]?.context || getActiveMeasureContext();
+        let used = 0;
+        let alongKm = 0;
+        for (let i = 1; i < measurePoints.length; i += 1) {
+          const a = measurePoints[i - 1];
+          const b = measurePoints[i];
+          const legKm = greatCircleDistanceKm(a, b);
+          alongKm += legKm;
+          const pa = studyRectScreenPoint(a.lat, a.lon, context);
+          const pb = studyRectScreenPoint(b.lat, b.lon, context);
+          const node = routeLabelNode(used);
+          used += 1;
+          // A leg whose ends cannot both be projected is over the horizon;
+          // placing its label anyway writes a number onto empty sky.
+          if (!pa || !pb) { node.hidden = true; continue; }
+          node.hidden = false;
+          node.textContent = routeKmText(legKm);
+          node.style.left = `${(pa.x + pb.x) / 2}px`;
+          node.style.top = `${(pa.y + pb.y) / 2}px`;
+        }
+        // The total rides at the last point, named so it cannot be read as
+        // one more leg.
+        const last = measurePoints[measurePoints.length - 1];
+        const pl = last ? studyRectScreenPoint(last.lat, last.lon, context) : null;
+        const totalNode = routeLabelNode(used);
+        used += 1;
+        if (pl && measurePoints.length > 2) {
+          totalNode.hidden = false;
+          totalNode.textContent = `Total ${routeKmText(alongKm)}`;
+          totalNode.style.font = "700 0.9rem/1.2 'Exo 2', sans-serif";
+          totalNode.style.left = `${pl.x}px`;
+          totalNode.style.top = `${pl.y - 18}px`;
+        } else {
+          totalNode.hidden = true;
+        }
+        for (let i = used; i < routeLabelPool.length; i += 1) routeLabelPool[i].hidden = true;
+      }
+
       (function handleLoop() {
         updateRectHandles();
         updateAreaLabel();
+        updateRouteLabels();
         window.requestAnimationFrame(handleLoop);
       }());
 

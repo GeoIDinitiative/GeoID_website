@@ -27,8 +27,9 @@ const HINTS = {
   hexagon: "Press the centre and drag the size",
   poly: "Click to place vertices · Done saves the shape",
   shaped: "Drag corners to resize, edges to move · Done saves it as a layer · Enter = Done",
-  line: "Click two points for a distance · the export button writes the CSV",
+  line: "Click along your line · every leg states its own length · the export button writes the CSV",
   profile: "Click two points for a terrain section · the export button writes the CSV",
+  points: "Click the globe to drop points · Done files them as a layer",
   none: "Choose a shape, or a measure tool on the right",
 };
 
@@ -175,6 +176,9 @@ function lineArmed() {
 function profileArmed() {
   return byId("tool-rail-profile")?.classList.contains("is-active") || false;
 }
+function pointsArmed() {
+  return byId("tool-rail-points-btn")?.classList.contains("is-active") || false;
+}
 
 /**
  * WHICH TOOL IS ARMED, read off the rail rather than remembered here.
@@ -186,8 +190,12 @@ function profileArmed() {
  */
 function armedMode() {
   if (areaArmed()) return "area";
-  if (lineArmed()) return "distance";
+  // The Distance tool arms `route`: one multi-point line, so drawing a
+  // polyline and measuring a distance are one act. The rail button keeps its
+  // id — several modules address it — and only what it arms has changed.
+  if (lineArmed()) return "route";
   if (profileArmed()) return "profile";
+  if (pointsArmed()) return "points";
   return null;
 }
 
@@ -318,7 +326,9 @@ function build() {
       // that would stand the bar down under the hand that just pressed.
       if (armedMode() === id) return;
       setShape("");
-      byId(`tool-rail-${id}`)?.click();
+      // The Points tool builds its own rail button and names it differently;
+      // everything else is `tool-rail-<mode>`.
+      byId(id === "points" ? "tool-rail-points-btn" : `tool-rail-${id}`)?.click();
       refresh();
     });
     measure.appendChild(button);
@@ -328,7 +338,12 @@ function build() {
     '<path d="M4.5 17 17.5 5" fill="none" stroke="currentColor" stroke-width="1.8"'
     + ' stroke-linecap="round"/><circle cx="4.5" cy="17" r="1.9" fill="currentColor"/>'
     + '<circle cx="17.5" cy="5" r="1.9" fill="currentColor"/>',
-    "click two points for a distance, and a transect");
+    "click out a line of points; every leg states its own length");
+  mode("points", "Points",
+    '<circle cx="11" cy="11" r="2.9" fill="currentColor"/>'
+    + '<path d="M11 2.9v3.6M11 15.5v3.6M2.9 11h3.6M15.5 11h3.6" fill="none"'
+    + ' stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>',
+    "click the globe to drop points; Done files them as a layer");
   mode("profile", "Profile",
     '<path d="M3.5 15h3l2.1-5 2.6 2.5 2-5.7 2.3 2.9h3" fill="none"'
     + ' stroke="currentColor" stroke-width="1.8" stroke-linecap="round"'
@@ -338,8 +353,20 @@ function build() {
 
   const doneBtn = el("button", "draw-hud-btn is-done", "Done");
   doneBtn.type = "button";
-  doneBtn.title = "Save the shape as a layer (Enter)";
-  doneBtn.addEventListener("click", done);
+  doneBtn.title = "Save what you have drawn as a layer (Enter)";
+  doneBtn.addEventListener("click", () => {
+    /**
+     * Done means "file what I placed", and for the Points tool that is its
+     * OWN finish — Enter, which is the gesture that tool already answers to.
+     * Calling `captureDrawn` there would try to make a polygon out of points
+     * that were never a polygon.
+     */
+    if (armedMode() === "points") {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+      return;
+    }
+    done();
+  });
   const cancelBtn = el("button", "draw-hud-btn", "✕");
   cancelBtn.type = "button";
   cancelBtn.title = "Clear and put the tool away";
@@ -374,7 +401,7 @@ function build() {
  * the bar stands down. Lifted verbatim from the preset card this replaced —
  * it is the one part of that card worth keeping.
  */
-const EXPORT_MODES = ["area", "distance", "profile"];
+const EXPORT_MODES = ["area", "route", "profile", "points"];
 const exportSelector = (mode) => `[data-measure-actions="${mode}"]`;
 /**
  * One comment per mode, because each node has its own home to go back to.
@@ -506,7 +533,8 @@ function refresh() {
   });
   const hint = byId("gis-draw-hint");
   if (hint && !hint.dataset.hold) {
-    hint.textContent = mode === "distance" ? HINTS.line
+    hint.textContent = mode === "points" ? HINTS.points
+      : mode === "route" ? HINTS.line
       : mode === "profile" ? HINTS.profile
         : !current ? HINTS.none
           : (hasShape() && current !== "poly" ? HINTS.shaped : HINTS[current]);

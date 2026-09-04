@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260904-c255afe";
+  from "./gis/geo-utils.js?v=20260904-11e218d";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260904-c255afe";
+  from "./gis/vector-render.js?v=20260904-11e218d";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260904-c255afe";
+  from "./gis/rock-class.js?v=20260904-11e218d";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260904-c255afe";
+  from "./gis/lithology-label.js?v=20260904-11e218d";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -17265,9 +17265,9 @@ uniform float uViewportWidth;`,
         if (routeMetric) {
           routeMetric.innerHTML = "No active route.";
         }
-        if (routeProfileCanvas) {
-          routeProfileCanvas.hidden = true;
-        }
+          if (routeProfileCanvas) {
+            routeProfileCanvas.hidden = true;
+          }
         measureExport.disabled = !measureMode;
         [measureDistanceButton, measureAreaButton, measureProfileButton, measureRouteButton].forEach((button) => {
           button.classList.toggle("is-active", button.dataset.mode === measureMode);
@@ -17386,23 +17386,43 @@ uniform float uViewportWidth;`,
         }
         if (measureMode === "route" && measurePoints.length >= 2) {
           const routeProfile = sampleRouteProfile(measurePoints, activeMoonViewerFeature ? null : elevationSampler);
-          const rows = [["type", "index", "distance_along_km", "lat_deg", "lon_deg_e", "elevation_m", "bearing_deg"]];
+          /**
+           * THE LEG IS THE MEASUREMENT, so it is a column.
+           *
+           * A polyline's vertices used to carry an EMPTY `distance_along_km`
+           * and a bearing, which says where each leg points and never how far
+           * it runs — so the one number somebody draws a multi-point line to
+           * get was in the file for the whole route and nowhere per leg.
+           * `segment_km` is the distance from the previous vertex (blank on
+           * the first, which has no leg behind it) and `distance_along_km` is
+           * the running total, so a reader can take either without arithmetic.
+           */
+          const rows = [["type", "index", "distance_along_km", "segment_km",
+            "lat_deg", "lon_deg_e", "elevation_m", "bearing_deg"]];
+          let alongKm = 0;
           measurePoints.forEach((point, index) => {
+            const legKm = index === 0
+              ? null : greatCircleDistanceKm(measurePoints[index - 1], point);
+            if (legKm !== null) alongKm += legKm;
             rows.push([
               "vertex",
               index + 1,
-              "",
+              alongKm.toFixed(3),
+              legKm === null ? "" : legKm.toFixed(3),
               point.lat.toFixed(6),
               point.lon.toFixed(6),
               sampleElevationMeters(elevationSampler, point.lat, point.lon)?.toFixed?.(3) ?? "",
               index < measurePoints.length - 1 ? initialBearingDegrees(point, measurePoints[index + 1]).toFixed(3) : "",
             ]);
           });
+          // The total, as its own row rather than a number to add up.
+          rows.push(["total", "", alongKm.toFixed(3), "", "", "", "", ""]);
           routeProfile.samples.forEach((sample, index) => {
             rows.push([
               "profile",
               index + 1,
               sample.distanceAlongKm.toFixed(3),
+              "",
               sample.lat.toFixed(6),
               sample.lon.toFixed(6),
               sample.elevation.toFixed(3),
@@ -18535,9 +18555,98 @@ uniform float uViewportWidth;`,
         label.style.transform = `translate(-50%, ${fits || !projected ? "-50%" : "-115%"})`;
       }
 
+      /**
+       * EVERY LEG STATES ITS OWN LENGTH, written on the line.
+       *
+       * A multi-point line is drawn to learn how far it is, and the corner
+       * readout could only ever report one number for the whole route — so
+       * the distance between two particular points, which is what somebody
+       * placed those two points to find out, was the one thing not on screen.
+       * This is `updateAreaLabel`'s rule applied to a line: the number belongs
+       * ON the thing it measures, written like a place name with its own dark
+       * halo rather than in a box that would cover the ground it describes.
+       *
+       * One label per leg at that leg's screen midpoint, and the running total
+       * at the last point — so a reader gets both without adding anything up.
+       *
+       * The labels are POOLED. A route grows and shrinks a point at a time and
+       * this runs every frame; building and destroying nodes per frame is how
+       * a smooth line becomes a stuttering one.
+       */
+      const routeLabelPool = [];
+      function routeLabelNode(index) {
+        if (routeLabelPool[index]) return routeLabelPool[index];
+        const node = document.createElement("div");
+        node.className = "gis-route-label";
+        Object.assign(node.style, {
+          position: "fixed", zIndex: 5, pointerEvents: "none",
+          transform: "translate(-50%, -50%)", textAlign: "center",
+          color: "#ffffff", whiteSpace: "nowrap",
+          font: "600 0.78rem/1.2 'Exo 2', sans-serif",
+          textShadow: "0 0 3px rgba(0,0,0,0.95), 0 0 7px rgba(0,0,0,0.85),"
+            + " 0 1px 2px rgba(0,0,0,1)",
+        });
+        document.body.appendChild(node);
+        routeLabelPool[index] = node;
+        return node;
+      }
+
+      /** Kilometres a reader can take in: 84.2 km, 1,204 km. */
+      function routeKmText(km) {
+        if (!Number.isFinite(km)) return "";
+        if (km < 1) return `${Math.round(km * 1000)} m`;
+        if (km < 100) return `${km.toFixed(1)} km`;
+        return `${Math.round(km).toLocaleString()} km`;
+      }
+
+      function updateRouteLabels() {
+        const live = measureMode === "route" && measurePoints.length >= 2;
+        if (!live) {
+          routeLabelPool.forEach((node) => { node.hidden = true; });
+          return;
+        }
+        const context = measurePoints[0]?.context || getActiveMeasureContext();
+        let used = 0;
+        let alongKm = 0;
+        for (let i = 1; i < measurePoints.length; i += 1) {
+          const a = measurePoints[i - 1];
+          const b = measurePoints[i];
+          const legKm = greatCircleDistanceKm(a, b);
+          alongKm += legKm;
+          const pa = studyRectScreenPoint(a.lat, a.lon, context);
+          const pb = studyRectScreenPoint(b.lat, b.lon, context);
+          const node = routeLabelNode(used);
+          used += 1;
+          // A leg whose ends cannot both be projected is over the horizon;
+          // placing its label anyway writes a number onto empty sky.
+          if (!pa || !pb) { node.hidden = true; continue; }
+          node.hidden = false;
+          node.textContent = routeKmText(legKm);
+          node.style.left = `${(pa.x + pb.x) / 2}px`;
+          node.style.top = `${(pa.y + pb.y) / 2}px`;
+        }
+        // The total rides at the last point, named so it cannot be read as
+        // one more leg.
+        const last = measurePoints[measurePoints.length - 1];
+        const pl = last ? studyRectScreenPoint(last.lat, last.lon, context) : null;
+        const totalNode = routeLabelNode(used);
+        used += 1;
+        if (pl && measurePoints.length > 2) {
+          totalNode.hidden = false;
+          totalNode.textContent = `Total ${routeKmText(alongKm)}`;
+          totalNode.style.font = "700 0.9rem/1.2 'Exo 2', sans-serif";
+          totalNode.style.left = `${pl.x}px`;
+          totalNode.style.top = `${pl.y - 18}px`;
+        } else {
+          totalNode.hidden = true;
+        }
+        for (let i = used; i < routeLabelPool.length; i += 1) routeLabelPool[i].hidden = true;
+      }
+
       (function handleLoop() {
         updateRectHandles();
         updateAreaLabel();
+        updateRouteLabels();
         window.requestAnimationFrame(handleLoop);
       }());
 
@@ -19464,8 +19573,24 @@ uniform float uViewportWidth;`,
               `Bearing ${startBearing.toFixed(1)}° → ${endBearing.toFixed(1)}°`,
             ].join("<br>");
           }
+          /**
+           * THE CHART GOES IN THE PANEL, NOT OVER THE GLOBE.
+           *
+           * This branch runs on every point, so the modal it used to open
+           * landed the instant the SECOND point was placed -- over the globe,
+           * under the hand, swallowing the click that would have added a
+           * third. A multi-point line could therefore never get past two
+           * points: the tool's own readout blocked the tool. Measured that
+           * way, four clicks in and two points on the map.
+           *
+           * The same `drawProfile` paints the route section's own canvas,
+           * which has been sitting hidden since it was written, so the
+           * profile is still there to read and nothing covers the ground
+           * being drawn on.
+           */
           if (routeProfileCanvas) {
-            routeProfileCanvas.hidden = true;
+            routeProfileCanvas.hidden = false;
+            drawProfile(routeProfileCanvas, routeProfile.samples);
           }
           measureMetric.innerHTML = [
             `<strong>${measurePoints[0].bodyName || "Earth"} route</strong>: ${routeProfile.totalDistanceKm.toFixed(1)} km`,
@@ -19477,11 +19602,13 @@ uniform float uViewportWidth;`,
           ].join("<br>");
           showMeasurementResultCard("Route", measureMetric.innerHTML);
           profileCanvas.hidden = true;
-          showProfileModal(
-            `${measurePoints[0].bodyName || "Earth"} Route Profile`,
-            `Distance ${routeProfile.totalDistanceKm.toFixed(1)} km · Gain ${routeProfile.elevationGainM.toFixed(0)} m · Loss ${routeProfile.elevationLossM.toFixed(0)} m · Elevation ${min.toFixed(0)} to ${max.toFixed(0)} m`,
-            routeProfile.samples.map((sample) => ({ ...sample, distanceAlongKm: sample.distanceAlongKm })),
-          );
+          // The plot state is kept current so Export PNG still writes THIS
+          // route; only the window that blocked the next click is gone.
+          currentProfilePlotState = {
+            title: `${measurePoints[0].bodyName || "Earth"} Route Profile`,
+            summary: routeMetric ? routeMetric.textContent : "",
+            samples: routeProfile.samples.map((sample) => ({ ...sample })),
+          };
         } else if (measureMode === "profile" && measurePoints.length >= 2) {
           setToolboxTab("measure");
           const profileSampler = activeMoonViewerFeature ? null : elevationSampler;
@@ -19519,10 +19646,14 @@ uniform float uViewportWidth;`,
       }
 
       function syncMeasureRailActions() {
-        const activeModes = ["pins", "distance", "area", "profile"];
+        // `route` is the Distance tool now: one multi-point line, so drawing a
+        // polyline and measuring a distance are the same act rather than two
+        // tools that clash over the same clicks.
+        const activeModes = ["pins", "distance", "route", "area", "profile"];
         const canExport = {
           pins: gisPins.length >= 1,
           distance: measurePoints.length >= 2,
+          route: measurePoints.length >= 2,
           area: measurePoints.length >= 3,
           profile: measureProfileSamples.length >= 2,
         };
@@ -19537,7 +19668,7 @@ uniform float uViewportWidth;`,
             ? "Export pins CSV"
             : mode === "area"
             ? "Export Area CSV"
-            : mode === "distance"
+            : (mode === "distance" || mode === "route")
               ? "Export Distance CSV"
               : "Export Profile CSV";
           button.disabled = !canExport[mode];

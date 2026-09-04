@@ -162,6 +162,7 @@ function onPointerUp(event) {
   state.points.push({ lat: at.lat, lon: at.lon });
   redrawPreview();
   syncChip();
+  syncPointActions();
 }
 
 function onKey(event) {
@@ -202,7 +203,40 @@ async function pickLoop() {
     state.points.push({ lat: at.lat, lon: at.lon });
     redrawPreview();
     syncChip();
+    syncPointActions();
   }
+}
+
+/**
+ * The placed points as a CSV — index, latitude, signed longitude.
+ *
+ * Signed, because that is what every reader outside this app means by a
+ * longitude: the viewer carries east-positive 0-360 and `pointsToGeoJSON`
+ * already converts for exactly this reason. A file that says 315 where the
+ * world says -45 is the trap this tree records paying for in bridge.js.
+ */
+function exportPointsCsv() {
+  if (!state.points.length) return;
+  const signed = (lon) => ((lon + 540) % 360) - 180;
+  const rows = [["index", "lat_deg", "lon_deg"]];
+  state.points.forEach((point, index) => {
+    rows.push([index + 1, point.lat.toFixed(6), signed(point.lon).toFixed(6)]);
+  });
+  const csv = rows.map((row) => row.join(",")).join("\n") + "\n";
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `points_${state.counter}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** The export is offered exactly while there is something to export. */
+function syncPointActions() {
+  const actions = document.querySelector('[data-measure-actions="points"]');
+  if (actions) actions.hidden = !(state.armed && state.points.length);
 }
 
 function arm() {
@@ -217,6 +251,7 @@ function arm() {
     canvas.style.cursor = "crosshair";
   }
   syncChip();
+  syncPointActions();
   cancelAnimationFrame(state.raf);
   previewLoop();
   if (pickMode() === "picker") pickLoop();
@@ -235,6 +270,7 @@ function disarm(discard) {
   const canvas = window.GeoIDViewer?.renderer?.domElement;
   if (canvas) canvas.style.cursor = state.savedCursor;
   if (state.chip) state.chip.hidden = true;
+  syncPointActions();
   redrawPreview();
   if (!state.points.length) cancelAnimationFrame(state.raf);
 }
@@ -264,6 +300,16 @@ function buildRailButton() {
   if (!rail || byId("tool-rail-points-btn")) return false;
   const item = document.createElement("div");
   item.className = "tool-rail-item";
+  /**
+   * BUILT, AND NOT SHOWN ON THE RAIL.
+   *
+   * This tool lives on the draw bar now, beside the shapes and the other two
+   * measures. The button itself has to exist all the same: the bar reads its
+   * `is-active` to know the tool is armed and clicks it to arm one, so the
+   * rail entry is the control's home rather than its face — the same
+   * arrangement Distance and Profile keep.
+   */
+  item.hidden = true;
   const button = document.createElement("button");
   button.type = "button";
   button.className = "tool-rail-btn";
@@ -277,6 +323,32 @@ function buildRailButton() {
     + '</svg><span>Points</span>';
   button.addEventListener("click", () => (state.armed ? disarm(true) : arm()));
   item.appendChild(button);
+
+  /**
+   * ITS OWN EXPORT, in the shape the draw bar already borrows.
+   *
+   * The other three tools each publish a `[data-measure-actions="<mode>"]`
+   * group holding one Export CSV button, and the bar parks whichever belongs
+   * to the armed tool. Points had none — its only outcome was Done filing a
+   * layer — so the bar had nothing to offer while it was armed. This group
+   * is built HERE rather than taught to the viewer, because the viewer does
+   * not own these points: `state.points` does, and the module that holds the
+   * data is the one that can write it out.
+   */
+  const actions = document.createElement("div");
+  actions.className = "measure-rail-actions";
+  actions.dataset.measureActions = "points";
+  actions.hidden = true;
+  const exportBtn = document.createElement("button");
+  exportBtn.type = "button";
+  exportBtn.className = "tool-rail-action-btn";
+  exportBtn.dataset.measureExport = "points";
+  exportBtn.textContent = "Export CSV";
+  exportBtn.title = "Export points CSV";
+  exportBtn.setAttribute("aria-label", exportBtn.title);
+  exportBtn.addEventListener("click", exportPointsCsv);
+  actions.appendChild(exportBtn);
+  item.appendChild(actions);
   // With the measure tools, before the workbench buttons.
   const firstPanelItem = rail.querySelector("[data-panel-item]");
   if (firstPanelItem) rail.insertBefore(item, firstPanelItem);

@@ -25,13 +25,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260904-c255afe-hazard-readout-large">
+  <link rel="stylesheet" href="styles.css?v=20260904-11e218d-hazard-readout-large">
   <style>html,body{background:#000;margin:0}</style>
   <link rel="stylesheet" href="/styles/viewer-skin.css">
   <link rel="stylesheet" href="/styles/viewer-themes.css">
   <script src="/scripts/theme.js"></script>
-  <script src="/scripts/tour-enter.js?v=20260904-c255afe" defer></script>
-  <script src="/scripts/ui-sound.js?v=20260904-c255afe" defer></script>
+  <script src="/scripts/tour-enter.js?v=20260904-11e218d" defer></script>
+  <script src="/scripts/ui-sound.js?v=20260904-11e218d" defer></script>
 </head>
 <!-- `sidebar-arranging` is set here, in the markup, rather than by a script:
      the panels below are written in source order, and GIS mode rearranges them
@@ -1040,8 +1040,14 @@
   </div>
   <div id="geo-popup-anchor" class="geo-popup-anchor" hidden></div>
   <div id="tool-rail" aria-label="Tool launcher">
-    <div class="tool-rail-item" data-measure-item="distance">
-      <button class="tool-rail-btn" id="tool-rail-distance" type="button" data-measure-mode="distance" aria-label="Activate distance tool" title="Distance">
+    <!-- HIDDEN, NEVER REMOVED. These two live on the draw bar now, where
+         everything else the pointer does over the globe already was. The
+         BUTTONS have to stay in the page: the bar reads their `is-active`
+         to know which tool is armed and clicks them to arm one, so deleting
+         them would take the controls that replaced them with it. Draw stays
+         on the rail as the one doorway that raises the bar. -->
+    <div class="tool-rail-item" data-measure-item="distance" hidden>
+      <button class="tool-rail-btn" id="tool-rail-distance" type="button" data-measure-mode="route" aria-label="Activate distance tool" title="Distance: click out a line of points; every leg states its own length">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M5 17.2 18.2 4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
           <circle cx="5" cy="17.2" r="1.7" fill="currentColor"/>
@@ -1049,8 +1055,8 @@
         </svg>
         <span>Distance</span>
       </button>
-      <div class="measure-rail-actions" data-measure-actions="distance" hidden>
-        <button class="tool-rail-action-btn" type="button" data-measure-export="distance" aria-label="Export distance CSV" title="Export distance CSV">Export CSV</button>
+      <div class="measure-rail-actions" data-measure-actions="route" hidden>
+        <button class="tool-rail-action-btn" type="button" data-measure-export="route" aria-label="Export distance CSV" title="Export distance CSV">Export CSV</button>
       </div>
     </div>
     <div class="tool-rail-item" data-measure-item="area">
@@ -1068,7 +1074,13 @@
         <button class="tool-rail-action-btn" type="button" data-measure-export="area" aria-label="Export area CSV" title="Export area CSV">Export CSV</button>
       </div>
     </div>
-    <div class="tool-rail-item" data-measure-item="profile">
+    <!-- HIDDEN, NEVER REMOVED. These two live on the draw bar now, where
+         everything else the pointer does over the globe already was. The
+         BUTTONS have to stay in the page: the bar reads their `is-active`
+         to know which tool is armed and clicks them to arm one, so deleting
+         them would take the controls that replaced them with it. Draw stays
+         on the rail as the one doorway that raises the bar. -->
+    <div class="tool-rail-item" data-measure-item="profile" hidden>
       <button class="tool-rail-btn" id="tool-rail-profile" type="button" data-measure-mode="profile" aria-label="Activate profile tool" title="Profile">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M4.5 16.5h3.2l2.3-5.4 2.8 2.7 2.2-6.2 2.5 3.1H20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1972,7 +1984,7 @@
     </div>
   </div>
 
-<script id="earth-manifest-script" src="earth-manifest.js?v=20260904-c255afe-blue-marble" defer></script>
+<script id="earth-manifest-script" src="earth-manifest.js?v=20260904-11e218d-blue-marble" defer></script>
 <script>
   const statusNode = document.getElementById("status");
 
@@ -2051,75 +2063,75 @@
   void bootEarthViewer();
 </script>
 <script src="ui-controls.js" defer></script>
-<script src="gis/mode-manager.js?v=20260904-c255afe" defer></script>
-<script type="module" src="gis/panels.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/settings-panel.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/point-tool.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/gee-live.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/fos.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/geoid-pipeline.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/geoid-mode.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/atlas-assistant.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/import-manager.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/analysis-panel.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/model-pipeline.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/add-data.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/geology-panel.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/map-layers-panel.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/section-activity.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/tool-shelves.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/weather-maps.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/draw-hud.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/pipeline-sync.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/toolbox.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/toolbox-ops.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/sidecar-client.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/tool-search.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/tool-dialog.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/charts.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/time.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/edit-tools.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/feature-popup.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/forecast.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/location-tools.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/point-extract.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/drawn-layers.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/area-labels.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/panel-styles.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/symbology.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/symbology-panel.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/batch.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/batch-panel.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/georeference.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/georeference-panel.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/wfs-import.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/demo-layers.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/model-studio.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/layer-properties.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/layer-hierarchy.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/table-editor.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/legend-dock.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/layer-export-dialog.js?v=20260904-c255afe"></script>
+<script src="gis/mode-manager.js?v=20260904-11e218d" defer></script>
+<script type="module" src="gis/panels.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/settings-panel.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/point-tool.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/gee-live.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/fos.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/geoid-pipeline.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/geoid-mode.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/atlas-assistant.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/import-manager.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/analysis-panel.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/model-pipeline.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/add-data.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/geology-panel.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/map-layers-panel.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/section-activity.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/tool-shelves.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/weather-maps.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/draw-hud.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/pipeline-sync.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/toolbox.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/toolbox-ops.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/sidecar-client.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/tool-search.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/tool-dialog.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/charts.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/time.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/edit-tools.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/feature-popup.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/forecast.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/location-tools.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/point-extract.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/drawn-layers.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/area-labels.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/panel-styles.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/symbology.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/symbology-panel.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/batch.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/batch-panel.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/georeference.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/georeference-panel.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/wfs-import.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/demo-layers.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/model-studio.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/layer-properties.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/layer-hierarchy.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/table-editor.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/legend-dock.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/layer-export-dialog.js?v=20260904-11e218d"></script>
 <!-- Pre-processing and Extraction & Analysis, as workbenches on the tool
      rail rather than two more collapsibles in the sidebar column. -->
-<script type="module" src="gis/side-panels.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/project.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/events.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/gee.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/basemap-drape.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/zoom-bar.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/polygons.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/point-labels.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/satellites.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/catalogue-panels.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/earth-data-panel.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/rock-properties-panel.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/ice-cover-panel.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/soil-cover.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/glim-cover.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/research/index.js?v=20260904-c255afe"></script>
-<script type="module" src="gis/planet-strip.js?v=20260904-c255afe"></script>
-<script src="music.js?v=20260904-c255afe" defer></script>
+<script type="module" src="gis/side-panels.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/project.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/events.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/gee.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/basemap-drape.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/zoom-bar.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/polygons.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/point-labels.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/satellites.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/catalogue-panels.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/earth-data-panel.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/rock-properties-panel.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/ice-cover-panel.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/soil-cover.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/glim-cover.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/research/index.js?v=20260904-11e218d"></script>
+<script type="module" src="gis/planet-strip.js?v=20260904-11e218d"></script>
+<script src="music.js?v=20260904-11e218d" defer></script>
 <script>if (window.self !== window.top) document.body.classList.add("is-embedded");</script>
 
 </body>
