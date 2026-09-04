@@ -11798,3 +11798,22 @@ Measured against `surfacePoint(lat, lon, 0)`, in metres off the ground:
 
 The rule the codebase keeps arriving at: **a layer that does not depth-test
 needs no clearance, and any clearance it has it pays for in parallax.**
+
+### A highlight has to be told what it is highlighting
+
+The hover mark for a point was `new THREE.PointsMaterial({ size: 14,
+sizeAttenuation: false })` — no map, so it drew its own quad as a hard square,
+at a constant 14 screen pixels over marks whose size is never constant. A vector
+marker's size is driven by altitude, an imported cloud's is world-space and
+derived from the survey's spacing; 14 px was a fraction of one and a swamping of
+the other.
+
+`featuresAt` has always returned `{ layer, feature }` and every call site
+already held the layer — it simply was not passed down. With it, the highlight
+reads the source layer's own `size` and `sizeAttenuation`. Note a marker layer
+draws TWO point objects (the white underlay a few pixels wider than the tinted
+disc), so take the WIDEST or the ring lands inside the mark.
+
+The texture is a ring rather than the existing disc for a reason worth keeping:
+a filled circle at halo size replaces the mark with a coloured blob, which is a
+highlight that hides its own subject.
