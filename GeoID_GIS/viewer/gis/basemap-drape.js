@@ -37,12 +37,12 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260904-8648463";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260904-8648463";
-import { isEarth } from "./bodies.js?v=20260904-8648463";
-import { streamRings, cacheStats } from "./tile-streamer.js?v=20260904-8648463";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260904-c4fa9f9";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260904-c4fa9f9";
+import { isEarth } from "./bodies.js?v=20260904-c4fa9f9";
+import { streamRings, cacheStats } from "./tile-streamer.js?v=20260904-c4fa9f9";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260904-8648463";
+  from "./view-extent.js?v=20260904-c4fa9f9";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -717,15 +717,24 @@ let defaultApplied = false;
  * interpolated tiles it would happily serve above 14.
  */
 const DEFAULT_TILE_SOURCE = "Sentinel-2 Cloudless";
+/** What earth-viewer selects before any service has registered. */
+const SHIPPED_DEFAULT_ID = "earth-visible";
 
 function applyDefaultBasemap() {
   if (defaultApplied) return;
   const select = document.getElementById("base-layer-select");
   const id = baseLayerIdFor(DEFAULT_TILE_SOURCE);
   if (!select || !select.querySelector(`option[value="${id}"]`)) return;
-  // Only from the shipped default. If the value is anything else the user has
-  // already chosen, and a default must not overrule a choice.
-  if (select.value !== "blue-marble") { defaultApplied = true; return; }
+  /**
+   * Only from the SHIPPED default. If the value is anything else the user has
+   * already chosen, and a default must not overrule a choice.
+   *
+   * The id has to track `FALLBACK_NAVIGATE_BASE_LAYER_ID` in earth-viewer: it
+   * read "blue-marble" and when that basemap was withdrawn from the dropdown
+   * this test would have matched nothing, leaving the globe on the shipped
+   * texture forever and the mosaic never applied.
+   */
+  if (select.value !== SHIPPED_DEFAULT_ID) { defaultApplied = true; return; }
   defaultApplied = true;
   select.value = id;
   select.dispatchEvent(new Event("change", { bubbles: true }));

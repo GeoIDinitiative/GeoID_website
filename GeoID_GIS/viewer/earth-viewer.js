@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260904-8648463";
+  from "./gis/geo-utils.js?v=20260904-c4fa9f9";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260904-8648463";
+  from "./gis/vector-render.js?v=20260904-c4fa9f9";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260904-8648463";
+  from "./gis/rock-class.js?v=20260904-c4fa9f9";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260904-8648463";
+  from "./gis/lithology-label.js?v=20260904-c4fa9f9";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -132,7 +132,18 @@ function fmtProp(value) {
      * quietly becomes a second, different default.
      */
     const DEFAULT_NAVIGATE_BASE_LAYER_ID = "tiles-sentinel-2-cloudless";
-    const FALLBACK_NAVIGATE_BASE_LAYER_ID = "blue-marble";
+    /**
+     * The SHIPPED basemap: what the globe wears until the tile services
+     * register, and what Navigate falls back to if they never do.
+     *
+     * Blue Marble was this, and it was also the basemap the page opened on --
+     * `basemap-drape` swaps to Sentinel-2 only when it finds this exact value
+     * still selected, so the opening frame was always Blue Marble and the
+     * mosaic arrived a beat later. With Blue Marble withdrawn from the
+     * dropdown the shipped default is the Earth Surface texture, which is the
+     * other thing in the repo rather than a service that may not answer.
+     */
+    const FALLBACK_NAVIGATE_BASE_LAYER_ID = "earth-visible";
     const moonViewerControls = document.getElementById("moon-viewer-controls");
     const moonViewerSelect = document.getElementById("moon-viewer-select");
     const moonViewerPrev = document.getElementById("moon-viewer-prev");
@@ -13628,12 +13639,16 @@ function fmtProp(value) {
       // `gebco-bathy-context` is the GEBCO 2025 relief overlay that used to sit
       // in the Geology tab, which it never belonged in: it is bathymetry and
       // topography, the same derived product as the hillshade beside it.
-      const ALLOWED_BASEMAP_IDS = new Set(["blue-marble", "earth-visible", "derived-hillshade", "elevation-dem", "gebco-bathy-context"]);
+      // Blue Marble is withdrawn: it is a 2004 composite at a resolution the
+      // rest of the list beats everywhere, and it was the opening frame purely
+      // because it was the shipped fallback. The texture stays in the manifest
+      // -- this is the dropdown, not the repository.
+      const ALLOWED_BASEMAP_IDS = new Set(["earth-visible", "derived-hillshade", "elevation-dem", "gebco-bathy-context"]);
       const selectableBaseLayers = baseLayers.filter((l) => ALLOWED_BASEMAP_IDS.has(l.id) && !HIDDEN_BASE_LAYER_IDS.has(l.id));
       const standardLayers = selectableBaseLayers.filter((l) => !l.scGroup);
       // Group standard layers into labelled optgroups
       const BASE_LAYER_GROUPS = [
-        { label: "Imagery",  ids: ["blue-marble", "earth-visible"] },
+        { label: "Imagery",  ids: ["earth-visible"] },
         { label: "Terrain",  ids: ["derived-hillshade", "elevation-dem", "gebco-bathy-context"] },
       ];
       const assignedIds = new Set(BASE_LAYER_GROUPS.flatMap((g) => g.ids));
