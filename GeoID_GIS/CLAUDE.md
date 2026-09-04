@@ -11764,3 +11764,37 @@ Hoisting the span maths above the placement loop put it above
 import silently lands as `status: "error"` with a null message. The live import
 caught it in one reload. **For modules the node tests cannot reach, "it parses
 and the suite is green" is not evidence of anything.**
+
+### The stamp rewrites the very strings a patch anchors on
+
+An import line was added by replacing `"./vector-render.js?v=20260904-d983da6"`
+— a stamp that `stamp.py` had already rewritten to a different hash two commits
+earlier. `str.replace` does not raise when it matches nothing, so the edit
+silently did nothing, the file still parsed, all 98 tests still passed, and the
+import failed at runtime with `registerDrape is not defined`.
+
+Two rules follow. **Assert the match count on every replace, not just the ones
+that look risky** — an anchor that includes a stamp is guaranteed to go stale.
+And **never anchor on a stamped URL**: match the import with a regex that treats
+`?v=...` as optional and reuse whatever stamp is live.
+
+This is the second silent-anchor failure in two sessions; the other matched the
+wrong copy of a duplicated block. The shape is the same both times — the edit
+reported success and the change was not there.
+
+### What "touch tight" means for each layer type here
+
+Measured against `surfacePoint(lat, lon, 0)`, in metres off the ground:
+
+- **Raster drapes** — 0 m, terrain-following, re-laid whenever the ground moves
+  more than 10 m beneath them.
+- **Imported point clouds** — ~3 m (`LINE_DRAPE_MIN`), the same treatment, and
+  registered in the same drape registry. Was a flat 9,950 m on a plain sphere.
+- **Vector markers** — altitude-scaled per frame by `setLineDrapeFromAltitude`:
+  11.9 km from orbit down to a couple of metres on the ground, so a baked vertex
+  reading 11,945 m is NOT the drawn position. Measure the uniform, not the
+  buffer.
+- **Polygon fills** — `FILL_DRAPE = 0`.
+
+The rule the codebase keeps arriving at: **a layer that does not depth-test
+needs no clearance, and any clearance it has it pays for in parallax.**
