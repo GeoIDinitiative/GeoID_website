@@ -18,7 +18,7 @@
  * in extraction and in export without this file knowing anything about them.
  */
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260904-533b6f3";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260904-8512f2d";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -246,6 +246,17 @@ function infoPop() {
  * where it comes from — on a card, because a title-attribute tooltip
  * cannot be read on touch and truncates the licence it exists to show.
  */
+/**
+ * Exported so the geology panel uses THIS ⓘ rather than a second one. Its rows
+ * are built by hand — a tiled layer is not a file the catalogue can describe —
+ * and a card that opens differently there would be a second implementation of
+ * the same button, which is how the credit line and the licence line came to
+ * describe different maps.
+ */
+export function datasetInfoButton(entry) {
+  return infoButton(entry);
+}
+
 function infoButton(entry) {
   const btn = document.createElement("button");
   btn.type = "button";

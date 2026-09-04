@@ -28,15 +28,16 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260904-533b6f3";
-import { currentBodyId } from "./bodies.js?v=20260904-533b6f3";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260904-533b6f3";
-import { rockClass } from "./rock-class.js?v=20260904-533b6f3";
-import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260904-533b6f3";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260904-533b6f3";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260904-533b6f3";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260904-8512f2d";
+import { currentBodyId } from "./bodies.js?v=20260904-8512f2d";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260904-8512f2d";
+import { rockClass } from "./rock-class.js?v=20260904-8512f2d";
+import { datasetInfoButton } from "./catalogue-list.js?v=20260904-8512f2d";
+import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260904-8512f2d";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260904-8512f2d";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260904-8512f2d";
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260904-533b6f3";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260904-8512f2d";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -172,6 +173,19 @@ const GLOBAL_BASE = {
   initialOpacity: 0.5,
   credit: "Macrostrat Burwell compilation, CC BY 4.0 — each polygon carries the "
     + "survey that mapped it.",
+  /**
+   * What the ⓘ says. Both halves used to be printed INTO the box — the
+   * behaviour note under the row and the citation at the foot, on every load —
+   * so a panel with four controls in it carried four lines of prose that never
+   * change. They belong on the card every other dataset row already opens.
+   */
+  info: {
+    summary: "Tiled, so it follows the view by itself: the world when you are "
+      + "looking at the world, one survey's detail when you fly in. Click a "
+      + "polygon to read what it is.",
+    citation: "Macrostrat Burwell compilation, CC BY 4.0 — each polygon "
+      + "carries the survey that mapped it.",
+  },
 };
 
 /** This world's datasets. A body with none gets a panel that says so. */
@@ -220,6 +234,14 @@ const STYLE = `
   align-items: center;
   gap: 0.35rem;
 }
+/* The name row carries the tick, the name, the ⓘ and — for the layer this
+   subsection owns — its Symbology button, so the box opens with ONE line that
+   says what this is and what can be done to it, and the settings sit under it.
+   margin-left:auto pins the button right however long the name runs. */
+.gis-catalogue-row .gis-catalogue-info-btn { flex: 0 0 auto; }
+.gis-catalogue-row > .button { margin-left: auto; flex: 0 0 auto; }
+.gis-geo-layer.is-owned .gis-geo-layer-head { display: none; }
+.gis-geo-layer.is-owned { border-top: 0; padding-top: 0; margin-top: 0.1rem; }
 .gis-geo-layer-name {
   flex: 1 1 auto;
   min-width: 0;
@@ -711,11 +733,17 @@ async function loadTiled(entry, { toView = false, quiet = false } = {}) {
   }
   publishInteractive();
   watchView();
-  const where = stats.cached === stats.tiles ? "from cache"
-    : `${stats.fetched} fetched, ${stats.cached} cached`;
-  say(`${entry.label} — ${layer.features.length.toLocaleString()} features at zoom `
-    + `${stats.zoom} (${stats.tiles} tiles, ${where}`
-    + `${stats.failed ? `, ${stats.failed} unavailable` : ""}). ${entry.credit}`);
+  /**
+   * THE PANEL SAYS WHAT WENT WRONG, not what went right.
+   *
+   * This restated the layer's name, its licence and a tile count on every
+   * settle — four lines of standing prose under four controls, repeating the
+   * row above it and the ⓘ beside that. What a reader cannot get anywhere
+   * else is a load that FAILED, so that is what is left.
+   */
+  say(stats.failed
+    ? `${stats.failed} of ${stats.tiles} tiles did not load — the map is incomplete here.`
+    : "");
   render();
 }
 
@@ -1442,10 +1470,13 @@ function render() {
   // a const inside `build` and invisible from this scope — reading it here
   // would throw and take the rest of this function with it, silently.
   const owned = layers.find((l) => l.geologyDataset === GLOBAL_BASE?.id);
+  // Nothing loaded, nothing to recolour: the row's button stands down rather
+  // than opening a dialog for a layer that is not there.
+  if (nodes.ownedSym && !owned) { nodes.ownedSym.hidden = true; nodes.ownedSym.onclick = null; }
   layers.forEach((layer) => {
     const isOwned = Boolean(owned) && layer.id === owned.id;
     const box = document.createElement("div");
-    box.className = "gis-geo-layer";
+    box.className = `gis-geo-layer${isOwned ? " is-owned" : ""}`;
     const row = document.createElement("div");
     row.className = "gis-geo-layer-head";
     if (!isOwned) {
@@ -1470,7 +1501,17 @@ function render() {
     sym.textContent = "Symbology…";
     sym.style.fontSize = "0.6rem";
     sym.addEventListener("click", () => openSymbology(layer));
-    row.append(sym);
+    /**
+     * For the owned layer the button is the one the name row already holds —
+     * pointed at this layer rather than built again. Its own head would be a
+     * bar holding a single button under a bar holding a single name.
+     */
+    if (isOwned && nodes.ownedSym) {
+      nodes.ownedSym.hidden = false;
+      nodes.ownedSym.onclick = () => openSymbology(layer);
+    } else {
+      row.append(sym);
+    }
 
     const by = document.createElement("div");
     by.className = "gis-geo-layer-by";
@@ -1754,14 +1795,33 @@ export function init() {
   name.textContent = GLOBAL_BASE?.label || "World geology";
   if (GLOBAL_BASE?.credit) name.title = GLOBAL_BASE.credit;
   row.append(tick, name);
+  // The same ⓘ every other dataset row opens, carrying what used to be printed
+  // into the box: what this layer is, and the licence it is used under.
+  if (GLOBAL_BASE?.info) row.append(datasetInfoButton(GLOBAL_BASE));
+  /**
+   * ONE Symbology button, built HERE and not by `render`.
+   *
+   * `render` clears and rebuilds `#gis-geology-loaded`, which it owns — and it
+   * ran on every layer change and every settle. Appending the owned layer's
+   * button into this row instead put a THIRD control on screen by the time the
+   * tiles had finished arriving: three "Symbology…" side by side, because a
+   * function may only append to a node it also clears.
+   */
+  const ownedSym = document.createElement("button");
+  ownedSym.type = "button";
+  ownedSym.className = "button secondary";
+  ownedSym.textContent = "Symbology…";
+  ownedSym.style.fontSize = "0.6rem";
+  ownedSym.hidden = true;
+  row.append(ownedSym);
 
   const base = document.createElement("div");
   base.className = "gis-geo-base";
-  base.textContent = GLOBAL_BASE
-    ? "Tiled, so it follows the view by itself: the world when you are looking "
-      + "at the world, one survey's detail when you fly in. Click a polygon to "
-      + "read what it is."
-    : `No mapped geology for ${currentBodyId()} yet.`;
+  // Only where there is nothing to show. The behaviour note that used to live
+  // here is on the ⓘ; a paragraph that never changes is not worth the four
+  // lines it took above a panel of four controls.
+  base.textContent = GLOBAL_BASE ? "" : `No mapped geology for ${currentBodyId()} yet.`;
+  base.hidden = Boolean(GLOBAL_BASE);
 
   const loaded = document.createElement("div");
   loaded.id = "gis-geology-loaded";
@@ -1770,7 +1830,7 @@ export function init() {
 
   panel.append(row, base, loaded, status);
   host.appendChild(panel);
-  nodes = { loaded, status };
+  nodes = { loaded, status, ownedSym };
 
   window.GeoIDImportManager?.onChange?.(render);
   render();
