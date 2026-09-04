@@ -11853,3 +11853,60 @@ defaults opacity to 0.85 — **the touch-tight change made visibility depend on 
 symbology default**, and the first caller that imported without symbology found
 it. Anything drawn that close to the ground must be transparent-pass and
 `depthWrite: false`, which is what the markers already did.
+
+## Time is a property of a fetch — `time-window.js` and `time-series.js`
+
+The same three questions were asked in three vocabularies (`imagery-tl-from`,
+`gee-date-from`, and the glacier animator asking none because its dates come out
+of the archive), and the "run that fetch once per frame" loop was written twice.
+`time-window.js` owns the QUESTION — read fields, validate them together, hand
+back one window — and `time-series.js` owns the LOOP. What lies between them is
+the source, and it is four fields: `cadences`, `epochsFor`, `costFor`,
+`frameFor`.
+
+**The glacier animator is the model, and three of its habits are why this is a
+contract rather than a generic `map()`:** epochs come from the SOURCE (GLIMS
+knows which dates it holds; an even split invents frames the archive cannot
+fill), what a cap cost is RETURNED rather than swallowed, and nothing is fetched
+until the timeline reaches it with the count known first — Earth Engine bills per
+render, so the number of frames is consent rather than a progress bar.
+
+**Four kinds of time, and one panel cannot serve them.** Earth Engine composites
+a window (N frames = N billed renders); GFS answers every valid time of ONE run
+from a single request; an events feed is a filter over features already in
+memory (0 requests); a dated tile is a URL. `costFor` is what makes "96 frames,
+1 request" and "12 frames, 12 billed renders" the same sentence over different
+sources. Ask GFS for "one frame per year from 2016" and the question is
+meaningless — which is why a source DECLARES its cadences rather than being told.
+
+**A backwards range is REFUSED, not repaired.** The Earth Engine card silently
+widens one by sixty days, which is reasonable for a card whose default IS a
+sixty-day window and a bad rule to generalise: a time-lapse quietly given a range
+nobody asked for is a sequence of the wrong years.
+
+**The imagery driver calls the shared cap; the glacier animator deliberately does
+not.** Striding rather than truncating is one implementation now. Capping by
+keeping the FULLEST dates is a rule about the archive rather than about sliders,
+and forcing it through an even stride would throw away the very frames it selects
+for. A structural check pins both halves, so a third copy has to be a decision.
+
+**The player is untouched and must stay so.** It has been the one player over
+this globe for both drivers since before any of this; the argument order is
+`onShow(index, epoch)`, checked against `state.onShow?.(index, epoch)` rather
+than assumed — reversed, every source is handed an integer where it expects a
+date.
+
+### `earth-viewer.js`'s stamp is NOT the gis modules' stamp
+
+Reading `q` off the earth-viewer script tag gives `?v=20260429-earth&t=<ms>`,
+while every module under `gis/` carries the ordinary `?v=<sha>`. Import a gis
+module under the viewer's stamp and it is a SECOND INSTANCE with its own
+module-level state — so `stopPlayer()` from that copy sees `state === null`,
+returns early, and the world clock stays hidden. Measured exactly that way and
+reported to myself as an app bug for two rounds; against the correct stamp the
+same sequence reads shown → hidden → shown with `playerIndex` 0 → −1.
+
+The existing note says "read the stamp off a live script tag and import THAT".
+Sharpened: read it off a **`gis/` script tag** (`mode-manager.js` is always
+there). The stack trace in a thrown probe is what named it — the two URLs sat
+one line apart in it, which no amount of reading the source would have shown.
