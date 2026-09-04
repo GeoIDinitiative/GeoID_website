@@ -1,10 +1,11 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic, computeBounds2D } from "./geo-utils.js?v=20260904-cf8b853";
+import { latLonToVector3, drapedRadius, looksLikeGeographic, computeBounds2D } from "./geo-utils.js?v=20260904-f9b616c";
 import {
   readHead, parseRows, validateMapping, rowsToPointCollection,
-} from "./delimited.js?v=20260904-cf8b853";
-import { rampColour } from "./symbology.js?v=20260904-cf8b853";
-import { markerDiscTexture } from "./vector-render.js?v=20260904-cf8b853";
+} from "./delimited.js?v=20260904-f9b616c";
+import { rampColour } from "./symbology.js?v=20260904-f9b616c";
+import { markerDiscTexture } from "./vector-render.js?v=20260904-f9b616c";
+import { registerDrape } from "./geotiff-adapter.js?v=20260904-f9b616c";
 
 const MAX_POINTS = 2000000;
 
@@ -164,8 +165,10 @@ export async function loadXyzPoints(file, options = {}) {
   }
   const zRange = zMax - zMin || 1;
 
-  // Declared here because the span, the dot size and the Z slab all read it.
-  const baseRadius = drapedRadius(0.005);
+  // Declared here because the span and the dot size both read it. The offset
+  // is 0 now: this is the no-globe fallback radius, not a clearance.
+  const baseRadius = drapedRadius(0);
+  const surfacePoint = georeferenced ? window.GeoIDViewer?.surfacePoint : null;
 
   /**
    * How wide the survey is, in scene units. Both the dot size and the vertical
@@ -198,22 +201,26 @@ export async function loadXyzPoints(file, options = {}) {
   );
 
   /**
-   * The vertical slab the Z range is drawn across, and 0.12 was FAR too much.
+   * A CLOUD SITS ON THE GROUND. It used to hover, twice over.
    *
-   * 0.12 scene units is 239 km of altitude, applied whatever the column held:
-   * two hundred earthquakes 0.8-13 km deep were drawn from 10 km to 249 km up,
-   * which put most of them ABOVE the camera -- measured, 37 of 200 were inside
-   * the frustum at a 20 km view, so a complete survey looked like a scattering
-   * of a dozen dots.
+   * `baseRadius` was `drapedRadius(0.005)` -- a flat 9,950 m above a sphere of
+   * radius 3.2, ignoring terrain entirely, so the layer floated over lowland
+   * and sank into anything tall. On top of that each point was lifted by
+   * `height * 0.12`, another 239 km at full scale, which is its own commit.
    *
-   * Z is normalised rather than placed at its true height because the column's
-   * units are unknowable: `depth_km`, `elev_ft` and a bare `z` all arrive as
-   * numbers, and guessing metres would bury half the files that use anything
-   * else. What can be known is the survey's own width, so the spread is a
-   * quarter of that -- structure stays readable, and the cloud stays the size
-   * of the ground it covers.
+   * Both are gone. Points are laid on the viewer's own displaced surface, the
+   * same `surfacePoint` the raster drapes use, at the clearance the line
+   * renderer calls its minimum -- about three metres, which is touch-tight at
+   * any altitude a dot is legible from and still enough that a sprite is not
+   * fighting the very cell it stands on.
+   *
+   * The cost is that Z no longer shows as height. It cannot: the column's
+   * units are unknowable -- `depth_km`, `elev_ft` and a bare `z` all arrive as
+   * numbers -- so the only honest choices were an invented exaggeration or the
+   * ground. Z still drives the colour ramp, which is where the reading was
+   * always legible.
    */
-  const zSlab = sceneSpan * 0.25;
+  const CLOUD_DRAPE = 0.0000015;
 
   const positions = new Float32Array(rawX.length * 3);
   const colors = new Float32Array(rawX.length * 3);
@@ -244,9 +251,13 @@ export async function loadXyzPoints(file, options = {}) {
     const height = (rawZ[i] - zMin) / zRange;
     const t = hasMagnitude && rawMag[i] !== null ? (rawMag[i] - mMin) / mRange : height;
     if (georeferenced) {
-      // Elevation is exaggerated the same way as raster DEMs so point clouds
-      // and GeoTIFF terrain read consistently against the globe.
-      vertex.copy(latLonToVector3(rawY[i], rawX[i], baseRadius + height * zSlab));
+      if (surfacePoint) {
+        vertex.copy(surfacePoint(rawY[i], rawX[i], CLOUD_DRAPE));
+      } else {
+        // No globe (Model mode, tests): a plain sphere is the honest fallback,
+        // the same one the raster drape falls back to.
+        vertex.copy(latLonToVector3(rawY[i], rawX[i], baseRadius));
+      }
     } else {
       vertex.set((rawX[i] - midX) * localScale, height * 1.6, -(rawY[i] - midY) * localScale);
     }
@@ -277,6 +288,31 @@ export async function loadXyzPoints(file, options = {}) {
     opacity,
   }));
   points.name = file.name;
+  /**
+   * Re-laid when the ground moves, exactly as a raster drape is.
+   *
+   * The relief taper is driven by altitude inside the render loop, so a
+   * geometry baked at one exaggeration is left hanging as soon as the camera
+   * descends -- being ON the surface at build time is not the same as staying
+   * there. The registry polls and re-lays only what has drifted.
+   */
+  if (georeferenced && surfacePoint) {
+    points.userData.rebuildDrape = () => {
+      const surface = window.GeoIDViewer?.surfacePoint;
+      if (!surface) return;
+      const pos = geometry.attributes.position;
+      const at = new THREE.Vector3();
+      for (let i = 0; i < rawX.length; i += 1) {
+        at.copy(surface(rawY[i], rawX[i], CLOUD_DRAPE));
+        pos.setXYZ(i, at.x, at.y, at.z);
+      }
+      pos.needsUpdate = true;
+      geometry.computeBoundingSphere();
+      points.userData.builtRelief = window.GeoIDViewer?.getEffectiveRelief?.();
+    };
+    points.userData.builtRelief = window.GeoIDViewer?.getEffectiveRelief?.();
+    registerDrape(points);
+  }
   if (!georeferenced) {
     // Projected clouds are built in local scene units, so they need the same
     // mode-aware placement as imported meshes.

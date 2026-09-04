@@ -1,5 +1,5 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260904-cf8b853";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260904-f9b616c";
 
 // Rasters are resampled onto a mesh grid rather than used at native size: a
 // 4000x4000 DEM would otherwise mean 16M vertices. 192 keeps relief readable
@@ -360,7 +360,15 @@ const drapes = new Set();
 const REBUILD_METRES = 10;
 const RELIEF_PER_METRE = 3.2 / 6371000;
 
-function registerDrape(mesh) {
+/**
+ * Exported because a POINT CLOUD is a drape too.
+ *
+ * This registry is the globe's, not the raster reader's: anything built on
+ * `surfacePoint` is left hanging the moment the relief taper moves, and the
+ * only correction is being re-laid. A cloud that is not registered drifts off
+ * the ground exactly the way the rasters did before the tolerance was fixed.
+ */
+export function registerDrape(mesh) {
   drapes.add(mesh);
   if (drapes.size === 1 && typeof window !== "undefined") {
     // `.unref()` exists on a Node timer and not on a browser one, so this is a
