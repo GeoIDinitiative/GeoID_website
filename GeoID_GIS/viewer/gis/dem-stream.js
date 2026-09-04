@@ -15,8 +15,8 @@
  * globe's own texture.
  */
 
-import * as dem from "./dem-tiles.js?v=20260904-fbd1694";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260904-fbd1694";
+import * as dem from "./dem-tiles.js?v=20260904-0dfb865";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260904-0dfb865";
 
 let THREE = null;
 let watchStop = null;
@@ -64,6 +64,9 @@ const VIEW_TILES = 12;
  * view it cannot.
  */
 const STANDIN_MIN_ZOOM = 3;
+
+/** The pinned world cover: parity with the texture, everywhere. */
+const WORLD_ZOOM = 3;
 
 function standingIn() {
   const viewer = window.GeoIDViewer;
@@ -185,11 +188,29 @@ function start() {
    * moved. One pass a beat after boot, once the viewer has had time to say
    * whether it has a model.
    */
-  setTimeout(() => { if (standingIn()) void followView(); }, 2500);
+  setTimeout(() => {
+    if (!standingIn()) return;
+    /**
+     * COVER THE WHOLE WORLD FIRST, then follow the view.
+     *
+     * A reader that only holds the patch last looked at answers "n/a" the
+     * moment the cursor moves off it, which is what a stand-in is least
+     * allowed to do — reported as "not 100% coverage", and measured at 4 tiles
+     * around the view centre with every other place on Earth null. The zoom-3
+     * world is the same 19.6 km sampling as the texture it replaces, for about
+     * 5.8 MB against that texture's 21, and it is PINNED so the view's own
+     * tiles cannot evict it.
+     *
+     * The follow still runs on top and still refines wherever somebody looks;
+     * this is the floor under it.
+     */
+    void dem.ensureWorld(WORLD_ZOOM).then(() => followView());
+  }, 2500);
 }
 
 window.GeoIDDem = {
   heightAt: dem.heightAt,
+  ensureWorld: dem.ensureWorld,
   postMetresAt: dem.postMetresAt,
   ensure: ensureFor,
   plan: (bounds, options = {}) => dem.planCover(bounds, { maxTiles: RUN_TILES, ...options }),

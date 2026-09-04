@@ -21,7 +21,7 @@
  * feeds is `sampleElevationMeters`, never `sampleElevationNormalized`.
  */
 
-import { tilesForBounds, tileCountForBounds, mercatorTile } from "./mvt.js?v=20260904-fbd1694";
+import { tilesForBounds, tileCountForBounds, mercatorTile } from "./mvt.js?v=20260904-0dfb865";
 
 /**
  * Terrarium: height packed into RGB, EGM96 metres.
@@ -210,7 +210,7 @@ export function planCover(box, options = {}) {
   const zoom = chooseZoom(bounds, options);
   if (zoom === null) return { ok: false, error: "No ground given." };
   const tiles = tilesForBounds(bounds, zoom);
-  const have = tiles.filter((t) => CACHE.has(keyOf(t))).length;
+  const have = tiles.filter((t) => held(keyOf(t))).length;
   const metres = groundMetresPerPixel(zoom, (bounds.north + bounds.south) / 2);
   return {
     ok: true,
@@ -244,15 +244,33 @@ const keyOf = ({ z, x, y }) => `${z}/${x}/${y}`;
  * to the shipped texture.
  */
 const CACHE = new Map();
+/**
+ * THE WORLD IS PINNED, or the globe has holes in it.
+ *
+ * The same rule the geology tiler already lives by: a layer that only holds
+ * what the view asked for has nothing anywhere else, and for a READER that is
+ * the difference between a height and "n/a" every time the cursor moves off
+ * the patch last fetched. Reported exactly that way — "not 100% coverage".
+ *
+ * Pinned tiles are never evicted, so the view's own tiles cannot push the
+ * world out and leave a reader hovering over a hole.
+ */
+const PINNED = new Map();
 const INFLIGHT = new Map();
 const MAX_TILES = 128;
 
 let blocked = false;
 
-function remember(key, tile) {
+function remember(key, tile, pin = false) {
+  if (pin) { PINNED.set(key, tile); return; }
   CACHE.delete(key);
   CACHE.set(key, tile);
   while (CACHE.size > MAX_TILES) CACHE.delete(CACHE.keys().next().value);
+}
+
+/** Held either way: the view's tiles and the pinned world are one lookup. */
+function held(key) {
+  return CACHE.get(key) || PINNED.get(key) || null;
 }
 
 function urlFor({ z, x, y }) {
@@ -268,9 +286,10 @@ function urlFor({ z, x, y }) {
  * The bucket answers `Access-Control-Allow-Origin: *`, measured, so an
  * anonymous request is all it needs.
  */
-function loadTile(tile) {
+function loadTile(tile, pin = false) {
   const key = keyOf(tile);
-  if (CACHE.has(key)) return Promise.resolve(CACHE.get(key));
+  const already = held(key);
+  if (already) return Promise.resolve(already);
   if (INFLIGHT.has(key)) return INFLIGHT.get(key);
   const pending = new Promise((resolve) => {
     const image = new Image();
@@ -290,7 +309,7 @@ function loadTile(tile) {
         }
         despike(heights, size, size);
         const record = { ...tile, size, heights };
-        remember(key, record);
+        remember(key, record, pin);
         resolve(record);
       } catch (error) {
         // A tainted canvas or a decode failure is a MISS, never a wrong height.
@@ -352,11 +371,11 @@ export async function ensure(box, options = {}) {
  * answer at 8 m while the view around it answers at whatever the settle pulled.
  */
 export function heightAt(lat, lon) {
-  if (!CACHE.size || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  if ((!CACHE.size && !PINNED.size) || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
   const wrapped = (((Number(lon) + 180) % 360) + 360) % 360 - 180;
   for (let z = TERRARIUM.maxZoom; z >= 0; z -= 1) {
     const { x, y } = mercatorTile(lat, wrapped, z);
-    const tile = CACHE.get(keyOf({ z, x: Math.floor(x), y: Math.floor(y) }));
+    const tile = held(keyOf({ z, x: Math.floor(x), y: Math.floor(y) }));
     if (!tile) continue;
     const px = (x - Math.floor(x)) * tile.size;
     const py = (y - Math.floor(y)) * tile.size;
@@ -377,11 +396,11 @@ export function heightAt(lat, lon) {
  * DEM is what answered, the spacing is simply known.
  */
 export function postMetresAt(lat, lon) {
-  if (!CACHE.size || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  if ((!CACHE.size && !PINNED.size) || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
   const wrapped = (((Number(lon) + 180) % 360) + 360) % 360 - 180;
   for (let z = TERRARIUM.maxZoom; z >= 0; z -= 1) {
     const { x, y } = mercatorTile(lat, wrapped, z);
-    if (CACHE.has(keyOf({ z, x: Math.floor(x), y: Math.floor(y) }))) {
+    if (held(keyOf({ z, x: Math.floor(x), y: Math.floor(y) }))) {
       return groundMetresPerPixel(z, lat);
     }
   }
@@ -391,13 +410,55 @@ export function postMetresAt(lat, lon) {
 /** What the sampler is currently holding, for a status line or a test. */
 export function state() {
   const zooms = {};
-  CACHE.forEach((tile) => { zooms[tile.z] = (zooms[tile.z] || 0) + 1; });
-  return { tiles: CACHE.size, zooms, blocked, credit: TERRARIUM.credit };
+  const count = (tile) => { zooms[tile.z] = (zooms[tile.z] || 0) + 1; };
+  CACHE.forEach(count);
+  PINNED.forEach(count);
+  return {
+    tiles: CACHE.size + PINNED.size, pinned: PINNED.size, zooms, blocked,
+    credit: TERRARIUM.credit,
+  };
 }
 
 /** Forget everything held. Only a test or a source change should need this. */
 export function reset() {
   CACHE.clear();
+  PINNED.clear();
   INFLIGHT.clear();
   blocked = false;
+}
+
+/**
+ * Cover the WHOLE world once, at a level a reader can live on.
+ *
+ * Measured against the texture this stands in for: `earth_elevation_sampler.png`
+ * is 21 MB for 19.6 km sampling, and a zoom-3 world is 64 tiles and about
+ * 5.8 MB for the same 19.6 km — parity, at a quarter of the bytes, on any
+ * origin. Zoom 4 would double the resolution and cost 256 tiles and 21 MB,
+ * which is the texture's own price and more RAM than the cache should hold;
+ * the view follow buys that detail where somebody is actually looking instead.
+ *
+ * Fetched a few at a time. Sixty-four requests in one breath at somebody
+ * else's bucket is not how this tree asks for tiles.
+ */
+export async function ensureWorld(zoom = 3, { concurrency = 6 } = {}) {
+  if (blocked) return { ok: false, reason: "unreachable" };
+  const scale = 2 ** zoom;
+  const tiles = [];
+  for (let x = 0; x < scale; x += 1) for (let y = 0; y < scale; y += 1) tiles.push({ z: zoom, x, y });
+  const queue = tiles.filter((t) => !held(keyOf(t)));
+  let got = PINNED.size;
+  for (let i = 0; i < queue.length; i += concurrency) {
+    const batch = queue.slice(i, i + concurrency);
+    // eslint-disable-next-line no-await-in-loop
+    const done = await Promise.all(batch.map((t) => loadTile(t, true)));
+    got += done.filter(Boolean).length;
+  }
+  if (!got && tiles.length) blocked = true;
+  return {
+    ok: got > 0,
+    zoom,
+    tiles: tiles.length,
+    got,
+    metresPerPixel: groundMetresPerPixel(zoom, 0),
+  };
 }

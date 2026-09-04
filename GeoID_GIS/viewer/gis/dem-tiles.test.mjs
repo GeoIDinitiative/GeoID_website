@@ -201,6 +201,33 @@ check("the view follow speaks the viewer's box vocabulary", () => {
   ok(!/\bwest:/.test(box), "and not west/east, which viewChangedEnough cannot read");
 });
 
+/* ── the world is pinned, or a reader hovers over holes ──────────────────── */
+
+/**
+ * Reported as "not mapped correctly, not 100% coverage": the stand-in held the
+ * four tiles around the view centre and answered null for every other place on
+ * Earth. A reader is the one consumer that cannot live on the view's own
+ * tiles — the cursor moves off them constantly.
+ */
+check("the stand-in covers the world at the texture's own sampling", () => {
+  // 64 tiles at zoom 3, and about 19.6 km between posts at the equator: the
+  // shipped elevation texture measures 19.6 km, so this is parity everywhere.
+  eq(4 ** 3, 64, "a zoom-3 world is 64 tiles");
+  near(groundMetresPerPixel(3, 0), 19568, 50, "zoom 3 posts at the equator");
+  const src = readFileSync(new URL("./dem-stream.js", import.meta.url), "utf8");
+  ok(/ensureWorld\(WORLD_ZOOM\)/.test(src), "and the stand-in asks for it");
+  ok(/standingIn\(\)/.test(src.slice(src.indexOf("setTimeout(() => {"))),
+    "only where the shipped model cannot be read");
+});
+
+check("a pinned tile is never evicted by the view's own", () => {
+  const src = readFileSync(new URL("./dem-tiles.js", import.meta.url), "utf8");
+  const remember = src.slice(src.indexOf("function remember("), src.indexOf("function held("));
+  ok(/if \(pin\)/.test(remember), "the pin short-circuits before the LRU");
+  ok(!/MAX_TILES/.test(remember.split("if (pin)")[1].split("\n")[0]),
+    "and the eviction loop never sees it");
+});
+
 if (failures.length) {
   failures.forEach((f) => console.error(`  x ${f}`));
   console.error(`${failures.length} failed, ${passed} passed`);

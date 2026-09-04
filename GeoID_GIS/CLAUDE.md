@@ -12203,3 +12203,41 @@ Three faults of my own, and the third took the test runner out of memory:
   and `tileCountForBounds` in mvt.js answer arithmetically, and
   `tilesForBounds` is now built from the same span — one range calculation,
   two uses.
+
+#### The stand-in needs the WHOLE world, and the world is pinned
+
+"Not mapped correctly, not 100% coverage" — measured, and both halves were the
+same fault. The stand-in held the four tiles around the view centre and answered
+**null for every other place on Earth**: a reader is the one consumer that
+cannot live on the view's own tiles, because the cursor moves off them
+constantly, and where it did answer it answered at whatever coarse level the
+opening view resolved to.
+
+The costs, measured against the texture being stood in for
+(`earth_elevation_sampler.png`, **21 MB** for 19.6 km sampling):
+
+| world cover | tiles | bytes | posts at the equator |
+| --- | --- | --- | --- |
+| zoom 2 | 16 | 1.5 MB | 39 km — worse than the texture |
+| **zoom 3** | **64** | **5.8 MB** | **19.6 km — parity** |
+| zoom 4 | 256 | 21 MB | 9.8 km, and 67 MB of decoded floats |
+
+Zoom 3 it is: the same sampling as the texture, for a quarter of its bytes, on
+any origin — and the view follow still refines wherever somebody is actually
+looking. The world tiles are **PINNED** and the LRU never sees them, the same
+rule the geology tiler already lives by ("the world is pinned under the view,
+or the planet has an empty half").
+
+Measured after, on the broken origin: 68 tiles held (64 pinned at zoom 3, 4 at
+zoom 4 over the view), **zero nulls across ten points on six continents**, and
+the values are the source's own at that spacing — Vostok 3,498 m against a
+published 3,488, Denver 1,699 against ~1,600, the mid-Atlantic −3,344. On a
+healthy origin none of it fires: **0 Terrarium requests**, the texture
+answering as it always did.
+
+**What a coarse reading is NOT is a mapping error.** Everest reads 5,252 m off
+the zoom-3 world and 8,707 m once its own ground has been streamed, and both
+are that level's honest answer — the texture's own number there is 6,049. So
+the reader is multiresolution in the way the rest of this app already is, and
+crossing from refined ground to unrefined ground steps the value. Where that
+matters, `postMetresAt` says which spacing answered.
