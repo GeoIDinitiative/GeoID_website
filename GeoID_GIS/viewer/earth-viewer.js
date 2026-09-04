@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260904-980529e";
+  from "./gis/geo-utils.js?v=20260904-198b771";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260904-980529e";
+  from "./gis/vector-render.js?v=20260904-198b771";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260904-980529e";
+  from "./gis/rock-class.js?v=20260904-198b771";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260904-980529e";
+  from "./gis/lithology-label.js?v=20260904-198b771";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -2448,6 +2448,33 @@ function fmtProp(value) {
     }
 
     function sampleElevationMeters(state, latDegrees, lonDegrees) {
+      /**
+       * THE STREAMED DEM ANSWERS FIRST, where it has been fetched.
+       *
+       * The texture below is one shipped image whose native sampling on Earth
+       * measures 19.6 km, so a study area smaller than that is a fraction of
+       * one pixel and everything derived from it -- the terrain raster, the
+       * Model Builder's surface, the extraction's elevation column, this
+       * readout -- inherits a precision nobody measured. `gis/dem-tiles.js`
+       * streams Mapzen Terrain Tiles over the ground actually being asked
+       * about, at about 30 m.
+       *
+       * Null where nothing has been streamed, which is the point: a place
+       * nobody has fetched behaves exactly as it did before, so this can never
+       * make an answer worse -- only absent or better.
+       *
+       * It is deliberately NOT wired into `sampleElevationNormalized` above.
+       * That one decides where the ground is DRAWN, and the sphere is
+       * displaced from the texture: a height taken from a 30 m pyramid and a
+       * surface drawn from a 19.6 km one are both right on their own and
+       * ruinous mixed inside one calculation -- a pin placed from the first
+       * against ground drawn from the second sits under the terrain. How high
+       * is this place, and where is the surface drawn, are two questions.
+       */
+      const streamed = window.GeoIDDem?.heightAt?.(latDegrees, lonDegrees);
+      if (Number.isFinite(streamed)) {
+        return streamed;
+      }
       if (!state) {
         return null;
       }

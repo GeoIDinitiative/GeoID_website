@@ -11997,3 +11997,127 @@ tiled sheets cannot be verified on the ordinary dev port — every tile fails wi
 no `Access-Control-Allow-Origin` and the layer draws nothing, which reads as a
 broken layer. `.claude/launch.json` carries a `geoid-bucket-origin` entry on
 8125 for exactly that.
+
+## Real elevation, streamed — and the two questions it must not confuse
+
+The globe's elevation was one shipped texture whose native sampling on Earth
+measures **19.6 km**, so a study area smaller than that was a fraction of one
+pixel and everything downstream inherited a precision nobody measured. The
+source that fixes it was already in this repo: `everest/game/config.js` streams
+**Mapzen Terrain Tiles from AWS Open Data**, keyless, and `gis/dem-tiles.js`
+now does the same for the GIS globe.
+
+Measured through the viewer's own seam, texture against streamed against
+published:
+
+| | texture | streamed | published |
+| --- | --- | --- | --- |
+| Everest | 6,049 m | **8,707 m** | 8,848.86 m |
+| Mont Blanc | 2,415 m | **4,779 m** | 4,808 m |
+| Etna | 1,674 m | **3,270 m** | 3,357 m |
+| Ben Nevis | 518 m | **1,317 m** | 1,345 m |
+| Slieve Donard | 153 m | **840 m** | 850 m |
+
+The residual is the 30 m source smoothing a summit cone, which is the known
+behaviour of SRTM-lineage data and the reason `config.js` records Everest's DEM
+height as 8,749 beside its surveyed 8,848.86.
+
+**The A/B that matters is the terrain tool**, same polygon over the Mournes,
+same 60 m cells, with the DEM stubbed out to reproduce the old behaviour:
+
+| | control | streamed |
+| --- | --- | --- |
+| DEM range | −35 to **267 m** | −15 to **845 m** |
+| source sampling reported | 9,575 m, "INTERPOLATED" | 11 m |
+
+Slieve Donard is 850 m. The shipped texture drew it as a 267 m hill.
+
+### The rule the whole design rests on
+
+**How high is this place, and where is the ground DRAWN, are two questions.**
+The sphere is displaced from its own texture, so a height taken from a 30 m
+pyramid and a surface drawn from a 19.6 km one are each right alone and ruinous
+mixed inside one calculation — a pin placed from the first against ground drawn
+from the second sits under the terrain. So the streamed DEM feeds
+`sampleElevationMeters` and **never** `sampleElevationNormalized`; `surfacePoint`,
+the drapes and a vector layer's baked `aDisp` all go on reading the texture.
+`dem-tiles.test.mjs` pins both halves against the viewer's source.
+
+`heightAt` answering **null** where nothing has been fetched is the other half
+of that contract: a place nobody has streamed behaves exactly as it did before,
+so this can never make an answer worse — only absent or better.
+
+### What was measured rather than assumed
+
+- **A pyramid that SERVES a level does not have data at that level.** The
+  everest tool already measured this by subtracting each level from a bilinear
+  upsample of its parent: z13 7.69 m RMS (real), z14 1.26 m (marginal), z15
+  **0.74 m — the publisher's own resampling of 30 m source, at four times the
+  tiles**. The cap is z14. The service answers to z15 and 404s at z16.
+- **`Access-Control-Allow-Origin: *` on GET WITH an Origin header, and nothing
+  on HEAD.** A `curl -I` probe reported the bucket as CORS-less and it is not.
+  Probe a CORS claim with a GET carrying an Origin.
+- **`crossOrigin = "anonymous"` is what makes the pixels readable** — without
+  it the image loads, taints the canvas and `getImageData` throws, the same
+  wall the Mars textures hit from the other side.
+- **Copernicus GLO-30 COGs on AWS are better data and unreachable**: range
+  requests work (206, internal overviews, so geotiff.js could stream them) and
+  the bucket sends no CORS header at all. Sidecar or relay only. Esri's
+  Terrain3D is CORS-open, LERC F32 to LOD 16 and finer in many regions, but
+  carries the Esri MLA — the same "viewing only, no export" position this repo
+  already takes for World Imagery — plus a LERC decoder to vendor. Mapbox,
+  MapTiler, Cesium ion and OpenTopography all need a key, and a browser cannot
+  hold a secret.
+
+### Four faults of my own, each silent
+
+- **A DESPIKE MUST NOT FLATTEN THE ARTIFACT'S NEIGHBOURS.** The 28.0000°N
+  corrupt scanline is repaired by comparing each post with the rows above and
+  below — and the obvious version, "differs from their midpoint", rewrites the
+  GOOD rows either side, because a good row between real ground and an 8,150 m
+  hole is 4,075 m from that midpoint. Measured on a planted spike: 24 posts
+  rewritten where 8 were wrong. A post is the artifact only when it differs
+  from BOTH neighbours, past the threshold, in the SAME DIRECTION.
+- **A MARGIN OF A WHOLE TILE costs more than the fault it prevents.** The
+  margin exists because a slope is read from four samples a few metres apart
+  and a stencil straddling the covered edge would mix a 30 m height with a
+  19.6 km one. Padding by a tile in every direction turned a 36-tile cover into
+  64; padding the BOUNDS by four posts adds a row only where the box really
+  sits near an edge.
+- **`refineBox` IS NOT THE RUN'S GROUND.** The tool runner excludes anything
+  answering `refineFor` from its area of interest, because a self-rebuilding
+  layer's bounds are the world — and an imported file answers `refineFor` too
+  ("already native"). So a terrain run over a drawn polygon had every input
+  excluded and came out with no ground at all: measured, a null box with the
+  study area's bounds sitting right there on the layer. What must be excluded
+  is the layer that STREAMS its features, which is the test `refreshLiveInputs`
+  already makes.
+- **A THIRD BOX VOCABULARY, and `Number(null)` is 0.** `visibleBounds` answers
+  in `minLon/minLat/maxLon/maxLat` — neither of the two spellings already
+  documented here — and, where fewer than three rays meet the globe, hands back
+  an object full of NULLS rather than a null. A truthy check passes that
+  through; a coercing read then turns "I cannot see where you are looking" into
+  a study of 0°N 0°E, silently and at the right number of tiles. The normaliser
+  takes all three spellings and refuses a null field rather than coercing it,
+  and the follow checks for finite fields before asking.
+
+### What it does not do yet, stated plainly
+
+The **drawn globe is unchanged** — this is the sampler, not the displacement.
+Replacing the displacement means the relief shader, `REFERENCE_RELIEF`, the
+altitude taper, drape registration and every vector layer's baked `aDisp`, and
+it is a separate job.
+
+The **view follow** (`gis/dem-stream.js`, on settle, twelve tiles) was verified
+by its decision rather than by a descent: at the opening view `visibleBounds`
+legitimately cannot answer and the follow correctly does nothing, and the
+camera could not be driven below the 995 km no-drape floor in a hidden pane
+where rAF is throttled to about one frame in 1.5 s. Its floor is zoom 6 —
+2.4 km posts at 54°N, still eight times finer than the texture — because set at
+8 it would have fired only in sessions that had already streamed a tile
+basemap.
+
+And at the EDGE of what has been fetched, a slope stencil can still straddle
+the boundary and mix a 30 m height with a 19.6 km one. Inside a tool run it
+cannot happen (the cover is the polygon plus four posts); for an ad-hoc reading
+at the rim of a fetched area it can, and it is one reading.

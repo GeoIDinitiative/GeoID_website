@@ -8,6 +8,7 @@
  * not carry — which is exactly the class of fault this file exists to catch.
  */
 import fs from "node:fs";
+import { tilesForBounds } from "./mvt.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -47,9 +48,23 @@ ok("the panel reads the manifest the bake writes",
  */
 ok("the bake leaves GDAL on its Web Mercator default",
   /TILING_SCHEME = None/.test(baker));
-ok("and mvt.js really is slippy-map XYZ, one tile at zoom 0",
-  /\(\(lon \+ 180\) \/ 360\) \* scale/.test(
-    fs.readFileSync(path.join(here, "mvt.js"), "utf8")));
+/**
+ * Asked of the CODE rather than of its source text. This used to grep mvt.js
+ * for the formula and broke the moment that expression was lifted into a
+ * shared `mercatorTile` -- a check that reads like a behaviour and is really a
+ * spelling. Believing the 2x1 EPSG:4326 scheme cost a whole glacier pyramid
+ * baked on the wrong grid, every tile valid, Iceland decoding into the Laptev
+ * Sea, so what is pinned is the answer: ONE tile covers the world at zoom 0.
+ */
+{
+  const world = { west: -179.9, east: 179.9, south: -85, north: 85 };
+  ok("and mvt.js really is slippy-map XYZ, one tile at zoom 0",
+    tilesForBounds(world, 0).length === 1, `${tilesForBounds(world, 0).length} tiles`);
+  const [everest] = tilesForBounds(
+    { west: 86.92528, east: 86.92528, south: 27.98806, north: 27.98806 }, 13);
+  ok("and a known coordinate lands in the tile the service serves it in",
+    `13/${everest.x}/${everest.y}` === "13/6074/3432", `13/${everest.x}/${everest.y}`);
+}
 ok("and the tiles are left uncompressed for a static host",
   /COMPRESS=NO/.test(baker));
 

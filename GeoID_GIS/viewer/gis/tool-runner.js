@@ -1,21 +1,21 @@
-import * as GP from "./geoprocessing.js?v=20260904-980529e";
-import * as RA from "./raster-analysis.js?v=20260904-980529e";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260904-980529e";
+import * as GP from "./geoprocessing.js?v=20260904-198b771";
+import * as RA from "./raster-analysis.js?v=20260904-198b771";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260904-198b771";
 // eslint-disable-next-line no-unused-vars
-import { pointInPolygon } from "./geometry.js?v=20260904-980529e";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260904-980529e";
+import { pointInPolygon } from "./geometry.js?v=20260904-198b771";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260904-198b771";
 // Pure and DOM-free, so a static import keeps this module Node-clean AND keeps
 // the terrain engine SYNCHRONOUS -- runTool calls engines.native WITHOUT
 // awaiting it, so an async engine hands register() a Promise and the raster
 // comes out undefined. Measured as: "Cannot read properties of undefined".
-import { buildSurface, nativeStepM } from "./model-build.js?v=20260904-980529e";
-import { nativeGridOf } from "./extraction.js?v=20260904-980529e";
-import { CRS_OPTIONS } from "./projection.js?v=20260904-980529e";
-import * as IN from "./interpolation.js?v=20260904-980529e";
-import * as VAL from "./validation.js?v=20260904-980529e";
-import * as EX from "./analysis-extra.js?v=20260904-980529e";
-import * as HY from "./hydrology.js?v=20260904-980529e";
-import * as KR from "./kriging.js?v=20260904-980529e";
+import { buildSurface, nativeStepM } from "./model-build.js?v=20260904-198b771";
+import { nativeGridOf } from "./extraction.js?v=20260904-198b771";
+import { CRS_OPTIONS } from "./projection.js?v=20260904-198b771";
+import * as IN from "./interpolation.js?v=20260904-198b771";
+import * as VAL from "./validation.js?v=20260904-198b771";
+import * as EX from "./analysis-extra.js?v=20260904-198b771";
+import * as HY from "./hydrology.js?v=20260904-198b771";
+import * as KR from "./kriging.js?v=20260904-198b771";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -1733,12 +1733,26 @@ export const TOOLS = [
          * The Model Builder's Surface step already measures this; the SAME
          * function answers here, so the two cannot quote different numbers.
          */
-        const native = nativeStepM({
-          read: (la, lo) => viewer.sampleElevationMeters(la, ((lo % 360) + 360) % 360),
-          lat: (bbox.south + bbox.north) / 2,
-          lon: (bbox.west + bbox.east) / 2,
-          radiusKm,
-        });
+        /**
+         * WHERE THE STREAMED DEM ANSWERED, ITS SPACING IS KNOWN, not probed.
+         *
+         * `nativeStepM` finds pixel boundaries by looking for kinks in the
+         * second difference, which is the only way to interrogate a black-box
+         * sampler and is easily fooled by rough ground: over the Mournes at
+         * 11 m posts it reported 1,306 m, which would have printed "this grid
+         * is INTERPOLATED" over a grid that is a downsample of real data. The
+         * pyramid knows what its posts are worth, so it is asked first.
+         */
+        const centreLat = (bbox.south + bbox.north) / 2;
+        const centreLon = (bbox.west + bbox.east) / 2;
+        const native = (typeof window !== "undefined"
+          && window.GeoIDDem?.postMetresAt?.(centreLat, centreLon))
+          || nativeStepM({
+            read: (la, lo) => viewer.sampleElevationMeters(la, ((lo % 360) + 360) % 360),
+            lat: centreLat,
+            lon: centreLon,
+            radiusKm,
+          });
         const cellText = `${Math.round(cell)} m cells, ${grid.nx}x${grid.ny}.`;
         const note = native && native > cell * 1.5
           ? `${cellText} The source's own sampling here is about `
@@ -2549,6 +2563,30 @@ async function verbatimGeometry(borrowed, box) {
   return notes.length ? ` ${notes.join(" ")}` : "";
 }
 
+/**
+ * Stream real elevation over this run's ground, and say what it is worth.
+ *
+ * Best-effort in every direction: the module is loaded lazily (most runs never
+ * touch elevation, and this file must stay importable in Node), an unreachable
+ * source is a silent miss rather than a failed run, and a run whose ground is
+ * already held pays nothing. What it must NOT do is stay quiet about the
+ * resolution it obtained — "a service will always answer; whether it KNOWS
+ * anything at that spacing is a separate question, and the one worth
+ * printing".
+ */
+async function ensureGroundHeights(box) {
+  const dem = window.GeoIDDem;
+  if (!dem?.ensure) return "";
+  const got = await dem.ensure(box);
+  if (!got?.ok) return "";
+  const posts = Math.round(got.metresPerPixel);
+  // The source is NAMED at the point of use, not only in a metadata tab: this
+  // data is free on condition of attribution, and a number quoted with no
+  // publisher behind it is the half of a credit that gets dropped.
+  return ` Elevation streamed from Mapzen Terrain Tiles (AWS Open Data)`
+    + ` at about ${posts} m posts (zoom ${got.zoom}, ${got.got} tiles).`;
+}
+
 export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
   const desc = toolById(toolId);
   if (!desc) return runTool(toolId, inputs, params, opts);
@@ -2616,7 +2654,42 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
   const refinedNote = typeof document !== "undefined"
     ? await refineInputsForArea(resolvedInputs, refineBox, params, refined).catch(() => "")
     : "";
-  const note = `${liveNote}${verbatimNote}${refinedNote}`;
+  /**
+   * AND THE GROUND ITSELF IS FETCHED, for a run that samples elevation.
+   *
+   * `terrain`, and everything downstream of it, reads the viewer's
+   * `sampleElevationMeters` — which answers from a shipped texture whose
+   * native sampling on Earth measures 19.6 km unless a finer DEM has been
+   * streamed over that ground first. The streamed one is fetched HERE, before
+   * any engine, for the same reason the features are: an engine is called
+   * synchronously (`runTool` does not await it), so nothing inside one can go
+   * and get what it needs.
+   *
+   * The box is the run's own — the fixed inputs' extent, which for a terrain
+   * raster is the polygon it is cut to. `refinable` is excluded from it
+   * because a self-rebuilding layer's bounds are the world.
+   */
+  /**
+   * The ground here is NOT `refineBox`'s idea of it.
+   *
+   * `refinable` — anything answering `refineFor` — is excluded from the area
+   * of interest because a self-rebuilding layer's bounds are the world. But an
+   * IMPORTED FILE answers `refineFor` too (with "already native"), so a run
+   * whose only input is a drawn polygon had every input excluded and came out
+   * with no ground at all: measured, `demBox` null on a terrain run over a
+   * study area whose bounds were sitting right there on the layer.
+   *
+   * What must be excluded is a layer whose extent is meaningless, which is the
+   * one that STREAMS its features — the same test `refreshLiveInputs` makes.
+   */
+  const worldWide = Object.values(resolvedInputs)
+    .filter((l) => typeof l?.featuresIn === "function");
+  const demBox = refineBox
+    || areaOfInterest(Object.values(resolvedInputs).filter(Boolean), worldWide);
+  const demNote = typeof document !== "undefined" && demBox
+    ? await ensureGroundHeights(demBox).catch(() => "")
+    : "";
+  const note = `${liveNote}${verbatimNote}${refinedNote}${demNote}`;
   // Whatever was borrowed for this run is given back afterwards, always: a
   // layer left holding one study area's features tells the click picker the
   // rest of the map is not there.
@@ -2624,7 +2697,28 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
     .forEach((l) => { try { l.restoreLive?.(); } catch (e) { /* keep */ } });
   // The level shipped rides on the RESULT, or the one fact that decides which
   // map this is stays known only to the fetch that chose it.
-  const withNote = (out) => (out && note ? { ...out, message: `${out.message || ""}${note}` } : out);
+  const withNote = (out) => {
+    if (!out || !note) return out;
+    /**
+     * A LAYER BUILT ON STREAMED GROUND SAYS WHOSE GROUND IT WAS.
+     *
+     * The Metadata tab reads `layer.metadata`, and a DEM sampled from somebody
+     * else's pyramid that credits nobody is the attribution fault this tree
+     * has already paid for once — the derived geology maps citing Macrostrat
+     * over FAO's soils. Written after the run, on the layer the run produced.
+     */
+    if (demNote && out.layer && typeof window !== "undefined") {
+      const credit = window.GeoIDDem?.credit;
+      if (credit) {
+        out.layer.metadata = {
+          ...(out.layer.metadata || {}),
+          source: `${credit}${out.layer.metadata?.source ? ` · ${out.layer.metadata.source}` : ""}`,
+          citation: credit,
+        };
+      }
+    }
+    return { ...out, message: `${out.message || ""}${note}` };
+  };
   if (!desc.engines?.sidecar) {
     try { return withNote(runTool(toolId, inputs, params, opts)); } finally { giveBack(); }
   }
@@ -2641,7 +2735,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260904-980529e");
+    const client = await import("./sidecar-client.js?v=20260904-198b771");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -2706,7 +2800,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260904-980529e");
+    const bridge = await import("./research/bridge.js?v=20260904-198b771");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -2718,12 +2812,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260904-980529e");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260904-198b771");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260904-980529e");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260904-198b771");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }

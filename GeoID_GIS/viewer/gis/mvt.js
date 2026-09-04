@@ -386,14 +386,29 @@ export function zoomForBounds({ west, east } = {}, { maxZoom = 12 } = {}) {
   return Math.max(0, Math.min(maxZoom, Math.round(Math.log2(720 / width) - 1)));
 }
 
+/**
+ * Where a coordinate falls in the tile grid, FRACTIONALLY.
+ *
+ * The whole tile is `Math.floor` of this and the fraction is where in the tile
+ * a sampler must read, so the two are one function rather than the same
+ * projection written twice — this is the tiling scheme itself, and a second
+ * copy of it is how a whole glacier pyramid came to be baked on the wrong one.
+ */
+export function mercatorTile(lat, lon, z) {
+  const scale = 2 ** z;
+  const clamped = Math.max(-85.0511, Math.min(85.0511, Number(lat)));
+  const rad = (clamped * Math.PI) / 180;
+  return {
+    x: ((Number(lon) + 180) / 360) * scale,
+    y: ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * scale,
+    scale,
+  };
+}
+
 export function tilesForBounds({ west, south, east, north }, z) {
   const scale = 2 ** z;
-  const xOf = (lon) => Math.floor(((lon + 180) / 360) * scale);
-  const yOf = (lat) => {
-    const clamped = Math.max(-85.0511, Math.min(85.0511, lat));
-    const rad = (clamped * Math.PI) / 180;
-    return Math.floor(((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * scale);
-  };
+  const xOf = (lon) => Math.floor(mercatorTile(0, lon, z).x);
+  const yOf = (lat) => Math.floor(mercatorTile(lat, 0, z).y);
   const x0 = Math.max(0, Math.min(scale - 1, xOf(west)));
   const x1 = Math.max(0, Math.min(scale - 1, xOf(east)));
   const y0 = Math.max(0, Math.min(scale - 1, yOf(north)));
