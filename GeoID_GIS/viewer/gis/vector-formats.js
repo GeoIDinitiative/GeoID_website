@@ -1,4 +1,4 @@
-import { featureCollection, feature, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260904-80121cc";
+import { featureCollection, feature, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260904-75ef559";
 
 // Readers and writers for the interchange formats a GIS is expected to handle.
 // Everything normalises to / from GeoJSON so the toolbox only ever sees one
@@ -324,14 +324,31 @@ export function toPointCsv(fc) {
  * actually has a third ordinate or a `z` property, so a 2D survey is not given
  * a column of zeroes to explain.
  */
-export function pointColumnsOf(fc) {
+/**
+ * The app's own bookkeeping, which is nobody's data.
+ *
+ * `data_type` and `data_note` are how a layer is filed in this app; written
+ * into somebody's survey file they are a column headed "vector" that means
+ * nothing to the next reader and has to be deleted by hand.
+ */
+const INTERNAL_PROPERTIES = new Set(["data_type", "data_note"]);
+
+export function pointColumnsOf(fc, { exclude = [] } = {}) {
   const features = (fc?.features || []).filter((f) => /Point/.test(f?.geometry?.type || ""));
   const hasZ = features.some((f) => {
     const c = f.geometry.type === "Point" ? f.geometry.coordinates : f.geometry.coordinates?.[0];
     return Number.isFinite(c?.[2]) || Number.isFinite(Number(f.properties?.z));
   });
+  /**
+   * The columns a delimited import was READ from are dropped, because x, y and
+   * z already carry them: a file that came in as `station,lon,lat,depth` was
+   * going back out as `x,y,z,station,lon,lat,depth`, with every coordinate
+   * written twice under two names. The caller passes those names in; the
+   * chooser can still put them back for anyone who wants both.
+   */
+  const drop = new Set([...exclude, "z"]);
   const props = [...new Set(features.flatMap((f) => Object.keys(f.properties || {})))]
-    .filter((k) => k !== "z");
+    .filter((k) => !drop.has(k) && !INTERNAL_PROPERTIES.has(k));
   return { geometry: hasZ ? ["x", "y", "z"] : ["x", "y"], properties: props };
 }
 
@@ -370,11 +387,12 @@ function pointRecords(fc) {
  */
 export function toDelimitedPoints(fc, {
   columns = null, delimiter = " ", header = null, precision = 6,
+  exclude = [], geometryOnly = false,
 } = {}) {
   const records = pointRecords(fc);
   const cols = columns && columns.length ? columns : (() => {
-    const c = pointColumnsOf(fc);
-    return [...c.geometry, ...c.properties];
+    const c = pointColumnsOf(fc, { exclude });
+    return geometryOnly ? c.geometry : [...c.geometry, ...c.properties];
   })();
   const wantHeader = header === null ? delimiter.trim() !== "" : header;
   const num = (v) => (Number.isFinite(v) ? String(Number(v.toFixed(precision))) : "");
@@ -402,10 +420,10 @@ export function toDelimitedPoints(fc, {
  * actually wants, and it is the shape the delimited readers here produce
  * internally anyway.
  */
-export function toPointJson(fc, { columns = null, precision = 6 } = {}) {
+export function toPointJson(fc, { columns = null, precision = 6, exclude = [] } = {}) {
   const records = pointRecords(fc);
   const cols = columns && columns.length ? columns : (() => {
-    const c = pointColumnsOf(fc);
+    const c = pointColumnsOf(fc, { exclude });
     return [...c.geometry, ...c.properties];
   })();
   const round = (v) => (Number.isFinite(v) ? Number(v.toFixed(precision)) : null);

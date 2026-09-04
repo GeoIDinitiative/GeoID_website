@@ -21,10 +21,10 @@
  * rather than silently dropping whatever does not fit.
  */
 
-import * as VF from "./vector-formats.js?v=20260904-80121cc";
-import { downloadText } from "./extraction.js?v=20260904-80121cc";
+import * as VF from "./vector-formats.js?v=20260904-75ef559";
+import { downloadText } from "./extraction.js?v=20260904-75ef559";
 import { buildShapefileZip, shapeTypeFor, SHAPE_NAMES, safeShapefileName,
-  countSelfTouchingRings } from "./shapefile-writer.js?v=20260904-80121cc";
+  countSelfTouchingRings } from "./shapefile-writer.js?v=20260904-75ef559";
 
 /**
  * What a layer is, read from its contents rather than its name.
@@ -86,11 +86,12 @@ const VECTOR_FORMATS = [
    * the layer holds.
    */
   { id: "xyz", label: "XYZ", ext: "xyz", mime: "text/plain", pointsOnly: true,
-    delimited: { delimiter: " ", header: false },
-    note: "Whitespace-separated coordinates, no header. The plain point cloud." },
+    delimited: { delimiter: " ", header: false, geometryOnly: true }, choosable: true,
+    note: "Whitespace-separated coordinates, no header. Three numbers a line, "
+      + "which is what an .xyz reader expects — add columns below if you want more." },
   { id: "pts", label: "PTS", ext: "pts", mime: "text/plain", pointsOnly: true,
-    delimited: { delimiter: ",", header: true },
-    note: "Comma-separated with a header row. Same data, spreadsheet habits." },
+    delimited: { delimiter: ",", header: true, geometryOnly: true }, choosable: true,
+    note: "Comma-separated with a header row. Same three columns, spreadsheet habits." },
   { id: "txt", label: "Text (choose columns)", ext: "txt", mime: "text/plain", pointsOnly: true,
     delimited: { delimiter: "\t", header: true }, choosable: true,
     note: "You pick the columns, their order and the separator." },
@@ -468,6 +469,28 @@ export function collectTriangles(root) {
 /* ───────────────────────────────  export  ─────────────────────────────── */
 
 /** The bytes for one layer in one format, without touching the page. */
+/**
+ * The column NAMES a delimited import was read from, so a re-export does not
+ * write every coordinate twice -- once as x/y/z and again under the heading it
+ * arrived with. Only a delimited layer knows this; everything else has no
+ * source columns and excludes nothing.
+ */
+function sourceColumns(layer) {
+  const mapping = layer?.source?.mapping;
+  const grid = layer?.source?.text;
+  if (!mapping || !grid) return {};
+  const header = String(grid).split(/\r?\n/)[0] || "";
+  const delim = layer.source.delimiter || ",";
+  const names = header.split(delim).map((h) => h.trim().replace(/^["']|["']$/g, ""));
+  const used = ["lon", "lat", "elev", "magnitude"]
+    .map((k) => (mapping[k] >= 0 ? names[mapping[k]] : null))
+    .filter(Boolean);
+  // Magnitude is a reading, not a coordinate: it is not repeated by x/y/z and
+  // stays in the file.
+  const magnitude = mapping.magnitude >= 0 ? names[mapping.magnitude] : null;
+  return { exclude: used.filter((n) => n !== magnitude) };
+}
+
 export function renderExport(layer, formatId, options = {}) {
   const kind = layerKind(layer);
   const format = (BY_KIND[kind] || []).find((f) => f.id === formatId);
@@ -531,7 +554,7 @@ export function renderExport(layer, formatId, options = {}) {
     else if (formatId === "kml") text = VF.toKml(collection, { name: base });
     else if (formatId === "wkt") text = VF.toWkt(collection);
     else if (formatId === "gpx") text = VF.toGpx(collection, { name: base });
-    else if (formatId === "pointjson") text = VF.toPointJson(collection, options);
+    else if (formatId === "pointjson") text = VF.toPointJson(collection, { ...sourceColumns(layer), ...options });
     else if (format.delimited) {
       /**
        * The caller's columns and separator win over the format's habits, which
@@ -539,7 +562,8 @@ export function renderExport(layer, formatId, options = {}) {
        * the order the next reader expects is the difference between a file
        * that opens and one somebody has to re-map by hand.
        */
-      text = VF.toDelimitedPoints(collection, { ...format.delimited, ...options });
+      text = VF.toDelimitedPoints(collection,
+        { ...format.delimited, ...sourceColumns(layer), ...options });
     } else text = VF.toCsv(collection);
   } else if (kind === "raster") {
     if (formatId === "tif") {
