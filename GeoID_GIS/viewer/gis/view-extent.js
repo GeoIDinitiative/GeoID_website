@@ -29,6 +29,12 @@ const DEG = 180 / Math.PI;
  * however far the planet had spun — which is the bug that made Earth Engine
  * imagery cover the wrong half of the picture.
  */
+/**
+ * Below this a ray is skimming the limb rather than looking at ground: about
+ * 83° off vertical, where a pixel is kilometres of smear.
+ */
+const GRAZING = 0.12;
+
 export function visibleBounds(viewer, THREE, { steps = 8, padFraction = 0.05 } = {}) {
   const camera = viewer?.camera;
   if (!camera || !THREE) return null;
@@ -47,6 +53,17 @@ export function visibleBounds(viewer, THREE, { steps = 8, padFraction = 0.05 } =
     for (let j = 0; j <= steps; j += 1) {
       ray.setFromCamera(new THREE.Vector2((i / steps) * 2 - 1, (j / steps) * 2 - 1), camera);
       if (!ray.ray.intersectSphere(sphere, hit)) continue;
+      /**
+       * A GRAZING HIT IS THE HORIZON, not the view.
+       *
+       * The rays near the edge of a low view meet the sphere almost
+       * tangentially, and those hits are what blew the box up twelvefold at
+       * 2.8 km altitude. The incidence says which is which directly: it is
+       * near 1 looking straight down and near 0 at the limb, and the corners
+       * of an ordinary view measure about 0.7. Dropping the near-tangent ones
+       * leaves a box made of ground somebody can actually see.
+       */
+      if (Math.abs(ray.ray.direction.dot(hit.clone().normalize())) < GRAZING) continue;
       const local = toGlobe ? hit.clone().applyMatrix4(toGlobe) : hit.clone();
       local.set(-local.x, local.y, -local.z);
       const r = local.length() || 1;
@@ -118,9 +135,23 @@ function clampToForeground(box, viewer, THREE, sphere, ray, hit) {
   const midLat = (box.minLat + box.maxLat) / 2;
   const midLon = (box.minLon + box.maxLon) / 2;
   const halfLat = spanDeg / 2;
-  // A degree of longitude is shorter away from the equator, so the same ground
-  // span covers more of them.
-  const halfLon = halfLat / Math.max(0.05, Math.cos(midLat * RAD));
+  /**
+   * THE SCREEN IS WIDER THAN IT IS TALL, and `camera.fov` is the VERTICAL one.
+   *
+   * Using the vertical span for longitude as well cut the box to about nine
+   * tenths of the strict horizontal view before any context was added --
+   * measured at 498 km over the Alps with a 1.79 aspect, a box 8.6° wide
+   * against a screen covering 10.3°, with six of eight sampled screen points
+   * outside it and their incidence at a perfectly ordinary 0.72. That is the
+   * coarse imagery flanking the streamed patch: the tiles were fetched for a
+   * box narrower than the window.
+   *
+   * The aspect goes in first, so the 1.6 ring of context means the same thing
+   * on both axes; the cosine then converts ground span to degrees of
+   * longitude, which are shorter away from the equator.
+   */
+  const aspect = Number.isFinite(camera.aspect) && camera.aspect > 0 ? camera.aspect : 1;
+  const halfLon = (halfLat * aspect) / Math.max(0.05, Math.cos(midLat * RAD));
 
   return {
     minLat: Math.max(box.minLat, midLat - halfLat),

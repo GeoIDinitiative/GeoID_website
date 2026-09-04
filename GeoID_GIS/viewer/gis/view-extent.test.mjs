@@ -13,6 +13,7 @@
  */
 
 import { viewChangedEnough } from "./view-extent.js";
+import { readFileSync } from "node:fs";
 
 let failures = 0;
 function check(name, ok, detail = "") {
@@ -75,6 +76,34 @@ check("a stricter zoom threshold catches a smaller change",
   viewChangedEnough(view, box(10.5, 33.5, 19.5, 42.5), { zoomRatio: 1.05 }));
 check("a looser one ignores a bigger one",
   !viewChangedEnough(view, box(12.5, 35.5, 17.5, 40.5), { zoomRatio: 4, moveFraction: 4 }));
+
+/* ── the box has to cover the WINDOW, not a square about its centre ─────── */
+
+/**
+ * `camera.fov` is the VERTICAL field of view and a screen is wider than it is
+ * tall, so clamping longitude with the vertical span cut the box to about nine
+ * tenths of the strict horizontal view before any context was added. Measured
+ * at 498 km over the Alps with a 1.79 aspect: a box 8.6° wide against a screen
+ * covering 10.3°, six of eight sampled screen points outside it, and their
+ * incidence a perfectly ordinary 0.72 -- which is the coarse imagery flanking
+ * the streamed patch.
+ *
+ * The source is checked rather than the behaviour: the clamp needs a camera
+ * and a sphere, and what matters is that the aspect is in the longitude half
+ * span at all.
+ */
+{
+  const src = readFileSync(new URL("./view-extent.js", import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  check("longitude is clamped with the HORIZONTAL field of view",
+    /const halfLon = \(halfLat \* aspect\)/.test(src));
+  check("and the aspect is read off the camera rather than assumed",
+    /camera\.aspect/.test(src));
+  check("a grazing ray is dropped at the source, where it is still a ray",
+    /< GRAZING\) continue;/.test(src));
+  check("and the grazing threshold is named rather than inlined",
+    /const GRAZING = /.test(src));
+}
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");
 process.exit(failures ? 1 : 0);

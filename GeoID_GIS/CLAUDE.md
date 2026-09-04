@@ -12535,3 +12535,33 @@ to refine and left the previous service's imagery under the new service's name.
 `tile-retire.test.mjs` pins the distinction on the source of both files: every
 decline that follows a change of ground must retire, the one that follows an
 unchanged view must not, and the tiler must keep its tidy-up pass.
+
+## `camera.fov` is the VERTICAL field of view, and a screen is wider than tall
+
+"Current streaming extents fail to efficiently cover the full camera view —
+low resolution flanks the streamed tiles." Measured at 498 km over the Alps on
+a 1.79 aspect: the box came out **8.6° wide against a screen covering 10.3°**,
+with **six of eight sampled screen points outside it** — and their incidence a
+perfectly ordinary 0.72, so this was not the horizon, it was the middle of the
+view being left out.
+
+`clampToForeground` cut longitude with the same span it cut latitude with, and
+`camera.fov` is the VERTICAL one. So the box was about nine tenths of the
+strict horizontal view before any context was added, and the tiles were fetched
+for a window narrower than the window. The aspect goes into the longitude half
+span now, ahead of the cosine, so the 1.6 ring of context means the same thing
+on both axes.
+
+**And a grazing ray is the horizon, not the view.** The clamp exists because
+rays near the edge of a low view meet the sphere almost tangentially and blew
+the box up twelvefold at 2.8 km — but the incidence says which is which
+directly, being near 1 looking straight down, about 0.7 at the corners of an
+ordinary view, and near 0 at the limb. Dropping samples under 0.12 leaves a box
+made of ground somebody can actually see, which is what the clamp was working
+around rather than measuring.
+
+Measured after: **8 of 8 screen points inside**, the box 11.35° against the
+screen's 10.32° — a ring of context rather than a shortfall — and the raycast
+box, not the clamp, is now what decides it. This reaches every consumer of
+`visibleBounds` at once: the imagery refine, the elevation sheets, the Earth
+Engine refine and the DEM stream's own follow.
