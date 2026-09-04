@@ -1303,7 +1303,23 @@ function buildLayerCard(layer) {
       if (!Number.isFinite(n)) return String(v ?? "");
       const abs = Math.abs(n);
       if (n === 0) return "0";
-      if (abs >= 1000 || abs < 0.01) return n.toPrecision(3);
+      /**
+       * A LEGEND END IS READ BY A PERSON, so 3,755 m and not 3.76e+3 m.
+       *
+       * Three significant figures were applied from a thousand upwards, which
+       * is where a real elevation starts: every DEM's top end came out as
+       * `3.76e+3 m`, a notation for a machine that also loses the last two
+       * digits of a number the reader is matching against a contour. Thousands
+       * separate instead.
+       *
+       * Small values keep the significant-figure form, which is what stops a
+       * ramp end reading `0.000038100000000000004`; JS renders those fixed down
+       * to 1e-7, so it is legible rather than exponential. The exponent only
+       * appears from a million up, where the digits have stopped meaning
+       * anything at a glance anyway.
+       */
+      if (abs >= 1e6 || abs < 0.01) return n.toPrecision(3);
+      if (abs >= 1000) return Math.round(n).toLocaleString();
       return String(Number(n.toPrecision(4)));
     };
     const block = document.createElement("div");
