@@ -12121,3 +12121,38 @@ And at the EDGE of what has been fetched, a slope stencil can still straddle
 the boundary and mix a 30 m height with a 19.6 km one. Inside a tool run it
 cannot happen (the cover is the polygon plus four posts); for an ad-hoc reading
 at the rim of a fetched area it can, and it is one reading.
+
+### THE DEV PORT IS NOT A FREE CHOICE — 8125 or the elevation model is gone
+
+Reported as "we have lost the DEM elevation reader and the vertical
+exaggeration is greyed out again", with a cursor readout showing `n/a`.
+Reproduced exactly on `http://localhost:8123` and not at all on 8125, and it is
+not a code fault:
+
+| Origin | the elevation PNG on R2 |
+| --- | --- |
+| `http://localhost:8123` | 200, **no `Access-Control-Allow-Origin`** |
+| `http://localhost:8125` | 200 + `access-control-allow-origin: http://localhost:8125` |
+| `https://geoidinitiative.com` | 200 + its own origin echoed |
+
+`earth_elevation_sampler.png` lives in the bucket now, three.js loads every
+texture with `crossOrigin="anonymous"`, and the sampler reads its pixels BACK
+out of a canvas — so on an origin the bucket does not answer for, the image is
+blocked, `elevationSampler` stays null, `sampleElevationMeters` returns null and
+the exaggeration slider disables itself. Both symptoms, one cause.
+
+**`serve.py` already defaults to 8125**, which is why the project's own
+documented way to run the site has never shown this. The 8123 came from
+`.claude/launch.json`, which is now a single entry on 8125 — a second dev server
+on another port is not a convenience here, it is a broken elevation model.
+
+Two things worth keeping from it. The app was ALREADY honest: the disabled
+slider's tooltip names the cause down to `crossOrigin="anonymous"`, which is
+what a control that greys itself out owes the reader — the diagnosis took one
+look at a `title` attribute. And the general shape: **the site now depends on a
+bucket allowlist, so any NEW origin — a staging domain, a preview URL, a second
+dev port — silently loses the elevation model and the tiled sheets.** Check a
+new origin against the bucket before believing what a page there is telling you.
+
+Verified on production the same afternoon: `geoidinitiative.com` reads
+-3,857 m at 50.54°N 335.07°E with the slider live, so main is unaffected.

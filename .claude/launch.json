@@ -7,30 +7,6 @@
       "runtimeArgs": [
         "-m",
         "http.server",
-        "8123",
-        "--directory",
-        "/home/owen/GeoID_webpage"
-      ],
-      "port": 8123
-    },
-    {
-      "name": "geoid-fresh",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": [
-        "-m",
-        "http.server",
-        "8223",
-        "--directory",
-        "/home/owen/GeoID_webpage"
-      ],
-      "port": 8223
-    },
-    {
-      "name": "geoid-bucket-origin",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": [
-        "-m",
-        "http.server",
         "8125",
         "--directory",
         "/home/owen/GeoID_webpage"
