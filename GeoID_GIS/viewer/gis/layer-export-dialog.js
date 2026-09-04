@@ -11,8 +11,9 @@
  * to what was imported is preselected, so the common case is one press.
  */
 
-import { formatsFor, suggestedFormat, baseName, exportLayer, layerKind }
-  from "./layer-export.js?v=20260904-36feba6";
+import { formatsFor, suggestedFormat, baseName, exportLayer, layerKind, collectionOf }
+  from "./layer-export.js?v=20260904-80121cc";
+import { pointColumnsOf } from "./vector-formats.js?v=20260904-80121cc";
 
 const DIALOG_ID = "geoid-export-dialog";
 
@@ -84,6 +85,33 @@ const STYLE = `
 .geoid-export-option.is-unavailable { opacity: 0.5; cursor: not-allowed; }
 .geoid-export-option.is-unavailable:hover { border-color: rgba(var(--nav-accent-rgb), 0.28); }
 .geoid-export-actions { display: flex; justify-content: flex-end; gap: 0.4rem; }
+.geoid-export-columns {
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.geoid-export-columns-head {
+  margin: 0;
+  font: 500 0.68rem/1.4 'Exo 2', sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+.geoid-export-columns-list { display: flex; flex-wrap: wrap; gap: 0.3rem 0.7rem; }
+.geoid-export-column {
+  display: flex; align-items: center; gap: 0.3rem;
+  font: 400 0.78rem/1.4 'Exo 2', sans-serif;
+}
+.geoid-export-column .is-geometry { color: rgb(var(--nav-accent-rgb, 58 238 232)); }
+.geoid-export-column input:disabled + span { opacity: 0.5; }
+.geoid-export-delimiter {
+  display: flex; align-items: center; gap: 0.5rem;
+  font: 400 0.78rem/1.4 'Exo 2', sans-serif;
+}
+.geoid-export-delimiter .select { padding: 0.1rem 0.3rem; }
 .geoid-export-empty { margin: 0 0 0.8rem; color: var(--muted); font-size: 0.7rem; line-height: 1.4; }
 `;
 
@@ -173,6 +201,7 @@ export function openExportDialog(layer) {
       options.querySelectorAll(".geoid-export-option")
         .forEach((node) => node.classList.remove("is-picked"));
       option.classList.add("is-picked");
+      buildChooser();
     });
     option.appendChild(radio);
 
@@ -198,6 +227,94 @@ export function openExportDialog(layer) {
   });
   box.appendChild(options);
 
+  /**
+   * WHICH COLUMNS, AND IN WHAT ORDER -- the same question the import dialog
+   * asks, asked in reverse.
+   *
+   * Reading a delimited file means telling the app which column is X; writing
+   * one means telling it which field goes in that column, and for whom. A
+   * file written x,y,depth when the reader on the other side expects
+   * station,lat,lon is not a broken file, it is a file somebody has to re-map
+   * by hand -- exactly the work the import dialog exists to avoid.
+   *
+   * Shown only for the formats that can honour it, and pre-filled with the
+   * conventional order so the common case is one click.
+   */
+  const columnState = { columns: null, delimiter: null };
+  const chooser = document.createElement("div");
+  chooser.className = "geoid-export-columns";
+  chooser.hidden = true;
+  box.appendChild(chooser);
+
+  const buildChooser = () => {
+    const format = formats.find((f) => f.id === picked.id);
+    const wanted = Boolean(format?.choosable);
+    chooser.hidden = !wanted;
+    chooser.textContent = "";
+    columnState.columns = null;
+    columnState.delimiter = null;
+    if (!wanted) return;
+
+    const cols = pointColumnsOf(collectionOf(layer));
+    const all = [...cols.geometry, ...cols.properties];
+    const chosen = new Set(all);
+
+    const head = document.createElement("p");
+    head.className = "geoid-export-columns-head";
+    head.textContent = "Columns, in the order they will be written";
+    chooser.appendChild(head);
+
+    const list = document.createElement("div");
+    list.className = "geoid-export-columns-list";
+    const sync = () => {
+      columnState.columns = all.filter((c) => chosen.has(c));
+      // Never write a file with no columns in it: the last one cannot come off.
+      list.querySelectorAll("input").forEach((box2) => {
+        box2.disabled = chosen.size === 1 && chosen.has(box2.value);
+      });
+    };
+    all.forEach((col) => {
+      const label = document.createElement("label");
+      label.className = "geoid-export-column";
+      const box2 = document.createElement("input");
+      box2.type = "checkbox";
+      box2.value = col;
+      box2.checked = true;
+      box2.addEventListener("change", () => {
+        if (box2.checked) chosen.add(col); else chosen.delete(col);
+        sync();
+      });
+      const name2 = document.createElement("span");
+      name2.textContent = col;
+      if (cols.geometry.includes(col)) name2.className = "is-geometry";
+      label.append(box2, name2);
+      list.appendChild(label);
+    });
+    chooser.appendChild(list);
+    sync();
+
+    if (format.delimited) {
+      const row = document.createElement("label");
+      row.className = "geoid-export-delimiter";
+      const span = document.createElement("span");
+      span.textContent = "Separator";
+      const select = document.createElement("select");
+      select.className = "select";
+      [["\t", "Tab"], [",", "Comma"], [" ", "Space"], [";", "Semicolon"]]
+        .forEach(([value, name2]) => {
+          const opt = document.createElement("option");
+          opt.value = value;
+          opt.textContent = name2;
+          if (value === format.delimited.delimiter) opt.selected = true;
+          select.appendChild(opt);
+        });
+      columnState.delimiter = format.delimited.delimiter;
+      select.addEventListener("change", () => { columnState.delimiter = select.value; });
+      row.append(span, select);
+      chooser.appendChild(row);
+    }
+  };
+
   const actions = document.createElement("div");
   actions.className = "geoid-export-actions";
   const cancel = document.createElement("button");
@@ -213,11 +330,17 @@ export function openExportDialog(layer) {
     confirm.className = "button";
     confirm.textContent = "Export";
     confirm.addEventListener("click", () => {
-      exportLayer(layer, picked.id);
+      const opts = {};
+      if (columnState.columns) opts.columns = columnState.columns;
+      if (columnState.delimiter !== null) opts.delimiter = columnState.delimiter;
+      exportLayer(layer, picked.id, opts);
       close();
     });
     actions.appendChild(confirm);
   }
+  // Once on open too, or a preselected .txt shows its formats and no chooser
+  // until the user clicks a different format and back again.
+  buildChooser();
   box.appendChild(actions);
 
   backdrop.appendChild(box);

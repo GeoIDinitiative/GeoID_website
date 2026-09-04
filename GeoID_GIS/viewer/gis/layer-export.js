@@ -21,10 +21,10 @@
  * rather than silently dropping whatever does not fit.
  */
 
-import * as VF from "./vector-formats.js?v=20260904-36feba6";
-import { downloadText } from "./extraction.js?v=20260904-36feba6";
+import * as VF from "./vector-formats.js?v=20260904-80121cc";
+import { downloadText } from "./extraction.js?v=20260904-80121cc";
 import { buildShapefileZip, shapeTypeFor, SHAPE_NAMES, safeShapefileName,
-  countSelfTouchingRings } from "./shapefile-writer.js?v=20260904-36feba6";
+  countSelfTouchingRings } from "./shapefile-writer.js?v=20260904-80121cc";
 
 /**
  * What a layer is, read from its contents rather than its name.
@@ -77,6 +77,28 @@ const VECTOR_FORMATS = [
     note: "Geometry only, one shape per line. No attributes." },
   { id: "csv", label: "CSV", ext: "csv", mime: "text/csv",
     note: "Attribute table, with geometry as a WKT column." },
+  /**
+   * The delimited point family, so everything this app can READ it can also
+   * write. `.xyz` and `.pts` are the same file with different names and
+   * different habits -- xyz is whitespace and no header, pts is comma and a
+   * header -- and `.txt` is whichever the user says. `pointsOnly` keeps them
+   * off a polygon layer, where a row of coordinates would be a lie about what
+   * the layer holds.
+   */
+  { id: "xyz", label: "XYZ", ext: "xyz", mime: "text/plain", pointsOnly: true,
+    delimited: { delimiter: " ", header: false },
+    note: "Whitespace-separated coordinates, no header. The plain point cloud." },
+  { id: "pts", label: "PTS", ext: "pts", mime: "text/plain", pointsOnly: true,
+    delimited: { delimiter: ",", header: true },
+    note: "Comma-separated with a header row. Same data, spreadsheet habits." },
+  { id: "txt", label: "Text (choose columns)", ext: "txt", mime: "text/plain", pointsOnly: true,
+    delimited: { delimiter: "\t", header: true }, choosable: true,
+    note: "You pick the columns, their order and the separator." },
+  { id: "pointjson", label: "JSON records", ext: "json", mime: "application/json",
+    pointsOnly: true, choosable: true,
+    note: "A flat array of {x, y, z, …} — what a script or notebook wants, not GeoJSON." },
+  { id: "gpx", label: "GPX", ext: "gpx", mime: "application/gpx+xml",
+    note: "Waypoints and tracks, for a GPS or a phone." },
 ];
 
 const RASTER_FORMATS = [
@@ -93,6 +115,10 @@ const MESH_FORMATS = [
     note: "Triangles only. What most meshers and printers read." },
   { id: "obj", label: "OBJ", ext: "obj", mime: "text/plain",
     note: "Triangles with shared vertices, so a smaller file." },
+  { id: "ply", label: "PLY", ext: "ply", mime: "text/plain",
+    note: "Shared vertices with counts in the header. Read by MeshLab, CloudCompare, Blender." },
+  { id: "msh", label: "Gmsh", ext: "msh", mime: "text/plain",
+    note: "Gmsh 4.1 nodes and triangles, so a mesh can return to the mesher." },
 ];
 
 const BY_KIND = { vector: VECTOR_FORMATS, raster: RASTER_FORMATS, mesh: MESH_FORMATS };
@@ -132,8 +158,22 @@ export function suggestedFormat(layer) {
 export function formatsFor(layer) {
   const suggestion = suggestedFormat(layer);
   const kind = layerKind(layer);
+  /**
+   * Whether this layer has any points to write. The delimited family and the
+   * JSON records are rows of coordinates: offered over a polygon layer they
+   * would either be empty or would quietly write the vertices of rings as if
+   * they were observations, which is a worse answer than not offering them.
+   */
+  const collection = collectionOf(layer);
+  const hasPoints = (collection?.features || [])
+    .some((f) => /Point/.test(f?.geometry?.type || ""));
   return (BY_KIND[kind] || []).map((format) => {
     const entry = { ...format, suggested: format.id === suggestion };
+    if (format.pointsOnly && !hasPoints) {
+      entry.disabled = true;
+      entry.reason = "This layer holds no point features — "
+        + "a file of coordinates would have nothing to put in it.";
+    }
     if (format.id === "shp" && !shapeTypeFor(collectionOf(layer))) {
       entry.disabled = true;
       entry.reason = mixedGeometryReason(collectionOf(layer));
@@ -276,6 +316,83 @@ export function toStl(positions, name = "geoid") {
  * coordinates typically cuts an imported mesh to under half its vertices, and
  * OBJ indices are one-based, which is the classic off-by-one here.
  */
+/**
+ * ASCII PLY, the third thing every mesher reads.
+ *
+ * Shared vertices like OBJ -- the same de-duplication, because a triangle soup
+ * of a draped patch repeats most of its corners three times -- but with the
+ * element counts declared in the header, which is what PLY readers use to size
+ * their buffers before parsing a byte of it. That header is why the vertices
+ * have to be collected before anything is written, rather than streamed.
+ */
+/**
+ * Gmsh ASCII 4.1, so a mesh can go back to the mesher it came from.
+ *
+ * The same de-duplicated triangle soup as OBJ and PLY, in Gmsh's own shape:
+ * a $Nodes block of coordinates and a $Elements block of type-2 triangles,
+ * each preceded by the entity-block header that Gmsh 4.1 requires and that
+ * every 2.2-era example on the internet omits. Node and element tags are
+ * one-based and contiguous, which is the case Gmsh reads fastest and the only
+ * one worth writing from a soup that has no entity structure of its own.
+ */
+export function toMsh(positions, name = "geoid") {
+  const index = new Map();
+  const nodes = [];
+  const tris = [];
+  const idFor = (x, y, z) => {
+    const key = `${x},${y},${z}`;
+    let id = index.get(key);
+    if (id === undefined) {
+      nodes.push(`${trimNumber(x, 6)} ${trimNumber(y, 6)} ${trimNumber(z, 6)}`);
+      id = nodes.length;               // one-based, as Gmsh counts
+      index.set(key, id);
+    }
+    return id;
+  };
+  for (let i = 0; i + 8 < positions.length; i += 9) {
+    const a = idFor(positions[i], positions[i + 1], positions[i + 2]);
+    const b = idFor(positions[i + 3], positions[i + 4], positions[i + 5]);
+    const c = idFor(positions[i + 6], positions[i + 7], positions[i + 8]);
+    tris.push(`${tris.length + 1} ${a} ${b} ${c}`);
+  }
+  const n = nodes.length;
+  const m = tris.length;
+  return `$MeshFormat\n4.1 0 8\n$EndMeshFormat\n`
+    + `$Nodes\n1 ${n} 1 ${n}\n2 1 0 ${n}\n`
+    + `${Array.from({ length: n }, (_, i) => i + 1).join("\n")}${n ? "\n" : ""}`
+    + `${nodes.join("\n")}${n ? "\n" : ""}$EndNodes\n`
+    + `$Elements\n1 ${m} 1 ${m}\n2 1 2 ${m}\n`
+    + `${tris.join("\n")}${m ? "\n" : ""}$EndElements\n`;
+}
+
+export function toPly(positions, name = "geoid") {
+  const index = new Map();
+  const vertices = [];
+  const faces = [];
+  const idFor = (x, y, z) => {
+    const key = `${x},${y},${z}`;
+    let id = index.get(key);
+    if (id === undefined) {
+      vertices.push(`${trimNumber(x, 6)} ${trimNumber(y, 6)} ${trimNumber(z, 6)}`);
+      id = vertices.length - 1;          // zero-based, as PLY counts
+      index.set(key, id);
+    }
+    return id;
+  };
+  for (let i = 0; i + 8 < positions.length; i += 9) {
+    const a = idFor(positions[i], positions[i + 1], positions[i + 2]);
+    const b = idFor(positions[i + 3], positions[i + 4], positions[i + 5]);
+    const c = idFor(positions[i + 6], positions[i + 7], positions[i + 8]);
+    faces.push(`3 ${a} ${b} ${c}`);
+  }
+  return `ply\nformat ascii 1.0\ncomment ${name}\n`
+    + `element vertex ${vertices.length}\n`
+    + "property float x\nproperty float y\nproperty float z\n"
+    + `element face ${faces.length}\n`
+    + "property list uchar int vertex_indices\n"
+    + `end_header\n${vertices.join("\n")}\n${faces.join("\n")}\n`;
+}
+
 export function toObj(positions, name = "geoid") {
   const index = new Map();
   const vertices = [];
@@ -351,7 +468,7 @@ export function collectTriangles(root) {
 /* ───────────────────────────────  export  ─────────────────────────────── */
 
 /** The bytes for one layer in one format, without touching the page. */
-export function renderExport(layer, formatId) {
+export function renderExport(layer, formatId, options = {}) {
   const kind = layerKind(layer);
   const format = (BY_KIND[kind] || []).find((f) => f.id === formatId);
   if (!format) return null;
@@ -413,7 +530,17 @@ export function renderExport(layer, formatId) {
     if (formatId === "geojson") text = VF.toGeoJson(collection);
     else if (formatId === "kml") text = VF.toKml(collection, { name: base });
     else if (formatId === "wkt") text = VF.toWkt(collection);
-    else text = VF.toCsv(collection);
+    else if (formatId === "gpx") text = VF.toGpx(collection, { name: base });
+    else if (formatId === "pointjson") text = VF.toPointJson(collection, options);
+    else if (format.delimited) {
+      /**
+       * The caller's columns and separator win over the format's habits, which
+       * is the whole point of offering the choice: `.txt` with the columns in
+       * the order the next reader expects is the difference between a file
+       * that opens and one somebody has to re-map by hand.
+       */
+      text = VF.toDelimitedPoints(collection, { ...format.delimited, ...options });
+    } else text = VF.toCsv(collection);
   } else if (kind === "raster") {
     if (formatId === "tif") {
       if (!hasUsableBounds(layer.raster)) return null;
@@ -426,7 +553,10 @@ export function renderExport(layer, formatId) {
     text = formatId === "asc" ? toAsciiGrid(raster) : toRasterCsv(raster);
   } else if (kind === "mesh") {
     const positions = collectTriangles(layer.object3D);
-    text = formatId === "obj" ? toObj(positions, base) : toStl(positions, base);
+    text = formatId === "msh" ? toMsh(positions, base)
+      : formatId === "ply" ? toPly(positions, base)
+        : formatId === "obj" ? toObj(positions, base)
+          : toStl(positions, base);
   }
   return { filename: `${base}.${format.ext}`, mime: format.mime, text };
 }
@@ -436,8 +566,8 @@ export function renderExport(layer, formatId) {
  * which also files it against the open project when there is one; the zip
  * cannot take that path, because the project bridge stores text.
  */
-export function exportLayer(layer, formatId) {
-  const result = renderExport(layer, formatId);
+export function exportLayer(layer, formatId, options = {}) {
+  const result = renderExport(layer, formatId, options);
   if (!result) return null;
   if (result.bytes) downloadBytes(result.filename, result.bytes, result.mime);
   else downloadText(result.filename, result.text, result.mime);

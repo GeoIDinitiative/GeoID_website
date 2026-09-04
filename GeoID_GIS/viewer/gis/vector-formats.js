@@ -1,4 +1,4 @@
-import { featureCollection, feature, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260904-36feba6";
+import { featureCollection, feature, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260904-80121cc";
 
 // Readers and writers for the interchange formats a GIS is expected to handle.
 // Everything normalises to / from GeoJSON so the toolbox only ever sees one
@@ -310,4 +310,155 @@ export function toPointCsv(fc) {
     });
   });
   return [["lon", "lat", ...fields].join(","), ...rows].join("\n");
+}
+
+/* ── Writing the delimited point family ──────────────────────────────────── */
+
+/**
+ * The columns a point layer COULD be written with, in the order most files
+ * want them: the geometry first, then whatever the features carry.
+ *
+ * `x`, `y` and `z` are pseudo-fields -- they come off the geometry rather than
+ * the properties -- and they are named that way because that is what the
+ * reader on the other side will ask for. `z` is offered only when some feature
+ * actually has a third ordinate or a `z` property, so a 2D survey is not given
+ * a column of zeroes to explain.
+ */
+export function pointColumnsOf(fc) {
+  const features = (fc?.features || []).filter((f) => /Point/.test(f?.geometry?.type || ""));
+  const hasZ = features.some((f) => {
+    const c = f.geometry.type === "Point" ? f.geometry.coordinates : f.geometry.coordinates?.[0];
+    return Number.isFinite(c?.[2]) || Number.isFinite(Number(f.properties?.z));
+  });
+  const props = [...new Set(features.flatMap((f) => Object.keys(f.properties || {})))]
+    .filter((k) => k !== "z");
+  return { geometry: hasZ ? ["x", "y", "z"] : ["x", "y"], properties: props };
+}
+
+/** Every point of a Point/MultiPoint collection, as {x, y, z, properties}. */
+function pointRecords(fc) {
+  const out = [];
+  (fc?.features || []).forEach((f) => {
+    const g = f?.geometry; if (!g) return;
+    const coords = g.type === "Point" ? [g.coordinates]
+      : g.type === "MultiPoint" ? g.coordinates : null;
+    if (!coords) return;
+    coords.forEach((c) => {
+      const z = Number.isFinite(c?.[2]) ? c[2]
+        : Number.isFinite(Number(f.properties?.z)) ? Number(f.properties.z) : null;
+      out.push({ x: c[0], y: c[1], z, properties: f.properties || {} });
+    });
+  });
+  return out;
+}
+
+/**
+ * A delimited point file -- .xyz, .pts, .txt, or a CSV of columns somebody
+ * chose.
+ *
+ * `columns` is the caller's ordered list, mixing the geometry pseudo-fields
+ * with property names, because which column is X is the reader's decision on
+ * the way in and has to be the writer's on the way out. The import dialog
+ * already asks that question; this is the same question asked in reverse, and
+ * a file written with the columns in an order the next reader does not expect
+ * is the failure both ends exist to prevent.
+ *
+ * A header is optional because `.xyz` conventionally has none, and a reader
+ * that meets one where it expects numbers skips the row -- so the default
+ * follows the delimiter: whitespace means a bare cloud, anything else means a
+ * table somebody will open in a spreadsheet.
+ */
+export function toDelimitedPoints(fc, {
+  columns = null, delimiter = " ", header = null, precision = 6,
+} = {}) {
+  const records = pointRecords(fc);
+  const cols = columns && columns.length ? columns : (() => {
+    const c = pointColumnsOf(fc);
+    return [...c.geometry, ...c.properties];
+  })();
+  const wantHeader = header === null ? delimiter.trim() !== "" : header;
+  const num = (v) => (Number.isFinite(v) ? String(Number(v.toFixed(precision))) : "");
+  const quote = (v) => {
+    const text = v === null || v === undefined ? "" : String(v);
+    if (delimiter.trim() === "") return text.replace(/\s+/g, "_");
+    return new RegExp(`["\n\r]|${delimiter.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(text)
+      ? `"${text.replace(/"/g, '""')}"` : text;
+  };
+  const cell = (rec, col) => {
+    if (col === "x") return num(rec.x);
+    if (col === "y") return num(rec.y);
+    if (col === "z") return num(rec.z);
+    return quote(rec.properties[col]);
+  };
+  const lines = records.map((rec) => cols.map((c) => cell(rec, c)).join(delimiter));
+  return (wantHeader ? [cols.join(delimiter), ...lines] : lines).join("\n") + "\n";
+}
+
+/**
+ * Points as a plain JSON array of records, which is not GeoJSON.
+ *
+ * GeoJSON is already offered and nests the coordinates inside a geometry; a
+ * flat `[{x, y, z, ...}]` is what a script, a notebook or a database import
+ * actually wants, and it is the shape the delimited readers here produce
+ * internally anyway.
+ */
+export function toPointJson(fc, { columns = null, precision = 6 } = {}) {
+  const records = pointRecords(fc);
+  const cols = columns && columns.length ? columns : (() => {
+    const c = pointColumnsOf(fc);
+    return [...c.geometry, ...c.properties];
+  })();
+  const round = (v) => (Number.isFinite(v) ? Number(v.toFixed(precision)) : null);
+  const rows = records.map((rec) => {
+    const out = {};
+    cols.forEach((col) => {
+      if (col === "x") out.x = round(rec.x);
+      else if (col === "y") out.y = round(rec.y);
+      else if (col === "z") out.z = round(rec.z);
+      else out[col] = rec.properties[col] ?? null;
+    });
+    return out;
+  });
+  return JSON.stringify(rows, null, 2);
+}
+
+/**
+ * GPX, so a layer can go back to the device it probably came from.
+ *
+ * Points become waypoints and lines become tracks, which is the mapping every
+ * GPS reader expects; polygons have no GPX form and are written as the track
+ * of their outer ring rather than silently dropped.
+ */
+export function toGpx(fc, { name = "GeoID export" } = {}) {
+  const esc = (v) => String(v ?? "").replace(/[<>&'"]/g,
+    (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" }[c]));
+  const nameOf = (f) => f.properties?.name || f.properties?.Name || f.properties?.station || "";
+  const parts = [];
+  (fc?.features || []).forEach((f) => {
+    const g = f?.geometry; if (!g) return;
+    const pts = g.type === "Point" ? [g.coordinates]
+      : g.type === "MultiPoint" ? g.coordinates : null;
+    if (pts) {
+      pts.forEach((c) => {
+        const ele = Number.isFinite(c?.[2]) ? `<ele>${c[2]}</ele>` : "";
+        parts.push(`  <wpt lat="${c[1]}" lon="${c[0]}">${ele}`
+          + (nameOf(f) ? `<name>${esc(nameOf(f))}</name>` : "") + "</wpt>");
+      });
+      return;
+    }
+    const lines = g.type === "LineString" ? [g.coordinates]
+      : g.type === "MultiLineString" ? g.coordinates
+        : g.type === "Polygon" ? [g.coordinates[0]]
+          : g.type === "MultiPolygon" ? g.coordinates.map((p) => p[0]) : null;
+    if (!lines) return;
+    lines.forEach((line) => {
+      const seg = line.map((c) => `      <trkpt lat="${c[1]}" lon="${c[0]}">`
+        + (Number.isFinite(c?.[2]) ? `<ele>${c[2]}</ele>` : "") + "</trkpt>").join("\n");
+      parts.push(`  <trk>${nameOf(f) ? `<name>${esc(nameOf(f))}</name>` : ""}`
+        + `\n    <trkseg>\n${seg}\n    </trkseg>\n  </trk>`);
+    });
+  });
+  return `<?xml version="1.0" encoding="UTF-8"?>\n`
+    + `<gpx version="1.1" creator="${esc(name)}" xmlns="http://www.topografix.com/GPX/1/1">\n`
+    + `${parts.join("\n")}\n</gpx>\n`;
 }

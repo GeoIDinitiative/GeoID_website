@@ -15,8 +15,9 @@
 
 import {
   layerKind, suggestedFormat, formatsFor, baseName, collectionOf, hasUsableBounds,
-  toAsciiGrid, toRasterCsv, toStl, toObj,
+  toAsciiGrid, toRasterCsv, toStl, toObj, toPly, toMsh,
 } from "./layer-export.js";
+import * as VF from "./vector-formats.js";
 
 let failures = 0;
 function check(name, ok, detail = "") {
@@ -72,7 +73,7 @@ eq("nothing writable has no suggestion", suggestedFormat({ name: "x" }), null);
 check("a raster is never offered vector formats",
   formatsFor(raster).every((f) => ["tif", "asc", "csv"].includes(f.id)));
 check("a vector layer is never offered a mesh format",
-  formatsFor(vector).every((f) => ["shp", "geojson", "kml", "wkt", "csv"].includes(f.id)));
+  formatsFor(vector).every((f) => ["shp", "geojson", "kml", "wkt", "csv", "xyz", "pts", "txt", "pointjson", "gpx"].includes(f.id)));
 eq("exactly one format is marked as the suggestion",
   formatsFor(vector).filter((f) => f.suggested).length, 1);
 eq("and it is the right one",
@@ -119,7 +120,7 @@ const featuresOnly = { name: "roads.shp", ext: "shp", object3D: {}, collection: 
     geometry: { type: "LineString", coordinates: [[0, 0], [1, 1]] } }] };
 eq("features without a collection is still a vector layer", layerKind(featuresOnly), "vector");
 check("and is offered vector formats, not mesh ones",
-  formatsFor(featuresOnly).every((f) => ["shp", "geojson", "kml", "wkt", "csv"].includes(f.id)));
+  formatsFor(featuresOnly).every((f) => ["shp", "geojson", "kml", "wkt", "csv", "xyz", "pts", "txt", "pointjson", "gpx"].includes(f.id)));
 eq("a collection is built from them to write", collectionOf(featuresOnly).features.length, 1);
 eq("a real collection is used as it stands",
   collectionOf(pointLayer), pointLayer.collection);
@@ -239,6 +240,108 @@ eq("shared corners are written once", welded.filter((l) => l.startsWith("v ")).l
 eq("and both faces still reference them", welded.filter((l) => l.startsWith("f ")).length, 2);
 eq("the second face reuses the first face's vertices",
   welded.filter((l) => l.startsWith("f "))[1], "f 2 4 3");
+
+/* ── import/export parity ────────────────────────────────────────────────── */
+/**
+ * Anything this app can READ it should be able to WRITE. The gap was silent:
+ * a survey imported as .xyz could leave as a shapefile or not at all, so the
+ * format somebody's colleague asked for was the one format it could not
+ * produce.
+ */
+{
+  const READABLE = ["stl", "tif", "msh", "xyz", "csv", "pts", "shp", "geojson",
+    "kml", "gpx", "wkt", "asc", "obj", "ply", "txt", "json"];
+  const writable = new Set([
+    ...formatsFor(pointLayer).map((f) => f.ext),
+    ...formatsFor(raster).map((f) => f.ext),
+    ...formatsFor(mesh).map((f) => f.ext),
+    // A shapefile is WRITTEN as the zip bundle it has to be -- .shp alone is
+    // not a file anyone can open -- so the readable ".shp" is served by it.
+    "shp",
+    "tiff",                      // the same writer as .tif
+  ]);
+  const missing = READABLE.filter((ext) => !writable.has(ext));
+  eq("every readable extension has a writer", missing, []);
+}
+
+/* ── the delimited point family ──────────────────────────────────────────── */
+{
+  const fc = { type: "FeatureCollection", features: [
+    { type: "Feature", properties: { station: "A1", depth: 4.5 },
+      geometry: { type: "Point", coordinates: [15.0072, 37.7231] } },
+    { type: "Feature", properties: { station: "A2", depth: 9.25 },
+      geometry: { type: "Point", coordinates: [14.9075, 37.7367] } },
+  ] };
+
+  const xyz = VF.toDelimitedPoints(fc, { delimiter: " ", header: false });
+  eq("xyz writes one row per point and no header", xyz.trim().split("\n").length, 2);
+  check("and writes x before y, as every reader expects",
+    xyz.trim().split("\n")[0].startsWith("15.0072 37.7231"));
+
+  const pts = VF.toDelimitedPoints(fc, { delimiter: ",", header: true });
+  eq("pts carries a header", pts.split("\n")[0], "x,y,station,depth");
+
+  // The caller's order wins -- the whole reason the choice exists.
+  const chosen = VF.toDelimitedPoints(fc,
+    { delimiter: ",", header: true, columns: ["station", "y", "x", "depth"] });
+  eq("columns come out in the order asked for", chosen.split("\n")[0], "station,y,x,depth");
+  eq("and carry the right values", chosen.split("\n")[1], "A1,37.7231,15.0072,4.5");
+
+  const json = JSON.parse(VF.toPointJson(fc));
+  eq("JSON records are a flat array", json.length, 2);
+  eq("with x and y as numbers, not a nested geometry", json[0].x, 15.0072);
+  eq("and the properties alongside", json[1].station, "A2");
+
+  // A z ordinate is offered only when there is one to offer.
+  const flat = VF.pointColumnsOf(fc);
+  eq("no z column for a 2D survey", flat.geometry, ["x", "y"]);
+  const withZ = VF.pointColumnsOf({ type: "FeatureCollection", features: [
+    { type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [1, 2, 300] } }] });
+  eq("and a z column when the geometry carries one", withZ.geometry, ["x", "y", "z"]);
+}
+
+/* ── GPX ─────────────────────────────────────────────────────────────────── */
+{
+  const gpx = VF.toGpx({ type: "FeatureCollection", features: [
+    { type: "Feature", properties: { name: "camp" },
+      geometry: { type: "Point", coordinates: [15, 37, 1200] } },
+    { type: "Feature", properties: { name: "walk" },
+      geometry: { type: "LineString", coordinates: [[15, 37], [15.1, 37.1]] } },
+  ] });
+  check("a point becomes a waypoint", /<wpt lat="37" lon="15">/.test(gpx));
+  check("its elevation rides along", /<ele>1200<\/ele>/.test(gpx));
+  check("a line becomes a track with its points", /<trk>/.test(gpx) && /<trkpt /.test(gpx));
+  check("and the document is well-formed enough to declare itself", /^<\?xml/.test(gpx));
+}
+
+/* ── a point layer is not offered coordinate files it cannot fill ────────── */
+{
+  const polygons = { name: "areas", collection: { type: "FeatureCollection", features: [
+    { type: "Feature", properties: {}, geometry: { type: "Polygon",
+      coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] } }] } };
+  const xyzOffer = formatsFor(polygons).find((f) => f.id === "xyz");
+  check("a polygon layer has xyz listed but disabled", xyzOffer.disabled === true);
+  check("with a reason that says why", /no point features/.test(xyzOffer.reason));
+  check("while a point layer may write one",
+    formatsFor(pointLayer).find((f) => f.id === "xyz").disabled === undefined);
+}
+
+/* ── Gmsh ────────────────────────────────────────────────────────────────── */
+{
+  // two triangles sharing an edge, so the de-duplication is visible
+  const soup = [0,0,0, 1,0,0, 0,1,0,   1,0,0, 1,1,0, 0,1,0];
+  const msh = toMsh(soup, "part");
+  check("declares the 4.1 format Gmsh expects", /^\$MeshFormat\n4\.1 0 8\n/.test(msh));
+  const nodes = msh.match(/\$Nodes\n1 (\d+) 1 (\d+)\n/);
+  eq("four shared nodes, not six", nodes[1], "4");
+  const els = msh.match(/\$Elements\n1 (\d+) 1 (\d+)\n2 1 2 (\d+)\n/);
+  eq("two triangles", els[1], "2");
+  eq("declared as element type 2", els[3], "2");
+  check("and both blocks are closed", /\$EndNodes/.test(msh) && /\$EndElements/.test(msh));
+  const empty = toMsh([], "none");
+  check("an empty mesh is still a valid document",
+    /\$Nodes\n1 0 1 0/.test(empty) && /\$EndElements/.test(empty));
+}
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");
 process.exit(failures ? 1 : 0);
