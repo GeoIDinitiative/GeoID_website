@@ -28,15 +28,15 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260904-8334fff";
-import { currentBodyId } from "./bodies.js?v=20260904-8334fff";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260904-8334fff";
-import { rockClass } from "./rock-class.js?v=20260904-8334fff";
-import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260904-8334fff";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260904-8334fff";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260904-8334fff";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260904-533b6f3";
+import { currentBodyId } from "./bodies.js?v=20260904-533b6f3";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260904-533b6f3";
+import { rockClass } from "./rock-class.js?v=20260904-533b6f3";
+import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260904-533b6f3";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260904-533b6f3";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260904-533b6f3";
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260904-8334fff";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260904-533b6f3";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -1421,31 +1421,56 @@ function render() {
   if (!nodes?.loaded) return;
   const layers = loadedLayers();
   nodes.loaded.replaceChildren();
+  /**
+   * THE CARD DOES NOT REPEAT THE ROW ABOVE IT.
+   *
+   * The subsection's own tick loads and removes the world geology; this card
+   * carried a SECOND tick, beside the SAME name, which showed and hid it. Two
+   * controls doing different things and wearing one label, an inch apart —
+   * reported, fairly, as duplicate entries. It is the Polygons tab's fault
+   * exactly: "the second tick was VISIBILITY where the first was
+   * on-the-globe, which is why unticking one appeared to leave the layer in
+   * the layer box".
+   *
+   * So for the layer this subsection OWNS, the card is the settings and
+   * nothing else: Symbology, what it is coloured by, opacity, boundaries. Its
+   * name and its on/off are the row above; hiding without unloading is the
+   * eye in Workspace, where every layer's is. A geology layer loaded from
+   * somewhere else keeps both, because nothing above names that one.
+   */
+  // The same test `build`'s own tick uses, written here because that one is
+  // a const inside `build` and invisible from this scope — reading it here
+  // would throw and take the rest of this function with it, silently.
+  const owned = layers.find((l) => l.geologyDataset === GLOBAL_BASE?.id);
   layers.forEach((layer) => {
+    const isOwned = Boolean(owned) && layer.id === owned.id;
     const box = document.createElement("div");
     box.className = "gis-geo-layer";
     const row = document.createElement("div");
     row.className = "gis-geo-layer-head";
-    const eye = document.createElement("input");
-    eye.type = "checkbox";
-    eye.checked = layer.visible !== false;
-    eye.title = "Visible";
-    // Through the hierarchy, which is the one writer -- it sets the state,
-    // redraws the rows and the legend, and announces the change, which brings
-    // this list and the clickable geology back in step. Writing the flag here
-    // as well is what let the surfaces drift apart.
-    eye.addEventListener("change", () => { setLayerVisible(layer, eye.checked); });
-    const name = document.createElement("span");
-    name.className = "gis-geo-layer-name";
-    name.textContent = layer.name;
-    name.title = layer.credit || layer.name;
+    if (!isOwned) {
+      const eye = document.createElement("input");
+      eye.type = "checkbox";
+      eye.checked = layer.visible !== false;
+      eye.title = "Visible";
+      // Through the hierarchy, which is the one writer -- it sets the state,
+      // redraws the rows and the legend, and announces the change, which brings
+      // this list and the clickable geology back in step. Writing the flag here
+      // as well is what let the surfaces drift apart.
+      eye.addEventListener("change", () => { setLayerVisible(layer, eye.checked); });
+      const name = document.createElement("span");
+      name.className = "gis-geo-layer-name";
+      name.textContent = layer.name;
+      name.title = layer.credit || layer.name;
+      row.append(eye, name);
+    }
     const sym = document.createElement("button");
     sym.type = "button";
     sym.className = "button secondary";
     sym.textContent = "Symbology…";
     sym.style.fontSize = "0.6rem";
     sym.addEventListener("click", () => openSymbology(layer));
-    row.append(eye, name, sym);
+    row.append(sym);
 
     const by = document.createElement("div");
     by.className = "gis-geo-layer-by";
