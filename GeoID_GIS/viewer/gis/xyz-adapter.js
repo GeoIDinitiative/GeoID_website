@@ -1,11 +1,11 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic, computeBounds2D } from "./geo-utils.js?v=20260904-946aa8d";
+import { latLonToVector3, drapedRadius, looksLikeGeographic, computeBounds2D } from "./geo-utils.js?v=20260904-1b460f9";
 import {
   readHead, parseRows, validateMapping, rowsToPointCollection,
-} from "./delimited.js?v=20260904-946aa8d";
-import { rampColour } from "./symbology.js?v=20260904-946aa8d";
-import { markerDiscTexture } from "./vector-render.js?v=20260904-946aa8d";
-import { registerDrape } from "./geotiff-adapter.js?v=20260904-946aa8d";
+} from "./delimited.js?v=20260904-1b460f9";
+import { rampColour } from "./symbology.js?v=20260904-1b460f9";
+import { markerDiscTexture } from "./vector-render.js?v=20260904-1b460f9";
+import { registerDrape } from "./geotiff-adapter.js?v=20260904-1b460f9";
 
 const MAX_POINTS = 2000000;
 
@@ -284,7 +284,27 @@ export async function loadXyzPoints(file, options = {}) {
     // markers use, and `alphaTest` cuts it round without needing depth sorting.
     map: markerDiscTexture(),
     alphaTest: 0.4,
-    transparent: opacity < 1,
+    /**
+     * ALWAYS transparent, and never writing depth -- the markers' own answer.
+     *
+     * `transparent: opacity < 1` made VISIBILITY depend on the symbology. A
+     * cloud sits about three metres above the ground now, which at a radius of
+     * 6,371 km is well inside the depth buffer's noise, so an OPAQUE cloud is
+     * drawn in the opaque pass and loses to the globe: measured, the same 200
+     * points painted 0 pixels opaque and 29,144 transparent.
+     *
+     * It only ever looked fine because the Add-data dialog defaults opacity to
+     * 0.85. Anything importing without symbology -- the re-import a point edit
+     * makes, a catalogue, a script -- got opacity 1 and a layer that loaded,
+     * reported its points, sat in the scene visible and unculled, and drew
+     * nothing at all.
+     *
+     * The transparent pass runs after the opaque one, so the points are laid
+     * over the ground they stand on; `depthTest` stays true, so the far limb
+     * still occludes them.
+     */
+    transparent: true,
+    depthWrite: false,
     opacity,
   }));
   points.name = file.name;
