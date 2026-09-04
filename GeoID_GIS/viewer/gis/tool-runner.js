@@ -1,21 +1,21 @@
-import * as GP from "./geoprocessing.js?v=20260904-8648463";
-import * as RA from "./raster-analysis.js?v=20260904-8648463";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260904-8648463";
+import * as GP from "./geoprocessing.js?v=20260904-c4fa9f9";
+import * as RA from "./raster-analysis.js?v=20260904-c4fa9f9";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260904-c4fa9f9";
 // eslint-disable-next-line no-unused-vars
-import { pointInPolygon } from "./geometry.js?v=20260904-8648463";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260904-8648463";
+import { pointInPolygon } from "./geometry.js?v=20260904-c4fa9f9";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260904-c4fa9f9";
 // Pure and DOM-free, so a static import keeps this module Node-clean AND keeps
 // the terrain engine SYNCHRONOUS -- runTool calls engines.native WITHOUT
 // awaiting it, so an async engine hands register() a Promise and the raster
 // comes out undefined. Measured as: "Cannot read properties of undefined".
-import { buildSurface, nativeStepM } from "./model-build.js?v=20260904-8648463";
-import { nativeGridOf } from "./extraction.js?v=20260904-8648463";
-import { CRS_OPTIONS } from "./projection.js?v=20260904-8648463";
-import * as IN from "./interpolation.js?v=20260904-8648463";
-import * as VAL from "./validation.js?v=20260904-8648463";
-import * as EX from "./analysis-extra.js?v=20260904-8648463";
-import * as HY from "./hydrology.js?v=20260904-8648463";
-import * as KR from "./kriging.js?v=20260904-8648463";
+import { buildSurface, nativeStepM } from "./model-build.js?v=20260904-c4fa9f9";
+import { nativeGridOf } from "./extraction.js?v=20260904-c4fa9f9";
+import { CRS_OPTIONS } from "./projection.js?v=20260904-c4fa9f9";
+import * as IN from "./interpolation.js?v=20260904-c4fa9f9";
+import * as VAL from "./validation.js?v=20260904-c4fa9f9";
+import * as EX from "./analysis-extra.js?v=20260904-c4fa9f9";
+import * as HY from "./hydrology.js?v=20260904-c4fa9f9";
+import * as KR from "./kriging.js?v=20260904-c4fa9f9";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -339,6 +339,7 @@ export const TOOLS = [
   // ── Surface analysis (the legacy RASTER_OPS table, one row each) ──────────
   {
     id: "slope",
+    outputUnit: "\u00b0",
     label: "Slope (degrees)",
     category: "Surface analysis",
     blurb: "Terrain steepness in degrees from a DEM, by Horn's method.",
@@ -364,6 +365,7 @@ export const TOOLS = [
   },
   {
     id: "aspect",
+    outputUnit: "\u00b0",
     label: "Aspect",
     category: "Surface analysis",
     blurb: "The compass direction each cell faces, in degrees clockwise from north.",
@@ -422,6 +424,7 @@ export const TOOLS = [
   },
   {
     id: "roughness",
+    inheritUnit: true,
     label: "Roughness",
     category: "Surface analysis",
     blurb: "Largest height difference between a cell and its neighbours — smooth till against broken scarp.",
@@ -445,6 +448,7 @@ export const TOOLS = [
   },
   {
     id: "focal",
+    inheritUnit: true,
     label: "Focal statistics",
     category: "Surface analysis",
     blurb: "Summarise a moving window over the raster — smooth noise, find local extremes, measure local spread.",
@@ -578,6 +582,7 @@ export const TOOLS = [
   },
   {
     id: "clipByPolygon",
+    inheritUnit: true,
     label: "Clip by polygon",
     category: "Surface analysis",
     blurb: "Blank raster cells outside a polygon layer; inside is kept unchanged.",
@@ -593,6 +598,7 @@ export const TOOLS = [
   },
   {
     id: "resample",
+    inheritUnit: true,
     elevationOutput: true,   // a filled/resampled DEM is still a DEM
     label: "Resample to grid",
     category: "Surface analysis",
@@ -616,6 +622,7 @@ export const TOOLS = [
   },
   {
     id: "distance",
+    outputUnit: "m",
     label: "Distance to features",
     category: "Surface analysis",
     blurb: "Metres from every cell to the nearest feature — rivers, faults, roads — on the input raster's grid.",
@@ -801,6 +808,7 @@ export const TOOLS = [
   // when the sidecar is absent rather than offering a button that cannot work.
   {
     id: "fillSinks",
+    inheritUnit: true,
     elevationOutput: true,   // a filled/resampled DEM is still a DEM
     label: "Fill sinks",
     category: "Hydrology",
@@ -825,6 +833,7 @@ export const TOOLS = [
   },
   {
     id: "flowAccumulation",
+    outputUnit: "cells",
     label: "Flow accumulation",
     category: "Hydrology",
     blurb: "How many cells drain through each cell — the river network falls out of it, and it is the top factor in flood susceptibility.",
@@ -1465,6 +1474,7 @@ export const TOOLS = [
   },
   {
     id: "mosaic",
+    inheritUnit: true,
     label: "Mosaic rasters",
     category: "Surface analysis",
     blurb: "Merge tiles into one grid at the finest input resolution.",
@@ -1532,6 +1542,7 @@ export const TOOLS = [
      * numbers that mean nothing.
      */
     id: "sampleLayer",
+    inheritUnit: true,
     label: "Layer to raster (sample)",
     category: "Surface analysis",
     blurb: "Sample a draped layer (Earth Engine, and anything else with values) over a polygon into a raster the other tools can read.",
@@ -1623,6 +1634,7 @@ export const TOOLS = [
   },
   {
     id: "terrain",
+    outputUnit: "m",
     label: "Terrain to raster (DEM)",
     category: "Surface analysis",
     blurb: "Sample this world's elevation over a polygon into a DEM — the raster every terrain tool needs.",
@@ -1716,6 +1728,7 @@ export const TOOLS = [
   },
   {
     id: "density",
+    outputUnit: "per km\u00b2",
     label: "Point density (KDE)",
     category: "Surface analysis",
     blurb: "Turn a scatter of events into a surface, per square kilometre.",
@@ -2596,7 +2609,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260904-8648463");
+    const client = await import("./sidecar-client.js?v=20260904-c4fa9f9");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -2661,7 +2674,7 @@ async function runToolAutoInner(desc, toolId, inputs, params, opts) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260904-8648463");
+    const bridge = await import("./research/bridge.js?v=20260904-c4fa9f9");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -2673,12 +2686,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260904-8648463");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260904-c4fa9f9");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260904-8648463");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260904-c4fa9f9");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }
@@ -2848,9 +2861,23 @@ function register(desc, raw, name, resolvedInputs = {}) {
   }
   if (desc.outputType === "raster") {
     const raster = raw.raster || raw;
+    /**
+     * What the output's numbers ARE, so its legend can say so.
+     *
+     * Declared per tool, because only the tool knows: slope is degrees, flow
+     * accumulation is cells, distance is metres. A filter keeps whatever it
+     * was handed (`inheritUnit`), and an interpolation carries the SOURCE
+     * FIELD's unit, which nothing here can know -- so those stay blank rather
+     * than guessing, and a blank ramp is at least not a wrong one.
+     */
+    const firstRaster = desc.inputs?.map((sp) => resolvedInputs[sp.name])
+      .find((l) => l?.raster);
+    const unit = desc.outputUnit
+      || (desc.inheritUnit ? firstRaster?.legendInfo?.unit || null : null);
     const result = buildRasterLayer([raster.band], raster.width, raster.height, raster.bounds, {
       name,
       noData: raster.noData,
+      unit,
       // Only a tool whose OUTPUT is a height may displace the surface. Slope,
       // a susceptibility index and a class map are all single-band numbers and
       // none of them is elevation; displacing them turned a five-class map

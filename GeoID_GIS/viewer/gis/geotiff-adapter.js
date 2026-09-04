@@ -1,5 +1,5 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260904-8648463";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260904-c4fa9f9";
 
 // Rasters are resampled onto a mesh grid rather than used at native size: a
 // 4000x4000 DEM would otherwise mean 16M vertices. 192 keeps relief readable
@@ -471,7 +471,7 @@ function createRasterSampler(band, width, height, bounds, noData) {
  * rendering, sampling and styling stay identical across them.
  */
 export function buildRasterLayer(bands, width, height, bounds, {
-  name = "raster", noData = null, isDem = null,
+  name = "raster", noData = null, isDem = null, unit = null,
 } = {}) {
   // Not the band count: what the values actually are (see above). The same
   // scan answers both questions — is this a height field, and if not, which
@@ -549,6 +549,7 @@ export function buildRasterLayer(bands, width, height, bounds, {
         min: classList[0],
         max: classList[classList.length - 1],
         label: "",
+        unit: unit || null,
       }
       : {
         palette: [0, 0.25, 0.45, 0.65, 0.82, 1].map((t) => hex(elevationColor(t))),
@@ -557,6 +558,17 @@ export function buildRasterLayer(bands, width, height, bounds, {
         min: Math.round(range.min),
         max: Math.round(range.max),
         label: "",
+        /**
+         * The ends are NUMBERS OF SOMETHING, and the legend never said what.
+         *
+         * "1" and "24" over a ramp is not a key -- degrees, metres, cells and
+         * a unitless index all render identically, so a slope map and a
+         * distance map read the same. Tools declare what they produce
+         * (`outputUnit`) or that they keep their input's (`inheritUnit`); a
+         * height field falls back to metres, which is what a DEM's cells are
+         * everywhere else in this app.
+         */
+        unit: unit || (demLike ? "m" : null),
       },
     bounds: georeferenced ? bounds : null,
     sampler: georeferenced ? createRasterSampler(bands[0], width, height, bounds, noData) : null,
