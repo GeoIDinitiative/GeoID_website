@@ -19879,6 +19879,24 @@ uniform float uViewportWidth;`,
         }
         if (terrainScale) {
           terrainScale.disabled = Boolean(coreToggle?.checked) || !elevationMap || baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color";
+          /**
+           * A DISABLED CONTROL THAT SAYS WHY.
+           *
+           * The elevation map failing left two symptoms and no explanation:
+           * the exaggeration slider greyed itself out, and the cursor readout
+           * printed "n/a" where a height goes. Both are this one texture, and
+           * neither said so -- `loadTextureSafe` warns to the console and
+           * returns null, which is invisible to anyone not holding devtools
+           * open. Naming the cause on the control is the difference between a
+           * missing file and a broken app.
+           */
+          terrainScale.title = elevationMap
+            ? ""
+            : "No elevation data: the GEBCO elevation map did not load, so the "
+              + "surface cannot be displaced and the cursor readout has no height "
+              + "to show. Check the manifest's elevation path and that its host "
+              + "sends CORS headers -- three.js loads every texture with "
+              + "crossOrigin=\"anonymous\".";
         }
       }
 
