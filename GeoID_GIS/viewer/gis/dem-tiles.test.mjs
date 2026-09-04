@@ -95,6 +95,19 @@ check("a view over budget is given a shallower level, never a truncated one", ()
   ok(tilesForBounds(wide, z + 1).length > 24, "and the next one would not");
 });
 
+/**
+ * The budget has to bind at the BOTTOM too. A floor of 4 was not a floor, it
+ * was a hole: a hemisphere fits nothing at zoom 4 and got zoom 4 regardless —
+ * measured on the stand-in's opening view, 54 tiles fetched against a budget
+ * of twelve.
+ */
+check("and a box that fits nothing still respects the budget", () => {
+  const hemisphere = { west: -60, east: 60, south: -40, north: 80 };
+  const z = chooseZoom(hemisphere, { maxTiles: 12 });
+  ok(tilesForBounds(hemisphere, z).length <= 12,
+    `${tilesForBounds(hemisphere, z).length} tiles at z${z}`);
+});
+
 check("no bounds is no zoom", () => eq(chooseZoom(null), null, "null"));
 
 /* ── what a level is worth on the ground ─────────────────────────────────── */
@@ -173,6 +186,19 @@ check("a view full of nulls is refused, not read as zero", () => {
   ok(threw, "refused");
   const src = readFileSync(new URL("./dem-stream.js", import.meta.url), "utf8");
   ok(/Number\.isFinite/.test(src), "and the view follow checks for finite fields");
+});
+
+/**
+ * The driver hands its own box to `viewChangedEnough`, which reads
+ * `minLon/maxLon/minLat/maxLat` and NOTHING else — a `west/east` box makes
+ * every span NaN, every comparison false, and the stand-in silently never
+ * fetches. The tile side takes all three spellings; this side takes one.
+ */
+check("the view follow speaks the viewer's box vocabulary", () => {
+  const src = readFileSync(new URL("./dem-stream.js", import.meta.url), "utf8");
+  const box = src.slice(src.indexOf("function viewCentreBox"), src.indexOf("function start"));
+  ok(/minLon:/.test(box) && /maxLat:/.test(box), "the centre box is minLon/maxLat");
+  ok(!/\bwest:/.test(box), "and not west/east, which viewChangedEnough cannot read");
 });
 
 if (failures.length) {

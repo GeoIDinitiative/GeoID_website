@@ -405,7 +405,15 @@ export function mercatorTile(lat, lon, z) {
   };
 }
 
-export function tilesForBounds({ west, south, east, north }, z) {
+/**
+ * The x/y RANGE a box covers at a zoom, without building the list.
+ *
+ * Counting by materialising is fine for a view and ruinous for a question: a
+ * chooser walking down from zoom 14 asks "how many tiles would this cost" at
+ * every level, and a hemisphere at zoom 14 is millions of objects — measured,
+ * it took the test runner out of memory. The count is arithmetic.
+ */
+export function tileSpan({ west, south, east, north }, z) {
   const scale = 2 ** z;
   const xOf = (lon) => Math.floor(mercatorTile(0, lon, z).x);
   const yOf = (lat) => Math.floor(mercatorTile(lat, 0, z).y);
@@ -413,9 +421,21 @@ export function tilesForBounds({ west, south, east, north }, z) {
   const x1 = Math.max(0, Math.min(scale - 1, xOf(east)));
   const y0 = Math.max(0, Math.min(scale - 1, yOf(north)));
   const y1 = Math.max(0, Math.min(scale - 1, yOf(south)));
+  const lo = { x: Math.min(x0, x1), y: Math.min(y0, y1) };
+  const hi = { x: Math.max(x0, x1), y: Math.max(y0, y1) };
+  return { ...lo, x1: hi.x, y1: hi.y, count: (hi.x - lo.x + 1) * (hi.y - lo.y + 1) };
+}
+
+/** How many tiles a box costs at a zoom. Counted, never listed. */
+export function tileCountForBounds(bounds, z) {
+  return tileSpan(bounds, z).count;
+}
+
+export function tilesForBounds(bounds, z) {
+  const { x, y, x1, y1 } = tileSpan(bounds, z);
   const tiles = [];
-  for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x += 1) {
-    for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y += 1) tiles.push({ z, x, y });
+  for (let tx = x; tx <= x1; tx += 1) {
+    for (let ty = y; ty <= y1; ty += 1) tiles.push({ z, x: tx, y: ty });
   }
   return tiles;
 }

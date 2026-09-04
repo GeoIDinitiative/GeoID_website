@@ -21,7 +21,7 @@
  * feeds is `sampleElevationMeters`, never `sampleElevationNormalized`.
  */
 
-import { tilesForBounds, mercatorTile } from "./mvt.js?v=20260904-5367829";
+import { tilesForBounds, tileCountForBounds, mercatorTile } from "./mvt.js?v=20260904-fbd1694";
 
 /**
  * Terrarium: height packed into RGB, EGM96 metres.
@@ -185,12 +185,22 @@ export function normaliseBounds(box) {
  * tiler's own lesson, where slicing the list painted part of the view sharply
  * and abandoned the rest.
  */
-export function chooseZoom(box, { maxTiles = 24, cap = INFO_ZOOM, min = 4 } = {}) {
+export function chooseZoom(box, { maxTiles = 24, cap = INFO_ZOOM, min = 1 } = {}) {
   const bounds = normaliseBounds(box);
   if (!bounds) return null;
   for (let z = cap; z >= min; z -= 1) {
-    if (tilesForBounds(bounds, z).length <= maxTiles) return z;
+    // COUNTED, not listed: this walks down from the cap, and a wide box at a
+    // deep zoom is millions of tiles to build and throw away.
+    if (tileCountForBounds(bounds, z) <= maxTiles) return z;
   }
+  /**
+   * The floor was 4, which is not a floor but a HOLE in the budget: a box
+   * nothing fits gets zoom 4 anyway, and a hemisphere at zoom 4 is 36 tiles
+   * against a budget of 12 — measured on the stand-in's opening view, 54 tiles
+   * fetched where a dozen were allowed. Going all the way down to 1 means the
+   * budget always binds, and a box that wants less than one tile of the world
+   * is not a box worth arguing about.
+   */
   return min;
 }
 

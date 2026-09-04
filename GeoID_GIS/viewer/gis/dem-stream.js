@@ -15,8 +15,8 @@
  * globe's own texture.
  */
 
-import * as dem from "./dem-tiles.js?v=20260904-5367829";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260904-5367829";
+import * as dem from "./dem-tiles.js?v=20260904-fbd1694";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260904-fbd1694";
 
 let THREE = null;
 let watchStop = null;
@@ -41,6 +41,72 @@ const VIEW_MIN_ZOOM = 6;
 
 /** A view is a glance, not a study: a dozen tiles, and only while still. */
 const VIEW_TILES = 12;
+
+/**
+ * STANDING IN, when the shipped elevation model cannot be read at all.
+ *
+ * The texture is in a bucket and three.js loads it with
+ * `crossOrigin="anonymous"`, so on an origin the bucket does not answer for it
+ * loads and cannot be read back: the cursor readout goes to "n/a", the terrain
+ * slider disables itself and every height in the app is null. Measured on
+ * `http://localhost:8123`, where four of the viewer's own assets come back with
+ * status 0.
+ *
+ * Terrarium is on AWS and answers `Access-Control-Allow-Origin: *` to
+ * everybody, so it can carry the READER on any origin. It cannot carry the
+ * DISPLACEMENT — the shader needs a texture — so the globe stays flat and the
+ * exaggeration stays disabled, which is honest: what comes back is the height
+ * of a place, not the shape of the drawn ground.
+ *
+ * Standing in, the floor drops to zoom 3 (about 19 km posts, no worse than the
+ * texture it is replacing) because ANY answer beats none, and the view centre
+ * is used when `visibleBounds` cannot see the globe — which at the opening
+ * view it cannot.
+ */
+const STANDIN_MIN_ZOOM = 3;
+
+function standingIn() {
+  const viewer = window.GeoIDViewer;
+  if (!viewer?.hasElevationModel) return false;
+  return viewer.hasElevationModel() === false;
+}
+
+/**
+ * A box around what the camera is looking at, for when the raycast cannot
+ * answer. `visibleBounds` samples rays through the screen and hands back an
+ * object full of nulls where fewer than three of them meet the globe, which is
+ * the ordinary state at the opening view. The centre and the altitude are
+ * always known.
+ */
+function viewCentreBox(viewer) {
+  const centre = viewer.getViewCentreLatLon?.();
+  if (!centre || !Number.isFinite(centre.lat)) return null;
+  const metres = viewer.getZoomAltitudeMetres?.()?.metres;
+  const km = Number.isFinite(metres) ? metres / 1000 : 8000;
+  /**
+   * Capped at 15°, which is about what a dozen tiles can carry at a useful
+   * spacing. A reader hovering over a global view wants the ground under the
+   * cursor, not a hemisphere at any price: past this the box resolves so
+   * coarse that the answer is no better than the texture it is standing in
+   * for, and it costs several megabytes to say so.
+   */
+  const half = Math.min(15, Math.max(0.05, km / 111));
+  const lon = centre.lon > 180 ? centre.lon - 360 : centre.lon;
+  /**
+   * IN THE VIEWER'S OWN VOCABULARY, and that is not decoration.
+   *
+   * `viewChangedEnough` reads `minLon/maxLon/minLat/maxLat` and nothing else,
+   * so handing it a `west/east` box makes every span NaN, every comparison
+   * false, and the stand-in silently never fetches. The tile side takes any of
+   * the three spellings; this side takes exactly one.
+   */
+  return {
+    minLon: lon - half,
+    maxLon: lon + half,
+    minLat: Math.max(-85, centre.lat - half),
+    maxLat: Math.min(85, centre.lat + half),
+  };
+}
 
 /** A run over a study area is worth more, and is asked for once. */
 const RUN_TILES = 48;
@@ -71,14 +137,19 @@ async function followView() {
    */
   const finite = bounds && [bounds.minLon, bounds.minLat, bounds.maxLon, bounds.maxLat]
     .every((v) => Number.isFinite(v));
-  if (!finite) return;
-  if (!viewChangedEnough(lastView, bounds)) return;
+  const standIn = standingIn();
+  // Where the raycast cannot answer, the view centre still can -- and with no
+  // elevation model at all that is the difference between a readout and "n/a".
+  const box = finite ? bounds : (standIn ? viewCentreBox(viewer) : null);
+  if (!box) return;
+  if (!viewChangedEnough(lastView, box)) return;
   busy = true;
   try {
-    const zoom = dem.chooseZoom(bounds, { maxTiles: VIEW_TILES });
-    if (zoom === null || zoom < VIEW_MIN_ZOOM) return;
-    lastView = bounds;
-    await dem.ensure(bounds, { maxTiles: VIEW_TILES });
+    const floor = standIn ? STANDIN_MIN_ZOOM : VIEW_MIN_ZOOM;
+    const zoom = dem.chooseZoom(box, { maxTiles: VIEW_TILES });
+    if (zoom === null || zoom < floor) return;
+    lastView = box;
+    await dem.ensure(box, { maxTiles: VIEW_TILES });
   } catch (error) {
     // A view the sampler cannot use is not a reason to stop following the
     // camera, and there is nothing on screen waiting for this.
@@ -107,6 +178,14 @@ function start() {
   watchStop = onViewSettled(viewer, () => { void followView(); },
     { settleMs: 700, pollMs: 150 });
   void followView();
+  /**
+   * The stand-in has to arrive without being asked, or the first thing a
+   * reader sees on a broken origin is still "n/a": the settle watcher only
+   * fires when the camera MOVES, and a page that has just loaded has not
+   * moved. One pass a beat after boot, once the viewer has had time to say
+   * whether it has a model.
+   */
+  setTimeout(() => { if (standingIn()) void followView(); }, 2500);
 }
 
 window.GeoIDDem = {

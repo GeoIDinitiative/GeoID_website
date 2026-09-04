@@ -12156,3 +12156,50 @@ new origin against the bucket before believing what a page there is telling you.
 
 Verified on production the same afternoon: `geoidinitiative.com` reads
 -3,857 m at 50.54°N 335.07°E with the slider live, so main is unaffected.
+
+### The stand-in: Terrarium carries the READER when the texture cannot be read
+
+Four of the viewer's own assets come back with **status 0** on an origin the
+bucket does not answer for — measured on `http://localhost:8123`:
+`earth_color.jpg`, `earth_elevation.png`, `earth_geology_sim3292.png`,
+`earth_hillshade.jpg`. One cause, four symptoms, and they arrive as four
+separate-looking bugs: the base texture is gone (the globe reads as vanished),
+the elevation model is gone (the readout says `n/a`, the exaggeration disables
+itself), and with the model gone the relief is 0, so the zoom floor stops
+knowing where the ground is.
+
+Terrarium is on AWS and answers `Access-Control-Allow-Origin: *` to everybody,
+so it can carry the reader anywhere. `hasElevationModel()` on the viewer seam is
+the trigger — **"no model at all" and "no data here" are different answers and
+a null cannot tell them apart**; the first means a page that should be streaming
+its heights from somewhere else, the second is the sea floor.
+
+Standing in, the follow drops its floor to zoom 3 (about 19 km posts, no worse
+than the texture it replaces) and uses the VIEW CENTRE when `visibleBounds`
+cannot see the globe, which at the opening view it cannot. Measured on the
+broken origin: 4 tiles, 9.2 km posts, and the reader answering **399.7 m** at
+20°N 0°E where it had been `n/a`. On a healthy origin the stand-in never fires —
+0 tiles streamed, the texture answering as before.
+
+**It cannot carry the DISPLACEMENT**, and that is stated rather than hidden: the
+shader needs a texture, so the globe stays flat and the exaggeration stays
+disabled. What comes back is the height of a PLACE, not the shape of the drawn
+ground — the same division the whole DEM design rests on.
+
+Three faults of my own, and the third took the test runner out of memory:
+
+- **The centre box must speak the VIEWER's vocabulary.** `viewChangedEnough`
+  reads `minLon/maxLon/minLat/maxLat` and nothing else, so a `west/east` box
+  makes every span NaN, every comparison false, and the stand-in silently never
+  fetches. Third spelling, third time today.
+- **A floor of 4 in `chooseZoom` was a HOLE in the budget, not a floor**: a box
+  that fits nothing gets zoom 4 anyway, and a hemisphere at zoom 4 is 36 tiles
+  against a budget of 12 — measured, 54 fetched on the opening view. It goes
+  down to 1 now, so the budget always binds; the stand-in's own box is capped at
+  15° for the same reason.
+- **COUNT tiles, never list them.** `chooseZoom` walks down from the cap asking
+  what each level costs, and `tilesForBounds` MATERIALISES every tile: a
+  hemisphere at zoom 14 is millions of objects, and node died on it. `tileSpan`
+  and `tileCountForBounds` in mvt.js answer arithmetically, and
+  `tilesForBounds` is now built from the same span — one range calculation,
+  two uses.

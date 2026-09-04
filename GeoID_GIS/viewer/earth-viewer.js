@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260904-5367829";
+  from "./gis/geo-utils.js?v=20260904-fbd1694";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260904-5367829";
+  from "./gis/vector-render.js?v=20260904-fbd1694";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260904-5367829";
+  from "./gis/rock-class.js?v=20260904-fbd1694";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260904-5367829";
+  from "./gis/lithology-label.js?v=20260904-fbd1694";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -21985,6 +21985,20 @@ uniform float uViewportWidth;`,
         // carry this rotation about Y to stay on the ground beneath it.
         getSpinDeltaRadians,
         sampleElevationMeters: (lat, lon) => sampleElevationMeters(elevationSampler, lat, lon),
+        /**
+         * Is the shipped elevation model READABLE — which is not the same as
+         * present.
+         *
+         * The texture lives in a bucket now and three.js loads it with
+         * `crossOrigin="anonymous"`, so on an origin the bucket does not
+         * answer for it loads and cannot be read back out of a canvas. Every
+         * consumer then sees a null height and has to guess whether that means
+         * "no data here" or "no model at all" -- and they are different: the
+         * first is the sea floor, the second is a page that should be
+         * streaming its heights from somewhere else. `dem-stream.js` asks this
+         * to decide whether to stand in.
+         */
+        hasElevationModel: () => Boolean(elevationSampler),
         // Analysis helpers, so imported GIS layers can be sampled against the
         // same polygon the user draws with the existing Area tool rather than
         // duplicating the drawing and sampling logic.
