@@ -18,9 +18,9 @@
  * the displaced surface, and the raster every terrain tool wants as an input.
  */
 
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260904-11cd741";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260904-11cd741";
-import * as dem from "./dem-tiles.js?v=20260904-11cd741";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260904-f8b0917";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260904-f8b0917";
+import * as dem from "./dem-tiles.js?v=20260904-f8b0917";
 
 export const DEM_LAYER_NAME = "Elevation (streamed DEM)";
 
@@ -90,18 +90,36 @@ function sampleGridOver(bounds, width, height) {
  * are about a BOX and a centre, and both of the ways this went wrong are
  * expressible without a camera.
  */
-export function sheetBoundsFor(box, centreLon, { wideDegrees = 20 } = {}) {
+export function sheetBoundsFor(box, centreLon, { wideDegrees = 20, altitudeKm = null } = {}) {
   const finite = box && [box.minLon, box.minLat, box.maxLon, box.maxLat]
     .every((v) => Number.isFinite(v));
   if (!finite) return WORLD;
   /**
-   * A WIDE view gets the world sheet.
+   * THE WORLD SHEET IS FOR THE FAR FIELD ONLY, and this is the rule that stops
+   * it tearing.
    *
-   * Past this the sheet is a global picture anyway — 1,024 cells across 20° is
-   * 2 km, across the world it is 39 km — and a wide box is exactly where
-   * `visibleBounds` is least trustworthy, being a raycast against a limb.
+   * The patch is one mesh capped at 192 x 192, so a world sheet is 1.9° a quad
+   * -- about 200 km -- and a chord that wide sags roughly 900 m BELOW the
+   * sphere between its corners. That is nothing from orbit and ruinous at a
+   * grazing view: the sheet and the terrain interleave along the rows, which
+   * is the horizontal banding reported as "gaps that fail the depth test", and
+   * near the limb the sagging chords project outside the silhouette, which is
+   * what reads as seeing it through the planet.
+   *
+   * 900 m is under a pixel above about 3,000 km (a pixel is roughly a
+   * thousandth of the altitude at this field of view), so that is where the
+   * world sheet is honest. Below it the sheet follows the VIEW, where the same
+   * 192 x 192 is metres a quad and the sag is nothing.
    */
-  if (box.maxLon - box.minLon > wideDegrees) return WORLD;
+  const farField = !Number.isFinite(altitudeKm) || altitudeKm > 3000;
+  if (!farField) {
+    const width = box.maxLon - box.minLon;
+    // A close view that is somehow still enormous is not a view worth
+    // believing; the world is the honest answer there as well.
+    if (width > 90) return WORLD;
+  } else if (box.maxLon - box.minLon > wideDegrees) {
+    return WORLD;
+  }
   /**
    * AND A VIEW ACROSS THE ANTIMERIDIAN IS NOT THE BOX IT REPORTS.
    *
@@ -128,7 +146,10 @@ export function sheetBoundsFor(box, centreLon, { wideDegrees = 20 } = {}) {
 function targetBounds() {
   const viewer = window.GeoIDViewer;
   const box = viewer && three ? visibleBounds(viewer, three) : null;
-  return sheetBoundsFor(box, viewer?.getViewCentreLatLon?.()?.lon);
+  const metres = viewer?.getZoomAltitudeMetres?.()?.metres;
+  return sheetBoundsFor(box, viewer?.getViewCentreLatLon?.()?.lon, {
+    altitudeKm: Number.isFinite(metres) ? metres / 1000 : null,
+  });
 }
 
 /**
@@ -181,6 +202,20 @@ async function build({ onStatus = () => {} } = {}) {
       // elevation ramp.
       isDem: true,
       unit: "m",
+    });
+    /**
+     * IT MUST NOT STAMP DEPTH IT NEVER TESTS AGAINST.
+     *
+     * The patch draws with `depthTest: false` on purpose -- a tessellated sheet
+     * cannot win on depth against relief with detail below any grid -- and it
+     * was still WRITING depth, so it filled the buffer with values from a
+     * surface that had ignored the buffer, and everything drawn afterwards
+     * that does test was occluded by it. A layer that opts out of the depth
+     * test opts out of both halves.
+     */
+    result.object3D?.traverse?.((node) => {
+      const mats = Array.isArray(node.material) ? node.material : [node.material];
+      mats.forEach((m) => { if (m && m.depthTest === false) m.depthWrite = false; });
     });
     const previous = demLayer();
     const layer = window.GeoIDImportManager?.addDerivedLayer?.(DEM_LAYER_NAME, result, "tiles");

@@ -61,6 +61,33 @@ check("a centre the viewer reports in 0-360 is understood", () => {
   ok(!isWorld(b), "352.5 east is -7.5, which is inside the box");
 });
 
+/* ── the world sheet is for the far field only ───────────────────────────── */
+
+/**
+ * The patch is one mesh capped at 192 x 192, so a WORLD sheet is 1.9 degrees a
+ * quad -- about 200 km -- and a chord that wide sags roughly 900 m below the
+ * sphere between its corners. Nothing from orbit; at a grazing view the sheet
+ * and the terrain interleave along the rows, which is the horizontal banding
+ * reported as "gaps that fail the depth test".
+ */
+check("close in, the sheet follows the view rather than the world", () => {
+  const wideish = view(-30, 30, 20, 50);   // 60 degrees, too wide for the far-field rule
+  ok(isWorld(sheetBoundsFor(wideish, 0, { altitudeKm: 9000 })), "from orbit, the world");
+  ok(!isWorld(sheetBoundsFor(wideish, 0, { altitudeKm: 400 })),
+    "close in, the view -- where 192 squares is metres a quad, not 200 km");
+});
+
+check("but a close view that is somehow global is still the world", () =>
+  ok(isWorld(sheetBoundsFor(view(-120, 120, -60, 60), 0, { altitudeKm: 400 })), "120 degrees"));
+
+check("an unknown altitude is treated as the far field", () =>
+  ok(isWorld(sheetBoundsFor(view(-30, 30), 0, { altitudeKm: null })), "no altitude"));
+
+check("the seam rules still win at any altitude", () => {
+  ok(isWorld(sheetBoundsFor(view(164.2, 180), 179, { altitudeKm: 400 })), "cut at the seam");
+  ok(isWorld(sheetBoundsFor(view(10, 20), 175, { altitudeKm: 400 })), "centre outside");
+});
+
 if (failures.length) {
   failures.forEach((f) => console.error(`  x ${f}`));
   console.error(`${failures.length} failed, ${passed} passed`);

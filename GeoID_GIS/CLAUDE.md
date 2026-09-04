@@ -12357,3 +12357,43 @@ global elevation layer with no stripe; and over Sicily at 174 km it is
 and both were about a box: one handed to the wrong reader, one cut at the seam.
 `dem-sheet.test.mjs` pins the second because it is pure; the first is pinned by
 asserting the conversion exists at all.
+
+#### A 200 km chord cannot hug the ground, and the sheet was stamping depth
+
+Two faults behind the banded, see-through sheet, and the first is arithmetic
+rather than opinion.
+
+**The world sheet is 1.9° a quad.** `buildRasterLayer` caps the patch at
+192 × 192, so a sheet spanning the globe has quads about **200 km** wide, and a
+flat chord that long sags roughly **900 m below the sphere** between its
+corners — the chord-sag rule this file already states for drawn lines, met from
+the raster side. From orbit that is far under a pixel. At a grazing view it is
+not: the sheet and the terrain interleave along the ROWS of the grid, which is
+horizontal banding, and near the limb the sagging chords project outside the
+silhouette, which is what reads as seeing the sheet through the planet.
+
+900 m is under a pixel above about 3,000 km (a pixel is roughly a thousandth of
+the altitude at this field of view), so that is where the world sheet is
+honest. Below it the sheet follows the VIEW: measured at 697 km over the Alps,
+a 12° box — 0.063° a quad, about 7 km, with a sag near a metre — and the ridges
+line up with the imagery under them with no banding at all.
+
+**And it was writing depth it never tested against.** The patch draws with
+`depthTest: false` on purpose — a tessellated sheet cannot win against relief
+with detail below any grid — and shipped with `depthWrite: true`, so it filled
+the buffer from a surface that had ignored the buffer, and everything drawn
+afterwards that DOES test was occluded by it. A layer that opts out of the
+depth test opts out of both halves. Fixed on this sheet rather than in the
+shared builder, because the other drapes are sub-hemisphere patches where the
+same setting has never been reached.
+
+What was ruled out by measuring rather than by argument: the sheet's triangles
+all wind **outward** (753 of 753 sampled), so `side: FrontSide` culls the far
+hemisphere exactly as intended and the bleed-through was never a winding fault;
+and the band held **0 no-data cells of 524,288**, so the gaps were never holes
+in the data.
+
+**A note on reading the screenshots**: fine horizontal lines running across the
+WHOLE frame, empty space included, are not the sheet — nothing drawn on the
+globe can paint the sky. That is the viewer's own scanline skin. The artefacts
+that were real are the ones that stop at the limb.
