@@ -12,8 +12,8 @@
  */
 
 import { addDemLayer, removeDemLayer, demLayer, DEM_LAYER_NAME }
-  from "./dem-layer.js?v=20260904-8aeb134";
-import { TERRARIUM } from "./dem-tiles.js?v=20260904-8aeb134";
+  from "./dem-layer.js?v=20260904-11cd741";
+import { TERRARIUM } from "./dem-tiles.js?v=20260904-11cd741";
 
 const HOST_ID = "dem-panel-host";
 

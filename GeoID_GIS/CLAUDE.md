@@ -12326,3 +12326,34 @@ saying yes over a layer that failed to load is the fault the GLiM row already
 cost. Verified after the move: the Elevation sub-tab holds the DEM tick, the
 exaggeration and the contour select; Basemap holds its catalogue and no longer
 holds the slider; and the DEM row is gone from the basemap catalogue.
+
+#### A view box is not a box when the view crosses the antimeridian
+
+A screenshot of the globe from over the Pacific with a bright stripe down the
+limb: "the stream of the DEM tiles is well off". The sheet was built correctly
+— over a box that was a lie.
+
+`visibleBounds` answers in min/max longitude with no wrap, so a camera looking
+at the middle of the ocean comes back as **164.2 to 180**: a 16° strip pinned
+to the seam, on ground the camera is not pointed at. Every step after that is
+faithful, which is why it drew a perfect stripe.
+
+`sheetBoundsFor` is that decision, pulled out pure so it can be pinned:
+
+- **A wide view gets the world.** Past about 20° the sheet is a global picture
+  anyway (1,024 cells across the world is 39 km, across 20° it is 2 km), and a
+  wide box is exactly where a raycast against a limb is least trustworthy.
+- **A box touching ±180 gets the world**, because that is what a cut box looks
+  like.
+- **And so does a box that does not contain the VIEW CENTRE** — the one
+  longitude that is always known and never wrapped wrongly. That is the general
+  form of the same test, and it catches the cut wherever it happens to land.
+
+Verified live at the opening view: the sheet is −180..180, −85..85, drawn as one
+global elevation layer with no stripe; and over Sicily at 174 km it is
+13.9–16.5°E, hugging the ground to a tenth of a metre.
+
+**Both faults in this sheet came from a screenshot rather than from a check**,
+and both were about a box: one handed to the wrong reader, one cut at the seam.
+`dem-sheet.test.mjs` pins the second because it is pure; the first is pinned by
+asserting the conversion exists at all.

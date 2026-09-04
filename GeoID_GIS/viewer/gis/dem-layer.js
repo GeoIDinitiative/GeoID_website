@@ -18,9 +18,9 @@
  * the displaced surface, and the raster every terrain tool wants as an input.
  */
 
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260904-8aeb134";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260904-8aeb134";
-import * as dem from "./dem-tiles.js?v=20260904-8aeb134";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260904-11cd741";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260904-11cd741";
+import * as dem from "./dem-tiles.js?v=20260904-11cd741";
 
 export const DEM_LAYER_NAME = "Elevation (streamed DEM)";
 
@@ -83,15 +83,52 @@ function sampleGridOver(bounds, width, height) {
   return { band, seen, min, max };
 }
 
-/** The ground this sheet should cover: what is in view, else the world. */
+/**
+ * The ground this sheet should cover: what is in view, else the world.
+ *
+ * Pure, and separated from the viewer for exactly one reason — the rules below
+ * are about a BOX and a centre, and both of the ways this went wrong are
+ * expressible without a camera.
+ */
+export function sheetBoundsFor(box, centreLon, { wideDegrees = 20 } = {}) {
+  const finite = box && [box.minLon, box.minLat, box.maxLon, box.maxLat]
+    .every((v) => Number.isFinite(v));
+  if (!finite) return WORLD;
+  /**
+   * A WIDE view gets the world sheet.
+   *
+   * Past this the sheet is a global picture anyway — 1,024 cells across 20° is
+   * 2 km, across the world it is 39 km — and a wide box is exactly where
+   * `visibleBounds` is least trustworthy, being a raycast against a limb.
+   */
+  if (box.maxLon - box.minLon > wideDegrees) return WORLD;
+  /**
+   * AND A VIEW ACROSS THE ANTIMERIDIAN IS NOT THE BOX IT REPORTS.
+   *
+   * `visibleBounds` answers in min/max longitude with no wrap, so a view over
+   * the Pacific comes back as a strip pinned to 180 — measured, 164.2 to 180
+   * on a camera looking at the middle of the ocean. The sheet was then built,
+   * correctly, over a sliver of ground nobody was looking at and drawn as a
+   * bright stripe down the limb: reported as "the stream of the DEM tiles is
+   * well off", and it was exactly that far off.
+   *
+   * The tell is the view CENTRE, which is always known and never wrapped
+   * wrongly: a box that does not contain the point the camera is aimed at is a
+   * box that has been cut at the seam.
+   */
+  const touchesSeam = box.maxLon >= 179.9 || box.minLon <= -179.9;
+  const lon = Number.isFinite(centreLon)
+    ? (centreLon > 180 ? centreLon - 360 : centreLon) : null;
+  const holdsCentre = lon === null
+    || (lon >= box.minLon - 1 && lon <= box.maxLon + 1);
+  if (touchesSeam || !holdsCentre) return WORLD;
+  return { west: box.minLon, east: box.maxLon, south: box.minLat, north: box.maxLat };
+}
+
 function targetBounds() {
   const viewer = window.GeoIDViewer;
   const box = viewer && three ? visibleBounds(viewer, three) : null;
-  const finite = box && [box.minLon, box.minLat, box.maxLon, box.maxLat]
-    .every((v) => Number.isFinite(v));
-  return finite
-    ? { west: box.minLon, east: box.maxLon, south: box.minLat, north: box.maxLat }
-    : WORLD;
+  return sheetBoundsFor(box, viewer?.getViewCentreLatLon?.()?.lon);
 }
 
 /**
