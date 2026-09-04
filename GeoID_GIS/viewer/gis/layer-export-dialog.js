@@ -12,7 +12,7 @@
  */
 
 import { formatsFor, suggestedFormat, baseName, exportLayer, layerKind }
-  from "./layer-export.js?v=20260904-ea6488e";
+  from "./layer-export.js?v=20260904-36feba6";
 
 const DIALOG_ID = "geoid-export-dialog";
 

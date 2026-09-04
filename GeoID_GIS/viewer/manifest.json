@@ -1,11 +1,11 @@
 {
   "texture": {
-    "path": "https://data.geoidinitiative.com/assets/hotlink-ok/earth-viewer/earth_color.jpg?v=5e18afce2860",
+    "path": "https://data.geoidinitiative.com/assets/hotlink-ok/earth-viewer/earth_color.jpg?v=5e18afce2860&c=2",
     "width": 8192,
     "source_page_url": "https://science.nasa.gov/3d-resources/earth-a/"
   },
   "elevation": {
-    "path": "https://data.geoidinitiative.com/assets/hotlink-ok/earth-viewer/earth_elevation.png?v=6f89e540b82e",
+    "path": "https://data.geoidinitiative.com/assets/hotlink-ok/earth-viewer/earth_elevation.png?v=6f89e540b82e&c=2",
     "sample_path": "https://data.geoidinitiative.com/assets/hotlink-ok/earth-viewer/earth_elevation_sampler.png?v=fed0b2516fc7",
     "encoding": "rgb24",
     "width": 4096,
@@ -16,7 +16,7 @@
     "source_page_url": "https://www.gebco.net/data-products/gridded-bathymetry-data#global"
   },
   "geology": {
-    "path": "https://data.geoidinitiative.com/assets/hotlink-ok/earth-viewer/earth_geology_sim3292.png?v=0ceabcf21789",
+    "path": "https://data.geoidinitiative.com/assets/hotlink-ok/earth-viewer/earth_geology_sim3292.png?v=0ceabcf21789&c=2",
     "size": [
       4096,
       2048
@@ -27,7 +27,7 @@
     {
       "id": "gebco-bathy-context",
       "label": "GEBCO Relief Context",
-      "path": "https://data.geoidinitiative.com/assets/hotlink-ok/earth-viewer/earth_geology_sim3292.png?v=0ceabcf21789",
+      "path": "https://data.geoidinitiative.com/assets/hotlink-ok/earth-viewer/earth_geology_sim3292.png?v=0ceabcf21789&c=2",
       "description": "Derived bathymetry and topography context overlay based on GEBCO 2025.",
       "source_page_url": "https://www.gebco.net/data-products/gridded-bathymetry-data#global",
       "size": [
@@ -49,7 +49,7 @@
     {
       "id": "earth-visible",
       "label": "Earth Surface",
-      "path": "https://data.geoidinitiative.com/assets/hotlink-ok/earth-viewer/earth_color.jpg?v=5e18afce2860",
+      "path": "https://data.geoidinitiative.com/assets/hotlink-ok/earth-viewer/earth_color.jpg?v=5e18afce2860&c=2",
       "description": "NASA Earth surface texture basemap.",
       "source_page_url": "https://science.nasa.gov/3d-resources/earth-a/",
       "default": true
