@@ -30,11 +30,12 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260904-8512f2d";
-import { readHead, validateMapping } from "./delimited.js?v=20260904-8512f2d";
-import { RAMP_NAMES } from "./symbology.js?v=20260904-8512f2d";
-import { isEarth } from "./bodies.js?v=20260904-8512f2d";
-import { DATA_TYPES, inferType, applyTag, markUserInput, suppressNextArrival } from "./data-tags.js?v=20260904-8512f2d";
+import { CRS_OPTIONS } from "./projection.js?v=20260904-980529e";
+import { readHead, validateMapping } from "./delimited.js?v=20260904-980529e";
+import { RAMP_NAMES } from "./symbology.js?v=20260904-980529e";
+import { AREA_OPACITY, MARK_OPACITY } from "./layer-opacity.js?v=20260904-980529e";
+import { isEarth } from "./bodies.js?v=20260904-980529e";
+import { DATA_TYPES, inferType, applyTag, markUserInput, suppressNextArrival } from "./data-tags.js?v=20260904-980529e";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
@@ -359,7 +360,8 @@ function describeSymbology() {
 
 let backdrop = null;
 let ui = null;
-const state = { role: ROLES[0], files: [], head: null, mapping: null, dtypeTouched: false };
+const state = { role: ROLES[0], files: [], head: null, mapping: null,
+  dtypeTouched: false, opacityTouched: false };
 
 function say(message, warning = false) {
   if (!ui?.note) return;
@@ -473,7 +475,18 @@ function build() {
   opacity.min = "0.1";
   opacity.max = "1";
   opacity.step = "0.05";
-  opacity.value = "0.85";
+  /**
+   * THE SLIDER SHOWS THE RULE, and only overrules it once it is MOVED.
+   *
+   * It used to sit at 0.85 and be sent on every import, so the dialog was the
+   * one door where a point cloud landed faded and an area landed nearly
+   * solid — a number nobody chose, applied to everything. It opens where
+   * `layer-opacity.js` says this file will land (areas half, marks solid, and
+   * a delimited table is marks), and until somebody drags it the value is not
+   * sent at all: the importer then reads the geometry it actually built,
+   * which is the only thing that knows a polygon from a line.
+   */
+  opacity.value = String(AREA_OPACITY);
   // Derived from RAMPS, not written out: a hand-typed list offered "greyscale"
   // where the engine's ramp is "greys", so that choice silently fell back to
   // viridis. The dialog and the symbology panel now cannot disagree.
@@ -500,6 +513,7 @@ function build() {
     "vector",
   );
   dtype.addEventListener("change", () => { state.dtypeTouched = true; });
+  opacity.addEventListener("input", () => { state.opacityTouched = true; });
   const dnote = document.createElement("input");
   dnote.className = "input";
   dnote.type = "text";
@@ -607,6 +621,12 @@ async function takeFiles(fileList) {
     vector: "a vector layer",
   };
   state.kindCopy = KIND_COPY[kind];
+  // A table of points is marks, and marks land solid. Everything else the
+  // dialog can see may be an area, so it shows the fade; the importer decides
+  // for real once it has geometry.
+  if (!state.opacityTouched && ui.opacity) {
+    ui.opacity.value = String(kind === "points" ? MARK_OPACITY : AREA_OPACITY);
+  }
   // The classification follows the file until the user takes it over.
   if (!state.dtypeTouched && ui.dtype) {
     ui.dtype.value = inferType({ ext: mainExt, name: mainFile.name, raster: kind === "raster" });
@@ -747,7 +767,9 @@ async function submit() {
   if (!ui.symSet.hidden) {
     options.symbology = {
       colour: ui.colour.value,
-      opacity: Number(ui.opacity.value),
+      // Only when it was MOVED. Sent unconditionally it was a default nobody
+      // chose overruling the geometry rule on every single import.
+      opacity: state.opacityTouched ? Number(ui.opacity.value) : null,
       ramp: ui.ramp.value,
     };
   }
@@ -795,6 +817,8 @@ export function open(roleId) {
   ui.dtype.value = "vector";
   ui.dnote.value = "";
   state.dtypeTouched = false;
+  state.opacityTouched = false;
+  ui.opacity.value = String(AREA_OPACITY);
   // A mesh has no map projection to speak of, so it opens on "not
   // georeferenced" rather than asking a question with no honest answer.
   ui.crs.value = state.role.id === "mesh" ? "none" : "epsg:4326";

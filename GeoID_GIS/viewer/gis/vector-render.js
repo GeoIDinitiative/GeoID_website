@@ -1,9 +1,10 @@
 import * as THREE from "../vendor/three.module.js";
 import { latLonToVector3, drapedRadius, looksLikeGeographic, sphericalPolygonAreaKm2 }
-  from "./geo-utils.js?v=20260904-8512f2d";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260904-8512f2d";
-import { pointInPolygon } from "./geometry.js?v=20260904-8512f2d";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260904-8512f2d";
+  from "./geo-utils.js?v=20260904-980529e";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260904-980529e";
+import { pointInPolygon } from "./geometry.js?v=20260904-980529e";
+import { paintOpacity } from "./layer-opacity.js?v=20260904-980529e";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260904-980529e";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -1724,6 +1725,22 @@ export function buildVectorLayerResult(fc, {
     outlineOnly, colourFor: firstPaint,
   });
   let lastColourFor = null;
+  /**
+   * THE OPACITY THIS LAYER IS WEARING, kept because a repaint throws its
+   * materials away.
+   *
+   * `repaintVector` replaces every child of the group with freshly built ones,
+   * at the weight they are BUILT at — so a sheet faded to 40% and then
+   * re-coloured, re-classed, switched between fill and outline, or simply
+   * given its deferred first paint came back solid, under a slider still
+   * reading 0.4. That last one is why it mattered here rather than only after
+   * a symbology change: a filled layer's fills are built a tick after the
+   * import, which is after anything that set an opening opacity.
+   *
+   * The same shape as a tiled layer's controller remembering its own — see
+   * `setOpacity` in layer-hierarchy.
+   */
+  let liveOpacity = 1;
 
   /**
    * Redraw this layer with a colour per feature.
@@ -1750,6 +1767,9 @@ export function buildVectorLayerResult(fc, {
       object3D.remove(child);
     });
     [...next.object3D.children].forEach((child) => object3D.add(child));
+    // The new children are built at their own weight; whatever the layer is
+    // wearing is put back on them here.
+    if (liveOpacity < 1) paintOpacity(object3D, liveOpacity);
     return object3D.children.length > 0;
   };
   const counts = describeCollection(fc);
@@ -1779,6 +1799,15 @@ export function buildVectorLayerResult(fc, {
   return {
     object3D,
     repaint: repaintVector,
+    /**
+     * Wear this opacity, now and through every rebuild. The layer row's slider
+     * calls it; so does the importer, once, with whatever the layer is due to
+     * open at.
+     */
+    applyOpacity: (value) => {
+      liveOpacity = Number.isFinite(value) ? value : 1;
+      paintOpacity(object3D, liveOpacity);
+    },
     // Named so a layer built from published colours can say so, and a tool
     // run on it can inherit the column rather than re-detect it.
     publishedColourField: published,

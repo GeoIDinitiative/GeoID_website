@@ -11910,3 +11910,90 @@ The existing note says "read the stamp off a live script tag and import THAT".
 Sharpened: read it off a **`gis/` script tag** (`mode-manager.js` is always
 there). The stack trace in a thrown probe is what named it — the two URLs sat
 one line apart in it, which no amount of reading the source would have shown.
+
+## How strongly a layer LANDS is decided by what it draws
+
+A filled area is a claim over ground: at full strength it hides the map it was
+loaded to be read against, which is the ordinary reason anybody loads a second
+layer at all. A dot is a few pixels wide, it hides nothing, and fading it only
+makes it harder to see. So **areas open at half and marks open solid**, and the
+rule is `gis/layer-opacity.js` rather than a number typed into each panel that
+happens to load something — the world geology had carried `initialOpacity: 0.5`
+alone for months while every other polygon sheet landed opaque.
+
+**It only ever FADES, and that is structural rather than a preference.**
+`setOpacity` SCALES what an element was drawn at and only the contact seal
+records a weight of its own (`baseOpacity`), so the line buffer — built at 0.9 —
+is PROMOTED to full by any call setting a layer to 1. The default for everything
+that is not an area is therefore exactly 1 and the caller returns rather than
+setting it, which also means an untouched layer behaves exactly as it did before
+this existed.
+
+**Three things it refuses to call an area**, each a worse map if faded:
+
+- **An OUTLINED polygon layer.** A drawn study area is polygons and is drawn as
+  an edge; the whole point of the outline mode is that it covers nothing.
+- **A raster.** Half a picture over a basemap is two maps averaged rather than
+  one map read.
+- **A layer with no features in hand.** A tiled layer's `features` is a snapshot
+  and is routinely EMPTY at the moment it registers — measured before now, a
+  GLiM layer reporting nothing while its tiles held half a million polygons.
+  Guessing there would fade some sessions and not others, so a tiled sheet
+  states its own on its catalogue entry and `addDerivedLayer` takes an
+  `opacity`. `loadDerivedGeologyMap` defaults it to `AREA_OPACITY` because every
+  map made through that door today is a filled sheet; a derived LINE map must
+  pass 1, the way the contacts-and-faults dataset does.
+
+### A REPAINT REBUILDS EVERY MATERIAL, so the opacity has to be put back on
+
+This is what made the rule look broken rather than a subtlety: the polygon layer
+reported `opacity: 0.5` over fills measured at **1**. `repaintVector` replaces
+every child of the group with freshly built materials at their BUILD weight, and
+a filled layer's fills are built a tick after the import (the two-pass build) —
+so the fade was applied to a group that did not yet hold the meshes it was for.
+
+The same fault was already reachable by hand and nobody had hit it: fade a sheet
+to 40%, re-class it in the symbology dialog, and it came back solid under a
+slider still reading 0.4. A vector layer now carries `applyOpacity` — it records
+the value and re-applies it after each rebuild — exactly as a tiled layer's
+controller is told for the tiles it has not built yet. `paintOpacity` in
+`layer-opacity.js` is the ONE implementation both the slider and the repaint go
+through, so the never-switch-blending-off rule and the scale-don't-replace rule
+cannot drift between them.
+
+**And the Add-data dialog was sending 0.85 on every import** — a number nobody
+chose, applied to everything, and the one door where a point cloud landed faded
+and an area landed nearly solid. The slider opens where the rule says the file
+will land and its value is sent ONLY once it has been moved, so the importer
+reads the geometry it actually built, which is the only thing that knows a
+polygon from a line. Its 0.85 was also load-bearing by accident: `xyz-adapter`'s
+own note records that a point cloud only ever drew because that default kept it
+in the transparent pass.
+
+`applyImportSymbology`'s opacity now goes through `setOpacity` too. It had
+`m.transparent = opacity < 1` — the documented landmine, which turns blending
+OFF at 1 and takes a touch-tight point cloud out of the drawn frame entirely —
+and its "not repaintable" guard sat ABOVE the opacity, so the one property that
+applies to every kind of layer was skipped for the one kind that has nothing
+else, leaving the row's slider reading 1 over a cloud the adapter had faded.
+
+Measured live, layer row against the materials it stands for: a polygon import
+0.5/0.5, a points CSV 1/1 (still transparent, so still drawn), lines untouched
+at their own 0.9, an outlined derived layer untouched, a stated 1 left at 1. The
+tiled sheets: soil 24 fills at 0.5 with 24 seals at 0.275, GLiM the same, the
+RGI glaciers 0.5 with seals at 0.25, and the contacts-and-faults line layer
+still 0.9 with nothing set. A repaint, a re-class and a slider drag to 0.2 all
+keep what the layer is wearing.
+
+**`node --check` PASSED a file with a real syntax error**, again — this file
+already says it is not a parse check and it was believed anyway. A splice left
+two stray `});` lines in `layer-hierarchy.js`, `node --check layer-hierarchy.js`
+exited 0, and `node --input-type=module --check < layer-hierarchy.js` named the
+line at once. Use the second form; the suite (which imports every module) is
+still the thing that settles it.
+
+**The R2 bucket's CORS allowlist admits `http://localhost:8125`, not 8123.** The
+tiled sheets cannot be verified on the ordinary dev port — every tile fails with
+no `Access-Control-Allow-Origin` and the layer draws nothing, which reads as a
+broken layer. `.claude/launch.json` carries a `geoid-bucket-origin` entry on
+8125 for exactly that.

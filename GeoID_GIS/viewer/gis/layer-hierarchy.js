@@ -10,15 +10,16 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { bandOf } from "./draw-order.js?v=20260904-8512f2d";
-import { currentBody } from "./bodies.js?v=20260904-8512f2d";
-import { samplerToRaster } from "./raster-analysis.js?v=20260904-8512f2d";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260904-8512f2d";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260904-8512f2d";
+import { bandOf } from "./draw-order.js?v=20260904-980529e";
+import { paintOpacity } from "./layer-opacity.js?v=20260904-980529e";
+import { currentBody } from "./bodies.js?v=20260904-980529e";
+import { samplerToRaster } from "./raster-analysis.js?v=20260904-980529e";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260904-980529e";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260904-980529e";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20260904-8512f2d";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260904-8512f2d";
+} from "./symbology-dialog.js?v=20260904-980529e";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260904-980529e";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -368,46 +369,23 @@ function setOpacity(layer, value) {
   layer.opacity = value;
   const object = layer.object3D;
   if (!object) return;
-  object.traverse?.((node) => {
-    const materials = Array.isArray(node.material) ? node.material : [node.material];
-    materials.forEach((material) => {
-      if (!material) return;
-      /**
-       * Opacity may never move a layer between render passes.
-       *
-       * This used to switch blending off at full opacity -- "transparent
-       * materials are sorted separately and cost more to draw", which is true
-       * and was the bug. **Separately** is the word: the renderer draws every
-       * opaque object first and every transparent one afterwards, and no
-       * `renderOrder` crosses between the two lists. So taking a layer back to
-       * 100% made it opaque, which drew it BEFORE every layer still at 99% or
-       * less -- including the sheet underneath it, which then painted straight
-       * over the top. Dragging the slider up made the layer disappear.
-       *
-       * Blending stays on. It may be switched on when it is needed and never
-       * off again, so a layer's place in the stack is decided by the stack.
-       * `depthWrite` is left exactly as the layer was built: these fills draw
-       * without a depth test on purpose, and writing depth at full opacity let
-       * them occlude whatever was drawn after them.
-       */
-      if (value < 0.999) material.transparent = true;
-      /**
-       * A layer's opacity SCALES what an element was drawn at; it does not
-       * replace it.
-       *
-       * The contact stroke is drawn at its own subtle weight, and overwriting
-       * it meant dragging a sheet down to 40% PROMOTED its 25% contacts to
-       * 40% — the boundaries getting heavier as the map faded, which is how
-       * they came to be visible only at low opacity in the first place.
-       * Anything with no weight of its own is unaffected: `baseOpacity`
-       * defaults to 1 and 1 x value is value.
-       */
-      const base = Number.isFinite(material.userData?.baseOpacity)
-        ? material.userData.baseOpacity : 1;
-      material.opacity = value * base;
-      material.needsUpdate = true;
-    });
-  });
+  /**
+   * Through `paintOpacity`, which owns the two rules this used to spell out
+   * here: blending is switched on when needed and never off again, and an
+   * element's own weight is scaled rather than replaced. It is shared with the
+   * vector repaint, which rebuilds every material a layer has and would
+   * otherwise hand a faded sheet back at full strength.
+   */
+  paintOpacity(object, value);
+  /**
+   * A VECTOR LAYER REBUILDS ITSELF ON EVERY REPAINT, and has to be told.
+   *
+   * `applyOpacity` is its own — a repaint replaces every child of
+   * its group with fresh materials, so a sheet faded to 40% and then
+   * re-coloured came back solid under a slider still reading 0.4. It records
+   * the value and re-applies it after each rebuild.
+   */
+  layer.applyOpacity?.(value);
   /**
    * A STREAMING LAYER HAS TO BE TOLD, or the next tile arrives at the old
    * weight.

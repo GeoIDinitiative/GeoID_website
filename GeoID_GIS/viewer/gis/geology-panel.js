@@ -28,16 +28,17 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260904-8512f2d";
-import { currentBodyId } from "./bodies.js?v=20260904-8512f2d";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260904-8512f2d";
-import { rockClass } from "./rock-class.js?v=20260904-8512f2d";
-import { datasetInfoButton } from "./catalogue-list.js?v=20260904-8512f2d";
-import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260904-8512f2d";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260904-8512f2d";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260904-8512f2d";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260904-980529e";
+import { currentBodyId } from "./bodies.js?v=20260904-980529e";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260904-980529e";
+import { rockClass } from "./rock-class.js?v=20260904-980529e";
+import { AREA_OPACITY } from "./layer-opacity.js?v=20260904-980529e";
+import { datasetInfoButton } from "./catalogue-list.js?v=20260904-980529e";
+import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260904-980529e";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260904-980529e";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260904-980529e";
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260904-8512f2d";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260904-980529e";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -170,7 +171,7 @@ const GLOBAL_BASE = {
    * -- and this layer rebuilds itself whenever the view settles -- carries
    * across whatever the reader set instead.
    */
-  initialOpacity: 0.5,
+  initialOpacity: AREA_OPACITY,
   credit: "Macrostrat Burwell compilation, CC BY 4.0 — each polygon carries the "
     + "survey that mapped it.",
   /**
@@ -602,18 +603,18 @@ async function loadTiled(entry, { toView = false, quiet = false } = {}) {
       features: controller.features(),
       collection: { type: "FeatureCollection", features: controller.features() },
       repaint: (colourFn) => controller.repaint(colourFn),
+      /**
+       * A DATASET MAY SAY HOW STRONGLY IT SHOULD LAND, and here it must: this
+       * layer registers with a snapshot of what was on screen, which over most
+       * ground is empty, so the geometry rule the importer uses has nothing to
+       * read. Stated on the entry rather than written onto the record, because
+       * the record is replaced on every refine — the restore below is what
+       * carries the reader's own setting across a rebuild.
+       */
+      opacity: entry.initialOpacity,
     }, "geology");
     if (!layer) { say(`${entry.label} could not be added.`); return; }
-    /**
-     * A dataset may say how strongly it should land. Applied only here, in the
-     * branch that CREATES the layer, so the reader's own setting survives every
-     * rebuild -- the restore below is what carries it across.
-     */
     if (entry.metadata) layer.metadata = { ...(layer.metadata || {}), ...entry.metadata };
-    if (Number.isFinite(entry.initialOpacity) && entry.initialOpacity < 1) {
-      window.GeoIDLayerHierarchy?.setOpacity?.(layer, entry.initialOpacity);
-      layer.opacity = entry.initialOpacity;
-    }
     /**
      * The layer can be asked for the features covering a BOX, and that is the
      * seam every consumer of a self-rebuilding layer needs.
@@ -1622,7 +1623,7 @@ async function loadDefaults() {
  */
 export async function loadDerivedGeologyMap({ id, label, colourFor, legendInfo,
   featureFilter, sourceColours = false, tiles = null, contacts = undefined,
-  metadata = null, initialOpacity = 1, credit = undefined }) {
+  metadata = null, initialOpacity = AREA_OPACITY, credit = undefined }) {
   const existing = loadedLayers().find((l) => l.geologyDataset === id);
   if (existing) return existing;
   /**
@@ -1665,6 +1666,16 @@ export async function loadDerivedGeologyMap({ id, label, colourFor, legendInfo,
      * refine.
      */
     metadata,
+    /**
+     * A FILLED SHEET, so it opens at half — see `layer-opacity.js` for why an
+     * area does and a mark does not. It is the DEFAULT rather than a fact
+     * about this door: every map made through it today is a filled sheet
+     * (geology, GLiM, the soils, the glaciers, a rock property), and a derived
+     * map that draws lines instead should pass 1 the way the contacts-and-
+     * faults dataset does. The rule cannot be inferred here as it is for an
+     * import, because this layer registers with whatever was on screen and
+     * over most ground that is nothing at all.
+     */
     initialOpacity };
   if (contacts !== undefined) entry.contacts = contacts;
   DERIVED.set(id, entry);

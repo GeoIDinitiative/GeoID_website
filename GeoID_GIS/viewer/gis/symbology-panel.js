@@ -15,7 +15,7 @@ import {
   RAMPS,
   buildSymbology, colourOf, legendInfoFrom, METHODS, RAMP_NAMES,
   categoricalSymbology, suggestCategoryField, QUALITATIVE, QUALITATIVE_RAMP,
-} from "./symbology.js?v=20260904-8512f2d";
+} from "./symbology.js?v=20260904-980529e";
 
 const HOST_ID = "gis-symbology-host";
 /**
@@ -472,21 +472,40 @@ function recompute(apply) {
  * the flat colour. Applying both would mean one of them silently losing.
  */
 export function applyImportSymbology(layer, symbology = {}) {
-  if (!layer || typeof layer.repaint !== "function") return { ok: false, reason: "not repaintable" };
+  if (!layer) return { ok: false, reason: "no layer" };
   const { ramp = "viridis", colour = null, opacity = null } = symbology;
 
-  // Opacity is a material property and applies to every kind of layer, so it
-  // is set whether or not there is anything to grade.
-  if (Number.isFinite(opacity) && layer.object3D) {
-    layer.object3D.traverse((node) => {
-      const materials = Array.isArray(node.material) ? node.material : [node.material];
-      materials.forEach((m) => {
-        if (!m) return;
-        m.transparent = opacity < 1;
-        m.opacity = opacity;
-        m.needsUpdate = true;
-      });
-    });
+  /**
+   * Opacity applies to every kind of layer, so it is set whether or not there
+   * is anything to grade — and it goes through the hierarchy's own
+   * `setOpacity` rather than a traversal written here. That is one shared
+   * implementation of three rules this copy got wrong:
+   *
+   * - **Blending is never switched OFF.** This said `m.transparent = opacity
+   *   < 1`, so asking for a solid layer took it into the opaque pass — where a
+   *   point cloud drawn three metres above the ground loses to the globe and
+   *   simply stops being drawn. Measured before now: 0 pixels opaque against
+   *   29,144 transparent. It survived only because this dialog used to send
+   *   0.85 on every import and never 1.
+   * - **A weight of its own is SCALED, not replaced**, so a contact stroke
+   *   does not get heavier as the sheet it bounds fades.
+   * - **`layer.opacity` is what the row's slider reads.** Writing straight to
+   *   the materials left the slider saying 1 over a layer wearing 0.85.
+   */
+  if (Number.isFinite(opacity)) {
+    window.GeoIDLayerHierarchy?.setOpacity?.(layer, opacity);
+  }
+  /**
+   * The GRADING guard, and it sits AFTER the opacity rather than at the door.
+   *
+   * A point cloud has no `repaint` — it is drawn from its own vertex colours —
+   * so returning here first meant the one property that applies to every kind
+   * of layer was skipped for exactly the kind that has nothing else. The
+   * adapter still honoured the number, so the cloud faded and the layer row's
+   * slider went on reading 1 over it.
+   */
+  if (typeof layer.repaint !== "function") {
+    return { ok: Number.isFinite(opacity), reason: "not repaintable", opacity };
   }
 
   const values = valuesOf(layer);

@@ -1,16 +1,17 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260904-8512f2d";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260904-8512f2d";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260904-8512f2d";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260904-8512f2d";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260904-980529e";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260904-980529e";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260904-980529e";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260904-980529e";
 import {
   buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude, setSealWidthFromAltitude,
   setMarkerSizeFromAltitude,
-} from "./vector-render.js?v=20260904-8512f2d";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260904-8512f2d";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260904-8512f2d";
-import { loadMshFile } from "./msh-adapter.js?v=20260904-8512f2d";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260904-8512f2d";
+} from "./vector-render.js?v=20260904-980529e";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260904-980529e";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260904-980529e";
+import { loadMshFile } from "./msh-adapter.js?v=20260904-980529e";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260904-980529e";
+import { defaultOpacityFor } from "./layer-opacity.js?v=20260904-980529e";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -408,6 +409,33 @@ function renderLayerList() {
  * nothing, because `alphaTest` discards every fragment of a missing map. Found
  * when a point edit removed the layer it had just rebuilt.
  */
+/**
+ * How strongly a layer LANDS, applied once as it arrives.
+ *
+ * The rule itself is in `layer-opacity.js` and is about what a layer DRAWS:
+ * an area is a claim over ground and opens at half so the map underneath is
+ * still readable, a mark hides nothing and opens solid. Two things about the
+ * way it is applied here matter as much as the rule:
+ *
+ * - **It never overrules an answer already given.** A dataset that states its
+ *   own opening strength, and a rebuild that carries the reader's setting
+ *   across, both leave `opacity` set before this runs.
+ * - **It only ever FADES.** `setOpacity` SCALES what an element was drawn at
+ *   and only the contact seal records a weight of its own, so setting a layer
+ *   to 1 promotes the line buffer from the 0.9 it was built at. Skipping the
+ *   solid case is what makes that impossible.
+ */
+function applyOpeningOpacity(layer, shape) {
+  if (!layer) return;
+  // A dataset that states its own opening strength has already answered; the
+  // geometry is only consulted when nobody has.
+  const stated = Number.isFinite(layer.opacity) ? layer.opacity : null;
+  const value = stated === null ? defaultOpacityFor(shape || layer) : stated;
+  if (!(value < 1)) return;
+  window.GeoIDLayerHierarchy?.setOpacity?.(layer, value);
+  layer.opacity = value;
+}
+
 function disposeMaterial(material) {
   if (!material) return;
   if (!material.map?.userData?.shared) material.map?.dispose?.();
@@ -606,6 +634,13 @@ async function importDataset(primaryFile, sidecars, options = {}) {
     // the same sentence the clip's own card carries.
     layer.legendIsSummary = result.legendSummary || null;
     layer.repaint = result.repaint || null;
+    /**
+     * A REPAINT REBUILDS EVERY MATERIAL THIS LAYER HAS, so the layer carries
+     * the way to put its opacity back on afterwards. Without it a faded sheet
+     * came back solid the first time anything re-coloured it — including its
+     * own deferred first paint, which lands a tick after the import.
+     */
+    layer.applyOpacity = result.applyOpacity || null;
     layer.setContacts = result.setContacts || null;
     layer.getContacts = result.getContacts || null;
     /**
@@ -646,6 +681,16 @@ async function importDataset(primaryFile, sidecars, options = {}) {
     // "loaded" and unstyled for as long as that fetch took. Anything watching
     // for loaded -- the layer list, the hierarchy, a test -- could act on the
     // adapter's own colours and see the chosen ramp arrive a moment later.
+    // What it draws decides how strongly it lands. Before the dialog's own
+    // symbology, so an opacity the reader actually chose still wins.
+    applyOpeningOpacity(layer, {
+      features: layer.features,
+      collection: layer.collection,
+      raster: layer.raster,
+      // Not copied onto the layer on this path, so it is read off the build:
+      // an OUTLINED polygon layer covers nothing and must not be faded.
+      getFillMode: result.getFillMode,
+    });
     if (options.symbology) {
       try {
         const { applyImportSymbology } =
@@ -900,13 +945,24 @@ export function addDerivedLayer(name, result, ext = "derived") {
     // reaches a clip of a geological map as well as the tiles it came from.
     setContacts: result.setContacts || null,
     getContacts: result.getContacts || null,
+    // Puts the layer's opacity back on after a repaint has rebuilt its
+    // materials -- see the note beside the same line on the import path.
+    applyOpacity: result.applyOpacity || null,
     // A layer whose features are NOT ground positions (the satellites: live
     // subsatellite points, drawn three Earth radii up) opts out of the shared
     // ground picker and runs its own.
     groundPick: result.groundPick !== false,
+    /**
+     * HOW STRONGLY IT LANDS, where the caller knows better than the geometry
+     * in hand. A tiled sheet registers with whatever was on screen — over most
+     * ground, nothing — so it states its own; everything else leaves this
+     * unset and is read off what it draws.
+     */
+    opacity: Number.isFinite(result.opacity) ? result.opacity : undefined,
     derived: true,
   };
   layers.push(layer);
+  applyOpeningOpacity(layer);
   (layer.georeferenced ? groups.geoGroup : groups.localGroup).add(result.object3D);
   placeLocalModel(result.object3D, window.GeoIDModeManager?.getMode?.());
   // A derived layer is data arriving too — a drawn area, a tool result, an
