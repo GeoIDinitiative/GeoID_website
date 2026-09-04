@@ -20,7 +20,7 @@
  * the viewer already shipped and could only ever show alone.
  */
 
-import { drape } from "./gee.js?v=20260904-0dfb865";
+import { drape } from "./gee.js?v=20260904-e8726a8";
 
 // In the shape the drape and the layer record both read: this app says
 // west/south/east/north in most places and Earth Engine answers
@@ -52,6 +52,26 @@ const GLOBAL_SEGMENTS = 180;
  * is reachable this way and no other.
  */
 export const MAP_LAYERS = [
+  /**
+   * THE STREAMED DEM, GIVEN A ROW.
+   *
+   * It is not a shipped image, so it carries `builds` rather than `manifest`:
+   * ticking it fetches elevation tiles and makes a raster layer out of them.
+   * Everything else about the row is ordinary — the same tick, the same ⓘ, the
+   * same status line — because a reader should not have to know which of these
+   * came off disk and which came off a pyramid.
+   */
+  {
+    id: "map-dem-streamed",
+    group: "Terrain",
+    label: "Elevation (streamed DEM)",
+    builds: "dem",
+    summary: "Real heights, streamed as tiles and sharpened where you look — "
+      + "about 19.6 km posts worldwide and metres over a view you have flown "
+      + "into. The same source the cursor readout and the terrain tools use.",
+    licence: "Mapzen Terrain Tiles / AWS Open Data — free with attribution",
+    opacity: 0.7,
+  },
   {
     id: "map-slope",
     group: "Terrain",
@@ -116,6 +136,15 @@ export async function addMapLayer(id, onStatus = () => {}) {
   const entry = layerById(id);
   if (!entry) return { ok: false, message: "No such map layer." };
   if (layerForMap(id)) return { ok: true, message: `${entry.label} is already on the globe.` };
+  /**
+   * An entry that BUILDS itself rather than naming an image. Loaded lazily,
+   * because most sessions never tick it and it pulls a tile pyramid when they
+   * do.
+   */
+  if (entry.builds === "dem") {
+    const { addDemLayer } = await import(`./dem-layer.js${new URL(import.meta.url).search}`);
+    return addDemLayer(onStatus);
+  }
   const path = pathOf(entry);
   if (!path) return { ok: false, message: `${entry.label} has no image on this build.` };
 
@@ -149,6 +178,13 @@ export async function addMapLayer(id, onStatus = () => {}) {
 export function removeMapLayer(id) {
   const layer = layerForMap(id);
   if (!layer) return false;
+  // The built one keeps a view watcher, which has to stand down with it or the
+  // sheet rebuilds itself the next time the camera settles.
+  if (layerById(id)?.builds === "dem") {
+    import(`./dem-layer.js${new URL(import.meta.url).search}`)
+      .then((m) => m.removeDemLayer()).catch(() => {});
+    return true;
+  }
   window.GeoIDImportManager?.removeLayer?.(layer.id);
   return true;
 }

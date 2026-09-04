@@ -12241,3 +12241,46 @@ are that level's honest answer — the texture's own number there is 6,049. So
 the reader is multiresolution in the way the rest of this app already is, and
 crossing from refined ground to unrefined ground steps the value. Where that
 matters, `postMetresAt` says which spacing answered.
+
+#### And it needed a ROW, because nothing you cannot point at is a layer
+
+"Where is the streamed DEM, I cannot see it in Basemaps" — it was a sampler and
+nothing else. It answered the cursor readout, the terrain tool and the Model
+Builder, it pulled tiles, and it had no row in the list of what is on the
+globe: no eye, no opacity, no place in the draw order, no legend, no credit
+anybody could read. That is the fault the events feed was already fixed for,
+in the same words.
+
+**Basemaps ▸ Overlays ▸ Terrain ▸ "Elevation (streamed DEM)"** now. Ticking it
+goes through `buildRasterLayer` — the same function a dropped GeoTIFF goes
+through — so the elevation ramp, the legend with its own min and max in metres,
+the layer row, the symbology dialog, the drape on the displaced surface and the
+raster the terrain tools take as an input all come with it. Measured on the
+live page: 1,024 × 512, **−9,504 to 6,061 m**, a legend card reading those
+numbers, `metadata.source` carrying the Mapzen credit, and the sheet drawn over
+Africa at 0.7.
+
+Three things decided rather than defaulted:
+
+- **A catalogue entry may BUILD its picture** (`builds: "dem"`) rather than
+  naming a shipped image. A row that names neither is a tick that can only
+  fail, which is what the test now checks.
+- **The world cover is fetched on the TICK.** A global elevation layer with
+  holes in it is not a layer, it is a report of where somebody has been
+  looking. 5.8 MB, asked for because somebody asked for it.
+- **It opens at 0.7, and a rebuild carries what the reader set.** The
+  opening-opacity rule reads geometry and a raster is not an area, so nothing
+  fades this one on its own — and a solid elevation sheet over the imagery is a
+  second basemap rather than something to read the first one against. This
+  layer replaces itself on every settle, so re-applying a DEFAULT each time
+  would undo the slider seconds after it moved.
+
+**The grid is sampled by LAT/LON, one cell at a time, never by copying tile
+pixels** — which keeps the Mercator trap out of this module entirely. The
+sphere's UVs are linear in latitude and the tiles are not; a pixel copy slides
+every coastline poleward, and asking the sampler where a place is cannot.
+
+Not observed: the settle-triggered REBUILD as the camera descends. The
+machinery is the same `heightAt` that demonstrably prefers finer tiles once
+they are streamed, but the pane's render loop would not advance the zoom for a
+scripted descent — the third time today that has stopped a camera-driven check.
