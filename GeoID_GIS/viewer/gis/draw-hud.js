@@ -334,16 +334,16 @@ function build() {
     measure.appendChild(button);
     return button;
   };
+  mode("points", "Points",
+    '<path d="M11 19.4s5.6-6 5.6-10.2a5.6 5.6 0 1 0-11.2 0C5.4 13.4 11 19.4 11 19.4Z"'
+    + ' fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>'
+    + '<circle cx="11" cy="9" r="2.05" fill="currentColor"/>',
+    "click the globe to drop points; Done files them as a layer");
   mode("distance", "Distance",
     '<path d="M4.5 17 17.5 5" fill="none" stroke="currentColor" stroke-width="1.8"'
     + ' stroke-linecap="round"/><circle cx="4.5" cy="17" r="1.9" fill="currentColor"/>'
     + '<circle cx="17.5" cy="5" r="1.9" fill="currentColor"/>',
     "click out a line of points; every leg states its own length");
-  mode("points", "Points",
-    '<circle cx="11" cy="11" r="2.9" fill="currentColor"/>'
-    + '<path d="M11 2.9v3.6M11 15.5v3.6M2.9 11h3.6M15.5 11h3.6" fill="none"'
-    + ' stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>',
-    "click the globe to drop points; Done files them as a layer");
   mode("profile", "Profile",
     '<path d="M3.5 15h3l2.1-5 2.6 2.5 2-5.7 2.3 2.9h3" fill="none"'
     + ' stroke="currentColor" stroke-width="1.8" stroke-linecap="round"'
