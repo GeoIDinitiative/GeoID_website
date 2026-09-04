@@ -48,11 +48,48 @@ const ON_TOP_EXT = new Set(["events"]);
  */
 const DRAWN_EXT = new Set(["drawn"]);
 
+/**
+ * A MARK DRAWS ABOVE AN AREA, and that is what a half band is for.
+ *
+ * Reported as points failing the depth test against buffer polygons, and it is
+ * not a depth test at all: measured, both the point cloud and the buffer fill
+ * carry `depthTest: false, depthWrite: false`, so the buffer is never consulted
+ * and paint ORDER decides. The rings were made FROM the points, so they arrive
+ * later and take the higher stack position — 52 against 51 — and a translucent
+ * fill then covers the very points it was drawn around.
+ *
+ * A polygon is an area and a point is a place, and an area painted over a place
+ * hides the thing the area is about. Buffers are the everyday case (you buffer
+ * points), and so are convex hulls, voronoi cells and zonal outputs.
+ *
+ * Half a band rather than a new one, because this is a tie-break WITHIN the
+ * data band: marks still sit under the event feed and under drawn shapes, where
+ * they belong, and `bandOverride` still wins — so a row dragged under its
+ * buffer stays there. Every band here is a default.
+ */
+const marksCache = new WeakMap();
+function marksOnly(layer) {
+  const collection = layer?.collection;
+  const features = collection?.features;
+  if (!Array.isArray(features) || !features.length) return false;
+  // Memoised on the collection: this is called from a sort comparator, and a
+  // ninety-thousand-point catalogue must not be walked once per comparison.
+  if (marksCache.has(collection)) return marksCache.get(collection);
+  let only = true;
+  for (const feature of features) {
+    const type = feature?.geometry?.type;
+    if (type !== "Point" && type !== "MultiPoint") { only = false; break; }
+  }
+  marksCache.set(collection, only);
+  return only;
+}
+
 export function bandOf(layer) {
   // Put there by hand, and a hand beats a default.
   if (Number.isFinite(layer?.bandOverride)) return layer.bandOverride;
   if (DRAWN_EXT.has(layer?.ext)) return 4;
   if (ON_TOP_EXT.has(layer?.ext)) return 3;
   if (IMAGERY_EXT.has(layer?.ext)) return 0;
-  return layer?.geologyDataset || layer?.role === "geology" ? 1 : 2;
+  if (layer?.geologyDataset || layer?.role === "geology") return 1;
+  return marksOnly(layer) ? 2.5 : 2;
 }

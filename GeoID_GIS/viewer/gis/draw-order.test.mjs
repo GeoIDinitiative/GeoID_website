@@ -112,6 +112,41 @@ check("every highlight holder is banded above the data layers", () => {
   eq(Number(band[1]) > 230, true, "the highlight band outranks the event markers");
 });
 
+/* ── a mark draws above an area ──────────────────────────────────────────── */
+/**
+ * The buffer case, which is what this rule exists for: rings are made FROM
+ * points, so they arrive later and take the higher stack position, and a
+ * translucent fill then covers the points it was drawn around.
+ */
+const pointsFc = { features: [
+  { geometry: { type: "Point", coordinates: [0, 0] } },
+  { geometry: { type: "MultiPoint", coordinates: [[1, 1]] } },
+] };
+const ringsFc = { features: [{ geometry: { type: "Polygon", coordinates: [[[0, 0]]] } }] };
+const marksLayer = { name: "SITES", collection: pointsFc };
+const ringsLayer = { name: "rings_SITES", collection: ringsFc };
+
+check("a point-only layer bands above an ordinary one", () =>
+  ok(bandOf(marksLayer) > bandOf(ringsLayer),
+    `marks ${bandOf(marksLayer)} should beat ${bandOf(ringsLayer)}`));
+check("but still below the live feeds", () =>
+  ok(bandOf(marksLayer) < bandOf({ ext: "events" }), "marks must not outrank a feed"));
+check("and below a drawn shape", () =>
+  ok(bandOf(marksLayer) < bandOf({ ext: "drawn" }), "marks must not outrank a study area"));
+// A hand beats every default, or dragging a row under its buffer would not
+// stick — the fault the events band already paid for once.
+check("a dragged marks row keeps where it was dropped", () =>
+  eq(bandOf({ ...marksLayer, bandOverride: 2 }), 2, "override"));
+check("a layer that is not ALL marks is an ordinary layer", () =>
+  eq(bandOf({ collection: { features: [
+    { geometry: { type: "Point", coordinates: [0, 0] } },
+    { geometry: { type: "LineString", coordinates: [[0, 0], [1, 1]] } },
+  ] } }), 2, "mixed"));
+check("an empty layer is ordinary too", () =>
+  eq(bandOf({ collection: { features: [] } }), 2, "empty"));
+check("geology keeps its own band", () =>
+  eq(bandOf({ geologyDataset: "x", collection: pointsFc }), 1, "geology"));
+
 if (failures.length) {
   failures.forEach((f) => console.error(`  x ${f}`));
   console.error(`${failures.length} failed, ${passed} passed`);
