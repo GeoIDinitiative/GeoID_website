@@ -1,9 +1,9 @@
 import * as THREE from "../vendor/three.module.js";
 import { latLonToVector3, drapedRadius, looksLikeGeographic, sphericalPolygonAreaKm2 }
-  from "./geo-utils.js?v=20260904-a85e03b";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260904-a85e03b";
-import { pointInPolygon } from "./geometry.js?v=20260904-a85e03b";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260904-a85e03b";
+  from "./geo-utils.js?v=20260904-b0b1f62";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260904-b0b1f62";
+import { pointInPolygon } from "./geometry.js?v=20260904-b0b1f62";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260904-b0b1f62";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -79,6 +79,38 @@ export function markerDiscTexture() {
   discTexture = new THREE.CanvasTexture(canvas);
   discTexture.needsUpdate = true;
   return discTexture;
+}
+
+/**
+ * A RING, for a highlight that must not hide what it highlights.
+ *
+ * The disc above is a fill: drawn over a marker at the size that would read as
+ * a halo, it simply replaces the marker with a coloured blob. An annulus sits
+ * around the dot instead, so the thing under the cursor stays visible and the
+ * highlight reads as a circle drawn about it.
+ *
+ * White, for the same reason the disc is: the material multiplies it by the
+ * highlight colour, so anything tinted in here could not be recoloured.
+ */
+let ringTexture = null;
+export function markerRingTexture() {
+  if (ringTexture) return ringTexture;
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  // Stroked short of the edge so the ring's own outside is never the quad's:
+  // a circle drawn to the corner aliases back into the square this replaces.
+  ctx.beginPath();
+  ctx.arc(32, 32, 23, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.lineWidth = 9;
+  ctx.strokeStyle = "#ffffff";
+  ctx.stroke();
+  ringTexture = new THREE.CanvasTexture(canvas);
+  ringTexture.needsUpdate = true;
+  return ringTexture;
 }
 
 /**

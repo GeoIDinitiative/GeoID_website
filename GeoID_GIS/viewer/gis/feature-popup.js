@@ -20,13 +20,15 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260904-a85e03b";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260904-a85e03b";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260904-a85e03b";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260904-a85e03b";
-import { lithologyLabel } from "./lithology-label.js?v=20260904-a85e03b";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260904-a85e03b";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260904-a85e03b";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260904-b0b1f62";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260904-b0b1f62";
+import {
+  attachReliefAttributes, followRelief, markerRingTexture,
+} from "./vector-render.js?v=20260904-b0b1f62";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260904-b0b1f62";
+import { lithologyLabel } from "./lithology-label.js?v=20260904-b0b1f62";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260904-b0b1f62";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260904-b0b1f62";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -803,7 +805,7 @@ function showViewerCard(hits, at) {
   if (!viewer?.showFeatureCard?.(feature, at?.lat, at?.lon)) return false;
   // The outline stays: on a map of hundreds of polygons the card alone cannot
   // say WHICH one answered. The pin does not -- the card brings its own.
-  if (at) void showOutline(top.feature);
+  if (at) void showOutline(top.feature, { layer: top.layer });
   return true;
 }
 
@@ -829,14 +831,14 @@ function showStack(x, y, hits, at) {
   // has nowhere to type.
   if (top.layer?.drawn) {
     showPopup(x, y, top.layer.name || "Layer", top.feature, top.layer);
-    if (at) void showOutline(top.feature);
+    if (at) void showOutline(top.feature, { layer: top.layer });
     return;
   }
   if (showViewerCard(hits, at)) { hidePopup({ keepOutline: true }); return; }
   // No viewer seam (an older page): the local card is still better than
   // nothing, and it is the only reason this fallback exists.
   showPopup(x, y, top.layer.name || "Layer", top.feature, top.layer);
-  if (at) void showOutline(top.feature);
+  if (at) void showOutline(top.feature, { layer: top.layer });
 }
 
 /** Area of a polygon feature in km2, or 0 for anything else. */
@@ -999,7 +1001,35 @@ function followTheGround(THREE, geometry, material) {
   }
 }
 
-function buildHighlight(THREE, feature, { colour, opacity, width = 1, lift = 0 }) {
+/**
+ * How the points of THIS layer are drawn, so a highlight can match them.
+ *
+ * The hover mark was a flat `size: 14, sizeAttenuation: false` square, which is
+ * wrong twice over: square, and 14 screen pixels whatever it sits on. A vector
+ * marker's size is driven by altitude and an imported cloud's is world-space
+ * and derived from the survey's own spacing, so a constant cannot fit either --
+ * on a cloud zoomed in it was a fraction of the dot, and on a dense catalogue
+ * it swamped it.
+ *
+ * A marker layer draws TWO point objects, the white underlay a few pixels
+ * larger than the tinted disc, so the widest is the one to match: the halo goes
+ * around the mark as drawn, not around its inner disc.
+ */
+function sourcePointStyle(layer) {
+  let best = null;
+  layer?.object3D?.traverse?.((node) => {
+    if (!node.isPoints || !node.material) return;
+    const { size, sizeAttenuation } = node.material;
+    if (!Number.isFinite(size)) return;
+    if (!best || size > best.size) best = { size, sizeAttenuation: Boolean(sizeAttenuation) };
+  });
+  return best;
+}
+
+/** Enough clear ground between the mark and its ring to read as a ring. */
+const HIGHLIGHT_POINT_SCALE = 1.9;
+
+function buildHighlight(THREE, feature, { colour, opacity, width = 1, lift = 0, layer = null }) {
   const viewer = window.GeoIDViewer;
   const nodes = [];
   const geometry = feature?.geometry;
@@ -1041,9 +1071,25 @@ function buildHighlight(THREE, feature, { colour, opacity, width = 1, lift = 0 }
       .map((c) => viewer.surfacePoint(c[1], c[0], lift));
     if (!points.length) return;
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    /**
+     * A CIRCLE round the mark, at the mark's own size.
+     *
+     * `PointsMaterial` with no map draws its quad, so this highlight was a
+     * hard square -- and at a fixed 14 screen pixels it matched nothing it was
+     * drawn over. It takes the source layer's own size and attenuation now,
+     * scaled to clear the mark, and the ring texture leaves the middle open so
+     * the thing being pointed at is still visible inside its own highlight.
+     */
+    const style = sourcePointStyle(layer);
     const cloud = new THREE.Points(geometry,
       followTheGround(THREE, geometry, new THREE.PointsMaterial({
-        color: colour, size: 14, sizeAttenuation: false,
+        color: colour,
+        size: (style ? style.size : 8) * HIGHLIGHT_POINT_SCALE,
+        sizeAttenuation: style ? style.sizeAttenuation : false,
+        map: markerRingTexture(),
+        // Cuts the sprite's square without opening the depth sorting that
+        // `transparent` alone would -- the same pairing the markers use.
+        alphaTest: 0.35,
         depthTest: false, transparent: true, opacity,
       })));
     cloud.frustumCulled = false;
@@ -1104,7 +1150,7 @@ function startPulse(nodes, baseOpacity) {
  * The outline stays, because the card cannot say WHICH feature answered on a
  * map of hundreds of them — and now it pulses, so it says so at a glance.
  */
-async function showOutline(feature, { colour = SELECTION_GOLD } = {}) {
+async function showOutline(feature, { colour = SELECTION_GOLD, layer = null } = {}) {
   const viewer = window.GeoIDViewer;
   const group = markerGroup();
   if (!viewer?.surfacePoint || !group) return;
@@ -1115,7 +1161,7 @@ async function showOutline(feature, { colour = SELECTION_GOLD } = {}) {
   holder.name = "GeoID-FeatureOutline";
   // The same gold the viewer's own label selection wears, so one colour means
   // "this is the thing you picked" everywhere on the globe.
-  const nodes = buildHighlight(THREE, feature, { colour, opacity: 0.95 });
+  const nodes = buildHighlight(THREE, feature, { colour, opacity: 0.95, layer });
   nodes.forEach((node) => holder.add(node));
   if (!nodes.length) return;
 
@@ -1154,7 +1200,7 @@ function clearHover() {
   hoverFeature = null;
 }
 
-async function showHover(feature) {
+async function showHover(feature, layer = null) {
   const viewer = window.GeoIDViewer;
   const group = markerGroup();
   if (!viewer?.surfacePoint || !group) return;
@@ -1176,7 +1222,7 @@ async function showHover(feature) {
    * which defaults to the cyan this drew before themes existed.
    */
   const hover = window.GeoIDTheme?.hex?.("--skin-hover-map", 0x8ef6ff) ?? 0x8ef6ff;
-  const nodes = buildHighlight(THREE, feature, { colour: hover, opacity: 0.55 });
+  const nodes = buildHighlight(THREE, feature, { colour: hover, opacity: 0.55, layer });
   if (!nodes.length) { hoverState = null; return; }
   nodes.forEach((node) => holder.add(node));
   group.add(holder);
@@ -1206,7 +1252,7 @@ function handleHover(event) {
   // 90 ms: a 60-part MultiLineString is real geometry to build.
   if (hit.feature === hoverFeature) return;
   hoverFeature = hit.feature;
-  void showHover(hit.feature);
+  void showHover(hit.feature, hit.layer);
 }
 
 function showPopup(x, y, layerName, feature, layerRecord = null) {
@@ -1671,7 +1717,7 @@ function install() {
       const anchor = Number.isFinite(item?.lat) && Number.isFinite(item?.lon)
         ? { lat: item.lat, lon: item.lon } : at;
       const claimed = anchor ? featuresAt(anchor.lat, anchor.lon)[0] : null;
-      if (claimed) void showOutline(claimed.feature); else clearPin();
+      if (claimed) void showOutline(claimed.feature, { layer: claimed.layer }); else clearPin();
       return;
     }
     /**
@@ -1702,7 +1748,7 @@ function install() {
     const geologyHit = everything.find(
       (h) => h.layer.geologyDataset && layerHasPolygons(h.layer),
     );
-    if (geologyHit) void showOutline(geologyHit.feature);
+    if (geologyHit) void showOutline(geologyHit.feature, { layer: geologyHit.layer });
     const hits = everything
       .filter((h) => !(h.layer.geologyDataset && layerHasPolygons(h.layer)));
     if (!hits.length) {
