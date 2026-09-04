@@ -263,6 +263,26 @@ const STYLE = `
   border-radius: 0.2rem;
   border: 1px solid rgba(255, 255, 255, 0.35);
 }
+/* A LINE IS KEYED WITH A LINE. The box is a claim of area a fault does not
+   make; this is the stroke itself, centred on the row and drawn heavier than
+   the map's own hairline so a colour is readable at 14 px. The outline goes:
+   a bordered bar reads as a very thin box, which is the thing being avoided. */
+#map-legend-panel .legend-class-swatch.is-line,
+#map-legend-panel .legend-swatch.is-line {
+  height: 0.2rem;
+  margin-top: 0.45rem;
+  border: none;
+  border-radius: 0.1rem;
+}
+/* And a point with a dot, for the same reason. */
+#map-legend-panel .legend-class-swatch.is-point,
+#map-legend-panel .legend-swatch.is-point {
+  border-radius: 50%;
+  width: 0.7rem;
+  height: 0.7rem;
+  margin-left: 0.075rem;
+  margin-top: 0.2rem;
+}
 /* A drawn set has no upper bound and this panel does. Past ten shapes the list
    scrolls instead of pushing the basemap and every dataset off the bottom; the
    bar takes the app's cyan from the :root scrollbar-color rule, so there is

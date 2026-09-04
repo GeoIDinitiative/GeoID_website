@@ -24,11 +24,11 @@
  * polygon comes out white with a perfectly correct legend beside it.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260904-e461782";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260904-d676614";
 import {
   RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP, METHODS,
   categoricalSymbology, buildSymbology, colourOf, legendInfoFrom, fmtBound,
-} from "./symbology.js?v=20260904-e461782";
+} from "./symbology.js?v=20260904-d676614";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -576,6 +576,28 @@ export const DEFAULT_SINGLE = "#8ef6c4";
  * three copies of a counting loop is how they start disagreeing about whether
  * a MultiPolygon is one polygon or several.
  */
+/**
+ * What these features ARE, as one word: "polygon", "line" or "point".
+ *
+ * The legend needs it to draw an honest swatch. A filled box is a promise of
+ * area, and a fault, a contact or a coastline has none -- the key beside a line
+ * layer should be a line in the line's colour, the way every printed map has
+ * always done it. Ties go to the kind with the most features rather than to a
+ * fixed order, because a layer of ten thousand contacts with four polygons in
+ * it is a line layer.
+ */
+export function geometryKind(features) {
+  const kinds = { polygon: 0, line: 0, point: 0 };
+  (features || []).forEach((feature) => {
+    const type = feature?.geometry?.type || "";
+    if (type.includes("Polygon")) kinds.polygon += 1;
+    else if (type.includes("LineString")) kinds.line += 1;
+    else if (type.includes("Point")) kinds.point += 1;
+  });
+  const best = Object.entries(kinds).sort((a, b) => b[1] - a[1])[0];
+  return best && best[1] > 0 ? best[0] : null;
+}
+
 export function geometrySummary(features) {
   const kinds = { polygon: 0, line: 0, point: 0 };
   (features || []).forEach((feature) => {

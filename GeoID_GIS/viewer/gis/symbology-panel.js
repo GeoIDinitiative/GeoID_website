@@ -15,7 +15,7 @@ import {
   RAMPS,
   buildSymbology, colourOf, legendInfoFrom, METHODS, RAMP_NAMES,
   categoricalSymbology, suggestCategoryField, QUALITATIVE, QUALITATIVE_RAMP,
-} from "./symbology.js?v=20260904-e461782";
+} from "./symbology.js?v=20260904-d676614";
 
 const HOST_ID = "gis-symbology-host";
 /**
@@ -517,7 +517,20 @@ export function applyImportSymbology(layer, symbology = {}) {
     ];
     const painted = layer.repaint(() => rgb);
     if (painted) {
-      layer.legendInfo = { palette: [colour.replace("#", "")], labels: [layer.name], categorical: true };
+      /**
+       * `classed` as well, or this one row is drawn as a GRADIENT.
+       *
+       * The dock's continuous branch renders a palette as a left-to-right bar
+       * with its two ends labelled -- and with a single colour and no numeric
+       * ends that is a black bar carrying no text at all, which is what a
+       * flat-painted line layer's key had become. One class is still a class.
+       * Every other producer in this tree says so; this was the last that did
+       * not.
+       */
+      layer.legendInfo = {
+        palette: [colour.replace("#", "")], labels: [layer.name],
+        categorical: true, classed: true,
+      };
     }
     window.GeoIDLayerHierarchy?.render?.();
     return { ok: Boolean(painted), graded: false, colour };

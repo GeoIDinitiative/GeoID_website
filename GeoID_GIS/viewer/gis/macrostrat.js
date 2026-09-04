@@ -21,8 +21,9 @@
  * not one line about Macrostrat.
  */
 
-import { decodeTile, tilesForBounds } from "./mvt.js?v=20260904-e461782";
-import { visibleBounds } from "./view-extent.js?v=20260904-e461782";
+import { decodeTile, tilesForBounds } from "./mvt.js?v=20260904-d676614";
+import { geometryKind } from "./symbology-dialog.js?v=20260904-d676614";
+import { visibleBounds } from "./view-extent.js?v=20260904-d676614";
 import * as THREE from "../vendor/three.module.js";
 
 const TILES = "https://tiles.macrostrat.org/carto";
@@ -270,6 +271,14 @@ export function legendFrom(features, { field = "name", count = 12,
     field,
     shown: rows.length,
     total: seen.size,
+    /**
+     * Carried so the key can be drawn in the layer's own idiom -- a stroke for
+     * contacts and faults, a box only where there is area. Taken here because
+     * this is where the features are: a tiled layer's `features` snapshot is
+     * empty by the time the legend is rendered, so the dock cannot work it out
+     * for itself.
+     */
+    geometry: geometryKind(features),
   };
 }
 

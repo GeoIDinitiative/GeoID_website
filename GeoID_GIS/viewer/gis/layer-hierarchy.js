@@ -10,13 +10,15 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { bandOf } from "./draw-order.js?v=20260904-e461782";
-import { currentBody } from "./bodies.js?v=20260904-e461782";
-import { samplerToRaster } from "./raster-analysis.js?v=20260904-e461782";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260904-e461782";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260904-e461782";
-import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260904-e461782";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260904-e461782";
+import { bandOf } from "./draw-order.js?v=20260904-d676614";
+import { currentBody } from "./bodies.js?v=20260904-d676614";
+import { samplerToRaster } from "./raster-analysis.js?v=20260904-d676614";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260904-d676614";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260904-d676614";
+import {
+  openSymbologyDialog, geometrySummary, geometryKind,
+} from "./symbology-dialog.js?v=20260904-d676614";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260904-d676614";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -1189,6 +1191,32 @@ function drawnAreasCard(layers) {
   return card;
 }
 
+/**
+ * The swatch's SHAPE follows the geometry, because a box is a claim of area.
+ *
+ * A fault, a contact, a coastline or a pipeline has none: a filled square
+ * beside "thrust fault" says the colour fills ground, when what it actually
+ * marks is a stroke a few pixels wide. Printed maps have always keyed a line
+ * with a line and an area with a patch, and the reason is the same here --
+ * the key should look like the thing it stands for.
+ *
+ * The kind comes from the legend first (a tiled layer's own `features` array is
+ * empty by the time this runs, so only the legend built from the tiles knows),
+ * then from whatever features the layer is holding.
+ */
+function swatchKind(layer) {
+  return layer?.legendInfo?.geometry
+    || geometryKind(layer?.collection?.features || layer?.features)
+    || null;
+}
+
+/** `is-line` / `is-point` on a swatch; polygons keep the plain box. */
+function shapeSwatch(swatch, kind) {
+  if (kind === "line") swatch.classList.add("is-line");
+  else if (kind === "point") swatch.classList.add("is-point");
+  return swatch;
+}
+
 function buildLayerCard(layer) {
   const name = layer.name || "layer";
   const card = document.createElement("section");
@@ -1224,6 +1252,7 @@ function buildLayerCard(layer) {
   row.className = "legend-symbol-row";
   const swatch = document.createElement("span");
   swatch.className = "legend-swatch";
+  shapeSwatch(swatch, swatchKind(layer));
   swatch.style.background = layerColour(layer);
   row.appendChild(swatch);
   const copyWrap = document.createElement("div");
@@ -1262,7 +1291,10 @@ function buildLayerCard(layer) {
    * named bands rendered as a smooth bar say nothing about where one ends and
    * the next begins, and a class called "Moderate" had nowhere to appear at all.
    */
-  if (info?.classed && Array.isArray(info.palette) && info.palette.length) {
+  // `categorical` counts too: a named set is a list whether or not the producer
+  // remembered to say `classed`, and the cost of forgetting is a rainbow bar
+  // naming none of its own classes.
+  if ((info?.classed || info?.categorical) && Array.isArray(info.palette) && info.palette.length) {
     const block = document.createElement("div");
     block.className = "legend-classes";
     const unitText = info.unit ? ` ${info.unit}` : "";
@@ -1271,6 +1303,7 @@ function buildLayerCard(layer) {
       line.className = "legend-class";
       const swatch = document.createElement("span");
       swatch.className = "legend-class-swatch";
+      shapeSwatch(swatch, swatchKind(layer));
       swatch.style.background = `#${String(colour).replace("#", "")}`;
       const text = document.createElement("span");
       text.className = "legend-class-label";
