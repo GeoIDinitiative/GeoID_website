@@ -3,12 +3,16 @@
  * everywhere.
  *
  * The sibling of `extent-picker.js`, and written because the same three
- * questions were being asked in three vocabularies. The imagery animator asks
- * From / To / one frame per / each year covers through `imagery-tl-*`; the
- * Earth Engine card asks From / To through `gee-date-*` and cannot say a
- * cadence at all; the glacier animator asks none of them because its dates
+ * questions were being asked in three vocabularies. A standalone imagery panel
+ * asked From / To / one frame per / each year covers through its own fields;
+ * the Earth Engine card asks From / To through `gee-date-*` and could not say
+ * a cadence at all; the glacier animator asks none of them, because its dates
  * come out of the archive. Three panels, three spellings of one question, and
- * a reader who learns it in one place learns nothing about the next.
+ * a reader who learned it in one place learned nothing about the next.
+ *
+ * That imagery panel is gone — `time-control.js` puts the question on the card
+ * that already answers "which ground" and "which dataset" — which is what this
+ * module and `time-series.js` between them made possible.
  *
  * WHAT THIS IS AND IS NOT. It is the QUESTION: read the fields, validate them
  * together, hand back one window. It is not the answer — splitting a window
