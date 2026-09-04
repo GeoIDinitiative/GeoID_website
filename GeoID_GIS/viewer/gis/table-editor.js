@@ -24,7 +24,7 @@
  * tiled geology already documents.
  */
 
-import { splitLine } from "./delimited.js?v=20260904-7721c52";
+import { splitLine } from "./delimited.js?v=20260904-0e4b9ad";
 
 const byId = (id) => document.getElementById(id);
 
@@ -521,7 +521,6 @@ function addColumn() {
  */
 async function save() {
   if (!editing) return;
-  const manager = window.GeoIDImportManager;
   const layer = editing.layer;
   /**
    * A delimited layer goes back out AS A FILE OF THE SAME KIND, re-read by
@@ -555,6 +554,28 @@ async function save() {
   button?.setAttribute("disabled", "");
   note("Saving…");
   try {
+    await commitFile(layer, file, editing.delimited);
+    note(`Saved ${saved} row${saved === 1 ? "" : "s"}`
+      + (dropped ? ` · ${dropped} dropped for a missing coordinate` : "") + ".");
+    close();
+  } catch (error) {
+    note(`Could not save: ${error.message}`);
+  } finally {
+    button?.removeAttribute("disabled");
+  }
+}
+
+/**
+ * The file becomes the layer, and everything chosen about the old one carries.
+ *
+ * Extracted from `save` so a single-row edit from the click card takes exactly
+ * this path -- re-read by the same reader, with the same column mapping. Two
+ * ways to write a layer back would be two ways for them to disagree, and only
+ * the one this window used would keep working.
+ */
+async function commitFile(layer, file, delimited) {
+  const manager = window.GeoIDImportManager;
+  {
     const before = new Set((manager?.getLayers?.() || []).map((l) => l.id));
     // frame: false — the layer is already where the user is looking, and
     // flying the camera to its bounds on a save moves the very view the edit
@@ -564,7 +585,7 @@ async function save() {
     await manager?.importFileList?.([file], {
       name: layer.name,
       frame: false,
-      ...(editing.delimited && layer.source?.mapping
+      ...(delimited && layer.source?.mapping
         ? { columns: layer.source.mapping } : {}),
     });
     const added = (manager?.getLayers?.() || []).filter((l) => !before.has(l.id));
@@ -581,17 +602,116 @@ async function save() {
         next.object3D.visible = false;
       }
     });
-    if (added.length) manager?.removeLayer?.(layer.id);
+    if (!added.length) throw new Error("the file was not read back");
+    manager?.removeLayer?.(layer.id);
     window.dispatchEvent(new CustomEvent("geoid-gis:layers-changed"));
     window.GeoIDLayerHierarchy?.render?.();
-    note(`Saved ${saved} row${saved === 1 ? "" : "s"}`
-      + (dropped ? ` · ${dropped} dropped for a missing coordinate` : "") + ".");
-    close();
-  } catch (error) {
-    note(`Could not save: ${error.message}`);
-  } finally {
-    button?.removeAttribute("disabled");
+    return added[0];
   }
+}
+
+/* ── One row, from the click card ────────────────────────────────────────── */
+
+/**
+ * Can a single point of this layer be edited in place?
+ *
+ * Only a DELIMITED import qualifies, and that is the whole gate: `source` is
+ * kept by the CSV reader alone, so a published catalogue, a shapefile or a
+ * tiled geology layer -- none of which this app owns -- cannot be rewritten
+ * from a popup by accident. That is the same line the popup's own editor draws
+ * for drawn shapes, arrived at from the other side.
+ */
+export function canEditRow(layer, feature) {
+  return Boolean(layer?.source?.text && layer.source.mapping
+    && feature?.geometry?.type === "Point");
+}
+
+/**
+ * Which line of the file this point came from.
+ *
+ * The reader keeps file order, so the feature's own id is the row -- but it
+ * SKIPS rows whose coordinates will not parse, and after one of those the two
+ * have drifted apart. So the id is checked against the row's own coordinates
+ * before it is trusted, and a search is the fallback.
+ *
+ * If several rows sit at the same coordinates and the id did not settle it,
+ * this answers -1 rather than guessing. Editing the wrong line of somebody's
+ * file is worse than declining to edit it.
+ */
+export function rowIndexFor(layer, feature) {
+  const mapping = layer?.source?.mapping;
+  const coords = feature?.geometry?.coordinates;
+  if (!mapping || !Array.isArray(coords)) return -1;
+  const grid = gridFrom(layer.source);
+  const [lon, lat] = coords;
+  const near = (cell, want) => Number.isFinite(Number(cell))
+    && Math.abs(Number(cell) - Number(want)) < 1e-9;
+  const matches = (row) => row && near(row[mapping.lon], lon) && near(row[mapping.lat], lat);
+  const id = Number(feature.id);
+  if (Number.isInteger(id) && id >= 0 && matches(grid.rows[id])) return id;
+  const found = [];
+  for (let i = 0; i < grid.rows.length && found.length < 2; i += 1) {
+    if (matches(grid.rows[i])) found.push(i);
+  }
+  return found.length === 1 ? found[0] : -1;
+}
+
+/** What this layer's mapping lets a point offer for editing. */
+export function editableFields(layer) {
+  const mapping = layer?.source?.mapping || {};
+  const grid = gridFrom(layer?.source);
+  const name = (index) => (index >= 0 ? grid.columns[index] : null);
+  return {
+    lon: name(mapping.lon), lat: name(mapping.lat),
+    z: mapping.elev >= 0 ? name(mapping.elev) : null,
+    magnitude: mapping.magnitude >= 0 ? name(mapping.magnitude) : null,
+  };
+}
+
+/**
+ * Rewrite or delete ONE row, then put the file back through the importer.
+ *
+ * `change` of null removes the point. Everything else is a partial: only the
+ * fields present are written, so an edit to a magnitude cannot silently
+ * re-round a coordinate it never touched.
+ *
+ * The whole file is rewritten because that is what the layer IS -- the reader
+ * holds the source text, and the layer is what the reader made of it. Editing
+ * the collection in place instead would leave the file and the map disagreeing
+ * from the first edit onwards, and the next export would write the stale one.
+ */
+export async function applyRowChange(layer, feature, change) {
+  if (!canEditRow(layer, feature)) throw new Error("this layer's points are not editable");
+  const index = rowIndexFor(layer, feature);
+  if (index < 0) {
+    throw new Error("could not tell which row of the file this point is");
+  }
+  const grid = gridFrom(layer.source);
+  if (grid.truncated) {
+    // The grid stops at MAX_ROWS and keeps the rest as `tail`; a row-level edit
+    // still rewrites the whole file, so the tail must ride along untouched.
+    // It does -- textFrom appends it -- but a REMOVE past the cut would not be
+    // found at all, which rowIndexFor has already refused.
+  }
+  const mapping = layer.source.mapping;
+  if (change === null) {
+    grid.rows.splice(index, 1);
+    if (!grid.rows.length && !(grid.tail || []).length) {
+      throw new Error("that is the last point in the file");
+    }
+  } else {
+    const row = grid.rows[index];
+    const put = (column, value) => {
+      if (column < 0 || value === undefined || value === null || value === "") return;
+      row[column] = String(value);
+    };
+    put(mapping.lon, change.lon);
+    put(mapping.lat, change.lat);
+    put(mapping.elev, change.z);
+    put(mapping.magnitude, change.magnitude);
+  }
+  const file = new File([textFrom(grid)], `${layer.name}.csv`, { type: "text/csv" });
+  return commitFile(layer, file, true);
 }
 
 /** Open the table for a layer. */

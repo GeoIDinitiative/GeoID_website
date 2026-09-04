@@ -20,15 +20,18 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260904-7721c52";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260904-7721c52";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260904-0e4b9ad";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260904-0e4b9ad";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20260904-7721c52";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260904-7721c52";
-import { lithologyLabel } from "./lithology-label.js?v=20260904-7721c52";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260904-7721c52";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260904-7721c52";
+} from "./vector-render.js?v=20260904-0e4b9ad";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260904-0e4b9ad";
+import { lithologyLabel } from "./lithology-label.js?v=20260904-0e4b9ad";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260904-0e4b9ad";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260904-0e4b9ad";
+import {
+  canEditRow, editableFields, applyRowChange,
+} from "./table-editor.js?v=20260904-0e4b9ad";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -262,6 +265,22 @@ const STYLE = `
   outline: none;
   border-color: rgba(var(--nav-accent-rgb), 0.85);
 }
+#gis-feature-popup .gis-fp-rowbtns {
+  display: flex;
+  gap: 0.35rem;
+  margin-top: 0.2rem;
+}
+#gis-feature-popup .gis-fp-rowbtns .gis-fp-save { margin-top: 0; flex: 1 1 auto; }
+#gis-feature-popup .gis-fp-danger {
+  background: transparent;
+  color: rgb(255, 138, 138);
+  border: 1px solid rgba(255, 138, 138, 0.55);
+}
+#gis-feature-popup .gis-fp-danger[data-armed="1"] {
+  background: rgb(198, 60, 60);
+  color: #fff;
+  border-color: rgb(198, 60, 60);
+}
 #gis-feature-popup .gis-fp-save {
   margin-top: 0.2rem;
   padding: 0.25rem 0.5rem;
@@ -486,6 +505,133 @@ function orderedEntries(props) {
  * travels into an export and into the project -- metadata that only existed in
  * the viewer would be lost by the first thing that read the file.
  */
+/**
+ * Move or delete THIS point, and write the file it came from.
+ *
+ * The card already knew everything about a point except how to change it: a
+ * typo in a coordinate, a magnitude keyed a decimal out, a station that should
+ * never have been in the survey. The only route was to fix the CSV outside the
+ * app and import it again.
+ *
+ * It rewrites the source file rather than the drawn collection, and goes back
+ * through the ONE importer -- so the file, the map and anything exported from
+ * it cannot drift apart. The layer is rebuilt as a consequence, which is why
+ * the card closes on success: the feature it was describing no longer exists
+ * as an object, even when the point does.
+ *
+ * Offered only where `layer.source` exists, which is the CSV reader's alone.
+ * A shapefile or a published catalogue is somebody else's record and this
+ * card will not rewrite it -- the same line `buildEditor` draws for drawn
+ * shapes, reached from the other side.
+ */
+function buildPointEditor(layerRecord, feature) {
+  const wrap = document.createElement("div");
+  wrap.className = "gis-fp-edit";
+  const said = document.createElement("div");
+  said.className = "gis-fp-said";
+
+  const fields = editableFields(layerRecord);
+  const coords = feature.geometry.coordinates;
+  const props = feature.properties || {};
+
+  const form = document.createElement("div");
+  form.hidden = true;
+  const input = (labelText, value, step) => {
+    const row = document.createElement("label");
+    row.className = "gis-fp-field";
+    const span = document.createElement("span");
+    span.textContent = labelText;
+    const box = document.createElement("input");
+    box.type = "number";
+    box.step = step;
+    box.value = value ?? "";
+    // The viewer takes Space document-wide and blurs whatever has focus, and
+    // arrow keys fly the camera -- both would fight a number field.
+    box.addEventListener("keydown", (e) => e.stopPropagation());
+    row.append(span, box);
+    form.appendChild(row);
+    return box;
+  };
+  const lonBox = input("Lon", coords[0], "any");
+  const latBox = input("Lat", coords[1], "any");
+  const zBox = fields.z ? input(fields.z.slice(0, 8), props[fields.z], "any") : null;
+  const magBox = fields.magnitude && fields.magnitude !== fields.z
+    ? input(fields.magnitude.slice(0, 8), props[fields.magnitude], "any") : null;
+
+  const apply = async (change, working, done) => {
+    said.textContent = working;
+    try {
+      await applyRowChange(layerRecord, feature, change);
+      clearPin();
+      clearHover();
+      hidePopup();
+    } catch (error) {
+      said.textContent = `${done} failed: ${error.message}`;
+    }
+  };
+
+  const saveBtn = document.createElement("button");
+  saveBtn.type = "button";
+  saveBtn.className = "gis-fp-save";
+  saveBtn.textContent = "Save point";
+  saveBtn.hidden = true;
+  saveBtn.addEventListener("click", () => {
+    const num = (box) => (box && box.value !== "" ? Number(box.value) : undefined);
+    const lon = num(lonBox);
+    const lat = num(latBox);
+    if (!Number.isFinite(lon) || !Number.isFinite(lat)
+      || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+      said.textContent = "Longitude must be within ±180 and latitude within ±90.";
+      return;
+    }
+    void apply({ lon, lat, z: num(zBox), magnitude: num(magBox) }, "Saving…", "Save");
+  });
+
+  const editBtn = document.createElement("button");
+  editBtn.type = "button";
+  editBtn.className = "gis-fp-save";
+  editBtn.textContent = "Edit point";
+  editBtn.addEventListener("click", () => {
+    form.hidden = !form.hidden;
+    saveBtn.hidden = form.hidden;
+    editBtn.textContent = form.hidden ? "Edit point" : "Cancel edit";
+    said.textContent = "";
+  });
+
+  /**
+   * Two clicks, because this rewrites a file and there is no undo behind it.
+   * The button says what the second click will do rather than opening a dialog
+   * over a card that is already a dialog.
+   */
+  const removeBtn = document.createElement("button");
+  removeBtn.type = "button";
+  removeBtn.className = "gis-fp-save gis-fp-danger";
+  removeBtn.textContent = "Remove point";
+  let armed = null;
+  removeBtn.addEventListener("click", () => {
+    if (!armed) {
+      armed = setTimeout(() => {
+        armed = null;
+        removeBtn.textContent = "Remove point";
+        removeBtn.removeAttribute("data-armed");
+      }, 4000);
+      removeBtn.dataset.armed = "1";
+      removeBtn.textContent = "Confirm remove";
+      said.textContent = "This rewrites the file. Click again to remove.";
+      return;
+    }
+    clearTimeout(armed);
+    armed = null;
+    void apply(null, "Removing…", "Remove");
+  });
+
+  const buttons = document.createElement("div");
+  buttons.className = "gis-fp-rowbtns";
+  buttons.append(editBtn, removeBtn);
+  wrap.append(buttons, form, saveBtn, said);
+  return wrap;
+}
+
 function buildEditor(layerRecord, feature, titleNode) {
   const wrap = document.createElement("div");
   wrap.className = "gis-fp-edit";
@@ -1359,6 +1505,11 @@ function showPopup(x, y, layerName, feature, layerRecord = null) {
   // be editing the source. So the editor is offered for drawn layers only.
   if (layerRecord?.ext === "drawn") {
     host.appendChild(buildEditor(layerRecord, feature, title));
+  }
+  // A point somebody imported from their own CSV is theirs to correct or
+  // delete; `canEditRow` is what keeps that offer off everybody else's data.
+  if (canEditRow(layerRecord, feature)) {
+    host.appendChild(buildPointEditor(layerRecord, feature));
   }
   if (rows.length > 24) {
     const more = document.createElement("div");
