@@ -18,9 +18,9 @@
  * the displaced surface, and the raster every terrain tool wants as an input.
  */
 
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260904-e8726a8";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260904-e8726a8";
-import * as dem from "./dem-tiles.js?v=20260904-e8726a8";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260904-8aeb134";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260904-8aeb134";
+import * as dem from "./dem-tiles.js?v=20260904-8aeb134";
 
 export const DEM_LAYER_NAME = "Elevation (streamed DEM)";
 
@@ -117,7 +117,26 @@ async function build({ onStatus = () => {} } = {}) {
     if (bounds !== WORLD) await dem.ensure(bounds, { maxTiles: 24 });
     const { band, seen, min, max } = sampleGridOver(bounds, GRID_W, GRID_H);
     if (!seen) return { ok: false, message: "No elevation was streamed for this view." };
-    const result = buildRasterLayer([band], GRID_W, GRID_H, bounds, {
+    /**
+     * IN THE RASTER VOCABULARY, and this is what made the sheet float.
+     *
+     * `buildRasterLayer` and the patch builder under it read
+     * `minX/minY/maxX/maxY`; this module works in `west/south/east/north`.
+     * Handed the wrong one, every lat and lon in the patch loop came out NaN
+     * and `surfacePoint(NaN, NaN)` answers with finite GARBAGE rather than
+     * refusing — so the mesh was built at radii of 0.45, 1.85 and 4.05 against
+     * a globe of 3.2, which is a sheet scattered up to 1,700 km off the ground.
+     * Reported as "it floats well above the surface", and it did.
+     *
+     * The drape's own note warns about exactly this from the other side, where
+     * the same mistake painted nothing at all. Fourth spelling of a box in one
+     * tree, and the only defence is converting at the boundary rather than
+     * hoping.
+     */
+    const rasterBounds = {
+      minX: bounds.west, maxX: bounds.east, minY: bounds.south, maxY: bounds.north,
+    };
+    const result = buildRasterLayer([band], GRID_W, GRID_H, rasterBounds, {
       name: DEM_LAYER_NAME,
       noData: NO_DATA,
       // Declared, never inferred: a height field with few distinct values in a

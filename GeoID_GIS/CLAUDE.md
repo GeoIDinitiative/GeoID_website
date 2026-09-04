@@ -12284,3 +12284,45 @@ Not observed: the settle-triggered REBUILD as the camera descends. The
 machinery is the same `heightAt` that demonstrably prefers finer tiles once
 they are streamed, but the pane's render loop would not advance the zoom for a
 scripted descent — the third time today that has stopped a camera-driven check.
+
+#### It floated because of the box, and `surfacePoint(NaN, NaN)` does not refuse
+
+"It floats well above the surface", and it did: measured on the patch's own
+vertices, radii of **0.45, 1.85 and 4.05 against a globe of 3.2** — a sheet
+scattered up to 1,700 km off the ground.
+
+Nothing about the drape was wrong. `buildDrapedPatch` reads
+`minX/minY/maxX/maxY`; this module works in `west/south/east/north`, and it
+handed over its own. Every lat and lon in the patch loop came out NaN, and
+**`surfacePoint(NaN, NaN)` answers with finite garbage rather than refusing** —
+so the mesh was built, registered, legended and drawn, out of numbers that mean
+nothing. `drape()`'s own note warns about this from the other side, where the
+same mistake paints *nothing at all* and is therefore easier to see.
+
+Converted at the boundary, measured again over 196 vertices against
+`surfacePoint` at the same coordinates: **mean 0.105 m, worst 0.251 m**. That
+is the same touch-tight the raster drapes are held to.
+
+**The fourth spelling of a box in one tree**, and the third time in two days it
+has cost something: the tilers say `west/south/east/north`, a layer's bounds say
+`minX/minY/maxX/maxY`, the viewer says `minLon/minLat/maxLon/maxLat`, and the
+raster builder says `minX/maxY` again. Convert at every boundary; never hope.
+
+#### Elevation is a subject, not a footnote under the basemap
+
+The exaggeration slider, the contour interval and the streamed DEM all describe
+the SHAPE of the ground; the Basemaps catalogue is PICTURES to dress the sphere
+with. The three sat at the foot of that list looking like three unrelated
+controls, and the DEM row was a tick in a catalogue of images that was not one.
+
+**Map ▸ Elevation** holds them now — `#map-elevation-section`, between Basemap
+and Overlays — with the streamed DEM as its own control (`gis/dem-panel.js`, one
+tick and a status line) rather than a catalogue row. The `builds:` seam that
+briefly let a catalogue entry make its own picture went with it: a seam with no
+user is a seam that will be wrong when it finally gets one.
+
+The tick is read back off the LAYER, never remembered in the panel — a tick
+saying yes over a layer that failed to load is the fault the GLiM row already
+cost. Verified after the move: the Elevation sub-tab holds the DEM tick, the
+exaggeration and the contour select; Basemap holds its catalogue and no longer
+holds the slider; and the DEM row is gone from the basemap catalogue.

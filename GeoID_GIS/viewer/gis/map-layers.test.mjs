@@ -30,14 +30,8 @@ check("every entry has a label, a summary and a licence",
 // Every raster is somebody's work and every one of them says whose. A layer
 // that reaches the globe without a credit is a licence breach waiting to be
 // noticed by the person who owns the data.
-/**
- * Where the picture comes from — a file, a shipped texture, or a builder that
- * makes one. The third exists because the streamed DEM is a pyramid rather
- * than an image, and a row that names NONE of the three is a tick that can
- * only fail.
- */
-check("every entry says where its picture comes from",
-  MAP_LAYERS.filter((e) => e.path || e.manifest || e.builds).length, MAP_LAYERS.length);
+check("every entry names where the image comes from",
+  MAP_LAYERS.filter((e) => e.path || e.manifest).length, MAP_LAYERS.length);
 check("every entry sits in a declared group",
   MAP_LAYERS.filter((e) => GROUPS.includes(e.group)).length, MAP_LAYERS.length);
 check("no group is declared and left empty", grouped().length, GROUPS.length);
@@ -64,7 +58,7 @@ check("no overlay restates a base texture",
 // the tab is stacking them.
 check("every overlay arrives partly transparent",
   MAP_LAYERS.filter((e) => e.opacity > 0 && e.opacity <= 0.9).length, MAP_LAYERS.length);
-check("every path resolves", MAP_LAYERS.every((e) => e.path || e.manifest || e.builds), true);
+check("every path resolves", MAP_LAYERS.every((e) => e.path || e.manifest), true);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exitCode = 1;

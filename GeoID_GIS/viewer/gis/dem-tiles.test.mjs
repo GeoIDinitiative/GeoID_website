@@ -228,6 +228,21 @@ check("a pinned tile is never evicted by the view's own", () => {
     "and the eviction loop never sees it");
 });
 
+/**
+ * The sheet is drawn by `buildRasterLayer`, which reads minX/minY/maxX/maxY.
+ * Handed this module's own west/south/east/north, every lat and lon in the
+ * patch loop is NaN and `surfacePoint(NaN, NaN)` answers with finite garbage
+ * rather than refusing — measured, a mesh at radii 0.45 to 4.05 against a
+ * globe of 3.2, which is a sheet up to 1,700 km off the ground.
+ */
+check("the sheet hands the raster builder the raster's own box shape", () => {
+  const src = readFileSync(new URL("./dem-layer.js", import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "");
+  ok(/minX: bounds\.west/.test(src), "converted at the boundary");
+  ok(/buildRasterLayer\(\[band\], GRID_W, GRID_H, rasterBounds/.test(src),
+    "and the converted box is what is passed");
+});
+
 if (failures.length) {
   failures.forEach((f) => console.error(`  x ${f}`));
   console.error(`${failures.length} failed, ${passed} passed`);
