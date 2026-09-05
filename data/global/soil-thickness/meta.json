@@ -1,0 +1,28 @@
+{
+  "id": "soil-thickness",
+  "file": "soil-thickness/soil_thickness_1km.hotlink-ok.tif",
+  "label": "Soil and sediment thickness (Pelletier)",
+  "unit": "m",
+  "range": [
+    0,
+    50
+  ],
+  "noData": 255,
+  "grid": [
+    43200,
+    18000
+  ],
+  "bounds": {
+    "west": -180,
+    "east": 180,
+    "south": -60,
+    "north": 90
+  },
+  "resolutionArcsec": 30,
+  "summary": "Modelled thickness of the permeable layers above bedrock - soil, regolith and sedimentary deposits - averaged across hillslopes and valley bottoms by area and topographic wetness index. Clipped at 60S; 0 to 50 m.",
+  "credit": "Pelletier, J.D. et al. (2016). Global 1-km Gridded Thickness of Soil, Regolith, and Sedimentary Deposit Layers. ORNL DAAC, Oak Ridge, Tennessee, USA.",
+  "doi": "10.3334/ORNLDAAC/1304",
+  "licence": "NASA ORNL DAAC - free to use with citation",
+  "source": "https://doi.org/10.3334/ORNLDAAC/1304",
+  "note": "File 6 of the bundle: a weighted mosaic of the hillslope soil and the valley-bottom/lowland sediment grids. -1 in the source is nodata and is stored here as 255. The name carries `hotlink-ok` because Cloudflare's hotlink protection 403s image extensions from any Referer outside the zone -- which in a browser reads as a bare network failure, not as a 403."
+}

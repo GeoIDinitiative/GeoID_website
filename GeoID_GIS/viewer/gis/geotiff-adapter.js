@@ -1,5 +1,5 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260905-f8b2b19";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260905-75a308f";
 
 // Rasters are resampled onto a mesh grid rather than used at native size: a
 // 4000x4000 DEM would otherwise mean 16M vertices. 192 keeps relief readable
@@ -7,7 +7,17 @@ import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.
 const MAX_GRID = 192;
 const TEXTURE_MAX = 1024;
 
-function loadGeoTiffLibrary() {
+/**
+ * The library, loaded once for everyone.
+ *
+ * Exported because the soil-thickness COG reader needs the same global: the
+ * vendored build is a UMD bundle that attaches to `window.GeoTIFF` and exports
+ * NOTHING as a module, so `import("../vendor/geotiff.js")` resolves to an empty
+ * namespace and `fromUrl` is not a function — measured, and it reads like the
+ * library being broken rather than like the wrong loader. A second script tag
+ * would also fetch 317 kB twice.
+ */
+export function loadGeoTiffLibrary() {
   if (window.GeoTIFF) {
     return Promise.resolve(window.GeoTIFF);
   }

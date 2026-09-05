@@ -50,7 +50,20 @@ CACHE_CONTROL = "public, max-age=31536000, immutable"
 # The two legend sidecars that live inside a pyramid's folder but are NOT tiles:
 # `publish-tiles.py` already uploads them with the pyramid, so they need a
 # fingerprint here and no second upload.
-INSIDE_PYRAMIDS = ("ice/names.json", "ice/thickness.json")
+# Files that live in a SUBDIRECTORY of data/global rather than at its top.
+#
+# Two kinds: sidecars that ride with a pyramid (the ice names and thicknesses),
+# and datasets that are a single large file rather than a tree — the soil
+# thickness COG is 99 MB of Cloud-Optimised GeoTIFF that the page range-reads,
+# so it has no tiles to bake and no manifest of its own. Both need a
+# fingerprint in `sources.json` for the same reason as a loose file: the bucket
+# serves them immutable for a year, and a re-bake at a bare URL would be
+# invisible for all of it.
+NESTED_FILES = (
+    "ice/names.json",
+    "ice/thickness.json",
+    "soil-thickness/soil_thickness_1km.hotlink-ok.tif",
+)
 
 # Never published: the manifests and this file are the metadata that has to be
 # readable BEFORE — and without — the bucket, and README is for a reader of the
@@ -82,6 +95,12 @@ def upload(paths: list[pathlib.Path], remote: str, dry: bool) -> int:
     # pyramid, which is gigabytes of work to say nothing new.
     for p in paths:
         args += ["--include", p.name]
+    # The nested ones by their relative path. `ice/names.json` rides with the
+    # pyramid `publish-tiles` uploads; a single-file dataset like the soil
+    # thickness COG has no pyramid to ride with, so it is named here.
+    for rel in NESTED_FILES:
+        if (GLOBAL / rel).is_file():
+            args += ["--include", rel]
     if dry:
         args.append("--dry-run")
     print(f"  rclone copy -> {remote}  ({len(paths)} files)")
@@ -94,7 +113,7 @@ def write_sources(base: str | None) -> dict:
         files = {}
         for p in loose_files():
             files[p.name] = fingerprint(p)
-        for rel in INSIDE_PYRAMIDS:
+        for rel in NESTED_FILES:
             p = GLOBAL / rel
             if p.is_file():
                 files[rel] = fingerprint(p)

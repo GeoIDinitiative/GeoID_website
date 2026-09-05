@@ -12675,3 +12675,75 @@ material is born with the viewer's own bare colour. Removing it means changing
 that colour in `earth-viewer`, where it is the answer for every missing texture
 rather than just this one — left alone deliberately, and measured so the choice
 is visible.
+
+## Soil and sediment thickness: the one dataset that needed no bake
+
+Pelletier et al. (2016), ORNL DAAC, doi:10.3334/ORNLDAAC/1304 — the modelled
+thickness of the permeable layers above bedrock on a 30-arcsecond grid, 0 to
+50 m, clipped at 60°S. It is the companion to the SLOPE map rather than to the
+soil map it sits beside: FAO says what the soil IS, this says how much there is
+to move.
+
+**It is behind Earthdata Login and no amount of cleverness gets past that.**
+Every `.tif` sits under `/protected/` and a request 302s to
+`urs.earthdata.nasa.gov` — the "200" you get is the login page wearing a `.tif`
+name. The `/public/` tree holds only the documentation PDF, the THREDDS
+catalogue 400s, `webmap.ornl.gov` does not connect, there is no open mirror on
+OpenTopography or Zenodo, and it is not among the 1,142 datasets in the baked
+GEE catalogue. The file arrived because the reader downloaded it.
+
+**File 6 of the six is the one to draw**, and that is a decision rather than a
+default: it is a weighted mosaic of the hillslope soil and valley-bottom
+sediment grids, weighted by area AND topographic wetness index, because all the
+water leaves through the valley bottoms whatever fraction of the ground they
+are. The others are the components and an experimental regolith grid.
+
+### No pyramid, because the file already is one
+
+Everything else global here is cut into tiles — vectors that a browser cannot
+window, or rasters with no other way in. This is **one Cloud-Optimised GeoTIFF
+with seven internal overviews**, the bucket answers byte ranges, and the
+vendored geotiff.js reads the window at the level a view deserves. The work a
+bake would have done is in the file, done by the people who published it.
+
+    gdalwarp -ot Byte -srcnodata -1 -dstnodata 255 -of COG \
+      -co COMPRESS=DEFLATE -co PREDICTOR=2 -co BLOCKSIZE=512 \
+      -co RESAMPLING=AVERAGE -co OVERVIEW_RESAMPLING=AVERAGE ...
+
+**Byte with 255 as nodata, not the source's Int8 with −1.** Values are 0–50 so
+they fit a byte exactly, and `-ot Byte` alone would have CLAMPED −1 to 0 —
+turning "not modelled" into "no soil", silently, over every ocean. `gdalwarp`'s
+`-srcnodata/-dstnodata` is what carries the distinction across. 73 MB in, 99 MB
+out with the overviews; verified against the source at five coordinates before
+it was uploaded (Alps 1 m, London 50, NI 1, Amazon 27, Dead Sea nodata).
+
+Published with `publish-data.py`, which grew a `NESTED_FILES` list: a dataset
+that is a single large file has no pyramid to ride with, and it still needs a
+fingerprint in `sources.json` because the bucket serves it immutable for a year.
+
+### Two walls between the file and the page, and neither says what it is
+
+- **The vendored geotiff.js is a UMD bundle.** `import("../vendor/geotiff.js")`
+  resolves to an EMPTY namespace and the error is `fromUrl is not a function`,
+  which reads as a broken library rather than as the wrong loader. It attaches
+  to `window.GeoTIFF`, and `geotiff-adapter.js` has always had the loader for
+  it — now exported, because a second script tag would fetch 317 kB twice.
+- **Cloudflare's hotlink protection 403s a `.tif` by REFERER.** Measured on the
+  same URL, varying only the Referer: **none → 206, `localhost:8125` → 403,
+  `geoidinitiative.com` → 206**, while a `.json` on the same bucket with the
+  same Referer returns 200. In a browser that 403 carries no CORS header, so it
+  arrives as a bare `TypeError: Failed to fetch`. The object is named
+  `soil_thickness_1km.hotlink-ok.tif` — the same exemption the viewer assets
+  use, applied to a filename rather than a directory.
+
+Verified live over the Alps: a 1,600 × 670 window read from the 94 MB file,
+legend 0–50 m, and the values are the ground rather than a picture of it —
+**Alps 1 m, Rhône valley 16 m, Po valley and Milan 50 m**, which is bare rock
+on the ridges and the basin fill at the model's ceiling.
+
+**And a heredoc ate the backticks in this module's comments.** An unquoted
+`<<EOF` runs command substitution, so every `` `fromUrl` `` and `` `readRasters` ``
+in the prose was executed by the shell and replaced with nothing — the file
+parsed perfectly and its comments had holes. Quote the delimiter (`<<'EOF'`)
+and substitute the stamp afterwards. Same family as the STYLE-literal backtick,
+which this file records five times.

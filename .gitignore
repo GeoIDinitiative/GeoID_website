@@ -245,3 +245,8 @@ GeoID_Earth/assets/earth_geology_sim3292.png
 GeoID_Earth/assets/earth_hillshade.jpg
 GeoID_Earth/assets/earth_slope.jpg
 GeoID_Earth/assets/earth_weather_color_map.jpg
+
+# The soil thickness COG: 99 MB of Cloud-Optimised GeoTIFF, published to the
+# bucket and range-read from there. `meta.json` beside it IS tracked -- it is
+# the credit and the value range, read before any fetch.
+data/global/soil-thickness/*.tif

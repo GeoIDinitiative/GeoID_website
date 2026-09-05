@@ -29,8 +29,8 @@
 
 import {
   HOMES, grouped, addDataset, layerForDataset,
-} from "./global-data.js?v=20260905-f8b2b19";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260905-f8b2b19";
+} from "./global-data.js?v=20260905-75a308f";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260905-75a308f";
 
 const byId = (id) => document.getElementById(id);
 
@@ -124,6 +124,46 @@ const TILED = {
       layer?.tiled?.dispose?.();
       window.GeoIDSoilCover?.remove?.();
       window.GeoIDSoilCover?.say?.("");
+    },
+  },
+  {
+    /**
+     * A COG, not a pyramid — the one dataset here that needed no bake at all.
+     * Its overviews are already in the file and the bucket answers byte
+     * ranges, so the page reads the window and the level a view deserves.
+     */
+    id: "soil-thickness",
+    group: "Global map",
+    label: "Soil and sediment thickness (Pelletier)",
+    title: "Modelled thickness of the permeable layers above bedrock — soil, "
+      + "regolith and sedimentary deposits — on a 1 km grid, 0 to 50 m. Read "
+      + "from a Cloud-Optimised GeoTIFF: the window this view needs, at the "
+      + "resolution it can show.",
+    info: {
+      summary: "How much unconsolidated material sits above bedrock, which is "
+        + "the companion to the slope map rather than to the soil map beside "
+        + "it: FAO says what the soil IS, this says how much there is to "
+        + "move. A MODEL, calibrated against measured soil thickness in the "
+        + "US and Europe and against depth-to-bedrock from US groundwater "
+        + "wells — and a weighted mosaic of its own hillslope and "
+        + "valley-bottom grids, weighted by area and by topographic wetness "
+        + "index, because all the water leaves through the valley bottoms "
+        + "whatever fraction of the ground they are. Clipped at 60°S.",
+      citation: "Pelletier, J.D. et al. (2016), ORNL DAAC — doi:10.3334/ORNLDAAC/1304",
+    },
+    ready: () => true,
+    layerOf: () => (window.GeoIDImportManager?.getLayers?.() || [])
+      .find((l) => l.name === "Soil and sediment thickness (Pelletier)") || null,
+    load: async () => {
+      const mod = await import(`./soil-thickness.js${new URL(import.meta.url).search}`);
+      const out = await mod.addThickness();
+      // The layer is the truth about whether it loaded, never the press.
+      if (!out?.ok) throw new Error(out?.message || "it could not be read");
+      return out.layer;
+    },
+    unload: async () => {
+      const mod = await import(`./soil-thickness.js${new URL(import.meta.url).search}`);
+      mod.removeThickness();
     },
   },
   {
