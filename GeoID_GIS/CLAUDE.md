@@ -12640,3 +12640,38 @@ as a dataset with a format tag; it is the basemap, so it reads
 **"Basemap: Sentinel-2 Cloudless"** and the `layer-kind` span is gone. The word
 it dropped was doing the same job the prefix now does, and doing it in the
 vocabulary of a file format.
+
+#### And the opening is dark now, by request
+
+"Open with a dark globe until Sentinel loads." The two-picture opening is gone:
+the shipped texture is never painted, and the sphere is dark until the mosaic
+is down. Measured on a warm reload, sampling the globe's own material:
+
+| | |
+| --- | --- |
+| 781 ms | the globe appears, bare and SANDY (`#d0b18a`) — the viewer's own no-texture colour |
+| 864 ms | dark (`#0a0f16`), Sentinel-2 selected |
+| 1,317 ms | textured with the mosaic |
+
+**A texture-less globe is sandy, not dark**, which is why the colour has to be
+said at all — `syncBasemapVisibility` sets `0xd0b18a` wherever there is no map.
+The viewer's own change handler puts it back to white the moment a texture
+arrives, so nothing here has to watch for the end of the dark phase.
+
+**The opening and a CHOICE are owed opposite things**, and one flag tells them
+apart: the app's own opening swap leaves the sphere dark, while somebody
+choosing a service keeps the map they were looking at until the new tiles are
+down. That hold is why the two-picture opening existed in the first place — it
+is right for a choice and wrong for a launch.
+
+**And never permanently dark.** A service that does not answer restores the
+shipped texture after 12 s, and one that fails outright restores it at once —
+without that, the failure path swaps a two-picture opening for a black planet
+for the life of the page, which is a worse trade than the one being fixed.
+
+What is left is an **80 ms sandy flash** between the globe appearing and the
+swap: the poll that darkens it cannot run before the material exists, and the
+material is born with the viewer's own bare colour. Removing it means changing
+that colour in `earth-viewer`, where it is the answer for every missing texture
+rather than just this one — left alone deliberately, and measured so the choice
+is visible.

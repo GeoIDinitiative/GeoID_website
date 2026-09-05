@@ -219,6 +219,28 @@ check("60 N is pulled toward the equator by the reprojection",
     allowed.includes(`"${shipped}"`), `${shipped} not in ${allowed}`);
   check("the default the globe settles on is the streamed one",
     /const DEFAULT_TILE_SOURCE = "Sentinel-2 Cloudless"/.test(drape));
+
+  /**
+   * The opening shows NOTHING until the imagery is down, which is the opposite
+   * of what a user's own choice of service is owed: that one keeps the map
+   * being looked at while the tiles come. One flag tells them apart.
+   */
+  check("the app's own opening swap is marked as such",
+    /openingSwap = true;/.test(drape));
+  check("and the opening leaves the sphere dark rather than holding a texture",
+    /if \(opening\) \{[\s\S]{0,400}darkenGlobe\(\);/.test(drape));
+  check("a chosen service still holds the map you were looking at",
+    /\} else \{[\s\S]{0,600}select\.value = showing;/.test(drape));
+
+  /**
+   * And never permanently: a service that does not answer would otherwise
+   * leave a dark planet for the life of the page, which is worse than the
+   * two-picture opening this replaces.
+   */
+  check("a service that does not answer gives the shipped texture back",
+    /OPENING_GRACE_MS/.test(drape) && /did not answer/.test(drape));
+  check("and so does one that fails outright",
+    /if \(opening\) select\.dispatchEvent/.test(drape));
 }
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");

@@ -37,12 +37,12 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260905-85a32d1";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260905-85a32d1";
-import { isEarth } from "./bodies.js?v=20260905-85a32d1";
-import { streamRings, cacheStats } from "./tile-streamer.js?v=20260905-85a32d1";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260905-f8b2b19";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260905-f8b2b19";
+import { isEarth } from "./bodies.js?v=20260905-f8b2b19";
+import { streamRings, cacheStats } from "./tile-streamer.js?v=20260905-f8b2b19";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260905-85a32d1";
+  from "./view-extent.js?v=20260905-f8b2b19";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -728,6 +728,33 @@ const DEFAULT_TILE_SOURCE = "Sentinel-2 Cloudless";
  */
 const SHIPPED_DEFAULT_ID = "earth-visible";
 
+/**
+ * THE OPENING IS DARK, not a texture the app is about to replace.
+ *
+ * Asked for directly: "open with a dark globe until Sentinel loads". The
+ * alternative was two pictures on the way in — the shipped texture for a
+ * second and a half, then the mosaic over the top — and the switch is what
+ * gets noticed rather than the wait.
+ *
+ * A texture-less globe is SANDY here, not dark (`syncBasemapVisibility` sets
+ * 0xd0b18a where there is no map), so the colour has to be said. The viewer's
+ * own change handler puts it back to white the moment a texture arrives, which
+ * is what ends the dark phase without anything here watching for it.
+ */
+const OPENING_DARK = 0x0a0f16;
+
+/** Long enough for a cold fetch, short enough that nobody sits in the dark. */
+const OPENING_GRACE_MS = 12000;
+
+let openingSwap = false;
+
+function darkenGlobe() {
+  const material = window.GeoIDViewer?.globe?.material;
+  if (!material?.color) return;
+  material.color.set(OPENING_DARK);
+  material.needsUpdate = true;
+}
+
 function applyDefaultBasemap() {
   if (defaultApplied) return;
   const select = document.getElementById("base-layer-select");
@@ -744,6 +771,10 @@ function applyDefaultBasemap() {
    */
   if (select.value !== SHIPPED_DEFAULT_ID) { defaultApplied = true; return; }
   defaultApplied = true;
+  // Marked so the watcher below knows this swap is the app's own opening and
+  // not somebody choosing a service, which are owed opposite things: the
+  // opening leaves the sphere dark, a choice keeps the map you were looking at.
+  openingSwap = true;
   select.value = id;
   select.dispatchEvent(new Event("change", { bubbles: true }));
 }
@@ -764,6 +795,19 @@ function initWhenReady() {
         onStatus: (m) => { if (status) status.textContent = m; },
       });
       selectionWatched = true;
+    }
+    /**
+     * DARK FROM THE FIRST FRAME THE VIEWER DRAWS, not from the swap.
+     *
+     * The swap lands about a tenth of a second after the globe first appears,
+     * and in between the sphere wears the viewer's own bare colour -- sandy,
+     * 0xd0b18a. Measured on a reload: bare sandy at 839 ms, dark at 939 ms. A
+     * hundred milliseconds of the wrong planet is still the wrong planet, and
+     * this costs one colour write on the passes before the options exist.
+     */
+    if (!defaultApplied && document.getElementById("base-layer-select")?.value === SHIPPED_DEFAULT_ID
+      && !window.GeoIDViewer?.globe?.material?.map) {
+      darkenGlobe();
     }
     // After the watcher, never before: selecting a tile layer nothing is
     // listening for is how the planet goes bare.
@@ -1163,13 +1207,37 @@ export function watchBaseLayerSelection({ onStatus } = {}) {
     if (!source) { showing = id; return; }
 
     loading = true;
-    // Hold the current map on screen. Setting `.value` is not enough: the
-    // viewer's own change listener is registered first and has already run,
-    // seen a layer with no texture, and set the sphere's map to null -- so the
-    // planet is bare ground by the time we get here. Re-dispatching is what
-    // puts the previous texture back while the tiles are on their way.
-    select.value = showing;
-    select.dispatchEvent(new Event("change", { bubbles: true }));
+    const opening = openingSwap;
+    openingSwap = false;
+    let rescue = null;
+    if (opening) {
+      /**
+       * THE OPENING SHOWS NOTHING until the imagery is down. The viewer's own
+       * listener has already set the sphere's map to null on the way in; all
+       * that is left is to make the bare sphere dark rather than sandy.
+       */
+      darkenGlobe();
+      /**
+       * And never permanently. A service that does not answer would otherwise
+       * leave a dark planet for the life of the page, which is worse than the
+       * two-picture opening this replaces.
+       */
+      rescue = setTimeout(() => {
+        if (loaded.has(id)) return;
+        showing = SHIPPED_DEFAULT_ID;
+        select.value = SHIPPED_DEFAULT_ID;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+        onStatus?.(`${source} did not answer — showing the shipped texture.`);
+      }, OPENING_GRACE_MS);
+    } else {
+      // Hold the current map on screen. Setting `.value` is not enough: the
+      // viewer's own change listener is registered first and has already run,
+      // seen a layer with no texture, and set the sphere's map to null -- so
+      // the planet is bare ground by the time we get here. Re-dispatching is
+      // what puts the previous texture back while the tiles are on their way.
+      select.value = showing;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    }
     onStatus?.(`Loading ${source}…`);
     try {
       const out = await installBaseLayer(source, {
@@ -1183,8 +1251,13 @@ export function watchBaseLayerSelection({ onStatus } = {}) {
         + `(${Math.round(out.metresPerPixel / 1000)} km/px).`);
     } catch (error) {
       select.value = showing;
+      // On the opening the sphere is DARK rather than holding a previous map,
+      // so putting the value back is not enough -- without the dispatch the
+      // planet stays black on the one path where something went wrong.
+      if (opening) select.dispatchEvent(new Event("change", { bubbles: true }));
       onStatus?.(`${source} could not be loaded: ${error.message}`);
     } finally {
+      if (rescue) clearTimeout(rescue);
       loading = false;
     }
   };
