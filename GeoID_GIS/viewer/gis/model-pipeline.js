@@ -1,9 +1,9 @@
 import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
-  nativeStepM,
-} from "./model-build.js?v=20260905-ffb0892";
-import { ringsFromCollection } from "./extraction.js?v=20260905-ffb0892";
+  nativeStepM, sizeField, structuredFieldText,
+} from "./model-build.js?v=20260905-f386166";
+import { ringsFromCollection } from "./extraction.js?v=20260905-f386166";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -52,6 +52,7 @@ const ROLE_OPTIONS = [
   { id: "boundary", label: "Boundary condition" },
   { id: "material", label: "Material region" },
   { id: "points", label: "Embedded points" },
+  { id: "refine", label: "Refine the mesh here" },
 ];
 
 const SURFACES = ["top", "base", "north", "south", "east", "west"];
@@ -62,6 +63,12 @@ const state = {
   pointDepth: new Map(),
   resolution: { mode: "native", stepM: 100 },
   nativeStepM: null,
+  demReady: null,
+  // Per-layer element size for the layers given the "refine" role.
+  refineSize: new Map(),
+  // Elements where the ground needs them: coarse away from the action, fine on
+  // the slopes, and finer still inside a region somebody names.
+  grading: { on: true, coarseM: 0, fineM: 0, slopeRefDeg: 30, remeshSurface: false },
   surface: null,
   domain: { type: "solid", depthM: 5000, materials: {} },
   conditions: [],
@@ -104,6 +111,30 @@ function elevationReader() {
       },
     };
   }
+  /**
+   * THE STREAMED PYRAMID, AT THE FINEST LEVEL THIS AREA CAN HAVE.
+   *
+   * `sampleElevationMeters` answers from whatever the DEM happens to hold,
+   * which is whatever the VIEW asked for — so a model built while zoomed out
+   * was carved from zoom-6 posts however small its study area, and nothing
+   * said so. A study area is a different question from a glance: it is the
+   * thing being asked about, and it deserves the source's own ceiling.
+   *
+   * `ensureBestDem` (below) loads that before the surface is sampled; this
+   * reads through `heightAt`, which is the pyramid's own answer rather than
+   * the viewer's interpolation of it. The viewer's sampler stays as the
+   * fallback, for a body with no streamed DEM at all.
+   */
+  const dem = window.GeoIDDem;
+  if (dem?.heightAt && state.demReady) {
+    return {
+      name: `${state.demReady.label} (streamed DEM)`,
+      read: (lat, lon) => {
+        const value = dem.heightAt(lat, lon);
+        return Number.isFinite(value) ? value : NaN;
+      },
+    };
+  }
   const v = viewer();
   if (!v?.sampleElevationMeters) return null;
   return {
@@ -114,6 +145,52 @@ function elevationReader() {
       return Number.isFinite(value) ? value : NaN;
     },
   };
+}
+
+/**
+ * Load the finest DEM this study area can be given, and say what it is.
+ *
+ * The zoom is chosen by the AREA rather than by a budget borrowed from the
+ * view: `plan` reports the level a tile count buys, and a model is worth more
+ * tiles than a glance. What comes back is the level actually loaded and the
+ * ground spacing of its posts, which is the number the Surface step should be
+ * quoting when it says how fine a grid is worth building.
+ */
+async function ensureBestDem(bounds) {
+  const dem = window.GeoIDDem;
+  if (!dem?.ensure || !bounds) { state.demReady = null; return null; }
+  try {
+    /**
+     * MORE TILES, NOT A HIGHER CEILING.
+     *
+     * A study area is worth many more tiles than a glance, so the budget goes
+     * up — but the CAP stays the pyramid's own. `dem-tiles` measured where the
+     * information runs out (z13 carries 7.69 m RMS of real detail, z14 1.26,
+     * z15 0.74 — "interpolation, nothing more"), and its cap is one past that
+     * on purpose. Asking for z15 would quadruple the tiles to buy the
+     * publisher's own resampling, and would let this step report 2.8 m posts
+     * over ground surveyed at 30.
+     */
+    const out = await dem.ensure(bounds, { maxTiles: 256 });
+    if (!out?.ok) { state.demReady = null; return null; }
+    const lat = (bounds.south + bounds.north) / 2;
+    const metres = dem.metresPerPixel(out.zoom, lat);
+    // Past z13 the levels are the source's own resampling of 30 m data, and a
+    // spacing quoted without that reads as a survey nobody made.
+    const interpolated = out.zoom > 13;
+    state.demReady = {
+      zoom: out.zoom,
+      postM: metres,
+      interpolated,
+      tiles: out.tiles ?? null,
+      label: `zoom ${out.zoom}, ${metres < 10 ? metres.toFixed(1) : Math.round(metres)} m posts`
+        + (interpolated ? " (resampled from ~30 m source data)" : ""),
+    };
+    return state.demReady;
+  } catch (error) {
+    state.demReady = null;
+    return null;
+  }
 }
 
 /**
@@ -432,6 +509,44 @@ function stepLayers(body) {
   body.appendChild(probe);
 }
 
+/**
+ * A REFINE REGION is a layer somebody points at, not a number they type.
+ *
+ * The study already holds polygons — a landslide scar, a dam footprint, a
+ * catchment — and the mesh should be finer inside them. Their bounding box in
+ * the model's own local metres is what `Field.Box` wants; the box rather than
+ * the outline, for the same reason the domain is a box, which is that a mesh
+ * graded to a hand-drawn jag inherits the jag as slivers.
+ */
+function refineRegions(grid) {
+  if (!grid?.frame) return [];
+  const out = [];
+  loadedLayers().forEach((layer) => {
+    if (state.roles.get(String(layer.id)) !== "refine") return;
+    const rings = ringsFromCollection(layer.collection || { features: layer.features || [] });
+    if (!rings?.length) return;
+    let xMin = Infinity;
+    let xMax = -Infinity;
+    let yMin = Infinity;
+    let yMax = -Infinity;
+    rings.forEach((ring) => ring.forEach(([lon, lat]) => {
+      const local = grid.frame.toLocal(lat, lon);
+      if (local.x < xMin) xMin = local.x;
+      if (local.x > xMax) xMax = local.x;
+      if (local.y < yMin) yMin = local.y;
+      if (local.y > yMax) yMax = local.y;
+    }));
+    if (!Number.isFinite(xMin) || xMax <= xMin) return;
+    const size = Number(state.refineSize?.get(String(layer.id)));
+    out.push({
+      name: layer.name || "refine region",
+      xMin, xMax, yMin, yMax,
+      sizeM: Number.isFinite(size) && size > 0 ? size : undefined,
+    });
+  });
+  return out;
+}
+
 function defaultRole(layer) {
   if (layer.source?.text || (layer.collection?.features || [])
     .every((f) => f?.geometry?.type === "Point")) {
@@ -491,38 +606,58 @@ function stepSurface(body) {
   const build = el("button", "tool-button", "Build surface");
   build.type = "button";
   build.addEventListener("click", () => {
-    if (!reader) {
+    if (!reader && !window.GeoIDDem?.ensure) {
       report("surface", "No elevation source to sample.");
       return;
     }
-    report("surface", "Sampling…");
-    window.requestAnimationFrame(() => {
-      // Read at PRESS time, never from the render that drew the button: the
-      // native measurement in step 2 happens after this card is built, and a
-      // closed-over step silently sampled at the pre-measurement resolution.
+    report("surface", "Loading the finest DEM for this area…");
+    void (async () => {
+      /**
+       * THE DEM IS CLIPPED BEFORE IT IS SAMPLED, and at this area's own
+       * ceiling rather than the view's. A model built while zoomed out used to
+       * be carved from whatever posts the glance had loaded, and said nothing.
+       */
+      const best = await ensureBestDem(state.bounds?.bbox);
       const live = resolutionPlan();
-      const grid = buildSurface({
-        bounds: state.bounds.bbox,
-        stepM: live.stepM,
-        radiusKm: bodyRadiusKm(),
-        sampleElevation: reader.read,
-      });
-      if (!grid.ok) {
-        state.surface = null;
-        report("surface", grid.message);
+      const source = elevationReader();
+      if (!source) {
+        report("surface", "No elevation source to sample.");
         render();
         return;
       }
-      state.surface = grid;
-      state.outputs = null;
-      const skin = stlStats(surfaceStl(grid));
-      report("surface", `${grid.nx} × ${grid.ny} nodes, ${fmt(grid.stepXm)} m spacing,`
-        + ` elevation ${fmt(grid.zMin)} to ${fmt(grid.zMax)} m`
-        + ` (relief ${fmt(grid.reliefM)} m) — ${skin.triangles.toLocaleString()} triangles`
-        + `${grid.filledNodes ? `, ${grid.filledNodes} node(s) filled with the area mean` : ""}.`);
-      state.open = "domain";
-      render();
-    });
+      report("surface", best
+        ? `Sampling ${best.label}…` : "Sampling…");
+      window.requestAnimationFrame(() => {
+      // Read at PRESS time, never from the render that drew the button: the
+      // native measurement in step 2 happens after this card is built, and a
+      // closed-over step silently sampled at the pre-measurement resolution.
+        const grid = buildSurface({
+          bounds: state.bounds.bbox,
+          stepM: live.stepM,
+          radiusKm: bodyRadiusKm(),
+          sampleElevation: source.read,
+        });
+        if (!grid.ok) {
+          state.surface = null;
+          report("surface", grid.message);
+          render();
+          return;
+        }
+        state.surface = grid;
+        state.outputs = null;
+        const skin = stlStats(surfaceStl(grid));
+        report("surface", `${grid.nx} × ${grid.ny} nodes, ${fmt(grid.stepXm)} m spacing,`
+          + ` elevation ${fmt(grid.zMin)} to ${fmt(grid.zMax)} m`
+          + ` (relief ${fmt(grid.reliefM)} m) — ${skin.triangles.toLocaleString()} triangles`
+          + `${grid.filledNodes ? `, ${grid.filledNodes} node(s) filled with the area mean` : ""}`
+          + `${grid.repairedNodes
+            ? `, ${grid.repairedNodes} source hole(s) repaired`
+              + ` (worst ${fmt(grid.repairWorstM)} m)` : ""}`
+          + `${best ? `, from ${best.label}` : ""}.`);
+        state.open = "domain";
+        render();
+      });
+    })();
   });
   body.appendChild(build);
 
@@ -742,6 +877,25 @@ function modelName() {
     .replace(/^_+|_+$/g, "")}`.slice(0, 48);
 }
 
+/** What the grading will actually do to this surface, before it is built. */
+function sizeFieldPreview() {
+  const grid = state.surface;
+  if (!grid) return null;
+  const base = Number(state.meshSizeM) || Math.round(grid.stepXm * 2);
+  const field = sizeField(grid, {
+    coarseM: Number(state.grading.coarseM) > 0 ? Number(state.grading.coarseM) : base,
+    fineM: Number(state.grading.fineM) > 0 ? Number(state.grading.fineM) : base / 4,
+    slopeRefDeg: Number(state.grading.slopeRefDeg) || 30,
+  });
+  if (!field) return null;
+  if (field.minM === field.maxM) {
+    return `This ground is flat enough that the field is one size, ${fmt(field.maxM)} m —`
+      + " grading it would change nothing.";
+  }
+  return `${fmt(field.minM)} to ${fmt(field.maxM)} m across the study, steepest`
+    + ` slope ${fmt(field.steepestDeg)}°.`;
+}
+
 function stepBuild(body) {
   const runField = el("input", "input");
   runField.id = "gis-mb-run";
@@ -749,10 +903,68 @@ function stepBuild(body) {
   runField.addEventListener("input", () => { state.runName = runField.value; });
   body.appendChild(row("Run name", runField));
 
-  const sizeField = number("gis-mb-meshsize", state.meshSizeM
+  const sizeInput = number("gis-mb-meshsize", state.meshSizeM
     || Math.round((state.surface?.stepXm || 100) * 2), 10);
-  body.appendChild(row("Mesh element size (m)", sizeField));
-  sizeField.addEventListener("input", () => { state.meshSizeM = Number(sizeField.value); });
+  body.appendChild(row("Mesh element size (m)", sizeInput));
+  sizeInput.addEventListener("input", () => {
+    state.meshSizeM = Number(sizeInput.value);
+    state.outputs = null;
+  });
+
+  /**
+   * GRADING: one size for a study area spends the same elements on a plateau
+   * as on the headwall above it. These say how much finer the slopes get, and
+   * what counts as steep.
+   */
+  const gradeOn = el("input", null);
+  gradeOn.type = "checkbox";
+  gradeOn.id = "gis-mb-grade";
+  gradeOn.checked = state.grading.on !== false;
+  gradeOn.addEventListener("change", () => {
+    state.grading.on = gradeOn.checked;
+    state.outputs = null;
+    render();
+  });
+  body.appendChild(row("Finer mesh on slopes", gradeOn));
+
+  if (state.grading.on !== false) {
+    const base = Number(state.meshSizeM) || Math.round((state.surface?.stepXm || 100) * 2);
+    const coarse = number("gis-mb-grade-coarse", state.grading.coarseM || base, 10);
+    coarse.addEventListener("input", () => {
+      state.grading.coarseM = Number(coarse.value); state.outputs = null;
+    });
+    body.appendChild(row("Size on flat ground (m)", coarse));
+
+    const fine = number("gis-mb-grade-fine", state.grading.fineM || Math.round(base / 4), 5);
+    fine.addEventListener("input", () => {
+      state.grading.fineM = Number(fine.value); state.outputs = null;
+    });
+    body.appendChild(row("Size on steep ground (m)", fine));
+
+    const ref = number("gis-mb-grade-slope", state.grading.slopeRefDeg || 30, 1);
+    ref.addEventListener("input", () => {
+      state.grading.slopeRefDeg = Number(ref.value); state.outputs = null;
+    });
+    body.appendChild(row("Slope counted as steep (°)", ref));
+
+    const remesh = el("input", null);
+    remesh.type = "checkbox";
+    remesh.id = "gis-mb-grade-remesh";
+    remesh.checked = Boolean(state.grading.remeshSurface);
+    remesh.addEventListener("change", () => {
+      state.grading.remeshSurface = remesh.checked; state.outputs = null;
+    });
+    body.appendChild(row("Regrade the ground too (slower)", remesh));
+    body.appendChild(el("p", "tool-copy",
+      "Without this the field grades the volume and the ground keeps the STL's"
+      + " own spacing — an STL is a discrete surface, and its triangles are the"
+      + " mesh until gmsh rebuilds them as geometry."));
+
+    if (state.surface) {
+      const preview = sizeFieldPreview();
+      if (preview) body.appendChild(el("div", "gis-metric", preview));
+    }
+  }
 
   const build = el("button", "tool-button", "Build model package");
   build.type = "button";
@@ -804,13 +1016,33 @@ async function writePackage() {
   const domain = domainStl(grid, { depthM: state.domain.depthM, name });
   const stats = stlStats(domain.text);
   const points = embeddedPoints();
+  /**
+   * THE SIZE FIELD, on the same lattice the terrain was sampled on.
+   *
+   * Written as a third file beside the STL and the script, because gmsh's
+   * `Field.Structured` reads one from disk — and because a background field
+   * that lives in the package is a fact about the mesh anybody can check,
+   * rather than a number buried in a script.
+   */
+  const grading = state.grading || {};
+  const field = grading.on === false ? null : sizeField(grid, {
+    coarseM: Number(grading.coarseM) > 0 ? Number(grading.coarseM) : meshSizeM,
+    fineM: Number(grading.fineM) > 0 ? Number(grading.fineM) : meshSizeM / 4,
+    slopeRefDeg: Number(grading.slopeRefDeg) || 30,
+  });
+  const fieldFile = field ? `${name}_size.dat` : null;
   const script = gmshScript({
     name,
     stlFile: `${name}_domain.stl`,
     meshFile: `${name}.msh`,
     meshSizeM,
-    minSizeM: Math.max(meshSizeM / 8, 1),
+    // With a field, the floor is the field's own smallest size: a MeshSizeMin
+    // above it would quietly overrule the refinement it was asked for.
+    minSizeM: field ? Math.max(field.minM * 0.5, 1) : Math.max(meshSizeM / 8, 1),
     embedPoints: points,
+    sizeFieldFile: fieldFile,
+    refineBoxes: refineRegions(grid),
+    remeshSurface: Boolean(grading.remeshSurface),
   });
 
   const spec = femSpec({
@@ -837,8 +1069,22 @@ async function writePackage() {
       base_z_m: domain.baseZ,
       nodes: grid.nodes,
       filled_nodes: grid.filledNodes,
+      repaired_nodes: grid.repairedNodes,
+      repair_worst_m: grid.repairWorstM,
       surface_triangles: stats.triangles,
       watertight: stats.closed,
+      dem: state.demReady ? {
+        zoom: state.demReady.zoom,
+        post_spacing_m: state.demReady.postM,
+        resampled_beyond_source: Boolean(state.demReady.interpolated),
+      } : null,
+      mesh_grading: field ? {
+        coarse_m: field.coarseM, fine_m: field.fineM,
+        slope_reference_deg: field.slopeRefDeg,
+        steepest_deg: field.steepestDeg,
+        size_range_m: [field.minM, field.maxM],
+        surface_remeshed: Boolean(grading.remeshSurface),
+      } : null,
       embedded_points: points.map((p) => ({
         name: p.name, layer: p.layer, lat: p.lat, lon: p.lon,
         x: p.x, y: p.y, z: p.z, depth_below_surface_m: p.depthM,
@@ -850,12 +1096,14 @@ async function writePackage() {
     },
   });
 
-  state.outputs = { script, spec, domainText: domain.text, files: [] };
+  const fieldText = field ? structuredFieldText(field) : null;
+  state.outputs = { script, spec, domainText: domain.text, fieldText, fieldFile, files: [] };
 
   const store = window.GeoIDResearch?.store;
   const project = store?.getActive?.();
   if (!project) {
     downloadText(`${name}_domain.stl`, domain.text);
+    if (fieldText) downloadText(fieldFile, fieldText);
     downloadText(`${name}_gmsh.py`, script, "text/x-python");
     downloadText(`${run}_spec.json`, JSON.stringify(spec, null, 2), "application/json");
     state.outputs.files = ["downloads (no project open)"];
@@ -871,11 +1119,13 @@ async function writePackage() {
     // mesh belongs beside it.
     await store.writeProjectFile(`meshes/${name}_surface.stl`, surfaceStl(grid, name));
     await store.writeProjectFile(`meshes/${name}_domain.stl`, domain.text);
+    if (fieldText) await store.writeProjectFile(`meshes/${fieldFile}`, fieldText);
     await store.writeProjectFile(`meshes/${name}_gmsh.py`, script);
     await store.writeProjectFile(`fem_runs/${run}/spec.json`, JSON.stringify(spec, null, 2));
     state.outputs.files = [
       `meshes/${name}_surface.stl`,
       `meshes/${name}_domain.stl`,
+      ...(fieldText ? [`meshes/${fieldFile}`] : []),
       `meshes/${name}_gmsh.py`,
       `fem_runs/${run}/spec.json`,
     ];

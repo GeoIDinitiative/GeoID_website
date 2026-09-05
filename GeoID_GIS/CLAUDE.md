@@ -13186,3 +13186,77 @@ taking the strength:
 Peat rather than the soil map's clay, because a 1:625,000 mapped deposit beats
 a texture inferred from a 1:5,000,000 unit — and the card says which, because
 those are not the same claim.
+
+### The Model Builder: elements where the ground needs them
+
+Most of the pipeline was already there — six steps, a role per layer, a
+watertight terrain-plus-skirt-plus-base STL, embedded points, and physical
+groups named `top`/`base`/`north`/`south`/`east`/`west`/`domain` that the
+conditions step writes boundary conditions against. Three things were missing.
+
+#### The DEM was whatever the view had loaded
+
+`sampleElevationMeters` answers from the pyramid's current contents, which is
+whatever the VIEW asked for — so a model built while zoomed out was carved from
+zoom-6 posts however small its study area, and nothing said so. The Surface
+step now clips first: `ensureBestDem` loads the study bounds before sampling
+and reads through `heightAt`, the pyramid's own answer rather than the viewer's
+interpolation of it.
+
+**More tiles, not a higher ceiling.** The budget goes from 48 to 256 because a
+study area is worth more than a glance, but the CAP stays `INFO_ZOOM`.
+`dem-tiles` measured where the information runs out — z13 carries 7.69 m RMS of
+real detail, z14 1.26, z15 **0.74, "interpolation, nothing more"** — so asking
+for z15 would quadruple the tiles to buy the publisher's own resampling and let
+this step report 2.8 m posts over ground surveyed at 30. Verified over the
+Mournes: zoom 14, 5.6 m posts, 850 m at Slieve Donard, six seconds.
+
+#### A hole in the source is not a landform
+
+`dem-tiles` despikes each tile as it decodes and **cannot catch a block**: its
+test is that a post's neighbours disagree with it, which fails when they are
+bad too. Measured over the Mournes at zoom 14, a void two posts wide and four
+tall — reading −448 to −3,042 m against ground at 4 to 13 — arrived in the
+model grid as one node at **−3,173 m**. The relief read 4 km, and the new mesh
+grading promptly spent its finest elements on the **88°** walls of a pit that
+is not there.
+
+On the model's own grid the block is a single node, because the grid is coarser
+than the source's posts, so a median of the eight neighbours finds it exactly.
+The tolerance scales with the spacing: at 57 m a 325 m step between nodes is an
+80° wall and therefore a hole; at a kilometre the same step is a mountainside
+and is left alone. Where the grid is too coarse to tell one from the other this
+does nothing, which is the honest behaviour rather than a failure. Verified on
+the real artifact: **1 node repaired, worst 3,187 m**, elevation −9 to 850
+instead of −3,173 to 850, steepest slope 46.5° instead of 88°.
+
+#### One mesh size for a study area is the wrong shape
+
+It spends the same element count on a plateau as on the headwall above it.
+`sizeField` computes a target size per node on the same lattice the terrain was
+sampled on — no second sampling, no registration to get wrong — and
+`structuredFieldText` writes it as gmsh's `Field.Structured`, a third file
+beside the STL and the script.
+
+The map from slope to size is linear in the **tangent**, not the angle: tan is
+the rise the mesh has to resolve across a cell, and it separates 30° from 45°
+the way degrees do not (0.58 against 1.0, where the angles are only a third
+apart).
+
+Three things have to be true together or the field is written and ignored —
+and the mesh still builds, which is why this is worth naming:
+
+- **`setAsBackgroundMesh`**, or the field is computed and no element consults it.
+- **gmsh's own size sources off.** `MeshSizeExtendFromBoundary`,
+  `MeshSizeFromPoints` and `MeshSizeFromCurvature` all default to on and win in
+  exactly the places the field was written for — the terrain's own rim.
+- **`createGeometry`** to regrade the ground. An STL merged and classified is a
+  DISCRETE surface: its triangles ARE the mesh, so a field can otherwise only
+  refine the volume underneath while the ground keeps whatever spacing the STL
+  was written at. It is optional because it is also the slow step.
+
+Refine regions come from a layer given the new `refine` role — a landslide
+scar, a dam footprint — as a `Field.Box` with a taper, because a hard edge to a
+refined box is a column of bad tetrahedra along it. `Field.Min` combines them,
+so a box inside a coarse area refines it and the background field cannot undo
+a box. Measured over the Mournes: 25 m on the slopes against 200 m on the flat.

@@ -6,8 +6,9 @@
  * invariant no picture can show: a closed surface has no open edges.
  */
 import {
-  metresPerDegreeLat, makeLocalFrame, planGrid, buildSurface,
+  metresPerDegreeLat, metresPerDegreeLon, makeLocalFrame, planGrid, buildSurface,
   surfaceStl, domainStl, stlStats, gmshScript, femSpec, DOMAIN_PHYSICS,
+  sizeField, structuredFieldText, despikeGrid,
 } from "./model-build.js";
 
 let failures = 0;
@@ -172,6 +173,156 @@ check("the grid is square over a square box", grid.nx === grid.ny, `${grid.nx}x$
   check("provenance rides under one additive key",
     spec.geoid_model.study_area === "Study area 1");
   check("and the file still says it is for GALES", spec.solver === "gales");
+}
+
+/* ── the size field: elements where the ground needs them ──────────────────
+   One MeshSizeMax spends the same element count on a plateau as on the
+   headwall above it. A FEM run wants the opposite. */
+{
+  const bounds = { west: -7.1, east: -7.0, south: 54.9, north: 55.0 };
+  // Flat on the west half, a 31-degree ramp on the east.
+  const ramp = (lat, lon) => (lon > -7.05 ? 100 + (lon + 7.05) * 111320 * 0.6 : 100);
+  const grid = buildSurface({ bounds, stepM: 200, radiusKm: 6371.0088, sampleElevation: ramp });
+  const field = sizeField(grid, { coarseM: 400, fineM: 40, slopeRefDeg: 30 });
+  const mid = Math.floor(field.ny / 2);
+  const flat = field.values[mid * field.nx + 2];
+  const steep = field.values[mid * field.nx + field.nx - 3];
+
+  check("flat ground gets the coarse size", Math.abs(flat - 400) < 1e-6, `${flat}`);
+  check("a slope past the reference angle gets the fine size",
+    Math.abs(steep - 40) < 1e-6, `${steep}`);
+  check("and nothing is ever outside the two",
+    [...field.values].every((v) => v >= 40 - 1e-9 && v <= 400 + 1e-9));
+
+  /* The map is linear in the TANGENT, not the angle: tan separates 30 from 45
+     the way degrees do not. Half the reference tangent is half way down. */
+  // In METRES per degree of longitude AT THIS LATITUDE -- 111,320 is the
+  // equator's, and at 55N the ground is 1.74 times closer together, which is
+  // the difference between a 26.7 degree ramp and the 15 this asks for.
+  const mLon = metresPerDegreeLon(54.95, 6371.0088);
+  const half = buildSurface({ bounds, stepM: 200, radiusKm: 6371.0088,
+    sampleElevation: (lat, lon) => 100 + (lon + 7.1) * mLon * (Math.tan(Math.PI / 6) / 2) });
+  const halfField = sizeField(half, { coarseM: 400, fineM: 40, slopeRefDeg: 30 });
+  const middle = halfField.values[Math.floor(halfField.ny / 2) * halfField.nx + 3];
+  check("half the reference tangent is half the way to the fine size",
+    Math.abs(middle - 220) < 5, `${middle}`);
+
+  /* The whole point of a field is that it varies; a flat study must not
+     silently produce one, because then the mesh is uniform and nobody said so. */
+  const flatGrid = buildSurface({ bounds, stepM: 200, radiusKm: 6371.0088,
+    sampleElevation: () => 250 });
+  const flatField = sizeField(flatGrid, { coarseM: 400, fineM: 40 });
+  check("flat ground gives a field that is all one size",
+    flatField.minM === flatField.maxM && flatField.maxM === 400,
+    `${flatField.minM}..${flatField.maxM}`);
+
+  /* The file format is gmsh's, and a wrong header is a field read as garbage
+     rather than an error: origin, then SPACING, then counts. */
+  const text = structuredFieldText(field);
+  const lines = text.trim().split("\n");
+  const [ox, oy] = lines[0].split(" ").map(Number);
+  const [sx, sy] = lines[1].split(" ").map(Number);
+  const [nx, ny, nz] = lines[2].split(" ").map(Number);
+  check("the header states the grid's own origin", Math.abs(ox - field.x0) < 1e-6
+    && Math.abs(oy - field.y0) < 1e-6);
+  check("the second line is the SPACING, not the extent",
+    Math.abs(sx - field.dx / (field.nx - 1)) < 1e-6, `${sx} against ${field.dx}`);
+  check("two planes in z, because a size is a plan-view question", nz === 2);
+  check("and every node is written twice, once per plane",
+    lines.length - 3 === nx * ny * 2, `${lines.length - 3} for ${nx}x${ny}`);
+}
+
+/* ── the script has to USE the field, which is three things at once ──────── */
+{
+  const plain = gmshScript({});
+  check("a run with no field is unchanged", !plain.includes("field.add"));
+
+  const graded = gmshScript({
+    sizeFieldFile: "geoid_size.dat",
+    meshSizeM: 200,
+    remeshSurface: true,
+    refineBoxes: [{ name: "dam", xMin: -500, xMax: 500, yMin: -500, yMax: 500, sizeM: 25 }],
+  });
+  check("the background field is read from the file", /Structured/.test(graded)
+    && /geoid_size\.dat/.test(graded));
+  check("and is set as the background mesh, or nothing consults it",
+    /setAsBackgroundMesh/.test(graded));
+  /* The failure mode worth naming: gmsh's own size sources win exactly where
+     the field was written for, and the mesh still builds. */
+  check("gmsh's own size sources are switched off",
+    graded.includes('"Mesh.MeshSizeExtendFromBoundary", 0')
+    && graded.includes('"Mesh.MeshSizeFromPoints", 0')
+    && graded.includes('"Mesh.MeshSizeFromCurvature", 0'));
+  check("a refine region is a Box with a taper", /field.add\("Box"/.test(graded)
+    && /"Thickness"/.test(graded));
+  check("the smallest size wins", /field.add\("Min"/.test(graded)
+    && /FieldsList", \[1, 2\]/.test(graded));
+  /* An STL merged and classified is a DISCRETE surface: its triangles ARE the
+     mesh, so without this the ground keeps the STL's own spacing however good
+     the field is. */
+  check("remeshing rebuilds the surface as geometry", /createGeometry/.test(graded));
+  check("a graded volume alone does not pay for it",
+    !gmshScript({ sizeFieldFile: "s.dat" }).includes('"Mesh.Algorithm", 6'));
+}
+
+/* ── a hole in the source is not a landform ────────────────────────────────
+   dem-tiles despikes each tile and cannot catch a BLOCK of bad posts: its
+   test is that a post's neighbours disagree with it, which fails when they
+   are bad too. Measured over the Mournes at zoom 14: a block two posts wide
+   and four tall, reading -448 to -3,042 m against ground at 4 to 13, arrived
+   in the model grid as one node at -3,173 and the grading spent its finest
+   elements on the 88-degree walls of a pit that is not there. */
+{
+  const nx = 9;
+  const ny = 9;
+  const flat = () => {
+    const z = new Float64Array(nx * ny);
+    for (let k = 0; k < z.length; k += 1) z[k] = 10;
+    return z;
+  };
+
+  const holed = flat();
+  holed[4 * nx + 4] = -3173;
+  const out = despikeGrid(holed, nx, ny, 57);
+  check("a single node hole is repaired to its neighbours", out.repaired === 1
+    && Math.abs(holed[4 * nx + 4] - 10) < 1e-9, `${holed[4 * nx + 4]}`);
+  check("and the size of the repair is reported", Math.abs(out.worst - 3183) < 1,
+    `${out.worst}`);
+
+  /* The tolerance is the point: at 57 m a 325 m step between nodes is an
+     80-degree wall and therefore a hole; at a kilometre the same step is a
+     mountainside, and a filter that flattened it would be deleting terrain. */
+  const cliff = flat();
+  cliff[4 * nx + 4] = 10 + 900;
+  check("a real cliff on a coarse grid is left alone",
+    despikeGrid(Float64Array.from(cliff), nx, ny, 1000).repaired === 0);
+  check("and the same step on a fine grid is a hole",
+    despikeGrid(Float64Array.from(cliff), nx, ny, 57).repaired === 1);
+
+  /* A slope must survive: every node differs from its neighbours, and none of
+     them is a spike. This is the check that would fail if the filter compared
+     against a mean rather than a median. */
+  const ramp = new Float64Array(nx * ny);
+  for (let j = 0; j < ny; j += 1) {
+    for (let i = 0; i < nx; i += 1) ramp[j * nx + i] = i * 40;
+  }
+  check("a uniform slope is not mistaken for spikes",
+    despikeGrid(ramp, nx, ny, 57).repaired === 0);
+
+  /* And the whole reason it is in buildSurface: the relief it reports must be
+     the ground's, not a void's. */
+  const bounds = { west: -6.0, east: -5.9, south: 54.15, north: 54.23 };
+  const withHole = buildSurface({
+    bounds, stepM: 100, radiusKm: 6371.0088,
+    // Wide enough that a node of a 100 m grid must land in it: a hole placed
+    // between the samples is a test of nothing.
+    sampleElevation: (lat, lon) =>
+      (Math.abs(lat - 54.19) < 0.0009 && Math.abs(lon + 5.95) < 0.0015 ? -3173 : 200),
+  });
+  check("the surface repairs it and says how many", withHole.repairedNodes >= 1,
+    `${withHole.repairedNodes}`);
+  check("so the relief is the ground's, not the void's",
+    withHole.zMin > -100, `${withHole.zMin}`);
 }
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");

@@ -212,6 +212,9 @@ export function buildSurface({
   const mean = sum / count;
   filled.forEach((index) => { z[index] = mean; });
 
+  // Before the extremes are taken, or the relief reported is a void's.
+  const spikes = despikeGrid(z, nx, ny, plan.stepM);
+
   let zMin = Infinity;
   let zMax = -Infinity;
   for (let k = 0; k < z.length; k += 1) {
@@ -248,7 +251,63 @@ export function buildSurface({
     reliefM: zMax - zMin,
     nodes: nx * ny,
     filledNodes: filled.length,
+    repairedNodes: spikes.repaired,
+    repairWorstM: spikes.worst,
+    repairToleranceM: spikes.toleranceM,
   };
+}
+
+/**
+ * A HOLE IN THE SOURCE IS NOT A LANDFORM.
+ *
+ * `dem-tiles` despikes each tile as it decodes it, and cannot catch this: its
+ * test is that a post's neighbours both disagree with it, which fails when the
+ * bad posts come in a BLOCK. Measured over the Mournes at zoom 14, one such
+ * block — two posts wide and four tall, reading −448 to −3,042 m against
+ * ground at 4 to 13 — survived into the model grid as a single node at
+ * **−3,173 m**, and the mesh grading then spent its finest elements on the
+ * 88° walls of a pit that is not there.
+ *
+ * On the MODEL's grid the block is one node, because the grid is coarser than
+ * the source's posts, so a median of the eight neighbours finds it exactly.
+ * The tolerance scales with the spacing: at 57 m a 325 m step between adjacent
+ * nodes is an 80° wall and therefore a hole, while at a kilometre the same
+ * step is a mountainside and must be left alone. Where the grid is too coarse
+ * to tell a hole from a cliff, this does nothing — which is the honest
+ * behaviour, not a failure.
+ */
+const SPIKE_FLOOR_M = 300;
+const SPIKE_SLOPE = Math.tan((80 * Math.PI) / 180);
+
+export function despikeGrid(z, nx, ny, stepM) {
+  const tolerance = Math.max(SPIKE_FLOOR_M, SPIKE_SLOPE * Math.max(stepM, 1));
+  const before = Float64Array.from(z);
+  const repaired = [];
+  const window = [];
+  for (let j = 0; j < ny; j += 1) {
+    for (let i = 0; i < nx; i += 1) {
+      window.length = 0;
+      for (let dj = -1; dj <= 1; dj += 1) {
+        for (let di = -1; di <= 1; di += 1) {
+          if (!di && !dj) continue;
+          const x = i + di;
+          const y = j + dj;
+          if (x < 0 || y < 0 || x >= nx || y >= ny) continue;
+          window.push(before[y * nx + x]);
+        }
+      }
+      if (window.length < 5) continue;              // a corner has too little to judge by
+      window.sort((a, b) => a - b);
+      const median = window[Math.floor(window.length / 2)];
+      const index = j * nx + i;
+      if (Math.abs(before[index] - median) > tolerance) {
+        z[index] = median;
+        repaired.push({ i, j, was: before[index], now: median });
+      }
+    }
+  }
+  return { repaired: repaired.length, worst: repaired.reduce((a, r) =>
+    Math.max(a, Math.abs(r.was - r.now)), 0), toleranceM: tolerance };
 }
 
 /* ── STL ─────────────────────────────────────────────────────────────────── */
@@ -427,6 +486,122 @@ export function stlStats(text) {
   };
 }
 
+/* ── the size field ──────────────────────────────────────────────────────── */
+
+/**
+ * A MESH SIZE PER PLACE, so the elements go where the ground needs them.
+ *
+ * One `MeshSizeMax` over a study area spends the same element count on a flat
+ * plateau as on the headwall above it. What a FEM run wants is the opposite:
+ * fine where the surface bends, on the slopes that carry the gradients the
+ * solver is solving for, and coarse where nothing is happening — which is most
+ * of a domain by area.
+ *
+ * gmsh already has the mechanism. A **background size field** is a grid of
+ * target sizes it consults for every element it creates, and `Field.Structured`
+ * reads one from a file on exactly the lattice this module already builds the
+ * terrain from. So the field is computed here, on the same nodes, in the same
+ * local metric frame the STL is written in — no second sampling, no
+ * registration to get wrong.
+ *
+ * The map from slope to size is linear in the TANGENT, not the angle: tan is
+ * the rise the mesh actually has to resolve across a cell, and it separates
+ * 30° from 45° the way an angle does not (0.58 against 1.0, where the degrees
+ * are only a third apart).
+ */
+export function sizeField(grid, {
+  coarseM,
+  fineM,
+  slopeRefDeg = 30,
+  padZ = 0,
+} = {}) {
+  if (!grid?.ok && !grid?.z) return null;
+  const { nx, ny, xs, ys, z } = grid;
+  const coarse = Number(coarseM) > 0 ? Number(coarseM) : grid.stepM * 2;
+  const fine = Number(fineM) > 0 ? Number(fineM) : coarse / 4;
+  const ref = Math.tan((Math.max(1, Number(slopeRefDeg)) * Math.PI) / 180);
+  const values = new Float64Array(nx * ny);
+  let min = Infinity;
+  let max = -Infinity;
+  let steepest = 0;
+  for (let j = 0; j < ny; j += 1) {
+    for (let i = 0; i < nx; i += 1) {
+      /**
+       * Central differences where there are two neighbours and one-sided at
+       * the edge, rather than Horn's 3x3: the field is a SIZE, and a size that
+       * refuses to exist at the boundary leaves gmsh interpolating the domain's
+       * own rim from the inside. Horn is the right estimator for a slope map
+       * somebody reads; this one has to answer everywhere.
+       */
+      const i0 = i > 0 ? i - 1 : i;
+      const i1 = i < nx - 1 ? i + 1 : i;
+      const j0 = j > 0 ? j - 1 : j;
+      const j1 = j < ny - 1 ? j + 1 : j;
+      const dx = xs[i1] - xs[i0];
+      const dy = ys[j1] - ys[j0];
+      const dzdx = dx !== 0 ? (z[j * nx + i1] - z[j * nx + i0]) / dx : 0;
+      const dzdy = dy !== 0 ? (z[j1 * nx + i] - z[j0 * nx + i]) / dy : 0;
+      const rise = Math.hypot(dzdx, dzdy);
+      if (rise > steepest) steepest = rise;
+      const t = Math.min(1, rise / ref);
+      values[j * nx + i] = coarse + (fine - coarse) * t;
+      if (values[j * nx + i] < min) min = values[j * nx + i];
+      if (values[j * nx + i] > max) max = values[j * nx + i];
+    }
+  }
+  return {
+    nx,
+    ny,
+    values,
+    coarseM: coarse,
+    fineM: fine,
+    slopeRefDeg,
+    minM: min,
+    maxM: max,
+    steepestDeg: (Math.atan(steepest) * 180) / Math.PI,
+    x0: xs[0],
+    y0: ys[0],
+    dx: xs[nx - 1] - xs[0],
+    dy: ys[ny - 1] - ys[0],
+    z0: grid.zMin - padZ,
+    dz: (grid.zMax - grid.zMin) + 2 * padZ,
+  };
+}
+
+/**
+ * The field as gmsh's `Field.Structured` text format.
+ *
+ *     X0 Y0 Z0
+ *     DX DY DZ          (the SPACING, not the extent)
+ *     NX NY NZ
+ *     v … one per line, with the LAST index varying fastest
+ *
+ * Two planes in z, both the same, because the size depends on where you are in
+ * plan and not on depth: a column under a steep face is refined all the way
+ * down, which is what a solver wants when the gradient it is resolving arrives
+ * from the surface.
+ */
+export function structuredFieldText(field) {
+  if (!field) return "";
+  const { nx, ny, values } = field;
+  const spacingX = nx > 1 ? field.dx / (nx - 1) : 1;
+  const spacingY = ny > 1 ? field.dy / (ny - 1) : 1;
+  const spacingZ = field.dz > 0 ? field.dz : 1;
+  const out = [
+    `${f(field.x0)} ${f(field.y0)} ${f(field.z0)}`,
+    `${f(spacingX)} ${f(spacingY)} ${f(spacingZ)}`,
+    `${nx} ${ny} 2`,
+  ];
+  // x slowest, then y, then z fastest -- gmsh reads the last index innermost.
+  for (let i = 0; i < nx; i += 1) {
+    for (let j = 0; j < ny; j += 1) {
+      const v = f(values[j * nx + i]);
+      out.push(v, v);
+    }
+  }
+  return `${out.join("\n")}\n`;
+}
+
 /* ── gmsh ────────────────────────────────────────────────────────────────── */
 
 const PY = (value) => JSON.stringify(value);
@@ -445,6 +620,91 @@ const PY = (value) => JSON.stringify(value);
  * refers to nothing. They are assigned by where each surface sits, because
  * `classifySurfaces` numbers its output however it likes.
  */
+/**
+ * The size-field half of the script.
+ *
+ * Three things have to be true together or the field is written and ignored,
+ * which is the failure mode worth naming because the mesh still builds:
+ *
+ *  * **The background field must be the one gmsh asks.** `Field.setAsBackgroundMesh`
+ *    is what makes it authoritative; without it the field is computed and no
+ *    element ever consults it.
+ *  * **The other size sources must be switched OFF.** By default gmsh takes a
+ *    size from the points of the CAD entities and extends it from the
+ *    boundary, and those win over a background field in exactly the places the
+ *    field was written for — the terrain's own rim. `MeshSizeExtendFromBoundary`,
+ *    `MeshSizeFromPoints` and `MeshSizeFromCurvature` all go to zero.
+ *  * **The surface must be allowed to change.** An STL merged and classified
+ *    is a DISCRETE surface: its triangles ARE the mesh, so a size field can
+ *    only refine the volume underneath and the ground keeps whatever spacing
+ *    the STL was written at. Remeshing it is what makes a variable-resolution
+ *    SURFACE, and it is optional because it is also the slow step and a run
+ *    that only wants a graded volume should not pay for it.
+ */
+function sizeSection({ sizeFieldFile, refineBoxes, meshSizeM, remeshSurface }) {
+  const boxes = (refineBoxes || []).filter((b) =>
+    [b.xMin, b.xMax, b.yMin, b.yMax].every((v) => Number.isFinite(Number(v))));
+  if (!sizeFieldFile && !boxes.length) return [];
+  const lines = ["", "# Mesh size per place, not one size for the study."];
+  const ids = [];
+  let next = 1;
+  if (sizeFieldFile) {
+    lines.push(
+      `gmsh.model.mesh.field.add("Structured", ${next})`,
+      `gmsh.model.mesh.field.setString(${next}, "FileName", ${PY(sizeFieldFile)})`,
+      `gmsh.model.mesh.field.setNumber(${next}, "TextFormat", 1)`,
+      // Nearest, not linear: the field is already a smooth function of the
+      // terrain, and interpolating it costs time to change nothing.
+      `gmsh.model.mesh.field.setNumber(${next}, "SetOutsideValue", 1)`,
+      `gmsh.model.mesh.field.setNumber(${next}, "OutsideValue", ${Number(meshSizeM).toFixed(4)})`,
+    );
+    ids.push(next);
+    next += 1;
+  }
+  boxes.forEach((box) => {
+    const inside = Number(box.sizeM) > 0 ? Number(box.sizeM) : Number(meshSizeM) / 4;
+    lines.push(
+      `# ${String(box.name || "refine region")}`,
+      `gmsh.model.mesh.field.add("Box", ${next})`,
+      `gmsh.model.mesh.field.setNumber(${next}, "XMin", ${f(box.xMin)})`,
+      `gmsh.model.mesh.field.setNumber(${next}, "XMax", ${f(box.xMax)})`,
+      `gmsh.model.mesh.field.setNumber(${next}, "YMin", ${f(box.yMin)})`,
+      `gmsh.model.mesh.field.setNumber(${next}, "YMax", ${f(box.yMax)})`,
+      `gmsh.model.mesh.field.setNumber(${next}, "ZMin", ${f(box.zMin ?? -1e9)})`,
+      `gmsh.model.mesh.field.setNumber(${next}, "ZMax", ${f(box.zMax ?? 1e9)})`,
+      `gmsh.model.mesh.field.setNumber(${next}, "VIn", ${f(inside)})`,
+      `gmsh.model.mesh.field.setNumber(${next}, "VOut", ${Number(meshSizeM).toFixed(4)})`,
+      // A hard edge to a refined box is a jump in element size and a column of
+      // bad tetrahedra along it; the taper is a box's own width of blend.
+      `gmsh.model.mesh.field.setNumber(${next}, "Thickness", ${f(Math.max(inside, (Number(box.xMax) - Number(box.xMin)) * 0.25))})`,
+    );
+    ids.push(next);
+    next += 1;
+  });
+  // The smallest wins: a refine box inside a coarse area must refine it, and
+  // the background field must not undo a box.
+  lines.push(
+    `gmsh.model.mesh.field.add("Min", ${next})`,
+    `gmsh.model.mesh.field.setNumbers(${next}, "FieldsList", [${ids.join(", ")}])`,
+    `gmsh.model.mesh.field.setAsBackgroundMesh(${next})`,
+    "",
+    "# Or gmsh's own size sources win exactly where the field was written for.",
+    "gmsh.option.setNumber(\"Mesh.MeshSizeExtendFromBoundary\", 0)",
+    "gmsh.option.setNumber(\"Mesh.MeshSizeFromPoints\", 0)",
+    "gmsh.option.setNumber(\"Mesh.MeshSizeFromCurvature\", 0)",
+  );
+  if (remeshSurface) {
+    lines.push(
+      "",
+      "# The STL's triangles ARE the surface mesh until it is rebuilt as a",
+      "# parametrised geometry, so this is what makes the GROUND graded too.",
+      "gmsh.model.mesh.createGeometry()",
+      "gmsh.option.setNumber(\"Mesh.Algorithm\", 6)",
+    );
+  }
+  return lines;
+}
+
 export function gmshScript({
   name = "geoid_model",
   stlFile = "geoid_domain.stl",
@@ -454,6 +714,9 @@ export function gmshScript({
   embedPoints = [],
   dim = 3,
   order = 1,
+  sizeFieldFile = null,
+  refineBoxes = [],
+  remeshSurface = false,
 } = {}) {
   const points = embedPoints.map((p) => ({
     x: Number(p.x) || 0,
@@ -515,6 +778,7 @@ export function gmshScript({
     "    gmsh.model.mesh.embed(0, tags, 3, volume)",
     "    gmsh.model.addPhysicalGroup(0, tags, name=\"observation_points\")",
     "",
+    ...sizeSection({ sizeFieldFile, refineBoxes, meshSizeM, remeshSurface }),
     `gmsh.option.setNumber("Mesh.MeshSizeMax", ${Number(meshSizeM).toFixed(4)})`,
     `gmsh.option.setNumber("Mesh.MeshSizeMin", ${Number(minSizeM).toFixed(4)})`,
     `gmsh.option.setNumber("Mesh.ElementOrder", ${Number(order) || 1})`,
