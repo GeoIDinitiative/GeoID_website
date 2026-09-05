@@ -17,6 +17,7 @@ function eq(a, b, what) { if (a !== b) throw new Error(`${what || "value"} — e
 function near(a, b, tol, what) {
   if (!(Math.abs(a - b) <= tol)) throw new Error(`${what} — expected ~${b}, got ${a}`);
 }
+function ok(condition, what) { if (!condition) throw new Error(what); }
 
 const AREA = { minX: -7, minY: 54, maxX: -6, maxY: 55 };
 
@@ -114,6 +115,50 @@ check("the clock picks its day, and clamps rather than wrapping", () => {
   // Past the horizon holds the last step: wrapping would imply the weather
   // repeated, which is the one thing a forecast must not say.
   eq(P.stepForClock(Date.parse("2026-09-30T00:00:00Z"), dates), 2, "after the run");
+});
+
+/* ── the depth comes from the thickness model, per cell ─────────────────────
+   It was a constant per lithology class -- 1.0 to 2.5 m over a whole map --
+   because there was nothing spatial to put there. */
+check("a cell takes its depth from the thickness model where there is one", () => {
+  const dem = makeRaster(new Float32Array(32 * 32).map((_, i) => (i % 32) * 40),
+    32, 32, AREA, null);
+  const out = P.buildCells(dem, AREA, {
+    maxCells: 400,
+    geologyAt: () => "TILL",
+    // Thin on the west side, a basin on the east.
+    thicknessAt: (lat, lon) => (lon < -6.5 ? 0.8 : 40),
+  });
+  eq(out.ok, true, "built");
+  const thin = out.cells.find((c) => c.lon < -6.5);
+  const deep = out.cells.find((c) => c.lon >= -6.5);
+  near(thin.material.depth, 0.8, 1e-9, "the thin cover is used as measured");
+  near(deep.material.depth, 3, 1e-9, "the basin is capped at the shallow plane");
+  eq(deep.thicknessM, 40, "and the model's own number is kept beside it");
+  // Till's own default is 2.5 m: neither cell is using it.
+  ok(thin.material.depth !== 2.5 && deep.material.depth !== 2.5,
+    "so the class constant is gone");
+  ok(out.modelledDepths === out.cells.length, "every cell was modelled");
+  ok(/took their depth from the thickness model/.test(out.message), out.message);
+});
+
+check("and keeps the lithology default where the model has no reading", () => {
+  const dem = makeRaster(new Float32Array(32 * 32).map((_, i) => (i % 32) * 40),
+    32, 32, AREA, null);
+  const out = P.buildCells(dem, AREA, {
+    maxCells: 400, geologyAt: () => "TILL", thicknessAt: () => null,
+  });
+  near(out.cells[0].material.depth, 2.5, 1e-9, "till's own default");
+  eq(out.modelledDepths, 0, "and the run says none were modelled");
+  ok(/0 took their depth/.test(out.message), out.message);
+});
+
+check("a run with no thickness reader is unchanged", () => {
+  const dem = makeRaster(new Float32Array(32 * 32).map((_, i) => (i % 32) * 40),
+    32, 32, AREA, null);
+  const out = P.buildCells(dem, AREA, { maxCells: 400, geologyAt: () => "TILL" });
+  near(out.cells[0].material.depth, 2.5, 1e-9, "the default stands");
+  ok(!/thickness model/.test(out.message), "and the message does not claim otherwise");
 });
 
 if (failures.length) {

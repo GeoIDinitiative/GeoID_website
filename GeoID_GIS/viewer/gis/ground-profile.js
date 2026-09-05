@@ -30,24 +30,14 @@
  * the point of assembling it rather than reading three cards.
  */
 
-import { materialFor } from "./fos.js?v=20260905-38a6fb3";
+import { materialFor, SHALLOW_FAILURE_CAP_M } from "./fos.js?v=20260905-ffb0892";
 
 /** Which loaded layer is which, by what its name says it is. */
 const SUPERFICIAL = /superficial|drift|quaternary/i;
 const SOIL_MAP = /soils of the world|fao|dsmw/i;
 
-/**
- * The failure plane of a shallow translational slide is not the base of a
- * sediment basin.
- *
- * Pelletier models the whole permeable column — up to 50 m in a valley fill —
- * and the infinite-slope model assumes a plane PARALLEL to the ground and long
- * compared with its depth. Handing it 50 m would answer a question nobody
- * asked, about a rotational failure the model cannot represent. So the depth
- * offered to FoS is capped, and the card says both numbers rather than quietly
- * substituting one for the other.
- */
-export const SHALLOW_FAILURE_CAP_M = 3;
+/** Re-exported so a card can name the cap the model applies. */
+export { SHALLOW_FAILURE_CAP_M };
 
 function firstHit(hits, pattern) {
   return hits.find(({ layer }) => pattern.test(layer?.name || "")) || null;

@@ -19,9 +19,11 @@
  * fetches, samples and draws.
  */
 
-import { fosSeries, wetnessSeries, materialFor, stabilityBand } from "./fos.js?v=20260905-38a6fb3";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260905-38a6fb3";
-import { SOURCE as WEATHER_SOURCE } from "./forecast.js?v=20260905-38a6fb3";
+import {
+  fosSeries, wetnessSeries, materialFor, stabilityBand, failureDepth,
+} from "./fos.js?v=20260905-ffb0892";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260905-ffb0892";
+import { SOURCE as WEATHER_SOURCE } from "./forecast.js?v=20260905-ffb0892";
 
 /* ── 1. the weather SURFACE ─────────────────────────────────────────────── */
 
@@ -122,7 +124,7 @@ export function rainAt(series, lat, lon, step) {
  * about the answer.
  */
 export function buildCells(demRaster, bounds, {
-  maxCells = 40000, geologyAt = null,
+  maxCells = 40000, geologyAt = null, thicknessAt = null,
 } = {}) {
   if (!demRaster?.band) return { ok: false, message: "no DEM to take slope from" };
   const grad = slopeOf(demRaster);
@@ -142,7 +144,30 @@ export function buildCells(demRaster, bounds, {
       const slopeDeg = grad.band[y * width + x];
       if (!Number.isFinite(slopeDeg)) continue;
       const description = geologyAt ? geologyAt(lat, lon) : null;
-      cells.push({ slopeDeg, material: materialFor(description), lat, lon });
+      const material = materialFor(description);
+      /**
+       * THE DEPTH IS THE ONE TERM THAT WAS NOT SPATIAL.
+       *
+       * `materialFor` gives c′, φ′ and γ from the mapped lithology and a
+       * DEPTH that is a constant per class — 1.0 to 2.5 m, the same number
+       * over a whole map, because there was nothing spatial to put there.
+       * Pelletier's raster is, so where it answers it replaces the constant,
+       * capped: see `failureDepth`, which will not hand a shallow-plane model
+       * the base of a sediment basin. Where it does not answer — the sea, the
+       * ground the model excludes — the class default stands, and the cell
+       * records which it got so the run can say how much of the map was
+       * modelled rather than assumed.
+       */
+      const thickness = thicknessAt ? thicknessAt(lat, lon) : null;
+      const z = failureDepth(thickness, material.depth);
+      cells.push({
+        slopeDeg,
+        material: { ...material, depth: z.depth },
+        depthFrom: z.from,
+        thicknessM: Number.isFinite(thickness) ? thickness : null,
+        lat,
+        lon,
+      });
       lats.push(lat);
       lons.push(lon);
     }
@@ -150,13 +175,17 @@ export function buildCells(demRaster, bounds, {
   if (!cells.length) return { ok: false, message: "no DEM cells fall inside the study area" };
   const cols = new Set(lons).size;
   const rows = new Set(lats).size;
+  const modelled = cells.filter((c) => Number.isFinite(c.thicknessM)).length;
   return {
-    ok: true, cells, stride, cols, rows,
+    ok: true, cells, stride, cols, rows, modelledDepths: modelled,
     bounds: {
       minX: Math.min(...lons), maxX: Math.max(...lons),
       minY: Math.min(...lats), maxY: Math.max(...lats),
     },
-    message: `${cells.length.toLocaleString()} cells at ${stride}x the DEM's spacing`,
+    message: `${cells.length.toLocaleString()} cells at ${stride}x the DEM's spacing`
+      + (thicknessAt
+        ? `; ${modelled.toLocaleString()} took their depth from the thickness model`
+        : ""),
   };
 }
 

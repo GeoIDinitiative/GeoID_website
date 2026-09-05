@@ -59,6 +59,36 @@ export function cellAt(lat, lon, info) {
   };
 }
 
+/**
+ * The value at a point in a grid already read.
+ *
+ * `floor`, like `cellAt`: a cell is the ground from its own edge to the next
+ * one. Off the grid, or on a cell the model does not answer for, is null — the
+ * caller must be able to tell "no reading" from a reading, which for this file
+ * is the whole distinction between the sea and bare rock.
+ */
+export function metresIn(grid, lat, lon) {
+  if (!grid || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  const { width, height, band, noData } = grid;
+  let x;
+  let y;
+  if (grid.origin && grid.degrees) {
+    // The same arithmetic `cellAt` does, then the window's own offset.
+    const wrapped = ((((lon - grid.world.west) % 360) + 360) % 360) + grid.world.west;
+    x = Math.floor((wrapped - grid.world.west) / grid.degrees) - grid.origin.x;
+    y = Math.floor((grid.world.north - lat) / grid.degrees) - grid.origin.y;
+  } else {
+    // A resampled grid has no source cells to index; the fraction is all there
+    // is, and the caller was told with `native: false`.
+    const { bounds } = grid;
+    x = Math.floor(((lon - bounds.west) / (bounds.east - bounds.west)) * width);
+    y = Math.floor(((bounds.north - lat) / (bounds.north - bounds.south)) * height);
+  }
+  if (x < 0 || y < 0 || x >= width || y >= height) return null;
+  const value = band[y * width + x];
+  return Number.isFinite(value) && value !== noData ? Number(value) : null;
+}
+
 /** How big that cell is on the ground here — a 30" cell is not square. */
 export function cellSizeKm(lat, degrees) {
   const height = degrees * KM_PER_DEGREE;

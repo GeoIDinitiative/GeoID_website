@@ -9,7 +9,9 @@
  */
 
 import { readFileSync } from "node:fs";
-import { cellAt, cellSizeKm, thicknessCard, waitingCard } from "./thickness-probe.js";
+import {
+  cellAt, cellSizeKm, thicknessCard, waitingCard, metresIn,
+} from "./thickness-probe.js";
 
 let passed = 0;
 const failures = [];
@@ -200,6 +202,71 @@ check("the waiting card keeps everything that is not the reading", () => {
     "the rows that are not the reading are identical");
   ok(waiting.headline.some(([key]) => key === "Sampled at"), "the point is already stated");
 });
+
+/* ── a window read once, indexed per cell ────────────────────────────────── */
+
+/**
+ * A Factor of Safety run evaluates tens of thousands of cells and a byte range
+ * each is not a way to fill in a column, so the study area is read once and
+ * indexed in memory. The index must then agree with `sampleAt` EXACTLY -- and
+ * scaling a fraction of the window does not.
+ *
+ * Measured on the globe over Belfast: `(north - lat) / (north - south) *
+ * height` floored one row early and the grid answered 27 m where a single read
+ * said 45, the Lagan valley fill against the slope above it. Both forms are
+ * the same algebra and they round differently, so the reader does what `cellAt`
+ * does -- the absolute cell, then the window's own offset.
+ */
+{
+  const deg = (meta.bounds.east - meta.bounds.west) / meta.grid[0];
+  // A window somewhere awkward: not on a round degree, and north of the equator.
+  const x0 = 20616;
+  const y0 = 4164;
+  const width = 336;
+  const height = 156;
+  const band = new Uint8Array(width * height);
+  band.forEach((_, i) => { band[i] = i % 251; });          // every cell distinct enough
+  const grid = {
+    band, width, height, noData: 255, native: true,
+    bounds: {
+      west: meta.bounds.west + x0 * deg,
+      east: meta.bounds.west + (x0 + width) * deg,
+      north: meta.bounds.north - y0 * deg,
+      south: meta.bounds.north - (y0 + height) * deg,
+    },
+    origin: { x: x0, y: y0 },
+    degrees: deg,
+    world: { west: meta.bounds.west, north: meta.bounds.north },
+  };
+
+  check("the window reader lands on the cell cellAt names", () => {
+    let checked = 0;
+    for (let i = 0; i < 40; i += 1) {
+      // Points scattered through the window, including near its edges.
+      const lat = grid.bounds.north - (i / 40) * (grid.bounds.north - grid.bounds.south) - 1e-6;
+      const lon = grid.bounds.west + ((i * 7) % 40 / 40) * (grid.bounds.east - grid.bounds.west) + 1e-6;
+      const cell = cellAt(lat, lon, meta);
+      const want = band[(cell.y - y0) * width + (cell.x - x0)];
+      const got = metresIn(grid, lat, lon);
+      ok(got === want, `at ${lat.toFixed(4)},${lon.toFixed(4)}: ${got} vs ${want}`);
+      checked += 1;
+    }
+    ok(checked === 40, `${checked} points`);
+  });
+
+  check("a point outside the window has no answer, rather than a wrong one", () => {
+    ok(metresIn(grid, grid.bounds.north + 1, grid.bounds.west + 0.1) === null, "north of it");
+    ok(metresIn(grid, grid.bounds.south - 1, grid.bounds.west + 0.1) === null, "south of it");
+    ok(metresIn(grid, grid.bounds.north - 0.1, grid.bounds.west - 1) === null, "west of it");
+    ok(metresIn(grid, grid.bounds.north - 0.1, grid.bounds.east + 1) === null, "east of it");
+  });
+
+  check("nodata is not a reading", () => {
+    const one = { ...grid, band: new Uint8Array(width * height).fill(255) };
+    ok(metresIn(one, grid.bounds.north - 0.1, grid.bounds.west + 0.1) === null,
+      "255 comes back as no answer");
+  });
+}
 
 /* ── the wiring ──────────────────────────────────────────────────────────── */
 

@@ -13133,3 +13133,56 @@ Also fixed while finding that: a profile appended to one card **outlived it**.
 alongside them survives — a click on Donegal showed the profile of a click made
 in the Bering Sea, every field plausible and every field wrong. It is cleared
 on every card now, not only before appending a new one.
+
+#### The depth was the last term that was not a property of the place
+
+The Factor of Safety takes c′, φ′ and γ from the mapped lithology, β from the
+DEM and m from the weather — and **z from a constant**: 1.0 to 2.5 m by
+lithology class, the same number over a whole map, because there was nothing
+spatial to put there. Pelletier's raster is spatial, and it is not that number:
+it models the entire permeable column, up to 50 m in a valley fill, while an
+infinite-slope model assumes a plane parallel to the ground and long compared
+with its depth.
+
+So it enters as `min(thickness, 3 m)` — a real spatial floor where the cover is
+thin, which is where shallow failures happen and where the constant was most
+wrong, and the model's own assumption where it is deep. `failureDepth` returns
+both the number and where it came from; where the model has no reading the
+class default stands and the run says how many cells were modelled rather than
+assumed. Measured over a 1° × 0.6° study area: **2,515 of 2,596 cells** took a
+modelled depth, spanning 0 to 3 m, where every one of them had been 2.5 m.
+
+**A sampler reads the source cells; the drawn sheet does not have to.** Forty
+thousand byte ranges is not a way to fill in a column, so the study area is
+read once — but `readWindow` asks for a SIZE, and geotiff.js then answers from
+whichever overview fits it, which is right for a picture and wrong for a
+reading. Measured over Northern Ireland: five of six probes matched `sampleAt`
+and Belfast came back **27 m against 45**, a resampled average of the Lagan
+valley fill and the slope above it. `thicknessGridFor` reads the window with no
+size at all — the native cells — with a four-million-cell ceiling past which it
+falls back and says `native: false`.
+
+**And then the index rounded differently.** Scaling a fraction of the window
+(`(north − lat) / (north − south) × height`) is the same algebra as dividing by
+the cell size and floors one row earlier at some latitudes: Belfast again, 27
+against 45. `metresIn` now computes the absolute cell exactly as `cellAt` does
+and subtracts the window's own origin, so agreement is by construction. It
+lives in `thickness-probe.js` beside the function it must agree with. Verified
+on a 120-point lattice over Northern Ireland: **zero disagreements**.
+
+#### The merged map, complete
+
+All three sources answering at one point, over the Sperrins, with the finer map
+taking the strength:
+
+    Superficial deposit    Peat — BGS 1:625,000, UK only
+    Soil unit              Dystric Cambisols — FAO/UNESCO DSMW, 1:5,000,000
+    Thickness above bedrock 1 m — Pelletier et al. (2016), 1 km grid, modelled
+    Slope                  0.4° — Streamed DEM
+    Screening strength     peat: c′ 5 kPa, φ′ 20°, γ 11 kN/m³
+                           — from the superficial map's own deposit
+    Depth to failure plane 1 m — the modelled thickness, under the 3 m cap
+
+Peat rather than the soil map's clay, because a 1:625,000 mapped deposit beats
+a texture inferred from a 1:5,000,000 unit — and the card says which, because
+those are not the same claim.

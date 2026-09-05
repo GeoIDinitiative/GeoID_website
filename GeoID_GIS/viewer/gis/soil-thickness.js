@@ -23,13 +23,18 @@
  * valley bottoms whatever fraction of the ground they are. The card says so.
  */
 
-import { buildRasterLayer, loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260905-38a6fb3";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260905-38a6fb3";
-import { dataUrl } from "./data-base.js?v=20260905-38a6fb3";
-import { cellAt, thicknessCard, waitingCard } from "./thickness-probe.js?v=20260905-38a6fb3";
-import { mathsFor } from "./equations.js?v=20260905-38a6fb3";
+import { buildRasterLayer, loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260905-ffb0892";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260905-ffb0892";
+import { dataUrl } from "./data-base.js?v=20260905-ffb0892";
+import {
+  cellAt, metresIn, thicknessCard, waitingCard,
+} from "./thickness-probe.js?v=20260905-ffb0892";
+import { mathsFor } from "./equations.js?v=20260905-ffb0892";
 
 export const LAYER_NAME = "Soil and sediment thickness (Pelletier)";
+
+/** Re-exported: the reader belongs beside `cellAt`, whose answer it must match. */
+export { metresIn };
 
 /** The tracked sidecar: the credit and the range, read before any fetch. */
 const META_PATH = "/data/global/soil-thickness/meta.json";
@@ -149,6 +154,90 @@ async function readWindow(bounds) {
     width,
     height,
     bounds: { west: lon(x0), east: lon(x1), north: lat(y0), south: lat(y1) },
+  };
+}
+
+/* ── a study area at once ───────────────────────────────────────────────── */
+
+/**
+ * ONE READ FOR A WHOLE STUDY AREA, and a lookup per cell.
+ *
+ * A Factor of Safety run evaluates tens of thousands of cells, and `sampleAt`
+ * is a byte range each: correct, and forty thousand round trips. The window a
+ * study area needs is one read of a few hundred kilobytes, so it is read once
+ * and indexed in memory. The same window the drawn sheet uses, and the same
+ * snapping — the grid is labelled with the pixels actually read.
+ */
+/** A native read of this many cells is fine; past it, resample and say so. */
+const GRID_CELL_CEILING = 4e6;
+
+export async function thicknessGridFor(bounds) {
+  const info = await loadMeta();
+  const box = {
+    west: Math.max(info.bounds.west, bounds.west ?? bounds.minX),
+    east: Math.min(info.bounds.east, bounds.east ?? bounds.maxX),
+    south: Math.max(info.bounds.south, bounds.south ?? bounds.minY),
+    north: Math.min(info.bounds.north, bounds.north ?? bounds.maxY),
+  };
+  if (![box.west, box.east, box.south, box.north].every(Number.isFinite)) return null;
+  const [gw, gh] = info.grid;
+  const px = (lon) => ((lon - info.bounds.west) / (info.bounds.east - info.bounds.west)) * gw;
+  const py = (lat) => ((info.bounds.north - lat) / (info.bounds.north - info.bounds.south)) * gh;
+  const x0 = Math.max(0, Math.floor(px(box.west)));
+  const x1 = Math.min(gw, Math.ceil(px(box.east)));
+  const y0 = Math.max(0, Math.floor(py(box.north)));
+  const y1 = Math.min(gh, Math.ceil(py(box.south)));
+  if (x1 <= x0 || y1 <= y0) return null;
+
+  /**
+   * A SAMPLER READS THE SOURCE CELLS; the drawn sheet does not have to.
+   *
+   * `readWindow` asks for a size, and geotiff.js then answers from whichever
+   * overview best fits it — which is right for a picture and wrong for a
+   * reading. Measured over Northern Ireland at what looked like 1:1: five of
+   * six probes matched `sampleAt` exactly and Belfast came back **27 m against
+   * 45**, because a resampled cell is an average of neighbours and the Lagan
+   * valley fill sits beside thin cover. Values that a Factor of Safety run
+   * divides by cannot be an average of somewhere else.
+   *
+   * So this reads the window with no size at all, which is the native cells.
+   * A study area of a few degrees is tens of thousands of them; the ceiling is
+   * there because the same call over the whole grid would be 777 million, and
+   * past it the resampled read is taken and the grid says `native: false` so a
+   * caller can tell.
+   */
+  const img = await open();
+  const native = (x1 - x0) * (y1 - y0) <= GRID_CELL_CEILING;
+  const lon = (x) => info.bounds.west + (x / gw) * (info.bounds.east - info.bounds.west);
+  const lat = (y) => info.bounds.north - (y / gh) * (info.bounds.north - info.bounds.south);
+  if (!native) {
+    const read = await readWindow(box);
+    return read ? { ...read, noData: info.noData, native: false } : null;
+  }
+  const [band] = await img.readRasters({
+    window: [x0, y0, x1, y1], fillValue: info.noData,
+  });
+  return {
+    band,
+    width: x1 - x0,
+    height: y1 - y0,
+    bounds: { west: lon(x0), east: lon(x1), north: lat(y0), south: lat(y1) },
+    noData: info.noData,
+    native: true,
+    /**
+     * The window's own origin in SOURCE pixels, and the grid it was cut from.
+     *
+     * `metresIn` indexes through these rather than by scaling a fraction of
+     * the window, so it computes the same absolute cell `cellAt` does and then
+     * subtracts. Scaling looked equivalent and was not: measured over Belfast,
+     * `(north - lat) / (north - south) * height` floored one row early and the
+     * grid answered **27 m where a single read said 45** — the Lagan valley
+     * fill against the slope above it. Agreement with `sampleAt` is by
+     * construction now, not by rounding.
+     */
+    origin: { x: x0, y: y0 },
+    degrees: (info.bounds.east - info.bounds.west) / gw,
+    world: { west: info.bounds.west, north: info.bounds.north },
   };
 }
 
@@ -388,5 +477,6 @@ export function removeThickness() {
 if (typeof window !== "undefined") {
   window.GeoIDSoilThickness = {
     LAYER_NAME, thicknessLayer, sampleAt, probeAt, addThickness, removeThickness,
+    thicknessGridFor, metresIn,
   };
 }

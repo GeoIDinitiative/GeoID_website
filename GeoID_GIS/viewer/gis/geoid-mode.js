@@ -14,15 +14,15 @@
 import {
   weatherPoints, weatherUrl, parseWeatherGrid, rainAt, buildCells,
   fosColour, stepForClock,
-} from "./geoid-pipeline.js?v=20260905-38a6fb3";
-import { wetnessSeries, fosSeries } from "./fos.js?v=20260905-38a6fb3";
-import { mathsFor } from "./equations.js?v=20260905-38a6fb3";
-import * as EE from "./gee-live.js?v=20260905-38a6fb3";
-import { makeRaster } from "./raster-analysis.js?v=20260905-38a6fb3";
+} from "./geoid-pipeline.js?v=20260905-ffb0892";
+import { wetnessSeries, fosSeries } from "./fos.js?v=20260905-ffb0892";
+import { mathsFor } from "./equations.js?v=20260905-ffb0892";
+import * as EE from "./gee-live.js?v=20260905-ffb0892";
+import { makeRaster } from "./raster-analysis.js?v=20260905-ffb0892";
 // The adapter is a module, not a window seam — reading it off `window` was
 // a guess, and a wrong one: nothing hangs `GeoIDGeoTiff` there.
-import { buildRasterLayer, loadGeoTiffFromArrayBuffer } from "./geotiff-adapter.js?v=20260905-38a6fb3";
-import { pointInPolygon, boundsOf } from "./geometry.js?v=20260905-38a6fb3";
+import { buildRasterLayer, loadGeoTiffFromArrayBuffer } from "./geotiff-adapter.js?v=20260905-ffb0892";
+import { pointInPolygon, boundsOf } from "./geometry.js?v=20260905-ffb0892";
 
 const STAMP = "20260816-6ce8ecd";
 
@@ -378,8 +378,31 @@ export async function run({ fetchImpl = null, maxCells = 40000 } = {}) {
 
 async function computeAndDraw({ weather, dem, base, area, maxCells }) {
   say("Reading slope and geology…");
-  const table = buildCells(dem, area, { maxCells, geologyAt: base.geologyAt });
+  /**
+   * THE DEPTH, FROM THE THICKNESS MODEL RATHER THAN A CONSTANT.
+   *
+   * `z` was the last term in the Factor of Safety that was not a property of
+   * the place: c′, φ′ and γ come from the mapped lithology, β from the DEM,
+   * m from the weather, and the depth was 1.0 to 2.5 m by lithology class over
+   * the whole map. Pelletier's raster answers it per kilometre.
+   *
+   * One read for the study area, then a lookup per cell — forty thousand byte
+   * ranges is not a way to fill in a column. A failure to read it is not a
+   * failure of the run: the class defaults still stand, and `buildCells` says
+   * how many cells were modelled rather than assumed.
+   */
+  let thicknessAt = null;
+  try {
+    say("Reading soil thickness…");
+    const mod = await import(`./soil-thickness.js${new URL(import.meta.url).search}`);
+    const grid = await mod.thicknessGridFor(area);
+    if (grid) thicknessAt = (lat, lon) => mod.metresIn(grid, lat, lon);
+  } catch (error) {
+    console.warn("the thickness model could not be read:", error.message);
+  }
+  const table = buildCells(dem, area, { maxCells, geologyAt: base.geologyAt, thicknessAt });
   if (!table.ok) { say(table.message); return { ok: false }; }
+  say(table.message);
 
   say(`Computing ${weather.dates.length} steps over ${table.cells.length.toLocaleString()} cells…`);
   // Each cell carries its own rainfall history, so the wet fraction is a
@@ -453,10 +476,11 @@ async function computeAndDraw({ weather, dem, base, area, maxCells }) {
    */
   layer.info = {
     ...(layer.info || {}),
-    summary: "Factor of Safety per cell, per time step: the static inputs — "
-      + "slope from the DEM, strength from the geology — combined with a "
-      + "weather surface that changes through the forecast. A screening model, "
-      + "not a site assessment.",
+    summary: "Factor of Safety per cell, per time step: slope from the DEM, "
+      + "strength from the mapped geology, depth from the soil-thickness model "
+      + "(capped at the shallow failure plane), and a weather surface that "
+      + "changes through the forecast. A screening model, not a site "
+      + "assessment.",
     maths: mathsFor("geoid-fos"),
   };
 

@@ -162,13 +162,19 @@ const EQUATIONS = {
       ["φ′", "effective friction angle (°)"],
       ["γ", "unit weight of the soil (kN/m³)"],
       ["γw", "unit weight of water, 9.81 kN/m³"],
-      ["z", "depth to the failure plane (m)"],
+      ["z", "depth to the failure plane (m) — the modelled soil thickness at "
+        + "this cell, capped at 3 m, because an infinite-slope model describes "
+        + "a shallow plane and not the base of a sediment basin; the "
+        + "lithology's own default stands where the model has no reading"],
       ["β", "slope angle, from the slope reading above"],
       ["m", "the wet fraction of that depth, 0–1 — the only term the weather moves"],
       ["FoS", "reported to four decimal places, which is far finer than the "
         + "parameters justify — it is a screening number, not a design one"],
     ],
-    note: "FoS > 1 is stable and < 1 is failure, with the interesting band "
+    note: "Every term is a property of the place except m, which is a property "
+      + "of a place AND a moment: c′, φ′ and γ from the mapped lithology, β "
+      + "from the DEM, z from the thickness model, and m from the weather. "
+      + "FoS > 1 is stable and < 1 is failure, with the interesting band "
       + "1.0–1.3. Ground below 5° returns no answer rather than infinity — "
       + "sinβ → 0 makes the driving stress vanish, which is arithmetic rather "
       + "than insight — and m is capped at 1: rain past saturation does not "

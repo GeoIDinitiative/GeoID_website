@@ -37,6 +37,39 @@
 export const WATER_UNIT_WEIGHT = 9.81;          // kN/m³
 
 /**
+ * THE FAILURE PLANE OF A SHALLOW SLIDE IS NOT THE BASE OF A SEDIMENT BASIN.
+ *
+ * `z` used to be a per-lithology constant — 1.0 to 2.5 m by class, the same
+ * number over a whole map — because there was nothing spatial to put there.
+ * Pelletier's thickness raster is spatial and is NOT that number: it models the
+ * entire permeable column, up to 50 m in a valley fill, while the infinite
+ * slope model above assumes a plane parallel to the ground and long compared
+ * with its depth. Handing it 50 m answers a question nobody asked, about a
+ * rotational failure this model cannot represent.
+ *
+ * So the thickness enters as `min(thickness, 3 m)`: a real spatial floor where
+ * the cover is thin — which is where shallow failures actually happen and
+ * where the old constant was most wrong — and the model's own assumption where
+ * it is deep. Both numbers are reported; neither is quietly substituted.
+ */
+export const SHALLOW_FAILURE_CAP_M = 3;
+
+/** The depth to give one cell, and where it came from. */
+export function failureDepth(thicknessM, fallbackM) {
+  if (!Number.isFinite(thicknessM)) {
+    return { depth: fallbackM, from: "the lithology's default" };
+  }
+  const capped = Math.min(thicknessM, SHALLOW_FAILURE_CAP_M);
+  return {
+    depth: capped,
+    from: capped < thicknessM
+      ? `the modelled thickness (${thicknessM} m), capped at ${SHALLOW_FAILURE_CAP_M} m`
+      : "the modelled thickness",
+    thickness: thicknessM,
+  };
+}
+
+/**
  * Typical effective-strength parameters by lithology class.
  *
  * Deliberately coarse and openly sourced from standard engineering-geology

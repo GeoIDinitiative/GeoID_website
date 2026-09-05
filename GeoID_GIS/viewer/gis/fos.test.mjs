@@ -9,7 +9,7 @@
 
 import {
   factorOfSafety, wetnessSeries, fosSeries, materialFor, stabilityBand,
-  MATERIAL_DEFAULTS, WATER_UNIT_WEIGHT,
+  MATERIAL_DEFAULTS, WATER_UNIT_WEIGHT, failureDepth, SHALLOW_FAILURE_CAP_M,
 } from "./fos.js";
 
 let passed = 0;
@@ -19,6 +19,7 @@ function eq(a, b, what) { if (a !== b) throw new Error(`${what || "value"} — e
 function near(a, b, tol, what) {
   if (!(Math.abs(a - b) <= tol)) throw new Error(`${what} — expected ~${b}, got ${a}`);
 }
+function ok(condition, what) { if (!condition) throw new Error(what); }
 
 const CELL = { slopeDeg: 25, cohesion: 8, friction: 30, unitWeight: 19, depth: 2, wetFraction: 0 };
 
@@ -122,6 +123,46 @@ check("a series gives one grid per step and names its worst", () => {
 check("empty inputs are refused with a reason", () => {
   eq(fosSeries([], [0.5]).ok, false, "no cells");
   eq(fosSeries([{ slopeDeg: 30 }], []).ok, false, "no steps");
+});
+
+/* ── the depth, which was the last term that was not a property of the place ─
+   c′, φ′ and γ come from the mapped lithology, β from the DEM, m from the
+   weather — and z was 1.0 to 2.5 m by lithology class over the whole map.
+   Pelletier's raster answers it per kilometre, and is NOT that number: it
+   models the entire permeable column, up to 50 m in a valley fill, while this
+   model assumes a plane parallel to the ground. */
+check("a thin cover is used as measured", () => {
+  const z = failureDepth(1.2, 2.0);
+  near(z.depth, 1.2, 1e-9, "the model's own number");
+  ok(/modelled thickness/.test(z.from) && !/capped/.test(z.from), z.from);
+});
+
+check("a deep basin is capped, and the cap says what it did", () => {
+  const z = failureDepth(50, 2.0);
+  near(z.depth, SHALLOW_FAILURE_CAP_M, 1e-9, "capped");
+  ok(/50 m/.test(z.from) && /capped/.test(z.from), z.from);
+  eq(z.thickness, 50, "and the model's number survives beside it");
+});
+
+check("no reading leaves the lithology's own default standing", () => {
+  const z = failureDepth(null, 2.5);
+  near(z.depth, 2.5, 1e-9, "the class default");
+  ok(/default/.test(z.from), z.from);
+  eq(z.thickness, undefined, "with no thickness claimed");
+});
+
+/**
+ * The point of the whole exercise: where the cover is thin — which is where
+ * shallow failures actually happen and where the constant was most wrong — the
+ * modelled depth changes the answer.
+ */
+check("a thinner column is less stable, all else equal", () => {
+  const base = { slopeDeg: 30, cohesion: 8, friction: 30, unitWeight: 19, wetFraction: 0.5 };
+  const thin = factorOfSafety({ ...base, depth: failureDepth(0.5, 2).depth });
+  const deep = factorOfSafety({ ...base, depth: failureDepth(20, 2).depth });
+  ok(thin > deep, `cohesion carries a thin column: ${thin} against ${deep}`);
+  ok(deep === factorOfSafety({ ...base, depth: SHALLOW_FAILURE_CAP_M }),
+    "and a deep one is the capped case exactly");
 });
 
 if (failures.length) {
