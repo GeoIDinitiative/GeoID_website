@@ -12780,3 +12780,51 @@ the picture, and every tool downstream reads the band.
 
 What the zeros were doing in that screenshot was nothing: the pale ground over
 the water was the misregistration above, not the low end of the ramp.
+
+### A raster answers a click
+
+"Can we implement the interactive feature used for the geology polygons — only
+this time each click samples the thickness raster at that exact point?" Yes,
+and it took one line in the click path, because the machinery around it was
+already right.
+
+`feature-popup.js` hit-tests in COORDINATES, not in geometry: a click asks the
+viewer for the lat/lon of the pixel and tests it against each visible layer's
+GeoJSON. **A raster has no GeoJSON**, so a sheet always fell into the branch
+that dismisses the card for landing on nothing — the soil-thickness map was a
+picture with a legend, unclickable by construction rather than by oversight.
+Sheets are offered the click there, before the dismissal, and answer TRUE
+synchronously to claim it; the read and the card follow on their own. The next
+sheet that wants a click adds its line in the order it draws.
+
+**The value comes from the file, not from the picture.** The drawn sheet is
+resampled to at most 1,600 px across the view, so at a wide view one of its
+pixels is dozens of source cells and its colour is their blend — sampling it
+would answer a question about a point with a number that exists nowhere in the
+data. `sampleAt` reads a one-pixel window at full resolution: the COG is tiled,
+so that is one byte range, and geotiff.js keeps the tile. Measured: **3.7 s**
+for the first read of a session (opening the file), **35–60 ms** after it, and
+**2 ms** for a second click in the same tile.
+
+Read back against ground truth: Amazon lowland **27 m**, Malian basin **50 m**
+(the model's ceiling), Sahara hamada **0 m**, mid-Atlantic **nodata**, the high
+Himalaya **nodata** — the model excludes ice — and 60°S+ outside the grid
+altogether. Three answers, three cards: a number, "Not modelled here", and
+"Outside the model". Zero keeps its number and gets a line saying what the
+model means by it; nodata never gets one, which is the same distinction the
+file makes and the bake preserves.
+
+#### `rockClass` reads the description, so `written` has to cover the basis too
+
+The card was headed correctly and then announced, three rows down,
+**"Basis — Interpreted: rock class from the unit's own lithology."** There is
+no unit and no lithology: `rockClass(lithology, description, name)` also reads
+the DESCRIPTION, and the thickness card's own line — "Above bedrock: soil,
+regolith and sedimentary deposits" — matched on the word *sedimentary*.
+
+`written` (`feature.ice || feature.soil`) already stops the kicker and title
+being re-derived. The classification BASIS row was outside that guard, so a
+card that had written its own three lines still stated the basis of a
+classification it never made. It is inside it now. The general form: a card
+that opts out of classification opts out of everything downstream of the
+classifier, and prose fed to a keyword matcher will eventually match.

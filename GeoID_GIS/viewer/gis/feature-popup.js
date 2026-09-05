@@ -20,18 +20,18 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260905-65852a6";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260905-65852a6";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260905-4043670";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260905-4043670";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20260905-65852a6";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260905-65852a6";
-import { lithologyLabel } from "./lithology-label.js?v=20260905-65852a6";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260905-65852a6";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260905-65852a6";
+} from "./vector-render.js?v=20260905-4043670";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260905-4043670";
+import { lithologyLabel } from "./lithology-label.js?v=20260905-4043670";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260905-4043670";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260905-4043670";
 import {
   canEditRow, editableFields, applyRowChange,
-} from "./table-editor.js?v=20260905-65852a6";
+} from "./table-editor.js?v=20260905-4043670";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -2035,6 +2035,19 @@ function install() {
       // A geology unit is NOT nothing: its card is the viewer's and its
       // outline was just pinned above, so this must not sweep either away.
       if (geologyHit) return;
+      /**
+       * A RASTER SHEET HAS NO FEATURES TO HIT, and until this line that made
+       * it unclickable: the soil-thickness map drew a legend and a colour and
+       * a click on it landed here, where the card is dismissed for landing on
+       * nothing. A sheet is data as much as a polygon is, so it is offered the
+       * click before the dismissal — and answers by reading its own source
+       * file at the point, not by sampling the picture it drew.
+       *
+       * Synchronously TRUE means it has claimed the click; the read and the
+       * card follow on their own. The next sheet that wants a click adds its
+       * line here, in the order it draws.
+       */
+      if (window.GeoIDSoilThickness?.probeAt?.(at.lat, at.lon)) return;
       window.GeoIDViewer?.clearSceneFlash?.();
       window.GeoIDViewer?.closeSceneFeature?.();
       hidePopup();

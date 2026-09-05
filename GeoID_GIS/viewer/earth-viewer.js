@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260905-65852a6";
+  from "./gis/geo-utils.js?v=20260905-4043670";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260905-65852a6";
+  from "./gis/vector-render.js?v=20260905-4043670";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260905-65852a6";
+  from "./gis/rock-class.js?v=20260905-4043670";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260905-65852a6";
+  from "./gis/lithology-label.js?v=20260905-4043670";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -6382,7 +6382,19 @@ function fmtProp(value) {
          * carries is. The ORIGIN is a citation and belongs under Sources with
          * the others.
          */
-        const classBasis = classificationBasis(unitClass, unitSetting, settingElevation);
+        /**
+         * A CARD THAT WROTE ITS OWN LINES DID NOT CLASSIFY A ROCK, so it has
+         * no classification to state the basis of. `written` already stops the
+         * kicker and the title being re-derived; the basis row was left out of
+         * that and leaked back in by the side door — `rockClass` reads the
+         * DESCRIPTION as well as the lithology, so the soil-thickness card's
+         * own line, "Above bedrock: soil, regolith and sedimentary deposits",
+         * was matched on the word sedimentary and the card announced it had
+         * interpreted a rock class from the unit's lithology. There is no
+         * unit and there is no lithology: the number is a modelled depth.
+         */
+        const classBasis = written
+          ? null : classificationBasis(unitClass, unitSetting, settingElevation);
         const detailRows = [
           /**
            * THE SOURCE'S OWN AREA, beside the one this card measures.

@@ -23,9 +23,10 @@
  * valley bottoms whatever fraction of the ground they are. The card says so.
  */
 
-import { buildRasterLayer, loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260905-65852a6";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260905-65852a6";
-import { dataUrl } from "./data-base.js?v=20260905-65852a6";
+import { buildRasterLayer, loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260905-4043670";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260905-4043670";
+import { dataUrl } from "./data-base.js?v=20260905-4043670";
+import { cellAt, thicknessCard } from "./thickness-probe.js?v=20260905-4043670";
 
 export const LAYER_NAME = "Soil and sediment thickness (Pelletier)";
 
@@ -150,6 +151,81 @@ async function readWindow(bounds) {
   };
 }
 
+/* ── the click ──────────────────────────────────────────────────────────── */
+
+/**
+ * The value at a point, from the FILE.
+ *
+ * A one-pixel window at full resolution. It costs one byte range — the COG is
+ * tiled, so the read touches the single tile that pixel is in, and geotiff.js
+ * keeps it, which is what makes clicking around a hillside free after the
+ * first click.
+ *
+ * Deliberately NOT read out of the drawn sheet. That image is resampled to at
+ * most 1,600 px across the view: at a wide view one of its pixels is dozens of
+ * source cells and its colour is their blend, so the picture cannot answer a
+ * question about a point without inventing a value for it.
+ */
+export async function sampleAt(lat, lon) {
+  const info = await loadMeta();
+  const cell = cellAt(lat, lon, info);
+  if (!cell) return null;
+  if (cell.outside) return { ...cell, metres: null };
+  const img = await open();
+  const [band] = await img.readRasters({
+    window: [cell.x, cell.y, cell.x + 1, cell.y + 1],
+  });
+  const raw = band?.[0];
+  const modelled = Number.isFinite(raw) && raw !== info.noData;
+  return { ...cell, metres: modelled ? Number(raw) : null };
+}
+
+/**
+ * Answer a click, in the card the geology units already use.
+ *
+ * Synchronous TRUE means "this click is mine" — the caller has to know that
+ * before the read finishes, or it dismisses the card a moment before this
+ * raises one. The read then runs on its own; a TICKET is what stops a slow
+ * answer from overwriting a newer click's card, which is the ordinary
+ * behaviour of clicking twice quickly on a fresh tile.
+ */
+let probeTicket = 0;
+
+export function probeAt(lat, lon) {
+  const layer = thicknessLayer();
+  if (!layer || layer.visible === false) return false;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return false;
+  const ticket = (probeTicket += 1);
+  void (async () => {
+    try {
+      const sample = await sampleAt(lat, lon);
+      if (!sample || ticket !== probeTicket) return;
+      const card = thicknessCard(sample, meta || {});
+      /**
+       * `soil: true` is the flag that stops the card re-deriving its own
+       * heading — without it `crustalSetting` reads the elevation and heads a
+       * thickness reading "Continental", and the rock-property fold prints
+       * sixteen rock-mechanics parameters about a metre of till. The lesson is
+       * `soil-card.js`'s; the flag is the same one.
+       */
+      window.GeoIDViewer?.showFeatureCard?.({
+        soil: true,
+        type: card.kicker,
+        rock_type: card.title,
+        lithology: null,
+        name: null,
+        description: card.meta || null,
+        extra_rows: card.headline || null,
+        origin: card.source,
+        rows: card.note ? [...card.rows, ["Reference", card.note]] : card.rows,
+      }, lat, lon);
+    } catch (error) {
+      console.warn("soil thickness could not be sampled:", error.message);
+    }
+  })();
+  return true;
+}
+
 async function build({ onStatus = () => {} } = {}) {
   if (busy) return { ok: false, message: "already building" };
   busy = true;
@@ -243,4 +319,15 @@ export function removeThickness() {
   if (!layer) return false;
   window.GeoIDImportManager?.removeLayer?.(layer.id);
   return true;
+}
+
+/**
+ * The seam `gis/feature-popup.js` offers a click to when nothing vector was
+ * hit. Published on import, which is when the catalogue row loads this — so a
+ * click can only be claimed by a sheet that is actually on the globe.
+ */
+if (typeof window !== "undefined") {
+  window.GeoIDSoilThickness = {
+    LAYER_NAME, thicknessLayer, sampleAt, probeAt, addThickness, removeThickness,
+  };
 }
