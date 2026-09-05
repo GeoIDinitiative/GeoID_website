@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260905-4efeb94";
+  from "./gis/geo-utils.js?v=20260905-38a6fb3";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260905-4efeb94";
+  from "./gis/vector-render.js?v=20260905-38a6fb3";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260905-4efeb94";
+  from "./gis/rock-class.js?v=20260905-38a6fb3";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260905-4efeb94";
+  from "./gis/lithology-label.js?v=20260905-38a6fb3";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -6244,6 +6244,17 @@ function fmtProp(value) {
         activeGeoPopupLocalPos = null;
         activeGeoPopupLatLon = null;
       }
+      /**
+       * THE GROUND PROFILE, for a card that describes the ground.
+       *
+       * Every card raised anywhere goes through this function — the tiled
+       * geology and soil maps, the imported vectors, the thickness sheet — so
+       * the one hook here reaches all of them, and a hook on any single path
+       * would miss the others. The GIS layer decides whether this card is one
+       * of its own; on a planet page there is nothing listening at all.
+       */
+      window.GeoIDGroundProfile?.attachToCard?.(
+        feature, activeGeoPopupLatLon?.lat, activeGeoPopupLatLon?.lon);
       const interpretation = String(feature.interpretation || "").trim();
       const origin = String(feature.origin || "").trim();
       const geometryName = String(feature.name || "").trim();

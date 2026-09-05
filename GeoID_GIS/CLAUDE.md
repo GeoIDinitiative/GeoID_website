@@ -13045,3 +13045,91 @@ It does NOT fix the data: a belt reduced to a rectangle is still the wrong
 shape, now lying on the ground instead of cutting under it. The bake-side fix
 is to drop a polygon whose simplified area has collapsed, and that needs the
 source and a re-bake.
+
+#### And then the arcs, which were the same fault wearing the ground
+
+"Geometric seam still exists on world soil map." The diamond was gone and a set
+of fine concentric arcs remained — because the chord fix had done exactly what
+it said and no more: the collapsed belts now **lie on the ground**, and a
+rectangle 90° wide lying on the ground traces its own parallel.
+
+The shape was always the problem, and a shape with no area cannot be drawn
+correctly. Measured in tile coordinates, where the claim is exact: of 248,268
+rings in the soil pyramid, 424 run 90% of a tile, and splitting those by
+vertex count separates them completely —
+
+| vertices | rings | thinnest |
+| --- | --- | --- |
+| 40+ | 131 | 746 units of 4096 |
+| 13–40 | 1 | 4096 |
+| 7–12 | 10 | 23 |
+| 4–6 | 282 | 2 |
+
+Nothing with many vertices is thin: a belt digitised at 1:5,000,000 and
+spanning ten thousand kilometres has hundreds of them. And among rings with
+twelve or fewer, thinness runs 2, 3, 3 … 202, 204 and then jumps straight to
+4096 — eight units that legitimately fill their tile. `mvt.js` drops rings in
+that gap: full-tile run, ≤12 vertices, under an eighth of a tile thick.
+
+**284 rings of 248,268 go — 0.11%** — and the soil pyramid's collapsed slivers
+fall from 285 to 1, geology to 3, GLiM to 7, with exactly 280 features fewer of
+209,324. Two thresholds were tried and rejected on measurement first: a plain
+thinness rule dropped 14,000 real rings at zoom 0 (one unit is ten kilometres
+there) while missing the artefacts, and an aspect rule would have taken the
+Nile valley with it.
+
+### A merged soil map is a profile, not a layer
+
+"Should we create a unified soil map combining thickness, soils of the world
+and the superficial geology polygons?" Yes — and **not as a blended raster**.
+
+The three answer different questions at different resolutions over different
+extents: BGS superficial (1:625,000, **UK only**), FAO's soils (1:5,000,000,
+global), Pelletier's thickness (1 km, global, modelled). Blending them makes a
+map whose meaning changes at the UK border with nothing on the pixel to say
+which — the same fault as a picture claiming a precision its source never had —
+and it destroys the most useful thing in the set: where BGS maps 3 m of till
+and Pelletier models 12 m, the DISAGREEMENT is the signal.
+
+So `ground-profile.js` assembles them per point, every line naming its own
+source and scale, plus the slope. Three things it does that a blend cannot:
+
+**The strength comes from the best-mapped answer, and says which.** Superficial
+where it exists, because it is eight times the scale and it is what the
+strength table is keyed on; the soil map elsewhere. A c′ from a 1:625,000 map
+and a c′ from a 1:5,000,000 one are not the same claim.
+
+**A FAO unit name is not a material — its texture is.** "Dystric Cambisols"
+matches no lithology word, so every point outside the UK fell to the strength
+table's no-information default. FAO publishes the topsoil's sand, silt and clay
+per unit and the dominant fraction IS a keyword the table holds: measured over
+Donegal, 37% clay → c′ 10 kPa, φ′ 22°, γ 18 kN/m³, and the card says it came
+from a typical texture rather than a mapped deposit.
+
+**The thickness is not the failure depth.** Pelletier models the whole
+permeable column — 50 m in a valley fill — and the infinite-slope model assumes
+a plane parallel to the ground. The profile offers `min(thickness, 3 m)` to FoS
+and prints both numbers with the reason, rather than quietly substituting one
+for the other.
+
+#### Two things only the globe could have told me
+
+**The card has three parents and I hooked the wrong one.** The FAO soils arrive
+as a `geologyDataset`, so their click card is built by `geology-panel.js` and
+raised by the viewer — the vector popup's path never runs for them, and a hook
+there never fired. `openGeoPopup` is where every card meets: tiled maps,
+imported vectors, the thickness sheet. One hook there reaches all of them.
+
+**And the tiled maps are held twice.** The viewer keeps an interactive
+catalogue of the polygons; the import manager keeps the layer's features. The
+card is drawn from the first and the profile read the second — measured, three
+seconds after flying to Donegal the card said Dystric Cambisols while
+`featuresAt` found nothing at the same coordinate, and the profile silently
+dropped the two rows the click was most about. It falls back to the catalogue
+the card itself came from, reading FAO's texture back off the card's own rows.
+
+Also fixed while finding that: a profile appended to one card **outlived it**.
+`openGeoPopup` rebuilds by refilling its named elements, so anything added
+alongside them survives — a click on Donegal showed the profile of a click made
+in the Bering Sea, every field plausible and every field wrong. It is cleared
+on every card now, not only before appending a new one.

@@ -234,6 +234,68 @@ function clipRingToTile(ring, extent) {
   return out;
 }
 
+/**
+ * A RING THAT CROSSES A WHOLE TILE ON FOUR VERTICES IS NOT A POLYGON.
+ *
+ * Reported as "geometric patterns on the poles of the soils dataset" — first a
+ * diamond across the Arctic, then, once the fills were made to follow the
+ * ground instead of cutting under it, the arcs those same shapes trace along
+ * their own parallel. The chord fix was right and could not fix this: the
+ * SHAPE is wrong, and a shape with no area cannot be drawn correctly.
+ *
+ * They are what is left of the Arctic soil belts — Lithosols, Gelic Gleysols,
+ * Regosols, thousands of kilometres long and a tenth of a degree wide — after
+ * a simplify tolerance wider than the belt deletes every vertex between their
+ * ends. What survives is a rectangle, clipped by the tiler to the tile it lies
+ * in, so it runs the tile's full width at every level.
+ *
+ * THE TEST IS THE VERTEX COUNT, and it was chosen from the data rather than
+ * guessed. Of 248,268 rings in the soil pyramid, 424 run 90% of a tile. Split
+ * by how many vertices they carry:
+ *
+ *     40+ vertices   131 rings   never thinner than 746 units of 4096
+ *     13-40           1 ring     4096 (a tile-filling square)
+ *     7-12           10 rings    23 to 174
+ *     4-6           282 rings    2 to 4096
+ *
+ * Nothing with many vertices is thin: a real belt digitised at 1:5,000,000 and
+ * spanning ten thousand kilometres has hundreds of them. And among the rings
+ * with twelve or fewer, thinness runs 2, 3, 3, 3 … 200, 202, 204 and then
+ * jumps straight to 4096 — eight legitimate units that fill their tile
+ * outright. The cut sits in that gap.
+ *
+ * 284 rings of 248,268 go, which is 0.11%, and every one of them is a hairline
+ * drawn across an ocean. Done here rather than in the renderer because here the
+ * measure is the tile's own coordinate system, where "runs the full width" and
+ * "was reduced to a box" are both exactly what they sound like — instead of a
+ * threshold in degrees that would have to be guessed per dataset and per
+ * latitude. It applies to every pyramid decoded here: the world geology and
+ * GLiM carry the same signature.
+ *
+ * It does not repair the belt. That needs the bake to stop collapsing it —
+ * drop a polygon whose simplified area has gone — and a re-bake.
+ */
+const HAIRLINE_RUN = 0.9;         // of the tile's width
+const HAIRLINE_VERTS = 12;
+const HAIRLINE_THIN = 1 / 8;      // of the tile's width
+
+function isHairline(ring, extent) {
+  if (ring.length > HAIRLINE_VERTS) return false;
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const [x, y] of ring) {
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+  const thin = Math.min(maxX - minX, maxY - minY);
+  const run = Math.max(maxX - minX, maxY - minY);
+  return run >= extent * HAIRLINE_RUN && thin <= extent * HAIRLINE_THIN;
+}
+
 function toGeoJSON(gtype, rings, project, extent) {
   if (gtype === 1) {
     const points = rings.flat().map(project);
@@ -267,7 +329,8 @@ function toGeoJSON(gtype, rings, project, extent) {
      */
     // Clipped FIRST, so the winding, the areas and the hole grouping below all
     // describe the geometry that is actually going to be drawn.
-    rings = rings.map((r) => clipRingToTile(r, extent)).filter((r) => r.length >= 3);
+    rings = rings.map((r) => clipRingToTile(r, extent))
+      .filter((r) => r.length >= 3 && !isHairline(r, extent));
     if (!rings.length) return null;
     const areas = rings.map(signedArea);
     const outerSign = Math.sign(areas.find((a) => a !== 0) || 1);

@@ -13,6 +13,7 @@
  */
 
 import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js";
+import { readFileSync, existsSync } from "node:fs";
 
 let failures = 0;
 function check(name, ok, detail = "") {
@@ -280,6 +281,86 @@ check("and they are the tiles Macrostrat would be asked for",
   check("a small box NEVER answers zoom 0", zoomForBounds({ west: 0, east: 0.5 }) > 0);
   check("a degenerate box answers 0 honestly", zoomForBounds({}) === 0);
   check("and it is capped", zoomForBounds({ west: 0, east: 0.0001 }, { maxZoom: 6 }) === 6);
+}
+
+/* ── A ring that crosses a whole tile on four vertices is not a polygon ─────
+   Reported as "geometric patterns on the poles of the soils dataset": first a
+   diamond across the Arctic, because the renderer drew each tile-wide edge as
+   a chord through the planet, then the arcs those same shapes trace along
+   their own parallel once the fills were made to follow the ground. The chord
+   fix was right and could not fix this -- the SHAPE is wrong. They are the
+   Arctic soil belts after a simplify tolerance wider than the belt deletes
+   every vertex between their ends.
+
+   Run against the real pyramid, because the fault was in real data and a
+   hand-built tile would only test the arithmetic I wrote. */
+{
+  const root = new URL("../../../data/global/", import.meta.url);
+  const decodeAll = (set, minZoom = 0, maxZoom = 5) => {
+    const rings = [];
+    let features = 0;
+    for (let z = minZoom; z <= maxZoom; z += 1) {
+      const n = 2 ** z;
+      for (let x = 0; x < n; x += 1) {
+        for (let y = 0; y < n; y += 1) {
+          const file = new URL(`${set}/${z}/${x}/${y}.mvt`, root);
+          if (!existsSync(file)) continue;
+          const layers = decodeTile(new Uint8Array(readFileSync(file)).buffer, { z, x, y });
+          for (const name of Object.keys(layers)) {
+            for (const feature of layers[name]) {
+              features += 1;
+              const parts = feature.geometry.type === "Polygon"
+                ? feature.geometry.coordinates
+                : feature.geometry.type === "MultiPolygon"
+                  ? feature.geometry.coordinates.flat() : [];
+              for (const ring of parts) {
+                const lons = ring.map((c) => c[0]);
+                const lats = ring.map((c) => c[1]);
+                rings.push({
+                  w: Math.max(...lons) - Math.min(...lons),
+                  h: Math.max(...lats) - Math.min(...lats),
+                  verts: ring.length,
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+    return { rings, features };
+  };
+
+  const soil = existsSync(new URL("soil/0/0/0.mvt", root)) ? decodeAll("soil") : null;
+  if (!soil) {
+    check("the soil pyramid is present to test against", false, "no tiles on disk");
+  } else {
+    // Before: 285 of these across the six levels, up to 358 degrees wide and a
+    // fifth of a degree tall. They drew as hairlines across the Arctic Ocean.
+    const slivers = soil.rings.filter((r) => r.w > 5 && r.h > 0 && r.w / r.h > 40);
+    check("the collapsed belts are gone from the soil pyramid",
+      slivers.length <= 2, `${slivers.length} left of 285`);
+
+    // ...and the map itself is intact. 280 rings of 209,324 went, 0.13%.
+    check("and the map is otherwise whole",
+      soil.features > 208000, `${soil.features} features`);
+
+    /* The rule keeps the shape it was aimed at and nothing else: a unit big
+       enough to fill its own tile has four vertices too, and must survive. */
+    const tileFilling = soil.rings.filter((r) => r.verts <= 6 && r.w > 20 && r.h > 5);
+    check("a unit that fills a whole tile is not mistaken for one",
+      tileFilling.length > 0, `${tileFilling.length} kept`);
+  }
+
+  /* Every pyramid decoded here carries the same signature -- checked at the
+     level it was found at rather than over the whole tree, because GLiM holds
+     4.2 million features and a unit test may not take a minute to say so. */
+  for (const set of ["geology", "glim"]) {
+    if (!existsSync(new URL(`${set}/2/0/0.mvt`, root))) continue;
+    const out = decodeAll(set, 2, 2);
+    const slivers = out.rings.filter((r) => r.w > 5 && r.h > 0 && r.w / r.h > 40);
+    check(`${set} is cleaned by the same rule`, slivers.length <= 8,
+      `${slivers.length} slivers in ${out.features} features`);
+  }
 }
 
 console.log(failures ? `\n${failures} FAILED` : "\nall passed");

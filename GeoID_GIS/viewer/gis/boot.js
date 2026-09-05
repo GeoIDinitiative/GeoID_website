@@ -1,4 +1,4 @@
-import { ready } from "./shell.js?v=20260905-4efeb94";
+import { ready } from "./shell.js?v=20260905-38a6fb3";
 
 /**
  * The GIS layer's entry point on a planet page.
@@ -19,6 +19,9 @@ const MODULES = [
   "./settings-panel.js",
   "./gee-live.js",
   "./fos.js",
+  // Publishes the window seam the click cards read; it imports fos.js for the
+  // strength table, so it belongs beside it.
+  "./ground-profile.js",
   "./geoid-pipeline.js",
   "./geoid-mode.js",
   "./import-manager.js",
@@ -80,7 +83,7 @@ const MODULES = [
   "./atlas-assistant.js",
 ];
 
-const VERSION = "?v=20260905-4efeb94";
+const VERSION = "?v=20260905-38a6fb3";
 
 async function boot() {
   const shell = await ready;

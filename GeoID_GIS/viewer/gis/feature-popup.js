@@ -20,18 +20,18 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260905-4efeb94";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260905-4efeb94";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260905-38a6fb3";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260905-38a6fb3";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20260905-4efeb94";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260905-4efeb94";
-import { lithologyLabel } from "./lithology-label.js?v=20260905-4efeb94";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260905-4efeb94";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260905-4efeb94";
+} from "./vector-render.js?v=20260905-38a6fb3";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260905-38a6fb3";
+import { lithologyLabel } from "./lithology-label.js?v=20260905-38a6fb3";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260905-38a6fb3";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260905-38a6fb3";
 import {
   canEditRow, editableFields, applyRowChange,
-} from "./table-editor.js?v=20260905-4efeb94";
+} from "./table-editor.js?v=20260905-38a6fb3";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -1059,6 +1059,14 @@ function showViewerCard(hits, at) {
       unit: titleOf(f.properties || {}) || featureKind(f, layer),
     })),
   };
+  /**
+   * WHICH LAYER THIS CARD IS FOR, carried on the feature.
+   *
+   * The tiled maps put it on as `source_layer` and the vector path did not, so
+   * the ground profile — which decides from the layer's name whether a card
+   * describes the ground — could not tell what it was looking at here.
+   */
+  feature.source_layer = feature.source_layer || top.layer?.name || null;
   if (!viewer?.showFeatureCard?.(feature, at?.lat, at?.lon)) return false;
   /**
    * Into the card that actually opened.
@@ -1073,6 +1081,17 @@ function showViewerCard(hits, at) {
       || document.getElementById("geo-popup");
     host?.appendChild(buildPointEditor(top.layer, top.feature));
   }
+  /**
+   * THE GROUND UNDER THE POLYGON, not just the polygon.
+   *
+   * Three maps describe the ground here at three scales over three extents --
+   * BGS superficial at 1:625,000 over the UK, FAO's soils at 1:5,000,000
+   * globally, Pelletier's thickness as a 1 km model -- and a click used to
+   * answer with whichever one happened to be on top. The profile assembles all
+   * of them with the slope, each line naming its own source, which is what
+   * makes them useful together without pretending they are one map.
+   */
+
   // The outline stays: on a map of hundreds of polygons the card alone cannot
   // say WHICH one answered. The pin does not -- the card brings its own.
   if (at) void showOutline(top.feature, { layer: top.layer });
