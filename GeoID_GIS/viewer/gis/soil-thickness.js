@@ -23,9 +23,9 @@
  * valley bottoms whatever fraction of the ground they are. The card says so.
  */
 
-import { buildRasterLayer, loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260905-75a308f";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260905-75a308f";
-import { dataUrl } from "./data-base.js?v=20260905-75a308f";
+import { buildRasterLayer, loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260905-65852a6";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260905-65852a6";
+import { dataUrl } from "./data-base.js?v=20260905-65852a6";
 
 export const LAYER_NAME = "Soil and sediment thickness (Pelletier)";
 
@@ -128,7 +128,26 @@ async function readWindow(bounds) {
   const [band] = await img.readRasters({
     window: [x0, y0, x1, y1], width, height, fillValue: info.noData,
   });
-  return { band, width, height };
+  /**
+   * THE BOUNDS OF THE PIXELS ACTUALLY READ, not the bounds that were asked
+   * for. This is what put the layer off the coast.
+   *
+   * The window is snapped OUT to whole source pixels — `floor` on the west and
+   * north, `ceil` on the east and south — so the image that comes back covers
+   * up to one source pixel more than the request on every side. Labelling it
+   * with the request stretches that image onto slightly the wrong ground: a
+   * fixed error of up to 30 arcseconds, which is **930 m at the equator**.
+   * Invisible from orbit and the whole story at a fjord, where it reads as the
+   * map sliding off the shoreline as you come down.
+   */
+  const lon = (x) => info.bounds.west + (x / gw) * (info.bounds.east - info.bounds.west);
+  const lat = (y) => info.bounds.north - (y / gh) * (info.bounds.north - info.bounds.south);
+  return {
+    band,
+    width,
+    height,
+    bounds: { west: lon(x0), east: lon(x1), north: lat(y0), south: lat(y1) },
+  };
 }
 
 async function build({ onStatus = () => {} } = {}) {
@@ -155,7 +174,8 @@ async function build({ onStatus = () => {} } = {}) {
     }
     if (!seen) return { ok: false, message: "Nothing is modelled over this view." };
     const result = buildRasterLayer([values], read.width, read.height, {
-      minX: bounds.west, maxX: bounds.east, minY: bounds.south, maxY: bounds.north,
+      minX: read.bounds.west, maxX: read.bounds.east,
+      minY: read.bounds.south, maxY: read.bounds.north,
     }, { name: LAYER_NAME, noData: info.noData, isDem: false, unit: info.unit });
     // It draws ON the ground and does not test depth, so it must not write it
     // either -- the fault the elevation sheets already record.

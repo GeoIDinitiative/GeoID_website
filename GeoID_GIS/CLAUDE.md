@@ -12747,3 +12747,36 @@ in the prose was executed by the shell and replaced with nothing — the file
 parsed perfectly and its comments had holes. Quote the delimiter (`<<'EOF'`)
 and substitute the stamp afterwards. Same family as the STYLE-literal backtick,
 which this file records five times.
+
+#### The layer sat beside the coast, and it was the window's own snapping
+
+"The mapping of the soil thickness isn't fully coupled to the surface — see the
+offset as we zoom in." It was, and the fix is one line about which bounds the
+image is labelled with.
+
+`readWindow` snaps the request OUT to whole source pixels — `floor` on the west
+and north, `ceil` on the east and south — because a COG is read in pixels. The
+image that comes back therefore covers up to one source pixel more than was
+asked for on every side, and it was being labelled with the REQUEST. Stretching
+it onto those bounds is a fixed error of up to 30 arcseconds: **930 m at the
+equator**, invisible from orbit and the whole story at a fjord, where the land
+colouring slides off the shoreline and paints the water.
+
+It reports the bounds of the pixels it actually read now. Verified over the
+Marlborough Sounds at 199 km: the layer's own bounds land on whole pixel
+indices — west 172.05833° is grid column **42,247.0**, north −40.2° is row
+**15,624.0** — and the colouring follows the coast with the sea left clear.
+
+#### And 0 m is not nothing
+
+Asked whether a raster calculator should drop zero-thickness cells. **No**, and
+the file is the reason: it distinguishes them deliberately. The sea is −1
+(stored 255 here) and bare rock is 0, and measured over a 3° × 2° window on New
+Zealand there are 47,151 valid cells of which **16.4% are exactly 0** — the
+Southern Alps, which is precisely the ground a landslide study is about. A cell
+that says "modelled, and there is nothing above the bedrock" is an answer;
+turning it into nodata would delete that answer from the data as well as from
+the picture, and every tool downstream reads the band.
+
+What the zeros were doing in that screenshot was nothing: the pale ground over
+the water was the misregistration above, not the low end of the ramp.
