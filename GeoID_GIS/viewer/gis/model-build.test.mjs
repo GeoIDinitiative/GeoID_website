@@ -8,7 +8,7 @@
 import {
   metresPerDegreeLat, metresPerDegreeLon, makeLocalFrame, planGrid, buildSurface,
   surfaceStl, domainStl, stlStats, gmshScript, femSpec, DOMAIN_PHYSICS,
-  sizeField, structuredFieldText, despikeGrid,
+  sizeField, structuredFieldText, despikeGrid, DEFAULT_FLAGS,
 } from "./model-build.js";
 
 let failures = 0;
@@ -144,8 +144,8 @@ check("the grid is square over a square box", grid.nx === grid.ny, `${grid.nx}x$
     ["top", "base", "north", "south", "east", "west"]
       .every((n) => script.includes(`"${n}"`)));
   check("it embeds the study's points in the volume",
-    script.includes("gmsh.model.mesh.embed(0, tags, 3, volume)")
-    && script.includes("[[10,20,30,5,\"borehole\"]]"));
+    script.includes("gmsh.model.mesh.embed(0, [t for (t, _, _) in tags], 3, volume)")
+    && script.includes("[[10,20,30,5,\"borehole\",20]]"));
   check("and writes the mesh where FEM Setup looks", script.includes('gmsh.write("m.msh")'));
 }
 
@@ -325,6 +325,47 @@ check("the grid is square over a square box", grid.nx === grid.ny, `${grid.nx}x$
     `${withHole.repairedNodes}`);
   check("so the relief is the ground's, not the void's",
     withHole.zMin > -100, `${withHole.zMin}`);
+}
+
+/* ── the flags, which are what a solver actually reads ─────────────────────
+   gmsh carries a name and a number for every group; GALES' preprocessor takes
+   the NUMBER -- int(result[5]) out of the $Entities block -- and refuses a
+   point whose tag is 0. Run on the real mesher before this existed: 13 point
+   entities, 1 tagged; 20 curves, none. */
+{
+  const script = gmshScript({
+    flags: { top: 7, base: 3, north: 5, south: 5, east: 5, west: 5, domain: 10 },
+    embedPoints: [{ x: 0, y: 0, z: 1, name: "gauge", flag: 21 }],
+  });
+
+  check("the study's own numbers reach the script",
+    script.includes('"top":7') && script.includes('"base":3')
+    && script.includes('"domain":10'), "the flag map is written out");
+  check("a group is created WITH its number and its name",
+    script.includes("addPhysicalGroup(2, sorted(tags), value,"));
+  check("the volume carries its own", script.includes('flags["domain"], name="domain"'));
+  check("and a point carries the one it was given",
+    script.includes('[[0,0,1,'), script.slice(script.indexOf("embedded ="), 60));
+
+  /* ONE FLAG IS ONE GROUP. Four sides at 5 is a single lateral boundary --
+     and asking gmsh for a second group at a number already used is an ERROR,
+     not a merge: "Physical surface 5 already exists", which is how this was
+     found. So the faces are gathered by number before any group is made. */
+  check("faces sharing a number are gathered before the group is made",
+    script.includes("faces.setdefault(flags[label], []).extend(tags)")
+    && script.indexOf("faces.setdefault") < script.indexOf("addPhysicalGroup(2"));
+
+  /* A physical group on a face does not reach the curves and points beneath
+     it, and an untagged point is what stops the mesh being read. */
+  check("edges and corners inherit their face's flag",
+    script.includes("getBoundary([(2, surface)]") && script.includes("owner.setdefault((0,"));
+  check("and the lowest flag owns a shared edge, so the study decides that too",
+    script.includes("for value in sorted(faces):"));
+
+  check("the defaults follow the convention the GALES decks are written against",
+    DEFAULT_FLAGS.domain === 10 && DEFAULT_FLAGS.north === 5
+    && DEFAULT_FLAGS.south === 5 && DEFAULT_FLAGS.east === 5 && DEFAULT_FLAGS.west === 5,
+    JSON.stringify(DEFAULT_FLAGS));
 }
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");

@@ -1,9 +1,9 @@
 import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
-  nativeStepM, sizeField, structuredFieldText,
-} from "./model-build.js?v=20260905-7862593";
-import { ringsFromCollection } from "./extraction.js?v=20260905-7862593";
+  nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS,
+} from "./model-build.js?v=20260905-36e4cce";
+import { ringsFromCollection } from "./extraction.js?v=20260905-36e4cce";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -66,6 +66,10 @@ const state = {
   demReady: null,
   // Per-layer element size for the layers given the "refine" role.
   refineSize: new Map(),
+  // The integer tag each face, the volume and each point carries. A solver
+  // reads the number, not the name, so the study owns it.
+  flags: { ...DEFAULT_FLAGS },
+  pointFlag: new Map(),
   // Elements where the ground needs them: coarse away from the action, fine on
   // the slopes, and finer still inside a region somebody names.
   grading: { on: true, coarseM: 0, fineM: 0, slopeRefDeg: 30 },
@@ -733,6 +737,43 @@ function stepConditions(body) {
     "A condition names one of the mesh's own boundary surfaces. The build script"
     + " creates them as physical groups, so these names are what the solver reads."));
 
+  /**
+   * THE FLAGS, which are what a solver actually reads.
+   *
+   * gmsh carries a name and a number for every group, and GALES' preprocessor
+   * takes the NUMBER — `int(result[5])` out of the `$Entities` block — so a
+   * deck written against an existing model means particular integers. The
+   * study sets them here rather than inheriting whatever this file happened to
+   * choose.
+   *
+   * ONE FLAG IS ONE GROUP: faces sharing a number are one boundary as far as
+   * gmsh is concerned, which is how the four sides become a single lateral
+   * boundary the way `etna_3d/input/gmsh_mesh.py` writes it. It is also how a
+   * shared edge is decided — the lowest flag owns the curve and its corners —
+   * so four sides at one number have no ambiguity between them at all.
+   */
+  const flags = el("details", "gis-tool-fold");
+  const flagHead = el("summary", null, "Flags (the numbers a solver reads)");
+  flags.appendChild(flagHead);
+  const grid = el("div", "gis-tool-grid");
+  [...SURFACES, "domain", "points"].forEach((key) => {
+    const input = number(`gis-mb-flag-${key}`, state.flags[key] ?? DEFAULT_FLAGS[key], 1);
+    input.addEventListener("input", () => {
+      const value = Math.round(Number(input.value));
+      if (value > 0) { state.flags[key] = value; state.outputs = null; }
+    });
+    grid.appendChild(row(key === "domain" ? "Volume"
+      : key === "points" ? "Embedded points" : key, input));
+  });
+  flags.appendChild(grid);
+  flags.appendChild(el("p", "tool-copy",
+    "Faces given the same number become one boundary — four sides at 5 is the"
+    + " single lateral boundary the GALES decks are written against. Where two"
+    + " faces meet, the lower number owns the edge and its corners, which is"
+    + " what keeps every point tagged: a point with no flag stops the mesh"
+    + " being read at all."));
+  body.appendChild(flags);
+
   const list = el("div", null);
   body.appendChild(list);
 
@@ -862,6 +903,10 @@ function embeddedPoints() {
         sizeM: Math.max(grid.stepXm / 3, 1),
         name: String(f.properties?.name || f.properties?.site || `${layer.name}_${index + 1}`),
         layer: layer.name,
+        // Per LAYER, not per point: a study flags "the piezometers", and a
+        // point that wants its own number is its own layer.
+        flag: Number(state.pointFlag.get(String(layer.id)))
+          || state.flags.points || DEFAULT_FLAGS.points,
         lat,
         lon,
         depthM: depth,
@@ -1035,6 +1080,7 @@ async function writePackage() {
     embedPoints: points,
     sizeFieldFile: fieldFile,
     refineBoxes: refineRegions(grid),
+    flags: state.flags,
   });
 
   const spec = femSpec({
@@ -1070,6 +1116,7 @@ async function writePackage() {
         post_spacing_m: state.demReady.postM,
         resampled_beyond_source: Boolean(state.demReady.interpolated),
       } : null,
+      flags: { ...state.flags },
       mesh_grading: field ? {
         coarse_m: field.coarseM, fine_m: field.fineM,
         slope_reference_deg: field.slopeRefDeg,

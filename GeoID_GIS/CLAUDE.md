@@ -13290,3 +13290,47 @@ without a field the terrain came back at **267 m and 279 m** on a surface
 written at a uniform 60, and with one at **40 m against 294**. The flag changed
 the result by 1 m in 294. It is gone rather than kept as a comfort, and the
 comment now says what was measured instead of what was expected.
+
+#### The flags are the study's, and a name is not a flag
+
+Compared against `etna_3d/input/gmsh_mesh.py`, the emitted script followed the
+same recipe and differed in four ways — and one of them meant the mesh could
+not enter GALES at all.
+
+`gmsh_to_gales.py` reads the integer TAG, not the name: `int(result[5])` out of
+the `$Entities` block, with an explicit refusal — *"gmsh did not write the
+right physical tag for the i-th point"*. Measured on our own mesh before this:
+
+    points     13   with a physical tag: 1
+    curves     20   with a physical tag: 0
+    surfaces   10   with a physical tag: 10
+    volumes     1   with a physical tag: 1
+
+A physical group on a FACE does not reach the curves and points beneath it,
+which is exactly what etna's `addPhysicalGroup(1, [c1..c4], 5)` and
+`addPhysicalGroup(0, [p1..p4], 5)` are for. So every face, the volume and every
+embedded point now carries a number the study chooses, and the edges and
+corners inherit their face's. After: **14/14 points, 20/20 curves, 10/10
+surfaces, 1/1 volume**, and the GALES check passes.
+
+**One flag is one group, and gmsh says so with an error.** Asking for a second
+group at a number already used is not a merge — `Physical surface 5 already
+exists`, which is how this was found, four sides into one lateral boundary.
+Faces are gathered by number before any group is made, so four sides at 5 is a
+single boundary named `east+north+south+west`, and distinct numbers keep them
+apart. It is also how a shared edge is decided: the LOWEST flag owns the curve
+and its corners, so the study settles that too by choosing its numbers.
+
+The defaults follow etna's convention — volume 10, lateral boundaries together
+at 5 — because a deck written against that pipeline already means those
+integers.
+
+Three differences remain, and they are choices rather than gaps. Etna builds
+the box below the terrain in the geo kernel from a terrain-only STL, where we
+bake the skirt and base into the STL: exact CAD walls against a footprint that
+need not have four sides. Etna has `box_hole`, a rotatable internal cavity
+subtracted from the domain — we have no internal volumes, only size fields,
+which change element size and create no surface a BC can name. And etna sets
+`Algorithm3D = 10` with `NumThreads`, and `MeshSizeFromCurvature = 20` — we
+leave the algorithm to gmsh and switch curvature OFF deliberately, because it
+overrides the background field in the places the field was written for.

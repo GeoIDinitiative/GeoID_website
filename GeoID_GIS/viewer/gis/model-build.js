@@ -607,6 +607,32 @@ export function structuredFieldText(field) {
 const PY = (value) => JSON.stringify(value);
 
 /**
+ * THE FLAGS A SOLVER READS, which are integers and not names.
+ *
+ * gmsh will happily carry both, and this file writes both — but the name is
+ * for the reader and the NUMBER is what a deck refers to: GALES' own
+ * `gmsh_to_gales.py` takes `int(result[5])` out of the `$Entities` block and
+ * refuses outright a point whose tag is 0. The defaults follow the convention
+ * `etna_3d/input/gmsh_mesh.py` uses — the volume at 10, the lateral boundaries
+ * together at 5 — because a deck written against that pipeline already means
+ * those numbers, and a study that wants different ones sets them.
+ *
+ * The sides share 5 by default, which is also how a shared edge is decided:
+ * where two faces meet, the lowest flag owns the curve and its points, so four
+ * sides at one number have no ambiguity between them at all.
+ */
+export const DEFAULT_FLAGS = {
+  top: 1,
+  base: 2,
+  north: 5,
+  south: 5,
+  east: 5,
+  west: 5,
+  domain: 10,
+  points: 20,
+};
+
+/**
  * A runnable gmsh Python script for the domain.
  *
  * The same shape the Model Studio emits and the sidecar's `/jobs/gmsh` runs,
@@ -712,13 +738,19 @@ export function gmshScript({
   order = 1,
   sizeFieldFile = null,
   refineBoxes = [],
+  flags = {},
 } = {}) {
-  const points = embedPoints.map((p) => ({
+  const flag = { ...DEFAULT_FLAGS, ...flags };
+  const points = embedPoints.map((p, index) => ({
     x: Number(p.x) || 0,
     y: Number(p.y) || 0,
     z: Number(p.z) || 0,
     size: Number(p.sizeM) > 0 ? Number(p.sizeM) : meshSizeM / 2,
     name: String(p.name || "point"),
+    // A point may carry its own flag; without one they share the points flag,
+    // which is what a solver reading "every observation point" expects.
+    flag: Number.isFinite(Number(p.flag)) && Number(p.flag) > 0
+      ? Math.round(Number(p.flag)) : flag.points + index * 0,
   }));
   return [
     "# GeoID Model Builder — generated from the GIS study area.",
@@ -758,20 +790,56 @@ export function gmshScript({
     "        groups[\"base\"].append(t)",
     "    else:",
     "        groups[\"top\"].append(t)",
+    "",
+    "# THE FLAGS. A solver reads the integer tag, not the name — GALES' own",
+    "# preprocessor takes int(result[5]) out of the $Entities block and refuses",
+    "# a point whose tag is 0 — so every group is created with the number the",
+    "# study chose, and keeps its name beside it for anyone reading the file.",
+    `flags = ${PY(flag)}`,
+    "# ONE FLAG IS ONE GROUP. Faces given the same number are the same boundary",
+    "# as far as gmsh and the solver are concerned -- asking for a second group",
+    "# at a number already used is an error, not a merge -- so they are gathered",
+    "# first. Four sides at one number is a single lateral boundary, which is",
+    "# what a deck written that way means; distinct numbers keep them apart.",
+    "faces = {}",
+    "labels = {}",
     "for label, tags in groups.items():",
     "    if tags:",
-    "        gmsh.model.addPhysicalGroup(2, tags, name=label)",
-    "gmsh.model.addPhysicalGroup(3, [volume], name=\"domain\")",
+    "        faces.setdefault(flags[label], []).extend(tags)",
+    "        labels.setdefault(flags[label], []).append(label)",
+    "for value, tags in sorted(faces.items()):",
+    "    gmsh.model.addPhysicalGroup(2, sorted(tags), value,",
+    "                                name=\"+\".join(sorted(labels[value])))",
+    "gmsh.model.addPhysicalGroup(3, [volume], flags[\"domain\"], name=\"domain\")",
+    "",
+    "# A SURFACE'S EDGES AND CORNERS CARRY ITS FLAG, or they carry none at all:",
+    "# a physical group on a face does not reach the curves and points beneath",
+    "# it, and an untagged point is what stops the mesh being read. Where two",
+    "# faces share an edge the LOWEST flag owns it, so the study decides that",
+    "# too by choosing its numbers.",
+    "owner = {}",
+    "for value in sorted(faces):",
+    "    for surface in faces[value]:",
+    "        for (_, curve) in gmsh.model.getBoundary([(2, surface)], oriented=False):",
+    "            owner.setdefault((1, abs(curve)), value)",
+    "            for (_, point) in gmsh.model.getBoundary([(1, abs(curve))], oriented=False):",
+    "                owner.setdefault((0, abs(point)), value)",
+    "by_flag = {}",
+    "for (dim, tag), value in owner.items():",
+    "    by_flag.setdefault((dim, value), []).append(tag)",
+    "for (dim, value), tags in sorted(by_flag.items()):",
+    "    gmsh.model.addPhysicalGroup(dim, sorted(tags), value)",
     "",
     "# Points the study asks the mesh to pass through — sites, boreholes, probes.",
-    `embedded = ${PY(points.map((p) => [p.x, p.y, p.z, p.size, p.name]))}`,
+    `embedded = ${PY(points.map((p) => [p.x, p.y, p.z, p.size, p.name, p.flag]))}`,
     "tags = []",
-    "for (px, py, pz, psize, pname) in embedded:",
-    "    tags.append(gmsh.model.geo.addPoint(px, py, pz, psize))",
+    "for (px, py, pz, psize, pname, pflag) in embedded:",
+    "    tags.append((gmsh.model.geo.addPoint(px, py, pz, psize), pflag, pname))",
     "gmsh.model.geo.synchronize()",
     "if tags:",
-    "    gmsh.model.mesh.embed(0, tags, 3, volume)",
-    "    gmsh.model.addPhysicalGroup(0, tags, name=\"observation_points\")",
+    "    gmsh.model.mesh.embed(0, [t for (t, _, _) in tags], 3, volume)",
+    "    for (t, pflag, pname) in tags:",
+    "        gmsh.model.addPhysicalGroup(0, [t], pflag, name=pname)",
     "",
     ...sizeSection({ sizeFieldFile, refineBoxes, meshSizeM }),
     `gmsh.option.setNumber("Mesh.MeshSizeMax", ${Number(meshSizeM).toFixed(4)})`,
