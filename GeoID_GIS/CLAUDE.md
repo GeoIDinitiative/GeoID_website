@@ -13260,3 +13260,33 @@ scar, a dam footprint — as a `Field.Box` with a taper, because a hard edge to 
 refined box is a column of bad tetrahedra along it. `Field.Min` combines them,
 so a box inside a coarse area refines it and the background field cannot undo
 a box. Measured over the Mournes: 25 m on the slopes against 200 m on the flat.
+
+#### And then it was run, which corrected it
+
+gmsh 4.11.1 on the emitted package — a 25,290-triangle ridge STL, its size
+field and its script — meshed in one pass: **44,301 nodes, 262,795 elements,
+"No ill-shaped tets in the mesh :-)"**.
+
+The grading is real, and the control is what proves it. The same domain and the
+same sizes with **no field**:
+
+| | tets | steep | flat | ratio |
+| --- | --- | --- | --- | --- |
+| no field | 17,967 | 380 m | 378 m | **0.99** |
+| with the field | 240,582 | 55 m | 389 m | **7.09** |
+
+With a refine box added over a notional dam site, the three regimes come out
+40 m / 55 m / 361 m, and every physical group survives into the mesh — base,
+domain, east, north, south, top, west, observation_points — with the embedded
+gauge present as **one node at exactly (0, 0, 750)** rather than only as a
+group that exists.
+
+**The run also falsified a claim I had written into the code.** `remeshSurface`
+existed on the belief that an STL merged into gmsh stays a discrete surface, so
+a size field could only refine the volume while the ground kept the STL's own
+spacing. Measured: the ground grades either way, because the script already
+runs `classifySurfaces` and `createGeometry` before the field is consulted —
+without a field the terrain came back at **267 m and 279 m** on a surface
+written at a uniform 60, and with one at **40 m against 294**. The flag changed
+the result by 1 m in 294. It is gone rather than kept as a comfort, and the
+comment now says what was measured instead of what was expected.

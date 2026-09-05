@@ -240,7 +240,6 @@ check("the grid is square over a square box", grid.nx === grid.ny, `${grid.nx}x$
   const graded = gmshScript({
     sizeFieldFile: "geoid_size.dat",
     meshSizeM: 200,
-    remeshSurface: true,
     refineBoxes: [{ name: "dam", xMin: -500, xMax: 500, yMin: -500, yMax: 500, sizeM: 25 }],
   });
   check("the background field is read from the file", /Structured/.test(graded)
@@ -257,12 +256,15 @@ check("the grid is square over a square box", grid.nx === grid.ny, `${grid.nx}x$
     && /"Thickness"/.test(graded));
   check("the smallest size wins", /field.add\("Min"/.test(graded)
     && /FieldsList", \[1, 2\]/.test(graded));
-  /* An STL merged and classified is a DISCRETE surface: its triangles ARE the
-     mesh, so without this the ground keeps the STL's own spacing however good
-     the field is. */
-  check("remeshing rebuilds the surface as geometry", /createGeometry/.test(graded));
-  check("a graded volume alone does not pay for it",
-    !gmshScript({ sizeFieldFile: "s.dat" }).includes('"Mesh.Algorithm", 6'));
+  /* The ground is graded WITHOUT asking for anything extra, because the script
+     rebuilds the STL as geometry before the field is consulted. Run on a
+     25,290-triangle ridge: no field gave a uniform 267/279 m ground (nothing
+     like the 60 m the STL was written at), a field gave 40 against 294. The
+     `remeshSurface` flag that used to be here changed it by 1 m in 294. */
+  check("the surface is rebuilt as geometry in every case",
+    /createGeometry/.test(gmshScript({})) && /createGeometry/.test(graded));
+  check("and there is no second switch pretending otherwise",
+    !/remesh/i.test(graded) && !/"Mesh.Algorithm", 6/.test(graded));
 }
 
 /* ── a hole in the source is not a landform ────────────────────────────────

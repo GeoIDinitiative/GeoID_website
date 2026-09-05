@@ -634,14 +634,19 @@ const PY = (value) => JSON.stringify(value);
  *    boundary, and those win over a background field in exactly the places the
  *    field was written for — the terrain's own rim. `MeshSizeExtendFromBoundary`,
  *    `MeshSizeFromPoints` and `MeshSizeFromCurvature` all go to zero.
- *  * **The surface must be allowed to change.** An STL merged and classified
- *    is a DISCRETE surface: its triangles ARE the mesh, so a size field can
- *    only refine the volume underneath and the ground keeps whatever spacing
- *    the STL was written at. Remeshing it is what makes a variable-resolution
- *    SURFACE, and it is optional because it is also the slow step and a run
- *    that only wants a graded volume should not pay for it.
+ * A THIRD THING WAS EXPECTED HERE AND MEASURED AWAY. An STL merged into gmsh
+ * is a discrete surface whose triangles ARE the mesh — which is true, and led
+ * to a `remeshSurface` flag on the belief that the ground would otherwise keep
+ * the STL's own spacing. It does not: the script above already runs
+ * `classifySurfaces` and `createGeometry`, so the terrain is parametrised
+ * geometry before the field is ever consulted, and gmsh regrades it with
+ * everything else. Run on a 25,290-triangle ridge STL: without a field the
+ * ground came back at 267 m on the steep side and 279 on the flat — uniform,
+ * and nothing like the 60 m it was written at — and with one, 40 m against
+ * 294. The flag added a second `createGeometry` and changed the result by
+ * 1 m in 294, so it is gone rather than kept as a comfort.
  */
-function sizeSection({ sizeFieldFile, refineBoxes, meshSizeM, remeshSurface }) {
+function sizeSection({ sizeFieldFile, refineBoxes, meshSizeM }) {
   const boxes = (refineBoxes || []).filter((b) =>
     [b.xMin, b.xMax, b.yMin, b.yMax].every((v) => Number.isFinite(Number(v))));
   if (!sizeFieldFile && !boxes.length) return [];
@@ -693,15 +698,6 @@ function sizeSection({ sizeFieldFile, refineBoxes, meshSizeM, remeshSurface }) {
     "gmsh.option.setNumber(\"Mesh.MeshSizeFromPoints\", 0)",
     "gmsh.option.setNumber(\"Mesh.MeshSizeFromCurvature\", 0)",
   );
-  if (remeshSurface) {
-    lines.push(
-      "",
-      "# The STL's triangles ARE the surface mesh until it is rebuilt as a",
-      "# parametrised geometry, so this is what makes the GROUND graded too.",
-      "gmsh.model.mesh.createGeometry()",
-      "gmsh.option.setNumber(\"Mesh.Algorithm\", 6)",
-    );
-  }
   return lines;
 }
 
@@ -716,7 +712,6 @@ export function gmshScript({
   order = 1,
   sizeFieldFile = null,
   refineBoxes = [],
-  remeshSurface = false,
 } = {}) {
   const points = embedPoints.map((p) => ({
     x: Number(p.x) || 0,
@@ -778,7 +773,7 @@ export function gmshScript({
     "    gmsh.model.mesh.embed(0, tags, 3, volume)",
     "    gmsh.model.addPhysicalGroup(0, tags, name=\"observation_points\")",
     "",
-    ...sizeSection({ sizeFieldFile, refineBoxes, meshSizeM, remeshSurface }),
+    ...sizeSection({ sizeFieldFile, refineBoxes, meshSizeM }),
     `gmsh.option.setNumber("Mesh.MeshSizeMax", ${Number(meshSizeM).toFixed(4)})`,
     `gmsh.option.setNumber("Mesh.MeshSizeMin", ${Number(minSizeM).toFixed(4)})`,
     `gmsh.option.setNumber("Mesh.ElementOrder", ${Number(order) || 1})`,
