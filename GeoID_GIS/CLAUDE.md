@@ -12957,3 +12957,25 @@ at `100vh - 1rem` with `overflow-y: auto` now, and the placement re-runs on the
 fold's `toggle`. Verified: opening it moves the card from y=506 to y=8 and it
 lands fully on screen, and under an imposed 300 px cap it scrolls and the
 citation is still reachable.
+
+#### The ⓘ follows the layer, not the row that started it
+
+A catalogue row is a tab you tick once; the layer then lives in the Workspace
+for the rest of the session, where there was no ⓘ at all. And the layer with
+the most to explain never had a catalogue row in the first place — **GeoID
+mode BUILDS its Factor of Safety layer**, so the one surface on the globe
+carrying an engineering model was the only one with nowhere to say which model.
+
+A layer carrying `info.maths` now draws the same button, opening the same card,
+from wherever it is: the FoS layer, the streamed slope and hillshade sheets,
+and the thickness sheet. Only those — an ⓘ on every row would be a column of
+buttons most of which repeat the row.
+
+Two things it needed. The stylesheet is installed by `renderCatalogue`, so an
+ⓘ on a layer row was an unstyled letter until the reader happened to open a
+catalogue tab; `datasetInfoButton` asks for it itself now. And the row is a
+fixed **seven-column grid** — an eighth child without an eighth column pushes
+the move buttons onto a second line, measured at **32 px becoming 58 px**, and
+only on that row, so a modelled layer would sit a step taller than its
+neighbours. `has-info` carries the extra column, and the test pins the two
+templates to differ by exactly one.

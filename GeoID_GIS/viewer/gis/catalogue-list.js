@@ -18,7 +18,7 @@
  * in extraction and in export without this file knowing anything about them.
  */
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260905-15e1ef6";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260905-e7d5e68";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -308,6 +308,11 @@ function infoPop() {
  * describe different maps.
  */
 export function datasetInfoButton(entry) {
+  // The stylesheet is installed by `renderCatalogue`, and the Workspace row
+  // uses this button without ever drawing a catalogue -- so an ⓘ on a layer
+  // row was an unstyled letter until the reader happened to open a catalogue
+  // tab. It is idempotent; asking here costs nothing.
+  installStyle();
   return infoButton(entry);
 }
 

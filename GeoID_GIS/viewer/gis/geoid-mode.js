@@ -14,14 +14,15 @@
 import {
   weatherPoints, weatherUrl, parseWeatherGrid, rainAt, buildCells,
   fosColour, stepForClock,
-} from "./geoid-pipeline.js?v=20260905-15e1ef6";
-import { wetnessSeries, fosSeries } from "./fos.js?v=20260905-15e1ef6";
-import * as EE from "./gee-live.js?v=20260905-15e1ef6";
-import { makeRaster } from "./raster-analysis.js?v=20260905-15e1ef6";
+} from "./geoid-pipeline.js?v=20260905-e7d5e68";
+import { wetnessSeries, fosSeries } from "./fos.js?v=20260905-e7d5e68";
+import { mathsFor } from "./equations.js?v=20260905-e7d5e68";
+import * as EE from "./gee-live.js?v=20260905-e7d5e68";
+import { makeRaster } from "./raster-analysis.js?v=20260905-e7d5e68";
 // The adapter is a module, not a window seam — reading it off `window` was
 // a guess, and a wrong one: nothing hangs `GeoIDGeoTiff` there.
-import { buildRasterLayer, loadGeoTiffFromArrayBuffer } from "./geotiff-adapter.js?v=20260905-15e1ef6";
-import { pointInPolygon, boundsOf } from "./geometry.js?v=20260905-15e1ef6";
+import { buildRasterLayer, loadGeoTiffFromArrayBuffer } from "./geotiff-adapter.js?v=20260905-e7d5e68";
+import { pointInPolygon, boundsOf } from "./geometry.js?v=20260905-e7d5e68";
 
 const STAMP = "20260816-6ce8ecd";
 
@@ -444,6 +445,20 @@ async function computeAndDraw({ weather, dem, base, area, maxCells }) {
     : null;
   if (!layer) { say("The FoS layer could not be drawn."); return { ok: false }; }
   layer.raster = raster;
+  /**
+   * The one layer on the globe that IS an engineering model, and it had
+   * nowhere to say so: it is built here rather than ticked in a catalogue, so
+   * it never had an ⓘ. The Workspace row draws one for any layer carrying
+   * `maths`, and this is the whole of what it needs.
+   */
+  layer.info = {
+    ...(layer.info || {}),
+    summary: "Factor of Safety per cell, per time step: the static inputs — "
+      + "slope from the DEM, strength from the geology — combined with a "
+      + "weather surface that changes through the forecast. A screening model, "
+      + "not a site assessment.",
+    maths: mathsFor("geoid-fos"),
+  };
 
   let lo = Infinity;
   let hi = -Infinity;

@@ -18,11 +18,12 @@
  * the displaced surface, and the raster every terrain tool wants as an input.
  */
 
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260905-15e1ef6";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260905-15e1ef6";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260905-e7d5e68";
+import { mathsFor } from "./equations.js?v=20260905-e7d5e68";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260905-e7d5e68";
 import { makeRaster, slope as slopeOf, hillshade as hillshadeOf }
-  from "./raster-analysis.js?v=20260905-15e1ef6";
-import * as dem from "./dem-tiles.js?v=20260905-15e1ef6";
+  from "./raster-analysis.js?v=20260905-e7d5e68";
+import * as dem from "./dem-tiles.js?v=20260905-e7d5e68";
 
 /**
  * THREE READINGS OF ONE SOURCE, not three sources.
@@ -364,6 +365,10 @@ async function build(kind, { onStatus = () => {} } = {}) {
       source: dem.TERRARIUM.credit,
       summary: `${spec.summary} Streamed as tiles and sampled onto this grid; the `
         + "cursor readout and the terrain tools read the same source.",
+      // Slope and hillshade are arithmetic, not readings. The Workspace row
+      // draws an ⓘ for this, so the working travels with the layer.
+      maths: mathsFor(spec.id),
+      citation: dem.TERRARIUM.credit,
     };
     layer.metadata = {
       ...(layer.metadata || {}),

@@ -23,10 +23,11 @@
  * valley bottoms whatever fraction of the ground they are. The card says so.
  */
 
-import { buildRasterLayer, loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260905-15e1ef6";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260905-15e1ef6";
-import { dataUrl } from "./data-base.js?v=20260905-15e1ef6";
-import { cellAt, thicknessCard, waitingCard } from "./thickness-probe.js?v=20260905-15e1ef6";
+import { buildRasterLayer, loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260905-e7d5e68";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260905-e7d5e68";
+import { dataUrl } from "./data-base.js?v=20260905-e7d5e68";
+import { cellAt, thicknessCard, waitingCard } from "./thickness-probe.js?v=20260905-e7d5e68";
+import { mathsFor } from "./equations.js?v=20260905-e7d5e68";
 
 export const LAYER_NAME = "Soil and sediment thickness (Pelletier)";
 
@@ -302,7 +303,13 @@ async function build({ onStatus = () => {} } = {}) {
       if (previous.visible === false) window.GeoIDLayerHierarchy?.setVisible?.(layer, false);
       window.GeoIDImportManager?.removeLayer?.(previous.id);
     }
-    layer.info = { source: info.credit, summary: info.summary };
+    layer.info = {
+      source: info.credit,
+      summary: info.summary,
+      citation: `${info.credit} doi:${info.doi}`,
+      // Whose model it is, and what our bake did to its numbers.
+      maths: mathsFor("soil-thickness"),
+    };
     layer.metadata = {
       ...(layer.metadata || {}),
       source: info.credit,

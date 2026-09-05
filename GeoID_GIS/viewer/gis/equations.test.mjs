@@ -231,6 +231,58 @@ check("the rows that show a model actually pass it to the card", () => {
   ok(/if \(entry\.info\.maths\) pop\.appendChild\(mathsBlock/.test(list), "and the card draws it");
 });
 
+/* ── the working travels with the layer ──────────────────────────────────── */
+
+/**
+ * A catalogue row is a tab you tick once; the layer then lives in the
+ * Workspace for the rest of the session. And the layers with the MOST to
+ * explain never had a catalogue row at all -- GeoID mode builds its Factor of
+ * Safety layer, so the one surface on the globe carrying an engineering model
+ * was the one with nowhere to say which model.
+ */
+const hierarchy = readFileSync(new URL("./layer-hierarchy.js", import.meta.url), "utf8");
+check("the Workspace row draws an ⓘ for a layer that has working to show", () => {
+  ok(/if \(layer\.info\?\.maths\) \{/.test(hierarchy), "gated on the maths being there");
+  ok(/datasetInfoButton\(\{/.test(hierarchy), "and it is the catalogue's own button");
+});
+
+/**
+ * The row is a fixed seven-column grid. An eighth child without an eighth
+ * column pushes the move buttons onto a second line: measured, 32 px becomes
+ * 58 px, and only that row -- so a modelled layer would sit a step taller than
+ * its neighbours.
+ */
+check("and gives it a column, so the row does not grow a second line", () => {
+  ok(/node\.classList\.add\("has-info"\)/.test(hierarchy), "the row is marked");
+  const rule = hierarchy.match(
+    /\.layer-row\.has-info \{\s*grid-template-columns:([^;]+);/);
+  ok(rule, "and has its own template");
+  const base = hierarchy.match(
+    /\.layer-stack \.layer-row \{\s*grid-template-columns:([^;]+);/);
+  const count = (t) => t.trim().split(/\s+/).length;
+  ok(count(rule[1]) === count(base[1]) + 1,
+    `one more column: ${count(base[1])} then ${count(rule[1])}`);
+});
+
+check("the modelled layers all carry theirs", () => {
+  const cases = [
+    ["geoid-mode.js", /maths: mathsFor\("geoid-fos"\)/, "the Factor of Safety layer"],
+    ["dem-layer.js", /maths: mathsFor\(spec\.id\)/, "the streamed sheets"],
+    ["soil-thickness.js", /maths: mathsFor\("soil-thickness"\)/, "the thickness sheet"],
+  ];
+  for (const [file, pattern, what] of cases) {
+    const src = readFileSync(new URL(`./${file}`, import.meta.url), "utf8");
+    ok(pattern.test(src), `${what} (${file})`);
+  }
+});
+
+check("the button styles itself away from the catalogue that owns its CSS", () => {
+  const list = readFileSync(new URL("./catalogue-list.js", import.meta.url), "utf8");
+  const fn = list.slice(list.indexOf("export function datasetInfoButton"),
+    list.indexOf("function infoButton("));
+  ok(/installStyle\(\)/.test(fn), "an ⓘ on a layer row is not an unstyled letter");
+});
+
 if (failures.length) {
   failures.forEach((f) => console.error(`  x ${f}`));
   console.error(`${failures.length} failed, ${passed} passed`);

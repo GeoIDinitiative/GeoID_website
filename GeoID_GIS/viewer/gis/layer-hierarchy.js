@@ -10,16 +10,17 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { bandOf } from "./draw-order.js?v=20260905-15e1ef6";
-import { paintOpacity } from "./layer-opacity.js?v=20260905-15e1ef6";
-import { currentBody } from "./bodies.js?v=20260905-15e1ef6";
-import { samplerToRaster } from "./raster-analysis.js?v=20260905-15e1ef6";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260905-15e1ef6";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260905-15e1ef6";
+import { bandOf } from "./draw-order.js?v=20260905-e7d5e68";
+import { paintOpacity } from "./layer-opacity.js?v=20260905-e7d5e68";
+import { currentBody } from "./bodies.js?v=20260905-e7d5e68";
+import { samplerToRaster } from "./raster-analysis.js?v=20260905-e7d5e68";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260905-e7d5e68";
+import { datasetInfoButton } from "./catalogue-list.js?v=20260905-e7d5e68";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260905-e7d5e68";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20260905-15e1ef6";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260905-15e1ef6";
+} from "./symbology-dialog.js?v=20260905-e7d5e68";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260905-e7d5e68";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -103,6 +104,12 @@ const STYLE = `
 .layer-stack .layer-row {
   grid-template-columns: auto auto auto 1fr auto 4.5rem auto;
 }
+/* One more column, for the ⓘ a modelled layer carries. Only those rows. */
+.layer-stack .layer-row.has-info {
+  grid-template-columns: auto auto auto 1fr auto auto 4.5rem auto;
+}
+/* Nudged off the chip beside it, and never a drag handle. */
+.layer-row .layer-info { margin: 0 0.15rem; }
 .layer-grip { letter-spacing: -0.08em; }
 
 /* The classification line: full width under the buttons, fields sharing it. */
@@ -498,6 +505,34 @@ function row(layer) {
    * lives in three places (the record, the GeoJSON feature, the object3D) and a
    * rename that touches one of them looks right until the layer is exported.
    */
+  /**
+   * THE ⓘ FOLLOWS THE LAYER, not the catalogue row that started it.
+   *
+   * A modelled layer states its equations on the catalogue's ⓘ — but the
+   * catalogue is a tab you tick once, and the layer then lives here, in the
+   * Workspace, for the rest of the session. Worse, the layers with the most to
+   * explain never had a catalogue row at all: GeoID mode BUILDS its Factor of
+   * Safety layer, so the one surface on the globe carrying an engineering
+   * model was the one with nowhere to say which model.
+   *
+   * So a layer carrying `info.maths` gets the same button, opening the same
+   * card, from wherever it is. Only those: an ⓘ on every row would be a column
+   * of buttons most of which say what the row already says.
+   */
+  if (layer.info?.maths) {
+    const info = datasetInfoButton({
+      id: `layer-${layer.id}`,
+      label: layer.name || "layer",
+      info: layer.info,
+    });
+    info.classList.add("layer-info");
+    node.querySelector(".layer-opacity")?.before(info);
+    // The row is a fixed seven-column grid; an eighth child without an eighth
+    // column pushes the move buttons into an implicit one and the row grows a
+    // step taller than its neighbours. The class carries the extra column.
+    node.classList.add("has-info");
+  }
+
   const nameNode = node.querySelector(".layer-name");
   nameNode?.addEventListener("click", (event) => {
     event.stopPropagation();
