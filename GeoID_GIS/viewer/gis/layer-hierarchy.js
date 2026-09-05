@@ -10,16 +10,16 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { bandOf } from "./draw-order.js?v=20260905-7c10ff8";
-import { paintOpacity } from "./layer-opacity.js?v=20260905-7c10ff8";
-import { currentBody } from "./bodies.js?v=20260905-7c10ff8";
-import { samplerToRaster } from "./raster-analysis.js?v=20260905-7c10ff8";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260905-7c10ff8";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260905-7c10ff8";
+import { bandOf } from "./draw-order.js?v=20260905-85a32d1";
+import { paintOpacity } from "./layer-opacity.js?v=20260905-85a32d1";
+import { currentBody } from "./bodies.js?v=20260905-85a32d1";
+import { samplerToRaster } from "./raster-analysis.js?v=20260905-85a32d1";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260905-85a32d1";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260905-85a32d1";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20260905-7c10ff8";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260905-7c10ff8";
+} from "./symbology-dialog.js?v=20260905-85a32d1";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260905-85a32d1";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -925,8 +925,7 @@ function basemapRow() {
     <label class="layer-eye" title="Visible">
       <input type="checkbox" ${visible ? "checked" : ""} data-role="visible">
     </label>
-    <span class="layer-name" title="${base.credit || base.label}">${base.label}</span>
-    <span class="layer-kind">${base.streamed ? "tiles" : "basemap"}</span>`;
+    <span class="layer-name" title="${base.credit || base.label}">Basemap: ${base.label}</span>`;
   node.querySelector('[data-role="visible"]').addEventListener("change", (e) => {
     // The imported imagery hangs off the globe so it turns with it, which means
     // hiding the globe object would hide the imagery too -- the opposite of

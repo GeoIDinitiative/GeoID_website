@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260905-7c10ff8";
+  from "./gis/geo-utils.js?v=20260905-85a32d1";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260905-7c10ff8";
+  from "./gis/vector-render.js?v=20260905-85a32d1";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260905-7c10ff8";
+  from "./gis/rock-class.js?v=20260905-85a32d1";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260905-7c10ff8";
+  from "./gis/lithology-label.js?v=20260905-85a32d1";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -138,10 +138,17 @@ function fmtProp(value) {
      *
      * Blue Marble was this, and it was also the basemap the page opened on --
      * `basemap-drape` swaps to Sentinel-2 only when it finds this exact value
-     * still selected, so the opening frame was always Blue Marble and the
-     * mosaic arrived a beat later. With Blue Marble withdrawn from the
-     * dropdown the shipped default is the Earth Surface texture, which is the
-     * other thing in the repo rather than a service that may not answer.
+     * still selected, so whatever is named here is what the sphere wears for
+     * the second or two the mosaic takes to arrive.
+     *
+     * IT MUST NAME AN OPTION THE SELECT ACTUALLY HAS, and Blue Marble is not
+     * one: `ALLOWED_BASEMAP_IDS` admits four shipped textures and Blue Marble
+     * is not among them, so it is absent from the dropdown entirely rather
+     * than merely hidden from the catalogue list. Pointing this at it left the
+     * globe on the Earth Surface texture for good — the swap below fires only
+     * when it finds this exact value still selected, and it never matched.
+     * Measured within a minute of making the change, which is the only reason
+     * it cost nothing.
      */
     const FALLBACK_NAVIGATE_BASE_LAYER_ID = "earth-visible";
     const moonViewerControls = document.getElementById("moon-viewer-controls");

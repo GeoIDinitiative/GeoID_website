@@ -37,12 +37,12 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260905-7c10ff8";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260905-7c10ff8";
-import { isEarth } from "./bodies.js?v=20260905-7c10ff8";
-import { streamRings, cacheStats } from "./tile-streamer.js?v=20260905-7c10ff8";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260905-85a32d1";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260905-85a32d1";
+import { isEarth } from "./bodies.js?v=20260905-85a32d1";
+import { streamRings, cacheStats } from "./tile-streamer.js?v=20260905-85a32d1";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260905-7c10ff8";
+  from "./view-extent.js?v=20260905-85a32d1";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -717,7 +717,15 @@ let defaultApplied = false;
  * interpolated tiles it would happily serve above 14.
  */
 const DEFAULT_TILE_SOURCE = "Sentinel-2 Cloudless";
-/** What earth-viewer selects before any service has registered. */
+/**
+ * What earth-viewer selects before any service has registered.
+ *
+ * It has to be the SAME id `FALLBACK_NAVIGATE_BASE_LAYER_ID` names over there:
+ * the swap below only fires when it finds this exact value still selected, so
+ * a mismatch leaves the globe on the shipped texture for good. Both were
+ * pointed at Blue Marble for about a minute, which is not in the dropdown at
+ * all, and that is exactly what happened.
+ */
 const SHIPPED_DEFAULT_ID = "earth-visible";
 
 function applyDefaultBasemap() {
@@ -762,7 +770,18 @@ function initWhenReady() {
     if (selectionWatched) applyDefaultBasemap();
     const inDropdown = document.querySelector('#base-layer-select option[value^="tiles-"]');
     if ((selectionWatched && inDropdown) || (tries += 1) > 40) return;
-    setTimeout(attempt, 500);
+    /**
+     * FAST WHILE IT MATTERS, then patient.
+     *
+     * Everything before the swap is time the reader spends looking at a
+     * basemap the app is about to replace, and a 500 ms cadence spent most of
+     * it waiting rather than working: measured on a warm load, the shipped
+     * texture was up at 85 ms and the first Sentinel tile was not requested
+     * until 2,129 ms — about four idle polls. The first second is polled at
+     * 120 ms, which costs a handful of no-op passes over a panel lookup and
+     * takes roughly a second and a half out of the wait.
+     */
+    setTimeout(attempt, tries <= 8 ? 120 : 500);
   };
   attempt();
 }

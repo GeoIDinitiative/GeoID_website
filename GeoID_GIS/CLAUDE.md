@@ -12602,3 +12602,41 @@ The cost is 77 tiles a refine at continental scale, inside the 256 the streamer
 already caps at, and cached afterwards. **When a constant carries a claim about
 resolution, measure the claim before trusting the constant**: this one had been
 right about something (a patch IS pointless eventually) and wrong about where.
+
+### The opening basemap: what can be changed and what cannot
+
+"Ensure that only the Sentinel-2 basemap is mapped upon launch — currently we
+see it switch from Earth Surface to Sentinel."
+
+**The switch is structural.** The Sentinel-2 basemap is a composite of 256
+tiles; it does not exist until they have been fetched, so *something* is on the
+sphere for the second or two that takes. The choice is which shipped texture,
+and how long it stays.
+
+Measured on a warm load, before: the shipped texture up at **85 ms**, the first
+Sentinel tile requested at **2,129 ms**, the composite complete at 2,699 ms —
+so about two and a half seconds of Earth Surface. Most of that was waiting
+rather than working: `initWhenReady` polls at 500 ms and the swap needs four or
+five passes. The first second is polled at 120 ms now, and the same load
+measures **first request 1,116 ms, composite 1,775 ms** — a second off the
+window for a handful of no-op panel lookups.
+
+**And Blue Marble is not available to open on.** It was the obvious candidate —
+it ships with the site, so it needs no fetch at all, where the Earth Surface
+texture is a bucket JPEG. Pointing both constants at it left the globe on Earth
+Surface **for good**: `ALLOWED_BASEMAP_IDS` admits four shipped textures and
+Blue Marble is not among them, so it is absent from the dropdown entirely
+rather than merely hidden from the catalogue list, and the swap fires only when
+it finds its own `SHIPPED_DEFAULT_ID` still selected. Measured within a minute
+of making the change and reverted; the test now checks that the two constants
+agree AND that the select actually offers what they name.
+
+What would genuinely leave only Sentinel on screen is opening with **no**
+imagery — a dark globe until the tiles land — which is a real trade rather than
+a fix, and one for whoever owns the first impression to make.
+
+**And the Workspace row says what it is.** "Sentinel-2 Cloudless TILES" reads
+as a dataset with a format tag; it is the basemap, so it reads
+**"Basemap: Sentinel-2 Cloudless"** and the `layer-kind` span is gone. The word
+it dropped was doing the same job the prefix now does, and doing it in the
+vocabulary of a file format.

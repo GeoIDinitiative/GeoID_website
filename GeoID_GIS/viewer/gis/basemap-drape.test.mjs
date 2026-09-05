@@ -11,6 +11,7 @@
  * Run: node GeoID_GIS/viewer/gis/basemap-drape.test.mjs
  */
 
+import { readFileSync } from "node:fs";
 import {
   clampLat, lonToPixelX, latToPixelY, pixelYToLat,
   chooseZoom, tileGrid, metresPerPixel, normaliseBbox, wholeGlobe, equirectRowToSourceY, MAX_LAT,
@@ -192,6 +193,33 @@ const src60 = equirectRowToSourceY(row60, OUT_H, g, SRC_H);
 check("60 N is pulled toward the equator by the reprojection",
   src60 > (row60 / OUT_H) * SRC_H,
   `output row ${row60} reads source row ${Math.round(src60)}`);
+
+/* ── the opening basemap ─────────────────────────────────────────────────── */
+/**
+ * The swap to Sentinel-2 fires only when it finds the shipped default still
+ * selected, so the two constants have to name the SAME layer — and it has to
+ * be one that ships with the site. Naming a bucket fetch there made the
+ * opening read as two changes: bare, then a downloaded texture, then the
+ * mosaic that replaces it.
+ */
+{
+  const drape = readFileSync(new URL("./basemap-drape.js", import.meta.url), "utf8");
+  const viewer = readFileSync(new URL("../earth-viewer.js", import.meta.url), "utf8");
+  const shipped = drape.match(/const SHIPPED_DEFAULT_ID = "([^"]+)"/)?.[1];
+  const fallback = viewer.match(/const FALLBACK_NAVIGATE_BASE_LAYER_ID = "([^"]+)"/)?.[1];
+  check("the viewer and the drape agree on the shipped default",
+    shipped === fallback, `${shipped} vs ${fallback}`);
+  /**
+   * And it has to be an option the select actually HAS. Blue Marble is not in
+   * `ALLOWED_BASEMAP_IDS`, so naming it here leaves the globe on the shipped
+   * texture for good -- measured, the selection never moved off it.
+   */
+  const allowed = viewer.match(/ALLOWED_BASEMAP_IDS = new Set\(\[([^\]]+)\]/)?.[1] || "";
+  check("and the select actually offers it",
+    allowed.includes(`"${shipped}"`), `${shipped} not in ${allowed}`);
+  check("the default the globe settles on is the streamed one",
+    /const DEFAULT_TILE_SOURCE = "Sentinel-2 Cloudless"/.test(drape));
+}
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");
 process.exit(failures ? 1 : 0);
