@@ -13,9 +13,9 @@
  * instant; these are the local answer, at the view's own scale.
  */
 
-import { renderCatalogue } from "./catalogue-list.js?v=20260905-80653c0";
-import { SHEETS, addSheet, removeSheet, sheetLayer } from "./dem-layer.js?v=20260905-80653c0";
-import { TERRARIUM } from "./dem-tiles.js?v=20260905-80653c0";
+import { renderCatalogue } from "./catalogue-list.js?v=20260905-c0e08d1";
+import { SHEETS, addSheet, removeSheet, sheetLayer } from "./dem-layer.js?v=20260905-c0e08d1";
+import { TERRARIUM } from "./dem-tiles.js?v=20260905-c0e08d1";
 
 const HOST_ID = "dem-panel-host";
 const STATUS_ID = "dem-panel-status";

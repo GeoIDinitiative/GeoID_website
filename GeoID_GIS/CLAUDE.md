@@ -12845,3 +12845,46 @@ value at **+3.6 s**; and on warm clicks the placeholder never appears at all,
 because 48–118 ms never reaches the fuse. A click that does nothing for two
 seconds has told the reader the map is not clickable, and they do not click it
 again.
+
+### The sheet moved because the ground did
+
+"Thickness map still moves as we zoom in and out, needs to be tight to surface
+and stable." Every measurement I had taken said it was tight — 0.11 m at the
+vertices, 0.3 m across the facets, nothing lost to the depth test. **Every one
+of them was taken at rest**, which is the only moment the old mechanism was
+correct, and that is why two reports in a row read as unreproducible.
+
+The globe's terrain exaggeration eases off continuously as the camera
+descends, so the surface is at a different height in every frame of a zoom. A
+raster patch is laid on that surface once, at build time, and was corrected by
+a **250 ms poll** with a 10 m tolerance. Measured over a three-second zoom from
+145 km to 20 km: the relief the sheet's vertices were laid at differed from the
+one the globe was drawn with by a **mean of 4.1 km** and a **worst of 20 km**,
+and the trace sawtooths — 0 m, 8.2 km, 3.3 km, 14.6 km, 7.7 km, 2.3 km — the
+patch falling behind the ground, being snapped back, and falling behind again.
+Four corrections a second against a surface that moves sixty times a second.
+
+The imported vector layers solved this long ago and the fix is to stop having
+two mechanisms: each vertex carries its direction and its displacement as a
+FRACTION of the relief it was built with, and one uniform — set from the
+viewer's own relief in the same loop that spins the globe — places them on the
+GPU every frame, for free. A drape is that problem with a texture on it.
+`attachReliefAttributes` + `followRelief`, and `registerDrape` demoted to the
+fallback.
+
+After: **0.00 m of lag in all 181 frames** of the same zoom, and the GPU path
+reproduces `surfacePoint` to a **mean of 3.1 m, worst 7.1 m** across a swing of
+relief worth 74 km of vertical movement — which is float32 storage, not
+modelling: one ulp at a radius of 3.2 units is 0.95 m of ground.
+
+Two things the follow needs and the poll did not. A patch built at **zero
+relief** cannot be followed — dividing it out gives every vertex a
+displacement of zero, which pins the patch to the bare sphere while the terrain
+rises 219 km away from it — so that case is refused and polled, and promoted
+the moment a rebuild catches it at a live relief. And the bounding sphere is
+computed from `position`, which the shader no longer draws at, so a followed
+drape stops being frustum culled rather than blinking out at a grazing view.
+
+This was never about the soil sheet. Every raster drape on the globe — the
+elevation, slope and hillshade sheets, every imported GeoTIFF, every GEE
+export — went through the same builder and had the same fault.

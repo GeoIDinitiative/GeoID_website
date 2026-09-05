@@ -1,10 +1,10 @@
 import * as THREE from "../vendor/three.module.js";
 import { latLonToVector3, drapedRadius, looksLikeGeographic, sphericalPolygonAreaKm2 }
-  from "./geo-utils.js?v=20260905-80653c0";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260905-80653c0";
-import { pointInPolygon } from "./geometry.js?v=20260905-80653c0";
-import { paintOpacity } from "./layer-opacity.js?v=20260905-80653c0";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260905-80653c0";
+  from "./geo-utils.js?v=20260905-c0e08d1";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260905-c0e08d1";
+import { pointInPolygon } from "./geometry.js?v=20260905-c0e08d1";
+import { paintOpacity } from "./layer-opacity.js?v=20260905-c0e08d1";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260905-c0e08d1";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -272,6 +272,19 @@ const RELIEF_UNIFORM = { value: 0 };
 /** The relief every imported layer is drawn at. Set from the viewer's own. */
 export function setRenderRelief(relief) {
   RELIEF_UNIFORM.value = Number.isFinite(relief) ? relief : 0;
+}
+
+/**
+ * The relief every followed layer is actually being DRAWN at.
+ *
+ * A seam for measuring, and it earns its place: the whole claim of the uniform
+ * is that a layer never lags the ground, and without a way to read it back the
+ * only test of that claim is looking at the screen. Compared against the
+ * viewer's own `getEffectiveRelief` during a zoom, this is what says whether
+ * the two are the same number in the same frame.
+ */
+export function getRenderRelief() {
+  return RELIEF_UNIFORM.value;
 }
 
 /**

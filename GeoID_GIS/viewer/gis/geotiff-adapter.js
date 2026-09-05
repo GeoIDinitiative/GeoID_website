@@ -1,5 +1,8 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260905-80653c0";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260905-c0e08d1";
+import {
+  attachReliefAttributes, followRelief, setRenderRelief, getRenderRelief,
+} from "./vector-render.js?v=20260905-c0e08d1";
 
 // Rasters are resampled onto a mesh grid rather than used at native size: a
 // 4000x4000 DEM would otherwise mean 16M vertices. 192 keeps relief readable
@@ -334,11 +337,91 @@ function buildDrapedPatch(grid, gridWidth, gridHeight, bounds, texture, range, i
     pos.needsUpdate = true;
     geometry.computeVertexNormals();
     geometry.computeBoundingSphere();
-    mesh.userData.builtRelief = window.GeoIDViewer?.getEffectiveRelief?.();
+    const relief = window.GeoIDViewer?.getEffectiveRelief?.();
+    mesh.userData.builtRelief = relief;
+    // Built at zero relief, re-laid at a live one: the displacement can be
+    // recovered now, so the patch stops being polled and starts following.
+    if (followTheRelief(mesh, geometry, stackLift, relief)) drapes.delete(mesh);
   };
   mesh.userData.builtRelief = builtAt;
-  registerDrape(mesh);
+  /**
+   * THE GROUND MOVES EVERY FRAME, AND A POLL CANNOT FOLLOW IT.
+   *
+   * The rebuild above is correct and far too slow to be the whole answer. The
+   * terrain exaggeration eases off continuously as the camera descends, so
+   * while a zoom is running the surface is at a different height in every
+   * frame; the poll re-lays the patch four times a second. Measured on the
+   * soil-thickness sheet over a three-second zoom from 145 km to 20 km, the
+   * relief its vertices were laid at differed from the one the globe was drawn
+   * with by a MEAN OF 4.1 KM and a worst of 20 km, and the trace sawtooths --
+   * the patch falls behind the ground, is snapped back, and falls behind
+   * again. That is "the map moves as we zoom in and out", and it is invisible
+   * at rest because every measurement at rest is taken after a rebuild.
+   *
+   * The imported vector layers solved this once already: each vertex carries
+   * the direction it lies in and its displacement as a FRACTION of the relief
+   * it was built with, and one uniform -- set from the viewer's own relief in
+   * the same loop that spins the globe -- places them on the GPU every frame,
+   * for free. A drape is the same problem with a texture on it, so it gets the
+   * same treatment rather than a second mechanism.
+   *
+   * The poll stays as the fallback for a patch built while the relief was zero
+   * (terrain off, or not yet loaded), where the displacement cannot be
+   * recovered by division. Such a patch registers, and re-lays itself until a
+   * rebuild at a live relief lets it follow properly.
+   */
+  if (!followTheRelief(mesh, geometry, stackLift, builtAt)) registerDrape(mesh);
   return mesh;
+}
+
+/**
+ * Hand a patch's vertices to the GPU, so it tracks the relief every frame.
+ *
+ * `attachReliefAttributes` recovers each vertex's displacement by dividing out
+ * the relief it was built at, which is why a patch built at zero relief cannot
+ * be followed: there is nothing to divide by, and every displacement would
+ * come back as zero -- a patch pinned to the sphere while the terrain rose
+ * away from it. That case returns false and is polled instead.
+ *
+ * Once followed, the shader ignores `position` entirely, so the CPU re-lay
+ * would be work nobody sees. The attribute is relief-invariant by
+ * construction, so it never needs recomputing either.
+ */
+function followTheRelief(mesh, geometry, drape, relief) {
+  if (!(Number.isFinite(relief) && Math.abs(relief) > 1e-9)) return false;
+  if (mesh.userData.followsRelief) return true;
+  try {
+    attachReliefAttributes(geometry, drape, relief);
+    followRelief(mesh.material, drape);
+    /**
+     * PRIME THE UNIFORM, for the first drape of a session.
+     *
+     * It is set from the import manager's own frame loop, which has not
+     * necessarily ticked when the first layer is added -- and a uniform still
+     * at zero draws the patch on the bare sphere, which at the slider's
+     * default is 219 km under the ground it paints. One frame of that is a
+     * flash of the map in the wrong place. It is the same number the loop will
+     * write a moment later.
+     */
+    if (!(Math.abs(getRenderRelief()) > 1e-9)) setRenderRelief(relief);
+    mesh.material.needsUpdate = true;
+    mesh.userData.followsRelief = true;
+    /**
+     * The bounding sphere is now a lie by a few hundred metres -- it is
+     * computed from `position`, which the shader no longer draws at. On a
+     * sphere of 3.2 units that is under a ten-thousandth of the radius, but
+     * frustum culling is a yes/no answer at the edge of the screen and a patch
+     * that blinks out at a grazing view is the same complaint in a different
+     * costume. It is cheaper to not cull one drape than to keep the sphere
+     * honest every frame.
+     */
+    mesh.frustumCulled = false;
+    return true;
+  } catch {
+    // A material that cannot be patched is still a drape: fall back to polling
+    // rather than leaving it pinned to the relief it was born at.
+    return false;
+  }
 }
 
 /**
