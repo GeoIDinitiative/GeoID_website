@@ -567,7 +567,19 @@ function makeFoldable(card) {
    * column of chevrons over single-line cards reads as though something is
    * hidden under each of them.
    */
-  if (entryCount(card) <= 1) {
+  /**
+   * UNLESS THE CARD ASKED TO BE FOLDED, which is a different claim.
+   *
+   * The count rule is about a chevron over a line that is already visible. A
+   * card that sets `legendFold` is saying something the count cannot see: that
+   * what hangs off its one row is worth putting away. The basemap card is the
+   * case -- one swatch, and under it the licence the streamed imagery is free
+   * only on condition of, which is a paragraph. It asked to start collapsed
+   * from the day it was written and never got the chance, because this rule
+   * returned first and marked it static: the licence sat open in the key,
+   * permanently, pushing the layers a reader actually loaded down the panel.
+   */
+  if (entryCount(card) <= 1 && card.dataset.legendFold !== "collapsed") {
     card.dataset.foldable = "static";
     return;
   }

@@ -12,6 +12,7 @@
  */
 
 import { mergeSources, entryKey, arrivals, dedupe, signatureOf, SOURCE_ORDER } from "./legend-dock.js";
+import { readFileSync } from "node:fs";
 
 let failures = 0;
 function check(name, ok, detail = "") {
@@ -134,6 +135,34 @@ eq("a redraw with an identical set stays quiet",
 eq("a layer switched off and on again re-announces",
   arrivals(arrivals(["overlays::Geology"], []) , ["overlays::Geology"]),
   ["overlays::Geology"]);
+
+/* ── the basemap card is a drop-down, and starts shut ────────────────────── */
+
+/**
+ * "ONE ENTRY DOES NOT FOLD" is a rule about a chevron over a line that is
+ * already visible, and it was returning before the card's own request was
+ * read. The basemap card has one symbol row and a LICENCE under it -- the
+ * terms the streamed imagery is free only on condition of -- so it asked to
+ * start collapsed from the day it was written and was marked static instead:
+ * the paragraph sat open in the key, permanently, pushing the layers a reader
+ * actually loaded down the panel.
+ */
+const dock = readFileSync(new URL("./legend-dock.js", import.meta.url), "utf8")
+  .replace(/\/\*[\s\S]*?\*\//g, "");
+check("a card that asks to start collapsed is foldable however few rows it has",
+  /entryCount\(card\) <= 1 && card\.dataset\.legendFold !== "collapsed"/.test(dock));
+check("and everything else with one entry still gets no chevron",
+  /card\.dataset\.foldable = "static";/.test(dock));
+check("the request is honoured once, so a redraw cannot shut it while it is read",
+  /if \(!seenFold\.has\(key\)\)[\s\S]{0,160}legendFold === "collapsed"/.test(dock));
+
+const hierarchy = readFileSync(new URL("./layer-hierarchy.js", import.meta.url), "utf8")
+  .replace(/\/\*[\s\S]*?\*\//g, "");
+const cardSrc = hierarchy.slice(hierarchy.indexOf("function basemapCard()"),
+  hierarchy.indexOf("function symbolLabel("));
+check("the basemap card asks for it", /legendFold = "collapsed"/.test(cardSrc));
+check("and never springs the panel open when the basemap changes",
+  /legendAutoOpen = "never"/.test(cardSrc));
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");
 process.exit(failures ? 1 : 0);

@@ -12888,3 +12888,25 @@ drape stops being frustum culled rather than blinking out at a grazing view.
 This was never about the soil sheet. Every raster drape on the globe — the
 elevation, slope and hillshade sheets, every imported GeoTIFF, every GEE
 export — went through the same builder and had the same fault.
+
+### The basemap card asked to be folded and was refused
+
+"Ensure on the legend that the basemap entry is always formatted as a drop
+down (collapsed by default)." It had asked to be, since the day it was
+written: `legendFold = "collapsed"` and `legendAutoOpen = "never"` are both on
+the card in `basemapCard()`. Nothing read them.
+
+`makeFoldable` opens with a rule that earns its place — **one entry does not
+fold**, because a chevron over a line that is already visible offers a choice
+between seeing it and not seeing it. The basemap card has exactly one symbol
+row, so the rule marked it `static` and RETURNED before the card's own request
+was ever looked at. Underneath that one row sits the licence the streamed
+imagery is free only on condition of: a paragraph, open in the key,
+permanently, pushing the layers a reader actually loaded down the panel.
+
+The count rule now yields to an explicit request. A card that sets
+`legendFold` is saying something the count cannot see — that what hangs off its
+one row is worth putting away — and everything else with a single entry still
+gets no chevron. Verified: `foldable="1"`, folded on first paint, the licence
+hidden, the caret and pointer cursor present, opens on click, and a re-render
+does not shut it again while it is being read.
