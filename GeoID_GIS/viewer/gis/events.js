@@ -12,7 +12,7 @@
 
 import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity, magnitudeColour,
-  activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, gdacsPoints } from "./event-sources.js?v=20260905-e7d5e68";
+  activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, gdacsPoints } from "./event-sources.js?v=20260905-4efeb94";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -1778,8 +1778,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260905-e7d5e68"),
-    import("./research/dsp.js?v=20260905-e7d5e68"),
+    import("./seismogram-plot.js?v=20260905-4efeb94"),
+    import("./research/dsp.js?v=20260905-4efeb94"),
   ]);
   if (stale()) return;
 

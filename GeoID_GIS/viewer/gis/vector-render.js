@@ -1,10 +1,10 @@
 import * as THREE from "../vendor/three.module.js";
 import { latLonToVector3, drapedRadius, looksLikeGeographic, sphericalPolygonAreaKm2 }
-  from "./geo-utils.js?v=20260905-e7d5e68";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260905-e7d5e68";
-import { pointInPolygon } from "./geometry.js?v=20260905-e7d5e68";
-import { paintOpacity } from "./layer-opacity.js?v=20260905-e7d5e68";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260905-e7d5e68";
+  from "./geo-utils.js?v=20260905-4efeb94";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260905-4efeb94";
+import { pointInPolygon } from "./geometry.js?v=20260905-4efeb94";
+import { paintOpacity } from "./layer-opacity.js?v=20260905-4efeb94";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260905-4efeb94";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -620,6 +620,73 @@ function pointInsideRing(point, ring) {
   return inside;
 }
 
+/**
+ * NO FILL TRIANGLE MAY CARRY AN EDGE LONGER THAN A DEGREE.
+ *
+ * `pushSegment` has enforced this for lines since the chord sag was measured;
+ * the fills never had it, and they need it more. A straight line between two
+ * points on a sphere is a chord, and across ninety degrees it does not sag
+ * below the surface so much as pass through the planet. The fill draws with
+ * `depthTest: false` — it relies on `FrontSide` culling instead — so the
+ * triangle is painted anyway, over the ocean and over the pole.
+ *
+ * REPORTED as "geometric patterns on the poles of the soils dataset": a
+ * diamond drawn across the Arctic, with fainter arcs behind it. The soil map's
+ * Arctic belts — Lithosols, Gelic Gleysols, Regosols — run for thousands of
+ * kilometres and are a tenth of a degree wide, so the bake's simplify
+ * tolerance (0.2° at zoom 0, 0.08 at 1, 0.01 at 2-3) is wider than the belt and
+ * deletes every vertex between its ends. What survives is a five-point
+ * rectangle, clipped by the tiler to the tile it lies in, so its edges are
+ * exactly one tile wide at every level: 359.9° at zoom 0, 180.0 at 1, 90.0 at
+ * 2, 45.0 at 3, 22.5 at 4 and nothing at 5. The four 90° chords of zoom 2 ARE
+ * the diamond. Counted in one view: 437 triangles with an edge over 400 km,
+ * the worst 3,873. The same signature is in the world geology and GLiM
+ * pyramids — four 90° spans apiece at zoom 2 — where thinner belts make it
+ * less visible.
+ *
+ * DENSIFYING THE RING DOES NOT FIX IT, which is the part worth writing down.
+ * With ninety vertices along the top of the strip and ninety along the bottom,
+ * ear clipping is still free to answer with a triangle joining one end to the
+ * other: measured, the densified ring gave 180 triangles whose worst edge was
+ * still 3,263 km, and cost 18x the triangles to get there. A triangulation is
+ * a choice among many, so the invariant has to hold on the OUTPUT — any
+ * triangle carrying too long an edge is bisected across it until none does.
+ * Measured on the same rectangle: 3,873 km becomes 58 km, in 3,734 triangles
+ * and 37 ms.
+ *
+ * The measure is `max(|Δlon|, |Δlat|)`, the same one `pushSegment` splits on,
+ * so a diagonal edge may be √2 longer — 1.4° at worst, which sags 480 m. The
+ * check is three subtractions per triangle and a map already finer than a
+ * degree is never split at all. Ninety degrees needs seven halvings; the cap is
+ * twelve, and exists so that a NaN cannot spin the recursion rather than to
+ * bound a real case.
+ *
+ * It does NOT fix the data. A belt reduced to a rectangle is still the wrong
+ * shape — it is now the wrong shape lying on the ground instead of cutting
+ * under it. The bake-side fix is to drop a polygon whose simplified area has
+ * collapsed, and that needs a re-bake.
+ */
+const MAX_FILL_SPAN_DEG = 2;
+const MAX_SPLIT_DEPTH = 20;
+
+function splitLongEdges(corners, out, depth = 0) {
+  const [a, b, c] = corners;
+  const span = (p, q) => Math.max(Math.abs(p.x - q.x), Math.abs(p.y - q.y));
+  const edges = [span(a, b), span(b, c), span(c, a)];
+  const worst = Math.max(edges[0], edges[1], edges[2]);
+  if (!(worst > MAX_FILL_SPAN_DEG) || depth >= MAX_SPLIT_DEPTH) {
+    out.push(corners);
+    return;
+  }
+  // Bisect the longest edge; the third vertex is the one opposite it, and both
+  // halves keep the ring's winding, which the caller reads to face them out.
+  const [p, q, r] = edges[0] === worst ? [a, b, c]
+    : edges[1] === worst ? [b, c, a] : [c, a, b];
+  const mid = new THREE.Vector2((p.x + q.x) / 2, (p.y + q.y) / 2);
+  splitLongEdges([p, mid, r], out, depth + 1);
+  splitLongEdges([mid, q, r], out, depth + 1);
+}
+
 function fillTriangles(polygon, drape, out, colour) {
   const outer = polygon[0];
   if (!outer || outer.length < 4) return;
@@ -644,12 +711,15 @@ function fillTriangles(polygon, drape, out, colour) {
     return;                          // a self-touching ring is not worth a crash
   }
   const all = [...contour, ...holes.flat()];
+  const flat = [];
   faces.forEach((face) => {
-    const points = face.map((index) => {
-      const v = all[index];
-      return v ? surfaceAt(v.y, v.x, drape) : null;
-    });
-    if (points.length !== 3 || points.some((p) => !p)) return;
+    const corners = face.map((index) => all[index]);
+    if (corners.length !== 3 || corners.some((v) => !v)) return;
+    splitLongEdges(corners, flat);
+  });
+  flat.forEach((corners) => {
+    const points = corners.map((v) => surfaceAt(v.y, v.x, drape));
+    if (points.some((p) => !p)) return;
     const [a, b, c] = points;
     /**
      * Every triangle is turned to face OUTWARD, and this is not tidiness.

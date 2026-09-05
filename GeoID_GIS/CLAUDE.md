@@ -12979,3 +12979,69 @@ the move buttons onto a second line, measured at **32 px becoming 58 px**, and
 only on that row, so a modelled layer would sit a step taller than its
 neighbours. `has-info` carries the extra column, and the test pins the two
 templates to differ by exactly one.
+
+### The geometric patterns on the poles
+
+"What are these geometric patterns on the poles of the soils dataset?" — a
+diamond drawn across the Arctic with fainter arcs behind it. Three things
+compounding, and only the last is fixed here.
+
+**The belts are real.** The soil map's Arctic units — Lithosols, Gelic
+Gleysols, Regosols — run for thousands of kilometres and are a tenth of a
+degree wide.
+
+**The bake flattens them.** `bake-soil.py` simplifies in degrees: 0.2° at zoom
+0, 0.08 at 1, 0.01 at 2–3, 0.0025 at 4–5. The tolerance is wider than the belt,
+so Douglas–Peucker deletes every vertex between its ends and what survives is a
+five-point rectangle. Dumped whole out of tile `2/2/0`:
+
+    Gelic Gleysols  [0,68.753] [90,68.784] [90,68.712] [0,68.712] [0,68.753]
+
+**The tiler clips them to tile edges**, so a surviving edge is exactly one tile
+wide at every level — and it is exact: **359.9° at z0, 180.0 at z1, 90.0 at z2,
+45.0 at z3, 22.5 at z4, and none at z5.** The four 90° chords of zoom 2 ARE the
+diamond. The same signature is in the world geology and GLiM pyramids (four 90°
+spans apiece at z2), where thicker units make it less visible.
+
+**And the renderer drew them as chords.** A straight line between two points on
+a sphere passes under the surface, and across ninety degrees it passes through
+the planet. The fill draws with `depthTest: false` — it relies on `FrontSide`
+culling instead — so the triangle is painted anyway, over the ocean and the
+pole. Counted in one view: **437 triangles with an edge over 400 km, the worst
+3,873.**
+
+#### Densifying the ring does not fix it
+
+The obvious move — split ring edges before triangulating, the way `pushSegment`
+has done for lines since the sag was first measured — **does not work**, and
+that is the part worth keeping. With ninety vertices along the top of the strip
+and ninety along the bottom, ear clipping is still free to answer with a
+triangle joining one end to the other: measured, the densified ring gave 180
+triangles whose worst edge was still **3,263 km**, at 18× the triangle count.
+
+A triangulation is a choice among many, so the invariant has to hold on the
+OUTPUT. `splitLongEdges` bisects any triangle carrying too long an edge across
+that edge until none does.
+
+Two numbers were measured rather than chosen. **The depth cap**: longest-edge
+bisection needs about two levels per halving on a sliver, so a cap of 12 bought
+only six and left 5.6° edges; at 20 the recursion ends on the edge rule instead
+and the cap is only a guard against a NaN. **The threshold**: 2°, not the line
+rule's 1° — a line is thin and lifted, a fill only needs its sag invisible, and
+2° sags 130 m against 147 km for the original chord. At 1° the pathological
+whole-world sliver costs 39,366 triangles; at 2°, 13,122; at 3° the sag reaches
+half a kilometre for little more saving.
+
+**The real cost is not the synthetic one.** On the actual soil map, whole:
+
+| | before | after |
+| --- | --- | --- |
+| fill triangles | 1,680,141 | 1,771,376 (+5.4%) |
+| load | 23.8 s | 25.1 s |
+| edges over 400 km | **2,170** | **0** |
+| worst edge | **3,873 km** | 306 km |
+
+It does NOT fix the data: a belt reduced to a rectangle is still the wrong
+shape, now lying on the ground instead of cutting under it. The bake-side fix
+is to drop a polygon whose simplified area has collapsed, and that needs the
+source and a re-bake.
