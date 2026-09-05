@@ -29,8 +29,9 @@
 
 import {
   HOMES, grouped, addDataset, layerForDataset,
-} from "./global-data.js?v=20260905-256204f";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260905-256204f";
+} from "./global-data.js?v=20260905-15e1ef6";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260905-15e1ef6";
+import { mathsFor } from "./equations.js?v=20260905-15e1ef6";
 
 const byId = (id) => document.getElementById(id);
 
@@ -150,6 +151,9 @@ const TILED = {
         + "index, because all the water leaves through the valley bottoms "
         + "whatever fraction of the ground they are. Clipped at 60°S.",
       citation: "Pelletier, J.D. et al. (2016), ORNL DAAC — doi:10.3334/ORNLDAAC/1304",
+      // A model, and the card says whose: the thickness is Pelletier's
+      // arithmetic and only the 8-bit banding is ours.
+      maths: mathsFor("soil-thickness"),
     },
     ready: () => true,
     layerOf: () => (window.GeoIDImportManager?.getLayers?.() || [])

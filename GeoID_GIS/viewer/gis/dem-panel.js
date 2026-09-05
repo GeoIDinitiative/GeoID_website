@@ -13,9 +13,10 @@
  * instant; these are the local answer, at the view's own scale.
  */
 
-import { renderCatalogue } from "./catalogue-list.js?v=20260905-256204f";
-import { SHEETS, addSheet, removeSheet, sheetLayer } from "./dem-layer.js?v=20260905-256204f";
-import { TERRARIUM } from "./dem-tiles.js?v=20260905-256204f";
+import { renderCatalogue } from "./catalogue-list.js?v=20260905-15e1ef6";
+import { SHEETS, addSheet, removeSheet, sheetLayer } from "./dem-layer.js?v=20260905-15e1ef6";
+import { TERRARIUM } from "./dem-tiles.js?v=20260905-15e1ef6";
+import { mathsFor } from "./equations.js?v=20260905-15e1ef6";
 
 const HOST_ID = "dem-panel-host";
 const STATUS_ID = "dem-panel-status";
@@ -35,7 +36,18 @@ function entries() {
       group: "Streamed elevation",
       label: spec.label,
       title: `${spec.summary} — ${TERRARIUM.licence}`,
-      info: { summary: spec.summary, citation: TERRARIUM.credit },
+      /**
+       * Two of these three are MODELLED -- slope and hillshade are arithmetic
+       * on the heights, not readings of anything -- so the card carries the
+       * arithmetic. The elevation row carries its decode for the same reason:
+       * a height that came out of a PNG's colour channels is worth being able
+       * to check.
+       */
+      info: {
+        summary: spec.summary,
+        citation: TERRARIUM.credit,
+        maths: mathsFor(spec.id),
+      },
     };
   });
 }

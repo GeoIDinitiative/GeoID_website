@@ -18,7 +18,7 @@
  * in extraction and in export without this file knowing anything about them.
  */
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260905-256204f";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260905-15e1ef6";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -141,6 +141,12 @@ const STYLE = `
   position: fixed;
   z-index: 70;
   width: min(19rem, calc(100vw - 2rem));
+  /* The working can be longer than the screen -- the infinite-slope card is
+     seven symbols and three paragraphs -- so the card scrolls rather than
+     running off the bottom of a fixed element with no way back to it. */
+  max-height: calc(100vh - 1rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 0.6rem 0.75rem 0.65rem;
   border-radius: 0.5rem;
   border: 1px solid rgba(var(--skin-data-rgb), 0.45);
@@ -167,6 +173,54 @@ const STYLE = `
 #gis-catalogue-info-pop .info-citation b {
   font-weight: 600;
   color: #9fe8ec;
+}
+/* The working. Folded by default -- see mathsBlock -- and given a rule above
+   it so the card reads as summary, then method, then source. */
+#gis-catalogue-info-pop .info-maths {
+  margin: 0 0 0.45rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid rgba(var(--skin-data-rgb), 0.3);
+}
+#gis-catalogue-info-pop .info-maths > summary {
+  cursor: pointer;
+  font: 600 0.66rem/1.4 'Exo 2', sans-serif;
+  letter-spacing: 0.04em;
+  color: #9fe8ec;
+  margin-bottom: 0.35rem;
+}
+/* An equation is not prose: monospace, so the subscripts and the brackets
+   line up, and wrapped rather than clipped -- the infinite-slope one is longer
+   than the card and a horizontal scrollbar inside a popover is unusable. */
+#gis-catalogue-info-pop .info-eq {
+  margin: 0 0 0.25rem;
+  padding: 0.28rem 0.4rem;
+  border-radius: 0.3rem;
+  background: rgba(0, 0, 0, 0.28);
+  font: 400 0.66rem/1.5 ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+#gis-catalogue-info-pop .info-eq-note {
+  margin: -0.1rem 0 0.35rem 0.4rem;
+  font-size: 0.62rem;
+  opacity: 0.78;
+}
+#gis-catalogue-info-pop .info-terms {
+  margin: 0.3rem 0 0.4rem;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.12rem 0.5rem;
+  font: 400 0.63rem/1.4 'Exo 2', sans-serif;
+}
+#gis-catalogue-info-pop .info-terms dt {
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  color: #bdf3f5;
+  white-space: nowrap;
+}
+#gis-catalogue-info-pop .info-terms dd { margin: 0; opacity: 0.88; }
+#gis-catalogue-info-pop .info-maths-note {
+  margin: 0;
+  font-size: 0.63rem;
+  opacity: 0.8;
 }
 `;
 
@@ -257,6 +311,66 @@ export function datasetInfoButton(entry) {
   return infoButton(entry);
 }
 
+/**
+ * HOW A MODELLED LAYER WAS CALCULATED, in full, on the card that describes it.
+ *
+ * A slope map is not a measurement: it is an estimator run over a resampled
+ * grid at whatever cell size the view gives, and the same hillside reads 21°
+ * on a 30 m grid and 14° on a 90 m one. A reader who cannot see the arithmetic
+ * cannot tell which they are holding. So the ⓘ carries the expressions, every
+ * symbol in them, and the assumptions -- folded, because it is a paragraph of
+ * mathematics and the summary above it is the answer to the ordinary question.
+ *
+ * Open by default would push the citation off the bottom of the card; shut, it
+ * is one line that says the layer is a model at all, which is the fact worth
+ * putting in front of somebody who was not looking for it.
+ */
+function mathsBlock(maths) {
+  const box = document.createElement("details");
+  box.className = "info-maths";
+  const head = document.createElement("summary");
+  head.textContent = maths.kind === "computed here"
+    ? "How it is calculated" : "How it was modelled";
+  box.appendChild(head);
+
+  if (maths.intro) {
+    const intro = document.createElement("p");
+    intro.textContent = maths.intro;
+    box.appendChild(intro);
+  }
+  for (const line of maths.lines || []) {
+    const eq = document.createElement("p");
+    eq.className = "info-eq";
+    eq.textContent = line.expr;
+    box.appendChild(eq);
+    if (line.note) {
+      const note = document.createElement("p");
+      note.className = "info-eq-note";
+      note.textContent = line.note;
+      box.appendChild(note);
+    }
+  }
+  if ((maths.terms || []).length) {
+    const list = document.createElement("dl");
+    list.className = "info-terms";
+    for (const [symbol, meaning] of maths.terms) {
+      const dt = document.createElement("dt");
+      dt.textContent = symbol;
+      const dd = document.createElement("dd");
+      dd.textContent = meaning;
+      list.append(dt, dd);
+    }
+    box.appendChild(list);
+  }
+  if (maths.note) {
+    const note = document.createElement("p");
+    note.className = "info-maths-note";
+    note.textContent = maths.note;
+    box.appendChild(note);
+  }
+  return box;
+}
+
 function infoButton(entry) {
   const btn = document.createElement("button");
   btn.type = "button";
@@ -280,6 +394,7 @@ function infoButton(entry) {
       p.textContent = entry.info.summary;
       pop.appendChild(p);
     }
+    if (entry.info.maths) pop.appendChild(mathsBlock(entry.info.maths));
     if (entry.info.citation) {
       const cite = document.createElement("p");
       cite.className = "info-citation";
@@ -289,16 +404,33 @@ function infoButton(entry) {
       pop.appendChild(cite);
     }
     pop.hidden = false;
-    // Beside the button, clamped to the viewport, above it if there is no
-    // room below.
-    const r = event.currentTarget.getBoundingClientRect();
-    const w = pop.offsetWidth;
-    const h2 = pop.offsetHeight;
-    let x = Math.min(r.left, window.innerWidth - w - 12);
-    let y = r.bottom + 6;
-    if (y + h2 > window.innerHeight - 8) y = r.top - h2 - 6;
-    pop.style.left = `${Math.max(8, x)}px`;
-    pop.style.top = `${Math.max(8, y)}px`;
+    /**
+     * Beside the button, clamped to the viewport, above it if there is no room
+     * below -- AND AGAIN WHENEVER THE WORKING IS UNFOLDED.
+     *
+     * Placement used to run once, at open, which was safe while every card was
+     * a summary and a citation. The equations fold changes the card's height
+     * after it is placed: measured on the slope card in an 860 px window, 157
+     * px shut and 665 px open, which ran 459 px past the bottom of the screen
+     * — the symbol list and the citation off the end of a fixed element with
+     * nowhere to scroll. The stylesheet caps the height and lets it scroll;
+     * this puts it back on the screen when the fold moves it.
+     */
+    const anchor = event.currentTarget.getBoundingClientRect();
+    const place = () => {
+      const w = pop.offsetWidth;
+      const h2 = pop.offsetHeight;
+      const x = Math.min(anchor.left, window.innerWidth - w - 12);
+      let y = anchor.bottom + 6;
+      // Below if it fits, else above, else pinned to the top with the scroll
+      // doing the rest -- which is the case for the longer derivations.
+      if (y + h2 > window.innerHeight - 8) y = anchor.top - h2 - 6;
+      if (y < 8) y = 8;
+      pop.style.left = `${Math.max(8, x)}px`;
+      pop.style.top = `${y}px`;
+    };
+    pop.querySelector(".info-maths")?.addEventListener("toggle", place);
+    place();
   });
   return btn;
 }

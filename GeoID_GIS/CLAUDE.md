@@ -12910,3 +12910,50 @@ one row is worth putting away — and everything else with a single entry still
 gets no chevron. Verified: `foldable="1"`, folded on first paint, the licence
 hidden, the caret and pointer cursor present, opens on click, and a re-render
 does not shut it again while it is being read.
+
+### A modelled layer shows its working
+
+"When we activate a modelled dataset — slope, landslide risk — the ⓘ beside it
+should detail the equations used in its calculation, in full."
+
+The reason it matters more than it sounds: **a slope map is not a
+measurement.** It is Horn's estimator run over a resampled grid at whatever
+cell size the current view happens to give, and the same hillside reads 21° on
+a 30 m grid and 14° on a 90 m one — pinned as a test, not asserted. Neither is
+wrong. A reader who cannot see the arithmetic cannot tell which they are
+holding, and a screening model whose method is a secret has authority it has
+not earned.
+
+`equations.js` is the one registry, keyed by dataset id, and every entry says
+which of two things it is. **Computed here** — the streamed DEM's Terrarium
+decode, slope, hillshade, and the infinite-slope Factor of Safety — prints the
+expressions, every symbol, and the assumptions. **Modelled elsewhere** — the
+Pelletier thickness — names the model, cites it, and states only what our own
+bake did to its numbers, which is a different claim and must not read as ours.
+A dataset with nothing to state gets no fold at all: a survey is not a model,
+and an empty "How it is calculated" would suggest everything here is one.
+
+#### The test RUNS the card
+
+A comment drifts from its function silently. Published on a layer's ⓘ as how a
+number was produced, that stops being untidy and becomes a false statement
+about data somebody may act on. So `equations.test.mjs` transcribes each
+printed expression — from the card, not from the source it documents — and
+runs it against the real function over a synthetic surface, every interior cell.
+It found two things immediately: the bands come back as `Float32Array`, so the
+app's own answer is already rounded to seven digits and a double-precision
+comparison fails on storage rather than arithmetic; and the FoS card's "flat
+ground returns no answer" is really **below 5°**, which the card now says,
+pinned to the code's own `minSlopeDeg`.
+
+#### And a card that grew had nowhere to grow into
+
+The popover was placed once, at open, which was safe while every card was a
+summary and a citation. Unfolding the working changes its height afterwards:
+measured on the slope card, **157 px shut and 665 px open**, running 459 px
+past the bottom of an 860 px window — the symbol list and the citation off the
+end of a `position: fixed` element with no way to scroll to them. It is capped
+at `100vh - 1rem` with `overflow-y: auto` now, and the placement re-runs on the
+fold's `toggle`. Verified: opening it moves the card from y=506 to y=8 and it
+lands fully on screen, and under an imposed 300 px cap it scrolls and the
+citation is still reachable.
