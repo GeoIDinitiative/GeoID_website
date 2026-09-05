@@ -12828,3 +12828,20 @@ card that had written its own three lines still stated the basis of a
 classification it never made. It is inside it now. The general form: a card
 that opts out of classification opts out of everything downstream of the
 classifier, and prose fed to a keyword matcher will eventually match.
+
+#### The first click is a different click
+
+Steady state is **48–165 ms**, which is imperceptible. The FIRST click of a
+session was **3–7 seconds**, because the sheet is drawn from an overview and a
+click reads full resolution: the two share the open file and nothing else, so
+level 0's tile directory is fetched by the first click that needs it.
+
+Two things, and both were needed. `addThickness` fires one throwaway read at
+the view centre while the reader is still watching the sheet appear, which
+pays off the directory — that alone took the first click to 2.3 s. And a
+placeholder card on a **250 ms fuse** says "Reading…" at the point, replaced
+in place when the value lands. Measured on a fresh page: card at **+268 ms**,
+value at **+3.6 s**; and on warm clicks the placeholder never appears at all,
+because 48–118 ms never reaches the fuse. A click that does nothing for two
+seconds has told the reader the map is not clickable, and they do not click it
+again.

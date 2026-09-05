@@ -96,6 +96,44 @@ function coordinate(lat, lon) {
  * study is most interested in — so it gets the line under it that says what
  * the model means by it, not a different title.
  */
+/**
+ * The card while the read is in flight.
+ *
+ * Everything that does not depend on the value — the kicker, the point, the
+ * model's range, the basis — so the card does not jump when the number lands
+ * in the line that was waiting for it.
+ */
+export function waitingCard(lat, lon, info = {}) {
+  return {
+    kicker: "Soil and sediment thickness",
+    title: "Reading…",
+    meta: "Sampling the 1 km grid at this point",
+    headline: Number.isFinite(lat) && Number.isFinite(lon)
+      ? [["Sampled at", coordinate(lat, lon)]] : null,
+    rows: standingRows(info),
+    source: info.credit || null,
+    note: null,
+  };
+}
+
+/** The lines that are true of the map rather than of the reading. */
+function standingRows(info) {
+  const rows = [];
+  if (Array.isArray(info.range)) {
+    rows.push(["Model range", `${info.range[0]} to ${info.range[1]} m`]);
+  }
+  /**
+   * SAID ON THE CARD, not left to be discovered. The reader is looking at one
+   * pinned point and a number to two significant figures; nothing about that
+   * says the number is a model's value for a square kilometre. `soil-card.js`
+   * carries the same line for the same reason, and the rock database refuses
+   * to invent a number rather than print one that reads as a measurement.
+   */
+  rows.push(["Basis", "A modelled value for the whole 1 km cell, not a "
+    + "measurement of this hillside"]);
+  return rows;
+}
+
 export function thicknessCard(sample = {}, info = {}) {
   const kicker = "Soil and sediment thickness";
   const known = !sample.outside && Number.isFinite(sample.metres);
@@ -122,20 +160,9 @@ export function thicknessCard(sample = {}, info = {}) {
       `${(info.resolutionArcsec ?? 30)}″ · ${size.width.toFixed(2)} × ${size.height.toFixed(2)} km here`]);
   }
 
-  const rows = [];
-  if (known) rows.push(["Modelled thickness", metres(sample.metres)]);
-  if (Array.isArray(info.range)) {
-    rows.push(["Model range", `${info.range[0]} to ${info.range[1]} m`]);
-  }
-  /**
-   * SAID ON THE CARD, not left to be discovered. The reader is looking at one
-   * pinned point and a number to two significant figures; nothing about that
-   * says the number is a model's value for a square kilometre. `soil-card.js`
-   * carries the same line for the same reason, and the rock database refuses
-   * to invent a number rather than print one that reads as a measurement.
-   */
-  rows.push(["Basis", "A modelled value for the whole 1 km cell, not a "
-    + "measurement of this hillside"]);
+  const rows = known
+    ? [["Modelled thickness", metres(sample.metres)], ...standingRows(info)]
+    : standingRows(info);
 
   return {
     kicker,

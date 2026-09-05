@@ -23,10 +23,10 @@
  * valley bottoms whatever fraction of the ground they are. The card says so.
  */
 
-import { buildRasterLayer, loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260905-4043670";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260905-4043670";
-import { dataUrl } from "./data-base.js?v=20260905-4043670";
-import { cellAt, thicknessCard } from "./thickness-probe.js?v=20260905-4043670";
+import { buildRasterLayer, loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260905-80653c0";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260905-80653c0";
+import { dataUrl } from "./data-base.js?v=20260905-80653c0";
+import { cellAt, thicknessCard, waitingCard } from "./thickness-probe.js?v=20260905-80653c0";
 
 export const LAYER_NAME = "Soil and sediment thickness (Pelletier)";
 
@@ -191,14 +191,56 @@ export async function sampleAt(lat, lon) {
  */
 let probeTicket = 0;
 
+/**
+ * The card, raised the same way for the placeholder and for the answer -- the
+ * second call replaces the first in place, because it is pinned to the same
+ * ground.
+ *
+ * `soil: true` is the flag that stops the card re-deriving its own heading --
+ * without it `crustalSetting` reads the elevation and heads a thickness
+ * reading "Continental", and the rock-property fold prints sixteen
+ * rock-mechanics parameters about a metre of till. The lesson is
+ * `soil-card.js`'s; the flag is the same one.
+ */
+function showThicknessCard(card, lat, lon) {
+  window.GeoIDViewer?.showFeatureCard?.({
+    soil: true,
+    type: card.kicker,
+    rock_type: card.title,
+    lithology: null,
+    name: null,
+    description: card.meta || null,
+    extra_rows: card.headline || null,
+    origin: card.source,
+    rows: card.note ? [...card.rows, ["Reference", card.note]] : card.rows,
+  }, lat, lon);
+}
+
 export function probeAt(lat, lon) {
   const layer = thicknessLayer();
   if (!layer || layer.visible === false) return false;
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return false;
   const ticket = (probeTicket += 1);
+  /**
+   * A CLICK THAT IS STILL READING SAYS SO, but only if it is slow enough to
+   * notice. The steady state is 55-165 ms and a card that flashed "Reading"
+   * for a twentieth of a second would be a flicker; the first click of a
+   * session is 2.3 seconds even warmed, and a card that appears two seconds
+   * after the click has already been read as a map that does not answer.
+   *
+   * So the placeholder is on a fuse: if the value is not back in a quarter of
+   * a second, the card opens at the point saying what it is doing, and the
+   * value replaces it in place when it lands.
+   */
+  let answered = false;
+  setTimeout(() => {
+    if (answered || ticket !== probeTicket) return;
+    showThicknessCard(waitingCard(lat, lon, meta || {}), lat, lon);
+  }, 250);
   void (async () => {
     try {
       const sample = await sampleAt(lat, lon);
+      answered = true;
       if (!sample || ticket !== probeTicket) return;
       const card = thicknessCard(sample, meta || {});
       /**
@@ -208,18 +250,9 @@ export function probeAt(lat, lon) {
        * sixteen rock-mechanics parameters about a metre of till. The lesson is
        * `soil-card.js`'s; the flag is the same one.
        */
-      window.GeoIDViewer?.showFeatureCard?.({
-        soil: true,
-        type: card.kicker,
-        rock_type: card.title,
-        lithology: null,
-        name: null,
-        description: card.meta || null,
-        extra_rows: card.headline || null,
-        origin: card.source,
-        rows: card.note ? [...card.rows, ["Reference", card.note]] : card.rows,
-      }, lat, lon);
+      showThicknessCard(card, lat, lon);
     } catch (error) {
+      answered = true;
       console.warn("soil thickness could not be sampled:", error.message);
     }
   })();
@@ -307,7 +340,26 @@ export async function addThickness(onStatus = () => {}) {
   if (thicknessLayer()) return { ok: true, message: `${LAYER_NAME} is already on the globe.` };
   if (!three) three = await import("../vendor/three.module.js");
   const out = await build({ onStatus });
-  if (out.ok) watch();
+  if (out.ok) {
+    watch();
+    /**
+     * WARM THE CLICK, because the first one is otherwise seconds long.
+     *
+     * The sheet is drawn from an OVERVIEW and a click reads FULL RESOLUTION,
+     * so the two share the open file and nothing else: measured on a fresh
+     * page, the first click waited **3 to 7 seconds** for level 0's tile
+     * directory while every click after it came back in 35-60 ms. A reader
+     * clicking a map and getting nothing for five seconds has been told the
+     * map is not clickable, and they do not click it again.
+     *
+     * One throwaway read at the view centre pays that off while they are
+     * still looking at the sheet appearing. It costs one tile.
+     */
+    const centre = window.GeoIDViewer?.getViewCentreLatLon?.();
+    if (Number.isFinite(centre?.lat) && Number.isFinite(centre?.lon)) {
+      void sampleAt(centre.lat, centre.lon).catch(() => {});
+    }
+  }
   return out;
 }
 

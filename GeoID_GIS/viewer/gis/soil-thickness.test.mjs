@@ -9,7 +9,7 @@
  */
 
 import { readFileSync } from "node:fs";
-import { cellAt, cellSizeKm, thicknessCard } from "./thickness-probe.js";
+import { cellAt, cellSizeKm, thicknessCard, waitingCard } from "./thickness-probe.js";
 
 let passed = 0;
 const failures = [];
@@ -179,6 +179,26 @@ check("the card says the number is a model's, for a whole cell", () => {
   ok(basis && /not a measurement/i.test(basis[1]), "the basis line is on the card");
   ok(card.source === meta.credit, "and Pelletier is credited");
   ok(card.headline.some(([key]) => key === "Sampled at"), "the point is stated");
+});
+
+/**
+ * A CLICK THAT IS STILL READING SAYS SO. The first click of a session waits
+ * 2.3 s on the full-resolution path even warmed, and a card that appears two
+ * seconds after the click has already been read as a map that does not answer.
+ * The card that stands in for it must not lose the lines that were never about
+ * the value, or the card jumps when the number lands.
+ */
+check("the waiting card keeps everything that is not the reading", () => {
+  const waiting = waitingCard(54.98, -7.66, meta);
+  const answered = thicknessCard({ ...cellAt(54.98, -7.66, meta), metres: 12 }, meta);
+  ok(waiting.kicker === answered.kicker, "same kicker");
+  ok(waiting.source === answered.source, "same credit");
+  ok(/reading/i.test(waiting.title), `title ${waiting.title}`);
+  ok(!/\d\s*m\b/.test(waiting.title), "and no number in it");
+  const standing = (card) => card.rows.filter(([key]) => key !== "Modelled thickness");
+  ok(JSON.stringify(standing(waiting)) === JSON.stringify(standing(answered)),
+    "the rows that are not the reading are identical");
+  ok(waiting.headline.some(([key]) => key === "Sampled at"), "the point is already stated");
 });
 
 /* ── the wiring ──────────────────────────────────────────────────────────── */
