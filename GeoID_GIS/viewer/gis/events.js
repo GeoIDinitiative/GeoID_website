@@ -12,7 +12,8 @@
 
 import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity, magnitudeColour,
-  activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, gdacsPoints } from "./event-sources.js?v=20260906-ea06595";
+  activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, gdacsPoints, resolveColour,
+} from "./event-sources.js?v=20260906-3ec9275";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -862,7 +863,6 @@ function dotSizePx(globePx) {
   return Math.max(4, Math.min(16, globePx * 0.022));
 }
 
-let markerSprite = null;
 let sizeFrame = null;
 
 /** Keeps marker size in step with the view. */
@@ -935,23 +935,52 @@ function trackScale() {
   sizeFrame = window.requestAnimationFrame(step);
 }
 
-/** A soft round dot, so markers read as points rather than square pixels. */
-function markerTexture() {
-  if (markerSprite || !THREE) return markerSprite;
+/**
+ * ONE TEXTURE PER GLYPH, so the globe draws what the legend promises.
+ *
+ * Reported as "aside from the earthquakes, none of the EONET live events have
+ * the symbologies mapped as they should be". They did not: the earthquakes
+ * had their own texture — three concentric rings, the ◎ the panel shows — and
+ * every other category shared `markerTexture()`, one soft round blob. So a
+ * legend offering ▲ for a volcano, ◉ for a storm, ◆ for ice, ▬ for a flood,
+ * ▼ for a landslide, ❄ for snow and ■ for something manmade drew seven
+ * identical dots, and the only thing separating them on the globe was hue.
+ *
+ * PAINTED WHITE and tinted by the material, exactly as the earthquake rings
+ * are: one canvas per glyph rather than one per category, so the wildfires and
+ * the volcanoes — both ▲ — share a texture and differ by colour, which is what
+ * the legend says too.
+ *
+ * The stroke is not decoration. These are drawn over imagery at eight screen
+ * pixels; a thin white glyph on a pale coast is invisible, and a dark outline
+ * is what keeps ▲ readable against snow as well as against ocean.
+ */
+const glyphSprites = new Map();
+
+function glyphTexture(glyph) {
+  if (!THREE) return null;
+  const key = String(glyph || FALLBACK.glyph);
+  if (glyphSprites.has(key)) return glyphSprites.get(key);
   const size = 64;
   const canvas = document.createElement("canvas");
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext("2d");
-  const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-  gradient.addColorStop(0, "rgba(255,255,255,1)");
-  gradient.addColorStop(0.45, "rgba(255,255,255,0.95)");
-  gradient.addColorStop(0.75, "rgba(255,255,255,0.35)");
-  gradient.addColorStop(1, "rgba(255,255,255,0)");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, size, size);
-  markerSprite = new THREE.CanvasTexture(canvas);
-  return markerSprite;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  // Generous, because a glyph's ink is a fraction of its em box and these are
+  // read at a few pixels; the canvas is downsampled by the GPU anyway.
+  ctx.font = `${Math.round(size * 0.78)}px "Exo 2", system-ui, sans-serif`;
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = "rgba(0, 0, 0, 0.85)";
+  ctx.lineWidth = Math.max(2, size * 0.06);
+  ctx.strokeText(key, size / 2, size / 2 + size * 0.02);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(key, size / 2, size / 2 + size * 0.02);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter;
+  glyphSprites.set(key, texture);
+  return texture;
 }
 
 let quakeSprite = null;
@@ -1117,9 +1146,9 @@ function renderMarkers() {
     // earthquake wastes the only channel that carries magnitude at a glance,
     // and green-through-red is the reading a hazard map does not have to
     // explain.
-    const base = new THREE.Color(
+    const base = new THREE.Color(resolveColour(
       isQuakeBand(key) ? magnitudeColour(bandMagnitude(key)) : symbolFor(key).colour,
-    );
+    ));
     if (list.some((e) => Number.isFinite(e.timeMs))) {
       const colours = new Float32Array(list.length * 3);
       list.forEach((event, i) => {
@@ -1133,7 +1162,8 @@ function renderMarkers() {
     const points = new THREE.Points(geometry, new THREE.PointsMaterial({
       color: geometry.attributes.color ? new THREE.Color(0xffffff) : base,
       vertexColors: Boolean(geometry.attributes.color),
-      map: isQuakeBand(key) ? quakeTexture() : markerTexture(),
+      // The legend's own glyph, not a dot for everything that is not a quake.
+      map: isQuakeBand(key) ? quakeTexture() : glyphTexture(symbolFor(key).glyph),
       // Sized in screen pixels rather than world units: at globe scale a
       // world-sized point is a speck, and it should stay legible at any zoom.
       size: 8,
@@ -1258,7 +1288,7 @@ function publishLayer() {
     layer.legendHidden = true;
     layer.legendInfo = {
       palette: [...new Set(events.map((e) => e.categoryId || "other"))]
-        .map((key) => String(symbolFor(key).colour).replace("#", "")),
+        .map((key) => String(resolveColour(symbolFor(key).colour)).replace("#", "")),
       labels: [...new Set(events.map((e) => e.categoryId || "other"))]
         .map((key) => symbolFor(key).label || key),
       categorical: true,
@@ -1778,8 +1808,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260906-ea06595"),
-    import("./research/dsp.js?v=20260906-ea06595"),
+    import("./seismogram-plot.js?v=20260906-3ec9275"),
+    import("./research/dsp.js?v=20260906-3ec9275"),
   ]);
   if (stale()) return;
 

@@ -13389,3 +13389,36 @@ holding both keeps one flag for the one interface.
 Verified with gmsh on both: every point, curve, surface and volume tagged, the
 GALES check passing, and the groups distinct — subsurface `top 1 / base 2 /
 sides 5 / domain 10`, atmosphere `top 1 / sky 4 / sides 6 / domain 11`.
+
+### The live events wore the legend's colours and none of its shapes
+
+"Aside from the earthquakes, none of the EONET live events have the
+symbologies mapped as they should be as shown in the legend." Two independent
+causes, and both were silent.
+
+**Every category that was not an earthquake shared one round blob.** The
+seismicity had its own texture — three concentric rings, the ◎ the panel shows
+— and everything else took `markerTexture()`, a soft radial dot. So a legend
+offering ▲ for a volcano, ◉ for a storm, ◆ for ice, ▬ for a flood, ▼ for a
+landslide, ❄ for snow and ■ for something manmade drew seven identical dots,
+and hue was the only thing separating them on the globe. There is a texture
+per GLYPH now — painted white and tinted by the material exactly as the quake
+rings are, so the wildfires and the volcanoes share one canvas because they
+share one symbol. Verified by the ink itself: the triangle is **8 px wide at
+30% of its height and 34 px at 72%**, while the ring and the diamond are
+symmetric at 32 and 18.
+
+**And two of them were white.** The volcanoes and the severe storms take their
+hue from the skin, so the feed follows the theme. In the panel that works —
+`style="color:var(--skin-chrome)"` is ordinary CSS. On the globe it does not,
+and it does not throw: `new THREE.Color("var(--skin-chrome)")` warns to the
+console and keeps the colour it was constructed with, which is **white**.
+Measured against the live skin — the panel drew `#ff2bd6` and `#00e5ff`, the
+markers `#ffffff`.
+
+`resolveColour` lives in `event-sources.js` rather than beside the symbols,
+because that file is the one a test can import: `events.js` wants a whole
+document to load. Its reader is injected for the same reason. An unresolvable
+`var()` is returned unchanged rather than replaced — THREE then warns about it,
+which is better than drawing the wrong colour quietly, and that is exactly the
+failure this was.

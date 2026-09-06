@@ -12,7 +12,9 @@ import {
   SOURCES, FEED_GROUPS, sourceById, sourcesInGroup, activeGroups, groupState,
   defaultEnabled, usgsPoints, magnitudeSize, recencyOpacity,
   MAGNITUDE_RAMP, magnitudeColour, restoreSources, gdacsPoints, gdacsUrl,
+  resolveColour,
 }  from "./event-sources.js";
+import { readFileSync } from "node:fs";
 
 let pass = 0;
 let fail = 0;
@@ -289,4 +291,46 @@ if (fail) process.exitCode = 1;
     gdacsPoints({ features: [{ geometry: {} }] }, { id: "x" }).length === 0, true);
   check("the url asks SEARCH for FL with all alert levels",
     /SEARCH\?fromDate=\d{4}-\d{2}-\d{2}&toDate=\d{4}-\d{2}-\d{2}&alertlevel=Green;Orange;Red&eventlist=FL$/.test(gdacsUrl()), true);
+}
+
+/* ── the symbology the legend promises has to reach the globe ──────────────
+   Reported: "aside from the earthquakes, none of the EONET live events have
+   the symbologies mapped as they should be as shown in the legend." Two
+   independent causes, and both were silent. */
+{
+  /* A CSS custom property is fine in the panel and unreadable by THREE, which
+     warns and keeps white. Measured against the live skin: the panel drew
+     #ff2bd6 and #00e5ff, the markers #ffffff. */
+  check("a var() is resolved against the document's own skin",
+    resolveColour("var(--skin-chrome)", () => "#ff2bd6"), "#ff2bd6");
+  check("whitespace inside the var() is not part of the name",
+    resolveColour("var( --skin-data )", (n) => (n === "--skin-data" ? "#00e5ff" : "")), "#00e5ff");
+  check("a plain colour is passed straight through",
+    resolveColour("#ff6b2c"), "#ff6b2c");
+  check("a var() with a fallback uses it when the skin says nothing",
+    resolveColour("var(--nope, #123456)", () => ""), "#123456");
+  /* Returning the var() text is better than returning white: THREE warns on
+     it, so an unresolvable colour is visible in the console rather than
+     silently drawn as the wrong thing. */
+  check("an unresolvable var() with no fallback is not quietly turned white",
+    resolveColour("var(--nope)", () => ""), "var(--nope)");
+
+  /* And the glyphs. The earthquakes had their own texture -- three concentric
+     rings, the one the panel shows -- while every other category shared one
+     soft round blob, so a legend offering a triangle, a diamond, a ring and a
+     bar drew four identical dots. */
+  const src = readFileSync(new URL("./events.js", import.meta.url), "utf8");
+  check("the marker map is the category's own glyph",
+    /map: isQuakeBand\(key\) \? quakeTexture\(\) : glyphTexture\(symbolFor\(key\)\.glyph\)/.test(src),
+    true);
+  check("one texture per GLYPH, so two categories drawn with the same symbol share it",
+    /glyphSprites\.has\(key\)/.test(src) && /glyphSprites\.set\(key, texture\)/.test(src), true);
+  check("the one-blob-for-everything texture is gone", /markerTexture\s*\(\s*\)\s*\{/.test(src), false);
+  /* Drawn over imagery at a few pixels: a thin white glyph on a pale coast is
+     invisible, so the outline is not decoration. */
+  check("the glyph is stroked as well as filled", /strokeText\(/.test(src) && /fillText\(/.test(src), true);
+  /* Painted white and tinted by the material, exactly as the quake rings are,
+     or every category would need its own canvas. */
+  check("the glyph is painted white and tinted by the material",
+    /ctx\.fillStyle = "#ffffff"/.test(src), true);
 }

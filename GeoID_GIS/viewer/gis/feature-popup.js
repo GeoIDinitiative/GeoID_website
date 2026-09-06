@@ -20,18 +20,18 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260906-ea06595";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260906-ea06595";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260906-3ec9275";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260906-3ec9275";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20260906-ea06595";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260906-ea06595";
-import { lithologyLabel } from "./lithology-label.js?v=20260906-ea06595";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260906-ea06595";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260906-ea06595";
+} from "./vector-render.js?v=20260906-3ec9275";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260906-3ec9275";
+import { lithologyLabel } from "./lithology-label.js?v=20260906-3ec9275";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260906-3ec9275";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260906-3ec9275";
 import {
   canEditRow, editableFields, applyRowChange,
-} from "./table-editor.js?v=20260906-ea06595";
+} from "./table-editor.js?v=20260906-3ec9275";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital

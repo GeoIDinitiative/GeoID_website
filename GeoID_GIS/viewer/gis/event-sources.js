@@ -434,3 +434,27 @@ export function recencyOpacity(timeMs, nowMs = Date.now(), windowMs = 24 * 3600 
   if (age >= windowMs) return FADE_FLOOR;
   return FADE_FLOOR + (1 - FADE_FLOOR) * (1 - age / windowMs);
 }
+
+/**
+ * A CSS CUSTOM PROPERTY IS NOT A COLOUR THREE CAN READ.
+ *
+ * Two event symbols take their hue from the skin, so the feed changes with the
+ * theme like everything else. In the PANEL that works — `style="color:var(--skin-chrome)"`
+ * is ordinary CSS. On the GLOBE it does not, and it does not fail loudly:
+ * `new THREE.Color("var(--skin-chrome)")` warns to the console and keeps the
+ * colour it was constructed with, which is **white**. Measured against the live
+ * skin, the panel drew `#ff2bd6` and `#00e5ff` while the markers drew `#ffffff`
+ * — reported as the live events not wearing the symbology the legend shows.
+ *
+ * The reader is injected so this can be checked without a document; in the page
+ * it is the document, which is the only thing that knows what the skin is now.
+ */
+export function resolveColour(value, read = null) {
+  const text = String(value || "").trim();
+  const variable = /^var\(\s*(--[\w-]+)\s*(?:,([^)]*))?\)$/.exec(text);
+  if (!variable) return text;
+  const lookup = read || ((name) => (typeof document === "undefined" ? ""
+    : getComputedStyle(document.documentElement).getPropertyValue(name)));
+  const resolved = String(lookup(variable[1]) || "").trim();
+  return resolved || String(variable[2] || "").trim() || text;
+}
