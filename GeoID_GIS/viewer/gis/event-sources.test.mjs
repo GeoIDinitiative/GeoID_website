@@ -364,6 +364,8 @@ if (fail) process.exitCode = 1;
     true);
   check("and the wildfires are an orange round dot",
     /wildfires: \{ colour: "#ff6b2c", glyph: "●", label: "Wildfires" \}/.test(src), true);
+  check("the floods are a dot too, in their own blue",
+    /floods: \{ colour: "#2f6bff", glyph: "●", label: "Floods" \}/.test(src), true);
 }
 
 /* ── a sprite is centred on its point, which is half a symbol of float ─────

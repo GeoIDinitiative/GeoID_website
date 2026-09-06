@@ -13631,3 +13631,36 @@ terrain on the GPU, so a CPU raycast hits the undisplaced sphere and the answer
 is the relief itself. `surfacePoint` is the viewer's own answer for where the
 ground is and the only thing a marker's placement can honestly be checked
 against.
+
+#### The globe is a sphere, and the ground you see is a drape
+
+"Wildfires and the other event dots are NOT TIGHT TO THE SURFACE." They were
+30 m above `surfacePoint` the whole time, which is why three attempts at this
+found nothing — the reference was wrong.
+
+**The globe's own mesh is not displaced at all.** Measured: 37,249 vertices,
+`radiusMin === radiusMax === 3.2`, no displacement uniform. What you look at
+close in is `GeoID-BasemapRefine`, a separate patch whose vertices DO carry the
+terrain — 3.2315 to 3.2815 in the same view. Every raycast against `v.globe`
+in this file's earlier notes was hitting a perfect sphere, which is why they
+returned the relief itself (~10 km) and called it float.
+
+Against the drape that is actually drawn, the markers measured **−675 m to
++1,219 m, mean +489** — some floating, some sunk.
+
+**And the cause was a gate.** The watcher rewrote marker positions when the
+RELIEF changed, and a relief change is not what moves the ground under a
+marker: **the DEM refines as you fly in.** New tiles arrive, the basemap's
+drape is rebuilt from the better elevations, and the markers keep the ones they
+were placed with — no relief change, no clearance change, nothing rewrote them.
+Which markers floated and which sank depended on where the DEM had been coarse
+when the feed loaded, which is exactly the scatter that was measured.
+
+The gate is gone: every tick re-samples every marker. Four hundred sampler
+lookups two and a half times a second is nothing next to being wrong about
+where they are. After: **27 to 50 m above the drape, mean 35** — the 30 m
+clearance and a little drape interpolation.
+
+The floods are a dot rather than a bar now, sharing the wildfires' glyph and
+carrying their own blue — a flood alert is a place, and the bar read as a
+legend swatch that had wandered onto the map.

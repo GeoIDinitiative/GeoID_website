@@ -14,7 +14,7 @@ import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity, magnitudeColour,
   activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, gdacsPoints, resolveColour,
   MARKER_LIFT_MAX, liftForAltitude, dotSizePx,
-} from "./event-sources.js?v=20260907-563f782";
+} from "./event-sources.js?v=20260907-746df08";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -130,20 +130,28 @@ function watchRelief() {
   reliefWatch = window.setInterval(() => {
     const viewer = window.GeoIDViewer;
     if (!viewer?.getEffectiveRelief || !markers) return;
-    const relief = viewer.getEffectiveRelief();
     /**
-     * The CLEARANCE moves with the camera as well as the relief, and both end
-     * in the same rewrite — the positions are the only place either lives.
-     * A tenth of the current lift is the threshold: below that the marker has
-     * not moved a pixel, and rewriting four hundred points to prove it is
-     * work nobody sees.
+     * RE-SAMPLED EVERY TICK, not only when the exaggeration moves.
+     *
+     * The gate here used to be "has the relief changed?", which misses the
+     * thing that actually moves the ground under a marker: **the DEM refines
+     * as you fly in.** New tiles arrive, the basemap's own drape is rebuilt
+     * from the better elevations, and the markers keep the ones they were
+     * placed with — neither the relief nor the clearance has changed, so
+     * nothing rewrote them.
+     *
+     * Measured against the drape that is actually drawn, with markers 30 m
+     * above `surfacePoint` the whole time: **−675 m to +1,219 m**, mean +489.
+     * Some floated, some sank, and which was which depended on where the DEM
+     * had been coarse when the feed loaded. That is the reported "wildfires
+     * and the other event dots are NOT tight to the surface".
+     *
+     * So the gate is gone. Four hundred markers is four hundred sampler
+     * lookups two and a half times a second, which is nothing next to being
+     * wrong about where they are.
      */
-    const wanted = liftForAltitude(viewer.getZoomAltitudeMetres?.()?.metres);
-    const reliefSame = lastRelief !== null && Math.abs(relief - lastRelief) < 1e-4;
-    const liftSame = Math.abs(wanted - markerLift) < Math.max(wanted, 1e-9) * 0.1;
-    if (reliefSame && liftSame) return;
-    lastRelief = relief;
-    markerLift = wanted;
+    lastRelief = viewer.getEffectiveRelief();
+    markerLift = liftForAltitude();
     markers.traverse((node) => {
       const list = node.userData?.events;
       const truth = node.userData?.truePositions;
@@ -178,7 +186,10 @@ const SYMBOLS = {
   volcanoes: { colour: "#ff2d2d", glyph: "▲", label: "Volcanoes", pulse: true },
   severeStorms: { colour: "var(--skin-data)", glyph: "◉", label: "Severe storms" },
   seaLakeIce: { colour: "#bfe9ff", glyph: "◆", label: "Sea and lake ice" },
-  floods: { colour: "#2f6bff", glyph: "▬", label: "Floods" },
+  // A dot, not a bar: a flood alert is a PLACE, and the bar read as a legend
+  // swatch that had wandered onto the map. It shares the wildfires' glyph and
+  // its own colour, which is what the panel shows too.
+  floods: { colour: "#2f6bff", glyph: "●", label: "Floods" },
   drought: { colour: "#d8b26a", glyph: "▬", label: "Drought" },
   // The middle of the magnitude ramp, and concentric rings for the glyph, so
   // the legend and the list say the same thing as the markers do. The colour a
@@ -2096,8 +2107,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260907-563f782"),
-    import("./research/dsp.js?v=20260907-563f782"),
+    import("./seismogram-plot.js?v=20260907-746df08"),
+    import("./research/dsp.js?v=20260907-746df08"),
   ]);
   if (stale()) return;
 
