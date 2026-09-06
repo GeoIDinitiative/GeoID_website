@@ -14,7 +14,7 @@ import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity, magnitudeColour,
   activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, gdacsPoints, resolveColour,
   MARKER_LIFT_MAX, liftForAltitude, dotSizePx,
-} from "./event-sources.js?v=20260907-7ffe8de";
+} from "./event-sources.js?v=20260907-74d5bc6";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -1636,12 +1636,18 @@ function placeOverlay() {
    * found, this can go back to a plain write.
    */
   const setRight = (px) => host.style.setProperty("right", `${px}px`, "important");
-  if (!legend || legend.hidden) {
-    setRight(base);
-    return;
-  }
-  const gap = 8;
-  setRight(window.innerWidth - legend.getBoundingClientRect().left + gap);
+  /**
+   * THE SAME SLOT AS THE LEGEND, not beside it.
+   *
+   * This used to measure the legend and sit to its left, which made the feed's
+   * position a function of how wide the legend's contents happened to be —
+   * so opening the legend moved the events button, and a layer arriving moved
+   * it again. They are one stack now: `overlay-stack.js` decides which is in
+   * front and offsets the other with a transform, and the only thing left here
+   * is the rail's own offset, which both cards share.
+   */
+  void legend;
+  setRight(base);
 }
 
 /**
@@ -2033,8 +2039,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260907-7ffe8de"),
-    import("./research/dsp.js?v=20260907-7ffe8de"),
+    import("./seismogram-plot.js?v=20260907-74d5bc6"),
+    import("./research/dsp.js?v=20260907-74d5bc6"),
   ]);
   if (stale()) return;
 

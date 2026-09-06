@@ -1,9 +1,9 @@
-import { looksLikeGeographic } from "./geo-utils.js?v=20260907-7ffe8de";
-import { featureCollection, feature } from "./geoprocessing.js?v=20260907-7ffe8de";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260907-7ffe8de";
-import { detectCrs, crsLabel } from "./prj-detect.js?v=20260907-7ffe8de";
-import { parseQml } from "./qgis-style.js?v=20260907-7ffe8de";
-import { projectedToLatLon, CRS_OPTIONS } from "./projection.js?v=20260907-7ffe8de";
+import { looksLikeGeographic } from "./geo-utils.js?v=20260907-74d5bc6";
+import { featureCollection, feature } from "./geoprocessing.js?v=20260907-74d5bc6";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260907-74d5bc6";
+import { detectCrs, crsLabel } from "./prj-detect.js?v=20260907-74d5bc6";
+import { parseQml } from "./qgis-style.js?v=20260907-74d5bc6";
+import { projectedToLatLon, CRS_OPTIONS } from "./projection.js?v=20260907-74d5bc6";
 
 // ESRI Shapefile technical description 98-016. Only the geometry types that
 // actually appear in GIS exports are handled; anything else is reported rather

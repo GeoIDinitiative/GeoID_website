@@ -13506,3 +13506,47 @@ The pure halves — `liftForAltitude`, `dotSizePx`, `nearSizePx` — live in
 `event-sources.js` beside `resolveColour`, for the same reason: `events.js`
 wants a whole document before it will load, and these are the parts worth
 pinning.
+
+### The legend and the events feed are one slot, not two
+
+Side by side they cost the top of the map twice over — two buttons always
+showing, and a layout that moved: the feed placed itself by MEASURING the
+legend, so opening the legend shifted the events button and a layer arriving
+shifted it again. Neither is ever read at the same time as the other; they ask
+different questions about the same globe.
+
+They are a shuffle now. One card is in front at full size and contrast and is
+the only one that may open a panel; the other sits behind it, moved up and
+left, scaled to 0.86, turned −6° and greyed to 55%. Pressing the one at the
+back deals it forward, opens it, and sends the other behind — closed, whatever
+state it was left in, because two open panels is the thing being removed.
+
+**The offset has to beat the width difference.** The cards are right-aligned
+and the transform origin is their shared corner, so scaling alone pulls the
+back card's left edge INWARDS. At 0.55rem it cleared the front card by five
+pixels and read as a drop shadow rather than a card; at 1.7rem it peeks 12 px
+to the left and 9 above — measured on the page with both buttons up, which is
+the only way to get that number. Up and left, never down: the front card's
+panel hangs below its button, and a back card offset downwards hides behind
+the very thing it should be peeking out of.
+
+**Capture, and it has to be.** Each card's own handler flips its own panel,
+which for a card at the back is wrong twice: it would open a panel the stack
+keeps hidden, and leave the card behind. So the shuffle runs first, in the
+capture phase, opens the panel itself and stops the click — otherwise the
+card's own listener fires immediately afterwards and toggles it straight shut.
+A click on the front card is left alone; opening and closing its own panel is
+exactly what its handler is for.
+
+It lives in its own file because which card is in front belongs to neither of
+them. The legend owns its toggle in `legend-dock.js` and the feed owns its own
+in `events.js`, and each is right to; putting the order in one would make that
+one the parent of the other, and the next card added to this corner would have
+to be taught about both.
+
+One consequence worth knowing: the legend auto-opens when a layer arrives, and
+it cannot do that while it is at the back — the stack shuts it. That is the
+intended reading. A card is at the back because somebody put it there, and
+yanking it forward because a layer loaded is the "fights the user rather than
+ignoring them" failure `legend-dock.js` already records about its own
+auto-open.
