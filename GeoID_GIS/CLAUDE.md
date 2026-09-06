@@ -13422,3 +13422,34 @@ document to load. Its reader is injected for the same reason. An unresolvable
 `var()` is returned unchanged rather than replaced — THREE then warns about it,
 which is better than drawing the wrong colour quietly, and that is exactly the
 failure this was.
+
+#### The floods were earthquakes, and the glyphs were centred on the wrong thing
+
+"The floods still have the same symbol as the earthquakes." They *were*
+earthquakes, as far as the marker code was concerned. `markerKey` banded by
+magnitude whenever an event had a `sourceId` — which meant "did not come from
+EONET", and that was true of the seismicity and of nothing else, until the
+GDACS flood feed arrived. A flood has a source id, **no magnitude**, and landed
+in the `quake-3` band: drawn with the earthquake's concentric rings, coloured
+from the middle of the magnitude ramp, and listed under the earthquake symbol.
+The test is now the thing the banding is *for* — a magnitude to band by — and
+the floods are their own cloud, 43 of them at `#2f6bff` with the bar glyph.
+
+**And the glyphs were centred on the em box rather than on their ink.**
+`textBaseline: "middle"` centres the box the font declares, which a letter
+fills and a geometric glyph does not. Measured on the first cut: the wildfire
+dot came out **6 px of ink near the top of the canvas and nothing at all in the
+lower half**, and the flood bar sat entirely below the middle. Both were
+centred exactly as asked, and both drew as a smudge in the corner of an
+eight-pixel sprite — which at globe scale is a marker in the wrong place.
+
+Each glyph is drawn once to find where its ink lands, then redrawn scaled to a
+common height and moved so that ink is centred. Verified: all five sit at
+(32, 32) of a 64² canvas at 38–40 px across, and the wildfire's ink is **28.0%**
+of the canvas against the 27.7% a filled disc of that diameter must be.
+
+Wildfires are an orange round dot; volcanoes are red and pulse, which the
+symbol table now says with `pulse: true` rather than a condition in the draw
+code — the seismicity and the volcanoes are the two feeds reporting something
+still happening while you look at them. Measured over 40 frames: the volcano
+cloud's opacity swings 0.204 while the wildfires hold exactly steady.

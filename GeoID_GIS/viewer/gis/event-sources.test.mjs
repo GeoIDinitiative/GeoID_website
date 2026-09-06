@@ -333,4 +333,34 @@ if (fail) process.exitCode = 1;
      or every category would need its own canvas. */
   check("the glyph is painted white and tinted by the material",
     /ctx\.fillStyle = "#ffffff"/.test(src), true);
+
+  /* `textBaseline: "middle"` centres the EM BOX, and a geometric glyph does
+     not fill it the way a letter does. Measured on the first cut: the wildfire
+     dot came out 6 px of ink near the top of the canvas and NOTHING in the
+     lower half, and the flood bar sat entirely below the middle -- both
+     centred exactly as asked, both a smudge in the corner of an 8 px sprite.
+     After fitting, every glyph's ink centres on the canvas centre. */
+  check("the glyph is fitted to its own ink, not to the em box",
+    /const probe = ctx\.getImageData\(0, 0, size, size\)\.data/.test(src)
+    && /ctx\.clearRect\(0, 0, size, size\)/.test(src), true);
+
+  /* Banding by magnitude used to mean "did not come from EONET", which was
+     true of the seismicity and of nothing else -- until the GDACS floods
+     arrived with a source id, no magnitude, and landed in the quake-3 band:
+     drawn with the earthquake's rings and coloured from the middle of the
+     magnitude ramp. */
+  check("only something with a magnitude is banded by magnitude",
+    /event\.categoryId !== "earthquakes" \|\| !Number\.isFinite\(event\.magnitude\)/.test(src),
+    true);
+
+  /* A pulse on every category is a map that will not sit still to be read; it
+     belongs on the feeds reporting something still happening. */
+  check("what breathes is decided by the symbol table, not by a condition",
+    /points\.userData\.pulse = isQuakeBand\(key\) \|\| Boolean\(symbolFor\(key\)\.pulse\)/.test(src),
+    true);
+  check("the volcanoes are red and they pulse",
+    /volcanoes: \{ colour: "#ff2d2d", glyph: "▲", label: "Volcanoes", pulse: true \}/.test(src),
+    true);
+  check("and the wildfires are an orange round dot",
+    /wildfires: \{ colour: "#ff6b2c", glyph: "●", label: "Wildfires" \}/.test(src), true);
 }

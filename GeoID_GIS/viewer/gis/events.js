@@ -13,7 +13,7 @@
 import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity, magnitudeColour,
   activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, gdacsPoints, resolveColour,
-} from "./event-sources.js?v=20260906-3ec9275";
+} from "./event-sources.js?v=20260907-70c5f2c";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -160,8 +160,10 @@ function stopWatchingRelief() {
  * glance at the globe reads the same way as a glance at the legend.
  */
 const SYMBOLS = {
-  wildfires: { colour: "#ff6b2c", glyph: "▲", label: "Wildfires" },
-  volcanoes: { colour: "var(--skin-chrome)", glyph: "▲", label: "Volcanoes" },
+  wildfires: { colour: "#ff6b2c", glyph: "●", label: "Wildfires" },
+  // Red rather than the skin's chrome, and it PULSES: an eruption reported now
+  // is the one thing in this feed that is still happening while you look at it.
+  volcanoes: { colour: "#ff2d2d", glyph: "▲", label: "Volcanoes", pulse: true },
   severeStorms: { colour: "var(--skin-data)", glyph: "◉", label: "Severe storms" },
   seaLakeIce: { colour: "#bfe9ff", glyph: "◆", label: "Sea and lake ice" },
   floods: { colour: "#2f6bff", glyph: "▬", label: "Floods" },
@@ -196,9 +198,23 @@ const symbolFor = (id) => (
  * size without a custom shader, and costs a handful of extra draw calls.
  */
 function markerKey(event) {
-  if (!event.sourceId) return event.categoryId || "other";
-  const m = Number.isFinite(event.magnitude) ? event.magnitude : 3;
-  return `quake-${Math.max(1, Math.min(8, Math.round(m)))}`;
+  /**
+   * BANDED BY MAGNITUDE ONLY WHERE THERE IS A MAGNITUDE.
+   *
+   * This used to read "has a sourceId", which meant "did not come from EONET"
+   * — and that was true of the seismicity and of nothing else, until the GDACS
+   * flood feed arrived. A flood has a source id, no magnitude, and fell into
+   * the `quake-3` band: drawn with the earthquake's concentric rings, coloured
+   * from the middle of the magnitude ramp, and listed under the earthquake
+   * symbol. Reported as the floods having the same symbol as the earthquakes,
+   * which they did, exactly.
+   *
+   * The test is now the thing the banding is FOR: a magnitude to band by.
+   */
+  if (event.categoryId !== "earthquakes" || !Number.isFinite(event.magnitude)) {
+    return event.categoryId || "other";
+  }
+  return `quake-${Math.max(1, Math.min(8, Math.round(event.magnitude)))}`;
 }
 
 /** The magnitude a band stands for, back out of its key. */
@@ -968,15 +984,60 @@ function glyphTexture(glyph) {
   const ctx = canvas.getContext("2d");
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  // Generous, because a glyph's ink is a fraction of its em box and these are
-  // read at a few pixels; the canvas is downsampled by the GPU anyway.
-  ctx.font = `${Math.round(size * 0.78)}px "Exo 2", system-ui, sans-serif`;
-  ctx.lineJoin = "round";
-  ctx.strokeStyle = "rgba(0, 0, 0, 0.85)";
-  ctx.lineWidth = Math.max(2, size * 0.06);
-  ctx.strokeText(key, size / 2, size / 2 + size * 0.02);
-  ctx.fillStyle = "#ffffff";
-  ctx.fillText(key, size / 2, size / 2 + size * 0.02);
+  const font = (px) => `${Math.round(px)}px "Exo 2", system-ui, sans-serif`;
+  const paint = (px, dx, dy) => {
+    ctx.font = font(px);
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.85)";
+    ctx.lineWidth = Math.max(2, px * 0.08);
+    ctx.strokeText(key, size / 2 + dx, size / 2 + dy);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(key, size / 2 + dx, size / 2 + dy);
+  };
+
+  /**
+   * FITTED TO ITS OWN INK, because `textBaseline: "middle"` centres the EM BOX
+   * and a geometric glyph does not fill it the way a letter does.
+   *
+   * Measured on the first cut: the wildfire dot ● came out 6 px of ink near the
+   * top of the canvas and NOTHING in the lower half, and the flood bar ▬ sat
+   * entirely below the middle. Both were centred exactly as asked — the em box
+   * was — and both drew as a smudge in the corner of an 8-pixel sprite, which
+   * at globe scale is a marker in the wrong place.
+   *
+   * So it is drawn once to find where the ink actually lands, then again scaled
+   * to a common height and moved so that ink is in the middle. One pass costs a
+   * canvas read per GLYPH, once, and it is what makes ● and ▲ and ▬ read as
+   * the same weight of symbol rather than three accidents of font metrics.
+   */
+  paint(size * 0.7, 0, 0);
+  const probe = ctx.getImageData(0, 0, size, size).data;
+  let minX = size;
+  let maxX = -1;
+  let minY = size;
+  let maxY = -1;
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      if (probe[(y * size + x) * 4 + 3] <= 8) continue;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+  }
+  ctx.clearRect(0, 0, size, size);
+  if (maxX >= minX && maxY >= minY) {
+    const inkW = maxX - minX + 1;
+    const inkH = maxY - minY + 1;
+    // 0.62 of the canvas: the stroke grows with the font, and a glyph fitted
+    // to the very edge loses its outline to the texture's own border.
+    const scale = Math.min(3, (size * 0.62) / Math.max(inkW, inkH));
+    paint(size * 0.7 * scale,
+      (size / 2 - (minX + maxX + 1) / 2) * scale,
+      (size / 2 - (minY + maxY + 1) / 2) * scale);
+  } else {
+    paint(size * 0.7, 0, 0);
+  }
   const texture = new THREE.CanvasTexture(canvas);
   texture.minFilter = THREE.LinearFilter;
   glyphSprites.set(key, texture);
@@ -1209,10 +1270,17 @@ function renderMarkers() {
     points.userData.sizeScale = isQuakeBand(key)
       ? magnitudeSize(bandMagnitude(key), 1) * QUAKE_SYMBOL_SCALE
       : 1;
-    // Only the earthquakes breathe. A pulse on everything is a map that will
-    // not sit still to be read; on the seismicity alone it says which markers
-    // are the live catalogue.
-    points.userData.pulse = isQuakeBand(key);
+    /**
+     * WHAT BREATHES, AND WHY NOT EVERYTHING.
+     *
+     * A pulse on every category is a map that will not sit still to be read.
+     * It belongs on the markers that are reporting something still happening
+     * while you look at them: the live seismicity catalogue, and now the
+     * volcanoes, whose whole feed is "unrest reported now". The symbol table
+     * says which — `pulse: true` beside the colour — so the choice sits with
+     * the symbology rather than in a condition here.
+     */
+    points.userData.pulse = isQuakeBand(key) || Boolean(symbolFor(key).pulse);
     markers.add(points);
   });
   (spinFrame() || viewer.earthSceneGroup || viewer.scene).add(markers);
@@ -1808,8 +1876,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260906-3ec9275"),
-    import("./research/dsp.js?v=20260906-3ec9275"),
+    import("./seismogram-plot.js?v=20260907-70c5f2c"),
+    import("./research/dsp.js?v=20260907-70c5f2c"),
   ]);
   if (stale()) return;
 
