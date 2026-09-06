@@ -2,8 +2,8 @@ import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
   nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS,
-} from "./model-build.js?v=20260905-36e4cce";
-import { ringsFromCollection } from "./extraction.js?v=20260905-36e4cce";
+} from "./model-build.js?v=20260906-ea06595";
+import { ringsFromCollection } from "./extraction.js?v=20260906-ea06595";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -55,7 +55,9 @@ const ROLE_OPTIONS = [
   { id: "refine", label: "Refine the mesh here" },
 ];
 
-const SURFACES = ["top", "base", "north", "south", "east", "west"];
+// "top" is the GROUND in both shells; "base" is a subsurface lid and "sky"
+// an atmosphere one, so a package that has both keeps them apart.
+const SURFACES = ["top", "base", "sky", "north", "south", "east", "west"];
 
 const state = {
   bounds: null,

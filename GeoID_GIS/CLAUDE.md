@@ -13334,3 +13334,58 @@ which change element size and create no surface a BC can name. And etna sets
 `Algorithm3D = 10` with `NumThreads`, and `MeshSizeFromCurvature = 20` — we
 leave the algorithm to gmsh and switch curvature OFF deliberately, because it
 overrides the background field in the places the field was written for.
+
+### Subsurface and atmosphere: etna's box, and why it is built here instead
+
+The requirement is etna's: the GIS page hands over the ground, and the model
+page extends the boundary **down and up** into subsurface and atmosphere
+domains. `etna_3d/input/gmsh_mesh.py` does that inside gmsh — `outer_box`
+assembles four bottom points, four lines and five plane surfaces from
+built-in CAD entities whose boundary is the STL's own discrete rim.
+
+It was written out and **run, and it fails on real ground**:
+
+    addPlaneSurface    → "Unable to recover the edge 23826 on curve 6"
+    addSurfaceFilling  → "Cannot interpolate ruled surface with discrete
+                          bounding curves"
+
+The reason is measurable rather than mysterious. A side face's boundary
+contains the terrain's rim, and a rim is only planar where the ground happens
+to be flat as it leaves the study area. Probed on a ridge that crosses its own
+boundary, **two of the four rim curves spanned 593 m in z** — a "plane surface"
+through them is not a plane, its projection self-intersects, and the 2D mesher
+cannot recover the constrained edges. The ruled alternative refuses discrete
+curves outright. etna gets away with it because its footprint's rim is nearly
+level; ours is not, and neither is most real terrain.
+
+**A triangulated skirt conforms to any rim.** So the walls stay here, and what
+moves to the model page is the DECISION — how far down, how far up — as a
+parameter of the package rather than geometry baked into an STL that cannot be
+changed without going back and resampling a DEM.
+
+#### One file cannot carry both, and the STL invariant said so first
+
+Writing the terrain once with a skirt going down from it and another going up
+gives an interface shared by both volumes, conforming by construction. It is
+also unreadable: those rim edges are then incident to **three** triangles, and
+`classifySurfaces` refuses the file — *"wrong topology of triangulation for
+parametrization"*. `stlStats.closed` had already gone false on exactly those
+edges, which is what the invariant is for.
+
+So each domain is its own watertight solid, its own volume, its own flags. They
+share the ground exactly — same grid, same triangles, same flag — but they are
+two meshes. A run needing ONE conforming mesh across the interface is further
+work, not a flag.
+
+#### A flat lid is named by where it sits
+
+The position classifier was written for a subsurface shell, where the flat lid
+is at the bottom and the ground is on top. Run against an atmosphere it put the
+sky and the ground it stands on in the same boundary condition. A flat surface
+is now `base` or `sky` by which half of the model it sits in, and whatever is
+neither flat nor vertical is the ground — `top` in both shells, so a package
+holding both keeps one flag for the one interface.
+
+Verified with gmsh on both: every point, curve, surface and volume tagged, the
+GALES check passing, and the groups distinct — subsurface `top 1 / base 2 /
+sides 5 / domain 10`, atmosphere `top 1 / sky 4 / sides 6 / domain 11`.

@@ -24,10 +24,10 @@
  * why these are opt-in rows rather than something that arrives with the map.
  */
 
-import { loadRockProperties } from "./rock-properties.js?v=20260905-36e4cce";
-import { propertyPaint } from "./rock-property-map.js?v=20260905-36e4cce";
+import { loadRockProperties } from "./rock-properties.js?v=20260906-ea06595";
+import { propertyPaint } from "./rock-property-map.js?v=20260906-ea06595";
 import { loadDerivedGeologyMap, removeDerivedGeologyMap }
-  from "./geology-panel.js?v=20260905-36e4cce";
+  from "./geology-panel.js?v=20260906-ea06595";
 
 const LAYER_PREFIX = "rock-property-";
 

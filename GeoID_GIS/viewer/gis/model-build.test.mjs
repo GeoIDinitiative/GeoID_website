@@ -8,7 +8,7 @@
 import {
   metresPerDegreeLat, metresPerDegreeLon, makeLocalFrame, planGrid, buildSurface,
   surfaceStl, domainStl, stlStats, gmshScript, femSpec, DOMAIN_PHYSICS,
-  sizeField, structuredFieldText, despikeGrid, DEFAULT_FLAGS,
+  sizeField, structuredFieldText, despikeGrid, DEFAULT_FLAGS, atmosphereStl,
 } from "./model-build.js";
 
 let failures = 0;
@@ -343,7 +343,11 @@ check("the grid is square over a square box", grid.nx === grid.ny, `${grid.nx}x$
     && script.includes('"domain":10'), "the flag map is written out");
   check("a group is created WITH its number and its name",
     script.includes("addPhysicalGroup(2, sorted(tags), value,"));
-  check("the volume carries its own", script.includes('flags["domain"], name="domain"'));
+  // One volume or two: the extended form has a subsurface and may have an
+  // atmosphere, so the volumes are a dict and each is its own group.
+  check("every volume carries its own",
+    script.includes("for vname, vtag in sorted(volumes.items()):")
+    && script.includes("addPhysicalGroup(3, [vtag], flags[vname], name=vname)"));
   check("and a point carries the one it was given",
     script.includes('[[0,0,1,'), script.slice(script.indexOf("embedded ="), 60));
 
@@ -366,6 +370,59 @@ check("the grid is square over a square box", grid.nx === grid.ny, `${grid.nx}x$
     DEFAULT_FLAGS.domain === 10 && DEFAULT_FLAGS.north === 5
     && DEFAULT_FLAGS.south === 5 && DEFAULT_FLAGS.east === 5 && DEFAULT_FLAGS.west === 5,
     JSON.stringify(DEFAULT_FLAGS));
+}
+
+/* ── subsurface and atmosphere: two shells, not one file ───────────────────
+   Extending the boundary down AND up is what etna's outer_box does, and it
+   was written that way first: build the box in gmsh from the terrain's own
+   rim. RUN, it fails on real ground -- a side face's boundary contains the
+   rim, and a rim is only planar where the ground is flat as it leaves the
+   study area. Probed on a ridge crossing its boundary, two of four rim curves
+   spanned 593 m in z: addPlaneSurface answered "Unable to recover the edge",
+   addSurfaceFilling "cannot interpolate ruled surface with discrete bounding
+   curves". A triangulated skirt conforms to any rim, so the walls are built
+   here and only the DECISION moves to the model page. */
+{
+  const bounds = { west: -6.0, east: -5.94, south: 54.16, north: 54.2 };
+  const mLon = metresPerDegreeLon(54.18, 6371.0088);
+  const grid = buildSurface({
+    bounds, stepM: 120, radiusKm: 6371.0088,
+    sampleElevation: (lat, lon) =>
+      50 + 600 * Math.exp(-(((lon + 5.97) * mLon) ** 2) / (2 * 300 ** 2)),
+  });
+
+  const below = domainStl(grid, { depthM: 1500, name: "sub" });
+  const above = atmosphereStl(grid, { heightM: 800, name: "air" });
+  const b = stlStats(below.text);
+  const a = stlStats(above.text);
+
+  check("each domain is its own watertight solid", b.closed && a.closed,
+    `${b.closed} and ${a.closed}`);
+  check("and they share the ground exactly — the same grid, the same triangles",
+    b.triangles === a.triangles, `${b.triangles} vs ${a.triangles}`);
+  check("the air reaches above the highest ground",
+    above.skyZ > grid.zMax, `${above.skyZ} over ${grid.zMax}`);
+  check("and the rock below the lowest", below.baseZ < grid.zMin,
+    `${below.baseZ} under ${grid.zMin}`);
+
+  /* ONE FILE CANNOT CARRY BOTH. Writing the terrain once with a skirt down and
+     another up makes the interface conforming by construction -- and
+     unreadable: its rim edges are then incident to THREE triangles and
+     classifySurfaces refuses the file, "wrong topology of triangulation for
+     parametrization". The STL invariant sees it first. */
+  const merged = `${below.text.replace(/endsolid.*\n?$/, "")}${
+    above.text.replace(/^solid[^\n]*\n/, "")}`;
+  check("a single file holding both is NOT watertight, and that is the reason",
+    !stlStats(merged).closed);
+}
+
+/* ── a flat lid is named by where it sits ─────────────────────────────────── */
+{
+  const script = gmshScript({});
+  check("a lid at the bottom is the base and one at the top is the sky",
+    script.includes('groups["base" if (c0 + c1) / 2 < (z0 + z1) / 2 else "sky"]'));
+  check("and whatever is neither flat nor vertical is the ground",
+    script.includes('groups["top"].append(t)'));
 }
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");

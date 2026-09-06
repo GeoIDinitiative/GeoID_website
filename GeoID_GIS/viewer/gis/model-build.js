@@ -433,6 +433,62 @@ export function domainStl(grid, { depthM, name = "geoid_domain" } = {}) {
 }
 
 /**
+ * THE AIR OVER THE GROUND: the same shell, mirrored.
+ *
+ * A separate closed solid rather than a second volume inside one file, and
+ * gmsh is what decided that. Writing the terrain ONCE with a skirt going down
+ * from it and another going up gives an interface shared by both volumes —
+ * conforming by construction, which is what a coupled run wants — and it
+ * cannot be read: the rim edges are then incident to THREE triangles, and
+ * `classifySurfaces` refuses the file outright with "wrong topology of
+ * triangulation for parametrization". The STL invariant said so first, with
+ * `closed` going false on exactly those edges.
+ *
+ * So each domain is its own watertight solid, its own volume, its own flags.
+ * They share the terrain's geometry exactly — the same nodes, from the same
+ * grid — but they are two meshes, and a run that needs one conforming mesh
+ * across the interface is a further piece of work rather than a flag here.
+ */
+export function atmosphereStl(grid, { heightM, name = "geoid_atmosphere" } = {}) {
+  const skyZ = grid.zMax + Math.max(heightM, 1);
+  const out = [`solid ${name}`];
+  // The ground, facing DOWN: it is the floor of this solid, so its outward
+  // direction is the opposite of the same triangles in the subsurface shell.
+  const floor = triangleWriter(out, [0, 0, -1]);
+  for (let j = 0; j < grid.ny - 1; j += 1) {
+    for (let i = 0; i < grid.nx - 1; i += 1) {
+      const a = node(grid, i, j);
+      const b = node(grid, i + 1, j);
+      const c = node(grid, i + 1, j + 1);
+      const d = node(grid, i, j + 1);
+      floor(a, b, c);
+      floor(a, c, d);
+    }
+  }
+  const loop = perimeter(grid);
+  const cx = (grid.xs[0] + grid.xs[grid.nx - 1]) / 2;
+  const cy = (grid.ys[0] + grid.ys[grid.ny - 1]) / 2;
+  const centre = [cx, cy, skyZ];
+  const lid = triangleWriter(out, [0, 0, 1]);
+  for (let k = 0; k < loop.length; k += 1) {
+    const [i0, j0] = loop[k];
+    const [i1, j1] = loop[(k + 1) % loop.length];
+    const p = [grid.xs[i0], grid.ys[j0], skyZ];
+    const q = [grid.xs[i1], grid.ys[j1], skyZ];
+    lid(centre, q, p);
+    const top0 = node(grid, i0, j0);
+    const top1 = node(grid, i1, j1);
+    const ex = q[0] - p[0];
+    const ey = q[1] - p[1];
+    const wall = triangleWriter(out, [ey, -ex, 0]);
+    wall(top0, top1, q);
+    wall(top0, q, p);
+  }
+  out.push(`endsolid ${name}`);
+  return { text: `${out.join("\n")}\n`, skyZ };
+}
+
+/**
  * What an STL actually contains, and whether it is closed.
  *
  * `openEdges` is the measurement that matters: in a closed surface every edge
@@ -630,6 +686,19 @@ export const DEFAULT_FLAGS = {
   west: 5,
   domain: 10,
   points: 20,
+  /**
+   * And the ones the EXTENDED form needs, where the study hands over a surface
+   * and the volumes are built here. The lateral faces have no compass identity
+   * in that form — they are whatever order gmsh returns the rim in — so they
+   * are one flag apiece the way etna writes them, above and below kept apart
+   * because a boundary condition on the air is not one on the rock.
+   */
+  terrain: 1,
+  sky: 4,
+  sides_below: 5,
+  sides_above: 6,
+  subsurface: 10,
+  atmosphere: 11,
 };
 
 /**
@@ -727,6 +796,78 @@ function sizeSection({ sizeFieldFile, refineBoxes, meshSizeM }) {
   return lines;
 }
 
+/** The closed form: a watertight STL is already the boundary of one volume. */
+function closedGeometry(stlFile) {
+  return [
+    "",
+    "# The domain arrives as a watertight STL: terrain on top, skirt walls, a base.",
+    `gmsh.merge(${PY(stlFile)})`,
+    "",
+    "# Rebuild geometry from the triangulation, then close it into one volume.",
+    "angle = 40 * 3.141592653589793 / 180",
+    "gmsh.model.mesh.classifySurfaces(angle, True, True, 180 * 3.141592653589793 / 180)",
+    "gmsh.model.mesh.createGeometry()",
+    "surfaces = [s[1] for s in gmsh.model.getEntities(2)]",
+    "loop = gmsh.model.geo.addSurfaceLoop(surfaces)",
+    "volume = gmsh.model.geo.addVolume([loop])",
+    "volumes = {\"domain\": volume}",
+    "gmsh.model.geo.synchronize()",
+    "",
+    "# Name the boundaries by where they sit — a boundary condition names a",
+    "# surface, and classifySurfaces numbers its output arbitrarily.",
+    "box = gmsh.model.getBoundingBox(-1, -1)",
+    "x0, y0, z0, x1, y1, z1 = box",
+    "span = max(x1 - x0, y1 - y0, 1e-9)",
+    "tol = span * 1e-3",
+    "groups = {\"top\": [], \"base\": [], \"sky\": [],",
+    "          \"north\": [], \"south\": [], \"east\": [], \"west\": []}",
+    "for (d, t) in gmsh.model.getEntities(2):",
+    "    a0, b0, c0, a1, b1, c1 = gmsh.model.getBoundingBox(d, t)",
+    "    if (a1 - a0) < tol:",
+    "        groups[\"west\" if (a0 + a1) / 2 < (x0 + x1) / 2 else \"east\"].append(t)",
+    "    elif (b1 - b0) < tol:",
+    "        groups[\"south\" if (b0 + b1) / 2 < (y0 + y1) / 2 else \"north\"].append(t)",
+    "    elif (c1 - c0) < tol:",
+    "        # A FLAT LID, and which one it is depends on where it sits. A",
+    "        # subsurface shell has one at the bottom and the ground on top; an",
+    "        # atmosphere shell has the ground underneath and the sky above, and",
+    "        # calling both of those \"top\" put the air's ceiling and the ground",
+    "        # it stands on in the same boundary condition.",
+    "        groups[\"base\" if (c0 + c1) / 2 < (z0 + z1) / 2 else \"sky\"].append(t)",
+    "    else:",
+    "        # Whatever is left is the ground: the only surface here that is",
+    "        # neither flat nor vertical.",
+    "        groups[\"top\"].append(t)",
+  ];
+}
+
+/**
+ * WHY THE VOLUMES ARE NOT BUILT IN GMSH, which is what etna does.
+ *
+ * `etna_3d/input/gmsh_mesh.py` merges a terrain-only STL and assembles the box
+ * below it from built-in CAD entities — four bottom points, four lines, five
+ * plane surfaces — whose boundary is the STL's own discrete rim. It was
+ * written out here and RUN, and it fails on real ground:
+ *
+ *     addPlaneSurface  → "Unable to recover the edge 23826 on curve 6"
+ *     addSurfaceFilling → "Cannot interpolate ruled surface with discrete
+ *                          bounding curves"
+ *
+ * The reason is measurable. A side face's boundary contains the terrain's rim,
+ * and a rim is only planar if the ground is flat where it leaves the study
+ * area. Probed on a ridge crossing its own boundary, two of the four rim
+ * curves spanned **593 m in z**: a "plane surface" through them is not a
+ * plane, its projection self-intersects, and the 2D mesher cannot recover the
+ * constrained edges. The ruled alternative refuses discrete curves outright.
+ *
+ * A TRIANGULATED SKIRT conforms to any rim, planar or not, which is why the
+ * walls are built here as triangles instead. What moves to the model page is
+ * the DECISION — how far down, how far up — rather than the geometry: the
+ * package carries the ground and the extension is a parameter of it, so an
+ * atmosphere can be added or a basin deepened without going back to the GIS
+ * page to resample a DEM.
+ */
+
 export function gmshScript({
   name = "geoid_model",
   stlFile = "geoid_domain.stl",
@@ -739,6 +880,7 @@ export function gmshScript({
   sizeFieldFile = null,
   refineBoxes = [],
   flags = {},
+  extend = null,
 } = {}) {
   const flag = { ...DEFAULT_FLAGS, ...flags };
   const points = embedPoints.map((p, index) => ({
@@ -760,36 +902,7 @@ export function gmshScript({
     "gmsh.initialize()",
     "gmsh.option.setNumber(\"General.Terminal\", 1)",
     `gmsh.model.add(${PY(name)})`,
-    "",
-    "# The domain arrives as a watertight STL: terrain on top, skirt walls, a base.",
-    `gmsh.merge(${PY(stlFile)})`,
-    "",
-    "# Rebuild geometry from the triangulation, then close it into one volume.",
-    "angle = 40 * 3.141592653589793 / 180",
-    "gmsh.model.mesh.classifySurfaces(angle, True, True, 180 * 3.141592653589793 / 180)",
-    "gmsh.model.mesh.createGeometry()",
-    "surfaces = [s[1] for s in gmsh.model.getEntities(2)]",
-    "loop = gmsh.model.geo.addSurfaceLoop(surfaces)",
-    "volume = gmsh.model.geo.addVolume([loop])",
-    "gmsh.model.geo.synchronize()",
-    "",
-    "# Name the boundaries by where they sit — a boundary condition names a",
-    "# surface, and classifySurfaces numbers its output arbitrarily.",
-    "box = gmsh.model.getBoundingBox(-1, -1)",
-    "x0, y0, z0, x1, y1, z1 = box",
-    "span = max(x1 - x0, y1 - y0, 1e-9)",
-    "tol = span * 1e-3",
-    "groups = {\"top\": [], \"base\": [], \"north\": [], \"south\": [], \"east\": [], \"west\": []}",
-    "for (d, t) in gmsh.model.getEntities(2):",
-    "    a0, b0, c0, a1, b1, c1 = gmsh.model.getBoundingBox(d, t)",
-    "    if (a1 - a0) < tol:",
-    "        groups[\"west\" if (a0 + a1) / 2 < (x0 + x1) / 2 else \"east\"].append(t)",
-    "    elif (b1 - b0) < tol:",
-    "        groups[\"south\" if (b0 + b1) / 2 < (y0 + y1) / 2 else \"north\"].append(t)",
-    "    elif (c1 - c0) < tol and (c0 + c1) / 2 < (z0 + z1) / 2:",
-    "        groups[\"base\"].append(t)",
-    "    else:",
-    "        groups[\"top\"].append(t)",
+    ...closedGeometry(stlFile, Boolean(extend?.split)),
     "",
     "# THE FLAGS. A solver reads the integer tag, not the name — GALES' own",
     "# preprocessor takes int(result[5]) out of the $Entities block and refuses",
@@ -810,7 +923,10 @@ export function gmshScript({
     "for value, tags in sorted(faces.items()):",
     "    gmsh.model.addPhysicalGroup(2, sorted(tags), value,",
     "                                name=\"+\".join(sorted(labels[value])))",
-    "gmsh.model.addPhysicalGroup(3, [volume], flags[\"domain\"], name=\"domain\")",
+    "# One volume or two: the extended form has a subsurface and may have an",
+    "# atmosphere, and each is its own physical group.",
+    "for vname, vtag in sorted(volumes.items()):",
+    "    gmsh.model.addPhysicalGroup(3, [vtag], flags[vname], name=vname)",
     "",
     "# A SURFACE'S EDGES AND CORNERS CARRY ITS FLAG, or they carry none at all:",
     "# a physical group on a face does not reach the curves and points beneath",
