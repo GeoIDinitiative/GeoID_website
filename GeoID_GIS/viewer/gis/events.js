@@ -14,7 +14,7 @@ import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity, magnitudeColour,
   activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, gdacsPoints, resolveColour,
   MARKER_LIFT_MAX, liftForAltitude, dotSizePx,
-} from "./event-sources.js?v=20260907-d20fde3";
+} from "./event-sources.js?v=20260907-563f782";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -879,6 +879,8 @@ const QUAKE_SYMBOL_SCALE = 1.9;
  * 5.7 px, well under it.
  */
 const QUAKE_BASE_CAP = 8;
+/** A foot-anchored glyph occupies half its quad; this buys the half back. */
+const GLYPH_FOOT_SCALE = 2;
 const PULSE_PERIOD_MS = 1600;
 const PULSE_SIZE = 0.16;
 const PULSE_OPACITY = 0.3;
@@ -1088,7 +1090,19 @@ function trackScale() {
       const phase = (Math.sin((performance.now() / PULSE_PERIOD_MS) * Math.PI * 2) + 1) / 2;
       markers.children.forEach((points) => {
         const pulsing = points.userData.pulse;
-        const from = pulsing ? Math.min(size, QUAKE_BASE_CAP) : size;
+        /**
+         * THE CAP BELONGS TO THE MULTIPLIER, NOT TO THE PULSE.
+         *
+         * It read `pulsing ? …` because for a long time the only thing that
+         * breathed was the seismicity, and the seismicity is the only thing
+         * that multiplies this base — by 2.1 to 6.8 for magnitude and symbol.
+         * The cap is what stops a close-range M8 reaching 103 px; it was never
+         * about breathing. Giving the volcanoes a pulse therefore capped them
+         * at eight pixels with nothing to multiply it back: measured at 20 km,
+         * every other category was 34 px and the volcanoes **8.9**, which is
+         * the reported "at zoomed views the location dots are far too small".
+         */
+        const from = points.userData.capBase ? Math.min(size, QUAKE_BASE_CAP) : size;
         const want = from * (points.userData.sizeScale || 1)
           * (pulsing ? 1 + PULSE_SIZE * phase : 1);
         if (points.material.size !== want) points.material.size = want;
@@ -1127,6 +1141,25 @@ function trackScale() {
  */
 const glyphSprites = new Map();
 
+/**
+ * A SPRITE IS CENTRED ON ITS POINT, WHICH IS HALF A SYMBOL OF FLOAT.
+ *
+ * `THREE.Points` draws a screen-aligned quad centred on the coordinate, so
+ * half the symbol is always above the ground it marks. That is invisible while
+ * the symbol is small and glaring once it is not: at 8.9 px the volcanoes were
+ * reported as fine, and at 34 px — the size asked for so they would stay
+ * distinct close in — every category was reported as floating. Seventeen
+ * pixels at 20 km altitude is about **750 m** of apparent height.
+ *
+ * So a category symbol STANDS ON its point: the ink is drawn in the upper half
+ * of a canvas twice the height, which puts its base at the quad's centre and
+ * therefore on the coordinate. The size is doubled to match, so the ink keeps
+ * the pixels it was given rather than shrinking to half of them.
+ *
+ * The earthquake rings keep their centre. Concentric rings mean energy
+ * radiating FROM a point, and standing them on the epicentre would say
+ * something else — the one symbol here whose meaning is that it is centred.
+ */
 function glyphTexture(glyph) {
   if (!THREE) return null;
   const key = String(glyph || FALLBACK.glyph);
@@ -1134,6 +1167,9 @@ function glyphTexture(glyph) {
   const size = 64;
   const canvas = document.createElement("canvas");
   canvas.width = size;
+  // SQUARE, because a `THREE.Points` quad is square and a 1:2 texture would be
+  // squashed into it. The ink lives in the upper half instead, and the sprite
+  // is asked for at twice the size so that half is the size it was meant to be.
   canvas.height = size;
   const ctx = canvas.getContext("2d");
   ctx.textAlign = "center";
@@ -1165,32 +1201,45 @@ function glyphTexture(glyph) {
    * the same weight of symbol rather than three accidents of font metrics.
    */
   paint(size * 0.7, 0, 0);
-  const probe = ctx.getImageData(0, 0, size, size).data;
-  let minX = size;
+  const probe = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  let minX = canvas.width;
   let maxX = -1;
-  let minY = size;
+  let minY = canvas.height;
   let maxY = -1;
-  for (let y = 0; y < size; y += 1) {
-    for (let x = 0; x < size; x += 1) {
-      if (probe[(y * size + x) * 4 + 3] <= 8) continue;
+  for (let y = 0; y < canvas.height; y += 1) {
+    for (let x = 0; x < canvas.width; x += 1) {
+      if (probe[(y * canvas.width + x) * 4 + 3] <= 8) continue;
       if (x < minX) minX = x;
       if (x > maxX) maxX = x;
       if (y < minY) minY = y;
       if (y > maxY) maxY = y;
     }
   }
-  ctx.clearRect(0, 0, size, size);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   if (maxX >= minX && maxY >= minY) {
     const inkW = maxX - minX + 1;
     const inkH = maxY - minY + 1;
-    // 0.62 of the canvas: the stroke grows with the font, and a glyph fitted
-    // to the very edge loses its outline to the texture's own border.
-    const scale = Math.min(3, (size * 0.62) / Math.max(inkW, inkH));
-    paint(size * 0.7 * scale,
-      (size / 2 - (minX + maxX + 1) / 2) * scale,
-      (size / 2 - (minY + maxY + 1) / 2) * scale);
+    /**
+     * Fitted to the canvas' width as before, and to HALF its height — the ink
+     * has only the upper half to live in now, because its base sits on the
+     * middle. The stroke grows with the font, so neither fit reaches the very
+     * edge or the outline is lost to the texture's border.
+     */
+    const scale = Math.min(3, (size * 0.62) / Math.max(inkW, inkH),
+      (size * 0.46) / inkH);
+    /**
+     * `paint` anchors at (size / 2, size / 2) and the text is centred on that,
+     * so the ink lands wherever its own bearings put it relative to the
+     * anchor. Both offsets undo that: horizontally to bring the ink's centre
+     * to the middle, vertically to bring its BASE to the canvas' own centre —
+     * which is where the quad sits on the coordinate.
+     */
+    const offX = (size / 2 - (minX + maxX + 1) / 2) * scale;
+    const centreY = (minY + maxY + 1) / 2;
+    const offY = -(inkH * scale) / 2 - (centreY - size / 2) * scale;
+    paint(size * 0.7 * scale, offX, offY);
   } else {
-    paint(size * 0.7, 0, 0);
+    paint(size * 0.7, 0, -size / 4);
   }
   const texture = new THREE.CanvasTexture(canvas);
   texture.minFilter = THREE.LinearFilter;
@@ -1421,9 +1470,17 @@ function renderMarkers() {
     // that number and would otherwise flatten every band back to one size.
     // Earthquakes run larger than the flat 1x a category marker takes: three
     // rings inside eight pixels is a smudge, and the symbol is the point.
+    /**
+     * A foot-anchored glyph uses half its quad, so it is asked for at twice
+     * the size — the ink then keeps the pixels the view meant it to have.
+     * The rings are centred and need no such doubling.
+     */
     points.userData.sizeScale = isQuakeBand(key)
       ? magnitudeSize(bandMagnitude(key), 1) * QUAKE_SYMBOL_SCALE
-      : 1;
+      : GLYPH_FOOT_SCALE;
+    // Only what is about to be multiplied has its base capped: see the frame
+    // step. A category dot has a scale of one and wants the size it was given.
+    points.userData.capBase = isQuakeBand(key);
     /**
      * WHAT BREATHES, AND WHY NOT EVERYTHING.
      *
@@ -2039,8 +2096,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260907-d20fde3"),
-    import("./research/dsp.js?v=20260907-d20fde3"),
+    import("./seismogram-plot.js?v=20260907-563f782"),
+    import("./research/dsp.js?v=20260907-563f782"),
   ]);
   if (stale()) return;
 

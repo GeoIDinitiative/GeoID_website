@@ -13588,3 +13588,46 @@ feed's card exists only while Live Events is armed, so switching the feed off
 while it was in front left the legend at the back — greyed, turned and shrunk,
 with nothing in front of it to explain why. The stack now deals to the first
 card that is actually on screen.
+
+#### Two faults behind one word, and the geometry was never one of them
+
+"At zoomed views the location dots are far too small", then "the rest of the
+event locations are still floating too". Neither was about where the markers
+are: every cloud, every marker, measured **exactly 30 m** above `surfacePoint`.
+
+**The size, and it was my own doing.** The frame step read
+`pulsing ? Math.min(size, QUAKE_BASE_CAP) : size` — the cap exists because an
+earthquake then multiplies that base by 2.1 to 6.8 for magnitude and symbol,
+and it is what stops a close-range M8 reaching 103 px. It was never about
+breathing; it read `pulsing` only because for a long time the seismicity was
+the only thing that breathed. Giving the volcanoes a pulse therefore capped
+them at eight pixels with nothing to multiply it back: measured at 20 km, every
+other category was 34 px and the volcanoes **8.9**. The cap belongs to the
+multiplier, so it is keyed on the bands now, and the volcanoes match the other
+categories to a tenth of a pixel at every altitude.
+
+**The float, which was the size again in a different costume.** A
+`THREE.Points` sprite is a screen-aligned quad CENTRED on its coordinate, so
+half the symbol always sits above the ground it marks. That is invisible at
+8.9 px and glaring at 34: seventeen pixels at 20 km altitude is about **750 m**
+of apparent height. Making them bigger — which is what the previous report
+asked for — is what made them float.
+
+A category symbol stands on its point now: the ink is fitted into the UPPER
+half of the canvas with its base on the centre, and the sprite is asked for at
+twice the size so the ink keeps the pixels it was meant to have. Square canvas,
+because a Points quad is square and a 1:2 texture would be squashed into it.
+Measured on all five: ink base at y=31 of a 64 px canvas whose centre is 32,
+centred horizontally, 34 px of ink in a 68 px quad.
+
+The earthquake rings keep their centre. Concentric rings mean energy radiating
+FROM a point, and standing them on the epicentre would say something else —
+the one symbol here whose meaning is that it is centred.
+
+**And a note on how not to measure this.** Raycasting the globe for the ground
+under a marker gave +983 m, −71 km, −51 km, +2,546 m and +30 m at five
+altitudes, then a clean ~10 km for every cloud at once. The globe displaces its
+terrain on the GPU, so a CPU raycast hits the undisplaced sphere and the answer
+is the relief itself. `surfacePoint` is the viewer's own answer for where the
+ground is and the only thing a marker's placement can honestly be checked
+against.

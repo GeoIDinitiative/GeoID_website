@@ -342,8 +342,8 @@ if (fail) process.exitCode = 1;
      centred exactly as asked, both a smudge in the corner of an 8 px sprite.
      After fitting, every glyph's ink centres on the canvas centre. */
   check("the glyph is fitted to its own ink, not to the em box",
-    /const probe = ctx\.getImageData\(0, 0, size, size\)\.data/.test(src)
-    && /ctx\.clearRect\(0, 0, size, size\)/.test(src), true);
+    /const probe = ctx\.getImageData\(0, 0, canvas\.width, canvas\.height\)\.data/.test(src)
+    && /ctx\.clearRect\(0, 0, canvas\.width, canvas\.height\)/.test(src), true);
 
   /* Banding by magnitude used to mean "did not come from EONET", which was
      true of the seismicity and of nothing else -- until the GDACS floods
@@ -364,6 +364,52 @@ if (fail) process.exitCode = 1;
     true);
   check("and the wildfires are an orange round dot",
     /wildfires: \{ colour: "#ff6b2c", glyph: "●", label: "Wildfires" \}/.test(src), true);
+}
+
+/* ── a sprite is centred on its point, which is half a symbol of float ─────
+   THREE.Points draws a screen-aligned quad centred on the coordinate, so half
+   the symbol is always above the ground it marks. Invisible while the symbol
+   is small and glaring once it is not: at 8.9 px the volcanoes were reported
+   as fine, and at 34 px -- the size asked for so they would stay distinct
+   close in -- every category was reported as floating. Seventeen pixels at
+   20 km altitude is about 750 m of apparent height. */
+{
+  const src = readFileSync(new URL("./events.js", import.meta.url), "utf8");
+  check("a category glyph stands on its point rather than straddling it",
+    src.includes("bring its BASE to the canvas' own centre")
+    && src.includes("const offY = -(inkH * scale) / 2 - (centreY - size / 2) * scale;"),
+    true);
+  /* A THREE.Points quad is square, so a 1:2 canvas would be squashed into it:
+     the ink lives in the upper half of a square instead. */
+  check("on a square canvas, with the ink fitted to half its height",
+    /canvas\.height = size;/.test(src) && /\(size \* 0\.46\) \/ inkH/.test(src), true);
+  check("and the sprite is asked for at twice the size to buy that half back",
+    /const GLYPH_FOOT_SCALE = 2;/.test(src)
+    && /: GLYPH_FOOT_SCALE;/.test(src), true);
+  /* Concentric rings mean energy radiating FROM a point. Standing them on the
+     epicentre would say something else -- the one symbol here whose meaning is
+     that it is centred. */
+  check("the earthquake rings keep their centre",
+    /rings keep their centre/.test(src), true);
+}
+
+/* ── the base cap belongs to the multiplier, not to the pulse ─────────────
+   It read `pulsing ? …` because for a long time the only thing that breathed
+   was the seismicity -- and the seismicity is the only thing that multiplies
+   this base, by 2.1 to 6.8 for magnitude and symbol. The cap stops a
+   close-range M8 reaching 103 px; it was never about breathing. Giving the
+   volcanoes a pulse therefore capped them at eight pixels with nothing to
+   multiply it back: measured at 20 km, every other category was 34 px and the
+   volcanoes 8.9. */
+{
+  const src = readFileSync(new URL("./events.js", import.meta.url), "utf8");
+  check("the base is capped for what is about to be multiplied",
+    /const from = points\.userData\.capBase \? Math\.min\(size, QUAKE_BASE_CAP\) : size;/.test(src),
+    true);
+  check("and that is the magnitude bands, not everything that pulses",
+    /points\.userData\.capBase = isQuakeBand\(key\);/.test(src), true);
+  check("so a category dot keeps the size the view gave it",
+    !/const from = pulsing \? Math\.min/.test(src), true);
 }
 
 /* ── the annotation, and the rule that stops it becoming a mess ───────────
