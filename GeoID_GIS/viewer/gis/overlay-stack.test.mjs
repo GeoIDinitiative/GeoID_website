@@ -96,7 +96,12 @@ check("the one at the back is offered as a card to bring forward", () => {
     ok(/translate\(/.test(rule), "moves");
     ok(/scale\(0\.8/.test(rule), "shrinks");
     ok(/rotate\(-\d/.test(rule), "turns");
-    ok(/grayscale\(/.test(rule) && /opacity: 0\.5/.test(rule), "greys");
+    // Dimmed, but not so far that the geometry never gets a chance: 55%
+    // opacity under 75% grey was most of the way to invisible on its own.
+    const grey = /grayscale\(([\d.]+)\)/.exec(rule);
+    const fade = /opacity: ([\d.]+)/.exec(rule);
+    ok(grey && Number(grey[1]) >= 0.3 && Number(grey[1]) <= 0.6, `grey ${grey?.[1]}`);
+    ok(fade && Number(fade[1]) >= 0.6 && Number(fade[1]) < 1, `opacity ${fade?.[1]}`);
   });
 
   /**
@@ -111,7 +116,9 @@ check("the one at the back is offered as a card to bring forward", () => {
   check("it is offset up and to the left, far enough to be a corner you can press", () => {
     const move = /transform: translate\((-?[\d.]+)rem, (-?[\d.]+)rem\)/.exec(src);
     ok(move, "an offset is set");
-    ok(Number(move[1]) <= -1, `left by ${move[1]}rem`);
+    // Reported, not measured: twelve pixels of peek read as "the live event
+    // button is hidden". It clears about thirty now.
+    ok(Number(move[1]) <= -2.5, `left by ${move[1]}rem`);
     ok(Number(move[2]) < 0, `up by ${move[2]}rem`);
   });
 
@@ -139,6 +146,30 @@ check("the one at the back is offered as a card to bring forward", () => {
     ok(/toggle\.dataset\.stackWired/.test(src), "the guard is there");
   });
 }
+
+/**
+ * A HIDDEN CARD CANNOT BE THE FRONT ONE. The feed's card exists only while
+ * Live Events is armed, so switching the feed off while it was in front would
+ * leave the legend at the back — greyed, turned and shrunk, with nothing in
+ * front of it to explain why.
+ */
+check("switching the front card off deals the other one forward", () => {
+  stack.bringToFront("events-overlay");
+  ok(stack.frontCard() === "events-overlay", "it is in front");
+  nodes.get("events-overlay").hidden = true;
+  stack.apply();
+  ok(stack.frontCard() === "map-legend", stack.frontCard());
+  ok(nodes.get("map-legend").dataset.stack === "front", "and it is not left greyed");
+  nodes.get("events-overlay").hidden = false;
+});
+
+check("with only one card on screen it is the front one", () => {
+  nodes.get("events-overlay").hidden = true;
+  stack.apply();
+  ok(nodes.get("map-legend").dataset.stack === "front", "the legend leads alone");
+  nodes.get("events-overlay").hidden = false;
+  stack.apply();
+});
 
 if (failures.length) {
   failures.forEach((f) => console.error(`  x ${f}`));

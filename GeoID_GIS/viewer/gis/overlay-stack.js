@@ -47,21 +47,28 @@ const STYLE = `
  *
  * THE OFFSET HAS TO BEAT THE WIDTH DIFFERENCE, which is why it is this large.
  * The cards are right-aligned and the transform origin is their shared corner,
- * so scaling alone pulls the back card's left edge INWARDS: at 0.55rem it
- * cleared the front card by five pixels and read as a shadow rather than as a
- * card. Measured with both buttons on screen, the back one has to move about a
- * rem and a half before there is a corner to press.
+ * so scaling alone pulls the back card's left edge INWARDS — at 0.84 that is
+ * fourteen pixels of the offset spent before anything shows.
+ *
+ * Two goes at this, and the second was reported rather than measured. At
+ * 0.55rem the back card cleared the front by five pixels and read as a drop
+ * shadow; at 1.7rem it peeked twelve, which measured fine and was reported as
+ * "the live event button is hidden". Twelve pixels of a dark chip against a
+ * dark chip is not a card anybody can see. It clears about thirty now, which
+ * is the icon and an edge, and the dimming is lighter for the same reason —
+ * 55% opacity under 75% grey was most of the way to invisible before the
+ * geometry got a chance.
  */
 .map-legend[data-stack="back"] {
   z-index: 12;
-  transform: translate(-1.7rem, -0.55rem) scale(0.86) rotate(-6deg);
-  opacity: 0.55;
-  filter: grayscale(0.75);
+  transform: translate(-2.9rem, -0.8rem) scale(0.84) rotate(-7deg);
+  opacity: 0.72;
+  filter: grayscale(0.5);
 }
 .map-legend[data-stack="back"]:hover {
-  opacity: 0.9;
-  filter: grayscale(0.15);
-  transform: translate(-1.7rem, -0.55rem) scale(0.9) rotate(-4deg);
+  opacity: 1;
+  filter: grayscale(0);
+  transform: translate(-2.9rem, -0.8rem) scale(0.88) rotate(-4deg);
 }
 /* A card at the back has nothing open: only the front one answers. */
 .map-legend[data-stack="back"] .map-legend-panel { display: none !important; }
@@ -90,6 +97,18 @@ function closeCard(card) {
 }
 
 export function apply() {
+  /**
+   * A HIDDEN CARD CANNOT BE THE FRONT ONE.
+   *
+   * The feed's card exists only while Live Events is armed, so switching the
+   * feed off while it was in front would leave the legend at the back — greyed,
+   * turned and shrunk, with nothing in front of it to explain why. The stack
+   * deals to the first card that is actually on screen.
+   */
+  const visible = CARDS.filter((card) => byId(card.id) && !byId(card.id).hidden);
+  if (visible.length && !visible.some((card) => card.id === front)) {
+    front = visible[0].id;
+  }
   CARDS.forEach((card) => {
     const host = byId(card.id);
     if (!host) return;

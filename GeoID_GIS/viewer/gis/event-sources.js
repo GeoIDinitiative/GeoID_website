@@ -462,23 +462,27 @@ export function resolveColour(value, read = null) {
 /* ── how big a marker is, and how far off the ground ─────────────────────── */
 
 /**
- * AND IT HAS TO SHRINK AS THE CAMERA COMES DOWN, or it is a fixed altitude.
+ * THE CLEARANCE IS A GROUND MEASUREMENT, NOT A CAMERA ONE.
  *
- * 0.006 of a 3.2 radius is **11.9 km**. From orbit that reads as on the
- * ground; at three kilometres up the marker is four times higher than the
- * camera, which is the float that was reported. The clearance only exists to
- * cover the difference between the elevation sampler and the rendered mesh —
- * metres, not kilometres — so it is a fraction of the distance to the surface,
- * capped at the old value so the far field is exactly as it was. The same rule
- * and the same number `vector-render` arrived at for the fault traces.
+ * It began as a flat 0.006 of a 3.2 radius — **11.9 km** — which reads as on
+ * the ground from orbit and is four times the camera's own height at three
+ * kilometres up. Making it a fraction of the altitude fixed the close range
+ * and left the middle distance exactly as wrong: measured against the rendered
+ * terrain over Nevados del Chillán at 123 km, the marker sat **2,490 m** above
+ * the ground, which is the rule working correctly and the rule being wrong.
+ *
+ * What the lift is actually for is the disagreement between the elevation
+ * sampler and the mesh the globe draws — and that was measured at the same
+ * time, at the same place: **20 m**. It is a property of the data, not of where
+ * the camera happens to be, so it is a constant number of metres. The markers
+ * do not depth-test either, so nothing is hidden by having almost none.
  */
-export const MARKER_LIFT_MAX = 0.006;
-const MARKER_LIFT_FRACTION = 0.02;
-/** The clearance this altitude deserves, in scene units. */
-export function liftForAltitude(metres) {
-  if (!Number.isFinite(metres) || metres <= 0) return MARKER_LIFT_MAX;
-  const units = (metres / 6371000) * 3.2;
-  return Math.min(MARKER_LIFT_MAX, units * MARKER_LIFT_FRACTION);
+export const MARKER_LIFT_M = 30;
+export const MARKER_LIFT_MAX = (MARKER_LIFT_M / 6371000) * 3.2;
+
+/** The clearance, in scene units. Constant: see above. */
+export function liftForAltitude() {
+  return MARKER_LIFT_MAX;
 }
 
 /**

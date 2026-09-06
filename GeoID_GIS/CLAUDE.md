@@ -13550,3 +13550,41 @@ intended reading. A card is at the back because somebody put it there, and
 yanking it forward because a layer loaded is the "fights the user rather than
 ignoring them" failure `legend-dock.js` already records about its own
 auto-open.
+
+#### The clearance is a ground measurement, not a camera one
+
+"They are floating well above the surface currently" — still, after the lift
+was made to shrink with altitude. The measurement said why, and it was not
+that the rule had failed: over Nevados del Chillán at **123 km**, the marker
+sat **2,490 m** above the rendered ground, and `liftForAltitude(123 km)` asks
+for 2,470. The rule was working perfectly and the rule was wrong.
+
+A fraction of the altitude fixes the close range and leaves the middle distance
+exactly as bad, because the clearance was never a function of where the camera
+is. What it is for is the disagreement between the elevation sampler and the
+mesh the globe draws — measured at the same place and moment as **20 m**. So it
+is a constant 30 m of ground, at every altitude. Nothing is hidden by having
+almost none: these markers do not depth-test.
+
+Verified against the sampler at 400, 150, 73, 22 and 6 km, with the relief
+tapering 0.11 → 0.00013 across that range: **30 m at every one of them.**
+
+(Raycasting the globe mesh for this is not the check it looks like — the same
+five altitudes gave +983 m, −71 km, −51 km, +2,546 m and +30 m, because a ray
+through a marker meets whatever terrain patch is in front of it. The sampler's
+own surface is what `markerPoint` writes against and what the reading has to
+be taken against.)
+
+#### Twelve pixels of peek is hidden
+
+"Now the live event button is hidden." It was not hidden — it was 12 px of dark
+chip behind a dark chip, at 55% opacity under 75% grey, which is the same thing.
+The offset is 2.9rem now and the dimming lighter, giving **29 px of card and
+13 px of top edge**: the icon and an edge, enough to be a corner you can press.
+Reported rather than measured, which is the lesson — the 12 px measured fine.
+
+And a bug the report shook out: **a hidden card cannot be the front one.** The
+feed's card exists only while Live Events is armed, so switching the feed off
+while it was in front left the legend at the back — greyed, turned and shrunk,
+with nothing in front of it to explain why. The stack now deals to the first
+card that is actually on screen.

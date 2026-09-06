@@ -13,7 +13,7 @@ import {
   defaultEnabled, usgsPoints, magnitudeSize, recencyOpacity,
   MAGNITUDE_RAMP, magnitudeColour, restoreSources, gdacsPoints, gdacsUrl,
   resolveColour, liftForAltitude, dotSizePx, nearSizePx,
-  MARKER_LIFT_MAX, DOT_CAP_FAR, DOT_CAP_NEAR,
+  MARKER_LIFT_MAX, MARKER_LIFT_M, DOT_CAP_FAR, DOT_CAP_NEAR,
 }  from "./event-sources.js";
 import { readFileSync } from "node:fs";
 
@@ -396,26 +396,25 @@ if (fail) process.exitCode = 1;
 {
   const KM = (units) => (units / 3.2) * 6371;
 
-  /* THE LIFT WAS A CONSTANT 11.9 km. From orbit that reads as on the ground;
-     at three kilometres up the marker is four times higher than the camera. */
-  check("the far field keeps the clearance it had",
-    Math.round(KM(liftForAltitude(8_000_000))), 12);
-  check("and a marker three kilometres under the camera is 60 m off the ground",
-    Math.round(KM(liftForAltitude(3_000)) * 1000), 60);
-  check("it never exceeds the old constant, whatever the altitude",
-    liftForAltitude(1e12) <= MARKER_LIFT_MAX, true);
-  check("and an unknown altitude keeps the safe far-field value",
-    liftForAltitude(NaN), MARKER_LIFT_MAX);
-  /* Monotonic, or a marker would rise as you approached it. */
-  check("closer is always lower", (() => {
-    let last = Infinity;
-    for (const m of [8e6, 1e6, 3e5, 1e5, 3e4, 1e4, 3e3]) {
-      const v = liftForAltitude(m);
-      if (v > last) return false;
-      last = v;
-    }
-    return true;
+  /* THE CLEARANCE IS A GROUND MEASUREMENT, NOT A CAMERA ONE. It was a flat
+     11.9 km, then a fraction of the altitude -- which fixed the close range
+     and left the middle distance exactly as wrong: measured against the
+     rendered terrain over Nevados del Chillan at 123 km, the marker sat
+     2,490 m above the ground. What the lift is for is the sampler disagreeing
+     with the drawn mesh, measured at the same place and time as 20 m. */
+  check("thirty metres, which is what it is for", MARKER_LIFT_M, 30);
+  check("and the same thirty at every altitude", (() => {
+    const at = [8e6, 1e6, 1.23e5, 3e4, 3e3, 100].map(liftForAltitude);
+    return at.every((v) => v === at[0]);
   })(), true);
+  check("which is 30 m on the ground, not 30 units of anything",
+    Math.round(KM(MARKER_LIFT_MAX) * 1000), 30);
+  /* It covers the 20 m the sampler and the mesh were measured to differ by,
+     and nothing is hidden by having almost none: the markers do not depth
+     test. */
+  check("comfortably over the disagreement it exists for",
+    KM(MARKER_LIFT_MAX) * 1000 >= 20, true);
+  check("and nowhere near the old kilometres", KM(MARKER_LIFT_MAX) < 0.05, true);
 
   /* THE GLOBE'S PROJECTED RADIUS IS THE WRONG VARIABLE CLOSE IN: measured, it
      runs 815 px at a thousand kilometres and 945 at three, so `globePx *
