@@ -13453,3 +13453,56 @@ symbol table now says with `pulse: true` rather than a condition in the draw
 code — the seismicity and the volcanoes are the two feeds reporting something
 still happening while you look at them. Measured over 40 frames: the volcano
 cloud's opacity swings 0.204 while the wildfires hold exactly steady.
+
+### The markers stopped growing before the ground did
+
+"These event symbols suffer as we zoom in — they become less distinct… note
+these event location dots should be tight to surface (currently float)." Both
+halves were one measurement away, and the measurement named the cause.
+
+**Size was driven by the wrong variable.** `dotSizePx` scaled with the globe's
+projected radius, which is right for the far field and says nothing near the
+ground: measured, the globe covers **815 px at a thousand kilometres and 945 px
+at three**, so `globePx * 0.022` was pinned at its 16 px cap through the entire
+close range while the imagery under it gained three hundred times the detail.
+Everything else sharpened and the markers did not.
+
+Raising the cap changed nothing — the measurement caught that too — because
+with `globePx` saturated, `globePx * 0.022` **is** the limit at 20.8 px. The
+near-field size has to be *generated* rather than merely permitted, so the
+larger of two rules wins: the projection above a thousand kilometres, and an
+altitude ramp below it, 16 px growing to 34 by twenty. Now 9.2 px at 8,000 km,
+18 at 1,000, 26.6 at 100, and 34 from ten down.
+
+**And the lift was a constant 11.9 km.** `MARKER_LIFT = 0.006` of a 3.2 radius,
+which reads as on the ground from orbit and puts the marker four times higher
+than the camera at three kilometres up. The clearance only exists to cover the
+gap between the elevation sampler and the rendered mesh — metres — so it is a
+fraction of the distance to the surface now, capped at the old value so the far
+field is untouched: **11.95 km at 8,000, 2 km at 100, 600 m at 30, 60 m at 3**.
+The same rule and the same 0.006 that `vector-render` arrived at for the fault
+traces, met a second time.
+
+#### Annotation, and the three rules that stop it becoming a mess
+
+A symbol says the CATEGORY and never which event, and close in that is the
+question — standing over Vanuatu you want to know it is Ambae. The risk is
+clustering, so this is deliberately timid: **only below 150 km**, **at most
+eight**, taken nearest the middle of the view, and **never overlapping** — a
+chip whose box clashes with one already placed is simply not drawn, because
+dropping a label always beats stacking two.
+
+Verified on the worst case in the live feed: the densest square degree held
+**20 events** (the Aleutians), and at 150, 80, 40 and 15 km it drew 7–8 chips
+with **zero overlapping pairs** at every altitude.
+
+Screen-space DOM rather than the viewer's own label engine, which hangs a
+sphere marker beside every chip — over a marker that IS the symbol, that draws
+the event twice. The chips are `pointer-events: none`, so the marker underneath
+still takes the click, and they come down with the frame loop when the feed is
+switched off; DOM outlives a cancelled animation frame.
+
+The pure halves — `liftForAltitude`, `dotSizePx`, `nearSizePx` — live in
+`event-sources.js` beside `resolveColour`, for the same reason: `events.js`
+wants a whole document before it will load, and these are the parts worth
+pinning.

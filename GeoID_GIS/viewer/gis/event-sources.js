@@ -458,3 +458,69 @@ export function resolveColour(value, read = null) {
   const resolved = String(lookup(variable[1]) || "").trim();
   return resolved || String(variable[2] || "").trim() || text;
 }
+
+/* ── how big a marker is, and how far off the ground ─────────────────────── */
+
+/**
+ * AND IT HAS TO SHRINK AS THE CAMERA COMES DOWN, or it is a fixed altitude.
+ *
+ * 0.006 of a 3.2 radius is **11.9 km**. From orbit that reads as on the
+ * ground; at three kilometres up the marker is four times higher than the
+ * camera, which is the float that was reported. The clearance only exists to
+ * cover the difference between the elevation sampler and the rendered mesh —
+ * metres, not kilometres — so it is a fraction of the distance to the surface,
+ * capped at the old value so the far field is exactly as it was. The same rule
+ * and the same number `vector-render` arrived at for the fault traces.
+ */
+export const MARKER_LIFT_MAX = 0.006;
+const MARKER_LIFT_FRACTION = 0.02;
+/** The clearance this altitude deserves, in scene units. */
+export function liftForAltitude(metres) {
+  if (!Number.isFinite(metres) || metres <= 0) return MARKER_LIFT_MAX;
+  const units = (metres / 6371000) * 3.2;
+  return Math.min(MARKER_LIFT_MAX, units * MARKER_LIFT_FRACTION);
+}
+
+/**
+ * THE GLOBE'S PROJECTED RADIUS IS THE WRONG VARIABLE CLOSE IN.
+ *
+ * `globePx * 0.022` is right for the far field and says nothing at all near
+ * the ground: measured, the globe covers 815 px at a thousand kilometres and
+ * 945 px at three, so the size was pinned at its 16 px cap through the entire
+ * close range while the imagery under it gained three hundred times the
+ * detail. That is the reported "they become less distinct as we zoom in" —
+ * everything else sharpens and the markers do not.
+ *
+ * So the CAP is driven by altitude, which keeps moving when the projection has
+ * stopped: 16 px above a thousand kilometres, growing to 34 by twenty, held
+ * there below. Logarithmic, because the zoom is.
+ */
+export const DOT_CAP_FAR = 16;
+export const DOT_CAP_NEAR = 34;
+const DOT_CAP_FAR_KM = 1000;
+const DOT_CAP_NEAR_KM = 20;
+
+/**
+ * The size ALTITUDE alone asks for, and zero where the projection still works.
+ *
+ * Raising the cap was not enough and the measurement said why: with globePx
+ * saturated at 945, `globePx * 0.022` is 20.8 and IT becomes the limit, so a
+ * higher ceiling changed nothing below 300 km. The near-field size has to be
+ * generated rather than merely permitted — the larger of the two rules wins,
+ * and this one is zero above a thousand kilometres so the far field is exactly
+ * as it was.
+ */
+export function nearSizePx(altitudeMetres) {
+  if (!Number.isFinite(altitudeMetres) || altitudeMetres <= 0) return 0;
+  const km = altitudeMetres / 1000;
+  if (km >= DOT_CAP_FAR_KM) return 0;
+  const span = Math.log(DOT_CAP_FAR_KM / DOT_CAP_NEAR_KM);
+  const t = Math.max(0, Math.min(1, Math.log(DOT_CAP_FAR_KM / km) / span));
+  return DOT_CAP_FAR + (DOT_CAP_NEAR - DOT_CAP_FAR) * t;
+}
+
+export function dotSizePx(globePx, altitudeMetres) {
+  const far = globePx * 0.022;
+  return Math.max(4, Math.min(DOT_CAP_NEAR, Math.max(far, nearSizePx(altitudeMetres))));
+}
+

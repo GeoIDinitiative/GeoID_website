@@ -12,7 +12,8 @@ import {
   SOURCES, FEED_GROUPS, sourceById, sourcesInGroup, activeGroups, groupState,
   defaultEnabled, usgsPoints, magnitudeSize, recencyOpacity,
   MAGNITUDE_RAMP, magnitudeColour, restoreSources, gdacsPoints, gdacsUrl,
-  resolveColour,
+  resolveColour, liftForAltitude, dotSizePx, nearSizePx,
+  MARKER_LIFT_MAX, DOT_CAP_FAR, DOT_CAP_NEAR,
 }  from "./event-sources.js";
 import { readFileSync } from "node:fs";
 
@@ -363,4 +364,77 @@ if (fail) process.exitCode = 1;
     true);
   check("and the wildfires are an orange round dot",
     /wildfires: \{ colour: "#ff6b2c", glyph: "●", label: "Wildfires" \}/.test(src), true);
+}
+
+/* ── the annotation, and the rule that stops it becoming a mess ───────────
+   Events cluster: the densest square degree in the live feed held 20 of them.
+   Three rules decide what gets a name, and the source is where they live. */
+{
+  const src = readFileSync(new URL("./events.js", import.meta.url), "utf8");
+  check("only close in", /altitudeMetres > LABEL_ALTITUDE_M/.test(src)
+    && /const LABEL_ALTITUDE_M = 150000/.test(src), true);
+  check("only a few, taken nearest the middle of the view",
+    /if \(used >= LABEL_MAX\) break;/.test(src)
+    && /Math\.hypot\(x - width \/ 2, y - height \/ 2\)/.test(src), true);
+  check("and never overlapping — a label that cannot be placed is not drawn",
+    /const clashes = placed\.some/.test(src)
+    && /if \(clashes\) \{ chip\.style\.display = "none"; continue; \}/.test(src), true);
+  /* Measured over the Aleutians at 150, 80, 40 and 15 km: 7 to 8 chips and
+     zero overlapping pairs at every one. */
+  check("nothing behind the globe is named", /world\.dot\(camera\.position\) <= 0/.test(src), true);
+  /* The chips are DOM and outlive the frame loop unless taken down with it. */
+  check("switching the feed off takes the chips down",
+    /if \(!active\) \{ sizeFrame = null; hideLabels\(\); return; \}/.test(src), true);
+  check("and they never eat a click meant for the marker",
+    /pointer-events:none/.test(src), true);
+}
+
+/* ── the markers as you come down ──────────────────────────────────────────
+   "These event symbols suffer as we zoom in — they become less distinct...
+   note these event location dots should be tight to surface (currently
+   float)." Both were one measurement away. */
+{
+  const KM = (units) => (units / 3.2) * 6371;
+
+  /* THE LIFT WAS A CONSTANT 11.9 km. From orbit that reads as on the ground;
+     at three kilometres up the marker is four times higher than the camera. */
+  check("the far field keeps the clearance it had",
+    Math.round(KM(liftForAltitude(8_000_000))), 12);
+  check("and a marker three kilometres under the camera is 60 m off the ground",
+    Math.round(KM(liftForAltitude(3_000)) * 1000), 60);
+  check("it never exceeds the old constant, whatever the altitude",
+    liftForAltitude(1e12) <= MARKER_LIFT_MAX, true);
+  check("and an unknown altitude keeps the safe far-field value",
+    liftForAltitude(NaN), MARKER_LIFT_MAX);
+  /* Monotonic, or a marker would rise as you approached it. */
+  check("closer is always lower", (() => {
+    let last = Infinity;
+    for (const m of [8e6, 1e6, 3e5, 1e5, 3e4, 1e4, 3e3]) {
+      const v = liftForAltitude(m);
+      if (v > last) return false;
+      last = v;
+    }
+    return true;
+  })(), true);
+
+  /* THE GLOBE'S PROJECTED RADIUS IS THE WRONG VARIABLE CLOSE IN: measured, it
+     runs 815 px at a thousand kilometres and 945 at three, so `globePx *
+     0.022` pinned the size at its cap through the whole close range while the
+     imagery gained three hundred times the detail. */
+  check("the far field is unchanged — the projection still decides it",
+    +dotSizePx(434, 8_000_000).toFixed(1), 9.5);
+  check("nothing is added above a thousand kilometres", nearSizePx(2_000_000), 0);
+  check("and the near field grows where the projection has stopped",
+    dotSizePx(945, 10_000) > dotSizePx(945, 1_000_000), true);
+  check("reaching the near cap by twenty kilometres",
+    +dotSizePx(945, 20_000).toFixed(1), DOT_CAP_NEAR);
+  check("and never going past it", dotSizePx(1e6, 100) <= DOT_CAP_NEAR, true);
+  check("a distant marker still stays clickable", dotSizePx(1, 8_000_000) >= 4, true);
+  /* The two rules must meet without a step, or the markers jump at 1000 km. */
+  check("the two rules meet smoothly at the hand-over", (() => {
+    const above = dotSizePx(815, 1_010_000);
+    const below = dotSizePx(815, 990_000);
+    return Math.abs(above - below) < 0.5;
+  })(), true);
+  check("the far cap is what the near ramp starts from", nearSizePx(1_000_000 - 1) >= DOT_CAP_FAR, true);
 }

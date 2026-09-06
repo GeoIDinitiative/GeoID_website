@@ -13,7 +13,8 @@
 import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity, magnitudeColour,
   activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, gdacsPoints, resolveColour,
-} from "./event-sources.js?v=20260907-70c5f2c";
+  MARKER_LIFT_MAX, liftForAltitude, dotSizePx,
+} from "./event-sources.js?v=20260907-7ffe8de";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -93,7 +94,7 @@ const LAYER_NAME = "Live events";
 // Following the terrain instead, the clearance only has to cover the
 // difference between the sampler and the rendered mesh, and can be small
 // enough to look like it is on the ground.
-const MARKER_LIFT = 0.006;
+let markerLift = MARKER_LIFT_MAX;
 
 /**
  * Where a marker sits: on the globe's own displaced surface, so it rides the
@@ -102,8 +103,8 @@ const MARKER_LIFT = 0.006;
  */
 function markerPoint(viewer, lat, lon) {
   return viewer.surfacePoint
-    ? viewer.surfacePoint(lat, lon, MARKER_LIFT)
-    : viewer.latLonToVector3(lat, lon, viewer.GLOBE_RADIUS + MARKER_LIFT);
+    ? viewer.surfacePoint(lat, lon, markerLift)
+    : viewer.latLonToVector3(lat, lon, viewer.GLOBE_RADIUS + markerLift);
 }
 
 /**
@@ -130,8 +131,19 @@ function watchRelief() {
     const viewer = window.GeoIDViewer;
     if (!viewer?.getEffectiveRelief || !markers) return;
     const relief = viewer.getEffectiveRelief();
-    if (lastRelief !== null && Math.abs(relief - lastRelief) < 1e-4) return;
+    /**
+     * The CLEARANCE moves with the camera as well as the relief, and both end
+     * in the same rewrite — the positions are the only place either lives.
+     * A tenth of the current lift is the threshold: below that the marker has
+     * not moved a pixel, and rewriting four hundred points to prove it is
+     * work nobody sees.
+     */
+    const wanted = liftForAltitude(viewer.getZoomAltitudeMetres?.()?.metres);
+    const reliefSame = lastRelief !== null && Math.abs(relief - lastRelief) < 1e-4;
+    const liftSame = Math.abs(wanted - markerLift) < Math.max(wanted, 1e-9) * 0.1;
+    if (reliefSame && liftSame) return;
     lastRelief = relief;
+    markerLift = wanted;
     markers.traverse((node) => {
       const list = node.userData?.events;
       const truth = node.userData?.truePositions;
@@ -875,8 +887,147 @@ const PULSE_OPACITY = 0.3;
  * Dot size in pixels: a fixed fraction of the globe, floored so a distant event
  * stays clickable and capped so a close one does not cover what it marks.
  */
-function dotSizePx(globePx) {
-  return Math.max(4, Math.min(16, globePx * 0.022));
+/* ── naming what is on the screen ────────────────────────────────────────── */
+
+/**
+ * ANNOTATION, AND THE RULE THAT KEEPS IT FROM BECOMING A MESS.
+ *
+ * Bigger symbols answer half of "they become less distinct as we zoom in" — a
+ * ▲ at 34 px is unmistakably a ▲. The other half is that a symbol says the
+ * CATEGORY and never which event, and close in that is the question: standing
+ * over Vanuatu you want to know it is Ambae, not that something volcanic is
+ * somewhere near.
+ *
+ * The risk is the obvious one, and it is why this is deliberately timid rather
+ * than clever. Events cluster — a fire complex is thirty markers inside a
+ * county — and thirty chips over thirty markers is worse than none, so three
+ * rules together decide what gets a name:
+ *
+ *   * **Only close in.** Above 150 km a label is smaller than the ground it
+ *     would cover and there are too many markers on screen for any of them to
+ *     be worth naming.
+ *   * **Only a few.** Eight at most, taken nearest the middle of the view,
+ *     because the middle is what somebody is looking at.
+ *   * **Never overlapping.** A chip is placed only if its box clears every
+ *     chip already placed, and the ones that cannot be placed are simply not
+ *     drawn. Dropping a label is always better than stacking two.
+ *
+ * Screen space, not the 3D label engine: that one hangs a sphere marker beside
+ * every chip, which over a marker that IS the symbol would draw the event
+ * twice.
+ */
+const LABEL_ALTITUDE_M = 150000;
+const LABEL_MAX = 8;
+const LABEL_GAP_PX = 4;
+
+let labelHost = null;
+let labelPool = [];
+
+function labelLayerHost() {
+  if (labelHost && labelHost.isConnected) return labelHost;
+  const canvas = window.GeoIDViewer?.renderer?.domElement;
+  const parent = canvas?.parentElement;
+  if (!parent) return null;
+  labelHost = document.createElement("div");
+  labelHost.id = "events-labels";
+  labelHost.setAttribute("aria-hidden", "true");
+  // Never in the way of a click on the globe: the marker under it is the
+  // thing you press, and the chip is only there to say what it is.
+  labelHost.style.cssText = "position:absolute;inset:0;pointer-events:none;"
+    + "overflow:hidden;z-index:5";
+  parent.appendChild(labelHost);
+  return labelHost;
+}
+
+function hideLabels() {
+  labelPool.forEach((chip) => { chip.style.display = "none"; });
+}
+
+/** The chip for slot `i`, made once and reused: labels churn every frame. */
+function labelChip(index) {
+  if (labelPool[index]) return labelPool[index];
+  const chip = document.createElement("div");
+  chip.className = "event-label-chip";
+  chip.style.cssText = "position:absolute;transform:translate(-50%,0);"
+    + "white-space:nowrap;font:600 0.62rem/1.35 'Exo 2',system-ui,sans-serif;"
+    + "letter-spacing:0.02em;padding:0.12rem 0.36rem;border-radius:0.28rem;"
+    + "background:rgba(6,10,24,0.78);border:1px solid rgba(255,255,255,0.16);"
+    + "color:#eaf3ff;text-shadow:0 1px 2px rgba(0,0,0,0.9);display:none";
+  labelLayerHost()?.appendChild(chip);
+  labelPool[index] = chip;
+  return chip;
+}
+
+/** How much an event deserves the one label going spare. */
+function labelRank(event) {
+  if (Number.isFinite(event.magnitude)) return 100 + event.magnitude;
+  return Number.isFinite(event.timeMs) ? event.timeMs / 1e12 : 0;
+}
+
+function drawLabels(camera, altitudeMetres, dotPx) {
+  const host = labelLayerHost();
+  if (!host || !THREE || !camera) return 0;
+  if (!markers || !Number.isFinite(altitudeMetres) || altitudeMetres > LABEL_ALTITUDE_M) {
+    hideLabels();
+    return 0;
+  }
+  const canvas = window.GeoIDViewer?.renderer?.domElement;
+  const width = canvas?.clientWidth || 0;
+  const height = canvas?.clientHeight || 0;
+  if (!width || !height) { hideLabels(); return 0; }
+
+  const candidates = [];
+  const world = new THREE.Vector3();
+  markers.children.forEach((points) => {
+    const list = points.userData?.events;
+    const truth = points.userData?.truePositions;
+    if (!list || !truth) return;
+    list.forEach((event, i) => {
+      world.set(truth[i * 3], truth[i * 3 + 1], truth[i * 3 + 2]);
+      points.localToWorld(world);
+      // Behind the globe: the same test the markers themselves are culled by,
+      // and a label for something over the horizon is a label pointing at
+      // nothing.
+      if (world.dot(camera.position) <= 0) return;
+      const projected = world.clone().project(camera);
+      if (projected.z > 1 || Math.abs(projected.x) > 1 || Math.abs(projected.y) > 1) return;
+      const x = (projected.x * 0.5 + 0.5) * width;
+      const y = (-projected.y * 0.5 + 0.5) * height;
+      candidates.push({
+        event,
+        x,
+        y,
+        // Nearest the middle first, then by what the event is worth.
+        d: Math.hypot(x - width / 2, y - height / 2) - labelRank(event) * 4,
+      });
+    });
+  });
+  candidates.sort((a, b) => a.d - b.d);
+
+  const placed = [];
+  let used = 0;
+  for (const candidate of candidates) {
+    if (used >= LABEL_MAX) break;
+    const chip = labelChip(used);
+    chip.textContent = candidate.event.title || candidate.event.categoryTitle || "Event";
+    chip.style.display = "block";
+    chip.style.left = `${Math.round(candidate.x)}px`;
+    chip.style.top = `${Math.round(candidate.y + dotPx * 0.6)}px`;
+    const box = chip.getBoundingClientRect();
+    const rect = {
+      left: candidate.x - box.width / 2 - LABEL_GAP_PX,
+      right: candidate.x + box.width / 2 + LABEL_GAP_PX,
+      top: candidate.y + dotPx * 0.6 - LABEL_GAP_PX,
+      bottom: candidate.y + dotPx * 0.6 + box.height + LABEL_GAP_PX,
+    };
+    const clashes = placed.some((r) => !(rect.right < r.left || rect.left > r.right
+      || rect.bottom < r.top || rect.top > r.bottom));
+    if (clashes) { chip.style.display = "none"; continue; }
+    placed.push(rect);
+    used += 1;
+  }
+  for (let i = used; i < labelPool.length; i += 1) labelPool[i].style.display = "none";
+  return used;
 }
 
 let sizeFrame = null;
@@ -916,7 +1067,8 @@ function syncSpin() {
 function trackScale() {
   if (sizeFrame) return;
   const step = () => {
-    if (!active) { sizeFrame = null; return; }
+    // The chips are DOM and outlive the frame loop unless taken down with it.
+    if (!active) { sizeFrame = null; hideLabels(); return; }
     // Held every frame, not set once: the globe keeps turning while the feed
     // is open, and a marker placed correctly at fetch time would walk off its
     // ground within the minute.
@@ -928,7 +1080,9 @@ function trackScale() {
     if (markers && camera) markers.children.forEach((p) => cullBehindGlobe(p, camera));
     const px = globeRadiusPx();
     if (px > 0 && markers) {
-      const size = dotSizePx(px);
+      const altitude = window.GeoIDViewer?.getZoomAltitudeMetres?.()?.metres;
+      const size = dotSizePx(px, altitude);
+      drawLabels(camera, altitude, size);
       // One phase for every marker, so a field of earthquakes pulses together
       // rather than shimmering: per-marker phases read as noise on the screen.
       const phase = (Math.sin((performance.now() / PULSE_PERIOD_MS) * Math.PI * 2) + 1) / 2;
@@ -1550,7 +1704,10 @@ function applyHaloScale() {
   const px = globeRadiusPx();
   // The same pixel size the dots use, with just enough over it to read as a
   // ring around one rather than a circle near one.
-  halo.material.size = Math.max(18, (px > 0 ? dotSizePx(px) : 8) * 2.0);
+  // The same altitude the dots are sized by, or the ring stops growing with
+  // the dot it is meant to surround and ends up inside it close in.
+  const altitude = window.GeoIDViewer?.getZoomAltitudeMetres?.()?.metres;
+  halo.material.size = Math.max(18, (px > 0 ? dotSizePx(px, altitude) : 8) * 2.0);
 }
 
 let ringSprite = null;
@@ -1876,8 +2033,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260907-70c5f2c"),
-    import("./research/dsp.js?v=20260907-70c5f2c"),
+    import("./seismogram-plot.js?v=20260907-7ffe8de"),
+    import("./research/dsp.js?v=20260907-7ffe8de"),
   ]);
   if (stale()) return;
 
