@@ -847,6 +847,41 @@ if (fail) process.exitCode = 1;
   check("the card states the strength", /<dt>Strength<\/dt>/.test(code), true);
 }
 
+/* ── the selection ring is sized from the MARKER, not from the dot ─────────
+   It used to be `dot * 3`, which assumes every marker is drawn at
+   `dot * GLYPH_FOOT_SCALE`. That stopped being true the moment a category got
+   a size of its own: measured on Hurricane Marie, a 40.2 px ring around a
+   50.3 px symbol — inside the thing it is meant to encircle — and the same
+   40.2 around the Category 3's 70.4. */
+{
+  const src = readFileSync(new URL("./events.js", import.meta.url), "utf8");
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  check("the ring asks the marker's own cloud how big it is",
+    /function markerSpriteFor\(key\)/.test(code)
+    && /node\.name === `eonet-\$\{key\}`/.test(code), true);
+  check("and the halo remembers which cloud it belongs to",
+    /halo\.userData\.markerKey = markerKey\(event\);/.test(code), true);
+  check("the size is that marker's, times the ring's own ratio",
+    /halo\.material\.size = marker\s*\* \(halo\.userData\.foot \? HALO_OVER_MARKER_FOOT : HALO_OVER_MARKER_CENTRED\);/
+      .test(code), true);
+  /* Derived, not chosen: the foot ratio IS the one the texture's geometry was
+     built at, which is why the measured ring-on-ink holds at any marker size. */
+  check("the foot ratio is the texture's own",
+    /const HALO_OVER_MARKER_FOOT = HALO_FOOT_SCALE \/ GLYPH_FOOT_SCALE;/.test(code), true);
+  /* The markers are rebuilt on every refresh, so a selection can outlive its
+     cloud for a frame — and a ring of size 0 is a ring that vanished. */
+  check("with the old arithmetic kept for when the cloud is not there",
+    /if \(marker > 0\) \{/.test(code), true);
+
+  /* DECLARATION ORDER. A const evaluated before HALO_FOOT_SCALE exists is a
+     temporal dead zone error at module load, which takes the whole feed out —
+     and `node --check` parses without evaluating, so it passes either way. */
+  const foot = code.indexOf("const HALO_FOOT_SCALE = 3;");
+  const ratio = code.indexOf("const HALO_OVER_MARKER_FOOT");
+  check("and the ratio is declared after what it is derived from",
+    foot > 0 && ratio > foot, true);
+}
+
 /**
  * THE VERDICT, AT THE END OF THE FILE.
  *

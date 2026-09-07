@@ -13986,3 +13986,47 @@ an orphaned copy of its comment. Both were caught by re-running the A/B — a
 deliberately failing check appended to the last line must exit 1, and one
 placed after the verdict must not be counted. **When a test file's end is
 edited, re-run that A/B rather than trusting the diff.**
+
+#### The selection ring is sized from the MARKER, not from the dot
+
+"Selection halo for the storms needs resized." It was `dot * 3`, which assumes
+every marker is drawn at `dot * GLYPH_FOOT_SCALE` — true of every category
+until one got a size of its own. Measured on Hurricane Marie: a **40.2 px ring
+around a 50.3 px symbol**, inside the thing it exists to encircle, and the same
+40.2 around the Category 3's 70.4.
+
+So it asks the cloud (`markerSpriteFor`). That number is the truth by
+construction, it is already updated every frame by the size step, and a band
+added later needs nothing done here.
+
+**The ratios are derived, not chosen**, from the ring's radius within its own
+texture and how much of a sprite each kind of symbol fills. Foot-anchored: the
+ink is `GLYPH_INK` of the marker and the ring is 1.43× the ink, so the ring's
+drawn diameter wants 0.658 of the marker, and the foot texture draws at 0.22 of
+its sprite — 0.658/(2×0.22) = **1.5**, which is exactly
+`HALO_FOOT_SCALE / GLYPH_FOOT_SCALE`, the ratio that texture's geometry was
+derived at. That is why the measured ring-on-ink of −0.07 px holds at any
+marker size rather than only at the one it was tuned for. Centred: the
+earthquake rings fill their quad, so the ring wants to be a little outside it
+(1.04) and the centred texture draws at 0.33 — **1.58**.
+
+**The earthquakes had the same fault, quieter.** Their ring was also computed
+from the dot, so it did not grow with the magnitude their marker grows with:
+before, an M2.5 and an M4.8 both got 26.8 px. After, **27.6 and 48.6**, at a
+constant 1.58 of each marker — and the wildfires are unchanged at exactly 1.50,
+which is the check that nothing else moved.
+
+**`node --check` passed a temporal dead zone.** `HALO_OVER_MARKER_FOOT` is
+derived from `HALO_FOOT_SCALE`, which is declared eighty lines further down —
+a `const` evaluated before its dependency exists throws at MODULE LOAD and
+takes the whole feed out. It parses either way, because `--check` does not
+evaluate. Moved below what it derives from; `applyHaloScale` reads it when
+called, so a hoisted function above the constants is fine. **The browser is the
+only thing that says whether a module loads** — this file already records that
+for the backtick and the octal escape, and the same rule catches this.
+
+**One honest consequence worth not mistaking for a bug.** The band follows the
+CURRENT wind, not the name: "Hurricane Karina" reads 45 kts on the feed, so it
+is drawn and labelled as a tropical storm. EONET's title keeps the name it was
+given; its `magnitudeValue` is the latest observation, and the marker is sized
+by the observation.

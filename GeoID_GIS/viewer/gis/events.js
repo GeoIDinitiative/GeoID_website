@@ -15,7 +15,7 @@ import {
   activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, gdacsPoints, resolveColour,
   MARKER_LIFT_MAX, liftForAltitude, dotSizePx, isQuake, publisherOf, restoreActive,
   stormCategory, stormScale, stormLabel, STORM_BASE_CAP,
-} from "./event-sources.js?v=20260907-0437506";
+} from "./event-sources.js?v=20260907-1d885b9";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -2049,11 +2049,43 @@ let flyFrame = null;
  * Holds the ring on the dot's circumference. dotSizePx is a width and the ring's
  * scale is a radius, so it takes half the dot's width plus a little clearance.
  */
+/**
+ * THE SIZE THE MARKER IS ACTUALLY DRAWN AT, read off its own cloud.
+ *
+ * The ring used to be computed from the DOT and two fixed constants, which
+ * assumed every marker is drawn at `dot * GLYPH_FOOT_SCALE`. That stopped
+ * being true the moment a category got a size of its own: measured on
+ * Hurricane Marie, a ring of 40.2 px around a 50.3 px symbol — inside the
+ * thing it is meant to encircle — and 40.2 around the Category 3's 70.4.
+ *
+ * So it asks the cloud. That number is the truth by construction, it is
+ * already updated every frame by the size step, and a band added later needs
+ * nothing done here.
+ */
+function markerSpriteFor(key) {
+  if (!markers || !key) return 0;
+  let found = 0;
+  markers.traverse((node) => {
+    if (node.isPoints && node.name === `eonet-${key}`) found = node.material?.size || 0;
+  });
+  return found;
+}
+
+
 function applyHaloScale() {
   if (!halo) return;
+  const marker = markerSpriteFor(halo.userData.markerKey);
+  if (marker > 0) {
+    halo.material.size = marker
+      * (halo.userData.foot ? HALO_OVER_MARKER_FOOT : HALO_OVER_MARKER_CENTRED);
+    return;
+  }
+  /**
+   * Only where the cloud cannot be found — the markers are rebuilt on every
+   * refresh, so a selection can outlive its own cloud for a frame. The old
+   * arithmetic, which is right for a category drawn at the ordinary scale.
+   */
   const px = globeRadiusPx();
-  // The same pixel size the dots use, with just enough over it to read as a
-  // ring around one rather than a circle near one.
   // The same altitude the dots are sized by, or the ring stops growing with
   // the dot it is meant to surround and ends up inside it close in.
   const altitude = window.GeoIDViewer?.getZoomAltitudeMetres?.()?.metres;
@@ -2089,6 +2121,35 @@ const RING_DIAMETER = INK_HEIGHT * 1.43;         // 1.32, the centred ring's own
  * inside it. At the centred scale the ring's top runs off the canvas.
  */
 const HALO_FOOT_SCALE = 3;
+
+/**
+ * DECLARED HERE, BELOW WHAT THEY ARE DERIVED FROM, and read by a function
+ * above them. `applyHaloScale` is a hoisted declaration and only reads these
+ * when it is CALLED, so the order is fine — but a `const` evaluated before
+ * `HALO_FOOT_SCALE` exists is a temporal dead zone error at module load, and
+ * that takes the whole feed out. `node --check` parses and does not evaluate,
+ * so it passes either way; the browser is what says which.
+ */
+/**
+ * How much bigger the RING's sprite is than the marker's, so the ring lands
+ * just outside the symbol.
+ *
+ * Both are derived rather than chosen, from the ring's own radius within its
+ * texture and how much of a sprite each kind of symbol fills:
+ *
+ * - FOOT-ANCHORED. The ink is `GLYPH_INK` of the marker sprite and the ring is
+ *   `1.43` times the ink, so the ring's drawn diameter wants to be 0.658 of
+ *   the marker. The foot texture draws its ring at `0.22` of its own sprite,
+ *   so the sprite must be 0.658 / (2 x 0.22) = 1.5 times the marker's — which
+ *   is exactly `HALO_FOOT_SCALE / GLYPH_FOOT_SCALE`, the ratio the texture's
+ *   geometry was derived at. The measured ring-on-ink of -0.07 px holds for
+ *   any marker size on this rule, which is why it generalises.
+ * - CENTRED. The earthquake rings fill their quad, so the ring wants to be a
+ *   little OUTSIDE it — 1.04 — and the centred texture draws at 0.33 of its
+ *   sprite: 1.04 / (2 x 0.33) = 1.58.
+ */
+const HALO_OVER_MARKER_FOOT = HALO_FOOT_SCALE / GLYPH_FOOT_SCALE;
+const HALO_OVER_MARKER_CENTRED = 1.58;
 
 const ringSprites = new Map();
 
@@ -2170,6 +2231,9 @@ function setSelection(event) {
   // Where it is, so the relief watcher can put it back there. A position is
   // not enough: the ground moves under it, and only the coordinate is stable.
   halo.userData.place = { lat: event.lat, lon: event.lon };
+  // And WHICH CLOUD it belongs to, so the ring can be sized from the marker
+  // rather than from an assumption about how big that marker is.
+  halo.userData.markerKey = markerKey(event);
   halo.renderOrder = 231;
   halo.userData.truePositions = Float32Array.from([position.x, position.y, position.z]);
   halo.frustumCulled = false;
@@ -2430,8 +2494,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260907-0437506"),
-    import("./research/dsp.js?v=20260907-0437506"),
+    import("./seismogram-plot.js?v=20260907-1d885b9"),
+    import("./research/dsp.js?v=20260907-1d885b9"),
   ]);
   if (stale()) return;
 
