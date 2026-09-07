@@ -13,8 +13,8 @@
 import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity, magnitudeColour,
   activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, gdacsPoints, resolveColour,
-  MARKER_LIFT_MAX, liftForAltitude, dotSizePx,
-} from "./event-sources.js?v=20260907-ca7dd61";
+  MARKER_LIFT_MAX, liftForAltitude, dotSizePx, isQuake, publisherOf,
+} from "./event-sources.js?v=20260907-6221447";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -484,10 +484,17 @@ async function fetchEvents() {
  * questions and are counted from different catalogues.
  */
 function reportCounts(quakes) {
-  const seismic = events.filter((e) => e.sourceId).length;
+  /**
+   * COUNTED BY CATEGORY, not by which registry an id came from. Read off
+   * `sourceId` a GDACS flood was counted as an earthquake AND left out of the
+   * natural events it is one of — so the sentence overstated the seismicity
+   * and understated the rest, with the category it belongs to missing from
+   * the tally of categories.
+   */
+  const seismic = events.filter(isQuake).length;
   const natural = events.length - seismic;
   const categories = new Set(
-    events.filter((e) => !e.sourceId).map((e) => e.categoryTitle).filter(Boolean),
+    events.filter((e) => !isQuake(e)).map((e) => e.categoryTitle).filter(Boolean),
   );
   const parts = [];
   if (natural) parts.push(`${natural} natural event(s) in ${categories.size} categories`);
@@ -1513,12 +1520,11 @@ function renderMarkers() {
 /** Who the picture on the globe came from — every feed that is on, credited. */
 /** The feeds that are ON, by name — "NASA EONET · USGS earthquakes". */
 function sourceNames() {
+  // Through `publisherOf`, so the provenance row and the card's "open the
+  // record" link name the same organisation. Written out twice they drifted:
+  // the link said USGS over a GDACS flood.
   const names = [...new Set(
-    SOURCES.filter((src) => enabled.has(src.id))
-      .map((src) => (src.kind === "eonet" ? "NASA EONET"
-        : src.kind === "gdacs" ? "GDACS (EC JRC)"
-          : src.kind === "usgs" ? "USGS earthquake catalogue"
-            : src.provider || src.label)),
+    SOURCES.filter((src) => enabled.has(src.id)).map(publisherOf),
   )];
   return names.join(" · ") || "no feed selected";
 }
@@ -2154,8 +2160,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260907-ca7dd61"),
-    import("./research/dsp.js?v=20260907-ca7dd61"),
+    import("./seismogram-plot.js?v=20260907-6221447"),
+    import("./research/dsp.js?v=20260907-6221447"),
   ]);
   if (stale()) return;
 
@@ -2225,7 +2231,10 @@ function showPopup(event, x, y) {
   // An earthquake's own numbers, which are the reason to click on one: the
   // magnitude and how deep it was. A category and a title do not separate a
   // destructive shallow M6 from a harmless M6 six hundred kilometres down.
-  const seismic = event.sourceId ? `
+  // Asked by CATEGORY: a GDACS flood has a source id and no magnitude, and
+  // read off `sourceId` these rows said "undetermined" and "not reported"
+  // about a flood, which is an earthquake's answer to an earthquake's question.
+  const seismic = isQuake(event) ? `
       <dt>Magnitude</dt><dd>${Number.isFinite(event.magnitude)
         ? `M ${event.magnitude.toFixed(1)}` : "undetermined"}</dd>
       <dt>Depth</dt><dd>${Number.isFinite(event.depthKm)
@@ -2245,7 +2254,7 @@ function showPopup(event, x, y) {
       <dt>Last report</dt><dd>${when}</dd>
       <dt>Source</dt><dd>${source ? source.licence.split(" — ")[0] : "NASA EONET"} · ${event.id}</dd>
     </dl>
-    ${event.link ? `<a href="${event.link}" target="_blank" rel="noopener">Open the ${source ? "USGS" : "EONET"} record</a>` : ""}
+    ${event.link ? `<a href="${event.link}" target="_blank" rel="noopener">Open the ${publisherOf(source, { short: true })} record</a>` : ""}
     <div class="event-popup-actions">
       <button type="button" class="button secondary" data-role="fly">Bring into view</button>
     </div>
@@ -2269,8 +2278,15 @@ function showPopup(event, x, y) {
    * It is polite about the archives all the same: one click is one trace, the
    * result is cached per event, and nothing is fetched for a card nobody
    * opened.
+   *
+   * AND ONLY AN EARTHQUAKE'S. Gated on `sourceId` this fired for the GDACS
+   * floods too, and `seismogramNear` always finds SOMETHING: measured on a
+   * flood in China, a trace from a station 687 km away, drawn with its
+   * spectrogram and annotated "P read from the trace". Nothing in that picture
+   * is about the flood, and every part of it says otherwise. A card that
+   * cannot say what a seismogram would mean does not fetch one.
    */
-  if (event.sourceId && window.GeoIDEarthData?.seismogramNear) void showTrace(event);
+  if (isQuake(event) && window.GeoIDEarthData?.seismogramNear) void showTrace(event);
 }
 
 function init() {

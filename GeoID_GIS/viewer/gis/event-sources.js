@@ -173,6 +173,50 @@ export const SOURCES = [
 
 export const sourceById = (id) => SOURCES.find((s) => s.id === id) || null;
 
+/**
+ * IS THIS AN EARTHQUAKE. Asked by everything that shows seismic furniture: the
+ * magnitude and depth rows, the count in the status line, and the seismogram.
+ *
+ * `event.sourceId` is NOT this test, and reading it as one is a fault this
+ * file has now paid for three times. It means "did not come from EONET", which
+ * was true of the seismicity and of nothing else until the GDACS flood feed
+ * arrived — and a GDACS flood has a source id. It was reported first as the
+ * floods wearing the earthquake symbol (`markerKey`), and then as a FLOOD CARD
+ * CARRYING A SEISMOGRAM: measured on "Flood in China — Orange alert", a trace
+ * from a station 687 km away, drawn under a spectrogram, annotated "P read
+ * from the trace". Ground motion that has nothing to do with the flood,
+ * presented as its record, with an arrival picked on it.
+ *
+ * The category is what the question is actually about, so the category is what
+ * is asked. `sourceId` keeps its real job: looking the FEED up for its credit,
+ * which is as true of GDACS as of the USGS.
+ */
+export const isQuake = (event) => event?.categoryId === "earthquakes";
+
+/**
+ * Who publishes a feed. ONE map, because the provenance row and the card's
+ * "open the record" link name the same organisation and drifted: the link said
+ * USGS over a GDACS flood.
+ *
+ * Two lengths of the same answer, which is a difference in what the sentence
+ * around them is doing. A provenance row is a citation and wants the catalogue
+ * named — "USGS earthquake catalogue" — while a link is read as a phrase and
+ * "Open the USGS earthquake catalogue record" is not one.
+ */
+const PUBLISHERS = {
+  eonet: { name: "NASA EONET", short: "NASA EONET" },
+  gdacs: { name: "GDACS (EC JRC)", short: "GDACS" },
+  usgs: { name: "USGS earthquake catalogue", short: "USGS" },
+};
+
+export function publisherOf(source, { short = false } = {}) {
+  const known = PUBLISHERS[source?.kind];
+  if (known) return short ? known.short : known.name;
+  // A feed with no record at all is EONET's: it is the one that stamps no
+  // source id, so a card that cannot find its feed came from there.
+  return source?.provider || source?.label || PUBLISHERS.eonet.name;
+}
+
 /** The rows in one subsection, in the order they were declared. */
 export const sourcesInGroup = (groupId) => SOURCES.filter((s) => s.group === groupId);
 

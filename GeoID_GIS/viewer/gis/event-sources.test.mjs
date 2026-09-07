@@ -12,7 +12,7 @@ import {
   SOURCES, FEED_GROUPS, sourceById, sourcesInGroup, activeGroups, groupState,
   defaultEnabled, usgsPoints, magnitudeSize, recencyOpacity,
   MAGNITUDE_RAMP, magnitudeColour, restoreSources, gdacsPoints, gdacsUrl,
-  resolveColour, liftForAltitude, dotSizePx, nearSizePx,
+  resolveColour, liftForAltitude, dotSizePx, nearSizePx, isQuake, publisherOf,
   MARKER_LIFT_MAX, MARKER_LIFT_M, DOT_CAP_FAR, DOT_CAP_NEAR,
 }  from "./event-sources.js";
 import { readFileSync } from "node:fs";
@@ -550,4 +550,76 @@ if (fail) process.exitCode = 1;
     centreFraction + radiusFraction + glow < 1, true);
   check("which the centred scale would not have given it",
     (0.5 - (ink / 2) / 2) - (diameter / 2 / 2) - glow < 0, true);
+}
+
+/* ── "should we really have a spectrogram for a flood event?" ──────────────
+   No. `event.sourceId` means "did not come from EONET", which was true of the
+   seismicity and of nothing else until GDACS arrived -- and read as "is an
+   earthquake" it put magnitude and depth rows on a flood card, counted floods
+   as earthquakes in the status line, labelled a GDACS link as the USGS
+   record, and FETCHED A SEISMOGRAM. Measured on "Flood in China -- Orange
+   alert": a trace from a station 687 km away, under a spectrogram, annotated
+   "P read from the trace". The category is what the question is about. */
+{
+  const quake = usgsPoints({ features: [{
+    id: "us7000abcd",
+    geometry: { type: "Point", coordinates: [-122.8, 38.8, 5.2] },
+    properties: { mag: 4.4, place: "Northern California", time: 1_700_000_000_000,
+      url: "https://earthquake.usgs.gov/x" },
+  }] }, { id: "quakes-day" })[0];
+  const flood = gdacsPoints({ features: [{
+    geometry: { type: "Point", coordinates: [116, 28] },
+    properties: { eventid: 1104081, name: "Flood in China", alertlevel: "Orange",
+      url: { report: "https://gdacs.org/x" } },
+  }] }, { id: "gdacs-floods" })[0];
+
+  check("both feeds stamp a source id, which is why it cannot be the test",
+    [Boolean(quake.sourceId), Boolean(flood.sourceId)], [true, true]);
+  check("an earthquake is one", isQuake(quake), true);
+  check("a GDACS flood is not, however it is filed", isQuake(flood), false);
+  check("nor is an EONET event, which carries no source id at all",
+    isQuake({ categoryId: "wildfires" }), false);
+  check("and nothing at all is not an earthquake", isQuake(null), false);
+
+  /* A flood has no magnitude, so the OLD test would have banded it as a quake
+     AND shown it seismic rows -- the same fault in two places. */
+  check("the flood the report was about carries no magnitude",
+    Number.isFinite(flood.magnitude), false);
+
+  /* One map for the publisher, because the credit row and the card's link name
+     the same organisation and drifted: the link said USGS over a GDACS flood. */
+  check("the flood's record is GDACS's", publisherOf({ kind: "gdacs" }), "GDACS (EC JRC)");
+  check("the earthquake's is the USGS's",
+    publisherOf({ kind: "usgs" }), "USGS earthquake catalogue");
+  check("and an EONET event's is NASA's", publisherOf({ kind: "eonet" }), "NASA EONET");
+  check("a card with no feed record still names somebody", publisherOf(null), "NASA EONET");
+}
+
+/* The card and the trace must ask the category, not the registry. */
+{
+  const src = readFileSync(new URL("./events.js", import.meta.url), "utf8");
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  check("the seismogram is fetched for an earthquake and nothing else",
+    /if \(isQuake\(event\) && window\.GeoIDEarthData\?\.seismogramNear\) void showTrace\(event\);/
+      .test(code), true);
+  check("the magnitude and depth rows are an earthquake's",
+    /const seismic = isQuake\(event\) \? `/.test(code), true);
+  check("the count says earthquakes and means them",
+    /const seismic = events\.filter\(isQuake\)\.length;/.test(code), true);
+  check("and the natural events include the ones with a source id",
+    /events\.filter\(\(e\) => !isQuake\(e\)\)\.map\(\(e\) => e\.categoryTitle\)/.test(code), true);
+  check("the link names the feed's own publisher, briefly",
+    /Open the \$\{publisherOf\(source, \{ short: true \}\)\} record/.test(code), true);
+  /**
+   * `sourceId` keeps its one real job — looking the FEED up for its credit,
+   * which is as true of GDACS as of the USGS — and has no other reader. Any
+   * new one is a decision about what kind of event this is, taken on a field
+   * that does not answer that.
+   */
+  const uses = code.match(/\bevent\.sourceId\b/g) || [];
+  check("sourceId is read twice, both times to find the feed record",
+    uses.length, 2);
+  check("and that is the only line it appears on",
+    /const source = event\.sourceId \? sourceById\(event\.sourceId\) : null;/.test(code),
+    true);
 }

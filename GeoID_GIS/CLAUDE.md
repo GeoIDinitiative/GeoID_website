@@ -13771,3 +13771,55 @@ sprite hidden**: 332 pixels, no colour guessing, and it is the instrument this
 file already prescribes. And hiding a CLOUD to isolate one marker hides every
 marker of that category in the window — there was another wildfire 9.4 px away,
 which is what made the first ink reading disagree with its own prediction.
+
+#### "Should we really have a spectrogram for a flood event?"
+
+No — and asking it found the same fault in four places. `event.sourceId` means
+"did not come from EONET", which was true of the seismicity and of nothing else
+until the GDACS flood feed arrived. It has now been read as "is an earthquake"
+three separate times: first in `markerKey`, where it put the floods in the
+`quake-3` band wearing the concentric rings; and then, unnoticed, everywhere
+the CARD decides what an event is.
+
+Measured on the live feed, on "Flood in China — Orange alert":
+
+| what the card said | what it is |
+| --- | --- |
+| Magnitude **undetermined**, Depth **not reported** | an earthquake's answers to an earthquake's questions |
+| **Open the USGS record** | a GDACS link |
+| **TQ.TQ05..HHZ, 687 km · 100 Hz · 302 s**, a waveform, a spectrogram, "P read from the trace" | ground motion with nothing to do with the flood |
+| status line: 221 natural events in 4 categories · **180 earthquakes** | 39 of those were GDACS floods |
+
+The seismogram is the worst of them and not by a little. `seismogramNear`
+always finds SOMETHING — that is its job — so the flood got a real trace from a
+real station at the flood's own time, drawn under a spectrogram with an arrival
+PICKED on it. Every part of that picture says it is the record of the flood.
+The count was the quietest: floods were added to the earthquakes AND left out
+of the natural events they are, so one sentence was wrong twice and its
+category tally short by one.
+
+**`isQuake(event)` is `event.categoryId === "earthquakes"`**, and it is what
+all four ask now. `sourceId` keeps its one real job — looking the FEED up for
+its credit, which is as true of GDACS as of the USGS — and the test pins that
+it has exactly two readers, both on that line.
+
+**A card that cannot say what a seismogram would MEAN does not fetch one.**
+
+`publisherOf(source)` is the other half: the link text and the provenance row
+name the same organisation and had drifted into a hard-coded `USGS : EONET`
+ternary. One map, two lengths — a citation wants the catalogue named ("USGS
+earthquake catalogue"), a link is read as a phrase and "Open the USGS
+earthquake catalogue record" is not one.
+
+After, measured: the flood card carries **0 canvases**, no magnitude or depth,
+and "Open the GDACS record"; the status reads **260 natural events in 5
+categories · 141 earthquakes** against the same 401 total, the fifth category
+being the floods that had been missing from it. And the earthquake path is
+untouched — an M4.5 off Taiwan drew both pictures from TQ.TQ05 166 km away,
+with its own S−P check reading 19.5 s → about 159 km against that 166.
+
+**The general shape, for the third time.** A field that happens to correlate
+with a category is not that category, and it will keep answering plausibly
+until a feed arrives that breaks the correlation. When one turns up, grep every
+reader of it rather than fixing the one that was reported — `markerKey` was
+fixed alone, and these four sat there for as long again.
