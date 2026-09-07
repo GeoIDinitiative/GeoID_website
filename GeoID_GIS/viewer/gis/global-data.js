@@ -26,8 +26,8 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260907-6221447";
-import { dataUrl } from "./data-base.js?v=20260907-6221447";
+import { runConnector } from "./research/connectors.js?v=20260907-590b751";
+import { dataUrl } from "./data-base.js?v=20260907-590b751";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -137,6 +137,18 @@ export const DATASETS = [
     licence: "Bird (2003), PB2002 — cite the paper; redistributed via "
       + "fraxen/tectonicplates, which states no licence of its own",
     live: true,
+    /**
+     * ON WHEN THE PAGE OPENS, at a third of full strength.
+     *
+     * Almost everything this app maps is read against the plates — the
+     * seismicity most of all, which is 63% within 100 km of a boundary — so
+     * they are the one dataset that is context for the others rather than a
+     * subject of its own. That is also why they are faint: at full strength
+     * 241 segments across the planet is a net drawn OVER the map, and the
+     * point of them is to be underneath what you are reading.
+     */
+    defaultOn: true,
+    opacity: 0.3,
   },
   {
     id: "active-faults",
@@ -591,7 +603,7 @@ const loadedLayer = (entry) => layerForDataset(entry);
  * its own place to say what is happening.
  */
 export async function addDataset(id, onStatus = () => {},
-  { bbox: bboxArg = null, ...connectorOptions } = {}) {
+  { bbox: bboxArg = null, launch = false, ...connectorOptions } = {}) {
   const entry = datasetById(id);
   if (!entry) return { ok: false, message: `No dataset called "${id}".` };
   const manager = window.GeoIDImportManager;
@@ -652,9 +664,22 @@ export async function addDataset(id, onStatus = () => {},
     // rather than being renamed a moment later in front of the user.
     await manager.importFileList(
       [new File([blob], entry.name, { type: "application/geo+json" })],
-      // `pointStyle` because the renderer cannot tell a large CATALOGUE from a
-      // point CLOUD and they want opposite treatment; only the entry knows.
-      { name: layerNameOf(entry), pointStyle: entry.pointStyle || "auto" },
+      {
+        name: layerNameOf(entry),
+        // `pointStyle` because the renderer cannot tell a large CATALOGUE from
+        // a point CLOUD and they want opposite treatment; only the entry knows.
+        pointStyle: entry.pointStyle || "auto",
+        /**
+         * A LAUNCH DEFAULT TOUCHES NEITHER THE CAMERA NOR THE SPIN.
+         *
+         * Both exist because an import is a gesture — you framed it and
+         * stopped the globe in order to look at the thing you just added. A
+         * layer that arrives because the page opened had no gesture behind it,
+         * and framing a GLOBAL one throws the opening camera out to the whole
+         * planet on every load.
+         */
+        ...(launch ? { frame: false, hold: false } : {}),
+      },
     );
     /**
      * EVERY catalogue layer states its provenance, not only the live ones.
@@ -704,6 +729,27 @@ export async function addDataset(id, onStatus = () => {},
     layer.cataloguePalette = { field: entry.colourBy, colours: entry.colours };
   }
   /**
+   * The weight a dataset opens at, where its own reading is not full strength.
+   *
+   * A layer that covers the whole globe is a BASEMAP unless you can see
+   * through it: the stress mesh fills 2,860 cells of 300 km each, and at full
+   * opacity that is an opaque sheet over the planet — reported as still being
+   * a raster basemap when it had been vectors for a day. The plate boundaries
+   * are the other shape of the same argument: they are drawn to be read
+   * AGAINST what is under them, so they are a net over the map rather than
+   * a layer covering it.
+   *
+   * Applied HERE rather than inside the symbology branch it used to live in.
+   * There it reached only entries carrying a `colourBy`, so a dataset with one
+   * flat colour — which is most lines — could not ask for a weight at all.
+   * `setOpacity` records it on the layer, so the paint that follows rebuilds
+   * every material and hands it back at the weight it was set to.
+   */
+  if (layer && Number.isFinite(entry.opacity)) {
+    window.GeoIDLayerHierarchy?.setOpacity?.(layer, entry.opacity);
+    window.GeoIDLayerHierarchy?.render?.();
+  }
+  /**
    * A dataset that names the column worth colouring by gets it on arrival.
    *
    * `defaultSymbology` guesses, which is right for a file somebody dropped and
@@ -743,14 +789,6 @@ export async function addDataset(id, onStatus = () => {},
       // and a palette assigned by frequency instead — blue for normal, orange
       // for thrust — is a map that every reader has to decode from its legend
       // when they already knew the answer.
-      // A layer that covers the whole globe is a BASEMAP unless you can see
-      // through it. The stress mesh fills 2,860 cells of 300 km each; at full
-      // opacity that is an opaque sheet over the planet, and it was reported
-      // as still being a raster basemap when it had been vectors for a day.
-      if (Number.isFinite(entry.opacity)) {
-        window.GeoIDLayerHierarchy?.setOpacity?.(layer, entry.opacity);
-        window.GeoIDLayerHierarchy?.render?.();
-      }
       paintByField(layer, entry.colourBy, entry.colours
         ? { overrides: new Map(Object.entries(entry.colours)) }
         : {});
@@ -763,9 +801,84 @@ export async function addDataset(id, onStatus = () => {},
   return { ok: true, layer, message };
 }
 
+/**
+ * WHAT IS ON THE GLOBE WHEN THE PAGE OPENS.
+ *
+ * An entry may declare `defaultOn`, which is a claim that the map is better
+ * with it than without it for somebody who has asked for nothing — the plate
+ * boundaries, because most of what this app maps is read against them.
+ *
+ * It is a DEFAULT and not an imposition, so an explicit untick is remembered
+ * and honoured. Getting a layer back the next morning after taking it off is
+ * the app overruling a decision, and this file's own `restoreSources` refuses
+ * to do that about a feed somebody unticked. Only the off is stored: a tick
+ * that was never touched has said nothing, and a list of "still on" would go
+ * stale the moment a new default is added.
+ */
+const LAUNCH_OFF_KEY = "geoid-gis:catalogue-off";
+
+function switchedOff() {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(LAUNCH_OFF_KEY) || "[]");
+    return new Set(Array.isArray(saved) ? saved : []);
+  } catch (error) {
+    // No storage, or rubbish in it: nothing has been switched off that we can
+    // prove, so the defaults stand.
+    return new Set();
+  }
+}
+
+function rememberOff(ids) {
+  try {
+    window.localStorage.setItem(LAUNCH_OFF_KEY, JSON.stringify([...ids]));
+  } catch (error) { /* no storage, the choice is still live this session */ }
+}
+
+/** Called from the catalogue row: the tick is the gesture, either way. */
+export function noteDatasetChoice(id, on) {
+  if (!datasetById(id)?.defaultOn) return;   // nothing else has a default to override
+  const off = switchedOff();
+  if (on) off.delete(id); else off.add(id);
+  rememberOff(off);
+}
+
+/** The ids to put on the globe at launch, minus anything switched off. */
+export function launchDatasets() {
+  const off = switchedOff();
+  return DATASETS.filter((entry) => entry.defaultOn && !off.has(entry.id)).map((e) => e.id);
+}
+
+/**
+ * Load them, one after another rather than at once: each is a live fetch and
+ * seconds of geometry, and the page has a basemap to draw first. Failures are
+ * swallowed on purpose — a default that cannot reach its source must not put
+ * an error in front of somebody who did not ask for it, and the row is still
+ * there to be ticked by hand.
+ */
+export async function loadLaunchDefaults() {
+  for (const id of launchDatasets()) {
+    try {
+      await addDataset(id, () => {}, { launch: true });
+      /**
+       * A LAYER CAN FAIL WITHOUT ANYTHING THROWING. `importFileList` reports a
+       * failure by setting the layer's status and a status line, not by
+       * raising — so `addDataset` answers `ok` over an import that produced no
+       * geometry, and the catch below never runs. A dead row nobody asked for
+       * is worse than an unticked box: it is taken off, and the catalogue
+       * still offers it to anybody who wants to try by hand.
+       */
+      const landed = layerForDataset(id);
+      if (landed?.status === "error") {
+        window.GeoIDImportManager?.removeLayer?.(landed.id);
+      }
+    } catch (error) { /* the catalogue row still offers it */ }
+  }
+}
+
 if (typeof window !== "undefined") {
   window.GeoIDGlobalData = {
     DATASETS, GROUPS, grouped, datasetById, addDataset,
     layerNameOf, layerForDataset, isCatalogueLayer,
+    launchDatasets, loadLaunchDefaults, noteDatasetChoice,
   };
 }

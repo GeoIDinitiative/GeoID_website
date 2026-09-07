@@ -13,6 +13,7 @@ import {
   defaultEnabled, usgsPoints, magnitudeSize, recencyOpacity,
   MAGNITUDE_RAMP, magnitudeColour, restoreSources, gdacsPoints, gdacsUrl,
   resolveColour, liftForAltitude, dotSizePx, nearSizePx, isQuake, publisherOf,
+  restoreActive,
   MARKER_LIFT_MAX, MARKER_LIFT_M, DOT_CAP_FAR, DOT_CAP_NEAR,
 }  from "./event-sources.js";
 import { readFileSync } from "node:fs";
@@ -265,9 +266,6 @@ check("half a window back is halfway", recencyOpacity(now - day / 2, now, day), 
 check("a future timestamp is clamped, not amplified",
   recencyOpacity(now + day, now, day), 1);
 check("no timestamp gets a sensible middle", recencyOpacity(null, now, day), 0.82);
-
-console.log(`\n${pass} passed, ${fail} failed`);
-if (fail) process.exitCode = 1;
 
 /* ── GDACS floods ────────────────────────────────────────────────────────── */
 
@@ -623,3 +621,93 @@ if (fail) process.exitCode = 1;
     /const source = event\.sourceId \? sourceById\(event\.sourceId\) : null;/.test(code),
     true);
 }
+
+/* ── the feed is on when the page opens ────────────────────────────────────
+   A default is the state somebody gets before they have chosen anything, and
+   it is not a state to keep re-imposing. Only an explicit off is remembered as
+   off; anything else -- nothing stored, storage that refuses to be read, a
+   value from some future version -- opens armed. */
+{
+  check("nothing stored opens armed", restoreActive(null), true);
+  check("and so does storage that gave us nothing", restoreActive(undefined), true);
+  check("an explicit off is honoured", restoreActive("0"), false);
+  check("however it was spelled", restoreActive("false"), false);
+  check("an explicit on is honoured", restoreActive("1"), true);
+  /* The failure that matters is the wrong DIRECTION: a value nobody wrote must
+     not read as "switched off", or one stray key turns the feature off for a
+     visitor who never touched it. */
+  check("and anything unrecognised opens armed rather than off",
+    restoreActive("yes-please"), true);
+}
+
+/* The launch arm takes the feed and none of the furniture. Each of these is a
+   decision about the opening state of the whole page that nobody made by
+   loading it, and each is argued at the branch that skips it. */
+{
+  const src = readFileSync(new URL("./events.js", import.meta.url), "utf8");
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  check("a launch does not unfold the sidebar section",
+    /if \(active && row && !launch\) row\.open = true;/.test(code), true);
+  check("nor open the corner drop-down",
+    /if \(active && panel && !launch\) \{/.test(code), true);
+  check("nor stop the globe", /if \(!launch\) \{\s*window\.GeoIDModeManager\?\.setSpin/.test(code), true);
+  check("it waits for the viewer rather than assuming one",
+    /if \(!window\.GeoIDViewer\) \{/.test(code) && /armTries >= 40/.test(code), true);
+  check("and only arms over a globe",
+    /if \(mode && mode !== "gis"\) return;/.test(code), true);
+  /* Leaving GIS is the app moving, not a choice about the feed: stored, it
+     would switch the feed off for good the first time somebody opened the
+     Model page. */
+  check("leaving GIS is not remembered as switching it off",
+    /setActive\(false, \{ remember: false \}\);/.test(code), true);
+  check("and coming back brings it with you",
+    /if \(event\.detail\?\.mode === "gis" && !active\) armOnLaunch\(\);/.test(code), true);
+  check("the launch arm itself is not remembered as a choice either",
+    /setActive\(true, \{ remember: false, launch: true \}\);/.test(code), true);
+  /* The gestures ARE remembered, and they go through the same default. */
+  check("a gesture is remembered", /if \(remember\) rememberActive\(active\);/.test(code), true);
+}
+
+/**
+ * THE VERDICT, AT THE END OF THE FILE.
+ *
+ * It used to sit a third of the way down, straight after the recency checks —
+ * so the ninety checks below it RAN, printed, counted into `fail`, and were
+ * never looked at again: the exit code had already been decided. Measured by
+ * appending a deliberately failing check to the last line, the file exited 0
+ * and the suite reported it green.
+ *
+ * The same shape as this repo's own note about `geoprocessing.test.mjs`, whose
+ * summary calls `process.exit` and silently skips anything appended after it.
+ * Either way the rule is the same: A TEST FILE'S VERDICT IS ITS LAST
+ * STATEMENT. Anything after it is decoration.
+ */
+
+/* ── the selection ring follows the ground, like every other marker ────────
+   The halo is its own object in the spin frame rather than a member of
+   `markers`, so the relief watcher's traversal never reached it: it kept the
+   position it was built with while the exaggeration TAPERED on the way in and
+   the ground came down without it. Measured at 3 km altitude, the halo sat at
+   radius 3.26561 against its own marker at 3.20003 -- 65 km above it, long out
+   of frame -- which is the reported "drops from view at a certain altitude". */
+{
+  const src = readFileSync(new URL("./events.js", import.meta.url), "utf8");
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  check("the halo records the PLACE it is on, not just a position",
+    /halo\.userData\.place = \{ lat: event\.lat, lon: event\.lon \};/.test(code), true);
+  check("and the relief watcher puts it back on it",
+    /if \(halo\?\.userData\?\.place\)/.test(code)
+    && /markerPoint\(viewer, halo\.userData\.place\.lat, halo\.userData\.place\.lon\)/.test(code),
+    true);
+  /* Into the TRUTH, like the clouds: the geometry holds the truth minus
+     whatever is round the back, and the cull rewrites it next frame. */
+  check("written into the truth rather than the geometry",
+    /truth\[0\] = v\.x; truth\[1\] = v\.y; truth\[2\] = v\.z;/.test(code), true);
+  /* Both are sampled through the SAME call, so the ring cannot land anywhere
+     its own dot did not. */
+  const calls = (code.match(/markerPoint\(viewer, /g) || []).length;
+  check("the ring and the dots are placed by one function", calls >= 2, true);
+}
+
+console.log(`\n${pass} passed, ${fail} failed`);
+if (fail) process.exitCode = 1;

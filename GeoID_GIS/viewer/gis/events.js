@@ -13,8 +13,8 @@
 import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity, magnitudeColour,
   activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, gdacsPoints, resolveColour,
-  MARKER_LIFT_MAX, liftForAltitude, dotSizePx, isQuake, publisherOf,
-} from "./event-sources.js?v=20260907-6221447";
+  MARKER_LIFT_MAX, liftForAltitude, dotSizePx, isQuake, publisherOf, restoreActive,
+} from "./event-sources.js?v=20260907-590b751";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -164,6 +164,27 @@ function watchRelief() {
         truth[i * 3] = v.x; truth[i * 3 + 1] = v.y; truth[i * 3 + 2] = v.z;
       });
     });
+    /**
+     * AND THE SELECTION RING, which is not one of them.
+     *
+     * The halo is its own object in the spin frame rather than a member of
+     * `markers`, so this traversal never reached it and its position was the
+     * one it was built with — the whole reason the clouds are re-sampled,
+     * missed for the one marker somebody is actually looking at.
+     *
+     * It shows as the ring leaving the view on the way in, because the
+     * exaggeration TAPERS as the camera lands: the ground and its dot come
+     * down, the ring stays at the radius it was selected at. Measured at 3 km
+     * altitude, the halo sat at 3.26561 against its own marker at 3.20003 —
+     * **65 km above it**, long out of frame, while the dot sat on the ground
+     * in front of you. Reported as the halo dropping from view at a certain
+     * altitude, which is exactly what it does.
+     */
+    if (halo?.userData?.place) {
+      const truth = halo.userData.truePositions;
+      const v = markerPoint(viewer, halo.userData.place.lat, halo.userData.place.lon);
+      truth[0] = v.x; truth[1] = v.y; truth[2] = v.z;
+    }
   }, 400);
 }
 
@@ -271,6 +292,31 @@ function rememberSources() {
   try {
     window.localStorage.setItem(STORE_KEY, JSON.stringify([...enabled]));
   } catch (error) { /* no storage, the choice is still live this session */ }
+}
+
+/**
+ * Whether the mode itself is on, remembered apart from WHICH feeds are on.
+ * They are different questions: somebody who wants only the earthquakes still
+ * wants the mode, and somebody who has switched the whole thing off has not
+ * said anything about their feed selection.
+ */
+const ACTIVE_KEY = "geoid-gis:events-active";
+
+function rememberActive(on) {
+  try {
+    window.localStorage.setItem(ACTIVE_KEY, on ? "1" : "0");
+  } catch (error) { /* no storage, the choice is still live this session */ }
+}
+
+/** The stored choice, or the default, which is ON. */
+function wantedActive() {
+  try {
+    return restoreActive(window.localStorage.getItem(ACTIVE_KEY));
+  } catch (error) {
+    // A private window refuses to be read as readily as written. No choice can
+    // have been stored, so this is the no-choice case: the default stands.
+    return restoreActive(null);
+  }
 }
 
 /**
@@ -1617,8 +1663,20 @@ function publishLayer() {
   window.GeoIDLayerHierarchy?.render?.();
 }
 
-async function setActive(on) {
+/**
+ * @param on        whether the feed is running
+ * @param remember  whether this is a CHOICE worth carrying to the next launch.
+ *                  True for every gesture — the tick box, ticking a feed,
+ *                  removing the layer — and false for the app's own moves:
+ *                  leaving GIS puts the feed away because there is no globe to
+ *                  pin events to, and persisting that would turn the feed off
+ *                  for good the first time somebody opened the Model page.
+ * @param launch    whether this is the automatic arming at boot, which takes
+ *                  the feed and none of the furniture. See `armOnLaunch`.
+ */
+async function setActive(on, { remember = true, launch = false } = {}) {
   active = Boolean(on);
+  if (remember) rememberActive(active);
   document.body.dataset.events = active ? "true" : "false";
   const row = byId("gis-group-events");
   if (row) row.classList.toggle("is-armed", active);
@@ -1631,7 +1689,12 @@ async function setActive(on) {
   // front of you instead of behind a fold. Leaving does NOT close it: putting
   // the controls away the moment somebody switches the view off is the app
   // deciding they are finished with them.
-  if (active && row) row.open = true;
+  //
+  // A LAUNCH IS NOT AN ENTERING. Unfolding a sidebar section nobody opened is
+  // the app deciding what you came to read, and the reasoning above only holds
+  // for a gesture: "the feeds that were JUST SWITCHED ON" is a sentence about
+  // somebody having switched them on.
+  if (active && row && !launch) row.open = true;
   const host = byId("events-overlay");
   const panel = byId("events-panel");
   const toggle = byId("events-panel-toggle");
@@ -1639,7 +1702,13 @@ async function setActive(on) {
     host.hidden = !active;
     // Entering the mode is a request to see the feed, so it opens on the list
     // rather than on a closed tab that has to be found and clicked.
-    if (active && panel) {
+    //
+    // NOT ON A LAUNCH. The corner holds one drop-down slot shared with the
+    // legend, and the legend opens ITSELF when the basemap arrives — so an
+    // events panel opened at boot is a race for that slot decided by whichever
+    // fetch landed first. The button is there, the markers are on the globe;
+    // that is the feed being on, and which panel is open is the reader's.
+    if (active && panel && !launch) {
       panel.hidden = false;
       toggle?.setAttribute("aria-expanded", "true");
     }
@@ -1654,7 +1723,14 @@ async function setActive(on) {
   // turning planet makes needlessly hard. The spin stops while the mode is on
   // and is left off afterwards rather than forced back -- Space is the control
   // for it, and it should not be overridden behind the user.
-  window.GeoIDModeManager?.setSpin?.(!active && window.GeoIDModeManager?.isSpinning?.());
+  //
+  // AND A LAUNCH LEAVES THE GLOBE ALONE. Stopping the spin is the right answer
+  // to somebody arming the mode to go and look at something; as the opening
+  // state of the app it is a decision about the whole page that nobody made
+  // here, and it would arrive looking like a globe that had failed to start.
+  if (!launch) {
+    window.GeoIDModeManager?.setSpin?.(!active && window.GeoIDModeManager?.isSpinning?.());
+  }
 
   window.clearInterval(timer);
   timer = null;
@@ -1900,6 +1976,9 @@ function setSelection(event) {
   }));
   halo.name = "eonet-selection";
   halo.userData.foot = foot;
+  // Where it is, so the relief watcher can put it back there. A position is
+  // not enough: the ground moves under it, and only the coordinate is stable.
+  halo.userData.place = { lat: event.lat, lon: event.lon };
   halo.renderOrder = 231;
   halo.userData.truePositions = Float32Array.from([position.x, position.y, position.z]);
   halo.frustumCulled = false;
@@ -2160,8 +2239,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260907-6221447"),
-    import("./research/dsp.js?v=20260907-6221447"),
+    import("./seismogram-plot.js?v=20260907-590b751"),
+    import("./research/dsp.js?v=20260907-590b751"),
   ]);
   if (stale()) return;
 
@@ -2329,10 +2408,50 @@ function init() {
   if (overlay && overlay.parentElement !== document.body) {
     document.body.appendChild(overlay);
   }
-  // Leaving GIS puts the feed away: there is no globe to pin events to.
+  // Leaving GIS puts the feed away: there is no globe to pin events to. NOT
+  // remembered -- that is the app moving, not a choice about the feed, and
+  // storing it would switch the feed off for good the first time somebody
+  // opened the Model page.
   window.addEventListener("geoid-gis:mode-change", (event) => {
-    if (event.detail?.mode !== "gis" && active) setActive(false);
+    if (event.detail?.mode !== "gis" && active) {
+      setActive(false, { remember: false });
+      return;
+    }
+    // And coming back to the globe brings it with you, on the same terms.
+    if (event.detail?.mode === "gis" && !active) armOnLaunch();
   });
+  armOnLaunch();
+}
+
+/**
+ * THE FEED IS ON WHEN THE PAGE OPENS.
+ *
+ * It takes the feed and none of the furniture — no unfolded sidebar section,
+ * no open drop-down, no stopped globe — each of which is argued at the branch
+ * that skips it. Those belong to somebody arming the mode to go and look at
+ * something; at boot they are the app deciding what you came for.
+ *
+ * It waits for the viewer rather than assuming one: the markers hang off the
+ * globe's own spin frame, so armed too early the fetch lands with nowhere to
+ * draw. Bounded, and it gives up quietly — a page with no viewer after twelve
+ * seconds has a bigger problem than the feed, and a poll that runs for the
+ * life of the tab to arm something is worse than an unarmed feature.
+ */
+let armTries = 0;
+function armOnLaunch() {
+  if (active || !wantedActive()) return;
+  // Only over a globe. The page restores whatever mode it was left in, and
+  // arming a globe overlay while the Model studio is up puts markers on
+  // nothing and fetches sixteen feeds for a page that cannot show them.
+  const mode = window.GeoIDModeManager?.getMode?.();
+  if (mode && mode !== "gis") return;
+  if (!window.GeoIDViewer) {
+    if (armTries >= 40) return;
+    armTries += 1;
+    window.setTimeout(armOnLaunch, 300);
+    return;
+  }
+  void setActive(true, { remember: false, launch: true });
 }
 
 if (document.readyState === "loading") {

@@ -19,7 +19,8 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { GROUPS, HOMES, DATASETS, grouped } from "./global-data.js";
+import { GROUPS, HOMES, DATASETS, grouped, launchDatasets, noteDatasetChoice }
+  from "./global-data.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -113,6 +114,98 @@ check("every dataset's group is one the catalogue lists",
 check("and every listed group still has something in it",
   grouped().length === GROUPS.length,
   grouped().map((g) => `${g.group}:${g.entries.length}`).join(" "));
+
+/* ── what is on the globe when the page opens ─────────────────────────────
+   A `defaultOn` entry is a claim that the map is better with it than without
+   it for somebody who has asked for nothing. It must stay a DEFAULT: getting
+   a layer back the morning after taking it off is the app overruling a
+   decision, which is what `restoreSources` already refuses to do about a feed
+   somebody unticked. */
+{
+  const defaults = DATASETS.filter((d) => d.defaultOn);
+  check("the plate boundaries are on at launch",
+    defaults.some((d) => d.id === "plate-boundaries"),
+    defaults.map((d) => d.id).join(", ") || "none");
+  /* Faint on purpose: 241 segments across the planet at full strength is a net
+     drawn OVER the map, and the point of them is to be underneath what you are
+     reading. */
+  const plates = DATASETS.find((d) => d.id === "plate-boundaries");
+  check("at 30%", plates.opacity === 0.3, String(plates.opacity));
+  check("and every launch default declares the weight it opens at",
+    defaults.every((d) => Number.isFinite(d.opacity)),
+    defaults.filter((d) => !Number.isFinite(d.opacity)).map((d) => d.id).join(", ") || "all do");
+  /* A launch default is a live fetch and seconds of geometry on every load, so
+     it is a decision rather than something to accumulate. */
+  check("and there are few enough of them to be a decision",
+    defaults.length <= 3, `${defaults.length}`);
+
+  /* The memory, driven through the exported seam rather than by writing the
+     key: a stub localStorage is all it needs. */
+  const store = new Map();
+  globalThis.window = { localStorage: {
+    getItem: (k) => (store.has(k) ? store.get(k) : null),
+    setItem: (k, v) => store.set(k, v),
+  } };
+  check("with nothing stored, the default is on",
+    launchDatasets().includes("plate-boundaries"));
+  noteDatasetChoice("plate-boundaries", false);
+  check("unticking it is remembered", !launchDatasets().includes("plate-boundaries"),
+    store.get("geoid-gis:catalogue-off") || "");
+  noteDatasetChoice("plate-boundaries", true);
+  check("and ticking it again puts it back", launchDatasets().includes("plate-boundaries"));
+  /* Only a launch default has anything to override, so nothing else is stored
+     — a list of every tick anybody ever made is a different feature. */
+  noteDatasetChoice("coastline", false);
+  check("an ordinary dataset writes nothing",
+    !(store.get("geoid-gis:catalogue-off") || "").includes("coastline"),
+    store.get("geoid-gis:catalogue-off") || "");
+
+  /* Storage that throws is a private window, and it must not take the layer
+     down with it. */
+  globalThis.window = { localStorage: {
+    getItem() { throw new Error("denied"); }, setItem() { throw new Error("denied"); },
+  } };
+  check("a refused storage still opens with the default",
+    launchDatasets().includes("plate-boundaries"));
+  let threw = false;
+  try { noteDatasetChoice("plate-boundaries", false); } catch (e) { threw = true; }
+  check("and recording a choice into it does not throw", !threw);
+  delete globalThis.window;
+}
+
+/* ── the launch loader waits for what the IMPORTER needs ──────────────────
+   `importFileList` marks a layer `error` and RETURNS when there is no viewer
+   scene to hang its group off -- it does not throw, so addDataset answers ok
+   over an import that produced nothing. Measured at launch before this: the
+   plate boundaries registered, took their 30%, and carried no geometry, while
+   the identical call by hand a minute later loaded all 241 segments. */
+{
+  const panels = readFileSync(join(HERE, "catalogue-panels.js"), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  check("it waits for the viewer's scene, not only the import manager",
+    /!window\.GeoIDImportManager\?\.importFileList \|\| !window\.GeoIDViewer\?\.scene/.test(panels));
+  check("and the retry is bounded", /tries >= 40/.test(panels));
+
+  const data = readFileSync(join(HERE, "global-data.js"), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  check("a default that lands in error is taken off rather than left as a dead row",
+    /landed\?\.status === "error"/.test(data) && /removeLayer\?\.\(landed\.id\)/.test(data));
+  check("and the weight is applied to any entry, not only one with a colourBy",
+    /if \(layer && Number\.isFinite\(entry\.opacity\)\)/.test(data));
+
+  /* A launch default had no gesture behind it, so it takes neither the camera
+     nor the spin. Both exist because an import IS a gesture -- you framed it
+     and stopped the globe in order to look at what you just added. Measured
+     before this: the plates landed and isSpinPaused came back true on a page
+     nobody had touched, and framing a global layer throws the opening camera
+     out to the whole planet on every load. */
+  check("a launch default does not frame the camera or stop the globe",
+    /\.\.\.\(launch \? \{ frame: false, hold: false \} : \{\}\)/.test(data));
+  check("and the loader asks for that", /addDataset\(id, \(\) => \{\}, \{ launch: true \}\)/.test(data));
+  const importer = readFileSync(join(HERE, "import-manager.js"), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  check("which the importer honours", /if \(options\.hold !== false\) holdTheGlobe\(\);/.test(importer));
+}
 
 console.log(failures ? `\n${failures} failed` : "\nall passed");
 process.exit(failures ? 1 : 0);

@@ -13823,3 +13823,92 @@ with a category is not that category, and it will keep answering plausibly
 until a feed arrives that breaks the correlation. When one turns up, grep every
 reader of it rather than fixing the one that was reported — `markerKey` was
 fixed alone, and these four sat there for as long again.
+
+#### What the page opens with, and the ring that stayed behind
+
+**"Ensure that the live events are active by default."** `armOnLaunch` in
+events.js. It takes the feed and NONE OF THE FURNITURE, and each omission is
+argued at the branch that skips it: no unfolded sidebar section, no open
+drop-down, no stopped globe. Every one of those is right for somebody arming
+the mode to go and look at something — "the feeds that were JUST SWITCHED ON"
+is a sentence about a gesture — and at boot they are the app deciding what you
+came for. It waits for `window.GeoIDViewer` (the markers hang off the globe's
+spin frame) with a bounded retry, and only arms over a globe: the page restores
+whatever mode it was left in, and arming a globe overlay while the Model studio
+is up fetches sixteen feeds for a page that cannot show them.
+
+**A default is not an imposition.** `restoreActive` remembers an explicit OFF
+and nothing else, so switching the feed off and finding it back the next
+morning cannot happen — the rule `restoreSources` already applies to a feed
+somebody unticked. Leaving GIS is NOT a choice about the feed and is not
+stored: persisted, it would switch the feed off for good the first time
+somebody opened the Model page.
+
+**"Plate boundaries also active upon launch at 30% opacity."** `defaultOn` and
+`opacity` on the catalogue entry, loaded by `loadLaunchDefaults`. They are the
+one dataset that is context for the others rather than a subject — 63% of the
+seismicity is within 100 km of a boundary — which is also why they are faint:
+241 segments at full strength is a net drawn OVER the map, and the point of
+them is to be underneath what you are reading. An explicit untick is
+remembered, keyed off the shared catalogue ROW builder so every host records it.
+
+Three faults in getting that on screen, and the first two are the same shape as
+the events arm:
+
+- **`importFileList` fails WITHOUT THROWING.** With no `viewer.scene`,
+  `ensureGroups` returns null, the layer is marked `error` with "Viewer is not
+  ready yet." and the function RETURNS — so `addDataset` answered `ok: true`
+  over an import that produced nothing, and `loadLaunchDefaults`' try/catch
+  never saw it. Measured at launch: the plates registered, took their 30%, and
+  carried no geometry, while the identical call by hand a minute later loaded
+  all 241 segments. Gate on what the importer itself requires, and take a layer
+  that lands in `error` back off rather than leaving a dead row nobody asked
+  for.
+- **`holdTheGlobe` stopped the planet at boot.** "You add a shapefile in order
+  to LOOK at it" is the whole argument for it and it is a sentence about a
+  gesture. Measured: `isSpinPaused` true on a page nobody had touched. A launch
+  default passes `hold: false`, beside the `frame: false` that stops a GLOBAL
+  layer throwing the opening camera out to the whole planet on every load.
+- **`entry.opacity` only fired inside the `colourBy` branch**, so a dataset
+  with one flat colour — which is most lines — could not ask for a weight at
+  all. Hoisted.
+
+**"Ensure the event selection halo scales all the way with zoom. Currently it
+drops from view at a certain altitude."** The halo is its own object in the
+spin frame rather than a member of `markers`, so `watchRelief`'s traversal
+never reached it and it kept the position it was BUILT with — the very fault
+that traversal exists to prevent, missed for the one marker somebody is
+actually looking at.
+
+It shows on the way in because the exaggeration TAPERS as the camera lands: the
+ground and its dot come down, the ring stays at the radius it was selected at.
+Measured at 3 km altitude, the halo sat at 3.26561 against its own marker at
+**3.20003 — 65 km above it**, long out of frame, while the dot sat on the
+ground in front of you. After: **30 m above the ground at every exaggeration**
+across a swing from 3.212 to 3.379, which is 334 km of ground movement.
+
+The SIZE was never the fault — it tracks the dot by construction at three times
+its width, 30.6 px at 6,632 km up to the 102 it shares the dot's cap with.
+
+**Four wrong instruments in one hunt, and they cost most of it.** Driving this
+by camera is what went wrong every time: `camera.position` written by hand is
+undone by the render loop, which eases toward `zoomTargetSurfaceDistance`, so
+the altitude never moved and three readings were taken at the view I started
+from. Then with the spin running — which the launch change had just stopped
+pausing — the globe turned 3°/s under a thirty-second descent and put the
+marker 59° off axis, so both the halo AND its dot were correctly culled and it
+read as a halo bug. **Move the ground, not the camera:** the exaggeration
+slider does exactly what the taper does, in one tick, with nothing else
+changing. And the point-size ceiling was ruled out by measuring rather than
+assuming — this driver CLAMPS at 255 (12,410 px at 256, 300 and 400 alike)
+rather than dropping the sprite, so that documented trap was not this one.
+
+**And a hole in the net, found while adding to it.** `event-sources.test.mjs`
+printed its summary and set `process.exitCode` a THIRD of the way down the
+file. The ninety checks below it ran, printed, and counted into `fail` — and
+were never looked at, because the exit code had already been decided. Proved by
+appending a deliberately failing check to the last line: the file exited 0 and
+the suite reported it green. Moved to the end. **A TEST FILE'S VERDICT IS ITS
+LAST STATEMENT**; anything after it is decoration. Same family as this file's
+note about `geoprocessing.test.mjs`, whose summary calls `process.exit` and
+silently skips whatever follows — checked, and no other test file has it.

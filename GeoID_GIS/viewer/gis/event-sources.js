@@ -285,6 +285,23 @@ export function restoreSources(saved) {
 }
 
 /**
+ * WHETHER THE FEED IS ON WHEN THE PAGE OPENS. On, unless it was switched off.
+ *
+ * A default is the state somebody gets before they have chosen anything, and
+ * it is not a state to keep re-imposing: switching the feed off and finding it
+ * back on the next morning is the app overruling a decision, which is exactly
+ * what `restoreSources` refuses to do about a feed somebody unticked. So ONLY
+ * an explicit off is remembered as off — anything else, including nothing
+ * stored and a value from some future version, opens armed.
+ *
+ * Storage that throws (a private window) reads as no choice, so the default
+ * stands rather than the feature failing shut.
+ */
+export function restoreActive(saved) {
+  return saved !== "0" && saved !== "false";
+}
+
+/**
  * A USGS summary feed to the marker shape the mode draws.
  *
  * Three things this has to get right, none of them visible afterwards:

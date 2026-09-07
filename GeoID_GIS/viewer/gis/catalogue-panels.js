@@ -28,10 +28,10 @@
  */
 
 import {
-  HOMES, grouped, addDataset, layerForDataset,
-} from "./global-data.js?v=20260907-6221447";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260907-6221447";
-import { mathsFor } from "./equations.js?v=20260907-6221447";
+  HOMES, grouped, addDataset, layerForDataset, loadLaunchDefaults,
+} from "./global-data.js?v=20260907-590b751";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260907-590b751";
+import { mathsFor } from "./equations.js?v=20260907-590b751";
 
 const byId = (id) => document.getElementById(id);
 
@@ -444,6 +444,39 @@ function init() {
   window.addEventListener("geoid-gis:layers-changed", (event) => {
     if (event.detail?.reason === "symbology") drawVolcanoTypes();
   });
+  /**
+   * The catalogue's own launch defaults, once the importer exists to take them.
+   *
+   * Here rather than in `global-data.js` because this is the module that knows
+   * the page HAS catalogues: a planet shell returns above without drawing a
+   * list, and it should not be fetching Earth's plate boundaries either.
+   *
+   * IT WAITS FOR THE VIEWER'S SCENE, not merely for the import manager.
+   *
+   * `ensureGroups` needs `viewer.scene` to hang the layer's group off, and
+   * without one `importFileList` marks the layer `error` with "Viewer is not
+   * ready yet." and RETURNS — it does not throw, so `addDataset` reported
+   * `ok: true` over a layer that had failed, and `loadLaunchDefaults`'
+   * try/catch never saw a thing. Measured at launch: the plate boundaries
+   * registered, took their 30%, and carried no geometry at all; the identical
+   * call by hand a minute later loaded all 241 segments. Gate on what the
+   * importer itself requires.
+   *
+   * Bounded retry, and it gives up quietly. A page still without a viewer
+   * after twelve seconds has a larger problem than a default layer, and a poll
+   * that runs for the life of the tab is worse than an unticked box.
+   */
+  let tries = 0;
+  const arm = () => {
+    if (!window.GeoIDImportManager?.importFileList || !window.GeoIDViewer?.scene) {
+      if (tries >= 40) return;
+      tries += 1;
+      window.setTimeout(arm, 300);
+      return;
+    }
+    void loadLaunchDefaults();
+  };
+  arm();
 }
 
 if (typeof document !== "undefined") {

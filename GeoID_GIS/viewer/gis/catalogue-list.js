@@ -18,7 +18,7 @@
  * in extraction and in export without this file knowing anything about them.
  */
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260907-6221447";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260907-590b751";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -512,6 +512,14 @@ export function renderCatalogue(host, entries, hooks) {
         hooks.remove(entry.id);
         renderCatalogue(host, entries, hooks);
       }
+      /**
+       * The tick is the gesture, so it is where a launch default is overruled.
+       *
+       * Here rather than in either hook because this row builder is shared by
+       * every catalogue host — the hooks are per-panel, and a memory written
+       * in one of them would forget whatever the others did.
+       */
+      window.GeoIDGlobalData?.noteDatasetChoice?.(entry.id, tick.checked);
     });
 
     const name = document.createElement("label");

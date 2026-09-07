@@ -1,18 +1,18 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260907-6221447";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260907-6221447";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260907-6221447";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260907-6221447";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260907-590b751";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260907-590b751";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260907-590b751";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260907-590b751";
 import {
   buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude, setSealWidthFromAltitude,
   getRenderRelief,
   setMarkerSizeFromAltitude,
-} from "./vector-render.js?v=20260907-6221447";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260907-6221447";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260907-6221447";
-import { loadMshFile } from "./msh-adapter.js?v=20260907-6221447";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260907-6221447";
-import { defaultOpacityFor } from "./layer-opacity.js?v=20260907-6221447";
+} from "./vector-render.js?v=20260907-590b751";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260907-590b751";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260907-590b751";
+import { loadMshFile } from "./msh-adapter.js?v=20260907-590b751";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260907-590b751";
+import { defaultOpacityFor } from "./layer-opacity.js?v=20260907-590b751";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -717,7 +717,17 @@ async function importDataset(primaryFile, sidecars, options = {}) {
      * unstable, jumps back zoom views".
      */
     if (options.frame !== false) frameResult(layer);
-    holdTheGlobe();
+    /**
+     * ...AND THE SAME EXCEPTION FOR THE SPIN, for the same reason.
+     *
+     * "You add a shapefile in order to LOOK at it" is the whole argument for
+     * stopping the globe, and it is a sentence about somebody adding one. A
+     * layer that arrives because the page opened had no such gesture behind
+     * it, so stopping the planet for it hands the reader a globe that appears
+     * to have failed to start. Measured at launch: the plate boundaries landed
+     * and `isSpinPaused` came back true on a page nobody had touched.
+     */
+    if (options.hold !== false) holdTheGlobe();
     setStatus(`Loaded ${primaryFile.name}.`);
     // An import belongs to whatever project is open, so the Research page's
     // repository and the Qt app both see it. Silent when none is open, and
