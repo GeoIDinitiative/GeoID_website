@@ -297,6 +297,64 @@ export function restoreSources(saved) {
  * Storage that throws (a private window) reads as no choice, so the default
  * stands rather than the feature failing shut.
  */
+/**
+ * HOW BIG A STORM IS, on the scale that is published for it.
+ *
+ * EONET gives every severe-storm event a wind speed in KNOTS — measured on
+ * the live feed, 30 to 110 across six storms, every one of them carrying a
+ * value — and knots are what the Saffir–Simpson scale is defined in. So the
+ * bands here are that scale rather than a ramp somebody chose: a Category 3
+ * is a category 3 because 96 knots is where that category starts.
+ *
+ * 0 is everything below hurricane strength — a tropical depression and a
+ * tropical storm — which is a real distinction the scale itself does not
+ * make, and not one a marker's SIZE can carry honestly.
+ */
+export function stormCategory(kts) {
+  if (!Number.isFinite(kts)) return null;
+  if (kts >= 137) return 5;
+  if (kts >= 113) return 4;
+  if (kts >= 96) return 3;
+  if (kts >= 83) return 2;
+  if (kts >= 64) return 1;
+  return 0;
+}
+
+/** What that category is called, for the card and the tooltip. */
+export function stormLabel(category, kts) {
+  if (category === null) return "Severe storm";
+  const speed = Number.isFinite(kts) ? ` — ${Math.round(kts)} kts` : "";
+  if (category === 0) return `Tropical storm${speed}`;
+  return `Category ${category} hurricane${speed}`;
+}
+
+/**
+ * The marker's size, as a multiple of the dot every other category is drawn
+ * at. Reported as "far too small to be seen", and the cyclone is why: it is a
+ * SPIRAL, so it needs area the way a filled dot does not — a dot reads at five
+ * pixels and this reads at nothing like it.
+ *
+ * Linear in the category rather than in the wind, because the categories are
+ * what the scale means and a linear ramp in knots would put a Category 1 and a
+ * Category 5 a factor of two apart when the difference between them is the
+ * whole point of the scale.
+ */
+export const STORM_BASE_SCALE = 3;
+export const STORM_CATEGORY_STEP = 0.75;
+export function stormScale(category) {
+  const band = Number.isFinite(category) ? Math.max(0, Math.min(5, category)) : 0;
+  return STORM_BASE_SCALE + band * STORM_CATEGORY_STEP;
+}
+
+/**
+ * And the base it multiplies is capped, exactly as the earthquakes' is: the
+ * multiplier is what should decide how big a storm looks, so letting the
+ * ZOOM's own growth through as well would put a close-range Category 5 at
+ * two hundred pixels — past the point where a driver will draw the sprite at
+ * all, on the hardware this file already records clamping at 255.
+ */
+export const STORM_BASE_CAP = 16;
+
 export function restoreActive(saved) {
   return saved !== "0" && saved !== "false";
 }

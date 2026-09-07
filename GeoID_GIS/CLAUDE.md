@@ -13912,3 +13912,77 @@ the suite reported it green. Moved to the end. **A TEST FILE'S VERDICT IS ITS
 LAST STATEMENT**; anything after it is decoration. Same family as this file's
 note about `geoprocessing.test.mjs`, whose summary calls `process.exit` and
 silently skips whatever follows — checked, and no other test file has it.
+
+#### The cyclone, and how big a storm is drawn
+
+**The tropical storms wear `assets/cyclone_icon.png`, in white.** Every other
+category here is a font character, which is right when a shape that means the
+category already exists in a typeface. A cyclone does not: the one Unicode has
+is U+1F300, which browsers render as a COLOUR emoji, so it would ignore the
+tint every other marker takes and read as a sticker dropped on the map.
+
+The file is already exactly what this needs — measured before using it, an
+opaque WHITE silhouette on transparency with the eye punched out of the alpha —
+so nothing recolours it: white is what the marker material tints, and the alpha
+is what a legend row masks with. Resolved against `import.meta.url`, because
+the viewer is two directories below the site root and a document-relative path
+lands inside `GeoID_GIS/viewer/` and 404s; `crossOrigin` because the ink fit
+READS the canvas back, and a tainted canvas throws on `getImageData`.
+
+**A file arrives LATE, and a character stands in until it does.** An empty
+sprite and a category that failed to load look identical, and one of them is a
+bug. The texture is rebuilt in place when the image lands — same canvas, same
+texture, `needsUpdate` — because otherwise every marker keeps whichever symbol
+happened to be available in the frame it was created in. A file that never
+arrives is not polled for; the character is a legible symbol, and a feed
+retrying an asset it cannot have is worse than either.
+
+**The list masks with the same file.** A legend that disagrees with the markers
+is the fault this feed has already been reported for, so the mark reaches the
+rows from the SAME source — as a `mask` with `background: currentColor`, so it
+takes the row's colour exactly as a character does.
+
+**How to prove a texture is the icon and not the stand-in.** Ink coverage does
+not separate them (0.64 against a dot's 0.78 says little). Symmetry does: the
+cyclone is an S, so it is symmetric under 180° and NOT under 90°. Measured on
+the built textures — storms **0.98 under 180°, 0.64 under 90°**; the wildfire
+dot 0.95 and 0.97, as a circle must be.
+
+**"The storm icons should be larger for hurricanes (dynamically size icons
+relative to magnitude of storm) — currently these icons are far too small to be
+seen."** Two things, and the second is why the first was needed.
+
+EONET publishes a magnitude per geometry and `latestPoint` was DROPPING it —
+for a severe storm that is the wind speed in knots, and measured on the live
+feed every open storm carries one (30 to 110 kts across six). Knots are what
+Saffir–Simpson is defined in, so the bands are that scale rather than a ramp
+somebody chose: a Category 3 is one because 96 knots is where that category
+starts. Banded exactly as the earthquakes are, and for the same reason — one
+`PointsMaterial` carries one size, so drawing every storm together draws a
+Category 5 the same size as a tropical depression.
+
+And bigger than a category dot at every strength, because the cyclone is a
+SPIRAL: it needs area to be a shape at all, where a filled dot reads at five
+pixels. Measured at the opening view, sprite sizes went from **11.5 px for
+every storm** to **17.2 / 21.5 / 30.2** for a tropical storm, a Category 1 and
+a Category 3 — against a wildfire dot's 11.5 beside them.
+
+**The base is capped per BAND**, replacing one shared `capBase` boolean. The
+multiplier is what should decide how big a storm looks, so letting the zoom's
+own growth through as well would put a close-range Category 5 past 255 px,
+which this file already records the driver clamping at. A storm caps at 16
+where an earthquake caps at 8: its symbol carries more detail and goes
+illegible sooner.
+
+**A masked span is not a character, and the line box knows it.** At 0.9rem
+square on the baseline the mark stood 15.9 px against a text row's 13 and
+pushed every storm row taller than its neighbours. Measured on the live list:
+baseline 15.5, `-0.1em` 14.5, `middle` 13.7, **`text-bottom` 13** — the one
+that lands on the text rows exactly.
+
+**And the verdict hole came back while I was fixing it.** Rewriting the test
+block with a slice put the summary in the middle again, and a later repair left
+an orphaned copy of its comment. Both were caught by re-running the A/B — a
+deliberately failing check appended to the last line must exit 1, and one
+placed after the verdict must not be counted. **When a test file's end is
+edited, re-run that A/B rather than trusting the diff.**

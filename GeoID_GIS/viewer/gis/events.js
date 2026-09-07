@@ -14,7 +14,8 @@ import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity, magnitudeColour,
   activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, gdacsPoints, resolveColour,
   MARKER_LIFT_MAX, liftForAltitude, dotSizePx, isQuake, publisherOf, restoreActive,
-} from "./event-sources.js?v=20260907-590b751";
+  stormCategory, stormScale, stormLabel, STORM_BASE_CAP,
+} from "./event-sources.js?v=20260907-0437506";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -200,12 +201,102 @@ function stopWatchingRelief() {
  * viewer uses -- heat and fire warm, water cool, ground and ice neutral -- so a
  * glance at the globe reads the same way as a glance at the legend.
  */
+/**
+ * THE TROPICAL-CYCLONE SYMBOL, from `assets/cyclone_icon.png`.
+ *
+ * Every other category here is a font character, which is right when a shape
+ * that means the category already exists in a typeface. A cyclone does not:
+ * the one Unicode has is U+1F300, which browsers render as a COLOUR emoji, so
+ * it would ignore the tint every other marker takes and read as a sticker
+ * dropped on the map.
+ *
+ * The file is already what this needs — an opaque WHITE silhouette on
+ * transparency with the eye punched out of the alpha — so it is drawn as it
+ * comes: white is what the marker material tints, and the alpha is what a
+ * legend row masks with. Nothing here recolours it.
+ *
+ * Resolved against `import.meta.url` rather than the document: the viewer is
+ * two directories below the site root, so a document-relative path resolves
+ * inside `GeoID_GIS/viewer/` and 404s. `crossOrigin` because the ink fit READS
+ * the canvas back, and a tainted canvas throws on `getImageData` — which is
+ * how a moved asset silently takes a working symbol out.
+ */
+const CYCLONE_ICON = new URL("../../../assets/cyclone_icon.png", import.meta.url).href;
+
+const markImages = new Map();
+
+/**
+ * The image if it is here, null if it is not yet — with `whenReady` called
+ * once it lands so a texture already built can be redrawn in place.
+ *
+ * A marker drawn before then falls back to the category's own CHARACTER
+ * rather than to nothing: an empty sprite and a category that failed to load
+ * look identical, and one of them is a bug.
+ */
+function markImage(url, whenReady) {
+  const held = markImages.get(url);
+  if (held) {
+    if (whenReady && !held.ready) held.waiting.push(whenReady);
+    return held.ready ? held.image : null;
+  }
+  const image = new Image();
+  const entry = { image, ready: false, waiting: whenReady ? [whenReady] : [] };
+  markImages.set(url, entry);
+  image.crossOrigin = "anonymous";
+  image.onload = () => {
+    entry.ready = true;
+    entry.waiting.splice(0).forEach((fn) => {
+      try { fn(); } catch (error) { /* one redraw failing is not the others' */ }
+    });
+  };
+  // No retry: the character stands in, which is a legible symbol rather than a
+  // gap, and a feed that polls an asset it cannot have is worse than either.
+  image.onerror = () => { entry.waiting.length = 0; };
+  image.src = url;
+  return null;
+}
+
+/**
+ * THE SAME SYMBOL IN THE LIST AS ON THE MAP.
+ *
+ * A legend that disagrees with the markers is the fault this feed has already
+ * been reported for — "none of the EONET live events have the symbologies
+ * mapped as they should be as shown in the legend" — so the mark reaches the
+ * rows too, and from the SAME file.
+ *
+ * As a MASK rather than an <img>, so it takes the row's own colour exactly as
+ * a character does and nothing has to know which kind of symbol it is holding.
+ */
+function glyphSpan(symbol) {
+  const tint = `style="color:${symbol.colour}"`;
+  if (!symbol.mark) return `<span class="event-glyph" ${tint}>${symbol.glyph}</span>`;
+  const mask = `url(${symbol.mark}) center/contain no-repeat`;
+  return `<span class="event-glyph" ${tint}><span class="event-glyph-mark" style="`
+    /**
+     * Sized and aligned to the TEXT rows' own line box, measured rather than
+     * guessed: at 0.9rem square on the baseline the mark stood 15.9 px against
+     * a character row's 13 and pushed every storm row taller than its
+     * neighbours. Of the alignments tried on the live list — baseline 15.5,
+     * -0.1em 14.5, middle 13.7 — `text-bottom` is the one that lands on 13.
+     */
+    + "display:inline-block;width:0.78rem;height:0.78rem;vertical-align:text-bottom;"
+    + `background:currentColor;-webkit-mask:${mask};mask:${mask}"></span></span>`;
+}
+
 const SYMBOLS = {
   wildfires: { colour: "#ff6b2c", glyph: "●", label: "Wildfires" },
   // Red rather than the skin's chrome, and it PULSES: an eruption reported now
   // is the one thing in this feed that is still happening while you look at it.
   volcanoes: { colour: "#ff2d2d", glyph: "▲", label: "Volcanoes", pulse: true },
-  severeStorms: { colour: "var(--skin-data)", glyph: "◉", label: "Severe storms" },
+  // WHITE, and the cyclone rather than a character: a tropical storm has a
+  // shape everybody already reads, and no typeface here carries it. `glyph` is
+  // kept as the fallback for anything that cannot draw a path.
+  // WHITE, and the cyclone icon rather than a character: a tropical storm has
+  // a shape everybody already reads, and no typeface here carries it. `glyph`
+  // stays as what stands in until the file has landed.
+  severeStorms: {
+    colour: "#ffffff", glyph: "◉", mark: CYCLONE_ICON, label: "Severe storms",
+  },
   seaLakeIce: { colour: "#bfe9ff", glyph: "◆", label: "Sea and lake ice" },
   // A dot, not a bar: a flood alert is a PLACE, and the bar read as a legend
   // swatch that had wandered onto the map. It shares the wildfires' glyph and
@@ -227,9 +318,12 @@ const SYMBOLS = {
 };
 const FALLBACK = { colour: "#9aa5b1", glyph: "●", label: "Other" };
 
-const symbolFor = (id) => (
-  String(id).startsWith("quake-") ? SYMBOLS.earthquakes : (SYMBOLS[id] || FALLBACK)
-);
+const symbolFor = (id) => {
+  const key = String(id);
+  if (key.startsWith("quake-")) return SYMBOLS.earthquakes;
+  if (key.startsWith("storm-")) return SYMBOLS.severeStorms;
+  return SYMBOLS[key] || FALLBACK;
+};
 
 /**
  * Which point cloud an event is drawn in.
@@ -255,6 +349,15 @@ function markerKey(event) {
    *
    * The test is now the thing the banding is FOR: a magnitude to band by.
    */
+  /**
+   * The storms band the same way, on the scale published for them: a
+   * PointsMaterial carries ONE size, so drawing every storm together means
+   * drawing a Category 5 the same size as a tropical depression.
+   */
+  if (event.categoryId === "severeStorms") {
+    const band = stormCategory(event.magnitudeValue);
+    return band === null ? "severeStorms" : `storm-${band}`;
+  }
   if (event.categoryId !== "earthquakes" || !Number.isFinite(event.magnitude)) {
     return event.categoryId || "other";
   }
@@ -396,7 +499,22 @@ function latestPoint(event) {
     // Polygons carry a ring; take its first vertex as a representative point.
     const c = g.type === "Polygon" ? g.coordinates?.[0]?.[0] : g.coordinates;
     if (Array.isArray(c) && Number.isFinite(c[0]) && Number.isFinite(c[1])) {
-      return { lon: c[0], lat: c[1], date: g.date };
+      /**
+       * The MAGNITUDE travels with the point, and used to be dropped here.
+       *
+       * EONET publishes one per geometry — for a severe storm it is the wind
+       * speed in knots, and measured on the live feed every open storm has
+       * one. Without it a Category 5 hurricane and a tropical depression were
+       * the same mark on the map, which is the one thing about a storm
+       * everybody already knows how to read.
+       */
+      return {
+        lon: c[0],
+        lat: c[1],
+        date: g.date,
+        magnitudeValue: Number.isFinite(g.magnitudeValue) ? g.magnitudeValue : null,
+        magnitudeUnit: g.magnitudeUnit || null,
+      };
     }
   }
   return null;
@@ -708,7 +826,7 @@ function renderRecent(panel) {
       <div class="event-group-scroll event-recent-scroll">${sorted.map((event) => {
         const symbol = symbolFor(event.categoryId || "other");
         return `<div class="event-row" data-id="${event.id}" title="${event.title}">
-            <span class="event-glyph" style="color:${symbol.colour}">${symbol.glyph}</span>
+            ${glyphSpan(symbol)}
             <span class="event-name">${event.title}</span>
             <span class="event-when">${agoText(eventWhenMs(event))}</span>
           </div>`;
@@ -747,7 +865,7 @@ function wireRows(panel) {
 
 function eventRowHtml(event, symbol) {
   return `<div class="event-row" data-id="${event.id}" title="${event.title}">
-      <span class="event-glyph" style="color:${symbol.colour}">${symbol.glyph}</span>
+      ${glyphSpan(symbol)}
       <span class="event-name">${event.title}</span>
     </div>`;
 }
@@ -784,7 +902,7 @@ function renderPanel() {
   panel.innerHTML = viewTabsHtml() + ordered.map(([key, list]) => {
     const symbol = symbolFor(key);
     const label = symbol.label !== FALLBACK.label ? symbol.label : (list[0].categoryTitle || "Other");
-    const glyph = `<span class="event-glyph" style="color:${symbol.colour}">${symbol.glyph}</span>`;
+    const glyph = glyphSpan(symbol);
 
     // Another category, while one is open: its header only, and pressing it
     // moves the open list here rather than adding a second one.
@@ -1166,7 +1284,8 @@ function trackScale() {
          * every other category was 34 px and the volcanoes **8.9**, which is
          * the reported "at zoomed views the location dots are far too small".
          */
-        const from = points.userData.capBase ? Math.min(size, QUAKE_BASE_CAP) : size;
+        const cap = points.userData.baseCap;
+        const from = cap ? Math.min(size, cap) : size;
         const want = from * (points.userData.sizeScale || 1)
           * (pulsing ? 1 + PULSE_SIZE * phase : 1);
         if (points.material.size !== want) points.material.size = want;
@@ -1224,9 +1343,15 @@ const glyphSprites = new Map();
  * radiating FROM a point, and standing them on the epicentre would say
  * something else — the one symbol here whose meaning is that it is centred.
  */
-function glyphTexture(glyph) {
+function glyphTexture(symbol) {
   if (!THREE) return null;
-  const key = String(glyph || FALLBACK.glyph);
+  /**
+   * Keyed by what is DRAWN, not by the character: a symbol with a mark has a
+   * `glyph` too — its stand-in — and keying on that would hand the cyclone
+   * whatever texture the stand-in character had already built, and hand every
+   * other category the cyclone if it happened to be built first.
+   */
+  const key = symbol?.mark ? `mark:${symbol.mark}` : String(symbol?.glyph || FALLBACK.glyph);
   if (glyphSprites.has(key)) return glyphSprites.get(key);
   const size = 64;
   const canvas = document.createElement("canvas");
@@ -1239,14 +1364,47 @@ function glyphTexture(glyph) {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   const font = (px) => `${Math.round(px)}px "Exo 2", system-ui, sans-serif`;
-  const paint = (px, dx, dy) => {
+  /**
+   * A PAINTER, so the ink fit below serves both kinds of symbol.
+   *
+   * Everything after this point — the probe pass, the bounding box, the
+   * rescale and the offset that stands the ink on its point — is about where
+   * the ink LANDED, and does not care whether it was typed or drawn. A drawn
+   * symbol that skipped it would be the one marker in the feed not standing on
+   * its own coordinate.
+   */
+  const character = (px, dx, dy) => {
     ctx.font = font(px);
     ctx.lineJoin = "round";
     ctx.strokeStyle = "rgba(0, 0, 0, 0.85)";
     ctx.lineWidth = Math.max(2, px * 0.08);
-    ctx.strokeText(key, size / 2 + dx, size / 2 + dy);
+    ctx.strokeText(symbol?.glyph || FALLBACK.glyph, size / 2 + dx, size / 2 + dy);
     ctx.fillStyle = "#ffffff";
-    ctx.fillText(key, size / 2 + dx, size / 2 + dy);
+    ctx.fillText(symbol?.glyph || FALLBACK.glyph, size / 2 + dx, size / 2 + dy);
+  };
+  /**
+   * The mark, drawn to the same box a character would fill, with a dark halo
+   * for the reason the characters are stroked: a white symbol loses its edge
+   * over bright imagery. `shadowBlur` rather than a stroke because the shape
+   * comes as pixels and has no path to stroke.
+   */
+  const image = (img, px, dx, dy) => {
+    const scale = px / Math.max(img.width, img.height);
+    const w = img.width * scale;
+    const h = img.height * scale;
+    ctx.save();
+    ctx.shadowColor = "rgba(0, 0, 0, 0.85)";
+    ctx.shadowBlur = Math.max(2, px * 0.06);
+    // Twice, because one pass of shadow under a white shape is faint against
+    // bright ground and the shadow is what keeps the edge.
+    ctx.drawImage(img, size / 2 + dx - w / 2, size / 2 + dy - h / 2, w, h);
+    ctx.drawImage(img, size / 2 + dx - w / 2, size / 2 + dy - h / 2, w, h);
+    ctx.restore();
+  };
+  const paint = (px, dx, dy) => {
+    const img = symbol?.mark ? markImage(symbol.mark, () => rebuild()) : null;
+    if (img) image(img, px, dx, dy);
+    else character(px, dx, dy);
   };
 
   /**
@@ -1264,6 +1422,15 @@ function glyphTexture(glyph) {
    * canvas read per GLYPH, once, and it is what makes ● and ▲ and ▬ read as
    * the same weight of symbol rather than three accidents of font metrics.
    */
+  /**
+   * Wrapped, because the mark arrives LATE. The image is a fetch, so the first
+   * build paints the stand-in character and this runs again the moment the
+   * file lands — same canvas, same texture, `needsUpdate` and nothing else
+   * rebuilt. Without it the markers keep whichever symbol happened to be
+   * available in the frame they were created in.
+   */
+  function rebuild() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   paint(size * 0.7, 0, 0);
   const probe = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
   let minX = canvas.width;
@@ -1305,10 +1472,15 @@ function glyphTexture(glyph) {
   } else {
     paint(size * 0.7, 0, -size / 4);
   }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.minFilter = THREE.LinearFilter;
-  glyphSprites.set(key, texture);
-  return texture;
+  if (built) built.needsUpdate = true;
+  }
+
+  let built = null;
+  rebuild();
+  built = new THREE.CanvasTexture(canvas);
+  built.minFilter = THREE.LinearFilter;
+  glyphSprites.set(key, built);
+  return built;
 }
 
 let quakeSprite = null;
@@ -1364,6 +1536,9 @@ function quakeTexture() {
 
 /** Is this cloud one of the magnitude bands? */
 const isQuakeBand = (key) => String(key).startsWith("quake-");
+const isStormBand = (key) => String(key).startsWith("storm-");
+/** The band a key stands for, back out of it. */
+const bandNumber = (key) => Number(String(key).split("-")[1]);
 
 /**
  * Somewhere no camera will look, for a marker that is round the back.
@@ -1491,7 +1666,7 @@ function renderMarkers() {
       color: geometry.attributes.color ? new THREE.Color(0xffffff) : base,
       vertexColors: Boolean(geometry.attributes.color),
       // The legend's own glyph, not a dot for everything that is not a quake.
-      map: isQuakeBand(key) ? quakeTexture() : glyphTexture(symbolFor(key).glyph),
+      map: isQuakeBand(key) ? quakeTexture() : glyphTexture(symbolFor(key)),
       // Sized in screen pixels rather than world units: at globe scale a
       // world-sized point is a speck, and it should stay legible at any zoom.
       size: 8,
@@ -1539,12 +1714,28 @@ function renderMarkers() {
      * the size — the ink then keeps the pixels the view meant it to have.
      * The rings are centred and need no such doubling.
      */
+    /**
+     * A STORM IS DRAWN AT ITS OWN STRENGTH, like an earthquake.
+     *
+     * And bigger than a category dot whatever its strength: the cyclone is a
+     * SPIRAL, so it needs area to be a shape at all — a filled dot reads at
+     * five pixels and this reads at nothing like it, which is the reported
+     * "far too small to be seen".
+     */
     points.userData.sizeScale = isQuakeBand(key)
       ? magnitudeSize(bandMagnitude(key), 1) * QUAKE_SYMBOL_SCALE
-      : GLYPH_FOOT_SCALE;
-    // Only what is about to be multiplied has its base capped: see the frame
-    // step. A category dot has a scale of one and wants the size it was given.
-    points.userData.capBase = isQuakeBand(key);
+      : isStormBand(key) ? stormScale(bandNumber(key))
+        : GLYPH_FOOT_SCALE;
+    /**
+     * Only what is about to be MULTIPLIED has its base capped: see the frame
+     * step. A category dot has a scale of one and wants the size it was given,
+     * while letting the zoom's own growth through as well would put a
+     * close-range Category 5 past the size a driver will draw a sprite at.
+     * Each band caps at its own value — a storm's symbol carries more detail
+     * than a ring and goes small sooner.
+     */
+    points.userData.baseCap = isQuakeBand(key) ? QUAKE_BASE_CAP
+      : isStormBand(key) ? STORM_BASE_CAP : null;
     /**
      * WHAT BREATHES, AND WHY NOT EVERYTHING.
      *
@@ -2239,8 +2430,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260907-590b751"),
-    import("./research/dsp.js?v=20260907-590b751"),
+    import("./seismogram-plot.js?v=20260907-0437506"),
+    import("./research/dsp.js?v=20260907-0437506"),
   ]);
   if (stale()) return;
 
@@ -2319,16 +2510,25 @@ function showPopup(event, x, y) {
       <dt>Depth</dt><dd>${Number.isFinite(event.depthKm)
         ? `${event.depthKm.toFixed(1)} km` : "not reported"}</dd>
       ${event.tsunami ? "<dt>Tsunami</dt><dd>flagged by the USGS</dd>" : ""}` : "";
+  /**
+   * A storm's own number, which is now what decides how big its marker is.
+   * A card that says nothing about the strength the map is drawn at leaves
+   * the reader to infer it from the size of a symbol.
+   */
+  const storm = event.categoryId === "severeStorms"
+    && Number.isFinite(event.magnitudeValue)
+    ? `<dt>Strength</dt><dd>${stormLabel(stormCategory(event.magnitudeValue),
+      event.magnitudeValue)}</dd>` : "";
   node.dataset.eventId = event.id;
   node.classList.remove("has-trace");
   node.innerHTML = `
     <button type="button" class="event-popup-close" aria-label="Close">×</button>
     <div class="event-popup-head">
-      <span class="event-glyph" style="color:${symbol.colour}">${symbol.glyph}</span>
+      ${glyphSpan(symbol)}
       <span>${event.categoryTitle || symbol.label}</span>
     </div>
     <h3>${event.title}</h3>
-    <dl>${seismic}
+    <dl>${seismic}${storm}
       <dt>Position</dt><dd>${event.lat.toFixed(3)}°, ${event.lon.toFixed(3)}°</dd>
       <dt>Last report</dt><dd>${when}</dd>
       <dt>Source</dt><dd>${source ? source.licence.split(" — ")[0] : "NASA EONET"} · ${event.id}</dd>

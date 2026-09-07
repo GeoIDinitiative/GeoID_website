@@ -13,7 +13,7 @@ import {
   defaultEnabled, usgsPoints, magnitudeSize, recencyOpacity,
   MAGNITUDE_RAMP, magnitudeColour, restoreSources, gdacsPoints, gdacsUrl,
   resolveColour, liftForAltitude, dotSizePx, nearSizePx, isQuake, publisherOf,
-  restoreActive,
+  restoreActive, stormCategory, stormScale, stormLabel, STORM_BASE_CAP,
   MARKER_LIFT_MAX, MARKER_LIFT_M, DOT_CAP_FAR, DOT_CAP_NEAR,
 }  from "./event-sources.js";
 import { readFileSync } from "node:fs";
@@ -319,11 +319,16 @@ check("no timestamp gets a sensible middle", recencyOpacity(null, now, day), 0.8
      soft round blob, so a legend offering a triangle, a diamond, a ring and a
      bar drew four identical dots. */
   const src = readFileSync(new URL("./events.js", import.meta.url), "utf8");
-  check("the marker map is the category's own glyph",
-    /map: isQuakeBand\(key\) \? quakeTexture\(\) : glyphTexture\(symbolFor\(key\)\.glyph\)/.test(src),
+  check("the marker map is the category's own symbol",
+    /map: isQuakeBand\(key\) \? quakeTexture\(\) : glyphTexture\(symbolFor\(key\)\)/.test(src),
     true);
+  /* The whole SYMBOL, not its character: one that carries a painter has a
+     `glyph` too — its fallback — and passing that would hand the drawn mark
+     whatever texture the fallback character had already built. */
+  check("and it is keyed by what is drawn rather than by the stand-in character",
+    /const key = symbol\?\.mark \? `mark:\$\{symbol\.mark\}` :/.test(src), true);
   check("one texture per GLYPH, so two categories drawn with the same symbol share it",
-    /glyphSprites\.has\(key\)/.test(src) && /glyphSprites\.set\(key, texture\)/.test(src), true);
+    /glyphSprites\.has\(key\)/.test(src) && /glyphSprites\.set\(key, built\)/.test(src), true);
   check("the one-blob-for-everything texture is gone", /markerTexture\s*\(\s*\)\s*\{/.test(src), false);
   /* Drawn over imagery at a few pixels: a thin white glyph on a pale coast is
      invisible, so the outline is not decoration. */
@@ -404,10 +409,12 @@ check("no timestamp gets a sensible middle", recencyOpacity(null, now, day), 0.8
 {
   const src = readFileSync(new URL("./events.js", import.meta.url), "utf8");
   check("the base is capped for what is about to be multiplied",
-    /const from = points\.userData\.capBase \? Math\.min\(size, QUAKE_BASE_CAP\) : size;/.test(src),
-    true);
-  check("and that is the magnitude bands, not everything that pulses",
-    /points\.userData\.capBase = isQuakeBand\(key\);/.test(src), true);
+    /const from = cap \? Math\.min\(size, cap\) : size;/.test(src), true);
+  /* Per BAND, not one number for everything that multiplies: a storm's symbol
+     carries more detail than a ring and goes small sooner, so it caps higher. */
+  check("and each band caps at its own value, not everything that pulses",
+    /points\.userData\.baseCap = isQuakeBand\(key\) \? QUAKE_BASE_CAP/.test(src)
+    && /isStormBand\(key\) \? STORM_BASE_CAP : null;/.test(src), true);
   check("so a category dot keeps the size the view gave it",
     !/const from = pulsing \? Math\.min/.test(src), true);
 }
@@ -668,21 +675,6 @@ check("no timestamp gets a sensible middle", recencyOpacity(null, now, day), 0.8
   check("a gesture is remembered", /if \(remember\) rememberActive\(active\);/.test(code), true);
 }
 
-/**
- * THE VERDICT, AT THE END OF THE FILE.
- *
- * It used to sit a third of the way down, straight after the recency checks —
- * so the ninety checks below it RAN, printed, counted into `fail`, and were
- * never looked at again: the exit code had already been decided. Measured by
- * appending a deliberately failing check to the last line, the file exited 0
- * and the suite reported it green.
- *
- * The same shape as this repo's own note about `geoprocessing.test.mjs`, whose
- * summary calls `process.exit` and silently skips anything appended after it.
- * Either way the rule is the same: A TEST FILE'S VERDICT IS ITS LAST
- * STATEMENT. Anything after it is decoration.
- */
-
 /* ── the selection ring follows the ground, like every other marker ────────
    The halo is its own object in the spin frame rather than a member of
    `markers`, so the relief watcher's traversal never reached it: it kept the
@@ -709,5 +701,165 @@ check("no timestamp gets a sensible middle", recencyOpacity(null, now, day), 0.8
   check("the ring and the dots are placed by one function", calls >= 2, true);
 }
 
+console.log(`\n${pass} passed, ${fail} failed`);
+if (fail) process.exitCode = 1;
+
+/* ── the tropical-cyclone symbol ───────────────────────────────────────────
+   Every other category here is a font character, which is right when a shape
+   that means the category already exists in a typeface. A cyclone does not:
+   the one Unicode has is U+1F300, which browsers render as a COLOUR emoji, so
+   it would ignore the tint every other marker takes. So this one is a file,
+   used by both the marker texture and the list. */
+{
+  const src = readFileSync(new URL("./events.js", import.meta.url), "utf8");
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+
+  check("the storms carry the cyclone file rather than a character",
+    /severeStorms: \{\s*colour: "#ffffff", glyph: "◉", mark: CYCLONE_ICON/.test(code), true);
+  check("and the emoji cyclone is not used anywhere", !/\u{1F300}/u.test(code), true);
+
+  /* Resolved against the MODULE, not the document: the viewer is two
+     directories below the site root, so a document-relative path resolves
+     inside GeoID_GIS/viewer/ and 404s. */
+  check("the file is resolved against import.meta.url",
+    /new URL\("\.\.\/\.\.\/\.\.\/assets\/cyclone_icon\.png", import\.meta\.url\)/.test(code),
+    true);
+  /* The ink fit READS the canvas back, and a tainted canvas throws on
+     getImageData — which is how a moved asset silently takes a symbol out. */
+  check("and loaded cross-origin, because the canvas is read back",
+    /image\.crossOrigin = "anonymous";/.test(code), true);
+
+  /* THE FILE ARRIVES LATE. A marker built before it lands falls back to the
+     category's own character rather than to nothing: an empty sprite and a
+     category that failed to load look identical, and one of them is a bug. */
+  check("a character stands in until the file lands",
+    /if \(img\) image\(img, px, dx, dy\);\s*else character\(px, dx, dy\);/.test(code), true);
+  check("and the texture is rebuilt in place when it does",
+    /function rebuild\(\)/.test(code) && /if \(built\) built\.needsUpdate = true;/.test(code),
+    true);
+  check("a file that never arrives is not polled for",
+    /image\.onerror = \(\) => \{ entry\.waiting\.length = 0; \};/.test(code), true);
+
+  /* The list masks with the SAME file. A legend that disagrees with the
+     markers is the fault this feed has already been reported for. */
+  check("the panel rows mask with the file rather than drawing a character",
+    /const mask = `url\(\$\{symbol\.mark\}\) center\/contain no-repeat`;/.test(code), true);
+  check("as a mask, so it takes the row's colour like a character does",
+    /background:currentColor;-webkit-mask:/.test(code), true);
+  check("and every row goes through it",
+    !/event-glyph" style="color:\$\{symbol\.colour\}">\$\{symbol\.glyph\}/.test(code), true);
+  /* Four call sites: three inside templates, one assigned to a variable. */
+  const spans = (code.match(/glyphSpan\(symbol\)/g) || []).length;
+  check("all four of them", spans - 1, 4);   // less the definition itself
+
+  /* The file is an opaque WHITE silhouette on transparency with the eye
+     punched out of its alpha, which is why nothing here recolours it: white is
+     what the marker material tints, and the alpha is what the row masks with.
+     Asserted on the FILE, so replacing it with a black icon fails here rather
+     than on the globe. */
+  const png = readFileSync(new URL("../../../assets/cyclone_icon.png", import.meta.url));
+  check("the icon file is there", png.length > 0, true);
+  check("and it is a PNG, which is what carries the alpha",
+    png.slice(1, 4).toString("latin1"), "PNG");
+  /* Colour type 6 is RGBA — type 2 (RGB) has no alpha to mask or punch. */
+  check("with an alpha channel", png[25], 6);
+}
+
+/* ── how big a storm is drawn ──────────────────────────────────────────────
+   "The storm icons should be larger for hurricanes (dynamically size icons
+   relative to magnitude of storm) - currently these icons are far too small to
+   be seen." EONET gives every severe-storm event a wind speed in KNOTS —
+   measured on the live feed, 30 to 110 across six storms, every one carrying a
+   value — and knots are what Saffir–Simpson is defined in. */
+{
+  /* The scale's own thresholds, so a Category 3 is one because 96 knots is
+     where that category starts, not because a ramp put it there. */
+  check("below hurricane strength is band 0", stormCategory(63), 0);
+  check("64 knots is a Category 1", stormCategory(64), 1);
+  check("83 is a 2", stormCategory(83), 2);
+  check("96 is a 3", stormCategory(96), 3);
+  check("113 is a 4", stormCategory(113), 4);
+  check("137 is a 5", stormCategory(137), 5);
+  check("and it never runs past 5", stormCategory(200), 5);
+  /* A storm with no published wind is not a category 0 — that is a claim the
+     feed did not make, and it is what `markerKey` falls back on. */
+  check("no wind speed is no category", stormCategory(null), null);
+  check("nor is a non-number", stormCategory("strong"), null);
+
+  /* The live feed's own storms, by name, so a threshold that moves shows up as
+     the wrong category for a storm somebody can look up. */
+  check("Hurricane Lowell at 110 kts is a Category 3", stormCategory(110), 3);
+  check("Hurricane Marie at 65 kts is a Category 1", stormCategory(65), 1);
+  check("Tropical Storm Edouard at 30 kts is band 0", stormCategory(30), 0);
+
+  /* SIZE. Bigger than a category dot whatever the strength, because the
+     cyclone is a spiral and needs area to be a shape at all. */
+  check("even the weakest storm is drawn larger than a plain category dot",
+    stormScale(0) > 2, true);
+  check("and a Category 5 is larger again", stormScale(5) > stormScale(0), true);
+  check("monotonic across the scale",
+    [0, 1, 2, 3, 4, 5].every((c, i, a) => i === 0 || stormScale(c) > stormScale(a[i - 1])),
+    true);
+  check("a Category 5 is a bit over twice a tropical storm",
+    +(stormScale(5) / stormScale(0)).toFixed(2), 2.25);
+  /* Clamped, so a bad band cannot ask for a sprite the driver will not draw. */
+  check("an unknown band is drawn at the base size", stormScale(null), stormScale(0));
+  check("and nothing goes past the top of the scale", stormScale(99), stormScale(5));
+
+  /* The cap that stops the ZOOM multiplying on top of the strength. On the
+     hardware this file records, a sprite past 255 is clamped, and past that
+     the multiplier stops meaning anything. */
+  const near = 34;   // DOT_CAP_NEAR, the biggest base a marker is given
+  check("a close-range Category 5 stays inside what a driver will draw",
+    Math.min(near, STORM_BASE_CAP) * stormScale(5) < 255, true);
+  check("and the cap is what holds it there", STORM_BASE_CAP < near, true);
+
+  /* The label the card reads by. */
+  check("a hurricane is named by its category",
+    stormLabel(3, 110), "Category 3 hurricane — 110 kts");
+  check("and below that it is a tropical storm",
+    stormLabel(0, 30), "Tropical storm — 30 kts");
+  check("with no wind speed it still says what it is", stormLabel(null), "Severe storm");
+}
+
+/* And the wiring: the magnitude has to survive the conversion, and the bands
+   have to reach the marker's own size. */
+{
+  const src = readFileSync(new URL("./events.js", import.meta.url), "utf8");
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  /* It used to be dropped in `latestPoint`, which is why every storm was the
+     same mark whatever it was doing. */
+  check("the point keeps the magnitude EONET published with it",
+    /magnitudeValue: Number\.isFinite\(g\.magnitudeValue\) \? g\.magnitudeValue : null/.test(code),
+    true);
+  check("the storms are banded by it",
+    /const band = stormCategory\(event\.magnitudeValue\);/.test(code), true);
+  /* A storm with no published wind keeps the plain category key rather than
+     being filed as a tropical depression. */
+  check("and one with no wind speed stays an unbanded storm",
+    /return band === null \? "severeStorms" : `storm-\$\{band\}`;/.test(code), true);
+  check("a banded key still finds the cyclone symbol",
+    /if \(key\.startsWith\("storm-"\)\) return SYMBOLS\.severeStorms;/.test(code), true);
+  check("and the band decides the size",
+    /isStormBand\(key\) \? stormScale\(bandNumber\(key\)\)/.test(code), true);
+  /* The card says the strength the marker is drawn at, or the reader is left
+     inferring it from the size of a symbol. */
+  check("the card states the strength", /<dt>Strength<\/dt>/.test(code), true);
+}
+
+/**
+ * THE VERDICT, AT THE END OF THE FILE.
+ *
+ * It used to sit a third of the way down, straight after the recency checks —
+ * so the checks below it RAN, printed, counted into `fail`, and were never
+ * looked at again: the exit code had already been decided. Measured by
+ * appending a deliberately failing check to the last line, the file exited 0
+ * and the suite reported it green.
+ *
+ * The same shape as this repo's own note about `geoprocessing.test.mjs`,
+ * whose summary calls `process.exit` and silently skips anything appended
+ * after it. Either way the rule is the same: A TEST FILE'S VERDICT IS ITS
+ * LAST STATEMENT. Anything after it is decoration.
+ */
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exitCode = 1;
