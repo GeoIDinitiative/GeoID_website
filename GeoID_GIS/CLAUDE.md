@@ -13664,3 +13664,44 @@ clearance and a little drape interpolation.
 The floods are a dot rather than a bar now, sharing the wildfires' glyph and
 carrying their own blue — a flood alert is a place, and the bar read as a
 legend swatch that had wandered onto the map.
+
+#### A follower with nothing driving it
+
+"Appears this floating dot problem is related to the mapping of the basemap —
+see image theres 2 layers with an offset between." The photograph was of the
+limb, and it was two Earths: a blue-green shell and a tan band offset from it.
+
+**The markers were never the floating thing.** Measured, every marker in every
+category sat at ground + 30.0 m, worst 30.2 — exactly the clearance it is given.
+What had moved was the ground you look at. `getEffectiveRelief()` was 0.3 and
+`getRenderRelief()` — the uniform every followed layer is actually drawn at —
+was **0**. A followed vertex is placed at `aDir * (base + aDisp * uRelief)`, so
+at zero it is placed on the bare sphere: the basemap drew **180 to 276 km below
+the terrain** at the slider's maximum, and the dots stood correctly on a surface
+whose imagery had sunk out from under them.
+
+The uniform was pumped from `import-manager`'s frame step, and that step is
+installed by `ensureGroups` when the first IMPORTED layer creates its group. A
+page whose only follower is the basemap drape never installed it. Load a
+geology layer and the offset vanishes, which is why this survived so long.
+
+**The missing call was not the bug; that a follower could exist with nothing
+driving it was.** So the pump moved to live with the uniform it feeds, in
+`vector-render.js`: `followRelief` installs it, idempotent per scene, chained
+onto whatever is already on `scene.onBeforeRender` so the import manager's own
+step keeps running. Following the relief is now what drives it.
+
+After: drape to ground **mean 0.10 m, worst 0.26 m** over all 625 vertices, and
+across a 2,500 km → 37 km zoom the relief lag was **exactly zero** every frame
+with a worst gap of 0.35 m.
+
+**Four wrong references in one session, and this is the pattern.** Raycasting
+`v.globe` hits an undisplaced sphere. Reading a drape's baked vertices reads
+geometry the shader is about to override. And here, twice: the drape is built
+in the GLOBE frame, so `buildMesh` negates x and z, and a direction read back
+out is 180° from where you think it is — then the viewer's own longitude is
+`180 - atan2(z, x)`, not `atan2(z, x)`. Those two together put my ground samples
+32° from the patch and manufactured a 14 km "residual" that did not exist.
+**Calibrate the conversion against `surfacePoint` on known lat/lons before
+trusting a single number derived from a vertex.** Two probe calls would have
+saved both rounds.

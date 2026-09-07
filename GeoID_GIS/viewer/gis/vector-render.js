@@ -1,10 +1,10 @@
 import * as THREE from "../vendor/three.module.js";
 import { latLonToVector3, drapedRadius, looksLikeGeographic, sphericalPolygonAreaKm2 }
-  from "./geo-utils.js?v=20260907-746df08";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260907-746df08";
-import { pointInPolygon } from "./geometry.js?v=20260907-746df08";
-import { paintOpacity } from "./layer-opacity.js?v=20260907-746df08";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260907-746df08";
+  from "./geo-utils.js?v=20260907-90f80a3";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260907-90f80a3";
+import { pointInPolygon } from "./geometry.js?v=20260907-90f80a3";
+import { paintOpacity } from "./layer-opacity.js?v=20260907-90f80a3";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260907-90f80a3";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -288,6 +288,45 @@ export function getRenderRelief() {
 }
 
 /**
+ * KEEP THE UNIFORM FED FOR AS LONG AS ANYTHING FOLLOWS IT.
+ *
+ * The uniform above was pumped from the import manager's frame step, and that
+ * step is installed when the first IMPORTED layer creates its group. A page
+ * whose only follower is the BASEMAP DRAPE therefore never installed it, and
+ * `uRelief` stayed at the zero it was declared with -- so every followed
+ * vertex was placed at `aDir * base`, which is the bare sphere.
+ *
+ * Measured on the live globe with the exaggeration slider at its maximum, the
+ * basemap drew **180 to 276 km below the terrain**: a second Earth, offset
+ * from the first, which is what "theres 2 layers with an offset between" was
+ * a photograph of. The event markers were never the floating thing -- they
+ * take their height from the globe's own displaced surface and were on it to
+ * within 50 m. They floated above the IMAGERY because the imagery had sunk.
+ *
+ * That a follower could exist with nothing driving it is the defect, not the
+ * missing call, so the pump lives with the uniform: following the relief is
+ * what installs it. Idempotent per scene, and it retries until there is one,
+ * because a material can be built before the viewer has a scene to hang it on.
+ */
+let reliefSyncScene = null;
+function ensureReliefSync() {
+  const scene = window.GeoIDViewer?.scene;
+  if (!scene || reliefSyncScene === scene) return;
+  reliefSyncScene = scene;
+  // Chained, not replaced: `onBeforeRender` is called by WebGLRenderer.render
+  // at the top of the frame being drawn, which is the only place the relief
+  // can be read in the same frame the globe is drawn with it. Anything already
+  // there -- the import manager's own step -- keeps running.
+  const previous = typeof scene.onBeforeRender === "function"
+    ? scene.onBeforeRender.bind(scene)
+    : null;
+  scene.onBeforeRender = function chained(...args) {
+    setRenderRelief(window.GeoIDViewer?.getEffectiveRelief?.() ?? 0);
+    if (previous) previous(...args);
+  };
+}
+
+/**
  * How high a LINE is drawn, which cannot be zero and must not be fixed.
  *
  * A filled polygon can sit on the ground because its material refuses the depth
@@ -461,6 +500,8 @@ function ribbonFromSegments(positions, colours) {
 export function followRelief(material, drape, {
   lifted = false, cullFarSide = false, hole = null, ribbon = false,
 } = {}) {
+  // Following the relief is what installs the thing that drives it.
+  ensureReliefSync();
   // `true` means the silhouette itself; a number moves the cut inside it.
   const facingLimit = cullFarSide === true ? 0 : Number(cullFarSide) || 0;
   const base = baseRadius();

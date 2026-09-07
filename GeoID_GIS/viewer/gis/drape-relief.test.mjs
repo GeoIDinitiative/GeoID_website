@@ -33,7 +33,8 @@ const near = (a, b, tol, what) => {
 };
 
 globalThis.window = { GeoIDViewer: { GLOBE_RADIUS: 3.2, elevationNormalized: () => 0.5 } };
-const { attachReliefAttributes } = await import("./vector-render.js");
+const { attachReliefAttributes, followRelief, getRenderRelief }
+  = await import("./vector-render.js");
 
 const BASE = 3.2;
 const METRES = 6371000 / 3.2;      // one relief unit, in metres of ground
@@ -135,6 +136,80 @@ check("so the adapter refuses to follow one, and polls it instead", () => {
   ok(/drapes\.delete\(mesh\)/.test(src),
     "and a polled patch stops being polled once it can follow");
 });
+
+/**
+ * THE PUMP IS PART OF FOLLOWING, NOT PART OF IMPORTING.
+ *
+ * Everything above is the arithmetic of the follow, and all of it was right
+ * while the basemap still drew a second Earth. The uniform that carries the
+ * relief was fed from the IMPORT MANAGER's frame step, installed when the
+ * first imported layer creates its group -- so in a page whose only follower
+ * is the basemap drape, nothing ever drove it and `uRelief` kept the zero it
+ * was declared with. Measured live at the slider's maximum, the imagery drew
+ * **180 to 276 km below the terrain**, and the event markers, which take
+ * their height from the globe's own surface and were on it to within 50 m,
+ * appeared to float above it.
+ *
+ * A follower that nothing drives is the bug. These pin that following is what
+ * installs the drive.
+ */
+const frame = (scene) => scene.onBeforeRender();
+
+check("following the relief installs the frame step that drives it", () => {
+  const scene = {};
+  window.GeoIDViewer.scene = scene;
+  window.GeoIDViewer.getEffectiveRelief = () => 0.3;
+  followRelief({}, 0);
+  ok(typeof scene.onBeforeRender === "function", "a step was installed");
+  frame(scene);
+  near(getRenderRelief(), 0.3, 1e-9, "the uniform carries the viewer's relief");
+});
+
+check("and carries the relief of the frame being drawn, not the one it was built at", () => {
+  const scene = window.GeoIDViewer.scene;
+  let relief = 0.3;
+  window.GeoIDViewer.getEffectiveRelief = () => relief;
+  relief = 0.113; frame(scene);
+  near(getRenderRelief(), 0.113, 1e-9, "eased off as the camera lands");
+  relief = 0; frame(scene);
+  near(getRenderRelief(), 0, 1e-9, "and flat when the slider is");
+});
+
+check("a second follower does not install a second step", () => {
+  const scene = window.GeoIDViewer.scene;
+  const installed = scene.onBeforeRender;
+  followRelief({}, 0);
+  followRelief({}, 0.006, { lifted: true });
+  ok(scene.onBeforeRender === installed, "the same step, chained once");
+});
+
+/**
+ * The import manager installs its own step -- the geo group's spin, the line
+ * clearance, the marker size -- and it is installed on the same scene. The
+ * relief step is CHAINED onto whatever is there, so a page with imported
+ * layers keeps everything it had.
+ */
+check("an existing step keeps running, exactly once", () => {
+  let ran = 0;
+  const scene = { onBeforeRender() { ran += 1; } };
+  window.GeoIDViewer.scene = scene;
+  window.GeoIDViewer.getEffectiveRelief = () => 0.21;
+  followRelief({}, 0);
+  frame(scene);
+  ok(ran === 1, `the existing step ran ${ran} times, not once`);
+  near(getRenderRelief(), 0.21, 1e-9, "and the relief was fed alongside it");
+});
+
+check("so the drape is driven without an imported layer in the page", () => {
+  const src = readFileSync(new URL("./vector-render.js", import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "");
+  ok(/export function followRelief\([\s\S]{0,240}?ensureReliefSync\(\);/.test(src),
+    "followRelief installs the pump itself");
+  const drape = readFileSync(new URL("./basemap-drape.js", import.meta.url), "utf8");
+  ok(/followRelief\(new THREE\.MeshBasicMaterial/.test(drape),
+    "and the basemap drape is a follower");
+});
+
 
 if (failures.length) {
   failures.forEach((f) => console.error(`  x ${f}`));
