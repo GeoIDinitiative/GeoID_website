@@ -13705,3 +13705,69 @@ out is 180° from where you think it is — then the viewer's own longitude is
 **Calibrate the conversion against `surfacePoint` on known lat/lons before
 trusting a single number derived from a vertex.** Two probe calls would have
 saved both rounds.
+
+#### The shuffle was reverted, and the ring had to follow the symbol
+
+Two reports in one turn, and the second was caused by a fix from the last one.
+
+**"Ensure the legend and events buttons dont slant and hide behind the active
+one, keep in line and side by side."** The shuffle is gone: no transform, no
+scale, no rotation, no grey, no z-index, and `overlay-stack.js` injects no
+stylesheet at all. What is kept is the rule that was worth having — **at most
+one panel open**, since both are wide enough to overlap — and it is now
+additive rather than a takeover: the capture handler shuts the OTHER card and
+lets the click through to each toggle's own handler, instead of stopping it and
+reimplementing both.
+
+**"We still need the events and legend button to occupy a single drop down area
+where only one can be active at a time."** Taking turns was not enough: a panel
+that FLOWS under its own button is at that button's x, and the two buttons are
+not in the same place, so the corner still held two drop-downs in two places.
+Both panels are pinned into ONE rectangle — `position: fixed` out of their own
+card's flow, at one width, placed from the buttons themselves (under the
+lowest, right-aligned to the rightmost) so the slot cannot drift from the row
+it hangs off. The arithmetic is `slotFrom(rects, viewportWidth, gap)`, pure and
+pinned — including the case that would otherwise throw the slot into the
+top-left corner: a card that is not on screen has no button to measure, and a
+zero rect is not a measurement. Measured live: the legend's panel and the
+feed's both land at **x=1037, y=51, 280 px wide**, switching back and forth,
+with the buttons at y=16.
+
+**The row moved, and that is what sent them into a stack in the first place.**
+`placeOverlay` measured the legend's CARD, and a card is as wide as whatever is
+open inside it — so opening the legend moved the events button and a layer
+arriving moved it again. It measures the **toggle**: a fixed-width button with
+the panel hanging BELOW it, so the row cannot move whatever either panel is
+doing. Measured through a full open/close cycle on both: the events button at
+x=1107 in every state, both buttons at y=16, 7 px apart, transform `none`,
+opacity 1, filter `none`.
+
+**And then the selection halo was off.** The ring is one point sprite centred
+on the coordinate, which was right until the category glyphs were made to STAND
+on their point — after that it circled the right PLACE and the wrong PICTURE,
+reported on a flood as a ring with the dot on its top edge. So there are two
+rings, chosen by the same `isQuakeBand(markerKey(event))` test the marker's own
+texture is chosen by: the ring cannot disagree with the symbol about where the
+symbol is.
+
+The foot ring is asked for **half again as large** (`HALO_FOOT_SCALE = 3`) with
+the annulus drawn small inside it. A sprite is square and a ring standing clear
+of a symbol that already stands on its point needs more room above the
+coordinate than below — at the centred scale the ring runs off the top of its
+own canvas and draws with a bite out of it. The floor also moved from the ring
+to the DOT (`Math.max(9, dot) * scale` rather than `Math.max(18, dot * scale)`),
+so the proportion against the symbol holds at every size instead of breaking
+exactly where the sprite is smallest.
+
+Measured by A/B on the framebuffer, one wildfire with its 9 px neighbour parked
+so the diff isolates a single symbol: ink centre **6.16 px** above the
+coordinate, ring centre **6.09**, **ring − ink = −0.07 px**, both sideways 0.00,
+ring 22 px tall around 11 px of ink. An earthquake, unchanged: **0.00, 0.00**.
+
+**Two measurement traps, both mine.** A colour test for the cyan ring found 76
+pixels of it and put the centroid 2.2 px sideways — the additive blend
+saturates over bright ground and fails any threshold. **Diff the frame with the
+sprite hidden**: 332 pixels, no colour guessing, and it is the instrument this
+file already prescribes. And hiding a CLOUD to isolate one marker hides every
+marker of that category in the window — there was another wildfire 9.4 px away,
+which is what made the first ink reading disagree with its own prediction.

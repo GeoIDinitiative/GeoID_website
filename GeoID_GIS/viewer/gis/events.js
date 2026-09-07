@@ -14,7 +14,7 @@ import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity, magnitudeColour,
   activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, gdacsPoints, resolveColour,
   MARKER_LIFT_MAX, liftForAltitude, dotSizePx,
-} from "./event-sources.js?v=20260907-90f80a3";
+} from "./event-sources.js?v=20260907-ca7dd61";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -1668,9 +1668,7 @@ async function setActive(on) {
 
 /**
  * Sits the feed immediately left of the legend, or in the legend's own slot when
- * there is no legend. Measured rather than assumed: the legend's width changes
- * as its panel opens and closes, and a fixed offset left an obvious gap
- * whenever it was shut.
+ * there is no legend, so the two buttons read as one row.
  */
 function placeOverlay() {
   const host = byId("events-overlay");
@@ -1705,17 +1703,22 @@ function placeOverlay() {
    */
   const setRight = (px) => host.style.setProperty("right", `${px}px`, "important");
   /**
-   * THE SAME SLOT AS THE LEGEND, not beside it.
+   * MEASURE THE LEGEND'S TOGGLE, NEVER ITS CARD.
    *
-   * This used to measure the legend and sit to its left, which made the feed's
-   * position a function of how wide the legend's contents happened to be —
-   * so opening the legend moved the events button, and a layer arriving moved
-   * it again. They are one stack now: `overlay-stack.js` decides which is in
-   * front and offsets the other with a transform, and the only thing left here
-   * is the rail's own offset, which both cards share.
+   * The two sit side by side, so the feed's offset is the legend's own width —
+   * and the legend's CARD is as wide as whatever is open inside it, so taking
+   * that number made the events button move whenever the legend was opened and
+   * again whenever a layer arrived. That is what the shuffle was for, and it
+   * cost more than it fixed: a rotated, shrunken card behind the active one.
+   *
+   * The toggle is a fixed-width button and the panel hangs BELOW it, so
+   * measuring the button keeps the two in one row whatever either panel is
+   * doing. With no legend on screen the feed takes the legend's own slot.
    */
-  void legend;
-  setRight(base);
+  const toggle = byId("map-legend-toggle");
+  const shown = legend && !legend.hidden && toggle;
+  const width = shown ? toggle.getBoundingClientRect().width : 0;
+  setRight(base + (width ? width + 0.45 * rem : 0));
 }
 
 /**
@@ -1781,35 +1784,75 @@ function applyHaloScale() {
   // The same altitude the dots are sized by, or the ring stops growing with
   // the dot it is meant to surround and ends up inside it close in.
   const altitude = window.GeoIDViewer?.getZoomAltitudeMetres?.()?.metres;
-  halo.material.size = Math.max(18, (px > 0 ? dotSizePx(px, altitude) : 8) * 2.0);
+  // The floor is on the DOT rather than on the ring, so the ring's geometry
+  // against the symbol is the same at every size -- applied to the result it
+  // would break the proportion exactly where the sprite is smallest.
+  const dot = Math.max(9, px > 0 ? dotSizePx(px, altitude) : 8);
+  halo.material.size = dot * (halo.userData.foot ? HALO_FOOT_SCALE : 2.0);
 }
 
-let ringSprite = null;
+/**
+ * THE RING IS ANCHORED THE WAY THE SYMBOL IT CIRCLES IS.
+ *
+ * A category glyph STANDS ON its point: its ink lives in the upper half of its
+ * canvas with the base on the coordinate, so half a symbol of it sits above
+ * the ground. The earthquake rings stay centred, because concentric rings mean
+ * energy radiating FROM a point and standing them on the epicentre would say
+ * something else.
+ *
+ * A ring centred on the coordinate therefore circles the right PLACE and the
+ * wrong PICTURE: reported on a flood, and the screenshot is a ring with the
+ * dot sitting on its top edge. So there are two, and which one is used follows
+ * the same `isQuakeBand` test the marker's own texture does -- the ring cannot
+ * disagree with the symbol about where the symbol is.
+ */
+const GLYPH_INK = 0.46;                          // glyphTexture's own height fit
+const INK_HEIGHT = GLYPH_INK * GLYPH_FOOT_SCALE; // 0.92 of a dot width, drawn
+const RING_DIAMETER = INK_HEIGHT * 1.43;         // 1.32, the centred ring's own
+/**
+ * A ring standing clear of a symbol that already stands on its point needs
+ * more room above the coordinate than below it, and a sprite is square -- so
+ * the foot variant is asked for HALF AGAIN as large and the ring drawn small
+ * inside it. At the centred scale the ring's top runs off the canvas.
+ */
+const HALO_FOOT_SCALE = 3;
 
-/** A thin cyan annulus, sized to sit just outside the dot it encircles. */
-function ringTexture() {
-  if (ringSprite || !THREE) return ringSprite;
+const ringSprites = new Map();
+
+/** A thin cyan annulus, sized to sit just outside the symbol it encircles. */
+function ringTexture(foot) {
+  const cached = ringSprites.get(foot);
+  if (cached || !THREE) return cached || null;
   const size = 128;
   const canvas = document.createElement("canvas");
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext("2d");
-  const radius = size * 0.33;
+  // Centred: a third of the sprite, so it lands close around the dot in the
+  // middle of it. Foot-anchored: the same DRAWN diameter in a sprite that is
+  // half again as big, with its centre lifted to where the ink's centre is --
+  // half the ink's height above the coordinate, which the quad puts at the
+  // canvas' own middle.
+  const radius = foot ? (size * RING_DIAMETER) / 2 / HALO_FOOT_SCALE : size * 0.33;
+  const cy = foot
+    ? size * (0.5 - INK_HEIGHT / 2 / HALO_FOOT_SCALE)
+    : size / 2;
   // A soft wide glow under a hard bright ring: the glow carries at a distance,
-  // the ring keeps a definite edge close up. Drawn at a third of the sprite, so
-  // it still lands close around the dot in the middle of it.
-  ctx.lineWidth = size * 0.20;
+  // the ring keeps a definite edge close up.
+  const weight = foot ? 2 / 3 : 1;
+  ctx.lineWidth = size * 0.20 * weight;
   ctx.strokeStyle = "rgba(255,255,255,0.28)";
   ctx.beginPath();
-  ctx.arc(size / 2, size / 2, radius, 0, Math.PI * 2);
+  ctx.arc(size / 2, cy, radius, 0, Math.PI * 2);
   ctx.stroke();
-  ctx.lineWidth = size * 0.085;
+  ctx.lineWidth = size * 0.085 * weight;
   ctx.strokeStyle = "rgba(255,255,255,1)";
   ctx.beginPath();
-  ctx.arc(size / 2, size / 2, radius, 0, Math.PI * 2);
+  ctx.arc(size / 2, cy, radius, 0, Math.PI * 2);
   ctx.stroke();
-  ringSprite = new THREE.CanvasTexture(canvas);
-  return ringSprite;
+  const texture = new THREE.CanvasTexture(canvas);
+  ringSprites.set(foot, texture);
+  return texture;
 }
 
 function setSelection(event) {
@@ -1831,9 +1874,12 @@ function setSelection(event) {
   geometry.setAttribute("position", new THREE.BufferAttribute(
     new Float32Array([position.x, position.y, position.z]), 3,
   ));
+  // The same test the marker's own texture is chosen by, so the two cannot
+  // disagree about whether this symbol stands on its point or is centred on it.
+  const foot = !isQuakeBand(markerKey(event));
   halo = new THREE.Points(geometry, new THREE.PointsMaterial({
     color: 0x52e4e8,
-    map: ringTexture(),
+    map: ringTexture(foot),
     sizeAttenuation: false,
     depthWrite: false,
     // Not depth tested, and hidden past the limb by `cullBehindGlobe` instead:
@@ -1847,6 +1893,7 @@ function setSelection(event) {
     blending: THREE.AdditiveBlending,
   }));
   halo.name = "eonet-selection";
+  halo.userData.foot = foot;
   halo.renderOrder = 231;
   halo.userData.truePositions = Float32Array.from([position.x, position.y, position.z]);
   halo.frustumCulled = false;
@@ -2107,8 +2154,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260907-90f80a3"),
-    import("./research/dsp.js?v=20260907-90f80a3"),
+    import("./seismogram-plot.js?v=20260907-ca7dd61"),
+    import("./research/dsp.js?v=20260907-ca7dd61"),
   ]);
   if (stale()) return;
 

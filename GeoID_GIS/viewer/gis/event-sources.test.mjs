@@ -485,3 +485,69 @@ if (fail) process.exitCode = 1;
   })(), true);
   check("the far cap is what the near ramp starts from", nearSizePx(1_000_000 - 1) >= DOT_CAP_FAR, true);
 }
+
+/* ── the selection ring, anchored the way the symbol it circles is ─────────
+   A category glyph STANDS ON its point -- the ink lives in the upper half of
+   its canvas with the base on the coordinate -- while the earthquake rings
+   stay centred. A ring centred on the coordinate therefore circles the right
+   PLACE and the wrong PICTURE: reported on a flood, and the screenshot is a
+   ring with the dot sitting on its top edge. The numbers below are what put
+   the ring around the ink rather than around the coordinate. */
+{
+  const src = readFileSync(new URL("./events.js", import.meta.url), "utf8");
+  const num = (name) => {
+    const hit = new RegExp(`const ${name} = ([^;]+);`).exec(src);
+    if (!hit) return NaN;
+    // The constants are written as their own derivation.
+    return Function(`"use strict";
+      const GLYPH_FOOT_SCALE = ${/const GLYPH_FOOT_SCALE = ([\d.]+);/.exec(src)?.[1]};
+      const GLYPH_INK = ${/const GLYPH_INK = ([\d.]+);/.exec(src)?.[1]};
+      const INK_HEIGHT = GLYPH_INK * GLYPH_FOOT_SCALE;
+      return (${hit[1]});`)();
+  };
+  const ink = num("INK_HEIGHT");
+  const diameter = num("RING_DIAMETER");
+  const foot = num("HALO_FOOT_SCALE");
+
+  check("the ring is chosen by the same test the marker's texture is",
+    /const foot = !isQuakeBand\(markerKey\(event\)\);/.test(src)
+    && /map: ringTexture\(foot\)/.test(src), true);
+  check("and the halo remembers which it is wearing",
+    /halo\.userData\.foot = foot;/.test(src), true);
+  check("the floor is on the dot, so the proportion holds at every size",
+    /const dot = Math\.max\(9, px > 0 \? dotSizePx\(px, altitude\) : 8\);/.test(src),
+    true);
+
+  /* WHAT THE SOURCE ACTUALLY DRAWS, read back out of it rather than restated:
+     the canvas fraction ringTexture puts the foot ring's centre at, and the
+     fraction it gives its radius. */
+  const drawn = (expr) => Function(`"use strict";
+    const size = 1;
+    const INK_HEIGHT = ${ink}; const HALO_FOOT_SCALE = ${foot};
+    const RING_DIAMETER = ${diameter};
+    return (${expr});`)();
+  const centreFraction = drawn(
+    /const cy = foot\s*\?\s*size \* \(([^)]+)\)/.exec(src)[1]);
+  const radiusFraction = drawn(
+    /const radius = foot \? (.+?) : size \* 0\.33;/.exec(src)[1]);
+
+  /* The ink stands on the point, so its centre is half its height above it —
+     and the quad's own centre IS the coordinate, so a canvas fraction f from
+     the top sits (0.5 - f) sprite-widths above it. Derived here from the
+     MARKER's constants and checked against what the ring is drawn at. */
+  const wanted = 0.5 - (ink / 2) / foot;
+  check("the ring's centre lands on the ink's centre",
+    +centreFraction.toFixed(4), +wanted.toFixed(4));
+  check("and its radius is half the diameter the centred ring draws",
+    +radiusFraction.toFixed(4), +(diameter / 2 / foot).toFixed(4));
+  check("it circles the ink rather than sitting inside it", diameter > ink, true);
+  /* THE WHOLE REASON THE FOOT SPRITE IS BIGGER. At the centred scale the ring
+     runs off the top of its own canvas and is drawn with a bite out of it. */
+  const glow = 0.20 * (2 / 3) / 2;          // half the wide glow's line width
+  check("and it fits inside the canvas, glow included",
+    centreFraction - radiusFraction - glow > 0, true);
+  check("with room below the coordinate too",
+    centreFraction + radiusFraction + glow < 1, true);
+  check("which the centred scale would not have given it",
+    (0.5 - (ink / 2) / 2) - (diameter / 2 / 2) - glow < 0, true);
+}

@@ -1,24 +1,27 @@
 /**
- * THE LEGEND AND THE EVENTS FEED ARE ONE SLOT, NOT TWO.
+ * TWO BUTTONS IN A ROW, AND ONE DROP-DOWN AREA UNDER THEM.
  *
- * They were side by side, which cost the top of the map twice over: two
- * buttons always showing, and — because the feed places itself left of the
- * legend — a layout that moved whenever the legend's width changed. Neither is
- * ever read at the same time as the other; they answer different questions
- * about the same globe.
+ * The legend and the events feed share the top-right corner. They are never
+ * read at the same time — they answer different questions about the same globe
+ * — and their panels are wide enough that two open at once overlap. So the two
+ * buttons are a pair of tabs into a SINGLE slot: at most one may be open,
+ * pressing either shuts the other, and whichever is open drops into the same
+ * rectangle rather than hanging under its own button. Two panels in two places
+ * is two drop-downs however careful they are about taking turns.
  *
- * So they are a SHUFFLE. One card is in front, at full size and full contrast,
- * and it is the only one that may open a panel. The other sits behind it,
- * moved up and left, smaller, turned a few degrees and greyed — visibly a card
- * you can bring forward rather than a button somebody forgot to style.
- * Pressing the one at the back deals it to the front and sends the other
- * behind, which is the whole interaction.
+ * WHAT THIS IS NOT ANY MORE. It was a shuffle: one card in front at full size,
+ * the other behind it, moved up and left, scaled to 0.84, turned -7deg and
+ * greyed. Reported, and fairly — a slanted chip half-hidden behind the active
+ * one reads as a rendering fault, not as a control. The buttons sit side by
+ * side at full size now (`placeOverlay` in events.js does the offset, off the
+ * legend's TOGGLE so the row cannot move when a panel opens), and the only
+ * thing left here is the rule that was worth keeping.
  *
  * WHY IT LIVES IN ITS OWN FILE. The legend owns its toggle in `legend-dock.js`
  * and the feed owns its own in `events.js`, and each is right to. Which of
- * them is in front belongs to neither — putting it in one would make that one
- * the parent of the other, and the next card added to this corner would have
- * to be taught about both.
+ * them is open belongs to neither — putting it in one would make that one the
+ * parent of the other, and the next card added to this corner would have to be
+ * taught about both.
  */
 
 const CARDS = [
@@ -28,66 +31,16 @@ const CARDS = [
 
 /**
  * The legend leads, because it describes what is already on the globe; the
- * feed is something you go and ask for.
+ * feed is something you go and ask for. Only consulted to break a tie.
  */
-let front = CARDS[0].id;
-
-const STYLE = `
-/* The stack. Both cards share the slot; the transform decides which is read. */
-.map-legend[data-stack] {
-  transform-origin: top right;
-  transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.3, 1),
-              opacity 0.28s ease, filter 0.28s ease;
-}
-.map-legend[data-stack="front"] { z-index: 14; transform: none; opacity: 1; }
-/**
- * UP AND LEFT, never down: the front card's panel hangs below its button, and
- * a back card offset downwards disappears behind the very thing it is meant to
- * peek out from.
- *
- * THE OFFSET HAS TO BEAT THE WIDTH DIFFERENCE, which is why it is this large.
- * The cards are right-aligned and the transform origin is their shared corner,
- * so scaling alone pulls the back card's left edge INWARDS — at 0.84 that is
- * fourteen pixels of the offset spent before anything shows.
- *
- * Two goes at this, and the second was reported rather than measured. At
- * 0.55rem the back card cleared the front by five pixels and read as a drop
- * shadow; at 1.7rem it peeked twelve, which measured fine and was reported as
- * "the live event button is hidden". Twelve pixels of a dark chip against a
- * dark chip is not a card anybody can see. It clears about thirty now, which
- * is the icon and an edge, and the dimming is lighter for the same reason —
- * 55% opacity under 75% grey was most of the way to invisible before the
- * geometry got a chance.
- */
-.map-legend[data-stack="back"] {
-  z-index: 12;
-  transform: translate(-2.9rem, -0.8rem) scale(0.84) rotate(-7deg);
-  opacity: 0.72;
-  filter: grayscale(0.5);
-}
-.map-legend[data-stack="back"]:hover {
-  opacity: 1;
-  filter: grayscale(0);
-  transform: translate(-2.9rem, -0.8rem) scale(0.88) rotate(-4deg);
-}
-/* A card at the back has nothing open: only the front one answers. */
-.map-legend[data-stack="back"] .map-legend-panel { display: none !important; }
-/* The caret is the front card's business -- a rotated, greyed button with an
-   open-panel caret says the panel is open when it cannot be. */
-.map-legend[data-stack="back"] .map-legend-caret { transform: none !important; }
-`;
-
-let styled = false;
-function installStyle() {
-  if (styled || typeof document === "undefined") return;
-  styled = true;
-  const tag = document.createElement("style");
-  tag.id = "gis-overlay-stack-style";
-  tag.textContent = STYLE;
-  document.head.appendChild(tag);
-}
+let last = CARDS[0].id;
 
 const byId = (id) => document.getElementById(id);
+
+const isOpen = (card) => {
+  const panel = byId(card.panel);
+  return Boolean(panel) && !panel.hidden;
+};
 
 /** Shut a card's panel and say so on its toggle, without firing its handler. */
 function closeCard(card) {
@@ -96,79 +49,118 @@ function closeCard(card) {
   byId(card.toggle)?.setAttribute("aria-expanded", "false");
 }
 
-export function apply() {
-  /**
-   * A HIDDEN CARD CANNOT BE THE FRONT ONE.
-   *
-   * The feed's card exists only while Live Events is armed, so switching the
-   * feed off while it was in front would leave the legend at the back — greyed,
-   * turned and shrunk, with nothing in front of it to explain why. The stack
-   * deals to the first card that is actually on screen.
-   */
-  const visible = CARDS.filter((card) => byId(card.id) && !byId(card.id).hidden);
-  if (visible.length && !visible.some((card) => card.id === front)) {
-    front = visible[0].id;
-  }
+/** The gap between the row of buttons and the panel under it. */
+const SLOT_GAP = 6;
+/** The wider of the two panels' own widths, so the area is one rectangle. */
+const SLOT_WIDTH = "17.5rem";
+
+/**
+ * The slot, from the buttons themselves: under the lowest of them, and
+ * right-aligned to the rightmost, so it cannot drift from the row it hangs off.
+ * Pure, because everything else here needs a document and this is the only
+ * part with arithmetic worth pinning.
+ */
+export function slotFrom(rects, viewportWidth, gap = SLOT_GAP) {
+  const seen = (rects || []).filter((r) => r && r.width > 0);
+  if (!seen.length) return null;
+  return {
+    top: Math.max(...seen.map((r) => r.bottom)) + gap,
+    right: viewportWidth - Math.max(...seen.map((r) => r.right)),
+  };
+}
+
+/**
+ * Pin both panels into that one rectangle.
+ *
+ * `position: fixed` takes each panel out of its own card's flow, which is the
+ * whole point: a panel that flows under its button is at that button's x, and
+ * the two buttons are not in the same place. Written `!important` for the
+ * reason `placeOverlay` records about this corner — a plain inline write on
+ * the events host is silently ignored — and because the panels' own widths are
+ * set from an ID selector.
+ */
+function applySlot() {
+  if (typeof window === "undefined") return;
+  const rects = CARDS
+    .map((card) => byId(card.id) && !byId(card.id).hidden && byId(card.toggle))
+    .filter(Boolean)
+    .map((toggle) => toggle.getBoundingClientRect());
+  const slot = slotFrom(rects, window.innerWidth);
+  if (!slot) return;
   CARDS.forEach((card) => {
-    const host = byId(card.id);
-    if (!host) return;
-    const atFront = card.id === front;
-    host.dataset.stack = atFront ? "front" : "back";
-    if (!atFront) closeCard(card);
-    const toggle = byId(card.toggle);
-    // The one at the back is a card to deal forward, and says so rather than
-    // claiming to expand something.
-    if (toggle) {
-      toggle.setAttribute("aria-pressed", atFront ? "true" : "false");
-      toggle.title = atFront ? "" : "Bring to the front";
-    }
+    const panel = byId(card.panel);
+    if (!panel) return;
+    panel.style.setProperty("position", "fixed", "important");
+    panel.style.setProperty("top", `${Math.round(slot.top)}px`, "important");
+    panel.style.setProperty("right", `${Math.round(slot.right)}px`, "important");
+    panel.style.setProperty("width", SLOT_WIDTH, "important");
   });
 }
 
-/** Deal `id` to the front. Returns whether anything moved. */
-export function bringToFront(id) {
-  if (!CARDS.some((card) => card.id === id) || front === id) return false;
-  front = id;
-  apply();
-  return true;
+/**
+ * Enforce the one rule: if both panels are open, the one opened LAST stays.
+ * Called after anything that can open a panel behind our back — the legend
+ * opens itself when a layer arrives.
+ */
+export function apply() {
+  applySlot();
+  const open = CARDS.filter((card) => byId(card.id) && isOpen(card));
+  if (open.length < 2) {
+    if (open.length === 1) last = open[0].id;
+    return;
+  }
+  const keep = open.find((card) => card.id === last) || open[0];
+  last = keep.id;
+  open.forEach((card) => { if (card.id !== keep.id) closeCard(card); });
 }
 
-export const frontCard = () => front;
+/** Open `id`'s panel and shut the other. Returns whether anything moved. */
+export function showOnly(id) {
+  const card = CARDS.find((entry) => entry.id === id);
+  if (!card) return false;
+  last = id;
+  let moved = false;
+  CARDS.forEach((entry) => {
+    if (entry.id === id) return;
+    if (isOpen(entry)) { closeCard(entry); moved = true; }
+  });
+  return moved;
+}
+
+/** The card whose panel is open, or null. */
+export function openCard() {
+  return CARDS.find((card) => byId(card.id) && isOpen(card))?.id ?? null;
+}
 
 function wire() {
-  installStyle();
   CARDS.forEach((card) => {
     const toggle = byId(card.toggle);
     if (!toggle || toggle.dataset.stackWired) return;
     toggle.dataset.stackWired = "1";
     /**
-     * CAPTURE, and it has to be.
+     * CAPTURE, and it does NOT take the click.
      *
-     * Each card's own handler flips its panel. For a card at the BACK that is
-     * the wrong answer twice over: it would open a panel the stack keeps
-     * hidden, and leave the card behind. So the shuffle happens first, opens
-     * the panel itself, and stops the click — otherwise the card's own
-     * listener runs immediately afterwards and toggles it straight shut.
-     *
-     * A click on the FRONT card is left alone: opening and closing its own
-     * panel is exactly what its handler is for.
+     * Each card's own handler flips its own panel, which is exactly right;
+     * all this has to add is shutting the other one first. So it runs ahead of
+     * that handler and then lets it through — stopping the click here would
+     * mean reimplementing both toggles, and taking it after would mean the
+     * other panel closes a frame after this one opens.
      */
-    toggle.addEventListener("click", (event) => {
-      if (card.id === front) return;
-      event.preventDefault();
-      event.stopPropagation();
-      bringToFront(card.id);
-      const panel = byId(card.panel);
-      if (panel) panel.hidden = false;
-      toggle.setAttribute("aria-expanded", "true");
-      window.dispatchEvent(new CustomEvent("geoid:legend-changed"));
+    toggle.addEventListener("click", () => {
+      last = card.id;
+      // Only when this press will OPEN it: pressing an open card closes it,
+      // and shutting the other one as well would be two closes for one press.
+      if (!isOpen(card)) showOnly(card.id);
+      // The panel is about to be shown by the card's own handler, so the slot
+      // has to be right before that rather than on the next event.
+      applySlot();
     }, true);
   });
   apply();
 }
 
 if (typeof window !== "undefined") {
-  window.GeoIDOverlayStack = { bringToFront, frontCard, apply };
+  window.GeoIDOverlayStack = { showOnly, openCard, apply, slotFrom };
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", wire);
   } else {
@@ -179,4 +171,8 @@ if (typeof window !== "undefined") {
   // GIS mode. Re-wiring is idempotent — `stackWired` is the guard.
   window.addEventListener("geoid-gis:layers-changed", wire);
   window.addEventListener("geoid:legend-changed", apply);
+  // The row moves with the viewport and with the hub's own rail, and the slot
+  // is measured off the row.
+  window.addEventListener("resize", applySlot);
+  window.addEventListener("geoid-gis:mode-change", () => window.setTimeout(apply, 0));
 }
