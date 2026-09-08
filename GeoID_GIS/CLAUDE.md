@@ -15067,3 +15067,42 @@ the note holding 70 px throughout.
 **When a floating control changes size, ask what inside it is sized by its own
 content** — this tree has now paid for it three times (the legend and events
 buttons measuring a CARD whose width follows its open panel, and here).
+
+### The track in the middle, and the date on the bar's edge
+
+The date sat in the row between the transport and the track, so it was a third
+cluster — the track could not be centred, and the widest thing on the bar was
+sitting where a reader looks for the handle. It is a pill on the bar's TOP EDGE
+now, centred over the track it names, and MERGED rather than floating: no
+bottom border, pulled down a pixel so its own ground covers the bar's top
+border across its width. A tab, not a chip.
+
+**Centring the track is a fact about the two clusters either side of it**, not
+about the track. `balanceRow` measures the lead and the trail and gives both
+the wider one's `min-width` — measured rather than declared, because their
+contents differ by driver: the overlay toggle exists only where there is an
+overlay, so any constant would centre the bar for one driver and lean it for
+the next. Re-run whenever the note grows, since a wider trail is an off-centre
+track. Measured over 12 samples across all three step sizes: **lead 163 =
+trail 163, and the track's midpoint on the bar's midpoint to 0.00 px at every
+one**.
+
+**AND A RESERVED BOX IS NOT THE INK.** `reserveText` writes `style.width`, the
+page sets `box-sizing: border-box`, and the pill has 25.6 px of padding — so a
+reservation of 38 px left **36 px of box for 48 px of "2000"** and the year
+clipped, silently. The note has no padding, which is exactly why the same
+function worked there and failed here. The reservation adds the element's own
+padding and border when the box is border-box. Measured after: nothing clipped
+at any frame, at any step size.
+
+**The pill is reserved too, though it cannot move the bar.** It is absolutely
+positioned, so its width reaches nothing — but a pill resizing under a still
+slider is the same jitter one step out. One width per sequence: 65 px for
+years, 89 for months, 113 for full dates.
+
+**And the backtick trap, for the SIXTH time in this file's history** — my own
+new comment said `balanceRow` in backticks inside the STYLE literal, which ends
+the string. `node --input-type=module --check` named it immediately, which is
+the argument for running it on every edit to a file with CSS-in-JS rather than
+trusting a diff. The patch script now asserts the STYLE literal is
+backtick-free before writing.
