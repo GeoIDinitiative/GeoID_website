@@ -15444,3 +15444,24 @@ The honest far-field product is a plume from the live wind field — the
 Open-Meteo GFS winds are already fetched for the weather card — as a separate
 piece of work, drawn as a sector downwind and labelled for the eruption size
 it assumes. The 35–50 km band already carries "trace ash" as its own text.
+
+### "Failed to fetch" on a catalogue row is an ORIGIN, not the data
+
+"Tropical cyclone tracks (IBTrACS) did not load: Failed to fetch." Measured
+before believing any of it: the file is in the bucket byte-for-byte with disk
+(12,606,046), listed in `sources.json` with its fingerprint, served **206
+with CORS** to `https://geoidinitiative.com`, `https://www.geoidinitiative.com`
+and `http://localhost:8125`, `vary: Origin` and `cf-cache-status: DYNAMIC` (so
+no cached CORS-less variant), and fetched whole from the page on 8125. It is
+served **206 WITHOUT the CORS header** to `http://localhost:8123`,
+`http://geoidinitiative.com` and `geoidinitiative.github.io` — and a
+cross-origin response with no `Access-Control-Allow-Origin` reaches the page
+as a bare `TypeError: Failed to fetch`, no status attached. An HTTP failure
+would have read "HTTP 404".
+
+So the row now says what that means: `explainFetchFailure` (data-base.js,
+pure, pinned) names the bucket and the page's origin and states both causes —
+the network, or an origin off the bucket's CORS allowlist — with the two that
+are on it. The allowlist is an account-level setting; nothing in this repo can
+add an origin to it, which is why the sentence is the fix rather than a
+config change. Check the address bar before anything else.
