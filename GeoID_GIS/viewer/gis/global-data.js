@@ -26,15 +26,15 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260908-9ee53b0";
-import { dataUrl } from "./data-base.js?v=20260908-9ee53b0";
-import { mathsFor } from "./equations.js?v=20260908-9ee53b0";
+import { runConnector } from "./research/connectors.js?v=20260908-294767f";
+import { dataUrl } from "./data-base.js?v=20260908-294767f";
+import { mathsFor } from "./equations.js?v=20260908-294767f";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260908-9ee53b0";
+} from "./cyclone-risk.js?v=20260908-294767f";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-9ee53b0";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-294767f";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",

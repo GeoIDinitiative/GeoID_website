@@ -15225,3 +15225,98 @@ failure appended after it exits 1. An earlier A/B appeared to show otherwise
 and was itself the idiom bug above: the appended check passed spuriously, so it
 never tested the hook at all. **When an A/B says a mechanism does not work,
 check that the probe is exercising the mechanism.**
+
+## The cyclone subtab, put in order — and what fell out of doing it
+
+"Why are you incapable of keeping things organised today?" Fair: the tracks'
+Plot-by and Season-span selects sat under the RISK row, and the live-storm
+proxy was a hand-written `.row` at the foot of the tab wearing its own idiom.
+
+**A layer's settings hang UNDER ITS OWN ROW, as a drawer, only while it is
+loaded.** `entry.settings` names a block of page markup; `catalogue-list`
+docks it in a `.gis-catalogue-settings` drawer straight after the row when the
+layer is on the globe and parks it home, hidden, when it is not. Markup rather
+than built, because the selects hold state that a rebuild per tick would throw
+away — measured, the step stays "storm" through the redraw a second tick
+causes. Two things that bite: the block must be RESCUED before the list is
+cleared (`host.textContent = ""` would destroy it with the rows), and BOTH
+catalogue projections must carry `settings` — the third field this trap has
+now cost, after `detailCopy` and `play`.
+
+**The live feed is Live's own row, seen again.** `data-feed-proxy` on a host;
+events.js fills it with the SAME `sourceRow` template the feed panel draws, so
+the glyph, the type and the tick are identical by construction (measured:
+computed row and name styles equal, cyclone mask present) rather than an
+imitation that drifts. A side effect worth having: the feed panel's own rows
+drew a literal "●" for every source, and now go through `glyphSpan` too — the
+storm row in Live wears the cyclone.
+
+### Two callers, one sequence, and a poll that read a handover as a ✕
+
+Ticking the risk map cold left TWO "estimate" sheets registered — two
+Workspace rows, two drapes — and the timeline named it: `addDataset` applies
+the entry's default view (`setView → play`, sheet 6 at 16.3 s), whose
+`startPlayer` takes the TRACKS' bar down; the 700 ms poll in `animated-layers`
+then sees an owner with no bar, calls that a dismissal, and `sync` opens the
+risk entry ITSELF (sheet 7 at 17.5 s). Two guards in two files cannot close a
+window a third file is polling through. Three fixes, each load-bearing:
+
+- **One drape per dataset BY CONSTRUCTION** — `open_` takes any sheet of its
+  own name off before registering. The guards may lose their race; the globe
+  still holds one.
+- **A dismissal is ANNOUNCED, never inferred.** `stopPlayer({ reason })`
+  dispatches `geoid-gis:timelapse-stopped`; only `"dismiss"` (the ✕) marks the
+  owner dismissed. The poll that inferred one from an empty bar is gone. Before
+  this, unticking the risk gave the tracks NO bar back while they were still on
+  the globe — held "dismissed" by a handover.
+- **A held open CLAIMS the bar** (`hold(work, id)`), so an open made from
+  outside the module — the catalogue's default view — records who owns it.
+
+### The bar that never came up, and the throw nobody saw
+
+On the cold path only, the risk's bar then never appeared at all and the sheet
+was orphaned. `setView` writes `cycloneView = "estimate"` BEFORE the sequence
+opens; the tracks' teardown, run by the risk's `startPlayer`, calls
+`showClimatology()` bare — "put back what the grid was wearing" — and the grid
+was wearing "estimate", which is not a paintable view: `VIEWS.estimate.field`
+threw inside `stopPlayer`, after the tracks' bar was removed and before the
+risk's was built or the stop announced. **`addDataset` wraps `views.apply` in
+a bare try/catch, so the whole broken open vanished without a line of console.**
+Cached, there was no tracks bar to tear down, so it worked — which is why it
+looked intermittent. Two fixes: a bare `showClimatology()` leaves a layer
+wearing the estimate alone (the sequence owns what the grid shows), and
+`stopPlayer` runs a driver's `onStop` under try/catch and ALWAYS completes and
+announces. **A try/catch that says "the layer keeps whatever it had" is where a
+broken feature goes to be silent.**
+
+### The frames were off by one, and the opening frame was the wrong one
+
+`unhandledrejection` capture — installed only to hunt the race — caught
+`Invalid sample index '47'`. geotiff.js samples are 0-based; the bake's VRT
+numbers bands from 1; `open()` read the descriptions 0-based and the epochs
+counted from 1. Measured on the file: **sample 0 is "1980" (128,307 cells
+reached), sample 46 is "2026" (384,060 — the full record), 47 is invalid.** So
+every frame showed the estimate a season later than its label, the last frame
+— the one the bar OPENS on — failed and was swallowed, and the sheet every
+reader saw first was sample 1: "1981", 175,184 cells, captioned "after 47
+seasons". Fixed to 0-based throughout and draped with the LAST band first.
+Verified cold: opening frame 384,060 opaque cells = band 46 exactly, frame 0
+128,307 = band 0, zero errors.
+
+### Measuring this cost four instruments' worth of lessons
+
+- **The browser tool has a 45 s window and its locals die with it.** A reload
+  plus a 40 s wait is over it, and the log was a `const`. Stash the log on
+  `window`, split the run into steps, and sample at 100 ms into a trace that
+  records only CHANGES.
+- **`python -m http.server` serves no byte ranges**, so geotiff.js cannot open
+  a COG from the dev server ("Request failed"); resolve the bucket URL through
+  the app's own `dataUrl`, imported in the IFRAME's realm under the live stamp.
+- **A `cd` into `gis/` in one command leaks into the next**, and then
+  `GeoID_GIS/tests/run.mjs` and `stamp.py` are not found — twice this session,
+  once letting a commit through with a failing pin because a `;` stood where
+  `&&` belonged. Absolute paths, and gate the commit on the suite's own line.
+- **`node --check` cannot see a missing function that only the `window` block
+  references.** My slice replacement deleted `hold()` along with `watchBar()`;
+  the seam still named it, the module would have thrown at load in the
+  browser, and the only thing that caught it was a source-text pin.
