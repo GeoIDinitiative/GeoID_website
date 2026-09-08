@@ -63,6 +63,15 @@ ARCHIVE = "IBTrACS.ALL.list.v04r01.lines.zip"
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 OUT_GRID = ROOT / "data" / "global" / "cyclone-risk.geojson"
 OUT_YEARS = ROOT / "data" / "global" / "cyclone-risk-years.json"
+# The animation's own product. "hotlink-ok" in the name is not decoration:
+# Cloudflare's Hotlink Protection 403s an IMAGE by Referer, and a .tif is an
+# image to it -- measured on the soil thickness COG, 200 from the production
+# origin and 403 from localhost, arriving in the browser as a bare
+# "TypeError: Failed to fetch" with no status to read.
+OUT_RASTER = ROOT / "data" / "global" / "cyclone-risk-cumulative.hotlink-ok.tif"
+# Scratch. `data/global/.*-work/` is gitignored -- the soil bake put 376 MB of
+# its own working files into a commit before that rule existed.
+WORK = ROOT / "data" / "global" / ".cyclone-work"
 
 # The window. 1980 is where the record becomes globally consistent -- the
 # satellites -- and everything before it is a record of where ships and coasts
@@ -277,6 +286,59 @@ def read_storms():
     return storms
 
 
+def write_cumulative(per_year, seasons):
+    """The climatology AS IT STOOD after each season, as a band apiece.
+
+    A DIFFERENT PRODUCT FROM THE PER-SEASON COUNTS, and the two answer
+    different questions. A season's map is what happened that year; this is the
+    ESTIMATE, recomputed over 1980..Y for every Y, so playing it shows the map
+    settling down as the record lengthens — and shows where it is still moving,
+    which is the honest reading of how well any of this is known.
+
+    WHY A RASTER RATHER THAN THE GRID. The quadtree coarsens where the field is
+    flat, and the field CHANGES every year — so a quadtree rebuilt per frame
+    changes its own geometry between frames, and what moves on screen is partly
+    the resolution rather than the hazard. That is the glacier animation's
+    fault exactly ("what moved between frames was which analyst had been
+    working"). A fixed lattice cannot have it: every frame is the same
+    1440x720 cells, so a difference between two frames is a difference in the
+    estimate. The variable-resolution grid stays as the static map, where it
+    earns its keep and nothing is being compared frame to frame.
+
+    Byte, because the value is a probability drawn as a colour: 1/255 is 0.4%
+    of the scale, far finer than the classes read it at, and it is what makes
+    47 global frames 4.5 MB instead of 49.
+
+    Written through GDAL's CLI rather than its Python bindings, which segfault
+    on this machine (`from osgeo import ogr`) -- and that is the same stack
+    QGIS sits on, so it is worth knowing before believing a crash.
+    """
+    WORK.mkdir(parents=True, exist_ok=True)
+    raw = WORK / "cumulative.bin"
+    with open(raw, "wb") as fh:
+        for i in range(len(seasons)):
+            rate = per_year[:i + 1].sum(axis=0).astype(np.float64) / (i + 1)
+            fh.write(np.round((1.0 - np.exp(-rate)) * 255).astype(np.uint8).tobytes())
+    bands = "".join(
+        '<VRTRasterBand dataType="Byte" band="{}" subClass="VRTRawRasterBand">'
+        '<SourceFilename relativeToVRT="1">cumulative.bin</SourceFilename>'
+        '<ImageOffset>{}</ImageOffset><PixelOffset>1</PixelOffset>'
+        '<LineOffset>{}</LineOffset><Description>{}</Description>'
+        '</VRTRasterBand>'.format(i + 1, i * NY * NX, NX, y)
+        for i, y in enumerate(seasons))
+    vrt = WORK / "cumulative.vrt"
+    vrt.write_text(
+        '<VRTDataset rasterXSize="{}" rasterYSize="{}"><SRS>EPSG:4326</SRS>'
+        '<GeoTransform>-180.0, {}, 0.0, 90.0, 0.0, -{}</GeoTransform>{}'
+        '</VRTDataset>'.format(NX, NY, STEP, STEP, bands))
+    subprocess.run(
+        ["gdal_translate", str(vrt), str(OUT_RASTER), "-of", "COG",
+         "-co", "COMPRESS=DEFLATE", "-co", "PREDICTOR=2", "-co", "BLOCKSIZE=512"],
+        check=True, capture_output=True, text=True)
+    raw.unlink()
+    return len(seasons)
+
+
 def main() -> int:
     began = time.time()
     storms = read_storms()
@@ -456,7 +518,13 @@ def main() -> int:
         "years": year_rows,
     }, separators=(",", ":")))
 
+    stack = np.stack([per_year[y] for y in seasons])
+    n = write_cumulative(stack, seasons)
+
     print("\n  {:,} cells drawn in {:.0f}s".format(len(features), time.time() - began))
+    print("  {} bands ({}-{}) {:.1f} MB -> {}".format(
+        n, seasons[0], seasons[-1], OUT_RASTER.stat().st_size / 1e6,
+        OUT_RASTER.relative_to(ROOT)))
     print("  {:.1f} MB -> {}".format(
         OUT_GRID.stat().st_size / 1e6, OUT_GRID.relative_to(ROOT)))
     print("  {:.1f} MB -> {}".format(

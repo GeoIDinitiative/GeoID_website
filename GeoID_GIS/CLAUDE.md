@@ -14406,3 +14406,73 @@ Three things that had to be checked rather than assumed:
 The basemap card is built elsewhere (`basemapCard`) and still carries its own
 row — "streamed tiles" plus the licence — which is a type and a condition
 rather than a count, so it is left alone.
+
+## The estimate over time is a RASTER, and the static map stays a grid
+
+"Should we change the probability map from the grid to geotiff for the
+animation over time only, where it incrementally shows the change in
+probability as new year's data is added?" Yes — for the animation, and only for
+it. The two are different products answering different questions:
+
+| | what it steps |
+| --- | --- |
+| `cyclone-timelapse.js` + the sparse sidecar | what HAPPENED that year — a count |
+| `cyclone-risk-raster.js` + the COG | the ESTIMATE after that year — the climatology recomputed over 1980..Y |
+
+**THE QUADTREE CANNOT BE ANIMATED, and that is the whole argument.** It
+coarsens where the field is flat, and the field CHANGES every year — so a
+quadtree rebuilt per frame changes its own GEOMETRY between frames, and half of
+what a reader sees moving is the resolution rather than the hazard. That is the
+glacier animation's fault exactly ("what moved between frames was which analyst
+had been working"). A fixed lattice cannot have it: every frame is the same
+1440x720 cells, so a difference between two frames IS a difference in the
+estimate. The grid stays as the static map, where nothing is compared frame to
+frame and its variable resolution is what makes it readable.
+
+**And the raster is SMALLER than the thing it sits beside.** 47 global frames
+as a Byte COG is **4.5 MB**, against 6 MB gzipped for the per-season JSON — the
+field is smooth and mostly empty, and DEFLATE with a horizontal predictor eats
+it (48.7 MB raw). A byte is 1/255 of the scale, far finer than six classes read
+it at.
+
+**One bake, three products.** The raster is derived from the per-year grids the
+same pass already holds in memory, so there is no second copy of the stamping
+to drift — the whole run is 121 s and stages nothing.
+
+### The honesty rule this one needed
+
+**A one-season estimate is not a hazard map.** One arrival in one year gives
+P = 0.63 anywhere a storm passed; it is sampling noise wearing a probability's
+clothes, and the 1980 frame looks like it — a handful of individual storm
+corridors rather than a field. So every frame says how many seasons it stands
+on and the thin ones say outright that they are mostly noise, the same rule the
+pre-satellite track frames follow. Measured, the mean difference from the final
+estimate falls **0.076 after one season to 0.0015 after forty-six**, which is
+the sequence's actual subject: the map settling down.
+
+### Four things it cost
+
+- **`gee.drape` builds in the GLOBE's frame** and bakes that half-turn in
+  itself, while `addDerivedLayer` reparents into `GeoID-ImportedGeoLayers`,
+  which carries the spin a different way. Registering alone puts the sheet half
+  a world from the ground it maps — so it is registered for its row and its key
+  AND then `globe.add`ed, which is the pair gee.js does for the same reason.
+- **The player parents nothing.** It toggles `node.visible` on `frames` and
+  otherwise leaves the scene to the driver; every existing driver adds its own
+  group through `addDerivedLayer`. A drape handed to `startPlayer` and never
+  parented is built, textured, correct and invisible.
+- **A REPAINT, not 47 drapes.** Every band is the same lattice over the same
+  ground, so the geometry is built once and only the texture changes — 47
+  global drapes would be some two hundred megabytes of texture for a sequence
+  that shows one at a time.
+- **`hotlink-ok` in the filename, or Cloudflare 403s it.** A `.tif` is an IMAGE
+  to Hotlink Protection, which keys on the Referer — the soil thickness COG
+  measured 200 from production and 403 from localhost, arriving in the browser
+  as a bare `TypeError: Failed to fetch` with no status to read. Verified after
+  publishing: 206 with ranges and CORS from both origins.
+
+**The classes are the static map's own**, through the same `riskEdges()`, so
+the animation and the map it animates cannot disagree about where a class
+begins — and a value of zero is drawn TRANSPARENT rather than in the bottom
+class, because ground no storm has ever reached is outside the map rather than
+at the low end of it.
