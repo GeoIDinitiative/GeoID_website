@@ -449,7 +449,18 @@ export function playerIndex() {
  */
 export async function startPlayer({ bounds, epochs, source = "auto", frames = null,
   noteFor = (epoch, tail) => tail, onStatus = () => {}, onStop = null,
-  overlayToggle = null, onShow = null, interval = 1200 }) {
+  overlayToggle = null, onShow = null, interval = 1200,
+  /**
+   * WHERE THE BAR OPENS. Frame 0 for a sequence somebody pressed play on --
+   * that is the beginning, and it is what every driver wanted until now.
+   *
+   * A bar that opens BECAUSE A LAYER WAS TICKED needs the other end: the
+   * reader asked for the layer, not for the first frame of it, so the bar has
+   * to park somewhere that leaves the layer saying what its own name says.
+   * Opening a cyclone track sequence at 1980 would answer a tick for "every
+   * storm on record" with 105 of 13,513.
+   */
+  startAt = 0 }) {
   stopPlayer();
   // `buildBar` needs to know whether there is an overlay before `state` exists.
   pendingToggle = overlayToggle;
@@ -462,6 +473,7 @@ export async function startPlayer({ bounds, epochs, source = "auto", frames = nu
   pendingToggle = null;
   syncOverlay();
   state.bar.slider.max = String(epochs.length - 1);
-  await show(0);
+  const opening = Math.min(Math.max(0, startAt | 0), epochs.length - 1);
+  await show(opening);
   return { frames: epochs.length };
 }

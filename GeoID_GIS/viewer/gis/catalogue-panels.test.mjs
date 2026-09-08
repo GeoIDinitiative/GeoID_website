@@ -265,17 +265,40 @@ check("and every listed group still has something in it",
 // has to name that layer in words and then be kept in step with it.
 {
   const list = readFileSync(join(HERE, "catalogue-list.js"), "utf8");
-  check("the play button is gated on the layer being on the globe",
-    /if \(layer && entry\.play\?\.run\)/.test(list));
+  check("a row control is gated on the layer being on the globe",
+    /if \(layer && entry\.viewToggle\?\.run\)/.test(list));
   check("and its click cannot reach the row's own toggle, which would untick it",
-    /event\.stopPropagation\(\)/.test(list.slice(list.indexOf("entry.play?.run"))));
+    /event\.stopPropagation\(\)/.test(list.slice(list.indexOf("entry.viewToggle?.run"))));
   const data = readFileSync(join(HERE, "global-data.js"), "utf8");
-  check("exactly the two cyclone entries declare one",
-    [...data.matchAll(/^\s{4}play: \{/gm)].length === 2);
-  // READ AT THE PRESS. Closed over, the span would be whatever the select held
-  // when the catalogue was last redrawn -- and it is redrawn on every tick.
-  check("the season span is read at the press, not closed over",
+  check("exactly the two cyclone entries declare an animation",
+    [...data.matchAll(/^\s{4}animation: \{/gm)].length === 2);
+  // READ AT OPEN. Closed over, the span would be whatever the select held when
+  // the catalogue was last redrawn -- and it is redrawn on every tick.
+  check("the season span is read when the bar opens, not closed over",
     /getElementById\("cyclone-timelapse-span"\)\?\.value/.test(data));
+  // NO BUTTON: a layer that plays opens its bar because it is on the globe.
+  // A button would be a second decision for one intent -- the volcano Names
+  // button's fault, which this tree has now removed twice.
+  check("and no play button survives anywhere",
+    !/entry\.play/.test(list) && !/play: \{/.test(data));
+  // WHERE THE BAR PARKS is what makes opening-on-tick safe. Frame 0 would
+  // answer a tick for "every storm on record" with 105 storms of 13,513.
+  const lapseSrc = readFileSync(join(HERE, "cyclone-timelapse.js"), "utf8");
+  check("the season sequence ends on a frame that is the whole record",
+    /all: true/.test(lapseSrc) && /startAt === null \? ALL/.test(lapseSrc));
+  check("and its seasons are built on demand, not 47 up front",
+    /if \(built\.has\(index\)\) return built\.get\(index\);/.test(lapseSrc));
+  const raster = readFileSync(join(HERE, "cyclone-risk-raster.js"), "utf8");
+  check("the estimate opens on its last band, which IS the full-record map",
+    /startAt: epochs\.length - 1/.test(raster));
+  // ONE ROW FOR THE TRACKS, two files behind it. The switch loads the other
+  // file rather than repainting -- they are different geometry, not two
+  // colourings of one -- and the entry's path is read at load time so the
+  // tick, the info card and the layer stay one thing.
+  check("the two track maps are one entry",
+    /get path\(\) \{ return TRACK_VIEWS\[trackView\]\.path; \}/.test(data));
+  check("and the retired second entry is gone",
+    !/id: "cyclone-tracks-hurricane"/.test(data));
   const html = readFileSync(join(HERE, "..", "index.html"), "utf8");
   check("so the subtab holds no standing play button",
     !/cyclone-timelapse-play|cyclone-risk-raster-play/.test(html));
@@ -289,10 +312,6 @@ check("and every listed group still has something in it",
   // and a field left out of one falls back silently -- which is how the
   // submarine cables came to be captioned "Erupted since 1500", and how this
   // button came to be absent from a row whose Symbology button was fine.
-  for (const file of ["catalogue-panels.js", "polygons.js"]) {
-    check(`${file} carries entry.play through its projection`,
-      /play: entry\.play,/.test(readFileSync(join(HERE, file), "utf8")));
-  }
   // A layer holding two readings switches between them on its row, rather
   // than being a second entry over the same 23 MB file -- which would be the
   // duplication the home rule exists to prevent, wearing a different colour.

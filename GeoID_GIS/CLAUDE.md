@@ -14681,3 +14681,68 @@ Measured: nothing ticked → Hazards dark, Basemaps dark; a hazards dataset on �
 **Hazards lit while collapsed, Basemaps still dark**. The sub-tab was never
 broken — `.gis-catalogue-row input[type=checkbox]` is already a `DATA_CONTROL`,
 so `markSubsections` lights Tropical cyclones from its own ticked rows.
+
+## One entry for the tracks, and the bar opens with the layer
+
+Two changes, and the second is only safe because of where the bar parks.
+
+### The two track maps are ONE row, two files
+
+They are one subject read two ways — every storm on record, or only the
+stretches at hurricane force — so they are one entry with a switch, not two
+rows a reader has to notice are related.
+
+**It is not a repaint, and that is the honest difference from the risk map's
+toggle beside it.** The all-storms file is 13,513 whole tracks; the hurricane
+file is 3,700 sub-stretches. Different geometry, so the switch LOADS THE OTHER
+FILE. What makes it one row is that the entry's `path`, `name`, `summary` and
+`colourRange` are GETTERS over the active variant, read at load time — so the
+tick, the ⓘ and the layer stay one thing, and the separate
+`cyclone-tracks-hurricane` entry could be deleted outright.
+
+The class labels differ by one band, which is the honest part: the all-storms
+layer opens BELOW hurricane force so it has six, and every value in the
+hurricane file is at or above 64 knots, so nothing could fall in a lower one.
+
+### The bar opens because the layer is on, and parks where the layer is whole
+
+The play buttons are gone. A button is a second decision for one intent —
+somebody who ticks a sequence on has said they want to look at it — which is
+the volcano Names button's fault, now removed from this tree three times.
+
+**WHAT MAKES IT SAFE IS THE PARKING FRAME.** A bar opening on frame 0 would
+answer a tick for "every storm on record" with 105 storms of 13,513, and the
+last SEASON is no better: 2026 alone is 75. So the season sequence gains a
+terminal **"All"** epoch that shows the layer itself, unchanged — ticking
+changes nothing about what is drawn, and every step back from there is pure
+gain. The estimate needs no such frame: its last band already IS the
+full-record climatology, so it opens on `epochs.length - 1`.
+
+**And the seasons build ON DEMAND.** Building all 47 up front cost half a
+second and twice the geometry, which is a bill nobody asked for when the bar
+opens on a tick rather than a press. A reader who never scrubs pays nothing.
+
+`animated-layers.js` decides only WHEN — each driver names its own parking
+frame. One bar, because there is one player: ticking a second animated layer
+hands it over, which is the player's own rule. Unticking the owner puts the bar
+away, and the ✕ is caught by a poll rather than by wiring into every close path
+the player has — miss one and this module believes it still owns a bar that is
+gone, after which re-ticking never reopens it.
+
+### Two faults the live pass caught, both silent
+
+- **`tracksLayer()` matched the layer's NAME**, which was right until the entry
+  grew a variant: switched to hurricane force the layer is called "Hurricane
+  tracks", the pattern missed it, and the driver reported "tick the cyclone
+  tracks on first" over a ticked layer — because a driver that cannot find its
+  layer says exactly what one that has none says. It asks
+  `layerForDataset("cyclone-tracks")` now, which follows the variant by
+  construction.
+- **The bar called 3,700 runs "3700 storms"**, overstating the count by a
+  quarter (they are 3,700 runs over 2,929 storms) and misnaming every one. The
+  noun rides on the frame and the driver picks it from the layer it is playing.
+
+Measured end to end: tick → "All · 13,513 storms"; switch → "All · 3,700 runs"
+with the layer renamed and one tracks layer on the globe; untick → bar gone,
+owner null. The risk map: tick → "2026 — the estimate after 47 seasons",
+untick → gone.

@@ -18,7 +18,7 @@
  * in extraction and in export without this file knowing anything about them.
  */
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260908-1650e1b";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260908-7645fb7";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -69,16 +69,6 @@ const STYLE = `
   cursor: pointer;
 }
 .gis-catalogue-sym:hover { border-color: rgba(255, 255, 255, 0.5); }
-/* The one VERB on a row of nouns, so it carries the accent rather than the
-   hairline every other control here wears. */
-.gis-catalogue-play {
-  border-color: rgba(var(--nav-accent-rgb), 0.7);
-  color: rgb(var(--nav-accent-rgb));
-}
-.gis-catalogue-play:hover {
-  border-color: rgb(var(--nav-accent-rgb));
-  background: rgba(var(--nav-accent-rgb), 0.18);
-}
 /* A toggle that is ON says so: the same button, filled. */
 .gis-catalogue-sym.is-on {
   border-color: rgba(var(--nav-accent-rgb), 0.9);
@@ -551,33 +541,16 @@ export function renderCatalogue(host, entries, hooks) {
     // decision.
 
     /**
-     * A DATASET THAT PLAYS OVER TIME SAYS SO ON ITS OWN ROW.
+     * THERE IS NO PLAY BUTTON. A layer that plays over time opens its bar the
+     * moment it is on the globe (`entry.animation`, driven by
+     * animated-layers.js) — a button would be a second decision for one
+     * intent, which is the volcano Names button's own fault, and this file
+     * still carries that reasoning six lines up.
      *
-     * The button belongs with the layer it animates, for the reason the
-     * Symbology button and the label-detail slider are already here: a control
-     * that acts on one layer, parked in the subsection instead, has to name
-     * that layer in words and then be kept in step with it. The cyclone tab
-     * had two full-width buttons under a paragraph telling the reader which
-     * box to tick first -- and gated on the layer, the button simply is not
-     * there until the tick has been made, so the sentence is not needed.
-     *
-     * `entry.play` is the seam, not a cyclone special case: any entry naming
-     * one gets a button, and one that does not gets none.
+     * What makes that safe is where the bar PARKS: on the frame that leaves
+     * the layer saying what its own name says, so ticking changes nothing
+     * about what is drawn.
      */
-    if (layer && entry.play?.run) {
-      const go = document.createElement("button");
-      go.type = "button";
-      go.className = "gis-catalogue-sym gis-catalogue-play";
-      go.textContent = entry.play.label || "\u25b6 Play";
-      go.title = entry.play.title || `Play ${entry.label} over time`;
-      go.addEventListener("click", (event) => {
-        // The row's own handler toggles the layer off, which would take the
-        // thing being played off the globe with it.
-        event.stopPropagation();
-        void entry.play.run(layer);
-      });
-      row.appendChild(go);
-    }
     /**
      * A LAYER THAT HOLDS TWO READINGS SWITCHES BETWEEN THEM ON ITS OWN ROW.
      *

@@ -23,12 +23,12 @@
 
 import {
   buildSymbology, colourOf, legendInfoFrom,
-} from "./symbology.js?v=20260908-1650e1b";
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-1650e1b";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-1650e1b";
+} from "./symbology.js?v=20260908-7645fb7";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-7645fb7";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-7645fb7";
 import {
   showSeason, showClimatology, riskLayer,
-} from "./cyclone-risk.js?v=20260908-1650e1b";
+} from "./cyclone-risk.js?v=20260908-7645fb7";
 
 const search = new URL(import.meta.url).search;
 
@@ -56,7 +56,23 @@ let running = false;
 
 const byId = (id) => document.getElementById(id);
 
+/**
+ * THE LAYER THE CATALOGUE ENTRY IS LOADED AS — asked, not matched by name.
+ *
+ * This matched `/cyclone tracks/i`, which was the layer's name until the entry
+ * grew a second variant: switched to hurricane force it is "Hurricane tracks",
+ * the pattern missed it, and the sequence reported "tick the cyclone tracks on
+ * first" over a ticked layer. Silent, because a driver that cannot find its
+ * layer says exactly what one that has none says.
+ *
+ * `layerForDataset` is the catalogue's own answer and follows the variant by
+ * construction. The name match survives only for a page where the seam has not
+ * loaded yet, and only for the default variant, which is all it was ever right
+ * about.
+ */
 function tracksLayer() {
+  const byEntry = window.GeoIDGlobalData?.layerForDataset?.("cyclone-tracks");
+  if (byEntry) return byEntry;
   return (window.GeoIDImportManager?.getLayers?.() || [])
     .find((l) => l.name && /cyclone tracks/i.test(l.name)) || null;
 }
@@ -109,18 +125,26 @@ function colouring(features) {
   };
 }
 
-/** What the bar says under the year. */
+/**
+ * What the bar says under the year.
+ *
+ * THE NOUN COMES FROM THE FRAME, because the entry has two variants and only
+ * one of them draws storms. The hurricane view draws unbroken RUNS at
+ * hurricane force -- 3,700 of them over 2,929 storms -- so calling them storms
+ * would overstate the count by a quarter and misname every one of them.
+ */
 export function noteFor(epoch) {
-  const storms = epoch.count;
-  const named = epoch.named;
-  const tail = named ? `, ${named} named` : "";
-  if (epoch.year < SATELLITE_ERA) {
-    return `${storms} storm(s)${tail} — pre-satellite: recorded where ships and coasts were`;
+  const noun = epoch.noun || "storm";
+  const count = epoch.count;
+  const tail = epoch.named ? `, ${epoch.named} named` : "";
+  const said = `${count} ${noun}${count === 1 ? "" : "s"}${tail}`;
+  if (Number.isFinite(epoch.year) && epoch.year < SATELLITE_ERA) {
+    return `${said} — pre-satellite: recorded where ships and coasts were`;
   }
-  return `${storms} storm(s)${tail}`;
+  return said;
 }
 
-export async function play({ from = MODERN } = {}) {
+export async function play({ from = MODERN, startAt = null } = {}) {
   if (running) { stopPlayer(); running = false; }
   const layer = tracksLayer();
   if (!layer?.features?.length) {
@@ -130,43 +154,66 @@ export async function play({ from = MODERN } = {}) {
   const seasons = seasonsIn(layer.features, from);
   if (!seasons.length) { say("No seasons in that span."); return null; }
 
-  say(`Building ${seasons.length} seasons…`);
   const render = await import(`./vector-render.js${search}`);
   const THREE = await import("../vendor/three.module.js");
-
-  const spanFeatures = seasons.flatMap(([, list]) => list);
-  const paint = colouring(spanFeatures);
+  const paint = colouring(seasons.flatMap(([, list]) => list));
 
   const group = new THREE.Group();
   group.name = "GeoID-CycloneTimelapse";
-  const epochs = [];
-  const frames = seasons.map(([year, list]) => {
-    const built = render.renderFeatureCollection(
-      { type: "FeatureCollection", features: list },
-      { colourFor: paint.colourFor, outlineOnly: false },
-    );
-    const node = built?.object3D || built;
-    node.visible = false;
-    group.add(node);
-    epochs.push({
-      // The player shows `label` and asks GIBS for `date`; with imagery off
-      // the date is only ever read by the bar, so the year is both.
-      date: String(year), label: String(year), dataset: null,
-      from: `${year}-01-01`, to: `${year}-12-31`,
-      year,
-      count: list.length,
-      named: list.filter((f) => f.properties?.name).length,
-    });
-    return node;
-  });
 
   /**
-   * The whole-record layer stands down while a season is on screen, and comes
-   * back when the bar closes. Left visible it draws every storm behind the one
-   * season being shown, which is the web the animation exists to take apart.
+   * ONE EPOCH PER SEASON, AND A LAST ONE THAT IS THE WHOLE RECORD.
+   *
+   * The bar opens BECAUSE THE LAYER WAS TICKED, so it has to park somewhere
+   * that leaves the layer saying what its own name says. The last season is
+   * not that — 2026 alone is 75 storms of 13,513, so opening there would
+   * answer a tick for "every storm on record" with 0.6% of it. The terminal
+   * frame shows the layer itself, unchanged, and every step back from it is
+   * pure gain.
    */
+  // "run" only where the layer IS runs: the hurricane variant draws the
+  // stretches at hurricane force, not the storms that made them.
+  const noun = /hurricane tracks/i.test(layer.name || "") ? "run" : "storm";
+  const epochs = seasons.map(([year, list]) => ({
+    noun,
+    // The player shows `label` and asks GIBS for `date`; with imagery off the
+    // date is only ever read by the bar, so the year is both.
+    date: String(year), label: String(year), dataset: null,
+    from: `${year}-01-01`, to: `${year}-12-31`,
+    year, count: list.length,
+    named: list.filter((f) => f.properties?.name).length,
+  }));
+  epochs.push({
+    noun,
+    date: "all", label: "All", dataset: null, all: true,
+    count: layer.features.length,
+    named: layer.features.filter((f) => f.properties?.name).length,
+  });
+  const ALL = epochs.length - 1;
+
+  /**
+   * BUILT ON DEMAND, one season at a time.
+   *
+   * Building all 47 up front cost half a second and twice the geometry, which
+   * is a bill nobody asked for when the bar opens on a tick rather than on a
+   * press. A season is built the first time it is shown and kept; a reader who
+   * never scrubs pays nothing at all.
+   */
+  const built = new Map();
+  const nodeFor = (index) => {
+    if (built.has(index)) return built.get(index);
+    const made = render.renderFeatureCollection(
+      { type: "FeatureCollection", features: seasons[index][1] },
+      { colourFor: paint.colourFor, outlineOnly: false },
+    );
+    const node = made?.object3D || made;
+    node.visible = false;
+    group.add(node);
+    built.set(index, node);
+    return node;
+  };
+
   const wasVisible = layer.object3D ? layer.object3D.visible : true;
-  window.GeoIDLayerHierarchy?.setVisible?.(layer, false);
 
   const derived = window.GeoIDImportManager?.addDerivedLayer?.(
     "Cyclone seasons — peak wind (kts)", {
@@ -189,48 +236,57 @@ export async function play({ from = MODERN } = {}) {
     // The subject is the lines. A picture behind them costs a request per
     // frame and answers a question nobody asked of this layer.
     source: "none",
-    frames,
     noteFor,
     onStatus: say,
-    /**
-     * THE FEATURE LIST FOLLOWS THE FRAME, the glacier driver's own lesson:
-     * `featuresAt` walks `layer.features`, so a list left on the whole span
-     * answers a click with a storm from a season that is not on screen.
-     */
+    startAt: startAt === null ? ALL : startAt,
     onShow: (index) => {
+      const whole = index === ALL;
+      /**
+       * THE WHOLE-RECORD LAYER AND THE SEASON ARE NEVER BOTH UP. Left visible
+       * together the archive draws every storm behind the one season being
+       * shown, which is the web the animation exists to take apart — and on
+       * the All frame the archive IS the answer, so the derived group stands
+       * down instead.
+       */
+      window.GeoIDLayerHierarchy?.setVisible?.(layer, whole ? wasVisible : false);
+      built.forEach((node) => { node.visible = false; });
+      if (!whole) nodeFor(index).visible = true;
       const now = held();
       if (now) {
-        now.features = seasons[index][1];
-        now.collection = { type: "FeatureCollection", features: seasons[index][1] };
+        if (now.object3D) now.object3D.visible = !whole;
+        /**
+         * THE FEATURE LIST FOLLOWS THE FRAME, the glacier driver's own lesson:
+         * `featuresAt` walks `layer.features`, so a list left on the whole
+         * span answers a click with a storm from a season that is not shown.
+         */
+        const list = whole ? [] : seasons[index][1];
+        now.features = list;
+        now.collection = { type: "FeatureCollection", features: list };
       }
       /**
-       * AND THE RISK MAP FOLLOWS, when it is on the globe and the box is
-       * ticked. A season's cells are a COUNT and the climatology's are a
-       * chance, so `showSeason` swaps the legend with the map -- see
-       * cyclone-risk.js. It is a REPAINT: the geometry is the same 91,156
-       * cells however many years the bar steps through.
-       *
-       * Silent when the risk layer is not loaded, because it usually is not:
-       * the animation is worth watching on its own, and fetching a 23 MB map
-       * because somebody pressed play is the app deciding what they came for.
+       * AND THE RISK MAP FOLLOWS when it is on the globe. A season's cells are
+       * a COUNT and the climatology's are a chance, so `showSeason` swaps the
+       * legend with the map — see cyclone-risk.js. It is a REPAINT: the same
+       * 91,156 cells however many years the bar steps through. On the All
+       * frame it goes back to the long-run chance, which is what the layer is.
        */
-      if (followRisk()) void showSeason(seasons[index][0]);
+      if (followRisk()) {
+        if (whole) showClimatology();
+        else void showSeason(seasons[index][0]);
+      }
     },
     onStop: () => {
       running = false;
-      // The risk layer's own subject is the long-run rate, so closing the bar
-      // must leave it saying what its name says rather than holding whichever
-      // season the bar happened to stop on.
-      if (riskLayer()) showClimatology();
       const now = held();
       if (now) window.GeoIDImportManager?.removeLayer?.(now.id);
       group.traverse?.((n) => { n.geometry?.dispose?.(); n.material?.dispose?.(); });
       const back = tracksLayer();
       if (back) window.GeoIDLayerHierarchy?.setVisible?.(back, wasVisible);
+      if (riskLayer()) showClimatology();
       say("");
     },
   });
-  return { seasons: seasons.length };
+  return { seasons: seasons.length, openedOn: "All" };
 }
 
 /**

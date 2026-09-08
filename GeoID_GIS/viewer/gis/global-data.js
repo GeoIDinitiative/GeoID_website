@@ -26,15 +26,15 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260908-1650e1b";
-import { dataUrl } from "./data-base.js?v=20260908-1650e1b";
-import { mathsFor } from "./equations.js?v=20260908-1650e1b";
+import { runConnector } from "./research/connectors.js?v=20260908-7645fb7";
+import { dataUrl } from "./data-base.js?v=20260908-7645fb7";
+import { mathsFor } from "./equations.js?v=20260908-7645fb7";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260908-1650e1b";
+} from "./cyclone-risk.js?v=20260908-7645fb7";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-1650e1b";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-7645fb7";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -54,6 +54,48 @@ export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
  * exactly once" is a question about one file. `catalogue-panels.js` mounts
  * them and its test checks every home named here has a panel and a host.
  */
+/**
+ * THE TWO TRACK MAPS ARE ONE ENTRY, because they are one subject read two
+ * ways: every storm on record, or only the stretches at hurricane force.
+ *
+ * They are NOT two colourings of one geometry — the all-storms file is 13,513
+ * whole tracks and the hurricane file is 3,700 sub-stretches — so the switch
+ * loads the other file rather than repainting, which is the honest difference
+ * from the risk map's toggle beside it. What makes it one ROW is that the
+ * entry's path, name and classing are read at load time, so flipping the view
+ * and re-adding is all it takes; the tick, the ⓘ and the layer stay one thing.
+ *
+ * The labels differ by one band and that is the honest part: the all-storms
+ * layer opens BELOW hurricane force so it has six, and every value in the
+ * hurricane file is already at or above 64 knots, so nothing could fall in a
+ * lower band.
+ */
+const TRACK_VIEWS = {
+  storms: {
+    path: "/data/global/cyclone-tracks.geojson",
+    name: "Tropical cyclone tracks (IBTrACS v04r01).geojson",
+    summary: "13,513 storms from 1842 to 2026, each carrying its name, season, "
+      + "basin, peak wind and lowest pressure \u2014 5,733 of them named and "
+      + "6,246 with a measured peak intensity",
+    labels: ["Tropical storm or weaker", "Category 1", "Category 2",
+      "Category 3", "Category 4", "Category 5"],
+    legendLabel: "Strongest the storm got (Saffir\u2013Simpson)",
+  },
+  force: {
+    path: "/data/global/cyclone-tracks-hurricane.geojson",
+    name: "Hurricane tracks (IBTrACS v04r01).geojson",
+    summary: "3,700 unbroken runs at 64 knots and above, over 2,929 storms "
+      + "since 1842 \u2014 the part of each track spent AT hurricane force, "
+      + "not the whole life of a storm that reached it somewhere. Measured, "
+      + "only 47% of Katrina's track and 13% of Sandy's was at hurricane force",
+    labels: ["Category 1", "Category 2", "Category 3", "Category 4",
+      "Category 5"],
+    legendLabel: "Strength over this stretch (Saffir\u2013Simpson)",
+  },
+};
+let trackView = "storms";
+export const trackViewName = () => trackView;
+
 export const HOMES = {
   hydrology: "hydrology-catalogue",
   "geology-tectonics": "tectonics-catalogue",
@@ -181,12 +223,12 @@ export const DATASETS = [
     home: "hazards",
     featureNoun: "Cyclone track",
     group: "Hazards",
-    label: "Tropical cyclone tracks \u2014 every storm on record (IBTrACS)",
-    path: "/data/global/cyclone-tracks.geojson",
-    name: "Tropical cyclone tracks (IBTrACS v04r01).geojson",
-    summary: "13,513 storms from 1842 to 2026, each carrying its name, season, "
-      + "basin, peak wind and lowest pressure \u2014 5,733 of them named and "
-      + "6,246 with a measured peak intensity",
+    label: "Tropical cyclone tracks (IBTrACS)",
+    // READ AT LOAD TIME, so flipping the view and re-adding is the whole
+    // switch: the tick, the info card and the layer stay one thing.
+    get path() { return TRACK_VIEWS[trackView].path; },
+    get name() { return TRACK_VIEWS[trackView].name; },
+    get summary() { return TRACK_VIEWS[trackView].summary; },
     licence: "IBTrACS v04r01, NOAA NCEI \u2014 open data; cite Knapp et al. (2010), "
       + "Bull. Amer. Meteor. Soc., 91, 363-376",
     /**
@@ -197,17 +239,16 @@ export const DATASETS = [
      * of 6,246 peak winds would put a boundary at 62 or 71 knots and call it a
      * class, which is a boundary that means nothing to anybody reading it.
      */
-    colourRange: {
-      field: "peak_wind_kts",
-      edges: SAFFIR_SIMPSON_KTS,
-      ramp: "risk",
-      // The scale's own words. "83 - 96" is the arithmetic; "Category 2" is
-      // what the scale calls it and what a reader is looking for. SIX bands
-      // here, because this layer holds storms that never reached hurricane
-      // force and the classing opens below the first threshold.
-      labels: ["Tropical storm or weaker", "Category 1", "Category 2",
-        "Category 3", "Category 4", "Category 5"],
-      legendLabel: "Strongest the storm got (Saffir\u2013Simpson)",
+    // The scale's own words rather than the column's: "83 - 96" is the
+    // arithmetic, "Category 2" is what the scale calls it.
+    get colourRange() {
+      return {
+        field: "peak_wind_kts",
+        edges: SAFFIR_SIMPSON_KTS,
+        ramp: "risk",
+        labels: TRACK_VIEWS[trackView].labels,
+        legendLabel: TRACK_VIEWS[trackView].legendLabel,
+      };
     },
     /**
      * Faint, and for the reason the plate boundaries are: thirteen thousand
@@ -221,58 +262,34 @@ export const DATASETS = [
      * layer does. The span is read at the press rather than closed over,
      * because the select is redrawn whenever the catalogue is.
      */
-    play: {
-      label: "\u25b6 Play seasons",
-      title: "Play the tracks one season at a time, over the span chosen below",
-      run: () => {
+    /**
+     * Ticking the tracks on opens the season bar, parked on its "All" frame —
+     * the whole archive, unchanged. Nothing about the map differs from having
+     * no bar at all; what is gained is that the years are one drag away.
+     */
+    animation: {
+      open: () => {
         const span = Number(
           document.getElementById("cyclone-timelapse-span")?.value) || 1980;
         return window.GeoIDCycloneTimelapse?.play({ from: span });
       },
     },
-  },
-  {
-    /**
-     * HURRICANE FORCE ONLY, and it is the part of the track rather than the
-     * storm. A Category 5 in the mid-Atlantic was a depression when it left
-     * Africa, so a filter on each storm's PEAK would draw hurricane-force
-     * geometry over ground it crossed as a tropical wave — measured, only 47%
-     * of Katrina's track and 13% of Sandy's was at hurricane force, so that
-     * filter over-draws by two to eight times.
-     *
-     * It is also the exact definition the risk map's hurricane rate counts, so
-     * the two agree BY CONSTRUCTION: laid over each other the lines end where
-     * the red ends, rather than merely looking similar.
-     *
-     * A storm that weakens below 64 knots and re-intensifies gives more than
-     * one run — 3,700 runs over 2,929 storms — because it was not a hurricane
-     * in between and joining them would draw hurricane force across the gap.
-     */
-    id: "cyclone-tracks-hurricane",
-    home: "hazards",
-    featureNoun: "Hurricane track",
-    group: "Hazards",
-    label: "Hurricane tracks \u2014 the stretches at hurricane force (IBTrACS)",
-    path: "/data/global/cyclone-tracks-hurricane.geojson",
-    name: "Hurricane tracks (IBTrACS v04r01).geojson",
-    summary: "3,700 unbroken runs at 64 knots and above, over 2,929 storms "
-      + "since 1842 \u2014 the part of each track spent AT hurricane force, "
-      + "not the whole life of a storm that reached it somewhere",
-    licence: "IBTrACS v04r01, NOAA NCEI \u2014 open data; cite Knapp et al. (2010), "
-      + "Bull. Amer. Meteor. Soc., 91, 363-376",
-    // The scale's own edges, so a Category 3 run here is the colour a
-    // Category 3 is on the live markers and on the all-storms tracks.
-    colourRange: {
-      field: "peak_wind_kts",
-      edges: SAFFIR_SIMPSON_KTS,
-      ramp: "risk",
-      // FIVE bands, not six: every run here is already at or above hurricane
-      // force, so there is no band below Category 1 for anything to fall in.
-      labels: ["Category 1", "Category 2", "Category 3", "Category 4",
-        "Category 5"],
-      legendLabel: "Strength over this stretch (Saffir\u2013Simpson)",
+    viewToggle: {
+      label: "Hurricane force",
+      titleOff: "Show only the stretches at hurricane force (64 kt and above) "
+        + "\u2014 the part of each track, not the whole life of a storm that "
+        + "reached it somewhere",
+      titleOn: "Showing hurricane-force stretches only. Press to go back to "
+        + "every storm on record.",
+      isOn: () => trackView === "force",
+      run: async (layer) => {
+        trackView = trackView === "force" ? "storms" : "force";
+        // Unload FIRST: the two are different files under different names, so
+        // leaving the old one draws both sets of lines at once.
+        if (layer) window.GeoIDImportManager?.removeLayer?.(layer.id);
+        await addDataset("cyclone-tracks");
+      },
     },
-    opacity: 0.7,
   },
   {
     /**
@@ -327,11 +344,14 @@ export const DATASETS = [
      * recomputed after each season, so the button sits on the row that put it
      * on the globe.
      */
-    play: {
-      label: "\u25b6 Play the estimate",
-      title: "Play this map recomputed after every season, so what moves is "
-        + "how well the hazard is known rather than what the weather did",
-      run: () => window.GeoIDCycloneRiskRaster?.play(),
+    /**
+     * And ticking the risk map opens the estimate bar on its LAST band, which
+     * is the full-record climatology — the very map the layer draws. So here
+     * the parking frame needs no special case: the sequence already ends on
+     * the answer.
+     */
+    animation: {
+      open: () => window.GeoIDCycloneRiskRaster?.play(),
     },
     /**
      * EVERY CELL CARRIES BOTH RATES, so this is a repaint rather than a second

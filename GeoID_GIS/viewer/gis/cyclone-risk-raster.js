@@ -28,11 +28,11 @@
  * follow.
  */
 
-import { loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260908-1650e1b";
-import { dataUrl } from "./data-base.js?v=20260908-1650e1b";
-import { riskEdges, RISK_LABELS } from "./cyclone-risk.js?v=20260908-1650e1b";
-import { rampColour } from "./symbology.js?v=20260908-1650e1b";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-1650e1b";
+import { loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260908-7645fb7";
+import { dataUrl } from "./data-base.js?v=20260908-7645fb7";
+import { riskEdges, RISK_LABELS } from "./cyclone-risk.js?v=20260908-7645fb7";
+import { rampColour } from "./symbology.js?v=20260908-7645fb7";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-7645fb7";
 
 const FILE = "/data/global/cyclone-risk-cumulative.hotlink-ok.tif";
 const WORLD = { west: -180, south: -90, east: 180, north: 90 };
@@ -183,6 +183,14 @@ export async function play() {
     source: "none",
     noteFor,
     onStatus: say,
+    /**
+     * OPENS ON THE LAST BAND, which is the full-record climatology — the very
+     * map the layer draws. So ticking the risk map on changes nothing about
+     * what is on screen and puts the record's own history one drag away. No
+     * special terminal frame is needed here, unlike the season sequence: this
+     * one already ends on the answer.
+     */
+    startAt: epochs.length - 1,
     /**
      * A REPAINT, not a rebuild. Every band is the same 1440x720 lattice over
      * the same ground, so the geometry is built once and only the texture

@@ -95,7 +95,7 @@ check("and the default span is the modern record", () => {
 });
 
 check("a season with no named storms says only the count", () => {
-  eq(tl.noteFor({ year: 2000, count: 4, named: 0 }), "4 storm(s)", "no empty clause");
+  eq(tl.noteFor({ year: 2000, count: 4, named: 0 }), "4 storms", "no empty clause");
 });
 
 /* ── what it hands the one player ────────────────────────────────────────── */
@@ -118,7 +118,7 @@ check("a season with no named storms says only the count", () => {
    * about the frame rather than about the storms.
    */
   check("the colouring is built once, over the whole span", () => {
-    ok(/const paint = colouring\(spanFeatures\);/.test(code), "once");
+    ok(/const paint = colouring\(seasons\.flatMap/.test(code), "once");
     ok(/colourFor: paint\.colourFor/.test(code), "and reused by every frame");
   });
   check("on the same edges the layer and the live markers use",
@@ -128,14 +128,44 @@ check("a season with no named storms says only the count", () => {
      answers a click with a storm from a season that is not on screen. */
   check("the feature list follows the frame", () => {
     ok(/onShow: \(index\) =>/.test(code), "on every step");
-    ok(/now\.features = seasons\[index\]\[1\];/.test(code), "pointed at the frame");
+    ok(/const list = whole \? \[\] : seasons\[index\]\[1\];/.test(code),
+      "pointed at the frame");
+    ok(/now\.features = list;/.test(code), "and the layer told");
   });
 
   /* The whole-record layer would draw every storm behind the one season being
      shown — the web the animation exists to take apart. */
   check("the full layer stands down while a season is on screen", () => {
-    ok(/setVisible\?\.\(layer, false\)/.test(code), "hidden on start");
+    ok(/setVisible\?\.\(layer, whole \? wasVisible : false\)/.test(code),
+      "hidden on a season");
     ok(/setVisible\?\.\(back, wasVisible\)/.test(code), "and put back as it was");
+  });
+
+  /**
+   * THE BAR OPENS BECAUSE THE LAYER WAS TICKED, so it has to park on a frame
+   * that leaves the layer saying what its own name says. The last SEASON is
+   * not that: 2026 alone is 75 storms of 13,513, so opening there would answer
+   * a tick for "every storm on record" with 0.6% of it.
+   */
+  check("the sequence ends on a frame that IS the whole record", () => {
+    ok(/all: true/.test(code), "a terminal All epoch");
+    ok(/const ALL = epochs\.length - 1;/.test(code), "which is the last one");
+    ok(/startAt: startAt === null \? ALL/.test(code), "and the bar opens there");
+  });
+  check("and on that frame the archive is shown, not a season", () => {
+    ok(/const whole = index === ALL;/.test(code), "the All frame is known");
+    ok(/if \(!whole\) nodeFor\(index\)\.visible = true;/.test(code),
+      "no season node is raised on it");
+  });
+
+  /**
+   * BUILT ON DEMAND. Building all 47 up front cost half a second and twice the
+   * geometry, which is a bill nobody asked for when the bar opens on a tick
+   * rather than on a press.
+   */
+  check("a season is built the first time it is shown, and kept", () => {
+    ok(/if \(built\.has\(index\)\) return built\.get\(index\);/.test(code), "cached");
+    ok(/built\.set\(index, node\);/.test(code), "and remembered");
   });
   check("and the frames are disposed rather than left on the GPU",
     () => ok(/geometry\?\.dispose\?\.\(\)/.test(code), "disposed"));
@@ -144,6 +174,26 @@ check("a season with no named storms says only the count", () => {
 
   /* Pressing play with nothing loaded must say so: a button that appears to do
      nothing invites a second press. */
+  /**
+   * ASKED, NOT MATCHED BY NAME. The entry has two variants and the hurricane
+   * one is called "Hurricane tracks" -- a name pattern misses it, and a driver
+   * that cannot find its layer says exactly what one that has none says, so
+   * the bar simply did not reopen after the switch.
+   */
+  check("the driver asks the catalogue which layer its entry is loaded as", () => {
+    ok(/layerForDataset\?\.\("cyclone-tracks"\)/.test(code), "by entry id");
+  });
+
+  // 3,700 hurricane RUNS over 2,929 storms: calling them storms overstates the
+  // count by a quarter and misnames every one of them.
+  check("the bar names what the frame actually holds", () => {
+    ok(/3 runs/.test(tl.noteFor({ year: 2000, count: 3, noun: "run" })), "runs where runs");
+    ok(/3 storms/.test(tl.noteFor({ year: 2000, count: 3 })), "storms by default");
+    ok(/1 storm\b/.test(tl.noteFor({ year: 2000, count: 1 })), "and one is singular");
+    // The driver picks the noun from the layer it is actually playing.
+    ok(/hurricane tracks\/i\.test\(layer\.name/.test(code), "chosen from the layer");
+  });
+
   check("pressing play without the layer explains itself",
     () => ok(/Tick the cyclone tracks on first/.test(src), "says so"));
 }
