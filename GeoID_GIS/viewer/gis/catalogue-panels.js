@@ -29,9 +29,9 @@
 
 import {
   HOMES, grouped, addDataset, layerForDataset, loadLaunchDefaults,
-} from "./global-data.js?v=20260908-7645fb7";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260908-7645fb7";
-import { mathsFor } from "./equations.js?v=20260908-7645fb7";
+} from "./global-data.js?v=20260908-2125c8a";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260908-2125c8a";
+import { mathsFor } from "./equations.js?v=20260908-2125c8a";
 
 const byId = (id) => document.getElementById(id);
 
@@ -248,11 +248,6 @@ function draw(home, hostId) {
         // itself from the dataset's own words, and a projection that drops
         // this falls back to wording written for another catalogue.
         detailCopy: entry.detailCopy,
-        // AND ITS VIEW TOGGLE, for the third time in this file's history:
-        // both projections reduce an entry to a fixed shape, and a field left
-        // out of one falls back SILENTLY -- measured as a button that never
-        // appeared while the Symbology button beside it did.
-        viewToggle: entry.viewToggle,
       }))),
     ...geeEntries,
   ];

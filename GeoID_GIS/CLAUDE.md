@@ -14746,3 +14746,62 @@ Measured end to end: tick → "All · 13,513 storms"; switch → "All · 3,700 r
 with the layer renamed and one tracks layer on the globe; untick → bar gone,
 owner null. The risk map: tick → "2026 — the estimate after 47 seasons",
 untick → gone.
+
+## A colour choice belongs on the symbology button, and must be instant
+
+"This is a mess" — a row carrying a "Hurricane force" button beside the one
+marked "Symbology…", under a heading repeating the tab's own name.
+
+- **A heading over the ONLY group in a list says nothing.** Group headings
+  separate; with one group there is nothing to separate it from, and the word
+  is a second label over a list whose tab already carries it. Counted rather
+  than switched off per entry, so a list that grows a second group gets its
+  headings back without anybody remembering to.
+- **The button is gone and the choice is a row in the symbology dialog**
+  (`layer.symbologyViews`). Choosing between "every storm" and "only those
+  that reached hurricane force" is a COLOUR decision, and a control doing a
+  symbology's job next to the one marked Symbology is two controls for one
+  idea. It applies on `change`, not on Apply: it repaints what is on the
+  globe, and waiting for a second press hides the one thing that makes it
+  usable — seeing the difference while choosing.
+- **EVERY OPTION MUST BE AN INSTANT REPAINT.** That is what killed the file
+  swap. Switching to the hurricane-RUNS file dropped the layer, rebuilt it and
+  painted it a beat later — reported exactly as "it changes colours in
+  stages", and no amount of care makes a reload instant. So the tracks entry
+  loads ONE file and both views repaint it. The runs file
+  (`cyclone-tracks-hurricane.geojson`, 3,700 stretches) is still baked and
+  published, and is a different product: it holds the STRETCHES at hurricane
+  force, where this option highlights whole STORMS that reached it. The option
+  is named for what it does, because only 47% of Katrina's track and 13% of
+  Sandy's was at that strength.
+
+### A VIEW IS THE COLOURING, so it cannot also have a `colourRange`
+
+Both were running — the view's paint first and `paintByRange` a moment later
+over the top — so the key on LOAD disagreed with the key after a switch and
+back, and the second was the true one. It took a round trip through the dialog
+to see it at all. An entry that declares `views` no longer runs `colourRange`;
+measured after, load and return agree to the row.
+
+### `Number(null)` IS ZERO — and it was miscounting a legend
+
+The oldest trap in this file, found in `paintByRange` itself. It classed with a
+bare `Number()`, so every feature with no value became 0, passed `isFinite`,
+and was COUNTED. Its paint has always guarded nulls and left such a feature
+uncoloured — so **the map was right and the key was not**: 7,267 of the 13,513
+cyclone tracks carry no measured peak wind, and all 7,267 were counted into
+"Tropical storm or weaker", a class whose swatch none of them is drawn in, with
+the bottom break dragged down to meet them. One `readValue` now serves the
+classing and the paint, so the two cannot disagree about what a value is.
+
+**And the grey needed naming, twice.** It means two different things — a storm
+measured below the threshold, and a storm nobody measured — so the key says
+"Peak never measured" on the default view and "Below hurricane force, or never
+measured" on the other. Calling that row "never reached hurricane force" would
+state a strength for 7,267 storms with no reading at all, which is the one
+thing that colour must never be read as. Both keys sum to 13,513.
+
+**I wrote the same bug into the new module while fixing its symptoms** — a bare
+`Number()` in `trackPaint`, caught by running the pure function rather than by
+reading it. Every unmeasured storm came back green. When a column can be null,
+write the guard before the arithmetic.

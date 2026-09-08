@@ -265,64 +265,51 @@ check("and every listed group still has something in it",
 // has to name that layer in words and then be kept in step with it.
 {
   const list = readFileSync(join(HERE, "catalogue-list.js"), "utf8");
-  check("a row control is gated on the layer being on the globe",
-    /if \(layer && entry\.viewToggle\?\.run\)/.test(list));
-  check("and its click cannot reach the row's own toggle, which would untick it",
-    /event\.stopPropagation\(\)/.test(list.slice(list.indexOf("entry.viewToggle?.run"))));
   const data = readFileSync(join(HERE, "global-data.js"), "utf8");
-  check("exactly the two cyclone entries declare an animation",
-    [...data.matchAll(/^\s{4}animation: \{/gm)].length === 2);
-  // READ AT OPEN. Closed over, the span would be whatever the select held when
-  // the catalogue was last redrawn -- and it is redrawn on every tick.
-  check("the season span is read when the bar opens, not closed over",
-    /getElementById\("cyclone-timelapse-span"\)\?\.value/.test(data));
-  // NO BUTTON: a layer that plays opens its bar because it is on the globe.
-  // A button would be a second decision for one intent -- the volcano Names
-  // button's fault, which this tree has now removed twice.
-  check("and no play button survives anywhere",
-    !/entry\.play/.test(list) && !/play: \{/.test(data));
-  // WHERE THE BAR PARKS is what makes opening-on-tick safe. Frame 0 would
-  // answer a tick for "every storm on record" with 105 storms of 13,513.
-  const lapseSrc = readFileSync(join(HERE, "cyclone-timelapse.js"), "utf8");
-  check("the season sequence ends on a frame that is the whole record",
-    /all: true/.test(lapseSrc) && /startAt === null \? ALL/.test(lapseSrc));
-  check("and its seasons are built on demand, not 47 up front",
-    /if \(built\.has\(index\)\) return built\.get\(index\);/.test(lapseSrc));
-  const raster = readFileSync(join(HERE, "cyclone-risk-raster.js"), "utf8");
-  check("the estimate opens on its last band, which IS the full-record map",
-    /startAt: epochs\.length - 1/.test(raster));
-  // ONE ROW FOR THE TRACKS, two files behind it. The switch loads the other
-  // file rather than repainting -- they are different geometry, not two
-  // colourings of one -- and the entry's path is read at load time so the
-  // tick, the info card and the layer stay one thing.
-  check("the two track maps are one entry",
-    /get path\(\) \{ return TRACK_VIEWS\[trackView\]\.path; \}/.test(data));
-  check("and the retired second entry is gone",
-    !/id: "cyclone-tracks-hurricane"/.test(data));
-  const html = readFileSync(join(HERE, "..", "index.html"), "utf8");
-  check("so the subtab holds no standing play button",
-    !/cyclone-timelapse-play|cyclone-risk-raster-play/.test(html));
-  // The follow tick was a second switch for one decision: loading the risk map
-  // and pressing play beside it already says what you want. Same rule that
-  // removed the volcano Names button, whose reasoning is still in
-  // catalogue-list.js.
-  check("and no follow tick, because loading the risk map is the decision",
-    !/cyclone-risk-follow/.test(html));
-  // BOTH PROJECTIONS have to carry it. Each reduces an entry to a fixed shape
-  // and a field left out of one falls back silently -- which is how the
-  // submarine cables came to be captioned "Erupted since 1500", and how this
-  // button came to be absent from a row whose Symbology button was fine.
-  // A layer holding two readings switches between them on its row, rather
-  // than being a second entry over the same 23 MB file -- which would be the
-  // duplication the home rule exists to prevent, wearing a different colour.
-  check("catalogue-list draws a view toggle where an entry declares one",
-    /if \(layer && entry\.viewToggle\?\.run\)/.test(list));
-  check("and it reads its state back off the layer rather than remembering",
-    /entry\.viewToggle\.isOn\?\.\(layer\)/.test(list));
-  for (const file of ["catalogue-panels.js", "polygons.js"]) {
-    check(`${file} carries entry.viewToggle through its projection`,
-      /viewToggle: entry\.viewToggle,/.test(readFileSync(join(HERE, file), "utf8")));
-  }
+  const dialog = readFileSync(join(HERE, "symbology-dialog.js"), "utf8");
+
+  /* ── a layer's alternative readings live on the SYMBOLOGY button ───────── */
+  // Choosing between "every storm" and "only those that reached hurricane
+  // force" is a COLOUR decision. It was a button on the catalogue row, beside
+  // the one marked Symbology -- two controls for one idea, and reported as a
+  // mess. The row draws no such button any more.
+  check("the catalogue row draws no view button of its own",
+    !/entry\.viewToggle/.test(list) && !/entry\.play/.test(list));
+  check("the symbology dialog offers them instead",
+    /const views = layer\.symbologyViews;/.test(dialog));
+  check("and applies on CHANGE, so the difference is visible while choosing",
+    /select\.addEventListener\("change", \(\) => \{\s*[\s\S]{0,220}views\.apply\(select\.value\)/
+      .test(dialog));
+  check("the layer carries them, not the catalogue: a dropped file reaches the same code",
+    /landed\.symbologyViews = entry\.views;/.test(data));
+  check("both cyclone entries declare their readings",
+    [...data.matchAll(/^\s{4}views: \{/gm)].length === 2);
+
+  /* ── EVERY OPTION IS AN INSTANT REPAINT ───────────────────────────────── */
+  // A choice that loads a different FILE is not a symbology: it drops the
+  // layer, rebuilds it and paints it a beat later -- which is exactly how the
+  // old button was reported ("it changes colours in stages").
+  check("the tracks entry loads ONE file, with no variant swap",
+    /path: "\/data\/global\/cyclone-tracks\.geojson"/.test(data)
+    && !/TRACK_VIEWS/.test(data));
+  const tracks = readFileSync(join(HERE, "cyclone-tracks-view.js"), "utf8");
+  check("and its views repaint the loaded features",
+    /layer\.repaint\?\.\(paint\.colourFor\)/.test(tracks));
+  check("the default is by category",
+    /currentView\(layers\) \{[\s\S]{0,120}\|\| "category"/.test(tracks));
+  // A VIEW IS THE COLOURING. Both were running -- the view's paint and then
+  // `paintByRange` over the top -- so the key on load disagreed with the key
+  // after a switch and back, and the second was the true one.
+  check("an entry with views does not also run colourRange",
+    /if \(layer && entry\.views\?\.apply\) \{[\s\S]{0,240}\} else if \(layer && entry\.colourRange\)/
+      .test(data));
+
+  /* ── a heading over the ONLY group says nothing ────────────────────────── */
+  check("group headings are drawn only where there is more than one group",
+    /const showGroups = groups\.size > 1;/.test(list));
+  check("and the row loop honours that",
+    /if \(showGroups && entry\.group/.test(list));
+
   // HURRICANE FORCE IS A PART OF A TRACK, not a class of storm. Both maps must
   // mean the same thing by it or they cannot be laid over each other.
   const bake = readFileSync(join(HERE, "..", "..", "services",

@@ -24,11 +24,11 @@
  * polygon comes out white with a perfectly correct legend beside it.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260908-7645fb7";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260908-2125c8a";
 import {
   RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP, METHODS,
   categoricalSymbology, buildSymbology, colourOf, legendInfoFrom, fmtBound,
-} from "./symbology.js?v=20260908-7645fb7";
+} from "./symbology.js?v=20260908-2125c8a";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -542,9 +542,25 @@ export function paintByRange(layer, field, {
   if (!layer?.features?.length || !field) {
     return { ok: false, message: "nothing to colour" };
   }
-  const values = layer.features
-    .map((f) => Number(f?.properties?.[field]))
-    .filter((n) => Number.isFinite(n));
+  /**
+   * `Number(null)` IS ZERO, and a null is not a reading.
+   *
+   * This read the column with a bare `Number()`, so every feature with no
+   * value became 0 — finite, so it passed the filter — and was CLASSED. The
+   * paint below has always guarded it and left such a feature uncoloured, so
+   * the map was right and the KEY was not: measured on the cyclone tracks,
+   * 7,267 of 13,513 storms carry no measured peak wind, and all 7,267 were
+   * counted into "Tropical storm or weaker", a class whose swatch none of them
+   * is drawn in. The bottom break moved with them.
+   *
+   * Same guard as the paint, so the two cannot disagree about what a value is.
+   */
+  const readValue = (feature) => {
+    const raw = feature?.properties?.[field];
+    if (raw == null || String(raw).trim() === "") return NaN;
+    return Number(raw);
+  };
+  const values = layer.features.map(readValue).filter((n) => Number.isFinite(n));
   if (values.length < 2) {
     return { ok: false, message: `${field} has no numbers to classify` };
   }
@@ -569,8 +585,7 @@ export function paintByRange(layer, field, {
    * null and stay in the layer's base colour, visibly not part of the scale.
    */
   layer.repaint?.((feature) => {
-    const raw = feature?.properties?.[field];
-    const n = raw == null || String(raw).trim() === "" ? NaN : Number(raw);
+    const n = readValue(feature);
     return Number.isFinite(n) ? colourOf(n, sym) : null;
   });
   // `field` alongside the legend, the same as the categorical path sets it:
@@ -914,6 +929,47 @@ function buildVectorForm(layer, body, note, hooks) {
    * independent of the palette (it re-runs the last paint), so there is
    * nothing to hold it back for, and seeing the change is the point.
    */
+  /**
+   * WHICH READING OF THIS LAYER, where it has more than one.
+   *
+   * A dataset can carry two answers in one set of features — the cyclone risk
+   * cells hold an all-storms rate and a hurricane-force one, the tracks hold
+   * every storm and the subset that reached hurricane force — and choosing
+   * between them is a COLOUR decision, so it belongs on the one colour
+   * surface rather than as a button on the catalogue row. It was a button,
+   * and a button beside "Symbology…" doing a symbology's job is two controls
+   * for one idea.
+   *
+   * Every option must be an INSTANT REPAINT of the layer already loaded. A
+   * choice that reloads a different file is not a symbology and does not
+   * belong here: it drops the layer, rebuilds it and paints it a beat later,
+   * which reads as the colours arriving in stages -- which is exactly how the
+   * button that used to do it was reported.
+   */
+  const views = layer.symbologyViews;
+  if (views?.options?.length > 1 && typeof views.apply === "function") {
+    const row = document.createElement("div");
+    row.className = "sym-row";
+    const label = document.createElement("label");
+    label.textContent = views.label || "Show";
+    const select = document.createElement("select");
+    views.options.forEach(({ id, label: text }) => {
+      const option = document.createElement("option");
+      option.value = id;
+      option.textContent = text;
+      if (id === views.current?.()) option.selected = true;
+      select.appendChild(option);
+    });
+    select.addEventListener("change", () => {
+      // Applied on CHANGE and not on Apply: it repaints what is on the globe,
+      // so waiting for a second press would hide the one thing that makes it
+      // usable -- seeing the difference while choosing.
+      views.apply(select.value);
+    });
+    row.append(label, select);
+    body.appendChild(row);
+  }
+
   const hasPolygons = typeof layer.setFillMode === "function";
   if (hasPolygons) {
     const fillRow = document.createElement("div");

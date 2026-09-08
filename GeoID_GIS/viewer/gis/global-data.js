@@ -26,15 +26,15 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260908-7645fb7";
-import { dataUrl } from "./data-base.js?v=20260908-7645fb7";
-import { mathsFor } from "./equations.js?v=20260908-7645fb7";
+import { runConnector } from "./research/connectors.js?v=20260908-2125c8a";
+import { dataUrl } from "./data-base.js?v=20260908-2125c8a";
+import { mathsFor } from "./equations.js?v=20260908-2125c8a";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260908-7645fb7";
+} from "./cyclone-risk.js?v=20260908-2125c8a";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-7645fb7";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-2125c8a";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -54,48 +54,6 @@ export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
  * exactly once" is a question about one file. `catalogue-panels.js` mounts
  * them and its test checks every home named here has a panel and a host.
  */
-/**
- * THE TWO TRACK MAPS ARE ONE ENTRY, because they are one subject read two
- * ways: every storm on record, or only the stretches at hurricane force.
- *
- * They are NOT two colourings of one geometry — the all-storms file is 13,513
- * whole tracks and the hurricane file is 3,700 sub-stretches — so the switch
- * loads the other file rather than repainting, which is the honest difference
- * from the risk map's toggle beside it. What makes it one ROW is that the
- * entry's path, name and classing are read at load time, so flipping the view
- * and re-adding is all it takes; the tick, the ⓘ and the layer stay one thing.
- *
- * The labels differ by one band and that is the honest part: the all-storms
- * layer opens BELOW hurricane force so it has six, and every value in the
- * hurricane file is already at or above 64 knots, so nothing could fall in a
- * lower band.
- */
-const TRACK_VIEWS = {
-  storms: {
-    path: "/data/global/cyclone-tracks.geojson",
-    name: "Tropical cyclone tracks (IBTrACS v04r01).geojson",
-    summary: "13,513 storms from 1842 to 2026, each carrying its name, season, "
-      + "basin, peak wind and lowest pressure \u2014 5,733 of them named and "
-      + "6,246 with a measured peak intensity",
-    labels: ["Tropical storm or weaker", "Category 1", "Category 2",
-      "Category 3", "Category 4", "Category 5"],
-    legendLabel: "Strongest the storm got (Saffir\u2013Simpson)",
-  },
-  force: {
-    path: "/data/global/cyclone-tracks-hurricane.geojson",
-    name: "Hurricane tracks (IBTrACS v04r01).geojson",
-    summary: "3,700 unbroken runs at 64 knots and above, over 2,929 storms "
-      + "since 1842 \u2014 the part of each track spent AT hurricane force, "
-      + "not the whole life of a storm that reached it somewhere. Measured, "
-      + "only 47% of Katrina's track and 13% of Sandy's was at hurricane force",
-    labels: ["Category 1", "Category 2", "Category 3", "Category 4",
-      "Category 5"],
-    legendLabel: "Strength over this stretch (Saffir\u2013Simpson)",
-  },
-};
-let trackView = "storms";
-export const trackViewName = () => trackView;
-
 export const HOMES = {
   hydrology: "hydrology-catalogue",
   "geology-tectonics": "tectonics-catalogue",
@@ -224,11 +182,11 @@ export const DATASETS = [
     featureNoun: "Cyclone track",
     group: "Hazards",
     label: "Tropical cyclone tracks (IBTrACS)",
-    // READ AT LOAD TIME, so flipping the view and re-adding is the whole
-    // switch: the tick, the info card and the layer stay one thing.
-    get path() { return TRACK_VIEWS[trackView].path; },
-    get name() { return TRACK_VIEWS[trackView].name; },
-    get summary() { return TRACK_VIEWS[trackView].summary; },
+    path: "/data/global/cyclone-tracks.geojson",
+    name: "Tropical cyclone tracks (IBTrACS v04r01).geojson",
+    summary: "13,513 storms from 1842 to 2026, each carrying its name, season, "
+      + "basin, peak wind and lowest pressure \u2014 5,733 of them named and "
+      + "6,246 with a measured peak intensity",
     licence: "IBTrACS v04r01, NOAA NCEI \u2014 open data; cite Knapp et al. (2010), "
       + "Bull. Amer. Meteor. Soc., 91, 363-376",
     /**
@@ -240,15 +198,15 @@ export const DATASETS = [
      * class, which is a boundary that means nothing to anybody reading it.
      */
     // The scale's own words rather than the column's: "83 - 96" is the
-    // arithmetic, "Category 2" is what the scale calls it.
-    get colourRange() {
-      return {
-        field: "peak_wind_kts",
-        edges: SAFFIR_SIMPSON_KTS,
-        ramp: "risk",
-        labels: TRACK_VIEWS[trackView].labels,
-        legendLabel: TRACK_VIEWS[trackView].legendLabel,
-      };
+    // arithmetic, "Category 2" is what the scale calls it. SIX bands, because
+    // this layer holds storms that never reached hurricane force.
+    colourRange: {
+      field: "peak_wind_kts",
+      edges: SAFFIR_SIMPSON_KTS,
+      ramp: "risk",
+      labels: ["Tropical storm or weaker", "Category 1", "Category 2",
+        "Category 3", "Category 4", "Category 5"],
+      legendLabel: "Strongest the storm got (Saffir\u2013Simpson)",
     },
     /**
      * Faint, and for the reason the plate boundaries are: thirteen thousand
@@ -263,6 +221,27 @@ export const DATASETS = [
      * because the select is redrawn whenever the catalogue is.
      */
     /**
+     * THE SAME 13,513 TRACKS, READ TWO WAYS — and both are repaints, which is
+     * the whole reason they belong on the symbology surface.
+     *
+     * "Reached hurricane force" is named for exactly what it is. It highlights
+     * whole STORMS whose peak was 64 knots or more, which is not the same as
+     * the stretches they spent at that strength: only 47% of Katrina's track
+     * and 13% of Sandy's was at hurricane force. The stretches are genuinely
+     * different geometry — a separate baked file — and a choice that loads a
+     * different file is not a symbology: it drops the layer and rebuilds it,
+     * which is the staged repaint this control was moved here to stop.
+     */
+    views: {
+      label: "Show",
+      options: [
+        { id: "category", label: "Every storm, by category" },
+        { id: "hurricane", label: "Only those that reached hurricane force" },
+      ],
+      current: () => window.GeoIDCycloneTracks?.currentView?.() || "category",
+      apply: (view) => window.GeoIDCycloneTracks?.show(view),
+    },
+    /**
      * Ticking the tracks on opens the season bar, parked on its "All" frame —
      * the whole archive, unchanged. Nothing about the map differs from having
      * no bar at all; what is gained is that the years are one drag away.
@@ -272,22 +251,6 @@ export const DATASETS = [
         const span = Number(
           document.getElementById("cyclone-timelapse-span")?.value) || 1980;
         return window.GeoIDCycloneTimelapse?.play({ from: span });
-      },
-    },
-    viewToggle: {
-      label: "Hurricane force",
-      titleOff: "Show only the stretches at hurricane force (64 kt and above) "
-        + "\u2014 the part of each track, not the whole life of a storm that "
-        + "reached it somewhere",
-      titleOn: "Showing hurricane-force stretches only. Press to go back to "
-        + "every storm on record.",
-      isOn: () => trackView === "force",
-      run: async (layer) => {
-        trackView = trackView === "force" ? "storms" : "force";
-        // Unload FIRST: the two are different files under different names, so
-        // leaving the old one draws both sets of lines at once.
-        if (layer) window.GeoIDImportManager?.removeLayer?.(layer.id);
-        await addDataset("cyclone-tracks");
       },
     },
   },
@@ -354,21 +317,19 @@ export const DATASETS = [
       open: () => window.GeoIDCycloneRiskRaster?.play(),
     },
     /**
-     * EVERY CELL CARRIES BOTH RATES, so this is a repaint rather than a second
-     * layer: 23 MB and 91,156 polygons fetched and triangulated once, not
-     * twice for a column that is already in memory.
+     * EVERY CELL CARRIES BOTH RATES, so this is a repaint of the layer already
+     * loaded: 23 MB and 91,156 polygons fetched and triangulated once, not
+     * twice for a column that is in memory. That is what lets it live on the
+     * symbology surface rather than as a button of its own.
      */
-    viewToggle: {
-      label: "Hurricanes only",
-      titleOff: "Show the chance of HURRICANE-force wind instead of any "
-        + "tropical cyclone \u2014 the same cells, their other reading",
-      titleOn: "Showing hurricane force only. Press to go back to any "
-        + "tropical cyclone.",
-      isOn: () => window.GeoIDCycloneRisk?.currentView?.() === "hurricanes",
-      run: () => window.GeoIDCycloneRisk?.showClimatology({
-        view: window.GeoIDCycloneRisk?.currentView?.() === "hurricanes"
-          ? "storms" : "hurricanes",
-      }),
+    views: {
+      label: "Rate shown",
+      options: [
+        { id: "storms", label: "Any tropical cyclone" },
+        { id: "hurricanes", label: "Hurricane force only" },
+      ],
+      current: () => window.GeoIDCycloneRisk?.currentView?.() || "storms",
+      apply: (view) => window.GeoIDCycloneRisk?.showClimatology({ view }),
     },
   },
   {
@@ -940,6 +901,13 @@ export async function addDataset(id, onStatus = () => {},
        */
       const maths = mathsFor(entry.id);
       if (maths) landed.info = { ...(landed.info || {}), maths };
+      /**
+       * AND ITS ALTERNATIVE READINGS, which the symbology dialog offers as a
+       * row. On the LAYER rather than looked up from the entry, because the
+       * dialog is handed a layer and knows nothing about catalogues -- a
+       * shapefile somebody dropped in reaches the same code.
+       */
+      if (entry.views?.apply) landed.symbologyViews = entry.views;
     }
   } catch (error) {
     const message = `${entry.label} did not load: ${error.message}`;
@@ -1004,7 +972,20 @@ export async function addDataset(id, onStatus = () => {},
    * that names a `colourRange` gets `paintByRange` — the same classing the
    * rasters use, so a vector and a raster cut the same numbers the same way.
    */
-  if (layer && entry.colourRange) {
+  /**
+   * A VIEW IS THE COLOURING, so an entry that declares one does not also get
+   * `colourRange`. They were both running — the view's paint first and
+   * `paintByRange` a moment later over the top — which is two implementations
+   * of one map, and the KEY differed between them: the layer arrived counting
+   * 6,246 classed storms and, the moment anybody switched view and back, 13,513
+   * with a row naming the 7,267 nobody measured. The second was the true one,
+   * and it took a round trip through the dialog to see it.
+   */
+  if (layer && entry.views?.apply) {
+    try {
+      await entry.views.apply(entry.views.current?.());
+    } catch (error) { /* the layer keeps whatever the import gave it */ }
+  } else if (layer && entry.colourRange) {
     try {
       const { paintByRange } = await import(
         `./symbology-dialog.js${new URL(import.meta.url).search}`);

@@ -18,7 +18,7 @@
  * in extraction and in export without this file knowing anything about them.
  */
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260908-7645fb7";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260908-2125c8a";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -477,9 +477,21 @@ export function renderCatalogue(host, entries, hooks) {
   }
   list.classList.add("gis-catalogue");
 
+  /**
+   * A HEADING OVER THE ONLY GROUP IN A LIST SAYS NOTHING.
+   *
+   * Group headings separate; with one group there is nothing to separate it
+   * from, and the word is then a second label over a list whose tab already
+   * carries it -- "HAZARDS" over two rows inside Hazards > Tropical cyclones.
+   * Counted rather than switched off per entry, so a list that grows a second
+   * group gets its headings back without anybody remembering to.
+   */
+  const groups = new Set(entries.map((entry) => entry.group).filter(Boolean));
+  const showGroups = groups.size > 1;
+
   let group = null;
   entries.forEach((entry) => {
-    if (entry.group && entry.group !== group) {
+    if (showGroups && entry.group && entry.group !== group) {
       group = entry.group;
       const head = document.createElement("div");
       head.className = "gis-catalogue-group";
@@ -552,36 +564,12 @@ export function renderCatalogue(host, entries, hooks) {
      * about what is drawn.
      */
     /**
-     * A LAYER THAT HOLDS TWO READINGS SWITCHES BETWEEN THEM ON ITS OWN ROW.
-     *
-     * The cyclone risk cells carry both an all-storms rate and a
-     * hurricane-force one, so "hurricanes only" is a repaint of the layer that
-     * is already loaded — 23 MB and 91,156 polygons fetched and triangulated
-     * once, not twice for a column that is in memory. A second catalogue entry
-     * over the same path would be the duplication this file's own home rule
-     * exists to prevent, wearing a different colour.
-     *
-     * `is-on` is the style the Symbology button already defines for a filled
-     * toggle, so a switched-on view says so the way everything else here does.
+     * A LAYER'S ALTERNATIVE READINGS LIVE ON THE SYMBOLOGY BUTTON, not on a
+     * second button beside it. Choosing between "every storm" and "only those
+     * that reached hurricane force" is a colour decision, and a control doing
+     * a symbology's job next to the one marked Symbology is two controls for
+     * one idea. `layer.symbologyViews` is the seam.
      */
-    if (layer && entry.viewToggle?.run) {
-      const view = document.createElement("button");
-      view.type = "button";
-      view.className = "gis-catalogue-sym";
-      const sync = () => {
-        const on = Boolean(entry.viewToggle.isOn?.(layer));
-        view.classList.toggle("is-on", on);
-        view.textContent = entry.viewToggle.label || "View";
-        view.title = (on ? entry.viewToggle.titleOn : entry.viewToggle.titleOff)
-          || entry.viewToggle.label || "";
-      };
-      sync();
-      view.addEventListener("click", (event) => {
-        event.stopPropagation();
-        Promise.resolve(entry.viewToggle.run(layer)).then(sync);
-      });
-      row.appendChild(view);
-    }
     // Only where there is something to symbolise: a layer that is not on the
     // globe has no attributes to colour by and no legend to write.
     if (layer && hooks.symbology) {

@@ -224,5 +224,28 @@ check("a column with no numbers in it refuses rather than classing nothing", () 
   eq(paintByRange(fakeLayer([]), "mpa").ok, false, "no features at all");
 });
 
+/* ── a null is not a zero, and a class list must not count phantoms ─────── */
+// `Number(null)` is 0 and finite, so a bare read CLASSES every feature that
+// has no value. The paint has always guarded it and left such a feature
+// uncoloured -- so the map was right and the KEY was not. Measured on the
+// cyclone tracks: 7,267 of 13,513 storms carry no measured peak wind, and all
+// 7,267 were counted into "Tropical storm or weaker" -- a class whose swatch
+// none of them is drawn in -- with the bottom break dragged down to meet them.
+check("only the features that HAVE a value are classed", () => {
+  const layer = fakeLayer([
+    { properties: { kts: 30 } }, { properties: { kts: 70 } },
+    { properties: { kts: 140 } },
+    { properties: { kts: null } }, { properties: { kts: "" } },
+    { properties: {} },
+  ]);
+  const sym = paintByRange(layer, "kts", { edges: [64, 96], ramp: "risk" });
+  eq(sym.rows.reduce((t, r) => t + r.count, 0), 3, "three real readings");
+  eq(sym.min, 30, "the scale starts at the smallest REAL value");
+  eq(layer.painted[3], null, "a null keeps no colour");
+  eq(layer.painted[4], null, "nor an empty string");
+  eq(layer.painted[5], null, "nor a missing column");
+  eq(typeof layer.painted[0], "string", "and a real value still gets one");
+});
+
 if (failures.length) process.exitCode = 1;
 export const results = { passed, failures };
