@@ -20,8 +20,8 @@
  * made here — and unticking the one that owns it puts the bar away.
  */
 
-import { grouped, layerForDataset } from "./global-data.js?v=20260908-f9360ff";
-import { stopPlayer } from "./timelapse-player.js?v=20260908-f9360ff";
+import { grouped, layerForDataset } from "./global-data.js?v=20260908-f45bf2a";
+import { stopPlayer } from "./timelapse-player.js?v=20260908-f45bf2a";
 
 /** Which entry owns the bar, or null. */
 let owner = null;
@@ -109,10 +109,24 @@ function watchBar() {
   owner = null;
 }
 
+/**
+ * A DRIVER REBUILDING ITS OWN SEQUENCE takes the bar down and puts it back,
+ * which from out here is exactly what a ✕ looks like. It says so instead,
+ * with the flag the open already uses, held for the length of the work.
+ */
+async function hold(work) {
+  opening = true;
+  try {
+    return await work();
+  } finally {
+    opening = false;
+  }
+}
+
 if (typeof window !== "undefined") {
   window.addEventListener("geoid-gis:layers-changed", () => { void sync(); });
   setInterval(() => { watchBar(); void sync(); }, 700);
   window.GeoIDAnimatedLayers = {
-    sync, owns: () => owner, dismissed: () => [...dismissed],
+    sync, hold, owns: () => owner, dismissed: () => [...dismissed],
   };
 }

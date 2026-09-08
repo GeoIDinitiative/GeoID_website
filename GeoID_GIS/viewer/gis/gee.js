@@ -10,24 +10,24 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260908-f9360ff";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260908-f9360ff";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260908-f9360ff";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260908-f45bf2a";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260908-f45bf2a";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260908-f45bf2a";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260908-f9360ff";
+  from "./view-extent.js?v=20260908-f45bf2a";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260908-f9360ff";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260908-f9360ff";
+} from "./extent-picker.js?v=20260908-f45bf2a";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260908-f45bf2a";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
   freshness, isNewDataset, isExtendedDataset, indexedHrefs, bakedOn,
-} from "./gee-catalogue-index.js?v=20260908-f9360ff";
-import { checkCatalogue, describeCheck } from "./gee-watch.js?v=20260908-f9360ff";
+} from "./gee-catalogue-index.js?v=20260908-f45bf2a";
+import { checkCatalogue, describeCheck } from "./gee-watch.js?v=20260908-f45bf2a";
 
 // The page's own stamp. A dynamic import under any other query is a SECOND
 // module instance with its own state — the trap that made a stopped player

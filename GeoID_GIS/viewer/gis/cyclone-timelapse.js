@@ -23,12 +23,12 @@
 
 import {
   buildSymbology, colourOf, legendInfoFrom,
-} from "./symbology.js?v=20260908-f9360ff";
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-f9360ff";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-f9360ff";
+} from "./symbology.js?v=20260908-f45bf2a";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-f45bf2a";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-f45bf2a";
 import {
   showSeason, showClimatology, riskLayer,
-} from "./cyclone-risk.js?v=20260908-f9360ff";
+} from "./cyclone-risk.js?v=20260908-f45bf2a";
 
 const search = new URL(import.meta.url).search;
 
@@ -441,18 +441,59 @@ function chosenStep() {
   return STEPS[value] ? value : "season";
 }
 
+/** How far back to play, read the same way and for the same reason. */
+function chosenSpan() {
+  const value = Number(byId("cyclone-timelapse-span")?.value);
+  return Number.isFinite(value) && value > 0 ? value : MODERN;
+}
+
+/**
+ * THE TWO SELECTS ARE THE ONLY CONTROLS NOW, so they have to act.
+ *
+ * There was a "Play seasons" button and it read both of them at the press, so
+ * neither needed a listener -- which is what the note at the foot of this file
+ * used to say. With the bar opening on the tick instead there is no press, and
+ * both were measured INERT: the step could be moved to "Each storm" and the
+ * bar went on reading "47 frames, by season". A control that changes nothing
+ * is worse than one that is not there.
+ *
+ * Only while the bar is up: with no sequence there is nothing to rebuild, and
+ * the value is read at the next build anyway. And the rebuild is HELD, because
+ * taking the bar down and putting it back is exactly what a ✕ looks like from
+ * `animated-layers` -- without that it marks the entry dismissed mid-rebuild
+ * and the sequence that finishes building is never allowed to reopen.
+ */
+async function replay() {
+  if (!running || !byId("geoid-timelapse")) return null;
+  const work = async () => {
+    stopPlayer();
+    running = false;
+    return build({ from: chosenSpan(), startAt: null, step: chosenStep() });
+  };
+  const gate = window.GeoIDAnimatedLayers?.hold;
+  return gate ? gate(work) : work();
+}
+
 function followRisk() {
   return Boolean(riskLayer());
 }
 
 /**
- * NOTHING TO WIRE. The button that starts this lives on the catalogue row of
- * the layer it plays (`entry.play` in global-data.js), so the catalogue builds
- * and binds it -- and it exists only while that layer is on the globe, which
- * is what retired both the standing button and the sentence telling the reader
- * which box to tick first. The module is reached through its window seam.
+ * NOTHING STARTS THIS FROM THE PANEL. The bar opens because the layer is on
+ * the globe (`entry.animation` in global-data.js, opened by `animated-layers`)
+ * -- which is what retired the play button and the sentence telling the reader
+ * which box to tick first. What the panel still owns is HOW the record is
+ * plotted, and those two selects are wired below.
+ *
+ * Delegated on the document rather than bound to the elements: the subtab is
+ * redrawn whenever the catalogue is, so a handler on the node goes stale the
+ * first time a row is ticked.
  */
+const STEP_CONTROLS = ["cyclone-timelapse-step", "cyclone-timelapse-span"];
 
 if (typeof window !== "undefined") {
-  window.GeoIDCycloneTimelapse = { play, SATELLITE_ERA, MODERN };
+  window.GeoIDCycloneTimelapse = { play, replay, SATELLITE_ERA, MODERN };
+  document.addEventListener("change", (event) => {
+    if (STEP_CONTROLS.includes(event.target?.id)) void replay();
+  });
 }
