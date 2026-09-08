@@ -15024,3 +15024,46 @@ so "13513 storms, 5733 named" reached the reader as "…5733…". `flex: 0 1 aut
 with `min-width: max-content` and the long form on the `title`. Measured across
 five frames at three step sizes: **nothing clipped**, with `.tl-scale` widened
 to a 17rem floor so the ticks have room to be read.
+
+### A transport pair is MIRRORED, and a centred bar may not resize
+
+Two reports on the same row of controls, and both are about a dimension rather
+than a behaviour.
+
+**Step back and step forward are one gesture in two directions.** They were
+`◀` and `▶|` — a bare triangle against a triangle with a bar — so the boxes
+matched at 33.6 px and the INK did not, and the left read as a scrub where the
+right read as a step. The bar is the half that says "one frame" and it belongs
+on both or neither: `|◀` and `▶|`, with the titles a matching pair as well
+("The frame before" / "The frame after").
+
+**The bar is centred (`left: 50%; translateX(-50%)`), so anything that changes
+its width walks BOTH its edges.** Measured while scrubbing: **671.8 → 693.8 px
+with the left edge sliding 427.1 → 416.1**, on every single frame. `.tl-date`
+had solved this long ago with `min-width: 6.2rem` and tabular figures; the note
+still carried `min-width: max-content`, which is max-content of THIS frame's
+text — and the counter changes width as it gains digits (`2 / 13,513` at 45 px
+against `2,508 / 13,513` at 67).
+
+A constant cannot serve it, because every driver writes a different kind of
+sentence. So the note reserves **the widest note this sequence will ever
+show**, which the player can compute exactly because it holds every epoch.
+Three parts, each load-bearing:
+
+- **Measured on a CANVAS, not in the DOM.** Writing 354 epochs into the element
+  in turn is 354 forced reflows, and this runs while a sequence is building.
+  `measureText` needs no layout at all.
+- **`flex: 0 0 auto`**, so the reservation cannot then be squeezed away by a
+  neighbour — which is what the old `max-content` note was written to prevent.
+- **It only ever GROWS.** A driver whose note arrives WITH THE SCENE (the
+  imagery animator prints whatever the fetch reports) cannot be measured ahead,
+  so the reservation is raised as those land. The bar settles at its widest and
+  stays there rather than breathing.
+
+Measured after, 15 samples across all three step sizes at five positions each:
+**bar width 696.7 with a spread of 0.0, left edge 414.6 with a spread of 0.0**,
+the note holding 70 px throughout.
+
+**When a floating control changes size, ask what inside it is sized by its own
+content** — this tree has now paid for it three times (the legend and events
+buttons measuring a CARD whose width follows its open panel, and here).
