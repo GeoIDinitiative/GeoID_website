@@ -633,7 +633,7 @@ function buildBar() {
   forward.addEventListener("click", () => { play(false); step(1); });
   playBtn.addEventListener("click", () => play(!state?.timer));
   slider.addEventListener("input", () => { play(false); void show(Number(slider.value)); });
-  close.addEventListener("click", () => stopPlayer());
+  close.addEventListener("click", () => stopPlayer({ reason: "dismiss" }));
 
   const lead = document.createElement("div");
   lead.className = "tl-lead";
@@ -670,7 +670,17 @@ if (typeof window !== "undefined") {
 }
 
 /** Take the whole thing off the globe, and let the driver clear up its own. */
-export function stopPlayer() {
+/**
+ * A STOP SAYS WHY. The bar comes down for three reasons that look identical
+ * from outside -- the reader pressed ✕, another sequence took the bar over,
+ * the layer it played left the globe -- and only the first is a decision
+ * about THIS sequence. `animated-layers` used to infer a ✕ from "an owner and
+ * no bar" on a poll, and a handover has exactly that shape for as long as the
+ * next sequence takes to build: measured, ticking the risk map marked the
+ * tracks dismissed, and unticking the risk then gave the tracks no bar back
+ * while they were still on the globe. So the reason travels with the stop.
+ */
+export function stopPlayer({ reason = "stop" } = {}) {
   if (!state) return;
   window.clearTimeout(state.timer);
   state.bar.bar.remove();
@@ -682,6 +692,7 @@ export function stopPlayer() {
   state = null;
   restore?.();
   done?.();
+  document.dispatchEvent(new CustomEvent("geoid-gis:timelapse-stopped", { detail: { reason } }));
 }
 
 /** Is a sequence running, and which frame is up? (For the drivers and tests.) */

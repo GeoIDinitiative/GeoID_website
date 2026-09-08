@@ -104,6 +104,20 @@ check("and its scratch is under a gitignored work directory",
     /gate\(work, "cyclone-tracks"\)/.test(lapse), true);
 }
 
+/* ── a dismissal is announced, never inferred ──────────────────────────── */
+{
+  const player = readFileSync(new URL("./timelapse-player.js", import.meta.url), "utf8");
+  const animated = readFileSync(new URL("./animated-layers.js", import.meta.url), "utf8");
+  check("the ✕ stops the player with a reason of its own",
+    /stopPlayer\(\{ reason: "dismiss" \}\)/.test(player), true);
+  check("and every stop announces its reason",
+    /geoid-gis:timelapse-stopped.*detail: \{ reason \}/.test(player), true);
+  check("animated-layers marks a dismissal from that announcement",
+    /reason !== "dismiss" \|\| !owner\) return;\s*dismissed\.add\(owner\)/.test(animated), true);
+  check("and no longer infers one from an empty poll",
+    !/watchBar/.test(animated) && !/Gone without the layer going/.test(animated), true);
+}
+
 process.on("exit", () => {
   if (failures.length) {
     console.log(`✗  cyclone-risk-raster.test.mjs  —  ${pass} passed, ${failures.length} FAILED`);

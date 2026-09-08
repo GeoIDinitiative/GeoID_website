@@ -20,8 +20,8 @@
  * made here — and unticking the one that owns it puts the bar away.
  */
 
-import { grouped, layerForDataset } from "./global-data.js?v=20260908-d35ab79";
-import { stopPlayer } from "./timelapse-player.js?v=20260908-d35ab79";
+import { grouped, layerForDataset } from "./global-data.js?v=20260908-f3feb0d";
+import { stopPlayer } from "./timelapse-player.js?v=20260908-f3feb0d";
 
 /** Which entry owns the bar, or null. */
 let owner = null;
@@ -86,33 +86,27 @@ async function sync() {
 }
 
 /**
- * The bar can also be closed from its own ✕, which no layer change announces.
- * Polled rather than wired into the player, for the reason the Draw HUD polls
- * tool state: the close paths are several and a watcher that misses one leaves
- * this module believing it still owns a bar that is gone — after which
- * unticking and re-ticking the layer would never reopen it.
+ * A DISMISSAL IS ANNOUNCED, NEVER INFERRED.
+ *
+ * This used to be a poll: an owner with no `#geoid-timelapse` on the page was
+ * read as the reader having pressed ✕. A HANDOVER has exactly that shape --
+ * the next sequence takes the bar down before its own is built, and the risk
+ * map's build is seconds long -- so ticking the risk marked the tracks
+ * dismissed, and unticking the risk then left the tracks bar-less while they
+ * were still on the globe. Two flags were added to paper over the window and
+ * the window kept moving. The player now says WHY it stopped, and only the ✕
+ * is a decision about the sequence that was up.
  */
-function watchBar() {
-  /**
-   * NOT WHILE IT IS BEING BUILT. `owner` is claimed before the open is
-   * awaited, and building a sequence takes ten seconds or more — so for all of
-   * that there is an owner and no bar, which is indistinguishable from a bar
-   * that has been closed. Measured: the poll marked the entry dismissed a few
-   * hundred milliseconds in, and the sequence that then finished building was
-   * never allowed to reopen. The same "opening is not yet running" gap the
-   * drivers each needed their own flag for.
-   */
-  if (!owner || opening) return;
-  if (document.getElementById("geoid-timelapse")) return;
-  // Gone without the layer going: the reader pressed ✕.
+function onStopped(event) {
+  if (event.detail?.reason !== "dismiss" || !owner) return;
   dismissed.add(owner);
   owner = null;
 }
 
 /**
- * A DRIVER REBUILDING ITS OWN SEQUENCE takes the bar down and puts it back,
- * which from out here is exactly what a ✕ looks like. It says so instead,
- * with the flag the open already uses, held for the length of the work.
+ * A DRIVER REBUILDING OR OPENING ITS OWN SEQUENCE says so, with the flag the
+ * open already uses, held for the length of the work -- `sync` stands still
+ * while it is up, so it cannot open a second sequence over one being built.
  */
 async function hold(work, id = null) {
   opening = true;
@@ -124,11 +118,10 @@ async function hold(work, id = null) {
      * AND THE BAR CHANGES HANDS. A driver opened from OUTSIDE this module --
      * the catalogue applying a dataset's default view -- puts its own bar up
      * and takes the previous owner's down, and nothing here knew: `owner`
-     * went on naming the tracks while the risk's bar was on screen. Measured,
-     * the next poll read that as the tracks' bar being closed, marked them
-     * dismissed, and then opened the risk entry ITSELF over the sequence the
-     * catalogue had just built -- two drapes and two Workspace rows for one
-     * tick. Whoever's bar is up when a held open lands owns it.
+     * went on naming the tracks while the risk's bar was on screen, and the
+     * next sync opened the risk entry ITSELF over the sequence the catalogue
+     * had just built -- two drapes and two Workspace rows for one tick.
+     * Whoever's bar is up when a held open lands owns it.
      */
     if (id && document.getElementById("geoid-timelapse")) owner = id;
   }
@@ -136,7 +129,8 @@ async function hold(work, id = null) {
 
 if (typeof window !== "undefined") {
   window.addEventListener("geoid-gis:layers-changed", () => { void sync(); });
-  setInterval(() => { watchBar(); void sync(); }, 700);
+  document.addEventListener("geoid-gis:timelapse-stopped", onStopped);
+  setInterval(() => { void sync(); }, 700);
   window.GeoIDAnimatedLayers = {
     sync, hold, owns: () => owner, dismissed: () => [...dismissed],
   };
