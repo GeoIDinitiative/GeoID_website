@@ -14476,3 +14476,48 @@ the animation and the map it animates cannot disagree about where a class
 begins — and a value of zero is drawn TRANSPARENT rather than in the bottom
 class, because ground no storm has ever reached is outside the map rather than
 at the low end of it.
+
+## `.gis-tool-grid` is TWO COLUMNS, and using it as a stack wrecks a tab
+
+"The cyclone tab is now structurally a mess", and it was — a 100 px magenta
+button sitting beside a tick row, under two walls of prose. One cause:
+`.gis-tool-grid` is `grid-template-columns: repeat(2, minmax(0, 1fr))`, and I
+appended a button, a `.row` and two paragraphs into it as though it were a
+column. So the button landed in column 1 with the tick row beside it, and every
+grid row grew to its tallest cell — which is what stretched the buttons.
+
+**The column's own idiom is three parts**, and the ice time-lapse next door is
+the same three in the same order:
+
+| | |
+| --- | --- |
+| `.row` | one label, one control — a grid, `1fr` and `minmax(8rem, 11rem)` |
+| `.gis-btn-row` | a flex run of buttons, each `flex: 1` so they share the width |
+| `p.compact-copy` | prose, at the body's own width |
+
+Measured after: both buttons 34 px tall on ONE row (127 and 159 px wide), the
+whole subtab body 334 px, and nothing overflowing it.
+
+**ONE PLAYER, so one status line and one button row.** Starting either sequence
+stops the other — that is `timelapse-player`'s own rule rather than a
+coincidence of these two buttons — so two status paragraphs were two ways to
+say what one player is doing, and an empty one still carries its margins (the
+dock's own empty-status lesson). `#cyclone-play-status` is the one line both
+modules write to.
+
+**And the raster's control wires on the BUTTON, not on a wrapper.** It shares
+its row and its status with the season animation, so it has no host of its own
+to key on — and a div kept only to be wired is an element that exists to hold a
+boolean.
+
+### The copy belongs on the FRAME, not in front of the controls
+
+Two paragraphs explaining that a season is a count and a thin estimate is noise
+were most of the mess, and both claims were already being made where they
+matter: a season's key reads "Storms within 200 km in 2005" and a thin frame
+says "1 season of record, mostly sampling noise". Standing copy repeating them
+is a wall of text in front of the controls it describes. One line survives —
+"Seasons plays what happened; the estimate plays how well it is known. Each
+frame says which." — and the longer explanation of the follow tick moved to its
+`title`. Same rule this file already states about the pre-satellite frames: the
+honest answer belongs on the frame rather than in a footnote.

@@ -23,12 +23,12 @@
 
 import {
   buildSymbology, colourOf, legendInfoFrom,
-} from "./symbology.js?v=20260908-14b24bc";
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-14b24bc";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-14b24bc";
+} from "./symbology.js?v=20260908-f95521b";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-f95521b";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-f95521b";
 import {
   showSeason, showClimatology, riskLayer,
-} from "./cyclone-risk.js?v=20260908-14b24bc";
+} from "./cyclone-risk.js?v=20260908-f95521b";
 
 const search = new URL(import.meta.url).search;
 
@@ -63,7 +63,7 @@ function tracksLayer() {
 }
 
 function say(message) {
-  const node = byId("cyclone-timelapse-status");
+  const node = byId("cyclone-play-status");
   if (node) node.textContent = message;
 }
 

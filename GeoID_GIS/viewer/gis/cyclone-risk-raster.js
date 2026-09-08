@@ -28,11 +28,11 @@
  * follow.
  */
 
-import { loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260908-14b24bc";
-import { dataUrl } from "./data-base.js?v=20260908-14b24bc";
-import { riskEdges, RISK_LABELS } from "./cyclone-risk.js?v=20260908-14b24bc";
-import { rampColour } from "./symbology.js?v=20260908-14b24bc";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-14b24bc";
+import { loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260908-f95521b";
+import { dataUrl } from "./data-base.js?v=20260908-f95521b";
+import { riskEdges, RISK_LABELS } from "./cyclone-risk.js?v=20260908-f95521b";
+import { rampColour } from "./symbology.js?v=20260908-f95521b";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-f95521b";
 
 const FILE = "/data/global/cyclone-risk-cumulative.hotlink-ok.tif";
 const WORLD = { west: -180, south: -90, east: 180, north: 90 };
@@ -53,7 +53,7 @@ let three = null;
 const byId = (id) => document.getElementById(id);
 
 function say(message) {
-  const node = byId("cyclone-risk-raster-status");
+  const node = byId("cyclone-play-status");
   if (node) node.textContent = message;
 }
 
@@ -216,10 +216,14 @@ export async function play() {
 }
 
 function wire() {
-  const host = byId("cyclone-risk-raster");
-  if (!host || host.dataset.wired) return;
-  host.dataset.wired = "1";
-  byId("cyclone-risk-raster-play")?.addEventListener("click", () => { void play(); });
+  // On the BUTTON, not on a wrapper. This control shares its row and its
+  // status line with the season animation, so it has no host of its own to
+  // key on -- and a wrapper kept only to be wired is a div that exists to
+  // hold a boolean.
+  const button = byId("cyclone-risk-raster-play");
+  if (!button || button.dataset.wired) return;
+  button.dataset.wired = "1";
+  button.addEventListener("click", () => { void play(); });
 }
 
 if (typeof document !== "undefined") {
