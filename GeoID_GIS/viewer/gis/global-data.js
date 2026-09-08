@@ -26,11 +26,15 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260908-c67e073";
-import { dataUrl } from "./data-base.js?v=20260908-c67e073";
+import { runConnector } from "./research/connectors.js?v=20260908-d50e13f";
+import { dataUrl } from "./data-base.js?v=20260908-d50e13f";
+import { mathsFor } from "./equations.js?v=20260908-d50e13f";
+import {
+  riskEdges, RISK_LABELS,
+} from "./cyclone-risk.js?v=20260908-d50e13f";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-c67e073";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-d50e13f";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -204,6 +208,55 @@ export const DATASETS = [
      * what anybody is reading is the ground underneath them.
      */
     opacity: 0.55,
+  },
+  {
+    /**
+     * HOW OFTEN A CYCLONE PASSES, as a map -- and the companion to the tracks
+     * above rather than a second view of them. Thirteen thousand lines say
+     * where every storm went; they cannot answer "how often does this happen
+     * here", which is the question a reader has in front of them.
+     *
+     * THE NUMBER: distinct storms passing within 200 KM OF A POINT, per year,
+     * over the 46 complete seasons since 1980. `p_yr` is 1 - exp(-rate), the
+     * chance of at least one in a given year.
+     *
+     * WHY THE CELLS ARE DIFFERENT SIZES, and why that is safe. The value is
+     * measured AT A POINT within a FIXED radius, so a cell's size is only how
+     * finely the field is drawn there -- fine where it varies, coarse where
+     * nothing happens. "Storms in this cell" would not be comparable at all: a
+     * four-degree cell catches more storms by being big, and the map would be
+     * a picture of its own resolution rather than of the hazard. Measured: 28
+     * km cells over Florida and the Philippines, 444 km over the empty ocean.
+     */
+    id: "cyclone-risk",
+    home: "hazards",
+    featureNoun: "Cyclone risk cell",
+    group: "Hazards",
+    label: "Tropical cyclone risk \u2014 chance of a storm passing (IBTrACS)",
+    path: "/data/global/cyclone-risk.geojson",
+    name: "Tropical cyclone risk (IBTrACS v04r01).geojson",
+    summary: "The chance a tropical cyclone passes within 200 km, per year, "
+      + "over the 46 complete seasons 1980-2025. 91,156 cells at a variable "
+      + "resolution \u2014 28 km where the field varies, 444 km where it does "
+      + "not \u2014 each also carrying the rate for hurricane-force winds",
+    licence: "IBTrACS v04r01, NOAA NCEI \u2014 open data; cite Knapp et al. (2010), "
+      + "Bull. Amer. Meteor. Soc., 91, 363-376",
+    /**
+     * CUT ON RETURN PERIODS, not on this file's own quantiles -- the same
+     * argument the tracks make for Saffir-Simpson. "Once a decade" and "once a
+     * year" mean something before anybody looks at the data, and they are what
+     * a reader is asking about; a quantile would move every boundary the
+     * moment the window or the basin changed, so two of these maps could not
+     * be read against each other.
+     */
+    colourRange: {
+      field: "p_yr",
+      edges: riskEdges(),
+      labels: RISK_LABELS,
+      legendLabel: "Chance of a storm passing within 200 km",
+      ramp: "risk",
+    },
+    opacity: 0.6,
   },
   {
     id: "active-faults",
@@ -758,6 +811,22 @@ export async function addDataset(id, onStatus = () => {},
           features: provenance.features,
         } : {}),
       };
+      /**
+       * AND A MODELLED ONE SHOWS ITS WORKING.
+       *
+       * By the entry's OWN id, so this is a seam rather than one more special
+       * case: a catalogue dataset that has an `equations.js` entry gets the ⓘ
+       * on its Workspace row, and one that has not gets no button. Most of
+       * this catalogue is a survey rather than a model, and a survey has no
+       * arithmetic to show — an "How it is calculated" fold over Natural
+       * Earth's coastlines would suggest everything here is computed.
+       *
+       * It matters most for the cyclone risk map, which is the one entry
+       * whose numbers this repository produces: a screening map whose method
+       * is a secret has authority it has not earned.
+       */
+      const maths = mathsFor(entry.id);
+      if (maths) landed.info = { ...(landed.info || {}), maths };
     }
   } catch (error) {
     const message = `${entry.label} did not load: ${error.message}`;
@@ -834,6 +903,11 @@ export async function addDataset(id, onStatus = () => {},
         // Where the entry names them: a published scale cuts where the scale
         // says, not where this particular file's values happen to fall.
         edges: spec.edges || null,
+        // And a published scale is published in words. Without these the
+        // cyclone risk map's key reads "0.0951 - 0.1813" where it means
+        // "about 1 in 10 years".
+        labels: spec.labels || null,
+        legendLabel: spec.legendLabel || null,
       });
     } catch (error) {
       /* the layer stands in its default colours */

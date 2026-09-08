@@ -95,6 +95,10 @@ data/global/ice/[0-9]*/
 # the bucket it describes. README.md stays for a reader of the repository.
 data/global/*.geojson
 data/global/gee-catalogue.json
+# The cyclone risk map's per-season sidecar. The climatology beside it is
+# a .geojson and is already covered by the rule above; this one is a bare
+# .json, and at 26 MB it is not a thing to commit.
+data/global/cyclone-risk-years.json
 data/global/ice/names.json
 data/global/ice/thickness.json
 

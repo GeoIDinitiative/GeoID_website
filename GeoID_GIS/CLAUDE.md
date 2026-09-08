@@ -14142,3 +14142,135 @@ answer to "why are there so few" belongs where the few are, not in a footnote.
 start year makes a frame for every year whether the archive has one or not, and
 a frame that draws nothing reads as the player having broken rather than as a
 quiet year. The epochs come from the seasons that are actually there.
+
+## The cyclone risk map: a variable-resolution grid that is still comparable
+
+The tracks layer says where every storm went. Thirteen thousand lines cannot
+say **how often that happens here**, which is the question a reader has in
+front of them, so `bake-cyclone-risk.py` counts it: `cyclone-risk.geojson` (the
+climatology) and `cyclone-risk-years.json` (a sparse count per cell per
+season), both from one 137-second pass over IBTrACS read where it lies.
+
+**THE VALUE IS MEASURED AT A POINT, WITHIN A FIXED RADIUS — never per cell.**
+That one decision is what makes the rest legal. "Storms in this cell" is not
+comparable between an eight-degree cell and a quarter-degree one: the big cell
+catches more storms by BEING BIG, so a variable-resolution map of it would be a
+picture of its own resolution rather than of the hazard. Measured at a point,
+a cell is a sampling location and its size is display resolution and nothing
+more — 28 km over Florida and the Philippines, 444 km over the open ocean,
+which is what "higher res around Florida, lower where there are no
+occurrences" actually requires.
+
+**And a single season is not a probability.** A cell either had a storm in 1992
+or it did not; there is no frequency in one year to take. So the per-season
+file holds COUNTS, is labelled as counts everywhere it surfaces, and the LEGEND
+CHANGES WITH THE MAP when the animation follows it — the climatology's classes
+are return periods and a season's are numbers of storms, and drawing one under
+the other's key is the whole failure the file is written to avoid.
+
+### Three things that would have made it a wrong map
+
+- **A BLOCK THAT IS EMPTY IN PART IS NOT FLAT, whatever its spread.** The trap
+  above, reappearing at the other end of the scale. One lattice point can
+  report no less than one storm in the window — 1/46, about 0.022 a year — so a
+  coarse cell reporting 0.0003 is not a rate anywhere inside it: it is one
+  point's rate divided by the thousand beside it that no storm ever reached.
+  Measured before the gate: **177 cells of 2 degrees and up claiming rates down
+  to "once every 3,623 years"**, and **1,485 doing the same with the hurricane
+  rate**. The absolute spread test cannot catch it and correctly so — 0.022
+  against a peak of 6.17 is a third of a percent, genuinely flat. What is wrong
+  is not the variation but the MEAN. Gated on BOTH fields: gating the storm
+  rate alone leaves the hurricane rate diluted under a cell whose other number
+  is sound (79,114 cells → 90,445, and worth it).
+- **THE DISC IS IN KILOMETRES, AND IT IS SOLVED ON THE SPHERE.** A fixed column
+  count is a 200 km disc at the equator, 100 km at 60° and meaningless at the
+  pole. Inverting the haversine for the longitude difference is closed form,
+  and the flat approximation is wrong exactly where a disc has most of its
+  cells: **a cell computed at 199 km is 216 km of real ground**. And a cell is
+  in the disc when its CENTRE is within the radius — `ceil` adds up to a cell
+  and a half of reach, measured at **240 km under a layer claiming 200**, and
+  inflates every rate on the map. Measured after: worst included cell
+  196.6–199.9 km, **none over 200**, equator to 85°, ground covered 99–103% of
+  πr² at every latitude.
+- **THE SEASON IN PROGRESS IS EXCLUDED from the climatology**, or 46 seasons of
+  storms divided by 47 years understates every cell. It is still emitted in the
+  per-year file, because a year's own count is a count whether or not the year
+  has finished.
+
+### Precompute the disc PER ROW, not per fix
+
+Three million densified fixes each solving the same 720 shapes is an hour of
+arithmetic to arrive at 720 answers. The disc's shape depends only on the grid
+ROW, so it is a lookup built once (0.1 s) and the stamping is batched by row —
+the points sharing a row share a shape, so a row is one broadcast rather than
+one loop iteration each. Whole bake: **137 s, nothing staged to disk**.
+
+### What it is checked against
+
+Places whose climatology is published, and the answers have to be recognisable
+before the file is believed: **Cape Hatteras 1.67 storms/yr and a hurricane 1
+in 2 years** (the most exposed point on the US East Coast), **Manila 3.16**,
+**Miami 0.95 and a hurricane 1 in 3**, **Mumbai 0.30 with a hurricane 1 in 32**,
+**Lisbon 0.20 with none on record**. The **South Atlantic has no cell at all**
+except at **Catarina's 2004 landfall**, which is the one South Atlantic
+hurricane there has ever been. Basins rank as the record does, with the eastern
+North Pacific highest by point density.
+
+And the SEASONS invert the way history says: 2005 gives Miami 3.5 and New
+Orleans 2 while Manila has 2; **2013 gives Miami 1 and Manila 3.5** — Haiyan's
+year against the record-quiet Atlantic. Two locations swapping in the right
+direction across two years is worth more than any single number.
+
+### A repaint, not a rebuild — and the grey needed a row
+
+Following the animation swaps the COLOUR of the same 91,156 cells: measured,
+**1,540,636 vertices before and after**, 2.2 s a season. The sidecar is fetched
+only when the toggle is first used (5.6 MB gzipped), and the whole thing is a
+no-op when the risk layer is not on the globe — the season animation is worth
+watching on its own, and fetching a 23 MB map because somebody pressed play is
+the app deciding what they came for.
+
+**A cell the season never reached keeps NO colour, and that needed a legend row
+of its own.** Unpainted cells take the app's no-value grey `#8a8a8a`, which
+everywhere else means NOT MEASURED and here means measured, and zero — every
+cell in the file was reached by some storm at some point or the bake would not
+have drawn it. Measured on 2005: **43,039 of 91,156 cells**, half the map in a
+colour meaning one thing under a key that did not mention it. The "no storm
+that season" row leads the key and carries its own count, so the classes now
+sum to the cells drawn (43,039 + 729 + 21,306 + 13,341 + 7,349 + 5,392 =
+91,156).
+
+### `paintByRange` gained `labels` and `legendLabel`
+
+The companion to `edges`, and needed for the same reason: a published scale is
+published in a VOCABULARY. These classes are return periods, so "about 1 in 10
+years" is the class and "0.0951 – 0.1813" is the arithmetic underneath it, and
+`p_yr` is a column name rather than a quantity anybody reads. `legendInfoFrom`
+already prefers a row's own label over its bounds, so the labels only had to
+reach the rows. Verified live: six drawn colours for six classes, **zero in the
+no-value grey**, and the bounds are exactly 1 − exp(−1/T) for 10, 5, 2, 1 and
+0.5 years.
+
+### A modelled catalogue dataset shows its working, BY ITS OWN ID
+
+`addDataset` sets `layer.info.maths = mathsFor(entry.id)`, so this is a seam
+rather than one more special case: a catalogue entry with an `equations.js`
+entry gets the ⓘ on its Workspace row and one without gets no button. Most of
+that catalogue is a survey, and a survey has no arithmetic to show — an "How it
+is calculated" fold over Natural Earth's coastlines would suggest everything
+there is computed. Verified both ways: the risk map carries it, the coastlines
+do not.
+
+### A TEST FILE'S VERDICT BELONGS IN AN EXIT HOOK
+
+This tree has lost checks twice to a summary that stopped being the last
+statement — `event-sources.test.mjs` printed 89 of them into a decided exit
+code, and `geoprocessing.test.mjs` calls `process.exit` and silently skips
+whatever follows. Both were caught by an A/B rather than by reading, and both
+fixes were discipline: *put the verdict last and keep it there*.
+
+`process.on("exit", …)` makes the ordering stop mattering, so a check appended
+anywhere by anyone still counts. Proved by the same A/B that exposed the trap:
+with the verdict written inline a deliberate failure appended after it **ran,
+counted, printed nothing and exited 0**; through the exit hook the identical
+append exits 1 and names the failure. New test files should take the hook.

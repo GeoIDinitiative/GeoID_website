@@ -269,6 +269,10 @@ check("the modelled layers all carry theirs", () => {
     ["geoid-mode.js", /maths: mathsFor\("geoid-fos"\)/, "the Factor of Safety layer"],
     ["dem-layer.js", /maths: mathsFor\(spec\.id\)/, "the streamed sheets"],
     ["soil-thickness.js", /maths: mathsFor\("soil-thickness"\)/, "the thickness sheet"],
+    // By the ENTRY'S OWN ID, so a catalogue dataset with an equations entry
+    // gets the button and one without gets none. The cyclone risk map is the
+    // one entry in that catalogue whose numbers this repository produces.
+    ["global-data.js", /const maths = mathsFor\(entry\.id\)/, "any modelled catalogue dataset"],
   ];
   for (const [file, pattern, what] of cases) {
     const src = readFileSync(new URL(`./${file}`, import.meta.url), "utf8");

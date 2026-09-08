@@ -24,11 +24,11 @@
  * polygon comes out white with a perfectly correct legend beside it.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260908-c67e073";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260908-d50e13f";
 import {
   RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP, METHODS,
   categoricalSymbology, buildSymbology, colourOf, legendInfoFrom, fmtBound,
-} from "./symbology.js?v=20260908-c67e073";
+} from "./symbology.js?v=20260908-d50e13f";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -516,6 +516,23 @@ export function paintByRange(layer, field, {
    * edge list all along; this is the way through to it.
    */
   edges = null,
+  /**
+   * WHAT EACH CLASS MEANS, where the scale has words of its own.
+   *
+   * The companion to `edges`, and needed for the same reason. A published
+   * scale is published in a vocabulary: the cyclone risk map's classes are
+   * RETURN PERIODS, so "about 1 in 10 years" is the class and
+   * "0.0951 - 0.1813" is the arithmetic underneath it. `legendInfoFrom`
+   * already prefers a row's own label over the bounds, so this only has to
+   * reach the rows -- and a label list shorter than the classes leaves the
+   * rest reading as bounds, which is the right failure.
+   */
+  labels = null,
+  /**
+   * The caption over the whole key. `field` is a COLUMN NAME and stands in
+   * when there is nothing better, but "p_yr" is not a quantity anybody reads.
+   */
+  legendLabel = null,
 } = {}) {
   // `rampColour` answers for an unknown name by returning viridis, which means
   // a qualitative ramp asked for here paints a correct map under a legend that
@@ -540,6 +557,9 @@ export function paintByRange(layer, field, {
     });
     sym.palette = sym.rows.map((r) => r.colour);
   }
+  if (labels) {
+    sym.rows.forEach((row, i) => { if (labels[i]) row.label = labels[i]; });
+  }
   /**
    * A feature with NO value keeps no colour at all.
    *
@@ -556,7 +576,9 @@ export function paintByRange(layer, field, {
   // `field` alongside the legend, the same as the categorical path sets it:
   // the legend dock and the export both read it to say what the colours are
   // OF, and a key with bounds and no quantity is half a legend.
-  layer.legendInfo = { ...legendInfoFrom(sym, { label: field }), field, categorical: false };
+  layer.legendInfo = {
+    ...legendInfoFrom(sym, { label: legendLabel || field }), field, categorical: false,
+  };
   layer.geologyField = field;
   layer.geologyRamp = ramp;
   layer.geologyLabels = null;

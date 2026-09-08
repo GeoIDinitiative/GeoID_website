@@ -62,6 +62,61 @@ const CELL = {
 };
 
 const EQUATIONS = {
+  "cyclone-risk": {
+    kind: COMPUTED,
+    intro: "How often a tropical cyclone passes, counted from IBTrACS and "
+      + "converted to an annual chance. The one thing to read before the "
+      + "colours: the value is measured AT A POINT within a fixed radius, "
+      + "never per cell — which is what lets the cells be different sizes "
+      + "without the map becoming a picture of its own resolution.",
+    lines: [
+      { expr: "λ(p) = N(p) / Y",
+        note: "the rate, in storms per year, at the point p" },
+      { expr: "P(p) = 1 − exp( −λ(p) )",
+        note: "the chance of AT LEAST ONE in a given year — what the map is "
+          + "coloured by, and what the classes are cut on" },
+      { expr: "N(p) = |{ s ∈ storms : min over fixes f of s of d(p, f) ≤ R }|",
+        note: "each storm counted ONCE however many of its fixes fall inside" },
+      { expr: "cell value = mean of λ over the lattice points inside it",
+        note: "and a cell is only coarsened where that mean is representative "
+          + "— see the note below" },
+    ],
+    terms: [
+      ["R", "200 km, the distance over which a cyclone's wind field is felt at "
+        + "strength. THE NUMBER IS THE DEFINITION: at 100 km the map is about "
+        + "half as red, and neither radius is more correct than the other."],
+      ["Y", "46 — the COMPLETE seasons 1980–2025. The season in progress is "
+        + "excluded: 46 seasons of storms divided by 47 years would understate "
+        + "every cell on the map."],
+      ["1980", "where the record becomes globally consistent. Before the "
+        + "satellites a storm was recorded where ships and coasts were, so the "
+        + "archive's own storm count rises through the twentieth century for "
+        + "reasons that are mostly observational."],
+      ["d", "great-circle distance, solved on the sphere. In the flat "
+        + "approximation a point computed at 199 km is 216 km of real ground, "
+        + "so the layer would claim a radius it does not have."],
+      ["exp(−λ)", "the Poisson chance of NO arrival in a year at rate λ. It "
+        + "assumes storms arrive independently, which is the standard "
+        + "assumption and is not exactly true — seasons cluster."],
+    ],
+    note: "WHY THE CELLS ARE DIFFERENT SIZES. The grid is a sampling lattice "
+      + "at a quarter of a degree; blocks of it are merged while the field "
+      + "inside them is flat, so a cell's size is display resolution and "
+      + "nothing more — 28 km over Florida and the Philippines, 444 km over "
+      + "the open ocean. A block that is EMPTY IN PART is never merged, "
+      + "whatever its spread: one lattice point can report no less than one "
+      + "storm in 46 seasons, so a coarse cell reporting less than that would "
+      + "be one point's rate divided by the thousand beside it that no storm "
+      + "has ever reached. Cells no storm has ever crossed are not drawn at "
+      + "all. AND A SINGLE SEASON IS NOT A PROBABILITY: while the track "
+      + "animation is followed the map shows that season's storm COUNTS, and "
+      + "the key changes with it.",
+    citation: "IBTrACS v04r01, NOAA NCEI. Knapp, K. R., M. C. Kruk, D. H. "
+      + "Levinson, H. J. Diamond and C. J. Neumann (2010), The International "
+      + "Best Track Archive for Climate Stewardship (IBTrACS), Bull. Amer. "
+      + "Meteor. Soc., 91, 363–376.",
+  },
+
   "dem-elevation": {
     kind: COMPUTED,
     intro: "The tiles are PNGs, and the height is packed into the colour. "

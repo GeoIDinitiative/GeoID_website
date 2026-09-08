@@ -23,9 +23,12 @@
 
 import {
   buildSymbology, colourOf, legendInfoFrom,
-} from "./symbology.js?v=20260908-c67e073";
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-c67e073";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-c67e073";
+} from "./symbology.js?v=20260908-d50e13f";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-d50e13f";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-d50e13f";
+import {
+  showSeason, showClimatology, riskLayer,
+} from "./cyclone-risk.js?v=20260908-d50e13f";
 
 const search = new URL(import.meta.url).search;
 
@@ -197,12 +200,29 @@ export async function play({ from = MODERN } = {}) {
      */
     onShow: (index) => {
       const now = held();
-      if (!now) return;
-      now.features = seasons[index][1];
-      now.collection = { type: "FeatureCollection", features: seasons[index][1] };
+      if (now) {
+        now.features = seasons[index][1];
+        now.collection = { type: "FeatureCollection", features: seasons[index][1] };
+      }
+      /**
+       * AND THE RISK MAP FOLLOWS, when it is on the globe and the box is
+       * ticked. A season's cells are a COUNT and the climatology's are a
+       * chance, so `showSeason` swaps the legend with the map -- see
+       * cyclone-risk.js. It is a REPAINT: the geometry is the same 91,156
+       * cells however many years the bar steps through.
+       *
+       * Silent when the risk layer is not loaded, because it usually is not:
+       * the animation is worth watching on its own, and fetching a 23 MB map
+       * because somebody pressed play is the app deciding what they came for.
+       */
+      if (followRisk()) void showSeason(seasons[index][0]);
     },
     onStop: () => {
       running = false;
+      // The risk layer's own subject is the long-run rate, so closing the bar
+      // must leave it saying what its name says rather than holding whichever
+      // season the bar happened to stop on.
+      if (riskLayer()) showClimatology();
       const now = held();
       if (now) window.GeoIDImportManager?.removeLayer?.(now.id);
       group.traverse?.((n) => { n.geometry?.dispose?.(); n.material?.dispose?.(); });
@@ -212,6 +232,16 @@ export async function play({ from = MODERN } = {}) {
     },
   });
   return { seasons: seasons.length };
+}
+
+/**
+ * Is the risk map meant to follow? The tick, and only where there is a layer
+ * for it to be about -- a control that promises to move a map nobody has
+ * loaded is a control that does nothing, which is the fault this file's own
+ * catalogue rows are careful to avoid.
+ */
+function followRisk() {
+  return Boolean(byId("cyclone-risk-follow")?.checked) && Boolean(riskLayer());
 }
 
 function wire() {
