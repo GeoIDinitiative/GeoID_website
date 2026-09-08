@@ -15335,3 +15335,38 @@ terminal All frame (base layer back, plot hidden, "13,513 storms").
 
 The reasoning that made it cumulative was about the COUNTER reading well as it
 grew. A counter is not a reason to change what is drawn.
+
+### Tick labels are placed in PIXELS, and the origin always carries a mark
+
+"The timeline is a mess when we visualise the whole archive — the x ticks get
+crowded." Measured: "1842" and "1880" drawn on top of each other at the left
+end, with room to spare on the right. The labels were chosen every nth MARK
+by count, which assumes the marks are evenly spaced along the track — and
+they are not. A frame is a season WITH storms in it, so 1842 to 1880 is a
+handful of frames that are decades apart in name.
+
+`pickLabels(marks, width, gap)` in the player decides in pixels: walking left
+to right, a label goes only where it stands 34 px clear of the last one
+placed. Round years first — decades are what a reader looks for on a time
+axis — and other marks fill in only where a decade is not within reach, which
+is the short spans, where "1980, 1990" would otherwise be two labels on a bar
+that holds eight. Pure and pinned on a sparse fixture (1842 at 0 px, 1880 at
+12 px: the second is refused).
+
+**And the first frame is always MARKED**, whatever the step: the season step
+marked decades only, so on the 1842 span the marks began at 1860 while the
+slider began at 1842. A scale with no origin is not a scale, and the rule has
+to hold at the mark as well as at the label.
+
+Measured after, by the label boxes themselves:
+
+| span · step | ticks | labels | overlaps | min edge gap |
+| --- | --- | --- | --- | --- |
+| 1980 · season | 5 | 1980 1990 2000 2010 2020 | **0** | 61.3 px |
+| 1842 · season | 18 | 1842 1870 1890 … 2010 | **0** | 17.0 |
+| 1842 · storm | 166 | 1842 1900 1930 … 2025 | **0** | 17.5 |
+| 1842 · month | 177 | 1842 1880 1910 … 2010 | **0** | 20.9 |
+
+The gap after 1842 is wide on purpose: the record between 1842 and 1900 is a
+few dozen frames, so that is where the track genuinely has the least ground
+to give a label.
