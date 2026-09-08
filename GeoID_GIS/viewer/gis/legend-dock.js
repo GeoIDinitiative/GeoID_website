@@ -201,6 +201,8 @@ const STYLE = `
  * with 0.1em of tracking. */
 #map-legend-panel .layer-type-badge {
   display: flex;
+  align-items: center;
+  gap: 0.5rem;
   width: auto;
   margin: 0;
   padding: 0.7rem 0.78rem;
@@ -283,6 +285,21 @@ const STYLE = `
   margin-left: 0.075rem;
   margin-top: 0.2rem;
 }
+/* A SINGLE-SYMBOL LAYER KEYS ITSELF IN ITS OWN HEAD.
+ *
+ * The mark sits left of the name on one line, rather than on a second row
+ * whose only other content was a feature count. The shape rules above carry a
+ * margin-top tuned for a mark sitting beside stacked copy; in a centred flex
+ * row that pushes it off the line, so it is undone here -- and the mark must
+ * not shrink when a long dataset name wraps, which is what flex would
+ * otherwise do to a box with no explicit basis. */
+#map-legend-panel .layer-type-badge .legend-swatch {
+  flex: 0 0 auto;
+  margin-top: 0;
+  margin-left: 0;
+}
+/* And the line keeps its own width rather than stretching to the head. */
+#map-legend-panel .layer-type-badge .legend-swatch.is-line { width: 0.85rem; }
 /* A drawn set has no upper bound and this panel does. Past ten shapes the list
    scrolls instead of pushing the basemap and every dataset off the bottom; the
    bar takes the app's cyan from the :root scrollbar-color rule, so there is

@@ -10,17 +10,17 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { bandOf } from "./draw-order.js?v=20260908-b91390d";
-import { paintOpacity } from "./layer-opacity.js?v=20260908-b91390d";
-import { currentBody } from "./bodies.js?v=20260908-b91390d";
-import { samplerToRaster } from "./raster-analysis.js?v=20260908-b91390d";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260908-b91390d";
-import { datasetInfoButton } from "./catalogue-list.js?v=20260908-b91390d";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260908-b91390d";
+import { bandOf } from "./draw-order.js?v=20260908-1357e7f";
+import { paintOpacity } from "./layer-opacity.js?v=20260908-1357e7f";
+import { currentBody } from "./bodies.js?v=20260908-1357e7f";
+import { samplerToRaster } from "./raster-analysis.js?v=20260908-1357e7f";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260908-1357e7f";
+import { datasetInfoButton } from "./catalogue-list.js?v=20260908-1357e7f";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260908-1357e7f";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20260908-b91390d";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260908-b91390d";
+} from "./symbology-dialog.js?v=20260908-1357e7f";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260908-1357e7f";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -1258,39 +1258,46 @@ function buildLayerCard(layer) {
    * as true of one class as of three.
    */
   const graded = Array.isArray(layer.legendInfo?.palette) && layer.legendInfo.palette.length > 0;
-  const list = document.createElement("div");
-  list.className = "legend-symbol-list";
-  const row = document.createElement("div");
-  row.className = "legend-symbol-row";
-  const swatch = document.createElement("span");
-  swatch.className = "legend-swatch";
-  shapeSwatch(swatch, swatchKind(layer));
-  swatch.style.background = layerColour(layer);
-  row.appendChild(swatch);
-  const copyWrap = document.createElement("div");
-  copyWrap.className = "legend-symbol-copy";
-  const label = document.createElement("div");
-  label.className = "legend-symbol-label";
-  label.textContent = symbolLabel(layer);
-  copyWrap.appendChild(label);
-  /**
-   * A cloud too big for an attribute table says so HERE, beside its own count,
-   * because this is where somebody wondering why no tool will take it looks.
-   * `describeLayer` builds the same sentence and nothing renders it -- its one
-   * live caller returns early for loaded layers and the other assigns the
-   * result to a variable it never uses -- so the limit was invisible, which is
-   * the state it was meant to replace.
-   */
-  if (layer.info?.displayOnly) {
-    const detail = document.createElement("div");
-    detail.className = "legend-symbol-detail";
-    detail.textContent = "display only — no attribute table";
-    if (layer.info.displayOnlyReason) detail.title = layer.info.displayOnlyReason;
-    copyWrap.appendChild(detail);
+  if (!graded) {
+    /**
+     * ONE SYMBOL IS ONE ROW: the mark inline, to the left of the name.
+     *
+     * A layer with no palette wears one symbol everywhere, so the head and the
+     * stand-in row under it were saying the same thing on two lines -- and the
+     * only thing the second line ADDED was a feature count. "241 lines" is not
+     * a key: a legend row says what its swatch is a swatch OF, and a count is
+     * a fact about the layer that its own row in Workspace already carries.
+     * Reported as exactly that, twice now; it used to be the whole row's text.
+     *
+     * So the swatch moves into the head and the row goes. The card is then one
+     * line -- mark, then name -- which is what a single-symbol layer is.
+     *
+     * A GRADED layer is untouched: its classes below carry their own swatches
+     * and their own names, and a mark beside the title would be a colour that
+     * describes none of them.
+     */
+    const swatch = document.createElement("span");
+    swatch.className = "legend-swatch";
+    shapeSwatch(swatch, swatchKind(layer));
+    swatch.style.background = layerColour(layer);
+    badge.prepend(swatch);
+    /**
+     * A cloud too big for an attribute table still says so, because this is
+     * where somebody wondering why no tool will take it looks. It moves out of
+     * the row that no longer exists and stands under the head as the note it
+     * always was. `describeLayer` builds the same sentence and nothing renders
+     * it -- its one live caller returns early for loaded layers and the other
+     * assigns the result to a variable it never uses -- so the limit was
+     * invisible, which is the state it was meant to replace.
+     */
+    if (layer.info?.displayOnly) {
+      const detail = document.createElement("div");
+      detail.className = "legend-symbol-detail";
+      detail.textContent = "display only — no attribute table";
+      if (layer.info.displayOnlyReason) detail.title = layer.info.displayOnlyReason;
+      card.appendChild(detail);
+    }
   }
-  row.appendChild(copyWrap);
-  list.appendChild(row);
-  if (!graded) card.appendChild(list);
 
   // Continuous data carries its ramp and what the ends mean, not just a name:
   // a legend that cannot be read against the map is furniture.

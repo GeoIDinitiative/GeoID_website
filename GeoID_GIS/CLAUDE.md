@@ -14369,3 +14369,40 @@ reads as a feed that failed to come on.)
 
 **The general rule.** Any preference stored as "the things that are on" goes
 stale the moment the set it was drawn from grows. Store the exceptions.
+
+## A single-symbol layer keys itself in its own head
+
+A layer with no palette wears one symbol everywhere, so the legend card's head
+and the stand-in row beneath it were saying the same thing on two lines — and
+the only thing the second line ADDED was a feature count. "241 lines" is not a
+key: a legend row says what its swatch is a swatch OF, and a count is a fact
+about the layer that its own Workspace row already carries. That has now been
+reported twice; the first time it was the whole row's text beside a colour it
+did not describe.
+
+The swatch moves into the head and the row goes, so the card is one line —
+mark, then name. **A GRADED layer is untouched**: its classes below carry their
+own swatches and their own names, and a mark beside the title would be a colour
+describing none of them. Verified: the plate boundaries card is one 56 px row
+with an `is-line` swatch 12 px in and centred to 0 px, no `.legend-symbol-row`
+at all; the cyclone risk card beside it still draws its six class rows with no
+swatch in its head.
+
+Three things that had to be checked rather than assumed:
+
+- **The card's identity does not come from the row.** `titleOf` reads
+  `dataset.legendKey` first, which is the layer name, so dropping the label
+  cannot collapse two cards into one — which is the fault `symbolLabel`'s own
+  comment records paying for (coastlines, rivers and a raster all keyed as
+  `symbols:layer`).
+- **The shape rules carry a `margin-top`** tuned for a mark sitting beside
+  stacked copy. In a centred flex head that pushes it off the line, so it is
+  undone for a swatch inside the head — and the mark takes `flex: 0 0 auto`, or
+  a long dataset name wrapping squeezes it.
+- **The "display only" note moved rather than vanishing.** It lived inside the
+  row that no longer exists, and it is where somebody wondering why no tool
+  will take a layer looks.
+
+The basemap card is built elsewhere (`basemapCard`) and still carries its own
+row — "streamed tiles" plus the licence — which is a type and a condition
+rather than a count, so it is left alone.
