@@ -15106,3 +15106,32 @@ the string. `node --input-type=module --check` named it immediately, which is
 the argument for running it on every edit to a file with CSS-in-JS rather than
 trusting a diff. The patch script now asserts the STYLE literal is
 backtick-free before writing.
+
+### A shrink-to-fit bar has no room to give its track
+
+"So much space to extend the slider into" — and the track could not take any of
+it, because the bar had no width of its own. Shrink-to-fit, a flex row has NO
+free space by definition, so `flex: 1 1 auto` on the scale grows it by nothing
+and it sits on its `min-width` for ever. Measured: **272 px of track inside a
+640 px bar**, the rest spent on the two clusters and the air between them.
+
+**The ceiling is the SIDEBAR, and it is arithmetic rather than taste.** The bar
+is centred, so to clear a 25rem column it has to give up that column on BOTH
+sides — `100vw - 50rem`, plus a rem of air each way. Measured at 48rem the left
+edge landed **5 px inside the panel**, which is exactly what the subtraction
+says it must; at 52rem it clears by 16.
+
+| | before | after |
+| --- | --- | --- |
+| bar | 640 | **694** |
+| track | 272 | **326** |
+| tick labels (storm step) | 8 | 8, over a longer track |
+| track off-centre | 0.00 | **0.00** |
+| gap between track and note | ~50 | **9** |
+
+**And the trail's slack is SPREAD, not pooled.** Its content is narrower than
+the lead's, and equal clusters are what centre the track — so the difference
+has to go somewhere. `justify-content: space-between` puts the note against the
+end of the track it describes and leaves the close on the bar's own edge,
+instead of a hole opening between the slider and the words. That hole was most
+of what "could be formatted better" was pointing at.

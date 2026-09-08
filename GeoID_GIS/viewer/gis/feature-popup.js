@@ -20,19 +20,19 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260908-46e42ef";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260908-46e42ef";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260908-1b87c84";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260908-1b87c84";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20260908-46e42ef";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260908-46e42ef";
-import { lithologyLabel } from "./lithology-label.js?v=20260908-46e42ef";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260908-46e42ef";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260908-46e42ef";
-import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260908-46e42ef";
+} from "./vector-render.js?v=20260908-1b87c84";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260908-1b87c84";
+import { lithologyLabel } from "./lithology-label.js?v=20260908-1b87c84";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260908-1b87c84";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260908-1b87c84";
+import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260908-1b87c84";
 import {
   canEditRow, editableFields, applyRowChange,
-} from "./table-editor.js?v=20260908-46e42ef";
+} from "./table-editor.js?v=20260908-1b87c84";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
