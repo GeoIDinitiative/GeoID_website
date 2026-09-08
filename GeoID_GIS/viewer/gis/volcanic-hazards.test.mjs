@@ -137,7 +137,12 @@ check("the layer draws its own highlight, and the popup defers to it", () => {
   const src = readFileSync(new URL("./volcanic-hazards.js", import.meta.url), "utf8");
   const popup = readFileSync(new URL("./feature-popup.js", import.meta.url), "utf8");
   ok(/layer\.highlightFor = \(feature/.test(src), "the seam is set on the layer");
-  ok(/stencilRef = 2/.test(src.slice(src.indexOf("highlightFor"))), "painted once through its own stencil ref");
+  const hl = src.slice(src.indexOf("highlightFor"));
+  ok(/stencilRef = 2/.test(hl), "painted once through its own stencil ref");
+  // The worse zones of the group mask the fill, colourlessly and first: lit
+  // whole, a zone's annuli showed a neighbour's severer bands through them.
+  ok(/f\.properties\.zone < picked/.test(hl) && /m\.colorWrite = false/.test(hl)
+    && /AlwaysStencilFunc/.test(hl), "and masked by the group's worse zones before it is drawn");
   ok(/typeof layer\?\.highlightFor === "function"/.test(popup) && /return Array\.isArray\(own\)/.test(popup), "and the popup draws nothing of its own then");
 });
 

@@ -25,8 +25,8 @@
  * disc stays its own feature, so a click still names its volcano.
  */
 
-import { renderFeatureCollection } from "./vector-render.js?v=20260909-d9f9bee";
-import { layerForDataset } from "./global-data.js?v=20260909-d9f9bee";
+import { renderFeatureCollection } from "./vector-render.js?v=20260909-e56f49d";
+import { layerForDataset } from "./global-data.js?v=20260909-e56f49d";
 
 const search = new URL(import.meta.url).search;
 
@@ -374,25 +374,53 @@ export async function build({ rank = chosenRank() } = {}) {
      */
     if (layer) {
       layer.highlightFor = (feature, { colour, opacity = 0.5 } = {}) => {
+        const picked = Number(feature?.properties?.zone);
         const names = groups.get(feature?.properties?.volcano) || new Set([feature?.properties?.volcano]);
-        const same = features.filter((f) => f.properties.zone === feature?.properties?.zone && names.has(f.properties.volcano));
+        const ours = features.filter((f) => names.has(f.properties.volcano));
+        const same = ours.filter((f) => f.properties.zone === picked);
         if (!same.length) return null;
         const css = typeof colour === "number" ? `#${colour.toString(16).padStart(6, "0")}` : (colour || "#ffffff");
-        const made = renderFeatureCollection({ type: "FeatureCollection", features: same },
-          { colourFor: () => css, outlineOnly: false, fillOpacity: opacity });
-        const node = made?.object3D || made;
         const leaves = [];
-        node.traverse((n) => {
-          if (n.userData?.geoidSeam) { n.visible = false; return; }
-          if (!n.material) return;
-          const m = n.material;
+        const collect = (fc, arm) => {
+          const made = renderFeatureCollection(fc, { colourFor: () => css, outlineOnly: false, fillOpacity: opacity });
+          const node = made?.object3D || made;
+          node.traverse((n) => {
+            if (n.userData?.geoidSeam) { n.visible = false; return; }
+            if (!n.material) return;
+            arm(n.material); n.material.needsUpdate = true;
+            n.userData.keepRenderOrder = true; n.frustumCulled = false;
+            leaves.push(n);
+          });
+        };
+        /**
+         * THE WORSE ZONES CLAIM THEIR PIXELS FIRST, colourlessly. The union of
+         * one zone's annuli covers ground the sheet draws in a NEIGHBOUR'S
+         * severer band -- Vulcano's 20-35 km ring runs over Lipari's core --
+         * and lit whole it showed those bands through as crescents, which is
+         * the circular structure back again. So the group's zones below the
+         * picked one are drawn first with colour off, writing stencil 2 where
+         * they cover, and the zone fill is refused there. What lights is
+         * exactly the ground the sheet paints in that zone, merged.
+         */
+        const worse = ours.filter((f) => f.properties.zone < picked);
+        if (worse.length) {
+          collect({ type: "FeatureCollection", features: worse }, (m) => {
+            m.colorWrite = false; m.transparent = false; m.depthTest = false; m.depthWrite = false;
+            m.stencilWrite = true; m.stencilRef = 2; m.stencilFunc = three.AlwaysStencilFunc;
+            m.stencilFail = three.ReplaceStencilOp; m.stencilZFail = three.ReplaceStencilOp;
+            m.stencilZPass = three.ReplaceStencilOp;
+          });
+          // Opaque, so they draw in the opaque pass ahead of the transparent
+          // fill whatever the render order says.
+          leaves.forEach((n) => { n.renderOrder = 239; });
+        }
+        collect({ type: "FeatureCollection", features: same }, (m) => {
           m.transparent = true; m.opacity = opacity; m.depthTest = false; m.depthWrite = false;
           m.stencilWrite = true; m.stencilRef = 2; m.stencilFunc = three.NotEqualStencilFunc;
           m.stencilFail = three.KeepStencilOp; m.stencilZFail = three.KeepStencilOp;
-          m.stencilZPass = three.ReplaceStencilOp; m.needsUpdate = true;
-          n.userData.keepRenderOrder = true; n.renderOrder = 239; n.frustumCulled = false;
-          leaves.push(n);
+          m.stencilZPass = three.ReplaceStencilOp;
         });
+        leaves.forEach((n) => { if (n.material.colorWrite !== false) n.renderOrder = 239.5; });
         return leaves;
       };
     }
