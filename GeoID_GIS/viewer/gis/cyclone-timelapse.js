@@ -23,12 +23,12 @@
 
 import {
   buildSymbology, colourOf, legendInfoFrom,
-} from "./symbology.js?v=20260908-294767f";
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-294767f";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-294767f";
+} from "./symbology.js?v=20260908-bbceb3e";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-bbceb3e";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-bbceb3e";
 import {
   showSeason, showClimatology, riskLayer,
-} from "./cyclone-risk.js?v=20260908-294767f";
+} from "./cyclone-risk.js?v=20260908-bbceb3e";
 
 const search = new URL(import.meta.url).search;
 
@@ -284,20 +284,21 @@ async function build({ from, startAt, step }) {
   /**
    * ONE EPOCH PER GROUP, AND A LAST ONE THAT IS THE WHOLE LAYER.
    *
-   * The cumulative frames only ever reach the span being played — 4,982 storms
-   * since 1980, against 13,513 in the archive — so the terminal frame is what
-   * lets the bar be opened on a tick without the layer losing two thirds of
-   * itself. Every step back from it is pure gain.
+   * A FRAME IS ITS OWN GROUP AND NOTHING ELSE. The plot was cumulative for a
+   * while -- every group up to the frame, "the record draws itself in" -- and
+   * it was reported as the tracks never leaving: by the last season the map
+   * was the whole archive again, so the animation showed nothing a still map
+   * did not. Each frame now drops the one before it in its wake, which is
+   * what makes a season's storms readable as that season's. The archive
+   * entire is the terminal All frame, and only there.
    */
-  let running_total = 0;
   const epochs = plan.groups.map((g, i) => {
-    running_total += g.features.length;
     const label = String(g.label);
     const year = Number(label.slice(0, 4));
     const prev = i ? String(plan.groups[i - 1].label).slice(0, 4) : null;
     return {
       date: label, label, dataset: null, noun, total,
-      count: running_total,
+      count: g.features.length,
       // A TICK WHERE THE YEAR TURNS. On a 354-frame slider the marks are what
       // say where in the record the handle is; per frame they would be a solid
       // bar, and the season step is one frame a year already.
@@ -391,9 +392,9 @@ async function build({ from, startAt, step }) {
       if (whole) {
         built.forEach((node) => { node.visible = false; });
       } else {
-        // CUMULATIVE: every group up to here, so the record draws itself in.
-        for (let i = 0; i <= index; i += 1) nodeFor(i).visible = true;
-        built.forEach((node, i) => { if (i > index) node.visible = false; });
+        // THIS FRAME ONLY: the one before it goes in its wake.
+        built.forEach((node, i) => { if (i !== index) node.visible = false; });
+        nodeFor(index).visible = true;
       }
       const now = plot;
       if (now) {
@@ -403,8 +404,7 @@ async function build({ from, startAt, step }) {
          * `featuresAt` walks `layer.features`, so a list left on the whole
          * span answers a click with a storm that is not on screen.
          */
-        const shown = whole ? [] : plan.groups.slice(0, index + 1)
-          .flatMap((g) => g.features);
+        const shown = whole ? [] : plan.groups[index].features;
         now.features = shown;
         now.collection = { type: "FeatureCollection", features: shown };
       }

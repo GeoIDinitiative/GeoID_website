@@ -134,8 +134,8 @@ check("a season with no named storms says only the count", () => {
      answers a click with a storm from a season that is not on screen. */
   check("the feature list follows the frame", () => {
     ok(/onShow: \(index\) =>/.test(code), "on every step");
-    ok(/const shown = whole \? \[\] : plan\.groups\.slice\(0, index \+ 1\)/.test(code),
-      "pointed at the frame");
+    ok(/const shown = whole \? \[\] : plan\.groups\[index\]\.features;/.test(code),
+      "pointed at the frame, and this frame alone");
     ok(/now\.features = shown;/.test(code), "and the layer told");
   });
 
@@ -313,12 +313,20 @@ check("a season with no named storms says only the count", () => {
     ok(by("storm").groups.some((g) => g.label === "1981-01-04"), "1981 season in");
   });
 
-  /* CUMULATIVE: frame N holds what ARRIVES in it, and the player shows every
-     frame up to N -- so the archive draws itself in. */
-  check("the frames plot rather than replace", () => {
-    ok(/for \(let i = 0; i <= index; i \+= 1\) nodeFor\(i\)\.visible = true;/.test(code),
-      "every group up to here");
-    ok(/plan\.groups\.slice\(0, index \+ 1\)/.test(code), "and the feature list with it");
+  /* A FRAME IS ITS OWN GROUP. It was cumulative -- every group up to N -- and
+     was reported as the tracks never leaving: by the last season the map was
+     the whole archive again and the animation showed nothing a still map did
+     not. Each frame drops the one before it; the whole archive is the All
+     frame, and only there. */
+  check("each frame drops the last in its wake", () => {
+    ok(/built\.forEach\(\(node, i\) => \{ if \(i !== index\) node\.visible = false; \}\);/.test(code),
+      "every other group hidden");
+    ok(/nodeFor\(index\)\.visible = true;/.test(code), "this one shown");
+    ok(!/for \(let i = 0; i <= index; i \+= 1\)/.test(code), "nothing accumulates");
+    ok(/const shown = whole \? \[\] : plan\.groups\[index\]\.features;/.test(code),
+      "and the feature list is this frame's alone");
+    ok(/count: g\.features\.length,/.test(code) && !/running_total/.test(code),
+      "the counter is the frame's own count");
   });
 
   /* STRIDED, NEVER TRUNCATED, and the stride is REPORTED. 4,982 frames is a
