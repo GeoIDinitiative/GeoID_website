@@ -242,8 +242,30 @@ check("the rows that show a model actually pass it to the card", () => {
  */
 const hierarchy = readFileSync(new URL("./layer-hierarchy.js", import.meta.url), "utf8");
 check("the Workspace row draws an ⓘ for a layer that has working to show", () => {
-  ok(/if \(layer\.info\?\.maths\) \{/.test(hierarchy), "gated on the maths being there");
+  ok(/if \(layer\.info\?\.maths && !isCatalogueLayer\(layer\)\) \{/.test(hierarchy),
+    "gated on the maths being there");
   ok(/datasetInfoButton\(\{/.test(hierarchy), "and it is the catalogue's own button");
+});
+
+/**
+ * AND NOT WHERE THE CATALOGUE ALREADY DRAWS ONE.
+ *
+ * The rule above was written for the layers with nowhere else to say it -- the
+ * Factor of Safety layer, the streamed DEM sheets, the thickness sheet, none of
+ * which has a catalogue row. A catalogue dataset does: its row in the nav tab
+ * has carried the ⓘ all along, so a second in the Workspace is two doors to one
+ * card on one screen. It showed up the moment a catalogue dataset first carried
+ * `maths`, and it was reported.
+ */
+check("but not a second one for a layer whose catalogue row already has it", () => {
+  ok(/!isCatalogueLayer\(layer\)/.test(hierarchy), "the Workspace row stands down");
+  ok(/import \{ isCatalogueLayer \}/.test(hierarchy), "from the catalogue's own test");
+  // The layers the rule exists FOR must keep theirs: none of them is in the
+  // catalogue, so none is excluded by it.
+  const data = readFileSync(new URL("./global-data.js", import.meta.url), "utf8");
+  for (const id of ["geoid-fos", "soil-thickness", "dem-slope"]) {
+    ok(!new RegExp(`id: "${id}"`).test(data), `${id} has no catalogue row to defer to`);
+  }
 });
 
 /**

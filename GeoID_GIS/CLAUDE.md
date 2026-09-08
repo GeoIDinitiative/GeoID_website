@@ -14635,3 +14635,49 @@ they differ by one band, which is the honest part: the all-storms layer opens
 BELOW hurricane force so it has six ("Tropical storm or weaker" first), and the
 hurricane runs have five, because every value in that file is already at or
 above 64 knots and there is nothing for a lower band to hold.
+
+## Two faults from one change: a second ⓘ, and the wrong tab lit
+
+Both reported off one screenshot of a Workspace row, and neither is where it
+looked.
+
+### The ⓘ belongs where the layer was TICKED, and only once
+
+"A layer carrying `info.maths` gets the same button from wherever it is" was
+written for the layers with NOWHERE ELSE to say it — the Factor of Safety layer
+GeoID mode builds, the streamed DEM sheets, the thickness sheet. None of those
+has a catalogue row. **A catalogue dataset does**, and its row in the nav tab
+has carried the ⓘ all along — so the moment a catalogue dataset first carried
+`maths`, there were two doors to one card on one screen.
+
+Gated on `!isCatalogueLayer(layer)` now. The test pins both halves: the
+Workspace row stands down for a catalogue layer, AND the three layers the rule
+exists for are checked to have no catalogue entry to defer to — so a future
+dataset with one of those names cannot silently take their button away.
+
+**The general shape**: a rule written for "the layers with no other home" is
+wrong the day something with a home meets it. When adding a property to a
+catalogue entry, ask what ALREADY draws from that property.
+
+### A home whose section is not in the table lights the WRONG tab
+
+`HOME_SECTION` was a hand-written table of three homes, and the catalogue has
+six. Ice, soil and hazards all fell through to the default — and the default is
+`basemap-relief-section`, so ticking a cyclone dataset lit **Basemaps**. That is
+worse than lighting nothing: the fill is a claim about where the data is, and
+it was pointing at the wrong tab while the tab that held it stayed dark.
+
+It reads from the DOM now: `HOMES` already says which element hosts each home's
+list, and `closest("details[id]")` says what that element sits inside. Self-
+maintaining, and it carries the per-body differences a table cannot — Mars
+keeps Hydrology as its own tab where Earth folds it into Earth System, which is
+exactly why the nested-parent walk below it already worked this way.
+
+The fallback stays for the HOMELESS catalogue (graticule, borders, countries,
+cables), which genuinely has no home and is offered from Basemaps. That is what
+a default is for — not for a home whose section nobody listed.
+
+Measured: nothing ticked → Hazards dark, Basemaps dark; a hazards dataset on →
+**Hazards lit while collapsed, Basemaps still dark**. The sub-tab was never
+broken — `.gis-catalogue-row input[type=checkbox]` is already a `DATA_CONTROL`,
+so `markSubsections` lights Tropical cyclones from its own ticked rows.

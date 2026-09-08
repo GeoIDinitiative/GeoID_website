@@ -10,17 +10,18 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { bandOf } from "./draw-order.js?v=20260908-c6b3c98";
-import { paintOpacity } from "./layer-opacity.js?v=20260908-c6b3c98";
-import { currentBody } from "./bodies.js?v=20260908-c6b3c98";
-import { samplerToRaster } from "./raster-analysis.js?v=20260908-c6b3c98";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260908-c6b3c98";
-import { datasetInfoButton } from "./catalogue-list.js?v=20260908-c6b3c98";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260908-c6b3c98";
+import { bandOf } from "./draw-order.js?v=20260908-1650e1b";
+import { paintOpacity } from "./layer-opacity.js?v=20260908-1650e1b";
+import { currentBody } from "./bodies.js?v=20260908-1650e1b";
+import { samplerToRaster } from "./raster-analysis.js?v=20260908-1650e1b";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260908-1650e1b";
+import { datasetInfoButton } from "./catalogue-list.js?v=20260908-1650e1b";
+import { isCatalogueLayer } from "./global-data.js?v=20260908-1650e1b";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260908-1650e1b";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20260908-c6b3c98";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260908-c6b3c98";
+} from "./symbology-dialog.js?v=20260908-1650e1b";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260908-1650e1b";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -518,8 +519,15 @@ function row(layer) {
    * So a layer carrying `info.maths` gets the same button, opening the same
    * card, from wherever it is. Only those: an ⓘ on every row would be a column
    * of buttons most of which say what the row already says.
+   *
+   * EXCEPT A CATALOGUE LAYER, WHICH ALREADY HAS ONE. Its row in the nav tab
+   * carries the ⓘ and always has, so drawing a second here is two doors to one
+   * card on one screen -- and the rule above was written for the layers with
+   * NOWHERE else to say it: the Factor of Safety layer GeoID mode builds, the
+   * streamed DEM sheets, the thickness sheet. None of those has a catalogue
+   * row. Reported the moment a catalogue dataset first carried `maths`.
    */
-  if (layer.info?.maths) {
+  if (layer.info?.maths && !isCatalogueLayer(layer)) {
     const info = datasetInfoButton({
       id: `layer-${layer.id}`,
       label: layer.name || "layer",

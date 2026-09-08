@@ -15,15 +15,32 @@
  */
 
 import {
-  grouped as globalGrouped, layerForDataset,
-} from "./global-data.js?v=20260908-c6b3c98";
-import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20260908-c6b3c98";
+  grouped as globalGrouped, layerForDataset, HOMES,
+} from "./global-data.js?v=20260908-1650e1b";
+import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20260908-1650e1b";
 
-const HOME_SECTION = {
-  hydrology: "sea-level-section",
-  "geology-tectonics": "geology-section",
-  "geology-volcanoes": "geology-section",
-};
+/**
+ * WHICH HEADER A CATALOGUE HOME LIGHTS, READ FROM THE DOM.
+ *
+ * This was a hand-written table of three, and the catalogue has grown to six
+ * homes — so ice, soil and hazards all fell through to the default and lit
+ * BASEMAPS, which is worse than lighting nothing: the fill is a claim about
+ * where the data is, and it was pointing at the wrong tab. Reported as the
+ * Hazards tab staying dark with its own datasets ticked on inside it.
+ *
+ * `HOMES` already says which element hosts each home's list, and the DOM
+ * already knows what that element sits inside — including the per-body
+ * differences a table cannot carry (Mars keeps Hydrology as its own tab where
+ * Earth folds it into Earth System). So the nearest `details` with an id IS
+ * the answer, and a home added next year is lit correctly with no edit here.
+ *
+ * It may resolve to a SUB-tab, which is right: `markSubsections` lights that
+ * one and the parent walk below adds the tier-1 tab that folds over it.
+ */
+function sectionForHome(home) {
+  const host = document.getElementById(HOMES[home]);
+  return host?.closest("details[id]")?.id || null;
+}
 const GEE_SECTION = {
   atmosphere: "gis-group-modelled",
   basemap: "basemap-relief-section",
@@ -56,9 +73,10 @@ function activeSections() {
     const layer = layerForDataset(entry.id);
     if (!layer) return;
     claimed.add(layer.id);
-    // The homeless catalogue (graticule, borders, countries, cables) is
-    // offered from the Basemaps tab now, so its ticks light that header.
-    if (isOn(layer)) active.add(HOME_SECTION[entry.home] || "basemap-relief-section");
+    // The homeless catalogue (graticule, borders, countries, cables) has no
+    // `home` at all and is offered from Basemaps, which is what the fallback
+    // is for -- not for a home whose section simply was not listed.
+    if (isOn(layer)) active.add(sectionForHome(entry.home) || "basemap-relief-section");
   }));
   MAP_LAYERS.forEach((entry) => {
     const layer = layerForMap(entry.id);
