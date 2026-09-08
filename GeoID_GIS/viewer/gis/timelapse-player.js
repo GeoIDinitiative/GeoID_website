@@ -32,6 +32,15 @@ const STYLE = `
 .geoid-timelapse {
   position: fixed; left: 50%; transform: translateX(-50%);
   bottom: 5.6rem; z-index: 24;
+  /* THE BAR TAKES THE ROOM IT HAS, or the track never grows.
+     Shrink-to-fit, there is no free space in the row, so the scale sits on its
+     own min-width for ever -- measured, 272 px of track inside a 640 px bar
+     with the rest of it spent on two clusters and the air between them.
+     The ceiling is the SIDEBAR: the bar is centred, so it clears a panel
+     376 px wide only while it is under 100vw - 2x376. 48rem leaves a margin
+     on that at every width the column is drawn at, and the clamp keeps it
+     sane on a narrow screen where the column is not there at all. */
+  width: clamp(20rem, calc(100vw - 48rem), 64rem);
   display: flex; align-items: center; gap: 0.55rem;
   /* Room under the row for the tick labels, which hang below the track. */
   padding: 0.45rem 0.7rem 0.95rem;
@@ -94,6 +103,8 @@ const STYLE = `
 /* THE SLIDER TAKES THE SLACK. A 355-frame sequence in 129px is a handle with
    nowhere to go and ticks two pixels apart; the bar has the room and nothing
    else in it wants to grow. */
+/* The track absorbs everything the two clusters do not need. min-width is a
+   FLOOR for a narrow bar, not the width it settles at. */
 .geoid-timelapse .tl-scale { flex: 1 1 auto; min-width: 17rem; position: relative; }
 .geoid-timelapse .tl-scale input[type=range] { width: 100%; display: block; }
 /* DRAWN, not left to the browser. A datalist on a range is the standard answer
