@@ -454,8 +454,20 @@ function reserveText(el, texts) {
     widest = Math.max(widest, ctx.measureText(text).width + track * text.length);
   });
   if (!widest) return;
+  /**
+   * AND THE BOX IS NOT THE INK. The page sets `box-sizing: border-box`, so a
+   * width written here is the OUTSIDE of the element and its own padding eats
+   * into it — measured on the date pill, a reservation of 38 px over 25.6 px
+   * of padding left 36 px of box for 48 px of "2000", and the year clipped.
+   * The note has no padding, which is why it worked and this did not.
+   */
+  const chrome = style.boxSizing === "border-box"
+    ? (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0)
+      + (parseFloat(style.borderLeftWidth) || 0)
+      + (parseFloat(style.borderRightWidth) || 0)
+    : 0;
   // A hair of slack: measureText is the ink, and a browser rounds the box up.
-  el.style.width = `${Math.ceil(widest) + 2}px`;
+  el.style.width = `${Math.ceil(widest + chrome) + 2}px`;
 }
 
 /**
@@ -489,7 +501,8 @@ function balanceRow(lead, trail) {
 function growNote(note) {
   if (!note) return;
   if (note.scrollWidth > note.clientWidth) {
-    note.style.width = `${note.scrollWidth}px`;
+    // scrollWidth is the content and its padding; the border is the rest.
+    note.style.width = `${note.scrollWidth + (note.offsetWidth - note.clientWidth)}px`;
     // A wider note is a wider trail, and an unequal trail is an off-centre
     // track. The two are one adjustment.
     state?.bar?.balance?.();
