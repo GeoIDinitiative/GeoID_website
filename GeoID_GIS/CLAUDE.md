@@ -14094,3 +14094,51 @@ Measured live: parent `GeoID-ImportedGeoLayers` (the spinning geo group, so the
 georeferencing trap is genuinely avoided), 13,513 features at the declared 0.55,
 and **median frame 16.7 ms with the layer on against 16.7 hidden** — 726,506
 vertices in 17 draw calls is free.
+
+#### The archive, played a season at a time
+
+**"Is there time data with these tracks?"** Yes — every storm carries `season`,
+`start` and `end`. **Per-FIX times are not in the file**, so this steps SEASONS
+and a storm appears whole in its own year rather than drawing as it happened.
+Animating a track fix by fix wants the 726,506 observation times, which is a
+re-bake and a bigger file; it is worth doing and it is not this.
+
+**A THIRD DRIVER FOR THE ONE PLAYER**, which is the whole reason there is one.
+`timelapse-player.js` already owned the bar, the slider, the play loop, the
+scene cache, the world-clock hold and the spin hold; the glacier and imagery
+animators are the other two. A driver supplies a box, ordered epochs and
+optionally a node per epoch — this supplies a node per season and asks for
+`source: "none"`, because the subject is the lines and a picture behind them
+would cost a request a frame to answer a question nobody asked.
+
+Measured: **47 seasons built in 502 ms**, exactly one of 47 frames visible at
+every step, and play advancing 2005 → 2013 on its own.
+
+**ONE PALETTE ACROSS EVERY FRAME**, the glacier animator's own lesson, and here
+it is the same Saffir-Simpson edges the static layer and the LIVE storm markers
+use. Rebuilt per frame, the same 90-knot storm is one colour in a quiet season
+and another in a busy one, and the map becomes about the frame rather than
+about the storms.
+
+**The full layer stands down while a season is on screen** and comes back as it
+was when the bar closes — left visible it draws all 13,513 tracks behind the
+one season being shown, which is the web the animation exists to take apart.
+The feature list follows the frame for the reason the glacier driver records:
+`featuresAt` walks `layer.features`, so a list left on the whole span answers a
+click with a storm from a season that is not on screen.
+
+**AND THE SPAN IS A CLAIM, so it defaults to the one the record supports.**
+IBTrACS is a best-track archive, not a census: before the satellites a storm
+was recorded where ships and coasts were, so its own storm count rises through
+the twentieth century for reasons that are mostly OBSERVATIONAL. Measured on
+the archive — **1842 holds ONE storm and 2021 holds 111** — and played from
+1842 that reads as a world getting steadily stormier, which this data cannot
+say. So the default span is 1980, the whole archive is offered beside it rather
+than instead of it, and every pre-satellite frame says what it is on the frame:
+"1 storm(s) — pre-satellite: recorded where ships and coasts were". The honest
+answer to "why are there so few" belongs where the few are, not in a footnote.
+
+**A season with nothing in it is not a frame.** Counting a range off from a
+start year makes a frame for every year whether the archive has one or not, and
+a frame that draws nothing reads as the player having broken rather than as a
+quiet year. The epochs come from the seasons that are actually there.
