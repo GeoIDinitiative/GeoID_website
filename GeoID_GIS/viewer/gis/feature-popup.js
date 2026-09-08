@@ -20,20 +20,20 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260909-f8794b8";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260909-f8794b8";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260909-6fcae33";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260909-6fcae33";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20260909-f8794b8";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260909-f8794b8";
-import { lithologyLabel } from "./lithology-label.js?v=20260909-f8794b8";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260909-f8794b8";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260909-f8794b8";
-import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260909-f8794b8";
-import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260909-f8794b8";
+} from "./vector-render.js?v=20260909-6fcae33";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260909-6fcae33";
+import { lithologyLabel } from "./lithology-label.js?v=20260909-6fcae33";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260909-6fcae33";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260909-6fcae33";
+import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260909-6fcae33";
+import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260909-6fcae33";
 import {
   canEditRow, editableFields, applyRowChange,
-} from "./table-editor.js?v=20260909-f8794b8";
+} from "./table-editor.js?v=20260909-6fcae33";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -1376,6 +1376,20 @@ const HIGHLIGHT_POINT_SCALE = 1.9;
 
 function buildHighlight(THREE, feature, { colour, opacity, width = 1, lift = 0, layer = null }) {
   const viewer = window.GeoIDViewer;
+  /**
+   * A LAYER MAY DRAW ITS OWN HIGHLIGHT. The outline of the picked feature is
+   * right for a fault, a cable or a country; it is wrong for a feature that
+   * has been MERGED into its neighbours on screen -- the volcanic hazard
+   * zones, where tracing one annulus draws two circles straight across the
+   * merged sheet. Such a layer answers with the nodes to draw (leaf meshes,
+   * for the pulse) and this function draws nothing of its own.
+   */
+  if (typeof layer?.highlightFor === "function") {
+    try {
+      const own = layer.highlightFor(feature, { colour, opacity, THREE });
+      if (own) return Array.isArray(own) ? own : [own];
+    } catch (error) { /* fall through to the outline */ }
+  }
   const nodes = [];
   const geometry = feature?.geometry;
   const type = geometry?.type;

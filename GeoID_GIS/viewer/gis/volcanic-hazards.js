@@ -25,8 +25,8 @@
  * disc stays its own feature, so a click still names its volcano.
  */
 
-import { renderFeatureCollection } from "./vector-render.js?v=20260909-f8794b8";
-import { layerForDataset } from "./global-data.js?v=20260909-f8794b8";
+import { renderFeatureCollection } from "./vector-render.js?v=20260909-6fcae33";
+import { layerForDataset } from "./global-data.js?v=20260909-6fcae33";
 
 const search = new URL(import.meta.url).search;
 
@@ -208,7 +208,57 @@ export function zonesFor(features, minRank, { radiusKm = 6371, n = 64 } = {}) {
       }
     });
   });
-  return { features: out, volcanoes: admitted.length };
+  /**
+   * INNERMOST FIRST, so the PICKER agrees with the PAINTER. The sheet paints
+   * the worst hazard reaching a pixel; `featuresAt` returns the first
+   * containing polygon in this array, so left in build order a click 15 km
+   * from one volcano inside another's 35-50 km band could name the far one's
+   * mild band over the near one's severe one -- a card disagreeing with the
+   * colour under the cursor. The rule this tree already records for surveys.
+   */
+  out.sort((a, b) => a.properties.zone - b.properties.zone);
+  return {
+    features: out, volcanoes: admitted.length,
+    centres: admitted.map((f) => ({ name: f.properties?.name || f.properties?.volcano_name || "Volcano",
+      lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0] })),
+  };
+}
+
+/**
+ * WHICH VOLCANOES' ZONES CAN TOUCH. Two volcanoes closer than the sum of
+ * their outer radii (twice the widest band) overlap somewhere, and overlap is
+ * transitive through a chain -- the Aeolian arc is one merged shape, not
+ * seven. Union-find over the admitted volcanoes, answering for each volcano
+ * the set of volcanoes in its group. What the merged HIGHLIGHT lights.
+ */
+export function mergedGroups(volcanoes, reachKm = 2 * ZONES[ZONES.length - 1].outer, radiusKm = 6371) {
+  const parent = volcanoes.map((_, i) => i);
+  const find = (i) => { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; };
+  const d = Math.PI / 180;
+  const km = (a, b) => {
+    const dLat = (b.lat - a.lat) * d, dLon = (b.lon - a.lon) * d;
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * d) * Math.cos(b.lat * d) * Math.sin(dLon / 2) ** 2;
+    return 2 * radiusKm * Math.asin(Math.sqrt(Math.min(1, h)));
+  };
+  // A latitude-sorted sweep keeps this from being 1,214² haversines.
+  const order = volcanoes.map((v, i) => i).sort((a, b) => volcanoes[a].lat - volcanoes[b].lat);
+  const latReach = (reachKm / radiusKm) / d;
+  for (let x = 0; x < order.length; x += 1) {
+    for (let y = x + 1; y < order.length; y += 1) {
+      const a = volcanoes[order[x]], b = volcanoes[order[y]];
+      if (b.lat - a.lat > latReach) break;
+      if (km(a, b) <= reachKm) parent[find(order[x])] = find(order[y]);
+    }
+  }
+  const groups = new Map();
+  volcanoes.forEach((v, i) => {
+    const root = find(i);
+    if (!groups.has(root)) groups.set(root, new Set());
+    groups.get(root).add(v.name);
+  });
+  const of = new Map();
+  volcanoes.forEach((v, i) => of.set(v.name, groups.get(find(i))));
+  return of;
 }
 
 /** What the legend says, one row per zone, in the zones' own colours. */
@@ -274,7 +324,8 @@ export async function build({ rank = chosenRank() } = {}) {
     if (!three) three = await import("../vendor/three.module.js");
     remove();
     const radiusKm = window.GeoIDViewer?.bodyRadiusKm || 6371;
-    const { features, volcanoes } = zonesFor(source.features, rank, { radiusKm });
+    const { features, volcanoes, centres } = zonesFor(source.features, rank, { radiusKm });
+    const groups = mergedGroups(centres, undefined, radiusKm);
     if (!features.length) { say("No volcano in that band."); return null; }
     const group = new three.Group();
     group.name = "GeoID-VolcanicHazardBuffers";
@@ -309,6 +360,42 @@ export async function build({ rank = chosenRank() } = {}) {
           + "vent, wind and topography.",
       },
     }, "derived");
+    /**
+     * THE HIGHLIGHT IS THE MERGED SHAPE, not the circle underneath it.
+     *
+     * The generic hover outlines the picked polygon -- for an annulus, two
+     * circles -- which cuts straight across the neighbours it has merged
+     * with and shows the circular structure the merge was there to remove.
+     * So the layer supplies its own: the SAME zone for every volcano in the
+     * picked one's group, as fills, painted once through a second stencil
+     * ref, so the lit shape has only the merged region's outer boundary.
+     * Leaf meshes rather than a group, because the popup's pulse animates
+     * the opacity of what it is handed.
+     */
+    if (layer) {
+      layer.highlightFor = (feature, { colour, opacity = 0.5 } = {}) => {
+        const names = groups.get(feature?.properties?.volcano) || new Set([feature?.properties?.volcano]);
+        const same = features.filter((f) => f.properties.zone === feature?.properties?.zone && names.has(f.properties.volcano));
+        if (!same.length) return null;
+        const css = typeof colour === "number" ? `#${colour.toString(16).padStart(6, "0")}` : (colour || "#ffffff");
+        const made = renderFeatureCollection({ type: "FeatureCollection", features: same },
+          { colourFor: () => css, outlineOnly: false, fillOpacity: opacity });
+        const node = made?.object3D || made;
+        const leaves = [];
+        node.traverse((n) => {
+          if (n.userData?.geoidSeam) { n.visible = false; return; }
+          if (!n.material) return;
+          const m = n.material;
+          m.transparent = true; m.opacity = opacity; m.depthTest = false; m.depthWrite = false;
+          m.stencilWrite = true; m.stencilRef = 2; m.stencilFunc = three.NotEqualStencilFunc;
+          m.stencilFail = three.KeepStencilOp; m.stencilZFail = three.KeepStencilOp;
+          m.stencilZPass = three.ReplaceStencilOp; m.needsUpdate = true;
+          n.userData.keepRenderOrder = true; n.renderOrder = 239; n.frustumCulled = false;
+          leaves.push(n);
+        });
+        return leaves;
+      };
+    }
     current = { layer, group, rank };
     say(`${ZONES.length} zones around ${volcanoes.toLocaleString()} volcanoes `
       + `(${AROUND[rank]}), merged where they meet.`);
@@ -382,5 +469,5 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
     if (tries++ < 120) setTimeout(subscribe, 250)?.unref?.();
   };
   subscribe();
-  window.GeoIDVolcanicHazards = { build, remove, layerOf, zonesFor, circleRing, splitAtSeam, ZONES, AROUND };
+  window.GeoIDVolcanicHazards = { build, remove, layerOf, zonesFor, circleRing, splitAtSeam, mergedGroups, ZONES, AROUND };
 }

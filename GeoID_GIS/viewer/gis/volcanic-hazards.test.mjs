@@ -119,6 +119,28 @@ check("every Holocene volcano is buffered by default", () => {
 }
 
 
+/* ── the picker agrees with the painter, and the highlight is the merged shape ── */
+check("zones come innermost first, so the first containing polygon is the worst hazard", () => {
+  const { features } = vh.zonesFor([volcano("A", 5, 15, 37.75), volcano("B", 5, 15.3, 37.75)], 4);
+  const zones = features.map((f) => f.properties.zone);
+  ok(zones.every((z, i) => !i || z >= zones[i - 1]), zones.join(","));
+});
+check("volcanoes whose zones can touch form one group, transitively", () => {
+  const cs = [{ name: "Vulcano", lat: 38.40, lon: 14.96 }, { name: "Lipari", lat: 38.48, lon: 14.95 },
+    { name: "Stromboli", lat: 38.79, lon: 15.21 }, { name: "Etna", lat: 37.75, lon: 15.00 }, { name: "Hekla", lat: 64.0, lon: -19.7 }];
+  const g = vh.mergedGroups(cs);
+  ok(g.get("Vulcano").has("Lipari") && g.get("Vulcano").has("Stromboli"), "the Aeolian chain is one group");
+  ok(g.get("Etna").has("Vulcano"), "and Etna, 72 km from Vulcano, reaches it through the 50 km bands");
+  ok(g.get("Hekla").size === 1, "Hekla alone");
+});
+check("the layer draws its own highlight, and the popup defers to it", () => {
+  const src = readFileSync(new URL("./volcanic-hazards.js", import.meta.url), "utf8");
+  const popup = readFileSync(new URL("./feature-popup.js", import.meta.url), "utf8");
+  ok(/layer\.highlightFor = \(feature/.test(src), "the seam is set on the layer");
+  ok(/stencilRef = 2/.test(src.slice(src.indexOf("highlightFor"))), "painted once through its own stencil ref");
+  ok(/typeof layer\?\.highlightFor === "function"/.test(popup) && /return Array\.isArray\(own\)/.test(popup), "and the popup draws nothing of its own then");
+});
+
 /* ── the merge, on the source ─────────────────────────────────────────────── */
 {
   const src = readFileSync(new URL("./volcanic-hazards.js", import.meta.url), "utf8");
