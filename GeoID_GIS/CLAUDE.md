@@ -15129,9 +15129,23 @@ says it must; at 52rem it clears by 16.
 | track off-centre | 0.00 | **0.00** |
 | gap between track and note | ~50 | **9** |
 
-**And the trail's slack is SPREAD, not pooled.** Its content is narrower than
-the lead's, and equal clusters are what centre the track — so the difference
-has to go somewhere. `justify-content: space-between` puts the note against the
-end of the track it describes and leaves the close on the bar's own edge,
-instead of a hole opening between the slider and the words. That hole was most
-of what "could be formatted better" was pointing at.
+**And then the padding that centred it went too, because it was the space.**
+Equal clusters centre the track exactly and cost the difference between them —
+51 px of nothing, sitting where the track wanted to be, first pooled beside the
+slider and then spread as a hole between the note and the close. Both readings
+were reported. A centred track is not worth a shorter one.
+
+So neither cluster is padded, the count sits against the close
+(`justify-content: flex-end`), and **what is centred is the DATE PILL, over the
+track's own middle rather than the bar's** — which is the honest place for it
+anyway, since it names the frame the handle is on. `alignDate` measures it,
+because the lead carries four controls and the trail two or three (the overlay
+toggle exists only for a driver that draws an overlay), so no constant places
+it for every driver.
+
+| | as reported | now |
+| --- | --- | --- |
+| track | 326 | **377** |
+| tick labels, storm step | 8 | **10** |
+| gap between note and close | ~42 | **9** |
+| pill over the track's centre | — | **0.0 px** |
