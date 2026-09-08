@@ -247,12 +247,34 @@ check("a season with no named storms says only the count", () => {
    */
   check("the bar reserves its widest note rather than resizing", () => {
     const player = readFileSync(new URL("./timelapse-player.js", import.meta.url), "utf8");
-    ok(/reserveNote\(state\.bar\.note, epochs, noteFor\)/.test(player),
+    ok(/reserveText\(state\.bar\.note, epochs\.map/.test(player),
       "reserved from the sequence's own epochs");
+    ok(/reserveText\(state\.bar\.date, epochs\.map/.test(player),
+      "and so is the date pill");
     ok(/measureText/.test(player), "measured without laying the element out");
     ok(/note\.scrollWidth > note\.clientWidth/.test(player), "and it only grows");
     ok(!/min-width: max-content/.test(player),
       "the per-frame max-content width is gone");
+  });
+
+  /**
+   * THE TRACK IS CENTRED BY THE CLUSTERS EITHER SIDE OF IT, so the check is on
+   * them. A constant cannot hold them level: the lead carries four controls
+   * and the trail two or three, since the overlay toggle exists only for a
+   * driver that draws an overlay. And the date is out of the row entirely --
+   * in it, the widest thing on the bar sat where a reader looks for the
+   * handle, and the track could not be centred at all.
+   */
+  check("the track is centred, and the date rides on the bar's edge", () => {
+    const player = readFileSync(new URL("./timelapse-player.js", import.meta.url), "utf8");
+    ok(/bar\.append\(date, lead, scale, trail\)/.test(player),
+      "three parts, with the date outside them");
+    ok(/balanceRow\(lead, trail\)/.test(player), "the clusters are equalised");
+    ok(/state\?\.bar\?\.balance\?\.\(\)/.test(player),
+      "and re-equalised when the note grows");
+    const style = player.slice(player.indexOf("const STYLE ="), player.indexOf("\n`;"));
+    ok(/\.tl-date \{[^}]*border-bottom: none/.test(style),
+      "the pill merges rather than floating");
   });
 
 /* ── the record is PLOTTED, at three step sizes ──────────────────────────── */

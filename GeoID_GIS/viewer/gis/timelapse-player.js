@@ -55,10 +55,33 @@ const STYLE = `
   border-style: dashed;
 }
 .geoid-timelapse input[type="range"] { flex: 1 1 12rem; accent-color: var(--nav-accent); }
+/* THE DATE RIDES ON THE BAR'S TOP EDGE, as one shape with it.
+   In the row it was a third cluster between the transport and the track, so
+   the track could not be centred and the widest thing on the bar sat where a
+   reader looks for the handle. On top it is centred over the slider it names,
+   and it MERGES: no bottom border, pulled down a pixel so its own ground
+   covers the bar's top border across its width. A tab, not a floating chip. */
 .geoid-timelapse .tl-date {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  bottom: 100%; margin-bottom: -1px;
+  padding: 0.16rem 0.8rem 0.2rem;
+  background: var(--skin-tab-ground, rgb(16, 7, 36));
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.55);
+  border-bottom: none;
+  border-radius: 0.6rem 0.6rem 0 0;
   font-size: 0.82rem; letter-spacing: 0.06em; color: var(--text);
-  min-width: 6.2rem; text-align: center; font-variant-numeric: tabular-nums;
+  text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap;
+  pointer-events: none;
 }
+/* THE TRACK IS CENTRED, which is a fact about the two clusters either side of
+   it rather than about the track. They are equalised at build by balanceRow,
+   because their contents differ by driver -- an overlay toggle exists only
+   where there is an overlay -- so no constant could hold them level. */
+.geoid-timelapse .tl-lead,
+.geoid-timelapse .tl-trail {
+  display: flex; align-items: center; gap: 0.55rem; flex: 0 0 auto;
+}
+.geoid-timelapse .tl-trail { justify-content: flex-end; }
 /* THE NOTE IS NOT SQUEEZED TO NOTHING. It is the only part of the bar that
    says anything about the frame, and as an ordinary flex item it was giving
    its width up to its neighbours: measured at 104px against 130px of content,
@@ -412,29 +435,51 @@ function play(on) {
  * element in turn is 354 forced reflows, and this runs while a sequence is
  * being built. `measureText` needs no layout at all.
  */
-function reserveNote(note, epochs, noteFor) {
-  if (!note || !epochs?.length) return;
-  const style = window.getComputedStyle(note);
-  const canvas = reserveNote.canvas
-    || (reserveNote.canvas = document.createElement("canvas"));
+function reserveText(el, texts) {
+  if (!el || !texts?.length) return;
+  const style = window.getComputedStyle(el);
+  const canvas = reserveText.canvas
+    || (reserveText.canvas = document.createElement("canvas"));
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   ctx.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+  // Letter-spacing is not part of the `font` shorthand and the date carries
+  // 0.06em of it: unaccounted, the reservation is short by a character's worth
+  // over ten characters and the pill grows on the longest label after all.
+  const track = parseFloat(style.letterSpacing) || 0;
   let widest = 0;
-  epochs.forEach((epoch) => {
-    const text = String(noteFor(epoch, "") ?? "");
+  texts.forEach((raw) => {
+    const text = String(raw ?? "");
     if (!text) return;
-    widest = Math.max(widest, ctx.measureText(text).width);
+    widest = Math.max(widest, ctx.measureText(text).width + track * text.length);
   });
   if (!widest) return;
   // A hair of slack: measureText is the ink, and a browser rounds the box up.
-  note.style.width = `${Math.ceil(widest) + 2}px`;
+  el.style.width = `${Math.ceil(widest) + 2}px`;
+}
+
+/**
+ * THE TWO CLUSTERS EITHER SIDE OF THE TRACK ARE MADE EQUAL, which is what
+ * centres the track. Nothing else can: the lead carries four controls and the
+ * trail two or three — the overlay toggle exists only for a driver that draws
+ * one — so a constant would centre the bar for one driver and lean it for the
+ * next. Measured rather than declared, and re-measured whenever the note grows.
+ */
+function balanceRow(lead, trail) {
+  if (!lead || !trail) return;
+  lead.style.minWidth = "";
+  trail.style.minWidth = "";
+  const wide = Math.max(lead.getBoundingClientRect().width,
+    trail.getBoundingClientRect().width);
+  if (!wide) return;
+  lead.style.minWidth = `${Math.ceil(wide)}px`;
+  trail.style.minWidth = `${Math.ceil(wide)}px`;
 }
 
 /**
  * AND A NOTE THAT COULD NOT BE PREDICTED STILL ONLY EVER GROWS.
  *
- * `reserveNote` can measure a sequence whose notes are a function of its own
+ * `reserveText` can measure a sequence whose notes are a function of its own
  * epochs, which is every driver that names its frames. One whose note arrives
  * WITH THE SCENE — the imagery animator, whose default is to print whatever
  * the fetch reports — cannot be measured before the fetch, so the reservation
@@ -445,6 +490,9 @@ function growNote(note) {
   if (!note) return;
   if (note.scrollWidth > note.clientWidth) {
     note.style.width = `${note.scrollWidth}px`;
+    // A wider note is a wider trail, and an unequal trail is an off-centre
+    // track. The two are one adjustment.
+    state?.bar?.balance?.();
   }
 }
 
@@ -555,12 +603,22 @@ function buildBar() {
   slider.addEventListener("input", () => { play(false); void show(Number(slider.value)); });
   close.addEventListener("click", () => stopPlayer());
 
-  bar.append(back, playBtn, forward, speed, date, scale, note);
-  if (overlay) bar.appendChild(overlay);
-  bar.appendChild(close);
+  const lead = document.createElement("div");
+  lead.className = "tl-lead";
+  lead.append(back, playBtn, forward, speed);
+  const trail = document.createElement("div");
+  trail.className = "tl-trail";
+  trail.appendChild(note);
+  if (overlay) trail.appendChild(overlay);
+  trail.appendChild(close);
+  bar.append(date, lead, scale, trail);
   document.body.appendChild(bar);
   sayRate();
-  return { bar, date, slider, note, play: playBtn, overlay, speed, ticks, sayRate };
+  const balance = () => balanceRow(lead, trail);
+  return {
+    bar, date, slider, note, play: playBtn, overlay, speed, ticks, sayRate,
+    lead, trail, balance,
+  };
 }
 
 /**
@@ -636,7 +694,11 @@ export async function startPlayer({ bounds, epochs, source = "auto", frames = nu
   syncOverlay();
   state.bar.slider.max = String(epochs.length - 1);
   state.bar.sayRate?.();
-  reserveNote(state.bar.note, epochs, noteFor);
+  reserveText(state.bar.note, epochs.map((e) => noteFor(e, "")));
+  // The pill is centred, so its own width never moves the bar -- but a pill
+  // that resizes under a still slider is the same jitter one step out.
+  reserveText(state.bar.date, epochs.map((e) => e.label || e.date));
+  state.bar.balance?.();
   /**
    * A tick per marked frame. The driver names them because only it knows what
    * they mean; with none it says so by drawing none, rather than this guessing
