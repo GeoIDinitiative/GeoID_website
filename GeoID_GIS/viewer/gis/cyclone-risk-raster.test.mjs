@@ -73,6 +73,37 @@ check("and its scratch is under a gitignored work directory",
   /\.cyclone-work/.test(bake), true);
 
 /* ── the verdict is reported on EXIT, so ordering cannot discard a check ─── */
+/* ── one drape per dataset, whatever the callers do ─────────────────────── */
+/**
+ * Two callers open this sequence within a couple of seconds of a tick -- the
+ * catalogue applying the default view and `animated-layers` opening the bar --
+ * through two guards in two files, and the race between them was measured
+ * leaving TWO estimate drapes registered from ONE tick (Workspace ids 6 and 7),
+ * with the first one's teardown lost under the sequence that replaced it. The
+ * fix is at the RESOURCE, not another flag: a registration takes any stray off
+ * first, so the guards can lose their race and the globe still holds one.
+ *
+ * `check(name, got, want)` here COMPARES -- it does not run a callback.
+ */
+{
+  const raster = readFileSync(new URL("./cyclone-risk-raster.js", import.meta.url), "utf8");
+  const risk = readFileSync(new URL("./cyclone-risk.js", import.meta.url), "utf8");
+  const animated = readFileSync(new URL("./animated-layers.js", import.meta.url), "utf8");
+  const lapse = readFileSync(new URL("./cyclone-timelapse.js", import.meta.url), "utf8");
+  check("the sheet is registered under a NAMED constant",
+    /addDerivedLayer\?\.\(\s*ESTIMATE_NAME,/.test(raster), true);
+  check("and any stray sheet of that name is taken off FIRST",
+    raster.indexOf("l.name === ESTIMATE_NAME") > 0
+    && raster.indexOf("l.name === ESTIMATE_NAME") < raster.indexOf("addDerivedLayer?.(\n    ESTIMATE_NAME"), true);
+  check("the default view opens the sequence under the seam's hold, as the risk's",
+    /gate\(open, "cyclone-risk"\)/.test(risk), true);
+  check("a held open claims the bar for whoever's it is when it lands",
+    /async function hold\(work, id = null\)/.test(animated)
+    && /if \(id && document\.getElementById\("geoid-timelapse"\)\) owner = id;/.test(animated), true);
+  check("and the tracks' own rebuild names itself the same way",
+    /gate\(work, "cyclone-tracks"\)/.test(lapse), true);
+}
+
 process.on("exit", () => {
   if (failures.length) {
     console.log(`✗  cyclone-risk-raster.test.mjs  —  ${pass} passed, ${failures.length} FAILED`);

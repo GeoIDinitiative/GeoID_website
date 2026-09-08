@@ -30,8 +30,8 @@
 
 import {
   buildSymbology, colourOf, legendInfoFrom,
-} from "./symbology.js?v=20260908-d4eab7a";
-import { dataUrl } from "./data-base.js?v=20260908-d4eab7a";
+} from "./symbology.js?v=20260908-d35ab79";
+import { dataUrl } from "./data-base.js?v=20260908-d35ab79";
 
 const YEARS_PATH = "/data/global/cyclone-risk-years.json";
 
@@ -412,7 +412,17 @@ export async function setView(view = "estimate", { layers = null } = {}) {
     // card is the half the reader actually sees.
     layer.legendHidden = true;
     window.GeoIDLayerHierarchy?.setVisible?.(layer, false);
-    await window.GeoIDCycloneRiskRaster?.play?.();
+    /**
+     * HELD, AND CLAIMED. The `already` guard above cannot see an open that is
+     * still in flight -- there is no bar for the twenty seconds the COG takes
+     * to open -- and `animated-layers` polls through exactly that window.
+     * Under its own hold it stands still, and when the bar lands it records
+     * that this dataset owns it, so the next poll does not read the handover
+     * from the tracks as the tracks' bar being closed.
+     */
+    const open = () => window.GeoIDCycloneRiskRaster?.play?.();
+    const gate = window.GeoIDAnimatedLayers?.hold;
+    await (gate ? gate(open, "cyclone-risk") : open());
     return { view };
   }
   // A rate view is the grid, so the animation goes -- its own onStop takes the

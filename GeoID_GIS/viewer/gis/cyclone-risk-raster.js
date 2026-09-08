@@ -28,11 +28,11 @@
  * follow.
  */
 
-import { loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260908-d4eab7a";
-import { dataUrl } from "./data-base.js?v=20260908-d4eab7a";
-import { riskEdges, RISK_LABELS } from "./cyclone-risk.js?v=20260908-d4eab7a";
-import { rampColour } from "./symbology.js?v=20260908-d4eab7a";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-d4eab7a";
+import { loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260908-d35ab79";
+import { dataUrl } from "./data-base.js?v=20260908-d35ab79";
+import { riskEdges, RISK_LABELS } from "./cyclone-risk.js?v=20260908-d35ab79";
+import { rampColour } from "./symbology.js?v=20260908-d35ab79";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-d35ab79";
 
 const FILE = "/data/global/cyclone-risk-cumulative.hotlink-ok.tif";
 const WORLD = { west: -180, south: -90, east: 180, north: 90 };
@@ -48,6 +48,8 @@ export const THIN_SEASONS = 10;
 let image = null;
 let seasons = null;
 let running = false;
+/** The derived sheet's name: how a stray one is found as well as how it is registered. */
+const ESTIMATE_NAME = "Cyclone risk — the estimate over time";
 /**
  * OPENING IS NOT YET RUNNING, and the gap is seconds wide.
  *
@@ -198,8 +200,21 @@ async function open_() {
    * whatever band is on screen.
    */
   const grid = window.GeoIDCycloneRisk?.riskLayer?.();
+  /**
+   * ONE DRAPE PER DATASET, BY CONSTRUCTION -- not by the callers agreeing.
+   * Two of them ask for this sequence within a couple of seconds of a tick
+   * (the catalogue applying the default view, `animated-layers` opening the
+   * bar) through two different guards in two different files, and a race
+   * between them was measured leaving TWO of these registered: two Workspace
+   * rows, two drapes, and the first one's teardown lost with the sequence
+   * that had been replaced under it. Whatever the guards do, a second
+   * registration here takes the first one off first.
+   */
+  const orphaned = (window.GeoIDImportManager?.getLayers?.() || [])
+    .filter((l) => l.name === ESTIMATE_NAME);
+  orphaned.forEach((l) => window.GeoIDImportManager?.removeLayer?.(l.id));
   const layer = window.GeoIDImportManager?.addDerivedLayer?.(
-    "Cyclone risk — the estimate over time", {
+    ESTIMATE_NAME, {
       object3D: mesh, bounds: WORLD, georeferenced: true, legendInfo: legend,
       features: grid?.features || null,
       collection: grid?.collection

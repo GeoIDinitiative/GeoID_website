@@ -20,8 +20,8 @@
  * made here — and unticking the one that owns it puts the bar away.
  */
 
-import { grouped, layerForDataset } from "./global-data.js?v=20260908-d4eab7a";
-import { stopPlayer } from "./timelapse-player.js?v=20260908-d4eab7a";
+import { grouped, layerForDataset } from "./global-data.js?v=20260908-d35ab79";
+import { stopPlayer } from "./timelapse-player.js?v=20260908-d35ab79";
 
 /** Which entry owns the bar, or null. */
 let owner = null;
@@ -114,12 +114,23 @@ function watchBar() {
  * which from out here is exactly what a ✕ looks like. It says so instead,
  * with the flag the open already uses, held for the length of the work.
  */
-async function hold(work) {
+async function hold(work, id = null) {
   opening = true;
   try {
     return await work();
   } finally {
     opening = false;
+    /**
+     * AND THE BAR CHANGES HANDS. A driver opened from OUTSIDE this module --
+     * the catalogue applying a dataset's default view -- puts its own bar up
+     * and takes the previous owner's down, and nothing here knew: `owner`
+     * went on naming the tracks while the risk's bar was on screen. Measured,
+     * the next poll read that as the tracks' bar being closed, marked them
+     * dismissed, and then opened the risk entry ITSELF over the sequence the
+     * catalogue had just built -- two drapes and two Workspace rows for one
+     * tick. Whoever's bar is up when a held open lands owns it.
+     */
+    if (id && document.getElementById("geoid-timelapse")) owner = id;
   }
 }
 

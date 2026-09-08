@@ -23,12 +23,12 @@
 
 import {
   buildSymbology, colourOf, legendInfoFrom,
-} from "./symbology.js?v=20260908-d4eab7a";
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-d4eab7a";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-d4eab7a";
+} from "./symbology.js?v=20260908-d35ab79";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-d35ab79";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-d35ab79";
 import {
   showSeason, showClimatology, riskLayer,
-} from "./cyclone-risk.js?v=20260908-d4eab7a";
+} from "./cyclone-risk.js?v=20260908-d35ab79";
 
 const search = new URL(import.meta.url).search;
 
@@ -480,7 +480,7 @@ async function replay() {
     return build({ from: chosenSpan(), startAt: null, step: chosenStep() });
   };
   const gate = window.GeoIDAnimatedLayers?.hold;
-  return gate ? gate(work) : work();
+  return gate ? gate(work, "cyclone-tracks") : work();
 }
 
 function followRisk() {
