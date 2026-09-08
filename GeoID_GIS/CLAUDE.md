@@ -14928,3 +14928,99 @@ tree to do it (`ice-card`, `soil-card`) and for the same reason each exists.
   question — the hurricane rate beside the all-storm one, and the reverse.
 - **The cell says how big it is.** The grid is variable, so a reader comparing
   two cells is entitled to know they are not the same patch of ground.
+
+## The record plots itself: three step sizes, four rates, and ticks you can read
+
+"Fully develop the hurricane time slider — many more x ticks, rate buttons, and
+plot the tracks by each occurrence, then monthly, then yearly."
+
+**A step size is what a frame MEANS**, so it is a control rather than a
+constant. `STEPS` in `cyclone-timelapse.js` holds three, and each carries its
+own play interval because they are not the same amount of change per frame — a
+storm at 90 ms, a month at 200, a season at 900. Measured on the archive from
+1980: **354 frames each storm, 282 by month, 47 by season**.
+
+**Past `MAX_FRAMES` (360) the sequence is STRIDED and the bar says by how
+much** — "354 frames, each storm — one frame per 12 storms". Truncating would
+quietly change which span is being played, which is the imagery driver's own
+rule; a stride that is not reported is a control saying one thing while the
+sequence does another.
+
+**Plotting is CUMULATIVE, because that is what "the record plots itself"
+means.** Frame *i* shows every group up to *i*, so the map fills in rather than
+flickering one storm at a time — and the counter is the honest reading of that:
+`105 / 13,513`. Measured stepping through: 15 → 576 → 1,726 → 3,394 → 4,982
+across 1979-08-26 to 2026-08-27.
+
+**The ticks are drawn where the YEAR TURNS**, not at even intervals, and the
+label count is fitted to the track's measured width (`width / 34`, at least
+two) so a narrow bar thins its labels instead of overprinting them. Measured:
+5 ticks by season, **48 with 8 labels** by storm and by month.
+
+**The rate pill multiplies the DRIVER'S interval and restarts the timer**, so
+the new rate takes effect on the frame you are looking at rather than the next
+one. `1x → 2x → 4x → 8x → 1x`, measured as 90 / 45 / 23 / 11 ms on the storm
+step and 900 / 450 / 225 / 113 on the season step — the pill is a factor, not a
+number of milliseconds, or it would mean different things per step.
+
+### THE ONLY CONTROLS LEFT HAVE TO ACT
+
+Retiring the play button retired the thing that READ the two selects. Nothing
+replaced it, and both were measured **inert**: the step could be moved to "Each
+storm" and the bar went on reading "47 frames, by season". A control that
+changes nothing is worse than one that is not there, and it is the exact cost
+of removing a press — everything the press used to gather at that moment now
+needs a listener of its own.
+
+Delegated on the document, because the subtab is redrawn whenever the catalogue
+is and a handler bound to the node goes stale on the first tick. Only while the
+bar is up: with no sequence there is nothing to rebuild, and the value is read
+at the next build regardless.
+
+### A REBUILD IS NOT A DISMISSAL
+
+`animated-layers.js` decides a bar was closed by the reader when `owner` is set
+and no `#geoid-timelapse` exists. That is also true for the whole of a build —
+`owner` is claimed before the open is awaited, and a sequence takes seconds —
+so the poll marked the entry **dismissed a few hundred milliseconds in**, and
+the sequence that then finished building was never allowed to reopen. Reported
+as the bar simply not opening; `dismissed: ["cyclone-tracks"]` over a ticked,
+loaded layer is the tell.
+
+Two halves, and the second is the general one:
+
+- **`opening` suppresses the watcher as well as the sync.** The same "opening
+  is not yet running" gap both drivers needed their own flag for.
+- **`hold(work)` on the seam**, so a driver rebuilding its own sequence can say
+  so. Changing the step takes the bar down and puts it back, which from outside
+  is indistinguishable from a ✕ — without the hold, changing the step marked
+  the layer dismissed and the bar never came back.
+
+Verified after: three step changes in a row leave `dismissed` empty and `owner`
+set; ✕ still sticks across eight polls; unticking forgets the dismissal and
+re-ticking reopens.
+
+### REGISTERED IS NOT LOADED
+
+`importFileList` puts a layer in the list when the import STARTS, so a driver
+opened on the first `layers-changed` finds a row with no features and reports
+"Tick the cyclone tracks on first" — over a layer that is on its way. `armed`
+waits for `status === "loaded"` and something to play.
+
+### One dataset, one key — met from the other side
+
+The risk map's rule, and the tracks broke it the opposite way round. On the All
+frame the plot is invisible and the archive is what is drawn, and the plot's
+legend card was **still listed**: two keys for one layer, with the one
+describing what was actually drawn second. `legendHidden` follows the frame, so
+the card names whichever of the two is up. Measured: one cyclone card on the
+All frame, one on a season frame, and it changes name between them.
+
+### The note keeps its own width
+
+`.tl-note` is the only part of the bar that says anything about the frame, and
+as an ordinary flex item it gave its width away — 104 px of a 130 px sentence,
+so "13513 storms, 5733 named" reached the reader as "…5733…". `flex: 0 1 auto`
+with `min-width: max-content` and the long form on the `title`. Measured across
+five frames at three step sizes: **nothing clipped**, with `.tl-scale` widened
+to a 17rem floor so the ticks have room to be read.
