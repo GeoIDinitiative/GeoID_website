@@ -25,23 +25,66 @@
  * disc stays its own feature, so a click still names its volcano.
  */
 
-import { renderFeatureCollection } from "./vector-render.js?v=20260909-3924b18";
-import { layerForDataset } from "./global-data.js?v=20260909-3924b18";
+import { renderFeatureCollection } from "./vector-render.js?v=20260909-75b844e";
+import { layerForDataset } from "./global-data.js?v=20260909-75b844e";
 
 const search = new URL(import.meta.url).search;
 
 /** Etna Explorer's zones, verbatim: the ranges, the colours, the hazards. */
 export const ZONES = [
-  { label: "Extreme risk", inner: 0, outer: 5, colour: "#ff1a1a",
-    hazards: "ballistics, pyroclastic density currents, lava flows, extreme gas" },
-  { label: "Very high risk", inner: 5, outer: 10, colour: "#ff6600",
-    hazards: "heavy tephra, PDC run-out along valleys, gas corridors" },
-  { label: "High risk", inner: 10, outer: 20, colour: "#ffaa00",
-    hazards: "moderate to heavy ash fall, lahars, roof loading, transport disruption" },
-  { label: "Moderate risk", inner: 20, outer: 35, colour: "#ddcc00",
-    hazards: "light ash fall, reduced air quality and visibility, acid rain" },
-  { label: "Low risk", inner: 35, outer: 50, colour: "#44cc66",
-    hazards: "trace ash, volcanic aerosol, air quality" },
+  { label: "Extreme Risk", inner: 0, outer: 5, colour: "#ff1a1a",
+    // The legend's own words in Etna Explorer, and its hazard list and detail
+    // paragraph verbatim -- the test reads them back out of etna-viewer.js.
+    hazards: "Ballistics, PDCs, lava flows",
+    hazardList: [
+      "Ballistic projectiles — blocks and bombs > 30 cm",
+      "Pyroclastic density currents (PDCs)",
+      "Lava flow inundation",
+      "Extreme volcanic gas concentrations (SO₂, HCl, H₂S, CO₂)",
+      "Ground deformation and structural collapse",
+      "Phreatic explosions without warning",
+    ],
+    detail: "The primary exclusion zone during any eruptive or unrest phase. Ballistics from lava fountains and Strombolian explosions can be ejected over 1 km from active vents. Pyroclastic density currents — fast-moving avalanches of hot gas and rock — regularly travel 3–5 km down Etna's flanks during paroxysmal episodes. Emergency evacuation is mandatory when eruptive activity intensifies." },
+  { label: "Very High Risk", inner: 5, outer: 10, colour: "#ff6600",
+    hazards: "Heavy tephra, PDC run-out",
+    hazardList: [
+      "Heavy tephra and scoria fall (5–20 cm depth in major events)",
+      "Smaller ballistic ejecta during explosive episodes",
+      "PDC run-out into deep valleys (Valle del Bove)",
+      "Volcanic gas corridors concentrated along valleys",
+      "Acid rain and aerosol deposition",
+      "Infrastructure damage from lava flows on active fissures",
+    ],
+    detail: "Encompasses Etna's upper flanks, including Rifugio Sapienza and Piano Provenzana ski station — both were partially destroyed by lava flows in 2001 and 2002. During major paroxysms, heavy tephra fall can begin within minutes. The Valle del Bove depression channels lava flows and occasional PDC overflow toward the inhabited eastern coast." },
+  { label: "High Risk", inner: 10, outer: 20, colour: "#ffaa00",
+    hazards: "Ash fall, lahars, airport closures",
+    hazardList: [
+      "Moderate–heavy ash fall (1–5 cm depth)",
+      "Roof loading and structural stress from prolonged tephra",
+      "Volcanic gas and acid rain affecting crops and water",
+      "Lahar risk along river valleys after heavy rainfall",
+      "Airport and road transport disruption",
+    ],
+    detail: "Towns including Nicolosi, Zafferana Etnea, Linguaglossa, and Randazzo fall within this band. Ash deposits of 1–5 cm damage crops, contaminate water supplies, and stress building roofs. Catania International Airport (25 km south) regularly suspends operations during major eruptive episodes due to ash ingestion risk in aircraft engines." },
+  { label: "Moderate Risk", inner: 20, outer: 35, colour: "#ddcc00",
+    hazards: "Light ash, acid rain, visibility",
+    hazardList: [
+      "Light–moderate ash fall (millimetres to 1 cm)",
+      "Reduced air quality and visibility",
+      "Vehicle and machinery damage from fine ash",
+      "Acid rain affecting vegetation and open water sources",
+      "Near-field aviation hazard from dispersing ash cloud",
+    ],
+    detail: "Catania city centre and coastal towns are regularly affected by ash fall during sustained eruptive episodes. Even a few millimetres of ash disrupts road transport, irritates respiratory systems, and contaminates open water. The volcanic ash cloud can extend hundreds of kilometres downwind — this zone captures the near-field deposition footprint." },
+  { label: "Low Risk", inner: 35, outer: 50, colour: "#44cc66",
+    hazards: "Trace ash, aerosol, air quality",
+    hazardList: [
+      "Trace ash fall and volcanic dust (< 1 mm)",
+      "Volcanic aerosol, SO₂ odour, and fine particulates (PM₂.₅)",
+      "Reduced air quality for sensitive individuals",
+      "Potential disruption to coastal marine traffic",
+    ],
+    detail: "At this distance the primary hazards are trace ash fall during prolonged eruptions and volcanic aerosols that may temporarily affect air quality. Messina (~40 km NE), southern Calabria, and the Aeolian Islands can experience these effects when winds blow northeastward. No life-threatening hazard is expected here under normal eruptive scenarios." },
 ];
 
 /** The select's values: the lowest `label_rank` admitted, and its words. */
@@ -162,7 +205,9 @@ export function zonesFor(features, minRank, { radiusKm = 6371, n = 64 } = {}) {
 export function legendFor() {
   return {
     palette: ZONES.map((z) => z.colour.slice(1)),
-    labels: ZONES.map((z) => `${z.label} · ${z.inner}–${z.outer} km`),
+    // The row says WHAT the band is, not only how far: "10-20 km" is the
+    // arithmetic, "ash fall, lahars" is what a reader is looking for.
+    labels: ZONES.map((z) => `${z.label} · ${z.inner}–${z.outer} km · ${z.hazards}`),
     label: "Schematic hazard zones around each volcano (INGV bands for Etna)",
     classed: true, categorical: true, unit: null,
   };
@@ -178,7 +223,13 @@ let building = false;
 const byId = (id) => document.getElementById(id);
 const say = (text) => { const el = byId("volcano-buffers-status"); if (el) el.textContent = text; };
 const volcanoLayer = () => layerForDataset("volcanoes");
-const chosenRank = () => Number(byId("volcano-buffers-around")?.value) || 4;
+// EVERY HOLOCENE VOLCANO BY DEFAULT. The Smithsonian's own working
+// definition of "potentially active" is a Holocene eruption; a hazard map
+// that buffered only the ones erupting since 1900 left Ilopango -- VEI 6 in
+// the fifth century -- with no zone at all, and was read as those volcanoes
+// being inactive. The narrower bands stay on the select for a reader who
+// wants only the recently restless.
+const chosenRank = () => Number(byId("volcano-buffers-around")?.value) || 1;
 
 /**
  * THE MERGE. Fills are drawn innermost zone first (a fractional `renderLift`,
@@ -280,7 +331,11 @@ export const layerOf = () => current?.layer || null;
  * with it, because a buffer round a volcano that is no longer drawn is a
  * claim with nothing under it.
  */
-if (typeof window !== "undefined") {
+// Guarded on the LISTENER, not merely on `window`: the popup test stubs a
+// bare `window` with no event methods, and a module that throws at import
+// takes every test importing feature-popup.js down with it.
+if (typeof window !== "undefined" && typeof window.addEventListener === "function"
+  && typeof document !== "undefined" && typeof document.addEventListener === "function") {
   document.addEventListener("change", (event) => {
     const id = event.target?.id;
     if (id === "volcano-buffers-on") {
@@ -311,7 +366,10 @@ if (typeof window !== "undefined") {
   const subscribe = () => {
     const im = window.GeoIDImportManager;
     if (im?.onChange) { im.onChange(follow); return; }
-    if (tries++ < 120) setTimeout(subscribe, 250);
+    // `unref`, or the retry keeps a headless test process alive for thirty
+    // seconds after its work is done -- the same poll trap `registerDrape`
+    // records. A browser timer is a number and ignores it.
+    if (tries++ < 120) setTimeout(subscribe, 250)?.unref?.();
   };
   subscribe();
   window.GeoIDVolcanicHazards = { build, remove, layerOf, zonesFor, circleRing, splitAtSeam, ZONES, AROUND };

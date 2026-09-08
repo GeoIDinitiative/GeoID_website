@@ -20,19 +20,20 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260909-3924b18";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260909-3924b18";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260909-75b844e";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260909-75b844e";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20260909-3924b18";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260909-3924b18";
-import { lithologyLabel } from "./lithology-label.js?v=20260909-3924b18";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260909-3924b18";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260909-3924b18";
-import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260909-3924b18";
+} from "./vector-render.js?v=20260909-75b844e";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260909-75b844e";
+import { lithologyLabel } from "./lithology-label.js?v=20260909-75b844e";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260909-75b844e";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260909-75b844e";
+import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260909-75b844e";
+import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260909-75b844e";
 import {
   canEditRow, editableFields, applyRowChange,
-} from "./table-editor.js?v=20260909-3924b18";
+} from "./table-editor.js?v=20260909-75b844e";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -976,7 +977,29 @@ function showViewerCard(hits, at) {
    */
   const risk = !ice && !soil && isRiskFeature(props)
     ? riskCard(props, { view: window.GeoIDCycloneRisk?.currentView?.() }) : null;
-  const feature = risk ? {
+  /**
+   * And a volcanic hazard zone, the fourth: headed "CONTINENTAL" and titled
+   * "Mapped area" over a buffer whose whole point is the hazard it names.
+   * `volcanic-zone-card.js` carries Etna Explorer's zone text.
+   */
+  const zone = !ice && !soil && !risk && isZoneFeature(props) ? zoneCard(props) : null;
+  const feature = zone ? {
+    soil: true,
+    type: zone.kicker,
+    rock_type: zone.title,
+    lithology: null,
+    name: null,
+    description: zone.meta,
+    extra_rows: zone.headline,
+    origin: zone.source,
+    mapped_area_km2: km2 > 0 ? Number(km2.toFixed(km2 >= 100 ? 0 : 2)) : null,
+    rows: [["What this means", zone.detail], ["Note", zone.note],
+      ...rows.filter(([key]) => !/^(zone|zone_label|inner_km|outer_km|hazards|label_rank)$/i.test(key))],
+    stack: beneath.map(({ layer, feature: f }) => ({
+      label: layer.name || "Layer",
+      unit: titleOf(f.properties || {}) || featureKind(f, layer),
+    })),
+  } : risk ? {
     // The same flag the other two set, read the same way: it is what stops
     // `earth-viewer.js` re-deriving a heading, and what keeps the
     // rock-property fold off a cell that is not made of anything.

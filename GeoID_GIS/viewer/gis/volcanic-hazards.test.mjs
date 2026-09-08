@@ -59,13 +59,56 @@ check("five zones per volcano, as annuli with a hole and a disc for the first", 
   ok(features[1].geometry.coordinates.length === 2, "zone 1 has a hole");
   ok(features[4].properties.outer_km === 50 && features[4].properties.inner_km === 35, "the last is 35-50");
 });
-check("the zones are Etna Explorer's, verbatim", () => {
+check("the zones are Etna Explorer's, verbatim -- bands, colours, labels, hazards and detail", () => {
   const etna = readFileSync(new URL("../../../earth_explorer/etna/viewer/etna-viewer.js", import.meta.url), "utf8");
+  const page = readFileSync(new URL("../../../earth_explorer/etna/viewer/index.html", import.meta.url), "utf8");
+  const unescape = (t) => t.replace(/\\'/g, "'");
   vh.ZONES.forEach((z) => {
     ok(etna.includes(`rInner: ${z.inner}, rOuter: ${z.outer}`), `${z.inner}-${z.outer} km is an Etna band`);
     ok(etna.includes(`colorHex: '${z.colour}'`), `${z.colour} is its colour`);
+    ok(etna.includes(`label: '${z.label}'`), `${z.label} is its label`);
+    z.hazardList.forEach((h) => ok(etna.includes(`'${h.replace(/'/g, "\\'")}'`), `hazard listed: ${h}`));
+    ok(unescape(etna).includes(z.detail), `detail verbatim for ${z.label}`);
+    ok(page.includes(`${z.inner} – ${z.outer} km · ${z.hazards}`), `legend words: ${z.hazards}`);
   });
 });
+check("the legend names the hazard beside the distance, as Etna's legend does", () => {
+  const legend = vh.legendFor();
+  ok(legend.labels.some((l) => /Ash fall, lahars/.test(l)), legend.labels.join(" | "));
+  ok(legend.labels.every((l, i) => l.startsWith(vh.ZONES[i].label)), "one row per zone, in order");
+});
+check("every Holocene volcano is buffered by default", () => {
+  const src = readFileSync(new URL("./volcanic-hazards.js", import.meta.url), "utf8");
+  const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  ok(/\|\| 1;/.test(src.slice(src.indexOf("const chosenRank"))), "the module's own default is rank 1");
+  ok(/<option value="1" selected>Every Holocene volcano<\/option>/.test(html), "and the select opens there");
+});
+
+/* ── the card ─────────────────────────────────────────────────────────────── */
+{
+  const card = await import("./volcanic-zone-card.js");
+  const props = { volcano: "Ilopango", zone: 2, zone_label: "High Risk", inner_km: 10, outer_km: 20,
+    hazards: "Ash fall, lahars, airport closures", last_eruption: 1880, label_rank: 3 };
+  check("a zone polygon is recognised", () => ok(card.isZoneFeature(props) && !card.isZoneFeature({ p_yr: 0.1 }), "by zone + outer_km + volcano"));
+  check("the card writes the band, the volcano and Etna's hazard list", () => {
+    const c = card.zoneCard(props);
+    ok(/10–20 km from Ilopango/.test(c.kicker), c.kicker);
+    ok(c.title === "High Risk", c.title);
+    ok(/last known eruption 1880/.test(c.meta), c.meta);
+    ok(c.headline.length === vh.ZONES[2].hazardList.length && c.headline[0][0] === "Hazards", "hazards as rows");
+    ok(c.detail === vh.ZONES[2].detail, "and the detail paragraph");
+    ok(/schematic/i.test(c.note), "saying what it is not");
+  });
+  check("an undated eruption is said, not invented", () => {
+    ok(/last eruption undated/.test(card.zoneCard({ ...props, last_eruption: null }).meta), "undated");
+  });
+  check("and the click path uses it, before the generic card", () => {
+    const popup = readFileSync(new URL("./feature-popup.js", import.meta.url), "utf8");
+    ok(/isZoneFeature\(props\) \? zoneCard\(props\) : null/.test(popup), "built from the feature");
+    ok(/const feature = zone \? \{/.test(popup), "and mapped ahead of the rock card");
+  });
+}
+
 
 /* ── the merge, on the source ─────────────────────────────────────────────── */
 {
