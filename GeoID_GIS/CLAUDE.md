@@ -15149,3 +15149,79 @@ it for every driver.
 | tick labels, storm step | 8 | **10** |
 | gap between note and close | ~42 | **9** |
 | pill over the track's centre | — | **0.0 px** |
+
+## A second door to a feed is not a second feed
+
+The blanket feed proxies were removed from Hazards for putting one dataset in
+two tabs, and the note explaining that is two sections up. One is back, on
+request and with the duplication named: **Tropical cyclones ▸ Storms happening
+now**, proxying `eonet-severeStorms`. What makes this one worth its duplication
+rather than the general rule being wrong: the reader of a cyclone archive is
+the likeliest person in the app to want what is on the ocean this morning, and
+a row that only tells them to go to another tab is a trip rather than an
+answer. It replaced exactly such a sentence.
+
+**ONE STATE, TWO PLACES TO REACH IT.** `data-feed-toggle` on any box makes it a
+proxy: it READS its state off `enabled` and COMMITS through `setSourceEnabled`,
+so neither row can drift from the other. Measured through five presses,
+alternating which row was driven: the proxy, the Live row and
+`isSourceEnabled` agreed at every step, and the map followed — 5 storms → 0 in
+4 s on an untick, 5 back in 6 s on a re-tick.
+
+**NO POLL.** The old version ran a 900 ms interval hunting for boxes. Every
+change of this state already runs through `renderFeeds`, so the sync is one
+call at the TOP of it — above its early return, because a proxy lives outside
+the feed panel's host and must follow the state on a world that has no feed
+panel at all. That also covers the restore at boot, where a proxy would
+otherwise open unticked over a feed that is already running.
+
+**A live feed does not light a hazard subtab**, and it falls out of
+`DATA_CONTROLS` naming specific selectors rather than "a ticked box". Severe
+storms is on by default, so a proxy counted as data would leave Tropical
+cyclones filled from boot for ever and the fill would stop meaning "a cyclone
+dataset is on the globe" — the false positive the satellite category filters
+were measured for. Pinned, because the next person to widen that selector list
+would take it out silently.
+
+### TWO TEST FILES, TWO `check` SIGNATURES — and one of them passes silently
+
+The most expensive thing in this change, and it produced three green checks
+over assertions that never ran.
+
+| file | `check` | `ok` |
+| --- | --- | --- |
+| `cyclone-timelapse.test.mjs` | `check(name, fn)` — RUNS the callback | `ok(cond, msg)` |
+| `event-sources.test.mjs` | `check(name, got, want)` — COMPARES values | `ok(name, got)` — **name first** |
+
+Write the first file's idiom into the second and `check(name, () => {…})`
+compares a FUNCTION against `undefined`; both stringify to `undefined`, they
+are equal, and the check PASSES WITHOUT CALLING ITS BODY. Nothing warns.
+
+Rewritten in the right idiom, one of the three failed immediately: the proxy
+named **`severeStorms`** where the registry's id is **`eonet-severeStorms`** —
+`eonet()` prefixes every category — so the markup and both test files were
+wrong together. `syncFeedProxies` would have caught it in the browser too (it
+disables a box naming an unknown source and says so on the title, rather than
+drawing an honest empty tick over nothing) but the test caught it first, which
+is the point of the test.
+
+**Check the harness's own signatures before writing a check into a file you
+have not written one in before.** A test that passes for the wrong reason is
+worse than no test, and this tree already records the same shape twice — the
+level-picking test that re-derived the behaviour it was checking, and the
+flat-colour test that hid the thing it was testing for.
+
+### And the verdict was duplicated rather than moved
+
+`event-sources.test.mjs` had a summary at line 744 AND at 959, because the
+earlier repair APPENDED a verdict at the foot instead of moving the one that
+had been overtaken. The exit code was still correct — the trailing block
+decided it — but a partial summary printed mid-run with **52 checks still to
+go**, which is a number that will be believed by whoever reads it. Removed, and
+the survivor is in `process.on("exit", …)`.
+
+**The exit hook does set the exit code** — verified by A/B, a deliberate
+failure appended after it exits 1. An earlier A/B appeared to show otherwise
+and was itself the idiom bug above: the appended check passed spuriously, so it
+never tested the hook at all. **When an A/B says a mechanism does not work,
+check that the probe is exercising the mechanism.**
