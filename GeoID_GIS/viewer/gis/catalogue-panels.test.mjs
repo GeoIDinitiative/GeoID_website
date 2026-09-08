@@ -293,6 +293,29 @@ check("and every listed group still has something in it",
     check(`${file} carries entry.play through its projection`,
       /play: entry\.play,/.test(readFileSync(join(HERE, file), "utf8")));
   }
+  // A layer holding two readings switches between them on its row, rather
+  // than being a second entry over the same 23 MB file -- which would be the
+  // duplication the home rule exists to prevent, wearing a different colour.
+  check("catalogue-list draws a view toggle where an entry declares one",
+    /if \(layer && entry\.viewToggle\?\.run\)/.test(list));
+  check("and it reads its state back off the layer rather than remembering",
+    /entry\.viewToggle\.isOn\?\.\(layer\)/.test(list));
+  for (const file of ["catalogue-panels.js", "polygons.js"]) {
+    check(`${file} carries entry.viewToggle through its projection`,
+      /viewToggle: entry\.viewToggle,/.test(readFileSync(join(HERE, file), "utf8")));
+  }
+  // HURRICANE FORCE IS A PART OF A TRACK, not a class of storm. Both maps must
+  // mean the same thing by it or they cannot be laid over each other.
+  const bake = readFileSync(join(HERE, "..", "..", "services",
+    "bake-cyclone-tracks.py"), "utf8");
+  check("the hurricane tracks are runs AT hurricane force, not whole storms",
+    /def hurricane_runs\(/.test(bake) && /wind >= HURRICANE_KTS/.test(bake));
+  check("and a storm that re-intensifies gives more than one run",
+    /if len\(run\) >= 2:/.test(bake));
+  check("both maps cut hurricane force at the same knots",
+    /HURRICANE_KTS = 64/.test(bake)
+    && /HURRICANE_KTS = 64/.test(readFileSync(join(HERE, "..", "..", "services",
+        "bake-cyclone-risk.py"), "utf8")));
   const lapse = readFileSync(join(HERE, "cyclone-timelapse.js"), "utf8");
   check("the risk map follows because the layer is there",
     /function followRisk\(\) \{\s*return Boolean\(riskLayer\(\)\);/.test(lapse));

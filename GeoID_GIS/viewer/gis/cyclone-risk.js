@@ -30,8 +30,8 @@
 
 import {
   buildSymbology, colourOf, legendInfoFrom,
-} from "./symbology.js?v=20260908-d0b40e9";
-import { dataUrl } from "./data-base.js?v=20260908-d0b40e9";
+} from "./symbology.js?v=20260908-c6b3c98";
+import { dataUrl } from "./data-base.js?v=20260908-c6b3c98";
 
 const YEARS_PATH = "/data/global/cyclone-risk-years.json";
 
@@ -126,26 +126,86 @@ export function seasonsIn(payload) {
  * take the bottom class. "Never measured" and "rarest class" are different
  * statements and only one of them is true of an empty cell.
  */
-export function climatologyPaint(features, { field = "p_yr" } = {}) {
+/**
+ * THE TWO READINGS THE SAME CELLS CARRY.
+ *
+ * Every cell holds both rates, so "hurricanes only" is a REPAINT rather than a
+ * second layer: the file is 23 MB and 91,156 polygons, and a second catalogue
+ * entry over the same path would fetch and triangulate all of it again to show
+ * a column that is already in memory.
+ *
+ * The hurricane rate counts the part of a track AT hurricane force, never the
+ * whole track of a storm that reached it somewhere — the same definition the
+ * hurricane TRACKS layer draws, so the two agree by construction and the lines
+ * end where the red ends.
+ */
+export const VIEWS = {
+  storms: {
+    field: "p_yr",
+    label: "Chance of a storm passing within 200 km",
+    note: "any tropical cyclone",
+    noneLabel: "no storm on record",
+  },
+  hurricanes: {
+    field: "p_hur_yr",
+    label: "Chance of HURRICANE-force wind passing within 200 km",
+    note: "at hurricane force (64 kt and above)",
+    noneLabel: "no hurricane on record",
+  },
+};
+
+export function climatologyPaint(features, { view = "storms" } = {}) {
+  const spec = VIEWS[view] || VIEWS.storms;
+  const field = spec.field;
+  /**
+   * CLASSED ON THE VALUES ACTUALLY DRAWN, which excludes the zeros.
+   *
+   * A zero is not painted -- it is ground where this has never happened, and
+   * it gets a row of its own below. Left in the classing it is counted TWICE:
+   * once in the bottom class and once in that row. Measured on the hurricane
+   * view before this, the key summed to 120,294 over a layer of 91,156 cells,
+   * and the bottom class was reading 50,253 where 21,115 of it was ground with
+   * no rate at all.
+   */
   const values = features
     .map((f) => Number(f?.properties?.[field]))
-    .filter((n) => Number.isFinite(n));
+    .filter((n) => Number.isFinite(n) && n > 0);
   const sym = buildSymbology(values, { edges: riskEdges(), ramp: "risk" });
   if (!sym.ok) return null;
   sym.rows.forEach((row, i) => {
     if (RISK_LABELS[i]) row.label = RISK_LABELS[i];
   });
-  return {
-    sym,
-    colourFor: (feature) => {
-      const n = Number(feature?.properties?.[field]);
-      return Number.isFinite(n) ? colourOf(n, sym) : null;
-    },
-    legend: {
-      ...legendInfoFrom(sym, { label: "Chance of a storm passing within 200 km" }),
-      field, categorical: false,
-    },
+  /**
+   * A cell where it has never happened keeps NO colour, rather than the bottom
+   * class. The bottom class is "rarer than 1 in 10 years", which is a rate --
+   * and a rate is exactly what that ground has not got.
+   */
+  const colourFor = (feature) => {
+    const n = Number(feature?.properties?.[field]);
+    return Number.isFinite(n) && n > 0 ? colourOf(n, sym) : null;
   };
+  const legend = legendInfoFrom(sym, { label: spec.label });
+  /**
+   * GROUND WHERE IT HAS NEVER HAPPENED GETS A ROW OF ITS OWN.
+   *
+   * On the all-storms view every drawn cell has a rate, so there is nothing to
+   * say. On the hurricane view a third of them do not: measured, 62,018 of the
+   * 91,156 cells have ever seen hurricane force, and the rest come back in the
+   * app's no-value grey — which everywhere else means NOT MEASURED and here
+   * means measured, and never. Lisbon is the case that names itself: 0.20
+   * storms a year and no hurricane on record. Half a map in a colour the key
+   * does not mention is the legend lying by omission, which is the same fault
+   * the season view's "no storm that season" row exists to close.
+   */
+  const none = features.filter(
+    (f) => !(Number(f?.properties?.[field]) > 0)).length;
+  if (none) {
+    legend.palette = [NONE_COLOUR, ...legend.palette];
+    legend.labels = [spec.noneLabel, ...legend.labels];
+    legend.bounds = [["0", "0"], ...legend.bounds];
+    legend.counts = [none, ...legend.counts];
+  }
+  return { sym, colourFor, legend: { ...legend, field, categorical: false } };
 }
 
 /**
@@ -229,6 +289,7 @@ export function seasonNote(season, counts, drawn, partial) {
 if (typeof window !== "undefined") {
   window.GeoIDCycloneRisk = {
     loadYears, countsFor, seasonsIn, climatologyPaint, seasonPaint, seasonNote,
+    VIEWS, currentView,
     riskEdges, RETURN_PERIODS_YEARS,
   };
 }
@@ -292,18 +353,32 @@ export async function showSeason(season, { layers = null } = {}) {
  * layer whose own subject is the long-run rate, so closing the bar must leave
  * the map saying what its own name says.
  */
-export function showClimatology({ layers = null } = {}) {
+export function showClimatology({ layers = null, view = null } = {}) {
   const layer = riskLayer(layers);
   if (!layer?.features?.length) return null;
-  const paint = climatologyPaint(layer.features);
+  // The view the layer is WEARING, unless one is named: closing a season
+  // animation must put back what was on screen before it, not a default the
+  // reader moved away from.
+  const wanted = view || layer.cycloneView || "storms";
+  const paint = climatologyPaint(layer.features, { view: wanted });
   if (!paint) return null;
   layer.repaint?.(paint.colourFor);
   layer.legendInfo = paint.legend;
   layer.legendSummary = null;
+  layer.cycloneView = wanted;
   announce();
-  return { cells: layer.features.length };
+  const drawn = layer.features.filter(
+    (f) => Number(f?.properties?.[VIEWS[wanted].field]) > 0).length;
+  return { cells: layer.features.length, drawn, view: wanted };
+}
+
+/** Which reading the layer is showing, for a control that has to say so. */
+export function currentView(layers = null) {
+  return riskLayer(layers)?.cycloneView || "storms";
 }
 
 if (typeof window !== "undefined") {
-  Object.assign(window.GeoIDCycloneRisk, { riskLayer, showSeason, showClimatology });
+  Object.assign(window.GeoIDCycloneRisk, {
+    riskLayer, showSeason, showClimatology, currentView, VIEWS,
+  });
 }

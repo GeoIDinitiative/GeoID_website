@@ -14574,3 +14574,64 @@ ends with `process.exit`, so anything appended after it runs and is discarded �
 one of the two files this repo already documents for it. A first attempt
 inserted the block at the top of the file instead, which at least failed
 loudly; the discarded-check version would not have.
+
+## Hurricanes only: a PART OF A TRACK, not a class of storm
+
+Both maps now answer the hurricane question, and the whole job was making them
+mean the same thing by it.
+
+**The risk half needed no re-bake** — every cell already carried `rate_hur_yr`
+and `p_hur_yr` beside its all-storms pair, so "hurricanes only" is a REPAINT of
+the layer already loaded. A second catalogue entry over the same path would
+fetch and triangulate 23 MB and 91,156 polygons again for a column that is in
+memory, which is the duplication the home rule exists to prevent wearing a
+different colour. `entry.viewToggle` is the seam — same shape as `entry.play`,
+gated on the layer, reading its state back off the layer rather than
+remembering it.
+
+**The tracks half did need one, and this is the reason.** The tracks file kept
+only each storm's PEAK, so a filter on it would draw every hurricane's whole
+life — including the days it spent as a depression. Measured, that over-draws
+by two to eight times:
+
+| | at hurricane force | whole track | |
+| --- | --- | --- | --- |
+| Katrina 2005 | 1,607 km | 3,404 km | **47%** |
+| Sandy 1985 | 560 km | 4,316 km | **13%** |
+| Haiyan 2013 | 4,263 km | 6,752 km | 63% |
+| Irma 2017 | 5,971 km | 7,720 km | 77% |
+
+So `bake-cyclone-tracks.py` keeps the wind WITH EACH FIX — it was reading it
+per segment and throwing it away — and emits the unbroken runs at 64 kt and
+above as their own file. That is the exact definition the risk map's hurricane
+rate counts, so **the two agree by construction rather than by looking
+similar**: laid over each other the lines end where the red ends.
+
+**A storm that weakens and re-intensifies gives MORE THAN ONE RUN** — 3,700
+runs over 2,929 storms, so about a quarter of them — because it was not a
+hurricane in between and joining them would draw hurricane force across the
+gap. A run of a single fix is dropped: a real observation, and not a line.
+
+### The key has to account for the cells, exactly once each
+
+On the all-storms view every drawn cell has a rate. On the hurricane view a
+third do not — 29,138 of 91,156 — and they come back in the app's no-value
+grey, which everywhere else means NOT MEASURED and here means measured, and
+never. Lisbon names itself: 0.20 storms a year and no hurricane on record. So
+there is a "no hurricane on record" row with its own count.
+
+**And the zeros had to leave the CLASSING when they gained a row**, or they are
+counted twice. Measured before the fix: the key summed to **120,294 over a
+layer of 91,156 cells**, with the bottom class reading 50,253 where 21,115 of
+it was ground with no rate at all. A legend making a false arithmetic claim
+about its own map is worse than a missing row, because it looks like a
+measurement. Pinned: both keys must sum to the feature count.
+
+### Class labels are the scale's words, not the column's
+
+`peak_wind_kts` is a column name; "Category 3" is what the scale calls it. Both
+track layers now pass `labels` and `legendLabel` through `colourRange` — and
+they differ by one band, which is the honest part: the all-storms layer opens
+BELOW hurricane force so it has six ("Tropical storm or weaker" first), and the
+hurricane runs have five, because every value in that file is already at or
+above 64 knots and there is nothing for a lower band to hold.

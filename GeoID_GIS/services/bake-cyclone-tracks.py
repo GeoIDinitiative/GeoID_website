@@ -55,6 +55,12 @@ ARCHIVE = "IBTrACS.ALL.list.v04r01.lines.zip"
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 OUT = ROOT / "data" / "global" / "cyclone-tracks.geojson"
+OUT_HURRICANE = ROOT / "data" / "global" / "cyclone-tracks-hurricane.geojson"
+
+# Hurricane force, in knots -- SAFFIR_SIMPSON_KTS[0], the same threshold the
+# live markers, the track colours and the risk map's hurricane rate all use.
+HURRICANE_KTS = 64
+SAFFIR_SIMPSON_KTS = [64, 83, 96, 113, 137]
 
 # Three decimals is 110 m. IBTrACS reports position to 0.1 degrees — about
 # 11 km — so this is already two orders finer than the source knows, and every
@@ -125,6 +131,64 @@ def title(name: str) -> str:
     return clean.title().replace("_", " ")
 
 
+def category(kts):
+    """Saffir-Simpson band, 1-5, or 0 below hurricane force."""
+    band = 0
+    for i, floor in enumerate(SAFFIR_SIMPSON_KTS):
+        if kts >= floor:
+            band = i + 1
+    return band
+
+
+def hurricane_runs(points, winds, props):
+    """The stretches a storm spent AT hurricane force, one feature each.
+
+    NOT "the tracks of storms that became hurricanes". A Category 5 in the
+    mid-Atlantic was a depression when it left Africa, and drawing its whole
+    life as a hurricane track would put hurricane-force geometry over ground
+    the storm crossed as a tropical wave. That also happens to be the exact
+    definition the RISK map's `rate_hur_yr` counts, so the two maps agree by
+    construction rather than by looking similar -- laid over each other, the
+    lines end where the red ends.
+
+    ONE STORM CAN GIVE SEVERAL. A hurricane that weakens below 64 knots and
+    re-intensifies was not a hurricane in between, so it comes back as two
+    runs. Joining them would draw hurricane force across the gap.
+
+    A run of a single fix is dropped: it is a real observation and it is not a
+    line, and there is nothing honest to draw between one point and itself.
+    """
+    out = []
+    run = []
+    for point, wind in list(zip(points, winds)) + [(None, 0)]:
+        if wind >= HURRICANE_KTS:
+            run.append((point, wind))
+            continue
+        if len(run) >= 2:
+            coords = [pt for pt, _ in run]
+            peak = max(w for _, w in run)
+            for part in split_at_seam(coords):
+                if len(part) < 2:
+                    continue
+                out.append({
+                    "type": "Feature",
+                    "properties": {
+                        "sid": props["sid"],
+                        "name": props["name"],
+                        "season": props["season"],
+                        "basin": props["basin"],
+                        # The run's OWN peak, not the storm's: a storm with two
+                        # runs was a different strength in each, and labelling
+                        # both with the higher one overstates the weaker.
+                        "peak_wind_kts": peak,
+                        "category": category(peak),
+                    },
+                    "geometry": {"type": "LineString", "coordinates": part},
+                })
+        run = []
+    return out
+
+
 def main() -> int:
     storms = {}
     seen = 0
@@ -151,9 +215,14 @@ def main() -> int:
         # Keyed by TIME, not by the order the file happens to be in: the
         # segments are a set, and a track drawn in file order is a scribble.
         stamp = props.get("ISO_TIME") or ""
-        storm["fixes"].append((stamp, coords[0]))
-        storm["fixes"].append((stamp, coords[-1]))
         wind = props.get("WMO_WIND")
+        # THE WIND RIDES WITH THE FIX, not only with the storm. Kept only as a
+        # storm-wide peak it can answer "did this become a hurricane" and
+        # nothing about WHERE -- and where is the whole question the hurricane
+        # map asks.
+        at = int(wind) if isinstance(wind, (int, float)) and wind > 0 else 0
+        storm["fixes"].append((stamp, coords[0], at))
+        storm["fixes"].append((stamp, coords[-1], at))
         if isinstance(wind, (int, float)) and wind > 0:
             storm["wind"] = max(storm["wind"] or 0, int(wind))
         press = props.get("WMO_PRES")
@@ -163,6 +232,7 @@ def main() -> int:
     print(f"  {seen:,} segments over {len(storms):,} storms")
 
     features = []
+    hurricane = []
     dropped = 0
     split = 0
     for sid, storm in storms.items():
@@ -171,15 +241,21 @@ def main() -> int:
         # every interior fix twice. Dropping the repeats halves the vertices
         # and changes nothing about the line.
         points = []
-        for _, coord in fixes:
+        winds = []
+        for _, coord, at in fixes:
             lon = wrap(float(coord[0]))
             lat = float(coord[1])
             if not (math.isfinite(lon) and math.isfinite(lat)):
                 continue
             spot = [round(lon, PLACES), round(lat, PLACES)]
             if points and points[-1] == spot:
+                # The repeated fix carries the same moment; keep the stronger
+                # of the two readings rather than whichever arrived last.
+                if winds:
+                    winds[-1] = max(winds[-1], at)
                 continue
             points.append(spot)
+            winds.append(at)
         parts = split_at_seam(points)
         if not parts:
             dropped += 1
@@ -205,6 +281,7 @@ def main() -> int:
                          if len(parts) == 1
                          else {"type": "MultiLineString", "coordinates": parts}),
         })
+        hurricane.extend(hurricane_runs(points, winds, props))
 
     features.sort(key=lambda f: (f["properties"]["season"] or 0,
                                  f["properties"]["sid"]))
@@ -229,6 +306,35 @@ def main() -> int:
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(payload, separators=(",", ":")))
 
+    hurricane.sort(key=lambda f: (f["properties"]["season"] or 0,
+                                  f["properties"]["sid"]))
+    storms_hit = len({f["properties"]["sid"] for f in hurricane})
+    OUT_HURRICANE.write_text(json.dumps({
+        "type": "FeatureCollection",
+        "_source": {
+            "dataset": "IBTrACS v04r01 - International Best Track Archive for "
+                       "Climate Stewardship",
+            "publisher": "NOAA National Centers for Environmental Information",
+            "citation": "Knapp, K. R., et al. (2010). Bull. Amer. Meteor. "
+                        "Soc., 91, 363-376.",
+            "measure": "The stretches of each track spent at HURRICANE FORCE "
+                       "({} kt and above), one feature per unbroken run. Not "
+                       "the whole track of a storm that reached it somewhere: "
+                       "a Category 5 in the mid-Atlantic was a depression when "
+                       "it left Africa. This is the same definition the "
+                       "cyclone risk map's hurricane rate counts, so the two "
+                       "agree by construction.".format(HURRICANE_KTS),
+            "hurricane_kts": HURRICANE_KTS,
+            "runs": len(hurricane),
+            "storms": storms_hit,
+            "built_here": "A storm that weakens below hurricane force and "
+                          "re-intensifies gives more than one run; a run of a "
+                          "single fix is dropped, being an observation rather "
+                          "than a line.",
+        },
+        "features": hurricane,
+    }, separators=(",", ":")))
+
     vertices = sum(len(p) for f in features
                    for p in ([f["geometry"]["coordinates"]]
                              if f["geometry"]["type"] == "LineString"
@@ -239,6 +345,9 @@ def main() -> int:
                if f["properties"]["season"]]
     print(f"\n  {len(features):,} storms, {vertices:,} vertices")
     print(f"  {named:,} named, {winds:,} with a peak wind")
+    print(f"  {len(hurricane):,} hurricane-force runs over {storms_hit:,} storms"
+          f" -> {OUT_HURRICANE.relative_to(ROOT)}"
+          f" ({OUT_HURRICANE.stat().st_size / 1e6:.1f} MB)")
     print(f"  seasons {min(seasons)}-{max(seasons)}")
     print(f"  {split:,} split at the antimeridian, {dropped:,} with no drawable track")
     print(f"  {OUT.stat().st_size / 1e6:.1f} MB -> {OUT.relative_to(ROOT)}")

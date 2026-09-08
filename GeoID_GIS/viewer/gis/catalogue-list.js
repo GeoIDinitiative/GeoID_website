@@ -18,7 +18,7 @@
  * in extraction and in export without this file knowing anything about them.
  */
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260908-d0b40e9";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260908-c6b3c98";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -577,6 +577,37 @@ export function renderCatalogue(host, entries, hooks) {
         void entry.play.run(layer);
       });
       row.appendChild(go);
+    }
+    /**
+     * A LAYER THAT HOLDS TWO READINGS SWITCHES BETWEEN THEM ON ITS OWN ROW.
+     *
+     * The cyclone risk cells carry both an all-storms rate and a
+     * hurricane-force one, so "hurricanes only" is a repaint of the layer that
+     * is already loaded — 23 MB and 91,156 polygons fetched and triangulated
+     * once, not twice for a column that is in memory. A second catalogue entry
+     * over the same path would be the duplication this file's own home rule
+     * exists to prevent, wearing a different colour.
+     *
+     * `is-on` is the style the Symbology button already defines for a filled
+     * toggle, so a switched-on view says so the way everything else here does.
+     */
+    if (layer && entry.viewToggle?.run) {
+      const view = document.createElement("button");
+      view.type = "button";
+      view.className = "gis-catalogue-sym";
+      const sync = () => {
+        const on = Boolean(entry.viewToggle.isOn?.(layer));
+        view.classList.toggle("is-on", on);
+        view.textContent = entry.viewToggle.label || "View";
+        view.title = (on ? entry.viewToggle.titleOn : entry.viewToggle.titleOff)
+          || entry.viewToggle.label || "";
+      };
+      sync();
+      view.addEventListener("click", (event) => {
+        event.stopPropagation();
+        Promise.resolve(entry.viewToggle.run(layer)).then(sync);
+      });
+      row.appendChild(view);
     }
     // Only where there is something to symbolise: a layer that is not on the
     // globe has no attributes to colour by and no legend to write.

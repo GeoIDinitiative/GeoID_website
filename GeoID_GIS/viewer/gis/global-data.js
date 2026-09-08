@@ -26,15 +26,15 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260908-d0b40e9";
-import { dataUrl } from "./data-base.js?v=20260908-d0b40e9";
-import { mathsFor } from "./equations.js?v=20260908-d0b40e9";
+import { runConnector } from "./research/connectors.js?v=20260908-c6b3c98";
+import { dataUrl } from "./data-base.js?v=20260908-c6b3c98";
+import { mathsFor } from "./equations.js?v=20260908-c6b3c98";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260908-d0b40e9";
+} from "./cyclone-risk.js?v=20260908-c6b3c98";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-d0b40e9";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-c6b3c98";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -201,6 +201,13 @@ export const DATASETS = [
       field: "peak_wind_kts",
       edges: SAFFIR_SIMPSON_KTS,
       ramp: "risk",
+      // The scale's own words. "83 - 96" is the arithmetic; "Category 2" is
+      // what the scale calls it and what a reader is looking for. SIX bands
+      // here, because this layer holds storms that never reached hurricane
+      // force and the classing opens below the first threshold.
+      labels: ["Tropical storm or weaker", "Category 1", "Category 2",
+        "Category 3", "Category 4", "Category 5"],
+      legendLabel: "Strongest the storm got (Saffir\u2013Simpson)",
     },
     /**
      * Faint, and for the reason the plate boundaries are: thirteen thousand
@@ -223,6 +230,49 @@ export const DATASETS = [
         return window.GeoIDCycloneTimelapse?.play({ from: span });
       },
     },
+  },
+  {
+    /**
+     * HURRICANE FORCE ONLY, and it is the part of the track rather than the
+     * storm. A Category 5 in the mid-Atlantic was a depression when it left
+     * Africa, so a filter on each storm's PEAK would draw hurricane-force
+     * geometry over ground it crossed as a tropical wave — measured, only 47%
+     * of Katrina's track and 13% of Sandy's was at hurricane force, so that
+     * filter over-draws by two to eight times.
+     *
+     * It is also the exact definition the risk map's hurricane rate counts, so
+     * the two agree BY CONSTRUCTION: laid over each other the lines end where
+     * the red ends, rather than merely looking similar.
+     *
+     * A storm that weakens below 64 knots and re-intensifies gives more than
+     * one run — 3,700 runs over 2,929 storms — because it was not a hurricane
+     * in between and joining them would draw hurricane force across the gap.
+     */
+    id: "cyclone-tracks-hurricane",
+    home: "hazards",
+    featureNoun: "Hurricane track",
+    group: "Hazards",
+    label: "Hurricane tracks \u2014 the stretches at hurricane force (IBTrACS)",
+    path: "/data/global/cyclone-tracks-hurricane.geojson",
+    name: "Hurricane tracks (IBTrACS v04r01).geojson",
+    summary: "3,700 unbroken runs at 64 knots and above, over 2,929 storms "
+      + "since 1842 \u2014 the part of each track spent AT hurricane force, "
+      + "not the whole life of a storm that reached it somewhere",
+    licence: "IBTrACS v04r01, NOAA NCEI \u2014 open data; cite Knapp et al. (2010), "
+      + "Bull. Amer. Meteor. Soc., 91, 363-376",
+    // The scale's own edges, so a Category 3 run here is the colour a
+    // Category 3 is on the live markers and on the all-storms tracks.
+    colourRange: {
+      field: "peak_wind_kts",
+      edges: SAFFIR_SIMPSON_KTS,
+      ramp: "risk",
+      // FIVE bands, not six: every run here is already at or above hurricane
+      // force, so there is no band below Category 1 for anything to fall in.
+      labels: ["Category 1", "Category 2", "Category 3", "Category 4",
+        "Category 5"],
+      legendLabel: "Strength over this stretch (Saffir\u2013Simpson)",
+    },
+    opacity: 0.7,
   },
   {
     /**
@@ -282,6 +332,23 @@ export const DATASETS = [
       title: "Play this map recomputed after every season, so what moves is "
         + "how well the hazard is known rather than what the weather did",
       run: () => window.GeoIDCycloneRiskRaster?.play(),
+    },
+    /**
+     * EVERY CELL CARRIES BOTH RATES, so this is a repaint rather than a second
+     * layer: 23 MB and 91,156 polygons fetched and triangulated once, not
+     * twice for a column that is already in memory.
+     */
+    viewToggle: {
+      label: "Hurricanes only",
+      titleOff: "Show the chance of HURRICANE-force wind instead of any "
+        + "tropical cyclone \u2014 the same cells, their other reading",
+      titleOn: "Showing hurricane force only. Press to go back to any "
+        + "tropical cyclone.",
+      isOn: () => window.GeoIDCycloneRisk?.currentView?.() === "hurricanes",
+      run: () => window.GeoIDCycloneRisk?.showClimatology({
+        view: window.GeoIDCycloneRisk?.currentView?.() === "hurricanes"
+          ? "storms" : "hurricanes",
+      }),
     },
   },
   {

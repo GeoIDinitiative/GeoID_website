@@ -1,7 +1,7 @@
 import {
   addDataset, grouped, datasetById, layerForDataset,
-} from "./global-data.js?v=20260908-d0b40e9";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260908-d0b40e9";
+} from "./global-data.js?v=20260908-c6b3c98";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260908-c6b3c98";
 
 /**
  * Polygons: the register of vector overlays -- coastlines, boundaries, basins,
@@ -84,6 +84,7 @@ function drawCatalogue() {
         // out of one falls back SILENTLY -- measured here as a play button
         // that never appeared while the Symbology button beside it did.
         play: entry.play,
+        viewToggle: entry.viewToggle,
       })));
   renderCatalogue(host, entries, {
     // A lid over the list: nine datasets with their group headings filled the

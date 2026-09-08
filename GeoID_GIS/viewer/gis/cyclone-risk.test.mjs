@@ -8,7 +8,7 @@
 import { readFileSync } from "node:fs";
 import {
   riskEdges, RETURN_PERIODS_YEARS, RISK_LABELS, COUNT_EDGES,
-  countsFor, seasonsIn, seasonNote, seasonPaint,
+  countsFor, seasonsIn, seasonNote, seasonPaint, climatologyPaint, VIEWS,
 } from "./cyclone-risk.js";
 
 let pass = 0;
@@ -108,6 +108,46 @@ check("a reached one does",
 check("a fractional count is a class, not a nothing",
   typeof seasonPaint(new Map([[1, 0.06], [2, 2]]), 1992, 4)
     .colourFor({ properties: { i: 1 } }), "string");
+
+/* ── the two readings the same cells carry ───────────────────────────────── */
+// "Hurricanes only" is a REPAINT: every cell holds both rates, so a second
+// catalogue entry over the same 23 MB file would fetch and triangulate all of
+// it again for a column already in memory.
+check("the two views name different columns",
+  [VIEWS.storms.field, VIEWS.hurricanes.field], ["p_yr", "p_hur_yr"]);
+check("and say which is which, in the key",
+  /HURRICANE/.test(VIEWS.hurricanes.label) && !/HURRICANE/.test(VIEWS.storms.label),
+  true);
+const cells = [
+  { properties: { i: 0, p_yr: 0.9, p_hur_yr: 0.4 } },   // both
+  { properties: { i: 1, p_yr: 0.3, p_hur_yr: 0 } },     // storms, never a hurricane
+  { properties: { i: 2, p_yr: 0.5, p_hur_yr: 0.05 } },
+];
+const asStorms = climatologyPaint(cells, { view: "storms" });
+const asHurr = climatologyPaint(cells, { view: "hurricanes" });
+check("every cell is coloured on the all-storms view",
+  cells.every((c) => typeof asStorms.colourFor(c) === "string"), true);
+// GROUND WHERE IT HAS NEVER HAPPENED is not the bottom class. That class is
+// "rarer than 1 in 10 years", which is a rate -- and a rate is what this
+// ground has not got. Measured on the real file: 62,018 of 91,156 cells have
+// ever seen hurricane force, so a THIRD of the map is in this state.
+check("a cell no hurricane has reached keeps no colour",
+  asHurr.colourFor(cells[1]), null);
+check("and gets a row of its own, so the key accounts for what is drawn",
+  asHurr.legend.labels[0], "no hurricane on record");
+check("with its own count", asHurr.legend.counts[0], 1);
+check("and its own swatch", asHurr.legend.palette[0], "8a8a8a");
+check("the all-storms view needs no such row",
+  asStorms.legend.labels[0], RISK_LABELS[0]);
+check("the classes are the same scale either way",
+  asHurr.legend.labels.slice(1), asStorms.legend.labels);
+// THE KEY MUST ACCOUNT FOR THE CELLS, EXACTLY ONCE EACH. A zero left in the
+// classing lands in the bottom class AND in the "never happened" row -- the
+// key then sums to more cells than the layer has, which is a legend making an
+// arithmetic claim that is false.
+const sum = (a) => a.reduce((t, n) => t + n, 0);
+check("the hurricane key counts every cell once", sum(asHurr.legend.counts), cells.length);
+check("and so does the all-storms key", sum(asStorms.legend.counts), cells.length);
 
 /* ── the BAKE's own gate, pinned on its source ──────────────────────────── */
 // The quadtree's flatness test has to refuse a block that is empty in part,
