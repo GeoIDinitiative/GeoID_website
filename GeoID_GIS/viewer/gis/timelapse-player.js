@@ -36,11 +36,13 @@ const STYLE = `
      Shrink-to-fit, there is no free space in the row, so the scale sits on its
      own min-width for ever -- measured, 272 px of track inside a 640 px bar
      with the rest of it spent on two clusters and the air between them.
-     The ceiling is the SIDEBAR: the bar is centred, so it clears a panel
-     376 px wide only while it is under 100vw - 2x376. 48rem leaves a margin
-     on that at every width the column is drawn at, and the clamp keeps it
-     sane on a narrow screen where the column is not there at all. */
-  width: clamp(20rem, calc(100vw - 48rem), 64rem);
+     The ceiling is the SIDEBAR, and it is arithmetic rather than taste: the
+     bar is CENTRED, so to clear a 25rem column it has to give up that column
+     on BOTH sides -- 50rem, plus a rem of air each way. Measured at 48rem the
+     left edge landed 5 px inside the panel, which is what the subtraction
+     says it must. The clamp keeps it sane on a narrow screen where the column
+     is not drawn at all. */
+  width: clamp(20rem, calc(100vw - 52rem), 64rem);
   display: flex; align-items: center; gap: 0.55rem;
   /* Room under the row for the tick labels, which hang below the track. */
   padding: 0.45rem 0.7rem 0.95rem;
@@ -90,7 +92,11 @@ const STYLE = `
 .geoid-timelapse .tl-trail {
   display: flex; align-items: center; gap: 0.55rem; flex: 0 0 auto;
 }
-.geoid-timelapse .tl-trail { justify-content: flex-end; }
+/* The trail's slack is the price of a centred track -- its content is
+   narrower than the lead's. Spread rather than pooled: the note sits against
+   the end of the track it describes and the close keeps the bar's own edge,
+   instead of a hole opening between the slider and the words. */
+.geoid-timelapse .tl-trail { justify-content: space-between; }
 /* THE NOTE IS NOT SQUEEZED TO NOTHING. It is the only part of the bar that
    says anything about the frame, and as an ordinary flex item it was giving
    its width up to its neighbours: measured at 104px against 130px of content,
