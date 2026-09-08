@@ -15370,3 +15370,77 @@ Measured after, by the label boxes themselves:
 The gap after 1842 is wide on purpose: the record between 1842 and 1900 is a
 few dozen frames, so that is where the track genuinely has the least ground
 to give a label.
+
+## Volcanic hazards: a second subtab built the cyclone way, and a merge by stencil
+
+Hazards ▸ Volcanic hazards reads, top to bottom: **Volcanic activity
+(EONET)** — Live's own eruption row seen again, the `data-feed-proxy`
+mechanism the cyclone subtab uses — then the **Smithsonian volcano row**, and
+under it, docked while the layer is loaded, the **hazard buffers**.
+
+**A catalogue row seen from a second tab is DECLARED, not duplicated.** The
+volcanoes are geology — that is their home and where they light the tab —
+and they are also what the buffers are drawn around. `MIRRORS` in
+`global-data.js` names the home that may show the row again, and
+`catalogue-panels` draws it into that host with the SAME hooks: same tick,
+same layer (`layerForDataset`), same Symbology button. Measured: ticking from
+Hazards ticks Geology and the reverse, and unticking from either takes the
+layer and the buffers with it. A mirror may dock its OWN settings block under
+the row in its tab alone — a block is one element and can hang under one row
+— so the buffers live under the mirror and not under Geology's copy. The
+"exactly one list" test now reads: once as itself, once per declared mirror,
+nowhere else.
+
+**The zones are Etna Explorer's, verbatim** — 0–5, 5–10, 10–20, 20–35 and
+35–50 km with INGV's hazards per band — and the test reads them back out of
+`etna-viewer.js` rather than trusting a copy. Which volcanoes get them is the
+catalogue's own `label_rank` (eruption recency: 5 = since 2000 … 1 = undated
+Holocene), defaulting to "erupted since 1900"; a Pleistocene volcano never
+does. Measured: 438 volcanoes → 2,190 zone polygons; every Holocene volcano →
+**1,214 → 6,070**, which is the catalogue's own Holocene count to the unit.
+
+### Overlaps merge in the STENCIL BUFFER, not in geometry
+
+A union of a thousand discs through the boolean engine is a fault this tree
+has paid for three times over (concave subjects, chords, slivers) — and a
+union is the wrong product: the reader's question is "what is the WORST
+hazard reaching this ground", a per-pixel minimum over distance. So the
+zones are drawn innermost first (a fractional `renderLift` per zone, which
+`applyStack` carries through every redraw), each fill writes stencil 1 where
+it paints, and every later fill is refused where the stencil already reads 1
+(`NotEqual` / `Replace`). One paint per pixel, highest hazard wins, nothing
+double-darkens at 50%, and every disc stays its own clickable feature. The
+per-polygon seal is switched off — at 50% a seam doubled along every disc
+edge is the alpha-accumulation fault already recorded.
+
+**three r163 turned the renderer's stencil buffer OFF by default.** Measured
+on this page: `getContextAttributes().stencil === false`, 0 bits. Every
+`WebGLRenderer` attempt in earth-viewer now passes `stencil: true`; it packs
+with the 24-bit depth buffer (measured 8 bits after) and costs nothing. Any
+material-level stencil work is silent without it — the properties are set,
+nothing tests them, and the discs simply double-blend.
+
+### Two probe traps, both mine
+
+- **The volcano row's first `<input>` is the label-detail RANGE**, not the
+  tick. `querySelector('input').checked` read false on rows that were plainly
+  ticked, and I chased a mirror-sync fault that did not exist for a round.
+  Ask for `input[type=checkbox]`.
+- **The import manager announces through `onChange`, not the DOM event.**
+  `geoid-gis:layers-changed` is dispatched by the symbology and the
+  hierarchy; a layer REMOVED through the catalogue never fires it. The
+  buffers' follow was on the event and the buffers stayed on the globe round
+  volcanoes no longer drawn. `im.onChange(follow)` — the list every catalogue
+  subscribes to — with a bounded retry, since the manager may not exist at
+  module load.
+
+### Far-field ash: not as a fixed buffer
+
+Asked whether to add one. No — a fixed-radius ring past 50 km says ash falls
+in a circle, and ash falls in a PLUME: wind-driven, anisotropic, and sized by
+the eruption. A circle there claims a symmetry the phenomenon does not have,
+which is the same fault as a map claiming a precision its source never had.
+The honest far-field product is a plume from the live wind field — the
+Open-Meteo GFS winds are already fetched for the weather card — as a separate
+piece of work, drawn as a sector downwind and labelled for the eruption size
+it assumes. The 35–50 km band already carries "trace ash" as its own text.
