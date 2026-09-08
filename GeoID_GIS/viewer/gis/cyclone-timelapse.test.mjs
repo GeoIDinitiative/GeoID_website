@@ -71,15 +71,18 @@ check("a storm with no season is dropped rather than defaulted", () => {
  * say — measured on the archive, 1842 has ONE storm in it and 2021 has 111.
  */
 check("a pre-satellite season says what it is", () => {
-  const note = tl.noteFor({ year: 1900, count: 3, named: 0 });
-  ok(/pre-satellite/.test(note), note);
-  ok(/ships and coasts/.test(note), note);
+  const epoch = { year: 1900, count: 3, named: 0, total: 13513 };
+  // The CLAIM stays on the bar, which is 104px wide; the reason it rests on
+  // goes to the title, because a sentence that gets cut is cut at the end.
+  ok(/pre-satellite/.test(tl.noteFor(epoch)), tl.noteFor(epoch));
+  ok(/ships and coasts/.test(tl.noteTitle(epoch)), tl.noteTitle(epoch));
 });
 
 check("and a modern one does not", () => {
-  const note = tl.noteFor({ year: 2005, count: 120, named: 94 });
-  ok(!/pre-satellite/.test(note), note);
-  ok(/120 storm/.test(note) && /94 named/.test(note), note);
+  const epoch = { year: 2005, count: 120, named: 94, total: 13513 };
+  ok(!/pre-satellite/.test(tl.noteFor(epoch)), tl.noteFor(epoch));
+  ok(/120 \/ 13,513/.test(tl.noteFor(epoch)), tl.noteFor(epoch));
+  ok(/94 named/.test(tl.noteTitle(epoch)), tl.noteTitle(epoch));
 });
 
 check("the boundary is the first weather satellites, not a round number", () => {
@@ -95,7 +98,10 @@ check("and the default span is the modern record", () => {
 });
 
 check("a season with no named storms says only the count", () => {
-  eq(tl.noteFor({ year: 2000, count: 4, named: 0 }), "4 storms", "no empty clause");
+  eq(tl.noteFor({ year: 2000, count: 4, named: 0, total: 13513 }), "4 / 13,513",
+    "no empty clause");
+  ok(!/named/.test(tl.noteTitle({ year: 2000, count: 4, named: 0, total: 13513 })),
+    "nor on the title");
 });
 
 /* ── what it hands the one player ────────────────────────────────────────── */
@@ -184,14 +190,49 @@ check("a season with no named storms says only the count", () => {
     ok(/layerForDataset\?\.\("cyclone-tracks"\)/.test(code), "by entry id");
   });
 
+  /**
+   * A COUNTER AGAINST THE TOTAL, because the note is 104px of a 130px
+   * sentence: "13513 storms, 5733 named" reached the reader as "13513 storms,
+   * 5733..." -- and the half that got cut was the half the other half needed.
+   */
+  check("a season frame counts itself against the archive", () => {
+    eq(tl.noteFor({ year: 2000, count: 105, total: 13513 }), "105 / 13,513",
+      "this frame of the whole");
+    ok(tl.noteFor({ year: 2000, count: 105, total: 13513 }).length < 16, "and it is short");
+  });
+  // "13,513 / 13,513" says nothing a reader cannot see. The All frame is the
+  // archive, so it names it.
+  check("the All frame names the archive rather than dividing it by itself", () => {
+    eq(tl.noteFor({ all: true, count: 13513, total: 13513 }), "13,513 storms");
+    eq(tl.noteFor({ all: true, count: 3700, total: 3700, noun: "run" }), "3,700 runs");
+  });
   // 3,700 hurricane RUNS over 2,929 storms: calling them storms overstates the
   // count by a quarter and misnames every one of them.
   check("the bar names what the frame actually holds", () => {
-    ok(/3 runs/.test(tl.noteFor({ year: 2000, count: 3, noun: "run" })), "runs where runs");
-    ok(/3 storms/.test(tl.noteFor({ year: 2000, count: 3 })), "storms by default");
-    ok(/1 storm\b/.test(tl.noteFor({ year: 2000, count: 1 })), "and one is singular");
-    // The driver picks the noun from the layer it is actually playing.
+    ok(/runs/.test(tl.noteFor({ all: true, count: 3, total: 3, noun: "run" })), "runs where runs");
+    ok(/storms/.test(tl.noteFor({ all: true, count: 3, total: 3 })), "storms by default");
     ok(/hurricane tracks\/i\.test\(layer\.name/.test(code), "chosen from the layer");
+  });
+  /**
+   * THE SENTENCE TOO LONG FOR THE BAR GOES ON THE TOOLTIP rather than being
+   * cut -- and what gets cut is always the end, which is where a qualification
+   * lives. The pre-satellite claim stays visible in short form, because it is
+   * a claim about the number beside it.
+   */
+  check("the long form is carried, not dropped", () => {
+    const early = { year: 1900, count: 4, total: 13513 };
+    ok(/pre-satellite/.test(tl.noteFor(early)), "the claim stays on the bar");
+    ok(/ships\s+and\s+coasts/.test(tl.noteTitle(early)), "and the reason on the title");
+    ok(/79 named/.test(tl.noteTitle({ year: 2000, count: 105, named: 79, total: 13513 })),
+      "with what the bar had no room for");
+  });
+  check("and a count equal to the total is not stated as a fraction of itself",
+    () => ok(!/of 13,513/.test(tl.noteTitle({ all: true, count: 13513, total: 13513 })),
+      "no 13,513 of 13,513"));
+  check("the player carries a driver's title through", () => {
+    const player = readFileSync(new URL("./timelapse-player.js", import.meta.url), "utf8");
+    ok(/state\.bar\.note\.title = state\.noteTitle\?\.\(epoch\)/.test(player), "set on show");
+    ok(/min-width: max-content/.test(player), "and the note keeps its own width");
   });
 
   check("pressing play without the layer explains itself",

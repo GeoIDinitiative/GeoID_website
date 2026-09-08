@@ -23,12 +23,12 @@
 
 import {
   buildSymbology, colourOf, legendInfoFrom,
-} from "./symbology.js?v=20260908-2125c8a";
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-2125c8a";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-2125c8a";
+} from "./symbology.js?v=20260908-4034c94";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-4034c94";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-4034c94";
 import {
   showSeason, showClimatology, riskLayer,
-} from "./cyclone-risk.js?v=20260908-2125c8a";
+} from "./cyclone-risk.js?v=20260908-4034c94";
 
 const search = new URL(import.meta.url).search;
 
@@ -126,20 +126,47 @@ function colouring(features) {
 }
 
 /**
- * What the bar says under the year.
+ * What the bar says under the year: A COUNTER AGAINST THE TOTAL.
  *
- * THE NOUN COMES FROM THE FRAME, because the entry has two variants and only
- * one of them draws storms. The hurricane view draws unbroken RUNS at
- * hurricane force -- 3,700 of them over 2,929 storms -- so calling them storms
- * would overstate the count by a quarter and misname every one of them.
+ * It used to read "13513 storms, 5733 named", of which the reader saw
+ * "13513 storms, 5733..." — the field is 104px of a 130px sentence, and the
+ * half that got cut was the half that needed the other half to mean anything.
+ * A running count against the archive is shorter AND says more: how much of
+ * the record this frame is, which is the question a sequence invites.
+ *
+ * THE NOUN COMES FROM THE FRAME, because the entry has two readings and only
+ * one of them draws storms. The hurricane runs are 3,700 stretches over 2,929
+ * storms, so calling them storms would overstate the count by a quarter.
  */
 export function noteFor(epoch) {
   const noun = epoch.noun || "storm";
-  const count = epoch.count;
-  const tail = epoch.named ? `, ${epoch.named} named` : "";
-  const said = `${count} ${noun}${count === 1 ? "" : "s"}${tail}`;
+  const n = Number(epoch.count) || 0;
+  const total = Number(epoch.total) || 0;
+  const counter = total ? `${n.toLocaleString()} / ${total.toLocaleString()}` : `${n}`;
+  // The noun rides on the ALL frame, where there is room and where a bare
+  // "13,513 / 13,513" would say nothing a reader could not already see.
+  const said = epoch.all ? `${total.toLocaleString()} ${noun}s` : counter;
   if (Number.isFinite(epoch.year) && epoch.year < SATELLITE_ERA) {
-    return `${said} — pre-satellite: recorded where ships and coasts were`;
+    // Kept, and kept SHORT: the claim matters more than the sentence, and a
+    // long one is the thing that gets cut. The full wording is on the title.
+    return `${said} — pre-satellite`;
+  }
+  return said;
+}
+
+/** The sentence too long for the bar, carried on its tooltip. */
+export function noteTitle(epoch) {
+  const noun = epoch.noun || "storm";
+  const named = epoch.named ? `, ${epoch.named.toLocaleString()} named` : "";
+  // "13,513 of 13,513" is a fraction of itself. On the All frame the count IS
+  // the archive, and saying so twice reads as a number that failed to update.
+  const of = epoch.total && Number(epoch.count) !== Number(epoch.total)
+    ? ` of ${Number(epoch.total).toLocaleString()} in the archive` : "";
+  const said = `${Number(epoch.count).toLocaleString()} ${noun}s${of}${named}`;
+  if (Number.isFinite(epoch.year) && epoch.year < SATELLITE_ERA) {
+    return `${said} — before the satellites a storm was recorded where ships `
+      + "and coasts were, so the count is a record of observation as much as "
+      + "of weather.";
   }
   return said;
 }
@@ -174,8 +201,9 @@ export async function play({ from = MODERN, startAt = null } = {}) {
   // "run" only where the layer IS runs: the hurricane variant draws the
   // stretches at hurricane force, not the storms that made them.
   const noun = /hurricane tracks/i.test(layer.name || "") ? "run" : "storm";
+  const total = layer.features.length;
   const epochs = seasons.map(([year, list]) => ({
-    noun,
+    noun, total,
     // The player shows `label` and asks GIBS for `date`; with imagery off the
     // date is only ever read by the bar, so the year is both.
     date: String(year), label: String(year), dataset: null,
@@ -184,7 +212,7 @@ export async function play({ from = MODERN, startAt = null } = {}) {
     named: list.filter((f) => f.properties?.name).length,
   }));
   epochs.push({
-    noun,
+    noun, total,
     date: "all", label: "All", dataset: null, all: true,
     count: layer.features.length,
     named: layer.features.filter((f) => f.properties?.name).length,
@@ -237,6 +265,7 @@ export async function play({ from = MODERN, startAt = null } = {}) {
     // frame and answers a question nobody asked of this layer.
     source: "none",
     noteFor,
+    noteTitle,
     onStatus: say,
     startAt: startAt === null ? ALL : startAt,
     onShow: (index) => {

@@ -58,8 +58,15 @@ const STYLE = `
   font-size: 0.82rem; letter-spacing: 0.06em; color: var(--text);
   min-width: 6.2rem; text-align: center; font-variant-numeric: tabular-nums;
 }
+/* THE NOTE IS NOT SQUEEZED TO NOTHING. It is the only part of the bar that
+   says anything about the frame, and as an ordinary flex item it was giving
+   its width up to its neighbours: measured at 104px against 130px of content,
+   so "13513 storms, 5733 named" read as "13513 storms, 5733...". It keeps its
+   own width up to the cap, and the cap is what stops a long note pushing the
+   close button off a narrow screen. */
 .geoid-timelapse .tl-note {
   font-size: 0.68rem; opacity: 0.75; color: var(--soft-light);
+  flex: 0 1 auto; min-width: max-content;
   max-width: 15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 `;
@@ -269,11 +276,17 @@ async function show(index) {
   state.bar.date.textContent = epoch.label || epoch.date;
   state.bar.slider.value = String(index);
   state.bar.note.textContent = state.noteFor(epoch, epoch.note || "reading imagery…");
+  // The bar is one line and the note is 15rem of it, so a driver may have more
+  // to say than fits. `noteTitle` is where the sentence goes rather than being
+  // cut in half -- and the half that gets cut is always the end, which is
+  // where the qualification lives.
+  state.bar.note.title = state.noteTitle?.(epoch) || "";
 
   const scene = await sceneOf(epoch);
   if (!state || state.index !== index) return;   // a newer step won the race
   epoch.note = scene.note;
   state.bar.note.textContent = state.noteFor(epoch, scene.note);
+  state.bar.note.title = state.noteTitle?.(epoch) || "";
 
   if (scene.object3D) {
     if (!scene.object3D.parent) {
@@ -448,7 +461,8 @@ export function playerIndex() {
  * epoch, shown with it and hidden with it. The imagery animator passes none.
  */
 export async function startPlayer({ bounds, epochs, source = "auto", frames = null,
-  noteFor = (epoch, tail) => tail, onStatus = () => {}, onStop = null,
+  noteFor = (epoch, tail) => tail, noteTitle = null,
+  onStatus = () => {}, onStop = null,
   overlayToggle = null, onShow = null, interval = 1200,
   /**
    * WHERE THE BAR OPENS. Frame 0 for a sequence somebody pressed play on --
@@ -465,7 +479,7 @@ export async function startPlayer({ bounds, epochs, source = "auto", frames = nu
   // `buildBar` needs to know whether there is an overlay before `state` exists.
   pendingToggle = overlayToggle;
   state = {
-    epochs, frames, bounds, source, noteFor, onStop, interval, onShow,
+    epochs, frames, bounds, source, noteFor, noteTitle, onStop, interval, onShow,
     toggle: overlayToggle,
     index: 0, timer: null, scenes: new Map(), bar: buildBar(),
     say: onStatus, playing: false, restoreClock: holdWorldClock(),

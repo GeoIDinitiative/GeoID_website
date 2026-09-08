@@ -14805,3 +14805,35 @@ thing that colour must never be read as. Both keys sum to 13,513.
 `Number()` in `trackPaint`, caught by running the pure function rather than by
 reading it. Every unmeasured storm came back green. When a column can be null,
 write the guard before the arithmetic.
+
+## The bar's note is 104 px, so it counts rather than describes
+
+"Can't see the 5733…" — and the measurement is the whole story: `.tl-note`
+declares `max-width: 15rem` and was being handed **104 px of a 130 px
+sentence** by the flex row, so "13513 storms, 5733 named" reached the reader as
+"13513 storms, 5733…". The half that got cut was the half the other half
+needed.
+
+Two fixes, and the first is the one that generalises:
+
+- **The note keeps its own width** (`flex: 0 1 auto; min-width: max-content`).
+  It is the only part of the bar that says anything about the frame, and as an
+  ordinary flex item it was giving its width away to its neighbours. The 15rem
+  cap stays — that is what stops a long note pushing the close button off a
+  narrow screen.
+- **A COUNTER, not a description.** `105 / 13,513` is shorter than what it
+  replaced AND says more: how much of the record this frame is, which is the
+  question a sequence invites. The All frame names the archive instead
+  (`13,513 storms`), because "13,513 / 13,513" is a fraction of itself and
+  reads as a number that failed to update.
+
+**And the sentence too long for the bar goes on the TITLE rather than being
+cut.** `noteTitle` is a second seam beside `noteFor`, carried by the player, so
+a driver can say more than fits without losing the end of it — and the end is
+always where a qualification lives. The pre-satellite claim stays visible in
+short form ("— pre-satellite") because it is a claim about the number beside
+it; the reason it rests on ("recorded where ships and coasts were") is on the
+tooltip.
+
+Measured after, stepping back through frames: nothing clipped at any of them,
+and the bar came down from 573 px to 497.
