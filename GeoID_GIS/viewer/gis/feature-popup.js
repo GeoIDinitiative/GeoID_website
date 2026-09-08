@@ -20,18 +20,19 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260908-2e1e098";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260908-2e1e098";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260908-0e1155d";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260908-0e1155d";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20260908-2e1e098";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260908-2e1e098";
-import { lithologyLabel } from "./lithology-label.js?v=20260908-2e1e098";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260908-2e1e098";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260908-2e1e098";
+} from "./vector-render.js?v=20260908-0e1155d";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260908-0e1155d";
+import { lithologyLabel } from "./lithology-label.js?v=20260908-0e1155d";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260908-0e1155d";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260908-0e1155d";
+import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260908-0e1155d";
 import {
   canEditRow, editableFields, applyRowChange,
-} from "./table-editor.js?v=20260908-2e1e098";
+} from "./table-editor.js?v=20260908-0e1155d";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -967,7 +968,36 @@ function showViewerCard(hits, at) {
    * holds what was on that card and why none of it belonged there.
    */
   const soil = !ice && isSoilFeature(props) ? soilCard(props) : null;
-  const feature = soil ? {
+  /**
+   * And the same for a risk cell, for the third time and the sharpest reason:
+   * it was headed "OCEANIC" — the crust classifier answering from the
+   * elevation about a cell that is not crust — titled "Mapped area", and the
+   * one thing anybody clicked it for was four rows down as `p_yr`.
+   */
+  const risk = !ice && !soil && isRiskFeature(props)
+    ? riskCard(props, { view: window.GeoIDCycloneRisk?.currentView?.() }) : null;
+  const feature = risk ? {
+    // The same flag the other two set, read the same way: it is what stops
+    // `earth-viewer.js` re-deriving a heading, and what keeps the
+    // rock-property fold off a cell that is not made of anything.
+    soil: true,
+    type: risk.kicker,
+    rock_type: risk.title,
+    lithology: null,
+    name: null,
+    description: risk.meta,
+    extra_rows: risk.headline,
+    origin: risk.source,
+    mapped_area_km2: km2 > 0 ? Number(km2.toFixed(km2 >= 100 ? 0 : 2)) : null,
+    // The bookkeeping columns the three lines above have already said, and
+    // `i`, which is an index into a file rather than a fact about the ground.
+    rows: [["Note", risk.note],
+      ...rows.filter(([key]) => !/^(i|deg|rate_yr|p_yr|rate_hur_yr|p_hur_yr|years_per)$/i.test(key))],
+    stack: beneath.map(({ layer, feature: f }) => ({
+      label: layer.name || "Layer",
+      unit: titleOf(f.properties || {}) || featureKind(f, layer),
+    })),
+  } : soil ? {
     // The same flag the ice layer uses, and read the same way: it is what
     // stops `earth-viewer.js` re-deriving a heading from a lithology that is
     // not there. `lithology` is left NULL rather than set to a stand-in —

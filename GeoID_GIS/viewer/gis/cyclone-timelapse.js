@@ -23,12 +23,12 @@
 
 import {
   buildSymbology, colourOf, legendInfoFrom,
-} from "./symbology.js?v=20260908-2e1e098";
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-2e1e098";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-2e1e098";
+} from "./symbology.js?v=20260908-0e1155d";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-0e1155d";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-0e1155d";
 import {
   showSeason, showClimatology, riskLayer,
-} from "./cyclone-risk.js?v=20260908-2e1e098";
+} from "./cyclone-risk.js?v=20260908-0e1155d";
 
 const search = new URL(import.meta.url).search;
 
@@ -53,6 +53,7 @@ export const SATELLITE_ERA = 1966;
 export const MODERN = 1980;
 
 let running = false;
+let opening = false;
 
 const byId = (id) => document.getElementById(id);
 
@@ -172,7 +173,21 @@ export function noteTitle(epoch) {
 }
 
 export async function play({ from = MODERN, startAt = null } = {}) {
+  // Same window as the raster's: building the epochs and the derived layer
+  // takes long enough for a second caller to arrive before `running` is set,
+  // and the second one's teardown runs the first one's `onStop`.
+  if (opening) return null;
+  if (running && document.getElementById("geoid-timelapse")) return null;
   if (running) { stopPlayer(); running = false; }
+  opening = true;
+  try {
+    return await build({ from, startAt });
+  } finally {
+    opening = false;
+  }
+}
+
+async function build({ from, startAt }) {
   const layer = tracksLayer();
   if (!layer?.features?.length) {
     say("Tick the cyclone tracks on first — the animation plays the layer you have.");

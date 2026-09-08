@@ -28,11 +28,11 @@
  * follow.
  */
 
-import { loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260908-2e1e098";
-import { dataUrl } from "./data-base.js?v=20260908-2e1e098";
-import { riskEdges, RISK_LABELS } from "./cyclone-risk.js?v=20260908-2e1e098";
-import { rampColour } from "./symbology.js?v=20260908-2e1e098";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-2e1e098";
+import { loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260908-0e1155d";
+import { dataUrl } from "./data-base.js?v=20260908-0e1155d";
+import { riskEdges, RISK_LABELS } from "./cyclone-risk.js?v=20260908-0e1155d";
+import { rampColour } from "./symbology.js?v=20260908-0e1155d";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-0e1155d";
 
 const FILE = "/data/global/cyclone-risk-cumulative.hotlink-ok.tif";
 const WORLD = { west: -180, south: -90, east: 180, north: 90 };
@@ -48,6 +48,19 @@ export const THIN_SEASONS = 10;
 let image = null;
 let seasons = null;
 let running = false;
+/**
+ * OPENING IS NOT YET RUNNING, and the gap is seconds wide.
+ *
+ * `play()` reads the COG's header, decodes a band and drapes it before the
+ * player exists — about twenty seconds on a cold load — and for all of that
+ * there is no bar and `running` is still false. Two callers legitimately ask
+ * for the default view in that window (the catalogue applies it as the layer
+ * lands, the watcher opens the bar when it sees the layer arrive), so both
+ * passed every guard and two sequences built at once. The second one's
+ * teardown then ran the first one's `onStop`, which restores the grid — and
+ * the grid coming back beside the sheet is the two-legend-cards clash.
+ */
+let opening = false;
 let three = null;
 
 const byId = (id) => document.getElementById(id);
@@ -128,7 +141,21 @@ export async function frameCanvas(band, lut) {
 }
 
 export async function play() {
+  // Already up, or on its way: a second ask is not a restart. Tearing the
+  // sequence down and rebuilding it runs `onStop`, which puts back everything
+  // the sequence stood down -- so the redundant call undoes the first's work.
+  if (opening) return { already: true };
+  if (running && document.getElementById("geoid-timelapse")) return { already: true };
   if (running) { stopPlayer(); running = false; }
+  opening = true;
+  try {
+    return await open_();
+  } finally {
+    opening = false;
+  }
+}
+
+async function open_() {
   say("Opening the record…");
   await open();
   if (!three) three = await import("../vendor/three.module.js");
@@ -159,9 +186,24 @@ export async function play() {
     label: "Chance of a storm passing within 200 km",
     classed: true, categorical: false, unit: null,
   };
+  /**
+   * THE SHEET ANSWERS CLICKS FOR THE GRID IT COVERS.
+   *
+   * The grid stands down beneath this drape, so without its features here a
+   * click on the map finds nothing at all — and the cell card, which is the
+   * only place the number is written in words, would be unreachable on the
+   * default view. The frames ARE that grid's numbers, so borrowing its
+   * features is not a stand-in: the cell under the pointer is the cell being
+   * drawn. Its card states the window it covers, which is the full record
+   * whatever band is on screen.
+   */
+  const grid = window.GeoIDCycloneRisk?.riskLayer?.();
   const layer = window.GeoIDImportManager?.addDerivedLayer?.(
     "Cyclone risk — the estimate over time", {
       object3D: mesh, bounds: WORLD, georeferenced: true, legendInfo: legend,
+      features: grid?.features || null,
+      collection: grid?.collection
+        || (grid?.features ? { type: "FeatureCollection", features: grid.features } : null),
       // It stands in for the risk layer, so it lights the risk layer's tab.
       home: "hazards",
     }, "ibtracs");
@@ -212,6 +254,22 @@ export async function play() {
     },
     onStop: () => {
       running = false;
+      /**
+       * CLOSING THE ANIMATION LEAVES THE MAP, not an empty globe. The grid
+       * stood down beneath the sheet; it comes back with its legend, which is
+       * the same reading the last band was showing, so the ✕ changes what you
+       * can DO and not what you can see.
+       *
+       * Restored here rather than through `setView`, which would call
+       * `stopPlayer` and arrive back in this handler.
+       */
+      const grid = window.GeoIDCycloneRisk?.riskLayer?.();
+      if (grid) {
+        grid.cycloneView = "storms";
+        grid.legendHidden = false;
+        window.GeoIDLayerHierarchy?.setVisible?.(grid, true);
+        window.GeoIDCycloneRisk?.showClimatology?.({ view: "storms" });
+      }
       if (layer) window.GeoIDImportManager?.removeLayer?.(layer.id);
       mesh.parent?.remove(mesh);
       mesh.traverse?.((n) => {

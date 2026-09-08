@@ -26,15 +26,15 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260908-2e1e098";
-import { dataUrl } from "./data-base.js?v=20260908-2e1e098";
-import { mathsFor } from "./equations.js?v=20260908-2e1e098";
+import { runConnector } from "./research/connectors.js?v=20260908-0e1155d";
+import { dataUrl } from "./data-base.js?v=20260908-0e1155d";
+import { mathsFor } from "./equations.js?v=20260908-0e1155d";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260908-2e1e098";
+} from "./cyclone-risk.js?v=20260908-0e1155d";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-2e1e098";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-0e1155d";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -313,8 +313,11 @@ export const DATASETS = [
      * the parking frame needs no special case: the sequence already ends on
      * the answer.
      */
+    // Ticking it on IS choosing the default view, which is the estimate --
+    // so the bar opens through the same call the symbology row makes, rather
+    // than a second path that could drift from it.
     animation: {
-      open: () => window.GeoIDCycloneRiskRaster?.play(),
+      open: () => window.GeoIDCycloneRisk?.setView("estimate"),
     },
     /**
      * EVERY CELL CARRIES BOTH RATES, so this is a repaint of the layer already
@@ -323,13 +326,14 @@ export const DATASETS = [
      * symbology surface rather than as a button of its own.
      */
     views: {
-      label: "Rate shown",
+      label: "Show",
       options: [
-        { id: "storms", label: "Any tropical cyclone" },
-        { id: "hurricanes", label: "Hurricane force only" },
+        { id: "estimate", label: "The estimate over time" },
+        { id: "storms", label: "Rate per year \u2014 any cyclone" },
+        { id: "hurricanes", label: "Rate per year \u2014 hurricane force" },
       ],
-      current: () => window.GeoIDCycloneRisk?.currentView?.() || "storms",
-      apply: (view) => window.GeoIDCycloneRisk?.showClimatology({ view }),
+      current: () => window.GeoIDCycloneRisk?.currentView?.() || "estimate",
+      apply: (view) => window.GeoIDCycloneRisk?.setView(view),
     },
   },
   {

@@ -20,11 +20,18 @@
  * made here — and unticking the one that owns it puts the bar away.
  */
 
-import { grouped, layerForDataset } from "./global-data.js?v=20260908-2e1e098";
-import { stopPlayer } from "./timelapse-player.js?v=20260908-2e1e098";
+import { grouped, layerForDataset } from "./global-data.js?v=20260908-0e1155d";
+import { stopPlayer } from "./timelapse-player.js?v=20260908-0e1155d";
 
 /** Which entry owns the bar, or null. */
 let owner = null;
+/**
+ * Entries whose bar the reader CLOSED. Without this the poll below reopens it
+ * on the next tick and the ✕ does nothing at all -- press it, watch the bar
+ * come straight back. A dismissal lasts until the layer goes and returns,
+ * because re-ticking a dataset is asking for it again.
+ */
+const dismissed = new Set();
 /** Opens are async; a second pass must not start the same one twice. */
 let opening = false;
 
@@ -50,8 +57,14 @@ async function sync() {
     stopPlayer();
     return;
   }
+  // A dataset that has left the globe forgets its dismissal: ticking it on
+  // again is asking for it again.
+  [...dismissed].forEach((id) => {
+    if (!live.some((entry) => entry.id === id)) dismissed.delete(id);
+  });
   if (owner || !live.length) return;
-  const entry = live[0];
+  const entry = live.find((candidate) => !dismissed.has(candidate.id));
+  if (!entry) return;
   opening = true;
   owner = entry.id;
   try {
@@ -74,11 +87,16 @@ async function sync() {
  */
 function watchBar() {
   if (!owner) return;
-  if (!document.getElementById("geoid-timelapse")) owner = null;
+  if (document.getElementById("geoid-timelapse")) return;
+  // Gone without the layer going: the reader pressed ✕.
+  dismissed.add(owner);
+  owner = null;
 }
 
 if (typeof window !== "undefined") {
   window.addEventListener("geoid-gis:layers-changed", () => { void sync(); });
   setInterval(() => { watchBar(); void sync(); }, 700);
-  window.GeoIDAnimatedLayers = { sync, owns: () => owner };
+  window.GeoIDAnimatedLayers = {
+    sync, owns: () => owner, dismissed: () => [...dismissed],
+  };
 }

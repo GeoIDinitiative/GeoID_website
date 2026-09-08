@@ -30,8 +30,8 @@
 
 import {
   buildSymbology, colourOf, legendInfoFrom,
-} from "./symbology.js?v=20260908-2e1e098";
-import { dataUrl } from "./data-base.js?v=20260908-2e1e098";
+} from "./symbology.js?v=20260908-0e1155d";
+import { dataUrl } from "./data-base.js?v=20260908-0e1155d";
 
 const YEARS_PATH = "/data/global/cyclone-risk-years.json";
 
@@ -374,11 +374,57 @@ export function showClimatology({ layers = null, view = null } = {}) {
 
 /** Which reading the layer is showing, for a control that has to say so. */
 export function currentView(layers = null) {
-  return riskLayer(layers)?.cycloneView || "storms";
+  return riskLayer(layers)?.cycloneView || "estimate";
+}
+
+/**
+ * THE THREE READINGS OF ONE DATASET, and only one is ever on screen.
+ *
+ * The grid and the estimate animation are the same numbers drawn two ways, and
+ * drawing both at once was the clash: two sheets over one another and TWO
+ * LEGEND CARDS for one tick, each describing something the other was covering.
+ *
+ * So the view owns what is visible. "Estimate over time" is the default — it
+ * opens on the full-record band, which is the very map the grid draws, so
+ * nothing is lost by it being first — and the grid stands down beneath it,
+ * legend and all. Choosing a rate view stops the animation and brings the grid
+ * back. One thing drawn, one card, in every state.
+ */
+export async function setView(view = "estimate", { layers = null } = {}) {
+  const layer = riskLayer(layers);
+  if (!layer) return null;
+  const player = await import(`./timelapse-player.js${new URL(import.meta.url).search}`);
+  if (view === "estimate") {
+    /**
+     * IDEMPOTENT, because two callers ask for the default: `addDataset`
+     * applies the entry's current view when the layer lands, and
+     * `animated-layers` opens the bar when it sees the layer arrive. Both are
+     * right to. Without this the second `play()` restarts the player, whose
+     * own `onStop` restores the grid on the way out — so asking for the
+     * estimate twice left the grid up beside it, which is two sheets and TWO
+     * LEGEND CARDS for one tick. That is the clash, and it only appears when
+     * the second caller wins the race.
+     */
+    if (layer.cycloneView === "estimate"
+      && document.getElementById("geoid-timelapse")) return { view, already: true };
+    layer.cycloneView = "estimate";
+    // Hidden AND its legend withheld: a hidden layer keeps its card, and the
+    // card is the half the reader actually sees.
+    layer.legendHidden = true;
+    window.GeoIDLayerHierarchy?.setVisible?.(layer, false);
+    await window.GeoIDCycloneRiskRaster?.play?.();
+    return { view };
+  }
+  // A rate view is the grid, so the animation goes -- its own onStop takes the
+  // draped sheet and its card with it.
+  player.stopPlayer();
+  layer.legendHidden = false;
+  window.GeoIDLayerHierarchy?.setVisible?.(layer, true);
+  return showClimatology({ layers, view });
 }
 
 if (typeof window !== "undefined") {
   Object.assign(window.GeoIDCycloneRisk, {
-    riskLayer, showSeason, showClimatology, currentView, VIEWS,
+    riskLayer, showSeason, showClimatology, currentView, setView, VIEWS,
   });
 }

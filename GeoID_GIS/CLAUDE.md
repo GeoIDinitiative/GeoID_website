@@ -14864,3 +14864,67 @@ a catalogue dataset, and only its author knows that.
 Measured, collapsed: dark with nothing ticked, lit on the All frame, **still
 lit on a season frame with the whole-record layer hidden**, and Basemaps dark
 throughout.
+
+## One dataset, one thing drawn, one card
+
+"We have a clash now for the risk map" — two sheets over each other and TWO
+legend cards for one tick, each describing what the other was covering.
+
+**The view owns what is visible.** The grid and the estimate animation are the
+same numbers drawn two ways, so only one is ever up: `setView` hides the grid
+AND withholds its legend for the estimate, and stops the animation and brings
+the grid back for a rate view. Three readings on the symbology row —
+**"The estimate over time" (default), "Rate per year — any cyclone", "Rate per
+year — hurricane force"** — and one legend card in every state. The estimate
+can be the default without hiding anything, because it opens on the full-record
+band, which is the very map the grid draws.
+
+**And the sheet answers clicks for the grid it covers.** With the grid stood
+down, a click found nothing — so the cell card, which is the only place the
+number is written in words, was unreachable on the default view. The frames ARE
+that grid's numbers, so the drape borrows its features: the cell under the
+pointer is the cell being drawn.
+
+### OPENING IS NOT YET RUNNING, and the gap was seconds wide
+
+The clash only appeared when a race was lost. `play()` reads the COG's header,
+decodes a band and drapes it — about twenty seconds cold — and for all of that
+there is no bar and `running` is still false. Two callers legitimately ask for
+the default view in that window: the catalogue applies the entry's view as the
+layer lands, and `animated-layers` opens the bar when it sees the layer arrive.
+Both passed every guard, two sequences built, and the second one's teardown ran
+the FIRST one's `onStop` — which restores the grid. Hence two sheets and two
+cards, intermittently.
+
+Guarding on `running` or on the bar existing is not enough; both are false
+while the thing is being built. An explicit `opening` flag is, and the season
+sequence needed the same one for the same reason.
+
+**A closed bar stays closed, too.** The poll reopened it on the next tick, so ✕
+did nothing at all — press it, watch it come back. A dismissal now lasts until
+the layer leaves and returns, because re-ticking a dataset is asking for it
+again.
+
+## A risk cell is not a rock, and the number is the title
+
+Clicked, a cell opened the ordinary geology card: kicked off **"OCEANIC"** —
+`crustalSetting` answering from the elevation about a cell that is not crust —
+titled **"Mapped area"**, with the one thing anybody clicked for four rows down
+as `p_yr` among `rate_yr`, `deg` and `i`. Column names, under a heading about
+the sea floor.
+
+`cyclone-risk-card.js` writes the three lines instead, the third card in this
+tree to do it (`ice-card`, `soil-card`) and for the same reason each exists.
+
+- **The number is said TWICE on purpose**: "1 in 13 years" is how a hazard is
+  quoted and weighed; "7.3% a year" is what the map is coloured by. A reader
+  with one and not the other cannot check the map against the key.
+- **A chance with no radius and no window is not a chance**, so the meta line
+  carries both: within 200 km, over the complete seasons 1980–2025.
+- **Never is not zero.** "0.0" is a measurement; "Not once on record" is what
+  the file holds, and the difference matters most on the cells somebody checks
+  because they were surprised.
+- **The reading not on screen is on the card**, because it is the obvious next
+  question — the hurricane rate beside the all-storm one, and the reverse.
+- **The cell says how big it is.** The grid is variable, so a reader comparing
+  two cells is entitled to know they are not the same patch of ground.
