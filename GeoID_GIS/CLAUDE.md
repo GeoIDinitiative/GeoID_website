@@ -14274,3 +14274,98 @@ anywhere by anyone still counts. Proved by the same A/B that exposed the trap:
 with the verdict written inline a deliberate failure appended after it **ran,
 counted, printed nothing and exited 0**; through the exit hook the identical
 append exits 1 and names the failure. New test files should take the hook.
+
+## A card that borrows a highlight has to give it back
+
+"When we X out of the popup descriptions the selected line should deactivate
+and the highlight shouldn't linger." Reproduced first try on a plate boundary:
+card hidden, `GeoID-FeatureOutline` **still visible and still pulsing**, with
+no card left anywhere to say what it belonged to.
+
+**The outline is kept ON PURPOSE, and that is the whole mechanism.** When the
+viewer's card takes a click, `feature-popup.js` calls `hidePopup({ keepOutline:
+true })` — deliberately, because on a map of hundreds of polygons the card
+alone cannot say WHICH one answered. What was missing is the other half:
+nothing ever handed the outline's life back, so every way of closing that card
+left it standing.
+
+`closeGeoPopup` clears it now, and **the close function is the right place
+rather than the button** — ✕ is one of FOUR ways this card goes away (Escape, a
+pointerdown outside it, and another card opening are the others), and a
+highlight that survives three of them is the same bug wearing a different
+gesture. `closeScenePopup` already followed exactly this rule for its own flash
+label; the geology card simply never did. Verified on all three reachable
+paths: ✕, Escape and a click on the sky each leave `w.__marks()` empty.
+
+**And the ordering had to be checked, not assumed.** The risk in clearing on
+close is clearing a highlight that was just drawn — but `openGeoPopup` calls
+`closeScenePopup`, NOT `closeGeoPopup`, and `showViewerCard` draws the outline
+AFTER the card opens. Measured: with a card and a highlight up, opening the
+card for another feature leaves the outline standing.
+
+It reaches the five rocky worlds too — they carry their own `closeGeoPopup` and
+load the same `feature-popup.js` from `boot.js`. The four gas giants have no
+geology card at all. Note the glob trap this file already records: name the
+file (`$p-viewer.js`), because `planet_explorer/*/viewer/*-viewer.js` matches
+more than one per folder and the extra copies are not the live ones.
+
+### Measuring a click on a thin line, and the false regression it produced
+
+Two candidate points read as "the highlight was lost when I selected a second
+feature" and **both were missed clicks**, not a regression — a plate boundary
+is a one-pixel line and the projection near the limb is least forgiving. What
+settled it was clicking the FIRST of the two on its own and finding it selected
+nothing either.
+
+The reliable way to aim: ask the app's own `featuresAt` whether a lat/lon
+resolves before clicking it, take only points well inside the disc, and convert
+through the iframe's offset — screenshot coords are
+`(x, y + iframeTop) * shotWidth / topWidth`, which here is 800/1526. And when
+a mouse test says a fix regressed, **run the control that reproduces the setup
+before believing it**.
+
+## A stored list of what is ON cannot see a source added later
+
+"Ensure that all live event elements are active upon launch." Every one of the
+16 sources is already `defaultOn`, and on a fresh browser all 16 open. The
+fault only shows for a RETURNING reader, which is everybody who has used the
+page: measured with a set stored before the flood and severe-storm rows
+shipped, the whole **Storms and water group came back off** — the GDACS floods,
+the EONET floods and the severe storms, which is the cyclone markers — on a
+page nobody had touched.
+
+**A stored ON-list is a record of what EXISTED when it was written.** A source
+added since is simply absent from it, which reads as "switched off" and stays
+off for ever. That is the EONET-split migration's fault in its general form:
+the split RENAMED a source and was migrated by hand, and it was noticed;
+ADDING one needs no rename and so was never noticed at all.
+
+**What is remembered is now what was switched OFF.** An off-list holds
+decisions somebody actually made, and anything not in it — including every
+source written next year — is on. Same shape as `LAUNCH_OFF_KEY` for the
+catalogue's launch defaults, and for the same reason. `sourcesOff(enabled)`
+computes the complement so the storage shape has one owner and `events.js`
+never builds it by hand.
+
+- **A NEW KEY** (`geoid-gis:event-sources-off`), not the old one reused: a page
+  served from cache mid-deploy would otherwise read an off-list as an on-list
+  and switch off exactly the feeds it names.
+- **The legacy on-list turns everything on, ONCE.** In that format a missing id
+  means "switched off" OR "did not exist yet" and nothing stored tells them
+  apart. Reading it as a decision is what kept new feeds dark; reading it as
+  all-on costs at most one re-tick of something genuinely unwanted, and from
+  the next write the off-list records it properly. The old key is removed on
+  the way past, so the ambiguity is answered exactly once. This supersedes the
+  one-row EONET expansion, which was this same repair written narrowly for one
+  rename.
+- **The rule it must not break still holds**: an explicit off is still
+  remembered. Verified — unticking Drought writes `["eonet-drought"]`, it is
+  still off after a reload, and re-ticking clears the list.
+
+Verified end to end on the stale set that reproduced it: **22 of 22 rows on,
+the legacy key retired.** (22 rather than 16 because the six group masters are
+tick boxes too — count SOURCE rows, or a correctly-indeterminate group master
+reads as a feed that failed to come on.)
+
+**The general rule.** Any preference stored as "the things that are on" goes
+stale the moment the set it was drawn from grows. Store the exceptions.

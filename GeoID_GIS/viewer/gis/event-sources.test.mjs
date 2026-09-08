@@ -13,7 +13,7 @@ import {
   defaultEnabled, usgsPoints, magnitudeSize, recencyOpacity,
   MAGNITUDE_RAMP, magnitudeColour, restoreSources, gdacsPoints, gdacsUrl,
   resolveColour, liftForAltitude, dotSizePx, nearSizePx, isQuake, publisherOf,
-  restoreActive, stormCategory, stormScale, stormLabel, STORM_BASE_CAP,
+  sourcesOff, restoreActive, stormCategory, stormScale, stormLabel, STORM_BASE_CAP,
   SAFFIR_SIMPSON_KTS,
   MARKER_LIFT_MAX, MARKER_LIFT_M, DOT_CAP_FAR, DOT_CAP_NEAR,
 }  from "./event-sources.js";
@@ -103,23 +103,61 @@ check("nothing stored gives the defaults",
   [...restoreSources(null)].sort(), defaultEnabled().sort());
 check("rubbish stored gives the defaults",
   [...restoreSources("wat")].sort(), defaultEnabled().sort());
-check("a set that leaves nothing on gives the defaults, not an empty map",
-  [...restoreSources(["gone", "also-gone"])].sort(), defaultEnabled().sort());
-check("a current set is kept exactly",
+// EVERY source is a default. A row that ships off is a row somebody has to
+// find before the feed can show what it says it shows.
+check("and the defaults are every source", defaultEnabled().length, SOURCES.length);
+
+/* ── what is remembered is what was switched OFF ─────────────────────────── */
+// The whole reason for the shape. A stored ON-list is a record of what EXISTED
+// when it was written, so a source added since is absent from it and reads as
+// "switched off" for ever. Measured on a real set stored before the flood and
+// severe-storm rows shipped: the entire Storms and water group came back off,
+// on a page nobody had touched.
+const off = restoreSources({ off: ["eonet-drought"] });
+check("an explicit off stays off", off.has("eonet-drought"), false);
+check("and everything else is on", off.size, SOURCES.length - 1);
+check("a source added LATER is on, because it is in no off-list",
+  ["gdacs-floods", "eonet-severeStorms", "eonet-floods"].every((id) => off.has(id)),
+  true);
+check("an off-list naming a source that no longer exists is ignored, not fatal",
+  restoreSources({ off: ["gone"] }).size, SOURCES.length);
+check("an empty off-list is every source",
+  restoreSources({ off: [] }).size, SOURCES.length);
+// Every feed off is a state somebody can hold. Refusing to draw nothing is the
+// MODE's question (restoreActive), not this one.
+check("all of them off is respected rather than second-guessed",
+  restoreSources({ off: defaultEnabled() }).size, 0);
+check("the complement is what gets written",
+  sourcesOff(new Set(defaultEnabled().filter((id) => id !== "eonet-snow"))),
+  ["eonet-snow"]);
+check("and nothing off writes nothing", sourcesOff(new Set(defaultEnabled())), []);
+
+/* ── the legacy on-list turns everything on, once ────────────────────────── */
+// In that format a missing id means "switched off" OR "did not exist yet", and
+// nothing stored tells them apart. Reading it as a decision is what kept new
+// feeds dark. This supersedes the one-row EONET expansion, which was the same
+// repair written narrowly for one rename.
+check("a legacy on-list opens everything",
   [...restoreSources(["quakes-day", "eonet-wildfires"])].sort(),
-  ["eonet-wildfires", "quakes-day"]);
-// The legacy id is EXPANDED, not dropped: it is a positive record of "show me
-// EONET", and every category is what it meant.
-const migrated = restoreSources(["eonet", "quakes-day"]);
-check("the old one-row EONET becomes every category",
-  eonetIds.every((id) => migrated.has(id)), true);
-check("and the feeds beside it are untouched", migrated.has("quakes-day"), true);
-check("the legacy id itself is not kept as a source", migrated.has("eonet"), false);
-// NOT recovered: a set that simply lacks EONET rows is what switching them all
-// off looks like, and putting them back would undo that by hand.
-check("switching every EONET feed off is respected",
-  [...restoreSources(["quakes-day", "quakes-week"])].sort(),
-  ["quakes-day", "quakes-week"]);
+  defaultEnabled().sort());
+check("including the old one-row EONET",
+  eonetIds.every((id) => restoreSources(["eonet", "quakes-day"]).has(id)), true);
+check("and the id that no longer names a source is not kept",
+  restoreSources(["eonet", "quakes-day"]).has("eonet"), false);
+check("a legacy list of nothing recognisable still opens everything",
+  [...restoreSources(["gone", "also-gone"])].sort(), defaultEnabled().sort());
+
+/* ── and events.js writes that shape, pinned on its source ───────────────── */
+// The storage shape has one owner. If `rememberSources` ever writes the live
+// set again instead of its complement, every check above goes on passing while
+// the fault comes straight back.
+const eventsSrc = readFileSync(new URL("./events.js", import.meta.url), "utf8");
+check("the off-list is written, never the on-list",
+  /setItem\(STORE_KEY, JSON\.stringify\(sourcesOff\(enabled\)\)\)/.test(eventsSrc), true);
+check("under a NEW key, so a cached page mid-deploy cannot read one as the other",
+  /STORE_KEY = "geoid-gis:event-sources-off"/.test(eventsSrc), true);
+check("and the old key is read once and retired",
+  /removeItem\(LEGACY_STORE_KEY\)/.test(eventsSrc), true);
 
 /* ── the USGS conversion ──────────────────────────────────────────────────── */
 

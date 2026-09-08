@@ -6148,6 +6148,27 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       activeGeoPopupLocalPos = null;
       if (geoPopup) geoPopup.hidden = true;
       if (geoPopupAnchor) geoPopupAnchor.hidden = true;
+      /**
+       * AND THE HIGHLIGHT GOES WITH THE CARD.
+       *
+       * `feature-popup.js` hands this card the LIFE of its selection outline:
+       * when the viewer's card takes a click it calls
+       * `hidePopup({ keepOutline: true })`, deliberately, because on a map of
+       * hundreds of polygons the card alone cannot say WHICH one answered.
+       * Nothing ever gave it back — so pressing ✕ put the card away and left
+       * the gold outline pulsing on the feature, with no card left to say what
+       * it belonged to. Reproduced on a plate boundary: card hidden,
+       * `GeoID-FeatureOutline` still visible.
+       *
+       * It goes HERE rather than on the button because ✕ is one of four ways
+       * this card closes — Escape, a pointerdown outside it, and another card
+       * opening are the others — and a highlight that survives three of them
+       * is the same bug wearing a different gesture. Same rule
+       * `closeScenePopup` already follows for its own flash label.
+       */
+      if (typeof window !== "undefined") {
+        window.GeoIDFeaturePopup?.clearPin?.();
+      }
     }
 
     function disableSceneInteractivity(object3d) {

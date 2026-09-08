@@ -12,10 +12,11 @@
 
 import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity, magnitudeColour,
-  activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, gdacsPoints, resolveColour,
+  activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, sourcesOff,
+  gdacsPoints, resolveColour,
   MARKER_LIFT_MAX, liftForAltitude, dotSizePx, isQuake, publisherOf, restoreActive,
   stormCategory, stormScale, stormLabel, STORM_BASE_CAP,
-} from "./event-sources.js?v=20260908-d50e13f";
+} from "./event-sources.js?v=20260908-b91390d";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -382,18 +383,36 @@ const RECENCY_WINDOW_MS = 7 * 24 * 3600 * 1000;
  * Remembered, because it is a preference rather than a state: somebody who
  * came for earthquakes wants earthquakes the next time too.
  */
-const STORE_KEY = "geoid-gis:event-sources";
+/**
+ * The OFF list. A new key rather than the old one reused, so a page served
+ * from cache mid-deploy cannot read an off-list as an on-list and switch off
+ * exactly the feeds it names.
+ */
+const STORE_KEY = "geoid-gis:event-sources-off";
+/** What the on-list was stored under, read once and then retired. */
+const LEGACY_STORE_KEY = "geoid-gis:event-sources";
 let enabled = new Set(defaultEnabled());
 try {
   // Through `restoreSources`, which knows what the ids used to be: a plain
   // filter drops anything renamed since, and dropping the id EONET used to be
   // stored under left returning users with the earthquakes and nothing else.
-  enabled = restoreSources(JSON.parse(window.localStorage.getItem(STORE_KEY) || "null"));
+  const stored = window.localStorage.getItem(STORE_KEY);
+  if (stored) {
+    enabled = restoreSources({ off: JSON.parse(stored) });
+  } else {
+    // The on-list, read ONCE. `restoreSources` turns everything on for it —
+    // in that format a missing id is "switched off" or "did not exist yet"
+    // and nothing stored tells them apart. Retired on the way past so the
+    // ambiguity is answered exactly once.
+    enabled = restoreSources(JSON.parse(
+      window.localStorage.getItem(LEGACY_STORE_KEY) || "null"));
+    window.localStorage.removeItem(LEGACY_STORE_KEY);
+  }
 } catch (error) { /* no storage, keep the defaults */ }
 
 function rememberSources() {
   try {
-    window.localStorage.setItem(STORE_KEY, JSON.stringify([...enabled]));
+    window.localStorage.setItem(STORE_KEY, JSON.stringify(sourcesOff(enabled)));
   } catch (error) { /* no storage, the choice is still live this session */ }
 }
 
@@ -2493,8 +2512,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260908-d50e13f"),
-    import("./research/dsp.js?v=20260908-d50e13f"),
+    import("./seismogram-plot.js?v=20260908-b91390d"),
+    import("./research/dsp.js?v=20260908-b91390d"),
   ]);
   if (stale()) return;
 

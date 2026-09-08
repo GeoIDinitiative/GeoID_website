@@ -275,13 +275,54 @@ export const defaultEnabled = () => SOURCES.filter((s) => s.defaultOn).map((s) =
  */
 const LEGACY_EONET_ID = "eonet";
 
+/**
+ * WHAT IS REMEMBERED IS WHAT WAS SWITCHED OFF, not what was left on.
+ *
+ * A stored list of ON ids is a record of what EXISTED when it was written, and
+ * that is the bug: a source added since is simply absent from it, which reads
+ * as "switched off" and stays off for ever. Measured on a set stored before
+ * the flood and severe-storm rows shipped — the whole Storms and water group
+ * came back off, including the cyclone markers, on a page nobody had touched.
+ * That is the EONET-split migration's fault in its general form: the split
+ * RENAMED a source and was migrated by hand; ADDING one needs no rename and so
+ * was never noticed.
+ *
+ * An off-list has no such blind spot. It holds decisions somebody actually
+ * made, and anything not in it — including every source written next year — is
+ * on. Same shape as `LAUNCH_OFF_KEY` for the catalogue's launch defaults, and
+ * for the same reason.
+ *
+ * THE LEGACY ON-LIST TURNS EVERYTHING ON, ONCE. In that format a missing id is
+ * ambiguous — it means "switched off" or "did not exist yet" and there is
+ * nothing stored that tells them apart. Reading it as a decision is what kept
+ * new feeds dark; reading it as all-on costs at most one re-tick of something
+ * genuinely unwanted, and from the next write on the off-list records it
+ * properly. This supersedes the one-row EONET expansion below, which was this
+ * same repair written narrowly for one rename.
+ */
 export function restoreSources(saved) {
-  if (!Array.isArray(saved)) return new Set(defaultEnabled());
-  const ids = new Set(saved.filter((id) => sourceById(id)));
-  if (saved.includes(LEGACY_EONET_ID)) {
-    SOURCES.filter((src) => src.kind === "eonet").forEach((src) => ids.add(src.id));
+  const all = () => new Set(defaultEnabled());
+  if (!saved) return all();
+  // The current shape: { off: [...] }.
+  if (!Array.isArray(saved) && Array.isArray(saved.off)) {
+    const off = new Set(saved.off.filter((id) => sourceById(id)));
+    const ids = new Set(defaultEnabled().filter((id) => !off.has(id)));
+    // Every feed off is a state somebody can hold; it is the MODE that refuses
+    // to draw nothing, and that is `restoreActive`'s question rather than this
+    // one.
+    return ids;
   }
-  return ids.size ? ids : new Set(defaultEnabled());
+  if (!Array.isArray(saved)) return all();
+  return all();
+}
+
+/**
+ * The off-list to write for a live selection — the complement, computed here so
+ * the storage shape has one owner and `events.js` never builds it by hand.
+ */
+export function sourcesOff(enabled) {
+  const on = enabled instanceof Set ? enabled : new Set(enabled || []);
+  return defaultEnabled().filter((id) => !on.has(id));
 }
 
 /**

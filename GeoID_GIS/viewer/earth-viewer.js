@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260908-d50e13f";
+  from "./gis/geo-utils.js?v=20260908-b91390d";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260908-d50e13f";
+  from "./gis/vector-render.js?v=20260908-b91390d";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260908-d50e13f";
+  from "./gis/rock-class.js?v=20260908-b91390d";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260908-d50e13f";
+  from "./gis/lithology-label.js?v=20260908-b91390d";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -6767,6 +6767,27 @@ function fmtProp(value) {
       activeGeoPopupLatLon = null;
       if (geoPopup) geoPopup.hidden = true;
       if (geoPopupAnchor) geoPopupAnchor.hidden = true;
+      /**
+       * AND THE HIGHLIGHT GOES WITH THE CARD.
+       *
+       * `feature-popup.js` hands this card the LIFE of its selection outline:
+       * when the viewer's card takes a click it calls
+       * `hidePopup({ keepOutline: true })`, deliberately, because on a map of
+       * hundreds of polygons the card alone cannot say WHICH one answered.
+       * Nothing ever gave it back — so pressing ✕ put the card away and left
+       * the gold outline pulsing on the feature, with no card left to say what
+       * it belonged to. Reproduced on a plate boundary: card hidden,
+       * `GeoID-FeatureOutline` still visible.
+       *
+       * It goes HERE rather than on the button because ✕ is one of four ways
+       * this card closes — Escape, a pointerdown outside it, and another card
+       * opening are the others — and a highlight that survives three of them
+       * is the same bug wearing a different gesture. Same rule
+       * `closeScenePopup` already follows for its own flash label.
+       */
+      if (typeof window !== "undefined") {
+        window.GeoIDFeaturePopup?.clearPin?.();
+      }
     }
 
     function disableSceneInteractivity(object3d) {
