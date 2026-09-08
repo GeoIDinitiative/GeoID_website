@@ -690,8 +690,16 @@ export function stopPlayer({ reason = "stop" } = {}) {
   const done = state.onStop;
   const restore = state.restoreClock;
   state = null;
-  restore?.();
-  done?.();
+  /**
+   * A DRIVER'S TEARDOWN CANNOT TAKE THE PLAYER DOWN WITH IT. `startPlayer`
+   * begins by stopping whatever is up, so a throw here -- measured, the
+   * tracks' onStop repainting the risk grid mid-handover -- escaped before
+   * the next sequence built its bar and before this stop was announced,
+   * leaving no bar at all and nothing to say why. The fault is reported and
+   * the stop still completes.
+   */
+  try { restore?.(); } catch (error) { console.error("timelapse: restoring the clock failed", error); }
+  try { done?.(); } catch (error) { console.error("timelapse: a driver's onStop threw", error); }
   document.dispatchEvent(new CustomEvent("geoid-gis:timelapse-stopped", { detail: { reason } }));
 }
 

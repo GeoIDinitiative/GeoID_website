@@ -30,8 +30,8 @@
 
 import {
   buildSymbology, colourOf, legendInfoFrom,
-} from "./symbology.js?v=20260908-f3feb0d";
-import { dataUrl } from "./data-base.js?v=20260908-f3feb0d";
+} from "./symbology.js?v=20260908-227ae58";
+import { dataUrl } from "./data-base.js?v=20260908-227ae58";
 
 const YEARS_PATH = "/data/global/cyclone-risk-years.json";
 
@@ -359,7 +359,21 @@ export function showClimatology({ layers = null, view = null } = {}) {
   // The view the layer is WEARING, unless one is named: closing a season
   // animation must put back what was on screen before it, not a default the
   // reader moved away from.
+  /**
+   * "ESTIMATE" IS NOT A PAINT OF THE GRID. It is the sheet drawn OVER the
+   * grid, and `setView` writes it onto `cycloneView` before the sheet has
+   * opened -- so a bare "put back what it was wearing" call arriving in that
+   * window asked for `VIEWS.estimate`, which does not exist, and threw.
+   * Measured: the tracks' teardown makes exactly that call when the risk's
+   * sequence takes the bar over, the throw landed inside `stopPlayer` after
+   * the tracks' bar was removed and before the risk's was built, and
+   * `addDataset` swallowed it -- a cold tick left no bar at all and an
+   * orphaned sheet. While the layer is wearing the estimate, a bare call
+   * leaves it alone: the sequence owns what the grid shows.
+   */
+  if (!view && layer.cycloneView === "estimate") return null;
   const wanted = view || layer.cycloneView || "storms";
+  if (!VIEWS[wanted]) return null;
   const paint = climatologyPaint(layer.features, { view: wanted });
   if (!paint) return null;
   layer.repaint?.(paint.colourFor);

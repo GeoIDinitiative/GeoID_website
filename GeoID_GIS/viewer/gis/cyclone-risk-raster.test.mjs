@@ -118,6 +118,19 @@ check("and its scratch is under a gitignored work directory",
     !/watchBar/.test(animated) && !/Gone without the layer going/.test(animated), true);
 }
 
+/* ── a bare "put it back" must not paint the estimate, and a stop completes ── */
+{
+  const risk = readFileSync(new URL("./cyclone-risk.js", import.meta.url), "utf8");
+  const player = readFileSync(new URL("./timelapse-player.js", import.meta.url), "utf8");
+  check("showClimatology leaves a layer wearing the estimate alone when nothing is named",
+    /if \(!view && layer\.cycloneView === "estimate"\) return null;/.test(risk), true);
+  check("and refuses a view the grid cannot paint",
+    /if \(!VIEWS\[wanted\]\) return null;/.test(risk), true);
+  check("a driver's onStop cannot abort the stop that runs it",
+    /try \{ done\?\.\(\); \} catch/.test(player)
+    && player.indexOf("try { done?.(); }") < player.indexOf('new CustomEvent("geoid-gis:timelapse-stopped"'), true);
+}
+
 process.on("exit", () => {
   if (failures.length) {
     console.log(`✗  cyclone-risk-raster.test.mjs  —  ${pass} passed, ${failures.length} FAILED`);
