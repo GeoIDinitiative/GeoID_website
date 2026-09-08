@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260908-32f54a4";
+  from "./gis/geo-utils.js?v=20260909-a118d3c";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260908-32f54a4";
+  from "./gis/vector-render.js?v=20260909-a118d3c";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260908-32f54a4";
+  from "./gis/rock-class.js?v=20260909-a118d3c";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260908-32f54a4";
+  from "./gis/lithology-label.js?v=20260909-a118d3c";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -6827,10 +6827,15 @@ function fmtProp(value) {
     }
 
     function createRenderer(THREERef) {
+      // STENCIL ON. three r163 turned the renderer's stencil buffer OFF by
+      // default (measured: 0 stencil bits on this page); the volcanic hazard
+      // buffers merge their overlapping discs with it -- each pixel painted
+      // once, highest hazard first -- which no amount of geometry does
+      // reliably. It packs with the 24-bit depth buffer, so it costs nothing.
       const attempts = [
-        { antialias: true, powerPreference: "high-performance" },
-        { antialias: false, powerPreference: "high-performance" },
-        { antialias: false, powerPreference: "low-power" },
+        { antialias: true, powerPreference: "high-performance", stencil: true },
+        { antialias: false, powerPreference: "high-performance", stencil: true },
+        { antialias: false, powerPreference: "low-power", stencil: true },
       ];
       let lastError = null;
       for (const options of attempts) {

@@ -19,7 +19,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { GROUPS, HOMES, DATASETS, grouped, launchDatasets, noteDatasetChoice }
+import { GROUPS, HOMES, MIRRORS, DATASETS, grouped, launchDatasets, noteDatasetChoice }
   from "./global-data.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -66,15 +66,27 @@ Object.entries(HOMES).forEach(([home, hostId]) => {
    */
   const tiled = new RegExp(`"${home}":\\s*\\[`).test(panelSource);
   const files = DATASETS.filter((d) => d.home === home).map((d) => d.id);
+  // A declared MIRROR is a row too: the volcanic-hazards home draws the
+  // volcano row seen from Geology, with its own settings docked under it.
+  const mirrored = (MIRRORS[home] || []).map((m) => m.id);
   check(`and at least one dataset lives there`,
-    files.length > 0 || tiled,
-    files.length ? files.join(", ") : "from the TILED registry");
+    files.length > 0 || tiled || mirrored.length > 0,
+    files.length ? files.join(", ") : mirrored.length ? `mirrored: ${mirrored.join(", ")}` : "from the TILED registry");
 });
 
 /* ── exactly one list each ───────────────────────────────────────────────── */
 
-check("the home panels draw only datasets that named them",
-  /\.filter\(\(entry\) => entry\.home === home\)/.test(panels));
+check("the home panels draw the datasets that named them, plus DECLARED mirrors",
+  /\.filter\(\(entry\) => entry\.home === home \|\| mirrorOf\(home, entry\.id\)\)/.test(panels));
+/* A mirror is a second door to one layer -- same tick, same layer, same
+   Symbology -- declared in MIRRORS so "does this dataset appear once" is
+   still a question about one file: once as itself, once per declared mirror,
+   and nowhere else. */
+check("every mirror names a real dataset in a real home",
+  Object.entries(MIRRORS).every(([home, list]) => HOMES[home]
+    && list.every((m) => DATASETS.some((d) => d.id === m.id))));
+check("and a mirror docks its own settings, never the home's",
+  /settings: mirrorOf\(home, entry\.id\)\?\.settings \?\? entry\.settings/.test(panels));
 check("and the Vectors tab draws only the ones that named none",
   /\.filter\(\(entry\) => !entry\.home\)/.test(polygons));
 check("so no dataset is drawn twice, and none is drawn nowhere",
@@ -261,8 +273,15 @@ check("and every listed group still has something in it",
     && section.indexOf('data-feed-proxy=') < section.indexOf('id="hazards-catalogue"'));
   check("as a host Live's own row template fills, not a hand-written row",
     !/data-feed-toggle/.test(html) && /class="event-feed-rows" data-feed-proxy/.test(section));
-  check("and it is the only proxy in the page",
-    (html.match(/data-feed-proxy=/g) || []).length, 1);
+  check("and the volcanic subtab has the eruption feed the same way",
+    /id="volcanic-live-feed"[^>]*data-feed-proxy="eonet-volcanoes"/.test(html));
+  check("two proxies in the page, one per hazard subtab that wants one",
+    (html.match(/data-feed-proxy=/g) || []).length, 2);
+  check("the volcanic subtab's buffers ship parked, under the mirrored row's name",
+    /<div id="volcano-hazard-buffers" hidden>/.test(html)
+    && /settings: "volcano-hazard-buffers"/.test(data));
+  check("and the page loads the module that draws them",
+    /src="gis\/volcanic-hazards\.js/.test(html));
   /* THE TRACKS' SETTINGS HANG UNDER THE TRACKS ROW. They are page markup the
      catalogue docks under the row while the layer is loaded and parks, hidden,
      when it is not -- so the page ships them parked, the entry names them,
@@ -272,7 +291,8 @@ check("and every listed group still has something in it",
   check("the tracks entry names it", /settings: "cyclone-timelapse"/.test(data));
   const panels = readFileSync(join(HERE, "catalogue-panels.js"), "utf8");
   check("and both projections carry it",
-    /settings: entry\.settings/.test(panels) && /settings: entry\.settings/.test(polygons));
+    /settings: (?:mirrorOf\(home, entry\.id\)\?\.settings \?\? )?entry\.settings/.test(panels)
+    && /settings: entry\.settings/.test(polygons));
   const list = readFileSync(join(HERE, "catalogue-list.js"), "utf8");
   check("a docked block is rescued before the list is cleared",
     list.indexOf(".gis-catalogue-settings > [id]") < list.indexOf('host.textContent = ""'));

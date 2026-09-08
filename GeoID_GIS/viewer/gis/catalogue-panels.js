@@ -28,10 +28,10 @@
  */
 
 import {
-  HOMES, grouped, addDataset, layerForDataset, loadLaunchDefaults,
-} from "./global-data.js?v=20260908-32f54a4";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260908-32f54a4";
-import { mathsFor } from "./equations.js?v=20260908-32f54a4";
+  HOMES, MIRRORS, grouped, addDataset, layerForDataset, loadLaunchDefaults,
+} from "./global-data.js?v=20260909-a118d3c";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260909-a118d3c";
+import { mathsFor } from "./equations.js?v=20260909-a118d3c";
 
 const byId = (id) => document.getElementById(id);
 
@@ -217,6 +217,9 @@ const TILED = {
   }],
 };
 
+/** The mirror declaration for a dataset in this home, or undefined. */
+const mirrorOf = (home, id) => (MIRRORS[home] || []).find((m) => m.id === id);
+
 /** The tiled rows this home has, and whose module is actually loaded. */
 function tiledFor(home) {
   return (TILED[home] || []).filter((entry) => entry.ready());
@@ -237,7 +240,7 @@ function draw(home, hostId) {
       title: entry.title, info: entry.info,
     })),
     ...grouped().flatMap(({ group, entries: list }) => list
-      .filter((entry) => entry.home === home)
+      .filter((entry) => entry.home === home || mirrorOf(home, entry.id))
       .map((entry) => ({
         id: entry.id,
         group,
@@ -249,8 +252,10 @@ function draw(home, hostId) {
         // this falls back to wording written for another catalogue.
         detailCopy: entry.detailCopy,
         // Third field this trap has cost: a projection that drops it hangs no
-        // drawer under the row, silently.
-        settings: entry.settings,
+        // drawer under the row, silently. A MIRRORED row docks the mirror's
+        // own block, never the home's: a block is one element and can hang
+        // under one row.
+        settings: mirrorOf(home, entry.id)?.settings ?? entry.settings,
       }))),
     ...geeEntries,
   ];

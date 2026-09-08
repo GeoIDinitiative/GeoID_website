@@ -26,15 +26,15 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260908-32f54a4";
-import { dataUrl } from "./data-base.js?v=20260908-32f54a4";
-import { mathsFor } from "./equations.js?v=20260908-32f54a4";
+import { runConnector } from "./research/connectors.js?v=20260909-a118d3c";
+import { dataUrl } from "./data-base.js?v=20260909-a118d3c";
+import { mathsFor } from "./equations.js?v=20260909-a118d3c";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260908-32f54a4";
+} from "./cyclone-risk.js?v=20260909-a118d3c";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-32f54a4";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260909-a118d3c";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -54,6 +54,20 @@ export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
  * exactly once" is a question about one file. `catalogue-panels.js` mounts
  * them and its test checks every home named here has a panel and a host.
  */
+/**
+ * A ROW SEEN FROM A SECOND TAB, on purpose and declared. The Smithsonian
+ * volcanoes are GEOLOGY -- that is their home and where they light the tab --
+ * and they are also what the volcanic hazard buffers are drawn around, so the
+ * hazards subtab offers the same row: same tick, same layer, same Symbology
+ * button, read back off the same `layerForDataset`. One state, two doors,
+ * exactly as the live-storm feed is offered from the cyclone subtab. What the
+ * mirror may add is a SETTINGS block of its own (the buffers), docked under
+ * the row in that tab alone.
+ */
+export const MIRRORS = {
+  "volcanic-hazards": [{ id: "volcanoes", settings: "volcano-hazard-buffers" }],
+};
+
 export const HOMES = {
   hydrology: "hydrology-catalogue",
   "geology-tectonics": "tectonics-catalogue",
@@ -68,6 +82,9 @@ export const HOMES = {
   // Hydrology, because a cyclone track is neither the ground nor the water: it
   // is a record of what happened over them.
   hazards: "hazards-catalogue",
+  // Hazards ▸ Volcanic hazards. Holds the hazard BUFFERS (a derived layer with
+  // no file) and a MIRROR of the volcano catalogue row -- see `MIRRORS`.
+  "volcanic-hazards": "volcanic-catalogue",
 };
 
 export const DATASETS = [

@@ -25,13 +25,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260908-32f54a4-hazard-readout-large">
+  <link rel="stylesheet" href="styles.css?v=20260909-a118d3c-hazard-readout-large">
   <style>html,body{background:#000;margin:0}</style>
   <link rel="stylesheet" href="/styles/viewer-skin.css">
   <link rel="stylesheet" href="/styles/viewer-themes.css">
   <script src="/scripts/theme.js"></script>
-  <script src="/scripts/tour-enter.js?v=20260908-32f54a4" defer></script>
-  <script src="/scripts/ui-sound.js?v=20260908-32f54a4" defer></script>
+  <script src="/scripts/tour-enter.js?v=20260909-a118d3c" defer></script>
+  <script src="/scripts/ui-sound.js?v=20260909-a118d3c" defer></script>
 </head>
 <!-- `sidebar-arranging` is set here, in the markup, rather than by a script:
      the panels below are written in source order, and GIS mode rearranges them
@@ -860,6 +860,41 @@
                     </select>
                   </div>
                   <p id="cyclone-play-status" class="compact-copy" aria-live="polite" style="margin:0.25rem 0 0;"></p>
+                </div>
+              </div>
+            </details>
+            <!-- Volcanic hazards: built the way the cyclone subtab is. What
+                 is HAPPENING first (Live's own eruption row, seen again),
+                 then the catalogue -- the Smithsonian volcanoes, a MIRROR of
+                 the row Geology holds -- with the hazard buffers docked under
+                 that row while the volcanoes are on the globe. -->
+            <details class="gis-tool-section">
+              <summary>Volcanic hazards</summary>
+              <div class="gis-tool-body">
+                <div id="volcanic-live-feed" class="event-feed-rows" data-feed-proxy="eonet-volcanoes"></div>
+                <div id="volcanic-catalogue"></div>
+                <p id="volcanic-status" class="compact-copy" style="margin-top:0.45rem;"></p>
+                <!-- THE HAZARD BUFFERS, parked; catalogue-list docks this
+                     under the volcano row while the layer is loaded. Etna
+                     Explorer's five zones, drawn around every volcano the
+                     select admits and MERGED where they overlap: a pixel is
+                     painted once, by the highest hazard reaching it. -->
+                <div id="volcano-hazard-buffers" hidden>
+                  <div class="row">
+                    <label for="volcano-buffers-on" title="Etna Explorer's five schematic zones -- 0-5, 5-10, 10-20, 20-35 and 35-50 km -- around every volcano the select below admits. Where volcanoes are close their zones merge: each pixel is painted once, by the highest hazard reaching it, so nothing double-darkens. Zones are schematic buffers; real extents depend on eruption style, vent location, wind and topography.">Hazard buffers</label>
+                    <span class="checkbox-wrap"><input id="volcano-buffers-on" type="checkbox"></span>
+                  </div>
+                  <div class="row">
+                    <label for="volcano-buffers-around" title="Which volcanoes get buffers, by the catalogue's own eruption-recency rank. Pleistocene volcanoes never do: nothing in the Holocene record says they are active.">Around</label>
+                    <select id="volcano-buffers-around" class="input">
+                      <option value="5">Erupted since 2000</option>
+                      <option value="4" selected>Erupted since 1900</option>
+                      <option value="3">Erupted since 1500</option>
+                      <option value="2">Any dated Holocene eruption</option>
+                      <option value="1">Every Holocene volcano</option>
+                    </select>
+                  </div>
+                  <p id="volcano-buffers-status" class="compact-copy" aria-live="polite" style="margin:0.25rem 0 0;"></p>
                 </div>
               </div>
             </details>
@@ -2041,7 +2076,7 @@
     </div>
   </div>
 
-<script id="earth-manifest-script" src="earth-manifest.js?v=20260908-32f54a4-blue-marble" defer></script>
+<script id="earth-manifest-script" src="earth-manifest.js?v=20260909-a118d3c-blue-marble" defer></script>
 <script>
   const statusNode = document.getElementById("status");
 
@@ -2120,92 +2155,93 @@
   void bootEarthViewer();
 </script>
 <script src="ui-controls.js" defer></script>
-<script src="gis/mode-manager.js?v=20260908-32f54a4" defer></script>
-<script type="module" src="gis/panels.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/settings-panel.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/point-tool.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/gee-live.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/fos.js?v=20260908-32f54a4"></script>
+<script src="gis/mode-manager.js?v=20260909-a118d3c" defer></script>
+<script type="module" src="gis/panels.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/settings-panel.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/point-tool.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/gee-live.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/fos.js?v=20260909-a118d3c"></script>
 <!-- The merged ground answer: three maps at three scales, assembled per
      point with each line naming its own source. Publishes the seam the click
      cards read, so it loads beside the strength table it uses. -->
-<script type="module" src="gis/ground-profile.js?v=20260908-32f54a4"></script>
+<script type="module" src="gis/ground-profile.js?v=20260909-a118d3c"></script>
 <!-- The legend and the events feed share one slot: a shuffle, not a row. -->
-<script type="module" src="gis/overlay-stack.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/cyclone-risk.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/cyclone-risk-card.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/cyclone-tracks-view.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/cyclone-timelapse.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/cyclone-risk-raster.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/animated-layers.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/geoid-pipeline.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/geoid-mode.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/atlas-assistant.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/import-manager.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/analysis-panel.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/model-pipeline.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/add-data.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/geology-panel.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/map-layers-panel.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/section-activity.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/tool-shelves.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/weather-maps.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/draw-hud.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/pipeline-sync.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/toolbox.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/toolbox-ops.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/sidecar-client.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/tool-search.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/tool-dialog.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/charts.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/time.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/edit-tools.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/feature-popup.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/forecast.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/location-tools.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/point-extract.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/drawn-layers.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/area-labels.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/panel-styles.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/symbology.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/symbology-panel.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/batch.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/batch-panel.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/georeference.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/georeference-panel.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/wfs-import.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/demo-layers.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/model-studio.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/layer-properties.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/layer-hierarchy.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/table-editor.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/legend-dock.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/layer-export-dialog.js?v=20260908-32f54a4"></script>
+<script type="module" src="gis/overlay-stack.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/cyclone-risk.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/cyclone-risk-card.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/cyclone-tracks-view.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/cyclone-timelapse.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/cyclone-risk-raster.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/animated-layers.js?v=20260909-a118d3c"></script>
+    <script type="module" src="gis/volcanic-hazards.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/geoid-pipeline.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/geoid-mode.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/atlas-assistant.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/import-manager.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/analysis-panel.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/model-pipeline.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/add-data.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/geology-panel.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/map-layers-panel.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/section-activity.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/tool-shelves.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/weather-maps.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/draw-hud.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/pipeline-sync.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/toolbox.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/toolbox-ops.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/sidecar-client.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/tool-search.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/tool-dialog.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/charts.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/time.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/edit-tools.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/feature-popup.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/forecast.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/location-tools.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/point-extract.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/drawn-layers.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/area-labels.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/panel-styles.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/symbology.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/symbology-panel.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/batch.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/batch-panel.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/georeference.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/georeference-panel.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/wfs-import.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/demo-layers.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/model-studio.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/layer-properties.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/layer-hierarchy.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/table-editor.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/legend-dock.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/layer-export-dialog.js?v=20260909-a118d3c"></script>
 <!-- Pre-processing and Extraction & Analysis, as workbenches on the tool
      rail rather than two more collapsibles in the sidebar column. -->
-<script type="module" src="gis/side-panels.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/project.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/events.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/gee.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/basemap-drape.js?v=20260908-32f54a4"></script>
+<script type="module" src="gis/side-panels.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/project.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/events.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/gee.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/basemap-drape.js?v=20260909-a118d3c"></script>
 <!-- Real elevation, streamed: the globe's own texture samples at 19.6 km,
      which every product derived from it inherits. Earth only — Mapzen
      Terrain Tiles are this planet's. gis/dem-tiles.js holds the rule. -->
-<script type="module" src="gis/dem-stream.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/dem-panel.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/zoom-bar.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/polygons.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/point-labels.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/satellites.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/catalogue-panels.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/earth-data-panel.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/rock-properties-panel.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/ice-cover-panel.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/soil-cover.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/glim-cover.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/research/index.js?v=20260908-32f54a4"></script>
-<script type="module" src="gis/planet-strip.js?v=20260908-32f54a4"></script>
-<script src="music.js?v=20260908-32f54a4" defer></script>
+<script type="module" src="gis/dem-stream.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/dem-panel.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/zoom-bar.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/polygons.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/point-labels.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/satellites.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/catalogue-panels.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/earth-data-panel.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/rock-properties-panel.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/ice-cover-panel.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/soil-cover.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/glim-cover.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/research/index.js?v=20260909-a118d3c"></script>
+<script type="module" src="gis/planet-strip.js?v=20260909-a118d3c"></script>
+<script src="music.js?v=20260909-a118d3c" defer></script>
 <script>if (window.self !== window.top) document.body.classList.add("is-embedded");</script>
 
 </body>
