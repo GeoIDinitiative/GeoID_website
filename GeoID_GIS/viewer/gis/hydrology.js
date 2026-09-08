@@ -11,7 +11,7 @@
  * one of those.
  */
 
-import { makeRaster, cellSizeMetres } from "./raster-analysis.js?v=20260908-1b87c84";
+import { makeRaster, cellSizeMetres } from "./raster-analysis.js?v=20260908-74a1816";
 
 /* A binary heap keyed on elevation. Priority-flood is O(n log n) with one and
    O(n²) without, which on a 1800×1400 DEM is the difference between a second

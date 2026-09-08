@@ -258,23 +258,26 @@ check("a season with no named storms says only the count", () => {
   });
 
   /**
-   * THE TRACK IS CENTRED BY THE CLUSTERS EITHER SIDE OF IT, so the check is on
-   * them. A constant cannot hold them level: the lead carries four controls
-   * and the trail two or three, since the overlay toggle exists only for a
-   * driver that draws an overlay. And the date is out of the row entirely --
-   * in it, the widest thing on the bar sat where a reader looks for the
-   * handle, and the track could not be centred at all.
+   * THE TRACK TAKES EVERY PIXEL THE CLUSTERS DO NOT NEED, so nothing may pad
+   * them: they were held equal for a while, which centred the track exactly
+   * and spent 51 px on holding it there. What is centred is the DATE PILL,
+   * over the track's own middle — measured, because the lead carries four
+   * controls and the trail two or three, the overlay toggle existing only for
+   * a driver that draws an overlay.
    */
-  check("the track is centred, and the date rides on the bar's edge", () => {
+  check("the track fills the row, and the date is placed over it", () => {
     const player = readFileSync(new URL("./timelapse-player.js", import.meta.url), "utf8");
     ok(/bar\.append\(date, lead, scale, trail\)/.test(player),
       "three parts, with the date outside them");
-    ok(/balanceRow\(lead, trail\)/.test(player), "the clusters are equalised");
+    ok(/alignDate\(date, scale\)/.test(player), "the pill is placed over the track");
     ok(/state\?\.bar\?\.balance\?\.\(\)/.test(player),
-      "and re-equalised when the note grows");
+      "and re-placed when the note grows");
+    ok(!/minWidth/.test(player), "no cluster is padded to hold the track level");
     const style = player.slice(player.indexOf("const STYLE ="), player.indexOf("\n`;"));
     ok(/\.tl-date \{[^}]*border-bottom: none/.test(style),
       "the pill merges rather than floating");
+    ok(/\.tl-trail \{ justify-content: flex-end/.test(style),
+      "and the count sits against the close");
   });
 
 /* ── the record is PLOTTED, at three step sizes ──────────────────────────── */

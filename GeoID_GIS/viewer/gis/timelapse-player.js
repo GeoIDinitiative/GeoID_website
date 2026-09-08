@@ -84,19 +84,18 @@ const STYLE = `
   text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap;
   pointer-events: none;
 }
-/* THE TRACK IS CENTRED, which is a fact about the two clusters either side of
-   it rather than about the track. They are equalised at build by balanceRow,
-   because their contents differ by driver -- an overlay toggle exists only
-   where there is an overlay -- so no constant could hold them level. */
+/* NEITHER CLUSTER IS PADDED, so the track gets every pixel they do not need.
+   They were held equal for a while, which centred the track exactly and cost
+   the difference between them -- 51 px of nothing, sitting where the track
+   wanted to be. A centred track is not worth a shorter one, and what the
+   reader reads as the centre is the date pill, which is placed over the
+   track's own middle rather than the bar's. */
 .geoid-timelapse .tl-lead,
 .geoid-timelapse .tl-trail {
   display: flex; align-items: center; gap: 0.55rem; flex: 0 0 auto;
 }
-/* The trail's slack is the price of a centred track -- its content is
-   narrower than the lead's. Spread rather than pooled: the note sits against
-   the end of the track it describes and the close keeps the bar's own edge,
-   instead of a hole opening between the slider and the words. */
-.geoid-timelapse .tl-trail { justify-content: space-between; }
+/* The count belongs against the close, not adrift between it and the track. */
+.geoid-timelapse .tl-trail { justify-content: flex-end; }
 /* THE NOTE IS NOT SQUEEZED TO NOTHING. It is the only part of the bar that
    says anything about the frame, and as an ordinary flex item it was giving
    its width up to its neighbours: measured at 104px against 130px of content,
@@ -488,21 +487,24 @@ function reserveText(el, texts) {
 }
 
 /**
- * THE TWO CLUSTERS EITHER SIDE OF THE TRACK ARE MADE EQUAL, which is what
- * centres the track. Nothing else can: the lead carries four controls and the
- * trail two or three — the overlay toggle exists only for a driver that draws
- * one — so a constant would centre the bar for one driver and lean it for the
- * next. Measured rather than declared, and re-measured whenever the note grows.
+ * THE DATE PILL SITS OVER THE TRACK, not over the bar.
+ *
+ * It names the frame the handle is on, so the track's middle is the honest
+ * place for it — and it is the only thing that has to be centred, which is
+ * what frees the row to give the track every pixel the clusters do not need.
+ * Measured rather than declared: the lead carries four controls and the trail
+ * two or three, since the overlay toggle exists only for a driver that draws
+ * an overlay, so no constant places it for every driver.
+ *
+ * `offsetLeft` is measured from the bar, which is this element's offset parent
+ * and its containing block — so the bar's own padding is already in the number
+ * and must not be added again.
  */
-function balanceRow(lead, trail) {
-  if (!lead || !trail) return;
-  lead.style.minWidth = "";
-  trail.style.minWidth = "";
-  const wide = Math.max(lead.getBoundingClientRect().width,
-    trail.getBoundingClientRect().width);
-  if (!wide) return;
-  lead.style.minWidth = `${Math.ceil(wide)}px`;
-  trail.style.minWidth = `${Math.ceil(wide)}px`;
+function alignDate(date, scale) {
+  if (!date || !scale) return;
+  const mid = scale.offsetLeft + scale.offsetWidth / 2;
+  if (!mid) return;
+  date.style.left = `${Math.round(mid)}px`;
 }
 
 /**
@@ -520,8 +522,8 @@ function growNote(note) {
   if (note.scrollWidth > note.clientWidth) {
     // scrollWidth is the content and its padding; the border is the rest.
     note.style.width = `${note.scrollWidth + (note.offsetWidth - note.clientWidth)}px`;
-    // A wider note is a wider trail, and an unequal trail is an off-centre
-    // track. The two are one adjustment.
+    // A wider note is a wider trail, so the track shrinks and its middle
+    // moves. The pill follows it.
     state?.bar?.balance?.();
   }
 }
@@ -644,7 +646,7 @@ function buildBar() {
   bar.append(date, lead, scale, trail);
   document.body.appendChild(bar);
   sayRate();
-  const balance = () => balanceRow(lead, trail);
+  const balance = () => alignDate(date, scale);
   return {
     bar, date, slider, note, play: playBtn, overlay, speed, ticks, sayRate,
     lead, trail, balance,

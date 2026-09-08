@@ -28,17 +28,17 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260908-1b87c84";
-import { currentBodyId } from "./bodies.js?v=20260908-1b87c84";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260908-1b87c84";
-import { rockClass } from "./rock-class.js?v=20260908-1b87c84";
-import { AREA_OPACITY } from "./layer-opacity.js?v=20260908-1b87c84";
-import { datasetInfoButton } from "./catalogue-list.js?v=20260908-1b87c84";
-import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260908-1b87c84";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260908-1b87c84";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260908-1b87c84";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260908-74a1816";
+import { currentBodyId } from "./bodies.js?v=20260908-74a1816";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260908-74a1816";
+import { rockClass } from "./rock-class.js?v=20260908-74a1816";
+import { AREA_OPACITY } from "./layer-opacity.js?v=20260908-74a1816";
+import { datasetInfoButton } from "./catalogue-list.js?v=20260908-74a1816";
+import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260908-74a1816";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260908-74a1816";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260908-74a1816";
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260908-1b87c84";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260908-74a1816";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
