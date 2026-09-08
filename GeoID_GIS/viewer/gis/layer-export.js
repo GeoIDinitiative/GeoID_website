@@ -21,10 +21,10 @@
  * rather than silently dropping whatever does not fit.
  */
 
-import * as VF from "./vector-formats.js?v=20260908-f45bf2a";
-import { downloadText } from "./extraction.js?v=20260908-f45bf2a";
+import * as VF from "./vector-formats.js?v=20260908-bda4ec4";
+import { downloadText } from "./extraction.js?v=20260908-bda4ec4";
 import { buildShapefileZip, shapeTypeFor, SHAPE_NAMES, safeShapefileName,
-  countSelfTouchingRings } from "./shapefile-writer.js?v=20260908-f45bf2a";
+  countSelfTouchingRings } from "./shapefile-writer.js?v=20260908-bda4ec4";
 
 /**
  * What a layer is, read from its contents rather than its name.

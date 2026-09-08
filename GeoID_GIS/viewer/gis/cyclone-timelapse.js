@@ -23,12 +23,12 @@
 
 import {
   buildSymbology, colourOf, legendInfoFrom,
-} from "./symbology.js?v=20260908-f45bf2a";
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-f45bf2a";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-f45bf2a";
+} from "./symbology.js?v=20260908-bda4ec4";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-bda4ec4";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-bda4ec4";
 import {
   showSeason, showClimatology, riskLayer,
-} from "./cyclone-risk.js?v=20260908-f45bf2a";
+} from "./cyclone-risk.js?v=20260908-bda4ec4";
 
 const search = new URL(import.meta.url).search;
 
@@ -378,6 +378,15 @@ async function build({ from, startAt, step }) {
        * which is the web the animation exists to take apart — and on the All
        * frame the archive IS the answer, so the plot stands down instead.
        */
+      /**
+       * AND NEITHER ARE THEIR KEYS. One dataset draws one thing, so it gets
+       * one card — the risk map's own rule, met here from the other side.
+       * Measured on the All frame: the plot was invisible and its card was
+       * still listed, so the corner carried two keys for one layer and the
+       * one describing what was drawn was the second of them.
+       */
+      const plot = held();
+      if (plot) plot.legendHidden = whole;
       window.GeoIDLayerHierarchy?.setVisible?.(layer, whole ? wasVisible : false);
       if (whole) {
         built.forEach((node) => { node.visible = false; });
@@ -386,7 +395,7 @@ async function build({ from, startAt, step }) {
         for (let i = 0; i <= index; i += 1) nodeFor(i).visible = true;
         built.forEach((node, i) => { if (i > index) node.visible = false; });
       }
-      const now = held();
+      const now = plot;
       if (now) {
         if (now.object3D) now.object3D.visible = !whole;
         /**
