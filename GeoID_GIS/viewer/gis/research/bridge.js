@@ -1,4 +1,4 @@
-import * as store from "./project-store.js?v=20260908-806509a";
+import * as store from "./project-store.js?v=20260908-d4eab7a";
 
 /**
  * What makes the three pages one workspace.

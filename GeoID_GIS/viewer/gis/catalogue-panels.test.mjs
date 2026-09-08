@@ -254,12 +254,28 @@ check("and every listed group still has something in it",
      It is a second DOOR and not a second state — that half is pinned in
      event-sources.test.mjs, against events.js. Here the question is placement:
      inside the tropical-cyclone section, and nowhere else. */
-  const cyclones = html.slice(html.indexOf("hazards-catalogue"));
-  const section = cyclones.slice(0, cyclones.indexOf("</details>"));
-  check("the storm feed is reachable from the cyclone subtab",
-    /data-feed-toggle="eonet-severeStorms"/.test(section));
+  const body = html.slice(html.indexOf('<summary>Tropical cyclones</summary>'));
+  const section = body.slice(0, body.indexOf("</details>"));
+  check("the storm feed is reachable from the cyclone subtab, FIRST",
+    section.indexOf('data-feed-proxy="eonet-severeStorms"') > 0
+    && section.indexOf('data-feed-proxy=') < section.indexOf('id="hazards-catalogue"'));
+  check("as a host Live's own row template fills, not a hand-written row",
+    !/data-feed-toggle/.test(html) && /class="event-feed-rows" data-feed-proxy/.test(section));
   check("and it is the only proxy in the page",
-    (html.match(/data-feed-toggle=/g) || []).length, 1);
+    (html.match(/data-feed-proxy=/g) || []).length, 1);
+  /* THE TRACKS' SETTINGS HANG UNDER THE TRACKS ROW. They are page markup the
+     catalogue docks under the row while the layer is loaded and parks, hidden,
+     when it is not -- so the page ships them parked, the entry names them,
+     and both projections carry the name (the third field this trap has cost). */
+  check("the plot-by and span block ships parked",
+    /<div id="cyclone-timelapse" hidden>/.test(section));
+  check("the tracks entry names it", /settings: "cyclone-timelapse"/.test(data));
+  const panels = readFileSync(join(HERE, "catalogue-panels.js"), "utf8");
+  check("and both projections carry it",
+    /settings: entry\.settings/.test(panels) && /settings: entry\.settings/.test(polygons));
+  const list = readFileSync(join(HERE, "catalogue-list.js"), "utf8");
+  check("a docked block is rescued before the list is cleared",
+    list.indexOf(".gis-catalogue-settings > [id]") < list.indexOf('host.textContent = ""'));
 }
 
 /* ── a dataset that plays over time carries its own button ───────────────── */

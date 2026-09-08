@@ -785,9 +785,12 @@ check("no timestamp gets a sensible middle", recencyOpacity(null, now, day), 0.8
     /background:currentColor;-webkit-mask:/.test(code), true);
   check("and every row goes through it",
     !/event-glyph" style="color:\$\{symbol\.colour\}">\$\{symbol\.glyph\}/.test(code), true);
-  /* Four call sites: three inside templates, one assigned to a variable. */
+  /* Five call sites: four inside templates, one assigned to a variable. The
+     fifth is `sourceRow`, the feed panel's own tick rows -- which drew a
+     literal "●" for every source until the row template was shared with the
+     Hazards proxy, so the storm row in Live now wears the cyclone mask too. */
   const spans = (code.match(/glyphSpan\(symbol\)/g) || []).length;
-  check("all four of them", spans - 1, 4);   // less the definition itself
+  check("all five of them", spans - 1, 5);   // less the definition itself
 
   /* The file is an opaque WHITE silhouette on transparency with the eye
      punched out of its alpha, which is why nothing here recolours it: white is
@@ -971,7 +974,8 @@ check("no timestamp gets a sensible middle", recencyOpacity(null, now, day), 0.8
   const events = readFileSync(new URL("./events.js", import.meta.url), "utf8");
   const page = readFileSync(new URL("../index.html", import.meta.url), "utf8");
   const activity = readFileSync(new URL("./section-activity.js", import.meta.url), "utf8");
-  const proxied = [...page.matchAll(/data-feed-toggle="([^"]+)"/g)].map((m) => m[1]);
+  // The page ships HOSTS; events.js fills each with Live's own row template.
+  const proxied = [...page.matchAll(/data-feed-proxy="([^"]+)"/g)].map((m) => m[1]);
 
   ok("the cyclone subtab proxies the severe-storm feed",
     proxied.includes("eonet-severeStorms"));
@@ -981,6 +985,9 @@ check("no timestamp gets a sensible middle", recencyOpacity(null, now, day), 0.8
     /box\.checked = on/.test(events) && /isSourceEnabled\(id\)/.test(events));
   ok("and a press commits through the feed",
     /setSourceEnabled\(box\.dataset\.feedToggle, box\.checked\)/.test(events));
+  ok("a proxy host is filled from the ONE row template the Live tab uses",
+    /sourceRow\(src, "data-feed-toggle"\)/.test(events)
+    && /sourcesInGroup\(group\.id\)\.map\(\(src\) => sourceRow\(src\)\)/.test(events));
   ok("synced above the early return, from the call every change makes",
     /syncFeedProxies\(\);\n  const host = byId\("events-feeds-host"\)/.test(events));
   ok("and no poll came back", !/setInterval\([^)]*[Pp]roxies/.test(events));

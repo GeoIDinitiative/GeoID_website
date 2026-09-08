@@ -18,7 +18,7 @@
  * in extraction and in export without this file knowing anything about them.
  */
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260908-806509a";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260908-d4eab7a";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -50,6 +50,17 @@ const STYLE = `
   cursor: pointer;
 }
 .gis-catalogue-row.is-busy .gis-catalogue-name { opacity: 0.6; font-style: italic; }
+/* A LAYER'S OWN SETTINGS HANG UNDER ITS ROW, as a drawer: indented off the
+   row's edge with a hairline so they read as belonging to the row above and
+   not to the list. Only while the layer is loaded, the way the Symbology
+   button is -- a setting for a layer that is not on the globe is inert. */
+.gis-catalogue-settings {
+  margin: 0 0 0.3rem 0.55rem;
+  padding: 0.1rem 0 0.15rem 0.7rem;
+  border-left: 1px solid rgba(var(--nav-accent-rgb), 0.35);
+  display: grid; gap: 0.3rem;
+}
+.gis-catalogue-settings .row { margin: 0; }
 .gis-catalogue-detail {
   flex: 0 0 3.4rem;
   width: 3.4rem;
@@ -447,6 +458,17 @@ export function renderCatalogue(host, entries, hooks) {
   // Captured before the clear: a redraw (every tick causes one) must not
   // throw the reader back to the top of a list they were halfway down.
   const priorScroll = host.querySelector(".gis-catalogue-scroll")?.scrollTop || 0;
+  /**
+   * RESCUE BEFORE THE CLEAR. A settings block is page MARKUP moved under its
+   * row (so its selects keep their state across the redraw every tick
+   * causes), and the clear below would destroy it with the rows. It goes home
+   * first, hidden, and is moved back under the row if that row is still
+   * loaded once the list is rebuilt.
+   */
+  host.querySelectorAll(".gis-catalogue-settings > [id]").forEach((block) => {
+    block.hidden = true;
+    (block.geoidHome || document.body).appendChild(block);
+  });
   host.textContent = "";
   host.className = "";
 
@@ -632,6 +654,23 @@ export function renderCatalogue(host, entries, hooks) {
     if (info) row.appendChild(info);
     row.appendChild(tick);
     list.appendChild(row);
+    /**
+     * THE LAYER'S OWN SETTINGS, UNDER ITS ROW. `entry.settings` names a block
+     * of page markup; while the layer is loaded it is moved into a drawer
+     * directly under the row, and it is parked back where it came from
+     * (hidden) when the layer goes or the list is redrawn. Markup rather than
+     * built here because the block's controls hold state -- a plot step, a
+     * span -- that a rebuild per tick would throw away.
+     */
+    const block = layer && entry.settings ? document.getElementById(entry.settings) : null;
+    if (block) {
+      if (!block.geoidHome) block.geoidHome = block.parentElement;
+      const dock = document.createElement("div");
+      dock.className = "gis-catalogue-settings";
+      dock.appendChild(block);
+      block.hidden = false;
+      list.appendChild(dock);
+    }
   });
 }
 

@@ -16,7 +16,7 @@ import {
   gdacsPoints, resolveColour,
   MARKER_LIFT_MAX, liftForAltitude, dotSizePx, isQuake, publisherOf, restoreActive,
   stormCategory, stormScale, stormLabel, STORM_BASE_CAP,
-} from "./event-sources.js?v=20260908-806509a";
+} from "./event-sources.js?v=20260908-d4eab7a";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -711,18 +711,28 @@ const openGroups = new Map();
  * every other tool in that column is one, so a feed group that invented its
  * own chrome read as something bolted on beside them.
  */
+/**
+ * ONE ROW TEMPLATE, wherever a feed is offered. The Live tab's list and a
+ * proxy host elsewhere both draw from this, so a feed looks the same in both
+ * places by construction -- glyph, type, tick -- rather than by a copy that
+ * drifts the first time either is touched. `attr` is the only difference: a
+ * row in the feed panel commits through `data-feed`, a proxy through
+ * `data-feed-toggle`, and the delegated handler below tells them apart.
+ */
+function sourceRow(src, attr = "data-feed") {
+  const symbol = symbolFor(src.category);
+  return `<label class="event-source" title="${src.note} — ${src.licence}">
+      <input type="checkbox" ${attr}="${src.id}"${isSourceEnabled(src.id) ? " checked" : ""}>
+      ${glyphSpan(symbol)}
+      <span class="event-source-name">${src.label}</span>
+    </label>`;
+}
+
 function sourcesBlock() {
   return `<div class="event-sources">
     ${activeGroups().map((group) => {
     const state = groupState(group.id, isSourceEnabled);
-    const rows = sourcesInGroup(group.id).map((src) => {
-      const symbol = symbolFor(src.category);
-      return `<label class="event-source" title="${src.note} — ${src.licence}">
-          <input type="checkbox" data-feed="${src.id}"${isSourceEnabled(src.id) ? " checked" : ""}>
-          <span class="event-glyph" style="color:${symbol.colour}">●</span>
-          <span class="event-source-name">${src.label}</span>
-        </label>`;
-    }).join("");
+    const rows = sourcesInGroup(group.id).map((src) => sourceRow(src)).join("");
     // Folded on arrival, all of them. Six open cards is a column of forty tick
     // boxes and the tab reads as a wall; folded it reads as six subjects, and
     // the master toggle beside each is enough to work with without opening one
@@ -2515,8 +2525,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260908-806509a"),
-    import("./research/dsp.js?v=20260908-806509a"),
+    import("./seismogram-plot.js?v=20260908-d4eab7a"),
+    import("./research/dsp.js?v=20260908-d4eab7a"),
   ]);
   if (stale()) return;
 
@@ -2767,6 +2777,14 @@ if (document.readyState === "loading") {
  * proxy would otherwise open unticked over a feed that is running.
  */
 function syncFeedProxies() {
+  // A host names the feed it wants and is FILLED with Live's own row template,
+  // once: rebuilding it on every sync would drop the reader's hover mid-press.
+  document.querySelectorAll("[data-feed-proxy]").forEach((host) => {
+    if (host.querySelector("[data-feed-toggle]")) return;
+    const src = sourceById(host.dataset.feedProxy);
+    host.innerHTML = src ? sourceRow(src, "data-feed-toggle")
+      : `<span class="compact-copy">No feed is registered as "${host.dataset.feedProxy}".</span>`;
+  });
   document.querySelectorAll("[data-feed-toggle]").forEach((box) => {
     const id = box.dataset.feedToggle;
     // A box naming a source that no longer exists is a stale id, not a feed

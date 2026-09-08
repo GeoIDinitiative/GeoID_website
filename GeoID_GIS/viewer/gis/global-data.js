@@ -26,15 +26,15 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260908-806509a";
-import { dataUrl } from "./data-base.js?v=20260908-806509a";
-import { mathsFor } from "./equations.js?v=20260908-806509a";
+import { runConnector } from "./research/connectors.js?v=20260908-d4eab7a";
+import { dataUrl } from "./data-base.js?v=20260908-d4eab7a";
+import { mathsFor } from "./equations.js?v=20260908-d4eab7a";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260908-806509a";
+} from "./cyclone-risk.js?v=20260908-d4eab7a";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-806509a";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-d4eab7a";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -246,6 +246,9 @@ export const DATASETS = [
      * the whole archive, unchanged. Nothing about the map differs from having
      * no bar at all; what is gained is that the years are one drag away.
      */
+    // The plot-by and span selects qualify THIS layer and nothing else, so they
+    // hang under its row while it is loaded (catalogue-list's settings dock).
+    settings: "cyclone-timelapse",
     animation: {
       open: () => {
         const span = Number(
