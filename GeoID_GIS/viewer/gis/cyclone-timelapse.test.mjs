@@ -280,6 +280,39 @@ check("a season with no named storms says only the count", () => {
       "and the count sits against the close");
   });
 
+/* ── the tick labels stand clear of each other, in pixels ────────────────── */
+/**
+ * "Every nth mark" assumes even spacing, and a season with no storms is no
+ * frame: 1842 to 1880 is a handful of frames, so on the whole-archive span
+ * the first two labels were drawn on top of each other. Decided in pixels.
+ */
+{
+  const player = await import("./timelapse-player.js");
+  const marks = (years, width) => years.map((y, i) => ({ x: (i / (years.length - 1)) * width, label: y }));
+  check("no two labels sit closer than the gap", () => {
+    const sparse = [1842, 1880, 1899, 1918, 1937, 1956, 1975, 1994, 2013];
+    const xs = sparse.map((y, i) => ({ x: [0, 12, 60, 120, 180, 240, 300, 360, 420][i], label: y }));
+    const picked = [...player.pickLabels(xs, 420, 34)].sort((a, b) => a - b);
+    ok(picked[0] === 0, "the first mark is always labelled");
+    ok(!picked.includes(1), "1880 at 12 px from 1842 is not");
+    const px = picked.map((n) => xs[n].x);
+    ok(px.every((x, k) => !k || x - px[k - 1] >= 34), `gap kept: ${px.join(",")}`);
+  });
+  check("decades are preferred where they fit", () => {
+    const years = Array.from({ length: 47 }, (_, i) => 1980 + i);
+    const picked = [...player.pickLabels(marks(years, 377), 377, 34)];
+    const labels = picked.map((n) => years[n]).sort();
+    ok(labels.includes(1990) && labels.includes(2000) && labels.includes(2010) && labels.includes(2020),
+      `decades in: ${labels.join(",")}`);
+  });
+  check("and a short span is still filled to what the track can hold", () => {
+    const years = Array.from({ length: 12 }, (_, i) => 2010 + i);
+    const picked = player.pickLabels(marks(years, 377), 377, 34);
+    ok(picked.size >= 6, `${picked.size} labels over 12 years on 377 px`);
+  });
+  check("an empty sequence labels nothing", () => ok(player.pickLabels([], 300).size === 0, "none"));
+}
+
 /* ── the record is PLOTTED, at three step sizes ──────────────────────────── */
 {
   const storm = (start, season, kts) => ({

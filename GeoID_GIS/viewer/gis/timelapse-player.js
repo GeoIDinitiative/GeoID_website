@@ -714,6 +714,45 @@ export function playerIndex() {
  * `frames` is optional and parallel to `epochs`: one scene-graph node per
  * epoch, shown with it and hidden with it. The imagery animator passes none.
  */
+/**
+ * WHICH MARKS GET A LABEL, decided in PIXELS rather than by count.
+ *
+ * "Every nth mark" assumes the marks are evenly spaced along the track, and
+ * they are not: a frame is a season WITH storms in it, so the early record
+ * -- 1842 to 1880 is a handful of seasons -- puts marks a few frames apart
+ * that are decades apart in name. Measured on the whole-archive span: "1842"
+ * and "1880" drawn on top of each other at the left end while the right end
+ * had room to spare. A label is placed only where it stands `gap` pixels
+ * clear of the last one placed, walking left to right; the first mark is
+ * always kept, because a scale with no origin is not a scale.
+ *
+ * ROUND YEARS FIRST. Decades are what a reader looks for on a time axis, so
+ * they are placed in a first pass and other marks fill in only where a decade
+ * is not within reach -- which is the short spans, where "1980, 1990" would
+ * otherwise be two labels on a bar that can hold eight.
+ */
+export function pickLabels(marks, width, gap = 34) {
+  const chosen = new Set();
+  const room = Math.max(1, Math.floor((width || 0) / gap));
+  if (!marks.length) return chosen;
+  let last = -Infinity;
+  const place = (n) => { chosen.add(n); last = marks[n].x; };
+  const fits = (n) => marks[n].label != null && marks[n].x - last >= gap;
+  const decade = (n) => /0$/.test(String(marks[n].label));
+  place(0);
+  marks.forEach((_, n) => { if (n && decade(n) && fits(n)) place(n); });
+  if (chosen.size < Math.min(room, marks.length)) {
+    // Refill in order, honouring the gap against whatever is already placed
+    // on EITHER side, so a fill-in cannot crowd a decade it sits before.
+    const placed = () => [...chosen].map((n) => marks[n].x);
+    marks.forEach((_, n) => {
+      if (chosen.has(n) || marks[n].label == null) return;
+      if (placed().every((x) => Math.abs(marks[n].x - x) >= gap)) chosen.add(n);
+    });
+  }
+  return chosen;
+}
+
 export async function startPlayer({ bounds, epochs, source = "auto", frames = null,
   noteFor = (epoch, tail) => tail, noteTitle = null,
   onStatus = () => {}, onStop = null,
@@ -769,15 +808,15 @@ export async function startPlayer({ bounds, epochs, source = "auto", frames = nu
    * year needs about 34px to stand clear of its neighbours, and this bar is
    * the same width whether it is carrying 47 seasons or 354 storm frames.
    */
-  const room = Math.max(2, Math.floor(
-    (state.bar.slider.getBoundingClientRect().width || 260) / 34));
-  const every = Math.max(1, Math.ceil(marked.length / room));
+  const width = state.bar.slider.getBoundingClientRect().width || 260;
   const span = Math.max(1, epochs.length - 1);
+  const labelled = pickLabels(
+    marked.map(({ epoch, i }) => ({ x: (i / span) * width, label: epoch.tickLabel })), width);
   marked.forEach(({ epoch, i }, n) => {
     const mark = document.createElement("i");
     mark.className = "tl-tick";
     mark.style.left = `${(i / span) * 100}%`;
-    if (n % every === 0 && epoch.tickLabel) {
+    if (labelled.has(n) && epoch.tickLabel) {
       mark.classList.add("is-major");
       const text = document.createElement("span");
       text.textContent = epoch.tickLabel;
