@@ -1,11 +1,11 @@
-import { computeBounds2D } from "./geo-utils.js?v=20260909-6fcae33";
+import { computeBounds2D } from "./geo-utils.js?v=20260909-d9f9bee";
 
 // Sampling a polygon on a lat/lon grid: the spacing is expressed in km and
 // converted per-row, because a degree of longitude shrinks toward the poles.
 import {
   clip as clipCollection, featureCollection, feature as makeFeature,
-} from "./geoprocessing.js?v=20260909-6fcae33";
-import { splitLine } from "./delimited.js?v=20260909-6fcae33";
+} from "./geoprocessing.js?v=20260909-d9f9bee";
+import { splitLine } from "./delimited.js?v=20260909-d9f9bee";
 
 const KM_PER_DEG_LAT = 111.32;
 const MAX_SAMPLES = 250000;

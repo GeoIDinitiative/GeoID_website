@@ -15510,3 +15510,34 @@ the spin. And at the default view 15 km is under a pixel; framing a small
 helper layer (`importFileList` with `frame: true`) is the reliable way in, and
 the helper must be REMOVED before clicking — it sat over the zone and the
 picker returned it first.
+
+### The picker names the zone that is drawn, and the highlight is the merged shape
+
+"Ensure the buffers merge fully — when we hover over one, the circular
+structure beneath still shows even when merged." Two faults behind that, and
+the first was invisible until the sheet was merged.
+
+**The picker and the painter disagreed.** The sheet paints the WORST hazard
+reaching a pixel; `featuresAt` returns the first containing polygon in the
+feature array, which was build order — so 15 km from one volcano, inside
+another's 35–50 km band, the card could name the far volcano's mild band over
+the colour under the cursor. The features are sorted innermost-first now (the
+survey-precedence rule, met again), pinned.
+
+**The hover was the circle.** The generic highlight OUTLINES the picked
+feature — for an annulus, two circles — cut straight across the neighbours it
+had merged with. That is exactly the structure the stencil merge exists to
+remove, redrawn on top of it by the one control that says "this". So a layer
+may draw its own highlight (`layer.highlightFor(feature, {colour, opacity})`,
+a seam in `buildHighlight`, answering LEAF MESHES because the popup's pulse
+animates the opacity of what it is handed). The buffers answer with the same
+zone for every volcano in the picked one's GROUP — union-find over volcanoes
+within twice the widest band, transitive, so the Aeolian arc is one shape —
+as fills painted once through a second stencil ref (2). The lit region has
+only the merged boundary.
+
+Measured on Panarea's 20–35 km band at 382 km: the selection holder holds
+**one fill mesh** (2,688 vertices against 130 ring points for a single
+annulus), stencil ref 2 / NotEqual / band 239, pulsing; the group is Palinuro,
+Panarea, Lipari, Stromboli, Vulcano, Etna and Marsili. Worldwide: the largest
+group is 107 volcanoes, and 185 stand alone.
