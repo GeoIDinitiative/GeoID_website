@@ -124,7 +124,7 @@ check("a season with no named storms says only the count", () => {
    * about the frame rather than about the storms.
    */
   check("the colouring is built once, over the whole span", () => {
-    ok(/const paint = colouring\(seasons\.flatMap/.test(code), "once");
+    ok(/const paint = colouring\(plan\.groups\.flatMap/.test(code), "once");
     ok(/colourFor: paint\.colourFor/.test(code), "and reused by every frame");
   });
   check("on the same edges the layer and the live markers use",
@@ -134,9 +134,9 @@ check("a season with no named storms says only the count", () => {
      answers a click with a storm from a season that is not on screen. */
   check("the feature list follows the frame", () => {
     ok(/onShow: \(index\) =>/.test(code), "on every step");
-    ok(/const list = whole \? \[\] : seasons\[index\]\[1\];/.test(code),
+    ok(/const shown = whole \? \[\] : plan\.groups\.slice\(0, index \+ 1\)/.test(code),
       "pointed at the frame");
-    ok(/now\.features = list;/.test(code), "and the layer told");
+    ok(/now\.features = shown;/.test(code), "and the layer told");
   });
 
   /* The whole-record layer would draw every storm behind the one season being
@@ -160,8 +160,8 @@ check("a season with no named storms says only the count", () => {
   });
   check("and on that frame the archive is shown, not a season", () => {
     ok(/const whole = index === ALL;/.test(code), "the All frame is known");
-    ok(/if \(!whole\) nodeFor\(index\)\.visible = true;/.test(code),
-      "no season node is raised on it");
+    ok(/built\.forEach\(\(node\) => \{ node\.visible = false; \}\);/.test(code),
+      "every plotted group stands down on it");
   });
 
   /**
@@ -234,6 +234,84 @@ check("a season with no named storms says only the count", () => {
     ok(/state\.bar\.note\.title = state\.noteTitle\?\.\(epoch\)/.test(player), "set on show");
     ok(/min-width: max-content/.test(player), "and the note keeps its own width");
   });
+
+/* ── the record is PLOTTED, at three step sizes ──────────────────────────── */
+{
+  const storm = (start, season, kts) => ({
+    properties: { start, season, peak_wind_kts: kts, name: "S" },
+  });
+  const set = [
+    storm("1980-06-02", 1980, 70), storm("1980-06-20", 1980, 90),
+    storm("1980-09-11", 1980, 45), storm("1981-01-04", 1981, 120),
+    storm("1981-08-30", 1981, 60), storm("1979-05-01", 1979, 80),
+  ];
+  const by = (step) => tl.framesFor(set, { from: 1980, step });
+
+  check("each storm is its own frame", () => {
+    eq(by("storm").groups.length, 5, "five in the span, one out of it");
+  });
+  check("months group them", () => eq(by("month").groups.length, 4));
+  check("and seasons group them further", () => eq(by("season").groups.length, 2));
+
+  // SORTED BY THE DATE, never by the order the file holds: the bake sorts by
+  // season and then storm id, so playing it unsorted steps through a season's
+  // storms in an order that is nobody's -- least of all time's.
+  check("frames run in time order", () => {
+    const labels = by("storm").groups.map((g) => g.label);
+    eq(labels.join(","), [...labels].sort().join(","), labels.join(","));
+  });
+  // A storm whose season is 1980 can begin in 1979 -- the southern season
+  // spans the new year -- so the span filter is on the SEASON and the order is
+  // on the date. Both, and they disagree by design.
+  check("a storm is kept by its season and ordered by its date", () => {
+    ok(!by("storm").groups.some((g) => g.label === "1979-05-01"), "1979 season out");
+    ok(by("storm").groups.some((g) => g.label === "1981-01-04"), "1981 season in");
+  });
+
+  /* CUMULATIVE: frame N holds what ARRIVES in it, and the player shows every
+     frame up to N -- so the archive draws itself in. */
+  check("the frames plot rather than replace", () => {
+    ok(/for \(let i = 0; i <= index; i \+= 1\) nodeFor\(i\)\.visible = true;/.test(code),
+      "every group up to here");
+    ok(/plan\.groups\.slice\(0, index \+ 1\)/.test(code), "and the feature list with it");
+  });
+
+  /* STRIDED, NEVER TRUNCATED, and the stride is REPORTED. 4,982 frames is a
+     slider whose every pixel is nine storms; a sequence that quietly steps
+     twelve at a time under a control saying "each storm" is the silent cap
+     this tree keeps paying for. */
+  check("a long record is strided, and the far end kept", () => {
+    // DISTINCT dates, or they group and there is nothing to stride: 4,000
+    // storms sharing 28 days is 28 frames, which is the fixture agreeing with
+    // itself rather than exercising the cap.
+    const many = Array.from({ length: 4000 }, (_, i) => {
+      const year = 1990 + Math.floor(i / 140);
+      const month = String((i % 12) + 1).padStart(2, "0");
+      const day = String((i % 28) + 1).padStart(2, "0");
+      return storm(`${year}-${month}-${day}-${i}`, year, 60);
+    });
+    const plan = tl.framesFor(many, { from: 1980, step: "storm" });
+    ok(plan.groups.length <= tl.MAX_FRAMES, `${plan.groups.length} frames`);
+    ok(plan.stride > 1, `stride ${plan.stride}`);
+    eq(plan.total, many.length, "nothing dropped");
+  });
+  check("and the stride is said out loud",
+    () => ok(/one frame per \$\{plan\.stride\}/.test(code), "reported"));
+
+  /* Each step opens at its own pace: 4,982 storms at the 1.2s a 47-season
+     sequence wants is a hundred minutes. */
+  check("each step carries its own opening rate", () => {
+    ok(tl.STEPS.storm.interval < tl.STEPS.month.interval, "storms faster than months");
+    ok(tl.STEPS.month.interval < tl.STEPS.season.interval, "months faster than seasons");
+    ok(/interval: plan\.spec\.interval/.test(code), "and the driver hands it over");
+  });
+  /* Ticks where the YEAR turns -- per frame on a 354-frame slider they are a
+     solid bar, and the season step is one frame a year already. */
+  check("the slider is ticked where the year turns", () => {
+    ok(/tick: plan\.step === "season"/.test(code), "decades on the season step");
+    ok(/String\(year\) !== prev/.test(code), "years on the finer ones");
+  });
+}
 
   check("pressing play without the layer explains itself",
     () => ok(/Tick the cyclone tracks on first/.test(src), "says so"));

@@ -14,7 +14,7 @@
  * pyramid. This file is 1.5 MB, loads once, and can be rewritten on its own.
  */
 
-import { dataUrl } from "./data-base.js?v=20260908-0e1155d";
+import { dataUrl } from "./data-base.js?v=20260908-f9360ff";
 
 const URL_PATH = "/data/global/ice/names.json";
 

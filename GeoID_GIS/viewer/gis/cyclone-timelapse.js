@@ -23,12 +23,12 @@
 
 import {
   buildSymbology, colourOf, legendInfoFrom,
-} from "./symbology.js?v=20260908-0e1155d";
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-0e1155d";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-0e1155d";
+} from "./symbology.js?v=20260908-f9360ff";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-f9360ff";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-f9360ff";
 import {
   showSeason, showClimatology, riskLayer,
-} from "./cyclone-risk.js?v=20260908-0e1155d";
+} from "./cyclone-risk.js?v=20260908-f9360ff";
 
 const search = new URL(import.meta.url).search;
 
@@ -81,6 +81,82 @@ function tracksLayer() {
 function say(message) {
   const node = byId("cyclone-play-status");
   if (node) node.textContent = message;
+}
+
+/**
+ * The seasons present in the data, not a range counted off from a start year:
+ * the archive has gaps, and an epoch for a season with nothing in it is a
+ * frame that draws nothing and reads as the player having broken.
+ */
+/**
+ * THE STEPS THE RECORD CAN BE PLOTTED IN, coarsest last.
+ *
+ * Every track carries `start` as a date, so the archive can be walked by the
+ * storm, by the month it began in, or by its season. Which of the three is
+ * useful depends entirely on how much record is in the span: 4,982 storms
+ * since 1980 is 47 seasons, 564 months, or 4,982 individual arrivals.
+ */
+export const STEPS = {
+  storm: { label: "Each storm", key: (p) => String(p.start || ""), interval: 90 },
+  month: { label: "By month", key: (p) => String(p.start || "").slice(0, 7), interval: 200 },
+  season: { label: "By season", key: (p) => String(p.season || ""), interval: 900 },
+};
+
+/**
+ * At most this many frames on one slider, whatever the step.
+ *
+ * 4,982 frames is a slider whose every pixel is nine storms and a play that
+ * takes seven minutes at the fastest rate offered. Past the cap the step is
+ * STRIDED -- several storms to a frame -- and the stride is REPORTED, the same
+ * rule the imagery animator follows: a sequence that quietly steps thirteen at
+ * a time under a control saying "each storm" is the silent cap this tree keeps
+ * paying for.
+ */
+export const MAX_FRAMES = 360;
+
+/**
+ * The record in time order, grouped into the frames one step gives.
+ *
+ * PLOTTED, NOT REPLACED: frame N holds the storms that ARRIVE in it, and the
+ * player shows every frame up to N, so the archive draws itself in. That is
+ * what "plot the tracks one after another" means, and it is why the counter on
+ * the bar reads a running total rather than one frame's own count.
+ *
+ * Sorted by the DATE, never by the order the file holds: the bake sorts by
+ * season and then by storm id, so playing it unsorted steps through a season's
+ * storms in an order that is nobody's -- least of all time's.
+ */
+export function framesFor(features, { from = MODERN, step = "season" } = {}) {
+  const spec = STEPS[step] || STEPS.season;
+  const kept = features
+    .filter((f) => {
+      const year = Number(f?.properties?.season);
+      return Number.isFinite(year) && year >= from && f?.properties?.start;
+    })
+    .sort((a, b) => String(a.properties.start).localeCompare(String(b.properties.start)));
+  if (!kept.length) return { groups: [], stride: 1, step, spec };
+
+  const order = [];
+  const byKey = new Map();
+  kept.forEach((f) => {
+    const key = spec.key(f.properties);
+    if (!byKey.has(key)) { byKey.set(key, []); order.push(key); }
+    byKey.get(key).push(f);
+  });
+
+  // Strided, never truncated: the far end of the record is what a plot is
+  // building towards, and cutting it off changes which record is being shown.
+  const stride = Math.max(1, Math.ceil(order.length / MAX_FRAMES));
+  const groups = [];
+  for (let i = 0; i < order.length; i += stride) {
+    const keys = order.slice(i, i + stride);
+    groups.push({
+      label: keys[0],
+      keys,
+      features: keys.flatMap((key) => byKey.get(key)),
+    });
+  }
+  return { groups, stride, step, spec, total: kept.length };
 }
 
 /**
@@ -172,7 +248,7 @@ export function noteTitle(epoch) {
   return said;
 }
 
-export async function play({ from = MODERN, startAt = null } = {}) {
+export async function play({ from = MODERN, startAt = null, step = null } = {}) {
   // Same window as the raster's: building the epochs and the derived layer
   // takes long enough for a second caller to arrive before `running` is set,
   // and the second one's teardown runs the first one's `onStop`.
@@ -181,72 +257,74 @@ export async function play({ from = MODERN, startAt = null } = {}) {
   if (running) { stopPlayer(); running = false; }
   opening = true;
   try {
-    return await build({ from, startAt });
+    return await build({ from, startAt, step: step || chosenStep() });
   } finally {
     opening = false;
   }
 }
 
-async function build({ from, startAt }) {
+async function build({ from, startAt, step }) {
   const layer = tracksLayer();
   if (!layer?.features?.length) {
     say("Tick the cyclone tracks on first — the animation plays the layer you have.");
     return null;
   }
-  const seasons = seasonsIn(layer.features, from);
-  if (!seasons.length) { say("No seasons in that span."); return null; }
+  const plan = framesFor(layer.features, { from, step });
+  if (!plan.groups.length) { say("No storms in that span."); return null; }
 
   const render = await import(`./vector-render.js${search}`);
   const THREE = await import("../vendor/three.module.js");
-  const paint = colouring(seasons.flatMap(([, list]) => list));
+  const paint = colouring(plan.groups.flatMap((g) => g.features));
 
   const group = new THREE.Group();
   group.name = "GeoID-CycloneTimelapse";
-
-  /**
-   * ONE EPOCH PER SEASON, AND A LAST ONE THAT IS THE WHOLE RECORD.
-   *
-   * The bar opens BECAUSE THE LAYER WAS TICKED, so it has to park somewhere
-   * that leaves the layer saying what its own name says. The last season is
-   * not that — 2026 alone is 75 storms of 13,513, so opening there would
-   * answer a tick for "every storm on record" with 0.6% of it. The terminal
-   * frame shows the layer itself, unchanged, and every step back from it is
-   * pure gain.
-   */
-  // "run" only where the layer IS runs: the hurricane variant draws the
-  // stretches at hurricane force, not the storms that made them.
   const noun = /hurricane tracks/i.test(layer.name || "") ? "run" : "storm";
   const total = layer.features.length;
-  const epochs = seasons.map(([year, list]) => ({
-    noun, total,
-    // The player shows `label` and asks GIBS for `date`; with imagery off the
-    // date is only ever read by the bar, so the year is both.
-    date: String(year), label: String(year), dataset: null,
-    from: `${year}-01-01`, to: `${year}-12-31`,
-    year, count: list.length,
-    named: list.filter((f) => f.properties?.name).length,
-  }));
+
+  /**
+   * ONE EPOCH PER GROUP, AND A LAST ONE THAT IS THE WHOLE LAYER.
+   *
+   * The cumulative frames only ever reach the span being played — 4,982 storms
+   * since 1980, against 13,513 in the archive — so the terminal frame is what
+   * lets the bar be opened on a tick without the layer losing two thirds of
+   * itself. Every step back from it is pure gain.
+   */
+  let running_total = 0;
+  const epochs = plan.groups.map((g, i) => {
+    running_total += g.features.length;
+    const label = String(g.label);
+    const year = Number(label.slice(0, 4));
+    const prev = i ? String(plan.groups[i - 1].label).slice(0, 4) : null;
+    return {
+      date: label, label, dataset: null, noun, total,
+      count: running_total,
+      // A TICK WHERE THE YEAR TURNS. On a 354-frame slider the marks are what
+      // say where in the record the handle is; per frame they would be a solid
+      // bar, and the season step is one frame a year already.
+      tick: plan.step === "season"
+        ? Number.isFinite(year) && year % 10 === 0
+        : String(year) !== prev,
+      tickLabel: String(year),
+      year: Number.isFinite(year) ? year : null,
+      group: i,
+    };
+  });
   epochs.push({
-    noun, total,
-    date: "all", label: "All", dataset: null, all: true,
-    count: layer.features.length,
-    named: layer.features.filter((f) => f.properties?.name).length,
+    noun, total, date: "all", label: "All", dataset: null, all: true,
+    count: total, named: layer.features.filter((f) => f.properties?.name).length,
   });
   const ALL = epochs.length - 1;
 
   /**
-   * BUILT ON DEMAND, one season at a time.
-   *
-   * Building all 47 up front cost half a second and twice the geometry, which
-   * is a bill nobody asked for when the bar opens on a tick rather than on a
-   * press. A season is built the first time it is shown and kept; a reader who
-   * never scrubs pays nothing at all.
+   * BUILT ON DEMAND and kept, because the frames ACCUMULATE: stepping forward
+   * reveals one more group over the ones already drawn, so nothing is rebuilt
+   * and a reader who never scrubs pays for nothing.
    */
   const built = new Map();
   const nodeFor = (index) => {
     if (built.has(index)) return built.get(index);
     const made = render.renderFeatureCollection(
-      { type: "FeatureCollection", features: seasons[index][1] },
+      { type: "FeatureCollection", features: plan.groups[index].features },
       { colourFor: paint.colourFor, outlineOnly: false },
     );
     const node = made?.object3D || made;
@@ -259,66 +337,71 @@ async function build({ from, startAt }) {
   const wasVisible = layer.object3D ? layer.object3D.visible : true;
 
   const derived = window.GeoIDImportManager?.addDerivedLayer?.(
-    "Cyclone seasons — peak wind (kts)", {
+    `Cyclone tracks plotted — ${plan.spec.label.toLowerCase()}`, {
       object3D: group,
       georeferenced: true,
-      // It stands in for the tracks layer, so it lights the tracks' own tab.
-      home: "hazards",
       bounds: { minX: -180, maxX: 180, minY: -90, maxY: 90 },
-      features: seasons[0][1],
-      collection: { type: "FeatureCollection", features: seasons[0][1] },
+      features: plan.groups[0].features,
+      collection: { type: "FeatureCollection", features: plan.groups[0].features },
       legendInfo: { ...legendInfoFrom(paint.sym, { label: FIELD, unit: "kts" }),
         field: FIELD, categorical: false },
+      // It stands in for the tracks layer, so it lights the tracks' own tab.
+      home: "hazards",
     }, "ibtracs");
 
   const held = () => (window.GeoIDImportManager?.getLayers?.() || [])
     .find((l) => l.id === derived?.id);
 
+  // The stride is REPORTED, never silent: a sequence stepping twelve storms a
+  // frame under a control saying "each storm" is the cap this tree keeps
+  // paying for.
+  const strided = plan.stride > 1
+    ? ` — one frame per ${plan.stride} ${plan.step === "season" ? "seasons"
+      : plan.step === "month" ? "months" : `${noun}s`}` : "";
+  say(`${plan.groups.length} frames, ${plan.spec.label.toLowerCase()}${strided}`);
+
   running = true;
   await startPlayer({
     bounds: { west: -180, south: -90, east: 180, north: 90 },
     epochs,
-    // The subject is the lines. A picture behind them costs a request per
-    // frame and answers a question nobody asked of this layer.
     source: "none",
     noteFor,
     noteTitle,
     onStatus: say,
+    interval: plan.spec.interval,
     startAt: startAt === null ? ALL : startAt,
     onShow: (index) => {
       const whole = index === ALL;
       /**
-       * THE WHOLE-RECORD LAYER AND THE SEASON ARE NEVER BOTH UP. Left visible
-       * together the archive draws every storm behind the one season being
-       * shown, which is the web the animation exists to take apart — and on
-       * the All frame the archive IS the answer, so the derived group stands
-       * down instead.
+       * THE WHOLE-RECORD LAYER AND THE PLOT ARE NEVER BOTH UP. Left visible
+       * together the archive draws every storm behind the ones being plotted,
+       * which is the web the animation exists to take apart — and on the All
+       * frame the archive IS the answer, so the plot stands down instead.
        */
       window.GeoIDLayerHierarchy?.setVisible?.(layer, whole ? wasVisible : false);
-      built.forEach((node) => { node.visible = false; });
-      if (!whole) nodeFor(index).visible = true;
+      if (whole) {
+        built.forEach((node) => { node.visible = false; });
+      } else {
+        // CUMULATIVE: every group up to here, so the record draws itself in.
+        for (let i = 0; i <= index; i += 1) nodeFor(i).visible = true;
+        built.forEach((node, i) => { if (i > index) node.visible = false; });
+      }
       const now = held();
       if (now) {
         if (now.object3D) now.object3D.visible = !whole;
         /**
          * THE FEATURE LIST FOLLOWS THE FRAME, the glacier driver's own lesson:
          * `featuresAt` walks `layer.features`, so a list left on the whole
-         * span answers a click with a storm from a season that is not shown.
+         * span answers a click with a storm that is not on screen.
          */
-        const list = whole ? [] : seasons[index][1];
-        now.features = list;
-        now.collection = { type: "FeatureCollection", features: list };
+        const shown = whole ? [] : plan.groups.slice(0, index + 1)
+          .flatMap((g) => g.features);
+        now.features = shown;
+        now.collection = { type: "FeatureCollection", features: shown };
       }
-      /**
-       * AND THE RISK MAP FOLLOWS when it is on the globe. A season's cells are
-       * a COUNT and the climatology's are a chance, so `showSeason` swaps the
-       * legend with the map — see cyclone-risk.js. It is a REPAINT: the same
-       * 91,156 cells however many years the bar steps through. On the All
-       * frame it goes back to the long-run chance, which is what the layer is.
-       */
       if (followRisk()) {
         if (whole) showClimatology();
-        else void showSeason(seasons[index][0]);
+        else if (epochs[index].year) void showSeason(epochs[index].year);
       }
     },
     onStop: () => {
@@ -332,7 +415,7 @@ async function build({ from, startAt }) {
       say("");
     },
   });
-  return { seasons: seasons.length, openedOn: "All" };
+  return { frames: plan.groups.length, stride: plan.stride, step: plan.step };
 }
 
 /**
@@ -349,6 +432,15 @@ async function build({ from, startAt }) {
  * periods), and closing the bar puts the climatology back. Nothing is left in
  * a state somebody has to find their way out of.
  */
+/**
+ * Which step the panel is asking for. Read at the press, not closed over: the
+ * subtab redraws whenever the catalogue does.
+ */
+function chosenStep() {
+  const value = byId("cyclone-timelapse-step")?.value;
+  return STEPS[value] ? value : "season";
+}
+
 function followRisk() {
   return Boolean(riskLayer());
 }

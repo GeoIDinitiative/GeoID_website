@@ -33,7 +33,8 @@ const STYLE = `
   position: fixed; left: 50%; transform: translateX(-50%);
   bottom: 5.6rem; z-index: 24;
   display: flex; align-items: center; gap: 0.55rem;
-  padding: 0.45rem 0.7rem;
+  /* Room under the row for the tick labels, which hang below the track. */
+  padding: 0.45rem 0.7rem 0.95rem;
   background: var(--skin-tab-ground, rgb(16, 7, 36));
   border: 1px solid rgba(var(--nav-accent-rgb), 0.55);
   border-radius: 0.78rem;
@@ -64,6 +65,33 @@ const STYLE = `
    so "13513 storms, 5733 named" read as "13513 storms, 5733...". It keeps its
    own width up to the cap, and the cap is what stops a long note pushing the
    close button off a narrow screen. */
+/* The rate pill: the same bordered square the other controls wear, with room
+   for two characters rather than one glyph. */
+.geoid-timelapse .tl-speed { min-width: 2.2rem; font-variant-numeric: tabular-nums; }
+/* THE SLIDER TAKES THE SLACK. A 355-frame sequence in 129px is a handle with
+   nowhere to go and ticks two pixels apart; the bar has the room and nothing
+   else in it wants to grow. */
+.geoid-timelapse .tl-scale { flex: 1 1 auto; min-width: 17rem; position: relative; }
+.geoid-timelapse .tl-scale input[type=range] { width: 100%; display: block; }
+/* DRAWN, not left to the browser. A datalist on a range is the standard answer
+   and what it renders is at the browser's discretion -- Chrome hides the marks
+   entirely once the element is laid out at zero size, which is what it takes
+   to keep the list itself off the bar. These are ours, so they are there. */
+.geoid-timelapse .tl-ticks {
+  position: absolute; left: 0; right: 0; bottom: -1px; height: 0.5rem;
+  pointer-events: none;
+}
+.geoid-timelapse .tl-tick {
+  position: absolute; bottom: 0; width: 1px; height: 0.22rem;
+  background: rgba(var(--nav-accent-rgb), 0.55);
+}
+/* A LABELLED tick stands taller, because a scale with a number every mark is a
+   row of numbers rather than a scale. */
+.geoid-timelapse .tl-tick.is-major { height: 0.42rem; background: rgba(var(--nav-accent-rgb), 0.9); }
+.geoid-timelapse .tl-tick span {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  bottom: -0.72rem; font-size: 0.52rem; opacity: 0.65; white-space: nowrap;
+}
 .geoid-timelapse .tl-note {
   font-size: 0.68rem; opacity: 0.75; color: var(--soft-light);
   flex: 0 1 auto; min-width: max-content;
@@ -167,6 +195,13 @@ function holdWorldClock() {
 
 let state = null;
 let pendingToggle = null;
+/**
+ * The rates the pill cycles. x1 is the driver's own interval, so a sequence
+ * that knows it is long opens at a sane pace and these only ever multiply it.
+ */
+const SPEEDS = [1, 2, 4, 8];
+/** Kept across sequences: a reader who wants it fast wants it fast again. */
+let speedAt = 0;
 
 function styleOnce() {
   if (document.getElementById("geoid-timelapse-style")) return;
@@ -405,17 +440,62 @@ function buildBar() {
     });
   }
 
+  /**
+   * THE RATE, as a pill that cycles rather than a row of buttons.
+   *
+   * A sequence's natural pace depends entirely on how many frames it has: the
+   * cyclone archive stepped one storm at a time is 4,982 frames, which at the
+   * 1.2 s a 47-season sequence wants would take a hundred minutes. So the rate
+   * is a control rather than a constant — and one pill rather than three
+   * buttons, because this bar is already seven controls wide and the choice is
+   * a cycle, not a menu.
+   *
+   * The driver's own `interval` is x1; the pill multiplies it, so a sequence
+   * that knows it is long can still open at a sane pace.
+   */
+  const speed = document.createElement("button");
+  speed.className = "tl-speed";
+  const sayRate = () => {
+    const rate = SPEEDS[speedAt];
+    speed.textContent = rate === 1 ? "1x" : `${rate}x`;
+    const ms = Math.round((state?.baseInterval || 1200) / rate);
+    speed.title = `Playing a frame every ${ms} ms. Press for the next rate.`;
+  };
+  speed.addEventListener("click", () => {
+    speedAt = (speedAt + 1) % SPEEDS.length;
+    sayRate();
+    if (state) {
+      state.interval = Math.round(state.baseInterval / SPEEDS[speedAt]);
+      // Restart the timer so the new rate takes effect on THIS frame rather
+      // than after the current one has finished waiting out the old one.
+      if (state.timer) { play(false); play(true); }
+    }
+  });
+
+  /**
+   * TICKS ON THE SLIDER, because a bare track says nothing about where in the
+   * record the handle is. A `datalist` is the browser's own answer and needs
+   * no drawing of ours; the driver says which frames deserve a mark, since
+   * only it knows whether they are decades, seasons or months.
+   */
+  const scale = document.createElement("div");
+  scale.className = "tl-scale";
+  const ticks = document.createElement("div");
+  ticks.className = "tl-ticks";
+  scale.append(slider, ticks);
+
   back.addEventListener("click", () => { play(false); step(-1); });
   forward.addEventListener("click", () => { play(false); step(1); });
   playBtn.addEventListener("click", () => play(!state?.timer));
   slider.addEventListener("input", () => { play(false); void show(Number(slider.value)); });
   close.addEventListener("click", () => stopPlayer());
 
-  bar.append(back, playBtn, forward, date, slider, note);
+  bar.append(back, playBtn, forward, speed, date, scale, note);
   if (overlay) bar.appendChild(overlay);
   bar.appendChild(close);
   document.body.appendChild(bar);
-  return { bar, date, slider, note, play: playBtn, overlay };
+  sayRate();
+  return { bar, date, slider, note, play: playBtn, overlay, speed, ticks, sayRate };
 }
 
 /**
@@ -479,7 +559,10 @@ export async function startPlayer({ bounds, epochs, source = "auto", frames = nu
   // `buildBar` needs to know whether there is an overlay before `state` exists.
   pendingToggle = overlayToggle;
   state = {
-    epochs, frames, bounds, source, noteFor, noteTitle, onStop, interval, onShow,
+    epochs, frames, bounds, source, noteFor, noteTitle, onStop, onShow,
+    // The driver's pace is x1; the pill multiplies it.
+    baseInterval: interval,
+    interval: Math.round(interval / SPEEDS[speedAt]),
     toggle: overlayToggle,
     index: 0, timer: null, scenes: new Map(), bar: buildBar(),
     say: onStatus, playing: false, restoreClock: holdWorldClock(),
@@ -487,6 +570,42 @@ export async function startPlayer({ bounds, epochs, source = "auto", frames = nu
   pendingToggle = null;
   syncOverlay();
   state.bar.slider.max = String(epochs.length - 1);
+  state.bar.sayRate?.();
+  /**
+   * A tick per marked frame. The driver names them because only it knows what
+   * they mean; with none it says so by drawing none, rather than this guessing
+   * an interval that would be wrong for every sequence but one.
+   */
+  const marked = epochs
+    .map((epoch, i) => (epoch.tick ? { epoch, i } : null))
+    .filter(Boolean);
+  /**
+   * A LABEL ON EVERY MARK IS A ROW OF NUMBERS, not a scale. Forty-eight years
+   * across nine rems is a number every four pixels, so only every nth mark is
+   * written — chosen from how many there are rather than fixed, because the
+   * same bar carries 47 seasons and 354 storm frames.
+   */
+  /**
+   * How many labels the TRACK can hold, not a fixed count: a four-character
+   * year needs about 34px to stand clear of its neighbours, and this bar is
+   * the same width whether it is carrying 47 seasons or 354 storm frames.
+   */
+  const room = Math.max(2, Math.floor(
+    (state.bar.slider.getBoundingClientRect().width || 260) / 34));
+  const every = Math.max(1, Math.ceil(marked.length / room));
+  const span = Math.max(1, epochs.length - 1);
+  marked.forEach(({ epoch, i }, n) => {
+    const mark = document.createElement("i");
+    mark.className = "tl-tick";
+    mark.style.left = `${(i / span) * 100}%`;
+    if (n % every === 0 && epoch.tickLabel) {
+      mark.classList.add("is-major");
+      const text = document.createElement("span");
+      text.textContent = epoch.tickLabel;
+      mark.appendChild(text);
+    }
+    state.bar.ticks.appendChild(mark);
+  });
   const opening = Math.min(Math.max(0, startAt | 0), epochs.length - 1);
   await show(opening);
   return { frames: epochs.length };

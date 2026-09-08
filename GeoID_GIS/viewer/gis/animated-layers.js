@@ -20,8 +20,8 @@
  * made here — and unticking the one that owns it puts the bar away.
  */
 
-import { grouped, layerForDataset } from "./global-data.js?v=20260908-0e1155d";
-import { stopPlayer } from "./timelapse-player.js?v=20260908-0e1155d";
+import { grouped, layerForDataset } from "./global-data.js?v=20260908-f9360ff";
+import { stopPlayer } from "./timelapse-player.js?v=20260908-f9360ff";
 
 /** Which entry owns the bar, or null. */
 let owner = null;
@@ -42,7 +42,14 @@ const entries = () => grouped().flatMap((group) => group.entries || [])
 export function armed(list, lookup) {
   return (list || []).filter((entry) => {
     const layer = lookup(entry.id);
-    return layer && layer.status !== "error";
+    /**
+     * REGISTERED IS NOT LOADED. `importFileList` puts a layer in the list when
+     * the import STARTS, so a sequence opened on the first `layers-changed`
+     * finds a row with no features and reports "tick the layer on first" over
+     * a layer that is on its way. Wait for something to play.
+     */
+    return layer && layer.status === "loaded"
+      && (layer.features?.length || layer.raster || layer.collection);
   });
 }
 
@@ -86,7 +93,16 @@ async function sync() {
  * unticking and re-ticking the layer would never reopen it.
  */
 function watchBar() {
-  if (!owner) return;
+  /**
+   * NOT WHILE IT IS BEING BUILT. `owner` is claimed before the open is
+   * awaited, and building a sequence takes ten seconds or more — so for all of
+   * that there is an owner and no bar, which is indistinguishable from a bar
+   * that has been closed. Measured: the poll marked the entry dismissed a few
+   * hundred milliseconds in, and the sequence that then finished building was
+   * never allowed to reopen. The same "opening is not yet running" gap the
+   * drivers each needed their own flag for.
+   */
+  if (!owner || opening) return;
   if (document.getElementById("geoid-timelapse")) return;
   // Gone without the layer going: the reader pressed ✕.
   dismissed.add(owner);
