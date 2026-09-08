@@ -14837,3 +14837,30 @@ tooltip.
 
 Measured after, stepping back through frames: nothing clipped at any of them,
 and the bar came down from 573 px to 497.
+
+## A frame standing in for a dataset has to keep that dataset's tab lit
+
+The Hazards header went dark **at the moment its data was most obviously on the
+globe** — mid-animation, with a cyclone season drawn across the Atlantic.
+
+Two facts meeting, and each is correct on its own:
+
+- the whole-record tracks layer is DELIBERATELY hidden while a season is shown
+  (it would otherwise draw every storm behind the one year on screen), and
+  `isOn` reads visibility;
+- the derived season layer that replaces it has no catalogue row, so the
+  activity pass had nothing to file it under and dropped it in Workspace.
+
+So the only visible cyclone layer was attributed to the wrong tab while the one
+attributed correctly was invisible. **A derived layer may now name its `home`**
+— carried by `addDerivedLayer`, read by `activeSections` before the name
+guesses below it — and both cyclone drivers declare `hazards`.
+
+Deliberately a HINT the caller gives rather than something inferred: a clip or
+a tool output genuinely belongs in Workspace, because somebody made it and it
+lives with their working set. What is different here is a layer standing IN FOR
+a catalogue dataset, and only its author knows that.
+
+Measured, collapsed: dark with nothing ticked, lit on the All frame, **still
+lit on a season frame with the whole-record layer hidden**, and Basemaps dark
+throughout.

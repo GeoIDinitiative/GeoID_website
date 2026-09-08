@@ -297,6 +297,24 @@ check("and every listed group still has something in it",
     /layer\.repaint\?\.\(paint\.colourFor\)/.test(tracks));
   check("the default is by category",
     /currentView\(layers\) \{[\s\S]{0,120}\|\| "category"/.test(tracks));
+  /* ── a derived layer that stands in for a dataset keeps its tab lit ───── */
+  // While a cyclone season is on screen the whole-record layer is deliberately
+  // hidden beneath it, and the derived season layer has no catalogue row -- so
+  // the activity pass filed it under Workspace and the Hazards header went
+  // DARK at the moment its data was most obviously on the globe.
+  const activity = readFileSync(join(HERE, "section-activity.js"), "utf8");
+  check("a derived layer naming a home lights that home's header",
+    /if \(layer\.home\) \{[\s\S]{0,140}sectionForHome\(layer\.home\)/.test(activity));
+  check("and it is read before the name guesses below it",
+    activity.indexOf("if (layer.home)") < activity.indexOf('name.startsWith("Live satellites")'));
+  const manager = readFileSync(join(HERE, "import-manager.js"), "utf8");
+  check("addDerivedLayer carries the home its caller declares",
+    /home: result\.home \|\| null,/.test(manager));
+  for (const file of ["cyclone-timelapse.js", "cyclone-risk-raster.js"]) {
+    check(`${file} declares one, so its frames light Hazards`,
+      /home: "hazards",/.test(readFileSync(join(HERE, file), "utf8")));
+  }
+
   // A VIEW IS THE COLOURING. Both were running -- the view's paint and then
   // `paintByRange` over the top -- so the key on load disagreed with the key
   // after a switch and back, and the second was the true one.

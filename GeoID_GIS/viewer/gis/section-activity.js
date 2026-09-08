@@ -16,8 +16,8 @@
 
 import {
   grouped as globalGrouped, layerForDataset, HOMES,
-} from "./global-data.js?v=20260908-4034c94";
-import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20260908-4034c94";
+} from "./global-data.js?v=20260908-2e1e098";
+import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20260908-2e1e098";
 
 /**
  * WHICH HEADER A CATALOGUE HOME LIGHTS, READ FROM THE DOM.
@@ -86,6 +86,17 @@ function activeSections() {
   });
   (window.GeoIDImportManager?.getLayers?.() || []).forEach((layer) => {
     if (claimed.has(layer.id) || !isOn(layer)) return;
+    /**
+     * A DERIVED LAYER THAT NAMES ITS HOME goes to that home's header, not to
+     * Workspace. It is how a layer standing IN FOR a catalogue dataset keeps
+     * the tab lit: a cyclone season hides the whole-record layer beneath it,
+     * so without this the Hazards header went dark at the moment its data was
+     * most obviously on the globe.
+     */
+    if (layer.home) {
+      const section = sectionForHome(layer.home);
+      if (section) { active.add(section); return; }
+    }
     const name = layer.name || "";
     if (name.startsWith("Live satellites")) { active.add("satellites-section"); return; }
     if (name === "Live events") { active.add("gis-group-events"); return; }

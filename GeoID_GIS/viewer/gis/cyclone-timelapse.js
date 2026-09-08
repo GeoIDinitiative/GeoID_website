@@ -23,12 +23,12 @@
 
 import {
   buildSymbology, colourOf, legendInfoFrom,
-} from "./symbology.js?v=20260908-4034c94";
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-4034c94";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-4034c94";
+} from "./symbology.js?v=20260908-2e1e098";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-2e1e098";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-2e1e098";
 import {
   showSeason, showClimatology, riskLayer,
-} from "./cyclone-risk.js?v=20260908-4034c94";
+} from "./cyclone-risk.js?v=20260908-2e1e098";
 
 const search = new URL(import.meta.url).search;
 
@@ -247,6 +247,8 @@ export async function play({ from = MODERN, startAt = null } = {}) {
     "Cyclone seasons — peak wind (kts)", {
       object3D: group,
       georeferenced: true,
+      // It stands in for the tracks layer, so it lights the tracks' own tab.
+      home: "hazards",
       bounds: { minX: -180, maxX: 180, minY: -90, maxY: 90 },
       features: seasons[0][1],
       collection: { type: "FeatureCollection", features: seasons[0][1] },

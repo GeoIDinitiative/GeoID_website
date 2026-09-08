@@ -1,18 +1,18 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260908-4034c94";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260908-4034c94";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260908-4034c94";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260908-4034c94";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260908-2e1e098";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260908-2e1e098";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260908-2e1e098";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260908-2e1e098";
 import {
   buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude, setSealWidthFromAltitude,
   getRenderRelief,
   setMarkerSizeFromAltitude,
-} from "./vector-render.js?v=20260908-4034c94";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260908-4034c94";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260908-4034c94";
-import { loadMshFile } from "./msh-adapter.js?v=20260908-4034c94";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260908-4034c94";
-import { defaultOpacityFor } from "./layer-opacity.js?v=20260908-4034c94";
+} from "./vector-render.js?v=20260908-2e1e098";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260908-2e1e098";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260908-2e1e098";
+import { loadMshFile } from "./msh-adapter.js?v=20260908-2e1e098";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260908-2e1e098";
+import { defaultOpacityFor } from "./layer-opacity.js?v=20260908-2e1e098";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -944,6 +944,19 @@ export function addDerivedLayer(name, result, ext = "derived") {
     source: result.source || null,
     raster: result.raster || null,
     legendInfo: result.legendInfo || null,
+    /**
+     * WHICH CATALOGUE HOME THIS BELONGS TO, where it stands in for a layer
+     * that has one.
+     *
+     * A derived layer has no catalogue row, so the tab-activity pass has
+     * nothing to file it under and drops it in Workspace. That is right for a
+     * clip or a tool output — somebody made it, and it lives with their
+     * working set — and wrong for a layer that IS a catalogue dataset seen
+     * another way: while a cyclone season is on screen the whole-record layer
+     * is deliberately hidden beneath it, so the Hazards tab went dark at the
+     * exact moment its data was most obviously on the globe.
+     */
+    home: result.home || null,
     // Carried so a layer can be re-classified without re-importing it.
     repaint: result.repaint || null,
     // Filled or outlined, and which it is now. Absent on rasters and on
