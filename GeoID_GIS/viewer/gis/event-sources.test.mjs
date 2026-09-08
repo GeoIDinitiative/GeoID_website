@@ -14,6 +14,7 @@ import {
   MAGNITUDE_RAMP, magnitudeColour, restoreSources, gdacsPoints, gdacsUrl,
   resolveColour, liftForAltitude, dotSizePx, nearSizePx, isQuake, publisherOf,
   restoreActive, stormCategory, stormScale, stormLabel, STORM_BASE_CAP,
+  SAFFIR_SIMPSON_KTS,
   MARKER_LIFT_MAX, MARKER_LIFT_M, DOT_CAP_FAR, DOT_CAP_NEAR,
 }  from "./event-sources.js";
 import { readFileSync } from "node:fs";
@@ -880,6 +881,26 @@ if (fail) process.exitCode = 1;
   const ratio = code.indexOf("const HALO_OVER_MARKER_FOOT");
   check("and the ratio is declared after what it is derived from",
     foot > 0 && ratio > foot, true);
+}
+
+/* ── one definition of the scale, shared with the historical tracks ────────
+   The 13,513-storm IBTrACS archive is classed on the same thresholds the live
+   markers band by, so a Category 3 on the map now and a Category 3 in 1972 are
+   the same colour for the same reason. Written out twice they would eventually
+   cut intensity at two different numbers. */
+{
+  check("the thresholds are exported, ascending, in knots",
+    JSON.stringify(SAFFIR_SIMPSON_KTS), JSON.stringify([64, 83, 96, 113, 137]));
+  /* And `stormCategory` is DERIVED from them rather than repeating them: every
+     threshold must be the exact wind at which its own category begins. */
+  SAFFIR_SIMPSON_KTS.forEach((floor, i) => {
+    check(`${floor} kt is the floor of category ${i + 1}`, stormCategory(floor), i + 1);
+    check(`and one knot under it is still ${i}`, stormCategory(floor - 1), i);
+  });
+  check("below the first threshold is band 0", stormCategory(SAFFIR_SIMPSON_KTS[0] - 1), 0);
+  check("and the top threshold is the top band",
+    stormCategory(SAFFIR_SIMPSON_KTS[SAFFIR_SIMPSON_KTS.length - 1]),
+    SAFFIR_SIMPSON_KTS.length);
 }
 
 /**

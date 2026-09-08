@@ -378,8 +378,7 @@ function buildBar() {
    *
    * It is NOT a second switch. It drives the layer through the hierarchy's own
    * `setVisible`, so the bar and the eye in Workspace are one state seen twice
-   * — the `data-feed-toggle` pattern, and the answer to this tree's own "one
-   * layer, one control".
+   * — this tree's own "one layer, one control".
    */
   let overlay = null;
   if (state?.toggle || pendingToggle) {

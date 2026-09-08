@@ -26,8 +26,11 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260907-1d885b9";
-import { dataUrl } from "./data-base.js?v=20260907-1d885b9";
+import { runConnector } from "./research/connectors.js?v=20260908-9f7271a";
+import { dataUrl } from "./data-base.js?v=20260908-9f7271a";
+// The cyclone tracks are classed on the same scale the live storm markers
+// band by, so the archive and the feed cut intensity at the same knots.
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-9f7271a";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -57,6 +60,10 @@ export const HOMES = {
   // declared here anyway because that is where "does this dataset appear
   // exactly once" is answered, and its test checks every home has a host.
   "geology-soil": "soil-catalogue",
+  // Hazards ▸ Tropical cyclones. The only home outside Geology and
+  // Hydrology, because a cyclone track is neither the ground nor the water: it
+  // is a record of what happened over them.
+  hazards: "hazards-catalogue",
 };
 
 export const DATASETS = [
@@ -149,6 +156,54 @@ export const DATASETS = [
      */
     defaultOn: true,
     opacity: 0.3,
+  },
+  {
+    /**
+     * EVERY TROPICAL CYCLONE ON RECORD, one line per storm.
+     *
+     * IBTrACS is the authoritative archive — every agency's best track,
+     * reconciled by NOAA NCEI — and it is the historical companion to the live
+     * storm markers: the same scale cuts both, so a Category 3 on the map now
+     * and a Category 3 in 1972 are the same colour for the same reason.
+     *
+     * Baked rather than fetched live, which is unlike the two Tectonics rows
+     * above it. The published shapefile is one feature per THREE-HOUR SEGMENT
+     * (713,155 of them), and its longitudes run past 180 — which fails
+     * `looksLikeGeographic` and files the whole layer as not georeferenced.
+     * `services/bake-cyclone-tracks.py` records both, and what ships is one
+     * line per storm with the seam already cut.
+     */
+    id: "cyclone-tracks",
+    home: "hazards",
+    featureNoun: "Cyclone track",
+    group: "Hazards",
+    label: "Tropical cyclone tracks \u2014 every storm on record (IBTrACS)",
+    path: "/data/global/cyclone-tracks.geojson",
+    name: "Tropical cyclone tracks (IBTrACS v04r01).geojson",
+    summary: "13,513 storms from 1842 to 2026, each carrying its name, season, "
+      + "basin, peak wind and lowest pressure \u2014 5,733 of them named and "
+      + "6,246 with a measured peak intensity",
+    licence: "IBTrACS v04r01, NOAA NCEI \u2014 open data; cite Knapp et al. (2010), "
+      + "Bull. Amer. Meteor. Soc., 91, 363-376",
+    /**
+     * Cut on the SCALE, not on this file's own quantiles.
+     *
+     * `SAFFIR_SIMPSON_KTS` is the same list the live storm markers band by, so
+     * the archive and the feed agree about where a category begins. A quantile
+     * of 6,246 peak winds would put a boundary at 62 or 71 knots and call it a
+     * class, which is a boundary that means nothing to anybody reading it.
+     */
+    colourRange: {
+      field: "peak_wind_kts",
+      edges: SAFFIR_SIMPSON_KTS,
+      ramp: "risk",
+    },
+    /**
+     * Faint, and for the reason the plate boundaries are: thirteen thousand
+     * tracks over the tropics is a web rather than a map at full strength, and
+     * what anybody is reading is the ground underneath them.
+     */
+    opacity: 0.55,
   },
   {
     id: "active-faults",
@@ -776,6 +831,9 @@ export async function addDataset(id, onStatus = () => {},
         method: spec.method || "quantile",
         classes: spec.classes || 5,
         ramp: spec.ramp || "risk",
+        // Where the entry names them: a published scale cuts where the scale
+        // says, not where this particular file's values happen to fall.
+        edges: spec.edges || null,
       });
     } catch (error) {
       /* the layer stands in its default colours */

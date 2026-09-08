@@ -24,11 +24,11 @@
  * polygon comes out white with a perfectly correct legend beside it.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260907-1d885b9";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260908-9f7271a";
 import {
   RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP, METHODS,
   categoricalSymbology, buildSymbology, colourOf, legendInfoFrom, fmtBound,
-} from "./symbology.js?v=20260907-1d885b9";
+} from "./symbology.js?v=20260908-9f7271a";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -505,6 +505,17 @@ export const isAngularField = (field) => ANGULAR.test(String(field || ""));
 export function paintByRange(layer, field, {
   method = "quantile", classes = 5, ramp = "viridis", reverse = false,
   overrides = null,
+  /**
+   * EXPLICIT CLASS EDGES, where the scale is published rather than derived.
+   *
+   * Quantiles cut a column where its own values happen to fall, which is right
+   * when nothing outside the data says where the classes are — and wrong when
+   * something does. Saffir-Simpson puts Category 1 at 64 knots because that is
+   * what the scale says, and a quantile of the cyclone archive would put a
+   * boundary at 62 or 71 and call it a class. `buildSymbology` has taken an
+   * edge list all along; this is the way through to it.
+   */
+  edges = null,
 } = {}) {
   // `rampColour` answers for an unknown name by returning viridis, which means
   // a qualitative ramp asked for here paints a correct map under a legend that
@@ -520,7 +531,7 @@ export function paintByRange(layer, field, {
   if (values.length < 2) {
     return { ok: false, message: `${field} has no numbers to classify` };
   }
-  const sym = buildSymbology(values, { method, classes, ramp, reverse });
+  const sym = buildSymbology(values, { method, classes, ramp, reverse, edges });
   if (!sym.ok) return sym;
   if (overrides) {
     sym.rows.forEach((row, i) => {

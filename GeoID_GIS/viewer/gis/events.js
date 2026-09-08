@@ -15,7 +15,7 @@ import {
   activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, gdacsPoints, resolveColour,
   MARKER_LIFT_MAX, liftForAltitude, dotSizePx, isQuake, publisherOf, restoreActive,
   stormCategory, stormScale, stormLabel, STORM_BASE_CAP,
-} from "./event-sources.js?v=20260907-1d885b9";
+} from "./event-sources.js?v=20260908-9f7271a";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -445,7 +445,6 @@ export function setSourceEnabled(id, on) {
   if (on) enabled.add(id); else enabled.delete(id);
   rememberSources();
   renderFeeds();
-  syncFeedProxies();
   // Ticking a feed is asking to see it, so it arms the mode rather than
   // filling a list nobody has opened.
   if (on && !active) { void setActive(true); return; }
@@ -2494,8 +2493,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260907-1d885b9"),
-    import("./research/dsp.js?v=20260907-1d885b9"),
+    import("./seismogram-plot.js?v=20260908-9f7271a"),
+    import("./research/dsp.js?v=20260908-9f7271a"),
   ]);
   if (stale()) return;
 
@@ -2725,30 +2724,22 @@ if (document.readyState === "loading") {
 }
 
 /**
- * Feed tick boxes OUTSIDE this tab.
+ * THE FEED PROXIES ARE GONE, and the note is here so the idea is not retried
+ * without the reason it failed.
  *
- * A hazard subtab (Hazards ▸ Flood, ▸ Drought) offers the live feed for its
- * own subject, so somebody reading about flood susceptibility can switch the
- * flood events on where they are rather than hunting the Live Events tab for
- * the row. It is the SAME source and the same state — `data-feed-toggle`
- * carries the source id, the box mirrors `enabled`, and ticking it goes
- * through `setSourceEnabled`, which arms the mode exactly as the tab's own
- * row does. One feed, one state, two places to reach it.
+ * Hazards ▸ Flood and ▸ Drought carried tick boxes onto THIS tab's own state:
+ * `data-feed-toggle` held the source id, the box mirrored `enabled`, and it
+ * committed through `setSourceEnabled`, so it really was one feed and one
+ * state seen twice. The reasoning was that somebody reading about flood
+ * susceptibility should be able to switch the flood events on where they are.
+ *
+ * It still put one dataset in two tabs, which is the duplication this tree
+ * keeps paying for, and the tabs already divide cleanly: **Live holds what
+ * HAPPENED**, with a time and a place; **Hazards holds what COULD**. A live
+ * feed is the first of those wherever it is ticked from. Removed with the
+ * markup, along with the 900 ms interval that polled for boxes which can no
+ * longer exist.
  */
-function syncFeedProxies() {
-  document.querySelectorAll("[data-feed-toggle]").forEach((box) => {
-    const id = box.dataset.feedToggle;
-    if (!box.dataset.feedWired) {
-      box.dataset.feedWired = "1";
-      box.addEventListener("change", () => setSourceEnabled(id, box.checked));
-    }
-    box.checked = enabled.has(id);
-  });
-}
-if (typeof document !== "undefined") {
-  document.addEventListener("geoid-gis:layers-changed", syncFeedProxies);
-  window.setInterval(syncFeedProxies, 900);
-}
 
 window.GeoIDEvents = {
   setActive, isActive: () => active, getEvents: () => events, SYMBOLS,

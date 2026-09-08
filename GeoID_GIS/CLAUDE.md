@@ -14030,3 +14030,67 @@ CURRENT wind, not the name: "Hurricane Karina" reads 45 kts on the feed, so it
 is drawn and labelled as a tropical storm. EONET's title keeps the name it was
 given; its `magnitudeValue` is the latest observation, and the marker is sized
 by the observation.
+
+#### Every cyclone on record, and the feeds that went back to Live
+
+**"The EONET datasets should not be in the hazards tab — they are already
+covered in the events tab."** Right, and the note that had defended them was
+the argument for the duplication rather than against it: Hazards ▸ Flood and
+▸ Drought carried `data-feed-toggle` proxies onto the Live tab's own state, so
+one dataset sat in two places. The tabs already divide cleanly — **Live holds
+what HAPPENED**, with a time and a place; **Hazards holds what COULD** — and a
+live feed is the first of those wherever it is ticked from. The markup, the
+`syncFeedProxies` machinery and its 900 ms interval all went; Drought had
+nothing else in it and went with them.
+
+**In their place, the historical record.** IBTrACS v04r01 (NOAA NCEI) is the
+authoritative archive — every agency's best track, reconciled — and it answers
+`Access-Control-Allow-Origin: *` at every size, so nothing here needs a key.
+Measured: **713,155 segments over 13,513 storms, 1842 to 2026**.
+
+**It is BAKED where the plate boundaries and the GEM faults are fetched live,
+and three measurements decided that.** Each is a wrong map rather than a slow
+one:
+
+- **A feature is a THREE-HOUR SEGMENT, not a storm.** Hurricane Melissa is 92
+  of them. Drawn raw a click gives three hours of one storm's life, and nothing
+  can be coloured by a storm's peak intensity because no feature knows it.
+- **Longitudes run past 180** — the file's own extent is −179.9 to **183.3**,
+  because a track crossing the antimeridian is continued rather than wrapped.
+  `looksLikeGeographic` allows ±180.5, so the layer is filed as NOT
+  georeferenced and lands in the local-models group. That is the World Stress
+  Map fault exactly, and it is silent.
+- **Wrapping alone is not enough**: a fix at 179.9 followed by one at −179.9
+  draws a chord back across every meridian between them, so the track is SPLIT
+  at the seam. 511 of the 13,513 needed it.
+
+After: 13,513 features, 726,506 vertices, longitudes −180.000 to 179.900 with
+**0 outside the gate**, and a worst longitude step of 8.4° — a chord would be
+~350°. Checked against records anybody can look up: **Katrina 2005 at 902 mb,
+Haiyan 2013 at 895 mb**, both exactly the accepted minima.
+
+**NOTHING LARGE TOUCHES THE DISK, and that is not tidiness.** The extracted
+shapefile is ~700 MB and an intermediate GeoJSON is a few hundred more — it
+filled the working drive on the first attempt and the bake died with ENOSPC.
+GDAL reads the archive WHERE IT LIES (`/vsizip//vsicurl/`) and writes
+`GeoJSONSeq` to `/vsistdout/`, so 713,155 features stream through a pipe and
+the only thing ever held is the 12.6 MB output. 90 seconds, disk unchanged.
+
+**Classed on the SCALE, not on the file's own quantiles.** `paintByRange` now
+forwards explicit `edges` to `buildSymbology`, which has accepted them all
+along, and the entry hands it `SAFFIR_SIMPSON_KTS` — the same constant the
+live storm markers band by. So the archive and the feed cut intensity at the
+same knots, and a Category 3 in 1972 is the colour a Category 3 today is. A
+quantile of 6,246 peak winds would have put a boundary at 62 or 71 and called
+it a class. Verified in the legend: 0–64, 64–83, 83–96, 96–113, 113–137,
+137–185.
+
+**A CATALOGUE ROW, not a bespoke tick.** `hazards` is the first home outside
+Geology and Hydrology, so the layer arrives with the ⓘ, the symbology button,
+the legend, the provenance and the eye that every other dataset has — the same
+argument that turned the glacier inventory and the contacts layer into rows.
+
+Measured live: parent `GeoID-ImportedGeoLayers` (the spinning geo group, so the
+georeferencing trap is genuinely avoided), 13,513 features at the declared 0.55,
+and **median frame 16.7 ms with the layer on against 16.7 hidden** — 726,506
+vertices in 17 draw calls is free.

@@ -16,8 +16,8 @@
 
 import {
   grouped as globalGrouped, layerForDataset,
-} from "./global-data.js?v=20260907-1d885b9";
-import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20260907-1d885b9";
+} from "./global-data.js?v=20260908-9f7271a";
+import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20260908-9f7271a";
 
 const HOME_SECTION = {
   hydrology: "sea-level-section",
@@ -133,7 +133,6 @@ const DATA_CONTROLS = [
   ".gis-catalogue-row input[type=checkbox]",   // a catalogue dataset
   ".event-feed-master",                        // a whole feed group
   ".event-feed-row input[type=checkbox]",      // one live feed
-  "[data-feed-toggle]",                        // a feed proxy (Hazards)
   "[data-demo]",                               // a shipped demo layer
   ".section-master-toggle",                    // a section's own master
 ].join(",");

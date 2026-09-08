@@ -310,14 +310,21 @@ export function restoreSources(saved) {
  * tropical storm — which is a real distinction the scale itself does not
  * make, and not one a marker's SIZE can carry honestly.
  */
+/**
+ * The scale's own thresholds, in knots, ascending — Category 1 begins at 64.
+ *
+ * Exported because the HISTORICAL TRACKS are classed on the same scale: the
+ * catalogue entry hands these to `paintByRange` as its class edges, so the
+ * live storm markers and the 13,513 tracks behind them cut intensity at the
+ * same numbers. Written twice they would eventually cut it at two.
+ */
+export const SAFFIR_SIMPSON_KTS = [64, 83, 96, 113, 137];
+
 export function stormCategory(kts) {
   if (!Number.isFinite(kts)) return null;
-  if (kts >= 137) return 5;
-  if (kts >= 113) return 4;
-  if (kts >= 96) return 3;
-  if (kts >= 83) return 2;
-  if (kts >= 64) return 1;
-  return 0;
+  let band = 0;
+  SAFFIR_SIMPSON_KTS.forEach((floor, i) => { if (kts >= floor) band = i + 1; });
+  return band;
 }
 
 /** What that category is called, for the card and the tooltip. */

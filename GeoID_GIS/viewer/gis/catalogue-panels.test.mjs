@@ -207,5 +207,54 @@ check("and every listed group still has something in it",
   check("which the importer honours", /if \(options\.hold !== false\) holdTheGlobe\(\);/.test(importer));
 }
 
+/* ── the cyclone tracks, and what left the Hazards tab to make room ────────
+   "Lets add hurricane historical tracks to the GUI under the hazards tab.
+   Note the EONET datasets should not be in the hazards tab - remove these -
+   they are already covered in the events tab." */
+{
+  const tracks = DATASETS.find((d) => d.id === "cyclone-tracks");
+  check("the cyclone tracks are in the catalogue", Boolean(tracks));
+  check("filed under Hazards", tracks && tracks.home === "hazards" && tracks.group === "Hazards",
+    tracks && `${tracks.home} / ${tracks.group}`);
+  /* Baked and published, not fetched live: the source shapefile is one feature
+     per three-hour segment and its longitudes run past 180. */
+  check("it reads the baked file rather than the publisher's shapefile",
+    tracks && tracks.path === "/data/global/cyclone-tracks.geojson", tracks && tracks.path);
+  check("and it is not marked live", tracks && !tracks.live);
+  check("it cites IBTrACS and the paper",
+    tracks && /IBTrACS/.test(tracks.licence) && /Knapp/.test(tracks.licence));
+
+  /* Cut on the published scale rather than on this file's own quantiles: a
+     quantile of 6,246 peak winds puts a boundary at 62 or 71 knots and calls
+     it a class. */
+  check("classed on explicit edges", Array.isArray(tracks && tracks.colourRange?.edges));
+  check("which are Saffir-Simpson in knots",
+    JSON.stringify(tracks.colourRange.edges), JSON.stringify([64, 83, 96, 113, 137]));
+
+  const data = readFileSync(join(HERE, "global-data.js"), "utf8");
+  /* ONE definition of the scale. The live storm markers band by the same list,
+     so the archive and the feed agree about where a category begins. */
+  check("taken from the feed's own constant, not written out again",
+    /edges: SAFFIR_SIMPSON_KTS/.test(data)
+    && /import \{ SAFFIR_SIMPSON_KTS \}/.test(data));
+  check("and the catalogue passes edges through to the paint",
+    /edges: spec\.edges \|\| null/.test(data));
+  const dialog = readFileSync(join(HERE, "symbology-dialog.js"), "utf8");
+  check("which paintByRange forwards to buildSymbology",
+    /buildSymbology\(values, \{ method, classes, ramp, reverse, edges \}\)/.test(dialog));
+
+  /* The tab it sits in, and what came out of it. */
+  const html = readFileSync(join(HERE, "..", "index.html"), "utf8");
+  check("the Hazards tab hosts the catalogue", /id="hazards-catalogue"/.test(html));
+  check("with the status line its home derives", /id="hazards-status"/.test(html));
+  check("and no live feed is offered from Hazards any more",
+    !/data-feed-toggle/.test(html));
+  /* The machinery went with the markup — it polled every 900 ms for boxes that
+     can no longer exist. */
+  const events = readFileSync(join(HERE, "events.js"), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  check("and its polling went with it", !/syncFeedProxies/.test(events));
+}
+
 console.log(failures ? `\n${failures} failed` : "\nall passed");
 process.exit(failures ? 1 : 0);
