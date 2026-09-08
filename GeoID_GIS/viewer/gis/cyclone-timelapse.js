@@ -23,12 +23,12 @@
 
 import {
   buildSymbology, colourOf, legendInfoFrom,
-} from "./symbology.js?v=20260908-f95521b";
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-f95521b";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-f95521b";
+} from "./symbology.js?v=20260908-d0b40e9";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-d0b40e9";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-d0b40e9";
 import {
   showSeason, showClimatology, riskLayer,
-} from "./cyclone-risk.js?v=20260908-f95521b";
+} from "./cyclone-risk.js?v=20260908-d0b40e9";
 
 const search = new URL(import.meta.url).search;
 
@@ -52,7 +52,6 @@ const RAMP = "risk";
 export const SATELLITE_ERA = 1966;
 export const MODERN = 1980;
 
-let host = null;
 let running = false;
 
 const byId = (id) => document.getElementById(id);
@@ -235,32 +234,30 @@ export async function play({ from = MODERN } = {}) {
 }
 
 /**
- * Is the risk map meant to follow? The tick, and only where there is a layer
- * for it to be about -- a control that promises to move a map nobody has
- * loaded is a control that does nothing, which is the fault this file's own
- * catalogue rows are careful to avoid.
+ * THE RISK MAP FOLLOWS BECAUSE IT IS THERE, not because a box was ticked.
+ *
+ * There was a tick, and it was a second switch for one decision: putting the
+ * risk map on the globe and then pressing play on the seasons beside it says
+ * what you want, and a control that toggles what the tick already implies is
+ * the volcano Names button's own fault -- removed from `catalogue-list.js` for
+ * exactly this, with the reasoning still written there.
+ *
+ * Safe to make automatic because it is REVERSIBLE and says so: the key changes
+ * with the map (a season's classes are counts, the climatology's are return
+ * periods), and closing the bar puts the climatology back. Nothing is left in
+ * a state somebody has to find their way out of.
  */
 function followRisk() {
-  return Boolean(byId("cyclone-risk-follow")?.checked) && Boolean(riskLayer());
+  return Boolean(riskLayer());
 }
 
-function wire() {
-  host = byId("cyclone-timelapse");
-  if (!host || host.dataset.wired) return;
-  host.dataset.wired = "1";
-  byId("cyclone-timelapse-play")?.addEventListener("click", () => {
-    const span = Number(byId("cyclone-timelapse-span")?.value) || MODERN;
-    void play({ from: span });
-  });
-}
-
-if (typeof document !== "undefined") {
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", wire);
-  else wire();
-  // The subtab is markup, but the catalogue around it redraws; re-wiring is
-  // idempotent and `dataset.wired` is the guard.
-  window.addEventListener("geoid-gis:layers-changed", wire);
-}
+/**
+ * NOTHING TO WIRE. The button that starts this lives on the catalogue row of
+ * the layer it plays (`entry.play` in global-data.js), so the catalogue builds
+ * and binds it -- and it exists only while that layer is on the globe, which
+ * is what retired both the standing button and the sentence telling the reader
+ * which box to tick first. The module is reached through its window seam.
+ */
 
 if (typeof window !== "undefined") {
   window.GeoIDCycloneTimelapse = { play, SATELLITE_ERA, MODERN };

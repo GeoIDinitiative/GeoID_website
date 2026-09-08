@@ -26,15 +26,15 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260908-f95521b";
-import { dataUrl } from "./data-base.js?v=20260908-f95521b";
-import { mathsFor } from "./equations.js?v=20260908-f95521b";
+import { runConnector } from "./research/connectors.js?v=20260908-d0b40e9";
+import { dataUrl } from "./data-base.js?v=20260908-d0b40e9";
+import { mathsFor } from "./equations.js?v=20260908-d0b40e9";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260908-f95521b";
+} from "./cyclone-risk.js?v=20260908-d0b40e9";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-f95521b";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-d0b40e9";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -208,6 +208,21 @@ export const DATASETS = [
      * what anybody is reading is the ground underneath them.
      */
     opacity: 0.55,
+    /**
+     * The season animation belongs to THIS layer -- it draws the tracks, one
+     * year at a time -- so the button is on its row and exists only while the
+     * layer does. The span is read at the press rather than closed over,
+     * because the select is redrawn whenever the catalogue is.
+     */
+    play: {
+      label: "\u25b6 Play seasons",
+      title: "Play the tracks one season at a time, over the span chosen below",
+      run: () => {
+        const span = Number(
+          document.getElementById("cyclone-timelapse-span")?.value) || 1980;
+        return window.GeoIDCycloneTimelapse?.play({ from: span });
+      },
+    },
   },
   {
     /**
@@ -257,6 +272,17 @@ export const DATASETS = [
       ramp: "risk",
     },
     opacity: 0.6,
+    /**
+     * And the estimate animation belongs to THIS one: it plays this very map,
+     * recomputed after each season, so the button sits on the row that put it
+     * on the globe.
+     */
+    play: {
+      label: "\u25b6 Play the estimate",
+      title: "Play this map recomputed after every season, so what moves is "
+        + "how well the hazard is known rather than what the weather did",
+      run: () => window.GeoIDCycloneRiskRaster?.play(),
+    },
   },
   {
     id: "active-faults",

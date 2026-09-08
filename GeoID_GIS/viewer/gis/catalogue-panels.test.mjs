@@ -256,5 +256,47 @@ check("and every listed group still has something in it",
   check("and its polling went with it", !/syncFeedProxies/.test(events));
 }
 
+/* ── a dataset that plays over time carries its own button ───────────────── */
+// `entry.play` is a SEAM, not a cyclone special case: the button goes on the
+// row of the layer it animates, beside the tick that put that layer on the
+// globe, and does not exist until it has been. That is what retired the two
+// standing buttons and the paragraph telling the reader which box to tick
+// first -- a control that acts on one layer, parked in the subsection instead,
+// has to name that layer in words and then be kept in step with it.
+{
+  const list = readFileSync(join(HERE, "catalogue-list.js"), "utf8");
+  check("the play button is gated on the layer being on the globe",
+    /if \(layer && entry\.play\?\.run\)/.test(list));
+  check("and its click cannot reach the row's own toggle, which would untick it",
+    /event\.stopPropagation\(\)/.test(list.slice(list.indexOf("entry.play?.run"))));
+  const data = readFileSync(join(HERE, "global-data.js"), "utf8");
+  check("exactly the two cyclone entries declare one",
+    [...data.matchAll(/^\s{4}play: \{/gm)].length === 2);
+  // READ AT THE PRESS. Closed over, the span would be whatever the select held
+  // when the catalogue was last redrawn -- and it is redrawn on every tick.
+  check("the season span is read at the press, not closed over",
+    /getElementById\("cyclone-timelapse-span"\)\?\.value/.test(data));
+  const html = readFileSync(join(HERE, "..", "index.html"), "utf8");
+  check("so the subtab holds no standing play button",
+    !/cyclone-timelapse-play|cyclone-risk-raster-play/.test(html));
+  // The follow tick was a second switch for one decision: loading the risk map
+  // and pressing play beside it already says what you want. Same rule that
+  // removed the volcano Names button, whose reasoning is still in
+  // catalogue-list.js.
+  check("and no follow tick, because loading the risk map is the decision",
+    !/cyclone-risk-follow/.test(html));
+  // BOTH PROJECTIONS have to carry it. Each reduces an entry to a fixed shape
+  // and a field left out of one falls back silently -- which is how the
+  // submarine cables came to be captioned "Erupted since 1500", and how this
+  // button came to be absent from a row whose Symbology button was fine.
+  for (const file of ["catalogue-panels.js", "polygons.js"]) {
+    check(`${file} carries entry.play through its projection`,
+      /play: entry\.play,/.test(readFileSync(join(HERE, file), "utf8")));
+  }
+  const lapse = readFileSync(join(HERE, "cyclone-timelapse.js"), "utf8");
+  check("the risk map follows because the layer is there",
+    /function followRisk\(\) \{\s*return Boolean\(riskLayer\(\)\);/.test(lapse));
+}
+
 console.log(failures ? `\n${failures} failed` : "\nall passed");
 process.exit(failures ? 1 : 0);

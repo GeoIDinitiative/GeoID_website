@@ -14521,3 +14521,56 @@ is a wall of text in front of the controls it describes. One line survives —
 frame says which." — and the longer explanation of the follow tick moved to its
 `title`. Same rule this file already states about the pre-satellite frames: the
 honest answer belongs on the frame rather than in a footnote.
+
+## A play button belongs on the ROW of the layer it plays
+
+The cyclone tab had two full-width buttons standing under a paragraph telling
+the reader which box to tick first. `entry.play` puts each one on the catalogue
+row of the layer it animates instead — gated on that layer being loaded, beside
+the Symbology button and the label-detail slider, which are on the row for
+exactly the same reason: **a control that acts on ONE layer, parked in the
+subsection instead, has to name that layer in words and then be kept in step
+with it.** Gated, the button simply is not there until the tick has been made,
+which is what retired the sentence.
+
+It is a SEAM, not a cyclone special case: any entry naming one gets a button
+and one that does not gets none. `stopPropagation` on the click, or it reaches
+the row's own handler and unticks the layer being played.
+
+Measured: nothing ticked → each row shows only its ⓘ; tracks on → "▶ Play
+seasons" on the tracks row alone; both on → each row carries its own. The
+subtab body went **334 px to 209**.
+
+**The season span moved BELOW the rows**, because it qualifies a button up
+there rather than standing on its own — read after the thing it modifies.
+
+### The follow tick is gone, because loading the risk map is the decision
+
+It did work — verified, the risk map stepped 1980→1983 with the seasons. It was
+still a second switch for one decision: putting the risk map on the globe and
+pressing play on the seasons beside it already says what you want. That is the
+volcano Names button's own fault, whose reasoning is still written in
+`catalogue-list.js` ("a button that toggled what the tick box already implies
+was a second switch for one decision").
+
+Safe to make automatic only because it is REVERSIBLE AND SAYS SO: the key
+changes with the map — a season's classes are counts, the climatology's are
+return periods — and closing the bar puts the climatology back. Verified both:
+the map follows with no tick anywhere, and closing restores "Chance of a storm
+passing within 200 km" with its summary cleared. `followRisk()` is now just
+"is the risk layer there".
+
+### BOTH catalogue projections have to carry a new field
+
+Third time in this file's history. `catalogue-panels.js` and `polygons.js` each
+reduce an entry to a fixed shape, and a field left out of one falls back
+SILENTLY — it is how the submarine cables came to be captioned "Erupted since
+1500", and here it was a play button that never appeared while the Symbology
+button on the same row was fine. Pinned now: the test asserts both projections
+carry `entry.play`.
+
+**And the check went in ABOVE that file's summary line.** `catalogue-panels.test.mjs`
+ends with `process.exit`, so anything appended after it runs and is discarded —
+one of the two files this repo already documents for it. A first attempt
+inserted the block at the top of the file instead, which at least failed
+loudly; the discarded-check version would not have.

@@ -1,7 +1,7 @@
 import {
   addDataset, grouped, datasetById, layerForDataset,
-} from "./global-data.js?v=20260908-f95521b";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260908-f95521b";
+} from "./global-data.js?v=20260908-d0b40e9";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260908-d0b40e9";
 
 /**
  * Polygons: the register of vector overlays -- coastlines, boundaries, basins,
@@ -79,6 +79,11 @@ function drawCatalogue() {
         // behind silently falls back to generic wording — which is how the
         // submarine cables came to be captioned "Erupted since 1500".
         detailCopy: entry.detailCopy,
+        // AND ITS PLAY ACTION, for the third time in this file's history:
+        // both projections reduce an entry to a fixed shape, and a field left
+        // out of one falls back SILENTLY -- measured here as a play button
+        // that never appeared while the Symbology button beside it did.
+        play: entry.play,
       })));
   renderCatalogue(host, entries, {
     // A lid over the list: nine datasets with their group headings filled the

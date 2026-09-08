@@ -28,11 +28,11 @@
  * follow.
  */
 
-import { loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260908-f95521b";
-import { dataUrl } from "./data-base.js?v=20260908-f95521b";
-import { riskEdges, RISK_LABELS } from "./cyclone-risk.js?v=20260908-f95521b";
-import { rampColour } from "./symbology.js?v=20260908-f95521b";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-f95521b";
+import { loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260908-d0b40e9";
+import { dataUrl } from "./data-base.js?v=20260908-d0b40e9";
+import { riskEdges, RISK_LABELS } from "./cyclone-risk.js?v=20260908-d0b40e9";
+import { rampColour } from "./symbology.js?v=20260908-d0b40e9";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-d0b40e9";
 
 const FILE = "/data/global/cyclone-risk-cumulative.hotlink-ok.tif";
 const WORLD = { west: -180, south: -90, east: 180, north: 90 };
@@ -215,23 +215,13 @@ export async function play() {
   return { frames: epochs.length };
 }
 
-function wire() {
-  // On the BUTTON, not on a wrapper. This control shares its row and its
-  // status line with the season animation, so it has no host of its own to
-  // key on -- and a wrapper kept only to be wired is a div that exists to
-  // hold a boolean.
-  const button = byId("cyclone-risk-raster-play");
-  if (!button || button.dataset.wired) return;
-  button.dataset.wired = "1";
-  button.addEventListener("click", () => { void play(); });
-}
-
-if (typeof document !== "undefined") {
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", wire);
-  else wire();
-  window.addEventListener("geoid-gis:layers-changed", wire);
-}
-
+/**
+ * NOTHING TO WIRE. The button that starts this lives on the catalogue row of
+ * the layer it plays (`entry.play` in global-data.js), so the catalogue builds
+ * and binds it -- and it exists only while that layer is on the globe, which
+ * is what retired both the standing button and the sentence telling the reader
+ * which box to tick first. The module is reached through its window seam.
+ */
 if (typeof window !== "undefined") {
   window.GeoIDCycloneRiskRaster = { play, buildLut, noteFor, THIN_SEASONS };
 }
