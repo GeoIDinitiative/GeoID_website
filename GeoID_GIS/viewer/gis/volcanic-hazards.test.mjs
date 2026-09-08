@@ -59,6 +59,15 @@ check("five zones per volcano, as annuli with a hole and a disc for the first", 
   ok(features[1].geometry.coordinates.length === 2, "zone 1 has a hole");
   ok(features[4].properties.outer_km === 50 && features[4].properties.inner_km === 35, "the last is 35-50");
 });
+check("each zone carries its own area, the annulus and not the outer disc", () => {
+  const { features } = vh.zonesFor([volcano("Etna", 5)], 4);
+  const planar = (r1, r2) => Math.PI * (r2 * r2 - r1 * r1);
+  ok(Math.abs(features[2].properties.area_km2 - planar(10, 20)) / planar(10, 20) < 0.001,
+    `10-20 km: ${features[2].properties.area_km2} vs ${planar(10, 20).toFixed(1)}`);
+  ok(Math.abs(features[0].properties.area_km2 - planar(0, 5)) < 0.1, `0-5 km: ${features[0].properties.area_km2}`);
+  const popup = readFileSync(new URL("./feature-popup.js", import.meta.url), "utf8");
+  ok(/mapped_area_km2: Number\.isFinite\(Number\(props\.area_km2\)\)/.test(popup), "and the card reads it");
+});
 check("the zones are Etna Explorer's, verbatim -- bands, colours, labels, hazards and detail", () => {
   const etna = readFileSync(new URL("../../../earth_explorer/etna/viewer/etna-viewer.js", import.meta.url), "utf8");
   const page = readFileSync(new URL("../../../earth_explorer/etna/viewer/index.html", import.meta.url), "utf8");

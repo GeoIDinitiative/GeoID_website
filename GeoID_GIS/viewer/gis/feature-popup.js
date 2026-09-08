@@ -20,20 +20,20 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260909-75b844e";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260909-75b844e";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260909-f8794b8";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260909-f8794b8";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20260909-75b844e";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260909-75b844e";
-import { lithologyLabel } from "./lithology-label.js?v=20260909-75b844e";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260909-75b844e";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260909-75b844e";
-import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260909-75b844e";
-import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260909-75b844e";
+} from "./vector-render.js?v=20260909-f8794b8";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260909-f8794b8";
+import { lithologyLabel } from "./lithology-label.js?v=20260909-f8794b8";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260909-f8794b8";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260909-f8794b8";
+import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260909-f8794b8";
+import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260909-f8794b8";
 import {
   canEditRow, editableFields, applyRowChange,
-} from "./table-editor.js?v=20260909-75b844e";
+} from "./table-editor.js?v=20260909-f8794b8";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -992,9 +992,12 @@ function showViewerCard(hits, at) {
     description: zone.meta,
     extra_rows: zone.headline,
     origin: zone.source,
-    mapped_area_km2: km2 > 0 ? Number(km2.toFixed(km2 >= 100 ? 0 : 2)) : null,
+    // The feature carries the annulus's exact area; the generic figure is the
+    // outer ring's and ignores the hole.
+    mapped_area_km2: Number.isFinite(Number(props.area_km2)) ? Number(props.area_km2)
+      : km2 > 0 ? Number(km2.toFixed(km2 >= 100 ? 0 : 2)) : null,
     rows: [["What this means", zone.detail], ["Note", zone.note],
-      ...rows.filter(([key]) => !/^(zone|zone_label|inner_km|outer_km|hazards|label_rank)$/i.test(key))],
+      ...rows.filter(([key]) => !/^(zone|zone_label|inner_km|outer_km|hazards|label_rank|area_km2)$/i.test(key))],
     stack: beneath.map(({ layer, feature: f }) => ({
       label: layer.name || "Layer",
       unit: titleOf(f.properties || {}) || featureKind(f, layer),

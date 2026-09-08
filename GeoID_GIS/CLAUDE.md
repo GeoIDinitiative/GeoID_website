@@ -15465,3 +15465,48 @@ the network, or an origin off the bucket's CORS allowlist — with the two that
 are on it. The allowlist is an account-level setting; nothing in this repo can
 add an origin to it, which is why the sentence is the fix rather than a
 config change. Check the address bar before anything else.
+
+### The zone card is Etna's, the legend names the ash, and every Holocene volcano is buffered
+
+Three reports off one click on a buffer. **"Why are some volcanoes missing
+buffers — are these not active?"** They were the ones whose last eruption was
+before 1900, the default band — Ilopango, VEI 6 in the fifth century, had no
+zone at all. The Smithsonian's working definition of "potentially active" is a
+Holocene eruption, so that is the default now: **1,214 volcanoes → 6,070
+zones**; the narrower bands stay on the select. **"Where's the ashfall
+extent?"** In the 10–20, 20–35 and 35–50 km bands, which the legend labelled
+by risk level alone; it now carries Etna Explorer's own legend words beside
+each range ("High Risk · 10–20 km · Ash fall, lahars, airport closures").
+**"Buffer zone pop-up undeveloped."** It opened the generic rock card —
+CONTINENTAL / Mapped area / an area. `volcanic-zone-card.js` is the fourth
+card in this tree to write its own lines, carrying Etna Explorer's zone text
+verbatim: the band and its distance from the named volcano, the volcano's
+last eruption, INGV's hazard list, the detail paragraph, and what a schematic
+buffer is not. The test reads bands, colours, labels, hazard lists, detail
+paragraphs AND legend words back out of `etna-viewer.js` and its page.
+Verified by a real click 15 km east of Etna at 382 km: "Volcanic hazard zone
+· 10–20 km from Etna / High Risk / Etna — last known eruption 2026 · Ash fall,
+lahars, airport closures", five hazards, the paragraph.
+
+**The generic area ignores a hole.** The card read **1,255 km²** for the
+10–20 km band — π·20², the outer disc — where the annulus is 942. Each zone
+now carries its exact spherical-cap area on the feature and the card reads
+that, pinned to 0.1% of the planar figure.
+
+**A module that throws at import takes every test importing its importer
+down with it.** `feature-popup.test.mjs` stubs `window = globalThis`, which has
+no `addEventListener`; the volcanic module's `typeof window` guard passed and
+`window.addEventListener(...)` threw at import — 0 passed, with the stack
+pointing at the volcanic file. Guard on the LISTENER, not on `window`.
+
+**And that test takes 35.7 s with or without the volcanic import** — seven
+checks done in three, the process alive for thirty more; `_getActiveHandles`
+shows only stdio. Pre-existing, not chased here; flagged as its own task.
+
+**Placing a click by projection: use the viewer's own `GeoIDProjectLatLon`.**
+`surfacePoint` + `localToWorld` + `project` put Etna at x = 3,002 on a
+1,526-px page — the baseline-frame trap, again. The viewer's projector carries
+the spin. And at the default view 15 km is under a pixel; framing a small
+helper layer (`importFileList` with `frame: true`) is the reliable way in, and
+the helper must be REMOVED before clicking — it sat over the zone and the
+picker returned it first.

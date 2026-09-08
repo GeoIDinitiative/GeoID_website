@@ -25,8 +25,8 @@
  * disc stays its own feature, so a click still names its volcano.
  */
 
-import { renderFeatureCollection } from "./vector-render.js?v=20260909-75b844e";
-import { layerForDataset } from "./global-data.js?v=20260909-75b844e";
+import { renderFeatureCollection } from "./vector-render.js?v=20260909-f8794b8";
+import { layerForDataset } from "./global-data.js?v=20260909-f8794b8";
 
 const search = new URL(import.meta.url).search;
 
@@ -168,6 +168,10 @@ export function splitAtSeam(ring) {
  * seam a hole would need clipping too, and the four rings within 50 km of
  * the antimeridian are not worth the arithmetic; the merge covers them).
  */
+/** The area of a spherical cap of radius `km` on the ground, exactly. */
+export const capAreaKm2 = (km, radiusKm = 6371) =>
+  2 * Math.PI * radiusKm * radiusKm * (1 - Math.cos(km / radiusKm));
+
 export function zonesFor(features, minRank, { radiusKm = 6371, n = 64 } = {}) {
   const admitted = (features || []).filter((f) => {
     const rank = Number(f?.properties?.label_rank);
@@ -185,6 +189,12 @@ export function zonesFor(features, minRank, { radiusKm = 6371, n = 64 } = {}) {
       const properties = {
         volcano: name, zone: z, zone_label: zone.label,
         inner_km: zone.inner, outer_km: zone.outer, hazards: zone.hazards,
+        // THE ANNULUS'S OWN AREA, exact. The generic area on the card is the
+        // outer ring's alone -- it ignores the hole -- so the 10-20 km band
+        // read 1,255 km² (π·20²) where the ground in it is 942. Written here
+        // rather than derived from a 64-gon, and the same whether or not the
+        // ring was split at the seam.
+        area_km2: Number((capAreaKm2(zone.outer, radiusKm) - capAreaKm2(zone.inner, radiusKm)).toFixed(1)),
         label_rank: f.properties?.label_rank ?? null,
         last_eruption: f.properties?.last_eruption ?? f.properties?.Last_Eruption_Year ?? null,
       };
