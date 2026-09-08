@@ -28,11 +28,11 @@
  * follow.
  */
 
-import { loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260908-227ae58";
-import { dataUrl } from "./data-base.js?v=20260908-227ae58";
-import { riskEdges, RISK_LABELS } from "./cyclone-risk.js?v=20260908-227ae58";
-import { rampColour } from "./symbology.js?v=20260908-227ae58";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-227ae58";
+import { loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260908-9ee53b0";
+import { dataUrl } from "./data-base.js?v=20260908-9ee53b0";
+import { riskEdges, RISK_LABELS } from "./cyclone-risk.js?v=20260908-9ee53b0";
+import { rampColour } from "./symbology.js?v=20260908-9ee53b0";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-9ee53b0";
 
 const FILE = "/data/global/cyclone-risk-cumulative.hotlink-ok.tif";
 const WORLD = { west: -180, south: -90, east: 180, north: 90 };
@@ -164,7 +164,18 @@ async function open_() {
   const gee = await import(`./gee.js${new URL(import.meta.url).search}`);
   const lut = buildLut();
 
-  const first = await frameCanvas(1, lut);
+  /**
+   * DRAPED WITH THE BAND THE BAR OPENS ON -- the last, the full-record
+   * climatology. It was band "1", which under geotiff.js's 0-based samples is
+   * the SECOND season's estimate: a handful of storm corridors, mostly noise,
+   * on screen until the opening frame's repaint landed. And that repaint
+   * never landed, because the epochs counted bands from 1 as well and asked
+   * for sample 47 of 47 -- "Invalid sample index", swallowed -- so the sheet
+   * every reader saw first was the two-season estimate under a note saying
+   * "after 47 seasons". `open()` already reads the descriptions 0-based; the
+   * frames now count the same way.
+   */
+  const first = await frameCanvas(seasons.length - 1, lut);
   const mesh = await gee.drape(first.toDataURL(), WORLD);
   if (!mesh) { say("The globe is not ready yet."); return null; }
 
@@ -230,7 +241,10 @@ async function open_() {
   const epochs = seasons.map((year, i) => ({
     date: String(year), label: String(year), dataset: null,
     from: `${year}-01-01`, to: `${year}-12-31`,
-    year, count: i + 1, band: i + 1,
+    // `band` is geotiff.js's 0-based sample index, the same numbering the
+    // descriptions were read with above. The bake's VRT numbers bands from 1;
+    // that is the file's own arithmetic and stops at its edge.
+    year, count: i + 1, band: i,
   }));
 
   running = true;

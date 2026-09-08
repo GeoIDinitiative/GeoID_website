@@ -131,6 +131,24 @@ check("and its scratch is under a gitignored work directory",
     && player.indexOf("try { done?.(); }") < player.indexOf('new CustomEvent("geoid-gis:timelapse-stopped"'), true);
 }
 
+/* ── the frames count bands the way the file is read ───────────────────── */
+/**
+ * geotiff.js samples are 0-based; the bake's VRT numbers its bands from 1.
+ * `open()` reads the descriptions 0-based and the epochs counted from 1, so
+ * every frame showed the estimate a season later than its label and the last
+ * -- the one the bar OPENS on -- asked for sample 47 of 47 and failed, leaving
+ * the two-season estimate on screen under "after 47 seasons". Measured on the
+ * file: sample 0 is the thinnest estimate and sample 46 the full record.
+ */
+{
+  const raster = readFileSync(new URL("./cyclone-risk-raster.js", import.meta.url), "utf8");
+  check("epochs carry a 0-based sample index", /count: i \+ 1, band: i,/.test(raster), true);
+  check("and the sheet is draped with the band the bar opens on",
+    /frameCanvas\(seasons\.length - 1, lut\)/.test(raster), true);
+  check("nothing asks for a band numbered from 1 any more",
+    /frameCanvas\(1, lut\)|band: i \+ 1/.test(raster), false);
+}
+
 process.on("exit", () => {
   if (failures.length) {
     console.log(`✗  cyclone-risk-raster.test.mjs  —  ${pass} passed, ${failures.length} FAILED`);
