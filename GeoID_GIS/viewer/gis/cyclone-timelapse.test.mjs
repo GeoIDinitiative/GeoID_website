@@ -232,7 +232,27 @@ check("a season with no named storms says only the count", () => {
   check("the player carries a driver's title through", () => {
     const player = readFileSync(new URL("./timelapse-player.js", import.meta.url), "utf8");
     ok(/state\.bar\.note\.title = state\.noteTitle\?\.\(epoch\)/.test(player), "set on show");
-    ok(/min-width: max-content/.test(player), "and the note keeps its own width");
+    ok(/flex: 0 0 auto/.test(player), "and the note is never squeezed");
+  });
+  /**
+   * THE BAR IS CENTRED, so a note that resizes walks both its edges — measured
+   * at 671.8 to 693.8 px while scrubbing, with the left edge sliding 427 to
+   * 416 on every frame. The reservation is the fix and all three parts of it
+   * are load-bearing: it is computed from the epochs the player holds (a
+   * constant cannot serve drivers that write different kinds of sentence), it
+   * is measured on a canvas (354 epochs written into the element in turn is
+   * 354 forced reflows, during a build), and it only ever grows (a note that
+   * arrives with a fetched scene cannot be predicted, so the bar has to settle
+   * at its widest rather than breathe).
+   */
+  check("the bar reserves its widest note rather than resizing", () => {
+    const player = readFileSync(new URL("./timelapse-player.js", import.meta.url), "utf8");
+    ok(/reserveNote\(state\.bar\.note, epochs, noteFor\)/.test(player),
+      "reserved from the sequence's own epochs");
+    ok(/measureText/.test(player), "measured without laying the element out");
+    ok(/note\.scrollWidth > note\.clientWidth/.test(player), "and it only grows");
+    ok(!/min-width: max-content/.test(player),
+      "the per-frame max-content width is gone");
   });
 
 /* ── the record is PLOTTED, at three step sizes ──────────────────────────── */

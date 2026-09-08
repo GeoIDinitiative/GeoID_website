@@ -1,5 +1,5 @@
-import * as G from "./geometry.js?v=20260908-cafe4a0";
-import { transform } from "./projection.js?v=20260908-cafe4a0";
+import * as G from "./geometry.js?v=20260908-a3e0dca";
+import { transform } from "./projection.js?v=20260908-a3e0dca";
 
 // Vector geoprocessing on GeoJSON FeatureCollections.
 //

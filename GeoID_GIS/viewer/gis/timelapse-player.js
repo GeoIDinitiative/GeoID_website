@@ -94,7 +94,7 @@ const STYLE = `
 }
 .geoid-timelapse .tl-note {
   font-size: 0.68rem; opacity: 0.75; color: var(--soft-light);
-  flex: 0 1 auto; min-width: max-content;
+  flex: 0 0 auto; font-variant-numeric: tabular-nums;
   max-width: 15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 `;
@@ -311,6 +311,7 @@ async function show(index) {
   state.bar.date.textContent = epoch.label || epoch.date;
   state.bar.slider.value = String(index);
   state.bar.note.textContent = state.noteFor(epoch, epoch.note || "reading imagery…");
+  growNote(state.bar.note);
   // The bar is one line and the note is 15rem of it, so a driver may have more
   // to say than fits. `noteTitle` is where the sentence goes rather than being
   // cut in half -- and the half that gets cut is always the end, which is
@@ -321,6 +322,7 @@ async function show(index) {
   if (!state || state.index !== index) return;   // a newer step won the race
   epoch.note = scene.note;
   state.bar.note.textContent = state.noteFor(epoch, scene.note);
+  growNote(state.bar.note);
   state.bar.note.title = state.noteTitle?.(epoch) || "";
 
   if (scene.object3D) {
@@ -391,20 +393,83 @@ function play(on) {
   state.timer = window.setTimeout(tick, state.interval);
 }
 
+/**
+ * THE BAR MAY NOT CHANGE SIZE AS IT PLAYS.
+ *
+ * It is centred (`left: 50%; translateX(-50%)`), so anything that changes its
+ * width walks BOTH its edges — measured while scrubbing the cyclone seasons,
+ * 671.8 to 693.8 px with the left edge sliding 427 to 416. Every frame of it.
+ * A control bar that moves under the cursor is the same fault the legend and
+ * events buttons already cost, where a panel's own width was reaching the row
+ * that carries it.
+ *
+ * The date solved this long ago with `min-width: 6.2rem` and tabular figures.
+ * The note could not take a constant — every driver writes a different kind of
+ * sentence — so it reserves THE WIDEST NOTE THIS SEQUENCE WILL EVER SHOW,
+ * which the player can compute exactly because it holds every epoch.
+ *
+ * Measured with a canvas rather than the DOM: 354 epochs written into the
+ * element in turn is 354 forced reflows, and this runs while a sequence is
+ * being built. `measureText` needs no layout at all.
+ */
+function reserveNote(note, epochs, noteFor) {
+  if (!note || !epochs?.length) return;
+  const style = window.getComputedStyle(note);
+  const canvas = reserveNote.canvas
+    || (reserveNote.canvas = document.createElement("canvas"));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  ctx.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+  let widest = 0;
+  epochs.forEach((epoch) => {
+    const text = String(noteFor(epoch, "") ?? "");
+    if (!text) return;
+    widest = Math.max(widest, ctx.measureText(text).width);
+  });
+  if (!widest) return;
+  // A hair of slack: measureText is the ink, and a browser rounds the box up.
+  note.style.width = `${Math.ceil(widest) + 2}px`;
+}
+
+/**
+ * AND A NOTE THAT COULD NOT BE PREDICTED STILL ONLY EVER GROWS.
+ *
+ * `reserveNote` can measure a sequence whose notes are a function of its own
+ * epochs, which is every driver that names its frames. One whose note arrives
+ * WITH THE SCENE — the imagery animator, whose default is to print whatever
+ * the fetch reports — cannot be measured before the fetch, so the reservation
+ * is raised as those land. It never falls, so the bar settles at its widest
+ * and stays there rather than breathing frame by frame.
+ */
+function growNote(note) {
+  if (!note) return;
+  if (note.scrollWidth > note.clientWidth) {
+    note.style.width = `${note.scrollWidth}px`;
+  }
+}
+
 function buildBar() {
   styleOnce();
   const bar = document.createElement("div");
   bar.className = "geoid-timelapse";
   bar.id = "geoid-timelapse";
+  /**
+   * STEP BACK AND STEP FORWARD ARE ONE GESTURE IN TWO DIRECTIONS, so they are
+   * a MIRRORED PAIR. They were "◀" and "▶|" -- a bare triangle against a
+   * triangle with a bar -- which reads as two different kinds of control:
+   * the boxes matched at 33.6 px and the ink did not, so the left looked like
+   * a scrub and the right like a step. The bar is the half that says "one
+   * frame", and it belongs on both or neither.
+   */
   const back = document.createElement("button");
-  back.textContent = "◀";
+  back.textContent = "|◀";
   back.title = "The frame before";
   const playBtn = document.createElement("button");
   playBtn.textContent = "▶";
   playBtn.title = "Play the sequence";
   const forward = document.createElement("button");
   forward.textContent = "▶|";
-  forward.title = "The next frame";
+  forward.title = "The frame after";
   const date = document.createElement("span");
   date.className = "tl-date";
   const slider = document.createElement("input");
@@ -571,6 +636,7 @@ export async function startPlayer({ bounds, epochs, source = "auto", frames = nu
   syncOverlay();
   state.bar.slider.max = String(epochs.length - 1);
   state.bar.sayRate?.();
+  reserveNote(state.bar.note, epochs, noteFor);
   /**
    * A tick per marked frame. The driver names them because only it knows what
    * they mean; with none it says so by drawing none, rather than this guessing
