@@ -23,12 +23,12 @@
 
 import {
   buildSymbology, colourOf, legendInfoFrom,
-} from "./symbology.js?v=20260908-ca6b9f5";
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-ca6b9f5";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-ca6b9f5";
+} from "./symbology.js?v=20260908-4d33ec1";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260908-4d33ec1";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260908-4d33ec1";
 import {
   showSeason, showClimatology, riskLayer,
-} from "./cyclone-risk.js?v=20260908-ca6b9f5";
+} from "./cyclone-risk.js?v=20260908-4d33ec1";
 
 const search = new URL(import.meta.url).search;
 
@@ -302,9 +302,12 @@ async function build({ from, startAt, step }) {
       // A TICK WHERE THE YEAR TURNS. On a 354-frame slider the marks are what
       // say where in the record the handle is; per frame they would be a solid
       // bar, and the season step is one frame a year already.
-      tick: plan.step === "season"
+      // AND ALWAYS THE FIRST FRAME: a scale with no origin is not a scale.
+      // Measured on the whole archive by season, the marks began at 1860
+      // while the slider began at 1842, and the first label with them.
+      tick: i === 0 || (plan.step === "season"
         ? Number.isFinite(year) && year % 10 === 0
-        : String(year) !== prev,
+        : String(year) !== prev),
       tickLabel: String(year),
       year: Number.isFinite(year) ? year : null,
       group: i,

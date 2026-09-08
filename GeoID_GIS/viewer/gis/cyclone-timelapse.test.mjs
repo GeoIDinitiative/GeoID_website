@@ -393,8 +393,12 @@ check("a season with no named storms says only the count", () => {
   });
   /* Ticks where the YEAR turns -- per frame on a 354-frame slider they are a
      solid bar, and the season step is one frame a year already. */
+  check("and the first frame is always marked, whatever the step", () => {
+    ok(/tick: i === 0 \|\| \(plan\.step === "season"/.test(code), "the origin carries a mark");
+  });
   check("the slider is ticked where the year turns", () => {
-    ok(/tick: plan\.step === "season"/.test(code), "decades on the season step");
+    ok(/\(plan\.step === "season"\s*\? Number\.isFinite\(year\) && year % 10 === 0/.test(code),
+      "decades on the season step");
     ok(/String\(year\) !== prev/.test(code), "years on the finer ones");
   });
 }
