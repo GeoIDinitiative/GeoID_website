@@ -15320,3 +15320,18 @@ Verified cold: opening frame 384,060 opaque cells = band 46 exactly, frame 0
   references.** My slice replacement deleted `hold()` along with `watchBar()`;
   the seam still named it, the module would have thrown at load in the
   browser, and the only thing that caught it was a source-text pin.
+
+### A frame is its own group; the archive is the All frame alone
+
+The season plot was made CUMULATIVE for a turn — every group up to the frame,
+"the record draws itself in" — and it was reported as the tracks never
+leaving. Right: by the last season the map was the whole archive again, so the
+animation showed nothing a still map did not, and a season's storms could not
+be read as that season's. Each frame now drops the one before it in its wake.
+Verified live, by season and by storm: **exactly one group visible at every
+frame**, the counter the frame's own (105, 120, 120, 75 — not a running
+total), the click list following it, and the whole archive only on the
+terminal All frame (base layer back, plot hidden, "13,513 storms").
+
+The reasoning that made it cumulative was about the COUNTER reading well as it
+grew. A counter is not a reason to change what is drawn.
