@@ -16,7 +16,7 @@ import {
   gdacsPoints, resolveColour,
   MARKER_LIFT_MAX, liftForAltitude, dotSizePx, isQuake, publisherOf, restoreActive,
   stormCategory, stormScale, stormLabel, STORM_BASE_CAP,
-} from "./event-sources.js?v=20260908-548fad4";
+} from "./event-sources.js?v=20260908-274b8f3";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -752,6 +752,9 @@ function sourcesBlock() {
  * is running cannot be the way in.
  */
 function renderFeeds() {
+  // Before the early return: a proxy lives outside this host and must follow
+  // the state on every world, including the ones with no feed panel at all.
+  syncFeedProxies();
   const host = byId("events-feeds-host");
   if (!host) return;
   host.innerHTML = sourcesBlock();
@@ -2512,8 +2515,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260908-548fad4"),
-    import("./research/dsp.js?v=20260908-548fad4"),
+    import("./seismogram-plot.js?v=20260908-274b8f3"),
+    import("./research/dsp.js?v=20260908-274b8f3"),
   ]);
   if (stale()) return;
 
@@ -2743,22 +2746,51 @@ if (document.readyState === "loading") {
 }
 
 /**
- * THE FEED PROXIES ARE GONE, and the note is here so the idea is not retried
- * without the reason it failed.
+ * A SECOND DOOR TO A FEED IS NOT A SECOND FEED.
  *
- * Hazards ▸ Flood and ▸ Drought carried tick boxes onto THIS tab's own state:
- * `data-feed-toggle` held the source id, the box mirrored `enabled`, and it
- * committed through `setSourceEnabled`, so it really was one feed and one
- * state seen twice. The reasoning was that somebody reading about flood
- * susceptibility should be able to switch the flood events on where they are.
+ * `data-feed-toggle` on any box in the page makes it a proxy for the source it
+ * names: it READS its state back off `enabled` and COMMITS through
+ * `setSourceEnabled`, so there is one state and two places to reach it, and
+ * neither can drift from the other. The Tropical cyclones subtab carries one
+ * for the severe-storm feed, beside the archive of the same phenomenon.
  *
- * It still put one dataset in two tabs, which is the duplication this tree
- * keeps paying for, and the tabs already divide cleanly: **Live holds what
- * HAPPENED**, with a time and a place; **Hazards holds what COULD**. A live
- * feed is the first of those wherever it is ticked from. Removed with the
- * markup, along with the 900 ms interval that polled for boxes which can no
- * longer exist.
+ * The tabs still divide the way they did — Live holds what HAPPENED, Hazards
+ * what COULD — and a blanket proxy on every hazard subtab is what was removed
+ * for putting one dataset in two tabs. What makes this one worth its
+ * duplication is that the reader of a cyclone archive is the likeliest person
+ * in the app to want to know what is on the ocean this morning; a row that
+ * only tells them to go to another tab is a trip, not an answer.
+ *
+ * NO POLL. The old version ran a 900 ms interval hunting for boxes. Every
+ * change of this state already goes through `renderFeeds`, so the sync is one
+ * call at the top of it — including the restore at boot, which is where a
+ * proxy would otherwise open unticked over a feed that is running.
  */
+function syncFeedProxies() {
+  document.querySelectorAll("[data-feed-toggle]").forEach((box) => {
+    const id = box.dataset.feedToggle;
+    // A box naming a source that no longer exists is a stale id, not a feed
+    // that is off — the trap the EONET rename cost. It is left alone and
+    // reported, rather than being drawn as an honest empty tick.
+    if (!sourceById(id)) {
+      box.disabled = true;
+      box.title = `No feed is registered as "${id}".`;
+      return;
+    }
+    const on = isSourceEnabled(id);
+    if (box.checked !== on) box.checked = on;
+  });
+}
+
+if (typeof document !== "undefined") {
+  // Delegated: these boxes live in tab markup that is redrawn around them, and
+  // a handler bound to the node goes stale the first time that happens.
+  document.addEventListener("change", (event) => {
+    const box = event.target?.closest?.("[data-feed-toggle]");
+    if (!box || box.disabled) return;
+    setSourceEnabled(box.dataset.feedToggle, box.checked);
+  });
+}
 
 window.GeoIDEvents = {
   setActive, isActive: () => active, getEvents: () => events, SYMBOLS,

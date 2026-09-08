@@ -740,8 +740,6 @@ check("no timestamp gets a sensible middle", recencyOpacity(null, now, day), 0.8
   check("the ring and the dots are placed by one function", calls >= 2, true);
 }
 
-console.log(`\n${pass} passed, ${fail} failed`);
-if (fail) process.exitCode = 1;
 
 /* ── the tropical-cyclone symbol ───────────────────────────────────────────
    Every other category here is a font character, which is right when a shape
@@ -955,5 +953,58 @@ if (fail) process.exitCode = 1;
  * after it. Either way the rule is the same: A TEST FILE'S VERDICT IS ITS
  * LAST STATEMENT. Anything after it is decoration.
  */
-console.log(`\n${pass} passed, ${fail} failed`);
-if (fail) process.exitCode = 1;
+/* ── a second door to a feed is not a second feed ────────────────────────── */
+/**
+ * THE PROXY IS ONE STATE SEEN TWICE, and each half of that is checkable. It
+ * has to READ from the feed — never remember its own answer — and COMMIT
+ * through it, or the two rows drift and the one that is wrong is whichever
+ * the reader is not looking at.
+ *
+ * NOTE THE IDIOM. In THIS file `check(name, got, want)` COMPARES two values
+ * and `ok(name, got)` takes the name FIRST — it is not the callback runner
+ * the cyclone tests use. Written the other way round, `check(name, () => …)`
+ * compares a function against `undefined`, both stringify to `undefined`, and
+ * the check PASSES WITHOUT EVER CALLING ITS BODY. Three checks were written
+ * that way here and all three passed green over assertions that never ran.
+ */
+{
+  const events = readFileSync(new URL("./events.js", import.meta.url), "utf8");
+  const page = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const activity = readFileSync(new URL("./section-activity.js", import.meta.url), "utf8");
+  const proxied = [...page.matchAll(/data-feed-toggle="([^"]+)"/g)].map((m) => m[1]);
+
+  ok("the cyclone subtab proxies the severe-storm feed",
+    proxied.includes("eonet-severeStorms"));
+  ok("and every proxy in the page names a registered source",
+    proxied.length > 0 && proxied.every((id) => SOURCES.some((s) => s.id === id)));
+  ok("the tick is read off the feed's own state",
+    /box\.checked = on/.test(events) && /isSourceEnabled\(id\)/.test(events));
+  ok("and a press commits through the feed",
+    /setSourceEnabled\(box\.dataset\.feedToggle, box\.checked\)/.test(events));
+  ok("synced above the early return, from the call every change makes",
+    /syncFeedProxies\(\);\n  const host = byId\("events-feeds-host"\)/.test(events));
+  ok("and no poll came back", !/setInterval\([^)]*[Pp]roxies/.test(events));
+  /**
+   * A LIVE FEED DOES NOT LIGHT A HAZARD SUBTAB. Severe storms is on by
+   * default, so a proxy counted as data would leave Tropical cyclones filled
+   * from boot for ever, and the fill would stop meaning "a cyclone dataset is
+   * on the globe" — the false positive the satellite category filters were
+   * measured for and excluded.
+   */
+  ok("a proxy is not counted as a dataset being on",
+    !/data-feed-toggle/.test(activity.slice(
+      activity.indexOf("const DATA_CONTROLS"), activity.indexOf("].join("))));
+}
+
+/**
+ * THE VERDICT IS IN AN EXIT HOOK, so it cannot stop being the last statement.
+ * Written inline it was overtaken TWICE: once by 89 checks appended below it,
+ * and then by the repair itself, which added a second verdict at the foot of
+ * the file rather than moving the first — leaving a partial summary printed
+ * mid-run with 52 checks still to go. From the hook, a check added anywhere
+ * by anyone still counts, and there is only one place a summary can come from.
+ */
+process.on("exit", () => {
+  console.log(`\n${pass} passed, ${fail} failed`);
+  if (fail) process.exitCode = 1;
+});

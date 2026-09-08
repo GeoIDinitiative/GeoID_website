@@ -247,13 +247,19 @@ check("and every listed group still has something in it",
   const html = readFileSync(join(HERE, "..", "index.html"), "utf8");
   check("the Hazards tab hosts the catalogue", /id="hazards-catalogue"/.test(html));
   check("with the status line its home derives", /id="hazards-status"/.test(html));
-  check("and no live feed is offered from Hazards any more",
-    !/data-feed-toggle/.test(html));
-  /* The machinery went with the markup — it polled every 900 ms for boxes that
-     can no longer exist. */
-  const events = readFileSync(join(HERE, "events.js"), "utf8")
-    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
-  check("and its polling went with it", !/syncFeedProxies/.test(events));
+  /* THE ONE LIVE FEED OFFERED FROM HAZARDS SITS IN THIS SUBTAB, deliberately.
+     A blanket proxy on every hazard subtab was removed for putting one dataset
+     in two tabs; this one is kept because the reader of a cyclone archive is
+     the likeliest person in the app to want what is on the ocean this morning.
+     It is a second DOOR and not a second state — that half is pinned in
+     event-sources.test.mjs, against events.js. Here the question is placement:
+     inside the tropical-cyclone section, and nowhere else. */
+  const cyclones = html.slice(html.indexOf("hazards-catalogue"));
+  const section = cyclones.slice(0, cyclones.indexOf("</details>"));
+  check("the storm feed is reachable from the cyclone subtab",
+    /data-feed-toggle="eonet-severeStorms"/.test(section));
+  check("and it is the only proxy in the page",
+    (html.match(/data-feed-toggle=/g) || []).length, 1);
 }
 
 /* ── a dataset that plays over time carries its own button ───────────────── */
