@@ -26,15 +26,15 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260909-b2e824d";
-import { dataUrl } from "./data-base.js?v=20260909-b2e824d";
-import { mathsFor } from "./equations.js?v=20260909-b2e824d";
+import { runConnector } from "./research/connectors.js?v=20260909-3207d15";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260909-3207d15";
+import { mathsFor } from "./equations.js?v=20260909-3207d15";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260909-b2e824d";
+} from "./cyclone-risk.js?v=20260909-3207d15";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260909-b2e824d";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260909-3207d15";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -934,7 +934,12 @@ export async function addDataset(id, onStatus = () => {},
       if (entry.views?.apply) landed.symbologyViews = entry.views;
     }
   } catch (error) {
-    const message = `${entry.label} did not load: ${error.message}`;
+    // A cross-origin fetch that fails without a status is almost always the
+    // bucket refusing this page's origin; the sentence says so rather than
+    // leaving "Failed to fetch" to read as the data being gone.
+    let reason = error.message;
+    try { reason = explainFetchFailure(error, await dataUrl(entry.path)); } catch { /* keep the bare message */ }
+    const message = `${entry.label} did not load: ${reason}`;
     onStatus(message);
     return { ok: false, message };
   }

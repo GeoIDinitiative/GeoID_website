@@ -10,7 +10,7 @@
 
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dataUrl, resetForTests } from "./data-base.js";
+import { dataUrl, resetForTests, explainFetchFailure } from "./data-base.js";
 
 let failures = 0;
 function check(name, ok, detail = "") {
@@ -97,6 +97,26 @@ check("every module naming a PUBLISHED file resolves it through dataUrl",
 
 check("sources.json itself is never published (it names the others)",
   !published.includes("sources.json"));
+
+/* ── "Failed to fetch" says what it means ───────────────────────────────── */
+/* A bucket refusing this page's origin and a network that is down look the
+   same to fetch -- a TypeError with no status -- and the row used to print
+   the bare words, which read as the data being gone. Measured: the same file
+   answers 206 with CORS from :8125 and 206 WITHOUT it from :8123.
+   NOTE: this file's verdict is a process.exit below; nothing may follow it. */
+{
+  const err = new TypeError("Failed to fetch");
+  const bucket = "https://data.geoidinitiative.com/cyclone-tracks.geojson?v=2bec";
+  const said = explainFetchFailure(err, bucket, "http://localhost:8123");
+  check("a cross-origin failure names the bucket and the page's origin",
+    /data\.geoidinitiative\.com did not answer this page's origin \(http:\/\/localhost:8123\)/.test(said), said);
+  check("and names the allowlist as the likely cause, beside the network",
+    /CORS allowlist/.test(said) && /network is down/.test(said), said);
+  check("a same-origin failure is left as it was",
+    explainFetchFailure(err, "/data/global/x.geojson", "http://localhost:8125") === "Failed to fetch");
+  check("an HTTP error is not a fetch failure and is left alone",
+    explainFetchFailure(new Error("HTTP 404"), bucket, "http://localhost:8123") === "HTTP 404");
+}
 
 console.log(failures ? `\n${failures} FAILED` : "\nall checks passed");
 process.exit(failures ? 1 : 0);

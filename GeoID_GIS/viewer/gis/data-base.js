@@ -67,3 +67,27 @@ function resetForTests(fixture) {
 }
 
 export { dataUrl, resetForTests, PREFIX };
+
+/**
+ * WHAT "FAILED TO FETCH" MEANS HERE, said out loud.
+ *
+ * A published file is fetched cross-origin from the bucket, and the bucket
+ * answers only the origins on its CORS allowlist -- production, the www host,
+ * and the dev server on 8125. From any other origin the browser sees a
+ * TypeError with no status in it, and the row said "did not load: Failed to
+ * fetch", which reads as the data being gone. Measured: the same file answers
+ * 206 with CORS from 8125 and 206 WITHOUT it from 8123, and the second is
+ * this message. A network genuinely down looks the same to the page, so the
+ * sentence names both and says which is likelier.
+ */
+export function explainFetchFailure(error, url, origin = (typeof location !== "undefined" ? location.origin : "")) {
+  const message = String(error?.message || error || "");
+  if (!/failed to fetch|networkerror|load failed/i.test(message)) return message;
+  let host = null;
+  try { host = new URL(url, origin || "http://localhost").origin; } catch { return message; }
+  if (!origin || host === origin) return message;
+  return `${message} — ${host} did not answer this page's origin (${origin}). `
+    + "Either the network is down, or this origin is not on the data bucket's "
+    + "CORS allowlist: production and http://localhost:8125 are; another port "
+    + "or preview host is not.";
+}
