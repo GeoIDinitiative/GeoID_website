@@ -16665,3 +16665,22 @@ adds a boundary field, a point a point field and its node size — through
 800 m, a boundary field of 40 m along `top`, a ball of 25 m — the mesh
 reads **10.0 m at the borehole, 177 m half-way out, 401 m in the far rock,
 25.0 m in the vent** (7,934 triangles). The fields do what they say.
+
+**A section's later steps were blocked on a surface it never builds.**
+`blockedReason` gated domain, conditions and build on `state.surface`; a
+section's surface is its profile, so the whole lower half of the builder
+stayed shut for a 2D model while `build()` worked from the seam. The gate
+reads the kind. **And a section face's "mesh size here" is a BOX over the
+face**, not a boundary field: a face of a 2D mesh is a surface, its flag is a
+surface flag, and a Distance from `getEntitiesForPhysicalGroup(1, 11)` is a
+distance from nothing. The card writes a box over the face's (s, z) extent —
+base to the profile's top for the rock, the profile's bottom to the sky for
+the air — blended over the reach. A 3D face keeps the boundary field.
+
+Verified live on 8125 (stamp fc6a32e→e725b57): three fields added through
+the builder's own buttons — 8 m at the embedded point "centre" graded to
+600 m, 30 m along `top` to 500 m, a 20 m ball of 500 m radius 1,200 m down —
+drawn on the globe with a key by size (8 m, 20 m), the cap set to 300 from
+the panel, and the emitted 2D script carrying MathEval+Threshold,
+Distance(CurvesList by flag 1)+Threshold, Ball, Min(2, 4, 5) as background,
+the three sources off, cap 300 and the auto floor 4 (half the smallest).
