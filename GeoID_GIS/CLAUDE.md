@@ -16516,3 +16516,22 @@ Verified live: eight parts listed; a synthetic press-and-release on the
 study-centre point opened "Point — centre" (279 m, flag 20); one on the rock's
 south wall opened "Subsurface — sides" (flag 5, −4,015 to 849 m); unticking
 the sky hid its mesh and the Workspace row read hidden with it.
+
+### "Its execution is poor — should be like the GIS main tab bar"
+
+Two things in one report. The part list was a flat run of rows at the foot
+of the Add tab; it is a **Domains panel** now, at the top of the Model tab,
+in the sidebar's own idiom — one `gis-tool-section` per domain (Subsurface,
+Atmosphere, Surface, Embedded points) with a three-state master tick in its
+head (like a Live-events group) and a row per face or point beneath, each a
+tick, a swatch, its flag and an ⓘ for the card. The icon painter picks the
+sections up on its own. Adopting a terrain brings the Model tab forward.
+
+**And the depth "precedence" was a coplanar pair.** The rock drew its own
+copy of the ground's triangles under the surface skin, held apart by polygon
+offset, and whichever won the depth test took precedence wherever the offset
+lost. The ground is ONE mesh now — the surface STL, the rock's top and the
+air's floor, flag 1 on both — and nothing shares its plane. Verified live:
+untick the Atmosphere master and both its faces go; untick the rock's base
+and the Subsurface master reads indeterminate; the surface, sides and points
+draw with no fighting.
