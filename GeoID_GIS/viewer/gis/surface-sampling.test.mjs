@@ -188,7 +188,9 @@ check("the TIN builds", tin.ok, tin.message);
   check("the studio adopts the terrain as a solid and exposes it", /export function adoptTerrainSolid/.test(studio) && /adoptTerrainSolid, extendTerrain,/.test(studio));
   check("the studio fits the view to its OWN meshes, not to every GIS layer", /const own = all\.filter\(\(l\) => studioMeshes\.has\(l\.object3D\)/.test(studio));
   check("the studio draws the surface STL as its own skin and the air translucent", /surfacePositions\(surface, km\)/.test(studio) && /opacity: 0\.22/.test(studio));
-  check("the studio's ground is the model's base, so the subsurface stands above it", /const zShift = -baseZ;/.test(studio) && /elevation: baseZ/.test(studio) && /lifted\(shellPositions/.test(studio));
+  check("the studio's camera floor and orbit follow a model that reaches below the ground", /function cameraFloorRadius/.test(studio) && /Math\.PI - MIN_POLAR_RAD/.test(studio) && /groundMesh\.material\.depthWrite = !below/.test(studio));
+  check("the terrain keeps true elevations in the studio", /const zShift = 0;/.test(studio) && /elevation: 0,/.test(studio));
+  check("the GIS page draws the full model — surface, subsurface, atmosphere", /function drawFullModel/.test(pipeline) && /Show the full model on the globe/.test(pipeline));
   check("the studio takes the terrain in METRES, its own scale", /const km = 1;/.test(studio) && /1 unit = 1 m/.test(studio));
   check("the studio's tree survives a kind it has no primitive for", !/PRIMITIVES\[entry\.kind\]\.label/.test(studio) && !/PRIMITIVES\[e\.kind\]\.label/.test(studio));
 }

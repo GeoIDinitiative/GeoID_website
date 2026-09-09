@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-ce97438";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-ce97438";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-40d5ccd";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-40d5ccd";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260909-ce97438";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-ce97438";
-import { downloadText } from "./extraction.js?v=20260909-ce97438";
-import { shellPositions, surfacePositions, tinHeightAt } from "./surface-sampling.js?v=20260909-ce97438";
+} from "./mesh-volume.js?v=20260909-40d5ccd";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-40d5ccd";
+import { downloadText } from "./extraction.js?v=20260909-40d5ccd";
+import { shellPositions, surfacePositions, tinHeightAt } from "./surface-sampling.js?v=20260909-40d5ccd";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -773,6 +773,7 @@ function setGroundVisible(on) {
     updateGround();
   }
   if (groundMesh) groundMesh.visible = on;
+  applyBelowGround();
 }
 
 /**
@@ -959,6 +960,7 @@ function applyOrbitDistanceLimits() {
   const controls = window.GeoIDViewer?.controls;
   if (!controls || !orbitLimits) return;
   controls.maxDistance = groundRadius * 4;
+  applyBelowGround();
   applyDollyFloor();
 }
 
@@ -973,11 +975,41 @@ function applyOrbitDistanceLimits() {
  * position that gets rendered is always above ground, and the next solve reads
  * back the corrected position.
  */
+/**
+ * THE FLOOR IS THE MODEL'S BASE, NOT THE GROUND. The camera used to be held
+ * above the ground sphere and the orbit capped at the horizon, so nothing
+ * under z = 0 could be looked at -- and a subsurface is all under z = 0. When
+ * the model reaches below the ground the floor drops to its base, the orbit
+ * may swing under the horizon, and the ground stops writing depth so the rock
+ * beneath it is painted over it rather than hidden by it. A model that sits
+ * on the ground keeps every old limit.
+ */
+function modelBelowGroundM() {
+  const b = combinedBounds();
+  return b && Number.isFinite(b.minZ) ? Math.min(0, b.minZ * studioScale) : 0;
+}
+
+function cameraFloorRadius() {
+  return groundRadius + minCameraAltitude() + modelBelowGroundM();
+}
+
+function applyBelowGround() {
+  const controls = window.GeoIDViewer?.controls;
+  const below = modelBelowGroundM() < 0;
+  if (controls && orbitLimits) {
+    controls.maxPolarAngle = below ? Math.PI - MIN_POLAR_RAD : Math.PI / 2 - 0.02;
+  }
+  if (groundMesh?.material) {
+    groundMesh.material.depthWrite = !below;
+    groundMesh.renderOrder = below ? -1 : 0;
+  }
+}
+
 function keepCameraAboveGround() {
   const viewer = window.GeoIDViewer;
   const camera = viewer?.camera;
   if (!camera) return;
-  const floor = groundRadius + minCameraAltitude();
+  const floor = cameraFloorRadius();
   if (camera.position.length() >= floor) return;
 
   // Last resort only. Descent is normally stopped before it happens by the
@@ -1003,7 +1035,7 @@ function applyDollyFloor() {
   if (!controls || !orbitLimits) return;
   const target = controls.target;
   if (target.lengthSq() < 1e-12) return;
-  const floor = groundRadius + minCameraAltitude();
+  const floor = cameraFloorRadius();
 
   // Zooming in walks the camera towards the target, so the lowest it can ever
   // get is the target's own altitude. If the target is already clear of the
@@ -1164,6 +1196,7 @@ function combinedBounds() {
 }
 
 function renderModelTree() {
+  applyBelowGround();
   const entities = byId("studio-entities");
   if (entities) {
     entities.innerHTML = "";
@@ -2402,10 +2435,14 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
    * package's absolute metres are untouched -- this is display, and the log
    * says what z is measured from.
    */
+  // TRUE elevations: z is metres above sea level and the studio's ground IS
+  // sea level. The model was briefly shifted so its base sat at z = 0, which
+  // was working around the camera floor rather than fixing it; the floor now
+  // follows the model (`applyBelowGround`), so the shift is gone.
   const baseZ = Number(belowM) > 0 ? surface.zMin - Number(belowM) : surface.zMin;
-  const zShift = -baseZ;
+  const zShift = 0;
   if (origin && Number.isFinite(origin.lat)) {
-    adoptStudyArea({ lat: origin.lat, lon: origin.lon, elevation: baseZ, radiusM: Math.max(surface.widthM, surface.heightM) / 2, terrain: false });
+    adoptStudyArea({ lat: origin.lat, lon: origin.lon, elevation: 0, radiusM: Math.max(surface.widthM, surface.heightM) / 2, terrain: false });
   }
   const km = 1;
   const lifted = (positions) => { for (let i = 2; i < positions.length; i += 3) positions[i] += zShift * km; return positions; };
@@ -2471,7 +2508,7 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
   log(`GIS terrain "${name}": ${surface.nodes.toLocaleString()} nodes, ${surface.triangles.toLocaleString()} triangles,`
     + ` spacing ${Math.round(surface.spacingMinM)}–${Math.round(surface.spacingMaxM)} m; 1 unit = 1 m, mesh cells set to ${coarse}–${coarse * 2} m.`
     + ` Brown is the rock, green the surface STL, translucent blue the air.`
-    + ` z is measured from the model's base at ${Math.round(baseZ)} m: the studio's ground is that base, so the subsurface stands above it.`
+    + ` z is metres above sea level; the base is at ${Math.round(baseZ)} m and the camera may orbit under the ground to see it.`
     + ` Subsurface ${gisTerrain.belowM} m below the lowest ground${gisTerrain.aboveM > 0 ? `, atmosphere ${gisTerrain.aboveM} m above the highest` : ""}.`
     + `${points?.length ? ` ${points.length} embedded point(s) carried.` : ""}`);
   ensureTerrainCard();
@@ -2528,7 +2565,7 @@ function ensureTerrainCard() {
   card.appendChild(button);
   const note = document.createElement("div");
   note.className = "studio-row";
-  note.textContent = "The rim's corners carried down to a base and up to a sky — etna.py's outer_box. 1 unit = 1 m; the studio's ground is the model's base, so z counts up from it.";
+  note.textContent = "The rim's corners carried down to a base and up to a sky — etna.py's outer_box. 1 unit = 1 m, z above sea level; orbit under the ground to see the subsurface.";
   card.appendChild(note);
 }
 

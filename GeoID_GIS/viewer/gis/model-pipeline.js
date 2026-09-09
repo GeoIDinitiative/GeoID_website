@@ -2,13 +2,13 @@ import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
   nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS, atmosphereStl, DEFAULT_MAX_NODES,
-} from "./model-build.js?v=20260909-ce97438";
-import { ringsFromCollection } from "./extraction.js?v=20260909-ce97438";
+} from "./model-build.js?v=20260909-40d5ccd";
+import { ringsFromCollection } from "./extraction.js?v=20260909-40d5ccd";
 import {
   buildTin, tinHeightAt, tinSurfaceStl, tinShellStl, samplingSizeField,
-  extendBoundary, extendedBoundaryLines, gridAsTin,
-} from "./surface-sampling.js?v=20260909-ce97438";
-import { renderFeatureCollection } from "./vector-render.js?v=20260909-ce97438";
+  extendBoundary, extendedBoundaryLines, gridAsTin, shellFacets,
+} from "./surface-sampling.js?v=20260909-40d5ccd";
+import { renderFeatureCollection } from "./vector-render.js?v=20260909-40d5ccd";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -441,6 +441,7 @@ const PREVIEW_NAMES = {
   sampling: "Model Builder — surface sampling",
   points: "Model Builder — embedded points",
   extend: "Model Builder — extended boundary",
+  model: "Model Builder — full model (surface, subsurface, atmosphere)",
 };
 const UNITS_PER_METRE = 3.2 / 6371008.8;
 let three = null;
@@ -683,6 +684,75 @@ async function drawExtend(ext) {
     metadata: { source: "GeoHUB Model Builder", dataType: "model", description: "The rim's corners carried to the base and the sky (etna.py outer_box). Drawn at true vertical scale through the exaggerated globe." },
   }, "derived");
   if (layer) state.previews.extend = layer.id;
+}
+
+/**
+ * THE FULL MODEL ON THE GLOBE: the surface STL as a lit skin, the subsurface
+ * as an earthen shell down to its base, the atmosphere as a translucent sky
+ * up to its lid -- the three solids the package writes, drawn where they are,
+ * through the ground (depth test off) at TRUE vertical scale. What the
+ * Meshing Studio shows, seen on the map it came from.
+ */
+async function drawFullModel() {
+  removePreview("model");
+  const t = surfaceLike();
+  if (!t) return;
+  if (!three) three = await import("../vendor/three.module.js");
+  const viewer = window.GeoIDViewer;
+  if (!viewer?.surfacePoint) return;
+  const at = (x, y, z) => {
+    const ll = t.frame.fromLocal(x, y);
+    const ground = tinHeightAt(t, x, y);
+    const lift = (z - (Number.isFinite(ground) ? ground : z)) * UNITS_PER_METRE;
+    const p = viewer.surfacePoint(ll.lat, ll.lon, lift);
+    return [p.x, p.y, p.z];
+  };
+  const meshOf = (facets, colour, opacity, order) => {
+    const positions = new Float32Array(facets.length * 9);
+    facets.forEach((f, k) => {
+      [f.a, f.b, f.c].forEach((v, m) => {
+        const p = at(v[0], v[1], v[2]);
+        positions.set(p, k * 9 + m * 3);
+      });
+    });
+    const geometry = new three.BufferGeometry();
+    geometry.setAttribute("position", new three.BufferAttribute(positions, 3));
+    geometry.computeVertexNormals();
+    const mesh = new three.Mesh(geometry, new three.MeshStandardMaterial({
+      color: colour, roughness: 0.8, metalness: 0.02, side: three.DoubleSide, flatShading: true,
+      transparent: true, opacity, depthTest: false, depthWrite: false,
+    }));
+    mesh.renderOrder = order;
+    mesh.frustumCulled = false;
+    return mesh;
+  };
+  const group = new three.Group();
+  group.name = "GeoID-ModelBuilder-FullModel";
+  const rock = shellFacets(t, { belowM: state.domain.depthM }).facets.filter((f) => f.face !== "ground");
+  group.add(meshOf(rock, 0xa8703f, 0.5, 236));
+  const skin = t.tris.map(([a, b, c]) => ({ a: [t.xs[a], t.ys[a], t.z[a]], b: [t.xs[b], t.ys[b], t.z[b]], c: [t.xs[c], t.ys[c], t.z[c]] }));
+  group.add(meshOf(skin, 0x6fbf73, 0.85, 237));
+  if (state.atmosphere.on) {
+    const air = shellFacets(t, { aboveM: state.atmosphere.heightM }).facets.filter((f) => f.face !== "ground");
+    group.add(meshOf(air, 0x7fc8ff, 0.22, 238));
+  }
+  const b = t.bounds;
+  const layer = window.GeoIDImportManager?.addDerivedLayer?.(PREVIEW_NAMES.model, {
+    object3D: group, georeferenced: true,
+    bounds: { minX: b.west, minY: b.south, maxX: b.east, maxY: b.north },
+    legendInfo: {
+      palette: ["a8703f", "6fbf73", ...(state.atmosphere.on ? ["7fc8ff"] : [])],
+      labels: [
+        `Subsurface — down to ${fmt(t.zMin - state.domain.depthM)} m`,
+        `Surface STL — ${t.triangles.toLocaleString()} triangles, ${fmt(t.zMin)} to ${fmt(t.zMax)} m`,
+        ...(state.atmosphere.on ? [`Atmosphere — up to ${fmt(t.zMax + state.atmosphere.heightM)} m`] : []),
+      ],
+      label: "The full model, at true vertical scale", classed: true, categorical: true, unit: null,
+    },
+    home: "model",
+    metadata: { source: "GeoHUB Model Builder", dataType: "model", description: "The surface, subsurface and atmosphere solids the package writes, drawn through the ground at true vertical scale." },
+  }, "derived");
+  if (layer) state.previews.model = layer.id;
 }
 
 function clearPreviews() {
@@ -1208,6 +1278,18 @@ function stepDomain(body) {
     });
   });
   body.appendChild(showExt);
+  const showModel = el("button", "button secondary", state.previews.model !== undefined ? "Hide the full model" : "Show the full model on the globe");
+  showModel.type = "button";
+  showModel.title = "The surface STL, the subsurface shell and the atmosphere shell, drawn through the ground at true vertical scale.";
+  showModel.addEventListener("click", () => {
+    if (state.previews.model !== undefined) { removePreview("model"); render(); return; }
+    if (!surfaceLike()) { report("domain", "Build the surface first."); return; }
+    void drawFullModel().then(() => {
+      report("domain", `Full model drawn: surface, subsurface to ${fmt(state.domain.depthM)} m below the lowest ground${state.atmosphere.on ? `, atmosphere to ${fmt(state.atmosphere.heightM)} m above the highest` : ""} — at true vertical scale, through the ground.`);
+      render();
+    });
+  });
+  body.appendChild(showModel);
 
   const host = el("div", null);
   body.appendChild(host);
@@ -1977,6 +2059,7 @@ window.GeoIDModelPipeline = {
   drawBuffers,
   drawSampling,
   drawPoints,
+  drawFullModel,
   clearPreviews,
   openInStudio,
 };
