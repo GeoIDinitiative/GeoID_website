@@ -1,14 +1,17 @@
 import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
-  nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS, atmosphereStl, DEFAULT_MAX_NODES,
-} from "./model-build.js?v=20260909-139a227";
-import { ringsFromCollection } from "./extraction.js?v=20260909-139a227";
+  nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS, atmosphereStl, DEFAULT_MAX_NODES, triangleWriter,
+} from "./model-build.js?v=20260910-77df377";
+import { ringsFromCollection } from "./extraction.js?v=20260910-77df377";
 import {
   buildTin, tinHeightAt, tinSurfaceStl, tinShellStl, samplingSizeField,
   extendBoundary, extendedBoundaryLines, gridAsTin, shellFacets,
-} from "./surface-sampling.js?v=20260909-139a227";
-import { renderFeatureCollection } from "./vector-render.js?v=20260909-139a227";
+} from "./surface-sampling.js?v=20260910-77df377";
+import { renderFeatureCollection } from "./vector-render.js?v=20260910-77df377";
+import {
+  profileAlong, profileHeightAt, sectionPolygons, sectionPositions, sectionGmshScript, profileCsv,
+} from "./section-model.js?v=20260910-77df377";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -90,8 +93,19 @@ const state = {
    * join the buffers with their bounding box.
    */
   sampling: { mode: "uniform", baseM: 0, gradeM: null, buffers: [] },
+  /**
+   * WHAT KIND OF MODEL. A 3D block; a 2D SURFACE ONLY (the terrain STL and
+   * nothing under or over it); or a 2D CROSS-SECTION -- the DEM sampled
+   * along a line A-B, with the subsurface and the atmosphere as FACES in the
+   * vertical plane through it rather than volumes.
+   */
+  kind: "3d",
+  section: { a: null, b: null, n: 200 },
+  profile: null,
   /** Points placed on the globe, embedded at the surface's own interpolated height. */
   customPoints: [],
+  /** A flag chosen for ONE point by name (on the model page's card); wins over its layer's. */
+  pointFlagByName: new Map(),
   /** The air over the ground, as its own closed shell and its own gmsh script. */
   atmosphere: { on: false, heightM: 5000 },
   /** Layer ids of what this builder draws on the globe, by kind. */
@@ -346,11 +360,12 @@ function say(stepId, message) {
 }
 
 function stepDone(stepId) {
+  const built = Boolean(state.kind === "section" ? state.profile : state.surface);
   if (stepId === "area") return Boolean(state.bounds);
   if (stepId === "layers") return Boolean(state.bounds);
-  if (stepId === "surface") return Boolean(state.surface);
-  if (stepId === "domain") return Boolean(state.surface);
-  if (stepId === "conditions") return Boolean(state.surface);
+  if (stepId === "surface") return built;
+  if (stepId === "domain") return built;
+  if (stepId === "conditions") return built;
   if (stepId === "build") return Boolean(state.outputs);
   return false;
 }
@@ -437,6 +452,8 @@ function buildStep(stepId, body) {
 /* ── What the builder draws on the globe ─────────────────────────────────── */
 
 const PREVIEW_NAMES = {
+  section: "Model Builder — section line",
+  sectionFaces: "Model Builder — cross-section faces",
   buffers: "Model Builder — sampling buffers",
   sampling: "Model Builder — surface sampling",
   points: "Model Builder — embedded points",
@@ -768,7 +785,22 @@ function surfaceLike() {
   return sfc._tinLike;
 }
 
+/** A point projected onto the section line: its distance along it, and the profile's height there. */
+function sectionPointOf(lat, lon) {
+  const p = state.profile;
+  if (!p) return null;
+  const l = p.frame.toLocal(lat, lon);
+  const sM = (l.x - p.start.x) * p.dir.x + (l.y - p.start.y) * p.dir.y;
+  if (sM < 0 || sM > p.lengthM) return null;
+  const off = Math.hypot(l.x - (p.start.x + p.dir.x * sM), l.y - (p.start.y + p.dir.y * sM));
+  return { s: sM, z: profileHeightAt(p, sM), x: p.start.x + p.dir.x * sM, y: p.start.y + p.dir.y * sM, offM: off };
+}
+
 function groundAtLatLon(lat, lon) {
+  if (state.kind === "section") {
+    const q = sectionPointOf(lat, lon);
+    return q ? { x: q.x, y: q.y, z: q.z, s: q.s, offM: q.offM } : null;
+  }
   const t = surfaceLike();
   if (!t) return null;
   const local = t.frame.toLocal(lat, lon);
@@ -823,6 +855,120 @@ function stepArea(body) {
     render();
   });
   body.appendChild(use);
+
+  const kindSel = select("gis-mb-kind", [
+    { id: "3d", label: "3D block — surface, subsurface and atmosphere volumes" },
+    { id: "surface", label: "2D surface only — the terrain STL, nothing under or over it" },
+    { id: "section", label: "2D cross-section — a face along a line A–B" },
+  ], state.kind);
+  kindSel.addEventListener("change", () => {
+    state.kind = kindSel.value;
+    state.surface = null; state.profile = null; state.outputs = null;
+    clearPreviews();
+    render();
+  });
+  body.appendChild(row("Model", kindSel));
+
+  if (state.kind === "section") {
+    const sec = state.section;
+    if (!sec.a || !sec.b) {
+      const c = studyCentre();
+      const b0 = state.bounds?.bbox;
+      if (c && b0) {
+        sec.a = { lat: c.lat, lon: b0.west + (b0.east - b0.west) * 0.05 };
+        sec.b = { lat: c.lat, lon: b0.east - (b0.east - b0.west) * 0.05 };
+      }
+    }
+    const line = el("div", "gis-metric", sec.a && sec.b
+      ? `A ${sec.a.lat.toFixed(4)}°, ${sec.a.lon.toFixed(4)}° → B ${sec.b.lat.toFixed(4)}°, ${sec.b.lon.toFixed(4)}°`
+        + ` — ${fmt(lineLengthKm(sec.a, sec.b), 2)} km. West to east through the centre until you pick otherwise.`
+      : "Choose a study area first; the line starts west–east through its centre.");
+    body.appendChild(line);
+    ["a", "b"].forEach((end) => {
+      const pick = el("button", "button secondary", `Pick ${end.toUpperCase()} on the globe`);
+      pick.type = "button";
+      pick.addEventListener("click", () => {
+        void (async () => {
+          const p = await pickPoint("area");
+          if (!p) return;
+          sec[end] = { lat: p.lat, lon: p.lon };
+          state.profile = null; state.outputs = null;
+          report("area", `${end.toUpperCase()} at ${p.lat.toFixed(4)}°, ${p.lon.toFixed(4)}°.`);
+          drawSectionLine();
+          render();
+        })();
+      });
+      body.appendChild(pick);
+    });
+    if (sec.a && sec.b) drawSectionLine();
+  } else {
+    removePreview("section");
+  }
+}
+
+function lineLengthKm(a, b) {
+  const R = bodyRadiusKm();
+  const kmLat = (Math.PI * R) / 180;
+  const kmLon = kmLat * Math.cos((((a.lat + b.lat) / 2) * Math.PI) / 180);
+  return Math.hypot((b.lon - a.lon) * kmLon, (b.lat - a.lat) * kmLat);
+}
+
+/** The section line on the ground, with its ends marked. */
+function drawSectionLine() {
+  const sec = state.section;
+  if (!sec.a || !sec.b) return;
+  const fc = { type: "FeatureCollection", features: [
+    { type: "Feature", properties: { name: "Section A–B", colour: "#ffb84d" }, geometry: { type: "LineString", coordinates: [[sec.a.lon, sec.a.lat], [sec.b.lon, sec.b.lat]] } },
+    { type: "Feature", properties: { name: "A", colour: "#ffd166" }, geometry: { type: "Point", coordinates: [sec.a.lon, sec.a.lat] } },
+    { type: "Feature", properties: { name: "B", colour: "#ffd166" }, geometry: { type: "Point", coordinates: [sec.b.lon, sec.b.lat] } },
+  ] };
+  showPreview("section", fc, {
+    colourFor: (f) => f.properties.colour, outlineOnly: false,
+    legendInfo: { palette: ["ffb84d"], labels: ["The section line A–B"], label: "Cross-section", classed: true, categorical: true, unit: null },
+    description: "The line the DEM is sampled along for the 2D cross-section.",
+  });
+}
+
+/**
+ * The section's faces, drawn where they stand: the profile at ground, the
+ * base and the sky as lines under and over it, the ends joined -- through
+ * the ground at true vertical scale, as the 3D extended boundary is drawn.
+ */
+async function drawSectionFaces() {
+  removePreview("sectionFaces");
+  const p = state.profile;
+  if (!p) return;
+  if (!three) three = await import("../vendor/three.module.js");
+  const viewer = window.GeoIDViewer;
+  if (!viewer?.surfacePoint) return;
+  const polys = sectionPolygons(p, { belowM: state.domain.depthM, aboveM: state.atmosphere.on ? state.atmosphere.heightM : 0 });
+  const at = (i, z) => { const lift = (z - p.z[i]) * UNITS_PER_METRE; const q = viewer.surfacePoint(p.lats[i], p.lons[i], lift); return [q.x, q.y, q.z]; };
+  const positions = []; const colours = [];
+  const seg = (a, b, c) => { positions.push(...a, ...b); colours.push(...c, ...c); };
+  const rock = [0.79, 0.58, 0.36]; const air = [0.62, 0.85, 1]; const top = [0.44, 0.75, 0.45];
+  for (let i = 0; i < p.n - 1; i += 1) seg(at(i, p.z[i]), at(i + 1, p.z[i + 1]), top);
+  if (polys.baseZ !== null) {
+    seg(at(0, polys.baseZ), at(p.n - 1, polys.baseZ), rock);
+    seg(at(0, p.z[0]), at(0, polys.baseZ), rock); seg(at(p.n - 1, p.z[p.n - 1]), at(p.n - 1, polys.baseZ), rock);
+  }
+  if (polys.skyZ !== null) {
+    seg(at(0, polys.skyZ), at(p.n - 1, polys.skyZ), air);
+    seg(at(0, p.z[0]), at(0, polys.skyZ), air); seg(at(p.n - 1, p.z[p.n - 1]), at(p.n - 1, polys.skyZ), air);
+  }
+  const geometry = new three.BufferGeometry();
+  geometry.setAttribute("position", new three.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("color", new three.Float32BufferAttribute(colours, 3));
+  const segments = new three.LineSegments(geometry, new three.LineBasicMaterial({ vertexColors: true, depthTest: false, transparent: true, opacity: 0.95 }));
+  segments.renderOrder = 236; segments.frustumCulled = false;
+  const group = new three.Group(); group.name = "GeoID-ModelBuilder-Section"; group.add(segments);
+  const layer = window.GeoIDImportManager?.addDerivedLayer?.("Model Builder — cross-section faces", {
+    object3D: group, georeferenced: true,
+    bounds: { minX: Math.min(p.a.lon, p.b.lon), maxX: Math.max(p.a.lon, p.b.lon), minY: Math.min(p.a.lat, p.b.lat), maxY: Math.max(p.a.lat, p.b.lat) },
+    legendInfo: { palette: ["70bf73", "c9945c", "9fd8ff"], labels: ["Profile (the surface along the line)", `Subsurface face to ${polys.baseZ !== null ? `${fmt(polys.baseZ)} m` : "—"}`, `Atmosphere face to ${polys.skyZ !== null ? `${fmt(polys.skyZ)} m` : "—"}`], label: "Cross-section (true vertical scale)", classed: true, categorical: true, unit: null },
+    home: "model",
+    metadata: { source: "GeoHUB Model Builder", dataType: "model", description: "The 2D cross-section's faces, drawn in the vertical plane through the line at true vertical scale." },
+  }, "derived");
+  if (layer) state.previews.sectionFaces = layer.id;
 }
 
 function stepLayers(body) {
@@ -975,6 +1121,7 @@ function resolutionPlan() {
 }
 
 function stepSurface(body) {
+  if (state.kind === "section") { stepProfile(body); return; }
   const reader = elevationReader();
   const res = resolutionPlan();
   const plan = planGrid({ bounds: state.bounds.bbox, stepM: res.stepM, radiusKm: bodyRadiusKm() });
@@ -1092,6 +1239,57 @@ function stepSurface(body) {
       render();
     });
     body.appendChild(toggle);
+  }
+}
+
+/**
+ * THE PROFILE: the DEM along A-B, at a count of samples. The 2D model's
+ * surface is this line, and everything below or above it is a face.
+ */
+function stepProfile(body) {
+  const sec = state.section;
+  const count = number("gis-mb-section-n", sec.n, 10);
+  count.addEventListener("change", () => { sec.n = Math.max(2, Math.round(Number(count.value)) || 200); state.profile = null; state.outputs = null; });
+  body.appendChild(row("Samples along the line", count));
+  if (sec.a && sec.b) {
+    const km = lineLengthKm(sec.a, sec.b);
+    body.appendChild(el("div", "gis-metric", `${fmt(km, 2)} km from A to B; ${sec.n} samples is one every ${fmt((km * 1000) / Math.max(1, sec.n - 1))} m. The DEM is loaded at the finest level the line deserves first.`));
+  } else {
+    body.appendChild(el("div", "gis-metric", "Pick A and B in step 1."));
+  }
+  const build = el("button", "tool-button", "Build profile");
+  build.type = "button";
+  build.addEventListener("click", () => {
+    if (!sec.a || !sec.b) { report("surface", "Pick A and B in step 1."); return; }
+    report("surface", "Loading the finest DEM along the line…");
+    void (async () => {
+      const box = {
+        west: Math.min(sec.a.lon, sec.b.lon) - 0.01, east: Math.max(sec.a.lon, sec.b.lon) + 0.01,
+        south: Math.min(sec.a.lat, sec.b.lat) - 0.01, north: Math.max(sec.a.lat, sec.b.lat) + 0.01,
+      };
+      const best = await ensureBestDem(box);
+      const source = elevationReader();
+      if (!source) { report("surface", "No elevation source to sample."); render(); return; }
+      const centre = studyCentre() || { lat: (sec.a.lat + sec.b.lat) / 2, lon: (sec.a.lon + sec.b.lon) / 2 };
+      const frame = makeLocalFrame({ lat: centre.lat, lon: centre.lon, radiusKm: bodyRadiusKm() });
+      const profile = profileAlong({ a: sec.a, b: sec.b, n: sec.n, heightAt: source.read, radiusKm: bodyRadiusKm(), frame });
+      if (!profile.ok) { state.profile = null; report("surface", profile.message); render(); return; }
+      state.profile = profile;
+      state.outputs = null;
+      drawSectionLine();
+      void drawSectionFaces();
+      report("surface", `${profile.n} samples over ${fmt(profile.lengthM / 1000, 2)} km (one every ${fmt(profile.stepM)} m); elevation ${fmt(profile.zMin)} to ${fmt(profile.zMax)} m (relief ${fmt(profile.reliefM)} m)`
+        + `${profile.filledNodes ? `, ${profile.filledNodes} sample(s) filled with the mean` : ""}${best ? `, from ${best.label}` : ""}. Drawn on the globe as the section line and its faces.`);
+      state.open = "domain";
+      render();
+    })();
+  });
+  body.appendChild(build);
+  if (state.profile) {
+    const csv = el("button", "button secondary", "Download the profile CSV");
+    csv.type = "button";
+    csv.addEventListener("click", () => downloadText(`${modelName()}_section.csv`, profileCsv(state.profile), "text/csv"));
+    body.appendChild(csv);
   }
 }
 
@@ -1254,6 +1452,12 @@ function stepDomain(body) {
    * always built (the depth above); the ATMOSPHERE is a second closed shell
    * over the same ground, its own volume and its own gmsh script.
    */
+  if (state.kind === "surface") {
+    body.appendChild(el("div", "gis-metric", "Surface only: no subsurface or atmosphere is written for this model — the depth above is kept for when the kind changes."));
+  }
+  if (state.kind === "section") {
+    body.appendChild(el("div", "gis-metric", "A cross-section: the depth and the height below become FACES in the vertical plane through A–B, sharing the profile as one edge."));
+  }
   const airOn = el("input", null);
   airOn.type = "checkbox";
   airOn.id = "gis-mb-air";
@@ -1265,6 +1469,14 @@ function stepDomain(body) {
     height.addEventListener("input", () => { state.atmosphere.heightM = Number(height.value) || 1000; state.outputs = null; });
     body.appendChild(row("Height above the highest ground (m)", height));
   }
+  if (state.kind === "section") {
+    const showSec = el("button", "button secondary", state.previews.sectionFaces !== undefined ? "Redraw the section faces" : "Show the section faces on the globe");
+    showSec.type = "button";
+    showSec.addEventListener("click", () => { if (!state.profile) { report("domain", "Build the profile first."); return; } void drawSectionFaces().then(() => { report("domain", "Section faces drawn at true vertical scale."); render(); }); });
+    body.appendChild(showSec);
+    return;
+  }
+  if (state.kind === "surface") return;
   const showExt = el("button", "button secondary", state.previews.extend !== undefined ? "Hide the extended boundary" : "Show the extended boundary on the globe");
   showExt.type = "button";
   showExt.addEventListener("click", () => {
@@ -1533,9 +1745,9 @@ function pointControls(body) {
  * the surface" means below the terrain rather than below sea level.
  */
 function embeddedPoints() {
-  const t = surfaceLike();
+  const t = state.kind === "section" ? state.profile : surfaceLike();
   if (!t) return [];
-  const sizeM = Math.max(t.spacingMinM / 3, 1);
+  const sizeM = Math.max((state.kind === "section" ? t.stepM : t.spacingMinM) / 3, 1);
   const out = [];
   loadedLayers().forEach((layer) => {
     if (state.roles.get(String(layer.id)) !== "points") return;
@@ -1556,7 +1768,8 @@ function embeddedPoints() {
         layer: layer.name,
         // Per LAYER, not per point: a study flags "the piezometers", and a
         // point that wants its own number is its own layer.
-        flag: Number(state.pointFlag.get(String(layer.id)))
+        flag: Number(state.pointFlagByName.get(String(f.properties?.name || f.properties?.site || `${layer.name}_${index + 1}`)))
+          || Number(state.pointFlag.get(String(layer.id)))
           || state.flags.points || DEFAULT_FLAGS.points,
         lat,
         lon,
@@ -1569,9 +1782,9 @@ function embeddedPoints() {
     const g = groundAtLatLon(p.lat, p.lon);
     if (!g) return;
     out.push({
-      x: g.x, y: g.y, z: g.z - (p.depthM || 0), sizeM,
+      x: g.x, y: g.y, z: g.z - (p.depthM || 0), sizeM, s: g.s,
       name: String(p.name || `point_${index + 1}`), layer: "placed on the globe",
-      flag: state.flags.points || DEFAULT_FLAGS.points,
+      flag: Number(state.pointFlagByName.get(String(p.name || `point_${index + 1}`))) || state.flags.points || DEFAULT_FLAGS.points,
       lat: p.lat, lon: p.lon, depthM: p.depthM || 0, groundZ: g.z,
     });
   });
@@ -1592,6 +1805,7 @@ function modelName() {
  * millions of tetrahedra. The size FIELD is what brings a buffer down.
  */
 function defaultMeshSizeM() {
+  if (state.kind === "section") return state.profile ? Math.max(10, Math.round(state.profile.stepM * 4)) : 200;
   const grid = state.surface;
   if (!grid) return 200;
   const coarse = grid.kind === "tin" ? grid.spacingMaxM : grid.stepXm;
@@ -1644,9 +1858,9 @@ function stepBuild(body) {
     state.outputs = null;
     render();
   });
-  body.appendChild(row("Finer mesh on slopes", gradeOn));
+  if (state.kind !== "section") body.appendChild(row("Finer mesh on slopes", gradeOn));
 
-  if (state.grading.on !== false) {
+  if (state.kind !== "section" && state.grading.on !== false) {
     const base = Number(state.meshSizeM) || defaultMeshSizeM();
     const coarse = number("gis-mb-grade-coarse", state.grading.coarseM || base, 10);
     coarse.addEventListener("input", () => {
@@ -1708,7 +1922,7 @@ function stepBuild(body) {
       body.appendChild(dla);
     }
   }
-  if (state.surface) {
+  if (state.surface || state.profile) {
     const studio = el("button", "button secondary", "Open in the Meshing Studio");
     studio.type = "button";
     studio.title = "Hand the surface to the model page as a terrain solid: the subsurface and the atmosphere as volumes, in metres.";
@@ -1724,6 +1938,7 @@ function stepBuild(body) {
  * parameters. One surface object, handed over rather than re-read.
  */
 async function openInStudio() {
+  if (state.kind === "section") { await openSectionInStudio(); return; }
   const t = surfaceLike();
   if (!t) { report("build", "Build the surface first."); return; }
   window.GeoIDModeManager?.setMode?.("model");
@@ -1735,6 +1950,25 @@ async function openInStudio() {
   if (!studio?.adoptTerrainSolid) { report("build", "The Meshing Studio did not come up."); return; }
   studio.adoptTerrainSolid({
     name: modelName(), surface: t, origin: t.origin,
+    belowM: state.kind === "surface" ? 0 : state.domain.depthM,
+    aboveM: state.kind !== "surface" && state.atmosphere.on ? state.atmosphere.heightM : 0,
+    points: embeddedPoints(),
+    flags: { ...state.flags },
+  });
+}
+
+async function openSectionInStudio() {
+  const p = state.profile;
+  if (!p) { report("build", "Build the profile first."); return; }
+  window.GeoIDModeManager?.setMode?.("model");
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    if (window.GeoIDMeshStudio?.adoptSectionModel) break;
+    await sleep(100);
+  }
+  const studio = window.GeoIDMeshStudio;
+  if (!studio?.adoptSectionModel) { report("build", "The Meshing Studio did not come up."); return; }
+  studio.adoptSectionModel({
+    name: modelName(), profile: p, origin: p.origin,
     belowM: state.domain.depthM,
     aboveM: state.atmosphere.on ? state.atmosphere.heightM : 0,
     points: embeddedPoints(),
@@ -1756,7 +1990,90 @@ function downloadText(filename, text, mime = "text/plain") {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/** The 2D cross-section's faces as an STL anybody can open, in the local frame. */
+function sectionStl(profile, ring, name, hint) {
+  const out = [`solid ${name}`];
+  const tri = triangleWriter(out, hint);
+  const pos = sectionPositions(profile, ring);
+  for (let i = 0; i < pos.length; i += 9) {
+    tri([pos[i], pos[i + 1], pos[i + 2]], [pos[i + 3], pos[i + 4], pos[i + 5]], [pos[i + 6], pos[i + 7], pos[i + 8]]);
+  }
+  out.push(`endsolid ${name}`);
+  return `${out.join("\n")}\n`;
+}
+
+async function writeSectionPackage() {
+  const p = state.profile;
+  const name = modelName();
+  const run = state.runName || `${name}_run`;
+  const meshSizeM = Number(state.meshSizeM) || Math.max(10, Math.round(p.stepM * 4));
+  const belowM = state.domain.depthM;
+  const aboveM = state.atmosphere.on ? state.atmosphere.heightM : 0;
+  const polys = sectionPolygons(p, { belowM, aboveM });
+  const points = embeddedPoints();
+  const script = sectionGmshScript({
+    name, profile: p, belowM, aboveM, meshSizeM, flags: state.flags,
+    embedPoints: points.map((q) => ({ s: q.s, z: q.z, name: q.name, flag: q.flag, sizeM: q.sizeM })),
+    meshFile: `${name}.msh`,
+  });
+  const normal = [-p.dir.y, p.dir.x, 0];
+  const stl = [
+    `solid ${name}`,
+    ...(polys.rock ? sectionStl(p, polys.rock, `${name}_subsurface`, normal).split("\n").slice(1, -2) : []),
+    ...(polys.air ? sectionStl(p, polys.air, `${name}_atmosphere`, normal).split("\n").slice(1, -2) : []),
+    `endsolid ${name}`,
+  ].join("\n") + "\n";
+  const spec = femSpec({
+    run, mesh: `${name}.msh`, domain: state.domain.type, dim: 2, time: {},
+    materials: { solid: state.domain.materials.solid, fluid: state.domain.materials.fluid || state.domain.materials.gas },
+    initial: {}, boundary: state.conditions,
+    provenance: {
+      kind: "2d cross-section",
+      study_area: state.bounds?.label, body: viewer()?.bodyName || undefined, body_radius_km: bodyRadiusKm(),
+      origin: p.origin,
+      crs: `2D: s = metres along the line from A, z = metres above sea level; the line lies in the local east/north frame about (lat ${p.origin.lat}, lon ${p.origin.lon}), from A (${p.a.lat}, ${p.a.lon}) to B (${p.b.lat}, ${p.b.lon})`,
+      section: { a: p.a, b: p.b, samples: p.n, length_m: p.lengthM, step_m: p.stepM, elevation_m: { min: p.zMin, max: p.zMax, relief: p.reliefM }, filled: p.filledNodes },
+      extend_boundary: { below_m: belowM, base_z_m: polys.baseZ, above_m: aboveM, sky_z_m: polys.skyZ },
+      dem: state.demReady ? { zoom: state.demReady.zoom, post_spacing_m: state.demReady.postM } : null,
+      flags: { ...state.flags },
+      embedded_points: points.map((q) => ({ name: q.name, lat: q.lat, lon: q.lon, s: q.s, z: q.z, depth_below_surface_m: q.depthM })),
+      built_at: new Date().toISOString(),
+    },
+  });
+  const csv = profileCsv(p);
+  state.outputs = { script, spec, sectionText: stl, csvText: csv, files: [] };
+  const store = window.GeoIDResearch?.store;
+  const project = store?.getActive?.();
+  const summary = `${p.n}-sample profile over ${fmt(p.lengthM / 1000, 2)} km; ${polys.rock ? `rock face to ${fmt(polys.baseZ)} m` : "no rock face"}${polys.air ? `, air face to ${fmt(polys.skyZ)} m` : ""}; ${points.length} embedded point(s).`;
+  if (!project) {
+    downloadText(`${name}_section.csv`, csv, "text/csv");
+    downloadText(`${name}_section.stl`, stl);
+    downloadText(`${name}_section_gmsh.py`, script, "text/x-python");
+    downloadText(`${run}_spec.json`, JSON.stringify(spec, null, 2), "application/json");
+    state.outputs.files = ["downloads (no project open)"];
+    report("build", `${summary} No project open — downloaded instead.`);
+    render();
+    return;
+  }
+  try {
+    await store.writeProjectFile(`meshes/${name}_section.csv`, csv);
+    await store.writeProjectFile(`meshes/${name}_section.stl`, stl);
+    await store.writeProjectFile(`meshes/${name}_section_gmsh.py`, script);
+    await store.writeProjectFile(`fem_runs/${run}/spec.json`, JSON.stringify(spec, null, 2));
+    state.outputs.files = [`meshes/${name}_section.csv`, `meshes/${name}_section.stl`, `meshes/${name}_section_gmsh.py`, `fem_runs/${run}/spec.json`];
+    report("build", `${summary} Written into ${project.name}.`);
+  } catch (error) {
+    report("build", `Could not write into the project: ${error.message}`);
+  }
+  render();
+}
+
 async function writePackage() {
+  if (state.kind === "section") {
+    if (!state.profile) { report("build", "Build the profile first."); return; }
+    await writeSectionPackage();
+    return;
+  }
   const grid = state.surface;
   if (!grid) {
     report("build", "Build the surface first.");
@@ -1767,10 +2084,11 @@ async function writePackage() {
   const run = state.runName || `${name}_run`;
   const meshSizeM = Number(state.meshSizeM) || defaultMeshSizeM();
   const surfaceText = isTin ? tinSurfaceStl(grid, name) : surfaceStl(grid, name);
+  const surfaceOnly = state.kind === "surface";
   const domain = isTin
     ? tinShellStl(grid, { belowM: state.domain.depthM, name })
     : domainStl(grid, { depthM: state.domain.depthM, name });
-  const air = state.atmosphere.on
+  const air = state.atmosphere.on && !surfaceOnly
     ? (isTin
       ? tinShellStl(grid, { aboveM: state.atmosphere.heightM, name: `${name}_atmosphere` })
       : atmosphereStl(grid, { heightM: state.atmosphere.heightM, name: `${name}_atmosphere` }))
@@ -1864,6 +2182,7 @@ async function writePackage() {
       crs: `local east/north metres about origin (lat ${grid.origin.lat}, lon ${grid.origin.lon}) on a sphere of radius ${bodyRadiusKm()} km:`
         + " x = (lon - lon0) * m_per_deg * cos(lat0), y = (lat - lat0) * m_per_deg, z = metres above sea level (the DEM's datum); the Meshing Studio reads the same frame",
       extent_m: { width: grid.widthM, height: grid.heightM },
+      kind: surfaceOnly ? "2d surface only" : "3d block",
       sampling: isTin ? {
         mode: "variable",
         base_step_m: state.sampling.baseM,
@@ -1951,7 +2270,7 @@ async function writePackage() {
     // GALES deck prepare already look for a .msh; the input that will make the
     // mesh belongs beside it.
     await store.writeProjectFile(`meshes/${name}_surface.stl`, surfaceText);
-    await store.writeProjectFile(`meshes/${name}_domain.stl`, domain.text);
+    if (!surfaceOnly) await store.writeProjectFile(`meshes/${name}_domain.stl`, domain.text);
     if (air) await store.writeProjectFile(`meshes/${name}_atmosphere.stl`, air.text);
     if (fieldText) await store.writeProjectFile(`meshes/${fieldFile}`, fieldText);
     await store.writeProjectFile(`meshes/${name}_gmsh.py`, script);
@@ -1959,7 +2278,7 @@ async function writePackage() {
     await store.writeProjectFile(`fem_runs/${run}/spec.json`, JSON.stringify(spec, null, 2));
     state.outputs.files = [
       `meshes/${name}_surface.stl`,
-      `meshes/${name}_domain.stl`,
+      ...(surfaceOnly ? [] : [`meshes/${name}_domain.stl`]),
       ...(air ? [`meshes/${name}_atmosphere.stl`] : []),
       ...(fieldText ? [`meshes/${fieldFile}`] : []),
       `meshes/${name}_gmsh.py`,
@@ -2067,4 +2386,25 @@ window.GeoIDModelPipeline = {
   drawFullModel,
   clearPreviews,
   openInStudio,
+  /**
+   * THE MODEL PAGE EDITS THE FLAGS. A face, an edge, the profile or a point
+   * clicked on the studio can be given a number there, and the package
+   * written here carries it: the state is one, the studio is the other door.
+   */
+  setFlag: (key, value) => {
+    const n = Math.round(Number(value));
+    if (!key || !(n > 0)) return false;
+    state.flags[key] = n;
+    state.outputs = null;
+    render();
+    return true;
+  },
+  setPointFlag: (name, value) => {
+    const n = Math.round(Number(value));
+    if (!name || !(n > 0)) return false;
+    state.pointFlagByName.set(String(name), n);
+    state.outputs = null;
+    render();
+    return true;
+  },
 };

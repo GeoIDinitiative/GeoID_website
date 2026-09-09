@@ -16535,3 +16535,56 @@ air's floor, flag 1 on both — and nothing shares its plane. Verified live:
 untick the Atmosphere master and both its faces go; untick the rock's base
 and the Subsurface master reads indeterminate; the surface, sides and points
 draw with no fighting.
+
+### 2D models: surface only, or a cross-section along a line
+
+"We should have an option for 2D or 3D models in the model builder." Step 1
+carries a **Model** select: a 3D block (as before), a 2D SURFACE ONLY, or a
+2D CROSS-SECTION. Surface-only is the 3D path writing the terrain STL and
+nothing under or over it — the depth and atmosphere controls say they are
+kept for when the kind changes. The section is `section-model.js`, pure and
+tested against a plane (31 checks with the structural pins):
+
+- **The line is A–B on the globe**, picked through `pickPoint` or defaulted
+  west–east through the study centre; `profileAlong` samples the DEM at N
+  points along it in the SAME local frame as the 3D package (the study
+  centre's — `profileAlong` takes the frame and reports its origin, so the
+  spec's `crs` names one frame for both kinds). The DEM is clipped to the
+  line's box at the finest level first (`ensureBestDem`), the same rule as
+  the 3D surface step.
+- **The subsurface and the atmosphere are FACES, not volumes**:
+  `sectionPolygons` closes the profile down to a flat base and up to a flat
+  sky as two CCW rings in (s, z); `sectionPositions` stands them in the
+  vertical plane through the line; `sectionGmshScript` is a 2D script —
+  the profile as `top` curves and points (flag 1), base 2, sides 5,
+  subsurface surface 10, sky 4, sides 6, atmosphere 11, embedded points
+  through `isInside(2, …)` and `embed(0, …, 2, …)`, `generate(2)`.
+- **The package** is `_section.csv` (s, lat, lon, z), `_section.stl` (both
+  faces, for anything that opens an STL), `_section_gmsh.py` and a spec
+  with `dim: 2`. On the globe the line is drawn as the section preview and
+  the faces as x-ray lines through the ground at true vertical scale, the
+  extended boundary's own treatment.
+- **The studio adopts it** (`adoptSectionModel`): the rock face brown, the
+  air face translucent, the profile a green ribbon, points as spheres —
+  the same parts, cards and Domains panel as the 3D terrain. A face has no
+  inside, so each domain's solid here is a slab one sample step thick about
+  the plane, which is what lets the inside-tests and the 3D mesher still
+  answer. `terrainFrame()` and `terrainHeightAt()` read the section's frame
+  and profile where the TIN would be, so the readout and the conversions
+  are one function for both kinds; `extendTerrain` re-adopts by kind.
+
+### Every part's flag is edited where the part is
+
+"We should be able to click on any face, line, surface, point within the
+model and edit/assign a flag number with ease." The card's "Physical flag"
+row is a number box now (Enter or blur commits); the Domains panel carries
+one per row and one in each domain's head (the volume flag, the ground's,
+the points' default); a section face's card also edits its EDGES (base and
+sides, or sky and sides) — the lines the 2D script tags. `flagKeysOf(part)`
+maps a part to its key in the study's flag table, `assignFlag` writes it to
+every part sharing the key (the walls are one flag), refreshes the rows and
+tells the GIS page through `GeoIDModelPipeline.setFlag(key, n)` /
+`setPointFlag(name, n)` — so the package written there carries the number
+chosen here. A point's flag is kept BY NAME (`pointFlagByName`) and wins
+over its layer's. Number inputs stop keydown propagation, or the studio's
+own shortcuts eat the digits.

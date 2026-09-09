@@ -1,12 +1,13 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-139a227";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-139a227";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-77df377";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-77df377";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260909-139a227";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-139a227";
-import { downloadText } from "./extraction.js?v=20260909-139a227";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260909-139a227";
+} from "./mesh-volume.js?v=20260910-77df377";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-77df377";
+import { downloadText } from "./extraction.js?v=20260910-77df377";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-77df377";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-77df377";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -891,8 +892,8 @@ function sceneToWgs84(point) {
  * two pages cannot disagree about where a point is.
  */
 function enuToWgs84(eastM, northM, upM) {
-  if (gisTerrain?.surface?.frame) {
-    const ll = gisTerrain.surface.frame.fromLocal(eastM, northM);
+  if (terrainFrame()) {
+    const ll = terrainFrame().fromLocal(eastM, northM);
     return { lat: ll.lat, lon: (((ll.lon + 540) % 360) - 180), elevation: studioOrigin.elevation + upM };
   }
   const toRad = Math.PI / 180;
@@ -920,8 +921,8 @@ function enuToWgs84(eastM, northM, upM) {
 
 /** WGS84 to local east/north/up metres at the studio origin. */
 function wgs84ToEnu(lat, lon, elevation = 0) {
-  if (gisTerrain?.surface?.frame) {
-    const l = gisTerrain.surface.frame.toLocal(lat, lon);
+  if (terrainFrame()) {
+    const l = terrainFrame().toLocal(lat, lon);
     return { east: l.x, north: l.y, up: elevation - studioOrigin.elevation };
   }
   const toRad = Math.PI / 180;
@@ -1557,10 +1558,10 @@ function installPicking() {
         .find((h) => h.object.visible && !(h.object.material?.transparent && h.object.material.opacity < 1))
       : null;
     let elevation;
-    if (hit && gisTerrain?.surface && modelAnchor && hit.object !== groundMesh) {
+    if (hit && (gisTerrain?.surface || gisTerrain?.profile) && modelAnchor && hit.object !== groundMesh) {
       const local = modelAnchor.worldToLocal(hit.point.clone());
       const s = studioScale || 1;
-      const h = tinHeightAt(gisTerrain.surface, local.x / s, -local.z / s);
+      const h = terrainHeightAt(local.x / s, -local.z / s);
       if (Number.isFinite(h) && hit.object === gisTerrain.skin) elevation = h;
     }
     updateCoordinateReadout(hit ? hit.point : null, elevation);
@@ -2596,8 +2597,23 @@ function setStudioOrigin(lat, lon, elevation = studioOrigin.elevation) {
 let gisTerrain = null;
 let geoGroupWasVisible = null;
 
-export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, aboveM = 0, origin = null, points = [], flags = null } = {}) {
-  if (!surface?.tris?.length) { log("GIS terrain: no surface to adopt."); return null; }
+/** The frame both pages compute lat/lon through: the surface's, or the section's. */
+function terrainFrame() {
+  return gisTerrain?.surface?.frame || gisTerrain?.frame || null;
+}
+
+/** Ground height at a local (x, y): the TIN for a 3D terrain, the profile for a section. */
+function terrainHeightAt(x, y) {
+  if (gisTerrain?.surface) return tinHeightAt(gisTerrain.surface, x, y);
+  const p = gisTerrain?.profile;
+  if (!p) return null;
+  const sM = (x - p.start.x) * p.dir.x + (y - p.start.y) * p.dir.y;
+  if (sM < 0 || sM > p.lengthM) return null;
+  return profileHeightAt(p, sM);
+}
+
+/** Take the previous terrain's entities and parts off the page before another is adopted. */
+function clearTerrain() {
   if (gisTerrain?.entries?.length) {
     deleteEntities(gisTerrain.entries.map((e) => e.id).filter((id) => findById(id)));
   }
@@ -2610,6 +2626,167 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
     if (layer) window.GeoIDImportManager.removeLayer(layer.id);
   });
   closePartCard();
+}
+
+/**
+ * A 2D CROSS-SECTION AS A MODEL. The Model Builder hands over a PROFILE --
+ * the DEM sampled along a line A-B -- and the subsurface and the atmosphere
+ * arrive as FACES in the vertical plane through that line, sharing the
+ * profile as one edge, rather than as volumes. Same frame as the 3D
+ * package (local east/north metres about the study centre, z above sea
+ * level), same flags, same parts and cards, same Domains panel; what
+ * differs is that a face has no inside, so each domain's "solid" here is
+ * a thin slab -- one sample step thick -- about the plane, which is what
+ * lets the studio's 3D mesher and the inside-tests still have something
+ * to answer about. The 2D gmsh script in the package is the real product.
+ */
+export function adoptSectionModel({ name = "gis_section", profile, belowM = 0, aboveM = 0, origin = null, points = [], flags = null } = {}) {
+  if (!profile?.n || !profile?.frame) { log("GIS section: no profile to adopt."); return null; }
+  clearTerrain();
+  gisTerrain = {
+    name, kind: "section", surface: null, profile, frame: profile.frame,
+    belowM: Number(belowM) || 0, aboveM: Number(aboveM) || 0, entries: [], points, flags, parts: [],
+  };
+  if (origin && Number.isFinite(origin.lat)) {
+    adoptStudyArea({ lat: origin.lat, lon: origin.lon, elevation: 0, radiusM: Math.max(profile.lengthM / 2, 1000), terrain: false });
+  }
+  const polys = sectionPolygons(profile, { belowM: gisTerrain.belowM, aboveM: gisTerrain.aboveM });
+  gisTerrain.flags = { terrain: 1, base: 2, sky: 4, sides_below: 5, sides_above: 6, subsurface: 10, atmosphere: 11, points: 20, ...(flags || {}) };
+  const F = gisTerrain.flags;
+  const half = Math.max(profile.stepM, 1) / 2;
+  const nx = -profile.dir.y; const ny = profile.dir.x;
+  const lengthKm = (profile.lengthM / 1000).toFixed(2);
+  const addPart = (part) => { gisTerrain.parts.push(part); return part; };
+  const inRing = (ring, sM, zM) => {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+      const [si, zi] = ring[i]; const [sj, zj] = ring[j];
+      if ((zi > zM) !== (zj > zM) && sM < ((sj - si) * (zM - zi)) / (zj - zi) + si) inside = !inside;
+    }
+    return inside;
+  };
+  const make = (which, ring, extentM) => {
+    if (!ring) return;
+    const below = which === "subsurface";
+    const id = state.solids.reduce((m, e) => Math.max(m, e.id), 0) + 1;
+    const group = new THREE.Group();
+    group.name = `${name}_${which}`;
+    const colour = below ? 0xa8703f : 0x7fc8ff;
+    const positions = sectionPositions(profile, ring, 1);
+    const mesh = below
+      ? displayMesh(positions, `${name}_${which}_face`, colour)
+      : displayMesh(positions, `${name}_${which}_face`, colour, { opacity: 0.35, renderOrder: 2 });
+    group.add(mesh);
+    const lidZ = below ? polys.baseZ : polys.skyZ;
+    addPart({
+      id: `${which}:face`, name: `${which === "subsurface" ? "Subsurface" : "Atmosphere"} — face`, kind: "face",
+      which, face: "face", flag: below ? F.subsurface : F.atmosphere, mesh, solidId: id, colour, domain: which,
+      rows: [
+        ["What", below
+          ? `The rock face of the section: from the profile down to a flat base ${Math.round(extentM)} m under the lowest ground`
+          : `The air face of the section: from the profile up to a flat sky ${Math.round(extentM)} m over the highest ground`],
+        ["Physical flag", `${below ? F.subsurface : F.atmosphere} — gmsh physical SURFACE "${which}" in the 2D script`],
+        ["Edges", below
+          ? `top ${F.terrain} (the profile), base ${F.base}, sides ${F.sides_below}`
+          : `top ${F.terrain} (the profile), sky ${F.sky}, sides ${F.sides_above}`],
+        ["Elevation", `${Math.round(below ? lidZ : profile.zMin)} to ${Math.round(below ? profile.zMax : lidZ)} m`],
+        ["Length", `${lengthKm} km along A–B`],
+        ["Triangles", (positions.length / 9).toLocaleString()],
+      ],
+    });
+    const anchorNode = ensureModelAnchor();
+    if (anchorNode) anchorNode.add(group);
+    const test = (q) => {
+      const dx = q[0] - profile.start.x; const dy = q[1] - profile.start.y;
+      const off = dx * nx + dy * ny;
+      if (Math.abs(off) > half) return false;
+      const sM = dx * profile.dir.x + dy * profile.dir.y;
+      if (sM < 0 || sM > profile.lengthM) return false;
+      return inRing(ring, sM, q[2]);
+    };
+    const xs = [profile.start.x, profile.start.x + profile.dir.x * profile.lengthM];
+    const ys = [profile.start.y, profile.start.y + profile.dir.y * profile.lengthM];
+    const entry = {
+      id, kind: "gis_terrain", op: "union", enabled: true,
+      params: { label: `GIS section — ${which}`, which, extent_km: extentM, name },
+      test, region: null, object3D: group,
+      bounds: {
+        minX: Math.min(...xs) - half, maxX: Math.max(...xs) + half,
+        minY: Math.min(...ys) - half, maxY: Math.max(...ys) + half,
+        minZ: below ? lidZ : profile.zMin, maxZ: below ? profile.zMax : lidZ,
+      },
+    };
+    state.solids.push(entry);
+    gisTerrain.entries.push(entry);
+    record(`union gis section ${which}`);
+  };
+  make("subsurface", polys.rock, gisTerrain.belowM);
+  make("atmosphere", polys.air, gisTerrain.aboveM);
+  // The profile itself: a thin ribbon standing in the plane, so the line
+  // the DEM was read along is a thing to point at, in the surface's green.
+  const ribbonW = Math.max(profile.stepM / 4, 2);
+  const ribbon = [];
+  for (let i = 0; i < profile.n - 1; i += 1) {
+    const a = [profile.xs[i], profile.ys[i], profile.z[i]];
+    const b = [profile.xs[i + 1], profile.ys[i + 1], profile.z[i + 1]];
+    const a1 = [a[0] + nx * ribbonW, a[1] + ny * ribbonW, a[2]]; const a2 = [a[0] - nx * ribbonW, a[1] - ny * ribbonW, a[2]];
+    const b1 = [b[0] + nx * ribbonW, b[1] + ny * ribbonW, b[2]]; const b2 = [b[0] - nx * ribbonW, b[1] - ny * ribbonW, b[2]];
+    ribbon.push(...a1, ...b1, ...b2, ...a1, ...b2, ...a2);
+  }
+  gisTerrain.skin = displayMesh(Float32Array.from(ribbon), `${name}_profile`, 0x6fbf73, { renderOrder: 1 });
+  addPart({
+    id: "surface", name: "Profile — the ground along A–B", kind: "surface", flag: F.terrain, mesh: gisTerrain.skin, solidId: null, colour: 0x6fbf73, domain: "surface", face: "ground",
+    rows: [
+      ["What", "The DEM sampled along the line: the rock face's top edge and the air face's floor, flag 1 on both"],
+      ["Physical flag", `${F.terrain} — "top" curves and their points in the 2D script`],
+      ["Samples", `${profile.n.toLocaleString()} (one every ${Math.round(profile.stepM)} m)`],
+      ["Elevation", `${Math.round(profile.zMin)} to ${Math.round(profile.zMax)} m (relief ${Math.round(profile.reliefM)} m)`],
+      ["Length", `${lengthKm} km`],
+      ["Ends", `A ${profile.a.lat.toFixed(4)}°, ${profile.a.lon.toFixed(4)}° → B ${profile.b.lat.toFixed(4)}°, ${profile.b.lon.toFixed(4)}°`],
+    ],
+  });
+  const pointR = Math.max(10, profile.stepM / 3);
+  (points || []).forEach((p, i) => {
+    const geo = new THREE.SphereGeometry(pointR, 12, 8).toNonIndexed();
+    const pos = geo.getAttribute("position").array;
+    for (let k = 0; k < pos.length; k += 3) { pos[k] += p.x; pos[k + 1] += p.y; pos[k + 2] += p.z; }
+    geo.dispose();
+    const mesh = displayMesh(Float32Array.from(pos), `${name}_point_${p.name}`, 0xffd166, { renderOrder: 3 });
+    addPart({
+      id: `point:${i}`, name: `Point — ${p.name}`, kind: "point", flag: p.flag ?? F.points, mesh, solidId: null, colour: 0xffd166, domain: "points", face: p.name,
+      rows: [
+        ["What", `An embedded point: the 2D mesh gets a node exactly here (from ${p.layer || "the study"})`],
+        ["Position", `${Number(p.lat).toFixed(5)}°, ${Number(p.lon).toFixed(5)}°`],
+        ["Along the line", `${Math.round(p.s ?? 0)} m from A`],
+        ["Ground", `${Math.round(p.groundZ ?? (p.z + (p.depthM || 0)))} m (the profile's interpolated height)`],
+        ["Depth", `${Number(p.depthM || 0)} m below the surface`],
+        ["Physical flag", `${p.flag ?? F.points} — gmsh embeds it in the face and tags it`],
+      ],
+    });
+  });
+  renderModelTree();
+  status(`${state.solids.length} entities`);
+  const lo = byId("studio-size-lo");
+  const hi = byId("studio-size-hi");
+  const coarse = Math.max(1, Math.round(profile.stepM * 2));
+  if (lo && !(Number(lo.value) >= coarse / 4)) lo.value = String(coarse);
+  if (hi && !(Number(hi.value) >= coarse / 2)) hi.value = String(coarse * 2);
+  log(`GIS section "${name}": ${profile.n.toLocaleString()} samples over ${lengthKm} km (one every ${Math.round(profile.stepM)} m),`
+    + ` elevation ${Math.round(profile.zMin)} to ${Math.round(profile.zMax)} m. A 2D model: brown is the rock face, translucent blue the air face, green the profile.`
+    + ` Each face stands in the vertical plane through A–B; as solids here they are one sample step thick.`
+    + ` 1 unit = 1 m, z above sea level, in the GIS study's own local frame about ${profile.origin.lat.toFixed(5)}, ${profile.origin.lon.toFixed(5)}.`
+    + ` Subsurface ${gisTerrain.belowM} m below the lowest ground${gisTerrain.aboveM > 0 ? `, atmosphere ${gisTerrain.aboveM} m above the highest` : ""}.`
+    + `${points?.length ? ` ${points.length} embedded point(s) carried.` : ""}`);
+  ensureTerrainCard();
+  renderDomainsPanel();
+  document.querySelector('.studio-tabs[data-deck="left"] .studio-tab[data-tab="model"]')?.click();
+  fitView?.();
+  return gisTerrain;
+}
+
+export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, aboveM = 0, origin = null, points = [], flags = null } = {}) {
+  if (!surface?.tris?.length) { log("GIS terrain: no surface to adopt."); return null; }
+  clearTerrain();
   gisTerrain = { name, surface, belowM: Number(belowM) || 0, aboveM: Number(aboveM) || 0, entries: [], points, flags };
   /**
    * THE STUDIO'S GROUND IS THE MODEL'S FLOOR. The ground is an opaque sphere
@@ -2863,10 +3040,16 @@ function renderDomainsPanel() {
       renderDomainsPanel();
     });
     const label = document.createElement("span");
-    label.textContent = `${title} · flag ${flag}`;
+    label.textContent = title;
     label.style.flex = "1";
     summary.appendChild(master);
     summary.appendChild(label);
+    // The domain's own flag -- the volume (or the surface's, or the points' default) -- edited in its head.
+    const domainKey = id === "subsurface" ? "subsurface" : id === "atmosphere" ? "atmosphere" : id === "surface" ? "terrain" : "points";
+    const headFlag = flagInput(F[domainKey], (val) => assignFlag({ key: domainKey, domain: id !== "points" && id !== "surface" ? title : null }, val),
+      id === "points" ? "Default flag for embedded points" : id === "surface" ? "Flag for the ground (top)" : `Volume flag for the ${title.toLowerCase()}`);
+    headFlag.addEventListener("click", (event) => event.stopPropagation());
+    summary.appendChild(headFlag);
     details.appendChild(summary);
     const body = document.createElement("div");
     body.className = "gis-tool-body";
@@ -2883,8 +3066,11 @@ function renderDomainsPanel() {
       const swatch = document.createElement("span");
       swatch.style.cssText = `display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 6px;flex:0 0 auto;background:#${part.colour.toString(16).padStart(6, "0")}`;
       const name = document.createElement("span");
-      name.textContent = `${part.face || part.name} · flag ${part.flag}`;
+      name.textContent = part.face || part.name;
       name.style.cssText = "flex:1;cursor:pointer";
+      const keys = flagKeysOf(part);
+      const flagBox = flagInput(part.flag, (val) => assignFlag(keys.point ? { part, point: keys.point } : { part, key: keys.own }, val),
+        keys.point ? `Flag for point "${keys.point}"` : `Flag for ${part.name}`);
       const info = document.createElement("button");
       info.type = "button";
       info.className = "studio-mini";
@@ -2898,7 +3084,7 @@ function renderDomainsPanel() {
       };
       info.addEventListener("click", open);
       name.addEventListener("click", open);
-      row.appendChild(box); row.appendChild(swatch); row.appendChild(name); row.appendChild(info);
+      row.appendChild(box); row.appendChild(swatch); row.appendChild(name); row.appendChild(flagBox); row.appendChild(info);
       list.appendChild(row);
     });
     body.appendChild(list);
@@ -2917,6 +3103,86 @@ function closePartCard() {
  * where it sits, what it is made of -- placed beside the click and closed by
  * its ✕, by Escape, or by the next click on nothing.
  */
+/**
+ * WHICH FLAG A PART CARRIES, by name in the study's flag table, so a number
+ * typed on this page is the number the GIS package writes. A face maps to
+ * one key; a section face also owns its EDGES (base and sides, or sky and
+ * sides), which the 2D script tags by their own keys; the profile and the
+ * ground are `terrain`; a point is flagged by its own name.
+ */
+function flagKeysOf(part) {
+  if (!part) return { own: null, edges: [] };
+  if (part.kind === "point") return { own: null, point: part.face, edges: [] };
+  if (part.kind === "surface") return { own: "terrain", edges: [] };
+  const section = gisTerrain?.kind === "section";
+  if (section) {
+    return part.which === "subsurface"
+      ? { own: "subsurface", edges: [["base", "base"], ["sides", "sides_below"]] }
+      : { own: "atmosphere", edges: [["sky", "sky"], ["sides", "sides_above"]] };
+  }
+  if (part.face === "base") return { own: "base", edges: [] };
+  if (part.face === "sky") return { own: "sky", edges: [] };
+  if (part.face === "sides") return { own: part.which === "subsurface" ? "sides_below" : "sides_above", edges: [] };
+  return { own: null, edges: [] };
+}
+
+/** Assign a flag to a part (or one of its edges, or a domain's volume) and tell the GIS page. */
+function assignFlag({ part = null, key = null, point = null, domain = null }, value) {
+  const n = Math.round(Number(value));
+  if (!(n > 0)) { log("A flag is a positive integer."); return false; }
+  const pipeline = window.GeoIDModelPipeline;
+  if (point) {
+    if (part) part.flag = n;
+    (gisTerrain?.points || []).filter((p) => p.name === point).forEach((p) => { p.flag = n; });
+    pipeline?.setPointFlag?.(point, n);
+    log(`Point "${point}" → flag ${n}.`);
+  } else if (key) {
+    if (gisTerrain?.flags) gisTerrain.flags[key] = n;
+    if (part && flagKeysOf(part).own === key) part.flag = n;
+    // Every part sharing the key follows (the ground is one mesh, the walls one flag).
+    (gisTerrain?.parts || []).forEach((p) => { if (flagKeysOf(p).own === key) p.flag = n; });
+    pipeline?.setFlag?.(key, n);
+    log(`${domain ? `${domain} volume` : key} → flag ${n}${pipeline?.setFlag ? " (the GIS package will carry it)" : ""}.`);
+  } else {
+    return false;
+  }
+  (gisTerrain?.parts || []).forEach(refreshPartRows);
+  renderDomainsPanel();
+  return true;
+}
+
+/** The "Physical flag" row on a part's card says the current number. */
+function refreshPartRows(part) {
+  const F = gisTerrain?.flags || {};
+  const { own, edges } = flagKeysOf(part);
+  part.rows = part.rows.map(([k, v]) => {
+    if (k === "Physical flag") return [k, String(v).replace(/^\d+/, String(part.flag))];
+    if (k === "Edges" && edges.length) {
+      return [k, `top ${F.terrain} (the profile), ${edges.map(([e, ek]) => `${e} ${F[ek]}`).join(", ")}`];
+    }
+    if (k === "Domain" && own) return [k, String(v).replace(/flag \d+/, `flag ${part.which === "subsurface" ? F.subsurface : F.atmosphere}`)];
+    return [k, v];
+  });
+}
+
+/** A small number box that assigns a flag on Enter, blur or the ↵ button. */
+function flagInput(current, onSet, title = "Type a flag number and press Enter") {
+  const wrap = document.createElement("span");
+  wrap.style.cssText = "display:inline-flex;align-items:center;gap:0.25rem";
+  const input = document.createElement("input");
+  input.type = "number"; input.min = "1"; input.step = "1";
+  input.value = String(current);
+  input.className = "studio-input studio-flag";
+  input.style.cssText = "width:4.2rem;padding:0.1rem 0.3rem";
+  input.title = title;
+  const commit = () => { if (Number(input.value) !== Number(current)) onSet(input.value); };
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); commit(); } e.stopPropagation(); });
+  input.addEventListener("change", commit);
+  input.addEventListener("click", (e) => e.stopPropagation());
+  wrap.appendChild(input);
+  return wrap;
+}
+
 function showPartCard(part, x, y) {
   closePartCard();
   const card = document.createElement("div");
@@ -2938,9 +3204,36 @@ function showPartCard(part, x, y) {
   card.appendChild(title);
   const grid = document.createElement("div");
   grid.style.cssText = "display:grid;grid-template-columns:fit-content(7rem) minmax(0,1fr);gap:0.15rem 0.6rem";
+  const keys = flagKeysOf(part);
+  const rerender = () => { const p = card.getBoundingClientRect(); showPartCard(part, p.left - 12, p.top + 12); };
   part.rows.forEach(([k, v]) => {
     const kk = document.createElement("span"); kk.textContent = k; kk.style.cssText = "color:#52e4e8;text-transform:uppercase;letter-spacing:0.06em;font-size:0.62rem";
-    const vv = document.createElement("span"); vv.textContent = v; vv.style.overflowWrap = "anywhere";
+    const vv = document.createElement("span"); vv.style.overflowWrap = "anywhere";
+    if (k === "Physical flag") {
+      // THE FLAG IS EDITED HERE: the number, then what it names.
+      vv.style.cssText = "display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap";
+      vv.appendChild(flagInput(part.flag, (val) => {
+        if (assignFlag(keys.point ? { part, point: keys.point } : { part, key: keys.own }, val)) rerender();
+      }));
+      const rest = document.createElement("span");
+      rest.textContent = String(v).replace(/^\d+\s*—?\s*/, "");
+      vv.appendChild(rest);
+    } else if (k === "Edges" && keys.edges.length) {
+      vv.style.cssText = "display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap";
+      const F = gisTerrain.flags;
+      vv.appendChild(document.createTextNode(`top ${F.terrain}`));
+      keys.edges.forEach(([edge, ek]) => {
+        vv.appendChild(document.createTextNode(` · ${edge} `));
+        vv.appendChild(flagInput(F[ek], (val) => { if (assignFlag({ key: ek }, val)) rerender(); }, `Flag for the ${edge} edge (${ek})`));
+      });
+    } else if (k === "Domain" && keys.own && part.which) {
+      vv.style.cssText = "display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap";
+      const dk = part.which === "subsurface" ? "subsurface" : "atmosphere";
+      vv.appendChild(document.createTextNode(`${part.which} · volume flag `));
+      vv.appendChild(flagInput(gisTerrain.flags[dk], (val) => { if (assignFlag({ key: dk, domain: part.which }, val)) rerender(); }, `Flag for the ${part.which} volume`));
+    } else {
+      vv.textContent = v;
+    }
     grid.appendChild(kk); grid.appendChild(vv);
   });
   card.appendChild(grid);
@@ -2963,6 +3256,9 @@ document.addEventListener("keydown", (event) => { if (event.key === "Escape") cl
 /** Change the extend-boundary decision on this page: rebuild both volumes. */
 export function extendTerrain({ belowM, aboveM } = {}) {
   if (!gisTerrain) { log("No GIS terrain to extend — build one in the GIS page's Model Builder."); return null; }
+  if (gisTerrain.kind === "section") {
+    return adoptSectionModel({ ...gisTerrain, belowM: belowM ?? gisTerrain.belowM, aboveM: aboveM ?? gisTerrain.aboveM, origin: null });
+  }
   return adoptTerrainSolid({ ...gisTerrain, belowM: belowM ?? gisTerrain.belowM, aboveM: aboveM ?? gisTerrain.aboveM, origin: null });
 }
 
@@ -3015,7 +3311,7 @@ function ensureTerrainCard() {
 
 window.GeoIDMeshStudio = {
   state, addSolid, meshModel, ACTIONS, fitView, viewAxis,
-  adoptTerrainSolid, extendTerrain,
+  adoptTerrainSolid, adoptSectionModel, extendTerrain,
   setStudioBody, getStudioBody,
   origin: studioOrigin, setStudioOrigin, sceneToWgs84, wgs84ToScene,
   enuToWgs84, wgs84ToEnu, getGroundInfo,
