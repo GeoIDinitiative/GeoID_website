@@ -15615,3 +15615,32 @@ worse zone. The lit shape has only the merged region's boundary.
 **When a stencil trick "does nothing", ask which PASS each party draws in
 before asking about order or refs.** `transparent` decides the pass, and the
 pass decides before `renderOrder` gets a say.
+
+### A vent is a triangle, and a marker sits 30 m off its ground
+
+"The volcano location dots should be triangular and touch-tight to the
+surface (currently float)." Two changes in the renderer's point path, and the
+second is the event markers' own finding met in the vector layers.
+
+**A marker's clearance is a ground measurement, not a camera one.** Markers
+shared the lines' altitude-scaled clearance — 2% of the distance to the
+surface, 12 km from orbit — which a depth-tested LINE needs to clear the
+relief between its vertices. A marker does not depth-test; nothing can bury
+it; the clearance bought nothing and cost parallax, and at 110 km up a
+volcano's mark stood **2.2 km** off its vent. `lifted: "marker"` now takes a
+constant **30 m** (`MARKER_DRAPE_UNIFORM`, its own program cache key), the
+figure the event markers settled on for the gap between the sampler and the
+drawn mesh. Measured through the material's own `uDrape`: **30 m at 14,016 km
+and 30 m at 60 km**. Measure the uniform, never the buffer — the baked
+vertex is not the drawn position.
+
+**`pointSymbol: "triangle"` on a catalogue entry** rides through `addDataset`
+→ `importFileList` → the geojson parser → `buildVectorLayerResult` (both
+paint paths) → `renderFeatureCollection`, exactly the road `pointStyle` takes;
+a field left out of any link falls back to the disc silently, so all five are
+pinned. `markerTriangleTexture` is built as the disc is — white ink tinted by
+the vertex colour, the outline underlay the same shape larger, shared and
+never disposed — and CENTRED on its coordinate by its CENTROID, not its
+bounding box, so the popup's hover ring and selection halo still fit it. Ink
+measured on the texture: 12 px wide at the top row, 34 at the middle, none
+below the base at 72%: an equilateral, apex up.
