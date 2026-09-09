@@ -15888,3 +15888,21 @@ parked on All; three presses of the step-back button fetch `vei5`, `vei4`,
 the collective hidden at each, each key labelled for its VEI; a click on
 Sicily on the VEI 3 frame reads "VEI 3 · 1 in 22 years · 4.5% a year · VEI 7
 on record · 45 volcanoes within reach".
+
+### VEI 6, 7 and 8: the bar steps through every size, one of them empty
+
+The frames now run VEI 1–8 and the collective. VEI 6 and 7 are in the record
+(59 and 7 Holocene eruptions → 3,572 and 3,405 cells on the windowed map,
+sitting in the two rarest classes of the shared key, which is why the scale
+reaches 1 in 100,000). **VEI 8 is a frame with nothing in it, on purpose**:
+no eruption in the Holocene catalogue reached that size (Toba, ~74,000 years
+ago, is Pleistocene). The bake still writes its file (0 features, 1 KB), the
+driver renders an empty group rather than calling `renderFeatureCollection`
+on nothing, and the note, its title and the status line all say why — "VEI 8
+· none in the Holocene record". A size the bar silently skipped would read
+as a missing map; a frame that says there is nothing is the answer.
+
+Verified live on 8125: three step-backs from All fetch `vei8`, `vei7`,
+`vei6` from the bucket; the VEI 8 frame reads its note with the collective
+hidden; VEI 7 counts `[1774, 1631, 0, …]` and VEI 6 `[0, 897, 2497, 178, 0, …]`
+on the same eight-class key.
