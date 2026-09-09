@@ -2,16 +2,16 @@ import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
   nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS, atmosphereStl, DEFAULT_MAX_NODES, triangleWriter,
-} from "./model-build.js?v=20260910-77df377";
-import { ringsFromCollection } from "./extraction.js?v=20260910-77df377";
+} from "./model-build.js?v=20260910-85c208e";
+import { ringsFromCollection } from "./extraction.js?v=20260910-85c208e";
 import {
   buildTin, tinHeightAt, tinSurfaceStl, tinShellStl, samplingSizeField,
   extendBoundary, extendedBoundaryLines, gridAsTin, shellFacets,
-} from "./surface-sampling.js?v=20260910-77df377";
-import { renderFeatureCollection } from "./vector-render.js?v=20260910-77df377";
+} from "./surface-sampling.js?v=20260910-85c208e";
+import { renderFeatureCollection } from "./vector-render.js?v=20260910-85c208e";
 import {
   profileAlong, profileHeightAt, sectionPolygons, sectionPositions, sectionGmshScript, profileCsv,
-} from "./section-model.js?v=20260910-77df377";
+} from "./section-model.js?v=20260910-85c208e";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -900,7 +900,7 @@ function stepArea(body) {
       });
       body.appendChild(pick);
     });
-    if (sec.a && sec.b) drawSectionLine();
+    if (sec.a && sec.b && state.previews.section === undefined) drawSectionLine();
   } else {
     removePreview("section");
   }
