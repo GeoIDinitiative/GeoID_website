@@ -17,8 +17,8 @@
  * checked in Node against a plane (which a TIN must reproduce exactly) and
  * against the closed-surface invariant (no open edges).
  */
-import { delaunay } from "./interpolation.js?v=20260909-be054cf";
-import { makeLocalFrame, triangleWriter, sizeField } from "./model-build.js?v=20260909-be054cf";
+import { delaunay } from "./interpolation.js?v=20260909-e000688";
+import { makeLocalFrame, triangleWriter, sizeField } from "./model-build.js?v=20260909-e000688";
 
 /* ── The spacing function ────────────────────────────────────────────────── */
 
@@ -474,8 +474,9 @@ export function surfacePositions(tin, scale = 1) {
 }
 
 /** The shell's facets flattened to xyz triples, in the units asked for. */
-export function shellPositions(tin, opts, scale = 1) {
-  const { facets } = shellFacets(tin, opts);
+export function shellPositions(tin, opts, scale = 1, keep = null) {
+  const all = shellFacets(tin, opts).facets;
+  const facets = keep ? all.filter(keep) : all;
   const out = new Float32Array(facets.length * 9);
   facets.forEach((fct, k) => {
     [fct.a, fct.b, fct.c].forEach((v, m) => {

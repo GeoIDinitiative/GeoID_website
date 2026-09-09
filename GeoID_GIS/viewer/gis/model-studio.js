@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-be054cf";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-be054cf";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-e000688";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-e000688";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260909-be054cf";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-be054cf";
-import { downloadText } from "./extraction.js?v=20260909-be054cf";
-import { shellPositions, surfacePositions, tinHeightAt } from "./surface-sampling.js?v=20260909-be054cf";
+} from "./mesh-volume.js?v=20260909-e000688";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-e000688";
+import { downloadText } from "./extraction.js?v=20260909-e000688";
+import { shellPositions, surfacePositions, tinHeightAt } from "./surface-sampling.js?v=20260909-e000688";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -563,9 +563,13 @@ function groundGridMaterial() {
        * distance so the far field is a tone rather than a stripe. Colours
        * come from the theme where it has them, so a skin restyles the floor.
        */
-      uMinor: { value: themeColour("--skin-data", 0x52e4e8).multiplyScalar(0.34) },
-      uMajor: { value: themeColour("--skin-chrome", 0xff2bd6).multiplyScalar(0.5) },
-      uBase: { value: new THREE.Color(0x05070d) },
+      // MINIMAL: one family of hairlines in a dim slate, no bloom, no colour
+      // split between minor and major -- a major line is merely a little
+      // brighter. The two-colour theme ruling was reported as no better than
+      // the neon it replaced; a reference grid is furniture, not a subject.
+      uMinor: { value: new THREE.Color(0x8a97ad).multiplyScalar(0.16) },
+      uMajor: { value: new THREE.Color(0x8a97ad).multiplyScalar(0.3) },
+      uBase: { value: new THREE.Color(0x04060b) },
       uFadeM: { value: 40000 },
       // 1 when the model reaches below the ground: the fill between the lines
       // is DISCARDED, so the floor is a ruled grid you can see through while
@@ -617,8 +621,7 @@ function groundGridMaterial() {
         // into noise near the limb.
         float density = clamp(step / (max(wE, wN) * 10.0), 0.0, 1.0);
         line = max(parallels, meridians) * density;
-        bloom = max(exp(-dLat / (step * 0.05)), exp(-dLon / (step * 0.05)))
-          * 0.05 * density;
+        bloom = 0.0;
       }
 
       void main() {
@@ -666,7 +669,7 @@ function groundGridMaterial() {
           // plane passed in front of the rock -- dark bands across the walls.
           if (line < 0.5 || fade < 0.04) discard;
           if (lat > uHole.x && lat < uHole.z && lon > uHole.y && lon < uHole.w) discard;
-          gl_FragColor = vec4(uBase + colour * fade * 1.6, 1.0);
+          gl_FragColor = vec4(uBase + colour * fade * 2.0, 1.0);
           return;
         }
         gl_FragColor = vec4(uBase + colour * (line + bloom) * fade, 1.0);
@@ -1469,8 +1472,19 @@ function installPicking() {
   });
 
   // Live WGS84 readout follows the cursor across the ground and the model.
+  //
+  // NOT WHILE A BUTTON IS DOWN, and not more than a dozen times a second. A
+  // drag is how the view is rotated, and every pointermove of it was a
+  // raycast against every solid -- three meshes of 95,000 triangles each,
+  // with no acceleration structure -- so rotating a GIS terrain was a
+  // slideshow. Nobody reads a coordinate under a cursor they are dragging.
+  let lastReadoutAt = 0;
   canvas.addEventListener("pointermove", (event) => {
     if (window.GeoIDModeManager?.getMode?.() !== "model") return;
+    if (event.buttons) return;
+    const now = performance.now();
+    if (now - lastReadoutAt < 80) return;
+    lastReadoutAt = now;
     const viewer = window.GeoIDViewer;
     const rect = canvas.getBoundingClientRect();
     pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -2532,7 +2546,13 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
       if (h === null) return false;
       return below ? (q[2] <= h && q[2] >= lidKm) : (q[2] >= h && q[2] <= lidKm);
     };
-    const positions = lifted(shellPositions(surface, below ? { belowM: extentM } : { aboveM: extentM }, km));
+    // The rock keeps its ground facets (a click on the terrain must find the
+    // rock); the air is drawn as walls and lid only, because its floor IS the
+    // ground the skin already shows and drawing it again cost 95,000
+    // triangles for nothing.
+    const positions = below
+      ? lifted(shellPositions(surface, { belowM: extentM }, km))
+      : lifted(shellPositions(surface, { aboveM: extentM }, km, (f) => f.face !== "ground"));
     const id = state.solids.reduce((m, e) => Math.max(m, e.id), 0) + 1;
     const entry = {
       id, kind: "gis_terrain", op: "union", enabled: true,
