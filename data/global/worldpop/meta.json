@@ -1,0 +1,24 @@
+{
+  "id": "worldpop",
+  "file": "worldpop/ppp_2020_1km.hotlink-ok.tif",
+  "label": "Population density (WorldPop 2020, 1 km)",
+  "unit": "people/km2",
+  "noData": -3.4028235e+38,
+  "grid": [
+    43200,
+    18720
+  ],
+  "bounds": {
+    "west": -180.001249,
+    "east": 179.998749,
+    "south": -72.000416,
+    "north": 83.999583
+  },
+  "resolutionArcsec": 30,
+  "summary": "People per square kilometre in 2020, WorldPop's top-down constrained estimate: census totals disaggregated to 30 arcseconds by settlement, land cover, night lights and roads.",
+  "credit": "WorldPop (2020), Global 1 km population, University of Southampton",
+  "doi": "10.5258/SOTON/WP00647",
+  "licence": "CC BY 4.0",
+  "source": "https://hub.worldpop.org/geodata/summary?id=24777",
+  "note": "ppp_2020_1km_Aggregated.tif from data.worldpop.org, rewritten as a COG (Float32, DEFLATE, predictor 3, 512 blocks, average overviews). The source stores population COUNT per 1 km cell, which at 30 arcseconds is people per km2 to within the cell's own aspect; the card converts with the cell's true area. grid/bounds are rewritten by bake-worldpop.py from the file."
+}

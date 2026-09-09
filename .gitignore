@@ -256,3 +256,6 @@ GeoID_Earth/assets/earth_weather_color_map.jpg
 data/global/soil-thickness/*.tif
 data/global/*.hotlink-ok.tif
 data/global/.*-work/
+
+# WorldPop COG: 870 MB, published to the bucket; meta.json stays with the site
+data/global/worldpop/*.tif

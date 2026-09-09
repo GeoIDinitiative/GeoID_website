@@ -29,9 +29,9 @@
 
 import {
   HOMES, MIRRORS, grouped, addDataset, layerForDataset, loadLaunchDefaults,
-} from "./global-data.js?v=20260909-24d6edb";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260909-24d6edb";
-import { mathsFor } from "./equations.js?v=20260909-24d6edb";
+} from "./global-data.js?v=20260909-60ff59c";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260909-60ff59c";
+import { mathsFor } from "./equations.js?v=20260909-60ff59c";
 
 const byId = (id) => document.getElementById(id);
 
@@ -63,6 +63,39 @@ const GEE_SHARE = { hydrology: "hydrology" };
  * seam, and this file knows nothing else about either of them.
  */
 const TILED = {
+  "exposure": [{
+    id: "worldpop",
+    group: "Population",
+    label: "Population density (WorldPop 2020, 1 km)",
+    title: "People per square kilometre in 2020 on a 1 km grid, WorldPop's "
+      + "top-down constrained estimate: census totals disaggregated by "
+      + "settlement, land cover, night lights and roads. Read from a "
+      + "Cloud-Optimised GeoTIFF at the level this view deserves; a click "
+      + "reads the full-resolution cell.",
+    info: {
+      summary: "The exposure half of risk. A MODEL calibrated to census "
+        + "totals, not a count: right at the country level, and where the "
+        + "model puts people within it. Drawn on decades of people per km², "
+        + "because a linear ramp of density is a black map with three bright "
+        + "pixels.",
+      citation: "WorldPop (2020), Global 1 km population, University of "
+        + "Southampton — doi:10.5258/SOTON/WP00647, CC BY 4.0",
+      maths: mathsFor("worldpop"),
+    },
+    ready: () => true,
+    layerOf: () => (window.GeoIDImportManager?.getLayers?.() || [])
+      .find((l) => l.name === "Population density (WorldPop 2020, 1 km)") || null,
+    load: async () => {
+      const mod = await import(`./worldpop.js${new URL(import.meta.url).search}`);
+      const out = await mod.addPopulation();
+      if (!out?.ok) throw new Error(out?.message || "it could not be read");
+      return out.layer;
+    },
+    unload: async () => {
+      const mod = await import(`./worldpop.js${new URL(import.meta.url).search}`);
+      mod.removePopulation();
+    },
+  }],
   "geology-tectonics": [{
     id: "macrostrat-lines",
     group: "Tectonics",

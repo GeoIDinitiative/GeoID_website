@@ -275,8 +275,10 @@ check("and every listed group still has something in it",
     !/data-feed-toggle/.test(html) && /class="event-feed-rows" data-feed-proxy/.test(section));
   check("and the volcanic subtab has the eruption feed the same way",
     /id="volcanic-live-feed"[^>]*data-feed-proxy="eonet-volcanoes"/.test(html));
-  check("two proxies in the page, one per hazard subtab that wants one",
-    (html.match(/data-feed-proxy=/g) || []).length, 2);
+  check("three proxies in the page, one per hazard subtab that wants one",
+    (html.match(/data-feed-proxy=/g) || []).length, 3);
+  check("and the seismic subtab's is the past-week USGS feed",
+    /id="seismic-live-feed"[^>]*data-feed-proxy="quakes-week"/.test(html));
   check("the volcanic subtab's buffers ship parked, under the mirrored row's name",
     /<div id="volcano-hazard-buffers" hidden>/.test(html)
     && /settings: "volcano-hazard-buffers"/.test(data));

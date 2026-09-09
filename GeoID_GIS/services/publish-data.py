@@ -63,6 +63,7 @@ NESTED_FILES = (
     "ice/names.json",
     "ice/thickness.json",
     "soil-thickness/soil_thickness_1km.hotlink-ok.tif",
+    "worldpop/ppp_2020_1km.hotlink-ok.tif",
 )
 
 # Never published: the manifests and this file are the metadata that has to be

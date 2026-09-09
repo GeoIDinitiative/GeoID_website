@@ -314,6 +314,42 @@ const EQUATIONS = {
       + "Seismol. Soc. Am., 97, 497–510.",
   },
 
+  "worldpop": {
+    kind: PUBLISHED,
+    intro: "WorldPop's 2020 global population surface at 1 km, the top-down "
+      + "constrained method: each country's census total for 2020 is "
+      + "disaggregated onto a 30-arcsecond grid by a Random Forest weighting "
+      + "trained on settlement extent, land cover, night lights and roads, so "
+      + "that the grid sums to the census. The number here is theirs; what "
+      + "is ours is the reading and the classes.",
+    lines: [
+      { expr: "people(cell) = total_country × w(cell) / Σ w",
+        note: "the disaggregation — a cell's share of the census by its "
+          + "modelled weight" },
+      { expr: "density = people(cell) / area(cell)",
+        note: "people per km², the value drawn; the cell's ground is 30″ × 30″ "
+          + "at its own latitude" },
+    ],
+    terms: [
+      ["w", "the Random Forest weight from covariates — built settlement "
+        + "(GHSL, Microsoft/Google building footprints where used), land cover, "
+        + "VIIRS night lights, roads, elevation, slope, water — trained on "
+        + "the finest census units available."],
+      ["classes", "decades of people per km² (1, 10, 100, 1,000, 10,000): a "
+        + "linear ramp of a quantity spanning five orders of magnitude is a "
+        + "black map with three bright pixels."],
+      ["what it is not", "a count. It is right at the country level by "
+        + "construction and puts people where the covariates say within it; a "
+        + "single cell's figure is a model estimate."],
+    ],
+    note: "Read whole from a Cloud-Optimised GeoTIFF: the window this view "
+      + "needs at the overview it deserves, and a click at full resolution.",
+    citation: "WorldPop (www.worldpop.org — School of Geography and "
+      + "Environmental Science, University of Southampton). Global 1 km "
+      + "population 2020, top-down constrained. doi:10.5258/SOTON/WP00647. "
+      + "Method: Stevens et al. (2015), PLoS ONE 10(2): e0107042.",
+  },
+
   "dem-elevation": {
     kind: COMPUTED,
     intro: "The tiles are PNGs, and the height is packed into the colour. "
