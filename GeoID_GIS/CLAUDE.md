@@ -16461,3 +16461,17 @@ schedule THROUGH the patched `requestAnimationFrame`; a loop already waiting
 on the original one stays waiting. And the Model Builder's own build step
 runs inside `requestAnimationFrame`, so in a hidden tab it never builds
 unless the seam is patched first.
+
+### The ground came back as a dark lattice, by request
+
+"Maybe we should add in subtle dark grey ground gridlines — dense lattice."
+The ground plane is back as LINES ONLY (`uOpen` is always 1: a lattice has
+no fill, so what is under the plane shows through it), hairlines in a dark
+grey (`#30343c`, majors `#4a4f59`), no bloom, one notch denser (about twenty
+cells across the view rather than ten), fading with distance, with the hole
+under a buried model kept. A **Grid** toggle on the studio bar switches it
+off; Stars stays gone. With the ground back, the camera floor rules return
+with it — a floor under the model's base when it reaches below the ground,
+the plane itself otherwise. Measured live: step 500 m at the fitted view,
+`uOpen` 1, the lattice visible through the atmosphere and ending at the
+block's walls.

@@ -28,11 +28,11 @@
  * follow.
  */
 
-import { loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260909-fc4f45f";
-import { dataUrl } from "./data-base.js?v=20260909-fc4f45f";
-import { riskEdges, RISK_LABELS } from "./cyclone-risk.js?v=20260909-fc4f45f";
-import { rampColour } from "./symbology.js?v=20260909-fc4f45f";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260909-fc4f45f";
+import { loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260909-90bbf5f";
+import { dataUrl } from "./data-base.js?v=20260909-90bbf5f";
+import { riskEdges, RISK_LABELS } from "./cyclone-risk.js?v=20260909-90bbf5f";
+import { rampColour } from "./symbology.js?v=20260909-90bbf5f";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260909-90bbf5f";
 
 const FILE = "/data/global/cyclone-risk-cumulative.hotlink-ok.tif";
 const WORLD = { west: -180, south: -90, east: 180, north: 90 };
