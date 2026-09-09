@@ -2,13 +2,13 @@ import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
   nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS, atmosphereStl, DEFAULT_MAX_NODES,
-} from "./model-build.js?v=20260909-7dcb274";
-import { ringsFromCollection } from "./extraction.js?v=20260909-7dcb274";
+} from "./model-build.js?v=20260909-8be95c4";
+import { ringsFromCollection } from "./extraction.js?v=20260909-8be95c4";
 import {
   buildTin, tinHeightAt, tinSurfaceStl, tinShellStl, samplingSizeField,
   extendBoundary, extendedBoundaryLines, gridAsTin, shellFacets,
-} from "./surface-sampling.js?v=20260909-7dcb274";
-import { renderFeatureCollection } from "./vector-render.js?v=20260909-7dcb274";
+} from "./surface-sampling.js?v=20260909-8be95c4";
+import { renderFeatureCollection } from "./vector-render.js?v=20260909-8be95c4";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -1858,6 +1858,10 @@ async function writePackage() {
       body_radius_km: bodyRadiusKm(),
       bounds_deg: state.bounds.bbox,
       origin: grid.origin,
+      // The one frame every file in this package is written in, stated so a
+      // reader of the STL can put it back on the map without guessing.
+      crs: `local east/north metres about origin (lat ${grid.origin.lat}, lon ${grid.origin.lon}) on a sphere of radius ${bodyRadiusKm()} km:`
+        + " x = (lon - lon0) * m_per_deg * cos(lat0), y = (lat - lat0) * m_per_deg, z = metres above sea level (the DEM's datum); the Meshing Studio reads the same frame",
       extent_m: { width: grid.widthM, height: grid.heightM },
       sampling: isTin ? {
         mode: "variable",

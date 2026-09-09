@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-7dcb274";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-7dcb274";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-8be95c4";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-8be95c4";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260909-7dcb274";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-7dcb274";
-import { downloadText } from "./extraction.js?v=20260909-7dcb274";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260909-7dcb274";
+} from "./mesh-volume.js?v=20260909-8be95c4";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-8be95c4";
+import { downloadText } from "./extraction.js?v=20260909-8be95c4";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260909-8be95c4";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -820,9 +820,11 @@ function refreshGraticuleStep() {
   if (uniforms.uFadeM) uniforms.uFadeM.value = Math.max(coarse * 12, 2000);
 }
 
-function setGroundVisible(on) {
+function setGroundVisible(requested) {
   const viewer = window.GeoIDViewer;
   if (!viewer?.scene) return;
+  // Never built any more; an existing one (none, in practice) is hidden.
+  const on = false && requested;
   if (on && !groundMesh) {
     groundRadius = computeGroundRadius();
     patchRadius = desiredPatchRadius();
@@ -869,7 +871,22 @@ function sceneToWgs84(point) {
 }
 
 /** Local east/north/up metres at the studio origin to WGS84. */
+/**
+ * ONE CRS FOR BOTH PAGES. The Model Builder's frame is local east/north
+ * metres about the study centre, equirectangular scaled at the origin's
+ * latitude on this body's radius -- the frame every STL, size field and
+ * embedded point in the package is written in. The studio's own conversion
+ * is azimuthal-equidistant about the same origin, which agrees to the metre
+ * at the centre and drifts by ~9 m at 9 km (measured). Two definitions of
+ * one metre is a CRS mismatch, however small, so once a GIS terrain is
+ * adopted the studio reads and writes through the TERRAIN'S frame and the
+ * two pages cannot disagree about where a point is.
+ */
 function enuToWgs84(eastM, northM, upM) {
+  if (gisTerrain?.surface?.frame) {
+    const ll = gisTerrain.surface.frame.fromLocal(eastM, northM);
+    return { lat: ll.lat, lon: (((ll.lon + 540) % 360) - 180), elevation: studioOrigin.elevation + upM };
+  }
   const toRad = Math.PI / 180;
   const R = bodyRadiusM() + studioOrigin.elevation;
   const distance = Math.hypot(eastM, northM);
@@ -895,6 +912,10 @@ function enuToWgs84(eastM, northM, upM) {
 
 /** WGS84 to local east/north/up metres at the studio origin. */
 function wgs84ToEnu(lat, lon, elevation = 0) {
+  if (gisTerrain?.surface?.frame) {
+    const l = gisTerrain.surface.frame.toLocal(lat, lon);
+    return { east: l.x, north: l.y, up: elevation - studioOrigin.elevation };
+  }
   const toRad = Math.PI / 180;
   const R = bodyRadiusM() + studioOrigin.elevation;
   const lat1 = studioOrigin.lat * toRad;
@@ -1063,7 +1084,7 @@ function cameraFloorRadius() {
 
 function applyBelowGround() {
   const controls = window.GeoIDViewer?.controls;
-  const below = modelBelowGroundM() < 0;
+  const below = modelBelowGroundM() < 0 || !groundMesh?.visible;
   if (controls && orbitLimits) {
     controls.maxPolarAngle = below ? Math.PI - MIN_POLAR_RAD : Math.PI / 2 - 0.02;
   }
@@ -1081,6 +1102,9 @@ function keepCameraAboveGround() {
   const viewer = window.GeoIDViewer;
   const camera = viewer?.camera;
   if (!camera) return;
+  // No ground, no floor: with the ruled surface gone there is nothing to
+  // keep the camera out of, and a model is looked at from wherever it reads.
+  if (!groundMesh?.visible) return;
   const floor = cameraFloorRadius();
   if (camera.position.length() >= floor) return;
 
@@ -1107,6 +1131,7 @@ function applyDollyFloor() {
   if (!controls || !orbitLimits) return;
   const target = controls.target;
   if (target.lengthSq() < 1e-12) return;
+  if (!groundMesh?.visible) { controls.minDistance = MIN_DOLLY_DISTANCE_M; return; }
   const floor = cameraFloorRadius();
 
   // Zooming in walks the camera towards the target, so the lowest it can ever
@@ -2370,6 +2395,13 @@ function init() {
     // buffers, the plate boundaries -- went on being drawn under a model
     // that cannot show where they are. Off while the studio is up, back as
     // they were on the way out.
+    // AND THE OTHER WAY: the studio's meshes hang off its anchor, a scene
+    // child the mode manager knows nothing about, so a terrain solid in
+    // metres went on being drawn in GIS mode -- measured, three
+    // `geoid_*` meshes visible under a globe of radius 3.2. The anchor is
+    // the model page's and is shown with it.
+    const anchor = ensureModelAnchor();
+    if (anchor) anchor.visible = event.detail?.mode === "model";
     const geo = window.GeoIDViewer?.scene?.getObjectByName("GeoID-ImportedGeoLayers");
     if (geo) {
       if (event.detail?.mode === "model") { geoGroupWasVisible = geo.visible; geo.visible = false; }
@@ -2619,7 +2651,7 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
   log(`GIS terrain "${name}": ${surface.nodes.toLocaleString()} nodes, ${surface.triangles.toLocaleString()} triangles,`
     + ` spacing ${Math.round(surface.spacingMinM)}–${Math.round(surface.spacingMaxM)} m; 1 unit = 1 m, mesh cells set to ${coarse}–${coarse * 2} m.`
     + ` Brown is the rock, green the surface STL, translucent blue the air${display !== surface ? ` (drawn from a ${display.triangles.toLocaleString()}-triangle stand-in; the volumes test the full surface)` : ""}.`
-    + ` z is metres above sea level; the base is at ${Math.round(baseZ)} m and the camera may orbit under the ground to see it.`
+    + ` z is metres above sea level; the base is at ${Math.round(baseZ)} m. Coordinates are the GIS frame's own: local east/north metres about ${origin ? `${origin.lat.toFixed(5)}, ${origin.lon.toFixed(5)}` : "the study centre"}.`
     + ` Subsurface ${gisTerrain.belowM} m below the lowest ground${gisTerrain.aboveM > 0 ? `, atmosphere ${gisTerrain.aboveM} m above the highest` : ""}.`
     + `${points?.length ? ` ${points.length} embedded point(s) carried.` : ""}`);
   ensureTerrainCard();
@@ -2676,7 +2708,7 @@ function ensureTerrainCard() {
   card.appendChild(button);
   const note = document.createElement("div");
   note.className = "studio-row";
-  note.textContent = "The rim's corners carried down to a base and up to a sky — etna.py's outer_box. 1 unit = 1 m, z above sea level; orbit under the ground to see the subsurface.";
+  note.textContent = "The rim's corners carried down to a base and up to a sky — etna.py's outer_box. 1 unit = 1 m, z above sea level, in the GIS study's own local frame.";
   card.appendChild(note);
 }
 
@@ -2695,9 +2727,14 @@ window.GeoIDMeshStudio = {
  * distracts from a model, so it is off unless asked for; the ground gives the
  * spatial reference that makes the origin readable.
  */
+/**
+ * THE STUDIO IS EMPTY SPACE. No starfield -- that is the globe's backdrop --
+ * and no ruled ground: the ground was the reference surface of an earlier
+ * studio, and over a real terrain it was a second surface to read against
+ * the one that matters, harsh, then quiet, then removed. The model, its
+ * origin and the readouts are what say where things are.
+ */
 function applyStudioScene() {
-  const starsOn = document.querySelector('[data-toggle="stars"]')?.classList.contains("is-on");
-  const groundOn = document.querySelector('[data-toggle="ground"]')?.classList.contains("is-on");
-  setStarsVisible(Boolean(starsOn));
-  setGroundVisible(Boolean(groundOn));
+  setStarsVisible(false);
+  setGroundVisible(false);
 }
