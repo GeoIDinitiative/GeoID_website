@@ -101,8 +101,8 @@ export function bandOf(props, layers = null) {
   for (const layer of held) {
     if (!layer?.features?.some?.((f) => f?.properties === props)) continue;
     const id = Object.keys(RECORDS).find((k) => RECORDS[k].name.test(layer.name || ""))
-      || layer.volcanicRecord || "volcanic-risk";
-    return { id, band: layer.volcanicBand || "any", full: Boolean(RECORDS[id]?.full) };
+      || layer.riskRecord || layer.volcanicRecord || "volcanic-risk";
+    return { id, band: layer.riskBand || layer.volcanicBand || "any", full: Boolean(RECORDS[id]?.full) };
   }
   return { id: "volcanic-risk", band: "any", full: false };
 }

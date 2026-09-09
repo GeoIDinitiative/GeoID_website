@@ -20,21 +20,22 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260909-28d2721";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260909-28d2721";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260909-33e673c";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260909-33e673c";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20260909-28d2721";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260909-28d2721";
-import { lithologyLabel } from "./lithology-label.js?v=20260909-28d2721";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260909-28d2721";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260909-28d2721";
-import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260909-28d2721";
-import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20260909-28d2721";
-import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260909-28d2721";
+} from "./vector-render.js?v=20260909-33e673c";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260909-33e673c";
+import { lithologyLabel } from "./lithology-label.js?v=20260909-33e673c";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260909-33e673c";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260909-33e673c";
+import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260909-33e673c";
+import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20260909-33e673c";
+import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js?v=20260909-33e673c";
+import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260909-33e673c";
 import {
   canEditRow, editableFields, applyRowChange,
-} from "./table-editor.js?v=20260909-28d2721";
+} from "./table-editor.js?v=20260909-33e673c";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -981,9 +982,11 @@ function showViewerCard(hits, at) {
    * cyclone card recognises its own by, so tested second they would open as
    * a tropical cyclone; `vei_max` is the column only they have.
    */
-  const risk = !ice && !soil && isVolcanicRiskFeature(props)
-    ? volcanicRiskCard(props, window.GeoIDVolcanicRisk?.bandOf?.(props) || {})
-    : !ice && !soil && isRiskFeature(props)
+  const risk = !ice && !soil && isSeismicRiskFeature(props)
+    ? seismicRiskCard(props, { band: window.GeoIDRiskFrames?.bandOf?.(props)?.band || "any" })
+    : !ice && !soil && isVolcanicRiskFeature(props)
+      ? volcanicRiskCard(props, window.GeoIDVolcanicRisk?.bandOf?.(props) || {})
+      : !ice && !soil && isRiskFeature(props)
       ? riskCard(props, { view: window.GeoIDCycloneRisk?.currentView?.() }) : null;
   /**
    * And a volcanic hazard zone, the fourth: headed "CONTINENTAL" and titled
@@ -1026,7 +1029,7 @@ function showViewerCard(hits, at) {
     // The bookkeeping columns the three lines above have already said, and
     // `i`, which is an index into a file rather than a fact about the ground.
     rows: [["Note", risk.note],
-      ...rows.filter(([key]) => !/^(i|deg|rate_yr|p_yr|rate_hur_yr|p_hur_yr|years_per|rate_large_yr|p_large_yr|vei_max|vents|prior_only|vei0|vei1|vei2|vei3|vei4|vei5|vei6|vei7|vei8|none)$/i.test(key))],
+      ...rows.filter(([key]) => !/^(i|deg|rate_yr|p_yr|rate_hur_yr|p_hur_yr|years_per|rate_large_yr|p_large_yr|vei_max|vents|prior_only|vei0|vei1|vei2|vei3|vei4|vei5|vei6|vei7|vei8|none|m5|m6|m7|m8|mag_max|quakes)$/i.test(key))],
     stack: beneath.map(({ layer, feature: f }) => ({
       label: layer.name || "Layer",
       unit: titleOf(f.properties || {}) || featureKind(f, layer),

@@ -271,6 +271,49 @@ const EQUATIONS = {
       + "v. 5.2. Smithsonian Institution. https://doi.org/10.5479/si.GVP.VOTW5-2024.5.2.",
   },
 
+  "seismic-risk": {
+    kind: COMPUTED,
+    intro: "How often an earthquake of EACH magnitude unit shakes a point at "
+      + "about MMI VI, per year, counted from USGS ComCat's record of every "
+      + "M ≥ 5 since 1900 — the volcanic map's method with magnitude in place "
+      + "of VEI: one map per magnitude, one return-period scale, each event's "
+      + "reach the event's own size.",
+    lines: [
+      { expr: "λ_m(p) = Σ over events e with magnitude in [m, m+1) of P_e(d(p, e)) / Y(m)",
+        note: "the magnitude-m map: earthquakes of that size per year shaking "
+          + "the point at about MMI VI, each weighted by the chance its damaging "
+          + "radius reaches that far" },
+      { expr: "λ_any(p) = Σ_m λ_m(p)", note: "the collective" },
+      { expr: "P = 1 − exp(−λ)", note: "the chance of at least one in a given year" },
+    ],
+    terms: [
+      ["R(M)", "the radius of damaging shaking, log₁₀(R km) = 0.5 M − 1.7 in the "
+        + "global average — about 20 km at M5, 63 at M6, 200 at M7, 630 at M8. "
+        + "Attenuation differs by a factor of two or three between regions "
+        + "(stable crust carries motion further than a subduction margin) and "
+        + "with depth, so the reach is log-normal about R with σ = 0.4: "
+        + "P(d) = 1 − Φ(ln(d/R)/σ), stamped to R·e^{1.0}."],
+      ["Y(M)", "the years each size is recorded globally, measured on the "
+        + "catalogue: M5 since 1964 (the WWSSN), M6 since 1930, M7 and M8 since "
+        + "1900."],
+      ["events", "107,239 earthquakes of M ≥ 5 in ComCat since 1900, fetched a "
+        + "year at a time through the FDSN service. Depth is carried on the "
+        + "point and not used in the reach."],
+      ["what this is not", "a probabilistic seismic hazard assessment. GEM's "
+        + "global model and any PSHA use site-specific ground-motion models, "
+        + "fault sources with slip rates, and site conditions; this is the "
+        + "catalogue's own answer at a point, isotropic and depth-blind, and "
+        + "says so."],
+    ],
+    note: "One grid per magnitude unit, played through the bar; the same "
+      + "quarter-degree quadtree as the volcanic maps, a cell nothing reaches "
+      + "listed in the key and drawn nowhere.",
+    citation: "U.S. Geological Survey (2017), ANSS Comprehensive Earthquake "
+      + "Catalog (ComCat), https://doi.org/10.5066/F7MS3QZH. Attenuation: a "
+      + "global-average MMI VI radius after Atkinson & Wald (2007), Bull. "
+      + "Seismol. Soc. Am., 97, 497–510.",
+  },
+
   "dem-elevation": {
     kind: COMPUTED,
     intro: "The tiles are PNGs, and the height is packed into the colour. "

@@ -91,10 +91,11 @@ for (const id of Object.keys(RECORDS)) {
   check(`${id} says one grid per VEI`, /one-grid-per-VEI|ONE GRID PER VEI/.test(m.note), true);
 }
 
-const frames = readFileSync(new URL("./volcanic-risk-frames.js", import.meta.url), "utf8");
+// The driver is the shared one now; the volcanic file is its spec.
+const frames = readFileSync(new URL("./risk-frames.js", import.meta.url), "utf8");
 check("the collective's key is withheld while a frame is up", /layer\.legendHidden = !whole;/.test(frames), true);
 check("and given back when the bar closes", /back\.legendHidden = false;/.test(frames), true);
-check("a frame's count is written back into the note once fetched", /note\.textContent = noteFor\(epochs\[index\]\)/.test(frames), true);
+check("a frame's count is written back into the note once fetched", /note\.textContent = spec\.noteFor\(epochs\[index\]\)/.test(frames), true);
 
 check("the full record never dilutes an active volcano", /never dilute/.test(mathsFor("volcanic-risk-holocene").intro), true);
 check("the card says an eruption is an episode", /EPISODE/.test(volcanicRiskCard(cell).note), true);

@@ -26,16 +26,17 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260909-28d2721";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260909-28d2721";
-import { mathsFor } from "./equations.js?v=20260909-28d2721";
+import { runConnector } from "./research/connectors.js?v=20260909-33e673c";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260909-33e673c";
+import { mathsFor } from "./equations.js?v=20260909-33e673c";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260909-28d2721";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260909-28d2721";
+} from "./cyclone-risk.js?v=20260909-33e673c";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260909-33e673c";
+import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260909-33e673c";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260909-28d2721";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260909-33e673c";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -86,6 +87,9 @@ export const HOMES = {
   // Hazards ▸ Volcanic hazards. Holds the hazard BUFFERS (a derived layer with
   // no file) and a MIRROR of the volcano catalogue row -- see `MIRRORS`.
   "volcanic-hazards": "volcanic-catalogue",
+  // Hazards ▸ Seismic hazards: the USGS ComCat catalogue and the risk grids
+  // baked from it, built the way the volcanic subtab is.
+  seismic: "seismic-catalogue",
 };
 
 export const DATASETS = [
@@ -401,6 +405,72 @@ export const DATASETS = [
       open: () => window.GeoIDVolcanicRiskFrames?.play(id),
     },
   })),
+  {
+    /**
+     * THE EARTHQUAKE RECORD: every M >= 5 event in USGS ComCat since 1900 (which
+     * folds in ISC-GEM and the PDE), one point each, played a year at a time
+     * through the bar (`seismic-timelapse.js`) the way the cyclone tracks are.
+     * Coloured on fixed magnitude-unit edges so a M 7 is one colour in every
+     * year.
+     */
+    id: "earthquakes",
+    home: "seismic",
+    featureNoun: "Earthquake",
+    group: "Hazards",
+    label: "Earthquakes \u2014 every M \u2265 5 since 1900 (USGS ComCat)",
+    path: "/data/global/earthquakes.geojson",
+    name: "Earthquakes (USGS ComCat, M \u2265 5 since 1900).geojson",
+    summary: "107,239 earthquakes of magnitude 5 and above from 1900 to now, "
+      + "the ANSS Comprehensive Catalog through the FDSN event service: "
+      + "magnitude, depth, time and place on every point. Plays a year at a "
+      + "time through the bar",
+    licence: "U.S. Geological Survey, ANSS Comprehensive Earthquake Catalog \u2014 "
+      + "public domain; cite doi:10.5066/F7MS3QZH",
+    pointStyle: "places",
+    colourRange: {
+      field: "mag",
+      edges: [6, 7, 8],
+      labels: ["M 5\u20135.9", "M 6\u20136.9", "M 7\u20137.9", "M 8+"],
+      legendLabel: "Magnitude",
+      ramp: "risk",
+    },
+    settings: "seismic-timelapse",
+    animation: {
+      open: () => window.GeoIDSeismicTimelapse?.play({
+        from: Number(document.getElementById("seismic-timelapse-span")?.value) || 1900,
+      }),
+    },
+  },
+  {
+    /**
+     * THE SEISMIC RISK MAP -- the volcanic map's method with magnitude in
+     * place of VEI: how often an earthquake of each magnitude unit shakes a
+     * point at about MMI VI, each event counting as the chance its damaging
+     * radius reaches that far, each size counted over the years it is
+     * recorded globally. Four frames (M5, M6, M7, M8+) and the collective,
+     * through the shared frames driver.
+     */
+    id: "seismic-risk",
+    home: "seismic",
+    featureNoun: "Seismic risk cell",
+    group: "Hazards",
+    label: "Seismic risk by magnitude \u2014 shaking per year (USGS ComCat)",
+    path: "/data/global/seismic-risk.geojson",
+    name: "Seismic risk (USGS ComCat, M \u2265 5 since 1900).geojson",
+    summary: "Earthquakes per year shaking each point at about MMI VI, from "
+      + "every M \u2265 5 event since 1900 \u2014 M5 counted since 1964, M6 since "
+      + "1930, M7 and M8 since 1900 \u2014 each counting as the chance its "
+      + "damaging radius (20 km at M5 to 630 km at M8) reaches the point. "
+      + "Plays M5, M6, M7, M8+ and the collective through the bar on one "
+      + "return-period scale",
+    licence: "U.S. Geological Survey, ANSS Comprehensive Earthquake Catalog \u2014 "
+      + "public domain; cite doi:10.5066/F7MS3QZH",
+    colourRange: seismicColourRange(),
+    opacity: 0.6,
+    animation: {
+      open: () => window.GeoIDRiskFrames?.play("seismic-risk"),
+    },
+  },
   {
     id: "active-faults",
     home: "geology-tectonics",
