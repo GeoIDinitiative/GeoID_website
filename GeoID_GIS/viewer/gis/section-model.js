@@ -13,7 +13,8 @@
  * Pure: the height reader is passed in, and every function is checked in Node
  * against a plane and against closed forms for area.
  */
-import { makeLocalFrame } from "./model-build.js?v=20260910-56fd2c1";
+import { makeLocalFrame } from "./model-build.js?v=20260910-fc6a32e";
+import { sizeFieldLines } from "./mesh-size-fields.js?v=20260910-fc6a32e";
 
 /** Sample the DEM along A–B: `n` points, evenly spaced along the line. */
 export function profileAlong({ a, b, n = 200, heightAt, radiusKm = 6371.0088, frame = null }) {
@@ -178,7 +179,7 @@ const f = (v) => Number(v).toFixed(4);
  */
 export function sectionGmshScript({
   name = "geoid_section", profile, belowM = 0, aboveM = 0, meshSizeM = 100, fineM = null,
-  flags = {}, embedPoints = [], meshFile = null,
+  flags = {}, embedPoints = [], meshFile = null, sizeFields = [], meshOptions = null,
 } = {}) {
   const F = { top: 1, base: 2, sky: 4, sides_below: 5, sides_above: 6, subsurface: 10, atmosphere: 11, points: 20, ...flags };
   const polys = sectionPolygons(profile, { belowM, aboveM });
@@ -270,8 +271,10 @@ export function sectionGmshScript({
     "            gmsh.model.mesh.embed(0, [tag], 2, surf)",
     "            break",
     "    gmsh.model.addPhysicalGroup(0, [tag], pflag, name=pname)",
+    ...(meshOptions || (sizeFields || []).length
+      ? sizeFieldLines({ fields: sizeFields, dim: 2, coarseM: meshSizeM, options: { ...(meshOptions || {}) } })
+      : ["", `gmsh.option.setNumber("Mesh.MeshSizeMax", ${f(meshSizeM)})`]),
     "",
-    `gmsh.option.setNumber("Mesh.MeshSizeMax", ${f(meshSizeM)})`,
     "gmsh.model.mesh.generate(2)",
     `gmsh.write(${PY(meshFile || `${name}.msh`)})`,
     "gmsh.finalize()",

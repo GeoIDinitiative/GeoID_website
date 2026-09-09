@@ -16627,3 +16627,41 @@ pinned against a synthetic ridge (area tiled, n − 2 triangles, no centroid
 on the wrong side, and the fan failing the same check as the control), and
 measured live after: 0 of 300 on the wrong side for both faces. The STL and
 the studio read the same triangulation; the 2D gmsh script never fanned.
+
+### Mesh size fields: gmsh's own vocabulary, user-defined
+
+"You have it that we HAVE to define the element size, min and max, whereas
+gmsh allows mesh size fields at points, at a flagged boundary or surface, by
+polygon — develop this to be super flexible." `mesh-size-fields.js` is the
+pure emitter (26 checks) and step 6 of the Model Builder is its GUI:
+
+| field | gmsh | what the card asks |
+| --- | --- | --- |
+| at a point | MathEval distance + Threshold | size, held to a distance, graded out to another; a picked point or an embedded one by name; a depth |
+| along a boundary | Distance (entities by physical FLAG) + Threshold | the boundary by the study's own key — top / base / sides / sky |
+| in a box | Box | two picked corners or a layer's bounds, an elevation range, size in/out, a blend |
+| in a circle | Ball | a centre, a radius, size in/out, a blend |
+| a formula | MathEval | any F(x, y, z), the user's own |
+| finer on slopes | Structured (file) | the terrain-graded field, as before |
+
+Combined by `Min` (or `Max`, a control) and set as the background mesh.
+The **cap is optional** (blank = gmsh decides), the floor is auto (half the
+smallest field size) or a number, and gmsh's own size sources — extend from
+boundary, from points, from curvature — are controls that default OFF beside
+a field, because they win exactly where a field was written for. The 2D and
+3D algorithms are selects. Coordinates are resolved by the caller into the
+script's own frame (east/north/up for a block, (s, z, 0) for a section), so
+one emitter serves both scripts; a boundary field goes only into the script
+whose flag it names (`SCRIPT_KEYS`). A field that cannot be placed yet is
+LEFT OUT and named in the status and the spec's `left_out`. The fields draw
+on the globe (rings at a point's inner and outer reach, circles, boxes) with
+a key by size; the model page's part card carries "Mesh size here" — a face
+adds a boundary field, a point a point field and its node size — through
+`addSizeField` / `setPointSize` on the seam. A point's chosen node size
+(`pointSizeByName`) wins over the spacing default.
+
+**Measured with gmsh 4.11.1 on an emitted 2D script** (a ridge profile,
+3 km of rock, 2 km of air, cap 400 m): a point field of 10 m graded to
+800 m, a boundary field of 40 m along `top`, a ball of 25 m — the mesh
+reads **10.0 m at the borehole, 177 m half-way out, 401 m in the far rock,
+25.0 m in the vent** (7,934 triangles). The fields do what they say.

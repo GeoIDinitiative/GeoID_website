@@ -1,13 +1,13 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-56fd2c1";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-56fd2c1";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-fc6a32e";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-fc6a32e";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260910-56fd2c1";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-56fd2c1";
-import { downloadText } from "./extraction.js?v=20260910-56fd2c1";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-56fd2c1";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-56fd2c1";
+} from "./mesh-volume.js?v=20260910-fc6a32e";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-fc6a32e";
+import { downloadText } from "./extraction.js?v=20260910-fc6a32e";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-fc6a32e";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-fc6a32e";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -3253,6 +3253,45 @@ function showPartCard(part, x, y) {
     grid.appendChild(kk); grid.appendChild(vv);
   });
   card.appendChild(grid);
+  /**
+   * MESH SIZE HERE. A face asks for a size along its boundary graded out to
+   * a distance (gmsh Distance + Threshold on the face's flag); a point asks
+   * for a size at its node and a size within a reach of it. Both are size
+   * fields of the GIS page's package, added through its seam, so the script
+   * written there carries what was chosen here.
+   */
+  const pipeline = window.GeoIDModelPipeline;
+  if (pipeline?.addSizeField && (keys.own || keys.point)) {
+    const wrap = document.createElement("div");
+    wrap.style.cssText = "display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap;margin-top:0.45rem;color:#bdb7d3";
+    const mk = (val, title, width = "4.2rem") => { const i = document.createElement("input"); i.type = "number"; i.min = "0.1"; i.step = "any"; i.value = String(val); i.className = "studio-input"; i.style.cssText = `width:${width};padding:0.1rem 0.3rem`; i.title = title; i.addEventListener("keydown", (e) => e.stopPropagation()); i.addEventListener("click", (e) => e.stopPropagation()); return i; };
+    const coarse = Number(pipeline.getState?.()?.meshSizeM) || 100;
+    const size = mk(Math.max(1, Math.round(coarse / 4)), "Element size on this part (m)");
+    const reach = mk(Math.round(coarse * 4), "Graded out to this distance (m)", "5rem");
+    const apply = document.createElement("button");
+    apply.type = "button"; apply.className = "studio-mini"; apply.textContent = "↵ size";
+    apply.title = "Add a mesh size field for this part to the GIS package";
+    apply.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const sizeM = Number(size.value); const distMaxM = Number(reach.value);
+      if (!(sizeM > 0) || !(distMaxM > 0)) { log("A size and a reach are positive metres."); return; }
+      const spec = keys.point
+        ? { type: "point", name: `size at ${keys.point}`, pointName: keys.point, sizeM, distMinM: Math.max(sizeM, distMaxM / 8), distMaxM }
+        : { type: "boundary", name: `size along ${keys.own}`, key: keys.own === "terrain" ? "top" : keys.own, sizeM, distMinM: Math.max(sizeM, distMaxM / 8), distMaxM };
+      if (keys.point) pipeline.setPointSize?.(keys.point, sizeM);
+      const id = pipeline.addSizeField(spec);
+      log(`Mesh size field added to the GIS package: ${spec.name}, ${sizeM} m graded out to ${distMaxM} m (${id}).`);
+      apply.textContent = "✓ added";
+      setTimeout(() => { apply.textContent = "↵ size"; }, 1500);
+    });
+    wrap.appendChild(document.createTextNode("Mesh size here"));
+    wrap.appendChild(size);
+    wrap.appendChild(document.createTextNode("m, out to"));
+    wrap.appendChild(reach);
+    wrap.appendChild(document.createTextNode("m"));
+    wrap.appendChild(apply);
+    card.appendChild(wrap);
+  }
   const toggle = document.createElement("label");
   toggle.style.cssText = "display:block;margin-top:0.4rem;color:#bdb7d3";
   const box = document.createElement("input");

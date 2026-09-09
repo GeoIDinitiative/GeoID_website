@@ -1,3 +1,4 @@
+import { sizeFieldLines } from "./mesh-size-fields.js";
 /**
  * The Model Builder's arithmetic: a study area and its layers into a meshable
  * domain, a gmsh script and a GALES run spec.
@@ -741,59 +742,25 @@ export const DEFAULT_FLAGS = {
  * 294. The flag added a second `createGeometry` and changed the result by
  * 1 m in 294, so it is gone rather than kept as a comfort.
  */
-function sizeSection({ sizeFieldFile, refineBoxes, meshSizeM }) {
+function sizeSection({ sizeFieldFile, refineBoxes, meshSizeM, sizeFields = [], meshOptions = {} }) {
   const boxes = (refineBoxes || []).filter((b) =>
     [b.xMin, b.xMax, b.yMin, b.yMax].every((v) => Number.isFinite(Number(v))));
-  if (!sizeFieldFile && !boxes.length) return [];
-  const lines = ["", "# Mesh size per place, not one size for the study."];
-  const ids = [];
-  let next = 1;
-  if (sizeFieldFile) {
-    lines.push(
-      `gmsh.model.mesh.field.add("Structured", ${next})`,
-      `gmsh.model.mesh.field.setString(${next}, "FileName", ${PY(sizeFieldFile)})`,
-      `gmsh.model.mesh.field.setNumber(${next}, "TextFormat", 1)`,
-      // Nearest, not linear: the field is already a smooth function of the
-      // terrain, and interpolating it costs time to change nothing.
-      `gmsh.model.mesh.field.setNumber(${next}, "SetOutsideValue", 1)`,
-      `gmsh.model.mesh.field.setNumber(${next}, "OutsideValue", ${Number(meshSizeM).toFixed(4)})`,
-    );
-    ids.push(next);
-    next += 1;
-  }
-  boxes.forEach((box) => {
-    const inside = Number(box.sizeM) > 0 ? Number(box.sizeM) : Number(meshSizeM) / 4;
-    lines.push(
-      `# ${String(box.name || "refine region")}`,
-      `gmsh.model.mesh.field.add("Box", ${next})`,
-      `gmsh.model.mesh.field.setNumber(${next}, "XMin", ${f(box.xMin)})`,
-      `gmsh.model.mesh.field.setNumber(${next}, "XMax", ${f(box.xMax)})`,
-      `gmsh.model.mesh.field.setNumber(${next}, "YMin", ${f(box.yMin)})`,
-      `gmsh.model.mesh.field.setNumber(${next}, "YMax", ${f(box.yMax)})`,
-      `gmsh.model.mesh.field.setNumber(${next}, "ZMin", ${f(box.zMin ?? -1e9)})`,
-      `gmsh.model.mesh.field.setNumber(${next}, "ZMax", ${f(box.zMax ?? 1e9)})`,
-      `gmsh.model.mesh.field.setNumber(${next}, "VIn", ${f(inside)})`,
-      `gmsh.model.mesh.field.setNumber(${next}, "VOut", ${Number(meshSizeM).toFixed(4)})`,
-      // A hard edge to a refined box is a jump in element size and a column of
-      // bad tetrahedra along it; the taper is a box's own width of blend.
-      `gmsh.model.mesh.field.setNumber(${next}, "Thickness", ${f(Math.max(inside, (Number(box.xMax) - Number(box.xMin)) * 0.25))})`,
-    );
-    ids.push(next);
-    next += 1;
+  // The refine-role layers as box fields, beside whatever the study defined.
+  const fields = [
+    ...boxes.map((box) => ({
+      type: "box", name: String(box.name || "refine region"), on: true,
+      xMin: box.xMin, xMax: box.xMax, yMin: box.yMin, yMax: box.yMax, zMin: box.zMin, zMax: box.zMax,
+      sizeM: Number(box.sizeM) > 0 ? Number(box.sizeM) : Number(meshSizeM) / 4,
+      sizeOutM: null,
+      thicknessM: Math.max(Number(box.sizeM) > 0 ? Number(box.sizeM) : Number(meshSizeM) / 4, (Number(box.xMax) - Number(box.xMin)) * 0.25),
+    })),
+    ...(sizeFields || []),
+  ];
+  if (!sizeFieldFile && !fields.length && !Object.keys(meshOptions || {}).length) return [];
+  return sizeFieldLines({
+    fields, dim: 3, structuredFile: sizeFieldFile, coarseM: meshSizeM,
+    options: { sizeMaxM: null, sizeMinM: null, ...meshOptions },
   });
-  // The smallest wins: a refine box inside a coarse area must refine it, and
-  // the background field must not undo a box.
-  lines.push(
-    `gmsh.model.mesh.field.add("Min", ${next})`,
-    `gmsh.model.mesh.field.setNumbers(${next}, "FieldsList", [${ids.join(", ")}])`,
-    `gmsh.model.mesh.field.setAsBackgroundMesh(${next})`,
-    "",
-    "# Or gmsh's own size sources win exactly where the field was written for.",
-    "gmsh.option.setNumber(\"Mesh.MeshSizeExtendFromBoundary\", 0)",
-    "gmsh.option.setNumber(\"Mesh.MeshSizeFromPoints\", 0)",
-    "gmsh.option.setNumber(\"Mesh.MeshSizeFromCurvature\", 0)",
-  );
-  return lines;
 }
 
 /** The closed form: a watertight STL is already the boundary of one volume. */
@@ -973,6 +940,8 @@ export function gmshScript({
   order = 1,
   sizeFieldFile = null,
   refineBoxes = [],
+  sizeFields = [],
+  meshOptions = null,
   flags = {},
   extend = null,
 } = {}) {
@@ -1052,9 +1021,13 @@ export function gmshScript({
     "    for (t, pflag, pname) in tags:",
     "        gmsh.model.addPhysicalGroup(0, [t], pflag, name=pname)",
     "",
-    ...sizeSection({ sizeFieldFile, refineBoxes, meshSizeM }),
-    `gmsh.option.setNumber("Mesh.MeshSizeMax", ${Number(meshSizeM).toFixed(4)})`,
-    `gmsh.option.setNumber("Mesh.MeshSizeMin", ${Number(minSizeM).toFixed(4)})`,
+    ...sizeSection({ sizeFieldFile, refineBoxes, meshSizeM, sizeFields, meshOptions: meshOptions || {} }),
+    // The cap and the floor are the study's to set; with `meshOptions` they
+    // are written there (or left to gmsh), and these are the old one-number way.
+    ...(meshOptions ? [] : [
+      `gmsh.option.setNumber("Mesh.MeshSizeMax", ${Number(meshSizeM).toFixed(4)})`,
+      `gmsh.option.setNumber("Mesh.MeshSizeMin", ${Number(minSizeM).toFixed(4)})`,
+    ]),
     `gmsh.option.setNumber("Mesh.ElementOrder", ${Number(order) || 1})`,
     `gmsh.model.mesh.generate(${Number(dim) || 3})`,
     `gmsh.write(${PY(meshFile)})`,

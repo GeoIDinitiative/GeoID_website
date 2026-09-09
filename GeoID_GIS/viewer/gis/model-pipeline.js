@@ -2,16 +2,17 @@ import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
   nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS, atmosphereStl, DEFAULT_MAX_NODES, triangleWriter,
-} from "./model-build.js?v=20260910-56fd2c1";
-import { ringsFromCollection } from "./extraction.js?v=20260910-56fd2c1";
+} from "./model-build.js?v=20260910-fc6a32e";
+import { ringsFromCollection } from "./extraction.js?v=20260910-fc6a32e";
 import {
   buildTin, tinHeightAt, tinSurfaceStl, tinShellStl, samplingSizeField,
   extendBoundary, extendedBoundaryLines, gridAsTin, shellFacets,
-} from "./surface-sampling.js?v=20260910-56fd2c1";
-import { renderFeatureCollection } from "./vector-render.js?v=20260910-56fd2c1";
+} from "./surface-sampling.js?v=20260910-fc6a32e";
+import { renderFeatureCollection } from "./vector-render.js?v=20260910-fc6a32e";
 import {
   profileAlong, profileHeightAt, sectionPolygons, sectionPositions, sectionGmshScript, profileCsv,
-} from "./section-model.js?v=20260910-56fd2c1";
+} from "./section-model.js?v=20260910-fc6a32e";
+import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260910-fc6a32e";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -106,6 +107,18 @@ const state = {
   customPoints: [],
   /** A flag chosen for ONE point by name (on the model page's card); wins over its layer's. */
   pointFlagByName: new Map(),
+  /** A mesh size chosen for ONE point by name, the size gmsh gives its node. */
+  pointSizeByName: new Map(),
+  /**
+   * MESH SIZE FIELDS, gmsh's own: at a point, along a flagged boundary, in a
+   * box or a circle, from a formula -- each user-defined, drawn on the globe,
+   * combined by Min (or Max) and set as the background mesh. See
+   * mesh-size-fields.js. `meshOptions` are the global knobs beside them:
+   * a cap (or none), a floor (or auto), the combination, and gmsh's own
+   * size sources, which are OFF beside a field unless asked.
+   */
+  sizeFields: [],
+  meshOptions: { combine: "min", sizeMaxM: undefined, sizeMinM: undefined, extendFromBoundary: false, fromPoints: false, fromCurvature: 0, algorithm2d: null, algorithm3d: null },
   /** The air over the ground, as its own closed shell and its own gmsh script. */
   atmosphere: { on: false, heightM: 5000 },
   /** Layer ids of what this builder draws on the globe, by kind. */
@@ -452,6 +465,7 @@ function buildStep(stepId, body) {
 /* ── What the builder draws on the globe ─────────────────────────────────── */
 
 const PREVIEW_NAMES = {
+  fields: "Model Builder — mesh size fields",
   section: "Model Builder — section line",
   sectionFaces: "Model Builder — cross-section faces",
   buffers: "Model Builder — sampling buffers",
@@ -1760,6 +1774,7 @@ function embeddedPoints() {
   const t = state.kind === "section" ? state.profile : surfaceLike();
   if (!t) return [];
   const sizeM = Math.max((state.kind === "section" ? t.stepM : t.spacingMinM) / 3, 1);
+  const sizeFor = (name) => { const v = Number(state.pointSizeByName.get(String(name))); return v > 0 ? v : sizeM; };
   const out = [];
   loadedLayers().forEach((layer) => {
     if (state.roles.get(String(layer.id)) !== "points") return;
@@ -1775,7 +1790,7 @@ function embeddedPoints() {
         // Strictly inside: a point ON the top surface is not in the volume, and
         // gmsh refuses to embed it there.
         z: g.z - depth,
-        sizeM,
+        sizeM: sizeFor(f.properties?.name || f.properties?.site || `${layer.name}_${index + 1}`),
         name: String(f.properties?.name || f.properties?.site || `${layer.name}_${index + 1}`),
         layer: layer.name,
         // Per LAYER, not per point: a study flags "the piezometers", and a
@@ -1794,7 +1809,7 @@ function embeddedPoints() {
     const g = groundAtLatLon(p.lat, p.lon);
     if (!g) return;
     out.push({
-      x: g.x, y: g.y, z: g.z - (p.depthM || 0), sizeM, s: g.s,
+      x: g.x, y: g.y, z: g.z - (p.depthM || 0), sizeM: sizeFor(p.name || `point_${index + 1}`), s: g.s,
       name: String(p.name || `point_${index + 1}`), layer: "placed on the globe",
       flag: Number(state.pointFlagByName.get(String(p.name || `point_${index + 1}`))) || state.flags.points || DEFAULT_FLAGS.points,
       lat: p.lat, lon: p.lon, depthM: p.depthM || 0, groundZ: g.z,
@@ -1842,6 +1857,287 @@ function sizeFieldPreview() {
     + ` slope ${fmt(field.steepestDeg)}°.`;
 }
 
+/** The boundaries a field can be measured from, by the study's own keys and flags. */
+function boundaryKeys() {
+  const F = state.flags;
+  const keys = [["top", "the ground (top)", F.terrain ?? F.top], ["base", "the base", F.base], ["sides_below", "the rock's sides", F.sides_below]];
+  if (state.atmosphere.on) keys.push(["sky", "the sky", F.sky], ["sides_above", "the air's sides", F.sides_above]);
+  return keys;
+}
+
+/** Which script a boundary field belongs in: the rock's has top/base/sides_below, the air's top/sky/sides_above. */
+const SCRIPT_KEYS = { subsurface: ["top", "base", "sides_below"], atmosphere: ["top", "sky", "sides_above"], section: ["top", "base", "sides_below", "sky", "sides_above"] };
+
+/**
+ * A FIELD RESOLVED into the coordinates the script meshes in: east/north/up
+ * metres for a block, (s, z, 0) for a section. Lat/lon go through the
+ * study's frame, a named point through the embedded points, a depth through
+ * the surface's own height there. A field that cannot be placed (no point
+ * picked yet) is left out and the status says so.
+ */
+function resolveSizeFields(which) {
+  const section = state.kind === "section";
+  const t = section ? state.profile : surfaceLike();
+  if (!t) return { fields: [], skipped: [] };
+  const points = embeddedPoints();
+  const F = state.flags;
+  const local = (lat, lon, depthM = 0, zM = null) => {
+    const g = groundAtLatLon(lat, lon);
+    if (!g) return null;
+    const z = Number.isFinite(Number(zM)) && zM !== null && zM !== "" ? Number(zM) : g.z - (Number(depthM) || 0);
+    return section ? { x: g.s, y: z, z: 0 } : { x: g.x, y: g.y, z };
+  };
+  const out = []; const skipped = [];
+  (state.sizeFields || []).forEach((fld) => {
+    if (fld.on === false) return;
+    const base = { type: fld.type, name: fld.name, on: true };
+    if (fld.type === "point") {
+      let at = null;
+      if (fld.pointName) {
+        const p = points.find((q) => q.name === fld.pointName);
+        if (p) at = section ? { x: p.s, y: p.z, z: 0 } : { x: p.x, y: p.y, z: p.z };
+      } else if (Number.isFinite(fld.lat) && Number.isFinite(fld.lon)) at = local(fld.lat, fld.lon, fld.depthM);
+      if (!at) { skipped.push(fld.name); return; }
+      out.push({ ...base, ...at, sizeM: fld.sizeM, distMinM: fld.distMinM, distMaxM: fld.distMaxM, sizeMaxM: fld.sizeMaxM });
+    } else if (fld.type === "boundary") {
+      if (which && !SCRIPT_KEYS[which]?.includes(fld.key)) return;
+      const flag = fld.key === "top" ? (F.terrain ?? F.top) : F[fld.key];
+      if (!(flag > 0)) { skipped.push(fld.name); return; }
+      out.push({ ...base, key: fld.key, flag, entityDim: section ? 1 : 2, sizeM: fld.sizeM, distMinM: fld.distMinM, distMaxM: fld.distMaxM, sizeMaxM: fld.sizeMaxM });
+    } else if (fld.type === "box") {
+      if (![fld.west, fld.east, fld.south, fld.north].every((v) => Number.isFinite(v))) { skipped.push(fld.name); return; }
+      if (section) {
+        const a = sectionPointOf((fld.south + fld.north) / 2, fld.west); const b = sectionPointOf((fld.south + fld.north) / 2, fld.east);
+        const corners = [a, b].filter(Boolean);
+        if (!corners.length) { skipped.push(fld.name); return; }
+        const xs = corners.map((c) => c.s);
+        out.push({ ...base, xMin: Math.min(...xs), xMax: Math.max(...xs), yMin: Number.isFinite(fld.zMinM) ? fld.zMinM : -1e9, yMax: Number.isFinite(fld.zMaxM) ? fld.zMaxM : 1e9, zMin: -1, zMax: 1, sizeM: fld.sizeM, sizeOutM: fld.sizeOutM, thicknessM: fld.thicknessM });
+      } else {
+        const a = t.frame.toLocal(fld.south, fld.west); const b = t.frame.toLocal(fld.north, fld.east);
+        out.push({ ...base, xMin: Math.min(a.x, b.x), xMax: Math.max(a.x, b.x), yMin: Math.min(a.y, b.y), yMax: Math.max(a.y, b.y), zMin: Number.isFinite(fld.zMinM) ? fld.zMinM : null, zMax: Number.isFinite(fld.zMaxM) ? fld.zMaxM : null, sizeM: fld.sizeM, sizeOutM: fld.sizeOutM, thicknessM: fld.thicknessM });
+      }
+    } else if (fld.type === "ball") {
+      const at = Number.isFinite(fld.lat) && Number.isFinite(fld.lon) ? local(fld.lat, fld.lon, fld.depthM, fld.zM) : null;
+      if (!at) { skipped.push(fld.name); return; }
+      out.push({ ...base, ...at, radiusM: fld.radiusM, sizeM: fld.sizeM, sizeOutM: fld.sizeOutM, thicknessM: fld.thicknessM });
+    } else if (fld.type === "expr") {
+      if (!String(fld.expression || "").trim()) { skipped.push(fld.name); return; }
+      out.push({ ...base, expression: String(fld.expression) });
+    }
+  });
+  return { fields: out, skipped };
+}
+
+/** The global knobs as the script emitter reads them; undefined means the study's default. */
+function effectiveMeshOptions(coarseM, autoFloorM = null) {
+  const o = state.meshOptions || {};
+  const sizeMaxM = o.sizeMaxM === undefined ? coarseM : (Number(o.sizeMaxM) > 0 ? Number(o.sizeMaxM) : null);
+  let sizeMinM = o.sizeMinM === undefined ? autoFloorM : (Number(o.sizeMinM) > 0 ? Number(o.sizeMinM) : null);
+  const smallest = smallestSize(state.sizeFields);
+  if (o.sizeMinM === undefined && smallest !== null) sizeMinM = Math.max(1, Math.min(sizeMinM ?? Infinity, smallest / 2));
+  return {
+    combine: o.combine === "max" ? "max" : "min",
+    sizeMaxM, sizeMinM,
+    extendFromBoundary: Boolean(o.extendFromBoundary), fromPoints: Boolean(o.fromPoints),
+    fromCurvature: Number(o.fromCurvature) > 0 ? Number(o.fromCurvature) : 0,
+    algorithm2d: Number(o.algorithm2d) > 0 ? Number(o.algorithm2d) : null,
+    algorithm3d: Number(o.algorithm3d) > 0 ? Number(o.algorithm3d) : null,
+  };
+}
+
+/** The fields on the globe: a ring at each point's reach, a circle, a box; coloured by their size. */
+function drawSizeFields() {
+  removePreview("fields");
+  const fields = (state.sizeFields || []).filter((fld) => fld.on !== false);
+  const points = embeddedPoints();
+  const features = [];
+  const sizeOf = (fld) => `${Math.round(fld.sizeM)} m`;
+  fields.forEach((fld) => {
+    if (fld.type === "point") {
+      let lat = fld.lat; let lon = fld.lon;
+      if (fld.pointName) { const p = points.find((q) => q.name === fld.pointName); if (p) { lat = p.lat; lon = p.lon; } }
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+      features.push({ type: "Feature", properties: { name: fld.name, size: sizeOf(fld) }, geometry: { type: "Polygon", coordinates: [bufferRing({ shape: "circle", lat, lon, sizeKm: (fld.distMaxM * 2) / 1000 })] } });
+      features.push({ type: "Feature", properties: { name: `${fld.name} (inner)`, size: sizeOf(fld) }, geometry: { type: "Polygon", coordinates: [bufferRing({ shape: "circle", lat, lon, sizeKm: (fld.distMinM * 2) / 1000 })] } });
+    } else if (fld.type === "ball") {
+      if (!Number.isFinite(fld.lat) || !Number.isFinite(fld.lon)) return;
+      features.push({ type: "Feature", properties: { name: fld.name, size: sizeOf(fld) }, geometry: { type: "Polygon", coordinates: [bufferRing({ shape: "circle", lat: fld.lat, lon: fld.lon, sizeKm: (fld.radiusM * 2) / 1000 })] } });
+    } else if (fld.type === "box") {
+      if (![fld.west, fld.east, fld.south, fld.north].every((v) => Number.isFinite(v))) return;
+      features.push({ type: "Feature", properties: { name: fld.name, size: sizeOf(fld) }, geometry: { type: "Polygon", coordinates: [[[fld.west, fld.south], [fld.east, fld.south], [fld.east, fld.north], [fld.west, fld.north], [fld.west, fld.south]]] } });
+    }
+  });
+  if (!features.length) return false;
+  const sizes = [...new Set(features.map((f) => f.properties.size))].sort((a, b) => parseFloat(a) - parseFloat(b));
+  const palette = ["ff5c8a", "ffb84d", "ffe66d", "7ed957", "5cc8ff", "b28dff", "ff8c42", "9ad9dd"];
+  const colourOf = (size) => `#${palette[sizes.indexOf(size) % palette.length]}`;
+  showPreview("fields", { type: "FeatureCollection", features }, {
+    colourFor: (f) => colourOf(f.properties.size), outlineOnly: true,
+    legendInfo: { palette: sizes.map((sz) => colourOf(sz).slice(1)), labels: sizes.map((sz) => `elements of ${sz}`), label: "Mesh size fields", classed: true, categorical: true, unit: null },
+    description: "Where the mesh is asked to be a size: a point's reach (inner and outer rings), a circle, a box. Boundary and formula fields have no outline to draw.",
+  });
+  return true;
+}
+
+/**
+ * THE MESH SIZE CONTROLS. Not one element size: gmsh's fields, user-defined,
+ * each a card -- pick a point, name a boundary, draw a box or a circle, type
+ * a formula -- with the global cap, floor, combination and gmsh's own
+ * sources as controls rather than defaults nobody sees.
+ */
+function sizeFieldControls(body) {
+  const coarseDefault = defaultMeshSizeM();
+  const o = state.meshOptions;
+  const optNum = (id, label, key, placeholder, step) => {
+    const input = number(id, o[key] === undefined ? "" : (o[key] ?? ""), step);
+    input.placeholder = placeholder;
+    input.addEventListener("change", () => {
+      const v = input.value.trim();
+      o[key] = v === "" ? null : Number(v);
+      if (key === "sizeMaxM") state.meshSizeM = Number(v) > 0 ? Number(v) : null;
+      state.outputs = null;
+    });
+    body.appendChild(row(label, input));
+    return input;
+  };
+  const cap = optNum("gis-mb-size-max", "Element size cap (m)", "sizeMaxM", `${coarseDefault} = twice the coarse spacing; blank = gmsh decides`, 10);
+  if (o.sizeMaxM === undefined) cap.value = String(state.meshSizeM || coarseDefault);
+  optNum("gis-mb-size-min", "Element size floor (m)", "sizeMinM", "blank = half the smallest field size", 1);
+
+  const combine = select("gis-mb-combine", [{ id: "min", label: "the smallest wins (Min)" }, { id: "max", label: "the largest wins (Max)" }], o.combine || "min");
+  combine.addEventListener("change", () => { o.combine = combine.value; state.outputs = null; });
+  body.appendChild(row("Where fields overlap", combine));
+
+  const tick = (id, label, key) => {
+    const box = el("input", null); box.type = "checkbox"; box.id = id; box.checked = Boolean(o[key]);
+    box.addEventListener("change", () => { o[key] = box.checked; state.outputs = null; });
+    body.appendChild(row(label, box));
+  };
+  tick("gis-mb-src-boundary", "gmsh: extend sizes from the boundary", "extendFromBoundary");
+  tick("gis-mb-src-points", "gmsh: sizes from the geometry's points", "fromPoints");
+  const curv = number("gis-mb-src-curv", o.fromCurvature || 0, 1);
+  curv.placeholder = "0 = off; else elements per 2π";
+  curv.addEventListener("change", () => { o.fromCurvature = Number(curv.value) || 0; state.outputs = null; });
+  body.appendChild(row("gmsh: sizes from curvature", curv));
+  if (state.kind !== "section") {
+    const alg = select("gis-mb-alg3d", [{ id: "", label: "gmsh's default (Delaunay)" }, { id: "1", label: "1 — Delaunay" }, { id: "4", label: "4 — Frontal" }, { id: "7", label: "7 — MMG3D" }, { id: "10", label: "10 — HXT (parallel)" }], o.algorithm3d ? String(o.algorithm3d) : "");
+    alg.addEventListener("change", () => { o.algorithm3d = alg.value ? Number(alg.value) : null; state.outputs = null; });
+    body.appendChild(row("3D algorithm", alg));
+  } else {
+    const alg = select("gis-mb-alg2d", [{ id: "", label: "gmsh's default" }, { id: "1", label: "1 — MeshAdapt" }, { id: "5", label: "5 — Delaunay" }, { id: "6", label: "6 — Frontal-Delaunay" }, { id: "8", label: "8 — Frontal-Delaunay for quads" }], o.algorithm2d ? String(o.algorithm2d) : "");
+    alg.addEventListener("change", () => { o.algorithm2d = alg.value ? Number(alg.value) : null; state.outputs = null; });
+    body.appendChild(row("2D algorithm", alg));
+  }
+
+  body.appendChild(el("div", "gis-metric", "Size fields — gmsh's own. Each is combined with the others and set as the background mesh; the cap above is only a ceiling over them."));
+  const list = el("div", "gis-tool-grid");
+  list.style.gridTemplateColumns = "minmax(0, 1fr)";
+  const fields = state.sizeFields || [];
+  if (!fields.length) list.appendChild(el("div", "gis-metric", "No fields yet: one element size everywhere (graded on slopes if that is ticked below)."));
+  const num = (card, label, fld, key, step, blankLabel = null) => {
+    const input = number(`gis-mb-f-${fld.id}-${key}`, fld[key] ?? "", step);
+    if (blankLabel) input.placeholder = blankLabel;
+    input.addEventListener("change", () => { const v = input.value.trim(); fld[key] = v === "" ? null : Number(v); state.outputs = null; });
+    card.appendChild(row(label, input));
+  };
+  const pickInto = (card, fld, label, after) => {
+    const btn = el("button", "button secondary", label); btn.type = "button";
+    btn.addEventListener("click", () => { void (async () => { const p = await pickPoint("build"); if (!p) return; after(p); state.outputs = null; report("build", `${fld.name}: ${p.lat.toFixed(4)}°, ${p.lon.toFixed(4)}°.`); drawSizeFields(); render(); })(); });
+    card.appendChild(btn);
+  };
+  fields.forEach((fld) => {
+    const card = el("div", "gis-tool-section");
+    card.style.padding = "0.45rem 0.6rem";
+    const head = el("div", null);
+    head.style.cssText = "display:flex;align-items:center;gap:0.4rem";
+    const on = el("input", null); on.type = "checkbox"; on.checked = fld.on !== false;
+    on.addEventListener("change", () => { fld.on = on.checked; state.outputs = null; });
+    const name = el("input", "input"); name.value = fld.name; name.style.flex = "1";
+    name.addEventListener("change", () => { fld.name = name.value || fld.name; state.outputs = null; });
+    const kind = el("span", "gis-metric", FIELD_TYPES[fld.type]?.label || fld.type);
+    const remove = el("button", "button secondary", "✕"); remove.type = "button"; remove.title = "Remove this field";
+    remove.addEventListener("click", () => { state.sizeFields = state.sizeFields.filter((x) => x !== fld); state.outputs = null; drawSizeFields(); render(); });
+    head.appendChild(on); head.appendChild(name); head.appendChild(remove);
+    card.appendChild(head); card.appendChild(kind);
+    if (fld.type === "point") {
+      const pts = embeddedPoints();
+      const at = select(`gis-mb-f-${fld.id}-at`, [{ id: "", label: fld.lat !== null ? `picked: ${Number(fld.lat).toFixed(4)}°, ${Number(fld.lon).toFixed(4)}°` : "a point on the globe (pick below)" }, ...pts.map((p) => ({ id: p.name, label: `embedded point "${p.name}"` }))], fld.pointName || "");
+      at.addEventListener("change", () => { fld.pointName = at.value || null; state.outputs = null; drawSizeFields(); });
+      card.appendChild(row("At", at));
+      pickInto(card, fld, "Pick the point on the globe", (p) => { fld.lat = p.lat; fld.lon = p.lon; fld.pointName = null; });
+      num(card, "Depth below the surface (m)", fld, "depthM", 10);
+      num(card, "Size at the point (m)", fld, "sizeM", 1);
+      num(card, "Held to this distance (m)", fld, "distMinM", 10);
+      num(card, "Graded out to (m)", fld, "distMaxM", 10);
+      num(card, "Size past that (m)", fld, "sizeMaxM", 10, "blank = the cap");
+    } else if (fld.type === "boundary") {
+      const keys = boundaryKeys();
+      const key = select(`gis-mb-f-${fld.id}-key`, keys.map(([k, label, flag]) => ({ id: k, label: `${label} — flag ${flag}` })), fld.key);
+      key.addEventListener("change", () => { fld.key = key.value; state.outputs = null; });
+      card.appendChild(row("Boundary", key));
+      num(card, "Size on the boundary (m)", fld, "sizeM", 1);
+      num(card, "Held to this distance (m)", fld, "distMinM", 10);
+      num(card, "Graded out to (m)", fld, "distMaxM", 10);
+      num(card, "Size past that (m)", fld, "sizeMaxM", 10, "blank = the cap");
+    } else if (fld.type === "box") {
+      const where = fld.west !== null && fld.east !== null ? `${Number(fld.west).toFixed(4)}…${Number(fld.east).toFixed(4)}°E, ${Number(fld.south).toFixed(4)}…${Number(fld.north).toFixed(4)}°N` : "no corners yet";
+      card.appendChild(el("div", "gis-metric", where));
+      pickInto(card, fld, "Pick the first corner", (p) => { fld.west = p.lon; fld.south = p.lat; if (fld.east === null) { fld.east = p.lon; fld.north = p.lat; } });
+      pickInto(card, fld, "Pick the opposite corner", (p) => { const w = Math.min(fld.west ?? p.lon, p.lon), e = Math.max(fld.west ?? p.lon, p.lon), so = Math.min(fld.south ?? p.lat, p.lat), n = Math.max(fld.south ?? p.lat, p.lat); fld.west = w; fld.east = e; fld.south = so; fld.north = n; });
+      const layers = polygonLayers();
+      if (layers.length) {
+        const from = select(`gis-mb-f-${fld.id}-layer`, [{ id: "", label: "— a layer's bounding box —" }, ...layers.map((l) => ({ id: String(l.id), label: l.name }))], "");
+        from.addEventListener("change", () => {
+          const layer = layers.find((l) => String(l.id) === from.value); if (!layer) return;
+          const rings = ringsFromCollection(layer.collection || { features: layer.features || [] }); const b = boundsOfRings(rings);
+          if (b && Number.isFinite(b.west) && Number.isFinite(b.north)) { fld.west = b.west; fld.east = b.east; fld.south = b.south; fld.north = b.north; fld.name = layer.name; state.outputs = null; drawSizeFields(); render(); }
+        });
+        card.appendChild(row("Or from", from));
+      }
+      num(card, "From elevation (m)", fld, "zMinM", 10, "blank = the whole depth");
+      num(card, "To elevation (m)", fld, "zMaxM", 10, "blank = the whole height");
+      num(card, "Size inside (m)", fld, "sizeM", 1);
+      num(card, "Size outside (m)", fld, "sizeOutM", 10, "blank = the cap");
+      num(card, "Blend over (m)", fld, "thicknessM", 10);
+    } else if (fld.type === "ball") {
+      card.appendChild(el("div", "gis-metric", fld.lat !== null ? `centre ${Number(fld.lat).toFixed(4)}°, ${Number(fld.lon).toFixed(4)}°` : "no centre yet"));
+      pickInto(card, fld, "Pick the centre on the globe", (p) => { fld.lat = p.lat; fld.lon = p.lon; });
+      num(card, "Centre depth below the surface (m)", fld, "depthM", 10);
+      num(card, "Or centre elevation (m)", fld, "zM", 10, "blank = from the depth");
+      num(card, "Radius (m)", fld, "radiusM", 10);
+      num(card, "Size inside (m)", fld, "sizeM", 1);
+      num(card, "Size outside (m)", fld, "sizeOutM", 10, "blank = the cap");
+      num(card, "Blend over (m)", fld, "thicknessM", 10);
+    } else if (fld.type === "expr") {
+      const expr = el("input", "input"); expr.value = fld.expression || "";
+      expr.placeholder = state.kind === "section" ? "in s (x) and z (y): e.g. 20 + 0.05*abs(y)" : "in x, y, z: e.g. 50 + 0.01*sqrt(x*x+y*y)";
+      expr.addEventListener("change", () => { fld.expression = expr.value; state.outputs = null; });
+      card.appendChild(row("F(x, y, z) =", expr));
+    }
+    card.appendChild(el("div", "gis-metric", describeField(fld, Number(state.meshSizeM) || coarseDefault)));
+    list.appendChild(card);
+  });
+  body.appendChild(list);
+  const adders = el("div", "gis-btn-row");
+  [["point", "+ At a point"], ["boundary", "+ Along a boundary"], ["box", "+ In a box"], ["ball", "+ In a circle"], ["expr", "+ A formula"]].forEach(([type, label]) => {
+    const btn = el("button", "button secondary", label); btn.type = "button";
+    btn.title = FIELD_TYPES[type].blurb;
+    btn.addEventListener("click", () => {
+      const fld = defaultField(type, { coarseM: Number(state.meshSizeM) || coarseDefault });
+      if (type === "point" || type === "ball") { const c = studyCentre(); if (c) { fld.lat = c.lat; fld.lon = c.lon; } }
+      state.sizeFields.push(fld); state.outputs = null; drawSizeFields(); render();
+    });
+    adders.appendChild(btn);
+  });
+  body.appendChild(adders);
+  if (fields.length) {
+    const show = el("button", "button secondary", state.previews.fields !== undefined ? "Redraw the fields on the globe" : "Show the fields on the globe");
+    show.type = "button";
+    show.addEventListener("click", () => { const ok = drawSizeFields(); report("build", ok ? "Size fields drawn: rings at each point's reach, circles and boxes." : "Nothing to draw: boundary and formula fields have no outline."); render(); });
+    body.appendChild(show);
+  }
+}
+
 function stepBuild(body) {
   const runField = el("input", "input");
   runField.id = "gis-mb-run";
@@ -1849,12 +2145,7 @@ function stepBuild(body) {
   runField.addEventListener("input", () => { state.runName = runField.value; });
   body.appendChild(row("Run name", runField));
 
-  const sizeInput = number("gis-mb-meshsize", state.meshSizeM || defaultMeshSizeM(), 10);
-  body.appendChild(row("Mesh element size (m)", sizeInput));
-  sizeInput.addEventListener("input", () => {
-    state.meshSizeM = Number(sizeInput.value);
-    state.outputs = null;
-  });
+  sizeFieldControls(body);
 
   /**
    * GRADING: one size for a study area spends the same elements on a plateau
@@ -2023,8 +2314,12 @@ async function writeSectionPackage() {
   const aboveM = state.atmosphere.on ? state.atmosphere.heightM : 0;
   const polys = sectionPolygons(p, { belowM, aboveM });
   const points = embeddedPoints();
+  const resolved = resolveSizeFields("section");
+  const meshOptions = effectiveMeshOptions(meshSizeM, null);
+  if (resolved.skipped.length) report("build", `Size field(s) left out — nothing to place them at yet: ${resolved.skipped.join(", ")}.`);
   const script = sectionGmshScript({
     name, profile: p, belowM, aboveM, meshSizeM, flags: state.flags,
+    sizeFields: resolved.fields, meshOptions,
     embedPoints: points.map((q) => ({ s: q.s, z: q.z, name: q.name, flag: q.flag, sizeM: q.sizeM })),
     meshFile: `${name}.msh`,
   });
@@ -2041,6 +2336,11 @@ async function writeSectionPackage() {
     initial: {}, boundary: state.conditions,
     provenance: {
       kind: "2d cross-section",
+      mesh: {
+        options: meshOptions,
+        size_fields: state.sizeFields.filter((f) => f.on !== false).map((f) => ({ type: f.type, name: f.name, says: describeField(f, meshSizeM) })),
+        left_out: resolved.skipped,
+      },
       study_area: state.bounds?.label, body: viewer()?.bodyName || undefined, body_radius_km: bodyRadiusKm(),
       origin: p.origin,
       crs: `2D: s = metres along the line from A, z = metres above sea level; the line lies in the local east/north frame about (lat ${p.origin.lat}, lon ${p.origin.lon}), from A (${p.a.lat}, ${p.a.lon}) to B (${p.b.lat}, ${p.b.lon})`,
@@ -2132,6 +2432,10 @@ async function writePackage() {
   const ext = extendBoundary(tinLike, {
     belowM: state.domain.depthM, aboveM: state.atmosphere.on ? state.atmosphere.heightM : 0,
   });
+  const resolvedRock = resolveSizeFields("subsurface");
+  const resolvedAir = resolveSizeFields("atmosphere");
+  const meshOptions = effectiveMeshOptions(meshSizeM, field ? minSizeM : null);
+  if (resolvedRock.skipped.length) report("build", `Size field(s) left out — nothing to place them at yet: ${resolvedRock.skipped.join(", ")}.`);
   const script = gmshScript({
     name,
     stlFile: `${name}_domain.stl`,
@@ -2144,6 +2448,8 @@ async function writePackage() {
     sizeFieldFile: fieldFile,
     // A TIN's refine layers are already in its sampling field.
     refineBoxes: isTin ? [] : refineRegions(grid),
+    sizeFields: resolvedRock.fields,
+    meshOptions,
     flags: state.flags,
     extend: {
       which: "subsurface", zBd: domain.baseZ, h: meshSizeM,
@@ -2158,6 +2464,8 @@ async function writePackage() {
     minSizeM,
     embedPoints: [],
     sizeFieldFile: fieldFile,
+    sizeFields: resolvedAir.fields,
+    meshOptions,
     // The air's lateral faces and volume carry their own numbers, kept apart
     // from the rock's: a boundary condition on the air is not one on the rock.
     flags: {
@@ -2195,6 +2503,11 @@ async function writePackage() {
         + " x = (lon - lon0) * m_per_deg * cos(lat0), y = (lat - lat0) * m_per_deg, z = metres above sea level (the DEM's datum); the Meshing Studio reads the same frame",
       extent_m: { width: grid.widthM, height: grid.heightM },
       kind: surfaceOnly ? "2d surface only" : "3d block",
+      mesh: {
+        options: meshOptions,
+        size_fields: state.sizeFields.filter((f) => f.on !== false).map((f) => ({ type: f.type, name: f.name, says: describeField(f, meshSizeM) })),
+        left_out: resolvedRock.skipped,
+      },
       sampling: isTin ? {
         mode: "variable",
         base_step_m: state.sampling.baseM,
@@ -2407,6 +2720,42 @@ window.GeoIDModelPipeline = {
     const n = Math.round(Number(value));
     if (!key || !(n > 0)) return false;
     state.flags[key] = n;
+    state.outputs = null;
+    render();
+    return true;
+  },
+  /** The model page adds, changes and removes size fields; the package written here carries them. */
+  getSizeFields: () => state.sizeFields,
+  addSizeField: (spec) => {
+    const fld = { ...defaultField(spec?.type || "point", { coarseM: Number(state.meshSizeM) || defaultMeshSizeM() }), ...(spec || {}) };
+    state.sizeFields.push(fld);
+    state.outputs = null;
+    drawSizeFields();
+    render();
+    return fld.id;
+  },
+  updateSizeField: (id, patch) => {
+    const fld = state.sizeFields.find((x) => x.id === id);
+    if (!fld) return false;
+    Object.assign(fld, patch || {});
+    state.outputs = null;
+    drawSizeFields();
+    render();
+    return true;
+  },
+  removeSizeField: (id) => {
+    const n = state.sizeFields.length;
+    state.sizeFields = state.sizeFields.filter((x) => x.id !== id);
+    state.outputs = null;
+    drawSizeFields();
+    render();
+    return state.sizeFields.length < n;
+  },
+  setMeshOptions: (patch) => { Object.assign(state.meshOptions, patch || {}); state.outputs = null; render(); return { ...state.meshOptions }; },
+  setPointSize: (name, value) => {
+    const v = Number(value);
+    if (!name || !(v > 0)) return false;
+    state.pointSizeByName.set(String(name), v);
     state.outputs = null;
     render();
     return true;
