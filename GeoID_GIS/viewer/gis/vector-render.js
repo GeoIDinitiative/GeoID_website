@@ -1,10 +1,10 @@
 import * as THREE from "../vendor/three.module.js";
 import { latLonToVector3, drapedRadius, looksLikeGeographic, sphericalPolygonAreaKm2 }
-  from "./geo-utils.js?v=20260909-acfa6ee";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260909-acfa6ee";
-import { pointInPolygon } from "./geometry.js?v=20260909-acfa6ee";
-import { paintOpacity } from "./layer-opacity.js?v=20260909-acfa6ee";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260909-acfa6ee";
+  from "./geo-utils.js?v=20260909-2d7fdce";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260909-2d7fdce";
+import { pointInPolygon } from "./geometry.js?v=20260909-2d7fdce";
+import { paintOpacity } from "./layer-opacity.js?v=20260909-2d7fdce";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260909-2d7fdce";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -1133,6 +1133,18 @@ export function renderFeatureCollection(fc, {
     }
     const geometry = feature.geometry;
     if (!geometry) {
+      return;
+    }
+    /**
+     * A FEATURE PAINTED "transparent" IS NOT DRAWN AT ALL -- no fill, no seal,
+     * no line, no dot -- and stays in the layer for the picker and the card.
+     * A null colour is the no-value grey, which is a statement ("not
+     * measured"); this is the other statement, "nothing here, and it is
+     * known": the volcanic risk grids carry a cell for every patch of the
+     * globe so a click anywhere answers, and the cells nothing reaches are
+     * listed in the key and invisible on the map.
+     */
+    if (colourFor && colourFor(feature) === "transparent") {
       return;
     }
     if (geometry.type === "Point" || geometry.type === "MultiPoint") {

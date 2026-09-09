@@ -15,10 +15,10 @@
  * their keys — one dataset draws one thing.
  */
 
-import { dataUrl } from "./data-base.js?v=20260909-acfa6ee";
-import { rampColour } from "./symbology.js?v=20260909-acfa6ee";
-import { startPlayer } from "./timelapse-player.js?v=20260909-acfa6ee";
-import { riskEdges, RISK_LABELS, classOf, FRAME_VEIS, BANDS, RECORDS, riskLayer, NONE_COLOUR, NONE_LABEL } from "./volcanic-risk.js?v=20260909-acfa6ee";
+import { dataUrl } from "./data-base.js?v=20260909-2d7fdce";
+import { rampColour } from "./symbology.js?v=20260909-2d7fdce";
+import { startPlayer } from "./timelapse-player.js?v=20260909-2d7fdce";
+import { riskEdges, RISK_LABELS, classOf, FRAME_VEIS, BANDS, RECORDS, riskLayer, NONE_COLOUR, NONE_LABEL } from "./volcanic-risk.js?v=20260909-2d7fdce";
 
 const search = new URL(import.meta.url).search;
 let running = false;
@@ -47,8 +47,10 @@ export function framePaint(features, band) {
   });
   const colourFor = (feature) => {
     const c = classOf(Number(feature?.properties?.p_yr), edges);
-    // NOTHING ON RECORD IS A CLASS, not a missing value.
-    if (c < 0) return `#${NONE_COLOUR}`;
+    // NOTHING ON RECORD IS A CLASS in the key and NOTHING on the map: the
+    // renderer draws no geometry for "transparent", so the basemap shows
+    // through, while the cell stays in the layer to answer a click.
+    if (c < 0) return "transparent";
     const [r, g, b] = colours[c];
     return `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
   };

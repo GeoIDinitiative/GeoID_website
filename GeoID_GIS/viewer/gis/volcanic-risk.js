@@ -42,7 +42,7 @@ export const RISK_LABELS = [
  * so it has a colour of its own, named in every key, leading.
  */
 export const NONE_COLOUR = "2f3b46";
-export const NONE_LABEL = "no eruption's ash on record";
+export const NONE_LABEL = "no eruption's ash on record — not drawn";
 
 /** Which class an annual chance falls in, 0..labels−1; −1 for nothing. */
 export function classOf(p, edges = riskEdges()) {
