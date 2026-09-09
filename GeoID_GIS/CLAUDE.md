@@ -16267,3 +16267,25 @@ the origin is told that elevation so readouts stay true, and the GIS package's
 absolute metres are untouched; the log says what z counts from. Measured
 after: subsurface 0 to 4,864 m, surface skin 4,000 to 4,864, atmosphere 4,000
 to 7,864, the rock standing on the grid in the screenshot.
+
+### The floor was the model page's fault, and the shift was a workaround
+
+"It's a fault of the model page that we cannot navigate below z = 0" — right,
+and the base-at-zero shift above was working around it rather than fixing
+it; that shift is gone. Three limits held the camera above the ground: the
+position clamp (`keepCameraAboveGround`), the dolly floor, and
+`maxPolarAngle` at the horizon. `applyBelowGround` now reads the model's own
+bounds: where it reaches under z = 0 the floor drops to its base, the orbit
+may swing to `π − MIN_POLAR_RAD`, and the ground stops writing depth (drawn
+first, as a backdrop) so the rock beneath is painted over it. A model that
+sits on the ground keeps every old limit. Re-read on every tree redraw, on
+the orbit-limit pass and when the ground is built. Measured: camera parked
+4,015 m under the ground on a model whose base is −4,015 m (the floor is the
+base), polar range 0.14–3.00 rad, `depthWrite` false on the ground.
+
+**And the GIS page draws the FULL MODEL itself** — "Show the full model on
+the globe" in step 4: the surface STL as a lit skin, the subsurface shell to
+its base, the atmosphere shell to its lid, through the ground at true
+vertical scale with a legend naming each level. From straight above the
+three project as one translucent rectangle; the studio's oblique view is
+where the volumes read as volumes, and the studio now lets you get there.
