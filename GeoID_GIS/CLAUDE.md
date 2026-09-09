@@ -16159,3 +16159,84 @@ hillside" now.
 **`global-data.js` must not import anything that imports the player**, and
 the pipeline's import chain was checked for it: `feature-popup.test.mjs`
 stubs a bare `window`, and `timelapse-player` throws at load on it.
+
+## The Model Builder samples where the ground needs it, and the studio takes the result
+
+Hazards-style brief, answered in the GIS page's Model Builder tab: draw the
+study area, sample the DEM into a surface at a resolution that VARIES by
+place, embed points at the surface's own interpolated heights, package the
+surface with subsurface and atmosphere volumes, and hand the same surface to
+the model page as a solid.
+
+**`surface-sampling.js` is the pure half**, tested against a plane and the
+closed-surface invariant (66 checks). Step 3 ▸ Sampling offers *Uniform* (the
+old grid) or *Variable*: a base step everywhere, and inside BUFFERS the reader
+draws — a square (side) or a circle (diameter) about a point, picked on the
+globe or added at the study centre — the DEM's native step or a coarser one,
+GRADED linearly back to the base over a distance. Layers given the refine role
+join as square buffers over their bounding box. The finest buffer wins where
+they overlap; a buffer coarser than the base cannot coarsen it.
+
+- **The lattice is a QUADTREE, and its root is the COARSEST spacing.** A cell
+  splits until it is no larger than the spacing at its centre; the leaves'
+  corners are the nodes. Sized by the spacing at the box centre the root was
+  7 m everywhere — the centre is exactly where a reader puts a fine buffer —
+  and nothing was left to split: measured, 0 levels and one spacing class.
+  The root is sized by the maximum over a 9 × 9 sample.
+- **The budget COARSENS everything together, never truncates.** Past the node
+  budget the spacing is scaled by √(nodes/budget) and the lattice rebuilt; the
+  status says by how much (×1.71 on the Mournes with a 1.5 km native square).
+- **Delaunay in the local frame, heights at each node's own lat/lon, a
+  neighbour-median despike** (the grid's 80°-wall rule on the TIN), and the
+  rim as ONE counter-clockwise loop from the edges used once. The shells —
+  ground, skirt walls along the rim, a fan lid at the base or the sky — come
+  from one `shellFacets` generator that both the STL writer and the studio's
+  display read, so the shell meshed is the shell looked at.
+- **The size field over a TIN** is the slope-graded field on a lattice laid
+  over it, taken to the MINIMUM with the sampling spacing: a buffer drawn fine
+  stays fine in the volume, and a steep slope is refined whether or not it is
+  in one. Pinned: no cell of the field is coarser than the sampling there.
+
+**Everything the builder decides is DRAWN on the globe as it is decided**:
+the buffers (outlines by resolution), the sampling as every triangle edge
+coloured by its spacing class with a legend (7 classes on the Mournes, 7 m to
+477 m), the embedded points, and the extended boundary. `loadedLayers()`
+must EXCLUDE the builder's own previews — the points preview is a point layer,
+took the "points" role by default, and fed itself back: one placed point
+embedded three times, twice from its own picture.
+
+**Extend the boundary is etna's `outer_box` as a DECISION.** Step 4 takes a
+depth below the lowest ground and, if asked, a height above the highest; the
+rim's four corners are carried to those levels (`extendBoundary`), previewed as
+an x-ray box through the ground at TRUE vertical scale (the globe's relief is
+exaggerated, the box is not, and the status says so), and both shells are
+written watertight (95,458 triangles each on the Mournes). Every gmsh script
+carries etna's `outer_box(z_bd, h)` verbatim in its recipe under
+`USE_OUTER_BOX = False`, with the measured reason it is off (a plane through a
+rim that spans 593 m in z fails) and the baked skirt as the default; the
+atmosphere gets its own script with the sides at 6 and the volume at 11.
+
+**The default element size is twice the COARSE spacing.** Derived from the
+finest buffer it was 15 m over a 16 km box — MeshSizeMax caps every element,
+and the size FIELD is what brings a buffer down. 953 m now.
+
+**The Meshing Studio adopts the surface as a SOLID** ("Open in the Meshing
+Studio", `GeoIDMeshStudio.adoptTerrainSolid`): the subsurface and the
+atmosphere as inside-tests against the heightfield, displayed from the same
+facets, with a card on the model page to change the depth and height and
+rebuild. Two things measured there: **1 unit = 1 METRE** in the studio (its
+ground is the planet to scale; handed over in km the terrain sat as a
+sixteen-metre model on a 2,000 km grid), with the mesher's cells set from the
+surface's coarse spacing on adoption; and **`modelFocus` fitted the view to
+EVERY visible layer** — the GIS launch defaults and the previews sit at the
+world origin, the anchored terrain at 6,371 km out, so the target landed at
+y = 3,187,423 and the camera 8,000 km away looking at nothing. It fits the
+studio's own meshes now: 31 km out, 10 km scale bar, 114,240 tets in 501 ms.
+
+Verified end to end on 8125, all through the page's own controls: 16.3 × 16.7
+km over the Mournes, a 1.5 km native square and a 3 km 60 m circle on Slieve
+Donard, 47,590 nodes / 95,038 triangles at 7.4–477 m over 6 levels, −15 to
+849 m; a point placed by a real click at 54.1818°, −5.9434° reading 508.9 m
+from the TIN; the package (surface, domain, atmosphere, size field, two
+scripts, spec) filed into a browser-storage project; the studio meshing both
+volumes and rebuilding at 6 km with no atmosphere from its own card.
