@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-a052651";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-a052651";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-6acab04";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-6acab04";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260909-a052651";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-a052651";
-import { downloadText } from "./extraction.js?v=20260909-a052651";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260909-a052651";
+} from "./mesh-volume.js?v=20260909-6acab04";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-6acab04";
+import { downloadText } from "./extraction.js?v=20260909-6acab04";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260909-6acab04";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -2679,9 +2679,15 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
     const id = state.solids.reduce((m, e) => Math.max(m, e.id), 0) + 1;
     const group = new THREE.Group();
     group.name = `${name}_${which}`;
+    /**
+     * NO SEPARATE ROCK TOP. The ground is ONE mesh -- the surface STL --
+     * shared by the rock (its top) and the air (its floor). Drawing the
+     * rock's own copy of the same triangles under the skin was a coplanar
+     * pair held apart by polygon offset, and whichever won the depth test
+     * "took precedence" wherever the offset lost. One mesh, nothing to fight.
+     */
     const faces = below
-      ? [["top", "ground", 0xa8703f, F.terrain, "The ground: the surface STL, as the rock's upper boundary"],
-         ["base", "lid", 0x8a5a30, F.base, `A flat floor ${Math.round(extentM)} m under the lowest ground`],
+      ? [["base", "lid", 0x8a5a30, F.base, `A flat floor ${Math.round(extentM)} m under the lowest ground`],
          ["sides", "wall", 0xa8703f, F.sides_below, "The skirt walls: the rock's lateral boundary, one flag for all four"]]
       : [["sky", "lid", 0x9fd8ff, F.sky, `A flat lid ${Math.round(extentM)} m over the highest ground`],
          ["sides", "wall", 0x7fc8ff, F.sides_above, "The air's lateral boundary, one flag for all four sides"]];
@@ -2693,7 +2699,7 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
       group.add(mesh);
       addPart({
         id: `${which}:${face}`, name: `${which === "subsurface" ? "Subsurface" : "Atmosphere"} — ${face}`, kind: "face",
-        which, face, flag, mesh, solidId: id, colour,
+        which, face, flag, mesh, solidId: id, colour, domain: which,
         rows: [
           ["What", blurb],
           ["Physical flag", `${flag} — gmsh physical group "${face}"; a condition in step 5 names this face`],
@@ -2720,14 +2726,11 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
   if (gisTerrain.aboveM > 0) make("atmosphere", gisTerrain.aboveM);
   // The surface STL, as itself: not a solid (it has no inside), a skin drawn a
   // hair above the interface so it wins the depth fight with the rock's top.
-  gisTerrain.skin = displayMesh(lifted(surfacePositions(display, km)), `${name}_surface`, 0x6fbf73, { renderOrder: 1 });
-  gisTerrain.skin.material.polygonOffset = true;
-  gisTerrain.skin.material.polygonOffsetFactor = -2;
-  gisTerrain.skin.material.polygonOffsetUnits = -2;
+  gisTerrain.skin = displayMesh(lifted(surfacePositions(display, km)), `${name}_surface`, 0x6fbf73);
   addPart({
-    id: "surface", name: "Surface STL", kind: "surface", flag: F.terrain, mesh: gisTerrain.skin, solidId: null, colour: 0x6fbf73,
+    id: "surface", name: "Surface — the rock's top, the air's floor", kind: "surface", flag: F.terrain, mesh: gisTerrain.skin, solidId: null, colour: 0x6fbf73, domain: "surface", face: "ground",
     rows: [
-      ["What", "The terrain skin the GIS page sampled: the interface the rock and the air share"],
+      ["What", "The terrain the GIS page sampled: one mesh, the rock's top and the air's floor, flag 1 on both"],
       ["Physical flag", `${F.terrain} — "top" on the rock, the floor of the air`],
       ["Nodes", surface.nodes.toLocaleString()],
       ["Triangles", `${surface.triangles.toLocaleString()}${display !== surface ? ` (drawn from a ${display.triangles.toLocaleString()}-triangle stand-in)` : ""}`],
@@ -2748,7 +2751,7 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
     geo.dispose();
     const mesh = displayMesh(Float32Array.from(pos), `${name}_point_${p.name}`, 0xffd166, { renderOrder: 3 });
     addPart({
-      id: `point:${i}`, name: `Point — ${p.name}`, kind: "point", flag: p.flag ?? F.points, mesh, solidId: null, colour: 0xffd166,
+      id: `point:${i}`, name: `Point — ${p.name}`, kind: "point", flag: p.flag ?? F.points, mesh, solidId: null, colour: 0xffd166, domain: "points", face: p.name,
       rows: [
         ["What", `An embedded point: the mesh gets a node exactly here (from ${p.layer || "the study"})`],
         ["Position", `${Number(p.lat).toFixed(5)}°, ${Number(p.lon).toFixed(5)}°`],
@@ -2775,7 +2778,9 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
     + ` Subsurface ${gisTerrain.belowM} m below the lowest ground${gisTerrain.aboveM > 0 ? `, atmosphere ${gisTerrain.aboveM} m above the highest` : ""}.`
     + `${points?.length ? ` ${points.length} embedded point(s) carried.` : ""}`);
   ensureTerrainCard();
-  renderPartsList();
+  renderDomainsPanel();
+  // The domains live in the Model tab; bring it up so the toggles are seen.
+  document.querySelector('.studio-tabs[data-deck="left"] .studio-tab[data-tab="model"]')?.click();
   fitView?.();
   return gisTerrain;
 }
@@ -2809,44 +2814,96 @@ function partVisible(part, on) {
   }
 }
 
-function renderPartsList() {
-  const host = byId("studio-gis-terrain");
-  if (!host) return;
-  let list = byId("studio-gis-parts");
-  if (!list) {
-    list = document.createElement("div");
-    list.id = "studio-gis-parts";
-    list.className = "studio-list";
-    host.appendChild(list);
+/**
+ * THE DOMAINS PANEL, in the GIS sidebar's own idiom: one collapsible
+ * section per domain -- Subsurface, Atmosphere, Surface, Embedded points --
+ * with a master tick in its head (three states, like a Live-events group)
+ * and a row per face or point beneath, each a tick, a swatch, its flag and
+ * an ⓘ for the card. It sits at the top of the Model tab, where the
+ * entities are. A flat list at the foot of the Add tab was the wrong shape
+ * and the wrong place, and was reported as such.
+ */
+const domainOpen = new Map();
+
+function renderDomainsPanel() {
+  const pane = document.querySelector('.studio-pane[data-pane="model"]');
+  if (!pane) return;
+  let host = byId("studio-domains");
+  if (!host) {
+    host = document.createElement("div");
+    host.id = "studio-domains";
+    host.style.cssText = "display:grid;gap:0.5rem;margin-bottom:0.6rem";
+    pane.insertBefore(host, pane.firstChild);
   }
-  list.innerHTML = "";
-  const head = document.createElement("div");
-  head.className = "studio-row";
-  head.innerHTML = "<strong>Model parts</strong>";
-  list.appendChild(head);
-  (gisTerrain?.parts || []).forEach((part) => {
-    const row = document.createElement("div");
-    row.className = "studio-item";
-    row.style.cursor = "pointer";
-    const box = document.createElement("input");
-    box.type = "checkbox";
-    box.checked = part.mesh.visible !== false;
-    box.title = "Show or hide this part";
-    box.addEventListener("click", (event) => { event.stopPropagation(); partVisible(part, box.checked); });
-    const swatch = document.createElement("span");
-    swatch.style.cssText = `display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 6px;background:#${part.colour.toString(16).padStart(6, "0")}`;
-    const label = document.createElement("span");
-    label.textContent = `${part.name} · flag ${part.flag}`;
-    label.style.flex = "1";
-    row.appendChild(box);
-    row.appendChild(swatch);
-    row.appendChild(label);
-    row.addEventListener("click", () => {
-      const r = row.getBoundingClientRect();
-      showPartCard(part, r.right + 8, r.top);
-      if (part.solidId !== null && part.solidId !== undefined) setSelection([part.solidId]);
+  host.innerHTML = "";
+  const parts = gisTerrain?.parts || [];
+  host.hidden = !parts.length;
+  if (!parts.length) return;
+  const F = gisTerrain.flags;
+  [["subsurface", "Subsurface", F.subsurface], ["atmosphere", "Atmosphere", F.atmosphere],
+    ["surface", "Surface", F.terrain], ["points", "Embedded points", F.points]].forEach(([id, title, flag]) => {
+    const own = parts.filter((p) => p.domain === id);
+    if (!own.length) return;
+    const details = document.createElement("details");
+    details.className = "gis-tool-section";
+    details.open = domainOpen.get(id) ?? true;
+    details.addEventListener("toggle", () => domainOpen.set(id, details.open));
+    const summary = document.createElement("summary");
+    summary.style.cssText = "display:flex;align-items:center;gap:0.5rem";
+    const master = document.createElement("input");
+    master.type = "checkbox";
+    const shown = own.filter((p) => p.mesh.visible !== false).length;
+    master.checked = shown === own.length;
+    master.indeterminate = shown > 0 && shown < own.length;
+    master.title = "Show or hide the whole domain";
+    master.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const on = master.checked;
+      own.forEach((p) => partVisible(p, on));
+      renderDomainsPanel();
     });
-    list.appendChild(row);
+    const label = document.createElement("span");
+    label.textContent = `${title} · flag ${flag}`;
+    label.style.flex = "1";
+    summary.appendChild(master);
+    summary.appendChild(label);
+    details.appendChild(summary);
+    const body = document.createElement("div");
+    body.className = "gis-tool-body";
+    const list = document.createElement("div");
+    list.className = "studio-list";
+    own.forEach((part) => {
+      const row = document.createElement("div");
+      row.className = "studio-item";
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.checked = part.mesh.visible !== false;
+      box.title = "Show or hide this part";
+      box.addEventListener("click", (event) => { event.stopPropagation(); partVisible(part, box.checked); renderDomainsPanel(); });
+      const swatch = document.createElement("span");
+      swatch.style.cssText = `display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 6px;flex:0 0 auto;background:#${part.colour.toString(16).padStart(6, "0")}`;
+      const name = document.createElement("span");
+      name.textContent = `${part.face || part.name} · flag ${part.flag}`;
+      name.style.cssText = "flex:1;cursor:pointer";
+      const info = document.createElement("button");
+      info.type = "button";
+      info.className = "studio-mini";
+      info.textContent = "ⓘ";
+      info.title = "What this part is";
+      const open = (event) => {
+        event.stopPropagation();
+        const r = row.getBoundingClientRect();
+        showPartCard(part, r.right + 8, r.top);
+        if (part.solidId !== null && part.solidId !== undefined) setSelection([part.solidId]);
+      };
+      info.addEventListener("click", open);
+      name.addEventListener("click", open);
+      row.appendChild(box); row.appendChild(swatch); row.appendChild(name); row.appendChild(info);
+      list.appendChild(row);
+    });
+    body.appendChild(list);
+    details.appendChild(body);
+    host.appendChild(details);
   });
 }
 
@@ -2891,7 +2948,7 @@ function showPartCard(part, x, y) {
   toggle.style.cssText = "display:block;margin-top:0.4rem;color:#bdb7d3";
   const box = document.createElement("input");
   box.type = "checkbox"; box.checked = part.mesh.visible !== false;
-  box.addEventListener("change", () => { partVisible(part, box.checked); renderPartsList(); });
+  box.addEventListener("change", () => { partVisible(part, box.checked); renderDomainsPanel(); });
   toggle.appendChild(box);
   toggle.appendChild(document.createTextNode(" shown"));
   card.appendChild(toggle);
