@@ -26,15 +26,15 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260909-d85ea73";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260909-d85ea73";
-import { mathsFor } from "./equations.js?v=20260909-d85ea73";
+import { runConnector } from "./research/connectors.js?v=20260909-aaf4fd4";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260909-aaf4fd4";
+import { mathsFor } from "./equations.js?v=20260909-aaf4fd4";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260909-d85ea73";
+} from "./cyclone-risk.js?v=20260909-aaf4fd4";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260909-d85ea73";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260909-aaf4fd4";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -435,6 +435,8 @@ export const DATASETS = [
      * map of volcanoes rather than a map of nations.
      */
     colourBy: "type_group",
+    // A vent is a triangle on every geological map there is.
+    pointSymbol: "triangle",
   },
   {
     id: "ni-rivers",
@@ -875,6 +877,8 @@ export async function addDataset(id, onStatus = () => {},
         // `pointStyle` because the renderer cannot tell a large CATALOGUE from
         // a point CLOUD and they want opposite treatment; only the entry knows.
         pointStyle: entry.pointStyle || "auto",
+        // And what a marker is DRAWN AS -- the volcanoes are triangles.
+        pointSymbol: entry.pointSymbol || "disc",
         /**
          * A LAUNCH DEFAULT TOUCHES NEITHER THE CAMERA NOR THE SPIN.
          *

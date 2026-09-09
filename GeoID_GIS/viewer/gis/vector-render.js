@@ -1,10 +1,10 @@
 import * as THREE from "../vendor/three.module.js";
 import { latLonToVector3, drapedRadius, looksLikeGeographic, sphericalPolygonAreaKm2 }
-  from "./geo-utils.js?v=20260909-d85ea73";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260909-d85ea73";
-import { pointInPolygon } from "./geometry.js?v=20260909-d85ea73";
-import { paintOpacity } from "./layer-opacity.js?v=20260909-d85ea73";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260909-d85ea73";
+  from "./geo-utils.js?v=20260909-aaf4fd4";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260909-aaf4fd4";
+import { pointInPolygon } from "./geometry.js?v=20260909-aaf4fd4";
+import { paintOpacity } from "./layer-opacity.js?v=20260909-aaf4fd4";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260909-aaf4fd4";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -92,6 +92,41 @@ export function markerDiscTexture() {
    */
   discTexture.userData.shared = true;
   return discTexture;
+}
+
+/**
+ * THE VOLCANO SYMBOL: a triangle, the mark every geological map has drawn
+ * for a vent since there were geological maps. Built exactly as the disc is
+ * -- white ink, tinted by the vertex colour, the same outline underlay at a
+ * larger size -- and CENTRED on its coordinate like the disc, so the hover
+ * ring and the selection halo the popup draws round a point still fit it.
+ * Shared and never disposed, for the disc's own reason.
+ */
+let triangleTexture = null;
+export function markerTriangleTexture() {
+  if (triangleTexture) return triangleTexture;
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  // Equilateral, apex up, centred on the canvas's own centre by its centroid
+  // rather than its bounding box -- a triangle centred by its box sits with
+  // its mass below the point it marks.
+  const r = 28;                              // circumradius, short of the edge like the disc
+  const cx = 32, cy = 32;
+  ctx.beginPath();
+  for (let i = 0; i < 3; i += 1) {
+    const a = -Math.PI / 2 + (i * 2 * Math.PI) / 3;
+    ctx[i ? "lineTo" : "moveTo"](cx + r * Math.cos(a), cy + r * Math.sin(a));
+  }
+  ctx.closePath();
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  triangleTexture = new THREE.CanvasTexture(canvas);
+  triangleTexture.needsUpdate = true;
+  triangleTexture.userData.shared = true;
+  return triangleTexture;
 }
 
 /**
@@ -345,6 +380,21 @@ function ensureReliefSync() {
 const LINE_DRAPE_UNIFORM = { value: 0.006 };
 const LINE_DRAPE_MAX = 0.006;
 const LINE_DRAPE_MIN = 0.0000015;          // about 3 m
+/**
+ * A MARKER'S CLEARANCE IS A GROUND MEASUREMENT, not a camera one.
+ *
+ * Markers shared the lines' altitude-scaled clearance -- 2% of the distance
+ * to the surface, 12 km from orbit -- which is what a depth-tested line
+ * needs to clear the relief between its vertices. A marker does not
+ * depth-test: nothing can bury it, so the clearance was buying nothing and
+ * costing parallax, and at 110 km up a volcano's mark stood 2.2 km off its
+ * vent. The event markers already record the same finding and the same
+ * answer: a constant 30 m, which covers the gap between the elevation
+ * sampler and the drawn mesh (measured at 20 m) and nothing more. One
+ * scene unit is 1,991 km.
+ */
+const MARKER_DRAPE_UNIFORM = { value: 30 / 1991000 };
+export const markerClearanceUnits = () => MARKER_DRAPE_UNIFORM.value;
 
 export function setLineDrapeFromAltitude(surfaceDistanceUnits) {
   const d = Number(surfaceDistanceUnits);
@@ -505,7 +555,10 @@ export function followRelief(material, drape, {
   // `true` means the silhouette itself; a number moves the cut inside it.
   const facingLimit = cullFarSide === true ? 0 : Number(cullFarSide) || 0;
   const base = baseRadius();
-  const drapeUniform = lifted ? LINE_DRAPE_UNIFORM : { value: drape };
+  // `lifted: "marker"` takes the constant ground clearance; `true` the lines'
+  // altitude-scaled one; anything else the fixed drape it was built with.
+  const drapeUniform = lifted === "marker" ? MARKER_DRAPE_UNIFORM
+    : lifted ? LINE_DRAPE_UNIFORM : { value: drape };
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uRelief = RELIEF_UNIFORM;
     shader.uniforms.uDrape = drapeUniform;
@@ -607,7 +660,7 @@ ${shader.fragmentShader}`.replace(
   // Found by bisection: the same injection inlined with a unique key drew
   // perfectly.
   material.customProgramCacheKey = () =>
-    `geoid-relief-${material.type}-${lifted ? "live" : drape}-${ribbon ? "ribbon" : "flat"}`
+    `geoid-relief-${material.type}-${lifted === "marker" ? "marker" : lifted ? "live" : drape}-${ribbon ? "ribbon" : "flat"}`
     + `${cullFarSide ? `-cull${facingLimit}` : ""}${hole ? "-hole" : ""}`;
   return material;
 }
@@ -913,6 +966,8 @@ export function renderFeatureCollection(fc, {
    * in.
    */
   pointStyle = "auto",
+  // "disc" or "triangle": what a marker is drawn as. A catalogue names it.
+  pointSymbol = "disc",
   // Uniforms for the backdrop's window; null for an ordinary layer.
   hole = null,
 } = {}) {
@@ -1398,10 +1453,11 @@ export function renderFeatureCollection(fc, {
      * below), which on a sphere is exact: every vertex's outward normal is its
      * own direction, and the geometry already carries it as `aDir`.
      */
+    const markerMap = pointSymbol === "triangle" ? markerTriangleTexture() : markerDiscTexture();
     const material = asMarkers
       ? {
         sizeAttenuation: false, depthWrite: false, depthTest: false,
-        map: markerDiscTexture(), alphaTest: 0.35, transparent: true,
+        map: markerMap, alphaTest: 0.35, transparent: true,
         // A ringed node at a few thousand; a plain dot at ninety thousand,
         // small enough that the planet does not fill in at a distance.
         ...(denseCatalogue ? { size: 3.4 } : {}),
@@ -1435,9 +1491,10 @@ export function renderFeatureCollection(fc, {
       const outline = denseCatalogue ? null : new THREE.Points(geometry, followRelief(
         registerMarkerMaterial(new THREE.PointsMaterial({
           sizeAttenuation: false, depthWrite: false, depthTest: false,
-          map: markerDiscTexture(), alphaTest: 0.35, transparent: true, color: 0xffffff,
+          map: markerMap, alphaTest: 0.35, transparent: true, color: 0xffffff,
         }), "outline"),
-        drape, { lifted: true, cullFarSide: true },
+        // TOUCH-TIGHT: the marker's own constant clearance, not the lines'.
+        drape, { lifted: "marker", cullFarSide: true },
       ));
       if (outline) {
         outline.renderOrder = 4;
@@ -1451,7 +1508,7 @@ export function renderFeatureCollection(fc, {
           // rewritten by the shared marker size as the camera moves.
           denseCatalogue ? null : "fill",
         ),
-        drape, { lifted: true, cullFarSide: true },
+        drape, { lifted: "marker", cullFarSide: true },
       ));
       fill.renderOrder = 4.1;
       fill.frustumCulled = false;
@@ -1754,6 +1811,7 @@ function publishedSymbology(fc, key) {
 
 export function buildVectorLayerResult(fc, {
   name, fields = [], drape = 0.006, outlineOnly = false, pointStyle = "auto",
+  pointSymbol = "disc",
   rankOf = null,
   /**
    * How this layer's contacts are stroked — the same object the tiled geology
@@ -1845,7 +1903,7 @@ export function buildVectorLayerResult(fc, {
    */
   const firstPaint = outlineOnly && symbology ? (f) => symbology.colourOf(f) : null;
   const { object3D, truncated } = renderFeatureCollection(fc, {
-    name, drape, pointStyle, rankOf, contacts: contactStyle,
+    name, drape, pointStyle, pointSymbol, rankOf, contacts: contactStyle,
     outlineOnly, colourFor: firstPaint,
   });
   let lastColourFor = null;
@@ -1880,7 +1938,7 @@ export function buildVectorLayerResult(fc, {
       // `rankOf` rides through every repaint: a recolour must not undo the
       // survey precedence, or the coarse boundaries come back on the next
       // symbology change.
-      name, drape, colourFor, pointStyle, rankOf, outlineOnly: fillMode === "outline",
+      name, drape, colourFor, pointStyle, pointSymbol, rankOf, outlineOnly: fillMode === "outline",
       // Rides through every repaint for `rankOf`'s reason: a recolour must not
       // quietly return the contacts to invisible.
       contacts: contactStyle,
