@@ -233,11 +233,18 @@ def quadtree(field, vei_max, extra):
         return (hi - lo) <= limit and v.min() == v.max()
 
     def emit(r0, c0, size):
+        # 180 is not a multiple of the 8-degree coarsest block, so the last row
+        # of blocks would run 4 degrees past the south pole: measured, the cells
+        # summed to 1.022 of the lat/lon plane. A block is clipped to the lattice.
+        if r0 >= NY:
+            return
+        size = min(size, NY - r0)
         if size > FINEST and not flat(r0, c0, size):
-            half = size // 2
+            half = max(FINEST, size // 2)
             for dr in (0, half):
                 for dc in (0, half):
-                    emit(r0 + dr, c0 + dc, half)
+                    if dr < size:
+                        emit(r0 + dr, c0 + dc, half)
             return
         blocks.append((r0, c0, size))
 
@@ -254,7 +261,7 @@ def quadtree(field, vei_max, extra):
         # which reads as a gap rather than as an answer; every cell of the
         # globe carries one, and the key names the class.
         north = 90.0 - r0 * STEP
-        south = north - size * STEP
+        south = max(-90.0, north - size * STEP)
         west = -180.0 + c0 * STEP
         east = west + size * STEP
         # SIGNIFICANT FIGURES, not fixed decimals: a far tail at 3e-8 a year
