@@ -16010,3 +16010,24 @@ Verified live (stamp d6a403c): the windowed collective 13,257 cells,
 coverage 1.0000, none row leading with 4,428; the VEI 3 frame 30,342 cells,
 coverage 1.0000, 0 grey vertices, counts `[15130, 10837, 308, …]` summing to
 the cells.
+
+### "Ensure the no-record grids are invisible" — a class in the key, nothing on the map
+
+The none cells had been PAINTED, in their own slate, so the globe read as a
+dark slab under the reach islands. They are still in the layer — a click on
+open ocean answers "No eruption's ash on record here", and the key leads
+with their count — and they are drawn nowhere.
+
+**`colourFor` returning `"transparent"` skips a feature in the renderer
+entirely** — no fill, no seal, no line, no dot — where `null` is the no-value
+grey. Two different statements: grey is "not measured", transparent is
+"nothing here, and it is known". It works through `repaint` too, because
+`repaintVector` re-runs `renderFeatureCollection`. Measured on the windowed
+collective: fill vertices 232,614 → 175,236 with the 4,428 none cells
+skipped, 0 dark vertices, the key unchanged. The none row's label says "not
+drawn" so a swatch with nothing on the map beside it is not read as missing.
+
+Worth knowing: at the bottom class the collective is green over most of the
+globe, because a VEI 7 kernel is stamped to R·e^{1.25} ≈ 6,300 km at a chance
+of 0.6% — one in a million years, honestly. A cell nothing reaches at all is
+the transparent one.
