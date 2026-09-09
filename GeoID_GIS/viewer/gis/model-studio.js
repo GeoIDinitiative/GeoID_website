@@ -1,13 +1,13 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-9d627f3";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-9d627f3";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-e725b57";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-e725b57";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260910-9d627f3";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-9d627f3";
-import { downloadText } from "./extraction.js?v=20260910-9d627f3";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-9d627f3";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-9d627f3";
+} from "./mesh-volume.js?v=20260910-e725b57";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-e725b57";
+import { downloadText } from "./extraction.js?v=20260910-e725b57";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-e725b57";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-e725b57";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -3275,9 +3275,24 @@ function showPartCard(part, x, y) {
       event.stopPropagation();
       const sizeM = Number(size.value); const distMaxM = Number(reach.value);
       if (!(sizeM > 0) || !(distMaxM > 0)) { log("A size and a reach are positive metres."); return; }
-      const spec = keys.point
-        ? { type: "point", name: `size at ${keys.point}`, pointName: keys.point, sizeM, distMinM: Math.max(sizeM, distMaxM / 8), distMaxM }
-        : { type: "boundary", name: `size along ${keys.own}`, key: keys.own === "terrain" ? "top" : keys.own, sizeM, distMinM: Math.max(sizeM, distMaxM / 8), distMaxM };
+      let spec;
+      if (keys.point) {
+        spec = { type: "point", name: `size at ${keys.point}`, pointName: keys.point, sizeM, distMinM: Math.max(sizeM, distMaxM / 8), distMaxM };
+      } else if (gisTerrain?.kind === "section" && part.kind === "face") {
+        // A section's face is a SURFACE of the 2D mesh, not a boundary: the
+        // size inside it is a box over its (s, z) extent, blended over the reach.
+        const p = gisTerrain.profile;
+        const polys = sectionPolygons(p, { belowM: gisTerrain.belowM, aboveM: gisTerrain.aboveM });
+        const below = part.which === "subsurface";
+        spec = {
+          type: "box", name: `size in the ${part.which} face`,
+          west: Math.min(p.a.lon, p.b.lon), east: Math.max(p.a.lon, p.b.lon), south: Math.min(p.a.lat, p.b.lat), north: Math.max(p.a.lat, p.b.lat),
+          zMinM: below ? polys.baseZ : p.zMin, zMaxM: below ? p.zMax : polys.skyZ,
+          sizeM, sizeOutM: null, thicknessM: distMaxM,
+        };
+      } else {
+        spec = { type: "boundary", name: `size along ${keys.own}`, key: keys.own === "terrain" ? "top" : keys.own, sizeM, distMinM: Math.max(sizeM, distMaxM / 8), distMaxM };
+      }
       if (keys.point) pipeline.setPointSize?.(keys.point, sizeM);
       const id = pipeline.addSizeField(spec);
       log(`Mesh size field added to the GIS package: ${spec.name}, ${sizeM} m graded out to ${distMaxM} m (${id}).`);
