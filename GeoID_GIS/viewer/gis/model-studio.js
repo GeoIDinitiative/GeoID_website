@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-e384d95";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-e384d95";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-f314176";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-f314176";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260909-e384d95";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-e384d95";
-import { downloadText } from "./extraction.js?v=20260909-e384d95";
-import { shellPositions, tinHeightAt } from "./surface-sampling.js?v=20260909-e384d95";
+} from "./mesh-volume.js?v=20260909-f314176";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-f314176";
+import { downloadText } from "./extraction.js?v=20260909-f314176";
+import { shellPositions, tinHeightAt } from "./surface-sampling.js?v=20260909-f314176";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -1801,8 +1801,19 @@ function restoreGlobeView() {
 }
 
 function modelFocus() {
-  const layers = (window.GeoIDImportManager?.getLayers?.() || [])
+  /**
+   * THE STUDIO'S OWN MESHES, not every layer the import manager holds. The
+   * GIS layers -- the launch defaults, the Model Builder's previews -- stay
+   * registered and visible while Model mode is up, and they sit in the
+   * globe's frame at the world origin; a box over them AND a terrain solid
+   * anchored 6,371 km out had its centre halfway to the Earth's core.
+   * Measured: the fit put the target at y = 3,187,423 on a model at
+   * y = 6,371,000, and the camera 8,000 km away looking at nothing.
+   */
+  const all = (window.GeoIDImportManager?.getLayers?.() || [])
     .filter((l) => l.object3D?.visible);
+  const own = all.filter((l) => studioMeshes.has(l.object3D) || l.object3D?.userData?.localModel);
+  const layers = own.length ? own : all;
   if (!layers.length) return null;
   const box = new THREE.Box3();
   layers.forEach((l) => {
