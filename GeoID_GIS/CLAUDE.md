@@ -16404,3 +16404,29 @@ space (same CRS)." All three done and measured:
   GIS was 0.0003 of its size — a 16 km block in a 6 m box, with the view
   centred on nothing. Entering model mode restores the metres and fits the
   view to the solids.
+
+### Coming back to the studio, the camera snapped to 12 m — three writers, found by trapping
+
+A fitted 31 km view read back as 12 m after every GIS-and-back round trip.
+Three separate things, each found by trapping the camera's own components
+and reading the stack, and each invisible to the one before:
+
+1. **The GIS page scales local models to its globe** (`userData.baseScale`),
+   so the terrain came back at 0.00003 of its size. `refreshStudioScale()` on
+   entry, and the fit deferred a tick so it runs after the switch.
+2. **The globe's pending zoom target eased the camera down**, a few metres a
+   frame — no single write large enough to trap. `clearZoomTarget()` on the
+   viewer seam, called on entry.
+3. **The embedded-frame re-fit** (`applyEmbeddedFrameState` →
+   `animateCameraDistance`) fires when the frame changes shape — which a
+   mode switch does, by moving the panels — and 600 ms into Model mode it
+   flew the camera to 11.5 units from the world origin with the target at
+   (0, 0, 0), in ONE step. It returns in Model mode now, and a flight already
+   in progress is cancelled with the zoom target. The studio owns its camera.
+
+Measured after: three round trips at 31,487 m each, scale 1, the studio's
+anchor shown and the GIS group hidden. **Trap the components with a stack,
+filter the vendor's own no-op writes (`OrbitControls.update` copies the
+position back onto itself every frame), and arm the trap only after the
+state you are defending has landed** — the first trap filled its cap with
+those no-ops and named nothing.
