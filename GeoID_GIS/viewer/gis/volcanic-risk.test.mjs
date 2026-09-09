@@ -25,7 +25,10 @@ const check = (name, got, want) => {
 const edges = riskEdges();
 check("five edges for five periods", edges.length, RETURN_PERIODS_YEARS.length);
 check("six labels, one more than the edges", RISK_LABELS.length, edges.length + 1);
-check("an edge is 1 - exp(-1/T)", Number(edges[2].toFixed(6)), Number((1 - Math.exp(-1 / 100)).toFixed(6)));
+check("an edge is 1 - exp(-1/T)", Number(edges[3].toFixed(6)), Number((1 - Math.exp(-1 / 100)).toFixed(6)));
+// The tails of the kernel put most of the map below one in a thousand years,
+// so the bottom of the scale has to keep resolving there.
+check("the scale reaches one in ten thousand years", RETURN_PERIODS_YEARS[0], 10000);
 check("and they rise with the rate", edges.every((e, i) => i === 0 || e > edges[i - 1]), true);
 
 /* ── the fixture: three cells, one never reached by a large eruption ─────── */
@@ -116,6 +119,10 @@ check("a cell with no tephra keeps no colour", tp.colourFor(withTephra[2]), null
 const fullCard = volcanicRiskCard(withTephra[0].properties, { view: "tephra", full: true });
 check("the tephra card titles by volume", fullCard.title, "83 million m³ a year");
 check("and says which record it is", /full Holocene/.test(fullCard.kicker) && /9700 BCE/.test(fullCard.meta), true);
+const priorCard = volcanicRiskCard({ ...cells[2].properties, prior_only: 1 });
+check("a cell only a floor prior reaches says so", priorCard.headline.some(([k, v]) => k === "Basis" && /floor prior/.test(v)), true);
+check("and one the record reaches does not", volcanicRiskCard(cells[0].properties).headline.some(([k]) => k === "Basis"), false);
+check("the ⓘ states the kernel and the priors", [/exp\(−d\/R\)/.test(JSON.stringify(mathsFor("volcanic-risk").terms)), /floor prior/.test(JSON.stringify(mathsFor("volcanic-risk-holocene").terms))], [true, true]);
 check("volumes read in words", [asVolume(2.51e6), asVolume(9210), asVolume(0)], ["2.51 million m³ a year", "9,210 m³ a year", null]);
 check("the ⓘ states the record span rule", /own record span/i.test(JSON.stringify(mathsFor("volcanic-risk-holocene").terms)), true);
 

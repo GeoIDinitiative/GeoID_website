@@ -128,8 +128,10 @@ const EQUATIONS = {
       + "dormant volcano's one VEI 5 in 1707 count beside a live one's "
       + "fifty small eruptions since 1950.",
     lines: [
-      { expr: "λ(p) = Σ over eruptions e with d(p, vent(e)) ≤ R(VEI(e)) of 1 / Y(VEI(e))",
-        note: "the rate, in eruptions per year whose ash reaches the point p" },
+      { expr: "λ(p) = Σ over eruptions e with d(p, vent(e)) ≤ 4·R(VEI(e)) of w(e) · exp(−d / R(VEI(e))) / Y(VEI(e))",
+        note: "the rate, in eruptions per year whose ash reaches the point p — "
+          + "each eruption decaying with distance rather than stopping at a "
+          + "radius" },
       { expr: "P(p) = 1 − exp( −λ(p) )",
         note: "the chance of AT LEAST ONE in a given year — what the map is "
           + "coloured by, and what the classes are cut on" },
@@ -160,8 +162,21 @@ const EQUATIONS = {
         + "(9,916 of 11,089). 'Uncertain' eruptions are left out. A quarter "
         + "carry NO VEI and are counted as VEI 2 — they are overwhelmingly "
         + "small historical events."],
-      ["d", "great-circle distance, solved on the sphere, a cell counted when "
-        + "its centre is within the reach."],
+      ["exp(−d/R)", "the KERNEL: at R an eruption counts 37% of itself, at "
+        + "2R 14%, at 4R 2%, beyond which it is dropped. A hard disc made the "
+        + "first map a scatter of islands, which is a picture of the radii "
+        + "rather than of the hazard — ashfall thins with distance, it does not "
+        + "stop."],
+      ["w(e)", "1 for a confirmed eruption, ½ for one GVP files as uncertain "
+        + "(1,173 of 11,089): a record somebody thought worth filing is not "
+        + "nothing, and not a confirmed event either."],
+      ["floor prior", "every volcano in the catalogue is in the map. The "
+        + "eruption list names 915 of 2,666; the rest take the least a volcano "
+        + "that demonstrably erupted can be given — a Holocene volcano with no "
+        + "dated eruption, one VEI 2 over the Holocene (11,725 y); a "
+        + "Pleistocene one, one VEI 3 over the Pleistocene (2.58 My) — and a "
+        + "cell nothing else reaches says so on its card."],
+      ["d", "great-circle distance, solved on the sphere."],
       ["exp(−λ)", "the Poisson chance of NO arrival in a year at rate λ. "
         + "Eruptions cluster and repose times are not memoryless, so this is "
         + "the standard assumption rather than an exact one."],
@@ -191,9 +206,10 @@ const EQUATIONS = {
       { expr: "λ_v = N_v / (2025 − first_v + 1)",
         note: "a volcano's rate: its confirmed eruptions over the span from "
           + "its first recorded eruption to the last complete year" },
-      { expr: "λ(p) = Σ over eruptions e with d(p, vent(e)) ≤ R(VEI(e)) of 1 / span(v(e))",
-        note: "eruptions per year whose ash reaches the point p" },
-      { expr: "T(p) = Σ over the same eruptions of V(VEI(e)) / span(v(e))",
+      { expr: "λ(p) = Σ over eruptions e with d(p, vent(e)) ≤ 4·R(VEI(e)) of w(e) · exp(−d / R(VEI(e))) / span(v(e))",
+        note: "eruptions per year whose ash reaches the point p, each decaying "
+          + "with distance rather than stopping at a radius" },
+      { expr: "T(p) = Σ over the same eruptions of w(e) · exp(−d / R) · V(VEI(e)) / span(v(e))",
         note: "tephra reaching p per year — MAGNITUDE × FREQUENCY, the map's "
           + "default colouring" },
       { expr: "P(p) = 1 − exp( −λ(p) )",
@@ -214,8 +230,23 @@ const EQUATIONS = {
         + "as if it began erupting when somebody started writing, which "
         + "overstates it against one known from tephra alone — the windowed "
         + "map exists because that bias is real. Both are offered."],
-      ["eruptions", "Confirmed only, dated: 9,916 of 11,089 in GVP's Holocene "
-        + "list. Unknown VEI (a quarter of them) is counted as VEI 2."],
+      ["exp(−d/R)", "the KERNEL: at R an eruption counts 37% of itself, at "
+        + "2R 14%, at 4R 2%, beyond which it is dropped. A hard disc made the "
+        + "first map a scatter of islands, which is a picture of the radii "
+        + "rather than of the hazard — ashfall thins with distance, it does not "
+        + "stop."],
+      ["w(e)", "1 for a confirmed eruption, ½ for one GVP files as uncertain "
+        + "(1,173 of 11,089): a record somebody thought worth filing is not "
+        + "nothing, and not a confirmed event either."],
+      ["floor prior", "every volcano in the catalogue is in the map. The "
+        + "eruption list names 915 of 2,666; the rest take the least a volcano "
+        + "that demonstrably erupted can be given — a Holocene volcano with no "
+        + "dated eruption, one VEI 2 over the Holocene (11,725 y); a "
+        + "Pleistocene one, one VEI 3 over the Pleistocene (2.58 My) — and a "
+        + "cell nothing else reaches says so on its card."],
+      ["eruptions", "every dated eruption in GVP's Holocene list, 11,089, the "
+        + "1,173 uncertain ones at half weight. Unknown VEI (a quarter of them) "
+        + "is counted as VEI 2."],
     ],
     note: "The same quarter-degree lattice and quadtree as the windowed map, "
       + "gated on the rate, the large-eruption rate, the tephra rate (flat "

@@ -26,15 +26,15 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260909-d533900";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260909-d533900";
-import { mathsFor } from "./equations.js?v=20260909-d533900";
+import { runConnector } from "./research/connectors.js?v=20260909-75336d3";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260909-75336d3";
+import { mathsFor } from "./equations.js?v=20260909-75336d3";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260909-d533900";
+} from "./cyclone-risk.js?v=20260909-75336d3";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260909-d533900";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260909-75336d3";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -378,11 +378,14 @@ export const DATASETS = [
     label: "Volcanic risk \u2014 ashfall chance and largest eruption, from the record (GVP)",
     path: "/data/global/volcanic-risk.geojson",
     name: "Volcanic risk (Smithsonian GVP eruption record).geojson",
-    summary: "The chance per year that ash reaches a point, from 2,652 "
-      + "confirmed eruptions since 1950 (VEI \u2264 3), 1900 (VEI 4), 1550 "
-      + "(VEI 5\u20136) and the whole Holocene (VEI 7+), each reaching a "
-      + "radius set by its VEI. 9,989 cells at a variable resolution, each "
-      + "also carrying the large-eruption rate and the largest VEI on record",
+    summary: "The chance per year that ash reaches a point, from every "
+      + "eruption since 1950 (VEI \u2264 3), 1900 (VEI 4), 1550 (VEI 5\u20136) "
+      + "and the whole Holocene (VEI 7+), each decaying with distance on a "
+      + "scale set by its VEI, uncertain eruptions at half weight, and all "
+      + "2,666 catalogue volcanoes \u2014 those with no dated eruption at a "
+      + "stated floor. 32,868 cells at a variable resolution, each also "
+      + "carrying the large-eruption rate, tephra per year and the largest "
+      + "VEI on record",
     licence: "Global Volcanism Program, Smithsonian Institution \u2014 CC BY 4.0; "
       + "cite Volcanoes of the World v5.2 (2024)",
     opacity: 0.6,
@@ -419,10 +422,12 @@ export const DATASETS = [
     label: "Volcanic risk \u2014 magnitude \u00d7 frequency, full Holocene record (GVP)",
     path: "/data/global/volcanic-risk-holocene.geojson",
     name: "Volcanic risk (full Holocene record, Smithsonian GVP).geojson",
-    summary: "Every confirmed eruption in the Holocene catalogue back to 9700 "
-      + "BCE, active volcanoes and dormant alike, each reaching a radius set "
-      + "by its VEI and counted over its volcano's own record span. Tephra per "
-      + "year is magnitude \u00d7 frequency; 13,501 cells at a variable "
+    summary: "Every eruption in the Holocene catalogue back to 9700 BCE "
+      + "(11,089, uncertain ones at half weight), active volcanoes and dormant "
+      + "alike, each decaying with distance on a scale set by its VEI and "
+      + "counted over its volcano's own record span; all 2,666 catalogue "
+      + "volcanoes, those with no dated eruption at a stated floor. Tephra per "
+      + "year is magnitude \u00d7 frequency; 29,289 cells at a variable "
       + "resolution, each also carrying the eruption rate, the large-eruption "
       + "rate and the largest VEI on record",
     licence: "Global Volcanism Program, Smithsonian Institution \u2014 CC BY 4.0; "

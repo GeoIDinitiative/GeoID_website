@@ -98,6 +98,15 @@ export function volcanicRiskCard(props = {}, { view = "ashfall", full = false } 
     if (tr) bits.push(tr);
     rows.push(["Contributing most", `${props.top_volcano}${bits.length ? ` — ${bits.join(", ")}` : ""}`]);
   }
+  /**
+   * WHERE THE PRIOR IS DOING THE WORK. A volcano with no dated eruption takes
+   * a stated floor rate so it is on the map at all; a cell that nothing else
+   * reaches has to say so, or the floor reads as a record.
+   */
+  if (Number(props.prior_only) === 1) {
+    rows.push(["Basis", "floor prior only — no dated eruption from any volcano in range; "
+      + "the rate is the least a volcano that demonstrably erupted can be given"]);
+  }
   if (Number.isFinite(Number(props.vents)) && Number(props.vents) > 0) {
     rows.push(["Volcanoes reaching here", String(props.vents)]);
   }
@@ -124,9 +133,12 @@ export function volcanicRiskCard(props = {}, { view = "ashfall", full = false } 
         + "≤ 3 since 1950, VEI 4 since 1900, VEI 5–6 since 1550, VEI 7+ the "
         + "whole Holocene. ")
       + "Each eruption is given a schematic, isotropic reach by VEI (5 km at "
-      + "VEI 0–1 to 1,000 km at VEI 7); ash falls in a wind-driven plume, not "
-      + "a circle. The chance is 1 − exp(−rate). A cell is a sampling point — "
-      + "its size is how finely the map is drawn there.",
+      + "VEI 0–1 to 1,000 km at VEI 7) and counts exp(−d/R) of itself at "
+      + "distance d, dropped past 4R; ash falls in a wind-driven plume, not a "
+      + "circle. Uncertain eruptions count at half weight; every volcano in "
+      + "the catalogue is in the map, those with no dated eruption at a stated "
+      + "floor prior. The chance is 1 − exp(−rate). A cell is a sampling point "
+      + "— its size is how finely the map is drawn there.",
     source: "Global Volcanism Program, Smithsonian Institution — Volcanoes of the World v5",
   };
 }

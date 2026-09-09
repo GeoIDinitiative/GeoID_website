@@ -22,7 +22,7 @@
  * and triangulated for columns already in memory.
  */
 
-import { buildSymbology, colourOf, legendInfoFrom } from "./symbology.js?v=20260909-d533900";
+import { buildSymbology, colourOf, legendInfoFrom } from "./symbology.js?v=20260909-75336d3";
 
 /**
  * THE CLASSES ARE RETURN PERIODS, not quantiles of this file -- the cyclone
@@ -31,7 +31,7 @@ import { buildSymbology, colourOf, legendInfoFrom } from "./symbology.js?v=20260
  * before anybody looks at the data. Converted to the annual chance the map
  * carries, so the edges and the field are one quantity: P = 1 - exp(-1/T).
  */
-export const RETURN_PERIODS_YEARS = [1000, 250, 100, 25, 5];
+export const RETURN_PERIODS_YEARS = [10000, 1000, 250, 100, 25, 5];
 
 export function riskEdges(periods = RETURN_PERIODS_YEARS) {
   return periods.map((t) => 1 - Math.exp(-1 / t));
@@ -39,7 +39,8 @@ export function riskEdges(periods = RETURN_PERIODS_YEARS) {
 
 /** One MORE than the edges, as classes are. */
 export const RISK_LABELS = [
-  "rarer than 1 in 1,000 years",
+  "rarer than 1 in 10,000 years",
+  "about 1 in 10,000 years",
   "about 1 in 1,000 years",
   "about 1 in 250 years",
   "about 1 in 100 years",
