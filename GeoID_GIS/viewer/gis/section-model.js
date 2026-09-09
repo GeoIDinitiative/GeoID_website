@@ -13,7 +13,7 @@
  * Pure: the height reader is passed in, and every function is checked in Node
  * against a plane and against closed forms for area.
  */
-import { makeLocalFrame } from "./model-build.js?v=20260910-038cffc";
+import { makeLocalFrame } from "./model-build.js?v=20260910-849dea4";
 
 /** Sample the DEM along A–B: `n` points, evenly spaced along the line. */
 export function profileAlong({ a, b, n = 200, heightAt, radiusKm = 6371.0088, frame = null }) {
@@ -110,14 +110,61 @@ export function sectionPositions(profile, ring, scale = 1) {
     (profile.start.y + profile.dir.y * sM) * scale,
     zM * scale,
   ];
-  // A fan from the ring's first vertex: both faces are simple and monotone
-  // in s, so every fan triangle lies inside the ring.
-  const p0 = place(ring[0]);
   const out = [];
-  for (let i = 1; i < ring.length - 1; i += 1) {
-    out.push(...p0, ...place(ring[i]), ...place(ring[i + 1]));
-  }
+  triangulateRing(ring).forEach(([a, b, c]) => {
+    out.push(...place(ring[a]), ...place(ring[b]), ...place(ring[c]));
+  });
   return Float32Array.from(out);
+}
+
+/**
+ * EAR CLIPPING over a simple CCW ring, as index triples. The faces were
+ * FANNED from one corner first -- and a fan across a ridge covers the rock
+ * under the chord: the air face's triangle from A over the peak to B has
+ * the chord for its base and the mountain inside it, so the two domains
+ * overlapped and read as one mesh. A ring with relief is not star-shaped
+ * from any corner; every triangle here lies inside its own ring, so the
+ * rock and the air meet at the profile and nowhere else.
+ */
+export function triangulateRing(ring) {
+  const n = ring.length;
+  if (n < 3) return [];
+  const idx = [];
+  for (let i = 0; i < n; i += 1) idx.push(i);
+  const cross = (o, a, b) => (ring[a][0] - ring[o][0]) * (ring[b][1] - ring[o][1]) - (ring[a][1] - ring[o][1]) * (ring[b][0] - ring[o][0]);
+  const inTri = (p, a, b, c) => {
+    const [px, py] = ring[p];
+    const d1 = (ring[b][0] - ring[a][0]) * (py - ring[a][1]) - (ring[b][1] - ring[a][1]) * (px - ring[a][0]);
+    const d2 = (ring[c][0] - ring[b][0]) * (py - ring[b][1]) - (ring[c][1] - ring[b][1]) * (px - ring[b][0]);
+    const d3 = (ring[a][0] - ring[c][0]) * (py - ring[c][1]) - (ring[a][1] - ring[c][1]) * (px - ring[c][0]);
+    return d1 >= 0 && d2 >= 0 && d3 >= 0;
+  };
+  const tris = [];
+  let guard = 0;
+  while (idx.length > 3 && guard < n * n) {
+    guard += 1;
+    let clipped = false;
+    for (let k = 0; k < idx.length; k += 1) {
+      const a = idx[(k + idx.length - 1) % idx.length];
+      const b = idx[k];
+      const c = idx[(k + 1) % idx.length];
+      if (cross(a, b, c) <= 0) continue; // a reflex (or flat) corner is not an ear
+      let empty = true;
+      for (const p of idx) {
+        if (p === a || p === b || p === c) continue;
+        if (inTri(p, a, b, c)) { empty = false; break; }
+      }
+      if (!empty) continue;
+      tris.push([a, b, c]);
+      idx.splice(k, 1);
+      clipped = true;
+      break;
+    }
+    if (!clipped) break; // a degenerate ring: fall through to the fan for what is left
+  }
+  if (idx.length === 3) tris.push([idx[0], idx[1], idx[2]]);
+  else for (let i = 1; i < idx.length - 1; i += 1) tris.push([idx[0], idx[i], idx[i + 1]]);
+  return tris;
 }
 
 const PY = (v) => JSON.stringify(v);

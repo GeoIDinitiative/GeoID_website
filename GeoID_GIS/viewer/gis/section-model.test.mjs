@@ -1,4 +1,4 @@
-import { profileAlong, profileHeightAt, sectionPolygons, ringArea, sectionPositions, sectionGmshScript, profileCsv } from "./section-model.js";
+import { profileAlong, profileHeightAt, sectionPolygons, ringArea, sectionPositions, sectionGmshScript, profileCsv, triangulateRing } from "./section-model.js";
 import { makeLocalFrame } from "./model-build.js";
 
 let passes = 0; let failures = 0;
@@ -50,6 +50,29 @@ near("101 samples", p.n, 101, 0);
   check("no atmosphere, no air face", !/surfaces\["atmosphere"\]/.test(only) && /surfaces\["subsurface"\]/.test(only));
   const csv = profileCsv(p).split("\n");
   check("the CSV carries one row per sample with its coordinates", csv[0] === "s_m,lat,lon,z_m" && csv.length === p.n + 2);
+}
+
+/* ── The faces do not overlap: a ridge between A and B, the case a fan gets wrong ── */
+{
+  const ridge = (lat, lon) => { const l = frame.toLocal(lat, lon); return 100 + 800 * Math.exp(-((l.x) ** 2) / (1500 ** 2)); };
+  const pr = profileAlong({ a, b, n: 121, heightAt: ridge, radiusKm: R, frame });
+  const polys = sectionPolygons(pr, { belowM: 2000, aboveM: 1500 });
+  const triArea = (ring, [i, j, k]) => Math.abs((ring[j][0] - ring[i][0]) * (ring[k][1] - ring[i][1]) - (ring[k][0] - ring[i][0]) * (ring[j][1] - ring[i][1])) / 2;
+  const centroidInRock = (ring, tri) => {
+    const cs = (ring[tri[0]][0] + ring[tri[1]][0] + ring[tri[2]][0]) / 3;
+    const cz = (ring[tri[0]][1] + ring[tri[1]][1] + ring[tri[2]][1]) / 3;
+    return cz < profileHeightAt(pr, cs);
+  };
+  for (const [name, ring, wantRock] of [["rock", polys.rock, true], ["air", polys.air, false]]) {
+    const tris = triangulateRing(ring);
+    near(`${name} face: the triangles tile the ring's area`, tris.reduce((sum, tri) => sum + triArea(ring, tri), 0), ringArea(ring), 1e-3);
+    check(`${name} face: no triangle of it sits in the other domain`, tris.every((tri) => centroidInRock(ring, tri) === wantRock));
+    near(`${name} face: n − 2 triangles`, tris.length, ring.length - 2, 0);
+  }
+  // The fan the faces used to be built from FAILS this on the same ridge -- the control.
+  const fan = []; for (let i = 1; i < polys.air.length - 1; i += 1) fan.push([0, i, i + 1]);
+  check("control: a fan from A puts air triangles in the rock on a ridge", fan.some((tri) => centroidInRock(polys.air, tri)));
+  check("the 3D positions come from the same triangulation", sectionPositions(pr, polys.air).length === triangulateRing(polys.air).length * 9);
 }
 
 /* ── Structural pins on the pages that carry a section and edit its flags ── */
