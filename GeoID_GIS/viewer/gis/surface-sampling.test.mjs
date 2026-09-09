@@ -6,7 +6,7 @@
 import {
   spacingFn, bufferLocal, bufferDistance, quadtreeLattice, boundaryLoop, buildTin,
   tinHeightAt, tinSurfaceStl, tinShellStl, samplingSizeField, extendBoundary,
-  extendedBoundaryLines, despikeTin, shellPositions, gridAsTin,
+  extendedBoundaryLines, despikeTin, shellPositions, gridAsTin, tinToGrid,
 } from "./surface-sampling.js";
 import { buildSurface, domainStl } from "./model-build.js";
 import { makeLocalFrame, stlStats, gmshScript, structuredFieldText } from "./model-build.js";
@@ -124,6 +124,9 @@ check("the TIN builds", tin.ok, tin.message);
 {
   const grid = buildSurface({ bounds, stepM: 500, radiusKm: R, sampleElevation: plane });
   const g = gridAsTin(grid);
+  const stand = gridAsTin(tinToGrid(tin, { nx: 33, ny: 33 }));
+  near("a TIN resampled onto a 33-grid is 2,048 triangles", stand.triangles, 32 * 32 * 2, 0);
+  near("and keeps the plane", Math.abs(tinHeightAt(stand, 0, 0) - plane(54, -6)), 0, 1e-6);
   near("a grid has (nx-1)(ny-1)*2 triangles", g.triangles, (grid.nx - 1) * (grid.ny - 1) * 2, 0);
   near("its loop walks the perimeter once", g.loop.length, 2 * (grid.nx + grid.ny) - 4, 0);
   const sg = stlStats(tinShellStl(g, { belowM: 1000, name: "g" }).text);
@@ -189,10 +192,12 @@ check("the TIN builds", tin.ok, tin.message);
   check("the builder's own previews are never its inputs", /const own = new Set\(Object\.values\(PREVIEW_NAMES\)\)/.test(pipeline) && /!own\.has\(layer\.name\)/.test(pipeline));
   check("the studio adopts the terrain as a solid and exposes it", /export function adoptTerrainSolid/.test(studio) && /adoptTerrainSolid, extendTerrain,/.test(studio));
   check("the studio fits the view to its OWN meshes, not to every GIS layer", /const own = all\.filter\(\(l\) => studioMeshes\.has\(l\.object3D\)/.test(studio));
-  check("the studio draws the surface STL as its own skin and the air translucent", /surfacePositions\(surface, km\)/.test(studio) && /opacity: 0\.22/.test(studio));
+  check("the studio draws the surface STL as its own skin and the air translucent", /surfacePositions\(display, km\)/.test(studio) && /opacity: 0\.22/.test(studio));
   check("the studio's camera floor and orbit follow a model that reaches below the ground", /function cameraFloorRadius/.test(studio) && /groundRadius \+ below - Math\.max\(span, 1000\)/.test(studio) && /Math\.PI - MIN_POLAR_RAD/.test(studio) && /uniforms\.uOpen\.value = below \? 1 : 0/.test(studio) && /if \(line < 0\.5 \|\| fade < 0\.04\) discard;/.test(studio) && /uHole\.value\.set\(/.test(studio));
   check("the studio's ground is ruled minimally: hairlines, one dim family, no bloom, a distance fade", /fwidth\(lat\) \* 0\.7/.test(studio) && /bloom = 0\.0;/.test(studio) && /uFadeM/.test(studio) && /0x8a97ad/.test(studio));
   check("the cursor readout never raycasts during a drag, and at most a dozen times a second", /if \(event\.buttons\) return;/.test(studio) && /now - lastReadoutAt < 80/.test(studio));
+  check("the studio draws a resampled stand-in of a big TIN and tests the full one", /gridAsTin\(tinToGrid\(surface, \{ nx: 129, ny: 129 \}\)\)/.test(studio) && /tinHeightAt\(surface, x \/ km/.test(studio));
+  check("the studio hides the georeferenced GIS layers while it is up", /geo\.visible = false;/.test(studio) && /geoGroupWasVisible/.test(studio));
   check("the air shell is displayed without its floor", /\(f\) => f\.face !== "ground"\)\);/.test(studio));
   check("the terrain keeps true elevations in the studio", /const zShift = 0;/.test(studio) && /elevation: 0,/.test(studio));
   check("the GIS page draws the full model — surface, subsurface, atmosphere", /function drawFullModel/.test(pipeline) && /Show the full model on the globe/.test(pipeline));

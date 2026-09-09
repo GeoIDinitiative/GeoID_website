@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-962490b";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-962490b";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-8650392";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-8650392";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260909-962490b";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-962490b";
-import { downloadText } from "./extraction.js?v=20260909-962490b";
-import { shellPositions, surfacePositions, tinHeightAt } from "./surface-sampling.js?v=20260909-962490b";
+} from "./mesh-volume.js?v=20260909-8650392";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-8650392";
+import { downloadText } from "./extraction.js?v=20260909-8650392";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260909-8650392";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -2364,6 +2364,17 @@ function init() {
   // Re-apply the studio's scene preferences whenever Model mode is entered,
   // since the other modes want the starfield back and the ground gone.
   window.addEventListener("geoid-gis:mode-change", (event) => {
+    // THE GIS LAYERS ARE NOT THE STUDIO'S. Model mode hides the globe and
+    // keeps the import groups (the studio's own meshes live in one), so every
+    // georeferenced layer -- 150,000 lines of sampling mesh, the volcanic
+    // buffers, the plate boundaries -- went on being drawn under a model
+    // that cannot show where they are. Off while the studio is up, back as
+    // they were on the way out.
+    const geo = window.GeoIDViewer?.scene?.getObjectByName("GeoID-ImportedGeoLayers");
+    if (geo) {
+      if (event.detail?.mode === "model") { geoGroupWasVisible = geo.visible; geo.visible = false; }
+      else if (geoGroupWasVisible !== null) { geo.visible = geoGroupWasVisible; geoGroupWasVisible = null; }
+    }
     if (event.detail?.mode === "model") {
       rememberGlobeView();
       setStudioOrbitLimits(true);
@@ -2492,6 +2503,7 @@ function setStudioOrigin(lat, lon, elevation = studioOrigin.elevation) {
  * changed on this page without going back to the GIS.
  */
 let gisTerrain = null;
+let geoGroupWasVisible = null;
 
 export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, aboveM = 0, origin = null, points = [] } = {}) {
   if (!surface?.tris?.length) { log("GIS terrain: no surface to adopt."); return null; }
@@ -2529,6 +2541,16 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
   }
   const km = 1;
   const lifted = (positions) => { for (let i = 2; i < positions.length; i += 3) positions[i] += zShift * km; return positions; };
+  /**
+   * WHAT IS DRAWN IS A STAND-IN; WHAT IS TESTED IS THE SURFACE. A variable
+   * TIN puts most of its 95,000 triangles inside a buffer a kilometre wide,
+   * and the studio drew it three times over (rock top, skin, air floor) --
+   * 286,000 triangles, DoubleSide, on a machine that may be rendering in
+   * software. The inside-tests read the real TIN; the display reads it
+   * resampled onto a 129 x 129 grid: 33,000 triangles a copy, and the relief
+   * at 16 km still reads.
+   */
+  const display = surface.triangles > 40000 ? gridAsTin(tinToGrid(surface, { nx: 129, ny: 129 })) : surface;
   const heightKm = (x, y) => {
     const h = tinHeightAt(surface, x / km, y / km);
     return h === null ? null : (h + zShift) * km;
@@ -2551,8 +2573,8 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
     // ground the skin already shows and drawing it again cost 95,000
     // triangles for nothing.
     const positions = below
-      ? lifted(shellPositions(surface, { belowM: extentM }, km))
-      : lifted(shellPositions(surface, { aboveM: extentM }, km, (f) => f.face !== "ground"));
+      ? lifted(shellPositions(display, { belowM: extentM }, km))
+      : lifted(shellPositions(display, { aboveM: extentM }, km, (f) => f.face !== "ground"));
     const id = state.solids.reduce((m, e) => Math.max(m, e.id), 0) + 1;
     const entry = {
       id, kind: "gis_terrain", op: "union", enabled: true,
@@ -2581,7 +2603,7 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
   if (gisTerrain.aboveM > 0) make("atmosphere", gisTerrain.aboveM);
   // The surface STL, as itself: not a solid (it has no inside), a skin drawn a
   // hair above the interface so it wins the depth fight with the rock's top.
-  gisTerrain.skin = displayMesh(lifted(surfacePositions(surface, km)), `${name}_surface`, 0x6fbf73, { renderOrder: 1 });
+  gisTerrain.skin = displayMesh(lifted(surfacePositions(display, km)), `${name}_surface`, 0x6fbf73, { renderOrder: 1 });
   gisTerrain.skin.material.polygonOffset = true;
   gisTerrain.skin.material.polygonOffsetFactor = -2;
   gisTerrain.skin.material.polygonOffsetUnits = -2;
@@ -2596,7 +2618,7 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
   if (hi && !(Number(hi.value) >= coarse / 2)) hi.value = String(coarse * 2);
   log(`GIS terrain "${name}": ${surface.nodes.toLocaleString()} nodes, ${surface.triangles.toLocaleString()} triangles,`
     + ` spacing ${Math.round(surface.spacingMinM)}–${Math.round(surface.spacingMaxM)} m; 1 unit = 1 m, mesh cells set to ${coarse}–${coarse * 2} m.`
-    + ` Brown is the rock, green the surface STL, translucent blue the air.`
+    + ` Brown is the rock, green the surface STL, translucent blue the air${display !== surface ? ` (drawn from a ${display.triangles.toLocaleString()}-triangle stand-in; the volumes test the full surface)` : ""}.`
     + ` z is metres above sea level; the base is at ${Math.round(baseZ)} m and the camera may orbit under the ground to see it.`
     + ` Subsurface ${gisTerrain.belowM} m below the lowest ground${gisTerrain.aboveM > 0 ? `, atmosphere ${gisTerrain.aboveM} m above the highest` : ""}.`
     + `${points?.length ? ` ${points.length} embedded point(s) carried.` : ""}`);

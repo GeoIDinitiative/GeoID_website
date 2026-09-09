@@ -17,8 +17,8 @@
  * checked in Node against a plane (which a TIN must reproduce exactly) and
  * against the closed-surface invariant (no open edges).
  */
-import { delaunay } from "./interpolation.js?v=20260909-962490b";
-import { makeLocalFrame, triangleWriter, sizeField } from "./model-build.js?v=20260909-962490b";
+import { delaunay } from "./interpolation.js?v=20260909-8650392";
+import { makeLocalFrame, triangleWriter, sizeField } from "./model-build.js?v=20260909-8650392";
 
 /* ── The spacing function ────────────────────────────────────────────────── */
 
@@ -572,8 +572,18 @@ export function tinToGrid(tin, { nx = 96, ny = 96 } = {}) {
       z[j * nx + i] = Number.isFinite(v) ? v : mean;
     }
   }
+  // Enough of a grid for `gridAsTin` to read it back as a surface: a coarse
+  // stand-in for DISPLAY, where the studio draws a 95,000-triangle TIN three
+  // times over and a software renderer pays for every one.
+  const lats = new Float64Array(ny);
+  const lons = new Float64Array(nx);
+  if (tin.frame) {
+    for (let j = 0; j < ny; j += 1) lats[j] = tin.frame.fromLocal(0, ys[j]).lat;
+    for (let i = 0; i < nx; i += 1) lons[i] = tin.frame.fromLocal(xs[i], 0).lon;
+  }
   return {
-    ok: true, nx, ny, xs, ys, z, zMin: tin.zMin, zMax: tin.zMax,
+    ok: true, nx, ny, xs, ys, z, lats, lons, zMin: tin.zMin, zMax: tin.zMax, reliefM: tin.zMax - tin.zMin,
+    frame: tin.frame, origin: tin.origin, bounds: tin.bounds, widthM: tin.widthM, heightM: tin.heightM,
     stepM: Math.max(tin.widthM / (nx - 1), tin.heightM / (ny - 1)),
     stepXm: tin.widthM / (nx - 1), stepYm: tin.heightM / (ny - 1),
   };
