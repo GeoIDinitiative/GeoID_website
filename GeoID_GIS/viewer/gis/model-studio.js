@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-98d5a4e";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-98d5a4e";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-e384d95";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-e384d95";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260909-98d5a4e";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-98d5a4e";
-import { downloadText } from "./extraction.js?v=20260909-98d5a4e";
-import { shellPositions, tinHeightAt } from "./surface-sampling.js?v=20260909-98d5a4e";
+} from "./mesh-volume.js?v=20260909-e384d95";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-e384d95";
+import { downloadText } from "./extraction.js?v=20260909-e384d95";
+import { shellPositions, tinHeightAt } from "./surface-sampling.js?v=20260909-e384d95";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -2348,10 +2348,17 @@ function setStudioOrigin(lat, lon, elevation = studioOrigin.elevation) {
  * heightfield, which is what the studio's mesher and booleans work on, and a
  * displayed shell built from the SAME facets the STL was written with.
  *
- * 1 unit = 1 km here: the studio's presets are ten units wide, and a 16 km
- * study in metres would be sixteen thousand units. The depth and height are
- * the extend-boundary decision (etna.py's outer_box), and the card this adds
- * lets them be changed on this page without going back to the GIS.
+ * 1 UNIT = 1 METRE, because that is the studio's own scale: its ground is the
+ * planet's surface to scale (`getGroundInfo().metresPerUnit` is 1), so a
+ * terrain handed over in kilometres sat as a sixteen-METRE model on a
+ * planet-sized ground -- measured, the scale bar read 2,000 km across the
+ * grid. The display normalises the whole model to the studio radius anyway,
+ * so only the ground and the mesher's cell size care, and both want metres.
+ * The mesher's size fields are set from the surface's own coarse spacing on
+ * adoption, since the presets' 0.5-1 would be half-metre cells over a
+ * sixteen-kilometre box. The depth and height are the extend-boundary
+ * decision (etna.py's outer_box), and the card this adds lets them be
+ * changed on this page without going back to the GIS.
  */
 let gisTerrain = null;
 
@@ -2362,9 +2369,12 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
   }
   gisTerrain = { name, surface, belowM: Number(belowM) || 0, aboveM: Number(aboveM) || 0, entries: [], points };
   if (origin && Number.isFinite(origin.lat)) {
-    adoptStudyArea({ lat: origin.lat, lon: origin.lon, radiusM: Math.max(surface.widthM, surface.heightM) / 2, terrain: false });
+    // The reference ground is SEA LEVEL (elevation 0): the solid carries the
+    // real heights, so a ground drawn at the origin's own height would slice
+    // the model at a plane that means nothing.
+    adoptStudyArea({ lat: origin.lat, lon: origin.lon, elevation: 0, radiusM: Math.max(surface.widthM, surface.heightM) / 2, terrain: false });
   }
-  const km = 0.001;
+  const km = 1;
   const heightKm = (x, y) => {
     const h = tinHeightAt(surface, x / km, y / km);
     return h === null ? null : h * km;
@@ -2399,8 +2409,15 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
   if (gisTerrain.aboveM > 0) make("atmosphere", gisTerrain.aboveM);
   renderModelTree();
   status(`${state.solids.length} entities`);
+  // Cells the size of the surface's coarse spacing: the mesher's own default
+  // (0.5 to 1) is half a metre here.
+  const lo = byId("studio-size-lo");
+  const hi = byId("studio-size-hi");
+  const coarse = Math.max(1, Math.round(surface.spacingMaxM || 100));
+  if (lo && !(Number(lo.value) >= coarse / 4)) lo.value = String(coarse);
+  if (hi && !(Number(hi.value) >= coarse / 2)) hi.value = String(coarse * 2);
   log(`GIS terrain "${name}": ${surface.nodes.toLocaleString()} nodes, ${surface.triangles.toLocaleString()} triangles,`
-    + ` spacing ${Math.round(surface.spacingMinM)}–${Math.round(surface.spacingMaxM)} m; 1 unit = 1 km.`
+    + ` spacing ${Math.round(surface.spacingMinM)}–${Math.round(surface.spacingMaxM)} m; 1 unit = 1 m, mesh cells set to ${coarse}–${coarse * 2} m.`
     + ` Subsurface ${gisTerrain.belowM} m below the lowest ground${gisTerrain.aboveM > 0 ? `, atmosphere ${gisTerrain.aboveM} m above the highest` : ""}.`
     + `${points?.length ? ` ${points.length} embedded point(s) carried.` : ""}`);
   ensureTerrainCard();
@@ -2457,7 +2474,7 @@ function ensureTerrainCard() {
   card.appendChild(button);
   const note = document.createElement("div");
   note.className = "studio-row";
-  note.textContent = "The rim's corners carried down to a base and up to a sky — etna.py's outer_box. 1 unit = 1 km.";
+  note.textContent = "The rim's corners carried down to a base and up to a sky — etna.py's outer_box. 1 unit = 1 m; the reference ground is sea level.";
   card.appendChild(note);
 }
 

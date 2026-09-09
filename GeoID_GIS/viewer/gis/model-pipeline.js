@@ -2,13 +2,13 @@ import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
   nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS, atmosphereStl, DEFAULT_MAX_NODES,
-} from "./model-build.js?v=20260909-98d5a4e";
-import { ringsFromCollection } from "./extraction.js?v=20260909-98d5a4e";
+} from "./model-build.js?v=20260909-e384d95";
+import { ringsFromCollection } from "./extraction.js?v=20260909-e384d95";
 import {
   buildTin, tinHeightAt, tinSurfaceStl, tinShellStl, samplingSizeField,
   extendBoundary, extendedBoundaryLines, gridAsTin,
-} from "./surface-sampling.js?v=20260909-98d5a4e";
-import { renderFeatureCollection } from "./vector-render.js?v=20260909-98d5a4e";
+} from "./surface-sampling.js?v=20260909-e384d95";
+import { renderFeatureCollection } from "./vector-render.js?v=20260909-e384d95";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -1629,7 +1629,7 @@ function stepBuild(body) {
   if (state.surface) {
     const studio = el("button", "button secondary", "Open in the Meshing Studio");
     studio.type = "button";
-    studio.title = "Hand the surface to the model page as a terrain solid: the subsurface and the atmosphere as volumes, 1 unit = 1 km.";
+    studio.title = "Hand the surface to the model page as a terrain solid: the subsurface and the atmosphere as volumes, in metres.";
     studio.addEventListener("click", () => { void openInStudio(); });
     body.appendChild(studio);
   }
