@@ -16430,3 +16430,34 @@ filter the vendor's own no-op writes (`OrbitControls.update` copies the
 position back onto itself every frame), and arm the trap only after the
 state you are defending has landed** — the first trap filled its cap with
 those no-ops and named nothing.
+
+### "Still very very laggy" — the lag was the pane, and the numbers that proved it
+
+Measured in three places before believing any of them:
+
+- **The desktop app's browser pane delivers frames in bursts about once a
+  second for ANY page.** A plain text file (`shell.css`) in the pane: 2.3 fps,
+  gaps of 5 s. The GIS globe: 3.6 fps. The studio with a box: 3.7 fps. A
+  real mouse drag on the canvas during a 9 s recording: 3–4 frames per second
+  throughout, in bursts. The user's screenshots are of this pane (the chat
+  is visible beside them), so what they see as the model page lagging is the
+  pane's frame delivery — and it cannot show any WebGL page smoothly.
+- **The user's real Chrome** (`claude-in-chrome`, same machine, Intel Xe,
+  1920 × 811): the GIS scene renders in **8.1 ms**; the studio with the
+  adopted terrain, once its shaders are compiled, in **5.3 ms** (4 draw
+  calls, 70,144 triangles), with `controls.update` at 0.35 ms. That is a
+  60 fps scene. The first frames after adoption cost 37.5 ms — shader
+  compilation and the first upload, not steady state, and a trap for anyone
+  timing the first render.
+- The translucent atmosphere shell is ~3.8 ms of the 5.3 (DoubleSide
+  transparent over most of the screen); the skin ~1.7. Worth halving with
+  front-face winding if it ever matters; it does not today.
+
+**Three traps in measuring it.** `requestAnimationFrame` never fires in a
+hidden tab (`document.hidden` true — the extension's tab sat behind the
+app), so any probe that awaits a frame times out and reads as "the renderer
+is frozen". A page can be driven on timers instead, but only for loops that
+schedule THROUGH the patched `requestAnimationFrame`; a loop already waiting
+on the original one stays waiting. And the Model Builder's own build step
+runs inside `requestAnimationFrame`, so in a hidden tab it never builds
+unless the seam is patched first.
