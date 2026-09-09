@@ -15,10 +15,10 @@
  * their keys — one dataset draws one thing.
  */
 
-import { dataUrl } from "./data-base.js?v=20260909-d6a403c";
-import { rampColour } from "./symbology.js?v=20260909-d6a403c";
-import { startPlayer } from "./timelapse-player.js?v=20260909-d6a403c";
-import { riskEdges, RISK_LABELS, classOf, FRAME_VEIS, BANDS, RECORDS, riskLayer, NONE_COLOUR, NONE_LABEL } from "./volcanic-risk.js?v=20260909-d6a403c";
+import { dataUrl } from "./data-base.js?v=20260909-acfa6ee";
+import { rampColour } from "./symbology.js?v=20260909-acfa6ee";
+import { startPlayer } from "./timelapse-player.js?v=20260909-acfa6ee";
+import { riskEdges, RISK_LABELS, classOf, FRAME_VEIS, BANDS, RECORDS, riskLayer, NONE_COLOUR, NONE_LABEL } from "./volcanic-risk.js?v=20260909-acfa6ee";
 
 const search = new URL(import.meta.url).search;
 let running = false;

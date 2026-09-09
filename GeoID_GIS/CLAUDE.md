@@ -15979,3 +15979,34 @@ otherwise read the number as wrong.
 under the windowed row in the previous session were a stale holocene layer
 restored from the open project, armed with its own bar. Remove stale layers
 before measuring.
+
+### "Why are there grey areas (VEI 3)? Ensure the total map has no gaps"
+
+Two faults, and a third found while fixing them.
+
+- **The grey was ROUNDING.** A far tail at 3e-8 a year rounded to six
+  decimals is 0.000000 — no class, so the app's not-measured grey. Rates and
+  chances are written to four SIGNIFICANT figures now; a figure a cell was
+  drawn for must survive into the file. Measured on the VEI 3 frame after:
+  10,820 cells in the bottom class that had been grey, and 0 grey vertices.
+- **A cell nothing reaches is DRAWN, as a class.** Left out, ocean and far
+  interiors showed basemap through a hazard map, which reads as a gap. The
+  cyclone map's own rule: "no eruption's ash on record" leads every key with
+  its count, in its own slate (`NONE_COLOUR`, never the app's grey, which
+  means not measured). The collective is painted by the same `framePaint`
+  as the frames once the bar opens and keeps it after; the card titles such
+  a cell "No eruption's ash on record here". Every file, VEI 8's blank globe
+  included, now sums to exactly 1.0000 of the lat/lon plane.
+- **And the grid ran past the south pole.** 180 is not a multiple of the 8°
+  coarsest block, so the last row of blocks reached −94°: the cells summed
+  to 1.022 of the plane, and the cyclone bake shares the block size (check
+  it). Clipping the block to the lattice with ONE size for both axes then
+  halved the last row's columns (0.9889): rows and columns are clipped
+  separately. **A coverage sum is the test for a tiling — 1.022 and 0.9889
+  each named their own bug.** Empty blocks are also flat whatever their
+  largest-VEI class now, which took the VEI 8 file from 9,822 cells to 1,035.
+
+Verified live (stamp d6a403c): the windowed collective 13,257 cells,
+coverage 1.0000, none row leading with 4,428; the VEI 3 frame 30,342 cells,
+coverage 1.0000, 0 grey vertices, counts `[15130, 10837, 308, …]` summing to
+the cells.
