@@ -15836,3 +15836,55 @@ VEI 5 17,184 · VEI 7 5,109 of 1,036,800), ten readings on the symbology row,
 opacity 0.7, and a click on Catania reading "VEI 5 · 1 in 17,498 years ·
 0.0057% a year / any 1 in 4.2 years / VEI 3 1 in 23 / VEI 2 1 in 9.5 / VEI 1
 1 in 11 / 21 volcanoes within reach".
+
+### Gridded again: one map per VEI, played through the bar
+
+"Gridded was better. I meant maybe we need 5 different maps to map risk by
+each VEI — compiled into one animation like the hurricane animations, by
+instead of date we go through VEI 1–5 and a collective." That is the shape,
+and it is the cyclone tracks' arrangement exactly: `volcanic-risk-frames.js`
+is a third driver for the one player, with the VEI in place of the date and
+the COLLECTIVE (the catalogue layer itself) as the terminal frame the bar
+parks on when the layer is ticked. The raster is gone — the grid coarsens
+where a band is flat, and a VEI 5 map is flat over almost all of its extent.
+
+The bake writes six quadtrees per record — `vei1`…`vei5` and `any` — each
+over ONE band alone, so the frames are 2–9 MB and the collective 14–16 MB;
+frames are fetched when the bar first reaches them, drawn once and kept,
+and the frame before goes in its wake. The collective carries every band's
+rate on each cell, so a click on it lists every size at the point; a frame's
+cell is titled for its band, which `bandOf` reads off the plot by feature
+identity. Kept from the earlier rounds: one 100 km kernel for every eruption
+(size is which map a cell is on, not how far it reaches), per-VEI windows and
+the full-record twin, every catalogue volcano with a stated floor prior,
+uncertain eruptions at half weight.
+
+**A frame's key is built FROM THE SCALE, never from the frame.**
+`buildSymbology` drops the classes outside a file's own range, and a VEI 5
+map lives entirely below one in a thousand years — its key would have opened
+on "rarer than 1 in 100,000" for a row that was really the fourth class, with
+the labels assigned by index. Caught by the test before the browser:
+`framePaint` classes with `classOf` over the fixed edges, so every frame
+carries all eight classes with counts and a colour means one thing in every
+frame. Measured: VEI 5 counts `[0, 1685, 4908, 1759, 66, 0, 0, 0]`, VEI 3
+`[608, 86, 3066, 2558, 1298, 2481, 1675, 103]`, both on the same key.
+
+**A bar writes its note when the frame is SHOWN, and a frame fetched on
+demand has no count yet.** "VEI 5 · … cells" stayed on the bar after the
+frame landed; the count is now written back into the note the bar is still
+showing. And a hidden layer keeps its card, so the collective's key had to
+be withheld while a frame is up — the risk raster's own lesson, met again.
+
+**A patch script's anchor must be unique, and a failed assert leaves the
+earlier patches applied.** `import {` matched five times in global-data.js;
+the script died there with the catalogue rows already removed and the
+entries already added, so the second run had to skip what the first had
+done. Anchor on a whole line.
+
+Verified live on 8125 (stamp 5b7fb53): tick → the collective from the bucket
+in 4.0 s, 42,431 cells at 0.6 with an eight-class key summing to 42,431, bar
+parked on All; three presses of the step-back button fetch `vei5`, `vei4`,
+`vei3` from the bucket (8,418 / 11,560 / 26,428 cells), the plot visible and
+the collective hidden at each, each key labelled for its VEI; a click on
+Sicily on the VEI 3 frame reads "VEI 3 · 1 in 22 years · 4.5% a year · VEI 7
+on record · 45 volcanoes within reach".

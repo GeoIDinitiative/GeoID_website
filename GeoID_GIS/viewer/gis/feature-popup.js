@@ -20,21 +20,21 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260909-5b7fb53";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260909-5b7fb53";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260909-c0cc7ea";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260909-c0cc7ea";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20260909-5b7fb53";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260909-5b7fb53";
-import { lithologyLabel } from "./lithology-label.js?v=20260909-5b7fb53";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260909-5b7fb53";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260909-5b7fb53";
-import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260909-5b7fb53";
-import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20260909-5b7fb53";
-import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260909-5b7fb53";
+} from "./vector-render.js?v=20260909-c0cc7ea";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260909-c0cc7ea";
+import { lithologyLabel } from "./lithology-label.js?v=20260909-c0cc7ea";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260909-c0cc7ea";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260909-c0cc7ea";
+import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260909-c0cc7ea";
+import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20260909-c0cc7ea";
+import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260909-c0cc7ea";
 import {
   canEditRow, editableFields, applyRowChange,
-} from "./table-editor.js?v=20260909-5b7fb53";
+} from "./table-editor.js?v=20260909-c0cc7ea";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital

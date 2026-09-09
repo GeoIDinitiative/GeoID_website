@@ -80,6 +80,11 @@ for (const id of Object.keys(RECORDS)) {
   check(`${id} says one grid per VEI`, /one-grid-per-VEI|ONE GRID PER VEI/.test(m.note), true);
 }
 
+const frames = readFileSync(new URL("./volcanic-risk-frames.js", import.meta.url), "utf8");
+check("the collective's key is withheld while a frame is up", /layer\.legendHidden = !whole;/.test(frames), true);
+check("and given back when the bar closes", /back\.legendHidden = false;/.test(frames), true);
+check("a frame's count is written back into the note once fetched", /note\.textContent = noteFor\(epochs\[index\]\)/.test(frames), true);
+
 process.on("exit", () => {
   failures.forEach((f) => console.error(`  x ${f}`));
   console.log(`volcanic-risk: ${pass} passed, ${failures.length} failed`);

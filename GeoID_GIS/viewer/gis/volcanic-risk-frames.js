@@ -14,10 +14,10 @@
  * their keys — one dataset draws one thing.
  */
 
-import { dataUrl } from "./data-base.js?v=20260909-5b7fb53";
-import { rampColour } from "./symbology.js?v=20260909-5b7fb53";
-import { startPlayer } from "./timelapse-player.js?v=20260909-5b7fb53";
-import { riskEdges, RISK_LABELS, classOf, FRAME_VEIS, BANDS, RECORDS, riskLayer } from "./volcanic-risk.js?v=20260909-5b7fb53";
+import { dataUrl } from "./data-base.js?v=20260909-c0cc7ea";
+import { rampColour } from "./symbology.js?v=20260909-c0cc7ea";
+import { startPlayer } from "./timelapse-player.js?v=20260909-c0cc7ea";
+import { riskEdges, RISK_LABELS, classOf, FRAME_VEIS, BANDS, RECORDS, riskLayer } from "./volcanic-risk.js?v=20260909-c0cc7ea";
 
 const search = new URL(import.meta.url).search;
 let running = false;
@@ -159,6 +159,9 @@ async function build(id, startAt) {
       const whole = index === ALL;
       const plot = held();
       if (plot) plot.legendHidden = whole;
+      // ONE DATASET, ONE KEY: a hidden layer keeps its card, so the
+      // collective's key is withheld while a frame is up and restored on All.
+      layer.legendHidden = !whole;
       window.GeoIDLayerHierarchy?.setVisible?.(layer, whole ? wasVisible : false);
       built.forEach((b) => { b.node.visible = false; });
       if (whole) {
@@ -188,6 +191,10 @@ async function build(id, startAt) {
         now.legendHidden = false;
       }
       say(`VEI ${epochs[index].vei}: ${frame.features.length.toLocaleString()} cells`);
+      // The bar wrote its note before the frame was fetched, so the count
+      // it now knows is written back into the note it is still showing.
+      const note = document.querySelector("#geoid-timelapse .tl-note");
+      if (note) { note.textContent = noteFor(epochs[index]); note.title = noteTitle(epochs[index]); }
       window.GeoIDLayerHierarchy?.render?.();
       window.dispatchEvent(new CustomEvent("geoid-gis:layers-changed", { detail: { reason: "symbology" } }));
     },
@@ -197,7 +204,7 @@ async function build(id, startAt) {
       if (now) window.GeoIDImportManager?.removeLayer?.(now.id);
       group.traverse?.((n) => { n.geometry?.dispose?.(); n.material?.dispose?.(); });
       const back = riskLayer(id);
-      if (back) window.GeoIDLayerHierarchy?.setVisible?.(back, wasVisible);
+      if (back) { back.legendHidden = false; window.GeoIDLayerHierarchy?.setVisible?.(back, wasVisible); }
       say("");
     },
   });
