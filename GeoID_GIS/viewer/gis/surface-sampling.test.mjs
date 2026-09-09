@@ -184,6 +184,7 @@ check("the TIN builds", tin.ok, tin.message);
   check("the package writes the atmosphere shell and its own script", /tinShellStl\(grid, \{ aboveM/.test(pipeline) && /_atmosphere_gmsh\.py/.test(pipeline));
   check("every gmsh script carries the extend decision", /extend: \{\s*which: "subsurface"/.test(pipeline) && /which: "atmosphere"/.test(pipeline));
   check("placed points take the surface's interpolated height", /state\.customPoints\.forEach/.test(pipeline) && /groundAtLatLon\(p\.lat, p\.lon\)/.test(pipeline));
+  check("the builder's own previews are never its inputs", /const own = new Set\(Object\.values\(PREVIEW_NAMES\)\)/.test(pipeline) && /!own\.has\(layer\.name\)/.test(pipeline));
   check("the studio adopts the terrain as a solid and exposes it", /export function adoptTerrainSolid/.test(studio) && /adoptTerrainSolid, extendTerrain,/.test(studio));
   check("the studio's tree survives a kind it has no primitive for", !/PRIMITIVES\[entry\.kind\]\.label/.test(studio) && !/PRIMITIVES\[e\.kind\]\.label/.test(studio));
 }

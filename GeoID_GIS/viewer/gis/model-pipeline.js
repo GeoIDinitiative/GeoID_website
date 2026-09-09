@@ -2,13 +2,13 @@ import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
   nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS, atmosphereStl, DEFAULT_MAX_NODES,
-} from "./model-build.js?v=20260909-d64ef6c";
-import { ringsFromCollection } from "./extraction.js?v=20260909-d64ef6c";
+} from "./model-build.js?v=20260909-8a7d11d";
+import { ringsFromCollection } from "./extraction.js?v=20260909-8a7d11d";
 import {
   buildTin, tinHeightAt, tinSurfaceStl, tinShellStl, samplingSizeField,
   extendBoundary, extendedBoundaryLines, gridAsTin,
-} from "./surface-sampling.js?v=20260909-d64ef6c";
-import { renderFeatureCollection } from "./vector-render.js?v=20260909-d64ef6c";
+} from "./surface-sampling.js?v=20260909-8a7d11d";
+import { renderFeatureCollection } from "./vector-render.js?v=20260909-8a7d11d";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -112,8 +112,15 @@ function bodyRadiusKm() {
 }
 
 function loadedLayers() {
+  /**
+   * NEVER THE BUILDER'S OWN PREVIEWS. The embedded-points preview is a point
+   * layer, so it took the "points" role by default and fed itself back into
+   * the list it was drawn from -- measured, one placed point embedded three
+   * times, twice from its own picture. What this builder draws is not input.
+   */
+  const own = new Set(Object.values(PREVIEW_NAMES));
   return (window.GeoIDImportManager?.getLayers?.() || [])
-    .filter((layer) => layer.status === "loaded");
+    .filter((layer) => layer.status === "loaded" && !own.has(layer.name));
 }
 
 /**
