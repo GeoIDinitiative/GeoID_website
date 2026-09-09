@@ -15952,3 +15952,30 @@ collective (8,829 cells) parks the bar on All; eight step-backs fetch
 `vei8`…`vei1` from the bucket with the windowed bake's own counts (0 /
 35,366 / 27,906 / 27,891 / 14,686 / 15,212 / 5,467 / 300), each key
 "Ashfall ≥ 1 mm from VEI n eruptions — per year" on the shared classes.
+
+### "The occurrences at Etna are 1 in 1,000 years" — the denominator was the wrong record
+
+Two things behind it, and only one was a fault.
+
+**The fault: the full-record map divided every volcano by its own record
+span.** Etna's tephra record reaches back to 6190 BCE, so its four modern
+VEI 3 episodes over 8,000 years read "1 in 1,733 years" on a 2° cell — for a
+volcano that does it every twenty. A denominator is the record that supports
+it. The full-record map now decides per volcano AND size: where the modern
+completeness window holds eruptions of that size at that volcano, the window
+(complete for them) is used; only a volcano with none in the window falls
+back to its own span. So the full record can only ADD a dormant volcano's
+ancient eruptions and never dilute an active one's modern rate. Measured
+after: Etna summit any 1 in 10, VEI 3 1 in 19 on both records, and the full
+record still adds Etna's Holocene VEI 5 at 1 in 726.
+
+**Not a fault: an eruption in the catalogue is an EPISODE.** GVP files Etna
+1971–1993 as one eruption, so Etna is 22 eruptions since 1950 and the
+windowed collective at the summit reads 1 in 10 years — episodes per year,
+not paroxysms. The card says so now, because a reader who knows Etna will
+otherwise read the number as wrong.
+
+**Read the plot by its record, not "the first plot".** The holocene numbers
+under the windowed row in the previous session were a stale holocene layer
+restored from the open project, armed with its own bar. Remove stale layers
+before measuring.
