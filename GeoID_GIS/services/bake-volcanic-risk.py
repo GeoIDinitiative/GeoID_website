@@ -56,6 +56,18 @@ A quarter of the catalogue carries NO VEI (2,671 of 11,089). Those are
 overwhelmingly small historical events; they are counted as VEI 2, and the
 file says how many. "Uncertain" eruptions (1,173) are left out.
 
+TWO PRODUCTS, ONE PASS. `--mode windowed` (the default) is the above. `--mode
+holocene` writes volcanic-risk-holocene.geojson from THE FULL RECORD: every
+confirmed dated eruption, no completeness windows, each volcano's frequency
+taken over ITS OWN RECORD SPAN (first eruption to 2025) -- so Etna's two
+hundred eruptions since 1500 read as a rate over five centuries and a volcano
+known from one Holocene tephra reads as one in ten thousand years -- and the
+MAGNITUDE carried as a tephra-volume proxy per VEI, so a cell's
+`tephra_m3_yr` IS magnitude times frequency. What that trades: a volcano with
+a short written record is measured as if it began erupting when somebody
+started writing, which OVERSTATES it against one known from tephra alone; the
+windowed map exists because that bias is real. Both are stated on the file.
+
 Products: data/global/volcanic-risk.geojson -- the climatology, with `rate_yr`
 and `p_yr` for all eruptions and `rate_large_yr` / `p_large_yr` for VEI >= 4
 alone, plus `vents`, the number of distinct volcanoes whose reach covers the
@@ -73,8 +85,11 @@ import urllib.request
 
 import numpy as np
 
+import argparse
+
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 OUT_GRID = ROOT / "data" / "global" / "volcanic-risk.geojson"
+OUT_HOLOCENE = ROOT / "data" / "global" / "volcanic-risk-holocene.geojson"
 VOLCANOES = ROOT / "data" / "global" / "volcanoes.geojson"
 
 WFS = "https://webservices.volcano.si.edu/geoserver/GVP-VOTW/ows"
@@ -92,6 +107,10 @@ PLACES = 6
 
 REACH_KM = {0: 5.0, 1: 5.0, 2: 15.0, 3: 40.0, 4: 120.0, 5: 300.0, 6: 600.0, 7: 1000.0, 8: 1500.0}
 UNKNOWN_VEI_AS = 2
+# Geometric-mean tephra volume per VEI class, m3 (Newhall & Self 1982: VEI 2 is
+# 1e6-1e7 m3, each step a decade; VEI 0 under 1e4, VEI 1 1e4-1e6).
+TEPHRA_M3 = {0: 1e3, 1: 1e5, 2: 3e6, 3: 3e7, 4: 3e8, 5: 3e9, 6: 3e10, 7: 3e11, 8: 3e12}
+HOLOCENE_START = -9700
 LAST_COMPLETE = 2025
 WINDOWS = {"small": (1950, LAST_COMPLETE), "vei4": (1900, LAST_COMPLETE),
            "vei56": (1550, LAST_COMPLETE), "vei7": (-9700, LAST_COMPLETE)}
@@ -161,8 +180,10 @@ def stamp(lon, lat, radius_km):
     return row_part[r] + np.mod(c + col_off[r], NX)
 
 
-def main() -> int:
+def main(mode="windowed") -> int:
     began = time.time()
+    holocene = mode == "holocene"
+    out_path = OUT_HOLOCENE if holocene else OUT_GRID
     print("  fetching the eruption catalogue...")
     payload = fetch_eruptions()
     feats = payload["features"]
@@ -173,8 +194,19 @@ def main() -> int:
         for f in json.load(open(VOLCANOES))["features"]:
             volcano_names[str(f["properties"].get("gvp_number"))] = f["properties"].get("name")
 
+    # In holocene mode a volcano's window is its OWN record span.
+    first_year = {}
+    for f in feats:
+        p = f["properties"]
+        if p.get("Activity_Type") != "Confirmed Eruption" or p.get("StartDateYear") is None:
+            continue
+        vn = str(p.get("Volcano_Number"))
+        first_year[vn] = min(first_year.get(vn, 9999), int(p["StartDateYear"]))
+
     cells = NY * NX
     rate = np.zeros(cells, dtype=np.float64)
+    tephra = np.zeros(cells, dtype=np.float64)
+    vei_w = np.zeros(cells, dtype=np.float64)
     rate_large = np.zeros(cells, dtype=np.float64)
     vents = {}  # cell index -> {volcano number: [weight, vei_max, eruptions]} (kept sparse)
     vei_max = np.zeros(cells, dtype=np.int8)
@@ -198,10 +230,17 @@ def main() -> int:
         else:
             vei_used = int(vei)
         cls = size_class(vei)
-        lo, hi = WINDOWS[cls]
-        if year < lo or year > hi:
-            out_of_window += 1
-            continue
+        vn = str(p.get("Volcano_Number"))
+        if holocene:
+            lo, hi = max(HOLOCENE_START, first_year[vn]), LAST_COMPLETE
+            if year > hi:
+                out_of_window += 1
+                continue
+        else:
+            lo, hi = WINDOWS[cls]
+            if year < lo or year > hi:
+                out_of_window += 1
+                continue
         geom = f.get("geometry") or {}
         coords = geom.get("coordinates") or [None, None]
         lon, lat = coords[0], coords[1]
@@ -211,11 +250,12 @@ def main() -> int:
             continue
         weight = 1.0 / (hi - lo + 1)
         rate[hit] += weight
+        tephra[hit] += weight * TEPHRA_M3[min(vei_used, 8)]
+        vei_w[hit] += weight * vei_used
         if vei_used >= LARGE_VEI:
             rate_large[hit] += weight
         vei_max[hit] = np.maximum(vei_max[hit], vei_used)  # fancy-index out= writes a copy
         counted[cls] += 1
-        vn = str(p.get("Volcano_Number"))
         per_volcano[vn] = per_volcano.get(vn, 0) + 1
         for idx in hit.tolist():
             d = vents.get(idx)
@@ -235,6 +275,8 @@ def main() -> int:
               uncertain, undated, out_of_window, unknown_vei, UNKNOWN_VEI_AS))
     rate = rate.reshape(NY, NX)
     rate_large = rate_large.reshape(NY, NX)
+    tephra = tephra.reshape(NY, NX)
+    vei_w = vei_w.reshape(NY, NX)
     vent_count = np.zeros(cells, dtype=np.int32)
     for idx, d in vents.items():
         vent_count[idx] = len(d)
@@ -255,11 +297,20 @@ def main() -> int:
             return False
         return (hi - lo) <= lim
 
+    def flat_log(field, r0, c0, size, ratio=2.0):
+        """A log quantity is flat when max/min is under a ratio (empty-in-part is not)."""
+        block = field[r0:r0 + size, c0:c0 + size]
+        lo, hi = block.min(), block.max()
+        if lo == 0 and hi > 0:
+            return False
+        return hi <= ratio * lo
+
     def emit(r0, c0, size):
         # the largest eruption on record is a class, so a block holding two is not flat
         v = vei_max[r0:r0 + size, c0:c0 + size]
         if size > FINEST and not (flat(rate, r0, c0, size, limit)
                                   and flat(rate_large, r0, c0, size, limit_large)
+                                  and flat_log(tephra, r0, c0, size)
                                   and v.min() == v.max()):
             half = size // 2
             for dr in (0, half):
@@ -279,6 +330,8 @@ def main() -> int:
         if mean <= 0:
             continue
         large = float(rate_large[r0:r0 + size, c0:c0 + size].mean())
+        teph = float(tephra[r0:r0 + size, c0:c0 + size].mean())
+        vmean = float(vei_w[r0:r0 + size, c0:c0 + size].sum() / max(rate[r0:r0 + size, c0:c0 + size].sum(), 1e-30))
         vmax = int(vent_count[r0:r0 + size, c0:c0 + size].max())
         block = rate[r0:r0 + size, c0:c0 + size]
         rr, cc = np.unravel_index(int(block.argmax()), block.shape)
@@ -299,6 +352,9 @@ def main() -> int:
                 "p_large_yr": round(1.0 - math.exp(-large), PLACES),
                 "years_per": round(1.0 / mean, 1),
                 "vei_max": int(vei_max[r0:r0 + size, c0:c0 + size].max()),
+                "vei_mean": round(vmean, 2),
+                # magnitude x frequency: tephra volume reaching the point per year
+                "tephra_m3_yr": float("{:.3g}".format(teph)),
                 "vents": vmax,
                 "top_volcano": volcano_names.get(tv[0], tv[0]) if tv else None,
                 "top_gvp": int(tv[0]) if tv and tv[0].isdigit() else None,
@@ -316,6 +372,11 @@ def main() -> int:
     grid = {
         "type": "FeatureCollection",
         "_source": {
+            "mode": mode,
+            "windows_note": ("every volcano's frequency over ITS OWN record span, first "
+                             "eruption to {}; no completeness windows".format(LAST_COMPLETE)
+                             if holocene else "per-VEI completeness windows"),
+            "tephra_m3_by_vei": TEPHRA_M3,
             "dataset": "Smithsonian Global Volcanism Program, Volcanoes of the World "
                        "(Holocene eruption catalogue)",
             "publisher": "Smithsonian Institution",
@@ -346,18 +407,18 @@ def main() -> int:
         },
         "features": features,
     }
-    OUT_GRID.parent.mkdir(parents=True, exist_ok=True)
-    OUT_GRID.write_text(json.dumps(grid, separators=(",", ":")))
-    print("  wrote {:,} cells, {:.1f} MB -> {}".format(len(features), OUT_GRID.stat().st_size / 1e6,
-                                                    OUT_GRID.relative_to(ROOT)))
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(grid, separators=(",", ":")))
+    print("  wrote {:,} cells, {:.1f} MB -> {}".format(len(features), out_path.stat().st_size / 1e6,
+                                                    out_path.relative_to(ROOT)))
 
     # -- places anybody can check ----------------------------------------
     def at(lat, lon):
         r = int((90.0 - lat) / STEP)
         c = int(((lon + 180.0) / STEP) % NX)
         v = rate[r, c]
-        return "{:.4f}/yr (1 in {:,} y), large {:.5f}/yr, VEI max {}, {} vents".format(
-            v, int(round(1 / v)) if v > 0 else 0, rate_large[r, c], vei_max[r, c], vent_count[r, c])
+        return "{:.4f}/yr (1 in {:,} y), large {:.5f}/yr, VEI max {}, {:.3g} m3/yr, {} vents".format(
+            v, int(round(1 / v)) if v > 0 else 0, rate_large[r, c], vei_max[r, c], tephra[r, c], vent_count[r, c])
     for name, lat, lon in [("Naples", 40.85, 14.27), ("Catania", 37.5, 15.09), ("Tokyo", 35.68, 139.69),
                            ("Yogyakarta", -7.8, 110.37), ("Reykjavik", 64.13, -21.9), ("Manila", 14.6, 120.98),
                            ("Quito", -0.18, -78.47), ("Seattle", 47.6, -122.33), ("Paris", 48.86, 2.35),
@@ -368,4 +429,6 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    ap = argparse.ArgumentParser(description="volcanic risk: windowed (default) or the full Holocene record")
+    ap.add_argument("--mode", choices=("windowed", "holocene"), default="windowed")
+    sys.exit(main(ap.parse_args().mode))

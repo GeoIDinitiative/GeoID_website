@@ -22,7 +22,7 @@
  * and triangulated for columns already in memory.
  */
 
-import { buildSymbology, colourOf, legendInfoFrom } from "./symbology.js?v=20260909-fbc0103";
+import { buildSymbology, colourOf, legendInfoFrom } from "./symbology.js?v=20260909-0df0bcc";
 
 /**
  * THE CLASSES ARE RETURN PERIODS, not quantiles of this file -- the cyclone
@@ -68,7 +68,30 @@ export const VEI_COLOURS = {
   5: "d63b1f", 6: "9e1a2b", 7: "5c0b3c", 8: "23041f",
 };
 
+/**
+ * MAGNITUDE x FREQUENCY, as tephra per year reaching the point: each eruption's
+ * VEI mapped to a tephra volume (a decade per VEI step, Newhall & Self) and
+ * summed at its rate. Cut on orders of magnitude, because that is the scale
+ * the quantity lives on.
+ */
+export const TEPHRA_EDGES = [1e4, 1e5, 1e6, 1e7, 1e8];
+export const TEPHRA_LABELS = [
+  "under 10,000 m³ a year",
+  "10,000 – 100,000 m³ a year",
+  "100,000 – 1 million m³ a year",
+  "1 – 10 million m³ a year",
+  "10 – 100 million m³ a year",
+  "over 100 million m³ a year",
+];
+
 export const VIEWS = {
+  tephra: {
+    field: "tephra_m3_yr",
+    label: "Magnitude × frequency — tephra reaching here, m³ a year",
+    noneLabel: "no eruption's tephra on record",
+    edges: TEPHRA_EDGES,
+    labels: TEPHRA_LABELS,
+  },
   ashfall: {
     field: "p_yr",
     rate: "rate_yr",
@@ -101,9 +124,10 @@ export function frequencyPaint(features, { view = "ashfall" } = {}) {
   const values = features
     .map((f) => Number(f?.properties?.[field]))
     .filter((n) => Number.isFinite(n) && n > 0);
-  const sym = buildSymbology(values, { edges: riskEdges(), ramp: "risk" });
+  const sym = buildSymbology(values, { edges: spec.edges || riskEdges(), ramp: "risk" });
   if (!sym.ok) return null;
-  sym.rows.forEach((row, i) => { if (RISK_LABELS[i]) row.label = RISK_LABELS[i]; });
+  const labels = spec.labels || RISK_LABELS;
+  sym.rows.forEach((row, i) => { if (labels[i]) row.label = labels[i]; });
   const colourFor = (feature) => {
     const n = Number(feature?.properties?.[field]);
     return Number.isFinite(n) && n > 0 ? colourOf(n, sym) : null;
@@ -160,9 +184,20 @@ export function paintFor(features, view) {
 
 /* ── driving the layer on the globe ─────────────────────────────────────── */
 
-export function riskLayer(layers) {
+/**
+ * TWO LAYERS, ONE MODULE. The windowed map and the full-record map are two
+ * files from one bake, and each is found by its dataset's own name so that a
+ * view set on one cannot repaint the other.
+ */
+export const LAYER_NAMES = {
+  "volcanic-risk": /volcanic risk \(Smithsonian GVP eruption record\)/i,
+  "volcanic-risk-holocene": /volcanic risk \(full Holocene record/i,
+};
+
+export function riskLayer(layers, id = "volcanic-risk") {
   const held = layers || window.GeoIDImportManager?.getLayers?.() || [];
-  return held.find((l) => l.name && /volcanic risk/i.test(l.name)) || null;
+  const pattern = LAYER_NAMES[id] || LAYER_NAMES["volcanic-risk"];
+  return held.find((l) => l.name && pattern.test(l.name)) || null;
 }
 
 function announce() {
@@ -173,8 +208,8 @@ function announce() {
 }
 
 /** Repaint the layer as one of its three readings, and re-key it. */
-export function setView(view = "ashfall", { layers = null } = {}) {
-  const layer = riskLayer(layers);
+export function setView(view = "ashfall", { layers = null, id = "volcanic-risk" } = {}) {
+  const layer = riskLayer(layers, id);
   if (!layer?.features?.length) return null;
   const wanted = VIEWS[view] ? view : "ashfall";
   const paint = paintFor(layer.features, wanted);
@@ -192,13 +227,24 @@ export function setView(view = "ashfall", { layers = null } = {}) {
 }
 
 /** Which reading the layer is showing, for a control that has to say so. */
-export function currentView(layers = null) {
-  return riskLayer(layers)?.volcanicView || "ashfall";
+export function currentView(layers = null, id = "volcanic-risk") {
+  return riskLayer(layers, id)?.volcanicView || (id === "volcanic-risk-holocene" ? "tephra" : "ashfall");
+}
+
+/** Which of the two grids a feature came from, for the card. */
+export function viewOf(props = {}) {
+  const held = window.GeoIDImportManager?.getLayers?.() || [];
+  const id = Object.keys(LAYER_NAMES).find((k) => {
+    const l = riskLayer(held, k);
+    return l?.features?.some?.((f) => f?.properties === props);
+  }) || "volcanic-risk";
+  return { id, view: currentView(held, id) };
 }
 
 if (typeof window !== "undefined") {
   window.GeoIDVolcanicRisk = {
     VIEWS, VEI_COLOURS, RETURN_PERIODS_YEARS, RISK_LABELS, riskEdges,
-    frequencyPaint, magnitudePaint, paintFor, riskLayer, setView, currentView,
+    frequencyPaint, magnitudePaint, paintFor, riskLayer, setView, currentView, viewOf,
+    LAYER_NAMES, TEPHRA_EDGES, TEPHRA_LABELS,
   };
 }

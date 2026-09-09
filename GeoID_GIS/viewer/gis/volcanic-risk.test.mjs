@@ -5,10 +5,10 @@
 import { readFileSync } from "node:fs";
 import {
   riskEdges, RISK_LABELS, RETURN_PERIODS_YEARS, VIEWS, VEI_COLOURS,
-  frequencyPaint, magnitudePaint, paintFor,
+  frequencyPaint, magnitudePaint, paintFor, riskLayer, LAYER_NAMES, TEPHRA_EDGES, TEPHRA_LABELS,
 } from "./volcanic-risk.js";
 import {
-  isVolcanicRiskFeature, volcanicRiskCard, returnPeriod, asPercent,
+  isVolcanicRiskFeature, volcanicRiskCard, returnPeriod, asPercent, asVolume,
 } from "./volcanic-risk-card.js";
 import { isRiskFeature } from "./cyclone-risk-card.js";
 import { DATASETS } from "./global-data.js";
@@ -92,6 +92,32 @@ check("the ⓘ prints the windows", /1550/.test(JSON.stringify(maths.terms)) && 
 check("and names the reach as schematic", /isotropic/.test(JSON.stringify(maths.terms)), true);
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 check("the page loads the module", /gis\/volcanic-risk\.js\?v=/.test(html), true);
+
+/* ── the full-record layer: its own file, its own views, the same module ─── */
+const full = DATASETS.find((d) => d.id === "volcanic-risk-holocene");
+check("the full-record map is its own entry in the same home", full?.home, "volcanic-hazards");
+check("opening on magnitude × frequency", full?.views?.options?.[0]?.id, "tephra");
+check("and its views are keyed by its own id", /volcanic-risk-holocene/.test(String(full?.views?.apply)), true);
+// Two layers, one module: each is found by its own name, so a view set on one
+// cannot repaint the other.
+const held = [{ name: "Volcanic risk (Smithsonian GVP eruption record)", features: [] },
+  { name: "Volcanic risk (full Holocene record, Smithsonian GVP)", features: [] }];
+check("the windowed layer is found by its name", riskLayer(held).name, held[0].name);
+check("and the full-record one by its own", riskLayer(held, "volcanic-risk-holocene").name, held[1].name);
+check("the two entries' layer names match the module's patterns",
+  [LAYER_NAMES["volcanic-risk"].test(entry.name.replace(/\.geojson$/, "")),
+    LAYER_NAMES["volcanic-risk-holocene"].test(full.name.replace(/\.geojson$/, ""))], [true, true]);
+check("tephra classes are orders of magnitude, one label more than edges",
+  [TEPHRA_EDGES.every((e, i) => i === 0 || e === TEPHRA_EDGES[i - 1] * 10), TEPHRA_LABELS.length], [true, TEPHRA_EDGES.length + 1]);
+const withTephra = cells.map((c) => ({ properties: { ...c.properties, tephra_m3_yr: [8.3e7, 6.3e6, 0][c.properties.i] } }));
+const tp = frequencyPaint(withTephra, { view: "tephra" });
+check("the tephra view cuts on its own edges and labels", tp.legend.labels, [VIEWS.tephra.noneLabel, ...TEPHRA_LABELS.filter((_, i) => tp.legend.labels.includes(TEPHRA_LABELS[i]))]);
+check("a cell with no tephra keeps no colour", tp.colourFor(withTephra[2]), null);
+const fullCard = volcanicRiskCard(withTephra[0].properties, { view: "tephra", full: true });
+check("the tephra card titles by volume", fullCard.title, "83 million m³ a year");
+check("and says which record it is", /full Holocene/.test(fullCard.kicker) && /9700 BCE/.test(fullCard.meta), true);
+check("volumes read in words", [asVolume(2.51e6), asVolume(9210), asVolume(0)], ["2.51 million m³ a year", "9,210 m³ a year", null]);
+check("the ⓘ states the record span rule", /own record span/i.test(JSON.stringify(mathsFor("volcanic-risk-holocene").terms)), true);
 
 process.on("exit", () => {
   failures.forEach((f) => console.error(`  x ${f}`));

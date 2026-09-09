@@ -44,8 +44,19 @@ export function asPercent(p) {
 
 const NEVER = "not once on record";
 
-export function volcanicRiskCard(props = {}, { view = "ashfall" } = {}) {
+/** "83 million m³ a year", at three figures. */
+export function asVolume(m3) {
+  const n = Number(m3);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  if (n >= 1e9) return `${(n / 1e9).toPrecision(3).replace(/\.?0+$/, "")} billion m³ a year`;
+  if (n >= 1e6) return `${(n / 1e6).toPrecision(3).replace(/\.?0+$/, "")} million m³ a year`;
+  return `${Math.round(n).toLocaleString()} m³ a year`;
+}
+
+export function volcanicRiskCard(props = {}, { view = "ashfall", full = false } = {}) {
   const large = view === "large";
+  const tephra = view === "tephra";
+  const volume = asVolume(props.tephra_m3_yr);
   const rate = Number(large ? props.rate_large_yr : props.rate_yr);
   const chance = Number(large ? props.p_large_yr : props.p_yr);
   const period = returnPeriod(rate);
@@ -53,18 +64,25 @@ export function volcanicRiskCard(props = {}, { view = "ashfall" } = {}) {
   const vei = Number(props.vei_max);
   const never = !(rate > 0);
 
-  const kicker = view === "magnitude" ? "Largest eruption reaching here"
-    : large ? "Volcanic risk — large eruptions" : "Volcanic ashfall risk";
+  const kicker = (view === "magnitude" ? "Largest eruption reaching here"
+    : tephra ? "Volcanic risk — magnitude × frequency"
+      : large ? "Volcanic risk — large eruptions" : "Volcanic ashfall risk")
+    + (full ? " (full Holocene record)" : "");
   const title = view === "magnitude"
     ? (Number.isFinite(vei) ? `VEI ${vei} on record` : "No eruption on record")
-    : never ? "Not once on record" : `${period}${pct ? ` · ${pct} a year` : ""}`;
+    : tephra ? (volume || "No tephra on record")
+      : never ? "Not once on record" : `${period}${pct ? ` · ${pct} a year` : ""}`;
 
   const rows = [];
+  if (volume && !tephra) rows.push(["Tephra reaching here", volume]);
   rows.push(["Ash from any eruption",
     returnPeriod(props.rate_yr) || NEVER]);
   rows.push(["From a large eruption (VEI 4+)",
     returnPeriod(props.rate_large_yr) || NEVER]);
   if (Number.isFinite(vei)) rows.push(["Largest on record reaching here", `VEI ${vei}`]);
+  if (Number.isFinite(Number(props.vei_mean)) && Number(props.vei_mean) > 0) {
+    rows.push(["Typical eruption reaching here", `VEI ${Number(props.vei_mean).toFixed(1)} (rate-weighted mean)`]);
+  }
   /**
    * WHO IS BEHIND IT. A rate at a point is the sum over every volcano whose
    * reach covers it; the one contributing most is the one a reader will look
@@ -89,20 +107,30 @@ export function volcanicRiskCard(props = {}, { view = "ashfall" } = {}) {
   return {
     kicker,
     title,
-    meta: "ash reaching this point, each eruption counted over the years its size is recorded",
+    meta: full
+      ? "every confirmed eruption back to 9700 BCE, each volcano's frequency over its own record span"
+      : "ash reaching this point, each eruption counted over the years its size is recorded",
     headline: rows,
-    note: "Confirmed, dated eruptions from the Smithsonian catalogue, each "
-      + "given a schematic, isotropic reach by VEI (5 km at VEI 0–1 to "
-      + "1,000 km at VEI 7) and counted over the window in which eruptions "
-      + "of its size are recorded: VEI ≤ 3 since 1950, VEI 4 since 1900, "
-      + "VEI 5–6 since 1550, VEI 7+ the whole Holocene. Ash falls in a "
-      + "wind-driven plume, not a circle; the circle is the fixed-radius "
-      + "stand-in. The chance is 1 − exp(−rate). A cell is a sampling point "
-      + "— its size is how finely the map is drawn there.",
+    note: (full
+      ? "Every confirmed, dated eruption in the Smithsonian Holocene catalogue, "
+        + "active or not, with no completeness windows: each volcano's rate is "
+        + "its eruptions over the span from its first recorded eruption to 2025. "
+        + "A volcano with a short written record is measured as if it began "
+        + "when somebody started writing, which overstates it against one known "
+        + "from tephra alone. Tephra is a decade per VEI step (VEI 2 ≈ 3 million "
+        + "m³), summed at each eruption's rate — magnitude × frequency. "
+      : "Confirmed, dated eruptions from the Smithsonian catalogue, counted "
+        + "over the window in which eruptions of their size are recorded: VEI "
+        + "≤ 3 since 1950, VEI 4 since 1900, VEI 5–6 since 1550, VEI 7+ the "
+        + "whole Holocene. ")
+      + "Each eruption is given a schematic, isotropic reach by VEI (5 km at "
+      + "VEI 0–1 to 1,000 km at VEI 7); ash falls in a wind-driven plume, not "
+      + "a circle. The chance is 1 − exp(−rate). A cell is a sampling point — "
+      + "its size is how finely the map is drawn there.",
     source: "Global Volcanism Program, Smithsonian Institution — Volcanoes of the World v5",
   };
 }
 
 if (typeof window !== "undefined") {
-  window.GeoIDVolcanicRiskCard = { isVolcanicRiskFeature, volcanicRiskCard, returnPeriod, asPercent };
+  window.GeoIDVolcanicRiskCard = { isVolcanicRiskFeature, volcanicRiskCard, returnPeriod, asPercent, asVolume };
 }

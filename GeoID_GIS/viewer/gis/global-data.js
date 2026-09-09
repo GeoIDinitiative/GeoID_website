@@ -26,15 +26,15 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260909-fbc0103";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260909-fbc0103";
-import { mathsFor } from "./equations.js?v=20260909-fbc0103";
+import { runConnector } from "./research/connectors.js?v=20260909-0df0bcc";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260909-0df0bcc";
+import { mathsFor } from "./equations.js?v=20260909-0df0bcc";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260909-fbc0103";
+} from "./cyclone-risk.js?v=20260909-0df0bcc";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260909-fbc0103";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260909-0df0bcc";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -401,6 +401,43 @@ export const DATASETS = [
       ],
       current: () => window.GeoIDVolcanicRisk?.currentView?.() || "ashfall",
       apply: (view) => window.GeoIDVolcanicRisk?.setView(view),
+    },
+  },
+  {
+    /**
+     * THE FULL RECORD, no windows: every confirmed eruption back to 9700 BCE,
+     * active or not, each volcano's frequency over ITS OWN record span and
+     * the magnitude carried as tephra volume, so the default reading is
+     * magnitude x frequency directly. The windowed map above corrects for
+     * the record being complete only where somebody was watching; this one
+     * deliberately does not, and says so on its card.
+     */
+    id: "volcanic-risk-holocene",
+    home: "volcanic-hazards",
+    featureNoun: "Volcanic risk cell",
+    group: "Hazards",
+    label: "Volcanic risk \u2014 magnitude \u00d7 frequency, full Holocene record (GVP)",
+    path: "/data/global/volcanic-risk-holocene.geojson",
+    name: "Volcanic risk (full Holocene record, Smithsonian GVP).geojson",
+    summary: "Every confirmed eruption in the Holocene catalogue back to 9700 "
+      + "BCE, active volcanoes and dormant alike, each reaching a radius set "
+      + "by its VEI and counted over its volcano's own record span. Tephra per "
+      + "year is magnitude \u00d7 frequency; 13,501 cells at a variable "
+      + "resolution, each also carrying the eruption rate, the large-eruption "
+      + "rate and the largest VEI on record",
+    licence: "Global Volcanism Program, Smithsonian Institution \u2014 CC BY 4.0; "
+      + "cite Volcanoes of the World v5.2 (2024)",
+    opacity: 0.6,
+    views: {
+      label: "Show",
+      options: [
+        { id: "tephra", label: "Magnitude \u00d7 frequency \u2014 tephra reaching here" },
+        { id: "ashfall", label: "Eruption frequency \u2014 any eruption's ash" },
+        { id: "large", label: "Frequency \u2014 large eruptions (VEI 4+)" },
+        { id: "magnitude", label: "Largest eruption on record reaching here" },
+      ],
+      current: () => window.GeoIDVolcanicRisk?.currentView?.(null, "volcanic-risk-holocene") || "tephra",
+      apply: (view) => window.GeoIDVolcanicRisk?.setView(view, { id: "volcanic-risk-holocene" }),
     },
   },
   {

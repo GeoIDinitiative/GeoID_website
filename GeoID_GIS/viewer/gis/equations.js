@@ -180,6 +180,52 @@ const EQUATIONS = {
       + "VEI: Newhall & Self (1982), J. Geophys. Res., 87, 1231–1238.",
   },
 
+  "volcanic-risk-holocene": {
+    kind: COMPUTED,
+    intro: "The volcanic risk map from THE FULL RECORD: every confirmed, dated "
+      + "eruption back to 9700 BCE, active or not, with no completeness "
+      + "windows. Each volcano's frequency is its eruptions over its own "
+      + "record span, and the magnitude is carried as tephra volume, so the "
+      + "default reading is magnitude × frequency directly.",
+    lines: [
+      { expr: "λ_v = N_v / (2025 − first_v + 1)",
+        note: "a volcano's rate: its confirmed eruptions over the span from "
+          + "its first recorded eruption to the last complete year" },
+      { expr: "λ(p) = Σ over eruptions e with d(p, vent(e)) ≤ R(VEI(e)) of 1 / span(v(e))",
+        note: "eruptions per year whose ash reaches the point p" },
+      { expr: "T(p) = Σ over the same eruptions of V(VEI(e)) / span(v(e))",
+        note: "tephra reaching p per year — MAGNITUDE × FREQUENCY, the map's "
+          + "default colouring" },
+      { expr: "P(p) = 1 − exp( −λ(p) )",
+        note: "the chance of at least one in a given year" },
+      { expr: "VEI_max(p), VEI_mean(p) = max and rate-weighted mean of VEI(e)",
+        note: "the largest on record, and the typical eruption reaching p" },
+    ],
+    terms: [
+      ["V(VEI)", "a tephra volume per VEI class, a decade per step: 1e3 m³ at "
+        + "VEI 0, 1e5 at 1, 3e6 at 2, 3e7 at 3, 3e8 at 4, 3e9 at 5, 3e10 at 6, "
+        + "3e11 at 7 — the geometric mean of each class's range (Newhall & "
+        + "Self 1982)."],
+      ["R(VEI)", "the same schematic, isotropic reach the windowed map uses: 5 "
+        + "km at VEI 0–1 to 1,000 km at VEI 7. Ash falls in a wind-driven "
+        + "plume; the circle is the fixed-radius stand-in."],
+      ["span(v)", "the volcano's OWN record span, not a completeness window. "
+        + "What that trades: a volcano with a short written record is measured "
+        + "as if it began erupting when somebody started writing, which "
+        + "overstates it against one known from tephra alone — the windowed "
+        + "map exists because that bias is real. Both are offered."],
+      ["eruptions", "Confirmed only, dated: 9,916 of 11,089 in GVP's Holocene "
+        + "list. Unknown VEI (a quarter of them) is counted as VEI 2."],
+    ],
+    note: "The same quarter-degree lattice and quadtree as the windowed map, "
+      + "gated on the rate, the large-eruption rate, the tephra rate (flat "
+      + "within a factor of two) and the largest VEI being one class. Cells "
+      + "no eruption's ash reaches are not drawn.",
+    citation: "Global Volcanism Program (2024). Volcanoes of the World, "
+      + "v. 5.2. Smithsonian Institution. https://doi.org/10.5479/si.GVP.VOTW5-2024.5.2. "
+      + "VEI: Newhall & Self (1982), J. Geophys. Res., 87, 1231–1238.",
+  },
+
   "dem-elevation": {
     kind: COMPUTED,
     intro: "The tiles are PNGs, and the height is packed into the colour. "
