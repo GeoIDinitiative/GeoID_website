@@ -15586,3 +15586,32 @@ ones inside it.
 appeared for a hover the tool reported as done; the click does reach it. A
 hover state has to be driven by dispatching `mousemove` on the canvas, or read
 from the user's own screenshot.
+
+### The mask drew in the wrong PASS, and same-colour buffers looked unclipped
+
+"In the merge process the overlapping buffers of the same colour do not clip
+each other" — with a screenshot of the hovered Low-Risk band lying over every
+inner zone of the group, and red BOW-TIES where the cores should be.
+
+The mask was right and drawn at the wrong moment. Its material was opaque, so
+three.js drew it in the OPAQUE pass — before the base sheet's transparent
+pass — and the sheet then overwrote the mask's stencil 2 with its own 1
+everywhere it painted. By the time the highlight fill was tested, nothing was
+masked, and the bow-ties were the few places the base had not painted at all.
+Render order within a pass cannot fix an object that is in the other pass.
+
+The mask is transparent now (colour off, opacity 0, so its blending is moot),
+which puts it in the same pass as the sheet and the fill, at 239 between the
+sheet's 51.xx and the fill's 239.5 — the only order that works.
+
+Measured with the hover driven by a synthetic `pointermove` on the canvas
+(the pane's own hover tool never reaches it), the Low-Risk band hovered at
+110 km: the pixels at Stromboli's vent, Panarea's vent and Stromboli's
+10–20 km band are BYTE-IDENTICAL with and without the hover, the zone-4 pixel
+goes [38,108,62] → [95,184,168], and an eight-bearing sweep at 2, 7 and 15 km
+round Stromboli, Panarea and Vulcano finds **0 of 68** samples lit inside a
+worse zone. The lit shape has only the merged region's boundary.
+
+**When a stencil trick "does nothing", ask which PASS each party draws in
+before asking about order or refs.** `transparent` decides the pass, and the
+pass decides before `renderOrder` gets a say.
