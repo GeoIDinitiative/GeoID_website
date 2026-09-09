@@ -1,18 +1,18 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260909-8b0dcac";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260909-8b0dcac";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260909-8b0dcac";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260909-8b0dcac";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260909-c20f7af";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260909-c20f7af";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260909-c20f7af";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260909-c20f7af";
 import {
   buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude, setSealWidthFromAltitude,
   getRenderRelief,
   setMarkerSizeFromAltitude,
-} from "./vector-render.js?v=20260909-8b0dcac";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260909-8b0dcac";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260909-8b0dcac";
-import { loadMshFile } from "./msh-adapter.js?v=20260909-8b0dcac";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260909-8b0dcac";
-import { defaultOpacityFor } from "./layer-opacity.js?v=20260909-8b0dcac";
+} from "./vector-render.js?v=20260909-c20f7af";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260909-c20f7af";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260909-c20f7af";
+import { loadMshFile } from "./msh-adapter.js?v=20260909-c20f7af";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260909-c20f7af";
+import { defaultOpacityFor } from "./layer-opacity.js?v=20260909-c20f7af";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.

@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-8b0dcac";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-8b0dcac";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-c20f7af";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-c20f7af";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260909-8b0dcac";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-8b0dcac";
-import { downloadText } from "./extraction.js?v=20260909-8b0dcac";
-import { shellPositions, surfacePositions, tinHeightAt } from "./surface-sampling.js?v=20260909-8b0dcac";
+} from "./mesh-volume.js?v=20260909-c20f7af";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-c20f7af";
+import { downloadText } from "./extraction.js?v=20260909-c20f7af";
+import { shellPositions, surfacePositions, tinHeightAt } from "./surface-sampling.js?v=20260909-c20f7af";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -554,6 +554,12 @@ function groundGridMaterial() {
       // whatever was in front of it, which is what "the gridlines fail the
       // depth test" looked like.
       uOpen: { value: 0 },
+      // The model's plan footprint (east min, north min, east max, north max,
+      // in metres of the origin): the ground has a HOLE there while the model
+      // reaches below it. A reference plane at z = 0 otherwise cuts straight
+      // through a subsurface, and its lines, depth-tested honestly, show inside
+      // the block wherever the wall below the plane is what is in front.
+      uHole: { value: new THREE.Vector4(0, 0, 0, 0) },
     },
     vertexShader: `
       varying vec3 vLocal;
@@ -571,6 +577,7 @@ function groundGridMaterial() {
       uniform vec3 uMajor;
       uniform vec3 uBase;
       uniform float uOpen;
+      uniform vec4 uHole;
       varying vec3 vLocal;
 
       // One grid level: line coverage, glow, and which family is nearer.
@@ -622,6 +629,7 @@ function groundGridMaterial() {
         vec3 colour = major ? uMajor : uMinor;
 
         if (uOpen > 0.5 && line < 0.03 && bloom < 0.12) discard;
+        if (uOpen > 0.5 && lat > uHole.x && lat < uHole.z && lon > uHole.y && lon < uHole.w) discard;
         gl_FragColor = vec4(uBase + colour * (line + bloom), 1.0);
       }
     `,
@@ -1010,6 +1018,11 @@ function applyBelowGround() {
   }
   if (groundMesh?.material?.uniforms?.uOpen) {
     groundMesh.material.uniforms.uOpen.value = below ? 1 : 0;
+    const b = below ? combinedBounds() : null;
+    groundMesh.material.uniforms.uHole.value.set(
+      b ? b.minX * studioScale : 0, b ? b.minY * studioScale : 0,
+      b ? b.maxX * studioScale : 0, b ? b.maxY * studioScale : 0,
+    );
   }
 }
 
