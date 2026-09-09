@@ -13,7 +13,7 @@
  * grid with one band per VEI on one return-period scale is what survived.
  */
 
-/** Return periods, years. A VEI 5 grid lives at the top of this range. */
+/** Return periods, years. The VEI 6 and 7 grids live at the top of this range. */
 export const RETURN_PERIODS_YEARS = [100000, 10000, 1000, 250, 100, 25, 5];
 
 /** P = 1 − exp(−1/T): the annual chance the classes are cut on. */
@@ -41,12 +41,17 @@ export function classOf(p, edges = riskEdges()) {
   return band;
 }
 
-/** The frames the bar steps through, and the collective that ends them. */
-export const FRAME_VEIS = [1, 2, 3, 4, 5];
+/**
+ * The frames the bar steps through, and the collective that ends them. VEI 8
+ * is a frame with nothing in it -- no Holocene eruption reached that size
+ * (Toba, 74,000 years ago, is Pleistocene) -- and it says so rather than
+ * being the one size the bar skips.
+ */
+export const FRAME_VEIS = [1, 2, 3, 4, 5, 6, 7, 8];
 
 export const BANDS = {
   any: { label: "Any eruption — per year", kicker: "Volcanic risk — any eruption" },
-  ...Object.fromEntries([0, 1, 2, 3, 4, 5, 6, 7].map((v) => [`vei${v}`, {
+  ...Object.fromEntries([0, 1, 2, 3, 4, 5, 6, 7, 8].map((v) => [`vei${v}`, {
     label: `VEI ${v} eruptions — per year`, kicker: `Volcanic risk — VEI ${v}`, vei: v,
   }])),
 };

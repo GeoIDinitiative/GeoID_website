@@ -14,10 +14,10 @@
  * their keys — one dataset draws one thing.
  */
 
-import { dataUrl } from "./data-base.js?v=20260909-c0cc7ea";
-import { rampColour } from "./symbology.js?v=20260909-c0cc7ea";
-import { startPlayer } from "./timelapse-player.js?v=20260909-c0cc7ea";
-import { riskEdges, RISK_LABELS, classOf, FRAME_VEIS, BANDS, RECORDS, riskLayer } from "./volcanic-risk.js?v=20260909-c0cc7ea";
+import { dataUrl } from "./data-base.js?v=20260909-045648a";
+import { rampColour } from "./symbology.js?v=20260909-045648a";
+import { startPlayer } from "./timelapse-player.js?v=20260909-045648a";
+import { riskEdges, RISK_LABELS, classOf, FRAME_VEIS, BANDS, RECORDS, riskLayer } from "./volcanic-risk.js?v=20260909-045648a";
 
 const search = new URL(import.meta.url).search;
 let running = false;
@@ -70,14 +70,18 @@ export function epochsFor(total) {
 
 export function noteFor(epoch) {
   if (epoch.all) return `${(epoch.count || 0).toLocaleString()} cells, every size`;
+  if (epoch.count === 0) return `VEI ${epoch.vei} · none in the Holocene record`;
   const n = epoch.count === null ? "…" : epoch.count.toLocaleString();
   return `VEI ${epoch.vei} · ${n} cells`;
 }
 
 export function noteTitle(epoch) {
-  return epoch.all
-    ? "The collective: eruptions of any size per year near each point"
-    : `Eruptions of VEI ${epoch.vei} per year near each point, on the same scale as every other frame`;
+  if (epoch.all) return "The collective: eruptions of any size per year near each point";
+  if (epoch.count === 0) {
+    return `No eruption in the Smithsonian Holocene catalogue reached VEI ${epoch.vei}: `
+      + "the last of that size on Earth (Toba, about 74,000 years ago) is Pleistocene";
+  }
+  return `Eruptions of VEI ${epoch.vei} per year near each point, on the same scale as every other frame`;
 }
 
 export async function play(id = "volcanic-risk", { startAt = null } = {}) {
@@ -118,7 +122,10 @@ async function build(id, startAt) {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const fc = await response.json();
         const paint = framePaint(fc.features, epoch.band);
-        const made = render.renderFeatureCollection(fc, { colourFor: paint.colourFor, outlineOnly: false });
+        // An empty frame is a real frame: nothing to draw, and a note saying why.
+        const made = fc.features.length
+          ? render.renderFeatureCollection(fc, { colourFor: paint.colourFor, outlineOnly: false })
+          : new THREE.Group();
         const node = made?.object3D || made;
         node.visible = false;
         group.add(node);
@@ -190,7 +197,9 @@ async function build(id, startAt) {
         now.volcanicBand = epochs[index].band;
         now.legendHidden = false;
       }
-      say(`VEI ${epochs[index].vei}: ${frame.features.length.toLocaleString()} cells`);
+      say(frame.features.length
+        ? `VEI ${epochs[index].vei}: ${frame.features.length.toLocaleString()} cells`
+        : `VEI ${epochs[index].vei}: no eruption of this size in the Holocene record`);
       // The bar wrote its note before the frame was fetched, so the count
       // it now knows is written back into the note it is still showing.
       const note = document.querySelector("#geoid-timelapse .tl-note");

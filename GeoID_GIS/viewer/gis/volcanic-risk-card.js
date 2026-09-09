@@ -49,7 +49,7 @@ export function volcanicRiskCard(props = {}, { band = "any", full = false } = {}
   rows.push([spec.vei !== undefined ? `VEI ${spec.vei} eruptions` : "Any eruption", period || NEVER]);
   // THE COLLECTIVE LISTS EVERY SIZE, largest first: a reader comparing two
   // points wants the profile, not one number.
-  for (let v = 7; v >= 0; v -= 1) {
+  for (let v = 8; v >= 0; v -= 1) {
     const r = returnPeriod(props[`vei${v}`]);
     if (r) rows.push([`VEI ${v}`, r]);
   }

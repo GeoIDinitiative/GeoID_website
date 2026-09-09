@@ -169,8 +169,9 @@ const EQUATIONS = {
       + "map's own quadtree over that band alone: a quarter-degree lattice "
       + "merged into blocks while the band inside them is flat (2% of its "
       + "peak), never while empty in part, never across two largest-VEI "
-      + "classes — so a VEI 5 map, flat over almost all its extent, is a few "
-      + "thousand cells. Cells nothing reaches are not drawn. The collective "
+      + "classes — so a VEI 7 map, flat over almost all its extent, is a few "
+      + "thousand cells. VEI 8 is a frame with nothing in it: no Holocene "
+      + "eruption reached that size. Cells nothing reaches are not drawn. The collective "
       + "carries every band's rate on each cell, so a click on it lists every "
       + "size at the point.",
     citation: "Global Volcanism Program (2024). Volcanoes of the World, "

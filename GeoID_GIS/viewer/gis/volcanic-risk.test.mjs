@@ -8,7 +8,7 @@ import {
   colourRange, riskLayer, bandOf,
 } from "./volcanic-risk.js";
 import { isVolcanicRiskFeature, volcanicRiskCard, returnPeriod, asPercent } from "./volcanic-risk-card.js";
-import { epochsFor, noteFor, framePaint } from "./volcanic-risk-frames.js";
+import { epochsFor, noteFor, noteTitle, framePaint } from "./volcanic-risk-frames.js";
 import { isRiskFeature } from "./cyclone-risk-card.js";
 import { DATASETS } from "./global-data.js";
 import { mathsFor } from "./equations.js";
@@ -25,19 +25,21 @@ const edges = riskEdges();
 check("an edge per period", edges.length, RETURN_PERIODS_YEARS.length);
 check("one label more than the edges", RISK_LABELS.length, edges.length + 1);
 check("an edge is 1 - exp(-1/T)", Number(edges[4].toFixed(6)), Number((1 - Math.exp(-1 / 100)).toFixed(6)));
-check("the scale reaches one in 100,000 years, where a VEI 5 map lives", RETURN_PERIODS_YEARS[0], 100000);
+check("the scale reaches one in 100,000 years, where the VEI 6 and 7 maps live", RETURN_PERIODS_YEARS[0], 100000);
 check("nothing is not a class", classOf(0), -1);
 check("1 in 476 years is the 1-in-1,000 class", RISK_LABELS[classOf(1 - Math.exp(-1 / 476))], "about 1 in 1,000 years");
 check("the catalogue paint is the same scale", [colourRange().field, colourRange().edges.length, colourRange().labels.length], ["p_yr", 7, 8]);
 
 /* ── frames: VEI 1-5 then the collective, all on that scale ─────────────── */
 const epochs = epochsFor(47150);
-check("five VEI frames and the collective", epochs.map((e) => e.label), ["VEI 1", "VEI 2", "VEI 3", "VEI 4", "VEI 5", "All"]);
+check("eight VEI frames and the collective", epochs.map((e) => e.label), ["VEI 1", "VEI 2", "VEI 3", "VEI 4", "VEI 5", "VEI 6", "VEI 7", "VEI 8", "All"]);
+check("an empty frame says why rather than counting nothing", noteFor({ ...epochs[7], count: 0 }), "VEI 8 · none in the Holocene record");
+check("and its title names the last of that size", /Toba/.test(noteTitle({ ...epochs[7], count: 0 })), true);
 check("the collective is the terminal frame", epochs[epochs.length - 1].all, true);
-check("FRAME_VEIS is 1 to 5", FRAME_VEIS, [1, 2, 3, 4, 5]);
+check("FRAME_VEIS is 1 to 8", FRAME_VEIS, [1, 2, 3, 4, 5, 6, 7, 8]);
 check("a frame's note counts its cells once known", noteFor({ ...epochs[2], count: 26428 }), "VEI 3 · 26,428 cells");
 check("and says so while it is not", noteFor(epochs[2]), "VEI 3 · … cells");
-check("the collective's note is the whole layer", noteFor(epochs[5]), "47,150 cells, every size");
+check("the collective's note is the whole layer", noteFor(epochs[8]), "47,150 cells, every size");
 const fp = framePaint([{ properties: { p_yr: 0.5 } }, { properties: { p_yr: 0.0001 } }], "vei3");
 check("a frame's key is labelled for its VEI on the shared classes", [fp.legend.label, fp.legend.labels.length], ["VEI 3 eruptions — per year", RISK_LABELS.length]);
 check("and a cell with nothing keeps no colour", fp.colourFor({ properties: { p_yr: 0 } }), null);

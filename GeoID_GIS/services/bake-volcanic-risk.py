@@ -3,7 +3,7 @@
 happens near a point.
 
 For each record (--mode windowed or holocene) a set of variable-resolution
-GRIDS -- the cyclone risk map's quadtree, one file per band: `vei1`..`vei5`,
+GRIDS -- the cyclone risk map's quadtree, one file per band: `vei1`..`vei8`,
 each holding ERUPTIONS OF THAT SIZE PER YEAR near the point, and `any` (every
 size, VEI 0 and 6-7 included), which is the catalogue layer itself. The page
 plays the five VEI grids through the time-lapse bar with the VEI in place of
@@ -73,7 +73,7 @@ WORK = GLOBAL / ".volcanic-risk-work"
 # an image by Referer from any origin but the zone -- measured on the soil
 # thickness COG: 200 from production, 403 from localhost.
 STEM = {"windowed": "volcanic-risk", "holocene": "volcanic-risk-holocene"}
-FRAME_VEIS = [1, 2, 3, 4, 5]
+FRAME_VEIS = [1, 2, 3, 4, 5, 6, 7, 8]
 COARSEST = 32
 FINEST = 1
 SPREAD = 0.02
@@ -98,7 +98,7 @@ WINDOWS = {"small": (1950, LAST_COMPLETE), "vei4": (1900, LAST_COMPLETE),
            "vei56": (1550, LAST_COMPLETE), "vei7": (HOLOCENE_START, LAST_COMPLETE)}
 PRIOR = {"holocene": {"vei": 2, "span": LAST_COMPLETE - HOLOCENE_START + 1},
          "pleistocene": {"vei": 3, "span": 2_580_000}}
-VEIS = list(range(8))
+VEIS = list(range(9))   # 0..8; no Holocene eruption is VEI 8, and its frame says so
 BANDS = [f"vei{v}" for v in VEIS] + ["any", "vei_max", "vents", "prior_only"]
 SOURCE = {
     "dataset": "Smithsonian Global Volcanism Program, Volcanoes of the World (Holocene eruption catalogue)",
@@ -271,7 +271,7 @@ def main(mode) -> int:
         first_year[vn] = min(first_year.get(vn, 9999), int(p["StartDateYear"]))
 
     cells = NY * NX
-    per_vei = np.zeros((8, cells), dtype=np.float64)
+    per_vei = np.zeros((9, cells), dtype=np.float64)
     vei_max = np.zeros(cells, dtype=np.int8)
     vents = {}          # cell -> set of volcano numbers
     prior_cells = np.zeros(cells, dtype=bool)
@@ -284,7 +284,7 @@ def main(mode) -> int:
         if hit is None:
             return False
         w = k * weight
-        per_vei[min(vei_used, 7), hit] += w
+        per_vei[min(vei_used, 8), hit] += w
         vei_max[hit] = np.maximum(vei_max[hit], vei_used)
         (prior_cells if is_prior else record_cells)[hit] = True
         counted[cls] += 1
@@ -353,7 +353,9 @@ def main(mode) -> int:
     mb = write_grid(GLOBAL / f"{stem}.geojson", feats_any, mode, "any")
     print("  any: {:,} cells, {:.1f} MB".format(len(feats_any), mb))
     for v in FRAME_VEIS:
-        feats = quadtree(grids[f"vei{v}"], vmax, extra)
+        # A band with nothing in it still gets its file: the VEI 8 frame exists
+        # and says "no Holocene eruption of this size", rather than being absent.
+        feats = quadtree(grids[f"vei{v}"], vmax, extra) if grids[f"vei{v}"].max() > 0 else []
         mb = write_grid(GLOBAL / f"{stem}-vei{v}.geojson", feats, mode, f"vei{v}")
         print("  vei{}: {:,} cells, {:.1f} MB".format(v, len(feats), mb))
     reached = int((grids["any"] > 0).sum())
