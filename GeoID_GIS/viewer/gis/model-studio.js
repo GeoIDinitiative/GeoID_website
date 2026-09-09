@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-1b02533";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-1b02533";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-fddab8f";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-fddab8f";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260909-1b02533";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-1b02533";
-import { downloadText } from "./extraction.js?v=20260909-1b02533";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260909-1b02533";
+} from "./mesh-volume.js?v=20260909-fddab8f";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-fddab8f";
+import { downloadText } from "./extraction.js?v=20260909-fddab8f";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260909-fddab8f";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -2416,8 +2416,15 @@ function init() {
       // was 0.0003 of its size -- measured, a 16 km block in a 6 m box --
       // and centring on the origin framed nothing. The studio's meshes are
       // put back to their metres and the view fitted to them.
-      refreshStudioScale();
-      if (state.solids.length) fitView(); else centreOnOrigin();
+      // AFTER the mode switch has finished, not during it: this listener runs
+      // in the middle of `setMode`, and what runs after it -- the GIS side's
+      // own re-scaling of local models, the viewer's zoom easing picking the
+      // camera back up -- undid a fit made here. Measured: fitted to 31 km,
+      // read back at 12 m. One tick later the scene is at rest.
+      setTimeout(() => {
+        refreshStudioScale();
+        if (state.solids.length) fitView(); else centreOnOrigin();
+      }, 0);
       updateStudioContext();
     } else {
       /**

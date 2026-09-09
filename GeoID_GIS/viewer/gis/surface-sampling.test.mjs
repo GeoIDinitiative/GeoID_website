@@ -203,7 +203,7 @@ check("the TIN builds", tin.ok, tin.message);
   check("the studio's anchor is shown only with the model page", /anchor\.visible = event\.detail\?\.mode === "model";/.test(studio));
   check("one CRS: the studio reads the adopted terrain's own frame", /gisTerrain\.surface\.frame\.fromLocal\(eastM, northM\)/.test(studio) && /gisTerrain\.surface\.frame\.toLocal\(lat, lon\)/.test(studio));
   check("the package states its frame", /crs: `local east\/north metres about origin/.test(pipeline));
-  check("returning to the studio puts its meshes back to metres and fits them", /refreshStudioScale\(\);\n      if \(state\.solids\.length\) fitView\(\); else centreOnOrigin\(\);/.test(studio));
+  check("returning to the studio puts its meshes back to metres and fits them", /setTimeout\(\(\) => \{\n        refreshStudioScale\(\);\n        if \(state\.solids\.length\) fitView\(\); else centreOnOrigin\(\);/.test(studio));
   check("the studio hides the georeferenced GIS layers while it is up", /geo\.visible = false;/.test(studio) && /geoGroupWasVisible/.test(studio));
   check("the air shell is displayed without its floor", /\(f\) => f\.face !== "ground"\)\);/.test(studio));
   check("the terrain keeps true elevations in the studio", /const zShift = 0;/.test(studio) && /elevation: 0,/.test(studio));
