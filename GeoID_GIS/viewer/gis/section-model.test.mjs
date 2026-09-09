@@ -95,6 +95,7 @@ near("101 samples", p.n, 101, 0);
   check("a boundary field goes only into the script whose flag it names", /const SCRIPT_KEYS = \{ subsurface: \["top", "base", "sides_below"\], atmosphere: \["top", "sky", "sides_above"\]/.test(pipeline));
   check("the model page adds a size field from a part's card through the seam", /addSizeField: \(spec\) => \{/.test(pipeline) && /setPointSize: \(name, value\) => \{/.test(pipeline) && /pipeline\.addSizeField\(spec\)/.test(studio) && /type: "boundary", name: `size along \$\{keys\.own\}`/.test(studio) && /type: "point", name: `size at \$\{keys\.point\}`, pointName: keys\.point/.test(studio));
   check("a point's chosen size reaches its embed entry", /sizeM: sizeFor\(f\.properties\?\.name/.test(pipeline) && /state\.pointSizeByName\.get\(String\(name\)\)/.test(pipeline));
+  check("a section's later steps unblock on the profile, not on a surface it never builds", /state\.kind === "section" \? !state\.profile : !state\.surface/.test(pipeline));
   check("the pipeline carries a flag chosen on the model page into the package", /setFlag: \(key, value\) => \{/.test(pipeline) && /setPointFlag: \(name, value\) => \{/.test(pipeline) && /state\.pointFlagByName\.get\(/.test(pipeline));
 }
 

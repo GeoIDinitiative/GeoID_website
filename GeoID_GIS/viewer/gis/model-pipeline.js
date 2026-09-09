@@ -2,17 +2,17 @@ import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
   nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS, atmosphereStl, DEFAULT_MAX_NODES, triangleWriter,
-} from "./model-build.js?v=20260910-fc6a32e";
-import { ringsFromCollection } from "./extraction.js?v=20260910-fc6a32e";
+} from "./model-build.js?v=20260910-9d627f3";
+import { ringsFromCollection } from "./extraction.js?v=20260910-9d627f3";
 import {
   buildTin, tinHeightAt, tinSurfaceStl, tinShellStl, samplingSizeField,
   extendBoundary, extendedBoundaryLines, gridAsTin, shellFacets,
-} from "./surface-sampling.js?v=20260910-fc6a32e";
-import { renderFeatureCollection } from "./vector-render.js?v=20260910-fc6a32e";
+} from "./surface-sampling.js?v=20260910-9d627f3";
+import { renderFeatureCollection } from "./vector-render.js?v=20260910-9d627f3";
 import {
   profileAlong, profileHeightAt, sectionPolygons, sectionPositions, sectionGmshScript, profileCsv,
-} from "./section-model.js?v=20260910-fc6a32e";
-import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260910-fc6a32e";
+} from "./section-model.js?v=20260910-9d627f3";
+import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260910-9d627f3";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -318,7 +318,10 @@ function blockedReason(stepId) {
   if (!state.bounds) return "Choose the study area first.";
   if (stepId === "layers") return null;
   if (stepId === "surface") return null;
-  if (!state.surface) return "Build the surface first — the domain sits under it.";
+  // A section's surface IS its profile: the steps below it open on that.
+  if (state.kind === "section" ? !state.profile : !state.surface) {
+    return state.kind === "section" ? "Build the profile first — the faces hang from it." : "Build the surface first — the domain sits under it.";
+  }
   if (stepId === "domain") return null;
   if (stepId === "conditions") return null;
   return null;
