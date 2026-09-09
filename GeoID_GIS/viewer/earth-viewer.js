@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260909-fddab8f";
+  from "./gis/geo-utils.js?v=20260909-089085f";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260909-fddab8f";
+  from "./gis/vector-render.js?v=20260909-089085f";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260909-fddab8f";
+  from "./gis/rock-class.js?v=20260909-089085f";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260909-fddab8f";
+  from "./gis/lithology-label.js?v=20260909-089085f";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -22019,6 +22019,18 @@ uniform float uViewportWidth;`,
           // right now", which is satisfied on the way and then forgotten.
           zoomTargetSurfaceDistance = Math.max(0,
             (metres / 1000) / (EARTH_MEAN_RADIUS_KM / 3.2));
+          return true;
+        },
+        /**
+         * Forget a pending zoom. The render loop eases the camera toward the
+         * last requested surface distance every frame, in the GLOBE's units --
+         * and the Meshing Studio's camera stands in metres six million units
+         * out. A request left over from GIS mode pulled a freshly fitted
+         * studio view from 31 km down to 12 m over a second, a few metres a
+         * frame, which no single write could be caught doing.
+         */
+        clearZoomTarget() {
+          zoomTargetSurfaceDistance = null;
           return true;
         },
         /** Where the camera is now, and the range it may occupy. */

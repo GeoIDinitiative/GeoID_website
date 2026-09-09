@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-fddab8f";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-fddab8f";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-089085f";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-089085f";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260909-fddab8f";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-fddab8f";
-import { downloadText } from "./extraction.js?v=20260909-fddab8f";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260909-fddab8f";
+} from "./mesh-volume.js?v=20260909-089085f";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-089085f";
+import { downloadText } from "./extraction.js?v=20260909-089085f";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260909-089085f";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -2422,6 +2422,9 @@ function init() {
       // camera back up -- undid a fit made here. Measured: fitted to 31 km,
       // read back at 12 m. One tick later the scene is at rest.
       setTimeout(() => {
+        // And the globe's pending zoom must not ease this camera: measured,
+        // a fit to 31 km walked back to 12 m over the next second.
+        window.GeoIDViewer?.clearZoomTarget?.();
         refreshStudioScale();
         if (state.solids.length) fitView(); else centreOnOrigin();
       }, 0);
