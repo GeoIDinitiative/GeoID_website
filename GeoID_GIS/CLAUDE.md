@@ -15541,3 +15541,48 @@ Measured on Panarea's 20–35 km band at 382 km: the selection holder holds
 annulus), stencil ref 2 / NotEqual / band 239, pulsing; the group is Palinuro,
 Panarea, Lipari, Stromboli, Vulcano, Etna and Marsili. Worldwide: the largest
 group is 107 volcanoes, and 185 stand alone.
+
+### "Not a clean buffer merge" — the highlight was, the sheet was not
+
+Two claims in one screenshot, and only one was true.
+
+**The hover was lighting ground the sheet does not paint in that zone.** The
+merged highlight was the UNION of one zone's annuli across the group — and a
+neighbour's worse band sits inside those annuli, so lit whole they showed the
+base through as crescents: the circular structure back again, drawn by the
+one control that says "this". The highlight is now built exactly as the sheet
+is: the group's zones BELOW the picked one are drawn first with colour off,
+writing stencil 2 where they cover (`Always`/`Replace`, opaque pass), and the
+zone fill is refused there (`NotEqual 2`). What lights is exactly the ground
+the sheet paints in that zone, merged. Measured on Panarea's 20–35 km band:
+one colourless mask of 6,678 vertices ahead of one fill of 2,688.
+
+**The sheet itself was right all along, and it took four instruments to be
+sure.** Pixels solved by `2·shown − base` (layer shown / hidden) came out
+WHITE at the crescents — that was the hover holder, drawn outside the layer
+and surviving its being hidden; with it hidden the crescents solved EXACTLY to
+zone colours (#ff6600, #ffaa00). A pixel two green annuli share paints green
+once with the stencil on ([68,204,102]) and twice with it off. Every fill
+draws once per frame; the stencil is auto-cleared. A transect from Stromboli's
+vent reads 0,0,1,1,2,2,2,3,3,3,3,4,4 eastward, and westward its deviations
+are Panarea's and Lipari's worse bands taking precedence. And a 25×25 grid at
+2.5 km over ±30 km scored against the analytic worst-wins expectation over
+every vent within 120 km: **395 of 403 match**; the eight are two exact
+boundary ties at 5.0 km and six pixels under the "Stromboli" label chip.
+
+So the arcs are the honest shape of a dissolved multi-ring buffer: one
+volcano's band cut by a neighbour's severer one. That is the map, not a fault
+in it.
+
+**The annuli leak into their own holes.** Measured on the Aeolian group's
+5–10 km ring: 0 of 896 triangles outside the outer ring, **34 inside the
+hole** (190 of 896 for 20–35 km) — the same with the hole ring reversed, and
+none for a plain disc. Invisible under the stencil, because a volcano's inner
+zones paint first and refuse them, and it is why the stencil-off A/B shows
+full discs. Not fixed here; it would show the day a zone is drawn without the
+ones inside it.
+
+**The pane's `computer` hover does not reach the canvas.** No hover holder
+appeared for a hover the tool reported as done; the click does reach it. A
+hover state has to be driven by dispatching `mousemove` on the canvas, or read
+from the user's own screenshot.
