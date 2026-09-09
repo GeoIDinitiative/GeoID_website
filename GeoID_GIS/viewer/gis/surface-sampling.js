@@ -17,8 +17,8 @@
  * checked in Node against a plane (which a TIN must reproduce exactly) and
  * against the closed-surface invariant (no open edges).
  */
-import { delaunay } from "./interpolation.js?v=20260909-59393bf";
-import { makeLocalFrame, triangleWriter, sizeField } from "./model-build.js?v=20260909-59393bf";
+import { delaunay } from "./interpolation.js?v=20260909-1f4e390";
+import { makeLocalFrame, triangleWriter, sizeField } from "./model-build.js?v=20260909-1f4e390";
 
 /* ── The spacing function ────────────────────────────────────────────────── */
 
@@ -458,6 +458,19 @@ export function tinShellStl(tin, { belowM = null, aboveM = null, name = "geoid_d
   facets.forEach((fct) => triangleWriter(out, fct.hint)(fct.a, fct.b, fct.c));
   out.push(`endsolid ${name}`);
   return up ? { text: `${out.join("\n")}\n`, skyZ: lidZ } : { text: `${out.join("\n")}\n`, baseZ: lidZ };
+}
+
+/** The ground alone -- the surface STL's own triangles -- as xyz triples. */
+export function surfacePositions(tin, scale = 1) {
+  const out = new Float32Array(tin.tris.length * 9);
+  tin.tris.forEach(([a, b, c], k) => {
+    [a, b, c].forEach((i, m) => {
+      out[k * 9 + m * 3] = tin.xs[i] * scale;
+      out[k * 9 + m * 3 + 1] = tin.ys[i] * scale;
+      out[k * 9 + m * 3 + 2] = tin.z[i] * scale;
+    });
+  });
+  return out;
 }
 
 /** The shell's facets flattened to xyz triples, in the units asked for. */

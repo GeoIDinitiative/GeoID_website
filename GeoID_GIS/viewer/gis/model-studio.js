@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-59393bf";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-59393bf";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-1f4e390";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-1f4e390";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260909-59393bf";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-59393bf";
-import { downloadText } from "./extraction.js?v=20260909-59393bf";
-import { shellPositions, tinHeightAt } from "./surface-sampling.js?v=20260909-59393bf";
+} from "./mesh-volume.js?v=20260909-1f4e390";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-1f4e390";
+import { downloadText } from "./extraction.js?v=20260909-1f4e390";
+import { shellPositions, surfacePositions, tinHeightAt } from "./surface-sampling.js?v=20260909-1f4e390";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -269,15 +269,19 @@ function refreshStudioScale() {
   updateGround();
 }
 
-function displayMesh(positions, name, color) {
+function displayMesh(positions, name, color, { opacity = 1, renderOrder = 0 } = {}) {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   geometry.applyMatrix4(MODEL_TO_SCENE);
   geometry.computeVertexNormals();
   geometry.computeBoundingSphere();
+  // A translucent volume writes no depth, or the ground inside it is culled
+  // by the very shell that is meant to be seen through.
   const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
     color, roughness: 0.72, metalness: 0.05, side: THREE.DoubleSide, flatShading: true,
+    transparent: opacity < 1, opacity, depthWrite: opacity >= 1,
   }));
+  mesh.renderOrder = renderOrder;
   mesh.name = name;
   mesh.userData.localModel = true;
   studioMeshes.add(mesh);
@@ -2378,6 +2382,14 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
   if (gisTerrain?.entries?.length) {
     deleteEntities(gisTerrain.entries.map((e) => e.id).filter((id) => findById(id)));
   }
+  if (gisTerrain?.skin) {
+    const skin = gisTerrain.skin;
+    skin.parent?.remove(skin);
+    skin.geometry?.dispose?.();
+    studioMeshes.delete(skin);
+    const layer = (window.GeoIDImportManager?.getLayers?.() || []).find((l) => l.object3D === skin);
+    if (layer) window.GeoIDImportManager.removeLayer(layer.id);
+  }
   gisTerrain = { name, surface, belowM: Number(belowM) || 0, aboveM: Number(aboveM) || 0, entries: [], points };
   if (origin && Number.isFinite(origin.lat)) {
     // The reference ground is SEA LEVEL (elevation 0): the solid carries the
@@ -2411,13 +2423,31 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
       test, region: null, object3D: null,
       bounds: { ...plan, minZ: below ? lidKm : surface.zMin * km, maxZ: below ? surface.zMax * km : lidKm },
     };
-    entry.object3D = displayMesh(positions, `${name}_${which}`, below ? 0xc9b79c : 0x9fd8ff);
+    /**
+     * THE DOMAINS MUST READ AS DIFFERENT THINGS, and the ground between them
+     * must be SEEN. Two shells that share the ground triangles and wear two
+     * pale colours drew as one grey block -- the interface was inside the
+     * union, invisible. The rock is opaque and earthen; the air is a
+     * translucent sky drawn last, so the terrain shows through it; and the
+     * surface STL itself is drawn once more as a lit green skin (below),
+     * because 850 m of relief over 16 km is a 5% ripple that only shading
+     * makes legible at true scale.
+     */
+    entry.object3D = below
+      ? displayMesh(positions, `${name}_${which}`, 0xa8703f)
+      : displayMesh(positions, `${name}_${which}`, 0x7fc8ff, { opacity: 0.22, renderOrder: 2 });
     state.solids.push(entry);
     gisTerrain.entries.push(entry);
     record(`union gis terrain ${which}`);
   };
   if (gisTerrain.belowM > 0) make("subsurface", gisTerrain.belowM);
   if (gisTerrain.aboveM > 0) make("atmosphere", gisTerrain.aboveM);
+  // The surface STL, as itself: not a solid (it has no inside), a skin drawn a
+  // hair above the interface so it wins the depth fight with the rock's top.
+  gisTerrain.skin = displayMesh(surfacePositions(surface, km), `${name}_surface`, 0x6fbf73, { renderOrder: 1 });
+  gisTerrain.skin.material.polygonOffset = true;
+  gisTerrain.skin.material.polygonOffsetFactor = -2;
+  gisTerrain.skin.material.polygonOffsetUnits = -2;
   renderModelTree();
   status(`${state.solids.length} entities`);
   // Cells the size of the surface's coarse spacing: the mesher's own default
@@ -2429,6 +2459,7 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
   if (hi && !(Number(hi.value) >= coarse / 2)) hi.value = String(coarse * 2);
   log(`GIS terrain "${name}": ${surface.nodes.toLocaleString()} nodes, ${surface.triangles.toLocaleString()} triangles,`
     + ` spacing ${Math.round(surface.spacingMinM)}–${Math.round(surface.spacingMaxM)} m; 1 unit = 1 m, mesh cells set to ${coarse}–${coarse * 2} m.`
+    + ` Brown is the rock, green the surface STL, translucent blue the air.`
     + ` Subsurface ${gisTerrain.belowM} m below the lowest ground${gisTerrain.aboveM > 0 ? `, atmosphere ${gisTerrain.aboveM} m above the highest` : ""}.`
     + `${points?.length ? ` ${points.length} embedded point(s) carried.` : ""}`);
   ensureTerrainCard();

@@ -187,6 +187,7 @@ check("the TIN builds", tin.ok, tin.message);
   check("the builder's own previews are never its inputs", /const own = new Set\(Object\.values\(PREVIEW_NAMES\)\)/.test(pipeline) && /!own\.has\(layer\.name\)/.test(pipeline));
   check("the studio adopts the terrain as a solid and exposes it", /export function adoptTerrainSolid/.test(studio) && /adoptTerrainSolid, extendTerrain,/.test(studio));
   check("the studio fits the view to its OWN meshes, not to every GIS layer", /const own = all\.filter\(\(l\) => studioMeshes\.has\(l\.object3D\)/.test(studio));
+  check("the studio draws the surface STL as its own skin and the air translucent", /surfacePositions\(surface, km\)/.test(studio) && /opacity: 0\.22/.test(studio));
   check("the studio takes the terrain in METRES, its own scale", /const km = 1;/.test(studio) && /1 unit = 1 m/.test(studio));
   check("the studio's tree survives a kind it has no primitive for", !/PRIMITIVES\[entry\.kind\]\.label/.test(studio) && !/PRIMITIVES\[e\.kind\]\.label/.test(studio));
 }
