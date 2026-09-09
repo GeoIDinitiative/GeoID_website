@@ -16475,3 +16475,18 @@ with it — a floor under the model's base when it reaches below the ground,
 the plane itself otherwise. Measured live: step 500 m at the fitted view,
 `uOpen` 1, the lattice visible through the atmosphere and ending at the
 block's walls.
+
+### The studio's readout read the sky
+
+"The model page elevation reader is definitely broken." It was: the cursor
+readout raycast every solid and took the nearest hit, and from above the
+nearest hit is the ATMOSPHERE'S LID — a translucent shell is still a mesh to
+a raycaster. Measured at three ground points of 279, 508 and 158 m: every
+one read **3,849 m**, the sky's height, at the lid's own lat/lon; a point
+past the lid read the wall at 2,288. The readout now asks the surface skin
+first, skips any translucent solid, takes its height from the FULL TIN
+rather than the display stand-in, and prints longitude in degrees east
+(0..360) as the globe's readout does — "−6.00°E" was a signed longitude in
+an east-positive format. Measured after: 279 / 506 / 158 m, lat/lon to 0.01°.
+
+The lattice is light grey now (`#8e959f`, majors `#c4c9d1`), by request.
