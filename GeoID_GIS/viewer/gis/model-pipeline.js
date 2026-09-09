@@ -2,13 +2,13 @@ import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
   nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS, atmosphereStl, DEFAULT_MAX_NODES,
-} from "./model-build.js?v=20260909-8a7d11d";
-import { ringsFromCollection } from "./extraction.js?v=20260909-8a7d11d";
+} from "./model-build.js?v=20260909-98d5a4e";
+import { ringsFromCollection } from "./extraction.js?v=20260909-98d5a4e";
 import {
   buildTin, tinHeightAt, tinSurfaceStl, tinShellStl, samplingSizeField,
   extendBoundary, extendedBoundaryLines, gridAsTin,
-} from "./surface-sampling.js?v=20260909-8a7d11d";
-import { renderFeatureCollection } from "./vector-render.js?v=20260909-8a7d11d";
+} from "./surface-sampling.js?v=20260909-98d5a4e";
+import { renderFeatureCollection } from "./vector-render.js?v=20260909-98d5a4e";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -1503,10 +1503,23 @@ function modelName() {
 }
 
 /** What the grading will actually do to this surface, before it is built. */
+/**
+ * The default element size is twice the surface's COARSE spacing. For a TIN
+ * that is the base step, not the finest buffer: MeshSizeMax caps every element
+ * in the volume, and capping at twice a 7 m buffer over a 16 km box asked for
+ * millions of tetrahedra. The size FIELD is what brings a buffer down.
+ */
+function defaultMeshSizeM() {
+  const grid = state.surface;
+  if (!grid) return 200;
+  const coarse = grid.kind === "tin" ? grid.spacingMaxM : grid.stepXm;
+  return Math.max(1, Math.round((coarse || 100) * 2));
+}
+
 function sizeFieldPreview() {
   const grid = state.surface;
   if (!grid) return null;
-  const base = Number(state.meshSizeM) || Math.round(grid.stepXm * 2);
+  const base = Number(state.meshSizeM) || defaultMeshSizeM();
   const field = sizeField(grid, {
     coarseM: Number(state.grading.coarseM) > 0 ? Number(state.grading.coarseM) : base,
     fineM: Number(state.grading.fineM) > 0 ? Number(state.grading.fineM) : base / 4,
@@ -1528,8 +1541,7 @@ function stepBuild(body) {
   runField.addEventListener("input", () => { state.runName = runField.value; });
   body.appendChild(row("Run name", runField));
 
-  const sizeInput = number("gis-mb-meshsize", state.meshSizeM
-    || Math.round((state.surface?.stepXm || 100) * 2), 10);
+  const sizeInput = number("gis-mb-meshsize", state.meshSizeM || defaultMeshSizeM(), 10);
   body.appendChild(row("Mesh element size (m)", sizeInput));
   sizeInput.addEventListener("input", () => {
     state.meshSizeM = Number(sizeInput.value);
@@ -1553,7 +1565,7 @@ function stepBuild(body) {
   body.appendChild(row("Finer mesh on slopes", gradeOn));
 
   if (state.grading.on !== false) {
-    const base = Number(state.meshSizeM) || Math.round((state.surface?.stepXm || 100) * 2);
+    const base = Number(state.meshSizeM) || defaultMeshSizeM();
     const coarse = number("gis-mb-grade-coarse", state.grading.coarseM || base, 10);
     coarse.addEventListener("input", () => {
       state.grading.coarseM = Number(coarse.value); state.outputs = null;
@@ -1670,8 +1682,7 @@ async function writePackage() {
   const isTin = grid.kind === "tin";
   const name = modelName();
   const run = state.runName || `${name}_run`;
-  const stepRef = isTin ? grid.spacingMinM : grid.stepXm;
-  const meshSizeM = Number(state.meshSizeM) || Math.round(stepRef * 2);
+  const meshSizeM = Number(state.meshSizeM) || defaultMeshSizeM();
   const surfaceText = isTin ? tinSurfaceStl(grid, name) : surfaceStl(grid, name);
   const domain = isTin
     ? tinShellStl(grid, { belowM: state.domain.depthM, name })
