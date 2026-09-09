@@ -15906,3 +15906,49 @@ Verified live on 8125: three step-backs from All fetch `vei8`, `vei7`,
 `vei6` from the bucket; the VEI 8 frame reads its note with the collective
 hidden; VEI 7 counts `[1774, 1631, 0, …]` and VEI 6 `[0, 897, 2497, 178, 0, …]`
 on the same eight-class key.
+
+### The reach is the eruption's size, as a probability of a millimetre of ash
+
+"The size/radius of each of the eruptions appear to be very similar. These
+cannot be uniform, they have to relate to the magnitude/volume. Is this the
+best method?" Both halves answered:
+
+**No, it is not the best method, and the card and ⓘ say what is.** The proper
+probabilistic tephra extent is an advection–diffusion dispersal model
+(Tephra2 / FALL3D / HAZMAP) over a wind climatology with Monte-Carlo source
+parameters — GAR15's global tephra hazard (Jenkins et al. 2015) — and it is
+anisotropic. Without a wind field the honest reduction is **Pyle's
+exponential thinning**, `T(d) = T₀·exp(−d/b)`, with `T₀` and `b` scaling with
+the eruption: solved for 1 mm it gives a reach per VEI (5 km at VEI 1, 15 at
+2, 50 at 3, 150 at 4, 350 at 5, 800 at 6, 1,800 at 7; checked against
+Eyjafjallajökull, Pinatubo, Tambora), and since `T₀` and `b` each vary by
+~2× within a VEI the reach is log-normal (σ 0.5). An eruption counts at a
+point as `P(reach ≥ d) = 1 − Φ(ln(d/R)/σ)` — the chance it drops ≥ 1 mm
+there — stamped to `R·e^{1.25}` (0.6%). A frame is therefore "eruptions of
+VEI n per year depositing ≥ 1 mm of ash at the point", a quantity with a
+threshold and a unit. The next real step is an ERA5 wind climatology per
+volcano to stretch the kernel downwind; not faked here.
+
+**The uniform 100 km kernel was an over-correction.** "A pile of radii" was
+a symptom of drawing every size on ONE map; on a per-VEI frame every
+eruption shares a size, so the reach being the eruption's own is exactly
+right, and the collective sums smooth survival curves rather than nested
+rings. Measured on the windowed frames: 19 deg² at VEI 1, 526 at VEI 2,
+3,997 at VEI 3, 7,194 at VEI 5, 13,258 at VEI 6, 50,894 at VEI 7 — the
+extent IS the magnitude. Sydney is reached only by a VEI 7 tail at 1 in
+171,841 years.
+
+**Two lessons from the measuring.** A slice-replace between two anchors took
+`quadtree` and `write_grid` with it — restored from `git show HEAD:`; when
+replacing a span, list what the span contains. And **a project restores the
+layers it registered**: a holocene collective from an earlier session was
+back on the globe at load, armed its own bar, and the plot I read under the
+windowed row was the OTHER record's — counts matched the holocene bake
+exactly while the collective was the windowed one. Remove stale layers
+before measuring, and read the plot by its record, not by "the first one".
+
+Verified live on 8125 (stamp b06fbec), stale layer removed: the windowed
+collective (8,829 cells) parks the bar on All; eight step-backs fetch
+`vei8`…`vei1` from the bucket with the windowed bake's own counts (0 /
+35,366 / 27,906 / 27,891 / 14,686 / 15,212 / 5,467 / 300), each key
+"Ashfall ≥ 1 mm from VEI n eruptions — per year" on the shared classes.
