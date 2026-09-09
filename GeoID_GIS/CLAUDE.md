@@ -16031,3 +16031,53 @@ Worth knowing: at the bottom class the collective is green over most of the
 globe, because a VEI 7 kernel is stamped to R·e^{1.25} ≈ 6,300 km at a chance
 of 0.6% — one in a million years, honestly. A cell nothing reaches at all is
 the transparent one.
+
+## Seismic hazards: the same tab, the same driver, magnitude in place of VEI
+
+Hazards ▸ Seismic hazards is the volcanic subtab's shape: Live's own
+past-week USGS row as a proxy, then two catalogue rows. **The record** is
+USGS ComCat through the FDSN event service — every M ≥ 5 since 1900, 107,239
+events fetched a year at a time (`bake-seismic.py`, 96 s; the service caps a
+page at 20,000 and the busiest year is under 3,000) — as one point file
+played a year at a time through the bar (`seismic-timelapse.js`, the cyclone
+tracks' arrangement: a year's events and nothing else, the whole catalogue
+as the terminal All frame, a decade tick, the span docked under the row).
+**The risk map** is four quadtree grids, M5/M6/M7/M8+, plus the collective:
+each event counts at a point as the chance its damaging radius reaches that
+far — `log₁₀(R km) = 0.5 M − 1.7` for about MMI VI in the global average
+(20 km at M5, 630 at M8), log-normal about it (σ 0.4) — over the years each
+size is recorded globally (M5 since 1964, M6 since 1930, M7–8 since 1900).
+
+**`risk-frames.js` is the driver now, and a hazard is a SPEC.** The volcanic
+frames driver was generalised rather than copied: a spec names where the
+grids live, the layer's name, the frames (one grid each), the scale, the
+words for a frame and the status line; `volcanic-risk-frames.js` registers
+the two volcanic records and `seismic-risk.js` the seismic one. "Built the
+same way" is a mechanism, so the one-key rule, the fetch-on-demand, the
+transparent none class and the note write-back cannot drift between hazards.
+
+**A stamped import and a bare one are two modules, so a registry is global.**
+The tests import `risk-frames.js` bare; the hazards import it stamped; a spec
+registered in one was invisible to the other, and the same file registered
+twice under two instances yields two spec OBJECTS — compare by field, never
+by identity. The registry lives on `globalThis`.
+
+**`global-data.js` must not import anything that imports the player.** The
+popup test stubs `window` bare, and `feature-popup → volcanic-zone-card →
+volcanic-hazards → global-data → seismic-risk → risk-frames →
+timelapse-player` threw at load on `window.addEventListener`. The catalogue
+paint lives in the pure `seismic-bands.js`; a chain like that is found by
+walking the static imports, not by reading the stack.
+
+**The largest-magnitude class must not gate the quadtree.** Gated, it split
+every block along every magnitude-unit boundary: 108,000 cells and 30 MB for
+the collective. Ungated (the max is a fact for the card), 73,437 cells and
+20 MB, and the frames 7–22 MB.
+
+Verified live on 8125 (stamp 33e673c): the record 107,239 points in 13 s
+from the bucket, key `[92055, 13469, 1607, 108]`, bar on All, 2025 reading
+"2,129 / 107,239 · largest M 8.8"; the risk map 73,437 cells in 5.8 s, key
+summing to the cells, M 8+ and M 7 frames fetched on demand with the
+subduction margins in the top classes, and a click near Tokyo on the M 7
+frame reading "1 in 1,714 years · largest on record M 8.8 · 3 earthquakes
+within reach" on a 2° cell.
