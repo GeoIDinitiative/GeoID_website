@@ -16311,3 +16311,20 @@ tool on the canvas): 15,963 m above the ground to **28,607 m below** it in one
 gesture, the screenshot showing the base of the subsurface from beneath. The
 ground is `FrontSide` only, so from under it there is no grid at all, which
 is the honest view of a ruled surface seen from its back.
+
+### "The ground gridlines are very harsh"
+
+They were the skin's chrome and data colours at full strength, 1.2 px wide,
+with a bloom under every line. A reference surface should sit UNDER the
+model, not compete with it. Now: hairlines (0.7 of `fwidth`), the minor
+lines the theme's data colour at 0.34 and the major lines the accent at 0.5
+(`themeColour` reads `GeoIDTheme.hex`, so a skin restyles the floor), the
+bloom cut from 0.35 to 0.05, and the ruling fades with view distance
+(`uFadeM`, twelve coarse steps) so the far field is a tone rather than a
+moiré.
+
+**In the see-through mode only each line's CORE survives, painted in its own
+colour.** Discarding the fill but keeping the anti-aliased edge and the bloom
+left those pixels as base-plus-almost-nothing -- near-black, opaque -- and
+wherever the plane passed in front of the rock they painted dark bands across
+the walls. Measured on the screenshot before believing the shader.
