@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-a2d80ee";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-a2d80ee";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-76b3960";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-76b3960";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260909-a2d80ee";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-a2d80ee";
-import { downloadText } from "./extraction.js?v=20260909-a2d80ee";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260909-a2d80ee";
+} from "./mesh-volume.js?v=20260909-76b3960";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-76b3960";
+import { downloadText } from "./extraction.js?v=20260909-76b3960";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260909-76b3960";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -48,17 +48,20 @@ function syncEntityAppearance() {
     const object = entry.object3D;
     if (!object) return;
     object.visible = entry.visible !== false;
-    const material = object.material;
-    if (!material) return;
     const selected = state.selection.has(entry.id);
-    if (selected) {
-      material.emissive?.setHex(SELECT_COLOR);
-      material.emissiveIntensity = 0.55;
-    } else {
-      material.emissive?.setHex(0x000000);
-      material.emissiveIntensity = 0;
-    }
-    material.needsUpdate = true;
+    // A domain may be a GROUP of face meshes: the highlight reaches each.
+    const materials = [];
+    object.traverse((o) => { if (o.material) materials.push(o.material); });
+    materials.forEach((material) => {
+      if (selected) {
+        material.emissive?.setHex(SELECT_COLOR);
+        material.emissiveIntensity = 0.55;
+      } else {
+        material.emissive?.setHex(0x000000);
+        material.emissiveIntensity = 0;
+      }
+      material.needsUpdate = true;
+    });
   });
 }
 
@@ -1398,8 +1401,7 @@ function deleteEntities(ids) {
     if (idx === -1) return;
     const [entry] = state.solids.splice(idx, 1);
     entry.object3D?.parent?.remove(entry.object3D);
-    entry.object3D?.geometry?.dispose?.();
-    entry.object3D?.material?.dispose?.();
+    entry.object3D?.traverse?.((o) => { o.geometry?.dispose?.(); o.material?.dispose?.(); });
     state.selection.delete(id);
   });
   record(`delete ${ids.length}`);
@@ -1473,9 +1475,13 @@ function pickAt(clientX, clientY) {
     .filter((entry) => entry.object3D && entry.visible !== false)
     .map((entry) => entry.object3D);
   if (!targets.length) return null;
-  const hits = raycaster.intersectObjects(targets, false);
+  const hits = raycaster.intersectObjects(targets, true);
   if (!hits.length) return null;
-  const owner = state.solids.find((entry) => entry.object3D === hits[0].object);
+  const owner = state.solids.find((entry) => {
+    let o = hits[0].object;
+    while (o) { if (o === entry.object3D) return true; o = o.parent; }
+    return false;
+  });
   return owner ? owner.id : null;
 }
 
@@ -1496,6 +1502,14 @@ function installPicking() {
     pressedAt = null;
     // Orbiting must not select, so only a near-stationary press counts.
     if (moved > 6 || event.button !== 0) return;
+    const part = partAt(event.clientX, event.clientY);
+    if (part) {
+      showPartCard(part, event.clientX, event.clientY);
+      if (part.solidId !== null && part.solidId !== undefined) setSelection([part.solidId]);
+      log(`Picked ${part.name}`);
+      return;
+    }
+    closePartCard();
     const id = pickAt(event.clientX, event.clientY);
     if (id === null) {
       setSelection([]);
@@ -1536,12 +1550,12 @@ function installPicking() {
      */
     const targets = [];
     if (gisTerrain?.skin?.visible) targets.push(gisTerrain.skin);
-    state.solids
-      .filter((e) => e.object3D && e.visible !== false
-        && !(e.object3D.material?.transparent && e.object3D.material.opacity < 1))
-      .forEach((e) => targets.push(e.object3D));
+    state.solids.filter((e) => e.object3D && e.visible !== false).forEach((e) => targets.push(e.object3D));
     if (groundMesh?.visible) targets.push(groundMesh);
-    const hit = targets.length ? raycaster.intersectObjects(targets, false)[0] : null;
+    const hit = targets.length
+      ? raycaster.intersectObjects(targets, true)
+        .find((h) => h.object.visible && !(h.object.material?.transparent && h.object.material.opacity < 1))
+      : null;
     let elevation;
     if (hit && gisTerrain?.surface && modelAnchor && hit.object !== groundMesh) {
       const local = modelAnchor.worldToLocal(hit.point.clone());
@@ -2582,20 +2596,21 @@ function setStudioOrigin(lat, lon, elevation = studioOrigin.elevation) {
 let gisTerrain = null;
 let geoGroupWasVisible = null;
 
-export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, aboveM = 0, origin = null, points = [] } = {}) {
+export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, aboveM = 0, origin = null, points = [], flags = null } = {}) {
   if (!surface?.tris?.length) { log("GIS terrain: no surface to adopt."); return null; }
   if (gisTerrain?.entries?.length) {
     deleteEntities(gisTerrain.entries.map((e) => e.id).filter((id) => findById(id)));
   }
-  if (gisTerrain?.skin) {
-    const skin = gisTerrain.skin;
-    skin.parent?.remove(skin);
-    skin.geometry?.dispose?.();
-    studioMeshes.delete(skin);
-    const layer = (window.GeoIDImportManager?.getLayers?.() || []).find((l) => l.object3D === skin);
+  (gisTerrain?.parts || []).filter((p) => p.solidId === null).forEach((p) => {
+    const m = p.mesh;
+    m.parent?.remove(m);
+    m.geometry?.dispose?.();
+    studioMeshes.delete(m);
+    const layer = (window.GeoIDImportManager?.getLayers?.() || []).find((l) => l.object3D === m);
     if (layer) window.GeoIDImportManager.removeLayer(layer.id);
-  }
-  gisTerrain = { name, surface, belowM: Number(belowM) || 0, aboveM: Number(aboveM) || 0, entries: [], points };
+  });
+  closePartCard();
+  gisTerrain = { name, surface, belowM: Number(belowM) || 0, aboveM: Number(aboveM) || 0, entries: [], points, flags };
   /**
    * THE STUDIO'S GROUND IS THE MODEL'S FLOOR. The ground is an opaque sphere
    * tangent to z = 0 and the camera is held above it, so anything under z = 0
@@ -2636,6 +2651,11 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
     minX: surface.x0 * km, maxX: (surface.x0 + surface.widthM) * km,
     minY: surface.y0 * km, maxY: (surface.y0 + surface.heightM) * km,
   };
+  gisTerrain.parts = [];
+  gisTerrain.flags = { terrain: 1, base: 2, sky: 4, sides_below: 5, sides_above: 6, subsurface: 10, atmosphere: 11, points: 20, ...(flags || {}) };
+  const F = gisTerrain.flags;
+  const extentKm = [(surface.widthM / 1000).toFixed(1), (surface.heightM / 1000).toFixed(1)];
+  const addPart = (part) => { gisTerrain.parts.push(part); return part; };
   const make = (which, extentM) => {
     const below = which === "subsurface";
     const lidKm = below ? (surface.zMin - extentM + zShift) * km : (surface.zMax + extentM + zShift) * km;
@@ -2645,33 +2665,53 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
       if (h === null) return false;
       return below ? (q[2] <= h && q[2] >= lidKm) : (q[2] >= h && q[2] <= lidKm);
     };
-    // The rock keeps its ground facets (a click on the terrain must find the
-    // rock); the air is drawn as walls and lid only, because its floor IS the
-    // ground the skin already shows and drawing it again cost 95,000
-    // triangles for nothing.
-    const positions = below
-      ? lifted(shellPositions(display, { belowM: extentM }, km))
-      : lifted(shellPositions(display, { aboveM: extentM }, km, (f) => f.face !== "ground"));
+    /**
+     * A DOMAIN IS ITS FACES, and every face is a thing somebody can point
+     * at: the rock is a top (the ground), a base and its sides; the air is a
+     * sky and its sides (its floor IS the ground the skin shows). Each face
+     * is its own mesh with its own Workspace row, its own visibility, its
+     * physical flag and a card that says what it is -- the boundary a
+     * condition in step 5 names. "The whole model should be interactive and
+     * customisable" is this: nothing on the model is one undivided lump.
+     * The rock is opaque and earthen, the air a translucent sky drawn last,
+     * and the surface STL is drawn once more as a lit green skin (below).
+     */
     const id = state.solids.reduce((m, e) => Math.max(m, e.id), 0) + 1;
+    const group = new THREE.Group();
+    group.name = `${name}_${which}`;
+    const faces = below
+      ? [["top", "ground", 0xa8703f, F.terrain, "The ground: the surface STL, as the rock's upper boundary"],
+         ["base", "lid", 0x8a5a30, F.base, `A flat floor ${Math.round(extentM)} m under the lowest ground`],
+         ["sides", "wall", 0xa8703f, F.sides_below, "The skirt walls: the rock's lateral boundary, one flag for all four"]]
+      : [["sky", "lid", 0x9fd8ff, F.sky, `A flat lid ${Math.round(extentM)} m over the highest ground`],
+         ["sides", "wall", 0x7fc8ff, F.sides_above, "The air's lateral boundary, one flag for all four sides"]];
+    faces.forEach(([face, keep, colour, flag, blurb]) => {
+      const positions = lifted(shellPositions(display, below ? { belowM: extentM } : { aboveM: extentM }, km, (f) => f.face === keep));
+      const mesh = below
+        ? displayMesh(positions, `${name}_${which}_${face}`, colour)
+        : displayMesh(positions, `${name}_${which}_${face}`, colour, { opacity: 0.22, renderOrder: 2 });
+      group.add(mesh);
+      addPart({
+        id: `${which}:${face}`, name: `${which === "subsurface" ? "Subsurface" : "Atmosphere"} — ${face}`, kind: "face",
+        which, face, flag, mesh, solidId: id, colour,
+        rows: [
+          ["What", blurb],
+          ["Physical flag", `${flag} — gmsh physical group "${face}"; a condition in step 5 names this face`],
+          ["Domain", `${which} (volume flag ${below ? F.subsurface : F.atmosphere})`],
+          ["Elevation", face === "top" ? `${Math.round(surface.zMin)} to ${Math.round(surface.zMax)} m` : (face === "base" || face === "sky") ? `${Math.round(lidKm / km - zShift)} m` : `${Math.round(below ? surface.zMin - extentM : surface.zMin)} to ${Math.round(below ? surface.zMax : surface.zMax + extentM)} m`],
+          ["Extent", `${extentKm[0]} × ${extentKm[1]} km`],
+          ["Triangles", (positions.length / 9).toLocaleString()],
+        ],
+      });
+    });
+    const anchorNode = ensureModelAnchor();
+    if (anchorNode) anchorNode.add(group);
     const entry = {
       id, kind: "gis_terrain", op: "union", enabled: true,
       params: { label: `GIS terrain — ${which}`, which, extent_km: extentM * km, name },
-      test, region: null, object3D: null,
+      test, region: null, object3D: group,
       bounds: { ...plan, minZ: below ? lidKm : (surface.zMin + zShift) * km, maxZ: below ? (surface.zMax + zShift) * km : lidKm },
     };
-    /**
-     * THE DOMAINS MUST READ AS DIFFERENT THINGS, and the ground between them
-     * must be SEEN. Two shells that share the ground triangles and wear two
-     * pale colours drew as one grey block -- the interface was inside the
-     * union, invisible. The rock is opaque and earthen; the air is a
-     * translucent sky drawn last, so the terrain shows through it; and the
-     * surface STL itself is drawn once more as a lit green skin (below),
-     * because 850 m of relief over 16 km is a 5% ripple that only shading
-     * makes legible at true scale.
-     */
-    entry.object3D = below
-      ? displayMesh(positions, `${name}_${which}`, 0xa8703f)
-      : displayMesh(positions, `${name}_${which}`, 0x7fc8ff, { opacity: 0.22, renderOrder: 2 });
     state.solids.push(entry);
     gisTerrain.entries.push(entry);
     record(`union gis terrain ${which}`);
@@ -2684,6 +2724,41 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
   gisTerrain.skin.material.polygonOffset = true;
   gisTerrain.skin.material.polygonOffsetFactor = -2;
   gisTerrain.skin.material.polygonOffsetUnits = -2;
+  addPart({
+    id: "surface", name: "Surface STL", kind: "surface", flag: F.terrain, mesh: gisTerrain.skin, solidId: null, colour: 0x6fbf73,
+    rows: [
+      ["What", "The terrain skin the GIS page sampled: the interface the rock and the air share"],
+      ["Physical flag", `${F.terrain} — "top" on the rock, the floor of the air`],
+      ["Nodes", surface.nodes.toLocaleString()],
+      ["Triangles", `${surface.triangles.toLocaleString()}${display !== surface ? ` (drawn from a ${display.triangles.toLocaleString()}-triangle stand-in)` : ""}`],
+      ["Spacing", `${Math.round(surface.spacingMinM)} to ${Math.round(surface.spacingMaxM)} m`],
+      ["Elevation", `${Math.round(surface.zMin)} to ${Math.round(surface.zMax)} m`],
+      ["Extent", `${extentKm[0]} × ${extentKm[1]} km`],
+    ],
+  });
+  /**
+   * THE EMBEDDED POINTS, as things: a small sphere each, at the node the
+   * mesh will have there, with a card that says where it is and how deep.
+   */
+  const pointR = Math.max(20, surface.spacingMaxM / 6);
+  (points || []).forEach((p, i) => {
+    const geo = new THREE.SphereGeometry(pointR, 12, 8).toNonIndexed();
+    const pos = geo.getAttribute("position").array;
+    for (let k = 0; k < pos.length; k += 3) { pos[k] += p.x * km; pos[k + 1] += p.y * km; pos[k + 2] += (p.z + zShift) * km; }
+    geo.dispose();
+    const mesh = displayMesh(Float32Array.from(pos), `${name}_point_${p.name}`, 0xffd166, { renderOrder: 3 });
+    addPart({
+      id: `point:${i}`, name: `Point — ${p.name}`, kind: "point", flag: p.flag ?? F.points, mesh, solidId: null, colour: 0xffd166,
+      rows: [
+        ["What", `An embedded point: the mesh gets a node exactly here (from ${p.layer || "the study"})`],
+        ["Position", `${Number(p.lat).toFixed(5)}°, ${Number(p.lon).toFixed(5)}°`],
+        ["Ground", `${Math.round(p.groundZ ?? (p.z + (p.depthM || 0)))} m (the surface's interpolated height)`],
+        ["Depth", `${Number(p.depthM || 0)} m below the surface`],
+        ["Node", `z = ${Math.round(p.z)} m; local x ${Math.round(p.x)}, y ${Math.round(p.y)} m`],
+        ["Physical flag", `${p.flag ?? F.points} — gmsh embeds it in the volume and tags it`],
+      ],
+    });
+  });
   renderModelTree();
   status(`${state.solids.length} entities`);
   // Cells the size of the surface's coarse spacing: the mesher's own default
@@ -2700,9 +2775,133 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
     + ` Subsurface ${gisTerrain.belowM} m below the lowest ground${gisTerrain.aboveM > 0 ? `, atmosphere ${gisTerrain.aboveM} m above the highest` : ""}.`
     + `${points?.length ? ` ${points.length} embedded point(s) carried.` : ""}`);
   ensureTerrainCard();
+  renderPartsList();
   fitView?.();
   return gisTerrain;
 }
+
+/* ── The parts: a list with a visibility toggle each, and a card on click ── */
+
+function partAt(clientX, clientY) {
+  if (!gisTerrain?.parts?.length) return null;
+  const viewer = window.GeoIDViewer;
+  const canvas = viewer.renderer.domElement;
+  const rect = canvas.getBoundingClientRect();
+  pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(pointer, viewer.camera);
+  const meshes = gisTerrain.parts.map((p) => p.mesh).filter((m) => m.visible && m.parent);
+  const hits = raycaster.intersectObjects(meshes, false);
+  if (!hits.length) return null;
+  // An opaque face under a translucent one is what was pointed at.
+  const solid = hits.find((h) => !(h.object.material?.transparent && h.object.material.opacity < 1));
+  const hit = solid || hits[0];
+  return gisTerrain.parts.find((p) => p.mesh === hit.object) || null;
+}
+
+function partVisible(part, on) {
+  part.mesh.visible = on;
+  part.hidden = !on;
+  // The Workspace row is the other door to the same state.
+  const layer = (window.GeoIDImportManager?.getLayers?.() || []).find((l) => l.object3D === part.mesh);
+  if (layer && window.GeoIDLayerHierarchy?.setVisible) {
+    try { window.GeoIDLayerHierarchy.setVisible(layer.id, on); } catch (e) { /* the mesh flag stands */ }
+  }
+}
+
+function renderPartsList() {
+  const host = byId("studio-gis-terrain");
+  if (!host) return;
+  let list = byId("studio-gis-parts");
+  if (!list) {
+    list = document.createElement("div");
+    list.id = "studio-gis-parts";
+    list.className = "studio-list";
+    host.appendChild(list);
+  }
+  list.innerHTML = "";
+  const head = document.createElement("div");
+  head.className = "studio-row";
+  head.innerHTML = "<strong>Model parts</strong>";
+  list.appendChild(head);
+  (gisTerrain?.parts || []).forEach((part) => {
+    const row = document.createElement("div");
+    row.className = "studio-item";
+    row.style.cursor = "pointer";
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.checked = part.mesh.visible !== false;
+    box.title = "Show or hide this part";
+    box.addEventListener("click", (event) => { event.stopPropagation(); partVisible(part, box.checked); });
+    const swatch = document.createElement("span");
+    swatch.style.cssText = `display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 6px;background:#${part.colour.toString(16).padStart(6, "0")}`;
+    const label = document.createElement("span");
+    label.textContent = `${part.name} · flag ${part.flag}`;
+    label.style.flex = "1";
+    row.appendChild(box);
+    row.appendChild(swatch);
+    row.appendChild(label);
+    row.addEventListener("click", () => {
+      const r = row.getBoundingClientRect();
+      showPartCard(part, r.right + 8, r.top);
+      if (part.solidId !== null && part.solidId !== undefined) setSelection([part.solidId]);
+    });
+    list.appendChild(row);
+  });
+}
+
+function closePartCard() {
+  const card = byId("studio-part-card");
+  if (card) card.remove();
+}
+
+/**
+ * The card: what this part IS, in words a reader can act on -- its flag,
+ * where it sits, what it is made of -- placed beside the click and closed by
+ * its ✕, by Escape, or by the next click on nothing.
+ */
+function showPartCard(part, x, y) {
+  closePartCard();
+  const card = document.createElement("div");
+  card.id = "studio-part-card";
+  card.style.cssText = "position:fixed;z-index:60;max-width:22rem;padding:0.6rem 0.75rem;border:1px solid rgba(255,43,214,0.45);border-radius:0.6rem;background:rgba(16,7,36,0.96);color:#e8e6f0;font:0.74rem/1.35 'Exo 2',sans-serif;box-shadow:0 8px 24px rgba(0,0,0,0.5)";
+  const title = document.createElement("div");
+  title.style.cssText = "display:flex;align-items:center;gap:0.5rem;margin-bottom:0.35rem";
+  const sw = document.createElement("span");
+  sw.style.cssText = `display:inline-block;width:12px;height:12px;border-radius:3px;background:#${part.colour.toString(16).padStart(6, "0")}`;
+  const name = document.createElement("strong");
+  name.textContent = part.name;
+  name.style.flex = "1";
+  const close = document.createElement("button");
+  close.type = "button";
+  close.textContent = "✕";
+  close.className = "studio-mini";
+  close.addEventListener("click", closePartCard);
+  title.appendChild(sw); title.appendChild(name); title.appendChild(close);
+  card.appendChild(title);
+  const grid = document.createElement("div");
+  grid.style.cssText = "display:grid;grid-template-columns:fit-content(7rem) minmax(0,1fr);gap:0.15rem 0.6rem";
+  part.rows.forEach(([k, v]) => {
+    const kk = document.createElement("span"); kk.textContent = k; kk.style.cssText = "color:#52e4e8;text-transform:uppercase;letter-spacing:0.06em;font-size:0.62rem";
+    const vv = document.createElement("span"); vv.textContent = v; vv.style.overflowWrap = "anywhere";
+    grid.appendChild(kk); grid.appendChild(vv);
+  });
+  card.appendChild(grid);
+  const toggle = document.createElement("label");
+  toggle.style.cssText = "display:block;margin-top:0.4rem;color:#bdb7d3";
+  const box = document.createElement("input");
+  box.type = "checkbox"; box.checked = part.mesh.visible !== false;
+  box.addEventListener("change", () => { partVisible(part, box.checked); renderPartsList(); });
+  toggle.appendChild(box);
+  toggle.appendChild(document.createTextNode(" shown"));
+  card.appendChild(toggle);
+  document.body.appendChild(card);
+  const w = card.offsetWidth; const h = card.offsetHeight;
+  card.style.left = `${Math.max(8, Math.min(x + 12, window.innerWidth - w - 8))}px`;
+  card.style.top = `${Math.max(8, Math.min(y - 12, window.innerHeight - h - 8))}px`;
+}
+
+document.addEventListener("keydown", (event) => { if (event.key === "Escape") closePartCard(); });
 
 /** Change the extend-boundary decision on this page: rebuild both volumes. */
 export function extendTerrain({ belowM, aboveM } = {}) {
