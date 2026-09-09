@@ -34,8 +34,10 @@ check("the catalogue paint is the same scale", [colourRange().field, colourRange
 /* ── frames: VEI 1-5 then the collective, all on that scale ─────────────── */
 const epochs = epochsFor(47150);
 check("eight VEI frames and the collective", epochs.map((e) => e.label), ["VEI 1", "VEI 2", "VEI 3", "VEI 4", "VEI 5", "VEI 6", "VEI 7", "VEI 8", "All"]);
-check("an empty frame says why rather than counting nothing", noteFor({ ...epochs[7], count: 0 }), "VEI 8 · none in the Holocene record");
-check("and its title names the last of that size", /Toba/.test(noteTitle({ ...epochs[7], count: 0 })), true);
+check("the VEI 8 frame is labelled as the Quaternary background", noteFor({ ...epochs[7], count: 1035 }), "VEI 8 · 1,035 cells — Quaternary background");
+check("and its title says where the rate comes from", /Rougier/.test(noteTitle(epochs[7])) && /Toba/.test(noteTitle(epochs[7])), true);
+check("the VEI 8 card names its basis", volcanicRiskCard({ deg: 8, rate_yr: 1e-6, p_yr: 1e-6, vei_max: 7 }, { band: "vei8" }).headline.some(([k, v]) => k === "Basis" && /Rougier/.test(v)), true);
+check("the ⓘ states the global stamp and the VEI 8 background", /whole globe/.test(JSON.stringify(mathsFor("volcanic-risk").terms)) && /17,000/.test(JSON.stringify(mathsFor("volcanic-risk").terms)), true);
 check("the collective is the terminal frame", epochs[epochs.length - 1].all, true);
 check("FRAME_VEIS is 1 to 8", FRAME_VEIS, [1, 2, 3, 4, 5, 6, 7, 8]);
 check("a frame's note counts its cells once known", noteFor({ ...epochs[2], count: 26428 }), "VEI 3 · 26,428 cells");

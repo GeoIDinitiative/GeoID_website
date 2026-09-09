@@ -114,7 +114,31 @@ ROW_LAT = 90.0 - (np.arange(NY) + 0.5) * STEP
 # 1991 (VEI 6) ~ 1 mm at 500-900 km; Tambora 1815 (VEI 7) ~ 1 mm past 1,300 km.
 REACH_KM = {0: 2.0, 1: 5.0, 2: 15.0, 3: 50.0, 4: 150.0, 5: 350.0, 6: 800.0, 7: 1800.0, 8: 3000.0}
 SIGMA = 0.5                 # log-normal spread of the reach within one VEI
-STAMP_SIGMAS = 2.5          # stamp out to R exp(2.5 sigma): P(>= 1 mm) = 0.6% there
+# A SMALL eruption is stamped to R exp(2 sigma) -- P(>= 1 mm) is 2% there and
+# thousands of them stamped further buy nothing. A LARGE one (VEI >= 5) is
+# stamped over THE WHOLE GLOBE: the map has to end with an answer everywhere,
+# and a VEI 7's chance of a millimetre at the antipode is small (1 - Phi(ln(
+# 20000/1800)/0.5) = 8e-7) but it is a number, and with the rate it is one in
+# hundreds of millions of years, in the bottom class rather than a hole.
+STAMP_SIGMAS = 2.0
+GLOBAL_FROM_VEI = 5
+GLOBAL_KM = 20100.0         # past half the circumference: every cell
+# "Largest on record reaching here" and the vent count key on a REAL chance,
+# or a global tail makes every cell "VEI 8, 2,000 volcanoes".
+COUNTS_FROM_P = 0.01
+
+# VEI 8: THE HOLOCENE HAS NONE, SO THE QUATERNARY RECORD SUPPLIES THE RATE.
+# Rougier et al. (2018) put the global return period of a magnitude-8 eruption
+# at about 17,000 years (95% range 5,200-48,000). That global rate is spread
+# evenly over the known Quaternary supereruption vents (LaMEVE; Mason et al.
+# 2004) and stamped with the VEI 8 reach -- a BACKGROUND, labelled as such,
+# never a count from the catalogue.
+VEI8_RETURN_YEARS = 17000.0
+VEI8_SOURCES = [  # name, lat, lon
+    ("Toba", 2.58, 98.83), ("Yellowstone", 44.43, -110.67), ("Taupo", -38.82, 175.90),
+    ("Long Valley", 37.70, -118.87), ("Aso", 32.88, 131.10), ("Atitlan", 14.58, -91.19),
+    ("Cerro Galan", -25.93, -65.93), ("Whakamaru", -38.50, 175.90),
+]
 UNKNOWN_VEI_AS = 2
 UNCERTAIN_WEIGHT = 0.5
 LAST_COMPLETE = 2025
@@ -136,6 +160,13 @@ SOURCE = {
     "measure_unit": "eruptions of that VEI per year depositing >= 1 mm of ash at the point",
     "uncertain_weight": UNCERTAIN_WEIGHT, "unknown_vei_counted_as": UNKNOWN_VEI_AS,
     "floor_prior": PRIOR,
+    "stamp": "VEI < {} to R exp({} sigma); VEI >= {} over the whole globe".format(
+        GLOBAL_FROM_VEI, STAMP_SIGMAS, GLOBAL_FROM_VEI),
+    "vei8": "no Holocene eruption reached VEI 8; the VEI 8 map is a QUATERNARY BACKGROUND -- a global "
+            "rate of one per {:,.0f} years (Rougier et al. 2018) spread evenly over {} known "
+            "supereruption vents: {}".format(VEI8_RETURN_YEARS, len(VEI8_SOURCES),
+                                            ", ".join(n for n, _, _ in VEI8_SOURCES)),
+    "counts_from_p": COUNTS_FROM_P,
     "resolution": "variable, {} to {} degrees; a cell subdivides while the band inside it varies by "
                   "more than {:.0%} of its peak, or is empty in part, or spans two largest-VEI "
                   "classes. Cell size is display resolution only.".format(FINEST * STEP, COARSEST * STEP, SPREAD),
@@ -197,17 +228,36 @@ def survival(z):
     return 0.5 * (1.0 - np.vectorize(math.erf)(z / math.sqrt(2.0)))
 
 
+_GLOBAL = None
+
+
+def global_index():
+    """Row and column of every lattice cell, built once (16 MB)."""
+    global _GLOBAL
+    if _GLOBAL is None:
+        rr, cc = np.divmod(np.arange(NY * NX, dtype=np.int64), NX)
+        _GLOBAL = (rr, cc)
+    return _GLOBAL
+
+
 def kernel(lon, lat, vei):
     """Cells within the stamp radius of (lat, lon) and, at each, the chance that an
     eruption of this VEI there deposits at least 1 mm of ash: P(reach >= d)."""
     if not (np.isfinite(lon) and np.isfinite(lat) and abs(lat) <= 90):
         return None, None
     reach = REACH_KM[min(int(vei), 8)]
-    rows, cols = disc(reach * math.exp(STAMP_SIGMAS * SIGMA))
     r = int(min(NY - 1, max(0, (90.0 - lat) / STEP)))
     c = int(((lon + 180.0) / STEP) % NX)
-    rr = rows[r]
-    cc = np.mod(c + cols[r], NX)
+    if int(vei) >= GLOBAL_FROM_VEI:
+        # EVERY CELL, from one shared index. `disc()` caches a per-ROW cell list,
+        # and asked for a global radius that is 720 rows x 1,036,800 cells x two
+        # int64 arrays -- about 12 GB, which took the machine down. The global
+        # stamp needs no disc at all: the lattice itself is the index.
+        rr, cc = global_index()
+    else:
+        rows, cols = disc(reach * math.exp(STAMP_SIGMAS * SIGMA))
+        rr = rows[r]
+        cc = np.mod(c + cols[r], NX)
     lat2 = np.radians(ROW_LAT[rr])
     lon2 = np.radians(-180.0 + (cc + 0.5) * STEP)
     la, lo = np.radians(lat), np.radians(lon)
@@ -333,7 +383,7 @@ def main(mode) -> int:
     vents = {}          # cell -> set of volcano numbers
     prior_cells = np.zeros(cells, dtype=bool)
     record_cells = np.zeros(cells, dtype=bool)
-    counted = {"small": 0, "vei4": 0, "vei56": 0, "vei7": 0, "prior": 0}
+    counted = {"small": 0, "vei4": 0, "vei56": 0, "vei7": 0, "prior": 0, "vei8": 0}
     uncertain = undated = out_of_window = unknown_vei = 0
 
     def count(lon, lat, vei_used, vn, weight, cls, is_prior=False):
@@ -342,10 +392,13 @@ def main(mode) -> int:
             return False
         w = k * weight
         per_vei[min(vei_used, 8), hit] += w
-        vei_max[hit] = np.maximum(vei_max[hit], vei_used)
-        (prior_cells if is_prior else record_cells)[hit] = True
+        # the largest on record, the vent list and the record/prior marks key
+        # on a real chance of a millimetre, not on a global tail
+        near = hit[k >= COUNTS_FROM_P]
+        vei_max[near] = np.maximum(vei_max[near], vei_used)
+        (prior_cells if is_prior else record_cells)[near] = True
         counted[cls] += 1
-        for idx in hit.tolist():
+        for idx in near.tolist():
             s = vents.get(idx)
             if s is None:
                 vents[idx] = {vn}
@@ -380,6 +433,10 @@ def main(mode) -> int:
         if count(coords[0], coords[1], vei_used, vn, weight, cls):
             seen.add(vn)
 
+    # the VEI 8 background: one global rate over the known Quaternary vents
+    for name, lat, lon in VEI8_SOURCES:
+        count(lon, lat, 8, f"vei8:{name}", 1.0 / (VEI8_RETURN_YEARS * len(VEI8_SOURCES)), "vei8")
+
     priors = {"holocene": 0, "pleistocene": 0}
     for f in catalogue:
         p = f["properties"]
@@ -411,9 +468,6 @@ def main(mode) -> int:
     mb = write_grid(GLOBAL / f"{stem}.geojson", feats_any, mode, "any")
     print("  any: {:,} cells, {:.1f} MB".format(len(feats_any), mb))
     for v in FRAME_VEIS:
-        # A band with nothing in it still gets its file -- every cell "none on
-        # record" -- so the VEI 8 frame draws the whole globe in that class and
-        # the note says why, rather than the frame being absent.
         feats = quadtree(grids[f"vei{v}"], vmax, extra)
         mb = write_grid(GLOBAL / f"{stem}-vei{v}.geojson", feats, mode, f"vei{v}")
         print("  vei{}: {:,} cells, {:.1f} MB".format(v, len(feats), mb))

@@ -15,10 +15,10 @@
  * their keys — one dataset draws one thing.
  */
 
-import { dataUrl } from "./data-base.js?v=20260909-f81a4d0";
-import { rampColour } from "./symbology.js?v=20260909-f81a4d0";
-import { startPlayer } from "./timelapse-player.js?v=20260909-f81a4d0";
-import { riskEdges, RISK_LABELS, classOf, FRAME_VEIS, BANDS, RECORDS, riskLayer, NONE_COLOUR, NONE_LABEL } from "./volcanic-risk.js?v=20260909-f81a4d0";
+import { dataUrl } from "./data-base.js?v=20260909-28d2721";
+import { rampColour } from "./symbology.js?v=20260909-28d2721";
+import { startPlayer } from "./timelapse-player.js?v=20260909-28d2721";
+import { riskEdges, RISK_LABELS, classOf, FRAME_VEIS, BANDS, RECORDS, riskLayer, NONE_COLOUR, NONE_LABEL } from "./volcanic-risk.js?v=20260909-28d2721";
 
 const search = new URL(import.meta.url).search;
 let running = false;
@@ -83,14 +83,18 @@ export function noteFor(epoch) {
   if (epoch.all) return `${(epoch.count || 0).toLocaleString()} cells reached, every size`;
   if (epoch.count === 0) return `VEI ${epoch.vei} · none in the Holocene record`;
   const n = epoch.count === null ? "…" : epoch.count.toLocaleString();
-  return `VEI ${epoch.vei} · ${n} cells`;
+  return `VEI ${epoch.vei} · ${n} cells${epoch.vei === 8 ? " — Quaternary background" : ""}`;
 }
 
 export function noteTitle(epoch) {
   if (epoch.all) return "The collective: eruptions of any size per year depositing at least 1 mm of ash at each point";
+  if (epoch.vei === 8) {
+    return "No Holocene eruption reached VEI 8 (Toba, about 74,000 years ago, is Pleistocene): "
+      + "this is the QUATERNARY BACKGROUND — a global rate of about one per 17,000 years "
+      + "(Rougier et al. 2018) spread over the known supereruption vents, on the same scale";
+  }
   if (epoch.count === 0) {
-    return `No eruption in the Smithsonian Holocene catalogue reached VEI ${epoch.vei}: `
-      + "the last of that size on Earth (Toba, about 74,000 years ago) is Pleistocene";
+    return `No eruption in the Smithsonian Holocene catalogue reached VEI ${epoch.vei}`;
   }
   return `Eruptions of VEI ${epoch.vei} per year depositing at least 1 mm of ash at each point, on the same scale as every other frame`;
 }

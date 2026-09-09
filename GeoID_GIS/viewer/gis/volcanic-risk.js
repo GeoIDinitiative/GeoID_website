@@ -53,18 +53,24 @@ export function classOf(p, edges = riskEdges()) {
 }
 
 /**
- * The frames the bar steps through, and the collective that ends them. VEI 8
- * is a frame with nothing in it -- no Holocene eruption reached that size
- * (Toba, 74,000 years ago, is Pleistocene) -- and it says so rather than
- * being the one size the bar skips.
+ * The frames the bar steps through, and the collective that ends them. No
+ * Holocene eruption reached VEI 8 (Toba, 74,000 years ago, is Pleistocene),
+ * so that frame is the Quaternary background rate over the known vents.
  */
 export const FRAME_VEIS = [1, 2, 3, 4, 5, 6, 7, 8];
 
 export const BANDS = {
   any: { label: "Ashfall ≥ 1 mm from any eruption — per year", kicker: "Volcanic risk — any eruption" },
-  ...Object.fromEntries([0, 1, 2, 3, 4, 5, 6, 7, 8].map((v) => [`vei${v}`, {
+  ...Object.fromEntries([0, 1, 2, 3, 4, 5, 6, 7].map((v) => [`vei${v}`, {
     label: `Ashfall ≥ 1 mm from VEI ${v} eruptions — per year`, kicker: `Volcanic risk — VEI ${v}`, vei: v,
   }])),
+  // The Holocene has no VEI 8, so its map is a QUATERNARY BACKGROUND: one
+  // global rate (Rougier et al. 2018, about one per 17,000 years) spread over
+  // the known supereruption vents. Labelled as such everywhere it appears.
+  vei8: {
+    label: "Ashfall ≥ 1 mm from VEI 8 eruptions — per year (Quaternary background)",
+    kicker: "Volcanic risk — VEI 8, Quaternary background", vei: 8, background: true,
+  },
 };
 
 /** The two records, keyed by dataset id, and where each one's files live. */

@@ -48,6 +48,11 @@ export function volcanicRiskCard(props = {}, { band = "any", full = false } = {}
     : (Number(props.none) === 1 ? "No eruption's ash on record here" : "Not once on record");
   const rows = [];
   rows.push([spec.vei !== undefined ? `VEI ${spec.vei}, ≥ 1 mm of ash` : "Any eruption, ≥ 1 mm of ash", period || NEVER]);
+  if (spec.background) {
+    rows.push(["Basis", "Quaternary background: no Holocene eruption reached VEI 8, so a global rate "
+      + "of about one per 17,000 years (Rougier et al. 2018) is spread over the known "
+      + "supereruption vents — Toba, Yellowstone, Taupo, Long Valley, Aso, Atitlán, Cerro Galán, Whakamaru"]);
+  }
   // THE COLLECTIVE LISTS EVERY SIZE, largest first: a reader comparing two
   // points wants the profile, not one number.
   for (let v = 8; v >= 0; v -= 1) {

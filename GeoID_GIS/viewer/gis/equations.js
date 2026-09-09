@@ -172,6 +172,22 @@ const EQUATIONS = {
       ["1 mm", "the threshold: about where ash starts to close airports, foul "
         + "water and load roofs when wet. A different threshold is a different "
         + "reach — 10 mm is roughly a third of the distance."],
+      ["the whole globe", "a VEI ≥ 5 eruption is stamped over every cell on "
+        + "Earth, so the map ends with an answer everywhere: a VEI 7's chance "
+        + "of a millimetre at the antipode is 8×10⁻⁷, which with the rate is one "
+        + "in hundreds of millions of years — the bottom class, not a hole. "
+        + "Smaller eruptions are stamped to R·e^{1} (2%), because a VEI 3's "
+        + "chance at 500 km is 2×10⁻⁶ and thousands of them stamped further buy "
+        + "nothing. The largest on record and the vent count key on a chance of "
+        + "at least 1%, or a global tail makes every cell 'VEI 8'."],
+      ["VEI 8", "no Holocene eruption reached it, so the VEI 8 map is a QUATERNARY "
+        + "BACKGROUND: the global return period of a magnitude-8 eruption is "
+        + "about 17,000 years (Rougier et al. 2018, 95% range 5,200–48,000), and "
+        + "that rate is spread evenly over the known Quaternary supereruption "
+        + "vents — Toba, Yellowstone, Taupo, Long Valley, Aso, Atitlán, Cerro "
+        + "Galán, Whakamaru (LaMEVE; Mason et al. 2004) — with the VEI 8 reach "
+        + "(3,000 km). Labelled as a background wherever it appears; it is not a "
+        + "count from the catalogue."],
       ["exp(−λ)", "the Poisson chance of NO arrival in a year at rate λ. "
         + "Eruptions cluster and repose times are not memoryless, so this is "
         + "the standard assumption rather than an exact one."],
@@ -181,8 +197,8 @@ const EQUATIONS = {
       + "merged into blocks while the band inside them is flat (2% of its "
       + "peak), never while empty in part, never across two largest-VEI "
       + "classes — so a VEI 7 map, flat over almost all its extent, is a few "
-      + "thousand cells. VEI 8 is a frame with nothing in it: no Holocene "
-      + "eruption reached that size. A cell nothing reaches is DRAWN, in the "
+      + "thousand cells. VEI 8 is the Quaternary background, not a Holocene "
+      + "count. A cell nothing reaches is DRAWN, in the "
       + "'no eruption's ash on record' class that leads every key — an answer, "
       + "not a gap; the app's grey means not measured, and this was. The collective "
       + "carries every band's rate on each cell, so a click on it lists every "
@@ -191,7 +207,9 @@ const EQUATIONS = {
       + "v. 5.2. Smithsonian Institution. https://doi.org/10.5479/si.GVP.VOTW5-2024.5.2. "
       + "VEI: Newhall & Self (1982), J. Geophys. Res., 87, 1231–1238. Thinning: "
       + "Pyle (1989), Bull. Volcanol., 51, 1–15. Global tephra hazard: Jenkins "
-      + "et al. (2015), GAR15 background paper, UNISDR.",
+      + "et al. (2015), GAR15 background paper, UNISDR. VEI 8 rate: Rougier, "
+      + "Sparks, Cashman & Brown (2018), Earth Planet. Sci. Lett., 482, 621–629; "
+      + "vents: Mason, Pyle & Oppenheimer (2004), Bull. Volcanol., 66, 735–748.",
   },
 
   "volcanic-risk-holocene": {
