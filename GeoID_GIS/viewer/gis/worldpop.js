@@ -18,11 +18,11 @@
  * of people per km² and the key reads in people, not in logarithms.
  */
 
-import { buildRasterLayer, loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260909-60ff59c";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260909-60ff59c";
-import { dataUrl } from "./data-base.js?v=20260909-60ff59c";
-import { rampColour } from "./symbology.js?v=20260909-60ff59c";
-import { mathsFor } from "./equations.js?v=20260909-60ff59c";
+import { buildRasterLayer, loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260909-8ebb2d7";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260909-8ebb2d7";
+import { dataUrl } from "./data-base.js?v=20260909-8ebb2d7";
+import { rampColour } from "./symbology.js?v=20260909-8ebb2d7";
+import { mathsFor } from "./equations.js?v=20260909-8ebb2d7";
 
 export const LAYER_NAME = "Population density (WorldPop 2020, 1 km)";
 const META_PATH = "/data/global/worldpop/meta.json";
@@ -75,6 +75,8 @@ export function legendFor(counts = null) {
 let three = null;
 let meta = null;
 let image = null;
+let tiffFile = null;
+let levels = null;
 let watchStop = null;
 let lastBuilt = null;
 let busy = false;
@@ -93,9 +95,35 @@ async function open() {
   if (image) return image;
   const info = await loadMeta();
   const GeoTIFF = await loadGeoTiffLibrary();
-  const tiff = await GeoTIFF.fromUrl(await dataUrl(`/data/global/${info.file}`));
-  image = await tiff.getImage();
+  tiffFile = await GeoTIFF.fromUrl(await dataUrl(`/data/global/${info.file}`));
+  image = await tiffFile.getImage();
   return image;
+}
+
+/**
+ * THE OVERVIEW WHOSE RESOLUTION MATCHES THE REQUEST, not the base image.
+ * `readRasters` on the base image reads the full-resolution window BEFORE
+ * resampling to the width asked for: a world window of Float32 is 43,200 x
+ * 18,720 x 4 bytes = 3.2 GB, and it died with "Array buffer allocation
+ * failed". (The soil-thickness sheet survives the same call only because its
+ * bytes are a quarter the size.) The COG carries average overviews; the
+ * coarsest one that still has a pixel per requested pixel is read instead.
+ */
+async function levelFor(spanPx, needPx) {
+  if (!levels) {
+    const n = await tiffFile.getImageCount();
+    levels = [];
+    for (let i = 0; i < n; i += 1) {
+      const img = await tiffFile.getImage(i);
+      levels.push({ img, scale: image.getWidth() / img.getWidth() });
+    }
+    levels.sort((a, b) => a.scale - b.scale);
+  }
+  let pick = levels[0];
+  for (const level of levels) {
+    if (spanPx / level.scale >= needPx) pick = level; else break;
+  }
+  return pick;
 }
 
 function targetBounds(info) {
@@ -132,7 +160,12 @@ async function readWindow(bounds) {
   if (x1 <= x0 || y1 <= y0) return null;
   const width = Math.max(64, Math.min(MAX_SPAN, x1 - x0));
   const height = Math.max(32, Math.round(width * ((y1 - y0) / (x1 - x0))));
-  const [band] = await img.readRasters({ window: [x0, y0, x1, y1], width, height, fillValue: info.noData });
+  const level = await levelFor(x1 - x0, width);
+  const s = level.scale;
+  const [band] = await level.img.readRasters({
+    window: [Math.floor(x0 / s), Math.floor(y0 / s), Math.ceil(x1 / s), Math.ceil(y1 / s)],
+    width, height, fillValue: info.noData,
+  });
   // The bounds of the PIXELS READ, not of the request: the read snaps out to
   // whole source pixels, and labelling the image with the request slides it
   // by up to a cell -- the thickness sheet's own coastline lesson.
