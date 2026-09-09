@@ -20,8 +20,8 @@
  * made here — and unticking the one that owns it puts the bar away.
  */
 
-import { grouped, layerForDataset } from "./global-data.js?v=20260909-8be95c4";
-import { stopPlayer } from "./timelapse-player.js?v=20260909-8be95c4";
+import { grouped, layerForDataset } from "./global-data.js?v=20260909-1b02533";
+import { stopPlayer } from "./timelapse-player.js?v=20260909-1b02533";
 
 /** Which entry owns the bar, or null. */
 let owner = null;

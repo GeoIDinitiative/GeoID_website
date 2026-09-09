@@ -5,7 +5,7 @@
  * at load (the frames driver, the player) would throw there. The record and
  * the driver registration live in `seismic-risk.js`.
  */
-import { riskEdges, RISK_LABELS } from "./volcanic-risk.js?v=20260909-8be95c4";
+import { riskEdges, RISK_LABELS } from "./volcanic-risk.js?v=20260909-1b02533";
 
 export const BANDS = {
   any: { label: "Shaking (≈ MMI VI) from any earthquake M ≥ 5 — per year", kicker: "Seismic risk — any earthquake" },

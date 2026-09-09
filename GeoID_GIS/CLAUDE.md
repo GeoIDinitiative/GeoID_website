@@ -16374,3 +16374,33 @@ a render on this GPU.
   full TIN. `tinToGrid` now carries enough for `gridAsTin` to read it back.
 - The air shell draws no floor; the rock keeps its top so a click on the
   terrain still finds the rock.
+
+### The studio is empty space, and the two pages share one frame
+
+"Maybe we should remove the gridlines. Remove the stars background option too.
+Check that there's a clear separation between the model space and the GIS
+space (same CRS)." All three done and measured:
+
+- **No ground, no stars, no floor.** The Ground and Stars toggles are gone
+  from the page; `applyStudioScene` switches both off; with no ground there
+  is no camera floor and the orbit may reach `π − MIN_POLAR_RAD`. Model mode
+  now draws 4 calls, 70,144 triangles, 0 lines.
+- **Separation, both ways.** The studio hides the georeferenced import group
+  while it is up (the sampling mesh and the plate boundaries were still being
+  drawn under the model), AND its own anchor is shown only with the model
+  page — measured before: three `geoid_*` terrain meshes in metres visible in
+  GIS mode under a globe of radius 3.2. After: nothing of the studio drawn in
+  GIS mode, nothing of the GIS drawn in the studio.
+- **One CRS.** The Model Builder's frame is local east/north metres about the
+  study centre, equirectangular scaled at the origin's latitude on the body's
+  radius, z metres above sea level — the frame every file in the package is
+  written in, and `spec.json` now states it in words. The studio's own
+  conversion was azimuthal-equidistant about the same origin: exact at the
+  centre and **9 m off at 9 km** (measured). Once a terrain is adopted the
+  studio reads and writes through the terrain's frame, so both pages compute
+  lat/lon from one function: measured after, 0.000 m at three probes.
+- **Coming back to a model.** The GIS page scales local models to its globe
+  (`userData.baseScale`), so a terrain returned to the studio after a trip to
+  GIS was 0.0003 of its size — a 16 km block in a 6 m box, with the view
+  centred on nothing. Entering model mode restores the metres and fits the
+  view to the solids.

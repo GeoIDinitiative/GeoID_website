@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-8be95c4";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-8be95c4";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-1b02533";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-1b02533";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260909-8be95c4";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-8be95c4";
-import { downloadText } from "./extraction.js?v=20260909-8be95c4";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260909-8be95c4";
+} from "./mesh-volume.js?v=20260909-1b02533";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-1b02533";
+import { downloadText } from "./extraction.js?v=20260909-1b02533";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260909-1b02533";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -2411,7 +2411,13 @@ function init() {
       rememberGlobeView();
       setStudioOrbitLimits(true);
       applyStudioScene();
-      centreOnOrigin();
+      // COMING BACK TO A MODEL: the GIS page scales local models to its own
+      // globe (`userData.baseScale`), so a terrain returned to the studio
+      // was 0.0003 of its size -- measured, a 16 km block in a 6 m box --
+      // and centring on the origin framed nothing. The studio's meshes are
+      // put back to their metres and the view fitted to them.
+      refreshStudioScale();
+      if (state.solids.length) fitView(); else centreOnOrigin();
       updateStudioContext();
     } else {
       /**
