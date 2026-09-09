@@ -1,13 +1,13 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-063b438";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-063b438";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-a4cc46f";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-a4cc46f";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260910-063b438";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-063b438";
-import { downloadText } from "./extraction.js?v=20260910-063b438";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-063b438";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-063b438";
+} from "./mesh-volume.js?v=20260910-a4cc46f";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-a4cc46f";
+import { downloadText } from "./extraction.js?v=20260910-a4cc46f";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-a4cc46f";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-a4cc46f";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -3045,17 +3045,32 @@ function renderDomainsPanel() {
     label.style.cssText = "flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
     summary.appendChild(master);
     summary.appendChild(label);
-    // The domain's own flag -- the volume (or the surface's, or the points' default) -- edited in its head.
-    const domainKey = id === "subsurface" ? "subsurface" : id === "atmosphere" ? "atmosphere" : id === "surface" ? "terrain" : "points";
-    const headFlag = flagInput(F[domainKey], (val) => assignFlag({ key: domainKey, domain: id !== "points" && id !== "surface" ? title : null }, val),
-      id === "points" ? "Default flag for embedded points" : id === "surface" ? "Flag for the ground (top)" : `Volume flag for the ${title.toLowerCase()}`);
-    headFlag.addEventListener("click", (event) => event.stopPropagation());
-    summary.appendChild(headFlag);
+
     details.appendChild(summary);
     const body = document.createElement("div");
     body.className = "gis-tool-body";
     const list = document.createElement("div");
     list.className = "studio-list";
+    /**
+     * THE DOMAIN'S OWN FLAG leads its list as a row of its own -- the volume
+     * for the rock and the air, the default for new points. It sat in the
+     * head first, where a 3.4rem box left "Subsurface" three letters wide in
+     * the studio's narrow deck; a row has the room and reads like the rest.
+     */
+    if (id !== "surface") {
+      const domainKey = id === "points" ? "points" : id;
+      const row = document.createElement("div");
+      row.className = "studio-item";
+      const swatch = document.createElement("span");
+      swatch.style.cssText = `display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 6px 0 22px;flex:0 0 auto;background:#${(id === "subsurface" ? 0xa8703f : id === "atmosphere" ? 0x7fc8ff : 0xffd166).toString(16).padStart(6, "0")}`;
+      const name = document.createElement("span");
+      name.textContent = id === "points" ? "default for new points" : "volume";
+      name.style.cssText = "flex:1;color:#bdb7d3";
+      const flagBox = flagInput(F[domainKey], (val) => assignFlag({ key: domainKey, domain: id === "points" ? null : title }, val),
+        id === "points" ? "Default flag for embedded points" : `Volume flag for the ${title.toLowerCase()}`);
+      row.appendChild(swatch); row.appendChild(name); row.appendChild(flagBox);
+      list.appendChild(row);
+    }
     own.forEach((part) => {
       const row = document.createElement("div");
       row.className = "studio-item";
