@@ -15644,3 +15644,70 @@ never disposed — and CENTRED on its coordinate by its CENTROID, not its
 bounding box, so the popup's hover ring and selection halo still fit it. Ink
 measured on the texture: 12 px wide at the top row, 34 at the middle, none
 below the base at 72%: an equilateral, apex up.
+
+## The volcanic risk map: magnitude AND frequency, from the record
+
+Hazards ▸ Volcanic hazards carries two products now, and they answer
+different questions. The BUFFERS are five fixed rings round every Holocene
+volcano whatever it has done. `bake-volcanic-risk.py` → `volcanic-risk.geojson`
+is what each volcano has actually DONE, and how often: every confirmed, dated
+eruption in the Smithsonian catalogue (9,916 of 11,089; 'Uncertain' left out)
+reaches a schematic radius set by its VEI and is counted over the years
+eruptions of ITS size are recorded. Built the cyclone map's way — a point
+within a reach, never per cell; `P = 1 − exp(−λ)`; the quadtree ported line
+for line — and three readings of one 3.9 MB file on the symbology row:
+ashfall from any eruption, from large ones (VEI 4+), and the largest VEI on
+record reaching the cell.
+
+**THE WINDOW IS PER SIZE, and it is what lets a DORMANT volcano count.** The
+first bake used one window per broad class and Naples and Tokyo came out at
+ZERO — Vesuvius (VEI 5, 1631) and Fuji (VEI 5, 1707) fell outside "since
+1900". Measured on the catalogue, confirmed eruptions per fifty years: VEI ≤ 3
+flatten only after 1950; VEI 4 runs 8, 10, 11, 9, 11, 19, 14, 21, 26, 27 from
+1500 (flat from ~1850); VEI 5 runs 3, 5, 5, 3, 1, 4, 3, 3, 5 from 1550 — flat
+for four and a half centuries; VEI 6 about one per fifty years since 1550
+against 43 in the ten thousand years before 1000 CE. So VEI ≤ 3 since 1950,
+VEI 4 since 1900, VEI 5–6 since 1550, VEI 7+ the whole Holocene. Naples and
+Tokyo read 1 in 476 years; Catania 1 in 19; Yogyakarta 1 in 15; Paris and
+Sydney nothing. A quarter of the catalogue carries no VEI and is counted as
+VEI 2, said in the file.
+
+**THE REACH IS SCHEMATIC AND ISOTROPIC, and the card and the ⓘ both say so.**
+5 km at VEI 0–1, 15 at 2, 40 at 3, 120 at 4, 300 at 5, 600 at 6, 1,000 at 7 —
+order-of-magnitude distances at which about a millimetre of ash is reported.
+Ash falls in a wind-driven plume; the circle is the fixed-radius stand-in, and
+a real eruption today wants the plume product from the live wind field, which
+is separate work.
+
+**`np.maximum(a[idx], v, out=a[idx])` writes to a COPY.** Fancy indexing
+materialises `a[idx]`, so `out=` lands in a temporary and the array is
+untouched: every cell shipped `vei_max: 0` and the quadtree gate on it did
+nothing. `a[idx] = np.maximum(a[idx], v)`. Caught by a histogram of the
+output, not by the bake, which printed nothing wrong.
+
+**The magnitude is ORDINAL, so the quadtree gates on it as a CLASS** — a
+block holding two VEIs is not flat whatever its rates — and it is painted in
+VEI order with a fixed palette, never through `categoricalSymbology`, which
+ranks by frequency and folds the rest into "(other)": a scale ranked by count
+has lost its order.
+
+**A volcanic cell carries the cyclone card's three columns.** `isRiskFeature`
+tests `p_yr`/`rate_yr`/`deg`, so tested second the volcanic grid would open as
+a TROPICAL CYCLONE. `feature-popup` asks `isVolcanicRiskFeature` (which also
+needs `vei_max`) first, and the test pins the order in the source. Two
+existing pins had to learn the third entry: "both cyclone entries declare
+their readings" counted `views:` blocks, and the cyclone card's pin matched
+`const risk = !ice && !soil && isRiskFeature` verbatim.
+
+Verified live on 8125: fetched from `data.geoidinitiative.com` with its
+fingerprint in 11.9 s, 9,989 cells at 0.6 under `GeoID-ImportedGeoLayers`,
+every key summing to 9,989 in all three views (the large view's "no large
+eruption's ash on record" row 365 = 9,989 − 9,624 drawn; the magnitude view 8
+VEI rows matching the bake's histogram), the ⓘ on the row, and a real click
+on Catania reading "1 in 19 years · 5.1% a year / large 1 in 11,765 / VEI 7 on
+record / Etna — 4 counted eruptions, up to VEI 3". Etna's 4 is honest: only
+its VEI 3 eruptions (40 km reach) cover Catania at 27 km.
+
+Not done, stated: no per-year sidecar or COG animation of the estimate as the
+cyclone map has — the eruption record's per-year counts are cheap to bake the
+same way if wanted. And the plume product above.
