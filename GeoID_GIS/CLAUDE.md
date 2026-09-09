@@ -16588,3 +16588,27 @@ tells the GIS page through `GeoIDModelPipeline.setFlag(key, n)` /
 chosen here. A point's flag is kept BY NAME (`pointFlagByName`) and wins
 over its layer's. Number inputs stop keydown propagation, or the studio's
 own shortcuts eat the digits.
+
+**A render must never draw a preview.** `stepArea` drew the section line on
+every render; `addDerivedLayer` announces the change SYNCHRONOUSLY, the
+announcement re-renders the builder, and the render saw no preview id yet
+(it is written after the call returns) — unbounded recursion that hung the
+page twice, in a way the browser tool reports as "Internal error" and then a
+45 s timeout. The line is drawn when picked or defaulted, once, behind a
+re-entrancy guard (`sectionLineBusy`). Any preview a step draws has to be
+drawn by a gesture, not by the render that shows the step.
+
+**The domain's own flag is a ROW, not a box in the head.** In the studio's
+narrow left deck a 3.4rem input in the summary left "Subsurface" three
+letters wide. It leads the domain's list as "volume" (or "default for new
+points"), which has the room and reads like the face rows.
+
+Verified live on 8125 (stamp a4cc46f), Mournes 13.67 km line through Slieve
+Donard: 300 samples at 45.7 m, 4–851 m, every sample equal to the DEM's own
+`heightAt` (worst 0.00 m); a point at the centre projects to 6,834 m along
+and 50 m under; the package is four files with `dim: 2` and the 2D script's
+physical groups; the studio shows the rock face, the air face, the profile
+ribbon and the point, the readout on the ribbon reading the profile's own
+358 / 295 / 450 m; editing the subsurface row to 42, the base edge on its
+card to 7 and the point's row to 33 rewrote the GIS package's `flags` line
+and the point's embed entry with those numbers.
