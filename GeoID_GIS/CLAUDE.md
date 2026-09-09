@@ -16612,3 +16612,18 @@ ribbon and the point, the readout on the ribbon reading the profile's own
 358 / 295 / 450 m; editing the subsurface row to 42, the base edge on its
 card to 7 and the point's row to 33 rewrote the GIS package's `flags` line
 and the point's embed entry with those numbers.
+
+### "The atmosphere and subsurface clash" — a fan across a ridge
+
+The section's faces were triangulated as a FAN from one corner of each
+ring, on the note that "both faces are monotone in s, so every fan triangle
+lies inside the ring" — true of a monotone polygon fanned from the right
+vertex and false of these: the air ring fanned from A has the chord from A
+over the peak to B for a triangle's base and the mountain inside it.
+Measured on the Mournes profile, **182 of the air face's 300 fan triangles
+sat in the rock, up to 399 m deep** — the two domains drawn over each other
+and read as one mesh. `triangulateRing` is ear clipping over the CCW ring,
+pinned against a synthetic ridge (area tiled, n − 2 triangles, no centroid
+on the wrong side, and the fan failing the same check as the control), and
+measured live after: 0 of 300 on the wrong side for both faces. The STL and
+the studio read the same triangulation; the 2D gmsh script never fanned.

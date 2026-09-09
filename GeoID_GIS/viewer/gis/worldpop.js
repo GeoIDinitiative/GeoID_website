@@ -18,11 +18,11 @@
  * of people per km² and the key reads in people, not in logarithms.
  */
 
-import { buildRasterLayer, loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260910-849dea4";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260910-849dea4";
-import { dataUrl } from "./data-base.js?v=20260910-849dea4";
-import { rampColour } from "./symbology.js?v=20260910-849dea4";
-import { mathsFor } from "./equations.js?v=20260910-849dea4";
+import { buildRasterLayer, loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260910-56fd2c1";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260910-56fd2c1";
+import { dataUrl } from "./data-base.js?v=20260910-56fd2c1";
+import { rampColour } from "./symbology.js?v=20260910-56fd2c1";
+import { mathsFor } from "./equations.js?v=20260910-56fd2c1";
 
 export const LAYER_NAME = "Population density (WorldPop 2020, 1 km)";
 const META_PATH = "/data/global/worldpop/meta.json";
