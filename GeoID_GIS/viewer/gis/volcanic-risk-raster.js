@@ -19,14 +19,14 @@
  * and raises the viewer's card with every VEI's rate at the point.
  */
 
-import { loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260909-8ac5c77";
-import { dataUrl } from "./data-base.js?v=20260909-8ac5c77";
-import { rampColour } from "./symbology.js?v=20260909-8ac5c77";
-import { mathsFor } from "./equations.js?v=20260909-8ac5c77";
+import { loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260909-02b5091";
+import { dataUrl } from "./data-base.js?v=20260909-02b5091";
+import { rampColour } from "./symbology.js?v=20260909-02b5091";
+import { mathsFor } from "./equations.js?v=20260909-02b5091";
 import {
   riskEdges, RISK_LABELS, classOf, VEI_COLOURS, VIEWS, VIEW_ORDER,
-} from "./volcanic-risk.js?v=20260909-8ac5c77";
-import { volcanicRiskCard } from "./volcanic-risk-card.js?v=20260909-8ac5c77";
+} from "./volcanic-risk.js?v=20260909-02b5091";
+import { volcanicRiskCard } from "./volcanic-risk-card.js?v=20260909-02b5091";
 
 const WORLD = { west: -180, south: -90, east: 180, north: 90 };
 const DEFAULT_OPACITY = 0.7;

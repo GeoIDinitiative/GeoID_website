@@ -15787,3 +15787,52 @@ Verified live: the full-record map from the bucket at 29,289 cells, its
 tephra key summing to 29,289, and a click on Nairobi reading "2.57 million m³
 a year · VEI 6 on record · Olkaria contributing most · 18 volcanoes reaching
 here".
+
+### "This is a mess": three ideas removed, and a raster with a band per VEI
+
+Reported three ways in one sitting, and each report named a real fault:
+
+- **"Maybe a tiff raster is a better format for global risk."** The quadtree
+  grid is the cyclone map's and is right for a SPARSE field; once the kernel
+  made this field smooth and global, 30,000 cells of six sizes read as a
+  mess. A smooth field wants a lattice: the bake writes the 0.25° lattice
+  itself as a Float32 COG (1440 × 720 × 12 bands, 6–7 MB deflated), and
+  `volcanic-risk-raster.js` reads it whole and drapes it — the cyclone
+  estimate's own arrangement (`gee.drape`, register, then `globe.add`, one
+  mesh retextured per view). The geojson grids are gone from disk and bucket.
+- **"Maybe the issue is that you dynamically estimated the ashfall extents
+  by VEI."** Yes: five radii drew five sizes of overlapping disc, each with
+  its own edge, and the map was a picture of the radii. ONE kernel scale
+  (100 km, dropped past 400) for every eruption; size is which BAND an
+  eruption falls in, not how far it reaches.
+- **"The symbology is all off — create risk maps for occurrences of each VEI
+  number per year."** The tephra-volume proxy and the "large eruptions"
+  reading were derived quantities under keys nobody could read. A band is now
+  a plain rate of ONE size of eruption per year — `vei0`…`vei7`, plus `any`,
+  `vei_max`, `vents`, `prior_only` — coloured on one return-period scale
+  (1 in 100,000 to 1 in 5 years, since a VEI 7 band lives at the top). The
+  card lists every size's rate at the point, largest first.
+
+Kept from the earlier rounds because each was right: per-VEI completeness
+windows (and the full-record twin over each volcano's own span), every
+catalogue volcano with a floor prior drawn at half alpha and named on the
+card, uncertain eruptions at half weight.
+
+**Two sheets, one module, keyed by dataset id** — `state[id]`, `sheetLayer(id)`,
+`setView(id, view)` — as TILED rows under the volcanic-hazards home (a raster
+is not a file `global-data.js` can describe; the soil-thickness row is the
+precedent), each carrying `maths: mathsFor(id)`. `probeAt` is the popup's
+sheet-click seam beside the thickness sheet's, answering from the bands in
+memory rather than the picture.
+
+**Bake rewritten rather than patched a fourth time.** Three rounds of patches
+had left two windows tables, two stamping paths and a `main()` that wrote two
+products; the rewrite is 250 lines and writes one. When a script's third
+patch has to work around its second, rewrite it.
+
+Verified live on 8125: the windowed sheet from `data.geoidinitiative.com` in
+2.2 s, each band's key summing EXACTLY to its painted pixels (any 226,412 ·
+VEI 5 17,184 · VEI 7 5,109 of 1,036,800), ten readings on the symbology row,
+opacity 0.7, and a click on Catania reading "VEI 5 · 1 in 17,498 years ·
+0.0057% a year / any 1 in 4.2 years / VEI 3 1 in 23 / VEI 2 1 in 9.5 / VEI 1
+1 in 11 / 21 volcanoes within reach".
