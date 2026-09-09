@@ -20,22 +20,22 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260909-a609e64";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260909-a609e64";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260909-ec113f0";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260909-ec113f0";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20260909-a609e64";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260909-a609e64";
-import { lithologyLabel } from "./lithology-label.js?v=20260909-a609e64";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260909-a609e64";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260909-a609e64";
-import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260909-a609e64";
-import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20260909-a609e64";
-import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js?v=20260909-a609e64";
-import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260909-a609e64";
+} from "./vector-render.js?v=20260909-ec113f0";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260909-ec113f0";
+import { lithologyLabel } from "./lithology-label.js?v=20260909-ec113f0";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260909-ec113f0";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260909-ec113f0";
+import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260909-ec113f0";
+import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20260909-ec113f0";
+import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js?v=20260909-ec113f0";
+import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260909-ec113f0";
 import {
   canEditRow, editableFields, applyRowChange,
-} from "./table-editor.js?v=20260909-a609e64";
+} from "./table-editor.js?v=20260909-ec113f0";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -2120,6 +2120,16 @@ function install() {
      * hover outline is no answer: it is a different colour, it does not
      * breathe, and it vanishes the moment the pointer moves.
      */
+    /**
+     * A RUN'S RISK SHEET IS ON TOP OF EVERYTHING IT WAS BUILT FROM -- the
+     * geology it took its material from, the study area it was cut to -- and
+     * a click on it is a question about the run, not about the polygon under
+     * it. Measured: with the world geology loaded a click on a failing cell
+     * opened the geology card and never reached the pipeline's own. The sheet
+     * claims the click first, and only while it is visible and the point is
+     * inside its grid.
+     */
+    if (window.GeoIDLandslidePipeline?.probeAt?.(at.lat, at.lon)) return;
     const geologyHit = everything.find(
       (h) => h.layer.geologyDataset && layerHasPolygons(h.layer),
     );
@@ -2149,7 +2159,6 @@ function install() {
        */
       if (window.GeoIDSoilThickness?.probeAt?.(at.lat, at.lon)) return;
       if (window.GeoIDWorldPop?.probeAt?.(at.lat, at.lon)) return;
-      if (window.GeoIDLandslidePipeline?.probeAt?.(at.lat, at.lon)) return;
       window.GeoIDViewer?.clearSceneFlash?.();
       window.GeoIDViewer?.closeSceneFeature?.();
       hidePopup();

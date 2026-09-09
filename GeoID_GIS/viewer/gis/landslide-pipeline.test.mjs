@@ -46,7 +46,8 @@ check("and opens once the area is set", readiness({ bounds: {}, rain: null, grou
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 check("the page hosts the flowchart in the Landslides subtab and loads the module", /id="landslide-pipeline"/.test(html) && /gis\/landslide-pipeline\.js\?v=/.test(html), true);
 const popup = readFileSync(new URL("./feature-popup.js", import.meta.url), "utf8");
-check("a click on the risk layer is offered to the pipeline", /GeoIDLandslidePipeline\?\.probeAt/.test(popup), true);
+check("a click on the risk layer is offered to the pipeline BEFORE the polygons under it",
+  popup.indexOf("GeoIDLandslidePipeline?.probeAt") > 0 && popup.indexOf("GeoIDLandslidePipeline?.probeAt") < popup.indexOf("const geologyHit = everything.find("), true);
 
 process.on("exit", () => {
   failures.forEach((f) => console.error(`  x ${f}`));

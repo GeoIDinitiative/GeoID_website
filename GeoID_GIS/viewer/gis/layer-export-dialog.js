@@ -12,8 +12,8 @@
  */
 
 import { formatsFor, suggestedFormat, baseName, exportLayer, layerKind, collectionOf }
-  from "./layer-export.js?v=20260909-a609e64";
-import { pointColumnsOf } from "./vector-formats.js?v=20260909-a609e64";
+  from "./layer-export.js?v=20260909-ec113f0";
+import { pointColumnsOf } from "./vector-formats.js?v=20260909-ec113f0";
 
 const DIALOG_ID = "geoid-export-dialog";
 
