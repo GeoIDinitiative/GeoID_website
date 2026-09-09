@@ -16490,3 +16490,29 @@ rather than the display stand-in, and prints longitude in degrees east
 an east-positive format. Measured after: 279 / 506 / 158 m, lat/lon to 0.01°.
 
 The lattice is light grey now (`#8e959f`, majors `#c4c9d1`), by request.
+
+### The studio's model is parts: click a face, get its card; tick a row, hide it
+
+"Interact by clicking the domains (pop-up descriptions), toggle the
+visibility of each layer, flagged elements, points — the whole model should
+be interactive and customisable." Each domain was one undivided mesh. Now:
+
+- **A domain is its FACES.** The rock is a top (the ground, flag 1), a base
+  (flag 2) and its sides (flag 5); the air is a sky (flag 4) and its sides
+  (flag 6); the surface STL is its own part; every embedded point is a small
+  sphere (flag 20). Each face is its own mesh with its own Workspace row, so
+  the eye there and the tick in the studio's **Model parts** list are one
+  state seen twice (`partVisible` commits through `GeoIDLayerHierarchy.setVisible`).
+- **A click asks the parts first** (`partAt`, translucent hits yielding to an
+  opaque one beneath), opens a card beside the click — what the part is, its
+  physical flag and the condition that names it, its elevation and extent,
+  a point's lat/lon, ground, depth and node — and selects the owning domain.
+  A row in the list does the same. Escape, ✕ or a click on nothing closes it.
+- A domain's `object3D` is now a GROUP: `pickAt` intersects recursively and
+  resolves the owner by ancestry, the selection highlight traverses to every
+  face material, and delete disposes the children.
+
+Verified live: eight parts listed; a synthetic press-and-release on the
+study-centre point opened "Point — centre" (279 m, flag 20); one on the rock's
+south wall opened "Subsurface — sides" (flag 5, −4,015 to 849 m); unticking
+the sky hid its mesh and the Workspace row read hidden with it.
