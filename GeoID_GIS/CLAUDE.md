@@ -16328,3 +16328,26 @@ colour.** Discarding the fill but keeping the anti-aliased edge and the bloom
 left those pixels as base-plus-almost-nothing -- near-black, opaque -- and
 wherever the plane passed in front of the rock they painted dark bands across
 the walls. Measured on the screenshot before believing the shader.
+
+### "Very laggy as we rotate" — every pointer move of the drag was a raycast
+
+The studio's cursor readout raycast every solid on every `pointermove`, and a
+drag is how the view is rotated: with a GIS terrain up that was three meshes
+of 95,000 triangles each, no acceleration structure, at pointer rate.
+Measured on the live page: **25.8 ms per pointer move** — a slideshow at any
+drag speed. The readout now skips any move with a button down (nobody reads a
+coordinate under a cursor they are dragging) and answers at most a dozen
+times a second: 0.07 ms per move while dragging. The air shell also stopped
+drawing its floor, which is the ground the skin already shows — terrain
+triangles 286,374 → 190,916.
+
+**And this pane cannot measure frame rate today**: `requestAnimationFrame`
+fired at 3–5 Hz in BOTH modes with the main thread idle (a 4 ms interval
+ticked 980 times in 3 s, zero long tasks), which is the browser throttling
+the pane, not the app. Measure the COST OF THE HANDLER — time a synthetic
+event — when the frame rate is not yours to read.
+
+**The grid, minimal at last**: one family of hairlines in a dim slate
+(`0x8a97ad` at 0.16, majors at 0.3), no bloom at all, no theme colour split,
+fading with distance. "Not any better than before" was fair about the
+two-colour theme ruling; a reference grid is furniture, not a subject.

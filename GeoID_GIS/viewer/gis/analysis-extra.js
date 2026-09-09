@@ -15,7 +15,7 @@
  *   of every layer and the answer was only ever a min and a max in the legend.
  */
 
-import { makeRaster, cellSizeMetres } from "./raster-analysis.js?v=20260909-e000688";
+import { makeRaster, cellSizeMetres } from "./raster-analysis.js?v=20260909-962490b";
 
 /* ── topographic wetness index ──────────────────────────────────────────── */
 
