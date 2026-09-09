@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-dfeba5f";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-dfeba5f";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-fc4f45f";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-fc4f45f";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260909-dfeba5f";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-dfeba5f";
-import { downloadText } from "./extraction.js?v=20260909-dfeba5f";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260909-dfeba5f";
+} from "./mesh-volume.js?v=20260909-fc4f45f";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-fc4f45f";
+import { downloadText } from "./extraction.js?v=20260909-fc4f45f";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260909-fc4f45f";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -567,9 +567,13 @@ function groundGridMaterial() {
       // split between minor and major -- a major line is merely a little
       // brighter. The two-colour theme ruling was reported as no better than
       // the neon it replaced; a reference grid is furniture, not a subject.
-      uMinor: { value: new THREE.Color(0x8a97ad).multiplyScalar(0.16) },
-      uMajor: { value: new THREE.Color(0x8a97ad).multiplyScalar(0.3) },
-      uBase: { value: new THREE.Color(0x04060b) },
+      // SUBTLE DARK GREY, DENSE, SEE-THROUGH. Asked for by name after the
+      // ruled ground was removed: a lattice of hairlines in a dark grey,
+      // majors a shade lighter, no fill (the plane is lines only, so what is
+      // under it shows), no bloom, fading with distance.
+      uMinor: { value: new THREE.Color(0x30343c) },
+      uMajor: { value: new THREE.Color(0x4a4f59) },
+      uBase: { value: new THREE.Color(0x000000) },
       uFadeM: { value: 40000 },
       // 1 when the model reaches below the ground: the fill between the lines
       // is DISCARDED, so the floor is a ruled grid you can see through while
@@ -669,7 +673,7 @@ function groundGridMaterial() {
           // plane passed in front of the rock -- dark bands across the walls.
           if (line < 0.5 || fade < 0.04) discard;
           if (lat > uHole.x && lat < uHole.z && lon > uHole.y && lon < uHole.w) discard;
-          gl_FragColor = vec4(uBase + colour * fade * 2.0, 1.0);
+          gl_FragColor = vec4(uBase + colour * fade, 1.0);
           return;
         }
         gl_FragColor = vec4(uBase + colour * (line + bloom) * fade, 1.0);
@@ -798,7 +802,8 @@ function refreshGraticuleStep() {
   const fovRad = (camera.fov || 45) * Math.PI / 180;
   const visibleMetres = Math.max(2 * Math.tan(fovRad / 2) * distance, 1e-4);
   // Aim for roughly ten divisions across the view.
-  const ideal = visibleMetres / 10;
+  // DENSE: about twenty cells across the view rather than ten.
+  const ideal = visibleMetres / 20;
 
   // Snapping from one standard step to the next doubles or quintuples the grid
   // density in a single frame, which is what made the horizon jump on zoom.
@@ -823,8 +828,7 @@ function refreshGraticuleStep() {
 function setGroundVisible(requested) {
   const viewer = window.GeoIDViewer;
   if (!viewer?.scene) return;
-  // Never built any more; an existing one (none, in practice) is hidden.
-  const on = false && requested;
+  const on = Boolean(requested);
   if (on && !groundMesh) {
     groundRadius = computeGroundRadius();
     patchRadius = desiredPatchRadius();
@@ -1089,7 +1093,9 @@ function applyBelowGround() {
     controls.maxPolarAngle = below ? Math.PI - MIN_POLAR_RAD : Math.PI / 2 - 0.02;
   }
   if (groundMesh?.material?.uniforms?.uOpen) {
-    groundMesh.material.uniforms.uOpen.value = below ? 1 : 0;
+    // Lines only, always: a lattice has no fill. The hole under a buried
+    // model is still only cut when there is a model below.
+    groundMesh.material.uniforms.uOpen.value = 1;
     const b = below ? combinedBounds() : null;
     groundMesh.material.uniforms.uHole.value.set(
       b ? b.minX * studioScale : 0, b ? b.minY * studioScale : 0,
@@ -2194,7 +2200,7 @@ function init() {
         eachModelMaterial((m) => { m.flatShading = on; m.needsUpdate = true; });
       } else if (which === "stars") {
         setStarsVisible(on);
-      } else if (which === "ground") {
+      } else if (which === "grid") {
         setGroundVisible(on);
       } else if (which === "clip") {
         applyClip();
@@ -2752,5 +2758,6 @@ window.GeoIDMeshStudio = {
  */
 function applyStudioScene() {
   setStarsVisible(false);
-  setGroundVisible(false);
+  const gridOn = document.querySelector('[data-toggle="grid"]')?.classList.contains("is-on");
+  setGroundVisible(gridOn !== false);
 }

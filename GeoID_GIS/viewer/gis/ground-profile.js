@@ -30,7 +30,7 @@
  * the point of assembling it rather than reading three cards.
  */
 
-import { materialFor, SHALLOW_FAILURE_CAP_M } from "./fos.js?v=20260909-dfeba5f";
+import { materialFor, SHALLOW_FAILURE_CAP_M } from "./fos.js?v=20260909-fc4f45f";
 
 /** Which loaded layer is which, by what its name says it is. */
 const SUPERFICIAL = /superficial|drift|quaternary/i;
