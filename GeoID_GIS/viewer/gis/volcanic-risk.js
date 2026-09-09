@@ -22,7 +22,7 @@
  * and triangulated for columns already in memory.
  */
 
-import { buildSymbology, colourOf, legendInfoFrom } from "./symbology.js?v=20260909-0df0bcc";
+import { buildSymbology, colourOf, legendInfoFrom } from "./symbology.js?v=20260909-d533900";
 
 /**
  * THE CLASSES ARE RETURN PERIODS, not quantiles of this file -- the cyclone

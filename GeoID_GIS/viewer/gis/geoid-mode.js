@@ -14,15 +14,15 @@
 import {
   weatherPoints, weatherUrl, parseWeatherGrid, rainAt, buildCells,
   fosColour, stepForClock,
-} from "./geoid-pipeline.js?v=20260909-0df0bcc";
-import { wetnessSeries, fosSeries } from "./fos.js?v=20260909-0df0bcc";
-import { mathsFor } from "./equations.js?v=20260909-0df0bcc";
-import * as EE from "./gee-live.js?v=20260909-0df0bcc";
-import { makeRaster } from "./raster-analysis.js?v=20260909-0df0bcc";
+} from "./geoid-pipeline.js?v=20260909-d533900";
+import { wetnessSeries, fosSeries } from "./fos.js?v=20260909-d533900";
+import { mathsFor } from "./equations.js?v=20260909-d533900";
+import * as EE from "./gee-live.js?v=20260909-d533900";
+import { makeRaster } from "./raster-analysis.js?v=20260909-d533900";
 // The adapter is a module, not a window seam — reading it off `window` was
 // a guess, and a wrong one: nothing hangs `GeoIDGeoTiff` there.
-import { buildRasterLayer, loadGeoTiffFromArrayBuffer } from "./geotiff-adapter.js?v=20260909-0df0bcc";
-import { pointInPolygon, boundsOf } from "./geometry.js?v=20260909-0df0bcc";
+import { buildRasterLayer, loadGeoTiffFromArrayBuffer } from "./geotiff-adapter.js?v=20260909-d533900";
+import { pointInPolygon, boundsOf } from "./geometry.js?v=20260909-d533900";
 
 const STAMP = "20260816-6ce8ecd";
 

@@ -15711,3 +15711,43 @@ its VEI 3 eruptions (40 km reach) cover Catania at 27 km.
 Not done, stated: no per-year sidecar or COG animation of the estimate as the
 cyclone map has — the eruption record's per-year counts are cheap to bake the
 same way if wanted. And the plume product above.
+
+### The full-record map beside it: magnitude × frequency, no windows
+
+"Can't we utilise the full Smithsonian record — dating back thousands of
+years, active or not?" Yes, as a SEPARATE layer, because it answers a
+different question and carries a different bias. `--mode holocene` on the
+same bake writes `volcanic-risk-holocene.geojson` (13,501 cells, 5.9 MB):
+every confirmed eruption back to 9700 BCE, each volcano's frequency over ITS
+OWN RECORD SPAN (first eruption → 2025) rather than a completeness window,
+and the magnitude carried as a tephra volume per VEI (a decade per step,
+VEI 2 ≈ 3 million m³) summed at each eruption's rate — so `tephra_m3_yr` IS
+magnitude × frequency and is the layer's opening view. `vei_mean` (rate-
+weighted) rides beside `vei_max`.
+
+**What the two maps trade, stated on both cards.** The full record measures a
+volcano with a short written record as if it began erupting when somebody
+started writing, which overstates it against one known from tephra alone —
+Catania reads 1 in 19 years windowed and 1 in 339 on the full record, because
+Etna's dated Holocene tephra pushes its span to 8,000 years. The windowed
+map corrects for that; the full one keeps every eruption. Neither is wrong.
+
+**Two layers, one module.** `riskLayer(layers, id)` finds each by its own
+name (`LAYER_NAMES`), `setView(view, { id })` and `currentView(layers, id)`
+are keyed the same way, and `viewOf(props)` tells the card which grid a
+clicked cell came from by feature identity — so a view set on one layer
+cannot repaint the other, and the card names the record it is reading.
+Pinned: the entries' layer names match the module's patterns.
+
+**A log quantity is gated by RATIO.** The quadtree's absolute spread test is
+meaningless on a field spanning eleven orders of magnitude, so the tephra
+rate is flat when max ≤ 2 × min (and never when empty in part). Its classes
+are orders of magnitude for the same reason.
+
+Both files are in R2 through `publish-data.py` (fingerprints in
+`sources.json`; `rclone lsf` shows 4,331,234 and 5,867,072 bytes, matching
+disk). Verified live on 8125: 13,501 cells at 0.6 from
+`data.geoidinitiative.com`, four keys each summing to 13,501, the windowed
+layer untouched by the other's views, and a click on Sicily reading
+"83.3 million m³ a year · VEI 7 on record · typical VEI 4.6 · Etna — 21
+counted eruptions, up to VEI 5".
