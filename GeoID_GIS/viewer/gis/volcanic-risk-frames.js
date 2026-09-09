@@ -2,8 +2,9 @@
  * THE VOLCANIC RISK MAPS, PLAYED BY VEI — the cyclone tracks' bar with the
  * eruption size in place of the date.
  *
- * Five grids, one per VEI 1–5, each "eruptions of that size per year near a
- * point" on the shared return-period scale, then the COLLECTIVE — the
+ * Eight grids, one per VEI 1–8, each "eruptions of that size per year
+ * depositing at least 1 mm of ash at a point" on the shared return-period
+ * scale, then the COLLECTIVE — the
  * catalogue layer itself, every size at once — as the terminal frame, which is
  * where the bar parks when the layer is ticked (the tracks' own rule: a tick
  * asks for the layer, not for the first frame of it).
@@ -14,10 +15,10 @@
  * their keys — one dataset draws one thing.
  */
 
-import { dataUrl } from "./data-base.js?v=20260909-985e96e";
-import { rampColour } from "./symbology.js?v=20260909-985e96e";
-import { startPlayer } from "./timelapse-player.js?v=20260909-985e96e";
-import { riskEdges, RISK_LABELS, classOf, FRAME_VEIS, BANDS, RECORDS, riskLayer } from "./volcanic-risk.js?v=20260909-985e96e";
+import { dataUrl } from "./data-base.js?v=20260909-b06fbec";
+import { rampColour } from "./symbology.js?v=20260909-b06fbec";
+import { startPlayer } from "./timelapse-player.js?v=20260909-b06fbec";
+import { riskEdges, RISK_LABELS, classOf, FRAME_VEIS, BANDS, RECORDS, riskLayer } from "./volcanic-risk.js?v=20260909-b06fbec";
 
 const search = new URL(import.meta.url).search;
 let running = false;
@@ -76,12 +77,12 @@ export function noteFor(epoch) {
 }
 
 export function noteTitle(epoch) {
-  if (epoch.all) return "The collective: eruptions of any size per year near each point";
+  if (epoch.all) return "The collective: eruptions of any size per year depositing at least 1 mm of ash at each point";
   if (epoch.count === 0) {
     return `No eruption in the Smithsonian Holocene catalogue reached VEI ${epoch.vei}: `
       + "the last of that size on Earth (Toba, about 74,000 years ago) is Pleistocene";
   }
-  return `Eruptions of VEI ${epoch.vei} per year near each point, on the same scale as every other frame`;
+  return `Eruptions of VEI ${epoch.vei} per year depositing at least 1 mm of ash at each point, on the same scale as every other frame`;
 }
 
 export async function play(id = "volcanic-risk", { startAt = null } = {}) {

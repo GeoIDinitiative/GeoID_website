@@ -41,7 +41,7 @@ check("a frame's note counts its cells once known", noteFor({ ...epochs[2], coun
 check("and says so while it is not", noteFor(epochs[2]), "VEI 3 · … cells");
 check("the collective's note is the whole layer", noteFor(epochs[8]), "47,150 cells, every size");
 const fp = framePaint([{ properties: { p_yr: 0.5 } }, { properties: { p_yr: 0.0001 } }], "vei3");
-check("a frame's key is labelled for its VEI on the shared classes", [fp.legend.label, fp.legend.labels.length], ["VEI 3 eruptions — per year", RISK_LABELS.length]);
+check("a frame's key is labelled for its VEI on the shared classes", [fp.legend.label, fp.legend.labels.length], ["Ashfall ≥ 1 mm from VEI 3 eruptions — per year", RISK_LABELS.length]);
 check("and a cell with nothing keeps no colour", fp.colourFor({ properties: { p_yr: 0 } }), null);
 check("the counts fall in the right classes whatever the frame's range", fp.legend.counts, [0, 0, 1, 0, 0, 0, 0, 1]);
 check("so a colour means the same in every frame", fp.colourFor({ properties: { p_yr: 0.5 } }), `#${fp.legend.palette[7]}`);
@@ -78,7 +78,8 @@ const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 check("the page loads the scale and the frames", /gis\/volcanic-risk\.js\?v=/.test(html) && /gis\/volcanic-risk-frames\.js\?v=/.test(html), true);
 for (const id of Object.keys(RECORDS)) {
   const m = mathsFor(id);
-  check(`${id} states one kernel scale for every eruption`, /R = 100 km/.test(JSON.stringify(m.terms)), true);
+  check(`${id} states the reach per VEI and its spread`, /5 km at VEI 1/.test(JSON.stringify(m.terms)) && /σ = 0\.5/.test(JSON.stringify(m.terms)), true);
+  check(`${id} names the threshold`, /1 mm/.test(JSON.stringify(m.lines)), true);
   check(`${id} says one grid per VEI`, /one-grid-per-VEI|ONE GRID PER VEI/.test(m.note), true);
 }
 

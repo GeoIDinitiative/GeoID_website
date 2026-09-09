@@ -119,18 +119,20 @@ const EQUATIONS = {
 
   "volcanic-risk": {
     kind: COMPUTED,
-    intro: "How often an eruption of EACH VEI happens near a point, per year, "
-      + "counted from the Smithsonian eruption catalogue — one band per VEI "
-      + "number, coloured on one return-period scale. Nothing is derived: a "
-      + "band is a rate of one size of eruption, and each size is counted over "
+    intro: "How often an eruption of EACH VEI drops at least a millimetre of "
+      + "ash on a point, per year, counted from the Smithsonian eruption "
+      + "catalogue — one map per VEI number, coloured on one return-period "
+      + "scale, each eruption's reach the eruption's own size. Each size is counted over "
       + "the years eruptions of that size are actually recorded, which is what "
       + "lets a dormant volcano's one VEI 5 in 1707 count beside a live one's "
       + "fifty small eruptions since 1950.",
     lines: [
-      { expr: "λ_n(p) = Σ over eruptions e of VEI n with d(p, vent(e)) ≤ 4R of w(e) · exp(−d/R) / Y(n)",
-        note: "the VEI-n band: eruptions of that size per year near the point p" },
+      { expr: "λ_n(p) = Σ over eruptions e of VEI n of w(e) · P_e(d(p, vent(e))) / Y(n)",
+        note: "the VEI-n map: eruptions of that size per year depositing at "
+          + "least 1 mm of ash at the point p — each weighted by the chance its "
+          + "ash reaches that far" },
       { expr: "λ_any(p) = Σ_n λ_n(p)",
-        note: "the 'any eruption' band" },
+        note: "the collective" },
       { expr: "P = 1 − exp(−λ)",
         note: "the chance of at least one in a given year — what the classes are cut on" },
       { expr: "VEI_max(p) = max VEI over the same eruptions",
@@ -144,13 +146,19 @@ const EQUATIONS = {
         + "76, 178, 983, 1,318, 1,821 from the 1500s to the 1950s and flatten "
         + "only after 1950; VEI 5 runs three to five per half-century since "
         + "1550."],
-      ["exp(−d/R)", "the KERNEL, with ONE scale for every eruption: R = 100 km, "
-        + "dropped past 4R (1.8%). Scaling R by VEI drew overlapping discs of "
-        + "five sizes each with its own edge and the map read as a pile of "
-        + "radii; size is which BAND an eruption falls in, not how far it "
-        + "reaches. Ash falls in a wind-driven plume; the kernel is the "
-        + "isotropic stand-in, and a real eruption today wants a plume from "
-        + "the live wind field."],
+      ["P(d)", "the chance that THIS eruption deposits at least 1 mm of ash "
+        + "at distance d: tephra thins exponentially with distance (Pyle 1989, "
+        + "T = T₀·exp(−d/b)) with both T₀ and b scaling with the eruption, and "
+        + "solved for 1 mm that gives a reach R per VEI — 5 km at VEI 1, 15 at "
+        + "2, 50 at 3, 150 at 4, 350 at 5, 800 at 6, 1,800 at 7 (Eyjafjallajökull "
+        + "2010 at VEI 4 dropped 1 mm to 100–200 km; Pinatubo 1991 at VEI 6 to "
+        + "500–900 km; Tambora 1815 at VEI 7 past 1,300 km). T₀ and b each vary "
+        + "by about two between eruptions of one VEI, so the reach is "
+        + "log-normal about R with σ = 0.5: P(d) = 1 − Φ(ln(d/R)/σ), stamped "
+        + "out to R·e^{1.25} where P is 0.6%. ISOTROPIC: a real plume goes "
+        + "downwind, and the honest next step is an ERA5 wind climatology per "
+        + "volcano, not a guess at it. This is the reduction the global tephra "
+        + "hazard studies make without a wind field (Jenkins et al. 2015)."],
       ["w(e)", "1 for a confirmed eruption, ½ for one GVP files as uncertain "
         + "(1,173 of 11,089). Unknown VEI (2,671) is counted as VEI 2."],
       ["floor prior", "every volcano in the catalogue is in the map. The "
@@ -161,6 +169,9 @@ const EQUATIONS = {
         + "fainter, and named on the card where nothing else reaches."],
       ["d", "great-circle distance, solved on the sphere, at every cell of a "
         + "0.25° lattice."],
+      ["1 mm", "the threshold: about where ash starts to close airports, foul "
+        + "water and load roofs when wet. A different threshold is a different "
+        + "reach — 10 mm is roughly a third of the distance."],
       ["exp(−λ)", "the Poisson chance of NO arrival in a year at rate λ. "
         + "Eruptions cluster and repose times are not memoryless, so this is "
         + "the standard assumption rather than an exact one."],
@@ -176,7 +187,9 @@ const EQUATIONS = {
       + "size at the point.",
     citation: "Global Volcanism Program (2024). Volcanoes of the World, "
       + "v. 5.2. Smithsonian Institution. https://doi.org/10.5479/si.GVP.VOTW5-2024.5.2. "
-      + "VEI: Newhall & Self (1982), J. Geophys. Res., 87, 1231–1238.",
+      + "VEI: Newhall & Self (1982), J. Geophys. Res., 87, 1231–1238. Thinning: "
+      + "Pyle (1989), Bull. Volcanol., 51, 1–15. Global tephra hazard: Jenkins "
+      + "et al. (2015), GAR15 background paper, UNISDR.",
   },
 
   "volcanic-risk-holocene": {
@@ -187,8 +200,9 @@ const EQUATIONS = {
     lines: [
       { expr: "span(v) = 2025 − first_v + 1",
         note: "a volcano's own record: first recorded eruption to the last complete year" },
-      { expr: "λ_n(p) = Σ over eruptions e of VEI n with d(p, vent(e)) ≤ 4R of w(e) · exp(−d/R) / span(v(e))",
-        note: "the VEI-n band" },
+      { expr: "λ_n(p) = Σ over eruptions e of VEI n of w(e) · P_e(d(p, vent(e))) / span(v(e))",
+        note: "the VEI-n map: eruptions of that size per year depositing at "
+          + "least 1 mm of ash at the point p" },
       { expr: "P = 1 − exp(−λ)",
         note: "the chance of at least one in a given year" },
     ],
@@ -198,13 +212,19 @@ const EQUATIONS = {
         + "as if it began erupting when somebody started writing, which "
         + "overstates it against one known from tephra alone — the windowed "
         + "map exists because that bias is real. Both are offered."],
-      ["exp(−d/R)", "the KERNEL, with ONE scale for every eruption: R = 100 km, "
-        + "dropped past 4R (1.8%). Scaling R by VEI drew overlapping discs of "
-        + "five sizes each with its own edge and the map read as a pile of "
-        + "radii; size is which BAND an eruption falls in, not how far it "
-        + "reaches. Ash falls in a wind-driven plume; the kernel is the "
-        + "isotropic stand-in, and a real eruption today wants a plume from "
-        + "the live wind field."],
+      ["P(d)", "the chance that THIS eruption deposits at least 1 mm of ash "
+        + "at distance d: tephra thins exponentially with distance (Pyle 1989, "
+        + "T = T₀·exp(−d/b)) with both T₀ and b scaling with the eruption, and "
+        + "solved for 1 mm that gives a reach R per VEI — 5 km at VEI 1, 15 at "
+        + "2, 50 at 3, 150 at 4, 350 at 5, 800 at 6, 1,800 at 7 (Eyjafjallajökull "
+        + "2010 at VEI 4 dropped 1 mm to 100–200 km; Pinatubo 1991 at VEI 6 to "
+        + "500–900 km; Tambora 1815 at VEI 7 past 1,300 km). T₀ and b each vary "
+        + "by about two between eruptions of one VEI, so the reach is "
+        + "log-normal about R with σ = 0.5: P(d) = 1 − Φ(ln(d/R)/σ), stamped "
+        + "out to R·e^{1.25} where P is 0.6%. ISOTROPIC: a real plume goes "
+        + "downwind, and the honest next step is an ERA5 wind climatology per "
+        + "volcano, not a guess at it. This is the reduction the global tephra "
+        + "hazard studies make without a wind field (Jenkins et al. 2015)."],
       ["w(e)", "1 for a confirmed eruption, ½ for one GVP files as uncertain "
         + "(1,173 of 11,089). Unknown VEI (2,671) is counted as VEI 2."],
       ["floor prior", "every volcano in the catalogue is in the map. The "

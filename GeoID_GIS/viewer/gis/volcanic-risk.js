@@ -1,16 +1,19 @@
 /**
  * THE VOLCANIC RISK SCALE, and the grids it colours.
  *
- * A cell's value is ERUPTIONS OF ONE SIZE PER YEAR near a point — every
- * eruption counted with one 100 km kernel, whatever its size, so size is
- * which GRID a cell belongs to and not how far an eruption reaches. Five VEI
- * grids and the collective play through the time-lapse bar with the VEI in
- * place of the date (`volcanic-risk-frames.js`); this module is the scale
- * they share, so no two frames can disagree about where a class begins.
+ * A cell's value is ERUPTIONS OF ONE SIZE PER YEAR DEPOSITING AT LEAST 1 MM
+ * OF ASH at a point. Each eruption counts at a point as the chance its ash
+ * reaches that far — Pyle's exponential thinning solved for 1 mm gives a
+ * reach per VEI (5 km at VEI 1 to 1,800 at VEI 7), log-normal about it — so
+ * the extent IS the magnitude. Eight VEI grids and the collective play
+ * through the time-lapse bar with the VEI in place of the date
+ * (`volcanic-risk-frames.js`); this module is the scale they share, so no two
+ * frames can disagree about where a class begins.
  *
- * Two earlier versions carried a VEI-scaled reach and a tephra-volume proxy,
- * and a raster was tried between them; each was reported as a mess, and the
- * grid with one band per VEI on one return-period scale is what survived.
+ * A single 100 km kernel for every size was tried and rejected: on a per-VEI
+ * frame every eruption shares a size, so a reach that is the eruption's own
+ * is exactly right there, and the collective sums smooth curves rather than
+ * nested rings.
  */
 
 /** Return periods, years. The VEI 6 and 7 grids live at the top of this range. */
@@ -50,9 +53,9 @@ export function classOf(p, edges = riskEdges()) {
 export const FRAME_VEIS = [1, 2, 3, 4, 5, 6, 7, 8];
 
 export const BANDS = {
-  any: { label: "Any eruption — per year", kicker: "Volcanic risk — any eruption" },
+  any: { label: "Ashfall ≥ 1 mm from any eruption — per year", kicker: "Volcanic risk — any eruption" },
   ...Object.fromEntries([0, 1, 2, 3, 4, 5, 6, 7, 8].map((v) => [`vei${v}`, {
-    label: `VEI ${v} eruptions — per year`, kicker: `Volcanic risk — VEI ${v}`, vei: v,
+    label: `Ashfall ≥ 1 mm from VEI ${v} eruptions — per year`, kicker: `Volcanic risk — VEI ${v}`, vei: v,
   }])),
 };
 

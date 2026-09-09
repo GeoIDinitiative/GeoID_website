@@ -26,16 +26,16 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260909-985e96e";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260909-985e96e";
-import { mathsFor } from "./equations.js?v=20260909-985e96e";
+import { runConnector } from "./research/connectors.js?v=20260909-b06fbec";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260909-b06fbec";
+import { mathsFor } from "./equations.js?v=20260909-b06fbec";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260909-985e96e";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260909-985e96e";
+} from "./cyclone-risk.js?v=20260909-b06fbec";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260909-b06fbec";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260909-985e96e";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260909-b06fbec";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -361,8 +361,8 @@ export const DATASETS = [
     /**
      * THE VOLCANIC RISK MAPS -- gridded, one per VEI, played through the bar.
      * The catalogue layer is the COLLECTIVE: eruptions of any size per year
-     * near each point, every eruption counted with one 100 km kernel whatever
-     * its size, on the cyclone map's own quadtree. Ticking it opens the bar on
+     * depositing at least 1 mm of ash at each point, each eruption's reach the
+     * eruption's own size, on the cyclone map's own quadtree. Ticking it opens the bar on
      * the collective, and each step back is one VEI's own map on the same
      * return-period scale (`volcanic-risk-frames.js`).
      *
@@ -388,10 +388,11 @@ export const DATASETS = [
         + "it is recorded, "
       : "Eruptions per year near each point from every dated eruption back to "
         + "9700 BCE, each volcano over its own record span, ")
-      + "every eruption with one 100 km kernel whatever its size; uncertain "
-      + "eruptions at half weight, all 2,666 catalogue volcanoes with a stated "
-      + "floor where no eruption is dated. Plays VEI 1\u20135 and the collective "
-      + "through the bar on one return-period scale",
+      + "each counted at a point as the chance its ash reaches that far at "
+      + "1 mm (Pyle thinning, 5 km at VEI 1 to 1,800 km at VEI 7, log-normal); "
+      + "uncertain eruptions at half weight, all 2,666 catalogue volcanoes with "
+      + "a stated floor where no eruption is dated. Plays VEI 1\u20138 and the "
+      + "collective through the bar on one return-period scale",
     licence: "Global Volcanism Program, Smithsonian Institution \u2014 CC BY 4.0; "
       + "cite Volcanoes of the World v5.2 (2024)",
     colourRange: volcanicColourRange("any"),

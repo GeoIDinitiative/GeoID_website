@@ -46,7 +46,7 @@ export function volcanicRiskCard(props = {}, { band = "any", full = false } = {}
   const pct = asPercent(props.p_yr);
   const title = period ? `${period}${pct ? ` · ${pct} a year` : ""}` : "Not once on record";
   const rows = [];
-  rows.push([spec.vei !== undefined ? `VEI ${spec.vei} eruptions` : "Any eruption", period || NEVER]);
+  rows.push([spec.vei !== undefined ? `VEI ${spec.vei}, ≥ 1 mm of ash` : "Any eruption, ≥ 1 mm of ash", period || NEVER]);
   // THE COLLECTIVE LISTS EVERY SIZE, largest first: a reader comparing two
   // points wants the profile, not one number.
   for (let v = 8; v >= 0; v -= 1) {
@@ -65,9 +65,10 @@ export function volcanicRiskCard(props = {}, { band = "any", full = false } = {}
   return {
     kicker,
     title,
-    meta: full
-      ? "every dated eruption back to 9700 BCE, each volcano over its own record span; within about 100 km, thinning to 400"
-      : "each eruption counted over the years its size is recorded; within about 100 km, thinning to 400",
+    meta: (full
+      ? "every dated eruption back to 9700 BCE, each volcano over its own record span"
+      : "each eruption counted over the years its size is recorded")
+      + " — the chance of at least 1 mm of ash here",
     headline: rows,
     note: (full
       ? "Every dated eruption in the Smithsonian Holocene catalogue, active or "
@@ -78,9 +79,12 @@ export function volcanicRiskCard(props = {}, { band = "any", full = false } = {}
       : "Eruptions counted over the window in which their size is recorded: "
         + "VEI ≤ 3 since 1950, VEI 4 since 1900, VEI 5–6 since 1550, VEI 7+ the "
         + "whole Holocene. ")
-      + "Every eruption counts exp(−d/100 km) of itself at distance d, dropped "
-      + "past 400 km, whatever its size — size is which map it is on, not how "
-      + "far it reaches. Uncertain eruptions count at half weight; every "
+      + "Each eruption counts at a point as the chance its ash reaches that "
+      + "far at 1 mm: tephra thins exponentially with distance (Pyle 1989), "
+      + "which solved for 1 mm gives a reach per VEI — 5 km at VEI 1, 15 at 2, "
+      + "50 at 3, 150 at 4, 350 at 5, 800 at 6, 1,800 at 7 — log-normal about "
+      + "it (σ 0.5). Isotropic: a real plume goes downwind. Uncertain eruptions "
+      + "count at half weight; every "
       + "catalogue volcano is in, those with no dated eruption at a stated "
       + "floor. The chance is 1 − exp(−rate). A cell is a sampling point — its "
       + "size is how finely the map is drawn there.",

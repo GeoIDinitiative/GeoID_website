@@ -16,12 +16,23 @@ THE VALUE IS AT A POINT, WITHIN A KERNEL -- never per cell -- for the reason
 the cyclone map records: cells of different sizes are only comparable when
 each is a sampling location and its size is display resolution.
 
-ONE SCALE FOR EVERY ERUPTION. An eruption counts exp(-d / R) of itself at
-distance d, with R = 100 km for every eruption whatever its size, dropped past
-4R. Scaling R by VEI drew overlapping discs of five sizes each with its own
-edge, and the map read as a pile of radii rather than as a field. Size lives
-in WHICH BAND an eruption falls in, not in how far it reaches; a reader who
-wants "large eruptions" reads the VEI 5, 6 and 7 bands.
+THE REACH IS THE ERUPTION'S SIZE, AND IT IS A PROBABILITY. Tephra thins
+exponentially with distance (Pyle 1989): T(d) = T0 exp(-d / b), with both the
+near-vent thickness T0 and the thinning distance b scaling with the eruption.
+Solved for a 1 mm damage threshold that gives a reach R per VEI -- about 5 km
+at VEI 1, 15 at 2, 50 at 3, 150 at 4, 350 at 5, 800 at 6, 1,800 at 7 -- and
+because T0 and b each vary by a factor of about two between eruptions of one
+VEI, the reach is LOG-NORMAL about R with sigma = 0.5. An eruption therefore
+counts at a point as P(reach >= d) = 1 - Phi(ln(d/R) / sigma): the chance
+that this eruption deposits at least a millimetre of ash there. A band is
+then "eruptions of VEI n per year depositing >= 1 mm of ash at the point".
+
+This is the isotropic model the global tephra hazard studies (Jenkins et al.
+2015, GAR15) reduce to without a wind field; a plume is anisotropic and goes
+downwind, and that is the next step (an ERA5 wind climatology per volcano),
+not something to fake. A single 100 km scale was tried for every eruption and
+rejected: on a per-VEI frame every eruption shares a size, so a reach that is
+the eruption's own is exactly right there.
 
 THE WINDOW DEPENDS ON THE SIZE, because the record does (--mode windowed, the
 default). Measured on the catalogue, confirmed eruptions per fifty years: VEI
@@ -88,8 +99,14 @@ NX = int(round(360 / STEP))
 NY = int(round(180 / STEP))
 ROW_LAT = 90.0 - (np.arange(NY) + 0.5) * STEP
 
-SCALE_KM = 100.0
-KERNEL_REACH = 4.0
+# Reach to 1 mm of ash, km, by VEI: Pyle's T(d) = T0 exp(-d/b) with T0 ~ 3 cm
+# (VEI 1) rising a decade every two VEI and b ~ 1.5 km (VEI 1) rising ~2x per
+# VEI, solved for 1 mm. Order-of-magnitude checks: Eyjafjallajokull 2010 (VEI
+# 4) ~ 1 mm to 100-200 km; St Helens 1980 (VEI 5) traces to ~400 km; Pinatubo
+# 1991 (VEI 6) ~ 1 mm at 500-900 km; Tambora 1815 (VEI 7) ~ 1 mm past 1,300 km.
+REACH_KM = {0: 2.0, 1: 5.0, 2: 15.0, 3: 50.0, 4: 150.0, 5: 350.0, 6: 800.0, 7: 1800.0, 8: 3000.0}
+SIGMA = 0.5                 # log-normal spread of the reach within one VEI
+STAMP_SIGMAS = 2.5          # stamp out to R exp(2.5 sigma): P(>= 1 mm) = 0.6% there
 UNKNOWN_VEI_AS = 2
 UNCERTAIN_WEIGHT = 0.5
 LAST_COMPLETE = 2025
@@ -104,8 +121,11 @@ SOURCE = {
     "dataset": "Smithsonian Global Volcanism Program, Volcanoes of the World (Holocene eruption catalogue)",
     "citation": "Global Volcanism Program (2024). Volcanoes of the World, v. 5.2. Smithsonian "
                 "Institution. https://doi.org/10.5479/si.GVP.VOTW5-2024.5.2",
-    "kernel": f"each eruption counts exp(-d/{SCALE_KM:.0f} km) of itself at distance d, dropped past "
-              f"{KERNEL_REACH:.0f}R, whatever its size",
+    "kernel": "each eruption counts P(reach >= d) = 1 - Phi(ln(d/R)/sigma) at distance d: the chance "
+              "it deposits at least 1 mm of ash there, with R by VEI (Pyle exponential thinning solved "
+              "for 1 mm) and sigma = {}".format(SIGMA),
+    "reach_km_by_vei": REACH_KM,
+    "measure_unit": "eruptions of that VEI per year depositing >= 1 mm of ash at the point",
     "uncertain_weight": UNCERTAIN_WEIGHT, "unknown_vei_counted_as": UNKNOWN_VEI_AS,
     "floor_prior": PRIOR,
     "resolution": "variable, {} to {} degrees; a cell subdivides while the band inside it varies by "
@@ -131,17 +151,15 @@ def fetch_eruptions():
         return json.load(r)["features"]
 
 
-_DISC = None
+_DISCS = {}
 
 
-def disc():
-    """Per grid row, the cells within KERNEL_REACH * SCALE_KM of a point on that row."""
-    global _DISC
-    if _DISC is not None:
-        return _DISC
-    radius = SCALE_KM * KERNEL_REACH
-    span = int(math.ceil(radius / 111.32 / STEP)) + 1
-    hav_r = math.sin(0.5 * radius / EARTH_R_KM) ** 2
+def disc(radius_km):
+    """Per grid row, the cells within radius_km of a point on that row (cached per radius)."""
+    if radius_km in _DISCS:
+        return _DISCS[radius_km]
+    span = int(math.ceil(radius_km / 111.32 / STEP)) + 1
+    hav_r = math.sin(0.5 * radius_km / EARTH_R_KM) ** 2
     rows_out, cols_out = [], []
     for r in range(NY):
         lat = ROW_LAT[r]
@@ -162,15 +180,22 @@ def disc():
             rows.append(np.full(offs.size, r2, dtype=np.int64))
         rows_out.append(np.concatenate(rows))
         cols_out.append(np.concatenate(cols))
-    _DISC = (rows_out, cols_out)
-    return _DISC
+    _DISCS[radius_km] = (rows_out, cols_out)
+    return _DISCS[radius_km]
 
 
-def kernel(lon, lat):
-    """Cell indices within reach of (lat, lon), and exp(-d/R) at each."""
+def survival(z):
+    """1 - Phi(z) for a standard normal, vectorised."""
+    return 0.5 * (1.0 - np.vectorize(math.erf)(z / math.sqrt(2.0)))
+
+
+def kernel(lon, lat, vei):
+    """Cells within the stamp radius of (lat, lon) and, at each, the chance that an
+    eruption of this VEI there deposits at least 1 mm of ash: P(reach >= d)."""
     if not (np.isfinite(lon) and np.isfinite(lat) and abs(lat) <= 90):
         return None, None
-    rows, cols = disc()
+    reach = REACH_KM[min(int(vei), 8)]
+    rows, cols = disc(reach * math.exp(STAMP_SIGMAS * SIGMA))
     r = int(min(NY - 1, max(0, (90.0 - lat) / STEP)))
     c = int(((lon + 180.0) / STEP) % NX)
     rr = rows[r]
@@ -179,8 +204,8 @@ def kernel(lon, lat):
     lon2 = np.radians(-180.0 + (cc + 0.5) * STEP)
     la, lo = np.radians(lat), np.radians(lon)
     a = np.sin((lat2 - la) / 2) ** 2 + np.cos(la) * np.cos(lat2) * np.sin((lon2 - lo) / 2) ** 2
-    d = 2 * EARTH_R_KM * np.arcsin(np.sqrt(np.clip(a, 0, 1)))
-    return rr * NX + cc, np.exp(-d / SCALE_KM)
+    d = np.maximum(2 * EARTH_R_KM * np.arcsin(np.sqrt(np.clip(a, 0, 1))), 0.01)
+    return rr * NX + cc, survival(np.log(d / reach) / SIGMA)
 
 
 def quadtree(field, vei_max, extra):
@@ -280,7 +305,7 @@ def main(mode) -> int:
     uncertain = undated = out_of_window = unknown_vei = 0
 
     def count(lon, lat, vei_used, vn, weight, cls, is_prior=False):
-        hit, k = kernel(lon, lat)
+        hit, k = kernel(lon, lat, vei_used)
         if hit is None:
             return False
         w = k * weight
