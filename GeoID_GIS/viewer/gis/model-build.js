@@ -312,7 +312,7 @@ export function despikeGrid(z, nx, ny, stepM) {
 
 /* ── STL ─────────────────────────────────────────────────────────────────── */
 
-function triangleWriter(out, hint) {
+export function triangleWriter(out, hint) {
   return (a, b, c) => {
     const ux = b[0] - a[0];
     const uy = b[1] - a[1];
@@ -797,6 +797,100 @@ function sizeSection({ sizeFieldFile, refineBoxes, meshSizeM }) {
 }
 
 /** The closed form: a watertight STL is already the boundary of one volume. */
+/**
+ * EXTEND THE BOUNDARY, etna's way — `mesh/etna.py`'s `outer_box`, verbatim in
+ * its recipe: classify the terrain STL, take its four rim curves and their
+ * corner points, carry the corners to `z_bd`, join them with lines, and close
+ * the box with five plane surfaces. It is emitted whenever the study asks for
+ * an extended domain, because it is the recipe the Etna decks were built with
+ * and a reader of those decks expects to find it.
+ *
+ * It is OFF by default (`USE_OUTER_BOX = False`) for a measured reason: a
+ * PLANE surface through a rim curve needs that curve to be nearly planar, and
+ * a real rim is only planar where the ground happens to be flat as it leaves
+ * the study area. On a ridge crossing its own boundary two of the four rim
+ * curves spanned 593 m in z, `addPlaneSurface` refused them ("Unable to
+ * recover the edge") and `addSurfaceFilling` refuses discrete curves outright.
+ * The baked skirt the script merges by default conforms to any rim. Flip the
+ * switch for a study whose rim is level, and the etna path is exactly there.
+ */
+function extendSection(extend, name) {
+  if (!extend) return [];
+  const lid = extend.which === "atmosphere" ? "sky" : "base";
+  const sides = extend.which === "atmosphere" ? "sides_above" : "sides_below";
+  return [
+    "",
+    "# EXTEND THE BOUNDARY (mesh/etna.py: outer_box). The study handed over the",
+    "# terrain; the volume is built here from its rim. Kept verbatim as the",
+    "# alternative path, OFF by default because it needs a rim close to planar:",
+    "# measured on a ridge, two rim curves spanned 593 m in z and addPlaneSurface",
+    "# refused them. The baked skirt merged above conforms to any rim.",
+    "USE_OUTER_BOX = False",
+    `EXTEND = ${PY({
+      which: extend.which || "subsurface",
+      z_bd: Number(extend.zBd),
+      h: Number(extend.h) > 0 ? Number(extend.h) : 5000,
+      surface_stl: String(extend.surfaceFile || ""),
+      below_m: Number(extend.belowM) || 0,
+      above_m: Number(extend.aboveM) || 0,
+    })}`,
+    "",
+    "def outer_box(z_bd, h):",
+    "    \"\"\"etna.py's outer_box: the rim's corners carried to z_bd, boxed in planes.\"\"\"",
+    "    import math",
+    "    gmsh.model.mesh.classifySurfaces(math.pi, curveAngle=math.pi / 3)",
+    "    gmsh.model.mesh.createGeometry()",
+    "    s = gmsh.model.getEntities(2)",
+    "    c = gmsh.model.getBoundary(s)",
+    "    if len(c) != 4:",
+    "        gmsh.logger.write('Should have 4 boundary curves!', level='error')",
+    "    p = []",
+    "    xyz = []",
+    "    for e in c:",
+    "        pt = gmsh.model.getBoundary([e], combined=False)",
+    "        p.extend([pt[0][1]])",
+    "        xyz.extend(gmsh.model.getValue(0, pt[0][1], []))",
+    "    p1 = gmsh.model.geo.addPoint(xyz[0], xyz[1], z_bd, h)",
+    "    p2 = gmsh.model.geo.addPoint(xyz[3], xyz[4], z_bd, h)",
+    "    p3 = gmsh.model.geo.addPoint(xyz[6], xyz[7], z_bd, h)",
+    "    p4 = gmsh.model.geo.addPoint(xyz[9], xyz[10], z_bd, h)",
+    "    c1 = gmsh.model.geo.addLine(p1, p2)",
+    "    c2 = gmsh.model.geo.addLine(p2, p3)",
+    "    c3 = gmsh.model.geo.addLine(p3, p4)",
+    "    c4 = gmsh.model.geo.addLine(p4, p1)",
+    "    c5 = gmsh.model.geo.addLine(p1, p[0])",
+    "    c6 = gmsh.model.geo.addLine(p2, p[1])",
+    "    c7 = gmsh.model.geo.addLine(p3, p[2])",
+    "    c8 = gmsh.model.geo.addLine(p4, p[3])",
+    "    ll1 = gmsh.model.geo.addCurveLoop([c1, c2, c3, c4])",
+    "    s1 = gmsh.model.geo.addPlaneSurface([ll1])",
+    "    ll2 = gmsh.model.geo.addCurveLoop([c1, c6, -c[0][1], -c5])",
+    "    s2 = gmsh.model.geo.addPlaneSurface([ll2])",
+    "    ll3 = gmsh.model.geo.addCurveLoop([c2, c7, -c[1][1], -c6])",
+    "    s3 = gmsh.model.geo.addPlaneSurface([ll3])",
+    "    ll4 = gmsh.model.geo.addCurveLoop([c3, c8, -c[2][1], -c7])",
+    "    s4 = gmsh.model.geo.addPlaneSurface([ll4])",
+    "    ll5 = gmsh.model.geo.addCurveLoop([c4, c5, -c[3][1], -c8])",
+    "    s5 = gmsh.model.geo.addPlaneSurface([ll5])",
+    "    sl = gmsh.model.geo.addSurfaceLoop([s1, s2, s3, s4, s5, s[0][1]])",
+    "    return sl, s1, [s2, s3, s4, s5], s[0][1]",
+    "",
+    "if USE_OUTER_BOX:",
+    "    gmsh.clear()",
+    `    gmsh.model.add(${PY(name)})`,
+    "    gmsh.merge(EXTEND[\"surface_stl\"])",
+    "    sl, lid, sides, top = outer_box(EXTEND[\"z_bd\"], EXTEND[\"h\"])",
+    "    volume = gmsh.model.geo.addVolume([sl])",
+    "    volumes = {\"domain\": volume}",
+    "    gmsh.model.geo.synchronize()",
+    "    groups = {\"top\": [top], \"base\": [], \"sky\": [],",
+    "              \"north\": [], \"south\": [], \"east\": [], \"west\": [],",
+    "              \"sides_below\": [], \"sides_above\": []}",
+    `    groups[${PY(lid)}] = [lid]`,
+    `    groups[${PY(sides)}] = sides`,
+  ];
+}
+
 function closedGeometry(stlFile) {
   return [
     "",
@@ -903,6 +997,7 @@ export function gmshScript({
     "gmsh.option.setNumber(\"General.Terminal\", 1)",
     `gmsh.model.add(${PY(name)})`,
     ...closedGeometry(stlFile, Boolean(extend?.split)),
+    ...extendSection(extend, name),
     "",
     "# THE FLAGS. A solver reads the integer tag, not the name — GALES' own",
     "# preprocessor takes int(result[5]) out of the $Entities block and refuses",

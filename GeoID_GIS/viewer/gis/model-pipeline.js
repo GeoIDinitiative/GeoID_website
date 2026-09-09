@@ -1,9 +1,14 @@
 import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
-  nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS,
-} from "./model-build.js?v=20260909-efbf340";
-import { ringsFromCollection } from "./extraction.js?v=20260909-efbf340";
+  nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS, atmosphereStl, DEFAULT_MAX_NODES,
+} from "./model-build.js?v=20260909-d64ef6c";
+import { ringsFromCollection } from "./extraction.js?v=20260909-d64ef6c";
+import {
+  buildTin, tinHeightAt, tinSurfaceStl, tinShellStl, samplingSizeField,
+  extendBoundary, extendedBoundaryLines, gridAsTin,
+} from "./surface-sampling.js?v=20260909-d64ef6c";
+import { renderFeatureCollection } from "./vector-render.js?v=20260909-d64ef6c";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -77,6 +82,20 @@ const state = {
   grading: { on: true, coarseM: 0, fineM: 0, slopeRefDeg: 30 },
   surface: null,
   domain: { type: "solid", depthM: 5000, materials: {} },
+  /**
+   * HOW THE GROUND IS SAMPLED. Uniform is one step everywhere; variable is a
+   * base step outside and the DEM's own (or a chosen) step inside BUFFERS the
+   * reader draws -- a square or a circle about a point -- graded between the
+   * two so the triangles grow rather than jump. Layers given the refine role
+   * join the buffers with their bounding box.
+   */
+  sampling: { mode: "uniform", baseM: 0, gradeM: null, buffers: [] },
+  /** Points placed on the globe, embedded at the surface's own interpolated height. */
+  customPoints: [],
+  /** The air over the ground, as its own closed shell and its own gmsh script. */
+  atmosphere: { on: false, heightM: 5000 },
+  /** Layer ids of what this builder draws on the globe, by kind. */
+  previews: {},
   conditions: [],
   outputs: null,
   open: "area",
@@ -407,6 +426,294 @@ function buildStep(stepId, body) {
   return stepBuild(body);
 }
 
+
+/* ── What the builder draws on the globe ─────────────────────────────────── */
+
+const PREVIEW_NAMES = {
+  buffers: "Model Builder — sampling buffers",
+  sampling: "Model Builder — surface sampling",
+  points: "Model Builder — embedded points",
+  extend: "Model Builder — extended boundary",
+};
+const UNITS_PER_METRE = 3.2 / 6371008.8;
+let three = null;
+
+function removePreview(kind) {
+  const id = state.previews[kind];
+  if (id === undefined) return;
+  delete state.previews[kind];
+  try { window.GeoIDImportManager?.removeLayer?.(id); } catch (e) { /* already gone */ }
+}
+
+function bboxOf(fc) {
+  const b = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+  const eat = (c) => {
+    if (typeof c[0] === "number") {
+      if (c[0] < b.minX) b.minX = c[0]; if (c[0] > b.maxX) b.maxX = c[0];
+      if (c[1] < b.minY) b.minY = c[1]; if (c[1] > b.maxY) b.maxY = c[1];
+    } else c.forEach(eat);
+  };
+  fc.features.forEach((f) => eat(f.geometry.coordinates));
+  return Number.isFinite(b.minX) ? b : null;
+}
+
+function showPreview(kind, fc, { colourFor, outlineOnly = true, legendInfo = null, description = "" } = {}) {
+  removePreview(kind);
+  if (!fc.features.length) return null;
+  const made = renderFeatureCollection(fc, { colourFor, outlineOnly, name: PREVIEW_NAMES[kind] });
+  const node = made?.object3D || made;
+  if (!node) return null;
+  const layer = window.GeoIDImportManager?.addDerivedLayer?.(PREVIEW_NAMES[kind], {
+    object3D: node, georeferenced: true, bounds: bboxOf(fc), features: fc.features, collection: fc,
+    legendInfo, home: "model", opacity: 1,
+    metadata: { source: "GeoHUB Model Builder", dataType: "model", description },
+  }, "derived");
+  if (layer) state.previews[kind] = layer.id;
+  return layer;
+}
+
+function studyCentre() {
+  const b = state.bounds?.bbox;
+  return b ? { lat: (b.south + b.north) / 2, lon: (b.west + b.east) / 2 } : null;
+}
+
+function studySpanM() {
+  if (!state.bounds) return 0;
+  const p = planGrid({ bounds: state.bounds.bbox, stepM: 1, radiusKm: bodyRadiusKm() });
+  return Math.max(p.widthM, p.heightM);
+}
+
+function nativeM() {
+  return state.demReady?.postM || state.nativeStepM || null;
+}
+
+/** Layers given the refine role, as square buffers over their bounding box. */
+function refineBuffers() {
+  const out = [];
+  loadedLayers().forEach((layer) => {
+    if (state.roles.get(String(layer.id)) !== "refine") return;
+    const rings = ringsFromCollection(layer.collection || { features: layer.features || [] });
+    if (!rings?.length) return;
+    let w = Infinity; let e = -Infinity; let sth = Infinity; let n = -Infinity;
+    rings.forEach((ring) => ring.forEach(([lon, lat]) => {
+      if (lon < w) w = lon; if (lon > e) e = lon; if (lat < sth) sth = lat; if (lat > n) n = lat;
+    }));
+    if (!Number.isFinite(w) || e <= w) return;
+    const lat = (sth + n) / 2;
+    const kmX = (e - w) * 111.32 * Math.cos((lat * Math.PI) / 180) * (bodyRadiusKm() / 6371.0088);
+    const kmY = (n - sth) * 111.32 * (bodyRadiusKm() / 6371.0088);
+    const size = Number(state.refineSize?.get(String(layer.id)));
+    out.push({
+      id: `layer:${layer.id}`, name: layer.name, shape: "square", lat, lon: (w + e) / 2,
+      sizeKm: Math.max(kmX, kmY), stepM: Number.isFinite(size) && size > 0 ? size : null, fromLayer: true,
+    });
+  });
+  return out;
+}
+
+function allBuffers() {
+  return [...state.sampling.buffers, ...refineBuffers()];
+}
+
+/** A buffer's outline on the ground, as a lon/lat ring. */
+function bufferRing(b) {
+  const R = bodyRadiusKm();
+  const kmLat = (Math.PI * R) / 180;
+  const kmLon = kmLat * Math.max(Math.cos((b.lat * Math.PI) / 180), 0.01);
+  const half = Number(b.sizeKm) / 2;
+  const ring = [];
+  if (b.shape === "circle") {
+    for (let k = 0; k <= 48; k += 1) {
+      const a = (k / 48) * 2 * Math.PI;
+      ring.push([b.lon + (half * Math.cos(a)) / kmLon, b.lat + (half * Math.sin(a)) / kmLat]);
+    }
+  } else {
+    const dx = half / kmLon; const dy = half / kmLat;
+    ring.push([b.lon - dx, b.lat - dy], [b.lon + dx, b.lat - dy], [b.lon + dx, b.lat + dy], [b.lon - dx, b.lat + dy], [b.lon - dx, b.lat - dy]);
+  }
+  return ring;
+}
+
+const BUFFER_COLOURS = { native: "#52e4e8", step: "#ffb84d", layer: "#ff2bd6" };
+function bufferColour(b) {
+  return b.fromLayer ? BUFFER_COLOURS.layer : (b.stepM ? BUFFER_COLOURS.step : BUFFER_COLOURS.native);
+}
+
+function drawBuffers() {
+  const buffers = allBuffers();
+  const fc = { type: "FeatureCollection", features: buffers.map((b) => ({
+    type: "Feature",
+    properties: {
+      name: b.name, shape: b.shape, size_km: b.sizeKm,
+      resolution: b.stepM ? `${b.stepM} m` : "native", kind: bufferColour(b),
+    },
+    geometry: { type: "Polygon", coordinates: [bufferRing(b)] },
+  })) };
+  showPreview("buffers", fc, {
+    colourFor: (f) => f.properties.kind,
+    outlineOnly: true,
+    legendInfo: {
+      palette: [BUFFER_COLOURS.native.slice(1), BUFFER_COLOURS.step.slice(1), BUFFER_COLOURS.layer.slice(1)],
+      labels: ["Native resolution", "A chosen step", "From a refine-role layer"],
+      label: "Where the surface is sampled finer", classed: true, categorical: true, unit: null,
+    },
+    description: "Buffers the reader drew: the ground is sampled at the DEM's own step inside them, graded to the base step outside.",
+  });
+}
+
+/** The sampling as line work: every triangle edge, coloured by its spacing. */
+function drawSampling(tin) {
+  const spacing = tin.nodeSpacing || null;
+  const edges = new Map();
+  tin.tris.forEach(([a, b, c]) => {
+    [[a, b], [b, c], [c, a]].forEach(([p, q]) => {
+      const k = p < q ? `${p}|${q}` : `${q}|${p}`;
+      if (edges.has(k)) return;
+      const size = spacing ? Math.min(spacing[p], spacing[q]) : tin.spacingMinM;
+      edges.set(k, { p, q, size: Math.round(size) });
+    });
+  });
+  const classes = [...new Set([...edges.values()].map((e) => e.size))].sort((x, y) => x - y);
+  const shown = classes.slice(0, 12);
+  const ramp = (i) => {
+    const t = shown.length > 1 ? i / (shown.length - 1) : 0;
+    const r = Math.round(255 * Math.min(1, 1.6 - 1.6 * t));
+    const g = Math.round(120 + 100 * t);
+    const b = Math.round(80 + 175 * t);
+    return `#${[r, g, b].map((v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, "0")).join("")}`;
+  };
+  const byClass = new Map(shown.map((c) => [c, []]));
+  edges.forEach((e) => {
+    const c = shown.find((x) => x >= e.size) ?? shown[shown.length - 1];
+    byClass.get(c).push([[tin.lons[e.p], tin.lats[e.p]], [tin.lons[e.q], tin.lats[e.q]]]);
+  });
+  const features = shown.map((c, i) => ({
+    type: "Feature",
+    properties: { spacing_m: c, edges: byClass.get(c).length, colour: ramp(i) },
+    geometry: { type: "MultiLineString", coordinates: byClass.get(c) },
+  })).filter((f) => f.geometry.coordinates.length);
+  showPreview("sampling", { type: "FeatureCollection", features }, {
+    colourFor: (f) => f.properties.colour,
+    outlineOnly: true,
+    legendInfo: {
+      palette: features.map((f) => f.properties.colour.slice(1)),
+      labels: features.map((f) => `${fmt(f.properties.spacing_m)} m spacing · ${f.properties.edges.toLocaleString()} edges`),
+      label: "Surface sampling", classed: true, categorical: true, unit: "m",
+    },
+    description: `${tin.nodes.toLocaleString()} nodes, ${tin.triangles.toLocaleString()} triangles; spacing ${fmt(tin.spacingMinM)}–${fmt(tin.spacingMaxM)} m.`,
+  });
+}
+
+function drawPoints() {
+  const points = embeddedPoints();
+  const fc = { type: "FeatureCollection", features: points.map((p) => ({
+    type: "Feature",
+    properties: {
+      name: p.name, layer: p.layer, ground_elevation_m: Number(p.groundZ ?? (p.z + p.depthM)).toFixed(1),
+      depth_below_surface_m: p.depthM, node_z_m: Number(p.z).toFixed(1),
+      x_m: Number(p.x).toFixed(1), y_m: Number(p.y).toFixed(1), label_rank: 0,
+    },
+    geometry: { type: "Point", coordinates: [p.lon, p.lat] },
+  })) };
+  showPreview("points", fc, {
+    colourFor: () => "#ffd166",
+    outlineOnly: false,
+    legendInfo: { palette: ["ffd166"], labels: ["Embedded point (a mesh node exactly here)"], label: "Embedded points", classed: true, categorical: true, unit: null },
+    description: "Points the mesh must pass through, at the surface's own interpolated elevation less their depth.",
+  });
+}
+
+/**
+ * The extended boundary, as etna's outer_box adds it: the rim's four corners
+ * carried to the base and to the sky, drawn through the ground so the box is
+ * visible where it is. TRUE vertical scale -- the globe's relief is
+ * exaggerated by the slider, this box is not -- and the status says so.
+ */
+async function drawExtend(ext) {
+  removePreview("extend");
+  const t = surfaceLike();
+  if (!ext || !t) return;
+  if (!three) three = await import("../vendor/three.module.js");
+  const viewer = window.GeoIDViewer;
+  if (!viewer?.surfacePoint) return;
+  const lines = extendedBoundaryLines(t, ext);
+  const positions = [];
+  const colours = [];
+  const at = (x, y, z) => {
+    const ll = t.frame.fromLocal(x, y);
+    const ground = tinHeightAt(t, x, y);
+    const lift = (z - (Number.isFinite(ground) ? ground : z)) * UNITS_PER_METRE;
+    const p = viewer.surfacePoint(ll.lat, ll.lon, lift);
+    return [p.x, p.y, p.z];
+  };
+  lines.forEach(([a, b]) => {
+    const up = a[2] > t.zMax || b[2] > t.zMax;
+    const c = up ? [0.62, 0.85, 1] : [0.79, 0.72, 0.61];
+    positions.push(...at(a[0], a[1], a[2]), ...at(b[0], b[1], b[2]));
+    colours.push(...c, ...c);
+  });
+  const geometry = new three.BufferGeometry();
+  geometry.setAttribute("position", new three.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("color", new three.Float32BufferAttribute(colours, 3));
+  const material = new three.LineBasicMaterial({ vertexColors: true, depthTest: false, transparent: true, opacity: 0.95 });
+  const segments = new three.LineSegments(geometry, material);
+  segments.renderOrder = 235;
+  segments.frustumCulled = false;
+  const group = new three.Group();
+  group.name = "GeoID-ModelBuilder-Extend";
+  group.add(segments);
+  const b = t.bounds;
+  const layer = window.GeoIDImportManager?.addDerivedLayer?.(PREVIEW_NAMES.extend, {
+    object3D: group, georeferenced: true,
+    bounds: { minX: b.west, minY: b.south, maxX: b.east, maxY: b.north },
+    legendInfo: {
+      palette: ["c9b79c", "9fd8ff"], labels: [
+        `Subsurface: base ${ext.baseZ !== null ? `${fmt(ext.baseZ)} m` : "off"}`,
+        `Atmosphere: sky ${ext.skyZ !== null ? `${fmt(ext.skyZ)} m` : "off"}`,
+      ], label: "Extended boundary (true vertical scale)", classed: true, categorical: true, unit: null,
+    },
+    home: "model",
+    metadata: { source: "GeoHUB Model Builder", dataType: "model", description: "The rim's corners carried to the base and the sky (etna.py outer_box). Drawn at true vertical scale through the exaggerated globe." },
+  }, "derived");
+  if (layer) state.previews.extend = layer.id;
+}
+
+function clearPreviews() {
+  Object.keys(state.previews).forEach(removePreview);
+}
+
+/** The surface in one shape whatever it was sampled as. */
+function surfaceLike() {
+  const sfc = state.surface;
+  if (!sfc) return null;
+  if (sfc.kind === "tin") return sfc;
+  if (!sfc._tinLike) sfc._tinLike = gridAsTin(sfc);
+  return sfc._tinLike;
+}
+
+function groundAtLatLon(lat, lon) {
+  const t = surfaceLike();
+  if (!t) return null;
+  const local = t.frame.toLocal(lat, lon);
+  const h = tinHeightAt(t, local.x, local.y);
+  return Number.isFinite(h) ? { x: local.x, y: local.y, z: h } : null;
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function pickPoint(stepId) {
+  const viewer = window.GeoIDViewer;
+  if (!viewer?.pickOnGlobe) { report(stepId, "The globe cannot be picked from here."); return null; }
+  report(stepId, "Click the globe to place it.");
+  try {
+    const { lat, lon } = await viewer.pickOnGlobe();
+    return { lat, lon: ((lon + 540) % 360) - 180 };
+  } catch (error) {
+    report(stepId, `No point picked: ${error.message}`);
+    return null;
+  }
+}
+
 function stepArea(body) {
   const options = [{ id: "drawn", label: "Drawn / boxed study area" }];
   polygonLayers().forEach((layer) => {
@@ -594,20 +901,40 @@ function stepSurface(body) {
   const reader = elevationReader();
   const res = resolutionPlan();
   const plan = planGrid({ bounds: state.bounds.bbox, stepM: res.stepM, radiusKm: bodyRadiusKm() });
-  body.appendChild(el("div", "gis-metric",
-    `${plan.nx} × ${plan.ny} nodes at ${fmt(plan.stepXm)} × ${fmt(plan.stepYm)} m`
-    + `${plan.capped ? " (coarsened to stay inside the node budget)" : ""}.`
-    + (res.coarserThanStudy
-      ? ` The source samples every ${fmt(state.nativeStepM / 1000, 2)} km — coarser than`
-        + " this whole study area, so the surface is INTERPOLATED between DEM samples."
-        + " That is a smooth mesh, not new ground detail."
-      : res.interpolated
-        ? ` Finer than the source's own ${fmt(state.nativeStepM)} m sampling: interpolated,`
-          + " not new detail."
-        : res.unmeasured
-          ? " Measure the native resolution in step 2 to know whether this is detail"
-            + " or interpolation."
-          : " At the source's own sampling.")));
+  const variable = state.sampling.mode === "variable";
+
+  const modeSel = select("gis-mb-sampling", [
+    { id: "uniform", label: "Uniform grid — one step everywhere" },
+    { id: "variable", label: "Variable — native inside buffers, coarser outside" },
+  ], state.sampling.mode);
+  modeSel.addEventListener("change", () => {
+    state.sampling.mode = modeSel.value;
+    state.surface = null;
+    state.outputs = null;
+    removePreview("sampling");
+    if (modeSel.value === "variable") drawBuffers(); else removePreview("buffers");
+    render();
+  });
+  body.appendChild(row("Sampling", modeSel));
+
+  if (variable) {
+    samplingControls(body);
+  } else {
+    body.appendChild(el("div", "gis-metric",
+      `${plan.nx} × ${plan.ny} nodes at ${fmt(plan.stepXm)} × ${fmt(plan.stepYm)} m`
+      + `${plan.capped ? " (coarsened to stay inside the node budget)" : ""}.`
+      + (res.coarserThanStudy
+        ? ` The source samples every ${fmt(state.nativeStepM / 1000, 2)} km — coarser than`
+          + " this whole study area, so the surface is INTERPOLATED between DEM samples."
+          + " That is a smooth mesh, not new ground detail."
+        : res.interpolated
+          ? ` Finer than the source's own ${fmt(state.nativeStepM)} m sampling: interpolated,`
+            + " not new detail."
+          : res.unmeasured
+            ? " Measure the native resolution in step 2 to know whether this is detail"
+              + " or interpolation."
+            : " At the source's own sampling.")));
+  }
 
   const build = el("button", "tool-button", "Build surface");
   build.type = "button";
@@ -631,12 +958,15 @@ function stepSurface(body) {
         render();
         return;
       }
-      report("surface", best
-        ? `Sampling ${best.label}…` : "Sampling…");
+      report("surface", best ? `Sampling ${best.label}…` : "Sampling…");
       window.requestAnimationFrame(() => {
-      // Read at PRESS time, never from the render that drew the button: the
-      // native measurement in step 2 happens after this card is built, and a
-      // closed-over step silently sampled at the pre-measurement resolution.
+        if (state.sampling.mode === "variable") {
+          buildVariable(source, best);
+          return;
+        }
+        // Read at PRESS time, never from the render that drew the button: the
+        // native measurement in step 2 happens after this card is built, and a
+        // closed-over step silently sampled at the pre-measurement resolution.
         const grid = buildSurface({
           bounds: state.bounds.bbox,
           stepM: live.stepM,
@@ -652,6 +982,7 @@ function stepSurface(body) {
         state.surface = grid;
         state.outputs = null;
         const skin = stlStats(surfaceStl(grid));
+        drawSampling(gridAsTin(grid));
         report("surface", `${grid.nx} × ${grid.ny} nodes, ${fmt(grid.stepXm)} m spacing,`
           + ` elevation ${fmt(grid.zMin)} to ${fmt(grid.zMax)} m`
           + ` (relief ${fmt(grid.reliefM)} m) — ${skin.triangles.toLocaleString()} triangles`
@@ -659,7 +990,7 @@ function stepSurface(body) {
           + `${grid.repairedNodes
             ? `, ${grid.repairedNodes} source hole(s) repaired`
               + ` (worst ${fmt(grid.repairWorstM)} m)` : ""}`
-          + `${best ? `, from ${best.label}` : ""}.`);
+          + `${best ? `, from ${best.label}` : ""}. Drawn on the globe as "${PREVIEW_NAMES.sampling}".`);
         state.open = "domain";
         render();
       });
@@ -668,13 +999,160 @@ function stepSurface(body) {
   body.appendChild(build);
 
   if (state.surface) {
+    const isTin = state.surface.kind === "tin";
     const download = el("button", "button secondary", "Download surface STL");
     download.type = "button";
     download.addEventListener("click", () => {
-      downloadText(`${modelName()}_surface.stl`, surfaceStl(state.surface, modelName()));
+      downloadText(`${modelName()}_surface.stl`, isTin
+        ? tinSurfaceStl(state.surface, modelName()) : surfaceStl(state.surface, modelName()));
     });
     body.appendChild(download);
+    const shown = state.previews.sampling !== undefined;
+    const toggle = el("button", "button secondary", shown ? "Hide the sampling mesh" : "Show the sampling mesh");
+    toggle.type = "button";
+    toggle.addEventListener("click", () => {
+      if (shown) removePreview("sampling"); else drawSampling(surfaceLike());
+      render();
+    });
+    body.appendChild(toggle);
   }
+}
+
+/**
+ * The buffers: where the ground is sampled finer, and how much finer.
+ * Edits apply on CHANGE rather than on every keystroke, because each edit
+ * redraws the buffers on the globe and the layer change re-renders this card.
+ */
+function samplingControls(body) {
+  const s = state.sampling;
+  const span = studySpanM();
+  const native = nativeM();
+  if (!(s.baseM > 0)) s.baseM = Math.round(Math.max(native ? native * 8 : span / 60, span / 200));
+  if (!(s.gradeM >= 0) || s.gradeM === null) s.gradeM = s.baseM * 2;
+
+  const base = number("gis-mb-base", s.baseM, 10);
+  base.addEventListener("change", () => { s.baseM = Math.max(1, Number(base.value) || s.baseM); state.surface = null; state.outputs = null; render(); });
+  body.appendChild(row("Base step outside buffers (m)", base));
+  const grade = number("gis-mb-grade", s.gradeM, 10);
+  grade.addEventListener("change", () => { s.gradeM = Math.max(0, Number(grade.value) || 0); state.surface = null; state.outputs = null; render(); });
+  body.appendChild(row("Grade back to the base over (m)", grade));
+
+  body.appendChild(el("div", "gis-metric",
+    `Native step ${native ? `${fmt(native)} m` : "not yet known — measure it in step 2, or build once and it is read off the DEM"}.`
+    + ` Outside every buffer the ground is sampled every ${fmt(s.baseM)} m; inside one, at its own`
+    + ` resolution; between, the spacing grows linearly over ${fmt(s.gradeM)} m.`
+    + ` The finest buffer wins where they overlap. Node budget ${(DEFAULT_MAX_NODES * 2).toLocaleString()}: past it everything coarsens together.`));
+
+  const list = el("div", null);
+  body.appendChild(list);
+  const buffers = allBuffers();
+  if (!buffers.length) {
+    list.appendChild(el("div", "gis-metric", "No buffers yet — the whole area is sampled at the base step. Add a square or a circle, or give a polygon layer the refine role in step 2."));
+  }
+  buffers.forEach((b, index) => {
+    const card = el("div", "gis-tool-grid");
+    if (b.fromLayer) {
+      card.appendChild(el("div", "gis-metric", `▱ ${b.name} (refine-role layer): ${fmt(b.sizeKm, 2)} km box, ${b.stepM ? `${fmt(b.stepM)} m` : "native"} inside. Its step is the layer's refine size in step 2.`));
+      list.appendChild(card);
+      return;
+    }
+    const name = el("input", "input");
+    name.value = b.name;
+    name.addEventListener("change", () => { b.name = name.value || b.name; drawBuffers(); });
+    card.appendChild(row("Name", name));
+    const shape = select(`gis-mb-buf-shape-${index}`, [{ id: "square", label: "Square (side)" }, { id: "circle", label: "Circle (diameter)" }], b.shape);
+    shape.addEventListener("change", () => { b.shape = shape.value; state.surface = null; drawBuffers(); render(); });
+    card.appendChild(row("Shape", shape));
+    const size = number(`gis-mb-buf-size-${index}`, Number(b.sizeKm).toFixed(2), 0.1);
+    size.addEventListener("change", () => { b.sizeKm = Math.max(0.01, Number(size.value) || b.sizeKm); state.surface = null; drawBuffers(); render(); });
+    card.appendChild(row("Size across (km)", size));
+    const resSel = select(`gis-mb-buf-res-${index}`, [{ id: "native", label: "Native (the DEM's own step)" }, { id: "step", label: "A coarser step (m)" }], b.stepM ? "step" : "native");
+    resSel.addEventListener("change", () => { b.stepM = resSel.value === "step" ? Math.max(1, Number(b.stepM) || (native ? native * 2 : 60)) : null; state.surface = null; drawBuffers(); render(); });
+    card.appendChild(row("Resolution inside", resSel));
+    if (b.stepM) {
+      const step = number(`gis-mb-buf-step-${index}`, b.stepM, 5);
+      step.addEventListener("change", () => { b.stepM = Math.max(1, Number(step.value) || b.stepM); state.surface = null; drawBuffers(); render(); });
+      card.appendChild(row("  ↳ step (m)", step));
+    }
+    card.appendChild(el("div", "gis-metric", `Centre ${b.lat.toFixed(4)}°, ${b.lon.toFixed(4)}°.`));
+    const pick = el("button", "button secondary", "Pick the centre on the globe");
+    pick.type = "button";
+    pick.addEventListener("click", () => {
+      void (async () => {
+        const p = await pickPoint("surface");
+        if (!p) return;
+        b.lat = p.lat; b.lon = p.lon; state.surface = null; state.outputs = null;
+        report("surface", `${b.name} centred at ${p.lat.toFixed(4)}°, ${p.lon.toFixed(4)}°.`);
+        drawBuffers();
+        render();
+      })();
+    });
+    card.appendChild(pick);
+    const remove = el("button", "button secondary", "Remove");
+    remove.type = "button";
+    remove.addEventListener("click", () => {
+      s.buffers = s.buffers.filter((x) => x !== b);
+      state.surface = null; state.outputs = null;
+      drawBuffers();
+      render();
+    });
+    card.appendChild(remove);
+    list.appendChild(card);
+  });
+
+  const addBuffer = (shape) => {
+    const centre = studyCentre();
+    if (!centre) return;
+    const n = s.buffers.length + 1;
+    s.buffers.push({
+      id: `b${Date.now()}`, name: `${shape === "circle" ? "Circle" : "Square"} ${n}`, shape,
+      lat: centre.lat, lon: centre.lon, sizeKm: Math.max(0.2, Math.round((span / 4000) * 100) / 100), stepM: null,
+    });
+    state.surface = null; state.outputs = null;
+    drawBuffers();
+    render();
+  };
+  const addSquare = el("button", "button secondary", "Add a square buffer");
+  addSquare.type = "button";
+  addSquare.addEventListener("click", () => addBuffer("square"));
+  body.appendChild(addSquare);
+  const addCircle = el("button", "button secondary", "Add a circle buffer");
+  addCircle.type = "button";
+  addCircle.addEventListener("click", () => addBuffer("circle"));
+  body.appendChild(addCircle);
+}
+
+/** The variable-resolution build: a TIN from the buffers, drawn as it is sampled. */
+function buildVariable(source, best) {
+  const s = state.sampling;
+  const native = nativeM() || (best?.postM) || 30;
+  const tin = buildTin({
+    bounds: state.bounds.bbox,
+    radiusKm: bodyRadiusKm(),
+    heightAt: source.read,
+    spacing: { baseM: s.baseM, gradeM: s.gradeM, buffers: allBuffers() },
+    nativeM: native,
+    maxNodes: DEFAULT_MAX_NODES * 2,
+    minStepM: Math.max(1, native / 2),
+  });
+  if (!tin.ok) {
+    state.surface = null;
+    report("surface", tin.message);
+    render();
+    return;
+  }
+  state.surface = tin;
+  state.outputs = null;
+  drawSampling(tin);
+  report("surface", `${tin.nodes.toLocaleString()} nodes, ${tin.triangles.toLocaleString()} triangles,`
+    + ` spacing ${fmt(tin.spacingMinM)} to ${fmt(tin.spacingMaxM)} m over ${tin.leaves.toLocaleString()} cells`
+    + ` (${tin.deepest} levels of refinement)${tin.capped ? `, coarsened ×${fmt(tin.factor, 2)} to stay inside the node budget` : ""};`
+    + ` elevation ${fmt(tin.zMin)} to ${fmt(tin.zMax)} m (relief ${fmt(tin.reliefM)} m)`
+    + `${tin.filledNodes ? `, ${tin.filledNodes} node(s) filled with the area mean` : ""}`
+    + `${tin.repairedNodes ? `, ${tin.repairedNodes} source hole(s) repaired (worst ${fmt(tin.repairWorstM)} m)` : ""}`
+    + `${best ? `, from ${best.label}` : ""}. Drawn on the globe as "${PREVIEW_NAMES.sampling}".`);
+  state.open = "domain";
+  render();
 }
 
 function stepDomain(body) {
@@ -693,6 +1171,36 @@ function stepDomain(body) {
     state.domain.depthM = Number(depth.value) || 1000;
     state.outputs = null;
   });
+
+  /**
+   * EXTEND THE BOUNDARY: etna's outer_box as a decision. The subsurface is
+   * always built (the depth above); the ATMOSPHERE is a second closed shell
+   * over the same ground, its own volume and its own gmsh script.
+   */
+  const airOn = el("input", null);
+  airOn.type = "checkbox";
+  airOn.id = "gis-mb-air";
+  airOn.checked = state.atmosphere.on;
+  airOn.addEventListener("change", () => { state.atmosphere.on = airOn.checked; state.outputs = null; render(); });
+  body.appendChild(row("Atmosphere volume over the ground", airOn));
+  if (state.atmosphere.on) {
+    const height = number("gis-mb-air-height", state.atmosphere.heightM, 100);
+    height.addEventListener("input", () => { state.atmosphere.heightM = Number(height.value) || 1000; state.outputs = null; });
+    body.appendChild(row("Height above the highest ground (m)", height));
+  }
+  const showExt = el("button", "button secondary", state.previews.extend !== undefined ? "Hide the extended boundary" : "Show the extended boundary on the globe");
+  showExt.type = "button";
+  showExt.addEventListener("click", () => {
+    if (state.previews.extend !== undefined) { removePreview("extend"); render(); return; }
+    const t = surfaceLike();
+    if (!t) { report("domain", "Build the surface first."); return; }
+    const ext = extendBoundary(t, { belowM: state.domain.depthM, aboveM: state.atmosphere.on ? state.atmosphere.heightM : 0 });
+    void drawExtend(ext).then(() => {
+      report("domain", `Rim corners carried to ${fmt(ext.baseZ)} m${ext.skyZ !== null ? ` and up to ${fmt(ext.skyZ)} m` : ""} — etna.py's outer_box points. Drawn at TRUE vertical scale; the globe's relief is exaggerated by the slider, this box is not.`);
+      render();
+    });
+  });
+  body.appendChild(showExt);
 
   const host = el("div", null);
   body.appendChild(host);
@@ -857,11 +1365,74 @@ function stepConditions(body) {
   }
   drawList();
 
+  pointControls(body);
   const points = embeddedPoints();
   body.appendChild(el("div", "gis-metric", points.length
     ? `${points.length} point${points.length === 1 ? "" : "s"} will be embedded in the`
-      + " mesh — the solver gets a node exactly there."
-    : "No embedded points. Give a point layer the \"Embedded points\" role in step 2."));
+      + " mesh — the solver gets a node exactly there, at the surface's own interpolated height less its depth."
+    : "No embedded points. Place one on the globe, or give a point layer the \"Embedded points\" role in step 2."));
+}
+
+/**
+ * Points placed by hand: a site, a borehole, a probe. Each takes the surface's
+ * own INTERPOLATED height at its lat/lon -- barycentric on the triangle it
+ * falls in -- less a depth, and is drawn on the globe so the reader can see
+ * where the mesh will have a node.
+ */
+function pointControls(body) {
+  const list = el("div", null);
+  body.appendChild(list);
+  const draw = () => {
+    list.innerHTML = "";
+    state.customPoints.forEach((p, index) => {
+      const card = el("div", "gis-tool-grid");
+      const name = el("input", "input");
+      name.value = p.name;
+      name.addEventListener("change", () => { p.name = name.value || p.name; state.outputs = null; drawPoints(); });
+      card.appendChild(row("Name", name));
+      const depth = number(`gis-mb-cp-depth-${index}`, p.depthM, 10);
+      depth.addEventListener("change", () => { p.depthM = Number(depth.value) || 0; state.outputs = null; drawPoints(); draw(); });
+      card.appendChild(row("Metres below the surface", depth));
+      const g = groundAtLatLon(p.lat, p.lon);
+      card.appendChild(el("div", "gis-metric", `${p.lat.toFixed(5)}°, ${p.lon.toFixed(5)}° — `
+        + (g ? `surface ${fmt(g.z)} m (interpolated), node at ${fmt(g.z - (p.depthM || 0))} m; local x ${fmt(g.x)} y ${fmt(g.y)} m`
+          : state.surface ? "outside the surface" : "build the surface to read its height")));
+      const remove = el("button", "button secondary", "Remove");
+      remove.type = "button";
+      remove.addEventListener("click", () => {
+        state.customPoints = state.customPoints.filter((x) => x !== p);
+        state.outputs = null;
+        drawPoints();
+        render();
+      });
+      card.appendChild(remove);
+      list.appendChild(card);
+    });
+  };
+  const addAt = (lat, lon) => {
+    state.customPoints.push({ id: `p${Date.now()}`, name: `point_${state.customPoints.length + 1}`, lat, lon, depthM: 0 });
+    state.outputs = null;
+    drawPoints();
+    render();
+  };
+  const pick = el("button", "button secondary", "Place a point on the globe");
+  pick.type = "button";
+  pick.addEventListener("click", () => {
+    void (async () => {
+      const p = await pickPoint("conditions");
+      if (!p) return;
+      const g = groundAtLatLon(p.lat, p.lon);
+      report("conditions", g ? `Point placed at ${p.lat.toFixed(4)}°, ${p.lon.toFixed(4)}°: surface ${fmt(g.z)} m.`
+        : `Point placed at ${p.lat.toFixed(4)}°, ${p.lon.toFixed(4)}° — outside the surface, so it will not embed.`);
+      addAt(p.lat, p.lon);
+    })();
+  });
+  body.appendChild(pick);
+  const centre = el("button", "button secondary", "Add a point at the study centre");
+  centre.type = "button";
+  centre.addEventListener("click", () => { const c = studyCentre(); if (c) addAt(c.lat, c.lon); });
+  body.appendChild(centre);
+  draw();
 }
 
 /**
@@ -873,19 +1444,9 @@ function stepConditions(body) {
  * the surface" means below the terrain rather than below sea level.
  */
 function embeddedPoints() {
-  if (!state.surface) return [];
-  const grid = state.surface;
-  const frame = makeLocalFrame({
-    lat: grid.origin.lat, lon: grid.origin.lon, radiusKm: bodyRadiusKm(),
-  });
-  const groundAt = (lat, lon) => {
-    const i = Math.round(((lon - grid.lons[0]) / (grid.lons[grid.nx - 1] - grid.lons[0]))
-      * (grid.nx - 1));
-    const j = Math.round(((lat - grid.lats[0]) / (grid.lats[grid.ny - 1] - grid.lats[0]))
-      * (grid.ny - 1));
-    if (!(i >= 0 && i < grid.nx && j >= 0 && j < grid.ny)) return null;
-    return grid.z[j * grid.nx + i];
-  };
+  const t = surfaceLike();
+  if (!t) return [];
+  const sizeM = Math.max(t.spacingMinM / 3, 1);
   const out = [];
   loadedLayers().forEach((layer) => {
     if (state.roles.get(String(layer.id)) !== "points") return;
@@ -893,16 +1454,15 @@ function embeddedPoints() {
     (layer.collection?.features || []).forEach((f, index) => {
       if (f?.geometry?.type !== "Point") return;
       const [lon, lat] = f.geometry.coordinates;
-      const ground = groundAt(lat, lon);
-      if (ground === null) return;
-      const local = frame.toLocal(lat, lon);
+      const g = groundAtLatLon(lat, lon);
+      if (!g) return;
       out.push({
-        x: local.x,
-        y: local.y,
-        z: ground - depth,
+        x: g.x,
+        y: g.y,
         // Strictly inside: a point ON the top surface is not in the volume, and
         // gmsh refuses to embed it there.
-        sizeM: Math.max(grid.stepXm / 3, 1),
+        z: g.z - depth,
+        sizeM,
         name: String(f.properties?.name || f.properties?.site || `${layer.name}_${index + 1}`),
         layer: layer.name,
         // Per LAYER, not per point: a study flags "the piezometers", and a
@@ -912,7 +1472,18 @@ function embeddedPoints() {
         lat,
         lon,
         depthM: depth,
+        groundZ: g.z,
       });
+    });
+  });
+  state.customPoints.forEach((p, index) => {
+    const g = groundAtLatLon(p.lat, p.lon);
+    if (!g) return;
+    out.push({
+      x: g.x, y: g.y, z: g.z - (p.depthM || 0), sizeM,
+      name: String(p.name || `point_${index + 1}`), layer: "placed on the globe",
+      flag: state.flags.points || DEFAULT_FLAGS.points,
+      lat: p.lat, lon: p.lon, depthM: p.depthM || 0, groundZ: g.z,
     });
   });
   return out;
@@ -1027,7 +1598,46 @@ function stepBuild(body) {
       downloadText(`${modelName()}_gmsh.py`, state.outputs.script, "text/x-python");
     });
     body.appendChild(dl);
+    if (state.outputs.airScript) {
+      const dla = el("button", "button secondary", "Download the atmosphere gmsh script");
+      dla.type = "button";
+      dla.addEventListener("click", () => {
+        downloadText(`${modelName()}_atmosphere_gmsh.py`, state.outputs.airScript, "text/x-python");
+      });
+      body.appendChild(dla);
+    }
   }
+  if (state.surface) {
+    const studio = el("button", "button secondary", "Open in the Meshing Studio");
+    studio.type = "button";
+    studio.title = "Hand the surface to the model page as a terrain solid: the subsurface and the atmosphere as volumes, 1 unit = 1 km.";
+    studio.addEventListener("click", () => { void openInStudio(); });
+    body.appendChild(studio);
+  }
+}
+
+/**
+ * THE MODEL PAGE takes the same surface as a SOLID: the subsurface (and the
+ * atmosphere, if asked for) as volumes the Meshing Studio's own mesher and
+ * booleans work on, with the extend-boundary depth and height as its
+ * parameters. One surface object, handed over rather than re-read.
+ */
+async function openInStudio() {
+  const t = surfaceLike();
+  if (!t) { report("build", "Build the surface first."); return; }
+  window.GeoIDModeManager?.setMode?.("model");
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    if (window.GeoIDMeshStudio?.adoptTerrainSolid) break;
+    await sleep(100);
+  }
+  const studio = window.GeoIDMeshStudio;
+  if (!studio?.adoptTerrainSolid) { report("build", "The Meshing Studio did not come up."); return; }
+  studio.adoptTerrainSolid({
+    name: modelName(), surface: t, origin: t.origin,
+    belowM: state.domain.depthM,
+    aboveM: state.atmosphere.on ? state.atmosphere.heightM : 0,
+    points: embeddedPoints(),
+  });
 }
 
 /* ── Writing the package ─────────────────────────────────────────────────── */
@@ -1050,27 +1660,47 @@ async function writePackage() {
     report("build", "Build the surface first.");
     return;
   }
+  const isTin = grid.kind === "tin";
   const name = modelName();
   const run = state.runName || `${name}_run`;
-  const meshSizeM = Number(state.meshSizeM) || Math.round(grid.stepXm * 2);
-  const domain = domainStl(grid, { depthM: state.domain.depthM, name });
+  const stepRef = isTin ? grid.spacingMinM : grid.stepXm;
+  const meshSizeM = Number(state.meshSizeM) || Math.round(stepRef * 2);
+  const surfaceText = isTin ? tinSurfaceStl(grid, name) : surfaceStl(grid, name);
+  const domain = isTin
+    ? tinShellStl(grid, { belowM: state.domain.depthM, name })
+    : domainStl(grid, { depthM: state.domain.depthM, name });
+  const air = state.atmosphere.on
+    ? (isTin
+      ? tinShellStl(grid, { aboveM: state.atmosphere.heightM, name: `${name}_atmosphere` })
+      : atmosphereStl(grid, { heightM: state.atmosphere.heightM, name: `${name}_atmosphere` }))
+    : null;
   const stats = stlStats(domain.text);
+  const airStats = air ? stlStats(air.text) : null;
   const points = embeddedPoints();
   /**
-   * THE SIZE FIELD, on the same lattice the terrain was sampled on.
+   * THE SIZE FIELD, on the same lattice the terrain was sampled on -- or, for
+   * a TIN, on a lattice laid over it and taken to the minimum with the
+   * sampling spacing, so a buffer drawn fine stays fine in the volume.
    *
    * Written as a third file beside the STL and the script, because gmsh's
-   * `Field.Structured` reads one from disk — and because a background field
+   * `Field.Structured` reads one from disk -- and because a background field
    * that lives in the package is a fact about the mesh anybody can check,
    * rather than a number buried in a script.
    */
   const grading = state.grading || {};
-  const field = grading.on === false ? null : sizeField(grid, {
+  const gradeOpts = {
     coarseM: Number(grading.coarseM) > 0 ? Number(grading.coarseM) : meshSizeM,
     fineM: Number(grading.fineM) > 0 ? Number(grading.fineM) : meshSizeM / 4,
     slopeRefDeg: Number(grading.slopeRefDeg) || 30,
-  });
+  };
+  const field = grading.on === false ? null
+    : (isTin ? samplingSizeField(grid, gradeOpts) : sizeField(grid, gradeOpts));
   const fieldFile = field ? `${name}_size.dat` : null;
+  const minSizeM = field ? Math.max(field.minM * 0.5, 1) : Math.max(meshSizeM / 8, 1);
+  const tinLike = surfaceLike();
+  const ext = extendBoundary(tinLike, {
+    belowM: state.domain.depthM, aboveM: state.atmosphere.on ? state.atmosphere.heightM : 0,
+  });
   const script = gmshScript({
     name,
     stlFile: `${name}_domain.stl`,
@@ -1078,12 +1708,37 @@ async function writePackage() {
     meshSizeM,
     // With a field, the floor is the field's own smallest size: a MeshSizeMin
     // above it would quietly overrule the refinement it was asked for.
-    minSizeM: field ? Math.max(field.minM * 0.5, 1) : Math.max(meshSizeM / 8, 1),
+    minSizeM,
     embedPoints: points,
     sizeFieldFile: fieldFile,
-    refineBoxes: refineRegions(grid),
+    // A TIN's refine layers are already in its sampling field.
+    refineBoxes: isTin ? [] : refineRegions(grid),
     flags: state.flags,
+    extend: {
+      which: "subsurface", zBd: domain.baseZ, h: meshSizeM,
+      surfaceFile: `${name}_surface.stl`, belowM: state.domain.depthM, aboveM: 0,
+    },
   });
+  const airScript = air ? gmshScript({
+    name: `${name}_atmosphere`,
+    stlFile: `${name}_atmosphere.stl`,
+    meshFile: `${name}_atmosphere.msh`,
+    meshSizeM,
+    minSizeM,
+    embedPoints: [],
+    sizeFieldFile: fieldFile,
+    // The air's lateral faces and volume carry their own numbers, kept apart
+    // from the rock's: a boundary condition on the air is not one on the rock.
+    flags: {
+      ...state.flags,
+      top: state.flags.terrain, north: state.flags.sides_above, south: state.flags.sides_above,
+      east: state.flags.sides_above, west: state.flags.sides_above, domain: state.flags.atmosphere,
+    },
+    extend: {
+      which: "atmosphere", zBd: air.skyZ, h: meshSizeM,
+      surfaceFile: `${name}_surface.stl`, belowM: 0, aboveM: state.atmosphere.heightM,
+    },
+  }) : null;
 
   const spec = femSpec({
     run,
@@ -1104,9 +1759,31 @@ async function writePackage() {
       bounds_deg: state.bounds.bbox,
       origin: grid.origin,
       extent_m: { width: grid.widthM, height: grid.heightM },
-      resolution_m: { x: grid.stepXm, y: grid.stepYm, requested: grid.requestedStepM },
+      sampling: isTin ? {
+        mode: "variable",
+        base_step_m: state.sampling.baseM,
+        grade_m: state.sampling.gradeM,
+        buffers: allBuffers().map((b) => ({
+          name: b.name, shape: b.shape, lat: b.lat, lon: b.lon, size_km: b.sizeKm,
+          step_m: b.stepM || null, resolution: b.stepM ? "step" : "native", from_layer: Boolean(b.fromLayer),
+        })),
+        native_step_m: nativeM(),
+        spacing_range_m: [grid.spacingMinM, grid.spacingMaxM],
+        cells: grid.leaves, refinement_levels: grid.deepest,
+        coarsened_by: grid.capped ? grid.factor : 1,
+      } : {
+        mode: "uniform",
+        resolution_m: { x: grid.stepXm, y: grid.stepYm, requested: grid.requestedStepM },
+      },
       elevation_m: { min: grid.zMin, max: grid.zMax, relief: grid.reliefM },
       base_z_m: domain.baseZ,
+      extend_boundary: {
+        below_m: state.domain.depthM, base_z_m: domain.baseZ,
+        above_m: state.atmosphere.on ? state.atmosphere.heightM : 0, sky_z_m: air ? air.skyZ : null,
+        corners: ext ? ext.corners.map((c) => ({ x: c.x, y: c.y, z: c.z, lat: c.lat, lon: c.lon })) : [],
+        recipe: "etna.py outer_box: rim corners carried to z; the baked skirts conform to any rim",
+      },
+      atmosphere: air ? { file: `${name}_atmosphere.stl`, triangles: airStats.triangles, watertight: airStats.closed } : null,
       nodes: grid.nodes,
       filled_nodes: grid.filledNodes,
       repaired_nodes: grid.repairedNodes,
@@ -1127,7 +1804,7 @@ async function writePackage() {
       } : null,
       embedded_points: points.map((p) => ({
         name: p.name, layer: p.layer, lat: p.lat, lon: p.lon,
-        x: p.x, y: p.y, z: p.z, depth_below_surface_m: p.depthM,
+        x: p.x, y: p.y, z: p.z, ground_z: p.groundZ, depth_below_surface_m: p.depthM,
       })),
       layers: loadedLayers().map((l) => ({
         name: l.name, role: state.roles.get(String(l.id)) || "ignore",
@@ -1137,17 +1814,28 @@ async function writePackage() {
   });
 
   const fieldText = field ? structuredFieldText(field) : null;
-  state.outputs = { script, spec, domainText: domain.text, fieldText, fieldFile, files: [] };
+  state.outputs = {
+    script, airScript, spec, surfaceText, domainText: domain.text,
+    atmosphereText: air ? air.text : null, fieldText, fieldFile, files: [],
+  };
+
+  const shells = `${stats.triangles.toLocaleString()} triangles,`
+    + ` ${stats.closed ? "watertight" : `${stats.openEdges} OPEN EDGES — gmsh will refuse this`}`
+    + (airStats ? `; atmosphere ${airStats.triangles.toLocaleString()} triangles, ${airStats.closed ? "watertight" : `${airStats.openEdges} OPEN EDGES`}` : "")
+    + `. ${points.length} embedded point(s).`;
 
   const store = window.GeoIDResearch?.store;
   const project = store?.getActive?.();
   if (!project) {
+    downloadText(`${name}_surface.stl`, surfaceText);
     downloadText(`${name}_domain.stl`, domain.text);
+    if (air) downloadText(`${name}_atmosphere.stl`, air.text);
     if (fieldText) downloadText(fieldFile, fieldText);
     downloadText(`${name}_gmsh.py`, script, "text/x-python");
+    if (airScript) downloadText(`${name}_atmosphere_gmsh.py`, airScript, "text/x-python");
     downloadText(`${run}_spec.json`, JSON.stringify(spec, null, 2), "application/json");
     state.outputs.files = ["downloads (no project open)"];
-    report("build", "No project open — the package was downloaded instead. Open a"
+    report("build", `${shells} No project open — the package was downloaded instead. Open a`
       + " project and press again to file it where the FEM pages read.");
     render();
     return;
@@ -1157,21 +1845,23 @@ async function writePackage() {
     // meshes/ is where the sidecar's gmsh job runs and where FEM Setup and the
     // GALES deck prepare already look for a .msh; the input that will make the
     // mesh belongs beside it.
-    await store.writeProjectFile(`meshes/${name}_surface.stl`, surfaceStl(grid, name));
+    await store.writeProjectFile(`meshes/${name}_surface.stl`, surfaceText);
     await store.writeProjectFile(`meshes/${name}_domain.stl`, domain.text);
+    if (air) await store.writeProjectFile(`meshes/${name}_atmosphere.stl`, air.text);
     if (fieldText) await store.writeProjectFile(`meshes/${fieldFile}`, fieldText);
     await store.writeProjectFile(`meshes/${name}_gmsh.py`, script);
+    if (airScript) await store.writeProjectFile(`meshes/${name}_atmosphere_gmsh.py`, airScript);
     await store.writeProjectFile(`fem_runs/${run}/spec.json`, JSON.stringify(spec, null, 2));
     state.outputs.files = [
       `meshes/${name}_surface.stl`,
       `meshes/${name}_domain.stl`,
+      ...(air ? [`meshes/${name}_atmosphere.stl`] : []),
       ...(fieldText ? [`meshes/${fieldFile}`] : []),
       `meshes/${name}_gmsh.py`,
+      ...(airScript ? [`meshes/${name}_atmosphere_gmsh.py`] : []),
       `fem_runs/${run}/spec.json`,
     ];
-    report("build", `${stats.triangles.toLocaleString()} triangles,`
-      + ` ${stats.closed ? "watertight" : `${stats.openEdges} OPEN EDGES — gmsh will refuse this`}.`
-      + ` ${points.length} embedded point(s). Written into ${project.name}.`);
+    report("build", `${shells} Written into ${project.name}.`);
   } catch (error) {
     report("build", `Could not write into the project: ${error.message}`);
   }
@@ -1265,4 +1955,10 @@ window.GeoIDModelPipeline = {
   render,
   build: writePackage,
   embeddedPoints,
+  surfaceLike,
+  drawBuffers,
+  drawSampling,
+  drawPoints,
+  clearPreviews,
+  openInStudio,
 };

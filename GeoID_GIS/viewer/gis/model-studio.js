@@ -1,11 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-efbf340";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-efbf340";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-d64ef6c";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-d64ef6c";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260909-efbf340";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-efbf340";
-import { downloadText } from "./extraction.js?v=20260909-efbf340";
+} from "./mesh-volume.js?v=20260909-d64ef6c";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-d64ef6c";
+import { downloadText } from "./extraction.js?v=20260909-d64ef6c";
+import { shellPositions, tinHeightAt } from "./surface-sampling.js?v=20260909-d64ef6c";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -1167,7 +1168,7 @@ function renderModelTree() {
       row.className = "studio-item";
       row.classList.toggle("is-selected", state.selection.has(entry.id));
       const label = document.createElement("span");
-      label.textContent = `Volume ${entry.id} · ${PRIMITIVES[entry.kind].label}`
+      label.textContent = `Volume ${entry.id} · ${PRIMITIVES[entry.kind]?.label ?? entry.params?.label ?? entry.kind}`
         + (entry.visible === false ? " (hidden)" : "");
       const controls = document.createElement("span");
       controls.className = "studio-item-actions";
@@ -1238,7 +1239,7 @@ function renderSelection() {
   if (!node) return;
   const picked = [...state.selection].map(findById).filter(Boolean);
   node.textContent = picked.length
-    ? `Selected: ${picked.map((e) => `Volume ${e.id} (${PRIMITIVES[e.kind].label})`).join(", ")}`
+    ? `Selected: ${picked.map((e) => `Volume ${e.id} (${PRIMITIVES[e.kind]?.label ?? e.params?.label ?? e.kind})`).join(", ")}`
     : "Nothing selected";
 }
 
@@ -1358,7 +1359,7 @@ function installPicking() {
     }
     setSelection([id], { additive: event.ctrlKey || event.metaKey || event.shiftKey });
     const entry = findById(id);
-    log(`Picked Volume ${id} (${PRIMITIVES[entry.kind].label})`);
+    log(`Picked Volume ${id} (${PRIMITIVES[entry.kind]?.label ?? entry.params?.label ?? entry.kind})`);
   });
 
   // Live WGS84 readout follows the cursor across the ground and the model.
@@ -2339,8 +2340,130 @@ function setStudioOrigin(lat, lon, elevation = studioOrigin.elevation) {
   log(`Origin set to ${studioOrigin.lat.toFixed(5)}, ${studioOrigin.lon.toFixed(5)}`);
 }
 
+/**
+ * THE GIS PACKAGE AS A SOLID. The Model Builder hands over its surface -- a
+ * TIN or a grid, in the study's own local metres -- and it becomes one or two
+ * entities here: the SUBSURFACE (ground down to a base) and, if asked for, the
+ * ATMOSPHERE (ground up to a sky). Each is an inside-test against the
+ * heightfield, which is what the studio's mesher and booleans work on, and a
+ * displayed shell built from the SAME facets the STL was written with.
+ *
+ * 1 unit = 1 km here: the studio's presets are ten units wide, and a 16 km
+ * study in metres would be sixteen thousand units. The depth and height are
+ * the extend-boundary decision (etna.py's outer_box), and the card this adds
+ * lets them be changed on this page without going back to the GIS.
+ */
+let gisTerrain = null;
+
+export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, aboveM = 0, origin = null, points = [] } = {}) {
+  if (!surface?.tris?.length) { log("GIS terrain: no surface to adopt."); return null; }
+  if (gisTerrain?.entries?.length) {
+    deleteEntities(gisTerrain.entries.map((e) => e.id).filter((id) => findById(id)));
+  }
+  gisTerrain = { name, surface, belowM: Number(belowM) || 0, aboveM: Number(aboveM) || 0, entries: [], points };
+  if (origin && Number.isFinite(origin.lat)) {
+    adoptStudyArea({ lat: origin.lat, lon: origin.lon, radiusM: Math.max(surface.widthM, surface.heightM) / 2, terrain: false });
+  }
+  const km = 0.001;
+  const heightKm = (x, y) => {
+    const h = tinHeightAt(surface, x / km, y / km);
+    return h === null ? null : h * km;
+  };
+  const plan = {
+    minX: surface.x0 * km, maxX: (surface.x0 + surface.widthM) * km,
+    minY: surface.y0 * km, maxY: (surface.y0 + surface.heightM) * km,
+  };
+  const make = (which, extentM) => {
+    const below = which === "subsurface";
+    const lidKm = below ? (surface.zMin - extentM) * km : (surface.zMax + extentM) * km;
+    const test = (q) => {
+      if (q[0] < plan.minX || q[0] > plan.maxX || q[1] < plan.minY || q[1] > plan.maxY) return false;
+      const h = heightKm(q[0], q[1]);
+      if (h === null) return false;
+      return below ? (q[2] <= h && q[2] >= lidKm) : (q[2] >= h && q[2] <= lidKm);
+    };
+    const positions = shellPositions(surface, below ? { belowM: extentM } : { aboveM: extentM }, km);
+    const id = state.solids.reduce((m, e) => Math.max(m, e.id), 0) + 1;
+    const entry = {
+      id, kind: "gis_terrain", op: "union", enabled: true,
+      params: { label: `GIS terrain — ${which}`, which, extent_km: extentM * km, name },
+      test, region: null, object3D: null,
+      bounds: { ...plan, minZ: below ? lidKm : surface.zMin * km, maxZ: below ? surface.zMax * km : lidKm },
+    };
+    entry.object3D = displayMesh(positions, `${name}_${which}`, below ? 0xc9b79c : 0x9fd8ff);
+    state.solids.push(entry);
+    gisTerrain.entries.push(entry);
+    record(`union gis terrain ${which}`);
+  };
+  if (gisTerrain.belowM > 0) make("subsurface", gisTerrain.belowM);
+  if (gisTerrain.aboveM > 0) make("atmosphere", gisTerrain.aboveM);
+  renderModelTree();
+  status(`${state.solids.length} entities`);
+  log(`GIS terrain "${name}": ${surface.nodes.toLocaleString()} nodes, ${surface.triangles.toLocaleString()} triangles,`
+    + ` spacing ${Math.round(surface.spacingMinM)}–${Math.round(surface.spacingMaxM)} m; 1 unit = 1 km.`
+    + ` Subsurface ${gisTerrain.belowM} m below the lowest ground${gisTerrain.aboveM > 0 ? `, atmosphere ${gisTerrain.aboveM} m above the highest` : ""}.`
+    + `${points?.length ? ` ${points.length} embedded point(s) carried.` : ""}`);
+  ensureTerrainCard();
+  fitView?.();
+  return gisTerrain;
+}
+
+/** Change the extend-boundary decision on this page: rebuild both volumes. */
+export function extendTerrain({ belowM, aboveM } = {}) {
+  if (!gisTerrain) { log("No GIS terrain to extend — build one in the GIS page's Model Builder."); return null; }
+  return adoptTerrainSolid({ ...gisTerrain, belowM: belowM ?? gisTerrain.belowM, aboveM: aboveM ?? gisTerrain.aboveM, origin: null });
+}
+
+function ensureTerrainCard() {
+  const params = byId("studio-params");
+  if (!params?.parentElement) return;
+  let card = byId("studio-gis-terrain");
+  if (!card) {
+    card = document.createElement("div");
+    card.id = "studio-gis-terrain";
+    card.className = "studio-params";
+    params.parentElement.insertBefore(card, params.nextSibling);
+  }
+  card.innerHTML = "";
+  const title = document.createElement("div");
+  title.className = "studio-row";
+  title.innerHTML = "<strong>GIS terrain — extend the boundary</strong>";
+  card.appendChild(title);
+  const mk = (label, key, value) => {
+    const row = document.createElement("div");
+    row.className = "studio-row";
+    const lab = document.createElement("label");
+    lab.textContent = label;
+    const input = document.createElement("input");
+    input.className = "studio-input";
+    input.type = "number";
+    input.step = "any";
+    input.dataset.terrain = key;
+    input.value = String(value);
+    row.appendChild(lab);
+    row.appendChild(input);
+    card.appendChild(row);
+    return input;
+  };
+  const below = mk("Subsurface depth (m)", "below", gisTerrain?.belowM ?? 0);
+  const above = mk("Atmosphere height (m, 0 = none)", "above", gisTerrain?.aboveM ?? 0);
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "button secondary";
+  button.textContent = "Rebuild the volumes";
+  button.addEventListener("click", () => {
+    extendTerrain({ belowM: Number(below.value) || 0, aboveM: Number(above.value) || 0 });
+  });
+  card.appendChild(button);
+  const note = document.createElement("div");
+  note.className = "studio-row";
+  note.textContent = "The rim's corners carried down to a base and up to a sky — etna.py's outer_box. 1 unit = 1 km.";
+  card.appendChild(note);
+}
+
 window.GeoIDMeshStudio = {
   state, addSolid, meshModel, ACTIONS, fitView, viewAxis,
+  adoptTerrainSolid, extendTerrain,
   setStudioBody, getStudioBody,
   origin: studioOrigin, setStudioOrigin, sceneToWgs84, wgs84ToScene,
   enuToWgs84, wgs84ToEnu, getGroundInfo,
