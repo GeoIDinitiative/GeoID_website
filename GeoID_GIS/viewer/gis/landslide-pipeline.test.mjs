@@ -21,7 +21,9 @@ const clay = bucketFor({ porosity: 0.45, conductivity: 1e-9, depthM: 2, slopeDeg
 const gravel = bucketFor({ porosity: 0.3, conductivity: 1e-3, depthM: 2, slopeDeg: 20 });
 check("capacity is the pore space of the column, in mm", clay.capacityMm, 900);
 check("a clay drains at the floor and a gravel at the ceiling", [clay.drainPerDay, gravel.drainPerDay], [0.02, 0.95]);
-check("a porosity given in percent is read as a fraction", bucketFor({ porosity: 30, conductivity: 1e-6, depthM: 1, slopeDeg: 10 }).n, 0.3);
+check("a granite's 1% porosity is floored, not read as a full column", bucketFor({ porosity: 0.01, conductivity: 1e-6, depthM: 1, slopeDeg: 10 }).n, 0.02);
+const src = readFileSync(new URL("./landslide-pipeline.js", import.meta.url), "utf8");
+check("the database's percent is converted where it is read", /parameterValue\(lith, "porosity"\) \/ 100/.test(src), true);
 check("no published value takes the stated default", bucketFor({ depthM: 1, slopeDeg: 10 }).n, HYDRO_DEFAULTS.porosity);
 
 /* ── the DEM grid and the sampler ─────────────────────────────────────────── */

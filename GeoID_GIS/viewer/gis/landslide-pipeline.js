@@ -26,14 +26,14 @@
  * which is the difference that decides where a storm matters.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260909-8e2ee95";
-import { weatherPoints, weatherUrl, parseWeatherGrid, rainAt, fosColour } from "./geoid-pipeline.js?v=20260909-8e2ee95";
-import { materialFor, failureDepth, wetnessSeries, factorOfSafety, stabilityBand } from "./fos.js?v=20260909-8e2ee95";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260909-8e2ee95";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260909-8e2ee95";
-import { loadRockProperties, parameterValue } from "./rock-properties.js?v=20260909-8e2ee95";
-import { isGroundLayer } from "./ground-profile.js?v=20260909-8e2ee95";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260909-8e2ee95";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260909-a609e64";
+import { weatherPoints, weatherUrl, parseWeatherGrid, rainAt, fosColour } from "./geoid-pipeline.js?v=20260909-a609e64";
+import { materialFor, failureDepth, wetnessSeries, factorOfSafety, stabilityBand } from "./fos.js?v=20260909-a609e64";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260909-a609e64";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260909-a609e64";
+import { loadRockProperties, parameterValue } from "./rock-properties.js?v=20260909-a609e64";
+import { isGroundLayer } from "./ground-profile.js?v=20260909-a609e64";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260909-a609e64";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";
@@ -62,7 +62,12 @@ export const HYDRO_DEFAULTS = { porosity: 0.3, conductivity: 1e-6 };
  * and a clay never, and neither is what a bucket model can carry.
  */
 export function bucketFor({ porosity, conductivity, depthM, slopeDeg }) {
-  const n = Number.isFinite(porosity) && porosity > 0 ? (porosity > 1 ? porosity / 100 : porosity) : HYDRO_DEFAULTS.porosity;
+  // A FRACTION here. The rock-property database publishes porosity in PERCENT
+  // (a granite is 1, a sand 35), and read as a fraction a granite's column held
+  // its whole depth in water; the caller converts, and the floor keeps a
+  // near-zero porosity from making the bucket a thimble that drains a
+  // thousand times a day.
+  const n = Number.isFinite(porosity) && porosity > 0 ? Math.max(0.02, Math.min(0.6, porosity)) : HYDRO_DEFAULTS.porosity;
   const K = Number.isFinite(conductivity) && conductivity > 0 ? conductivity : HYDRO_DEFAULTS.conductivity;
   const z = Number.isFinite(depthM) && depthM > 0 ? depthM : 1.0;
   const beta = (Number(slopeDeg) || 0) * Math.PI / 180;
@@ -407,7 +412,8 @@ async function readGround() {
         const z = failureDepth(thickness, material.depth);
         cells.push({
           x, y, lat, lon, slopeDeg, lith, material: { ...material, depth: z.depth }, depthFrom: z.from,
-          porosity: lith ? parameterValue(lith, "porosity") : null,
+          // percent in the database, a fraction in the bucket
+          porosity: lith && Number.isFinite(parameterValue(lith, "porosity")) ? parameterValue(lith, "porosity") / 100 : null,
           conductivity: lith ? parameterValue(lith, "hydraulic_conductivity") : null,
         });
       }
