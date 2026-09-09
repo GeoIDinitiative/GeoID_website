@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-27911d9";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-27911d9";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-75a7557";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-75a7557";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260909-27911d9";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-27911d9";
-import { downloadText } from "./extraction.js?v=20260909-27911d9";
-import { shellPositions, surfacePositions, tinHeightAt } from "./surface-sampling.js?v=20260909-27911d9";
+} from "./mesh-volume.js?v=20260909-75a7557";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-75a7557";
+import { downloadText } from "./extraction.js?v=20260909-75a7557";
+import { shellPositions, surfacePositions, tinHeightAt } from "./surface-sampling.js?v=20260909-75a7557";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -525,6 +525,15 @@ function ensureModelAnchor() {
   return modelAnchor;
 }
 
+/** A colour from the live theme, or the fallback where the theme has none. */
+function themeColour(token, fallback) {
+  try {
+    const hex = window.GeoIDTheme?.hex?.(token);
+    if (hex) return new THREE.Color(hex);
+  } catch (e) { /* no theme seam on this page */ }
+  return new THREE.Color(fallback);
+}
+
 function groundGridMaterial() {
   return new THREE.ShaderMaterial({
     // Opaque and depth-writing, front faces only, so the far side of the globe
@@ -544,9 +553,20 @@ function groundGridMaterial() {
       uStepCoarse: { value: 500 },
       uBlend: { value: 1 },
       uMajorEvery: { value: 5 },
-      uMinor: { value: new THREE.Color(0x2f6bff) },
-      uMajor: { value: new THREE.Color(0xff2bd6) },
-      uBase: { value: new THREE.Color(0x02050b) },
+      /**
+       * QUIET RULING, not neon. The first grid was the skin's own chrome and
+       * data colours at full strength with a bloom under every line, drawn
+       * at 1.2 pixels -- reported as harsh, and it was: a reference surface
+       * should sit UNDER the model, not compete with it. Minor lines are a
+       * desaturated slate at a third of their old weight, major lines the
+       * accent muted, the bloom all but gone, and the ruling fades with
+       * distance so the far field is a tone rather than a stripe. Colours
+       * come from the theme where it has them, so a skin restyles the floor.
+       */
+      uMinor: { value: themeColour("--skin-data", 0x52e4e8).multiplyScalar(0.34) },
+      uMajor: { value: themeColour("--skin-chrome", 0xff2bd6).multiplyScalar(0.5) },
+      uBase: { value: new THREE.Color(0x05070d) },
+      uFadeM: { value: 40000 },
       // 1 when the model reaches below the ground: the fill between the lines
       // is DISCARDED, so the floor is a ruled grid you can see through while
       // its lines still write depth and pass the depth test like anything
@@ -563,9 +583,12 @@ function groundGridMaterial() {
     },
     vertexShader: `
       varying vec3 vLocal;
+      varying float vDist;
       void main() {
         vLocal = position;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vDist = length(mv.xyz);
+        gl_Position = projectionMatrix * mv;
       }
     `,
     fragmentShader: `
@@ -578,7 +601,9 @@ function groundGridMaterial() {
       uniform vec3 uBase;
       uniform float uOpen;
       uniform vec4 uHole;
+      uniform float uFadeM;
       varying vec3 vLocal;
+      varying float vDist;
 
       // One grid level: line coverage, glow, and which family is nearer.
       void gridLevel(float e, float n, float step, float wE, float wN,
@@ -593,7 +618,7 @@ function groundGridMaterial() {
         float density = clamp(step / (max(wE, wN) * 10.0), 0.0, 1.0);
         line = max(parallels, meridians) * density;
         bloom = max(exp(-dLat / (step * 0.05)), exp(-dLon / (step * 0.05)))
-          * 0.35 * density;
+          * 0.05 * density;
       }
 
       void main() {
@@ -604,8 +629,10 @@ function groundGridMaterial() {
         float lat = vLocal.x;
         float lon = -vLocal.z;
 
-        float wLat = fwidth(lat) * 1.2 + 1e-6;
-        float wLon = fwidth(lon) * 1.2 + 1e-6;
+        // Under a pixel wide: the smoothstep over fwidth is the anti-aliasing,
+        // and 0.7 of it reads as a hairline rather than a stroke.
+        float wLat = fwidth(lat) * 0.7 + 1e-6;
+        float wLon = fwidth(lon) * 0.7 + 1e-6;
 
         // Two grid levels are drawn at once and crossfaded, so zooming brings
         // the finer one up gradually instead of swapping the whole graticule
@@ -628,9 +655,13 @@ function groundGridMaterial() {
           : abs(mod(floor(lon / step_ + 0.5), uMajorEvery)) < 0.5;
         vec3 colour = major ? uMajor : uMinor;
 
-        if (uOpen > 0.5 && line < 0.03 && bloom < 0.12) discard;
+        if (uOpen > 0.5 && line < 0.03 && bloom < 0.02) discard;
         if (uOpen > 0.5 && lat > uHole.x && lat < uHole.z && lon > uHole.y && lon < uHole.w) discard;
-        gl_FragColor = vec4(uBase + colour * (line + bloom), 1.0);
+        // The far field is a tone, not a stripe: the ruling fades over uFadeM
+        // of view distance while the base colour stays, so the horizon reads
+        // as ground rather than as a moiré of lines.
+        float fade = exp(-vDist / max(uFadeM, 1.0));
+        gl_FragColor = vec4(uBase + colour * (line + bloom) * fade, 1.0);
       }
     `,
   });
@@ -775,6 +806,7 @@ function refreshGraticuleStep() {
   uniforms.uStepM.value = fine;
   uniforms.uStepCoarse.value = coarse;
   uniforms.uBlend.value = blend;
+  if (uniforms.uFadeM) uniforms.uFadeM.value = Math.max(coarse * 12, 2000);
 }
 
 function setGroundVisible(on) {

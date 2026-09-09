@@ -189,6 +189,7 @@ check("the TIN builds", tin.ok, tin.message);
   check("the studio fits the view to its OWN meshes, not to every GIS layer", /const own = all\.filter\(\(l\) => studioMeshes\.has\(l\.object3D\)/.test(studio));
   check("the studio draws the surface STL as its own skin and the air translucent", /surfacePositions\(surface, km\)/.test(studio) && /opacity: 0\.22/.test(studio));
   check("the studio's camera floor and orbit follow a model that reaches below the ground", /function cameraFloorRadius/.test(studio) && /groundRadius \+ below - Math\.max\(span, 1000\)/.test(studio) && /Math\.PI - MIN_POLAR_RAD/.test(studio) && /uniforms\.uOpen\.value = below \? 1 : 0/.test(studio) && /uOpen > 0\.5 && line < 0\.03/.test(studio) && /uHole\.value\.set\(/.test(studio));
+  check("the studio's ground is ruled quietly: hairlines, muted theme colours, a distance fade", /fwidth\(lat\) \* 0\.7/.test(studio) && /themeColour\("--skin-data"/.test(studio) && /uFadeM/.test(studio) && !/\* 0\.35 \* density/.test(studio));
   check("the terrain keeps true elevations in the studio", /const zShift = 0;/.test(studio) && /elevation: 0,/.test(studio));
   check("the GIS page draws the full model — surface, subsurface, atmosphere", /function drawFullModel/.test(pipeline) && /Show the full model on the globe/.test(pipeline));
   check("the studio takes the terrain in METRES, its own scale", /const km = 1;/.test(studio) && /1 unit = 1 m/.test(studio));
