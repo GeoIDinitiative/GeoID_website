@@ -16351,3 +16351,26 @@ event — when the frame rate is not yours to read.
 (`0x8a97ad` at 0.16, majors at 0.3), no bloom at all, no theme colour split,
 fading with distance. "Not any better than before" was fair about the
 two-colour theme ruling; a reference grid is furniture, not a subject.
+
+### "Still very laggy" — what the model page was drawing, counted
+
+The pane's own frame rate is throttled to a few frames a second today in
+every mode, so the instrument is `renderer.info` after a frame and a timed
+`render()` with a `readPixels` sync. Model mode with the terrain up, before:
+**8 draw calls, 381,620 triangles, 148,972 lines** — of which the lines were
+the GIS page's surface-sampling preview and the other georeferenced layers,
+still drawn under a model that cannot show where they are, and the
+triangles were the 95,000-triangle TIN drawn three times (rock top, skin,
+air floor) DoubleSide. After: **5 calls, 119,296 triangles, 0 lines**, 4.5 ms
+a render on this GPU.
+
+- **The studio hides `GeoID-ImportedGeoLayers` while it is up** and puts it
+  back as it was on the way out; model mode keeps the import groups because
+  the studio's own meshes live in one, so this has to be the studio's own
+  rule.
+- **What is drawn is a stand-in; what is tested is the surface.** A TIN over
+  40,000 triangles is resampled onto a 129 x 129 grid for display (33,000
+  triangles a copy); the inside-tests, the mesher and the package read the
+  full TIN. `tinToGrid` now carries enough for `gridAsTin` to read it back.
+- The air shell draws no floor; the rock keeps its top so a click on the
+  terrain still finds the rock.
