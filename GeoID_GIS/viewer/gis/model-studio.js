@@ -1,13 +1,13 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-a9dc998";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-a9dc998";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-063b438";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-063b438";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260910-a9dc998";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-a9dc998";
-import { downloadText } from "./extraction.js?v=20260910-a9dc998";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-a9dc998";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-a9dc998";
+} from "./mesh-volume.js?v=20260910-063b438";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-063b438";
+import { downloadText } from "./extraction.js?v=20260910-063b438";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-063b438";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-063b438";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -3041,7 +3041,8 @@ function renderDomainsPanel() {
     });
     const label = document.createElement("span");
     label.textContent = title;
-    label.style.flex = "1";
+    // The head holds a tick, the name and a flag box: the name gives way, the box does not.
+    label.style.cssText = "flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
     summary.appendChild(master);
     summary.appendChild(label);
     // The domain's own flag -- the volume (or the surface's, or the points' default) -- edited in its head.
@@ -3173,7 +3174,7 @@ function flagInput(current, onSet, title = "Type a flag number and press Enter")
   input.type = "number"; input.min = "1"; input.step = "1";
   input.value = String(current);
   input.className = "studio-input studio-flag";
-  input.style.cssText = "width:4.2rem;padding:0.1rem 0.3rem";
+  input.style.cssText = "width:3.4rem;flex:0 0 auto;padding:0.1rem 0.25rem;font-size:0.72rem";
   input.title = title;
   const commit = () => { if (Number(input.value) !== Number(current)) onSet(input.value); };
   input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); commit(); } e.stopPropagation(); });
