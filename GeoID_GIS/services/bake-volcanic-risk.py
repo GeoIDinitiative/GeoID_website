@@ -222,46 +222,47 @@ def quadtree(field, vei_max, extra):
     limit = SPREAD * float(field.max()) if field.max() > 0 else 0.0
     blocks = []
 
-    def flat(r0, c0, size):
-        block = field[r0:r0 + size, c0:c0 + size]
+    def flat(r0, c0, rows, cols):
+        block = field[r0:r0 + rows, c0:c0 + cols]
         lo, hi = block.min(), block.max()
         if hi == 0:
             return True         # nothing anywhere in it: flat whatever its largest-VEI class
         if lo == 0:
             return False        # empty in part is not flat
-        v = vei_max[r0:r0 + size, c0:c0 + size]
+        v = vei_max[r0:r0 + rows, c0:c0 + cols]
         return (hi - lo) <= limit and v.min() == v.max()
 
     def emit(r0, c0, size):
         # 180 is not a multiple of the 8-degree coarsest block, so the last row
         # of blocks would run 4 degrees past the south pole: measured, the cells
-        # summed to 1.022 of the lat/lon plane. A block is clipped to the lattice.
+        # summed to 1.022 of the lat/lon plane. A block is clipped to the
+        # lattice in ROWS ONLY -- clipping both axes with one size halved the
+        # last row's columns and left 1.1% of the plane undrawn.
         if r0 >= NY:
             return
-        size = min(size, NY - r0)
-        if size > FINEST and not flat(r0, c0, size):
-            half = max(FINEST, size // 2)
+        rows = min(size, NY - r0)
+        if size > FINEST and not flat(r0, c0, rows, size):
+            half = size // 2
             for dr in (0, half):
                 for dc in (0, half):
-                    if dr < size:
-                        emit(r0 + dr, c0 + dc, half)
+                    emit(r0 + dr, c0 + dc, half)
             return
-        blocks.append((r0, c0, size))
+        blocks.append((r0, c0, rows, size))
 
     for r0 in range(0, NY, COARSEST):
         for c0 in range(0, NX, COARSEST):
             emit(r0, c0, COARSEST)
 
     features = []
-    for r0, c0, size in blocks:
-        sl = (slice(r0, r0 + size), slice(c0, c0 + size))
+    for r0, c0, rows, size in blocks:
+        sl = (slice(r0, r0 + rows), slice(c0, c0 + size))
         mean = float(field[sl].mean())
         # A CELL NOTHING REACHES IS DRAWN, AS "NONE ON RECORD". Left out, the
         # ocean and the far interiors showed basemap through a hazard map,
         # which reads as a gap rather than as an answer; every cell of the
         # globe carries one, and the key names the class.
         north = 90.0 - r0 * STEP
-        south = max(-90.0, north - size * STEP)
+        south = north - rows * STEP
         west = -180.0 + c0 * STEP
         east = west + size * STEP
         # SIGNIFICANT FIGURES, not fixed decimals: a far tail at 3e-8 a year
