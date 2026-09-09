@@ -18,11 +18,11 @@
  * of people per km² and the key reads in people, not in logarithms.
  */
 
-import { buildRasterLayer, loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260909-8ebb2d7";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260909-8ebb2d7";
-import { dataUrl } from "./data-base.js?v=20260909-8ebb2d7";
-import { rampColour } from "./symbology.js?v=20260909-8ebb2d7";
-import { mathsFor } from "./equations.js?v=20260909-8ebb2d7";
+import { buildRasterLayer, loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260909-73a99d7";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260909-73a99d7";
+import { dataUrl } from "./data-base.js?v=20260909-73a99d7";
+import { rampColour } from "./symbology.js?v=20260909-73a99d7";
+import { mathsFor } from "./equations.js?v=20260909-73a99d7";
 
 export const LAYER_NAME = "Population density (WorldPop 2020, 1 km)";
 const META_PATH = "/data/global/worldpop/meta.json";
@@ -189,22 +189,29 @@ export function cellAreaKm2(lat, arcsec = 30) {
   return (deg * 111.32) * (deg * 111.32 * Math.cos((lat * Math.PI) / 180));
 }
 
+/**
+ * THE FILE HOLDS A COUNT PER CELL, NOT A DENSITY. "ppp" is people per pixel,
+ * and a 30-arcsecond pixel is 0.86 km² at the equator and 0.53 km² at
+ * London — so the count under-reads the density by up to a factor of two
+ * poleward. The density is the count over the cell's true ground.
+ */
 export async function sampleAt(lat, lon) {
   const info = await loadMeta();
   const cell = cellAt(lat, lon, info);
   if (!cell) return null;
-  if (cell.outside) return { ...cell, density: null };
+  if (cell.outside) return { ...cell, count: null, density: null };
   const img = await open();
   const [band] = await img.readRasters({ window: [cell.x, cell.y, cell.x + 1, cell.y + 1] });
   const raw = band?.[0];
   const known = !isNoData(raw, info.noData);
-  return { ...cell, density: known ? Number(raw) : null };
+  const count = known ? Number(raw) : null;
+  return { ...cell, count, density: known ? count / cellAreaKm2(lat) : null };
 }
 
 export function populationCard(sample = {}, info = {}) {
   const d = sample.density;
   const area = cellAreaKm2(sample.lat ?? 0);
-  const people = Number.isFinite(d) ? d * area : null;
+  const people = Number.isFinite(sample.count) ? sample.count : (Number.isFinite(d) ? d * area : null);
   const title = sample.outside ? "Outside the modelled area"
     : d === null ? "No population modelled here"
       : d < 1 ? "Fewer than 1 person per km²" : `${Math.round(d).toLocaleString()} people per km²`;
@@ -270,6 +277,17 @@ async function build({ onStatus = () => {} } = {}) {
     const read = await readWindow(bounds);
     if (!read) return { ok: false, message: "No population data over this view." };
     const values = Float32Array.from(read.band);
+    // Count per cell -> people per km², row by row: the cell's ground shrinks
+    // with the cosine of its latitude, and the window read here is resampled
+    // so the count is per SOURCE cell whatever this picture's pixel is.
+    const rowLat = (y) => read.bounds.north - ((y + 0.5) / read.height) * (read.bounds.north - read.bounds.south);
+    for (let y = 0; y < read.height; y += 1) {
+      const per = 1 / cellAreaKm2(rowLat(y), info.resolutionArcsec || 30);
+      for (let x = 0; x < read.width; x += 1) {
+        const i = y * read.width + x;
+        if (!isNoData(values[i], info.noData)) values[i] *= per;
+      }
+    }
     const counts = DENSITY_LABELS.map(() => 0); let none = 0; let seen = 0; let total = 0;
     for (const v of values) {
       if (isNoData(v, info.noData)) continue;
