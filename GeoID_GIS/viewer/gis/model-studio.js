@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-75a7557";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-75a7557";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-5e155bc";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-5e155bc";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260909-75a7557";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-75a7557";
-import { downloadText } from "./extraction.js?v=20260909-75a7557";
-import { shellPositions, surfacePositions, tinHeightAt } from "./surface-sampling.js?v=20260909-75a7557";
+} from "./mesh-volume.js?v=20260909-5e155bc";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-5e155bc";
+import { downloadText } from "./extraction.js?v=20260909-5e155bc";
+import { shellPositions, surfacePositions, tinHeightAt } from "./surface-sampling.js?v=20260909-5e155bc";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -655,12 +655,20 @@ function groundGridMaterial() {
           : abs(mod(floor(lon / step_ + 0.5), uMajorEvery)) < 0.5;
         vec3 colour = major ? uMajor : uMinor;
 
-        if (uOpen > 0.5 && line < 0.03 && bloom < 0.02) discard;
-        if (uOpen > 0.5 && lat > uHole.x && lat < uHole.z && lon > uHole.y && lon < uHole.w) discard;
         // The far field is a tone, not a stripe: the ruling fades over uFadeM
         // of view distance while the base colour stays, so the horizon reads
         // as ground rather than as a moiré of lines.
         float fade = exp(-vDist / max(uFadeM, 1.0));
+        if (uOpen > 0.5) {
+          // SEE-THROUGH: only each line's core survives, painted in its own
+          // colour. Keeping the anti-aliased edge and the bloom drew them as
+          // near-black opaque pixels (base + almost no colour) wherever the
+          // plane passed in front of the rock -- dark bands across the walls.
+          if (line < 0.5 || fade < 0.04) discard;
+          if (lat > uHole.x && lat < uHole.z && lon > uHole.y && lon < uHole.w) discard;
+          gl_FragColor = vec4(uBase + colour * fade * 1.6, 1.0);
+          return;
+        }
         gl_FragColor = vec4(uBase + colour * (line + bloom) * fade, 1.0);
       }
     `,
