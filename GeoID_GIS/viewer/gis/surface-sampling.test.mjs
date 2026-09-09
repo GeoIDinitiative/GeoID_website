@@ -205,6 +205,7 @@ check("the TIN builds", tin.ok, tin.message);
   check("one CRS: the studio reads the adopted terrain's own frame", /gisTerrain\.surface\.frame\.fromLocal\(eastM, northM\)/.test(studio) && /gisTerrain\.surface\.frame\.toLocal\(lat, lon\)/.test(studio));
   check("the package states its frame", /crs: `local east\/north metres about origin/.test(pipeline));
   check("returning to the studio puts its meshes back to metres and fits them", /clearZoomTarget\?\.\(\);\n        refreshStudioScale\(\);\n        if \(state\.solids\.length\) fitView\(\); else centreOnOrigin\(\);/.test(studio));
+  check("the globe's embedded re-frame never runs in the studio", /if \(window\.GeoIDModeManager\?\.getMode\?\.\(\) === "model"\) return;\n\s+if \(performance\.now\(\) < suppressEmbeddedFrameCameraUntil\)/.test(viewer) && /cancelAnimationFrame\(embeddedFrameAnimation\);\n\s+embeddedFrameAnimation = null;\n\s+\}\n\s+return true;/.test(viewer));
   check("entering the studio forgets the globe's pending zoom", /clearZoomTarget\?\.\(\);/.test(studio) && /clearZoomTarget\(\) \{\n\s+zoomTargetSurfaceDistance = null;/.test(viewer));
   check("the studio hides the georeferenced GIS layers while it is up", /geo\.visible = false;/.test(studio) && /geoGroupWasVisible/.test(studio));
   check("the air shell is displayed without its floor", /\(f\) => f\.face !== "ground"\)\);/.test(studio));

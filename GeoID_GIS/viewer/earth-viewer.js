@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260909-089085f";
+  from "./gis/geo-utils.js?v=20260909-26172bf";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260909-089085f";
+  from "./gis/vector-render.js?v=20260909-26172bf";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260909-089085f";
+  from "./gis/rock-class.js?v=20260909-26172bf";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260909-089085f";
+  from "./gis/lithology-label.js?v=20260909-26172bf";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -13122,6 +13122,15 @@ function fmtProp(value) {
 
 		      function applyEmbeddedFrameState() {
 		        if (window.self === window.top || activeMoonViewerFeature) return;
+		        /**
+		         * NOT IN THE MESHING STUDIO. This re-frames the GLOBE when the
+		         * embedded frame changes shape -- and a mode switch changes the
+		         * panels, so it fired 600 ms after entering Model mode, flying the
+		         * camera to 11.5 units from the world origin with the target at
+		         * (0,0,0): a terrain fitted at 31 km snapped to a 12 m view of
+		         * nothing, in one step. The studio owns its camera.
+		         */
+		        if (window.GeoIDModeManager?.getMode?.() === "model") return;
 		        if (performance.now() < suppressEmbeddedFrameCameraUntil) return;
 		        // This refits the globe inside the embedded frame by pulling the
 		        // camera along a radius and staring at the origin. Model mode has
@@ -22031,6 +22040,12 @@ uniform float uViewportWidth;`,
          */
         clearZoomTarget() {
           zoomTargetSurfaceDistance = null;
+          if (embeddedFrameAnimation) {
+            // A globe re-frame already in flight keeps writing the camera
+            // for the rest of its 280 ms; the studio's fit must outlive it.
+            cancelAnimationFrame(embeddedFrameAnimation);
+            embeddedFrameAnimation = null;
+          }
           return true;
         },
         /** Where the camera is now, and the range it may occupy. */
