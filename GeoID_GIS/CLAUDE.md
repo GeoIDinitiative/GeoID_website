@@ -15751,3 +15751,39 @@ disk). Verified live on 8125: 13,501 cells at 0.6 from
 layer untouched by the other's views, and a click on Sicily reading
 "83.3 million m³ a year · VEI 7 on record · typical VEI 4.6 · Etna — 21
 counted eruptions, up to VEI 5".
+
+### "Underdeveloped": a hard disc is a picture of the radii, not of the hazard
+
+The first two bakes drew a scatter of islands — 9,989 and 13,501 cells with
+nothing between them — because an eruption counted at a point only INSIDE its
+radius (15 km at VEI 2) and stopped dead at it, and because the eruption list
+names 915 of the catalogue's 2,666 volcanoes. Three changes, all in the bake:
+
+- **A KERNEL, not a cut-off.** Each eruption counts `exp(−d/R)` of itself
+  and is dropped past 4R (1.8%). Ashfall thins with distance; it does not
+  stop. The disc lookup now carries row indices so the haversine is solved per
+  cell at stamp time.
+- **Every volcano is in.** The 1,751 with no dated eruption take a stated
+  FLOOR PRIOR — a Holocene one, one VEI 2 over the Holocene; a Pleistocene
+  one, one VEI 3 over the Pleistocene (2.58 My) — and a cell that nothing else
+  reaches carries `prior_only: 1`, which the card names as its Basis. That is
+  the rock-property database's "prior gets its own class" rule again.
+- **Uncertain eruptions count at half weight** rather than being dropped.
+
+Measured after: 32,868 and 29,289 cells covering 48–57% of the lat/lon plane
+(14.5 and 13.0 MB); Paris 1 in 30,000 years, New York, Moscow and São Paulo
+carrying a VEI 7 tail; Delhi and the southern Indian Ocean genuinely nothing
+within 4R. The return-period scale gained a 1-in-10,000 class because the
+tails put most of the map below one in a thousand. A `flat_log` gate (max ≤
+2·min, never empty-in-part) coarsens the tephra field, which spans eleven
+orders of magnitude and cannot be gated on an absolute spread.
+
+**`first_year` must include the uncertain eruptions once they count** — a
+volcano whose only dated record is uncertain otherwise KeyErrors in holocene
+mode. And a module-level constant cannot read one defined below it
+(`PRIOR_HOLOCENE` reading `LAST_COMPLETE`): the bake raised at import.
+
+Verified live: the full-record map from the bucket at 29,289 cells, its
+tephra key summing to 29,289, and a click on Nairobi reading "2.57 million m³
+a year · VEI 6 on record · Olkaria contributing most · 18 volcanoes reaching
+here".
