@@ -20,22 +20,22 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260909-83cb6bf";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260909-83cb6bf";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260909-8b0dcac";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260909-8b0dcac";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20260909-83cb6bf";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260909-83cb6bf";
-import { lithologyLabel } from "./lithology-label.js?v=20260909-83cb6bf";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260909-83cb6bf";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260909-83cb6bf";
-import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260909-83cb6bf";
-import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20260909-83cb6bf";
-import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js?v=20260909-83cb6bf";
-import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260909-83cb6bf";
+} from "./vector-render.js?v=20260909-8b0dcac";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260909-8b0dcac";
+import { lithologyLabel } from "./lithology-label.js?v=20260909-8b0dcac";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260909-8b0dcac";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260909-8b0dcac";
+import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260909-8b0dcac";
+import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20260909-8b0dcac";
+import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js?v=20260909-8b0dcac";
+import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260909-8b0dcac";
 import {
   canEditRow, editableFields, applyRowChange,
-} from "./table-editor.js?v=20260909-83cb6bf";
+} from "./table-editor.js?v=20260909-8b0dcac";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital

@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-83cb6bf";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-83cb6bf";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-8b0dcac";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-8b0dcac";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260909-83cb6bf";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-83cb6bf";
-import { downloadText } from "./extraction.js?v=20260909-83cb6bf";
-import { shellPositions, surfacePositions, tinHeightAt } from "./surface-sampling.js?v=20260909-83cb6bf";
+} from "./mesh-volume.js?v=20260909-8b0dcac";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-8b0dcac";
+import { downloadText } from "./extraction.js?v=20260909-8b0dcac";
+import { shellPositions, surfacePositions, tinHeightAt } from "./surface-sampling.js?v=20260909-8b0dcac";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -547,6 +547,13 @@ function groundGridMaterial() {
       uMinor: { value: new THREE.Color(0x2f6bff) },
       uMajor: { value: new THREE.Color(0xff2bd6) },
       uBase: { value: new THREE.Color(0x02050b) },
+      // 1 when the model reaches below the ground: the fill between the lines
+      // is DISCARDED, so the floor is a ruled grid you can see through while
+      // its lines still write depth and pass the depth test like anything
+      // else. A ground that merely stopped writing depth drew its lines over
+      // whatever was in front of it, which is what "the gridlines fail the
+      // depth test" looked like.
+      uOpen: { value: 0 },
     },
     vertexShader: `
       varying vec3 vLocal;
@@ -563,6 +570,7 @@ function groundGridMaterial() {
       uniform vec3 uMinor;
       uniform vec3 uMajor;
       uniform vec3 uBase;
+      uniform float uOpen;
       varying vec3 vLocal;
 
       // One grid level: line coverage, glow, and which family is nearer.
@@ -613,6 +621,7 @@ function groundGridMaterial() {
           : abs(mod(floor(lon / step_ + 0.5), uMajorEvery)) < 0.5;
         vec3 colour = major ? uMajor : uMinor;
 
+        if (uOpen > 0.5 && line < 0.03 && bloom < 0.12) discard;
         gl_FragColor = vec4(uBase + colour * (line + bloom), 1.0);
       }
     `,
@@ -980,9 +989,9 @@ function applyOrbitDistanceLimits() {
  * above the ground sphere and the orbit capped at the horizon, so nothing
  * under z = 0 could be looked at -- and a subsurface is all under z = 0. When
  * the model reaches below the ground the floor drops to its base, the orbit
- * may swing under the horizon, and the ground stops writing depth so the rock
- * beneath it is painted over it rather than hidden by it. A model that sits
- * on the ground keeps every old limit.
+ * may swing under the horizon, and the ground's fill between its lines is
+ * discarded so the rock beneath shows through a grid whose lines still
+ * depth-test honestly. A model that sits on the ground keeps every old limit.
  */
 function modelBelowGroundM() {
   const b = combinedBounds();
@@ -999,9 +1008,8 @@ function applyBelowGround() {
   if (controls && orbitLimits) {
     controls.maxPolarAngle = below ? Math.PI - MIN_POLAR_RAD : Math.PI / 2 - 0.02;
   }
-  if (groundMesh?.material) {
-    groundMesh.material.depthWrite = !below;
-    groundMesh.renderOrder = below ? -1 : 0;
+  if (groundMesh?.material?.uniforms?.uOpen) {
+    groundMesh.material.uniforms.uOpen.value = below ? 1 : 0;
   }
 }
 

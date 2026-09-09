@@ -2,13 +2,13 @@ import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
   nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS, atmosphereStl, DEFAULT_MAX_NODES,
-} from "./model-build.js?v=20260909-83cb6bf";
-import { ringsFromCollection } from "./extraction.js?v=20260909-83cb6bf";
+} from "./model-build.js?v=20260909-8b0dcac";
+import { ringsFromCollection } from "./extraction.js?v=20260909-8b0dcac";
 import {
   buildTin, tinHeightAt, tinSurfaceStl, tinShellStl, samplingSizeField,
   extendBoundary, extendedBoundaryLines, gridAsTin, shellFacets,
-} from "./surface-sampling.js?v=20260909-83cb6bf";
-import { renderFeatureCollection } from "./vector-render.js?v=20260909-83cb6bf";
+} from "./surface-sampling.js?v=20260909-8b0dcac";
+import { renderFeatureCollection } from "./vector-render.js?v=20260909-8b0dcac";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
