@@ -78,7 +78,10 @@ const popup = readFileSync(new URL("./feature-popup.js", import.meta.url), "utf8
 check("the popup asks before falling through to the rock card",
   /isRiskFeature\(props\)/.test(popup), true);
 check("and marks the card as already written, so nothing re-derives a heading",
-  /const risk = !ice && !soil && isRiskFeature/.test(popup), true);
+  // Guarded by the ice and soil cards, and asked AFTER the volcanic grid,
+  // whose cells carry the same three columns and would otherwise open here.
+  /!ice && !soil && isRiskFeature\(props\)/.test(popup)
+  && popup.indexOf("isVolcanicRiskFeature(props)") < popup.indexOf("isRiskFeature(props)"), true);
 
 process.on("exit", () => {
   if (failures.length) {

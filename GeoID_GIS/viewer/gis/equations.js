@@ -117,6 +117,69 @@ const EQUATIONS = {
       + "Meteor. Soc., 91, 363–376.",
   },
 
+  "volcanic-risk": {
+    kind: COMPUTED,
+    intro: "How often ash reaches a point, counted from the Smithsonian "
+      + "eruption catalogue and converted to an annual chance — the cyclone "
+      + "map's method at a volcano's timescales. Two things to read before "
+      + "the colours: each eruption reaches a SCHEMATIC, ISOTROPIC radius set "
+      + "by its VEI, and each is divided by the length of record over which "
+      + "eruptions of ITS size are actually recorded — which is what lets a "
+      + "dormant volcano's one VEI 5 in 1707 count beside a live one's "
+      + "fifty small eruptions since 1950.",
+    lines: [
+      { expr: "λ(p) = Σ over eruptions e with d(p, vent(e)) ≤ R(VEI(e)) of 1 / Y(VEI(e))",
+        note: "the rate, in eruptions per year whose ash reaches the point p" },
+      { expr: "P(p) = 1 − exp( −λ(p) )",
+        note: "the chance of AT LEAST ONE in a given year — what the map is "
+          + "coloured by, and what the classes are cut on" },
+      { expr: "λ_large(p) = the same sum over VEI ≥ 4 only",
+        note: "the large-eruption reading, carried on every cell" },
+      { expr: "VEI_max(p) = max VEI(e) over the same eruptions",
+        note: "the largest eruption on record reaching p — the magnitude reading" },
+      { expr: "cell value = mean of λ over the lattice points inside it",
+        note: "coarsened only where that mean is representative and the "
+          + "magnitude is one class — see the note below" },
+    ],
+    terms: [
+      ["R(VEI)", "5 km at VEI 0–1, 15 at 2, 40 at 3, 120 at 4, 300 at 5, "
+        + "600 at 6, 1,000 at 7, 1,500 at 8 — order-of-magnitude distances at "
+        + "which about a millimetre of ash is reported for eruptions of each "
+        + "size (Eyjafjallajökull 2010 at VEI 4, St Helens 1980 at 5, Pinatubo "
+        + "1991 at 6, Tambora 1815 at 7). THE RADIUS IS THE DEFINITION, and it "
+        + "is isotropic: ash falls in a wind-driven plume, and a circle of the "
+        + "plume's typical length is the fixed-radius stand-in for it."],
+      ["Y(VEI)", "the complete years over which eruptions of that size are "
+        + "recorded, measured on the catalogue: VEI ≤ 3 since 1950 (76), VEI 4 "
+        + "since 1900 (126), VEI 5–6 since 1550 (476), VEI ≥ 7 the whole "
+        + "Holocene (11,700). Confirmed VEI ≤ 3 eruptions per fifty years run "
+        + "76, 178, 983, 1,318, 1,821 from the 1500s to the 1950s and flatten "
+        + "only after 1950; VEI 5 runs three to five per half-century since "
+        + "1550."],
+      ["eruptions", "Confirmed only, dated, from GVP's Holocene eruption list "
+        + "(9,916 of 11,089). 'Uncertain' eruptions are left out. A quarter "
+        + "carry NO VEI and are counted as VEI 2 — they are overwhelmingly "
+        + "small historical events."],
+      ["d", "great-circle distance, solved on the sphere, a cell counted when "
+        + "its centre is within the reach."],
+      ["exp(−λ)", "the Poisson chance of NO arrival in a year at rate λ. "
+        + "Eruptions cluster and repose times are not memoryless, so this is "
+        + "the standard assumption rather than an exact one."],
+    ],
+    note: "WHY THE CELLS ARE DIFFERENT SIZES. A quarter-degree sampling "
+      + "lattice, merged into blocks while the rate inside them is flat, the "
+      + "large-eruption rate is flat, and the largest VEI is ONE CLASS — so a "
+      + "cell's size is display resolution and nothing more. A block that is "
+      + "EMPTY IN PART is never merged. Cells no eruption's ash reaches are "
+      + "not drawn at all. WHAT THIS IS NOT: a plume model. Where the "
+      + "question is a real eruption today, the far-field product is a plume "
+      + "from the live wind field, drawn downwind and labelled for the "
+      + "eruption size it assumes.",
+    citation: "Global Volcanism Program (2024). Volcanoes of the World, "
+      + "v. 5.2. Smithsonian Institution. https://doi.org/10.5479/si.GVP.VOTW5-2024.5.2. "
+      + "VEI: Newhall & Self (1982), J. Geophys. Res., 87, 1231–1238.",
+  },
+
   "dem-elevation": {
     kind: COMPUTED,
     intro: "The tiles are PNGs, and the height is packed into the colour. "

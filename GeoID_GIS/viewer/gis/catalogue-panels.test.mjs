@@ -324,8 +324,10 @@ check("and every listed group still has something in it",
       .test(dialog));
   check("the layer carries them, not the catalogue: a dropped file reaches the same code",
     /landed\.symbologyViews = entry\.views;/.test(data));
-  check("both cyclone entries declare their readings",
-    [...data.matchAll(/^\s{4}views: \{/gm)].length === 2);
+  // The two cyclone entries and the volcanic risk map, which is the cyclone
+  // risk map's twin and takes its readings the same way.
+  check("the three risk entries declare their readings",
+    [...data.matchAll(/^\s{4}views: \{/gm)].length === 3);
 
   /* ── EVERY OPTION IS AN INSTANT REPAINT ───────────────────────────────── */
   // A choice that loads a different FILE is not a symbology: it drops the

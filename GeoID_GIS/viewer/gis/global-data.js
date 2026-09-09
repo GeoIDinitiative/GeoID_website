@@ -26,15 +26,15 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260909-d6730d6";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260909-d6730d6";
-import { mathsFor } from "./equations.js?v=20260909-d6730d6";
+import { runConnector } from "./research/connectors.js?v=20260909-5936265";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260909-5936265";
+import { mathsFor } from "./equations.js?v=20260909-5936265";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260909-d6730d6";
+} from "./cyclone-risk.js?v=20260909-5936265";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260909-d6730d6";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260909-5936265";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -354,6 +354,53 @@ export const DATASETS = [
       ],
       current: () => window.GeoIDCycloneRisk?.currentView?.() || "estimate",
       apply: (view) => window.GeoIDCycloneRisk?.setView(view),
+    },
+  },
+  {
+    /**
+     * THE VOLCANIC RISK MAP -- the cyclone risk map's twin, built the same
+     * way from the Smithsonian eruption catalogue: every confirmed, dated
+     * eruption reaches a schematic radius set by its VEI (5 km at VEI 0-1 to
+     * 1,000 km at VEI 7) and is counted over the years eruptions of ITS size
+     * are recorded, so a dormant volcano's one VEI 5 in 1707 counts beside a
+     * live one's fifty small eruptions. Three readings of one file, all
+     * repaints: the chance per year of ash from any eruption, from a large
+     * one (VEI 4+), and the largest VEI on record reaching the cell.
+     *
+     * This is NOT the hazard buffers docked above it. Those are five fixed
+     * rings round every Holocene volcano whatever it has done; this is what
+     * each volcano has actually done, and how often.
+     */
+    id: "volcanic-risk",
+    home: "volcanic-hazards",
+    featureNoun: "Volcanic risk cell",
+    group: "Hazards",
+    label: "Volcanic risk \u2014 ashfall chance and largest eruption, from the record (GVP)",
+    path: "/data/global/volcanic-risk.geojson",
+    name: "Volcanic risk (Smithsonian GVP eruption record).geojson",
+    summary: "The chance per year that ash reaches a point, from 2,652 "
+      + "confirmed eruptions since 1950 (VEI \u2264 3), 1900 (VEI 4), 1550 "
+      + "(VEI 5\u20136) and the whole Holocene (VEI 7+), each reaching a "
+      + "radius set by its VEI. 9,989 cells at a variable resolution, each "
+      + "also carrying the large-eruption rate and the largest VEI on record",
+    licence: "Global Volcanism Program, Smithsonian Institution \u2014 CC BY 4.0; "
+      + "cite Volcanoes of the World v5.2 (2024)",
+    opacity: 0.6,
+    /**
+     * EVERY CELL CARRIES ALL THREE READINGS, so the views are repaints of the
+     * layer already loaded, on the symbology surface -- the cyclone map's
+     * arrangement, and the reason there is no `colourRange` beside them (a
+     * view IS the colouring, and the two would run over each other).
+     */
+    views: {
+      label: "Show",
+      options: [
+        { id: "ashfall", label: "Chance of ashfall \u2014 any eruption" },
+        { id: "large", label: "Chance of ashfall \u2014 large eruptions (VEI 4+)" },
+        { id: "magnitude", label: "Largest eruption on record reaching here" },
+      ],
+      current: () => window.GeoIDVolcanicRisk?.currentView?.() || "ashfall",
+      apply: (view) => window.GeoIDVolcanicRisk?.setView(view),
     },
   },
   {
