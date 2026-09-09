@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260909-ec113f0";
+  from "./gis/geo-utils.js?v=20260909-92e38d8";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260909-ec113f0";
+  from "./gis/vector-render.js?v=20260909-92e38d8";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260909-ec113f0";
+  from "./gis/rock-class.js?v=20260909-92e38d8";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260909-ec113f0";
+  from "./gis/lithology-label.js?v=20260909-92e38d8";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -21667,6 +21667,19 @@ uniform float uViewportWidth;`,
             basePoint = new THREE.Vector3(-localHit.x, localHit.y, -localHit.z);
           }
           const geologyFeature = getGeologyFeatureAtPoint(basePoint, geologyInteractiveState);
+          /**
+           * A GIS SHEET OVER THE GEOLOGY MAY CLAIM THE CLICK FIRST. The
+           * forecast landslide risk layer is built FROM the geology under it,
+           * and a click on a failing cell is a question about the run, not
+           * about the unit -- measured, with the world geology loaded every
+           * click opened this card and never reached the pipeline's. The
+           * seam answers true only while its sheet is visible and the point
+           * is inside its grid, and it has drawn its own card by then.
+           */
+          if (geologyFeature && window.GeoIDLandslidePipeline?.probeAt) {
+            const claim = window.GeoIDViewer?.surfaceLatLonAt?.(event.clientX, event.clientY);
+            if (claim && window.GeoIDLandslidePipeline.probeAt(claim.lat, claim.lon)) return;
+          }
           if (geologyFeature) {
             openGeoPopup(geologyFeature, surfaceHit.point, clickSpinDelta);
             return;

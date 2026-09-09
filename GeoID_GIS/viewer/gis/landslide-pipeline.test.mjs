@@ -49,6 +49,10 @@ const popup = readFileSync(new URL("./feature-popup.js", import.meta.url), "utf8
 check("a click on the risk layer is offered to the pipeline BEFORE the polygons under it",
   popup.indexOf("GeoIDLandslidePipeline?.probeAt") > 0 && popup.indexOf("GeoIDLandslidePipeline?.probeAt") < popup.indexOf("const geologyHit = everything.find("), true);
 
+const viewer = readFileSync(new URL("../earth-viewer.js", import.meta.url), "utf8");
+check("and the viewer's own geology click yields to the sheet too", /GeoIDLandslidePipeline\.probeAt\(claim\.lat, claim\.lon\)\) return;/.test(viewer)
+  && viewer.indexOf("GeoIDLandslidePipeline.probeAt(claim.lat") < viewer.indexOf("openGeoPopup(geologyFeature, surfaceHit.point, clickSpinDelta)"), true);
+
 process.on("exit", () => {
   failures.forEach((f) => console.error(`  x ${f}`));
   console.log(`landslide-pipeline: ${pass} passed, ${failures.length} failed`);
