@@ -16289,3 +16289,25 @@ its base, the atmosphere shell to its lid, through the ground at true
 vertical scale with a legend naming each level. From straight above the
 three project as one translucent rectangle; the studio's oblique view is
 where the volumes read as volumes, and the studio now lets you get there.
+
+### "The gridlines fail the depth test" / "we cannot navigate to the underside"
+
+Two reports on the same ground, and both were the fix before them being
+half right. Turning the ground's `depthWrite` off let the rock be seen
+through it and drew its lines over anything nearer — the failed depth test.
+The ground writes depth again; while the model reaches below it the shader
+DISCARDS the fill between the lines (`uOpen`), so the floor is a ruled grid
+seen through, with lines that depth-test like anything else, and it has a
+HOLE under the model's plan footprint (`uHole`), because a reference plane at
+z = 0 otherwise cuts through the subsurface and its lines show inside the
+block wherever the wall below the plane is what is in front. Measured: with
+the ground opaque and depth-writing, `uOpen` 1 and the hole set, the grid
+ends at the block's walls from above.
+
+And a floor AT the base lets the camera reach the underside's plane and no
+further. The floor drops below the base by the model's own diagonal when it
+reaches under the ground. Verified with a REAL mouse drag (the pane's drag
+tool on the canvas): 15,963 m above the ground to **28,607 m below** it in one
+gesture, the screenshot showing the base of the subsurface from beneath. The
+ground is `FrontSide` only, so from under it there is no grid at all, which
+is the honest view of a ruled surface seen from its back.
