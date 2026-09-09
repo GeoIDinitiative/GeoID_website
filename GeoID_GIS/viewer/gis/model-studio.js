@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-90bbf5f";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-90bbf5f";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-f264f71";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-f264f71";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260909-90bbf5f";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-90bbf5f";
-import { downloadText } from "./extraction.js?v=20260909-90bbf5f";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260909-90bbf5f";
+} from "./mesh-volume.js?v=20260909-f264f71";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-f264f71";
+import { downloadText } from "./extraction.js?v=20260909-f264f71";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260909-f264f71";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -571,8 +571,9 @@ function groundGridMaterial() {
       // ruled ground was removed: a lattice of hairlines in a dark grey,
       // majors a shade lighter, no fill (the plane is lines only, so what is
       // under it shows), no bloom, fading with distance.
-      uMinor: { value: new THREE.Color(0x30343c) },
-      uMajor: { value: new THREE.Color(0x4a4f59) },
+      // Light grey, by request, over the dark grey that was asked for first.
+      uMinor: { value: new THREE.Color(0x8e959f) },
+      uMajor: { value: new THREE.Color(0xc4c9d1) },
       uBase: { value: new THREE.Color(0x000000) },
       uFadeM: { value: 40000 },
       // 1 when the model reaches below the ground: the fill between the lines
@@ -954,7 +955,7 @@ function wgs84ToScene(lat, lon, elevation = 0) {
  * so the Model page reports position exactly as the GIS page does. Only the
  * numbers come from here -- the studio's local frame instead of the globe.
  */
-function updateCoordinateReadout(point) {
+function updateCoordinateReadout(point, elevationOverride) {
   const viewer = window.GeoIDViewer;
   if (!viewer?.renderCursorReadout) return;
   if (!point) {
@@ -962,7 +963,10 @@ function updateCoordinateReadout(point) {
     return;
   }
   const geo = sceneToWgs84(point);
-  viewer.renderCursorReadout(geo.lat, geo.lon, geo.elevation);
+  // The viewer's readout prints degrees EAST, 0..360, as the globe does.
+  const lonEast = ((geo.lon % 360) + 360) % 360;
+  viewer.renderCursorReadout(geo.lat, lonEast,
+    Number.isFinite(elevationOverride) ? elevationOverride : geo.elevation);
 }
 
 /**
@@ -1521,12 +1525,31 @@ function installPicking() {
     pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(pointer, viewer.camera);
-    const targets = state.solids
-      .filter((e) => e.object3D && e.visible !== false)
-      .map((e) => e.object3D);
+    /**
+     * THE READOUT READS THE GROUND, NOT THE AIR. The nearest hit from above
+     * was the atmosphere's lid -- a translucent shell is still a mesh to a
+     * raycaster -- so every point over the terrain read "3,849 m", the sky's
+     * height, at the lid's own lat/lon. Measured: three ground points at 279,
+     * 508 and 158 m all reporting the lid. Translucent solids are skipped,
+     * the surface skin is asked first, and the height comes from the full
+     * TIN rather than the display stand-in.
+     */
+    const targets = [];
+    if (gisTerrain?.skin?.visible) targets.push(gisTerrain.skin);
+    state.solids
+      .filter((e) => e.object3D && e.visible !== false
+        && !(e.object3D.material?.transparent && e.object3D.material.opacity < 1))
+      .forEach((e) => targets.push(e.object3D));
     if (groundMesh?.visible) targets.push(groundMesh);
     const hit = targets.length ? raycaster.intersectObjects(targets, false)[0] : null;
-    updateCoordinateReadout(hit ? hit.point : null);
+    let elevation;
+    if (hit && gisTerrain?.surface && modelAnchor && hit.object !== groundMesh) {
+      const local = modelAnchor.worldToLocal(hit.point.clone());
+      const s = studioScale || 1;
+      const h = tinHeightAt(gisTerrain.surface, local.x / s, -local.z / s);
+      if (Number.isFinite(h) && hit.object === gisTerrain.skin) elevation = h;
+    }
+    updateCoordinateReadout(hit ? hit.point : null, elevation);
   });
 
   canvas.addEventListener("contextmenu", (event) => {
