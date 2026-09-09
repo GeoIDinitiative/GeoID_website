@@ -16240,3 +16240,18 @@ Donard, 47,590 nodes / 95,038 triangles at 7.4–477 m over 6 levels, −15 to
 from the TIN; the package (surface, domain, atmosphere, size field, two
 scripts, spec) filed into a browser-storage project; the studio meshing both
 volumes and rebuilding at 6 km with no atmosphere from its own card.
+
+### "In the model page we cannot see the surface STL — no distinguishing the domains"
+
+Right, and both halves had one cause: the two shells SHARE the ground
+triangles, so the interface was inside their union, and both wore pale
+opaque colours — one grey block. Three things now, each measured on the live
+page: the rock is opaque earthen (`a8703f`), the air a translucent sky
+(`7fc8ff` at 0.22, `depthWrite` off — a translucent volume that writes depth
+culls the very ground it is meant to be seen through, drawn last), and the
+surface STL itself is drawn once more as a lit green skin (`6fbf73`, 95,038
+triangles, polygon-offset so it wins the depth fight with the rock's top).
+850 m of relief over 16 km is a 5% ripple, and only shading makes it legible
+at true scale. After Mesh 3D the lattice mesher's stair-stepped boundary is
+drawn over the solids as it always was; Clear mesh or hide it to see the
+surface again.

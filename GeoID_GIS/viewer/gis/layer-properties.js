@@ -1,6 +1,6 @@
 import * as THREE from "../vendor/three.module.js";
-import { placeLocalModel, placeGeoreferencedModel } from "./geo-utils.js?v=20260909-1f4e390";
-import { CRS_OPTIONS, projectedToLatLon } from "./projection.js?v=20260909-1f4e390";
+import { placeLocalModel, placeGeoreferencedModel } from "./geo-utils.js?v=20260909-1803f9a";
+import { CRS_OPTIONS, projectedToLatLon } from "./projection.js?v=20260909-1803f9a";
 
 // Derived from ETNA_3_chambers/station_data.txt (summit station at local
 // 50000,50000) against Etna's true summit at 37.751N 14.993E.
