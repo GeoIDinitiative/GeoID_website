@@ -25,8 +25,8 @@
  * disc stays its own feature, so a click still names its volcano.
  */
 
-import { renderFeatureCollection } from "./vector-render.js?v=20260909-896f797";
-import { layerForDataset } from "./global-data.js?v=20260909-896f797";
+import { renderFeatureCollection } from "./vector-render.js?v=20260909-cc51139";
+import { layerForDataset } from "./global-data.js?v=20260909-cc51139";
 
 const search = new URL(import.meta.url).search;
 
@@ -405,13 +405,24 @@ export async function build({ rank = chosenRank() } = {}) {
         const worse = ours.filter((f) => f.properties.zone < picked);
         if (worse.length) {
           collect({ type: "FeatureCollection", features: worse }, (m) => {
-            m.colorWrite = false; m.transparent = false; m.depthTest = false; m.depthWrite = false;
+            /**
+             * TRANSPARENT, or it draws in the WRONG PASS. Opaque, the mask
+             * ran in the opaque pass -- before the base sheet's transparent
+             * pass -- and the sheet then overwrote its stencil 2 with its own
+             * 1 everywhere it painted, so by the time the fill arrived
+             * nothing was masked: the highlight covered every inner zone of
+             * the group. Measured as red bow-ties left where the base had not
+             * painted and pale highlight over everything else. In the
+             * transparent pass at 239 it draws after the sheet (51.xx) and
+             * before the fill (239.5), which is the only order that works.
+             * Colour off, so its opacity is moot.
+             */
+            m.colorWrite = false; m.transparent = true; m.opacity = 0;
+            m.depthTest = false; m.depthWrite = false;
             m.stencilWrite = true; m.stencilRef = 2; m.stencilFunc = three.AlwaysStencilFunc;
             m.stencilFail = three.ReplaceStencilOp; m.stencilZFail = three.ReplaceStencilOp;
             m.stencilZPass = three.ReplaceStencilOp;
           });
-          // Opaque, so they draw in the opaque pass ahead of the transparent
-          // fill whatever the render order says.
           leaves.forEach((n) => { n.renderOrder = 239; });
         }
         collect({ type: "FeatureCollection", features: same }, (m) => {

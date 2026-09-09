@@ -143,6 +143,10 @@ check("the layer draws its own highlight, and the popup defers to it", () => {
   // whole, a zone's annuli showed a neighbour's severer bands through them.
   ok(/f\.properties\.zone < picked/.test(hl) && /m\.colorWrite = false/.test(hl)
     && /AlwaysStencilFunc/.test(hl), "and masked by the group's worse zones before it is drawn");
+  // The mask must draw in the TRANSPARENT pass, after the base sheet: opaque,
+  // the sheet overwrote its stencil before the fill was ever tested.
+  ok(/m\.colorWrite = false; m\.transparent = true; m\.opacity = 0;/.test(hl),
+    "in the transparent pass, after the sheet");
   ok(/typeof layer\?\.highlightFor === "function"/.test(popup) && /return Array\.isArray\(own\)/.test(popup), "and the popup draws nothing of its own then");
 });
 
