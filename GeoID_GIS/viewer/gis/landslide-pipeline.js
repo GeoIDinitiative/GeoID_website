@@ -26,14 +26,14 @@
  * which is the difference that decides where a storm matters.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260909-92e38d8";
-import { weatherPoints, weatherUrl, parseWeatherGrid, rainAt, fosColour } from "./geoid-pipeline.js?v=20260909-92e38d8";
-import { materialFor, failureDepth, wetnessSeries, factorOfSafety, stabilityBand } from "./fos.js?v=20260909-92e38d8";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260909-92e38d8";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260909-92e38d8";
-import { loadRockProperties, parameterValue } from "./rock-properties.js?v=20260909-92e38d8";
-import { isGroundLayer } from "./ground-profile.js?v=20260909-92e38d8";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260909-92e38d8";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260909-efbf340";
+import { weatherPoints, weatherUrl, parseWeatherGrid, rainAt, fosColour } from "./geoid-pipeline.js?v=20260909-efbf340";
+import { materialFor, failureDepth, wetnessSeries, factorOfSafety, stabilityBand } from "./fos.js?v=20260909-efbf340";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260909-efbf340";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260909-efbf340";
+import { loadRockProperties, parameterValue } from "./rock-properties.js?v=20260909-efbf340";
+import { isGroundLayer } from "./ground-profile.js?v=20260909-efbf340";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260909-efbf340";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";
@@ -523,7 +523,7 @@ export function probeAt(lat, lon) {
     ["Slope", `${cell.slopeDeg.toFixed(1)}°`],
     ["Material", `${cell.lith || "default class"} → c′ ${cell.material.cohesion} kPa, φ′ ${cell.material.friction}°, γ ${cell.material.unitWeight} kN/m³`],
     ["Depth", `${cell.material.depth} m (${cell.depthFrom})`],
-    ["Bucket", `${bucket.capacityMm} mm capacity, ${(bucket.drainPerDay * 100).toFixed(0)}% a day drainage (n ${bucket.n ?? "—"}, K ${bucket.K ?? "—"} m/s)`],
+    ["Bucket", `${bucket.capacityMm} mm capacity, ${(bucket.drainPerDay * 100).toFixed(0)}% a day drainage (n ${bucket.n ?? "—"}, K ${Number.isFinite(bucket.K) ? bucket.K.toExponential(1) : "—"} m/s)`],
   ];
   window.GeoIDViewer?.showFeatureCard?.({
     soil: true, type: "Forecast landslide risk", rock_type: rows[0][1], lithology: null, name: null,

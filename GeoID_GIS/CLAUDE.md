@@ -16081,3 +16081,81 @@ summing to the cells, M 8+ and M 7 frames fetched on demand with the
 subduction margins in the top classes, and a click near Tokyo on the M 7
 frame reading "1 in 1,714 years · largest on record M 8.8 · 3 earthquakes
 within reach" on a 2° cell.
+
+## WorldPop as a layer: the file is a COUNT, read from an overview
+
+Hazards ▸ Exposure ▸ "Population density (WorldPop 2020, 1 km)" is the 809 MB
+global count grid as a Cloud-Optimised GeoTIFF in the bucket
+(`bake-worldpop.py`: gdalwarp to COG with `GDAL_CACHEMAX 512`, and the
+`meta.json` grid/bounds/nodata REWRITTEN from gdalinfo rather than typed),
+read through the vendored geotiff.js like the soil-thickness sheet.
+
+- **Read from an OVERVIEW, never the base.** `readRasters` over the world at
+  level 0 asked for 3.2 GB of Float32 and threw "Array buffer allocation
+  failed". `levelFor(spanPx, needPx)` picks the overview whose span covers
+  what the view can show; the sheet is 4.3 s cold, 1 s warm.
+- **The file is people PER CELL, not per km².** A 1 km cell at 60°N is half
+  a km²; `sampleAt` converts count → density with `cellAreaKm2` per row, and
+  the build does the same per row before the log-decade classes. Tokyo reads
+  15,150/km², a London cell 1,193.
+- **Nodata is −3.4e38 as a FLOAT**, and `v === noData` is false after the
+  float32 round trip. `isNoData` tests `!finite || v <= -1e30 || v === noData
+  || v < 0`.
+- The `.tif` carries `hotlink-ok` in its name (Cloudflare 403s an image by
+  Referer), and `publish-data.py`'s NESTED_FILES lists it for its fingerprint.
+- The click goes through the sheet-click chain in `feature-popup.js`
+  (`GeoIDWorldPop.probeAt` beside the thickness sheet's), answering from the
+  file at full resolution rather than from the drawn overview.
+
+## Forecast landslide risk: a query pipeline, and the click it had to win
+
+Hazards ▸ Landslides ▸ "Forecast landslide risk" (`landslide-pipeline.js`,
+host `#landslide-pipeline`) is six cards read top to bottom, each unlocked by
+the one above — area, rainfall, ground, hydrogeological model, run — and it
+is deliberately a FLOWCHART rather than one button: every step's answer is
+printed on its card so the reader can see what the next step is being fed.
+
+- **Extent** through `extent-picker` (drawn, or any loaded layer by name).
+- **Rainfall** by extent AND date: Open-Meteo GFS forecast (hourly, N days)
+  or the ERA5 archive by start/end, sampled on a lattice of points over the
+  box (`archiveUrl` is pure and pinned). Storm Desmond over the Mournes,
+  2015-12-01..15: 360 hourly steps, 106–107 mm.
+- **Ground**: the DEM is ENSURED at the level the box deserves
+  (`GeoIDDem.ensure` then `heightAt`, 82 m cells at zoom 14 over a 16 km
+  box); the material comes from whichever geological or soil map is on the
+  globe (`featuresIn` over the box, then `samplerOver`); depth from the
+  thickness model where it answers, else the lithology's default.
+- **The hydrogeological model is a bucket per cell from the ROCK-PROPERTIES
+  database**: capacity `n·z`, drainage per day `K·86400·sinβ/(n·z)` clamped
+  0.02–0.95, with n and K overridable. **The database's porosity is a
+  PERCENT** (felsic rock = 1) — read as a fraction it gave every cell a 1%
+  bucket; `/100` at read, clamped 0.02–0.6.
+- **Run**: `runSteps` wets each bucket through the hourly rain, `fos.js`
+  infinite slope per step, a raster layer per step through `buildRasterLayer`,
+  played through the ONE player (`startPlayer`, parked on the WORST step —
+  Desmond: 2015-12-05T11:00, lowest FoS 0.83 on a 38.8° felsic slope).
+
+**The click had to be claimed TWICE, and the second place is the one that
+mattered.** A risk cell sits over the geology it was built from, and the
+geology answers first: in `feature-popup.js` the vector hits run before the
+sheets, so `GeoIDLandslidePipeline.probeAt` moved ahead of `geologyHit` —
+and the card STILL opened as "SEDIMENTARY — CONTINENTAL / Paleozoic
+sedimentary rocks", because the tiled world geology's click is answered by
+`earth-viewer.js`'s OWN handler (`getGeologyFeatureAtPoint` → `openGeoPopup`)
+before feature-popup ever runs. That handler now asks the pipeline first
+through `surfaceLatLonAt`; `probeAt` answers true only while its sheet is
+visible and the point is inside its grid. Verified by a REAL click at 25 km:
+"FORECAST LANDSLIDE RISK / 0.83 — failure / slope 38.8° / felsic-rock → c′ 8
+kPa, φ′ 30° / depth 2 m / bucket 40 mm, 14% a day". Fifth instance in this
+file of "the button you are pressing is not the code you changed".
+
+**Two slopes on one card, and both are honest once labelled.** The ground
+profile appended under every geology-style card reads the viewer's
+`estimateSurfaceSlopeDegrees`, a central difference over a 0.08° stencil —
+about 18 km — so it read 0.6° under the pipeline's 38.8° at the same point.
+It was labelled "Streamed DEM, Horn 3x3"; it says "regional gradient, not the
+hillside" now.
+
+**`global-data.js` must not import anything that imports the player**, and
+the pipeline's import chain was checked for it: `feature-popup.test.mjs`
+stubs a bare `window`, and `timelapse-player` throws at load on it.

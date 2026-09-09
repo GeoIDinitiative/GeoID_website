@@ -63,7 +63,7 @@ check("each field names its own source and scale", () => {
   ok(/1:625,000/.test(find(superficialRows, "Superficial deposit")), "the BGS scale");
   ok(/1:5,000,000/.test(find(superficialRows, "Soil unit")), "the FAO scale");
   ok(/Pelletier/.test(find(superficialRows, "Thickness above bedrock")), "the thickness model");
-  ok(/DEM/.test(find(superficialRows, "Slope")), "the slope's own source");
+  ok(/regional gradient, not the hillside/.test(find(superficialRows, "Slope")), "the slope's own source, and its 18 km scale stated");
 });
 
 /**

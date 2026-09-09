@@ -30,7 +30,7 @@
  * the point of assembling it rather than reading three cards.
  */
 
-import { materialFor, SHALLOW_FAILURE_CAP_M } from "./fos.js?v=20260909-92e38d8";
+import { materialFor, SHALLOW_FAILURE_CAP_M } from "./fos.js?v=20260909-efbf340";
 
 /** Which loaded layer is which, by what its name says it is. */
 const SUPERFICIAL = /superficial|drift|quaternary/i;
@@ -146,7 +146,11 @@ export async function profileAt(lat, lon) {
 
   const slopeDeg = window.GeoIDViewer?.estimateSurfaceSlopeDegrees?.(lat, lon);
   const slope = Number.isFinite(slopeDeg)
-    ? { degrees: slopeDeg, source: "Streamed DEM", scale: "Horn 3x3 at the view's own grid" }
+    // The viewer's estimate is a central difference over a 0.08 degree stencil
+    // -- about 18 km of ground -- so it is a REGIONAL gradient, not the
+    // hillside. Measured on the Mournes: 0.6 degrees here against 38.8 on the
+    // forecast pipeline's own 82 m cells at the same point. Say which it is.
+    ? { degrees: slopeDeg, source: "elevation sampler, 0.08° stencil (~18 km) — regional gradient, not the hillside", scale: "central difference over 0.08°" }
     : null;
 
   /**
