@@ -2,16 +2,16 @@ import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
   nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS, atmosphereStl, DEFAULT_MAX_NODES, triangleWriter,
-} from "./model-build.js?v=20260910-85c208e";
-import { ringsFromCollection } from "./extraction.js?v=20260910-85c208e";
+} from "./model-build.js?v=20260910-a9dc998";
+import { ringsFromCollection } from "./extraction.js?v=20260910-a9dc998";
 import {
   buildTin, tinHeightAt, tinSurfaceStl, tinShellStl, samplingSizeField,
   extendBoundary, extendedBoundaryLines, gridAsTin, shellFacets,
-} from "./surface-sampling.js?v=20260910-85c208e";
-import { renderFeatureCollection } from "./vector-render.js?v=20260910-85c208e";
+} from "./surface-sampling.js?v=20260910-a9dc998";
+import { renderFeatureCollection } from "./vector-render.js?v=20260910-a9dc998";
 import {
   profileAlong, profileHeightAt, sectionPolygons, sectionPositions, sectionGmshScript, profileCsv,
-} from "./section-model.js?v=20260910-85c208e";
+} from "./section-model.js?v=20260910-a9dc998";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -913,10 +913,22 @@ function lineLengthKm(a, b) {
   return Math.hypot((b.lon - a.lon) * kmLon, (b.lat - a.lat) * kmLat);
 }
 
-/** The section line on the ground, with its ends marked. */
+/**
+ * The section line on the ground, with its ends marked. RE-ENTRANT GUARD:
+ * `addDerivedLayer` announces the change SYNCHRONOUSLY, the announcement
+ * re-renders the builder, and the render saw no preview recorded yet (the
+ * id is written after the call returns) and drew the line again -- an
+ * unbounded recursion that hung the page. Measured, not theorised.
+ */
+let sectionLineBusy = false;
 function drawSectionLine() {
   const sec = state.section;
-  if (!sec.a || !sec.b) return;
+  if (!sec.a || !sec.b || sectionLineBusy) return;
+  sectionLineBusy = true;
+  try { drawSectionLineNow(sec); } finally { sectionLineBusy = false; }
+}
+
+function drawSectionLineNow(sec) {
   const fc = { type: "FeatureCollection", features: [
     { type: "Feature", properties: { name: "Section A–B", colour: "#ffb84d" }, geometry: { type: "LineString", coordinates: [[sec.a.lon, sec.a.lat], [sec.b.lon, sec.b.lat]] } },
     { type: "Feature", properties: { name: "A", colour: "#ffd166" }, geometry: { type: "Point", coordinates: [sec.a.lon, sec.a.lat] } },
