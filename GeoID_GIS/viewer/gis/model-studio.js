@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-1803f9a";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-1803f9a";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-1027e8b";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-1027e8b";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260909-1803f9a";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-1803f9a";
-import { downloadText } from "./extraction.js?v=20260909-1803f9a";
-import { shellPositions, surfacePositions, tinHeightAt } from "./surface-sampling.js?v=20260909-1803f9a";
+} from "./mesh-volume.js?v=20260909-1027e8b";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-1027e8b";
+import { downloadText } from "./extraction.js?v=20260909-1027e8b";
+import { shellPositions, surfacePositions, tinHeightAt } from "./surface-sampling.js?v=20260909-1027e8b";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -2391,16 +2391,27 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
     if (layer) window.GeoIDImportManager.removeLayer(layer.id);
   }
   gisTerrain = { name, surface, belowM: Number(belowM) || 0, aboveM: Number(aboveM) || 0, entries: [], points };
+  /**
+   * THE STUDIO'S GROUND IS THE MODEL'S FLOOR. The ground is an opaque sphere
+   * tangent to z = 0 and the camera is held above it, so anything under z = 0
+   * can never be seen -- and a subsurface is, by definition, all under the
+   * ground. Anchored at sea level the whole 4 km of rock was clipped away.
+   * So the model is SHIFTED: its base (the subsurface's lid, or the lowest
+   * ground when there is no subsurface) becomes z = 0, the origin is told
+   * that elevation so lat/lon/height readouts stay true, and the GIS
+   * package's absolute metres are untouched -- this is display, and the log
+   * says what z is measured from.
+   */
+  const baseZ = Number(belowM) > 0 ? surface.zMin - Number(belowM) : surface.zMin;
+  const zShift = -baseZ;
   if (origin && Number.isFinite(origin.lat)) {
-    // The reference ground is SEA LEVEL (elevation 0): the solid carries the
-    // real heights, so a ground drawn at the origin's own height would slice
-    // the model at a plane that means nothing.
-    adoptStudyArea({ lat: origin.lat, lon: origin.lon, elevation: 0, radiusM: Math.max(surface.widthM, surface.heightM) / 2, terrain: false });
+    adoptStudyArea({ lat: origin.lat, lon: origin.lon, elevation: baseZ, radiusM: Math.max(surface.widthM, surface.heightM) / 2, terrain: false });
   }
   const km = 1;
+  const lifted = (positions) => { for (let i = 2; i < positions.length; i += 3) positions[i] += zShift * km; return positions; };
   const heightKm = (x, y) => {
     const h = tinHeightAt(surface, x / km, y / km);
-    return h === null ? null : h * km;
+    return h === null ? null : (h + zShift) * km;
   };
   const plan = {
     minX: surface.x0 * km, maxX: (surface.x0 + surface.widthM) * km,
@@ -2408,20 +2419,20 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
   };
   const make = (which, extentM) => {
     const below = which === "subsurface";
-    const lidKm = below ? (surface.zMin - extentM) * km : (surface.zMax + extentM) * km;
+    const lidKm = below ? (surface.zMin - extentM + zShift) * km : (surface.zMax + extentM + zShift) * km;
     const test = (q) => {
       if (q[0] < plan.minX || q[0] > plan.maxX || q[1] < plan.minY || q[1] > plan.maxY) return false;
       const h = heightKm(q[0], q[1]);
       if (h === null) return false;
       return below ? (q[2] <= h && q[2] >= lidKm) : (q[2] >= h && q[2] <= lidKm);
     };
-    const positions = shellPositions(surface, below ? { belowM: extentM } : { aboveM: extentM }, km);
+    const positions = lifted(shellPositions(surface, below ? { belowM: extentM } : { aboveM: extentM }, km));
     const id = state.solids.reduce((m, e) => Math.max(m, e.id), 0) + 1;
     const entry = {
       id, kind: "gis_terrain", op: "union", enabled: true,
       params: { label: `GIS terrain — ${which}`, which, extent_km: extentM * km, name },
       test, region: null, object3D: null,
-      bounds: { ...plan, minZ: below ? lidKm : surface.zMin * km, maxZ: below ? surface.zMax * km : lidKm },
+      bounds: { ...plan, minZ: below ? lidKm : (surface.zMin + zShift) * km, maxZ: below ? (surface.zMax + zShift) * km : lidKm },
     };
     /**
      * THE DOMAINS MUST READ AS DIFFERENT THINGS, and the ground between them
@@ -2444,7 +2455,7 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
   if (gisTerrain.aboveM > 0) make("atmosphere", gisTerrain.aboveM);
   // The surface STL, as itself: not a solid (it has no inside), a skin drawn a
   // hair above the interface so it wins the depth fight with the rock's top.
-  gisTerrain.skin = displayMesh(surfacePositions(surface, km), `${name}_surface`, 0x6fbf73, { renderOrder: 1 });
+  gisTerrain.skin = displayMesh(lifted(surfacePositions(surface, km)), `${name}_surface`, 0x6fbf73, { renderOrder: 1 });
   gisTerrain.skin.material.polygonOffset = true;
   gisTerrain.skin.material.polygonOffsetFactor = -2;
   gisTerrain.skin.material.polygonOffsetUnits = -2;
@@ -2460,6 +2471,7 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
   log(`GIS terrain "${name}": ${surface.nodes.toLocaleString()} nodes, ${surface.triangles.toLocaleString()} triangles,`
     + ` spacing ${Math.round(surface.spacingMinM)}–${Math.round(surface.spacingMaxM)} m; 1 unit = 1 m, mesh cells set to ${coarse}–${coarse * 2} m.`
     + ` Brown is the rock, green the surface STL, translucent blue the air.`
+    + ` z is measured from the model's base at ${Math.round(baseZ)} m: the studio's ground is that base, so the subsurface stands above it.`
     + ` Subsurface ${gisTerrain.belowM} m below the lowest ground${gisTerrain.aboveM > 0 ? `, atmosphere ${gisTerrain.aboveM} m above the highest` : ""}.`
     + `${points?.length ? ` ${points.length} embedded point(s) carried.` : ""}`);
   ensureTerrainCard();
@@ -2516,7 +2528,7 @@ function ensureTerrainCard() {
   card.appendChild(button);
   const note = document.createElement("div");
   note.className = "studio-row";
-  note.textContent = "The rim's corners carried down to a base and up to a sky — etna.py's outer_box. 1 unit = 1 m; the reference ground is sea level.";
+  note.textContent = "The rim's corners carried down to a base and up to a sky — etna.py's outer_box. 1 unit = 1 m; the studio's ground is the model's base, so z counts up from it.";
   card.appendChild(note);
 }
 
