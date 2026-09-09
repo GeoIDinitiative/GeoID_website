@@ -1,7 +1,7 @@
 import {
   addDataset, grouped, datasetById, layerForDataset,
-} from "./global-data.js?v=20260909-07f3be8";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260909-07f3be8";
+} from "./global-data.js?v=20260909-8ac5c77";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260909-8ac5c77";
 
 /**
  * Polygons: the register of vector overlays -- coastlines, boundaries, basins,

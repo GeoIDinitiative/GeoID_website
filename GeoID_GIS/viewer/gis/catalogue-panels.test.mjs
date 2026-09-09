@@ -327,8 +327,8 @@ check("and every listed group still has something in it",
   // The two cyclone entries and the two volcanic risk maps (windowed and full
   // record), which are the cyclone risk map's twins and take their readings
   // the same way.
-  check("the four risk entries declare their readings",
-    [...data.matchAll(/^\s{4}views: \{/gm)].length === 4);
+  check("the two cyclone entries declare their readings",
+    [...data.matchAll(/^\s{4}views: \{/gm)].length === 2);
 
   /* ── EVERY OPTION IS AN INSTANT REPAINT ───────────────────────────────── */
   // A choice that loads a different FILE is not a symbology: it drops the

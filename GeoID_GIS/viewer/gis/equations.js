@@ -119,77 +119,57 @@ const EQUATIONS = {
 
   "volcanic-risk": {
     kind: COMPUTED,
-    intro: "How often ash reaches a point, counted from the Smithsonian "
-      + "eruption catalogue and converted to an annual chance — the cyclone "
-      + "map's method at a volcano's timescales. Two things to read before "
-      + "the colours: each eruption reaches a SCHEMATIC, ISOTROPIC radius set "
-      + "by its VEI, and each is divided by the length of record over which "
-      + "eruptions of ITS size are actually recorded — which is what lets a "
-      + "dormant volcano's one VEI 5 in 1707 count beside a live one's "
+    intro: "How often an eruption of EACH VEI happens near a point, per year, "
+      + "counted from the Smithsonian eruption catalogue — one band per VEI "
+      + "number, coloured on one return-period scale. Nothing is derived: a "
+      + "band is a rate of one size of eruption, and each size is counted over "
+      + "the years eruptions of that size are actually recorded, which is what "
+      + "lets a dormant volcano's one VEI 5 in 1707 count beside a live one's "
       + "fifty small eruptions since 1950.",
     lines: [
-      { expr: "λ(p) = Σ over eruptions e with d(p, vent(e)) ≤ 4·R(VEI(e)) of w(e) · exp(−d / R(VEI(e))) / Y(VEI(e))",
-        note: "the rate, in eruptions per year whose ash reaches the point p — "
-          + "each eruption decaying with distance rather than stopping at a "
-          + "radius" },
-      { expr: "P(p) = 1 − exp( −λ(p) )",
-        note: "the chance of AT LEAST ONE in a given year — what the map is "
-          + "coloured by, and what the classes are cut on" },
-      { expr: "λ_large(p) = the same sum over VEI ≥ 4 only",
-        note: "the large-eruption reading, carried on every cell" },
-      { expr: "VEI_max(p) = max VEI(e) over the same eruptions",
-        note: "the largest eruption on record reaching p — the magnitude reading" },
-      { expr: "cell value = mean of λ over the lattice points inside it",
-        note: "coarsened only where that mean is representative and the "
-          + "magnitude is one class — see the note below" },
+      { expr: "λ_n(p) = Σ over eruptions e of VEI n with d(p, vent(e)) ≤ 4R of w(e) · exp(−d/R) / Y(n)",
+        note: "the VEI-n band: eruptions of that size per year near the point p" },
+      { expr: "λ_any(p) = Σ_n λ_n(p)",
+        note: "the 'any eruption' band" },
+      { expr: "P = 1 − exp(−λ)",
+        note: "the chance of at least one in a given year — what the classes are cut on" },
+      { expr: "VEI_max(p) = max VEI over the same eruptions",
+        note: "the largest on record reaching p" },
     ],
     terms: [
-      ["R(VEI)", "5 km at VEI 0–1, 15 at 2, 40 at 3, 120 at 4, 300 at 5, "
-        + "600 at 6, 1,000 at 7, 1,500 at 8 — order-of-magnitude distances at "
-        + "which about a millimetre of ash is reported for eruptions of each "
-        + "size (Eyjafjallajökull 2010 at VEI 4, St Helens 1980 at 5, Pinatubo "
-        + "1991 at 6, Tambora 1815 at 7). THE RADIUS IS THE DEFINITION, and it "
-        + "is isotropic: ash falls in a wind-driven plume, and a circle of the "
-        + "plume's typical length is the fixed-radius stand-in for it."],
-      ["Y(VEI)", "the complete years over which eruptions of that size are "
+      ["Y(n)", "the complete years over which eruptions of that size are "
         + "recorded, measured on the catalogue: VEI ≤ 3 since 1950 (76), VEI 4 "
         + "since 1900 (126), VEI 5–6 since 1550 (476), VEI ≥ 7 the whole "
         + "Holocene (11,700). Confirmed VEI ≤ 3 eruptions per fifty years run "
         + "76, 178, 983, 1,318, 1,821 from the 1500s to the 1950s and flatten "
         + "only after 1950; VEI 5 runs three to five per half-century since "
         + "1550."],
-      ["eruptions", "Confirmed only, dated, from GVP's Holocene eruption list "
-        + "(9,916 of 11,089). 'Uncertain' eruptions are left out. A quarter "
-        + "carry NO VEI and are counted as VEI 2 — they are overwhelmingly "
-        + "small historical events."],
-      ["exp(−d/R)", "the KERNEL: at R an eruption counts 37% of itself, at "
-        + "2R 14%, at 4R 2%, beyond which it is dropped. A hard disc made the "
-        + "first map a scatter of islands, which is a picture of the radii "
-        + "rather than of the hazard — ashfall thins with distance, it does not "
-        + "stop."],
+      ["exp(−d/R)", "the KERNEL, with ONE scale for every eruption: R = 100 km, "
+        + "dropped past 4R (1.8%). Scaling R by VEI drew overlapping discs of "
+        + "five sizes each with its own edge and the map read as a pile of "
+        + "radii; size is which BAND an eruption falls in, not how far it "
+        + "reaches. Ash falls in a wind-driven plume; the kernel is the "
+        + "isotropic stand-in, and a real eruption today wants a plume from "
+        + "the live wind field."],
       ["w(e)", "1 for a confirmed eruption, ½ for one GVP files as uncertain "
-        + "(1,173 of 11,089): a record somebody thought worth filing is not "
-        + "nothing, and not a confirmed event either."],
+        + "(1,173 of 11,089). Unknown VEI (2,671) is counted as VEI 2."],
       ["floor prior", "every volcano in the catalogue is in the map. The "
         + "eruption list names 915 of 2,666; the rest take the least a volcano "
         + "that demonstrably erupted can be given — a Holocene volcano with no "
         + "dated eruption, one VEI 2 over the Holocene (11,725 y); a "
-        + "Pleistocene one, one VEI 3 over the Pleistocene (2.58 My) — and a "
-        + "cell nothing else reaches says so on its card."],
-      ["d", "great-circle distance, solved on the sphere."],
+        + "Pleistocene one, one VEI 3 over the Pleistocene (2.58 My) — drawn "
+        + "fainter, and named on the card where nothing else reaches."],
+      ["d", "great-circle distance, solved on the sphere, at every cell of a "
+        + "0.25° lattice."],
       ["exp(−λ)", "the Poisson chance of NO arrival in a year at rate λ. "
         + "Eruptions cluster and repose times are not memoryless, so this is "
         + "the standard assumption rather than an exact one."],
     ],
-    note: "WHY THE CELLS ARE DIFFERENT SIZES. A quarter-degree sampling "
-      + "lattice, merged into blocks while the rate inside them is flat, the "
-      + "large-eruption rate is flat, and the largest VEI is ONE CLASS — so a "
-      + "cell's size is display resolution and nothing more. A block that is "
-      + "EMPTY IN PART is never merged. Cells no eruption's ash reaches are "
-      + "not drawn at all. WHAT THIS IS NOT: a plume model. Where the "
-      + "question is a real eruption today, the far-field product is a plume "
-      + "from the live wind field, drawn downwind and labelled for the "
-      + "eruption size it assumes.",
+    note: "A Cloud-Optimised GeoTIFF on the 0.25° lattice itself, read whole "
+      + "and recoloured per band. The earlier quadtree grid, the cyclone map's "
+      + "own, was built for a sparse field and read as a mess once the kernel "
+      + "made this one smooth and global; a smooth field wants a lattice. "
+      + "Cells nothing reaches are not drawn.",
     citation: "Global Volcanism Program (2024). Volcanoes of the World, "
       + "v. 5.2. Smithsonian Institution. https://doi.org/10.5479/si.GVP.VOTW5-2024.5.2. "
       + "VEI: Newhall & Self (1982), J. Geophys. Res., 87, 1231–1238.",
@@ -197,64 +177,45 @@ const EQUATIONS = {
 
   "volcanic-risk-holocene": {
     kind: COMPUTED,
-    intro: "The volcanic risk map from THE FULL RECORD: every confirmed, dated "
-      + "eruption back to 9700 BCE, active or not, with no completeness "
-      + "windows. Each volcano's frequency is its eruptions over its own "
-      + "record span, and the magnitude is carried as tephra volume, so the "
-      + "default reading is magnitude × frequency directly.",
+    intro: "The same bands from THE FULL RECORD: every dated eruption back to "
+      + "9700 BCE, active or not, with no completeness windows. Each volcano's "
+      + "frequency is its eruptions over its own record span.",
     lines: [
-      { expr: "λ_v = N_v / (2025 − first_v + 1)",
-        note: "a volcano's rate: its confirmed eruptions over the span from "
-          + "its first recorded eruption to the last complete year" },
-      { expr: "λ(p) = Σ over eruptions e with d(p, vent(e)) ≤ 4·R(VEI(e)) of w(e) · exp(−d / R(VEI(e))) / span(v(e))",
-        note: "eruptions per year whose ash reaches the point p, each decaying "
-          + "with distance rather than stopping at a radius" },
-      { expr: "T(p) = Σ over the same eruptions of w(e) · exp(−d / R) · V(VEI(e)) / span(v(e))",
-        note: "tephra reaching p per year — MAGNITUDE × FREQUENCY, the map's "
-          + "default colouring" },
-      { expr: "P(p) = 1 − exp( −λ(p) )",
+      { expr: "span(v) = 2025 − first_v + 1",
+        note: "a volcano's own record: first recorded eruption to the last complete year" },
+      { expr: "λ_n(p) = Σ over eruptions e of VEI n with d(p, vent(e)) ≤ 4R of w(e) · exp(−d/R) / span(v(e))",
+        note: "the VEI-n band" },
+      { expr: "P = 1 − exp(−λ)",
         note: "the chance of at least one in a given year" },
-      { expr: "VEI_max(p), VEI_mean(p) = max and rate-weighted mean of VEI(e)",
-        note: "the largest on record, and the typical eruption reaching p" },
     ],
     terms: [
-      ["V(VEI)", "a tephra volume per VEI class, a decade per step: 1e3 m³ at "
-        + "VEI 0, 1e5 at 1, 3e6 at 2, 3e7 at 3, 3e8 at 4, 3e9 at 5, 3e10 at 6, "
-        + "3e11 at 7 — the geometric mean of each class's range (Newhall & "
-        + "Self 1982)."],
-      ["R(VEI)", "the same schematic, isotropic reach the windowed map uses: 5 "
-        + "km at VEI 0–1 to 1,000 km at VEI 7. Ash falls in a wind-driven "
-        + "plume; the circle is the fixed-radius stand-in."],
       ["span(v)", "the volcano's OWN record span, not a completeness window. "
         + "What that trades: a volcano with a short written record is measured "
         + "as if it began erupting when somebody started writing, which "
         + "overstates it against one known from tephra alone — the windowed "
         + "map exists because that bias is real. Both are offered."],
-      ["exp(−d/R)", "the KERNEL: at R an eruption counts 37% of itself, at "
-        + "2R 14%, at 4R 2%, beyond which it is dropped. A hard disc made the "
-        + "first map a scatter of islands, which is a picture of the radii "
-        + "rather than of the hazard — ashfall thins with distance, it does not "
-        + "stop."],
+      ["exp(−d/R)", "the KERNEL, with ONE scale for every eruption: R = 100 km, "
+        + "dropped past 4R (1.8%). Scaling R by VEI drew overlapping discs of "
+        + "five sizes each with its own edge and the map read as a pile of "
+        + "radii; size is which BAND an eruption falls in, not how far it "
+        + "reaches. Ash falls in a wind-driven plume; the kernel is the "
+        + "isotropic stand-in, and a real eruption today wants a plume from "
+        + "the live wind field."],
       ["w(e)", "1 for a confirmed eruption, ½ for one GVP files as uncertain "
-        + "(1,173 of 11,089): a record somebody thought worth filing is not "
-        + "nothing, and not a confirmed event either."],
+        + "(1,173 of 11,089). Unknown VEI (2,671) is counted as VEI 2."],
       ["floor prior", "every volcano in the catalogue is in the map. The "
         + "eruption list names 915 of 2,666; the rest take the least a volcano "
         + "that demonstrably erupted can be given — a Holocene volcano with no "
         + "dated eruption, one VEI 2 over the Holocene (11,725 y); a "
-        + "Pleistocene one, one VEI 3 over the Pleistocene (2.58 My) — and a "
-        + "cell nothing else reaches says so on its card."],
-      ["eruptions", "every dated eruption in GVP's Holocene list, 11,089, the "
-        + "1,173 uncertain ones at half weight. Unknown VEI (a quarter of them) "
-        + "is counted as VEI 2."],
+        + "Pleistocene one, one VEI 3 over the Pleistocene (2.58 My) — drawn "
+        + "fainter, and named on the card where nothing else reaches."],
+      ["d", "great-circle distance, solved on the sphere, at every cell of a "
+        + "0.25° lattice."],
     ],
-    note: "The same quarter-degree lattice and quadtree as the windowed map, "
-      + "gated on the rate, the large-eruption rate, the tephra rate (flat "
-      + "within a factor of two) and the largest VEI being one class. Cells "
-      + "no eruption's ash reaches are not drawn.",
+    note: "The same lattice, kernel and priors as the windowed sheet; only the "
+      + "denominator differs. Cells nothing reaches are not drawn.",
     citation: "Global Volcanism Program (2024). Volcanoes of the World, "
-      + "v. 5.2. Smithsonian Institution. https://doi.org/10.5479/si.GVP.VOTW5-2024.5.2. "
-      + "VEI: Newhall & Self (1982), J. Geophys. Res., 87, 1231–1238.",
+      + "v. 5.2. Smithsonian Institution. https://doi.org/10.5479/si.GVP.VOTW5-2024.5.2.",
   },
 
   "dem-elevation": {

@@ -26,15 +26,15 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260909-07f3be8";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260909-07f3be8";
-import { mathsFor } from "./equations.js?v=20260909-07f3be8";
+import { runConnector } from "./research/connectors.js?v=20260909-8ac5c77";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260909-8ac5c77";
+import { mathsFor } from "./equations.js?v=20260909-8ac5c77";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260909-07f3be8";
+} from "./cyclone-risk.js?v=20260909-8ac5c77";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260909-07f3be8";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260909-8ac5c77";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -354,95 +354,6 @@ export const DATASETS = [
       ],
       current: () => window.GeoIDCycloneRisk?.currentView?.() || "estimate",
       apply: (view) => window.GeoIDCycloneRisk?.setView(view),
-    },
-  },
-  {
-    /**
-     * THE VOLCANIC RISK MAP -- the cyclone risk map's twin, built the same
-     * way from the Smithsonian eruption catalogue: every confirmed, dated
-     * eruption reaches a schematic radius set by its VEI (5 km at VEI 0-1 to
-     * 1,000 km at VEI 7) and is counted over the years eruptions of ITS size
-     * are recorded, so a dormant volcano's one VEI 5 in 1707 counts beside a
-     * live one's fifty small eruptions. Three readings of one file, all
-     * repaints: the chance per year of ash from any eruption, from a large
-     * one (VEI 4+), and the largest VEI on record reaching the cell.
-     *
-     * This is NOT the hazard buffers docked above it. Those are five fixed
-     * rings round every Holocene volcano whatever it has done; this is what
-     * each volcano has actually done, and how often.
-     */
-    id: "volcanic-risk",
-    home: "volcanic-hazards",
-    featureNoun: "Volcanic risk cell",
-    group: "Hazards",
-    label: "Volcanic risk \u2014 ashfall chance and largest eruption, from the record (GVP)",
-    path: "/data/global/volcanic-risk.geojson",
-    name: "Volcanic risk (Smithsonian GVP eruption record).geojson",
-    summary: "The chance per year that ash reaches a point, from every "
-      + "eruption since 1950 (VEI \u2264 3), 1900 (VEI 4), 1550 (VEI 5\u20136) "
-      + "and the whole Holocene (VEI 7+), each decaying with distance on a "
-      + "scale set by its VEI, uncertain eruptions at half weight, and all "
-      + "2,666 catalogue volcanoes \u2014 those with no dated eruption at a "
-      + "stated floor. 32,868 cells at a variable resolution, each also "
-      + "carrying the large-eruption rate, tephra per year and the largest "
-      + "VEI on record",
-    licence: "Global Volcanism Program, Smithsonian Institution \u2014 CC BY 4.0; "
-      + "cite Volcanoes of the World v5.2 (2024)",
-    opacity: 0.6,
-    /**
-     * EVERY CELL CARRIES ALL THREE READINGS, so the views are repaints of the
-     * layer already loaded, on the symbology surface -- the cyclone map's
-     * arrangement, and the reason there is no `colourRange` beside them (a
-     * view IS the colouring, and the two would run over each other).
-     */
-    views: {
-      label: "Show",
-      options: [
-        { id: "ashfall", label: "Chance of ashfall \u2014 any eruption" },
-        { id: "large", label: "Chance of ashfall \u2014 large eruptions (VEI 4+)" },
-        { id: "magnitude", label: "Largest eruption on record reaching here" },
-      ],
-      current: () => window.GeoIDVolcanicRisk?.currentView?.() || "ashfall",
-      apply: (view) => window.GeoIDVolcanicRisk?.setView(view),
-    },
-  },
-  {
-    /**
-     * THE FULL RECORD, no windows: every confirmed eruption back to 9700 BCE,
-     * active or not, each volcano's frequency over ITS OWN record span and
-     * the magnitude carried as tephra volume, so the default reading is
-     * magnitude x frequency directly. The windowed map above corrects for
-     * the record being complete only where somebody was watching; this one
-     * deliberately does not, and says so on its card.
-     */
-    id: "volcanic-risk-holocene",
-    home: "volcanic-hazards",
-    featureNoun: "Volcanic risk cell",
-    group: "Hazards",
-    label: "Volcanic risk \u2014 magnitude \u00d7 frequency, full Holocene record (GVP)",
-    path: "/data/global/volcanic-risk-holocene.geojson",
-    name: "Volcanic risk (full Holocene record, Smithsonian GVP).geojson",
-    summary: "Every eruption in the Holocene catalogue back to 9700 BCE "
-      + "(11,089, uncertain ones at half weight), active volcanoes and dormant "
-      + "alike, each decaying with distance on a scale set by its VEI and "
-      + "counted over its volcano's own record span; all 2,666 catalogue "
-      + "volcanoes, those with no dated eruption at a stated floor. Tephra per "
-      + "year is magnitude \u00d7 frequency; 29,289 cells at a variable "
-      + "resolution, each also carrying the eruption rate, the large-eruption "
-      + "rate and the largest VEI on record",
-    licence: "Global Volcanism Program, Smithsonian Institution \u2014 CC BY 4.0; "
-      + "cite Volcanoes of the World v5.2 (2024)",
-    opacity: 0.6,
-    views: {
-      label: "Show",
-      options: [
-        { id: "tephra", label: "Magnitude \u00d7 frequency \u2014 tephra reaching here" },
-        { id: "ashfall", label: "Eruption frequency \u2014 any eruption's ash" },
-        { id: "large", label: "Frequency \u2014 large eruptions (VEI 4+)" },
-        { id: "magnitude", label: "Largest eruption on record reaching here" },
-      ],
-      current: () => window.GeoIDVolcanicRisk?.currentView?.(null, "volcanic-risk-holocene") || "tephra",
-      apply: (view) => window.GeoIDVolcanicRisk?.setView(view, { id: "volcanic-risk-holocene" }),
     },
   },
   {

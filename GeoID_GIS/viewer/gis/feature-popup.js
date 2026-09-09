@@ -20,21 +20,20 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260909-07f3be8";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260909-07f3be8";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260909-8ac5c77";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260909-8ac5c77";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20260909-07f3be8";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260909-07f3be8";
-import { lithologyLabel } from "./lithology-label.js?v=20260909-07f3be8";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260909-07f3be8";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260909-07f3be8";
-import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260909-07f3be8";
-import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20260909-07f3be8";
-import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260909-07f3be8";
+} from "./vector-render.js?v=20260909-8ac5c77";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260909-8ac5c77";
+import { lithologyLabel } from "./lithology-label.js?v=20260909-8ac5c77";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260909-8ac5c77";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260909-8ac5c77";
+import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260909-8ac5c77";
+import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260909-8ac5c77";
 import {
   canEditRow, editableFields, applyRowChange,
-} from "./table-editor.js?v=20260909-07f3be8";
+} from "./table-editor.js?v=20260909-8ac5c77";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -976,18 +975,8 @@ function showViewerCard(hits, at) {
    * elevation about a cell that is not crust — titled "Mapped area", and the
    * one thing anybody clicked it for was four rows down as `p_yr`.
    */
-  /**
-   * THE VOLCANIC GRID IS CHECKED FIRST. It carries the same three columns the
-   * cyclone card recognises its cells by, so tested second it would open as
-   * a tropical cyclone; `vei_max` is the column only it has.
-   */
-  const risk = !ice && !soil && isVolcanicRiskFeature(props)
-    ? volcanicRiskCard(props, (() => {
-      const w = window.GeoIDVolcanicRisk?.viewOf?.(props);
-      return { view: w?.view, full: w?.id === "volcanic-risk-holocene" };
-    })())
-    : !ice && !soil && isRiskFeature(props)
-      ? riskCard(props, { view: window.GeoIDCycloneRisk?.currentView?.() }) : null;
+  const risk = !ice && !soil && isRiskFeature(props)
+    ? riskCard(props, { view: window.GeoIDCycloneRisk?.currentView?.() }) : null;
   /**
    * And a volcanic hazard zone, the fourth: headed "CONTINENTAL" and titled
    * "Mapped area" over a buffer whose whole point is the hazard it names.
@@ -1029,7 +1018,7 @@ function showViewerCard(hits, at) {
     // The bookkeeping columns the three lines above have already said, and
     // `i`, which is an index into a file rather than a fact about the ground.
     rows: [["Note", risk.note],
-      ...rows.filter(([key]) => !/^(i|deg|rate_yr|p_yr|rate_hur_yr|p_hur_yr|years_per|rate_large_yr|p_large_yr|vei_max|vei_mean|tephra_m3_yr|vents|top_volcano|top_gvp|top_eruptions|top_vei_max|top_rate_yr)$/i.test(key))],
+      ...rows.filter(([key]) => !/^(i|deg|rate_yr|p_yr|rate_hur_yr|p_hur_yr|years_per|rate_large_yr|p_large_yr|rate_large_yr|p_large_yr)$/i.test(key))],
     stack: beneath.map(({ layer, feature: f }) => ({
       label: layer.name || "Layer",
       unit: titleOf(f.properties || {}) || featureKind(f, layer),
@@ -2148,6 +2137,7 @@ function install() {
        * line here, in the order it draws.
        */
       if (window.GeoIDSoilThickness?.probeAt?.(at.lat, at.lon)) return;
+      if (window.GeoIDVolcanicRiskRaster?.probeAt?.(at.lat, at.lon)) return;
       window.GeoIDViewer?.clearSceneFlash?.();
       window.GeoIDViewer?.closeSceneFeature?.();
       hidePopup();

@@ -29,9 +29,9 @@
 
 import {
   HOMES, MIRRORS, grouped, addDataset, layerForDataset, loadLaunchDefaults,
-} from "./global-data.js?v=20260909-07f3be8";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260909-07f3be8";
-import { mathsFor } from "./equations.js?v=20260909-07f3be8";
+} from "./global-data.js?v=20260909-8ac5c77";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260909-8ac5c77";
+import { mathsFor } from "./equations.js?v=20260909-8ac5c77";
 
 const byId = (id) => document.getElementById(id);
 
@@ -63,6 +63,51 @@ const GEE_SHARE = { hydrology: "hydrology" };
  * seam, and this file knows nothing else about either of them.
  */
 const TILED = {
+  /**
+   * THE VOLCANIC RISK SHEETS: two COGs, one band per VEI, read whole by
+   * `volcanic-risk-raster.js`. Rows here rather than catalogue entries because
+   * they are rasters, not files `global-data.js` can describe.
+   */
+  "volcanic-hazards": ["volcanic-risk", "volcanic-risk-holocene"].map((id) => ({
+    id,
+    group: "Risk from the eruption record",
+    label: id === "volcanic-risk"
+      ? "Volcanic risk \u2014 eruptions per year by VEI (windowed record)"
+      : "Volcanic risk \u2014 eruptions per year by VEI (full Holocene record)",
+    title: id === "volcanic-risk"
+      ? "How often an eruption of each VEI happens near a point, per year, each "
+        + "size counted over the years it is recorded (VEI \u2264 3 since 1950, "
+        + "VEI 4 since 1900, VEI 5\u20136 since 1550, VEI 7+ the whole Holocene). "
+        + "Pick the VEI on the symbology row."
+      : "The same from every dated eruption back to 9700 BCE, active or not, "
+        + "with no completeness windows: each volcano's rate over its own record "
+        + "span. Pick the VEI on the symbology row.",
+    info: {
+      summary: "Every eruption counts exp(\u2212d/100 km) of itself at distance d, "
+        + "dropped past 400 km, whatever its size \u2014 size is which band it "
+        + "falls in, not how far it reaches. Uncertain eruptions at half weight; "
+        + "every catalogue volcano is in, those with no dated eruption at a "
+        + "stated floor prior drawn fainter.",
+      citation: "Global Volcanism Program (2024), Volcanoes of the World v5.2, "
+        + "Smithsonian Institution \u2014 doi:10.5479/si.GVP.VOTW5-2024.5.2",
+      maths: mathsFor(id),
+    },
+    ready: () => true,
+    layerOf: () => (window.GeoIDImportManager?.getLayers?.() || [])
+      .find((l) => l.name === window.GeoIDVolcanicRiskRaster?.SHEETS?.[id]?.name
+        || /^Volcanic risk \u2014 eruptions per year by VEI \((windowed|full Holocene) record\)$/.test(l.name)
+          && (id === "volcanic-risk") === /windowed/.test(l.name)) || null,
+    load: async () => {
+      const mod = await import(`./volcanic-risk-raster.js${new URL(import.meta.url).search}`);
+      const out = await mod.add(id);
+      if (!out?.ok) throw new Error(out?.message || "it could not be read");
+      return out.layer;
+    },
+    unload: async () => {
+      const mod = await import(`./volcanic-risk-raster.js${new URL(import.meta.url).search}`);
+      mod.remove(id);
+    },
+  })),
   "geology-tectonics": [{
     id: "macrostrat-lines",
     group: "Tectonics",
