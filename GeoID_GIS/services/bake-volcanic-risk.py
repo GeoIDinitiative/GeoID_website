@@ -225,8 +225,10 @@ def quadtree(field, vei_max, extra):
     def flat(r0, c0, size):
         block = field[r0:r0 + size, c0:c0 + size]
         lo, hi = block.min(), block.max()
-        if lo == 0 and hi > 0:
-            return False
+        if hi == 0:
+            return True         # nothing anywhere in it: flat whatever its largest-VEI class
+        if lo == 0:
+            return False        # empty in part is not flat
         v = vei_max[r0:r0 + size, c0:c0 + size]
         return (hi - lo) <= limit and v.min() == v.max()
 
