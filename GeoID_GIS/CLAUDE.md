@@ -16255,3 +16255,15 @@ triangles, polygon-offset so it wins the depth fight with the rock's top).
 at true scale. After Mesh 3D the lattice mesher's stair-stepped boundary is
 drawn over the solids as it always was; Clear mesh or hide it to see the
 surface again.
+
+### "Anything below 0 is clipped by the floor" — the studio's ground is the model's base
+
+The studio's ground is an OPAQUE sphere tangent to z = 0 and the camera is
+held above it (`keepCameraAboveGround`, the dolly floor), so nothing under
+z = 0 can ever be seen — and a subsurface is all under the ground. Anchored
+at sea level, 4 km of rock was clipped away whole. The terrain is SHIFTED on
+adoption so its base (the subsurface's lid, else the lowest ground) is z = 0,
+the origin is told that elevation so readouts stay true, and the GIS package's
+absolute metres are untouched; the log says what z counts from. Measured
+after: subsurface 0 to 4,864 m, surface skin 4,000 to 4,864, atmosphere 4,000
+to 7,864, the rock standing on the grid in the screenshot.
