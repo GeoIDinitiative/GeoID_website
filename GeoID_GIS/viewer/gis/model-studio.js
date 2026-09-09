@@ -1,12 +1,12 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-c20f7af";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-c20f7af";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260909-402fbee";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260909-402fbee";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260909-c20f7af";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-c20f7af";
-import { downloadText } from "./extraction.js?v=20260909-c20f7af";
-import { shellPositions, surfacePositions, tinHeightAt } from "./surface-sampling.js?v=20260909-c20f7af";
+} from "./mesh-volume.js?v=20260909-402fbee";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260909-402fbee";
+import { downloadText } from "./extraction.js?v=20260909-402fbee";
+import { shellPositions, surfacePositions, tinHeightAt } from "./surface-sampling.js?v=20260909-402fbee";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -1007,7 +1007,15 @@ function modelBelowGroundM() {
 }
 
 function cameraFloorRadius() {
-  return groundRadius + minCameraAltitude() + modelBelowGroundM();
+  const below = modelBelowGroundM();
+  if (below >= 0) return groundRadius + minCameraAltitude();
+  // ROOM TO STAND UNDER THE MODEL. A floor AT the base lets the camera reach
+  // the underside's plane and no further, so the underside could never be
+  // looked at -- reported as "we cannot navigate the camera to the
+  // underside". The floor drops below the base by the model's own diagonal.
+  const b = combinedBounds();
+  const span = b ? Math.hypot(b.maxX - b.minX, b.maxY - b.minY, b.maxZ - b.minZ) * studioScale : 0;
+  return groundRadius + below - Math.max(span, 1000);
 }
 
 function applyBelowGround() {
