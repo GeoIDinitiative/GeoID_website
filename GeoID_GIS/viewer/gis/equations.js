@@ -182,7 +182,9 @@ const EQUATIONS = {
       + "peak), never while empty in part, never across two largest-VEI "
       + "classes — so a VEI 7 map, flat over almost all its extent, is a few "
       + "thousand cells. VEI 8 is a frame with nothing in it: no Holocene "
-      + "eruption reached that size. Cells nothing reaches are not drawn. The collective "
+      + "eruption reached that size. A cell nothing reaches is DRAWN, in the "
+      + "'no eruption's ash on record' class that leads every key — an answer, "
+      + "not a gap; the app's grey means not measured, and this was. The collective "
       + "carries every band's rate on each cell, so a click on it lists every "
       + "size at the point.",
     citation: "Global Volcanism Program (2024). Volcanoes of the World, "
@@ -245,8 +247,8 @@ const EQUATIONS = {
         + "0.25° lattice."],
     ],
     note: "The same lattice, kernel, priors and one-grid-per-VEI as the "
-      + "windowed record; only the denominator differs. Cells nothing reaches "
-      + "are not drawn.",
+      + "windowed record; only the denominator differs. A cell nothing reaches "
+      + "is drawn in the 'no eruption's ash on record' class.",
     citation: "Global Volcanism Program (2024). Volcanoes of the World, "
       + "v. 5.2. Smithsonian Institution. https://doi.org/10.5479/si.GVP.VOTW5-2024.5.2.",
   },

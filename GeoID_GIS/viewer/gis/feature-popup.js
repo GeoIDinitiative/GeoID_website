@@ -20,21 +20,21 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260909-1a84d85";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260909-1a84d85";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260909-200b1a6";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260909-200b1a6";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20260909-1a84d85";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260909-1a84d85";
-import { lithologyLabel } from "./lithology-label.js?v=20260909-1a84d85";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260909-1a84d85";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260909-1a84d85";
-import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260909-1a84d85";
-import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20260909-1a84d85";
-import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260909-1a84d85";
+} from "./vector-render.js?v=20260909-200b1a6";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260909-200b1a6";
+import { lithologyLabel } from "./lithology-label.js?v=20260909-200b1a6";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260909-200b1a6";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260909-200b1a6";
+import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260909-200b1a6";
+import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20260909-200b1a6";
+import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260909-200b1a6";
 import {
   canEditRow, editableFields, applyRowChange,
-} from "./table-editor.js?v=20260909-1a84d85";
+} from "./table-editor.js?v=20260909-200b1a6";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -1026,7 +1026,7 @@ function showViewerCard(hits, at) {
     // The bookkeeping columns the three lines above have already said, and
     // `i`, which is an index into a file rather than a fact about the ground.
     rows: [["Note", risk.note],
-      ...rows.filter(([key]) => !/^(i|deg|rate_yr|p_yr|rate_hur_yr|p_hur_yr|years_per|rate_large_yr|p_large_yr|vei_max|vents|prior_only|vei0|vei1|vei2|vei3|vei4|vei5|vei6|vei7|vei8)$/i.test(key))],
+      ...rows.filter(([key]) => !/^(i|deg|rate_yr|p_yr|rate_hur_yr|p_hur_yr|years_per|rate_large_yr|p_large_yr|vei_max|vents|prior_only|vei0|vei1|vei2|vei3|vei4|vei5|vei6|vei7|vei8|none)$/i.test(key))],
     stack: beneath.map(({ layer, feature: f }) => ({
       label: layer.name || "Layer",
       unit: titleOf(f.properties || {}) || featureKind(f, layer),

@@ -247,16 +247,23 @@ def quadtree(field, vei_max, extra):
     for r0, c0, size in blocks:
         sl = (slice(r0, r0 + size), slice(c0, c0 + size))
         mean = float(field[sl].mean())
-        if mean <= 0:
-            continue
+        # A CELL NOTHING REACHES IS DRAWN, AS "NONE ON RECORD". Left out, the
+        # ocean and the far interiors showed basemap through a hazard map,
+        # which reads as a gap rather than as an answer; every cell of the
+        # globe carries one, and the key names the class.
         north = 90.0 - r0 * STEP
         south = north - size * STEP
         west = -180.0 + c0 * STEP
         east = west + size * STEP
+        # SIGNIFICANT FIGURES, not fixed decimals: a far tail at 3e-8 a year
+        # rounded to six decimals is 0.000000, which has no class and drew in
+        # the app's no-value grey -- the "grey areas on VEI 3".
+        sig = lambda x: float("{:.4g}".format(x)) if x > 0 else 0.0
         props = {
             "i": len(features), "deg": round(size * STEP, 4),
-            "rate_yr": round(mean, PLACES), "p_yr": round(1.0 - math.exp(-mean), PLACES),
+            "rate_yr": sig(mean), "p_yr": sig(1.0 - math.exp(-mean)),
             "vei_max": int(vei_max[sl].max()),
+            "none": int(mean <= 0),
         }
         for name, grid in extra.items():
             v = grid[sl]
@@ -394,13 +401,14 @@ def main(mode) -> int:
     mb = write_grid(GLOBAL / f"{stem}.geojson", feats_any, mode, "any")
     print("  any: {:,} cells, {:.1f} MB".format(len(feats_any), mb))
     for v in FRAME_VEIS:
-        # A band with nothing in it still gets its file: the VEI 8 frame exists
-        # and says "no Holocene eruption of this size", rather than being absent.
-        feats = quadtree(grids[f"vei{v}"], vmax, extra) if grids[f"vei{v}"].max() > 0 else []
+        # A band with nothing in it still gets its file -- every cell "none on
+        # record" -- so the VEI 8 frame draws the whole globe in that class and
+        # the note says why, rather than the frame being absent.
+        feats = quadtree(grids[f"vei{v}"], vmax, extra)
         mb = write_grid(GLOBAL / f"{stem}-vei{v}.geojson", feats, mode, f"vei{v}")
         print("  vei{}: {:,} cells, {:.1f} MB".format(v, len(feats), mb))
     reached = int((grids["any"] > 0).sum())
-    print("  {:,} of {:,} lattice cells reached ({:.0f}%), {:,} by a floor prior alone".format(
+    print("  {:,} of {:,} lattice cells reached ({:.0f}%), {:,} by a floor prior alone; the rest drawn as none on record".format(
         reached, cells, 100 * reached / cells, int(extra["prior_only"].sum())))
 
     def at(lat, lon):

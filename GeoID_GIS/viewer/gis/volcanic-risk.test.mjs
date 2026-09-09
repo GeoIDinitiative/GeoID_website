@@ -8,7 +8,8 @@ import {
   colourRange, riskLayer, bandOf,
 } from "./volcanic-risk.js";
 import { isVolcanicRiskFeature, volcanicRiskCard, returnPeriod, asPercent } from "./volcanic-risk-card.js";
-import { epochsFor, noteFor, noteTitle, framePaint } from "./volcanic-risk-frames.js";
+import { epochsFor, noteFor, noteTitle, framePaint, reachedIn } from "./volcanic-risk-frames.js";
+import { NONE_COLOUR, NONE_LABEL } from "./volcanic-risk.js";
 import { isRiskFeature } from "./cyclone-risk-card.js";
 import { DATASETS } from "./global-data.js";
 import { mathsFor } from "./equations.js";
@@ -39,12 +40,15 @@ check("the collective is the terminal frame", epochs[epochs.length - 1].all, tru
 check("FRAME_VEIS is 1 to 8", FRAME_VEIS, [1, 2, 3, 4, 5, 6, 7, 8]);
 check("a frame's note counts its cells once known", noteFor({ ...epochs[2], count: 26428 }), "VEI 3 · 26,428 cells");
 check("and says so while it is not", noteFor(epochs[2]), "VEI 3 · … cells");
-check("the collective's note is the whole layer", noteFor(epochs[8]), "47,150 cells, every size");
+check("the collective's note is the cells reached", noteFor(epochs[8]), "47,150 cells reached, every size");
 const fp = framePaint([{ properties: { p_yr: 0.5 } }, { properties: { p_yr: 0.0001 } }], "vei3");
-check("a frame's key is labelled for its VEI on the shared classes", [fp.legend.label, fp.legend.labels.length], ["Ashfall ≥ 1 mm from VEI 3 eruptions — per year", RISK_LABELS.length]);
-check("and a cell with nothing keeps no colour", fp.colourFor({ properties: { p_yr: 0 } }), null);
-check("the counts fall in the right classes whatever the frame's range", fp.legend.counts, [0, 0, 1, 0, 0, 0, 0, 1]);
-check("so a colour means the same in every frame", fp.colourFor({ properties: { p_yr: 0.5 } }), `#${fp.legend.palette[7]}`);
+check("a frame's key is labelled for its VEI on the shared classes, none row leading", [fp.legend.label, fp.legend.labels.length, fp.legend.labels[0]], ["Ashfall ≥ 1 mm from VEI 3 eruptions — per year", RISK_LABELS.length + 1, NONE_LABEL]);
+check("a cell with nothing is the none class, not the app's grey", fp.colourFor({ properties: { p_yr: 0 } }), `#${NONE_COLOUR}`);
+check("the counts fall in the right classes whatever the frame's range", fp.legend.counts, [0, 0, 0, 1, 0, 0, 0, 0, 1]);
+check("so a colour means the same in every frame", fp.colourFor({ properties: { p_yr: 0.5 } }), `#${fp.legend.palette[8]}`);
+check("a far tail is the bottom class, never grey", fp.colourFor({ properties: { p_yr: 3e-8 } }), `#${fp.legend.palette[1]}`);
+check("the collective's note counts cells reached", reachedIn([{ properties: { p_yr: 0 } }, { properties: { p_yr: 0.1 } }]), 1);
+check("a none cell's card says so", volcanicRiskCard({ deg: 8, rate_yr: 0, p_yr: 0, vei_max: 0, none: 1 }).title, "No eruption's ash on record here");
 
 /* ── the card reads a cell ───────────────────────────────────────────────── */
 const cell = { i: 1, deg: 0.25, rate_yr: 0.1843, p_yr: 0.1683, vei0: 0, vei1: 0.069, vei2: 0.081, vei3: 0.034, vei4: 0, vei5: 4.3e-5, vei6: 0, vei7: 0, vei_max: 5, vents: 19, prior_only: 0 };

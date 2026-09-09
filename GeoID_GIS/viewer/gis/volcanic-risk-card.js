@@ -44,7 +44,8 @@ export function volcanicRiskCard(props = {}, { band = "any", full = false } = {}
   const rate = Number(props.rate_yr);
   const period = returnPeriod(rate);
   const pct = asPercent(props.p_yr);
-  const title = period ? `${period}${pct ? ` · ${pct} a year` : ""}` : "Not once on record";
+  const title = period ? `${period}${pct ? ` · ${pct} a year` : ""}`
+    : (Number(props.none) === 1 ? "No eruption's ash on record here" : "Not once on record");
   const rows = [];
   rows.push([spec.vei !== undefined ? `VEI ${spec.vei}, ≥ 1 mm of ash` : "Any eruption, ≥ 1 mm of ash", period || NEVER]);
   // THE COLLECTIVE LISTS EVERY SIZE, largest first: a reader comparing two

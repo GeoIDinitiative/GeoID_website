@@ -36,6 +36,14 @@ export const RISK_LABELS = [
   "more often than 1 in 5 years",
 ];
 
+/**
+ * THE "NONE ON RECORD" CLASS, drawn rather than left out. A cell no eruption's
+ * ash reaches is an answer, and the app's no-value grey means NOT MEASURED --
+ * so it has a colour of its own, named in every key, leading.
+ */
+export const NONE_COLOUR = "2f3b46";
+export const NONE_LABEL = "no eruption's ash on record";
+
 /** Which class an annual chance falls in, 0..labels−1; −1 for nothing. */
 export function classOf(p, edges = riskEdges()) {
   if (!(p > 0)) return -1;

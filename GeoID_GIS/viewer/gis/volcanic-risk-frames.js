@@ -15,10 +15,10 @@
  * their keys — one dataset draws one thing.
  */
 
-import { dataUrl } from "./data-base.js?v=20260909-1a84d85";
-import { rampColour } from "./symbology.js?v=20260909-1a84d85";
-import { startPlayer } from "./timelapse-player.js?v=20260909-1a84d85";
-import { riskEdges, RISK_LABELS, classOf, FRAME_VEIS, BANDS, RECORDS, riskLayer } from "./volcanic-risk.js?v=20260909-1a84d85";
+import { dataUrl } from "./data-base.js?v=20260909-200b1a6";
+import { rampColour } from "./symbology.js?v=20260909-200b1a6";
+import { startPlayer } from "./timelapse-player.js?v=20260909-200b1a6";
+import { riskEdges, RISK_LABELS, classOf, FRAME_VEIS, BANDS, RECORDS, riskLayer, NONE_COLOUR, NONE_LABEL } from "./volcanic-risk.js?v=20260909-200b1a6";
 
 const search = new URL(import.meta.url).search;
 let running = false;
@@ -40,23 +40,25 @@ export function framePaint(features, band) {
   const edges = riskEdges();
   const colours = RISK_LABELS.map((_, i) => rampColour("risk", i / Math.max(1, edges.length)));
   const counts = RISK_LABELS.map(() => 0);
+  let none = 0;
   features.forEach((f) => {
     const c = classOf(Number(f?.properties?.p_yr), edges);
-    if (c >= 0) counts[c] += 1;
+    if (c >= 0) counts[c] += 1; else none += 1;
   });
   const colourFor = (feature) => {
     const c = classOf(Number(feature?.properties?.p_yr), edges);
-    if (c < 0) return null;
+    // NOTHING ON RECORD IS A CLASS, not a missing value.
+    if (c < 0) return `#${NONE_COLOUR}`;
     const [r, g, b] = colours[c];
     return `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
   };
   const legend = {
     classed: true, categorical: false, field: "p_yr", label: BANDS[band].label, unit: null,
-    palette: colours.map(([r, g, b]) => [r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")),
-    labels: [...RISK_LABELS],
-    bounds: RISK_LABELS.map((_, i) => [i === 0 ? "0" : edges[i - 1].toExponential(1),
-      i < edges.length ? edges[i].toExponential(1) : "1"]),
-    counts, min: 0, max: 1,
+    palette: [NONE_COLOUR, ...colours.map(([r, g, b]) => [r, g, b].map((v) => v.toString(16).padStart(2, "0")).join(""))],
+    labels: [NONE_LABEL, ...RISK_LABELS],
+    bounds: [["0", "0"], ...RISK_LABELS.map((_, i) => [i === 0 ? "0" : edges[i - 1].toExponential(1),
+      i < edges.length ? edges[i].toExponential(1) : "1"])],
+    counts: [none, ...counts], min: 0, max: 1,
   };
   return { colourFor, legend };
 }
@@ -69,8 +71,14 @@ export function epochsFor(total) {
   return epochs;
 }
 
+/** Cells with a rate, for the collective's note: the rest of the globe is the none class. */
+export function reachedIn(features) {
+  return features.filter((f) => Number(f?.properties?.p_yr) > 0).length;
+}
+
+
 export function noteFor(epoch) {
-  if (epoch.all) return `${(epoch.count || 0).toLocaleString()} cells, every size`;
+  if (epoch.all) return `${(epoch.count || 0).toLocaleString()} cells reached, every size`;
   if (epoch.count === 0) return `VEI ${epoch.vei} · none in the Holocene record`;
   const n = epoch.count === null ? "…" : epoch.count.toLocaleString();
   return `VEI ${epoch.vei} · ${n} cells`;
@@ -107,7 +115,7 @@ async function build(id, startAt) {
   const THREE = await import("../vendor/three.module.js");
   const group = new THREE.Group();
   group.name = `GeoID-VolcanicRiskFrames-${id}`;
-  const epochs = epochsFor(layer.features.length);
+  const epochs = epochsFor(reachedIn(layer.features));
   const ALL = epochs.length - 1;
 
   /** Fetched when the bar first reaches it, drawn once, kept. */
@@ -123,14 +131,15 @@ async function build(id, startAt) {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const fc = await response.json();
         const paint = framePaint(fc.features, epoch.band);
-        // An empty frame is a real frame: nothing to draw, and a note saying why.
         const made = fc.features.length
           ? render.renderFeatureCollection(fc, { colourFor: paint.colourFor, outlineOnly: false })
           : new THREE.Group();
         const node = made?.object3D || made;
         node.visible = false;
         group.add(node);
-        epoch.count = fc.features.length;
+        // The count the note reports is cells WITH a rate; the "none" cells
+        // are the rest of the globe.
+        epoch.count = fc.features.filter((f) => Number(f?.properties?.p_yr) > 0).length;
         built.set(index, { node, features: fc.features, legend: paint.legend });
         return built.get(index);
       })());
@@ -139,6 +148,16 @@ async function build(id, startAt) {
   };
 
   const wasVisible = layer.object3D ? layer.object3D.visible : true;
+  /**
+   * THE COLLECTIVE WEARS THE SAME PAINT AS THE FRAMES, none row included:
+   * the catalogue's `paintByRange` leaves a zero uncoloured (the app's grey,
+   * meaning not measured) and lists no row for it. Painted here, once, and
+   * it keeps it after the bar closes.
+   */
+  const base = framePaint(layer.features, "any");
+  layer.repaint?.(base.colourFor);
+  layer.legendInfo = base.legend;
+  layer.rangeSpec = null;
   const derived = window.GeoIDImportManager?.addDerivedLayer?.(
     `Volcanic risk by VEI — ${spec.full ? "full Holocene record" : "windowed record"}`, {
       object3D: group, georeferenced: true,
@@ -198,8 +217,8 @@ async function build(id, startAt) {
         now.volcanicBand = epochs[index].band;
         now.legendHidden = false;
       }
-      say(frame.features.length
-        ? `VEI ${epochs[index].vei}: ${frame.features.length.toLocaleString()} cells`
+      say(epochs[index].count
+        ? `VEI ${epochs[index].vei}: ${epochs[index].count.toLocaleString()} cells`
         : `VEI ${epochs[index].vei}: no eruption of this size in the Holocene record`);
       // The bar wrote its note before the frame was fetched, so the count
       // it now knows is written back into the note it is still showing.
