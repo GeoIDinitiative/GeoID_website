@@ -66,16 +66,18 @@ export function volcanicRiskCard(props = {}, { band = "any", full = false } = {}
     kicker,
     title,
     meta: (full
-      ? "every dated eruption back to 9700 BCE, each volcano over its own record span"
+      ? "every dated eruption back to 9700 BCE, the modern window where it holds the size, else the volcano's own span"
       : "each eruption counted over the years its size is recorded")
       + " — the chance of at least 1 mm of ash here",
     headline: rows,
     note: (full
       ? "Every dated eruption in the Smithsonian Holocene catalogue, active or "
-        + "not, with no completeness windows: a volcano's rate is its eruptions "
-        + "over the span from its first recorded eruption to 2025, which "
-        + "overstates one with a short written record against one known from "
-        + "tephra alone. "
+        + "not. For each volcano and size, the modern window (VEI ≤ 3 since "
+        + "1950, VEI 4 since 1900, VEI 5–6 since 1550, VEI 7+ the Holocene) "
+        + "where it holds eruptions of that size there; otherwise every dated "
+        + "eruption of that size over the volcano's own record span — so a "
+        + "dormant volcano's one ancient eruption counts, and an active "
+        + "volcano's modern rate is never diluted by its tephra record. "
       : "Eruptions counted over the window in which their size is recorded: "
         + "VEI ≤ 3 since 1950, VEI 4 since 1900, VEI 5–6 since 1550, VEI 7+ the "
         + "whole Holocene. ")
@@ -84,7 +86,8 @@ export function volcanicRiskCard(props = {}, { band = "any", full = false } = {}
       + "which solved for 1 mm gives a reach per VEI — 5 km at VEI 1, 15 at 2, "
       + "50 at 3, 150 at 4, 350 at 5, 800 at 6, 1,800 at 7 — log-normal about "
       + "it (σ 0.5). Isotropic: a real plume goes downwind. Uncertain eruptions "
-      + "count at half weight; every "
+      + "count at half weight; an eruption in the catalogue is an EPISODE "
+      + "(GVP files Etna 1971–1993 as one), so a rate is episodes per year; every "
       + "catalogue volcano is in, those with no dated eruption at a stated "
       + "floor. The chance is 1 − exp(−rate). A cell is a sampling point — its "
       + "size is how finely the map is drawn there.",

@@ -194,12 +194,18 @@ const EQUATIONS = {
 
   "volcanic-risk-holocene": {
     kind: COMPUTED,
-    intro: "The same bands from THE FULL RECORD: every dated eruption back to "
-      + "9700 BCE, active or not, with no completeness windows. Each volcano's "
-      + "frequency is its eruptions over its own record span.",
+    intro: "The same maps from THE FULL RECORD: every dated eruption back to "
+      + "9700 BCE, active or not. For each volcano and size class the modern "
+      + "window is used where it holds eruptions of that size at that volcano; "
+      + "where it holds none, every dated eruption of that size over the "
+      + "volcano's own record span. The full record can therefore only ADD a "
+      + "dormant volcano's ancient eruptions, never dilute an active one's "
+      + "modern rate.",
     lines: [
-      { expr: "span(v) = 2025 − first_v + 1",
-        note: "a volcano's own record: first recorded eruption to the last complete year" },
+      { expr: "span(v, n) = Y(n) if the volcano has a VEI-n eruption inside Y(n)'s window, else 2025 − first_v + 1",
+        note: "the denominator per volcano and size: the completeness window "
+          + "where the record supports it, the volcano's own record where it "
+          + "is all there is" },
       { expr: "λ_n(p) = Σ over eruptions e of VEI n of w(e) · P_e(d(p, vent(e))) / span(v(e))",
         note: "the VEI-n map: eruptions of that size per year depositing at "
           + "least 1 mm of ash at the point p" },
@@ -207,11 +213,13 @@ const EQUATIONS = {
         note: "the chance of at least one in a given year" },
     ],
     terms: [
-      ["span(v)", "the volcano's OWN record span, not a completeness window. "
-        + "What that trades: a volcano with a short written record is measured "
-        + "as if it began erupting when somebody started writing, which "
-        + "overstates it against one known from tephra alone — the windowed "
-        + "map exists because that bias is real. Both are offered."],
+      ["span(v, n)", "the first version divided EVERY volcano's eruptions by its "
+        + "own record span, and read 1 in 1,733 years for VEI 3 at Etna — a "
+        + "volcano that does it every twenty, whose tephra record reaches back "
+        + "8,000 years. A denominator is the record that supports it: where the "
+        + "modern window holds eruptions of that size at that volcano it is "
+        + "complete for them and is used; only a volcano with none in the "
+        + "window falls back to its own span."],
       ["P(d)", "the chance that THIS eruption deposits at least 1 mm of ash "
         + "at distance d: tephra thins exponentially with distance (Pyle 1989, "
         + "T = T₀·exp(−d/b)) with both T₀ and b scaling with the eruption, and "

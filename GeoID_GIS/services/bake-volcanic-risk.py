@@ -46,11 +46,19 @@ fifty years since 1550. So:
     VEI 5 and 6                 counted over 1550-2025   (476)
     VEI >= 7                    counted over the Holocene (11,700 years)
 
---mode holocene takes THE FULL RECORD instead: every dated eruption back to
-9700 BCE with no windows, each volcano's rate over its OWN record span (first
-recorded eruption to 2025). That overstates a volcano with a short written
-record against one known from tephra alone; the windowed map corrects for
-it. Both ship, and each file says which it is.
+--mode holocene takes THE FULL RECORD as well: for each volcano and size
+class, the window above where the window holds eruptions of that size at
+that volcano, and otherwise EVERY dated eruption of that size over the
+volcano's own record span (first recorded eruption to 2025). So the full
+record can only ADD -- a dormant volcano whose one VEI 4 is in 1400 counts,
+where the windowed map drops it -- and never dilute: the first version
+divided Etna's VEI 3 eruptions by its 8,000 years of tephra record and read
+"1 in 1,733 years" for a volcano that does it every twenty, which is the
+denominator being the wrong record. Both ship, and each file says which.
+
+AN ERUPTION IN THE CATALOGUE IS AN EPISODE. GVP files Etna 1971-1993 as one
+eruption, so a rate here is episodes per year, not paroxysms: Etna reads 22
+eruptions since 1950. The card says so.
 
 EVERY VOLCANO IS IN. The eruption list names 915 of the catalogue's 2,666; the
 rest take a stated FLOOR PRIOR -- a Holocene volcano with no dated eruption,
@@ -267,7 +275,8 @@ def quadtree(field, vei_max, extra):
 
 def write_grid(path, features, mode, band):
     windows = ({k: list(v) for k, v in WINDOWS.items()} if mode == "windowed"
-               else "each volcano's own record span, first eruption to 2025")
+               else "per volcano and size: the size's window where it holds eruptions of that size "
+                    "there, else the volcano's own record span (first eruption to 2025)")
     grid = {"type": "FeatureCollection",
             "_source": {**SOURCE, "mode": mode, "band": band, "windows": windows,
                         "measure": ("eruptions of VEI {} per year near the point".format(band[3:])
@@ -288,12 +297,18 @@ def main(mode) -> int:
         len(feats), len(catalogue), time.time() - began))
 
     first_year = {}
+    in_window = {}      # (volcano, size class) -> has an eruption of that size inside its window
     for f in feats:
         p = f["properties"]
         if p.get("StartDateYear") is None:
             continue
         vn = str(p.get("Volcano_Number"))
-        first_year[vn] = min(first_year.get(vn, 9999), int(p["StartDateYear"]))
+        year = int(p["StartDateYear"])
+        first_year[vn] = min(first_year.get(vn, 9999), year)
+        cls = size_class(p.get("ExplosivityIndexMax"))
+        lo, hi = WINDOWS[cls]
+        if lo <= year <= hi:
+            in_window[(vn, cls)] = True
 
     cells = NY * NX
     per_vei = np.zeros((9, cells), dtype=np.float64)
@@ -335,10 +350,11 @@ def main(mode) -> int:
         vei_used = UNKNOWN_VEI_AS if vei is None else int(vei)
         cls = size_class(vei)
         vn = str(p.get("Volcano_Number"))
-        if holocene:
+        lo, hi = WINDOWS[cls]
+        if holocene and not in_window.get((vn, cls)):
+            # no eruption of this size inside its window at this volcano: the
+            # volcano's own span is the only record there is, so it is used
             lo, hi = max(HOLOCENE_START, first_year[vn]), LAST_COMPLETE
-        else:
-            lo, hi = WINDOWS[cls]
         if year < lo or year > hi:
             out_of_window += 1
             continue

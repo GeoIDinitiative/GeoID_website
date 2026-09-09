@@ -88,6 +88,9 @@ check("the collective's key is withheld while a frame is up", /layer\.legendHidd
 check("and given back when the bar closes", /back\.legendHidden = false;/.test(frames), true);
 check("a frame's count is written back into the note once fetched", /note\.textContent = noteFor\(epochs\[index\]\)/.test(frames), true);
 
+check("the full record never dilutes an active volcano", /never dilute/.test(mathsFor("volcanic-risk-holocene").intro), true);
+check("the card says an eruption is an episode", /EPISODE/.test(volcanicRiskCard(cell).note), true);
+
 process.on("exit", () => {
   failures.forEach((f) => console.error(`  x ${f}`));
   console.log(`volcanic-risk: ${pass} passed, ${failures.length} failed`);
