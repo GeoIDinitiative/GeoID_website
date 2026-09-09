@@ -26,15 +26,16 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260909-02b5091";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260909-02b5091";
-import { mathsFor } from "./equations.js?v=20260909-02b5091";
+import { runConnector } from "./research/connectors.js?v=20260909-5b7fb53";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260909-5b7fb53";
+import { mathsFor } from "./equations.js?v=20260909-5b7fb53";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260909-02b5091";
+} from "./cyclone-risk.js?v=20260909-5b7fb53";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260909-5b7fb53";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260909-02b5091";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260909-5b7fb53";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -356,6 +357,49 @@ export const DATASETS = [
       apply: (view) => window.GeoIDCycloneRisk?.setView(view),
     },
   },
+  ...["volcanic-risk", "volcanic-risk-holocene"].map((id) => ({
+    /**
+     * THE VOLCANIC RISK MAPS -- gridded, one per VEI, played through the bar.
+     * The catalogue layer is the COLLECTIVE: eruptions of any size per year
+     * near each point, every eruption counted with one 100 km kernel whatever
+     * its size, on the cyclone map's own quadtree. Ticking it opens the bar on
+     * the collective, and each step back is one VEI's own map on the same
+     * return-period scale (`volcanic-risk-frames.js`).
+     *
+     * Two records: the WINDOWED one counts each size over the years it is
+     * recorded (VEI <= 3 since 1950, VEI 4 since 1900, VEI 5-6 since 1550,
+     * VEI 7+ the Holocene) so a dormant volcano's one VEI 5 counts beside a
+     * live one's fifty small eruptions; the FULL HOLOCENE one takes every
+     * dated eruption back to 9700 BCE over each volcano's own record span.
+     */
+    id,
+    home: "volcanic-hazards",
+    featureNoun: "Volcanic risk cell",
+    group: "Hazards",
+    label: id === "volcanic-risk"
+      ? "Volcanic risk by VEI \u2014 windowed record (Smithsonian GVP)"
+      : "Volcanic risk by VEI \u2014 full Holocene record (Smithsonian GVP)",
+    path: `/data/global/${id}.geojson`,
+    name: id === "volcanic-risk"
+      ? "Volcanic risk (windowed record, Smithsonian GVP).geojson"
+      : "Volcanic risk (full Holocene record, Smithsonian GVP).geojson",
+    summary: (id === "volcanic-risk"
+      ? "Eruptions per year near each point, each size counted over the years "
+        + "it is recorded, "
+      : "Eruptions per year near each point from every dated eruption back to "
+        + "9700 BCE, each volcano over its own record span, ")
+      + "every eruption with one 100 km kernel whatever its size; uncertain "
+      + "eruptions at half weight, all 2,666 catalogue volcanoes with a stated "
+      + "floor where no eruption is dated. Plays VEI 1\u20135 and the collective "
+      + "through the bar on one return-period scale",
+    licence: "Global Volcanism Program, Smithsonian Institution \u2014 CC BY 4.0; "
+      + "cite Volcanoes of the World v5.2 (2024)",
+    colourRange: volcanicColourRange("any"),
+    opacity: 0.6,
+    animation: {
+      open: () => window.GeoIDVolcanicRiskFrames?.play(id),
+    },
+  })),
   {
     id: "active-faults",
     home: "geology-tectonics",

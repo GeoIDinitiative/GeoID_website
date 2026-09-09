@@ -165,11 +165,14 @@ const EQUATIONS = {
         + "Eruptions cluster and repose times are not memoryless, so this is "
         + "the standard assumption rather than an exact one."],
     ],
-    note: "A Cloud-Optimised GeoTIFF on the 0.25° lattice itself, read whole "
-      + "and recoloured per band. The earlier quadtree grid, the cyclone map's "
-      + "own, was built for a sparse field and read as a mess once the kernel "
-      + "made this one smooth and global; a smooth field wants a lattice. "
-      + "Cells nothing reaches are not drawn.",
+    note: "ONE GRID PER VEI, played through the bar. Each is the cyclone "
+      + "map's own quadtree over that band alone: a quarter-degree lattice "
+      + "merged into blocks while the band inside them is flat (2% of its "
+      + "peak), never while empty in part, never across two largest-VEI "
+      + "classes — so a VEI 5 map, flat over almost all its extent, is a few "
+      + "thousand cells. Cells nothing reaches are not drawn. The collective "
+      + "carries every band's rate on each cell, so a click on it lists every "
+      + "size at the point.",
     citation: "Global Volcanism Program (2024). Volcanoes of the World, "
       + "v. 5.2. Smithsonian Institution. https://doi.org/10.5479/si.GVP.VOTW5-2024.5.2. "
       + "VEI: Newhall & Self (1982), J. Geophys. Res., 87, 1231–1238.",
@@ -212,8 +215,9 @@ const EQUATIONS = {
       ["d", "great-circle distance, solved on the sphere, at every cell of a "
         + "0.25° lattice."],
     ],
-    note: "The same lattice, kernel and priors as the windowed sheet; only the "
-      + "denominator differs. Cells nothing reaches are not drawn.",
+    note: "The same lattice, kernel, priors and one-grid-per-VEI as the "
+      + "windowed record; only the denominator differs. Cells nothing reaches "
+      + "are not drawn.",
     citation: "Global Volcanism Program (2024). Volcanoes of the World, "
       + "v. 5.2. Smithsonian Institution. https://doi.org/10.5479/si.GVP.VOTW5-2024.5.2.",
   },

@@ -1,0 +1,209 @@
+/**
+ * THE VOLCANIC RISK MAPS, PLAYED BY VEI — the cyclone tracks' bar with the
+ * eruption size in place of the date.
+ *
+ * Five grids, one per VEI 1–5, each "eruptions of that size per year near a
+ * point" on the shared return-period scale, then the COLLECTIVE — the
+ * catalogue layer itself, every size at once — as the terminal frame, which is
+ * where the bar parks when the layer is ticked (the tracks' own rule: a tick
+ * asks for the layer, not for the first frame of it).
+ *
+ * A FRAME IS ITS OWN GRID AND NOTHING ELSE: each is fetched when the bar first
+ * reaches it, drawn once and kept, and the frame before it goes in its wake.
+ * The collective layer and the frame plot are never both up, and neither are
+ * their keys — one dataset draws one thing.
+ */
+
+import { dataUrl } from "./data-base.js?v=20260909-5b7fb53";
+import { rampColour } from "./symbology.js?v=20260909-5b7fb53";
+import { startPlayer } from "./timelapse-player.js?v=20260909-5b7fb53";
+import { riskEdges, RISK_LABELS, classOf, FRAME_VEIS, BANDS, RECORDS, riskLayer } from "./volcanic-risk.js?v=20260909-5b7fb53";
+
+const search = new URL(import.meta.url).search;
+let running = false;
+let opening = false;
+
+function say(message) {
+  const node = document.getElementById("volcanic-status");
+  if (node) node.textContent = message;
+}
+
+/**
+ * THE SHARED PAINT, BUILT FROM THE SCALE AND NOT FROM THE FRAME. `buildSymbology`
+ * drops the classes outside a file's own range, and a VEI 5 map lives entirely
+ * below one in a thousand years -- its key would have opened on "rarer than 1
+ * in 100,000" for a row that was really the fourth class. Every frame carries
+ * all eight classes, counted, so a colour means the same thing in every one.
+ */
+export function framePaint(features, band) {
+  const edges = riskEdges();
+  const colours = RISK_LABELS.map((_, i) => rampColour("risk", i / Math.max(1, edges.length)));
+  const counts = RISK_LABELS.map(() => 0);
+  features.forEach((f) => {
+    const c = classOf(Number(f?.properties?.p_yr), edges);
+    if (c >= 0) counts[c] += 1;
+  });
+  const colourFor = (feature) => {
+    const c = classOf(Number(feature?.properties?.p_yr), edges);
+    if (c < 0) return null;
+    const [r, g, b] = colours[c];
+    return `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+  };
+  const legend = {
+    classed: true, categorical: false, field: "p_yr", label: BANDS[band].label, unit: null,
+    palette: colours.map(([r, g, b]) => [r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")),
+    labels: [...RISK_LABELS],
+    bounds: RISK_LABELS.map((_, i) => [i === 0 ? "0" : edges[i - 1].toExponential(1),
+      i < edges.length ? edges[i].toExponential(1) : "1"]),
+    counts, min: 0, max: 1,
+  };
+  return { colourFor, legend };
+}
+
+export function epochsFor(total) {
+  const epochs = FRAME_VEIS.map((v) => ({
+    date: `vei${v}`, label: `VEI ${v}`, dataset: null, vei: v, band: `vei${v}`, count: null,
+  }));
+  epochs.push({ date: "all", label: "All", dataset: null, all: true, band: "any", count: total });
+  return epochs;
+}
+
+export function noteFor(epoch) {
+  if (epoch.all) return `${(epoch.count || 0).toLocaleString()} cells, every size`;
+  const n = epoch.count === null ? "…" : epoch.count.toLocaleString();
+  return `VEI ${epoch.vei} · ${n} cells`;
+}
+
+export function noteTitle(epoch) {
+  return epoch.all
+    ? "The collective: eruptions of any size per year near each point"
+    : `Eruptions of VEI ${epoch.vei} per year near each point, on the same scale as every other frame`;
+}
+
+export async function play(id = "volcanic-risk", { startAt = null } = {}) {
+  if (opening) return { already: true };
+  if (running && document.getElementById("geoid-timelapse")) return { already: true };
+  opening = true;
+  try {
+    return await build(id, startAt);
+  } finally {
+    opening = false;
+  }
+}
+
+async function build(id, startAt) {
+  const spec = RECORDS[id];
+  const layer = riskLayer(id);
+  if (!spec || !layer?.features?.length) {
+    say("Tick a volcanic risk map on first — the animation plays the layer you have.");
+    return null;
+  }
+  const render = await import(`./vector-render.js${search}`);
+  const THREE = await import("../vendor/three.module.js");
+  const group = new THREE.Group();
+  group.name = `GeoID-VolcanicRiskFrames-${id}`;
+  const epochs = epochsFor(layer.features.length);
+  const ALL = epochs.length - 1;
+
+  /** Fetched when the bar first reaches it, drawn once, kept. */
+  const built = new Map();
+  const loading = new Map();
+  const nodeFor = async (index) => {
+    if (built.has(index)) return built.get(index);
+    if (!loading.has(index)) {
+      loading.set(index, (async () => {
+        const epoch = epochs[index];
+        const url = await dataUrl(`${spec.path}-${epoch.band}.geojson`);
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const fc = await response.json();
+        const paint = framePaint(fc.features, epoch.band);
+        const made = render.renderFeatureCollection(fc, { colourFor: paint.colourFor, outlineOnly: false });
+        const node = made?.object3D || made;
+        node.visible = false;
+        group.add(node);
+        epoch.count = fc.features.length;
+        built.set(index, { node, features: fc.features, legend: paint.legend });
+        return built.get(index);
+      })());
+    }
+    return loading.get(index);
+  };
+
+  const wasVisible = layer.object3D ? layer.object3D.visible : true;
+  const derived = window.GeoIDImportManager?.addDerivedLayer?.(
+    `Volcanic risk by VEI — ${spec.full ? "full Holocene record" : "windowed record"}`, {
+      object3D: group, georeferenced: true,
+      bounds: { minX: -180, maxX: 180, minY: -90, maxY: 90 },
+      features: [], collection: { type: "FeatureCollection", features: [] },
+      legendInfo: framePaint([], "vei1").legend,
+      home: "volcanic-hazards",
+    }, "gvp");
+  if (derived) { derived.volcanicRecord = id; derived.volcanicBand = "vei1"; derived.legendHidden = true; }
+  const held = () => (window.GeoIDImportManager?.getLayers?.() || []).find((l) => l.id === derived?.id);
+  window.GeoIDLayerHierarchy?.setOpacity?.(derived, Number.isFinite(layer.opacity) ? layer.opacity : 0.6);
+
+  let shown = 0;
+  running = true;
+  await startPlayer({
+    bounds: { west: -180, south: -90, east: 180, north: 90 },
+    epochs,
+    source: "none",
+    noteFor,
+    noteTitle,
+    onStatus: say,
+    interval: 1600,
+    startAt: startAt === null ? ALL : startAt,
+    onShow: async (index) => {
+      const ticket = (shown += 1);
+      const whole = index === ALL;
+      const plot = held();
+      if (plot) plot.legendHidden = whole;
+      window.GeoIDLayerHierarchy?.setVisible?.(layer, whole ? wasVisible : false);
+      built.forEach((b) => { b.node.visible = false; });
+      if (whole) {
+        if (plot?.object3D) plot.object3D.visible = false;
+        if (plot) { plot.features = []; plot.collection = { type: "FeatureCollection", features: [] }; }
+        window.GeoIDLayerHierarchy?.render?.();
+        return;
+      }
+      say(`Loading VEI ${epochs[index].vei}…`);
+      let frame;
+      try {
+        frame = await nodeFor(index);
+      } catch (error) {
+        say(`VEI ${epochs[index].vei} could not be read: ${error.message}`);
+        return;
+      }
+      // A slower fetch must not paint over a newer frame.
+      if (ticket !== shown || !running) return;
+      built.forEach((b, i) => { b.node.visible = i === index; });
+      const now = held();
+      if (now) {
+        if (now.object3D) now.object3D.visible = true;
+        now.features = frame.features;
+        now.collection = { type: "FeatureCollection", features: frame.features };
+        now.legendInfo = frame.legend;
+        now.volcanicBand = epochs[index].band;
+        now.legendHidden = false;
+      }
+      say(`VEI ${epochs[index].vei}: ${frame.features.length.toLocaleString()} cells`);
+      window.GeoIDLayerHierarchy?.render?.();
+      window.dispatchEvent(new CustomEvent("geoid-gis:layers-changed", { detail: { reason: "symbology" } }));
+    },
+    onStop: () => {
+      running = false;
+      const now = held();
+      if (now) window.GeoIDImportManager?.removeLayer?.(now.id);
+      group.traverse?.((n) => { n.geometry?.dispose?.(); n.material?.dispose?.(); });
+      const back = riskLayer(id);
+      if (back) window.GeoIDLayerHierarchy?.setVisible?.(back, wasVisible);
+      say("");
+    },
+  });
+  return { frames: FRAME_VEIS.length };
+}
+
+if (typeof window !== "undefined") {
+  window.GeoIDVolcanicRiskFrames = { play, epochsFor, noteFor, noteTitle, framePaint };
+}

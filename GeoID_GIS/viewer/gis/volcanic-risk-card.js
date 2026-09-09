@@ -1,11 +1,19 @@
 /**
- * A VOLCANIC RISK POINT, IN WORDS: how often each size of eruption happens
- * near here. Pure; the raster module raises it in the viewer's own card.
+ * A VOLCANIC RISK CELL, IN WORDS: how often eruptions of a size happen near
+ * here. The collective's cells carry every VEI's rate; a frame's cells carry
+ * their own band's alone, and the card says which it is reading.
  *
  * The number is said twice, as a return period and a percentage: a reader
  * with one and not the other cannot check the map against the key.
  */
-import { VIEWS } from "./volcanic-risk.js";
+import { BANDS } from "./volcanic-risk.js";
+
+export function isVolcanicRiskFeature(props = {}) {
+  return Number.isFinite(Number(props?.p_yr))
+    && Number.isFinite(Number(props?.rate_yr))
+    && Number.isFinite(Number(props?.deg))
+    && Number.isFinite(Number(props?.vei_max));
+}
 
 /** "1 in 476 years", "about one a year", or "3.0 a year". */
 export function returnPeriod(ratePerYear) {
@@ -18,10 +26,10 @@ export function returnPeriod(ratePerYear) {
 }
 
 /** The chance as a percentage, at a precision the number can carry. */
-export function asPercent(rate) {
-  const n = Number(rate);
+export function asPercent(p) {
+  const n = Number(p);
   if (!Number.isFinite(n) || n <= 0) return null;
-  const pct = (1 - Math.exp(-n)) * 100;
+  const pct = n * 100;
   if (pct >= 10) return `${Math.round(pct)}%`;
   if (pct >= 1) return `${pct.toFixed(1)}%`;
   if (pct >= 0.01) return `${pct.toFixed(2)}%`;
@@ -30,37 +38,30 @@ export function asPercent(rate) {
 
 const NEVER = "not once on record";
 
-/**
- * `sample` is one point's bands: { any, vei0..vei7, vei_max, vents, prior_only }.
- * `view` is the reading on screen; `full` says which record the sheet is.
- */
-export function volcanicRiskCard(sample = {}, { view = "any", full = false } = {}) {
-  const spec = VIEWS[view] || VIEWS.any;
+export function volcanicRiskCard(props = {}, { band = "any", full = false } = {}) {
+  const spec = BANDS[band] || BANDS.any;
   const kicker = spec.kicker + (full ? " (full Holocene record)" : " (windowed record)");
-  const vmax = Number(sample.vei_max);
-  let title;
-  if (spec.categorical) {
-    title = vmax > 0 || Number(sample.any) > 0 ? `VEI ${vmax} on record` : "No eruption on record";
-  } else {
-    const rate = Number(sample[spec.band]);
-    const period = returnPeriod(rate);
-    const pct = asPercent(rate);
-    title = period ? `${period}${pct ? ` · ${pct} a year` : ""}` : "Not once on record";
-  }
+  const rate = Number(props.rate_yr);
+  const period = returnPeriod(rate);
+  const pct = asPercent(props.p_yr);
+  const title = period ? `${period}${pct ? ` · ${pct} a year` : ""}` : "Not once on record";
   const rows = [];
-  rows.push(["Any eruption", returnPeriod(sample.any) || NEVER]);
-  // EVERY SIZE, each on its own line: this is the map's whole content and a
-  // reader comparing two points wants the profile, not one number.
+  rows.push([spec.vei !== undefined ? `VEI ${spec.vei} eruptions` : "Any eruption", period || NEVER]);
+  // THE COLLECTIVE LISTS EVERY SIZE, largest first: a reader comparing two
+  // points wants the profile, not one number.
   for (let v = 7; v >= 0; v -= 1) {
-    const r = returnPeriod(sample[`vei${v}`]);
+    const r = returnPeriod(props[`vei${v}`]);
     if (r) rows.push([`VEI ${v}`, r]);
   }
-  if (vmax > 0 || Number(sample.any) > 0) rows.push(["Largest on record reaching here", `VEI ${vmax}`]);
-  if (Number(sample.prior_only) === 1) {
+  const vmax = Number(props.vei_max);
+  if (Number.isFinite(vmax) && (vmax > 0 || rate > 0)) rows.push(["Largest on record reaching here", `VEI ${vmax}`]);
+  if (Number(props.prior_only) === 1) {
     rows.push(["Basis", "floor prior only — no dated eruption from any volcano within reach; "
       + "the rate is the least a volcano that demonstrably erupted can be given"]);
   }
-  if (Number(sample.vents) > 0) rows.push(["Volcanoes within reach", String(Math.round(Number(sample.vents)))]);
+  if (Number(props.vents) > 0) rows.push(["Volcanoes within reach", String(Math.round(Number(props.vents)))]);
+  const deg = Number(props.deg);
+  if (Number.isFinite(deg)) rows.push(["Cell", `${deg}° — about ${Math.round(deg * 111)} km`]);
   return {
     kicker,
     title,
@@ -78,14 +79,15 @@ export function volcanicRiskCard(sample = {}, { view = "any", full = false } = {
         + "VEI ≤ 3 since 1950, VEI 4 since 1900, VEI 5–6 since 1550, VEI 7+ the "
         + "whole Holocene. ")
       + "Every eruption counts exp(−d/100 km) of itself at distance d, dropped "
-      + "past 400 km, whatever its size — size is which band it falls in, not "
-      + "how far it reaches. Uncertain eruptions count at half weight; every "
+      + "past 400 km, whatever its size — size is which map it is on, not how "
+      + "far it reaches. Uncertain eruptions count at half weight; every "
       + "catalogue volcano is in, those with no dated eruption at a stated "
-      + "floor. The chance is 1 − exp(−rate).",
+      + "floor. The chance is 1 − exp(−rate). A cell is a sampling point — its "
+      + "size is how finely the map is drawn there.",
     source: "Global Volcanism Program, Smithsonian Institution — Volcanoes of the World v5.2 (2024), CC BY 4.0",
   };
 }
 
 if (typeof window !== "undefined") {
-  window.GeoIDVolcanicRiskCard = { volcanicRiskCard, returnPeriod, asPercent };
+  window.GeoIDVolcanicRiskCard = { isVolcanicRiskFeature, volcanicRiskCard, returnPeriod, asPercent };
 }

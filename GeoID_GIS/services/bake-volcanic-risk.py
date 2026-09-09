@@ -1,12 +1,20 @@
 #!/usr/bin/env python3
-"""Volcanic risk, as rasters: how often an eruption of each VEI happens near a point.
+"""Volcanic risk, gridded, one map per VEI: how often an eruption of each size
+happens near a point.
 
-Two Cloud-Optimised GeoTIFFs on a 0.25 degree lattice (1440 x 720), one band
-per VEI number 0..7 holding ERUPTIONS OF THAT SIZE PER YEAR near the point,
-plus `any` (all sizes), `vei_max` (the largest on record reaching the point),
-`vents` (distinct volcanoes reaching it) and `prior_only` (1 where nothing but a
-floor prior reaches it). Read whole by the page and coloured by whichever band
-a reader asks for, on one return-period scale -- no derived index, no proxy.
+For each record (--mode windowed or holocene) a set of variable-resolution
+GRIDS -- the cyclone risk map's quadtree, one file per band: `vei1`..`vei5`,
+each holding ERUPTIONS OF THAT SIZE PER YEAR near the point, and `any` (every
+size, VEI 0 and 6-7 included), which is the catalogue layer itself. The page
+plays the five VEI grids through the time-lapse bar with the VEI in place of
+the date and the collective as the terminal frame -- the cyclone tracks'
+arrangement. A raster was tried between the two gridded versions and the grid
+was preferred: a quadtree coarsens where a band is flat, and a VEI 5 band is
+flat over almost all of its extent.
+
+THE VALUE IS AT A POINT, WITHIN A KERNEL -- never per cell -- for the reason
+the cyclone map records: cells of different sizes are only comparable when
+each is a sampling location and its size is display resolution.
 
 ONE SCALE FOR EVERY ERUPTION. An eruption counts exp(-d / R) of itself at
 distance d, with R = 100 km for every eruption whatever its size, dropped past
@@ -40,8 +48,9 @@ one VEI 2 over the Holocene; a Pleistocene one, one VEI 3 over the Pleistocene
 eruptions (1,173 of 11,089) count at half weight. A quarter carry no VEI and
 are counted as VEI 2.
 
-Written through GDAL's CLI (the Python bindings segfault here). The scratch
-lives in data/global/.volcanic-risk-work, which .gitignore holds out.
+Products: data/global/volcanic-risk[-holocene].geojson (the collective, the
+catalogue layer) and data/global/volcanic-risk[-holocene]-vei{1..5}.geojson
+(the frames), all gitignored and published with publish-data.py.
 """
 from __future__ import annotations
 
@@ -49,7 +58,6 @@ import argparse
 import json
 import math
 import pathlib
-import subprocess
 import sys
 import time
 import urllib.parse
@@ -64,8 +72,12 @@ WORK = GLOBAL / ".volcanic-risk-work"
 # `.hotlink-ok.` is Cloudflare's exemption from Hotlink Protection, which 403s
 # an image by Referer from any origin but the zone -- measured on the soil
 # thickness COG: 200 from production, 403 from localhost.
-OUT = {"windowed": GLOBAL / "volcanic-risk.hotlink-ok.tif",
-       "holocene": GLOBAL / "volcanic-risk-holocene.hotlink-ok.tif"}
+STEM = {"windowed": "volcanic-risk", "holocene": "volcanic-risk-holocene"}
+FRAME_VEIS = [1, 2, 3, 4, 5]
+COARSEST = 32
+FINEST = 1
+SPREAD = 0.02
+PLACES = 6
 
 WFS = "https://webservices.volcano.si.edu/geoserver/GVP-VOTW/ows"
 ERUPTIONS = "GVP-VOTW:Smithsonian_VOTW_Holocene_Eruptions"
@@ -88,6 +100,18 @@ PRIOR = {"holocene": {"vei": 2, "span": LAST_COMPLETE - HOLOCENE_START + 1},
          "pleistocene": {"vei": 3, "span": 2_580_000}}
 VEIS = list(range(8))
 BANDS = [f"vei{v}" for v in VEIS] + ["any", "vei_max", "vents", "prior_only"]
+SOURCE = {
+    "dataset": "Smithsonian Global Volcanism Program, Volcanoes of the World (Holocene eruption catalogue)",
+    "citation": "Global Volcanism Program (2024). Volcanoes of the World, v. 5.2. Smithsonian "
+                "Institution. https://doi.org/10.5479/si.GVP.VOTW5-2024.5.2",
+    "kernel": f"each eruption counts exp(-d/{SCALE_KM:.0f} km) of itself at distance d, dropped past "
+              f"{KERNEL_REACH:.0f}R, whatever its size",
+    "uncertain_weight": UNCERTAIN_WEIGHT, "unknown_vei_counted_as": UNKNOWN_VEI_AS,
+    "floor_prior": PRIOR,
+    "resolution": "variable, {} to {} degrees; a cell subdivides while the band inside it varies by "
+                  "more than {:.0%} of its peak, or is empty in part, or spans two largest-VEI "
+                  "classes. Cell size is display resolution only.".format(FINEST * STEP, COARSEST * STEP, SPREAD),
+}
 
 
 def size_class(vei):
@@ -159,37 +183,74 @@ def kernel(lon, lat):
     return rr * NX + cc, np.exp(-d / SCALE_KM)
 
 
-def write_cog(path, grids, mode):
-    WORK.mkdir(parents=True, exist_ok=True)
-    raw = WORK / (path.stem + ".bin")
-    with open(raw, "wb") as fh:
-        for name in BANDS:
-            fh.write(np.ascontiguousarray(grids[name], dtype=np.float32).tobytes())
-    bands = "".join(
-        '<VRTRasterBand dataType="Float32" band="{}" subClass="VRTRawRasterBand">'
-        '<SourceFilename relativeToVRT="1">{}</SourceFilename>'
-        '<ImageOffset>{}</ImageOffset><PixelOffset>4</PixelOffset><LineOffset>{}</LineOffset>'
-        '<Description>{}</Description></VRTRasterBand>'.format(
-            i + 1, raw.name, i * NY * NX * 4, NX * 4, name)
-        for i, name in enumerate(BANDS))
-    vrt = WORK / (path.stem + ".vrt")
-    vrt.write_text(
-        '<VRTDataset rasterXSize="{}" rasterYSize="{}"><SRS>EPSG:4326</SRS>'
-        '<GeoTransform>-180.0, {}, 0.0, 90.0, 0.0, -{}</GeoTransform>{}</VRTDataset>'.format(
-            NX, NY, STEP, STEP, bands))
-    subprocess.run(
-        ["gdal_translate", str(vrt), str(path), "-of", "COG",
-         "-co", "COMPRESS=DEFLATE", "-co", "PREDICTOR=3", "-co", "BLOCKSIZE=512",
-         "-mo", f"MODE={mode}", "-mo", "BANDS=" + ",".join(BANDS),
-         "-mo", f"KERNEL=exp(-d/{SCALE_KM:.0f}km) to {KERNEL_REACH:.0f}R, one scale for every eruption",
-         "-mo", "UNITS=eruptions of that VEI per year, weighted by the kernel",
-         "-mo", "WINDOWS=" + (json.dumps({k: list(v) for k, v in WINDOWS.items()}) if mode == "windowed"
-                              else "each volcano's own record span, first eruption to 2025"),
-         "-mo", f"UNCERTAIN_WEIGHT={UNCERTAIN_WEIGHT}", "-mo", f"UNKNOWN_VEI_AS={UNKNOWN_VEI_AS}",
-         "-mo", "FLOOR_PRIOR=" + json.dumps(PRIOR),
-         "-mo", "SOURCE=Global Volcanism Program, Smithsonian Institution, Volcanoes of the World v5.2 (2024), CC BY 4.0"],
-        check=True, capture_output=True, text=True)
-    raw.unlink()
+def quadtree(field, vei_max, extra):
+    """The cyclone bake's quadtree over ONE band: blocks merge while the band is
+    flat, never while empty in part, never across two largest-VEI classes."""
+    limit = SPREAD * float(field.max()) if field.max() > 0 else 0.0
+    blocks = []
+
+    def flat(r0, c0, size):
+        block = field[r0:r0 + size, c0:c0 + size]
+        lo, hi = block.min(), block.max()
+        if lo == 0 and hi > 0:
+            return False
+        v = vei_max[r0:r0 + size, c0:c0 + size]
+        return (hi - lo) <= limit and v.min() == v.max()
+
+    def emit(r0, c0, size):
+        if size > FINEST and not flat(r0, c0, size):
+            half = size // 2
+            for dr in (0, half):
+                for dc in (0, half):
+                    emit(r0 + dr, c0 + dc, half)
+            return
+        blocks.append((r0, c0, size))
+
+    for r0 in range(0, NY, COARSEST):
+        for c0 in range(0, NX, COARSEST):
+            emit(r0, c0, COARSEST)
+
+    features = []
+    for r0, c0, size in blocks:
+        sl = (slice(r0, r0 + size), slice(c0, c0 + size))
+        mean = float(field[sl].mean())
+        if mean <= 0:
+            continue
+        north = 90.0 - r0 * STEP
+        south = north - size * STEP
+        west = -180.0 + c0 * STEP
+        east = west + size * STEP
+        props = {
+            "i": len(features), "deg": round(size * STEP, 4),
+            "rate_yr": round(mean, PLACES), "p_yr": round(1.0 - math.exp(-mean), PLACES),
+            "vei_max": int(vei_max[sl].max()),
+        }
+        for name, grid in extra.items():
+            v = grid[sl]
+            props[name] = int(v.max()) if name in ("vents", "prior_only") else round(float(v.mean()), PLACES)
+        # prior-only when EVERY lattice point in the block is reached by a prior alone
+        props["prior_only"] = int(extra["prior_only"][sl].min() == 1)
+        features.append({
+            "type": "Feature", "properties": props,
+            "geometry": {"type": "Polygon", "coordinates": [[
+                [round(west, 4), round(south, 4)], [round(east, 4), round(south, 4)],
+                [round(east, 4), round(north, 4)], [round(west, 4), round(north, 4)],
+                [round(west, 4), round(south, 4)]]]},
+        })
+    return features
+
+
+def write_grid(path, features, mode, band):
+    windows = ({k: list(v) for k, v in WINDOWS.items()} if mode == "windowed"
+               else "each volcano's own record span, first eruption to 2025")
+    grid = {"type": "FeatureCollection",
+            "_source": {**SOURCE, "mode": mode, "band": band, "windows": windows,
+                        "measure": ("eruptions of VEI {} per year near the point".format(band[3:])
+                                    if band.startswith("vei") else "eruptions of any size per year near the point")
+                                   + "; p_yr is 1 - exp(-rate), the chance of at least one in a year"},
+            "features": features}
+    path.write_text(json.dumps(grid, separators=(",", ":")))
+    return path.stat().st_size / 1e6
 
 
 def main(mode) -> int:
@@ -278,20 +339,26 @@ def main(mode) -> int:
               out_of_window, unknown_vei, UNKNOWN_VEI_AS, priors["holocene"], priors["pleistocene"]))
 
     vent_count = np.zeros(cells, dtype=np.float32)
-    for idx, s in vents.items():
-        vent_count[idx] = len(s)
+    for idx, st in vents.items():
+        vent_count[idx] = len(st)
     grids = {f"vei{v}": per_vei[v].reshape(NY, NX) for v in VEIS}
     grids["any"] = per_vei.sum(axis=0).reshape(NY, NX)
-    grids["vei_max"] = vei_max.astype(np.float32).reshape(NY, NX)
-    grids["vents"] = vent_count.reshape(NY, NX)
-    grids["prior_only"] = (prior_cells & ~record_cells).astype(np.float32).reshape(NY, NX)
-    out = OUT[mode]
-    write_cog(out, grids, mode)
+    vmax = vei_max.reshape(NY, NX)
+    extra = {"vents": vent_count.reshape(NY, NX),
+             "prior_only": (prior_cells & ~record_cells).astype(np.float32).reshape(NY, NX)}
+    stem = STEM[mode]
+    # THE COLLECTIVE carries every band's rate as well, so a click on it can
+    # list every size at the point; the frames carry their own band alone.
+    feats_any = quadtree(grids["any"], vmax, {**extra, **{f"vei{v}": grids[f"vei{v}"] for v in VEIS}})
+    mb = write_grid(GLOBAL / f"{stem}.geojson", feats_any, mode, "any")
+    print("  any: {:,} cells, {:.1f} MB".format(len(feats_any), mb))
+    for v in FRAME_VEIS:
+        feats = quadtree(grids[f"vei{v}"], vmax, extra)
+        mb = write_grid(GLOBAL / f"{stem}-vei{v}.geojson", feats, mode, f"vei{v}")
+        print("  vei{}: {:,} cells, {:.1f} MB".format(v, len(feats), mb))
     reached = int((grids["any"] > 0).sum())
-    print("  wrote {} bands, {:.1f} MB -> {}; {:,} of {:,} cells reached ({:.0f}%), "
-          "{:,} by a floor prior alone".format(
-              len(BANDS), out.stat().st_size / 1e6, out.relative_to(ROOT), reached, cells,
-              100 * reached / cells, int(grids["prior_only"].sum())))
+    print("  {:,} of {:,} lattice cells reached ({:.0f}%), {:,} by a floor prior alone".format(
+        reached, cells, 100 * reached / cells, int(extra["prior_only"].sum())))
 
     def at(lat, lon):
         r = int((90.0 - lat) / STEP)
@@ -299,7 +366,7 @@ def main(mode) -> int:
         a = grids["any"][r, c]
         bands = " ".join(f"v{v}:{grids[f'vei{v}'][r, c]:.2g}" for v in VEIS if grids[f"vei{v}"][r, c] > 0)
         return "any {:.4f}/yr (1 in {:,} y) | {} | max {} | {:.0f} vents".format(
-            a, int(round(1 / a)) if a > 0 else 0, bands, int(grids["vei_max"][r, c]), grids["vents"][r, c])
+            a, int(round(1 / a)) if a > 0 else 0, bands, int(vmax[r, c]), extra["vents"][r, c])
     for name, lat, lon in [("Naples", 40.85, 14.27), ("Catania", 37.5, 15.09), ("Tokyo", 35.68, 139.69),
                            ("Yogyakarta", -7.8, 110.37), ("Reykjavik", 64.13, -21.9), ("Manila", 14.6, 120.98),
                            ("Seattle", 47.6, -122.33), ("Paris", 48.86, 2.35), ("Sydney", -33.87, 151.21)]:
