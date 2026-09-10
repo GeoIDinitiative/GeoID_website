@@ -161,6 +161,9 @@
     // clear the temporary selection label and the halo.
     window.GeoIDViewer?.closeCards?.();
     window.GeoIDFeaturePopup?.hidePopup?.();
+    // A time-lapse is a globe layer's: paused here, hidden by its own sheet
+    // while the page has no globe, and found where it was on the way back.
+    window.GeoIDTimelapsePlayer?.pause?.();
   }
 
   function setGisToolboxVisible(visible) {
@@ -268,6 +271,9 @@
   function watchForInteraction() {}
 
   function applyMode(mode) {
+    // The studio's part card lives on `body`, so it outlives the studio unless
+    // it is put away whenever the Model page is not the one up.
+    if (mode !== "model") window.GeoIDMeshStudio?.closePartCard?.();
     // Whichever full-screen page is up takes the switcher with it.
     parkModeSwitch(mode === "model" ? "studio-mode-slot"
       : mode === "research" ? "research-mode-slot"

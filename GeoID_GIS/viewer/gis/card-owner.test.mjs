@@ -85,6 +85,17 @@ ok("the satellites' card claims the tracker's layer", /own\?\.\("viewer", LAYER_
 ok("Earth loads the registry", readFileSync(new URL("../index.html", import.meta.url), "utf-8").includes("gis/card-owner.js"));
 ok("and so do the planets", read("./boot.js").includes('"./card-owner.js"'));
 
+/* ── leaving GIS: what no layer owns, the page switch has to put away ─────── */
+{
+  const mm = read("./mode-manager.js");
+  ok("leaving GIS pauses a running time-lapse", /closeCards\?\.\(\);\s*window\.GeoIDFeaturePopup\?\.hidePopup\?\.\(\);\s*window\.GeoIDTimelapsePlayer\?\.pause\?\.\(\);/.test(mm));
+  ok("and any page but Model closes the studio's part card", /if \(mode !== "model"\) window\.GeoIDMeshStudio\?\.closePartCard\?\.\(\);/.test(mm));
+  const tl = readFileSync(new URL("./timelapse-player.js", import.meta.url), "utf-8");
+  ok("the bar is hidden while a page without a globe is up",
+    /body\.studio-open \.geoid-timelapse, body\.research-open \.geoid-timelapse \{ display: none !important; \}/.test(tl));
+  ok("the studio publishes its part-card closer", /window\.GeoIDMeshStudio = \{[\s\S]{0,400}closePartCard,/.test(read("./model-studio.js")));
+}
+
 process.on("exit", () => {
   failures.forEach((f) => console.log(`   ✗ ${f}`));
   console.log(`\n  ${pass} passed, ${failures.length} failed`);

@@ -29,6 +29,10 @@ const search = new URL(import.meta.url).search;
 
 /** The bar's own furniture. Mind the STYLE literal: no backticks inside it. */
 const STYLE = `
+/* Off the Model and Research pages: the bar plays a GLOBE layer, and those
+   pages show no globe. Hidden rather than closed -- the layer is still loaded,
+   so coming back to GIS finds the bar where it was. */
+body.studio-open .geoid-timelapse, body.research-open .geoid-timelapse { display: none !important; }
 .geoid-timelapse {
   position: fixed; left: 50%; transform: translateX(-50%);
   bottom: 5.6rem; z-index: 24;
@@ -680,6 +684,19 @@ if (typeof window !== "undefined") {
  * tracks dismissed, and unticking the risk then gave the tracks no bar back
  * while they were still on the globe. So the reason travels with the stop.
  */
+/**
+ * Stop playing without closing the bar -- for a page that hides it. A sequence
+ * left running behind the Model page goes on building and swapping frames
+ * nobody can see.
+ */
+export function pausePlayer() {
+  if (state?.playing) play(false);
+}
+
+if (typeof globalThis.window?.addEventListener === "function") {
+  globalThis.window.GeoIDTimelapsePlayer = { pause: pausePlayer };
+}
+
 export function stopPlayer({ reason = "stop" } = {}) {
   if (!state) return;
   window.clearTimeout(state.timer);
