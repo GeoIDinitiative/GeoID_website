@@ -105,14 +105,27 @@ const SLOT_WIDTH = "17.5rem";
  * right-aligned to the rightmost, so it cannot drift from the row it hangs off.
  * Pure, because everything else here needs a document and this is the only
  * part with arithmetic worth pinning.
+ *
+ * AND IT STEPS LEFT OF WHAT IT MUST NOT COVER. Below about 1,000 px the clock
+ * cluster drops under the tool rail, into the column this slot hangs down —
+ * measured at 900 px, the drop-down laid its left 27 px over the clock. An
+ * `avoid` rect reaching below the slot's top and into its width pushes the
+ * slot's right edge to that rect's left, less the gap. The panel's height is
+ * not known here and the panel can be tall, so anything below the top counts.
  */
-export function slotFrom(rects, viewportWidth, gap = SLOT_GAP) {
+export function slotFrom(rects, viewportWidth, gap = SLOT_GAP, avoid = [], width = 280) {
   const seen = (rects || []).filter((r) => r && r.width > 0);
   if (!seen.length) return null;
-  return {
-    top: Math.max(...seen.map((r) => r.bottom)) + gap,
-    right: viewportWidth - Math.max(...seen.map((r) => r.right)),
-  };
+  const top = Math.max(...seen.map((r) => r.bottom)) + gap;
+  let edge = Math.max(...seen.map((r) => r.right));
+  // A DOMRect carries both `left` and `x`; a hand-built one may carry only one.
+  const leftOf = (r) => r.left ?? r.x;
+  const obstacles = (avoid || []).filter((r) => r && r.width > 0 && r.bottom > top)
+    .sort((a, b) => leftOf(b) - leftOf(a));
+  for (const r of obstacles) {
+    if (leftOf(r) < edge && r.right > edge - width) edge = leftOf(r) - gap;
+  }
+  return { top, right: viewportWidth - edge };
 }
 
 /**
@@ -131,7 +144,12 @@ function applySlot() {
     .map((card) => byId(card.id) && !byId(card.id).hidden && byId(card.toggle))
     .filter(Boolean)
     .map((toggle) => toggle.getBoundingClientRect());
-  const slot = slotFrom(rects, window.innerWidth);
+  // The clock cluster, where it has dropped into this column (narrow screens).
+  const clock = byId("top-right-controls");
+  const avoid = clock && window.getComputedStyle(clock).display !== "none"
+    ? [clock.getBoundingClientRect()] : [];
+  const rem = parseFloat(window.getComputedStyle(document.documentElement).fontSize) || 16;
+  const slot = slotFrom(rects, window.innerWidth, SLOT_GAP, avoid, 17.5 * rem);
   if (!slot) return;
   CARDS.forEach((card) => {
     const panel = byId(card.panel);

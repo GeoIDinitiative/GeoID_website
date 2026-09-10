@@ -112,6 +112,25 @@ check("a card that is not up does not drag the slot across the screen", () => {
   ok(slot.top === 51, `top ${slot.top}`);
 });
 
+/**
+ * Below about 1,000 px the clock cluster drops under the tool rail, into the
+ * column the slot hangs down. Measured at 900 px: the drop-down covered the
+ * clock's left 27 px. The slot steps left of it; at desktop width, where the
+ * clock sits nowhere near, nothing moves.
+ */
+check("the slot steps left of the clock it would otherwise cover", () => {
+  const buttons = [rect(601, 16, 101, 29), rect(708, 16, 104, 29)];
+  const clock = rect(774, 89, 119, 47);
+  const slot = stack.slotFrom(buttons, 900, 6, [clock], 280);
+  ok(slot.right === 900 - (774 - 6), `right ${slot.right}`);
+  ok(900 - slot.right <= clock.x - 6, "the panel's right edge clears the clock");
+  const wide = stack.slotFrom([rect(1107, 16, 101, 29), rect(1215, 16, 102, 29)], 1394, 6,
+    [rect(412, 89, 119, 47)], 280);
+  ok(wide.right === 77, `a clock elsewhere moves nothing: ${wide.right}`);
+  const above = stack.slotFrom(buttons, 900, 6, [rect(774, 0, 119, 40)], 280);
+  ok(above.right === 88, `nor one wholly above the slot: ${above.right}`);
+});
+
 check("and with neither up there is no slot to place", () => {
   ok(stack.slotFrom([], 1394) === null, "nothing");
   ok(stack.slotFrom([rect(0, 0, 0, 0)], 1394) === null, "nor from an empty rect");
