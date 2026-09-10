@@ -20,22 +20,23 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260910-2ab25a6";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260910-2ab25a6";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260910-2e8e8d8";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260910-2e8e8d8";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20260910-2ab25a6";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260910-2ab25a6";
-import { lithologyLabel } from "./lithology-label.js?v=20260910-2ab25a6";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260910-2ab25a6";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260910-2ab25a6";
-import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260910-2ab25a6";
-import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20260910-2ab25a6";
-import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js?v=20260910-2ab25a6";
-import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260910-2ab25a6";
+} from "./vector-render.js?v=20260910-2e8e8d8";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260910-2e8e8d8";
+import { lithologyLabel } from "./lithology-label.js?v=20260910-2e8e8d8";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260910-2e8e8d8";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260910-2e8e8d8";
+import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260910-2e8e8d8";
+import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20260910-2e8e8d8";
+import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js?v=20260910-2e8e8d8";
+import { isEarthquakeFeature, earthquakeCard } from "./earthquake-card.js?v=20260910-2e8e8d8";
+import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260910-2e8e8d8";
 import {
   canEditRow, editableFields, applyRowChange,
-} from "./table-editor.js?v=20260910-2ab25a6";
+} from "./table-editor.js?v=20260910-2e8e8d8";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -994,7 +995,36 @@ function showViewerCard(hits, at) {
    * `volcanic-zone-card.js` carries Etna Explorer's zone text.
    */
   const zone = !ice && !soil && !risk && isZoneFeature(props) ? zoneCard(props) : null;
-  const feature = zone ? {
+  /**
+   * And an earthquake, the fifth: headed "CONTINENTAL" — the crust classifier
+   * answering from the ELEVATION about a hypocentre — and titled "Mapped
+   * point", the geometry noun, which is true of every point on the globe. The
+   * magnitude and the year lead the card now, because that is what the click
+   * was for. Recognised by `mag_best`, which only the merged bake writes.
+   */
+  const quake = !ice && !soil && !risk && !zone && isEarthquakeFeature(props)
+    ? earthquakeCard(props) : null;
+  const feature = quake ? {
+    // The same flag the other four set, read the same way: it is what stops
+    // `earth-viewer.js` re-deriving a heading, and what keeps the
+    // rock-property fold off a point that is not made of anything.
+    soil: true,
+    type: quake.kicker,
+    rock_type: quake.title,
+    lithology: null,
+    name: null,
+    description: quake.meta,
+    extra_rows: quake.headline,
+    origin: quake.source,
+    mapped_area_km2: null,
+    // The columns the lines above have already said, in their own words.
+    rows: [["Note", quake.note],
+      ...rows.filter(([key]) => !/^(mag|mag_best|magType|mw|time|year|place|id|depth_km|historical)$/i.test(key))],
+    stack: beneath.map(({ layer, feature: f }) => ({
+      label: layer.name || "Layer",
+      unit: titleOf(f.properties || {}) || featureKind(f, layer),
+    })),
+  } : zone ? {
     soil: true,
     type: zone.kicker,
     rock_type: zone.title,

@@ -114,7 +114,12 @@ check("every Holocene volcano is buffered by default", () => {
   check("and the click path uses it, before the generic card", () => {
     const popup = readFileSync(new URL("./feature-popup.js", import.meta.url), "utf8");
     ok(/isZoneFeature\(props\) \? zoneCard\(props\) : null/.test(popup), "built from the feature");
-    ok(/const feature = zone \? \{/.test(popup), "and mapped ahead of the rock card");
+    /* Mapped ahead of the GENERIC card, not first in the chain: specialised
+       cards are added to that run over time and each new one lands at its
+       head, so pinning "zone is first" fails the day a fifth is written --
+       which is exactly what the earthquake card did. What matters is that the
+       zone branch is in the chain at all, and so before the fallthrough. */
+    ok(/[=:]\s*zone \? \{/.test(popup), "and mapped ahead of the rock card");
   });
 }
 
