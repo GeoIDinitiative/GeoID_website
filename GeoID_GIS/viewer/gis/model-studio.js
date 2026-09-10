@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260911-8655707";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260911-8655707";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260911-da2bfde";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260911-da2bfde";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260911-8655707";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260911-8655707";
-import { downloadText } from "./extraction.js?v=20260911-8655707";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260911-8655707";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260911-8655707";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260911-8655707";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260911-8655707";
-import { femSpec } from "./model-build.js?v=20260911-8655707";
+} from "./mesh-volume.js?v=20260911-da2bfde";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260911-da2bfde";
+import { downloadText } from "./extraction.js?v=20260911-da2bfde";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260911-da2bfde";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260911-da2bfde";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260911-da2bfde";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260911-da2bfde";
+import { femSpec } from "./model-build.js?v=20260911-da2bfde";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -390,6 +390,22 @@ function refreshStudioScale() {
     mesh.userData.baseScale = normalising;
   });
   updateGround();
+}
+
+/** The meshed result's display, and its Workspace row, off the page. */
+function removeMeshView() {
+  const view = state.meshView;
+  state.meshView = null;
+  if (!view) return;
+  const im = window.GeoIDImportManager;
+  const layer = (im?.getLayers?.() || []).find((l) => l.object3D === view);
+  if (layer && im?.removeLayer) {
+    try { im.removeLayer(layer.id); } catch (e) { /* fall through to the scene */ }
+  }
+  view.parent?.remove(view);
+  view.geometry?.dispose?.();
+  view.material?.dispose?.();
+  studioMeshes.delete(view);
 }
 
 function displayMesh(positions, name, color, { opacity = 1, renderOrder = 0 } = {}) {
@@ -2091,7 +2107,11 @@ function meshModel(dim) {
     const counts = elementCounts(result.nodes, result.tets, surface);
     // 1D/2D requests still mesh the volume (the lattice is inherently 3D) but
     // only the boundary is shown, matching what those buttons display.
-    displayMesh(surface, `mesh_${dim}d_${counts.tetrahedra}`, 0xc9b79c);
+    // ONE mesh on screen: each press used to add another display over the last,
+    // so hiding one still showed the one under it.
+    removeMeshView();
+    state.meshView = displayMesh(surface, `mesh_${dim}d_${counts.tetrahedra}`, 0xc9b79c);
+    renderVisibilityBox();
     byId("studio-mesh-info").innerHTML =
       `<strong>${counts.tetrahedra.toLocaleString()}</strong> tets · `
       + `${counts.nodes.toLocaleString()} nodes · ${counts.boundaryTriangles.toLocaleString()} tris`;
@@ -2666,6 +2686,7 @@ const ACTIONS = {
     state.history.length = 0;
     state.selection.clear();
     state.mesh = null;
+    removeMeshView();
     studioMeshes.clear();
     refreshStudioScale();
     renderModelTree(); renderFields(); renderHistory(); renderSelection(); renderDomainsPanel();
@@ -2881,6 +2902,9 @@ function init() {
   byId("studio-mesh2d")?.addEventListener("click", () => meshModel(2));
   byId("studio-mesh3d")?.addEventListener("click", () => meshModel(3));
   byId("studio-clear-mesh")?.addEventListener("click", () => {
+    // Clearing a mesh takes its picture off too; it used to leave it drawn.
+    removeMeshView();
+    renderVisibilityBox();
     state.mesh = null;
     byId("studio-mesh-info").textContent = "No mesh.";
     byId("studio-quality").hidden = true;
@@ -3591,7 +3615,35 @@ function partVisible(part, on) {
  */
 const domainOpen = new Map();
 
+/**
+ * THE DOMAINS, as one list both the Domains panel and the visibility box read,
+ * so the two cannot disagree about what a domain is or which parts it holds:
+ * the GIS terrain's four (subsurface, atmosphere, surface, embedded points),
+ * then every studio entity, then the studio's own points. Each carries the
+ * parts it owns; a domain with none is left out.
+ */
+function domainGroups() {
+  const parts = allParts();
+  const F = gisTerrain?.flags || { subsurface: 10, atmosphere: 11, terrain: 1, points: 20 };
+  const domains = [];
+  if (gisTerrain?.parts?.length) {
+    domains.push(["subsurface", "Subsurface", F.subsurface], ["atmosphere", "Atmosphere", F.atmosphere],
+      ["surface", "Surface", F.terrain], ["points", "Embedded points", F.points]);
+  }
+  state.solids.forEach((e) => {
+    if (!e.parts?.length) return;
+    const label = e.kind === "atmosphere" ? "Atmosphere" : `Volume ${e.id} · ${PRIMITIVES[e.kind]?.label ?? e.kind}${e.op === "difference" ? " (cut)" : ""}`;
+    domains.push([`solid:${e.id}`, label, e.flags?.volume, e]);
+  });
+  if (state.pointParts?.length) domains.push(["spoints", "Embedded points", 20]);
+  return domains
+    .map(([id, title, flag, solid]) => ({ id, title, flag, solid, parts: parts.filter((p) => p.domain === id) }))
+    .filter((g) => g.parts.length);
+}
+
 function renderDomainsPanel() {
+  // The visibility box reads the same parts, so it follows every change here.
+  renderVisibilityBox();
   const pane = document.querySelector('.studio-pane[data-pane="model"]');
   if (!pane) return;
   let host = byId("studio-domains");
@@ -3606,20 +3658,7 @@ function renderDomainsPanel() {
   host.hidden = !parts.length;
   if (!parts.length) return;
   const F = gisTerrain?.flags || { subsurface: 10, atmosphere: 11, terrain: 1, points: 20 };
-  const domains = [];
-  if (gisTerrain?.parts?.length) {
-    domains.push(["subsurface", "Subsurface", F.subsurface], ["atmosphere", "Atmosphere", F.atmosphere],
-      ["surface", "Surface", F.terrain], ["points", "Embedded points", F.points]);
-  }
-  state.solids.forEach((e) => {
-    if (!e.parts?.length) return;
-    const label = e.kind === "atmosphere" ? "Atmosphere" : `Volume ${e.id} · ${PRIMITIVES[e.kind]?.label ?? e.kind}${e.op === "difference" ? " (cut)" : ""}`;
-    domains.push([`solid:${e.id}`, label, e.flags?.volume, e]);
-  });
-  if (state.pointParts?.length) domains.push(["spoints", "Embedded points", 20]);
-  domains.forEach(([id, title, flag, solid]) => {
-    const own = parts.filter((p) => p.domain === id);
-    if (!own.length) return;
+  domainGroups().forEach(({ id, title, flag, solid, parts: own }) => {
     const details = document.createElement("details");
     details.className = "gis-tool-section";
     // Collapsed until it is asked for: a domain is four to eight rows and a
@@ -3720,6 +3759,168 @@ function renderDomainsPanel() {
 function closePartCard() {
   const card = byId("studio-part-card");
   if (card) card.remove();
+}
+
+/**
+ * THE VISIBILITY BOX: the model page's Workspace. A tile on the right, the
+ * mirror of the deck on the left, built from the Workspace tile's own classes
+ * (the head, the disclosure, the eye, the row) so the two pages' boxes are one
+ * object seen twice. A row per domain -- an eye with three states, like a Live
+ * events group -- whose disclosure opens the domain's own surfaces and points,
+ * each with an eye of its own; a name opens that part's card. The meshed
+ * result is a row too, because hiding it is how the surfaces under it are seen.
+ *
+ * ONE STATE: every eye commits through `partVisible`, the same call the
+ * Domains panel's ticks and the part card make, and every render reads the
+ * state back off the meshes -- nothing here remembers what was last pressed.
+ */
+const visOpen = new Set();
+const VIS_FOLD_KEY = "geoid-studio:visibility-collapsed";
+
+function visibilityGroups() {
+  const groups = domainGroups();
+  const view = state.meshView;
+  if (view?.parent) {
+    groups.push({
+      id: "mesh", title: "Mesh", mesh: true,
+      parts: [{ id: "mesh", name: "Mesh boundary", face: "boundary", kind: "mesh", mesh: view, colour: 0xc9b79c }],
+    });
+  }
+  return groups;
+}
+
+function renderVisibilityBox() {
+  const root = byId("model-studio");
+  if (!root) return;
+  let box = byId("studio-visibility");
+  if (!box) {
+    box = document.createElement("section");
+    box.id = "studio-visibility";
+    box.className = "studio-visbox";
+    box.innerHTML = `
+      <header class="section-toggle layer-dock-head" role="button" tabindex="0"
+        aria-controls="studio-visibility-body" aria-expanded="true">
+        <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M1.6 8s2.4-4.4 6.4-4.4S14.4 8 14.4 8s-2.4 4.4-6.4 4.4S1.6 8 1.6 8Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><circle cx="8" cy="8" r="1.9" fill="none" stroke="currentColor" stroke-width="1.2"/></svg></span><span>VISIBILITY</span></span></div>
+      </header>
+      <div class="layer-dock-body studio-vis-body" id="studio-visibility-body"></div>`;
+    const head = box.querySelector("header");
+    const fold = (collapsed) => {
+      box.classList.toggle("is-collapsed", collapsed);
+      head.setAttribute("aria-expanded", collapsed ? "false" : "true");
+      try { localStorage.setItem(VIS_FOLD_KEY, collapsed ? "1" : "0"); } catch (e) { /* per-viewer only */ }
+    };
+    head.addEventListener("click", () => fold(!box.classList.contains("is-collapsed")));
+    head.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      event.stopPropagation();
+      fold(!box.classList.contains("is-collapsed"));
+    });
+    let stored = false;
+    try { stored = localStorage.getItem(VIS_FOLD_KEY) === "1"; } catch (e) { /* storage refused */ }
+    box.classList.toggle("is-collapsed", stored);
+    head.setAttribute("aria-expanded", stored ? "false" : "true");
+    root.appendChild(box);
+  }
+  const body = box.querySelector(".studio-vis-body");
+  const groups = visibilityGroups();
+  box.hidden = !groups.length;
+  body.textContent = "";
+  if (!groups.length) return;
+  const stack = document.createElement("div");
+  stack.className = "layer-stack";
+  const hex = (c) => `#${Number(c || 0).toString(16).padStart(6, "0")}`;
+  const eye = (checked, title, onChange, indeterminate = false) => {
+    const label = document.createElement("label");
+    label.className = "layer-eye";
+    label.title = title;
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = checked;
+    input.indeterminate = indeterminate;
+    input.setAttribute("aria-label", title);
+    input.addEventListener("change", () => onChange(input.checked));
+    label.appendChild(input);
+    return label;
+  };
+  const swatch = (colour) => {
+    const s = document.createElement("span");
+    s.className = "studio-vis-swatch";
+    s.style.background = hex(colour);
+    return s;
+  };
+  groups.forEach((group) => {
+    const own = group.parts;
+    const shown = own.filter((p) => p.mesh.visible !== false).length;
+    const row = document.createElement("div");
+    row.className = "layer-row studio-vis-row";
+    row.dataset.domain = group.id;
+    const open = visOpen.has(group.id);
+    const disclose = document.createElement("button");
+    disclose.type = "button";
+    disclose.className = "layer-disclose";
+    disclose.setAttribute("aria-expanded", open ? "true" : "false");
+    disclose.title = open ? `Hide the parts of ${group.title}` : `Show the parts of ${group.title}`;
+    disclose.setAttribute("aria-label", disclose.title);
+    disclose.innerHTML = `<span aria-hidden="true">▾</span>`;
+    disclose.addEventListener("click", () => {
+      if (visOpen.has(group.id)) visOpen.delete(group.id); else visOpen.add(group.id);
+      renderVisibilityBox();
+    });
+    const master = eye(shown === own.length, `Show or hide ${group.title}`, (on) => {
+      own.forEach((p) => partVisible(p, on));
+      renderDomainsPanel();
+    }, shown > 0 && shown < own.length);
+    const name = document.createElement("span");
+    name.className = "layer-name";
+    name.textContent = group.title;
+    name.title = group.title;
+    const count = document.createElement("span");
+    count.className = "studio-vis-count";
+    count.textContent = `${shown}/${own.length}`;
+    count.title = `${shown} of ${own.length} part${own.length === 1 ? "" : "s"} shown`;
+    row.append(disclose, master, swatch(group.solid ? own[0].colour : own[0].colour), name, count);
+    row.classList.toggle("is-off", shown === 0);
+    stack.appendChild(row);
+    if (!open) return;
+    const kids = document.createElement("div");
+    kids.className = "studio-vis-children";
+    own.forEach((part) => {
+      const on = part.mesh.visible !== false;
+      const child = document.createElement("div");
+      child.className = "layer-row studio-vis-part";
+      child.classList.toggle("is-off", !on);
+      const label = part.face && part.kind !== "surface" ? part.face : part.name;
+      const partName = document.createElement("span");
+      partName.className = "layer-name";
+      partName.textContent = label;
+      partName.title = part.name;
+      if (!group.mesh) {
+        partName.classList.add("is-link");
+        partName.tabIndex = 0;
+        partName.setAttribute("role", "button");
+        const card = (event) => {
+          event.stopPropagation();
+          const r = child.getBoundingClientRect();
+          // The card opens BESIDE the box, on the side with room: the box is
+          // against the right edge, so that is the left.
+          showPartCard(part, Math.max(8, r.left - 300), r.top);
+          if (part.solidId !== null && part.solidId !== undefined) setSelection([part.solidId]);
+        };
+        partName.addEventListener("click", card);
+        partName.addEventListener("keydown", (event) => { if (event.key === "Enter") card(event); });
+      }
+      const flag = document.createElement("span");
+      flag.className = "studio-vis-count";
+      flag.textContent = Number.isFinite(part.flag) ? `#${part.flag}` : "";
+      if (flag.textContent) flag.title = `Physical flag ${part.flag}`;
+      child.append(eye(on, `Show or hide ${part.name}`, (v) => { partVisible(part, v); renderDomainsPanel(); }),
+        swatch(part.colour), partName, flag);
+      kids.appendChild(child);
+    });
+    stack.appendChild(kids);
+  });
+  body.appendChild(stack);
 }
 
 /**

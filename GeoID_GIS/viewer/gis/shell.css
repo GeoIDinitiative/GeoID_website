@@ -2309,3 +2309,126 @@ html.gis-arranging #layer-dock {
    tab computes as the accent in both states and nothing is drawn. Measured,
    open and shut.) */
 
+
+/* THE VISIBILITY BOX: the model page's Workspace. The tile on the right, the
+   mirror of the deck on the left -- same top, same cap above the worlds strip,
+   shrink-wrapped to what it holds -- in the Workspace tile's own frame, head
+   and chevron, with the Workspace's own row, disclosure and eye inside it. */
+#model-studio .studio-visbox {
+  position: absolute;
+  top: calc(var(--studio-chrome-h, 5rem) + 1.4rem);
+  right: 1rem;
+  z-index: 4;
+  width: min(19rem, calc(100vw - 27rem));
+  max-height: calc(100% - var(--studio-chrome-h, 5rem) - 1.4rem - 3.2rem);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.55);
+  border-radius: 0.6rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 18%),
+    linear-gradient(180deg, var(--mars-panel-top), var(--mars-panel-bottom)),
+    var(--panel);
+  box-shadow:
+    0 0 24px -6px rgba(var(--nav-accent-rgb), 0.45),
+    0 12px 28px rgba(0, 0, 0, 0.42),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+  overflow: hidden;
+}
+#model-studio .studio-visbox[hidden] { display: none; }
+#model-studio .studio-visbox > .layer-dock-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  min-height: 2.1rem;
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+  background: linear-gradient(180deg,
+    rgba(var(--nav-accent-rgb), 0.20), rgba(var(--nav-accent-rgb), 0.05));
+  border: 0;
+  border-bottom: 1px solid rgba(var(--nav-accent-rgb), 0.4);
+  box-shadow: none;
+}
+#model-studio .studio-visbox > .layer-dock-head:hover {
+  background: linear-gradient(180deg,
+    rgba(var(--nav-accent-rgb), 0.3), rgba(var(--nav-accent-rgb), 0.08));
+}
+#model-studio .studio-visbox > .layer-dock-head::after { content: none !important; }
+#model-studio .studio-visbox > .layer-dock-head::before {
+  content: "\203A";
+  flex: 0 0 auto;
+  width: 0.7rem;
+  margin-right: 0.15rem;
+  text-align: center;
+  font-size: 1.15rem;
+  line-height: 1;
+  color: rgba(var(--nav-accent-rgb), 0.9);
+  transform: rotate(90deg);
+  transition: transform 0.15s ease;
+}
+#model-studio .studio-visbox.is-collapsed > .layer-dock-head::before { transform: rotate(0deg); }
+#model-studio .studio-visbox.is-collapsed > .layer-dock-head { border-bottom-color: transparent; }
+#model-studio .studio-visbox > .layer-dock-head .section-title {
+  font-family: "Exo 2", "Segoe UI", sans-serif;
+  font-weight: 600;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text) !important;
+  text-shadow: none !important;
+}
+#model-studio .studio-visbox > .layer-dock-head .section-icon { color: rgb(var(--nav-accent-rgb)) !important; }
+#model-studio .studio-visbox > .layer-dock-head .section-title-row { display: inline-flex; align-items: center; gap: 0.55rem; }
+#model-studio .studio-visbox .studio-vis-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+  padding: 0.45rem 0.55rem 0.55rem;
+}
+#model-studio .studio-visbox.is-collapsed .studio-vis-body { display: none; }
+#model-studio .studio-visbox .layer-stack { display: flex; flex-direction: column; gap: 0.25rem; margin: 0; }
+/* Five columns: disclosure, eye, swatch, name, count. The name gives way. */
+#model-studio .studio-visbox .layer-row {
+  grid-template-columns: auto auto auto minmax(0, 1fr) auto;
+  gap: 0.4rem;
+  padding: 0.2rem 0.3rem;
+  font-size: 0.66rem;
+  cursor: default;
+}
+/* A part hangs under its domain, indented by the disclosure's own width, with
+   the domain's frame dropped so the two tiers read as one tree. */
+#model-studio .studio-visbox .studio-vis-children {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: -0.1rem 0 0.15rem 1.45rem;
+  padding-left: 0.4rem;
+  border-left: 1px solid rgba(var(--nav-accent-rgb), 0.3);
+}
+#model-studio .studio-visbox .studio-vis-part {
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  background: transparent;
+  border-color: transparent;
+  padding: 0.1rem 0.25rem;
+}
+#model-studio .studio-visbox .studio-vis-part:hover { border-color: rgba(var(--skin-data-rgb), 0.22); }
+#model-studio .studio-visbox .studio-vis-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+#model-studio .studio-visbox .studio-vis-count {
+  color: var(--soft-light);
+  font-size: 0.6rem;
+  font-variant-numeric: tabular-nums;
+}
+#model-studio .studio-visbox .layer-name.is-link { cursor: pointer; }
+#model-studio .studio-visbox .layer-name.is-link:hover,
+#model-studio .studio-visbox .layer-name.is-link:focus-visible { color: rgb(var(--nav-accent-rgb)); outline: none; }
+/* Hidden reads as hidden: the name and swatch fade, the eye says the rest. */
+#model-studio .studio-visbox .is-off .layer-name,
+#model-studio .studio-visbox .is-off .studio-vis-swatch { opacity: 0.45; }
