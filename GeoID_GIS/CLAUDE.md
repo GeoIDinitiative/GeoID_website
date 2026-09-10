@@ -17262,3 +17262,60 @@ groups and a `show` reads.
 All six files are in R2 (`rclone check`: **6 matching files, 0 differences**),
 served with the bucket's fingerprint — the record fetched live from
 `data.geoidinitiative.com/earthquakes.geojson?v=175241fb729c`.
+
+### A seismic point said "mapped point", because the generic card had only geometry
+
+Clicking an event of the merged record opened the fall-through card: kicker
+**CONTINENTAL** (`crustalSetting` answering from the elevation), title
+**Mapped point**, and the magnitude, the year and the place — the three things
+the click was for — nowhere on the face. Everything the card said was true of
+any point on that hemisphere and nothing was about the earthquake.
+
+`earthquake-card.js` is the FIFTH self-writing card in this tree (after ice,
+soil, the volcanic zone and the cyclone cell), and it exists for the same
+reason each of those does: what the generic card derives is derived about the
+GROUND, and an epicentre is an event that happened over ground rather than a
+property of it.
+
+- **The title leads with the magnitude and the year** — `M 7.9 — 1923` — and
+  the place is the line under it, because "which earthquake" is answered by
+  those two and a place name is how you recognise it afterwards.
+- **`mag_best` is the discriminator**, and it is the one column only the
+  merged bake writes. A risk CELL carries `mag_max` and rates; the LIVE USGS
+  feed carries `mag` and `time` and has its own card with a seismogram on it.
+  Testing on `mag` alone would have taken the live feed's cards over.
+- **The magnitude row says which SCALE**, and names both where they differ.
+  82% of modern ComCat at this threshold is body-wave mb, which saturates near
+  6 — a card showing one number without saying what it is on hides the most
+  consequential thing about this record. ISC-GEM's Mw is named as ISC-GEM's;
+  ComCat's own appears only where it disagrees, because repeating 7.9 against
+  7.94 is a row that says nothing.
+- **No clock on a historical one.** GEM gives a year and often a month and
+  day; where its source gave neither the bake wrote 1 January, so a time
+  against a 1008 event is a reading nobody took. The row says "as the
+  historical record gives it" instead, and the kicker reads HISTORICAL
+  EARTHQUAKE.
+- **`soil: true`** is the established seam meaning "this card wrote its own
+  lines": it stops `earth-viewer` re-deriving a kicker and a title from the
+  elevation and keeps the rock-property fold off a point made of nothing.
+
+**A specialised card accretes at the HEAD of the dispatch chain**, so
+`volcanic-hazards.test.mjs`'s pin on `const feature = zone ? {` broke the
+moment the quake branch went in front of it. Loosened to `/[=:]\s*zone \? \{/`
+with the reason written beside it — a pin that names its neighbour is a pin
+that fails on the next neighbour.
+
+**`featuresAt(lat, lon)` takes COORDINATES, not pixels**, and it cost most of
+a verification. Fed screen coordinates it answers null at the exact pixel of
+an event and — worse — answered a real feature at one other pixel by accident
+of the wrap arithmetic, which reads as "the picker works here and not there"
+and sends the hunt into the renderer. Read the signature before probing a
+picker.
+
+Verified by REAL clicks on 8125, both variants: an instrumental one reading
+**"EARTHQUAKE / M 4.5 — 2006 / 34 km E of Kýthira, Greece"** with When,
+Magnitude `4.5 md`, Depth `64.0 km — shallow`, the ComCat catalogue line and
+its event id; and a historical one reading **"HISTORICAL EARTHQUAKE / M 7.0 —
+1008 / Dinavar"**, When `27 Apr 1008 — as the historical record gives it`,
+Magnitude `7.0 s`, no depth row (GHEC has none), and GEM's citation with its
+CC BY-SA 3.0.
