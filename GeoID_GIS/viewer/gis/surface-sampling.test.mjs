@@ -201,6 +201,20 @@ check("the TIN builds", tin.ok, tin.message);
   const page = readFileSync(new URL("../index.html", import.meta.url), "utf8");
   check("the studio offers no stars, and a grid that can be switched off", !/data-toggle="stars"/.test(page) && /data-toggle="grid"/.test(page) && /setStarsVisible\(false\);/.test(studio) && /which === "grid"/.test(studio));
   check("the studio's readout reads the surface, not the air, in degrees east", /if \(gisTerrain\?\.skin\?\.visible\) targets\.push\(gisTerrain\.skin\);/.test(studio) && /h\.object\.material\.opacity < 1\)\)/.test(studio) && /const lonEast = \(\(geo\.lon % 360\) \+ 360\) % 360;/.test(studio));
+  {
+    const shell = readFileSync(new URL("./shell.html", import.meta.url), "utf8");
+    const studioSection = (html) => html.slice(html.indexOf('<section id="model-studio"'), html.indexOf("</section>", html.indexOf('<section id="model-studio"')));
+    const earth = studioSection(page); const planets = studioSection(shell);
+    check("the studio has ONE ribbon of menus, not two toolbars, and no Atlas box", /id="studio-ribbon"/.test(earth) && !/studio-toolbar-main|studio-toolbars|id="studio-ai"/.test(earth) && ["file", "edit", "boolean", "export"].every((m) => earth.includes(`data-menu="${m}"`)));
+    check("every action the old toolbar had is in a menu", ["new", "open", "save", "undo", "redo", "import-cad", "import-xyz", "fuse", "cut", "intersect", "fragment", "transform", "delete", "export-script", "mesh-gmsh", "to-gales", "to-explorer", "save-template", "snapshot"].every((a) => earth.includes(`data-act="${a}"`)));
+    check("the ribbon and both decks fold", /class="studio-ribbon-fold"/.test(earth) && /data-fold="left"/.test(earth) && /data-fold="right"/.test(earth));
+    check("the planets' studio is the same markup as Earth's", earth === planets);
+    check("the studio wires every [data-act] on the page, folds the decks and cards the sections", /#model-studio \[data-act\]/.test(studio) && /function wireRibbonAndFolds\(\)/.test(studio) && /function foldPaneSections\(\)/.test(studio) && /--studio-ribbon-h/.test(studio) && /buildFromText,/.test(studio));
+    const css = readFileSync(new URL("../styles.css", import.meta.url), "utf8"); const shellCss = readFileSync(new URL("./shell.css", import.meta.url), "utf8");
+    check("both stylesheets carry the studio's accent chrome and the same block", /Meshing Studio, in the GIS page's own chrome/.test(css) && /Meshing Studio, in the GIS page's own chrome/.test(shellCss) && css.slice(css.indexOf("Meshing Studio, in the GIS page's own chrome")) === shellCss.slice(shellCss.indexOf("Meshing Studio, in the GIS page's own chrome")));
+    const atlas = readFileSync(new URL("./atlas-assistant.js", import.meta.url), "utf8");
+    check("Atlas takes the build-a-volcano phrase the studio's box used to", /studio\.buildFromText\(question\)/.test(atlas));
+  }
   check("every domain is its flagged faces, each a part with a row and a card", /function renderDomainsPanel/.test(studio) && /function showPartCard/.test(studio) && /\.studio-pane\[data-pane="model"\]/.test(studio) && /master\.indeterminate = shown > 0 && shown < own\.length;/.test(studio) && /\["sides", "wall", 0xa8703f, F\.sides_below/.test(studio) && /\["sky", "lid", 0x9fd8ff, F\.sky/.test(studio));
   check("embedded points are drawn and described", /id: `point:\$\{i\}`, name: `Point — \$\{p\.name\}`/.test(studio) && /flags: \{ \.\.\.state\.flags \},/.test(pipeline));
   check("a click in the view asks the parts before the solids", /const part = partAt\(event\.clientX, event\.clientY\);\n    if \(part\) \{\n      showPartCard/.test(studio));

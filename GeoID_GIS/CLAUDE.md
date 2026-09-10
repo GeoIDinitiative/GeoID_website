@@ -16684,3 +16684,36 @@ drawn on the globe with a key by size (8 m, 20 m), the cap set to 300 from
 the panel, and the emitted 2D script carrying MathEval+Threshold,
 Distance(CurvesList by flag 1)+Threshold, Ball, Min(2, 4, 5) as background,
 the three sources off, cap 300 and the auto floor 4 (half the smallest).
+
+### The Meshing Studio's chrome is the GIS page's
+
+"The formatting, theme and arrangement of the model page's tabs is
+underdeveloped — two tab bars along the central header; remove the Ask
+Atlas input; allow all the tab bars to expand/collapse; consistent theme
+with the main GIS page." Four changes, one markup for both pages:
+
+- **One RIBBON, not two toolbars.** The nineteen actions are four menus —
+  File, Edit, Boolean, Export — beside the view controls (Pick, Edges, Grid,
+  Wire, Gizmo, Fit/X/Y/Z/Iso, Clip). A menu opens one at a time and shuts on
+  an action, a click elsewhere or Escape; the ribbon folds to a pill. The
+  decks hang under it at whatever height it wraps to (`--studio-ribbon-h`,
+  kept true by a ResizeObserver) rather than at a constant written for two
+  rows.
+- **Every strip folds.** Each deck has a fold button in its tab strip that
+  drops it to its tabs (a tab press unfolds it); every section inside a pane
+  is the sidebar's own `gis-tool-section` card, wrapped at boot from the
+  group titles (`foldPaneSections`, ids untouched so `byId` still finds every
+  control); ribbon, decks and sections are remembered in
+  `geoid-studio:folds`.
+- **The accent is the chrome.** Frames, tab strips and menus carry the nav
+  bar's magenta — the tiles wore the skin's cyan, which the legend fix
+  already recorded as "this box is a reading". Tab strips speak the sub-tab
+  voice (Exo 2, 600, uppercase, letterspaced) and the active tab is the
+  accent filled solid with dark ink, as an open tab is. The styles are ONE
+  block appended to both stylesheets and pinned equal, because the planets'
+  copy of the studio markup had already drifted (it still offered Stars and
+  Ground); the markup is regenerated into `index.html` and `gis/shell.html`
+  from one template and pinned equal too.
+- **The Atlas box is gone.** Its phrase matcher is `buildFromText` on the
+  studio seam, and the Atlas launcher's grounded layer answers "build a
+  volcano with a chamber" by switching to the model page and calling it.

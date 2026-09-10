@@ -25,13 +25,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260910-3907c30-hazard-readout-large">
+  <link rel="stylesheet" href="styles.css?v=20260910-a28b229-hazard-readout-large">
   <style>html,body{background:#000;margin:0}</style>
   <link rel="stylesheet" href="/styles/viewer-skin.css">
   <link rel="stylesheet" href="/styles/viewer-themes.css">
   <script src="/scripts/theme.js"></script>
-  <script src="/scripts/tour-enter.js?v=20260910-3907c30" defer></script>
-  <script src="/scripts/ui-sound.js?v=20260910-3907c30" defer></script>
+  <script src="/scripts/tour-enter.js?v=20260910-a28b229" defer></script>
+  <script src="/scripts/ui-sound.js?v=20260910-a28b229" defer></script>
 </head>
 <!-- `sidebar-arranging` is set here, in the markup, rather than by a script:
      the panels below are written in source order, and GIS mode rearranges them
@@ -1281,47 +1281,66 @@
       <span class="studio-status" id="studio-status"></span>
     </div>
 
-    <div class="studio-toolbars">
-    <div class="studio-toolbar" id="studio-toolbar-main">
-      <button class="studio-btn" data-act="new" title="Clear the model and start over">New</button>
-      <button class="studio-btn" data-act="open" title="Open a studio project (.msproj.json)">Open</button>
-      <button class="studio-btn" data-act="save" title="Save the project (full edit history)">Save</button>
+    <!-- ONE RIBBON, not two toolbars: the actions as four menus (File, Edit,
+         Boolean, Export) and the view controls beside them, foldable to a
+         pill. The Atlas box is gone -- the Atlas launcher bottom-right takes
+         "build a volcano with a chamber" now. -->
+    <div class="studio-ribbon" id="studio-ribbon">
+      <div class="studio-menu" data-menu="file">
+        <button class="studio-menu-btn" type="button" aria-expanded="false">File</button>
+        <div class="studio-menu-pop" role="menu">
+          <button class="studio-btn" data-act="new" title="Clear the model and start over">New</button>
+          <button class="studio-btn" data-act="open" title="Open a studio project (.msproj.json)">Open&hellip;</button>
+          <button class="studio-btn" data-act="save" title="Save the project (full edit history)">Save</button>
+          <span class="studio-sep"></span>
+          <button class="studio-btn" data-act="import-cad" title="STL / MSH / OBJ / PLY via merge">Import CAD&hellip;</button>
+          <button class="studio-btn" data-act="import-xyz" title="Point data to terrain surface or solid volume">Import XYZ&hellip;</button>
+          <span class="studio-sep"></span>
+          <button class="studio-btn" data-act="save-template" title="Save this model's op history as a reusable template">Save as template</button>
+          <button class="studio-btn" data-act="snapshot" title="Save a PNG of the viewport">Snapshot</button>
+        </div>
+      </div>
+      <div class="studio-menu" data-menu="edit">
+        <button class="studio-menu-btn" type="button" aria-expanded="false">Edit</button>
+        <div class="studio-menu-pop" role="menu">
+          <button class="studio-btn" data-act="undo">Undo</button>
+          <button class="studio-btn" data-act="redo">Redo</button>
+          <span class="studio-sep"></span>
+          <button class="studio-btn" data-act="transform" title="Translate / rotate / scale the selection">Transform&hellip;</button>
+          <button class="studio-btn" data-act="delete">Delete</button>
+        </div>
+      </div>
+      <div class="studio-menu" data-menu="boolean">
+        <button class="studio-menu-btn" type="button" aria-expanded="false">Boolean</button>
+        <div class="studio-menu-pop" role="menu">
+          <button class="studio-btn" data-act="fuse" title="Fuse: first entity is the object, the rest are tools">Fuse</button>
+          <button class="studio-btn" data-act="cut" title="Cut: subtract the tools from the object">Cut</button>
+          <button class="studio-btn" data-act="intersect" title="Intersect the selection">Intersect</button>
+          <button class="studio-btn" data-act="fragment" title="Fragment: split at shared interfaces">Fragment</button>
+        </div>
+      </div>
+      <div class="studio-menu" data-menu="export">
+        <button class="studio-menu-btn" type="button" aria-expanded="false">Export</button>
+        <div class="studio-menu-pop" role="menu">
+          <button class="studio-btn" data-act="export-script" title="Write the model as a standalone gmsh Python script">gmsh script</button>
+          <button class="studio-btn" data-act="mesh-gmsh" title="Run the model through gmsh in the local sidecar; the mesh lands in the project's meshes/">Mesh with gmsh</button>
+          <span class="studio-sep"></span>
+          <button class="studio-btn" data-act="to-gales" title="Export MSH 2.2 for the GALES tree">To GALES</button>
+          <button class="studio-btn" data-act="to-explorer" title="Export the meshed surface into the Earth viewer with a lat/lon manifest">To Explorer</button>
+        </div>
+      </div>
       <span class="studio-sep"></span>
-      <button class="studio-btn" data-act="undo">Undo</button>
-      <button class="studio-btn" data-act="redo">Redo</button>
-      <span class="studio-sep"></span>
-      <button class="studio-btn" data-act="import-cad" title="STL / MSH / OBJ / PLY via merge">Import CAD&hellip;</button>
-      <button class="studio-btn" data-act="import-xyz" title="Point data to terrain surface or solid volume">Import XYZ&hellip;</button>
-      <span class="studio-sep"></span>
-      <button class="studio-btn" data-act="fuse" title="Fuse: first entity is the object, the rest are tools">Fuse</button>
-      <button class="studio-btn" data-act="cut" title="Cut: subtract the tools from the object">Cut</button>
-      <button class="studio-btn" data-act="intersect" title="Intersect the selection">Intersect</button>
-      <button class="studio-btn" data-act="fragment" title="Fragment: split at shared interfaces">Fragment</button>
-      <button class="studio-btn" data-act="transform" title="Translate / rotate / scale the selection">Transform&hellip;</button>
-      <button class="studio-btn" data-act="delete">Delete</button>
-      <span class="studio-sep"></span>
-      <button class="studio-btn" data-act="export-script" title="Write the model as a standalone gmsh Python script">Export script</button>
-      <button class="studio-btn" data-act="mesh-gmsh" title="Run the model through gmsh in the local sidecar; the mesh lands in the project's meshes/">Mesh with gmsh</button>
-      <button class="studio-btn" data-act="to-gales" title="Export MSH 2.2 for the GALES tree">To GALES</button>
-      <button class="studio-btn" data-act="to-explorer" title="Export the meshed surface into the Earth viewer with a lat/lon manifest">To Explorer</button>
-      <button class="studio-btn" data-act="save-template" title="Save this model's op history as a reusable template">Save as template</button>
-      <button class="studio-btn" data-act="snapshot" title="Save a PNG of the viewport">Snapshot</button>
-      <span class="studio-sep"></span>
-      <input id="studio-ai" class="studio-ai" type="text"
-             placeholder="Tell Atlas what to build&hellip;  (e.g. 'volcano with a chamber at 4 km, mesh at 500 m')">
-    </div>
-
-    <div class="studio-toolbar" id="studio-toolbar-view">
-      <span class="studio-label">Pick:</span>
+      <span class="studio-label">Pick</span>
       <select id="studio-pick" class="studio-select">
         <option>Surfaces</option><option>Volumes</option><option>Curves</option>
       </select>
-      <button class="studio-btn is-toggle is-on" data-toggle="edges">Edges</button>
-      <button class="studio-btn is-toggle is-on" data-toggle="grid" title="A dense dark lattice on the ground plane (z = 0), see-through, with a hole under a model that reaches below it">Grid</button>
-      <button class="studio-btn is-toggle" data-toggle="wireframe">Wireframe</button>
+      <span class="studio-sep"></span>
+      <button class="studio-btn is-toggle is-on" data-toggle="edges" title="Flat-shaded facets">Edges</button>
+      <button class="studio-btn is-toggle is-on" data-toggle="grid" title="A light lattice on the ground plane (z = 0), see-through, with a hole under a model that reaches below it">Grid</button>
+      <button class="studio-btn is-toggle" data-toggle="wireframe">Wire</button>
       <button class="studio-btn is-toggle" data-toggle="gizmo" title="Drag-to-move/scale the selection">Gizmo</button>
       <span class="studio-sep"></span>
-      <button class="studio-btn" data-view="fit">Fit</button>
+      <button class="studio-btn" data-view="fit" title="Fit the view to the model">Fit</button>
       <button class="studio-btn" data-view="x">X</button>
       <button class="studio-btn" data-view="y">Y</button>
       <button class="studio-btn" data-view="z">Z</button>
@@ -1332,7 +1351,7 @@
         <option>x</option><option>y</option><option>z</option>
       </select>
       <input id="studio-clip" class="studio-clip" type="range" min="0" max="100" value="50">
-    </div>
+      <button class="studio-ribbon-fold" type="button" title="Fold the ribbon to a pill">&#8963;</button>
     </div>
 
     <div class="studio-dock studio-dock-left">
@@ -1341,6 +1360,7 @@
         <button class="studio-tab" data-tab="model">Model</button>
         <button class="studio-tab" data-tab="label">Label</button>
         <button class="studio-tab" data-tab="history">History</button>
+        <button class="studio-fold" type="button" data-fold="left" title="Fold this panel to its tabs">&#8249;</button>
       </div>
       <div class="studio-pane is-active" data-pane="add">
         <p class="studio-group-title">Templates (whole scenarios)</p>
@@ -1391,6 +1411,7 @@
         <button class="studio-tab" data-tab="structured">Structured</button>
         <button class="studio-tab" data-tab="refine">Refine</button>
         <button class="studio-tab" data-tab="log">Log</button>
+        <button class="studio-fold" type="button" data-fold="right" title="Fold this panel to its tabs">&#8250;</button>
       </div>
       <div class="studio-pane is-active" data-pane="mesh">
         <p class="studio-group-title">Mesh settings</p>
@@ -2119,7 +2140,7 @@
     </div>
   </div>
 
-<script id="earth-manifest-script" src="earth-manifest.js?v=20260910-3907c30-blue-marble" defer></script>
+<script id="earth-manifest-script" src="earth-manifest.js?v=20260910-a28b229-blue-marble" defer></script>
 <script>
   const statusNode = document.getElementById("status");
 
@@ -2198,98 +2219,98 @@
   void bootEarthViewer();
 </script>
 <script src="ui-controls.js" defer></script>
-<script src="gis/mode-manager.js?v=20260910-3907c30" defer></script>
-<script type="module" src="gis/panels.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/settings-panel.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/point-tool.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/gee-live.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/fos.js?v=20260910-3907c30"></script>
+<script src="gis/mode-manager.js?v=20260910-a28b229" defer></script>
+<script type="module" src="gis/panels.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/settings-panel.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/point-tool.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/gee-live.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/fos.js?v=20260910-a28b229"></script>
 <!-- The merged ground answer: three maps at three scales, assembled per
      point with each line naming its own source. Publishes the seam the click
      cards read, so it loads beside the strength table it uses. -->
-<script type="module" src="gis/ground-profile.js?v=20260910-3907c30"></script>
+<script type="module" src="gis/ground-profile.js?v=20260910-a28b229"></script>
 <!-- The legend and the events feed share one slot: a shuffle, not a row. -->
-<script type="module" src="gis/overlay-stack.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/cyclone-risk.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/cyclone-risk-card.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/cyclone-tracks-view.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/cyclone-timelapse.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/cyclone-risk-raster.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/animated-layers.js?v=20260910-3907c30"></script>
-    <script type="module" src="gis/volcanic-hazards.js?v=20260910-3907c30"></script>
-    <script type="module" src="gis/volcanic-risk.js?v=20260910-3907c30"></script>
-    <script type="module" src="gis/volcanic-risk-frames.js?v=20260910-3907c30"></script>
-    <script type="module" src="gis/seismic-risk.js?v=20260910-3907c30"></script>
-    <script type="module" src="gis/seismic-timelapse.js?v=20260910-3907c30"></script>
-    <script type="module" src="gis/landslide-pipeline.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/geoid-pipeline.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/geoid-mode.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/atlas-assistant.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/import-manager.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/analysis-panel.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/model-pipeline.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/add-data.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/geology-panel.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/map-layers-panel.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/section-activity.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/tool-shelves.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/weather-maps.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/draw-hud.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/pipeline-sync.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/toolbox.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/toolbox-ops.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/sidecar-client.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/tool-search.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/tool-dialog.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/charts.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/time.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/edit-tools.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/feature-popup.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/forecast.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/location-tools.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/point-extract.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/drawn-layers.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/area-labels.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/panel-styles.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/symbology.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/symbology-panel.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/batch.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/batch-panel.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/georeference.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/georeference-panel.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/wfs-import.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/demo-layers.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/model-studio.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/layer-properties.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/layer-hierarchy.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/table-editor.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/legend-dock.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/layer-export-dialog.js?v=20260910-3907c30"></script>
+<script type="module" src="gis/overlay-stack.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/cyclone-risk.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/cyclone-risk-card.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/cyclone-tracks-view.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/cyclone-timelapse.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/cyclone-risk-raster.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/animated-layers.js?v=20260910-a28b229"></script>
+    <script type="module" src="gis/volcanic-hazards.js?v=20260910-a28b229"></script>
+    <script type="module" src="gis/volcanic-risk.js?v=20260910-a28b229"></script>
+    <script type="module" src="gis/volcanic-risk-frames.js?v=20260910-a28b229"></script>
+    <script type="module" src="gis/seismic-risk.js?v=20260910-a28b229"></script>
+    <script type="module" src="gis/seismic-timelapse.js?v=20260910-a28b229"></script>
+    <script type="module" src="gis/landslide-pipeline.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/geoid-pipeline.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/geoid-mode.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/atlas-assistant.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/import-manager.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/analysis-panel.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/model-pipeline.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/add-data.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/geology-panel.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/map-layers-panel.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/section-activity.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/tool-shelves.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/weather-maps.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/draw-hud.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/pipeline-sync.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/toolbox.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/toolbox-ops.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/sidecar-client.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/tool-search.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/tool-dialog.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/charts.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/time.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/edit-tools.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/feature-popup.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/forecast.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/location-tools.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/point-extract.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/drawn-layers.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/area-labels.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/panel-styles.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/symbology.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/symbology-panel.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/batch.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/batch-panel.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/georeference.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/georeference-panel.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/wfs-import.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/demo-layers.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/model-studio.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/layer-properties.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/layer-hierarchy.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/table-editor.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/legend-dock.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/layer-export-dialog.js?v=20260910-a28b229"></script>
 <!-- Pre-processing and Extraction & Analysis, as workbenches on the tool
      rail rather than two more collapsibles in the sidebar column. -->
-<script type="module" src="gis/side-panels.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/project.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/events.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/gee.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/basemap-drape.js?v=20260910-3907c30"></script>
+<script type="module" src="gis/side-panels.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/project.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/events.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/gee.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/basemap-drape.js?v=20260910-a28b229"></script>
 <!-- Real elevation, streamed: the globe's own texture samples at 19.6 km,
      which every product derived from it inherits. Earth only — Mapzen
      Terrain Tiles are this planet's. gis/dem-tiles.js holds the rule. -->
-<script type="module" src="gis/dem-stream.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/dem-panel.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/zoom-bar.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/polygons.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/point-labels.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/satellites.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/catalogue-panels.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/earth-data-panel.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/rock-properties-panel.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/ice-cover-panel.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/soil-cover.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/glim-cover.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/research/index.js?v=20260910-3907c30"></script>
-<script type="module" src="gis/planet-strip.js?v=20260910-3907c30"></script>
-<script src="music.js?v=20260910-3907c30" defer></script>
+<script type="module" src="gis/dem-stream.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/dem-panel.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/zoom-bar.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/polygons.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/point-labels.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/satellites.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/catalogue-panels.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/earth-data-panel.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/rock-properties-panel.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/ice-cover-panel.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/soil-cover.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/glim-cover.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/research/index.js?v=20260910-a28b229"></script>
+<script type="module" src="gis/planet-strip.js?v=20260910-a28b229"></script>
+<script src="music.js?v=20260910-a28b229" defer></script>
 <script>if (window.self !== window.top) document.body.classList.add("is-embedded");</script>
 
 </body>

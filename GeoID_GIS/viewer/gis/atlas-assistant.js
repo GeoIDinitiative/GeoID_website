@@ -394,6 +394,21 @@ async function grounded(question) {
     };
   }
 
+  // "Build a volcano with a chamber" -- the Meshing Studio's own text box
+  // used to take this; the studio exposes the phrase matcher and this is the
+  // one place to talk to the app now.
+  if (/\b(build|make|create|add)\b/.test(q) && /\b(volcano|dike|dyke|layered|chamber|crust)\b/.test(q)) {
+    const studio = window.GeoIDMeshStudio;
+    if (!studio?.buildFromText) {
+      return { text: "The Meshing Studio is not loaded on this page, so there is nowhere to build it.", actions: [] };
+    }
+    if (window.GeoIDModeManager?.getMode?.() !== "model") window.GeoIDModeManager?.setMode?.("model");
+    const result = studio.buildFromText(question);
+    return result.ok
+      ? { text: `Built ${result.built} in the Meshing Studio. Mesh it from the Mesh tab, or ask me to build something else.`, actions: [] }
+      : { text: `I can build the studio's templates by phrase — say "volcano" or "dike". Templates: ${(result.templates || []).join(", ")}.`, actions: [] };
+  }
+
   // Status: the whole ecosystem's state, read live rather than remembered.
   // "watch status" is about the watcher, not the project, and this generic
   // branch would otherwise swallow it — the narrower intent has to win.

@@ -1929,3 +1929,203 @@ html.gis-arranging #layer-dock {
    them, and this is what actually takes them off the rail. The same trap the
    symbology dialog and the Research Hub have both paid for. */
 #tool-rail .tool-rail-item[hidden] { display: none !important; }
+
+/* ── Meshing Studio, in the GIS page's own chrome ─────────────────────────
+   One RIBBON instead of two toolbars (the actions as four menus, the view
+   controls beside them), tab strips in the nav bar's voice (Exo 2, uppercase,
+   the accent filled solid on the active tab), sections inside the panes as
+   the sidebar's own foldable cards, and every strip foldable: the ribbon to a
+   pill, each deck to its tabs. Frames are the ACCENT, as the Workspace tile
+   and the legend are -- the skin's cyan is for data, and a cyan frame says
+   "this box is a reading". Appended as overrides so the two stylesheets that
+   carry the studio (Earth's and the planets') cannot drift from each other. */
+#model-studio .studio-dock,
+#model-studio .studio-modebar,
+#model-studio .studio-ribbon {
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.34);
+  border-radius: 0.75rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 18%),
+    linear-gradient(180deg, var(--mars-panel-top), var(--mars-panel-bottom)),
+    var(--skin-tab-ground, rgb(16, 7, 36));
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.42),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+    0 0 0 1px rgba(var(--nav-accent-rgb), 0.14),
+    0 0 34px rgba(var(--nav-accent-rgb), 0.12);
+  backdrop-filter: blur(10px);
+}
+#model-studio .studio-modebar-label {
+  font-family: "Exo 2", system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  color: var(--nav-accent);
+}
+#model-studio .studio-ribbon {
+  position: absolute;
+  top: 0.9rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 0.18rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: min(78vw, 68rem);
+  padding: 0.3rem 0.5rem;
+}
+#model-studio .studio-ribbon.is-folded > :not(.studio-ribbon-fold) { display: none; }
+#model-studio .studio-ribbon.is-folded { padding: 0.2rem 0.35rem; }
+#model-studio .studio-ribbon.is-folded .studio-ribbon-fold { transform: rotate(180deg); }
+.studio-menu { position: relative; }
+.studio-menu-btn,
+#model-studio .studio-ribbon .studio-btn,
+.studio-ribbon-fold,
+.studio-fold {
+  font-family: "Exo 2", system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.studio-menu-btn {
+  padding: 0.32rem 0.6rem;
+  border-radius: 0.45rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.studio-menu-btn::after { content: "\25BE"; margin-left: 0.35rem; font-size: 0.6rem; opacity: 0.7; }
+.studio-menu-btn:hover,
+.studio-menu.is-open > .studio-menu-btn {
+  color: var(--nav-accent);
+  background: rgba(var(--nav-accent-rgb), 0.12);
+  border-color: rgba(var(--nav-accent-rgb), 0.4);
+}
+.studio-menu.is-open > .studio-menu-btn { background: var(--nav-accent); color: #2b0030; }
+.studio-menu-pop {
+  display: none;
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  min-width: 11.5rem;
+  padding: 0.3rem;
+  border-radius: 0.6rem;
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.34);
+  background: var(--skin-tab-ground, rgb(16, 7, 36));
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(var(--nav-accent-rgb), 0.12);
+  z-index: 6;
+  flex-direction: column;
+  gap: 0.08rem;
+}
+.studio-menu.is-open > .studio-menu-pop { display: flex; }
+#model-studio .studio-menu-pop .studio-btn {
+  width: 100%;
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.76rem;
+  font-weight: 500;
+  padding: 0.38rem 0.6rem;
+  color: var(--text);
+}
+#model-studio .studio-menu-pop .studio-btn:hover { color: var(--nav-accent); background: rgba(var(--nav-accent-rgb), 0.14); }
+#model-studio .studio-menu-pop .studio-sep { width: auto; height: 1px; margin: 0.25rem 0.4rem; align-self: auto; background: rgba(var(--nav-accent-rgb), 0.22); }
+.studio-ribbon-fold {
+  margin-left: 0.2rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.3);
+  background: transparent;
+  color: var(--nav-accent);
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+.studio-ribbon-fold:hover { background: rgba(var(--nav-accent-rgb), 0.14); }
+
+/* The decks hang under the ribbon whatever height it wraps to. */
+#model-studio .studio-dock {
+  top: calc(var(--studio-ribbon-h, 2.6rem) + 2rem);
+  overflow: visible;
+}
+#model-studio .studio-dock.is-folded { bottom: auto; }
+#model-studio .studio-dock.is-folded .studio-pane { display: none; }
+#model-studio .studio-dock.is-folded .studio-tabs { border-bottom: 0; }
+#model-studio .studio-dock.is-folded .studio-fold { transform: rotate(180deg); }
+#model-studio .studio-tabs {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid rgba(var(--nav-accent-rgb), 0.32);
+  background: linear-gradient(180deg, rgba(var(--nav-accent-rgb), 0.18), rgba(var(--nav-accent-rgb), 0.04));
+  border-radius: 0.75rem 0.75rem 0 0;
+  overflow: hidden;
+}
+#model-studio .studio-tab {
+  flex: 1;
+  padding: 0.55rem 0.2rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text);
+  font-family: "Exo 2", system-ui, sans-serif;
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: none;
+}
+#model-studio .studio-tab:hover { color: var(--nav-accent); background: rgba(var(--nav-accent-rgb), 0.14); }
+#model-studio .studio-tab.is-active { background: var(--nav-accent); color: #2b0030; border-bottom-color: transparent; box-shadow: none; }
+.studio-fold {
+  flex: 0 0 auto;
+  width: 1.7rem;
+  border: 0;
+  border-left: 1px solid rgba(var(--nav-accent-rgb), 0.28);
+  background: transparent;
+  color: var(--nav-accent);
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: transform 0.15s;
+}
+.studio-fold:hover { background: rgba(var(--nav-accent-rgb), 0.14); }
+#model-studio .studio-dock-right .studio-fold { order: -1; border-left: 0; border-right: 1px solid rgba(var(--nav-accent-rgb), 0.28); }
+#model-studio .studio-pane { gap: 0.45rem; }
+#model-studio .studio-dock:not(.is-folded) .studio-pane.is-active { overflow-y: auto; }
+
+/* Sections inside a pane are the sidebar's own foldable card. */
+#model-studio .studio-fold-section { margin: 0; }
+#model-studio .studio-fold-section > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.42rem 0.6rem;
+  font-family: "Exo 2", system-ui, sans-serif;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--nav-accent);
+  border-bottom: 0;
+}
+#model-studio .studio-fold-section > summary::before {
+  content: "\203A";
+  display: inline-block;
+  width: 0.7rem;
+  font-size: 0.9rem;
+  line-height: 1;
+  transition: transform 0.15s;
+}
+#model-studio .studio-fold-section[open] > summary { background: rgba(var(--nav-accent-rgb), 0.14); border-bottom: 1px solid rgba(var(--nav-accent-rgb), 0.12); }
+#model-studio .studio-fold-section[open] > summary::before { transform: rotate(90deg); }
+#model-studio .studio-fold-section > .gis-tool-body { padding: 0.5rem 0.6rem 0.6rem; gap: 0.4rem; }
+#model-studio .studio-fold-section .studio-group-title { display: none; }
+@media (max-width: 900px) {
+  #model-studio .studio-ribbon { max-width: 92vw; }
+  #model-studio .studio-dock { width: 12.5rem; }
+}

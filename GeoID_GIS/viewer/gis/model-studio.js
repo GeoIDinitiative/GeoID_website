@@ -1,13 +1,13 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-3907c30";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-3907c30";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-a28b229";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-a28b229";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260910-3907c30";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-3907c30";
-import { downloadText } from "./extraction.js?v=20260910-3907c30";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-3907c30";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-3907c30";
+} from "./mesh-volume.js?v=20260910-a28b229";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-a28b229";
+import { downloadText } from "./extraction.js?v=20260910-a28b229";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-a28b229";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-a28b229";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -2220,12 +2220,15 @@ function init() {
     });
   });
 
-  document.querySelectorAll("#studio-toolbar-main [data-act]").forEach((button) => {
+  document.querySelectorAll("#model-studio [data-act]").forEach((button) => {
     button.addEventListener("click", () => {
       const fn = ACTIONS[button.dataset.act];
       if (fn) fn();
+      closeMenus();
     });
   });
+  wireRibbonAndFolds();
+  foldPaneSections();
 
   document.querySelectorAll("[data-toggle]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -2360,18 +2363,7 @@ function init() {
     if (event.key !== "Enter") return;
     const text = event.target.value.trim();
     if (!text) return;
-    // The Qt studio plans these with a local Ollama model, which is not
-    // reachable from a web page; the phrasing is matched directly instead.
-    const lower = text.toLowerCase();
-    if (lower.includes("volcano")) {
-      TEMPLATES.etna_chamber.build().forEach((e) => addSolid(e.kind, e.op, e.params));
-      log(`AI: built a volcano with a chamber from "${text}"`);
-    } else if (lower.includes("dike") || lower.includes("layer")) {
-      TEMPLATES.layered_dike.build().forEach((e) => addSolid(e.kind, e.op, e.params));
-      log(`AI: built a layered crust with a dike from "${text}"`);
-    } else {
-      log(`AI: no local planner available in the browser — try "volcano" or "dike"`);
-    }
+    buildFromText(text);
     event.target.value = "";
   });
 
@@ -3379,9 +3371,146 @@ function ensureTerrainCard() {
   card.appendChild(note);
 }
 
+/**
+ * "BUILD A VOLCANO WITH A CHAMBER" -- the studio's own text box is gone (the
+ * Atlas launcher bottom-right is the one place to talk to the app), so the
+ * phrase matching it did lives here and Atlas calls it. The Qt studio plans
+ * these with a local model a page cannot reach; the phrasing is matched.
+ */
+export function buildFromText(text) {
+  const lower = String(text || "").toLowerCase();
+  if (lower.includes("volcano")) {
+    TEMPLATES.etna_chamber.build().forEach((e) => addSolid(e.kind, e.op, e.params));
+    log(`Atlas: built a volcano with a chamber from "${text}"`);
+    return { ok: true, built: "a volcano with a magma chamber" };
+  }
+  if (lower.includes("dike") || lower.includes("dyke") || lower.includes("layer")) {
+    TEMPLATES.layered_dike.build().forEach((e) => addSolid(e.kind, e.op, e.params));
+    log(`Atlas: built a layered crust with a dike from "${text}"`);
+    return { ok: true, built: "a layered crust with a dike" };
+  }
+  return { ok: false, built: null, templates: Object.keys(TEMPLATES) };
+}
+
+/** Every menu shut: after an action, a click outside, or Escape. */
+function closeMenus() {
+  document.querySelectorAll("#model-studio .studio-menu.is-open").forEach((m) => {
+    m.classList.remove("is-open");
+    m.querySelector(".studio-menu-btn")?.setAttribute("aria-expanded", "false");
+  });
+}
+
+const FOLD_KEY = "geoid-studio:folds";
+function readFolds() {
+  try { return JSON.parse(localStorage.getItem(FOLD_KEY) || "{}") || {}; } catch (e) { return {}; }
+}
+function writeFold(key, value) {
+  try { const f = readFolds(); f[key] = value; localStorage.setItem(FOLD_KEY, JSON.stringify(f)); } catch (e) { /* a storage that throws keeps the default */ }
+}
+
+/**
+ * THE RIBBON AND THE FOLDS. The four menus open one at a time and shut on an
+ * action, a click elsewhere or Escape; the ribbon folds to a pill; each deck
+ * folds to its tab strip (a tab press unfolds it); all remembered. The decks
+ * hang under the ribbon at whatever height it wraps to, through a CSS
+ * variable a ResizeObserver keeps true.
+ */
+function wireRibbonAndFolds() {
+  const root = byId("model-studio");
+  const ribbon = byId("studio-ribbon");
+  if (!root || !ribbon) return;
+  const folds = readFolds();
+  ribbon.querySelectorAll(".studio-menu-btn").forEach((btn) => {
+    btn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const menu = btn.parentElement;
+      const open = !menu.classList.contains("is-open");
+      closeMenus();
+      menu.classList.toggle("is-open", open);
+      btn.setAttribute("aria-expanded", String(open));
+    });
+  });
+  ribbon.querySelectorAll(".studio-menu-pop").forEach((pop) => pop.addEventListener("click", (e) => e.stopPropagation()));
+  document.addEventListener("click", () => closeMenus());
+  document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeMenus(); });
+  const ribbonFold = ribbon.querySelector(".studio-ribbon-fold");
+  const setRibbon = (folded) => {
+    ribbon.classList.toggle("is-folded", folded);
+    if (ribbonFold) ribbonFold.title = folded ? "Unfold the ribbon" : "Fold the ribbon to a pill";
+  };
+  setRibbon(Boolean(folds.ribbon));
+  ribbonFold?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const folded = !ribbon.classList.contains("is-folded");
+    setRibbon(folded);
+    writeFold("ribbon", folded);
+  });
+  // The decks hang under the ribbon whatever it wraps to.
+  const sizeRibbon = () => root.style.setProperty("--studio-ribbon-h", `${ribbon.getBoundingClientRect().height}px`);
+  sizeRibbon();
+  if (typeof ResizeObserver !== "undefined") new ResizeObserver(sizeRibbon).observe(ribbon);
+  window.addEventListener("resize", sizeRibbon);
+  document.querySelectorAll("#model-studio .studio-dock").forEach((dock) => {
+    const side = dock.classList.contains("studio-dock-left") ? "left" : "right";
+    const fold = dock.querySelector(`.studio-fold[data-fold="${side}"]`);
+    const setDock = (folded) => {
+      dock.classList.toggle("is-folded", folded);
+      if (fold) fold.title = folded ? "Unfold this panel" : "Fold this panel to its tabs";
+    };
+    setDock(Boolean(folds[`dock-${side}`]));
+    fold?.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const folded = !dock.classList.contains("is-folded");
+      setDock(folded);
+      writeFold(`dock-${side}`, folded);
+    });
+    // A tab pressed on a folded deck is a request to see it.
+    dock.querySelector(".studio-tabs")?.addEventListener("click", (event) => {
+      if (!event.target.closest(".studio-tab")) return;
+      if (dock.classList.contains("is-folded")) { setDock(false); writeFold(`dock-${side}`, false); }
+    });
+  });
+}
+
+/**
+ * EVERY SECTION OF A PANE IS A FOLDABLE CARD, the sidebar's own
+ * `gis-tool-section`: a group title and what follows it, up to the next
+ * title, wrapped in a <details> with the title as its summary. Ids inside
+ * are untouched, so `byId` still finds every control; the fold state is
+ * remembered by pane and title. Done once at boot on the markup as shipped;
+ * panels built later (the Domains panel, the terrain card) are cards already.
+ */
+function foldPaneSections() {
+  const folds = readFolds();
+  document.querySelectorAll("#model-studio .studio-pane").forEach((pane) => {
+    const titles = [...pane.querySelectorAll(":scope > .studio-group-title")];
+    titles.forEach((title) => {
+      const key = `section:${pane.dataset.pane}:${title.textContent.trim()}`;
+      const details = document.createElement("details");
+      details.className = "gis-tool-section studio-fold-section";
+      details.open = folds[key] === undefined ? true : Boolean(folds[key]);
+      const summary = document.createElement("summary");
+      summary.textContent = title.textContent.trim();
+      const body = document.createElement("div");
+      body.className = "gis-tool-body";
+      pane.insertBefore(details, title);
+      details.appendChild(summary);
+      details.appendChild(body);
+      body.appendChild(title);
+      let node = details.nextSibling;
+      while (node && !(node.nodeType === 1 && node.classList.contains("studio-group-title"))) {
+        const next = node.nextSibling;
+        body.appendChild(node);
+        node = next;
+      }
+      details.addEventListener("toggle", () => writeFold(key, details.open));
+    });
+  });
+}
+
 window.GeoIDMeshStudio = {
   state, addSolid, meshModel, ACTIONS, fitView, viewAxis,
-  adoptTerrainSolid, adoptSectionModel, extendTerrain,
+  adoptTerrainSolid, adoptSectionModel, extendTerrain, buildFromText,
   setStudioBody, getStudioBody,
   origin: studioOrigin, setStudioOrigin, sceneToWgs84, wgs84ToScene,
   enuToWgs84, wgs84ToEnu, getGroundInfo,

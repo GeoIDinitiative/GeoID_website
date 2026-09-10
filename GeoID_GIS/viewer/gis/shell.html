@@ -102,48 +102,66 @@
       <span class="studio-status" id="studio-status"></span>
     </div>
 
-    <div class="studio-toolbars">
-    <div class="studio-toolbar" id="studio-toolbar-main">
-      <button class="studio-btn" data-act="new" title="Clear the model and start over">New</button>
-      <button class="studio-btn" data-act="open" title="Open a studio project (.msproj.json)">Open</button>
-      <button class="studio-btn" data-act="save" title="Save the project (full edit history)">Save</button>
+    <!-- ONE RIBBON, not two toolbars: the actions as four menus (File, Edit,
+         Boolean, Export) and the view controls beside them, foldable to a
+         pill. The Atlas box is gone -- the Atlas launcher bottom-right takes
+         "build a volcano with a chamber" now. -->
+    <div class="studio-ribbon" id="studio-ribbon">
+      <div class="studio-menu" data-menu="file">
+        <button class="studio-menu-btn" type="button" aria-expanded="false">File</button>
+        <div class="studio-menu-pop" role="menu">
+          <button class="studio-btn" data-act="new" title="Clear the model and start over">New</button>
+          <button class="studio-btn" data-act="open" title="Open a studio project (.msproj.json)">Open&hellip;</button>
+          <button class="studio-btn" data-act="save" title="Save the project (full edit history)">Save</button>
+          <span class="studio-sep"></span>
+          <button class="studio-btn" data-act="import-cad" title="STL / MSH / OBJ / PLY via merge">Import CAD&hellip;</button>
+          <button class="studio-btn" data-act="import-xyz" title="Point data to terrain surface or solid volume">Import XYZ&hellip;</button>
+          <span class="studio-sep"></span>
+          <button class="studio-btn" data-act="save-template" title="Save this model's op history as a reusable template">Save as template</button>
+          <button class="studio-btn" data-act="snapshot" title="Save a PNG of the viewport">Snapshot</button>
+        </div>
+      </div>
+      <div class="studio-menu" data-menu="edit">
+        <button class="studio-menu-btn" type="button" aria-expanded="false">Edit</button>
+        <div class="studio-menu-pop" role="menu">
+          <button class="studio-btn" data-act="undo">Undo</button>
+          <button class="studio-btn" data-act="redo">Redo</button>
+          <span class="studio-sep"></span>
+          <button class="studio-btn" data-act="transform" title="Translate / rotate / scale the selection">Transform&hellip;</button>
+          <button class="studio-btn" data-act="delete">Delete</button>
+        </div>
+      </div>
+      <div class="studio-menu" data-menu="boolean">
+        <button class="studio-menu-btn" type="button" aria-expanded="false">Boolean</button>
+        <div class="studio-menu-pop" role="menu">
+          <button class="studio-btn" data-act="fuse" title="Fuse: first entity is the object, the rest are tools">Fuse</button>
+          <button class="studio-btn" data-act="cut" title="Cut: subtract the tools from the object">Cut</button>
+          <button class="studio-btn" data-act="intersect" title="Intersect the selection">Intersect</button>
+          <button class="studio-btn" data-act="fragment" title="Fragment: split at shared interfaces">Fragment</button>
+        </div>
+      </div>
+      <div class="studio-menu" data-menu="export">
+        <button class="studio-menu-btn" type="button" aria-expanded="false">Export</button>
+        <div class="studio-menu-pop" role="menu">
+          <button class="studio-btn" data-act="export-script" title="Write the model as a standalone gmsh Python script">gmsh script</button>
+          <button class="studio-btn" data-act="mesh-gmsh" title="Run the model through gmsh in the local sidecar; the mesh lands in the project's meshes/">Mesh with gmsh</button>
+          <span class="studio-sep"></span>
+          <button class="studio-btn" data-act="to-gales" title="Export MSH 2.2 for the GALES tree">To GALES</button>
+          <button class="studio-btn" data-act="to-explorer" title="Export the meshed surface into the Earth viewer with a lat/lon manifest">To Explorer</button>
+        </div>
+      </div>
       <span class="studio-sep"></span>
-      <button class="studio-btn" data-act="undo">Undo</button>
-      <button class="studio-btn" data-act="redo">Redo</button>
-      <span class="studio-sep"></span>
-      <button class="studio-btn" data-act="import-cad" title="STL / MSH / OBJ / PLY via merge">Import CAD&hellip;</button>
-      <button class="studio-btn" data-act="import-xyz" title="Point data to terrain surface or solid volume">Import XYZ&hellip;</button>
-      <span class="studio-sep"></span>
-      <button class="studio-btn" data-act="fuse" title="Fuse: first entity is the object, the rest are tools">Fuse</button>
-      <button class="studio-btn" data-act="cut" title="Cut: subtract the tools from the object">Cut</button>
-      <button class="studio-btn" data-act="intersect" title="Intersect the selection">Intersect</button>
-      <button class="studio-btn" data-act="fragment" title="Fragment: split at shared interfaces">Fragment</button>
-      <button class="studio-btn" data-act="transform" title="Translate / rotate / scale the selection">Transform&hellip;</button>
-      <button class="studio-btn" data-act="delete">Delete</button>
-      <span class="studio-sep"></span>
-      <button class="studio-btn" data-act="export-script" title="Write the model as a standalone gmsh Python script">Export script</button>
-      <button class="studio-btn" data-act="mesh-gmsh" title="Run the model through gmsh in the local sidecar; the mesh lands in the project's meshes/">Mesh with gmsh</button>
-      <button class="studio-btn" data-act="to-gales" title="Export MSH 2.2 for the GALES tree">To GALES</button>
-      <button class="studio-btn" data-act="to-explorer" title="Export the meshed surface into the Earth viewer with a lat/lon manifest">To Explorer</button>
-      <button class="studio-btn" data-act="save-template" title="Save this model's op history as a reusable template">Save as template</button>
-      <button class="studio-btn" data-act="snapshot" title="Save a PNG of the viewport">Snapshot</button>
-      <span class="studio-sep"></span>
-      <input id="studio-ai" class="studio-ai" type="text"
-             placeholder="Tell Atlas what to build&hellip;  (e.g. 'volcano with a chamber at 4 km, mesh at 500 m')">
-    </div>
-
-    <div class="studio-toolbar" id="studio-toolbar-view">
-      <span class="studio-label">Pick:</span>
+      <span class="studio-label">Pick</span>
       <select id="studio-pick" class="studio-select">
         <option>Surfaces</option><option>Volumes</option><option>Curves</option>
       </select>
-      <button class="studio-btn is-toggle is-on" data-toggle="edges">Edges</button>
-      <button class="studio-btn is-toggle" data-toggle="wireframe">Wireframe</button>
-      <button class="studio-btn is-toggle" data-toggle="gizmo" title="Drag-to-move/scale the selection">Gizmo</button>
-      <button class="studio-btn is-toggle" data-toggle="stars" title="Starfield backdrop">Stars</button>
-      <button class="studio-btn is-toggle is-on" data-toggle="ground" title="Earth-radius ground surface tangent to z = 0">Ground</button>
       <span class="studio-sep"></span>
-      <button class="studio-btn" data-view="fit">Fit</button>
+      <button class="studio-btn is-toggle is-on" data-toggle="edges" title="Flat-shaded facets">Edges</button>
+      <button class="studio-btn is-toggle is-on" data-toggle="grid" title="A light lattice on the ground plane (z = 0), see-through, with a hole under a model that reaches below it">Grid</button>
+      <button class="studio-btn is-toggle" data-toggle="wireframe">Wire</button>
+      <button class="studio-btn is-toggle" data-toggle="gizmo" title="Drag-to-move/scale the selection">Gizmo</button>
+      <span class="studio-sep"></span>
+      <button class="studio-btn" data-view="fit" title="Fit the view to the model">Fit</button>
       <button class="studio-btn" data-view="x">X</button>
       <button class="studio-btn" data-view="y">Y</button>
       <button class="studio-btn" data-view="z">Z</button>
@@ -154,7 +172,7 @@
         <option>x</option><option>y</option><option>z</option>
       </select>
       <input id="studio-clip" class="studio-clip" type="range" min="0" max="100" value="50">
-    </div>
+      <button class="studio-ribbon-fold" type="button" title="Fold the ribbon to a pill">&#8963;</button>
     </div>
 
     <div class="studio-dock studio-dock-left">
@@ -163,6 +181,7 @@
         <button class="studio-tab" data-tab="model">Model</button>
         <button class="studio-tab" data-tab="label">Label</button>
         <button class="studio-tab" data-tab="history">History</button>
+        <button class="studio-fold" type="button" data-fold="left" title="Fold this panel to its tabs">&#8249;</button>
       </div>
       <div class="studio-pane is-active" data-pane="add">
         <p class="studio-group-title">Templates (whole scenarios)</p>
@@ -213,6 +232,7 @@
         <button class="studio-tab" data-tab="structured">Structured</button>
         <button class="studio-tab" data-tab="refine">Refine</button>
         <button class="studio-tab" data-tab="log">Log</button>
+        <button class="studio-fold" type="button" data-fold="right" title="Fold this panel to its tabs">&#8250;</button>
       </div>
       <div class="studio-pane is-active" data-pane="mesh">
         <p class="studio-group-title">Mesh settings</p>
