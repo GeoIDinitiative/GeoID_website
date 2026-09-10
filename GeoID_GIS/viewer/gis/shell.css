@@ -2294,11 +2294,13 @@ html.gis-arranging #layer-dock {
 /* The two halves of the one column: what builds the model, then what meshes
    it. The mesh deck was a second column of its own, which spent a quarter of
    the screen on four labels and one open pane. Each half was captioned BUILD
-   and MESH; the words are gone and the hairline where the band changes says
-   the same thing without spending a row on it. Selected on the CHANGE of band
-   rather than on a class, so nothing in the markup has to be kept in step. */
+   and MESH; the words are gone and a wider gap where the band changes says the
+   same thing without spending a row on it. Selected on the CHANGE of band
+   rather than on a class, so nothing in the markup has to be kept in step.
+   A RULE was tried there first and is not available: a tab's own frame is
+   painted `!important` by the shared chrome, so a border-top on the tab
+   computes as the accent in both states and no hairline is drawn. Measured,
+   open and shut. The gap is the one separator nothing can overrule. */
 #model-studio .studio-group[data-band="build"] + .studio-group[data-band="mesh"] {
-  margin-top: 0.3rem;
-  border-top: 1px solid rgba(var(--skin-data-rgb), 0.22);
-  padding-top: 0.3rem;
+  margin-top: 0.75rem;
 }
