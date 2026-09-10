@@ -16998,3 +16998,34 @@ computed value was still the accent: a module-injected sheet or an `!important`
 the scan could not attribute. When a border loses and nothing in the cascade
 explains it, stop hunting the source and pick a property that cannot be
 overruled.
+
+### The frame is its contents, and every tab arrives shut
+
+**A FIXED `bottom` IS A FIXED HEIGHT.** `.studio-dock` was `top: … ; bottom:
+3.2rem`, so the deck stood at full height whatever was in it — eight shut tabs
+in a box two thirds empty, which is what "the outline is not tight" was.
+Shrink-wrapped now (`bottom: auto`) with the strip's clearance kept as a CAP
+(`max-height: calc(100% - top - 3.2rem)`), so the frame grows to whatever is
+opened and the body scrolls only once the cap binds. Measured on one viewport:
+**454 px shut, 537 with one tab open, 619 with two, 648 at the cap** — where
+648 is exactly the room between the top bar and the worlds strip, with the body
+scrolling and 8 px of slack under the last tab when nothing is open.
+
+**Nothing opens itself.** The markup carried `open` on Add and Mesh, so a fresh
+deck arrived with two panes showing. Both are gone; only a remembered choice
+opens a tab. And SHUTTING the band's open tab is a decision too — the store
+kept the name whatever the reader did with it, so the next load reopened the
+tab just put away; closing the stored tab now clears it.
+
+**One spacing down the column.** The wider gap at the band change went with the
+BUILD/MESH captions: measured **6.4 px between all eight**. The band survives
+as behaviour alone — one tab open per band, so a build tab and a mesh tab can be
+read together — which needs no mark of its own in a column where every tab
+arrives shut.
+
+**A frame that hugs its contents is the whole reason the earlier fix worked.**
+The deck body is a flex column whose children are `flex: 0 0 auto`; with the
+height no longer imposed from outside, the panes size themselves and the cap is
+the only thing that can make anything scroll. A grid, or a fixed `bottom`, and
+the panes are sized to the box instead — the same fault this file already
+records for `.gis-tool-body` and `.qt-v`, met from the container's side.

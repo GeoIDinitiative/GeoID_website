@@ -1,11 +1,11 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic, computeBounds2D } from "./geo-utils.js?v=20260910-6a9f707";
+import { latLonToVector3, drapedRadius, looksLikeGeographic, computeBounds2D } from "./geo-utils.js?v=20260910-8e7baef";
 import {
   readHead, parseRows, validateMapping, rowsToPointCollection,
-} from "./delimited.js?v=20260910-6a9f707";
-import { rampColour } from "./symbology.js?v=20260910-6a9f707";
-import { markerDiscTexture } from "./vector-render.js?v=20260910-6a9f707";
-import { registerDrape } from "./geotiff-adapter.js?v=20260910-6a9f707";
+} from "./delimited.js?v=20260910-8e7baef";
+import { rampColour } from "./symbology.js?v=20260910-8e7baef";
+import { markerDiscTexture } from "./vector-render.js?v=20260910-8e7baef";
+import { registerDrape } from "./geotiff-adapter.js?v=20260910-8e7baef";
 
 const MAX_POINTS = 2000000;
 
