@@ -17128,3 +17128,137 @@ Verified end to end: armed with nothing drawn, the export is in the slot and
 not laid out and never in the rail; a shape drawn through the viewer's own seam
 lands as "the drawn area — model domain 15…", the builder advances to step 2 by
 itself, and the export becomes live on the bar.
+
+## The seismic record is three catalogues, and the bake that made it crashed the laptop
+
+"Find the most comprehensive and complete and up to date historic seismic
+catalogue possible." No single one is both complete and current, so the record
+is three, and each is the best available at what it does:
+
+| | | |
+| --- | --- | --- |
+| **ComCat**, M ≥ 4.5 since 1900 | 311,675 events, public domain | density and currency |
+| **ISC-GEM v12**, 1904–2021 | 84,000, every one Mw | the homogenised backbone |
+| **GEM GHEC v1.0**, 1008–1903 | 825, about M ≥ 7 | the only global pre-instrumental catalogue |
+
+**THE JOIN NEEDS NO FUZZY MATCHING, and that is the whole reason this shape
+works.** ComCat's `ids` field lists every contributing id of a merged event, so
+an ISC-GEM Mw is LOOKED UP rather than matched in space and time — measured on
+one event, `,choy19950101065955,gcmtc010195a,usp0006qpv,gcmt19950101065954,`
+`iscgem122054,` against ISC-GEM's own `iscgem122054` at Mw 6.42. No duplicate
+markers, no tolerance to tune. And GHEC's last event is 1903-12-28 against
+ISC-GEM's first at 1904-01-20: the two were built as a pair and the seam needs
+no dedup either. Live: **312,500 events, 77,659 carrying an ISC-GEM Mw.**
+
+**WHY IT BUYS THE HAZARD ANYTHING.** About 82% of modern ComCat at M ≥ 4.5 is
+body-wave mb, which saturates near 6 and reads low against Mw — so events land
+a band low under the raw number. The rates are computed on `mw` where ISC-GEM
+reaches. The record's floor moved to 4.5 for the TIMELINE; the bands still
+start at 5, so 200,000 of the events never reach a footprint.
+
+**THE HISTORICAL RECORD IS IN THE TIMELINE AND NOT IN THE RATES.** A rate needs
+a COMPLETE window; GHEC is the large events somebody knows about across nine
+centuries, and counted it would divide a handful by 900 years and understate
+every rate it touched. Each frame says which regime it sits in — pre-1904 is
+GEM's, pre-1964 is complete only above about M 6.
+
+**LICENCE, and it is a real obligation rather than a footnote.** ComCat is US
+Government public domain; **ISC-GEM and GEM GHEC are CC BY-SA 3.0**, which is
+SHARE-ALIKE — so the grids, being derived from them, are offered under CC BY-SA
+3.0 with the citations. It is stated on the layer, in the bake's own `_source`,
+and in the ⓘ. Dropping to ComCat-only would return the whole thing to public
+domain and cost the homogenised Mw before ~1970 and the pre-1900 record
+entirely; that is the trade, and it is the reader's to make.
+
+Rejected, each for a measured reason: the **ISC Bulletin** is 24 months behind,
+not homogenised, FEWER events than ComCat at M ≥ 4.5 (468 against 554 for one
+month), and grants **no redistribution licence anywhere** — read the citing
+page and the full Data Management Policy. **EMSC** is "All rights reserved" and
+starts in 1998. **Global CMT** is pure Mw and current and publishes no licence
+at all.
+
+### The bake took the machine down, and the cause was a 720× multiple
+
+**`disc(radius)` built a footprint for EVERY ONE OF THE 720 CENTRE ROWS and
+cached the lot under one key, while `kernel` used exactly one of them.** Held
+for the 91 distinct radii that ISC-GEM's 2-decimal Mw produced, that is
+**7.46 GB**, of which a single M 9 radius is **1.0 GB on its own** — on a
+laptop with about 7 GB free. Nothing ever evicted it. The old bake survived
+because 1-decimal magnitudes over M ≥ 5 produced far fewer radii.
+
+**My first estimate was wrong by that same 720, and only reading the loop
+fixed it.** A spherical-cap estimate of one footprint per radius came to
+0.01 GB and said the cache was innocent. Count what the code BUILDS, not what
+the geometry implies.
+
+Four changes, and the peak is now **614 MB, 12.8 seconds** for the stamping:
+
+- **The footprint is per (radius, CENTRE ROW)**, which is the smallest correct
+  unit — longitude is a rotation and the columns were already offsets — and the
+  events are **stamped in groups of that pair**, sorted, so each footprint is
+  built once, used by the ~15 events sharing it, and dropped. Measured: 6,918
+  footprints for 111,718 stampable events, one alive at a time.
+- **The magnitude is binned to 0.1 before the reach is taken**, and that is
+  honesty rather than economy: the reach is a global-average attenuation with
+  σ = 0.4, so the radius is uncertain by about a factor of 1.5 and resolving it
+  to ISC-GEM's 0.01 is false precision by two orders of magnitude. 91 radii
+  become 38.
+- **The fetch is a GENERATOR.** It held every ComCat feature — 311,675 dicts of
+  two dozen properties — while building a second list of tuples beside them. A
+  year is converted and dropped now.
+- **What survives into the stamping is four numpy columns**: 312,500 × 5
+  float64 is **12.5 MB** against most of a gigabyte. Written to
+  `data/global/.seismic-work/events.npy` (gitignored) so **`--stamp-only`
+  re-runs the grids with no network and no laptop** — which is how all of this
+  was tested.
+
+**AND THE FIX EXPOSED A SILENT WRONG ANSWER.** `order` and `rowsi` live in the
+FILTERED space and `mag_a`/`year_a` in the full one; reading the second with an
+index from the first takes a different event's magnitude and year entirely.
+Nothing throws — both are the right dtype and the wrong length is never
+reached. It put **San Francisco at one damaging shake in 24 million years with
+no largest event on record**, beside a Tokyo M7 rate five times too high. The
+sanity print is what caught it, which is the argument for having one.
+
+Measured after, and the peak magnitudes are the check that means something —
+they are recognisable events: Tokyo 1 in 14 y (max **M 9.09**, Tōhoku),
+Santiago 1 in 13 y (**M 9.55**, Valdivia), Jakarta 1 in 79 y (**M 9.31**,
+Sumatra), San Francisco 1 in 106 y (M 7.7), Istanbul 1 in 119 y, London
+nothing.
+
+### Two more faults the rename and the scale surfaced
+
+**A LAYER ASKED FOR BY NAME BREAKS ON A RENAME, and reports itself as
+absent.** `eventsLayer` matched `/earthquakes \(USGS ComCat/i`; the record
+became three catalogues, the layer was renamed with it, and the animation said
+"tick the earthquake catalogue on first" over a layer sitting on the globe with
+312,500 features in it — the same sentence a genuinely missing layer produces.
+It asks `layerForDataset("earthquakes")` now, which follows the entry's own
+name by construction. Same shape as the cyclone tracks' variant, and the second
+time this file has paid for it.
+
+**A SORT KEY REBUILT PER COMPARISON is millions of allocations.**
+`.sort((a, b) => isoOf(a).localeCompare(isoOf(b)))` calls the key builder twice
+per comparison — at 312,500 events roughly twelve million `Date` objects — and
+it presented as the step control doing nothing at all. Decorated once and
+sorted on the number the instant already is.
+
+**And the class labels were assigned by INDEX.** `buildSymbology` drops a class
+that falls outside the data's own range, so a span holding nothing under M 5
+comes back with four rows and an index-keyed list then calls the M 5–5.9 class
+"M 4.5–4.9" and loses "M 8+" off the end. Labelled by the class's own floor.
+
+### The record plots itself, at three step sizes
+
+The cyclone tracks' own apparatus with the earthquake in place of the storm:
+**Each earthquake / By month / By year**, each with its own play interval, past
+360 frames STRIDED and the stride REPORTED. Verified live: the whole record
+from 1008 gives 232 frames at one per 2 years, the earliest frame reads
+"2 / 312,500 · largest M 7.4" with the pre-instrumental caption on it, and the
+event step gives 360 frames at one per 832 with the date pill reading
+"2016-09-07 20:47" — an epoch millisecond is not a date to anybody, so the key
+groups and a `show` reads.
+
+All six files are in R2 (`rclone check`: **6 matching files, 0 differences**),
+served with the bucket's fingerprint — the record fetched live from
+`data.geoidinitiative.com/earthquakes.geojson?v=175241fb729c`.
