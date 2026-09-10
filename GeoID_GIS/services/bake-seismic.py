@@ -122,41 +122,50 @@ def _page(url):
 
 
 def _yearly(params, first, last, label):
-    """Walk a catalogue a year at a time.
+    """Walk a catalogue a year at a time, YIELDING each year's features.
+
+    A generator rather than a list: the caller converts a year and drops it, so
+    the raw GeoJSON -- 311,675 dicts of two dozen properties each, most of a
+    gigabyte -- is never all in memory at once. It used to be, alongside the
+    converted list being built from it, and that is half of what took this
+    machine down.
 
     The service caps a page at 20,000 and the busiest year at M >= 4.5 holds
     about 15,500, so a year is a safe page -- and the cap is CHECKED rather
     than trusted, because a page silently truncated is a year of the record
     quietly missing.
     """
-    out = []
+    seen = 0
     for year in range(first, last + 1):
         url = (f"{FDSN}?format=geojson&starttime={year}-01-01&endtime={year + 1}-01-01"
                f"&orderby=time-asc&limit=20000&{params}")
         got = _page(url).get("features", [])
         if len(got) >= 20000:
             raise RuntimeError(f"{label} {year}: a page hit the cap; split the year")
-        out.extend(got)
+        seen += len(got)
+        yield got
         if year % 20 == 0:
-            print(f"    {label} {year}: {len(out):,} so far", flush=True)
-    return out
+            print(f"    {label} {year}: {seen:,} so far", flush=True)
 
 
 def fetch_iscgem_mw():
     """iscgem id -> homogenised Mw, from the two ISC-GEM catalogues ComCat mirrors.
 
-    The MAIN catalogue and the SUPPLEMENTARY one are separate `catalog=`
-    values and both are wanted: the supplement is the events that did not meet
-    the main catalogue's own cut-off but were still recomputed.
+    The MAIN catalogue and the SUPPLEMENTARY one are separate `catalog=` values
+    and both are wanted: the supplement is the events that did not meet the main
+    catalogue's own cut-off but were still recomputed. Read straight into the
+    dict a year at a time -- the features themselves are never accumulated.
     """
     mw = {}
     for cat in ("iscgem", "iscgemsup"):
-        feats = _yearly(f"catalog={cat}", ISCGEM_YEARS[0], ISCGEM_YEARS[1], cat)
-        for f in feats:
-            m = f.get("properties", {}).get("mag")
-            if f.get("id") and m is not None:
-                mw[f["id"]] = round(float(m), 2)
-        print(f"    {cat}: {len(feats):,} events", flush=True)
+        n = 0
+        for batch in _yearly(f"catalog={cat}", ISCGEM_YEARS[0], ISCGEM_YEARS[1], cat):
+            for f in batch:
+                m = f.get("properties", {}).get("mag")
+                if f.get("id") and m is not None:
+                    mw[f["id"]] = round(float(m), 2)
+            n += len(batch)
+        print(f"    {cat}: {n:,} events", flush=True)
     return mw
 
 
@@ -206,9 +215,9 @@ def fetch_ghec():
 def fetch_events():
     """The three sources, merged into one list of trimmed event tuples.
 
-    Tuples rather than dicts: three hundred thousand of the latter is most of a
-    gigabyte of Python objects, and this machine has been taken down by a bake
-    before.
+    Tuples rather than dicts, and converted a YEAR at a time: three hundred
+    thousand feature dicts is most of a gigabyte, and this machine has been
+    taken down by this bake already.
     """
     began = time.time()
     print("  ISC-GEM (the homogenised Mw backbone)...", flush=True)
@@ -216,89 +225,102 @@ def fetch_events():
     print("  {:,} ISC-GEM magnitudes ({:.0f}s)".format(len(mw_by_id), time.time() - began), flush=True)
 
     print(f"  ComCat, M >= {MIN_MAG} since {FIRST_YEAR}...", flush=True)
-    feats = _yearly(f"minmagnitude={MIN_MAG}", FIRST_YEAR, LAST_COMPLETE + 1, "comcat")
-    print("  {:,} ComCat events ({:.0f}s)".format(len(feats), time.time() - began), flush=True)
-
     events, joined = [], 0
-    for f in feats:
-        p = f.get("properties") or {}
-        c = ((f.get("geometry") or {}).get("coordinates") or [None, None, None])
-        if p.get("mag") is None or c[0] is None:
-            continue
-        # The join: ComCat lists every contributing id of a merged event, so an
-        # ISC-GEM Mw is looked up rather than matched in space and time.
-        mw = None
-        for part in (p.get("ids") or "").strip(",").split(","):
-            if part.startswith("iscgem") and part in mw_by_id:
-                mw = mw_by_id[part]
-                joined += 1
-                break
-        t = p.get("time")
-        events.append((float(c[0]), float(c[1]), c[2], float(p["mag"]), p.get("magType") or "",
-                       t, time.gmtime(t / 1000).tm_year if t else None, p.get("place") or "",
-                       f.get("id") or "", mw))
-    print("  {:,} carry an ISC-GEM Mw ({:.0%})".format(joined, joined / max(1, len(events))), flush=True)
+    for batch in _yearly(f"minmagnitude={MIN_MAG}", FIRST_YEAR, LAST_COMPLETE + 1, "comcat"):
+        for f in batch:
+            p = f.get("properties") or {}
+            c = ((f.get("geometry") or {}).get("coordinates") or [None, None, None])
+            if p.get("mag") is None or c[0] is None:
+                continue
+            # The join: ComCat lists every contributing id of a merged event, so
+            # an ISC-GEM Mw is looked up rather than matched in space and time.
+            mw = None
+            for part in (p.get("ids") or "").strip(",").split(","):
+                if part.startswith("iscgem") and part in mw_by_id:
+                    mw = mw_by_id[part]
+                    joined += 1
+                    break
+            t = p.get("time")
+            events.append((float(c[0]), float(c[1]), c[2], float(p["mag"]), p.get("magType") or "",
+                           t, time.gmtime(t / 1000).tm_year if t else None, p.get("place") or "",
+                           f.get("id") or "", mw))
+        batch.clear()
+    print("  {:,} ComCat events, {:,} carrying an ISC-GEM Mw ({:.0%}) ({:.0f}s)".format(
+        len(events), joined, joined / max(1, len(events)), time.time() - began), flush=True)
 
     print("  GEM GHEC v1.0 (1008-1903)...", flush=True)
     hist = fetch_ghec()
     for lon, lat, depth, mag, mtype, t, year, place, eid in hist:
         events.append((lon, lat, depth, mag, mtype, t, year, place, f"ghec{eid}", None))
-    print("  {:,} historical events; {:,} in all ({:.0f}s)".format(len(hist), len(events), time.time() - began), flush=True)
+    print("  {:,} historical events; {:,} in all ({:.0f}s)".format(
+        len(hist), len(events), time.time() - began), flush=True)
     return events
 
 
-_DISCS = {}
+# ── the stamp's footprint ────────────────────────────────────────────────
+#
+# WHAT CRASHED THIS MACHINE, measured rather than guessed. `disc(radius)` built
+# a footprint for EVERY ONE OF THE 720 CENTRE ROWS and cached the lot under one
+# key, while `kernel` used exactly one of them -- so the cache carried a 720x
+# multiple of what any event needed, and nothing ever evicted it. Held for the
+# 91 distinct radii the 2-decimal Mw produced, that is **7.46 GB**, of which a
+# single M 9 radius is 1.0 GB on its own, on a laptop with about 7 GB free.
+#
+# Two changes and it is kilobytes. The footprint depends only on the RADIUS and
+# the CENTRE ROW (longitude is a rotation -- `kernel` already mods the columns),
+# so that pair is the smallest correct unit; and the events are STAMPED IN
+# GROUPS of that pair, so each footprint is built once, used by the ~15 events
+# that share it, and dropped. Measured on the record: 7,297 distinct footprints
+# for 112,543 stampable events, one alive at a time.
 
+def disc_row(radius_km, row):
+    """The cells within `radius_km` of the centre of `row`, as (rows, cols).
 
-def disc(radius_km):
-    if radius_km in _DISCS:
-        return _DISCS[radius_km]
+    Columns are OFFSETS from the centre column, which is what makes this
+    independent of longitude and so cacheable by row alone.
+    """
     span = int(math.ceil(radius_km / 111.32 / STEP)) + 1
     hav_r = math.sin(0.5 * radius_km / EARTH_R_KM) ** 2
-    rows_out, cols_out = [], []
-    for r in range(NY):
-        lat = ROW_LAT[r]
-        rows, cols = [], []
-        for drow in range(-span, span + 1):
-            r2 = r + drow
-            if r2 < 0 or r2 >= NY:
-                continue
-            lat2 = ROW_LAT[r2]
-            room = hav_r - math.sin(math.radians(lat2 - lat) / 2) ** 2
-            if room < 0:
-                continue
-            denom = math.cos(math.radians(lat)) * math.cos(math.radians(lat2))
-            half = NX // 2 if denom <= 0 else min(
-                NX // 2, int(math.floor(math.degrees(2 * math.asin(math.sqrt(min(1.0, room / denom)))) / STEP)))
-            offs = np.arange(-half, half + 1)
-            cols.append(offs)
-            rows.append(np.full(offs.size, r2, dtype=np.int64))
-        rows_out.append(np.concatenate(rows))
-        cols_out.append(np.concatenate(cols))
-    _DISCS[radius_km] = (rows_out, cols_out)
-    return _DISCS[radius_km]
+    lat = ROW_LAT[row]
+    rows, cols = [], []
+    for drow in range(-span, span + 1):
+        r2 = row + drow
+        if r2 < 0 or r2 >= NY:
+            continue
+        lat2 = ROW_LAT[r2]
+        room = hav_r - math.sin(math.radians(lat2 - lat) / 2) ** 2
+        if room < 0:
+            continue
+        denom = math.cos(math.radians(lat)) * math.cos(math.radians(lat2))
+        half = NX // 2 if denom <= 0 else min(
+            NX // 2, int(math.floor(math.degrees(2 * math.asin(math.sqrt(min(1.0, room / denom)))) / STEP)))
+        offs = np.arange(-half, half + 1)
+        cols.append(offs)
+        rows.append(np.full(offs.size, r2, dtype=np.int64))
+    if not rows:
+        return np.empty(0, dtype=np.int64), np.empty(0, dtype=np.int64)
+    return np.concatenate(rows), np.concatenate(cols)
 
 
-_ERF = np.vectorize(math.erf)
+try:                                        # scipy is present here and exact
+    from scipy.special import erf as _erf   # noqa: N813
+except ImportError:                         # pragma: no cover
+    _erf = np.vectorize(math.erf)           # correct, and a Python loop
 
 
-def kernel(lon, lat, mag):
-    if not (np.isfinite(lon) and np.isfinite(lat) and abs(lat) <= 90):
-        return None, None
-    reach = reach_km(mag)
-    # radii are quantised to the band's middle so the disc cache stays small
-    rows, cols = disc(round(reach * math.exp(STAMP_SIGMAS * SIGMA) / 10.0) * 10.0 + 10.0)
-    r = int(min(NY - 1, max(0, (90.0 - lat) / STEP)))
-    c = int(((lon + 180.0) / STEP) % NX)
-    rr = rows[r]
-    cc = np.mod(c + cols[r], NX)
-    lat2 = np.radians(ROW_LAT[rr])
-    lon2 = np.radians(-180.0 + (cc + 0.5) * STEP)
-    la, lo = np.radians(lat), np.radians(lon)
-    a = np.sin((lat2 - la) / 2) ** 2 + np.cos(la) * np.cos(lat2) * np.sin((lon2 - lo) / 2) ** 2
-    d = np.maximum(2 * EARTH_R_KM * np.arcsin(np.sqrt(np.clip(a, 0, 1))), 0.01)
-    z = np.log(d / reach) / SIGMA
-    return rr * NX + cc, 0.5 * (1.0 - _ERF(z / math.sqrt(2.0)))
+# THE MAGNITUDE IS BINNED BEFORE THE REACH IS TAKEN, and that is honesty rather
+# than economy. The reach is a global-average attenuation with sigma = 0.4 --
+# the radius is uncertain by about a factor of 1.5 either way -- so resolving it
+# to the 0.01 of a magnitude unit that ISC-GEM publishes is false precision by
+# two orders of magnitude. Binning to 0.1 takes the distinct radii from 91 to 38
+# and changes no map anybody can read.
+MAG_BIN = 0.1
+
+
+def stamp_radius(mag):
+    """The quantised radius one binned magnitude stamps to."""
+    binned = round(mag / MAG_BIN) * MAG_BIN
+    return round(reach_km(binned) * math.exp(STAMP_SIGMAS * SIGMA) / 10.0) * 10.0 + 10.0
 
 
 def quadtree(field, mag_max, extra):
@@ -402,35 +424,42 @@ def write_grid(path, features, band):
     return path.stat().st_size / 1e6
 
 
-def main() -> int:
-    began = time.time()
-    events = fetch_events()
+WORK = GLOBAL / ".seismic-work"
+COLUMNS = WORK / "events.npy"          # lon, lat, mag_best, year, historical
 
-    # ── the record, streamed out ──────────────────────────────────────────
-    #
-    # Streamed rather than assembled: a FeatureCollection of three hundred
-    # thousand features built as one Python object and then serialised is the
-    # peak this bake would be measured at, and it is avoidable.
+
+def collect():
+    """Fetch, stream the record out, and keep only what the grids need.
+
+    THE OTHER HALF OF THE MEMORY. `fetch_events` held every ComCat feature as a
+    Python dict -- 311,675 of them, each with a couple of dozen properties --
+    while it built a second list of tuples beside them, so the peak carried
+    both. The features are converted and dropped a YEAR at a time now, the
+    record is written as it goes, and what survives into the stamping is four
+    numpy columns: 312,515 x 5 float64 is 12 MB against most of a gigabyte.
+    """
+    events = fetch_events()
     OUT_EVENTS.parent.mkdir(parents=True, exist_ok=True)
+    WORK.mkdir(parents=True, exist_ok=True)
+    cols = np.empty((len(events), 5), dtype=np.float64)
     with OUT_EVENTS.open("w") as out:
         out.write('{"type":"FeatureCollection","_source":')
         out.write(json.dumps(SOURCE))
         out.write(',"features":[')
         for i, (lon, lat, depth, mag, mtype, t, year, place, eid, mw) in enumerate(events):
-            # ONE COLUMN TO COLOUR BY. The symbology reads a property NAME,
-            # not a function, so the choice between ISC-GEM's Mw and ComCat's
+            best = round(mw if mw is not None else mag, 2)
+            # ONE COLUMN TO COLOUR BY. The symbology reads a property NAME, not
+            # a function, so the choice between ISC-GEM's Mw and ComCat's
             # preferred magnitude is made here rather than in every consumer --
             # and both are still carried, so the card can say which it showed.
-            props = {"mag": round(mag, 1), "magType": mtype,
-                     "mag_best": round(mw if mw is not None else mag, 2),
+            props = {"mag": round(mag, 1), "magType": mtype, "mag_best": best,
                      "time": t, "year": year, "place": place, "id": eid}
             if depth is not None:
                 props["depth_km"] = round(float(depth), 1)
-            # ISC-GEM's own Mw, where that catalogue reaches. Absent rather
-            # than filled: a magnitude nobody homogenised must not read as one.
             if mw is not None:
                 props["mw"] = mw
-            if eid.startswith("ghec"):
+            hist = 1 if eid.startswith("ghec") else 0
+            if hist:
                 props["historical"] = 1
             if i:
                 out.write(",")
@@ -438,51 +467,111 @@ def main() -> int:
                                   "geometry": {"type": "Point",
                                                "coordinates": [round(lon, 3), round(lat, 3)]}},
                                  separators=(",", ":")))
+            cols[i] = (lon, lat, best, year if year is not None else -9999, hist)
         out.write("]}")
-    print("  wrote {:,} events, {:.1f} MB -> {}".format(len(events), OUT_EVENTS.stat().st_size / 1e6,
-                                                        OUT_EVENTS.relative_to(ROOT)), flush=True)
+    np.save(COLUMNS, cols)
+    print("  wrote {:,} events, {:.1f} MB -> {} (+ {:.0f} MB of columns for re-stamping)".format(
+        len(events), OUT_EVENTS.stat().st_size / 1e6, OUT_EVENTS.relative_to(ROOT),
+        COLUMNS.stat().st_size / 1e6), flush=True)
+    return cols
+
+
+def main() -> int:
+    began = time.time()
+    # `--stamp-only` re-runs the grids from the columns the last fetch left,
+    # so tuning the stamping costs no network and no laptop.
+    if "--stamp-only" in sys.argv:
+        if not COLUMNS.exists():
+            print("  no columns to stamp from; run without --stamp-only once", file=sys.stderr)
+            return 1
+        cols = np.load(COLUMNS)
+        print("  {:,} events from {} ({:.1f} MB of columns)".format(
+            len(cols), COLUMNS.relative_to(ROOT), cols.nbytes / 1e6), flush=True)
+    else:
+        cols = collect()
 
     cells = NY * NX
     per_band = {b: np.zeros(cells, dtype=np.float64) for b in BANDS}
     mag_max = np.zeros(cells, dtype=np.float32)
     quakes = np.zeros(cells, dtype=np.int32)
     counted = {b: 0 for b in BANDS}
-    skipped = historical = on_mw = 0
-    for lon, lat, depth, mag, mtype, t, year, place, eid, mw in events:
-        # THE HISTORICAL RECORD IS NOT A RATE. GHEC is the large events
-        # somebody knows about across nine centuries, not a complete record of
-        # them; counted here it would divide a handful by 900 years and
-        # understate every rate it touched.
-        if eid.startswith("ghec"):
-            historical += 1
-            continue
-        # ISC-GEM's Mw where it reaches, ComCat's preferred otherwise. This is
-        # what the richer catalogue buys the HAZARD: about 82% of modern
-        # ComCat at this threshold is body-wave mb, which saturates near 6 and
-        # reads low -- so events land in the wrong band under the raw number.
-        best = mw if mw is not None else mag
-        if mw is not None:
-            on_mw += 1
-        band = band_of(best)
-        if band is None or year is None:
-            skipped += 1
-            continue
-        lo, hi = WINDOWS[band]
-        if year < lo or year > hi:
-            skipped += 1
-            continue
-        hit, k = kernel(lon, lat, best)
-        if hit is None:
-            skipped += 1
-            continue
-        per_band[band][hit] += k / (hi - lo + 1)
-        near = hit[k >= COUNTS_FROM_P]
-        mag_max[near] = np.maximum(mag_max[near], best)
-        quakes[near] += 1
-        counted[band] += 1
-    print("  counted {}; {:,} on an ISC-GEM Mw; {:,} historical held out of the rates;"
+    skipped = historical = 0
+
+    # ── grouped by (radius, centre row), so each footprint is built once ──
+    #
+    # THE HISTORICAL RECORD IS NOT A RATE. GHEC is the large events somebody
+    # knows about across nine centuries, not a complete record of them; counted
+    # here it would divide a handful by 900 years and understate every rate it
+    # touched. It plays in the timeline instead.
+    lon_a, lat_a, mag_a, year_a, hist_a = (cols[:, i] for i in range(5))
+    keep = np.ones(len(cols), dtype=bool)
+    historical = int(hist_a.sum())
+    keep &= hist_a == 0
+    keep &= np.isfinite(lon_a) & np.isfinite(lat_a) & (np.abs(lat_a) <= 90)
+    keep &= year_a > -9000
+    # Only M >= 5 is banded at all, so the 200,000 events below it never reach
+    # a footprint: the record's floor moved for the TIMELINE, not for the rates.
+    keep &= mag_a >= BANDS["m5"][0]
+    skipped = int(len(cols) - keep.sum() - historical)
+
+    # FILTERED ARRAYS, ONCE. `order` and `rowsi` live in the filtered space and
+    # `mag_a`/`year_a` in the full one; reading the second with an index from
+    # the first takes a different event's magnitude and year entirely, and it
+    # fails SILENTLY -- the first run of this loop did exactly that and put San
+    # Francisco at one damaging shake in 24 million years with no largest event
+    # on record, next to a Tokyo M7 rate five times too high. Nothing throws:
+    # both arrays are the right dtype and the wrong length is never reached.
+    idx = np.flatnonzero(keep)
+    lon_f, lat_f = lon_a[idx], lat_a[idx]
+    mag_f, year_f = mag_a[idx], year_a[idx]
+    rowsi = np.clip(((90.0 - lat_f) / STEP).astype(np.int64), 0, NY - 1)
+    colsi = (((lon_f + 180.0) / STEP).astype(np.int64)) % NX
+    radii = np.array([stamp_radius(m) for m in mag_f])
+    # Sorted so every event sharing a footprint is consecutive: the group's
+    # arrays are built, used, and dropped before the next one is built.
+    order = np.lexsort((rowsi, radii))
+    print("  stamping {:,} events in {:,} footprints...".format(
+        len(idx), len(set(zip(radii.tolist(), rowsi.tolist())))), flush=True)
+
+    start = 0
+    built = 0
+    while start < len(order):
+        end = start + 1
+        k0 = order[start]
+        while end < len(order) and radii[order[end]] == radii[k0] and rowsi[order[end]] == rowsi[k0]:
+            end += 1
+        rr, offs = disc_row(float(radii[k0]), int(rowsi[k0]))
+        built += 1
+        if rr.size:
+            lat2 = np.radians(ROW_LAT[rr])
+            cos_lat2 = np.cos(lat2)
+            for k in order[start:end]:
+                band = band_of(mag_f[k])
+                if band is None:
+                    continue
+                lo_y, hi_y = WINDOWS[band]
+                if year_f[k] < lo_y or year_f[k] > hi_y:
+                    continue
+                cc = np.mod(int(colsi[k]) + offs, NX)
+                # The EVENT'S OWN coordinates, not its cell's centre: the cell
+                # is only how the footprint is indexed.
+                la, lo = math.radians(float(lat_f[k])), math.radians(float(lon_f[k]))
+                lon2 = np.radians(-180.0 + (cc + 0.5) * STEP)
+                a = (np.sin((lat2 - la) / 2) ** 2
+                     + math.cos(la) * cos_lat2 * np.sin((lon2 - lo) / 2) ** 2)
+                d = np.maximum(2 * EARTH_R_KM * np.arcsin(np.sqrt(np.clip(a, 0, 1))), 0.01)
+                k_w = 0.5 * (1.0 - _erf((np.log(d / reach_km(float(mag_f[k]))) / SIGMA) / math.sqrt(2.0)))
+                hit = rr * NX + cc
+                per_band[band][hit] += k_w / (hi_y - lo_y + 1)
+                near = hit[k_w >= COUNTS_FROM_P]
+                mag_max[near] = np.maximum(mag_max[near], mag_f[k])
+                quakes[near] += 1
+                counted[band] += 1
+            del rr, offs, lat2, cos_lat2
+        start = end
+    print("  counted {}; {:,} footprints built; {:,} historical held out of the rates;"
           " {:,} skipped (below M5, outside their window, or unplaced) ({:.0f}s)".format(
-              ", ".join(f"{b} {n:,}" for b, n in counted.items()), on_mw, historical,
+              ", ".join(f"{b} {n:,}" for b, n in counted.items()), built, historical,
               skipped, time.time() - began), flush=True)
 
     grids = {b: per_band[b].reshape(NY, NX) for b in BANDS}
