@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-95bdfcc";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-95bdfcc";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-42da88f";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-42da88f";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260910-95bdfcc";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-95bdfcc";
-import { downloadText } from "./extraction.js?v=20260910-95bdfcc";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-95bdfcc";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-95bdfcc";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260910-95bdfcc";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260910-95bdfcc";
-import { femSpec } from "./model-build.js?v=20260910-95bdfcc";
+} from "./mesh-volume.js?v=20260910-42da88f";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-42da88f";
+import { downloadText } from "./extraction.js?v=20260910-42da88f";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-42da88f";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-42da88f";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260910-42da88f";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260910-42da88f";
+import { femSpec } from "./model-build.js?v=20260910-42da88f";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -21,6 +21,9 @@ import { femSpec } from "./model-build.js?v=20260910-95bdfcc";
 // inside-tests and a lattice tet mesher, because those can run in a browser.
 
 const byId = (id) => document.getElementById(id);
+
+let gisTerrain = null;
+let geoGroupWasVisible = null;
 
 const state = {
   solids: [],
@@ -3007,8 +3010,8 @@ function setStudioOrigin(lat, lon, elevation = studioOrigin.elevation) {
  * decision (etna.py's outer_box), and the card this adds lets them be
  * changed on this page without going back to the GIS.
  */
-let gisTerrain = null;
-let geoGroupWasVisible = null;
+// (`gisTerrain` and `geoGroupWasVisible` are declared beside `state` at the top:
+// `init()` runs at module end and now reads them, and a `let` below that call is a TDZ.)
 
 /** The frame both pages compute lat/lon through: the surface's, or the section's. */
 function terrainFrame() {
