@@ -1,6 +1,6 @@
-import { directoryAdapter, memoryAdapter, indexedDbAdapter } from "./fs-adapter.js?v=20260910-e8fa215";
-import { currentBodyId } from "../bodies.js?v=20260910-e8fa215";
-import { saveRootHandle, loadRootHandle, clearRootHandle } from "./handles.js?v=20260910-e8fa215";
+import { directoryAdapter, memoryAdapter, indexedDbAdapter } from "./fs-adapter.js?v=20260910-4a62fde";
+import { currentBodyId } from "../bodies.js?v=20260910-4a62fde";
+import { saveRootHandle, loadRootHandle, clearRootHandle } from "./handles.js?v=20260910-4a62fde";
 
 /**
  * Projects, on disk, in the layout the Qt Research app uses.

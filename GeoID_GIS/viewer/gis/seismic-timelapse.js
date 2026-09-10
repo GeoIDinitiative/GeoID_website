@@ -8,21 +8,19 @@
  * so a M 7 is the same colour in a quiet year and a busy one.
  */
 
-import { buildSymbology, colourOf, legendInfoFrom } from "./symbology.js?v=20260910-e8fa215";
-import { startPlayer } from "./timelapse-player.js?v=20260910-e8fa215";
+import { colourOf, legendInfoFrom } from "./symbology.js?v=20260910-4a62fde";
+import { startPlayer } from "./timelapse-player.js?v=20260910-4a62fde";
+/**
+ * The bands live in their own module because the PANEL needs them too, and
+ * `catalogue-panels.js` must not drag the player in behind them. What is
+ * re-exported here is what this module's own callers have always read.
+ */
+import { MAG_EDGES, MAG_LABELS, MAG_FLOORS, magOf, bandSymbology }
+  from "./seismic-magnitude.js?v=20260910-4a62fde";
+
+export { MAG_EDGES, MAG_LABELS, MAG_FLOORS, magOf };
 
 const search = new URL(import.meta.url).search;
-/**
- * A CLASS PER MAGNITUDE UNIT, and a half one at the foot.
- *
- * The record's floor moved to M 4.5, so an edge at 5 had to join them: without
- * it the bottom class runs 4.5 to 5.9 under a label reading "M 5–5.9", which
- * is a key saying something false about a third of the layer.
- */
-export const MAG_EDGES = [5, 6, 7, 8];
-export const MAG_LABELS = ["M 4.5–4.9", "M 5–5.9", "M 6–6.9", "M 7–7.9", "M 8+"];
-/** Each label's own floor, so a dropped class cannot shift the rest along. */
-export const MAG_FLOORS = [0, 5, 6, 7, 8];
 export const SPANS = {
   1008: "1008 to now — the whole record, historical included",
   1900: "1900 to now — the instrumental record",
@@ -30,13 +28,6 @@ export const SPANS = {
   2000: "2000 to now",
 };
 
-/** ISC-GEM's homogenised Mw where it reaches, ComCat's preferred otherwise. */
-export const magOf = (props) => {
-  const best = Number(props?.mag_best);
-  if (Number.isFinite(best)) return best;
-  const raw = Number(props?.mag);
-  return Number.isFinite(raw) ? raw : null;
-};
 let running = false;
 let opening = false;
 
@@ -177,24 +168,18 @@ export function yearOfLabel(label) {
   return Number.isFinite(t) ? new Date(t).getUTCFullYear() : null;
 }
 
+/**
+ * The frames' paint, on the PINNED five classes.
+ *
+ * It used to classify the frame's own values, which drops a class that falls
+ * outside their range AND spreads the ramp across what is left — so a span
+ * with no M 8 in it handed M 7–7.9 the top colour, and a magnitude band
+ * switched off in the panel recoloured every band still on screen. The rows
+ * and their colours are fixed now and only the counts are the data's, which
+ * is also what makes one palette hold across every frame.
+ */
 export function colouring(features) {
-  const values = features.map((f) => magOf(f?.properties)).filter((n) => Number.isFinite(n));
-  const sym = buildSymbology(values.length ? values : [4.5, 5, 6, 7, 8], { edges: MAG_EDGES, ramp: "risk" });
-  /**
-   * LABELLED BY THE CLASS'S OWN FLOOR, NOT BY ITS INDEX.
-   *
-   * `buildSymbology` DROPS a class that falls outside the data's own range —
-   * so a span holding nothing under M 5 comes back with four rows, and an
-   * index-keyed label list then calls the M 5–5.9 class "M 4.5–4.9" and loses
-   * "M 8+" off the end. Measured on a four-event fixture. The floor is what
-   * the label is about, so that is what it is looked up by.
-   */
-  sym.rows.forEach((row) => {
-    const from = Number(row.from);
-    let i = 0;
-    MAG_FLOORS.forEach((floor, k) => { if (from >= floor - 1e-9) i = k; });
-    if (MAG_LABELS[i]) row.label = MAG_LABELS[i];
-  });
+  const sym = bandSymbology(features.map((f) => magOf(f?.properties)));
   return {
     sym,
     colourFor: (feature) => {
@@ -256,7 +241,15 @@ export async function play({ from = chosenSpan(), step = chosenStep(), startAt =
 async function build(from, startAt, step = DEFAULT_STEP) {
   const layer = eventsLayer();
   if (!layer?.features?.length) {
-    say("Tick the earthquake catalogue on first — the animation plays the layer you have.");
+    /**
+     * Two different silences, and one sentence for each. A layer that is not
+     * there wants ticking on; a layer whose every magnitude band is switched
+     * off is a decision the reader has just made, and telling them to load
+     * what they are already holding reads as the control being broken.
+     */
+    say(layer?._allFeatures?.length
+      ? "Every magnitude is switched off — turn a band back on to plot the record."
+      : "Tick the earthquake catalogue on first — the animation plays the layer you have.");
     return null;
   }
   const plan = framesFor(layer.features, { from, step });
@@ -371,7 +364,18 @@ async function build(from, startAt, step = DEFAULT_STEP) {
 if (typeof document !== "undefined") {
   document.addEventListener("change", (event) => {
     const id = event.target?.id;
-    if (id !== "seismic-timelapse-span" && id !== "seismic-timelapse-step") return;
+    /**
+     * The MAGNITUDE ticks rebuild too, and they must.
+     *
+     * A frame is built from `layer.features`, which the panel has already
+     * filtered by the time this runs — the tick's own handler is bound to the
+     * tick and fires at the target, this one listens on the document and
+     * fires after it. Without the rebuild the bar goes on showing frames cut
+     * from a set the layer no longer holds, which is a sequence quietly
+     * describing data that is not on the globe.
+     */
+    const isBand = typeof id === "string" && id.startsWith("seismic-mag-");
+    if (!isBand && id !== "seismic-timelapse-span" && id !== "seismic-timelapse-step") return;
     if (!document.getElementById("geoid-timelapse") || !running) return;
     const work = () => build(chosenSpan(), null, chosenStep());
     const hold = window.GeoIDAnimatedLayers?.hold;

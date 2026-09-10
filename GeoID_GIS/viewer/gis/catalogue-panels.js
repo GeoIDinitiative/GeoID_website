@@ -29,9 +29,11 @@
 
 import {
   HOMES, MIRRORS, grouped, addDataset, layerForDataset, loadLaunchDefaults,
-} from "./global-data.js?v=20260910-e8fa215";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260910-e8fa215";
-import { mathsFor } from "./equations.js?v=20260910-e8fa215";
+} from "./global-data.js?v=20260910-4a62fde";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260910-4a62fde";
+import { mathsFor } from "./equations.js?v=20260910-4a62fde";
+import { bandOf, bandRows, bandSymbology, describeFilter, magOf }
+  from "./seismic-magnitude.js?v=20260910-4a62fde";
 
 const byId = (id) => document.getElementById(id);
 
@@ -364,21 +366,72 @@ if (typeof document !== "undefined") {
 function drawAll() {
   Object.entries(HOMES).forEach(([home, hostId]) => draw(home, hostId));
   drawVolcanoTypes();
+  drawSeismicBands();
 }
 
 /**
- * Per-type toggles for the volcano layer — the satellite categories'
- * pattern applied to an ordinary vector layer.
+ * HIDING A CLASS OF A LAYER — the satellite categories' pattern, written once
+ * because two copies of it drift and the thing they drift on is invisible.
  *
- * The toggle FILTERS `layer.features` (and the collection the renderer
- * reads) against a kept master list, so the dots, the click pick, and the
- * labels all answer from the same filtered set — a type switched off
- * cannot be clicked and cannot keep a label. Colours must NOT be re-derived
- * on repaint: `categoricalSymbology` assigns by frequency, and filtering
- * changes the frequencies, so the lookup is taken once from the legend the
- * layer already wears and the legend itself is left untouched — the
- * swatches beside these ticks stay meaningful while a class is hidden.
+ * The toggle FILTERS `layer.features` (and the collection the renderer reads)
+ * against a kept master list, so the dots, the click pick and the labels all
+ * answer from the same filtered set — a class switched off cannot be clicked
+ * and cannot keep a label.
+ *
+ * COLOURS ARE NEVER RE-DERIVED ON REPAINT, and that is the whole discipline
+ * here. `categoricalSymbology` assigns by frequency and filtering changes the
+ * frequencies; `buildSymbology` drops a class outside the data's range and
+ * spreads the ramp across what survives. Either way the classes still on
+ * screen change colour when one is hidden, under a key that has quietly lost
+ * a row. So the caller hands in a FIXED lookup and the legend is left
+ * untouched — the swatches beside these ticks stay meaningful while a class
+ * is hidden, which is what makes the control readable at all.
  */
+function applyClassFilter(layer, { classOf, colourFor, off, after = null }) {
+  if (!layer) return null;
+  if (!layer._allFeatures) layer._allFeatures = layer.features;
+  const all = layer._allFeatures || [];
+  const filtered = off.size
+    ? all.filter((f) => {
+      const key = classOf(f);
+      return key === null || key === undefined || !off.has(String(key));
+    })
+    : all;
+  layer.features = filtered;
+  if (layer.collection) layer.collection.features = filtered;
+  layer.repaint?.(colourFor);
+  after?.(layer);
+  return filtered;
+}
+
+/** The tick, its swatch and its name — one row per class, in the class's own order. */
+function drawClassRows(host, classes, off, onToggle, idPrefix) {
+  host.replaceChildren();
+  classes.forEach(({ key, label, colour }) => {
+    const row = document.createElement("div");
+    row.className = "gis-catalogue-row";
+    const tick = document.createElement("input");
+    tick.type = "checkbox";
+    tick.checked = !off.has(String(key));
+    tick.id = `${idPrefix}-${String(key).replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
+    const swatch = document.createElement("span");
+    swatch.style.cssText = `flex:0 0 auto;width:0.55rem;height:0.55rem;`
+      + `border-radius:0.12rem;background:${colour};`;
+    const name = document.createElement("label");
+    name.className = "gis-catalogue-name";
+    name.htmlFor = tick.id;
+    name.textContent = label;
+    tick.addEventListener("change", () => {
+      if (tick.checked) off.delete(String(key));
+      else off.add(String(key));
+      onToggle();
+    });
+    row.append(tick, swatch, name);
+    host.appendChild(row);
+  });
+}
+
+/** Per-type toggles for the volcano layer. */
 const volcanoTypesOff = new Set();
 
 function volcanoLayerBits() {
@@ -392,53 +445,90 @@ function applyVolcanoTypes() {
   const bits = volcanoLayerBits();
   if (!bits) return;
   const { layer, legend } = bits;
-  if (!layer._allFeatures) layer._allFeatures = layer.features;
-  const filtered = volcanoTypesOff.size
-    ? layer._allFeatures.filter((f) => !volcanoTypesOff.has(String(f?.properties?.type_group)))
-    : layer._allFeatures;
-  layer.features = filtered;
-  if (layer.collection) layer.collection.features = filtered;
   const lookup = new Map(legend.values.map((value, i) => [value, `#${legend.palette[i]}`]));
-  layer.repaint?.((feature) =>
-    lookup.get(String(feature?.properties?.type_group)) || "#8a8a8a");
-  // The labels rebuild from the filtered features; off-then-on keeps the
-  // chosen detail level because point-labels remembers it by layer name.
-  const labels = window.GeoIDPointLabels;
-  if (labels?.isLabelled?.(layer)) {
-    void labels.setLabels(layer, false);
-    void labels.setLabels(layer, true);
-  }
+  applyClassFilter(layer, {
+    off: volcanoTypesOff,
+    classOf: (f) => String(f?.properties?.type_group),
+    colourFor: (f) => lookup.get(String(f?.properties?.type_group)) || "#8a8a8a",
+    // The labels rebuild from the filtered features; off-then-on keeps the
+    // chosen detail level because point-labels remembers it by layer name.
+    after: (l) => {
+      const labels = window.GeoIDPointLabels;
+      if (labels?.isLabelled?.(l)) {
+        void labels.setLabels(l, false);
+        void labels.setLabels(l, true);
+      }
+    },
+  });
 }
 
 function drawVolcanoTypes() {
   const host = byId("volcano-types");
   if (!host) return;
   const bits = volcanoLayerBits();
-  host.replaceChildren();
-  if (!bits) return;
+  if (!bits) { host.replaceChildren(); return; }
   const { legend } = bits;
-  legend.values.forEach((value, i) => {
-    const row = document.createElement("div");
-    row.className = "gis-catalogue-row";
-    const tick = document.createElement("input");
-    tick.type = "checkbox";
-    tick.checked = !volcanoTypesOff.has(value);
-    tick.id = `volcano-type-${value.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
-    const swatch = document.createElement("span");
-    swatch.style.cssText = `flex:0 0 auto;width:0.55rem;height:0.55rem;`
-      + `border-radius:0.12rem;background:#${legend.palette[i]};`;
-    const name = document.createElement("label");
-    name.className = "gis-catalogue-name";
-    name.htmlFor = tick.id;
-    name.textContent = value;
-    tick.addEventListener("change", () => {
-      if (tick.checked) volcanoTypesOff.delete(value);
-      else volcanoTypesOff.add(value);
-      applyVolcanoTypes();
-    });
-    row.append(tick, swatch, name);
-    host.appendChild(row);
+  drawClassRows(
+    host,
+    legend.values.map((value, i) => ({ key: value, label: value, colour: `#${legend.palette[i]}` })),
+    volcanoTypesOff,
+    applyVolcanoTypes,
+    "volcano-type",
+  );
+}
+
+/**
+ * PER-MAGNITUDE toggles for the seismic record — the same control, over a
+ * layer whose classes are numeric bands rather than named types.
+ *
+ * Three hundred thousand arrivals is mostly M 4.5–4.9, so at a global view
+ * the ordinary background of the planet is drawn over the earthquakes anybody
+ * remembers. The bands come from `seismic-magnitude.js`, whose symbology is
+ * PINNED to all five classes — see the note there for why a filtered layer
+ * repainted through the ordinary path recolours every band that is left.
+ *
+ * The ANIMATION follows without being told: it builds its frames from
+ * `layer.features`, which this has already filtered, and `seismic-timelapse`
+ * rebuilds under a hold on the same `change` — the span and the step do
+ * exactly that already.
+ */
+const seismicBandsOff = new Set();
+
+function seismicLayer() {
+  const layer = layerForDataset("earthquakes");
+  return layer?.features?.length || layer?._allFeatures?.length ? layer : null;
+}
+
+function applySeismicBands() {
+  const layer = seismicLayer();
+  if (!layer) return;
+  if (!layer._allFeatures) layer._allFeatures = layer.features;
+  const sym = bandSymbology((layer._allFeatures || []).map((f) => magOf(f?.properties)));
+  applyClassFilter(layer, {
+    off: seismicBandsOff,
+    classOf: (f) => bandOf(f?.properties),
+    colourFor: (f) => {
+      const band = bandOf(f?.properties);
+      return band === null ? null : sym.rows[band]?.colour || null;
+    },
   });
+  say("seismic-magnitudes-status", describeFilter(layer._allFeatures || [], seismicBandsOff));
+}
+
+function drawSeismicBands() {
+  const host = byId("seismic-magnitudes");
+  if (!host) return;
+  const layer = seismicLayer();
+  if (!layer) { host.replaceChildren(); say("seismic-magnitudes-status", ""); return; }
+  drawClassRows(
+    host,
+    bandRows(layer._allFeatures || layer.features || [])
+      .map((b) => ({ ...b, label: `${b.label} — ${b.count.toLocaleString()}` })),
+    seismicBandsOff,
+    applySeismicBands,
+    "seismic-mag",
+  );
+  say("seismic-magnitudes-status", describeFilter(layer._allFeatures || layer.features || [], seismicBandsOff));
 }
 
 /**

@@ -49,13 +49,30 @@ check("the layer is found by its name", riskLayer([{ name: "Seismic risk (USGS C
 /* ── the timeline ────────────────────────────────────────────────────────── */
 const quakes = [{ properties: { year: 1964, mag: 9.2 } }, { properties: { year: 1964, mag: 5.1 } }, { properties: { year: 2011, mag: 9.1 } }, { properties: { year: 1906, mag: 7.9 } }];
 check("years present, in order, from a span", yearsIn(quakes, 1964).map(([y, f]) => [y, f.length]), [[1964, 2], [2011, 1]]);
-/* buildSymbology DROPS a class outside the data's own range, so this fixture
-   (nothing under M 5) gets four rows -- and each must still carry its OWN
-   band's name rather than the fourth label falling off the end. */
-check("magnitude classes are named by their own floor, not by index",
-  colouring(quakes).legend.labels, ["M 5–5.9", "M 6–6.9", "M 7–7.9", "M 8+"]);
-check("and a span reaching under M 5 gets all five",
-  colouring([...quakes, { properties: { year: 2011, mag: 4.6 } }]).legend.labels, MAG_LABELS);
+/* THE FIVE CLASSES EXIST WHATEVER IS ON SCREEN, and this pin was re-argued
+   rather than deleted when the magnitude filter arrived.
+   It used to assert the opposite: `buildSymbology` drops a class outside the
+   data's own range, so this fixture (nothing under M 5) came back with FOUR
+   rows and the check was that each still carried its own band's name rather
+   than the fourth label falling off the end. That labelling rule still holds
+   and is still checked -- what changed is that dropping the class was never
+   only a labelling problem. The ramp is spread across whatever survives
+   (`t = i / (edges.length - 2)`), so a set with no M 4.5-4.9 in it handed
+   every remaining band a different colour. Harmless while the only caller was
+   the whole record, which spans all five; ruinous the moment a reader can
+   switch a band off, because hiding one would recolour the rest.
+   A magnitude band is a published scale rather than a class derived from this
+   file, so it exists whether or not this set has members -- which is also the
+   only way the animation's own rule holds, that an M 7 is the same colour in
+   a quiet year and a busy one. */
+const thin = colouring(quakes).legend;
+const full = colouring([...quakes, { properties: { year: 2011, mag: 4.6 } }]).legend;
+check("magnitude classes are named by their own floor, not by index", thin.labels, MAG_LABELS);
+check("and a span reaching under M 5 names them the same", full.labels, MAG_LABELS);
+check("a class with nothing in it keeps its place, so the rest keep their colours",
+  thin.palette, full.palette);
+check("the counts are still the data's own",
+  [thin.counts[0], full.counts[0]], [0, 1]);
 /* ISC-GEM's Mw wins over ComCat's preferred, and the bake resolves it. */
 check("the colour reads the resolved magnitude",
   [magOf({ mag: 5.2, mag_best: 6.1 }), magOf({ mag: 5.2 }), magOf({})], [6.1, 5.2, null]);
