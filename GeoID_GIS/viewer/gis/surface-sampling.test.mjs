@@ -217,6 +217,7 @@ check("the TIN builds", tin.ok, tin.message);
     check("a section head keeps the GUI's own open-is-filled rule", !/studio-fold-section\[open\] > summary \{ background:/.test(css));
     const skin = readFileSync(new URL("../../../styles/viewer-skin.css", import.meta.url), "utf8");
     check("the studio's controls are on the app's own control-skin list", /\.studio-primary, \.studio-secondary, \.studio-input, \.studio-select, \.studio-mini \{\n  border-color: rgba\(var\(--skin-data-rgb\), 0\.40\) !important;/.test(skin) && /\.studio-primary:hover, \.studio-secondary:hover, \.studio-mini:hover \{/.test(skin));
+    check("the app's own control skin and themes are cache-busted like everything else", /viewer-skin\.css\?v=/.test(page) && /viewer-themes\.css\?v=/.test(page));
     const atlas = readFileSync(new URL("./atlas-assistant.js", import.meta.url), "utf8");
     check("Atlas takes the build-a-volcano phrase the studio's box used to", /studio\.buildFromText\(question\)/.test(atlas));
   }

@@ -22,7 +22,7 @@
  */
 
 import { loadDerivedGeologyMap, removeDerivedGeologyMap }
-  from "./geology-panel.js?v=20260910-f54ac16";
+  from "./geology-panel.js?v=20260910-1d182d6";
 
 const STAMP = new URL(import.meta.url).search || "";
 const LAYER_ID = "soil-dsmw";
