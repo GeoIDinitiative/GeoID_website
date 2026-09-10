@@ -106,6 +106,19 @@ check("the span still cuts the record", framesFor(RECORD_FIXTURE, { from: 1995, 
    only the year is played rather than refused. */
 check("a year-only event still groups", framesFor([{ properties: { year: 1970, mag: 6 } }], { step: "year" }).groups.length, 1);
 
+/* An epoch millisecond is not a date to anybody: the key groups, the show
+   reads. */
+check("the event step shows the minute, not the epoch",
+  framesFor(RECORD_FIXTURE, { step: "event" }).groups[0].show, "1994-03-04 00:00");
+/* `startPlayer` stops the running sequence, and that teardown calls say("") --
+   so a status written before the swap is wiped by the sequence it replaced. */
+{
+  const src = readFileSync(new URL("./seismic-timelapse.js", import.meta.url), "utf8");
+  const body = src.slice(src.indexOf("async function build("));
+  check("the status is said after the swap, never before it",
+    body.indexOf("await startPlayer(") < body.indexOf("say(summary);"), true);
+}
+
 const page = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 check("the step is a control beside the span", /id="seismic-timelapse-step"/.test(page) && /value="event"/.test(page) && /value="month"/.test(page), true);
 check("and the entry reads BOTH at open, never at build",

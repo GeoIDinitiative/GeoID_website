@@ -8,8 +8,8 @@
  * so a M 7 is the same colour in a quiet year and a busy one.
  */
 
-import { buildSymbology, colourOf, legendInfoFrom } from "./symbology.js?v=20260910-e1d61fb";
-import { startPlayer } from "./timelapse-player.js?v=20260910-e1d61fb";
+import { buildSymbology, colourOf, legendInfoFrom } from "./symbology.js?v=20260910-ab8adb8";
+import { startPlayer } from "./timelapse-player.js?v=20260910-ab8adb8";
 
 const search = new URL(import.meta.url).search;
 export const MAG_EDGES = [6, 7, 8];
@@ -50,9 +50,14 @@ export function yearsIn(features, from = 1900) {
  * 126 years, about 1,500 months, or a hundred thousand individual arrivals.
  */
 export const STEPS = {
-  event: { label: "Each earthquake", key: (p) => String(p.time ?? ""), interval: 90 },
-  month: { label: "By month", key: (p) => isoOf(p).slice(0, 7), interval: 200 },
-  year: { label: "By year", key: (p) => String(p.year ?? isoOf(p).slice(0, 4)), interval: 700 },
+  /**
+   * The KEY groups and the SHOW reads. An event's key has to be unique, so it
+   * is the full instant; a raw epoch millisecond on the date pill is not a
+   * date to anybody, so what is shown is the minute it happened in.
+   */
+  event: { label: "Each earthquake", key: (p) => isoOf(p), show: (k) => k.slice(0, 16).replace("T", " "), interval: 90 },
+  month: { label: "By month", key: (p) => isoOf(p).slice(0, 7), show: (k) => k, interval: 200 },
+  year: { label: "By year", key: (p) => String(p.year ?? isoOf(p).slice(0, 4)), show: (k) => k, interval: 700 },
 };
 
 /** The step's own default, and what the panel opens on. */
@@ -109,7 +114,10 @@ export function framesFor(features, { from = 1900, step = DEFAULT_STEP } = {}) {
   const groups = [];
   for (let i = 0; i < order.length; i += stride) {
     const keys = order.slice(i, i + stride);
-    groups.push({ label: keys[0], keys, features: keys.flatMap((key) => byKey.get(key)) });
+    groups.push({
+      label: keys[0], show: spec.show ? spec.show(String(keys[0])) : String(keys[0]),
+      keys, features: keys.flatMap((key) => byKey.get(key)),
+    });
   }
   return { groups, stride, step, spec, total: kept.length };
 }
@@ -191,7 +199,7 @@ async function build(from, startAt, step = DEFAULT_STEP) {
     const year = yearOfLabel(g.label);
     const prev = i ? yearOfLabel(plan.groups[i - 1].label) : null;
     return {
-      date: String(g.label), label: String(g.label), dataset: null, year,
+      date: String(g.label), label: String(g.show ?? g.label), dataset: null, year,
       count: g.features.length, total, stride: plan.stride, stepLabel: plan.spec.label,
       largest: Math.max(...g.features.map((f) => Number(f.properties.mag) || 0)),
       tick: i === 0 || (plan.step === "year"
@@ -225,8 +233,16 @@ async function build(from, startAt, step = DEFAULT_STEP) {
     legendInfo: paint.legend, home: "seismic",
   }, "usgs");
   const held = () => (window.GeoIDImportManager?.getLayers?.() || []).find((l) => l.id === derived?.id);
+  /**
+   * SAID AFTER THE SWAP, NOT BEFORE IT.
+   *
+   * `startPlayer` stops whatever sequence is running, and that teardown calls
+   * `say("")` — so a status written before it is wiped by the sequence being
+   * replaced, and every rebuild left the line blank. Measured: the step select
+   * changed the frames and cleared the sentence describing them.
+   */
   const strideNote = plan.stride > 1 ? ` — one frame per ${plan.stride}` : "";
-  say(`${plan.groups.length} frames, ${plan.spec.label.toLowerCase()}, ${from} to now${strideNote}`);
+  const summary = `${plan.groups.length} frames, ${plan.spec.label.toLowerCase()}, ${from} to now${strideNote}`;
 
   running = true;
   await startPlayer({
@@ -257,6 +273,7 @@ async function build(from, startAt, step = DEFAULT_STEP) {
       say("");
     },
   });
+  say(summary);
   return { frames: plan.groups.length, step: plan.step, stride: plan.stride };
 }
 
