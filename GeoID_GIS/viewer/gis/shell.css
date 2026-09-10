@@ -1973,6 +1973,7 @@ html.gis-arranging #layer-dock {
   gap: 0.18rem;
   flex-wrap: wrap;
   justify-content: center;
+  width: max-content;
   max-width: min(78vw, 68rem);
   padding: 0.3rem 0.5rem;
 }
