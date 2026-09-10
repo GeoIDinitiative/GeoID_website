@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260910-7d63d6c";
+  from "./gis/geo-utils.js?v=20260910-6b5c330";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260910-7d63d6c";
+  from "./gis/vector-render.js?v=20260910-6b5c330";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260910-7d63d6c";
+  from "./gis/rock-class.js?v=20260910-6b5c330";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260910-7d63d6c";
+  from "./gis/lithology-label.js?v=20260910-6b5c330";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -20657,6 +20657,16 @@ uniform float uViewportWidth;`,
         if (enabled && elevationMap) {
           terrainScale.value = "0";
         }
+        /**
+         * ANNOUNCED, because the layers are not ours to enumerate.
+         *
+         * On `document` and as a plain Event, which is this viewer's own
+         * convention (`geoid-study-area-edited` is the same shape) -- and the
+         * reason `gis/cutaway.js` listens on both document and window: a
+         * plain Event on document does not bubble, and this tree has already
+         * paid a debugging round for a window listener hearing nothing.
+         */
+        document.dispatchEvent(new Event("geoid-gis:cutaway-changed"));
         const planes = enabled ? [cutawayClipPlane] : [];
         baseMaterial.clippingPlanes = planes;
         baseMaterial.needsUpdate = true;
@@ -21830,6 +21840,28 @@ uniform float uViewportWidth;`,
         controls,
         globe,
         earthSceneGroup,
+        /**
+         * WHAT THE SCENE IS CUT BY, so a layer can cut itself the same way.
+         *
+         * Core View removes half the planet, and the plane that does it was
+         * applied to a hand-written list of this viewer's OWN materials --
+         * base texture, geology, contacts, structures, minerals, sea, region
+         * mask. Everything the GIS page draws was outside that list, so with
+         * the cutaway up a coastline, a marker cloud and 312,500 earthquakes
+         * went on being drawn across the removed half, over open space.
+         *
+         * A list cannot be the answer: a layer's materials are built by the
+         * importer, the tilers, the drapes and the repaints, and a new one
+         * appears whenever somebody ticks a box. So the plane is PUBLISHED and
+         * `gis/cutaway.js` stamps whatever is on the globe now, on this
+         * event and on every layer change.
+         *
+         * Returned live rather than copied: `applyPlanetViewMode` re-aims the
+         * normal whenever the axial tilt changes, and three.js reads clipping
+         * planes in WORLD space, so this one object is correct for a layer in
+         * any group.
+         */
+        getCutawayPlanes: () => (coreToggle && coreToggle.checked ? [cutawayClipPlane] : []),
         elevationSampler,
         manifest,
         /**

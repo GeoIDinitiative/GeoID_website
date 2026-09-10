@@ -1,10 +1,11 @@
 import * as THREE from "../vendor/three.module.js";
 import { latLonToVector3, drapedRadius, looksLikeGeographic, sphericalPolygonAreaKm2 }
-  from "./geo-utils.js?v=20260910-7d63d6c";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260910-7d63d6c";
-import { pointInPolygon } from "./geometry.js?v=20260910-7d63d6c";
-import { paintOpacity } from "./layer-opacity.js?v=20260910-7d63d6c";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260910-7d63d6c";
+  from "./geo-utils.js?v=20260910-6b5c330";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260910-6b5c330";
+import { pointInPolygon } from "./geometry.js?v=20260910-6b5c330";
+import { paintOpacity } from "./layer-opacity.js?v=20260910-6b5c330";
+import { applyCutaway } from "./cutaway.js?v=20260910-6b5c330";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260910-6b5c330";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -1964,6 +1965,15 @@ export function buildVectorLayerResult(fc, {
     // The new children are built at their own weight; whatever the layer is
     // wearing is put back on them here.
     if (liveOpacity < 1) paintOpacity(object3D, liveOpacity);
+    /**
+     * And the scene's cutaway, for the identical reason one line up.
+     *
+     * A rebuilt material arrives with no clipping planes on it, so a layer
+     * re-coloured while Core View is up came back drawing across the removed
+     * half of the planet. Read from the viewer rather than remembered here:
+     * the builder does not know this value and must not have to.
+     */
+    applyCutaway(object3D);
     return object3D.children.length > 0;
   };
   const counts = describeCollection(fc);

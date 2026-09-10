@@ -35,9 +35,10 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260910-7d63d6c";
-import { renderFeatureCollection } from "./vector-render.js?v=20260910-7d63d6c";
-import * as GP from "./geoprocessing.js?v=20260910-7d63d6c";
+import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260910-6b5c330";
+import { renderFeatureCollection } from "./vector-render.js?v=20260910-6b5c330";
+import * as GP from "./geoprocessing.js?v=20260910-6b5c330";
+import { applyCutaway } from "./cutaway.js?v=20260910-6b5c330";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -381,6 +382,15 @@ export function createTiledVectorLayer({
         });
       });
     }
+    /**
+     * And a tile built while Core View is up must arrive already cut.
+     *
+     * The cutaway pass runs on a layer CHANGE; a tile is a new child of a
+     * layer that has not changed, so between passes it is the one thing on
+     * the globe still drawing across the removed half. Same shape, and the
+     * same answer, as the renderOrder and the opacity above it.
+     */
+    applyCutaway(tile.node);
     group.add(tile.node);
     return tile.node;
   };

@@ -1,4 +1,4 @@
-import { ready } from "./shell.js?v=20260910-7d63d6c";
+import { ready } from "./shell.js?v=20260910-6b5c330";
 
 /**
  * The GIS layer's entry point on a planet page.
@@ -23,6 +23,9 @@ const MODULES = [
   // strength table, so it belongs beside it.
   "./ground-profile.js",
   "./overlay-stack.js",
+  // Core View cuts the planet in half on all ten worlds, and every layer on
+  // the globe has to be cut with it -- including the ones loaded afterwards.
+  "./cutaway.js",
   "./geoid-pipeline.js",
   "./geoid-mode.js",
   "./import-manager.js",
@@ -84,7 +87,7 @@ const MODULES = [
   "./atlas-assistant.js",
 ];
 
-const VERSION = "?v=20260910-7d63d6c";
+const VERSION = "?v=20260910-6b5c330";
 
 async function boot() {
   const shell = await ready;
