@@ -29,9 +29,9 @@
 
 import {
   HOMES, MIRRORS, grouped, addDataset, layerForDataset, loadLaunchDefaults,
-} from "./global-data.js?v=20260910-e134e13";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260910-e134e13";
-import { mathsFor } from "./equations.js?v=20260910-e134e13";
+} from "./global-data.js?v=20260910-0014814";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260910-0014814";
+import { mathsFor } from "./equations.js?v=20260910-0014814";
 
 const byId = (id) => document.getElementById(id);
 

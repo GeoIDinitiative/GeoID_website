@@ -16717,3 +16717,13 @@ with the main GIS page." Four changes, one markup for both pages:
 - **The Atlas box is gone.** Its phrase matcher is `buildFromText` on the
   studio seam, and the Atlas launcher's grounded layer answers "build a
   volcano with a chamber" by switching to the model page and calling it.
+
+**An absolutely positioned box at `left: 50%` shrinks to fit HALF the
+screen.** The ribbon is centred with `left: 50%; transform: translateX(-50%)`
+and its available width for shrink-to-fit is the containing block minus that
+left — half the viewport — so it wrapped into two rows at 705 px on a
+1,411 px screen with 1,088 px allowed. `width: max-content` makes the
+max-width the only wrap. And centred, it clears the mode bar on the left and
+the Atlas column on the right by the same margin (`calc(100vw - 38rem)`);
+below 1,180 px it stands beside the mode bar, right-aligned, clear of the
+launcher. Measured: 304..1,107 on 1,411 with the mode bar ending at 269.
