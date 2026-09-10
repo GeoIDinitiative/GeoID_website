@@ -101,6 +101,10 @@ function installStyle() {
 }
 #gis-draw-export-slot { display: flex; align-items: center; gap: 0.3rem; }
 #gis-draw-export-slot:empty { display: none; }
+/* The attribute alone is only a UA-level display:none, which the rule above
+   outranks — measured, a hidden slot still laid out at (903, 79) with the dead
+   button in it. Spelled out, at the same specificity. */
+#gis-draw-export-slot[hidden] { display: none !important; }
 /* Export CSV as its icon — a tray taking an arrow — and ONLY while it is
    parked here. The button belongs to the viewer, which shows and hides it as
    a measurement comes and goes; restyling the node itself would follow it
