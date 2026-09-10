@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-351768e";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-351768e";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-1044250";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-1044250";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260910-351768e";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-351768e";
-import { downloadText } from "./extraction.js?v=20260910-351768e";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-351768e";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-351768e";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260910-351768e";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260910-351768e";
-import { femSpec } from "./model-build.js?v=20260910-351768e";
+} from "./mesh-volume.js?v=20260910-1044250";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-1044250";
+import { downloadText } from "./extraction.js?v=20260910-1044250";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-1044250";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-1044250";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260910-1044250";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260910-1044250";
+import { femSpec } from "./model-build.js?v=20260910-1044250";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -1288,6 +1288,11 @@ function addSolid(kind, op, paramOverrides) {
   record(`${op} ${kind}`);
   renderModelTree();
   renderDomainsPanel();
+  // THE FIRST SOLID IS FRAMED. The studio opens on its own working area --
+  // a few hundred metres of ground -- and a default 1 m box dropped into
+  // that is a speck the reader has to hunt for. Only the first: a later add
+  // must not yank the view away from what is being worked on.
+  if (state.solids.length === 1) fitView();
   status(`${state.solids.length} entities`);
   log(`${op}: ${PRIMITIVES[kind].label} — ${entry.parts.length} face(s), volume flag ${entry.flags.volume}`);
 }
