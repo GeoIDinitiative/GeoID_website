@@ -18,12 +18,12 @@
  * the displaced surface, and the raster every terrain tool wants as an input.
  */
 
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-da2bfde";
-import { mathsFor } from "./equations.js?v=20260911-da2bfde";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260911-da2bfde";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-b027f96";
+import { mathsFor } from "./equations.js?v=20260911-b027f96";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260911-b027f96";
 import { makeRaster, slope as slopeOf, hillshade as hillshadeOf }
-  from "./raster-analysis.js?v=20260911-da2bfde";
-import * as dem from "./dem-tiles.js?v=20260911-da2bfde";
+  from "./raster-analysis.js?v=20260911-b027f96";
+import * as dem from "./dem-tiles.js?v=20260911-b027f96";
 
 /**
  * THREE READINGS OF ONE SOURCE, not three sources.

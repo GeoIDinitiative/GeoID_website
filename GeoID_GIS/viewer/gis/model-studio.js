@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260911-da2bfde";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260911-da2bfde";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260911-b027f96";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260911-b027f96";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260911-da2bfde";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260911-da2bfde";
-import { downloadText } from "./extraction.js?v=20260911-da2bfde";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260911-da2bfde";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260911-da2bfde";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260911-da2bfde";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260911-da2bfde";
-import { femSpec } from "./model-build.js?v=20260911-da2bfde";
+} from "./mesh-volume.js?v=20260911-b027f96";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260911-b027f96";
+import { downloadText } from "./extraction.js?v=20260911-b027f96";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260911-b027f96";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260911-b027f96";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260911-b027f96";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260911-b027f96";
+import { femSpec } from "./model-build.js?v=20260911-b027f96";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -1773,7 +1773,13 @@ function deleteEntities(ids) {
     if (idx === -1) return;
     const [entry] = state.solids.splice(idx, 1);
     entry.object3D?.parent?.remove(entry.object3D);
-    entry.object3D?.traverse?.((o) => {
+    // COLLECT, then remove. Removing a face's layer takes its mesh out of this
+    // group, and doing that inside `traverse` changes the child list under the
+    // walk -- it threw on the next child, leaving the rest of the entity's
+    // layers behind (found re-sizing the atmosphere, which deletes and rebuilds).
+    const nodes = [];
+    entry.object3D?.traverse?.((o) => nodes.push(o));
+    nodes.forEach((o) => {
       o.geometry?.dispose?.(); o.material?.dispose?.();
       studioMeshes.delete(o);
       const layer = (window.GeoIDImportManager?.getLayers?.() || []).find((l) => l.object3D === o);
