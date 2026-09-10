@@ -17471,3 +17471,59 @@ Measured live on a committed stamp, A/B on one camera with the cutaway up:
 
 That last pair is the whole verification: a clean number means nothing here
 without the control that reproduces the fault.
+
+## A 23 MB GeoJSON through an uncached Cloudflare is a map that never arrives
+
+"The hazard risk maps don't load on the live site." Every check said they
+should: the objects were in the bucket byte for byte, `sources.json` carried
+their fingerprints, every URL answered 206 with the right CORS header to the
+production origin, and `audit-published.py` passed. None of that measures TIME.
+
+**Cloudflare does not edge-cache `.geojson` or `.json`** — neither is on its
+default list of cacheable extensions — so every request goes back to R2
+(`cf-cache-status: DYNAMIC`) and is compressed **on the fly**. Measured on the
+live bucket, one file, three encodings:
+
+| cyclone-risk.geojson (23 MB) | |
+| --- | --- |
+| uncompressed | 93 KB/s, 4 s to first byte — about four minutes |
+| gzip on the fly | **3.8 KB/s** |
+| br/zstd, as a browser asks | 30 s for the 2.26 MB compressed body |
+
+The page said "Loading…" the whole time and nothing errored. The 4.7 MB
+volcanic grid loaded in seconds, which is why it looked like "some risk maps
+are broken" rather than "big files are slow".
+
+**Stored gzipped (`Content-Encoding: gzip`), Cloudflare passes the object
+straight through**: 1.8 MB, **0.6 s**, and a browser's `fetch()` decodes it
+transparently (91,156 features parsed in 510 ms). `publish-data.py` now does
+that for every `.geojson` and `.json` — deterministic gzip, so an unchanged
+file re-uploads as the same bytes — and never for a `.tif`, because a byte range
+of a gzip stream is not a byte range of the file. **The fingerprint stays on the
+uncompressed file**: an encoding is not a content change, so the fix went live
+with no change to `sources.json` and no push of the site.
+
+Measured on production after: cyclone risk **8.6 s** to a drawn 91,156-cell
+layer, seismic risk 7.3 s (72,765), full-Holocene volcanic 6.3 s (13,650) — the
+remainder is triangulation, not transfer.
+
+**`content-encoding: gzip` does not prove an object is STORED gzipped** —
+on-the-fly compression answers with it too, which is how the first version of
+`publish-data.py --check` reported "all 40 stored gzipped" over a bucket where
+none were. Stored gzip is served as the object itself: a `content-length` and a
+strong ETag. On-the-fly is chunked with a **weak** ETag (`W/"…"`). The check
+keys on that now, and it is the regression test for this whole fault.
+
+**What is still slow, and the lasting cure.** Throughput from R2 still falls
+away past a few MB stored: `cyclone-risk-years.json` is 5.9 MB even gzipped and
+takes 12–37 s (it only loads when a season animation drives the risk map), and
+the tile pyramids are `.mvt`, equally uncached — GLiM's 4.4 MB world tile took
+25 s under on-the-fly compression. The cure for all of it is a Cloudflare
+**Cache Rule** making `data.geoidinitiative.com` eligible for cache: every
+object already carries `max-age=31536000, immutable` and a `?v=` fingerprint,
+so edge caching is safe. That is an account setting, not something the repo can
+do.
+
+**When a live layer "doesn't load" and every status code is right, time the
+body.** A `fetch` whose headers answer in 88 ms and whose body trickles in at
+110 KB/s looks, from every other instrument, exactly like success.
