@@ -525,7 +525,17 @@ function render() {
     else window.dispatchEvent(new CustomEvent("geoid:legend-changed"));
     return;
   }
-  if (fresh.length) setOpen(true);
+  /**
+   * An arrival opens the panel — unless the launch has claimed the corner.
+   *
+   * The claim is asked about rather than known about: this file has no
+   * business knowing the events feed exists, and the arbiter of which of the
+   * two is open is `overlay-stack.js` by design. A page without it answers
+   * yes, which is the behaviour that was here before. A press of the toggle
+   * never comes through here, so the reader's own open is untouched.
+   */
+  const mayOpen = window.GeoIDOverlayStack?.mayAutoOpen?.("map-legend") ?? true;
+  if (fresh.length && mayOpen) setOpen(true);
   else window.dispatchEvent(new CustomEvent("geoid:legend-changed"));
 }
 

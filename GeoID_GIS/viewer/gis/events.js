@@ -16,7 +16,7 @@ import {
   gdacsPoints, resolveColour,
   MARKER_LIFT_MAX, liftForAltitude, dotSizePx, isQuake, publisherOf, restoreActive,
   stormCategory, stormScale, stormLabel, STORM_BASE_CAP,
-} from "./event-sources.js?v=20260910-8e7baef";
+} from "./event-sources.js?v=20260910-7b939fa";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -1925,14 +1925,17 @@ async function setActive(on, { remember = true, launch = false } = {}) {
     // Entering the mode is a request to see the feed, so it opens on the list
     // rather than on a closed tab that has to be found and clicked.
     //
-    // NOT ON A LAUNCH. The corner holds one drop-down slot shared with the
-    // legend, and the legend opens ITSELF when the basemap arrives — so an
-    // events panel opened at boot is a race for that slot decided by whichever
-    // fetch landed first. The button is there, the markers are on the globe;
-    // that is the feed being on, and which panel is open is the reader's.
-    if (active && panel && !launch) {
+    // ON A LAUNCH TOO, and it has to CLAIM the slot to stay. The corner holds
+    // one drop-down shared with the legend, and the legend opens itself when a
+    // layer arrives — which at boot is the launch defaults, a second or two
+    // after this. Opened without a claim the feed was simply overwritten by
+    // whichever fetch landed last, which is why it used to arm shut. The claim
+    // is a default and the reader's first press of either toggle ends it.
+    if (active && panel) {
       panel.hidden = false;
       toggle?.setAttribute("aria-expanded", "true");
+      if (launch) window.GeoIDOverlayStack?.claim?.("events-overlay");
+      else window.GeoIDOverlayStack?.showOnly?.("events-overlay");
     }
     placeOverlay();
     if (!active && panel) {
@@ -2525,8 +2528,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260910-8e7baef"),
-    import("./research/dsp.js?v=20260910-8e7baef"),
+    import("./seismogram-plot.js?v=20260910-7b939fa"),
+    import("./research/dsp.js?v=20260910-7b939fa"),
   ]);
   if (stale()) return;
 
@@ -2721,10 +2724,12 @@ function init() {
 /**
  * THE FEED IS ON WHEN THE PAGE OPENS.
  *
- * It takes the feed and none of the furniture — no unfolded sidebar section,
- * no open drop-down, no stopped globe — each of which is argued at the branch
- * that skips it. Those belong to somebody arming the mode to go and look at
- * something; at boot they are the app deciding what you came for.
+ * It takes the feed and its own drop-down, and none of the rest of the
+ * furniture — no unfolded sidebar section, no stopped globe — each of which is
+ * argued at the branch that skips it. Those belong to somebody arming the mode
+ * to go and look at something; at boot they are the app deciding what you came
+ * for. The drop-down is the exception because it IS the feed: a list of what
+ * is happening on the globe right now, beside the markers that say where.
  *
  * It waits for the viewer rather than assuming one: the markers hang off the
  * globe's own spin frame, so armed too early the fetch lands with nowhere to

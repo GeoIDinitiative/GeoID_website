@@ -35,6 +35,52 @@ const CARDS = [
  */
 let last = CARDS[0].id;
 
+/**
+ * WHICH CARD THE PAGE OPENS ON, and why that needs saying at all.
+ *
+ * The two openers are not equals at boot. The feed is armed deliberately by
+ * `armOnLaunch`; the legend opens ITSELF whenever a layer arrives, which at
+ * launch is the launch defaults landing a second or two later. With one slot
+ * between them the card in front was decided by whichever fetch finished
+ * first, which is why the feed used to arm without opening its panel at all.
+ *
+ * A claim settles it, and it is a DEFAULT rather than a lock: pressing either
+ * toggle ends it on the spot, because a press is a decision and this is not.
+ * It also expires, since nothing announces that a launch is over and a
+ * suppression with no end would stop the legend opening for a layer somebody
+ * ticks ten minutes later. The bound is `armOnLaunch`'s own — the twelve
+ * seconds it will wait for a viewer before giving up — rather than a number
+ * invented here.
+ */
+const CLAIM_MS = 12000;
+let claimed = null;
+let claimedAt = 0;
+
+const claimStands = () => Boolean(claimed) && Date.now() - claimedAt < CLAIM_MS;
+
+/** Open `id` and hold the slot for it through the launch. */
+export function claim(id) {
+  if (!CARDS.some((card) => card.id === id)) return false;
+  claimed = id;
+  claimedAt = Date.now();
+  showOnly(id);
+  return true;
+}
+
+/**
+ * May `id` open ITSELF? A card asks before an automatic open, never before one
+ * the reader asked for — a press goes through the card's own toggle and is
+ * always honoured.
+ */
+export function mayAutoOpen(id) {
+  return !claimStands() || claimed === id;
+}
+
+/** The reader has chosen; the launch no longer gets a say. */
+export function releaseClaim() {
+  claimed = null;
+}
+
 const byId = (id) => document.getElementById(id);
 
 const isOpen = (card) => {
@@ -147,6 +193,8 @@ function wire() {
      * other panel closes a frame after this one opens.
      */
     toggle.addEventListener("click", () => {
+      // A press supersedes whatever the launch opened, in either direction.
+      releaseClaim();
       last = card.id;
       // Only when this press will OPEN it: pressing an open card closes it,
       // and shutting the other one as well would be two closes for one press.
@@ -160,7 +208,7 @@ function wire() {
 }
 
 if (typeof window !== "undefined") {
-  window.GeoIDOverlayStack = { showOnly, openCard, apply, slotFrom };
+  window.GeoIDOverlayStack = { showOnly, openCard, apply, slotFrom, claim, mayAutoOpen, releaseClaim };
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", wire);
   } else {

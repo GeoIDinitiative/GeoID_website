@@ -686,16 +686,24 @@ check("no timestamp gets a sensible middle", recencyOpacity(null, now, day), 0.8
     restoreActive("yes-please"), true);
 }
 
-/* The launch arm takes the feed and none of the furniture. Each of these is a
-   decision about the opening state of the whole page that nobody made by
-   loading it, and each is argued at the branch that skips it. */
+/* The launch arm takes the feed and its own drop-down, and none of the rest of
+   the furniture. Each of the others is a decision about the opening state of
+   the whole page that nobody made by loading it, and each is argued at the
+   branch that skips it. The drop-down is the exception because it IS the feed:
+   a list of what is happening now beside the markers saying where. */
 {
   const src = readFileSync(new URL("./events.js", import.meta.url), "utf8");
   const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
   check("a launch does not unfold the sidebar section",
     /if \(active && row && !launch\) row\.open = true;/.test(code), true);
-  check("nor open the corner drop-down",
-    /if \(active && panel && !launch\) \{/.test(code), true);
+  /* It DOES open the corner drop-down, and it has to claim the slot to keep
+     it: the legend opens itself when a layer arrives, which at boot is the
+     launch defaults landing a moment later, and there is one slot between
+     them. Opened without the claim the feed was simply overwritten. */
+  check("it opens the corner drop-down",
+    /if \(active && panel\) \{/.test(code) && !/if \(active && panel && !launch\)/.test(code), true);
+  check("and claims the slot so an arriving legend cannot take it",
+    /if \(launch\) window\.GeoIDOverlayStack\?\.claim\?\.\("events-overlay"\);/.test(code), true);
   check("nor stop the globe", /if \(!launch\) \{\s*window\.GeoIDModeManager\?\.setSpin/.test(code), true);
   check("it waits for the viewer rather than assuming one",
     /if \(!window\.GeoIDViewer\) \{/.test(code) && /armTries >= 40/.test(code), true);

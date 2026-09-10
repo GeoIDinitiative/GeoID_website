@@ -199,6 +199,80 @@ check("the feed is placed off the legend's toggle, never its card", () => {
   ok(/!legend\.hidden/.test(code), "and only when the legend is on screen");
 });
 
+/* ── the launch claim ────────────────────────────────────────────────────── */
+
+/**
+ * WHICH CARD THE PAGE OPENS ON. The feed is armed on purpose at boot; the
+ * legend opens itself when a layer arrives, which at boot is the launch
+ * defaults landing a moment later. One slot, so without a claim the card in
+ * front was decided by whichever fetch finished first.
+ */
+check("a claim opens its card and shuts the other", () => {
+  shut();
+  nodes.get("map-legend-panel").hidden = false;
+  ok(stack.claim("events-overlay") === true, "claimed");
+  ok(nodes.get("map-legend-panel").hidden === true, "the legend gives way");
+  stack.releaseClaim();
+});
+
+check("while it stands, the OTHER card may not open itself", () => {
+  shut();
+  stack.claim("events-overlay");
+  ok(stack.mayAutoOpen("map-legend") === false, "the legend defers");
+  ok(stack.mayAutoOpen("events-overlay") === true, "the claimant does not");
+  stack.releaseClaim();
+});
+
+/* A press is a decision; a claim is only a default, so the press wins. */
+check("releasing it hands the corner back", () => {
+  shut();
+  stack.claim("events-overlay");
+  stack.releaseClaim();
+  ok(stack.mayAutoOpen("map-legend") === true, "the legend may open again");
+});
+
+/**
+ * Nothing announces that a launch is over, so the claim expires. Without that
+ * it would go on suppressing the legend for a layer ticked ten minutes later.
+ */
+check("it expires, so a later arrival still opens the legend", () => {
+  shut();
+  const now = Date.now;
+  try {
+    let t = 1_000_000;
+    Date.now = () => t;
+    stack.claim("events-overlay");
+    ok(stack.mayAutoOpen("map-legend") === false, "it holds at first");
+    t += 11_000;
+    ok(stack.mayAutoOpen("map-legend") === false, "still inside the window");
+    t += 2_000;
+    ok(stack.mayAutoOpen("map-legend") === true, "and lapses past it");
+  } finally { Date.now = now; stack.releaseClaim(); }
+});
+
+/* An id nothing knows cannot take the corner hostage. */
+check("an unknown id claims nothing", () => {
+  shut();
+  ok(stack.claim("no-such-card") === false, "refused");
+  ok(stack.mayAutoOpen("map-legend") === true, "and nothing is held");
+});
+
+check("the launch opens the feed's own panel and claims the slot", () => {
+  const src = readFileSync(new URL("./events.js", import.meta.url), "utf8");
+  ok(/if \(launch\) window\.GeoIDOverlayStack\?\.claim\?\.\("events-overlay"\);/.test(src),
+    "armOnLaunch's setActive claims it");
+  ok(!/if \(active && panel && !launch\)/.test(src), "and no longer skips the open");
+});
+
+check("an ARRIVAL asks before opening the legend; a press never comes through there", () => {
+  const src = readFileSync(new URL("./legend-dock.js", import.meta.url), "utf8");
+  ok(/const mayOpen = window\.GeoIDOverlayStack\?\.mayAutoOpen\?\.\("map-legend"\) \?\? true;/.test(src),
+    "it asks the arbiter");
+  ok(/if \(fresh\.length && mayOpen\) setOpen\(true\);/.test(src), "and only the arrival is gated");
+  ok(/toggle\.addEventListener\("click", \(\) => setOpen\(!isOpen\(\)\)\);/.test(src),
+    "the reader's own press still goes straight through");
+});
+
 if (failures.length) {
   failures.forEach((f) => console.error(`  x ${f}`));
   console.error(`${failures.length} failed, ${passed} passed`);
