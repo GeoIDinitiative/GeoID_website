@@ -26,13 +26,13 @@
  */
 
 import { loadDerivedGeologyMap, removeDerivedGeologyMap }
-  from "./geology-panel.js?v=20260910-3e9f5be";
-import { loadIceNames, iceNameFor } from "./ice-names.js?v=20260910-3e9f5be";
-import { loadIceThickness, iceVolumeFor } from "./ice-thickness.js?v=20260910-3e9f5be";
-import { addDataset } from "./global-data.js?v=20260910-3e9f5be";
+  from "./geology-panel.js?v=20260910-5bc153a";
+import { loadIceNames, iceNameFor } from "./ice-names.js?v=20260910-5bc153a";
+import { loadIceThickness, iceVolumeFor } from "./ice-thickness.js?v=20260910-5bc153a";
+import { addDataset } from "./global-data.js?v=20260910-5bc153a";
 import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool,
-  drawnOverlayBounds } from "./extent-picker.js?v=20260910-3e9f5be";
-import { useIceNames, useIceVolumes } from "./ice-card.js?v=20260910-3e9f5be";
+  drawnOverlayBounds } from "./extent-picker.js?v=20260910-5bc153a";
+import { useIceNames, useIceVolumes } from "./ice-card.js?v=20260910-5bc153a";
 
 /** The glacier inventory, off its own baked tiles. */
 const RGI_LAYER_ID = "glaciers-rgi7";

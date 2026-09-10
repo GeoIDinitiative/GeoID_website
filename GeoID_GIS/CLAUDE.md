@@ -16957,3 +16957,44 @@ Measured after: deck scrollHeight 1850 against a client of 601, the Add tab
 This is the `.gis-tool-body` and `.qt-v` lesson in a third place: **a container
 that lays its children out (grid or flex) will size them to itself unless it is
 told not to, and the symptom is a clipped pane rather than a scrollbar.**
+
+### A nested subtab arrives shut, the bands lose their words, and the deck is the nav bar
+
+Three changes to the one column, each measured on the live page.
+
+**COLLAPSED IS THE TAB COLUMN'S OWN RULE, and four defaults broke it.** A
+nested subtab said what was inside its tab and then showed it anyway: the pane
+folds defaulted open (`folds[key] === undefined ? true`), so did each domain
+in the Domains panel (`domainOpen.get(id) ?? true`), and the Atmosphere and
+Embedded points cards were built with `open = true`. Opening the Add tab was
+therefore opening its whole parameter list. All four now default shut, and a
+remembered state still wins in both directions — the state is what a reader
+chose, the default is what they are handed. Measured on a fresh fold store:
+**0 of 12 nested subtabs open**, with the eight tabs unchanged at one open per
+band.
+
+**The BUILD and MESH captions are gone, and a HAIRLINE IS NOT AVAILABLE
+THERE.** The obvious replacement — a border-top on the first mesh-band tab,
+selected on the CHANGE of band (`[data-band="build"] + [data-band="mesh"]`) so
+nothing in the markup has to be kept in step — draws nothing: the shared chrome
+paints a tab's own frame `!important`, so the computed border-top is the accent
+in both states. Measured open and shut before the rule was replaced by a wider
+gap, which is the one separator nothing can overrule. **18.4 px at the band
+change against 6.4 px within a band.**
+
+**The deck is the GIS nav bar's own dimensions.** `#ui` is
+`min(24rem, calc(100vw - 2rem))` at `left: 1rem`; the deck was
+`min(17rem, 27vw)` at `0.9rem` — a width picked to fit a nested column rather
+than to match anything, with two narrow-screen narrowings the nav bar has no
+equivalent of. Measured after, in the same viewport: **both 384 px wide at
+left 16**. The top and bottom are still the model page's own — the deck hangs
+under the studio's top bar and clears the worlds strip — because those are
+facts about that page rather than about the column.
+
+**A computed border that disagrees with the rule that set it is an
+`!important` you have not found yet.** Enumerating `document.styleSheets` for
+rules the element matches listed mine and no other border rule, and the
+computed value was still the accent: a module-injected sheet or an `!important`
+the scan could not attribute. When a border loses and nothing in the cascade
+explains it, stop hunting the source and pick a property that cannot be
+overruled.

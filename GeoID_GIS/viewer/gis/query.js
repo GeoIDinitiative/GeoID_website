@@ -39,7 +39,7 @@
 
 import {
   pointInPolygon, boundsOf, boundsIntersect,
-} from "./geometry.js?v=20260910-3e9f5be";
+} from "./geometry.js?v=20260910-5bc153a";
 
 /** IUGG mean radius. geometry.js holds the same value privately. */
 const EARTH_RADIUS_M = 6371008.8;
