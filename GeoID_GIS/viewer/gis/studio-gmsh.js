@@ -168,6 +168,9 @@ export function studioGmshScript({
   flags = {}, meshFile = null, order = 1,
 } = {}) {
   const F = { domain: 10, atmosphere: 11, sky: 4, sides_above: 6, points: 20, ...flags };
+  // The air's volume flag is the page's choice where it made one (it takes a number
+  // no primitive holds), else the default.
+  if (Number(atmosphere?.flags?.volume) > 0) F.atmosphere = Number(atmosphere.flags.volume);
   const active = solids.filter((s) => s.enabled !== false && s.kind !== "atmosphere");
   const lines = [
     "# GeoID Meshing Studio — the model as gmsh OCC geometry, with every flag chosen on the page.",

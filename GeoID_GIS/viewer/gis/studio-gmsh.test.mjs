@@ -36,6 +36,7 @@ check("faces are matched by centroid and normal to the flags the page chose; the
 check("edges and corners inherit the lowest face flag, and every group is added", has("Edges and corners inherit the LOWEST flag") && has("gmsh.model.addPhysicalGroup(dim, sorted(set(tags_)), flag, name=names.get((dim, flag), ''))"));
 check("the embedded point lands in its volume with its flag and size", has('embedded = [[1,1,-2,0.2,"probe",21]]') && has("gmsh.model.mesh.embed(0, [tag], 3, v)"));
 check("the size fields and options come through the shared emitter", has("# at probe:") && has('"Threshold", 2') && has("setAsBackgroundMesh") && has('MeshSizeMax", 2.0000') && has("gmsh.model.mesh.generate(3)"));
+check("the air's volume flag is the page's own", studioGmshScript({ solids: solids.slice(0, 1), atmosphere: { on: true, heightM: 4, baseZ: 0, minX: -10, maxX: 10, minY: -10, maxY: 10, flags: { volume: 12, sky: 4, sides: 6 } } }).includes("return ('atmosphere', 12)"));
 check("no atmosphere means no air box", !studioGmshScript({ solids: solids.slice(0, 1) }).includes("THE ATMOSPHERE") && studioGmshScript({ solids: solids.slice(0, 1) }).includes("air = []"));
 
 

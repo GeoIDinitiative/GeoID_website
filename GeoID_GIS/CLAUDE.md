@@ -16727,3 +16727,48 @@ max-width the only wrap. And centred, it clears the mode bar on the left and
 the Atlas column on the right by the same margin (`calc(100vw - 38rem)`);
 below 1,180 px it stands beside the mode bar, right-aligned, clear of the
 launcher. Measured: 304..1,107 on 1,411 with the mode bar ending at 269.
+
+### The studio's own gmsh environment: a primitive is its faces, and the script carries every choice
+
+"The template and primitive presets need the same functionality as the
+Model Builder — the atmosphere domain, click-and-edit flags for every
+surface, volume, line, embedded points — fully two-way between the GIS and
+model pages, one modular gmsh environment." `studio-gmsh.js` (20 checks),
+proven under gmsh 4.11.1 rather than assumed:
+
+- **A primitive is its FACES.** `faceParts` clusters the display surface by
+  normal: a box is six faces named by the axis they face, a cylinder its
+  caps and one side, a sphere one surface, a volcano edifice the crust's six
+  and the cone's side. Curved against planar is decided by the NEIGHBOURS —
+  a revolved facet has another a few degrees away, a box face nothing nearer
+  than 90° — because counting triangles read a crust's two-triangle faces as
+  curved beside a 96-triangle cone. Each face is its own mesh in the entity's
+  group, with a flag, a Workspace row, a Domains-panel row and a card; each
+  entity carries a volume flag (10, 11, … as added). `allParts()` is what
+  the picker, the panel and the cards read, GIS terrain and studio alike.
+- **The script is OCC, in the studio's order.** Every primitive as an OCC
+  solid (an ellipsoid a dilated sphere, a dike a rotated thin box, a layered
+  halfspace ONE BOX PER LAYER), the booleans as applied (a cut tool KEPT as
+  a volume of its own — a chamber is a domain), the atmosphere a box over the
+  ground cut by the model, everything fragmented, then physical groups:
+  volumes by the last entity containing their centre of mass (the AIR first
+  by its bounding box — measured, a cone in a symmetric air box put the
+  air's centroid inside the cone), faces by nearest declared part in
+  centroid and normal, edges and corners inheriting the lowest flag, the
+  embedded points, and the size fields through the shared emitter.
+  **JSON `true/false/null` are not Python**: `PYL` writes True/False/None.
+- **Measured:** volcano + chamber + 4 m of air + a probe + a point field →
+  edifice 10, chamber 12, atmosphere 11 (12 once the page chose it), faces
+  top 1 / base 2 / sky 4 / sides 5 / sides_above 6 / cone side 7 / chamber
+  surface 30, the probe a node, 0.28 m elements at it against 2.4 far.
+- **The model page grew Atmosphere and Embedded points cards** (the
+  studio's own; a GIS terrain brings its own), a fields pane in the
+  builder's vocabulary, and Export ▸ Model package — the builder's file set
+  (an STL of every face, the script, a spec) into the project; a
+  GIS-derived model goes back through the builder's writer, so a
+  DEM-derived and a built model leave the same files. Save/Open carry
+  flags, air, points and fields.
+- **`init()` runs at module end and now reads `gisTerrain`**, whose `let`
+  sat below that call — a TDZ that took the whole module out (the seam never
+  appeared, no console error in the page; the error only showed by importing
+  the module inside the iframe's realm). Declared beside `state` now.

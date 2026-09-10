@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-df7d776";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-df7d776";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-abd265a";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-abd265a";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260910-df7d776";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-df7d776";
-import { downloadText } from "./extraction.js?v=20260910-df7d776";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-df7d776";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-df7d776";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260910-df7d776";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260910-df7d776";
-import { femSpec } from "./model-build.js?v=20260910-df7d776";
+} from "./mesh-volume.js?v=20260910-abd265a";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-abd265a";
+import { downloadText } from "./extraction.js?v=20260910-abd265a";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-abd265a";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-abd265a";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260910-abd265a";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260910-abd265a";
+import { femSpec } from "./model-build.js?v=20260910-abd265a";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -1442,6 +1442,7 @@ function applyStudioAtmosphere() {
   record(`atmosphere ${a.heightM} m`);
   renderModelTree();
   renderDomainsPanel();
+  status(`${state.solids.length} entities`);
   log(`Atmosphere: ${Math.round(a.heightM)} m over z = ${Math.round(z0)}, volume flag ${entry.flags.volume}, sky ${entry.flags.faces.sky}, sides ${entry.flags.faces.sides}.`);
   return entry;
 }
