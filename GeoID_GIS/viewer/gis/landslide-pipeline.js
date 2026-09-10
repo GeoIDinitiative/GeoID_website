@@ -26,14 +26,14 @@
  * which is the difference that decides where a storm matters.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260910-fe863bf";
-import { weatherPoints, weatherUrl, parseWeatherGrid, rainAt, fosColour } from "./geoid-pipeline.js?v=20260910-fe863bf";
-import { materialFor, failureDepth, wetnessSeries, factorOfSafety, stabilityBand } from "./fos.js?v=20260910-fe863bf";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260910-fe863bf";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260910-fe863bf";
-import { loadRockProperties, parameterValue } from "./rock-properties.js?v=20260910-fe863bf";
-import { isGroundLayer } from "./ground-profile.js?v=20260910-fe863bf";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260910-fe863bf";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260910-78e5fa3";
+import { weatherPoints, weatherUrl, parseWeatherGrid, rainAt, fosColour } from "./geoid-pipeline.js?v=20260910-78e5fa3";
+import { materialFor, failureDepth, wetnessSeries, factorOfSafety, stabilityBand } from "./fos.js?v=20260910-78e5fa3";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260910-78e5fa3";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260910-78e5fa3";
+import { loadRockProperties, parameterValue } from "./rock-properties.js?v=20260910-78e5fa3";
+import { isGroundLayer } from "./ground-profile.js?v=20260910-78e5fa3";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260910-78e5fa3";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";

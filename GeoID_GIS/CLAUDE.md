@@ -16870,3 +16870,34 @@ is the only thing left — and the bar's own frame goes with the bar, so folded
 there is nothing but the pill. The caret points the way the bar will go (up
 from the header, down from the footer). Measured: both toggles 38.4 x 19.2 px
 at 999px radius, both filling `rgb(255,43,214)` on `rgb(43,0,48)` when shut.
+
+### The studio's layout is the GIS page's: one bar, and two tab columns
+
+"The GUI is very inefficient with its use of space — the GIS/Model/Research
+button could merge with the header pill; the left pill could be the main tab
+bar of the GIS page, with its contents nested inside as subtabs."
+
+- **ONE TOP BAR.** The mode switch had a tile of its own beside the ribbon,
+  spending a band of the screen on three pills and colliding with the deck
+  under it. It sits in the bar now, after the studio's name, with the four
+  action menus, the view controls, what the model holds (`#studio-status`)
+  and the collapse pill. `#studio-mode-slot` keeps its id, so mode-manager
+  parks the switcher exactly as before; `.view-mode-switch.is-in-studio` is a
+  row of three small pills rather than a stacked block.
+- **A DECK IS THE GIS PAGE'S TAB COLUMN.** A horizontal strip of four labels
+  over one pane kept three quarters of each deck behind a click. Every pane is
+  a `control-section toolbox-group` — the sidebar's own tab, so its chrome
+  comes from the GUI-wide rules and matches by construction (measured against
+  a live GIS tab: same accent fill, same dark ink, same Exo 2 12.16px 600) —
+  with its sections nested inside as `gis-tool-section` cards. One open per
+  deck, remembered; `showGroup(side, name)` is what "bring the Model tab
+  forward" means now, and the two callers use it.
+- **A NESTED COLUMN NEEDS THE ROOM.** Four levels of padding (deck, tab, pane,
+  card) left a domain row with 186 px of content in 135 px of space and a
+  scrollbar inside a scrollbar. Measured at every level: the deck is
+  `min(17rem, 27vw)`, the pane and cards carry less inset, a row's NAME is
+  what gives way (ellipsis plus a title), and the flag box never shrinks.
+  A span reporting `scrollWidth > clientWidth` there is the ellipsis working,
+  not an overflow.
+- The dead `.studio-tabs`, `.studio-tab` and `.studio-modebar` rules are gone
+  from both stylesheets rather than left to mislead.

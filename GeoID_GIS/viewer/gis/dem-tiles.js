@@ -21,7 +21,7 @@
  * feeds is `sampleElevationMeters`, never `sampleElevationNormalized`.
  */
 
-import { tilesForBounds, tileCountForBounds, mercatorTile } from "./mvt.js?v=20260910-fe863bf";
+import { tilesForBounds, tileCountForBounds, mercatorTile } from "./mvt.js?v=20260910-78e5fa3";
 
 /**
  * Terrarium: height packed into RGB, EGM96 metres.
