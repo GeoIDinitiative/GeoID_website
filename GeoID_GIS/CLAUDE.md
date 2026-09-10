@@ -16861,3 +16861,12 @@ an explicit choice is still remembered in both directions.
 Two readings 500-600 ms after the fold reported the deck unmoved while the
 rule was applying correctly — this file already records the trap for the
 chevrons. Wait a clear second, or read the rule rather than the box.
+
+**And the toolbar's collapse is the worlds strip's toggle, verbatim.** Two
+collapse gestures on one page that looked different were two things to learn.
+The ribbon's fold is the planet dock's control now — the same 2.4 x 1.2rem
+pill, the same caret rotating 180°, the same accent fill with dark ink once it
+is the only thing left — and the bar's own frame goes with the bar, so folded
+there is nothing but the pill. The caret points the way the bar will go (up
+from the header, down from the footer). Measured: both toggles 38.4 x 19.2 px
+at 999px radius, both filling `rgb(255,43,214)` on `rgb(43,0,48)` when shut.
