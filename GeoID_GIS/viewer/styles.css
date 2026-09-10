@@ -5586,15 +5586,21 @@ canvas {
   text-transform: uppercase;
   color: var(--nav-accent);
 }
+/* NOTHING IN THE COLUMN SHRINKS. As a grid the open tabs shared the deck's
+   height between them -- measured, an Add tab 113 px tall around a pane that
+   wanted 846, clipped by the card's own overflow, with the deck reporting
+   nothing to scroll. A flex column whose children refuse to give way lets each
+   tab take its own height and the deck scroll past them. */
 #model-studio .studio-deck-body {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  display: grid;
-  align-content: start;
+  display: flex;
+  flex-direction: column;
   gap: 0.4rem;
   padding: 0.45rem;
 }
+#model-studio .studio-deck-body > * { flex: 0 0 auto; }
 .studio-fold {
   flex: 0 0 auto;
   width: 1.5rem;
