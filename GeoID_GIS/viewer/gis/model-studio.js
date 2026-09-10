@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-6792d3e";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-6792d3e";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-351768e";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-351768e";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260910-6792d3e";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-6792d3e";
-import { downloadText } from "./extraction.js?v=20260910-6792d3e";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-6792d3e";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-6792d3e";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260910-6792d3e";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260910-6792d3e";
-import { femSpec } from "./model-build.js?v=20260910-6792d3e";
+} from "./mesh-volume.js?v=20260910-351768e";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-351768e";
+import { downloadText } from "./extraction.js?v=20260910-351768e";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-351768e";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-351768e";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260910-351768e";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260910-351768e";
+import { femSpec } from "./model-build.js?v=20260910-351768e";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -2411,8 +2411,23 @@ function modelFocus() {
    * Measured: the fit put the target at y = 3,187,423 on a model at
    * y = 6,371,000, and the camera 8,000 km away looking at nothing.
    */
+  /**
+   * AND ONLY WHAT IS ACTUALLY DRAWN. `object3D.visible` is the node's OWN
+   * flag: model mode hides the whole `GeoID-ImportedGeoLayers` group, and
+   * every GIS layer inside it still reports true. So on a fresh page -- the
+   * launch defaults loaded, no model built yet -- `own` was empty, the
+   * fallback framed the plate boundaries at the world origin, and Model mode
+   * opened 6,371 km from the anchor looking at the Earth's centre: a black
+   * viewport with a 2,000 km scale bar, which is what "the model page is
+   * broken" was. A hidden ancestor means the layer is not on screen.
+   */
+  const drawn = (node) => {
+    let o = node;
+    while (o) { if (!o.visible) return false; o = o.parent; }
+    return true;
+  };
   const all = (window.GeoIDImportManager?.getLayers?.() || [])
-    .filter((l) => l.object3D?.visible);
+    .filter((l) => l.object3D && drawn(l.object3D));
   const own = all.filter((l) => studioMeshes.has(l.object3D) || l.object3D?.userData?.localModel);
   const layers = own.length ? own : all;
   if (!layers.length) return null;
