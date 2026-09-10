@@ -1,13 +1,13 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-3bd3482";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-3bd3482";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-bd9b6b8";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-bd9b6b8";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260910-3bd3482";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-3bd3482";
-import { downloadText } from "./extraction.js?v=20260910-3bd3482";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-3bd3482";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-3bd3482";
+} from "./mesh-volume.js?v=20260910-bd9b6b8";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-bd9b6b8";
+import { downloadText } from "./extraction.js?v=20260910-bd9b6b8";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-bd9b6b8";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-bd9b6b8";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
