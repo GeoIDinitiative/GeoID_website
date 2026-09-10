@@ -8,8 +8,8 @@
  * so a M 7 is the same colour in a quiet year and a busy one.
  */
 
-import { buildSymbology, colourOf, legendInfoFrom } from "./symbology.js?v=20260910-5f678a1";
-import { startPlayer } from "./timelapse-player.js?v=20260910-5f678a1";
+import { buildSymbology, colourOf, legendInfoFrom } from "./symbology.js?v=20260910-6b1d4e5";
+import { startPlayer } from "./timelapse-player.js?v=20260910-6b1d4e5";
 
 const search = new URL(import.meta.url).search;
 /**
@@ -45,9 +45,22 @@ function say(message) {
   if (node) node.textContent = message;
 }
 
+/**
+ * The record's layer, ASKED FOR BY DATASET rather than matched by name.
+ *
+ * It was `/earthquakes \(USGS ComCat/i`, which stopped matching the day the
+ * record became three catalogues and the layer was renamed with them — and it
+ * fails as "tick the catalogue on first", the same sentence a layer that is
+ * genuinely absent produces, over a layer sitting on the globe with 312,500
+ * features in it. `layerForDataset` follows the entry's own name by
+ * construction, so a rename cannot break it again; the pattern survives only
+ * as a fallback for a page where the catalogue module has not loaded.
+ */
 export function eventsLayer(layers = null) {
+  const byId = window.GeoIDGlobalData?.layerForDataset?.("earthquakes");
+  if (byId) return byId;
   const held = layers || window.GeoIDImportManager?.getLayers?.() || [];
-  return held.find((l) => l.name && /earthquakes \(USGS ComCat/i.test(l.name)) || null;
+  return held.find((l) => l.name && /earthquakes \(/i.test(l.name)) || null;
 }
 
 /** The years present, each with its earthquakes, from a start year. */

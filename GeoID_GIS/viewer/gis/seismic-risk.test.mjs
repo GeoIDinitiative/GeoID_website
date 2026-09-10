@@ -128,6 +128,24 @@ check("the event step shows the minute, not the epoch",
     body.indexOf("await startPlayer(") < body.indexOf("say(summary);"), true);
 }
 
+/* A rename broke this once: the matcher was a pattern over the layer's NAME,
+   and a layer that cannot be found reports itself exactly as a layer that is
+   not there. */
+{
+  // COMMENTS STRIPPED FIRST: the note above the fix quotes the old pattern,
+  // and prose is not code. This tree's other source scanners do the same.
+  const raw = readFileSync(new URL("./seismic-timelapse.js", import.meta.url), "utf8");
+  const src = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  // Scoped to the LOOKUP's own body: "USGS ComCat" is legitimate prose in the
+  // note the bar shows, and a blunt file-wide scan flags that instead.
+  const body = src.slice(src.indexOf("export function eventsLayer"));
+  const fn = body.slice(0, body.indexOf("\n}") + 2);
+  check("the record's layer is asked for by dataset, not matched by name",
+    [fn.includes('layerForDataset?.("earthquakes")'), fn.includes("ComCat")], [true, false]);
+  const entry = DATASETS.find((d) => d.id === "earthquakes");
+  check("and the entry names the merged record", /ComCat \+ ISC-GEM \+ GEM GHEC/.test(entry.name), true);
+}
+
 const page = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 check("the step is a control beside the span", /id="seismic-timelapse-step"/.test(page) && /value="event"/.test(page) && /value="month"/.test(page), true);
 check("and the entry reads BOTH at open, never at build",
