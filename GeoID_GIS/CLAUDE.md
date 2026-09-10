@@ -16841,3 +16841,23 @@ working area and a default 1 m box in it is a speck, but a fit on every add
 would yank the view away from what is being worked on. Measured: arrival
 850 m from the anchor with a 200 m bar, first add 3 m with a 0.5 m bar, a
 second add leaving the view where it was, Fit then framing all three at 38 m.
+
+**A studio deck collapses INTO ITS MARGIN, the GIS sidebar's own gesture.**
+Folding it to a strip of tabs still spent the column on a panel nobody was
+reading. Each deck now slides off its own edge
+(`translateX(calc(-100% - 1.4rem))`, the sidebar's rule) and leaves the GIS
+page's vertical handle there — `#nav-tab`'s shape, in the studio's Exo 2 —
+which opens it again; the fold button in the tab strip is the other door, and
+the state is remembered. Measured on a 981 px viewport: the left deck 14..214
+open and −208..−8 shut with its handle at 0..37, the right deck 767..967 and
+989..1189 with its handle at 944..981.
+
+**The worlds strip opens COLLAPSED.** It is a place to go rather than a thing
+to read, and it sat open across the foot of every page for a choice most
+sessions never make. `storedCollapsed()` treats an absent key as collapsed;
+an explicit choice is still remembered in both directions.
+
+**And a transform read after a class toggle is the transition, twice over.**
+Two readings 500-600 ms after the fold reported the deck unmoved while the
+rule was applying correctly — this file already records the trap for the
+chevrons. Wait a clear second, or read the rule rather than the box.
