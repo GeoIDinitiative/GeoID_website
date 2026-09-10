@@ -16901,3 +16901,32 @@ bar of the GIS page, with its contents nested inside as subtabs."
   not an overflow.
 - The dead `.studio-tabs`, `.studio-tab` and `.studio-modebar` rules are gone
   from both stylesheets rather than left to mislead.
+
+### The Add tab: a prebuilt scenario and a shape, each with its own numbers
+
+"Do the Parameters relate to the presets or the primitives?" They only ever
+drove the PRIMITIVE — the templates built from hard-coded numbers, so the one
+prebuilt thing in the studio was the one somebody else had sized (a volcano
+was always 3 km tall on a 20 km crust). The pane read Templates / Primitives /
+Parameters and left the reader to guess which of the two the third belonged
+to. Two cards now, each complete:
+
+- **Prebuilt scenarios** — a button per scenario, the chosen one's sentence,
+  its own parameters, and Add this scenario. Each `TEMPLATES` entry declares
+  `params` in the same shape a primitive does and `build(p)` maps them onto
+  the entities it expands into: the volcano's crust, edifice and chamber; the
+  layered block's thicknesses and its dike's geometry.
+- **Build your own** — the shapes under the heading each one already declared
+  (`PRIMITIVES[kind].group`: Basic, Geological), the chosen shape's
+  parameters, and Add this shape.
+
+`renderParamRows(host, spec, values, mark)` draws both, so the two cards
+cannot drift, and **what is typed is kept on the state** — adding a scenario
+re-renders the pane, and before that the numbers just typed came back as the
+defaults. The base `.studio-palette` is two columns, so a blurb appended to it
+sat BESIDE the button grid until the studio's own rule said one column.
+
+Verified live: a volcano scenario customised to a 30 km crust, a 1.5 km
+edifice, an 8 km base and a 2 km-deep 3 km chamber built as two entities with
+those numbers, a cylinder of my own added on top of it, and the emitted script
+carrying three volumes at flags 10, 11 and 12.
