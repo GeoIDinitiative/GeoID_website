@@ -25,13 +25,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260910-4df45fd-hazard-readout-large">
+  <link rel="stylesheet" href="styles.css?v=20260910-58d55a1-hazard-readout-large">
   <style>html,body{background:#000;margin:0}</style>
-  <link rel="stylesheet" href="/styles/viewer-skin.css?v=20260910-4df45fd">
-  <link rel="stylesheet" href="/styles/viewer-themes.css?v=20260910-4df45fd">
+  <link rel="stylesheet" href="/styles/viewer-skin.css?v=20260910-58d55a1">
+  <link rel="stylesheet" href="/styles/viewer-themes.css?v=20260910-58d55a1">
   <script src="/scripts/theme.js"></script>
-  <script src="/scripts/tour-enter.js?v=20260910-4df45fd" defer></script>
-  <script src="/scripts/ui-sound.js?v=20260910-4df45fd" defer></script>
+  <script src="/scripts/tour-enter.js?v=20260910-58d55a1" defer></script>
+  <script src="/scripts/ui-sound.js?v=20260910-58d55a1" defer></script>
 </head>
 <!-- `sidebar-arranging` is set here, in the markup, rather than by a script:
      the panels below are written in source order, and GIS mode rearranges them
@@ -2018,92 +2018,154 @@
       <div class="viewer-help-head">
         <div>
           <p class="viewer-help-kicker">GeoHUB Guide</p>
-          <h2 id="viewer-help-title">Using GeoHUB Earth</h2>
+          <h2 id="viewer-help-title">Using GeoHUB</h2>
         </div>
         <button class="viewer-help-close" id="viewer-help-close" type="button" aria-label="Close guide">×</button>
       </div>
       <div class="viewer-help-body">
-        <section class="viewer-help-section">
-          <h3>Navigating The Globe</h3>
-          <div class="viewer-help-grid">
-            <article class="viewer-help-card">
-              <h4>Orbit</h4>
-              <p>Left-click and drag to rotate the globe freely in any direction.</p>
-            </article>
-            <article class="viewer-help-card">
-              <h4>Zoom</h4>
-              <p>Scroll or pinch, or hold the &#8249;&nbsp;&#8250; ends of the zoom pill (top right). Tile basemaps sharpen automatically as you descend.</p>
-            </article>
-            <article class="viewer-help-card">
-              <h4>Pan</h4>
-              <p>Right-click and drag (or two-finger drag on a trackpad) to pan the camera target.</p>
-            </article>
-            <article class="viewer-help-card">
-              <h4>Time</h4>
-              <p>The corner pill cycles LIVE &#8594; &#215;720 &#8594; paused; the digital clock opens a scrubber. Set your display timezone in Settings &#8212; data and fetch dates stay UTC.</p>
-            </article>
+          <section class="viewer-help-section">
+            <h3>Getting Around</h3>
+            <div class="viewer-help-grid">
+              <article class="viewer-help-card">
+                <h4>Orbit</h4>
+                <p>Left-click and drag to turn the globe. It spins with real time until you stop it.</p>
+              </article>
+              <article class="viewer-help-card">
+                <h4>Zoom</h4>
+                <p>Scroll or pinch, or hold the − / + ends of the pill in the bottom-right corner, which names how far in you are. Imagery and elevation sharpen as you descend.</p>
+              </article>
+              <article class="viewer-help-card">
+                <h4>Time</h4>
+                <p>The LIVE pill beside the world's name cycles live → ×720 → paused. Click the clock at the top to scrub to any moment. Fetch dates stay in UTC; Settings sets the display timezone.</p>
+              </article>
+              <article class="viewer-help-card">
+                <h4>Three pages</h4>
+                <p>The GIS · Model · Research switch at the top of the nav bar changes the whole screen: the globe, the Meshing Studio, or the Research Hub. What you loaded stays loaded.</p>
+              </article>
+            </div>
+          </section>
+          <section class="viewer-help-section">
+            <h3>The Nav Bar</h3>
+            <p>Tabs file everything by what it <em>is</em>, each opening into subtabs:</p>
+            <div class="viewer-help-grid">
+              <article class="viewer-help-card">
+                <h4>Live Events</h4>
+                <p>What is happening now: earthquakes, volcanic activity, wildfires, ice, storms and floods (USGS, NASA EONET, GDACS), switched on by subject.</p>
+              </article>
+              <article class="viewer-help-card">
+                <h4>Explorer</h4>
+                <p>Search, Locations, Tour Mode, Weather, Regions, the Moon viewer — and <strong>Core View</strong>, which cuts the planet open. Every layer on the globe is cut with it.</p>
+              </article>
+              <article class="viewer-help-card">
+                <h4>Map</h4>
+                <p>Basemaps (Sentinel-2, VIIRS, OpenStreetMap, GEBCO), <strong>Elevation</strong> (a streamed 30 m DEM with slope and hillshade, plus vertical exaggeration and contours) and reference Overlays.</p>
+              </article>
+              <article class="viewer-help-card">
+                <h4>Geology</h4>
+                <p>World geology, tectonics (plates, active faults, stress), soils and soil thickness, surface lithology, glaciers and ice sheets, volcanoes, and maps of rock properties (strength, stiffness, permeability).</p>
+              </article>
+              <article class="viewer-help-card">
+                <h4>Earth Observation</h4>
+                <p>Atmosphere (live weather maps and Earth Engine datasets), Hydrology (coastlines, rivers, lakes, gauges, sea level) and a live satellite tracker.</p>
+              </article>
+              <article class="viewer-help-card">
+                <h4>Hazards</h4>
+                <p>The myGeoID factor-of-safety mode, tropical cyclones, seismic and volcanic hazards, landslide forecasting, wildfires, floods and population exposure.</p>
+              </article>
+              <article class="viewer-help-card">
+                <h4>Model Builder</h4>
+                <p>Six steps from a drawn study area to a meshable 3D or 2D model — see below.</p>
+              </article>
+              <article class="viewer-help-card">
+                <h4>Metadata</h4>
+                <p>Where every layer came from: sources, licences and provenance, layer by layer.</p>
+              </article>
+            </div>
+          </section>
+          <section class="viewer-help-section">
+            <h3>The Workspace</h3>
+            <p>The corner box is your working set. Its header holds four doorways: <strong>+</strong> adds your own data (shapefile, GeoJSON, KML, GPX, CSV/XYZ points, GeoTIFF, ASCII grid, meshes); the <strong>cloud</strong> browses Earth Engine's catalogue and draws a fetch extent; the <strong>tray</strong> exports; the <strong>gear</strong> opens Settings (theme and sounds, clock timezone, Earth Engine).</p>
+            <p>Each layer row has an eye, an opacity slider and drag-to-reorder. Its drawer holds Symbology, the attribute Table, Export (shapefile with a QGIS style, GeoJSON, KML, CSV…), To project and Remove. An ⓘ on a modelled layer opens the equations it was calculated with.</p>
+            <div class="viewer-help-notice">Everything you draw, fetch or compute lands here as an ordinary layer — usable as an extent by name, as an input to any tool, saved with the open project, and readable by the Model Builder and the Research Hub.</div>
+          </section>
+          <section class="viewer-help-section">
+            <h3>Cards, Legend and Events</h3>
+            <p>Click any feature, event or map cell and a card opens beside it: a geological unit, a volcano, an earthquake (with its seismogram), a storm track or a risk cell. A card follows its dot as you move the globe, and closes with ✕, <span class="viewer-help-kbd">Esc</span>, a click on empty ground — or on its own when the layer it describes is hidden or removed.</p>
+            <p>The <strong>Legend</strong> and <strong>Events</strong> buttons share the top-right corner, one drop-down at a time. Click an event in the list and the globe flies to it.</p>
+          </section>
+          <section class="viewer-help-section">
+            <h3>Drawing and Measuring</h3>
+            <div class="viewer-help-grid">
+              <article class="viewer-help-card">
+                <h4>Draw</h4>
+                <p>The Draw button on the rail raises the draw bar: circle, triangle, square, rectangle, pentagon, hexagon, or your own vertices. Press and drag on the globe; the shape shows its name, area and W × H km. <strong>Done</strong> (or <span class="viewer-help-kbd">Enter</span>) files it as a study area.</p>
+              </article>
+              <article class="viewer-help-card">
+                <h4>Points, Distance, Profile</h4>
+                <p>Also on the draw bar: drop sample points as a layer, click out a line whose every leg states its length, or draw a terrain profile. Export CSV appears on the bar while a measurement is up.</p>
+              </article>
+              <article class="viewer-help-card">
+                <h4>Geoprocessing · Analysis</h4>
+                <p>Two workbenches on the rail: tools that make a map layer (clip, buffer, slope, watershed, viewshed, kriging, rasterize…) and tools that make tables and plots (zonal statistics, histograms, validation).</p>
+              </article>
+              <article class="viewer-help-card">
+                <h4>Search</h4>
+                <p>The magnifier (or <span class="viewer-help-kbd">/</span>) finds any of about fifty tools by name and opens it.</p>
+              </article>
+            </div>
+          </section>
+          <section class="viewer-help-section">
+            <h3>Records That Play</h3>
+            <p>Tick a layer that has a history and a time bar opens under the globe: <strong>13,513 tropical cyclone tracks</strong> since 1842 (storm by storm, month or season), <strong>312,500 earthquakes</strong> back to the year 1008 (with magnitude bands to tick off), cyclone risk as the record grows, volcanic ashfall risk stepped VEI 1 to 8, glacier change and imagery over time. The bar has play, step, a speed pill and a scale of years; the world clock stands aside while it plays.</p>
+          </section>
+          <section class="viewer-help-section">
+            <h3>Hazard and Risk Maps</h3>
+            <div class="viewer-help-grid">
+              <article class="viewer-help-card">
+                <h4>Cyclones</h4>
+                <p>The chance of a storm passing within 200 km of anywhere, as a return period — any storm, or hurricane force only.</p>
+              </article>
+              <article class="viewer-help-card">
+                <h4>Earthquakes</h4>
+                <p>Damaging shaking per year, by magnitude band, from the merged record.</p>
+              </article>
+              <article class="viewer-help-card">
+                <h4>Volcanoes</h4>
+                <p>Hazard zones round every active volcano, and the chance of 1 mm of ash from eruptions of each size — from the modern record or the full Holocene.</p>
+              </article>
+              <article class="viewer-help-card">
+                <h4>Landslides</h4>
+                <p>A forecast pipeline: pick an area and dates, fetch rainfall (GFS forecast or ERA5 archive), and it runs slope, geology, soil depth and a hydrogeological bucket to a factor of safety, hour by hour.</p>
+              </article>
+            </div>
+          </section>
+          <section class="viewer-help-section">
+            <h3>Model Builder and Meshing Studio</h3>
+            <p>Six steps: choose the study area, give layers roles, build the terrain surface from the streamed DEM (uniform, or finer inside buffers you draw), set the domain — a <strong>3D block with subsurface and atmosphere</strong>, a <strong>2D surface</strong>, or a <strong>2D cross-section</strong> along a line — add boundary conditions, points and mesh size fields, then build.</p>
+            <p>The package is written into the open project: STL files for each domain, gmsh scripts with named physical groups, a mesh size field and a run spec. <strong>Open in the Meshing Studio</strong> takes it to the Model page, where every face and point can be clicked, given a flag and meshed.</p>
+          </section>
+          <section class="viewer-help-section">
+            <h3>Knowing What You Are Looking At</h3>
+            <p>Every catalogue row has an ⓘ: what the dataset is, who made it, its licence, and — for anything modelled — the equations. Cards say when a value is measured and when it is modelled, and a grid finer than its source says it is interpolated rather than pretending to a precision the data does not have.</p>
+          </section>
+          <section class="viewer-help-section">
+            <h3>Keyboard Shortcuts</h3>
+            <dl class="viewer-help-shortcuts">
+              <dt><span class="viewer-help-kbd">Space</span></dt>
+              <dd>Pause or resume the globe's rotation (except while typing in a field).</dd>
+              <dt><span class="viewer-help-kbd">Esc</span></dt>
+              <dd>Close the open card, cancel a drawing, or close a window.</dd>
+              <dt><span class="viewer-help-kbd">Enter</span></dt>
+              <dd>File a finished drawing or point set; confirm a search or a field.</dd>
+              <dt><span class="viewer-help-kbd">/</span></dt>
+              <dd>Open the tool search.</dd>
+            </dl>
+          </section>
+          <section class="viewer-help-section">
+            <h3>Suggested Workflow</h3>
+            <p>Pick a basemap. Draw your study area — it names itself and lands in the Workspace. Load what the study needs from the tabs (geology, elevation, hazards, live feeds), or fetch more with the cloud doorway over that same area. Click around: every card says where its data came from. Run tools from the rail, export the results, or send the area to the Model Builder to build a mesh — and keep notes and analysis in the Research Hub.</p>
+          </section>
           </div>
-        </section>
-        <section class="viewer-help-section">
-          <h3>The Nav Bar &#8212; A Subject Taxonomy</h3>
-          <p>The tab column files everything by what it IS, two tiers deep. <strong>Live</strong> is what is happening now: earthquake, volcano, wildfire, flood and storm feeds, switched on by subject. <strong>Explorer</strong> holds the globe itself &#8212; search, tour mode, locations, the Moon viewer and core cutaway. <strong>Basemaps</strong> dresses the sphere: the base-texture list (one at a time), the Overlays catalogue of reference shapes (graticule, borders, countries, submarine cables, elevation contours) and the terrain relief slider. <strong>Geology</strong> carries the world geological map, tectonics (plates, active faults, the World Stress Map) and the Smithsonian volcano catalogue. <strong>Earth Observation</strong> nests Atmosphere (live weather maps and atmospheric datasets), Hydrology (sea level, rivers, coastlines) and the live Satellites tracker. <strong>Hazards</strong> leads with the myGeoID Factor-of-Safety pipeline beside burned-area and hazard-map tooling. <strong>Model Builder</strong> and <strong>Metadata</strong> close the column.</p>
-        </section>
-        <section class="viewer-help-section">
-          <h3>The Workspace</h3>
-          <p>The corner box is your working set, always on screen while the nav bar is. Its header carries three icon doorways: <strong>+</strong> adds local data (shapefile, GeoJSON, KML, GPX, CSV/XYZ points, GeoTIFF, ASCII grid, STL/Gmsh/OBJ/PLY meshes &#8212; the dialog adapts to the file, maps CSV columns, and asks for an optional classification and note), the <strong>cloud</strong> requests a Google Earth Engine dataset over an extent, and the <strong>tray</strong> opens Export. Every layer row below shows an eye, opacity, draw order and a coloured type chip; a drawer per row holds symbology, rename, remove and To&nbsp;Model. Your own uploads and drawn shapes stay reclassifiable forever &#8212; prebuilt datasets wear a fixed chip.</p>
-          <div class="viewer-help-notice">Everything you draw or fetch lands here as an ordinary layer &#8212; reusable as a fetch extent by name, saved with the open project, and readable by the Model Builder and Research Hub.</div>
-        </section>
-        <section class="viewer-help-section">
-          <h3>Tools On The Rail</h3>
-          <div class="viewer-help-grid">
-            <article class="viewer-help-card">
-              <h4>Distance / Draw / Profile</h4>
-              <p>Distance measures great-circle arcs. Draw drags out boxes, circles, polygons and lines &#8212; the shape wears its name, area and W&nbsp;&#215;&nbsp;H km, and Done files it as a study area. Profile draws an elevation cross-section (its A/B letters key the chart).</p>
-            </article>
-            <article class="viewer-help-card">
-              <h4>Points</h4>
-              <p>Arm, click the globe to drop numbered points, Done files the set as a layer &#8212; sample sites without hand-typing a CSV.</p>
-            </article>
-            <article class="viewer-help-card">
-              <h4>Process / Analysis</h4>
-              <p>Workbenches for pre-processing and for extraction &#38; analysis &#8212; clipping, zonal statistics, extraction over the study area, CSV export.</p>
-            </article>
-            <article class="viewer-help-card">
-              <h4>Settings / Search</h4>
-              <p>The gear holds Earth Engine credentials, the service endpoint and the clock timezone. Search (or <span class="viewer-help-kbd">/</span>) finds every tool by name.</p>
-            </article>
-          </div>
-        </section>
-        <section class="viewer-help-section">
-          <h3>Fetching By Extent</h3>
-          <p>Every fetcher asks the same question &#8212; which patch of ground? The extent picker offers the whole globe, the current view, any drawn shape by name, or any loaded layer&#8217;s bounding box. The &#9998; draw-area button arms the Draw tool and claims the shape you draw; a fetch over a live drawn shape keeps it as a named &#8220;Fetch extent&#8221; layer for next time.</p>
-        </section>
-        <section class="viewer-help-section">
-          <h3>Keyboard Shortcuts</h3>
-          <dl class="viewer-help-shortcuts">
-            <dt><span class="viewer-help-kbd">Space</span></dt>
-            <dd>Toggle globe rotation on/off (except while typing in a field).</dd>
-            <dt><span class="viewer-help-kbd">Esc</span></dt>
-            <dd>Close the active popup, cancel a drawing or point set, exit a GIS mode, or close any open modal.</dd>
-            <dt><span class="viewer-help-kbd">Enter</span></dt>
-            <dd>Confirm a search, submit the active field, or file a finished drawing or point set.</dd>
-            <dt><span class="viewer-help-kbd">/</span></dt>
-            <dd>Open the tool search palette.</dd>
-          </dl>
-        </section>
-        <section class="viewer-help-section">
-          <h3>Basemaps &#38; GEBCO Elevation</h3>
-          <p>The globe opens on the Sentinel-2 Cloudless mosaic (EOX, non-commercial licence &#8212; the source line under the catalogue always names what is on the sphere). OpenStreetMap, Esri imagery, NASA VIIRS daily and the shipped Blue Marble sit one tick away. Vertical exaggeration displaces the surface using the GEBCO 2025 global grid (~450&nbsp;m resolution, Mariana Trench to Everest); the slider sets the exaggeration, and hillshade and slope layers derive from the same grid.</p>
-        </section>
-        <section class="viewer-help-section">
-          <h3>Live Data</h3>
-          <p>The Live tab merges USGS seismicity (three windows on purpose &#8212; day, week, significant month), NASA EONET events, GDACS floods and NASA FIRMS fire detections from both MODIS and VIIRS, with US fire perimeters from NIFC. The Satellites section (under Earth Observation) propagates ~1,700 spacecraft live from CelesTrak elements &#8212; dots at true altitude, orbit rings, clickable labels. Every feed is keyless, browser-direct and credited.</p>
-        </section>
-        <section class="viewer-help-section">
-          <h3>Suggested Workflow</h3>
-          <p>Pick a basemap and relief. Draw your study area &#8212; it annotates itself with its size and lands in the Workspace. Fetch what the study needs: catalogue ticks for reference layers, the cloud doorway for Earth Engine datasets over your shape, + for your own files, the Points tool for sites. Classify inputs as they arrive so the pipeline can tell them apart. Style through each row&#8217;s Symbology, read values with Extract, then Export &#8212; or hand the shape To&nbsp;Model and continue in the Model Builder and Research Hub. Treat each layer as one line of evidence rather than a definitive answer.</p>
-        </section>
-      </div>
     </section>
     </div>
   </div>
@@ -2212,7 +2274,7 @@
     </div>
   </div>
 
-<script id="earth-manifest-script" src="earth-manifest.js?v=20260910-4df45fd-blue-marble" defer></script>
+<script id="earth-manifest-script" src="earth-manifest.js?v=20260910-58d55a1-blue-marble" defer></script>
 <script>
   const statusNode = document.getElementById("status");
 
@@ -2291,100 +2353,100 @@
   void bootEarthViewer();
 </script>
 <script src="ui-controls.js" defer></script>
-<script src="gis/mode-manager.js?v=20260910-4df45fd" defer></script>
-<script type="module" src="gis/panels.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/settings-panel.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/point-tool.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/gee-live.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/fos.js?v=20260910-4df45fd"></script>
+<script src="gis/mode-manager.js?v=20260910-58d55a1" defer></script>
+<script type="module" src="gis/panels.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/settings-panel.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/point-tool.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/gee-live.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/fos.js?v=20260910-58d55a1"></script>
 <!-- The merged ground answer: three maps at three scales, assembled per
      point with each line naming its own source. Publishes the seam the click
      cards read, so it loads beside the strength table it uses. -->
-<script type="module" src="gis/ground-profile.js?v=20260910-4df45fd"></script>
+<script type="module" src="gis/ground-profile.js?v=20260910-58d55a1"></script>
 <!-- The legend and the events feed share one slot: a shuffle, not a row. -->
-<script type="module" src="gis/overlay-stack.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/cutaway.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/card-owner.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/cyclone-risk.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/cyclone-risk-card.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/cyclone-tracks-view.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/cyclone-timelapse.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/cyclone-risk-raster.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/animated-layers.js?v=20260910-4df45fd"></script>
-    <script type="module" src="gis/volcanic-hazards.js?v=20260910-4df45fd"></script>
-    <script type="module" src="gis/volcanic-risk.js?v=20260910-4df45fd"></script>
-    <script type="module" src="gis/volcanic-risk-frames.js?v=20260910-4df45fd"></script>
-    <script type="module" src="gis/seismic-risk.js?v=20260910-4df45fd"></script>
-    <script type="module" src="gis/seismic-timelapse.js?v=20260910-4df45fd"></script>
-    <script type="module" src="gis/landslide-pipeline.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/geoid-pipeline.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/geoid-mode.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/atlas-assistant.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/import-manager.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/analysis-panel.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/model-pipeline.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/add-data.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/geology-panel.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/map-layers-panel.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/section-activity.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/tool-shelves.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/weather-maps.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/draw-hud.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/pipeline-sync.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/toolbox.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/toolbox-ops.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/sidecar-client.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/tool-search.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/tool-dialog.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/charts.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/time.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/edit-tools.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/feature-popup.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/forecast.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/location-tools.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/point-extract.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/drawn-layers.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/area-labels.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/panel-styles.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/symbology.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/symbology-panel.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/batch.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/batch-panel.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/georeference.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/georeference-panel.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/wfs-import.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/demo-layers.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/model-studio.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/layer-properties.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/layer-hierarchy.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/table-editor.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/legend-dock.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/layer-export-dialog.js?v=20260910-4df45fd"></script>
+<script type="module" src="gis/overlay-stack.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/cutaway.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/card-owner.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/cyclone-risk.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/cyclone-risk-card.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/cyclone-tracks-view.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/cyclone-timelapse.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/cyclone-risk-raster.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/animated-layers.js?v=20260910-58d55a1"></script>
+    <script type="module" src="gis/volcanic-hazards.js?v=20260910-58d55a1"></script>
+    <script type="module" src="gis/volcanic-risk.js?v=20260910-58d55a1"></script>
+    <script type="module" src="gis/volcanic-risk-frames.js?v=20260910-58d55a1"></script>
+    <script type="module" src="gis/seismic-risk.js?v=20260910-58d55a1"></script>
+    <script type="module" src="gis/seismic-timelapse.js?v=20260910-58d55a1"></script>
+    <script type="module" src="gis/landslide-pipeline.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/geoid-pipeline.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/geoid-mode.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/atlas-assistant.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/import-manager.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/analysis-panel.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/model-pipeline.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/add-data.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/geology-panel.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/map-layers-panel.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/section-activity.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/tool-shelves.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/weather-maps.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/draw-hud.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/pipeline-sync.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/toolbox.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/toolbox-ops.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/sidecar-client.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/tool-search.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/tool-dialog.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/charts.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/time.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/edit-tools.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/feature-popup.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/forecast.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/location-tools.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/point-extract.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/drawn-layers.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/area-labels.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/panel-styles.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/symbology.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/symbology-panel.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/batch.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/batch-panel.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/georeference.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/georeference-panel.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/wfs-import.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/demo-layers.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/model-studio.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/layer-properties.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/layer-hierarchy.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/table-editor.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/legend-dock.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/layer-export-dialog.js?v=20260910-58d55a1"></script>
 <!-- Pre-processing and Extraction & Analysis, as workbenches on the tool
      rail rather than two more collapsibles in the sidebar column. -->
-<script type="module" src="gis/side-panels.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/project.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/events.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/gee.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/basemap-drape.js?v=20260910-4df45fd"></script>
+<script type="module" src="gis/side-panels.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/project.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/events.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/gee.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/basemap-drape.js?v=20260910-58d55a1"></script>
 <!-- Real elevation, streamed: the globe's own texture samples at 19.6 km,
      which every product derived from it inherits. Earth only — Mapzen
      Terrain Tiles are this planet's. gis/dem-tiles.js holds the rule. -->
-<script type="module" src="gis/dem-stream.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/dem-panel.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/zoom-bar.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/polygons.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/point-labels.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/satellites.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/catalogue-panels.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/earth-data-panel.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/rock-properties-panel.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/ice-cover-panel.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/soil-cover.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/glim-cover.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/research/index.js?v=20260910-4df45fd"></script>
-<script type="module" src="gis/planet-strip.js?v=20260910-4df45fd"></script>
-<script src="music.js?v=20260910-4df45fd" defer></script>
+<script type="module" src="gis/dem-stream.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/dem-panel.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/zoom-bar.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/polygons.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/point-labels.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/satellites.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/catalogue-panels.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/earth-data-panel.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/rock-properties-panel.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/ice-cover-panel.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/soil-cover.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/glim-cover.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/research/index.js?v=20260910-58d55a1"></script>
+<script type="module" src="gis/planet-strip.js?v=20260910-58d55a1"></script>
+<script src="music.js?v=20260910-58d55a1" defer></script>
 <script>if (window.self !== window.top) document.body.classList.add("is-embedded");</script>
 
 </body>

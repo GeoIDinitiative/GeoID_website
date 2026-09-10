@@ -53,6 +53,14 @@ function installStyle() {
   const style = document.createElement("style");
   style.id = "gis-draw-hud-style";
   style.textContent = `
+/* THE RAIL NEVER SHOWS AN EXPORT, on a world that has this bar. The export
+   group lives in the rail's markup and the viewer un-hides it whenever its
+   mode is current, which is still true after Done has put the bar away: the
+   old Export CSV then dropped back into the rail, under the Draw button. The
+   bar is where it is offered now (borrowed into its slot while a tool is up);
+   in the rail it is always hidden. Injected with the bar, so a gas giant, which
+   builds no bar, keeps its rail export. */
+#tool-rail .measure-rail-actions { display: none !important; }
 #gis-draw-hud {
   position: fixed;
   top: 4.6rem;
