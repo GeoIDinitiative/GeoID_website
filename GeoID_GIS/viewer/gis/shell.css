@@ -2135,5 +2135,5 @@ html.gis-arranging #layer-dock {
 .studio-fold { width: 1.4rem; }
 /* Beside the mode bar rather than under it where the screen is narrow. */
 @media (max-width: 1180px) {
-  #model-studio .studio-ribbon { left: auto; right: 0.9rem; transform: none; max-width: calc(100vw - 19rem); justify-content: flex-end; }
+  #model-studio .studio-ribbon { left: auto; right: 3.8rem; transform: none; max-width: calc(100vw - 21.5rem); justify-content: flex-end; }
 }
