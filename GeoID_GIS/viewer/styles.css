@@ -4252,8 +4252,7 @@ canvas {
     /* Tiles reuse the GeoHUB panel treatment so the studio reads as part of
        the same GUI: the same border, layered gradient and outer glow as #ui. */
     .studio-toolbar,
-    .studio-dock,
-    .studio-modebar {
+    .studio-dock {
       border: 1px solid rgba(var(--skin-data-rgb), 0.38);
       border-radius: 0.75rem;
       background:
@@ -4292,23 +4291,6 @@ canvas {
     }
 
     /* Mode switcher, top-left where it sits on the GeoHUB page. */
-    .studio-modebar {
-      position: absolute;
-      top: 0.9rem;
-      left: 0.9rem;
-      display: grid;
-      gap: 0.4rem;
-      padding: 0.6rem 0.7rem;
-    }
-
-    .studio-modebar-label {
-      font-family: "Courier New", monospace;
-      font-size: 0.6rem;
-      letter-spacing: 0.16em;
-      color: var(--soft-light);
-    }
-
-
     .studio-btn {
       padding: 0.24rem 0.5rem;
       border-radius: 0.4rem;
@@ -4380,38 +4362,6 @@ canvas {
 
     .studio-dock-left { left: 0.9rem; }
     .studio-dock-right { right: 0.9rem; }
-
-    .studio-tabs {
-      display: flex;
-      border-bottom: 1px solid rgba(var(--nav-accent-rgb), 0.2);
-    }
-
-    .studio-tab {
-      flex: 1;
-      padding: 0.52rem 0.2rem;
-      border: none;
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.005));
-      color: var(--soft-light);
-      font: inherit;
-      font-size: 0.68rem;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-      transition: background 0.15s, color 0.15s;
-    }
-
-    .studio-tab:hover {
-      color: var(--nav-accent);
-      background: linear-gradient(180deg, rgba(var(--nav-accent-rgb), 0.13), rgba(255, 255, 255, 0.025));
-    }
-
-    .studio-tab.is-active {
-      color: var(--nav-accent);
-      border-bottom-color: var(--nav-accent);
-      background: linear-gradient(180deg, rgba(var(--nav-accent-rgb), 0.12), rgba(255, 255, 255, 0.01));
-      box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.06);
-    }
 
     .studio-pane {
       display: none;
@@ -5430,7 +5380,6 @@ canvas {
    "this box is a reading". Appended as overrides so the two stylesheets that
    carry the studio (Earth's and the planets') cannot drift from each other. */
 #model-studio .studio-dock,
-#model-studio .studio-modebar,
 #model-studio .studio-ribbon {
   border: 1px solid rgba(var(--nav-accent-rgb), 0.34);
   border-radius: 0.75rem;
@@ -5444,13 +5393,6 @@ canvas {
     0 0 0 1px rgba(var(--nav-accent-rgb), 0.14),
     0 0 34px rgba(var(--nav-accent-rgb), 0.12);
   backdrop-filter: blur(10px);
-}
-#model-studio .studio-modebar-label {
-  font-family: "Exo 2", system-ui, sans-serif;
-  font-weight: 600;
-  font-size: 0.66rem;
-  letter-spacing: 0.14em;
-  color: var(--nav-accent);
 }
 /* The top row: the mode bar, then the ribbon, in one flex line. Neither is
    positioned any more, so nothing can land on the docks below them. */
@@ -5467,14 +5409,9 @@ canvas {
   pointer-events: none;
 }
 #model-studio .studio-topbar > * { pointer-events: auto; }
-#model-studio .studio-modebar {
-  position: static;
-  flex: 0 0 auto;
-}
 #model-studio .studio-ribbon {
   position: static;
-  flex: 0 1 auto;
-  margin: 0 auto;
+  flex: 1 1 auto;
   display: flex;
   align-items: center;
   gap: 0.18rem;
@@ -5634,46 +5571,58 @@ canvas {
   box-shadow: -4px 0 24px rgba(var(--nav-accent-rgb), 0.14), -4px 0 8px rgba(0, 0, 0, 0.4);
 }
 .studio-edge-tab:hover { background: rgba(var(--nav-accent-rgb), 0.12); }
-#model-studio .studio-tabs {
+/* THE DECK IS THE GIS PAGE'S TAB COLUMN. Its head names it and carries the
+   collapse; under it the four panes are `.control-section.toolbox-group`
+   tabs -- the sidebar's own -- opening in place with their sections nested
+   inside as cards. */
+#model-studio .studio-deck-head {
+  flex: 0 0 auto;
   display: flex;
-  align-items: stretch;
-  border-bottom: 1px solid rgba(var(--nav-accent-rgb), 0.32);
-  background: linear-gradient(180deg, rgba(var(--nav-accent-rgb), 0.18), rgba(var(--nav-accent-rgb), 0.04));
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.5rem 0.4rem 0.7rem;
+  border-bottom: 1px solid rgba(var(--nav-accent-rgb), 0.3);
+  background: linear-gradient(180deg, rgba(var(--nav-accent-rgb), 0.2), rgba(var(--nav-accent-rgb), 0.05));
   border-radius: 0.75rem 0.75rem 0 0;
-  overflow: hidden;
 }
-#model-studio .studio-tab {
-  flex: 1;
-  padding: 0.55rem 0.2rem;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  color: var(--text);
+#model-studio .studio-deck-name {
+  flex: 1 1 auto;
+  min-width: 0;
   font-family: "Exo 2", system-ui, sans-serif;
   font-size: 0.64rem;
   font-weight: 600;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  cursor: pointer;
-  box-shadow: none;
+  color: var(--nav-accent);
 }
-#model-studio .studio-tab:hover { color: var(--nav-accent); background: rgba(var(--nav-accent-rgb), 0.14); }
-#model-studio .studio-tab.is-active { background: var(--nav-accent); color: #2b0030; border-bottom-color: transparent; box-shadow: none; }
+#model-studio .studio-deck-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  align-content: start;
+  gap: 0.4rem;
+  padding: 0.45rem;
+}
 .studio-fold {
   flex: 0 0 auto;
-  width: 1.7rem;
-  border: 0;
-  border-left: 1px solid rgba(var(--nav-accent-rgb), 0.28);
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.35);
+  border-radius: 0.4rem;
   background: transparent;
   color: var(--nav-accent);
   cursor: pointer;
-  font-size: 0.95rem;
-  transition: transform 0.15s;
+  font-size: 0.9rem;
+  line-height: 1;
 }
-.studio-fold:hover { background: rgba(var(--nav-accent-rgb), 0.14); }
-#model-studio .studio-dock-right .studio-fold { order: -1; border-left: 0; border-right: 1px solid rgba(var(--nav-accent-rgb), 0.28); }
-#model-studio .studio-pane { gap: 0.45rem; }
-#model-studio .studio-dock:not(.is-folded) .studio-pane.is-active { overflow-y: auto; }
+.studio-fold:hover { background: rgba(var(--nav-accent-rgb), 0.16); }
+#model-studio .studio-dock-right .studio-deck-head { flex-direction: row-reverse; padding: 0.4rem 0.7rem 0.4rem 0.5rem; }
+/* A tab in a 16rem deck: the sidebar's card at the deck's own scale. */
+#model-studio .studio-group > .section-toggle { padding: 0.45rem 0.6rem !important; }
+#model-studio .studio-group .section-title-row span:last-child { font-size: 0.68rem; }
+#model-studio .studio-group > .section-body { padding: 0 !important; }
+#model-studio .studio-pane { display: grid; gap: 0.45rem; padding: 0.5rem 0.55rem; align-content: start; }
 
 /* Sections inside a pane are the sidebar's own foldable card. */
 #model-studio .studio-fold-section { margin: 0; }
@@ -5706,7 +5655,6 @@ canvas {
 }
 
 /* Tab strips have to hold four names and a fold in a 16rem deck. */
-#model-studio .studio-tab { padding: 0.5rem 0.1rem; font-size: 0.58rem; letter-spacing: 0.06em; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .studio-fold { width: 1.4rem; }
 /* Beside the mode bar rather than under it where the screen is narrow. */
 @media (max-width: 1180px) {
@@ -5761,10 +5709,39 @@ canvas {
 #model-studio .studio-mini { background: rgba(255, 255, 255, 0.03); }
 #model-studio .studio-mini:hover { color: var(--skin-data); border-color: rgba(var(--skin-data-rgb), 0.7); background: rgba(var(--skin-data-rgb), 0.12); }
 
-/* A DECK IS A COLUMN, and its tab strip must not shrink. The dock is a flex
-   column, so with a tall pane the strip was squeezed to 9 px while its own
-   buttons were 18 -- measured, and it is what the tabs "clashing" with the
-   mode pills actually was. The strip keeps its height; the pane takes the
-   rest and scrolls inside itself. */
-#model-studio .studio-tabs { flex: 0 0 auto; }
-#model-studio .studio-pane.is-active { flex: 1 1 auto; min-height: 0; }
+
+/* The bar's own name, and the mode switch that used to have a tile. */
+#model-studio .studio-brand {
+  font-family: "Exo 2", system-ui, sans-serif;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--nav-accent);
+  white-space: nowrap;
+  padding-left: 0.2rem;
+}
+#model-studio .studio-status {
+  font-size: 0.66rem;
+  color: var(--skin-data);
+  white-space: nowrap;
+  padding: 0 0.2rem;
+}
+/* Three pills in a row inside the bar, not a stacked block in a tile. */
+#model-studio .view-mode-switch.is-in-studio {
+  display: flex;
+  flex-direction: row;
+  gap: 0.2rem;
+  width: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+#model-studio .view-mode-switch.is-in-studio .view-mode-btn {
+  width: auto;
+  margin: 0;
+  padding: 0.26rem 0.55rem;
+  font-size: 0.62rem;
+}

@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-571bffd";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-571bffd";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-7b42026";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-7b42026";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260910-571bffd";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-571bffd";
-import { downloadText } from "./extraction.js?v=20260910-571bffd";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-571bffd";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-571bffd";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260910-571bffd";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260910-571bffd";
-import { femSpec } from "./model-build.js?v=20260910-571bffd";
+} from "./mesh-volume.js?v=20260910-7b42026";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-7b42026";
+import { downloadText } from "./extraction.js?v=20260910-7b42026";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-7b42026";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-7b42026";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260910-7b42026";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260910-7b42026";
+import { femSpec } from "./model-build.js?v=20260910-7b42026";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -2667,15 +2667,26 @@ function init() {
   renderFields();
   renderSelection();
 
-  document.querySelectorAll(".studio-tabs").forEach((deck) => {
-    deck.addEventListener("click", (event) => {
-      const tab = event.target.closest(".studio-tab");
-      if (!tab) return;
-      const dock = deck.parentElement;
-      dock.querySelectorAll(".studio-tab").forEach((t) => t.classList.toggle("is-active", t === tab));
-      dock.querySelectorAll(".studio-pane").forEach((p) => {
-        p.classList.toggle("is-active", p.dataset.pane === tab.dataset.tab);
+  /**
+   * A DECK IS AN ACCORDION, the GIS page's tab column: each pane is a
+   * `toolbox-group` that opens in place, and opening one closes the others in
+   * that deck so the column never becomes a wall. Which one is open is
+   * remembered per deck.
+   */
+  document.querySelectorAll("#model-studio .studio-group").forEach((group) => {
+    group.addEventListener("toggle", () => {
+      const side = group.dataset.deck;
+      if (!group.open) return;
+      document.querySelectorAll(`#model-studio .studio-group[data-deck="${side}"]`).forEach((other) => {
+        if (other !== group) other.open = false;
       });
+      writeFold(`group-${side}`, group.dataset.group);
+    });
+  });
+  Object.entries({ left: readFolds()["group-left"], right: readFolds()["group-right"] }).forEach(([side, want]) => {
+    if (!want) return;
+    document.querySelectorAll(`#model-studio .studio-group[data-deck="${side}"]`).forEach((g) => {
+      g.open = g.dataset.group === want;
     });
   });
 
@@ -3227,7 +3238,7 @@ export function adoptSectionModel({ name = "gis_section", profile, belowM = 0, a
     + `${points?.length ? ` ${points.length} embedded point(s) carried.` : ""}`);
   ensureTerrainCard();
   renderDomainsPanel();
-  document.querySelector('.studio-tabs[data-deck="left"] .studio-tab[data-tab="model"]')?.click();
+  showGroup("left", "model");
   fitView?.();
   return gisTerrain;
 }
@@ -3405,7 +3416,7 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
   ensureTerrainCard();
   renderDomainsPanel();
   // The domains live in the Model tab; bring it up so the toggles are seen.
-  document.querySelector('.studio-tabs[data-deck="left"] .studio-tab[data-tab="model"]')?.click();
+  showGroup("left", "model");
   fitView?.();
   return gisTerrain;
 }
@@ -3920,6 +3931,18 @@ export function buildFromText(text) {
     return { ok: true, built: "a layered crust with a dike" };
   }
   return { ok: false, built: null, templates: Object.keys(TEMPLATES) };
+}
+
+/**
+ * BRING A PANE FORWARD. The decks are accordions now, so "show the Model
+ * tab" is opening its group and closing its siblings -- what a tab click
+ * used to do. Callers name the deck and the pane, not a button.
+ */
+function showGroup(side, name) {
+  const groups = document.querySelectorAll(`#model-studio .studio-group[data-deck="${side}"]`);
+  if (!groups.length) return false;
+  groups.forEach((g) => { g.open = g.dataset.group === name; });
+  return true;
 }
 
 /** Every menu shut: after an action, a click outside, or Escape. */

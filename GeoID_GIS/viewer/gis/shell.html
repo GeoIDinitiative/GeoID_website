@@ -93,26 +93,21 @@
   </section></template>
 
 <template data-slot="model-studio"><section id="model-studio" hidden>
-    <!-- The mode switcher is moved in here while the studio is open, so GeoID
-         and GIS stay one click away instead of being hidden with the sidebar.
-         Top-left, where it sits on the GeoHUB page. -->
-    <!-- ONE TOP ROW. The mode bar and the ribbon were absolutely positioned
-         separately and overlapped the left dock's tabs at any width where the
-         mode pills wrapped -- measured, an 8 px clash at 981 px. In one flex
-         row they cannot collide, and the docks hang below whatever height it
-         takes. -->
+    <!-- ONE TOP ROW, and everything is in it: the mode switch, the four action
+         menus, the view controls, what the model holds and the collapse pill.
+         The mode switch had a tile of its own beside the ribbon, which spent a
+         band of the screen on three pills and could clash with the deck under
+         it. -->
     <div class="studio-topbar">
-    <div class="studio-modebar">
-      <span class="studio-modebar-label">MESHING STUDIO</span>
-      <span id="studio-mode-slot"></span>
-      <span class="studio-status" id="studio-status"></span>
-    </div>
 
     <!-- ONE RIBBON, not two toolbars: the actions as four menus (File, Edit,
          Boolean, Export) and the view controls beside them, foldable to a
          pill. The Atlas box is gone -- the Atlas launcher bottom-right takes
          "build a volcano with a chamber" now. -->
     <div class="studio-ribbon" id="studio-ribbon">
+      <span class="studio-brand">Meshing Studio</span>
+      <span id="studio-mode-slot"></span>
+      <span class="studio-sep"></span>
       <div class="studio-menu" data-menu="file">
         <button class="studio-menu-btn" type="button" aria-expanded="false">File</button>
         <div class="studio-menu-pop" role="menu">
@@ -179,6 +174,8 @@
         <option>x</option><option>y</option><option>z</option>
       </select>
       <input id="studio-clip" class="studio-clip" type="range" min="0" max="100" value="50">
+      <span class="studio-sep"></span>
+      <span class="studio-status" id="studio-status"></span>
       <button class="studio-ribbon-fold" type="button" title="Fold the ribbon to a pill"
         aria-expanded="true"><span class="studio-ribbon-caret" aria-hidden="true">&#9652;</span></button>
     </div>
@@ -192,14 +189,20 @@
       aria-label="Open the mesh deck">&#8249;&nbsp; MESH</button>
 
     <div class="studio-dock studio-dock-left">
-      <div class="studio-tabs" data-deck="left">
-        <button class="studio-tab is-active" data-tab="add">Add</button>
-        <button class="studio-tab" data-tab="model">Model</button>
-        <button class="studio-tab" data-tab="label">Label</button>
-        <button class="studio-tab" data-tab="history">History</button>
-        <button class="studio-fold" type="button" data-fold="left" title="Fold this panel to its tabs">&#8249;</button>
+      <!-- The deck is the GIS page's own tab column: every pane is a tab that
+           opens in place with its sections nested inside as the sidebar's own
+           cards. A horizontal strip of four labels over one pane kept three
+           quarters of the deck behind a click. -->
+      <div class="studio-deck-head">
+        <span class="studio-deck-name">Build</span>
+        <button class="studio-fold" type="button" data-fold="left"
+          title="Collapse this panel into the margin">&#8249;</button>
       </div>
-      <div class="studio-pane is-active" data-pane="add">
+      <div class="studio-deck-body">
+      <details class="control-section toolbox-group studio-group" data-group="add" data-deck="left" open>
+        <summary class="section-toggle"><div class="section-toggle-main"><div class="section-heading"><div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></span><span>Add</span></span></div></div></div></summary>
+        <div class="section-body toolbox-group-body">
+        <div class="studio-pane is-active" data-pane="add">
         <p class="studio-group-title">Templates (whole scenarios)</p>
         <div id="studio-templates" class="studio-palette"></div>
         <p class="studio-group-title">Primitives</p>
@@ -208,7 +211,12 @@
         <div id="studio-params" class="studio-params"></div>
         <button id="studio-add" class="studio-primary" type="button">Add to model</button>
       </div>
-      <div class="studio-pane" data-pane="model">
+        </div>
+      </details>
+      <details class="control-section toolbox-group studio-group" data-group="model" data-deck="left">
+        <summary class="section-toggle"><div class="section-toggle-main"><div class="section-heading"><div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M8 2.2 13.4 5v6L8 13.8 2.6 11V5Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M2.6 5 8 7.8 13.4 5M8 7.8v6" fill="none" stroke="currentColor" stroke-width="1"/></svg></span><span>Model</span></span></div></div></div></summary>
+        <div class="section-body toolbox-group-body">
+        <div class="studio-pane is-active" data-pane="model">
         <p class="studio-group-title">Origin (WGS84)</p>
         <div class="studio-row"><label for="studio-origin-lat">Latitude</label>
           <input id="studio-origin-lat" class="studio-input" type="number" step="any" value="0"></div>
@@ -225,7 +233,12 @@
         <p class="studio-group-title">Physical groups</p>
         <div id="studio-groups" class="studio-list"></div>
       </div>
-      <div class="studio-pane" data-pane="label">
+        </div>
+      </details>
+      <details class="control-section toolbox-group studio-group" data-group="label" data-deck="left">
+        <summary class="section-toggle"><div class="section-toggle-main"><div class="section-heading"><div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.6 2.6h5.2l5.6 5.6-5.2 5.2-5.6-5.6Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><circle cx="5.6" cy="5.6" r="1" fill="currentColor"/></svg></span><span>Label</span></span></div></div></div></summary>
+        <div class="section-body toolbox-group-body">
+        <div class="studio-pane is-active" data-pane="label">
         <div id="studio-selection" class="studio-readout">Nothing selected</div>
         <div class="studio-row"><label for="studio-label-name">Name</label>
           <input id="studio-label-name" class="studio-input" type="text" placeholder="group name"></div>
@@ -237,20 +250,34 @@
           <input id="studio-size-max" class="studio-input" type="number" step="any" value="1"></div>
         <button id="studio-refine-sel" class="studio-secondary" type="button">Refine near selection&hellip;</button>
       </div>
-      <div class="studio-pane" data-pane="history">
+        </div>
+      </details>
+      <details class="control-section toolbox-group studio-group" data-group="history" data-deck="left">
+        <summary class="section-toggle"><div class="section-toggle-main"><div class="section-heading"><div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.4" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M8 4.6V8l2.6 1.6" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span><span>History</span></span></div></div></div></summary>
+        <div class="section-body toolbox-group-body">
+        <div class="studio-pane is-active" data-pane="history">
         <div id="studio-history" class="studio-list"></div>
+      </div>
+        </div>
+      </details>
       </div>
     </div>
 
     <div class="studio-dock studio-dock-right">
-      <div class="studio-tabs" data-deck="right">
-        <button class="studio-tab is-active" data-tab="mesh">Mesh</button>
-        <button class="studio-tab" data-tab="structured">Structured</button>
-        <button class="studio-tab" data-tab="refine">Refine</button>
-        <button class="studio-tab" data-tab="log">Log</button>
-        <button class="studio-fold" type="button" data-fold="right" title="Fold this panel to its tabs">&#8250;</button>
+      <!-- The deck is the GIS page's own tab column: every pane is a tab that
+           opens in place with its sections nested inside as the sidebar's own
+           cards. A horizontal strip of four labels over one pane kept three
+           quarters of the deck behind a click. -->
+      <div class="studio-deck-head">
+        <span class="studio-deck-name">Mesh</span>
+        <button class="studio-fold" type="button" data-fold="right"
+          title="Collapse this panel into the margin">&#8250;</button>
       </div>
-      <div class="studio-pane is-active" data-pane="mesh">
+      <div class="studio-deck-body">
+      <details class="control-section toolbox-group studio-group" data-group="mesh" data-deck="right" open>
+        <summary class="section-toggle"><div class="section-toggle-main"><div class="section-heading"><div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.6 2.6h10.8v10.8H2.6Z" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2.6 8h10.8M8 2.6v10.8M2.6 2.6 13.4 13.4M13.4 2.6 2.6 13.4" fill="none" stroke="currentColor" stroke-width="0.9"/></svg></span><span>Mesh</span></span></div></div></div></summary>
+        <div class="section-body toolbox-group-body">
+        <div class="studio-pane is-active" data-pane="mesh">
         <p class="studio-group-title">Mesh settings</p>
         <div class="studio-row"><label for="studio-alg2">2D algorithm</label>
           <select id="studio-alg2" class="studio-select wide"><option>auto</option><option>MeshAdapt</option><option>Delaunay</option><option>Frontal-Delaunay</option></select></div>
@@ -280,7 +307,12 @@
           <button id="studio-exp-ply" class="studio-secondary" type="button" disabled>PLY</button>
         </div>
       </div>
-      <div class="studio-pane" data-pane="structured">
+        </div>
+      </details>
+      <details class="control-section toolbox-group studio-group" data-group="structured" data-deck="right">
+        <summary class="section-toggle"><div class="section-toggle-main"><div class="section-heading"><div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.6 2.6h10.8v10.8H2.6Z" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M6.2 2.6v10.8M9.8 2.6v10.8M2.6 6.2h10.8M2.6 9.8h10.8" fill="none" stroke="currentColor" stroke-width="0.9"/></svg></span><span>Structured</span></span></div></div></div></summary>
+        <div class="section-body toolbox-group-body">
+        <div class="studio-pane is-active" data-pane="structured">
         <p class="studio-group-title">Transfinite curves</p>
         <div class="studio-row"><label for="studio-tf-nodes">Nodes</label>
           <input id="studio-tf-nodes" class="studio-input" type="number" value="10"></div>
@@ -291,7 +323,12 @@
         <button id="studio-recombine-sel" class="studio-secondary" type="button">Recombine selected surfaces</button>
         <div id="studio-structured-info" class="studio-readout">Structured meshing controls the lattice directly.</div>
       </div>
-      <div class="studio-pane" data-pane="refine">
+        </div>
+      </details>
+      <details class="control-section toolbox-group studio-group" data-group="refine" data-deck="right">
+        <summary class="section-toggle"><div class="section-toggle-main"><div class="section-heading"><div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.6 13.4 7 9" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="9.6" cy="6.4" r="3.6" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M8 6.4h3.2M9.6 4.8v3.2" fill="none" stroke="currentColor" stroke-width="1"/></svg></span><span>Refine</span></span></div></div></div></summary>
+        <div class="section-body toolbox-group-body">
+        <div class="studio-pane is-active" data-pane="refine">
         <div class="studio-actions">
           <button id="studio-field-add" class="studio-primary" type="button">Add field</button>
           <button id="studio-field-remove" class="studio-secondary" type="button">Remove selected field</button>
@@ -311,8 +348,16 @@
         <div class="studio-row"><label for="studio-field-dmax">DistMax</label><input id="studio-field-dmax" class="studio-input" type="number" step="any" value="1"></div>
         <div id="studio-fields" class="studio-list"></div>
       </div>
-      <div class="studio-pane" data-pane="log">
+        </div>
+      </details>
+      <details class="control-section toolbox-group studio-group" data-group="log" data-deck="right">
+        <summary class="section-toggle"><div class="section-toggle-main"><div class="section-heading"><div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.4 2.6h9.2v10.8H3.4Z" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M5.6 5.6h4.8M5.6 8h4.8M5.6 10.4h3" fill="none" stroke="currentColor" stroke-width="1"/></svg></span><span>Log</span></span></div></div></div></summary>
+        <div class="section-body toolbox-group-body">
+        <div class="studio-pane is-active" data-pane="log">
         <div id="studio-log" class="studio-log"></div>
+      </div>
+        </div>
+      </details>
       </div>
     </div>
   </section></template>
