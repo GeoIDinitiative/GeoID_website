@@ -18,7 +18,7 @@
  * in extraction and in export without this file knowing anything about them.
  */
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260910-58d55a1";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260911-dc6971a";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -528,7 +528,14 @@ export function renderCatalogue(host, entries, hooks) {
     const tick = document.createElement("input");
     tick.type = "checkbox";
     tick.checked = Boolean(layer);
-    tick.id = `gis-cat-${entry.id}`;
+    /**
+     * UNIQUE PER HOST, not per dataset. A dataset can be listed in two tabs --
+     * the volcanoes are Geology's and are mirrored into Volcanic hazards --
+     * and one id twice in a page means the second row's label points at the
+     * FIRST row's box: the mirror's name was unclickable and unnamed to a
+     * screen reader, found by the duplicate-id sweep.
+     */
+    tick.id = host.id ? `gis-cat-${host.id}-${entry.id}` : `gis-cat-${entry.id}`;
     tick.addEventListener("change", async () => {
       if (tick.checked) {
         // Busy while it loads: a global shapefile is seconds of geometry, and

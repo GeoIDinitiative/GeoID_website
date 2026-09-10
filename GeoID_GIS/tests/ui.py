@@ -90,8 +90,13 @@ def static_checks():
     # Stronger than parity now: the shared panels have ONE source, so neither
     # page may define a group of its own. Parity can be satisfied by two copies
     # that happen to agree today; this cannot.
+    # The one Earth-only tab that is written in Earth's own page on purpose:
+    # the live feeds (USGS, EONET, GDACS) describe Earth, and the nine planet
+    # shells have nothing to put in it.
+    PAGE_OWN = {EARTH: {"gis-group-events"}, SHELL: set()}
     for page in (EARTH, SHELL):
-        stray = re.findall(r'<details id="(gis-group-[a-z]+)"', page.read_text())
+        stray = [g for g in re.findall(r'<details id="(gis-group-[a-z]+)"', page.read_text())
+                 if g not in PAGE_OWN[page]]
         check(f"{page.name} defines no panel of its own",
               not stray, f"defined in the page instead of panels.js: {stray}")
 
@@ -110,6 +115,17 @@ def static_checks():
                                                     "gis-time-", "gis-chart-", "gis-planet-"))}
     runtime |= {"gis-charts-section", "gis-feature-popup-style", "gis-panel-styles",
                 "gis-symbology-host", "gis-tool-dialog-fallback"}
+    # And every id a module ASSIGNS itself -- a panel it builds, a <style> it
+    # injects, a card it creates. Read off the source rather than listed, or
+    # this check fails on every new module that builds its own element and
+    # stops being read (it had: eight false reports, all elements their own
+    # modules create).
+    for js in gis.glob("*.js"):
+        if js.name.endswith(".test.mjs"):
+            continue
+        text = js.read_text()
+        runtime |= set(re.findall(r'\.id = "([a-z0-9\-]+)"', text))
+        runtime |= set(re.findall(r'\bid="([a-z0-9\-]+)"', text))
     orphans = sorted(i for i in read_ids - known - runtime
                      if i.startswith(("gis-", "extract-", "polygon-")))
     check("every panel id a module reads exists in the markup",

@@ -30,12 +30,12 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260910-58d55a1";
-import { readHead, validateMapping } from "./delimited.js?v=20260910-58d55a1";
-import { RAMP_NAMES } from "./symbology.js?v=20260910-58d55a1";
-import { AREA_OPACITY, MARK_OPACITY } from "./layer-opacity.js?v=20260910-58d55a1";
-import { isEarth } from "./bodies.js?v=20260910-58d55a1";
-import { DATA_TYPES, inferType, applyTag, markUserInput, suppressNextArrival } from "./data-tags.js?v=20260910-58d55a1";
+import { CRS_OPTIONS } from "./projection.js?v=20260911-dc6971a";
+import { readHead, validateMapping } from "./delimited.js?v=20260911-dc6971a";
+import { RAMP_NAMES } from "./symbology.js?v=20260911-dc6971a";
+import { AREA_OPACITY, MARK_OPACITY } from "./layer-opacity.js?v=20260911-dc6971a";
+import { isEarth } from "./bodies.js?v=20260911-dc6971a";
+import { DATA_TYPES, inferType, applyTag, markUserInput, suppressNextArrival } from "./data-tags.js?v=20260911-dc6971a";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
@@ -925,7 +925,9 @@ function addButtonFor(role) {
     gee.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      window.GeoIDGeeCatalogue?.open?.(geeHome);
+      // A door toggles: pressed again, it closes what it opened.
+      const cat = window.GeoIDGeeCatalogue;
+      if (cat?.isOpen?.()) cat.close?.(); else cat?.open?.(geeHome);
     });
     row.appendChild(gee);
   }
@@ -944,7 +946,9 @@ function addButtonFor(role) {
     exp.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      window.GeoIDSidePanels?.open?.("export");
+      // A door toggles, as the rail's workbench buttons do.
+      const sp = window.GeoIDSidePanels;
+      if (sp?.isOpen?.("export")) sp.close?.("export"); else sp?.open?.("export");
     });
     row.appendChild(exp);
     // The gear rides here on EVERY world — Settings left the rail for the
@@ -958,7 +962,8 @@ function addButtonFor(role) {
       cfg.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
-        window.GeoIDSidePanels?.open?.("settings");
+        const sp = window.GeoIDSidePanels;
+        if (sp?.isOpen?.("settings")) sp.close?.("settings"); else sp?.open?.("settings");
       });
       row.appendChild(cfg);
     }

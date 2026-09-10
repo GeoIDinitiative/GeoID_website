@@ -10,24 +10,24 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260910-58d55a1";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260910-58d55a1";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260910-58d55a1";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260911-dc6971a";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260911-dc6971a";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260911-dc6971a";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260910-58d55a1";
+  from "./view-extent.js?v=20260911-dc6971a";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260910-58d55a1";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260910-58d55a1";
+} from "./extent-picker.js?v=20260911-dc6971a";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260911-dc6971a";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
   freshness, isNewDataset, isExtendedDataset, indexedHrefs, bakedOn,
-} from "./gee-catalogue-index.js?v=20260910-58d55a1";
-import { checkCatalogue, describeCheck } from "./gee-watch.js?v=20260910-58d55a1";
+} from "./gee-catalogue-index.js?v=20260911-dc6971a";
+import { checkCatalogue, describeCheck } from "./gee-watch.js?v=20260911-dc6971a";
 
 // The page's own stamp. A dynamic import under any other query is a SECOND
 // module instance with its own state — the trap that made a stopped player
@@ -761,6 +761,10 @@ function geeCatalogueSeam() {
      * lets + GEE be wired the same way.
      */
     open(homeName) { return openGeeDialog(homeName || ""); },
+    // Closed from outside too: its doorway toggles, as every other Workspace
+    // door does, and a modal closes on Escape.
+    close() { closeGeeDialog(); },
+    isOpen() { return byId("gee-add-backdrop")?.hidden === false; },
     entriesFor(homeName) {
       return catalogueEntries()
         .filter((entry) => geeHomeOf(entry.id) === homeName)
@@ -1773,6 +1777,18 @@ function closeGeeDialog() {
   watchStripPlacement(false);
   const backdrop = byId("gee-add-backdrop");
   if (backdrop) backdrop.hidden = true;
+}
+
+/**
+ * A MODAL CLOSES ON ESCAPE. The + Data dialog beside this one always did; this
+ * one ignored the key, and neither Escape nor a second press of + GEE put it
+ * away -- found by the doorway sweep. Only while it is open, so the key keeps
+ * its other jobs (closing a card, cancelling a drawing) the rest of the time.
+ */
+if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && byId("gee-add-backdrop")?.hidden === false) closeGeeDialog();
+  });
 }
 
 async function openGeeDialog(homeName) {

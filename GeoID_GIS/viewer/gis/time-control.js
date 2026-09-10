@@ -56,6 +56,8 @@ export async function mountTimeControl(host, source, { open = false } = {}) {
   const field = (labelText, node) => {
     const row = el("div", "row");
     const label = el("label", null, labelText);
+    // A sibling <label> with no "for" names nothing; the field says it itself.
+    if (!node.getAttribute("aria-label")) node.setAttribute("aria-label", labelText);
     row.append(label, node);
     body.appendChild(row);
     return node;

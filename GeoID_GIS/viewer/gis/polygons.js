@@ -1,7 +1,7 @@
 import {
   addDataset, grouped, datasetById, layerForDataset,
-} from "./global-data.js?v=20260910-58d55a1";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260910-58d55a1";
+} from "./global-data.js?v=20260911-dc6971a";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260911-dc6971a";
 
 /**
  * Polygons: the register of vector overlays -- coastlines, boundaries, basins,
@@ -171,6 +171,7 @@ function appendContourRows(host) {
     row.dataset.contourRow = "1";
     const tick = document.createElement("input");
     tick.type = "checkbox";
+    tick.setAttribute("aria-label", `Elevation contours — ${option.textContent}`);
     tick.checked = interval.value === option.value;
     tick.addEventListener("change", () => {
       // Radio-like: the viewer draws one interval at a time, so ticking one
