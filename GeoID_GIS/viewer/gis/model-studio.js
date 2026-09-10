@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-5bc153a";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-5bc153a";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-6a9f707";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-6a9f707";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260910-5bc153a";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-5bc153a";
-import { downloadText } from "./extraction.js?v=20260910-5bc153a";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-5bc153a";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-5bc153a";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260910-5bc153a";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260910-5bc153a";
-import { femSpec } from "./model-build.js?v=20260910-5bc153a";
+} from "./mesh-volume.js?v=20260910-6a9f707";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-6a9f707";
+import { downloadText } from "./extraction.js?v=20260910-6a9f707";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-6a9f707";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-6a9f707";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260910-6a9f707";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260910-6a9f707";
+import { femSpec } from "./model-build.js?v=20260910-6a9f707";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -2788,13 +2788,20 @@ function init() {
   document.querySelectorAll("#model-studio .studio-group").forEach((group) => {
     group.addEventListener("toggle", () => {
       const band = group.dataset.band || "build";
-      if (!group.open) return;
+      if (!group.open) {
+        // Shutting the band's open tab is a decision too: leave the stored
+        // name standing and the next load reopens the tab just put away.
+        if (readFolds()[`band-${band}`] === group.dataset.group) writeFold(`band-${band}`, "");
+        return;
+      }
       document.querySelectorAll(`#model-studio .studio-group[data-band="${band}"]`).forEach((other) => {
         if (other !== group) other.open = false;
       });
       writeFold(`band-${band}`, group.dataset.group);
     });
   });
+  // EVERY TAB ARRIVES SHUT -- the markup opens none, so a fresh deck is eight
+  // names and nothing else. Only a remembered choice opens one.
   ["build", "mesh"].forEach((band) => {
     const want = readFolds()[`band-${band}`];
     if (!want) return;

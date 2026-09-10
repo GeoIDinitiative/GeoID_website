@@ -5523,8 +5523,14 @@ canvas {
 #model-studio .studio-ribbon.is-folded .studio-ribbon-caret { transform: rotate(180deg); }
 
 /* The decks hang under the WHOLE top row, so they start at one height. */
+/* THE FRAME IS ITS CONTENTS. `bottom: 3.2rem` held the deck at full height
+   whatever was in it, so eight shut tabs sat in a box two thirds empty. It is
+   shrink-wrapped now and capped where the worlds strip is, so opening a tab
+   grows the frame to it and the body scrolls only once the cap binds. */
 #model-studio .studio-dock {
   top: calc(var(--studio-chrome-h, 5rem) + 1.4rem);
+  bottom: auto;
+  max-height: calc(100% - var(--studio-chrome-h, 5rem) - 1.4rem - 3.2rem);
   overflow: visible;
 }
 /* COLLAPSED IS INTO THE MARGIN, as the GIS sidebar collapses: the whole deck
@@ -5783,13 +5789,12 @@ canvas {
 /* The two halves of the one column: what builds the model, then what meshes
    it. The mesh deck was a second column of its own, which spent a quarter of
    the screen on four labels and one open pane. Each half was captioned BUILD
-   and MESH; the words are gone and a wider gap where the band changes says the
-   same thing without spending a row on it. Selected on the CHANGE of band
-   rather than on a class, so nothing in the markup has to be kept in step.
-   A RULE was tried there first and is not available: a tab's own frame is
-   painted `!important` by the shared chrome, so a border-top on the tab
-   computes as the accent in both states and no hairline is drawn. Measured,
-   open and shut. The gap is the one separator nothing can overrule. */
-#model-studio .studio-group[data-band="build"] + .studio-group[data-band="mesh"] {
-  margin-top: 0.75rem;
-}
+   and MESH, then separated by a wider gap; both are gone and the eight tabs
+   are one evenly spaced list. The band survives only as BEHAVIOUR -- one tab
+   open per band, so a build tab and a mesh tab can be read together -- which
+   needs no mark of its own in a column where every tab arrives shut.
+   (A hairline at the band change was tried and is not available: a tab's own
+   frame is painted `!important` by the shared chrome, so a border-top on the
+   tab computes as the accent in both states and nothing is drawn. Measured,
+   open and shut.) */
+
