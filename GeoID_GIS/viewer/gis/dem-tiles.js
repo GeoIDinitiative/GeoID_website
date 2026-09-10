@@ -21,7 +21,7 @@
  * feeds is `sampleElevationMeters`, never `sampleElevationNormalized`.
  */
 
-import { tilesForBounds, tileCountForBounds, mercatorTile } from "./mvt.js?v=20260910-6ea0c0f";
+import { tilesForBounds, tileCountForBounds, mercatorTile } from "./mvt.js?v=20260910-dbabf53";
 
 /**
  * Terrarium: height packed into RGB, EGM96 metres.
@@ -357,18 +357,51 @@ function loadTile(tile, pin = false) {
  * where the box genuinely sits near an edge, and the stencil is a few metres
  * wide, not a few kilometres.
  */
+/**
+ * A COVER THE CACHE CANNOT HOLD IS A COVER IT WILL QUIETLY LOSE.
+ *
+ * The Model Builder asks for up to 256 tiles, because a study area is worth
+ * more than a glance; the cache holds 128. Nothing tied the two together, so a
+ * cover chosen at 256 was fetched in full and EVICTED FROM ITS OWN FRONT as it
+ * arrived. Measured on a box over Northern Ireland: zoom 11 is ~238 tiles, the
+ * cache kept the last 128, and every tile fetched first -- the western 47% of
+ * the island -- answered null. The builder then filled 10,146 of 21,384 nodes
+ * with the area mean: half the model a flat plateau, reported as a success.
+ * A few-kilometre study area is a handful of tiles, which is why it never
+ * showed.
+ *
+ * So a cover is planned against what the cache can HOLD, with headroom for
+ * the view's own settle (12 tiles) so a camera move mid-build cannot push the
+ * study area out either. And the check is on the PADDED list, because the
+ * few-post margin can add a row and a column to a cover that fitted without.
+ */
+const COVER_HEADROOM = 16;
+export const COVER_CEILING = MAX_TILES - COVER_HEADROOM;
+
+export function coverFor(box, options = {}) {
+  const bounds = normaliseBounds(box);
+  let limit = Math.min(Number(options.maxTiles) || 24, COVER_CEILING);
+  for (;;) {
+    const plan = planCover(bounds, { ...options, maxTiles: limit });
+    if (!plan.ok) return { plan, tiles: [] };
+    const padDegrees = (4 * 360) / (2 ** plan.zoom) / TERRARIUM.size;
+    const tiles = tilesForBounds({
+      west: bounds.west - padDegrees,
+      east: bounds.east + padDegrees,
+      south: Math.max(-85.0511, bounds.south - padDegrees),
+      north: Math.min(85.0511, bounds.north + padDegrees),
+    }, plan.zoom);
+    if (tiles.length <= COVER_CEILING || plan.zoom <= 1) return { plan, tiles };
+    // The padding tipped it over: one level coarser is a quarter of the tiles.
+    limit = Math.max(1, Math.floor(tiles.length / 4));
+  }
+}
+
 export async function ensure(box, options = {}) {
   const bounds = box ? normaliseBounds(box) : null;
   if (blocked || !bounds) return { ok: false, reason: blocked ? "unreachable" : "no bounds" };
-  const plan = planCover(bounds, options);
+  const { plan, tiles } = coverFor(bounds, options);
   if (!plan.ok) return plan;
-  const padDegrees = (4 * 360) / (2 ** plan.zoom) / TERRARIUM.size;
-  const tiles = tilesForBounds({
-    west: bounds.west - padDegrees,
-    east: bounds.east + padDegrees,
-    south: Math.max(-85.0511, bounds.south - padDegrees),
-    north: Math.min(85.0511, bounds.north + padDegrees),
-  }, plan.zoom);
   const results = await Promise.all(tiles.map((t) => loadTile(t)));
   const got = results.filter(Boolean).length;
   // Nothing at all came back for a whole cover: the source is unreachable
@@ -376,7 +409,11 @@ export async function ensure(box, options = {}) {
   // asking, rather than failing every sample silently for the rest of the
   // session.
   if (!got && tiles.length) blocked = true;
-  return { ...plan, ok: got > 0, requested: tiles.length, got, blocked };
+  // What is still HELD, not what arrived: arriving and being kept are two
+  // different claims, and this module has already once reported the first
+  // while the second was false.
+  const kept = tiles.filter((t) => held(keyOf(t))).length;
+  return { ...plan, ok: got > 0, requested: tiles.length, got, held: kept, blocked };
 }
 
 /**

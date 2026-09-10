@@ -12,6 +12,19 @@
         "/home/owen/GeoID_webpage"
       ],
       "port": 8125
+    },
+    {
+      "name": "geoid-sidecar",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "/home/owen/GeoID_webpage/GeoID_GIS/sidecar/geoid_sidecar.py",
+        "--root",
+        "/home/owen/geoid_projects",
+        "--port",
+        "8137",
+        "--no-token"
+      ],
+      "port": 8137
     }
   ]
 }

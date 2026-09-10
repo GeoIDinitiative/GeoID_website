@@ -7,7 +7,8 @@
  */
 
 import { decodeTerrarium, despike, sampleGrid, chooseZoom, groundMetresPerPixel,
-  normaliseBounds, INFO_ZOOM, DESPIKE_M, TERRARIUM } from "./dem-tiles.js";
+  normaliseBounds, INFO_ZOOM, DESPIKE_M, TERRARIUM, coverFor, COVER_CEILING, planCover
+} from "./dem-tiles.js";
 import { tilesForBounds, mercatorTile } from "./mvt.js";
 import { readFileSync } from "node:fs";
 
@@ -241,6 +242,42 @@ check("the sheet hands the raster builder the raster's own box shape", () => {
   ok(/minX: bounds\.west/.test(src), "converted at the boundary");
   ok(/buildRasterLayer\(bands, GRID_W, GRID_H, rasterBounds/.test(src),
     "and the converted box is what is passed");
+});
+
+/**
+ * A cover the cache cannot HOLD is a cover it quietly loses. The Model Builder
+ * asked for 256 tiles against a 128-tile cache: over Northern Ireland that
+ * planned zoom 11 at ~238 tiles, fetched them all, and evicted the first ~110
+ * as the rest arrived -- the western 47% of the island answered null and was
+ * filled with the area mean. This is that exact box.
+ */
+const NI = { west: -8.181141, east: -5.428859, south: 54.017488, north: 55.312512 };
+check("the builder's budget, uncapped, is more than the cache can hold", () => {
+  const p = planCover(NI, { maxTiles: 256 });
+  ok(p.tiles > COVER_CEILING, `the reproduction: ${p.tiles} tiles at zoom ${p.zoom}`);
+});
+check("a cover is planned against what the cache can hold", () => {
+  const { plan, tiles } = coverFor(NI, { maxTiles: 256 });
+  ok(tiles.length <= COVER_CEILING, `${tiles.length} tiles > ${COVER_CEILING}`);
+  ok(plan.zoom === 10, `zoom ${plan.zoom}, want 10 for this box`);
+});
+check("with headroom for the view's own settle", () => {
+  const src = readFileSync(new URL("./dem-tiles.js", import.meta.url), "utf-8");
+  const max = Number(src.match(/const MAX_TILES = (\d+)/)[1]);
+  ok(COVER_CEILING <= max - 12, `ceiling ${COVER_CEILING} leaves no room in ${max} for the view's 12`);
+});
+check("the ceiling is checked on the PADDED list", () => {
+  // Pick a box that fits the ceiling unpadded at some zoom and let the pad
+  // tip it: whatever comes back must still fit.
+  for (const span of [0.5, 1, 2, 3, 5]) {
+    const box = { west: -7, east: -7 + span, south: 54, north: 54 + span * 0.6 };
+    const { tiles } = coverFor(box, { maxTiles: 999 });
+    ok(tiles.length <= COVER_CEILING, `span ${span}: ${tiles.length}`);
+  }
+});
+check("ensure reports what is still HELD, not only what arrived", () => {
+  const src = readFileSync(new URL("./dem-tiles.js", import.meta.url), "utf-8");
+  ok(/held: kept/.test(src) && /coverFor\(bounds, options\)/.test(src), "ensure must go through coverFor and count held tiles");
 });
 
 if (failures.length) {
