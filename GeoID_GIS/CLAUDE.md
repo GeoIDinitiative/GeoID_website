@@ -17319,3 +17319,64 @@ its event id; and a historical one reading **"HISTORICAL EARTHQUAKE / M 7.0 —
 1008 / Dinavar"**, When `27 Apr 1008 — as the historical record gives it`,
 Magnitude `7.0 s`, no depth row (GHEC has none), and GEM's citation with its
 CC BY-SA 3.0.
+
+### The magnitudes are ticks, and filtering a ramp respreads it
+
+"In the seismicity record we should be able to turn on/off by magnitude
+categories to reduce noise." The tick list is the volcano type list's own
+mechanism generalised (`applyClassFilter` + `drawClassRows` in
+`catalogue-panels.js`, shared by both callers), and the whole difficulty is
+in one place: **the colours must not move when a class is hidden.**
+
+**THE RAMP-RESPREAD TRAP.** `buildSymbology` filters a supplied edge list to
+`b > min && b < max` — dropping every class outside the data's own range —
+and spreads the ramp as `t = i / (edges.length - 2)`. So filtering a layer
+and repainting it through the ordinary path RECOLOURS EVERY BAND THAT IS
+LEFT, under a key that has quietly lost a row: hide M 4.5–4.9 and the green
+that meant "small" is handed to M 5–5.9, which is a map saying something
+different from the one before the click. Measured on the real record, hiding
+the bottom band respread the four survivors across the whole ramp.
+
+**So the symbology is PINNED to a fixed spread and only the counts are
+read off the data.** `seismic-magnitude.js` classifies `SPREAD = [4.5, 5.5,
+6.5, 7.5, 9]` — one value inside each band, so five rows and five colours
+exist whatever is on screen — and then counts the real values into them.
+`bandOf(props)` is the one classifier the paint, the filter, the legend and
+the timelapse all read, so none of them can disagree about which band an
+event is in.
+
+**A LAYER FILTERS AGAINST A MASTER LIST, never against itself.**
+`layer._allFeatures` is captured once; every pass filters THAT and writes the
+result to both `layer.features` and `layer.collection.features`, so the dots,
+the click picker and the animation answer from one filtered set and
+re-ticking a band restores it exactly. Filtering `layer.features` in place is
+a one-way door.
+
+**An event with no magnitude is always KEPT.** A tick list is about what is
+being hidden; a null is not a band and hiding it would be a silent third
+rule. Same shape as the no-value grey elsewhere in this file.
+
+**And the animation's own note must stop naming a floor the filter has
+moved.** The All frame read "312,500 earthquakes M ≥ 4.5", which is a claim
+about the CATALOGUE, and with a band hidden the plot is not the catalogue.
+It reads the ratio form ("299,820 of 312,500 earthquakes") whenever the held
+set differs from the total, and the rebuild runs under
+`window.GeoIDAnimatedLayers.hold` so the bar is not read as dismissed —
+a rebuild is not a ✕, which this file already records for the step control.
+
+Measured live, hiding a MIDDLE band (M 6–6.9), which is the case a respread
+shows worst: features 312,500 → 299,820, the four survivors keeping their
+EXACT counts and their exact drawn colours (`#1a9850` 199,957 · `#a6d96a`
+97,604 · `#fdae61` 2,077 · `#d7191c` 182 — the ±1 is the documented
+linear↔sRGB round trip), the legend still listing all five rows including the
+hidden one, the status reading "299,820 of 312,500 drawn — M 6–6.9 hidden."
+and the bar note the ratio form. Hiding the bottom band earlier gave the same
+result at 112,543.
+
+**`GeoIDProjectLatLon` DOES NOT CULL THE FAR HEMISPHERE.** A point on the
+back of the globe projects to a plausible on-canvas pixel, so a probe that
+picks a feature's screen position and clicks it can be aiming at the other
+side of the planet — measured while verifying this, a Bismarck Sea event
+projecting into frame with the camera over Morocco. Cross-check each
+candidate pixel's own `surfaceLatLonAt` against the feature's coordinates
+before believing it.
