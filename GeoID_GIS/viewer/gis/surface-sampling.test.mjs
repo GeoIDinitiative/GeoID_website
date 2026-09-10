@@ -219,6 +219,7 @@ check("the TIN builds", tin.ok, tin.message);
     check("the studio's controls are on the app's own control-skin list", /\.studio-primary, \.studio-secondary, \.studio-input, \.studio-select, \.studio-mini \{\n  border-color: rgba\(var\(--skin-data-rgb\), 0\.40\) !important;/.test(skin) && /\.studio-primary:hover, \.studio-secondary:hover, \.studio-mini:hover \{/.test(skin));
     check("the app's own control skin and themes are cache-busted like everything else", /viewer-skin\.css\?v=/.test(page) && /viewer-themes\.css\?v=/.test(page));
     check("a deck's tab strip cannot be squeezed by its pane", /#model-studio \.studio-tabs \{ flex: 0 0 auto; \}/.test(css) && /#model-studio \.studio-pane\.is-active \{ flex: 1 1 auto; min-height: 0; \}/.test(css));
+    check("the fit updates each layer's world matrix from the ROOT", /l\.object3D\.updateWorldMatrix\(true, true\);/.test(studio) && !/l\.object3D\.updateMatrixWorld\(true\);/.test(studio));
     check("the view frames only what is DRAWN, so a hidden GIS layer cannot be the fallback", /const drawn = \(node\) => \{/.test(studio) && /while \(o\) \{ if \(!o\.visible\) return false; o = o\.parent; \}/.test(studio) && /\.filter\(\(l\) => l\.object3D && drawn\(l\.object3D\)\);/.test(studio));
     const atlas = readFileSync(new URL("./atlas-assistant.js", import.meta.url), "utf8");
     check("Atlas takes the build-a-volcano phrase the studio's box used to", /studio\.buildFromText\(question\)/.test(atlas));

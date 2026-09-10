@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-1044250";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-1044250";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-14997c7";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-14997c7";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260910-1044250";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-1044250";
-import { downloadText } from "./extraction.js?v=20260910-1044250";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-1044250";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-1044250";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260910-1044250";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260910-1044250";
-import { femSpec } from "./model-build.js?v=20260910-1044250";
+} from "./mesh-volume.js?v=20260910-14997c7";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-14997c7";
+import { downloadText } from "./extraction.js?v=20260910-14997c7";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-14997c7";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-14997c7";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260910-14997c7";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260910-14997c7";
+import { femSpec } from "./model-build.js?v=20260910-14997c7";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -2438,7 +2438,15 @@ function modelFocus() {
   if (!layers.length) return null;
   const box = new THREE.Box3();
   layers.forEach((l) => {
-    l.object3D.updateMatrixWorld(true);
+    /**
+     * FROM THE ROOT DOWN. `updateMatrixWorld(true)` refreshes a node and its
+     * DESCENDANTS from whatever its parent's matrix currently says -- and a
+     * group added to the anchor in this same tick still carries the identity,
+     * so every vertex boxed at the world ORIGIN and a fit on the first solid
+     * flew the camera to the Earth's centre. `updateWorldMatrix(true, true)`
+     * walks the ancestors first, which is the question being asked.
+     */
+    l.object3D.updateWorldMatrix(true, true);
     box.expandByObject(l.object3D);
   });
   if (box.isEmpty()) return null;
