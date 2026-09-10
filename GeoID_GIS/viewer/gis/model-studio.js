@@ -1,13 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-0014814";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-0014814";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-95bdfcc";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-95bdfcc";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260910-0014814";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-0014814";
-import { downloadText } from "./extraction.js?v=20260910-0014814";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-0014814";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-0014814";
+} from "./mesh-volume.js?v=20260910-95bdfcc";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-95bdfcc";
+import { downloadText } from "./extraction.js?v=20260910-95bdfcc";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-95bdfcc";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-95bdfcc";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260910-95bdfcc";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260910-95bdfcc";
+import { femSpec } from "./model-build.js?v=20260910-95bdfcc";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -29,6 +32,13 @@ const state = {
   kind: "box",
   params: {},
   groups: [],
+  /** The studio's own atmosphere: a box over the ground (z = baseZ) cut by the model. */
+  atmosphere: { on: false, heightM: 0, baseZ: 0, entryId: null },
+  /** Embedded points placed on the model page: a node exactly there. */
+  points: [],
+  /** The next volume flag a new primitive takes: 10, 11, 12 … (11 is the air's when there is one). */
+  nextVolumeFlag: 10,
+  placingPoint: false,
 };
 
 // The studio highlights the current selection in orange; the same cue is used
@@ -1270,13 +1280,67 @@ function addSolid(kind, op, paramOverrides) {
     region: PRIMITIVES[kind].region ? PRIMITIVES[kind].region(merged) : null,
     object3D: null,
   };
-  entry.object3D = displayMesh(positions,
-    `${kind}_${entry.id}`, op === "difference" ? 0xff7a6b : 0x9fd8ff);
+  attachParts(entry, positions, op === "difference" ? 0xff7a6b : 0x9fd8ff);
   state.solids.push(entry);
   record(`${op} ${kind}`);
   renderModelTree();
+  renderDomainsPanel();
   status(`${state.solids.length} entities`);
-  log(`${op}: ${PRIMITIVES[kind].label}`);
+  log(`${op}: ${PRIMITIVES[kind].label} — ${entry.parts.length} face(s), volume flag ${entry.flags.volume}`);
+}
+
+/**
+ * A PRIMITIVE IS ITS FACES, as a GIS terrain is: the display surface is split
+ * by normal into the faces a reader can point at (a box's six, a cylinder's
+ * caps and side, a sphere's one surface), each its own mesh in a group with
+ * its own flag, row and card. The entity keeps a volume flag of its own. The
+ * same parts feed the gmsh script, which finds each face again among the OCC
+ * surfaces by its centroid and normal.
+ */
+function attachParts(entry, positions, colour, { opacity = 1 } = {}) {
+  const faces = faceParts(positions);
+  const group = new THREE.Group();
+  group.name = `${entry.kind}_${entry.id}`;
+  entry.flags = entry.flags || {};
+  if (!(Number(entry.flags.volume) > 0)) { entry.flags.volume = state.nextVolumeFlag; state.nextVolumeFlag += 1; }
+  entry.flags.faces = entry.flags.faces || {};
+  entry.parts = [];
+  const label = PRIMITIVES[entry.kind]?.label ?? entry.params?.label ?? entry.kind;
+  faces.forEach((face) => {
+    const flag = Number(entry.flags.faces[face.face]) > 0 ? Number(entry.flags.faces[face.face]) : face.flag;
+    entry.flags.faces[face.face] = flag;
+    const mesh = displayMesh(partPositions(positions, face), `${entry.kind}_${entry.id}_${face.face}`, colour, { opacity });
+    group.add(mesh);
+    entry.parts.push({
+      id: `${entry.id}:${face.face}`, name: `Volume ${entry.id} — ${face.face}`, kind: "face", face: face.face, flag, mesh,
+      solidId: entry.id, colour, domain: `solid:${entry.id}`, studio: true, curved: face.curved, centroid: face.centroid, normal: face.normal, area: face.area,
+      rows: [
+        ["What", `${face.curved ? "The curved surface" : `The ${face.face} face`} of Volume ${entry.id} (${label}, ${entry.op})`],
+        ["Physical flag", `${flag} — gmsh physical surface "${face.face}"; a condition names this face`],
+        ["Domain", `volume ${entry.id} · volume flag ${entry.flags.volume}`],
+        ["Centroid", `${face.centroid.map((v) => Math.round(v * 100) / 100).join(", ")} m`],
+        ["Area", `${Math.round(face.area).toLocaleString()} m²`],
+        ["Triangles", face.triangles.length.toLocaleString()],
+      ],
+    });
+  });
+  const anchor = ensureModelAnchor();
+  if (anchor) anchor.add(group);
+  entry.object3D = group;
+  return entry;
+}
+
+/** Every part on the page: the GIS terrain's, every primitive's, the air's, the points'. */
+function allParts() {
+  return [
+    ...(gisTerrain?.parts || []),
+    ...state.solids.flatMap((e) => e.parts || []),
+    ...(state.pointParts || []),
+  ];
+}
+
+function solidOfPart(part) {
+  return Number.isFinite(part?.solidId) ? state.solids.find((e) => e.id === part.solidId) || null : null;
 }
 
 function combinedInside() {
@@ -1306,8 +1370,181 @@ function combinedBounds() {
   }), { ...source[0].bounds });
 }
 
+/** Box faces as triangle soup, one array per face, for the air's sky and sides. */
+function boxFacePositions(x0, y0, z0, x1, y1, z1) {
+  const q = (a, b, c, d) => [...a, ...b, ...c, ...a, ...c, ...d];
+  return {
+    sky: q([x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]),
+    sides: [
+      ...q([x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1]),
+      ...q([x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [x1, y0, z1]),
+      ...q([x1, y1, z0], [x0, y1, z0], [x0, y1, z1], [x1, y1, z1]),
+      ...q([x0, y1, z0], [x0, y0, z0], [x0, y0, z1], [x0, y1, z1]),
+    ],
+  };
+}
+
+/**
+ * THE STUDIO'S ATMOSPHERE, as the Model Builder's: a box over the ground
+ * (z = baseZ, the studio's own ground by default) up to a height, cut by the
+ * model, so the air wraps whatever stands above the ground. An entity like
+ * any other -- inside-test, bounds, parts (sky, sides), a volume flag -- so
+ * the lattice mesher, the picker, the Domains panel and the script all see
+ * it; its floor is the model's top and is not drawn.
+ */
+function applyStudioAtmosphere() {
+  const a = state.atmosphere;
+  if (a.entryId !== null) {
+    const old = findById(a.entryId);
+    if (old) { const keep = state.atmosphere; deleteEntities([old.id]); state.atmosphere = keep; }
+    a.entryId = null;
+  }
+  if (!a.on || !(Number(a.heightM) > 0)) { renderModelTree(); renderDomainsPanel(); return null; }
+  const solids = state.solids.filter((s) => s.enabled !== false && s.kind !== "atmosphere");
+  const b = combinedBounds();
+  if (!b) { log("Atmosphere: add a solid first — the air is a box over the model."); a.on = false; return null; }
+  const pad = 0;
+  const x0 = b.minX - pad, x1 = b.maxX + pad, y0 = b.minY - pad, y1 = b.maxY + pad;
+  const z0 = Number.isFinite(a.baseZ) ? a.baseZ : 0; const z1 = z0 + Number(a.heightM);
+  const modelInside = combinedInside() || (() => false);
+  const entry = {
+    id: state.solids.reduce((m, e) => Math.max(m, e.id), 0) + 1,
+    kind: "atmosphere", op: "union", enabled: true,
+    params: { label: "Atmosphere", heightM: a.heightM, baseZ: z0 },
+    test: (q) => q[0] >= x0 && q[0] <= x1 && q[1] >= y0 && q[1] <= y1 && q[2] >= z0 && q[2] <= z1 && !modelInside(q),
+    bounds: { minX: x0, maxX: x1, minY: y0, maxY: y1, minZ: z0, maxZ: z1 },
+    region: null, object3D: null,
+    flags: { volume: a.flags?.volume ?? 11, faces: { sky: a.flags?.sky ?? 4, sides: a.flags?.sides ?? 6 } },
+    parts: [],
+  };
+  const faces = boxFacePositions(x0, y0, z0, x1, y1, z1);
+  const group = new THREE.Group(); group.name = `atmosphere_${entry.id}`;
+  [["sky", faces.sky, 0x9fd8ff, `A flat lid ${Math.round(a.heightM)} m over the ground`], ["sides", faces.sides, 0x7fc8ff, "The air's lateral boundary, one flag for all four sides"]].forEach(([face, pos, colour, blurb]) => {
+    const mesh = displayMesh(Float32Array.from(pos), `atmosphere_${entry.id}_${face}`, colour, { opacity: 0.22, renderOrder: 2 });
+    group.add(mesh);
+    entry.parts.push({
+      id: `${entry.id}:${face}`, name: `Atmosphere — ${face}`, kind: "face", face, flag: entry.flags.faces[face], mesh, solidId: entry.id, colour, domain: `solid:${entry.id}`, studio: true,
+      centroid: face === "sky" ? [(x0 + x1) / 2, (y0 + y1) / 2, z1] : [(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2], normal: face === "sky" ? [0, 0, 1] : null,
+      rows: [["What", blurb], ["Physical flag", `${entry.flags.faces[face]} — gmsh physical surface "${face === "sky" ? "sky" : "sides_above"}"`], ["Domain", `volume ${entry.id} · volume flag ${entry.flags.volume}`], ["Elevation", face === "sky" ? `${Math.round(z1)} m` : `${Math.round(z0)} to ${Math.round(z1)} m`]],
+    });
+  });
+  const anchor = ensureModelAnchor();
+  if (anchor) anchor.add(group);
+  entry.object3D = group;
+  state.solids.push(entry);
+  a.entryId = entry.id;
+  record(`atmosphere ${a.heightM} m`);
+  renderModelTree();
+  renderDomainsPanel();
+  log(`Atmosphere: ${Math.round(a.heightM)} m over z = ${Math.round(z0)}, volume flag ${entry.flags.volume}, sky ${entry.flags.faces.sky}, sides ${entry.flags.faces.sides}.`);
+  return entry;
+}
+
+/** The embedded points as spheres, each a part with a card. */
+function renderStudioPoints() {
+  (state.pointParts || []).forEach((p) => {
+    p.mesh.parent?.remove(p.mesh); p.mesh.geometry?.dispose?.(); studioMeshes.delete(p.mesh);
+    const layer = (window.GeoIDImportManager?.getLayers?.() || []).find((l) => l.object3D === p.mesh);
+    if (layer) window.GeoIDImportManager.removeLayer(layer.id);
+  });
+  state.pointParts = [];
+  const b = combinedBounds();
+  const span = b ? Math.max(b.maxX - b.minX, b.maxY - b.minY, b.maxZ - b.minZ) : 10;
+  const r = Math.max(span / 120, 1e-3);
+  state.points.forEach((p, i) => {
+    const geo = new THREE.SphereGeometry(r, 12, 8).toNonIndexed();
+    const pos = geo.getAttribute("position").array;
+    for (let k = 0; k < pos.length; k += 3) { pos[k] += p.x; pos[k + 1] += p.y; pos[k + 2] += p.z; }
+    geo.dispose();
+    const mesh = displayMesh(Float32Array.from(pos), `point_${p.name}`, 0xffd166, { renderOrder: 3 });
+    state.pointParts.push({
+      id: `spoint:${i}`, name: `Point — ${p.name}`, kind: "point", face: p.name, flag: p.flag, mesh, solidId: null, colour: 0xffd166, domain: "spoints", studio: true, at: [p.x, p.y, p.z],
+      rows: [["What", "An embedded point: the mesh gets a node exactly here"], ["Position", `x ${p.x}, y ${p.y}, z ${p.z} m`], ["Physical flag", `${p.flag} — gmsh embeds it in the volume that holds it and tags it`], ["Node size", `${p.sizeM} m`]],
+    });
+  });
+}
+
+/** The two cards the Model pane grew: Atmosphere and Embedded points (the studio's own; a GIS terrain brings its own). */
+function ensureStudioCards() {
+  const pane = document.querySelector('.studio-pane[data-pane="model"]');
+  if (!pane || gisTerrain) { byId("studio-air-card")?.remove(); byId("studio-points-card")?.remove(); return; }
+  let air = byId("studio-air-card");
+  if (!air) {
+    air = document.createElement("details");
+    air.id = "studio-air-card"; air.className = "gis-tool-section studio-fold-section"; air.open = true;
+    air.innerHTML = '<summary data-tool-icon="1">Atmosphere</summary><div class="gis-tool-body"></div>';
+    pane.appendChild(air);
+  }
+  const body = air.querySelector(".gis-tool-body");
+  body.innerHTML = "";
+  const a = state.atmosphere;
+  const rowOf = (label, input) => { const r = document.createElement("div"); r.className = "studio-row"; const l = document.createElement("label"); l.textContent = label; r.appendChild(l); r.appendChild(input); return r; };
+  const num = (val, step = "any") => { const i = document.createElement("input"); i.className = "studio-input"; i.type = "number"; i.step = step; i.value = String(val); return i; };
+  const h = num(a.heightM || (combinedBounds() ? Math.round((combinedBounds().maxZ - combinedBounds().minZ) * 0.5) : 0));
+  const z = num(a.baseZ ?? 0);
+  body.appendChild(rowOf("Height (m)", h));
+  body.appendChild(rowOf("Ground level z (m)", z));
+  const flags = document.createElement("div"); flags.className = "studio-row";
+  const fl = document.createElement("label"); fl.textContent = "Flags"; flags.appendChild(fl);
+  const fwrap = document.createElement("span"); fwrap.style.cssText = "display:flex;gap:0.3rem;align-items:center;flex-wrap:wrap";
+  const vol = flagInput(a.flags?.volume ?? 11, (v) => { a.flags = { ...(a.flags || {}), volume: Number(v) }; }, "Volume flag");
+  const sky = flagInput(a.flags?.sky ?? 4, (v) => { a.flags = { ...(a.flags || {}), sky: Number(v) }; }, "Sky flag");
+  const sides = flagInput(a.flags?.sides ?? 6, (v) => { a.flags = { ...(a.flags || {}), sides: Number(v) }; }, "Sides flag");
+  fwrap.appendChild(document.createTextNode("vol")); fwrap.appendChild(vol); fwrap.appendChild(document.createTextNode("sky")); fwrap.appendChild(sky); fwrap.appendChild(document.createTextNode("sides")); fwrap.appendChild(sides);
+  flags.appendChild(fwrap); body.appendChild(flags);
+  const btn = document.createElement("button"); btn.type = "button"; btn.className = a.on ? "studio-secondary" : "studio-primary";
+  btn.textContent = a.on ? "Rebuild the atmosphere" : "Add an atmosphere";
+  btn.addEventListener("click", () => { a.on = true; a.heightM = Number(h.value) || 0; a.baseZ = Number(z.value) || 0; applyStudioAtmosphere(); ensureStudioCards(); });
+  body.appendChild(btn);
+  if (a.on) {
+    const off = document.createElement("button"); off.type = "button"; off.className = "studio-secondary"; off.textContent = "Remove the atmosphere";
+    off.addEventListener("click", () => { a.on = false; applyStudioAtmosphere(); ensureStudioCards(); });
+    body.appendChild(off);
+  }
+  const note = document.createElement("div"); note.className = "studio-readout";
+  note.textContent = "A box over the ground cut by the model, as the Model Builder's: the air wraps what stands above z. In the gmsh script it is occ.cut, then everything is fragmented so the interfaces conform.";
+  body.appendChild(note);
+
+  let pts = byId("studio-points-card");
+  if (!pts) {
+    pts = document.createElement("details");
+    pts.id = "studio-points-card"; pts.className = "gis-tool-section studio-fold-section"; pts.open = true;
+    pts.innerHTML = '<summary data-tool-icon="1">Embedded points</summary><div class="gis-tool-body"></div>';
+    pane.appendChild(pts);
+  }
+  const pb = pts.querySelector(".gis-tool-body");
+  pb.innerHTML = "";
+  const list = document.createElement("div"); list.className = "studio-list";
+  if (!state.points.length) { const e = document.createElement("div"); e.className = "studio-item"; e.innerHTML = "<span>No embedded points</span>"; list.appendChild(e); }
+  state.points.forEach((p, i) => {
+    const row = document.createElement("div"); row.className = "studio-item";
+    const name = document.createElement("span"); name.textContent = `${p.name} · (${p.x}, ${p.y}, ${p.z})`; name.style.cssText = "flex:1;cursor:pointer";
+    name.addEventListener("click", () => { const part = state.pointParts?.[i]; if (part) { const r = row.getBoundingClientRect(); showPartCard(part, r.right + 8, r.top); } });
+    const fb = flagInput(p.flag, (v) => { p.flag = Number(v); renderStudioPoints(); renderDomainsPanel(); }, `Flag for point "${p.name}"`);
+    const kill = document.createElement("button"); kill.type = "button"; kill.className = "studio-mini"; kill.textContent = "✕";
+    kill.addEventListener("click", () => { state.points.splice(i, 1); renderStudioPoints(); renderDomainsPanel(); ensureStudioCards(); });
+    row.appendChild(name); row.appendChild(fb); row.appendChild(kill); list.appendChild(row);
+  });
+  pb.appendChild(list);
+  const px = num(0), py = num(0), pz = num(0);
+  const pname = document.createElement("input"); pname.className = "studio-input"; pname.type = "text"; pname.value = `point_${state.points.length + 1}`;
+  pb.appendChild(rowOf("Name", pname)); pb.appendChild(rowOf("X (m)", px)); pb.appendChild(rowOf("Y (m)", py)); pb.appendChild(rowOf("Z (m)", pz));
+  const add = document.createElement("button"); add.type = "button"; add.className = "studio-secondary"; add.textContent = "Add at x, y, z";
+  add.addEventListener("click", () => {
+    state.points.push({ name: pname.value || `point_${state.points.length + 1}`, x: Number(px.value) || 0, y: Number(py.value) || 0, z: Number(pz.value) || 0, flag: 20, sizeM: Math.max((Number(byId("studio-size-lo")?.value) || 1) / 2, 1e-3) });
+    renderStudioPoints(); renderDomainsPanel(); ensureStudioCards();
+    log(`Embedded point "${state.points[state.points.length - 1].name}" added.`);
+  });
+  pb.appendChild(add);
+  const place = document.createElement("button"); place.type = "button"; place.className = state.placingPoint ? "studio-primary" : "studio-secondary";
+  place.textContent = state.placingPoint ? "Click the model to place it… (Esc cancels)" : "Place by clicking the model";
+  place.addEventListener("click", () => { state.placingPoint = !state.placingPoint; ensureStudioCards(); });
+  pb.appendChild(place);
+}
+
 function renderModelTree() {
   applyBelowGround();
+  ensureStudioCards();
   const entities = byId("studio-entities");
   if (entities) {
     entities.innerHTML = "";
@@ -1402,11 +1639,18 @@ function deleteEntities(ids) {
     if (idx === -1) return;
     const [entry] = state.solids.splice(idx, 1);
     entry.object3D?.parent?.remove(entry.object3D);
-    entry.object3D?.traverse?.((o) => { o.geometry?.dispose?.(); o.material?.dispose?.(); });
+    entry.object3D?.traverse?.((o) => {
+      o.geometry?.dispose?.(); o.material?.dispose?.();
+      studioMeshes.delete(o);
+      const layer = (window.GeoIDImportManager?.getLayers?.() || []).find((l) => l.object3D === o);
+      if (layer) window.GeoIDImportManager.removeLayer(layer.id);
+    });
+    if (state.atmosphere.entryId === id) { state.atmosphere.on = false; state.atmosphere.entryId = null; }
     state.selection.delete(id);
   });
   record(`delete ${ids.length}`);
   renderModelTree();
+  renderDomainsPanel();
   renderSelection();
   status(`${state.solids.length} entities`);
   log(`Deleted ${ids.length} ${ids.length === 1 ? "entity" : "entities"}`);
@@ -1503,6 +1747,27 @@ function installPicking() {
     pressedAt = null;
     // Orbiting must not select, so only a near-stationary press counts.
     if (moved > 6 || event.button !== 0) return;
+    if (state.placingPoint) {
+      const targets = state.solids.filter((e) => e.object3D && e.visible !== false && e.kind !== "atmosphere").map((e) => e.object3D);
+      const rect = canvas.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, viewer.camera);
+      const hit = targets.length ? raycaster.intersectObjects(targets, true)[0] : null;
+      if (hit && modelAnchor) {
+        const local = modelAnchor.worldToLocal(hit.point.clone());
+        const s = studioScale || 1;
+        const r = (v) => Math.round(v * 1000) / 1000;
+        // The anchor's frame: x east, y up, z south -- the model's z is up.
+        state.points.push({ name: `point_${state.points.length + 1}`, x: r(local.x / s), y: r(-local.z / s), z: r(local.y / s), flag: 20, sizeM: Math.max((Number(byId("studio-size-lo")?.value) || 1) / 2, 1e-3) });
+        state.placingPoint = false;
+        renderStudioPoints(); renderDomainsPanel(); ensureStudioCards();
+        log(`Embedded point placed at ${r(local.x / s)}, ${r(-local.z / s)}, ${r(local.y / s)} m.`);
+      } else {
+        log("Place: click on the model itself.");
+      }
+      return;
+    }
     const part = partAt(event.clientX, event.clientY);
     if (part) {
       showPartCard(part, event.clientX, event.clientY);
@@ -1586,6 +1851,7 @@ function installPicking() {
       deleteEntities([...state.selection]);
     } else if (event.key === "Escape") {
       setSelection([]);
+      if (state.placingPoint) { state.placingPoint = false; ensureStudioCards(); }
     }
   });
 }
@@ -1602,21 +1868,72 @@ function renderHistory() {
   });
 }
 
+/**
+ * THE SIZE FIELDS, in the Model Builder's vocabulary and the emitter's own
+ * shape (coordinates are already the model's): a card per field with its
+ * numbers editable, the same types the builder offers. `mesh-size-fields.js`
+ * writes them into the script.
+ */
+const FIELD_KEYS = {
+  point: [["x", "X"], ["y", "Y"], ["z", "Z"], ["sizeM", "Size at the point"], ["distMinM", "Held to"], ["distMaxM", "Graded out to"], ["sizeMaxM", "Size past that (blank = cap)"]],
+  boundary: [["flag", "Flag of the face(s)"], ["sizeM", "Size on the boundary"], ["distMinM", "Held to"], ["distMaxM", "Graded out to"], ["sizeMaxM", "Size past that (blank = cap)"]],
+  box: [["xMin", "X min"], ["xMax", "X max"], ["yMin", "Y min"], ["yMax", "Y max"], ["zMin", "Z min"], ["zMax", "Z max"], ["sizeM", "Size inside"], ["sizeOutM", "Size outside (blank = cap)"], ["thicknessM", "Blend over"]],
+  ball: [["x", "X"], ["y", "Y"], ["z", "Z"], ["radiusM", "Radius"], ["sizeM", "Size inside"], ["sizeOutM", "Size outside (blank = cap)"], ["thicknessM", "Blend over"]],
+  expr: [["expression", "F(x, y, z)"]],
+};
+
+function studioDefaultField(type) {
+  const coarse = Number(byId("studio-size-hi")?.value) || 1;
+  const fine = Math.max(coarse / 4, 1e-3);
+  const b = combinedBounds();
+  const c = b ? [(b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2, (b.minZ + b.maxZ) / 2] : [0, 0, 0];
+  const span = b ? Math.max(b.maxX - b.minX, b.maxY - b.minY, b.maxZ - b.minZ) : 10;
+  const base = { id: `f${Date.now().toString(36)}${Math.floor(Math.random() * 1e4)}`, type, on: true, name: FIELD_TYPES[type]?.label || type };
+  switch (type) {
+    case "point": return { ...base, x: c[0], y: c[1], z: c[2], sizeM: fine, distMinM: coarse, distMaxM: coarse * 5, sizeMaxM: null };
+    case "boundary": return { ...base, key: "top", flag: 1, entityDim: 2, sizeM: fine, distMinM: coarse / 2, distMaxM: coarse * 4, sizeMaxM: null };
+    case "box": return { ...base, xMin: c[0] - span / 8, xMax: c[0] + span / 8, yMin: c[1] - span / 8, yMax: c[1] + span / 8, zMin: null, zMax: null, sizeM: fine, sizeOutM: null, thicknessM: coarse };
+    case "ball": return { ...base, x: c[0], y: c[1], z: c[2], radiusM: span / 6, sizeM: fine, sizeOutM: null, thicknessM: coarse };
+    case "expr": return { ...base, expression: `${coarse}` };
+    default: return base;
+  }
+}
+
 function renderFields() {
   const host = byId("studio-fields");
   if (!host) return;
-  host.innerHTML = state.fields.length ? "" : '<div class="studio-item"><span>No fields</span></div>';
-  state.fields.forEach((f, i) => {
-    const row = document.createElement("div");
-    row.className = "studio-item";
-    row.classList.toggle("is-selected", f.selected);
-    row.innerHTML = `<span>${i + 1}. ${f.type}</span><span>r ${f.radius}</span>`;
-    row.addEventListener("click", () => {
-      state.fields.forEach((o) => { o.selected = false; });
-      f.selected = true;
-      renderFields();
+  host.innerHTML = "";
+  if (!state.fields.length) { host.innerHTML = '<div class="studio-item"><span>No size fields — one size everywhere</span></div>'; return; }
+  const coarse = Number(byId("studio-size-hi")?.value) || 1;
+  state.fields.forEach((fld, i) => {
+    const card = document.createElement("div");
+    card.className = "gis-tool-section";
+    card.style.padding = "0.4rem 0.5rem";
+    const head = document.createElement("div");
+    head.style.cssText = "display:flex;align-items:center;gap:0.35rem";
+    const on = document.createElement("input"); on.type = "checkbox"; on.checked = fld.on !== false;
+    on.addEventListener("change", () => { fld.on = on.checked; });
+    const name = document.createElement("input"); name.className = "studio-input"; name.type = "text"; name.value = fld.name || fld.type; name.style.flex = "1";
+    name.addEventListener("change", () => { fld.name = name.value || fld.type; });
+    const kill = document.createElement("button"); kill.type = "button"; kill.className = "studio-mini"; kill.textContent = "✕";
+    kill.addEventListener("click", () => { state.fields.splice(i, 1); renderFields(); log("Field removed"); });
+    head.appendChild(on); head.appendChild(name); head.appendChild(kill);
+    card.appendChild(head);
+    const kind = document.createElement("div"); kind.className = "studio-readout"; kind.textContent = FIELD_TYPES[fld.type]?.label || fld.type;
+    card.appendChild(kind);
+    (FIELD_KEYS[fld.type] || []).forEach(([key, label]) => {
+      const row = document.createElement("div"); row.className = "studio-row";
+      const l = document.createElement("label"); l.textContent = label;
+      const input = document.createElement("input"); input.className = "studio-input";
+      input.type = key === "expression" ? "text" : "number"; input.step = "any";
+      input.value = fld[key] === null || fld[key] === undefined ? "" : String(fld[key]);
+      input.addEventListener("change", () => { const v = input.value.trim(); fld[key] = key === "expression" ? v : (v === "" ? null : Number(v)); says.textContent = describeField(fld, coarse); });
+      input.addEventListener("keydown", (e) => e.stopPropagation());
+      row.appendChild(l); row.appendChild(input); card.appendChild(row);
     });
-    host.appendChild(row);
+    const says = document.createElement("div"); says.className = "studio-readout"; says.textContent = describeField(fld, coarse);
+    card.appendChild(says);
+    host.appendChild(card);
   });
 }
 
@@ -1632,8 +1949,8 @@ function meshModel(dim) {
   }
   const sizeMax = Number(byId("studio-size-hi")?.value) || 1;
   const sizeMin = Number(byId("studio-size-lo")?.value) || sizeMax;
-  const active = state.fields.find((f) => f.type === "ball") || null;
-  const refine = active ? { x: active.x, y: active.y, z: active.z, radius: active.radius } : null;
+  const active = state.fields.find((f) => f.type === "ball" && f.on !== false) || null;
+  const refine = active ? { x: active.x, y: active.y, z: active.z, radius: active.radiusM ?? active.radius } : null;
   const regionSource = state.solids.find((s) => s.enabled && s.region);
 
   status("meshing…");
@@ -1723,7 +2040,95 @@ function surfaceToPly(p) {
 
 /** The model as a runnable gmsh script — the text, so it can be downloaded
  *  OR handed to the sidecar to run without a round trip through the disk. */
+/** The Mesh pane's knobs as the emitter's options. */
+function studioMeshOptions() {
+  const alg2 = { MeshAdapt: 1, Delaunay: 5, "Frontal-Delaunay": 6 }[byId("studio-alg2")?.value] || null;
+  const alg3 = { Delaunay: 1, HXT: 10 }[byId("studio-alg3")?.value] || null;
+  const hi = Number(byId("studio-size-hi")?.value); const lo = Number(byId("studio-size-lo")?.value);
+  return { combine: "min", sizeMaxM: hi > 0 ? hi : null, sizeMinM: lo > 0 ? lo : null, extendFromBoundary: false, fromPoints: false, fromCurvature: 0, algorithm2d: alg2, algorithm3d: alg3 };
+}
+
+/** The studio's model as the emitter reads it: entities with their parts' flags, the air, the points, the fields. */
+function studioModel(name = "geoid_studio") {
+  const a = state.atmosphere;
+  const airEntry = a.entryId !== null ? findById(a.entryId) : null;
+  return {
+    name,
+    solids: state.solids.filter((e) => e.kind !== "atmosphere").map((e, i) => ({
+      kind: e.kind, op: e.op, enabled: e.enabled, params: e.params, name: `${e.kind}_${e.id}`,
+      flags: { volume: e.flags?.volume, faces: e.flags?.faces || {}, layers: e.flags?.layers, void: Boolean(e.flags?.void) },
+      parts: (e.parts || []).map((p) => ({ face: p.face, flag: p.flag, centroid: p.centroid, normal: p.normal })),
+    })),
+    atmosphere: airEntry ? { on: true, heightM: a.heightM, baseZ: airEntry.bounds.minZ, minX: airEntry.bounds.minX, maxX: airEntry.bounds.maxX, minY: airEntry.bounds.minY, maxY: airEntry.bounds.maxY, flags: { volume: airEntry.flags.volume, sky: airEntry.flags.faces.sky, sides: airEntry.flags.faces.sides } } : null,
+    points: state.points.map((p) => ({ ...p })),
+    sizeFields: state.fields.filter((f) => f.on !== false),
+    meshOptions: studioMeshOptions(),
+    order: Number(byId("studio-order")?.value) || 1,
+  };
+}
+
 function buildGmshScript() {
+  return studioGmshScript({ ...studioModel(), meshFile: "geoid_studio.msh" });
+}
+
+/**
+ * THE PACKAGE, the Model Builder's own: an STL of every part, the gmsh
+ * script and a spec, into the open project's meshes/ and fem_runs/. A model
+ * that came from the GIS page goes back through the builder's writer, so a
+ * DEM-derived model and a built one leave the same set of files.
+ */
+async function exportPackage() {
+  if (gisTerrain) {
+    const pipeline = window.GeoIDModelPipeline;
+    if (pipeline?.build) { log("A GIS terrain: the Model Builder writes its package."); await pipeline.build(); return; }
+  }
+  if (!state.solids.length) { log("Nothing to package — add a solid first."); return; }
+  const name = "geoid_studio";
+  const model = studioModel(name);
+  const script = studioGmshScript({ ...model, meshFile: `${name}.msh` });
+  const stl = [`solid ${name}`];
+  allParts().filter((p) => p.studio && p.kind === "face").forEach((p) => {
+    const pos = p.mesh.geometry.getAttribute("position").array;
+    // back from the scene frame (y up, z south) to the model's (z up)
+    for (let i = 0; i < pos.length; i += 9) {
+      const v = (k) => [pos[i + k], -pos[i + k + 2], pos[i + k + 1]];
+      const a = v(0), b = v(3), c = v(6);
+      stl.push("  facet normal 0 0 0", "    outer loop", `      vertex ${a.join(" ")}`, `      vertex ${b.join(" ")}`, `      vertex ${c.join(" ")}`, "    endloop", "  endfacet");
+    }
+  });
+  stl.push(`endsolid ${name}`);
+  const run = `${name}_run`;
+  const spec = femSpec({
+    run, mesh: `${name}.msh`, domain: "solid", dim: 3,
+    provenance: {
+      kind: "studio model", built_at: new Date().toISOString(),
+      entities: model.solids.map((e) => ({ kind: e.kind, op: e.op, params: e.params, flags: e.flags })),
+      atmosphere: model.atmosphere, embedded_points: model.points,
+      mesh: { options: model.meshOptions, size_fields: model.sizeFields.map((f) => ({ type: f.type, name: f.name, says: describeField(f, model.meshOptions.sizeMaxM) })) },
+      crs: "the studio's own local metres about its origin (x east, y north, z up)",
+    },
+  });
+  const store = window.GeoIDResearch?.store;
+  const project = store?.getActive?.();
+  if (!project) {
+    downloadText(`${name}.stl`, `${stl.join("\n")}\n`);
+    downloadText(`${name}_gmsh.py`, script, "text/x-python");
+    downloadText(`${run}_spec.json`, JSON.stringify(spec, null, 2), "application/json");
+    log("No project open — the package was downloaded instead (STL, gmsh script, spec).");
+    return;
+  }
+  try {
+    await store.writeProjectFile(`meshes/${name}.stl`, `${stl.join("\n")}\n`);
+    await store.writeProjectFile(`meshes/${name}_gmsh.py`, script);
+    await store.writeProjectFile(`fem_runs/${run}/spec.json`, JSON.stringify(spec, null, 2));
+    log(`Package written into ${project.name}: meshes/${name}.stl, meshes/${name}_gmsh.py, fem_runs/${run}/spec.json.`);
+    status("package written");
+  } catch (error) {
+    log(`Could not write the package: ${error.message}`);
+  }
+}
+
+function buildGmshScriptLegacy() {
   const lines = ["import gmsh", "gmsh.initialize()", 'gmsh.model.add("geoid")',
     "occ = gmsh.model.occ", ""];
   state.solids.forEach((entry) => {
@@ -2111,12 +2516,18 @@ const ACTIONS = {
     state.solids.forEach((s) => s.object3D?.parent?.remove(s.object3D));
     state.solids.length = 0;
     state.fields.length = 0;
+    state.points.length = 0;
+    (state.pointParts || []).forEach((p) => p.mesh.parent?.remove(p.mesh));
+    state.pointParts = [];
+    state.atmosphere = { on: false, heightM: 0, baseZ: 0, entryId: null };
+    state.nextVolumeFlag = 10;
+    closePartCard();
     state.history.length = 0;
     state.selection.clear();
     state.mesh = null;
     studioMeshes.clear();
     refreshStudioScale();
-    renderModelTree(); renderFields(); renderHistory(); renderSelection();
+    renderModelTree(); renderFields(); renderHistory(); renderSelection(); renderDomainsPanel();
     status("new model"); log("New model");
   },
   open: () => {
@@ -2129,7 +2540,18 @@ const ACTIONS = {
       try {
         const data = JSON.parse(await file.text());
         ACTIONS.new();
-        (data.solids || []).forEach((s) => addSolid(s.kind, s.op, s.params));
+        (data.solids || []).forEach((s) => {
+          addSolid(s.kind, s.op, s.params);
+          const entry = state.solids[state.solids.length - 1];
+          if (s.flags && entry) {
+            if (Number(s.flags.volume) > 0) entry.flags.volume = Number(s.flags.volume);
+            Object.entries(s.flags.faces || {}).forEach(([face, flag]) => { entry.flags.faces[face] = Number(flag); const p = entry.parts.find((q) => q.face === face); if (p) { p.flag = Number(flag); refreshPartRows(p); } });
+          }
+        });
+        state.points = (data.points || []).map((p) => ({ ...p }));
+        state.fields.length = 0; (data.fields || []).forEach((f) => state.fields.push({ ...f }));
+        if (data.atmosphere?.on) { state.atmosphere = { ...state.atmosphere, ...data.atmosphere, entryId: null }; applyStudioAtmosphere(); }
+        renderStudioPoints(); renderFields(); renderDomainsPanel(); renderModelTree();
         log(`Opened project with ${(data.solids || []).length} ops`);
       } catch (error) {
         log(`Open failed: ${error.message}`);
@@ -2139,18 +2561,19 @@ const ACTIONS = {
   },
   save: () => {
     downloadText("model.msproj.json", JSON.stringify({
-      solids: state.solids.map((s) => ({ kind: s.kind, op: s.op, params: s.params })),
+      solids: state.solids.filter((s) => s.kind !== "atmosphere").map((s) => ({ kind: s.kind, op: s.op, params: s.params, flags: s.flags })),
+      atmosphere: state.atmosphere.on ? { on: true, heightM: state.atmosphere.heightM, baseZ: state.atmosphere.baseZ, flags: state.atmosphere.flags || null } : null,
+      points: state.points,
       fields: state.fields,
       history: state.history,
     }, null, 2), "application/json");
     log("Project saved");
   },
   undo: () => {
-    const entry = state.solids.pop();
+    const entry = state.solids[state.solids.length - 1];
     if (!entry) return;
-    entry.object3D?.parent?.remove(entry.object3D);
+    deleteEntities([entry.id]);
     record("undo");
-    renderModelTree();
     log("Undo");
   },
   redo: () => log("Redo: nothing to reapply"),
@@ -2166,6 +2589,7 @@ const ACTIONS = {
   transform: () => log("Transform: use the layer Style panel for scale and rotation"),
   delete: () => deleteEntities([...state.selection]),
   "export-script": exportScript,
+  "export-package": () => { void exportPackage(); },
   "mesh-gmsh": meshWithGmsh,
   "to-gales": () => exportMesh("msh"),
   "to-explorer": () => {
@@ -2297,23 +2721,21 @@ function init() {
     log(`Suggested size ${suggested} from a ${span.toFixed(2)} extent`);
   });
 
+  // The Refine pane speaks the builder's vocabulary: the type select lists it
+  // and the fixed x/y/z/r rows of the old form stand down (each field's card
+  // carries its own numbers).
+  const typeSel = byId("studio-field-type");
+  if (typeSel) {
+    typeSel.innerHTML = "";
+    Object.entries(FIELD_TYPES).filter(([k]) => k !== "slope").forEach(([k, meta]) => { const o = document.createElement("option"); o.value = k; o.textContent = meta.label; typeSel.appendChild(o); });
+    ["x", "y", "z", "r", "dmin", "dmax"].forEach((k) => { byId(`studio-field-${k}`)?.closest(".studio-row")?.remove(); });
+    byId("studio-field-remove")?.remove();
+  }
   byId("studio-field-add")?.addEventListener("click", () => {
-    state.fields.push({
-      type: byId("studio-field-type").value,
-      x: Number(byId("studio-field-x").value) || 0,
-      y: Number(byId("studio-field-y").value) || 0,
-      z: Number(byId("studio-field-z").value) || 0,
-      radius: Number(byId("studio-field-r").value) || 1,
-      distMin: Number(byId("studio-field-dmin").value) || 0,
-      distMax: Number(byId("studio-field-dmax").value) || 1,
-      selected: false,
-    });
+    const fld = studioDefaultField(byId("studio-field-type")?.value || "point");
+    state.fields.push(fld);
     renderFields();
-    log(`Added ${state.fields[state.fields.length - 1].type} field`);
-  });
-  byId("studio-field-remove")?.addEventListener("click", () => {
-    const idx = state.fields.findIndex((f) => f.selected);
-    if (idx >= 0) { state.fields.splice(idx, 1); renderFields(); log("Field removed"); }
+    log(`Added a size field: ${describeField(fld, Number(byId("studio-size-hi")?.value) || 1)}`);
   });
 
   byId("studio-label-apply")?.addEventListener("click", () => {
@@ -2328,12 +2750,11 @@ function init() {
     if (!entry) { log("Refine: select an entity"); return; }
     const b = entry.bounds;
     state.fields.push({
-      type: "ball",
+      id: `f${Date.now().toString(36)}`, type: "ball", on: true, name: `refine Volume ${entry.id}`,
       x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2, z: (b.minZ + b.maxZ) / 2,
-      radius: Math.max(b.maxX - b.minX, b.maxY - b.minY, b.maxZ - b.minZ) / 2,
-      distMin: Number(byId("studio-size-min").value) || 0,
-      distMax: Number(byId("studio-size-max").value) || 1,
-      selected: false,
+      radiusM: Math.max(b.maxX - b.minX, b.maxY - b.minY, b.maxZ - b.minZ) / 2,
+      sizeM: Number(byId("studio-size-min").value) || 0.25, sizeOutM: Number(byId("studio-size-max").value) || null,
+      thicknessM: Math.max(b.maxX - b.minX, b.maxY - b.minY, b.maxZ - b.minZ) / 4,
     });
     renderFields();
     log(`Refinement field added around Volume ${entry.id}`);
@@ -2957,20 +3378,21 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
 /* ── The parts: a list with a visibility toggle each, and a card on click ── */
 
 function partAt(clientX, clientY) {
-  if (!gisTerrain?.parts?.length) return null;
+  const parts = allParts();
+  if (!parts.length) return null;
   const viewer = window.GeoIDViewer;
   const canvas = viewer.renderer.domElement;
   const rect = canvas.getBoundingClientRect();
   pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
   pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(pointer, viewer.camera);
-  const meshes = gisTerrain.parts.map((p) => p.mesh).filter((m) => m.visible && m.parent);
+  const meshes = parts.map((p) => p.mesh).filter((m) => m && m.visible && m.parent);
   const hits = raycaster.intersectObjects(meshes, false);
   if (!hits.length) return null;
   // An opaque face under a translucent one is what was pointed at.
   const solid = hits.find((h) => !(h.object.material?.transparent && h.object.material.opacity < 1));
   const hit = solid || hits[0];
-  return gisTerrain.parts.find((p) => p.mesh === hit.object) || null;
+  return parts.find((p) => p.mesh === hit.object) || null;
 }
 
 function partVisible(part, on) {
@@ -3005,12 +3427,22 @@ function renderDomainsPanel() {
     pane.insertBefore(host, pane.firstChild);
   }
   host.innerHTML = "";
-  const parts = gisTerrain?.parts || [];
+  const parts = allParts();
   host.hidden = !parts.length;
   if (!parts.length) return;
-  const F = gisTerrain.flags;
-  [["subsurface", "Subsurface", F.subsurface], ["atmosphere", "Atmosphere", F.atmosphere],
-    ["surface", "Surface", F.terrain], ["points", "Embedded points", F.points]].forEach(([id, title, flag]) => {
+  const F = gisTerrain?.flags || { subsurface: 10, atmosphere: 11, terrain: 1, points: 20 };
+  const domains = [];
+  if (gisTerrain?.parts?.length) {
+    domains.push(["subsurface", "Subsurface", F.subsurface], ["atmosphere", "Atmosphere", F.atmosphere],
+      ["surface", "Surface", F.terrain], ["points", "Embedded points", F.points]);
+  }
+  state.solids.forEach((e) => {
+    if (!e.parts?.length) return;
+    const label = e.kind === "atmosphere" ? "Atmosphere" : `Volume ${e.id} · ${PRIMITIVES[e.kind]?.label ?? e.kind}${e.op === "difference" ? " (cut)" : ""}`;
+    domains.push([`solid:${e.id}`, label, e.flags?.volume, e]);
+  });
+  if (state.pointParts?.length) domains.push(["spoints", "Embedded points", 20]);
+  domains.forEach(([id, title, flag, solid]) => {
     const own = parts.filter((p) => p.domain === id);
     if (!own.length) return;
     const details = document.createElement("details");
@@ -3049,17 +3481,19 @@ function renderDomainsPanel() {
      * head first, where a 3.4rem box left "Subsurface" three letters wide in
      * the studio's narrow deck; a row has the room and reads like the rest.
      */
-    if (id !== "surface") {
+    if (id !== "surface" && id !== "spoints") {
       const domainKey = id === "points" ? "points" : id;
       const row = document.createElement("div");
       row.className = "studio-item";
       const swatch = document.createElement("span");
-      swatch.style.cssText = `display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 6px 0 22px;flex:0 0 auto;background:#${(id === "subsurface" ? 0xa8703f : id === "atmosphere" ? 0x7fc8ff : 0xffd166).toString(16).padStart(6, "0")}`;
+      swatch.style.cssText = `display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 6px 0 22px;flex:0 0 auto;background:#${(solid ? own[0].colour : id === "subsurface" ? 0xa8703f : id === "atmosphere" ? 0x7fc8ff : 0xffd166).toString(16).padStart(6, "0")}`;
       const name = document.createElement("span");
       name.textContent = id === "points" ? "default for new points" : "volume";
       name.style.cssText = "flex:1;color:#bdb7d3";
-      const flagBox = flagInput(F[domainKey], (val) => assignFlag({ key: domainKey, domain: id === "points" ? null : title }, val),
-        id === "points" ? "Default flag for embedded points" : `Volume flag for the ${title.toLowerCase()}`);
+      const flagBox = solid
+        ? flagInput(solid.flags?.volume ?? flag, (val) => assignFlag({ solid, domain: title }, val), `Volume flag for ${title}`)
+        : flagInput(F[domainKey], (val) => assignFlag({ key: domainKey, domain: id === "points" ? null : title }, val),
+          id === "points" ? "Default flag for embedded points" : `Volume flag for the ${title.toLowerCase()}`);
       row.appendChild(swatch); row.appendChild(name); row.appendChild(flagBox);
       list.appendChild(row);
     }
@@ -3120,6 +3554,7 @@ function closePartCard() {
  */
 function flagKeysOf(part) {
   if (!part) return { own: null, edges: [] };
+  if (part.studio) return { own: null, studio: true, edges: [], point: part.kind === "point" ? part.face : null };
   if (part.kind === "point") return { own: null, point: part.face, edges: [] };
   if (part.kind === "surface") return { own: "terrain", edges: [] };
   const section = gisTerrain?.kind === "section";
@@ -3135,10 +3570,28 @@ function flagKeysOf(part) {
 }
 
 /** Assign a flag to a part (or one of its edges, or a domain's volume) and tell the GIS page. */
-function assignFlag({ part = null, key = null, point = null, domain = null }, value) {
+function assignFlag({ part = null, key = null, point = null, domain = null, solid = null }, value) {
   const n = Math.round(Number(value));
   if (!(n > 0)) { log("A flag is a positive integer."); return false; }
   const pipeline = window.GeoIDModelPipeline;
+  // THE STUDIO'S OWN: a primitive's face, its volume, or a point placed here.
+  if (solid) {
+    solid.flags.volume = n;
+    (solid.parts || []).forEach(refreshPartRows);
+    log(`${domain || `Volume ${solid.id}`} → volume flag ${n}.`);
+    renderDomainsPanel();
+    return true;
+  }
+  if (part?.studio) {
+    part.flag = n;
+    const owner = solidOfPart(part);
+    if (owner && part.kind === "face") owner.flags.faces[part.face] = n;
+    if (part.kind === "point") { const p = state.points.find((q) => q.name === part.face); if (p) p.flag = n; }
+    refreshPartRows(part);
+    log(`${part.name} → flag ${n}.`);
+    renderDomainsPanel();
+    return true;
+  }
   if (point) {
     if (part) part.flag = n;
     (gisTerrain?.points || []).filter((p) => p.name === point).forEach((p) => { p.flag = n; });
@@ -3163,8 +3616,10 @@ function assignFlag({ part = null, key = null, point = null, domain = null }, va
 function refreshPartRows(part) {
   const F = gisTerrain?.flags || {};
   const { own, edges } = flagKeysOf(part);
+  const owner = solidOfPart(part);
   part.rows = part.rows.map(([k, v]) => {
     if (k === "Physical flag") return [k, String(v).replace(/^\d+/, String(part.flag))];
+    if (k === "Domain" && part.studio && owner) return [k, `volume ${owner.id} · volume flag ${owner.flags.volume}`];
     if (k === "Edges" && edges.length) {
       return [k, `top ${F.terrain} (the profile), ${edges.map(([e, ek]) => `${e} ${F[ek]}`).join(", ")}`];
     }
@@ -3221,7 +3676,7 @@ function showPartCard(part, x, y) {
       // THE FLAG IS EDITED HERE: the number, then what it names.
       vv.style.cssText = "display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap";
       vv.appendChild(flagInput(part.flag, (val) => {
-        if (assignFlag(keys.point ? { part, point: keys.point } : { part, key: keys.own }, val)) rerender();
+        if (assignFlag(part.studio ? { part } : keys.point ? { part, point: keys.point } : { part, key: keys.own }, val)) rerender();
       }));
       const rest = document.createElement("span");
       rest.textContent = String(v).replace(/^\d+\s*—?\s*/, "");
@@ -3234,6 +3689,11 @@ function showPartCard(part, x, y) {
         vv.appendChild(document.createTextNode(` · ${edge} `));
         vv.appendChild(flagInput(F[ek], (val) => { if (assignFlag({ key: ek }, val)) rerender(); }, `Flag for the ${edge} edge (${ek})`));
       });
+    } else if (k === "Domain" && part.studio && solidOfPart(part)) {
+      const owner = solidOfPart(part);
+      vv.style.cssText = "display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap";
+      vv.appendChild(document.createTextNode(`volume ${owner.id} · volume flag `));
+      vv.appendChild(flagInput(owner.flags.volume, (val) => { if (assignFlag({ solid: owner, domain: `Volume ${owner.id}` }, val)) rerender(); }, `Volume flag for Volume ${owner.id}`));
     } else if (k === "Domain" && keys.own && part.which) {
       vv.style.cssText = "display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap";
       const dk = part.which === "subsurface" ? "subsurface" : "atmosphere";
@@ -3253,7 +3713,37 @@ function showPartCard(part, x, y) {
    * written there carries what was chosen here.
    */
   const pipeline = window.GeoIDModelPipeline;
-  if (pipeline?.addSizeField && (keys.own || keys.point)) {
+  if (part.studio) {
+    const wrap = document.createElement("div");
+    wrap.style.cssText = "display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap;margin-top:0.45rem;color:#bdb7d3";
+    const mk = (val, title, width = "4.2rem") => { const i = document.createElement("input"); i.type = "number"; i.min = "0.001"; i.step = "any"; i.value = String(val); i.className = "studio-input"; i.style.cssText = `width:${width};padding:0.1rem 0.3rem`; i.title = title; i.addEventListener("keydown", (e) => e.stopPropagation()); i.addEventListener("click", (e) => e.stopPropagation()); return i; };
+    const coarse = Number(byId("studio-size-hi")?.value) || 1;
+    const size = mk(Math.max(0.001, coarse / 4), "Element size on this part");
+    const reach = mk(coarse * 4, "Graded out to this distance", "5rem");
+    const apply = document.createElement("button");
+    apply.type = "button"; apply.className = "studio-mini"; apply.textContent = "↵ size";
+    apply.title = "Add a mesh size field for this part";
+    apply.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const sizeM = Number(size.value); const distMaxM = Number(reach.value);
+      if (!(sizeM > 0) || !(distMaxM > 0)) { log("A size and a reach are positive."); return; }
+      const fld = part.kind === "point"
+        ? { id: `f${Date.now().toString(36)}`, type: "point", on: true, name: `size at ${part.face}`, x: part.at[0], y: part.at[1], z: part.at[2], sizeM, distMinM: Math.max(sizeM, distMaxM / 8), distMaxM, sizeMaxM: null }
+        : { id: `f${Date.now().toString(36)}`, type: "boundary", on: true, name: `size along ${part.name}`, key: part.face, flag: part.flag, entityDim: 2, sizeM, distMinM: Math.max(sizeM, distMaxM / 8), distMaxM, sizeMaxM: null };
+      if (part.kind === "point") { const p = state.points.find((q) => q.name === part.face); if (p) p.sizeM = sizeM; }
+      state.fields.push(fld);
+      renderFields();
+      log(`Mesh size field added: ${describeField(fld, coarse)}.`);
+      apply.textContent = "✓ added";
+      setTimeout(() => { apply.textContent = "↵ size"; }, 1500);
+    });
+    wrap.appendChild(document.createTextNode("Mesh size here"));
+    wrap.appendChild(size);
+    wrap.appendChild(document.createTextNode("out to"));
+    wrap.appendChild(reach);
+    wrap.appendChild(apply);
+    card.appendChild(wrap);
+  } else if (pipeline?.addSizeField && (keys.own || keys.point)) {
     const wrap = document.createElement("div");
     wrap.style.cssText = "display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap;margin-top:0.45rem;color:#bdb7d3";
     const mk = (val, title, width = "4.2rem") => { const i = document.createElement("input"); i.type = "number"; i.min = "0.1"; i.step = "any"; i.value = String(val); i.className = "studio-input"; i.style.cssText = `width:${width};padding:0.1rem 0.3rem`; i.title = title; i.addEventListener("keydown", (e) => e.stopPropagation()); i.addEventListener("click", (e) => e.stopPropagation()); return i; };
@@ -3513,6 +4003,8 @@ function foldPaneSections() {
 window.GeoIDMeshStudio = {
   state, addSolid, meshModel, ACTIONS, fitView, viewAxis,
   adoptTerrainSolid, adoptSectionModel, extendTerrain, buildFromText,
+  buildGmshScript, exportPackage, getModel: () => studioModel(), addEmbeddedPoint: (p) => { state.points.push({ flag: 20, sizeM: 1, ...p }); renderStudioPoints(); renderDomainsPanel(); ensureStudioCards(); },
+  setAtmosphere: (opts) => { Object.assign(state.atmosphere, opts || {}, { on: opts?.on !== false }); return applyStudioAtmosphere(); },
   setStudioBody, getStudioBody,
   origin: studioOrigin, setStudioOrigin, sceneToWgs84, wgs84ToScene,
   enuToWgs84, wgs84ToEnu, getGroundInfo,
