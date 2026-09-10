@@ -17075,3 +17075,56 @@ events in 5 categories · 134 earthquakes", the legend's panel hidden, both
 toggles side by side — then a press of the legend takes the corner (legend
 open, feed shut, claim released), a press of the feed takes it back, and a
 second press leaves both shut.
+
+### The Model Builder is linked to the drawer, and a dead Export CSV is shown nowhere
+
+"Ensure that the model builder is linked to the new draw tool implementation —
+not the old — the export csv button is popping up below (old)." Three faults,
+and the second is one I introduced while fixing the third.
+
+**THE STEP READ A SHAPE AND COULD NOT RAISE THE TOOL THAT MAKES ONE.** Step 1
+had exactly one button, "Use this area", over `getExtractionGeometry` — so
+"draw a study area" was an instruction to go and find a tool on the other side
+of the screen, and whichever one was found first decided which flow the reader
+was in. It has a **Draw on the globe** button now, calling `promptDrawTool()`
+from `extent-picker` — which presses the tool rail's OWN button, so there is
+one drawer armed one way whether the press comes from a hand on the rail, the
+extent picker or here. Verified: the press arms the rail and raises the shape
+bar.
+
+**AND DONE HAD TO BE PRESSED TWICE.** Every creator of a study area flows
+through `setStudyAreaPolygon`, so the builder listens for its announcement and
+takes the shape — the reader draws, presses Done, and step 1 is answered.
+Guarded three ways, each a fault already paid for here: only while the picker
+is on "drawn" (a reader who chose a polygon LAYER has not asked for whatever is
+being sketched beside it), only while the builder is on screen, and debounced
+with a re-entrancy flag, because a drag edit announces on every pointermove and
+`render()` is what draws this builder's previews — a render that draws is a
+render that announces, which is the recursion that hung this page once.
+
+**`geoid-study-area-edited` IS DISPATCHED ON `document`, AS A PLAIN `Event`.**
+So it does not bubble, and a `window` listener hears nothing at all —
+measured on the live page as zero events for a shape that had plainly landed,
+while `getExtractionGeometry` returned its four vertices. `pipeline-sync` and
+the weather card both listen on `document` and were right to.
+
+**A DEAD BUTTON IS SHOWN NOWHERE, and the first attempt put it somewhere
+worse.** The viewer disables its own export until there is a measurement to
+write, so arming the tool put a greyed "Export CSV" on the bar before anything
+was drawn — the one control there that could not be pressed. The first fix left
+it at HOME while dead, which was worse: the viewer un-hides it on arming, so
+the disabled button then stood in the tool rail, measured visible at
+(1346, 107) — which is the "popping up below" being complained about. It is now
+always borrowed off the rail and the SLOT is what hides, so it is nowhere until
+it works. `disabled` joined the watched attributes with `subtree`, because it
+flips on the button inside rather than on the row.
+
+**And the slot's `hidden` needed spelling out** — `#gis-draw-export-slot` sets
+`display: flex`, which outranks the attribute's UA-level `display: none`, so a
+hidden slot still laid the dead button out at (903, 79). Fifth instance of that
+trap in this file.
+
+Verified end to end: armed with nothing drawn, the export is in the slot and
+not laid out and never in the rail; a shape drawn through the viewer's own seam
+lands as "the drawn area — model domain 15…", the builder advances to step 2 by
+itself, and the export becomes live on the bar.
