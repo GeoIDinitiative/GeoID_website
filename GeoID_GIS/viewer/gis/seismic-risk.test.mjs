@@ -7,7 +7,7 @@ import { BANDS, FRAME_BANDS, RECORD, SPEC, colourRange, riskLayer, noteFor } fro
 import { specFor, epochsFor, framePaint, bandOf } from "./risk-frames.js";
 import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js";
 import { isVolcanicRiskFeature } from "./volcanic-risk-card.js";
-import { yearsIn, colouring, noteFor as yearNote, MAG_LABELS } from "./seismic-timelapse.js";
+import { yearsIn, framesFor, STEPS, DEFAULT_STEP, colouring, noteFor as yearNote, MAG_LABELS } from "./seismic-timelapse.js";
 import { DATASETS, HOMES } from "./global-data.js";
 import { mathsFor } from "./equations.js";
 
@@ -65,6 +65,51 @@ check("the page carries the subtab, its hosts and the modules",
   && /gis\/seismic-risk\.js\?v=/.test(html) && /gis\/seismic-timelapse\.js\?v=/.test(html), true);
 check("the live row is a proxy onto the past-week USGS feed", /data-feed-proxy="quakes-week"/.test(html), true);
 check("the ⓘ states the reach and the windows", /0\.5 M − 1\.7/.test(JSON.stringify(mathsFor("seismic-risk").terms)) && /1964/.test(JSON.stringify(mathsFor("seismic-risk").terms)), true);
+
+/* ── the record plots itself, at three step sizes ────────────────────────── */
+
+/**
+ * THE CYCLONE TRACKS' OWN STEPPING, with the earthquake in place of the storm.
+ * A year of M >= 5 is a frame that holds hundreds; stepping the record by the
+ * event or by the month is how it is watched arriving rather than summarised.
+ */
+const at = (iso, mag) => ({ properties: { time: Date.parse(iso), year: Number(iso.slice(0, 4)), mag } });
+const RECORD_FIXTURE = [
+  at("1994-03-04T00:00:00Z", 6.1),
+  at("1994-03-19T00:00:00Z", 5.2),
+  at("1994-07-02T00:00:00Z", 7.0),
+  at("1995-01-16T00:00:00Z", 6.9),
+];
+check("three steps, coarsest last", Object.keys(STEPS), ["event", "month", "year"]);
+check("and the default is the coarsest", DEFAULT_STEP, "year");
+check("by event, one frame each", framesFor(RECORD_FIXTURE, { step: "event" }).groups.length, 4);
+check("by month, the two March events share one", framesFor(RECORD_FIXTURE, { step: "month" }).groups.map((g) => g.features.length), [2, 1, 1]);
+check("by year, three and one", framesFor(RECORD_FIXTURE, { step: "year" }).groups.map((g) => g.features.length), [3, 1]);
+/* Sorted by the MOMENT, never by the order the file holds: the bake walks the
+   catalogue a year at a time and the service answers each year however it
+   likes. */
+const shuffled = [RECORD_FIXTURE[2], RECORD_FIXTURE[0], RECORD_FIXTURE[3], RECORD_FIXTURE[1]];
+check("time order, whatever order the file was in",
+  framesFor(shuffled, { step: "event" }).groups.map((g) => g.label),
+  framesFor(RECORD_FIXTURE, { step: "event" }).groups.map((g) => g.label));
+check("the span still cuts the record", framesFor(RECORD_FIXTURE, { from: 1995, step: "year" }).groups.length, 1);
+/* STRIDED, NEVER TRUNCATED, and the stride is reported: the far end of the
+   record is what a plot is building towards. */
+{
+  const many = Array.from({ length: 1000 }, (_, i) => at(`2000-01-01T00:00:${String(i % 60).padStart(2, "0")}.${String(i).padStart(3, "0")}Z`, 5));
+  const plan = framesFor(many, { step: "event" });
+  check("capped at 360 frames", plan.groups.length <= 360, true);
+  check("with the stride reported rather than events dropped",
+    [plan.stride > 1, plan.groups.flatMap((g) => g.features).length], [true, 1000]);
+}
+/* A frame with no `time` still lands in its year, so a catalogue that carries
+   only the year is played rather than refused. */
+check("a year-only event still groups", framesFor([{ properties: { year: 1970, mag: 6 } }], { step: "year" }).groups.length, 1);
+
+const page = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+check("the step is a control beside the span", /id="seismic-timelapse-step"/.test(page) && /value="event"/.test(page) && /value="month"/.test(page), true);
+check("and the entry reads BOTH at open, never at build",
+  /step: document\.getElementById\("seismic-timelapse-step"\)\?\.value \|\| "year",/.test(readFileSync(new URL("./global-data.js", import.meta.url), "utf8")), true);
 
 process.on("exit", () => {
   failures.forEach((f) => console.error(`  x ${f}`));

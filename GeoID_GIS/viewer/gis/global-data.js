@@ -26,17 +26,17 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260910-da90f84";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260910-da90f84";
-import { mathsFor } from "./equations.js?v=20260910-da90f84";
+import { runConnector } from "./research/connectors.js?v=20260910-e1d61fb";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260910-e1d61fb";
+import { mathsFor } from "./equations.js?v=20260910-e1d61fb";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260910-da90f84";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260910-da90f84";
-import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260910-da90f84";
+} from "./cyclone-risk.js?v=20260910-e1d61fb";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260910-e1d61fb";
+import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260910-e1d61fb";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260910-da90f84";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260910-e1d61fb";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -439,8 +439,12 @@ export const DATASETS = [
     },
     settings: "seismic-timelapse",
     animation: {
+      // Both controls are read at OPEN rather than captured: the subtab is
+      // redrawn whenever the catalogue is, so a value closed over here is the
+      // one that happened to be in the select when this entry was built.
       open: () => window.GeoIDSeismicTimelapse?.play({
         from: Number(document.getElementById("seismic-timelapse-span")?.value) || 1900,
+        step: document.getElementById("seismic-timelapse-step")?.value || "year",
       }),
     },
   },
