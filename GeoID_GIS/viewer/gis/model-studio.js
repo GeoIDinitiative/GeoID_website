@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-fc6dfdd";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-fc6dfdd";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-362a2a2";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-362a2a2";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260910-fc6dfdd";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-fc6dfdd";
-import { downloadText } from "./extraction.js?v=20260910-fc6dfdd";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-fc6dfdd";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-fc6dfdd";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260910-fc6dfdd";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260910-fc6dfdd";
-import { femSpec } from "./model-build.js?v=20260910-fc6dfdd";
+} from "./mesh-volume.js?v=20260910-362a2a2";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-362a2a2";
+import { downloadText } from "./extraction.js?v=20260910-362a2a2";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-362a2a2";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-362a2a2";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260910-362a2a2";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260910-362a2a2";
+import { femSpec } from "./model-build.js?v=20260910-362a2a2";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -3991,25 +3991,28 @@ function wireRibbonAndFolds() {
     ro.observe(ribbon);
   }
   window.addEventListener("resize", sizeChrome);
+  /**
+   * A DECK COLLAPSES INTO ITS MARGIN, the way the GIS sidebar does: the whole
+   * panel slides off its own edge and leaves a vertical handle there, which
+   * opens it again. Folding it to a strip of tabs still spent the column on a
+   * panel nobody was reading.
+   */
   document.querySelectorAll("#model-studio .studio-dock").forEach((dock) => {
     const side = dock.classList.contains("studio-dock-left") ? "left" : "right";
     const fold = dock.querySelector(`.studio-fold[data-fold="${side}"]`);
+    const tab = root.querySelector(`.studio-edge-tab[data-edge="${side}"]`);
     const setDock = (folded) => {
       dock.classList.toggle("is-folded", folded);
-      if (fold) fold.title = folded ? "Unfold this panel" : "Fold this panel to its tabs";
+      if (fold) fold.title = folded ? "Open this panel" : "Collapse this panel into the margin";
+      if (tab) tab.hidden = !folded;
     };
     setDock(Boolean(folds[`dock-${side}`]));
+    const flip = (folded) => { setDock(folded); writeFold(`dock-${side}`, folded); };
     fold?.addEventListener("click", (event) => {
       event.stopPropagation();
-      const folded = !dock.classList.contains("is-folded");
-      setDock(folded);
-      writeFold(`dock-${side}`, folded);
+      flip(!dock.classList.contains("is-folded"));
     });
-    // A tab pressed on a folded deck is a request to see it.
-    dock.querySelector(".studio-tabs")?.addEventListener("click", (event) => {
-      if (!event.target.closest(".studio-tab")) return;
-      if (dock.classList.contains("is-folded")) { setDock(false); writeFold(`dock-${side}`, false); }
-    });
+    tab?.addEventListener("click", (event) => { event.stopPropagation(); flip(false); });
   });
 }
 

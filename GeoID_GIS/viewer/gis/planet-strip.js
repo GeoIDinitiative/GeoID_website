@@ -1,4 +1,4 @@
-import { BODIES, currentBodyId } from "./bodies.js?v=20260910-fc6dfdd";
+import { BODIES, currentBodyId } from "./bodies.js?v=20260910-362a2a2";
 
 /**
  * The worlds, along the bottom of the GIS page.
@@ -207,8 +207,17 @@ function setCollapsed(collapsed) {
   try { window.localStorage?.setItem(STORE_KEY, collapsed ? "1" : "0"); } catch { /* not fatal */ }
 }
 
+/**
+ * COLLAPSED BY DEFAULT. The worlds strip is a place to GO, not a thing to
+ * read, and it sat open across the foot of every page taking a band of the
+ * view for a choice most sessions never make. An explicit choice is still
+ * remembered in both directions -- only the absence of one changed.
+ */
 function storedCollapsed() {
-  try { return window.localStorage?.getItem(STORE_KEY) === "1"; } catch { return false; }
+  try {
+    const stored = window.localStorage?.getItem(STORE_KEY);
+    return stored === null || stored === undefined ? true : stored === "1";
+  } catch { return true; }
 }
 
 function apply() {

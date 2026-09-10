@@ -5559,10 +5559,49 @@ canvas {
   top: calc(var(--studio-chrome-h, 5rem) + 1.4rem);
   overflow: visible;
 }
-#model-studio .studio-dock.is-folded { bottom: auto; }
-#model-studio .studio-dock.is-folded .studio-pane { display: none; }
-#model-studio .studio-dock.is-folded .studio-tabs { border-bottom: 0; }
-#model-studio .studio-dock.is-folded .studio-fold { transform: rotate(180deg); }
+/* COLLAPSED IS INTO THE MARGIN, as the GIS sidebar collapses: the whole deck
+   slides off its own edge and leaves a vertical handle there, rather than
+   folding to a strip of tabs that still takes the column. */
+#model-studio .studio-dock { transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1); }
+#model-studio .studio-dock-left.is-folded { transform: translateX(calc(-100% - 1.4rem)); pointer-events: none; }
+#model-studio .studio-dock-right.is-folded { transform: translateX(calc(100% + 1.4rem)); pointer-events: none; }
+.studio-edge-tab {
+  position: absolute;
+  top: 41%;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  padding: 1.2rem 0.7rem;
+  background: linear-gradient(180deg, rgba(10, 24, 33, 0.98), rgba(6, 12, 18, 0.99));
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.88);
+  color: var(--nav-accent);
+  cursor: pointer;
+  font-family: "Exo 2", system-ui, sans-serif;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  user-select: none;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.studio-edge-tab[hidden] { display: none; }
+.studio-edge-tab[data-edge="left"] {
+  left: 0;
+  transform: translateY(-41%);
+  border-left: none;
+  border-radius: 0 0.95rem 0.95rem 0;
+  box-shadow: 4px 0 24px rgba(var(--nav-accent-rgb), 0.14), 4px 0 8px rgba(0, 0, 0, 0.4);
+}
+.studio-edge-tab[data-edge="right"] {
+  right: 0;
+  transform: translateY(-41%);
+  border-right: none;
+  border-radius: 0.95rem 0 0 0.95rem;
+  box-shadow: -4px 0 24px rgba(var(--nav-accent-rgb), 0.14), -4px 0 8px rgba(0, 0, 0, 0.4);
+}
+.studio-edge-tab:hover { background: rgba(var(--nav-accent-rgb), 0.12); }
 #model-studio .studio-tabs {
   display: flex;
   align-items: stretch;

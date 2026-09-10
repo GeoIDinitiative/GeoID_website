@@ -221,6 +221,8 @@ check("the TIN builds", tin.ok, tin.message);
     check("a deck's tab strip cannot be squeezed by its pane", /#model-studio \.studio-tabs \{ flex: 0 0 auto; \}/.test(css) && /#model-studio \.studio-pane\.is-active \{ flex: 1 1 auto; min-height: 0; \}/.test(css));
     check("the fit updates each layer's world matrix from the ROOT", /l\.object3D\.updateWorldMatrix\(true, true\);/.test(studio) && !/l\.object3D\.updateMatrixWorld\(true\);/.test(studio));
     check("the view frames only what is DRAWN, so a hidden GIS layer cannot be the fallback", /const drawn = \(node\) => \{/.test(studio) && /while \(o\) \{ if \(!o\.visible\) return false; o = o\.parent; \}/.test(studio) && /\.filter\(\(l\) => l\.object3D && drawn\(l\.object3D\)\);/.test(studio));
+    check("a deck collapses into its margin and leaves the GIS page's own edge handle", /class="studio-edge-tab" data-edge="left"/.test(earth) && /class="studio-edge-tab" data-edge="right"/.test(earth) && /#model-studio \.studio-dock-left\.is-folded \{ transform: translateX\(calc\(-100% - 1\.4rem\)\); pointer-events: none; \}/.test(css) && /writing-mode: vertical-rl;/.test(css) && /if \(tab\) tab\.hidden = !folded;/.test(studio));
+    check("the worlds strip opens collapsed, and an explicit choice is still kept", /stored === null \|\| stored === undefined \? true : stored === "1"/.test(readFileSync(new URL("./planet-strip.js", import.meta.url), "utf8")));
     const atlas = readFileSync(new URL("./atlas-assistant.js", import.meta.url), "utf8");
     check("Atlas takes the build-a-volcano phrase the studio's box used to", /studio\.buildFromText\(question\)/.test(atlas));
   }
