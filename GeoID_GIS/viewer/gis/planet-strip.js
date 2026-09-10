@@ -1,4 +1,4 @@
-import { BODIES, currentBodyId } from "./bodies.js?v=20260910-0eaad95";
+import { BODIES, currentBodyId } from "./bodies.js?v=20260910-571bffd";
 
 /**
  * The worlds, along the bottom of the GIS page.
@@ -97,7 +97,9 @@ const STYLE = `
   padding: 0;
   border: 1px solid rgba(var(--nav-accent-rgb), 0.38);
   border-radius: 999px;
-  background: rgba(6, 10, 16, 0.72);
+  /* The app's own ground rather than a literal, so a theme reaches it -- and
+     the studio's toolbar pill, which is this control, matches by construction. */
+  background: var(--skin-tab-ground, rgb(16, 7, 36));
   backdrop-filter: blur(10px);
   color: var(--text);
   font-size: 0.6rem;

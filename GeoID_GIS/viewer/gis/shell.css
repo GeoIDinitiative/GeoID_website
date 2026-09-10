@@ -2065,7 +2065,8 @@ html.gis-arranging #layer-dock {
   padding: 0;
   border: 1px solid rgba(var(--nav-accent-rgb), 0.38);
   border-radius: 999px;
-  background: rgba(6, 10, 16, 0.72);
+  /* The app's own ground, not a literal: a hard-coded dark defeats the light theme. */
+  background: var(--skin-tab-ground, rgb(16, 7, 36));
   backdrop-filter: blur(10px);
   color: var(--text);
   font-size: 0.6rem;
@@ -2076,7 +2077,6 @@ html.gis-arranging #layer-dock {
 .studio-ribbon-fold:hover {
   border-color: rgb(var(--nav-accent-rgb));
   color: rgb(var(--nav-accent-rgb));
-  background: rgba(6, 10, 16, 0.72);
 }
 .studio-ribbon-caret { display: block; transition: transform 0.22s ease; }
 /* Folded, the pill is all that is left, so it takes the accent to say there is
