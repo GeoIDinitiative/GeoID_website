@@ -771,7 +771,6 @@ body.is-embedded #ui.is-collapsed {
 
 .studio-dock-left { left: 0.9rem; }
 
-.studio-dock-right { right: 0.9rem; }
 
 .studio-pane {
       display: none;
@@ -2044,7 +2043,6 @@ html.gis-arranging #layer-dock {
    folding to a strip of tabs that still takes the column. */
 #model-studio .studio-dock { transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1); }
 #model-studio .studio-dock-left.is-folded { transform: translateX(calc(-100% - 1.4rem)); pointer-events: none; }
-#model-studio .studio-dock-right.is-folded { transform: translateX(calc(100% + 1.4rem)); pointer-events: none; }
 .studio-edge-tab {
   position: absolute;
   top: 41%;
@@ -2073,13 +2071,6 @@ html.gis-arranging #layer-dock {
   border-left: none;
   border-radius: 0 0.95rem 0.95rem 0;
   box-shadow: 4px 0 24px rgba(var(--nav-accent-rgb), 0.14), 4px 0 8px rgba(0, 0, 0, 0.4);
-}
-.studio-edge-tab[data-edge="right"] {
-  right: 0;
-  transform: translateY(-41%);
-  border-right: none;
-  border-radius: 0.95rem 0 0 0.95rem;
-  box-shadow: -4px 0 24px rgba(var(--nav-accent-rgb), 0.14), -4px 0 8px rgba(0, 0, 0, 0.4);
 }
 .studio-edge-tab:hover { background: rgba(var(--nav-accent-rgb), 0.12); }
 /* THE DECK IS THE GIS PAGE'S TAB COLUMN. Its head names it and carries the
@@ -2128,7 +2119,6 @@ html.gis-arranging #layer-dock {
   line-height: 1;
 }
 .studio-fold:hover { background: rgba(var(--nav-accent-rgb), 0.16); }
-#model-studio .studio-dock-right .studio-deck-head { flex-direction: row-reverse; padding: 0.4rem 0.7rem 0.4rem 0.5rem; }
 /* A tab in a 16rem deck: the sidebar's card at the deck's own scale. */
 #model-studio .studio-group > .section-toggle { padding: 0.45rem 0.6rem !important; }
 #model-studio .studio-group > .section-body { padding: 0 !important; }
@@ -2288,3 +2278,19 @@ html.gis-arranging #layer-dock {
   padding-top: 0.15rem;
 }
 #model-studio .studio-palette-caption:first-child { padding-top: 0; }
+
+/* The two halves of the one column: what builds the model, then what meshes
+   it. The mesh deck was a second column of its own, which spent a quarter of
+   the screen on four labels and one open pane. */
+#model-studio .studio-deck-caption {
+  font-family: "Exo 2", system-ui, sans-serif;
+  font-size: 0.56rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--skin-data);
+  opacity: 0.8;
+  padding: 0.35rem 0.2rem 0.1rem;
+  border-top: 1px solid rgba(var(--skin-data-rgb), 0.18);
+}
+#model-studio .studio-deck-caption:first-child { border-top: 0; padding-top: 0.1rem; }

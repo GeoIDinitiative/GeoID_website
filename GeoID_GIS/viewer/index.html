@@ -25,13 +25,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260910-b0dda17-hazard-readout-large">
+  <link rel="stylesheet" href="styles.css?v=20260910-7c30984-hazard-readout-large">
   <style>html,body{background:#000;margin:0}</style>
-  <link rel="stylesheet" href="/styles/viewer-skin.css?v=20260910-b0dda17">
-  <link rel="stylesheet" href="/styles/viewer-themes.css?v=20260910-b0dda17">
+  <link rel="stylesheet" href="/styles/viewer-skin.css?v=20260910-7c30984">
+  <link rel="stylesheet" href="/styles/viewer-themes.css?v=20260910-7c30984">
   <script src="/scripts/theme.js"></script>
-  <script src="/scripts/tour-enter.js?v=20260910-b0dda17" defer></script>
-  <script src="/scripts/ui-sound.js?v=20260910-b0dda17" defer></script>
+  <script src="/scripts/tour-enter.js?v=20260910-7c30984" defer></script>
+  <script src="/scripts/ui-sound.js?v=20260910-7c30984" defer></script>
 </head>
 <!-- `sidebar-arranging` is set here, in the markup, rather than by a script:
      the panels below are written in source order, and GIS mode rearranges them
@@ -1363,9 +1363,7 @@
     <!-- The handles a collapsed deck leaves in the margin: the GIS page's own
          #nav-tab shape, one per side. -->
     <button type="button" class="studio-edge-tab" data-edge="left" hidden
-      aria-label="Open the model deck">MODEL &nbsp;&#8250;</button>
-    <button type="button" class="studio-edge-tab" data-edge="right" hidden
-      aria-label="Open the mesh deck">&#8249;&nbsp; MESH</button>
+      aria-label="Open the studio panel">STUDIO &nbsp;&#8250;</button>
 
     <div class="studio-dock studio-dock-left">
       <!-- The deck is the GIS page's own tab column: every pane is a tab that
@@ -1373,12 +1371,13 @@
            cards. A horizontal strip of four labels over one pane kept three
            quarters of the deck behind a click. -->
       <div class="studio-deck-head">
-        <span class="studio-deck-name">Build</span>
+        <span class="studio-deck-name">Studio</span>
         <button class="studio-fold" type="button" data-fold="left"
           title="Collapse this panel into the margin">&#8249;</button>
       </div>
       <div class="studio-deck-body">
-      <details class="control-section toolbox-group studio-group" data-group="add" data-deck="left" open>
+      <div class="studio-deck-caption">Build</div>
+      <details class="control-section toolbox-group studio-group" data-group="add" data-deck="left" data-band="build" open>
         <summary class="section-toggle"><div class="section-toggle-main"><div class="section-heading"><div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></span><span>Add</span></span></div></div></div></summary>
         <div class="section-body toolbox-group-body">
         <div class="studio-pane is-active" data-pane="add">
@@ -1398,7 +1397,7 @@
       </div>
         </div>
       </details>
-      <details class="control-section toolbox-group studio-group" data-group="model" data-deck="left">
+      <details class="control-section toolbox-group studio-group" data-group="model" data-deck="left" data-band="build">
         <summary class="section-toggle"><div class="section-toggle-main"><div class="section-heading"><div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M8 2.2 13.4 5v6L8 13.8 2.6 11V5Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M2.6 5 8 7.8 13.4 5M8 7.8v6" fill="none" stroke="currentColor" stroke-width="1"/></svg></span><span>Model</span></span></div></div></div></summary>
         <div class="section-body toolbox-group-body">
         <div class="studio-pane is-active" data-pane="model">
@@ -1420,7 +1419,7 @@
       </div>
         </div>
       </details>
-      <details class="control-section toolbox-group studio-group" data-group="label" data-deck="left">
+      <details class="control-section toolbox-group studio-group" data-group="label" data-deck="left" data-band="build">
         <summary class="section-toggle"><div class="section-toggle-main"><div class="section-heading"><div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.6 2.6h5.2l5.6 5.6-5.2 5.2-5.6-5.6Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><circle cx="5.6" cy="5.6" r="1" fill="currentColor"/></svg></span><span>Label</span></span></div></div></div></summary>
         <div class="section-body toolbox-group-body">
         <div class="studio-pane is-active" data-pane="label">
@@ -1437,7 +1436,7 @@
       </div>
         </div>
       </details>
-      <details class="control-section toolbox-group studio-group" data-group="history" data-deck="left">
+      <details class="control-section toolbox-group studio-group" data-group="history" data-deck="left" data-band="build">
         <summary class="section-toggle"><div class="section-toggle-main"><div class="section-heading"><div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.4" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M8 4.6V8l2.6 1.6" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span><span>History</span></span></div></div></div></summary>
         <div class="section-body toolbox-group-body">
         <div class="studio-pane is-active" data-pane="history">
@@ -1445,21 +1444,8 @@
       </div>
         </div>
       </details>
-      </div>
-    </div>
-
-    <div class="studio-dock studio-dock-right">
-      <!-- The deck is the GIS page's own tab column: every pane is a tab that
-           opens in place with its sections nested inside as the sidebar's own
-           cards. A horizontal strip of four labels over one pane kept three
-           quarters of the deck behind a click. -->
-      <div class="studio-deck-head">
-        <span class="studio-deck-name">Mesh</span>
-        <button class="studio-fold" type="button" data-fold="right"
-          title="Collapse this panel into the margin">&#8250;</button>
-      </div>
-      <div class="studio-deck-body">
-      <details class="control-section toolbox-group studio-group" data-group="mesh" data-deck="right" open>
+      <div class="studio-deck-caption">Mesh</div>
+      <details class="control-section toolbox-group studio-group" data-group="mesh" data-deck="left" data-band="mesh" open>
         <summary class="section-toggle"><div class="section-toggle-main"><div class="section-heading"><div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.6 2.6h10.8v10.8H2.6Z" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2.6 8h10.8M8 2.6v10.8M2.6 2.6 13.4 13.4M13.4 2.6 2.6 13.4" fill="none" stroke="currentColor" stroke-width="0.9"/></svg></span><span>Mesh</span></span></div></div></div></summary>
         <div class="section-body toolbox-group-body">
         <div class="studio-pane is-active" data-pane="mesh">
@@ -1494,7 +1480,7 @@
       </div>
         </div>
       </details>
-      <details class="control-section toolbox-group studio-group" data-group="structured" data-deck="right">
+      <details class="control-section toolbox-group studio-group" data-group="structured" data-deck="left" data-band="mesh">
         <summary class="section-toggle"><div class="section-toggle-main"><div class="section-heading"><div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.6 2.6h10.8v10.8H2.6Z" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M6.2 2.6v10.8M9.8 2.6v10.8M2.6 6.2h10.8M2.6 9.8h10.8" fill="none" stroke="currentColor" stroke-width="0.9"/></svg></span><span>Structured</span></span></div></div></div></summary>
         <div class="section-body toolbox-group-body">
         <div class="studio-pane is-active" data-pane="structured">
@@ -1510,7 +1496,7 @@
       </div>
         </div>
       </details>
-      <details class="control-section toolbox-group studio-group" data-group="refine" data-deck="right">
+      <details class="control-section toolbox-group studio-group" data-group="refine" data-deck="left" data-band="mesh">
         <summary class="section-toggle"><div class="section-toggle-main"><div class="section-heading"><div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.6 13.4 7 9" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="9.6" cy="6.4" r="3.6" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M8 6.4h3.2M9.6 4.8v3.2" fill="none" stroke="currentColor" stroke-width="1"/></svg></span><span>Refine</span></span></div></div></div></summary>
         <div class="section-body toolbox-group-body">
         <div class="studio-pane is-active" data-pane="refine">
@@ -1535,7 +1521,7 @@
       </div>
         </div>
       </details>
-      <details class="control-section toolbox-group studio-group" data-group="log" data-deck="right">
+      <details class="control-section toolbox-group studio-group" data-group="log" data-deck="left" data-band="mesh">
         <summary class="section-toggle"><div class="section-toggle-main"><div class="section-heading"><div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.4 2.6h9.2v10.8H3.4Z" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M5.6 5.6h4.8M5.6 8h4.8M5.6 10.4h3" fill="none" stroke="currentColor" stroke-width="1"/></svg></span><span>Log</span></span></div></div></div></summary>
         <div class="section-body toolbox-group-body">
         <div class="studio-pane is-active" data-pane="log">
@@ -1545,6 +1531,8 @@
       </details>
       </div>
     </div>
+
+    
   </section>
 
   <section id="toolbar">
@@ -2207,7 +2195,7 @@
     </div>
   </div>
 
-<script id="earth-manifest-script" src="earth-manifest.js?v=20260910-b0dda17-blue-marble" defer></script>
+<script id="earth-manifest-script" src="earth-manifest.js?v=20260910-7c30984-blue-marble" defer></script>
 <script>
   const statusNode = document.getElementById("status");
 
@@ -2286,98 +2274,98 @@
   void bootEarthViewer();
 </script>
 <script src="ui-controls.js" defer></script>
-<script src="gis/mode-manager.js?v=20260910-b0dda17" defer></script>
-<script type="module" src="gis/panels.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/settings-panel.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/point-tool.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/gee-live.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/fos.js?v=20260910-b0dda17"></script>
+<script src="gis/mode-manager.js?v=20260910-7c30984" defer></script>
+<script type="module" src="gis/panels.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/settings-panel.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/point-tool.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/gee-live.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/fos.js?v=20260910-7c30984"></script>
 <!-- The merged ground answer: three maps at three scales, assembled per
      point with each line naming its own source. Publishes the seam the click
      cards read, so it loads beside the strength table it uses. -->
-<script type="module" src="gis/ground-profile.js?v=20260910-b0dda17"></script>
+<script type="module" src="gis/ground-profile.js?v=20260910-7c30984"></script>
 <!-- The legend and the events feed share one slot: a shuffle, not a row. -->
-<script type="module" src="gis/overlay-stack.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/cyclone-risk.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/cyclone-risk-card.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/cyclone-tracks-view.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/cyclone-timelapse.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/cyclone-risk-raster.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/animated-layers.js?v=20260910-b0dda17"></script>
-    <script type="module" src="gis/volcanic-hazards.js?v=20260910-b0dda17"></script>
-    <script type="module" src="gis/volcanic-risk.js?v=20260910-b0dda17"></script>
-    <script type="module" src="gis/volcanic-risk-frames.js?v=20260910-b0dda17"></script>
-    <script type="module" src="gis/seismic-risk.js?v=20260910-b0dda17"></script>
-    <script type="module" src="gis/seismic-timelapse.js?v=20260910-b0dda17"></script>
-    <script type="module" src="gis/landslide-pipeline.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/geoid-pipeline.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/geoid-mode.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/atlas-assistant.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/import-manager.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/analysis-panel.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/model-pipeline.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/add-data.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/geology-panel.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/map-layers-panel.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/section-activity.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/tool-shelves.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/weather-maps.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/draw-hud.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/pipeline-sync.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/toolbox.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/toolbox-ops.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/sidecar-client.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/tool-search.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/tool-dialog.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/charts.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/time.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/edit-tools.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/feature-popup.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/forecast.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/location-tools.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/point-extract.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/drawn-layers.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/area-labels.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/panel-styles.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/symbology.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/symbology-panel.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/batch.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/batch-panel.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/georeference.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/georeference-panel.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/wfs-import.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/demo-layers.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/model-studio.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/layer-properties.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/layer-hierarchy.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/table-editor.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/legend-dock.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/layer-export-dialog.js?v=20260910-b0dda17"></script>
+<script type="module" src="gis/overlay-stack.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/cyclone-risk.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/cyclone-risk-card.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/cyclone-tracks-view.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/cyclone-timelapse.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/cyclone-risk-raster.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/animated-layers.js?v=20260910-7c30984"></script>
+    <script type="module" src="gis/volcanic-hazards.js?v=20260910-7c30984"></script>
+    <script type="module" src="gis/volcanic-risk.js?v=20260910-7c30984"></script>
+    <script type="module" src="gis/volcanic-risk-frames.js?v=20260910-7c30984"></script>
+    <script type="module" src="gis/seismic-risk.js?v=20260910-7c30984"></script>
+    <script type="module" src="gis/seismic-timelapse.js?v=20260910-7c30984"></script>
+    <script type="module" src="gis/landslide-pipeline.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/geoid-pipeline.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/geoid-mode.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/atlas-assistant.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/import-manager.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/analysis-panel.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/model-pipeline.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/add-data.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/geology-panel.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/map-layers-panel.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/section-activity.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/tool-shelves.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/weather-maps.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/draw-hud.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/pipeline-sync.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/toolbox.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/toolbox-ops.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/sidecar-client.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/tool-search.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/tool-dialog.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/charts.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/time.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/edit-tools.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/feature-popup.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/forecast.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/location-tools.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/point-extract.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/drawn-layers.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/area-labels.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/panel-styles.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/symbology.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/symbology-panel.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/batch.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/batch-panel.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/georeference.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/georeference-panel.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/wfs-import.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/demo-layers.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/model-studio.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/layer-properties.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/layer-hierarchy.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/table-editor.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/legend-dock.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/layer-export-dialog.js?v=20260910-7c30984"></script>
 <!-- Pre-processing and Extraction & Analysis, as workbenches on the tool
      rail rather than two more collapsibles in the sidebar column. -->
-<script type="module" src="gis/side-panels.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/project.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/events.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/gee.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/basemap-drape.js?v=20260910-b0dda17"></script>
+<script type="module" src="gis/side-panels.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/project.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/events.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/gee.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/basemap-drape.js?v=20260910-7c30984"></script>
 <!-- Real elevation, streamed: the globe's own texture samples at 19.6 km,
      which every product derived from it inherits. Earth only — Mapzen
      Terrain Tiles are this planet's. gis/dem-tiles.js holds the rule. -->
-<script type="module" src="gis/dem-stream.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/dem-panel.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/zoom-bar.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/polygons.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/point-labels.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/satellites.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/catalogue-panels.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/earth-data-panel.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/rock-properties-panel.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/ice-cover-panel.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/soil-cover.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/glim-cover.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/research/index.js?v=20260910-b0dda17"></script>
-<script type="module" src="gis/planet-strip.js?v=20260910-b0dda17"></script>
-<script src="music.js?v=20260910-b0dda17" defer></script>
+<script type="module" src="gis/dem-stream.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/dem-panel.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/zoom-bar.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/polygons.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/point-labels.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/satellites.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/catalogue-panels.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/earth-data-panel.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/rock-properties-panel.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/ice-cover-panel.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/soil-cover.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/glim-cover.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/research/index.js?v=20260910-7c30984"></script>
+<script type="module" src="gis/planet-strip.js?v=20260910-7c30984"></script>
+<script src="music.js?v=20260910-7c30984" defer></script>
 <script>if (window.self !== window.top) document.body.classList.add("is-embedded");</script>
 
 </body>
