@@ -17583,3 +17583,65 @@ the wildfire feed goes — the control); plate-boundary card × its catalogue ro
 on the Geology tab's tick; volcano scene card × layer eye; time-lapse paused
 and hidden on the Model page, back on return; part card gone on GIS and
 Research.
+
+## The full sweep: doors that only opened, rows filed by transport, a slot over the clock
+
+Measured page-wide rather than read: nine tabs and 49 subtabs opened with no
+console error, no overflow and no broken image; ui.py 14/14, smoke.py 64/64,
+sidecar.py all green. What the sweep found, and the rule each one leaves:
+
+**A DOOR TOGGLES, and a MODAL closes on Escape.** Of the Workspace header's
+four doors, + Data opened a modal that Escape shut, while + GEE, Export and
+Settings opened and then ignored both Escape and a second press, so the only way
+out was a ✕. All three toggle now through their seams' own `isOpen`/`close`
+(`GeoIDGeeCatalogue` gained both; `GeoIDSidePanels` already had them). The GEE
+window is a MODAL, so it also closes on Escape, like + Data. Export and Settings are
+WORKBENCHES, the same kind of object as Geoprocessing and Analysis, and none of
+the four takes Escape. That is deliberate. Escape already closes a card and
+cancels a drawing, and a non-modal panel that took it too would compete with
+those for the one key. Measured: + Data and + GEE close on Escape; + GEE, Export
+and Settings close on a second press.
+
+**A ROW IS FILED BY WHAT IT IS, NOT BY HOW IT ARRIVES.** Map ▸ Overlays held
+six "Live services" rows only because they named no home. The four fire
+layers (NIFC perimeters and three FIRMS detections) now live in
+Hazards ▸ Wildfires, beside the burned-area share already there. NWS alerts and
+HadUK rainfall normals now live in Earth System ▸ Atmosphere. What is left in
+Overlays is shapes and infrastructure: the graticule, borders, countries, OSM
+places, cables and landings.
+
+**A host in markup every world shares ships HIDDEN.** Atmosphere is rendered
+from `panels.js`'s one MARKUP string for all ten worlds, and a weather list has
+nothing to offer on Mars. The host sits inside a `data-catalogue-shell` details
+shipped `hidden`, and `catalogue-panels.draw` shows the shell only once it has
+rows. This is the GEE Service form's arrangement, so a planet never shows a
+heading over nothing. The shell carries no `id`, so section-activity's
+`closest("details[id]")` still finds the Atmosphere TAB; given an id, the
+shell would light itself instead. The test's "page" is now the Earth index plus
+the unescaped shared markup, because a host in the shared string is as real as
+one in the index.
+
+**THE SHARED DROP-DOWN STEPS LEFT OF THE CLOCK.** Below about 1,000 px
+`#top-right-controls` drops under the tool rail, into the column the
+events/legend slot hangs down. At 900 px the panel covered the clock's left
+27 px. `slotFrom(rects, vw, gap, avoid, width)` takes the rects it must not cover
+and moves the slot's right edge clear of them. Measured at 900 px: panel
+488..768, clock 774. At desktop width nothing moves, because the clock is at
+412. The panel's height is unknown at that point, so anything reaching below the
+slot's top counts. A DOMRect has both `left` and `x`, while a hand-built test
+rect may have only `x`, so read `left ?? x`. The test's own assertion fell into
+exactly that trap.
+
+**Two smaller things.** A catalogue tick's id is now unique per HOST
+(`gis-cat-<host>-<entry>`). A mirrored row, such as the volcanoes seen from
+Hazards, otherwise minted the same id twice. `tests/ui.py` derives runtime ids
+from module source, so it reports what the page actually builds. The
+time-rate range, the contour ticks and the sea-level slider on all six rocky
+worlds now carry `aria-label`s: an unnamed range is a slider a screen reader
+calls "slider".
+
+**A sweep instrument that scrolls the panel lies about the panel.** Before a
+narrow-viewport probe, I scrolled a subtab into view. That scrolled
+`#ui-scroll-body`, and the probe then reported the brand, the ⓘ and the rate
+pill 407 px above the frame. Reset every scroller the probe touched before
+reading positions.
