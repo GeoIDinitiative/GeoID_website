@@ -8,8 +8,8 @@
  * so a M 7 is the same colour in a quiet year and a busy one.
  */
 
-import { buildSymbology, colourOf, legendInfoFrom } from "./symbology.js?v=20260910-6b1d4e5";
-import { startPlayer } from "./timelapse-player.js?v=20260910-6b1d4e5";
+import { buildSymbology, colourOf, legendInfoFrom } from "./symbology.js?v=20260910-e87104a";
+import { startPlayer } from "./timelapse-player.js?v=20260910-e87104a";
 
 const search = new URL(import.meta.url).search;
 /**
@@ -127,17 +127,29 @@ function isoOf(props) {
  */
 export function framesFor(features, { from = 1900, step = DEFAULT_STEP } = {}) {
   const spec = STEPS[step] || STEPS[DEFAULT_STEP];
-  const kept = features
-    .filter((f) => {
-      const year = Number(f?.properties?.year);
-      return Number.isFinite(year) && year >= from;
-    })
-    .sort((a, b) => isoOf(a.properties).localeCompare(isoOf(b.properties)));
+  /**
+   * SORTED ON A NUMBER, and the key computed ONCE per event.
+   *
+   * `.sort((a, b) => isoOf(a).localeCompare(isoOf(b)))` calls the key builder
+   * twice per COMPARISON — for 312,500 events that is roughly twelve million
+   * `Date` objects and their ISO strings, which is both slow enough to look
+   * like a control that does nothing and exactly the kind of allocation this
+   * bake has already been asked to stop making. The instant is a number
+   * already; a historical event with no `time` sorts by its year.
+   */
+  const kept = [];
+  features.forEach((f) => {
+    const year = Number(f?.properties?.year);
+    if (!Number.isFinite(year) || year < from) return;
+    const t = Number(f?.properties?.time);
+    kept.push([Number.isFinite(t) ? t : Date.UTC(year, 0, 1), f]);
+  });
+  kept.sort((a, b) => a[0] - b[0]);
   if (!kept.length) return { groups: [], stride: 1, step, spec, total: 0 };
 
   const order = [];
   const byKey = new Map();
-  kept.forEach((f) => {
+  kept.forEach(([, f]) => {
     const key = spec.key(f.properties);
     if (!byKey.has(key)) { byKey.set(key, []); order.push(key); }
     byKey.get(key).push(f);

@@ -115,6 +115,20 @@ check("the span still cuts the record", framesFor(RECORD_FIXTURE, { from: 1995, 
    only the year is played rather than refused. */
 check("a year-only event still groups", framesFor([{ properties: { year: 1970, mag: 6 } }], { step: "year" }).groups.length, 1);
 
+/* The key is computed ONCE per event, not twice per comparison: at 312,500
+   events the comparator form is ~12 million Date allocations, slow enough that
+   the step control reads as doing nothing. */
+{
+  const raw = readFileSync(new URL("./seismic-timelapse.js", import.meta.url), "utf8");
+  const src = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  check("the record is sorted on a number, decorated once",
+    [src.includes("kept.sort((a, b) => a[0] - b[0])"), src.includes("localeCompare")], [true, false]);
+}
+/* And it is still in time order whatever order the file held. */
+check("a big shuffle still comes back in time order",
+  framesFor([...RECORD_FIXTURE].reverse(), { step: "event" }).groups.map((g) => g.show),
+  framesFor(RECORD_FIXTURE, { step: "event" }).groups.map((g) => g.show));
+
 /* An epoch millisecond is not a date to anybody: the key groups, the show
    reads. */
 check("the event step shows the minute, not the epoch",
