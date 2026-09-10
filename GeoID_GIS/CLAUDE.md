@@ -16930,3 +16930,30 @@ Verified live: a volcano scenario customised to a 30 km crust, a 1.5 km
 edifice, an 8 km base and a 2 km-deep 3 km chamber built as two entities with
 those numbers, a cylinder of my own added on top of it, and the emitted script
 carrying three volumes at flags 10, 11 and 12.
+
+### One deck, two bands — the mesh tabs joined the build tabs
+
+"Can we combine the mesh pill into the build tab?" The right deck is gone. Its
+four groups (Mesh, Structured, Refine, Log) live in the single left deck under
+a `Mesh` caption, with Add, Model, Label and History under `Build`, and the
+edge handle reads STUDIO. `showGroup(name)` lost its side argument; the right
+dock's rules, its edge tab and `.studio-dock-right` went with it.
+
+**The accordion opens one per BAND, not one per deck.** A reader wants a build
+tab and a mesh tab in view together — that is the whole reason the two decks
+were tolerable — so a group carries `data-band` and opening one closes only its
+own band's siblings. Two panes open at once, in one column, in the order the
+work is done.
+
+**NOTHING IN A DECK BODY SHRINKS.** As a grid the deck distributed its height
+among its items, so two open panes shared it: measured, an Add tab **113 px
+tall around a pane that wanted 846**, clipped by the card's own `overflow`,
+with the deck itself reporting nothing to scroll — the panes had been made to
+fit rather than the column made to hold them. A flex column with
+`flex: 0 0 auto` on every child and `overflow-y: auto` on the body is the fix.
+Measured after: deck scrollHeight 1850 against a client of 601, the Add tab
+926 around 879 and the Mesh tab 550 around 503, neither clipped.
+
+This is the `.gis-tool-body` and `.qt-v` lesson in a third place: **a container
+that lays its children out (grid or flex) will size them to itself unless it is
+told not to, and the symptom is a clipped pane rather than a scrollbar.**
