@@ -2126,6 +2126,14 @@ html.gis-arranging #layer-dock {
 #model-studio .studio-fold-section > .gis-tool-body { padding: 0.5rem 0.6rem 0.6rem; gap: 0.4rem; }
 #model-studio .studio-fold-section .studio-group-title { display: none; }
 @media (max-width: 900px) {
-  #model-studio .studio-ribbon { max-width: 92vw; }
+  #model-studio .studio-ribbon { max-width: calc(100vw - 15.5rem); }
   #model-studio .studio-dock { width: 12.5rem; }
+}
+
+/* Tab strips have to hold four names and a fold in a 16rem deck. */
+#model-studio .studio-tab { padding: 0.5rem 0.1rem; font-size: 0.58rem; letter-spacing: 0.06em; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.studio-fold { width: 1.4rem; }
+/* Beside the mode bar rather than under it where the screen is narrow. */
+@media (max-width: 1180px) {
+  #model-studio .studio-ribbon { left: auto; right: 0.9rem; transform: none; max-width: calc(100vw - 15.5rem); justify-content: flex-end; }
 }

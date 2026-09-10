@@ -1,13 +1,13 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-a28b229";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-a28b229";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-3bd3482";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-3bd3482";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260910-a28b229";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-a28b229";
-import { downloadText } from "./extraction.js?v=20260910-a28b229";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-a28b229";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-a28b229";
+} from "./mesh-volume.js?v=20260910-3bd3482";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-3bd3482";
+import { downloadText } from "./extraction.js?v=20260910-3bd3482";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-3bd3482";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-3bd3482";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -3491,6 +3491,8 @@ function foldPaneSections() {
       details.open = folds[key] === undefined ? true : Boolean(folds[key]);
       const summary = document.createElement("summary");
       summary.textContent = title.textContent.trim();
+      // The shared icon painter's documented skip: these carry their own chevron.
+      summary.dataset.toolIcon = "1";
       const body = document.createElement("div");
       body.className = "gis-tool-body";
       pane.insertBefore(details, title);
