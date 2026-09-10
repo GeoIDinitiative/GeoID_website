@@ -16816,3 +16816,28 @@ says what is on disk. Given a stamp by hand once on the ten pages `stamp.py`
 sweeps (the GIS viewer and the nine planets); it keeps them fresh from here.
 Any future edit to the app-wide skin needs that stamp to exist or it is
 invisible to everyone who has been to the site before.
+
+### "The model page appears to be broken" — it opened on the Earth's centre
+
+Entering Model mode on a fresh page gave a black viewport, no ground lattice
+and a 2,000 km scale bar: the camera sat 6,371 km from the anchor with its
+target on the world origin. Two faults, both about framing:
+
+- **`object3D.visible` is the NODE'S OWN FLAG.** Model mode hides the whole
+  `GeoID-ImportedGeoLayers` group and never touches its children, so every GIS
+  layer inside it still reported visible. With the launch defaults loaded and
+  no model yet, `modelFocus`'s `own.length ? own : all` fallback framed the
+  plate boundaries at the world origin. It counts only layers whose EVERY
+  ANCESTOR is visible now, so an empty studio falls through to its own default
+  working area (250 m of ground) as it was written to.
+- **`updateMatrixWorld(true)` refreshes DESCENDANTS, not ancestors.** A group
+  added to the anchor in the same tick still carries the identity, so boxing
+  its meshes put them at the ORIGIN — and the new "frame the first solid" fit
+  flew the camera to the Earth's centre. `updateWorldMatrix(true, true)` walks
+  the parents first, which is the question being asked.
+
+**The first solid is framed and later ones are not**: the studio opens on a
+working area and a default 1 m box in it is a speck, but a fit on every add
+would yank the view away from what is being worked on. Measured: arrival
+850 m from the anchor with a 200 m bar, first add 3 m with a 0.5 m bar, a
+second add leaving the view where it was, Fit then framing all three at 38 m.
