@@ -1023,3 +1023,21 @@ process.on("exit", () => {
   console.log(`\n${pass} passed, ${fail} failed`);
   if (fail) process.exitCode = 1;
 });
+
+/**
+ * A card opened from the LIST goes beside its dot, exactly as one opened on
+ * the dot does. A row used to open it at a fixed spot left of the feed -- the
+ * legend's corner -- nowhere near the event it described.
+ */
+{
+  const src = readFileSync(new URL("./events.js", import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  ok("no fixed feed-side anchor remains", !/feedAnchor/.test(src));
+  ok("the selection ring's frame loop carries the card with its dot",
+    /\/\/ And the card rides with the dot it describes\.\s*trackPopup\(\);|trackPopup\(\);\s*\n\s*const t = \(\(now - started\)/.test(readFileSync(new URL("./events.js", import.meta.url), "utf8")));
+  ok("a card whose dot is round the back is HIDDEN, never closed",
+    /node\.style\.visibility = "hidden"/.test(src) && !/node\.hidden = true/.test(src));
+  ok("and the dot is tested against the horizon before it is trusted",
+    /local\.dot\(cam\) < radius \* radius/.test(src));
+  ok("showPopup starts the card tracking", /node\.dataset\.tracking = halo \? "1" : ""/.test(src));
+}

@@ -16,7 +16,7 @@ import {
   gdacsPoints, resolveColour,
   MARKER_LIFT_MAX, liftForAltitude, dotSizePx, isQuake, publisherOf, restoreActive,
   stormCategory, stormScale, stormLabel, STORM_BASE_CAP,
-} from "./event-sources.js?v=20260910-dbabf53";
+} from "./event-sources.js?v=20260910-e9c797f";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -1001,18 +1001,18 @@ function renderPanel() {
 function selectEvent(event, at) {
   if (!event) return;
   focusOn(event.lat, event.lon);
-  // The popup is placed at the pointer when a marker is picked, and beside the
-  // feed when a row is, so it never lands on top of what was clicked.
-  const point = at || feedAnchor();
-  showPopup(event, point.x, point.y);
-}
-
-/** A spot just left of the feed, for popups opened from the list. */
-function feedAnchor() {
-  const overlay = byId("events-overlay");
-  if (!overlay) return { x: 80, y: 120 };
-  const rect = overlay.getBoundingClientRect();
-  return { x: Math.max(20, rect.left - 300), y: rect.top + 40 };
+  /**
+   * The card goes BESIDE ITS DOT, whichever way the event was chosen.
+   *
+   * A row used to open it at a fixed spot left of the feed -- which is the
+   * legend's corner, so every card picked from the list landed on the same
+   * patch of screen, nowhere near the event it described, while a click on a
+   * dot put it at the pointer. The card now follows the event's own marker
+   * (`trackPopup`, run from the selection ring's frame loop), so a row and a
+   * dot open the same card in the same place, and it rides the fly-in the
+   * row starts rather than being left behind by it.
+   */
+  showPopup(event, at?.x, at?.y);
 }
 
 function focusOn(lat, lon) {
@@ -2296,6 +2296,8 @@ function setSelection(event) {
      */
     const dots = markers?.children?.[0];
     if (dots) halo.renderOrder = (dots.renderOrder || 230) + 0.5;
+    // And the card rides with the dot it describes.
+    trackPopup();
     // The pulse is in brightness alone. Pulsing the size was what took the ring
     // off the dot it is meant to sit on: it can only stay on the circumference
     // if it stays that size.
@@ -2306,6 +2308,63 @@ function setSelection(event) {
   haloFrame = window.requestAnimationFrame(pulse);
 }
 
+/**
+ * Where the selected dot is on screen, or null where it cannot be seen.
+ *
+ * Read off the SELECTION RING rather than re-derived: the ring is already
+ * re-placed on the ground as the relief moves and turned with the spin frame,
+ * so its position is the marker's by construction. Hidden past the limb by the
+ * same `p . camera >= R^2` test `cullBehindGlobe` uses, because a point on the
+ * far hemisphere still projects to a plausible pixel -- a card placed there
+ * would describe a dot on the other side of the planet.
+ */
+function dotOnScreen() {
+  const viewer = window.GeoIDViewer;
+  const camera = viewer?.camera;
+  const canvas = viewer?.renderer?.domElement;
+  const truth = halo?.userData?.truePositions;
+  if (!camera || !canvas || !truth || !THREE) return null;
+  halo.updateMatrixWorld();
+  const local = new THREE.Vector3(truth[0], truth[1], truth[2]);
+  const cam = halo.worldToLocal(camera.position.clone());
+  const radius = viewer.GLOBE_RADIUS || 3.2;
+  if (local.dot(cam) < radius * radius) return null;
+  const ndc = halo.localToWorld(local.clone()).project(camera);
+  if (ndc.z > 1 || Math.abs(ndc.x) > 1 || Math.abs(ndc.y) > 1) return null;
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: rect.left + ((ndc.x + 1) / 2) * rect.width,
+    y: rect.top + ((1 - ndc.y) / 2) * rect.height,
+    // Half the ring, in screen pixels: the card clears the ring, not only the
+    // point at its centre.
+    reach: (Number(halo.material?.size) || 20) / 2,
+  };
+}
+
+/**
+ * Put the open card beside its dot: to the right of the ring, or to the left
+ * where the right would run off the window. Returns whether it could.
+ *
+ * `visibility`, never `hidden`: a card whose dot has gone round the back is
+ * still OPEN -- its seismogram may be arriving -- and the trace loader treats
+ * `node.hidden` as the card having moved on.
+ */
+function trackPopup() {
+  const node = byId("event-popup");
+  if (!node || node.hidden || node.dataset.tracking !== "1") return false;
+  const at = dotOnScreen();
+  if (!at) { node.style.visibility = "hidden"; return false; }
+  node.style.visibility = "";
+  const gap = 10;
+  const rect = node.getBoundingClientRect();
+  let left = at.x + at.reach + gap;
+  if (left + rect.width > window.innerWidth - 12) left = at.x - at.reach - gap - rect.width;
+  const top = Math.min(Math.max(12, at.y - rect.height / 3), window.innerHeight - rect.height - 12);
+  node.style.left = `${Math.max(12, left)}px`;
+  node.style.top = `${top}px`;
+  return true;
+}
+
 /** Keeps the feed's highlight in step with whatever is selected. */
 function markRow(id) {
   byId("events-panel-body")?.querySelectorAll(".event-row").forEach((row) => {
@@ -2314,7 +2373,9 @@ function markRow(id) {
 }
 
 function hidePopup() {
-  byId("event-popup")?.setAttribute("hidden", "");
+  const node = byId("event-popup");
+  if (node) { node.dataset.tracking = ""; node.style.visibility = ""; }
+  node?.setAttribute("hidden", "");
   setSelection(null);
   markRow(null);
 }
@@ -2328,6 +2389,9 @@ function hidePopup() {
  * — the part that was asked for — below the fold.
  */
 function placePopup(node, x, y) {
+  // A card that follows its dot is placed by the frame loop, which re-reads
+  // its size every frame -- the late seismogram included.
+  if (node.dataset.tracking === "1" && halo) { trackPopup(); return; }
   if (Number.isFinite(x)) node.dataset.anchorX = String(x);
   if (Number.isFinite(y)) node.dataset.anchorY = String(y);
   const atX = Number(node.dataset.anchorX) || 0;
@@ -2528,8 +2592,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260910-dbabf53"),
-    import("./research/dsp.js?v=20260910-dbabf53"),
+    import("./seismogram-plot.js?v=20260910-e9c797f"),
+    import("./research/dsp.js?v=20260910-e9c797f"),
   ]);
   if (stale()) return;
 
@@ -2637,8 +2701,14 @@ function showPopup(event, x, y) {
     </div>
     <div class="event-trace" hidden></div>`;
   node.removeAttribute("hidden");
+  node.style.visibility = "";
   setSelection(event);
-  placePopup(node, x, y);
+  node.dataset.tracking = halo ? "1" : "";
+  // Beside the dot at once where it is on screen; at the pointer for the one
+  // frame before the loop takes over if it is not (a dot click is always on
+  // screen, so that is a row whose event is round the back -- the fly brings
+  // it into view and the card appears beside it when it arrives).
+  if (!trackPopup()) placePopup(node, x, y);
   node.querySelector(".event-popup-close")?.addEventListener("click", hidePopup);
   node.querySelector('[data-role="fly"]')?.addEventListener("click", () => {
     focusOn(event.lat, event.lon);
