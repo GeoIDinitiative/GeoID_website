@@ -19,8 +19,8 @@
 
 import {
   buildSymbology, colourOf, legendInfoFrom,
-} from "./symbology.js?v=20260910-4a62fde";
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260910-4a62fde";
+} from "./symbology.js?v=20260910-923b042";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260910-923b042";
 
 const FIELD = "peak_wind_kts";
 const HURRICANE_KTS = SAFFIR_SIMPSON_KTS[0];

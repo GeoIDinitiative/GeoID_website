@@ -77,6 +77,14 @@ check("the counts are still the data's own",
 check("the colour reads the resolved magnitude",
   [magOf({ mag: 5.2, mag_best: 6.1 }), magOf({ mag: 5.2 }), magOf({})], [6.1, 5.2, null]);
 check("a year's note is a counter with the largest", yearNote({ year: 1964, count: 2, total: 4, largest: 9.2 }), "2 / 4 · largest M 9.2");
+/* "M >= 4.5" is a claim about what is PLOTTED, so it cannot survive a
+   magnitude band being switched off in the panel: the count falls to what is
+   left while the sentence beside it goes on naming the record's own floor.
+   The ratio is true whichever bands are off and needs no list. */
+check("the All frame names the record's floor when nothing is hidden",
+  yearNote({ all: true, total: 312500, held: 312500 }), "312,500 earthquakes M ≥ 4.5");
+check("and states the ratio once a band is",
+  yearNote({ all: true, total: 112543, held: 312500 }), "112,543 of 312,500 earthquakes");
 
 /* ── the entries and the page ────────────────────────────────────────────── */
 check("the seismic home has a host", HOMES.seismic, "seismic-catalogue");

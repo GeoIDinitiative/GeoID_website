@@ -8,15 +8,15 @@
  * so a M 7 is the same colour in a quiet year and a busy one.
  */
 
-import { colourOf, legendInfoFrom } from "./symbology.js?v=20260910-4a62fde";
-import { startPlayer } from "./timelapse-player.js?v=20260910-4a62fde";
+import { colourOf, legendInfoFrom } from "./symbology.js?v=20260910-923b042";
+import { startPlayer } from "./timelapse-player.js?v=20260910-923b042";
 /**
  * The bands live in their own module because the PANEL needs them too, and
  * `catalogue-panels.js` must not drag the player in behind them. What is
  * re-exported here is what this module's own callers have always read.
  */
 import { MAG_EDGES, MAG_LABELS, MAG_FLOORS, magOf, bandSymbology }
-  from "./seismic-magnitude.js?v=20260910-4a62fde";
+  from "./seismic-magnitude.js?v=20260910-923b042";
 
 export { MAG_EDGES, MAG_LABELS, MAG_FLOORS, magOf };
 
@@ -194,7 +194,18 @@ export function colouring(features) {
 }
 
 export function noteFor(epoch) {
-  if (epoch.all) return `${(epoch.total || 0).toLocaleString()} earthquakes M ≥ 4.5`;
+  /**
+   * "M ≥ 4.5" IS A CLAIM ABOUT WHAT IS PLOTTED, and a magnitude band switched
+   * off in the panel makes it false — the count fell to what was left and the
+   * sentence beside it went on naming the record's own floor. When bands are
+   * hidden the note says the ratio instead, which is true whichever of them
+   * are off and needs no list; the panel beside it names them.
+   */
+  if (epoch.all) {
+    return epoch.held && epoch.held !== epoch.total
+      ? `${(epoch.total || 0).toLocaleString()} of ${epoch.held.toLocaleString()} earthquakes`
+      : `${(epoch.total || 0).toLocaleString()} earthquakes M ≥ 4.5`;
+  }
   const big = epoch.largest ? ` · largest M ${epoch.largest.toFixed(1)}` : "";
   return `${(epoch.count || 0).toLocaleString()} / ${(epoch.total || 0).toLocaleString()}${big}`;
 }
@@ -210,8 +221,11 @@ export function noteFor(epoch) {
  */
 export function noteTitle(epoch) {
   if (epoch.all) {
-    return "The merged record: USGS ComCat M ≥ 4.5 since 1900, ISC-GEM's homogenised Mw"
+    const record = "The merged record: USGS ComCat M ≥ 4.5 since 1900, ISC-GEM's homogenised Mw"
       + " for 1904–2021, and GEM's historical catalogue back to 1008";
+    return epoch.held && epoch.held !== epoch.total
+      ? `${record} — magnitude bands are switched off in the panel, so this plots ${(epoch.total || 0).toLocaleString()} of them`
+      : record;
   }
   let pre = "";
   if (epoch.year && epoch.year < 1904) {
@@ -282,7 +296,8 @@ async function build(from, startAt, step = DEFAULT_STEP) {
       tickLabel: String(year ?? ""),
     };
   });
-  epochs.push({ date: "all", label: "All", dataset: null, all: true, total, count: total });
+  const heldTotal = layer._allFeatures?.length || total;
+  epochs.push({ date: "all", label: "All", dataset: null, all: true, total, count: total, held: heldTotal });
   const ALL = epochs.length - 1;
 
   const built = new Map();
