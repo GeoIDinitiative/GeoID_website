@@ -429,25 +429,30 @@ function borrowExport(mode = armedMode()) {
   const actions = document.querySelector(exportSelector(mode));
   if (!actions) return;
   /**
-   * A DEAD BUTTON IS NOT WORTH A PLACE ON THE BAR.
+   * A DEAD BUTTON IS SHOWN NOWHERE — and it is still BORROWED.
    *
-   * The viewer disables its own export until there is a measurement to write
-   * (`measureExport.disabled = !measureMode`, and the per-mode buttons follow
-   * the points), so arming the tool used to put a greyed "Export CSV" on the
-   * bar before anything had been drawn — the one control there that could not
-   * be pressed, and read as furniture left over from an older flow. It is
-   * borrowed once it CAN export and sent home again when it cannot, so the
-   * bar only ever shows what it can do. `disabled` is on the watched
-   * attribute list for exactly this, or the borrow would never hear it flip.
+   * The viewer disables its own export until there is a measurement to write,
+   * so arming the tool put a greyed "Export CSV" on the bar before anything
+   * had been drawn: the one control there that could not be pressed, read as
+   * furniture from an older flow. The first attempt at this left it at home
+   * while it was dead, and that was worse — the viewer UN-HIDES it on arming,
+   * so a disabled button then stood in the tool rail instead, which is the
+   * "popping up below" this was meant to remove. Measured at (1346, 107),
+   * visible, disabled.
+   *
+   * So it is always taken off the rail, and the SLOT is what hides. `disabled`
+   * is on the watched attribute list, with `subtree` because it flips on the
+   * button inside rather than on the row.
    */
-  if (exportDead(actions)) { returnOne(actions); return; }
-  if (actions.parentNode === slot) return;
-  if (!exportHomes.has(mode)) {
-    const marker = document.createComment(`export csv (${mode}) lives on the draw bar`);
-    actions.parentNode?.insertBefore(marker, actions);
-    exportHomes.set(mode, marker);
+  if (actions.parentNode !== slot) {
+    if (!exportHomes.has(mode)) {
+      const marker = document.createComment(`export csv (${mode}) lives on the draw bar`);
+      actions.parentNode?.insertBefore(marker, actions);
+      exportHomes.set(mode, marker);
+    }
+    slot.appendChild(actions);
   }
-  slot.appendChild(actions);
+  slot.hidden = exportDead(actions);
 }
 
 /** Nothing inside it can be pressed, so there is nothing to show. */
@@ -500,7 +505,10 @@ function watchExportHome() {
 
 function returnExport() {
   const slot = byId("gis-draw-export-slot");
-  if (slot) [...slot.children].forEach(returnOne);
+  if (!slot) return;
+  [...slot.children].forEach(returnOne);
+  // Or the next arm inherits a slot hidden for the last measurement.
+  slot.hidden = false;
 }
 
 function refresh() {
