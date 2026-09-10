@@ -17527,3 +17527,59 @@ do.
 **When a live layer "doesn't load" and every status code is right, time the
 body.** A `fetch` whose headers answer in 88 ms and whose body trickles in at
 110 KB/s looks, from every other instrument, exactly like success.
+
+## A card describes something on the globe, so it goes when that thing does
+
+Two reports, one theme: the cards did not know where they belonged.
+
+**An event card opened from the LIST landed over the legend.** A row click
+passed no position, so `selectEvent` fell back to `feedAnchor()` — a fixed
+spot left of the feed, which is the legend's corner — while a dot click put it
+at the pointer and then flew the camera, leaving the card behind its moving
+dot. Both now place the card BESIDE THE DOT every frame (`trackPopup`, run from
+the selection ring's own frame loop, which already follows the marker through
+spin, zoom and relief): right of the ring, flipped left at the window edge,
+and hidden — `visibility`, never `hidden`, because the seismogram loader reads
+`node.hidden` as the card having moved on — while the dot is round the back
+(the `p · camera ≥ R²` horizon test; `GeoIDProjectLatLon` does not cull).
+Measured: card left edge = dot x + ring radius + 10 px, at rest and through a
+fly-in from off screen.
+
+**Cards lingered after their layer left.** Leaving GIS and the feed's own
+master tick were already clean; the Workspace EYE was not — hide Live events
+with a card open and the markers went while the card and its ring stayed. Every
+card had this shape of fault: each closed on the gestures its own module knew
+about, and none knew its layer could go away under it.
+
+`gis/card-owner.js`: a card CLAIMS the layer it describes when it opens, and is
+closed through its own closer (outline and ring included) the moment that
+layer is hidden, removed or unticked. Three rules make it safe:
+
+- **One owner per slot** — `event`, `feature`, `viewer` (the geology and scene
+  cards share one because only one is ever open). A newer card replaces the
+  claim, so an OLD card's layer can never close the card that replaced it.
+- **Matched by name as well as id.** A tiled layer can rebuild as a new object;
+  by identity a geology card would close every time the view settled.
+- **Checked a beat later (250 ms) and re-checked**, so a swap mid-rebuild is
+  not read as the layer leaving.
+
+The claim lives where the cards MEET, not with each caller: `openGeoPopup`
+claims by `feature.source_layer` (the geology catalogue, feature-popup's vector
+hits and the raster probes all set it — the probes now do), and the scene-card
+opener claims by the item's `source_layer`, which `point-labels` now stamps on
+every label and dot item. An event card also closes when its event stops being
+drawn (its feed unticked, a refresh that drops it) — the layer can stay on
+while one event leaves it.
+
+**What no layer owns, the page switch puts away**: leaving GIS pauses a running
+time-lapse (hidden by its own sheet under `body.studio-open` /
+`body.research-open`, found where it was on return), and any page but Model
+closes the studio's part card, which lives on `body`.
+
+Verified live, each with a real click where one was needed: event card ×
+Workspace eye, × its own feed unticked (and an earthquake card left open when
+the wildfire feed goes — the control); plate-boundary card × its catalogue row
+(card and gold outline); world-geology card survives a zoom-in refine, closes
+on the Geology tab's tick; volcano scene card × layer eye; time-lapse paused
+and hidden on the Model page, back on return; part card gone on GIS and
+Research.
