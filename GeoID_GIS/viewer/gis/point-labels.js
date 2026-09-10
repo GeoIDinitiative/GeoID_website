@@ -257,7 +257,10 @@ const levelKey = (layer) => layer?.name || layer?.id;
 /** The items a layer gets at a detail level, colours from its own legend. */
 function itemsFor(layer, level) {
   const detail = DETAIL_LEVELS[level] || DETAIL_LEVELS[DEFAULT_DETAIL];
-  return toLabelItems(layer.features, { ...detail, legend: layer.legendInfo });
+  // Each label names its layer, so the card a chip opens can be claimed by
+  // that layer and closed with it (card-owner.js).
+  return toLabelItems(layer.features, { ...detail, legend: layer.legendInfo })
+    .map((item) => ({ ...item, source_layer: layer.name }));
 }
 
 /**
@@ -414,7 +417,8 @@ export function sceneItemFor(layer, feature) {
   const nameable = canLabel(layer)
     || (layer.features || []).some((f) => f?.properties?.label_rank !== undefined);
   if (!nameable) return null;
-  return featureToItem(feature, layer.legendInfo);
+  const item = featureToItem(feature, layer.legendInfo);
+  return item ? { ...item, source_layer: layer.name } : item;
 }
 
 /** Whether a layer has anything to label at all — for offering the control. */

@@ -96,6 +96,17 @@ ok("and so do the planets", read("./boot.js").includes('"./card-owner.js"'));
   ok("the studio publishes its part-card closer", /window\.GeoIDMeshStudio = \{[\s\S]{0,400}closePartCard,/.test(read("./model-studio.js")));
 }
 
+{
+  // A dataset label's chip opens the scene card without feature-popup seeing
+  // the click, so the label itself names its layer and the opener claims it.
+  const viewer = read("../earth-viewer.js");
+  ok("the scene card claims a dataset label's layer where it opens",
+    /activePopupIsCoreLabel = Boolean\(isCoreLabel\);\s*if \(feature\?\.source_layer\) \{\s*window\.GeoIDCardOwner\?\.own\?\.\("viewer", feature\.source_layer, \(\) => closeScenePopup\(\)\)/.test(viewer));
+  const pl = read("./point-labels.js");
+  ok("label items name their layer", /\.map\(\(item\) => \(\{ \.\.\.item, source_layer: layer\.name \}\)\)/.test(pl));
+  ok("and so do the scene items a dot click builds", /return item \? \{ \.\.\.item, source_layer: layer\.name \} : item;/.test(pl));
+}
+
 process.on("exit", () => {
   failures.forEach((f) => console.log(`   ✗ ${f}`));
   console.log(`\n  ${pass} passed, ${failures.length} failed`);

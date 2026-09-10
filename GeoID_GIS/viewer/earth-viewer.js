@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260910-5468fdc";
+  from "./gis/geo-utils.js?v=20260910-035787d";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260910-5468fdc";
+  from "./gis/vector-render.js?v=20260910-035787d";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260910-5468fdc";
+  from "./gis/rock-class.js?v=20260910-035787d";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260910-5468fdc";
+  from "./gis/lithology-label.js?v=20260910-035787d";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -6183,6 +6183,12 @@ function fmtProp(value) {
       }
       activePopupFeature = feature;
       activePopupIsCoreLabel = Boolean(isCoreLabel);
+      // A dataset label names its layer, so its card goes when that layer does
+      // -- the label chips open this card without feature-popup ever seeing
+      // the click. Curated labels name none, and are not a layer to lose.
+      if (feature?.source_layer) {
+        window.GeoIDCardOwner?.own?.("viewer", feature.source_layer, () => closeScenePopup());
+      }
       scenePopup.hidden = false;
       scenePopupAnchor.hidden = true;
       syncMoonViewerPopup(feature, Boolean(isCoreLabel));
