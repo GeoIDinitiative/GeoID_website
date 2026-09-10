@@ -5839,6 +5839,11 @@ canvas {
   border-bottom: 1px solid rgba(var(--nav-accent-rgb), 0.4);
   box-shadow: none;
 }
+/* The shared .section-toggle spreads its children (space-between); the
+   Workspace head hides that behind the buttons at its right end, and this one
+   has none, so its title was pushed to the far edge. Start-aligned. */
+#model-studio .studio-visbox > .layer-dock-head { justify-content: flex-start !important; gap: 0.15rem !important; }
+#model-studio .studio-visbox > .layer-dock-head .section-title { flex: 1 1 auto; }
 #model-studio .studio-visbox > .layer-dock-head:hover {
   background: linear-gradient(180deg,
     rgba(var(--nav-accent-rgb), 0.3), rgba(var(--nav-accent-rgb), 0.08));
