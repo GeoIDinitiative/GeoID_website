@@ -5452,19 +5452,34 @@ canvas {
   letter-spacing: 0.14em;
   color: var(--nav-accent);
 }
-#model-studio .studio-ribbon {
+/* The top row: the mode bar, then the ribbon, in one flex line. Neither is
+   positioned any more, so nothing can land on the docks below them. */
+#model-studio .studio-topbar {
   position: absolute;
   top: 0.9rem;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0.9rem;
+  /* clear of the Atlas launcher's column, top-right */
+  right: 3.8rem;
   z-index: 4;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  pointer-events: none;
+}
+#model-studio .studio-topbar > * { pointer-events: auto; }
+#model-studio .studio-modebar {
+  position: static;
+  flex: 0 0 auto;
+}
+#model-studio .studio-ribbon {
+  position: static;
+  flex: 0 1 auto;
+  margin: 0 auto;
   display: flex;
   align-items: center;
   gap: 0.18rem;
   flex-wrap: wrap;
   justify-content: center;
-  width: max-content;
-  max-width: min(68rem, calc(100vw - 38rem));
   padding: 0.3rem 0.5rem;
 }
 #model-studio .studio-ribbon.is-folded > :not(.studio-ribbon-fold) { display: none; }
@@ -5539,9 +5554,9 @@ canvas {
 }
 .studio-ribbon-fold:hover { background: rgba(var(--nav-accent-rgb), 0.14); }
 
-/* The decks hang under the ribbon whatever height it wraps to. */
+/* The decks hang under the WHOLE top row, so they start at one height. */
 #model-studio .studio-dock {
-  top: calc(var(--studio-ribbon-h, 2.6rem) + 2rem);
+  top: calc(var(--studio-chrome-h, 5rem) + 1.4rem);
   overflow: visible;
 }
 #model-studio .studio-dock.is-folded { bottom: auto; }
@@ -5591,17 +5606,15 @@ canvas {
 
 /* Sections inside a pane are the sidebar's own foldable card. */
 #model-studio .studio-fold-section { margin: 0; }
+/* A section head is the GUI's own: side-panels.js sets its face, and an OPEN
+   one is filled with the accent in dark ink everywhere. Only the padding is
+   the studio's, because these sit in a 12.5rem deck. */
 #model-studio .studio-fold-section > summary {
   display: flex;
   align-items: center;
   gap: 0.45rem;
   padding: 0.42rem 0.6rem;
-  font-family: "Exo 2", system-ui, sans-serif;
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--nav-accent);
+  font-size: 0.66rem;
   border-bottom: 0;
 }
 #model-studio .studio-fold-section > summary::before {
@@ -5612,7 +5625,7 @@ canvas {
   line-height: 1;
   transition: transform 0.15s;
 }
-#model-studio .studio-fold-section[open] > summary { background: rgba(var(--nav-accent-rgb), 0.14); border-bottom: 1px solid rgba(var(--nav-accent-rgb), 0.12); }
+#model-studio .studio-fold-section[open] > summary { border-bottom: 1px solid rgba(0, 0, 0, 0.22); }
 #model-studio .studio-fold-section[open] > summary::before { transform: rotate(90deg); }
 #model-studio .studio-fold-section > .gis-tool-body { padding: 0.5rem 0.6rem 0.6rem; gap: 0.4rem; }
 #model-studio .studio-fold-section .studio-group-title { display: none; }
@@ -5626,5 +5639,52 @@ canvas {
 .studio-fold { width: 1.4rem; }
 /* Beside the mode bar rather than under it where the screen is narrow. */
 @media (max-width: 1180px) {
-  #model-studio .studio-ribbon { left: auto; right: 3.8rem; transform: none; max-width: calc(100vw - 21.5rem); justify-content: flex-end; }
+  /* The ribbon takes what the mode bar leaves and wraps inside it. */
+  #model-studio .studio-ribbon { margin-left: auto; margin-right: 0; justify-content: flex-end; }
 }
+
+/* ── The controls ARE the GIS page's controls ────────────────────────────
+   Measured off the live sidebar and copied: a primary action is the ember
+   gradient at the page's own alphas (the studio's was 2.5x that and read as
+   a solid red pill), every control wears the DATA cyan border and ink, and
+   the radii and padding are the page's. Chrome stays magenta; controls stay
+   cyan -- the skin's own division, which the studio was ignoring. */
+#model-studio .studio-primary,
+#model-studio .studio-secondary,
+#model-studio .studio-input,
+#model-studio .studio-select,
+#model-studio .studio-mini {
+  border: 1px solid rgba(var(--skin-data-rgb), 0.4);
+  color: var(--text);
+  font-family: "Exo 2", system-ui, sans-serif;
+}
+#model-studio .studio-primary {
+  padding: 0.48rem 0.55rem;
+  border-radius: 0.65rem;
+  background: linear-gradient(180deg, rgba(255, 103, 88, 0.16), rgba(102, 18, 28, 0.34));
+  box-shadow: none;
+}
+#model-studio .studio-primary:hover {
+  background: linear-gradient(180deg, rgba(255, 115, 95, 0.22), rgba(124, 22, 32, 0.42));
+  border-color: rgba(var(--skin-data-rgb), 0.6);
+}
+#model-studio .studio-secondary {
+  padding: 0.4rem 0.55rem;
+  border-radius: 0.45rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+#model-studio .studio-secondary:hover { background: rgba(var(--skin-data-rgb), 0.1); border-color: rgba(var(--skin-data-rgb), 0.6); }
+#model-studio .studio-input,
+#model-studio .studio-select {
+  padding: 0.26rem 0.4rem;
+  border-radius: 0.45rem;
+  background: var(--skin-card-ground, rgb(24, 13, 47));
+}
+#model-studio .studio-input:focus,
+#model-studio .studio-select:focus { border-color: rgba(var(--skin-data-rgb), 0.8); outline: none; }
+#model-studio .studio-row label,
+#model-studio .studio-label,
+#model-studio .studio-check { color: var(--skin-data); font-size: 0.7rem; }
+#model-studio .studio-readout { color: var(--skin-data); }
+#model-studio .studio-mini { background: rgba(255, 255, 255, 0.03); }
+#model-studio .studio-mini:hover { color: var(--skin-data); border-color: rgba(var(--skin-data-rgb), 0.7); background: rgba(var(--skin-data-rgb), 0.12); }

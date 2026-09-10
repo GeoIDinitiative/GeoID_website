@@ -96,6 +96,12 @@
     <!-- The mode switcher is moved in here while the studio is open, so GeoID
          and GIS stay one click away instead of being hidden with the sidebar.
          Top-left, where it sits on the GeoHUB page. -->
+    <!-- ONE TOP ROW. The mode bar and the ribbon were absolutely positioned
+         separately and overlapped the left dock's tabs at any width where the
+         mode pills wrapped -- measured, an 8 px clash at 981 px. In one flex
+         row they cannot collide, and the docks hang below whatever height it
+         takes. -->
+    <div class="studio-topbar">
     <div class="studio-modebar">
       <span class="studio-modebar-label">MESHING STUDIO</span>
       <span id="studio-mode-slot"></span>
@@ -174,6 +180,7 @@
       </select>
       <input id="studio-clip" class="studio-clip" type="range" min="0" max="100" value="50">
       <button class="studio-ribbon-fold" type="button" title="Fold the ribbon to a pill">&#8963;</button>
+    </div>
     </div>
 
     <div class="studio-dock studio-dock-left">

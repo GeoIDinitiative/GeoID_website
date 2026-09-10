@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-abd265a";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-abd265a";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-dee25a8";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-dee25a8";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260910-abd265a";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-abd265a";
-import { downloadText } from "./extraction.js?v=20260910-abd265a";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-abd265a";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-abd265a";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260910-abd265a";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260910-abd265a";
-import { femSpec } from "./model-build.js?v=20260910-abd265a";
+} from "./mesh-volume.js?v=20260910-dee25a8";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-dee25a8";
+import { downloadText } from "./extraction.js?v=20260910-dee25a8";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-dee25a8";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-dee25a8";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260910-dee25a8";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260910-dee25a8";
+import { femSpec } from "./model-build.js?v=20260910-dee25a8";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -3942,11 +3942,22 @@ function wireRibbonAndFolds() {
     setRibbon(folded);
     writeFold("ribbon", folded);
   });
-  // The decks hang under the ribbon whatever it wraps to.
-  const sizeRibbon = () => root.style.setProperty("--studio-ribbon-h", `${ribbon.getBoundingClientRect().height}px`);
-  sizeRibbon();
-  if (typeof ResizeObserver !== "undefined") new ResizeObserver(sizeRibbon).observe(ribbon);
-  window.addEventListener("resize", sizeRibbon);
+  /**
+   * The decks hang under the WHOLE top row -- the mode bar and the ribbon in
+   * one flex line -- so they start at one height and nothing above can land on
+   * their tabs. Measured before this: the mode bar ran to y = 104 and the left
+   * dock began at 96, so the GIS/MODEL/RESEARCH pills sat over the Add/Model/
+   * Label/History strip.
+   */
+  const topbar = root.querySelector(".studio-topbar") || ribbon;
+  const sizeChrome = () => root.style.setProperty("--studio-chrome-h", `${topbar.getBoundingClientRect().height}px`);
+  sizeChrome();
+  if (typeof ResizeObserver !== "undefined") {
+    const ro = new ResizeObserver(sizeChrome);
+    ro.observe(topbar);
+    ro.observe(ribbon);
+  }
+  window.addEventListener("resize", sizeChrome);
   document.querySelectorAll("#model-studio .studio-dock").forEach((dock) => {
     const side = dock.classList.contains("studio-dock-left") ? "left" : "right";
     const fold = dock.querySelector(`.studio-fold[data-fold="${side}"]`);
