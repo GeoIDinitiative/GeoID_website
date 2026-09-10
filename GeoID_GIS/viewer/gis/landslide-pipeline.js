@@ -26,14 +26,14 @@
  * which is the difference that decides where a storm matters.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260910-e9c797f";
-import { weatherPoints, weatherUrl, parseWeatherGrid, rainAt, fosColour } from "./geoid-pipeline.js?v=20260910-e9c797f";
-import { materialFor, failureDepth, wetnessSeries, factorOfSafety, stabilityBand } from "./fos.js?v=20260910-e9c797f";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260910-e9c797f";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260910-e9c797f";
-import { loadRockProperties, parameterValue } from "./rock-properties.js?v=20260910-e9c797f";
-import { isGroundLayer } from "./ground-profile.js?v=20260910-e9c797f";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260910-e9c797f";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260910-b43de15";
+import { weatherPoints, weatherUrl, parseWeatherGrid, rainAt, fosColour } from "./geoid-pipeline.js?v=20260910-b43de15";
+import { materialFor, failureDepth, wetnessSeries, factorOfSafety, stabilityBand } from "./fos.js?v=20260910-b43de15";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260910-b43de15";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260910-b43de15";
+import { loadRockProperties, parameterValue } from "./rock-properties.js?v=20260910-b43de15";
+import { isGroundLayer } from "./ground-profile.js?v=20260910-b43de15";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260910-b43de15";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";
@@ -526,6 +526,8 @@ export function probeAt(lat, lon) {
     ["Bucket", `${bucket.capacityMm} mm capacity, ${(bucket.drainPerDay * 100).toFixed(0)}% a day drainage (n ${bucket.n ?? "—"}, K ${Number.isFinite(bucket.K) ? bucket.K.toExponential(1) : "—"} m/s)`],
   ];
   window.GeoIDViewer?.showFeatureCard?.({
+    // Named, so the card is claimed by this layer and goes when it does.
+    source_layer: LAYER_NAME,
     soil: true, type: "Forecast landslide risk", rock_type: rows[0][1], lithology: null, name: null,
     description: `${state.rain?.source || ""} · ${state.rain?.window || ""}`, extra_rows: rows, origin: "GeoHUB forecast landslide pipeline",
     rows: [["Note", "Infinite-slope screening: a plane failure parallel to the ground, the column wetted by a bucket sized from the material's own porosity and drained at its conductivity down the slope. Not a site investigation."]],

@@ -1,4 +1,4 @@
-import { ready } from "./shell.js?v=20260910-e9c797f";
+import { ready } from "./shell.js?v=20260910-b43de15";
 
 /**
  * The GIS layer's entry point on a planet page.
@@ -26,6 +26,8 @@ const MODULES = [
   // Core View cuts the planet in half on all ten worlds, and every layer on
   // the globe has to be cut with it -- including the ones loaded afterwards.
   "./cutaway.js",
+  // A card goes when the layer it describes does: hidden, removed, unticked.
+  "./card-owner.js",
   "./geoid-pipeline.js",
   "./geoid-mode.js",
   "./import-manager.js",
@@ -87,7 +89,7 @@ const MODULES = [
   "./atlas-assistant.js",
 ];
 
-const VERSION = "?v=20260910-e9c797f";
+const VERSION = "?v=20260910-b43de15";
 
 async function boot() {
   const shell = await ready;

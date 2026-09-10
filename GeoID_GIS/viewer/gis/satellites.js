@@ -999,6 +999,8 @@ function onClick(event) {
   if (!record) return;
   const item = window.GeoIDPointLabels?.featureToItem?.(record.feature, active.legendInfo);
   if (!item || !viewer.openSceneFeature?.(item)) return;
+  // The card goes when the tracker's layer does -- see card-owner.js.
+  window.GeoIDCardOwner?.own?.("viewer", LAYER_NAME, () => window.GeoIDViewer?.closeCards?.());
   select(record);
   window.GeoIDFeaturePopup?.suppress?.(500);
   event.stopPropagation();
@@ -1484,7 +1486,7 @@ function init() {
       say("Turn the tracker on first — symbology colours the live layer.");
       return;
     }
-    const dialog = await import("./symbology-dialog.js?v=20260910-e9c797f");
+    const dialog = await import("./symbology-dialog.js?v=20260910-b43de15");
     dialog.openSymbologyDialog(layer);
   });
   // The layer box can remove the layer without asking: the tracker must not

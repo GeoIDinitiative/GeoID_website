@@ -16,7 +16,7 @@ import {
   gdacsPoints, resolveColour,
   MARKER_LIFT_MAX, liftForAltitude, dotSizePx, isQuake, publisherOf, restoreActive,
   stormCategory, stormScale, stormLabel, STORM_BASE_CAP,
-} from "./event-sources.js?v=20260910-e9c797f";
+} from "./event-sources.js?v=20260910-b43de15";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -1640,6 +1640,17 @@ function renderMarkers() {
     markers.traverse?.((n) => { n.geometry?.dispose?.(); n.material?.dispose?.(); });
     markers = null;
   }
+  /**
+   * AND A CARD FOR AN EVENT THAT IS NO LONGER DRAWN GOES WITH ITS MARKER.
+   *
+   * The layer can stay on while one event leaves it -- its feed unticked, or a
+   * refresh that no longer lists it -- and the card would then describe a dot
+   * that is not there, ring and all.
+   */
+  const card = byId("event-popup");
+  if (card && !card.hidden && (!active || !events.some((e) => e.id === card.dataset.eventId))) {
+    hidePopup();
+  }
   if (!active || !events.length) {
     // Nothing drawn is not a layer, so the row goes with the markers.
     publishLayer();
@@ -2373,6 +2384,7 @@ function markRow(id) {
 }
 
 function hidePopup() {
+  window.GeoIDCardOwner?.release?.("event");
   const node = byId("event-popup");
   if (node) { node.dataset.tracking = ""; node.style.visibility = ""; }
   node?.setAttribute("hidden", "");
@@ -2592,8 +2604,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260910-e9c797f"),
-    import("./research/dsp.js?v=20260910-e9c797f"),
+    import("./seismogram-plot.js?v=20260910-b43de15"),
+    import("./research/dsp.js?v=20260910-b43de15"),
   ]);
   if (stale()) return;
 
@@ -2704,6 +2716,9 @@ function showPopup(event, x, y) {
   node.style.visibility = "";
   setSelection(event);
   node.dataset.tracking = halo ? "1" : "";
+  // The card goes when the feed's layer does: hidden with its eye in
+  // Workspace, removed, or the mode switched off -- see card-owner.js.
+  window.GeoIDCardOwner?.own?.("event", LAYER_NAME, hidePopup);
   // Beside the dot at once where it is on screen; at the pointer for the one
   // frame before the loop takes over if it is not (a dot click is always on
   // screen, so that is a row whose event is round the back -- the fly brings

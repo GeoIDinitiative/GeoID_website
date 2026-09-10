@@ -18,11 +18,11 @@
  * of people per km² and the key reads in people, not in logarithms.
  */
 
-import { buildRasterLayer, loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260910-e9c797f";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260910-e9c797f";
-import { dataUrl } from "./data-base.js?v=20260910-e9c797f";
-import { rampColour } from "./symbology.js?v=20260910-e9c797f";
-import { mathsFor } from "./equations.js?v=20260910-e9c797f";
+import { buildRasterLayer, loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260910-b43de15";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260910-b43de15";
+import { dataUrl } from "./data-base.js?v=20260910-b43de15";
+import { rampColour } from "./symbology.js?v=20260910-b43de15";
+import { mathsFor } from "./equations.js?v=20260910-b43de15";
 
 export const LAYER_NAME = "Population density (WorldPop 2020, 1 km)";
 const META_PATH = "/data/global/worldpop/meta.json";
@@ -235,6 +235,8 @@ let probeTicket = 0;
 
 function showCard(card, lat, lon) {
   window.GeoIDViewer?.showFeatureCard?.({
+    // Named, so the card is claimed by this layer and goes when it does.
+    source_layer: LAYER_NAME,
     soil: true, type: card.kicker, rock_type: card.title, lithology: null, name: null,
     description: card.meta, extra_rows: card.headline, origin: card.source,
     rows: [["Note", card.note]],

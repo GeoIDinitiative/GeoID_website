@@ -20,23 +20,23 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260910-e9c797f";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260910-e9c797f";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260910-b43de15";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260910-b43de15";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20260910-e9c797f";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260910-e9c797f";
-import { lithologyLabel } from "./lithology-label.js?v=20260910-e9c797f";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260910-e9c797f";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260910-e9c797f";
-import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260910-e9c797f";
-import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20260910-e9c797f";
-import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js?v=20260910-e9c797f";
-import { isEarthquakeFeature, earthquakeCard } from "./earthquake-card.js?v=20260910-e9c797f";
-import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260910-e9c797f";
+} from "./vector-render.js?v=20260910-b43de15";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260910-b43de15";
+import { lithologyLabel } from "./lithology-label.js?v=20260910-b43de15";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260910-b43de15";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260910-b43de15";
+import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260910-b43de15";
+import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20260910-b43de15";
+import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js?v=20260910-b43de15";
+import { isEarthquakeFeature, earthquakeCard } from "./earthquake-card.js?v=20260910-b43de15";
+import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260910-b43de15";
 import {
   canEditRow, editableFields, applyRowChange,
-} from "./table-editor.js?v=20260910-e9c797f";
+} from "./table-editor.js?v=20260910-b43de15";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -310,6 +310,7 @@ function ensurePopup() {
 }
 
 export function hidePopup({ keepOutline = false } = {}) {
+  window.GeoIDCardOwner?.release?.("feature");
   if (popup) popup.hidden = true;
   if (!keepOutline) clearPin();
 }
@@ -1210,6 +1211,9 @@ function showStack(x, y, hits, at) {
   const item = window.GeoIDPointLabels?.sceneItemFor?.(top.layer, top.feature);
   if (item && window.GeoIDViewer?.openSceneFeature?.(item)) {
     hidePopup({ keepOutline: false });
+    // The scene card has no `source_layer` to claim by, so it is claimed here,
+    // where the layer it describes is known.
+    window.GeoIDCardOwner?.own?.("viewer", top.layer, () => window.GeoIDViewer?.closeCards?.());
     return;
   }
   // A drawn shape opens the editor instead: it is where you rename it and give
@@ -1773,6 +1777,9 @@ function showPopup(x, y, layerName, feature, layerRecord = null) {
   }
 
   outer.hidden = false;
+  // This card is about one layer, and goes when that layer does -- see
+  // `card-owner.js`. By the record where there is one, by name where not.
+  window.GeoIDCardOwner?.own?.("feature", layerRecord || layerName, () => hidePopup());
   /**
    * Kept inside the MAP, not the window.
    *

@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260910-e9c797f";
+  from "./gis/geo-utils.js?v=20260910-b43de15";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260910-e9c797f";
+  from "./gis/vector-render.js?v=20260910-b43de15";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260910-e9c797f";
+  from "./gis/rock-class.js?v=20260910-b43de15";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260910-e9c797f";
+  from "./gis/lithology-label.js?v=20260910-b43de15";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -5976,6 +5976,9 @@ function fmtProp(value) {
     }
 
     function closeScenePopup() {
+      // Only a scene card releases the slot -- this also runs as the geology
+      // card opens, and must not drop the claim that card is about to make.
+      if (activePopupFeature) window.GeoIDCardOwner?.release?.("viewer");
       scenePopup.hidden = true;
       scenePopupAnchor.hidden = true;
       activePopupFeature = null;
@@ -6193,6 +6196,21 @@ function fmtProp(value) {
       // Dismiss main bottom-right popup so only one popup shows at a time
       closeScenePopup();
       activeGeoPopupFeature = feature;
+      /**
+       * THE CARD CLAIMS THE LAYER IT DESCRIBES, so it goes when the layer does.
+       *
+       * Every path into this card meets here -- the viewer's own geology
+       * click, feature-popup's vector hits and the raster probes -- and each
+       * names its layer as `source_layer`. Claimed here rather than by each
+       * caller, so a new opener cannot forget. `gis/card-owner.js` closes the
+       * card through `closeGeoPopup` (outline and all) the moment that layer
+       * is hidden, removed or unticked.
+       */
+      if (feature?.source_layer) {
+        window.GeoIDCardOwner?.own?.("viewer", feature.source_layer, () => closeGeoPopup());
+      } else {
+        window.GeoIDCardOwner?.release?.("viewer");
+      }
       if (worldPos) {
         const localPoint = earthSceneGroup.worldToLocal(worldPos.clone());
         const spinDelta = (clickSpinDelta !== undefined) ? clickSpinDelta : (earthGlobeRef ? earthGlobeRef.rotation.y - Math.PI : 0);
@@ -6762,6 +6780,7 @@ function fmtProp(value) {
     }
 
     function closeGeoPopup() {
+      if (activeGeoPopupFeature) window.GeoIDCardOwner?.release?.("viewer");
       activeGeoPopupFeature = null;
       activeGeoPopupLocalPos = null;
       activeGeoPopupLatLon = null;
