@@ -215,6 +215,8 @@ check("the TIN builds", tin.ok, tin.message);
     check("the mode bar and the ribbon are ONE top row, and the decks hang under it", /<div class="studio-topbar">/.test(earth) && /--studio-chrome-h/.test(studio) && /const topbar = root\.querySelector\("\.studio-topbar"\)/.test(studio) && /top: calc\(var\(--studio-chrome-h, 5rem\) \+ 1\.4rem\);/.test(css));
     check("the studio's controls are the GIS page's: the ember at its own alphas, the data cyan on every border", /rgba\(255, 103, 88, 0\.16\), rgba\(102, 18, 28, 0\.34\)/.test(css) && !/rgba\(255, 135, 87, 0\.4\), rgba\(164, 26, 38, 0\.58\)/.test(css.slice(css.indexOf("Meshing Studio, in the GIS page's own chrome"))) && /#model-studio \.studio-primary,\n#model-studio \.studio-secondary,\n#model-studio \.studio-input,\n#model-studio \.studio-select,\n#model-studio \.studio-mini \{\n  border: 1px solid rgba\(var\(--skin-data-rgb\), 0\.4\);/.test(css));
     check("a section head keeps the GUI's own open-is-filled rule", !/studio-fold-section\[open\] > summary \{ background:/.test(css));
+    const skin = readFileSync(new URL("../../../styles/viewer-skin.css", import.meta.url), "utf8");
+    check("the studio's controls are on the app's own control-skin list", /\.studio-primary, \.studio-secondary, \.studio-input, \.studio-select, \.studio-mini \{\n  border-color: rgba\(var\(--skin-data-rgb\), 0\.40\) !important;/.test(skin) && /\.studio-primary:hover, \.studio-secondary:hover, \.studio-mini:hover \{/.test(skin));
     const atlas = readFileSync(new URL("./atlas-assistant.js", import.meta.url), "utf8");
     check("Atlas takes the build-a-volcano phrase the studio's box used to", /studio\.buildFromText\(question\)/.test(atlas));
   }

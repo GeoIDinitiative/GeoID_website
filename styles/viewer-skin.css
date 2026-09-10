@@ -145,13 +145,19 @@ body { background: var(--bg); }
 .feature-kicker, .section-icon { filter: drop-shadow(0 0 6px rgba(var(--skin-chrome-rgb), 0.7)); }
 
 /* ── Controls ───────────────────────────────────────────────────────── */
+/* The Meshing Studio's controls are on this list too. They were not, so the
+   studio wore its own ink and its own borders beside a GIS page whose every
+   control is skinned from here -- one control skin for the whole app, and any
+   theme restyles the studio with it. */
 .tool-button, .tool-rail-btn, .tool-rail-action-btn, .button,
-.mini-select, .input, .hub-link, .info-btn {
+.mini-select, .input, .hub-link, .info-btn,
+.studio-primary, .studio-secondary, .studio-input, .studio-select, .studio-mini {
   border-color: rgba(var(--skin-data-rgb), 0.40) !important;
   color: color-mix(in srgb, var(--skin-data) 72%, white) !important;
 }
 .tool-button:hover, .tool-rail-btn:hover, .tool-rail-action-btn:hover,
-.button:hover, .hub-link:hover, .info-btn:hover {
+.button:hover, .hub-link:hover, .info-btn:hover,
+.studio-primary:hover, .studio-secondary:hover, .studio-mini:hover {
   border-color: var(--skin-data) !important;
   color: #ffffff !important;
   box-shadow: 0 0 18px -2px rgba(var(--skin-data-rgb), 0.65) !important;
