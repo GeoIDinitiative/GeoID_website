@@ -29,11 +29,11 @@
 
 import {
   HOMES, MIRRORS, grouped, addDataset, layerForDataset, loadLaunchDefaults,
-} from "./global-data.js?v=20260911-dc6971a";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260911-dc6971a";
-import { mathsFor } from "./equations.js?v=20260911-dc6971a";
+} from "./global-data.js?v=20260911-cb5be29";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260911-cb5be29";
+import { mathsFor } from "./equations.js?v=20260911-cb5be29";
 import { bandOf, bandRows, bandSymbology, describeFilter, magOf }
-  from "./seismic-magnitude.js?v=20260911-dc6971a";
+  from "./seismic-magnitude.js?v=20260911-cb5be29";
 
 const byId = (id) => document.getElementById(id);
 
@@ -295,6 +295,10 @@ function draw(home, hostId) {
     ...geeEntries,
   ];
   if (!entries.length) return;
+  // A host shipped in markup every world shares is HIDDEN until it has rows,
+  // so a world with nothing to offer there shows no heading over nothing.
+  const shell = host.closest("[data-catalogue-shell]");
+  if (shell) shell.hidden = false;
   const tiledById = (id) => tiled.find((entry) => entry.id === id);
   renderCatalogue(host, entries, {
     // No dropdown: each list is a handful of rows inside a subsection that is

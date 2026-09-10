@@ -26,21 +26,22 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260911-dc6971a";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260911-dc6971a";
-import { mathsFor } from "./equations.js?v=20260911-dc6971a";
+import { runConnector } from "./research/connectors.js?v=20260911-cb5be29";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260911-cb5be29";
+import { mathsFor } from "./equations.js?v=20260911-cb5be29";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260911-dc6971a";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260911-dc6971a";
-import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260911-dc6971a";
+} from "./cyclone-risk.js?v=20260911-cb5be29";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260911-cb5be29";
+import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260911-cb5be29";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260911-dc6971a";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260911-cb5be29";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
-  "Ice sheets", "UK geology (BGS)", "Hazards", "Live services"];
+  "Ice sheets", "UK geology (BGS)", "Hazards", "Active fires", "Perimeters",
+  "Warnings", "Climate", "Live services"];
 
 /**
  * Which PANEL a dataset belongs on, where it is not the Vectors tab.
@@ -93,6 +94,16 @@ export const HOMES = {
   // Hazards ▸ Exposure: who is there. A COG row from the TILED registry; no
   // file in the catalogue.
   exposure: "exposure-catalogue",
+  // Hazards ▸ Wildfires: the satellite detections and the surveyed perimeters.
+  // They sat under Map ▸ Overlays as "Live services" because they had no home,
+  // which filed a hazard by the fact that it is fetched rather than by what it
+  // is — the burned-area share was already in this subtab.
+  wildfires: "wildfires-catalogue",
+  // Earth System ▸ Atmosphere: weather and climate services. The host ships
+  // HIDDEN in the shared markup and is shown by catalogue-panels when it draws
+  // rows — the GEE Service form's arrangement — so the nine planets, which have
+  // no weather service, never see an empty heading.
+  weather: "weather-catalogue",
 };
 
 export const DATASETS = [
@@ -703,7 +714,8 @@ export const DATASETS = [
   {
     id: "conn-fire-perimeters",
     featureNoun: "Wildfire perimeter",
-    group: "Live services",
+    home: "wildfires",
+    group: "Perimeters",
     label: "Wildfire perimeters — live (NIFC, US)",
     connector: "fire-perimeters",
     name: "Wildfire perimeters (NIFC).geojson",
@@ -718,7 +730,8 @@ export const DATASETS = [
   {
     id: "conn-fires-modis",
     featureNoun: "Active fire detection",
-    group: "Live services",
+    home: "wildfires",
+    group: "Active fires",
     label: "Active fires — MODIS (today)",
     connector: "fires-modis",
     name: "Active fires MODIS (NASA FIRMS).geojson",
@@ -744,7 +757,8 @@ export const DATASETS = [
   {
     id: "conn-fires-viirs-snpp",
     featureNoun: "Active fire detection",
-    group: "Live services",
+    home: "wildfires",
+    group: "Active fires",
     label: "Active fires — VIIRS Suomi NPP (today)",
     connector: "fires-viirs-snpp",
     name: "Active fires VIIRS SNPP (NASA FIRMS).geojson",
@@ -759,7 +773,8 @@ export const DATASETS = [
   {
     id: "conn-fires-viirs-noaa20",
     featureNoun: "Active fire detection",
-    group: "Live services",
+    home: "wildfires",
+    group: "Active fires",
     label: "Active fires — VIIRS NOAA-20 (today)",
     connector: "fires-viirs-noaa20",
     name: "Active fires VIIRS NOAA-20 (NASA FIRMS).geojson",
@@ -837,7 +852,8 @@ export const DATASETS = [
   {
     id: "conn-haduk-rainfall",
     featureNoun: "Rainfall normal",
-    group: "Live services",
+    home: "weather",
+    group: "Climate",
     label: "Rainfall normals — live (HadUK 12km, UK)",
     connector: "met-rainfall-normals",
     name: "HadUK rainfall normals.geojson",
@@ -848,7 +864,8 @@ export const DATASETS = [
   {
     id: "conn-nws-alerts",
     featureNoun: "Weather alert",
-    group: "Live services",
+    home: "weather",
+    group: "Warnings",
     label: "Weather alerts — live (NWS, US)",
     connector: "nws-alerts",
     name: "NWS active alerts.geojson",

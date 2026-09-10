@@ -30,7 +30,11 @@ const check = (name, ok, detail = "") => {
   if (!ok) failures += 1;
 };
 
-const html = readFileSync(join(HERE, "../index.html"), "utf8");
+// The page is the Earth index AND the markup every world shares: a host in the
+// shared string (shipped hidden, shown when it has rows) is as real as one in
+// the index, and reading only the index calls it missing.
+const html = readFileSync(join(HERE, "../index.html"), "utf8")
+  + readFileSync(join(HERE, "panels.js"), "utf8").replace(/\\"/g, '"');
 const panelSource = readFileSync(
   fileURLToPath(new URL("./catalogue-panels.js", import.meta.url)), "utf8");
 const panels = readFileSync(join(HERE, "catalogue-panels.js"), "utf8");
