@@ -35,9 +35,9 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260910-4db3e43";
-import { renderFeatureCollection } from "./vector-render.js?v=20260910-4db3e43";
-import * as GP from "./geoprocessing.js?v=20260910-4db3e43";
+import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260910-5f678a1";
+import { renderFeatureCollection } from "./vector-render.js?v=20260910-5f678a1";
+import * as GP from "./geoprocessing.js?v=20260910-5f678a1";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
