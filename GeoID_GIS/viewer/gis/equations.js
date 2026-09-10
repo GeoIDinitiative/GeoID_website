@@ -274,9 +274,9 @@ const EQUATIONS = {
   "seismic-risk": {
     kind: COMPUTED,
     intro: "How often an earthquake of EACH magnitude unit shakes a point at "
-      + "about MMI VI, per year, counted from USGS ComCat's record of every "
-      + "M ≥ 5 since 1900 — the volcanic map's method with magnitude in place "
-      + "of VEI: one map per magnitude, one return-period scale, each event's "
+      + "about MMI VI, per year, counted from a record merged out of three "
+      + "catalogues — the volcanic map's method with magnitude in place of "
+      + "VEI: one map per magnitude, one return-period scale, each event's "
       + "reach the event's own size.",
     lines: [
       { expr: "λ_m(p) = Σ over events e with magnitude in [m, m+1) of P_e(d(p, e)) / Y(m)",
@@ -296,9 +296,28 @@ const EQUATIONS = {
       ["Y(M)", "the years each size is recorded globally, measured on the "
         + "catalogue: M5 since 1964 (the WWSSN), M6 since 1930, M7 and M8 since "
         + "1900."],
-      ["events", "107,239 earthquakes of M ≥ 5 in ComCat since 1900, fetched a "
-        + "year at a time through the FDSN service. Depth is carried on the "
-        + "point and not used in the reach."],
+      ["events", "THREE CATALOGUES, because no single one is both complete and "
+        + "current. USGS ComCat gives density and currency (every M ≥ 4.5 since "
+        + "1900, public domain) and its magnitudes are mixed — about 82% of "
+        + "modern events at that threshold are body-wave mb, which saturates "
+        + "near 6 and reads low. ISC-GEM v12 gives the homogenised backbone "
+        + "(1904–2021, every event Mw, recomputed from the original station "
+        + "bulletins), joined on ComCat's own contributing ids so there is no "
+        + "fuzzy space-time matching and no double count. GEM's historical "
+        + "catalogue (1008–1903, about M ≥ 7) gives the deep record; its last "
+        + "event is 1903-12-28 and ISC-GEM's first 1904-01-20, so the seam "
+        + "needs no dedup. The rates are computed on ISC-GEM's Mw wherever it "
+        + "reaches. Depth is carried on the point and not used in the reach."],
+      ["the historical record is NOT in the rates", "GEM's 825 events play in "
+        + "the timeline and are held out of the arithmetic above. A rate needs "
+        + "a COMPLETE window, and a catalogue of the large events somebody "
+        + "knows about across nine centuries is not one: counted, it would "
+        + "divide a handful of events by 900 years and understate every rate "
+        + "it touched."],
+      ["licence", "ComCat is US Government public domain. ISC-GEM and GEM GHEC "
+        + "are CC BY-SA 3.0, which is share-alike — so these grids, being "
+        + "derived from them, are offered under CC BY-SA 3.0 with the "
+        + "citations below."],
       ["what this is not", "a probabilistic seismic hazard assessment. GEM's "
         + "global model and any PSHA use site-specific ground-motion models, "
         + "fault sources with slip rates, and site conditions; this is the "
@@ -309,9 +328,13 @@ const EQUATIONS = {
       + "quarter-degree quadtree as the volcanic maps, a cell nothing reaches "
       + "listed in the key and drawn nowhere.",
     citation: "U.S. Geological Survey (2017), ANSS Comprehensive Earthquake "
-      + "Catalog (ComCat), https://doi.org/10.5066/F7MS3QZH. Attenuation: a "
-      + "global-average MMI VI radius after Atkinson & Wald (2007), Bull. "
-      + "Seismol. Soc. Am., 97, 497–510.",
+      + "Catalog (ComCat), https://doi.org/10.5066/F7MS3QZH · International "
+      + "Seismological Centre (2025), ISC-GEM Earthquake Catalogue, "
+      + "https://doi.org/10.31905/d808b825 (Storchak et al. 2013, 2015; Di "
+      + "Giacomo et al. 2018) · GEM Foundation (2013), GEM Global Historical "
+      + "Earthquake Catalogue v1.0, https://doi.org/10.13127/ghea/ghec.1.0. "
+      + "Attenuation: a global-average MMI VI radius after Atkinson & Wald "
+      + "(2007), Bull. Seismol. Soc. Am., 97, 497–510.",
   },
 
   "worldpop": {

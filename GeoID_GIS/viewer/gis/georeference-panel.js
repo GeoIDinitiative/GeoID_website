@@ -11,8 +11,8 @@
 
 import {
   solveAffine, transformFromBounds, boundsFromTransform, drapeWarning, imageToBands,
-} from "./georeference.js?v=20260910-4ab9855";
-import { parsePoints } from "./point-extract.js?v=20260910-4ab9855";
+} from "./georeference.js?v=20260910-9a9362a";
+import { parsePoints } from "./point-extract.js?v=20260910-9a9362a";
 
 function byId(id) { return document.getElementById(id); }
 const state = { file: null };
