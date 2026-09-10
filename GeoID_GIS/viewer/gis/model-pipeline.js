@@ -2,17 +2,17 @@ import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
   nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS, atmosphereStl, DEFAULT_MAX_NODES, triangleWriter,
-} from "./model-build.js?v=20260910-42da88f";
-import { ringsFromCollection } from "./extraction.js?v=20260910-42da88f";
+} from "./model-build.js?v=20260910-df7d776";
+import { ringsFromCollection } from "./extraction.js?v=20260910-df7d776";
 import {
   buildTin, tinHeightAt, tinSurfaceStl, tinShellStl, samplingSizeField,
   extendBoundary, extendedBoundaryLines, gridAsTin, shellFacets,
-} from "./surface-sampling.js?v=20260910-42da88f";
-import { renderFeatureCollection } from "./vector-render.js?v=20260910-42da88f";
+} from "./surface-sampling.js?v=20260910-df7d776";
+import { renderFeatureCollection } from "./vector-render.js?v=20260910-df7d776";
 import {
   profileAlong, profileHeightAt, sectionPolygons, sectionPositions, sectionGmshScript, profileCsv,
-} from "./section-model.js?v=20260910-42da88f";
-import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260910-42da88f";
+} from "./section-model.js?v=20260910-df7d776";
+import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260910-df7d776";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.

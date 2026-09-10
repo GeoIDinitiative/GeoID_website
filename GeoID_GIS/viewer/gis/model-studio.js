@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-42da88f";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-42da88f";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-df7d776";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-df7d776";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260910-42da88f";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-42da88f";
-import { downloadText } from "./extraction.js?v=20260910-42da88f";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-42da88f";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-42da88f";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260910-42da88f";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260910-42da88f";
-import { femSpec } from "./model-build.js?v=20260910-42da88f";
+} from "./mesh-volume.js?v=20260910-df7d776";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-df7d776";
+import { downloadText } from "./extraction.js?v=20260910-df7d776";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-df7d776";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-df7d776";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260910-df7d776";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260910-df7d776";
+import { femSpec } from "./model-build.js?v=20260910-df7d776";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -1417,7 +1417,9 @@ function applyStudioAtmosphere() {
     test: (q) => q[0] >= x0 && q[0] <= x1 && q[1] >= y0 && q[1] <= y1 && q[2] >= z0 && q[2] <= z1 && !modelInside(q),
     bounds: { minX: x0, maxX: x1, minY: y0, maxY: y1, minZ: z0, maxZ: z1 },
     region: null, object3D: null,
-    flags: { volume: a.flags?.volume ?? 11, faces: { sky: a.flags?.sky ?? 4, sides: a.flags?.sides ?? 6 } },
+    // A volume flag of its own, never one a primitive already took: measured, the
+    // air defaulted to 11 beside a chamber that had just been given 11.
+    flags: { volume: Number(a.flags?.volume) > 0 ? Number(a.flags.volume) : state.nextVolumeFlag, faces: { sky: a.flags?.sky ?? 4, sides: a.flags?.sides ?? 6 } },
     parts: [],
   };
   const faces = boxFacePositions(x0, y0, z0, x1, y1, z1);
@@ -1434,6 +1436,7 @@ function applyStudioAtmosphere() {
   const anchor = ensureModelAnchor();
   if (anchor) anchor.add(group);
   entry.object3D = group;
+  if (!(Number(a.flags?.volume) > 0)) { a.flags = { ...(a.flags || {}), volume: entry.flags.volume }; state.nextVolumeFlag += 1; }
   state.solids.push(entry);
   a.entryId = entry.id;
   record(`atmosphere ${a.heightM} m`);
