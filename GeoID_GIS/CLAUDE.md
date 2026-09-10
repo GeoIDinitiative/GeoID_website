@@ -17380,3 +17380,94 @@ side of the planet — measured while verifying this, a Bismarck Sea event
 projecting into frame with the camera over Morocco. Cross-check each
 candidate pixel's own `surfaceLatLonAt` against the feature's coordinates
 before believing it.
+
+## Core View cuts the planet, so it cuts every layer on it
+
+"Ensure that all new layers cutaway relative to the activation of the core
+view when required." Core View removes half the planet with one world-space
+clipping plane so the interior shells can be read off the cut face — and that
+plane was applied to a **HAND-WRITTEN LIST of the viewer's own materials**:
+base texture, geology sheet, contacts, structures, minerals, sea, region mask,
+selected outline.
+
+Every layer the GIS page draws was outside that list. Measured live with the
+cutaway up: the base material carried **1** plane and the plate boundaries,
+the live event markers and the earthquake record carried **0 across 14
+materials** — so a coastline, a marker cloud and a dot layer went on being
+drawn across the removed half, hanging in the air over a planet cut open
+beneath them.
+
+**A LIST CANNOT BE THE ANSWER, because a layer's materials are not knowable
+in advance.** They are built by the importer, the tilers, the drapes, the
+repaints and the animators, and a new one appears whenever somebody ticks a
+box. This is the `applyStack` fault in a second column — *stamped only the
+nodes that existed when it ran* — and the same shape as every "a name lives
+in as many places as there are surfaces that show it" note in this file.
+
+So the plane is **published and stamped**: `getCutawayPlanes()` on the viewer
+seam, `geoid-gis:cutaway-changed` when the toggle moves, and `gis/cutaway.js`
+running a pass over whatever is on the globe now. Re-run on BOTH halves of the
+question — the cutaway toggling, and the layer list changing — which is what
+makes a dataset ticked on *after* the cutaway came up arrive already cut.
+
+**The three places a material can appear between passes are wired directly,
+because none of them announces a layer change:**
+
+| | why the pass misses it |
+| --- | --- |
+| `vector-tiles.js`, on each new tile | a tile is a new child of a layer that has not CHANGED |
+| `vector-render.js`, in `repaintVector` | a repaint replaces every child with fresh materials |
+| a raster drape | nothing — it re-lays its vertices and keeps its material |
+
+The first two sit beside the renderOrder and the opacity those files already
+copy for exactly the same reason, which is the tell that this is one fault
+class rather than three bugs.
+
+**Read the planes, never remember them.** `applyPlanetViewMode` re-aims the
+normal whenever the axial tilt changes, so a copy taken at install time cuts
+along a tilt the planet has since left. three.js reads `clippingPlanes` in
+**world space**, so the viewer's one plane object is correct for a layer in
+any group — no frame conversion, which on this globe is worth stating.
+
+**The count is what decides a recompile.** three.js compiles the clip count
+into the shader, so none→one costs a rebuild and one→the-same-one costs
+nothing. Without that test every hierarchy change would set `needsUpdate` on
+every material of every layer — on a 312,500-point cloud, a stutter for no
+change. Clearing writes `null` rather than `[]`, so a layer that has met the
+cutaway and left it is byte-identical to one that never did.
+
+**`keepUnclipped` excludes the whole SUBTREE**, which is why the walk is by
+hand: `traverse` has no early exit. It is for geometry deliberately not on the
+surface — the satellites orbit at up to three Earth radii, and cutting them at
+the plane would take half of every orbit off a shell that was never part of
+the ground being cut.
+
+**GUARD ON THE LISTENER, NOT ON `window` — this tree has now paid for it
+twice.** The install was gated on `typeof window !== "undefined"`, which is
+TRUE in the three suites that stub `window = globalThis` — an object with no
+`addEventListener` — so the call threw at IMPORT and took
+`drape-registration`, `feature-popup` and `tool-runner` to **0 passed** on one
+line. `volcanic-hazards.js` left this exact note and it was walked into
+anyway; it is pinned now, on the source, in both directions.
+
+**Ported to all ten worlds by generator, not by hand.** All nine planet
+viewers already carried `coreToggle` and `cutawayClipPlane` under those exact
+names with one toggle site each, so `port-viewer-seam.py` writes both halves —
+gas giants included, since all ten have a core toggle and all ten take layers.
+Its new block is anchored on the CARD block's last line rather than on
+`bodyId`: anchored on the same line as the card block the two would swap order
+on every run and `--check` would never settle.
+
+Measured live on a committed stamp, A/B on one camera with the cutaway up:
+
+| | |
+| --- | --- |
+| materials clipped, before / after the toggle | **0 / 13** → **13 / 13** |
+| a catalogue row ticked WHILE cut | arrives **1/1 clipped** |
+| after a repaint (every material rebuilt) | **14 / 14** |
+| toggling back off | **0 / 14**, planes 0 |
+| **fault re-injected — pixels drawn across the cut** | **21,307** |
+| **restored** | **0** |
+
+That last pair is the whole verification: a clean number means nothing here
+without the control that reproduces the fault.
