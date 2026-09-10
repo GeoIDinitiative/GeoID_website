@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-8044890";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-8044890";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-53c50ac";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-53c50ac";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260910-8044890";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-8044890";
-import { downloadText } from "./extraction.js?v=20260910-8044890";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-8044890";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-8044890";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260910-8044890";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260910-8044890";
-import { femSpec } from "./model-build.js?v=20260910-8044890";
+} from "./mesh-volume.js?v=20260910-53c50ac";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-53c50ac";
+import { downloadText } from "./extraction.js?v=20260910-53c50ac";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-53c50ac";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-53c50ac";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260910-53c50ac";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260910-53c50ac";
+import { femSpec } from "./model-build.js?v=20260910-53c50ac";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -1589,7 +1589,7 @@ function ensureStudioCards() {
   let air = byId("studio-air-card");
   if (!air) {
     air = document.createElement("details");
-    air.id = "studio-air-card"; air.className = "gis-tool-section studio-fold-section"; air.open = true;
+    air.id = "studio-air-card"; air.className = "gis-tool-section studio-fold-section";
     air.innerHTML = '<summary data-tool-icon="1">Atmosphere</summary><div class="gis-tool-body"></div>';
     pane.appendChild(air);
   }
@@ -1626,7 +1626,7 @@ function ensureStudioCards() {
   let pts = byId("studio-points-card");
   if (!pts) {
     pts = document.createElement("details");
-    pts.id = "studio-points-card"; pts.className = "gis-tool-section studio-fold-section"; pts.open = true;
+    pts.id = "studio-points-card"; pts.className = "gis-tool-section studio-fold-section";
     pts.innerHTML = '<summary data-tool-icon="1">Embedded points</summary><div class="gis-tool-body"></div>';
     pane.appendChild(pts);
   }
@@ -3615,7 +3615,9 @@ function renderDomainsPanel() {
     if (!own.length) return;
     const details = document.createElement("details");
     details.className = "gis-tool-section";
-    details.open = domainOpen.get(id) ?? true;
+    // Collapsed until it is asked for: a domain is four to eight rows and a
+    // column of every domain open is a wall rather than a list.
+    details.open = domainOpen.get(id) ?? false;
     details.addEventListener("toggle", () => domainOpen.set(id, details.open));
     const summary = document.createElement("summary");
     summary.style.cssText = "display:flex;align-items:center;gap:0.5rem";
@@ -4183,7 +4185,10 @@ function foldPaneSections() {
       const key = `section:${pane.dataset.pane}:${title.textContent.trim()}`;
       const details = document.createElement("details");
       details.className = "gis-tool-section studio-fold-section";
-      details.open = folds[key] === undefined ? true : Boolean(folds[key]);
+      // A nested subtab arrives COLLAPSED, the tab column's own rule: the tab
+      // says what is inside it and opening one is the reader's decision. A
+      // remembered state still wins, in both directions.
+      details.open = Boolean(folds[key]);
       const summary = document.createElement("summary");
       summary.textContent = title.textContent.trim();
       // The shared icon painter's documented skip: these carry their own chevron.

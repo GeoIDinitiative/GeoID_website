@@ -2157,7 +2157,6 @@ html.gis-arranging #layer-dock {
 #model-studio .studio-fold-section .studio-group-title { display: none; }
 @media (max-width: 900px) {
   #model-studio .studio-ribbon { max-width: calc(100vw - 19rem); }
-  #model-studio .studio-dock { width: 12.5rem; }
 }
 
 /* Tab strips have to hold four names and a fold in a 16rem deck. */
@@ -2257,8 +2256,15 @@ html.gis-arranging #layer-dock {
    was 186 px of content in 135 px of space, with a scrollbar of its own inside
    a scrollbar. Measured at each level and trimmed: the deck is wider, the pane
    and the cards carry less inset, and a row's name is what gives way. */
-#model-studio .studio-dock { width: min(17rem, 27vw); }
-@media (max-width: 900px) { #model-studio .studio-dock { width: min(15rem, 32vw); } }
+/* THE DECK IS THE GIS PAGE'S NAV BAR, at its dimensions. `#ui` is
+   `min(24rem, calc(100vw - 2rem))` at `left: 1rem` with a 0.75rem radius; a
+   column that reads as the same object on both pages has to measure as the
+   same object, and the earlier min(17rem, 27vw) was a width picked to fit a
+   nested column rather than to match anything. The narrow-screen narrowings
+   go with it -- the nav bar has none, and `calc(100vw - 2rem)` is what it
+   uses on a small screen. */
+#model-studio .studio-dock { width: min(24rem, calc(100vw - 2rem)); }
+#model-studio .studio-dock-left { left: 1rem; }
 #model-studio .studio-pane { padding: 0.4rem; }
 #model-studio .studio-pane > .gis-tool-section > .gis-tool-body,
 #model-studio #studio-domains .gis-tool-body { padding: 0.45rem 0.5rem 0.5rem !important; gap: 0.35rem; }
@@ -2287,16 +2293,12 @@ html.gis-arranging #layer-dock {
 
 /* The two halves of the one column: what builds the model, then what meshes
    it. The mesh deck was a second column of its own, which spent a quarter of
-   the screen on four labels and one open pane. */
-#model-studio .studio-deck-caption {
-  font-family: "Exo 2", system-ui, sans-serif;
-  font-size: 0.56rem;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--skin-data);
-  opacity: 0.8;
-  padding: 0.35rem 0.2rem 0.1rem;
-  border-top: 1px solid rgba(var(--skin-data-rgb), 0.18);
+   the screen on four labels and one open pane. Each half was captioned BUILD
+   and MESH; the words are gone and the hairline where the band changes says
+   the same thing without spending a row on it. Selected on the CHANGE of band
+   rather than on a class, so nothing in the markup has to be kept in step. */
+#model-studio .studio-group[data-band="build"] + .studio-group[data-band="mesh"] {
+  margin-top: 0.3rem;
+  border-top: 1px solid rgba(var(--skin-data-rgb), 0.22);
+  padding-top: 0.3rem;
 }
-#model-studio .studio-deck-caption:first-child { border-top: 0; padding-top: 0.1rem; }

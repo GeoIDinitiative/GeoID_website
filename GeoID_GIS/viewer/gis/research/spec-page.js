@@ -1,10 +1,10 @@
-import { getPage, registerPage } from "./stages.js?v=20260910-8044890";
-import { qtMount, loadLayouts } from "./qt-render.js?v=20260910-8044890";
-import * as store from "./project-store.js?v=20260910-8044890";
+import { getPage, registerPage } from "./stages.js?v=20260910-53c50ac";
+import { qtMount, loadLayouts } from "./qt-render.js?v=20260910-53c50ac";
+import * as store from "./project-store.js?v=20260910-53c50ac";
 import {
   el, button, row, field, input, selectOf, persistentStatus, needProject,
   pageHeader, toolbar, collapsible, tabbedPanel, editorCard, dataTable,
-} from "./pages/common.js?v=20260910-8044890";
+} from "./pages/common.js?v=20260910-53c50ac";
 
 /**
  * Build a page from `qt-spec.json` — the structure the Qt app actually has,
