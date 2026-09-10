@@ -3,13 +3,41 @@
 each size shakes a point -- the volcanic risk bake's method with magnitude in
 place of VEI.
 
-THE RECORD is the USGS ComCat catalogue (which folds in ISC-GEM and the PDE):
-every event of M >= 5 since 1900, fetched through the FDSN event service in
-yearly pages. Written whole to data/global/earthquakes.geojson for the
-timeline (one point per event, with magnitude, depth and year), and stamped
-into four quadtree grids -- M5 (5.0-5.9), M6, M7, M8 (8.0+) -- plus the
-collective, each "earthquakes of that size per year shaking the point at
-MMI >= VI or so".
+THE RECORD IS THREE SOURCES, because no single catalogue is both complete and
+current, and each of the three is the best available at what it does:
+
+  ComCat, M >= 4.5 since 1900   the density and the currency. 311,675 events
+                                (measured), public domain, but its magnitudes
+                                are MIXED -- about 82% of modern events at
+                                this threshold are body-wave mb, which
+                                saturates near 6 and reads low against Mw.
+  ISC-GEM v12, 1904-2021        the homogenised backbone. 84,000 events, every
+                                one Mw, recomputed from the original station
+                                bulletins. Joined onto ComCat by ComCat's OWN
+                                `ids` field, which lists every contributing id
+                                of a merged event -- so there is no fuzzy
+                                space-time matching and no double count.
+  GEM GHEC v1.0, 1008-1903      the deep history. 825 events of about M >= 7,
+                                the only global pre-instrumental catalogue.
+                                Its last event is 1903-12-28 and ISC-GEM's
+                                first is 1904-01-20: the two were built as a
+                                pair and the seam needs no dedup at all.
+
+Each event therefore carries TWO magnitudes: `mag`, ComCat's preferred (always
+there, current), and `mw`, ISC-GEM's homogenised Mw where that catalogue
+reaches. Everything downstream reads `mw` where it exists and falls back.
+
+GHEC IS IN THE RECORD AND NOT IN THE RATES. A rate needs a COMPLETE window,
+and GHEC is a catalogue of the large events somebody knows about rather than a
+complete record of a period -- counting nine centuries of partial coverage
+would divide a handful of events by 900 years and understate every rate it
+touched. It plays in the timeline, where each event is a real event with a
+date, and the card says what it is.
+
+Written whole to data/global/earthquakes.geojson for the timeline (one point
+per event), and the instrumental part stamped into four quadtree grids -- M5
+(5.0-5.9), M6, M7, M8 (8.0+) -- plus the collective, each "earthquakes of that
+size per year shaking the point at MMI >= VI or so".
 
 THE REACH IS THE MAGNITUDE. Ground motion attenuates roughly as log10(R) =
 0.5 M - 1.7 for the radius of damaging shaking (MMI VI) in the global
@@ -30,6 +58,7 @@ record" class, listed in the key and invisible on the map.
 """
 from __future__ import annotations
 
+import calendar
 import json
 import math
 import pathlib
@@ -56,6 +85,9 @@ SPREAD = 0.04
 
 FIRST_YEAR = 1900
 LAST_COMPLETE = 2025
+MIN_MAG = 4.5               # the record's floor; the RATE bands still start at 5
+ISCGEM_YEARS = (1904, 2022)  # v12 runs 1904-04-04 to 2021-12-31
+GHEC_URL = "https://emidius.eu/GEH/download/GEM-GHEC-v1.txt"
 BANDS = {"m5": (5.0, 6.0), "m6": (6.0, 7.0), "m7": (7.0, 8.0), "m8": (8.0, 11.0)}
 WINDOWS = {"m5": (1964, LAST_COMPLETE), "m6": (1930, LAST_COMPLETE),
            "m7": (1900, LAST_COMPLETE), "m8": (1900, LAST_COMPLETE)}
@@ -76,26 +108,143 @@ def band_of(mag):
     return None
 
 
-def fetch_events():
-    """Every M >= 5 event since 1900, a year at a time (the service caps a page at 20,000)."""
-    feats = []
-    for year in range(FIRST_YEAR, LAST_COMPLETE + 2):
+def _page(url):
+    """One FDSN page, retried: the service 504s under load rather than failing."""
+    for attempt in range(4):
+        try:
+            with urllib.request.urlopen(url, timeout=180) as r:
+                return json.load(r)
+        except Exception:  # noqa: BLE001
+            if attempt == 3:
+                raise
+            time.sleep(4 * (attempt + 1))
+    return {"features": []}
+
+
+def _yearly(params, first, last, label):
+    """Walk a catalogue a year at a time.
+
+    The service caps a page at 20,000 and the busiest year at M >= 4.5 holds
+    about 15,500, so a year is a safe page -- and the cap is CHECKED rather
+    than trusted, because a page silently truncated is a year of the record
+    quietly missing.
+    """
+    out = []
+    for year in range(first, last + 1):
         url = (f"{FDSN}?format=geojson&starttime={year}-01-01&endtime={year + 1}-01-01"
-               f"&minmagnitude=5&orderby=time-asc&limit=20000")
-        for attempt in range(3):
-            try:
-                with urllib.request.urlopen(url, timeout=120) as r:
-                    payload = json.load(r)
-                break
-            except Exception as error:  # noqa: BLE001
-                if attempt == 2:
-                    raise
-                time.sleep(3)
-        got = payload.get("features", [])
+               f"&orderby=time-asc&limit=20000&{params}")
+        got = _page(url).get("features", [])
         if len(got) >= 20000:
-            raise RuntimeError(f"{year}: a page hit the cap; split the year")
-        feats.extend(got)
-    return feats
+            raise RuntimeError(f"{label} {year}: a page hit the cap; split the year")
+        out.extend(got)
+        if year % 20 == 0:
+            print(f"    {label} {year}: {len(out):,} so far", flush=True)
+    return out
+
+
+def fetch_iscgem_mw():
+    """iscgem id -> homogenised Mw, from the two ISC-GEM catalogues ComCat mirrors.
+
+    The MAIN catalogue and the SUPPLEMENTARY one are separate `catalog=`
+    values and both are wanted: the supplement is the events that did not meet
+    the main catalogue's own cut-off but were still recomputed.
+    """
+    mw = {}
+    for cat in ("iscgem", "iscgemsup"):
+        feats = _yearly(f"catalog={cat}", ISCGEM_YEARS[0], ISCGEM_YEARS[1], cat)
+        for f in feats:
+            m = f.get("properties", {}).get("mag")
+            if f.get("id") and m is not None:
+                mw[f["id"]] = round(float(m), 2)
+        print(f"    {cat}: {len(feats):,} events", flush=True)
+    return mw
+
+
+def fetch_ghec():
+    """GEM's global historical catalogue, 1008-1903, as (lon, lat, depth, mag, t, place).
+
+    Tab-separated with a commented header. The magnitude is NOT homogenised --
+    Mw, Ms and Mjma sit in one column with an MType beside them -- so the type
+    rides on the event rather than being flattened into a number that would
+    read as an Mw.
+    """
+    with urllib.request.urlopen(GHEC_URL, timeout=120) as r:
+        text = r.read().decode("utf-8", "replace")
+    rows, head = [], None
+    for line in text.splitlines():
+        if line.startswith("#") or not line.strip():
+            continue
+        cells = line.rstrip("\n").split("\t")
+        if head is None:
+            head = [c.strip() for c in cells]
+            continue
+        row = dict(zip(head, [c.strip() for c in cells]))
+        try:
+            lat, lon, mag = float(row["Lat"]), float(row["Lon"]), float(row["M"])
+            year = int(row["Year"])
+        except (KeyError, ValueError):
+            continue
+        month = int(row.get("Mo") or 1) or 1
+        day = int(row.get("Da") or 1) or 1
+        try:
+            t = int(calendar.timegm((year, month, day, 0, 0, 0, 0, 1, 0)) * 1000)
+        except (ValueError, OverflowError):
+            t = None
+        # `Area` is GHEC's own place column and `GEHid` its own id; the names
+        # were read off the file's header rather than guessed, after a first
+        # pass keyed on EqName/Region and wrote 825 blank places.
+        depth = None
+        try:
+            depth = float(row["Dep"]) if row.get("Dep") else None
+        except ValueError:
+            depth = None
+        rows.append((lon, lat, depth, mag, row.get("MType") or "", t, year,
+                     row.get("Area") or "", row.get("GEHid") or ""))
+    return rows
+
+
+def fetch_events():
+    """The three sources, merged into one list of trimmed event tuples.
+
+    Tuples rather than dicts: three hundred thousand of the latter is most of a
+    gigabyte of Python objects, and this machine has been taken down by a bake
+    before.
+    """
+    began = time.time()
+    print("  ISC-GEM (the homogenised Mw backbone)...", flush=True)
+    mw_by_id = fetch_iscgem_mw()
+    print("  {:,} ISC-GEM magnitudes ({:.0f}s)".format(len(mw_by_id), time.time() - began), flush=True)
+
+    print(f"  ComCat, M >= {MIN_MAG} since {FIRST_YEAR}...", flush=True)
+    feats = _yearly(f"minmagnitude={MIN_MAG}", FIRST_YEAR, LAST_COMPLETE + 1, "comcat")
+    print("  {:,} ComCat events ({:.0f}s)".format(len(feats), time.time() - began), flush=True)
+
+    events, joined = [], 0
+    for f in feats:
+        p = f.get("properties") or {}
+        c = ((f.get("geometry") or {}).get("coordinates") or [None, None, None])
+        if p.get("mag") is None or c[0] is None:
+            continue
+        # The join: ComCat lists every contributing id of a merged event, so an
+        # ISC-GEM Mw is looked up rather than matched in space and time.
+        mw = None
+        for part in (p.get("ids") or "").strip(",").split(","):
+            if part.startswith("iscgem") and part in mw_by_id:
+                mw = mw_by_id[part]
+                joined += 1
+                break
+        t = p.get("time")
+        events.append((float(c[0]), float(c[1]), c[2], float(p["mag"]), p.get("magType") or "",
+                       t, time.gmtime(t / 1000).tm_year if t else None, p.get("place") or "",
+                       f.get("id") or "", mw))
+    print("  {:,} carry an ISC-GEM Mw ({:.0%})".format(joined, joined / max(1, len(events))), flush=True)
+
+    print("  GEM GHEC v1.0 (1008-1903)...", flush=True)
+    hist = fetch_ghec()
+    for lon, lat, depth, mag, mtype, t, year, place, eid in hist:
+        events.append((lon, lat, depth, mag, mtype, t, year, place, f"ghec{eid}", None))
+    print("  {:,} historical events; {:,} in all ({:.0f}s)".format(len(hist), len(events), time.time() - began), flush=True)
+    return events
 
 
 _DISCS = {}
@@ -208,10 +357,25 @@ def quadtree(field, mag_max, extra):
 
 
 SOURCE = {
-    "dataset": "USGS ComCat (ANSS Comprehensive Earthquake Catalog), via the FDSN event service; "
-               "folds in ISC-GEM and the PDE for the historical record",
+    "dataset": "Three catalogues merged: USGS ComCat (M >= {} since {}) for density and currency, "
+               "ISC-GEM v12 (1904-2021) joined on ComCat's own contributing ids for homogenised Mw, "
+               "and GEM GHEC v1.0 (1008-1903) for the pre-instrumental record".format(MIN_MAG, FIRST_YEAR),
     "citation": "U.S. Geological Survey, Earthquake Hazards Program (2017), ANSS Comprehensive "
-                "Earthquake Catalog (ComCat), https://doi.org/10.5066/F7MS3QZH",
+                "Earthquake Catalog (ComCat), https://doi.org/10.5066/F7MS3QZH · "
+                "International Seismological Centre (2025), ISC-GEM Earthquake Catalogue, "
+                "https://doi.org/10.31905/d808b825 (Storchak et al. 2013, 2015; Di Giacomo et al. 2018) · "
+                "GEM Foundation (2013), GEM Global Historical Earthquake Catalogue v1.0, "
+                "https://doi.org/10.13127/ghea/ghec.1.0",
+    "licence": "ComCat is US Government public domain. ISC-GEM and GEM GHEC are CC-BY-SA 3.0, so "
+               "anything derived from them -- these grids included -- is offered under CC-BY-SA 3.0 "
+               "with the citations above.",
+    "magnitude": "Each event carries ComCat's preferred `mag` and, where ISC-GEM reaches it, that "
+                 "catalogue's homogenised `mw`. The rates are computed on `mw` where it exists: "
+                 "about 82% of modern ComCat at this threshold is body-wave mb, which saturates near "
+                 "6 and reads low against Mw, so events land in the wrong band under the raw number.",
+    "historical": "GHEC's 825 events play in the timeline and are HELD OUT of the rates: a rate needs "
+                  "a complete window, and a catalogue of the large events somebody knows about across "
+                  "nine centuries is not one.",
     "reach": "log10(R_km) = 0.5 M - 1.7, the radius of damaging shaking (about MMI VI) in the global "
              "average; log-normal about R with sigma {} -- an event counts at a point as "
              "P(reach >= d) = 1 - Phi(ln(d/R)/sigma)".format(SIGMA),
@@ -240,57 +404,86 @@ def write_grid(path, features, band):
 
 def main() -> int:
     began = time.time()
-    print("  fetching USGS ComCat, M >= 5 since {}...".format(FIRST_YEAR))
-    feats = fetch_events()
-    print("  {:,} events ({:.0f}s)".format(len(feats), time.time() - began))
+    events = fetch_events()
 
-    events = []
-    for f in feats:
-        p = f["properties"]
-        g = f.get("geometry") or {}
-        c = g.get("coordinates") or [None, None, None]
-        if p.get("mag") is None or c[0] is None:
-            continue
-        t = p.get("time")
-        year = time.gmtime(t / 1000).tm_year if t else None
-        events.append({"type": "Feature",
-                       "properties": {"mag": round(float(p["mag"]), 1), "depth_km": round(float(c[2]), 1) if c[2] is not None else None,
-                                      "time": t, "year": year, "place": p.get("place"), "id": f.get("id"),
-                                      "tsunami": int(p.get("tsunami") or 0)},
-                       "geometry": {"type": "Point", "coordinates": [round(float(c[0]), 4), round(float(c[1]), 4)]}})
-    OUT_EVENTS.write_text(json.dumps({"type": "FeatureCollection", "_source": SOURCE, "features": events},
-                                     separators=(",", ":")))
+    # ── the record, streamed out ──────────────────────────────────────────
+    #
+    # Streamed rather than assembled: a FeatureCollection of three hundred
+    # thousand features built as one Python object and then serialised is the
+    # peak this bake would be measured at, and it is avoidable.
+    OUT_EVENTS.parent.mkdir(parents=True, exist_ok=True)
+    with OUT_EVENTS.open("w") as out:
+        out.write('{"type":"FeatureCollection","_source":')
+        out.write(json.dumps(SOURCE))
+        out.write(',"features":[')
+        for i, (lon, lat, depth, mag, mtype, t, year, place, eid, mw) in enumerate(events):
+            # ONE COLUMN TO COLOUR BY. The symbology reads a property NAME,
+            # not a function, so the choice between ISC-GEM's Mw and ComCat's
+            # preferred magnitude is made here rather than in every consumer --
+            # and both are still carried, so the card can say which it showed.
+            props = {"mag": round(mag, 1), "magType": mtype,
+                     "mag_best": round(mw if mw is not None else mag, 2),
+                     "time": t, "year": year, "place": place, "id": eid}
+            if depth is not None:
+                props["depth_km"] = round(float(depth), 1)
+            # ISC-GEM's own Mw, where that catalogue reaches. Absent rather
+            # than filled: a magnitude nobody homogenised must not read as one.
+            if mw is not None:
+                props["mw"] = mw
+            if eid.startswith("ghec"):
+                props["historical"] = 1
+            if i:
+                out.write(",")
+            out.write(json.dumps({"type": "Feature", "properties": props,
+                                  "geometry": {"type": "Point",
+                                               "coordinates": [round(lon, 3), round(lat, 3)]}},
+                                 separators=(",", ":")))
+        out.write("]}")
     print("  wrote {:,} events, {:.1f} MB -> {}".format(len(events), OUT_EVENTS.stat().st_size / 1e6,
-                                                        OUT_EVENTS.relative_to(ROOT)))
+                                                        OUT_EVENTS.relative_to(ROOT)), flush=True)
 
     cells = NY * NX
     per_band = {b: np.zeros(cells, dtype=np.float64) for b in BANDS}
     mag_max = np.zeros(cells, dtype=np.float32)
     quakes = np.zeros(cells, dtype=np.int32)
     counted = {b: 0 for b in BANDS}
-    skipped = 0
-    for e in events:
-        p = e["properties"]
-        band = band_of(p["mag"])
-        if band is None or p["year"] is None:
+    skipped = historical = on_mw = 0
+    for lon, lat, depth, mag, mtype, t, year, place, eid, mw in events:
+        # THE HISTORICAL RECORD IS NOT A RATE. GHEC is the large events
+        # somebody knows about across nine centuries, not a complete record of
+        # them; counted here it would divide a handful by 900 years and
+        # understate every rate it touched.
+        if eid.startswith("ghec"):
+            historical += 1
+            continue
+        # ISC-GEM's Mw where it reaches, ComCat's preferred otherwise. This is
+        # what the richer catalogue buys the HAZARD: about 82% of modern
+        # ComCat at this threshold is body-wave mb, which saturates near 6 and
+        # reads low -- so events land in the wrong band under the raw number.
+        best = mw if mw is not None else mag
+        if mw is not None:
+            on_mw += 1
+        band = band_of(best)
+        if band is None or year is None:
             skipped += 1
             continue
         lo, hi = WINDOWS[band]
-        if p["year"] < lo or p["year"] > hi:
+        if year < lo or year > hi:
             skipped += 1
             continue
-        lon, lat = e["geometry"]["coordinates"]
-        hit, k = kernel(lon, lat, p["mag"])
+        hit, k = kernel(lon, lat, best)
         if hit is None:
             skipped += 1
             continue
         per_band[band][hit] += k / (hi - lo + 1)
         near = hit[k >= COUNTS_FROM_P]
-        mag_max[near] = np.maximum(mag_max[near], p["mag"])
+        mag_max[near] = np.maximum(mag_max[near], best)
         quakes[near] += 1
         counted[band] += 1
-    print("  counted {}; skipped {:,} (outside their window or unplaced) ({:.0f}s)".format(
-        ", ".join(f"{b} {n:,}" for b, n in counted.items()), skipped, time.time() - began))
+    print("  counted {}; {:,} on an ISC-GEM Mw; {:,} historical held out of the rates;"
+          " {:,} skipped (below M5, outside their window, or unplaced) ({:.0f}s)".format(
+              ", ".join(f"{b} {n:,}" for b, n in counted.items()), on_mw, historical,
+              skipped, time.time() - began), flush=True)
 
     grids = {b: per_band[b].reshape(NY, NX) for b in BANDS}
     grids["any"] = sum(per_band.values()).reshape(NY, NX)

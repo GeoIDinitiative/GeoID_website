@@ -26,17 +26,17 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260910-ab8adb8";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260910-ab8adb8";
-import { mathsFor } from "./equations.js?v=20260910-ab8adb8";
+import { runConnector } from "./research/connectors.js?v=20260910-4ab9855";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260910-4ab9855";
+import { mathsFor } from "./equations.js?v=20260910-4ab9855";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260910-ab8adb8";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260910-ab8adb8";
-import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260910-ab8adb8";
+} from "./cyclone-risk.js?v=20260910-4ab9855";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260910-4ab9855";
+import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260910-4ab9855";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260910-ab8adb8";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260910-4ab9855";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -410,31 +410,51 @@ export const DATASETS = [
   })),
   {
     /**
-     * THE EARTHQUAKE RECORD: every M >= 5 event in USGS ComCat since 1900 (which
-     * folds in ISC-GEM and the PDE), one point each, played a year at a time
-     * through the bar (`seismic-timelapse.js`) the way the cyclone tracks are.
-     * Coloured on fixed magnitude-unit edges so a M 7 is one colour in every
-     * year.
+     * THE EARTHQUAKE RECORD, and it is THREE catalogues rather than one,
+     * because no single one is both complete and current:
+     *
+     *   ComCat, M >= 4.5 since 1900   density and currency, public domain --
+     *                                 and about 82% body-wave mb at this
+     *                                 threshold, which saturates near 6.
+     *   ISC-GEM v12, 1904-2021        every event Mw, recomputed from the
+     *                                 original station bulletins, joined on
+     *                                 ComCat's OWN contributing ids so there
+     *                                 is no fuzzy matching and no double count.
+     *   GEM GHEC v1.0, 1008-1903      the only global pre-instrumental
+     *                                 catalogue. Its last event is 1903-12-28
+     *                                 and ISC-GEM's first is 1904-01-20: the
+     *                                 seam needs no dedup at all.
+     *
+     * Coloured on `mw` where ISC-GEM reaches and ComCat's preferred otherwise,
+     * on fixed magnitude-unit edges so a M 7 is one colour in every year.
+     * Plays through the bar the way the cyclone tracks do -- by the
+     * earthquake, by the month or by the year.
      */
     id: "earthquakes",
     home: "seismic",
     featureNoun: "Earthquake",
     group: "Hazards",
-    label: "Earthquakes \u2014 every M \u2265 5 since 1900 (USGS ComCat)",
+    label: "Earthquakes \u2014 the record, M \u2265 4.5, back to 1008",
     path: "/data/global/earthquakes.geojson",
-    name: "Earthquakes (USGS ComCat, M \u2265 5 since 1900).geojson",
-    summary: "107,239 earthquakes of magnitude 5 and above from 1900 to now, "
-      + "the ANSS Comprehensive Catalog through the FDSN event service: "
-      + "magnitude, depth, time and place on every point. Plays a year at a "
-      + "time through the bar",
-    licence: "U.S. Geological Survey, ANSS Comprehensive Earthquake Catalog \u2014 "
-      + "public domain; cite doi:10.5066/F7MS3QZH",
+    name: "Earthquakes (ComCat + ISC-GEM + GEM GHEC, M \u2265 4.5).geojson",
+    summary: "The global record merged from three catalogues: every M \u2265 4.5 "
+      + "in USGS ComCat since 1900, ISC-GEM's homogenised Mw joined onto it "
+      + "for 1904\u20132021, and GEM's historical catalogue back to 1008. "
+      + "Magnitude, depth, time and place on every point, and ISC-GEM's own "
+      + "Mw where it reaches. Plays by the earthquake, the month or the year",
+    licence: "ComCat \u2014 U.S. Geological Survey, public domain (doi:10.5066/F7MS3QZH). "
+      + "ISC-GEM (doi:10.31905/d808b825) and GEM GHEC v1.0 (doi:10.13127/ghea/ghec.1.0) "
+      + "\u2014 CC BY-SA 3.0, so anything derived from this layer carries the same licence",
     pointStyle: "places",
     colourRange: {
-      field: "mag",
-      edges: [6, 7, 8],
-      labels: ["M 5\u20135.9", "M 6\u20136.9", "M 7\u20137.9", "M 8+"],
-      legendLabel: "Magnitude",
+      // ISC-GEM's homogenised Mw where that catalogue reaches, ComCat's
+      // preferred otherwise -- the raw number puts an mb event a band low.
+      // Resolved in the BAKE into one column, because the symbology reads a
+      // property name and not a function.
+      field: "mag_best",
+      edges: [5, 6, 7, 8],
+      labels: ["M 4.5\u20134.9", "M 5\u20135.9", "M 6\u20136.9", "M 7\u20137.9", "M 8+"],
+      legendLabel: "Magnitude (Mw where ISC-GEM reaches)",
       ramp: "risk",
     },
     settings: "seismic-timelapse",

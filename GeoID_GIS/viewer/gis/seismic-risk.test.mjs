@@ -7,7 +7,7 @@ import { BANDS, FRAME_BANDS, RECORD, SPEC, colourRange, riskLayer, noteFor } fro
 import { specFor, epochsFor, framePaint, bandOf } from "./risk-frames.js";
 import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js";
 import { isVolcanicRiskFeature } from "./volcanic-risk-card.js";
-import { yearsIn, framesFor, STEPS, DEFAULT_STEP, colouring, noteFor as yearNote, MAG_LABELS } from "./seismic-timelapse.js";
+import { yearsIn, framesFor, STEPS, DEFAULT_STEP, magOf, colouring, noteFor as yearNote, MAG_LABELS } from "./seismic-timelapse.js";
 import { DATASETS, HOMES } from "./global-data.js";
 import { mathsFor } from "./equations.js";
 
@@ -49,7 +49,16 @@ check("the layer is found by its name", riskLayer([{ name: "Seismic risk (USGS C
 /* ── the timeline ────────────────────────────────────────────────────────── */
 const quakes = [{ properties: { year: 1964, mag: 9.2 } }, { properties: { year: 1964, mag: 5.1 } }, { properties: { year: 2011, mag: 9.1 } }, { properties: { year: 1906, mag: 7.9 } }];
 check("years present, in order, from a span", yearsIn(quakes, 1964).map(([y, f]) => [y, f.length]), [[1964, 2], [2011, 1]]);
-check("magnitude classes are fixed unit edges", colouring(quakes).legend.labels, MAG_LABELS);
+/* buildSymbology DROPS a class outside the data's own range, so this fixture
+   (nothing under M 5) gets four rows -- and each must still carry its OWN
+   band's name rather than the fourth label falling off the end. */
+check("magnitude classes are named by their own floor, not by index",
+  colouring(quakes).legend.labels, ["M 5–5.9", "M 6–6.9", "M 7–7.9", "M 8+"]);
+check("and a span reaching under M 5 gets all five",
+  colouring([...quakes, { properties: { year: 2011, mag: 4.6 } }]).legend.labels, MAG_LABELS);
+/* ISC-GEM's Mw wins over ComCat's preferred, and the bake resolves it. */
+check("the colour reads the resolved magnitude",
+  [magOf({ mag: 5.2, mag_best: 6.1 }), magOf({ mag: 5.2 }), magOf({})], [6.1, 5.2, null]);
 check("a year's note is a counter with the largest", yearNote({ year: 1964, count: 2, total: 4, largest: 9.2 }), "2 / 4 · largest M 9.2");
 
 /* ── the entries and the page ────────────────────────────────────────────── */

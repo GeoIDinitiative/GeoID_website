@@ -8,13 +8,35 @@
  * so a M 7 is the same colour in a quiet year and a busy one.
  */
 
-import { buildSymbology, colourOf, legendInfoFrom } from "./symbology.js?v=20260910-ab8adb8";
-import { startPlayer } from "./timelapse-player.js?v=20260910-ab8adb8";
+import { buildSymbology, colourOf, legendInfoFrom } from "./symbology.js?v=20260910-4ab9855";
+import { startPlayer } from "./timelapse-player.js?v=20260910-4ab9855";
 
 const search = new URL(import.meta.url).search;
-export const MAG_EDGES = [6, 7, 8];
-export const MAG_LABELS = ["M 5–5.9", "M 6–6.9", "M 7–7.9", "M 8+"];
-export const SPANS = { 1900: "1900 to now — the whole catalogue", 1964: "1964 to now — the global network", 2000: "2000 to now" };
+/**
+ * A CLASS PER MAGNITUDE UNIT, and a half one at the foot.
+ *
+ * The record's floor moved to M 4.5, so an edge at 5 had to join them: without
+ * it the bottom class runs 4.5 to 5.9 under a label reading "M 5–5.9", which
+ * is a key saying something false about a third of the layer.
+ */
+export const MAG_EDGES = [5, 6, 7, 8];
+export const MAG_LABELS = ["M 4.5–4.9", "M 5–5.9", "M 6–6.9", "M 7–7.9", "M 8+"];
+/** Each label's own floor, so a dropped class cannot shift the rest along. */
+export const MAG_FLOORS = [0, 5, 6, 7, 8];
+export const SPANS = {
+  1008: "1008 to now — the whole record, historical included",
+  1900: "1900 to now — the instrumental record",
+  1964: "1964 to now — the global network",
+  2000: "2000 to now",
+};
+
+/** ISC-GEM's homogenised Mw where it reaches, ComCat's preferred otherwise. */
+export const magOf = (props) => {
+  const best = Number(props?.mag_best);
+  if (Number.isFinite(best)) return best;
+  const raw = Number(props?.mag);
+  return Number.isFinite(raw) ? raw : null;
+};
 let running = false;
 let opening = false;
 
@@ -131,31 +153,65 @@ export function yearOfLabel(label) {
 }
 
 export function colouring(features) {
-  const values = features.map((f) => Number(f?.properties?.mag)).filter(Number.isFinite);
-  const sym = buildSymbology(values.length ? values : [5, 6, 7, 8], { edges: MAG_EDGES, ramp: "risk" });
-  sym.rows.forEach((row, i) => { if (MAG_LABELS[i]) row.label = MAG_LABELS[i]; });
+  const values = features.map((f) => magOf(f?.properties)).filter((n) => Number.isFinite(n));
+  const sym = buildSymbology(values.length ? values : [4.5, 5, 6, 7, 8], { edges: MAG_EDGES, ramp: "risk" });
+  /**
+   * LABELLED BY THE CLASS'S OWN FLOOR, NOT BY ITS INDEX.
+   *
+   * `buildSymbology` DROPS a class that falls outside the data's own range —
+   * so a span holding nothing under M 5 comes back with four rows, and an
+   * index-keyed label list then calls the M 5–5.9 class "M 4.5–4.9" and loses
+   * "M 8+" off the end. Measured on a four-event fixture. The floor is what
+   * the label is about, so that is what it is looked up by.
+   */
+  sym.rows.forEach((row) => {
+    const from = Number(row.from);
+    let i = 0;
+    MAG_FLOORS.forEach((floor, k) => { if (from >= floor - 1e-9) i = k; });
+    if (MAG_LABELS[i]) row.label = MAG_LABELS[i];
+  });
   return {
     sym,
     colourFor: (feature) => {
-      const n = Number(feature?.properties?.mag);
+      const n = magOf(feature?.properties);
       return Number.isFinite(n) ? colourOf(n, sym) : null;
     },
-    legend: { ...legendInfoFrom(sym, { label: "Magnitude" }), field: "mag", categorical: false },
+    legend: {
+      ...legendInfoFrom(sym, { label: "Magnitude (Mw where ISC-GEM reaches)" }),
+      field: "mag_best", categorical: false,
+    },
   };
 }
 
 export function noteFor(epoch) {
-  if (epoch.all) return `${(epoch.total || 0).toLocaleString()} earthquakes M ≥ 5`;
+  if (epoch.all) return `${(epoch.total || 0).toLocaleString()} earthquakes M ≥ 4.5`;
   const big = epoch.largest ? ` · largest M ${epoch.largest.toFixed(1)}` : "";
   return `${(epoch.count || 0).toLocaleString()} / ${(epoch.total || 0).toLocaleString()}${big}`;
 }
 
+/**
+ * What a frame is standing on, said on the frame rather than in a footnote.
+ *
+ * The record reaches back to 1008 and its completeness changes twice on the
+ * way: GEM's historical catalogue is the large events somebody knows about,
+ * ISC-GEM homogenises everything from 1904, and the global network of 1964 is
+ * where M 5 becomes complete. A frame that does not say which of those it sits
+ * in is a count read as a rate.
+ */
 export function noteTitle(epoch) {
-  if (epoch.all) return "Every earthquake of M ≥ 5 in USGS ComCat since 1900";
-  const pre = epoch.year && epoch.year < 1964
-    ? " — before the global network of 1964 the catalogue is complete only above about M 6" : "";
+  if (epoch.all) {
+    return "The merged record: USGS ComCat M ≥ 4.5 since 1900, ISC-GEM's homogenised Mw"
+      + " for 1904–2021, and GEM's historical catalogue back to 1008";
+  }
+  let pre = "";
+  if (epoch.year && epoch.year < 1904) {
+    pre = " — pre-instrumental: GEM's historical catalogue holds the large events (about M ≥ 7)"
+      + " that are known about, not a complete record of the period";
+  } else if (epoch.year && epoch.year < 1964) {
+    pre = " — before the global network of 1964 the catalogue is complete only above about M 6";
+  }
   const each = epoch.stride > 1 ? ` (one frame per ${epoch.stride} ${epoch.stepLabel || "groups"})` : "";
-  return `${(epoch.count || 0).toLocaleString()} earthquakes of M ≥ 5 in ${epoch.label}${pre}${each}`;
+  return `${(epoch.count || 0).toLocaleString()} earthquakes in ${epoch.label}${pre}${each}`;
 }
 
 export const chosenSpan = () => Number(document.getElementById("seismic-timelapse-span")?.value) || 1900;
@@ -201,7 +257,7 @@ async function build(from, startAt, step = DEFAULT_STEP) {
     return {
       date: String(g.label), label: String(g.show ?? g.label), dataset: null, year,
       count: g.features.length, total, stride: plan.stride, stepLabel: plan.spec.label,
-      largest: Math.max(...g.features.map((f) => Number(f.properties.mag) || 0)),
+      largest: Math.max(...g.features.map((f) => magOf(f.properties) || 0)),
       tick: i === 0 || (plan.step === "year"
         ? Number.isFinite(year) && year % 10 === 0
         : year !== prev),
@@ -299,5 +355,5 @@ if (typeof document !== "undefined") {
 }
 
 if (typeof window !== "undefined") {
-  window.GeoIDSeismicTimelapse = { play, yearsIn, framesFor, STEPS, colouring, noteFor, noteTitle, MAG_EDGES, MAG_LABELS, eventsLayer };
+  window.GeoIDSeismicTimelapse = { play, yearsIn, framesFor, STEPS, magOf, SPANS, colouring, noteFor, noteTitle, MAG_EDGES, MAG_LABELS, eventsLayer };
 }
