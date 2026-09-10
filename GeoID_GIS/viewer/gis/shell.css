@@ -1974,7 +1974,7 @@ html.gis-arranging #layer-dock {
   flex-wrap: wrap;
   justify-content: center;
   width: max-content;
-  max-width: min(78vw, 68rem);
+  max-width: min(68rem, calc(100vw - 38rem));
   padding: 0.3rem 0.5rem;
 }
 #model-studio .studio-ribbon.is-folded > :not(.studio-ribbon-fold) { display: none; }
