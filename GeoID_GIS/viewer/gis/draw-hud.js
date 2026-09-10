@@ -427,13 +427,33 @@ function borrowExport(mode = armedMode()) {
   });
   if (!mode) return;
   const actions = document.querySelector(exportSelector(mode));
-  if (!actions || actions.parentNode === slot) return;
+  if (!actions) return;
+  /**
+   * A DEAD BUTTON IS NOT WORTH A PLACE ON THE BAR.
+   *
+   * The viewer disables its own export until there is a measurement to write
+   * (`measureExport.disabled = !measureMode`, and the per-mode buttons follow
+   * the points), so arming the tool used to put a greyed "Export CSV" on the
+   * bar before anything had been drawn — the one control there that could not
+   * be pressed, and read as furniture left over from an older flow. It is
+   * borrowed once it CAN export and sent home again when it cannot, so the
+   * bar only ever shows what it can do. `disabled` is on the watched
+   * attribute list for exactly this, or the borrow would never hear it flip.
+   */
+  if (exportDead(actions)) { returnOne(actions); return; }
+  if (actions.parentNode === slot) return;
   if (!exportHomes.has(mode)) {
     const marker = document.createComment(`export csv (${mode}) lives on the draw bar`);
     actions.parentNode?.insertBefore(marker, actions);
     exportHomes.set(mode, marker);
   }
   slot.appendChild(actions);
+}
+
+/** Nothing inside it can be pressed, so there is nothing to show. */
+function exportDead(actions) {
+  const buttons = [...actions.querySelectorAll("button")];
+  return buttons.length > 0 && buttons.every((b) => b.disabled);
 }
 
 /** Put one borrowed node back beside its own marker. */
@@ -473,7 +493,9 @@ function watchExportHome() {
   // All three, because the tool that is armed decides which one is wanted and
   // any of them may be revealed while the bar is up.
   nodes.forEach((node) => exportWatch.observe(node,
-    { attributes: true, attributeFilter: ["hidden", "style", "class"] }));
+    // `subtree`, because `disabled` flips on the BUTTON inside, not on the row.
+    
+    { attributes: true, subtree: true, attributeFilter: ["hidden", "style", "class", "disabled"] }));
 }
 
 function returnExport() {

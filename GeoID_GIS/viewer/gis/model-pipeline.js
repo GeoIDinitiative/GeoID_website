@@ -2,17 +2,18 @@ import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
   nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS, atmosphereStl, DEFAULT_MAX_NODES, triangleWriter,
-} from "./model-build.js?v=20260910-36c92aa";
-import { ringsFromCollection } from "./extraction.js?v=20260910-36c92aa";
+} from "./model-build.js?v=20260910-db65dfd";
+import { ringsFromCollection } from "./extraction.js?v=20260910-db65dfd";
 import {
   buildTin, tinHeightAt, tinSurfaceStl, tinShellStl, samplingSizeField,
   extendBoundary, extendedBoundaryLines, gridAsTin, shellFacets,
-} from "./surface-sampling.js?v=20260910-36c92aa";
-import { renderFeatureCollection } from "./vector-render.js?v=20260910-36c92aa";
+} from "./surface-sampling.js?v=20260910-db65dfd";
+import { renderFeatureCollection } from "./vector-render.js?v=20260910-db65dfd";
+import { promptDrawTool } from "./extent-picker.js?v=20260910-db65dfd";
 import {
   profileAlong, profileHeightAt, sectionPolygons, sectionPositions, sectionGmshScript, profileCsv,
-} from "./section-model.js?v=20260910-36c92aa";
-import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260910-36c92aa";
+} from "./section-model.js?v=20260910-db65dfd";
+import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260910-db65dfd";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -849,6 +850,28 @@ function stepArea(body) {
     state.bounds?.layerId ? `layer:${state.bounds.layerId}` : "drawn");
   body.appendChild(row("Study area", picker));
 
+  /**
+   * THE DRAWER IS RAISED FROM HERE, rather than named and left to be found.
+   *
+   * The step read `getExtractionGeometry` and nothing else, so "draw a study
+   * area" was an instruction to go and look for a tool on the other side of
+   * the screen — and whichever one was found first decided which flow the
+   * reader was in. `promptDrawTool` presses the tool rail's OWN Draw button,
+   * which is what raises the shape bar: one drawer, armed one way, whether
+   * the press comes from a hand on the rail, the extent picker or here.
+   */
+  const draw = el("button", "tool-button", "Draw on the globe");
+  draw.type = "button";
+  draw.addEventListener("click", () => {
+    picker.value = "drawn";
+    if (promptDrawTool()) {
+      report("area", "Pick a shape on the bar and drag it out on the globe."
+        + " Done files it, and this step takes it from there.");
+    } else {
+      report("area", "This world has no surface to draw a study area on.");
+    }
+  });
+
   const use = el("button", "tool-button", "Use this area");
   use.type = "button";
   use.addEventListener("click", () => {
@@ -871,7 +894,10 @@ function stepArea(body) {
     state.open = "layers";
     render();
   });
-  body.appendChild(use);
+  const buttons = el("div", "gis-btn-row");
+  buttons.appendChild(draw);
+  buttons.appendChild(use);
+  body.appendChild(buttons);
 
   const kindSel = select("gis-mb-kind", [
     { id: "3d", label: "3D block — surface, subsurface and atmosphere volumes" },
@@ -2694,6 +2720,63 @@ function init() {
   window.GeoIDImportManager?.onChange?.(() => {
     if (byId("gis-model-pipeline")) render();
   });
+  watchDrawnArea();
+}
+
+/**
+ * DONE FILES THE SHAPE, AND THIS STEP TAKES IT FROM THERE.
+ *
+ * Every creator of a study area flows through `setStudyAreaPolygon`, which
+ * announces `geoid-study-area-edited` — the same seam `pipeline-sync` listens
+ * on — so a shape drawn on the bar, a preset placed, or a corner dragged all
+ * arrive here. Without it the reader drew the area, pressed Done, and then had
+ * to come back and press a second button to say what they had plainly just
+ * said.
+ *
+ * Three guards, and each is a fault this file has already paid for:
+ *
+ *  - only while the picker is on "drawn". A reader who has chosen a polygon
+ *    LAYER as their area has not asked for whatever is being sketched beside
+ *    it, and overwriting that choice is the app deciding where they are
+ *    working.
+ *  - only while the builder is on screen. `render()` on a page whose tab has
+ *    never been opened builds a panel nobody asked for.
+ *  - DEBOUNCED, and re-entrancy guarded. A drag edit announces on every
+ *    pointermove, and `render()` is what draws this builder's own previews:
+ *    a render that draws is a render that announces, which is the infinite
+ *    recursion that hung this page once already.
+ */
+let drawnWatch = null;
+let adopting = false;
+function watchDrawnArea() {
+  if (drawnWatch || typeof window === "undefined") return;
+  drawnWatch = () => {
+    if (adopting) return;
+    window.clearTimeout(watchDrawnArea.timer);
+    watchDrawnArea.timer = window.setTimeout(adoptDrawnArea, 350);
+  };
+  window.addEventListener("geoid-study-area-edited", drawnWatch);
+}
+
+function adoptDrawnArea() {
+  if (adopting || !byId("gis-model-pipeline")) return;
+  const picker = byId("gis-mb-area");
+  if (picker && picker.value !== "drawn") return;
+  const resolved = resolveBounds("drawn");
+  if (resolved.error) return;
+  adopting = true;
+  try {
+    state.bounds = resolved;
+    state.surface = null;
+    state.profile = null;
+    state.outputs = null;
+    const plan = planGrid({ bounds: resolved.bbox, stepM: 100, radiusKm: bodyRadiusKm() });
+    report("area", `${resolved.label} — model domain ${fmt(plan.widthM / 1000, 2)}`
+      + ` × ${fmt(plan.heightM / 1000, 2)} km, taken from the shape you drew.`
+      + " The domain is the BOX over it.");
+    state.open = "layers";
+    render();
+  } finally { adopting = false; }
 }
 
 if (document.readyState === "loading") {
