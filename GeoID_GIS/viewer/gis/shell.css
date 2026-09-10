@@ -1994,7 +1994,7 @@ html.gis-arranging #layer-dock {
 }
 #model-studio .studio-ribbon.is-folded > :not(.studio-ribbon-fold) { display: none; }
 #model-studio .studio-ribbon.is-folded { padding: 0.2rem 0.35rem; }
-#model-studio .studio-ribbon.is-folded .studio-ribbon-fold { transform: rotate(180deg); }
+
 .studio-menu { position: relative; }
 .studio-menu-btn,
 #model-studio .studio-ribbon .studio-btn,
@@ -2051,18 +2051,50 @@ html.gis-arranging #layer-dock {
 }
 #model-studio .studio-menu-pop .studio-btn:hover { color: var(--nav-accent); background: rgba(var(--nav-accent-rgb), 0.14); }
 #model-studio .studio-menu-pop .studio-sep { width: auto; height: 1px; margin: 0.25rem 0.4rem; align-self: auto; background: rgba(var(--nav-accent-rgb), 0.22); }
+/* The ribbon's own collapse is the WORLDS STRIP'S toggle: the same pill, the
+   same caret, the same accent fill once it is the only thing left. Two
+   collapse gestures on one page that looked different were two things to
+   learn; the caret points the way the bar will go. */
 .studio-ribbon-fold {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   margin-left: 0.2rem;
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: 0.4rem;
-  border: 1px solid rgba(var(--nav-accent-rgb), 0.3);
-  background: transparent;
-  color: var(--nav-accent);
+  width: 2.4rem;
+  height: 1.2rem;
+  padding: 0;
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.38);
+  border-radius: 999px;
+  background: rgba(6, 10, 16, 0.72);
+  backdrop-filter: blur(10px);
+  color: var(--text);
+  font-size: 0.6rem;
+  line-height: 1;
   cursor: pointer;
-  transition: transform 0.15s;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
 }
-.studio-ribbon-fold:hover { background: rgba(var(--nav-accent-rgb), 0.14); }
+.studio-ribbon-fold:hover {
+  border-color: rgb(var(--nav-accent-rgb));
+  color: rgb(var(--nav-accent-rgb));
+  background: rgba(6, 10, 16, 0.72);
+}
+.studio-ribbon-caret { display: block; transition: transform 0.22s ease; }
+/* Folded, the pill is all that is left, so it takes the accent to say there is
+   something up there rather than reading as a stray control -- and the bar's
+   own frame goes with the bar. */
+#model-studio .studio-ribbon.is-folded {
+  border: 0;
+  background: none;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+#model-studio .studio-ribbon.is-folded .studio-ribbon-fold {
+  background: rgb(var(--nav-accent-rgb));
+  border-color: rgb(var(--nav-accent-rgb));
+  color: var(--skin-chrome-ink, #2b0030);
+  margin-left: 0;
+}
+#model-studio .studio-ribbon.is-folded .studio-ribbon-caret { transform: rotate(180deg); }
 
 /* The decks hang under the WHOLE top row, so they start at one height. */
 #model-studio .studio-dock {

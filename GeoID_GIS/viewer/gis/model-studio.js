@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-291a173";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-291a173";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-bb6419a";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-bb6419a";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260910-291a173";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-291a173";
-import { downloadText } from "./extraction.js?v=20260910-291a173";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-291a173";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-291a173";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260910-291a173";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260910-291a173";
-import { femSpec } from "./model-build.js?v=20260910-291a173";
+} from "./mesh-volume.js?v=20260910-bb6419a";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-bb6419a";
+import { downloadText } from "./extraction.js?v=20260910-bb6419a";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-bb6419a";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-bb6419a";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260910-bb6419a";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260910-bb6419a";
+import { femSpec } from "./model-build.js?v=20260910-bb6419a";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -3966,7 +3966,10 @@ function wireRibbonAndFolds() {
   const ribbonFold = ribbon.querySelector(".studio-ribbon-fold");
   const setRibbon = (folded) => {
     ribbon.classList.toggle("is-folded", folded);
-    if (ribbonFold) ribbonFold.title = folded ? "Unfold the ribbon" : "Fold the ribbon to a pill";
+    if (ribbonFold) {
+      ribbonFold.title = folded ? "Show the toolbar" : "Hide the toolbar";
+      ribbonFold.setAttribute("aria-expanded", folded ? "false" : "true");
+    }
   };
   setRibbon(Boolean(folds.ribbon));
   ribbonFold?.addEventListener("click", (event) => {

@@ -223,6 +223,11 @@ check("the TIN builds", tin.ok, tin.message);
     check("the view frames only what is DRAWN, so a hidden GIS layer cannot be the fallback", /const drawn = \(node\) => \{/.test(studio) && /while \(o\) \{ if \(!o\.visible\) return false; o = o\.parent; \}/.test(studio) && /\.filter\(\(l\) => l\.object3D && drawn\(l\.object3D\)\);/.test(studio));
     check("a deck collapses into its margin and leaves the GIS page's own edge handle", /class="studio-edge-tab" data-edge="left"/.test(earth) && /class="studio-edge-tab" data-edge="right"/.test(earth) && /#model-studio \.studio-dock-left\.is-folded \{ transform: translateX\(calc\(-100% - 1\.4rem\)\); pointer-events: none; \}/.test(css) && /writing-mode: vertical-rl;/.test(css) && /if \(tab\) tab\.hidden = !folded;/.test(studio));
     check("the worlds strip opens collapsed, and an explicit choice is still kept", /stored === null \|\| stored === undefined \? true : stored === "1"/.test(readFileSync(new URL("./planet-strip.js", import.meta.url), "utf8")));
+    {
+      const stripCss = readFileSync(new URL("./planet-strip.js", import.meta.url), "utf8");
+      const pill = /width: 2\.4rem;\n  height: 1\.2rem;\n  padding: 0;\n  border: 1px solid rgba\(var\(--nav-accent-rgb\), 0\.38\);\n  border-radius: 999px;/;
+      check("the toolbar's collapse is the worlds strip's own toggle", pill.test(stripCss) && pill.test(css) && /class="studio-ribbon-caret"/.test(earth) && /#model-studio \.studio-ribbon\.is-folded \.studio-ribbon-fold \{\n  background: rgb\(var\(--nav-accent-rgb\)\);/.test(css) && /\.studio-ribbon-caret \{ display: block; transition: transform 0\.22s ease; \}/.test(css));
+    }
     const atlas = readFileSync(new URL("./atlas-assistant.js", import.meta.url), "utf8");
     check("Atlas takes the build-a-volcano phrase the studio's box used to", /studio\.buildFromText\(question\)/.test(atlas));
   }
