@@ -2,18 +2,18 @@ import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
   nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS, atmosphereStl, DEFAULT_MAX_NODES, triangleWriter,
-} from "./model-build.js?v=20260910-60c4e1b";
-import { ringsFromCollection } from "./extraction.js?v=20260910-60c4e1b";
+} from "./model-build.js?v=20260910-074cd23";
+import { ringsFromCollection } from "./extraction.js?v=20260910-074cd23";
 import {
   buildTin, tinHeightAt, tinSurfaceStl, tinShellStl, samplingSizeField,
   extendBoundary, extendedBoundaryLines, gridAsTin, shellFacets,
-} from "./surface-sampling.js?v=20260910-60c4e1b";
-import { renderFeatureCollection } from "./vector-render.js?v=20260910-60c4e1b";
-import { promptDrawTool } from "./extent-picker.js?v=20260910-60c4e1b";
+} from "./surface-sampling.js?v=20260910-074cd23";
+import { renderFeatureCollection } from "./vector-render.js?v=20260910-074cd23";
+import { promptDrawTool } from "./extent-picker.js?v=20260910-074cd23";
 import {
   profileAlong, profileHeightAt, sectionPolygons, sectionPositions, sectionGmshScript, profileCsv,
-} from "./section-model.js?v=20260910-60c4e1b";
-import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260910-60c4e1b";
+} from "./section-model.js?v=20260910-074cd23";
+import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260910-074cd23";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -2755,7 +2755,11 @@ function watchDrawnArea() {
     window.clearTimeout(watchDrawnArea.timer);
     watchDrawnArea.timer = window.setTimeout(adoptDrawnArea, 350);
   };
-  window.addEventListener("geoid-study-area-edited", drawnWatch);
+  // ON `document`, because that is where the viewer dispatches it — and as a
+  // plain `Event` with no `bubbles`, so a window listener never hears it at
+  // all. `pipeline-sync` and the weather card both listen there; measured on
+  // the live page, a window listener counted zero for a shape that had landed.
+  document.addEventListener("geoid-study-area-edited", drawnWatch);
 }
 
 function adoptDrawnArea() {
