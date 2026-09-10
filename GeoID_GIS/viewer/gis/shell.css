@@ -2199,3 +2199,11 @@ html.gis-arranging #layer-dock {
 #model-studio .studio-readout { color: var(--skin-data); }
 #model-studio .studio-mini { background: rgba(255, 255, 255, 0.03); }
 #model-studio .studio-mini:hover { color: var(--skin-data); border-color: rgba(var(--skin-data-rgb), 0.7); background: rgba(var(--skin-data-rgb), 0.12); }
+
+/* A DECK IS A COLUMN, and its tab strip must not shrink. The dock is a flex
+   column, so with a tall pane the strip was squeezed to 9 px while its own
+   buttons were 18 -- measured, and it is what the tabs "clashing" with the
+   mode pills actually was. The strip keeps its height; the pane takes the
+   rest and scrolls inside itself. */
+#model-studio .studio-tabs { flex: 0 0 auto; }
+#model-studio .studio-pane.is-active { flex: 1 1 auto; min-height: 0; }

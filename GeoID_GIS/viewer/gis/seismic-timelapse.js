@@ -8,8 +8,8 @@
  * so a M 7 is the same colour in a quiet year and a busy one.
  */
 
-import { buildSymbology, colourOf, legendInfoFrom } from "./symbology.js?v=20260910-73ae9ec";
-import { startPlayer } from "./timelapse-player.js?v=20260910-73ae9ec";
+import { buildSymbology, colourOf, legendInfoFrom } from "./symbology.js?v=20260910-3ec5fb7";
+import { startPlayer } from "./timelapse-player.js?v=20260910-3ec5fb7";
 
 const search = new URL(import.meta.url).search;
 export const MAG_EDGES = [6, 7, 8];
