@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-78e5fa3";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-78e5fa3";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260910-77438fc";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260910-77438fc";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260910-78e5fa3";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-78e5fa3";
-import { downloadText } from "./extraction.js?v=20260910-78e5fa3";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-78e5fa3";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-78e5fa3";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260910-78e5fa3";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260910-78e5fa3";
-import { femSpec } from "./model-build.js?v=20260910-78e5fa3";
+} from "./mesh-volume.js?v=20260910-77438fc";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260910-77438fc";
+import { downloadText } from "./extraction.js?v=20260910-77438fc";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260910-77438fc";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260910-77438fc";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260910-77438fc";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260910-77438fc";
+import { femSpec } from "./model-build.js?v=20260910-77438fc";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -34,6 +34,9 @@ const state = {
   mesh: null,
   kind: "box",
   params: {},
+  /** The prebuilt scenario chosen in the Add tab, and the numbers edited on it. */
+  template: "etna_chamber",
+  templateParams: {},
   groups: [],
   /** The studio's own atmosphere: a box over the ground (z = baseZ) cut by the model. */
   atmosphere: { on: false, heightM: 0, baseZ: 0, entryId: null },
@@ -153,85 +156,185 @@ function record(op) {
 
 // ── Palette (Add tab) ───────────────────────────────────────────────────────
 
+/**
+ * PREBUILT SCENARIOS -- a whole model in one press, and every number of it
+ * editable BEFORE it is added.
+ *
+ * They used to build from hard-coded params, so the only prebuilt geometry in
+ * the studio was the one somebody else had sized: a volcano was always 3 km
+ * tall over a 20 km crust. Each one now declares its own `params` in the same
+ * shape a primitive does, and `build(p)` maps them onto the entities it
+ * expands into -- so the Prebuilt scenarios card reads exactly like the Build
+ * your own card beside it, and the two are told apart by what they make
+ * (an assembly against one shape) rather than by which is editable.
+ */
 const TEMPLATES = {
   etna_chamber: {
     label: "Volcano + chamber",
-    build: () => [
-      { kind: "volcano_edifice", op: "union", params: {} },
-      { kind: "ellipsoid", op: "difference", params: { z: -3, rx: 2, ry: 2, rz: 1.2 } },
+    blurb: "An edifice on a crust block with a magma chamber cut out of it — the chamber keeps a volume of its own.",
+    params: {
+      crust_width: ["Crust width", 20],
+      crust_depth: ["Crust depth", 10],
+      height: ["Edifice height", 3],
+      base_radius: ["Base radius", 5],
+      summit_radius: ["Summit radius", 0.5],
+      chamber_depth: ["Chamber depth", 3],
+      chamber_radius: ["Chamber radius", 2],
+      chamber_height: ["Chamber half-height", 1.2],
+    },
+    build: (p) => [
+      { kind: "volcano_edifice", op: "union", params: {
+        crust_width: p.crust_width, crust_depth: p.crust_depth,
+        height: p.height, base_radius: p.base_radius, summit_radius: p.summit_radius,
+      } },
+      { kind: "ellipsoid", op: "difference", params: {
+        x: 0, y: 0, z: -Math.abs(p.chamber_depth),
+        rx: p.chamber_radius, ry: p.chamber_radius, rz: p.chamber_height,
+      } },
     ],
   },
   layered_dike: {
     label: "Layered crust + dike",
-    build: () => [
-      { kind: "layered_halfspace", op: "union", params: { width: 12, depth: 12, thicknesses: "2,3,5" } },
-      { kind: "dike", op: "difference", params: { length: 6, height: 5, thickness: 0.6, top_depth: 1, strike: 30, dip: 80 } },
+    blurb: "A stack of layers, each its own volume, with a dike through them — the dike keeps a volume of its own.",
+    params: {
+      width: ["Block width", 12],
+      depth: ["Block depth", 12],
+      thicknesses: ["Layer thicknesses", "2,3,5"],
+      length: ["Dike length", 6],
+      height: ["Dike height", 5],
+      thickness: ["Dike thickness", 0.6],
+      top_depth: ["Dike top depth", 1],
+      strike: ["Strike (deg)", 30],
+      dip: ["Dip (deg)", 80],
+    },
+    build: (p) => [
+      { kind: "layered_halfspace", op: "union", params: { width: p.width, depth: p.depth, thicknesses: p.thicknesses } },
+      { kind: "dike", op: "difference", params: {
+        x: 0, y: 0, length: p.length, height: p.height, thickness: p.thickness,
+        top_depth: p.top_depth, strike: p.strike, dip: p.dip,
+      } },
     ],
   },
 };
 
-function renderPalette() {
-  const host = byId("studio-palette");
-  if (!host) return;
-  host.innerHTML = "";
-  Object.entries(PRIMITIVES).forEach(([id, spec]) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = spec.label;
-    button.dataset.kind = id;
-    button.classList.toggle("is-on", id === state.kind);
-    button.addEventListener("click", () => {
-      state.kind = id;
-      renderPalette();
-      renderParams();
-    });
-    host.appendChild(button);
-  });
-
-  const templates = byId("studio-templates");
-  if (templates) {
-    templates.innerHTML = "";
-    Object.entries(TEMPLATES).forEach(([id, tpl]) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.textContent = tpl.label;
-      button.addEventListener("click", () => {
-        tpl.build().forEach((entry) => addSolid(entry.kind, entry.op, entry.params));
-        log(`template "${tpl.label}" expanded into ${tpl.build().length} ops`);
-      });
-      templates.appendChild(button);
-    });
-  }
+/** A spec's defaults, for a template as for a primitive. */
+function defaultsOf(spec) {
+  const out = {};
+  Object.entries(spec.params).forEach(([key, [, value]]) => { out[key] = value; });
+  return out;
 }
 
-function renderParams() {
-  const host = byId("studio-params");
-  const spec = PRIMITIVES[state.kind];
+/**
+ * Parameter rows into a host, from a `params` spec. One renderer for both
+ * cards, so a scenario's numbers are edited exactly as a shape's are.
+ */
+function renderParamRows(host, spec, values, mark) {
   if (!host || !spec) return;
   host.innerHTML = "";
-  Object.entries(spec.params).forEach(([key, [label, value]]) => {
+  Object.entries(spec.params).forEach(([key, [label, fallback]]) => {
     const row = document.createElement("div");
     row.className = "studio-row";
     const lab = document.createElement("label");
     lab.textContent = label;
     const input = document.createElement("input");
     input.className = "studio-input";
-    input.dataset.param = key;
-    input.type = key === "thicknesses" ? "text" : "number";
+    input.dataset[mark] = key;
+    input.type = typeof fallback === "string" ? "text" : "number";
     input.step = "any";
-    input.value = String(value);
+    input.value = String(values?.[key] ?? fallback);
+    input.addEventListener("keydown", (event) => event.stopPropagation());
     row.appendChild(lab);
     row.appendChild(input);
     host.appendChild(row);
   });
 }
 
-function readParams() {
+function readParamRows(selector, attr) {
   const out = {};
-  document.querySelectorAll("#studio-params [data-param]").forEach((input) => {
-    out[input.dataset.param] = input.value;
-  });
+  document.querySelectorAll(selector).forEach((input) => { out[input.dataset[attr]] = input.value; });
   return out;
+}
+
+/**
+ * BUILD YOUR OWN: the shapes, under the heading each declares
+ * (`PRIMITIVES[kind].group` -- Basic, Geological), so a reader looking for a
+ * dike is not reading past six boxes and spheres to find it.
+ */
+function renderPalette() {
+  const host = byId("studio-palette");
+  if (host) {
+    host.innerHTML = "";
+    const groups = new Map();
+    Object.entries(PRIMITIVES).forEach(([id, spec]) => {
+      const key = spec.group || "Shapes";
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push([id, spec]);
+    });
+    groups.forEach((entries, groupName) => {
+      const caption = document.createElement("div");
+      caption.className = "studio-palette-caption";
+      caption.textContent = groupName;
+      host.appendChild(caption);
+      const grid = document.createElement("div");
+      grid.className = "studio-palette-grid";
+      entries.forEach(([id, spec]) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = spec.label;
+        button.dataset.kind = id;
+        button.classList.toggle("is-on", id === state.kind);
+        button.addEventListener("click", () => {
+          state.kind = id;
+          state.params = {};
+          renderPalette();
+          renderParams();
+        });
+        grid.appendChild(button);
+      });
+      host.appendChild(grid);
+    });
+  }
+  renderTemplates();
+}
+
+/** PREBUILT SCENARIOS: one button each, and the chosen one's numbers below. */
+function renderTemplates() {
+  const host = byId("studio-templates");
+  if (!host) return;
+  host.innerHTML = "";
+  const grid = document.createElement("div");
+  grid.className = "studio-palette-grid";
+  Object.entries(TEMPLATES).forEach(([id, tpl]) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = tpl.label;
+    button.title = tpl.blurb;
+    button.dataset.template = id;
+    button.classList.toggle("is-on", id === state.template);
+    button.addEventListener("click", () => {
+      state.template = id;
+      state.templateParams = {};
+      renderTemplates();
+    });
+    grid.appendChild(button);
+  });
+  host.appendChild(grid);
+  const tpl = TEMPLATES[state.template];
+  if (!tpl) return;
+  const blurb = document.createElement("div");
+  blurb.className = "studio-readout";
+  blurb.textContent = tpl.blurb;
+  host.appendChild(blurb);
+  renderParamRows(byId("studio-template-params"), tpl, state.templateParams, "tparam");
+}
+
+function renderParams() {
+  const spec = PRIMITIVES[state.kind];
+  renderParamRows(byId("studio-params"), spec, state.params, "param");
+}
+
+function readParams() {
+  return readParamRows("#studio-params [data-param]", "param");
 }
 
 // ── Scene ───────────────────────────────────────────────────────────────────
@@ -2748,6 +2851,15 @@ function init() {
   });
 
   byId("studio-add")?.addEventListener("click", () => addSolid(state.kind, "union"));
+  byId("studio-template-add")?.addEventListener("click", () => {
+    const tpl = TEMPLATES[state.template];
+    if (!tpl) { log("Choose a scenario first."); return; }
+    const values = { ...defaultsOf(tpl), ...readParamRows("#studio-template-params [data-tparam]", "tparam") };
+    Object.keys(values).forEach((k) => { if (typeof tpl.params[k][1] === "number") values[k] = Number(values[k]); });
+    const parts = tpl.build(values);
+    parts.forEach((entry) => addSolid(entry.kind, entry.op, entry.params));
+    log(`Scenario "${tpl.label}" added as ${parts.length} entities: ${parts.map((e) => `${e.op} ${e.kind}`).join(", ")}.`);
+  });
   byId("studio-mesh1d")?.addEventListener("click", () => meshModel(1));
   byId("studio-mesh2d")?.addEventListener("click", () => meshModel(2));
   byId("studio-mesh3d")?.addEventListener("click", () => meshModel(3));
@@ -3921,12 +4033,12 @@ function ensureTerrainCard() {
 export function buildFromText(text) {
   const lower = String(text || "").toLowerCase();
   if (lower.includes("volcano")) {
-    TEMPLATES.etna_chamber.build().forEach((e) => addSolid(e.kind, e.op, e.params));
+    TEMPLATES.etna_chamber.build(defaultsOf(TEMPLATES.etna_chamber)).forEach((e) => addSolid(e.kind, e.op, e.params));
     log(`Atlas: built a volcano with a chamber from "${text}"`);
     return { ok: true, built: "a volcano with a magma chamber" };
   }
   if (lower.includes("dike") || lower.includes("dyke") || lower.includes("layer")) {
-    TEMPLATES.layered_dike.build().forEach((e) => addSolid(e.kind, e.op, e.params));
+    TEMPLATES.layered_dike.build(defaultsOf(TEMPLATES.layered_dike)).forEach((e) => addSolid(e.kind, e.op, e.params));
     log(`Atlas: built a layered crust with a dike from "${text}"`);
     return { ok: true, built: "a layered crust with a dike" };
   }

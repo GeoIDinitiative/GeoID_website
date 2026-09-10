@@ -21,9 +21,9 @@
  * not one line about Macrostrat.
  */
 
-import { decodeTile, tilesForBounds } from "./mvt.js?v=20260910-78e5fa3";
-import { geometryKind } from "./symbology-dialog.js?v=20260910-78e5fa3";
-import { visibleBounds } from "./view-extent.js?v=20260910-78e5fa3";
+import { decodeTile, tilesForBounds } from "./mvt.js?v=20260910-77438fc";
+import { geometryKind } from "./symbology-dialog.js?v=20260910-77438fc";
+import { visibleBounds } from "./view-extent.js?v=20260910-77438fc";
 import * as THREE from "../vendor/three.module.js";
 
 const TILES = "https://tiles.macrostrat.org/carto";

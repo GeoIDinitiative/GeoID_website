@@ -229,6 +229,9 @@ check("the TIN builds", tin.ok, tin.message);
       const pill = /width: 2\.4rem;\n  height: 1\.2rem;\n  padding: 0;\n  border: 1px solid rgba\(var\(--nav-accent-rgb\), 0\.38\);\n  border-radius: 999px;/;
       check("the toolbar's collapse is the worlds strip's own toggle", pill.test(stripCss) && pill.test(css) && /class="studio-ribbon-caret"/.test(earth) && /#model-studio \.studio-ribbon\.is-folded \.studio-ribbon-fold \{\n  background: rgb\(var\(--nav-accent-rgb\)\);/.test(css) && /\.studio-ribbon-caret \{ display: block; transition: transform 0\.22s ease; \}/.test(css));
     }
+    check("the Add tab segregates a prebuilt scenario from a shape, and each carries its own numbers", /<p class="studio-group-title">Prebuilt scenarios<\/p>/.test(earth) && /id="studio-template-params"/.test(earth) && /id="studio-template-add"/.test(earth) && /<p class="studio-group-title">Build your own<\/p>/.test(earth) && !/Templates \(whole scenarios\)|>Primitives</.test(earth));
+    check("a scenario declares its own params and builds from them", /params: \{\n      crust_width: \["Crust width", 20\],/.test(studio) && /build: \(p\) => \[/.test(studio) && /function renderParamRows\(host, spec, values, mark\)/.test(studio) && /const values = \{ \.\.\.defaultsOf\(tpl\), \.\.\.readParamRows\("#studio-template-params \[data-tparam\]", "tparam"\) \};/.test(studio));
+    check("the shapes are grouped by the heading each declares", /const key = spec\.group \|\| "Shapes";/.test(studio) && /studio-palette-caption/.test(studio) && /studio-palette-caption/.test(css));
     const atlas = readFileSync(new URL("./atlas-assistant.js", import.meta.url), "utf8");
     check("Atlas takes the build-a-volcano phrase the studio's box used to", /studio\.buildFromText\(question\)/.test(atlas));
   }

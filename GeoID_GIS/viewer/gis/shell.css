@@ -2271,3 +2271,20 @@ html.gis-arranging #layer-dock {
 #model-studio .studio-item > span:not(.studio-item-actions) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #model-studio .studio-flag { width: 2.9rem; }
 #model-studio .studio-row { grid-template-columns: minmax(0, 1fr) minmax(3.4rem, 6.2rem); gap: 0.3rem; }
+
+/* Two ways to make geometry, each its own card: a scenario's palette and its
+   numbers, then a shape's. The shapes are grouped under the heading each one
+   declares, so a dike is not six boxes down a flat list. */
+#model-studio .studio-palette { display: grid; gap: 0.3rem; }
+#model-studio .studio-palette-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem; }
+#model-studio .studio-palette-caption {
+  font-family: "Exo 2", system-ui, sans-serif;
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--skin-data);
+  opacity: 0.85;
+  padding-top: 0.15rem;
+}
+#model-studio .studio-palette-caption:first-child { padding-top: 0; }

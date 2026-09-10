@@ -203,13 +203,19 @@
         <summary class="section-toggle"><div class="section-toggle-main"><div class="section-heading"><div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></span><span>Add</span></span></div></div></div></summary>
         <div class="section-body toolbox-group-body">
         <div class="studio-pane is-active" data-pane="add">
-        <p class="studio-group-title">Templates (whole scenarios)</p>
+        <!-- TWO WAYS TO MAKE GEOMETRY, and each carries its own numbers. The
+             pane read Templates / Primitives / Parameters, and which of the
+             two the parameters belonged to was a guess: they only ever drove
+             the primitive. A scenario is an assembly, a shape is one solid,
+             and both are edited before they are added. -->
+        <p class="studio-group-title">Prebuilt scenarios</p>
         <div id="studio-templates" class="studio-palette"></div>
-        <p class="studio-group-title">Primitives</p>
+        <div id="studio-template-params" class="studio-params"></div>
+        <button id="studio-template-add" class="studio-primary" type="button">Add this scenario</button>
+        <p class="studio-group-title">Build your own</p>
         <div id="studio-palette" class="studio-palette"></div>
-        <p class="studio-group-title">Parameters</p>
         <div id="studio-params" class="studio-params"></div>
-        <button id="studio-add" class="studio-primary" type="button">Add to model</button>
+        <button id="studio-add" class="studio-primary" type="button">Add this shape</button>
       </div>
         </div>
       </details>
