@@ -2188,7 +2188,8 @@ html.gis-arranging #layer-dock {
 #model-studio .studio-select {
   padding: 0.26rem 0.4rem;
   border-radius: 0.45rem;
-  background: var(--skin-card-ground, rgb(24, 13, 47));
+  /* The ground the GIS page's own fields sit on -- measured rgb(16, 7, 36). */
+  background: var(--skin-tab-ground, rgb(16, 7, 36));
 }
 #model-studio .studio-input:focus,
 #model-studio .studio-select:focus { border-color: rgba(var(--skin-data-rgb), 0.8); outline: none; }
