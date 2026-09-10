@@ -17029,3 +17029,49 @@ height no longer imposed from outside, the panes size themselves and the cap is
 the only thing that can make anything scroll. A grid, or a fixed `bottom`, and
 the panes are sized to the box instead — the same fault this file already
 records for `.gis-tool-body` and `.qt-v`, met from the container's side.
+
+### The page opens on the events drop-down, which needed the corner arbitrated
+
+"Ensure that upon launch the events drop-down is shown initially over the
+legend." The feed was already armed at launch and deliberately opened NO panel,
+and the note explaining that named the real obstacle rather than a preference:
+**the corner is one slot, and the two openers are not equals at boot.** The
+feed is armed on purpose by `armOnLaunch`; the legend opens ITSELF whenever a
+layer arrives, which at launch is the launch defaults landing a second or two
+later. Opened without arbitration the feed was simply overwritten by whichever
+fetch finished last — which is why it used to arm shut.
+
+**A CLAIM, in the file that already owns which of the two is open.**
+`overlay-stack.js` says in its own header that this decision belongs to neither
+card, and it is where the launch's choice belongs too: `claim(id)` opens a card
+and holds the slot for it, `mayAutoOpen(id)` is what the OTHER card asks before
+an automatic open, and `releaseClaim()` is called by the stack itself on the
+first press of either toggle.
+
+- **It is a DEFAULT, not a lock.** A press is a decision and this is not, so
+  the reader's first press of either toggle ends it, in both directions.
+- **A press never goes through the gate.** Only the arrival path is gated
+  (`if (fresh.length && mayOpen)`); `legend-dock`'s own toggle handler calls
+  `setOpen` directly and is untouched.
+- **The legend ASKS rather than knows.** `window.GeoIDOverlayStack?.mayAutoOpen
+  ?.("map-legend") ?? true` — that file has no business knowing the events feed
+  exists, and a page without the stack answers yes, which is the behaviour that
+  was there before.
+- **IT EXPIRES.** Nothing announces that a launch is over, and a suppression
+  with no end would stop the legend opening for a layer somebody ticks ten
+  minutes later. The bound is `armOnLaunch`'s own twelve seconds — the wait it
+  already gives up a viewer after — rather than a number invented for it.
+  Expiry only stops the claim suppressing; it closes nothing.
+
+**And the pin that asserted the old behaviour was INVERTED, not deleted.**
+`event-sources.test.mjs` checked `if (active && panel && !launch)` — the branch
+that skipped the open — and it was right to, so it now checks that the launch
+opens the panel AND claims the slot. A pin that guards a decision has to be
+re-argued when the decision changes; deleting it would leave the new behaviour
+unguarded and the old one free to come back.
+
+Verified on a real launch: the feed's panel open at 280x312 with "252 natural
+events in 5 categories · 134 earthquakes", the legend's panel hidden, both
+toggles side by side — then a press of the legend takes the corner (legend
+open, feed shut, claim released), a press of the feed takes it back, and a
+second press leaves both shut.
