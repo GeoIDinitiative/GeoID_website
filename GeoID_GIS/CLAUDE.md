@@ -16772,3 +16772,47 @@ proven under gmsh 4.11.1 rather than assumed:
   sat below that call — a TDZ that took the whole module out (the seam never
   appeared, no console error in the page; the error only showed by importing
   the module inside the iframe's realm). Declared beside `state` now.
+
+### The studio's chrome and controls ARE the GIS page's, measured off it
+
+"There are clashes between pills/tab bars — ensure the model page replicates
+the same theme, font and colour scheme as the GIS page; currently displays red
+pills." Four faults, all measured rather than eyed:
+
+- **The mode bar and the ribbon were positioned separately** and both sat over
+  the left deck: the mode bar ran to y = 104 with the dock starting at 96, so
+  the GIS/MODEL/RESEARCH pills lay on the Add/Model/Label/History strip. They
+  are ONE flex row now (`.studio-topbar`, left 0.9rem to right 3.8rem, clear of
+  the Atlas launcher) and both decks hang under its measured height
+  (`--studio-chrome-h`), so they start level and nothing above can reach them.
+- **A DECK IS A COLUMN AND ITS TAB STRIP MUST NOT SHRINK.** The dock is a flex
+  column; with a tall pane the strip was squeezed to **9 px around 18 px
+  buttons** — which is most of what "the tab bars clash" looked like. `flex: 0 0
+  auto` on the strip, `flex: 1 1 auto; min-height: 0` on the pane.
+- **The red pills were the studio's own primary at 2.5x the page's alphas.**
+  The GIS page's `.tool-button` is `rgba(255,103,88,.16) → rgba(102,18,28,.34)`;
+  the studio's was `.4 → .58`, which reads as a solid brick pill beside it. Every
+  control now carries the page's own measured values — background, border,
+  radius, padding — and the fields sit on the page's own field ground.
+- **The ink and the borders come from the app's control skin, not from a
+  copy.** `styles/viewer-skin.css` paints `.tool-button, .button, .input, …`
+  with `!important` (cyan ink, `rgba(var(--skin-data-rgb),0.40)` border); the
+  studio's classes were simply not on that list. Added there, so a theme
+  restyles the studio with everything else. Chrome stays magenta and controls
+  stay cyan — the skin's own division, which the studio had been ignoring.
+- **A section head keeps the GUI's own open-is-filled rule** (side-panels.js):
+  the studio's invented tint is gone, so an open head is the solid accent in
+  dark ink here as everywhere. Domain heads also carry `data-tool-icon` so the
+  shared painter's fallback bracket stays off them, and a name too long for a
+  16rem deck says itself on hover.
+
+**AND THE SHARED SKIN SHEET HAD NEVER BEEN CACHE-BUSTED.** `stamp.py` only
+rewrites a `?v=` that already exists, so `/styles/viewer-skin.css` and
+`/styles/viewer-themes.css` carried none: the rule was on disk, the page went
+on serving its cached sheet, and the studio's ink stayed white while the file
+said cyan. The tell is a computed value that disagrees with the file —
+`[...document.styleSheets]` says what is LOADED, `fetch(url, {cache:"reload"})`
+says what is on disk. Given a stamp by hand once on the ten pages `stamp.py`
+sweeps (the GIS viewer and the nine planets); it keeps them fresh from here.
+Any future edit to the app-wide skin needs that stamp to exist or it is
+invisible to everyone who has been to the site before.
