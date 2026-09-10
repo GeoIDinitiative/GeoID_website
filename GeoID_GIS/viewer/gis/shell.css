@@ -2275,7 +2275,7 @@ html.gis-arranging #layer-dock {
 /* Two ways to make geometry, each its own card: a scenario's palette and its
    numbers, then a shape's. The shapes are grouped under the heading each one
    declares, so a dike is not six boxes down a flat list. */
-#model-studio .studio-palette { display: grid; gap: 0.3rem; }
+#model-studio .studio-palette { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.3rem; }
 #model-studio .studio-palette-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem; }
 #model-studio .studio-palette-caption {
   font-family: "Exo 2", system-ui, sans-serif;
