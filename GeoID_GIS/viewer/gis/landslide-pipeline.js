@@ -22,26 +22,26 @@
  * file only orchestrates them and says, on every card, what it has read.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-dd2e87b";
-import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260911-dd2e87b";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-e8b0ea4";
+import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260911-e8b0ea4";
 import {
   columnMaterial, soilColumn, steadyWetness, planeWetness, factorOfSafety, criticalRecharge,
   FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M, LATERAL_FACTOR, FOS_CAP, cellAnswer,
-} from "./slope-hydrology.js?v=20260911-dd2e87b";
-import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-dd2e87b";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-dd2e87b";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-dd2e87b";
-import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-dd2e87b";
-import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainParts, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260911-dd2e87b";
-import { mathsFor } from "./equations.js?v=20260911-dd2e87b";
-import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260911-dd2e87b";
-import { upslopeWeights, stationStep, LANDSLIDE_PARAMS, LANDSLIDE_PLOTS, lowestCells } from "./landslide-stations.js?v=20260911-dd2e87b";
+} from "./slope-hydrology.js?v=20260911-e8b0ea4";
+import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-e8b0ea4";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-e8b0ea4";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-e8b0ea4";
+import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-e8b0ea4";
+import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainParts, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260911-e8b0ea4";
+import { mathsFor } from "./equations.js?v=20260911-e8b0ea4";
+import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260911-e8b0ea4";
+import { upslopeWeights, stationStep, LANDSLIDE_PARAMS, LANDSLIDE_PLOTS, lowestCells } from "./landslide-stations.js?v=20260911-e8b0ea4";
 import {
   makeStation, parseStationsCsv, stationsFromFeatures, uniqueName, seriesCsv, seriesFileName, MAX_STATIONS, colourAt,
-} from "./station-series.js?v=20260911-dd2e87b";
-import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260911-dd2e87b";
-import { planSeries, rendersOf, stepText, rampMaxFor, STEP_CHOICES, NATIVE_STEP, HOUR } from "./rain-steps.js?v=20260911-dd2e87b";
-import { mountStationMarkers } from "./station-markers.js?v=20260911-dd2e87b";
+} from "./station-series.js?v=20260911-e8b0ea4";
+import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260911-e8b0ea4";
+import { planSeries, rendersOf, stepText, rampMaxFor, STEP_CHOICES, NATIVE_STEP, HOUR } from "./rain-steps.js?v=20260911-e8b0ea4";
+import { mountStationMarkers } from "./station-markers.js?v=20260911-e8b0ea4";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";

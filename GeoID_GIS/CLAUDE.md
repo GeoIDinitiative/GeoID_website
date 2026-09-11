@@ -18542,6 +18542,24 @@ first "8 km over the Camargue" point had neither in frame, and read as the
 layers vanishing). And a test stub must not hand geo-utils' `latLonToVector3`
 back to the seam: it DEFERS to the seam, so it calls itself.
 
+**`gee.js`'s `drape()` was never moved over, and every overlay it builds had
+the fault** — the weather card (radar, precipitation, temperature, wind), the
+Earth Engine layers, the map overlays catalogue, the imagery time-lapse and
+the cyclone estimate. Measured on a weather drape built 2 km up (relief
+1.5e-5) and viewed from 1,500 km: **up to 2,433 m off the ground, 836 m on
+average** (45 m when built at 15 km). `attachExactReliefAttributes` in
+`vector-render.js` is the shared form — each vertex's direction and the
+terrain's own normalised height — with `globeFrame` for geometry parented to
+the globe mesh (x and z negated, the half-turn `drape()` bakes). After: a real
+2 m temperature overlay over the Apennines, built 3 km up, within **0.01 m**
+of the ground from orbit, where the drawn relief there reaches 140 km. When a
+drape "floats", build it CLOSE and measure it FAR — at the relief it was built
+at, every form looks exact.
+
+**The weather card reuses a captured "Fetch extent" before typed inputs** —
+by design, and it will send a typed-centre fetch to wherever that saved box
+is (an old one sat at 0°N 0°E). Remove it from the Workspace to type a box.
+
 ## River flood inundation: a stage from the river's own size, set by sliders
 
 Hazards ▸ Flood ▸ "River flood inundation on the streamed DEM" (`inundation.js`,
