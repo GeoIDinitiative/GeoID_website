@@ -22,22 +22,29 @@
  * file only orchestrates them and says, on every card, what it has read.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-891b338";
-import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260911-891b338";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-e80ef43";
+import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260911-e80ef43";
 import {
   columnMaterial, soilColumn, steadyWetness, planeWetness, factorOfSafety, criticalRecharge,
-  FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M, LATERAL_FACTOR, FOS_CAP,
-} from "./slope-hydrology.js?v=20260911-891b338";
-import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-891b338";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-891b338";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-891b338";
-import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-891b338";
-import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainDays, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260911-891b338";
-import { mathsFor } from "./equations.js?v=20260911-891b338";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260911-891b338";
+  FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M, LATERAL_FACTOR, FOS_CAP, cellAnswer,
+} from "./slope-hydrology.js?v=20260911-e80ef43";
+import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-e80ef43";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-e80ef43";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-e80ef43";
+import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-e80ef43";
+import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainDays, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260911-e80ef43";
+import { mathsFor } from "./equations.js?v=20260911-e80ef43";
+import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260911-e80ef43";
+import { upslopeWeights, stationStep, LANDSLIDE_PARAMS, lowestCells } from "./landslide-stations.js?v=20260911-e80ef43";
+import {
+  makeStation, parseStationsCsv, stationsFromFeatures, uniqueName, seriesCsv, seriesFileName, MAX_STATIONS, colourAt,
+} from "./station-series.js?v=20260911-e80ef43";
+import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260911-e80ef43";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";
+/** The stations' own layer: points on the globe named as the list names them. */
+export const STATION_LAYER = "Landslide sampling stations";
 /** The block the coarse datasets inform the fine grid on, in metres. */
 export const INFORM_M = 100;
 
@@ -157,13 +164,8 @@ export function textureOf(props = {}) {
   return [t.sand, t.silt, t.clay].some(Number.isFinite) ? t : null;
 }
 
-/** The static answer at one cell for one recharge flux. */
-export function cellAnswer({ q, cell, contour, lateral = 1 }) {
-  const W = steadyWetness({ q, b: contour, K: cell.K, zs: cell.zs, slopeRad: cell.slopeRad, lateral });
-  const m = planeWetness(W, cell.zs, cell.zf);
-  const fos = factorOfSafety({ slopeRad: cell.slopeRad, c: cell.c, phi: cell.phi, gamma: cell.gamma, zf: cell.zf, m });
-  return { W, m, fos };
-}
+/** The static answer at one cell for one recharge flux — `slope-hydrology`'s, shared with the stations. */
+export { cellAnswer };
 
 /**
  * ONE STATIC MODEL for one rainfall map: recharge from the map (capped at the
@@ -278,6 +280,9 @@ export function dailyFrames(plan) {
 const state = {
   bounds: null, rain: null, ground: null, run: null, step: -1, playing: false, view: "fos",
   params: { strength: "peak", root: 0, infiltration: true, lateral: LATERAL_FACTOR },
+  // Sampling stations outlive a run and an area: they are the reader's points,
+  // and a run only fills them in.
+  stations: [], record: null, plotParam: "fos", plotHover: -1,
 };
 
 const STEPS = [
@@ -287,6 +292,7 @@ const STEPS = [
   { id: "hydro", n: 4, title: "Hydrogeology", blurb: "The steady water table each rainfall map would build." },
   { id: "fos", n: 5, title: "Factor of safety", blurb: "Infinite slope, on the failure plane in the soil." },
   { id: "run", n: 6, title: "Run and play", blurb: "One static model per rainfall map, through the bar." },
+  { id: "stations", n: 7, title: "Sampling stations", blurb: "Points on the ground where every map's answer is recorded — plotted through time, and exported." },
 ];
 
 export function readiness(s = state) {
@@ -297,6 +303,7 @@ export function readiness(s = state) {
     hydro: s.ground ? "done" : "ready",
     fos: "ready",
     run: s.run ? "done" : (s.rain && s.ground) ? "ready" : "blocked",
+    stations: s.record?.stations?.some((st) => st.cell >= 0) ? "done" : "ready",
   };
 }
 
@@ -345,6 +352,28 @@ const STYLE = `
 .lsp-map span { flex: 1 1 auto; min-width: 0; }
 .lsp-map b { font-weight: 600; }
 .lsp-map .button { flex: 0 0 auto; padding: 0.12rem 0.5rem; font-size: 0.66rem; }
+.lsp-st-list { display: grid; gap: 0.2rem; margin: 0.25rem 0; max-height: 11rem; overflow-y: auto; }
+.lsp-st-list:empty { display: none; }
+.lsp-st { display: grid; grid-template-columns: 0.7rem minmax(0, 1fr) auto auto; align-items: center; gap: 0.35rem; font-size: 0.72rem; }
+.lsp-st-sw { width: 0.7rem; height: 0.7rem; border-radius: 999px; box-shadow: 0 0 0 1px rgba(0,0,0,0.5); }
+.lsp-st-name { min-width: 0; padding: 0.1rem 0.3rem !important; font-size: 0.72rem !important; height: auto !important; }
+.lsp-st-val { font-variant-numeric: tabular-nums; opacity: 0.9; white-space: nowrap; }
+.lsp-st-val[data-kind="fail"] { color: #ff7b7b; }
+.lsp-st-val[data-kind="none"] { opacity: 0.55; }
+.lsp-st-x { background: none; border: 0; color: inherit; opacity: 0.6; cursor: pointer; padding: 0 0.2rem; font-size: 0.8rem; }
+.lsp-st-x:hover, .lsp-st-x:focus-visible { opacity: 1; }
+.lsp-plotbox { display: grid; gap: 0.25rem; margin: 0.35rem 0 0.2rem; }
+.lsp-plothead { display: flex; gap: 0.35rem; align-items: center; }
+.lsp-plothead select { flex: 1 1 auto; min-width: 0; }
+.lsp-plothead .button { flex: 0 0 auto; padding: 0.15rem 0.5rem; }
+.lsp-plot { width: 100%; height: 11rem; display: block; cursor: crosshair; border-radius: 0.35rem; background: rgba(0,0,0,0.22); }
+.lsp-plotread { font-size: 0.68rem; margin: 0; min-height: 1em; opacity: 0.85; font-variant-numeric: tabular-nums; }
+.lsp-plotbox.is-big { position: fixed; z-index: 25; left: calc(min(24rem, 100vw - 2rem) + 2rem); right: 4.5rem; bottom: 6.5rem; max-width: 60rem;
+  padding: 0.6rem 0.7rem; border: 1px solid rgba(var(--nav-accent-rgb, 255,43,214), 0.45); border-radius: 0.6rem;
+  background: var(--skin-card-ground, rgb(24,13,47)); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+.lsp-plotbox.is-big .lsp-plot { height: min(22rem, 45vh); }
+.lsp-plottitle { display: none; font: 600 0.72rem "Exo 2", sans-serif; letter-spacing: 0.06em; text-transform: uppercase; }
+.lsp-plotbox.is-big .lsp-plottitle { display: block; }
 `;
 
 function ensureStyle() {
@@ -415,10 +444,31 @@ m = (h − (z_s − z_f)) / z_f     water on the failure plane</div>
         <option value="minfos">Lowest factor of safety over the window</option>
         <option value="crit">Rainfall to fail (static, mm/day)</option></select></div>
       <div class="gis-btn-row"><button type="button" class="button" id="lsp-run">Run and play</button><button type="button" class="button secondary" id="lsp-clear">Clear</button></div>`)}
+    ${card(STEPS[6], `
+      <div class="lsp-st-list" id="lsp-st-list"></div>
+      <div class="row"><label for="lsp-st-add">Add</label><select id="lsp-st-add" class="input" data-always="1">
+        <option value="pick">Points clicked on the map</option>
+        <option value="centre">The study area's centre</option>
+        <option value="lowest">The 5 lowest factors of safety (after a run)</option>
+        <option value="csv">A CSV of stations — name, lat, lon…</option>
+        <optgroup label="Every point of a layer" id="lsp-st-layers"></optgroup></select></div>
+      <div class="gis-btn-row"><button type="button" class="button" id="lsp-st-go" data-always="1">Add</button><button type="button" class="button secondary" id="lsp-st-clear" data-always="1">Remove all</button></div>
+      <input type="file" id="lsp-st-file" accept=".csv,.txt,.tsv" hidden>
+      <div class="lsp-plotbox" id="lsp-plotbox">
+        <div class="lsp-plottitle">Sampling stations</div>
+        <div class="lsp-plothead"><select id="lsp-st-param" class="input" data-always="1" aria-label="Parameter to plot">
+          ${LANDSLIDE_PARAMS.map((p) => `<option value="${p.key}"${p.key === "fos" ? " selected" : ""}>${esc(p.label)}${p.unit ? ` (${esc(p.unit.replace("m2", "m²"))})` : ""}</option>`).join("")}</select>
+          <button type="button" class="button secondary" id="lsp-st-big" data-always="1" title="A larger plot over the map (Escape closes it)">Larger</button></div>
+        <canvas class="lsp-plot" id="lsp-st-plot" aria-label="Time series at the sampling stations"></canvas>
+        <p class="lsp-plotread" id="lsp-st-read"></p>
+      </div>
+      <div class="gis-btn-row"><button type="button" class="button" id="lsp-st-csv" data-always="1">Export CSV</button></div>`)}
   </div>`;
   wire();
+  wireStations();
   drawMaps();
   markStates();
+  renderStations();
 }
 
 function wire() {
@@ -428,7 +478,7 @@ function wire() {
     try { refreshPolygonOptions(extent, extent.value || "drawn", { allLayers: true }); } catch (e) { /* redraw later */ }
     drawMaps();
   });
-  window.GeoIDImportManager?.onChange?.(() => drawMaps());
+  window.GeoIDImportManager?.onChange?.(() => { drawMaps(); refreshLayerChoices(); });
   byId("lsp-draw").addEventListener("click", () => { promptDrawTool(); say("area", "Draw the area on the globe, press Done, then Use this extent."); });
   byId("lsp-use").addEventListener("click", () => {
     const b = resolvePolygonExtent(extent.value, { arm: false });
@@ -1053,6 +1103,8 @@ function showStep(k) {
   run.current = modelFrame(k);
   run.current.frame = k;
   paintView(run.current);
+  updateReadings();
+  drawPlot();
 }
 
 let running = false;
@@ -1114,6 +1166,7 @@ async function run({ keepStep = false } = {}) {
     const ever = [...minFos].filter((v) => Number.isFinite(v) && v < 1).length;
     say("run", `${frames.length} static models, one per rainfall map. Worst map ${frames[worst].time.replace("T", " ")}: ${w.failing.toLocaleString()} of ${w.applicable.toLocaleString()} cells below FoS 1 under up to ${w.maxRain.toFixed(0)} mm in ${r.windowH} h. `
       + `${ever.toLocaleString()} cells fall below 1 at some point in the window. Scrub the bar; change the view; click a cell for its numbers.`);
+    void recordStations();
   } catch (error) {
     say("run", `The run failed: ${error.message}`, "error");
   } finally {
@@ -1126,9 +1179,366 @@ function clear({ keepInputs = false } = {}) {
   if (state.playing) { try { stopPlayer(); } catch (e) { /* gone */ } state.playing = false; }
   const layer = (window.GeoIDImportManager?.getLayers?.() || []).find((l) => l.name === LAYER_NAME);
   if (layer) window.GeoIDImportManager?.removeLayer?.(layer.id);
-  state.run = null; state.step = -1;
+  state.run = null; state.step = -1; state.record = null;
+  renderStations(); drawPlot();
   if (!keepInputs) { state.rain = null; state.ground = null; state.bounds = null; ["area", "rain", "ground", "hydro", "run"].forEach((id) => say(id, "")); }
   markStates();
+}
+
+/* ── step 7: sampling stations ─────────────────────────────────────────── */
+
+/** The model cell a coordinate falls in, or why there is none. */
+function stationCell(lat, lon) {
+  const g = state.ground;
+  if (!g) return { cell: -1, note: "recorded when the ground is read and the model runs" };
+  const b = g.sub.bounds;
+  if (!(lon >= b.minX && lon <= b.maxX && lat >= b.minY && lat <= b.maxY)) return { cell: -1, note: "outside the study area" };
+  const x = Math.min(g.grid.width - 1, Math.floor(((lon - g.eb.west) / (g.eb.east - g.eb.west)) * g.grid.width));
+  const y = Math.min(g.grid.height - 1, Math.floor(((g.eb.north - lat) / (g.eb.north - g.eb.south)) * g.grid.height));
+  const i = y * g.grid.width + x;
+  if (!g.cells.data[i] || !g.cells.model[i]) return { cell: -1, note: "no ground under it in the DEM" };
+  return { cell: i, note: "" };
+}
+
+/**
+ * EVERY MAP AT EVERY STATION, by the station's own catchment. The weights are
+ * kept on the ground object, so a new station costs one pass over the flow
+ * topology and a re-run (new strength, new lateral factor) costs none — the
+ * topology did not change, only what flows down it.
+ */
+let recording = 0;
+async function recordStations() {
+  const ticket = ++recording;
+  const g = state.ground; const r = state.rain;
+  if (!g || !r || !state.run || !state.stations.length) {
+    state.record = null; renderStations(); drawPlot(); markStates();
+    return;
+  }
+  const frames = r.frames;
+  const at = state.stations.map((st) => ({ st, ...stationCell(st.lat, st.lon) }));
+  g.stationWeights = g.stationWeights || new Map();
+  const need = at.filter((a) => a.cell >= 0 && !g.stationWeights.has(a.cell));
+  if (need.length) say("stations", `Tracing ${need.length} station catchment${need.length > 1 ? "s" : ""} up the flow network…`);
+  const scratch = need.length ? new Float64Array(g.n) : null;
+  for (const a of need) {
+    g.stationWeights.set(a.cell, upslopeWeights(g.topo, a.cell, scratch));
+    await tick();
+    if (ticket !== recording) return;
+  }
+  const values = {}; const constants = {};
+  const P = g.cells.props;
+  at.forEach(({ st, cell }) => {
+    values[st.id] = Object.fromEntries(LANDSLIDE_PARAMS.map((p) => [p.key, new Array(frames.length).fill(NaN)]));
+    if (cell < 0) return;
+    const j = g.cells.block[cell]; const mat = g.table.list[P.mat[j]];
+    const crit = g.crit?.[cell];
+    constants[st.id] = {
+      cell_m: g.grid.stepM,
+      slope_deg: +(g.cells.slopeRad[cell] * 180 / Math.PI).toFixed(2),
+      upslope_area_m2: Math.round(g.cells.area[cell]),
+      soil_column_m: +P.zs[j].toFixed(2), failure_plane_m: +P.zf[j].toFixed(2),
+      material: mat?.name || "", cohesion_kpa: mat?.cohesionKPa, friction_deg: mat?.friction, unit_weight_kn_m3: mat?.unitWeight,
+      ks_m_s: mat?.K, lateral_factor: state.params.lateral,
+      rainfall_to_fail_mm_day: crit === Infinity ? "holds saturated" : crit === 0 ? "fails dry" : Number.isFinite(crit) ? +crit.toFixed(1) : "",
+    };
+  });
+  const live = at.filter((a) => a.cell >= 0);
+  for (let k = 0; k < frames.length; k += 1) {
+    if (live.length) {
+      const rainMm = rainMapFor(frames[k]);
+      for (const { st, cell } of live) {
+        const out = stationStep({ cell, weights: g.stationWeights.get(cell), rainMm, windowH: r.windowH, cells: g.cells, topo: g.topo,
+          infiltration: state.params.infiltration, lateral: state.params.lateral });
+        for (const p of LANDSLIDE_PARAMS) values[st.id][p.key][k] = out[p.key];
+      }
+    }
+    if (k % 16 === 15) { await tick(); if (ticket !== recording) return; }
+  }
+  state.record = {
+    model: "landslide-forecast", credit: r.credit,
+    times: frames.map((f) => f.time), params: LANDSLIDE_PARAMS,
+    stations: at.map(({ st, cell, note }) => ({ ...st, cell, note })),
+    values, constants,
+  };
+  const failing = live.filter(({ st }) => values[st.id].fos.some((v) => v < 1)).length;
+  const off = at.length - live.length;
+  say("stations", `${live.length} station${live.length === 1 ? "" : "s"} read at every one of ${frames.length} maps; ${failing} fall below FoS 1 at some point.`
+    + `${off ? ` ${off} not read — ${[...new Set(at.filter((a) => a.cell < 0).map((a) => a.note))].join("; ")}.` : ""}`
+    + " Click the plot to go to that map.");
+  // For whatever reads station series next — the analysis hub.
+  document.dispatchEvent(new CustomEvent("geoid-gis:station-series", { detail: { model: "landslide-forecast", series: state.record } }));
+  renderStations(); drawPlot(); markStates();
+}
+
+/** The stations as a layer on the globe, in the colours the plot uses. */
+async function drawStationLayer() {
+  const im = window.GeoIDImportManager;
+  if (!im?.addDerivedLayer) return;
+  (im.getLayers?.() || []).filter((l) => l.name === STATION_LAYER).forEach((l) => im.removeLayer?.(l.id));
+  if (!state.stations.length) return;
+  const { buildVectorLayerResult } = await import(`./vector-render.js${search}`);
+  const fc = {
+    type: "FeatureCollection",
+    features: state.stations.map((st) => ({
+      type: "Feature", geometry: { type: "Point", coordinates: [st.lon, st.lat] },
+      // label_rank puts the names on the globe beside the dots.
+      properties: { name: st.name, station: true, label_rank: 5, lat: st.lat, lon: st.lon },
+    })),
+  };
+  const built = buildVectorLayerResult(fc, { name: STATION_LAYER, style: { field: "name", categories: state.stations.map((st) => ({ value: st.name, colour: st.colour })) } });
+  const layer = im.addDerivedLayer(STATION_LAYER, built, "derived");
+  if (layer) layer.info = { source: "Placed by you in the forecast landslide pipeline", summary: "Sampling stations: the points where every rainfall map's static model is recorded." };
+}
+
+function addStations(list, source) {
+  const room = MAX_STATIONS - state.stations.length;
+  if (room <= 0) { say("stations", `${MAX_STATIONS} stations is the most a plot can keep legible.`, "error"); return 0; }
+  const taken = state.stations.map((st) => st.name);
+  const added = list.slice(0, room).map((s, k) => {
+    const st = makeStation({ ...s, source }, state.stations.length + k);
+    st.name = uniqueName(st.name, taken); taken.push(st.name);
+    return st;
+  });
+  state.stations.push(...added);
+  onStationsChanged();
+  return added.length;
+}
+
+function onStationsChanged() {
+  state.stations.forEach((st, k) => { st.colour = colourAt(k); });
+  renderStations();
+  void drawStationLayer();
+  if (state.run) void recordStations(); else { state.record = null; drawPlot(); markStates(); }
+}
+
+function pointLayers() {
+  return (window.GeoIDImportManager?.getLayers?.() || []).filter((l) => l.status === "loaded" && l.name !== STATION_LAYER
+    && (l.features || l.collection?.features || []).some((f) => /Point$/.test(f?.geometry?.type || "")));
+}
+
+const shortFos = (v) => (!Number.isFinite(v) ? "—" : v >= FOS_CAP ? `${FOS_CAP}+` : v.toFixed(2));
+
+/** What the list says a station reads on the map in view, and how. */
+function readingOf(st) {
+  const rec = state.record;
+  const rs = rec?.stations.find((x) => x.id === st.id);
+  if (!rec) return { text: state.run ? "reading…" : "awaiting a run", kind: "none" };
+  if (!rs || rs.cell < 0) return { text: rs?.note || "not read", kind: "none" };
+  const fos = rec.values[st.id].fos;
+  const now = state.step >= 0 ? fos[state.step] : NaN;
+  const low = fos.reduce((a, v) => (Number.isFinite(v) && v < a ? v : a), Infinity);
+  return { text: `FoS ${shortFos(now)} · min ${shortFos(low)}`, kind: now < 1 ? "fail" : "" };
+}
+
+/** The list: a swatch, an editable name, the reading on the map in view, a remove. */
+function renderStations() {
+  const host = byId("lsp-st-list");
+  if (!host) return;
+  host.innerHTML = state.stations.map((st) => {
+    const { text, kind } = readingOf(st);
+    return `<div class="lsp-st" data-id="${esc(st.id)}" title="${esc(st.name)} — ${st.lat.toFixed(5)}°, ${st.lon.toFixed(5)}° (${esc(st.source)})">
+      <span class="lsp-st-sw" style="background:${esc(st.colour)}"></span>
+      <input class="input lsp-st-name" value="${esc(st.name)}" aria-label="Station name" maxlength="40">
+      <span class="lsp-st-val" data-kind="${kind}">${esc(text)}</span>
+      <button type="button" class="lsp-st-x" title="Remove ${esc(st.name)}" aria-label="Remove ${esc(st.name)}">✕</button></div>`;
+  }).join("");
+  refreshLayerChoices();
+}
+
+/** Only the readings, as the bar steps: the name fields are left alone so a rename survives playing. */
+function updateReadings() {
+  document.querySelectorAll("#lsp-st-list .lsp-st").forEach((row) => {
+    const st = state.stations.find((x) => x.id === row.dataset.id);
+    const val = row.querySelector(".lsp-st-val");
+    if (!st || !val) return;
+    const { text, kind } = readingOf(st);
+    val.textContent = text; val.dataset.kind = kind;
+  });
+}
+
+function refreshLayerChoices() {
+  const group = byId("lsp-st-layers");
+  if (!group) return;
+  const layers = pointLayers();
+  const html = layers.length ? layers.map((l) => `<option value="layer:${esc(l.id)}">${esc(l.name)}</option>`).join("")
+    : '<option value="" disabled>No point layer on the globe</option>';
+  if (group.innerHTML !== html) group.innerHTML = html;
+}
+
+/** The plot for the parameter chosen, with the map on the globe marked. */
+let plotLayout = null;
+function drawPlot() {
+  const canvas = byId("lsp-st-plot");
+  if (!canvas || !canvas.isConnected) return;
+  const rec = state.record;
+  const p = LANDSLIDE_PARAMS.find((x) => x.key === state.plotParam) || LANDSLIDE_PARAMS[0];
+  const lines = rec ? rec.stations.filter((st) => st.cell >= 0).map((st) => ({ label: st.name, colour: st.colour, values: rec.values[st.id][p.key] })) : [];
+  const fosLike = p.key === "fos";
+  const wetLike = p.key === "W" || p.key === "m";
+  const range = !lines.length ? null
+    : fosLike ? yRangeOf(lines, { floor: 0, clip: 3, max: 1.2 })
+      : wetLike ? [0, 1.05] : yRangeOf(lines, { floor: 0 });
+  plotLayout = drawTimeSeries(canvas, {
+    times: rec?.times || [], lines, range,
+    yLabel: `${p.label.replace(/ \(.*\)$/, "")}${p.unit ? ` (${p.unit.replace("m2", "m²")})` : ""}`,
+    refs: fosLike ? [{ value: 1, label: "FoS 1", colour: "#ff7b7b" }] : wetLike ? [{ value: 1, label: "saturated", colour: "#8ab6ff" }] : [],
+    marker: state.step, hover: state.plotHover,
+    empty: !state.stations.length ? "Add a station to record it here." : !state.run ? "Run the model to fill the stations in." : "Reading the stations…",
+  });
+  const read = byId("lsp-st-read");
+  if (read) {
+    const k = state.plotHover >= 0 ? state.plotHover : state.step;
+    read.textContent = rec && k >= 0 && lines.length
+      ? `${String(rec.times[k]).replace("T", " ")} — ${lines.map((l) => `${l.label} ${fosLike ? shortFos(l.values[k]) : fmt(l.values[k], p.key === "rain" || p.key === "qb" ? 1 : 2)}`).join(" · ")}${fosLike ? " · above 3 drawn on the top edge" : ""}`
+      : "";
+  }
+}
+
+let pickHandle = null;
+let swallowUntil = 0;
+/**
+ * Each click on the globe adds a station until the button is pressed again or
+ * Escape. A pointerup with a drag gate, never a stopPropagation — the orbit
+ * controls need to see the press end — and the cards told to stand down so a
+ * placing click does not also open one.
+ */
+function armStationPick(button) {
+  const canvas = window.GeoIDViewer?.renderer?.domElement;
+  if (!canvas) { say("stations", "The globe is not ready.", "error"); return; }
+  if (pickHandle) { pickHandle(); return; }
+  const was = button.textContent;
+  button.textContent = "Stop adding"; button.classList.add("is-on");
+  let down = null;
+  const onDown = (e) => { down = { x: e.clientX, y: e.clientY }; };
+  const onUp = (e) => {
+    if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 4) return;
+    const at = window.GeoIDViewer?.surfaceLatLonAt?.(e.clientX, e.clientY);
+    if (!at) return;
+    swallowUntil = Date.now() + 800;
+    window.GeoIDFeaturePopup?.suppress?.(800);
+    addStations([{ name: `S${state.stations.length + 1}`, lat: at.lat, lon: at.lon }], "clicked on the map");
+    say("stations", `${state.stations.length} station${state.stations.length === 1 ? "" : "s"} — click to add another; Escape or Stop adding when done.`);
+  };
+  const onKey = (e) => { if (e.key === "Escape") finish(); };
+  const finish = () => {
+    pickHandle = null;
+    button.textContent = was; button.classList.remove("is-on");
+    canvas.removeEventListener("pointerdown", onDown);
+    canvas.removeEventListener("pointerup", onUp);
+    document.removeEventListener("keydown", onKey, true);
+  };
+  pickHandle = finish;
+  canvas.addEventListener("pointerdown", onDown);
+  canvas.addEventListener("pointerup", onUp);
+  document.addEventListener("keydown", onKey, true);
+  say("stations", "Click points on the globe to place stations; Escape or Stop adding when done.");
+}
+
+function addFrom(choice, button) {
+  if (choice === "pick") { armStationPick(button); return; }
+  if (pickHandle) pickHandle();
+  if (choice === "centre") {
+    const b = state.bounds;
+    if (!b) { say("stations", "Choose the study area first.", "error"); return; }
+    addStations([{ name: "Centre", lat: (b.south + b.north) / 2, lon: (b.west + b.east) / 2 }], "the study area's centre");
+    return;
+  }
+  if (choice === "lowest") {
+    const g = state.ground; const run = state.run;
+    if (!run || !g) { say("stations", "Run the model first — these are the cells it finds weakest.", "error"); return; }
+    const spacing = Math.max(3, Math.round(300 / g.grid.stepM));
+    const cells = lowestCells({ minFos: run.minFos, model: g.cells.model, width: g.grid.width, count: 5, spacing });
+    const list = cells.map((i, k) => {
+      const x = i % g.grid.width; const y = (i - x) / g.grid.width;
+      return { name: `Weakest ${k + 1}`, lat: g.eb.north - ((y + 0.5) / g.grid.height) * (g.eb.north - g.eb.south), lon: g.eb.west + ((x + 0.5) / g.grid.width) * (g.eb.east - g.eb.west) };
+    });
+    if (!list.length) { say("stations", "No modelled cell to choose.", "error"); return; }
+    addStations(list, "lowest factor of safety over the window");
+    return;
+  }
+  if (choice === "csv") { byId("lsp-st-file")?.click(); return; }
+  if (choice.startsWith("layer:")) {
+    const layer = pointLayers().find((l) => String(l.id) === choice.slice(6));
+    if (!layer) { say("stations", "That layer has gone.", "error"); return; }
+    const list = stationsFromFeatures(layer.features || layer.collection?.features || [], { prefix: "P" });
+    const n = addStations(list, `points of ${layer.name}`);
+    say("stations", `${n} station${n === 1 ? "" : "s"} from ${layer.name}${list.length > n ? ` (the first ${n} of ${list.length})` : ""}.`);
+  }
+}
+
+function wireStations() {
+  const add = byId("lsp-st-add"); const go = byId("lsp-st-go");
+  if (!add || !go) return;
+  go.addEventListener("click", () => addFrom(add.value, go));
+  add.addEventListener("change", () => { if (pickHandle && add.value !== "pick") pickHandle(); });
+  byId("lsp-st-clear").addEventListener("click", () => {
+    if (pickHandle) pickHandle();
+    state.stations = []; state.record = null;
+    onStationsChanged(); say("stations", "");
+  });
+  byId("lsp-st-file").addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const got = parseStationsCsv(await file.text());
+    if (!got.ok) { say("stations", got.message, "error"); return; }
+    const n = addStations(got.stations, file.name);
+    say("stations", `${n} station${n === 1 ? "" : "s"} from ${file.name}${got.dropped ? `; ${got.dropped} row${got.dropped === 1 ? "" : "s"} had no usable coordinate` : ""}.`);
+  });
+  const list = byId("lsp-st-list");
+  list.addEventListener("click", (e) => {
+    const x = e.target.closest(".lsp-st-x");
+    if (!x) return;
+    const id = x.closest(".lsp-st")?.dataset.id;
+    state.stations = state.stations.filter((st) => st.id !== id);
+    onStationsChanged();
+  });
+  list.addEventListener("keydown", (e) => { if (e.target.matches(".lsp-st-name")) { e.stopPropagation(); if (e.key === "Enter") e.target.blur(); } });
+  list.addEventListener("change", (e) => {
+    if (!e.target.matches(".lsp-st-name")) return;
+    const st = state.stations.find((x) => x.id === e.target.closest(".lsp-st")?.dataset.id);
+    if (!st) return;
+    const name = e.target.value.trim().slice(0, 40);
+    if (!name) { e.target.value = st.name; return; }
+    st.name = uniqueName(name, state.stations.filter((x) => x !== st).map((x) => x.name));
+    const rs = state.record?.stations.find((x) => x.id === st.id);
+    if (rs) rs.name = st.name;
+    renderStations(); drawPlot(); void drawStationLayer();
+  });
+  byId("lsp-st-param").addEventListener("change", (e) => { state.plotParam = e.target.value; drawPlot(); });
+  const canvas = byId("lsp-st-plot");
+  canvas.addEventListener("mousemove", (e) => {
+    const k = plotLayout?.indexAt?.(e.offsetX) ?? -1;
+    if (k !== state.plotHover) { state.plotHover = k; drawPlot(); }
+  });
+  canvas.addEventListener("mouseleave", () => { state.plotHover = -1; drawPlot(); });
+  canvas.addEventListener("click", (e) => {
+    const k = plotLayout?.indexAt?.(e.offsetX) ?? -1;
+    if (k < 0 || !state.run) return;
+    if (!seekPlayer(k)) showStep(k);
+  });
+  if (typeof ResizeObserver === "function") new ResizeObserver(() => drawPlot()).observe(canvas);
+  const box = byId("lsp-plotbox"); const big = byId("lsp-st-big");
+  const home = document.createComment("lsp-plotbox");
+  const setBig = (on) => {
+    if (on === box.classList.contains("is-big")) return;
+    if (on) { box.replaceWith(home); document.body.appendChild(box); } else { home.replaceWith(box); }
+    box.classList.toggle("is-big", on);
+    big.textContent = on ? "Close" : "Larger";
+    drawPlot();
+  };
+  // Fixed positioning is taken off the page, not the sidebar: a transformed or
+  // filtered ancestor would make it relative to the sidebar instead.
+  big.addEventListener("click", () => setBig(!box.classList.contains("is-big")));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && box.classList.contains("is-big")) setBig(false); });
+  byId("lsp-st-csv").addEventListener("click", async () => {
+    const rec = state.record;
+    if (!rec) { say("stations", state.stations.length ? "Run the model first — the stations are filled in by the run." : "Add a station first.", "error"); return; }
+    const { downloadText } = await import(`./extraction.js${search}`);
+    const name = seriesFileName(rec, "landslide-stations");
+    downloadText(name, seriesCsv(rec), "text/csv");
+    say("stations", `${name}: ${rec.stations.length} stations × ${rec.times.length} maps, one row each, ${rec.params.length} parameters and the stations' ground.`);
+  });
 }
 
 /* ── the card: one cell, at the map on screen ───────────────────────────── */
@@ -1136,6 +1546,8 @@ function clear({ keepInputs = false } = {}) {
 const fmt = (v, d = 2) => (Number.isFinite(v) ? v.toFixed(d) : "—");
 
 export function probeAt(lat, lon) {
+  // A click that has just placed a station is not a question about the cell.
+  if (Date.now() < swallowUntil) return true;
   const run = state.run; const g = state.ground;
   if (!run || !g || run.layer.visible === false) return false;
   const b = g.sub.bounds;
@@ -1169,6 +1581,13 @@ export function probeAt(lat, lon) {
     ["Strength", `c′ ${fmt(mat.cohesionKPa, 1)} kPa${mat.rootCohesionKPa ? ` (with ${mat.rootCohesionKPa} kPa of roots)` : ""}, φ′ ${fmt(mat.friction, 0)}° (${mat.strength}), γ ${fmt(mat.unitWeight, 1)} kN/m³`],
     ["Conductivity", `Ks ${mat.K.toExponential(1)} m/s — ${mat.kFrom}; lateral ${state.params.lateral} × Ks, T ${(mat.K * state.params.lateral * P.zs[j] * 86400).toFixed(1)} m²/day`],
   ];
+  // A station on this cell says so, with what it recorded.
+  const here = state.record?.stations.find((st) => st.cell === i);
+  if (here) {
+    const f = state.record.values[here.id].fos;
+    const low = f.reduce((a, v) => (Number.isFinite(v) && v < a ? v : a), Infinity);
+    rows.unshift(["Station", `${here.name} — lowest FoS ${shortFos(low)} over the window; plotted in step 7`]);
+  }
   window.GeoIDViewer?.showFeatureCard?.({
     // Named, so the card is claimed by this layer and goes when it does.
     source_layer: LAYER_NAME,
@@ -1189,5 +1608,9 @@ if (typeof document !== "undefined") {
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 }
 if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
-  window.GeoIDLandslidePipeline = { init, render, probeAt, state, readiness, demGridFor, staticStep, LAYER_NAME, run, showStep };
+  window.GeoIDLandslidePipeline = {
+    init, render, probeAt, state, readiness, demGridFor, staticStep, LAYER_NAME, run, showStep,
+    // The stations' seam, for whatever samples models at points next.
+    stations: () => state.stations, series: () => state.record, addStations: (list, source = "added") => addStations(list, source), recordStations,
+  };
 }

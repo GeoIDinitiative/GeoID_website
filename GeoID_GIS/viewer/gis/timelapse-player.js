@@ -693,8 +693,21 @@ export function pausePlayer() {
   if (state?.playing) play(false);
 }
 
+/**
+ * Go to one frame and stop there — for a plot beside the bar that a reader can
+ * click on. Through `show`, so the slider, the date and the note move with it
+ * and the bar never disagrees with what the driver drew.
+ */
+export function seekPlayer(index) {
+  if (!state) return false;
+  if (state.playing) play(false);
+  const k = Math.max(0, Math.min(state.epochs.length - 1, Math.round(index)));
+  void show(k);
+  return true;
+}
+
 if (typeof globalThis.window?.addEventListener === "function") {
-  globalThis.window.GeoIDTimelapsePlayer = { pause: pausePlayer };
+  globalThis.window.GeoIDTimelapsePlayer = { pause: pausePlayer, seek: seekPlayer };
 }
 
 export function stopPlayer({ reason = "stop" } = {}) {

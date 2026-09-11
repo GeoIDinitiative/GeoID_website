@@ -16,8 +16,8 @@
 
 import {
   grouped as globalGrouped, layerForDataset, HOMES,
-} from "./global-data.js?v=20260911-891b338";
-import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20260911-891b338";
+} from "./global-data.js?v=20260911-e80ef43";
+import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20260911-e80ef43";
 
 /**
  * WHICH HEADER A CATALOGUE HOME LIGHTS, READ FROM THE DOM.

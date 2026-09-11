@@ -205,3 +205,15 @@ export function fosClass(v) {
   if (!Number.isFinite(v)) return -1;
   return FOS_CLASSES.findIndex((k) => v < k.max);
 }
+
+/**
+ * The static answer at one cell for one routed flux q: the steady water table,
+ * the water on the failure plane, the factor of safety. The map and a sampling
+ * station both call this, so the two cannot disagree about a cell.
+ */
+export function cellAnswer({ q, cell, contour, lateral = 1 }) {
+  const W = steadyWetness({ q, b: contour, K: cell.K, zs: cell.zs, slopeRad: cell.slopeRad, lateral });
+  const m = planeWetness(W, cell.zs, cell.zf);
+  const fos = factorOfSafety({ slopeRad: cell.slopeRad, c: cell.c, phi: cell.phi, gamma: cell.gamma, zf: cell.zf, m });
+  return { W, m, fos };
+}
