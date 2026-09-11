@@ -13,8 +13,8 @@
  * most readers; what it does to a river they can picture is the point.
  */
 
-import { floodState, rebuildSheet, sheetLayer } from "./dem-layer.js?v=20260911-fe2cd09";
-import { SCENARIOS, DEFAULTS, stageRise } from "./inundation.js?v=20260911-fe2cd09";
+import { floodState, rebuildSheet, sheetLayer } from "./dem-layer.js?v=20260911-acdf2a0";
+import { SCENARIOS, DEFAULTS, stageRise } from "./inundation.js?v=20260911-acdf2a0";
 
 const byId = (id) => document.getElementById(id);
 const say = (message) => { const n = byId("flood-status"); if (n) n.textContent = message || ""; };
@@ -64,8 +64,13 @@ function render() {
   if (held) held.checked = p.defended !== false;
   const match = matchingScenario(p);
   p.scenario = match?.id || "custom";
+  // The chosen flood is the one FILLED: the app's own primary against its
+  // quiet secondary, since every plain button here is already filled.
   byId("flood-scenarios")?.querySelectorAll("[data-flood-scenario]").forEach((b) => {
-    b.classList.toggle("is-active", b.dataset.floodScenario === p.scenario);
+    const on = b.dataset.floodScenario === p.scenario;
+    b.classList.toggle("is-active", on);
+    b.classList.toggle("secondary", !on);
+    b.setAttribute("aria-pressed", on ? "true" : "false");
   });
   // What the flood does, in metres, to rivers a reader can picture.
   const rivers = [[50, "a 50 m stream"], [300, "a 300 m river"], [2000, "a 2 km river"]];
@@ -92,7 +97,7 @@ function init() {
   for (const s of SCENARIOS) {
     const b = document.createElement("button");
     b.type = "button";
-    b.className = "button";
+    b.className = "button secondary";
     b.dataset.floodScenario = s.id;
     b.textContent = s.label;
     b.title = s.title;
