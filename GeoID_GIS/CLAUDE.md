@@ -18142,5 +18142,8 @@ About menu, after myGeoID App, on all 18 pages that carry the header. It is
 copied into each page, so a header change is 18 edits. An explorer page keeps
 its own entry's `active` mark inside the menu, and `scripts/site.js` then
 lights the About toggle, as it already does for the About pages. The About
-section's page-jump bar and the footers are separate lists and were not
-changed.
+section's page-jump bar is a separate copy of the same list, on About,
+myGeoID App, Our Team, Get Involved and Updates, and it takes the two
+explorers in the same place. It was missed the first time and reported from a
+screenshot. The Data and Researchers bars are those sections' own and do not
+list the About pages. The footers are unchanged.
