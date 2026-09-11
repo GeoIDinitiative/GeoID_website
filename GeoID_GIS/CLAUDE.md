@@ -18147,3 +18147,42 @@ myGeoID App, Our Team, Get Involved and Updates, and it takes the two
 explorers in the same place. It was missed the first time and reported from a
 screenshot. The Data and Researchers bars are those sections' own and do not
 list the About pages. The footers are unchanged.
+
+## River corridor zones: sized by the river, cut by the terrain
+
+Hydrology ▸ Water bodies ▸ "River corridor zones (GRWL)" draws three toggleable
+incremental zones around every GRWL river. It is a reading of the streamed
+DEM, like the sea level: `dem-layer.js` SHEETS `riverzones`, with the pure
+half in `river-zones.js`. Each zone is measured from the MEAN-FLOW WATER
+EDGE (the centreline plus half GRWL's width W, which is the width at mean
+discharge):
+
+| zone | reach from the bank | why |
+| --- | --- | --- |
+| seasonal margin | max(10 m, ¼ W) | low flow to bankfull: width ∝ Q^0.26 (Leopold & Maddock 1953) moves the edge 0.1–0.25 W a side; 10 m is the bank and the works strip (8 m non-tidal, 16 m tidal in England) |
+| migration belt | 3 W | meander belts are 6–8 W wide, B ≈ 4.3 W^1.12 (Williams 1986); not for canals |
+| floodplain | 10 W, AND ≤ 5 m above the nearest channel | HAND ≤ 5 m is the floodplain class (Nobre et al. 2011); distance alone paints valley sides |
+
+- **Why relative, not fixed.** GRWL runs from 30 m streams to Amazon reaches
+  kilometres wide. Seasonal stage is a VERTICAL swing, from under a metre on
+  a small stream to 10–15 m on the Amazon, and its horizontal footprint
+  scales with the channel. A fixed buffer is the whole valley of one river
+  and less than the sandbars of another.
+- **The transform runs per width band** (30/100/300/1,000/3,000 m). A
+  cell's nearest river is not always the one whose zone covers it: a stream
+  200 m away must not hide the floodplain of a 2 km river 5 km away. It is
+  a two-pass nearest-source propagation in METRES, with the east–west step
+  taken at the mean latitude of the two rows.
+- **The sea and lakes are never painted**. They come from the same ocean
+  and HydroLAKES masks the sea-level sheet uses. A reach GRWL flags as
+  running through a lake is not a source.
+- **A tick recolours; it does not rebuild** (19 ms, measured). The classes
+  are unchanged when a zone is hidden, so `layer.repaint` and the legend
+  follow the ticks.
+- **A zone narrower than the view's cell is not drawn**, and the status line
+  says so with the cell size. At 160 km over Memphis the cells are 270 m, so
+  the Mississippi's 200 m margin shows only as an edge.
+
+Measured over the Mississippi at 160 km: built in 4.3 s, with the margin at
+116 km², the belt at 1,264 km² and the floodplain at 1,095 km², and the
+floodplain following low ground rather than a band.

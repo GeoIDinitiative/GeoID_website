@@ -18,17 +18,17 @@
  * the displaced surface, and the raster every terrain tool wants as an input.
  */
 
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-18f9802";
-import { mathsFor } from "./equations.js?v=20260911-18f9802";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260911-18f9802";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-95c6d46";
+import { mathsFor } from "./equations.js?v=20260911-95c6d46";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260911-95c6d46";
 import { makeRaster, slope as slopeOf, hillshade as hillshadeOf }
-  from "./raster-analysis.js?v=20260911-18f9802";
-import * as dem from "./dem-tiles.js?v=20260911-18f9802";
-import { rampColour } from "./symbology.js?v=20260911-18f9802";
-import * as climate from "./climate-normals.js?v=20260911-18f9802";
+  from "./raster-analysis.js?v=20260911-95c6d46";
+import * as dem from "./dem-tiles.js?v=20260911-95c6d46";
+import { rampColour } from "./symbology.js?v=20260911-95c6d46";
+import * as climate from "./climate-normals.js?v=20260911-95c6d46";
 import { waterMasks, waterFeatures, floodFromSea, classAreas, FLOODED, EXPOSED, CUT_OFF, LAKE }
-  from "./water-mask.js?v=20260911-18f9802";
-import { burnRivers, riverZones, zoneAreas, ZONES } from "./river-zones.js?v=20260911-18f9802";
+  from "./water-mask.js?v=20260911-95c6d46";
+import { burnRivers, riverZones, zoneAreas, ZONES } from "./river-zones.js?v=20260911-95c6d46";
 
 /**
  * Which corridor zones are drawn. State, like the sea level, so the drawer's
