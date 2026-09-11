@@ -18,18 +18,20 @@
  * the displaced surface, and the raster every terrain tool wants as an input.
  */
 
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-0776ffa";
-import { mathsFor } from "./equations.js?v=20260911-0776ffa";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260911-0776ffa";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-06476dc";
+import { mathsFor } from "./equations.js?v=20260911-06476dc";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260911-06476dc";
 import { makeRaster, slope as slopeOf, hillshade as hillshadeOf }
-  from "./raster-analysis.js?v=20260911-0776ffa";
-import * as dem from "./dem-tiles.js?v=20260911-0776ffa";
-import { rampColour } from "./symbology.js?v=20260911-0776ffa";
-import * as climate from "./climate-normals.js?v=20260911-0776ffa";
+  from "./raster-analysis.js?v=20260911-06476dc";
+import * as dem from "./dem-tiles.js?v=20260911-06476dc";
+import { rampColour } from "./symbology.js?v=20260911-06476dc";
+import * as climate from "./climate-normals.js?v=20260911-06476dc";
 import { waterMasks, waterFeatures, floodFromSea, classAreas, edgeSeeds, contextBox, WORLD_BOX,
-  FLOODED, EXPOSED, CUT_OFF, LAKE } from "./water-mask.js?v=20260911-0776ffa";
+  FLOODED, EXPOSED, CUT_OFF, LAKE } from "./water-mask.js?v=20260911-06476dc";
 import { burnRivers, riverZones, zoneAreas, mergeOuterZones, ZONES }
-  from "./river-zones.js?v=20260911-0776ffa";
+  from "./river-zones.js?v=20260911-06476dc";
+import { DEFAULTS as FLOOD_DEFAULTS, sourceFields, inundate, mergeOuterDepth, depthColour,
+  floodAreas, DEPTH_CLASSES } from "./inundation.js?v=20260911-06476dc";
 
 /**
  * Which corridor zones are drawn. State, like the sea level, so the drawer's
@@ -64,6 +66,26 @@ export function riverZoneLegend() {
  * rebuild without the builder knowing there is a control at all.
  */
 export const seaLevel = { metres: 1, masks: null, last: null };
+
+/**
+ * The flood the inundation sheet is drawn for: what its sliders set. State,
+ * like the sea level, so the controls can move it and ask for a rebuild. The
+ * nearest-river fields for the view are kept here too: they are geometry, not
+ * flood, so a slider costs arithmetic and never another distance transform.
+ */
+export const floodState = { params: { ...FLOOD_DEFAULTS }, fields: null, last: null };
+
+/** The key for the flood's depth classes, shallowest first. */
+export function floodLegend() {
+  return {
+    palette: DEPTH_CLASSES.map((k) => k.colour.map((c) => c.toString(16).padStart(2, "0")).join("")),
+    labels: DEPTH_CLASSES.map((k) => k.label),
+    values: DEPTH_CLASSES.map((k) => k.label),
+    categorical: true,
+    classed: true,
+    field: "Depth of flood water over ground that is dry at mean flow",
+  };
+}
 
 const WATER_CREDIT = "Coastline © OpenStreetMap contributors (ODbL 1.0) from "
   + "zoom 4 and Natural Earth below it; lakes from HydroLAKES v1.0 (Messager "
@@ -363,6 +385,74 @@ export const SHEETS = {
       ].join("");
     },
   },
+  /**
+   * FLOOD INUNDATION round every GRWL river (`inundation.js`): each river's
+   * water raised by a stage sized by the river and the flood, spread over the
+   * streamed heights through ground that is under it and joined to the
+   * channel. The sliders under the row set the flood.
+   */
+  inundation: {
+    id: "flood-inundation",
+    label: "Flood inundation (GRWL rivers on the streamed DEM)",
+    unit: "m",
+    isDem: false,
+    opacity: 0.8,
+    summary: "Where a river flood reaches and how deep, for a flood you set: each "
+      + "river's water raised by a stage sized by its own width, spread over the "
+      + "streamed heights through ground joined to the channel.",
+    credit: "Rivers: GRWL v01.01 (Allen & Pavelsky 2018), CC BY 4.0. Coastline © "
+      + "OpenStreetMap contributors (ODbL 1.0), Natural Earth; lakes HydroLAKES "
+      + "(Messager et al. 2016), CC BY 4.0.",
+    prepare: async (bounds, width, height) => {
+      const key = JSON.stringify([bounds.west, bounds.south, bounds.east, bounds.north,
+        width, height]);
+      if (floodState.fields?.key !== key) {
+        const [rivers, water] = await Promise.all([
+          waterFeatures("rivers", bounds, width), waterMasks(bounds, width, height),
+        ]);
+        const { riverWidth } = burnRivers(rivers.features, bounds, width, height);
+        const wet = new Uint8Array(width * height);
+        for (let c = 0; c < wet.length; c += 1) {
+          wet[c] = water.ocean[c] || !Number.isNaN(water.lakeLevel[c]) ? 1 : 0;
+        }
+        floodState.fields = { key, riverWidth, water: wet,
+          fields: sourceFields(riverWidth, width, height, bounds) };
+      }
+      const params = { ...floodState.params };
+      const outer = await floodOuter(bounds, params);
+      return { ...floodState.fields, outer, params };
+    },
+    derive: (raster, ctx) => {
+      const heights = heightsOf(raster.band);
+      const { depth, cutOff } = inundate({
+        heights, riverWidth: ctx.riverWidth, water: ctx.water, fields: ctx.fields,
+        width: raster.width, height: raster.height, params: ctx.params,
+      });
+      mergeOuterDepth(depth, ctx.outer, ctx.bounds, raster.width, raster.height, ctx.water);
+      floodState.last = { ...floodAreas(depth, cutOff, raster.width, raster.height, ctx.bounds),
+        params: ctx.params, world: ctx.world,
+        cellM: ((ctx.bounds.east - ctx.bounds.west) / raster.width) * 111320
+          * Math.cos((((ctx.bounds.north + ctx.bounds.south) / 2) * Math.PI) / 180) };
+      const out = new Float32Array(depth.length);
+      for (let c = 0; c < out.length; c += 1) out[c] = depth[c] > 0 ? depth[c] : NO_DATA;
+      return [out];
+    },
+    paint: (result) => {
+      result.repaint((v) => (!Number.isFinite(v) || v === NO_DATA ? null : depthColour(v)));
+      result.legendInfo = floodLegend();
+    },
+    status: () => {
+      const last = floodState.last;
+      if (!last) return "";
+      const where = last.world ? "worldwide" : "in this view";
+      const cut = last.cutOff > 0.5 ? ` ${km2(last.cutOff)} km² more lies below the flood `
+        + "but is cut off from the river, and is left dry." : "";
+      const deep = last.deepest > 0 ? ` Deepest ${last.deepest.toFixed(1)} m.` : "";
+      return `${km2(last.total)} km² ${where} is under the flood.${deep}${cut} `
+        + `Cells here are about ${Math.round(last.cellM).toLocaleString()} m. A screening `
+        + "estimate: no defences finer than the heights, no attenuation, no volume limit.";
+    },
+  },
 };
 
 /** The page's own light controls, which had no job until now. */
@@ -576,6 +666,44 @@ async function zoneContext(bounds) {
     });
     return { classes, bounds: box, width, height };
   });
+}
+
+/**
+ * The flood reaching in from rivers just out of shot: the same model over the
+ * box round the view, from the rivers OUTSIDE it only. Its geometry — heights,
+ * rivers, nearest-river fields — is kept per box; a slider re-runs only the
+ * arithmetic on it.
+ */
+const inundationContexts = new Map();
+async function floodOuter(bounds, params) {
+  const box = contextBox(bounds, { factor: 4, worldAt: 16 });
+  if (!box || box === WORLD_BOX) return null;
+  const key = JSON.stringify([box.west, box.south, box.east, box.north,
+    bounds.west, bounds.south, bounds.east, bounds.north]);
+  const ground = await remember(inundationContexts, key, async () => {
+    const width = CONTEXT_W;
+    const height = CONTEXT_H;
+    const heights = await contextHeights(box, width, height);
+    const [rivers, water] = await Promise.all([
+      waterFeatures("rivers", box, width), waterMasks(box, width, height),
+    ]);
+    const { riverWidth } = burnRivers(rivers.features, box, width, height);
+    const wet = new Uint8Array(width * height);
+    for (let j = 0; j < height; j += 1) {
+      const lat = box.north - ((j + 0.5) / height) * (box.north - box.south);
+      for (let i = 0; i < width; i += 1) {
+        const c = (j * width) + i;
+        wet[c] = water.ocean[c] || !Number.isNaN(water.lakeLevel[c]) ? 1 : 0;
+        const lon = box.west + ((i + 0.5) / width) * (box.east - box.west);
+        if (lon >= bounds.west && lon <= bounds.east
+          && lat >= bounds.south && lat <= bounds.north) riverWidth[c] = NaN;
+      }
+    }
+    return { heights, riverWidth, water: wet, width, height, bounds: box,
+      fields: sourceFields(riverWidth, width, height, box) };
+  });
+  const { depth } = inundate({ ...ground, params });
+  return { depth, bounds: ground.bounds, width: ground.width, height: ground.height };
 }
 
 /**
@@ -902,5 +1030,5 @@ export async function rebuildSheet(kind, onStatus = () => {}) {
 // other self-loading layer.
 if (typeof window !== "undefined") {
   window.GeoIDDemSheets = { addSheet, removeSheet, rebuildSheet, sheetLayer, SHEETS,
-    riverZoneState, riverZonePaint, riverZoneLegend };
+    riverZoneState, riverZonePaint, riverZoneLegend, floodState };
 }

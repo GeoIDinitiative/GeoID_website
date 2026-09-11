@@ -57,7 +57,7 @@ export const ZONES = [
 ];
 
 /** Width bands for the per-band transform, in metres. */
-const BANDS = [30, 100, 300, 1000, 3000, Infinity];
+export const BANDS = [30, 100, 300, 1000, 3000, Infinity];
 
 const M_PER_DEG_LAT = 110574;
 const M_PER_DEG_LON = 111320;

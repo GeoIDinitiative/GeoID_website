@@ -29,11 +29,11 @@
 
 import {
   HOMES, MIRRORS, grouped, addDataset, layerForDataset, loadLaunchDefaults,
-} from "./global-data.js?v=20260911-0776ffa";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260911-0776ffa";
-import { mathsFor } from "./equations.js?v=20260911-0776ffa";
+} from "./global-data.js?v=20260911-06476dc";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260911-06476dc";
+import { mathsFor } from "./equations.js?v=20260911-06476dc";
 import { bandOf, bandRows, bandSymbology, describeFilter, magOf }
-  from "./seismic-magnitude.js?v=20260911-0776ffa";
+  from "./seismic-magnitude.js?v=20260911-06476dc";
 
 const byId = (id) => document.getElementById(id);
 
@@ -359,6 +359,34 @@ const TILED = {
     layerOf: () => window.GeoIDDemSheets?.sheetLayer?.("sealevel") || null,
     load: () => window.GeoIDDemSheets.addSheet("sealevel", sayIn("sea-level-status")),
     unload: () => { window.GeoIDDemSheets?.removeSheet?.("sealevel"); sayIn("sea-level-status")(""); },
+  }],
+  // Hazards ▸ Flood: a model you set a flood on, like the sea level beside it
+  // in Hydrology — the scenarios and sliders are in the drawer under the row.
+  "flood": [{
+    id: "flood-inundation",
+    group: "Inundation",
+    label: "River flood inundation on the streamed DEM",
+    title: "Where a river flood reaches and how deep: every GRWL river's water "
+      + "raised by a stage sized by its own width, spread over the streamed "
+      + "heights. Pick a flood and shape it in the controls under the row.",
+    info: {
+      summary: "A height-above-river model with connectivity. Each river's water "
+        + "surface is raised by a stage from its width and the flood's discharge; "
+        + "ground below it, joined to the channel and within reach, floods to the "
+        + "depth between. An upper screening estimate: no defences finer than the "
+        + "heights, no attenuation, no volume limit, no tide. The scenario ratios "
+        + "are assumed typical values, and every one is a slider.",
+      citation: "Rivers: GRWL (Allen & Pavelsky 2018), CC BY 4.0. Channel depth: "
+        + "Moody & Troutman (2002). Depth on discharge: Leopold & Maddock (1953). "
+        + "Depth classes: US National Weather Service, Turn Around Don't Drown. "
+        + "Heights: Mapzen Terrain Tiles (AWS Open Data)",
+      maths: mathsFor("flood-inundation"),
+    },
+    settings: "flood-inundation-controls",
+    ready: () => Boolean(window.GeoIDDemSheets),
+    layerOf: () => window.GeoIDDemSheets?.sheetLayer?.("inundation") || null,
+    load: () => window.GeoIDDemSheets.addSheet("inundation", sayIn("flood-status")),
+    unload: () => { window.GeoIDDemSheets?.removeSheet?.("inundation"); sayIn("flood-status")(""); },
   }],
   /**
    * THE MEAN CLIMATE, as two readings of the streamed DEM — the same function

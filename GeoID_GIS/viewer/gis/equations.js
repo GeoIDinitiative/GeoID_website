@@ -129,6 +129,40 @@ const EQUATIONS = {
       + "streams have no zones here.",
   },
 
+  "flood-inundation": {
+    kind: COMPUTED,
+    intro: "Every river's water raised by a stage sized by the river and the flood, "
+      + "and spread over the streamed heights through ground that is under it and "
+      + "joined to the channel.",
+    lines: [
+      { expr: "D(W) = 0.27 · (W / 7.2)^0.6",
+        note: "channel depth from width: Moody & Troutman's (2002) global w = 7.2 Q^0.5 and d = 0.27 Q^0.3 with Q eliminated" },
+      { expr: "rise = D(W) · ((Q/Q̄)^f − 1) + e",
+        note: "at-a-station hydraulic geometry, depth ∝ Q^f, f = 0.40 on Leopold & Maddock's (1953) average" },
+      { expr: "flooded(c) ⇔ h(c) < h(r) + rise  and  bank(c) ≤ k · W  and  c is joined to the channel",
+        note: "8-neighbour, through ground that is itself flooded; open water conducts and is not painted" },
+      { expr: "depth(c) = h(r) + rise − h(c)", note: "the deepest any band of river widths gives" },
+    ],
+    terms: [
+      ["W", "the nearest river's width at mean flow, from GRWL, found separately for "
+        + "each band of widths so a stream cannot hide a big river's flood"],
+      ["h(r), h(c)", "the streamed heights at that river cell and at the cell"],
+      ["Q/Q̄", "the flood's discharge as a multiple of the river's mean flow — the "
+        + "River flow slider. Scenarios: seasonal high 2, winter (annual) flood 5, "
+        + "1 in 10 years 8, 1 in 100 years 12.5, flash flood 25 on channels up to 100 m"],
+      ["f", "the depth exponent (Advanced); e, the extra water level; k, the reach "
+        + "in channel widths"],
+    ],
+    note: "An upper screening estimate. Past the bank water spreads over the "
+      + "floodplain and rises more slowly than the in-channel law; there are no "
+      + "defences finer than the DEM, no attenuation, no volume limit and no tide. "
+      + "D is fitted at bankfull and W is the mean-flow width, so D is an "
+      + "order-of-magnitude depth. The scenario ratios are assumed typical values "
+      + "for humid-temperate rivers (growth factors 1.6 and 2.5 over the annual "
+      + "flood); arid rivers are far steeper. GRWL maps rivers 30 m wide and more, "
+      + "so small streams — where flash floods start — have no flood here.",
+  },
+
   "sea-level": {
     kind: COMPUTED,
     intro: "A bathtub model with connectivity, on the streamed heights and the "

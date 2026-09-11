@@ -1,6 +1,6 @@
-import { CRS_OPTIONS, transform } from "./projection.js?v=20260911-0776ffa";
-import { currentBody } from "./bodies.js?v=20260911-0776ffa";
-import { rowsToCsv, downloadText } from "./extraction.js?v=20260911-0776ffa";
+import { CRS_OPTIONS, transform } from "./projection.js?v=20260911-06476dc";
+import { currentBody } from "./bodies.js?v=20260911-06476dc";
+import { rowsToCsv, downloadText } from "./extraction.js?v=20260911-06476dc";
 
 // GIS mode presents a toolbox rather than a control centre: the whole GeoID
 // control set folds into one group, and the tool groups stack beneath it.
