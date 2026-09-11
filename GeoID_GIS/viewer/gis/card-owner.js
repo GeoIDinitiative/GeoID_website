@@ -49,9 +49,22 @@ export function shown(key, layers = globalThis.window?.GeoIDImportManager?.getLa
 }
 
 /** Claim a slot for a card about this layer; `close` puts the card away. */
+/**
+ * ONE CARD ON THE GLOBE. Claiming a slot closes the cards held in the OTHER
+ * slots, through their own closers, so their highlights go with them. The
+ * slots were independent, so an event card opened over a geology card left
+ * both up -- and pressing ✕ on one left the other's outline or ring lit, with
+ * its card hidden behind the new one. Snapshot first: a closer releases its
+ * own slot while this walks them.
+ */
 export function own(slot, layer, close) {
   const key = keyOf(layer);
   if (!slot || !key || typeof close !== "function") { slots.delete(slot); return; }
+  for (const [other, owner] of [...slots]) {
+    if (other === slot) continue;
+    slots.delete(other);
+    try { owner.close(); } catch { /* a closer that throws must not keep this one from opening */ }
+  }
   slots.set(slot, { key, close });
 }
 

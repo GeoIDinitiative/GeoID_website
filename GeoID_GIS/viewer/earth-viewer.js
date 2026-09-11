@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260911-0f808f8";
+  from "./gis/geo-utils.js?v=20260911-f4b36fe";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260911-0f808f8";
+  from "./gis/vector-render.js?v=20260911-f4b36fe";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260911-0f808f8";
+  from "./gis/rock-class.js?v=20260911-f4b36fe";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260911-0f808f8";
+  from "./gis/lithology-label.js?v=20260911-f4b36fe";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -21572,6 +21572,11 @@ uniform float uViewportWidth;`,
             return;
           }
         }
+
+        // An event marker draws above every layer and label, so a click on one
+        // is the marker's: the feed answers it, and nothing under it may raise
+        // a second card (whose highlight then outlived either card's ✕).
+        if (window.GeoIDEvents?.markerAt?.(event.clientX, event.clientY)) { return; }
 
         const rect = renderer.domElement.getBoundingClientRect();
         pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;

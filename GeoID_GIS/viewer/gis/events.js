@@ -16,7 +16,7 @@ import {
   gdacsPoints, resolveColour,
   MARKER_LIFT_MAX, liftForAltitude, dotSizePx, isQuake, publisherOf, restoreActive,
   stormCategory, stormScale, stormLabel, STORM_BASE_CAP,
-} from "./event-sources.js?v=20260911-0f808f8";
+} from "./event-sources.js?v=20260911-f4b36fe";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -2044,13 +2044,42 @@ function placeOverlay() {
  * is set from that rather than left at its world-unit default -- otherwise the
  * hit area has nothing to do with what is on screen.
  */
+const pickRay = { raycaster: null, pointer: null };
+
+/**
+ * THE EVENT UNDER A SCREEN POINT, or null -- the one hit test, used by this
+ * feed's own click AND published as `GeoIDEvents.markerAt`, so the other
+ * pickers can ask before answering. Markers draw above every layer, so a
+ * click on one belongs to it; without the question one click raised the
+ * marker's card AND the card of whatever lay under it (a geology unit, a
+ * volcano), and closing either left the other's highlight lit.
+ */
+function markerAt(clientX, clientY) {
+  const viewer = window.GeoIDViewer;
+  const canvas = viewer?.renderer?.domElement;
+  if (!active || !markers || !canvas || !THREE) return null;
+  if (!pickRay.raycaster) { pickRay.raycaster = new THREE.Raycaster(); pickRay.pointer = new THREE.Vector2(); }
+  const { raycaster, pointer } = pickRay;
+  const rect = canvas.getBoundingClientRect();
+  pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -(((clientY - rect.top) / rect.height) * 2 - 1);
+  raycaster.setFromCamera(pointer, viewer.camera);
+  const scale = viewer.camera.position.length() / Math.max(rect.height, 1);
+  raycaster.params.Points.threshold = scale * 12;
+  // A hidden layer's markers are not there to be clicked.
+  if (markers.visible === false) return null;
+  const hits = raycaster.intersectObjects(markers.children.filter((c) => c.visible !== false), false);
+  // Nearest first, and only on the side of the globe facing the camera.
+  const hit = hits.find((h) => h.point.clone().normalize()
+    .dot(viewer.camera.position.clone().normalize()) > 0);
+  return (hit && hit.object.userData.events?.[hit.index]) || null;
+}
+
 function installPicking() {
   const viewer = window.GeoIDViewer;
   const canvas = viewer?.renderer?.domElement;
   if (!canvas || !THREE || canvas.dataset.eonetPicking) return;
   canvas.dataset.eonetPicking = "true";
-  const raycaster = new THREE.Raycaster();
-  const pointer = new THREE.Vector2();
   let downAt = null;
 
   canvas.addEventListener("pointerdown", (e) => { downAt = { x: e.clientX, y: e.clientY }; });
@@ -2058,24 +2087,14 @@ function installPicking() {
     // A drag is navigation, not a pick.
     if (!downAt || Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 4) return;
     if (!active || !markers) return;
-    const rect = canvas.getBoundingClientRect();
-    pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    pointer.y = -(((e.clientY - rect.top) / rect.height) * 2 - 1);
-    raycaster.setFromCamera(pointer, viewer.camera);
-    const scale = viewer.camera.position.length() / Math.max(rect.height, 1);
-    raycaster.params.Points.threshold = scale * 12;
-    const hits = raycaster.intersectObjects(markers.children, false);
-    // Nearest first, and only on the side of the globe facing the camera.
-    const hit = hits.find((h) => h.point.clone().normalize()
-      .dot(viewer.camera.position.clone().normalize()) > 0);
-    if (hit) {
-      const event = hit.object.userData.events?.[hit.index];
-      if (event) {
-        showPopup(event, e.clientX, e.clientY);
-        setSelection(event);
-        markRow(event.id);
-        return;
-      }
+    // The Draw tool and the measure modes own the click while they are armed.
+    if (viewer.isMeasuring?.()) return;
+    const event = markerAt(e.clientX, e.clientY);
+    if (event) {
+      showPopup(event, e.clientX, e.clientY);
+      setSelection(event);
+      markRow(event.id);
+      return;
     }
     hidePopup();
   });
@@ -2604,8 +2623,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260911-0f808f8"),
-    import("./research/dsp.js?v=20260911-0f808f8"),
+    import("./seismogram-plot.js?v=20260911-f4b36fe"),
+    import("./research/dsp.js?v=20260911-f4b36fe"),
   ]);
   if (stale()) return;
 
@@ -2903,6 +2922,8 @@ if (typeof document !== "undefined") {
 window.GeoIDEvents = {
   setActive, isActive: () => active, getEvents: () => events, SYMBOLS,
   setSourceEnabled, isSourceEnabled: (id) => enabled.has(id),
+  // Asked by the other pickers before they answer a click: see `markerAt`.
+  markerAt,
   // Re-seat the feed when the rail moves under it -- arming the hub
   // shifts the whole rail left of the hazard readout.
   reflow: placeOverlay,

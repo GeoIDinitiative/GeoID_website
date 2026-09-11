@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260911-0f808f8";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260911-0f808f8";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260911-f4b36fe";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260911-f4b36fe";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260911-0f808f8";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260911-0f808f8";
-import { downloadText } from "./extraction.js?v=20260911-0f808f8";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260911-0f808f8";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260911-0f808f8";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260911-0f808f8";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260911-0f808f8";
-import { femSpec } from "./model-build.js?v=20260911-0f808f8";
+} from "./mesh-volume.js?v=20260911-f4b36fe";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260911-f4b36fe";
+import { downloadText } from "./extraction.js?v=20260911-f4b36fe";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260911-f4b36fe";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260911-f4b36fe";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260911-f4b36fe";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260911-f4b36fe";
+import { femSpec } from "./model-build.js?v=20260911-f4b36fe";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -2682,12 +2682,14 @@ function applyClip() {
 
 const ACTIONS = {
   new: () => {
-    state.solids.forEach((s) => s.object3D?.parent?.remove(s.object3D));
-    state.solids.length = 0;
+    // Through deleteEntities and renderStudioPoints, which take each face's
+    // and each point's Workspace layer off as well: removing the meshes by
+    // hand left every one of those rows behind -- measured, a volcano's seven
+    // faces still listed in the GIS page's Workspace after New.
+    if (state.solids.length) deleteEntities(state.solids.map((s) => s.id));
     state.fields.length = 0;
     state.points.length = 0;
-    (state.pointParts || []).forEach((p) => p.mesh.parent?.remove(p.mesh));
-    state.pointParts = [];
+    renderStudioPoints();
     state.atmosphere = { on: false, heightM: 0, baseZ: 0, entryId: null };
     state.nextVolumeFlag = 10;
     closePartCard();

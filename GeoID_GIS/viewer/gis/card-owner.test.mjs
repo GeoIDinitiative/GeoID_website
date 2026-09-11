@@ -53,12 +53,23 @@ const layer = (id, name, visible = true) => ({ id, name, visible, object3D: { vi
   ok("a released slot closes nothing", closed === 0);
 }
 {
-  let a = 0; let b = 0;
+  let b = 0;
   own("event", "Live events", () => { throw new Error("boom"); });
-  own("feature", "Rivers", () => { b += 1; });
+  let threw = false;
+  try { own("feature", "Rivers", () => { b += 1; }); } catch { threw = true; }
   const closed = check([]);
-  ok("a closer that throws does not keep the others open", b === 1 && closed.length === 2);
-  a = a; // (a closer that throws is still counted as closed)
+  ok("a closer that throws does not keep the next card from opening", !threw && b === 1 && closed.length === 1);
+}
+/* ONE CARD ON THE GLOBE: claiming a slot closes the cards in the others, so a
+   card opened over another cannot leave the first one's highlight lit. */
+{
+  let event = 0; let viewer = 0;
+  own("event", "Live events", () => { event += 1; release("event"); });
+  own("viewer", "World geology (Macrostrat)", () => { viewer += 1; });
+  ok("a new card closes the card held in another slot", event === 1 && viewer === 0);
+  own("viewer", "Plate boundaries (Bird 2003)", () => { viewer += 1; });
+  ok("and re-claiming its OWN slot closes nothing", viewer === 0);
+  release("viewer");
 }
 ok("shown() needs the layer's object visible too",
   !shown({ id: "1", name: "X" }, [{ id: 1, name: "X", visible: true, object3D: { visible: false } }]));
