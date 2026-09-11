@@ -16395,6 +16395,74 @@ volcanic theme's red. A categorical legend without `values` now matches on its
 labels, and a feature may name its own `label_colour` (hex only), which
 outranks the legend.
 
+### Stations are ▼ markers, every term is recorded, and plots are panels
+
+**The markers are a DOM overlay, not the label engine** (`station-markers.js`):
+an outlined ▼ in the station's colour pointing at its ground with the name
+centred above — the Mars flight sim's horizon tags, with no leader. Projected
+each frame through `GeoID-ImportedGeoLayers` (it carries the spin), culled at
+the horizon by the tangent-plane test (`GeoIDProjectLatLon` does not cull the
+far side), names that would overlap muted, the ▼ kept. Measured: tips within
+~1 px of the viewer's own projection. **z-index 5** — over the canvas and
+under every panel (sidebar 10, Workspace 11, corner furniture 13); at 12 a
+station behind the sidebar was drawn on top of it. A click opens the station
+card (every variable at the map in view, the lowest FoS and when).
+
+**The stations' layer is BUILT WITHOUT GEOMETRY** and handed its real points
+afterwards (`layer.collection`/`features`) for the table and export, with
+`groundPick = false`. Hiding its dots after the build lost to the first
+repaint, which replaces every child — measured, two point objects back on the
+globe after they had been hidden.
+
+**Every term of the model is recorded at a station**, because a factor of
+safety that moves says nothing about why until the terms under it are
+plotted: rain at the cell, rain over its catchment (flow-weighted mean — what
+the water table is fed), recharge, flow per metre of contour, saturation h/z_s,
+water-table height and depth, water on the plane m, pore pressure, effective
+normal stress, shear strength, driving stress. `slopeStresses` in
+`slope-hydrology.js` is the one computation of those terms and
+`factorOfSafety` is its ratio, so the map and the station cannot disagree;
+test: strength/stress = FoS, pore + effective = γ·z_f·cos²β.
+
+**Plots are interchangeable panels**: two by default (FoS, rain), up to six,
+each switching between every variable (grouped) or strength against driving
+stress (solid/dashed, one pair per station); ⧉ pops one out over the map
+(moved onto `document.body`, z-index 20 — under the cards at 22 — dragged by a
+grip, its frame or its readout, never by the select or the plot, which a click
+on seeks the bar); ⇲ docks it. Hover and the frame marker are shared.
+**A panel head that is all select cannot be dragged by** — measured, a real
+drag on it moved nothing; the grip is what makes it holdable.
+
+### Rainfall at the finest step each source has, unless a coarser one is asked
+
+`rain-steps.js` plans a series from UNITS, one per step, each source read at
+its own native step (GFS 1 h, CHIRPS 1 day, IMERG 30 min, GSMaP 1 h, the
+service's ERA5-Land entry 1 day) — never finer, and coarser only where the
+reader picks a step (30 min … 1 week, 1 month, 1 year; calendar-aligned). A
+unit is split into PARTS where the source changes inside it (a month in which
+CHIRPS runs out). A map sums the whole units covering its window, so near a
+change of source a window can run up to one step long — each map carries its
+exact `from`/`time`/`hours`, and **the model converts each map's rain over
+its own window** (`windowH: frames[k].hours`), not one global number.
+Default is now 360 hourly maps for 7 days either side, where it was 60
+six-hourly ones; the old "every 6 h" was only a sampling default.
+
+- **An Earth Engine part is one composite render** over its exact window —
+  the service sums (`reducer: "sum"`) any `from`/`to` Date.parse accepts, full
+  ISO instants included (verified live: three CHIRPS days as three renders).
+  So a day, a month and a year each cost one render; half-hourly IMERG for a
+  week costs ~380.
+- **Billed renders are counted before they are spent**: past
+  `RENDER_BUDGET = 60` the card states the count and the per-source steps and
+  fetches on a second press (the button says "Fetch — spend N renders").
+- **A long composite runs off a 300 mm ramp.** The service now takes a `max`
+  for summed mm composites (`rampMaxFor`: 300 a day … 10,000 a year) and
+  returns it in the legend it decodes against; **not deployed yet**, so the
+  deployed service ignores it — the reader counts pixels at the ramp's top
+  (`capped`) and the status says they read as 300 mm.
+- A span too long for its step (thirty years half-hourly) is refused rather
+  than hanging the planner.
+
 
 
 Hazards-style brief, answered in the GIS page's Model Builder tab: draw the
