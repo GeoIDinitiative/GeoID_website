@@ -18,16 +18,16 @@
  * the displaced surface, and the raster every terrain tool wants as an input.
  */
 
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-4f969fe";
-import { mathsFor } from "./equations.js?v=20260911-4f969fe";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260911-4f969fe";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-20d18ce";
+import { mathsFor } from "./equations.js?v=20260911-20d18ce";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260911-20d18ce";
 import { makeRaster, slope as slopeOf, hillshade as hillshadeOf }
-  from "./raster-analysis.js?v=20260911-4f969fe";
-import * as dem from "./dem-tiles.js?v=20260911-4f969fe";
-import { rampColour } from "./symbology.js?v=20260911-4f969fe";
-import * as climate from "./climate-normals.js?v=20260911-4f969fe";
+  from "./raster-analysis.js?v=20260911-20d18ce";
+import * as dem from "./dem-tiles.js?v=20260911-20d18ce";
+import { rampColour } from "./symbology.js?v=20260911-20d18ce";
+import * as climate from "./climate-normals.js?v=20260911-20d18ce";
 import { waterMasks, floodFromSea, classAreas, FLOODED, EXPOSED, CUT_OFF, LAKE }
-  from "./water-mask.js?v=20260911-4f969fe";
+  from "./water-mask.js?v=20260911-20d18ce";
 
 /**
  * The sea level the sea-level sheet is drawn at, in metres against today's.
@@ -232,6 +232,22 @@ export const SHEETS = {
           + "OpenStreetMap and Natural Earth, heights streamed.";
       }
       const cut = last.areas[CUT_OFF];
+      /**
+       * AT TODAY'S LEVEL THE MODEL STILL FINDS LAND "BELOW THE SEA", and says
+       * what it is rather than hiding it. Measured over Bangladesh: 2,512 km²
+       * the heights put below 0 m and joined to the sea -- river channels,
+       * polders behind defences, and the heights' own error, which on a flat
+       * vegetated coast is metres (SRTM-era heights read high under canopy and
+       * noisy near zero). The coastline itself is exactly today's.
+       */
+      if (last.level === 0) {
+        return `At today's level the sea is the coastline polygons. ${km2(last.areas[FLOODED])} km² `
+          + `of land ${where} is below 0 m in the heights and joined to the sea — river `
+          + "channels, polders behind defences, and the heights' own error near sea level.";
+      }
+      const withinError = last.level > 0 && last.level < 5
+        ? " A rise this small is within the heights' own error on a flat coast, which is "
+          + "metres: read it as where to look, not as a flood line." : "";
       return [
         `At ${sign}${last.level} m: ${km2(last.areas[FLOODED])} km² of land ${where} lies below `,
         "the sea and is connected to it.",
@@ -240,6 +256,7 @@ export const SHEETS = {
         last.lakesReached ? " The sea runs into lakes whose surface is below it." : "",
         last.world ? "" : " Only ground in view is considered: the sea has to reach it "
           + "through what the view can see.",
+        withinError,
       ].join("");
     },
   },

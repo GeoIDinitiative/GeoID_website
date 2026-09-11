@@ -119,7 +119,11 @@ const EQUATIONS = {
       ["O", "the ocean polygons: OpenStreetMap's water polygons from zoom 4, "
         + "Natural Earth below"],
     ],
-    note: "Static: no tides, surges or waves, no defences finer than the DEM's "
+    note: "The heights are the SRTM-era DEM, whose error on a flat, vegetated "
+      + "coast is metres (it reads high under canopy and is noisy near zero), so "
+      + "a rise of a metre or two is inside it: where the model floods at +1 m is "
+      + "where to look, not a flood line. "
+      + "Static: no tides, surges or waves, no defences finer than the DEM's "
       + "posts, no land rising or sinking under the change in load. Ground "
       + "below L that the sea cannot reach is reported as cut off, not drawn. "
       + "Away from the world view only ground in view is considered, so the "
