@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260911-d583855";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260911-d583855";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260911-0861362";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260911-0861362";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260911-d583855";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260911-d583855";
-import { downloadText } from "./extraction.js?v=20260911-d583855";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260911-d583855";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260911-d583855";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260911-d583855";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260911-d583855";
-import { femSpec } from "./model-build.js?v=20260911-d583855";
+} from "./mesh-volume.js?v=20260911-0861362";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260911-0861362";
+import { downloadText } from "./extraction.js?v=20260911-0861362";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260911-0861362";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260911-0861362";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260911-0861362";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260911-0861362";
+import { femSpec } from "./model-build.js?v=20260911-0861362";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -1526,7 +1526,10 @@ function applyStudioAtmosphere() {
   const a = state.atmosphere;
   if (a.entryId !== null) {
     const old = findById(a.entryId);
-    if (old) { const keep = state.atmosphere; deleteEntities([old.id]); state.atmosphere = keep; }
+    // A COPY: deleting the entity switches the air off on `state.atmosphere`,
+    // and keeping the same object "kept" that switch, so a re-size removed the
+    // air instead of rebuilding it.
+    if (old) { const keep = { ...a }; deleteEntities([old.id]); Object.assign(a, keep); }
     a.entryId = null;
   }
   if (!a.on || !(Number(a.heightM) > 0)) { renderModelTree(); renderDomainsPanel(); return null; }
