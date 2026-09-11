@@ -16157,7 +16157,72 @@ hillside" now.
 the pipeline's import chain was checked for it: `feature-popup.test.mjs`
 stubs a bare `window`, and `timelapse-player` throws at load on it.
 
-## The Model Builder samples where the ground needs it, and the studio takes the result
+## Forecast landslide risk is a static hydrogeological model under GFS maps
+
+Hazards ▸ Landslides ▸ Forecast landslide risk (`landslide-pipeline.js`, the
+physics in `slope-hydrology.js`, the rain in `gfs-rain.js`, MFD routing in
+`hydrology.js`). **The first build of this pipeline could not produce a
+landslide**: over the 14–18 May 2023 Emilia-Romagna storm (hundreds of mm,
+over a thousand landslides) it found **0 of 30,810 cells failing at every one
+of 120 steps**, wetness never above 0.43. It was a bucket per cell — no
+upslope, so a hollow and the nose beside it filled alike — fed ERA5 (not GFS)
+from 36 points that collapsed onto 14 model nodes, with material from a
+keyword table and 149 m cells.
+
+It is now the SHALSTAB/SINMAP static model (Montgomery & Dietrich 1994; Pack
+et al. 1998), built once from the ground and run once per rainfall map:
+recharge r = min(P/Δt, Ks), routed by multiple flow directions (Quinn 1991,
+Freeman p = 1.1) over the area plus an upslope margin; a steady Darcy water
+table h = q/(b·F·Ks·sin β) on bedrock; the water above the failure plane;
+infinite-slope FoS; and per cell the RAINFALL TO FAIL, which needs no forecast.
+
+- **One GFS door for every window.** Open-Meteo's historical-forecast endpoint
+  answers from 2016 to today + 15 — past dates are the first hours of
+  successive runs stitched, future dates the latest run — so a past storm, the
+  week ahead, and a window straddling today are one request. Real GFS begins
+  late March 2021 (January 2021 comes back all nulls). `models=gfs_global` is
+  the T1534 grid, 0.1171875° (~13 km); `gfs025` answers zeros in the archive.
+- **A rainfall map is the model's grid, not a scatter.** Open-Meteo snaps each
+  coordinate to the nearest node, so the request lattice is at HALF the node
+  spacing (at the spacing two neighbours snap to one node and leave a hole),
+  de-duplicated to nodes and interpolated bilinearly. Each map is the rain
+  summed over a window (24 h default), because the model is a steady state.
+- **Material: never the database's intact rock.** A soil-state deposit the map
+  names, else the FAO map's topsoil texture, else the database's REGOLITH.
+  GLiM's "Unconsolidated Sediments" resolves to nothing in the database and
+  would take the no-information prior — φ′ 40°, c′ 8 MPa — so it reads as
+  alluvium.
+- **LATERAL FLOW IS NOT THE MATRIX, and this is the fault that decided it.**
+  With Cosby's pedotransfer Ks used for lateral flow, every map from 9 mm to
+  228 mm read as fully saturated (mean h/z 1.00) and the failing set never
+  moved: a 2 m loam at 3.5e-6 m/s saturates at about 1 mm a day on any slope.
+  Hillslope soils drain through macropores one to two orders faster than the
+  matrix; T = F·Ks·z_s with F a control, default 30 — a typical loam at the low
+  end of Montgomery & Dietrich's 17–65 m²/day. The soil map's field Ks now
+  outranks the database's intact value for a mapped clay (1e-11 m/s, which the
+  database's own note says a weathered clay exceeds by orders).
+- **Slope at the DEM's posts, not the model's grid.** Thinned to 120 m the
+  median slope was 12.8° and nothing reached 35°, while a saturated sand fails
+  at 19° and the clays at 22°. Horn at the 27 m posts at four points a
+  quarter-cell from each centre, averaged in tan β (one stencil read as
+  speckle): median 14.7°, 99th percentile 31°, max 44°. Routing stays coarse.
+- **`featuresIn` borrows; the pipeline gives back** in a `finally` — measured,
+  the world geology holds its 9,104 features after a ground read.
+- **Test harness trap, again:** the tests load the database into the BARE
+  `rock-properties.js` while the pipeline reads a STAMPED instance with none —
+  `stateOf(text, resolve)` takes the resolver so a test can hand its own.
+- **A card that carries its own ground declines the shared profile**
+  (`profile: false`): the ground profile appended an 18 km regional slope of
+  2.0° under the model's own 15.6°.
+
+Measured over the storm (32 × 28 km, 51,926 modelled cells, 7 s to read the
+ground, 1.5 s for 20 maps): **15 failing in the lull on 15 May, 3,742 at the
+17 May 06:00 peak (228 mm in 24 h), 14 after it**, the failures tracing the
+valley sides and drainage heads; a dry July week on the same ground never
+exceeds 29. No memory between maps beyond the window — that is what "a series
+of static models" means, and the 48/72 h windows are the antecedent control.
+
+
 
 Hazards-style brief, answered in the GIS page's Model Builder tab: draw the
 study area, sample the DEM into a surface at a resolution that VARIES by
