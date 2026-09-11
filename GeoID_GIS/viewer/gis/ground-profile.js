@@ -30,7 +30,7 @@
  * the point of assembling it rather than reading three cards.
  */
 
-import { materialFor, SHALLOW_FAILURE_CAP_M } from "./fos.js?v=20260911-2446ced";
+import { materialFor, SHALLOW_FAILURE_CAP_M } from "./fos.js?v=20260911-e423b85";
 
 /** Which loaded layer is which, by what its name says it is. */
 const SUPERFICIAL = /superficial|drift|quaternary/i;
@@ -332,6 +332,10 @@ export function attachToCard(feature, lat, lon) {
   // say their lines were written for a soil rather than a rock.
   // Water is not ground: a lake's card must not grow a soil profile.
   if (feature?.water) return;
+  // A card that already carries its own ground — the landslide model's, which
+  // states the slope it used at the DEM's posts — is not handed a second,
+  // coarser one underneath that disagrees with it.
+  if (feature?.profile === false) return;
   if (!isGroundLayer({ name: named }) && !feature?.soil) return;
   appendProfileTo(host, lat, lon);
 }

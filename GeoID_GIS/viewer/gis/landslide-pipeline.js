@@ -22,18 +22,18 @@
  * file only orchestrates them and says, on every card, what it has read.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-2446ced";
-import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, GFS_CREDIT } from "./gfs-rain.js?v=20260911-2446ced";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-e423b85";
+import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, GFS_CREDIT } from "./gfs-rain.js?v=20260911-e423b85";
 import {
   columnMaterial, soilColumn, steadyWetness, planeWetness, factorOfSafety, criticalRecharge,
   FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M, LATERAL_FACTOR,
-} from "./slope-hydrology.js?v=20260911-2446ced";
-import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-2446ced";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-2446ced";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-2446ced";
-import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-2446ced";
-import { mathsFor } from "./equations.js?v=20260911-2446ced";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260911-2446ced";
+} from "./slope-hydrology.js?v=20260911-e423b85";
+import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-e423b85";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-e423b85";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-e423b85";
+import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-e423b85";
+import { mathsFor } from "./equations.js?v=20260911-e423b85";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260911-e423b85";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";
@@ -529,7 +529,12 @@ async function readGround() {
     let slopeFrom = `the model's ${grid.stepM} m grid`;
     const post = got?.ok && dem?.metresPerPixel ? Math.max(10, dem.metresPerPixel(got.zoom, (b.south + b.north) / 2)) : null;
     if (post && grid.stepM > 1.5 * post) {
+      // One stencil at the centre is a POINT of the hillside and read as
+      // speckle across a 100 m cell; four, a quarter-cell each way, averaged
+      // (in the tangent, which is what the model uses), are the cell's slope
+      // at the ground's own resolution.
       let replaced = 0;
+      const cellLat = (eb.north - eb.south) / grid.height; const cellLon = (eb.east - eb.west) / grid.width;
       for (let y = 0; y < grid.height; y += 1) {
         const lat = eb.north - ((y + 0.5) / grid.height) * (eb.north - eb.south);
         const dy = post / 110574; const dx = post / (111320 * Math.cos(lat * Math.PI / 180));
@@ -537,12 +542,12 @@ async function readGround() {
           const i = y * grid.width + x;
           if (!Number.isFinite(grid.band[i])) continue;
           const lon = eb.west + ((x + 0.5) / grid.width) * (eb.east - eb.west);
-          const deg = hornAt(heightAt, lat, lon, dx, dy, post);
+          const deg = cellSlope(heightAt, lat, lon, cellLat / 4, cellLon / 4, dx, dy, post);
           if (Number.isFinite(deg)) { grad.band[i] = deg; replaced += 1; }
         }
-        if (y % 64 === 63) await tick();
+        if (y % 32 === 31) await tick();
       }
-      if (replaced) slopeFrom = `the DEM's ${Math.round(post)} m posts at each cell's centre`;
+      if (replaced) slopeFrom = `the DEM's ${Math.round(post)} m posts, four stencils in each cell`;
     }
     say("ground", "Routing the water…");
     await tick();
@@ -636,6 +641,16 @@ async function readGround() {
 }
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
+
+/** A cell's slope: Horn at the posts at four points a quarter-cell from its centre, averaged in tan β. */
+export function cellSlope(heightAt, lat, lon, qLat, qLon, dx, dy, post) {
+  let sum = 0; let n = 0;
+  for (const [a, b] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) {
+    const deg = hornAt(heightAt, lat + a * qLat, lon + b * qLon, dx, dy, post);
+    if (Number.isFinite(deg)) { sum += Math.tan(deg * Math.PI / 180); n += 1; }
+  }
+  return n ? Math.atan(sum / n) * 180 / Math.PI : NaN;
+}
 
 /** Horn's slope in degrees at a point, from a height reader at a post spacing. */
 export function hornAt(heightAt, lat, lon, dx, dy, post) {
@@ -895,8 +910,10 @@ export function probeAt(lat, lon) {
   const crit = g.crit?.[i];
   const why = g.cells.bare[i] ? "not modelled — bare rock, no soil to slide"
     : slopeDeg < MIN_SLOPE_DEG ? `not modelled — slope under ${MIN_SLOPE_DEG}°` : null;
+  const headline = why || `${fmt(fos)} — ${FOS_CLASSES[fosClass(fos)]?.label || "—"}`;
+  // The factor of safety is the card's title; a first row saying it again is
+  // the same number twice.
   const rows = [
-    ["Factor of safety", why || `${fmt(fos)} — ${FOS_CLASSES[fosClass(fos)]?.label || "—"}`],
     ["Rainfall map", `${fmt(cur.rainMm[i], 1)} mm of GFS rain in the ${state.rain.windowH} h to ${frame.time.replace("T", " ")} UTC`],
     ["Saturation", `h / z_s ${fmt(cur.W[i])}; water on the failure plane m ${fmt(planeWetness(cur.W[i], g.cells.zs[i], g.cells.zf[i]))}`],
     ["Upslope area", `${(g.cells.area[i] / 1e4).toFixed(2)} ha draining through this cell (a = ${(g.cells.area[i] / g.topo.contour).toFixed(0)} m)`],
@@ -911,7 +928,7 @@ export function probeAt(lat, lon) {
   window.GeoIDViewer?.showFeatureCard?.({
     // Named, so the card is claimed by this layer and goes when it does.
     source_layer: LAYER_NAME,
-    soil: true, type: "Forecast landslide risk", rock_type: rows[0][1], lithology: null, name: null,
+    soil: true, profile: false, type: "Forecast landslide risk", rock_type: headline, lithology: null, name: null,
     description: `${GFS_CREDIT} · ${state.rain.window.start} to ${state.rain.window.end}`, extra_rows: rows, origin: "GeoHUB forecast landslide pipeline",
     rows: [["Note", "A static steady-state screening model: the water table sustained recharge would build, routed downslope, and an infinite-slope failure parallel to the ground. Not a site investigation."]],
   }, lat, lon);

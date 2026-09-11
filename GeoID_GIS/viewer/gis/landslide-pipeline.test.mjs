@@ -6,7 +6,7 @@
 import { readFileSync } from "node:fs";
 import {
   demGridFor, withMargin, autoMarginKm, samplerOver, lithologyOf, groundText, stateOf, textureOf,
-  staticStep, readiness, hornAt,
+  staticStep, readiness, hornAt, cellSlope,
 } from "./landslide-pipeline.js";
 import { mfdTopology, fillSinks } from "./hydrology.js";
 import { makeRaster } from "./raster-analysis.js";
@@ -99,6 +99,9 @@ useRockProperties(JSON.parse(readFileSync(new URL("../../data/global/rock-proper
   const deg = hornAt(heightAt, lat0, 11.2, post / (111320 * Math.cos(lat0 * Math.PI / 180)), post / 110574, post);
   check("the native-post slope is Horn's on a plane", Math.abs(deg - Math.atan(0.5) * 180 / Math.PI) < 0.05, String(deg));
   check("and refuses where the DEM has a hole", Number.isNaN(hornAt(() => NaN, 44, 11, 1e-4, 1e-4, 27)));
+  const q = 30 / 110574;
+  check("a cell's slope on a plane is the plane's, whichever four points it reads",
+    Math.abs(cellSlope(heightAt, lat0, 11.2, q, q, post / (111320 * Math.cos(lat0 * Math.PI / 180)), post / 110574, post) - Math.atan(0.5) * 180 / Math.PI) < 0.05);
 }
 check("readiness gates each step on the one above", readiness({ bounds: null, rain: null, ground: null, run: null }).rain === "blocked"
   && readiness({ bounds: {}, rain: null, ground: null, run: null }).rain === "ready"
@@ -121,6 +124,8 @@ check("the drawn sheet is bounded by its cells' edges, not the asked box", /sub\
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 check("the page hosts the flowchart in the Landslides subtab and loads the module", /id="landslide-pipeline"/.test(html) && /gis\/landslide-pipeline\.js\?v=/.test(html));
 const popup = readFileSync(new URL("./feature-popup.js", import.meta.url), "utf8");
+check("the card carries its own ground and declines the shared profile", /profile: false/.test(src)
+  && /feature\?\.profile === false\) return;/.test(readFileSync(new URL("./ground-profile.js", import.meta.url), "utf8")));
 check("a click on the risk layer is offered to the pipeline BEFORE the polygons under it",
   popup.indexOf("GeoIDLandslidePipeline?.probeAt") > 0 && popup.indexOf("GeoIDLandslidePipeline?.probeAt") < popup.indexOf("const geologyHit = everything.find("));
 const viewer = readFileSync(new URL("../earth-viewer.js", import.meta.url), "utf8");
