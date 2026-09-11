@@ -16215,6 +16215,18 @@ infinite-slope FoS; and per cell the RAINFALL TO FAIL, which needs no forecast.
   (`profile: false`): the ground profile appended an 18 km regional slope of
   2.0° under the model's own 15.6°.
 
+- **Ground the FoS does not apply to is a CLASS, not a hole.** The gaps along
+  every channel were valley floors under 5° — 8,988 of 60,914 cells, median
+  1.5°, none bare and none missing DEM — which the infinite slope rightly
+  leaves out, and drawn as nothing they read as the mapping failing. They take
+  a slate "flat ground" class (bare rock another) through sentinel values far
+  below any view's range, and saturation is drawn on them too.
+- **The straight-edged bands are the SOIL MAP, not the model.** At the peak,
+  FAO "sand" topsoil fails at 25%, silt 5.8%, the mapped clay deposit 0.3%: the
+  database gives sand c′ = 0, so it fails saturated above ~19°, and the edge of
+  the red is a 1:5,000,000 polygon outline. Root cohesion is the control that
+  moves it.
+
 Measured over the storm (32 × 28 km, 51,926 modelled cells, 7 s to read the
 ground, 1.5 s for 20 maps): **15 failing in the lull on 15 May, 3,742 at the
 17 May 06:00 peak (228 mm in 24 h), 14 after it**, the failures tracing the
