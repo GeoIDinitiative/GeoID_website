@@ -19,11 +19,12 @@
  * silently.
  *
  *   CHIRPS v2   0.05° (~5.5 km), daily, 1981 → ~6 weeks ago, land, 50°S–50°N
- *   IMERG V07   0.1°, half-hourly summed to days, 2000 → ~days ago, 60°S–60°N
+ *   IMERG V07   0.1°, half-hourly summed to days, 1998 → yesterday, 60°S–60°N
+ *   GSMaP v8    0.1°, hourly summed to days, 1998 → hours ago, 60°S–60°N
  *   ERA5-Land   0.1°, daily aggregate, 1950 → ~a week ago, land, global
  */
 
-import { paletteRamp, valueFromColour } from "./gee-sample.js?v=20260911-f2003f4";
+import { paletteRamp, valueFromColour } from "./gee-sample.js?v=20260911-bc6912f";
 
 const search = new URL(import.meta.url).search;
 
@@ -35,6 +36,10 @@ export const GEE_RAIN_SOURCES = {
   imerg: {
     dataset: "NASA/GPM_L3/IMERG_V07", label: "GPM IMERG (Earth Engine)", short: "IMERG",
     res: "~11 km", maxLat: 60, credit: "NASA GPM IMERG V07, via Google Earth Engine",
+  },
+  gsmap: {
+    dataset: "JAXA/GPM_L3/GSMaP/v8/operational", label: "GSMaP (Earth Engine)", short: "GSMaP",
+    res: "~11 km", maxLat: 60, credit: "JAXA GSMaP v8 operational, via Google Earth Engine",
   },
   era5land: {
     dataset: "ECMWF/ERA5_LAND/DAILY_AGGR", label: "ERA5-Land (Earth Engine)", short: "ERA5-Land",

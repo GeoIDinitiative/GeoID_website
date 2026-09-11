@@ -106,6 +106,17 @@ const DATASETS = {
     multiply: 0.5,
     attribution: "NASA GPM IMERG V07",
   },
+  "JAXA/GPM_L3/GSMaP/v8/operational": {
+    legend: { label: "Rainfall", min: 0, max: 300, unit: "mm" },
+    name: "Rainfall (GSMaP operational)",
+    bands: ["hourlyPrecipRate"],
+    min: 0,
+    max: 300,
+    scale: 11132,
+    palette: ["ffffff", "bfe9ff", "2f6bff", "0b2f8a"],
+    reducer: "sum",
+    attribution: "JAXA GSMaP v8 operational",
+  },
   "ECMWF/ERA5_LAND/DAILY_AGGR": {
     legend: { label: "Rainfall", min: 0, max: 300, unit: "mm" },
     name: "Rainfall (ERA5-Land)",

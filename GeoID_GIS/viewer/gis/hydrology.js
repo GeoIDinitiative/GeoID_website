@@ -11,7 +11,7 @@
  * one of those.
  */
 
-import { makeRaster, cellSizeMetres } from "./raster-analysis.js?v=20260911-f2003f4";
+import { makeRaster, cellSizeMetres } from "./raster-analysis.js?v=20260911-bc6912f";
 
 const NEIGHBOURS = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
 
@@ -229,8 +229,11 @@ export function mfdTopology(raster, { exponent = 1.1 } = {}) {
  * in the cells; the result is a Float64Array so a large catchment's sum does
  * not lose its small contributions.
  */
-export function routeFlux(topo, source) {
-  const acc = Float64Array.from(source, (v) => (Number.isFinite(v) ? v : 0));
+export function routeFlux(topo, source, { inPlace = false } = {}) {
+  // In place when asked: a caller routing a new source every rainfall map
+  // over two million cells would otherwise throw away 16 MB a map.
+  const acc = inPlace && source instanceof Float64Array ? source
+    : Float64Array.from(source, (v) => (Number.isFinite(v) ? v : 0));
   const { order, offsets, recv, frac } = topo;
   for (let o = 0; o < order.length; o += 1) {
     const i = order[o];

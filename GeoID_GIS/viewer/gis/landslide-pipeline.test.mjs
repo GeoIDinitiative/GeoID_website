@@ -164,9 +164,9 @@ import { dayHours, rainfallFrames } from "./gfs-rain.js";
   check("nothing forecasts past fifteen days", !planRain({ source: "auto", start: "2026-09-20", end: "2026-09-30", windowH: 24, today: "2026-09-11", gee, covers: true }).ok);
   const frames = dailyFrames(auto);
   check("one map a day from the start, each the window's days, and a handover map says it is mixed",
-    frames.length === 5 && frames[0].time === "2026-07-29" && frames[2].source === "gee" && frames[3].source === "gfs");
+    frames.length === 5 && frames[0].time === "2026-07-29" && frames[2].source === "chirps" && frames[3].source === "gfs");
   const wide = dailyFrames(planRain({ source: "auto", start: "2026-07-30", end: "2026-08-01", windowH: 48, today: "2026-09-11", gee, covers: true }));
-  check("a two-day window straddling the handover sums one day of each", wide[1].parts.map((p) => p.source).join() === "gee,gee"
+  check("a two-day window straddling the handover sums one day of each", wide[1].parts.map((p) => p.source).join() === "chirps,chirps"
     && wide[2].source === "mixed" && wide[2].parts.map((p) => p.day).join() === "2026-07-31,2026-08-01");
 }
 
@@ -207,4 +207,23 @@ import { dayHours, rainfallFrames } from "./gfs-rain.js";
   const b = staticStep({ rainMm: new Float32Array(4).fill(40), windowH: 24, cells: byBlock, topo });
   check("properties and rain held per block of the lattice give the per-cell answer",
     [...a.fos].every((v, i) => Math.abs(v - b.fos[i]) < 1e-6) && a.failing === b.failing);
+}
+
+{
+  // Auto over the week either side of today: CHIRPS stops six weeks back, so
+  // the past week is IMERG's (it runs to yesterday) and the week ahead GFS's.
+  const gees = [{ key: "chirps", first: "1981-01-01", last: "2026-07-31", covers: true },
+    { key: "imerg", first: "1998-01-01", last: "2026-09-10", covers: true }];
+  const demo = planRain({ source: "auto", start: "2026-09-04", end: "2026-09-18", windowH: 24, today: "2026-09-11", gees });
+  check("the week before today comes from IMERG and the week after from GFS", demo.ok
+    && demo.bySource.imerg?.join() === daysBetween("2026-09-04", "2026-09-10").join()
+    && demo.gfsDays.join() === daysBetween("2026-09-11", "2026-09-18").join() && !demo.bySource.chirps, JSON.stringify(demo.bySource));
+  const both = planRain({ source: "auto", start: "2026-07-30", end: "2026-08-02", windowH: 24, today: "2026-09-11", gees });
+  check("where CHIRPS holds a day it takes it, at its finer resolution, and IMERG the days after",
+    both.bySource.chirps?.join() === "2026-07-30,2026-07-31" && both.bySource.imerg?.join() === "2026-08-01,2026-08-02");
+  const noImerg = planRain({ source: "auto", start: "2026-09-04", end: "2026-09-18", windowH: 24, today: "2026-09-11",
+    gees: [gees[0], { key: "imerg", covers: true, problem: "not deployed" }] });
+  check("an archive the service will not render is passed over, and GFS takes its days", noImerg.ok && noImerg.geeDays.length === 0);
+  check("the demo window's maps change source once, the day GFS takes over",
+    dailyFrames(demo).filter((f, k, a) => k && f.source !== a[k - 1].source).map((f) => f.time).join() === "2026-09-11");
 }
