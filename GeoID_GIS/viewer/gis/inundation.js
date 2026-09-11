@@ -37,7 +37,7 @@
  * deltas from a single river.
  */
 
-import { nearestSource, BANDS } from "./river-zones.js?v=20260911-0db24ca";
+import { nearestSource, BANDS } from "./river-zones.js?v=20260911-a365a77";
 
 /** Leopold & Maddock (1953), the average at-a-station exponent of depth on discharge. */
 export const DEPTH_EXPONENT = 0.40;
@@ -109,9 +109,10 @@ export function sourceFields(riverWidth, width, height, bounds) {
 }
 
 /**
- * The flood. Returns the DEPTH of water over every cell it reaches (NaN where
- * dry, where it is the river itself, and over the sea and lakes, which are
- * water already), and the cells below the flood that it could not reach.
+ * The flood. Returns the DEPTH of water over every cell it reaches — over the
+ * river's own channel, the rise above its normal level — NaN where dry and
+ * over the sea and lakes, which are water already; and the cells below the
+ * flood that it could not reach.
  */
 export function inundate({ heights, riverWidth, water = null, fields, width, height, params = DEFAULTS }) {
   const n = width * height;
@@ -122,6 +123,7 @@ export function inundate({ heights, riverWidth, water = null, fields, width, hei
   const riseOf = new Map();
   const surfaceOf = new Map();
   const below = new Uint8Array(n);
+  const channelRise = new Float32Array(n);
   /**
    * THE RIVER'S SURFACE IS THE LOWEST GROUND AT IT. A grid cell on a
    * centreline also holds some of the bank, and on a narrow river most of it,
@@ -152,7 +154,15 @@ export function inundate({ heights, riverWidth, water = null, fields, width, hei
       if (s < 0) continue;
       const w = riverWidth[s];
       const bank = dist[c] - (w / 2);
-      if (bank <= 0) { channel[c] = 1; continue; }
+      if (bank <= 0) {
+        channel[c] = 1;
+        // The channel is under the flood too: its water stands the river's
+        // rise above its normal level, the same surface the banks see.
+        let rise = riseOf.get(w);
+        if (rise === undefined) { rise = stageRise(w, params); riseOf.set(w, rise); }
+        if (rise > channelRise[c]) channelRise[c] = rise;
+        continue;
+      }
       if (bank > reach * w) continue;
       const hs = surface(s); const hc = heights[c];
       if (!Number.isFinite(hs) || !Number.isFinite(hc)) continue;
@@ -208,7 +218,19 @@ export function inundate({ heights, riverWidth, water = null, fields, width, hei
   // — unless another river's flood reaches it on its own terms.
   const behind = new Uint8Array(n);
   for (let c = 0; c < n; c += 1) {
-    if (channel[c] || (water && water[c])) { depth[c] = NaN; continue; }
+    if (water && water[c]) { depth[c] = NaN; continue; }
+    /**
+     * THE CHANNEL IS PAINTED, with the flood's height above the river's normal
+     * level. Left out, a flood that should be one sheet of water had a hole
+     * down its middle exactly where the river runs — which reads as the river
+     * being the one place that stays dry. It is still water every day, so the
+     * areas and the deepest reading leave it out (`floodAreas`).
+     */
+    if (channel[c]) {
+      const d = Math.max(channelRise[c], depth[c] > 0 ? depth[c] : 0);
+      depth[c] = d > 0 ? d : NaN;
+      continue;
+    }
     if (defended && below[c] && !(depth[c] > 0)) behind[c] = 1;
   }
   return { depth, channel, cutOff, defended: behind };
@@ -264,7 +286,7 @@ export function depthColour(d) {
 }
 
 /** Flooded ground per depth class and cut-off ground, in km², off the grid's own cells. */
-export function floodAreas(depth, cutOff, width, height, bounds, defended = null) {
+export function floodAreas(depth, cutOff, width, height, bounds, defended = null, channel = null) {
   const R = 6371.0088;
   const dLon = ((bounds.east - bounds.west) / width) * (Math.PI / 180);
   const dLat = ((bounds.north - bounds.south) / height) * (Math.PI / 180);
@@ -275,7 +297,8 @@ export function floodAreas(depth, cutOff, width, height, bounds, defended = null
     const cell = R * R * dLon * dLat * Math.cos(lat * Math.PI / 180);
     for (let i = 0; i < width; i += 1) {
       const c = (j * width) + i;
-      const k = depthClass(depth[c]);
+      // The river's own channel is water every day, not ground the flood took.
+      const k = channel?.[c] ? -1 : depthClass(depth[c]);
       if (k >= 0) { byClass[k] += cell; if (depth[c] > deepest) deepest = depth[c]; }
       if (cutOff?.[c]) cut += cell;
       if (defended?.[c]) held += cell;

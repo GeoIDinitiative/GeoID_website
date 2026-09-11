@@ -18,20 +18,20 @@
  * the displaced surface, and the raster every terrain tool wants as an input.
  */
 
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-0db24ca";
-import { mathsFor } from "./equations.js?v=20260911-0db24ca";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260911-0db24ca";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-a365a77";
+import { mathsFor } from "./equations.js?v=20260911-a365a77";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260911-a365a77";
 import { makeRaster, slope as slopeOf, hillshade as hillshadeOf }
-  from "./raster-analysis.js?v=20260911-0db24ca";
-import * as dem from "./dem-tiles.js?v=20260911-0db24ca";
-import { rampColour } from "./symbology.js?v=20260911-0db24ca";
-import * as climate from "./climate-normals.js?v=20260911-0db24ca";
+  from "./raster-analysis.js?v=20260911-a365a77";
+import * as dem from "./dem-tiles.js?v=20260911-a365a77";
+import { rampColour } from "./symbology.js?v=20260911-a365a77";
+import * as climate from "./climate-normals.js?v=20260911-a365a77";
 import { waterMasks, waterFeatures, floodFromSea, classAreas, edgeSeeds, contextBox, WORLD_BOX,
-  FLOODED, EXPOSED, CUT_OFF, LAKE } from "./water-mask.js?v=20260911-0db24ca";
+  FLOODED, EXPOSED, CUT_OFF, LAKE } from "./water-mask.js?v=20260911-a365a77";
 import { burnRivers, riverZones, zoneAreas, mergeOuterZones, ZONES }
-  from "./river-zones.js?v=20260911-0db24ca";
+  from "./river-zones.js?v=20260911-a365a77";
 import { DEFAULTS as FLOOD_DEFAULTS, sourceFields, inundate, mergeOuterDepth, depthColour,
-  floodAreas, DEPTH_CLASSES } from "./inundation.js?v=20260911-0db24ca";
+  floodAreas, DEPTH_CLASSES } from "./inundation.js?v=20260911-a365a77";
 
 /**
  * Which corridor zones are drawn. State, like the sea level, so the drawer's
@@ -83,7 +83,7 @@ export function floodLegend() {
     values: DEPTH_CLASSES.map((k) => k.label),
     categorical: true,
     classed: true,
-    field: "Depth of flood water over ground that is dry at mean flow",
+    field: "Depth of flood water — over the river's channel, its rise above the normal level",
   };
 }
 
@@ -424,13 +424,13 @@ export const SHEETS = {
     },
     derive: (raster, ctx) => {
       const heights = heightsOf(raster.band);
-      const { depth, cutOff, defended } = inundate({
+      const { depth, cutOff, defended, channel } = inundate({
         heights, riverWidth: ctx.riverWidth, water: ctx.water, fields: ctx.fields,
         width: raster.width, height: raster.height, params: ctx.params,
       });
       mergeOuterDepth(depth, ctx.outer, ctx.bounds, raster.width, raster.height, ctx.water);
       floodState.last = { ...floodAreas(depth, cutOff, raster.width, raster.height, ctx.bounds,
-        defended),
+        defended, channel),
         params: ctx.params, world: ctx.world,
         cellM: ((ctx.bounds.east - ctx.bounds.west) / raster.width) * 111320
           * Math.cos((((ctx.bounds.north + ctx.bounds.south) / 2) * Math.PI) / 180) };

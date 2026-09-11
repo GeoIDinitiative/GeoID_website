@@ -142,6 +142,7 @@ const EQUATIONS = {
       { expr: "flooded(c) ⇔ h(c) < h(r) + rise  and  bank(c) ≤ k · W  and  c is joined to the channel",
         note: "8-neighbour, through ground that is itself flooded; open water conducts and is not painted" },
       { expr: "depth(c) = h(r) + rise − h(c)", note: "the deepest any band of river widths gives" },
+      { expr: "depth(channel) = rise", note: "the river's own channel, painted with the flood's height above its normal level so the flood is one sheet; it is water every day, so it is not counted as flooded ground" },
     ],
     terms: [
       ["W", "the nearest river's width at mean flow, from GRWL, found separately for "

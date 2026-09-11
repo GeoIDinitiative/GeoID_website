@@ -70,7 +70,12 @@ check("one band of widths holds the river", fields.length === 1 && fields[0].lo 
   const at = (i) => depth[(1 * W) + i];
   // The edge is where 0.05·|i − mid| = rise.
   const edge = rise / 0.05;
-  check("the channel itself is never painted", channel[(1 * W) + mid] === 1 && Number.isNaN(at(mid)));
+  check("the channel is painted with the rise above the river's normal level, so the flood has no gap",
+    channel[(1 * W) + mid] === 1 && near(at(mid), rise, 1e-4));
+  const areas = floodAreas(depth, null, W, H, bounds, null, channel);
+  const withChannel = floodAreas(depth, null, W, H, bounds, null, null);
+  check("but the river's own channel is not counted as flooded ground",
+    areas.total < withChannel.total && areas.deepest < rise);
   check("ground below the raised water floods, to the depth between",
     near(at(mid + 10), rise - 0.5, 1e-4) && near(at(mid - 10), rise - 0.5, 1e-4));
   check("and ground above it stays dry", Number.isNaN(at(Math.ceil(mid + edge + 1))),
