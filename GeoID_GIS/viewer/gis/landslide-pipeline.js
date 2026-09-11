@@ -22,27 +22,27 @@
  * file only orchestrates them and says, on every card, what it has read.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-562dd6c";
-import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260911-562dd6c";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-3209dea";
+import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260911-3209dea";
 import {
   columnMaterial, soilColumn, steadyWetness, planeWetness, factorOfSafety, criticalRecharge,
   FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M, LATERAL_FACTOR, FOS_CAP, cellAnswer,
-} from "./slope-hydrology.js?v=20260911-562dd6c";
-import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-562dd6c";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-562dd6c";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-562dd6c";
-import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-562dd6c";
-import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainParts, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260911-562dd6c";
-import { mathsFor } from "./equations.js?v=20260911-562dd6c";
-import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260911-562dd6c";
-import { upslopeWeights, stationStep, LANDSLIDE_PARAMS, LANDSLIDE_PLOTS, lowestCells } from "./landslide-stations.js?v=20260911-562dd6c";
+} from "./slope-hydrology.js?v=20260911-3209dea";
+import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-3209dea";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-3209dea";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-3209dea";
+import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-3209dea";
+import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainParts, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260911-3209dea";
+import { mathsFor } from "./equations.js?v=20260911-3209dea";
+import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260911-3209dea";
+import { upslopeWeights, stationStep, LANDSLIDE_PARAMS, LANDSLIDE_PLOTS, lowestCells } from "./landslide-stations.js?v=20260911-3209dea";
 import {
   makeStation, parseStationsCsv, stationsFromFeatures, uniqueName, seriesCsv, seriesFileName, MAX_STATIONS, colourAt,
-} from "./station-series.js?v=20260911-562dd6c";
-import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260911-562dd6c";
-import { planSeries, rendersOf, stepText, rampMaxFor, STEP_CHOICES, NATIVE_STEP, HOUR } from "./rain-steps.js?v=20260911-562dd6c";
-import { mountStationMarkers } from "./station-markers.js?v=20260911-562dd6c";
-import { equivalentMohrCoulomb, culmann, culmannAt, rockCell, localRelief, rockfallReach, velocityOf, criticalHeight } from "./rock-slope.js?v=20260911-562dd6c";
+} from "./station-series.js?v=20260911-3209dea";
+import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260911-3209dea";
+import { planSeries, rendersOf, stepText, rampMaxFor, STEP_CHOICES, NATIVE_STEP, HOUR } from "./rain-steps.js?v=20260911-3209dea";
+import { mountStationMarkers } from "./station-markers.js?v=20260911-3209dea";
+import { equivalentMohrCoulomb, culmann, culmannAt, rockCell, localRelief, rockfallReach, velocityOf, criticalHeight } from "./rock-slope.js?v=20260911-3209dea";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";
@@ -1079,7 +1079,7 @@ function buildRock() {
   // The rock mass's strength depends on H only through the stress range it is
   // fitted over, so it is kept per rock and per metre of height.
   const memo = new Map();
-  let rockCells = 0; let bare = 0; let sources = 0; let dryFail = 0;
+  let rockCells = 0; let bare = 0; let sourceCount = 0; let dryFail = 0;
   for (let i = 0; i < n; i += 1) {
     if (!cells.data[i]) continue;
     const j = cells.block[i];
@@ -1099,9 +1099,11 @@ function buildRock() {
     const isBare = (P.thin[j] && beta >= expRad) || beta >= always;
     if (isBare) exposed[i] = 1;
     if (isBare && beta >= srcRad) source[i] = 1;
-    if (cells.model[i]) { rockCells += 1; if (isBare) bare += 1; if (source[i]) sources += 1; if (d.fos < 1) dryFail += 1; }
+    if (cells.model[i]) { rockCells += 1; if (isBare) bare += 1; if (source[i]) sourceCount += 1; if (d.fos < 1) dryFail += 1; }
   }
-  const energy = rockfallReach({ band: g.filled, width: grid.width, topo: g.topo, sources, reachDeg: pr.reachDeg, cellM: grid.stepM });
+  // `source` is the mask; passing the COUNT here seeded nothing and every
+  // cell came back out of reach, with 44,373 sources sitting on the map.
+  const energy = rockfallReach({ band: g.filled, width: grid.width, topo: g.topo, sources: source, reachDeg: pr.reachDeg, cellM: grid.stepM });
   let reached = 0; let vmax = 0;
   for (let i = 0; i < n; i += 1) {
     if (!cells.model[i] || !Number.isFinite(energy[i])) continue;
@@ -1111,7 +1113,7 @@ function buildRock() {
   const total = g.tally.model;
   const none = total - rockCells;
   say("fos", `Rock model: ${pct(rockCells, total)} of the area is rock${none ? ` (${pct(none, total)} is unconsolidated bedrock or unmapped — the soil model alone there)` : ""}; `
-    + `${pct(bare, total)} is bare rock, ${sources.toLocaleString()} cells shed blocks and ${reached.toLocaleString()} are within their reach (up to ${vmax.toFixed(0)} m/s). `
+    + `${pct(bare, total)} is bare rock, ${sourceCount.toLocaleString()} cells shed blocks and ${reached.toLocaleString()} are within their reach (up to ${vmax.toFixed(0)} m/s). `
     + `Dry, ${dryFail.toLocaleString()} rock-slope cells stand below FoS 1; slope height read over ${pr.reliefM} m.`);
 }
 

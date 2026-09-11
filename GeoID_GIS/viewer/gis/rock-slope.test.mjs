@@ -170,3 +170,18 @@ const R = Math.PI / 180;
     /value: \(i, fo, rk\) => \(rk\?\.exposed\[i\] \? -1 : fo\.fos\[i\]\)/.test(src) && /view: "mode"/.test(src));
   check("rockfall runs on the sink-filled DEM the flow network was built on", /rockfallReach\(\{ band: g\.filled,/.test(src));
 }
+
+{
+  // The mask, never the count: passing the number of sources seeded nothing
+  // and every cell came back out of reach under a map full of sources.
+  const src = readFileSync(new URL("./landslide-pipeline.js", import.meta.url), "utf8");
+  check("the reach is seeded with the source MASK", /rockfallReach\(\{ band: g\.filled, width: grid\.width, topo: g\.topo, sources: source,/.test(src));
+  const w = 6; const n = w * 3;
+  const band = new Float32Array(n); for (let i = 0; i < n; i += 1) band[i] = 100 - (i % w) * 5;
+  const topo = mfdTopology(fillSinks(makeRaster(band, w, 3, { minX: 0, maxX: 6e-4, minY: 0, maxY: 3e-4 }, NaN)));
+  const mask = new Uint8Array(n); mask[w] = 1;
+  const E = rockfallReach({ band, width: w, topo, sources: mask, reachDeg: 32, cellM: 10 });
+  check("a source is itself reached, at zero energy", E[w] === 0);
+  check("and passing a count instead of the mask reaches nothing — which is what the fault looked like",
+    rockfallReach({ band, width: w, topo, sources: 1, reachDeg: 32, cellM: 10 }).every((v) => Number.isNaN(v)));
+}
