@@ -101,6 +101,34 @@ const EQUATIONS = {
       + "ground in it, that is a fraction of a percent.",
   },
 
+  "river-zones": {
+    kind: COMPUTED,
+    intro: "Incremental zones round every GRWL river, measured from the water's "
+      + "edge at mean flow in multiples of the river's own width. A fixed buffer "
+      + "cannot serve rivers from 30 m to several kilometres wide.",
+    lines: [
+      { expr: "bank(c) = d(c) − W/2", note: "distance from the mean-flow water edge" },
+      { expr: "margin:      bank ≤ max(10 m, ¼ W)",
+        note: "low flow to bankfull: width ∝ Q^0.26 (Leopold & Maddock 1953); the 10 m floor is the bank and the works strip regulators name (8–16 m in England)" },
+      { expr: "belt:        bank ≤ 3 W",
+        note: "meander belts run about 6–8 W wide, B ≈ 4.3 W^1.12 (Williams 1986); not drawn for canals" },
+      { expr: "floodplain:  bank ≤ 10 W  and  h(c) − h(river) ≤ 5 m",
+        note: "HAND ≤ 5 m, the floodplain class of Nobre et al. (2011)" },
+    ],
+    terms: [
+      ["d(c)", "the distance from the cell to the nearest river centreline, in metres, found "
+        + "separately for each band of widths so a small stream cannot hide a big "
+        + "river's floodplain"],
+      ["W", "that river's width at mean discharge, from GRWL"],
+      ["h", "the streamed DEM's height; h(river) is the height at the nearest channel cell"],
+    ],
+    note: "A screening map, not a flood map: no discharge, no return period, no "
+      + "defences, and the floodplain test is height alone. The zones are drawn "
+      + "on the view's own grid, so one narrower than a cell does not show until "
+      + "the view is close enough. GRWL maps rivers 30 m wide and more; smaller "
+      + "streams have no zones here.",
+  },
+
   "sea-level": {
     kind: COMPUTED,
     intro: "A bathtub model with connectivity, on the streamed heights and the "

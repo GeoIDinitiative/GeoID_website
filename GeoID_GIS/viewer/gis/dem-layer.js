@@ -18,16 +18,44 @@
  * the displaced surface, and the raster every terrain tool wants as an input.
  */
 
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-0c9bec5";
-import { mathsFor } from "./equations.js?v=20260911-0c9bec5";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260911-0c9bec5";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-18f9802";
+import { mathsFor } from "./equations.js?v=20260911-18f9802";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260911-18f9802";
 import { makeRaster, slope as slopeOf, hillshade as hillshadeOf }
-  from "./raster-analysis.js?v=20260911-0c9bec5";
-import * as dem from "./dem-tiles.js?v=20260911-0c9bec5";
-import { rampColour } from "./symbology.js?v=20260911-0c9bec5";
-import * as climate from "./climate-normals.js?v=20260911-0c9bec5";
-import { waterMasks, floodFromSea, classAreas, FLOODED, EXPOSED, CUT_OFF, LAKE }
-  from "./water-mask.js?v=20260911-0c9bec5";
+  from "./raster-analysis.js?v=20260911-18f9802";
+import * as dem from "./dem-tiles.js?v=20260911-18f9802";
+import { rampColour } from "./symbology.js?v=20260911-18f9802";
+import * as climate from "./climate-normals.js?v=20260911-18f9802";
+import { waterMasks, waterFeatures, floodFromSea, classAreas, FLOODED, EXPOSED, CUT_OFF, LAKE }
+  from "./water-mask.js?v=20260911-18f9802";
+import { burnRivers, riverZones, zoneAreas, ZONES } from "./river-zones.js?v=20260911-18f9802";
+
+/**
+ * Which corridor zones are drawn. State, like the sea level, so the drawer's
+ * ticks can repaint the sheet without the builder knowing they exist.
+ */
+export const riverZoneState = { on: { 1: true, 2: true, 3: true }, masks: null, last: null };
+
+/** The painter for the corridor zones as the ticks stand now. */
+export function riverZonePaint() {
+  return (v) => {
+    const zone = ZONES.find((z) => z.id === v);
+    return zone && riverZoneState.on[v] ? zone.colour : null;
+  };
+}
+
+/** The key for the zones that are on: a classed legend, innermost first. */
+export function riverZoneLegend() {
+  const shown = ZONES.filter((z) => riverZoneState.on[z.id]);
+  return {
+    palette: shown.map((z) => z.colour.map((c) => c.toString(16).padStart(2, "0")).join("")),
+    labels: shown.map((z) => `${z.label} — ${z.rule}`),
+    values: shown.map((z) => z.label),
+    categorical: true,
+    classed: true,
+    field: "River corridor zone (W = channel width at mean flow)",
+  };
+}
 
 /**
  * The sea level the sea-level sheet is drawn at, in metres against today's.
@@ -149,6 +177,79 @@ export const SHEETS = {
     derive: (raster) => [climate.climateGrid(climate.normalsNow(), raster.band,
       raster.width, raster.height, raster.bounds, raster.noData, "pressurePa")],
     scale: { ramp: "viridis", reverse: false, min: 50000, max: 103000 },
+  },
+  /**
+   * RIVER CORRIDOR ZONES round every GRWL river, sized by the river's own
+   * width and the floodplain cut by the terrain (`river-zones.js`). The
+   * streamed heights are what "within 5 m of the channel" is measured on; the
+   * sea and lakes from the coastline polygons are never painted.
+   */
+  riverzones: {
+    id: "river-zones",
+    label: "River corridor zones (GRWL on the streamed DEM)",
+    unit: null,
+    isDem: false,
+    opacity: 0.6,
+    summary: "Incremental zones round every river at least 30 m wide, each "
+      + "measured from the mean-flow water edge in multiples of the channel's "
+      + "own width: the seasonal margin, the migration belt, and the floodplain "
+      + "where the ground stands within 5 m of the channel.",
+    credit: "Rivers: GRWL v01.01 (Allen & Pavelsky 2018), CC BY 4.0. Coastline © "
+      + "OpenStreetMap contributors (ODbL 1.0), Natural Earth; lakes HydroLAKES "
+      + "(Messager et al. 2016), CC BY 4.0.",
+    prepare: async (bounds, width, height) => {
+      const key = JSON.stringify([bounds.west, bounds.south, bounds.east, bounds.north,
+        width, height]);
+      if (riverZoneState.masks?.key !== key) {
+        const [rivers, water] = await Promise.all([
+          waterFeatures("rivers", bounds, width), waterMasks(bounds, width, height),
+        ]);
+        const burned = burnRivers(rivers.features, bounds, width, height);
+        const wet = new Uint8Array(width * height);
+        for (let c = 0; c < wet.length; c += 1) {
+          wet[c] = water.ocean[c] || !Number.isNaN(water.lakeLevel[c]) ? 1 : 0;
+        }
+        riverZoneState.masks = { key, ...burned, water: wet, zoom: rivers.zoom };
+      }
+      return riverZoneState.masks;
+    },
+    derive: (raster, ctx) => {
+      const heights = new Float32Array(raster.band.length);
+      for (let c = 0; c < heights.length; c += 1) {
+        const h = raster.band[c];
+        heights[c] = h === raster.noData ? NaN : h;
+      }
+      const classes = riverZones({
+        heights, riverWidth: ctx.riverWidth, canal: ctx.canal, water: ctx.water,
+        width: raster.width, height: raster.height, bounds: ctx.bounds,
+      });
+      const cellM = ((ctx.bounds.east - ctx.bounds.west) / raster.width) * 111320
+        * Math.cos((((ctx.bounds.north + ctx.bounds.south) / 2) * Math.PI) / 180);
+      riverZoneState.last = { areas: zoneAreas(classes, raster.width, raster.height, ctx.bounds),
+        cellM, world: ctx.world };
+      const out = new Float32Array(classes.length);
+      for (let c = 0; c < out.length; c += 1) {
+        out[c] = ZONES.some((z) => z.id === classes[c]) ? classes[c] : NO_DATA;
+      }
+      return [out];
+    },
+    paint: (result) => {
+      result.repaint(riverZonePaint());
+      result.legendInfo = riverZoneLegend();
+    },
+    status: () => {
+      const last = riverZoneState.last;
+      if (!last) return "";
+      const km = (id) => Math.round(last.areas[id] || 0).toLocaleString();
+      const parts = ZONES.filter((z) => riverZoneState.on[z.id])
+        .map((z) => `${z.label.toLowerCase()} ${km(z.id)} km²`);
+      const cell = Math.round(last.cellM);
+      return `River corridor zones ${last.world ? "worldwide" : "in this view"}: `
+        + `${parts.join(", ") || "all zones switched off"}. Cells here are about `
+        + `${cell.toLocaleString()} m, so a zone narrower than that is not drawn — `
+        + "fly in to see the seasonal margin of a small river. GRWL maps rivers "
+        + "30 m wide and more.";
+    },
   },
   /**
    * THE SEA AT A CHOSEN LEVEL, on the streamed heights and the real coastline.
@@ -687,5 +788,6 @@ export async function rebuildSheet(kind, onStatus = () => {}) {
 // The catalogue's TILED rows drive these through a seam, as they do every
 // other self-loading layer.
 if (typeof window !== "undefined") {
-  window.GeoIDDemSheets = { addSheet, removeSheet, rebuildSheet, sheetLayer, SHEETS };
+  window.GeoIDDemSheets = { addSheet, removeSheet, rebuildSheet, sheetLayer, SHEETS,
+    riverZoneState, riverZonePaint, riverZoneLegend };
 }

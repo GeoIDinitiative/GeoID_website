@@ -29,11 +29,11 @@
 
 import {
   HOMES, MIRRORS, grouped, addDataset, layerForDataset, loadLaunchDefaults,
-} from "./global-data.js?v=20260911-0c9bec5";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260911-0c9bec5";
-import { mathsFor } from "./equations.js?v=20260911-0c9bec5";
+} from "./global-data.js?v=20260911-18f9802";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260911-18f9802";
+import { mathsFor } from "./equations.js?v=20260911-18f9802";
 import { bandOf, bandRows, bandSymbology, describeFilter, magOf }
-  from "./seismic-magnitude.js?v=20260911-0c9bec5";
+  from "./seismic-magnitude.js?v=20260911-18f9802";
 
 const byId = (id) => document.getElementById(id);
 
@@ -72,6 +72,29 @@ const sayIn = (id) => (message) => {
 
 const TILED = {
   "hydrology": [{
+    id: "river-zones",
+    group: "Water bodies",
+    label: "River corridor zones (GRWL)",
+    title: "Incremental zones round every river, sized by the river's own width: "
+      + "seasonal margin, migration belt, and the floodplain within 5 m of the "
+      + "channel. Switch each on or off under the row.",
+    info: {
+      summary: "Where a river's influence reaches, in three steps out from the "
+        + "water's edge at mean flow. Each is a multiple of the channel's own "
+        + "width, because a 30 m stream and a 3 km river are not served by one "
+        + "distance; the floodplain also has to stand within 5 m of the channel "
+        + "on the streamed heights, so valley sides are not painted.",
+      citation: "GRWL (Allen & Pavelsky 2018), CC BY 4.0; heights Mapzen Terrain "
+        + "Tiles; rationale Leopold & Maddock (1953), Williams (1986), Nobre et "
+        + "al. (2011)",
+      maths: mathsFor("river-zones"),
+    },
+    settings: "river-zone-controls",
+    ready: () => Boolean(window.GeoIDDemSheets),
+    layerOf: () => window.GeoIDDemSheets?.sheetLayer?.("riverzones") || null,
+    load: () => window.GeoIDDemSheets.addSheet("riverzones", sayIn("hydrology-status")),
+    unload: () => { window.GeoIDDemSheets?.removeSheet?.("riverzones"); sayIn("hydrology-status")(""); },
+  }, {
     id: "hydro-lakes",
     group: "Water bodies",
     label: "Lakes and reservoirs (HydroLAKES)",

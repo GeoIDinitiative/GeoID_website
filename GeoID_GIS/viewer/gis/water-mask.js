@@ -25,7 +25,7 @@
  * pyramids the Hydrology rows stream, straight from their manifests.
  */
 
-import { decodeTile, tilesForBounds } from "./mvt.js?v=20260911-0c9bec5";
+import { decodeTile, tilesForBounds } from "./mvt.js?v=20260911-18f9802";
 
 /* ── classes a cell can end up in ───────────────────────────────────────── */
 export const DRY = 0;
@@ -191,6 +191,9 @@ export function classAreas(classes, width, height, bounds) {
 const PYRAMIDS = {
   ocean: { manifest: "/data/global/ocean/manifest.json", layer: "ocean", dir: "ocean" },
   lakes: { manifest: "/data/global/hydrolakes/manifest.json", layer: "lakes", dir: "hydrolakes" },
+  // GRWL's centrelines, for the river corridor zones. Its coarse levels keep
+  // only the wide rivers, which is the right set for a coarse grid anyway.
+  rivers: { manifest: "/data/global/grwl/manifest.json", layer: "rivers", dir: "grwl" },
 };
 
 const STAMP = (() => {
