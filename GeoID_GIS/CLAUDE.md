@@ -17780,3 +17780,13 @@ a superficial map rather than to tick a row that no longer exists.
 Volcanic hazards the volcano its merged subtab wore (`TOOL_ICONS`, keyed by the
 summary's lower-case title). Tropical cyclones, Seismic hazards and Exposure
 still wear the fallback bracket.
+
+**No subtab wears the fallback bracket now.** A sweep found 21 heads on it
+(Tropical cyclones, Exposure and Seismic hazards among them). Each has a glyph,
+and the painter drops a trailing numeric count from the title before the
+lookup ("Surface analysis (21)" is Surface analysis). Only a NUMBER in brackets
+is dropped, so "Seismograms (FDSN)" keeps its own key. The planets' "Inspect"
+reuses Earth's "inspect and pin". Measured: 82 heads on Earth, 59 on Mars and
+50 on Jupiter, with none on the bracket. The regression check is the same
+probe: `.gis-tool-section > summary` whose SVG matches the bracket path
+`M5.6 3.2H3.4`.
