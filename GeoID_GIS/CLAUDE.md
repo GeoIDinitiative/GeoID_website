@@ -18238,3 +18238,44 @@ no lake — pick test points with `GeoIDFeaturePopup.featuresAt` first (the
 first "8 km over the Camargue" point had neither in frame, and read as the
 layers vanishing). And a test stub must not hand geo-utils' `latLonToVector3`
 back to the seam: it DEFERS to the seam, so it calls itself.
+
+## River flood inundation: a stage from the river's own size, set by sliders
+
+Hazards ▸ Flood ▸ "River flood inundation on the streamed DEM" (`inundation.js`,
+a SHEET in `dem-layer.js`, controls in `flood-panel.js`). Every GRWL river's
+water is raised by a stage and spread over the streamed heights through ground
+that is under it and joined to the channel:
+
+    D(W) = 0.27 (W/7.2)^0.6          Moody & Troutman (2002), Q eliminated
+    rise = D(W)·((Q/Q̄)^f − 1) + e    at-a-station depth ∝ Q^f, f = 0.40
+    flooded ⇔ h(c) < h(r) + rise, bank ≤ k·W, joined to the channel
+
+**The global depth law is d = 0.27 Q^0.30, not 0.39.** I had it from memory as
+0.39 and checked before building on it (quoted as Equations 1–2 in a NOAA
+paper on channel dimensions): 0.39 would have made every depth, and so every
+flood, the wrong size. Check a coefficient against a source before a model
+rests on it.
+
+**Scenarios are discharge ratios and they are ASSUMED**: seasonal high 2,
+winter (annual, ≈ bankfull) 5, 1-in-10 8, 1-in-100 12.5 (growth factors 1.6
+and 2.5, humid-temperate), flash 25 on channels ≤ 100 m. Every one is a slider,
+and the drawer says in METRES what the setting does to a 50 m, 300 m and 2 km
+river — a multiple of mean flow means nothing to most readers.
+
+**Ground already below the river is not flooded every day, so something the
+heights cannot see holds it.** The first run flooded 336 km² round Avignon at
+the SEASONAL high, 117 km² of it over 3 m deep: the Rhône runs on levees above
+the Camargue, and a narrow centreline cell also reads its bank high. Two
+changes: the river's surface is the lowest ground in the 3×3 round its cell,
+and ground below that surface is DEFENDED (left dry, counted, a toggle to fail
+the defences). After: seasonal 18 km², winter 270, 1-in-100 533 with 76 km²
+defended, 621 with defences failing.
+
+**Only geometry is kept per view.** The per-band nearest-river fields are the
+expensive part and do not depend on the flood, so a slider or scenario costs
+arithmetic: 0.5 s a redraw against 5 s for the first build. Rivers just out of
+shot flood in through the same one-link context as the corridor zones.
+
+**Every plain `.button` in the sidebar is painted the accent** (`.button:not(.secondary)`,
+`!important`), so `is-active` on a button shows nothing. A choice among
+buttons uses the app's own pair: `secondary` for the rest, filled for the one.

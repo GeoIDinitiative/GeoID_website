@@ -13,10 +13,10 @@
  * instant; these are the local answer, at the view's own scale.
  */
 
-import { renderCatalogue } from "./catalogue-list.js?v=20260911-acdf2a0";
-import { SHEETS, addSheet, removeSheet, sheetLayer } from "./dem-layer.js?v=20260911-acdf2a0";
-import { TERRARIUM } from "./dem-tiles.js?v=20260911-acdf2a0";
-import { mathsFor } from "./equations.js?v=20260911-acdf2a0";
+import { renderCatalogue } from "./catalogue-list.js?v=20260911-0db24ca";
+import { SHEETS, addSheet, removeSheet, sheetLayer } from "./dem-layer.js?v=20260911-0db24ca";
+import { TERRARIUM } from "./dem-tiles.js?v=20260911-0db24ca";
+import { mathsFor } from "./equations.js?v=20260911-0db24ca";
 
 const HOST_ID = "dem-panel-host";
 const STATUS_ID = "dem-panel-status";
