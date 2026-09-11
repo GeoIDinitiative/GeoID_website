@@ -422,5 +422,17 @@ check("and every listed group still has something in it",
     unlisted.join(", "));
 }
 
+{
+  // The contour rows are the shared row, not a hand-built look-alike: the name
+  // as .gis-catalogue-name, the tick last, Symbology only on the drawn one.
+  const poly = readFileSync(join(HERE, "polygons.js"), "utf8");
+  const body = poly.slice(poly.indexOf("function appendContourRows"));
+  check("the contour rows wear the catalogue's own row markup",
+    /name\.className = "gis-catalogue-name"/.test(body)
+    && /row\.appendChild\(tick\);/.test(body) && !/row\.append\(tick, name/.test(body)
+    && /if \(on\) \{[\s\S]{0,200}gis-catalogue-sym/.test(body)
+    && /className = "gis-catalogue-settings"/.test(body));
+}
+
 console.log(failures ? `\n${failures} failed` : "\nall passed");
 process.exit(failures ? 1 : 0);

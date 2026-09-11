@@ -1,7 +1,7 @@
 import {
   addDataset, grouped, datasetById, layerForDataset,
-} from "./global-data.js?v=20260911-45dfbd9";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260911-45dfbd9";
+} from "./global-data.js?v=20260911-3115632";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260911-3115632";
 
 /**
  * Polygons: the register of vector overlays -- coastlines, boundaries, basins,
@@ -137,14 +137,25 @@ function appendContourRows(host) {
   group.textContent = "Terrain";
   scroll.appendChild(group);
 
-  // One shared symbology line, unfolded under whichever row asked.
+  /**
+   * THE SAME ROW AS EVERY OTHER IN THE LIST. These were built by hand — tick
+   * on the LEFT, the name in an unclassed span that fell back to the page's
+   * larger type, a Symbology button on every row whether it was drawn or not
+   * — and sat under "Live services" looking like a different list. The shared
+   * row (`catalogue-list.js`) puts the name first as `.gis-catalogue-name`,
+   * the tick LAST on the right edge, and Symbology only on a layer that is on
+   * the globe; its settings drawer is `.gis-catalogue-settings`. So do these.
+   */
   const symRow = document.createElement("div");
+  symRow.className = "gis-catalogue-settings";
   symRow.dataset.contourRow = "1";
-  symRow.style.cssText = "display:none;gap:0.4rem;align-items:center;"
-    + "padding:0.2rem 0.5rem 0.35rem;";
+  symRow.hidden = true;
+  const line = document.createElement("div");
+  line.style.cssText = "display:flex;gap:0.4rem;align-items:center;";
   const colour = document.createElement("select");
   colour.className = "input";
   colour.style.cssText = "flex:0 0 7rem;";
+  colour.setAttribute("aria-label", "Contour colour");
   [...colourSrc.options].forEach((o) => colour.appendChild(o.cloneNode(true)));
   colour.value = colourSrc.value;
   colour.addEventListener("change", () => {
@@ -158,47 +169,58 @@ function appendContourRows(host) {
   opacity.value = opacitySrc.value;
   opacity.style.flex = "1";
   opacity.title = "Contour opacity";
+  opacity.setAttribute("aria-label", "Contour opacity");
   opacity.addEventListener("input", () => {
     opacitySrc.value = opacity.value;
     opacitySrc.dispatchEvent(new Event("input"));
     opacitySrc.dispatchEvent(new Event("change"));
   });
-  symRow.append(colour, opacity);
+  line.append(colour, opacity);
+  symRow.appendChild(line);
 
-  const ticks = [];
+  const redraw = () => {
+    // The select is the state; the rows only ever read it.
+    scroll.querySelectorAll("[data-contour-row]").forEach((n) => n.remove());
+    appendContourRows(host);
+  };
   [...interval.options].filter((o) => o.value).forEach((option) => {
+    const on = interval.value === option.value;
     const row = document.createElement("div");
     row.className = "gis-catalogue-row";
     row.dataset.contourRow = "1";
     const tick = document.createElement("input");
     tick.type = "checkbox";
-    tick.setAttribute("aria-label", `Elevation contours — ${option.textContent}`);
-    tick.checked = interval.value === option.value;
+    tick.id = `gis-cat-${host.id || "overlays"}-contour-${option.value}`;
+    tick.checked = on;
     tick.addEventListener("change", () => {
       // Radio-like: the viewer draws one interval at a time, so ticking one
       // stands the others down, and unticking the active one means "None".
-      ticks.forEach((other) => { if (other !== tick) other.checked = false; });
       interval.value = tick.checked ? option.value : "";
       interval.dispatchEvent(new Event("change"));
+      redraw();
     });
-    ticks.push(tick);
-    const name = document.createElement("span");
+    const name = document.createElement("label");
+    name.className = "gis-catalogue-name";
+    name.htmlFor = tick.id;
     name.textContent = `Elevation contours — ${option.textContent}`;
-    name.style.cssText = "flex:1;min-width:0;";
-    const sym = document.createElement("button");
-    sym.type = "button";
-    sym.className = "gis-catalogue-sym";
-    sym.textContent = "Symbology…";
-    sym.title = "Contour colour and opacity";
-    sym.addEventListener("click", () => {
-      const open = symRow.style.display !== "none" && symRow.previousElementSibling === row;
-      row.after(symRow);
-      symRow.style.display = open ? "none" : "flex";
-    });
-    row.append(tick, name, sym);
+    name.title = `Lines of equal height every ${option.textContent}, drawn on the globe's own terrain.`;
+    row.append(name);
+    if (on) {
+      const sym = document.createElement("button");
+      sym.type = "button";
+      sym.className = "gis-catalogue-sym";
+      sym.textContent = "Symbology…";
+      sym.title = "Contour colour and opacity";
+      sym.addEventListener("click", () => {
+        symRow.hidden = !symRow.hidden;
+        sym.classList.toggle("is-on", !symRow.hidden);
+      });
+      row.appendChild(sym);
+    }
+    row.appendChild(tick);
     scroll.appendChild(row);
+    if (on) scroll.appendChild(symRow);
   });
-  scroll.appendChild(symRow);
 }
 
 function init() {
