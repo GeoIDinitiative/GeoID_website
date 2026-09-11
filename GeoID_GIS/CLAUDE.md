@@ -18279,3 +18279,19 @@ shot flood in through the same one-link context as the corridor zones.
 **Every plain `.button` in the sidebar is painted the accent** (`.button:not(.secondary)`,
 `!important`), so `is-active` on a button shows nothing. A choice among
 buttons uses the app's own pair: `secondary` for the rest, filled for the one.
+
+**A flood has no hole where the river is.** The channel cells (bank ≤ 0) were
+left unpainted as "water already", so every flood had a gap down its middle
+exactly along the river — reported off a screenshot as the overlay missing
+where the river shapefile would be. They now take the river's rise above its
+normal level (the surface the banks see), and `floodAreas` leaves them out of
+the flooded area and the deepest reading, since they are water every day.
+
+**A coarse flood comes in as a LEVEL, interpolated.** The flood from rivers
+just out of shot is computed on the context's coarse grid; pasting its depth
+drew it as blocks a context cell wide, and reading its level at the coarse cell
+alone still stopped it square at the coarse cell's edge. The level is
+interpolated from whichever of the four surrounding coarse centres are under
+water and read against the view's own heights, so the fine ground decides the
+edge. A rebuild with the outer flood switched off is the A/B that showed the
+squares were all from it.
