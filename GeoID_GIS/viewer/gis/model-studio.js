@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260911-289fca0";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260911-289fca0";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260911-2c8d57d";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260911-2c8d57d";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260911-289fca0";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260911-289fca0";
-import { downloadText } from "./extraction.js?v=20260911-289fca0";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260911-289fca0";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260911-289fca0";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260911-289fca0";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260911-289fca0";
-import { femSpec } from "./model-build.js?v=20260911-289fca0";
+} from "./mesh-volume.js?v=20260911-2c8d57d";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260911-2c8d57d";
+import { downloadText } from "./extraction.js?v=20260911-2c8d57d";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260911-2c8d57d";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260911-2c8d57d";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260911-2c8d57d";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260911-2c8d57d";
+import { femSpec } from "./model-build.js?v=20260911-2c8d57d";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //

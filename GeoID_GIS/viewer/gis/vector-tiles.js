@@ -35,10 +35,10 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260911-289fca0";
-import { renderFeatureCollection } from "./vector-render.js?v=20260911-289fca0";
-import * as GP from "./geoprocessing.js?v=20260911-289fca0";
-import { applyCutaway } from "./cutaway.js?v=20260911-289fca0";
+import { decodeTile, tilesForBounds, zoomForBounds } from "./mvt.js?v=20260911-2c8d57d";
+import { renderFeatureCollection } from "./vector-render.js?v=20260911-2c8d57d";
+import * as GP from "./geoprocessing.js?v=20260911-2c8d57d";
+import { applyCutaway } from "./cutaway.js?v=20260911-2c8d57d";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -767,12 +767,29 @@ export function createTiledVectorLayer({
     await fetchInto(wanted, onProgress, signal);
     baseZoom = z;
     wanted.forEach((t) => pinned.add(key(t.z, t.x, t.y)));
-    showTiles(new Set([...pinned]));
+    /**
+     * THE WORLD GOES UNDER THE VIEW, NEVER OVER IT.
+     *
+     * For a layer off its own pyramid the pin runs in the BACKGROUND (the view
+     * first, then the world), so it can land AFTER the view's tiles are up —
+     * and showing the pinned set alone then hid them, while the window the
+     * view had cut in the backdrop went with them. Measured on the hydrology
+     * rows, ticked at 400 km over the Camargue: the nine zoom-7 tiles of lakes
+     * and rivers built and HIDDEN, only the zoom-2 world showing, which holds
+     * no lake under 1,000 km² and no river under a kilometre wide — so the
+     * lakes and the Rhône were simply not there, and stayed not there until
+     * the camera moved enough to ask again. Whatever the view has put up
+     * stays up, with its half step above the world.
+     */
+    const view = new Set([...visible].filter((id) => !pinned.has(id)));
+    showTiles(new Set([...pinned, ...view]), view.size ? view : null);
     // The first view has no history to predict from, and without this it took
     // whatever the tile budget allowed: measured, 49,150 features and fifty
     // seconds. The backdrop is a fair starting point - the whole world at a
-    // known zoom, with a known count.
-    seen = { zoom: z, bounds, features: featureCount() };
+    // known zoom, with a known count. A view that has already landed IS that
+    // history, and the world's count over it would be the prediction this file
+    // records collapsing every choice to the backdrop's own level.
+    if (!seen) seen = { zoom: z, bounds, features: featureCount() };
     return { zoom: z, tiles: wanted.length, features: featureCount() };
   }
 
