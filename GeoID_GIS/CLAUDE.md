@@ -17648,9 +17648,16 @@ reading positions.
 
 ## The model page's visibility box, and two studio faults it exposed
 
-**`#studio-visibility` is the model page's Workspace.** It is a tile at the top
-right, mirroring the deck on the left: same top, same cap above the worlds
-strip, and shrink-wrapped to its contents. It uses the Workspace tile's own frame, head, chevron and
+**`#studio-visibility` is the model page's Workspace, and it sits where the
+Workspace sits**: the foot of the left column, at the deck's width. It opened
+at the top right first, and was moved on request. The deck is told the box's
+height through `--studio-vis-space` on `#model-studio`, which mirrors the GIS
+dock's `--layer-dock-space`: ResizeObserver plus a MutationObserver on
+`hidden`/`class`, the box height plus 32 px, or 3.2rem when the box is gone.
+The deck stops above the box. Measured: a 16 px gap whether the deck is at its
+cap or the box is fully expanded. The box follows the deck into the margin
+(`is-away` mirrors the deck's `is-folded`), as the Workspace follows the
+sidebar. Its body is capped at the Workspace's own `min(42vh, 20rem)`. It uses the Workspace tile's own frame, head, chevron and
 row classes (`layer-dock-head`, `layer-row`, `layer-disclose`, `layer-eye`), so
 the two pages' boxes are one object seen twice. There is a row per domain, carrying a
 three-state eye and a shown/total count. A disclosure opens the domain's surfaces and
@@ -17670,9 +17677,9 @@ studio block, and its fold state is remembered in
   The shared `.section-toggle` rule spreads its children with space-between.
   The Workspace head hides that behind its icon buttons; this head has none, so
   its title was pushed to the far edge.
-- **Place a card by its MEASURED width.** A guessed 300 px left it overlapping
-  the box by 75 px. Opened from the box, the card's right edge now sits 8 px
-  left of the box.
+- **Place a card by its MEASURED size.** A guessed 300 px width left it
+  overlapping the box by 75 px. Opened from the box, the card now sits 8 px to
+  the box's right and is clamped on screen.
 
 **One mesh view at a time.** Each Mesh press added another display over the
 last, so hiding one still showed the one beneath it. Clear mesh also cleared
