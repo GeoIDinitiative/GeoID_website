@@ -13,7 +13,8 @@
  * say two different things; `landslide-stations.test.mjs` holds them equal.
  */
 
-import { cellAnswer, planeWetness, slopeStresses } from "./slope-hydrology.js?v=20260911-e8b0ea4";
+import { cellAnswer, planeWetness, slopeStresses } from "./slope-hydrology.js?v=20260911-562dd6c";
+import { rockCell } from "./rock-slope.js?v=20260911-562dd6c";
 
 /**
  * What fraction of every cell's water reaches cell `s`: 1 at `s`, the
@@ -51,7 +52,7 @@ export function upslopeWeights(topo, s, scratch = null) {
  * One rainfall map at one station: the same recharge, cap and routing as
  * `staticStep`, summed over the station's catchment only.
  */
-export function stationStep({ cell, weights, rainMm, windowH, cells, topo, infiltration = true, lateral = 1 }) {
+export function stationStep({ cell, weights, rainMm, windowH, cells, topo, infiltration = true, lateral = 1, rock = null }) {
   const B = cells.block || null; const P = cells.props || cells;
   const perSecond = 1 / (1000 * windowH * 3600);
   let q = 0; let rainArea = 0; let area = 0;
@@ -76,7 +77,11 @@ export function stationStep({ cell, weights, rainMm, windowH, cells, topo, infil
   const st = slopeStresses({ slopeRad: here.slopeRad, c: here.c, phi: here.phi, gamma: here.gamma, zf: here.zf, m });
   let r = Number.isFinite(rainMm[j]) ? rainMm[j] * perSecond : NaN;
   if (infiltration && r > P.K[j]) r = P.K[j];
+  // The rock model at the same cell under the same routed recharge — the
+  // map's own per-cell function, so the two cannot disagree.
+  const rk = rock ? rockCell({ q, contour: topo.contour, betaRad: here.slopeRad, ...rock }) : null;
   return {
+    rockFos: rk ? rk.fos : NaN, ru: rk ? rk.ru : NaN,
     fos: a.fos, W: a.W, m, h: a.W * here.zs, depth: here.zs - a.W * here.zs,
     rain: rainMm[j], catchRain: area > 0 ? rainArea / area : NaN, recharge: r * 1000 * 86400, qb: (q / topo.contour) * 86400,
     pore: st.pore, effective: st.effective, strength: st.resisting, stress: st.driving,
@@ -91,7 +96,8 @@ export function stationStep({ cell, weights, rainMm, windowH, cells, topo, infil
  * that moves says nothing about WHY until the terms under it are plotted too.
  */
 export const LANDSLIDE_PARAMS = [
-  { key: "fos", label: "Factor of safety", unit: "", group: "Stability" },
+  { key: "fos", label: "Soil slide — factor of safety", unit: "", group: "Stability" },
+  { key: "rockFos", label: "Rock slope — factor of safety", unit: "", group: "Stability" },
   { key: "rain", label: "Rain at the station", unit: "mm", group: "Rainfall" },
   { key: "catchRain", label: "Rain over its catchment (flow-weighted mean)", unit: "mm", group: "Rainfall" },
   { key: "recharge", label: "Recharge — what infiltrates at the cell", unit: "mm/day", group: "Rainfall" },
@@ -104,6 +110,7 @@ export const LANDSLIDE_PARAMS = [
   { key: "effective", label: "Effective normal stress", unit: "kPa", group: "Stresses" },
   { key: "strength", label: "Shear strength", unit: "kPa", group: "Stresses" },
   { key: "stress", label: "Driving shear stress", unit: "kPa", group: "Stresses" },
+  { key: "ru", label: "Water in the rock joints — pore-pressure ratio r_u", unit: "", group: "Rock" },
 ];
 
 /**

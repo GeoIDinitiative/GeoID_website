@@ -252,7 +252,8 @@ const rel = (a, b) => Math.abs(a - b) / Math.max(1e-12, Math.abs(a), Math.abs(b)
   };
   const rainMm = Float32Array.from({ length: n }, (_, i) => 10 + (i % 17));
   const cell = 9 * w + 15;
-  const out = stationStep({ cell, weights: upslopeWeights(topo, cell), rainMm, windowH: 24, cells, topo, lateral: 2 });
+  const rock = { c: 400, phi: 32, gamma: 24, K: 1e-7, H: 150, thetaRad: 26 * Math.PI / 180 };
+  const out = stationStep({ cell, weights: upslopeWeights(topo, cell), rainMm, windowH: 24, cells, topo, lateral: 2, rock });
   check("depth to the water table is the column less the table", Math.abs(out.depth - (2 - out.h)) < 1e-9 && out.depth >= 0);
   check("the catchment's rain is a flow-weighted mean — inside the range of the rain that fell on it",
     out.catchRain >= 10 && out.catchRain <= 26 && Number.isFinite(out.catchRain));

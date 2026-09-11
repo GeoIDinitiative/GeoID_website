@@ -115,7 +115,8 @@ check("the rainfall is GFS, by date — the ERA5 archive is gone", /fetchGfsNode
 check("the GFS nodes cover the upslope margin, where water drains in from", /const cover = withMargin\(b, marginKm\(\)\)/.test(src));
 check("a borrowed streaming layer is given back, whatever happens", /finally \{\s*borrowed\.forEach\(\(l\) => \{ try \{ l\.restoreLive\?\.\(\); \}/.test(src));
 check("the routing is multiple-flow-direction on the sink-filled DEM",
-  /mfdTopology\(fillSinks\(makeRaster\(grid\.band, grid\.width, grid\.height, grid\.bounds, NaN\)\), \{ exponent: 1\.1 \}\)/.test(src));
+  /const filled = fillSinks\(makeRaster\(grid\.band, grid\.width, grid\.height, grid\.bounds, NaN\)\);/.test(src)
+  && /const topo = mfdTopology\(filled, \{ exponent: 1\.1 \}\);/.test(src));
 check("the map is drawn at the DEM's own posts, the budget only coarsening what will not fit",
   /demGridFor\(eb, heightAt, \{ maxCells, minStepM: post \? Math\.max\(5, post\) : 10 \}\)/.test(src)
   && /value="2000000" selected>Full resolution/.test(src));

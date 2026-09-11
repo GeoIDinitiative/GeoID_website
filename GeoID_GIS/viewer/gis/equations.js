@@ -198,8 +198,10 @@ const EQUATIONS = {
 
   "landslide-forecast": {
     kind: COMPUTED,
-    intro: "A static, steady-state hydrogeological slope model (the SHALSTAB / SINMAP "
-      + "family) built once from the ground, then run once for every GFS rainfall map.",
+    intro: "Two complementary failure models on every cell, built once from the ground and run once "
+      + "for every rainfall map: a static, steady-state hydrogeological model of a shallow slide in the "
+      + "SOIL (the SHALSTAB / SINMAP family), and a model of the BEDROCK — a rock slope failing through "
+      + "its mass, and rockfall from bare, steep rock. The map shows whichever governs.",
     lines: [
       { expr: "P = Σ rain over the window before the map",
         note: "Earth Engine's historical archives (CHIRPS ~5.5 km daily; IMERG and ERA5-Land once the service carries them) read back from a render on a known 0–300 mm ramp, one day per request, nearest pixel; and NOAA's GFS on its own ~13 km grid via Open-Meteo, hourly, bilinear between nodes. Auto takes each day from Earth Engine where it holds it and GFS after, so one range runs from the past into the forecast" },
@@ -211,6 +213,14 @@ const EQUATIONS = {
       { expr: "FoS = [c′ + c_r + (γ − m·γw)·z_f·cos²β·tan φ′] / [γ·z_f·sin β·cos β]", note: "infinite slope; under 1 is failure" },
       { expr: "R_crit = b · Ks · sin β · h_crit / A,  h_crit = (z_s − z_f) + m_crit · z_f",
         note: "the rainfall to fail: the steady recharge that brings the cell to FoS = 1 (m_crit ≥ 1 holds even saturated; m_crit ≤ 0 fails dry)" },
+      { expr: "mb = mi·e^((GSI−100)/28),  s = e^((GSI−100)/9),  a = ½ + (e^(−GSI/15) − e^(−20/3))/6",
+        note: "ROCK: the Generalised Hoek–Brown constants of the rock mass (Hoek, Carranza-Torres & Corkum 2002), undisturbed (D = 0)" },
+      { expr: "σ3max = 0.72·σcm·(σcm / γH)^−0.91  →  c′, φ′", note: "the equivalent Mohr–Coulomb strength fitted over the stress range a slope H high applies (Hoek et al. 2002, eqs. 13, 14, 19)" },
+      { expr: "FoS_rock = 2c′·sin β / (γH·sin θ·sin(β−θ)) + (1 − r_u)·tan φ′·cot θ",
+        note: "Culmann's planar failure through the toe, on the critical plane θ (found dry, by bisection, and kept for the wet maps — within 0.44 % of re-minimising); at FoS = 1 dry it is Culmann's critical height" },
+      { expr: "r_u = W·γw / 2γ,  W = min(1, q / (b · K_rm · z_w · sin β))", note: "water in the joints from the same routed recharge, through a fractured zone z_w = 10 m at the rock mass's conductivity" },
+      { expr: "rockfall: E(v) = max over donors u of E(u) − tan φ_p · d(u,v);  reached where E ≥ z;  v = √(2g·(E − z))",
+        note: "the energy line (Fahrböschung) from every source down the flow network (Evans & Hungr 1993; Jaboyedoff & Labiouse 2011)" },
     ],
     terms: [
       ["β", "slope, Horn's method at the streamed DEM's own post spacing at each cell's centre (the "
@@ -230,6 +240,16 @@ const EQUATIONS = {
         + "lab gives (Beven & Germann 1982). At 30 a typical loam 2 m deep carries about 18 m²/day, the low "
         + "end of Montgomery & Dietrich's (1994) 17–65"],
       ["c_r", "root cohesion, a control; γw = 9.81 kN/m³"],
+      ["σci, mi, GSI, γ, K_rm", "the BEDROCK map's lithology (never the deposit over it) through the "
+        + "rock-properties database: intact strength, the Hoek–Brown constant, the typical GSI (shifted by "
+        + "the rock-mass-quality control), unit weight from dry density, and the rock mass's conductivity. "
+        + "An unconsolidated bedrock is not rock and the soil model alone governs there"],
+      ["H", "the slope's height: each cell's height above the lowest ground within the chosen window "
+        + "(default 200 m)"],
+      ["bare rock", "soil under a metre on ground steeper than the chosen angle (default 40°), or any ground "
+        + "over 55°: there is no soil to slide, and the rock model governs"],
+      ["sources, φ_p", "bare rock steeper than the source angle (default 45° — a 30 m DEM reads a vertical "
+        + "face at 50–60°), and the reach angle (default 32°)"],
     ],
     note: "A screening model, not a forecast of individual landslides. Each map is treated as a "
       + "steady state — the water table a recharge sustained for the window would build — so "
@@ -238,7 +258,10 @@ const EQUATIONS = {
       + "infiltration front, no root reinforcement unless it is set. The material maps are "
       + "1:1,000,000 and coarser and the thickness a 1 km model, so what is resolved is the "
       + "topography's convergence and slope; GFS resolves storms at ~13 km, not convective cells. "
-      + "Validated qualitatively against the May 2023 Emilia-Romagna storm, not calibrated.",
+      + "Validated qualitatively against the May 2023 Emilia-Romagna storm, not calibrated. "
+      + "The rock model knows no joint orientations, so it screens a slope's height and angle against "
+      + "its rock mass's strength rather than a mapped discontinuity — no wedges, no toppling; its "
+      + "rockfall reach is an energy line, not a trajectory, and ignores blocks' size and the forest.",
   },
 
   "sea-level": {
