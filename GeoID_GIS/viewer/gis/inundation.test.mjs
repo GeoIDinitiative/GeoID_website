@@ -169,6 +169,18 @@ check("one band of widths holds the river", fields.length === 1 && fields[0].lo 
     `${[...fine]}`);
 }
 
+{
+  // Two coarse cells, the west one under water at 12 m, the east one dry; the
+  // fine ground is flat at 11 m. The water should run on past the coarse
+  // cell's edge rather than stop square at it.
+  const b = { west: 0, east: 2, south: 0, north: 1 };
+  const outer = { bounds: b, width: 2, height: 1, level: new Float32Array([12, NaN]) };
+  const fine = new Float32Array(8).fill(NaN);
+  mergeOuterDepth(fine, outer, b, 8, 1, null, new Float32Array(8).fill(11));
+  check("and the edge is not the coarse cell's: the level carries past it onto low fine ground",
+    fine[4] > 0 && fine[5] > 0, `${[...fine]}`);
+}
+
 /* ── the classes ──────────────────────────────────────────────────────── */
 
 check("depth classes are the NWS thresholds, 15 cm, 30 cm and 60 cm",
