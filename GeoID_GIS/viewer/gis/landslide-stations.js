@@ -13,7 +13,7 @@
  * say two different things; `landslide-stations.test.mjs` holds them equal.
  */
 
-import { cellAnswer, planeWetness } from "./slope-hydrology.js?v=20260911-79b3dcf";
+import { cellAnswer, planeWetness, slopeStresses } from "./slope-hydrology.js?v=20260911-a37039d";
 
 /**
  * What fraction of every cell's water reaches cell `s`: 1 at `s`, the
@@ -54,7 +54,7 @@ export function upslopeWeights(topo, s, scratch = null) {
 export function stationStep({ cell, weights, rainMm, windowH, cells, topo, infiltration = true, lateral = 1 }) {
   const B = cells.block || null; const P = cells.props || cells;
   const perSecond = 1 / (1000 * windowH * 3600);
-  let q = 0;
+  let q = 0; let rainArea = 0; let area = 0;
   const { idx, w } = weights;
   for (let k = 0; k < idx.length; k += 1) {
     const u = idx[k];
@@ -62,6 +62,9 @@ export function stationStep({ cell, weights, rainMm, windowH, cells, topo, infil
     const j = B ? B[u] : u;
     const rain = rainMm[j];
     if (!Number.isFinite(rain)) continue;
+    // The rain the catchment received, weighted by how much of each cell's
+    // water reaches the station: what the station's water table is fed.
+    rainArea += w[k] * rain; area += w[k];
     let r = rain * perSecond;
     if (infiltration && r > P.K[j]) r = P.K[j];
     q += w[k] * r * topo.cellArea;
@@ -69,23 +72,49 @@ export function stationStep({ cell, weights, rainMm, windowH, cells, topo, infil
   const j = B ? B[cell] : cell;
   const here = { K: P.K[j], zs: P.zs[j], zf: P.zf[j], slopeRad: cells.slopeRad[cell], c: P.c[j], phi: P.phi[j], gamma: P.gamma[j] };
   const a = cellAnswer({ q, contour: topo.contour, lateral, cell: here });
+  const m = planeWetness(a.W, here.zs, here.zf);
+  const st = slopeStresses({ slopeRad: here.slopeRad, c: here.c, phi: here.phi, gamma: here.gamma, zf: here.zf, m });
   let r = Number.isFinite(rainMm[j]) ? rainMm[j] * perSecond : NaN;
   if (infiltration && r > P.K[j]) r = P.K[j];
   return {
-    fos: a.fos, W: a.W, m: planeWetness(a.W, here.zs, here.zf), h: a.W * here.zs,
-    rain: rainMm[j], recharge: r * 1000 * 86400, qb: (q / topo.contour) * 86400,
+    fos: a.fos, W: a.W, m, h: a.W * here.zs, depth: here.zs - a.W * here.zs,
+    rain: rainMm[j], catchRain: area > 0 ? rainArea / area : NaN, recharge: r * 1000 * 86400, qb: (q / topo.contour) * 86400,
+    pore: st.pore, effective: st.effective, strength: st.resisting, stress: st.driving,
   };
 }
 
-/** The parameters a landslide station records, in the order a table shows them. */
+/**
+ * What a landslide station records at every map, in the order the model uses
+ * them: the rain, what infiltrates, the water table it builds, the water on
+ * the failure plane, the stresses that water changes — and their ratio, the
+ * factor of safety. Every intermediate is kept, because a factor of safety
+ * that moves says nothing about WHY until the terms under it are plotted too.
+ */
 export const LANDSLIDE_PARAMS = [
-  { key: "fos", label: "Factor of safety", unit: "" },
-  { key: "m", label: "Water on the failure plane m", unit: "" },
-  { key: "W", label: "Saturation h / z_s", unit: "" },
-  { key: "h", label: "Water table above bedrock", unit: "m" },
-  { key: "rain", label: "Rain over the window", unit: "mm" },
-  { key: "recharge", label: "Recharge at the cell", unit: "mm/day" },
-  { key: "qb", label: "Flux through the cell per metre of contour", unit: "m2/day" },
+  { key: "fos", label: "Factor of safety", unit: "", group: "Stability" },
+  { key: "rain", label: "Rain at the station", unit: "mm", group: "Rainfall" },
+  { key: "catchRain", label: "Rain over its catchment (flow-weighted mean)", unit: "mm", group: "Rainfall" },
+  { key: "recharge", label: "Recharge — what infiltrates at the cell", unit: "mm/day", group: "Rainfall" },
+  { key: "qb", label: "Flow through the cell per metre of contour", unit: "m2/day", group: "Soil water" },
+  { key: "W", label: "Soil saturation h / z_s", unit: "", group: "Soil water" },
+  { key: "h", label: "Water table above bedrock", unit: "m", group: "Soil water" },
+  { key: "depth", label: "Depth to the water table", unit: "m", group: "Soil water" },
+  { key: "m", label: "Water on the failure plane m", unit: "", group: "Soil water" },
+  { key: "pore", label: "Pore pressure on the failure plane", unit: "kPa", group: "Stresses" },
+  { key: "effective", label: "Effective normal stress", unit: "kPa", group: "Stresses" },
+  { key: "strength", label: "Shear strength", unit: "kPa", group: "Stresses" },
+  { key: "stress", label: "Driving shear stress", unit: "kPa", group: "Stresses" },
+];
+
+/**
+ * Plots that draw more than one parameter: strength against driving stress is
+ * the factor of safety drawn as its two sides, which is how a reader sees the
+ * margin close as the water comes in.
+ */
+export const LANDSLIDE_PLOTS = [
+  ...LANDSLIDE_PARAMS.map((p) => ({ key: p.key, label: p.label, unit: p.unit, group: p.group, series: [{ key: p.key }] })),
+  { key: "strength-vs-stress", label: "Shear strength (solid) against driving stress (dashed)", unit: "kPa", group: "Stresses",
+    series: [{ key: "strength" }, { key: "stress", dash: [4, 3] }] },
 ];
 
 /**

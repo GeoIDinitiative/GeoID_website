@@ -165,13 +165,26 @@ export function planeWetness(W, zs, zf) {
 export const FOS_CAP = 100;
 
 export function factorOfSafety({ slopeRad, c, phi, gamma, zf, m }) {
+  return slopeStresses({ slopeRad, c, phi, gamma, zf, m }).fos;
+}
+
+/**
+ * The factor of safety's TERMS, in kPa on the failure plane: the pore
+ * pressure the water puts there, the effective normal stress left, the shear
+ * strength that stress buys, and the shear stress gravity drives. The FoS is
+ * the last two's ratio. Kept as one function so a station that plots the
+ * terms and the map that plots their ratio cannot disagree about either.
+ */
+export function slopeStresses({ slopeRad, c, phi, gamma, zf, m }) {
   const phiR = phi * Math.PI / 180;
   const cos = Math.cos(slopeRad); const sin = Math.sin(slopeRad);
-  if (!(zf > 0) || !(gamma > 0) || !Number.isFinite(phiR)) return NaN;
+  if (!(zf > 0) || !(gamma > 0) || !Number.isFinite(phiR)) return { fos: NaN, driving: NaN, resisting: NaN, pore: NaN, effective: NaN };
   const driving = gamma * zf * Math.abs(sin) * cos;
-  const resisting = c + (gamma - m * WATER_UNIT_WEIGHT) * zf * cos * cos * Math.tan(phiR);
-  if (!(driving > 1e-9)) return FOS_CAP;
-  return Math.min(FOS_CAP, resisting / driving);
+  const pore = m * WATER_UNIT_WEIGHT * zf * cos * cos;
+  const effective = (gamma - m * WATER_UNIT_WEIGHT) * zf * cos * cos;
+  const resisting = c + effective * Math.tan(phiR);
+  const fos = !(driving > 1e-9) ? FOS_CAP : Math.min(FOS_CAP, resisting / driving);
+  return { fos, driving, resisting, pore, effective };
 }
 
 /**

@@ -22,24 +22,25 @@
  * file only orchestrates them and says, on every card, what it has read.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-79b3dcf";
-import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260911-79b3dcf";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-a37039d";
+import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260911-a37039d";
 import {
   columnMaterial, soilColumn, steadyWetness, planeWetness, factorOfSafety, criticalRecharge,
   FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M, LATERAL_FACTOR, FOS_CAP, cellAnswer,
-} from "./slope-hydrology.js?v=20260911-79b3dcf";
-import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-79b3dcf";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-79b3dcf";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-79b3dcf";
-import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-79b3dcf";
-import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainDays, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260911-79b3dcf";
-import { mathsFor } from "./equations.js?v=20260911-79b3dcf";
-import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260911-79b3dcf";
-import { upslopeWeights, stationStep, LANDSLIDE_PARAMS, lowestCells } from "./landslide-stations.js?v=20260911-79b3dcf";
+} from "./slope-hydrology.js?v=20260911-a37039d";
+import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-a37039d";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-a37039d";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-a37039d";
+import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-a37039d";
+import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainDays, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260911-a37039d";
+import { mathsFor } from "./equations.js?v=20260911-a37039d";
+import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260911-a37039d";
+import { upslopeWeights, stationStep, LANDSLIDE_PARAMS, LANDSLIDE_PLOTS, lowestCells } from "./landslide-stations.js?v=20260911-a37039d";
 import {
   makeStation, parseStationsCsv, stationsFromFeatures, uniqueName, seriesCsv, seriesFileName, MAX_STATIONS, colourAt,
-} from "./station-series.js?v=20260911-79b3dcf";
-import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260911-79b3dcf";
+} from "./station-series.js?v=20260911-a37039d";
+import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260911-a37039d";
+import { mountStationMarkers } from "./station-markers.js?v=20260911-a37039d";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";
@@ -282,7 +283,7 @@ const state = {
   params: { strength: "peak", root: 0, infiltration: true, lateral: LATERAL_FACTOR },
   // Sampling stations outlive a run and an area: they are the reader's points,
   // and a run only fills them in.
-  stations: [], record: null, plotParam: "fos", plotHover: -1,
+  stations: [], record: null, plotHover: -1,
 };
 
 const STEPS = [
@@ -362,18 +363,22 @@ const STYLE = `
 .lsp-st-val[data-kind="none"] { opacity: 0.55; }
 .lsp-st-x { background: none; border: 0; color: inherit; opacity: 0.6; cursor: pointer; padding: 0 0.2rem; font-size: 0.8rem; }
 .lsp-st-x:hover, .lsp-st-x:focus-visible { opacity: 1; }
-.lsp-plotbox { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.25rem; margin: 0.35rem 0 0.2rem; }
-.lsp-plothead { display: flex; gap: 0.35rem; align-items: center; }
+.lsp-plots { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.45rem; margin: 0.35rem 0 0.2rem; }
+.lsp-plots:empty { display: none; }
+.lsp-plotbox { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.25rem; }
+.lsp-plothead { display: flex; gap: 0.3rem; align-items: center; }
 .lsp-plothead select { flex: 1 1 auto; min-width: 0; }
-.lsp-plothead .button { flex: 0 0 auto; padding: 0.15rem 0.5rem; }
-.lsp-plot { width: 100%; max-width: 100%; min-width: 0; height: 11rem; display: block; cursor: crosshair; border-radius: 0.35rem; background: rgba(0,0,0,0.22); }
+.lsp-pbtn { flex: 0 0 auto; background: none; border: 1px solid rgba(var(--nav-accent-rgb, 255,43,214), 0.4); border-radius: 0.3rem; color: inherit;
+  width: 1.6rem; height: 1.6rem; display: grid; place-items: center; cursor: pointer; font-size: 0.8rem; line-height: 1; opacity: 0.85; }
+.lsp-pbtn:hover, .lsp-pbtn:focus-visible { opacity: 1; border-color: var(--nav-accent, #ff2bd6); }
+.lsp-plot { width: 100%; max-width: 100%; min-width: 0; height: 10rem; display: block; cursor: crosshair; border-radius: 0.35rem; background: rgba(0,0,0,0.22); }
 .lsp-plotread { font-size: 0.68rem; margin: 0; min-height: 1em; opacity: 0.85; font-variant-numeric: tabular-nums; }
-.lsp-plotbox.is-big { position: fixed; z-index: 25; left: calc(min(24rem, 100vw - 2rem) + 2rem); right: 4.5rem; bottom: 6.5rem; max-width: 60rem; max-height: calc(100vh - 5rem);
-  padding: 0.6rem 0.7rem; border: 1px solid rgba(var(--nav-accent-rgb, 255,43,214), 0.45); border-radius: 0.6rem;
-  background: var(--skin-card-ground, rgb(24,13,47)); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-.lsp-plotbox.is-big .lsp-plot { height: 22rem; }
-.lsp-plottitle { display: none; font: 600 0.72rem "Exo 2", sans-serif; letter-spacing: 0.06em; text-transform: uppercase; }
-.lsp-plotbox.is-big .lsp-plottitle { display: block; }
+.lsp-plotbox.is-float { position: fixed; z-index: 25; width: min(34rem, calc(100vw - 2rem)); padding: 0.5rem 0.6rem; box-sizing: border-box;
+  border: 1px solid rgba(var(--nav-accent-rgb, 255,43,214), 0.45); border-radius: 0.6rem;
+  background: var(--skin-card-ground, rgb(24,13,47)); box-shadow: 0 10px 30px rgba(0,0,0,0.5); color: var(--text, #eef); }
+.lsp-plotbox.is-float .lsp-plothead { cursor: move; }
+.lsp-plotbox.is-float .lsp-plot { height: 14rem; }
+.lsp-plotbox.is-float.is-dragging { opacity: 0.9; }
 `;
 
 function ensureStyle() {
@@ -454,21 +459,15 @@ m = (h − (z_s − z_f)) / z_f     water on the failure plane</div>
         <optgroup label="Every point of a layer" id="lsp-st-layers"></optgroup></select></div>
       <div class="gis-btn-row"><button type="button" class="button" id="lsp-st-go" data-always="1">Add</button><button type="button" class="button secondary" id="lsp-st-clear" data-always="1">Remove all</button></div>
       <input type="file" id="lsp-st-file" accept=".csv,.txt,.tsv" hidden>
-      <div class="lsp-plotbox" id="lsp-plotbox">
-        <div class="lsp-plottitle">Sampling stations</div>
-        <div class="lsp-plothead"><select id="lsp-st-param" class="input" data-always="1" aria-label="Parameter to plot">
-          ${LANDSLIDE_PARAMS.map((p) => `<option value="${p.key}"${p.key === "fos" ? " selected" : ""}>${esc(p.label)}${p.unit ? ` (${esc(p.unit.replace("m2", "m²"))})` : ""}</option>`).join("")}</select>
-          <button type="button" class="button secondary" id="lsp-st-big" data-always="1" title="A larger plot over the map (Escape closes it)">Larger</button></div>
-        <canvas class="lsp-plot" id="lsp-st-plot" aria-label="Time series at the sampling stations"></canvas>
-        <p class="lsp-plotread" id="lsp-st-read"></p>
-      </div>
-      <div class="gis-btn-row"><button type="button" class="button" id="lsp-st-csv" data-always="1">Export CSV</button></div>`)}
+      <div class="lsp-plots" id="lsp-plots"></div>
+      <div class="gis-btn-row"><button type="button" class="button secondary" id="lsp-plot-add" data-always="1" title="Another plot: any recorded variable, docked here or popped out over the map">+ Plot</button><button type="button" class="button" id="lsp-st-csv" data-always="1">Export CSV</button></div>`)}
   </div>`;
   wire();
   wireStations();
   drawMaps();
   markStates();
   renderStations();
+  renderPlots();
 }
 
 function wire() {
@@ -1425,14 +1424,62 @@ async function drawStationLayer() {
     type: "FeatureCollection",
     features: state.stations.map((st) => ({
       type: "Feature", geometry: { type: "Point", coordinates: [st.lon, st.lat] },
-      // label_rank puts the names on the globe beside the dots; kind and
-      // summary are what the dot's own card says when it is clicked.
-      properties: { name: st.name, station: true, label_rank: 5, label_colour: st.colour, lat: st.lat, lon: st.lon, kind: "Sampling station", summary: stationSummary(st) },
+      // No label_rank: the names are the markers' own, centred over each ▼,
+      // not the label engine's chips on leaders.
+      properties: { name: st.name, station: true, lat: st.lat, lon: st.lon, kind: "Sampling station", summary: stationSummary(st) },
     })),
   };
   const built = buildVectorLayerResult(fc, { name: STATION_LAYER, style: { field: "name", categories: state.stations.map((st) => ({ value: st.name, colour: st.colour })) } });
+  // The layer is the stations' row in the Workspace — eye, key, export — and
+  // draws nothing itself: the ▼ markers are drawn over the globe by
+  // `station-markers.js`, which follows this layer's eye.
+  built.object3D?.traverse?.((o) => { if (o !== built.object3D) o.visible = false; });
   const layer = im.addDerivedLayer(STATION_LAYER, built, "derived");
-  if (layer) layer.info = { source: "Placed by you in the forecast landslide pipeline", summary: "Sampling stations: the points where every rainfall map's static model is recorded." };
+  if (layer) {
+    layer.groundPick = false;
+    layer.info = { source: "Placed by you in the forecast landslide pipeline", summary: "Sampling stations: the points where every rainfall map's static model is recorded." };
+  }
+  ensureMarkers()?.refresh();
+}
+
+/* ── the ▼ markers, and the card a click on one opens ───────────────────── */
+
+let markers = null;
+function ensureMarkers() {
+  if (markers || typeof document === "undefined") return markers;
+  markers = mountStationMarkers({
+    getStations: () => state.stations,
+    isShown: () => {
+      const layer = (window.GeoIDImportManager?.getLayers?.() || []).find((l) => l.name === STATION_LAYER);
+      return Boolean(layer) && layer.visible !== false;
+    },
+    onPick: (st) => openStationCard(st),
+  });
+  return markers;
+}
+
+/** A station's card: what it reads on the map in view, every variable, and its lowest. */
+function openStationCard(st) {
+  const rec = state.record; const rs = rec?.stations.find((x) => x.id === st.id);
+  const k = Math.max(0, state.step);
+  const rows = [];
+  let headline = st.name; let description = `${st.lat.toFixed(5)}°, ${st.lon.toFixed(5)}°`;
+  if (rec && rs && rs.cell >= 0) {
+    const v = rec.values[st.id];
+    const f = v.fos; let low = -1;
+    f.forEach((x, i) => { if (Number.isFinite(x) && (low < 0 || x < f[low])) low = i; });
+    description = `FoS ${shortFos(f[k])} on ${String(rec.times[k]).replace("T", " ")} UTC (${rec.periods[k]}, ${rec.sources[k]}) · lowest ${low >= 0 ? `${shortFos(f[low])} on ${String(rec.times[low]).replace("T", " ")}` : "—"}`;
+    for (const p of LANDSLIDE_PARAMS) rows.push([p.label, `${fmtParam(p.key, v[p.key][k])}${p.unit ? ` ${p.unit.replace("m2", "m²")}` : ""}`]);
+    const c = rec.constants?.[st.id] || {};
+    rows.push(["Ground", `${c.slope_deg}° slope, ${c.soil_column_m} m of ${c.material || "soil"}, failure plane at ${c.failure_plane_m} m; rainfall to fail ${c.rainfall_to_fail_mm_day}${Number.isFinite(c.rainfall_to_fail_mm_day) ? " mm/day" : ""}`]);
+  } else {
+    rows.push(["Readings", rs?.note || (state.run ? "being read" : "recorded when the landslide model runs")]);
+  }
+  window.GeoIDViewer?.showFeatureCard?.({
+    source_layer: STATION_LAYER, soil: true, profile: false, type: "Sampling station", rock_type: headline, lithology: null, name: null,
+    description, extra_rows: rows, origin: "GeoHUB forecast landslide pipeline — plotted under Sampling stations",
+    rows: [["Note", "The same static answer the map draws at this cell, with every term of it kept."]],
+  }, st.lat, st.lon);
 }
 
 function addStations(list, source) {
@@ -1488,6 +1535,7 @@ function renderStations() {
       <button type="button" class="lsp-st-x" title="Remove ${esc(st.name)}" aria-label="Remove ${esc(st.name)}">✕</button></div>`;
   }).join("");
   refreshLayerChoices();
+  markers?.refresh();
 }
 
 /** Only the readings, as the bar steps: the name fields are left alone so a rename survives playing. */
@@ -1510,33 +1558,146 @@ function refreshLayerChoices() {
   if (group.innerHTML !== html) group.innerHTML = html;
 }
 
-/** The plot for the parameter chosen, with the map on the globe marked. */
-let plotLayout = null;
-function drawPlot() {
-  const canvas = byId("lsp-st-plot");
-  if (!canvas || !canvas.isConnected) return;
+/* ── the plots: interchangeable panels, docked or popped out ───────────── */
+
+let plotSeq = 0;
+const newPlot = (plot) => ({ id: `pl-${(plotSeq += 1)}`, plot, floating: false, pos: null });
+state.plots = [newPlot("fos"), newPlot("rain")];
+export const MAX_PLOTS = 6;
+
+const unitText = (u) => (u ? ` (${u.replace("m2", "m²")})` : "");
+function plotOptions(selected) {
+  const groups = [...new Set(LANDSLIDE_PLOTS.map((p) => p.group))];
+  return groups.map((g) => `<optgroup label="${esc(g)}">${LANDSLIDE_PLOTS.filter((p) => p.group === g)
+    .map((p) => `<option value="${p.key}"${p.key === selected ? " selected" : ""}>${esc(p.label)}${esc(unitText(p.unit))}</option>`).join("")}</optgroup>`).join("");
+}
+
+/** A value as a plot or a card writes it: the unit's own precision. */
+function fmtParam(key, v) {
+  if (!Number.isFinite(v)) return "—";
+  if (key === "fos") return shortFos(v);
+  if (["rain", "catchRain", "recharge", "qb", "pore", "effective", "strength", "stress"].includes(key)) return v.toFixed(1);
+  return v.toFixed(2);
+}
+
+function panelNode(pl) {
+  return document.querySelector(`.lsp-plotbox[data-plot="${pl.id}"]`);
+}
+
+/** Build the docked panels (a floating one stays where it was put). */
+function renderPlots() {
+  const host = byId("lsp-plots");
+  if (!host) return;
+  host.querySelectorAll(".lsp-plotbox").forEach((n) => { if (!state.plots.some((pl) => pl.id === n.dataset.plot)) n.remove(); });
+  document.querySelectorAll("body > .lsp-plotbox.is-float").forEach((n) => { if (!state.plots.some((pl) => pl.id === n.dataset.plot && pl.floating)) n.remove(); });
+  for (const pl of state.plots) {
+    let node = panelNode(pl);
+    if (!node) {
+      node = document.createElement("div");
+      node.className = "lsp-plotbox"; node.dataset.plot = pl.id;
+      node.innerHTML = `<div class="lsp-plothead"><select class="input" data-always="1" aria-label="What this plot shows">${plotOptions(pl.plot)}</select>
+        <button type="button" class="lsp-pbtn" data-act="float" data-always="1" title="Pop out over the map">⧉</button>
+        <button type="button" class="lsp-pbtn" data-act="close" data-always="1" title="Remove this plot" aria-label="Remove this plot">✕</button></div>
+        <canvas class="lsp-plot" aria-label="Time series at the sampling stations"></canvas><p class="lsp-plotread"></p>`;
+      wirePanel(node, pl);
+    }
+    const want = pl.floating ? document.body : host;
+    if (node.parentElement !== want) want.appendChild(node);
+    node.classList.toggle("is-float", pl.floating);
+    node.querySelector('[data-act="float"]').textContent = pl.floating ? "⇲" : "⧉";
+    node.querySelector('[data-act="float"]').title = pl.floating ? "Dock back in the card" : "Pop out over the map";
+    if (pl.floating) placeFloat(node, pl);
+  }
+  // Docked panels in the order of the list.
+  state.plots.filter((pl) => !pl.floating).forEach((pl) => host.appendChild(panelNode(pl)));
+  const add = byId("lsp-plot-add"); if (add) add.disabled = state.plots.length >= MAX_PLOTS;
+  drawPlot();
+}
+
+/** Where a popped-out panel goes: right of the sidebar, above the bar, staggered. */
+function placeFloat(node, pl) {
+  if (!pl.pos) {
+    const k = state.plots.filter((x) => x.floating).indexOf(pl);
+    const side = document.getElementById("ui")?.getBoundingClientRect?.();
+    const bar = document.getElementById("geoid-timelapse");
+    const floor = bar && !bar.hidden
+      ? Math.min(...[bar, ...bar.querySelectorAll("*")].map((el) => el.getBoundingClientRect()).filter((r) => r.height > 0).map((r) => r.top))
+      : window.innerHeight - 16;
+    const h = node.offsetHeight || 300;
+    pl.pos = { left: (side ? side.right : 16) + 24 + 28 * k, top: Math.max(72, floor - h - 12 - 28 * k) };
+  }
+  const w = node.offsetWidth || 400; const h = node.offsetHeight || 300;
+  pl.pos.left = Math.max(8, Math.min(window.innerWidth - w - 8, pl.pos.left));
+  pl.pos.top = Math.max(8, Math.min(window.innerHeight - h - 8, pl.pos.top));
+  node.style.left = `${pl.pos.left}px`; node.style.top = `${pl.pos.top}px`;
+}
+
+function wirePanel(node, pl) {
+  const select = node.querySelector("select");
+  select.addEventListener("change", () => { pl.plot = select.value; drawPlot(); });
+  select.addEventListener("keydown", (e) => e.stopPropagation());
+  node.querySelector('[data-act="close"]').addEventListener("click", () => {
+    state.plots = state.plots.filter((x) => x !== pl);
+    node.remove(); renderPlots();
+  });
+  node.querySelector('[data-act="float"]').addEventListener("click", () => {
+    pl.floating = !pl.floating; if (!pl.floating) { node.style.left = ""; node.style.top = ""; }
+    renderPlots();
+  });
+  const canvas = node.querySelector("canvas");
+  canvas.addEventListener("mousemove", (e) => {
+    const k = node._layout?.indexAt?.(e.offsetX) ?? -1;
+    if (k !== state.plotHover) { state.plotHover = k; drawPlot(); }
+  });
+  canvas.addEventListener("mouseleave", () => { state.plotHover = -1; drawPlot(); });
+  canvas.addEventListener("click", (e) => {
+    const k = node._layout?.indexAt?.(e.offsetX) ?? -1;
+    if (k < 0 || !state.run) return;
+    if (!seekPlayer(k)) showStep(k);
+  });
+  if (typeof ResizeObserver === "function") new ResizeObserver(() => drawOne(node, pl)).observe(canvas);
+  // A popped-out panel is dragged by its head; the controls in it still work.
+  const head = node.querySelector(".lsp-plothead");
+  head.addEventListener("pointerdown", (e) => {
+    if (!pl.floating || e.target.closest("select, button")) return;
+    e.preventDefault();
+    const start = { x: e.clientX, y: e.clientY, left: pl.pos.left, top: pl.pos.top };
+    node.classList.add("is-dragging");
+    const move = (ev) => { pl.pos.left = start.left + ev.clientX - start.x; pl.pos.top = start.top + ev.clientY - start.y; placeFloat(node, pl); };
+    const up = () => { node.classList.remove("is-dragging"); window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+  });
+}
+
+/** One panel: its plot's lines, one per station (two for a pair), the frame marked. */
+function drawOne(node, pl) {
+  const canvas = node.querySelector("canvas");
+  if (!canvas?.isConnected) return;
   const rec = state.record;
-  const p = LANDSLIDE_PARAMS.find((x) => x.key === state.plotParam) || LANDSLIDE_PARAMS[0];
-  const lines = rec ? rec.stations.filter((st) => st.cell >= 0).map((st) => ({ label: st.name, colour: st.colour, values: rec.values[st.id][p.key] })) : [];
-  const fosLike = p.key === "fos";
-  const wetLike = p.key === "W" || p.key === "m";
+  const def = LANDSLIDE_PLOTS.find((x) => x.key === pl.plot) || LANDSLIDE_PLOTS[0];
+  const live = rec ? rec.stations.filter((st) => st.cell >= 0) : [];
+  const lines = live.flatMap((st) => def.series.map((sr) => ({ label: st.name, colour: st.colour, dash: sr.dash, values: rec.values[st.id][sr.key] })));
+  const fosLike = def.key === "fos";
+  const wetLike = def.key === "W" || def.key === "m";
   const range = !lines.length ? null
     : fosLike ? yRangeOf(lines, { floor: 0, clip: 3, max: 1.2 })
       : wetLike ? [0, 1.05] : yRangeOf(lines, { floor: 0 });
-  plotLayout = drawTimeSeries(canvas, {
+  node._layout = drawTimeSeries(canvas, {
     times: rec?.times || [], lines, range,
-    yLabel: `${p.label.replace(/ \(.*\)$/, "")}${p.unit ? ` (${p.unit.replace("m2", "m²")})` : ""}`,
+    yLabel: `${def.series.length > 1 ? "Stress" : def.label.replace(/ \(.*\)$/, "").replace(/ —.*$/, "")}${unitText(def.unit)}`,
     refs: fosLike ? [{ value: 1, label: "FoS 1", colour: "#ff7b7b" }] : wetLike ? [{ value: 1, label: "saturated", colour: "#8ab6ff" }] : [],
     marker: state.step, hover: state.plotHover, now: Date.now(),
     empty: !state.stations.length ? "Add a station to record it here." : !state.run ? "Run the model to fill the stations in." : "Reading the stations…",
   });
-  const read = byId("lsp-st-read");
-  if (read) {
-    const k = state.plotHover >= 0 ? state.plotHover : state.step;
-    read.textContent = rec && k >= 0 && lines.length
-      ? `${String(rec.times[k]).replace("T", " ")} ${rec.periods?.[k] || ""} (${rec.sources?.[k] || ""}) — ${lines.map((l) => `${l.label} ${fosLike ? shortFos(l.values[k]) : fmt(l.values[k], p.key === "rain" || p.key === "qb" ? 1 : 2)}`).join(" · ")}${fosLike ? " · above 3 drawn on the top edge" : ""}`
-      : "";
-  }
+  const read = node.querySelector(".lsp-plotread");
+  const k = state.plotHover >= 0 ? state.plotHover : state.step;
+  read.textContent = rec && k >= 0 && live.length
+    ? `${String(rec.times[k]).replace("T", " ")} ${rec.periods?.[k] || ""} (${rec.sources?.[k] || ""}) — ${live.map((st) => `${st.name} ${def.series.map((sr) => fmtParam(sr.key, rec.values[st.id][sr.key][k])).join(" / ")}`).join(" · ")}${fosLike ? " · above 3 on the top edge" : ""}`
+    : "";
+}
+
+function drawPlot() {
+  for (const pl of state.plots || []) { const node = panelNode(pl); if (node) drawOne(node, pl); }
 }
 
 let pickHandle = null;
@@ -1652,47 +1813,14 @@ function wireStations() {
     if (rs) rs.name = st.name;
     renderStations(); drawPlot(); void drawStationLayer();
   });
-  byId("lsp-st-param").addEventListener("change", (e) => { state.plotParam = e.target.value; drawPlot(); });
-  const canvas = byId("lsp-st-plot");
-  canvas.addEventListener("mousemove", (e) => {
-    const k = plotLayout?.indexAt?.(e.offsetX) ?? -1;
-    if (k !== state.plotHover) { state.plotHover = k; drawPlot(); }
+  byId("lsp-plot-add").addEventListener("click", () => {
+    if (state.plots.length >= MAX_PLOTS) return;
+    // The next thing worth looking at that no panel shows yet.
+    const shown = new Set(state.plots.map((pl) => pl.plot));
+    const next = ["W", "m", "strength-vs-stress", "catchRain", "depth", "pore", "recharge"].find((k) => !shown.has(k)) || "fos";
+    state.plots.push(newPlot(next)); renderPlots();
   });
-  canvas.addEventListener("mouseleave", () => { state.plotHover = -1; drawPlot(); });
-  canvas.addEventListener("click", (e) => {
-    const k = plotLayout?.indexAt?.(e.offsetX) ?? -1;
-    if (k < 0 || !state.run) return;
-    if (!seekPlayer(k)) showStep(k);
-  });
-  if (typeof ResizeObserver === "function") new ResizeObserver(() => drawPlot()).observe(canvas);
-  const box = byId("lsp-plotbox"); const big = byId("lsp-st-big");
-  const home = document.createComment("lsp-plotbox");
-  // Above the time-lapse bar, measured: a constant bottom lands on the bar at
-  // some window heights, and the bar is what the plot is read against.
-  const placeBig = () => {
-    if (!box.classList.contains("is-big")) { box.style.bottom = ""; canvas.style.height = ""; return; }
-    const bar = document.getElementById("geoid-timelapse");
-    // The bar's date pill stands above the bar's own edge, so the bar's top is
-    // the highest of it and everything in it.
-    const floor = bar && !bar.hidden
-      ? Math.min(...[bar, ...bar.querySelectorAll("*")].map((el) => el.getBoundingClientRect()).filter((r) => r.height > 0).map((r) => r.top))
-      : window.innerHeight - 16;
-    box.style.bottom = `${Math.max(16, window.innerHeight - floor + 10)}px`;
-    canvas.style.height = `${Math.max(140, Math.min(352, floor - 10 - 90 - 80))}px`;
-  };
-  const setBig = (on) => {
-    if (on === box.classList.contains("is-big")) return;
-    if (on) { box.replaceWith(home); document.body.appendChild(box); } else { home.replaceWith(box); }
-    box.classList.toggle("is-big", on);
-    big.textContent = on ? "Close" : "Larger";
-    placeBig();
-    drawPlot();
-  };
-  window.addEventListener("resize", placeBig);
-  // Fixed positioning is taken off the page, not the sidebar: a transformed or
-  // filtered ancestor would make it relative to the sidebar instead.
-  big.addEventListener("click", () => setBig(!box.classList.contains("is-big")));
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && box.classList.contains("is-big")) setBig(false); });
+  window.addEventListener("resize", () => { for (const pl of state.plots) if (pl.floating) { const n = panelNode(pl); if (n) placeFloat(n, pl); } });
   byId("lsp-st-csv").addEventListener("click", async () => {
     const rec = state.record;
     if (!rec) { say("stations", state.stations.length ? "Run the model first — the stations are filled in by the run." : "Add a station first.", "error"); return; }

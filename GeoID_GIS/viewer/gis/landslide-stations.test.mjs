@@ -170,14 +170,15 @@ const rel = (a, b) => Math.abs(a - b) / Math.max(1e-12, Math.abs(a), Math.abs(b)
   check("a placing click is swallowed before it opens a card", /if \(Date\.now\(\) < swallowUntil\) return true;/.test(src)
     && /GeoIDFeaturePopup\?\.suppress\?\.\(800\)/.test(src));
   check("placing listens on pointerup with a drag gate, never stopping the event", /pointerup", onUp\)/.test(src) && !/stopPropagation\(\);\s*\n\s*const at = window\.GeoIDViewer\?\.surfaceLatLonAt/.test(src));
-  check("the larger plot is moved onto the page, not positioned inside the sidebar", /document\.body\.appendChild\(box\)/.test(src));
+  check("a popped-out plot is moved onto the page, not positioned inside the sidebar",
+    /const want = pl\.floating \? document\.body : host;/.test(src));
   check("the plot moves the bar through the player, so the two cannot disagree", /seekPlayer\(k\)/.test(src) && /export function seekPlayer\(index\)/.test(player));
   check("playing the bar updates the readings without rebuilding the name fields",
     /paintView\(run\.current\);\s*\n(\s*paintRain\(k\);\s*\n)?\s*updateReadings\(\);/.test(src));
   check("the export is one tidy CSV through the page's own download, filed in the project", /downloadText\(name, seriesCsv\(rec\), "text\/csv"\)/.test(src));
   check("a recorded series is announced for what reads it next", /geoid-gis:station-series/.test(src));
   check("the map and a station share one cellAnswer", /export \{ cellAnswer \};/.test(src)
-    && /import \{ cellAnswer, planeWetness \} from "\.\/slope-hydrology\.js/.test(readFileSync(new URL("./landslide-stations.js", import.meta.url), "utf8")));
+    && /import \{ cellAnswer, planeWetness, slopeStresses \} from "\.\/slope-hydrology\.js/.test(readFileSync(new URL("./landslide-stations.js", import.meta.url), "utf8")));
 }
 
 /* ── the record and the forecast, told apart ─────────────────────────────── */
@@ -222,4 +223,52 @@ const rel = (a, b) => Math.abs(a - b) / Math.max(1e-12, Math.abs(a), Math.abs(b)
     && /rl\.band\.set\(rainAtPoints\(frame, rl\.pts\)\)/.test(src));
   check("a new fetch, a new area and a clear take the old maps off the globe", (src.match(/removeRainLayer\(\);/g) || []).length >= 3);
   check("the layer is named for what it is", /Rainfall maps/.test(RAIN_LAYER));
+}
+
+
+/* ── every term of the answer, at a station ────────────────────────────────── */
+
+{
+  const { slopeStresses, factorOfSafety, WATER_UNIT_WEIGHT } = await import("./slope-hydrology.js");
+  const { LANDSLIDE_PLOTS } = await import("./landslide-stations.js");
+  const { markOffset, declutter } = await import("./station-markers.js");
+  const args = { slopeRad: 0.5, c: 4, phi: 30, gamma: 19, zf: 1.8, m: 0.6 };
+  const st = slopeStresses(args);
+  const cos = Math.cos(0.5);
+  check("the factor of safety is its strength over its driving stress, and the same number as before",
+    Math.abs(st.fos - st.resisting / st.driving) < 1e-12 && st.fos === factorOfSafety(args));
+  check("pore pressure and effective stress sum to the column's weight normal to the plane",
+    Math.abs(st.pore + st.effective - 19 * 1.8 * cos * cos) < 1e-9 && Math.abs(st.pore - 0.6 * WATER_UNIT_WEIGHT * 1.8 * cos * cos) < 1e-9);
+  check("flat ground still reads as the capped, stable ratio", slopeStresses({ ...args, slopeRad: 0 }).fos === 100);
+
+  // A station on the pipeline's own hillslope, every new term against its definition.
+  const w = 20; const h = 21; const n = w * h; const cellM = 1e-4 * 111320; const tan = Math.tan(25 * Math.PI / 180);
+  const band = new Float32Array(n);
+  for (let y = 0; y < h; y += 1) for (let x = 0; x < w; x += 1) band[y * w + x] = 300 - 0.1 * cellM * x + tan * cellM * Math.abs(y - 10);
+  const topo = mfdTopology(fillSinks(makeRaster(band, w, h, { minX: 0, maxX: w * 1e-4, minY: 0, maxY: h * 1e-4 }, NaN)));
+  const cells = {
+    data: new Uint8Array(n).fill(1), model: new Uint8Array(n).fill(1), K: new Float32Array(n).fill(2e-5), zs: new Float32Array(n).fill(2),
+    zf: new Float32Array(n).fill(1.5), slopeRad: new Float32Array(n).fill(Math.atan(tan)), c: new Float32Array(n).fill(3), phi: new Float32Array(n).fill(32), gamma: new Float32Array(n).fill(19),
+  };
+  const rainMm = Float32Array.from({ length: n }, (_, i) => 10 + (i % 17));
+  const cell = 9 * w + 15;
+  const out = stationStep({ cell, weights: upslopeWeights(topo, cell), rainMm, windowH: 24, cells, topo, lateral: 2 });
+  check("depth to the water table is the column less the table", Math.abs(out.depth - (2 - out.h)) < 1e-9 && out.depth >= 0);
+  check("the catchment's rain is a flow-weighted mean — inside the range of the rain that fell on it",
+    out.catchRain >= 10 && out.catchRain <= 26 && Number.isFinite(out.catchRain));
+  check("the station's strength and stress give its factor of safety", Math.abs(Math.min(100, out.strength / out.stress) - out.fos) < 1e-9);
+  check("every recorded variable is one a plot can draw, and strength is drawn against stress",
+    LANDSLIDE_PARAMS.every((p) => Number.isFinite(out[p.key])) && LANDSLIDE_PLOTS.some((p) => p.series.length === 2 && p.series[1].dash));
+
+  check("a ▼'s tip sits on its point: the mark is placed by its bottom centre", JSON.stringify(markOffset(40, 30)) === '{"dx":-20,"dy":-30}');
+  const kept = declutter([{ left: 0, right: 50, top: 0, bottom: 12 }, { left: 30, right: 80, top: 4, bottom: 16 }, { left: 100, right: 140, top: 0, bottom: 12 }, null]);
+  check("a name that would overlap an earlier one is muted, the others kept", kept.join() === "true,false,true,false");
+
+  const src = readFileSync(new URL("./landslide-pipeline.js", import.meta.url), "utf8");
+  check("the stations' layer draws no dots and no engine labels: the ▼ markers are the stations on the globe",
+    !/label_rank: 5/.test(src) && /layer\.groundPick = false;/.test(src) && /mountStationMarkers\(\{/.test(src));
+  check("a marker's click opens the station's card with every variable", /onPick: \(st\) => openStationCard\(st\)/.test(src)
+    && /for \(const p of LANDSLIDE_PARAMS\) rows\.push/.test(src));
+  check("the card opens on two plots, factor of safety and rain, and more can be added and popped out",
+    /state\.plots = \[newPlot\("fos"\), newPlot\("rain"\)\];/.test(src) && /id="lsp-plot-add"/.test(src) && /data-act="float"/.test(src));
 }

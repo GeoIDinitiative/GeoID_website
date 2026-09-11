@@ -162,6 +162,7 @@ export function drawTimeSeries(canvas, {
   ctx.beginPath(); ctx.rect(box.left, box.top - 2, box.right - box.left, box.bottom - box.top + 4); ctx.clip();
   for (const l of lines) {
     ctx.strokeStyle = l.colour; ctx.lineWidth = l.bold ? 2.2 : 1.5;
+    ctx.setLineDash(l.dash || []);
     ctx.beginPath(); let pen = false;
     l.values.forEach((v, k) => {
       if (!Number.isFinite(v)) { pen = false; return; }
@@ -170,7 +171,8 @@ export function drawTimeSeries(canvas, {
       pen = true;
     });
     ctx.stroke();
-    if (ms.length <= 90) {
+    ctx.setLineDash([]);
+    if (ms.length <= 90 && !l.dash) {
       ctx.fillStyle = l.colour;
       l.values.forEach((v, k) => {
         if (!Number.isFinite(v)) return;
