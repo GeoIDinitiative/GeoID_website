@@ -860,6 +860,10 @@ const TOOL_ICONS = {
  * rather than a subject, and a mark invented for it says nothing — the
  * fallback bracket would be furniture.
  */
+// The planets name the same section "Inspect" where Earth says "Inspect and
+// pin": one subject, one glyph.
+TOOL_ICONS.inspect = TOOL_ICONS["inspect and pin"];
+
 const NO_TOOL_ICON = new Set(["ni prototype"]);
 
 const FALLBACK_TOOL_ICON = "<path d=\"M5.6 3.2H3.4v9.6h2.2M10.4 3.2h2.2v9.6h-2.2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\"/>";
