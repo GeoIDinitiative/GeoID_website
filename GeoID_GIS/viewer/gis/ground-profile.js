@@ -30,7 +30,7 @@
  * the point of assembling it rather than reading three cards.
  */
 
-import { materialFor, SHALLOW_FAILURE_CAP_M } from "./fos.js?v=20260911-043f913";
+import { materialFor, SHALLOW_FAILURE_CAP_M } from "./fos.js?v=20260911-2110000";
 
 /** Which loaded layer is which, by what its name says it is. */
 const SUPERFICIAL = /superficial|drift|quaternary/i;
@@ -228,7 +228,7 @@ export function profileRows(profile) {
      */
     rows.push(["Superficial deposit", profile.superficialLoaded
       ? "not mapped here — BGS covers the UK only"
-      : "no superficial map loaded — tick BGS superficial deposits to include it"]);
+      : "no superficial map loaded — import one (BGS 625k or similar) to include it"]);
   }
 
   if (profile.soil) {

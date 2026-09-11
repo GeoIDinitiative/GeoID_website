@@ -1,7 +1,7 @@
 import {
   addDataset, grouped, datasetById, layerForDataset,
-} from "./global-data.js?v=20260911-043f913";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260911-043f913";
+} from "./global-data.js?v=20260911-2110000";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260911-2110000";
 
 /**
  * Polygons: the register of vector overlays -- coastlines, boundaries, basins,
@@ -79,6 +79,7 @@ function drawCatalogue() {
         // behind silently falls back to generic wording — which is how the
         // submarine cables came to be captioned "Erupted since 1500".
         detailCopy: entry.detailCopy,
+        ownDetail: entry.ownDetail,
         // Third field this trap has cost: a projection that drops it hangs no
         // drawer under the row, silently.
         settings: entry.settings,

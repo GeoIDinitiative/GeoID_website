@@ -18,7 +18,7 @@
  * in extraction and in export without this file knowing anything about them.
  */
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260911-043f913";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260911-2110000";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -625,7 +625,9 @@ export function renderCatalogue(host, entries, hooks) {
      * `DETAIL_COPY` the volcano caption reads).
      */
     const labels = window.GeoIDPointLabels;
-    if (layer && labels?.canLabel?.(layer)) {
+    // Not where the row's own drawer carries a labelled slider (the volcanoes):
+    // two sliders for one level is two controls for one idea.
+    if (layer && labels?.canLabel?.(layer) && !entry.ownDetail) {
       const detail = document.createElement("input");
       detail.type = "range";
       detail.className = "gis-catalogue-detail";

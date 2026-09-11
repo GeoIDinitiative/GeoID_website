@@ -14,7 +14,7 @@
  * | --- | --- |
  * | `hydrology` | Hydrology · Water bodies — coastlines, rivers, lakes |
  * | `geology-tectonics` | Geology · Tectonics — plates, faults, stress |
- * | `geology-volcanoes` | Geology · Volcanoes — the Smithsonian GVP |
+ * | `volcanic-hazards` | Hazards · Volcanic hazards — the Smithsonian GVP |
  *
  * Each is the same `renderCatalogue` rows from the same catalogue, so a layer
  * ticked here is an ordinary layer with its symbology, click card, legend entry
@@ -29,11 +29,11 @@
 
 import {
   HOMES, MIRRORS, grouped, addDataset, layerForDataset, loadLaunchDefaults,
-} from "./global-data.js?v=20260911-043f913";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260911-043f913";
-import { mathsFor } from "./equations.js?v=20260911-043f913";
+} from "./global-data.js?v=20260911-2110000";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260911-2110000";
+import { mathsFor } from "./equations.js?v=20260911-2110000";
 import { bandOf, bandRows, bandSymbology, describeFilter, magOf }
-  from "./seismic-magnitude.js?v=20260911-043f913";
+  from "./seismic-magnitude.js?v=20260911-2110000";
 
 const byId = (id) => document.getElementById(id);
 
@@ -286,6 +286,8 @@ function draw(home, hostId) {
         // itself from the dataset's own words, and a projection that drops
         // this falls back to wording written for another catalogue.
         detailCopy: entry.detailCopy,
+        // A row whose drawer holds its own labelled slider takes no inline one.
+        ownDetail: entry.ownDetail,
         // Third field this trap has cost: a projection that drops it hangs no
         // drawer under the row, silently. A MIRRORED row docks the mirror's
         // own block, never the home's: a block is one element and can hang
@@ -559,7 +561,7 @@ function wireVolcanoDetail() {
   slider.addEventListener("input", caption);
   slider.addEventListener("change", () => {
     const layer = layerForDataset("volcanoes");
-    if (!layer) { say("volcanoes-catalogue", "Level saved — the labels follow when the layer is ticked on."); return; }
+    if (!layer) { say("volcanic-catalogue", "Level saved — the labels follow when the layer is ticked on."); return; }
     labels?.setDetailLevel?.(layer, Number(slider.value));
   });
 }

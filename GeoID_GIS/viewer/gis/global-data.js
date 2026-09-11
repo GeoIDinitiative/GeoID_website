@@ -26,21 +26,21 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260911-043f913";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260911-043f913";
-import { mathsFor } from "./equations.js?v=20260911-043f913";
+import { runConnector } from "./research/connectors.js?v=20260911-2110000";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260911-2110000";
+import { mathsFor } from "./equations.js?v=20260911-2110000";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260911-043f913";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260911-043f913";
-import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260911-043f913";
+} from "./cyclone-risk.js?v=20260911-2110000";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260911-2110000";
+import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260911-2110000";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260911-043f913";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260911-2110000";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
-  "Ice sheets", "UK geology (BGS)", "Hazards", "Active fires", "Perimeters",
+  "Ice sheets", "Hazards", "Active fires", "Perimeters",
   "Warnings", "Climate", "Live services"];
 
 /**
@@ -68,13 +68,14 @@ export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
  * the row in that tab alone.
  */
 export const MIRRORS = {
-  "volcanic-hazards": [{ id: "volcanoes", settings: "volcano-hazard-buffers" }],
+  // Empty since the volcanoes moved: they WERE mirrored from Geology into
+  // Hazards ▸ Volcanic hazards, and are now homed there outright, with the
+  // Geology subtab's label-detail slider and type toggles in their drawer.
 };
 
 export const HOMES = {
   hydrology: "hydrology-catalogue",
   "geology-tectonics": "tectonics-catalogue",
-  "geology-volcanoes": "volcanoes-catalogue",
   "geology-ice": "ice-catalogue",
   // No shipped FILE lives under this home — the soil map is a tiled layer, so
   // it arrives through catalogue-panels' own TILED registry. The home is
@@ -85,8 +86,8 @@ export const HOMES = {
   // Hydrology, because a cyclone track is neither the ground nor the water: it
   // is a record of what happened over them.
   hazards: "hazards-catalogue",
-  // Hazards ▸ Volcanic hazards. Holds the hazard BUFFERS (a derived layer with
-  // no file) and a MIRROR of the volcano catalogue row -- see `MIRRORS`.
+  // Hazards ▸ Volcanic hazards: the Smithsonian volcanoes (moved from Geology),
+  // with the hazard buffers and the risk grids.
   "volcanic-hazards": "volcanic-catalogue",
   // Hazards ▸ Seismic hazards: the USGS ComCat catalogue and the risk grids
   // baked from it, built the way the volcanic subtab is.
@@ -568,7 +569,13 @@ export const DATASETS = [
   },
   {
     id: "volcanoes",
-    home: "geology-volcanoes",
+    // Hazards ▸ Volcanic hazards: the Geology subtab merged into it. The
+    // drawer under the row holds what that subtab held -- the label-detail
+    // slider with its caption and the per-type toggles -- above the hazard
+    // buffers, so the row carries no inline slider of its own (`ownDetail`).
+    home: "volcanic-hazards",
+    settings: "volcano-hazard-buffers",
+    ownDetail: true,
     featureNoun: "Volcano",
     group: "Hazards",
     label: "Volcanoes — global (Smithsonian GVP)",
@@ -824,30 +831,6 @@ export const DATASETS = [
     // shape of it.
     colourBy: "country",
     licence: "Greg's Cable Map — GNU GPL",
-  },
-  {
-    id: "conn-bgs-bedrock",
-    home: "geology-tectonics",
-    featureNoun: "Geological unit",
-    group: "UK geology (BGS)",
-    label: "Bedrock geology — live (BGS 625k, UK)",
-    connector: "bgs-geology-bedrock",
-    name: "BGS bedrock geology 625k.geojson",
-    summary: "UK bedrock at 1:625,000 from the BGS OGC API, clipped to the "
-      + "drawn study area when one exists. United Kingdom only.",
-    licence: "Contains British Geological Survey materials © UKRI",
-  },
-  {
-    id: "conn-bgs-superficial",
-    home: "geology-tectonics",
-    featureNoun: "Geological unit",
-    group: "UK geology (BGS)",
-    label: "Superficial deposits — live (BGS 625k, UK)",
-    connector: "bgs-geology-superficial",
-    name: "BGS superficial geology 625k.geojson",
-    summary: "UK superficial deposits at 1:625,000 from the BGS OGC API, "
-      + "clipped to the drawn study area when one exists. United Kingdom only.",
-    licence: "Contains British Geological Survey materials © UKRI",
   },
   {
     id: "conn-haduk-rainfall",
