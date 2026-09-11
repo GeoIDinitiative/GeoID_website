@@ -174,6 +174,25 @@ const ribbon = seam(built.object3D);
     !kinds(filled).includes("fill"), JSON.stringify(kinds(filled)));
 }
 
+/**
+ * A LINE SITS ON THE GROUND. It was still handed the altitude-scaled clearance
+ * meant for a depth-tested line -- 8 km up from 400 km, a constant ~8 px off
+ * the river in the imagery at the edge of every view -- while drawing with the
+ * depth test off, where a clearance buys nothing and costs parallax.
+ */
+{
+  const { buildVectorLayerResult } = await import("./vector-render.js");
+  const river = { type: "FeatureCollection", features: [{ type: "Feature", properties: {},
+    geometry: { type: "LineString", coordinates: [[4.6, 43.4], [4.7, 43.5]] } }] };
+  const built = buildVectorLayerResult(river, { name: "river" });
+  let key = null;
+  built.object3D.traverse((n) => {
+    if (n.isLineSegments && !n.userData?.geoidSeam) key = n.material.customProgramCacheKey?.();
+  });
+  ok("a line is drawn at no clearance, not the lines' altitude-scaled one",
+    Boolean(key) && !/-live-/.test(key) && /-0-flat/.test(key), String(key));
+}
+
 console.log(`${pass} passed`);
 if (fail) console.log(`${fail} FAILED`);
 process.exit(fail ? 1 : 0);

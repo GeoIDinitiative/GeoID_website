@@ -18,17 +18,18 @@
  * the displaced surface, and the raster every terrain tool wants as an input.
  */
 
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-95c6d46";
-import { mathsFor } from "./equations.js?v=20260911-95c6d46";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260911-95c6d46";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-289fca0";
+import { mathsFor } from "./equations.js?v=20260911-289fca0";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260911-289fca0";
 import { makeRaster, slope as slopeOf, hillshade as hillshadeOf }
-  from "./raster-analysis.js?v=20260911-95c6d46";
-import * as dem from "./dem-tiles.js?v=20260911-95c6d46";
-import { rampColour } from "./symbology.js?v=20260911-95c6d46";
-import * as climate from "./climate-normals.js?v=20260911-95c6d46";
-import { waterMasks, waterFeatures, floodFromSea, classAreas, FLOODED, EXPOSED, CUT_OFF, LAKE }
-  from "./water-mask.js?v=20260911-95c6d46";
-import { burnRivers, riverZones, zoneAreas, ZONES } from "./river-zones.js?v=20260911-95c6d46";
+  from "./raster-analysis.js?v=20260911-289fca0";
+import * as dem from "./dem-tiles.js?v=20260911-289fca0";
+import { rampColour } from "./symbology.js?v=20260911-289fca0";
+import * as climate from "./climate-normals.js?v=20260911-289fca0";
+import { waterMasks, waterFeatures, floodFromSea, classAreas, edgeSeeds, contextBox, WORLD_BOX,
+  FLOODED, EXPOSED, CUT_OFF, LAKE } from "./water-mask.js?v=20260911-289fca0";
+import { burnRivers, riverZones, zoneAreas, mergeOuterZones, ZONES }
+  from "./river-zones.js?v=20260911-289fca0";
 
 /**
  * Which corridor zones are drawn. State, like the sea level, so the drawer's
@@ -211,18 +212,16 @@ export const SHEETS = {
         }
         riverZoneState.masks = { key, ...burned, water: wet, zoom: rivers.zoom };
       }
-      return riverZoneState.masks;
+      const outer = await zoneContext(bounds);
+      return { ...riverZoneState.masks, outer };
     },
     derive: (raster, ctx) => {
-      const heights = new Float32Array(raster.band.length);
-      for (let c = 0; c < heights.length; c += 1) {
-        const h = raster.band[c];
-        heights[c] = h === raster.noData ? NaN : h;
-      }
+      const heights = heightsOf(raster.band);
       const classes = riverZones({
         heights, riverWidth: ctx.riverWidth, canal: ctx.canal, water: ctx.water,
         width: raster.width, height: raster.height, bounds: ctx.bounds,
       });
+      mergeOuterZones(classes, ctx.outer, ctx.bounds, raster.width, raster.height, ctx.water);
       const cellM = ((ctx.bounds.east - ctx.bounds.west) / raster.width) * 111320
         * Math.cos((((ctx.bounds.north + ctx.bounds.south) / 2) * Math.PI) / 180);
       riverZoneState.last = { areas: zoneAreas(classes, raster.width, raster.height, ctx.bounds),
@@ -278,18 +277,21 @@ export const SHEETS = {
       if (seaLevel.masks?.key !== key) {
         seaLevel.masks = { key, ...(await waterMasks(bounds, width, height)) };
       }
-      return seaLevel.masks;
+      // A fallen sea needs no path: it is the seabed above the new level,
+      // wherever that is. A risen one has to come in from somewhere.
+      const level = seaLevel.metres;
+      const parent = level > 0 ? await floodContext(bounds, level) : null;
+      return { ...seaLevel.masks, parent, level };
     },
     derive: (raster, ctx) => {
-      const heights = new Float32Array(raster.band.length);
-      for (let c = 0; c < heights.length; c += 1) {
-        const h = raster.band[c];
-        heights[c] = h === raster.noData ? NaN : h;
-      }
-      const level = seaLevel.metres;
+      const heights = heightsOf(raster.band);
+      // The level the context was computed for, so a slider moved mid-build
+      // cannot pair one level's seeds with another's flood.
+      const level = ctx.level ?? seaLevel.metres;
       const { classes, depth } = floodFromSea({
         heights, ocean: ctx.ocean, lakeLevel: ctx.lakeLevel,
         width: raster.width, height: raster.height, level, wrap: ctx.world,
+        seeds: ctx.parent ? edgeSeeds(ctx.parent, ctx.bounds, raster.width, raster.height) : null,
       });
       seaLevel.last = { level, areas: classAreas(classes, raster.width, raster.height, ctx.bounds),
         world: ctx.world, lakesReached: 0 };
@@ -355,8 +357,8 @@ export const SHEETS = {
         cut > 0.5 ? ` ${km2(cut)} km² more is lower than that but cut off from the sea, and is `
           + "left dry." : "",
         last.lakesReached ? " The sea runs into lakes whose surface is below it." : "",
-        last.world ? "" : " Only ground in view is considered: the sea has to reach it "
-          + "through what the view can see.",
+        last.world ? "" : " The sea reaches this view through the ground round it, read "
+          + "more coarsely the further out it lies.",
         withinError,
       ].join("");
     },
@@ -463,6 +465,117 @@ async function sampleGridOver(bounds, width, height) {
     }
   }
   return { band, seen, min, max };
+}
+
+/** A sampled band as heights, with no-data as NaN — what the pure halves take. */
+function heightsOf(band) {
+  const heights = new Float32Array(band.length);
+  for (let c = 0; c < heights.length; c += 1) {
+    heights[c] = band[c] === NO_DATA ? NaN : band[c];
+  }
+  return heights;
+}
+
+/**
+ * THE GROUND ROUND A VIEW, read coarser the further out it is.
+ *
+ * Two of the sheets ask questions a view cannot answer from inside itself:
+ * where the sea comes in from, and which river's floodplain reaches in from
+ * just out of shot. Answered on the view alone, both sheets LOST ground as the
+ * camera came in — the box shrank, the coast or the river left it, and what it
+ * had drawn from further up disappeared: 796,471 px of sea over the Camargue
+ * from 400 km, 0 px of the same sea from 8 km. That is "it disappears as we
+ * zoom in".
+ *
+ * So each is computed over a chain of boxes (`contextBox`): the view inside a
+ * box eight times its size, inside one eight times that, up to the world. Each
+ * link is a coarse grid, with its DEM streamed at a modest budget before it is
+ * read, and is kept: the boxes are snapped, so neighbouring views share them.
+ */
+const CONTEXT_W = 384;
+const CONTEXT_H = 192;
+const CONTEXT_DEM_TILES = 12;
+const CONTEXT_KEEP = 24;
+const floodContexts = new Map();
+const zoneContexts = new Map();
+
+function remember(map, key, make) {
+  if (!map.has(key)) {
+    if (map.size >= CONTEXT_KEEP) map.delete(map.keys().next().value);
+    map.set(key, make().catch((error) => { map.delete(key); throw error; }));
+  }
+  return map.get(key);
+}
+
+/** The heights over a context box, its DEM streamed first unless it is the world. */
+async function contextHeights(box, width, height) {
+  if (box !== WORLD_BOX) await dem.ensure(box, { maxTiles: CONTEXT_DEM_TILES });
+  const { band } = await sampleGridOver(box, width, height);
+  return heightsOf(band);
+}
+
+/**
+ * The sea at `level` over the box round `bounds`: what reaches its cells, for
+ * `edgeSeeds`. Parents first, so each link is seeded from the one above it.
+ */
+export async function floodContext(bounds, level) {
+  const box = contextBox(bounds);
+  if (!box) return null;
+  const world = box === WORLD_BOX;
+  const width = world ? GRID_W : CONTEXT_W;
+  const height = world ? GRID_H : CONTEXT_H;
+  const key = JSON.stringify([box.west, box.south, box.east, box.north, level]);
+  return remember(floodContexts, key, async () => {
+    const parent = await floodContext(box, level);
+    const heights = await contextHeights(box, width, height);
+    const masks = await waterMasks(box, width, height);
+    const { reached } = floodFromSea({
+      heights, ocean: masks.ocean, lakeLevel: masks.lakeLevel, width, height, level,
+      wrap: world, seeds: parent ? edgeSeeds(parent, box, width, height) : null,
+    });
+    return { reached, bounds: box, width, height };
+  });
+}
+
+/**
+ * The corridor zones over the box round `bounds`, from the rivers OUTSIDE it.
+ * One link is enough: a floodplain reaches ten channel widths, and four views
+ * across holds that for every river the view's own zoom can resolve. A view
+ * wider than a few degrees already holds its rivers' reach at its own cell
+ * size, so it gets none.
+ */
+async function zoneContext(bounds) {
+  const box = contextBox(bounds, { factor: 4, worldAt: 16 });
+  if (!box || box === WORLD_BOX) return null;
+  const key = JSON.stringify([box.west, box.south, box.east, box.north,
+    bounds.west, bounds.south, bounds.east, bounds.north]);
+  return remember(zoneContexts, key, async () => {
+    const width = CONTEXT_W;
+    const height = CONTEXT_H;
+    const heights = await contextHeights(box, width, height);
+    const [rivers, water] = await Promise.all([
+      waterFeatures("rivers", box, width), waterMasks(box, width, height),
+    ]);
+    const burned = burnRivers(rivers.features, box, width, height);
+    const wet = new Uint8Array(width * height);
+    for (let j = 0; j < height; j += 1) {
+      const lat = box.north - ((j + 0.5) / height) * (box.north - box.south);
+      for (let i = 0; i < width; i += 1) {
+        const c = (j * width) + i;
+        wet[c] = water.ocean[c] || !Number.isNaN(water.lakeLevel[c]) ? 1 : 0;
+        // The view's own rivers are measured on the fine heights; here only
+        // the ones out of shot count as sources.
+        const lon = box.west + ((i + 0.5) / width) * (box.east - box.west);
+        if (lon >= bounds.west && lon <= bounds.east
+          && lat >= bounds.south && lat <= bounds.north) burned.riverWidth[c] = NaN;
+      }
+    }
+    const classes = riverZones({
+      heights, riverWidth: burned.riverWidth, canal: burned.canal, water: wet,
+      width, height, bounds: box,
+    });
+    return { classes, bounds: box, width, height };
+  });
 }
 
 /**

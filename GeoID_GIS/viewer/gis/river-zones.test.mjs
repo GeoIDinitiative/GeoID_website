@@ -3,7 +3,7 @@
  * innermost. Run with `node river-zones.test.mjs`.
  */
 import { readFileSync } from "node:fs";
-import { burnRivers, nearestSource, riverZones, zoneAreas, ZONES,
+import { burnRivers, nearestSource, riverZones, zoneAreas, mergeOuterZones, ZONES,
   NONE, MARGIN, BELT, FLOODPLAIN, CHANNEL } from "./river-zones.js";
 
 let pass = 0;
@@ -133,6 +133,25 @@ check("the floodplain is 10 W and capped at 5 m above the channel",
   check("zone areas are ground areas on the sphere", Math.abs(a[MARGIN] - cap) / cap < 0.001);
 }
 
+{
+  // A river just out of shot: the view knows nothing of it, the ground round
+  // the view does. Four fine cells across one coarse cell.
+  const bounds = { west: 0, east: 1, south: 0, north: 1 };
+  const outer = { bounds: { west: -1, east: 2, south: 0, north: 1 }, width: 3, height: 1,
+    classes: new Uint8Array([CHANNEL, FLOODPLAIN, NONE]) };
+  const fine = new Uint8Array([NONE, MARGIN, NONE, NONE]);
+  const water = new Uint8Array([0, 0, 1, 0]);
+  mergeOuterZones(fine, outer, bounds, 4, 1, water);
+  check("a floodplain reaching in from a river out of shot is drawn in the view",
+    fine[0] === FLOODPLAIN && fine[3] === FLOODPLAIN, `${[...fine]}`);
+  check("but the view's own inner zone wins, and its water stays unpainted",
+    fine[1] === MARGIN && fine[2] === NONE);
+  const chan = new Uint8Array([BELT]);
+  mergeOuterZones(chan, { ...outer, bounds: { west: -1, east: 2, south: 0, north: 1 },
+    classes: new Uint8Array([NONE, CHANNEL, NONE]) }, bounds, 1, 1);
+  check("and the outside river's own water is never covered by a zone", chan[0] === CHANNEL);
+}
+
 /* ── wired in ─────────────────────────────────────────────────────────── */
 
 const sheets = readFileSync(new URL("./dem-layer.js", import.meta.url), "utf8");
@@ -148,3 +167,7 @@ check("the hydrology row names the drawer", /id: "river-zones",[\s\S]{0,1800}set
 const eq = readFileSync(new URL("./equations.js", import.meta.url), "utf8");
 check("the ⓘ states the three rules the code applies",
   /max\(10 m, ¼ W\)/.test(eq) && /bank ≤ 3 W/.test(eq) && /≤ 5 m/.test(eq));
+check("the zones sheet reads the rivers round the view as well as in it",
+  /zoneContext\(bounds\)/.test(sheets) && /mergeOuterZones\(classes, ctx\.outer/.test(sheets));
+check("and the sea-level sheet is seeded from the ground round the view",
+  /floodContext\(bounds, level\)/.test(sheets) && /seeds: ctx\.parent \? edgeSeeds\(/.test(sheets));

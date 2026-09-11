@@ -1,11 +1,11 @@
 import * as THREE from "../vendor/three.module.js";
 import { latLonToVector3, drapedRadius, looksLikeGeographic, sphericalPolygonAreaKm2 }
-  from "./geo-utils.js?v=20260911-95c6d46";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260911-95c6d46";
-import { pointInPolygon } from "./geometry.js?v=20260911-95c6d46";
-import { paintOpacity } from "./layer-opacity.js?v=20260911-95c6d46";
-import { applyCutaway } from "./cutaway.js?v=20260911-95c6d46";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260911-95c6d46";
+  from "./geo-utils.js?v=20260911-289fca0";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260911-289fca0";
+import { pointInPolygon } from "./geometry.js?v=20260911-289fca0";
+import { paintOpacity } from "./layer-opacity.js?v=20260911-289fca0";
+import { applyCutaway } from "./cutaway.js?v=20260911-289fca0";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260911-289fca0";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -1389,14 +1389,20 @@ export function renderFeatureCollection(fc, {
      */
     attachReliefAttributes(geometry, FILL_DRAPE, builtRelief);
     material.depthTest = false;
+    /**
+     * AND NO CLEARANCE EITHER. This call still passed `lifted`, which hands the
+     * line the altitude-scaled clearance -- 2% of the distance to the ground,
+     * capped at 11.9 km -- so a river was drawn 8 km up from 400 km and 800 m up
+     * from 40 km, and at the edge of any view it stood a constant ~8 px off the
+     * river in the imagery under it: "the new hydrology layers float". That
+     * clearance was for a DEPTH-TESTED line, which this has not been since the
+     * depth test went (above); the far side is discarded by facing, and nothing
+     * can bury a line that does not test depth. So it sits on the ground.
+     */
     const segments = new THREE.LineSegments(
       geometry,
       followRelief(new THREE.LineBasicMaterial(material), FILL_DRAPE,
-        // A line has no facing to cull it, so it keeps the depth test to hide
-        // the far hemisphere -- and a depth-tested line at zero clearance
-        // sinks into the relief between its vertices. `lifted` gives it the
-        // altitude-scaled clearance rather than a fixed kilometres-high one.
-        { lifted: true, cullFarSide: true, hole }),
+        { cullFarSide: true, hole }),
     );
     segments.renderOrder = 3;
     segments.frustumCulled = false;

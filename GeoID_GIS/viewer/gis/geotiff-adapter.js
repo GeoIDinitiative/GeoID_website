@@ -1,8 +1,8 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260911-95c6d46";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260911-289fca0";
 import {
   attachReliefAttributes, followRelief, setRenderRelief, getRenderRelief,
-} from "./vector-render.js?v=20260911-95c6d46";
+} from "./vector-render.js?v=20260911-289fca0";
 
 // Rasters are resampled onto a mesh grid rather than used at native size: a
 // 4000x4000 DEM would otherwise mean 16M vertices. 192 keeps relief readable
@@ -278,6 +278,10 @@ function buildDrapedPatch(grid, gridWidth, gridHeight, bounds, texture, range, i
    */
   const stackLift = 0;
   const vertex = new THREE.Vector3();
+  // Where each vertex IS, kept so its displacement can be read off the terrain
+  // rather than divided back out of a rounded position (`attachExactRelief`).
+  const lats = new Float64Array(gridWidth * gridHeight);
+  const lons = new Float64Array(gridWidth * gridHeight);
 
   for (let y = 0; y < gridHeight; y += 1) {
     const latT = y / (gridHeight - 1 || 1);
@@ -286,6 +290,8 @@ function buildDrapedPatch(grid, gridWidth, gridHeight, bounds, texture, range, i
       const lonT = x / (gridWidth - 1 || 1);
       const lon = bounds.minX + (bounds.maxX - bounds.minX) * lonT;
       const index = y * gridWidth + x;
+      lats[index] = lat;
+      lons[index] = lon;
       if (surfacePoint) {
         vertex.copy(surfacePoint(lat, lon, stackLift));
       } else {
@@ -344,6 +350,9 @@ function buildDrapedPatch(grid, gridWidth, gridHeight, bounds, texture, range, i
     if (followTheRelief(mesh, geometry, stackLift, relief)) drapes.delete(mesh);
   };
   mesh.userData.builtRelief = builtAt;
+  // Exact where the viewer can say what the terrain is; recovered from the
+  // positions (below) only where it cannot.
+  if (attachExactRelief(mesh, geometry, lats, lons, stackLift)) return mesh;
   /**
    * THE GROUND MOVES EVERY FRAME, AND A POLL CANNOT FOLLOW IT.
    *
@@ -420,6 +429,61 @@ function followTheRelief(mesh, geometry, drape, relief) {
   } catch {
     // A material that cannot be patched is still a drape: fall back to polling
     // rather than leaving it pinned to the relief it was born at.
+    return false;
+  }
+}
+
+/**
+ * THE DISPLACEMENT READ OFF THE TERRAIN, NOT DIVIDED OUT OF A POSITION.
+ *
+ * `attachReliefAttributes` recovers each vertex's displacement as
+ * (radius − base) / relief, from a position stored in FLOAT32 — one unit in
+ * the last place of 3.2 is 2.4e-7. That is exact enough at the slider's
+ * default and hopeless close in, where the exaggeration has tapered to almost
+ * nothing: built 1 km up (relief 3.7e-6) the sea-level sheet's displacements
+ * came back quantised in steps of 0.01 against a true spread of a thousandth,
+ * so the moment the camera rose again the sheet stood on a terrace of wrong
+ * heights up to 9 km off the ground until the next rebuild. And built at
+ * relief zero it could not be followed at all, and fell back to the poll.
+ *
+ * The viewer publishes what `surfacePoint` is made of — the direction of a
+ * coordinate and the terrain's normalised height there — so a drape can carry
+ * those two numbers themselves. Exact at any altitude, followed from the first
+ * frame, and never polled.
+ */
+function attachExactRelief(mesh, geometry, lats, lons, drape) {
+  const viewer = window.GeoIDViewer;
+  const toDir = viewer?.latLonToVector3;
+  const heightOf = viewer?.elevationNormalized;
+  if (typeof toDir !== "function" || typeof heightOf !== "function") return false;
+  try {
+    const n = lats.length;
+    const dir = new Float32Array(n * 3);
+    const disp = new Float32Array(n);
+    for (let i = 0; i < n; i += 1) {
+      const d = toDir(lats[i], lons[i], 1);
+      const len = Math.hypot(d.x, d.y, d.z) || 1;
+      dir[i * 3] = d.x / len;
+      dir[(i * 3) + 1] = d.y / len;
+      dir[(i * 3) + 2] = d.z / len;
+      const h = Number(heightOf(lats[i], lons[i]));
+      disp[i] = Number.isFinite(h) ? h : 0;
+    }
+    geometry.setAttribute("aDir", new THREE.BufferAttribute(dir, 3));
+    geometry.setAttribute("aDisp", new THREE.BufferAttribute(disp, 1));
+    followRelief(mesh.material, drape);
+    // The first drape of a session can arrive before the frame step has fed
+    // the uniform, and a uniform at zero draws the patch on the bare sphere.
+    const relief = Number(viewer?.getEffectiveRelief?.());
+    if (!(Math.abs(getRenderRelief()) > 1e-9) && Number.isFinite(relief)) setRenderRelief(relief);
+    mesh.material.needsUpdate = true;
+    mesh.userData.followsRelief = true;
+    mesh.userData.exactRelief = true;
+    // `position` is not where the shader draws, so its bounding sphere is not
+    // a thing to cull by (the same reason `followTheRelief` gives).
+    mesh.frustumCulled = false;
+    return true;
+  } catch {
     return false;
   }
 }

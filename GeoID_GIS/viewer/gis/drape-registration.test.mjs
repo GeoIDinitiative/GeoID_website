@@ -133,6 +133,46 @@ check("the rebuild threshold is TEN METRES of ground, not eight hundred", () => 
   ok(/RELIEF_PER_METRE/.test(source), "the metre-to-relief conversion is not stated");
 });
 
+/**
+ * BUILT CLOSE IN, RIGHT FROM ORBIT. A drape built 1 km up, where the relief has
+ * tapered to 3.7e-6, used to recover its displacement by dividing a float32
+ * radius by that — quantised in steps of 0.01 against a true spread of a
+ * thousandth, so when the camera rose the sheet stood on a terrace of wrong
+ * heights up to 9 km off the ground. With the terrain on the seam it carries
+ * the terrain's own height instead, exact at any altitude.
+ */
+check("a drape built close in lands on the ground at the slider's full relief", () => {
+  // The viewer's own convention, written out: geo-utils' version DEFERS to the
+  // seam, so handing it back to the seam would call itself.
+  window.GeoIDViewer.latLonToVector3 = (la, lo, r) => {
+    const a = (la * Math.PI) / 180; const b = (lo * Math.PI) / 180;
+    return { x: -r * Math.cos(a) * Math.cos(b), y: r * Math.sin(a), z: r * Math.cos(a) * Math.sin(b) };
+  };
+  window.GeoIDViewer.elevationNormalized = normalised;
+  const was = relief;
+  relief = 3.7e-6;
+  try {
+    const mesh = drape("close-in");
+    ok(mesh.userData.exactRelief === true, "the drape did not take the terrain's own heights");
+    const dir = mesh.geometry.attributes.aDir;
+    const disp = mesh.geometry.attributes.aDisp;
+    let worstM = 0;
+    for (let i = 0; i < dir.count; i += 1) {
+      const x = dir.getX(i); const y = dir.getY(i); const z = dir.getZ(i);
+      const lat = (Math.asin(y) * 180) / Math.PI;
+      const lon = (Math.atan2(z, -x) * 180) / Math.PI;
+      const drawn = R_SCENE + disp.getX(i) * 0.11;
+      const ground = R_SCENE + 0.11 * normalised(lat, lon);
+      worstM = Math.max(worstM, Math.abs(toMetres(drawn - ground)));
+    }
+    ok(worstM < 2, `drawn at relief 0.11 the drape is ${worstM.toFixed(1)} m off the ground`);
+  } finally {
+    relief = was;
+    delete window.GeoIDViewer.latLonToVector3;
+    delete window.GeoIDViewer.elevationNormalized;
+  }
+});
+
 if (failures.length) {
   failures.forEach((f) => console.error(`  x ${f}`));
   console.error(`${failures.length} failed, ${passed} passed`);

@@ -25,7 +25,7 @@
  * pyramids the Hydrology rows stream, straight from their manifests.
  */
 
-import { decodeTile, tilesForBounds } from "./mvt.js?v=20260911-95c6d46";
+import { decodeTile, tilesForBounds } from "./mvt.js?v=20260911-289fca0";
 
 /* ── classes a cell can end up in ───────────────────────────────────────── */
 export const DRY = 0;
@@ -101,7 +101,8 @@ export function burnPolygons(features, bounds, width, height, out, valueOf = () 
  * Returns the class of every cell and the DEPTH band the map draws: water over
  * formerly dry land where the sea rose, seabed above the water where it fell.
  */
-export function floodFromSea({ heights, ocean, lakeLevel, width, height, level, wrap = false }) {
+export function floodFromSea({ heights, ocean, lakeLevel, width, height, level, wrap = false,
+  seeds = null }) {
   const n = width * height;
   const classes = new Uint8Array(n);
   const depth = new Float32Array(n).fill(NaN);
@@ -123,7 +124,7 @@ export function floodFromSea({ heights, ocean, lakeLevel, width, height, level, 
         depth[c] = h - level;
       }
     }
-    return { classes, depth };
+    return { classes, depth, reached: null };
   }
   // A RISEN SEA: breadth-first from every ocean cell through ground below the
   // level. A lake is crossed only if its SURFACE is below the new sea, and then
@@ -137,6 +138,14 @@ export function floodFromSea({ heights, ocean, lakeLevel, width, height, level, 
   let head = 0; let tail = 0;
   for (let c = 0; c < n; c += 1) {
     if (ocean[c]) { reached[c] = 1; queue[tail] = c; tail += 1; }
+  }
+  // Where a flood computed over the ground ROUND this grid comes in at its
+  // edge (`edgeSeeds`). Only ground below the level can take it: a seed is
+  // where the sea could enter, not a claim that it has.
+  if (seeds) {
+    for (let c = 0; c < n; c += 1) {
+      if (seeds[c] && !reached[c] && below(c)) { reached[c] = 1; queue[tail] = c; tail += 1; }
+    }
   }
   while (head < tail) {
     const c = queue[head]; head += 1;
@@ -169,7 +178,86 @@ export function floodFromSea({ heights, ocean, lakeLevel, width, height, level, 
       classes[c] = CUT_OFF;
     }
   }
-  return { classes, depth };
+  // `reached` is what a finer grid inside this one is seeded from: the sea,
+  // the land it covers, and the lakes it runs into, which `classes` alone
+  // cannot say (a crossed lake is still LAKE).
+  return { classes, depth, reached };
+}
+
+/**
+ * WHERE A LARGER FLOOD COMES IN AT THIS GRID'S EDGE.
+ *
+ * A sea rising over a view is a question about the ground ROUND the view as
+ * much as in it: the sea reaches low ground through whatever lies between it
+ * and the coast. Computed on the view alone, a view that holds no coastline
+ * holds no sea to spread from, and every cell below the level came back CUT
+ * OFF — measured over the Camargue at +1 m, 59 km² of a 10 km view drawn as
+ * dry that the same sheet built from 400 km up had drawn under the sea. So the
+ * sheet vanished as the camera came in, which is what it did.
+ *
+ * `parent` is a flood computed over a bigger box round this one (`reached`,
+ * with its own bounds and grid). Every cell on this grid's EDGE whose centre
+ * the parent has under the sea is a place the sea can come in; the fine BFS
+ * then decides how far it gets, on the fine heights. Seeding the edge and
+ * nothing else keeps a dyke inside the view a dyke: a coarse parent cell can
+ * straddle one, and seeding its interior would pour the sea over it.
+ */
+export function edgeSeeds(parent, bounds, width, height) {
+  const seeds = new Uint8Array(width * height);
+  if (!parent?.reached) return seeds;
+  const pb = parent.bounds;
+  const pw = parent.width;
+  const ph = parent.height;
+  const mark = (i, j) => {
+    const lon = bounds.west + ((i + 0.5) / width) * (bounds.east - bounds.west);
+    const lat = bounds.north - ((j + 0.5) / height) * (bounds.north - bounds.south);
+    const pi = Math.floor(((lon - pb.west) / (pb.east - pb.west)) * pw);
+    const pj = Math.floor(((pb.north - lat) / (pb.north - pb.south)) * ph);
+    if (pi < 0 || pj < 0 || pi >= pw || pj >= ph) return;
+    if (parent.reached[(pj * pw) + pi]) seeds[(j * width) + i] = 1;
+  };
+  for (let i = 0; i < width; i += 1) { mark(i, 0); mark(i, height - 1); }
+  for (let j = 1; j < height - 1; j += 1) { mark(0, j); mark(width - 1, j); }
+  return seeds;
+}
+
+/** The whole planet as a sheet sees it: Web Mercator's own latitude limit. */
+export const WORLD_BOX = Object.freeze({ west: -180, east: 180, south: -85, north: 85 });
+
+/**
+ * THE GROUND A VIEW IS READ THROUGH: a bigger box round it, for the questions
+ * a view cannot answer alone — where the sea comes from, which river's
+ * floodplain reaches in from outside.
+ *
+ * `factor` times the view's longer side, rounded UP to a power of two degrees
+ * and centred on a grid of an eighth of that. The rounding is what lets
+ * neighbouring views share their context: the chain round a region is
+ * computed once and kept, rather than once per settle. The child always sits
+ * well inside — its centre is within a sixteenth of the span of the box's
+ * centre, and it is at most a `factor`th of the span wide.
+ *
+ * Past `worldAt` degrees the parent is the WORLD, and the world has none:
+ * null means "this is the top". A box that would cross the antimeridian is
+ * given the world too, rather than a context cut at the seam — the same seam
+ * `sheetBoundsFor` already refuses to cut a view at.
+ */
+export function contextBox(bounds, { factor = 8, worldAt = 64 } = {}) {
+  if (!bounds || !(bounds.east > bounds.west)) return null;
+  if (bounds.east - bounds.west >= 359) return null;
+  const side = Math.max(bounds.east - bounds.west, bounds.north - bounds.south) * factor;
+  const span = 2 ** Math.ceil(Math.log2(Math.max(side, 1e-6)));
+  if (span >= worldAt) return WORLD_BOX;
+  const step = span / 8;
+  const cx = Math.round(((bounds.west + bounds.east) / 2) / step) * step;
+  const cy = Math.round(((bounds.south + bounds.north) / 2) / step) * step;
+  const west = cx - (span / 2);
+  const east = cx + (span / 2);
+  if (west < -180 || east > 180) return WORLD_BOX;
+  return {
+    west, east,
+    south: Math.max(WORLD_BOX.south, cy - (span / 2)),
+    north: Math.min(WORLD_BOX.north, cy + (span / 2)),
+  };
 }
 
 /** Ground area of each class, in km², from the grid's own cell sizes. */

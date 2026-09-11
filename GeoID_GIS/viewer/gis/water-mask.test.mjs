@@ -4,7 +4,7 @@
  * Run with `node water-mask.test.mjs`.
  */
 import { readFileSync } from "node:fs";
-import { burnPolygons, floodFromSea, classAreas, zoomForGrid,
+import { burnPolygons, floodFromSea, classAreas, zoomForGrid, edgeSeeds, contextBox, WORLD_BOX,
   SEA, LAKE, FLOODED, EXPOSED, CUT_OFF, DRY } from "./water-mask.js";
 
 let pass = 0;
@@ -124,6 +124,62 @@ check("round the whole planet the sea crosses the antimeridian", wrapped.classes
 const unwrapped = floodFromSea({ heights: wrapH, ocean: wrapO,
   lakeLevel: new Float32Array(8).fill(NaN), width: 4, height: 2, level: 2, wrap: false });
 check("and a view that is not the whole planet does not", unwrapped.classes[0] === CUT_OFF);
+
+/* ── the sea comes in from outside the view ───────────────────────────── */
+
+{
+  // A 20 x 3 strip of low ground with no ocean in it, and a dyke across it.
+  const W = 20; const H = 3;
+  const heights = new Float32Array(W * H).fill(0.5);
+  for (let j = 0; j < H; j += 1) heights[(j * W) + 12] = 5;
+  const none = new Float32Array(W * H).fill(NaN);
+  const alone = floodFromSea({ heights, ocean: new Uint8Array(W * H), lakeLevel: none,
+    width: W, height: H, level: 1 });
+  check("a view with no coast in it floods nothing on its own",
+    alone.classes.every((k) => k !== FLOODED) && alone.classes[W + 3] === CUT_OFF);
+
+  // The same strip inside a parent whose flood reaches the western half of it.
+  const bounds = { west: 0, east: 20, south: 0, north: 3 };
+  const parent = { reached: new Uint8Array([1, 1, 1, 0]), width: 4, height: 1,
+    bounds: { west: -20, east: 20, south: 0, north: 3 } };
+  const seeds = edgeSeeds(parent, bounds, W, H);
+  const at = (i, j) => seeds[(j * W) + i];
+  check("the parent's sea seeds the view's edge where it reaches it, and nowhere inside",
+    at(0, 1) === 1 && at(5, 0) === 1 && at(5, 2) === 1 && at(5, 1) === 0
+    && at(15, 0) === 0 && at(19, 1) === 0, `${[...seeds]}`);
+  const joined = floodFromSea({ heights, ocean: new Uint8Array(W * H), lakeLevel: none,
+    width: W, height: H, level: 1, seeds });
+  const cls = (i, j) => joined.classes[(j * W) + i];
+  check("seeded, the sea comes in and floods the low ground behind the edge",
+    cls(0, 1) === FLOODED && cls(11, 1) === FLOODED);
+  check("but a dyke inside the view is still a dyke",
+    cls(13, 1) === CUT_OFF && cls(19, 1) === CUT_OFF && cls(15, 0) === CUT_OFF);
+  const high = new Float32Array(W * H).fill(3);
+  const dry = floodFromSea({ heights: high, ocean: new Uint8Array(W * H), lakeLevel: none,
+    width: W, height: H, level: 1, seeds });
+  check("a seed is where the sea COULD enter: ground above the level stays dry",
+    dry.classes.every((k) => k === DRY));
+  check("the flood says what it reached, for the next grid down",
+    joined.reached[W] === 1 && joined.reached[W + 13] === 0);
+}
+
+{
+  const view = { west: 4.6, east: 4.7, south: 43.4, north: 43.47 };
+  const ctx = contextBox(view);
+  const holds = (outer, inner) => outer.west <= inner.west && outer.east >= inner.east
+    && outer.south <= inner.south && outer.north >= inner.north;
+  check("a view's context holds it, eight times its size rounded up to a power of two",
+    holds(ctx, view) && ctx.east - ctx.west === 1, JSON.stringify(ctx));
+  const nudged = contextBox({ west: 4.61, east: 4.71, south: 43.4, north: 43.47 });
+  check("and a view a little along shares it, so the chain is kept rather than redone",
+    JSON.stringify(nudged) === JSON.stringify(ctx));
+  let box = view; let depth = 0;
+  while (box && box !== WORLD_BOX && depth < 10) { box = contextBox(box); depth += 1; }
+  check("the chain climbs to the world in a few steps", box === WORLD_BOX && depth <= 4, `${depth}`);
+  check("and the world is the top", contextBox(WORLD_BOX) === null);
+  check("a context that would cross the antimeridian is the world, not a box cut at the seam",
+    contextBox({ west: 179, east: 179.9, south: 0, north: 1 }) === WORLD_BOX);
+}
 
 /* ── areas and zoom ───────────────────────────────────────────────────── */
 

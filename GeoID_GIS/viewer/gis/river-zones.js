@@ -202,6 +202,43 @@ export function riverZones({ heights, riverWidth, canal, water = null, width, he
   return out;
 }
 
+/**
+ * THE RIVERS JUST OUT OF SHOT still reach into it.
+ *
+ * A floodplain is ten channel widths from the bank, so a 1 km river 5 km
+ * outside a view floods half of it — and a view computed on its own box has no
+ * such river to measure from. Flying in therefore took zones AWAY: the closer
+ * the camera, the smaller the box, the fewer rivers it held.
+ *
+ * `outer` is the zones computed over a bigger box round the view from the
+ * rivers OUTSIDE it only (the view's own rivers are measured here, on the fine
+ * heights). Each fine cell takes the innermost of the two — the same rule the
+ * width bands already merge by — except that the sea and lakes stay unpainted
+ * and a channel is never covered by a zone.
+ */
+export function mergeOuterZones(classes, outer, bounds, width, height, water = null) {
+  if (!outer?.classes) return classes;
+  const ob = outer.bounds;
+  const ow = outer.width;
+  const oh = outer.height;
+  for (let j = 0; j < height; j += 1) {
+    const lat = bounds.north - ((j + 0.5) / height) * (bounds.north - bounds.south);
+    const oj = Math.floor(((ob.north - lat) / (ob.north - ob.south)) * oh);
+    if (oj < 0 || oj >= oh) continue;
+    for (let i = 0; i < width; i += 1) {
+      const c = (j * width) + i;
+      if (water?.[c] || classes[c] === CHANNEL) continue;
+      const lon = bounds.west + ((i + 0.5) / width) * (bounds.east - bounds.west);
+      const oi = Math.floor(((lon - ob.west) / (ob.east - ob.west)) * ow);
+      if (oi < 0 || oi >= ow) continue;
+      const z = outer.classes[(oj * ow) + oi];
+      if (z === NONE) continue;
+      if (z === CHANNEL || classes[c] === NONE || z < classes[c]) classes[c] = z;
+    }
+  }
+  return classes;
+}
+
 /** Ground area per zone, km², from the grid's own cells. */
 export function zoneAreas(classes, width, height, bounds) {
   const R = 6371.0088;
