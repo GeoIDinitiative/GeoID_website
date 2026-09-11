@@ -221,6 +221,31 @@ const EQUATIONS = {
       { expr: "r_u = W·γw / 2γ,  W = min(1, q / (b · K_rm · z_w · sin β))", note: "water in the joints from the same routed recharge, through a fractured zone z_w = 10 m at the rock mass's conductivity" },
       { expr: "rockfall: E(v) = max over donors u of E(u) − tan φ_p · d(u,v);  reached where E ≥ z;  v = √(2g·(E − z))",
         note: "the energy line (Fahrböschung) from every source down the flow network (Evans & Hungr 1993; Jaboyedoff & Labiouse 2011)" },
+      { expr: "e = (P/Δt − r) + r·W",
+        note: "CHANNEL: the water the slopes could not take in. The first term is what the recharge "
+          + "cap turned away (Horton, infiltration excess); the second is rain falling where the "
+          + "hillslope is already saturated (Dunne, saturation excess) — W is the same steady "
+          + "wetness the slope model builds, so one rainfall map drives both hazards and "
+          + "infiltrated + runoff = P at every wetness" },
+      { expr: "S(t+Δt) = S·a + u·k·(1 − a),  a = e^(−Δt/k),  Q = (S + u·Δt − S(t+Δt)) / Δt",
+        note: "a linear reservoir per cell over the same MFD network, marched through the rainfall "
+          + "series in order. This is the EXACT integral for a constant arrival u over the step, so "
+          + "the answer does not depend on how finely the series is stepped — releasing a fixed "
+          + "share instead held 65 % too little water at hourly steps" },
+      { expr: "k = L / v,  v_channel = 0.514 · Q^0.2,  v_hillslope = k_v · √(sin β)",
+        note: "the residence time of a cell: its length over the speed water crosses it. The channel "
+          + "speed is Q/(w·d) with the same hydraulic geometry the inundation model uses "
+          + "(w = 7.2 Q^0.5, d = 0.27 Q^0.3, Moody & Troutman 2002) — the exponents 0.5 + 0.3 + 0.2 "
+          + "sum to 1, which is Leopold & Maddock's (1953) closure — taken at the channel's own "
+          + "bankfull discharge, so it is a property of the channel rather than of the storm" },
+      { expr: "FoS_flood = Q_bankfull / Q,  Q_bankfull = 5 · Q̄,  Q̄ = (w / 7.2)²",
+        note: "the channel's capacity over the flow arriving: under 1 is out of bank. The mean flow "
+          + "is inverted from GRWL's surveyed width, and 5 × mean is the annual flood the inundation "
+          + "model's own scenarios already treat as bankfull, so a forecast flood and a scenario "
+          + "flood speak one language" },
+      { expr: "rise = d(w)·((Q/Q_bankfull)^0.4 − 1)",
+        note: "the stage above bankfull, at-a-station depth ∝ Q^0.4, spread over the ground by the "
+          + "same connectivity-and-defences inundation the flood scenarios use" },
     ],
     terms: [
       ["β", "slope, Horn's method at the streamed DEM's own post spacing at each cell's centre (the "
@@ -250,8 +275,14 @@ const EQUATIONS = {
         + "over 55°: there is no soil to slide, and the rock model governs"],
       ["sources, φ_p", "bare rock steeper than the source angle (default 45° — a 30 m DEM reads a vertical "
         + "face at 50–60°), and the reach angle (default 32°)"],
+      ["w", "the river's surveyed width at mean flow, GRWL v01.01 burnt onto the model's own grid; "
+        + "a cell no river reaches is hillslope and carries no capacity"],
+      ["Δt", "the gap between one rainfall map and the one before it — NOT the window each map's "
+        + "rain was summed over, which may overlap its neighbours. The wave is driven by the rain "
+        + "RATE for that reason"],
+      ["k_v", "the hillslope speed coefficient, a control (default 1.5 m/s at unit slope)"],
     ],
-    note: "A screening model, not a forecast of individual landslides. Each map is treated as a "
+    note: "A screening model, not a forecast of individual landslides or floods. Each map is treated as a "
       + "steady state — the water table a recharge sustained for the window would build — so "
       + "the window stands in for the antecedent wet, and there is no memory from one map to the "
       + "next beyond it. No evaporation, no deep percolation into bedrock, no vertical "
@@ -261,7 +292,12 @@ const EQUATIONS = {
       + "Validated qualitatively against the May 2023 Emilia-Romagna storm, not calibrated. "
       + "The rock model knows no joint orientations, so it screens a slope's height and angle against "
       + "its rock mass's strength rather than a mapped discontinuity — no wedges, no toppling; its "
-      + "rockfall reach is an energy line, not a trajectory, and ignores blocks' size and the forest.",
+      + "rockfall reach is an energy line, not a trajectory, and ignores blocks' size and the forest. "
+      + "The channel model routes water and does not solve its momentum: no backwater, no "
+      + "floodplain storage feeding back into the channel, no reservoirs, no tide at the mouth, "
+      + "and no baseflow — it answers what THIS storm delivers, over whatever the channel was "
+      + "already carrying. Bankfull is inferred from width rather than gauged, which the width "
+      + "law alone makes uncertain by a factor of a few.",
   },
 
   "sea-level": {

@@ -18705,3 +18705,113 @@ clicks far outside its dot. Each layer's reach is now half its widest
 screen-sized point material plus 2 px, in metres through the camera's own
 field of view (`pointReachPx`, `layerPointTolerance`). The lines' 30 m floor
 does not apply to points: close in it is hundreds of pixels.
+
+## The flood is the slope model's other half: one rainfall map, two hazards
+
+"Use the hydrogeological model along with river channel data to produce a flood
+FOS model." It is not a second pipeline. **The slope model already computes the
+water the ground cannot take**, and it was throwing it away:
+
+    r = min(P/Δt, Ks)          the recharge cap — what it turns away is Horton runoff
+    W = steadyWetness(...)     held at 1 exactly where the hillslope is full
+    e = (P/Δt − r) + r·W       infiltration excess + saturation excess (Dunne)
+
+`partition()` in `flood-fos.js` is that one line, and `infiltrated + runoff = P`
+at every wetness is pinned. So the two hazards cannot disagree about the storm:
+where the slope model says the ground is saturated, the flood model is fed the
+rain that lands there. A separate flood pipeline would have fetched the rain
+twice (a GEE render is billed), read the DEM twice, filled the sinks twice,
+built the topology twice — and double-counted the storm's water.
+
+**A FLOOD IS A WAVE, so the maps must be walked in ORDER.** A linear-reservoir
+cascade per cell over the same MFD topology, marched once inside `run()`:
+
+    S(t+Δt) = S·a + u·k·(1 − a),   a = e^(−Δt/k),   Q = (S + u·Δt − S′)/Δt
+
+That is the **exact integral** for a constant arrival over the step, and it had
+to be: the first version dumped the step's water in and released a share of the
+total, so a reservoir under steady rain settled on `I·a/(1−a)` instead of `u·k`.
+Measured, hourly steps released 4 % more water and held **65 % less** than the
+same ten hours at five-minute steps — a model whose answer depended on how
+finely somebody happened to sample the forecast. The Δt-independence check is
+what caught it and is pinned in both `flood-fos.test.mjs` and
+`equations.test.mjs`.
+
+**The residence time is a property of the CHANNEL, not of the storm.**
+Eliminating Q from `w = 7.2 Q^0.5` and `d = 0.27 Q^0.3` — the same Moody &
+Troutman relations `inundation.js` already uses — gives `v = Q/(w·d) =
+0.514 Q^0.2`, and 0.5 + 0.3 + 0.2 = 1 is Leopold & Maddock's closure, which the
+test checks as arithmetic rather than trusting. A channel cell takes its own
+**bankfull** discharge, so `k` is fixed once from the ground; a hillslope cell
+takes `k_v·√(sin β)`. (My first equations pin compared `cellVelocity(capacity)`
+against `Q/(w·d)` at the MEAN flow and read as a 38 % error in the code — the
+code was right and the assertion was evaluated at the wrong discharge.)
+
+**FoS = Q_bankfull / Q**, with `Q_bankfull = 5 × meanFlowFromWidth(width)` —
+the same "annual flood ≈ bankfull" multiple the inundation scenarios use, so a
+forecast flood and a scenario flood speak one language. The stage above it goes
+through `inundate`'s own connectivity and defences: `riseAt` is a new optional
+argument and `riseFrom(s, w)` the single helper both paths read, so there is
+ONE inundation rather than a second copy that drifts.
+
+**Storage: per-frame discharge at RIVER CELLS ONLY** (thousands, not millions),
+so scrubbing the bar after a run is free. The full-grid Q map is never kept.
+
+### A catchment is closed under donors, and that is what a station rests on
+
+A sampling station cannot re-route two million cells per map. It does not have
+to: **if a cell's water reaches the station, so does the water of every cell
+draining into it**, so a march over the catchment alone reproduces the whole
+grid's answer at the station exactly. `catchmentTopology` builds the
+sub-topology in LOCAL indices (`upslopeWeights`' `idx` is already in the
+topological order, which is what makes the local march a forward loop), each
+station keeps its own `store`, and one `floodScratch` sized to the largest
+catchment is shared.
+
+Pinned by running both: the station's discharge against a whole-grid
+`routeFlux` + `steadyWetness` + `partition` + `waveStep`, from rest, over two
+frames so the reservoir stores have to agree as well as the arrivals. **`routeFlux`
+does not mutate its source unless asked** — the first version of that check read
+the UNROUTED recharge and reported a 5.4× disagreement that was entirely the
+test's.
+
+**Off a channel there is no bankfull capacity**, so `floodFos` and `stage` are
+NaN rather than invented, and that is pinned too: a stage over dry ground is a
+number nobody could act on.
+
+### Two pins had to be re-argued rather than deleted
+
+The flood work broke two checks in `landslide-stations.test.mjs`, and both were
+guarding a decision that had genuinely changed:
+
+- `import { cellAnswer, planeWetness, slopeStresses }` matched the whole import
+  list; `stationFlood` legitimately needs `steadyWetness` beside them. The pin
+  is about ONE `cellAnswer` being shared, so it matches that name inside the
+  list rather than the list.
+- "every recorded variable is finite" ran `stationStep` alone — the SLOPE half.
+  What the page records is the merge of `stationStep` and `stationFlood`, which
+  is what `recordStations` does, so that is what the pin now checks.
+
+### The subtab is no longer a landslide product
+
+Three failure models from one storm, so the flowchart is its own Hazards subtab
+("Storm hazards") rather than nested under Landslides — a flood forecast filed
+under landslides is the "one dataset, one home" fault. **The host id
+`#landslide-pipeline` is unchanged**: an id is a storage key. Landslides keeps
+the NI prototype.
+
+### A long-lived `python3 -m http.server` wedges, and every UI check then lies
+
+`tests/ui.py` came back **4 failed** — "earth: the page answered — no result"
+and, on Mars, every seam absent, 0 of 49 tools shown, no style tag. That is the
+shape of an app that has stopped booting, and none of it was true: the dev
+server had been up for eight hours and was **accepting connections and closing
+them without a reply** (`curl: (52) Empty reply from server`, while `ss` still
+showed it LISTENing, so "is the port up" answers yes). Restarted, the same tree
+measured **14 passed, 0 failed**.
+
+Two things worth keeping. `ss -ltn` showing a listener is not evidence the
+server answers — probe it with a real request before believing a page-level
+failure. And when a structural check reports that a whole page has no seams, no
+styles and no tools, suspect the transport before the code: a change to one
+subtab cannot remove `GeoIDViewer` from a planet nobody touched.

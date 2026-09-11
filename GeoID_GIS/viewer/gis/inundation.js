@@ -37,7 +37,7 @@
  * deltas from a single river.
  */
 
-import { nearestSource, BANDS } from "./river-zones.js?v=20260911-3209dea";
+import { nearestSource, BANDS } from "./river-zones.js?v=20260912-ac4605b";
 
 /** Leopold & Maddock (1953), the average at-a-station exponent of depth on discharge. */
 export const DEPTH_EXPONENT = 0.40;
@@ -202,7 +202,7 @@ export function sourceFields(riverWidth, width, height, bounds) {
  * over the sea and lakes, which are water already; and the cells below the
  * flood that it could not reach.
  */
-export function inundate({ heights, riverWidth, water = null, fields, width, height, params = DEFAULTS }) {
+export function inundate({ heights, riverWidth, water = null, fields, width, height, params = DEFAULTS, riseAt = null }) {
   const n = width * height;
   const depth = new Float32Array(n).fill(NaN);
   const channel = new Uint8Array(n);
@@ -210,6 +210,20 @@ export function inundate({ heights, riverWidth, water = null, fields, width, hei
   const defended = params.defended !== false;
   const riseOf = new Map();
   const surfaceOf = new Map();
+  /**
+   * HOW HIGH THIS RIVER STANDS. A scenario sets one discharge for every river,
+   * so the rise depends only on the width and is cached by it. A FORECAST sets
+   * a discharge per reach — the flood model routes the rain down the catchment
+   * — so it hands a rise per SOURCE CELL, and that is read instead. One
+   * inundation either way: a second copy would drift from this one the first
+   * time either was fixed.
+   */
+  const riseFrom = (s, w) => {
+    if (riseAt) return Number.isFinite(riseAt[s]) ? riseAt[s] : 0;
+    let rise = riseOf.get(w);
+    if (rise === undefined) { rise = stageRise(w, params); riseOf.set(w, rise); }
+    return rise;
+  };
   const below = new Uint8Array(n);
   const channelRise = new Float32Array(n);
   // The river's normal level behind every wet cell, so a level handed on to
@@ -251,8 +265,7 @@ export function inundate({ heights, riverWidth, water = null, fields, width, hei
         channel[c] = 1;
         // The channel is under the flood too: its water stands the river's
         // rise above its normal level, the same surface the banks see.
-        let rise = riseOf.get(w);
-        if (rise === undefined) { rise = stageRise(w, params); riseOf.set(w, rise); }
+        const rise = riseFrom(s, w);
         if (rise > channelRise[c]) { channelRise[c] = rise; normal[c] = surface(s); }
         continue;
       }
@@ -270,9 +283,7 @@ export function inundate({ heights, riverWidth, water = null, fields, width, hei
         below[c] = 1;
         if (defended) continue;
       }
-      let rise = riseOf.get(w);
-      if (rise === undefined) { rise = stageRise(w, params); riseOf.set(w, rise); }
-      const d = hs + rise - hc;
+      const d = hs + riseFrom(s, w) - hc;
       if (d > 0 && !(depth[c] >= d)) { depth[c] = d; normal[c] = hs; }
     }
   }

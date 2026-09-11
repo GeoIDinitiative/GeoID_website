@@ -13,8 +13,9 @@
  * say two different things; `landslide-stations.test.mjs` holds them equal.
  */
 
-import { cellAnswer, planeWetness, slopeStresses } from "./slope-hydrology.js?v=20260911-3209dea";
-import { rockCell } from "./rock-slope.js?v=20260911-3209dea";
+import { cellAnswer, planeWetness, slopeStresses, steadyWetness } from "./slope-hydrology.js?v=20260912-ac4605b";
+import { rockCell } from "./rock-slope.js?v=20260912-ac4605b";
+import { partition, waveStep, floodFos, riseFor } from "./flood-fos.js?v=20260912-ac4605b";
 
 /**
  * What fraction of every cell's water reaches cell `s`: 1 at `s`, the
@@ -89,6 +90,104 @@ export function stationStep({ cell, weights, rainMm, windowH, cells, topo, infil
 }
 
 /**
+ * THE FLOOD AT A STATION, from its own catchment and nothing else.
+ *
+ * A CATCHMENT IS CLOSED UNDER DONORS: if a cell's water reaches the station,
+ * so does the water of every cell flowing into it. So routing over the
+ * catchment alone gives each of its cells the SAME flux the whole-grid pass
+ * gives it — which is what lets a station work out the saturation at every
+ * cell above it, and so the runoff, and so the wave, without the grid. Water
+ * leaving the catchment sideways is simply dropped: by definition it never
+ * reaches the station.
+ *
+ * `idx` must be the catchment in the topology's own high-to-low order, which
+ * is how `upslopeWeights` returns it.
+ */
+export function catchmentTopology(topo, idx, pos) {
+  const m = idx.length;
+  for (let a = 0; a < m; a += 1) pos[idx[a]] = a;
+  const offsets = new Int32Array(m + 1);
+  let count = 0;
+  for (let a = 0; a < m; a += 1) {
+    const u = idx[a];
+    for (let e = topo.offsets[u], z = topo.offsets[u + 1]; e < z; e += 1) if (pos[topo.recv[e]] >= 0) count += 1;
+  }
+  const recv = new Int32Array(count); const frac = new Float32Array(count);
+  let w = 0;
+  for (let a = 0; a < m; a += 1) {
+    offsets[a] = w;
+    const u = idx[a];
+    for (let e = topo.offsets[u], z = topo.offsets[u + 1]; e < z; e += 1) {
+      const v = pos[topo.recv[e]];
+      if (v < 0) continue;
+      recv[w] = v; frac[w] = topo.frac[e]; w += 1;
+    }
+  }
+  offsets[m] = w;
+  // Local indices are already high to low, because `idx` is.
+  const order = new Int32Array(m);
+  for (let a = 0; a < m; a += 1) order[a] = a;
+  for (let a = 0; a < m; a += 1) pos[idx[a]] = -1;
+  return { order, offsets, recv, frac };
+}
+
+/** Buffers a catchment march needs, sized to the biggest catchment among the stations. */
+export function floodScratch(m) {
+  return { q: new Float64Array(m), src: new Float64Array(m), out: new Float32Array(m), inflow: new Float64Array(m) };
+}
+
+/**
+ * ONE MAP AT ONE STATION, for the flood: the recharge routed over the
+ * catchment, the saturation it builds at every cell, the runoff that leaves
+ * on the surface, and one step of the wave. `store` is the station's own and
+ * is carried between maps — a flood is a wave, so the maps must be walked in
+ * order.
+ */
+export function stationFlood({ sub, cells, topo, rainMm, windowH, infiltration = true, lateral = 1,
+  store, kRes, dtS, scratch, capacity = NaN, widthM = NaN, ratio = 5 }) {
+  const { idx, local, at } = sub;
+  const m = idx.length;
+  const B = cells.block || null; const P = cells.props || cells;
+  const per = 1 / (1000 * windowH * 3600);
+  const q = scratch.q.fill(0);
+  for (let a = 0; a < m; a += 1) {
+    const u = idx[a];
+    if (!cells.data[u]) continue;
+    const j = B ? B[u] : u;
+    const rain = rainMm[j];
+    let r = Number.isFinite(rain) ? rain * per : 0;
+    if (infiltration && r > P.K[j]) r = P.K[j];
+    q[a] = r * topo.cellArea;
+  }
+  for (let a = 0; a < m; a += 1) {
+    const v = q[a];
+    if (!v) continue;
+    for (let e = local.offsets[a], z = local.offsets[a + 1]; e < z; e += 1) q[local.recv[e]] += v * local.frac[e];
+  }
+  const src = scratch.src.fill(0);
+  let here = null;
+  for (let a = 0; a < m; a += 1) {
+    const u = idx[a];
+    if (!cells.data[u]) continue;
+    const j = B ? B[u] : u;
+    const rain = rainMm[j];
+    const W = steadyWetness({ q: q[a], b: topo.contour, K: P.K[j], zs: P.zs[j], slopeRad: cells.slopeRad[u], lateral });
+    const p = partition({ rainMs: Number.isFinite(rain) ? rain * per : 0, K: P.K[j], W, infiltration });
+    src[a] = p.runoff * topo.cellArea;
+    if (a === at) here = p;
+  }
+  const out = waveStep({ topo: local, store, source: src, k: kRes, dtS, out: scratch.out, inflow: scratch.inflow });
+  const discharge = out[at];
+  return {
+    discharge,
+    runoff: here ? here.coefficient : NaN,
+    excess: here ? here.runoff * 1000 * 86400 : NaN,
+    floodFos: floodFos(capacity, discharge),
+    stage: Number.isFinite(capacity) ? riseFor({ widthM, q: discharge, capacity, ratio }) : NaN,
+  };
+}
+
+/**
  * What a landslide station records at every map, in the order the model uses
  * them: the rain, what infiltrates, the water table it builds, the water on
  * the failure plane, the stresses that water changes — and their ratio, the
@@ -111,6 +210,11 @@ export const LANDSLIDE_PARAMS = [
   { key: "strength", label: "Shear strength", unit: "kPa", group: "Stresses" },
   { key: "stress", label: "Driving shear stress", unit: "kPa", group: "Stresses" },
   { key: "ru", label: "Water in the rock joints — pore-pressure ratio r_u", unit: "", group: "Rock" },
+  { key: "runoff", label: "Runoff — the share of the rain that ran off", unit: "", group: "Flood" },
+  { key: "excess", label: "Runoff leaving the cell's surface", unit: "mm/day", group: "Flood" },
+  { key: "discharge", label: "Discharge through the cell", unit: "m3/s", group: "Flood" },
+  { key: "floodFos", label: "Channel — factor of safety", unit: "", group: "Flood" },
+  { key: "stage", label: "Water above the river's normal level", unit: "m", group: "Flood" },
 ];
 
 /**
@@ -122,6 +226,12 @@ export const LANDSLIDE_PLOTS = [
   ...LANDSLIDE_PARAMS.map((p) => ({ key: p.key, label: p.label, unit: p.unit, group: p.group, series: [{ key: p.key }] })),
   { key: "strength-vs-stress", label: "Shear strength (solid) against driving stress (dashed)", unit: "kPa", group: "Stresses",
     series: [{ key: "strength" }, { key: "stress", dash: [4, 3] }] },
+  // The hydrograph beside the rain that made it: the lag between them is what
+  // routing a wave buys, and it cannot be seen in either plot alone.
+  { key: "rain-vs-discharge", label: "Discharge (solid) against the rain that made it (dashed)", unit: "m3/s | mm", group: "Flood",
+    series: [{ key: "discharge" }, { key: "catchRain", dash: [4, 3] }] },
+  { key: "slope-vs-channel", label: "Slope factor of safety (solid) against the channel's (dashed)", unit: "", group: "Flood",
+    series: [{ key: "fos" }, { key: "floodFos", dash: [4, 3] }] },
 ];
 
 /**

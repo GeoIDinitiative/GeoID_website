@@ -5,12 +5,13 @@
  */
 import { readFileSync } from "node:fs";
 import { staticStep } from "./landslide-pipeline.js";
-import { upslopeWeights, stationStep, lowestCells, LANDSLIDE_PARAMS } from "./landslide-stations.js";
+import { upslopeWeights, stationStep, stationFlood, catchmentTopology, floodScratch, lowestCells, LANDSLIDE_PARAMS } from "./landslide-stations.js";
 import {
   parseStationsCsv, stationsFromFeatures, uniqueName, seriesCsv, seriesFileName, makeStation, signedLon, colourAt, STATION_COLOURS,
 } from "./station-series.js";
 import { timeTicks, tickLabel, yRangeOf } from "./time-series-plot.js";
-import { mfdTopology, fillSinks } from "./hydrology.js";
+import { mfdTopology, fillSinks, routeFlux } from "./hydrology.js";
+import { residenceTimes, waveStep, partition, bankfullCapacity, HILLSLOPE_V } from "./flood-fos.js";
 import { makeRaster } from "./raster-analysis.js";
 
 let pass = 0;
@@ -178,7 +179,7 @@ const rel = (a, b) => Math.abs(a - b) / Math.max(1e-12, Math.abs(a), Math.abs(b)
   check("the export is one tidy CSV through the page's own download, filed in the project", /downloadText\(name, seriesCsv\(rec\), "text\/csv"\)/.test(src));
   check("a recorded series is announced for what reads it next", /geoid-gis:station-series/.test(src));
   check("the map and a station share one cellAnswer", /export \{ cellAnswer \};/.test(src)
-    && /import \{ cellAnswer, planeWetness, slopeStresses \} from "\.\/slope-hydrology\.js/.test(readFileSync(new URL("./landslide-stations.js", import.meta.url), "utf8")));
+    && /import \{[^}]*\bcellAnswer\b[^}]*\} from "\.\/slope-hydrology\.js/.test(readFileSync(new URL("./landslide-stations.js", import.meta.url), "utf8")));
 }
 
 /* ── the record and the forecast, told apart ─────────────────────────────── */
@@ -229,7 +230,7 @@ const rel = (a, b) => Math.abs(a - b) / Math.max(1e-12, Math.abs(a), Math.abs(b)
 /* ── every term of the answer, at a station ────────────────────────────────── */
 
 {
-  const { slopeStresses, factorOfSafety, WATER_UNIT_WEIGHT } = await import("./slope-hydrology.js");
+  const { slopeStresses, factorOfSafety, WATER_UNIT_WEIGHT, steadyWetness } = await import("./slope-hydrology.js");
   const { LANDSLIDE_PLOTS } = await import("./landslide-stations.js");
   const { markOffset, declutter } = await import("./station-markers.js");
   const args = { slopeRad: 0.5, c: 4, phi: 30, gamma: 19, zf: 1.8, m: 0.6 };
@@ -258,8 +259,51 @@ const rel = (a, b) => Math.abs(a - b) / Math.max(1e-12, Math.abs(a), Math.abs(b)
   check("the catchment's rain is a flow-weighted mean — inside the range of the rain that fell on it",
     out.catchRain >= 10 && out.catchRain <= 26 && Number.isFinite(out.catchRain));
   check("the station's strength and stress give its factor of safety", Math.abs(Math.min(100, out.strength / out.stress) - out.fos) < 1e-9);
+  // A catchment is closed under donors, so a station marching its OWN catchment
+  // must answer exactly what a march over the whole grid answers at that cell —
+  // which is the claim the station flood rests on. Both stepped from rest, over
+  // two frames, so the reservoir stores have to agree as well as the arrivals.
+  const weights = upslopeWeights(topo, cell);
+  const sub = { idx: weights.idx, local: catchmentTopology(topo, weights.idx, new Int32Array(n).fill(-1)), at: weights.idx.indexOf(cell) };
+  const kRes = residenceTimes({ n, slopeRad: cells.slopeRad, capacity: new Float32Array(n), cellM, hillV: HILLSLOPE_V });
+  const subK = Float32Array.from(sub.idx, (u) => kRes[u]);
+  const scratch = floodScratch(sub.idx.length);
+  const store = new Float64Array(sub.idx.length);
+  const wholeStore = new Float64Array(n);
+  const wholeQ = new Float32Array(n); const wholeIn = new Float64Array(n);
+  const per = 1 / (1000 * 24 * 3600);
+  let flood = null; let whole = 0;
+  for (let f = 0; f < 2; f += 1) {
+    const rain = Float32Array.from(rainMm, (v) => v * (f ? 1.6 : 1));
+    flood = stationFlood({ sub, cells, topo, rainMm: rain, windowH: 24, lateral: 2, store, kRes: subK, dtS: 3600, scratch,
+      capacity: bankfullCapacity(30), widthM: 30 });
+    // the whole grid, the way the page marches it: recharge routed, W from the
+    // flux, the partition's runoff as the wave's source.
+    const rq = new Float64Array(n);
+    for (let i = 0; i < n; i += 1) rq[i] = Math.min(rain[i] * per, cells.K[i]) * topo.cellArea;
+    // routeFlux answers with the accumulation; it leaves `rq` alone unless asked.
+    const acc = routeFlux(topo, rq);
+    const src = new Float64Array(n);
+    for (let i = 0; i < n; i += 1) {
+      const W = steadyWetness({ q: acc[i], b: topo.contour, K: cells.K[i], zs: cells.zs[i], slopeRad: cells.slopeRad[i], lateral: 2 });
+      src[i] = partition({ rainMs: rain[i] * per, K: cells.K[i], W }).runoff * topo.cellArea;
+    }
+    waveStep({ topo, store: wholeStore, source: src, k: kRes, dtS: 3600, out: wholeQ, inflow: wholeIn });
+    whole = wholeQ[cell];
+  }
+  check("a station's flood is the whole grid's, because its catchment is closed under donors",
+    rel(flood.discharge, whole) < 1e-6 && flood.discharge > 0, `${flood.discharge} vs ${whole}`);
+
+  // Off a channel there is no bankfull capacity, so the two channel readings are
+  // ABSENT rather than invented — a stage over dry ground would be a number
+  // nobody could act on.
+  const dry = stationFlood({ sub, cells, topo, rainMm, windowH: 24, lateral: 2,
+    store: new Float64Array(sub.idx.length), kRes: subK, dtS: 3600, scratch });
+  check("a station off a channel records no flood factor of safety and no stage",
+    Number.isFinite(dry.discharge) && Number.isNaN(dry.floodFos) && Number.isNaN(dry.stage));
+
   check("every recorded variable is one a plot can draw, and strength is drawn against stress",
-    LANDSLIDE_PARAMS.every((p) => Number.isFinite(out[p.key])) && LANDSLIDE_PLOTS.some((p) => p.series.length === 2 && p.series[1].dash));
+    LANDSLIDE_PARAMS.every((p) => Number.isFinite({ ...out, ...flood }[p.key])) && LANDSLIDE_PLOTS.some((p) => p.series.length === 2 && p.series[1].dash));
 
   check("a ▼'s tip sits on its point: the mark is placed by its bottom centre", JSON.stringify(markOffset(40, 30)) === '{"dx":-20,"dy":-30}');
   const kept = declutter([{ left: 0, right: 50, top: 0, bottom: 12 }, { left: 30, right: 80, top: 4, bottom: 16 }, { left: 100, right: 140, top: 0, bottom: 12 }, null]);

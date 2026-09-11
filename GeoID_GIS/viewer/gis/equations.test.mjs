@@ -18,6 +18,7 @@ import { mathsFor, modelledIds, COMPUTED } from "./equations.js";
 import { makeRaster, slope, hillshade } from "./raster-analysis.js?v=t";
 import { decodeTerrarium } from "./dem-tiles.js?v=t";
 import { factorOfSafety, WATER_UNIT_WEIGHT } from "./fos.js?v=t";
+import { partition, cellVelocity, floodFos, bankfullCapacity, meanFlowFromWidth, waveStep, CHANNEL_V_COEF, CHANNEL_V_EXP, BANKFULL_RATIO } from "./flood-fos.js?v=t";
 import { readFileSync } from "node:fs";
 
 let passed = 0;
@@ -200,6 +201,62 @@ check("the honesty rules the card states are the ones the code enforces", () => 
   ok(/capped at 1/.test(mathsFor("geoid-fos").note), "and the card says both");
   ok(/no answer rather than infinity/.test(mathsFor("geoid-fos").note), "flat ground");
   ok(/capped at 1/.test(mathsFor("geoid-fos").note), "and saturation");
+});
+
+check("the channel card reproduces the flood model the app runs", () => {
+  // e = (P/Dt - r) + r*W, and the balance the card claims: infiltrated + runoff = P.
+  for (const K of [1e-6, 5e-6, 2e-5]) {
+    for (const P of [0, 3e-7, 1e-6, 4e-6, 2e-5]) {
+      for (const W of [0, 0.25, 0.7, 1]) {
+        const p = partition({ rainMs: P, K, W });
+        const r = Math.min(P, K);
+        const fromCard = (P - r) + r * W;
+        near(p.runoff, fromCard, 1e-12, `P=${P} K=${K} W=${W}`);
+        near(p.infiltrated + p.runoff, P, 1e-12, "infiltrated + runoff = P");
+      }
+    }
+  }
+  // v_channel = 0.514 * Q^0.2, and it IS Q/(w*d) on the same hydraulic geometry.
+  // A channel cell takes its own BANKFULL discharge, which is what the card says,
+  // so that is the discharge both sides of the comparison are evaluated at.
+  for (const Qb of [0.5, 12, 340, 9000]) {
+    const w = 7.2 * Qb ** 0.5; const d = 0.27 * Qb ** 0.3;
+    near(CHANNEL_V_COEF * Qb ** CHANNEL_V_EXP, Qb / (w * d), 1e-9, `v at Q=${Qb}`);
+    near(cellVelocity({ slopeRad: 0.1, capacity: Qb }), Qb / (w * d), 1e-6, `cellVelocity at Q=${Qb}`);
+  }
+  near(CHANNEL_V_COEF, 1 / (7.2 * 0.27), 1e-12, "the coefficient is the geometry's");
+  near(0.5 + 0.3 + CHANNEL_V_EXP, 1, 1e-12, "Leopold & Maddock's closure");
+  // FoS = Q_bankfull / Q, with Q_bankfull = 5 * (w/7.2)^2.
+  for (const w of [30, 120, 900]) {
+    near(meanFlowFromWidth(w), (w / 7.2) ** 2, 1e-9, `mean flow from ${w} m`);
+    const cap = bankfullCapacity(w);
+    near(cap, BANKFULL_RATIO * (w / 7.2) ** 2, 1e-9, "bankfull is 5 x mean");
+    near(floodFos(cap, cap / 3), 3, 1e-12, "capacity over arrival");
+  }
+});
+
+check("the wave is the exact integral the card prints, at any step", () => {
+  // One reservoir under a steady arrival: the card's S*a + u*k*(1 - a).
+  const topo = { order: Int32Array.from([0]), offsets: Int32Array.from([0, 0]), recv: new Int32Array(0), frac: new Float32Array(0) };
+  const u = 0.004; const k = Float32Array.from([900]);
+  const run = (dt, steps) => {
+    const store = new Float64Array(1); let released = 0;
+    for (let i = 0; i < steps; i += 1) {
+      const q = waveStep({ topo, store, source: Float64Array.from([u]), k, dtS: dt });
+      released += q[0] * dt;
+    }
+    return { store: store[0], released };
+  };
+  const hourly = run(3600, 10);
+  const fine = run(300, 120);              // the same ten hours, stepped finely
+  nearF32(hourly.released, fine.released, "the same hours release the same water");
+  near(hourly.store, fine.store, 1e-9, "and hold the same");
+  // Against the continuous answer: u*t - u*k*(1 - e^(-t/k)).
+  const t = 36000;
+  nearF32(hourly.released, u * t - u * 900 * (1 - Math.exp(-t / 900)), "the closed form");
+  near(hourly.store, u * 900 * (1 - Math.exp(-t / 900)), 1e-9, "held = u*k*(1 - e^(-t/k))");
+  ok(/EXACT integral/.test(mathsFor("landslide-forecast").lines.map((l) => l.note).join(" ")),
+    "and the card says it is exact");
 });
 
 /* ── the registry, and what carries it ───────────────────────────────────── */

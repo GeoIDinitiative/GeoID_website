@@ -18,31 +18,47 @@
  * the factor of safety that water table leaves on the failure plane — so the
  * run is a stack of static answers, one per map, played through the bar.
  *
- * The physics is `slope-hydrology.js` and the rainfall is `gfs-rain.js`; this
- * file only orchestrates them and says, on every card, what it has read.
+ * AND THE WATER THE SLOPE MODEL CANNOT TAKE IN RUNS OFF, which is the other
+ * hazard in the same storm. `flood-fos.js` routes that runoff down the same
+ * topology as a WAVE — each cell a linear reservoir, so a catchment peaks
+ * hours after the rain — and reads every GRWL river's factor of safety as the
+ * discharge it can carry at its brim over the discharge arriving. One water
+ * balance, two hazards, and the saturation the slope model reports is exactly
+ * what turns the next hour of rain from recharge into flood.
+ *
+ * The physics is `slope-hydrology.js`, `rock-slope.js` and `flood-fos.js`, and
+ * the rainfall is `gfs-rain.js`; this file only orchestrates them and says, on
+ * every card, what it has read.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-3209dea";
-import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260911-3209dea";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260912-ac4605b";
+import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260912-ac4605b";
 import {
   columnMaterial, soilColumn, steadyWetness, planeWetness, factorOfSafety, criticalRecharge,
   FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M, LATERAL_FACTOR, FOS_CAP, cellAnswer,
-} from "./slope-hydrology.js?v=20260911-3209dea";
-import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-3209dea";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-3209dea";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-3209dea";
-import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-3209dea";
-import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainParts, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260911-3209dea";
-import { mathsFor } from "./equations.js?v=20260911-3209dea";
-import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260911-3209dea";
-import { upslopeWeights, stationStep, LANDSLIDE_PARAMS, LANDSLIDE_PLOTS, lowestCells } from "./landslide-stations.js?v=20260911-3209dea";
+} from "./slope-hydrology.js?v=20260912-ac4605b";
+import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260912-ac4605b";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260912-ac4605b";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260912-ac4605b";
+import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260912-ac4605b";
+import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainParts, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260912-ac4605b";
+import { mathsFor } from "./equations.js?v=20260912-ac4605b";
+import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260912-ac4605b";
+import { upslopeWeights, stationStep, stationFlood, catchmentTopology, floodScratch, LANDSLIDE_PARAMS, LANDSLIDE_PLOTS, lowestCells } from "./landslide-stations.js?v=20260912-ac4605b";
 import {
   makeStation, parseStationsCsv, stationsFromFeatures, uniqueName, seriesCsv, seriesFileName, MAX_STATIONS, colourAt,
-} from "./station-series.js?v=20260911-3209dea";
-import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260911-3209dea";
-import { planSeries, rendersOf, stepText, rampMaxFor, STEP_CHOICES, NATIVE_STEP, HOUR } from "./rain-steps.js?v=20260911-3209dea";
-import { mountStationMarkers } from "./station-markers.js?v=20260911-3209dea";
-import { equivalentMohrCoulomb, culmann, culmannAt, rockCell, localRelief, rockfallReach, velocityOf, criticalHeight } from "./rock-slope.js?v=20260911-3209dea";
+} from "./station-series.js?v=20260912-ac4605b";
+import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260912-ac4605b";
+import { planSeries, rendersOf, stepText, rampMaxFor, STEP_CHOICES, NATIVE_STEP, HOUR } from "./rain-steps.js?v=20260912-ac4605b";
+import { mountStationMarkers } from "./station-markers.js?v=20260912-ac4605b";
+import { equivalentMohrCoulomb, culmann, culmannAt, rockCell, localRelief, rockfallReach, velocityOf, criticalHeight } from "./rock-slope.js?v=20260912-ac4605b";
+import {
+  bankfullCapacity, partition, residenceTimes, waveStep, floodFos, riseFor,
+  FLOOD_CLASSES, RUNOFF_CLASSES, DISCHARGE_CLASSES, BANKFULL_RATIO, HILLSLOPE_V,
+} from "./flood-fos.js?v=20260912-ac4605b";
+import { inundate, sourceFields, DEPTH_CLASSES, DEFAULTS as FLOOD_DEFAULTS, meanFlowFromWidth } from "./inundation.js?v=20260912-ac4605b";
+import { burnRivers } from "./river-zones.js?v=20260912-ac4605b";
+import { waterFeatures, waterMasks } from "./water-mask.js?v=20260912-ac4605b";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";
@@ -286,7 +302,11 @@ const state = {
     // The rock model's controls: where bedrock counts as bare, where it sheds
     // blocks, how far they run, the window a slope's height is read over, and
     // how much worse than typical the rock mass is taken to be.
-    exposedDeg: 40, sourceDeg: 45, reachDeg: 32, reliefM: 200, gsiAdj: 0 },
+    exposedDeg: 40, sourceDeg: 45, reachDeg: 32, reliefM: 200, gsiAdj: 0,
+    // The channel model's: how much of the mean flow a channel holds at its
+    // brim, how fast a hillslope passes its water on, how far past the bank a
+    // flood is carried, and whether what the DEM cannot see holds it back.
+    bankfull: BANKFULL_RATIO, hillV: HILLSLOPE_V, reach: FLOOD_DEFAULTS.reach, defended: true },
   // Sampling stations outlive a run and an area: they are the reader's points,
   // and a run only fills them in.
   stations: [], record: null, plotHover: -1,
@@ -297,7 +317,7 @@ const STEPS = [
   { id: "rain", n: 2, title: "Rainfall maps", blurb: "Earth Engine's historical archives and NOAA's GFS over the area, by date: each map the rain over the hours before it." },
   { id: "ground", n: 3, title: "Ground", blurb: "DEM, routing, soil thickness and material — built once." },
   { id: "hydro", n: 4, title: "Hydrogeology", blurb: "The steady water table each rainfall map would build." },
-  { id: "fos", n: 5, title: "Failure models — soil and rock", blurb: "Two complementary models on every cell: a shallow slide in the soil, and failure of the bedrock — a rock slope sliding through its mass, and rockfall from bare, steep rock." },
+  { id: "fos", n: 5, title: "Failure models — slope, rock and channel", blurb: "Three models on one water balance: a shallow slide in the soil, failure of the bedrock, and the rivers overtopping on the runoff the slopes could not take in." },
   { id: "run", n: 6, title: "Run and play", blurb: "One static model per rainfall map, through the bar." },
   { id: "stations", n: 7, title: "Sampling stations", blurb: "Points on the ground where every map's answer is recorded — plotted through time, and exported." },
 ];
@@ -461,7 +481,16 @@ rockfall: sources where rock is bare and β ≥ β_s; reached while under a line
       <div class="row"><label for="lsp-source" title="Bare rock at least this steep sheds blocks. A DEM smooths a cliff: at 30 m a vertical face reads 50–60°, so the threshold is set low of the true cliff angle.">Rockfall sources: bare rock ≥</label><select id="lsp-source" class="input" data-always="1"><option value="40">40°</option><option value="45" selected>45°</option><option value="50">50°</option><option value="55">55°</option><option value="60">60°</option></select></div>
       <div class="row"><label for="lsp-reach" title="The energy-line (Fahrböschung) angle: a falling block travels while it stays under a line dropping from its source at this angle. Around 32° is typical for rockfall reach; a lower angle reaches further (Evans &amp; Hungr 1993; Jaboyedoff &amp; Labiouse 2011).">Rockfall reach angle</label><select id="lsp-reach" class="input" data-always="1"><option value="28">28° — long runout</option><option value="30">30°</option><option value="32" selected>32°</option><option value="35">35°</option><option value="38">38° — short</option></select></div>
       <div class="row"><label for="lsp-relief" title="A rock slope's height H is each cell's height above the lowest ground within this distance. Rock slopes fail by height as much as by angle: H sets the stress range the rock mass is fitted over and the weight on the plane.">Slope height read over</label><select id="lsp-relief" class="input" data-always="1"><option value="100">100 m</option><option value="200" selected>200 m</option><option value="500">500 m</option><option value="1000">1 km</option></select></div>
-      <div class="row"><label for="lsp-gsi" title="The Geological Strength Index the database gives is a TYPICAL field range for the rock; weathered, sheared or blasted ground is worse. This lowers every rock mass by that much.">Rock mass quality (GSI)</label><select id="lsp-gsi" class="input" data-always="1"><option value="0" selected>Typical for the rock</option><option value="-10">10 lower — weathered</option><option value="-20">20 lower — poor, sheared</option><option value="10">10 higher — massive</option></select></div>`)}
+      <div class="row"><label for="lsp-gsi" title="The Geological Strength Index the database gives is a TYPICAL field range for the rock; weathered, sheared or blasted ground is worse. This lowers every rock mass by that much.">Rock mass quality (GSI)</label><select id="lsp-gsi" class="input" data-always="1"><option value="0" selected>Typical for the rock</option><option value="-10">10 lower — weathered</option><option value="-20">20 lower — poor, sheared</option><option value="10">10 higher — massive</option></select></div>
+      <div class="lsp-sub">3 · Channel — the water the slopes could not take in</div>
+      <div class="lsp-eq">e = (P − min(P, Ks)) + min(P, Ks)·W    runoff: too fast to soak in, plus what a full column returns
+S ← S + Q·Δt ;  Q_out = S·(1 − e^(−Δt/k))/Δt    a linear reservoir per cell — the wave
+k = L / v,  v = 0.514·Q_bank^0.2 in a channel, k_v·√sin β on a hillslope
+FoS = Q_bankfull / Q          the channel's, below 1 it is over the brim</div>
+      <p class="compact-copy" style="margin:0 0 0.35rem;opacity:0.8">W is the slope model's own saturation, so the two hazards share one storm: as the hillsides fill, the same rain stops recharging and starts running off. A flood is a wave, so this model is marched through the series in order — it needs a full run, where the other two answer any map on their own.</p>
+      <div class="row"><label for="lsp-bankfull" title="What a channel carries at its brim, as a multiple of the mean flow GRWL's width implies. The annual flood is bankfull by convention; the ratio varies by an order of magnitude between a chalk stream and a monsoon river.">Bankfull capacity (× mean flow)</label><select id="lsp-bankfull" class="input" data-always="1"><option value="3">3 — flashy, little storage</option><option value="5" selected>5 — the annual flood</option><option value="8">8</option><option value="12.5">12.5 — a big channel</option></select></div>
+      <div class="row"><label for="lsp-hillv" title="How fast a hillslope passes its water on: v = k·√(sin β). Lower is a slow, vegetated, permeable catchment; higher is bare or urban ground that answers within the hour.">Hillslope response</label><select id="lsp-hillv" class="input" data-always="1"><option value="0.5">Slow — vegetated, rough</option><option value="1.5" selected>Typical</option><option value="3">Fast — bare or sealed</option></select></div>
+      <div class="row"><label for="lsp-defended" title="Ground already below the river at mean flow is not flooded every day, so something the DEM cannot see is holding the water off it — a levee, a dyke, or a DEM wrong at the channel. Untick to flood it with the rest.">Unseen defences hold</label><span class="checkbox-wrap"><input id="lsp-defended" type="checkbox" checked data-always="1"></span></div>`)}
     ${card(STEPS[5], `
       <div class="row"><label for="lsp-view">Show</label><select id="lsp-view" class="input" data-always="1">
         <option value="mode" selected>Governing failure — soil, rock slope or rockfall — this map</option>
@@ -471,7 +500,14 @@ rockfall: sources where rock is bare and β ≥ β_s; reached while under a line
         <option value="wet">Saturation h / z_s — this map</option>
         <option value="rain">GFS rainfall — this map</option>
         <option value="minfos">Lowest factor of safety over the window</option>
-        <option value="crit">Rainfall to fail (static, mm/day)</option></select></div>
+        <option value="crit">Rainfall to fail (static, mm/day)</option>
+        <optgroup label="Channel — the flood">
+        <option value="floodfos">Channel factor of safety — this map</option>
+        <option value="flooddepth">Flood depth over the ground — this map</option>
+        <option value="discharge">Discharge in the channel — this map</option>
+        <option value="runoff">Runoff — the share of the rain that ran off</option>
+        <option value="minfloodfos">Lowest channel factor of safety over the window</option>
+        </optgroup></select></div>
       <div class="gis-btn-row"><button type="button" class="button" id="lsp-run">Run and play</button><button type="button" class="button secondary" id="lsp-clear">Clear</button></div>`)}
     ${card(STEPS[6], `
       <div class="lsp-st-list" id="lsp-st-list"></div>
@@ -532,6 +568,19 @@ function wire() {
   for (const [id, key] of [["lsp-exposed", "exposedDeg"], ["lsp-source", "sourceDeg"], ["lsp-reach", "reachDeg"], ["lsp-relief", "reliefM"], ["lsp-gsi", "gsiAdj"]]) {
     byId(id).addEventListener("change", (e) => { state.params[key] = Number(e.target.value); buildRock(); rerun(); if (!state.run) markStates(); });
   }
+  // The capacity and the response speed are properties of the ground, so they
+  // rebuild the river half of it and then re-run; the defences only change how
+  // the flood is SPREAD, so they cost a repaint of the frame on screen.
+  for (const [id, key] of [["lsp-bankfull", "bankfull"], ["lsp-hillv", "hillV"]]) {
+    byId(id).addEventListener("change", (e) => {
+      state.params[key] = Number(e.target.value);
+      if (state.ground) void buildFlood().then(() => { rerun(); if (!state.run) markStates(); });
+    });
+  }
+  byId("lsp-defended").addEventListener("change", (e) => {
+    state.params.defended = e.target.checked;
+    if (state.run?.current?.flood) { state.run.current.flood.depth = null; showStep(Math.max(0, state.step)); }
+  });
   byId("lsp-run").addEventListener("click", () => void run());
   byId("lsp-clear").addEventListener("click", () => clear());
 }
@@ -1001,6 +1050,7 @@ async function readGround() {
       + `All ${tally.model.toLocaleString()} cells modelled.`, soil || bedrock || superficial ? "" : "error");
     describeStatic();
     buildRock();
+    await buildFlood();
   } catch (error) {
     say("ground", `The ground could not be read: ${error.message}`, "error");
   } finally {
@@ -1115,6 +1165,93 @@ function buildRock() {
   say("fos", `Rock model: ${pct(rockCells, total)} of the area is rock${none ? ` (${pct(none, total)} is unconsolidated bedrock or unmapped — the soil model alone there)` : ""}; `
     + `${pct(bare, total)} is bare rock, ${sourceCount.toLocaleString()} cells shed blocks and ${reached.toLocaleString()} are within their reach (up to ${vmax.toFixed(0)} m/s). `
     + `Dry, ${dryFail.toLocaleString()} rock-slope cells stand below FoS 1; slope height read over ${pr.reliefM} m.`);
+}
+
+/**
+ * THE CHANNEL HALF OF THE GROUND: the rivers, what they can carry, and how
+ * fast the ground passes water to them.
+ *
+ * GRWL's centrelines are burned onto the model's own grid (`burnRivers`), so a
+ * river cell is a cell the network crosses and its width is the widest reach
+ * through it. The bankfull capacity comes from that width, the residence time
+ * from the channel's own size where there is one and from the gradient where
+ * there is not, and `sourceFields` records every cell's nearest river per band
+ * of widths — geometry, computed once, so every rainfall map after this costs
+ * arithmetic.
+ *
+ * The sea and the lakes come from the same masks the flood sheets use and are
+ * never painted: they are water already.
+ */
+async function buildFlood() {
+  const g = state.ground;
+  if (!g) return;
+  const { grid, eb, cells, n } = g;
+  const pr = state.params;
+  try {
+    say("fos", "Reading the river network\u2026");
+    const [rivers, water] = await Promise.all([
+      waterFeatures("rivers", eb, grid.width), waterMasks(eb, grid.width, grid.height),
+    ]);
+    const { riverWidth } = burnRivers(rivers.features, eb, grid.width, grid.height);
+    const wet = new Uint8Array(n);
+    for (let c = 0; c < n; c += 1) wet[c] = (water.ocean[c] || !Number.isNaN(water.lakeLevel[c])) ? 1 : 0;
+    const capacity = new Float32Array(n).fill(NaN);
+    const list = [];
+    let inArea = 0; let widest = 0; let capSum = 0;
+    for (let i = 0; i < n; i += 1) {
+      const w = riverWidth[i];
+      if (!(w > 0) || !cells.data[i]) continue;
+      capacity[i] = bankfullCapacity(w, pr.bankfull);
+      list.push(i);
+      if (cells.model[i]) { inArea += 1; if (w > widest) widest = w; capSum += capacity[i]; }
+    }
+    const k = residenceTimes({ n, slopeRad: cells.slopeRad, capacity, cellM: grid.stepM, hillV: pr.hillV });
+    await tick();
+    const fields = list.length ? sourceFields(riverWidth, grid.width, grid.height, eb) : [];
+    g.flood = { riverWidth, capacity, k, fields, water: wet, cells: Int32Array.from(list),
+      zoom: rivers.zoom, inArea, widest, params: { bankfull: pr.bankfull, hillV: pr.hillV } };
+    if (!list.length) {
+      say("fos", "No GRWL river reaches this area, so there is no channel to flood \u2014 the slope and rock models still run. "
+        + "GRWL maps rivers 30 m wide and more; a headwater stream is not in it.", "");
+      return;
+    }
+    // A sense of how long the catchment takes to answer: the residence time
+    // along the longest flow path is the lag a reader should expect.
+    const lag = travelToOutlet(g, k);
+    say("fos", `Channel model: ${list.length.toLocaleString()} river cells on the grid `
+      + `(${inArea.toLocaleString()} inside the study area), widest ${Math.round(widest).toLocaleString()} m, `
+      + `carrying up to ${Math.round(Math.max(...list.map((i) => capacity[i]))).toLocaleString()} m\u00b3/s at the brim `
+      + `(${pr.bankfull}\u00d7 the mean flow from GRWL's width). `
+      + `Longest travel time to the outlet ${lag > 48 ? `${(lag / 24).toFixed(1)} days` : `${lag.toFixed(1)} h`} \u2014 `
+      + "that is the lag between the rain and the peak. Rivers from GRWL v01.01 at zoom "
+      + `${rivers.zoom}; mean capacity ${Math.round(capSum / Math.max(1, inArea)).toLocaleString()} m\u00b3/s.`);
+  } catch (error) {
+    g.flood = null;
+    say("fos", `The river network could not be read: ${error.message}. The slope and rock models still run.`, "error");
+  }
+}
+
+/**
+ * The longest travel time from any cell to where water leaves the grid, in
+ * hours: each cell's own residence time plus the slowest of the cells it flows
+ * into. The topology's order runs high to low, so walking it BACKWARDS meets
+ * every receiver before its donors.
+ */
+export function travelToOutlet(g, k) {
+  const { order, offsets, recv } = g.topo;
+  const t = new Float32Array(g.n);
+  let worst = 0;
+  for (let o = order.length - 1; o >= 0; o -= 1) {
+    const i = order[o];
+    let down = 0;
+    for (let m = offsets[i], e = offsets[i + 1]; m < e; m += 1) {
+      const v = t[recv[m]];
+      if (v > down) down = v;
+    }
+    t[i] = down + k[i];
+    if (g.cells.model[i] && t[i] > worst) worst = t[i];
+  }
+  return worst / 3600;
 }
 
 /** Changing the strength re-reads every cell's c′ and φ′ from its material; the rest stands. */
@@ -1321,11 +1458,13 @@ function modelFrame(k) {
   const r = state.rain; const g = state.ground;
   const rainMm = rainMapFor(r.frames[k]);
   if (!g.scratch || g.scratch.source.length !== g.n) {
-    g.scratch = { source: new Float64Array(g.n), fos: new Float32Array(g.n), W: new Float32Array(g.n), rock: new Float32Array(g.n) };
+    g.scratch = { source: new Float64Array(g.n), fos: new Float32Array(g.n), W: new Float32Array(g.n), rock: new Float32Array(g.n),
+      excess: new Float64Array(g.n), runoff: new Float32Array(g.n) };
   }
   const out = staticStep({ rainMm, windowH: r.frames[k].hours, cells: g.cells, topo: g.topo,
     infiltration: state.params.infiltration, lateral: state.params.lateral, scratch: g.scratch });
   out.rockFos = rockFrame(out.q);
+  splitRain(out, r.frames[k]);
   return { ...out, rainMm };
 }
 
@@ -1345,6 +1484,130 @@ function rockFrame(q) {
     out[i] = rockCell({ q: q[i], contour: b, betaRad: cells.slopeRad[i], c: rk.rc[i], phi: rk.rphi[i], gamma: m.gamma, K: m.K, H: rk.H[i], thetaRad: rk.theta[i] }).fos;
   }
   return out;
+}
+
+/**
+ * WHERE THE STORM GOES, at every cell, under one map: what soaks in (the slope
+ * model's recharge, which `staticStep` has already routed) and what is left on
+ * the surface. The saturation `staticStep` reports is what decides it — a
+ * column already full returns what it cannot hold — so the two hazards share
+ * one water balance rather than each taking the whole storm.
+ *
+ * `excess` is the flood model's supply in m³/s per cell; `runoff` the share of
+ * the rain that ran off, which is the map that says WHY a catchment is
+ * flashy on one day and not on another.
+ */
+function splitRain(out, frame) {
+  const g = state.ground; const { cells, n, topo } = g;
+  const B = cells.block; const P = cells.props;
+  const per = 1 / (1000 * frame.hours * 3600);
+  const excess = g.scratch.excess.fill(0);
+  const coef = g.scratch.runoff.fill(NaN);
+  const infiltration = state.params.infiltration;
+  let rainSum = 0; let offSum = 0;
+  for (let i = 0; i < n; i += 1) {
+    if (!cells.data[i]) continue;
+    const j = B[i];
+    const rain = out.rainMm[j];
+    if (!Number.isFinite(rain)) continue;
+    const p = partition({ rainMs: rain * per, K: P.K[j], W: out.W[i], infiltration });
+    excess[i] = p.runoff * topo.cellArea;
+    coef[i] = p.coefficient;
+    if (cells.model[i] && rain > 0) { rainSum += rain * per; offSum += p.runoff; }
+  }
+  out.excess = excess; out.runoff = coef;
+  out.runoffShare = rainSum > 0 ? offSum / rainSum : 0;
+  return out;
+}
+
+/** The seconds a frame stands for: the gap to the map before it, not its rainfall window. */
+export function frameStepSeconds(frames, k) {
+  const now = Date.parse(frames[k].time);
+  const before = k > 0 ? Date.parse(frames[k - 1].time) : now - (frames[k].hours * 3600000);
+  const dt = (now - before) / 1000;
+  return Number.isFinite(dt) && dt > 60 ? dt : Math.max(60, (frames[k].hours || 1) * 3600);
+}
+
+/**
+ * A WAVE HAS TO BE MARCHED IN ORDER, which is what makes the flood model
+ * different in kind from the other two: each of those is a static answer to
+ * one map and can be recomputed for any frame on demand, while this one
+ * carries its water from map to map. So the run marches it once, front to
+ * back, and keeps the discharge AT THE RIVER CELLS for every frame — a few
+ * thousand cells rather than the whole grid, which is what makes scrubbing the
+ * bar free afterwards. Off the channel there is no capacity and no flood to
+ * report, so nothing is lost by not keeping it.
+ */
+function startWave(frames) {
+  const g = state.ground; const fl = g.flood;
+  if (!fl || !fl.cells.length) return null;
+  const R = fl.cells.length;
+  return {
+    store: new Float64Array(g.n), inflow: new Float64Array(g.n), q: new Float32Array(g.n),
+    series: new Float32Array(frames.length * R), peak: new Float32Array(R),
+    minFos: new Float32Array(R).fill(Infinity), R,
+  };
+}
+
+function waveFrame(wave, out, frames, k) {
+  const g = state.ground; const fl = g.flood; const cells = g.cells;
+  waveStep({ topo: g.topo, store: wave.store, source: out.excess, k: fl.k,
+    dtS: frameStepSeconds(frames, k), out: wave.q, inflow: wave.inflow });
+  const base = k * wave.R;
+  let over = 0; let peakQ = 0; let worst = Infinity;
+  for (let m = 0; m < wave.R; m += 1) {
+    const i = fl.cells[m];
+    const q = wave.q[i];
+    wave.series[base + m] = q;
+    if (q > wave.peak[m]) wave.peak[m] = q;
+    if (!cells.model[i]) continue;
+    const fos = floodFos(fl.capacity[i], q);
+    if (fos < wave.minFos[m]) wave.minFos[m] = fos;
+    if (fos < 1) over += 1;
+    if (fos < worst) worst = fos;
+    if (q > peakQ) peakQ = q;
+  }
+  return { over, peakQ, worstFos: Number.isFinite(worst) ? worst : NaN, runoffShare: out.runoffShare };
+}
+
+/**
+ * One frame's flood, read back out of the marched wave: the discharge and the
+ * factor of safety on every river cell, and the stage each reach stands at —
+ * which is what `inundate` spreads over the ground when the depth view asks
+ * for it. Buffers are kept on the run: a scrub would otherwise churn three
+ * arrays the size of the grid per step.
+ */
+function floodFrame(k) {
+  const g = state.ground; const run = state.run; const fl = g?.flood; const wave = run?.wave;
+  if (!fl || !wave) return null;
+  if (!run.floodScratch) {
+    run.floodScratch = { q: new Float32Array(g.n), fos: new Float32Array(g.n), rise: new Float32Array(g.n) };
+  }
+  const { q, fos, rise } = run.floodScratch;
+  q.fill(NaN); fos.fill(NaN); rise.fill(0);
+  const base = k * wave.R; const ratio = state.params.bankfull;
+  for (let m = 0; m < wave.R; m += 1) {
+    const i = fl.cells[m];
+    const v = wave.series[base + m];
+    q[i] = v;
+    fos[i] = floodFos(fl.capacity[i], v);
+    rise[i] = riseFor({ widthM: fl.riverWidth[i], q: v, capacity: fl.capacity[i], ratio });
+  }
+  return { q, fos, rise, depth: null };
+}
+
+/** The flood spread over the ground for the frame on screen — only when a view asks. */
+function floodDepth(frame) {
+  const g = state.ground; const fl = g.flood;
+  if (!frame || frame.depth) return frame?.depth || null;
+  const pr = state.params;
+  const out = inundate({
+    heights: g.grid.band, riverWidth: fl.riverWidth, water: fl.water, fields: fl.fields,
+    width: g.grid.width, height: g.grid.height, riseAt: frame.rise,
+    params: { ...FLOOD_DEFAULTS, reach: pr.reach, defended: pr.defended, connected: true },
+  });
+  frame.depth = out.depth; frame.cutOff = out.cutOff; frame.channel = out.channel;
+  return frame.depth;
 }
 
 /** Which model speaks for a cell: bare rock is the rock model's; elsewhere the weaker of the two. */
@@ -1417,6 +1680,36 @@ const VIEW = {
     classOf: (v) => (v < 0 ? 0 : Number.isFinite(v) ? 1 + classIn(ROCKFALL_CLASSES, v) : -1),
   },
   minfos: { label: "Lowest factor of safety over the window — whichever model governs", classes: FOS_VIEW_CLASSES, classOf: (v) => classIn(FOS_VIEW_CLASSES, v) },
+  floodfos: {
+    label: "Channel — factor of safety (what it carries at the brim / what is arriving)",
+    classes: FLOOD_CLASSES,
+    value: (i, fo) => (fo.flood ? fo.flood.fos[i] : NaN),
+    classOf: (v) => classIn(FLOOD_CLASSES, v),
+  },
+  flooddepth: {
+    label: "Flood depth over the ground (m)",
+    classes: DEPTH_CLASSES,
+    value: (i, fo) => { const d = fo.flood?.depth; return d ? d[i] : NaN; },
+    classOf: (v) => (v > 0 ? classIn(DEPTH_CLASSES, v) : -1),
+  },
+  discharge: {
+    label: "Discharge in the channel (m³/s)",
+    classes: DISCHARGE_CLASSES,
+    value: (i, fo) => (fo.flood ? fo.flood.q[i] : NaN),
+    classOf: (v) => (v > 0 ? classIn(DISCHARGE_CLASSES, v) : -1),
+  },
+  minfloodfos: {
+    label: "Lowest channel factor of safety over the window",
+    classes: FLOOD_CLASSES,
+    value: (i, fo, rk, run) => (run.floodMin ? run.floodMin[i] : NaN),
+    classOf: (v) => classIn(FLOOD_CLASSES, v),
+  },
+  runoff: {
+    label: "Runoff — the share of the rain that ran off",
+    classes: RUNOFF_CLASSES,
+    value: (i, fo) => fo.runoff[i],
+    classOf: (v) => (Number.isFinite(v) ? classIn(RUNOFF_CLASSES, v) : -1),
+  },
   wet: {
     label: "Saturation h / z_s",
     classes: [
@@ -1450,6 +1743,9 @@ const hex = (rgb) => rgb.map((c) => c.toString(16).padStart(2, "0")).join("");
 function paintView(frameOut) {
   const run = state.run; const g = state.ground; const rk = g.rock;
   const view = VIEW[state.view] || VIEW.mode;
+  // The spread over the floodplain is the one expensive reading here, so it is
+  // computed for the frame on screen and only when a view asks for it.
+  if (state.view === "flooddepth" && frameOut.flood) floodDepth(frameOut.flood);
   const classOf = view.classOf || ((v) => classIn(view.classes, v));
   const src = view.value ? null : state.view === "wet" ? frameOut.W : state.view === "rain" ? frameOut.rainMm
     : state.view === "minfos" ? run.minFos : (g.critShown || (g.critShown = g.crit.map((v) => (v === Infinity ? 1e9 : v))));
@@ -1459,7 +1755,7 @@ function paintView(frameOut) {
   for (let y = 0; y < sub.height; y += 1) {
     for (let x = 0; x < sub.width; x += 1) {
       const i = (y + sub.y0) * g.grid.width + (x + sub.x0);
-      const v = !c_.data[i] ? NaN : view.value ? view.value(i, frameOut, rk) : state.view === "rain" ? src[c_.block[i]] : src[i];
+      const v = !c_.data[i] ? NaN : view.value ? view.value(i, frameOut, rk, run) : state.view === "rain" ? src[c_.block[i]] : src[i];
       run.band[y * sub.width + x] = v;
       const c = classOf(v);
       if (c >= 0) counts[c] += 1;
@@ -1479,6 +1775,7 @@ function showStep(k) {
   if (!run) return;
   state.step = k;
   run.current = modelFrame(k);
+  run.current.flood = floodFrame(k);
   run.current.frame = k;
   paintView(run.current);
   paintRain(k);
@@ -1501,8 +1798,12 @@ async function run({ keepStep = false } = {}) {
     const minAt = new Int16Array(g.n).fill(-1);
     const summary = [];
     const exposed = g.rock?.exposed;
+    // The wave is marched here, in order, and nowhere else: `showStep` reads
+    // the discharge it recorded rather than re-running it.
+    const wave = startWave(frames);
     for (let k = 0; k < frames.length; k += 1) {
       const out = modelFrame(k);
+      const flood = wave ? waveFrame(wave, out, frames, k) : null;
       let maxRain = 0; let soilFail = 0; let rockFail = 0;
       for (let i = 0; i < g.n; i += 1) {
         if (!g.cells.model[i]) continue;
@@ -1515,7 +1816,9 @@ async function run({ keepStep = false } = {}) {
         if (!Number.isFinite(v)) continue;
         if (!(minFos[i] <= v)) { minFos[i] = v; minAt[i] = k; }
       }
-      summary.push({ failing: soilFail + rockFail, soilFail, rockFail, applicable: out.applicable, meanW: out.meanW, maxRain });
+      summary.push({ failing: soilFail + rockFail, soilFail, rockFail, applicable: out.applicable, meanW: out.meanW, maxRain,
+        over: flood ? flood.over : 0, peakQ: flood ? flood.peakQ : 0, worstFos: flood ? flood.worstFos : NaN,
+        runoffShare: out.runoffShare });
       if (k % 8 === 7) { say("run", `Running static models… ${k + 1} of ${frames.length}`); await tick(); }
     }
     const band = new Float32Array(g.sub.width * g.sub.height).fill(NaN);
@@ -1531,9 +1834,21 @@ async function run({ keepStep = false } = {}) {
       citation: "Montgomery & Dietrich (1994); Pack, Tarboton & Goodwin (1998); Quinn et al. (1991); Cosby et al. (1984)",
       maths: mathsFor("landslide-forecast"),
     };
-    state.run = { layer, built, band, frames, summary, minFos, minAt, current: null };
+    // The lowest channel factor of safety over the whole window, as a map.
+    let floodMin = null;
+    if (wave) {
+      floodMin = new Float32Array(g.n).fill(NaN);
+      for (let m = 0; m < wave.R; m += 1) {
+        const v = wave.minFos[m];
+        if (Number.isFinite(v)) floodMin[g.flood.cells[m]] = v;
+      }
+    }
+    state.run = { layer, built, band, frames, summary, minFos, minAt, current: null, wave, floodMin, floodScratch: null };
     let worst = 0;
-    summary.forEach((s, k) => { if (s.failing > summary[worst].failing || (s.failing === summary[worst].failing && s.meanW > summary[worst].meanW)) worst = k; });
+    summary.forEach((s, k) => {
+      const now = s.failing + s.over; const best = summary[worst].failing + summary[worst].over;
+      if (now > best || (now === best && s.meanW > summary[worst].meanW)) worst = k;
+    });
     const startAt = resume >= 0 && resume < frames.length ? resume : worst;
     showStep(startAt);
     const epochs = frames.map((f, k) => ({ date: f.time, label: `${f.label || f.time.replace("T", " ")} · ${periodOf(f.time)}`, dataset: null, index: k }));
@@ -1541,8 +1856,9 @@ async function run({ keepStep = false } = {}) {
     await startPlayer({
       bounds: { west: g.sub.bounds.minX, east: g.sub.bounds.maxX, south: g.sub.bounds.minY, north: g.sub.bounds.maxY },
       epochs, source: "none", interval: 400, startAt,
-      noteFor: (e) => { const s = summary[e.index]; return `soil ${s.soilFail.toLocaleString()} · rock ${s.rockFail.toLocaleString()} failing · ${s.maxRain.toFixed(0)} mm`; },
-      noteTitle: (e) => { const s = summary[e.index]; return `${periodOf(e.date) === "forecast" ? "Forecast" : "Record"}: ${r.sourceLabel(frames[e.index])} rain over the ${frames[e.index].hours} h to ${e.date}: up to ${s.maxRain.toFixed(0)} mm in the area; ${s.soilFail} cells below FoS 1 in the soil model and ${s.rockFail} in the rock-slope model, of ${s.applicable}; mean saturation ${s.meanW.toFixed(2)}.`; },
+      noteFor: (e) => { const s = summary[e.index]; return `soil ${s.soilFail.toLocaleString()} · rock ${s.rockFail.toLocaleString()}${wave ? ` · channel ${s.over.toLocaleString()}` : ""} · ${s.maxRain.toFixed(0)} mm`; },
+      noteTitle: (e) => { const s = summary[e.index]; return `${periodOf(e.date) === "forecast" ? "Forecast" : "Record"}: ${r.sourceLabel(frames[e.index])} rain over the ${frames[e.index].hours} h to ${e.date}: up to ${s.maxRain.toFixed(0)} mm in the area; ${s.soilFail} cells below FoS 1 in the soil model and ${s.rockFail} in the rock-slope model, of ${s.applicable}; mean saturation ${s.meanW.toFixed(2)}; ${(100 * s.runoffShare).toFixed(0)}% of the rain running off`
+        + `${wave ? `, ${s.over} river cells over their brim, peak discharge ${Math.round(s.peakQ).toLocaleString()} m³/s` : ""}.`; },
       onStatus: (m) => say("run", m),
       onShow: (index) => showStep(index),
       onStop: () => { state.playing = false; },
@@ -1552,6 +1868,7 @@ async function run({ keepStep = false } = {}) {
     say("run", `${frames.length} static models, one per rainfall map. Worst map ${frames[worst].time.replace("T", " ")}: ${w.soilFail.toLocaleString()} soil and ${w.rockFail.toLocaleString()} rock-slope cells below FoS 1 of ${w.applicable.toLocaleString()} under up to ${w.maxRain.toFixed(0)} mm in ${frames[worst].hours} h. `
       + `${ever.toLocaleString()} cells fall below 1 at some point in whichever model governs them. `
       + `${g.rock ? `Rockfall: ${[...g.rock.source].filter((v, i) => v && g.cells.model[i]).length.toLocaleString()} source cells, ${[...g.rock.energy].filter((v, i) => Number.isFinite(v) && g.cells.model[i]).length.toLocaleString()} within reach. ` : ""}`
+      + floodReport(wave, summary, frames)
       + "Scrub the bar; change the view; click a cell for its numbers.");
     void recordStations();
   } catch (error) {
@@ -1562,12 +1879,37 @@ async function run({ keepStep = false } = {}) {
   }
 }
 
+/**
+ * WHAT THE CHANNEL DID, and the lag that is the point of routing a wave. The
+ * worst channel frame is reported against the wettest one, because on any
+ * catchment bigger than a hillside they are not the same map — and the gap
+ * between them is the warning a forecast gives.
+ */
+function floodReport(wave, summary, frames) {
+  if (!wave) return "";
+  const g = state.ground;
+  let worstK = 0; let wettest = 0;
+  summary.forEach((s, k) => {
+    if (s.over > summary[worstK].over || (s.over === summary[worstK].over && s.peakQ > summary[worstK].peakQ)) worstK = k;
+    if (s.maxRain > summary[wettest].maxRain) wettest = k;
+  });
+  const w = summary[worstK];
+  const ever = [...wave.minFos].filter((v) => Number.isFinite(v) && v < 1).length;
+  const lagH = (Date.parse(frames[worstK].time) - Date.parse(frames[wettest].time)) / 3600000;
+  const share = Math.max(...summary.map((s) => s.runoffShare));
+  return `Channel: ${w.over.toLocaleString()} of ${g.flood.inArea.toLocaleString()} river cells over their brim at their worst map (${frames[worstK].time.replace("T", " ")}), `
+    + `peak discharge ${Math.round(w.peakQ).toLocaleString()} m³/s; ${ever.toLocaleString()} go over at some point. `
+    + `${lagH > 0 ? `The channel's worst map is ${lagH.toFixed(0)} h after the wettest one — that is the catchment's own lag. ` : lagH < 0 ? "" : "The channel peaks on the wettest map: the catchment answers within one step. "}`
+    + `Up to ${(100 * share).toFixed(0)}% of the rain ran off. `;
+}
+
 function clear({ keepInputs = false } = {}) {
   if (state.playing) { try { stopPlayer(); } catch (e) { /* gone */ } state.playing = false; }
   const layer = (window.GeoIDImportManager?.getLayers?.() || []).find((l) => l.name === LAYER_NAME);
   if (layer) window.GeoIDImportManager?.removeLayer?.(layer.id);
   state.run = null; state.step = -1; state.record = null;
   renderStations(); drawPlot();
+  if (state.ground) { state.ground.stationSub = null; }
   if (!keepInputs) { removeRainLayer(); state.rain = null; state.ground = null; state.bounds = null; ["area", "rain", "ground", "hydro", "run"].forEach((id) => say(id, "")); }
   markStates();
 }
@@ -1608,8 +1950,21 @@ async function recordStations() {
   const need = at.filter((a) => a.cell >= 0 && !g.stationWeights.has(a.cell));
   if (need.length) say("stations", `Tracing ${need.length} station catchment${need.length > 1 ? "s" : ""} up the flow network…`);
   const scratch = need.length ? new Float64Array(g.n) : null;
+  const pos = need.length && g.flood ? new Int32Array(g.n).fill(-1) : null;
+  g.stationSub = g.stationSub || new Map();
   for (const a of need) {
-    g.stationWeights.set(a.cell, upslopeWeights(g.topo, a.cell, scratch));
+    const weights = upslopeWeights(g.topo, a.cell, scratch);
+    g.stationWeights.set(a.cell, weights);
+    // The flood is a WAVE, so the station marches its own catchment rather
+    // than reading a weighted sum: the sub-topology is what it marches.
+    if (pos) {
+      const local = catchmentTopology(g.topo, weights.idx, pos);
+      let at = -1;
+      for (let m = 0; m < weights.idx.length; m += 1) if (weights.idx[m] === a.cell) { at = m; break; }
+      const kRes = new Float32Array(weights.idx.length);
+      for (let m = 0; m < weights.idx.length; m += 1) kRes[m] = g.flood.k[weights.idx[m]];
+      g.stationSub.set(a.cell, { idx: weights.idx, local, at, kRes });
+    }
     await tick();
     if (ticket !== recording) return;
   }
@@ -1629,6 +1984,18 @@ async function recordStations() {
       ks_m_s: mat?.K, lateral_factor: state.params.lateral,
       rainfall_to_fail_mm_day: crit === Infinity ? "holds saturated" : crit === 0 ? "fails dry" : Number.isFinite(crit) ? +crit.toFixed(1) : "",
       ...(() => {
+        const f = g.flood;
+        if (!f) return {};
+        const w = f.riverWidth[cell];
+        return {
+          on_a_river: w > 0 ? "yes" : "no",
+          river_width_m: w > 0 ? Math.round(w) : "",
+          bankfull_capacity_m3_s: w > 0 ? +f.capacity[cell].toFixed(1) : "",
+          mean_flow_m3_s: w > 0 ? +(f.capacity[cell] / state.params.bankfull).toFixed(1) : "",
+          cell_residence_time_min: +(f.k[cell] / 60).toFixed(1),
+        };
+      })(),
+      ...(() => {
         const rk = g.rock; const rm = g.rocks?.list[P.rock[j]];
         if (!rk) return {};
         return {
@@ -1645,12 +2012,34 @@ async function recordStations() {
     };
   });
   const live = at.filter((a) => a.cell >= 0);
+  const fl = g.flood;
+  const stores = new Map();
+  let fscratch = null;
+  if (fl && live.length) {
+    let widest = 0;
+    live.forEach(({ cell }) => {
+      const sub = g.stationSub.get(cell);
+      if (!sub) return;
+      stores.set(cell, new Float64Array(sub.idx.length));
+      if (sub.idx.length > widest) widest = sub.idx.length;
+    });
+    if (widest) fscratch = floodScratch(widest);
+  }
   for (let k = 0; k < frames.length; k += 1) {
     if (live.length) {
       const rainMm = rainMapFor(frames[k]);
       for (const { st, cell } of live) {
         const out = stationStep({ cell, weights: g.stationWeights.get(cell), rainMm, windowH: frames[k].hours, cells: g.cells, topo: g.topo,
           infiltration: state.params.infiltration, lateral: state.params.lateral, rock: rockAt(cell) });
+        const sub = fscratch ? g.stationSub.get(cell) : null;
+        if (sub) {
+          Object.assign(out, stationFlood({
+            sub, cells: g.cells, topo: g.topo, rainMm, windowH: frames[k].hours,
+            infiltration: state.params.infiltration, lateral: state.params.lateral,
+            store: stores.get(cell), kRes: sub.kRes, dtS: frameStepSeconds(frames, k), scratch: fscratch,
+            capacity: fl.capacity[cell], widthM: fl.riverWidth[cell], ratio: state.params.bankfull,
+          }));
+        }
         for (const p of LANDSLIDE_PARAMS) values[st.id][p.key][k] = out[p.key];
       }
     }

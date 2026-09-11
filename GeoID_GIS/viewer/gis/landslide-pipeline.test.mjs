@@ -130,7 +130,11 @@ check("lateral flow is a control, with the stated default", /lateral: LATERAL_FA
 check("the drawn sheet is bounded by its cells' edges, not the asked box", /sub\.bounds = \{ minX: eb\.west \+ x0 \* cw/.test(src));
 
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
-check("the page hosts the flowchart in the Landslides subtab and loads the module", /id="landslide-pipeline"/.test(html) && /gis\/landslide-pipeline\.js\?v=/.test(html));
+// One storm, three failures — so it is its own Hazards subtab rather than a
+// landslide product, and the id it is hosted at is unchanged.
+check("the page hosts the flowchart in its own Hazards subtab and loads the module",
+  /<summary>Storm hazards<\/summary>\s*<div class="gis-tool-body">\s*<div id="landslide-pipeline">/.test(html)
+  && /gis\/landslide-pipeline\.js\?v=/.test(html));
 const popup = readFileSync(new URL("./feature-popup.js", import.meta.url), "utf8");
 check("no cell is left out for its slope or its thin soil", !/MIN_SLOPE_DEG/.test(src) && !/not modelled/.test(src)
   && /cells\.model\[i\] = 1; tally\.model \+= 1;/.test(src));
