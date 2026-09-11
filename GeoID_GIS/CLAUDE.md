@@ -17755,3 +17755,28 @@ take the layers too. Measured: 11 studio layers before New, 0 after.
 a probe that captures without clearing will find clicks never reach the canvas
 (the click is stopped in capture before the target). Reproduce the user's
 flow, not a shortcut through half of it.
+
+## The volcanoes live in Hazards now; UK geology is out of the catalogue
+
+**Geology ▸ Volcanoes merged into Hazards ▸ Volcanic hazards.** The
+Smithsonian row is now HOMED in `volcanic-hazards`; it is no longer a mirror, and
+`MIRRORS` is empty but kept as the seam. The drawer under the row
+(`#volcano-hazard-buffers`, the entry's `settings`) now opens with the old
+subtab's labelled **Label detail** slider and caption (`#volcano-detail`,
+`#volcano-detail-copy`, still wired by `wireVolcanoDetail`), followed by the
+per-type toggles (`#volcano-types`) and then the buffers. The entry sets
+`ownDetail`, so `catalogue-list` skips its compact inline slider there: two
+sliders for one level would be two controls for one idea. `ownDetail`
+is carried in BOTH catalogue projections, the trap this file has paid for
+three times. The `geology-volcanoes` home and its host are gone. The earlier
+home table's `geology-volcanoes` row is history.
+
+**The two UK geology (BGS 625k) rows left the catalogue**, along with their
+group. The `bgs-geology-*` connectors stay in `research/connectors.js` for the
+Research Hub. The ground profile's superficial-deposit row now says to import
+a superficial map rather than to tick a row that no longer exists.
+
+**Icons:** Soil and surface materials is a hill, Rock properties a rock, and
+Volcanic hazards the volcano its merged subtab wore (`TOOL_ICONS`, keyed by the
+summary's lower-case title). Tropical cyclones, Seismic hazards and Exposure
+still wear the fallback bracket.
