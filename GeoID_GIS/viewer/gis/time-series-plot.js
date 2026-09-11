@@ -72,7 +72,7 @@ export function yRangeOf(lines, { min = null, max = null, clip = null, floor = n
  * Returns the layout, so a caller can turn a pointer into the nearest time.
  */
 export function drawTimeSeries(canvas, {
-  times = [], lines = [], yLabel = "", range = null, refs = [], marker = -1, hover = -1, empty = "No readings yet.",
+  times = [], lines = [], yLabel = "", range = null, refs = [], marker = -1, hover = -1, empty = "No readings yet.", now = null,
 } = {}) {
   const dpr = globalThis.devicePixelRatio || 1;
   const cssW = canvas.clientWidth || 320; const cssH = canvas.clientHeight || 180;
@@ -133,6 +133,18 @@ export function drawTimeSeries(canvas, {
     ctx.strokeStyle = r.colour || "#ff7b7b"; ctx.setLineDash([4, 3]);
     ctx.beginPath(); ctx.moveTo(box.left, y); ctx.lineTo(box.right, y); ctx.stroke(); ctx.setLineDash([]);
     if (r.label) { ctx.fillStyle = r.colour || "#ff7b7b"; ctx.textAlign = "right"; ctx.textBaseline = "bottom"; ctx.fillText(r.label, box.right - 2, y - 1); }
+  }
+
+  // Now: the record to its left, the forecast to its right, shaded so the two
+  // are never read as one kind of number.
+  if (Number.isFinite(now) && now > t0 && now < t1) {
+    const x = Math.round(toX(now)) + 0.5;
+    ctx.fillStyle = "rgba(255, 211, 106, 0.06)"; ctx.fillRect(x, box.top, box.right - x, box.bottom - box.top);
+    ctx.strokeStyle = "rgba(255, 211, 106, 0.8)"; ctx.setLineDash([2, 2]);
+    ctx.beginPath(); ctx.moveTo(x, box.top); ctx.lineTo(x, box.bottom); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = "rgba(255, 211, 106, 0.95)"; ctx.textBaseline = "top";
+    ctx.textAlign = "right"; ctx.fillText("record", x - 3, box.top + 1);
+    ctx.textAlign = "left"; ctx.fillText("forecast", x + 3, box.top + 1);
   }
 
   // The frame on the globe.

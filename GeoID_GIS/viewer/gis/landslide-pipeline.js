@@ -22,24 +22,24 @@
  * file only orchestrates them and says, on every card, what it has read.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-0c1b56f";
-import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260911-0c1b56f";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-04674ae";
+import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260911-04674ae";
 import {
   columnMaterial, soilColumn, steadyWetness, planeWetness, factorOfSafety, criticalRecharge,
   FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M, LATERAL_FACTOR, FOS_CAP, cellAnswer,
-} from "./slope-hydrology.js?v=20260911-0c1b56f";
-import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-0c1b56f";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-0c1b56f";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-0c1b56f";
-import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-0c1b56f";
-import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainDays, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260911-0c1b56f";
-import { mathsFor } from "./equations.js?v=20260911-0c1b56f";
-import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260911-0c1b56f";
-import { upslopeWeights, stationStep, LANDSLIDE_PARAMS, lowestCells } from "./landslide-stations.js?v=20260911-0c1b56f";
+} from "./slope-hydrology.js?v=20260911-04674ae";
+import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-04674ae";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-04674ae";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-04674ae";
+import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-04674ae";
+import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainDays, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260911-04674ae";
+import { mathsFor } from "./equations.js?v=20260911-04674ae";
+import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260911-04674ae";
+import { upslopeWeights, stationStep, LANDSLIDE_PARAMS, lowestCells } from "./landslide-stations.js?v=20260911-04674ae";
 import {
   makeStation, parseStationsCsv, stationsFromFeatures, uniqueName, seriesCsv, seriesFileName, MAX_STATIONS, colourAt,
-} from "./station-series.js?v=20260911-0c1b56f";
-import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260911-0c1b56f";
+} from "./station-series.js?v=20260911-04674ae";
+import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260911-04674ae";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";
@@ -410,9 +410,9 @@ export function render(host) {
         <option value="imerg">Earth Engine GPM IMERG — daily, ~11 km, to yesterday (needs the service redeployed)</option>
         <option value="gsmap">Earth Engine GSMaP — daily, ~11 km, to hours ago (needs the service redeployed)</option>
         <option value="era5land">Earth Engine ERA5-Land — daily, ~9 km (needs the service redeployed)</option></select></div>
-      <div class="row"><label for="lsp-rain-start">From</label><input id="lsp-rain-start" class="input" type="date" value="${isoDay(now)}"></div>
-      <div class="row"><label for="lsp-rain-end">To</label><input id="lsp-rain-end" class="input" type="date" value="${isoDay(now + 6 * 86400000)}"></div>
-      <div class="gis-btn-row"><button type="button" class="button secondary" id="lsp-rain-next">Next 7 days</button><button type="button" class="button secondary" id="lsp-rain-past">Past 7 days</button></div>
+      <div class="row"><label for="lsp-rain-start">From</label><input id="lsp-rain-start" class="input" type="date" value="${isoDay(now - 7 * 86400000)}"></div>
+      <div class="row"><label for="lsp-rain-end">To</label><input id="lsp-rain-end" class="input" type="date" value="${isoDay(now + 7 * 86400000)}"></div>
+      <div class="gis-btn-row"><button type="button" class="button secondary" id="lsp-rain-around" title="The week that has happened and the week forecast, in one run: the record from Earth Engine where it holds the days, GFS's forecast after today.">7 days either side</button><button type="button" class="button secondary" id="lsp-rain-past">Past 7</button><button type="button" class="button secondary" id="lsp-rain-next">Next 7</button></div>
       <div class="row"><label for="lsp-rain-window" title="Each map is the GFS rain summed over this many hours before it. The slope model is a steady state, so this is the duration the recharge is assumed to be sustained over — a day is the usual choice; longer carries more of the antecedent wet.">Each map: rain over the last</label><select id="lsp-rain-window" class="input">
         <option value="6">6 h</option><option value="12">12 h</option><option value="24" selected>24 h</option><option value="48">48 h</option><option value="72">72 h</option></select></div>
       <div class="row"><label for="lsp-rain-every">One map every</label><select id="lsp-rain-every" class="input">
@@ -492,6 +492,7 @@ function wire() {
     markStates();
   });
   const setDates = (from, to) => { byId("lsp-rain-start").value = isoDay(from); byId("lsp-rain-end").value = isoDay(to); };
+  byId("lsp-rain-around").addEventListener("click", () => setDates(Date.now() - 7 * 86400000, Date.now() + 7 * 86400000));
   byId("lsp-rain-next").addEventListener("click", () => setDates(Date.now(), Date.now() + 6 * 86400000));
   byId("lsp-rain-past").addEventListener("click", () => setDates(Date.now() - 7 * 86400000, Date.now() - 86400000));
   byId("lsp-rain-fetch").addEventListener("click", () => void fetchRain());
@@ -975,6 +976,17 @@ function rerun() {
 
 /* ── step 6: every map through the static model, then the bar ───────────── */
 
+/**
+ * RECORD OR FORECAST, per map: a map whose window has ended is what the rain
+ * DID (Earth Engine's archive, or GFS's own record of it); one whose window
+ * reaches past now is a forecast. A run straddling today is both, and every
+ * frame, the plot and the export say which it is.
+ */
+export function periodOf(time, now = Date.now()) {
+  const t = Date.parse(/Z$/.test(time) ? time : `${time}${time.length <= 10 ? "T00:00" : ""}Z`);
+  return Number.isFinite(t) && t > now ? "forecast" : "record";
+}
+
 function rainWeights() {
   const r = state.rain; const P = state.ground.cells.props; const nb = P.lat.length;
   if (r.weights?.n === nb) return r.weights;
@@ -1151,13 +1163,13 @@ async function run({ keepStep = false } = {}) {
     summary.forEach((s, k) => { if (s.failing > summary[worst].failing || (s.failing === summary[worst].failing && s.meanW > summary[worst].meanW)) worst = k; });
     const startAt = resume >= 0 && resume < frames.length ? resume : worst;
     showStep(startAt);
-    const epochs = frames.map((f, k) => ({ date: f.time, label: f.time.replace("T", " "), dataset: null, index: k }));
+    const epochs = frames.map((f, k) => ({ date: f.time, label: `${f.time.replace("T", " ")} · ${periodOf(f.time)}`, dataset: null, index: k }));
     state.playing = true;
     await startPlayer({
       bounds: { west: g.sub.bounds.minX, east: g.sub.bounds.maxX, south: g.sub.bounds.minY, north: g.sub.bounds.maxY },
       epochs, source: "none", interval: 400, startAt,
       noteFor: (e) => { const s = summary[e.index]; return `${s.failing.toLocaleString()} / ${s.applicable.toLocaleString()} failing · ${s.maxRain.toFixed(0)} mm`; },
-      noteTitle: (e) => { const s = summary[e.index]; return `${r.sourceLabel(frames[e.index])} rain over the ${r.windowH} h to ${e.date}: up to ${s.maxRain.toFixed(0)} mm in the area; ${s.failing} of ${s.applicable} modelled cells below FoS 1; mean saturation ${s.meanW.toFixed(2)}.`; },
+      noteTitle: (e) => { const s = summary[e.index]; return `${periodOf(e.date) === "forecast" ? "Forecast" : "Record"}: ${r.sourceLabel(frames[e.index])} rain over the ${r.windowH} h to ${e.date}: up to ${s.maxRain.toFixed(0)} mm in the area; ${s.failing} of ${s.applicable} modelled cells below FoS 1; mean saturation ${s.meanW.toFixed(2)}.`; },
       onStatus: (m) => say("run", m),
       onShow: (index) => showStep(index),
       onStop: () => { state.playing = false; },
@@ -1257,7 +1269,8 @@ async function recordStations() {
   }
   state.record = {
     model: "landslide-forecast", credit: r.credit,
-    times: frames.map((f) => f.time), params: LANDSLIDE_PARAMS,
+    times: frames.map((f) => f.time), periods: frames.map((f) => periodOf(f.time)),
+    sources: frames.map((f) => r.sourceLabel(f)), params: LANDSLIDE_PARAMS,
     stations: at.map(({ st, cell, note }) => ({ ...st, cell, note })),
     values, constants,
   };
@@ -1395,14 +1408,14 @@ function drawPlot() {
     times: rec?.times || [], lines, range,
     yLabel: `${p.label.replace(/ \(.*\)$/, "")}${p.unit ? ` (${p.unit.replace("m2", "m²")})` : ""}`,
     refs: fosLike ? [{ value: 1, label: "FoS 1", colour: "#ff7b7b" }] : wetLike ? [{ value: 1, label: "saturated", colour: "#8ab6ff" }] : [],
-    marker: state.step, hover: state.plotHover,
+    marker: state.step, hover: state.plotHover, now: Date.now(),
     empty: !state.stations.length ? "Add a station to record it here." : !state.run ? "Run the model to fill the stations in." : "Reading the stations…",
   });
   const read = byId("lsp-st-read");
   if (read) {
     const k = state.plotHover >= 0 ? state.plotHover : state.step;
     read.textContent = rec && k >= 0 && lines.length
-      ? `${String(rec.times[k]).replace("T", " ")} — ${lines.map((l) => `${l.label} ${fosLike ? shortFos(l.values[k]) : fmt(l.values[k], p.key === "rain" || p.key === "qb" ? 1 : 2)}`).join(" · ")}${fosLike ? " · above 3 drawn on the top edge" : ""}`
+      ? `${String(rec.times[k]).replace("T", " ")} ${rec.periods?.[k] || ""} (${rec.sources?.[k] || ""}) — ${lines.map((l) => `${l.label} ${fosLike ? shortFos(l.values[k]) : fmt(l.values[k], p.key === "rain" || p.key === "qb" ? 1 : 2)}`).join(" · ")}${fosLike ? " · above 3 drawn on the top edge" : ""}`
       : "";
   }
 }

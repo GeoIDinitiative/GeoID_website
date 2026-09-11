@@ -149,13 +149,16 @@ export function seriesCsv(series) {
   const params = series.params || [];
   const constKeys = [];
   for (const st of series.stations || []) Object.keys(series.constants?.[st.id] || {}).forEach((k) => { if (!constKeys.includes(k)) constKeys.push(k); });
-  const cols = ["model", "station", "lat", "lon", "time", ...params.map(header), ...constKeys, "note"];
+  // Which kind of number each time is — the record or a forecast — and what
+  // it came from, when the model says; one column each, beside the time.
+  const perTime = [["period", series.periods], ["source", series.sources]].filter(([, a]) => Array.isArray(a));
+  const cols = ["model", "station", "lat", "lon", "time", ...perTime.map(([k]) => k), ...params.map(header), ...constKeys, "note"];
   const rows = [cols.join(",")];
   for (const st of series.stations || []) {
     const vals = series.values?.[st.id] || {};
     const c = series.constants?.[st.id] || {};
     (series.times || []).forEach((t, k) => {
-      rows.push([series.model, st.name, st.lat, st.lon, t, ...params.map((p) => vals[p.key]?.[k]), ...constKeys.map((key) => c[key]), st.note || ""]
+      rows.push([series.model, st.name, st.lat, st.lon, t, ...perTime.map(([, a]) => a[k]), ...params.map((p) => vals[p.key]?.[k]), ...constKeys.map((key) => c[key]), st.note || ""]
         .map(csvCell).join(","));
     });
   }

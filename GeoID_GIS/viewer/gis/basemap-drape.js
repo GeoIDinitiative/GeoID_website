@@ -37,12 +37,12 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260911-0c1b56f";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260911-0c1b56f";
-import { isEarth } from "./bodies.js?v=20260911-0c1b56f";
-import { streamRings, cacheStats } from "./tile-streamer.js?v=20260911-0c1b56f";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260911-04674ae";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260911-04674ae";
+import { isEarth } from "./bodies.js?v=20260911-04674ae";
+import { streamRings, cacheStats } from "./tile-streamer.js?v=20260911-04674ae";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260911-0c1b56f";
+  from "./view-extent.js?v=20260911-04674ae";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is

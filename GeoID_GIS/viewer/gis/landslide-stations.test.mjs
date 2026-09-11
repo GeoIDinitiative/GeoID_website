@@ -179,3 +179,27 @@ const rel = (a, b) => Math.abs(a - b) / Math.max(1e-12, Math.abs(a), Math.abs(b)
   check("the map and a station share one cellAnswer", /export \{ cellAnswer \};/.test(src)
     && /import \{ cellAnswer, planeWetness \} from "\.\/slope-hydrology\.js/.test(readFileSync(new URL("./landslide-stations.js", import.meta.url), "utf8")));
 }
+
+/* ── the record and the forecast, told apart ─────────────────────────────── */
+
+{
+  const { periodOf } = await import("./landslide-pipeline.js");
+  const now = Date.parse("2026-09-11T09:30Z");
+  check("a map whose window has ended is the record; one reaching past now is a forecast",
+    periodOf("2026-09-11T06:00", now) === "record" && periodOf("2026-09-11T12:00", now) === "forecast"
+    && periodOf("2026-09-10", now) === "record" && periodOf("2026-09-12", now) === "forecast");
+  const csv = seriesCsv({
+    model: "m", times: ["2026-09-10T12:00", "2026-09-11T12:00"], periods: ["record", "forecast"], sources: ["IMERG", "GFS"],
+    params: [{ key: "fos", label: "FoS", unit: "" }], stations: [{ id: "a", name: "A", lat: 1, lon: 2 }], values: { a: { fos: [1.2, 0.9] } },
+  }).trim().split("\n");
+  check("the export says which rows are the record and which the forecast, and from what",
+    csv[0] === "model,station,lat,lon,time,period,source,fos,note" && csv[2] === "m,A,1,2,2026-09-11T12:00,forecast,GFS,0.9,", csv.join(" | "));
+  const src = readFileSync(new URL("./landslide-pipeline.js", import.meta.url), "utf8");
+  check("the rainfall opens on the week before today and the week after, on Auto",
+    /id="lsp-rain-start" class="input" type="date" value="\$\{isoDay\(now - 7 \* 86400000\)\}"/.test(src)
+    && /id="lsp-rain-end" class="input" type="date" value="\$\{isoDay\(now \+ 7 \* 86400000\)\}"/.test(src)
+    && /<option value="auto" selected>/.test(src) && /id="lsp-rain-around"/.test(src));
+  check("every frame on the bar says whether it is the record or the forecast", /label: `\$\{f\.time\.replace\("T", " "\)\} · \$\{periodOf\(f\.time\)\}`/.test(src));
+  check("the plot marks now between the record and the forecast", /now: Date\.now\(\)/.test(src)
+    && /fillText\("forecast"/.test(readFileSync(new URL("./time-series-plot.js", import.meta.url), "utf8")));
+}

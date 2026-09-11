@@ -13,7 +13,7 @@
  * say two different things; `landslide-stations.test.mjs` holds them equal.
  */
 
-import { cellAnswer, planeWetness } from "./slope-hydrology.js?v=20260911-0c1b56f";
+import { cellAnswer, planeWetness } from "./slope-hydrology.js?v=20260911-04674ae";
 
 /**
  * What fraction of every cell's water reaches cell `s`: 1 at `s`, the
