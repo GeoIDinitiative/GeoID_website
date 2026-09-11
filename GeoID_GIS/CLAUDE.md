@@ -18293,7 +18293,69 @@ water and read against the view's own heights, so the fine ground decides the
 edge. A rebuild with the outer flood switched off is the A/B that showed the
 squares were all from it.
 
-## A click belongs to the symbol it lands on, at the symbol's drawn size
+## River flood by discharge: one river, a flow in m³/s
+
+Hazards ▸ Flood ▸ "River flood by discharge" is the inundation model run for
+ONE river at a discharge the reader sets — a `discharge` SHEET beside
+`inundation` in `dem-layer.js`, its drawer (`#flood-discharge-controls`) wired
+in `flood-panel.js`, the pure half in `inundation.js`.
+
+- **GRWL names no rivers, so "this river" is traced.** `selectRiver` takes the
+  river cell nearest the pick and grows through 8-joined cells within ×2.5 of
+  its width: the river's own widening stays in, a tributary a fifth its size
+  stays out (it carries its own flow). A known width (`pick.width`) keeps the
+  same river on the coarse grid round the view, where a nearer river of another
+  size may sit. Only that river seeds the flood; every other river keeps its
+  normal level.
+- **The mean flow is from width, and says so.** `meanFlowFromWidth` inverts
+  Moody & Troutman's w = 7.2 Q^0.5. Measured on the Rhône at Avignon: 457 m
+  wide → **4,020 m³/s estimated against ~1,700 gauged at Beaucaire** — an
+  order of magnitude, as the drawer states. A typed gauge mean replaces it;
+  blank goes back to the estimate. The discharge in m³/s is kept when the mean
+  changes, so what changes is how big a flood that water is for this river.
+- **Below its mean a river falls.** `stageRise` floors the ratio at 0.01, not
+  at 1, so half the mean gives a negative rise and nothing floods.
+- **The pick is a pointerup on the canvas, with a 4 px drag gate**, never a
+  `stopPropagation` (OrbitControls needs the release), and
+  `GeoIDFeaturePopup.suppress(800)` so the same click does not also raise a
+  geology card. Escape stands it down.
+- **The watcher rebuilds with no status callback**, so a drawer reporting what
+  the last build found went stale on every pan. `build()` now dispatches
+  `geoid-gis:sheet-built` (on `document`, guarded on the METHOD) and the drawer
+  listens for its own kind.
+
+Measured on 8125: the Rhône found at 457 m, 11,500 m³/s (the December 2003
+peak) against a gauged 1,700 rising it 3.7 m and flooding 104 km² in view;
+a real click on the Durance swapped the river to 84 m and left the Rhône at its
+normal level.
+
+### The flood carried in from out of shot was metres too deep — both sheets
+
+The Durance read **12.2 m deepest on a 1.1 m rise**, and the cells were all at
+the view's edge, which is the tell that they came from the coarse grid round
+the view rather than from the view's own model. Two faults, shared by the
+scenario sheet:
+
+- **A channel cell's level was its own height plus its depth.** A centreline
+  cell holds the bank and reads high — which is exactly why the fine model
+  takes the lowest ground in the 3×3 as the river's surface — and `outerLevel`
+  undid that for the level it handed on. `inundate` now returns `level`
+  (surface + rise in the channel, height + depth on flooded ground) and
+  `normal` (the river's normal level behind each wet cell), and `outerLevel`
+  passes both through.
+- **The merge had no defences.** Fine ground below the river's normal level
+  is dry in the view's own model while the defences hold; read against the
+  interpolated outer level it was flooded — every pit, quarry and neighbouring
+  channel lower than the river the water came from. `mergeOuterDepth` takes
+  `{ defended }` and interpolates `normal` at the same wet centres as `level`.
+
+After: Durance deepest **1.1 m** on its 1.1 m rise, Rhône 3.0 on 2.9. With
+defences holding, depth cannot exceed the rise, and now it does not. The
+1-in-100 scenario over the same 40 km Rhône view reads **230 km², deepest
+5.8 m** where it read 533 km² before — the earlier figures in this file were
+inflated by this fault.
+
+
 
 "Certain events' click radius covers other points." The event picker was a
 raycaster with `params.Points.threshold = camera.position.length() / height *
