@@ -103,10 +103,17 @@ function rgba(hex, alpha) {
  */
 function legendColour(legend, properties) {
   const field = legend?.field;
-  if (!field || !Array.isArray(legend.values) || !Array.isArray(legend.palette)) return null;
+  // A legend built from a DECLARED style (a .qml, or a layer that names each
+  // feature's colour) carries its categories as `labels` and no `values`;
+  // for a categorical key the label is the value, so it is matched on those.
+  // Without this every such layer's names wore the theme's red while its
+  // dots wore their own colours.
+  const values = Array.isArray(legend?.values) ? legend.values
+    : legend?.categorical && Array.isArray(legend?.labels) ? legend.labels : null;
+  if (!field || !values || !Array.isArray(legend.palette)) return null;
   const raw = properties?.[field];
   if (raw == null) return null;
-  const i = legend.values.indexOf(String(raw));
+  const i = values.indexOf(String(raw));
   if (i < 0 || !legend.palette[i]) return null;
   return `#${String(legend.palette[i]).replace("#", "")}`;
 }
@@ -162,7 +169,10 @@ export function featureToItem(feature, legend = null) {
   const coords = labelAnchor(feature?.geometry);
   if (!coords || !p.name) return null;
   const rank = Number(p.label_rank) || 0;
-  const colour = legendColour(legend, p);
+  // A feature may state its own colour, which outranks the legend: the one
+  // thing that knows what colour a dot was drawn in is whoever drew it.
+  const own = typeof p.label_colour === "string" && /^#?[0-9a-f]{6}$/i.test(p.label_colour) ? `#${p.label_colour.replace("#", "")}` : null;
+  const colour = own || legendColour(legend, p);
   return {
     name: String(p.name),
     // The kicker: "Stratovolcano", not the generic "Volcanic Feature" — and

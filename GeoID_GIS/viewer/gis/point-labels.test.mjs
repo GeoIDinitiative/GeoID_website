@@ -124,5 +124,20 @@ check("canLabel asks for the rank column and nothing else",
     bare.label_colour === undefined);
 }
 
+{
+  // A legend from a declared style carries labels and no values; a feature
+  // may also name its own colour. Both were measured wearing the theme's red
+  // on the landslide sampling stations while their dots wore their own.
+  const styled = { field: "name", categorical: true, classed: true, labels: ["S1", "S2"], palette: ["52e4e8", "ff2bd6"] };
+  const pt = (name, extra = {}) => ({ type: "Feature", properties: { name, label_rank: 5, ...extra }, geometry: { type: "Point", coordinates: [11, 44] } });
+  const [a, b] = toLabelItems([pt("S1"), pt("S2")], { legend: styled });
+  check("a style legend's labels colour the names it lists", a.label_colour === "#52e4e8" && b.label_colour === "#ff2bd6"
+    && b.label_palette?.accent === "#ff2bd6", `${a.label_colour} ${b.label_colour}`);
+  const [own] = toLabelItems([pt("S9", { label_colour: "#9df58a" })], { legend: styled });
+  check("a feature's own label_colour outranks the legend", own.label_colour === "#9df58a");
+  const [junk] = toLabelItems([pt("S3", { label_colour: "red; background:url(x)" })], { legend: styled });
+  check("and anything that is not a hex colour is ignored", junk.label_colour === undefined);
+}
+
 console.log(failures ? `\n${failures} failed` : "\nall passed");
 process.exit(failures ? 1 : 0);
