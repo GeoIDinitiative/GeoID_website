@@ -62,7 +62,7 @@ useRockProperties(JSON.parse(readFileSync(new URL("../../data/global/rock-proper
   const dem = makeRaster(band, w, h, { minX: 0, maxX: w * 1e-4, minY: 0, maxY: h * 1e-4 }, NaN);
   const topo = mfdTopology(fillSinks(dem));
   const cells = {
-    data: new Uint8Array(n).fill(1), model: new Uint8Array(n).fill(1), bare: new Uint8Array(n),
+    data: new Uint8Array(n).fill(1), model: new Uint8Array(n).fill(1),
     K: new Float32Array(n).fill(1e-4), zs: new Float32Array(n).fill(2), zf: new Float32Array(n).fill(2),
     slopeRad: new Float32Array(n), c: new Float32Array(n).fill(2), phi: new Float32Array(n).fill(30), gamma: new Float32Array(n).fill(20),
   };
@@ -70,7 +70,6 @@ useRockProperties(JSON.parse(readFileSync(new URL("../../data/global/rock-proper
     for (let x = 0; x < w; x += 1) {
       const i = y * w + x;
       cells.slopeRad[i] = y === mid ? Math.atan(0.1) : Math.atan(Math.hypot(tan, 0.1));
-      if (y === mid) cells.model[i] = 0;
     }
   }
   const rain = (mm) => new Float32Array(n).fill(mm);
@@ -86,13 +85,12 @@ useRockProperties(JSON.parse(readFileSync(new URL("../../data/global/rock-proper
   const meanDist = firstFail.reduce((a, b) => a + b, 0) / Math.max(1, firstFail.length);
   check("and what fails is next to the hollow, not up on the ridge", firstFail.length > 0 && meanDist < mid / 2, `mean ${meanDist}`);
   const axis = mid * w + 30;
-  check("the valley floor gets a water table, but no factor of safety",
-    Number.isFinite(wet.W[axis]) && Number.isNaN(wet.fos[axis]), `${wet.W[axis]} / ${wet.fos[axis]}`);
+  check("the valley floor gets a water table and a factor of safety — large, and stable",
+    Number.isFinite(wet.W[axis]) && wet.fos[axis] > 1.5, `${wet.W[axis]} / ${wet.fos[axis]}`);
   const capped = staticStep({ rainMm: rain(1000), windowH: 24, cells, topo, lateral: 1, infiltration: true });
   const uncapped = staticStep({ rainMm: rain(1000), windowH: 24, cells, topo, lateral: 1, infiltration: false });
   check("rain faster than Ks runs off rather than recharging", capped.meanW <= uncapped.meanW);
-  const bareCells = { ...cells, bare: new Uint8Array(n).fill(1), model: new Uint8Array(n) };
-  check("bare rock is never modelled", staticStep({ rainMm: rain(100), windowH: 24, cells: bareCells, topo, lateral: 1 }).applicable === 0);
+  check("every cell is modelled, the valley floor included", staticStep({ rainMm: rain(100), windowH: 24, cells, topo, lateral: 1 }).applicable === n);
 }
 
 {
@@ -127,8 +125,8 @@ check("the drawn sheet is bounded by its cells' edges, not the asked box", /sub\
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 check("the page hosts the flowchart in the Landslides subtab and loads the module", /id="landslide-pipeline"/.test(html) && /gis\/landslide-pipeline\.js\?v=/.test(html));
 const popup = readFileSync(new URL("./feature-popup.js", import.meta.url), "utf8");
-check("ground the factor of safety does not apply to is drawn as a named class, not a hole",
-  /const NOT_A_SLOPE = \{ flat: -9001, bare: -9002 \}/.test(src) && /else v = NOT_A_SLOPE\.flat;/.test(src));
+check("no cell is left out for its slope or its thin soil", !/MIN_SLOPE_DEG/.test(src) && !/not modelled/.test(src)
+  && /cells\.model\[i\] = 1; tally\.model \+= 1;/.test(src));
 check("the card carries its own ground and declines the shared profile", /profile: false/.test(src)
   && /feature\?\.profile === false\) return;/.test(readFileSync(new URL("./ground-profile.js", import.meta.url), "utf8")));
 check("a click on the risk layer is offered to the pipeline BEFORE the polygons under it",

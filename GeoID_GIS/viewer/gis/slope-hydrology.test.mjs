@@ -78,8 +78,8 @@ const st = (t) => stateOf(t, resolveLithology);
 }
 
 {
-  const bare = soilColumn(0);
-  check("0 m of soil is bare rock: nothing to slide", bare.bare && bare.zs === 0);
+  const thin = soilColumn(0);
+  check("the thickness model's 0 is whole metres — a thin veneer, still modelled", thin.thin && thin.zs === 0.5 && thin.zf === 0.5 && !thin.bare);
   const deep = soilColumn(12);
   check("a deep column keeps its thickness for the water and caps the failure plane at 3 m",
     deep.zs === 12 && deep.zf === 3 && !deep.bare);
@@ -106,6 +106,8 @@ const st = (t) => stateOf(t, resolveLithology);
   const legacy = fosLegacy({ slopeDeg: 32, cohesion: 5, friction: 30, unitWeight: 19, depth: 1.5, wetFraction: 0.6 });
   check("the infinite slope agrees with fos.js", near(factorOfSafety({ ...args, m: 0.6 }), legacy, 1e-3), `${legacy}`);
   check("water lowers the factor of safety", factorOfSafety({ ...args, m: 1 }) < factorOfSafety({ ...args, m: 0 }));
+  check("flat ground has a factor of safety too: capped, and stable", factorOfSafety({ ...args, slopeRad: 0, m: 1 }) === 100
+    && fosClass(factorOfSafety({ ...args, slopeRad: 0.5 * Math.PI / 180, m: 1 })) === 4);
   check("the classes cut at 1, 1.1, 1.3 and 1.5", fosClass(0.9) === 0 && fosClass(1.05) === 1 && fosClass(1.2) === 2
     && fosClass(1.4) === 3 && fosClass(2) === 4 && fosClass(NaN) === -1);
 }

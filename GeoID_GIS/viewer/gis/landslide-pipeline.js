@@ -22,22 +22,21 @@
  * file only orchestrates them and says, on every card, what it has read.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-58fe9d8";
-import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, GFS_CREDIT } from "./gfs-rain.js?v=20260911-58fe9d8";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-07928fd";
+import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, GFS_CREDIT } from "./gfs-rain.js?v=20260911-07928fd";
 import {
   columnMaterial, soilColumn, steadyWetness, planeWetness, factorOfSafety, criticalRecharge,
-  FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M, LATERAL_FACTOR,
-} from "./slope-hydrology.js?v=20260911-58fe9d8";
-import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-58fe9d8";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-58fe9d8";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-58fe9d8";
-import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-58fe9d8";
-import { mathsFor } from "./equations.js?v=20260911-58fe9d8";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260911-58fe9d8";
+  FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M, LATERAL_FACTOR, FOS_CAP,
+} from "./slope-hydrology.js?v=20260911-07928fd";
+import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-07928fd";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-07928fd";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-07928fd";
+import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-07928fd";
+import { mathsFor } from "./equations.js?v=20260911-07928fd";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260911-07928fd";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";
-const MIN_SLOPE_DEG = 5;
 
 /* ── pure: the pieces the tests run ─────────────────────────────────────── */
 
@@ -165,9 +164,9 @@ export function cellAnswer({ q, cell, contour, lateral = 1 }) {
 
 /**
  * ONE STATIC MODEL for one rainfall map: recharge from the map (capped at the
- * ground's Ks where it infiltrates; bare rock sheds all of it onto the soil
- * below), routed down the MFD topology, then the steady water table and the
- * factor of safety at every modelled cell. Pure given its arrays.
+ * ground's Ks where it infiltrates), routed down the MFD topology, then the
+ * steady water table and the factor of safety at every modelled cell. Pure
+ * given its arrays.
  */
 export function staticStep({ rainMm, windowH, cells, topo, infiltration = true, lateral = LATERAL_FACTOR }) {
   const n = cells.K.length;
@@ -177,7 +176,7 @@ export function staticStep({ rainMm, windowH, cells, topo, infiltration = true, 
     const P = rainMm[i];
     if (!Number.isFinite(P) || !cells.data[i]) continue;
     let r = P * perSecond;
-    if (infiltration && !cells.bare[i] && r > cells.K[i]) r = cells.K[i];
+    if (infiltration && r > cells.K[i]) r = cells.K[i];
     source[i] = r * topo.cellArea;
   }
   const q = routeFlux(topo, source);
@@ -185,10 +184,7 @@ export function staticStep({ rainMm, windowH, cells, topo, infiltration = true, 
   const W = new Float32Array(n).fill(NaN);
   let failing = 0; let applicable = 0; let wSum = 0; let wN = 0;
   for (let i = 0; i < n; i += 1) {
-    // The water table is worked out on the VALLEY FLOORS too: that is where the
-    // water gathers, and a saturation map with holes along every channel reads
-    // as missing data. Only the factor of safety is left to the slopes.
-    if (!cells.data[i] || cells.bare[i]) continue;
+    if (!cells.data[i]) continue;
     const answer = cellAnswer({ q: q[i], contour: topo.contour, lateral, cell: {
       K: cells.K[i], zs: cells.zs[i], zf: cells.zf[i], slopeRad: cells.slopeRad[i],
       c: cells.c[i], phi: cells.phi[i], gamma: cells.gamma[i],
@@ -328,7 +324,7 @@ m = (h − (z_s − z_f)) / z_f     water on the failure plane</div>
       <div class="lsp-eq">FoS = [c′ + c_r + (γ − m·γw)·z_f·cos²β·tan φ′] / [γ·z_f·sin β·cos β]</div>
       <div class="row"><label for="lsp-strength" title="Peak for a first-time failure; residual where the ground has slid before and the shear surface is already polished.">Strength</label><select id="lsp-strength" class="input" data-always="1"><option value="peak" selected>Peak — first-time failure</option><option value="residual">Residual — reactivation</option></select></div>
       <div class="row"><label for="lsp-root" title="The extra cohesion roots give a soil: 0 bare, a few kPa grassland, 5–20 kPa forest.">Root cohesion (kPa)</label><input id="lsp-root" class="input" type="number" min="0" max="40" step="1" value="0" data-always="1"></div>
-      <p class="compact-copy" style="margin:0;opacity:0.8">z_f is the soil column capped at ${SHALLOW_FAILURE_CAP_M} m (a shallow translational slide); slopes under ${MIN_SLOPE_DEG}° and bare rock are not modelled. Classes: failure &lt; 1, marginal &lt; 1.1, low margin &lt; 1.3, adequate &lt; 1.5, stable.</p>`)}
+      <p class="compact-copy" style="margin:0;opacity:0.8">z_f is the soil column capped at ${SHALLOW_FAILURE_CAP_M} m (a shallow translational slide). Every cell is modelled: on gentle ground the factor of safety is large (capped at ${FOS_CAP}) and falls in "stable". Classes: failure &lt; 1, marginal &lt; 1.1, low margin &lt; 1.3, adequate &lt; 1.5, stable.</p>`)}
     ${card(STEPS[5], `
       <div class="row"><label for="lsp-view">Show</label><select id="lsp-view" class="input" data-always="1">
         <option value="fos" selected>Factor of safety — this map</option>
@@ -580,12 +576,12 @@ async function readGround() {
 
     const table = materialTable();
     const cells = {
-      data: new Uint8Array(n), model: new Uint8Array(n), bare: new Uint8Array(n), mat: new Int32Array(n).fill(-1),
+      data: new Uint8Array(n), model: new Uint8Array(n), thin: new Uint8Array(n), mat: new Int32Array(n).fill(-1),
       slopeRad: new Float32Array(n), zs: new Float32Array(n), zf: new Float32Array(n), K: new Float32Array(n),
       c: new Float32Array(n), phi: new Float32Array(n), gamma: new Float32Array(n), area: new Float32Array(n),
       depthFrom: new Uint8Array(n), lat: new Float32Array(n), lon: new Float32Array(n),
     };
-    const tally = { deposit: 0, texture: 0, regolith: 0, thick: 0, bare: 0, model: 0, cells: 0, flat: 0 };
+    const tally = { deposit: 0, texture: 0, regolith: 0, thick: 0, thin: 0, model: 0, cells: 0, gentle: 0 };
     let x0 = Infinity; let x1 = -1; let y0 = Infinity; let y1 = -1;
     for (let y = 0; y < grid.height; y += 1) {
       const lat = eb.north - ((y + 0.5) / grid.height) * (eb.north - eb.south);
@@ -601,7 +597,7 @@ async function readGround() {
         cells.mat[i] = k;
         const t = thickAt ? thickAt(lat, lon) : null;
         const col = soilColumn(t, 2);
-        cells.zs[i] = col.zs; cells.zf[i] = col.zf; cells.bare[i] = col.bare ? 1 : 0;
+        cells.zs[i] = col.zs; cells.zf[i] = col.zf; cells.thin[i] = col.thin ? 1 : 0;
         cells.depthFrom[i] = Number.isFinite(t) ? 1 : 0;
         cells.K[i] = mat.K; cells.c[i] = mat.cohesionKPa; cells.phi[i] = mat.friction; cells.gamma[i] = mat.unitWeight;
         const deg = grad.band[i];
@@ -614,8 +610,8 @@ async function readGround() {
         if (/mapped deposit/.test(mat.from)) tally.deposit += 1;
         else if (/soil map/.test(mat.from)) tally.texture += 1; else tally.regolith += 1;
         if (Number.isFinite(t)) tally.thick += 1;
-        if (col.bare) { tally.bare += 1; continue; }
-        if (!(deg >= MIN_SLOPE_DEG)) { tally.flat += 1; continue; }
+        if (col.thin) tally.thin += 1;
+        if (!(deg >= 5)) tally.gentle += 1;
         cells.model[i] = 1; tally.model += 1;
       }
     }
@@ -633,8 +629,8 @@ async function readGround() {
     if (tally.regolith) kinds.push(`${pct(tally.regolith, tally.cells)} regolith${bedrock || superficial ? " over the mapped rock" : ""}`);
     say("ground", `${tally.cells.toLocaleString()} cells at ${grid.stepM} m in the area (${(grid.width * grid.height).toLocaleString()} with a ${margin.toFixed(1)} km upslope margin), from ${label}; slope from ${slopeFrom}. `
       + `Material: ${kinds.join(", ")}.${soil ? "" : " Load the soil map for the topsoil texture — without it every column takes the database's regolith."} `
-      + `Thickness from the model for ${pct(tally.thick, tally.cells)}; ${pct(tally.bare, tally.cells)} bare rock, ${pct(tally.flat, tally.cells)} under ${MIN_SLOPE_DEG}°. `
-      + `${tally.model.toLocaleString()} cells modelled.`, soil || bedrock || superficial ? "" : "error");
+      + `Thickness from the model for ${pct(tally.thick, tally.cells)}${tally.thin ? ` (${pct(tally.thin, tally.cells)} under a metre, modelled as a veneer)` : ""}; ${pct(tally.gentle, tally.cells)} is gentle ground under 5°, modelled like the rest. `
+      + `All ${tally.model.toLocaleString()} cells modelled.`, soil || bedrock || superficial ? "" : "error");
     describeStatic();
   } catch (error) {
     say("ground", `The ground could not be read: ${error.message}`, "error");
@@ -781,21 +777,6 @@ const VIEW = {
 };
 const classIn = (classes, v) => (Number.isFinite(v) ? classes.findIndex((k) => v < k.max) : -1);
 
-/**
- * GROUND THE FACTOR OF SAFETY DOES NOT APPLY TO IS A CLASS, NOT A HOLE. Valley
- * floors under the slope threshold have no driving stress (sin β → 0 makes the
- * factor of safety infinite, which is arithmetic, not stability), and bare rock
- * has no soil to slide. Left unpainted they cut a hole along every channel
- * that read as the mapping failing — measured over the Apennines, 8,988 of
- * 60,914 cells, every one under 5° (median 1.5°). Drawn in a neutral slate and
- * named in the key, the exclusion is visible as a decision. Sentinels far below
- * anything a view measures, so no class can swallow them.
- */
-const NOT_A_SLOPE = { flat: -9001, bare: -9002 };
-const NOT_A_SLOPE_CLASSES = [
-  { value: NOT_A_SLOPE.flat, label: `flat ground (under ${MIN_SLOPE_DEG}°) — no slope to fail`, colour: [86, 98, 112] },
-  { value: NOT_A_SLOPE.bare, label: "bare rock — no soil to slide", colour: [150, 140, 128] },
-];
 const hex = (rgb) => rgb.map((c) => c.toString(16).padStart(2, "0")).join("");
 
 function paintView(frameOut) {
@@ -804,43 +785,21 @@ function paintView(frameOut) {
   const src = state.view === "fos" ? frameOut.fos : state.view === "wet" ? frameOut.W : state.view === "rain" ? frameOut.rainMm
     : state.view === "minfos" ? run.minFos : g.crit.map((v) => (v === Infinity ? 1e9 : v));
   const counts = new Array(view.classes.length).fill(0);
-  const extra = new Array(NOT_A_SLOPE_CLASSES.length).fill(0);
-  // The rainfall is drawn over every cell, saturation over all ground with
-  // soil; the slope readings over the slopes, with the rest named.
-  const everywhere = state.view === "rain" || state.view === "wet";
+  // Every cell with ground under it is modelled and drawn, whatever its slope.
   const { sub } = g; const c_ = g.cells;
   for (let y = 0; y < sub.height; y += 1) {
     for (let x = 0; x < sub.width; x += 1) {
       const i = (y + sub.y0) * g.grid.width + (x + sub.x0);
-      let v = NaN;
-      if (c_.data[i]) {
-        if (state.view === "rain") v = src[i];
-        else if (c_.bare[i]) v = NOT_A_SLOPE.bare;
-        else if (everywhere || c_.model[i]) v = src[i];
-        else v = NOT_A_SLOPE.flat;
-      }
+      const v = c_.data[i] ? src[i] : NaN;
       run.band[y * sub.width + x] = v;
-      const e = NOT_A_SLOPE_CLASSES.findIndex((k) => k.value === v);
-      if (e >= 0) { extra[e] += 1; continue; }
       const c = classIn(view.classes, v);
       if (c >= 0) counts[c] += 1;
     }
   }
-  const colourOf = (v) => {
-    const e = NOT_A_SLOPE_CLASSES.find((k) => k.value === v);
-    if (e) return e.colour;
-    const c = classIn(view.classes, v);
-    return c >= 0 ? view.classes[c].colour : null;
-  };
-  try { run.built.repaint?.(colourOf); } catch (e) { /* stands */ }
-  // A named class with no cells in this view (bare rock over the Apennines)
-  // is left out of the key rather than listed at zero.
-  const shownExtra = NOT_A_SLOPE_CLASSES.map((k, j) => ({ ...k, n: extra[j] })).filter((k) => k.n > 0);
+  try { run.built.repaint?.((v) => { const c = classIn(view.classes, v); return c >= 0 ? view.classes[c].colour : null; }); } catch (e) { /* stands */ }
   const legend = {
     classed: true, categorical: true, field: state.view, label: view.label,
-    palette: [...view.classes.map((k) => hex(k.colour)), ...shownExtra.map((k) => hex(k.colour))],
-    labels: [...view.classes.map((k) => k.label), ...shownExtra.map((k) => k.label)],
-    counts: [...counts, ...shownExtra.map((k) => k.n)],
+    palette: view.classes.map((k) => hex(k.colour)), labels: view.classes.map((k) => k.label), counts,
   };
   run.layer.legendInfo = legend;
   window.GeoIDLayerHierarchy?.render?.();
@@ -950,9 +909,7 @@ export function probeAt(lat, lon) {
   const slopeDeg = g.cells.slopeRad[i] * 180 / Math.PI;
   const fos = cur.fos[i];
   const crit = g.crit?.[i];
-  const why = g.cells.bare[i] ? "not modelled — bare rock, no soil to slide"
-    : slopeDeg < MIN_SLOPE_DEG ? `not modelled — slope under ${MIN_SLOPE_DEG}°` : null;
-  const headline = why || `${fmt(fos)} — ${FOS_CLASSES[fosClass(fos)]?.label || "—"}`;
+  const headline = `${fos >= FOS_CAP ? `${FOS_CAP}+` : fmt(fos)} — ${FOS_CLASSES[fosClass(fos)]?.label || "—"}`;
   // The factor of safety is the card's title; a first row saying it again is
   // the same number twice.
   const rows = [
@@ -962,7 +919,7 @@ export function probeAt(lat, lon) {
     ["Lowest over the window", Number.isFinite(run.minFos[i]) ? `${fmt(run.minFos[i])} at ${run.frames[run.minAt[i]].time.replace("T", " ")}` : "—"],
     ["Rainfall to fail", !Number.isFinite(crit) && crit !== Infinity ? "—" : crit === Infinity ? "holds even saturated" : crit === 0 ? "fails even dry" : `${crit.toFixed(0)} mm/day sustained over its catchment`],
     ["Slope", `${slopeDeg.toFixed(1)}° — from ${g.slopeFrom}`],
-    ["Soil column", `${fmt(g.cells.zs[i], 1)} m to bedrock (${g.cells.depthFrom[i] ? "Pelletier et al. 2016" : "a stated default"}); failure plane at ${fmt(g.cells.zf[i], 1)} m`],
+    ["Soil column", `${fmt(g.cells.zs[i], 1)} m to bedrock (${g.cells.thin[i] ? `Pelletier et al. 2016 reads 0 in whole metres — under 1 m, modelled as a ${fmt(g.cells.zs[i], 1)} m veneer` : g.cells.depthFrom[i] ? "Pelletier et al. 2016" : "a stated default"}); failure plane at ${fmt(g.cells.zf[i], 1)} m`],
     ["Material", `${mat.name} — ${mat.from}`],
     ["Strength", `c′ ${fmt(mat.cohesionKPa, 1)} kPa${mat.rootCohesionKPa ? ` (with ${mat.rootCohesionKPa} kPa of roots)` : ""}, φ′ ${fmt(mat.friction, 0)}° (${mat.strength}), γ ${fmt(mat.unitWeight, 1)} kN/m³`],
     ["Conductivity", `Ks ${mat.K.toExponential(1)} m/s — ${mat.kFrom}; lateral ${state.params.lateral} × Ks, T ${(mat.K * state.params.lateral * g.cells.zs[i] * 86400).toFixed(1)} m²/day`],

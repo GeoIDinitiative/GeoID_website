@@ -16215,12 +16215,15 @@ infinite-slope FoS; and per cell the RAINFALL TO FAIL, which needs no forecast.
   (`profile: false`): the ground profile appended an 18 km regional slope of
   2.0° under the model's own 15.6°.
 
-- **Ground the FoS does not apply to is a CLASS, not a hole.** The gaps along
-  every channel were valley floors under 5° — 8,988 of 60,914 cells, median
-  1.5°, none bare and none missing DEM — which the infinite slope rightly
-  leaves out, and drawn as nothing they read as the mapping failing. They take
-  a slate "flat ground" class (bare rock another) through sentinel values far
-  below any view's range, and saturation is drawn on them too.
+- **Every cell is modelled — no slope threshold, no "bare rock".** The first
+  answer to the channel gaps was a slate "flat ground" class; the second, on
+  request, is to model them: the infinite-slope FoS grows without bound as
+  β → 0, which is a true statement that the ground cannot slide, so it is
+  CAPPED at 100 and reads as "stable" rather than leaving a hole. And
+  Pelletier's 0 m is not bare rock — the grid is whole metres, so 0 is soil
+  under a metre, exactly the thin colluvium shallow slides start in; it is a
+  0.5 m veneer and the card says so. `fos.js` (GeoID mode) still has its 5°
+  floor.
 - **The straight-edged bands are the SOIL MAP, not the model.** At the peak,
   FAO "sand" topsoil fails at 25%, silt 5.8%, the mapped clay deposit 0.3%: the
   database gives sand c′ = 0, so it fails saturated above ~19°, and the edge of

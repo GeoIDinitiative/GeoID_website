@@ -119,10 +119,21 @@ export function columnMaterial({ lith = null, texture = null, rp, state, strengt
   };
 }
 
+/**
+ * THE THICKNESS MODEL'S 0 IS NOT BARE ROCK. Pelletier's grid is stored in whole
+ * metres, so 0 is any soil under a metre — and a thin colluvium on steep ground
+ * is exactly where shallow slides start. Treating it as "no soil to slide" left
+ * those cells unmodelled; they take a veneer of half a metre, and say so.
+ */
+export const THIN_VENEER_M = 0.5;
+
 /** The soil column: the thickness above bedrock and the shallow failure plane in it. */
 export function soilColumn(thicknessM, fallbackM = 2) {
   if (Number.isFinite(thicknessM)) {
-    if (thicknessM <= 0) return { zs: 0, zf: 0, bare: true, from: "bare rock (the thickness model's 0 m)" };
+    if (thicknessM <= 0) {
+      return { zs: THIN_VENEER_M, zf: THIN_VENEER_M, bare: false, thin: true,
+        from: `a ${THIN_VENEER_M} m veneer (the thickness model's 0 is whole metres: under 1 m)` };
+    }
     return { zs: thicknessM, zf: Math.min(thicknessM, SHALLOW_FAILURE_CAP_M), bare: false, from: "the soil-thickness model" };
   }
   return { zs: fallbackM, zf: Math.min(fallbackM, SHALLOW_FAILURE_CAP_M), bare: false, from: "a stated default (no thickness here)" };
@@ -144,12 +155,23 @@ export function planeWetness(W, zs, zf) {
   return Math.max(0, Math.min(1, (h - (zs - zf)) / zf));
 }
 
+/**
+ * EVERY CELL HAS A FACTOR OF SAFETY. On gentle ground the driving stress goes
+ * to nothing and the ratio grows without bound — at 0° it is infinite, which
+ * is a true statement that the ground cannot slide, not a reason to leave the
+ * cell out. It is capped at FOS_CAP so the number stays a number, and every
+ * value above 1.5 is "stable" in the key however large it is.
+ */
+export const FOS_CAP = 100;
+
 export function factorOfSafety({ slopeRad, c, phi, gamma, zf, m }) {
   const phiR = phi * Math.PI / 180;
   const cos = Math.cos(slopeRad); const sin = Math.sin(slopeRad);
-  const driving = gamma * zf * sin * cos;
-  if (!(driving > 0)) return NaN;
-  return (c + (gamma - m * WATER_UNIT_WEIGHT) * zf * cos * cos * Math.tan(phiR)) / driving;
+  if (!(zf > 0) || !(gamma > 0) || !Number.isFinite(phiR)) return NaN;
+  const driving = gamma * zf * Math.abs(sin) * cos;
+  const resisting = c + (gamma - m * WATER_UNIT_WEIGHT) * zf * cos * cos * Math.tan(phiR);
+  if (!(driving > 1e-9)) return FOS_CAP;
+  return Math.min(FOS_CAP, resisting / driving);
 }
 
 /**

@@ -203,7 +203,7 @@ const EQUATIONS = {
     lines: [
       { expr: "P = Σ GFS rain over the window before the map, bilinear between GFS nodes",
         note: "NOAA's GFS on its own ~13 km grid, via Open-Meteo; a map every few hours, each the rain over the hours before it" },
-      { expr: "r = min(P / Δt, Ks)", note: "recharge: rain faster than the ground's saturated conductivity runs off (a toggle); bare rock sheds all of it onto the soil below" },
+      { expr: "r = min(P / Δt, Ks)", note: "recharge: rain faster than the ground's saturated conductivity runs off (a toggle)" },
       { expr: "q = Σ over the cells draining through this one of r · A",
         note: "multiple-flow-direction routing on the sink-filled DEM (Quinn et al. 1991; Freeman 1991, p = 1.1), over the area plus an upslope margin" },
       { expr: "h = min(z_s, q / (b · F·Ks · sin β))", note: "the steady Darcy water table on bedrock, flow parallel to the slope; T = F·Ks·z_s is the lateral transmissivity" },
@@ -214,10 +214,12 @@ const EQUATIONS = {
     ],
     terms: [
       ["β", "slope, Horn's method at the streamed DEM's own post spacing at each cell's centre (the "
-        + "model's grid is coarser and would flatten it); cells under 5° are not modelled"],
+        + "model's grid is coarser and would flatten it). Every cell is modelled: on gentle ground "
+        + "the factor of safety is large (capped at 100) and reads as stable"],
       ["A, b", "the area draining through the cell including itself, and the cell's width (the contour length)"],
       ["z_s, z_f", "the soil column above bedrock from Pelletier et al. (2016), and the failure "
-        + "plane within it, capped at 3 m for a shallow translational slide; 0 m is bare rock"],
+        + "plane within it, capped at 3 m for a shallow translational slide. The grid is whole metres, "
+        + "so its 0 is soil under a metre, modelled as a 0.5 m veneer"],
       ["c′, φ′, γ", "from the rock-properties database for the column's material — a mapped "
         + "deposit, the FAO soil map's dominant topsoil fraction, or the regolith over mapped "
         + "bedrock; peak or residual by the Strength control; γ saturated, from dry density and porosity"],
