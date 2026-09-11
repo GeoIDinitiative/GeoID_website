@@ -92,7 +92,7 @@ check("one band of widths holds the river", fields.length === 1 && fields[0].lo 
   const heights = valley();
   for (let j = 0; j < H; j += 1) {
     heights[(j * W) + mid + 20] = 30;                          // the ridge
-    for (let i = mid + 21; i < mid + 30; i += 1) heights[(j * W) + i] = 9;
+    for (let i = mid + 21; i < mid + 30; i += 1) heights[(j * W) + i] = 10.5;   // above normal, below the flood
   }
   const flow = { ...DEFAULTS, flow: 12.5, reach: 50 };
   const joined = inundate({ heights, riverWidth, fields, width: W, height: H, params: flow });
@@ -102,6 +102,29 @@ check("one band of widths holds the river", fields.length === 1 && fields[0].lo 
     params: { ...flow, connected: false } });
   check("with the connection switched off it fills, as if it rained there",
     loose.depth[(1 * W) + mid + 25] > 0);
+}
+
+{
+  // A river on a levee: the land beside it is lower than its water already.
+  const heights = valley();
+  for (let j = 0; j < H; j += 1) for (let i = mid + 3; i < mid + 15; i += 1) heights[(j * W) + i] = 8;
+  const flow = { ...DEFAULTS, flow: 2, reach: 50 };
+  const held = inundate({ heights, riverWidth, fields, width: W, height: H, params: flow });
+  check("land below the river's normal level is left dry while defences hold, and counted",
+    Number.isNaN(held.depth[(1 * W) + mid + 8]) && held.defended[(1 * W) + mid + 8] === 1);
+  const failed = inundate({ heights, riverWidth, fields, width: W, height: H,
+    params: { ...flow, defended: false } });
+  check("and floods when they fail, to the depth below the raised river",
+    near(failed.depth[(1 * W) + mid + 8], 10 + stageRise(100, flow) - 8, 1e-4));
+  // A centreline cell that caught the bank reads high; the water is the lowest ground at it.
+  const banked = valley();
+  for (let j = 0; j < H; j += 1) banked[(j * W) + mid] = 12;
+  const lowered = inundate({ heights: banked, riverWidth, fields, width: W, height: H,
+    params: { ...DEFAULTS, flow: 1, reach: 50 } });
+  let wet = 0;
+  for (let i = 0; i < W; i += 1) if (lowered.depth[(1 * W) + i] > 0) wet += 1;
+  check("the river's surface is the lowest ground at its cell, not the bank it caught",
+    wet === 0, `${wet} cells flooded at mean flow`);
 }
 
 {
@@ -156,7 +179,8 @@ const page = here("../index.html");
 check("the Flood subtab holds the row, its drawer and its script",
   /id="flood-catalogue"/.test(page) && /id="flood-inundation-controls" hidden/.test(page)
   && /gis\/flood-panel\.js/.test(page)
-  && ["flood-flow", "flood-extra", "flood-reach", "flood-cap", "flood-exponent", "flood-connected"]
+  && ["flood-flow", "flood-extra", "flood-reach", "flood-cap", "flood-exponent", "flood-connected",
+    "flood-defended"]
     .every((id) => page.includes(`id="${id}"`)));
 const panels = here("./catalogue-panels.js");
 check("the row names its drawer", /id: "flood-inundation",[\s\S]{0,2400}settings: "flood-inundation-controls"/.test(panels));

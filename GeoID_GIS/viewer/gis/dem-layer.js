@@ -18,20 +18,20 @@
  * the displaced surface, and the raster every terrain tool wants as an input.
  */
 
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-06476dc";
-import { mathsFor } from "./equations.js?v=20260911-06476dc";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260911-06476dc";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-fe2cd09";
+import { mathsFor } from "./equations.js?v=20260911-fe2cd09";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260911-fe2cd09";
 import { makeRaster, slope as slopeOf, hillshade as hillshadeOf }
-  from "./raster-analysis.js?v=20260911-06476dc";
-import * as dem from "./dem-tiles.js?v=20260911-06476dc";
-import { rampColour } from "./symbology.js?v=20260911-06476dc";
-import * as climate from "./climate-normals.js?v=20260911-06476dc";
+  from "./raster-analysis.js?v=20260911-fe2cd09";
+import * as dem from "./dem-tiles.js?v=20260911-fe2cd09";
+import { rampColour } from "./symbology.js?v=20260911-fe2cd09";
+import * as climate from "./climate-normals.js?v=20260911-fe2cd09";
 import { waterMasks, waterFeatures, floodFromSea, classAreas, edgeSeeds, contextBox, WORLD_BOX,
-  FLOODED, EXPOSED, CUT_OFF, LAKE } from "./water-mask.js?v=20260911-06476dc";
+  FLOODED, EXPOSED, CUT_OFF, LAKE } from "./water-mask.js?v=20260911-fe2cd09";
 import { burnRivers, riverZones, zoneAreas, mergeOuterZones, ZONES }
-  from "./river-zones.js?v=20260911-06476dc";
+  from "./river-zones.js?v=20260911-fe2cd09";
 import { DEFAULTS as FLOOD_DEFAULTS, sourceFields, inundate, mergeOuterDepth, depthColour,
-  floodAreas, DEPTH_CLASSES } from "./inundation.js?v=20260911-06476dc";
+  floodAreas, DEPTH_CLASSES } from "./inundation.js?v=20260911-fe2cd09";
 
 /**
  * Which corridor zones are drawn. State, like the sea level, so the drawer's
@@ -424,12 +424,13 @@ export const SHEETS = {
     },
     derive: (raster, ctx) => {
       const heights = heightsOf(raster.band);
-      const { depth, cutOff } = inundate({
+      const { depth, cutOff, defended } = inundate({
         heights, riverWidth: ctx.riverWidth, water: ctx.water, fields: ctx.fields,
         width: raster.width, height: raster.height, params: ctx.params,
       });
       mergeOuterDepth(depth, ctx.outer, ctx.bounds, raster.width, raster.height, ctx.water);
-      floodState.last = { ...floodAreas(depth, cutOff, raster.width, raster.height, ctx.bounds),
+      floodState.last = { ...floodAreas(depth, cutOff, raster.width, raster.height, ctx.bounds,
+        defended),
         params: ctx.params, world: ctx.world,
         cellM: ((ctx.bounds.east - ctx.bounds.west) / raster.width) * 111320
           * Math.cos((((ctx.bounds.north + ctx.bounds.south) / 2) * Math.PI) / 180) };
@@ -448,7 +449,10 @@ export const SHEETS = {
       const cut = last.cutOff > 0.5 ? ` ${km2(last.cutOff)} km² more lies below the flood `
         + "but is cut off from the river, and is left dry." : "";
       const deep = last.deepest > 0 ? ` Deepest ${last.deepest.toFixed(1)} m.` : "";
-      return `${km2(last.total)} km² ${where} is under the flood.${deep}${cut} `
+      const held = last.defended > 0.5 ? ` ${km2(last.defended)} km² lies below the river's `
+        + "normal level — levees, dykes or a DEM wrong at the channel — and is left dry "
+        + "as defended." : "";
+      return `${km2(last.total)} km² ${where} is under the flood.${deep}${held}${cut} `
         + `Cells here are about ${Math.round(last.cellM).toLocaleString()} m. A screening `
         + "estimate: no defences finer than the heights, no attenuation, no volume limit.";
     },

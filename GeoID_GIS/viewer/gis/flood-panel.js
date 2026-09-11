@@ -13,8 +13,8 @@
  * most readers; what it does to a river they can picture is the point.
  */
 
-import { floodState, rebuildSheet, sheetLayer } from "./dem-layer.js?v=20260911-06476dc";
-import { SCENARIOS, DEFAULTS, stageRise } from "./inundation.js?v=20260911-06476dc";
+import { floodState, rebuildSheet, sheetLayer } from "./dem-layer.js?v=20260911-fe2cd09";
+import { SCENARIOS, DEFAULTS, stageRise } from "./inundation.js?v=20260911-fe2cd09";
 
 const byId = (id) => document.getElementById(id);
 const say = (message) => { const n = byId("flood-status"); if (n) n.textContent = message || ""; };
@@ -60,6 +60,8 @@ function render() {
   text("flood-exponent-value", p.exponent.toFixed(2));
   const box = byId("flood-connected");
   if (box) box.checked = p.connected !== false;
+  const held = byId("flood-defended");
+  if (held) held.checked = p.defended !== false;
   const match = matchingScenario(p);
   p.scenario = match?.id || "custom";
   byId("flood-scenarios")?.querySelectorAll("[data-flood-scenario]").forEach((b) => {
@@ -107,6 +109,7 @@ function init() {
   byId("flood-cap").addEventListener("input", (e) => change({ widthCap: capFromSlider(e.target.value) }));
   byId("flood-exponent").addEventListener("input", (e) => change({ exponent: Number(e.target.value) }));
   byId("flood-connected")?.addEventListener("change", (e) => change({ connected: e.target.checked }));
+  byId("flood-defended")?.addEventListener("change", (e) => change({ defended: e.target.checked }));
   render();
 }
 

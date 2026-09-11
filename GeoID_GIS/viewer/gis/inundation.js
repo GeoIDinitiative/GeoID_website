@@ -37,7 +37,7 @@
  * deltas from a single river.
  */
 
-import { nearestSource, BANDS } from "./river-zones.js?v=20260911-06476dc";
+import { nearestSource, BANDS } from "./river-zones.js?v=20260911-fe2cd09";
 
 /** Leopold & Maddock (1953), the average at-a-station exponent of depth on discharge. */
 export const DEPTH_EXPONENT = 0.40;
@@ -73,7 +73,7 @@ export const SCENARIOS = [
 
 export const DEFAULTS = Object.freeze({
   scenario: "hundred", flow: 12.5, exponent: DEPTH_EXPONENT, extra: 0,
-  reach: 20, widthCap: Infinity, connected: true,
+  reach: 20, widthCap: Infinity, connected: true, defended: true,
 });
 
 /** The channel's depth in metres, from its width in metres. */
@@ -118,7 +118,33 @@ export function inundate({ heights, riverWidth, water = null, fields, width, hei
   const depth = new Float32Array(n).fill(NaN);
   const channel = new Uint8Array(n);
   const reach = Number.isFinite(params.reach) ? params.reach : DEFAULTS.reach;
+  const defended = params.defended !== false;
   const riseOf = new Map();
+  const surfaceOf = new Map();
+  const below = new Uint8Array(n);
+  /**
+   * THE RIVER'S SURFACE IS THE LOWEST GROUND AT IT. A grid cell on a
+   * centreline also holds some of the bank, and on a narrow river most of it,
+   * so its height reads high; the lowest of it and its eight neighbours is the
+   * water. Reading it high floods everything a bank's height below it.
+   */
+  const surface = (s) => {
+    let v = surfaceOf.get(s);
+    if (v !== undefined) return v;
+    const si = s % width; const sj = (s - si) / width;
+    v = Infinity;
+    for (let dj = -1; dj <= 1; dj += 1) {
+      for (let di = -1; di <= 1; di += 1) {
+        const i = si + di; const j = sj + dj;
+        if (i < 0 || j < 0 || i >= width || j >= height) continue;
+        const h = heights[(j * width) + i];
+        if (Number.isFinite(h) && h < v) v = h;
+      }
+    }
+    if (!Number.isFinite(v)) v = NaN;
+    surfaceOf.set(s, v);
+    return v;
+  };
   for (const field of fields || []) {
     const { dist, src } = field;
     for (let c = 0; c < n; c += 1) {
@@ -128,8 +154,19 @@ export function inundate({ heights, riverWidth, water = null, fields, width, hei
       const bank = dist[c] - (w / 2);
       if (bank <= 0) { channel[c] = 1; continue; }
       if (bank > reach * w) continue;
-      const hs = heights[s]; const hc = heights[c];
+      const hs = surface(s); const hc = heights[c];
       if (!Number.isFinite(hs) || !Number.isFinite(hc)) continue;
+      /**
+       * GROUND ALREADY BELOW THE RIVER at mean flow is not flooded every day,
+       * so something the heights cannot see is keeping the river off it: a
+       * levee (the Rhône runs above the Camargue), a polder dyke, or a DEM
+       * wrong at the channel. With defences holding it is left dry and
+       * counted; with them failing it floods with the rest.
+       */
+      if (hc < hs) {
+        below[c] = 1;
+        if (defended) continue;
+      }
       let rise = riseOf.get(w);
       if (rise === undefined) { rise = stageRise(w, params); riseOf.set(w, rise); }
       const d = hs + rise - hc;
@@ -167,10 +204,14 @@ export function inundate({ heights, riverWidth, water = null, fields, width, hei
       if (depth[c] > 0 && !reached[c]) { cutOff[c] = 1; depth[c] = NaN; }
     }
   }
+  // Defended: below the river's normal level and, with defences holding, dry
+  // — unless another river's flood reaches it on its own terms.
+  const behind = new Uint8Array(n);
   for (let c = 0; c < n; c += 1) {
-    if (channel[c] || (water && water[c])) depth[c] = NaN;
+    if (channel[c] || (water && water[c])) { depth[c] = NaN; continue; }
+    if (defended && below[c] && !(depth[c] > 0)) behind[c] = 1;
   }
-  return { depth, channel, cutOff };
+  return { depth, channel, cutOff, defended: behind };
 }
 
 /**
@@ -223,12 +264,12 @@ export function depthColour(d) {
 }
 
 /** Flooded ground per depth class and cut-off ground, in km², off the grid's own cells. */
-export function floodAreas(depth, cutOff, width, height, bounds) {
+export function floodAreas(depth, cutOff, width, height, bounds, defended = null) {
   const R = 6371.0088;
   const dLon = ((bounds.east - bounds.west) / width) * (Math.PI / 180);
   const dLat = ((bounds.north - bounds.south) / height) * (Math.PI / 180);
   const byClass = DEPTH_CLASSES.map(() => 0);
-  let cut = 0; let deepest = 0;
+  let cut = 0; let deepest = 0; let held = 0;
   for (let j = 0; j < height; j += 1) {
     const lat = bounds.north - ((j + 0.5) / height) * (bounds.north - bounds.south);
     const cell = R * R * dLon * dLat * Math.cos(lat * Math.PI / 180);
@@ -237,7 +278,8 @@ export function floodAreas(depth, cutOff, width, height, bounds) {
       const k = depthClass(depth[c]);
       if (k >= 0) { byClass[k] += cell; if (depth[c] > deepest) deepest = depth[c]; }
       if (cutOff?.[c]) cut += cell;
+      if (defended?.[c]) held += cell;
     }
   }
-  return { byClass, total: byClass.reduce((a, v) => a + v, 0), cutOff: cut, deepest };
+  return { byClass, total: byClass.reduce((a, v) => a + v, 0), cutOff: cut, deepest, defended: held };
 }
