@@ -37,7 +37,7 @@
  * deltas from a single river.
  */
 
-import { nearestSource, BANDS } from "./river-zones.js?v=20260911-a365a77";
+import { nearestSource, BANDS } from "./river-zones.js?v=20260911-4a98484";
 
 /** Leopold & Maddock (1953), the average at-a-station exponent of depth on discharge. */
 export const DEPTH_EXPONENT = 0.40;
@@ -241,8 +241,8 @@ export function inundate({ heights, riverWidth, water = null, fields, width, hei
  * round the view: taken where the view's own flood is dry, never over the
  * view's own answer or its water.
  */
-export function mergeOuterDepth(depth, outer, bounds, width, height, water = null) {
-  if (!outer?.depth) return depth;
+export function mergeOuterDepth(depth, outer, bounds, width, height, water = null, heights = null) {
+  if (!outer?.depth && !outer?.level) return depth;
   const ob = outer.bounds; const ow = outer.width; const oh = outer.height;
   for (let j = 0; j < height; j += 1) {
     const lat = bounds.north - ((j + 0.5) / height) * (bounds.north - bounds.south);
@@ -254,7 +254,16 @@ export function mergeOuterDepth(depth, outer, bounds, width, height, water = nul
       const lon = bounds.west + ((i + 0.5) / width) * (bounds.east - bounds.west);
       const oi = Math.floor(((lon - ob.west) / (ob.east - ob.west)) * ow);
       if (oi < 0 || oi >= ow) continue;
-      const d = outer.depth[(oj * ow) + oi];
+      /**
+       * The WATER LEVEL comes in, not the depth. A coarse cell's depth pasted
+       * onto fine cells drew the outer flood as blocks a context cell wide;
+       * its level read against this view's own heights gives the edge the
+       * fine ground puts it at.
+       */
+      const k = (oj * ow) + oi;
+      const level = outer.level?.[k];
+      const d = Number.isFinite(level) && heights && Number.isFinite(heights[c])
+        ? level - heights[c] : outer.depth?.[k];
       if (d > 0) depth[c] = d;
     }
   }

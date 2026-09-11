@@ -13,8 +13,8 @@
  * most readers; what it does to a river they can picture is the point.
  */
 
-import { floodState, rebuildSheet, sheetLayer } from "./dem-layer.js?v=20260911-a365a77";
-import { SCENARIOS, DEFAULTS, stageRise } from "./inundation.js?v=20260911-a365a77";
+import { floodState, rebuildSheet, sheetLayer } from "./dem-layer.js?v=20260911-4a98484";
+import { SCENARIOS, DEFAULTS, stageRise } from "./inundation.js?v=20260911-4a98484";
 
 const byId = (id) => document.getElementById(id);
 const say = (message) => { const n = byId("flood-status"); if (n) n.textContent = message || ""; };

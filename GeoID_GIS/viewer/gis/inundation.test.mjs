@@ -156,6 +156,19 @@ check("one band of widths holds the river", fields.length === 1 && fields[0].lo 
   check("but never over the view's own answer or its water", fine[1] === 2 && Number.isNaN(fine[2]));
 }
 
+{
+  // The outer flood's LEVEL read against the view's own heights: one coarse
+  // cell at 12 m over four fine cells at 10, 11, 12.5 and 13 m.
+  const b = { west: 0, east: 1, south: 0, north: 1 };
+  const outer = { bounds: b, width: 1, height: 1, level: new Float32Array([12]),
+    depth: new Float32Array([1]) };
+  const fine = new Float32Array(4).fill(NaN);
+  mergeOuterDepth(fine, outer, b, 4, 1, null, new Float32Array([10, 11, 12.5, 13]));
+  check("a flood from out of shot takes its edge from the fine ground, not the coarse cell",
+    near(fine[0], 2, 1e-6) && near(fine[1], 1, 1e-6) && Number.isNaN(fine[2]) && Number.isNaN(fine[3]),
+    `${[...fine]}`);
+}
+
 /* ── the classes ──────────────────────────────────────────────────────── */
 
 check("depth classes are the NWS thresholds, 15 cm, 30 cm and 60 cm",
