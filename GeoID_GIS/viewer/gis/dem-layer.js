@@ -18,21 +18,21 @@
  * the displaced surface, and the raster every terrain tool wants as an input.
  */
 
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-6644382";
-import { mathsFor } from "./equations.js?v=20260911-6644382";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260911-6644382";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-af25b73";
+import { mathsFor } from "./equations.js?v=20260911-af25b73";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260911-af25b73";
 import { makeRaster, slope as slopeOf, hillshade as hillshadeOf }
-  from "./raster-analysis.js?v=20260911-6644382";
-import * as dem from "./dem-tiles.js?v=20260911-6644382";
-import { rampColour } from "./symbology.js?v=20260911-6644382";
-import * as climate from "./climate-normals.js?v=20260911-6644382";
+  from "./raster-analysis.js?v=20260911-af25b73";
+import * as dem from "./dem-tiles.js?v=20260911-af25b73";
+import { rampColour } from "./symbology.js?v=20260911-af25b73";
+import * as climate from "./climate-normals.js?v=20260911-af25b73";
 import { waterMasks, waterFeatures, floodFromSea, classAreas, edgeSeeds, contextBox, WORLD_BOX,
-  FLOODED, EXPOSED, CUT_OFF, LAKE } from "./water-mask.js?v=20260911-6644382";
+  FLOODED, EXPOSED, CUT_OFF, LAKE } from "./water-mask.js?v=20260911-af25b73";
 import { burnRivers, riverZones, zoneAreas, mergeOuterZones, ZONES }
-  from "./river-zones.js?v=20260911-6644382";
+  from "./river-zones.js?v=20260911-af25b73";
 import { DEFAULTS as FLOOD_DEFAULTS, sourceFields, inundate, mergeOuterDepth, depthColour,
   floodAreas, DEPTH_CLASSES, selectRiver, riverField, meanFlowFromWidth, flowRatio,
-  stageRise } from "./inundation.js?v=20260911-6644382";
+  stageRise } from "./inundation.js?v=20260911-af25b73";
 
 /**
  * Which corridor zones are drawn. State, like the sea level, so the drawer's
@@ -441,7 +441,7 @@ export const SHEETS = {
         width: raster.width, height: raster.height, params: ctx.params,
       });
       mergeOuterDepth(depth, ctx.outer, ctx.bounds, raster.width, raster.height, ctx.water,
-        heights);
+        heights, { defended: ctx.params.defended !== false });
       floodState.last = { ...floodAreas(depth, cutOff, raster.width, raster.height, ctx.bounds,
         defended, channel),
         params: ctx.params, world: ctx.world,
@@ -537,7 +537,7 @@ export const SHEETS = {
         width: raster.width, height: raster.height, params: ctx.params,
       });
       mergeOuterDepth(depth, ctx.outer, ctx.bounds, raster.width, raster.height, ctx.water,
-        heights);
+        heights, { defended: ctx.params.defended !== false });
       dischargeState.last = { ...floodAreas(depth, cutOff, raster.width, raster.height,
         ctx.bounds, defended, channel), params: ctx.params, mean: ctx.mean,
         discharge: dischargeState.discharge, width: dischargeState.width, cells: ctx.cells };
@@ -846,12 +846,11 @@ async function floodGround(bounds) {
 }
 
 /** The ground's flood as a WATER LEVEL, for the view to read against its own heights. */
-function outerLevel(ground, depth) {
-  const level = new Float32Array(depth.length).fill(NaN);
-  for (let c = 0; c < depth.length; c += 1) {
-    if (depth[c] > 0 && Number.isFinite(ground.heights[c])) level[c] = ground.heights[c] + depth[c];
-  }
-  return { depth, level, bounds: ground.bounds, width: ground.width, height: ground.height };
+function outerLevel(ground, flood) {
+  // The model's own level (the river's SURFACE plus the rise in the channel),
+  // never a channel cell's bank-high height plus its depth.
+  return { depth: flood.depth, level: flood.level, normal: flood.normal,
+    bounds: ground.bounds, width: ground.width, height: ground.height };
 }
 
 async function floodOuter(bounds, params) {
@@ -860,8 +859,7 @@ async function floodOuter(bounds, params) {
   if (!ground.fields) {
     ground.fields = sourceFields(ground.riverWidth, ground.width, ground.height, ground.bounds);
   }
-  const { depth } = inundate({ ...ground, params });
-  return outerLevel(ground, depth);
+  return outerLevel(ground, inundate({ ...ground, params }));
 }
 
 /**
@@ -882,8 +880,8 @@ async function dischargeOuter(bounds, pick, params) {
     if (ground.riverFields.size > 8) ground.riverFields.clear();
     ground.riverFields.set(key, fields);
   }
-  const { depth } = inundate({ ...ground, riverWidth: ground.riverWidthAll, fields, params });
-  return outerLevel(ground, depth);
+  return outerLevel(ground,
+    inundate({ ...ground, riverWidth: ground.riverWidthAll, fields, params }));
 }
 
 /**

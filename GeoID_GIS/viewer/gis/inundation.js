@@ -37,7 +37,7 @@
  * deltas from a single river.
  */
 
-import { nearestSource, BANDS } from "./river-zones.js?v=20260911-6644382";
+import { nearestSource, BANDS } from "./river-zones.js?v=20260911-af25b73";
 
 /** Leopold & Maddock (1953), the average at-a-station exponent of depth on discharge. */
 export const DEPTH_EXPONENT = 0.40;
@@ -212,6 +212,11 @@ export function inundate({ heights, riverWidth, water = null, fields, width, hei
   const surfaceOf = new Map();
   const below = new Uint8Array(n);
   const channelRise = new Float32Array(n);
+  // The river's normal level behind every wet cell, so a level handed on to
+  // another grid is SURFACE + rise, never a channel cell's own (bank-high)
+  // height + rise — and so that grid can tell ground below the river from
+  // ground under the flood.
+  const normal = new Float32Array(n).fill(NaN);
   /**
    * THE RIVER'S SURFACE IS THE LOWEST GROUND AT IT. A grid cell on a
    * centreline also holds some of the bank, and on a narrow river most of it,
@@ -248,7 +253,7 @@ export function inundate({ heights, riverWidth, water = null, fields, width, hei
         // rise above its normal level, the same surface the banks see.
         let rise = riseOf.get(w);
         if (rise === undefined) { rise = stageRise(w, params); riseOf.set(w, rise); }
-        if (rise > channelRise[c]) channelRise[c] = rise;
+        if (rise > channelRise[c]) { channelRise[c] = rise; normal[c] = surface(s); }
         continue;
       }
       if (bank > reach * w) continue;
@@ -268,7 +273,7 @@ export function inundate({ heights, riverWidth, water = null, fields, width, hei
       let rise = riseOf.get(w);
       if (rise === undefined) { rise = stageRise(w, params); riseOf.set(w, rise); }
       const d = hs + rise - hc;
-      if (d > 0 && !(depth[c] >= d)) depth[c] = d;
+      if (d > 0 && !(depth[c] >= d)) { depth[c] = d; normal[c] = hs; }
     }
   }
   const cutOff = new Uint8Array(n);
@@ -321,7 +326,20 @@ export function inundate({ heights, riverWidth, water = null, fields, width, hei
     }
     if (defended && below[c] && !(depth[c] > 0)) behind[c] = 1;
   }
-  return { depth, channel, cutOff, defended: behind };
+  /**
+   * THE WATER LEVEL, for a grid that reads this one. Ground: its height plus
+   * its depth, which is the river's surface plus the rise. The channel: the
+   * river's SURFACE plus the rise — its own height reads high (it holds the
+   * bank), so height + depth there overstated the level beside every narrow
+   * river, and a finer grid reading it flooded ground metres too deep.
+   */
+  const level = new Float32Array(n).fill(NaN);
+  for (let c = 0; c < n; c += 1) {
+    if (!(depth[c] > 0)) continue;
+    if (channel[c] && Number.isFinite(normal[c])) level[c] = normal[c] + channelRise[c];
+    else if (Number.isFinite(heights[c])) level[c] = heights[c] + depth[c];
+  }
+  return { depth, channel, cutOff, defended: behind, level, normal };
 }
 
 /**
@@ -329,7 +347,8 @@ export function inundate({ heights, riverWidth, water = null, fields, width, hei
  * round the view: taken where the view's own flood is dry, never over the
  * view's own answer or its water.
  */
-export function mergeOuterDepth(depth, outer, bounds, width, height, water = null, heights = null) {
+export function mergeOuterDepth(depth, outer, bounds, width, height, water = null, heights = null,
+  { defended = true } = {}) {
   if (!outer?.depth && !outer?.level) return depth;
   const ob = outer.bounds; const ow = outer.width; const oh = outer.height;
   /**
@@ -341,7 +360,7 @@ export function mergeOuterDepth(depth, outer, bounds, width, height, water = nul
    * reaches half a coarse cell past them, and this view's own heights decide
    * where in that the water actually stops.
    */
-  const levelAt = (x, y) => {
+  const levelAt = (x, y, field = outer.level) => {
     const fx = x - 0.5; const fy = y - 0.5;
     const i0 = Math.floor(fx); const j0 = Math.floor(fy);
     const tx = fx - i0; const ty = fy - j0;
@@ -350,7 +369,10 @@ export function mergeOuterDepth(depth, outer, bounds, width, height, water = nul
       [0, 1, (1 - tx) * ty], [1, 1, tx * ty]]) {
       const i = Math.min(ow - 1, Math.max(0, i0 + di));
       const j = Math.min(oh - 1, Math.max(0, j0 + dj));
-      const v = outer.level[(j * ow) + i];
+      // Only centres under water carry a level, and the normal level is read
+      // at those same centres, so the two are one interpolation.
+      if (!Number.isFinite(outer.level[(j * ow) + i])) continue;
+      const v = field[(j * ow) + i];
       if (Number.isFinite(v) && wgt > 0) { sum += v * wgt; wsum += wgt; }
     }
     return wsum > 0 ? sum / wsum : NaN;
@@ -368,6 +390,14 @@ export function mergeOuterDepth(depth, outer, bounds, width, height, water = nul
       let d;
       if (outer.level && heights && Number.isFinite(heights[c])) {
         d = levelAt(x, y) - heights[c];
+        /**
+         * GROUND BELOW THE RIVER'S NORMAL LEVEL is defended here too, as it is
+         * in the view's own model. Without it the flood carried in from out of
+         * shot poured into every pit, quarry and neighbouring channel lower
+         * than the river it came from — measured, 12 m of water on a 1.1 m
+         * rise, at the view's edge.
+         */
+        if (d > 0 && defended && outer.normal && heights[c] < levelAt(x, y, outer.normal)) d = 0;
       } else {
         d = outer.depth?.[(Math.floor(y) * ow) + Math.floor(x)];
       }

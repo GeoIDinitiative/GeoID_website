@@ -182,6 +182,42 @@ check("one band of widths holds the river", fields.length === 1 && fields[0].lo 
     fine[4] > 0 && fine[5] > 0, `${[...fine]}`);
 }
 
+{
+  // A level handed on to another grid: at the channel it is the river's
+  // SURFACE plus the rise. The centreline cell here reads 13 m (it holds the
+  // bank) while the lowest ground round it is its neighbours' 10.05 m.
+  const h = valley();
+  for (let j = 0; j < H; j += 1) h[(j * W) + mid] = 13;
+  const flow = { ...DEFAULTS, flow: 12.5, reach: 50 };
+  const rise = stageRise(100, flow);
+  const out = inundate({ heights: h, riverWidth, fields, width: W, height: H, params: flow });
+  const c = (1 * W) + mid;
+  check("the level at the channel is its surface plus the rise, not its bank-high height",
+    near(out.level[c], 10.05 + rise, 1e-4) && near(out.normal[c], 10.05, 1e-4),
+    `level ${out.level[c]} against ${10.05 + rise}`);
+  check("and on flooded ground it is the height plus the depth — one surface",
+    near(out.level[c + 10], out.normal[c + 10] + rise, 1e-4)
+    && near(out.level[c + 10], h[c + 10] + out.depth[c + 10], 1e-4),
+    `${out.level[c + 10]} / ${out.normal[c + 10]}`);
+  check("dry ground carries no level", Number.isNaN(out.level[c + 199 - mid]));
+}
+
+{
+  // The outer flood reaching a PIT: one coarse centre, level 12 m over a river
+  // whose normal level is 11 m, and fine ground at 11.5 m and 6 m. The pit is
+  // below the river, so while the defences hold it stays dry.
+  const b = { west: 0, east: 1, south: 0, north: 1 };
+  const outer = { bounds: b, width: 1, height: 1, level: new Float32Array([12]),
+    normal: new Float32Array([11]) };
+  const held = new Float32Array(2).fill(NaN);
+  mergeOuterDepth(held, outer, b, 2, 1, null, new Float32Array([11.5, 6]));
+  check("a flood from out of shot leaves ground below the river's normal level dry",
+    near(held[0], 0.5, 1e-6) && Number.isNaN(held[1]), `${[...held]}`);
+  const failed = new Float32Array(2).fill(NaN);
+  mergeOuterDepth(failed, outer, b, 2, 1, null, new Float32Array([11.5, 6]), { defended: false });
+  check("and floods it when the defences fail", near(failed[1], 6, 1e-6), `${[...failed]}`);
+}
+
 /* ── the classes ──────────────────────────────────────────────────────── */
 
 check("depth classes are the NWS thresholds, 15 cm, 30 cm and 60 cm",
@@ -274,6 +310,9 @@ check("the flood is a sheet of the streamed DEM, reading GRWL and the ground rou
   && /waterFeatures\("rivers"/.test(sheets));
 check("and keeps each view's nearest-river fields, so a slider costs arithmetic",
   /if \(!base\.fields\)/.test(sheets) && /sourceFields\(base\.riverWidth, width, height, bounds\)/.test(sheets));
+check("both sheets hand the defences to the outer merge, and the outer carries the model's own level",
+  (sheets.match(/\{ defended: ctx\.params\.defended !== false \}/g) || []).length === 2
+  && /level: flood\.level, normal: flood\.normal/.test(sheets));
 check("the discharge sheet floods from ONE river's field and reads its mean from the drawer",
   /discharge:\s*\{/.test(sheets) && /selectRiver\(base\.riverWidth/.test(sheets)
   && /riverField\(sel\.mask/.test(sheets) && /flowRatio\(dischargeState\.discharge, mean\)/.test(sheets));
