@@ -5799,17 +5799,20 @@ canvas {
    open and shut.) */
 
 
-/* THE VISIBILITY BOX: the model page's Workspace. The tile on the right, the
-   mirror of the deck on the left -- same top, same cap above the worlds strip,
-   shrink-wrapped to what it holds -- in the Workspace tile's own frame, head
-   and chevron, with the Workspace's own row, disclosure and eye inside it. */
+/* THE VISIBILITY BOX: the model page's Workspace, where the Workspace is --
+   the foot of the left column, under the deck and the deck's own width -- in
+   the Workspace tile's own frame, head and chevron, with the Workspace's own
+   row, disclosure and eye inside it. The deck is told how tall it is
+   (--studio-vis-space, published from JS as the GIS dock publishes
+   --layer-dock-space) and stops above it, and the box slides into the margin
+   with the deck, as the Workspace follows the sidebar. */
 #model-studio .studio-visbox {
   position: absolute;
-  top: calc(var(--studio-chrome-h, 5rem) + 1.4rem);
-  right: 1rem;
+  left: 1rem;
+  bottom: 1rem;
   z-index: 4;
-  width: min(19rem, calc(100vw - 27rem));
-  max-height: calc(100% - var(--studio-chrome-h, 5rem) - 1.4rem - 3.2rem);
+  width: min(24rem, calc(100vw - 2rem));
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -5874,10 +5877,17 @@ canvas {
 }
 #model-studio .studio-visbox > .layer-dock-head .section-icon { color: rgb(var(--nav-accent-rgb)) !important; }
 #model-studio .studio-visbox > .layer-dock-head .section-title-row { display: inline-flex; align-items: center; gap: 0.55rem; }
+#model-studio .studio-visbox.is-away { transform: translateX(calc(-100% - 1.4rem)); pointer-events: none; }
+/* The deck ends above the box, whatever the box holds. */
+#model-studio .studio-dock {
+  max-height: calc(100% - var(--studio-chrome-h, 5rem) - 1.4rem - var(--studio-vis-space, 3.2rem));
+}
 #model-studio .studio-visbox .studio-vis-body {
   flex: 1 1 auto;
   min-height: 0;
-  max-height: none;
+  /* Grows with the model, then scrolls -- the Workspace's own cap -- rather
+     than climbing into the deck's column. */
+  max-height: min(42vh, 20rem);
   overflow-y: auto;
   padding: 0.45rem 0.55rem 0.55rem;
 }

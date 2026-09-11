@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260911-92409f8";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260911-92409f8";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260911-be0ec2a";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260911-be0ec2a";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260911-92409f8";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260911-92409f8";
-import { downloadText } from "./extraction.js?v=20260911-92409f8";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260911-92409f8";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260911-92409f8";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260911-92409f8";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260911-92409f8";
-import { femSpec } from "./model-build.js?v=20260911-92409f8";
+} from "./mesh-volume.js?v=20260911-be0ec2a";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260911-be0ec2a";
+import { downloadText } from "./extraction.js?v=20260911-be0ec2a";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260911-be0ec2a";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260911-be0ec2a";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260911-be0ec2a";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260911-be0ec2a";
+import { femSpec } from "./model-build.js?v=20260911-be0ec2a";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -3786,6 +3786,30 @@ function closePartCard() {
 const visOpen = new Set();
 const VIS_FOLD_KEY = "geoid-studio:visibility-collapsed";
 
+/**
+ * The deck is told how much room the box takes, as the GIS panel is told by
+ * the Workspace: published as a length on #model-studio so the deck's cap is
+ * plain CSS, remeasured whenever the box changes size or is hidden. And the
+ * box follows the deck into the margin, so folding the deck to see the model
+ * does not leave a tile sitting over it.
+ */
+function watchVisibilityBox(box, root) {
+  const deck = root.querySelector(".studio-dock-left");
+  const measure = () => {
+    const gone = box.hidden || box.classList.contains("is-away");
+    // 1rem under the box to the edge, and 1rem between it and the deck.
+    root.style.setProperty("--studio-vis-space", gone ? "3.2rem" : `${Math.ceil(box.getBoundingClientRect().height) + 32}px`);
+  };
+  new ResizeObserver(measure).observe(box);
+  new MutationObserver(measure).observe(box, { attributes: true, attributeFilter: ["hidden", "class"] });
+  if (deck) {
+    const follow = () => box.classList.toggle("is-away", deck.classList.contains("is-folded"));
+    new MutationObserver(follow).observe(deck, { attributes: true, attributeFilter: ["class"] });
+    follow();
+  }
+  measure();
+}
+
 function visibilityGroups() {
   const groups = domainGroups();
   const view = state.meshView;
@@ -3830,6 +3854,7 @@ function renderVisibilityBox() {
     box.classList.toggle("is-collapsed", stored);
     head.setAttribute("aria-expanded", stored ? "false" : "true");
     root.appendChild(box);
+    watchVisibilityBox(box, root);
   }
   const body = box.querySelector(".studio-vis-body");
   const groups = visibilityGroups();
@@ -3913,10 +3938,13 @@ function renderVisibilityBox() {
           const r = child.getBoundingClientRect();
           showPartCard(part, r.left, r.top);
           // The card opens BESIDE the box, on the side with room -- the box is
-          // against the right edge, so that is the left -- by its MEASURED
-          // width: a guessed one overlapped the box by 75 px.
+          // against the left edge, so that is the right -- and kept on screen.
           const card = byId("studio-part-card");
-          if (card) card.style.left = `${Math.max(8, box.getBoundingClientRect().left - card.offsetWidth - 8)}px`;
+          if (card) {
+            const left = Math.min(box.getBoundingClientRect().right + 8, window.innerWidth - card.offsetWidth - 8);
+            card.style.left = `${Math.max(8, left)}px`;
+            card.style.top = `${Math.max(8, Math.min(r.top, window.innerHeight - card.offsetHeight - 8))}px`;
+          }
           if (part.solidId !== null && part.solidId !== undefined) setSelection([part.solidId]);
         };
         partName.addEventListener("click", card);
