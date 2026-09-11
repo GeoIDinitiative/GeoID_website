@@ -10,24 +10,24 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260911-799756c";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260911-799756c";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260911-799756c";
+import { attachReliefAttributes, attachExactReliefAttributes, followRelief } from "./vector-render.js?v=20260911-dd2e87b";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260911-dd2e87b";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260911-dd2e87b";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260911-799756c";
+  from "./view-extent.js?v=20260911-dd2e87b";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260911-799756c";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260911-799756c";
+} from "./extent-picker.js?v=20260911-dd2e87b";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260911-dd2e87b";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
   freshness, isNewDataset, isExtendedDataset, indexedHrefs, bakedOn,
-} from "./gee-catalogue-index.js?v=20260911-799756c";
-import { checkCatalogue, describeCheck } from "./gee-watch.js?v=20260911-799756c";
+} from "./gee-catalogue-index.js?v=20260911-dd2e87b";
+import { checkCatalogue, describeCheck } from "./gee-watch.js?v=20260911-dd2e87b";
 
 // The page's own stamp. A dynamic import under any other query is a SECOND
 // module instance with its own state — the trap that made a stopped player
@@ -323,10 +323,13 @@ export async function drape(imageUrl, bounds, { segments = 96 } = {}) {
   // real answer to the facet-versus-relief problem the clearance never solved.
   const LIFT = 0;
   const vertex = new THREE.Vector3();
+  const lats = new Float64Array((segments + 1) * (segments + 1));
+  const lons = new Float64Array(lats.length);
   for (let y = 0; y <= segments; y += 1) {
     const lat = box.maxY - (box.maxY - box.minY) * (y / segments);
     for (let x = 0; x <= segments; x += 1) {
       const lon = box.minX + (box.maxX - box.minX) * (x / segments);
+      lats[y * (segments + 1) + x] = lat; lons[y * (segments + 1) + x] = lon;
       vertex.copy(viewer?.surfacePoint
         ? viewer.surfacePoint(lat, lon, LIFT)
         : latLonToVector3(lat, lon, 3.2 + LIFT));
@@ -365,7 +368,11 @@ export async function drape(imageUrl, bounds, { segments = 96 } = {}) {
   // slider's value would hang above a planet that has shrunk under it. Each
   // vertex carries its direction and displacement instead, and one uniform
   // places every draped layer at the relief the globe is drawn at.
-  attachReliefAttributes(geometry, LIFT, Number(viewer?.getEffectiveRelief?.() ?? 0));
+  // Exact where the viewer publishes what the ground is made of; the
+  // divided-out form only where it does not (see attachExactReliefAttributes
+  // for the 2.4 km that form cost a drape built close in).
+  const exact = attachExactReliefAttributes(geometry, lats, lons, { globeFrame: true });
+  if (!exact) attachReliefAttributes(geometry, LIFT, Number(viewer?.getEffectiveRelief?.() ?? 0));
   const mesh = new THREE.Mesh(geometry, followRelief(new THREE.MeshBasicMaterial({
     map: texture,
     transparent: true,

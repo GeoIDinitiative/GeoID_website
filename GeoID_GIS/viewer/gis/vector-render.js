@@ -1,11 +1,11 @@
 import * as THREE from "../vendor/three.module.js";
 import { latLonToVector3, drapedRadius, looksLikeGeographic, sphericalPolygonAreaKm2 }
-  from "./geo-utils.js?v=20260911-799756c";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260911-799756c";
-import { pointInPolygon } from "./geometry.js?v=20260911-799756c";
-import { paintOpacity } from "./layer-opacity.js?v=20260911-799756c";
-import { applyCutaway } from "./cutaway.js?v=20260911-799756c";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260911-799756c";
+  from "./geo-utils.js?v=20260911-dd2e87b";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260911-dd2e87b";
+import { pointInPolygon } from "./geometry.js?v=20260911-dd2e87b";
+import { paintOpacity } from "./layer-opacity.js?v=20260911-dd2e87b";
+import { applyCutaway } from "./cutaway.js?v=20260911-dd2e87b";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260911-dd2e87b";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -465,6 +465,46 @@ function baseRadius() {
  * the relief it was built with gives back the displacement exactly, and a
  * second sampling path could disagree with the first.
  */
+/**
+ * THE EXACT FORM of `attachReliefAttributes`, for a grid whose coordinates are
+ * known: each vertex carries the direction of its lat/lon and the terrain's
+ * own normalised height there — the two numbers `surfacePoint` is made of —
+ * rather than a displacement divided back out of a rounded Float32 position.
+ *
+ * The divided-out form is exact only at the relief it was built at. Built
+ * close in, where the exaggeration has tapered to almost nothing, the rounding
+ * is magnified by the ratio of the reliefs when the camera rises: measured on
+ * a weather overlay built 2 km up (relief 1.5e-5) and viewed from 1,500 km
+ * (relief 0.11), the sheet stood up to 2.4 km off the ground, 836 m on
+ * average. With these it is exact at any altitude.
+ *
+ * `globeFrame` for geometry parented to the globe mesh, which carries a half
+ * turn: x and z negated, as `drape()` bakes its positions. Returns false where
+ * the viewer does not publish the two functions, so the caller can fall back.
+ */
+export function attachExactReliefAttributes(geometry, lats, lons, { globeFrame = false } = {}) {
+  const viewer = globalThis.window?.GeoIDViewer;
+  const toDir = viewer?.latLonToVector3;
+  const heightOf = viewer?.elevationNormalized;
+  if (typeof toDir !== "function" || typeof heightOf !== "function") return false;
+  const n = lats.length;
+  const dir = new Float32Array(n * 3);
+  const disp = new Float32Array(n);
+  const flip = globeFrame ? -1 : 1;
+  for (let i = 0; i < n; i += 1) {
+    const d = toDir(lats[i], lons[i], 1);
+    const len = Math.hypot(d.x, d.y, d.z) || 1;
+    dir[i * 3] = (flip * d.x) / len;
+    dir[i * 3 + 1] = d.y / len;
+    dir[i * 3 + 2] = (flip * d.z) / len;
+    const h = Number(heightOf(lats[i], lons[i]));
+    disp[i] = Number.isFinite(h) ? h : 0;
+  }
+  geometry.setAttribute("aDir", new THREE.BufferAttribute(dir, 3));
+  geometry.setAttribute("aDisp", new THREE.BufferAttribute(disp, 1));
+  return true;
+}
+
 export function attachReliefAttributes(geometry, drape, builtRelief) {
   const position = geometry.attributes.position;
   const base = baseRadius();

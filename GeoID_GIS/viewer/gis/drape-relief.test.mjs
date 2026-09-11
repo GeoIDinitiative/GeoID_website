@@ -33,8 +33,9 @@ const near = (a, b, tol, what) => {
 };
 
 globalThis.window = { GeoIDViewer: { GLOBE_RADIUS: 3.2, elevationNormalized: () => 0.5 } };
-const { attachReliefAttributes, followRelief, getRenderRelief }
+const { attachReliefAttributes, attachExactReliefAttributes, followRelief, getRenderRelief }
   = await import("./vector-render.js");
+globalThis.__exact = attachExactReliefAttributes;
 
 const BASE = 3.2;
 const METRES = 6371000 / 3.2;      // one relief unit, in metres of ground
@@ -210,6 +211,42 @@ check("so the drape is driven without an imported layer in the page", () => {
     "and the basemap drape is a follower");
 });
 
+
+/**
+ * THE DIVIDED-OUT DISPLACEMENT IS ONLY EXACT AT THE RELIEF IT WAS BUILT AT.
+ * Built close in (relief 1.5e-5, measured 2 km up) a Float32 position cannot
+ * hold the height to better than its rounding, and the rounding is multiplied
+ * by the ratio of the reliefs when the camera rises: a weather overlay built
+ * there stood up to 2.4 km off the ground from 1,500 km. The exact form
+ * carries the height itself and is right at any relief.
+ */
+check("a drape built close in is wrong from orbit by the divided-out form, and exact by the other", () => {
+  const { attachExactReliefAttributes } = { attachExactReliefAttributes: globalThis.__exact };
+  const built = 1.5e-5; const later = 0.11;
+  const geometry = patchAt(built, 0, HEIGHTS);
+  attachReliefAttributes(geometry, 0, built);
+  const worstDivided = Math.max(...HEIGHTS.map((h, i) => Math.abs(geometry.attributes.aDisp.getX(i) * later - h * later)));
+  ok(worstDivided * METRES > 100, `the divided-out form should be off by more than 100 m, was ${(worstDivided * METRES).toFixed(1)} m`);
+  const heights = [0.001, 0.004, 0.0125, 0];
+  window.GeoIDViewer.latLonToVector3 = (lat, lon, r) => ({ x: Math.cos(lat) * r, y: Math.sin(lat) * r, z: Math.sin(lon) * r * 0 + 0.1 * r });
+  window.GeoIDViewer.elevationNormalized = (lat) => heights[Math.round(lat)];
+  const g2 = new THREE.BufferGeometry();
+  g2.setAttribute("position", new THREE.BufferAttribute(new Float32Array(12), 3));
+  ok(attachExactReliefAttributes(g2, [0, 1, 2, 3], [0, 0, 0, 0], { globeFrame: true }), "the viewer publishes both functions");
+  heights.forEach((h, i) => near(g2.attributes.aDisp.getX(i) * later, h * later, 1e-9, `exact vertex ${i}`));
+  const d = window.GeoIDViewer.latLonToVector3(0, 0, 1); const len = Math.hypot(d.x, d.y, d.z);
+  near(g2.attributes.aDir.getX(0), -d.x / len, 1e-6, "globe frame negates x");
+  near(g2.attributes.aDir.getZ(0), -d.z / len, 1e-6, "and z");
+  near(g2.attributes.aDir.getY(0), d.y / len, 1e-6, "but not y");
+});
+
+check("every drape() overlay — weather maps, Earth Engine, map overlays — takes the exact form", () => {
+  const src = readFileSync(new URL("./gee.js", import.meta.url), "utf8");
+  ok(/attachExactReliefAttributes\(geometry, lats, lons, \{ globeFrame: true \}\)/.test(src), "drape() carries the height itself");
+  ok(/if \(!exact\) attachReliefAttributes\(/.test(src), "and falls back only where the viewer cannot say");
+  const weather = readFileSync(new URL("./weather-maps.js", import.meta.url), "utf8");
+  ok(/await drape\(/.test(weather), "the weather card drapes through drape()");
+});
 
 if (failures.length) {
   failures.forEach((f) => console.error(`  x ${f}`));
