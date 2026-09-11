@@ -114,11 +114,17 @@ const src = readFileSync(new URL("./landslide-pipeline.js", import.meta.url), "u
 check("the rainfall is GFS, by date — the ERA5 archive is gone", /fetchGfsNodes\(cover/.test(src) && !/archive-api\.open-meteo/.test(src));
 check("the GFS nodes cover the upslope margin, where water drains in from", /const cover = withMargin\(b, marginKm\(\)\)/.test(src));
 check("a borrowed streaming layer is given back, whatever happens", /finally \{\s*borrowed\.forEach\(\(l\) => \{ try \{ l\.restoreLive\?\.\(\); \}/.test(src));
-check("the routing is multiple-flow-direction on the sink-filled DEM", /mfdTopology\(filled, \{ exponent: 1\.1 \}\)/.test(src)
-  && /fillSinks\(makeRaster\(grid\.band/.test(src));
+check("the routing is multiple-flow-direction on the sink-filled DEM",
+  /mfdTopology\(fillSinks\(makeRaster\(grid\.band, grid\.width, grid\.height, grid\.bounds, NaN\)\), \{ exponent: 1\.1 \}\)/.test(src));
+check("the map is drawn at the DEM's own posts, the budget only coarsening what will not fit",
+  /demGridFor\(eb, heightAt, \{ maxCells, minStepM: post \? Math\.max\(5, post\) : 10 \}\)/.test(src)
+  && /value="2000000" selected>Full resolution/.test(src));
+check("the coarse datasets inform it on a lattice of about 100 m", /export const INFORM_M = 100;/.test(src)
+  && /const bk = Math\.max\(1, Math\.round\(INFORM_M \/ grid\.stepM\)\);/.test(src));
 check("the layer carries its working", /maths: mathsFor\("landslide-forecast"\)/.test(src)
   && /"landslide-forecast": \{/.test(readFileSync(new URL("./equations.js", import.meta.url), "utf8")));
-check("the slope is read at the DEM's own posts when the grid is coarser", /if \(post && grid\.stepM > 1\.5 \* post\)/.test(src));
+check("the slope is Horn on the posts at full resolution, and four stencils a cell when coarser",
+  /const native = Boolean\(post\) && grid\.stepM <= post \* 1\.5;/.test(src) && /if \(post && !native\)/.test(src));
 check("lateral flow is a control, with the stated default", /lateral: LATERAL_FACTOR/.test(src) && /id="lsp-lateral"/.test(src));
 check("the drawn sheet is bounded by its cells' edges, not the asked box", /sub\.bounds = \{ minX: eb\.west \+ x0 \* cw/.test(src));
 
@@ -184,4 +190,21 @@ import { dayHours, rainfallFrames } from "./gfs-rain.js";
   check("a UTC day's hours end at the next midnight", times[h.lo] === "2023-05-15T01:00" && times[h.hi] === "2023-05-16T00:00");
   const s = rainfallFrames(times, [{ lat: 0, lon: 0, rain: Float32Array.from({ length: 72 }, () => 1) }], { start: "2023-05-14", windowH: 1, everyH: 1 });
   check("and summing them gives the day's total", s.accumulateRange(h.lo, h.hi)[0] === 24);
+}
+
+{
+  // Block-held properties give the same answer as per-cell ones: a 4 x 4 grid
+  // of one material, read per cell and then through 2 x 2 blocks.
+  const n = 16; const topo = mfdTopology(fillSinks(makeRaster(Float32Array.from({ length: n }, (_, i) => 100 - (i % 4) - Math.floor(i / 4)), 4, 4, { minX: 0, maxX: 4e-4, minY: 0, maxY: 4e-4 }, NaN)));
+  const one = (v) => new Float32Array(n).fill(v);
+  const perCell = { data: new Uint8Array(n).fill(1), model: new Uint8Array(n).fill(1), slopeRad: one(0.5),
+    K: one(2e-6), zs: one(1.5), zf: one(1.5), c: one(2), phi: one(30), gamma: one(20) };
+  const props = { K: new Float32Array(4).fill(2e-6), zs: new Float32Array(4).fill(1.5), zf: new Float32Array(4).fill(1.5),
+    c: new Float32Array(4).fill(2), phi: new Float32Array(4).fill(30), gamma: new Float32Array(4).fill(20) };
+  const block = Int32Array.from({ length: n }, (_, i) => Math.floor((i >> 2) / 2) * 2 + Math.floor((i & 3) / 2));
+  const byBlock = { data: perCell.data, model: perCell.model, slopeRad: perCell.slopeRad, block, props };
+  const a = staticStep({ rainMm: new Float32Array(n).fill(40), windowH: 24, cells: perCell, topo });
+  const b = staticStep({ rainMm: new Float32Array(4).fill(40), windowH: 24, cells: byBlock, topo });
+  check("properties and rain held per block of the lattice give the per-cell answer",
+    [...a.fos].every((v, i) => Math.abs(v - b.fos[i]) < 1e-6) && a.failing === b.failing);
 }

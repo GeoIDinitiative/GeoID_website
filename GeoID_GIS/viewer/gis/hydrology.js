@@ -11,44 +11,7 @@
  * one of those.
  */
 
-import { makeRaster, cellSizeMetres } from "./raster-analysis.js?v=20260911-6b65e16";
-
-/* A binary heap keyed on elevation. Priority-flood is O(n log n) with one and
-   O(n²) without, which on a 1800×1400 DEM is the difference between a second
-   and a coffee. */
-class MinHeap {
-  constructor() { this.items = []; }
-  get size() { return this.items.length; }
-  push(item) {
-    this.items.push(item);
-    let i = this.items.length - 1;
-    while (i > 0) {
-      const parent = (i - 1) >> 1;
-      if (this.items[parent].key <= this.items[i].key) break;
-      [this.items[parent], this.items[i]] = [this.items[i], this.items[parent]];
-      i = parent;
-    }
-  }
-  pop() {
-    const top = this.items[0];
-    const last = this.items.pop();
-    if (this.items.length) {
-      this.items[0] = last;
-      let i = 0;
-      for (;;) {
-        const l = i * 2 + 1;
-        const r = l + 1;
-        let small = i;
-        if (l < this.items.length && this.items[l].key < this.items[small].key) small = l;
-        if (r < this.items.length && this.items[r].key < this.items[small].key) small = r;
-        if (small === i) break;
-        [this.items[small], this.items[i]] = [this.items[i], this.items[small]];
-        i = small;
-      }
-    }
-    return top;
-  }
-}
+import { makeRaster, cellSizeMetres } from "./raster-analysis.js?v=20260911-f2003f4";
 
 const NEIGHBOURS = [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
 
@@ -67,9 +30,45 @@ function isData(v, noData) {
  */
 export function fillSinks(raster, { epsilon = 1e-4 } = {}) {
   const { width, height, band, noData } = raster;
-  const out = new Float32Array(width * height).fill(NaN);
-  const done = new Uint8Array(width * height);
-  const heap = new MinHeap();
+  const n = width * height;
+  const out = new Float32Array(n).fill(NaN);
+  const done = new Uint8Array(n);
+  /**
+   * A heap on TYPED ARRAYS. Each cell enters it once, so its capacity is the
+   * grid; an object per entry was two million allocations on a landslide
+   * model mapped at the DEM's own posts, and most of the time spent filling.
+   */
+  const key = new Float64Array(n);
+  const idx = new Int32Array(n);
+  let size = 0;
+  const push = (k, i) => {
+    let c = size; size += 1;
+    while (c > 0) {
+      const p = (c - 1) >> 1;
+      if (key[p] <= k) break;
+      key[c] = key[p]; idx[c] = idx[p]; c = p;
+    }
+    key[c] = k; idx[c] = i;
+  };
+  const pop = () => {
+    const top = idx[0]; const topKey = key[0];
+    size -= 1;
+    if (size > 0) {
+      const k = key[size]; const i = idx[size];
+      let c = 0;
+      for (;;) {
+        const l = 2 * c + 1; if (l >= size) break;
+        const r = l + 1;
+        const m = r < size && key[r] < key[l] ? r : l;
+        if (key[m] >= k) break;
+        key[c] = key[m]; idx[c] = idx[m]; c = m;
+      }
+      key[c] = k; idx[c] = i;
+    }
+    popped.key = topKey; popped.i = top;
+    return popped;
+  };
+  const popped = { key: 0, i: 0 };
 
   // Seed from the edge and from the boundary with no-data: those are where
   // water leaves the grid.
@@ -83,24 +82,25 @@ export function fillSinks(raster, { epsilon = 1e-4 } = {}) {
       if (edge || besideGap) {
         out[i] = band[i];
         done[i] = 1;
-        heap.push({ key: band[i], x, y });
+        push(band[i], i);
       }
     }
   }
 
-  while (heap.size) {
-    const cell = heap.pop();
-    for (const [dx, dy] of NEIGHBOURS) {
-      const x = cell.x + dx;
-      const y = cell.y + dy;
+  while (size) {
+    const { key: k, i: ci } = pop();
+    const cx = ci % width; const cy = (ci - cx) / width;
+    for (let q = 0; q < 8; q += 1) {
+      const x = cx + NEIGHBOURS[q][0];
+      const y = cy + NEIGHBOURS[q][1];
       if (x < 0 || y < 0 || x >= width || y >= height) continue;
       const i = y * width + x;
       if (done[i]) continue;
       // The filled height is whichever is higher: the ground, or just above
       // the lowest rim reached so far.
-      out[i] = Math.max(band[i], cell.key + epsilon);
+      out[i] = Math.max(band[i], k + epsilon);
       done[i] = 1;
-      heap.push({ key: out[i], x, y });
+      push(out[i], i);
     }
   }
   return makeRaster(out, width, height, raster.bounds, NaN);
@@ -178,35 +178,48 @@ export function mfdTopology(raster, { exponent = 1.1 } = {}) {
   const { width, height, band, noData } = raster;
   const n = width * height;
   const cell = cellSizeMetres(raster);
-  const recv = new Int32Array(n * 8).fill(-1);
-  const frac = new Float32Array(n * 8);
-  const data = [];
-  for (let i = 0; i < n; i += 1) if (isData(band[i], noData)) data.push(i);
-  data.sort((a, b) => band[b] - band[a]);
+  let count = 0;
+  for (let i = 0; i < n; i += 1) if (isData(band[i], noData)) count += 1;
+  const order = new Int32Array(count);
+  for (let i = 0, k = 0; i < n; i += 1) if (isData(band[i], noData)) { order[k] = i; k += 1; }
+  order.sort((a, b) => band[b] - band[a]);
   const side = Math.sqrt(cell.x * cell.y);
-  let outlets = 0;
-  for (const i of data) {
+  const runs = NEIGHBOURS.map(([dx, dy]) => Math.hypot(dx * cell.x, dy * cell.y));
+  const contours = NEIGHBOURS.map(([dx, dy]) => (dx && dy ? 0.354 : 0.5) * side);
+  // Compressed rows: a cell's receivers are recv[offsets[i] .. offsets[i+1]).
+  // Eight slots a cell was 128 MB at two million cells for about three used.
+  const offsets = new Int32Array(n + 1);
+  let recv = new Int32Array(Math.max(16, count * 4));
+  let frac = new Float32Array(recv.length);
+  const w = new Float64Array(8); const j8 = new Int32Array(8);
+  let used = 0; let outlets = 0; let last = 0;
+  for (let i = 0; i < n; i += 1) {
+    offsets[i] = used;
+    if (!isData(band[i], noData)) continue;
     const x = i % width; const y = (i - x) / width;
-    let total = 0; let k = 0;
-    const w = [];
-    NEIGHBOURS.forEach(([dx, dy]) => {
-      const nx = x + dx; const ny = y + dy;
-      if (nx < 0 || ny < 0 || nx >= width || ny >= height) return;
+    let total = 0; let m = 0;
+    for (let q = 0; q < 8; q += 1) {
+      const nx = x + NEIGHBOURS[q][0]; const ny = y + NEIGHBOURS[q][1];
+      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
       const j = ny * width + nx;
-      if (!isData(band[j], noData)) return;
-      const run = Math.hypot(dx * cell.x, dy * cell.y);
-      const tan = (band[i] - band[j]) / run;
-      if (!(tan > 0)) return;
-      const contour = (dx && dy ? 0.354 : 0.5) * side;
-      const weight = (tan ** exponent) * contour;
-      w.push([j, weight]); total += weight;
-    });
-    if (!w.length) { outlets += 1; continue; }
-    for (const [j, weight] of w) { recv[i * 8 + k] = j; frac[i * 8 + k] = weight / total; k += 1; }
+      if (!isData(band[j], noData)) continue;
+      const tan = (band[i] - band[j]) / runs[q];
+      if (!(tan > 0)) continue;
+      const weight = (tan ** exponent) * contours[q];
+      j8[m] = j; w[m] = weight; total += weight; m += 1;
+    }
+    if (!m) { outlets += 1; continue; }
+    if (used + m > recv.length) {
+      const grow = (a, T) => { const b = new T(Math.ceil(a.length * 1.5) + 8); b.set(a); return b; };
+      recv = grow(recv, Int32Array); frac = grow(frac, Float32Array);
+    }
+    for (let k = 0; k < m; k += 1) { recv[used] = j8[k]; frac[used] = w[k] / total; used += 1; }
+    last = i;
   }
+  offsets[n] = used;
   return {
-    order: Int32Array.from(data), recv, frac, width, height,
-    cellArea: cell.x * cell.y, contour: side, outlets,
+    order, offsets, recv: recv.subarray(0, used), frac: frac.subarray(0, used), width, height,
+    cellArea: cell.x * cell.y, contour: side, outlets, last,
   };
 }
 
@@ -218,17 +231,12 @@ export function mfdTopology(raster, { exponent = 1.1 } = {}) {
  */
 export function routeFlux(topo, source) {
   const acc = Float64Array.from(source, (v) => (Number.isFinite(v) ? v : 0));
-  const { order, recv, frac } = topo;
+  const { order, offsets, recv, frac } = topo;
   for (let o = 0; o < order.length; o += 1) {
     const i = order[o];
     const a = acc[i];
     if (!a) continue;
-    const base = i * 8;
-    for (let k = 0; k < 8; k += 1) {
-      const j = recv[base + k];
-      if (j < 0) break;
-      acc[j] += a * frac[base + k];
-    }
+    for (let k = offsets[i], e = offsets[i + 1]; k < e; k += 1) acc[recv[k]] += a * frac[k];
   }
   return acc;
 }

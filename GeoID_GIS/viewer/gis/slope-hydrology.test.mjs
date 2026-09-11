@@ -142,7 +142,7 @@ const lattice = (w, h, f) => {
   const src = new Float64Array(30 * 20).fill(1);
   const acc = routeFlux(topo, src);
   let out = 0;
-  for (let i = 0; i < acc.length; i += 1) if (topo.recv[i * 8] < 0) out += acc[i];
+  for (let i = 0; i < acc.length; i += 1) if (topo.offsets[i + 1] === topo.offsets[i]) out += acc[i];
   check("routing conserves the water: what leaves is what fell", near(out, 600, 1e-3), String(out));
   check("down a plane the flow grows with the distance run", acc[10 * 30 + 25] > acc[10 * 30 + 5]);
 }
@@ -157,9 +157,14 @@ const lattice = (w, h, f) => {
   check("a hollow gathers far more of the hillside than the slope beside it", axis > 20 * side, `${axis} against ${side}`);
   check("every cell passes on at most eight shares, and they sum to one",
     [...Array(w * h).keys()].every((i) => {
-      let s = 0; for (let k = 0; k < 8 && topo.recv[i * 8 + k] >= 0; k += 1) s += topo.frac[i * 8 + k];
-      return topo.recv[i * 8] < 0 || near(s, 1, 1e-5);
+      const a = topo.offsets[i]; const e = topo.offsets[i + 1];
+      let s = 0; for (let k = a; k < e; k += 1) s += topo.frac[k];
+      return e - a <= 8 && (e === a || near(s, 1, 1e-5));
     }));
+  // The typed heap fills a closed pit to its rim, as the object heap did.
+  const pit = lattice(5, 5, (x, y) => (x === 2 && y === 2 ? 1 : 10));
+  const filled = fillSinks(pit);
+  check("a pit is filled to just above its rim", filled.band[12] > 10 && filled.band[12] < 10.001 && filled.band[0] === 10);
 }
 
 /* ── GFS rainfall maps ────────────────────────────────────────────────────── */

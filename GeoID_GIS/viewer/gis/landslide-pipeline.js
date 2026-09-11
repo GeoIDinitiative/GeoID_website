@@ -22,32 +22,34 @@
  * file only orchestrates them and says, on every card, what it has read.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-6b65e16";
-import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260911-6b65e16";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-f2003f4";
+import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260911-f2003f4";
 import {
   columnMaterial, soilColumn, steadyWetness, planeWetness, factorOfSafety, criticalRecharge,
   FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M, LATERAL_FACTOR, FOS_CAP,
-} from "./slope-hydrology.js?v=20260911-6b65e16";
-import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-6b65e16";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-6b65e16";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-6b65e16";
-import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-6b65e16";
-import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainDays, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260911-6b65e16";
-import { mathsFor } from "./equations.js?v=20260911-6b65e16";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260911-6b65e16";
+} from "./slope-hydrology.js?v=20260911-f2003f4";
+import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-f2003f4";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-f2003f4";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-f2003f4";
+import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-f2003f4";
+import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainDays, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260911-f2003f4";
+import { mathsFor } from "./equations.js?v=20260911-f2003f4";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260911-f2003f4";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";
+/** The block the coarse datasets inform the fine grid on, in metres. */
+export const INFORM_M = 100;
 
 /* ── pure: the pieces the tests run ─────────────────────────────────────── */
 
 /** The DEM as a raster over the bounds, sampled from a height reader. */
-export function demGridFor(bounds, heightAt, { maxCells = 90000 } = {}) {
+export function demGridFor(bounds, heightAt, { maxCells = 90000, minStepM = 10 } = {}) {
   const { west, south, east, north } = bounds;
   const midLat = (south + north) / 2;
   const widthM = (east - west) * 111320 * Math.cos(midLat * Math.PI / 180);
   const heightM = (north - south) * 110574;
-  const step = Math.max(10, Math.sqrt((widthM * heightM) / maxCells));
+  const step = Math.max(minStepM, Math.sqrt((widthM * heightM) / maxCells));
   const cols = Math.max(4, Math.round(widthM / step));
   const rows = Math.max(4, Math.round(heightM / step));
   const band = new Float32Array(cols * rows);
@@ -170,26 +172,33 @@ export function cellAnswer({ q, cell, contour, lateral = 1 }) {
  * given its arrays.
  */
 export function staticStep({ rainMm, windowH, cells, topo, infiltration = true, lateral = LATERAL_FACTOR }) {
-  const n = cells.K.length;
+  const n = cells.data.length;
+  // The ground's properties and the rain may be held per BLOCK of the
+  // informing lattice (`cells.block`, `cells.props`) or per cell; either way a
+  // cell reads them through its block index.
+  const B = cells.block || null; const P = cells.props || cells;
   const source = new Float64Array(n);
   const perSecond = 1 / (1000 * windowH * 3600);
   for (let i = 0; i < n; i += 1) {
-    const P = rainMm[i];
-    if (!Number.isFinite(P) || !cells.data[i]) continue;
-    let r = P * perSecond;
-    if (infiltration && r > cells.K[i]) r = cells.K[i];
+    if (!cells.data[i]) continue;
+    const j = B ? B[i] : i;
+    const rain = rainMm[j];
+    if (!Number.isFinite(rain)) continue;
+    let r = rain * perSecond;
+    if (infiltration && r > P.K[j]) r = P.K[j];
     source[i] = r * topo.cellArea;
   }
   const q = routeFlux(topo, source);
   const fos = new Float32Array(n).fill(NaN);
   const W = new Float32Array(n).fill(NaN);
   let failing = 0; let applicable = 0; let wSum = 0; let wN = 0;
+  const cell = { K: 0, zs: 0, zf: 0, slopeRad: 0, c: 0, phi: 0, gamma: 0 };
   for (let i = 0; i < n; i += 1) {
     if (!cells.data[i]) continue;
-    const answer = cellAnswer({ q: q[i], contour: topo.contour, lateral, cell: {
-      K: cells.K[i], zs: cells.zs[i], zf: cells.zf[i], slopeRad: cells.slopeRad[i],
-      c: cells.c[i], phi: cells.phi[i], gamma: cells.gamma[i],
-    } });
+    const j = B ? B[i] : i;
+    cell.K = P.K[j]; cell.zs = P.zs[j]; cell.zf = P.zf[j]; cell.slopeRad = cells.slopeRad[i];
+    cell.c = P.c[j]; cell.phi = P.phi[j]; cell.gamma = P.gamma[j];
+    const answer = cellAnswer({ q: q[i], contour: topo.contour, lateral, cell });
     W[i] = answer.W;
     if (!cells.model[i]) continue;
     if (Number.isFinite(answer.W)) { wSum += answer.W; wN += 1; }
@@ -367,7 +376,7 @@ export function render(host) {
       <p class="compact-copy" style="margin:0;opacity:0.8">Earth Engine's archives are daily, so a series with any Earth Engine day in it is one map a day, each window rounded to whole days.</p>
       <div class="gis-btn-row"><button type="button" class="button" id="lsp-rain-fetch">Fetch rainfall</button></div>`)}
     ${card(STEPS[2], `
-      <div class="row"><label for="lsp-ground-cells" title="The model's own grid over the area plus its margin. The DEM is read at the level the area deserves and thinned to this many cells.">Cells (max)</label><select id="lsp-ground-cells" class="input"><option value="40000">40,000</option><option value="90000" selected>90,000</option><option value="160000">160,000</option><option value="250000">250,000</option><option value="500000">500,000 (slow)</option></select></div>
+      <div class="row"><label for="lsp-ground-cells" title="The factor of safety is mapped at the DEM's own post spacing; the other datasets inform it at their own resolutions. The budget only coarsens the map where the area is too big to hold at full resolution, and the status says so.">Resolution</label><select id="lsp-ground-cells" class="input"><option value="2000000" selected>Full resolution — the DEM's own posts (up to 2 M cells)</option><option value="1000000">1,000,000</option><option value="250000">250,000</option><option value="90000">90,000 — quick</option></select></div>
       <div class="row"><label for="lsp-ground-margin" title="Ground outside the study area whose water drains into it. Without a margin every catchment is cut at the box's edge.">Upslope margin</label><select id="lsp-ground-margin" class="input"><option value="auto" selected>Auto (a tenth of the area)</option><option value="0.5">0.5 km</option><option value="1">1 km</option><option value="2">2 km</option><option value="5">5 km</option></select></div>
       <div class="lsp-maps" id="lsp-maps"></div>
       <div class="gis-btn-row"><button type="button" class="button" id="lsp-ground-read">Read the ground</button></div>`)}
@@ -633,7 +642,7 @@ function materialTable() {
 async function readGround() {
   const b = state.bounds;
   if (!b) return;
-  const maxCells = Number(byId("lsp-ground-cells").value) || 90000;
+  const maxCells = Number(byId("lsp-ground-cells").value) || 2000000;
   const margin = marginKm();
   const eb = withMargin(b, margin);
   const { soil, superficial, bedrock } = groundLayers();
@@ -651,25 +660,25 @@ async function readGround() {
       const h = dem?.heightAt?.(lat, lon);
       return Number.isFinite(h) ? h : window.GeoIDViewer?.sampleElevationMeters?.(lat, lon);
     };
-    const grid = demGridFor(eb, heightAt, { maxCells });
+    /**
+     * THE MAP IS DRAWN AT THE DEM'S OWN POSTS. Every dataset informs the model
+     * at its own resolution — the geology at 1:1,000,000, the soil map at
+     * 1:5,000,000, the thickness at 1 km, the rain at 5–13 km — and the finest
+     * of them, the DEM, sets the grid the factor of safety is mapped on. The
+     * cell budget only coarsens it where the area is too big to hold, and then
+     * says so.
+     */
+    const post = got?.ok && dem?.metresPerPixel ? dem.metresPerPixel(got.zoom, (b.south + b.north) / 2) : null;
+    const grid = demGridFor(eb, heightAt, { maxCells, minStepM: post ? Math.max(5, post) : 10 });
     if (!grid.known) throw new Error("no elevation under the area");
-    say("ground", "Reading the slope at the DEM's own posts…");
+    const native = Boolean(post) && grid.stepM <= post * 1.5;
+    say("ground", "Reading the slope…");
     await tick();
     const grad = slopeOf(grid);
-    /**
-     * THE SLOPE IS READ AT THE DEM'S OWN POSTS, not off the thinned grid. The
-     * model's cells are 100 m and more over any sizeable area, and a slope
-     * taken across 100 m cells flattens every hillside: over the Apennines
-     * above Forlì the median came out 12.8° and nothing reached 35°, while a
-     * saturated sand fails at 19° and the clays at 22°. Horn's stencil at the
-     * native post spacing at each cell's centre is the slope the ground
-     * actually has there; the routing stays on the model's grid.
-     */
-    let slopeFrom = `the model's ${grid.stepM} m grid`;
-    const post = got?.ok && dem?.metresPerPixel ? Math.max(10, dem.metresPerPixel(got.zoom, (b.south + b.north) / 2)) : null;
-    if (post && grid.stepM > 1.5 * post) {
+    let slopeFrom = native ? `Horn on the DEM's own ${Math.round(post)} m posts` : `the model's ${grid.stepM} m grid`;
+    if (post && !native) {
       // One stencil at the centre is a POINT of the hillside and read as
-      // speckle across a 100 m cell; four, a quarter-cell each way, averaged
+      // speckle across a coarse cell; four, a quarter-cell each way, averaged
       // (in the tangent, which is what the model uses), are the cell's slope
       // at the ground's own resolution.
       let replaced = 0;
@@ -686,13 +695,13 @@ async function readGround() {
         }
         if (y % 32 === 31) await tick();
       }
-      if (replaced) slopeFrom = `the DEM's ${Math.round(post)} m posts, four stencils in each cell`;
+      if (replaced) slopeFrom = `the DEM's ${Math.round(post)} m posts, four stencils in each ${grid.stepM} m cell`;
     }
-    say("ground", "Routing the water…");
+    say("ground", `Routing the water over ${(grid.width * grid.height).toLocaleString()} cells…`);
     await tick();
-    const filled = fillSinks(makeRaster(grid.band, grid.width, grid.height, grid.bounds, NaN));
-    const topo = mfdTopology(filled, { exponent: 1.1 });
     const n = grid.width * grid.height;
+    const topo = mfdTopology(fillSinks(makeRaster(grid.band, grid.width, grid.height, grid.bounds, NaN)), { exponent: 1.1 });
+    await tick();
     const area = routeFlux(topo, Float64Array.from(grid.band, (v) => (Number.isFinite(v) ? topo.cellArea : 0)));
 
     say("ground", "Reading the maps…");
@@ -713,43 +722,71 @@ async function readGround() {
     } catch (e) { /* the stated default serves */ }
     await loadRockProperties().catch(() => null);
 
+    /**
+     * THE INFORMING LATTICE. Material, thickness and rain are read on blocks of
+     * about INFORM_M — finer than any of those sources resolves, so nothing is
+     * lost — and every fine cell takes its block's. Reading a 1:5,000,000 soil
+     * polygon at each of two million DEM cells is two million point-in-polygon
+     * tests for an answer that cannot change inside a block.
+     */
+    const bk = Math.max(1, Math.round(INFORM_M / grid.stepM));
+    const bw = Math.ceil(grid.width / bk); const bh = Math.ceil(grid.height / bk);
+    const nb = bw * bh;
     const table = materialTable();
+    const props = {
+      mat: new Int32Array(nb).fill(-1), K: new Float32Array(nb), zs: new Float32Array(nb), zf: new Float32Array(nb),
+      c: new Float32Array(nb), phi: new Float32Array(nb), gamma: new Float32Array(nb), thin: new Uint8Array(nb),
+      depthFrom: new Uint8Array(nb), lat: new Float32Array(nb), lon: new Float32Array(nb),
+    };
+    for (let by = 0; by < bh; by += 1) {
+      const yc = Math.min(grid.height - 1, by * bk + (bk - 1) / 2);
+      const lat = eb.north - ((yc + 0.5) / grid.height) * (eb.north - eb.south);
+      for (let bx = 0; bx < bw; bx += 1) {
+        const j = by * bw + bx;
+        const xc = Math.min(grid.width - 1, bx * bk + (bk - 1) / 2);
+        const lon = eb.west + ((xc + 0.5) / grid.width) * (eb.east - eb.west);
+        props.lat[j] = lat; props.lon[j] = lon;
+        const lith = (superAt && superAt(lat, lon)) || (bedAt && bedAt(lat, lon)) || null;
+        const texture = texAt ? texAt(lat, lon) : null;
+        const k = table.indexOf(lith, texture);
+        const mat = table.list[k];
+        props.mat[j] = k;
+        const t = thickAt ? thickAt(lat, lon) : null;
+        const col = soilColumn(t, 2);
+        props.zs[j] = col.zs; props.zf[j] = col.zf; props.thin[j] = col.thin ? 1 : 0;
+        props.depthFrom[j] = Number.isFinite(t) ? 1 : 0;
+        props.K[j] = mat.K; props.c[j] = mat.cohesionKPa; props.phi[j] = mat.friction; props.gamma[j] = mat.unitWeight;
+      }
+      if (by % 64 === 63) await tick();
+    }
     const cells = {
-      data: new Uint8Array(n), model: new Uint8Array(n), thin: new Uint8Array(n), mat: new Int32Array(n).fill(-1),
-      slopeRad: new Float32Array(n), zs: new Float32Array(n), zf: new Float32Array(n), K: new Float32Array(n),
-      c: new Float32Array(n), phi: new Float32Array(n), gamma: new Float32Array(n), area: new Float32Array(n),
-      depthFrom: new Uint8Array(n), lat: new Float32Array(n), lon: new Float32Array(n),
+      data: new Uint8Array(n), model: new Uint8Array(n), block: new Int32Array(n).fill(-1),
+      slopeRad: new Float32Array(n), area: new Float32Array(n), props,
+      blocks: { k: bk, width: bw, height: bh, stepM: grid.stepM * bk },
     };
     const tally = { deposit: 0, texture: 0, regolith: 0, thick: 0, thin: 0, model: 0, cells: 0, gentle: 0 };
     let x0 = Infinity; let x1 = -1; let y0 = Infinity; let y1 = -1;
     for (let y = 0; y < grid.height; y += 1) {
       const lat = eb.north - ((y + 0.5) / grid.height) * (eb.north - eb.south);
+      const inLat = lat >= b.south && lat <= b.north;
       for (let x = 0; x < grid.width; x += 1) {
         const i = y * grid.width + x;
         if (!Number.isFinite(grid.band[i])) continue;
-        const lon = eb.west + ((x + 0.5) / grid.width) * (eb.east - eb.west);
-        cells.data[i] = 1; cells.lat[i] = lat; cells.lon[i] = lon;
-        const lith = (superAt && superAt(lat, lon)) || (bedAt && bedAt(lat, lon)) || null;
-        const texture = texAt ? texAt(lat, lon) : null;
-        const k = table.indexOf(lith, texture);
-        const mat = table.list[k];
-        cells.mat[i] = k;
-        const t = thickAt ? thickAt(lat, lon) : null;
-        const col = soilColumn(t, 2);
-        cells.zs[i] = col.zs; cells.zf[i] = col.zf; cells.thin[i] = col.thin ? 1 : 0;
-        cells.depthFrom[i] = Number.isFinite(t) ? 1 : 0;
-        cells.K[i] = mat.K; cells.c[i] = mat.cohesionKPa; cells.phi[i] = mat.friction; cells.gamma[i] = mat.unitWeight;
+        const j = Math.floor(y / bk) * bw + Math.floor(x / bk);
+        cells.data[i] = 1; cells.block[i] = j;
         const deg = grad.band[i];
         cells.slopeRad[i] = Number.isFinite(deg) ? deg * Math.PI / 180 : 0;
         cells.area[i] = area[i];
-        const inside = lat >= b.south && lat <= b.north && lon >= b.west && lon <= b.east;
-        if (!inside) continue;
+        if (!inLat) continue;
+        const lon = eb.west + ((x + 0.5) / grid.width) * (eb.east - eb.west);
+        if (lon < b.west || lon > b.east) continue;
         if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
         tally.cells += 1;
-        if (/mapped deposit/.test(mat.from)) tally.deposit += 1;
-        else if (/soil map/.test(mat.from)) tally.texture += 1; else tally.regolith += 1;
-        if (Number.isFinite(t)) tally.thick += 1;
-        if (col.thin) tally.thin += 1;
+        const from = table.list[props.mat[j]].from;
+        if (/mapped deposit/.test(from)) tally.deposit += 1;
+        else if (/soil map/.test(from)) tally.texture += 1; else tally.regolith += 1;
+        if (props.depthFrom[j]) tally.thick += 1;
+        if (props.thin[j]) tally.thin += 1;
         if (!(deg >= 5)) tally.gentle += 1;
         cells.model[i] = 1; tally.model += 1;
       }
@@ -758,7 +795,7 @@ async function readGround() {
     const sub = { x0, x1, y0, y1, width: x1 - x0 + 1, height: y1 - y0 + 1 };
     const cw = (eb.east - eb.west) / grid.width; const ch = (eb.north - eb.south) / grid.height;
     sub.bounds = { minX: eb.west + x0 * cw, maxX: eb.west + (x1 + 1) * cw, maxY: eb.north - y0 * ch, minY: eb.north - (y1 + 1) * ch };
-    state.ground = { grid, eb, margin, topo, cells, sub, table, demLabel: label, slopeFrom, n, tally,
+    state.ground = { grid, eb, margin, topo, cells, sub, table, demLabel: label, slopeFrom, n, tally, native, post,
       maps: { soil: soil?.name || null, superficial: superficial?.name || null, bedrock: bedrock?.name || null } };
     if (state.rain) { state.rain.weights = null; state.rain.geePixels = null; }
     state.run = null;
@@ -766,7 +803,9 @@ async function readGround() {
     if (tally.deposit) kinds.push(`${pct(tally.deposit, tally.cells)} a mapped deposit`);
     if (tally.texture) kinds.push(`${pct(tally.texture, tally.cells)} the soil map's texture`);
     if (tally.regolith) kinds.push(`${pct(tally.regolith, tally.cells)} regolith${bedrock || superficial ? " over the mapped rock" : ""}`);
-    say("ground", `${tally.cells.toLocaleString()} cells at ${grid.stepM} m in the area (${(grid.width * grid.height).toLocaleString()} with a ${margin.toFixed(1)} km upslope margin), from ${label}; slope from ${slopeFrom}. `
+    const res = native ? `mapped at the DEM's own ${grid.stepM} m posts` : `mapped at ${grid.stepM} m — the DEM has ${Math.round(post || grid.stepM)} m posts here, but the area is too big for the cell budget at that; draw a smaller one, or raise the budget`;
+    say("ground", `${tally.cells.toLocaleString()} cells ${res} (${(grid.width * grid.height).toLocaleString()} with a ${margin.toFixed(1)} km upslope margin), from ${label}; slope from ${slopeFrom}. `
+      + `Material, thickness and rain inform it on a ${Math.round(grid.stepM * bk)} m lattice — finer than any of those sources. `
       + `Material: ${kinds.join(", ")}.${soil ? "" : " Load the soil map for the topsoil texture — without it every column takes the database's regolith."} `
       + `Thickness from the model for ${pct(tally.thick, tally.cells)}${tally.thin ? ` (${pct(tally.thin, tally.cells)} under a metre, modelled as a veneer)` : ""}; ${pct(tally.gentle, tally.cells)} is gentle ground under 5°, modelled like the rest. `
       + `All ${tally.model.toLocaleString()} cells modelled.`, soil || bedrock || superficial ? "" : "error");
@@ -810,10 +849,12 @@ function describeStatic() {
   const { cells, topo, n } = g;
   const crit = new Float32Array(n).fill(NaN);
   let dry = 0; let never = 0; const finite = [];
+  const P = cells.props;
   for (let i = 0; i < n; i += 1) {
     if (!cells.model[i]) continue;
-    const r = criticalRecharge({ slopeRad: cells.slopeRad[i], c: cells.c[i], phi: cells.phi[i], gamma: cells.gamma[i],
-      zs: cells.zs[i], zf: cells.zf[i], K: cells.K[i], b: topo.contour, areaM2: cells.area[i], lateral: state.params.lateral });
+    const j = cells.block[i];
+    const r = criticalRecharge({ slopeRad: cells.slopeRad[i], c: P.c[j], phi: P.phi[j], gamma: P.gamma[j],
+      zs: P.zs[j], zf: P.zf[j], K: P.K[j], b: topo.contour, areaM2: cells.area[i], lateral: state.params.lateral });
     crit[i] = r;
     if (r === 0) dry += 1; else if (r === Infinity) never += 1; else if (Number.isFinite(r)) finite.push(r);
   }
@@ -835,10 +876,11 @@ function remater() {
       rp: (name, key) => parameterValue(name, key), state: (t) => stateOf(t), strength: state.params.strength, rootCohesionKPa: state.params.root });
     mat.cohesionKPa = again.cohesionKPa; mat.friction = again.friction; mat.rootCohesionKPa = again.rootCohesionKPa; mat.strength = again.strength;
   });
-  for (let i = 0; i < g.n; i += 1) {
-    const k = g.cells.mat[i];
+  const P = g.cells.props;
+  for (let j = 0; j < P.mat.length; j += 1) {
+    const k = P.mat[j];
     if (k < 0) continue;
-    g.cells.c[i] = g.table.list[k].cohesionKPa; g.cells.phi[i] = g.table.list[k].friction;
+    P.c[j] = g.table.list[k].cohesionKPa; P.phi[j] = g.table.list[k].friction;
   }
   describeStatic();
   rerun();
@@ -851,15 +893,14 @@ function rerun() {
 /* ── step 6: every map through the static model, then the bar ───────────── */
 
 function rainWeights() {
-  const r = state.rain; const g = state.ground;
-  if (r.weights?.n === g.n) return r.weights;
-  const idx = new Int32Array(g.n * 4); const wt = new Float32Array(g.n * 4);
-  for (let i = 0; i < g.n; i += 1) {
-    if (!g.cells.data[i]) continue;
-    const it = interpolatorFor(r.gfs.grid, r.gfs.nodes, g.cells.lat[i], g.cells.lon[i]);
-    idx.set(it.idx, i * 4); wt.set(it.wt, i * 4);
+  const r = state.rain; const P = state.ground.cells.props; const nb = P.lat.length;
+  if (r.weights?.n === nb) return r.weights;
+  const idx = new Int32Array(nb * 4); const wt = new Float32Array(nb * 4);
+  for (let j = 0; j < nb; j += 1) {
+    const it = interpolatorFor(r.gfs.grid, r.gfs.nodes, P.lat[j], P.lon[j]);
+    idx.set(it.idx, j * 4); wt.set(it.wt, j * 4);
   }
-  r.weights = { idx, wt, n: g.n };
+  r.weights = { idx, wt, n: nb };
   return r.weights;
 }
 
@@ -867,36 +908,37 @@ function rainWeights() {
 function geePixels(grid) {
   const r = state.rain; const g = state.ground;
   r.geePixels = r.geePixels || new Map();
-  const key = `${g.n}|${grid.width}x${grid.height}|${grid.bounds.minX},${grid.bounds.minY},${grid.bounds.maxX},${grid.bounds.maxY}`;
+  const P = g.cells.props; const nb = P.lat.length;
+  const key = `${nb}|${grid.width}x${grid.height}|${grid.bounds.minX},${grid.bounds.minY},${grid.bounds.maxX},${grid.bounds.maxY}`;
   if (r.geePixels.has(key)) return r.geePixels.get(key);
-  const at = new Int32Array(g.n).fill(-1);
-  for (let i = 0; i < g.n; i += 1) if (g.cells.data[i]) at[i] = pixelIndex(grid, g.cells.lat[i], g.cells.lon[i]);
+  const at = new Int32Array(nb).fill(-1);
+  for (let j = 0; j < nb; j += 1) at[j] = pixelIndex(grid, P.lat[j], P.lon[j]);
   r.geePixels.set(key, at);
   return at;
 }
 
-/** A frame's rainfall at every model cell: the sum of its pieces, whichever source each came from. */
+/** A frame's rainfall on every block of the informing lattice: the sum of its pieces, whichever source each came from. */
 function rainMapFor(frame) {
   const r = state.rain; const g = state.ground;
-  const out = new Float32Array(g.n);
+  const nb = g.cells.props.lat.length;
+  const out = new Float32Array(nb);
   for (const p of frame.pieces) {
     if (p.kind === "gfs") {
       const acc = r.gfs.accumulateRange(p.lo, p.hi);
       const { idx, wt } = rainWeights();
-      for (let i = 0; i < g.n; i += 1) {
-        const o = i * 4;
-        out[i] += wt[o] * acc[idx[o]] + wt[o + 1] * acc[idx[o + 1]] + wt[o + 2] * acc[idx[o + 2]] + wt[o + 3] * acc[idx[o + 3]];
+      for (let j = 0; j < nb; j += 1) {
+        const o = j * 4;
+        out[j] += wt[o] * acc[idx[o]] + wt[o + 1] * acc[idx[o + 1]] + wt[o + 2] * acc[idx[o + 2]] + wt[o + 3] * acc[idx[o + 3]];
       }
     } else if (p.kind === "gee") {
       const grid = r.gee.grids[p.grid];
       const at = geePixels(grid);
-      for (let i = 0; i < g.n; i += 1) {
-        const v = at[i] >= 0 ? grid.values[at[i]] : NaN;
-        if (Number.isFinite(v)) out[i] += v;
+      for (let j = 0; j < nb; j += 1) {
+        const v = at[j] >= 0 ? grid.values[at[j]] : NaN;
+        if (Number.isFinite(v)) out[j] += v;
       }
     }
   }
-  for (let i = 0; i < g.n; i += 1) if (!g.cells.data[i]) out[i] = NaN;
   return out;
 }
 
@@ -953,7 +995,7 @@ function paintView(frameOut) {
   for (let y = 0; y < sub.height; y += 1) {
     for (let x = 0; x < sub.width; x += 1) {
       const i = (y + sub.y0) * g.grid.width + (x + sub.x0);
-      const v = c_.data[i] ? src[i] : NaN;
+      const v = c_.data[i] ? (state.view === "rain" ? src[c_.block[i]] : src[i]) : NaN;
       run.band[y * sub.width + x] = v;
       const c = classIn(view.classes, v);
       if (c >= 0) counts[c] += 1;
@@ -996,7 +1038,7 @@ async function run({ keepStep = false } = {}) {
       let maxRain = 0;
       for (let i = 0; i < g.n; i += 1) {
         const v = out.fos[i];
-        if (Number.isFinite(out.rainMm[i]) && out.rainMm[i] > maxRain && g.cells.model[i]) maxRain = out.rainMm[i];
+        if (g.cells.model[i]) { const rr = out.rainMm[g.cells.block[i]]; if (rr > maxRain) maxRain = rr; }
         if (!Number.isFinite(v)) continue;
         if (!(minFos[i] <= v)) { minFos[i] = v; minAt[i] = k; }
       }
@@ -1068,7 +1110,8 @@ export function probeAt(lat, lon) {
   if (!g.cells.data[i]) return false;
   const cur = run.current || modelFrame(Math.max(0, state.step));
   const frame = run.frames[Math.max(0, state.step)];
-  const mat = g.table.list[g.cells.mat[i]];
+  const j = g.cells.block[i]; const P = g.cells.props;
+  const mat = g.table.list[P.mat[j]];
   const slopeDeg = g.cells.slopeRad[i] * 180 / Math.PI;
   const fos = cur.fos[i];
   const crit = g.crit?.[i];
@@ -1077,18 +1120,18 @@ export function probeAt(lat, lon) {
   // the same number twice.
   const rows = [
     ["Rainfall map", state.rain.kind === "daily"
-      ? `${fmt(cur.rainMm[i], 1)} mm of ${state.rain.sourceLabel(frame)} rain over the ${state.rain.windowH / 24} day${state.rain.windowH > 24 ? "s" : ""} to ${frame.time} (UTC days)`
-      : `${fmt(cur.rainMm[i], 1)} mm of GFS rain in the ${state.rain.windowH} h to ${frame.time.replace("T", " ")} UTC`],
-    ["Saturation", `h / z_s ${fmt(cur.W[i])}; water on the failure plane m ${fmt(planeWetness(cur.W[i], g.cells.zs[i], g.cells.zf[i]))}`],
+      ? `${fmt(cur.rainMm[j], 1)} mm of ${state.rain.sourceLabel(frame)} rain over the ${state.rain.windowH / 24} day${state.rain.windowH > 24 ? "s" : ""} to ${frame.time} (UTC days)`
+      : `${fmt(cur.rainMm[j], 1)} mm of GFS rain in the ${state.rain.windowH} h to ${frame.time.replace("T", " ")} UTC`],
+    ["Saturation", `h / z_s ${fmt(cur.W[i])}; water on the failure plane m ${fmt(planeWetness(cur.W[i], P.zs[j], P.zf[j]))}`],
     ["Upslope area", `${(g.cells.area[i] / 1e4).toFixed(2)} ha draining through this cell (a = ${(g.cells.area[i] / g.topo.contour).toFixed(0)} m)`],
     ["Lowest over the window", !Number.isFinite(run.minFos[i]) ? "—"
       : run.minFos[i] >= FOS_CAP ? `${FOS_CAP}+ throughout — too gentle to slide` : `${fmt(run.minFos[i])} at ${run.frames[run.minAt[i]].time.replace("T", " ")}`],
     ["Rainfall to fail", !Number.isFinite(crit) && crit !== Infinity ? "—" : crit === Infinity ? "holds even saturated" : crit === 0 ? "fails even dry" : `${crit.toFixed(0)} mm/day sustained over its catchment`],
-    ["Slope", `${slopeDeg.toFixed(1)}° — from ${g.slopeFrom}`],
-    ["Soil column", `${fmt(g.cells.zs[i], 1)} m to bedrock (${g.cells.thin[i] ? `Pelletier et al. 2016 reads 0 in whole metres — under 1 m, modelled as a ${fmt(g.cells.zs[i], 1)} m veneer` : g.cells.depthFrom[i] ? "Pelletier et al. 2016" : "a stated default"}); failure plane at ${fmt(g.cells.zf[i], 1)} m`],
+    ["Slope", `${slopeDeg.toFixed(1)}° — from ${g.slopeFrom}; this cell is ${g.grid.stepM} m`],
+    ["Soil column", `${fmt(P.zs[j], 1)} m to bedrock (${P.thin[j] ? `Pelletier et al. 2016 reads 0 in whole metres — under 1 m, modelled as a ${fmt(P.zs[j], 1)} m veneer` : P.depthFrom[j] ? "Pelletier et al. 2016" : "a stated default"}); failure plane at ${fmt(P.zf[j], 1)} m`],
     ["Material", `${mat.name} — ${mat.from}`],
     ["Strength", `c′ ${fmt(mat.cohesionKPa, 1)} kPa${mat.rootCohesionKPa ? ` (with ${mat.rootCohesionKPa} kPa of roots)` : ""}, φ′ ${fmt(mat.friction, 0)}° (${mat.strength}), γ ${fmt(mat.unitWeight, 1)} kN/m³`],
-    ["Conductivity", `Ks ${mat.K.toExponential(1)} m/s — ${mat.kFrom}; lateral ${state.params.lateral} × Ks, T ${(mat.K * state.params.lateral * g.cells.zs[i] * 86400).toFixed(1)} m²/day`],
+    ["Conductivity", `Ks ${mat.K.toExponential(1)} m/s — ${mat.kFrom}; lateral ${state.params.lateral} × Ks, T ${(mat.K * state.params.lateral * P.zs[j] * 86400).toFixed(1)} m²/day`],
   ];
   window.GeoIDViewer?.showFeatureCard?.({
     // Named, so the card is claimed by this layer and goes when it does.
