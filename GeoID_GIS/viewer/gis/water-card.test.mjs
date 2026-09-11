@@ -88,6 +88,9 @@ check("its width range is on the face",
 check("lakeFlag 2 is a TIDAL river (GRWL's own coding, not SWORD's)",
   waterCard(tidal).kicker === "Tidal river");
 check("lakeFlag 3 is a canal", waterCard(canal).kicker === "Canal");
+check("a width range is stated at one precision",
+  waterCard({ width_median_m: 178, width_min_m: 80, width_max_m: 795 }).headline
+    .some(([k, v]) => k === "Width range" && v === "80 – 795 m"));
 check("the card says GRWL carries no names", /no\s+names/.test(rv.note));
 check("the record id is not called a segment — GRWL's own ID repeats across tiles",
   rv.rows.some(([k]) => k === "GRWL record") && !rv.rows.some(([k]) => /segment/i.test(k)));
@@ -117,3 +120,5 @@ check("the tiled-map builder writes the water card", /const water = waterCard\(p
 check("the vector card path writes it too", /waterCard\(props\)/.test(popup));
 check("both mark it water: true", /water: true/.test(panel) && /water: true/.test(popup));
 check("the ground profile refuses a water card", /if \(feature\?\.water\) return;/.test(profile));
+check("a tiled water piece carries no measured area — a tile cuts the lake at its own edge",
+  /const water = waterCard\(props\);[\s\S]{0,900}mapped_area_km2: null/.test(panel));

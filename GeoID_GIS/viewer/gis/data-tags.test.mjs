@@ -42,6 +42,12 @@ check("a fire perimeter shapefile is a hazard, not a shapefile",
   inferType({ ext: "shp", name: "WFIGS fire perimeters" }), "hazard");
 check("a rivers geojson is hydrology",
   inferType({ ext: "geojson", name: "NI rivers (OpenStreetMap)" }), "hydrology");
+check("the sea is hydrology as well as the rivers running into it",
+  inferType({ name: "Ocean and seas (OpenStreetMap, Natural Earth)" }), "hydrology");
+check("and so are the named seas",
+  inferType({ ext: "geojson", name: "Named oceans, seas and bays (Natural Earth 1:10m)" }), "hydrology");
+check("a word containing sea is not the sea",
+  inferType({ ext: "geojson", name: "Research sites" }), "vector");
 check("a bedrock layer is geology",
   inferType({ ext: "geojson", name: "BGS bedrock 625k" }), "geology");
 check("a temperature field is atmospheric",

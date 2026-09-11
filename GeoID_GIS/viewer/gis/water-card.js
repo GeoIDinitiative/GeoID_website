@@ -87,6 +87,14 @@ export function waterKind(props) {
 
 export const isWaterFeature = (props) => Boolean(waterKind(props));
 
+/** A range at ONE precision, the larger end's: "80 – 795 m", never
+ * "80.0 – 795 m", which states one end ten times finer than the other. */
+function rangeText(lo, hi) {
+  const top = Math.max(Math.abs(num(lo)), Math.abs(num(hi)));
+  const digits = top >= 100 ? 0 : top >= 10 ? 1 : 2;
+  return `${fmt(lo, digits)} – ${fmt(hi, digits)}`;
+}
+
 /** Million cubic metres, said the way a reader holds it. */
 function volumeText(mcm) {
   const v = num(mcm);
@@ -161,7 +169,7 @@ function riverCard(p) {
   const headline = [];
   if (width !== null) headline.push(["Median width", `${sig(width)} m`]);
   if (finite(p.width_min_m) && finite(p.width_max_m)) {
-    headline.push(["Width range", `${sig(p.width_min_m)} – ${sig(p.width_max_m)} m`]);
+    headline.push(["Width range", `${rangeText(p.width_min_m, p.width_max_m)} m`]);
   }
   const rows = [];
   if (finite(p.width_mean_m)) rows.push(["Mean width", `${sig(p.width_mean_m)} m`]);

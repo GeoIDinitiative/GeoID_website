@@ -28,18 +28,18 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260911-cd1cf4d";
-import { currentBodyId } from "./bodies.js?v=20260911-cd1cf4d";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260911-cd1cf4d";
-import { rockClass } from "./rock-class.js?v=20260911-cd1cf4d";
-import { AREA_OPACITY } from "./layer-opacity.js?v=20260911-cd1cf4d";
-import { datasetInfoButton } from "./catalogue-list.js?v=20260911-cd1cf4d";
-import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260911-cd1cf4d";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260911-cd1cf4d";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260911-cd1cf4d";
-import { waterCard, WATER_SAID } from "./water-card.js?v=20260911-cd1cf4d";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260911-90a2cf9";
+import { currentBodyId } from "./bodies.js?v=20260911-90a2cf9";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260911-90a2cf9";
+import { rockClass } from "./rock-class.js?v=20260911-90a2cf9";
+import { AREA_OPACITY } from "./layer-opacity.js?v=20260911-90a2cf9";
+import { datasetInfoButton } from "./catalogue-list.js?v=20260911-90a2cf9";
+import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260911-90a2cf9";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260911-90a2cf9";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260911-90a2cf9";
+import { waterCard, WATER_SAID } from "./water-card.js?v=20260911-90a2cf9";
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260911-cd1cf4d";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260911-90a2cf9";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -1304,7 +1304,12 @@ function toInteractiveCatalogue(layers) {
           unit_description: water.meta || null,
           description: water.meta || null,
           origin: val(layer.credit, layer.name) || water.source,
-          mapped_area_km2: km2 > 0 ? Number(km2.toFixed(1)) : null,
+          // NO measured area. A tile cuts a lake or the sea at its own edge,
+          // so what this piece encloses is a fact about the tiling: Victoria
+          // read "Area 57,860 km²" under HydroLAKES' own 67,166. A lake's
+          // published area is already on the face; the sea has none worth
+          // stating. The named seas are whole polygons and keep theirs.
+          mapped_area_km2: null,
           polygons,
           selection_bounds: boundsOfRings(polygons.map((p) => p.outer)),
           source_layer: layer.name,

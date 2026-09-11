@@ -26,17 +26,17 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260911-cd1cf4d";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260911-cd1cf4d";
-import { mathsFor } from "./equations.js?v=20260911-cd1cf4d";
+import { runConnector } from "./research/connectors.js?v=20260911-90a2cf9";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260911-90a2cf9";
+import { mathsFor } from "./equations.js?v=20260911-90a2cf9";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260911-cd1cf4d";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260911-cd1cf4d";
-import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260911-cd1cf4d";
+} from "./cyclone-risk.js?v=20260911-90a2cf9";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260911-90a2cf9";
+import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260911-90a2cf9";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260911-cd1cf4d";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260911-90a2cf9";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -143,7 +143,7 @@ export const DATASETS = [
     group: "Hydrology",
     label: "Named oceans, seas and bays (Natural Earth 1:10m)",
     path: "/data/global/marine_polys_10m.geojson",
-    name: "Named marine areas (Natural Earth 10m).geojson",
+    name: "Named oceans, seas and bays (Natural Earth 1:10m).geojson",
     summary: "304 named oceans, seas, gulfs, bays, straits and channels",
     licence: "Natural Earth — public domain",
     colourBy: "kind",

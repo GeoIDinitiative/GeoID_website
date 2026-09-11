@@ -67,7 +67,7 @@ export function inferType(desc = {}) {
   if (name === "Live events") return "hazard";
   if (/fire|flood|susceptib|hazard|perimeter|landslide|quake|seism/i.test(name)) return "hazard";
   if (/geolog|fault|stress|volcan|macrostrat|bedrock|superficial|tectonic|plate/i.test(name)) return "geology";
-  if (/river|lake|coast|streamflow|rainfall|precip|smap|soil moisture|water/i.test(name)) return "hydrology";
+  if (/river|lake|coast|ocean|\bseas?\b|marine|streamflow|rainfall|precip|smap|soil moisture|water/i.test(name)) return "hydrology";
   if (/temperature|wind|weather|atmos|radar|lst|anomal/i.test(name)) return "atmospheric";
   if (["shp", "zip", "dbf"].includes(ext)) return "shapefile";
   if (["tif", "tiff", "png", "jpg"].includes(ext) || desc.raster) return "raster";
