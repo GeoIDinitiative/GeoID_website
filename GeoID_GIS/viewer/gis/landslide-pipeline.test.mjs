@@ -6,7 +6,7 @@
 import { readFileSync } from "node:fs";
 import {
   demGridFor, withMargin, autoMarginKm, samplerOver, lithologyOf, groundText, stateOf, textureOf,
-  staticStep, readiness, hornAt, cellSlope,
+  staticStep, readiness, hornAt, cellSlope, openCatchments,
 } from "./landslide-pipeline.js";
 import { mfdTopology, fillSinks } from "./hydrology.js";
 import { makeRaster } from "./raster-analysis.js";
@@ -25,6 +25,36 @@ process.on("exit", () => {
 });
 
 useRockProperties(JSON.parse(readFileSync(new URL("../../data/global/rock-properties.json", import.meta.url), "utf8")));
+
+/* ── whose catchment is whole ─────────────────────────────────────────────── */
+
+{
+  // A CHANNEL FED FROM OUTSIDE THE BOX cannot be given a factor of safety: its
+  // discharge is the rain on the mapped ground alone, while the brim read from
+  // its width is the brim of a channel cut by its whole basin. The two fixtures
+  // are the two shapes that decision has to tell apart.
+  const w = 40; const h = 30; const n = w * h;
+  const groundOf = (fn) => {
+    const band = new Float32Array(n);
+    for (let y = 0; y < h; y += 1) for (let x = 0; x < w; x += 1) band[y * w + x] = fn(x, y);
+    const topo = mfdTopology(fillSinks(makeRaster(band, w, h, { minX: 0, minY: 0, maxX: 1, maxY: 1 }, NaN)), { exponent: 1.1 });
+    const cells = { data: new Uint8Array(n).fill(1), model: new Uint8Array(n).fill(1) };
+    return { cells, n, topo, grid: { width: w, height: h } };
+  };
+  // A plane falling east: every cell is downslope of the western border, where
+  // water arrives from ground the model never mapped.
+  const plane = openCatchments(groundOf((x) => 100 - x));
+  check("on ground that drains off the edge, no reach has a whole catchment",
+    [...plane].every((v) => v === 1), `${[...plane].filter((v) => !v).length} closed`);
+  // A dome: water leaves at the border and none of it arrives, so the inside is
+  // fed by nothing but the rain that fell on it.
+  const dome = openCatchments(groundOf((x, y) => 100 - Math.hypot(x - (w - 1) / 2, y - (h - 1) / 2)));
+  const inner = dome[Math.floor(h / 2) * w + Math.floor(w / 2)];
+  check("on ground that sheds outwards, the interior's catchment is closed",
+    !inner && [...dome].filter((v) => !v).length > n / 4, `${[...dome].filter((v) => !v).length} closed of ${n}`);
+  check("and the border itself is always open, because the model cannot see past it",
+    [...Array(w).keys()].every((x) => dome[x] === 1 && dome[(h - 1) * w + x] === 1));
+}
 
 /* ── the grid, the margin, the maps' words ────────────────────────────────── */
 
@@ -91,6 +121,14 @@ useRockProperties(JSON.parse(readFileSync(new URL("../../data/global/rock-proper
   const uncapped = staticStep({ rainMm: rain(1000), windowH: 24, cells, topo, lateral: 1, infiltration: false });
   check("rain faster than Ks runs off rather than recharging", capped.meanW <= uncapped.meanW);
   check("every cell is modelled, the valley floor included", staticStep({ rainMm: rain(100), windowH: 24, cells, topo, lateral: 1 }).applicable === n);
+  // THE ANSWER CARRIES THE MAP IT WAS FED, and the flood half reads it back
+  // off there: what a cell could not take is the rain less the recharge, so
+  // the two hazards must be looking at one rainfall map. Attached instead to
+  // the object the caller builds afterwards, the runoff pass sees `undefined`
+  // and the whole run dies on the first frame.
+  const fedWith = rain(30);
+  check("the static answer carries the rain map it was fed",
+    staticStep({ rainMm: fedWith, windowH: 24, cells, topo, lateral: 1 }).rainMm === fedWith);
 }
 
 {

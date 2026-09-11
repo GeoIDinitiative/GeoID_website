@@ -31,34 +31,34 @@
  * every card, what it has read.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260912-ac4605b";
-import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260912-ac4605b";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260912-eacfbab";
+import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260912-eacfbab";
 import {
   columnMaterial, soilColumn, steadyWetness, planeWetness, factorOfSafety, criticalRecharge,
   FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M, LATERAL_FACTOR, FOS_CAP, cellAnswer,
-} from "./slope-hydrology.js?v=20260912-ac4605b";
-import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260912-ac4605b";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260912-ac4605b";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260912-ac4605b";
-import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260912-ac4605b";
-import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainParts, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260912-ac4605b";
-import { mathsFor } from "./equations.js?v=20260912-ac4605b";
-import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260912-ac4605b";
-import { upslopeWeights, stationStep, stationFlood, catchmentTopology, floodScratch, LANDSLIDE_PARAMS, LANDSLIDE_PLOTS, lowestCells } from "./landslide-stations.js?v=20260912-ac4605b";
+} from "./slope-hydrology.js?v=20260912-eacfbab";
+import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260912-eacfbab";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260912-eacfbab";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260912-eacfbab";
+import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260912-eacfbab";
+import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainParts, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260912-eacfbab";
+import { mathsFor } from "./equations.js?v=20260912-eacfbab";
+import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260912-eacfbab";
+import { upslopeWeights, stationStep, stationFlood, catchmentTopology, floodScratch, LANDSLIDE_PARAMS, LANDSLIDE_PLOTS, lowestCells } from "./landslide-stations.js?v=20260912-eacfbab";
 import {
   makeStation, parseStationsCsv, stationsFromFeatures, uniqueName, seriesCsv, seriesFileName, MAX_STATIONS, colourAt,
-} from "./station-series.js?v=20260912-ac4605b";
-import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260912-ac4605b";
-import { planSeries, rendersOf, stepText, rampMaxFor, STEP_CHOICES, NATIVE_STEP, HOUR } from "./rain-steps.js?v=20260912-ac4605b";
-import { mountStationMarkers } from "./station-markers.js?v=20260912-ac4605b";
-import { equivalentMohrCoulomb, culmann, culmannAt, rockCell, localRelief, rockfallReach, velocityOf, criticalHeight } from "./rock-slope.js?v=20260912-ac4605b";
+} from "./station-series.js?v=20260912-eacfbab";
+import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260912-eacfbab";
+import { planSeries, rendersOf, stepText, rampMaxFor, STEP_CHOICES, NATIVE_STEP, HOUR } from "./rain-steps.js?v=20260912-eacfbab";
+import { mountStationMarkers } from "./station-markers.js?v=20260912-eacfbab";
+import { equivalentMohrCoulomb, culmann, culmannAt, rockCell, localRelief, rockfallReach, velocityOf, criticalHeight } from "./rock-slope.js?v=20260912-eacfbab";
 import {
   bankfullCapacity, partition, residenceTimes, waveStep, floodFos, riseFor,
   FLOOD_CLASSES, RUNOFF_CLASSES, DISCHARGE_CLASSES, BANKFULL_RATIO, HILLSLOPE_V,
-} from "./flood-fos.js?v=20260912-ac4605b";
-import { inundate, sourceFields, DEPTH_CLASSES, DEFAULTS as FLOOD_DEFAULTS, meanFlowFromWidth } from "./inundation.js?v=20260912-ac4605b";
-import { burnRivers } from "./river-zones.js?v=20260912-ac4605b";
-import { waterFeatures, waterMasks } from "./water-mask.js?v=20260912-ac4605b";
+} from "./flood-fos.js?v=20260912-eacfbab";
+import { inundate, sourceFields, DEPTH_CLASSES, DEFAULTS as FLOOD_DEFAULTS, meanFlowFromWidth } from "./inundation.js?v=20260912-eacfbab";
+import { burnRivers } from "./river-zones.js?v=20260912-eacfbab";
+import { waterFeatures, waterMasks } from "./water-mask.js?v=20260912-eacfbab";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";
@@ -229,7 +229,10 @@ export function staticStep({ rainMm, windowH, cells, topo, infiltration = true, 
     fos[i] = answer.fos; applicable += 1;
     if (answer.fos < 1) failing += 1;
   }
-  return { fos, W, q, failing, applicable, meanW: wN ? wSum / wN : 0 };
+  // The answer carries THE MAP IT WAS FED. `splitRain` reads the rain back off
+  // it to work out what ran off, and a rain map attached only to the object the
+  // caller builds afterwards is a rain map the flood half cannot see.
+  return { rainMm, fos, W, q, failing, applicable, meanW: wN ? wSum / wN : 0 };
 }
 
 /**
@@ -1182,6 +1185,46 @@ function buildRock() {
  * The sea and the lakes come from the same masks the flood sheets use and are
  * never painted: they are water already.
  */
+/**
+ * WHOSE CATCHMENT IS WHOLE, and why a factor of safety is withheld where it is
+ * not. The model routes only the rain that falls on the ground it mapped, so a
+ * river entering the study area from upstream carries water the model never
+ * saw — while its bankfull capacity is read from its WIDTH, which is the width
+ * of a channel cut by its whole basin. Comparing the two puts the Rhône at
+ * Avignon at 42 m³/s against a 20,100 m³/s brim and calls it stable under any
+ * storm: an artefact of where the box was drawn rather than a forecast, and the
+ * kind of confident wrong answer that is worse than no answer.
+ *
+ * A cell is OPEN when water can reach it from outside the mapped ground. The
+ * flag is seeded on every data cell at the edge of the data region — the grid's
+ * own border, or a cell next to ground the DEM has nothing for — and pushed
+ * downslope over the same MFD topology the water takes, which is exact and
+ * costs one pass. Where it is set the discharge is a LOWER BOUND and stands;
+ * the factor of safety is not reported at all.
+ */
+export function openCatchments(g) {
+  const { cells, n, topo, grid } = g;
+  const open = new Uint8Array(n);
+  const W = grid.width; const H = grid.height;
+  for (let y = 0; y < H; y += 1) {
+    for (let x = 0; x < W; x += 1) {
+      const i = y * W + x;
+      if (!cells.data[i]) continue;
+      if (x === 0 || y === 0 || x === W - 1 || y === H - 1) { open[i] = 1; continue; }
+      for (let dy = -1; dy <= 1 && !open[i]; dy += 1) {
+        for (let dx = -1; dx <= 1; dx += 1) if (!cells.data[(y + dy) * W + (x + dx)]) { open[i] = 1; break; }
+      }
+    }
+  }
+  const { order, offsets, recv } = topo;
+  for (let o = 0; o < order.length; o += 1) {
+    const i = order[o];
+    if (!open[i]) continue;
+    for (let m = offsets[i], e = offsets[i + 1]; m < e; m += 1) open[recv[m]] = 1;
+  }
+  return open;
+}
+
 async function buildFlood() {
   const g = state.ground;
   if (!g) return;
@@ -1207,8 +1250,11 @@ async function buildFlood() {
     }
     const k = residenceTimes({ n, slopeRad: cells.slopeRad, capacity, cellM: grid.stepM, hillV: pr.hillV });
     await tick();
+    const open = openCatchments(g);
+    let closed = 0;
+    for (let m = 0; m < list.length; m += 1) if (cells.model[list[m]] && !open[list[m]]) closed += 1;
     const fields = list.length ? sourceFields(riverWidth, grid.width, grid.height, eb) : [];
-    g.flood = { riverWidth, capacity, k, fields, water: wet, cells: Int32Array.from(list),
+    g.flood = { riverWidth, capacity, k, fields, water: wet, cells: Int32Array.from(list), open, closed,
       zoom: rivers.zoom, inArea, widest, params: { bankfull: pr.bankfull, hillV: pr.hillV } };
     if (!list.length) {
       say("fos", "No GRWL river reaches this area, so there is no channel to flood \u2014 the slope and rock models still run. "
@@ -1224,7 +1270,13 @@ async function buildFlood() {
       + `(${pr.bankfull}\u00d7 the mean flow from GRWL's width). `
       + `Longest travel time to the outlet ${lag > 48 ? `${(lag / 24).toFixed(1)} days` : `${lag.toFixed(1)} h`} \u2014 `
       + "that is the lag between the rain and the peak. Rivers from GRWL v01.01 at zoom "
-      + `${rivers.zoom}; mean capacity ${Math.round(capSum / Math.max(1, inArea)).toLocaleString()} m\u00b3/s.`);
+      + `${rivers.zoom}; mean capacity ${Math.round(capSum / Math.max(1, inArea)).toLocaleString()} m\u00b3/s. `
+      + (closed === inArea
+        ? "Every river in the area has its whole catchment inside the mapped ground, so the discharge is the river's own."
+        : `${closed.toLocaleString()} of ${inArea.toLocaleString()} river cells have their whole catchment inside the mapped ground. `
+          + "The rest are fed from upstream of the area, so the model sees only part of their water: their discharge is a LOWER BOUND "
+          + "and they are given no factor of safety \u2014 a brim read from a river's width is the brim of a channel cut by its whole basin. "
+          + "Draw an area that holds the catchment, or read those reaches as discharge alone."));
   } catch (error) {
     g.flood = null;
     say("fos", `The river network could not be read: ${error.message}. The slope and rock models still run.`, "error");
@@ -1465,7 +1517,7 @@ function modelFrame(k) {
     infiltration: state.params.infiltration, lateral: state.params.lateral, scratch: g.scratch });
   out.rockFos = rockFrame(out.q);
   splitRain(out, r.frames[k]);
-  return { ...out, rainMm };
+  return out;
 }
 
 /**
@@ -1560,7 +1612,7 @@ function waveFrame(wave, out, frames, k) {
     const q = wave.q[i];
     wave.series[base + m] = q;
     if (q > wave.peak[m]) wave.peak[m] = q;
-    if (!cells.model[i]) continue;
+    if (!cells.model[i] || fl.open[i]) continue;
     const fos = floodFos(fl.capacity[i], q);
     if (fos < wave.minFos[m]) wave.minFos[m] = fos;
     if (fos < 1) over += 1;
@@ -1590,6 +1642,7 @@ function floodFrame(k) {
     const i = fl.cells[m];
     const v = wave.series[base + m];
     q[i] = v;
+    if (fl.open[i]) continue;
     fos[i] = floodFos(fl.capacity[i], v);
     rise[i] = riseFor({ widthM: fl.riverWidth[i], q: v, capacity: fl.capacity[i], ratio });
   }
@@ -1620,6 +1673,27 @@ function governingFos(i, soil, rock) {
 }
 
 const FOS_VIEW_CLASSES = FOS_CLASSES.map((c, i) => ({ ...c, lo: [0, 1, 1.1, 1.3, 1.5][i] }));
+/**
+ * A reach fed from outside the mapped ground gets a class of its own rather
+ * than a number: its discharge is a lower bound and its brim is its whole
+ * basin's, so any ratio of the two is a statement about the study area's edge.
+ * The sentinel is a value no factor of safety can take.
+ */
+const OPEN_REACH = -1;
+const FLOOD_VIEW_CLASSES = [
+  { max: Infinity, label: "fed from upstream — the model sees only part of its water", colour: [120, 122, 130] },
+  ...FLOOD_CLASSES,
+];
+const openReach = (i) => {
+  const fl = state.ground?.flood;
+  return !!(fl && fl.open?.[i] && Number.isFinite(fl.capacity[i]));
+};
+const floodClassOf = (v) => {
+  if (v === OPEN_REACH) return 0;
+  if (!Number.isFinite(v)) return -1;
+  const c = classIn(FLOOD_CLASSES, v);
+  return c < 0 ? -1 : c + 1;
+};
 const classIn = (classes, v) => (Number.isFinite(v) ? classes.findIndex((k) => v < k.max) : -1);
 
 /** Block velocity classes for rockfall reach, m/s. */
@@ -1682,9 +1756,9 @@ const VIEW = {
   minfos: { label: "Lowest factor of safety over the window — whichever model governs", classes: FOS_VIEW_CLASSES, classOf: (v) => classIn(FOS_VIEW_CLASSES, v) },
   floodfos: {
     label: "Channel — factor of safety (what it carries at the brim / what is arriving)",
-    classes: FLOOD_CLASSES,
-    value: (i, fo) => (fo.flood ? fo.flood.fos[i] : NaN),
-    classOf: (v) => classIn(FLOOD_CLASSES, v),
+    classes: FLOOD_VIEW_CLASSES,
+    value: (i, fo) => (openReach(i) ? OPEN_REACH : fo.flood ? fo.flood.fos[i] : NaN),
+    classOf: floodClassOf,
   },
   flooddepth: {
     label: "Flood depth over the ground (m)",
@@ -1700,9 +1774,9 @@ const VIEW = {
   },
   minfloodfos: {
     label: "Lowest channel factor of safety over the window",
-    classes: FLOOD_CLASSES,
-    value: (i, fo, rk, run) => (run.floodMin ? run.floodMin[i] : NaN),
-    classOf: (v) => classIn(FLOOD_CLASSES, v),
+    classes: FLOOD_VIEW_CLASSES,
+    value: (i, fo, rk, run) => (openReach(i) ? OPEN_REACH : run.floodMin ? run.floodMin[i] : NaN),
+    classOf: floodClassOf,
   },
   runoff: {
     label: "Runoff — the share of the rain that ran off",
@@ -1897,7 +1971,15 @@ function floodReport(wave, summary, frames) {
   const ever = [...wave.minFos].filter((v) => Number.isFinite(v) && v < 1).length;
   const lagH = (Date.parse(frames[worstK].time) - Date.parse(frames[wettest].time)) / 3600000;
   const share = Math.max(...summary.map((s) => s.runoffShare));
-  return `Channel: ${w.over.toLocaleString()} of ${g.flood.inArea.toLocaleString()} river cells over their brim at their worst map (${frames[worstK].time.replace("T", " ")}), `
+  const closed = g.flood.closed ?? g.flood.inArea;
+  if (!closed) {
+    // Every reach in view is fed from upstream of the mapped ground, so there
+    // is no factor of safety to report — only the water the model itself saw.
+    return `Channel: no reach in the area has its whole catchment inside the mapped ground, so none is given a factor of safety. `
+      + `The model's own peak discharge is ${Math.round(Math.max(...summary.map((x) => x.peakQ))).toLocaleString()} m³/s — a lower bound, the rain on this ground alone. `
+      + `Up to ${(100 * share).toFixed(0)}% of the rain ran off. `;
+  }
+  return `Channel: ${w.over.toLocaleString()} of ${closed.toLocaleString()} river cells with a whole catchment over their brim at their worst map (${frames[worstK].time.replace("T", " ")}), `
     + `peak discharge ${Math.round(w.peakQ).toLocaleString()} m³/s; ${ever.toLocaleString()} go over at some point. `
     + `${lagH > 0 ? `The channel's worst map is ${lagH.toFixed(0)} h after the wettest one — that is the catchment's own lag. ` : lagH < 0 ? "" : "The channel peaks on the wettest map: the catchment answers within one step. "}`
     + `Up to ${(100 * share).toFixed(0)}% of the rain ran off. `;
@@ -1989,6 +2071,10 @@ async function recordStations() {
         const w = f.riverWidth[cell];
         return {
           on_a_river: w > 0 ? "yes" : "no",
+          // A station below an inflow across the mapped ground's edge records a
+          // discharge that is a lower bound, so its factor of safety is the
+          // map's own — withheld — and the column says which it is.
+          catchment_closed: f.open?.[cell] ? "no — fed from upstream of the mapped ground" : "yes",
           river_width_m: w > 0 ? Math.round(w) : "",
           bankfull_capacity_m3_s: w > 0 ? +f.capacity[cell].toFixed(1) : "",
           mean_flow_m3_s: w > 0 ? +(f.capacity[cell] / state.params.bankfull).toFixed(1) : "",
@@ -2037,7 +2123,10 @@ async function recordStations() {
             sub, cells: g.cells, topo: g.topo, rainMm, windowH: frames[k].hours,
             infiltration: state.params.infiltration, lateral: state.params.lateral,
             store: stores.get(cell), kRes: sub.kRes, dtS: frameStepSeconds(frames, k), scratch: fscratch,
-            capacity: fl.capacity[cell], widthM: fl.riverWidth[cell], ratio: state.params.bankfull,
+            // No brim where the catchment is open: the station's discharge is a
+            // lower bound, so a ratio against a whole basin's capacity would be
+            // the same false comfort the map withholds.
+            capacity: fl.open?.[cell] ? NaN : fl.capacity[cell], widthM: fl.riverWidth[cell], ratio: state.params.bankfull,
           }));
         }
         for (const p of LANDSLIDE_PARAMS) values[st.id][p.key][k] = out[p.key];
