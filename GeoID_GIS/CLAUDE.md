@@ -16315,6 +16315,58 @@ days; 7,036 at 10 Sep 12:00 (26 mm); 1,153 by 18 Sep. After the (user-gated,
 billed) redeploy the same Auto fetch uses IMERG for 4–10 Sep with no code
 change.
 
+### Sampling stations: the same answer as the map, without re-routing the map
+
+Step 7 of the pipeline records every rainfall map's static model at named
+points: clicked on the globe (armed until Escape), the study centre, the five
+weakest cells over the window (kept ≥300 m apart and clear of stations
+already placed, so asking twice gives the next five), every point of a loaded
+point layer, or a CSV (`name,lat,lon`, any delimiter). Plotted per parameter
+(FoS, m, h/z_s, water table, rain, recharge, flux) with the bar's frame
+marked; a click on the plot moves the bar (`seekPlayer`, new in
+`timelapse-player`, so bar and plot cannot disagree); one tidy CSV out.
+
+- **Routing is linear in the source**, so a station's flux is
+  Σ w_u · r_u · A over its own catchment, with w_u the fraction of cell u's
+  water reaching it. `upslopeWeights` walks the topology's `order` backwards
+  (receivers are strictly lower, so always met first) once per station and
+  keeps it on the ground object; a station added after a run then reads all
+  28 maps in milliseconds instead of re-routing 1.7M cells per map.
+  **It must equal `staticStep`**, and the test holds it there on a
+  block-lattice V-valley with varying rain and material: flux to 1e-9, FoS to
+  1e-6. Live: every station equal to the map cell under it to ~1e-8 (the map
+  stores Float32). `cellAnswer` moved into `slope-hydrology.js` so the map and
+  the stations call one function.
+- **Model-agnostic series** (`station-series.js`): stations, a series shape,
+  the tidy CSV (row per station per time, a column per parameter with its
+  unit, the station's ground repeated so the file stands alone, an unread
+  station kept with its note). `geoid-gis:station-series` is dispatched on
+  every recording and `GeoIDLandslidePipeline.series()` returns it — the seam
+  the myGeoID analysis hub is meant to read. `time-series-plot.js` is a date
+  axis (`timeTicks` lands on midnights / six-hourly marks) with FoS clipped at
+  3, a value above drawn on the top edge rather than flattening the plot.
+- **A canvas in an `auto` grid column sizes the column, which sizes the
+  canvas**: every redraw set its width attribute from its CSS box and the box
+  grew to it, so the plot ran out of the sidebar. `minmax(0, 1fr)` again —
+  fourth time this file has paid for it.
+- **The larger plot is moved onto `document.body`** (a transformed or
+  filtered sidebar ancestor makes `position: fixed` relative to it) and placed
+  from the time-lapse bar's MEASURED top — including its date pill, which
+  stands above the bar's own edge; a fixed `bottom` landed 36 px on the bar at
+  a shorter window. Children with no layout report a top of 0 and are skipped.
+- Playing the bar updates only the readings (`updateReadings`), never the name
+  fields, so a rename survives playback. A placing click is swallowed by
+  `probeAt` for 800 ms and the popup suppressed, so it opens no card.
+
+**"The rainfall isn't being fetched" was a dry forecast.** Checked against the
+raw API at the node over Imola: the historical-forecast and live forecast
+endpoints agree hour for hour (28.2 mm 10 Sep, 5.9, 1.5, then 0.0 for 13–16
+Sep, 7.8 on the 17th), Open-Meteo's best-match blend is drier still, and the
+page's 24 h windows reproduce the raw sums exactly (28.2, 12.5, 7.2, 4.7, 0.2
+… 0.9). With no ground maps on the globe the material falls to the database's
+regolith (c′ 20 kPa), and at 72 m nothing fails in that week at all — which
+reads as broken and is not.
+
 
 
 Hazards-style brief, answered in the GIS page's Model Builder tab: draw the
