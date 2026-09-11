@@ -22,18 +22,18 @@
  * file only orchestrates them and says, on every card, what it has read.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-07928fd";
-import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, GFS_CREDIT } from "./gfs-rain.js?v=20260911-07928fd";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-7250af4";
+import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, GFS_CREDIT } from "./gfs-rain.js?v=20260911-7250af4";
 import {
   columnMaterial, soilColumn, steadyWetness, planeWetness, factorOfSafety, criticalRecharge,
   FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M, LATERAL_FACTOR, FOS_CAP,
-} from "./slope-hydrology.js?v=20260911-07928fd";
-import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-07928fd";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-07928fd";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-07928fd";
-import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-07928fd";
-import { mathsFor } from "./equations.js?v=20260911-07928fd";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260911-07928fd";
+} from "./slope-hydrology.js?v=20260911-7250af4";
+import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-7250af4";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-7250af4";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-7250af4";
+import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-7250af4";
+import { mathsFor } from "./equations.js?v=20260911-7250af4";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260911-7250af4";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";
@@ -916,7 +916,8 @@ export function probeAt(lat, lon) {
     ["Rainfall map", `${fmt(cur.rainMm[i], 1)} mm of GFS rain in the ${state.rain.windowH} h to ${frame.time.replace("T", " ")} UTC`],
     ["Saturation", `h / z_s ${fmt(cur.W[i])}; water on the failure plane m ${fmt(planeWetness(cur.W[i], g.cells.zs[i], g.cells.zf[i]))}`],
     ["Upslope area", `${(g.cells.area[i] / 1e4).toFixed(2)} ha draining through this cell (a = ${(g.cells.area[i] / g.topo.contour).toFixed(0)} m)`],
-    ["Lowest over the window", Number.isFinite(run.minFos[i]) ? `${fmt(run.minFos[i])} at ${run.frames[run.minAt[i]].time.replace("T", " ")}` : "—"],
+    ["Lowest over the window", !Number.isFinite(run.minFos[i]) ? "—"
+      : run.minFos[i] >= FOS_CAP ? `${FOS_CAP}+ throughout — too gentle to slide` : `${fmt(run.minFos[i])} at ${run.frames[run.minAt[i]].time.replace("T", " ")}`],
     ["Rainfall to fail", !Number.isFinite(crit) && crit !== Infinity ? "—" : crit === Infinity ? "holds even saturated" : crit === 0 ? "fails even dry" : `${crit.toFixed(0)} mm/day sustained over its catchment`],
     ["Slope", `${slopeDeg.toFixed(1)}° — from ${g.slopeFrom}`],
     ["Soil column", `${fmt(g.cells.zs[i], 1)} m to bedrock (${g.cells.thin[i] ? `Pelletier et al. 2016 reads 0 in whole metres — under 1 m, modelled as a ${fmt(g.cells.zs[i], 1)} m veneer` : g.cells.depthFrom[i] ? "Pelletier et al. 2016" : "a stated default"}); failure plane at ${fmt(g.cells.zf[i], 1)} m`],
