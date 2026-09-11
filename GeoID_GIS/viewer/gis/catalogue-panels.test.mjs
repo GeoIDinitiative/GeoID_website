@@ -423,15 +423,13 @@ check("and every listed group still has something in it",
 }
 
 {
-  // The contour rows are the shared row, not a hand-built look-alike: the name
-  // as .gis-catalogue-name, the tick last, Symbology only on the drawn one.
+  // Contours are set in Map ▸ Elevation only; the Overlays list must not grow
+  // a second face on the same controls again.
   const poly = readFileSync(join(HERE, "polygons.js"), "utf8");
-  const body = poly.slice(poly.indexOf("function appendContourRows"));
-  check("the contour rows wear the catalogue's own row markup",
-    /name\.className = "gis-catalogue-name"/.test(body)
-    && /row\.appendChild\(tick\);/.test(body) && !/row\.append\(tick, name/.test(body)
-    && /if \(on\) \{[\s\S]{0,200}gis-catalogue-sym/.test(body)
-    && /className = "gis-catalogue-settings"/.test(body));
+  const page = readFileSync(join(HERE, "..", "index.html"), "utf8");
+  check("contours have one home: the Elevation sub-tab, not the Overlays list",
+    !/function appendContourRows|data-contour-row|contourRow/.test(poly)
+    && /id="contour-controls"/.test(page) && /id="contour-interval-select"/.test(page));
 }
 
 console.log(failures ? `\n${failures} failed` : "\nall passed");

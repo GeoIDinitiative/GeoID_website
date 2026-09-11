@@ -1,7 +1,7 @@
 import {
   addDataset, grouped, datasetById, layerForDataset,
-} from "./global-data.js?v=20260911-3115632";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260911-3115632";
+} from "./global-data.js?v=20260911-230d669";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260911-230d669";
 
 /**
  * Polygons: the register of vector overlays -- coastlines, boundaries, basins,
@@ -103,125 +103,14 @@ function drawCatalogue() {
       if (!openSymbologyFor(layer)) say("This layer cannot be recoloured.");
     },
   });
-  appendContourRows(host);
 }
 
-/**
- * The contour overlay, as catalogue rows.
- *
- * The three loose "Contour overlay / opacity / color" rows sat between the
- * two catalogues as furniture nobody filed; an elevation contour is an
- * OVERLAY, so it lists with the overlays, one row per interval, radio-like
- * (the viewer draws one interval at a time). The REAL controls stay in the
- * page hidden (`#contour-controls`) because earth-viewer reads them by id
- * unguarded — these rows are a face on them, exactly as the base-texture
- * list is a face on `#base-layer-select`. The Symbology… button unfolds a
- * shared line of colour + opacity proxies rather than the full dialog: a
- * contour is not a data layer with columns to classify.
- *
- * Rebuilt with the catalogue: `renderCatalogue` wipes the box on every
- * layer change, so this appends after every draw, reading its ticked state
- * from the hidden select each time — the select is the state, never the DOM.
+/*
+ * THERE ARE NO CONTOUR ROWS HERE. They were a second face on the Elevation
+ * sub-tab's own controls (#contour-controls: interval, opacity, colour), which
+ * already sit where a reader looks for the shape of the ground — two places to
+ * set one overlay. Map ▸ Elevation is the one.
  */
-function appendContourRows(host) {
-  const interval = document.getElementById("contour-interval-select");
-  const colourSrc = document.getElementById("contour-color-select");
-  const opacitySrc = document.getElementById("contour-opacity");
-  const scroll = host.querySelector(".gis-catalogue-scroll");
-  if (!interval || !colourSrc || !opacitySrc || !scroll) return;
-  if (scroll.querySelector("[data-contour-row]")) return;
-
-  const group = document.createElement("div");
-  group.className = "gis-catalogue-group";
-  group.dataset.contourRow = "1";
-  group.textContent = "Terrain";
-  scroll.appendChild(group);
-
-  /**
-   * THE SAME ROW AS EVERY OTHER IN THE LIST. These were built by hand — tick
-   * on the LEFT, the name in an unclassed span that fell back to the page's
-   * larger type, a Symbology button on every row whether it was drawn or not
-   * — and sat under "Live services" looking like a different list. The shared
-   * row (`catalogue-list.js`) puts the name first as `.gis-catalogue-name`,
-   * the tick LAST on the right edge, and Symbology only on a layer that is on
-   * the globe; its settings drawer is `.gis-catalogue-settings`. So do these.
-   */
-  const symRow = document.createElement("div");
-  symRow.className = "gis-catalogue-settings";
-  symRow.dataset.contourRow = "1";
-  symRow.hidden = true;
-  const line = document.createElement("div");
-  line.style.cssText = "display:flex;gap:0.4rem;align-items:center;";
-  const colour = document.createElement("select");
-  colour.className = "input";
-  colour.style.cssText = "flex:0 0 7rem;";
-  colour.setAttribute("aria-label", "Contour colour");
-  [...colourSrc.options].forEach((o) => colour.appendChild(o.cloneNode(true)));
-  colour.value = colourSrc.value;
-  colour.addEventListener("change", () => {
-    colourSrc.value = colour.value;
-    colourSrc.dispatchEvent(new Event("change"));
-  });
-  const opacity = document.createElement("input");
-  opacity.type = "range";
-  opacity.className = "slider";
-  opacity.min = "0"; opacity.max = "1"; opacity.step = "0.01";
-  opacity.value = opacitySrc.value;
-  opacity.style.flex = "1";
-  opacity.title = "Contour opacity";
-  opacity.setAttribute("aria-label", "Contour opacity");
-  opacity.addEventListener("input", () => {
-    opacitySrc.value = opacity.value;
-    opacitySrc.dispatchEvent(new Event("input"));
-    opacitySrc.dispatchEvent(new Event("change"));
-  });
-  line.append(colour, opacity);
-  symRow.appendChild(line);
-
-  const redraw = () => {
-    // The select is the state; the rows only ever read it.
-    scroll.querySelectorAll("[data-contour-row]").forEach((n) => n.remove());
-    appendContourRows(host);
-  };
-  [...interval.options].filter((o) => o.value).forEach((option) => {
-    const on = interval.value === option.value;
-    const row = document.createElement("div");
-    row.className = "gis-catalogue-row";
-    row.dataset.contourRow = "1";
-    const tick = document.createElement("input");
-    tick.type = "checkbox";
-    tick.id = `gis-cat-${host.id || "overlays"}-contour-${option.value}`;
-    tick.checked = on;
-    tick.addEventListener("change", () => {
-      // Radio-like: the viewer draws one interval at a time, so ticking one
-      // stands the others down, and unticking the active one means "None".
-      interval.value = tick.checked ? option.value : "";
-      interval.dispatchEvent(new Event("change"));
-      redraw();
-    });
-    const name = document.createElement("label");
-    name.className = "gis-catalogue-name";
-    name.htmlFor = tick.id;
-    name.textContent = `Elevation contours — ${option.textContent}`;
-    name.title = `Lines of equal height every ${option.textContent}, drawn on the globe's own terrain.`;
-    row.append(name);
-    if (on) {
-      const sym = document.createElement("button");
-      sym.type = "button";
-      sym.className = "gis-catalogue-sym";
-      sym.textContent = "Symbology…";
-      sym.title = "Contour colour and opacity";
-      sym.addEventListener("click", () => {
-        symRow.hidden = !symRow.hidden;
-        sym.classList.toggle("is-on", !symRow.hidden);
-      });
-      row.appendChild(sym);
-    }
-    row.appendChild(tick);
-    scroll.appendChild(row);
-    if (on) scroll.appendChild(symRow);
-  });
-}
 
 function init() {
   const input = byId("polygon-file");
