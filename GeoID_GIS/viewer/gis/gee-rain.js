@@ -23,7 +23,7 @@
  *   ERA5-Land   0.1°, daily aggregate, 1950 → ~a week ago, land, global
  */
 
-import { paletteRamp, valueFromColour } from "./gee-sample.js?v=20260911-9c953a5";
+import { paletteRamp, valueFromColour } from "./gee-sample.js?v=20260911-6b65e16";
 
 const search = new URL(import.meta.url).search;
 
@@ -94,6 +94,13 @@ export function pixelIndex(grid, lat, lon) {
   return py * grid.width + px;
 }
 
+/** The service's refusal of a dataset it has no entry for, said as what it means. */
+function notDeployed(s, error) {
+  return /unknown or unsupported/i.test(error?.message || "")
+    ? new Error(`the deployed Earth Engine service does not render ${s.short} yet — redeploy services/gee-tiles to add it`)
+    : error;
+}
+
 const cache = new Map();
 const datesCache = new Map();
 
@@ -102,7 +109,8 @@ export async function geeRainDates(source) {
   const s = GEE_RAIN_SOURCES[source];
   if (datesCache.has(s.dataset)) return datesCache.get(s.dataset);
   const { fetchDates } = await import(`./gee.js${search}`);
-  const got = await fetchDates(s.dataset);
+  let got;
+  try { got = await fetchDates(s.dataset); } catch (error) { throw notDeployed(s, error); }
   datesCache.set(s.dataset, got);
   return got;
 }
@@ -127,10 +135,7 @@ export async function fetchGeeRainDay(source, bounds, day) {
   try {
     scene = await fetchScene({ dataset: s.dataset, bounds, from: day, to: nextDay(day), dimensions: 1024 });
   } catch (error) {
-    if (/unknown or unsupported/i.test(error.message)) {
-      throw new Error(`the deployed Earth Engine service does not render ${s.short} yet — redeploy services/gee-tiles to add it`);
-    }
-    throw error;
+    throw notDeployed(s, error);
   }
   if (!scene?.imageUrl) throw new Error(`Earth Engine returned no ${s.short} picture for ${day}`);
   const image = await loadImage(scene.imageUrl);

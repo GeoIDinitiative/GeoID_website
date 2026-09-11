@@ -22,19 +22,19 @@
  * file only orchestrates them and says, on every card, what it has read.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-9c953a5";
-import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260911-9c953a5";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-6b65e16";
+import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260911-6b65e16";
 import {
   columnMaterial, soilColumn, steadyWetness, planeWetness, factorOfSafety, criticalRecharge,
   FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M, LATERAL_FACTOR, FOS_CAP,
-} from "./slope-hydrology.js?v=20260911-9c953a5";
-import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-9c953a5";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-9c953a5";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-9c953a5";
-import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-9c953a5";
-import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainDays, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260911-9c953a5";
-import { mathsFor } from "./equations.js?v=20260911-9c953a5";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260911-9c953a5";
+} from "./slope-hydrology.js?v=20260911-6b65e16";
+import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-6b65e16";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-6b65e16";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-6b65e16";
+import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-6b65e16";
+import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainDays, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260911-6b65e16";
+import { mathsFor } from "./equations.js?v=20260911-6b65e16";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260911-6b65e16";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";
@@ -537,6 +537,15 @@ async function fetchDailySeries({ cover, source, start, end, windowH }) {
   }
   const plan = planRain({ source, start, end, windowH, today: dayOf(Date.now()), gee, covers });
   if (!plan.ok) throw new Error(plan.message);
+  // Auto with no Earth Engine day in it is simply GFS — and GFS is hourly, so it
+  // keeps the window and interval asked for rather than being made daily for a
+  // source that is not in the series.
+  if (source === "auto" && !plan.geeDays.length) {
+    const series = await fetchGfsSeries({ cover, start, end, windowH, everyH: Number(byId("lsp-rain-every").value) || 6 });
+    const why = !covers ? `${geeSource.short} stops at ${geeSource.maxLat}° of latitude` : !gee ? `Earth Engine did not answer (${geeProblem})`
+      : `Earth Engine's ${geeSource.short} ends ${gee.last}`;
+    return { ...series, summary: `Auto: ${why}, so every day is GFS. ${series.summary}` };
+  }
   let grids = [];
   if (plan.geeDays.length) {
     grids = await fetchGeeRainDays(geeKey, cover, plan.geeDays, {
