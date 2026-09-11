@@ -22,25 +22,25 @@
  * file only orchestrates them and says, on every card, what it has read.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-a37039d";
-import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260911-a37039d";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-5874fb2";
+import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260911-5874fb2";
 import {
   columnMaterial, soilColumn, steadyWetness, planeWetness, factorOfSafety, criticalRecharge,
   FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M, LATERAL_FACTOR, FOS_CAP, cellAnswer,
-} from "./slope-hydrology.js?v=20260911-a37039d";
-import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-a37039d";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-a37039d";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-a37039d";
-import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-a37039d";
-import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainDays, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260911-a37039d";
-import { mathsFor } from "./equations.js?v=20260911-a37039d";
-import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260911-a37039d";
-import { upslopeWeights, stationStep, LANDSLIDE_PARAMS, LANDSLIDE_PLOTS, lowestCells } from "./landslide-stations.js?v=20260911-a37039d";
+} from "./slope-hydrology.js?v=20260911-5874fb2";
+import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-5874fb2";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-5874fb2";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-5874fb2";
+import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-5874fb2";
+import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainDays, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260911-5874fb2";
+import { mathsFor } from "./equations.js?v=20260911-5874fb2";
+import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260911-5874fb2";
+import { upslopeWeights, stationStep, LANDSLIDE_PARAMS, LANDSLIDE_PLOTS, lowestCells } from "./landslide-stations.js?v=20260911-5874fb2";
 import {
   makeStation, parseStationsCsv, stationsFromFeatures, uniqueName, seriesCsv, seriesFileName, MAX_STATIONS, colourAt,
-} from "./station-series.js?v=20260911-a37039d";
-import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260911-a37039d";
-import { mountStationMarkers } from "./station-markers.js?v=20260911-a37039d";
+} from "./station-series.js?v=20260911-5874fb2";
+import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260911-5874fb2";
+import { mountStationMarkers } from "./station-markers.js?v=20260911-5874fb2";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";
@@ -1429,13 +1429,18 @@ async function drawStationLayer() {
       properties: { name: st.name, station: true, lat: st.lat, lon: st.lon, kind: "Sampling station", summary: stationSummary(st) },
     })),
   };
-  const built = buildVectorLayerResult(fc, { name: STATION_LAYER, style: { field: "name", categories: state.stations.map((st) => ({ value: st.name, colour: st.colour })) } });
   // The layer is the stations' row in the Workspace — eye, key, export — and
   // draws nothing itself: the ▼ markers are drawn over the globe by
-  // `station-markers.js`, which follows this layer's eye.
-  built.object3D?.traverse?.((o) => { if (o !== built.object3D) o.visible = false; });
+  // `station-markers.js`, which follows this layer's eye. It is BUILT from the
+  // features without their geometry, so there is nothing for any repaint to
+  // bring back (hiding the dots after the build lost to the first repaint,
+  // which replaces every child), and given the real points afterwards for the
+  // table and the export.
+  const drawn = { type: "FeatureCollection", features: fc.features.map((f) => ({ type: "Feature", geometry: null, properties: f.properties })) };
+  const built = buildVectorLayerResult(drawn, { name: STATION_LAYER, style: { field: "name", categories: state.stations.map((st) => ({ value: st.name, colour: st.colour })) } });
   const layer = im.addDerivedLayer(STATION_LAYER, built, "derived");
   if (layer) {
+    layer.collection = fc; layer.features = fc.features;
     layer.groundPick = false;
     layer.info = { source: "Placed by you in the forecast landslide pipeline", summary: "Sampling stations: the points where every rainfall map's static model is recorded." };
   }
