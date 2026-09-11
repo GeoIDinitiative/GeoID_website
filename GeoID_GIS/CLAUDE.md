@@ -17645,3 +17645,55 @@ narrow-viewport probe, I scrolled a subtab into view. That scrolled
 `#ui-scroll-body`, and the probe then reported the brand, the ⓘ and the rate
 pill 407 px above the frame. Reset every scroller the probe touched before
 reading positions.
+
+## The model page's visibility box, and two studio faults it exposed
+
+**`#studio-visibility` is the model page's Workspace.** It is a tile at the top
+right, mirroring the deck on the left: same top, same cap above the worlds
+strip, and shrink-wrapped to its contents. It uses the Workspace tile's own frame, head, chevron and
+row classes (`layer-dock-head`, `layer-row`, `layer-disclose`, `layer-eye`), so
+the two pages' boxes are one object seen twice. There is a row per domain, carrying a
+three-state eye and a shown/total count. A disclosure opens the domain's surfaces and
+points, each with its own eye, and clicking a part's name opens its card. The meshed
+result is a row too, because hiding the mesh is how you see the surfaces beneath it.
+The box is built at runtime inside `#model-studio`, so it shows and hides with the
+page. Its CSS is appended identically to both stylesheets inside the pinned
+studio block, and its fold state is remembered in
+`geoid-studio:visibility-collapsed`.
+
+- **One domain list.** `domainGroups()` is factored out of the Domains panel
+  and both read it, so they cannot disagree about which parts a domain holds.
+  Every eye commits through `partVisible`, and every render reads the state
+  back off the meshes. `renderDomainsPanel` renders the box first, so each
+  existing call site keeps both in step.
+- **A head with nothing at its right end needs `justify-content: flex-start`.**
+  The shared `.section-toggle` rule spreads its children with space-between.
+  The Workspace head hides that behind its icon buttons; this head has none, so
+  its title was pushed to the far edge.
+- **Place a card by its MEASURED width.** A guessed 300 px left it overlapping
+  the box by 75 px. Opened from the box, the card's right edge now sits 8 px
+  left of the box.
+
+**One mesh view at a time.** Each Mesh press added another display over the
+last, so hiding one still showed the one beneath it. Clear mesh also cleared
+only the data and left the picture drawn. `state.meshView` now holds the one
+display, and `removeMeshView()` is called on re-mesh, on Clear, and on New.
+Measured: meshing twice leaves 1 layer and 1 object in the scene; Clear leaves 0.
+
+**Deleting an entity threw halfway through its faces.** `deleteEntities`
+removed each face's Workspace layer inside `traverse`, and removing a layer
+takes its mesh out of the group being walked, so the walk read an undefined child.
+Every multi-face entity (every primitive since faces became parts) left
+layers behind on delete. Collect first, then remove.
+
+**And fixing that exposed the atmosphere resize.** `applyStudioAtmosphere`
+"kept" `state.atmosphere` across the delete by holding the SAME object, and the
+delete switches that object off, so a resize removed the air instead of
+rebuilding it. It went unnoticed only because the throw above happened first.
+Keeping state across a call that mutates it needs a COPY. Measured after: 8 m
+then 5 m rebuilds at 5 m, with the layer count unchanged at 11.
+
+**`cmd | tail -1` swallows cmd's exit code.** A suite that could not even be
+found reported nothing, the `&&` chain went on, and a commit landed unstamped
+because the next relative path was also wrong. Use `set -o pipefail`
+and absolute paths — this file has now recorded that trap three times.
