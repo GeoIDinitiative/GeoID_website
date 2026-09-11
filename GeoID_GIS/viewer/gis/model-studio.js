@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260911-0861362";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260911-0861362";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260911-92409f8";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260911-92409f8";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260911-0861362";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260911-0861362";
-import { downloadText } from "./extraction.js?v=20260911-0861362";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260911-0861362";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260911-0861362";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260911-0861362";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260911-0861362";
-import { femSpec } from "./model-build.js?v=20260911-0861362";
+} from "./mesh-volume.js?v=20260911-92409f8";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260911-92409f8";
+import { downloadText } from "./extraction.js?v=20260911-92409f8";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260911-92409f8";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260911-92409f8";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260911-92409f8";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260911-92409f8";
+import { femSpec } from "./model-build.js?v=20260911-92409f8";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -3911,9 +3911,12 @@ function renderVisibilityBox() {
         const card = (event) => {
           event.stopPropagation();
           const r = child.getBoundingClientRect();
-          // The card opens BESIDE the box, on the side with room: the box is
-          // against the right edge, so that is the left.
-          showPartCard(part, Math.max(8, r.left - 300), r.top);
+          showPartCard(part, r.left, r.top);
+          // The card opens BESIDE the box, on the side with room -- the box is
+          // against the right edge, so that is the left -- by its MEASURED
+          // width: a guessed one overlapped the box by 75 px.
+          const card = byId("studio-part-card");
+          if (card) card.style.left = `${Math.max(8, box.getBoundingClientRect().left - card.offsetWidth - 8)}px`;
           if (part.solidId !== null && part.solidId !== undefined) setSelection([part.solidId]);
         };
         partName.addEventListener("click", card);
