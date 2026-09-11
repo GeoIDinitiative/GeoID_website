@@ -26,22 +26,22 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260911-7f3a711";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260911-7f3a711";
-import { mathsFor } from "./equations.js?v=20260911-7f3a711";
+import { runConnector } from "./research/connectors.js?v=20260911-0776ffa";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260911-0776ffa";
+import { mathsFor } from "./equations.js?v=20260911-0776ffa";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260911-7f3a711";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260911-7f3a711";
-import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260911-7f3a711";
+} from "./cyclone-risk.js?v=20260911-0776ffa";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260911-0776ffa";
+import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260911-0776ffa";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260911-7f3a711";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260911-0776ffa";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
   "Ice sheets", "Hazards", "Active fires", "Perimeters",
-  "Warnings", "Climate", "Live services"];
+  "Warnings", "Climate", "Infrastructure", "Live services"];
 
 /**
  * Which PANEL a dataset belongs on, where it is not the Vectors tab.
@@ -811,7 +811,11 @@ export const DATASETS = [
   {
     id: "conn-submarine-cables",
     featureNoun: "Submarine cable",
-    group: "Live services",
+    // Hazards ▸ Exposure: what a hazard would hit. A cable is infrastructure
+    // on the seabed, and it sat under Map ▸ Overlays as "Live services" only
+    // because it had no home -- filed by how it is fetched, not by what it is.
+    home: "exposure",
+    group: "Infrastructure",
     label: "Submarine cables — live (Greg's Cable Map)",
     connector: "submarine-cables",
     name: "Submarine cables (Greg's Cable Map).geojson",
@@ -834,7 +838,9 @@ export const DATASETS = [
   {
     id: "conn-cable-landings",
     featureNoun: "Cable landing station",
-    group: "Live services",
+    // With the cables it ends: one dataset split into paths and ends.
+    home: "exposure",
+    group: "Infrastructure",
     label: "Cable landing stations — live (Greg's Cable Map)",
     connector: "cable-landings",
     name: "Cable landing stations (Greg's Cable Map).geojson",

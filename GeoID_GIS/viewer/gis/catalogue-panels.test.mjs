@@ -407,5 +407,20 @@ check("and every listed group still has something in it",
     && /id="sea-level-controls"/.test(readFileSync(join(HERE, "..", "index.html"), "utf8")));
 }
 
+{
+  // The submarine cables and their landing stations are EXPOSURE: what a
+  // hazard would hit, not a shape to dress the basemap with.
+  const cables = DATASETS.filter((d) => /^conn-(submarine-cables|cable-landings)$/.test(d.id));
+  check("the cables and their landing stations live in Hazards ▸ Exposure",
+    cables.length === 2 && cables.every((d) => d.home === "exposure"),
+    cables.map((d) => `${d.id}:${d.home}`).join(", "));
+  // `grouped()` lists only the groups GROUPS names, so a group left out of it
+  // takes every row in it off every list without a word.
+  const unlisted = [...new Set(DATASETS.filter((d) => !d.hidden).map((d) => d.group))]
+    .filter((g) => !GROUPS.includes(g));
+  check("every group a dataset names is one the lists will draw", !unlisted.length,
+    unlisted.join(", "));
+}
+
 console.log(failures ? `\n${failures} failed` : "\nall passed");
 process.exit(failures ? 1 : 0);
