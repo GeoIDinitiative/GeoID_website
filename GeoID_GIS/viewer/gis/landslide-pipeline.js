@@ -22,24 +22,24 @@
  * file only orchestrates them and says, on every card, what it has read.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-9c77a50";
-import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260911-9c77a50";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-e71bb85";
+import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260911-e71bb85";
 import {
   columnMaterial, soilColumn, steadyWetness, planeWetness, factorOfSafety, criticalRecharge,
   FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M, LATERAL_FACTOR, FOS_CAP, cellAnswer,
-} from "./slope-hydrology.js?v=20260911-9c77a50";
-import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-9c77a50";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-9c77a50";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-9c77a50";
-import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-9c77a50";
-import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainDays, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260911-9c77a50";
-import { mathsFor } from "./equations.js?v=20260911-9c77a50";
-import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260911-9c77a50";
-import { upslopeWeights, stationStep, LANDSLIDE_PARAMS, lowestCells } from "./landslide-stations.js?v=20260911-9c77a50";
+} from "./slope-hydrology.js?v=20260911-e71bb85";
+import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-e71bb85";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-e71bb85";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-e71bb85";
+import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-e71bb85";
+import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainDays, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260911-e71bb85";
+import { mathsFor } from "./equations.js?v=20260911-e71bb85";
+import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260911-e71bb85";
+import { upslopeWeights, stationStep, LANDSLIDE_PARAMS, lowestCells } from "./landslide-stations.js?v=20260911-e71bb85";
 import {
   makeStation, parseStationsCsv, stationsFromFeatures, uniqueName, seriesCsv, seriesFileName, MAX_STATIONS, colourAt,
-} from "./station-series.js?v=20260911-9c77a50";
-import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260911-9c77a50";
+} from "./station-series.js?v=20260911-e71bb85";
+import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260911-e71bb85";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";
@@ -484,6 +484,7 @@ function wire() {
     const b = resolvePolygonExtent(extent.value, { arm: false });
     if (!b || ![b.west, b.south, b.east, b.north].every(Number.isFinite)) { say("area", "No area yet — draw one, or pick a layer.", "error"); return; }
     clear({ keepInputs: true });
+    removeRainLayer();
     state.bounds = b; state.rain = null; state.ground = null;
     const w = (b.east - b.west) * 111.32 * Math.cos(((b.south + b.north) / 2) * Math.PI / 180);
     const h = (b.north - b.south) * 110.574;
@@ -560,12 +561,16 @@ async function fetchRain() {
   const start = byId("lsp-rain-start").value; const end = byId("lsp-rain-end").value;
   // The nodes and pictures must cover the MARGIN too: water falling there drains into the area.
   const cover = withMargin(b, marginKm());
+  if (state.playing) { try { stopPlayer(); } catch (e) { /* gone */ } state.playing = false; }
+  removeRainLayer();
   try {
     state.rain = source === "gfs"
       ? await fetchGfsSeries({ cover, start, end, windowH, everyH })
       : await fetchDailySeries({ cover, source, start, end, windowH });
     state.run = null;
     say("rain", state.rain.summary);
+    // The maps go into the Workspace as they arrive, and the bar plays them.
+    if (showRainLayer()) void playRain();
   } catch (error) {
     say("rain", `Rainfall could not be read: ${error.message}`, "error");
   }
@@ -987,54 +992,167 @@ export function periodOf(time, now = Date.now()) {
   return Number.isFinite(t) && t > now ? "forecast" : "record";
 }
 
-function rainWeights() {
-  const r = state.rain; const P = state.ground.cells.props; const nb = P.lat.length;
-  if (r.weights?.n === nb) return r.weights;
-  const idx = new Int32Array(nb * 4); const wt = new Float32Array(nb * 4);
-  for (let j = 0; j < nb; j += 1) {
-    const it = interpolatorFor(r.gfs.grid, r.gfs.nodes, P.lat[j], P.lon[j]);
-    idx.set(it.idx, j * 4); wt.set(it.wt, j * 4);
-  }
-  r.weights = { idx, wt, n: nb };
-  return r.weights;
-}
-
-/** The pixel of an Earth Engine day each model cell reads; one table per picture geometry. */
-function geePixels(grid) {
-  const r = state.rain; const g = state.ground;
-  r.geePixels = r.geePixels || new Map();
-  const P = g.cells.props; const nb = P.lat.length;
-  const key = `${nb}|${grid.width}x${grid.height}|${grid.bounds.minX},${grid.bounds.minY},${grid.bounds.maxX},${grid.bounds.maxY}`;
-  if (r.geePixels.has(key)) return r.geePixels.get(key);
-  const at = new Int32Array(nb).fill(-1);
-  for (let j = 0; j < nb; j += 1) at[j] = pixelIndex(grid, P.lat[j], P.lon[j]);
-  r.geePixels.set(key, at);
-  return at;
-}
-
-/** A frame's rainfall on every block of the informing lattice: the sum of its pieces, whichever source each came from. */
-function rainMapFor(frame) {
-  const r = state.rain; const g = state.ground;
-  const nb = g.cells.props.lat.length;
-  const out = new Float32Array(nb);
+/**
+ * A frame's rainfall at a set of points — the model's informing blocks, or
+ * the rain layer's display lattice — as the sum of its pieces, whichever
+ * source each came from. One function for both, so the rain the model is fed
+ * and the rain drawn on the globe cannot disagree. The interpolation weights
+ * and pixel tables are cached on the points, per rainfall fetch.
+ */
+function rainAtPoints(frame, pts) {
+  const r = state.rain; const n = pts.lat.length;
+  if (!pts.rainCache || pts.rainCache.rain !== r) pts.rainCache = { rain: r, weights: null, gee: new Map() };
+  const c = pts.rainCache;
+  const out = new Float32Array(n);
   for (const p of frame.pieces) {
     if (p.kind === "gfs") {
+      if (!c.weights) {
+        const idx = new Int32Array(n * 4); const wt = new Float32Array(n * 4);
+        for (let j = 0; j < n; j += 1) {
+          const it = interpolatorFor(r.gfs.grid, r.gfs.nodes, pts.lat[j], pts.lon[j]);
+          idx.set(it.idx, j * 4); wt.set(it.wt, j * 4);
+        }
+        c.weights = { idx, wt };
+      }
       const acc = r.gfs.accumulateRange(p.lo, p.hi);
-      const { idx, wt } = rainWeights();
-      for (let j = 0; j < nb; j += 1) {
+      const { idx, wt } = c.weights;
+      for (let j = 0; j < n; j += 1) {
         const o = j * 4;
         out[j] += wt[o] * acc[idx[o]] + wt[o + 1] * acc[idx[o + 1]] + wt[o + 2] * acc[idx[o + 2]] + wt[o + 3] * acc[idx[o + 3]];
       }
     } else if (p.kind === "gee") {
       const grid = r.gee.grids[p.src][p.grid];
-      const at = geePixels(grid);
-      for (let j = 0; j < nb; j += 1) {
+      const key = `${grid.width}x${grid.height}|${grid.bounds.minX},${grid.bounds.minY},${grid.bounds.maxX},${grid.bounds.maxY}`;
+      let at = c.gee.get(key);
+      if (!at) {
+        at = new Int32Array(n).fill(-1);
+        for (let j = 0; j < n; j += 1) at[j] = pixelIndex(grid, pts.lat[j], pts.lon[j]);
+        c.gee.set(key, at);
+      }
+      for (let j = 0; j < n; j += 1) {
         const v = at[j] >= 0 ? grid.values[at[j]] : NaN;
         if (Number.isFinite(v)) out[j] += v;
       }
     }
   }
   return out;
+}
+
+/** A frame's rainfall on every block of the informing lattice. */
+function rainMapFor(frame) {
+  return rainAtPoints(frame, state.ground.cells.props);
+}
+
+/* ── the rainfall maps as a layer of their own ──────────────────────────── */
+
+export const RAIN_LAYER = "Rainfall maps — landslide forecast (mm)";
+/** Dry ground is left undrawn, so the maps sit over the imagery rather than greying it out. */
+export const RAIN_CLASSES = [
+  { max: 0.5, label: "under 0.5 mm — not drawn", colour: null },
+  { max: 5, label: "0.5–5", colour: [198, 219, 239] }, { max: 10, label: "5–10", colour: [158, 202, 225] },
+  { max: 25, label: "10–25", colour: [107, 174, 214] }, { max: 50, label: "25–50", colour: [33, 113, 181] },
+  { max: 100, label: "50–100", colour: [8, 48, 107] }, { max: 200, label: "100–200", colour: [106, 81, 163] },
+  { max: Infinity, label: "200 and more", colour: [63, 0, 125] },
+];
+
+/** The display lattice over the fetched area: about a kilometre a cell, at most 256 across. */
+export function rainLattice(cover) {
+  const midLat = (cover.south + cover.north) / 2;
+  const wKm = (cover.east - cover.west) * 111.32 * Math.cos(midLat * Math.PI / 180);
+  const hKm = (cover.north - cover.south) * 110.574;
+  const cell = Math.max(0.5, Math.max(wKm, hKm) / 256);
+  const width = Math.max(8, Math.min(256, Math.round(wKm / cell)));
+  const height = Math.max(8, Math.min(256, Math.round(hKm / cell)));
+  const lat = new Float32Array(width * height); const lon = new Float32Array(width * height);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      lat[y * width + x] = cover.north - ((y + 0.5) / height) * (cover.north - cover.south);
+      lon[y * width + x] = cover.west + ((x + 0.5) / width) * (cover.east - cover.west);
+    }
+  }
+  return { width, height, lat, lon, bounds: { minX: cover.west, maxX: cover.east, minY: cover.south, maxY: cover.north }, cellKm: cell };
+}
+
+function removeRainLayer() {
+  const im = window.GeoIDImportManager;
+  (im?.getLayers?.() || []).filter((l) => l.name === RAIN_LAYER).forEach((l) => im.removeLayer?.(l.id));
+  if (state.rainLayer) state.rainLayer = null;
+}
+
+/** Put the rainfall maps on the globe, under whatever the model draws, half transparent. */
+function showRainLayer() {
+  removeRainLayer();
+  const r = state.rain;
+  if (!r) return null;
+  const pts = rainLattice(r.cover);
+  const band = new Float32Array(pts.width * pts.height).fill(NaN);
+  const built = buildRasterLayer([band], pts.width, pts.height, pts.bounds, { name: RAIN_LAYER, isDem: false, noData: NaN });
+  if (!built) return null;
+  const layer = window.GeoIDImportManager?.addDerivedLayer?.(RAIN_LAYER, built, "rain");
+  if (!layer) return null;
+  window.GeoIDLayerHierarchy?.setOpacity?.(layer, 0.55);
+  layer.info = {
+    source: r.credit,
+    summary: `The rainfall maps the landslide model is run on: each the rain over the ${r.windowH} h before its time, on a ${pts.cellKm.toFixed(1)} km lattice over the fetched area (the study area and its upslope margin). GFS is drawn as the model reads it — bilinear between its ~13 km nodes; an Earth Engine day as its own pixels.`,
+  };
+  state.rainLayer = { layer, built, band, pts, shown: -1 };
+  return state.rainLayer;
+}
+
+/** Draw one frame of rain on the rain layer, with its key. */
+function paintRain(k) {
+  const rl = state.rainLayer; const r = state.rain;
+  if (!rl || !r || !r.frames[k]) return;
+  if (!(window.GeoIDImportManager?.getLayers?.() || []).includes(rl.layer)) { state.rainLayer = null; return; }
+  rl.shown = k;
+  const frame = r.frames[k];
+  rl.band.set(rainAtPoints(frame, rl.pts));
+  const counts = new Array(RAIN_CLASSES.length).fill(0);
+  for (const v of rl.band) { const c = classIn(RAIN_CLASSES, v); if (c >= 0) counts[c] += 1; }
+  try { rl.built.repaint?.((v) => { const c = classIn(RAIN_CLASSES, v); return c >= 0 ? RAIN_CLASSES[c].colour : null; }); } catch (e) { /* stands */ }
+  rl.layer.legendInfo = {
+    classed: true, categorical: true, field: "rain",
+    label: `Rain over the ${r.windowH} h to ${frame.time.replace("T", " ")} UTC — ${r.sourceLabel(frame)}, ${periodOf(frame.time)} (mm)`,
+    palette: RAIN_CLASSES.map((c) => (c.colour ? hex(c.colour) : "3a4152")), labels: RAIN_CLASSES.map((c) => c.label), counts,
+  };
+  window.GeoIDLayerHierarchy?.render?.();
+}
+
+/** The map to open on before a run: the wettest one. */
+function wettestFrame() {
+  const r = state.rain; const rl = state.rainLayer;
+  if (!r || !rl) return 0;
+  let best = 0; let bestMax = -1;
+  r.frames.forEach((f, k) => {
+    const v = rainAtPoints(f, rl.pts);
+    let m = 0; for (let j = 0; j < v.length; j += 1) if (v[j] > m) m = v[j];
+    if (m > bestMax) { bestMax = m; best = k; }
+  });
+  return best;
+}
+
+/**
+ * Before any model has run, the bar plays the rain alone: fetching is the
+ * moment somebody wants to SEE what was fetched, and a series only readable
+ * after a model has been built on it is a series nobody checks first.
+ */
+async function playRain() {
+  const r = state.rain;
+  if (!r || !state.rainLayer || state.run) return;
+  const startAt = wettestFrame();
+  paintRain(startAt);
+  const b = r.cover;
+  state.playing = true;
+  await startPlayer({
+    bounds: { west: b.west, east: b.east, south: b.south, north: b.north },
+    epochs: r.frames.map((f, k) => ({ date: f.time, label: `${f.time.replace("T", " ")} · ${periodOf(f.time)}`, dataset: null, index: k })),
+    source: "none", interval: 400, startAt,
+    noteFor: (e) => { const v = state.rainLayer?.band; let m = 0; if (v) for (const x of v) if (x > m) m = x; return `rain · up to ${m.toFixed(0)} mm`; },
+    noteTitle: (e) => `${r.sourceLabel(r.frames[e.index])} rain over the ${r.windowH} h to ${e.date} UTC. Read the ground and run the model to see what it does to the slopes.`,
+    onStatus: (m) => say("rain", m),
+    onShow: (index) => { paintRain(index); },
+    onStop: () => { state.playing = false; },
+  });
 }
 
 function modelFrame(k) {
@@ -1115,6 +1233,7 @@ function showStep(k) {
   run.current = modelFrame(k);
   run.current.frame = k;
   paintView(run.current);
+  paintRain(k);
   updateReadings();
   drawPlot();
 }
@@ -1193,7 +1312,7 @@ function clear({ keepInputs = false } = {}) {
   if (layer) window.GeoIDImportManager?.removeLayer?.(layer.id);
   state.run = null; state.step = -1; state.record = null;
   renderStations(); drawPlot();
-  if (!keepInputs) { state.rain = null; state.ground = null; state.bounds = null; ["area", "rain", "ground", "hydro", "run"].forEach((id) => say(id, "")); }
+  if (!keepInputs) { removeRainLayer(); state.rain = null; state.ground = null; state.bounds = null; ["area", "rain", "ground", "hydro", "run"].forEach((id) => say(id, "")); }
   markStates();
 }
 

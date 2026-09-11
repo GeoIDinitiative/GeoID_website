@@ -173,7 +173,7 @@ const rel = (a, b) => Math.abs(a - b) / Math.max(1e-12, Math.abs(a), Math.abs(b)
   check("the larger plot is moved onto the page, not positioned inside the sidebar", /document\.body\.appendChild\(box\)/.test(src));
   check("the plot moves the bar through the player, so the two cannot disagree", /seekPlayer\(k\)/.test(src) && /export function seekPlayer\(index\)/.test(player));
   check("playing the bar updates the readings without rebuilding the name fields",
-    /paintView\(run\.current\);\s*\n\s*updateReadings\(\);/.test(src));
+    /paintView\(run\.current\);\s*\n(\s*paintRain\(k\);\s*\n)?\s*updateReadings\(\);/.test(src));
   check("the export is one tidy CSV through the page's own download, filed in the project", /downloadText\(name, seriesCsv\(rec\), "text\/csv"\)/.test(src));
   check("a recorded series is announced for what reads it next", /geoid-gis:station-series/.test(src));
   check("the map and a station share one cellAnswer", /export \{ cellAnswer \};/.test(src)
@@ -202,4 +202,24 @@ const rel = (a, b) => Math.abs(a - b) / Math.max(1e-12, Math.abs(a), Math.abs(b)
   check("every frame on the bar says whether it is the record or the forecast", /label: `\$\{f\.time\.replace\("T", " "\)\} · \$\{periodOf\(f\.time\)\}`/.test(src));
   check("the plot marks now between the record and the forecast", /now: Date\.now\(\)/.test(src)
     && /fillText\("forecast"/.test(readFileSync(new URL("./time-series-plot.js", import.meta.url), "utf8")));
+}
+
+/* ── the rainfall maps as a layer ─────────────────────────────────────────── */
+
+{
+  const { rainLattice, RAIN_CLASSES, RAIN_LAYER } = await import("./landslide-pipeline.js");
+  const lat = rainLattice({ west: 11.4, east: 12.1, south: 43.95, north: 44.4 });
+  check("the rain is drawn on about a kilometre a cell over the fetched area, at most 256 across",
+    lat.width <= 256 && lat.height <= 256 && lat.cellKm >= 0.5 && lat.cellKm < 1 && lat.lat.length === lat.width * lat.height
+    && lat.lat[0] < 44.4 && lat.lon[lat.width - 1] < 12.1, `${lat.width}×${lat.height} at ${lat.cellKm}`);
+  check("dry ground is left undrawn and every wetter class has a colour", RAIN_CLASSES[0].colour === null
+    && RAIN_CLASSES.slice(1).every((c) => Array.isArray(c.colour)) && RAIN_CLASSES.at(-1).max === Infinity);
+  const src = readFileSync(new URL("./landslide-pipeline.js", import.meta.url), "utf8");
+  check("a fetch puts the maps in the Workspace and the bar plays them", /if \(showRainLayer\(\)\) void playRain\(\);/.test(src)
+    && /addDerivedLayer\?\.\(RAIN_LAYER, built, "rain"\)/.test(src) && /setOpacity\?\.\(layer, 0\.55\)/.test(src));
+  check("the layer steps with the model's frames once it has run", /paintView\(run\.current\);\s*\n\s*paintRain\(k\);/.test(src));
+  check("the model and the layer read the rain through one function", /return rainAtPoints\(frame, state\.ground\.cells\.props\);/.test(src)
+    && /rl\.band\.set\(rainAtPoints\(frame, rl\.pts\)\)/.test(src));
+  check("a new fetch, a new area and a clear take the old maps off the globe", (src.match(/removeRainLayer\(\);/g) || []).length >= 3);
+  check("the layer is named for what it is", /Rainfall maps/.test(RAIN_LAYER));
 }
