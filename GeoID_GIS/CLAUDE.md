@@ -17704,3 +17704,54 @@ then 5 m rebuilds at 5 m, with the layer count unchanged at 11.
 found reported nothing, the `&&` chain went on, and a commit landed unstamped
 because the next relative path was also wrong. Use `set -o pipefail`
 and absolute paths — this file has now recorded that trap three times.
+
+## "Still highlighted after ✕" was three faults, and none was the closers
+
+Every closer was already clearing its own highlight: the geology card its gold
+outline, the scene card its flash label, the event card its ring. The report
+was still right. Measured with a probe listing every drawn object named like a
+highlight (outline, halo, select, pulse, flash, pin: **not "spin"**, or
+`eonet-spin-frame` reads as a lit highlight), there were three routes to a
+highlight outliving its card:
+
+- **One click raised TWO cards.** The event feed answers on `pointerup`; the
+  viewer's pick does too, and the GIS card answers on `click`. Nothing
+  arbitrated between them. Measured: a click on Calatrava raised the volcano card
+  AND an M5.2 card 200 km away (a marker is big at that zoom); a click on a geology unit
+  raised its card AND a wildfire card on top of it. Pressing ✕ on either left
+  the other's outline or ring lit, its card hidden behind. `GeoIDEvents.markerAt`
+  is the feed's one hit test, published, and the viewer's pick and the GIS
+  card stand down when it answers. This is the label claim's idiom again: markers draw
+  above everything, so a marker's pixel is the marker's. **Do not arbitrate
+  with `stopPropagation` on `pointerup`**: OrbitControls needs that event, and
+  this file already records the globe latching into rotate without it.
+- **Cards in different slots stayed up together.** `card-owner` slots were
+  independent, so an event card opened later left an earlier geology card, and
+  its outline, on screen. `own()` now closes the other slots' cards through
+  their own closers: one card on the globe. Safe because every opener claims its
+  slot BEFORE drawing its highlight. A closer that clears the pin cannot wipe
+  the highlight of the card that is opening.
+- **The geology card's ✕ could not be clicked.** `.geo-popup-scroll` takes the
+  pointer back from a card that otherwise lets it through, and it won the hit
+  test at the button's centre (`elementFromPoint` there was `.feature-kicker`).
+  A real click landed on the kicker, the card stayed, and so did the outline.
+  The scene card's ✕ had paid for this exact fault. The fix is `z-index` on the button in all seven
+  stylesheets that carry the wrapper. **Check any control over flowing
+  content with `elementFromPoint(centre) === control`**; a click test through
+  `btn.click()` passes regardless.
+
+**The model page: a part card owns the selection it makes.** Opening a part's
+card selected its volume (the red emissive tint), and every close left the tint
+standing. `showPartCard` now makes the selection and records it, and `closePartCard`
+clears it unless the reader has changed the selection since. Callers no
+longer select on their own.
+
+**New model left every face's Workspace layer behind.** It removed the meshes
+by hand. It now goes through `deleteEntities` and `renderStudioPoints`, which
+take the layers too. Measured: 11 studio layers before New, 0 after.
+
+**A drawn shape with its live overlay still up swallows canvas clicks.**
+`captureDrawn` alone keeps the overlay. The draw bar's Done also clears it, and
+a probe that captures without clearing will find clicks never reach the canvas
+(the click is stopped in capture before the target). Reproduce the user's
+flow, not a shortcut through half of it.
