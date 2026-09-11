@@ -13,8 +13,10 @@
  * most readers; what it does to a river they can picture is the point.
  */
 
-import { floodState, rebuildSheet, sheetLayer } from "./dem-layer.js?v=20260911-230d669";
-import { SCENARIOS, DEFAULTS, stageRise } from "./inundation.js?v=20260911-230d669";
+import { floodState, dischargeState, dischargeMean, rebuildSheet, sheetLayer }
+  from "./dem-layer.js?v=20260911-6644382";
+import { SCENARIOS, DEFAULTS, stageRise, meanFlowFromWidth, flowRatio }
+  from "./inundation.js?v=20260911-6644382";
 
 const byId = (id) => document.getElementById(id);
 const say = (message) => { const n = byId("flood-status"); if (n) n.textContent = message || ""; };
@@ -118,8 +120,166 @@ function init() {
   render();
 }
 
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", init);
-} else {
+/* ── the same flood, set by discharge ────────────────────────────────────── */
+
+/**
+ * ONE RIVER AT A FLOW IN m³/s. The slider runs from half the river's mean to a
+ * hundred times it on a log scale; the number box takes any figure. Both are
+ * the one `dischargeState.discharge`, and the mean it is read against is the
+ * typed gauge figure if there is one, else the estimate from the river's width
+ * — said beside it, so an estimate is never read as a gauge.
+ */
+const RATIO_MIN = 0.5;
+const RATIO_MAX = 100;
+const ratioFromSlider = (v) => RATIO_MIN * ((RATIO_MAX / RATIO_MIN) ** (Number(v) / 1000));
+const sliderFromRatio = (r) => Math.round((Math.log(Math.max(RATIO_MIN, Math.min(RATIO_MAX, r))
+  / RATIO_MIN) / Math.log(RATIO_MAX / RATIO_MIN)) * 1000);
+const flowText = (q) => (q >= 100 ? Math.round(q).toLocaleString()
+  : q >= 10 ? q.toFixed(0) : q.toFixed(1));
+
+let dischargeTimer = null;
+let picking = false;
+
+function renderDischarge() {
+  const st = dischargeState;
+  const text = (id, value) => { const n = byId(id); if (n) n.textContent = value; };
+  const mean = dischargeMean();
+  if (!Number.isFinite(st.width) || !Number.isFinite(mean)) {
+    text("discharge-river", "No river chosen yet: the one nearest the view's centre is "
+      + "taken when the layer is drawn, or pick one on the map.");
+    text("discharge-readout", "");
+    return;
+  }
+  const estimate = meanFlowFromWidth(st.width);
+  text("discharge-river", `River ${Math.round(st.width)} m wide at mean flow (the median of `
+    + `its channel in view). Mean flow ${flowText(mean)} m³/s — `
+    + (Number.isFinite(st.meanTyped) && st.meanTyped > 0 ? "as typed."
+      : "estimated from its width, an order of magnitude; type a gauged mean for a better answer."));
+  const box = byId("discharge-mean");
+  if (box && document.activeElement !== box) {
+    box.value = Number.isFinite(st.meanTyped) && st.meanTyped > 0 ? String(st.meanTyped) : "";
+    box.placeholder = `≈ ${flowText(estimate)}`;
+  }
+  const q = Number.isFinite(st.discharge) ? st.discharge : 5 * mean;
+  const r = flowRatio(q, mean);
+  const set = (id, value) => { const n = byId(id); if (n && document.activeElement !== n) n.value = String(value); };
+  set("discharge-flow", sliderFromRatio(r));
+  set("discharge-box", Math.round(q));
+  text("discharge-flow-value", `${flowText(q)} m³/s · ${r.toFixed(1)}× its mean`);
+  set("discharge-reach", st.params.reach);
+  text("discharge-reach-value", `${st.params.reach} channel widths`);
+  const held = byId("discharge-defended");
+  if (held) held.checked = st.params.defended !== false;
+  const rise = stageRise(st.width, { ...st.params, flow: r });
+  text("discharge-readout", r <= 1
+    ? `At ${flowText(q)} m³/s the river is at or below its mean and stays in its channel.`
+    : `At ${flowText(q)} m³/s it rises ${rise >= 0 ? "+" : "−"}${Math.abs(rise).toFixed(1)} m `
+      + `where it is ${Math.round(st.width)} m wide, more where it narrows.`);
+}
+
+function sayDischarge(message) {
+  const n = byId("discharge-readout");
+  renderDischarge();
+  if (n && message && !/^At /.test(n.textContent)) n.textContent = message;
+  const status = byId("flood-status");
+  if (status && message) status.textContent = message;
+}
+
+function changeDischarge(patch, paramsPatch = null) {
+  Object.assign(dischargeState, patch);
+  if (paramsPatch) Object.assign(dischargeState.params, paramsPatch);
+  renderDischarge();
+  clearTimeout(dischargeTimer);
+  if (!sheetLayer("discharge")) return;
+  const status = byId("flood-status");
+  if (status) status.textContent = "Redrawing the river's flood…";
+  dischargeTimer = setTimeout(() => { void rebuildSheet("discharge", sayDischarge); }, 350);
+}
+
+/**
+ * The next click on the globe picks the river. A pointerup rather than a
+ * click, so the popup's own click can be told to stand down in time; never a
+ * stopPropagation on the pointer events, which the orbit controls need to see
+ * a press end.
+ */
+function armPick(button) {
+  const canvas = window.GeoIDViewer?.renderer?.domElement;
+  if (!canvas) return;
+  if (picking) { picking = false; button.classList.remove("is-on"); button.classList.add("secondary"); return; }
+  picking = true;
+  button.classList.add("is-on");
+  button.classList.remove("secondary");
+  const was = button.textContent;
+  button.textContent = "Click a river on the map…";
+  let down = null;
+  const onDown = (e) => { down = { x: e.clientX, y: e.clientY }; };
+  const finish = () => {
+    picking = false;
+    button.textContent = was;
+    button.classList.remove("is-on");
+    button.classList.add("secondary");
+    canvas.removeEventListener("pointerdown", onDown);
+    canvas.removeEventListener("pointerup", onUp);
+    document.removeEventListener("keydown", onKey, true);
+  };
+  const onUp = (e) => {
+    if (!picking || !down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 4) return;
+    const at = window.GeoIDViewer?.surfaceLatLonAt?.(e.clientX, e.clientY);
+    if (!at) return;
+    window.GeoIDFeaturePopup?.suppress?.(800);
+    finish();
+    changeDischarge({ pick: { lat: at.lat, lon: at.lon }, width: null, riverKey: null,
+      meanTyped: null, discharge: null, selection: null });
+  };
+  const onKey = (e) => { if (e.key === "Escape") finish(); };
+  canvas.addEventListener("pointerdown", onDown);
+  canvas.addEventListener("pointerup", onUp);
+  document.addEventListener("keydown", onKey, true);
+}
+
+function initDischarge() {
+  if (!byId("discharge-flow")) return;
+  byId("discharge-flow").addEventListener("input", (e) => {
+    const mean = dischargeMean();
+    if (Number.isFinite(mean)) changeDischarge({ discharge: mean * ratioFromSlider(e.target.value) });
+  });
+  const box = byId("discharge-box");
+  box?.addEventListener("keydown", (e) => e.stopPropagation());
+  box?.addEventListener("change", () => {
+    const q = Number(box.value);
+    if (q > 0) changeDischarge({ discharge: q });
+  });
+  const mean = byId("discharge-mean");
+  mean?.addEventListener("keydown", (e) => e.stopPropagation());
+  mean?.addEventListener("change", () => {
+    const v = Number(mean.value);
+    // Blank is "use the estimate"; the discharge in m³/s stays as it was, so
+    // what changes is how big a flood that water is for this river.
+    changeDischarge({ meanTyped: mean.value.trim() && v > 0 ? v : null });
+  });
+  byId("discharge-reach")?.addEventListener("input", (e) => changeDischarge({}, { reach: Number(e.target.value) }));
+  byId("discharge-defended")?.addEventListener("change", (e) => changeDischarge({}, { defended: e.target.checked }));
+  const pick = byId("discharge-pick");
+  pick?.addEventListener("click", () => armPick(pick));
+  // A rebuild on view settle carries no status callback, and the first build
+  // is what finds the river — so the drawer follows the sheet's own
+  // announcement rather than the press that started it.
+  document.addEventListener("geoid-gis:sheet-built", (e) => {
+    if (e.detail?.kind !== "discharge") return;
+    renderDischarge();
+    const status = byId("flood-status");
+    if (status && e.detail.message) status.textContent = e.detail.message;
+  });
+  renderDischarge();
+}
+
+function initAll() {
   init();
+  initDischarge();
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initAll);
+} else {
+  initAll();
 }

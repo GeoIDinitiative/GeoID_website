@@ -29,11 +29,11 @@
 
 import {
   HOMES, MIRRORS, grouped, addDataset, layerForDataset, loadLaunchDefaults,
-} from "./global-data.js?v=20260911-230d669";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260911-230d669";
-import { mathsFor } from "./equations.js?v=20260911-230d669";
+} from "./global-data.js?v=20260911-6644382";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260911-6644382";
+import { mathsFor } from "./equations.js?v=20260911-6644382";
 import { bandOf, bandRows, bandSymbology, describeFilter, magOf }
-  from "./seismic-magnitude.js?v=20260911-230d669";
+  from "./seismic-magnitude.js?v=20260911-6644382";
 
 const byId = (id) => document.getElementById(id);
 
@@ -387,6 +387,33 @@ const TILED = {
     layerOf: () => window.GeoIDDemSheets?.sheetLayer?.("inundation") || null,
     load: () => window.GeoIDDemSheets.addSheet("inundation", sayIn("flood-status")),
     unload: () => { window.GeoIDDemSheets?.removeSheet?.("inundation"); sayIn("flood-status")(""); },
+  }, {
+    // The same model, set by ONE river's discharge in m³/s rather than by a
+    // multiple of every river's mean flow — for a reader holding a gauge
+    // reading or a design flow for a particular river.
+    id: "flood-discharge",
+    group: "Inundation",
+    label: "River flood by discharge on the streamed DEM",
+    title: "One river's flood at a discharge you set in cubic metres a second: pick "
+      + "the river on the map, type or slide the flow, and its water is spread over "
+      + "the streamed heights the way the scenario model does.",
+    info: {
+      summary: "The inundation model run for ONE river at a stated discharge. The "
+        + "river is chosen on the map and traced along GRWL's channel of similar "
+        + "width; its mean flow is estimated from its width (or typed from a gauge), "
+        + "and the discharge you set is read as a multiple of it. An upper screening "
+        + "estimate with the same limits as the scenario model.",
+      citation: "Rivers: GRWL (Allen & Pavelsky 2018), CC BY 4.0. Width and depth on "
+        + "discharge: Moody & Troutman (2002). Depth on discharge at a station: "
+        + "Leopold & Maddock (1953). Depth classes: US National Weather Service. "
+        + "Heights: Mapzen Terrain Tiles (AWS Open Data)",
+      maths: mathsFor("flood-discharge"),
+    },
+    settings: "flood-discharge-controls",
+    ready: () => Boolean(window.GeoIDDemSheets),
+    layerOf: () => window.GeoIDDemSheets?.sheetLayer?.("discharge") || null,
+    load: () => window.GeoIDDemSheets.addSheet("discharge", sayIn("flood-status")),
+    unload: () => { window.GeoIDDemSheets?.removeSheet?.("discharge"); sayIn("flood-status")(""); },
   }],
   /**
    * THE MEAN CLIMATE, as two readings of the streamed DEM — the same function

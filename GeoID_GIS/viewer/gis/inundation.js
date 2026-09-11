@@ -37,7 +37,7 @@
  * deltas from a single river.
  */
 
-import { nearestSource, BANDS } from "./river-zones.js?v=20260911-230d669";
+import { nearestSource, BANDS } from "./river-zones.js?v=20260911-6644382";
 
 /** Leopold & Maddock (1953), the average at-a-station exponent of depth on discharge. */
 export const DEPTH_EXPONENT = 0.40;
@@ -83,11 +83,99 @@ export function channelDepth(widthM) {
 
 /** How far this river's water surface rises above its mean-flow level, in metres. */
 export function stageRise(widthM, params = DEFAULTS) {
-  const flow = Math.max(1, Number(params.flow) || 1);
+  // Below the mean the river FALLS: a negative rise, which floods nothing.
+  const flow = Math.max(0.01, Number(params.flow) || 1);
   const f = Number.isFinite(params.exponent) ? params.exponent : DEPTH_EXPONENT;
   const responds = widthM <= (params.widthCap ?? Infinity);
   const rise = responds ? channelDepth(widthM) * ((flow ** f) - 1) : 0;
   return rise + (Number(params.extra) || 0);
+}
+
+/**
+ * A river's MEAN discharge from its width, m³/s: Moody & Troutman's (2002)
+ * w = 7.2 Q^0.5 turned round. An order of magnitude, and said so wherever it
+ * is shown — the relation is fitted at bankfull and GRWL's width is the
+ * mean-flow one, so it tends high (measured: the Rhône at 405 m reads about
+ * 3,200 m³/s against about 1,700 gauged at Beaucaire). A gauged mean typed in
+ * replaces it.
+ */
+export function meanFlowFromWidth(widthM) {
+  return (Math.max(Number(widthM) || 0, 1) / 7.2) ** 2;
+}
+
+/**
+ * ONE RIVER, out of a network that names none of them.
+ *
+ * GRWL is centrelines with widths and no river identifiers, so "this river" is
+ * the channel JOINED to the river cell nearest the pick through cells of
+ * similar width — within `tolerance` times the seed's, so a tributary a third
+ * of its size stays out (it is carrying its own flow, not this one) while the
+ * river's own widening and narrowing along its course stays in. `pick.width`
+ * keeps the same river on a second grid (the ground round the view), where the
+ * nearest cell to the pick might belong to another.
+ *
+ * Returns the mask, the seed cell, and the MEDIAN width of the cells selected —
+ * the width the mean flow is estimated from, because one cell's width on a
+ * braided reach is a poor account of the river.
+ */
+export function selectRiver(riverWidth, width, height, bounds, pick, { tolerance = 2.5 } = {}) {
+  const mask = new Uint8Array(width * height);
+  if (!pick || !Number.isFinite(pick.lat) || !Number.isFinite(pick.lon)) {
+    return { mask, seed: -1, width: null, cells: 0 };
+  }
+  const degX = (bounds.east - bounds.west) / width;
+  const degY = (bounds.north - bounds.south) / height;
+  const cos = Math.cos((pick.lat * Math.PI) / 180);
+  const fits = (w) => !Number.isFinite(pick.width)
+    || (w >= pick.width / tolerance && w <= pick.width * tolerance);
+  let seed = -1; let best = Infinity;
+  for (let c = 0; c < riverWidth.length; c += 1) {
+    const w = riverWidth[c];
+    if (!(w > 0) || !fits(w)) continue;
+    const i = c % width; const j = (c - i) / width;
+    const lon = bounds.west + ((i + 0.5) * degX);
+    const lat = bounds.north - ((j + 0.5) * degY);
+    const d = ((lon - pick.lon) * cos) ** 2 + (lat - pick.lat) ** 2;
+    if (d < best) { best = d; seed = c; }
+  }
+  if (seed < 0) return { mask, seed, width: null, cells: 0 };
+  const w0 = Number.isFinite(pick.width) ? pick.width : riverWidth[seed];
+  const lo = w0 / tolerance; const hi = w0 * tolerance;
+  const queue = new Int32Array(width * height);
+  let head = 0; let tail = 0;
+  mask[seed] = 1; queue[tail] = seed; tail += 1;
+  while (head < tail) {
+    const c = queue[head]; head += 1;
+    const ci = c % width; const cj = (c - ci) / width;
+    for (let dj = -1; dj <= 1; dj += 1) {
+      for (let di = -1; di <= 1; di += 1) {
+        const ni = ci + di; const nj = cj + dj;
+        if ((!di && !dj) || ni < 0 || nj < 0 || ni >= width || nj >= height) continue;
+        const m = (nj * width) + ni;
+        const w = riverWidth[m];
+        if (mask[m] || !(w >= lo && w <= hi)) continue;
+        mask[m] = 1; queue[tail] = m; tail += 1;
+      }
+    }
+  }
+  const widths = [];
+  for (let k = 0; k < tail; k += 1) widths.push(riverWidth[queue[k]]);
+  widths.sort((a, b) => a - b);
+  return { mask, seed, width: widths[Math.floor(widths.length / 2)], cells: tail };
+}
+
+/** The nearest cell of ONE river, for the discharge model: a single field. */
+export function riverField(mask, width, height, bounds) {
+  let any = false;
+  for (let c = 0; c < mask.length && !any; c += 1) any = mask[c] === 1;
+  if (!any) return [];
+  return [{ lo: 0, hi: Infinity, ...nearestSource((c) => mask[c] === 1, width, height, bounds) }];
+}
+
+/** The discharge a flood of `q` m³/s is, against a mean of `mean`: the model's Q/Q̄. */
+export function flowRatio(q, mean) {
+  const r = Number(q) / Number(mean);
+  return Number.isFinite(r) && r > 0 ? r : 1;
 }
 
 /**

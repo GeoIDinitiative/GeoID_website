@@ -164,6 +164,38 @@ const EQUATIONS = {
       + "so small streams — where flash floods start — have no flood here.",
   },
 
+  "flood-discharge": {
+    kind: COMPUTED,
+    intro: "The inundation model for ONE river at a discharge you set, in cubic "
+      + "metres a second. The river is picked on the map; the flow is read against "
+      + "that river's own mean.",
+    lines: [
+      { expr: "river = { r : |W(r) / W₀| within ×2.5, 8-joined to the pick }",
+        note: "grown along GRWL's channel from the cell nearest the pick, through cells of similar width, so a tributary of a different size is not taken with it" },
+      { expr: "W = median W(r) over the river in view", note: "the river's width at mean flow" },
+      { expr: "Q̄ = (W / 7.2)²", note: "mean flow from width, Moody & Troutman's (2002) global w = 7.2 Q^0.5 inverted; replaced by a gauged mean where one is typed" },
+      { expr: "rise = D(W) · ((Q / Q̄)^f − 1),  D(W) = 0.27 (W / 7.2)^0.6",
+        note: "the scenario model's own stage; at Q ≤ Q̄ the rise is zero or below and nothing floods" },
+      { expr: "flooded(c) ⇔ h(c) < h(r) + rise  and  bank(c) ≤ k · W  and  c is joined to this river",
+        note: "only this river's channel seeds the flood; other rivers stay at their normal level" },
+    ],
+    terms: [
+      ["Q", "the discharge you set — the slider runs from half the mean to a hundred "
+        + "times it, the box takes any figure"],
+      ["Q̄", "the river's mean flow: estimated from its width, or a gauged value typed "
+        + "into the drawer, which is always better"],
+      ["W₀", "the width at the picked cell; the tracing takes cells within a factor of "
+        + "2.5 of it"],
+      ["f", "the depth exponent, 0.40; k, the reach in channel widths"],
+    ],
+    note: "The mean flow from width is an order-of-magnitude estimate: rivers of one "
+      + "width carry flows a factor of several apart, so a typed gauge mean is the "
+      + "single biggest improvement to this map. The discharge is applied along the "
+      + "whole traced river in view, with no attenuation downstream and no inflow from "
+      + "tributaries. Everything the scenario model's note says about defences, "
+      + "volume and the DEM applies here too.",
+  },
+
   "sea-level": {
     kind: COMPUTED,
     intro: "A bathtub model with connectivity, on the streamed heights and the "

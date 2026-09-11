@@ -5,7 +5,8 @@
  */
 import { readFileSync } from "node:fs";
 import { channelDepth, stageRise, sourceFields, inundate, mergeOuterDepth, depthClass,
-  floodAreas, SCENARIOS, DEFAULTS, DEPTH_CLASSES } from "./inundation.js";
+  floodAreas, SCENARIOS, DEFAULTS, DEPTH_CLASSES, meanFlowFromWidth, selectRiver, riverField,
+  flowRatio } from "./inundation.js";
 
 let pass = 0;
 const failures = [];
@@ -196,6 +197,74 @@ check("a depth falls in the class that holds it", depthClass(0.1) === 0 && depth
     && near(a.total, cap, cap * 0.001) && near(a.deepest, 0.45, 1e-6));
 }
 
+/* ── by discharge: one river at a flow in m³/s ────────────────────────── */
+
+check("mean flow from width inverts w = 7.2 Q^0.5",
+  near(meanFlowFromWidth(7.2), 1, 1e-12) && near(meanFlowFromWidth(72), 100, 1e-9)
+  && near(meanFlowFromWidth(720), 10000, 1e-6));
+check("and a width of nothing is not a flow of nothing: it floors at a metre",
+  meanFlowFromWidth(0) > 0 && meanFlowFromWidth(null) === meanFlowFromWidth(1));
+check("a discharge is read as a multiple of the river's mean",
+  flowRatio(500, 100) === 5 && flowRatio(50, 100) === 0.5);
+check("with no mean to read it against it is the mean itself, never NaN",
+  flowRatio(500, null) === 1 && flowRatio(500, 0) === 1 && flowRatio(null, 100) === 1);
+check("below its mean a river falls, so a low flow floods nothing",
+  stageRise(100, { ...DEFAULTS, flow: 0.5 }) < 0);
+
+{
+  // Two rivers down one valley: a 100 m main stem in column 60 widening to
+  // 150 m, and a 20 m tributary joining it along row 1 from column 61 to 90;
+  // and a separate 100 m river in column 150, never joined.
+  const w2 = new Float32Array(W * H).fill(NaN);
+  for (let j = 0; j < H; j += 1) {
+    w2[(j * W) + 60] = j === 2 ? 150 : 100;
+    w2[(j * W) + 150] = 100;
+  }
+  for (let i = 61; i <= 90; i += 1) w2[(1 * W) + i] = 20;
+  const lonOf = (i) => bounds.west + ((i + 0.5) * 1e-4);
+  const near60 = selectRiver(w2, W, H, bounds, { lat: 0, lon: lonOf(58) });
+  check("a pick takes the river nearest it, grown along its own channel",
+    near60.mask[(0 * W) + 60] === 1 && near60.mask[(2 * W) + 60] === 1 && near60.cells === 3,
+    `${near60.cells} cells`);
+  check("its widening stays in, but a tributary a fifth of its size stays out",
+    near60.mask[(1 * W) + 70] === 0 && near60.mask[(0 * W) + 150] === 0);
+  check("the river's width is the median of what was traced", near60.width === 100);
+  const fromTrib = selectRiver(w2, W, H, bounds, { lat: 0, lon: lonOf(75) });
+  check("picked on the tributary, the tributary is the river",
+    fromTrib.width === 20 && fromTrib.mask[(1 * W) + 60] === 0 && fromTrib.cells === 30,
+    `${fromTrib.cells} cells, ${fromTrib.width} m`);
+  const kept = selectRiver(w2, W, H, bounds, { lat: 0, lon: lonOf(75), width: 100 });
+  check("a known width keeps the same river on another grid, even with a nearer one",
+    kept.width === 100 && kept.mask[(1 * W) + 70] === 0);
+  check("nowhere to pick, nothing selected",
+    selectRiver(w2, W, H, bounds, null).cells === 0
+    && selectRiver(new Float32Array(W * H).fill(NaN), W, H, bounds, { lat: 0, lon: 0 }).seed === -1);
+  check("an empty selection has no field, so nothing is flooded from it",
+    riverField(new Uint8Array(W * H), W, H, bounds).length === 0);
+
+  // The main stem at five times its mean floods its banks; the river at 150,
+  // not picked, keeps its normal level and floods nothing.
+  const h2 = new Float32Array(W * H);
+  for (let j = 0; j < H; j += 1) {
+    for (let i = 0; i < W; i += 1) {
+      h2[(j * W) + i] = 10 + (0.05 * Math.min(Math.abs(i - 60), Math.abs(i - 150)));
+    }
+  }
+  const one = riverField(near60.mask, W, H, bounds);
+  const params = { ...DEFAULTS, flow: flowRatio(5 * meanFlowFromWidth(100), meanFlowFromWidth(100)),
+    reach: 50, widthCap: Infinity };
+  const out = inundate({ heights: h2, riverWidth: w2, fields: one, width: W, height: H, params });
+  check("one river's field floods round that river",
+    out.depth[(1 * W) + 55] > 0 && out.channel[(1 * W) + 60] === 1);
+  check("and only that river: the unpicked one is not a channel and floods nothing",
+    out.channel[(1 * W) + 150] === 0 && Number.isNaN(out.depth[(1 * W) + 145]));
+  const low = inundate({ heights: h2, riverWidth: w2, fields: one, width: W, height: H,
+    params: { ...params, flow: flowRatio(0.5 * meanFlowFromWidth(100), meanFlowFromWidth(100)) } });
+  let wet = 0;
+  for (let i = 0; i < W; i += 1) if (low.depth[(1 * W) + i] > 0 && !low.channel[(1 * W) + i]) wet += 1;
+  check("at half its mean flow the river stays in its channel", wet === 0, `${wet} cells wet`);
+}
+
 /* ── wired in ─────────────────────────────────────────────────────────── */
 
 const here = (f) => readFileSync(new URL(f, import.meta.url), "utf8");
@@ -204,7 +273,13 @@ check("the flood is a sheet of the streamed DEM, reading GRWL and the ground rou
   /inundation:\s*\{/.test(sheets) && /inundate\(\{/.test(sheets) && /floodOuter\(bounds, params\)/.test(sheets)
   && /waterFeatures\("rivers"/.test(sheets));
 check("and keeps each view's nearest-river fields, so a slider costs arithmetic",
-  /floodState\.fields\?\.key !== key/.test(sheets) && /sourceFields\(riverWidth, width, height, bounds\)/.test(sheets));
+  /if \(!base\.fields\)/.test(sheets) && /sourceFields\(base\.riverWidth, width, height, bounds\)/.test(sheets));
+check("the discharge sheet floods from ONE river's field and reads its mean from the drawer",
+  /discharge:\s*\{/.test(sheets) && /selectRiver\(base\.riverWidth/.test(sheets)
+  && /riverField\(sel\.mask/.test(sheets) && /flowRatio\(dischargeState\.discharge, mean\)/.test(sheets));
+check("a rebuild announces itself, so a drawer follows a build it did not start",
+  /geoid-gis:sheet-built/.test(sheets) && /globalThis\.document\?\.dispatchEvent\?\./.test(sheets)
+  && /geoid-gis:sheet-built/.test(here("./flood-panel.js")));
 const page = here("../index.html");
 check("the Flood subtab holds the row, its drawer and its script",
   /id="flood-catalogue"/.test(page) && /id="flood-inundation-controls" hidden/.test(page)
@@ -214,6 +289,15 @@ check("the Flood subtab holds the row, its drawer and its script",
     .every((id) => page.includes(`id="${id}"`)));
 const panels = here("./catalogue-panels.js");
 check("the row names its drawer", /id: "flood-inundation",[\s\S]{0,2400}settings: "flood-inundation-controls"/.test(panels));
+check("the discharge row names its own drawer and its own sheet",
+  /id: "flood-discharge",[\s\S]{0,2400}settings: "flood-discharge-controls"/.test(panels)
+  && /addSheet\("discharge"/.test(panels));
+check("the discharge drawer carries the pick, the mean, the flow and the box",
+  /id="flood-discharge-controls" hidden/.test(page)
+  && ["discharge-pick", "discharge-mean", "discharge-flow", "discharge-box", "discharge-reach",
+    "discharge-defended", "discharge-readout"].every((id) => page.includes(`id="${id}"`)));
 const eq = here("./equations.js");
 check("the ⓘ states the model the code applies",
   /"flood-inundation": \{/.test(eq) && /0\.27 · \(W \/ 7\.2\)\^0\.6/.test(eq) && /\(Q\/Q̄\)\^f − 1/.test(eq));
+check("the discharge ⓘ states the mean-flow law and the one-river rule",
+  /"flood-discharge": \{/.test(eq) && /Q̄ = \(W \/ 7\.2\)²/.test(eq) && /joined to this river/.test(eq));

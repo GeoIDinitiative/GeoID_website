@@ -18,20 +18,21 @@
  * the displaced surface, and the raster every terrain tool wants as an input.
  */
 
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-230d669";
-import { mathsFor } from "./equations.js?v=20260911-230d669";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260911-230d669";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-6644382";
+import { mathsFor } from "./equations.js?v=20260911-6644382";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260911-6644382";
 import { makeRaster, slope as slopeOf, hillshade as hillshadeOf }
-  from "./raster-analysis.js?v=20260911-230d669";
-import * as dem from "./dem-tiles.js?v=20260911-230d669";
-import { rampColour } from "./symbology.js?v=20260911-230d669";
-import * as climate from "./climate-normals.js?v=20260911-230d669";
+  from "./raster-analysis.js?v=20260911-6644382";
+import * as dem from "./dem-tiles.js?v=20260911-6644382";
+import { rampColour } from "./symbology.js?v=20260911-6644382";
+import * as climate from "./climate-normals.js?v=20260911-6644382";
 import { waterMasks, waterFeatures, floodFromSea, classAreas, edgeSeeds, contextBox, WORLD_BOX,
-  FLOODED, EXPOSED, CUT_OFF, LAKE } from "./water-mask.js?v=20260911-230d669";
+  FLOODED, EXPOSED, CUT_OFF, LAKE } from "./water-mask.js?v=20260911-6644382";
 import { burnRivers, riverZones, zoneAreas, mergeOuterZones, ZONES }
-  from "./river-zones.js?v=20260911-230d669";
+  from "./river-zones.js?v=20260911-6644382";
 import { DEFAULTS as FLOOD_DEFAULTS, sourceFields, inundate, mergeOuterDepth, depthColour,
-  floodAreas, DEPTH_CLASSES } from "./inundation.js?v=20260911-230d669";
+  floodAreas, DEPTH_CLASSES, selectRiver, riverField, meanFlowFromWidth, flowRatio,
+  stageRise } from "./inundation.js?v=20260911-6644382";
 
 /**
  * Which corridor zones are drawn. State, like the sea level, so the drawer's
@@ -74,6 +75,28 @@ export const seaLevel = { metres: 1, masks: null, last: null };
  * flood, so a slider costs arithmetic and never another distance transform.
  */
 export const floodState = { params: { ...FLOOD_DEFAULTS }, fields: null, last: null };
+
+/**
+ * The flood the DISCHARGE sheet is drawn for: one river, picked on the map,
+ * at a discharge in m³/s. `pick` is where the reader pointed (null means the
+ * view's centre); `width` is the picked river's median width once found, which
+ * keeps the same river as the view moves; `meanTyped` a gauged mean flow that
+ * replaces the estimate from width.
+ */
+export const dischargeState = {
+  pick: null, width: null, meanTyped: null, discharge: null, riverKey: null,
+  params: { exponent: FLOOD_DEFAULTS.exponent, reach: FLOOD_DEFAULTS.reach, extra: 0,
+    defended: true, connected: true },
+  selection: null, last: null,
+};
+
+/** The mean flow the discharge is read against: typed, else from the river's width. */
+export function dischargeMean() {
+  if (Number.isFinite(dischargeState.meanTyped) && dischargeState.meanTyped > 0) {
+    return dischargeState.meanTyped;
+  }
+  return Number.isFinite(dischargeState.width) ? meanFlowFromWidth(dischargeState.width) : null;
+}
 
 /** The key for the flood's depth classes, shallowest first. */
 export function floodLegend() {
@@ -404,20 +427,9 @@ export const SHEETS = {
       + "OpenStreetMap contributors (ODbL 1.0), Natural Earth; lakes HydroLAKES "
       + "(Messager et al. 2016), CC BY 4.0.",
     prepare: async (bounds, width, height) => {
-      const key = JSON.stringify([bounds.west, bounds.south, bounds.east, bounds.north,
-        width, height]);
-      if (floodState.fields?.key !== key) {
-        const [rivers, water] = await Promise.all([
-          waterFeatures("rivers", bounds, width), waterMasks(bounds, width, height),
-        ]);
-        const { riverWidth } = burnRivers(rivers.features, bounds, width, height);
-        const wet = new Uint8Array(width * height);
-        for (let c = 0; c < wet.length; c += 1) {
-          wet[c] = water.ocean[c] || !Number.isNaN(water.lakeLevel[c]) ? 1 : 0;
-        }
-        floodState.fields = { key, riverWidth, water: wet,
-          fields: sourceFields(riverWidth, width, height, bounds) };
-      }
+      const base = await floodBase(bounds, width, height);
+      if (!base.fields) base.fields = sourceFields(base.riverWidth, width, height, bounds);
+      floodState.fields = base;
       const params = { ...floodState.params };
       const outer = await floodOuter(bounds, params);
       return { ...floodState.fields, outer, params };
@@ -456,6 +468,103 @@ export const SHEETS = {
       return `${km2(last.total)} km² ${where} is under the flood.${deep}${held}${cut} `
         + `Cells here are about ${Math.round(last.cellM).toLocaleString()} m. A screening `
         + "estimate: no defences finer than the heights, no attenuation, no volume limit.";
+    },
+  },
+  /**
+   * THE SAME FLOOD, SET BY DISCHARGE. One river — the one picked, or the one
+   * nearest the view's centre — at a flow in m³/s, read against its mean flow
+   * (typed from a gauge, else estimated from its width). Every channel cell of
+   * it rises by its own depth law at that ratio, so a reach that narrows rises
+   * more for the same water. Other rivers stay at their mean.
+   */
+  discharge: {
+    id: "flood-discharge",
+    label: "River flood by discharge (a GRWL river on the streamed DEM)",
+    unit: "m",
+    isDem: false,
+    opacity: 0.8,
+    summary: "Where one river's flood reaches for a discharge you set in m³/s: its "
+      + "water raised by the rise that flow gives against its mean, spread over the "
+      + "streamed heights through ground joined to its channel.",
+    credit: "Rivers: GRWL v01.01 (Allen & Pavelsky 2018), CC BY 4.0. Coastline © "
+      + "OpenStreetMap contributors (ODbL 1.0), Natural Earth; lakes HydroLAKES "
+      + "(Messager et al. 2016), CC BY 4.0.",
+    prepare: async (bounds, width, height) => {
+      const base = await floodBase(bounds, width, height);
+      const pick = dischargeState.pick || {
+        lat: (bounds.north + bounds.south) / 2, lon: (bounds.west + bounds.east) / 2,
+      };
+      const known = Number.isFinite(dischargeState.width) ? dischargeState.width : undefined;
+      const key = JSON.stringify([base.key, pick.lat, pick.lon, known ?? null]);
+      if (dischargeState.selection?.key !== key) {
+        const sel = selectRiver(base.riverWidth, width, height, bounds,
+          { ...pick, width: known });
+        dischargeState.selection = { key, ...sel,
+          fields: riverField(sel.mask, width, height, bounds) };
+        // No pick yet: the river nearest the view's centre becomes the pick, at
+        // its own cell, so panning keeps the same river rather than re-choosing.
+        if (!dischargeState.pick && sel.seed >= 0) {
+          const si = sel.seed % width; const sj = (sel.seed - si) / width;
+          dischargeState.pick = {
+            lat: bounds.north - ((sj + 0.5) / height) * (bounds.north - bounds.south),
+            lon: bounds.west + ((si + 0.5) / width) * (bounds.east - bounds.west),
+          };
+        }
+        // A river newly found: its width, and a flood of five times its mean
+        // until the reader says otherwise.
+        const at = dischargeState.pick || pick;
+        const riverKey = JSON.stringify([at.lat, at.lon]);
+        if (dischargeState.riverKey !== riverKey && Number.isFinite(sel.width)) {
+          dischargeState.riverKey = riverKey;
+          dischargeState.width = sel.width;
+          dischargeState.meanTyped = null;
+          dischargeState.discharge = 5 * meanFlowFromWidth(sel.width);
+        }
+      }
+      const mean = dischargeMean();
+      const params = { ...dischargeState.params,
+        flow: flowRatio(dischargeState.discharge, mean), widthCap: Infinity };
+      const outer = Number.isFinite(dischargeState.width)
+        ? await dischargeOuter(bounds, { ...pick, width: dischargeState.width }, params) : null;
+      return { riverWidth: base.riverWidth, water: base.water,
+        fields: dischargeState.selection.fields, outer, params, mean,
+        cells: dischargeState.selection.cells };
+    },
+    derive: (raster, ctx) => {
+      const heights = heightsOf(raster.band);
+      const { depth, cutOff, defended, channel } = inundate({
+        heights, riverWidth: ctx.riverWidth, water: ctx.water, fields: ctx.fields,
+        width: raster.width, height: raster.height, params: ctx.params,
+      });
+      mergeOuterDepth(depth, ctx.outer, ctx.bounds, raster.width, raster.height, ctx.water,
+        heights);
+      dischargeState.last = { ...floodAreas(depth, cutOff, raster.width, raster.height,
+        ctx.bounds, defended, channel), params: ctx.params, mean: ctx.mean,
+        discharge: dischargeState.discharge, width: dischargeState.width, cells: ctx.cells };
+      const out = new Float32Array(depth.length);
+      for (let c = 0; c < out.length; c += 1) out[c] = depth[c] > 0 ? depth[c] : NO_DATA;
+      return [out];
+    },
+    paint: (result) => {
+      result.repaint((v) => (!Number.isFinite(v) || v === NO_DATA ? null : depthColour(v)));
+      result.legendInfo = floodLegend();
+    },
+    status: () => {
+      const last = dischargeState.last;
+      if (!last) return "";
+      if (!last.cells) return "No GRWL river in this view to flood — pan to one, or pick one on the map.";
+      const q = Math.round(last.discharge).toLocaleString();
+      const r = last.params.flow;
+      const rise = stageRise(last.width, last.params);
+      const held = last.defended > 0.5 ? ` ${km2(last.defended)} km² below the river's normal `
+        + "level is left dry as defended." : "";
+      const flood = r <= 1
+        ? "At or below its mean flow the river stays in its channel."
+        : `${km2(last.total)} km² in this view is under the flood, deepest `
+          + `${last.deepest.toFixed(1)} m.${held}`;
+      return `At ${q} m³/s — ${r.toFixed(1)}× its mean flow — the river rises `
+        + `${rise >= 0 ? "+" : "−"}${Math.abs(rise).toFixed(1)} m where it is `
+        + `${Math.round(last.width)} m wide. ${flood} A screening estimate.`;
     },
   },
 };
@@ -679,13 +788,36 @@ async function zoneContext(bounds) {
  * rivers, nearest-river fields — is kept per box; a slider re-runs only the
  * arithmetic on it.
  */
+/**
+ * The rivers and open water on a view's own grid, shared by both flood sheets:
+ * the return-period one adds its per-band fields to it, the discharge one its
+ * single river's.
+ */
+let floodBaseCache = null;
+async function floodBase(bounds, width, height) {
+  const key = JSON.stringify([bounds.west, bounds.south, bounds.east, bounds.north, width, height]);
+  if (floodBaseCache?.key !== key) {
+    const [rivers, water] = await Promise.all([
+      waterFeatures("rivers", bounds, width), waterMasks(bounds, width, height),
+    ]);
+    const { riverWidth } = burnRivers(rivers.features, bounds, width, height);
+    const wet = new Uint8Array(width * height);
+    for (let c = 0; c < wet.length; c += 1) {
+      wet[c] = water.ocean[c] || !Number.isNaN(water.lakeLevel[c]) ? 1 : 0;
+    }
+    floodBaseCache = { key, riverWidth, water: wet, fields: null };
+  }
+  return floodBaseCache;
+}
+
 const inundationContexts = new Map();
-async function floodOuter(bounds, params) {
+/** The ground round a view for the flood sheets: heights, rivers, water. */
+async function floodGround(bounds) {
   const box = contextBox(bounds, { factor: 4, worldAt: 16 });
   if (!box || box === WORLD_BOX) return null;
   const key = JSON.stringify([box.west, box.south, box.east, box.north,
     bounds.west, bounds.south, bounds.east, bounds.north]);
-  const ground = await remember(inundationContexts, key, async () => {
+  return remember(inundationContexts, key, async () => {
     const width = CONTEXT_W;
     const height = CONTEXT_H;
     const heights = await contextHeights(box, width, height);
@@ -693,6 +825,8 @@ async function floodOuter(bounds, params) {
       waterFeatures("rivers", box, width), waterMasks(box, width, height),
     ]);
     const { riverWidth } = burnRivers(rivers.features, box, width, height);
+    const riverWidthAll = Float32Array.from(riverWidth);
+    const inView = new Uint8Array(width * height);
     const wet = new Uint8Array(width * height);
     for (let j = 0; j < height; j += 1) {
       const lat = box.north - ((j + 0.5) / height) * (box.north - box.south);
@@ -701,20 +835,55 @@ async function floodOuter(bounds, params) {
         wet[c] = water.ocean[c] || !Number.isNaN(water.lakeLevel[c]) ? 1 : 0;
         const lon = box.west + ((i + 0.5) / width) * (box.east - box.west);
         if (lon >= bounds.west && lon <= bounds.east
-          && lat >= bounds.south && lat <= bounds.north) riverWidth[c] = NaN;
+          && lat >= bounds.south && lat <= bounds.north) { inView[c] = 1; riverWidth[c] = NaN; }
       }
     }
-    return { heights, riverWidth, water: wet, width, height, bounds: box,
-      fields: sourceFields(riverWidth, width, height, box) };
+    // The return-period fields are the expensive half and only one sheet
+    // wants them, so they are made on first use (`floodOuter`).
+    return { heights, riverWidth, riverWidthAll, inView, water: wet, width, height, bounds: box,
+      fields: null, riverFields: new Map() };
   });
-  const { depth } = inundate({ ...ground, params });
-  // The surface the water stands at, so the view can read it against its own
-  // finer heights (`mergeOuterDepth`).
+}
+
+/** The ground's flood as a WATER LEVEL, for the view to read against its own heights. */
+function outerLevel(ground, depth) {
   const level = new Float32Array(depth.length).fill(NaN);
   for (let c = 0; c < depth.length; c += 1) {
     if (depth[c] > 0 && Number.isFinite(ground.heights[c])) level[c] = ground.heights[c] + depth[c];
   }
   return { depth, level, bounds: ground.bounds, width: ground.width, height: ground.height };
+}
+
+async function floodOuter(bounds, params) {
+  const ground = await floodGround(bounds);
+  if (!ground) return null;
+  if (!ground.fields) {
+    ground.fields = sourceFields(ground.riverWidth, ground.width, ground.height, ground.bounds);
+  }
+  const { depth } = inundate({ ...ground, params });
+  return outerLevel(ground, depth);
+}
+
+/**
+ * The picked river's flood beyond the view: the same river found on the
+ * ground round it (by the pick AND its width, or the nearest river there may
+ * be another), its in-view cells left to the view's own finer grid.
+ */
+async function dischargeOuter(bounds, pick, params) {
+  const ground = await floodGround(bounds);
+  if (!ground || !pick) return null;
+  const key = JSON.stringify([pick.lat, pick.lon, pick.width]);
+  let fields = ground.riverFields.get(key);
+  if (!fields) {
+    const { mask } = selectRiver(ground.riverWidthAll, ground.width, ground.height,
+      ground.bounds, pick);
+    for (let c = 0; c < mask.length; c += 1) if (ground.inView[c]) mask[c] = 0;
+    fields = riverField(mask, ground.width, ground.height, ground.bounds);
+    if (ground.riverFields.size > 8) ground.riverFields.clear();
+    ground.riverFields.set(key, fields);
+  }
+  const { depth } = inundate({ ...ground, riverWidth: ground.riverWidthAll, fields, params });
+  return outerLevel(ground, depth);
 }
 
 /**
@@ -958,6 +1127,12 @@ async function build(kind, { onStatus = () => {} } = {}) {
       || [spec.label, ": ", range, "about ", posts,
         " m posts where nothing finer has streamed. ", dem.TERRARIUM.credit].join("");
     onStatus(message);
+    // The watcher rebuilds with no status callback, so a drawer that reports
+    // what the last build found (the discharge river's width, its mean flow)
+    // would go on showing the build before. Announced for any sheet; a drawer
+    // listens for its own kind. Guarded on the METHOD, not on document.
+    globalThis.document?.dispatchEvent?.(new CustomEvent("geoid-gis:sheet-built",
+      { detail: { kind, message } }));
     return { ok: true, layer, message };
   } catch (error) {
     return { ok: false, message: `The elevation sheet could not be drawn: ${error.message}` };
@@ -1041,5 +1216,5 @@ export async function rebuildSheet(kind, onStatus = () => {}) {
 // other self-loading layer.
 if (typeof window !== "undefined") {
   window.GeoIDDemSheets = { addSheet, removeSheet, rebuildSheet, sheetLayer, SHEETS,
-    riverZoneState, riverZonePaint, riverZoneLegend, floodState };
+    riverZoneState, riverZonePaint, riverZoneLegend, floodState, dischargeState, dischargeMean };
 }
