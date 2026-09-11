@@ -22,25 +22,25 @@
  * file only orchestrates them and says, on every card, what it has read.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-7d452d3";
-import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260911-7d452d3";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-57f9875";
+import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260911-57f9875";
 import {
   columnMaterial, soilColumn, steadyWetness, planeWetness, factorOfSafety, criticalRecharge,
   FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M, LATERAL_FACTOR, FOS_CAP, cellAnswer,
-} from "./slope-hydrology.js?v=20260911-7d452d3";
-import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-7d452d3";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-7d452d3";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-7d452d3";
-import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-7d452d3";
-import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainDays, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260911-7d452d3";
-import { mathsFor } from "./equations.js?v=20260911-7d452d3";
-import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260911-7d452d3";
-import { upslopeWeights, stationStep, LANDSLIDE_PARAMS, LANDSLIDE_PLOTS, lowestCells } from "./landslide-stations.js?v=20260911-7d452d3";
+} from "./slope-hydrology.js?v=20260911-57f9875";
+import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-57f9875";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-57f9875";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-57f9875";
+import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-57f9875";
+import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainDays, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260911-57f9875";
+import { mathsFor } from "./equations.js?v=20260911-57f9875";
+import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260911-57f9875";
+import { upslopeWeights, stationStep, LANDSLIDE_PARAMS, LANDSLIDE_PLOTS, lowestCells } from "./landslide-stations.js?v=20260911-57f9875";
 import {
   makeStation, parseStationsCsv, stationsFromFeatures, uniqueName, seriesCsv, seriesFileName, MAX_STATIONS, colourAt,
-} from "./station-series.js?v=20260911-7d452d3";
-import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260911-7d452d3";
-import { mountStationMarkers } from "./station-markers.js?v=20260911-7d452d3";
+} from "./station-series.js?v=20260911-57f9875";
+import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260911-57f9875";
+import { mountStationMarkers } from "./station-markers.js?v=20260911-57f9875";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";
@@ -376,7 +376,11 @@ const STYLE = `
 .lsp-plotbox.is-float { position: fixed; z-index: 25; width: min(34rem, calc(100vw - 2rem)); padding: 0.5rem 0.6rem; box-sizing: border-box;
   border: 1px solid rgba(var(--nav-accent-rgb, 255,43,214), 0.45); border-radius: 0.6rem;
   background: var(--skin-card-ground, rgb(24,13,47)); box-shadow: 0 10px 30px rgba(0,0,0,0.5); color: var(--text, #eef); }
-.lsp-plotbox.is-float .lsp-plothead { cursor: move; }
+.lsp-grip { display: none; flex: 0 0 auto; cursor: move; opacity: 0.7; font-size: 1rem; line-height: 1; padding: 0 0.1rem; user-select: none; }
+.lsp-plotbox.is-float { cursor: move; }
+.lsp-plotbox.is-float .lsp-grip { display: block; }
+.lsp-plotbox.is-float select, .lsp-plotbox.is-float button { cursor: pointer; }
+.lsp-plotbox.is-float canvas { cursor: crosshair; }
 .lsp-plotbox.is-float .lsp-plot { height: 14rem; }
 .lsp-plotbox.is-float.is-dragging { opacity: 0.9; }
 `;
@@ -1600,7 +1604,7 @@ function renderPlots() {
     if (!node) {
       node = document.createElement("div");
       node.className = "lsp-plotbox"; node.dataset.plot = pl.id;
-      node.innerHTML = `<div class="lsp-plothead"><select class="input" data-always="1" aria-label="What this plot shows">${plotOptions(pl.plot)}</select>
+      node.innerHTML = `<div class="lsp-plothead"><span class="lsp-grip" title="Drag to move" aria-hidden="true">⠿</span><select class="input" data-always="1" aria-label="What this plot shows">${plotOptions(pl.plot)}</select>
         <button type="button" class="lsp-pbtn" data-act="float" data-always="1" title="Pop out over the map">⧉</button>
         <button type="button" class="lsp-pbtn" data-act="close" data-always="1" title="Remove this plot" aria-label="Remove this plot">✕</button></div>
         <canvas class="lsp-plot" aria-label="Time series at the sampling stations"></canvas><p class="lsp-plotread"></p>`;
@@ -1661,10 +1665,10 @@ function wirePanel(node, pl) {
     if (!seekPlayer(k)) showStep(k);
   });
   if (typeof ResizeObserver === "function") new ResizeObserver(() => drawOne(node, pl)).observe(canvas);
-  // A popped-out panel is dragged by its head; the controls in it still work.
-  const head = node.querySelector(".lsp-plothead");
-  head.addEventListener("pointerdown", (e) => {
-    if (!pl.floating || e.target.closest("select, button")) return;
+  // A popped-out panel is dragged by its grip, its frame or its readout —
+  // anything but the controls and the plot, which a click on reads a map.
+  node.addEventListener("pointerdown", (e) => {
+    if (!pl.floating || e.target.closest("select, button, canvas")) return;
     e.preventDefault();
     const start = { x: e.clientX, y: e.clientY, left: pl.pos.left, top: pl.pos.top };
     node.classList.add("is-dragging");
