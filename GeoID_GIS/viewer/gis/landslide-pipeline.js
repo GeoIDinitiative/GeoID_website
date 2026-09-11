@@ -22,24 +22,24 @@
  * file only orchestrates them and says, on every card, what it has read.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-fb4d055";
-import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260911-fb4d055";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-eae60d5";
+import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260911-eae60d5";
 import {
   columnMaterial, soilColumn, steadyWetness, planeWetness, factorOfSafety, criticalRecharge,
   FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M, LATERAL_FACTOR, FOS_CAP, cellAnswer,
-} from "./slope-hydrology.js?v=20260911-fb4d055";
-import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-fb4d055";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-fb4d055";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-fb4d055";
-import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-fb4d055";
-import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainDays, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260911-fb4d055";
-import { mathsFor } from "./equations.js?v=20260911-fb4d055";
-import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260911-fb4d055";
-import { upslopeWeights, stationStep, LANDSLIDE_PARAMS, lowestCells } from "./landslide-stations.js?v=20260911-fb4d055";
+} from "./slope-hydrology.js?v=20260911-eae60d5";
+import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-eae60d5";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-eae60d5";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-eae60d5";
+import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-eae60d5";
+import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainDays, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260911-eae60d5";
+import { mathsFor } from "./equations.js?v=20260911-eae60d5";
+import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260911-eae60d5";
+import { upslopeWeights, stationStep, LANDSLIDE_PARAMS, lowestCells } from "./landslide-stations.js?v=20260911-eae60d5";
 import {
   makeStation, parseStationsCsv, stationsFromFeatures, uniqueName, seriesCsv, seriesFileName, MAX_STATIONS, colourAt,
-} from "./station-series.js?v=20260911-fb4d055";
-import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260911-fb4d055";
+} from "./station-series.js?v=20260911-eae60d5";
+import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260911-eae60d5";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";
@@ -368,10 +368,10 @@ const STYLE = `
 .lsp-plothead .button { flex: 0 0 auto; padding: 0.15rem 0.5rem; }
 .lsp-plot { width: 100%; max-width: 100%; min-width: 0; height: 11rem; display: block; cursor: crosshair; border-radius: 0.35rem; background: rgba(0,0,0,0.22); }
 .lsp-plotread { font-size: 0.68rem; margin: 0; min-height: 1em; opacity: 0.85; font-variant-numeric: tabular-nums; }
-.lsp-plotbox.is-big { position: fixed; z-index: 25; left: calc(min(24rem, 100vw - 2rem) + 2rem); right: 4.5rem; bottom: 6.5rem; max-width: 60rem;
+.lsp-plotbox.is-big { position: fixed; z-index: 25; left: calc(min(24rem, 100vw - 2rem) + 2rem); right: 4.5rem; bottom: 6.5rem; max-width: 60rem; max-height: calc(100vh - 5rem);
   padding: 0.6rem 0.7rem; border: 1px solid rgba(var(--nav-accent-rgb, 255,43,214), 0.45); border-radius: 0.6rem;
   background: var(--skin-card-ground, rgb(24,13,47)); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-.lsp-plotbox.is-big .lsp-plot { height: min(22rem, 45vh); }
+.lsp-plotbox.is-big .lsp-plot { height: 22rem; }
 .lsp-plottitle { display: none; font: 600 0.72rem "Exo 2", sans-serif; letter-spacing: 0.06em; text-transform: uppercase; }
 .lsp-plotbox.is-big .lsp-plottitle { display: block; }
 `;
@@ -1212,6 +1212,7 @@ async function recordStations() {
   const g = state.ground; const r = state.rain;
   if (!g || !r || !state.run || !state.stations.length) {
     state.record = null; renderStations(); drawPlot(); markStates();
+    void drawStationLayer();
     return;
   }
   const frames = r.frames;
@@ -1268,6 +1269,17 @@ async function recordStations() {
   // For whatever reads station series next — the analysis hub.
   document.dispatchEvent(new CustomEvent("geoid-gis:station-series", { detail: { model: "landslide-forecast", series: state.record } }));
   renderStations(); drawPlot(); markStates();
+  void drawStationLayer();
+}
+
+/** One sentence a station's card says: its lowest reading and when, or why it has none. */
+function stationSummary(st) {
+  const rec = state.record; const rs = rec?.stations.find((x) => x.id === st.id);
+  if (!rec) return state.run ? "Being read." : "Recorded when the landslide model runs.";
+  if (!rs || rs.cell < 0) return `Not read — ${rs?.note || "no model here"}.`;
+  const f = rec.values[st.id].fos; let k = -1;
+  f.forEach((v, i) => { if (Number.isFinite(v) && (k < 0 || v < f[k])) k = i; });
+  return k < 0 ? "No reading." : `Lowest factor of safety ${shortFos(f[k])} at ${String(rec.times[k]).replace("T", " ")} UTC, of ${rec.times.length} rainfall maps. Plotted under Landslides › Sampling stations.`;
 }
 
 /** The stations as a layer on the globe, in the colours the plot uses. */
@@ -1281,8 +1293,9 @@ async function drawStationLayer() {
     type: "FeatureCollection",
     features: state.stations.map((st) => ({
       type: "Feature", geometry: { type: "Point", coordinates: [st.lon, st.lat] },
-      // label_rank puts the names on the globe beside the dots.
-      properties: { name: st.name, station: true, label_rank: 5, lat: st.lat, lon: st.lon },
+      // label_rank puts the names on the globe beside the dots; kind and
+      // summary are what the dot's own card says when it is clicked.
+      properties: { name: st.name, station: true, label_rank: 5, lat: st.lat, lon: st.lon, kind: "Sampling station", summary: stationSummary(st) },
     })),
   };
   const built = buildVectorLayerResult(fc, { name: STATION_LAYER, style: { field: "name", categories: state.stations.map((st) => ({ value: st.name, colour: st.colour })) } });
@@ -1307,8 +1320,8 @@ function addStations(list, source) {
 function onStationsChanged() {
   state.stations.forEach((st, k) => { st.colour = colourAt(k); });
   renderStations();
-  void drawStationLayer();
-  if (state.run) void recordStations(); else { state.record = null; drawPlot(); markStates(); }
+  // With a run the recording redraws the layer when it lands, with readings.
+  if (state.run) void recordStations(); else { state.record = null; void drawStationLayer(); drawPlot(); markStates(); }
 }
 
 function pointLayers() {
@@ -1522,13 +1535,24 @@ function wireStations() {
   if (typeof ResizeObserver === "function") new ResizeObserver(() => drawPlot()).observe(canvas);
   const box = byId("lsp-plotbox"); const big = byId("lsp-st-big");
   const home = document.createComment("lsp-plotbox");
+  // Above the time-lapse bar, measured: a constant bottom lands on the bar at
+  // some window heights, and the bar is what the plot is read against.
+  const placeBig = () => {
+    if (!box.classList.contains("is-big")) { box.style.bottom = ""; canvas.style.height = ""; return; }
+    const bar = document.getElementById("geoid-timelapse");
+    const floor = bar && !bar.hidden ? bar.getBoundingClientRect().top : window.innerHeight - 16;
+    box.style.bottom = `${Math.max(16, window.innerHeight - floor + 10)}px`;
+    canvas.style.height = `${Math.max(140, Math.min(352, floor - 10 - 90 - 80))}px`;
+  };
   const setBig = (on) => {
     if (on === box.classList.contains("is-big")) return;
     if (on) { box.replaceWith(home); document.body.appendChild(box); } else { home.replaceWith(box); }
     box.classList.toggle("is-big", on);
     big.textContent = on ? "Close" : "Larger";
+    placeBig();
     drawPlot();
   };
+  window.addEventListener("resize", placeBig);
   // Fixed positioning is taken off the page, not the sidebar: a transformed or
   // filtered ancestor would make it relative to the sidebar instead.
   big.addEventListener("click", () => setBig(!box.classList.contains("is-big")));
