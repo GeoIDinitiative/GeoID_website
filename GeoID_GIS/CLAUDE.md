@@ -18295,3 +18295,30 @@ interpolated from whichever of the four surrounding coarse centres are under
 water and read against the view's own heights, so the fine ground decides the
 edge. A rebuild with the outer flood switched off is the A/B that showed the
 squares were all from it.
+
+## A click belongs to the symbol it lands on, at the symbol's drawn size
+
+"Certain events' click radius covers other points." The event picker was a
+raycaster with `params.Points.threshold = camera.position.length() / height *
+12` — the camera's distance to the planet's CENTRE, which stays about 3.2 units
+however close the ground is. Measured 60 km above an Oklahoma wildfire: a reach
+of **99 km, about 1,553 px**, wider than the screen, so that one marker took
+every click in view — and because `markerAt` is asked FIRST by the other
+pickers (so one click raises one card), it also took clicks meant for volcano
+dots and polygons beside it. It also returned the first hit along the ray, not
+the marker nearest the cursor.
+
+`markerAt` is a screen-space test now: every visible marker projected from its
+`truePositions` (far side dropped by the tangent-plane test), a hit circle on
+its INK at its drawn size (`markerHitGeometry`: a glyph stands on its point,
+its centre 0.23 of the sprite above it; the quake rings are centred), and the
+nearest centre wins (`nearestHit`). Measured after: hit on the ink and on the
+coordinate, hit 1 px inside the 16.3 px circle, nothing 2 px outside or 40 px
+away.
+
+**The vector point picker had the same fault in a milder form**: one radius for
+every point layer, about 13 px of ground, so a 3.4 px fire detection answered
+clicks far outside its dot. Each layer's reach is now half its widest
+screen-sized point material plus 2 px, in metres through the camera's own
+field of view (`pointReachPx`, `layerPointTolerance`). The lines' 30 m floor
+does not apply to points: close in it is hundreds of pixels.
