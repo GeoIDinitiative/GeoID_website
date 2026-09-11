@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260911-be0ec2a";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260911-be0ec2a";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260911-0f808f8";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260911-0f808f8";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260911-be0ec2a";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260911-be0ec2a";
-import { downloadText } from "./extraction.js?v=20260911-be0ec2a";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260911-be0ec2a";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260911-be0ec2a";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260911-be0ec2a";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260911-be0ec2a";
-import { femSpec } from "./model-build.js?v=20260911-be0ec2a";
+} from "./mesh-volume.js?v=20260911-0f808f8";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260911-0f808f8";
+import { downloadText } from "./extraction.js?v=20260911-0f808f8";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260911-0f808f8";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260911-0f808f8";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260911-0f808f8";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260911-0f808f8";
+import { femSpec } from "./model-build.js?v=20260911-0f808f8";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -1914,7 +1914,6 @@ function installPicking() {
     const part = partAt(event.clientX, event.clientY);
     if (part) {
       showPartCard(part, event.clientX, event.clientY);
-      if (part.solidId !== null && part.solidId !== undefined) setSelection([part.solidId]);
       log(`Picked ${part.name}`);
       return;
     }
@@ -3752,7 +3751,6 @@ function renderDomainsPanel() {
         event.stopPropagation();
         const r = row.getBoundingClientRect();
         showPartCard(part, r.right + 8, r.top);
-        if (part.solidId !== null && part.solidId !== undefined) setSelection([part.solidId]);
       };
       info.addEventListener("click", open);
       name.addEventListener("click", open);
@@ -3765,9 +3763,23 @@ function renderDomainsPanel() {
   });
 }
 
+/**
+ * A PART CARD OWNS THE SELECTION IT MADE. Opening a part's card selects its
+ * volume -- the red tint is how the reader sees which part the card is about --
+ * and closing the card left that tint standing, so a volume stayed "selected"
+ * with nothing on screen saying why. The card records the selection it made and
+ * every way it closes (✕, Escape, a click on nothing, leaving the page) clears
+ * it -- unless the reader has changed the selection since, in which case the
+ * selection is theirs and is left alone.
+ */
+let cardSelection = null;
+
 function closePartCard() {
   const card = byId("studio-part-card");
   if (card) card.remove();
+  const mine = cardSelection;
+  cardSelection = null;
+  if (mine !== null && state.selection.size === 1 && state.selection.has(mine)) setSelection([]);
 }
 
 /**
@@ -3945,7 +3957,6 @@ function renderVisibilityBox() {
             card.style.left = `${Math.max(8, left)}px`;
             card.style.top = `${Math.max(8, Math.min(r.top, window.innerHeight - card.offsetHeight - 8))}px`;
           }
-          if (part.solidId !== null && part.solidId !== undefined) setSelection([part.solidId]);
         };
         partName.addEventListener("click", card);
         partName.addEventListener("keydown", (event) => { if (event.key === "Enter") card(event); });
@@ -4071,6 +4082,10 @@ function flagInput(current, onSet, title = "Type a flag number and press Enter")
 
 function showPartCard(part, x, y) {
   closePartCard();
+  if (part.solidId !== null && part.solidId !== undefined) {
+    setSelection([part.solidId]);
+    cardSelection = part.solidId;
+  }
   const card = document.createElement("div");
   card.id = "studio-part-card";
   card.style.cssText = "position:fixed;z-index:60;max-width:22rem;padding:0.6rem 0.75rem;border:1px solid rgba(255,43,214,0.45);border-radius:0.6rem;background:rgba(16,7,36,0.96);color:#e8e6f0;font:0.74rem/1.35 'Exo 2',sans-serif;box-shadow:0 8px 24px rgba(0,0,0,0.5)";
