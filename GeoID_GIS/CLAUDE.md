@@ -17790,3 +17790,42 @@ reuses Earth's "inspect and pin". Measured: 82 heads on Earth, 59 on Mars and
 50 on Jupiter, with none on the bracket. The regression check is the same
 probe: `.gis-tool-section > summary` whose SVG matches the bracket path
 `M5.6 3.2H3.4`.
+
+## Global hydrography source files in R2, and the licence that kept rivers out
+
+`r2:geoid-maps/shapefiles/`, which is public at
+`https://data.geoidinitiative.com/shapefiles/`, holds the UNMODIFIED source
+archives with a `README.txt` of attributions. Each was streamed in with
+`rclone copyurl` (nothing staged on local disk, which had 5 GB free) and read
+back in place with `ogrinfo` over `/vsizip//vsicurl/`:
+
+| key | what | features | licence |
+| --- | --- | --- | --- |
+| `ocean/ne_10m_ocean.zip` | the ocean polygon | 1 | public domain |
+| `ocean/ne_10m_geography_marine_polys.zip` | named oceans, seas, bays | 306 | public domain |
+| `ocean/osm-water-polygons-split-4326-2026-09-10.zip` | coastline-exact sea | 53,328 | ODbL 1.0 |
+| `lakes/HydroLAKES_polys_v10_shp.zip` | lakes and reservoirs of 10 ha or more | 1,427,688 | CC BY 4.0 |
+| `rivers/GRWL_summaryStats_V01.01.zip` | river centrelines 30 m or wider, with widths | 42,077 | CC BY 4.0 |
+
+**HydroRIVERS is deliberately NOT there.** It is free for commercial use,
+which reads like permission to mirror it, but the HydroSHEDS licence
+(Technical Documentation v1.4, Appendix A, §2.1.2–2.1.3) permits distribution
+only "incorporated into any Derivative Works" to End Users under an EULA at
+least as protective, says "in no event" as a "stand-alone product", and requires
+the licensee to "protect against unauthorized copying and/or distribution". A
+raw zip on a public bucket breaks all three. The upload was stopped mid-stream,
+before it landed, and `list-multipart-uploads` confirmed that no parts were left.
+HydroLAKES comes from the same group and is CC BY 4.0 in its own right, so it
+IS fine. **Read the licence of each product, not the family's front page.**
+GRWL is the redistributable global rivers source; the full network would need
+a private bucket.
+
+Two instrument notes. The shapefiles in HydroLAKES and the OSM water polygons
+sit inside a folder in the zip, so `ogrinfo /vsizip/…zip` alone prints nothing:
+give the nested `.shp` path. And a `curl -r 0-3` sent WITH a Referer came back
+200 with the whole body on two of these objects, downloading 1.7 GB to
+/dev/null. Check `size_download` before assuming a range was honoured.
+
+These are source files, not yet app layers. Wiring them into the catalogue
+means baking pyramids (the glacier and soil pattern) and streaming the source
+through `/vsizip//vsicurl/`, because the disk cannot hold the extracted data.
