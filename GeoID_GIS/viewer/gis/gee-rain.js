@@ -24,7 +24,7 @@
  *   ERA5-Land   0.1°, daily aggregate, 1950 → ~a week ago, land, global
  */
 
-import { paletteRamp, valueFromColour } from "./gee-sample.js?v=20260911-57f9875";
+import { paletteRamp, valueFromColour } from "./gee-sample.js?v=20260911-d7f4f8c";
 
 const search = new URL(import.meta.url).search;
 
@@ -130,19 +130,26 @@ function loadImage(url) {
   });
 }
 
-/** One day's rainfall over a box, as a decoded grid: `{ day, values, width, height, bounds }`. */
-export async function fetchGeeRainDay(source, bounds, day) {
+/**
+ * The rainfall over a box between two instants (ISO, UTC), as a decoded grid:
+ * `{ from, to, values, width, height, bounds, capped }`. The service sums the
+ * collection over the window, so a half hour, a day and a year are each one
+ * render. `rampMax` raises the top of the colour ramp for a long window;
+ * `capped` counts pixels at the ramp's top, which read as the top whatever
+ * fell there — a deployment that ignores `rampMax` shows up as a count here.
+ */
+export async function fetchGeeRainWindow(source, bounds, from, to, { rampMax = null } = {}) {
   const s = GEE_RAIN_SOURCES[source];
-  const key = `${s.dataset}|${[bounds.west, bounds.south, bounds.east, bounds.north].map((v) => v.toFixed(4)).join(",")}|${day}`;
+  const key = `${s.dataset}|${[bounds.west, bounds.south, bounds.east, bounds.north].map((v) => v.toFixed(4)).join(",")}|${from}|${to}|${rampMax ?? ""}`;
   if (cache.has(key)) return cache.get(key);
   const { fetchScene } = await import(`./gee.js${search}`);
   let scene;
   try {
-    scene = await fetchScene({ dataset: s.dataset, bounds, from: day, to: nextDay(day), dimensions: 1024 });
+    scene = await fetchScene({ dataset: s.dataset, bounds, from, to, dimensions: 1024, max: rampMax });
   } catch (error) {
     throw notDeployed(s, error);
   }
-  if (!scene?.imageUrl) throw new Error(`Earth Engine returned no ${s.short} picture for ${day}`);
+  if (!scene?.imageUrl) throw new Error(`Earth Engine returned no ${s.short} picture for ${from} to ${to}`);
   const image = await loadImage(scene.imageUrl);
   const width = image.naturalWidth; const height = image.naturalHeight;
   const canvas = document.createElement("canvas");
@@ -151,10 +158,34 @@ export async function fetchGeeRainDay(source, bounds, day) {
   ctx.drawImage(image, 0, 0);
   const data = ctx.getImageData(0, 0, width, height).data;
   const values = decodeRainPixels(data, width, height, { palette: scene.palette, legend: scene.legend });
-  const grid = { day, values, width, height, bounds: scene.bounds, source };
+  const top = Number(scene.legend?.max) || 300;
+  let capped = 0;
+  for (let i = 0; i < values.length; i += 1) if (values[i] >= top * 0.995) capped += 1;
+  const grid = { from, to, day: from.slice(0, 10), values, width, height, bounds: scene.bounds, source, capped, top };
   cache.set(key, grid);
-  if (cache.size > 400) cache.delete(cache.keys().next().value);
+  if (cache.size > 800) cache.delete(cache.keys().next().value);
   return grid;
+}
+
+/** One day's rainfall over a box — a window of one UTC day. */
+export async function fetchGeeRainDay(source, bounds, day) {
+  return fetchGeeRainWindow(source, bounds, day, nextDay(day));
+}
+
+/** Many windows, a few at a time, reporting as it goes: `parts` are `{ src, from, to, key }`. */
+export async function fetchGeeRainParts(bounds, parts, { onProgress = () => {}, parallel = 3, rampMaxOf = () => null } = {}) {
+  const out = new Map();
+  let next = 0; let done = 0;
+  const worker = async () => {
+    while (next < parts.length) {
+      const p = parts[next]; next += 1;
+      // eslint-disable-next-line no-await-in-loop
+      out.set(p.key, await fetchGeeRainWindow(p.src, bounds, p.fromIso, p.toIso, { rampMax: rampMaxOf(p) }));
+      done += 1; onProgress(done, parts.length);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(parallel, parts.length) }, worker));
+  return out;
 }
 
 /** Every day in a list, a few at a time, reporting as it goes. */

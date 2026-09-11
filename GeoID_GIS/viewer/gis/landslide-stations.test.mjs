@@ -200,7 +200,7 @@ const rel = (a, b) => Math.abs(a - b) / Math.max(1e-12, Math.abs(a), Math.abs(b)
     /id="lsp-rain-start" class="input" type="date" value="\$\{isoDay\(now - 7 \* 86400000\)\}"/.test(src)
     && /id="lsp-rain-end" class="input" type="date" value="\$\{isoDay\(now \+ 7 \* 86400000\)\}"/.test(src)
     && /<option value="auto" selected>/.test(src) && /id="lsp-rain-around"/.test(src));
-  check("every frame on the bar says whether it is the record or the forecast", /label: `\$\{f\.time\.replace\("T", " "\)\} · \$\{periodOf\(f\.time\)\}`/.test(src));
+  check("every frame on the bar says whether it is the record or the forecast", /label: `\$\{f\.label \|\| f\.time\.replace\("T", " "\)\} · \$\{periodOf\(f\.time\)\}`/.test(src));
   check("the plot marks now between the record and the forecast", /now: Date\.now\(\)/.test(src)
     && /fillText\("forecast"/.test(readFileSync(new URL("./time-series-plot.js", import.meta.url), "utf8")));
 }

@@ -10,24 +10,24 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260911-57f9875";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260911-57f9875";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260911-57f9875";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260911-d7f4f8c";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260911-d7f4f8c";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260911-d7f4f8c";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260911-57f9875";
+  from "./view-extent.js?v=20260911-d7f4f8c";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260911-57f9875";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260911-57f9875";
+} from "./extent-picker.js?v=20260911-d7f4f8c";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260911-d7f4f8c";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
   freshness, isNewDataset, isExtendedDataset, indexedHrefs, bakedOn,
-} from "./gee-catalogue-index.js?v=20260911-57f9875";
-import { checkCatalogue, describeCheck } from "./gee-watch.js?v=20260911-57f9875";
+} from "./gee-catalogue-index.js?v=20260911-d7f4f8c";
+import { checkCatalogue, describeCheck } from "./gee-watch.js?v=20260911-d7f4f8c";
 
 // The page's own stamp. A dynamic import under any other query is a SECOND
 // module instance with its own state — the trap that made a stopped player
@@ -450,7 +450,7 @@ function requestDimensions(bounds) {
  * and shows one at a time — needs the middle of that and none of the rest.
  * Same endpoint, same parameters, same errors.
  */
-export async function fetchScene({ dataset, bounds, from, to, dimensions = 1024 }) {
+export async function fetchScene({ dataset, bounds, from, to, dimensions = 1024, max = null }) {
   if (!dataset) throw new Error("No dataset asked for.");
   const box = bounds;
   const params = new URLSearchParams({
@@ -460,6 +460,10 @@ export async function fetchScene({ dataset, bounds, from, to, dimensions = 1024 
       .map((n) => Number(n).toFixed(4)).join(","),
     from, to, dimensions: String(dimensions),
   });
+  // The top of the colour ramp, for a summed rainfall composite longer than a
+  // day. A service that does not know the parameter ignores it and says so in
+  // the legend it returns, which is what the picture is read back against.
+  if (Number.isFinite(max)) params.set("max", String(max));
   const response = await fetch(`${endpoint()}?${params}`, { cache: "no-store" });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);

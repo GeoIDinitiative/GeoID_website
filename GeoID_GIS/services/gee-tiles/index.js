@@ -709,6 +709,17 @@ exports.geeImage = async (req, res) => {
         + "short -- try widening it.");
     }
 
+    // A SUMMED RAINFALL composite over a long window runs off the top of a
+    // ramp set for a day: a year of CHIRPS at 300 mm would come back as one
+    // flat top colour, which the page reads back as 300 mm. The caller may
+    // raise the ramp's top for an accumulation (mm, summed) and the legend it
+    // is handed says so, so the inversion reads the picture on the right scale.
+    const rampMax = Number(q.max);
+    if (Number.isFinite(rampMax) && rampMax > 0 && rampMax <= 50000
+      && config.reducer === "sum" && config.legend?.unit === "mm") {
+      config = { ...config, max: rampMax, legend: { ...config.legend, max: rampMax } };
+    }
+
     const image = buildImage(q.dataset, config, from, to, region);
 
     const vis = { min: config.min, max: config.max };
