@@ -31,34 +31,34 @@
  * every card, what it has read.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260912-163af0b";
-import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260912-163af0b";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260912-e73f170";
+import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260912-e73f170";
 import {
   columnMaterial, soilColumn, steadyWetness, planeWetness, factorOfSafety, criticalRecharge,
   FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M, LATERAL_FACTOR, FOS_CAP, cellAnswer,
-} from "./slope-hydrology.js?v=20260912-163af0b";
-import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260912-163af0b";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260912-163af0b";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260912-163af0b";
-import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260912-163af0b";
-import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainParts, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260912-163af0b";
-import { mathsFor } from "./equations.js?v=20260912-163af0b";
-import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260912-163af0b";
-import { upslopeWeights, stationStep, stationFlood, catchmentTopology, floodScratch, LANDSLIDE_PARAMS, LANDSLIDE_PLOTS, lowestCells } from "./landslide-stations.js?v=20260912-163af0b";
+} from "./slope-hydrology.js?v=20260912-e73f170";
+import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260912-e73f170";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260912-e73f170";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260912-e73f170";
+import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260912-e73f170";
+import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainParts, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260912-e73f170";
+import { mathsFor } from "./equations.js?v=20260912-e73f170";
+import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260912-e73f170";
+import { upslopeWeights, stationStep, stationFlood, catchmentTopology, floodScratch, LANDSLIDE_PARAMS, LANDSLIDE_PLOTS, lowestCells } from "./landslide-stations.js?v=20260912-e73f170";
 import {
   makeStation, parseStationsCsv, stationsFromFeatures, uniqueName, seriesCsv, seriesFileName, MAX_STATIONS, colourAt,
-} from "./station-series.js?v=20260912-163af0b";
-import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260912-163af0b";
-import { planSeries, rendersOf, stepText, rampMaxFor, STEP_CHOICES, NATIVE_STEP, HOUR } from "./rain-steps.js?v=20260912-163af0b";
-import { mountStationMarkers } from "./station-markers.js?v=20260912-163af0b";
-import { equivalentMohrCoulomb, culmann, culmannAt, rockCell, localRelief, rockfallReach, velocityOf, criticalHeight } from "./rock-slope.js?v=20260912-163af0b";
+} from "./station-series.js?v=20260912-e73f170";
+import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260912-e73f170";
+import { planSeries, rendersOf, stepText, rampMaxFor, STEP_CHOICES, NATIVE_STEP, HOUR } from "./rain-steps.js?v=20260912-e73f170";
+import { mountStationMarkers } from "./station-markers.js?v=20260912-e73f170";
+import { equivalentMohrCoulomb, culmann, culmannAt, rockCell, localRelief, rockfallReach, velocityOf, criticalHeight } from "./rock-slope.js?v=20260912-e73f170";
 import {
   bankfullCapacity, partition, residenceTimes, waveStep, floodFos, riseFor,
   FLOOD_CLASSES, RUNOFF_CLASSES, DISCHARGE_CLASSES, BANKFULL_RATIO, HILLSLOPE_V,
-} from "./flood-fos.js?v=20260912-163af0b";
-import { inundate, sourceFields, DEPTH_CLASSES, DEFAULTS as FLOOD_DEFAULTS, meanFlowFromWidth } from "./inundation.js?v=20260912-163af0b";
-import { burnRivers } from "./river-zones.js?v=20260912-163af0b";
-import { waterFeatures, waterMasks } from "./water-mask.js?v=20260912-163af0b";
+} from "./flood-fos.js?v=20260912-e73f170";
+import { inundate, sourceFields, DEPTH_CLASSES, DEFAULTS as FLOOD_DEFAULTS, meanFlowFromWidth } from "./inundation.js?v=20260912-e73f170";
+import { burnRivers } from "./river-zones.js?v=20260912-e73f170";
+import { waterFeatures, waterMasks } from "./water-mask.js?v=20260912-e73f170";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";
@@ -1264,6 +1264,47 @@ async function riverNetwork(eb, grid) {
   }
 }
 
+/**
+ * OPENNESS IS A PROPERTY OF THE REACH, not of the cell. A wide river burned
+ * onto a grid is several cells across and the flow concentrates in one of
+ * them; the cells beside it sit on the same trench and drain only their own
+ * few metres of bank. Measured on the Rhône at Avignon, that left 474 m cells
+ * reading as CLOSED beside the open channel — and a closed cell with almost no
+ * discharge against a whole basin's brim is the same false comfort this whole
+ * flag exists to withhold.
+ *
+ * So the flag is spread over each connected run of river cells: if water can
+ * reach any part of a reach from outside the mapped ground, it can reach the
+ * reach. Eight-connected, because a burned centreline steps diagonally.
+ */
+export function openReaches(open, riverWidth, width, height, list) {
+  const seen = new Uint8Array(open.length);
+  const stack = [];
+  for (const seed of list) {
+    if (seen[seed]) continue;
+    const part = [];
+    let anyOpen = false;
+    stack.length = 0; stack.push(seed); seen[seed] = 1;
+    while (stack.length) {
+      const i = stack.pop();
+      part.push(i);
+      if (open[i]) anyOpen = true;
+      const x = i % width; const y = (i / width) | 0;
+      for (let dy = -1; dy <= 1; dy += 1) {
+        const ny = y + dy; if (ny < 0 || ny >= height) continue;
+        for (let dx = -1; dx <= 1; dx += 1) {
+          const nx = x + dx; if (nx < 0 || nx >= width) continue;
+          const j = ny * width + nx;
+          if (seen[j] || !(riverWidth[j] > 0)) continue;
+          seen[j] = 1; stack.push(j);
+        }
+      }
+    }
+    if (anyOpen) for (const i of part) open[i] = 1;
+  }
+  return open;
+}
+
 export function openCatchments(g) {
   const { cells, n, topo, grid } = g;
   const open = new Uint8Array(n);
@@ -1313,7 +1354,7 @@ async function buildFlood() {
     }
     const k = residenceTimes({ n, slopeRad: cells.slopeRad, capacity, cellM: grid.stepM, hillV: pr.hillV });
     await tick();
-    const open = openCatchments(g);
+    const open = openReaches(openCatchments(g), riverWidth, grid.width, grid.height, list);
     let closed = 0;
     for (let m = 0; m < list.length; m += 1) if (cells.model[list[m]] && !open[list[m]]) closed += 1;
     const fields = list.length ? sourceFields(riverWidth, grid.width, grid.height, eb) : [];

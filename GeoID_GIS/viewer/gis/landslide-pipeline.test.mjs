@@ -6,7 +6,7 @@
 import { readFileSync } from "node:fs";
 import {
   demGridFor, withMargin, autoMarginKm, samplerOver, lithologyOf, groundText, stateOf, textureOf,
-  staticStep, readiness, hornAt, cellSlope, openCatchments,
+  staticStep, readiness, hornAt, cellSlope, openCatchments, openReaches,
 } from "./landslide-pipeline.js";
 import { mfdTopology, fillSinks } from "./hydrology.js";
 import { makeRaster } from "./raster-analysis.js";
@@ -54,6 +54,25 @@ useRockProperties(JSON.parse(readFileSync(new URL("../../data/global/rock-proper
     !inner && [...dome].filter((v) => !v).length > n / 4, `${[...dome].filter((v) => !v).length} closed of ${n}`);
   check("and the border itself is always open, because the model cannot see past it",
     [...Array(w).keys()].every((x) => dome[x] === 1 && dome[(h - 1) * w + x] === 1));
+
+  // A WIDE RIVER IS SEVERAL CELLS ACROSS and the flow concentrates in one of
+  // them, so the cells beside the channel drain only their own bank. Left as
+  // cells, those read closed beside the open channel and are handed a whole
+  // basin's brim against almost no water — the false comfort the flag exists
+  // to withhold.
+  const rw = new Float32Array(n);
+  const mid = Math.floor(h / 2);
+  for (let x = 0; x < w; x += 1) { rw[mid * w + x] = 400; rw[(mid + 1) * w + x] = 400; }   // crosses both edges
+  const pond = [(h - 4) * w + 5, (h - 4) * w + 6, (h - 5) * w + 5];                        // wholly inside
+  pond.forEach((i) => { rw[i] = 40; });
+  const list = [...Array(n).keys()].filter((i) => rw[i] > 0);
+  const flag = new Uint8Array(n);
+  flag[mid * w] = 1;                                                                        // one cell of the stem
+  const spread = openReaches(flag, rw, w, h, list);
+  check("the whole reach is open where any part of it is fed from outside",
+    [...Array(w).keys()].every((x) => spread[mid * w + x] === 1 && spread[(mid + 1) * w + x] === 1));
+  check("and a reach that touches nothing outside keeps its own catchment",
+    pond.every((i) => spread[i] === 0));
 }
 
 /* ── the grid, the margin, the maps' words ────────────────────────────────── */
