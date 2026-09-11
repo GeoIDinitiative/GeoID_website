@@ -113,17 +113,29 @@ const SLOT_WIDTH = "17.5rem";
  * slot's right edge to that rect's left, less the gap. The panel's height is
  * not known here and the panel can be tall, so anything below the top counts.
  */
-export function slotFrom(rects, viewportWidth, gap = SLOT_GAP, avoid = [], width = 280) {
+export function slotFrom(rects, viewportWidth, gap = SLOT_GAP, avoid = [], width = 280,
+  floor = 0) {
   const seen = (rects || []).filter((r) => r && r.width > 0);
   if (!seen.length) return null;
-  const top = Math.max(...seen.map((r) => r.bottom)) + gap;
+  let top = Math.max(...seen.map((r) => r.bottom)) + gap;
   let edge = Math.max(...seen.map((r) => r.right));
   // A DOMRect carries both `left` and `x`; a hand-built one may carry only one.
   const leftOf = (r) => r.left ?? r.x;
   const obstacles = (avoid || []).filter((r) => r && r.width > 0 && r.bottom > top)
     .sort((a, b) => leftOf(b) - leftOf(a));
   for (const r of obstacles) {
-    if (leftOf(r) < edge && r.right > edge - width) edge = leftOf(r) - gap;
+    if (!(leftOf(r) < edge && r.right > edge - width)) continue;
+    /**
+     * SIDEWAYS ONLY WHERE THERE IS ROOM, else DOWN. Stepping left was written
+     * for a narrow screen, where it clears the clock with space to spare. With
+     * a workbench open the buttons have already stepped left to the clock, and
+     * stepping left again put the drop-down on the SIDEBAR (measured: panel
+     * 126-406 px over a sidebar ending at 400). `floor` is where the left-hand
+     * furniture ends; past it, the slot drops below the obstacle instead and
+     * stays under its own buttons.
+     */
+    if (leftOf(r) - gap - width >= floor) edge = leftOf(r) - gap;
+    else top = Math.max(top, r.bottom + gap);
   }
   return { top, right: viewportWidth - edge };
 }
@@ -149,7 +161,11 @@ function applySlot() {
   const avoid = clock && window.getComputedStyle(clock).display !== "none"
     ? [clock.getBoundingClientRect()] : [];
   const rem = parseFloat(window.getComputedStyle(document.documentElement).fontSize) || 16;
-  const slot = slotFrom(rects, window.innerWidth, SLOT_GAP, avoid, 17.5 * rem);
+  // Where the sidebar ends, so the slot never steps sideways onto it. A
+  // collapsed sidebar is off-screen and its right edge is negative.
+  const ui = byId("ui")?.getBoundingClientRect();
+  const floor = ui && ui.width && ui.right > 0 ? ui.right + SLOT_GAP : 0;
+  const slot = slotFrom(rects, window.innerWidth, SLOT_GAP, avoid, 17.5 * rem, floor);
   if (!slot) return;
   CARDS.forEach((card) => {
     const panel = byId(card.panel);

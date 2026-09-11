@@ -131,6 +131,19 @@ check("the slot steps left of the clock it would otherwise cover", () => {
   ok(above.right === 88, `nor one wholly above the slot: ${above.right}`);
 });
 
+check("with no room to step sideways the slot drops below the clock instead", () => {
+  // Settings open: both buttons have stepped left to the clock, and the sidebar
+  // ends at 400 px. Stepping left of the clock would land the panel on it.
+  const buttons = [rect(426, 16, 101, 27), rect(534, 16, 102, 27)];
+  const clock = rect(412, 16, 121, 46);
+  const slot = stack.slotFrom(buttons, 1091, 8, [clock], 280, 408);
+  ok(slot.right === 1091 - 636, `still right-aligned under the buttons: ${slot.right}`);
+  ok(slot.top === 62 + 8, `and below the clock: ${slot.top}`);
+  const narrow = stack.slotFrom([rect(601, 16, 101, 29), rect(708, 16, 104, 29)], 900, 6,
+    [rect(774, 89, 119, 47)], 280, 408);
+  ok(narrow.right === 900 - (774 - 6), `where there is room it still steps left: ${narrow.right}`);
+});
+
 check("and with neither up there is no slot to place", () => {
   ok(stack.slotFrom([], 1394) === null, "nothing");
   ok(stack.slotFrom([rect(0, 0, 0, 0)], 1394) === null, "nor from an empty rect");

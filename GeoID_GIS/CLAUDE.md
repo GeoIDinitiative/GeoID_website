@@ -18124,6 +18124,14 @@ and does not run the one-open rule, because `placeOverlay` also runs on a
 one-second poll. Measured before: legend 901 → 534 px, events button 793 px
 both times. There was no transition to wait out (0 s).
 
+**And the slot must not step onto the sidebar.** Once the buttons had
+followed the legend, the slot's step-left-of-the-clock rule sent the panel to
+126–406 px, over a sidebar that ends at 400. That rule was written for a
+narrow screen, where there is room to step. `slotFrom` now takes a `floor`,
+the sidebar's right edge. It steps left only when the panel then stays clear
+of the floor; otherwise it drops below the obstacle and stays under its own
+buttons.
+
 ## The website header: the explorers live under About
 
 Earth Explorer and Planet Explorer left the top row of the header for the
