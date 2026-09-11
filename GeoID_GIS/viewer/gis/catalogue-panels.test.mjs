@@ -110,8 +110,8 @@ check("and no longer loads the panels it replaced",
 /* ── the water layers moved, and the tab they moved into says so ─────────── */
 
 const water = DATASETS.filter((d) => d.home === "hydrology").map((d) => d.id);
-check("coastlines, rivers and lakes are under Hydrology",
-  ["coastline-10m", "rivers-10m", "lakes-10m"].every((id) => water.includes(id)),
+check("coastlines, rivers and the named seas are under Hydrology",
+  ["coastline-10m", "rivers-10m", "marine-areas"].every((id) => water.includes(id)),
   water.join(", "));
 check("the Hydrology group exists in the catalogue", GROUPS.includes("Hydrology"));
 // Renaming the heading without renaming the id is deliberate: three other

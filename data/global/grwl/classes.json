@@ -1,0 +1,1 @@
+{"w30": {"name": "30 \u2013 100 m", "colour": "#9fd0f0", "order": 0, "count": 20127}, "w100": {"name": "100 \u2013 300 m", "colour": "#5fb0e8", "order": 1, "count": 10459}, "w300": {"name": "300 m \u2013 1 km", "colour": "#2f86d0", "order": 2, "count": 6349}, "w1000": {"name": "Wider than 1 km", "colour": "#1b5fa8", "order": 3, "count": 5142}}

@@ -20,23 +20,24 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260911-b4bfa93";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260911-b4bfa93";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260911-cd1cf4d";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260911-cd1cf4d";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20260911-b4bfa93";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260911-b4bfa93";
-import { lithologyLabel } from "./lithology-label.js?v=20260911-b4bfa93";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260911-b4bfa93";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260911-b4bfa93";
-import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260911-b4bfa93";
-import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20260911-b4bfa93";
-import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js?v=20260911-b4bfa93";
-import { isEarthquakeFeature, earthquakeCard } from "./earthquake-card.js?v=20260911-b4bfa93";
-import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260911-b4bfa93";
+} from "./vector-render.js?v=20260911-cd1cf4d";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260911-cd1cf4d";
+import { lithologyLabel } from "./lithology-label.js?v=20260911-cd1cf4d";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260911-cd1cf4d";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260911-cd1cf4d";
+import { waterCard, WATER_SAID } from "./water-card.js?v=20260911-cd1cf4d";
+import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260911-cd1cf4d";
+import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20260911-cd1cf4d";
+import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js?v=20260911-cd1cf4d";
+import { isEarthquakeFeature, earthquakeCard } from "./earthquake-card.js?v=20260911-cd1cf4d";
+import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260911-cd1cf4d";
 import {
   canEditRow, editableFields, applyRowChange,
-} from "./table-editor.js?v=20260911-b4bfa93";
+} from "./table-editor.js?v=20260911-cd1cf4d";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -1005,7 +1006,34 @@ function showViewerCard(hits, at) {
    */
   const quake = !ice && !soil && !risk && !zone && isEarthquakeFeature(props)
     ? earthquakeCard(props) : null;
-  const feature = quake ? {
+  /**
+   * And water, the sixth: a lake, a river, the sea or a named sea. Tested
+   * last because its columns are the most specific of all — nothing above
+   * could claim a HydroLAKES shoreline — and the same function writes these
+   * lines for the tiled pyramids in `geology-panel.js`.
+   */
+  const water = !ice && !soil && !risk && !zone && !quake ? waterCard(props) : null;
+  const feature = water ? {
+    soil: true,
+    // Its own flag as well, so the ground profile — soil, thickness, slope —
+    // is not appended under a lake. `soil` alone is read as a ground card.
+    water: true,
+    type: water.kicker,
+    rock_type: water.title,
+    lithology: null,
+    name: null,
+    description: water.meta,
+    extra_rows: water.headline,
+    origin: water.source,
+    mapped_area_km2: km2 > 0 ? Number(km2.toFixed(km2 >= 100 ? 0 : 2)) : null,
+    length_km: km > 0 ? Number(km.toFixed(km >= 100 ? 0 : 2)) : null,
+    rows: [...water.rows, ["Note", water.note],
+      ...rows.filter(([key]) => !WATER_SAID.test(key))],
+    stack: beneath.map(({ layer, feature: f }) => ({
+      label: layer.name || "Layer",
+      unit: titleOf(f.properties || {}) || featureKind(f, layer),
+    })),
+  } : quake ? {
     // The same flag the other four set, read the same way: it is what stops
     // `earth-viewer.js` re-deriving a heading, and what keeps the
     // rock-property fold off a point that is not made of anything.

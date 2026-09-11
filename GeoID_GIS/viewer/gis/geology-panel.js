@@ -28,17 +28,18 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260911-b4bfa93";
-import { currentBodyId } from "./bodies.js?v=20260911-b4bfa93";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260911-b4bfa93";
-import { rockClass } from "./rock-class.js?v=20260911-b4bfa93";
-import { AREA_OPACITY } from "./layer-opacity.js?v=20260911-b4bfa93";
-import { datasetInfoButton } from "./catalogue-list.js?v=20260911-b4bfa93";
-import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260911-b4bfa93";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260911-b4bfa93";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260911-b4bfa93";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260911-cd1cf4d";
+import { currentBodyId } from "./bodies.js?v=20260911-cd1cf4d";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260911-cd1cf4d";
+import { rockClass } from "./rock-class.js?v=20260911-cd1cf4d";
+import { AREA_OPACITY } from "./layer-opacity.js?v=20260911-cd1cf4d";
+import { datasetInfoButton } from "./catalogue-list.js?v=20260911-cd1cf4d";
+import { isIceCover, isNotIceCover } from "./ice-cover.js?v=20260911-cd1cf4d";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260911-cd1cf4d";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260911-cd1cf4d";
+import { waterCard, WATER_SAID } from "./water-card.js?v=20260911-cd1cf4d";
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260911-b4bfa93";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260911-cd1cf4d";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -1277,6 +1278,46 @@ function toInteractiveCatalogue(layers) {
         });
         if (!unitSeen.has(soil.title)) {
           unitSeen.set(soil.title, props.colour || "#cfe8f5");
+        }
+        return;
+      }
+      /**
+       * AND WATER IS NOT A ROCK EITHER — a lake, a river, the sea. The same
+       * branch for the same reason: through the rock card a HydroLAKES
+       * shoreline was headed from the elevation and handed the rock-property
+       * prior. `water-card.js` writes the lines, and the same function writes
+       * them for the named seas over in `feature-popup.js`. `water` is its own
+       * flag so the ground profile (soil, thickness, slope) is not appended
+       * under a lake.
+       */
+      const water = waterCard(props);
+      if (water) {
+        made.push({
+          id: `geo-${layer.id}-${n}`,
+          name: water.title,
+          soil: true,
+          water: true,
+          type: water.kicker,
+          rock_type: water.title,
+          lithology: null,
+          extra_rows: water.headline || null,
+          unit_description: water.meta || null,
+          description: water.meta || null,
+          origin: val(layer.credit, layer.name) || water.source,
+          mapped_area_km2: km2 > 0 ? Number(km2.toFixed(1)) : null,
+          polygons,
+          selection_bounds: boundsOfRings(polygons.map((p) => p.outer)),
+          source_layer: layer.name,
+          dataset_label: datasetLabel(layer.name),
+          rows: [...water.rows, ["Note", water.note],
+            ...Object.entries(props)
+              .filter(([key, value]) => !ATTRIBUTE_PLUMBING.has(key)
+                && !WATER_SAID.test(key)
+                && value !== null && value !== undefined && String(value).trim() !== "")
+              .map(([key, value]) => [attributeLabel(key), String(value)])],
+        });
+        if (!unitSeen.has(water.title)) {
+          unitSeen.set(water.title, props.colour || "#3d8fd1");
         }
         return;
       }

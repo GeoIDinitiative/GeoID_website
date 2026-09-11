@@ -17826,6 +17826,95 @@ give the nested `.shp` path. And a `curl -r 0-3` sent WITH a Referer came back
 200 with the whole body on two of these objects, downloading 1.7 GB to
 /dev/null. Check `size_download` before assuming a range was honoured.
 
-These are source files, not yet app layers. Wiring them into the catalogue
-means baking pyramids (the glacier and soil pattern) and streaming the source
-through `/vsizip//vsicurl/`, because the disk cannot hold the extracted data.
+These are source files, and the next section is what became of them.
+
+## Hydrology ▸ Water bodies: three baked pyramids, a named-seas file, one card
+
+`services/bake-hydrology.py {hydrolakes|grwl|ocean|marine}` bakes each source
+straight out of its zip (`/vsizip/`, the zip fetched from our own mirror and
+deleted after), and `gis/hydrology-cover.js` streams all three pyramids through
+`loadDerivedGeologyMap` — one module for three layers, because they differ only
+in a manifest, a tile-layer name, a paint and a credit.
+
+| row | source | tiles | features |
+| --- | --- | --- | --- |
+| Lakes and reservoirs | HydroLAKES v1.0, CC BY 4.0 | 5,668, 298 MB | 1,427,688 |
+| Rivers by width | GRWL v01.01, CC BY 4.0 | 4,514, 35 MB | 42,077 |
+| Ocean and seas | NE 1:10m z0–3, OSM water polygons z4–6 (ODbL) | 3,917, 19.6 MB | 53,328 |
+| Named oceans, seas and bays | NE 1:10m marine areas, a loose file | — | 304 |
+
+**Lakes are banded by SELECTION, the sea by SIMPLIFICATION** — the glacier and
+soil lesson applied to each. Lakes are sparse islands, so a lake under a pixel
+is left off the coarse levels (≥1,000 km² at z0–2, ≥50 at z3–4, ≥2 at z5–6,
+all at z7); the sea is continuous, so dropping a polygon would put a hole in
+it and it is simplified instead. The whole HydroLAKES bake is **6 min 49 s**
+and never extracts the 1.8 GB shapefile.
+
+**The Natural Earth LAKES row went**, superseded: 1,355 lakes against 1.4
+million, the same lakes twice in one list. The NE RIVERS row stays, because
+GRWL is a width survey and carries no names.
+
+**THE BASIS OF A NUMBER IS PART OF THE NUMBER.** HydroLAKES reports a surveyed
+volume for the largest lakes and reservoirs and models nearly all the rest, and
+the first bake dropped `Vol_src`, the column that says which. It was stopped
+and re-run to carry it (plus `Dis_avg`), because a modelled volume printed bare
+reads as a measurement — and mean depth is that volume over the area, so it
+inherits the basis. The card now says "(modelled)" on the face for both.
+
+**GRWL's `lakeFlag` is 0 river, 1 lake/reservoir, 2 TIDAL, 3 CANAL** — from its
+own Zenodo record. A search summary gave 2 as canal: that is SWORD's coding,
+built on GRWL and numbered the other way round. Check the dataset's own record,
+not a summary of a neighbour.
+
+### `water-card.js`, the sixth self-writing card, and a flag of its own
+
+A lake through the rock card was headed from the elevation and handed the
+rock-property prior. `water-card.js` recognises each bake by the columns only
+it writes (`volume_mcm`+`lake_type`, `width_median_m`, a bare `class:"ocean"`,
+a marine `kind` with a `rank`) and is wired into BOTH builders — the tiled-map
+builder in `geology-panel.js` and the vector path in `feature-popup.js`. A
+river line from a tiled layer has no polygons, so the tiled builder skips it
+and `showStack` sends it to the vector path; that is why both are needed.
+
+**`soil: true` is what `ground-profile.attachToCard` reads as "a ground card",**
+so a card that borrows the flag to mean "I wrote my own lines" also grows a
+soil-thickness-slope profile. Water carries `water: true` as well, and the
+profile refuses it. The risk, zone and earthquake cards borrow `soil: true`
+the same way.
+
+### GDAL's MVT writer drops a polygon that simplification made invalid, silently
+
+The first ocean bake had **no zoom-0 tile and only two of the four zoom-1
+tiles**: the sea missing from half the planet from orbit, on a continuous
+layer. The log had nothing in it, the exit code was 0, and CPL_DEBUG added
+nothing either. It reproduced on the NE ocean polygon alone. Without
+`-simplify` all five tiles came back. With `-simplify` and `-makevalid` they
+also all came back. `-explodecollections` changed nothing.
+
+Douglas–Peucker at 0.05° makes a polygon self-touch, and the MVT writer
+leaves an invalid polygon out of the tile rather than failing. **Every band
+in `bake-hydrology.py` now passes `-makevalid` after `-simplify`.**
+`install()` also refuses a `continuous` layer that is missing any z0/z1 tile,
+because a sea with a hole in it looks like data rather than a fault.
+
+The same drop was in the first HydroLAKES bake, one lake at a time. It was
+measured by counting unique `id`s per zoom within a band that selects the same
+lakes at every zoom (`scratchpad/count-ids.mjs`): **z0 178 but z2 177, z3 3,399
+but z4 3,400.** The counts inside a band should be identical. It was re-baked
+with `-makevalid`.
+
+**The soil, GLiM and glacier bakes (`bake-soil.py`, `bake-glim.py`,
+`bake-glaciers.py`) also simplify without `-makevalid`.** All three have their
+z0 and four z1 tiles, so nothing large is missing. Individual polygons may
+still have been dropped this way and not been noticed. The check is the same
+per-zoom unique-id count, run over a band that holds the same selection at
+every zoom.
+
+### GRWL's `ID` is not a record key
+
+GRWL's `ID` numbers a segment within its own Landsat tile and repeats across
+the world: **350 distinct values over 7,446 pieces at z0**. `OBJECTID` is the
+one unique key, so the bake writes that as `id` and the card calls it
+"GRWL record", not "segment". `nSegPx` is carried as `measurements`, the
+number of width readings behind the median. Before this, two unrelated
+rivers could show the same id on their cards.

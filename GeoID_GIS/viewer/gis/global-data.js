@@ -26,17 +26,17 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260911-b4bfa93";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260911-b4bfa93";
-import { mathsFor } from "./equations.js?v=20260911-b4bfa93";
+import { runConnector } from "./research/connectors.js?v=20260911-cd1cf4d";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260911-cd1cf4d";
+import { mathsFor } from "./equations.js?v=20260911-cd1cf4d";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260911-b4bfa93";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260911-b4bfa93";
-import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260911-b4bfa93";
+} from "./cyclone-risk.js?v=20260911-cd1cf4d";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260911-cd1cf4d";
+import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260911-cd1cf4d";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260911-b4bfa93";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260911-cd1cf4d";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -130,16 +130,29 @@ export const DATASETS = [
     summary: "4,224 lines, 260,393 vertices",
     licence: "Natural Earth — public domain",
   },
+  /**
+   * The Natural Earth LAKES row went when HydroLAKES arrived: 1,355 lakes at
+   * 1:10m against 1.4 million shorelines, the same lakes drawn twice in one
+   * list under two names. The rivers row stays, because GRWL carries widths
+   * and no names and Natural Earth's large rivers are named.
+   */
   {
-    id: "lakes-10m",
+    id: "marine-areas",
     home: "hydrology",
-    featureNoun: "Lake",
+    featureNoun: "Named sea",
     group: "Hydrology",
-    label: "Lakes — global (Natural Earth 1:10m)",
-    path: "/data/global/lakes_10m.geojson",
-    name: "Global lakes (Natural Earth 10m).geojson",
-    summary: "1,355 polygons",
+    label: "Named oceans, seas and bays (Natural Earth 1:10m)",
+    path: "/data/global/marine_polys_10m.geojson",
+    name: "Named marine areas (Natural Earth 10m).geojson",
+    summary: "304 named oceans, seas, gulfs, bays, straits and channels",
     licence: "Natural Earth — public domain",
+    colourBy: "kind",
+    colours: {
+      ocean: "#1e5a8c", sea: "#2f86d0", gulf: "#39b6c4", bay: "#5fb0e8",
+      strait: "#6a7fe0", sound: "#7fa8e0", channel: "#4f9fd6", lagoon: "#6cc9b8",
+      fjord: "#3d8fd1", river: "#9fd0f0", reef: "#c4a484", inlet: "#8fbfe0",
+      generic: "#9ab6cc",
+    },
   },
   {
     id: "geographic-lines",

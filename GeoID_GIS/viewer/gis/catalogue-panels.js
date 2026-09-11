@@ -29,11 +29,11 @@
 
 import {
   HOMES, MIRRORS, grouped, addDataset, layerForDataset, loadLaunchDefaults,
-} from "./global-data.js?v=20260911-b4bfa93";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260911-b4bfa93";
-import { mathsFor } from "./equations.js?v=20260911-b4bfa93";
+} from "./global-data.js?v=20260911-cd1cf4d";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260911-cd1cf4d";
+import { mathsFor } from "./equations.js?v=20260911-cd1cf4d";
 import { bandOf, bandRows, bandSymbology, describeFilter, magOf }
-  from "./seismic-magnitude.js?v=20260911-b4bfa93";
+  from "./seismic-magnitude.js?v=20260911-cd1cf4d";
 
 const byId = (id) => document.getElementById(id);
 
@@ -65,6 +65,80 @@ const GEE_SHARE = { hydrology: "hydrology" };
  * seam, and this file knows nothing else about either of them.
  */
 const TILED = {
+  "hydrology": [{
+    id: "hydro-lakes",
+    group: "Water bodies",
+    label: "Lakes and reservoirs (HydroLAKES)",
+    title: "HydroLAKES v1.0 — the shoreline of every lake and reservoir of 10 ha "
+      + "or more, 1.4 million of them, baked into vector tiles on this site. "
+      + "Streams and sharpens as you fly in.",
+    info: {
+      summary: "Every lake and reservoir of 10 hectares or more, with its area, "
+        + "volume, mean depth, shoreline, watershed and residence time. The "
+        + "volume is surveyed for the largest lakes and reservoirs and MODELLED "
+        + "for nearly all the rest, and each lake's card says which. Small "
+        + "lakes join as you zoom in: under 1,000 km² they are left off the "
+        + "world view, under 2 km² off the regional one, because they are "
+        + "under a pixel there.",
+      citation: "Messager et al. (2016), Nature Communications 7: 13603 — "
+        + "doi:10.1038/ncomms13603, CC BY 4.0",
+    },
+    ready: () => Boolean(window.GeoIDHydroCover?.load),
+    layerOf: () => window.GeoIDHydroCover?.layerOf?.("hydro-lakes") || null,
+    load: () => window.GeoIDHydroCover.load("hydro-lakes"),
+    // None: the layer writes its own line once its tiles have landed.
+    unload: () => {
+      window.GeoIDHydroCover?.remove?.("hydro-lakes");
+      window.GeoIDHydroCover?.say?.("");
+    },
+  }, {
+    id: "hydro-rivers",
+    group: "Water bodies",
+    label: "Rivers by width (GRWL)",
+    title: "GRWL — centrelines of rivers and streams at least 30 m wide, measured "
+      + "from Landsat at mean discharge and coloured by their width. Baked "
+      + "into vector tiles on this site.",
+    info: {
+      summary: "Every river and stream wide enough for Landsat to see — 30 m at mean "
+        + "discharge — with its median, minimum and maximum width. GRWL is a "
+        + "width survey, not a gazetteer, so its rivers carry no names; the "
+        + "Natural Earth row carries the names of the large ones. The fuller "
+        + "network (HydroRIVERS) is not offered: its licence forbids "
+        + "distributing it as a stand-alone product.",
+      citation: "Allen & Pavelsky (2018), Science 361: 585-588 — "
+        + "doi:10.1126/science.aat0636, CC BY 4.0",
+    },
+    ready: () => Boolean(window.GeoIDHydroCover?.load),
+    layerOf: () => window.GeoIDHydroCover?.layerOf?.("hydro-rivers") || null,
+    load: () => window.GeoIDHydroCover.load("hydro-rivers"),
+    // None: the layer writes its own line once its tiles have landed.
+    unload: () => {
+      window.GeoIDHydroCover?.remove?.("hydro-rivers");
+      window.GeoIDHydroCover?.say?.("");
+    },
+  }, {
+    id: "hydro-ocean",
+    group: "Ocean",
+    label: "Ocean and seas (OpenStreetMap, Natural Earth)",
+    title: "The sea as a filled map: Natural Earth's 1:10m ocean from orbit, "
+      + "OpenStreetMap's coastline-exact water polygons from zoom 4.",
+    info: {
+      summary: "The sea drawn as an area rather than as a coastline — what a flood, "
+        + "surge or sea-level study reads against. From orbit it is Natural "
+        + "Earth's single 1:10m ocean polygon; from zoom 4 it is "
+        + "OpenStreetMap's water polygons, which follow the coast to a few "
+        + "metres.",
+      citation: "© OpenStreetMap contributors, ODbL 1.0 · Natural Earth, public domain",
+    },
+    ready: () => Boolean(window.GeoIDHydroCover?.load),
+    layerOf: () => window.GeoIDHydroCover?.layerOf?.("hydro-ocean") || null,
+    load: () => window.GeoIDHydroCover.load("hydro-ocean"),
+    // None: the layer writes its own line once its tiles have landed.
+    unload: () => {
+      window.GeoIDHydroCover?.remove?.("hydro-ocean");
+      window.GeoIDHydroCover?.say?.("");
+    },
+  }],
   "exposure": [{
     id: "worldpop",
     group: "Population",

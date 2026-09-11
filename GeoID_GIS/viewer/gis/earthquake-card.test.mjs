@@ -80,11 +80,15 @@ ok("an instrumental card states the public domain one", /public domain/.test(ear
 {
   const popup = readFileSync(new URL("./feature-popup.js", import.meta.url), "utf8");
   ok("built from the feature", /isEarthquakeFeature\(props\)\n?\s*\? earthquakeCard\(props\) : null/.test(popup));
-  ok("and mapped ahead of the rock card", /const feature = quake \? \{/.test(popup));
+  // A specialised card accretes at the HEAD of the dispatch chain (the water
+  // card now sits in front of this one), so the pin matches the branch
+  // wherever it lands rather than naming its neighbour.
+  const quakeAt = popup.search(/[=:]\s*quake \? \{/);
+  ok("and mapped ahead of the rock card", quakeAt >= 0);
   /* `soil: true` is the established seam for "this card wrote its own lines":
      it is what stops earth-viewer re-deriving CONTINENTAL from the elevation
      and what keeps the rock-property fold off a point made of nothing. */
-  const branch = popup.slice(popup.indexOf("const feature = quake ? {"));
+  const branch = popup.slice(quakeAt);
   ok("declaring that it wrote its own lines", /soil: true/.test(branch.slice(0, 400)));
   ok("and leaving the lithology null", /lithology: null/.test(branch.slice(0, 500)));
 }

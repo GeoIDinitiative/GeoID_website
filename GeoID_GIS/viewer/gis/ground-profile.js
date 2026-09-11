@@ -30,7 +30,7 @@
  * the point of assembling it rather than reading three cards.
  */
 
-import { materialFor, SHALLOW_FAILURE_CAP_M } from "./fos.js?v=20260911-b4bfa93";
+import { materialFor, SHALLOW_FAILURE_CAP_M } from "./fos.js?v=20260911-cd1cf4d";
 
 /** Which loaded layer is which, by what its name says it is. */
 const SUPERFICIAL = /superficial|drift|quaternary/i;
@@ -330,6 +330,8 @@ export function attachToCard(feature, lat, lon) {
   const named = feature?.source_layer || feature?.layer_name || "";
   // `soil` is the flag both the FAO card and the thickness card already set to
   // say their lines were written for a soil rather than a rock.
+  // Water is not ground: a lake's card must not grow a soil profile.
+  if (feature?.water) return;
   if (!isGroundLayer({ name: named }) && !feature?.soil) return;
   appendProfileTo(host, lat, lon);
 }

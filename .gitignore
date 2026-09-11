@@ -85,6 +85,11 @@ data/global/soil/[0-9]*/
 # are read before — and without — a tile fetch.
 data/global/geology/[0-9]*/
 data/global/ice/[0-9]*/
+# The hydrology pyramids stream from the bucket; their manifests and class
+# tables stay tracked (tiles-base.test.mjs checks that no rule takes those).
+data/global/grwl/[0-9]*/
+data/global/hydrolakes/[0-9]*/
+data/global/ocean/[0-9]*/
 
 # The LOOSE data files, published to the bucket by services/publish-data.py
 # (43.9 MB: the Natural Earth vectors, the stress measurements, the volcano
