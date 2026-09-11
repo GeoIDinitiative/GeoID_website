@@ -6,7 +6,7 @@
 import { readFileSync } from "node:fs";
 import {
   demGridFor, withMargin, autoMarginKm, samplerOver, lithologyOf, groundText, stateOf, textureOf,
-  staticStep, readiness,
+  staticStep, readiness, hornAt,
 } from "./landslide-pipeline.js";
 import { mfdTopology, fillSinks } from "./hydrology.js";
 import { makeRaster } from "./raster-analysis.js";
@@ -53,6 +53,7 @@ useRockProperties(JSON.parse(readFileSync(new URL("../../data/global/rock-proper
 
 {
   // A V-valley draining east, 20° side slopes, ~11 m cells: one material, one column.
+  // K here IS the lateral conductivity, so the lateral factor is 1.
   const w = 40; const h = 41; const mid = 20; const n = w * h;
   const cellM = 1e-4 * 111320;
   const tan = Math.tan(20 * Math.PI / 180);
@@ -73,24 +74,32 @@ useRockProperties(JSON.parse(readFileSync(new URL("../../data/global/rock-proper
     }
   }
   const rain = (mm) => new Float32Array(n).fill(mm);
-  const dry = staticStep({ rainMm: rain(0), windowH: 24, cells, topo });
+  const dry = staticStep({ rainMm: rain(0), windowH: 24, cells, topo, lateral: 1 });
   check("no rain, no water table anywhere", dry.meanW === 0 && dry.failing === 0);
-  const wet = staticStep({ rainMm: rain(30), windowH: 24, cells, topo });
+  const wet = staticStep({ rainMm: rain(30), windowH: 24, cells, topo, lateral: 1 });
   const nearAxis = wet.W[(mid - 1) * w + 30]; const ridge = wet.W[1 * w + 30];
   check("the hollow's flank saturates before the ridge above it", nearAxis > 3 * ridge, `${nearAxis} against ${ridge}`);
-  const wetter = staticStep({ rainMm: rain(90), windowH: 24, cells, topo });
+  const wetter = staticStep({ rainMm: rain(90), windowH: 24, cells, topo, lateral: 1 });
   check("more rain, more cells failing, and never fewer", wetter.failing >= wet.failing && wetter.failing > dry.failing,
     `${dry.failing} → ${wet.failing} → ${wetter.failing}`);
   const firstFail = [...Array(n).keys()].filter((i) => wetter.fos[i] < 1).map((i) => Math.abs(Math.floor(i / w) - mid));
   const meanDist = firstFail.reduce((a, b) => a + b, 0) / Math.max(1, firstFail.length);
   check("and what fails is next to the hollow, not up on the ridge", firstFail.length > 0 && meanDist < mid / 2, `mean ${meanDist}`);
-  const capped = staticStep({ rainMm: rain(1000), windowH: 24, cells, topo, infiltration: true });
-  const uncapped = staticStep({ rainMm: rain(1000), windowH: 24, cells, topo, infiltration: false });
+  const capped = staticStep({ rainMm: rain(1000), windowH: 24, cells, topo, lateral: 1, infiltration: true });
+  const uncapped = staticStep({ rainMm: rain(1000), windowH: 24, cells, topo, lateral: 1, infiltration: false });
   check("rain faster than Ks runs off rather than recharging", capped.meanW <= uncapped.meanW);
   const bareCells = { ...cells, bare: new Uint8Array(n).fill(1), model: new Uint8Array(n) };
-  check("bare rock is never modelled", staticStep({ rainMm: rain(100), windowH: 24, cells: bareCells, topo }).applicable === 0);
+  check("bare rock is never modelled", staticStep({ rainMm: rain(100), windowH: 24, cells: bareCells, topo, lateral: 1 }).applicable === 0);
 }
 
+{
+  // Horn at a post spacing, on a plane rising 0.5 m per metre east: 26.57°.
+  const post = 27; const lat0 = 44;
+  const heightAt = (lat, lon) => (lon - 11) * 111320 * Math.cos(lat0 * Math.PI / 180) * 0.5;
+  const deg = hornAt(heightAt, lat0, 11.2, post / (111320 * Math.cos(lat0 * Math.PI / 180)), post / 110574, post);
+  check("the native-post slope is Horn's on a plane", Math.abs(deg - Math.atan(0.5) * 180 / Math.PI) < 0.05, String(deg));
+  check("and refuses where the DEM has a hole", Number.isNaN(hornAt(() => NaN, 44, 11, 1e-4, 1e-4, 27)));
+}
 check("readiness gates each step on the one above", readiness({ bounds: null, rain: null, ground: null, run: null }).rain === "blocked"
   && readiness({ bounds: {}, rain: null, ground: null, run: null }).rain === "ready"
   && readiness({ bounds: {}, rain: {}, ground: null, run: null }).run === "blocked");
@@ -105,6 +114,8 @@ check("the routing is multiple-flow-direction on the sink-filled DEM", /mfdTopol
   && /fillSinks\(makeRaster\(grid\.band/.test(src));
 check("the layer carries its working", /maths: mathsFor\("landslide-forecast"\)/.test(src)
   && /"landslide-forecast": \{/.test(readFileSync(new URL("./equations.js", import.meta.url), "utf8")));
+check("the slope is read at the DEM's own posts when the grid is coarser", /if \(post && grid\.stepM > 1\.5 \* post\)/.test(src));
+check("lateral flow is a control, with the stated default", /lateral: LATERAL_FACTOR/.test(src) && /id="lsp-lateral"/.test(src));
 check("the drawn sheet is bounded by its cells' edges, not the asked box", /sub\.bounds = \{ minX: eb\.west \+ x0 \* cw/.test(src));
 
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");

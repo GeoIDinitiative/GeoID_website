@@ -14,7 +14,7 @@
  *
  *   recharge        r = min(P / Δt, Ks)                       (what infiltrates)
  *   flux            q = Σ_upslope r·A                          (routed, m³/s)
- *   water table     h = min(z_s, q / (b · Ks · sin β))         (Darcy, steady)
+ *   water table     h = min(z_s, q / (b · F·Ks · sin β))       (Darcy, steady)
  *   failure plane   m = clamp((h − (z_s − z_f)) / z_f, 0, 1)
  *   FoS             [c′ + c_r + (γ − m·γw)·z_f·cos²β·tan φ′] / [γ·z_f·sin β·cos β]
  *
@@ -51,16 +51,36 @@ export function textureClass({ sand, silt, clay } = {}) {
 }
 
 /**
+ * LATERAL FLOW IS NOT THE MATRIX. A hillslope soil drains downslope through
+ * macropores, root channels and soil pipes, one to two orders of magnitude
+ * faster than water soaks vertically through its matrix (Beven & Germann
+ * 1982; Weiler & McDonnell 2007) — and the vertical matrix value is what a
+ * pedotransfer function or a laboratory test gives. Used for lateral flow as
+ * it stands, a 2 m loam column saturated at about 1 mm a day on any slope:
+ * measured over the Emilia-Romagna storm, every map from 9 mm to 228 mm read
+ * as fully saturated and the failing set never moved. F multiplies Ks for the
+ * lateral transmissivity T = F·Ks·z_s; 30 puts a typical loam (Ks ≈ 3.5e-6 m/s,
+ * 2 m) at 18 m²/day, the low end of the 17–65 m²/day Montgomery & Dietrich
+ * (1994) worked with. It is a control, and the card says which was used.
+ */
+export const LATERAL_FACTOR = 30;
+
+/**
  * THE MATERIAL OF THE FAILING COLUMN, and where each number came from.
  *
  * In order of how directly the map says what the ground is:
  *   1. a SOIL-state material the geology names (a superficial map's till,
  *      alluvium, peat; GLiM's unconsolidated sediments),
  *   2. the FAO soil map's topsoil texture — its dominant fraction for strength,
- *      and Cosby's pedotransfer for Ks, which is a field value where the
- *      database's clay (1e-11 m/s) is an intact laboratory one,
  *   3. over bedrock, the database's REGOLITH — the weathered mantle, which is
  *      what a shallow slide on a rock map moves.
+ *
+ * and Ks, separately: Cosby's pedotransfer from the soil map's sand and clay
+ * wherever the soil map is on, WHATEVER the material — it describes the soil
+ * mantle water actually moves through, where the database's value for a
+ * mapped clay (1e-11 m/s) is an intact laboratory sample, and its own note
+ * says a weathered, fissured clay is orders of magnitude above it; then the
+ * database's value for the material; then a stated default.
  *
  * `rp(name, key)` reads the rock-properties database (typical values);
  * `state(name)` its state ("soil" / "rock").
@@ -87,8 +107,8 @@ export function columnMaterial({ lith = null, texture = null, rp, state, strengt
   const gamma = ((density / 1000) + n) * WATER_UNIT_WEIGHT;
   const cosby = texture ? cosbyKsat(texture.sand, texture.clay) : null;
   let K = null; let kFrom = null;
-  if (lithState === "soil" && name === lith) { K = read(name, "hydraulic_conductivity"); kFrom = "the database, for the mapped deposit"; }
-  if (!Number.isFinite(K) && Number.isFinite(cosby)) { K = cosby; kFrom = "Cosby et al. (1984) from the soil map's sand and clay"; }
+  if (Number.isFinite(cosby)) { K = cosby; kFrom = "Cosby et al. (1984) from the soil map's sand and clay"; }
+  if (!Number.isFinite(K) && lithState === "soil" && name === lith) { K = read(name, "hydraulic_conductivity"); kFrom = "the database, for the mapped deposit"; }
   if (!Number.isFinite(K)) { K = read(name, "hydraulic_conductivity"); kFrom = `the database's ${name}`; }
   if (!Number.isFinite(K) || K <= 0) { K = 1e-6; kFrom = "a stated default"; }
   return {
@@ -108,13 +128,13 @@ export function soilColumn(thicknessM, fallbackM = 2) {
   return { zs: fallbackM, zf: Math.min(fallbackM, SHALLOW_FAILURE_CAP_M), bare: false, from: "a stated default (no thickness here)" };
 }
 
-/** Steady Darcy water table: h = q / (b·K·sin β), as a fraction of the column. */
-export function steadyWetness({ q, b, K, zs, slopeRad }) {
+/** Steady Darcy water table: h = q / (b·F·K·sin β), as a fraction of the column. */
+export function steadyWetness({ q, b, K, zs, slopeRad, lateral = 1 }) {
   if (!(zs > 0) || !(K > 0) || !(b > 0)) return NaN;
   const s = Math.sin(slopeRad);
   if (!(q > 0)) return 0;
   if (!(s > 1e-6)) return 1;
-  return Math.min(1, q / (b * K * s * zs));
+  return Math.min(1, q / (b * K * lateral * s * zs));
 }
 
 /** Water above the failure plane, as a fraction of it, from the table's height. */
@@ -137,7 +157,7 @@ export function factorOfSafety({ slopeRad, c, phi, gamma, zf, m }) {
  * contributing area — or `Infinity` (stable even saturated) or `0` (fails
  * dry). `areaM2` is the upslope area including the cell.
  */
-export function criticalRecharge({ slopeRad, c, phi, gamma, zs, zf, K, b, areaM2 }) {
+export function criticalRecharge({ slopeRad, c, phi, gamma, zs, zf, K, b, areaM2, lateral = 1 }) {
   const phiR = phi * Math.PI / 180;
   const cos = Math.cos(slopeRad); const sin = Math.sin(slopeRad);
   const denom = WATER_UNIT_WEIGHT * zf * cos * cos * Math.tan(phiR);
@@ -146,7 +166,7 @@ export function criticalRecharge({ slopeRad, c, phi, gamma, zs, zf, K, b, areaM2
   if (mCrit >= 1) return Infinity;
   if (mCrit <= 0) return 0;
   const h = (zs - zf) + mCrit * zf;
-  const q = b * K * sin * h;                    // m³/s at the cell
+  const q = b * K * lateral * sin * h;          // m³/s at the cell
   return (q / areaM2) * 86400 * 1000;           // mm/day over the area
 }
 

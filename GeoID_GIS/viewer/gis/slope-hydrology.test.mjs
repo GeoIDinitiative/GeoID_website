@@ -67,6 +67,9 @@ const st = (t) => stateOf(t, resolveLithology);
   const sandy = columnMaterial({ lith: "granite", texture: tex, rp, state: st });
   check("the soil map's texture outranks the regolith, and Cosby gives its Ks",
     sandy.name === "sand" && near(sandy.K, cosbyKsat(60, 15), 1e-15) && /Cosby/.test(sandy.kFrom));
+  const clayDeposit = columnMaterial({ lith: "clay", texture: { sand: 20, silt: 40, clay: 40 }, rp, state: st });
+  check("a mapped clay keeps its strength, but its Ks is the soil map's field value, not the intact 1e-11",
+    clayDeposit.name === "clay" && clayDeposit.friction === 24 && near(clayDeposit.K, cosbyKsat(20, 40), 1e-15));
   const residual = columnMaterial({ lith: "till", rp, state: st, strength: "residual" });
   check("residual strength reads the residual columns", residual.friction === 26 && residual.cohesionKPa === 0);
   const rooted = columnMaterial({ lith: "till", rp, state: st, rootCohesionKPa: 7 });
@@ -91,6 +94,8 @@ const st = (t) => stateOf(t, resolveLithology);
   const half = cell.b * cell.K * Math.sin(cell.slopeRad) * cell.zs / 2;
   check("the table is linear in the flux: h = q / (b·K·sin β)", near(steadyWetness({ ...cell, q: half }), 0.5, 1e-9));
   check("and saturates at the column", steadyWetness({ ...cell, q: half * 10 }) === 1);
+  check("lateral flow F times faster lowers the table F times",
+    near(steadyWetness({ ...cell, q: half, lateral: 10 }), 0.05, 1e-9));
   check("the failure plane is dry until the table rises into it", planeWetness(0.3, 5, 3) === 0);
   check("then wet by the depth above it", near(planeWetness(0.8, 5, 3), (4 - 2) / 3, 1e-9));
   check("and saturated with the column", planeWetness(1, 5, 3) === 1);
@@ -107,11 +112,11 @@ const st = (t) => stateOf(t, resolveLithology);
 
 {
   // The rainfall to fail, run forwards again: that recharge must give FoS = 1.
-  const cell = { slopeRad: 34 * Math.PI / 180, c: 4, phi: 32, gamma: 20, zs: 2.5, zf: 2.5, K: 2e-5, b: 30, areaM2: 30 * 30 * 12 };
+  const cell = { slopeRad: 34 * Math.PI / 180, c: 4, phi: 32, gamma: 20, zs: 2.5, zf: 2.5, K: 2e-5, b: 30, areaM2: 30 * 30 * 12, lateral: 30 };
   const r = criticalRecharge(cell);
   check("a finite rainfall to fail", Number.isFinite(r) && r > 0, String(r));
   const q = (r / 1000 / 86400) * cell.areaM2;
-  const W = steadyWetness({ q, b: cell.b, K: cell.K, zs: cell.zs, slopeRad: cell.slopeRad });
+  const W = steadyWetness({ q, b: cell.b, K: cell.K, zs: cell.zs, slopeRad: cell.slopeRad, lateral: cell.lateral });
   const fos = factorOfSafety({ ...cell, m: planeWetness(W, cell.zs, cell.zf) });
   check("and that steady recharge brings the cell exactly to FoS = 1", near(fos, 1, 1e-6), `FoS ${fos}`);
   check("a gentle, strong slope holds even saturated",

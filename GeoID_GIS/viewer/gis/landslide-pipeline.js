@@ -22,18 +22,18 @@
  * file only orchestrates them and says, on every card, what it has read.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-7ac6d41";
-import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, GFS_CREDIT } from "./gfs-rain.js?v=20260911-7ac6d41";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-2446ced";
+import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, GFS_CREDIT } from "./gfs-rain.js?v=20260911-2446ced";
 import {
   columnMaterial, soilColumn, steadyWetness, planeWetness, factorOfSafety, criticalRecharge,
-  FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M,
-} from "./slope-hydrology.js?v=20260911-7ac6d41";
-import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-7ac6d41";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-7ac6d41";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-7ac6d41";
-import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-7ac6d41";
-import { mathsFor } from "./equations.js?v=20260911-7ac6d41";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260911-7ac6d41";
+  FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M, LATERAL_FACTOR,
+} from "./slope-hydrology.js?v=20260911-2446ced";
+import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-2446ced";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-2446ced";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-2446ced";
+import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-2446ced";
+import { mathsFor } from "./equations.js?v=20260911-2446ced";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260911-2446ced";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";
@@ -156,8 +156,8 @@ export function textureOf(props = {}) {
 }
 
 /** The static answer at one cell for one recharge flux. */
-export function cellAnswer({ q, cell, contour }) {
-  const W = steadyWetness({ q, b: contour, K: cell.K, zs: cell.zs, slopeRad: cell.slopeRad });
+export function cellAnswer({ q, cell, contour, lateral = 1 }) {
+  const W = steadyWetness({ q, b: contour, K: cell.K, zs: cell.zs, slopeRad: cell.slopeRad, lateral });
   const m = planeWetness(W, cell.zs, cell.zf);
   const fos = factorOfSafety({ slopeRad: cell.slopeRad, c: cell.c, phi: cell.phi, gamma: cell.gamma, zf: cell.zf, m });
   return { W, m, fos };
@@ -169,7 +169,7 @@ export function cellAnswer({ q, cell, contour }) {
  * below), routed down the MFD topology, then the steady water table and the
  * factor of safety at every modelled cell. Pure given its arrays.
  */
-export function staticStep({ rainMm, windowH, cells, topo, infiltration = true }) {
+export function staticStep({ rainMm, windowH, cells, topo, infiltration = true, lateral = LATERAL_FACTOR }) {
   const n = cells.K.length;
   const source = new Float64Array(n);
   const perSecond = 1 / (1000 * windowH * 3600);
@@ -186,7 +186,7 @@ export function staticStep({ rainMm, windowH, cells, topo, infiltration = true }
   let failing = 0; let applicable = 0; let wSum = 0; let wN = 0;
   for (let i = 0; i < n; i += 1) {
     if (!cells.model[i]) continue;
-    const answer = cellAnswer({ q: q[i], contour: topo.contour, cell: {
+    const answer = cellAnswer({ q: q[i], contour: topo.contour, lateral, cell: {
       K: cells.K[i], zs: cells.zs[i], zf: cells.zf[i], slopeRad: cells.slopeRad[i],
       c: cells.c[i], phi: cells.phi[i], gamma: cells.gamma[i],
     } });
@@ -203,7 +203,7 @@ export function staticStep({ rainMm, windowH, cells, topo, infiltration = true }
 
 const state = {
   bounds: null, rain: null, ground: null, run: null, step: -1, playing: false, view: "fos",
-  params: { strength: "peak", root: 0, infiltration: true },
+  params: { strength: "peak", root: 0, infiltration: true, lateral: LATERAL_FACTOR },
 };
 
 const STEPS = [
@@ -309,15 +309,16 @@ export function render(host) {
         <option value="1">1 h</option><option value="3">3 h</option><option value="6" selected>6 h</option><option value="12">12 h</option><option value="24">24 h</option></select></div>
       <div class="gis-btn-row"><button type="button" class="button" id="lsp-rain-fetch">Fetch GFS rainfall</button></div>`)}
     ${card(STEPS[2], `
-      <div class="row"><label for="lsp-ground-cells" title="The model's own grid over the area plus its margin. The DEM is read at the level the area deserves and thinned to this many cells.">Cells (max)</label><select id="lsp-ground-cells" class="input"><option value="40000">40,000</option><option value="90000" selected>90,000</option><option value="160000">160,000</option><option value="250000">250,000</option></select></div>
+      <div class="row"><label for="lsp-ground-cells" title="The model's own grid over the area plus its margin. The DEM is read at the level the area deserves and thinned to this many cells.">Cells (max)</label><select id="lsp-ground-cells" class="input"><option value="40000">40,000</option><option value="90000" selected>90,000</option><option value="160000">160,000</option><option value="250000">250,000</option><option value="500000">500,000 (slow)</option></select></div>
       <div class="row"><label for="lsp-ground-margin" title="Ground outside the study area whose water drains into it. Without a margin every catchment is cut at the box's edge.">Upslope margin</label><select id="lsp-ground-margin" class="input"><option value="auto" selected>Auto (a tenth of the area)</option><option value="0.5">0.5 km</option><option value="1">1 km</option><option value="2">2 km</option><option value="5">5 km</option></select></div>
       <div class="lsp-maps" id="lsp-maps"></div>
       <div class="gis-btn-row"><button type="button" class="button" id="lsp-ground-read">Read the ground</button></div>`)}
     ${card(STEPS[3], `
       <div class="lsp-eq">r = min(P / Δt, Ks)            recharge, what infiltrates
 q = Σ upslope r · A             routed, multiple flow directions
-h = min(z_s, q / (b · Ks · sin β))   the steady water table
+h = min(z_s, q / (b · F·Ks · sin β))  the steady water table
 m = (h − (z_s − z_f)) / z_f     water on the failure plane</div>
+      <div class="row"><label for="lsp-lateral" title="Downslope flow runs through macropores and soil pipes one to two orders of magnitude faster than the vertical matrix Ks a pedotransfer function or a lab gives. 30 puts a typical loam at the low end of the transmissivities Montgomery &amp; Dietrich (1994) used; 1 is the matrix alone, and saturates almost everything.">Lateral flow F (× Ks)</label><select id="lsp-lateral" class="input" data-always="1"><option value="1">1 — the matrix alone</option><option value="10">10</option><option value="30" selected>30</option><option value="100">100</option><option value="300">300</option></select></div>
       <div class="row"><label for="lsp-infiltration" title="Rain faster than the ground's saturated conductivity runs off instead of recharging it.">Infiltration capped at Ks</label><span class="checkbox-wrap"><input id="lsp-infiltration" type="checkbox" checked data-always="1"></span></div>`)}
     ${card(STEPS[4], `
       <div class="lsp-eq">FoS = [c′ + c_r + (γ − m·γw)·z_f·cos²β·tan φ′] / [γ·z_f·sin β·cos β]</div>
@@ -364,6 +365,7 @@ function wire() {
   byId("lsp-rain-fetch").addEventListener("click", () => void fetchRain());
   byId("lsp-ground-read").addEventListener("click", () => void readGround());
   byId("lsp-infiltration").addEventListener("change", (e) => { state.params.infiltration = e.target.checked; rerun(); });
+  byId("lsp-lateral").addEventListener("change", (e) => { state.params.lateral = Number(e.target.value) || LATERAL_FACTOR; describeStatic(); rerun(); });
   byId("lsp-strength").addEventListener("change", (e) => { state.params.strength = e.target.value; remater(); });
   const root = byId("lsp-root");
   root.addEventListener("keydown", (e) => e.stopPropagation());
@@ -393,15 +395,22 @@ function drawMaps() {
   if (!host) return;
   const { soil, superficial, bedrock } = groundLayers();
   const row = (label, layer, load, loadLabel) => `<div class="lsp-map"><span><b>${esc(label)}</b> — ${layer ? esc(layer.name) : "not on the globe"}</span>${!layer && load ? `<button type="button" class="button secondary" data-load="${load}" data-always="1">${esc(loadLabel)}</button>` : ""}</div>`;
-  host.innerHTML = row("Material", superficial || bedrock, window.GeoIDGeology?.load ? "geology" : null, "Load world geology")
-    + row("Texture", soil, window.GeoIDSoilCover?.load ? "soil" : null, "Load the soil map")
+  // The doors are drawn whether or not the seams exist yet and the seam is
+  // looked up at the PRESS: this runs at boot, before the geology and soil
+  // modules have published, and a door decided then was never drawn at all.
+  host.innerHTML = row("Material", superficial || bedrock, "geology", "Load world geology")
+    + row("Texture", soil, "soil", "Load the soil map")
     + `<div class="lsp-map"><span><b>Thickness</b> — Pelletier et al. (2016), read directly</span></div>`
     + `<div class="lsp-map"><span><b>Properties</b> — the rock-properties database</span></div>`;
   host.querySelectorAll("[data-load]").forEach((b) => b.addEventListener("click", async () => {
     b.disabled = true;
     try {
-      if (b.dataset.load === "geology") await window.GeoIDGeology.load("macrostrat-units");
-      if (b.dataset.load === "soil") await window.GeoIDSoilCover.load();
+      const load = b.dataset.load === "geology" ? () => window.GeoIDGeology?.load?.("macrostrat-units")
+        : () => window.GeoIDSoilCover?.load?.();
+      const got = await load();
+      if (got === undefined && !(b.dataset.load === "geology" ? window.GeoIDGeology?.load : window.GeoIDSoilCover?.load)) {
+        throw new Error("the map's module has not loaded yet — try again in a moment");
+      }
     } catch (e) { say("ground", `That map could not be loaded: ${e.message}`, "error"); }
     drawMaps();
   }));
@@ -494,8 +503,9 @@ async function readGround() {
     say("ground", "Reading the elevation…");
     const dem = window.GeoIDDem;
     let label = "the viewer's elevation model";
+    let got = null;
     if (dem?.ensure) {
-      const got = await dem.ensure(eb, { maxTiles: 256 });
+      got = await dem.ensure(eb, { maxTiles: 256 });
       if (got?.ok) label = `streamed DEM at zoom ${got.zoom} (${Math.round(dem.metresPerPixel(got.zoom, (b.south + b.north) / 2))} m posts)`;
     }
     const heightAt = (lat, lon) => {
@@ -504,9 +514,38 @@ async function readGround() {
     };
     const grid = demGridFor(eb, heightAt, { maxCells });
     if (!grid.known) throw new Error("no elevation under the area");
-    say("ground", "Routing the water…");
+    say("ground", "Reading the slope at the DEM's own posts…");
     await tick();
     const grad = slopeOf(grid);
+    /**
+     * THE SLOPE IS READ AT THE DEM'S OWN POSTS, not off the thinned grid. The
+     * model's cells are 100 m and more over any sizeable area, and a slope
+     * taken across 100 m cells flattens every hillside: over the Apennines
+     * above Forlì the median came out 12.8° and nothing reached 35°, while a
+     * saturated sand fails at 19° and the clays at 22°. Horn's stencil at the
+     * native post spacing at each cell's centre is the slope the ground
+     * actually has there; the routing stays on the model's grid.
+     */
+    let slopeFrom = `the model's ${grid.stepM} m grid`;
+    const post = got?.ok && dem?.metresPerPixel ? Math.max(10, dem.metresPerPixel(got.zoom, (b.south + b.north) / 2)) : null;
+    if (post && grid.stepM > 1.5 * post) {
+      let replaced = 0;
+      for (let y = 0; y < grid.height; y += 1) {
+        const lat = eb.north - ((y + 0.5) / grid.height) * (eb.north - eb.south);
+        const dy = post / 110574; const dx = post / (111320 * Math.cos(lat * Math.PI / 180));
+        for (let x = 0; x < grid.width; x += 1) {
+          const i = y * grid.width + x;
+          if (!Number.isFinite(grid.band[i])) continue;
+          const lon = eb.west + ((x + 0.5) / grid.width) * (eb.east - eb.west);
+          const deg = hornAt(heightAt, lat, lon, dx, dy, post);
+          if (Number.isFinite(deg)) { grad.band[i] = deg; replaced += 1; }
+        }
+        if (y % 64 === 63) await tick();
+      }
+      if (replaced) slopeFrom = `the DEM's ${Math.round(post)} m posts at each cell's centre`;
+    }
+    say("ground", "Routing the water…");
+    await tick();
     const filled = fillSinks(makeRaster(grid.band, grid.width, grid.height, grid.bounds, NaN));
     const topo = mfdTopology(filled, { exponent: 1.1 });
     const n = grid.width * grid.height;
@@ -575,7 +614,7 @@ async function readGround() {
     const sub = { x0, x1, y0, y1, width: x1 - x0 + 1, height: y1 - y0 + 1 };
     const cw = (eb.east - eb.west) / grid.width; const ch = (eb.north - eb.south) / grid.height;
     sub.bounds = { minX: eb.west + x0 * cw, maxX: eb.west + (x1 + 1) * cw, maxY: eb.north - y0 * ch, minY: eb.north - (y1 + 1) * ch };
-    state.ground = { grid, eb, margin, topo, cells, sub, table, demLabel: label, n, tally,
+    state.ground = { grid, eb, margin, topo, cells, sub, table, demLabel: label, slopeFrom, n, tally,
       maps: { soil: soil?.name || null, superficial: superficial?.name || null, bedrock: bedrock?.name || null } };
     state.rain && (state.rain.weights = null);
     state.run = null;
@@ -583,7 +622,7 @@ async function readGround() {
     if (tally.deposit) kinds.push(`${pct(tally.deposit, tally.cells)} a mapped deposit`);
     if (tally.texture) kinds.push(`${pct(tally.texture, tally.cells)} the soil map's texture`);
     if (tally.regolith) kinds.push(`${pct(tally.regolith, tally.cells)} regolith${bedrock || superficial ? " over the mapped rock" : ""}`);
-    say("ground", `${tally.cells.toLocaleString()} cells at ${grid.stepM} m in the area (${(grid.width * grid.height).toLocaleString()} with a ${margin.toFixed(1)} km upslope margin), from ${label}. `
+    say("ground", `${tally.cells.toLocaleString()} cells at ${grid.stepM} m in the area (${(grid.width * grid.height).toLocaleString()} with a ${margin.toFixed(1)} km upslope margin), from ${label}; slope from ${slopeFrom}. `
       + `Material: ${kinds.join(", ")}.${soil ? "" : " Load the soil map for the topsoil texture — without it every column takes the database's regolith."} `
       + `Thickness from the model for ${pct(tally.thick, tally.cells)}; ${pct(tally.bare, tally.cells)} bare rock, ${pct(tally.flat, tally.cells)} under ${MIN_SLOPE_DEG}°. `
       + `${tally.model.toLocaleString()} cells modelled.`, soil || bedrock || superficial ? "" : "error");
@@ -598,6 +637,18 @@ async function readGround() {
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
+/** Horn's slope in degrees at a point, from a height reader at a post spacing. */
+export function hornAt(heightAt, lat, lon, dx, dy, post) {
+  const z = (r, c) => heightAt(lat + r * dy, lon + c * dx);
+  const a = z(1, -1); const bN = z(1, 0); const cc = z(1, 1);
+  const d = z(0, -1); const f = z(0, 1);
+  const g = z(-1, -1); const h = z(-1, 0); const k = z(-1, 1);
+  if (![a, bN, cc, d, f, g, h, k].every(Number.isFinite)) return NaN;
+  const dzdx = ((cc + 2 * f + k) - (a + 2 * d + g)) / (8 * post);
+  const dzdy = ((a + 2 * bN + cc) - (g + 2 * h + k)) / (8 * post);
+  return Math.atan(Math.hypot(dzdx, dzdy)) * 180 / Math.PI;
+}
+
 /** The rainfall to fail at every modelled cell, and what it says about the area. */
 function describeStatic() {
   const g = state.ground;
@@ -608,7 +659,7 @@ function describeStatic() {
   for (let i = 0; i < n; i += 1) {
     if (!cells.model[i]) continue;
     const r = criticalRecharge({ slopeRad: cells.slopeRad[i], c: cells.c[i], phi: cells.phi[i], gamma: cells.gamma[i],
-      zs: cells.zs[i], zf: cells.zf[i], K: cells.K[i], b: topo.contour, areaM2: cells.area[i] });
+      zs: cells.zs[i], zf: cells.zf[i], K: cells.K[i], b: topo.contour, areaM2: cells.area[i], lateral: state.params.lateral });
     crit[i] = r;
     if (r === 0) dry += 1; else if (r === Infinity) never += 1; else if (Number.isFinite(r)) finite.push(r);
   }
@@ -674,7 +725,8 @@ function rainMapFor(frame) {
 function modelFrame(k) {
   const r = state.rain; const g = state.ground;
   const rainMm = rainMapFor(r.frames[k]);
-  const out = staticStep({ rainMm, windowH: r.windowH, cells: g.cells, topo: g.topo, infiltration: state.params.infiltration });
+  const out = staticStep({ rainMm, windowH: r.windowH, cells: g.cells, topo: g.topo,
+    infiltration: state.params.infiltration, lateral: state.params.lateral });
   return { ...out, rainMm };
 }
 
@@ -850,11 +902,11 @@ export function probeAt(lat, lon) {
     ["Upslope area", `${(g.cells.area[i] / 1e4).toFixed(2)} ha draining through this cell (a = ${(g.cells.area[i] / g.topo.contour).toFixed(0)} m)`],
     ["Lowest over the window", Number.isFinite(run.minFos[i]) ? `${fmt(run.minFos[i])} at ${run.frames[run.minAt[i]].time.replace("T", " ")}` : "—"],
     ["Rainfall to fail", !Number.isFinite(crit) && crit !== Infinity ? "—" : crit === Infinity ? "holds even saturated" : crit === 0 ? "fails even dry" : `${crit.toFixed(0)} mm/day sustained over its catchment`],
-    ["Slope", `${slopeDeg.toFixed(1)}°`],
+    ["Slope", `${slopeDeg.toFixed(1)}° — from ${g.slopeFrom}`],
     ["Soil column", `${fmt(g.cells.zs[i], 1)} m to bedrock (${g.cells.depthFrom[i] ? "Pelletier et al. 2016" : "a stated default"}); failure plane at ${fmt(g.cells.zf[i], 1)} m`],
     ["Material", `${mat.name} — ${mat.from}`],
     ["Strength", `c′ ${fmt(mat.cohesionKPa, 1)} kPa${mat.rootCohesionKPa ? ` (with ${mat.rootCohesionKPa} kPa of roots)` : ""}, φ′ ${fmt(mat.friction, 0)}° (${mat.strength}), γ ${fmt(mat.unitWeight, 1)} kN/m³`],
-    ["Conductivity", `Ks ${mat.K.toExponential(1)} m/s — ${mat.kFrom}`],
+    ["Conductivity", `Ks ${mat.K.toExponential(1)} m/s — ${mat.kFrom}; lateral ${state.params.lateral} × Ks, T ${(mat.K * state.params.lateral * g.cells.zs[i] * 86400).toFixed(1)} m²/day`],
   ];
   window.GeoIDViewer?.showFeatureCard?.({
     // Named, so the card is claimed by this layer and goes when it does.
