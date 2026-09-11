@@ -11,7 +11,7 @@
  * one of those.
  */
 
-import { makeRaster, cellSizeMetres } from "./raster-analysis.js?v=20260911-af25b73";
+import { makeRaster, cellSizeMetres } from "./raster-analysis.js?v=20260911-7ac6d41";
 
 /* A binary heap keyed on elevation. Priority-flood is O(n log n) with one and
    O(n²) without, which on a 1800×1400 DEM is the difference between a second
@@ -161,6 +161,78 @@ export function flowAccumulation(raster, { filled = null } = {}) {
   return makeRaster(acc, width, height, raster.bounds, NaN);
 }
 
+/**
+ * MULTIPLE FLOW DIRECTION routing (Quinn et al. 1991, Freeman 1991): each cell
+ * passes its flow to EVERY lower neighbour in proportion to (tan β)^p times the
+ * contour length it shares with it (half a cell for a side, 0.354 for a
+ * corner). D8 sends everything one way, which is right in a channel and wrong
+ * on a hillslope, where water spreads — and the spreading is exactly what
+ * separates a convex nose from the hollow beside it. Freeman's p = 1.1.
+ *
+ * Built ONCE per DEM as flat arrays (a high-to-low order, up to eight
+ * receivers and fractions per cell) so that routing a new recharge field — one
+ * per rainfall map — is a single linear pass with no sort and no allocation.
+ * `raster` should be sink-filled, or flow stops in every hollow.
+ */
+export function mfdTopology(raster, { exponent = 1.1 } = {}) {
+  const { width, height, band, noData } = raster;
+  const n = width * height;
+  const cell = cellSizeMetres(raster);
+  const recv = new Int32Array(n * 8).fill(-1);
+  const frac = new Float32Array(n * 8);
+  const data = [];
+  for (let i = 0; i < n; i += 1) if (isData(band[i], noData)) data.push(i);
+  data.sort((a, b) => band[b] - band[a]);
+  const side = Math.sqrt(cell.x * cell.y);
+  let outlets = 0;
+  for (const i of data) {
+    const x = i % width; const y = (i - x) / width;
+    let total = 0; let k = 0;
+    const w = [];
+    NEIGHBOURS.forEach(([dx, dy]) => {
+      const nx = x + dx; const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= width || ny >= height) return;
+      const j = ny * width + nx;
+      if (!isData(band[j], noData)) return;
+      const run = Math.hypot(dx * cell.x, dy * cell.y);
+      const tan = (band[i] - band[j]) / run;
+      if (!(tan > 0)) return;
+      const contour = (dx && dy ? 0.354 : 0.5) * side;
+      const weight = (tan ** exponent) * contour;
+      w.push([j, weight]); total += weight;
+    });
+    if (!w.length) { outlets += 1; continue; }
+    for (const [j, weight] of w) { recv[i * 8 + k] = j; frac[i * 8 + k] = weight / total; k += 1; }
+  }
+  return {
+    order: Int32Array.from(data), recv, frac, width, height,
+    cellArea: cell.x * cell.y, contour: side, outlets,
+  };
+}
+
+/**
+ * Route a per-cell source (m³/s, or any additive quantity) down the topology:
+ * each cell's total is its own source plus everything routed into it. Linear
+ * in the cells; the result is a Float64Array so a large catchment's sum does
+ * not lose its small contributions.
+ */
+export function routeFlux(topo, source) {
+  const acc = Float64Array.from(source, (v) => (Number.isFinite(v) ? v : 0));
+  const { order, recv, frac } = topo;
+  for (let o = 0; o < order.length; o += 1) {
+    const i = order[o];
+    const a = acc[i];
+    if (!a) continue;
+    const base = i * 8;
+    for (let k = 0; k < 8; k += 1) {
+      const j = recv[base + k];
+      if (j < 0) break;
+      acc[j] += a * frac[base + k];
+    }
+  }
+  return acc;
+}
+
 /** Everything that drains to one cell: 1 inside the catchment, NaN outside. */
 export function watershed(raster, lat, lon, { filled = null } = {}) {
   const dem = filled || fillSinks(raster);
@@ -275,5 +347,6 @@ export function viewshed(raster, lat, lon, {
 }
 
 if (typeof window !== "undefined") {
-  window.GeoIDHydrology = { fillSinks, flowDirection, flowAccumulation, watershed, streams, viewshed };
+  window.GeoIDHydrology = { fillSinks, flowDirection, flowAccumulation, watershed, streams, viewshed,
+    mfdTopology, routeFlux };
 }

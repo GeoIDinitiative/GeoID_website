@@ -1,89 +1,53 @@
 /**
- * FORECAST LANDSLIDE RISK — a query pipeline, drawn as a flowchart.
+ * FORECAST LANDSLIDE RISK — a hydrogeological slope model under a series of
+ * GFS rainfall maps, drawn as a flowchart.
  *
- * The NI prototype is a finished, static map. This is the same physics made
- * DYNAMIC and general: draw a study area, pull the rainfall that fell or is
- * forecast over it for a chosen window, read the ground under it (slope from
- * the streamed DEM, the material from whatever geological or soil map is on
- * the globe, the depth from the thickness model), size a hydrogeological
- * bucket for every cell from that material's porosity and hydraulic
- * conductivity, run the infinite-slope Factor of Safety through every time
- * step, and play the result through the bar.
+ * The model underneath is built ONCE from the ground: the streamed DEM (slope,
+ * and multiple-flow-direction routing over the study area plus a margin, so
+ * every cell knows how much hillside drains through it), the soil-thickness
+ * model (the column above bedrock and the shallow failure plane in it), and
+ * the material the maps on the globe name — a mapped deposit, the FAO soil
+ * map's topsoil texture, or the regolith over the bedrock — read through the
+ * rock-properties database for c′, φ′, unit weight, porosity and hydraulic
+ * conductivity.
  *
- * SIX STEPS, EACH SAYING WHAT IT HAS AND WHAT IT STILL NEEDS. A pipeline
- * somebody cannot see is a button that either works or does not; one drawn as
- * a chart says which input is missing and what it will cost to get. Every
- * step wraps a seam that already exists here (the extent picker, the
- * Open-Meteo readers, the DEM stream, the thickness sheet, the rock
- * properties, `fos.js`); nothing below is a second implementation of any of
- * them.
+ * Then GFS (NOAA, through Open-Meteo) is read over the area for a window of
+ * dates, on its own ~13 km grid, as a series of RAINFALL MAPS: each the rain
+ * summed over the hours before it. Every map is the input to one STATIC model
+ * — the steady water table that recharge would build, routed downslope, and
+ * the factor of safety that water table leaves on the failure plane — so the
+ * run is a stack of static answers, one per map, played through the bar.
  *
- * THE HYDROGEOLOGY IS THE GROUND'S OWN. The FoS mode's bucket was a fixed
- * 120 mm capacity draining 12% a day for every cell; here the bucket is the
- * pore space of the failure column, n·z, and it drains by lateral throughflow
- * at the material's hydraulic conductivity down the slope, K·sin β — so a
- * fractured limestone dries in hours and a clay till stays wet for a week,
- * which is the difference that decides where a storm matters.
+ * The physics is `slope-hydrology.js` and the rainfall is `gfs-rain.js`; this
+ * file only orchestrates them and says, on every card, what it has read.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-af25b73";
-import { weatherPoints, weatherUrl, parseWeatherGrid, rainAt, fosColour } from "./geoid-pipeline.js?v=20260911-af25b73";
-import { materialFor, failureDepth, wetnessSeries, factorOfSafety, stabilityBand } from "./fos.js?v=20260911-af25b73";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-af25b73";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-af25b73";
-import { loadRockProperties, parameterValue } from "./rock-properties.js?v=20260911-af25b73";
-import { isGroundLayer } from "./ground-profile.js?v=20260911-af25b73";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260911-af25b73";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-7ac6d41";
+import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, GFS_CREDIT } from "./gfs-rain.js?v=20260911-7ac6d41";
+import {
+  columnMaterial, soilColumn, steadyWetness, planeWetness, factorOfSafety, criticalRecharge,
+  FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M,
+} from "./slope-hydrology.js?v=20260911-7ac6d41";
+import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-7ac6d41";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-7ac6d41";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-7ac6d41";
+import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-7ac6d41";
+import { mathsFor } from "./equations.js?v=20260911-7ac6d41";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260911-7ac6d41";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";
-const ARCHIVE = "https://archive-api.open-meteo.com/v1/archive";
+const MIN_SLOPE_DEG = 5;
 
 /* ── pure: the pieces the tests run ─────────────────────────────────────── */
 
-/** ERA5 reanalysis through Open-Meteo's archive: the same shape the forecast answers in. */
-export function archiveUrl(points, { start, end } = {}) {
-  const q = new URLSearchParams({
-    latitude: points.map((p) => p.lat.toFixed(4)).join(","),
-    longitude: points.map((p) => p.lon.toFixed(4)).join(","),
-    start_date: start, end_date: end, hourly: "precipitation", timezone: "UTC",
-  });
-  return `${ARCHIVE}?${q.toString()}`;
-}
-
-/** Defaults where the material has no published value; stated on the card. */
-export const HYDRO_DEFAULTS = { porosity: 0.3, conductivity: 1e-6 };
-
-/**
- * THE BUCKET, FROM THE GROUND. Capacity is the pore space of the failure
- * column (n·z, in mm of water); drainage is lateral throughflow down the slope
- * at the material's conductivity, K·sin β, as a fraction of that column per
- * day — clamped, because a gravel would otherwise empty a hundred times a day
- * and a clay never, and neither is what a bucket model can carry.
- */
-export function bucketFor({ porosity, conductivity, depthM, slopeDeg }) {
-  // A FRACTION here. The rock-property database publishes porosity in PERCENT
-  // (a granite is 1, a sand 35), and read as a fraction a granite's column held
-  // its whole depth in water; the caller converts, and the floor keeps a
-  // near-zero porosity from making the bucket a thimble that drains a
-  // thousand times a day.
-  const n = Number.isFinite(porosity) && porosity > 0 ? Math.max(0.02, Math.min(0.6, porosity)) : HYDRO_DEFAULTS.porosity;
-  const K = Number.isFinite(conductivity) && conductivity > 0 ? conductivity : HYDRO_DEFAULTS.conductivity;
-  const z = Number.isFinite(depthM) && depthM > 0 ? depthM : 1.0;
-  const beta = (Number(slopeDeg) || 0) * Math.PI / 180;
-  const capacityMm = Math.max(20, n * z * 1000);
-  const throughflow = K * 86400 * Math.max(Math.sin(beta), 0.05);   // m of water a day
-  const drainPerDay = Math.max(0.02, Math.min(0.95, throughflow / (n * z)));
-  return { capacityMm: Number(capacityMm.toFixed(1)), drainPerDay: Number(drainPerDay.toFixed(4)), n, K, z };
-}
-
 /** The DEM as a raster over the bounds, sampled from a height reader. */
-export function demGridFor(bounds, heightAt, { maxCells = 40000, radiusKm = 6371.0088 } = {}) {
+export function demGridFor(bounds, heightAt, { maxCells = 90000 } = {}) {
   const { west, south, east, north } = bounds;
   const midLat = (south + north) / 2;
   const widthM = (east - west) * 111320 * Math.cos(midLat * Math.PI / 180);
   const heightM = (north - south) * 110574;
-  const step = Math.max(30, Math.sqrt((widthM * heightM) / maxCells));
+  const step = Math.max(10, Math.sqrt((widthM * heightM) / maxCells));
   const cols = Math.max(4, Math.round(widthM / step));
   const rows = Math.max(4, Math.round(heightM / step));
   const band = new Float32Array(cols * rows);
@@ -100,13 +64,31 @@ export function demGridFor(bounds, heightAt, { maxCells = 40000, radiusKm = 6371
   return { band, width: cols, height: rows, bounds: { minX: west, maxX: east, minY: south, maxY: north }, noData: NaN, stepM: Math.round(step), known };
 }
 
+/** The study box widened by a margin, so catchments are not cut at its edge. */
+export function withMargin(bounds, km) {
+  const midLat = (bounds.south + bounds.north) / 2;
+  const dLat = km / 110.574;
+  const dLon = km / (111.32 * Math.cos(midLat * Math.PI / 180));
+  return { west: bounds.west - dLon, east: bounds.east + dLon, south: bounds.south - dLat, north: bounds.north + dLat };
+}
+
+/** The margin a box deserves: a tenth of its larger side, at least 1 km, at most 5. */
+export function autoMarginKm(bounds) {
+  const midLat = (bounds.south + bounds.north) / 2;
+  const w = (bounds.east - bounds.west) * 111.32 * Math.cos(midLat * Math.PI / 180);
+  const h = (bounds.north - bounds.south) * 110.574;
+  return Math.max(1, Math.min(5, 0.1 * Math.max(w, h)));
+}
+
 /** A point-in-polygon sampler over a layer's GeoJSON features (bbox first). */
 export function samplerOver(features, pick = (p) => p) {
   const list = (features || []).map((f) => {
     const polys = polygonsOf(f.geometry);
     if (!polys.length) return null;
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    polys.forEach((rings) => rings[0].forEach(([x, y]) => { if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y; }));
+    let minX = Infinity; let minY = Infinity; let maxX = -Infinity; let maxY = -Infinity;
+    polys.forEach((rings) => rings[0].forEach(([x, y]) => {
+      if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y;
+    }));
     return { props: f.properties || {}, polys, minX, minY, maxX, maxY };
   }).filter(Boolean);
   return (lat, lon) => {
@@ -140,52 +122,97 @@ function inRing(ring, x, y) {
 
 /** The text the material is read from, whichever map answered. */
 export function lithologyOf(props = {}) {
-  return props.lith || props.rcs_d || props.lex_rcs_d || props.lex_d || props.RCS_D || props.name
-    || props.unit_label || props.class || props.soil || null;
+  return props.lith || props.rcs_d || props.lex_rcs_d || props.lex_d || props.RCS_D
+    || props.unit_label || props.class || null;
 }
 
 /**
- * THE RUN: every cell through every step. Pure given the readers, which is
- * what lets the test plant a storm and watch a slope fail.
+ * A MAP'S WORDS, AS THE DATABASE'S. GLiM calls a whole class "Unconsolidated
+ * Sediments", which the database cannot resolve — and an unresolved lithology
+ * takes the no-information PRIOR, φ′ 40° and c′ 8 MPa, an intact rock's
+ * strength on loose sediment. GLiM defines the class as alluvial, fluvial and
+ * glacial deposits; it reads as alluvium.
  */
-export function runSteps({ cells, dates, stepHours = 1, rainFor, bucketOf }) {
-  const wet = cells.map((cell, j) => {
-    const rain = dates.map((_, s) => rainFor(cell, s));
-    const b = bucketOf(cell);
-    return wetnessSeries(rain, { capacityMm: b.capacityMm, drainPerDay: b.drainPerDay, stepHours, initial: 0.2 });
-  });
-  const steps = dates.map((date, s) => {
-    const values = new Float32Array(cells.length).fill(NaN);
-    let failing = 0; let applicable = 0; let wetSum = 0;
-    cells.forEach((cell, j) => {
-      const m = wet[j][s];
-      wetSum += m;
-      const v = factorOfSafety({
-        slopeDeg: cell.slopeDeg, cohesion: cell.material.cohesion, friction: cell.material.friction,
-        unitWeight: cell.material.unitWeight, depth: cell.material.depth, wetFraction: m,
-      });
-      if (!Number.isFinite(v)) return;
-      values[j] = v; applicable += 1; if (v < 1) failing += 1;
-    });
-    return { date, values, applicable, failing, wetFraction: cells.length ? wetSum / cells.length : 0, failingFraction: applicable ? failing / applicable : 0 };
-  });
-  return { steps, wet };
+export function groundText(lith) {
+  if (!lith) return null;
+  if (/unconsolidated sediments?/i.test(lith)) return "alluvium";
+  return lith;
 }
 
-/* ── the state and the flowchart ────────────────────────────────────────── */
+/** Soil or rock, by which the resolved constituents mostly are. */
+export function stateOf(text, resolve = resolveLithology) {
+  const rows = text ? resolve(text) : [];
+  if (!rows.length) return null;
+  const soil = rows.reduce((s, r) => s + (r.entry?.state === "soil" ? r.fraction : 0), 0);
+  return soil >= 0.5 ? "soil" : "rock";
+}
+
+/** A FAO soil unit's topsoil texture, or peat for a Histosol, or nothing where it is not a soil. */
+export function textureOf(props = {}) {
+  if (!props || props.group === "Not a soil") return null;
+  if (/histosol/i.test(`${props.group || ""} ${props.name || ""}`)) return { peat: true };
+  const t = { sand: props.sand_pct, silt: props.silt_pct, clay: props.clay_pct };
+  return [t.sand, t.silt, t.clay].some(Number.isFinite) ? t : null;
+}
+
+/** The static answer at one cell for one recharge flux. */
+export function cellAnswer({ q, cell, contour }) {
+  const W = steadyWetness({ q, b: contour, K: cell.K, zs: cell.zs, slopeRad: cell.slopeRad });
+  const m = planeWetness(W, cell.zs, cell.zf);
+  const fos = factorOfSafety({ slopeRad: cell.slopeRad, c: cell.c, phi: cell.phi, gamma: cell.gamma, zf: cell.zf, m });
+  return { W, m, fos };
+}
+
+/**
+ * ONE STATIC MODEL for one rainfall map: recharge from the map (capped at the
+ * ground's Ks where it infiltrates; bare rock sheds all of it onto the soil
+ * below), routed down the MFD topology, then the steady water table and the
+ * factor of safety at every modelled cell. Pure given its arrays.
+ */
+export function staticStep({ rainMm, windowH, cells, topo, infiltration = true }) {
+  const n = cells.K.length;
+  const source = new Float64Array(n);
+  const perSecond = 1 / (1000 * windowH * 3600);
+  for (let i = 0; i < n; i += 1) {
+    const P = rainMm[i];
+    if (!Number.isFinite(P) || !cells.data[i]) continue;
+    let r = P * perSecond;
+    if (infiltration && !cells.bare[i] && r > cells.K[i]) r = cells.K[i];
+    source[i] = r * topo.cellArea;
+  }
+  const q = routeFlux(topo, source);
+  const fos = new Float32Array(n).fill(NaN);
+  const W = new Float32Array(n).fill(NaN);
+  let failing = 0; let applicable = 0; let wSum = 0; let wN = 0;
+  for (let i = 0; i < n; i += 1) {
+    if (!cells.model[i]) continue;
+    const answer = cellAnswer({ q: q[i], contour: topo.contour, cell: {
+      K: cells.K[i], zs: cells.zs[i], zf: cells.zf[i], slopeRad: cells.slopeRad[i],
+      c: cells.c[i], phi: cells.phi[i], gamma: cells.gamma[i],
+    } });
+    W[i] = answer.W;
+    if (Number.isFinite(answer.W)) { wSum += answer.W; wN += 1; }
+    if (!Number.isFinite(answer.fos)) continue;
+    fos[i] = answer.fos; applicable += 1;
+    if (answer.fos < 1) failing += 1;
+  }
+  return { fos, W, q, failing, applicable, meanW: wN ? wSum / wN : 0 };
+}
+
+/* ── state ──────────────────────────────────────────────────────────────── */
 
 const state = {
-  bounds: null, area: null, rain: null, ground: null, hydro: { model: "ground", porosity: 0.3, conductivity: 1e-6 },
-  run: null, step: -1, playing: false,
+  bounds: null, rain: null, ground: null, run: null, step: -1, playing: false, view: "fos",
+  params: { strength: "peak", root: 0, infiltration: true },
 };
 
 const STEPS = [
   { id: "area", n: 1, title: "Study area", blurb: "Where the model runs." },
-  { id: "rain", n: 2, title: "Rainfall", blurb: "What fell, or will, by extent and date." },
-  { id: "ground", n: 3, title: "Ground", blurb: "Slope, material and depth." },
-  { id: "hydro", n: 4, title: "Hydrogeology", blurb: "How the column fills and drains." },
-  { id: "fos", n: 5, title: "Factor of safety", blurb: "Infinite slope, every cell, every step." },
-  { id: "run", n: 6, title: "Run and play", blurb: "The risk layer, through time." },
+  { id: "rain", n: 2, title: "GFS rainfall maps", blurb: "NOAA's GFS over the area, by date: one map every few hours, each the rain over the hours before it." },
+  { id: "ground", n: 3, title: "Ground", blurb: "DEM, routing, soil thickness and material — built once." },
+  { id: "hydro", n: 4, title: "Hydrogeology", blurb: "The steady water table each rainfall map would build." },
+  { id: "fos", n: 5, title: "Factor of safety", blurb: "Infinite slope, on the failure plane in the soil." },
+  { id: "run", n: 6, title: "Run and play", blurb: "One static model per rainfall map, through the bar." },
 ];
 
 export function readiness(s = state) {
@@ -193,7 +220,7 @@ export function readiness(s = state) {
     area: s.bounds ? "done" : "ready",
     rain: s.rain ? "done" : s.bounds ? "ready" : "blocked",
     ground: s.ground ? "done" : s.bounds ? "ready" : "blocked",
-    hydro: "ready",
+    hydro: s.ground ? "done" : "ready",
     fos: "ready",
     run: s.run ? "done" : (s.rain && s.ground) ? "ready" : "blocked",
   };
@@ -201,6 +228,7 @@ export function readiness(s = state) {
 
 const byId = (id) => document.getElementById(id);
 const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const pct = (a, b) => `${Math.round((100 * a) / Math.max(1, b))}%`;
 
 function say(id, text, kind = "") {
   const node = byId(`lsp-status-${id}`);
@@ -215,7 +243,10 @@ function markStates() {
     card.dataset.state = r[s.id];
     const pill = card.querySelector(".lsp-pill");
     if (pill) pill.textContent = { done: "done", ready: "ready", blocked: "needs a step above" }[r[s.id]];
-    card.querySelectorAll("button, select, input").forEach((el) => { el.disabled = r[s.id] === "blocked"; });
+    card.querySelectorAll("button, select, input").forEach((el) => {
+      if (el.dataset.always) return;
+      el.disabled = r[s.id] === "blocked";
+    });
   });
 }
 
@@ -227,14 +258,19 @@ const STYLE = `
 .lsp-n { display: inline-grid; place-items: center; width: 1.4rem; height: 1.4rem; border-radius: 999px; background: var(--nav-accent, #ff2bd6); color: #1a0520; font: 700 0.7rem "Exo 2", sans-serif; }
 .lsp-title { font: 600 0.76rem "Exo 2", sans-serif; letter-spacing: 0.06em; text-transform: uppercase; flex: 1 1 auto; }
 .lsp-pill { font-size: 0.66rem; padding: 0.1rem 0.45rem; border-radius: 999px; border: 1px solid rgba(255,255,255,0.25); opacity: 0.85; }
-.lsp-card[data-state="done"] .lsp-pill { border-color: #52e4e8; color: #52e4e8; }
+.lsp-card[data-state="done"] .lsp-pill { border-color: var(--skin-data, #52e4e8); color: var(--skin-data, #52e4e8); }
 .lsp-card[data-state="blocked"] { opacity: 0.55; }
 .lsp-card[data-state="blocked"] .lsp-pill { color: #f5a742; border-color: #f5a742; }
 .lsp-blurb { font-size: 0.72rem; opacity: 0.75; margin: 0 0 0.35rem; }
 .lsp-status { font-size: 0.72rem; margin: 0.35rem 0 0; min-height: 1em; white-space: pre-line; }
 .lsp-status[data-kind="error"] { color: #ff7b7b; }
-.lsp-eq { font: 0.72rem/1.4 ui-monospace, Menlo, monospace; opacity: 0.85; margin: 0.25rem 0; white-space: pre-line; }
+.lsp-eq { font: 0.7rem/1.45 ui-monospace, Menlo, monospace; opacity: 0.85; margin: 0.25rem 0; white-space: pre-line; }
 .lsp-card .row { margin: 0.2rem 0; }
+.lsp-maps { display: grid; gap: 0.2rem; margin: 0.25rem 0; font-size: 0.72rem; }
+.lsp-map { display: flex; align-items: center; gap: 0.4rem; }
+.lsp-map span { flex: 1 1 auto; min-width: 0; }
+.lsp-map b { font-weight: 600; }
+.lsp-map .button { flex: 0 0 auto; padding: 0.12rem 0.5rem; font-size: 0.66rem; }
 `;
 
 function ensureStyle() {
@@ -254,283 +290,578 @@ function card(step, body) {
   </div>`;
 }
 
+const isoDay = (ms) => new Date(ms).toISOString().slice(0, 10);
+
 export function render(host) {
   ensureStyle();
-  const today = new Date();
-  const iso = (d) => d.toISOString().slice(0, 10);
-  const monthAgo = new Date(today.getTime() - 30 * 86400000);
+  const now = Date.now();
   host.innerHTML = `<div class="lsp-chart">
     ${card(STEPS[0], `
       <div class="row"><label for="lsp-extent">Extent</label><select id="lsp-extent" class="input"><option value="drawn">Drawn / boxed area</option></select></div>
-      <div class="gis-btn-row"><button type="button" class="button" id="lsp-draw">Draw an area</button><button type="button" class="button" id="lsp-use">Use this extent</button></div>`)}
+      <div class="gis-btn-row"><button type="button" class="button secondary" id="lsp-draw">Draw an area</button><button type="button" class="button" id="lsp-use">Use this extent</button></div>`)}
     ${card(STEPS[1], `
-      <div class="row"><label for="lsp-rain-source">Source</label><select id="lsp-rain-source" class="input">
-        <option value="forecast">Forecast — GFS/ICON hourly, next days (Open-Meteo)</option>
-        <option value="archive">Past — ERA5 reanalysis hourly, by date (Open-Meteo)</option>
-      </select></div>
-      <div class="row" id="lsp-rain-days-row"><label for="lsp-rain-days">Days ahead</label><input id="lsp-rain-days" class="input" type="number" min="1" max="16" value="7"></div>
-      <div class="row" id="lsp-rain-start-row" hidden><label for="lsp-rain-start">From</label><input id="lsp-rain-start" class="input" type="date" value="${iso(monthAgo)}"></div>
-      <div class="row" id="lsp-rain-end-row" hidden><label for="lsp-rain-end">To</label><input id="lsp-rain-end" class="input" type="date" value="${iso(today)}"></div>
-      <div class="row"><label for="lsp-rain-across" title="How many rainfall points across the area. GFS is a ~25 km model; more points than that is inventing detail the forecast does not have.">Points across</label><select id="lsp-rain-across" class="input"><option value="4">4 × 4</option><option value="6" selected>6 × 6</option><option value="8">8 × 8</option></select></div>
-      <div class="gis-btn-row"><button type="button" class="button" id="lsp-rain-fetch">Fetch rainfall</button></div>`)}
+      <div class="row"><label for="lsp-rain-start">From</label><input id="lsp-rain-start" class="input" type="date" value="${isoDay(now)}"></div>
+      <div class="row"><label for="lsp-rain-end">To</label><input id="lsp-rain-end" class="input" type="date" value="${isoDay(now + 6 * 86400000)}"></div>
+      <div class="gis-btn-row"><button type="button" class="button secondary" id="lsp-rain-next">Next 7 days</button><button type="button" class="button secondary" id="lsp-rain-past">Past 7 days</button></div>
+      <div class="row"><label for="lsp-rain-window" title="Each map is the GFS rain summed over this many hours before it. The slope model is a steady state, so this is the duration the recharge is assumed to be sustained over — a day is the usual choice; longer carries more of the antecedent wet.">Each map: rain over the last</label><select id="lsp-rain-window" class="input">
+        <option value="6">6 h</option><option value="12">12 h</option><option value="24" selected>24 h</option><option value="48">48 h</option><option value="72">72 h</option></select></div>
+      <div class="row"><label for="lsp-rain-every">One map every</label><select id="lsp-rain-every" class="input">
+        <option value="1">1 h</option><option value="3">3 h</option><option value="6" selected>6 h</option><option value="12">12 h</option><option value="24">24 h</option></select></div>
+      <div class="gis-btn-row"><button type="button" class="button" id="lsp-rain-fetch">Fetch GFS rainfall</button></div>`)}
     ${card(STEPS[2], `
-      <div class="row"><label for="lsp-ground-cells" title="The model's own grid over the area. The DEM is read at the level the area deserves; the material comes from whichever geological or soil map is on the globe; depth from the soil-thickness model.">Cells (max)</label><select id="lsp-ground-cells" class="input"><option value="10000">10,000</option><option value="40000" selected>40,000</option><option value="90000">90,000</option></select></div>
+      <div class="row"><label for="lsp-ground-cells" title="The model's own grid over the area plus its margin. The DEM is read at the level the area deserves and thinned to this many cells.">Cells (max)</label><select id="lsp-ground-cells" class="input"><option value="40000">40,000</option><option value="90000" selected>90,000</option><option value="160000">160,000</option><option value="250000">250,000</option></select></div>
+      <div class="row"><label for="lsp-ground-margin" title="Ground outside the study area whose water drains into it. Without a margin every catchment is cut at the box's edge.">Upslope margin</label><select id="lsp-ground-margin" class="input"><option value="auto" selected>Auto (a tenth of the area)</option><option value="0.5">0.5 km</option><option value="1">1 km</option><option value="2">2 km</option><option value="5">5 km</option></select></div>
+      <div class="lsp-maps" id="lsp-maps"></div>
       <div class="gis-btn-row"><button type="button" class="button" id="lsp-ground-read">Read the ground</button></div>`)}
     ${card(STEPS[3], `
-      <div class="row"><label for="lsp-hydro-model">Model</label><select id="lsp-hydro-model" class="input">
-        <option value="ground" selected>Bucket from the ground — n·z capacity, K·sin β drainage</option>
-        <option value="fixed">Fixed bucket — 120 mm, 12% a day (the FoS mode's)</option>
-      </select></div>
-      <div class="row"><label for="lsp-hydro-n" title="Where the material has no published porosity">Default porosity</label><input id="lsp-hydro-n" class="input" type="number" step="0.05" min="0.01" max="0.9" value="0.3"></div>
-      <div class="row"><label for="lsp-hydro-k" title="Where the material has no published hydraulic conductivity, m/s">Default K (m/s)</label><input id="lsp-hydro-k" class="input" type="text" value="1e-6"></div>
-      <div class="lsp-eq">capacity = n · z   (mm of water the failure column can hold)
-drain/day = K · 86400 · sin β / (n · z)   (lateral throughflow, clamped 2–95 %)
-m(t+1) = min(1, m(t) + rain/capacity) − drain</div>`)}
+      <div class="lsp-eq">r = min(P / Δt, Ks)            recharge, what infiltrates
+q = Σ upslope r · A             routed, multiple flow directions
+h = min(z_s, q / (b · Ks · sin β))   the steady water table
+m = (h − (z_s − z_f)) / z_f     water on the failure plane</div>
+      <div class="row"><label for="lsp-infiltration" title="Rain faster than the ground's saturated conductivity runs off instead of recharging it.">Infiltration capped at Ks</label><span class="checkbox-wrap"><input id="lsp-infiltration" type="checkbox" checked data-always="1"></span></div>`)}
     ${card(STEPS[4], `
-      <div class="lsp-eq">FoS = [ c′ + (γ − m·γw) · z · cos²β · tan φ′ ] / [ γ · z · sin β · cos β ]</div>
-      <p class="compact-copy" style="margin:0;opacity:0.8">c′, φ′ and γ from the material each cell's map names (the FoS mode's screening table); z the modelled thickness capped at 3 m, else the class default; slopes under 5° are not modelled. Classes: failure &lt; 1, marginal &lt; 1.1, low margin &lt; 1.3, adequate &lt; 1.5, stable.</p>`)}
+      <div class="lsp-eq">FoS = [c′ + c_r + (γ − m·γw)·z_f·cos²β·tan φ′] / [γ·z_f·sin β·cos β]</div>
+      <div class="row"><label for="lsp-strength" title="Peak for a first-time failure; residual where the ground has slid before and the shear surface is already polished.">Strength</label><select id="lsp-strength" class="input" data-always="1"><option value="peak" selected>Peak — first-time failure</option><option value="residual">Residual — reactivation</option></select></div>
+      <div class="row"><label for="lsp-root" title="The extra cohesion roots give a soil: 0 bare, a few kPa grassland, 5–20 kPa forest.">Root cohesion (kPa)</label><input id="lsp-root" class="input" type="number" min="0" max="40" step="1" value="0" data-always="1"></div>
+      <p class="compact-copy" style="margin:0;opacity:0.8">z_f is the soil column capped at ${SHALLOW_FAILURE_CAP_M} m (a shallow translational slide); slopes under ${MIN_SLOPE_DEG}° and bare rock are not modelled. Classes: failure &lt; 1, marginal &lt; 1.1, low margin &lt; 1.3, adequate &lt; 1.5, stable.</p>`)}
     ${card(STEPS[5], `
-      <div class="gis-btn-row"><button type="button" class="button" id="lsp-run">Run and play</button><button type="button" class="button" id="lsp-clear">Clear</button></div>`)}
+      <div class="row"><label for="lsp-view">Show</label><select id="lsp-view" class="input" data-always="1">
+        <option value="fos" selected>Factor of safety — this map</option>
+        <option value="wet">Saturation h / z_s — this map</option>
+        <option value="rain">GFS rainfall — this map</option>
+        <option value="minfos">Lowest factor of safety over the window</option>
+        <option value="crit">Rainfall to fail (static, mm/day)</option></select></div>
+      <div class="gis-btn-row"><button type="button" class="button" id="lsp-run">Run and play</button><button type="button" class="button secondary" id="lsp-clear">Clear</button></div>`)}
   </div>`;
-  wire(host);
+  wire();
+  drawMaps();
   markStates();
 }
 
-function wire(host) {
+function wire() {
   const extent = byId("lsp-extent");
   refreshPolygonOptions(extent, "drawn", { allLayers: true });
-  window.addEventListener("geoid-gis:layers-changed", () => { try { refreshPolygonOptions(extent, extent.value || "drawn", { allLayers: true }); } catch (e) { /* redraw later */ } });
+  window.addEventListener("geoid-gis:layers-changed", () => {
+    try { refreshPolygonOptions(extent, extent.value || "drawn", { allLayers: true }); } catch (e) { /* redraw later */ }
+    drawMaps();
+  });
+  window.GeoIDImportManager?.onChange?.(() => drawMaps());
   byId("lsp-draw").addEventListener("click", () => { promptDrawTool(); say("area", "Draw the area on the globe, press Done, then Use this extent."); });
   byId("lsp-use").addEventListener("click", () => {
     const b = resolvePolygonExtent(extent.value, { arm: false });
     if (!b || ![b.west, b.south, b.east, b.north].every(Number.isFinite)) { say("area", "No area yet — draw one, or pick a layer.", "error"); return; }
-    state.bounds = b; state.rain = null; state.ground = null; state.run = null;
+    clear({ keepInputs: true });
+    state.bounds = b; state.rain = null; state.ground = null;
     const w = (b.east - b.west) * 111.32 * Math.cos(((b.south + b.north) / 2) * Math.PI / 180);
     const h = (b.north - b.south) * 110.574;
     say("area", `${w.toFixed(1)} × ${h.toFixed(1)} km — ${b.west.toFixed(3)} to ${b.east.toFixed(3)}°E, ${b.south.toFixed(3)} to ${b.north.toFixed(3)}°N`);
-    ["rain", "ground", "run"].forEach((id) => say(id, ""));
+    ["rain", "ground", "hydro", "run"].forEach((id) => say(id, ""));
     markStates();
   });
-  const source = byId("lsp-rain-source");
-  source.addEventListener("change", () => {
-    const archive = source.value === "archive";
-    byId("lsp-rain-days-row").hidden = archive;
-    byId("lsp-rain-start-row").hidden = !archive;
-    byId("lsp-rain-end-row").hidden = !archive;
-  });
+  const setDates = (from, to) => { byId("lsp-rain-start").value = isoDay(from); byId("lsp-rain-end").value = isoDay(to); };
+  byId("lsp-rain-next").addEventListener("click", () => setDates(Date.now(), Date.now() + 6 * 86400000));
+  byId("lsp-rain-past").addEventListener("click", () => setDates(Date.now() - 7 * 86400000, Date.now() - 86400000));
   byId("lsp-rain-fetch").addEventListener("click", () => void fetchRain());
   byId("lsp-ground-read").addEventListener("click", () => void readGround());
-  byId("lsp-hydro-model").addEventListener("change", () => { state.hydro.model = byId("lsp-hydro-model").value; });
-  byId("lsp-hydro-n").addEventListener("change", () => { state.hydro.porosity = Number(byId("lsp-hydro-n").value) || 0.3; });
-  byId("lsp-hydro-k").addEventListener("change", () => { state.hydro.conductivity = Number(byId("lsp-hydro-k").value) || 1e-6; });
+  byId("lsp-infiltration").addEventListener("change", (e) => { state.params.infiltration = e.target.checked; rerun(); });
+  byId("lsp-strength").addEventListener("change", (e) => { state.params.strength = e.target.value; remater(); });
+  const root = byId("lsp-root");
+  root.addEventListener("keydown", (e) => e.stopPropagation());
+  root.addEventListener("change", () => { state.params.root = Math.max(0, Number(root.value) || 0); remater(); });
+  byId("lsp-view").addEventListener("change", (e) => { state.view = e.target.value; showStep(Math.max(0, state.step)); });
   byId("lsp-run").addEventListener("click", () => void run());
   byId("lsp-clear").addEventListener("click", () => clear());
 }
 
-/* ── step 2: rainfall by extent and date ────────────────────────────────── */
+/* ── the ground maps: which are on, and a door to the ones that are not ──── */
+
+const SOIL_MAP = /soils of the world|fao/i;
+const SUPERFICIAL = /superficial|drift|quaternary/i;
+const BEDROCK = /world geology|macrostrat|glim|surface lithology|geolog|lithology|bedrock/i;
+
+function groundLayers() {
+  const layers = (window.GeoIDImportManager?.getLayers?.() || []).filter((l) => l.status === "loaded");
+  const soil = layers.find((l) => SOIL_MAP.test(l.name || "")) || null;
+  const superficial = layers.find((l) => SUPERFICIAL.test(l.name || "") && !SOIL_MAP.test(l.name || "")) || null;
+  const bedrock = layers.find((l) => l !== superficial && !SOIL_MAP.test(l.name || "") && BEDROCK.test(l.name || "")
+    && !/risk|forecast|factor of safety/i.test(l.name || "")) || null;
+  return { soil, superficial, bedrock };
+}
+
+function drawMaps() {
+  const host = byId("lsp-maps");
+  if (!host) return;
+  const { soil, superficial, bedrock } = groundLayers();
+  const row = (label, layer, load, loadLabel) => `<div class="lsp-map"><span><b>${esc(label)}</b> — ${layer ? esc(layer.name) : "not on the globe"}</span>${!layer && load ? `<button type="button" class="button secondary" data-load="${load}" data-always="1">${esc(loadLabel)}</button>` : ""}</div>`;
+  host.innerHTML = row("Material", superficial || bedrock, window.GeoIDGeology?.load ? "geology" : null, "Load world geology")
+    + row("Texture", soil, window.GeoIDSoilCover?.load ? "soil" : null, "Load the soil map")
+    + `<div class="lsp-map"><span><b>Thickness</b> — Pelletier et al. (2016), read directly</span></div>`
+    + `<div class="lsp-map"><span><b>Properties</b> — the rock-properties database</span></div>`;
+  host.querySelectorAll("[data-load]").forEach((b) => b.addEventListener("click", async () => {
+    b.disabled = true;
+    try {
+      if (b.dataset.load === "geology") await window.GeoIDGeology.load("macrostrat-units");
+      if (b.dataset.load === "soil") await window.GeoIDSoilCover.load();
+    } catch (e) { say("ground", `That map could not be loaded: ${e.message}`, "error"); }
+    drawMaps();
+  }));
+}
+
+/* ── step 2: GFS rainfall maps ──────────────────────────────────────────── */
 
 async function fetchRain() {
   const b = state.bounds;
   if (!b) return;
-  const across = Number(byId("lsp-rain-across").value) || 6;
-  const points = weatherPoints({ minX: b.west, maxX: b.east, minY: b.south, maxY: b.north }, { across });
-  const archive = byId("lsp-rain-source").value === "archive";
-  const start = byId("lsp-rain-start").value; const end = byId("lsp-rain-end").value;
-  const days = Math.max(1, Math.min(16, Number(byId("lsp-rain-days").value) || 7));
-  if (archive && (!start || !end || start > end)) { say("rain", "Give a start and an end date, in order.", "error"); return; }
-  const url = archive ? archiveUrl(points, { start, end }) : weatherUrl(points, { days });
-  say("rain", `Fetching ${points.length} points…`);
+  const windowH = Number(byId("lsp-rain-window").value) || 24;
+  const everyH = Number(byId("lsp-rain-every").value) || 6;
+  const win = fetchWindow({ start: byId("lsp-rain-start").value, end: byId("lsp-rain-end").value, windowH });
+  if (!win.ok) { say("rain", win.message, "error"); return; }
+  // The nodes must cover the MARGIN too: water falling there drains into the area.
+  const cover = withMargin(b, marginKm());
+  say("rain", "Asking GFS…");
   try {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`Open-Meteo answered ${response.status}`);
-    const parsed = parseWeatherGrid(await response.json(), points);
-    if (!parsed.ok) throw new Error(parsed.message);
-    const totals = parsed.series.map((s) => s.rain.reduce((a, v) => a + (Number.isFinite(v) ? v : 0), 0));
-    state.rain = { ...parsed, points, source: archive ? "ERA5 reanalysis (Open-Meteo archive)" : "GFS/ICON forecast (Open-Meteo)", window: archive ? `${start} to ${end}` : `next ${days} days` };
+    const got = await fetchGfsNodes(cover, { from: win.from, to: win.to }, {
+      onProgress: (done, all) => say("rain", `Asking GFS… ${done} of ${all} points`),
+    });
+    const series = rainfallFrames(got.times, got.nodes, { start: win.start, windowH, everyH });
+    if (!series.frames.length) throw new Error("no complete rainfall window in those dates");
+    let maxAcc = 0; let wettest = null;
+    series.frames.forEach((f) => { const a = series.accumulation(f); a.forEach((v) => { if (v > maxAcc) { maxAcc = v; wettest = f; } }); });
+    const totals = got.nodes.map((node) => node.rain.reduce((s, v) => s + (Number.isFinite(v) ? v : 0), 0));
+    state.rain = { ...got, ...series, window: win, cover };
     state.run = null;
-    say("rain", `${parsed.dates.length} steps of ${parsed.stepHours} h over ${points.length} points, ${state.rain.window} — totals ${Math.min(...totals).toFixed(0)} to ${Math.max(...totals).toFixed(0)} mm. ${state.rain.source}, CC BY 4.0.`);
+    const shape = got.grid.regular ? `${got.grid.lats.length} × ${got.grid.lons.length} GFS nodes, ~13 km apart, drawn bilinearly`
+      : `${got.nodes.length} GFS nodes (irregular here — read by distance)`;
+    say("rain", `${series.frames.length} rainfall maps, one every ${everyH} h, each the rain over the previous ${windowH} h${series.stride > 1 ? ` (every ${series.stride}th kept)` : ""}. ${shape}. `
+      + `Wettest map ${wettest ? wettest.time.replace("T", " ") : "—"}: ${maxAcc.toFixed(0)} mm in ${windowH} h at a node; totals ${Math.min(...totals).toFixed(0)}–${Math.max(...totals).toFixed(0)} mm over ${win.from} to ${win.to}.`
+      + `${series.missing ? ` ${series.missing} node-hours had no value and count as dry.` : ""} ${GFS_CREDIT}.`);
   } catch (error) {
-    say("rain", `Rainfall could not be read: ${error.message}`, "error");
+    say("rain", `GFS rainfall could not be read: ${error.message}`, "error");
   }
   markStates();
 }
 
-/* ── step 3: the ground ─────────────────────────────────────────────────── */
+/* ── step 3: the ground, built once ─────────────────────────────────────── */
 
-function groundLayer() {
-  const layers = window.GeoIDImportManager?.getLayers?.() || [];
-  return layers.find((l) => l.status === "loaded" && l.features?.length && (isGroundLayer(l) || /geolog|lithology|soil|superficial|bedrock/i.test(l.name || ""))) || null;
+function marginKm() {
+  const v = byId("lsp-ground-margin")?.value || "auto";
+  return v === "auto" && state.bounds ? autoMarginKm(state.bounds) : Math.max(0, Number(v) || 1);
+}
+
+async function borrow(layer, box) {
+  if (!layer) return null;
+  if (typeof layer.featuresIn === "function") {
+    try {
+      const got = await layer.featuresIn({ minX: box.west, maxX: box.east, minY: box.south, maxY: box.north });
+      return got?.features || layer.features || [];
+    } catch (e) { return layer.features || []; }
+  }
+  return layer.features || [];
+}
+
+/** Which rock-properties numbers a cell's column takes; cached per distinct ground. */
+function materialTable() {
+  const cache = new Map();
+  const list = [];
+  const rp = (name, key) => parameterValue(name, key);
+  const state_ = (text) => stateOf(text);
+  return {
+    list,
+    indexOf(lith, texture) {
+      const key = `${lith || ""}|${texture ? (texture.peat ? "peat" : `${Math.round(texture.sand ?? -1)}/${Math.round(texture.silt ?? -1)}/${Math.round(texture.clay ?? -1)}`) : ""}`;
+      if (cache.has(key)) return cache.get(key);
+      const text = groundText(lith);
+      const mat = texture?.peat
+        ? columnMaterial({ lith: "peat", rp, state: state_, strength: state.params.strength, rootCohesionKPa: state.params.root })
+        : columnMaterial({ lith: text, texture, rp, state: state_, strength: state.params.strength, rootCohesionKPa: state.params.root });
+      mat.lith = lith; mat.texture = texture;
+      if (texture?.peat) mat.from = "the soil map (a Histosol — peat)";
+      list.push(mat); cache.set(key, list.length - 1);
+      return list.length - 1;
+    },
+  };
 }
 
 async function readGround() {
   const b = state.bounds;
   if (!b) return;
-  const maxCells = Number(byId("lsp-ground-cells").value) || 40000;
-  say("ground", "Reading the elevation…");
+  const maxCells = Number(byId("lsp-ground-cells").value) || 90000;
+  const margin = marginKm();
+  const eb = withMargin(b, margin);
+  const { soil, superficial, bedrock } = groundLayers();
+  const borrowed = [];
   try {
+    say("ground", "Reading the elevation…");
     const dem = window.GeoIDDem;
     let label = "the viewer's elevation model";
     if (dem?.ensure) {
-      const got = await dem.ensure(b, { maxTiles: 256 });
+      const got = await dem.ensure(eb, { maxTiles: 256 });
       if (got?.ok) label = `streamed DEM at zoom ${got.zoom} (${Math.round(dem.metresPerPixel(got.zoom, (b.south + b.north) / 2))} m posts)`;
     }
     const heightAt = (lat, lon) => {
       const h = dem?.heightAt?.(lat, lon);
       return Number.isFinite(h) ? h : window.GeoIDViewer?.sampleElevationMeters?.(lat, lon);
     };
-    const grid = demGridFor(b, heightAt, { maxCells });
+    const grid = demGridFor(eb, heightAt, { maxCells });
     if (!grid.known) throw new Error("no elevation under the area");
+    say("ground", "Routing the water…");
+    await tick();
     const grad = slopeOf(grid);
-    // the material: whichever ground map is on the globe
-    const geol = groundLayer();
-    let lithAt = null;
-    if (geol) {
-      if (geol.featuresIn) { try { await geol.featuresIn({ minX: b.west, maxX: b.east, minY: b.south, maxY: b.north }); } catch (e) { /* the snapshot serves */ } }
-      lithAt = samplerOver(geol.features, lithologyOf);
-    }
+    const filled = fillSinks(makeRaster(grid.band, grid.width, grid.height, grid.bounds, NaN));
+    const topo = mfdTopology(filled, { exponent: 1.1 });
+    const n = grid.width * grid.height;
+    const area = routeFlux(topo, Float64Array.from(grid.band, (v) => (Number.isFinite(v) ? topo.cellArea : 0)));
+
+    say("ground", "Reading the maps…");
+    await tick();
+    const superFeats = await borrow(superficial, eb); if (superficial?.restoreLive) borrowed.push(superficial);
+    const bedFeats = await borrow(bedrock, eb); if (bedrock?.restoreLive) borrowed.push(bedrock);
+    const soilFeats = await borrow(soil, eb); if (soil?.restoreLive) borrowed.push(soil);
+    const superAt = superficial ? samplerOver(superFeats, lithologyOf) : null;
+    const bedAt = bedrock ? samplerOver(bedFeats, lithologyOf) : null;
+    const texAt = soil ? samplerOver(soilFeats, textureOf) : null;
+
     say("ground", "Reading the soil thickness…");
     let thickAt = null;
     try {
       const mod = await import(`./soil-thickness.js${search}`);
-      const tg = await mod.thicknessGridFor(b);
+      const tg = await mod.thicknessGridFor(eb);
       if (tg) thickAt = (lat, lon) => mod.metresIn(tg, lat, lon);
-    } catch (e) { /* depth falls back to the class default */ }
+    } catch (e) { /* the stated default serves */ }
     await loadRockProperties().catch(() => null);
-    const cells = [];
-    let withLith = 0; let withDepth = 0;
+
+    const table = materialTable();
+    const cells = {
+      data: new Uint8Array(n), model: new Uint8Array(n), bare: new Uint8Array(n), mat: new Int32Array(n).fill(-1),
+      slopeRad: new Float32Array(n), zs: new Float32Array(n), zf: new Float32Array(n), K: new Float32Array(n),
+      c: new Float32Array(n), phi: new Float32Array(n), gamma: new Float32Array(n), area: new Float32Array(n),
+      depthFrom: new Uint8Array(n), lat: new Float32Array(n), lon: new Float32Array(n),
+    };
+    const tally = { deposit: 0, texture: 0, regolith: 0, thick: 0, bare: 0, model: 0, cells: 0, flat: 0 };
+    let x0 = Infinity; let x1 = -1; let y0 = Infinity; let y1 = -1;
     for (let y = 0; y < grid.height; y += 1) {
-      const lat = b.north - ((y + 0.5) / grid.height) * (b.north - b.south);
+      const lat = eb.north - ((y + 0.5) / grid.height) * (eb.north - eb.south);
       for (let x = 0; x < grid.width; x += 1) {
-        const lon = b.west + ((x + 0.5) / grid.width) * (b.east - b.west);
-        const slopeDeg = grad.band[y * grid.width + x];
-        if (!Number.isFinite(slopeDeg)) continue;
-        const lith = lithAt ? lithAt(lat, lon) : null;
-        if (lith) withLith += 1;
-        const material = materialFor(lith);
-        const thickness = thickAt ? thickAt(lat, lon) : null;
-        if (Number.isFinite(thickness)) withDepth += 1;
-        const z = failureDepth(thickness, material.depth);
-        cells.push({
-          x, y, lat, lon, slopeDeg, lith, material: { ...material, depth: z.depth }, depthFrom: z.from,
-          // percent in the database, a fraction in the bucket
-          porosity: lith && Number.isFinite(parameterValue(lith, "porosity")) ? parameterValue(lith, "porosity") / 100 : null,
-          conductivity: lith ? parameterValue(lith, "hydraulic_conductivity") : null,
-        });
+        const i = y * grid.width + x;
+        if (!Number.isFinite(grid.band[i])) continue;
+        const lon = eb.west + ((x + 0.5) / grid.width) * (eb.east - eb.west);
+        cells.data[i] = 1; cells.lat[i] = lat; cells.lon[i] = lon;
+        const lith = (superAt && superAt(lat, lon)) || (bedAt && bedAt(lat, lon)) || null;
+        const texture = texAt ? texAt(lat, lon) : null;
+        const k = table.indexOf(lith, texture);
+        const mat = table.list[k];
+        cells.mat[i] = k;
+        const t = thickAt ? thickAt(lat, lon) : null;
+        const col = soilColumn(t, 2);
+        cells.zs[i] = col.zs; cells.zf[i] = col.zf; cells.bare[i] = col.bare ? 1 : 0;
+        cells.depthFrom[i] = Number.isFinite(t) ? 1 : 0;
+        cells.K[i] = mat.K; cells.c[i] = mat.cohesionKPa; cells.phi[i] = mat.friction; cells.gamma[i] = mat.unitWeight;
+        const deg = grad.band[i];
+        cells.slopeRad[i] = Number.isFinite(deg) ? deg * Math.PI / 180 : 0;
+        cells.area[i] = area[i];
+        const inside = lat >= b.south && lat <= b.north && lon >= b.west && lon <= b.east;
+        if (!inside) continue;
+        if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+        tally.cells += 1;
+        if (/mapped deposit/.test(mat.from)) tally.deposit += 1;
+        else if (/soil map/.test(mat.from)) tally.texture += 1; else tally.regolith += 1;
+        if (Number.isFinite(t)) tally.thick += 1;
+        if (col.bare) { tally.bare += 1; continue; }
+        if (!(deg >= MIN_SLOPE_DEG)) { tally.flat += 1; continue; }
+        cells.model[i] = 1; tally.model += 1;
       }
     }
-    state.ground = { grid, cells, cols: grid.width, rows: grid.height, demLabel: label, geolName: geol?.name || null, withLith, withDepth };
+    // The drawn sheet is the study area's own cells, bounded by their EDGES.
+    const sub = { x0, x1, y0, y1, width: x1 - x0 + 1, height: y1 - y0 + 1 };
+    const cw = (eb.east - eb.west) / grid.width; const ch = (eb.north - eb.south) / grid.height;
+    sub.bounds = { minX: eb.west + x0 * cw, maxX: eb.west + (x1 + 1) * cw, maxY: eb.north - y0 * ch, minY: eb.north - (y1 + 1) * ch };
+    state.ground = { grid, eb, margin, topo, cells, sub, table, demLabel: label, n, tally,
+      maps: { soil: soil?.name || null, superficial: superficial?.name || null, bedrock: bedrock?.name || null } };
+    state.rain && (state.rain.weights = null);
     state.run = null;
-    say("ground", `${cells.length.toLocaleString()} cells at ${grid.stepM} m from ${label}; material from ${geol ? `"${geol.name}" for ${Math.round((100 * withLith) / Math.max(1, cells.length))}% of cells` : "NO map — tick World geology, GLiM or the soil map for a material; every cell takes the default"}; depth from the thickness model for ${Math.round((100 * withDepth) / Math.max(1, cells.length))}%.`, geol ? "" : "error");
+    const kinds = [];
+    if (tally.deposit) kinds.push(`${pct(tally.deposit, tally.cells)} a mapped deposit`);
+    if (tally.texture) kinds.push(`${pct(tally.texture, tally.cells)} the soil map's texture`);
+    if (tally.regolith) kinds.push(`${pct(tally.regolith, tally.cells)} regolith${bedrock || superficial ? " over the mapped rock" : ""}`);
+    say("ground", `${tally.cells.toLocaleString()} cells at ${grid.stepM} m in the area (${(grid.width * grid.height).toLocaleString()} with a ${margin.toFixed(1)} km upslope margin), from ${label}. `
+      + `Material: ${kinds.join(", ")}.${soil ? "" : " Load the soil map for the topsoil texture — without it every column takes the database's regolith."} `
+      + `Thickness from the model for ${pct(tally.thick, tally.cells)}; ${pct(tally.bare, tally.cells)} bare rock, ${pct(tally.flat, tally.cells)} under ${MIN_SLOPE_DEG}°. `
+      + `${tally.model.toLocaleString()} cells modelled.`, soil || bedrock || superficial ? "" : "error");
+    describeStatic();
   } catch (error) {
     say("ground", `The ground could not be read: ${error.message}`, "error");
+  } finally {
+    borrowed.forEach((l) => { try { l.restoreLive?.(); } catch (e) { /* keep */ } });
   }
   markStates();
 }
 
-/* ── step 6: run, draw, play ────────────────────────────────────────────── */
+const tick = () => new Promise((r) => setTimeout(r, 0));
 
-function bucketOfCell(cell) {
-  if (state.hydro.model === "fixed") return { capacityMm: 120, drainPerDay: 0.12 };
-  return bucketFor({
-    porosity: Number.isFinite(cell.porosity) ? cell.porosity : state.hydro.porosity,
-    conductivity: Number.isFinite(cell.conductivity) ? cell.conductivity : state.hydro.conductivity,
-    depthM: cell.material.depth, slopeDeg: cell.slopeDeg,
-  });
+/** The rainfall to fail at every modelled cell, and what it says about the area. */
+function describeStatic() {
+  const g = state.ground;
+  if (!g) return;
+  const { cells, topo, n } = g;
+  const crit = new Float32Array(n).fill(NaN);
+  let dry = 0; let never = 0; const finite = [];
+  for (let i = 0; i < n; i += 1) {
+    if (!cells.model[i]) continue;
+    const r = criticalRecharge({ slopeRad: cells.slopeRad[i], c: cells.c[i], phi: cells.phi[i], gamma: cells.gamma[i],
+      zs: cells.zs[i], zf: cells.zf[i], K: cells.K[i], b: topo.contour, areaM2: cells.area[i] });
+    crit[i] = r;
+    if (r === 0) dry += 1; else if (r === Infinity) never += 1; else if (Number.isFinite(r)) finite.push(r);
+  }
+  finite.sort((a, b) => a - b);
+  const med = finite.length ? finite[Math.floor(finite.length / 2)] : NaN;
+  const p10 = finite.length ? finite[Math.floor(finite.length / 10)] : NaN;
+  g.crit = crit;
+  const total = g.tally.model;
+  say("hydro", `Rainfall to fail, as steady recharge over each cell's catchment: ${pct(dry, total)} fail even dry, ${pct(never, total)} hold even saturated; `
+    + `for the rest the median is ${Number.isFinite(med) ? med.toFixed(0) : "—"} mm/day and the wettest-to-fail tenth ${Number.isFinite(p10) ? p10.toFixed(0) : "—"} mm/day or less.`);
 }
 
-const CLASS_COLOUR = (v) => fosColour(v);
-
-async function run() {
-  const g = state.ground; const r = state.rain;
-  if (!g || !r) return;
-  clear({ keepInputs: true });
-  say("run", `Computing ${r.dates.length} steps over ${g.cells.length.toLocaleString()} cells…`);
-  await new Promise((res) => setTimeout(res, 20));
-  const rainFor = (cell, s) => rainAt(r.series, cell.lat, cell.lon, s);
-  const { steps } = runSteps({ cells: g.cells, dates: r.dates, stepHours: r.stepHours, rainFor, bucketOf: bucketOfCell });
-  const band = new Float32Array(g.cols * g.rows).fill(NaN);
-  const put = (s) => { band.fill(NaN); g.cells.forEach((c, j) => { band[c.y * g.cols + c.x] = steps[s].values[j]; }); };
-  // open on the worst step: the map somebody ran a forecast for is the day it matters
-  let worst = 0; steps.forEach((s, i) => { if (s.failingFraction > steps[worst].failingFraction) worst = i; });
-  put(worst);
-  const built = buildRasterLayer([band], g.cols, g.rows, g.grid.bounds, { name: LAYER_NAME, isDem: false, noData: NaN });
-  if (!built) { say("run", "The layer could not be built.", "error"); return; }
-  built.repaint?.((v) => CLASS_COLOUR(v));
-  built.legendInfo = {
-    classed: true, categorical: true, field: "fos", label: "Factor of safety",
-    palette: ["d7191c", "fd8d3c", "fed976", "a1dab4", "2c7fb8"], labels: ["failure (< 1)", "marginal (< 1.1)", "low margin (< 1.3)", "adequate (< 1.5)", "stable"],
-    bounds: [["0", "1"], ["1", "1.1"], ["1.1", "1.3"], ["1.3", "1.5"], ["1.5", "∞"]], counts: [0, 0, 0, 0, 0],
-  };
-  const layer = window.GeoIDImportManager?.addDerivedLayer?.(LAYER_NAME, built, "fos");
-  if (!layer) { say("run", "The globe is not ready.", "error"); return; }
-  layer.legendInfo = built.legendInfo;
-  layer.raster = makeRaster(band, g.cols, g.rows, g.grid.bounds, NaN);
-  window.GeoIDLayerHierarchy?.setOpacity?.(layer, 0.75);
-  layer.info = {
-    source: `${r.source}; ${g.demLabel}; ${g.geolName || "no material map"}; Pelletier thickness`,
-    summary: "Infinite-slope factor of safety through time, the bucket sized per cell from the material's porosity and conductivity.",
-    citation: "GeoHUB forecast landslide pipeline",
-  };
-  state.run = { layer, built, steps, band, put };
-  const epochs = steps.map((s, i) => ({ date: s.date, label: String(s.date).replace("T", " "), dataset: null, index: i, tick: i % Math.max(1, Math.round(steps.length / 8)) === 0 }));
-  state.playing = true;
-  await startPlayer({
-    bounds: g.grid.bounds ? { west: g.grid.bounds.minX, east: g.grid.bounds.maxX, south: g.grid.bounds.minY, north: g.grid.bounds.maxY } : null,
-    epochs, source: "none",
-    noteFor: (e) => { const s = steps[e.index]; return `${s.failing.toLocaleString()} / ${s.applicable.toLocaleString()} failing · wetness ${s.wetFraction.toFixed(2)}`; },
-    noteTitle: (e) => { const s = steps[e.index]; return `${s.failing} of ${s.applicable} modelled cells below FoS 1 at ${e.date}; mean wet fraction ${s.wetFraction.toFixed(2)}`; },
-    onStatus: (m) => say("run", m), interval: 250, startAt: worst,
-    onShow: (index) => {
-      put(index); state.step = index;
-      try { built.repaint?.((v) => CLASS_COLOUR(v)); } catch (e) { /* stands */ }
-      const counts = [0, 0, 0, 0, 0];
-      for (const v of steps[index].values) { const b = stabilityBand(v); if (b) counts[["failure", "marginal", "low margin", "adequate", "stable"].indexOf(b)] += 1; }
-      layer.legendInfo = { ...built.legendInfo, counts };
-      window.GeoIDLayerHierarchy?.render?.();
-    },
-    onStop: () => { state.playing = false; },
+/** Changing the strength re-reads every cell's c′ and φ′ from its material; the rest stands. */
+function remater() {
+  const g = state.ground;
+  if (!g) return;
+  g.table.list.forEach((mat) => {
+    const again = columnMaterial({ lith: mat.texture?.peat ? "peat" : groundText(mat.lith), texture: mat.texture?.peat ? null : mat.texture,
+      rp: (name, key) => parameterValue(name, key), state: (t) => stateOf(t), strength: state.params.strength, rootCohesionKPa: state.params.root });
+    mat.cohesionKPa = again.cohesionKPa; mat.friction = again.friction; mat.rootCohesionKPa = again.rootCohesionKPa; mat.strength = again.strength;
   });
-  say("run", `${steps.length} steps of ${r.stepHours} h; worst step ${steps[worst].date}: ${steps[worst].failing.toLocaleString()} of ${steps[worst].applicable.toLocaleString()} cells below FoS 1. Scrub the bar; click a cell for its numbers.`);
-  markStates();
+  for (let i = 0; i < g.n; i += 1) {
+    const k = g.cells.mat[i];
+    if (k < 0) continue;
+    g.cells.c[i] = g.table.list[k].cohesionKPa; g.cells.phi[i] = g.table.list[k].friction;
+  }
+  describeStatic();
+  rerun();
+}
+
+function rerun() {
+  if (state.run) void run({ keepStep: true });
+}
+
+/* ── step 6: every map through the static model, then the bar ───────────── */
+
+function rainWeights() {
+  const r = state.rain; const g = state.ground;
+  if (r.weights?.n === g.n) return r.weights;
+  const idx = new Int32Array(g.n * 4); const wt = new Float32Array(g.n * 4);
+  for (let i = 0; i < g.n; i += 1) {
+    if (!g.cells.data[i]) continue;
+    const it = interpolatorFor(r.grid, r.nodes, g.cells.lat[i], g.cells.lon[i]);
+    idx.set(it.idx, i * 4); wt.set(it.wt, i * 4);
+  }
+  r.weights = { idx, wt, n: g.n };
+  return r.weights;
+}
+
+function rainMapFor(frame) {
+  const r = state.rain; const g = state.ground;
+  const acc = r.accumulation(frame);
+  const { idx, wt } = rainWeights();
+  const out = new Float32Array(g.n).fill(NaN);
+  for (let i = 0; i < g.n; i += 1) {
+    if (!g.cells.data[i]) continue;
+    const o = i * 4;
+    out[i] = wt[o] * acc[idx[o]] + wt[o + 1] * acc[idx[o + 1]] + wt[o + 2] * acc[idx[o + 2]] + wt[o + 3] * acc[idx[o + 3]];
+  }
+  return out;
+}
+
+function modelFrame(k) {
+  const r = state.rain; const g = state.ground;
+  const rainMm = rainMapFor(r.frames[k]);
+  const out = staticStep({ rainMm, windowH: r.windowH, cells: g.cells, topo: g.topo, infiltration: state.params.infiltration });
+  return { ...out, rainMm };
+}
+
+const VIEW = {
+  fos: { label: "Factor of safety", classes: FOS_CLASSES.map((c, i) => ({ ...c, lo: [0, 1, 1.1, 1.3, 1.5][i] })), classOf: fosClass },
+  minfos: { label: "Lowest factor of safety over the window", classes: FOS_CLASSES.map((c, i) => ({ ...c, lo: [0, 1, 1.1, 1.3, 1.5][i] })), classOf: fosClass },
+  wet: {
+    label: "Saturation h / z_s",
+    classes: [
+      { max: 0.2, label: "under 0.2", colour: [237, 248, 251] }, { max: 0.4, label: "0.2–0.4", colour: [179, 205, 227] },
+      { max: 0.6, label: "0.4–0.6", colour: [140, 150, 198] }, { max: 0.8, label: "0.6–0.8", colour: [136, 86, 167] },
+      { max: 0.999, label: "0.8–1", colour: [129, 15, 124] }, { max: Infinity, label: "saturated", colour: [77, 0, 75] },
+    ],
+  },
+  rain: {
+    label: "GFS rainfall over the window (mm)",
+    classes: [
+      { max: 1, label: "under 1 mm", colour: [240, 240, 240] }, { max: 10, label: "1–10", colour: [198, 219, 239] },
+      { max: 25, label: "10–25", colour: [107, 174, 214] }, { max: 50, label: "25–50", colour: [33, 113, 181] },
+      { max: 100, label: "50–100", colour: [8, 48, 107] }, { max: 200, label: "100–200", colour: [106, 81, 163] },
+      { max: Infinity, label: "200 and more", colour: [63, 0, 125] },
+    ],
+  },
+  crit: {
+    label: "Rainfall to fail (steady recharge, mm/day)",
+    classes: [
+      { max: 1e-9, label: "fails even dry", colour: [128, 0, 38] }, { max: 25, label: "under 25", colour: [215, 25, 28] },
+      { max: 50, label: "25–50", colour: [253, 141, 60] }, { max: 100, label: "50–100", colour: [254, 217, 118] },
+      { max: 200, label: "100–200", colour: [161, 218, 180] }, { max: 1e8, label: "200 and more", colour: [65, 182, 196] },
+      { max: Infinity, label: "holds even saturated", colour: [44, 127, 184] },
+    ],
+  },
+};
+const classIn = (classes, v) => (Number.isFinite(v) ? classes.findIndex((k) => v < k.max) : -1);
+const hex = (rgb) => rgb.map((c) => c.toString(16).padStart(2, "0")).join("");
+
+function paintView(frameOut) {
+  const run = state.run; const g = state.ground;
+  const view = VIEW[state.view] || VIEW.fos;
+  const src = state.view === "fos" ? frameOut.fos : state.view === "wet" ? frameOut.W : state.view === "rain" ? frameOut.rainMm
+    : state.view === "minfos" ? run.minFos : g.crit.map((v) => (v === Infinity ? 1e9 : v));
+  const counts = new Array(view.classes.length).fill(0);
+  const { sub } = g;
+  for (let y = 0; y < sub.height; y += 1) {
+    for (let x = 0; x < sub.width; x += 1) {
+      const i = (y + sub.y0) * g.grid.width + (x + sub.x0);
+      const shown = state.view === "rain" ? g.cells.data[i] : g.cells.model[i];
+      const v = shown ? src[i] : NaN;
+      run.band[y * sub.width + x] = v;
+      const c = classIn(view.classes, v);
+      if (c >= 0) counts[c] += 1;
+    }
+  }
+  try { run.built.repaint?.((v) => { const c = classIn(view.classes, v); return c >= 0 ? view.classes[c].colour : null; }); } catch (e) { /* stands */ }
+  const legend = {
+    classed: true, categorical: true, field: state.view, label: view.label,
+    palette: view.classes.map((k) => hex(k.colour)), labels: view.classes.map((k) => k.label), counts,
+  };
+  run.layer.legendInfo = legend;
+  window.GeoIDLayerHierarchy?.render?.();
+}
+
+function showStep(k) {
+  const run = state.run;
+  if (!run) return;
+  state.step = k;
+  run.current = modelFrame(k);
+  run.current.frame = k;
+  paintView(run.current);
+}
+
+let running = false;
+
+async function run({ keepStep = false } = {}) {
+  const g = state.ground; const r = state.rain;
+  if (!g || !r || running) return;
+  running = true;
+  const resume = keepStep ? state.step : -1;
+  clear({ keepInputs: true });
+  try {
+    const frames = r.frames;
+    say("run", `Running ${frames.length} static models over ${g.tally.model.toLocaleString()} cells…`);
+    const minFos = new Float32Array(g.n).fill(NaN);
+    const minAt = new Int16Array(g.n).fill(-1);
+    const summary = [];
+    for (let k = 0; k < frames.length; k += 1) {
+      const out = modelFrame(k);
+      let maxRain = 0;
+      for (let i = 0; i < g.n; i += 1) {
+        const v = out.fos[i];
+        if (Number.isFinite(out.rainMm[i]) && out.rainMm[i] > maxRain && g.cells.model[i]) maxRain = out.rainMm[i];
+        if (!Number.isFinite(v)) continue;
+        if (!(minFos[i] <= v)) { minFos[i] = v; minAt[i] = k; }
+      }
+      summary.push({ failing: out.failing, applicable: out.applicable, meanW: out.meanW, maxRain });
+      if (k % 8 === 7) { say("run", `Running static models… ${k + 1} of ${frames.length}`); await tick(); }
+    }
+    const band = new Float32Array(g.sub.width * g.sub.height).fill(NaN);
+    const built = buildRasterLayer([band], g.sub.width, g.sub.height, g.sub.bounds, { name: LAYER_NAME, isDem: false, noData: NaN });
+    if (!built) throw new Error("the layer could not be built");
+    const layer = window.GeoIDImportManager?.addDerivedLayer?.(LAYER_NAME, built, "fos");
+    if (!layer) throw new Error("the globe is not ready");
+    layer.raster = makeRaster(band, g.sub.width, g.sub.height, g.sub.bounds, NaN);
+    window.GeoIDLayerHierarchy?.setOpacity?.(layer, 0.75);
+    layer.info = {
+      source: `${GFS_CREDIT}; ${g.demLabel}; ${[g.maps.superficial, g.maps.bedrock, g.maps.soil].filter(Boolean).join("; ") || "no ground map"}; Pelletier et al. (2016) soil thickness; the rock-properties database`,
+      summary: "A static, steady-state hydrogeological slope model (SHALSTAB/SINMAP family) run once per GFS rainfall map: recharge routed downslope builds a water table, and the infinite-slope factor of safety is read on the failure plane in the soil.",
+      citation: "Montgomery & Dietrich (1994); Pack, Tarboton & Goodwin (1998); Quinn et al. (1991); Cosby et al. (1984)",
+      maths: mathsFor("landslide-forecast"),
+    };
+    state.run = { layer, built, band, frames, summary, minFos, minAt, current: null };
+    let worst = 0;
+    summary.forEach((s, k) => { if (s.failing > summary[worst].failing || (s.failing === summary[worst].failing && s.meanW > summary[worst].meanW)) worst = k; });
+    const startAt = resume >= 0 && resume < frames.length ? resume : worst;
+    showStep(startAt);
+    const epochs = frames.map((f, k) => ({ date: f.time, label: f.time.replace("T", " "), dataset: null, index: k }));
+    state.playing = true;
+    await startPlayer({
+      bounds: { west: g.sub.bounds.minX, east: g.sub.bounds.maxX, south: g.sub.bounds.minY, north: g.sub.bounds.maxY },
+      epochs, source: "none", interval: 400, startAt,
+      noteFor: (e) => { const s = summary[e.index]; return `${s.failing.toLocaleString()} / ${s.applicable.toLocaleString()} failing · ${s.maxRain.toFixed(0)} mm`; },
+      noteTitle: (e) => { const s = summary[e.index]; return `GFS rain over the ${r.windowH} h to ${e.date}: up to ${s.maxRain.toFixed(0)} mm in the area; ${s.failing} of ${s.applicable} modelled cells below FoS 1; mean saturation ${s.meanW.toFixed(2)}.`; },
+      onStatus: (m) => say("run", m),
+      onShow: (index) => showStep(index),
+      onStop: () => { state.playing = false; },
+    });
+    const w = summary[worst];
+    const ever = [...minFos].filter((v) => Number.isFinite(v) && v < 1).length;
+    say("run", `${frames.length} static models, one per GFS map. Worst map ${frames[worst].time.replace("T", " ")}: ${w.failing.toLocaleString()} of ${w.applicable.toLocaleString()} cells below FoS 1 under up to ${w.maxRain.toFixed(0)} mm in ${r.windowH} h. `
+      + `${ever.toLocaleString()} cells fall below 1 at some point in the window. Scrub the bar; change the view; click a cell for its numbers.`);
+  } catch (error) {
+    say("run", `The run failed: ${error.message}`, "error");
+  } finally {
+    running = false;
+    markStates();
+  }
 }
 
 function clear({ keepInputs = false } = {}) {
-  if (state.playing) { try { stopPlayer(); } catch (e) { /* gone */ } }
+  if (state.playing) { try { stopPlayer(); } catch (e) { /* gone */ } state.playing = false; }
   const layer = (window.GeoIDImportManager?.getLayers?.() || []).find((l) => l.name === LAYER_NAME);
   if (layer) window.GeoIDImportManager?.removeLayer?.(layer.id);
   state.run = null; state.step = -1;
-  if (!keepInputs) { state.rain = null; state.ground = null; state.bounds = null; ["area", "rain", "ground", "run"].forEach((id) => say(id, "")); }
+  if (!keepInputs) { state.rain = null; state.ground = null; state.bounds = null; ["area", "rain", "ground", "hydro", "run"].forEach((id) => say(id, "")); }
   markStates();
 }
 
-/** A click on the risk layer: this cell at the step on screen. */
+/* ── the card: one cell, at the map on screen ───────────────────────────── */
+
+const fmt = (v, d = 2) => (Number.isFinite(v) ? v.toFixed(d) : "—");
+
 export function probeAt(lat, lon) {
   const run = state.run; const g = state.ground;
   if (!run || !g || run.layer.visible === false) return false;
-  const b = g.grid.bounds;
+  const b = g.sub.bounds;
   if (lon < b.minX || lon > b.maxX || lat < b.minY || lat > b.maxY) return false;
-  const x = Math.min(g.cols - 1, Math.floor(((lon - b.minX) / (b.maxX - b.minX)) * g.cols));
-  const y = Math.min(g.rows - 1, Math.floor(((b.maxY - lat) / (b.maxY - b.minY)) * g.rows));
-  const j = g.cells.findIndex((c) => c.x === x && c.y === y);
-  if (j < 0) return false;
-  const cell = g.cells[j];
-  const s = Math.max(0, state.step);
-  const v = run.steps[s].values[j];
-  const bucket = bucketOfCell(cell);
+  const x = Math.min(g.grid.width - 1, Math.floor(((lon - g.eb.west) / (g.eb.east - g.eb.west)) * g.grid.width));
+  const y = Math.min(g.grid.height - 1, Math.floor(((g.eb.north - lat) / (g.eb.north - g.eb.south)) * g.grid.height));
+  const i = y * g.grid.width + x;
+  if (!g.cells.data[i]) return false;
+  const cur = run.current || modelFrame(Math.max(0, state.step));
+  const frame = run.frames[Math.max(0, state.step)];
+  const mat = g.table.list[g.cells.mat[i]];
+  const slopeDeg = g.cells.slopeRad[i] * 180 / Math.PI;
+  const fos = cur.fos[i];
+  const crit = g.crit?.[i];
+  const why = g.cells.bare[i] ? "not modelled — bare rock, no soil to slide"
+    : slopeDeg < MIN_SLOPE_DEG ? `not modelled — slope under ${MIN_SLOPE_DEG}°` : null;
   const rows = [
-    ["Factor of safety", Number.isFinite(v) ? `${v.toFixed(2)} — ${stabilityBand(v)}` : "not modelled (slope under 5°)"],
-    ["Step", String(run.steps[s].date)],
-    ["Slope", `${cell.slopeDeg.toFixed(1)}°`],
-    ["Material", `${cell.lith || "default class"} → c′ ${cell.material.cohesion} kPa, φ′ ${cell.material.friction}°, γ ${cell.material.unitWeight} kN/m³`],
-    ["Depth", `${cell.material.depth} m (${cell.depthFrom})`],
-    ["Bucket", `${bucket.capacityMm} mm capacity, ${(bucket.drainPerDay * 100).toFixed(0)}% a day drainage (n ${bucket.n ?? "—"}, K ${Number.isFinite(bucket.K) ? bucket.K.toExponential(1) : "—"} m/s)`],
+    ["Factor of safety", why || `${fmt(fos)} — ${FOS_CLASSES[fosClass(fos)]?.label || "—"}`],
+    ["Rainfall map", `${fmt(cur.rainMm[i], 1)} mm of GFS rain in the ${state.rain.windowH} h to ${frame.time.replace("T", " ")} UTC`],
+    ["Saturation", `h / z_s ${fmt(cur.W[i])}; water on the failure plane m ${fmt(planeWetness(cur.W[i], g.cells.zs[i], g.cells.zf[i]))}`],
+    ["Upslope area", `${(g.cells.area[i] / 1e4).toFixed(2)} ha draining through this cell (a = ${(g.cells.area[i] / g.topo.contour).toFixed(0)} m)`],
+    ["Lowest over the window", Number.isFinite(run.minFos[i]) ? `${fmt(run.minFos[i])} at ${run.frames[run.minAt[i]].time.replace("T", " ")}` : "—"],
+    ["Rainfall to fail", !Number.isFinite(crit) && crit !== Infinity ? "—" : crit === Infinity ? "holds even saturated" : crit === 0 ? "fails even dry" : `${crit.toFixed(0)} mm/day sustained over its catchment`],
+    ["Slope", `${slopeDeg.toFixed(1)}°`],
+    ["Soil column", `${fmt(g.cells.zs[i], 1)} m to bedrock (${g.cells.depthFrom[i] ? "Pelletier et al. 2016" : "a stated default"}); failure plane at ${fmt(g.cells.zf[i], 1)} m`],
+    ["Material", `${mat.name} — ${mat.from}`],
+    ["Strength", `c′ ${fmt(mat.cohesionKPa, 1)} kPa${mat.rootCohesionKPa ? ` (with ${mat.rootCohesionKPa} kPa of roots)` : ""}, φ′ ${fmt(mat.friction, 0)}° (${mat.strength}), γ ${fmt(mat.unitWeight, 1)} kN/m³`],
+    ["Conductivity", `Ks ${mat.K.toExponential(1)} m/s — ${mat.kFrom}`],
   ];
   window.GeoIDViewer?.showFeatureCard?.({
     // Named, so the card is claimed by this layer and goes when it does.
     source_layer: LAYER_NAME,
     soil: true, type: "Forecast landslide risk", rock_type: rows[0][1], lithology: null, name: null,
-    description: `${state.rain?.source || ""} · ${state.rain?.window || ""}`, extra_rows: rows, origin: "GeoHUB forecast landslide pipeline",
-    rows: [["Note", "Infinite-slope screening: a plane failure parallel to the ground, the column wetted by a bucket sized from the material's own porosity and drained at its conductivity down the slope. Not a site investigation."]],
+    description: `${GFS_CREDIT} · ${state.rain.window.start} to ${state.rain.window.end}`, extra_rows: rows, origin: "GeoHUB forecast landslide pipeline",
+    rows: [["Note", "A static steady-state screening model: the water table sustained recharge would build, routed downslope, and an infinite-slope failure parallel to the ground. Not a site investigation."]],
   }, lat, lon);
   return true;
 }
@@ -544,6 +875,6 @@ export function init() {
 if (typeof document !== "undefined") {
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 }
-if (typeof window !== "undefined") {
-  window.GeoIDLandslidePipeline = { init, render, probeAt, state, readiness, bucketFor, demGridFor, runSteps, archiveUrl, LAYER_NAME };
+if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+  window.GeoIDLandslidePipeline = { init, render, probeAt, state, readiness, demGridFor, staticStep, LAYER_NAME, run, showStep };
 }

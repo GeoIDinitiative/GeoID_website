@@ -1,60 +1,117 @@
 /**
- * The forecast landslide pipeline: the pure pieces, run.
+ * The forecast landslide pipeline: its pure pieces run, the static model on a
+ * synthetic hillslope, and the wiring pinned. Run with
+ * `node landslide-pipeline.test.mjs`.
  */
 import { readFileSync } from "node:fs";
-import { archiveUrl, bucketFor, demGridFor, samplerOver, lithologyOf, runSteps, readiness, HYDRO_DEFAULTS } from "./landslide-pipeline.js";
-import { materialFor } from "./fos.js";
+import {
+  demGridFor, withMargin, autoMarginKm, samplerOver, lithologyOf, groundText, stateOf, textureOf,
+  staticStep, readiness,
+} from "./landslide-pipeline.js";
+import { mfdTopology, fillSinks } from "./hydrology.js";
+import { makeRaster } from "./raster-analysis.js";
+import { useRockProperties, resolveLithology } from "./rock-properties.js";
 
 let pass = 0;
 const failures = [];
-const check = (name, got, want) => {
-  if (JSON.stringify(got) === JSON.stringify(want)) pass += 1;
-  else failures.push(`${name}\n     got  ${JSON.stringify(got)}\n     want ${JSON.stringify(want)}`);
-};
-
-/* ── rainfall by date ─────────────────────────────────────────────────────── */
-const url = archiveUrl([{ lat: 54.5, lon: -6.5 }], { start: "2024-01-01", end: "2024-01-31" });
-check("the archive is asked by date, hourly, in UTC", /archive-api\.open-meteo\.com/.test(url) && /start_date=2024-01-01/.test(url) && /hourly=precipitation/.test(url) && /timezone=UTC/.test(url), true);
-
-/* ── the bucket is the ground's own ───────────────────────────────────────── */
-const clay = bucketFor({ porosity: 0.45, conductivity: 1e-9, depthM: 2, slopeDeg: 20 });
-const gravel = bucketFor({ porosity: 0.3, conductivity: 1e-3, depthM: 2, slopeDeg: 20 });
-check("capacity is the pore space of the column, in mm", clay.capacityMm, 900);
-check("a clay drains at the floor and a gravel at the ceiling", [clay.drainPerDay, gravel.drainPerDay], [0.02, 0.95]);
-check("a granite's 1% porosity is floored, not read as a full column", bucketFor({ porosity: 0.01, conductivity: 1e-6, depthM: 1, slopeDeg: 10 }).n, 0.02);
-const src = readFileSync(new URL("./landslide-pipeline.js", import.meta.url), "utf8");
-check("the database's percent is converted where it is read", /parameterValue\(lith, "porosity"\) \/ 100/.test(src), true);
-check("no published value takes the stated default", bucketFor({ depthM: 1, slopeDeg: 10 }).n, HYDRO_DEFAULTS.porosity);
-
-/* ── the DEM grid and the sampler ─────────────────────────────────────────── */
-const grid = demGridFor({ west: -6.6, east: -6.5, south: 54.4, north: 54.5 }, (lat, lon) => 100 + (lon + 6.6) * 5000, { maxCells: 400 });
-check("a grid over the area at about the cell budget", grid.width * grid.height <= 520 && grid.known === grid.width * grid.height, true);
-const sampler = samplerOver([{ properties: { lith: "till" }, geometry: { type: "Polygon", coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]] } }], lithologyOf);
-check("a point inside a unit reads its lithology, outside nothing", [sampler(0.5, 0.5), sampler(2, 2)], ["till", null]);
-
-/* ── a storm on a slope ───────────────────────────────────────────────────── */
-const cells = [{ slopeDeg: 32, material: { ...materialFor("clay"), depth: 2 } }, { slopeDeg: 3, material: { ...materialFor("clay"), depth: 2 } }];
-const dates = Array.from({ length: 48 }, (_, i) => `2024-01-01T${String(i % 24).padStart(2, "0")}:00`);
-const storm = runSteps({ cells, dates, stepHours: 1, rainFor: (cell, s) => (s >= 12 && s < 24 ? 12 : 0), bucketOf: () => ({ capacityMm: 150, drainPerDay: 0.1 }) });
-check("the flat cell is never modelled", storm.steps.every((s) => !Number.isFinite(s.values[1])), true);
-const before = storm.steps[10].values[0]; const during = storm.steps[23].values[0];
-check("the slope's FoS falls through the storm", during < before, true);
-check("and the wetness has memory: still wet hours after it stopped", storm.wet[0][30] > storm.wet[0][10], true);
-check("readiness gates each step on the one above", readiness({ bounds: null, rain: null, ground: null, run: null }).rain, "blocked");
-check("and opens once the area is set", readiness({ bounds: {}, rain: null, ground: null, run: null }).rain, "ready");
-
-const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
-check("the page hosts the flowchart in the Landslides subtab and loads the module", /id="landslide-pipeline"/.test(html) && /gis\/landslide-pipeline\.js\?v=/.test(html), true);
-const popup = readFileSync(new URL("./feature-popup.js", import.meta.url), "utf8");
-check("a click on the risk layer is offered to the pipeline BEFORE the polygons under it",
-  popup.indexOf("GeoIDLandslidePipeline?.probeAt") > 0 && popup.indexOf("GeoIDLandslidePipeline?.probeAt") < popup.indexOf("const geologyHit = everything.find("), true);
-
-const viewer = readFileSync(new URL("../earth-viewer.js", import.meta.url), "utf8");
-check("and the viewer's own geology click yields to the sheet too", /GeoIDLandslidePipeline\.probeAt\(claim\.lat, claim\.lon\)\) return;/.test(viewer)
-  && viewer.indexOf("GeoIDLandslidePipeline.probeAt(claim.lat") < viewer.indexOf("openGeoPopup(geologyFeature, surfaceHit.point, clickSpinDelta)"), true);
-
+function check(name, cond, detail = "") {
+  if (cond) pass += 1;
+  else failures.push(`${name}${detail ? ` — ${detail}` : ""}`);
+}
 process.on("exit", () => {
   failures.forEach((f) => console.error(`  x ${f}`));
   console.log(`landslide-pipeline: ${pass} passed, ${failures.length} failed`);
   if (failures.length) process.exitCode = 1;
 });
+
+useRockProperties(JSON.parse(readFileSync(new URL("../../data/global/rock-properties.json", import.meta.url), "utf8")));
+
+/* ── the grid, the margin, the maps' words ────────────────────────────────── */
+
+{
+  const grid = demGridFor({ west: 0, east: 0.1, south: 0, north: 0.1 }, () => 10, { maxCells: 500 });
+  check("a grid over the area at about the cell budget", grid.width * grid.height <= 520 && grid.known === grid.width * grid.height);
+  const b = { west: 11.55, east: 11.95, south: 44.05, north: 44.3 };
+  const m = withMargin(b, 2);
+  check("the margin widens the box by its kilometres", Math.abs((b.south - m.south) * 110.574 - 2) < 1e-9
+    && m.west < b.west && m.east > b.east);
+  check("the auto margin is a tenth of the larger side, at least 1 km, at most 5", Math.abs(autoMarginKm(b) - 3.19) < 0.02
+    && autoMarginKm({ west: 0, east: 0.01, south: 0, north: 0.01 }) === 1 && autoMarginKm({ west: 0, east: 5, south: 0, north: 5 }) === 5);
+  const sampler = samplerOver([{ properties: { lith: "till" }, geometry: { type: "Polygon", coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]] } }], lithologyOf);
+  check("a point inside a unit reads its lithology, outside nothing", sampler(0.5, 0.5) === "till" && sampler(2, 2) === null);
+  check("GLiM's unconsolidated class reads as alluvium, never the rock prior", groundText("Unconsolidated Sediments") === "alluvium"
+    && stateOf(groundText("Unconsolidated Sediments"), resolveLithology) === "soil");
+  check("a deposit is soil, a bedrock is rock, and nothing is nothing", stateOf("alluvium, till", resolveLithology) === "soil"
+    && stateOf("Major:{claystone}, Minor{siltstone}", resolveLithology) === "rock" && stateOf("", resolveLithology) === null);
+  check("a Histosol is peat, a non-soil has no texture, a soil its fractions",
+    textureOf({ group: "HISTOSOLS", name: "Dystric Histosols" }).peat === true
+    && textureOf({ group: "Not a soil", name: "Water" }) === null
+    && textureOf({ group: "CAMBISOLS", sand_pct: 40, silt_pct: 35, clay_pct: 25 }).clay === 25);
+}
+
+/* ── the static model on a hillslope with a hollow ────────────────────────── */
+
+{
+  // A V-valley draining east, 20° side slopes, ~11 m cells: one material, one column.
+  const w = 40; const h = 41; const mid = 20; const n = w * h;
+  const cellM = 1e-4 * 111320;
+  const tan = Math.tan(20 * Math.PI / 180);
+  const band = new Float32Array(n);
+  for (let y = 0; y < h; y += 1) for (let x = 0; x < w; x += 1) band[y * w + x] = 500 - 0.1 * cellM * x + tan * cellM * Math.abs(y - mid);
+  const dem = makeRaster(band, w, h, { minX: 0, maxX: w * 1e-4, minY: 0, maxY: h * 1e-4 }, NaN);
+  const topo = mfdTopology(fillSinks(dem));
+  const cells = {
+    data: new Uint8Array(n).fill(1), model: new Uint8Array(n).fill(1), bare: new Uint8Array(n),
+    K: new Float32Array(n).fill(1e-4), zs: new Float32Array(n).fill(2), zf: new Float32Array(n).fill(2),
+    slopeRad: new Float32Array(n), c: new Float32Array(n).fill(2), phi: new Float32Array(n).fill(30), gamma: new Float32Array(n).fill(20),
+  };
+  for (let y = 0; y < h; y += 1) {
+    for (let x = 0; x < w; x += 1) {
+      const i = y * w + x;
+      cells.slopeRad[i] = y === mid ? Math.atan(0.1) : Math.atan(Math.hypot(tan, 0.1));
+      if (y === mid) cells.model[i] = 0;
+    }
+  }
+  const rain = (mm) => new Float32Array(n).fill(mm);
+  const dry = staticStep({ rainMm: rain(0), windowH: 24, cells, topo });
+  check("no rain, no water table anywhere", dry.meanW === 0 && dry.failing === 0);
+  const wet = staticStep({ rainMm: rain(30), windowH: 24, cells, topo });
+  const nearAxis = wet.W[(mid - 1) * w + 30]; const ridge = wet.W[1 * w + 30];
+  check("the hollow's flank saturates before the ridge above it", nearAxis > 3 * ridge, `${nearAxis} against ${ridge}`);
+  const wetter = staticStep({ rainMm: rain(90), windowH: 24, cells, topo });
+  check("more rain, more cells failing, and never fewer", wetter.failing >= wet.failing && wetter.failing > dry.failing,
+    `${dry.failing} → ${wet.failing} → ${wetter.failing}`);
+  const firstFail = [...Array(n).keys()].filter((i) => wetter.fos[i] < 1).map((i) => Math.abs(Math.floor(i / w) - mid));
+  const meanDist = firstFail.reduce((a, b) => a + b, 0) / Math.max(1, firstFail.length);
+  check("and what fails is next to the hollow, not up on the ridge", firstFail.length > 0 && meanDist < mid / 2, `mean ${meanDist}`);
+  const capped = staticStep({ rainMm: rain(1000), windowH: 24, cells, topo, infiltration: true });
+  const uncapped = staticStep({ rainMm: rain(1000), windowH: 24, cells, topo, infiltration: false });
+  check("rain faster than Ks runs off rather than recharging", capped.meanW <= uncapped.meanW);
+  const bareCells = { ...cells, bare: new Uint8Array(n).fill(1), model: new Uint8Array(n) };
+  check("bare rock is never modelled", staticStep({ rainMm: rain(100), windowH: 24, cells: bareCells, topo }).applicable === 0);
+}
+
+check("readiness gates each step on the one above", readiness({ bounds: null, rain: null, ground: null, run: null }).rain === "blocked"
+  && readiness({ bounds: {}, rain: null, ground: null, run: null }).rain === "ready"
+  && readiness({ bounds: {}, rain: {}, ground: null, run: null }).run === "blocked");
+
+/* ── wired in ─────────────────────────────────────────────────────────────── */
+
+const src = readFileSync(new URL("./landslide-pipeline.js", import.meta.url), "utf8");
+check("the rainfall is GFS, by date — the ERA5 archive is gone", /fetchGfsNodes\(cover/.test(src) && !/archive-api\.open-meteo/.test(src));
+check("the GFS nodes cover the upslope margin, where water drains in from", /const cover = withMargin\(b, marginKm\(\)\)/.test(src));
+check("a borrowed streaming layer is given back, whatever happens", /finally \{\s*borrowed\.forEach\(\(l\) => \{ try \{ l\.restoreLive\?\.\(\); \}/.test(src));
+check("the routing is multiple-flow-direction on the sink-filled DEM", /mfdTopology\(filled, \{ exponent: 1\.1 \}\)/.test(src)
+  && /fillSinks\(makeRaster\(grid\.band/.test(src));
+check("the layer carries its working", /maths: mathsFor\("landslide-forecast"\)/.test(src)
+  && /"landslide-forecast": \{/.test(readFileSync(new URL("./equations.js", import.meta.url), "utf8")));
+check("the drawn sheet is bounded by its cells' edges, not the asked box", /sub\.bounds = \{ minX: eb\.west \+ x0 \* cw/.test(src));
+
+const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+check("the page hosts the flowchart in the Landslides subtab and loads the module", /id="landslide-pipeline"/.test(html) && /gis\/landslide-pipeline\.js\?v=/.test(html));
+const popup = readFileSync(new URL("./feature-popup.js", import.meta.url), "utf8");
+check("a click on the risk layer is offered to the pipeline BEFORE the polygons under it",
+  popup.indexOf("GeoIDLandslidePipeline?.probeAt") > 0 && popup.indexOf("GeoIDLandslidePipeline?.probeAt") < popup.indexOf("const geologyHit = everything.find("));
+const viewer = readFileSync(new URL("../earth-viewer.js", import.meta.url), "utf8");
+check("and the viewer's own geology click yields to the sheet too", /GeoIDLandslidePipeline\.probeAt\(claim\.lat, claim\.lon\)\) return;/.test(viewer)
+  && viewer.indexOf("GeoIDLandslidePipeline.probeAt(claim.lat") < viewer.indexOf("openGeoPopup(geologyFeature, surfaceHit.point, clickSpinDelta)"));

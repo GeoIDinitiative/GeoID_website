@@ -196,6 +196,44 @@ const EQUATIONS = {
       + "volume and the DEM applies here too.",
   },
 
+  "landslide-forecast": {
+    kind: COMPUTED,
+    intro: "A static, steady-state hydrogeological slope model (the SHALSTAB / SINMAP "
+      + "family) built once from the ground, then run once for every GFS rainfall map.",
+    lines: [
+      { expr: "P = Σ GFS rain over the window before the map, bilinear between GFS nodes",
+        note: "NOAA's GFS on its own ~13 km grid, via Open-Meteo; a map every few hours, each the rain over the hours before it" },
+      { expr: "r = min(P / Δt, Ks)", note: "recharge: rain faster than the ground's saturated conductivity runs off (a toggle); bare rock sheds all of it onto the soil below" },
+      { expr: "q = Σ over the cells draining through this one of r · A",
+        note: "multiple-flow-direction routing on the sink-filled DEM (Quinn et al. 1991; Freeman 1991, p = 1.1), over the area plus an upslope margin" },
+      { expr: "h = min(z_s, q / (b · Ks · sin β))", note: "the steady Darcy water table on bedrock, flow parallel to the slope" },
+      { expr: "m = clamp((h − (z_s − z_f)) / z_f, 0, 1)", note: "the water standing above the failure plane, as a fraction of its depth" },
+      { expr: "FoS = [c′ + c_r + (γ − m·γw)·z_f·cos²β·tan φ′] / [γ·z_f·sin β·cos β]", note: "infinite slope; under 1 is failure" },
+      { expr: "R_crit = b · Ks · sin β · h_crit / A,  h_crit = (z_s − z_f) + m_crit · z_f",
+        note: "the rainfall to fail: the steady recharge that brings the cell to FoS = 1 (m_crit ≥ 1 holds even saturated; m_crit ≤ 0 fails dry)" },
+    ],
+    terms: [
+      ["β", "slope, Horn's method on the streamed DEM; cells under 5° are not modelled"],
+      ["A, b", "the area draining through the cell including itself, and the cell's width (the contour length)"],
+      ["z_s, z_f", "the soil column above bedrock from Pelletier et al. (2016), and the failure "
+        + "plane within it, capped at 3 m for a shallow translational slide; 0 m is bare rock"],
+      ["c′, φ′, γ", "from the rock-properties database for the column's material — a mapped "
+        + "deposit, the FAO soil map's dominant topsoil fraction, or the regolith over mapped "
+        + "bedrock; peak or residual by the Strength control; γ saturated, from dry density and porosity"],
+      ["Ks", "the database's value for a mapped deposit, Cosby et al.'s (1984) pedotransfer from "
+        + "the soil map's sand and clay where that is on, else the database's"],
+      ["c_r", "root cohesion, a control; γw = 9.81 kN/m³"],
+    ],
+    note: "A screening model, not a forecast of individual landslides. Each map is treated as a "
+      + "steady state — the water table a recharge sustained for the window would build — so "
+      + "the window stands in for the antecedent wet, and there is no memory from one map to the "
+      + "next beyond it. No evaporation, no deep percolation into bedrock, no vertical "
+      + "infiltration front, no root reinforcement unless it is set. The material maps are "
+      + "1:1,000,000 and coarser and the thickness a 1 km model, so what is resolved is the "
+      + "topography's convergence and slope; GFS resolves storms at ~13 km, not convective cells. "
+      + "Validated qualitatively against the May 2023 Emilia-Romagna storm, not calibrated.",
+  },
+
   "sea-level": {
     kind: COMPUTED,
     intro: "A bathtub model with connectivity, on the streamed heights and the "
