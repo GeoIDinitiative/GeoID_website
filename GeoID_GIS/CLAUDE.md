@@ -16230,6 +16230,32 @@ infinite-slope FoS; and per cell the RAINFALL TO FAIL, which needs no forecast.
   the red is a 1:5,000,000 polygon outline. Root cohesion is the control that
   moves it.
 
+- **Two rainfall sources, one date range.** The rainfall step takes Auto
+  (Earth Engine for every day it holds, GFS after), GFS alone, or an Earth
+  Engine archive alone. Every map is a SUM OF PIECES — GFS hour ranges or
+  Earth Engine days — so a window can straddle the handover, and a map that
+  does is marked "mixed". Earth Engine is daily, so a series with any Earth
+  Engine day in it is one map a day; Auto with none stays hourly GFS.
+- **The GEE service renders pictures, so rainfall comes back through the
+  palette.** Each day is one billed render through the service's own CHIRPS
+  entry (0–300 mm, four stops) and is inverted with `gee-sample.js`'s own ramp
+  — one colour at a time, since a CHIRPS render over a study area is tens of
+  distinct pixels scaled up (14 colours over 1024 × 805 measured). Cached per
+  dataset, box and day. The thumbnails answer CORS for the page's origin.
+- **Only CHIRPS renders on the DEPLOYED service.** IMERG V07, ERA5-Land,
+  GSMaP all answer "Unknown or unsupported dataset"; entries for IMERG and
+  ERA5-Land (with a `multiply` into mm) are in services/gee-tiles for when it
+  is redeployed, which is the user's to do (billed). CHIRPS runs ~6 weeks
+  behind (last 2026-07-31 on 2026-09-11) and stops at 50° of latitude — Auto
+  hands those areas to GFS, a named archive refuses.
+- **CHIRPS badly under-reads the May 2023 Emilia-Romagna storm**: its wettest
+  day over the study box is 24 mm where GFS had 228 mm in 24 h and gauges
+  recorded 200–300 mm, and the model peaks at 295 failing cells against 3,742
+  under GFS — on the right day, at a tenth the size. CHIRPS is infrared plus
+  station blending and is known to miss mid-latitude orographic extremes; the
+  highest resolution is not the most faithful here, and the status line shows
+  the wettest day so a reader can see it.
+
 Measured over the storm (32 × 28 km, 51,926 modelled cells, 7 s to read the
 ground, 1.5 s for 20 maps): **15 failing in the lull on 15 May, 3,742 at the
 17 May 06:00 peak (228 mm in 24 h), 14 after it**, the failures tracing the
