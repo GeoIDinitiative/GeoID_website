@@ -29,8 +29,8 @@
  */
 
 import { startPlayer, stopPlayer, datasetForYear, seasonFor }
-  from "./timelapse-player.js?v=20260911-bc6912f";
-import { stride as strideEpochs } from "./time-series.js?v=20260911-bc6912f";
+  from "./timelapse-player.js?v=20260911-891b338";
+import { stride as strideEpochs } from "./time-series.js?v=20260911-891b338";
 
 export { stopPlayer as stopImageryTimelapse };
 

@@ -16263,6 +16263,58 @@ valley sides and drainage heads; a dry July week on the same ground never
 exceeds 29. No memory between maps beyond the window — that is what "a series
 of static models" means, and the 48/72 h windows are the antecedent control.
 
+### Mapped at the DEM's posts, informed at each dataset's own resolution
+
+"If there's a dataset at 10 m and one at 30 m, use the 30 m one to inform the
+model but map at 10 m." The first build mapped at whatever a 90,000-cell budget
+allowed — 120 m over the storm box — so the finest dataset was thrown away
+before the model saw it. Now:
+
+- **The grid step IS the DEM's post spacing** (`demGridFor(..., { minStepM:
+  post })`, `post = metresPerPixel(zoom)` of the level `ensure` loaded) up to a
+  2M-cell budget, and only coarsened past it — which the Ground card says. Over
+  the storm box that is 27 m, about native SRTM in Italy; finer zooms would be
+  the publisher's own resampling (`dem-tiles`' z14 cap), and the 256-tile cover
+  caps the zoom for large areas. When the grid IS native, slope is Horn on the
+  grid itself; the four-stencil read survives only for a coarsened grid.
+- **Material, thickness and rain sit on an INFORMING LATTICE** of
+  `INFORM_M = 100 m` blocks (`cells.block[i]` → `cells.props`), finer than any
+  of those sources resolves (geology 1:1M, soil 1:5M, thickness 1 km, rain
+  5–13 km) and ~16× fewer point-in-polygon tests. `staticStep` reads
+  `P = cells.props || cells` through `j = B ? B[i] : i`, so the old per-cell
+  shape still runs and the tests pin the two equal.
+- **Performance, because 2M cells found every O(n log n) with a constant in
+  it.** `fillSinks` is a typed-array binary heap (the class-based MinHeap was
+  the whole ground read); `mfdTopology` keeps receivers in compressed rows
+  (`offsets`/`recv`/`frac`) instead of an array per cell; `routeFlux` can route
+  in place; `staticStep` reuses its scratch buffers across the series. Over the
+  storm box at 27 m: 1,175,328 cells (1,736,316 with the margin), ground 10 s,
+  20 maps 12 s, one map drawn in 0.6 s, the pipeline's retained arrays 148 MB
+  (`performance.memory` reads ~1.85 GB and is not a measure of anything).
+
+GFS peak at 27 m: **82,279 failing** where 120 m found 3,742 — the difference
+is slope, which the coarse grid flattened below the failure angle almost
+everywhere.
+
+### Auto walks the Earth Engine archives in order, then GFS
+
+`planRain` takes an ORDERED list (`AUTO_GEE_ORDER = ["chirps", "imerg"]`):
+each day goes to the first archive that holds it, and GFS takes the rest. A
+series with any Earth Engine day in it is daily; one with none stays hourly
+GFS. The status names every archive passed over and why (`CHIRPS holds … to
+2026-07-31; IMERG: the deployed Earth Engine service does not render IMERG
+yet …`) — a silent fallback to GFS for the recent past would read as
+satellite rainfall that is not.
+
+**The "7 days before / 7 after" demo is GFS on both sides until the service is
+redeployed.** Run on 2026-09-11 for 4–18 Sep over the storm box (1,175,328
+cells, 24 h every 6 h, 60 maps): CHIRPS ends 2026-07-31, and IMERG (to
+2026-09-10), GSMaP and ERA5-Land are in `services/gee-tiles` but not deployed.
+Worst map 2026-09-11 00:00: 10,823 failing under 30 mm/24 h; 458 on the dry
+days; 7,036 at 10 Sep 12:00 (26 mm); 1,153 by 18 Sep. After the (user-gated,
+billed) redeploy the same Auto fetch uses IMERG for 4–10 Sep with no code
+change.
+
 
 
 Hazards-style brief, answered in the GIS page's Model Builder tab: draw the
