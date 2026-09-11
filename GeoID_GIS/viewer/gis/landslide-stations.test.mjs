@@ -96,6 +96,9 @@ const rel = (a, b) => Math.abs(a - b) / Math.max(1e-12, Math.abs(a), Math.abs(b)
   const low = lowestCells({ minFos, model: cells.model, width: w, count: 3, spacing: 4 });
   check("the weakest cells are chosen weakest first, and never two on one slope",
     low[0] === 5 && !low.includes(6) && low.includes(400) && low.length === 3, low.join());
+  const next = lowestCells({ minFos, model: cells.model, width: w, count: 3, spacing: 4, taken: low });
+  check("asking again gives the next weakest, clear of the stations already placed",
+    next.length === 3 && next.every((i) => !low.includes(i) && i !== 6), next.join());
   check("the parameters a station records start with the factor of safety", LANDSLIDE_PARAMS[0].key === "fos"
     && LANDSLIDE_PARAMS.some((p) => p.key === "rain" && p.unit === "mm"));
 }

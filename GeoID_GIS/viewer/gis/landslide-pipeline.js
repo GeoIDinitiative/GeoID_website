@@ -22,24 +22,24 @@
  * file only orchestrates them and says, on every card, what it has read.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-e80ef43";
-import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260911-e80ef43";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-fb4d055";
+import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260911-fb4d055";
 import {
   columnMaterial, soilColumn, steadyWetness, planeWetness, factorOfSafety, criticalRecharge,
   FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M, LATERAL_FACTOR, FOS_CAP, cellAnswer,
-} from "./slope-hydrology.js?v=20260911-e80ef43";
-import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-e80ef43";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-e80ef43";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-e80ef43";
-import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-e80ef43";
-import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainDays, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260911-e80ef43";
-import { mathsFor } from "./equations.js?v=20260911-e80ef43";
-import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260911-e80ef43";
-import { upslopeWeights, stationStep, LANDSLIDE_PARAMS, lowestCells } from "./landslide-stations.js?v=20260911-e80ef43";
+} from "./slope-hydrology.js?v=20260911-fb4d055";
+import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-fb4d055";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-fb4d055";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-fb4d055";
+import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-fb4d055";
+import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainDays, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260911-fb4d055";
+import { mathsFor } from "./equations.js?v=20260911-fb4d055";
+import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260911-fb4d055";
+import { upslopeWeights, stationStep, LANDSLIDE_PARAMS, lowestCells } from "./landslide-stations.js?v=20260911-fb4d055";
 import {
   makeStation, parseStationsCsv, stationsFromFeatures, uniqueName, seriesCsv, seriesFileName, MAX_STATIONS, colourAt,
-} from "./station-series.js?v=20260911-e80ef43";
-import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260911-e80ef43";
+} from "./station-series.js?v=20260911-fb4d055";
+import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260911-fb4d055";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";
@@ -362,11 +362,11 @@ const STYLE = `
 .lsp-st-val[data-kind="none"] { opacity: 0.55; }
 .lsp-st-x { background: none; border: 0; color: inherit; opacity: 0.6; cursor: pointer; padding: 0 0.2rem; font-size: 0.8rem; }
 .lsp-st-x:hover, .lsp-st-x:focus-visible { opacity: 1; }
-.lsp-plotbox { display: grid; gap: 0.25rem; margin: 0.35rem 0 0.2rem; }
+.lsp-plotbox { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.25rem; margin: 0.35rem 0 0.2rem; }
 .lsp-plothead { display: flex; gap: 0.35rem; align-items: center; }
 .lsp-plothead select { flex: 1 1 auto; min-width: 0; }
 .lsp-plothead .button { flex: 0 0 auto; padding: 0.15rem 0.5rem; }
-.lsp-plot { width: 100%; height: 11rem; display: block; cursor: crosshair; border-radius: 0.35rem; background: rgba(0,0,0,0.22); }
+.lsp-plot { width: 100%; max-width: 100%; min-width: 0; height: 11rem; display: block; cursor: crosshair; border-radius: 0.35rem; background: rgba(0,0,0,0.22); }
 .lsp-plotread { font-size: 0.68rem; margin: 0; min-height: 1em; opacity: 0.85; font-variant-numeric: tabular-nums; }
 .lsp-plotbox.is-big { position: fixed; z-index: 25; left: calc(min(24rem, 100vw - 2rem) + 2rem); right: 4.5rem; bottom: 6.5rem; max-width: 60rem;
   padding: 0.6rem 0.7rem; border: 1px solid rgba(var(--nav-accent-rgb, 255,43,214), 0.45); border-radius: 0.6rem;
@@ -1447,10 +1447,12 @@ function addFrom(choice, button) {
     const g = state.ground; const run = state.run;
     if (!run || !g) { say("stations", "Run the model first — these are the cells it finds weakest.", "error"); return; }
     const spacing = Math.max(3, Math.round(300 / g.grid.stepM));
-    const cells = lowestCells({ minFos: run.minFos, model: g.cells.model, width: g.grid.width, count: 5, spacing });
+    const taken = state.stations.map((st) => stationCell(st.lat, st.lon).cell).filter((c) => c >= 0);
+    const cells = lowestCells({ minFos: run.minFos, model: g.cells.model, width: g.grid.width, count: 5, spacing, taken });
+    const already = state.stations.filter((st) => /^Weakest \d+$/.test(st.name)).length;
     const list = cells.map((i, k) => {
       const x = i % g.grid.width; const y = (i - x) / g.grid.width;
-      return { name: `Weakest ${k + 1}`, lat: g.eb.north - ((y + 0.5) / g.grid.height) * (g.eb.north - g.eb.south), lon: g.eb.west + ((x + 0.5) / g.grid.width) * (g.eb.east - g.eb.west) };
+      return { name: `Weakest ${already + k + 1}`, lat: g.eb.north - ((y + 0.5) / g.grid.height) * (g.eb.north - g.eb.south), lon: g.eb.west + ((x + 0.5) / g.grid.width) * (g.eb.east - g.eb.west) };
     });
     if (!list.length) { say("stations", "No modelled cell to choose.", "error"); return; }
     addStations(list, "lowest factor of safety over the window");

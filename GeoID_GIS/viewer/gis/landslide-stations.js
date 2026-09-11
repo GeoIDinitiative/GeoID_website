@@ -13,7 +13,7 @@
  * say two different things; `landslide-stations.test.mjs` holds them equal.
  */
 
-import { cellAnswer, planeWetness } from "./slope-hydrology.js?v=20260911-e80ef43";
+import { cellAnswer, planeWetness } from "./slope-hydrology.js?v=20260911-fb4d055";
 
 /**
  * What fraction of every cell's water reaches cell `s`: 1 at `s`, the
@@ -95,12 +95,15 @@ export const LANDSLIDE_PARAMS = [
  * rather than all at once: two million cells sorted by a comparator is a second
  * of a frozen page to find five of them.
  */
-export function lowestCells({ minFos, model, width, count = 5, spacing = 10, cap = 100 }) {
+export function lowestCells({ minFos, model, width, count = 5, spacing = 10, cap = 100, taken = [] }) {
   const out = [];
-  const far = (i) => {
+  // Cells already holding a station are kept clear of too, so asking twice
+  // gives the next five rather than the same five again.
+  const near = (list, i) => {
     const x = i % width; const y = (i - x) / width;
-    return out.every((o) => Math.max(Math.abs((o % width) - x), Math.abs((o - (o % width)) / width - y)) >= spacing);
+    return list.some((o) => Math.max(Math.abs((o % width) - x), Math.abs((o - (o % width)) / width - y)) < spacing);
   };
+  const far = (i) => !near(out, i) && !near(taken, i);
   let lo = -Infinity;
   for (const hi of [1, 1.3, 1.5, 2, 3, 5, 10, cap]) {
     const band = [];
