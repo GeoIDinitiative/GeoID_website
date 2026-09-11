@@ -301,6 +301,11 @@ def _bake_band(gpkg: pathlib.Path, dest: pathlib.Path, low: int, high: int,
             # a ring of ice round a hole at the pole. They ship as their own
             # small GeoJSON instead — five polygons that reach 90 south.
             "-where", where,
+            # No -simplify here, but RGI's own outlines are not all valid, and
+            # GDAL's MVT writer leaves an invalid polygon out of the tile with
+            # no error and exit 0 -- the fault that lost the ocean's world tile
+            # in bake-hydrology.py. See GeoID_GIS/CLAUDE.md.
+            "-makevalid",
             "-dsco", f"MINZOOM={low}", "-dsco", f"MAXZOOM={high}",
             # UNCOMPRESSED, because these are served as files off a static site
             # and the browser only ungzips what the SERVER declares. A gzipped
@@ -413,9 +418,17 @@ def install(tiles: pathlib.Path, counts: dict, max_zoom: int) -> None:
     The extension changes from GDAL's `.pbf` to the `.mvt` the tiled layer asks
     for, so both baked pyramids on this site are addressed the same way.
     """
-    if OUT.exists():
-        shutil.rmtree(OUT)
-    OUT.mkdir(parents=True)
+    # ONLY WHAT THIS BAKE OWNS: the zoom directories and the manifest. The
+    # folder also holds `names.json` and `thickness.json`, which other bakes
+    # write and publish-data fingerprints -- removing the whole folder deleted
+    # both, and the next publish dropped them from sources.json, which on the
+    # deployed site is a 404 for every glacier's name and volume.
+    OUT.mkdir(parents=True, exist_ok=True)
+    for old in OUT.iterdir():
+        if old.is_dir() and old.name.isdigit():
+            shutil.rmtree(old)
+        elif old.name == "manifest.json":
+            old.unlink()
     manifest: dict[str, int] = {}
     total = 0
     for pbf in sorted(tiles.rglob("*.pbf")):
@@ -505,9 +518,15 @@ def main() -> None:
     print(f"  {counts}", flush=True)
     print("ice sheets and shelves …", flush=True)
     write_sheets(unpacked, work)
-    print(f"baking tiles z0-{args.max_zoom} …", flush=True)
-    tiles = bake_tiles(gpkg, work, args.max_zoom)
-    install(tiles, counts, args.max_zoom)
+    # THE CEILING IS THE DEEPEST LEVEL ACTUALLY BAKED, not the one asked for.
+    # MAX_ZOOM says 7 and the deepest band in LEVELS is 6, so a default run
+    # wrote `max_zoom: 7` over a pyramid with no zoom-7 tiles -- and the viewer
+    # reads a tile the bake did not write as EMPTY, so the glaciers would have
+    # vanished from every view deep enough to ask for zoom 7.
+    ceiling = min(args.max_zoom, max(high for _, high, _, _ in LEVELS))
+    print(f"baking tiles z0-{ceiling} …", flush=True)
+    tiles = bake_tiles(gpkg, work, ceiling)
+    install(tiles, counts, ceiling)
 
 
 if __name__ == "__main__":

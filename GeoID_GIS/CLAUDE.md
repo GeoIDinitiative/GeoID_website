@@ -17937,9 +17937,30 @@ cannot hold it and the 3 GB GeoPackage together. Three things bit:
   is the one access pattern that suits it, and it took 12 minutes for the
   GeoPackage.
 
-**The glacier bake (`bake-glaciers.py`) still simplifies without
-`-makevalid`.** It has its z0 and four z1 tiles, so nothing large is
-missing. The check that settles it is the soil one: count the features in
+**The glacier map had lost nothing**, measured the same way. Every one
+of 806 tiles came back with the same feature count at every zoom, and even
+the byte total was identical (`806-82456877`). The bake never simplifies
+tiles (it bands by area), and RGI's outlines survive the tiler as they are.
+`-makevalid` is passed anyway, so an invalid outline in a future RGI release
+cannot drop silently.
+
+Re-baking it found two traps in `bake-glaciers.py`, both fixed:
+
+- **`install()` removed the whole `data/global/ice/` folder**, which also
+  holds `names.json` and `thickness.json`. Those are other bakes' outputs:
+  gitignored and published. The next `publish-data` dropped them from
+  `sources.json`, so the deployed site would 404 every glacier's name and
+  volume. Both were pulled back from the bucket, fingerprint-identical, and
+  install now clears only the zoom directories and the manifest.
+- **`MAX_ZOOM` is 7 and the deepest band is 6**, so a default run wrote
+  `max_zoom: 7` over a pyramid with no zoom-7 tiles. The viewer reads an
+  unwritten tile as EMPTY, so the glaciers would have vanished close in. The
+  ceiling written is now the deepest band actually baked.
+
+**`pkill -f <script name>` kills the shell that ran it.** The shell's own
+command line contains the string. Stop a bake by its PID.
+
+For any pyramid, the check that settles it is the soil one: count the features in
 every tile, re-bake with the flag, and compare
 (`scratchpad/tile-counts.mjs` in the session that did it: features per tile
 as JSON). A per-zoom unique-id count needs an id, and neither soil nor GLiM

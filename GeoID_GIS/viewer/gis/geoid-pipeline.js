@@ -21,9 +21,9 @@
 
 import {
   fosSeries, wetnessSeries, materialFor, stabilityBand, failureDepth,
-} from "./fos.js?v=20260911-20d18ce";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-20d18ce";
-import { SOURCE as WEATHER_SOURCE } from "./forecast.js?v=20260911-20d18ce";
+} from "./fos.js?v=20260911-63414c2";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-63414c2";
+import { SOURCE as WEATHER_SOURCE } from "./forecast.js?v=20260911-63414c2";
 
 /* ── 1. the weather SURFACE ─────────────────────────────────────────────── */
 
