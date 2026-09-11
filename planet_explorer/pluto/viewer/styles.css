@@ -1586,6 +1586,12 @@
     }
     .geo-popup[hidden] { display: none; }
     .geo-popup-close {
+      /* z-index, or the X cannot be clicked: `.geo-popup-scroll` takes the
+      pointer back from a card that otherwise lets it through, and it won
+      the hit test at the button's centre -- a real click landed on the
+      kicker, the card stayed, and so did its highlight. The scene card's
+      close paid for the same fault first. */
+      z-index: 2;
       position: absolute;
       top: 0.45rem;
       right: 0.45rem;
