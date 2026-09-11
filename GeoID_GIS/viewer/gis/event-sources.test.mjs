@@ -1041,3 +1041,35 @@ process.on("exit", () => {
     /local\.dot\(cam\) < radius \* radius/.test(src));
   ok("showPopup starts the card tracking", /node\.dataset\.tracking = halo \? "1" : ""/.test(src));
 }
+
+/**
+ * A CLICK IS CLAIMED ONLY BY THE SYMBOL IT FALLS ON. The picker's threshold came
+ * from the camera's distance to the planet's centre, so close in one marker
+ * claimed about 100 km of ground round it; it is screen pixels on the drawn ink
+ * now, and the nearest symbol wins.
+ */
+{
+  const { markerHitGeometry, nearestHit, HIT_SLACK_PX, HIT_MIN_PX } = await import("./event-sources.js");
+  const glyph = markerHitGeometry(40, false);
+  check("a standing glyph's hit centre is on its ink, 0.23 of the sprite above the point",
+    glyph.lift, 0.23 * 40);
+  check("and its radius is the ink's, plus the slack", glyph.radius, (0.23 * 40) + HIT_SLACK_PX);
+  const ring = markerHitGeometry(40, true);
+  check("earthquake rings are centred on the epicentre", ring.lift, 0);
+  ok("and reach nearly the edge of their quad", ring.radius > 0.45 * 40 && ring.radius <= 0.5 * 40 + HIT_SLACK_PX);
+  check("a far-field dot keeps a clickable floor", markerHitGeometry(4, false).radius, HIT_MIN_PX + HIT_SLACK_PX);
+
+  const storm = { x: 100, y: 100, radius: 20, item: "storm" };
+  const fire = { x: 112, y: 100, radius: 8, item: "fire" };
+  check("a small dot beside a big storm is reached by clicking it", nearestHit([storm, fire], 111, 100), "fire");
+  check("and the storm by clicking the storm", nearestHit([storm, fire], 96, 102), "storm");
+  check("a click outside every symbol claims nothing, however near",
+    nearestHit([fire], 112 + 8.5, 100), null);
+
+  const src = readFileSync(new URL("./events.js", import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  ok("the picker no longer sizes its reach from the distance to the planet's centre",
+    !/params\.Points\.threshold/.test(src) && /nearestHit\(candidates, clientX, clientY\)/.test(src));
+  ok("and it projects the markers' true positions, the far side excluded",
+    /userData\?\.truePositions/.test(src) && /v\.dot\(cam\) < v\.lengthSq\(\)/.test(src));
+}

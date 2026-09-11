@@ -695,3 +695,54 @@ export function dotSizePx(globePx, altitudeMetres) {
   return Math.max(4, Math.min(DOT_CAP_NEAR, Math.max(far, nearSizePx(altitudeMetres))));
 }
 
+
+/* ── picking a marker ─────────────────────────────────────────────────────── */
+
+/**
+ * WHERE A MARKER CAN BE CLICKED: on the symbol as it is drawn, at its size.
+ *
+ * The picker was a raycaster whose point threshold came from the camera's
+ * distance to the planet's CENTRE — right from orbit and absurd close in,
+ * where that distance stays about 3.2 units while the ground is metres away:
+ * at 10 km up the threshold was about 100 km of ground, so one marker claimed
+ * every click round it and the dots, volcanoes and polygons beside it could not
+ * be reached. It also took the first hit ALONG THE RAY rather than the marker
+ * nearest the cursor, and tested round the coordinate for symbols that are not
+ * drawn there.
+ *
+ * So the hit test is in SCREEN PIXELS, against the ink:
+ * - a category or storm glyph STANDS on its point, its ink `GLYPH_INK` (0.46)
+ *   of the sprite tall with its base on the coordinate — so its centre is 0.23
+ *   of the sprite ABOVE the point and its radius about the same;
+ * - the earthquake rings are CENTRED on the epicentre and fill their quad.
+ * A few pixels of slack either way, and a floor so a far-field dot stays
+ * clickable.
+ */
+export const HIT_SLACK_PX = 3;
+export const HIT_MIN_PX = 6;
+const INK_FRACTION = 0.46;
+
+export function markerHitGeometry(spritePx, centred) {
+  const s = Math.max(0, Number(spritePx) || 0);
+  const ink = centred ? 0.45 * s : (INK_FRACTION / 2) * s;
+  return {
+    lift: centred ? 0 : (INK_FRACTION / 2) * s,
+    radius: Math.max(HIT_MIN_PX, ink) + HIT_SLACK_PX,
+  };
+}
+
+/**
+ * The marker a click means: of those whose drawn symbol it falls on, the one
+ * whose centre is NEAREST the cursor — so a small dot beside a big storm is
+ * reached by clicking it, and nothing is claimed from outside its own symbol.
+ * `candidates` are `{ x, y, radius, item }` in screen pixels.
+ */
+export function nearestHit(candidates, x, y) {
+  let best = null;
+  let bestD = Infinity;
+  for (const c of candidates || []) {
+    const d = Math.hypot(c.x - x, c.y - y);
+    if (d <= c.radius && d < bestD) { best = c.item; bestD = d; }
+  }
+  return best;
+}

@@ -49,7 +49,7 @@ globalThis.document = {
   body: { appendChild() {} },
 };
 
-const { featureAt } = await import("./feature-popup.js");
+const { featureAt, featuresAt } = await import("./feature-popup.js");
 
 function square(cx, cy, half, props) {
   return {
@@ -120,6 +120,35 @@ check("the shipped BGS bedrock answers at a known coordinate", () => {
   eq(hit?.feature.properties.lex_d, "GALA GROUP", "unit at 54.30N 6.30W");
   if (Object.keys(hit.feature.properties).length < 40) {
     throw new Error("the popup reads the attributes; they were dropped");
+  }
+});
+
+/*
+ * A point layer is clickable where its dots are DRAWN, at their own size. One
+ * radius for every point layer (about 13 px of ground) let a 3.4 px fire
+ * detection answer a click far outside its own dot.
+ */
+check("each point layer's reach is its own drawn dot, not one radius for all", () => {
+  const was = { v: globalThis.GeoIDViewer, m: globalThis.GeoIDImportManager };
+  // 10 km up, 45 degree field, 800 px tall: 10.36 m of ground a pixel.
+  globalThis.GeoIDViewer = { getZoomAltitudeMetres: () => ({ metres: 10000 }),
+    renderer: { domElement: { clientHeight: 800 } }, camera: { fov: 45 } };
+  const dot = (lon, name) => ({ type: "Feature", properties: { name },
+    geometry: { type: "Point", coordinates: [lon, 0] } });
+  const layerOf = (name, size, lon) => ({ name, visible: true, features: [dot(lon, name)],
+    object3D: { visible: true, traverse: (fn) => fn({ isPoints: true,
+      material: { sizeAttenuation: false, size } }) } });
+  // Each dot 60 m east of the click: inside a 17 px marker's reach (~109 m),
+  // outside a 3.4 px fire detection's (~38 m).
+  const east60 = 60 / 111320;
+  globalThis.GeoIDImportManager = { getVectorLayers: () => [
+    layerOf("fires", 3.4, east60), layerOf("volcanoes", 17, east60)] };
+  try {
+    const hits = featuresAt(0, 0).map((h) => h.layer.name);
+    eq(hits.join(","), "volcanoes", "layers answering a click 60 m from both dots");
+  } finally {
+    globalThis.GeoIDViewer = was.v;
+    globalThis.GeoIDImportManager = was.m;
   }
 });
 

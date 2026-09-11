@@ -15,8 +15,8 @@ import {
   activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources, sourcesOff,
   gdacsPoints, resolveColour,
   MARKER_LIFT_MAX, liftForAltitude, dotSizePx, isQuake, publisherOf, restoreActive,
-  stormCategory, stormScale, stormLabel, STORM_BASE_CAP,
-} from "./event-sources.js?v=20260911-088602e";
+  stormCategory, stormScale, stormLabel, STORM_BASE_CAP, markerHitGeometry, nearestHit,
+} from "./event-sources.js?v=20260911-ddf5d27";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -2052,39 +2052,59 @@ function placeOverlay() {
 }
 
 /**
- * Picking. Points are drawn at a fixed pixel size, so the raycaster's threshold
- * is set from that rather than left at its world-unit default -- otherwise the
- * hit area has nothing to do with what is on screen.
- */
-const pickRay = { raycaster: null, pointer: null };
-
-/**
  * THE EVENT UNDER A SCREEN POINT, or null -- the one hit test, used by this
  * feed's own click AND published as `GeoIDEvents.markerAt`, so the other
  * pickers can ask before answering. Markers draw above every layer, so a
  * click on one belongs to it; without the question one click raised the
  * marker's card AND the card of whatever lay under it (a geology unit, a
  * volcano), and closing either left the other's highlight lit.
+ *
+ * IN SCREEN PIXELS, ON THE SYMBOL AS DRAWN (`markerHitGeometry`). It was a
+ * raycaster whose threshold was the camera's distance to the planet's CENTRE
+ * over the canvas height — about 3.2 units close in however near the ground,
+ * so at 10 km up a marker claimed some 100 km of ground round it, and it took
+ * the first hit along the ray rather than the marker nearest the cursor. Every
+ * visible marker is projected instead, its hit circle put on its ink at its
+ * drawn size, and the nearest wins. A few hundred projections a click.
  */
+const pick = { v: null, cam: null };
+
 function markerAt(clientX, clientY) {
   const viewer = window.GeoIDViewer;
   const canvas = viewer?.renderer?.domElement;
   if (!active || !markers || !canvas || !THREE) return null;
-  if (!pickRay.raycaster) { pickRay.raycaster = new THREE.Raycaster(); pickRay.pointer = new THREE.Vector2(); }
-  const { raycaster, pointer } = pickRay;
-  const rect = canvas.getBoundingClientRect();
-  pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-  pointer.y = -(((clientY - rect.top) / rect.height) * 2 - 1);
-  raycaster.setFromCamera(pointer, viewer.camera);
-  const scale = viewer.camera.position.length() / Math.max(rect.height, 1);
-  raycaster.params.Points.threshold = scale * 12;
   // A hidden layer's markers are not there to be clicked.
   if (markers.visible === false) return null;
-  const hits = raycaster.intersectObjects(markers.children.filter((c) => c.visible !== false), false);
-  // Nearest first, and only on the side of the globe facing the camera.
-  const hit = hits.find((h) => h.point.clone().normalize()
-    .dot(viewer.camera.position.clone().normalize()) > 0);
-  return (hit && hit.object.userData.events?.[hit.index]) || null;
+  if (!pick.v) { pick.v = new THREE.Vector3(); pick.cam = new THREE.Vector3(); }
+  const { v, cam } = pick;
+  const camera = viewer.camera;
+  camera.getWorldPosition(cam);
+  const rect = canvas.getBoundingClientRect();
+  const candidates = [];
+  for (const cloud of markers.children) {
+    if (!cloud.isPoints || cloud.visible === false) continue;
+    const truth = cloud.userData?.truePositions;
+    const list = cloud.userData?.events;
+    if (!truth || !list) continue;
+    const key = String(cloud.name || "").replace(/^eonet-/, "");
+    const { lift, radius } = markerHitGeometry(cloud.material?.size, isQuakeBand(key));
+    cloud.updateWorldMatrix(true, false);
+    for (let i = 0; i < list.length; i += 1) {
+      v.set(truth[i * 3], truth[(i * 3) + 1], truth[(i * 3) + 2]).applyMatrix4(cloud.matrixWorld);
+      // Round the back of the planet is not on screen, whatever the
+      // projection says: the tangent-plane test `cullBehindGlobe` uses.
+      if (v.dot(cam) < v.lengthSq()) continue;
+      v.project(camera);
+      if (v.z > 1) continue;
+      candidates.push({
+        x: rect.left + ((v.x + 1) / 2) * rect.width,
+        y: rect.top + ((1 - v.y) / 2) * rect.height - lift,
+        radius,
+        item: list[i],
+      });
+    }
+  }
+  return nearestHit(candidates, clientX, clientY);
 }
 
 function installPicking() {
@@ -2635,8 +2655,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260911-088602e"),
-    import("./research/dsp.js?v=20260911-088602e"),
+    import("./seismogram-plot.js?v=20260911-ddf5d27"),
+    import("./research/dsp.js?v=20260911-ddf5d27"),
   ]);
   if (stale()) return;
 

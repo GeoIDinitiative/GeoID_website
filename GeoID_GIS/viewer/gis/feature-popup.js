@@ -20,24 +20,24 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260911-088602e";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260911-088602e";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260911-ddf5d27";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260911-ddf5d27";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20260911-088602e";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260911-088602e";
-import { lithologyLabel } from "./lithology-label.js?v=20260911-088602e";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260911-088602e";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260911-088602e";
-import { waterCard, WATER_SAID } from "./water-card.js?v=20260911-088602e";
-import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260911-088602e";
-import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20260911-088602e";
-import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js?v=20260911-088602e";
-import { isEarthquakeFeature, earthquakeCard } from "./earthquake-card.js?v=20260911-088602e";
-import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260911-088602e";
+} from "./vector-render.js?v=20260911-ddf5d27";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260911-ddf5d27";
+import { lithologyLabel } from "./lithology-label.js?v=20260911-ddf5d27";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260911-ddf5d27";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260911-ddf5d27";
+import { waterCard, WATER_SAID } from "./water-card.js?v=20260911-ddf5d27";
+import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260911-ddf5d27";
+import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20260911-ddf5d27";
+import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js?v=20260911-ddf5d27";
+import { isEarthquakeFeature, earthquakeCard } from "./earthquake-card.js?v=20260911-ddf5d27";
+import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260911-ddf5d27";
 import {
   canEditRow, editableFields, applyRowChange,
-} from "./table-editor.js?v=20260911-088602e";
+} from "./table-editor.js?v=20260911-ddf5d27";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -1940,6 +1940,47 @@ function lineTolerance() {
  * dot 90 km wide on the ground, a 20 km hit radius, and most of the visible
  * dot inert. The hit area is the drawn area, scaled a pixel generous.
  */
+/**
+ * Ground under one screen pixel at the view, in metres — the camera's own
+ * field of view over the canvas's own height.
+ */
+function metresPerPixel() {
+  const viewer = window.GeoIDViewer;
+  const metres = viewer?.getZoomAltitudeMetres?.()?.metres;
+  const height = viewer?.renderer?.domElement?.clientHeight;
+  const fov = viewer?.camera?.fov;
+  if (!(metres > 0) || !(height > 0) || !(fov > 0)) return null;
+  return (metres * 2 * Math.tan(((fov * Math.PI) / 180) / 2)) / height;
+}
+
+/**
+ * A POINT LAYER IS CLICKABLE WHERE ITS DOTS ARE DRAWN, AT THEIR OWN SIZE.
+ *
+ * Every point layer took one radius, about 13 px of ground whatever it drew —
+ * so a 3.4 px fire detection or a volcano dot reached far past its own symbol,
+ * and a click beside one answered for its neighbours in other layers as well.
+ * The drawn size is on the layer's own screen-sized materials (the white ring
+ * under a marker is the widest), so the reach is half of that plus two pixels
+ * of slack. A layer sized in world units (a point cloud) keeps the old rule.
+ * No 30 m floor here: that is the lines' floor, and close in it is hundreds of
+ * pixels.
+ */
+export function pointReachPx(sizesPx) {
+  const widest = Math.max(0, ...(sizesPx || []).map((v) => Number(v) || 0));
+  return widest > 0 ? (widest / 2) + 2 : null;
+}
+
+function layerPointTolerance(layer, fallback) {
+  const mpp = metresPerPixel();
+  if (!mpp) return fallback;
+  const sizes = [];
+  layer.object3D?.traverse?.((node) => {
+    if (node.isPoints && node.material?.sizeAttenuation === false) sizes.push(node.material.size);
+  });
+  const px = pointReachPx(sizes);
+  return px ? Math.max(0.5, px * mpp) : fallback;
+}
+
 function pointToleranceMetres() {
   const metres = window.GeoIDViewer?.getZoomAltitudeMetres?.()?.metres;
   if (!Number.isFinite(metres)) return LINE_CEILING_M;
@@ -1987,7 +2028,8 @@ export function featuresAt(lat, lon) {
      * just opened.
      */
     if (layer.groundPick === false) continue;
-    const found = featureInLayer(layer, point, tolerance, pointTolerance);
+    const found = featureInLayer(layer, point, tolerance,
+      layerPointTolerance(layer, pointTolerance));
     if (found) hits.push({ layer, feature: found });
   }
   return hits;
