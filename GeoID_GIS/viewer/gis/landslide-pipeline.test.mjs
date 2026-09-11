@@ -134,3 +134,54 @@ check("a click on the risk layer is offered to the pipeline BEFORE the polygons 
 const viewer = readFileSync(new URL("../earth-viewer.js", import.meta.url), "utf8");
 check("and the viewer's own geology click yields to the sheet too", /GeoIDLandslidePipeline\.probeAt\(claim\.lat, claim\.lon\)\) return;/.test(viewer)
   && viewer.indexOf("GeoIDLandslidePipeline.probeAt(claim.lat") < viewer.indexOf("openGeoPopup(geologyFeature, surfaceHit.point, clickSpinDelta)"));
+
+/* ── two sources, one series ──────────────────────────────────────────────── */
+
+import { planRain, dailyFrames } from "./landslide-pipeline.js";
+import { decodeRainPixels, pixelIndex, coversBox, daysBetween } from "./gee-rain.js";
+import { dayHours, rainfallFrames } from "./gfs-rain.js";
+
+{
+  const gee = { first: "1981-01-01", last: "2026-07-31" };
+  const auto = planRain({ source: "auto", start: "2026-07-29", end: "2026-08-02", windowH: 24, today: "2026-09-11", gee, covers: true });
+  check("auto takes Earth Engine for the days it holds and GFS after", auto.ok
+    && auto.geeDays.join() === "2026-07-29,2026-07-30,2026-07-31" && auto.gfsDays.join() === "2026-08-01,2026-08-02", JSON.stringify(auto));
+  const old = planRain({ source: "auto", start: "2019-05-10", end: "2019-05-12", windowH: 48, today: "2026-09-11", gee, covers: true });
+  check("years before GFS's archive come from Earth Engine, the window's lead day included",
+    old.ok && old.gfsDays.length === 0 && old.days[0] === "2019-05-09" && old.windowDays === 2);
+  const north = planRain({ source: "auto", start: "2023-05-14", end: "2023-05-18", windowH: 24, today: "2026-09-11", gee, covers: false });
+  check("beyond CHIRPS's 50° auto hands every day to GFS", north.ok && north.geeDays.length === 0 && north.gfsDays.length === 5);
+  check("but a pre-2021 window there is refused, not invented",
+    !planRain({ source: "auto", start: "2019-05-10", end: "2019-05-12", windowH: 24, today: "2026-09-11", gee, covers: false }).ok);
+  const named = planRain({ source: "chirps", start: "2026-07-29", end: "2026-08-02", windowH: 24, today: "2026-09-11", gee, covers: true });
+  check("a named archive refuses the days it does not have rather than borrowing them", !named.ok && /Auto/.test(named.message));
+  check("nothing forecasts past fifteen days", !planRain({ source: "auto", start: "2026-09-20", end: "2026-09-30", windowH: 24, today: "2026-09-11", gee, covers: true }).ok);
+  const frames = dailyFrames(auto);
+  check("one map a day from the start, each the window's days, and a handover map says it is mixed",
+    frames.length === 5 && frames[0].time === "2026-07-29" && frames[2].source === "gee" && frames[3].source === "gfs");
+  const wide = dailyFrames(planRain({ source: "auto", start: "2026-07-30", end: "2026-08-01", windowH: 48, today: "2026-09-11", gee, covers: true }));
+  check("a two-day window straddling the handover sums one day of each", wide[1].parts.map((p) => p.source).join() === "gee,gee"
+    && wide[2].source === "mixed" && wide[2].parts.map((p) => p.day).join() === "2026-07-31,2026-08-01");
+}
+
+{
+  // A 2 x 1 picture on the service's own CHIRPS ramp: white is 0, the second
+  // stop (bfe9ff) is 100 mm; a transparent pixel is no value.
+  const data = Uint8ClampedArray.from([255, 255, 255, 255, 191, 233, 255, 255, 0, 0, 0, 0]);
+  const v = decodeRainPixels(data, 3, 1, { palette: ["ffffff", "bfe9ff", "2f6bff", "0b2f8a"], legend: { min: 0, max: 300 } });
+  check("a render reads back to millimetres along its ramp", Math.abs(v[0]) < 0.6 && Math.abs(v[1] - 100) < 1.5 && Number.isNaN(v[2]), [...v].join());
+  const grid = { width: 10, height: 5, bounds: { minX: 11, maxX: 12, minY: 44, maxY: 44.5 } };
+  check("a cell reads the pixel it falls in, and nothing outside", pixelIndex(grid, 44.49, 11.01) === 0
+    && pixelIndex(grid, 44.01, 11.99) === 49 && pixelIndex(grid, 45, 11.5) === -1);
+  check("CHIRPS stops at 50° of latitude", coversBox("chirps", { south: 44, north: 44.5 }) && !coversBox("chirps", { south: 54, north: 55 }));
+  check("days are inclusive", daysBetween("2023-05-30", "2023-06-02").join() === "2023-05-30,2023-05-31,2023-06-01,2023-06-02");
+}
+
+{
+  // A UTC day is 01:00 to the next day's 00:00, since the value at T is the hour ending at T.
+  const times = Array.from({ length: 72 }, (_, t) => new Date(Date.UTC(2023, 4, 14) + t * 3600000).toISOString().slice(0, 16));
+  const h = dayHours(times, "2023-05-15");
+  check("a UTC day's hours end at the next midnight", times[h.lo] === "2023-05-15T01:00" && times[h.hi] === "2023-05-16T00:00");
+  const s = rainfallFrames(times, [{ lat: 0, lon: 0, rain: Float32Array.from({ length: 72 }, () => 1) }], { start: "2023-05-14", windowH: 1, everyH: 1 });
+  check("and summing them gives the day's total", s.accumulateRange(h.lo, h.hi)[0] === 24);
+}

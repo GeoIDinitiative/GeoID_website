@@ -201,8 +201,8 @@ const EQUATIONS = {
     intro: "A static, steady-state hydrogeological slope model (the SHALSTAB / SINMAP "
       + "family) built once from the ground, then run once for every GFS rainfall map.",
     lines: [
-      { expr: "P = Σ GFS rain over the window before the map, bilinear between GFS nodes",
-        note: "NOAA's GFS on its own ~13 km grid, via Open-Meteo; a map every few hours, each the rain over the hours before it" },
+      { expr: "P = Σ rain over the window before the map",
+        note: "Earth Engine's historical archives (CHIRPS ~5.5 km daily; IMERG and ERA5-Land once the service carries them) read back from a render on a known 0–300 mm ramp, one day per request, nearest pixel; and NOAA's GFS on its own ~13 km grid via Open-Meteo, hourly, bilinear between nodes. Auto takes each day from Earth Engine where it holds it and GFS after, so one range runs from the past into the forecast" },
       { expr: "r = min(P / Δt, Ks)", note: "recharge: rain faster than the ground's saturated conductivity runs off (a toggle)" },
       { expr: "q = Σ over the cells draining through this one of r · A",
         note: "multiple-flow-direction routing on the sink-filled DEM (Quinn et al. 1991; Freeman 1991, p = 1.1), over the area plus an upslope margin" },

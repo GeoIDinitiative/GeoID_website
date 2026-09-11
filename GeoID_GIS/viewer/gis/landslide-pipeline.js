@@ -22,18 +22,19 @@
  * file only orchestrates them and says, on every card, what it has read.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-7250af4";
-import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, GFS_CREDIT } from "./gfs-rain.js?v=20260911-7250af4";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-9c953a5";
+import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260911-9c953a5";
 import {
   columnMaterial, soilColumn, steadyWetness, planeWetness, factorOfSafety, criticalRecharge,
   FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M, LATERAL_FACTOR, FOS_CAP,
-} from "./slope-hydrology.js?v=20260911-7250af4";
-import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-7250af4";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-7250af4";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-7250af4";
-import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-7250af4";
-import { mathsFor } from "./equations.js?v=20260911-7250af4";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260911-7250af4";
+} from "./slope-hydrology.js?v=20260911-9c953a5";
+import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-9c953a5";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-9c953a5";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-9c953a5";
+import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-9c953a5";
+import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainDays, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260911-9c953a5";
+import { mathsFor } from "./equations.js?v=20260911-9c953a5";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260911-9c953a5";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";
@@ -199,6 +200,56 @@ export function staticStep({ rainMm, windowH, cells, topo, infiltration = true, 
   return { fos, W, q, failing, applicable, meanW: wN ? wSum / wN : 0 };
 }
 
+/**
+ * WHICH SOURCE SERVES WHICH DAY. Earth Engine's archives are history (CHIRPS
+ * runs about six weeks behind); GFS is the only thing with tomorrow in it. So
+ * "auto" takes every day Earth Engine holds from Earth Engine — the higher
+ * resolution — and every later day from GFS, and one date range reads straight
+ * from last spring into next week. A named source takes every day from itself
+ * and refuses the days it does not have rather than quietly borrowing them.
+ */
+export function planRain({ source, start, end, windowH = 24, today, gee = null, covers = true }) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start || "") || !/^\d{4}-\d{2}-\d{2}$/.test(end || "")) return { ok: false, message: "Give a start and an end date." };
+  if (start > end) return { ok: false, message: "The start is after the end." };
+  const windowDays = Math.max(1, Math.round(windowH / 24));
+  const first = dayOf(Date.parse(`${start}T00:00:00Z`) - (windowDays - 1) * 86400000);
+  const days = daysBetween(first, end);
+  const lastForecast = dayOf(Date.parse(`${today}T00:00:00Z`) + 15 * 86400000);
+  if (end > lastForecast) return { ok: false, message: `Nothing forecasts past ${lastForecast}; the window ends ${end}.` };
+  const sourceOf = new Map();
+  const geeUsable = gee && covers;
+  for (const d of days) {
+    const inGee = geeUsable && d >= gee.first && d <= gee.last;
+    if (source !== "auto" && source !== "gfs") {
+      if (!covers) return { ok: false, message: `${GEE_RAIN_SOURCES[source]?.short || source} does not reach this area (it stops at ${GEE_RAIN_SOURCES[source]?.maxLat}° of latitude).` };
+      if (!gee) return { ok: false, message: "Earth Engine did not say which dates it holds." };
+      if (!inGee) return { ok: false, message: `${GEE_RAIN_SOURCES[source].short} holds ${gee.first} to ${gee.last}; the window needs ${d}. Choose Auto to let GFS take the days after.` };
+      sourceOf.set(d, "gee");
+    } else if (source === "auto" && inGee) sourceOf.set(d, "gee");
+    else {
+      if (d < GFS_ARCHIVE_START) return { ok: false, message: `GFS begins ${GFS_ARCHIVE_START} and ${geeUsable ? "Earth Engine does not hold" : "Earth Engine cannot serve this area for"} ${d}.` };
+      sourceOf.set(d, "gfs");
+    }
+  }
+  const geeDays = days.filter((d) => sourceOf.get(d) === "gee");
+  const gfsDays = days.filter((d) => sourceOf.get(d) === "gfs");
+  return { ok: true, days, windowDays, sourceOf, geeDays, gfsDays, start, end };
+}
+
+/** One map per day, each the sum of the window's days, whichever source each day came from. */
+export function dailyFrames(plan) {
+  const frames = [];
+  const at = new Map(plan.days.map((d, k) => [d, k]));
+  for (const d of plan.days) {
+    if (d < plan.start) continue;
+    const k = at.get(d);
+    const parts = plan.days.slice(k - plan.windowDays + 1, k + 1).map((day) => ({ day, source: plan.sourceOf.get(day) }));
+    const sources = [...new Set(parts.map((p) => p.source))];
+    frames.push({ time: d, from: parts[0].day, parts, source: sources.length > 1 ? "mixed" : sources[0] });
+  }
+  return frames;
+}
+
 /* ── state ──────────────────────────────────────────────────────────────── */
 
 const state = {
@@ -208,7 +259,7 @@ const state = {
 
 const STEPS = [
   { id: "area", n: 1, title: "Study area", blurb: "Where the model runs." },
-  { id: "rain", n: 2, title: "GFS rainfall maps", blurb: "NOAA's GFS over the area, by date: one map every few hours, each the rain over the hours before it." },
+  { id: "rain", n: 2, title: "Rainfall maps", blurb: "Earth Engine's historical archives and NOAA's GFS over the area, by date: each map the rain over the hours before it." },
   { id: "ground", n: 3, title: "Ground", blurb: "DEM, routing, soil thickness and material — built once." },
   { id: "hydro", n: 4, title: "Hydrogeology", blurb: "The steady water table each rainfall map would build." },
   { id: "fos", n: 5, title: "Factor of safety", blurb: "Infinite slope, on the failure plane in the soil." },
@@ -300,6 +351,12 @@ export function render(host) {
       <div class="row"><label for="lsp-extent">Extent</label><select id="lsp-extent" class="input"><option value="drawn">Drawn / boxed area</option></select></div>
       <div class="gis-btn-row"><button type="button" class="button secondary" id="lsp-draw">Draw an area</button><button type="button" class="button" id="lsp-use">Use this extent</button></div>`)}
     ${card(STEPS[1], `
+      <div class="row"><label for="lsp-rain-source" title="Earth Engine's archives are history at the highest resolution there is; GFS is the only source with the days ahead. Auto reads one date range from both: Earth Engine for every day it holds, GFS after.">Source</label><select id="lsp-rain-source" class="input">
+        <option value="auto" selected>Auto — Earth Engine for the past, GFS after</option>
+        <option value="gfs">GFS (NOAA) — hourly, ~13 km, Mar 2021 to +15 days</option>
+        <option value="chirps">Earth Engine CHIRPS — daily, ~5.5 km, 1981 to ~6 weeks ago, 50°S–50°N</option>
+        <option value="imerg">Earth Engine GPM IMERG — daily, ~11 km (needs the service redeployed)</option>
+        <option value="era5land">Earth Engine ERA5-Land — daily, ~9 km (needs the service redeployed)</option></select></div>
       <div class="row"><label for="lsp-rain-start">From</label><input id="lsp-rain-start" class="input" type="date" value="${isoDay(now)}"></div>
       <div class="row"><label for="lsp-rain-end">To</label><input id="lsp-rain-end" class="input" type="date" value="${isoDay(now + 6 * 86400000)}"></div>
       <div class="gis-btn-row"><button type="button" class="button secondary" id="lsp-rain-next">Next 7 days</button><button type="button" class="button secondary" id="lsp-rain-past">Past 7 days</button></div>
@@ -307,7 +364,8 @@ export function render(host) {
         <option value="6">6 h</option><option value="12">12 h</option><option value="24" selected>24 h</option><option value="48">48 h</option><option value="72">72 h</option></select></div>
       <div class="row"><label for="lsp-rain-every">One map every</label><select id="lsp-rain-every" class="input">
         <option value="1">1 h</option><option value="3">3 h</option><option value="6" selected>6 h</option><option value="12">12 h</option><option value="24">24 h</option></select></div>
-      <div class="gis-btn-row"><button type="button" class="button" id="lsp-rain-fetch">Fetch GFS rainfall</button></div>`)}
+      <p class="compact-copy" style="margin:0;opacity:0.8">Earth Engine's archives are daily, so a series with any Earth Engine day in it is one map a day, each window rounded to whole days.</p>
+      <div class="gis-btn-row"><button type="button" class="button" id="lsp-rain-fetch">Fetch rainfall</button></div>`)}
     ${card(STEPS[2], `
       <div class="row"><label for="lsp-ground-cells" title="The model's own grid over the area plus its margin. The DEM is read at the level the area deserves and thinned to this many cells.">Cells (max)</label><select id="lsp-ground-cells" class="input"><option value="40000">40,000</option><option value="90000" selected>90,000</option><option value="160000">160,000</option><option value="250000">250,000</option><option value="500000">500,000 (slow)</option></select></div>
       <div class="row"><label for="lsp-ground-margin" title="Ground outside the study area whose water drains into it. Without a margin every catchment is cut at the box's edge.">Upslope margin</label><select id="lsp-ground-margin" class="input"><option value="auto" selected>Auto (a tenth of the area)</option><option value="0.5">0.5 km</option><option value="1">1 km</option><option value="2">2 km</option><option value="5">5 km</option></select></div>
@@ -421,33 +479,105 @@ function drawMaps() {
 async function fetchRain() {
   const b = state.bounds;
   if (!b) return;
+  const source = byId("lsp-rain-source").value;
   const windowH = Number(byId("lsp-rain-window").value) || 24;
   const everyH = Number(byId("lsp-rain-every").value) || 6;
-  const win = fetchWindow({ start: byId("lsp-rain-start").value, end: byId("lsp-rain-end").value, windowH });
-  if (!win.ok) { say("rain", win.message, "error"); return; }
-  // The nodes must cover the MARGIN too: water falling there drains into the area.
+  const start = byId("lsp-rain-start").value; const end = byId("lsp-rain-end").value;
+  // The nodes and pictures must cover the MARGIN too: water falling there drains into the area.
   const cover = withMargin(b, marginKm());
-  say("rain", "Asking GFS…");
   try {
-    const got = await fetchGfsNodes(cover, { from: win.from, to: win.to }, {
-      onProgress: (done, all) => say("rain", `Asking GFS… ${done} of ${all} points`),
-    });
-    const series = rainfallFrames(got.times, got.nodes, { start: win.start, windowH, everyH });
-    if (!series.frames.length) throw new Error("no complete rainfall window in those dates");
-    let maxAcc = 0; let wettest = null;
-    series.frames.forEach((f) => { const a = series.accumulation(f); a.forEach((v) => { if (v > maxAcc) { maxAcc = v; wettest = f; } }); });
-    const totals = got.nodes.map((node) => node.rain.reduce((s, v) => s + (Number.isFinite(v) ? v : 0), 0));
-    state.rain = { ...got, ...series, window: win, cover };
+    state.rain = source === "gfs"
+      ? await fetchGfsSeries({ cover, start, end, windowH, everyH })
+      : await fetchDailySeries({ cover, source, start, end, windowH });
     state.run = null;
-    const shape = got.grid.regular ? `${got.grid.lats.length} × ${got.grid.lons.length} GFS nodes, ~13 km apart, drawn bilinearly`
-      : `${got.nodes.length} GFS nodes (irregular here — read by distance)`;
-    say("rain", `${series.frames.length} rainfall maps, one every ${everyH} h, each the rain over the previous ${windowH} h${series.stride > 1 ? ` (every ${series.stride}th kept)` : ""}. ${shape}. `
-      + `Wettest map ${wettest ? wettest.time.replace("T", " ") : "—"}: ${maxAcc.toFixed(0)} mm in ${windowH} h at a node; totals ${Math.min(...totals).toFixed(0)}–${Math.max(...totals).toFixed(0)} mm over ${win.from} to ${win.to}.`
-      + `${series.missing ? ` ${series.missing} node-hours had no value and count as dry.` : ""} ${GFS_CREDIT}.`);
+    say("rain", state.rain.summary);
   } catch (error) {
-    say("rain", `GFS rainfall could not be read: ${error.message}`, "error");
+    say("rain", `Rainfall could not be read: ${error.message}`, "error");
   }
   markStates();
+}
+
+/** GFS alone: hourly, so any window and any interval. */
+async function fetchGfsSeries({ cover, start, end, windowH, everyH }) {
+  const win = fetchWindow({ start, end, windowH });
+  if (!win.ok) throw new Error(win.message);
+  say("rain", "Asking GFS…");
+  const got = await fetchGfsNodes(cover, { from: win.from, to: win.to }, {
+    onProgress: (done, all) => say("rain", `Asking GFS… ${done} of ${all} points`),
+  });
+  const series = rainfallFrames(got.times, got.nodes, { start: win.start, windowH, everyH });
+  if (!series.frames.length) throw new Error("no complete rainfall window in those dates");
+  let maxAcc = 0; let wettest = null;
+  series.frames.forEach((f) => { series.accumulation(f).forEach((v) => { if (v > maxAcc) { maxAcc = v; wettest = f; } }); });
+  const shape = got.grid.regular ? `${got.grid.lats.length} × ${got.grid.lons.length} GFS nodes, ~13 km apart, drawn bilinearly`
+    : `${got.nodes.length} GFS nodes (irregular here — read by distance)`;
+  const frames = series.frames.map((f) => ({ time: f.time, from: f.from, source: "gfs",
+    pieces: [{ kind: "gfs", lo: f.index - windowH + 1, hi: f.index }] }));
+  return {
+    kind: "gfs", frames, windowH, everyH, window: win, cover, gfs: { ...got, ...series }, gee: null,
+    credit: GFS_CREDIT, sourceLabel: (fr) => "GFS",
+    summary: `${frames.length} rainfall maps from GFS, one every ${everyH} h, each the rain over the previous ${windowH} h${series.stride > 1 ? ` (every ${series.stride}th kept)` : ""}. ${shape}. `
+      + `Wettest map ${wettest ? wettest.time.replace("T", " ") : "—"}: ${maxAcc.toFixed(0)} mm in ${windowH} h at a node.`
+      + `${series.missing ? ` ${series.missing} node-hours had no value and count as dry.` : ""} ${GFS_CREDIT}.`,
+  };
+}
+
+/** Earth Engine, or Earth Engine then GFS: a map a day, each day from whichever holds it. */
+async function fetchDailySeries({ cover, source, start, end, windowH }) {
+  const geeKey = source === "auto" ? "chirps" : source;
+  const geeSource = GEE_RAIN_SOURCES[geeKey];
+  const covers = coversBox(geeKey, cover);
+  let gee = null; let geeProblem = null;
+  if (covers) {
+    say("rain", `Asking Earth Engine which dates ${geeSource.short} holds…`);
+    try { gee = await geeRainDates(geeKey); } catch (error) { geeProblem = error.message; }
+  }
+  if (!gee && source !== "auto") {
+    throw new Error(covers ? `Earth Engine ${geeSource.short}: ${geeProblem}` : `${geeSource.short} does not reach this area (it stops at ${geeSource.maxLat}° of latitude).`);
+  }
+  const plan = planRain({ source, start, end, windowH, today: dayOf(Date.now()), gee, covers });
+  if (!plan.ok) throw new Error(plan.message);
+  let grids = [];
+  if (plan.geeDays.length) {
+    grids = await fetchGeeRainDays(geeKey, cover, plan.geeDays, {
+      onProgress: (done, all) => say("rain", `Earth Engine ${geeSource.short}: ${done} of ${all} days (one render each)…`),
+    });
+  }
+  let gfs = null;
+  if (plan.gfsDays.length) {
+    say("rain", "Asking GFS for the days Earth Engine does not hold…");
+    const from = plan.gfsDays[0];
+    const lastDay = plan.gfsDays[plan.gfsDays.length - 1];
+    const cap = dayOf(Date.now() + 15 * 86400000);
+    const to = dayOf(Date.parse(`${lastDay}T00:00:00Z`) + 86400000) > cap ? lastDay : dayOf(Date.parse(`${lastDay}T00:00:00Z`) + 86400000);
+    const got = await fetchGfsNodes(cover, { from, to }, { onProgress: (done, all) => say("rain", `Asking GFS… ${done} of ${all} points`) });
+    const series = rainfallFrames(got.times, got.nodes, { start: from, windowH: 1, everyH: 1 });
+    gfs = { ...got, ...series };
+  }
+  const byDay = new Map(plan.geeDays.map((d, k) => [d, k]));
+  const frames = dailyFrames(plan).map((f) => ({
+    ...f,
+    pieces: f.parts.map((p) => {
+      if (p.source === "gee") return { kind: "gee", grid: byDay.get(p.day) };
+      const hours = dayHours(gfs.times, p.day);
+      return hours ? { kind: "gfs", lo: hours.lo, hi: hours.hi } : { kind: "none", day: p.day };
+    }),
+  }));
+  // What each day's picture held, to say it plainly.
+  let geeMax = 0; let geeNaN = 0; let geeCells = 0;
+  grids.forEach((gd) => gd.values.forEach((v) => { geeCells += 1; if (Number.isFinite(v)) { if (v > geeMax) geeMax = v; } else geeNaN += 1; }));
+  const label = (fr) => (fr.source === "gee" ? geeSource.short : fr.source === "gfs" ? "GFS" : `${geeSource.short} and GFS`);
+  const parts = [];
+  if (plan.geeDays.length) parts.push(`${plan.geeDays.length} day${plan.geeDays.length > 1 ? "s" : ""} from Earth Engine ${geeSource.short} (${geeSource.res}, daily; wettest day ${geeMax.toFixed(0)} mm at a pixel${geeNaN / Math.max(1, geeCells) > 0.01 ? `; ${Math.round((100 * geeNaN) / geeCells)}% of the picture has no value — sea, or beyond the archive — and counts as dry` : ""})`);
+  if (plan.gfsDays.length) parts.push(`${plan.gfsDays.length} day${plan.gfsDays.length > 1 ? "s" : ""} from GFS (~13 km, hourly)`);
+  const why = source === "auto" && !gee ? (covers ? ` Earth Engine did not answer (${geeProblem}), so GFS takes every day.` : ` ${geeSource.short} stops at ${geeSource.maxLat}° of latitude, so GFS takes every day here.`) : "";
+  const handover = plan.geeDays.length && plan.gfsDays.length ? ` The handover is ${plan.gfsDays[0]}: a change of source there is not a change in the rain.` : "";
+  const credits = [plan.geeDays.length ? geeSource.credit : null, plan.gfsDays.length ? GFS_CREDIT : null].filter(Boolean).join("; ");
+  return {
+    kind: "daily", frames, windowH: plan.windowDays * 24, everyH: 24, window: { start, end }, cover,
+    gfs, gee: { key: geeKey, source: geeSource, grids }, plan, credit: credits, sourceLabel: label,
+    summary: `${frames.length} daily rainfall maps, each the rain over ${plan.windowDays} day${plan.windowDays > 1 ? "s" : ""}: ${parts.join("; ")}.${handover}${why} ${credits}.`,
+  };
 }
 
 /* ── step 3: the ground, built once ─────────────────────────────────────── */
@@ -621,7 +751,7 @@ async function readGround() {
     sub.bounds = { minX: eb.west + x0 * cw, maxX: eb.west + (x1 + 1) * cw, maxY: eb.north - y0 * ch, minY: eb.north - (y1 + 1) * ch };
     state.ground = { grid, eb, margin, topo, cells, sub, table, demLabel: label, slopeFrom, n, tally,
       maps: { soil: soil?.name || null, superficial: superficial?.name || null, bedrock: bedrock?.name || null } };
-    state.rain && (state.rain.weights = null);
+    if (state.rain) { state.rain.weights = null; state.rain.geePixels = null; }
     state.run = null;
     const kinds = [];
     if (tally.deposit) kinds.push(`${pct(tally.deposit, tally.cells)} a mapped deposit`);
@@ -717,23 +847,47 @@ function rainWeights() {
   const idx = new Int32Array(g.n * 4); const wt = new Float32Array(g.n * 4);
   for (let i = 0; i < g.n; i += 1) {
     if (!g.cells.data[i]) continue;
-    const it = interpolatorFor(r.grid, r.nodes, g.cells.lat[i], g.cells.lon[i]);
+    const it = interpolatorFor(r.gfs.grid, r.gfs.nodes, g.cells.lat[i], g.cells.lon[i]);
     idx.set(it.idx, i * 4); wt.set(it.wt, i * 4);
   }
   r.weights = { idx, wt, n: g.n };
   return r.weights;
 }
 
+/** The pixel of an Earth Engine day each model cell reads; one table per picture geometry. */
+function geePixels(grid) {
+  const r = state.rain; const g = state.ground;
+  r.geePixels = r.geePixels || new Map();
+  const key = `${g.n}|${grid.width}x${grid.height}|${grid.bounds.minX},${grid.bounds.minY},${grid.bounds.maxX},${grid.bounds.maxY}`;
+  if (r.geePixels.has(key)) return r.geePixels.get(key);
+  const at = new Int32Array(g.n).fill(-1);
+  for (let i = 0; i < g.n; i += 1) if (g.cells.data[i]) at[i] = pixelIndex(grid, g.cells.lat[i], g.cells.lon[i]);
+  r.geePixels.set(key, at);
+  return at;
+}
+
+/** A frame's rainfall at every model cell: the sum of its pieces, whichever source each came from. */
 function rainMapFor(frame) {
   const r = state.rain; const g = state.ground;
-  const acc = r.accumulation(frame);
-  const { idx, wt } = rainWeights();
-  const out = new Float32Array(g.n).fill(NaN);
-  for (let i = 0; i < g.n; i += 1) {
-    if (!g.cells.data[i]) continue;
-    const o = i * 4;
-    out[i] = wt[o] * acc[idx[o]] + wt[o + 1] * acc[idx[o + 1]] + wt[o + 2] * acc[idx[o + 2]] + wt[o + 3] * acc[idx[o + 3]];
+  const out = new Float32Array(g.n);
+  for (const p of frame.pieces) {
+    if (p.kind === "gfs") {
+      const acc = r.gfs.accumulateRange(p.lo, p.hi);
+      const { idx, wt } = rainWeights();
+      for (let i = 0; i < g.n; i += 1) {
+        const o = i * 4;
+        out[i] += wt[o] * acc[idx[o]] + wt[o + 1] * acc[idx[o + 1]] + wt[o + 2] * acc[idx[o + 2]] + wt[o + 3] * acc[idx[o + 3]];
+      }
+    } else if (p.kind === "gee") {
+      const grid = r.gee.grids[p.grid];
+      const at = geePixels(grid);
+      for (let i = 0; i < g.n; i += 1) {
+        const v = at[i] >= 0 ? grid.values[at[i]] : NaN;
+        if (Number.isFinite(v)) out[i] += v;
+      }
+    }
   }
+  for (let i = 0; i < g.n; i += 1) if (!g.cells.data[i]) out[i] = NaN;
   return out;
 }
 
@@ -848,7 +1002,7 @@ async function run({ keepStep = false } = {}) {
     layer.raster = makeRaster(band, g.sub.width, g.sub.height, g.sub.bounds, NaN);
     window.GeoIDLayerHierarchy?.setOpacity?.(layer, 0.75);
     layer.info = {
-      source: `${GFS_CREDIT}; ${g.demLabel}; ${[g.maps.superficial, g.maps.bedrock, g.maps.soil].filter(Boolean).join("; ") || "no ground map"}; Pelletier et al. (2016) soil thickness; the rock-properties database`,
+      source: `${r.credit}; ${g.demLabel}; ${[g.maps.superficial, g.maps.bedrock, g.maps.soil].filter(Boolean).join("; ") || "no ground map"}; Pelletier et al. (2016) soil thickness; the rock-properties database`,
       summary: "A static, steady-state hydrogeological slope model (SHALSTAB/SINMAP family) run once per GFS rainfall map: recharge routed downslope builds a water table, and the infinite-slope factor of safety is read on the failure plane in the soil.",
       citation: "Montgomery & Dietrich (1994); Pack, Tarboton & Goodwin (1998); Quinn et al. (1991); Cosby et al. (1984)",
       maths: mathsFor("landslide-forecast"),
@@ -864,14 +1018,14 @@ async function run({ keepStep = false } = {}) {
       bounds: { west: g.sub.bounds.minX, east: g.sub.bounds.maxX, south: g.sub.bounds.minY, north: g.sub.bounds.maxY },
       epochs, source: "none", interval: 400, startAt,
       noteFor: (e) => { const s = summary[e.index]; return `${s.failing.toLocaleString()} / ${s.applicable.toLocaleString()} failing · ${s.maxRain.toFixed(0)} mm`; },
-      noteTitle: (e) => { const s = summary[e.index]; return `GFS rain over the ${r.windowH} h to ${e.date}: up to ${s.maxRain.toFixed(0)} mm in the area; ${s.failing} of ${s.applicable} modelled cells below FoS 1; mean saturation ${s.meanW.toFixed(2)}.`; },
+      noteTitle: (e) => { const s = summary[e.index]; return `${r.sourceLabel(frames[e.index])} rain over the ${r.windowH} h to ${e.date}: up to ${s.maxRain.toFixed(0)} mm in the area; ${s.failing} of ${s.applicable} modelled cells below FoS 1; mean saturation ${s.meanW.toFixed(2)}.`; },
       onStatus: (m) => say("run", m),
       onShow: (index) => showStep(index),
       onStop: () => { state.playing = false; },
     });
     const w = summary[worst];
     const ever = [...minFos].filter((v) => Number.isFinite(v) && v < 1).length;
-    say("run", `${frames.length} static models, one per GFS map. Worst map ${frames[worst].time.replace("T", " ")}: ${w.failing.toLocaleString()} of ${w.applicable.toLocaleString()} cells below FoS 1 under up to ${w.maxRain.toFixed(0)} mm in ${r.windowH} h. `
+    say("run", `${frames.length} static models, one per rainfall map. Worst map ${frames[worst].time.replace("T", " ")}: ${w.failing.toLocaleString()} of ${w.applicable.toLocaleString()} cells below FoS 1 under up to ${w.maxRain.toFixed(0)} mm in ${r.windowH} h. `
       + `${ever.toLocaleString()} cells fall below 1 at some point in the window. Scrub the bar; change the view; click a cell for its numbers.`);
   } catch (error) {
     say("run", `The run failed: ${error.message}`, "error");
@@ -913,7 +1067,9 @@ export function probeAt(lat, lon) {
   // The factor of safety is the card's title; a first row saying it again is
   // the same number twice.
   const rows = [
-    ["Rainfall map", `${fmt(cur.rainMm[i], 1)} mm of GFS rain in the ${state.rain.windowH} h to ${frame.time.replace("T", " ")} UTC`],
+    ["Rainfall map", state.rain.kind === "daily"
+      ? `${fmt(cur.rainMm[i], 1)} mm of ${state.rain.sourceLabel(frame)} rain over the ${state.rain.windowH / 24} day${state.rain.windowH > 24 ? "s" : ""} to ${frame.time} (UTC days)`
+      : `${fmt(cur.rainMm[i], 1)} mm of GFS rain in the ${state.rain.windowH} h to ${frame.time.replace("T", " ")} UTC`],
     ["Saturation", `h / z_s ${fmt(cur.W[i])}; water on the failure plane m ${fmt(planeWetness(cur.W[i], g.cells.zs[i], g.cells.zf[i]))}`],
     ["Upslope area", `${(g.cells.area[i] / 1e4).toFixed(2)} ha draining through this cell (a = ${(g.cells.area[i] / g.topo.contour).toFixed(0)} m)`],
     ["Lowest over the window", !Number.isFinite(run.minFos[i]) ? "—"
@@ -929,7 +1085,7 @@ export function probeAt(lat, lon) {
     // Named, so the card is claimed by this layer and goes when it does.
     source_layer: LAYER_NAME,
     soil: true, profile: false, type: "Forecast landslide risk", rock_type: headline, lithology: null, name: null,
-    description: `${GFS_CREDIT} · ${state.rain.window.start} to ${state.rain.window.end}`, extra_rows: rows, origin: "GeoHUB forecast landslide pipeline",
+    description: `${state.rain.credit} · ${state.rain.window.start} to ${state.rain.window.end}`, extra_rows: rows, origin: "GeoHUB forecast landslide pipeline",
     rows: [["Note", "A static steady-state screening model: the water table sustained recharge would build, routed downslope, and an infinite-slope failure parallel to the ground. Not a site investigation."]],
   }, lat, lon);
   return true;

@@ -187,7 +187,28 @@ export function rainfallFrames(times, nodes, { start, windowH = 24, everyH = 6, 
     for (let k = 0; k < nodes.length; k += 1) out[k] = prefix[k][frame.index + 1] - prefix[k][lo];
     return out;
   };
-  return { frames, accumulation, stride, windowH, everyH, missing, hours: n };
+  /** The node accumulations over hours lo..hi inclusive, in mm. */
+  const accumulateRange = (lo, hi) => {
+    const out = new Float32Array(nodes.length);
+    const a = Math.max(0, lo); const b = Math.min(n - 1, hi);
+    if (b < a) return out;
+    for (let k = 0; k < nodes.length; k += 1) out[k] = prefix[k][b + 1] - prefix[k][a];
+    return out;
+  };
+  return { frames, accumulation, accumulateRange, stride, windowH, everyH, missing, hours: n };
+}
+
+/**
+ * The hours that make up one UTC day: Open-Meteo's value at T is the hour
+ * ENDING at T, so the day is 01:00 through the next day's 00:00. Null where the
+ * series does not reach it.
+ */
+export function dayHours(times, day) {
+  const lo = times.indexOf(`${day}T01:00`);
+  if (lo < 0) return null;
+  const end = new Date(Date.parse(`${day}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
+  const next = times.indexOf(`${end}T00:00`);
+  return { lo, hi: next >= 0 ? next : Math.min(times.length - 1, lo + 22) };
 }
 
 /** Fetch every node's hourly rain over the window, in chunks the URL can hold. */

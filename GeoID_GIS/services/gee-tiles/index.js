@@ -90,6 +90,35 @@ const DATASETS = {
     attribution: "UCSB/CHG CHIRPS",
   },
 
+  // The two other high-resolution rainfall archives, for the landslide
+  // forecast's historical maps. Rendered on CHIRPS's own 0-300 mm ramp so the
+  // page can invert the picture back to millimetres the same way. `multiply`
+  // turns each band into mm: IMERG is mm/h every half hour, ERA5-Land metres.
+  "NASA/GPM_L3/IMERG_V07": {
+    legend: { label: "Rainfall", min: 0, max: 300, unit: "mm" },
+    name: "Rainfall (GPM IMERG V07)",
+    bands: ["precipitation"],
+    min: 0,
+    max: 300,
+    scale: 11132,
+    palette: ["ffffff", "bfe9ff", "2f6bff", "0b2f8a"],
+    reducer: "sum",
+    multiply: 0.5,
+    attribution: "NASA GPM IMERG V07",
+  },
+  "ECMWF/ERA5_LAND/DAILY_AGGR": {
+    legend: { label: "Rainfall", min: 0, max: 300, unit: "mm" },
+    name: "Rainfall (ERA5-Land)",
+    bands: ["total_precipitation_sum"],
+    min: 0,
+    max: 300,
+    scale: 11132,
+    palette: ["ffffff", "bfe9ff", "2f6bff", "0b2f8a"],
+    reducer: "sum",
+    multiply: 1000,
+    attribution: "Copernicus Climate Change Service ERA5-Land",
+  },
+
   // ── Climate layers ───────────────────────────────────────────────────────
   // Processed here rather than stored: the point of this service is that the
   // site keeps no archive and asks for a finished picture instead.
@@ -481,6 +510,9 @@ function buildImage(id, config, from, to, region) {
   }
 
   let composite = reduce(collection, config).select(config.bands);
+  // Into the unit the legend states: IMERG's half-hourly mm/h summed is twice
+  // the millimetres, ERA5-Land's metres a thousandth of them.
+  if (Number.isFinite(config.multiply)) composite = composite.multiply(config.multiply);
   // A classification must be remapped BEFORE any arithmetic below; there is
   // none for a class dataset, and mixing the two would be meaningless anyway.
   if (config.classes) composite = remapClasses(composite, config);
