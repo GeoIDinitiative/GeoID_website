@@ -16367,6 +16367,16 @@ page's 24 h windows reproduce the raw sums exactly (28.2, 12.5, 7.2, 4.7, 0.2
 regolith (c′ 20 kPa), and at 72 m nothing fails in that week at all — which
 reads as broken and is not.
 
+**The rainfall opens on 7 days either side of today, on Auto**, and every map
+says which it is: `periodOf(time)` — "record" once its window has ended,
+"forecast" if it reaches past now — on the bar's date pill, the note's title,
+a shaded "record | forecast" split at now on the station plot, and `period`
+and `source` columns in the station CSV. The record half is Earth Engine only
+where the DEPLOYED service renders a day: re-probed on 2026-09-11, IMERG,
+GSMaP and ERA5-Land still answer "Unknown or unsupported dataset" and CHIRPS
+ends 2026-07-31, so 4–11 Sep is GFS's own record until `services/gee-tiles`
+is redeployed (user-gated, billed); then Auto takes IMERG with no code change.
+
 
 
 Hazards-style brief, answered in the GIS page's Model Builder tab: draw the
