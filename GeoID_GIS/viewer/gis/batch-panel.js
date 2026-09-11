@@ -7,7 +7,7 @@
  * a product and would not survive being written down.
  */
 
-import { parseChain, runBatch, cancelBatch } from "./batch.js?v=20260911-2c8d57d";
+import { parseChain, runBatch, cancelBatch } from "./batch.js?v=20260911-7f3a711";
 
 const state = { runner: null };
 

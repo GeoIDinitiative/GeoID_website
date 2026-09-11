@@ -18186,3 +18186,55 @@ discharge):
 Measured over the Mississippi at 160 km: built in 4.3 s, with the margin at
 116 km², the belt at 1,264 km² and the floodplain at 1,095 km², and the
 floodplain following low ground rather than a band.
+
+## "Floats, then disappears as we zoom in" was four faults, none at rest
+
+Every rest-state measurement said the hydrology layers were on the ground: the
+fills at drape 0, the sheets within a metre of `surfacePoint`, all five drawing
+at 400, 40, 8 and 2 km over the Camargue, and the live site the same. The
+faults were in what happens BETWEEN two states, and each was found by building
+at one state and looking from another.
+
+- **The world pin hid the view.** A layer off its own pyramid pins its zoom-2
+  world in the BACKGROUND (view first), and `pin()` ended with
+  `showTiles(pinned)` — so when the world landed after the view, the view's
+  zoom-7 lakes and rivers were built and HIDDEN, and the world holds no lake
+  under 1,000 km² and no river under a kilometre wide. Timing-dependent, which
+  is why an earlier run drew them and a later one drew nothing. It shows the
+  pinned set plus whatever the view has put up now, and leaves `seen` alone
+  when a view has already landed. `tile-pin-order.test.mjs` is the A/B: old
+  code, visible 1 → 16 (the world alone); new, 17.
+- **The sea-level sheet flooded only from a coast inside the view.** Built
+  from 400 km it drew 796,471 px of sea over the Camargue; rebuilt at 8 km,
+  0 px, with 59 km² "cut off" — the view held no coastline to spread from. The
+  status line even said so. It is now seeded at its EDGE (`edgeSeeds`) from a
+  chain of coarser boxes (`contextBox`: eight times the view, rounded to a
+  power of two degrees and snapped so neighbouring views share them, up to the
+  world). Only the edge: seeding a coarse parent's interior would pour the sea
+  over a dyke inside the view. After: 58 km² flooded, 1 km² cut off; 0.27 s
+  cached, 3.8 s fresh (DEM streamed for each link at 12 tiles).
+- **River zones lost floodplains reaching in from rivers out of shot.** A 5 km
+  view 1.4 km east of the Rhône: 0 zone cells alone, 246,762 with the zones of
+  the rivers OUTSIDE the view (one context box, four views across) merged by the
+  innermost-wins rule (`mergeOuterZones`). The view's own rivers are excluded
+  from the context so a coarse HAND cannot overrule the fine one.
+- **Lines were still handed the altitude-scaled clearance** (`lifted: true`,
+  2% of the distance to the ground, 11.9 km cap) while drawing with the depth
+  test OFF — pure parallax, a constant ~8 px off the river in the imagery at
+  the edge of every view. Drape 0 now; the far side is culled by facing.
+
+**And a drape built close in was wrong from orbit.** `attachReliefAttributes`
+recovers a displacement as (radius − base) / relief from a FLOAT32 position;
+at relief 3.7e-6 (1 km up) that quantised in steps of 0.01 against a true
+spread of a thousandth, so the sheet stood on a terrace up to 9 km off the
+ground when the camera rose, until the next rebuild. `attachExactRelief` in
+`geotiff-adapter.js` carries the terrain's own `elevationNormalized` and the
+seam's `latLonToVector3` direction instead: built at 1 km and looked at from
+400 km, worst vertex 0 m. It reaches every raster drape (the DEM sheets,
+GeoTIFFs); a viewer without those two seam functions keeps the old path.
+
+**Two probe traps.** A view that holds no coast draws no sea and no lake draws
+no lake — pick test points with `GeoIDFeaturePopup.featuresAt` first (the
+first "8 km over the Camargue" point had neither in frame, and read as the
+layers vanishing). And a test stub must not hand geo-utils' `latLonToVector3`
+back to the seam: it DEFERS to the seam, so it calls itself.
