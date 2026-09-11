@@ -405,6 +405,11 @@ def bake_tiles(geojson: pathlib.Path, work: pathlib.Path) -> pathlib.Path:
         run(["ogr2ogr", "-f", "MVT", str(band), str(geojson),
              "-nln", TILE_LAYER,
              "-simplify", str(tolerance),
+             # Simplification can make a polygon self-touch, and GDAL's MVT
+             # writer then leaves it out of the tile with no error and exit 0.
+             # That lost the ocean's zoom-0 tile in bake-hydrology.py; here it
+             # was a hole wherever it happened. See GeoID_GIS/CLAUDE.md.
+             "-makevalid",
              "-dsco", f"MINZOOM={low}", "-dsco", f"MAXZOOM={high}",
              # Uncompressed: these are served as files off a static site, and
              # the browser only ungzips what the SERVER declares.

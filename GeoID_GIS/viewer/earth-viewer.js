@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260911-90a2cf9";
+  from "./gis/geo-utils.js?v=20260911-4f969fe";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260911-90a2cf9";
+  from "./gis/vector-render.js?v=20260911-4f969fe";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260911-90a2cf9";
+  from "./gis/rock-class.js?v=20260911-4f969fe";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260911-90a2cf9";
+  from "./gis/lithology-label.js?v=20260911-4f969fe";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -376,9 +376,11 @@ function fmtProp(value) {
     const csvPlotterCanvas = document.getElementById("csv-plotter-canvas");
     const legendPanel = document.getElementById("legend-panel");
 
+    // The world's own icon beside its name, as every planet page wears its
+    // own — this set it to the GeoID mark at boot, over whatever the page said.
     if (brandLogo) {
-      brandLogo.src = "/assets/GeoID_logo_icon.png";
-      brandLogo.alt = "GeoID";
+      brandLogo.src = "/assets/earth_icon.png";
+      brandLogo.alt = "Earth icon";
     }
     const legendSummaryCopy = document.getElementById("legend-summary-copy");
     const scenePopup = document.getElementById("scene-popup");
@@ -21342,8 +21344,16 @@ uniform float uViewportWidth;`,
             scPressure.style.color = "#aaaacc";
             if (scContext) scContext.textContent = moonName.toUpperCase() + " SURFACE";
           } else if (elevationMeters !== null) {
-            const tempC = estimateEarthTemperature(latLon.lat, elevationMeters);
-            const pressurePa = estimateEarthPressure(elevationMeters);
+            /**
+             * THE MEAN CLIMATE, NOT A FORMULA. `gis/climate-normals.js` reads
+             * MERRA-2's 2001-2020 means and carries them to this height (a
+             * lapse rate, the hypsometric equation) from the grid cell's own.
+             * The formula below is the stand-in for the second or so before
+             * the grid lands, and says so in the context line.
+             */
+            const normal = window.GeoIDClimate?.at?.(latLon.lat, latLon.lon, elevationMeters) || null;
+            const tempC = normal ? Math.round(normal.tempC) : estimateEarthTemperature(latLon.lat, elevationMeters);
+            const pressurePa = normal ? Math.round(normal.pressurePa) : estimateEarthPressure(elevationMeters);
             scTemp.textContent = `${tempC > 0 ? "+" : ""}${tempC} °C`;
             scTemp.style.color = tempC < -80 ? "#6ec6ff"
               : tempC < -50 ? "#90d8e8"
@@ -21354,7 +21364,16 @@ uniform float uViewportWidth;`,
               : pressurePa < 500 ? "#c8a8e0"
               : pressurePa < 800 ? "#e8b878"
               : "#ff9966";
-            if (scContext) scContext.textContent = "EARTH SURFACE";
+            if (scContext) {
+              scContext.textContent = normal
+                ? `${normal.sea ? "SEA SURFACE" : "EARTH SURFACE"} · MEAN 2001–2020`
+                : "EARTH SURFACE · ESTIMATED";
+              scContext.title = normal
+                ? "NASA POWER (MERRA-2) annual mean, carried from its 0.5° grid cell "
+                  + "to this height by the lapse rate and the hypsometric equation."
+                : "Loading the climatology; until it lands this is a formula of "
+                  + "latitude and height.";
+            }
           }
         } else {
           // No surface hit — cursor is in space

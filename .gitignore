@@ -104,6 +104,9 @@ data/global/gee-catalogue.json
 # a .geojson and is already covered by the rule above; this one is a bare
 # .json, and at 26 MB it is not a thing to commit.
 data/global/cyclone-risk-years.json
+# The MERRA-2 climate normals the TEMP and PRESSURE readouts read: published
+# gzipped to the bucket like every other loose file, fingerprinted in sources.json.
+data/global/climate-normals.json
 data/global/ice/names.json
 data/global/ice/thickness.json
 

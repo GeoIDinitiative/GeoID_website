@@ -26,17 +26,17 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260911-90a2cf9";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260911-90a2cf9";
-import { mathsFor } from "./equations.js?v=20260911-90a2cf9";
+import { runConnector } from "./research/connectors.js?v=20260911-4f969fe";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260911-4f969fe";
+import { mathsFor } from "./equations.js?v=20260911-4f969fe";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260911-90a2cf9";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260911-90a2cf9";
-import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260911-90a2cf9";
+} from "./cyclone-risk.js?v=20260911-4f969fe";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260911-4f969fe";
+import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260911-4f969fe";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260911-90a2cf9";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260911-4f969fe";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -105,6 +105,9 @@ export const HOMES = {
   // rows — the GEE Service form's arrangement — so the nine planets, which have
   // no weather service, never see an empty heading.
   weather: "weather-catalogue",
+  // Hydrology ▸ Sea level: the streamed-DEM sea-level model, a TILED row with
+  // its level control in the row's drawer. No shipped file lives here.
+  "sea-level": "sea-level-catalogue",
 };
 
 export const DATASETS = [

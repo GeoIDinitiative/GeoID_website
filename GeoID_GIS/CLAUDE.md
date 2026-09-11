@@ -17903,12 +17903,47 @@ lakes at every zoom (`scratchpad/count-ids.mjs`): **z0 178 but z2 177, z3 3,399
 but z4 3,400.** The counts inside a band should be identical. It was re-baked
 with `-makevalid`.
 
-**The soil, GLiM and glacier bakes (`bake-soil.py`, `bake-glim.py`,
-`bake-glaciers.py`) also simplify without `-makevalid`.** All three have their
-z0 and four z1 tiles, so nothing large is missing. Individual polygons may
-still have been dropped this way and not been noticed. The check is the same
-per-zoom unique-id count, run over a band that holds the same selection at
-every zoom.
+**Soil and GLiM now pass `-makevalid` too, measured as an A/B** (the tile
+count of every tile, before and after, from the same source). **The soil map
+had lost exactly one polygon**: the northern part of a 68,935 km² "Water
+Bodies" polygon, the Amazon's water near 67°W on the equator, which was
+missing from zoom-1 tile `1/0/0`. The other 561 tiles came back
+identical feature for feature. Most of the 3,890 polygons missing at zoom 0
+(30,222 of 34,112) collapse under the 0.2° tolerance and are smaller than a
+seventh of a pixel. The fault here is only the invalid ones.
+
+**GLiM had lost more, spread thin.** The same A/B on all 927 tiles:
+**22 features restored at zoom 0, 20 at z1, 3 at z2, 23 at z3, 60 at z4 and
+166 at z5**, gained in 89 tiles. Two tiles came back one piece lighter: the
+repair turning a polygon that had collapsed to a line into nothing at all,
+which is what should happen to it.
+
+**The GLiM bake now reads its geodatabase where it lies.** The PANGAEA
+link answers 404, and the authors' Dropbox link is what their page offers.
+GDAL opens a file geodatabase straight out of a remote zip
+(`/vsizip/{/vsicurl/…}/LiMW_GIS 2015.gdb`, with the braces because the URL
+has a query string), so the 1.1 GB download never lands on a disk that
+cannot hold it and the 3 GB GeoPackage together. Three things bit:
+
+- **`pathlib.Path` collapses the `//` in `https://`**, and the open fails
+  with "does not exist". The remote source is a string.
+- **Dropbox's temporary content URL answers 403 to a second request.** The
+  legend's `.lyr` is pulled out of the zip by HTTP Range through `zipfile`,
+  and every range goes through the ORIGINAL link and follows the redirect
+  again. Python also turns a redirected HEAD into a GET of the whole archive,
+  so the size probe is a one-byte ranged GET.
+- **A deflated zip read over HTTP inflates FORWARDS.** A lookup deep into
+  the table ran past three minutes. The bake reads the table in order, which
+  is the one access pattern that suits it, and it took 12 minutes for the
+  GeoPackage.
+
+**The glacier bake (`bake-glaciers.py`) still simplifies without
+`-makevalid`.** It has its z0 and four z1 tiles, so nothing large is
+missing. The check that settles it is the soil one: count the features in
+every tile, re-bake with the flag, and compare
+(`scratchpad/tile-counts.mjs` in the session that did it: features per tile
+as JSON). A per-zoom unique-id count needs an id, and neither soil nor GLiM
+carries one.
 
 ### GRWL's `ID` is not a record key
 
@@ -17918,3 +17953,140 @@ one unique key, so the bake writes that as `id` and the card calls it
 "GRWL record", not "segment". `nSegPx` is carried as `measurements`, the
 number of width readings behind the median. Before this, two unrelated
 rivers could show the same id on their cards.
+
+
+## The TEMP and PRESSURE readouts read a reanalysis, not a formula
+
+Before, they were 27 − 40·sin²(lat) minus a lapse rate, and a barometric curve
+off 101,325 Pa. Every place at one latitude and height was the same place.
+They also read the height from the streamed DEM, which reports the SEABED over
+the ocean, so a cursor over deep tropical sea applied the lapse rate from
+−4,000 m and said about +50 °C.
+
+`gis/climate-normals.js` reads NASA POWER's MERRA-2 climatology instead: 2 m
+temperature and surface pressure, 2001–2020 annual means, on MERRA-2's own
+0.5° × 0.625° grid. `services/bake-climate.py` writes it to
+`data/global/climate-normals.json`, which is published gzipped. It then
+DOWNSCALES to the ground under the cursor:
+
+    T(z) = T_cell − 6.5 K/km · (z − z_cell)
+    p(z) = p_cell · exp(−g (z − z_cell) / (R_d · T̄))
+
+- **The grid cell's OWN height is the whole trick.** A cell's mean describes
+  the cell's mean height, so a summit inside it is colder by the height it
+  stands above THAT, not above sea level. POWER hands every cell's elevation
+  over as the third coordinate of each point, which is why this source and
+  not another.
+- **At sea the surface is the sea.** A negative DEM height is read as the
+  sea surface unless the cell around it stands more than 50 m up, which is
+  what a depression is: the Dead Sea (−430 m) keeps its depth and the
+  Caspian (−28 m) reads as water, which costs 0.2 °C.
+- **Why POWER.** ERA5 needs a CDS key, WorldClim forbids redistribution,
+  NCEP's long-term means are 1.9°, and POWER's analysis-ready Zarr on AWS
+  answers 403. The API refuses two parameters in one request, so the bake
+  makes 1,296 requests one at a time and caches each one on disk.
+- **The readout's context line says which it is**: "EARTH SURFACE · MEAN
+  2001–2020" or "SEA SURFACE · MEAN 2001–2020", and "ESTIMATED" for the
+  second or so before the grid lands.
+
+**The map is the same function over a grid.** Earth System ▸ Atmosphere
+carries two catalogue rows, one for mean temperature and one for mean
+pressure. They are new readings in `dem-layer.js`'s SHEETS, alongside
+elevation, slope and hillshade, and `climateGrid()` is `readAt()` run over
+the streamed DEM's grid. So the colour under the cursor and the number
+beside it are one calculation at one height, not two estimates that happen
+to be close. **The scale is FIXED** (−40 to +35 °C, 50 to 103 kPa). A
+stretch to the view would paint two different climates the same colour in
+two different views.
+
+**The Surface Conditions temperature and pressure maps were dead code.**
+Their PNGs 404, and `ALLOWED_BASEMAP_IDS` never offers them. They were not
+revived. The real map is a layer.
+
+`dem-layer.js`'s sheets grew three optional hooks to hold these:
+- `prepare(bounds, w, h)` fetches what a reading needs besides the heights.
+- `scale` gives a fixed ramp for the repaint and the key.
+- `paint`/`status` give a reading its own colours and its own sentence.
+
+A sheet can also carry its own `credit`. `rebuildSheet(kind)` rebuilds a
+sheet whose INPUTS moved without the view moving. It waits out a build
+already running rather than dropping the request.
+
+## Sea level on the streamed DEM and the real coastline
+
+The paleo-sea overlay was a threshold on the shipped 19.6 km elevation
+texture, and it was wrong in three ways:
+- At 0 m it was not the coastline.
+- It filled basins the sea cannot reach.
+- It read a lake's bed as the lake.
+
+It is hidden (earth-viewer reads its ids unguarded) and replaced by a
+**Hydrology ▸ Sea level** subtab. Its catalogue row is a sheet of the
+streamed DEM, and the level control sits in the row's drawer.
+
+- **Today's sea IS the ocean polygons.** The bake-hydrology ocean pyramid
+  (OSM water polygons from z4, Natural Earth below) is burned onto the
+  sheet's own grid by scanline, even-odd, so the coastline at 0 m is exact
+  whatever the DEM says under it.
+- **A risen sea spreads by connectivity**, breadth-first and 8-neighbour,
+  through ground below the level. Ground lower still but unreachable is
+  reported as cut off and NOT drawn: a threshold fills a basin behind a
+  ridge.
+- **A lake stands at its surveyed SURFACE** (HydroLAKES `elevation_m`), not
+  at the DEM's reading of its bed. A risen sea crosses a lake only when the
+  lake's surface is below it.
+- **What is drawn is only what CHANGES**: land under the new sea in blue by
+  depth, or seabed above a fallen sea in sand by height. Today's sea is
+  already on the imagery.
+- **The world sheet wraps** across the antimeridian; a view does not, and
+  its status line says only ground in view is considered.
+- **Presets carry their sources in their tooltips**:
+  - −125 m, the Last Glacial Maximum (Lambeck et al. 2014)
+  - +1 m, AR6 SSP5-8.5 2100 likely range 0.63–1.01 m
+  - +2 m, AR6 low-likelihood high-impact
+  - +7 m, the Greenland ice sheet, 7.4 m
+  - +65 m, all land ice
+
+**The TILED projection in `catalogue-panels.js` dropped `settings`**, so a
+tiled row could not dock a drawer at all. This is the fourth field a
+projection there has cost. It is carried now, and pinned.
+
+## The icon beside the world's name is the world's
+
+Every planet page wears its own icon beside its title. Earth wore the GeoID
+mark, and `earth-viewer.js` re-set it at boot over whatever the markup said.
+Both now say `/assets/earth_icon.png`. The GeoID mark itself (the header's)
+is untouched, and the theme rule that no skin restyles `.brand-logo` covers
+the Earth icon the same way.
+
+## rclone strips an unchanged object's headers, and a publish armed it
+
+Publishing ONE new file (the climate normals) left **41 of 42 JSON files
+served uncompressed with no Cache-Control**, including the 23 MB cyclone grid
+the live site reads. The same thing had happened to most tiles of every
+pyramid re-baked today: **soil 12 of 12 sampled tiles, GLiM 9 of 12,
+HydroLAKES 10 of 12**.
+
+The mechanism is a feature. `rclone copy` skips an object that matches by
+size and hash, but if its MTIME differs, rclone "updates" the mtime with a
+server-side S3 copy that **REPLACES the metadata**. The `--header-upload`
+values (`Content-Encoding: gzip`, the immutable Cache-Control) are dropped.
+Our gzip is deterministic and a re-bake rewrites every tile, so an unchanged
+file always differs by mtime alone. Every publish after the first therefore
+stripped the headers from exactly the files that had not changed.
+
+- **`--no-update-modtime`** on both scripts: an identical object is never
+  touched.
+- **`publish-data.py` stamps the staged gzip with the source file's mtime**,
+  so an unchanged file matches and is skipped.
+- **`--force`** (`--ignore-times`) is the repair. `publish-data` forces only
+  the gzipped copy: the plain files go up from disk with real mtimes and were
+  never touched, and forcing them re-sends the 800 MB population COG for
+  nothing.
+- **`publish-tiles --check` samples 24 tiles.** The one tile it used to read
+  is the world tile, which a re-bake always changes, so it could never see
+  this.
+
+Verified: a normal publish after the repair leaves all 42 JSON files stored
+gzipped with their cache header. Last-Modified on an object you did not mean
+to change is the tell.

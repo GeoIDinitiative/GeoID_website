@@ -50,6 +50,7 @@ wasted round trip on every view.
 from __future__ import annotations
 
 import argparse
+import random
 import json
 import pathlib
 import shutil
@@ -79,13 +80,20 @@ def pyramid(name: str) -> pathlib.Path:
     return path
 
 
-def upload(path: pathlib.Path, remote: str, dry: bool) -> int:
+def upload(path: pathlib.Path, remote: str, dry: bool, force: bool = False) -> int:
     if not shutil.which("rclone"):
         die("rclone is not installed; it is what talks to the bucket")
     args = ["rclone", "copy", str(path), remote,
             "--header-upload", f"Cache-Control: {CACHE_CONTROL}",
+            # A re-bake rewrites every tile, so an unchanged tile differs only
+            # by mtime -- and rclone "updates" that with a server-side copy
+            # that replaces the metadata, stripping the Cache-Control above.
+            # See publish-data.py. Never touch an identical object.
+            "--no-update-modtime",
             "--transfers", "16", "--checkers", "16",
             "--stats-one-line", "--stats", "30s"]
+    if force:
+        args.append("--ignore-times")   # the repair: every tile, with its header
     if dry:
         args.append("--dry-run")
     print(f"  rclone copy -> {remote}")
@@ -195,6 +203,29 @@ def check(body: dict, path: pathlib.Path) -> int:
     print(f"  cache-control: {cache or 'NOT SET — every view re-fetches'}")
     if not cache:
         ok = False
+    # ONE TILE PROVES NOTHING ABOUT THE REST. The tile above is the world tile,
+    # which a re-bake always changes and so always re-uploads; the tiles a
+    # re-bake leaves identical are exactly the ones rclone used to "update",
+    # stripping their headers. Measured: 12 of 12 sampled soil tiles without
+    # Cache-Control while this check reported the world tile's header happily.
+    keys = sorted(body.get("tiles") or {})
+    random.seed(len(keys))
+    stripped = []
+    for key in random.sample(keys, min(24, len(keys))):
+        probe = urllib.request.Request(f"{base}/{key}.mvt?v={version or ''}", method="HEAD",
+                                       headers=request.headers)
+        try:
+            with urllib.request.urlopen(probe, timeout=30) as response:
+                if "immutable" not in (response.headers.get("cache-control") or ""):
+                    stripped.append(key)
+        except urllib.error.URLError:
+            stripped.append(key)
+    if stripped:
+        print(f"  {len(stripped)} of {min(24, len(keys))} sampled tiles have no cache header "
+              f"(e.g. {stripped[0]}) — re-publish with --force")
+        ok = False
+    else:
+        print(f"  {min(24, len(keys))} sampled tiles all carry the cache header")
     return 0 if ok else 1
 
 
@@ -209,6 +240,8 @@ def main() -> int:
     parser.add_argument("--check", action="store_true",
                         help="verify the published tiles are readable and CORS-open")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--force", action="store_true",
+                        help="re-upload every tile with its header, even if unchanged")
     args = parser.parse_args()
 
     path = pyramid(args.name)
@@ -225,7 +258,7 @@ def main() -> int:
         die("--base is required: the public URL the tiles will be served from "
             "(a custom domain on the bucket, not the rate-limited r2.dev one)")
 
-    code = upload(path, f"{args.remote.rstrip('/')}/{args.name}", args.dry_run)
+    code = upload(path, f"{args.remote.rstrip('/')}/{args.name}", args.dry_run, args.force)
     if code != 0:
         die(f"rclone exited {code}; the manifest was NOT changed")
     if args.dry_run:

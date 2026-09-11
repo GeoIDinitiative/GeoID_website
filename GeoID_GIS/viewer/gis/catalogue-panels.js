@@ -29,11 +29,11 @@
 
 import {
   HOMES, MIRRORS, grouped, addDataset, layerForDataset, loadLaunchDefaults,
-} from "./global-data.js?v=20260911-90a2cf9";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260911-90a2cf9";
-import { mathsFor } from "./equations.js?v=20260911-90a2cf9";
+} from "./global-data.js?v=20260911-4f969fe";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260911-4f969fe";
+import { mathsFor } from "./equations.js?v=20260911-4f969fe";
 import { bandOf, bandRows, bandSymbology, describeFilter, magOf }
-  from "./seismic-magnitude.js?v=20260911-90a2cf9";
+  from "./seismic-magnitude.js?v=20260911-4f969fe";
 
 const byId = (id) => document.getElementById(id);
 
@@ -64,6 +64,12 @@ const GEE_SHARE = { hydrology: "hydrology" };
  * declares `ready`, `layerOf`, `load` and `unload` against its own module's
  * seam, and this file knows nothing else about either of them.
  */
+/** A status writer for a line this file does not own a host for. */
+const sayIn = (id) => (message) => {
+  const node = byId(id);
+  if (node) node.textContent = message || "";
+};
+
 const TILED = {
   "hydrology": [{
     id: "hydro-lakes",
@@ -304,6 +310,76 @@ const TILED = {
       window.GeoIDGlimCover?.say?.("");
     },
   }],
+  // Hydrology ▸ Sea level: its own subtab, because it is a model you set a
+  // number on rather than a map you tick.
+  "sea-level": [{
+    id: "sea-level",
+    group: "Sea level",
+    label: "Sea level on the streamed DEM",
+    title: "Where the sea stands at a level you choose: spread from the real "
+      + "coastline through the streamed heights, lakes held at their own surface. "
+      + "Set the level in the controls under the row.",
+    info: {
+      summary: "A bathtub model with connectivity. Today's sea is the coastline "
+        + "polygons; a risen sea covers only ground below it that it can reach "
+        + "from them, and ground lower still but cut off is reported rather "
+        + "than drawn. A fallen sea leaves the seabed above it standing. Each "
+        + "lake stays at its surveyed surface. No tides, surges, defences finer "
+        + "than the DEM, or land moving under the load.",
+      citation: "Heights: Mapzen Terrain Tiles (AWS Open Data). Coastline: © "
+        + "OpenStreetMap contributors (ODbL), Natural Earth. Lakes: HydroLAKES "
+        + "(Messager et al. 2016), CC BY 4.0",
+      maths: mathsFor("sea-level"),
+    },
+    settings: "sea-level-controls",
+    ready: () => Boolean(window.GeoIDDemSheets),
+    layerOf: () => window.GeoIDDemSheets?.sheetLayer?.("sealevel") || null,
+    load: () => window.GeoIDDemSheets.addSheet("sealevel", sayIn("sea-level-status")),
+    unload: () => { window.GeoIDDemSheets?.removeSheet?.("sealevel"); sayIn("sea-level-status")(""); },
+  }],
+  /**
+   * THE MEAN CLIMATE, as two readings of the streamed DEM — the same function
+   * the TEMP and PRESSURE readouts use, over the view's own grid, so the map
+   * and the number under the cursor are one calculation.
+   */
+  "weather": [{
+    id: "climate-temperature",
+    group: "Climate normals",
+    label: "Mean temperature 2001–2020 (MERRA-2)",
+    title: "The 2001–2020 annual mean of 2 m air temperature from NASA's MERRA-2 "
+      + "reanalysis, carried from its 55 km grid to the streamed ground by the "
+      + "standard lapse rate. The TEMP readout reads the same.",
+    info: {
+      summary: "What the air is like on average, not today. MERRA-2's grid cell "
+        + "describes the cell's mean height, so a summit inside it is colder by "
+        + "the height it stands above that; over the sea the surface is the sea, "
+        + "not the seabed the DEM reports.",
+      citation: "NASA POWER (MERRA-2), Gelaro et al. (2017), J. Climate 30: 5419-5454",
+      maths: mathsFor("climate-temperature"),
+    },
+    ready: () => Boolean(window.GeoIDDemSheets && window.GeoIDClimate),
+    layerOf: () => window.GeoIDDemSheets?.sheetLayer?.("temperature") || null,
+    load: () => window.GeoIDDemSheets.addSheet("temperature", sayIn("weather-status")),
+    unload: () => { window.GeoIDDemSheets?.removeSheet?.("temperature"); sayIn("weather-status")(""); },
+  }, {
+    id: "climate-pressure",
+    group: "Climate normals",
+    label: "Mean surface pressure 2001–2020 (MERRA-2)",
+    title: "The 2001–2020 annual mean surface pressure from NASA's MERRA-2 "
+      + "reanalysis, carried from its 55 km grid to the streamed ground by the "
+      + "hypsometric equation. The PRESSURE readout reads the same.",
+    info: {
+      summary: "Surface air pressure on average: about 101 kPa at sea level and "
+        + "a third less on a 3 km plateau. Carried to the ground's height from "
+        + "the grid cell's own, at the layer's mean temperature.",
+      citation: "NASA POWER (MERRA-2), Gelaro et al. (2017), J. Climate 30: 5419-5454",
+      maths: mathsFor("climate-pressure"),
+    },
+    ready: () => Boolean(window.GeoIDDemSheets && window.GeoIDClimate),
+    layerOf: () => window.GeoIDDemSheets?.sheetLayer?.("pressure") || null,
+    load: () => window.GeoIDDemSheets.addSheet("pressure", sayIn("weather-status")),
+    unload: () => { window.GeoIDDemSheets?.removeSheet?.("pressure"); sayIn("weather-status")(""); },
+  }],
   "geology-ice": [{
     id: "glaciers-rgi7",
     group: "Global inventory",
@@ -347,6 +423,10 @@ function draw(home, hostId) {
     ...tiled.map((entry) => ({
       id: entry.id, group: entry.group, label: entry.label,
       title: entry.title, info: entry.info,
+      // A tiled row may hang its own controls under itself too (the sea level
+      // is a number the reader sets). Dropped here, the drawer silently never
+      // appears -- the fourth time a projection has cost a field.
+      settings: entry.settings,
     })),
     ...grouped().flatMap(({ group, entries: list }) => list
       .filter((entry) => entry.home === home || mirrorOf(home, entry.id))

@@ -396,5 +396,16 @@ check("and every listed group still has something in it",
     /function followRisk\(\) \{\s*return Boolean\(riskLayer\(\)\);/.test(lapse));
 }
 
+{
+  // A TILED row carries its drawer through the projection, or the sea level's
+  // control never appears -- the fourth field a projection has silently cost.
+  const panels = readFileSync(join(HERE, "catalogue-panels.js"), "utf8");
+  check("a tiled row's projection carries its settings drawer",
+    /\.\.\.tiled\.map\(\(entry\) => \(\{[\s\S]{0,400}settings: entry\.settings/.test(panels));
+  check("the sea-level row names its drawer and the page holds it",
+    /id: "sea-level",[\s\S]{0,1600}settings: "sea-level-controls"/.test(panels)
+    && /id="sea-level-controls"/.test(readFileSync(join(HERE, "..", "index.html"), "utf8")));
+}
+
 console.log(failures ? `\n${failures} failed` : "\nall passed");
 process.exit(failures ? 1 : 0);

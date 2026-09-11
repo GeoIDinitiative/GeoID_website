@@ -18,12 +18,39 @@
  * the displaced surface, and the raster every terrain tool wants as an input.
  */
 
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-90a2cf9";
-import { mathsFor } from "./equations.js?v=20260911-90a2cf9";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260911-90a2cf9";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-4f969fe";
+import { mathsFor } from "./equations.js?v=20260911-4f969fe";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260911-4f969fe";
 import { makeRaster, slope as slopeOf, hillshade as hillshadeOf }
-  from "./raster-analysis.js?v=20260911-90a2cf9";
-import * as dem from "./dem-tiles.js?v=20260911-90a2cf9";
+  from "./raster-analysis.js?v=20260911-4f969fe";
+import * as dem from "./dem-tiles.js?v=20260911-4f969fe";
+import { rampColour } from "./symbology.js?v=20260911-4f969fe";
+import * as climate from "./climate-normals.js?v=20260911-4f969fe";
+import { waterMasks, floodFromSea, classAreas, FLOODED, EXPOSED, CUT_OFF, LAKE }
+  from "./water-mask.js?v=20260911-4f969fe";
+
+/**
+ * The sea level the sea-level sheet is drawn at, in metres against today's.
+ * State rather than a spec field so the control can move it and ask for a
+ * rebuild without the builder knowing there is a control at all.
+ */
+export const seaLevel = { metres: 1, masks: null, last: null };
+
+const WATER_CREDIT = "Coastline © OpenStreetMap contributors (ODbL 1.0) from "
+  + "zoom 4 and Natural Earth below it; lakes from HydroLAKES v1.0 (Messager "
+  + "et al. 2016), CC BY 4.0.";
+
+const hexOf = (rgb) => rgb.map((c) => c.toString(16).padStart(2, "0")).join("");
+/** Sand to umber, for seabed standing above a fallen sea. */
+const seabed = (t) => {
+  const a = [238, 218, 168]; const b = [128, 84, 40];
+  const u = Math.max(0, Math.min(1, t));
+  return a.map((v, k) => Math.round(v + ((b[k] - v) * u)));
+};
+/** Pale to deep water, for land under a risen sea. Starts part-way along the
+ * ramp so the shallowest flooding is still visibly water over the imagery. */
+const flood = (t) => rampColour("blues", 0.3 + (0.7 * Math.max(0, Math.min(1, t))));
+const km2 = (v) => Math.round(v).toLocaleString();
 
 /**
  * THREE READINGS OF ONE SOURCE, not three sources.
@@ -80,6 +107,140 @@ export const SHEETS = {
         altitude: readLight("hillshade-altitude", 45),
       }).band;
       return [shade, shade, shade];
+    },
+  },
+  /**
+   * THE MEAN CLIMATE, AS A MAP — and the SAME function the cursor readout
+   * uses, over this grid. MERRA-2's 2001-2020 means are carried from each
+   * 0.5° cell's own height to the streamed ground by a lapse rate and the
+   * hypsometric equation (`climate-normals.js`), so a valley reads warmer than
+   * the ridge above it and the colour under the cursor is the number beside
+   * it. Over the sea the surface is the sea, not the seabed the DEM reports.
+   *
+   * A FIXED SCALE, never the view's own range: a stretch to what is in view
+   * would paint London and Lagos the same colour on two different evenings.
+   */
+  temperature: {
+    id: "climate-temperature",
+    label: "Mean temperature 2001–2020 (MERRA-2, on the streamed DEM)",
+    unit: "°C",
+    isDem: false,
+    opacity: 0.7,
+    summary: "The 2001–2020 annual mean of 2 m air temperature from NASA's "
+      + "MERRA-2 reanalysis, carried from its 55 km grid to the streamed ground "
+      + "by the standard lapse rate.",
+    credit: climate.CITATION,
+    prepare: () => climate.load(),
+    derive: (raster) => [climate.climateGrid(climate.normalsNow(), raster.band,
+      raster.width, raster.height, raster.bounds, raster.noData, "tempC")],
+    scale: { ramp: "spectral", reverse: true, min: -40, max: 35 },
+  },
+  pressure: {
+    id: "climate-pressure",
+    label: "Mean surface pressure 2001–2020 (MERRA-2, on the streamed DEM)",
+    unit: "Pa",
+    isDem: false,
+    opacity: 0.7,
+    summary: "The 2001–2020 annual mean surface air pressure from NASA's "
+      + "MERRA-2 reanalysis, carried from its 55 km grid to the streamed ground "
+      + "by the hypsometric equation.",
+    credit: climate.CITATION,
+    prepare: () => climate.load(),
+    derive: (raster) => [climate.climateGrid(climate.normalsNow(), raster.band,
+      raster.width, raster.height, raster.bounds, raster.noData, "pressurePa")],
+    scale: { ramp: "viridis", reverse: false, min: 50000, max: 103000 },
+  },
+  /**
+   * THE SEA AT A CHOSEN LEVEL, on the streamed heights and the real coastline.
+   *
+   * The ocean polygons decide where the sea is TODAY, so at 0 m this is the
+   * coastline exactly; from there the sea spreads through ground below the
+   * chosen level and nowhere else, and each lake stands at its own surveyed
+   * surface (`water-mask.js`). What is drawn is only what CHANGES — land a
+   * risen sea covers, coloured by how deep, or seabed a fallen sea leaves
+   * standing, coloured by how high — because today's sea is already on the
+   * imagery underneath.
+   */
+  sealevel: {
+    id: "sea-level",
+    label: "Sea level (streamed DEM and coastline)",
+    unit: "m",
+    isDem: false,
+    opacity: 0.85,
+    summary: "Where the sea stands at a chosen level against today's, spread "
+      + "from the real coastline through the streamed heights, with every lake "
+      + "held at its own surface.",
+    credit: WATER_CREDIT,
+    prepare: async (bounds, width, height) => {
+      const key = JSON.stringify([bounds.west, bounds.south, bounds.east, bounds.north,
+        width, height]);
+      if (seaLevel.masks?.key !== key) {
+        seaLevel.masks = { key, ...(await waterMasks(bounds, width, height)) };
+      }
+      return seaLevel.masks;
+    },
+    derive: (raster, ctx) => {
+      const heights = new Float32Array(raster.band.length);
+      for (let c = 0; c < heights.length; c += 1) {
+        const h = raster.band[c];
+        heights[c] = h === raster.noData ? NaN : h;
+      }
+      const level = seaLevel.metres;
+      const { classes, depth } = floodFromSea({
+        heights, ocean: ctx.ocean, lakeLevel: ctx.lakeLevel,
+        width: raster.width, height: raster.height, level, wrap: ctx.world,
+      });
+      seaLevel.last = { level, areas: classAreas(classes, raster.width, raster.height, ctx.bounds),
+        world: ctx.world, lakesReached: 0 };
+      // Lakes the risen sea has run into, for the status line.
+      if (level >= 0) {
+        for (let c = 0; c < classes.length; c += 1) {
+          if (classes[c] === LAKE && Number.isFinite(ctx.lakeLevel[c])
+            && ctx.lakeLevel[c] < level) seaLevel.last.lakesReached += 1;
+        }
+      }
+      const out = new Float32Array(depth.length);
+      for (let c = 0; c < out.length; c += 1) {
+        out[c] = (classes[c] === FLOODED || classes[c] === EXPOSED) ? depth[c] : NO_DATA;
+      }
+      return [out];
+    },
+    /** Water over land in blue by depth; seabed above the sea in sand by height. */
+    paint: (result) => {
+      const level = seaLevel.metres;
+      const rising = level >= 0;
+      const top = Math.max(1, Math.abs(level));
+      const colour = rising ? flood : seabed;
+      result.repaint((v) => (!Number.isFinite(v) || v === NO_DATA ? null : colour(v / top)));
+      result.legendInfo = {
+        palette: [0, 0.25, 0.5, 0.75, 1].map((t) => hexOf(colour(t))),
+        min: 0,
+        max: Math.round(top * 10) / 10,
+        label: rising ? "Depth of sea over land that is dry today"
+          : "Height of seabed above the sea",
+        unit: "m",
+      };
+    },
+    status: () => {
+      const last = seaLevel.last;
+      if (!last) return "";
+      const sign = last.level > 0 ? "+" : "";
+      const where = last.world ? "worldwide" : "in this view";
+      if (last.level < 0) {
+        return `At ${sign}${last.level} m: ${km2(last.areas[EXPOSED])} km² of seabed ${where} `
+          + "stands above the sea. Lakes keep their own level. Coastline from "
+          + "OpenStreetMap and Natural Earth, heights streamed.";
+      }
+      const cut = last.areas[CUT_OFF];
+      return [
+        `At ${sign}${last.level} m: ${km2(last.areas[FLOODED])} km² of land ${where} lies below `,
+        "the sea and is connected to it.",
+        cut > 0.5 ? ` ${km2(cut)} km² more is lower than that but cut off from the sea, and is `
+          + "left dry." : "",
+        last.lakesReached ? " The sea runs into lakes whose surface is below it." : "",
+        last.world ? "" : " Only ground in view is considered: the sea has to reach it "
+          + "through what the view can see.",
+      ].join("");
     },
   },
 };
@@ -278,6 +439,9 @@ async function build(kind, { onStatus = () => {} } = {}) {
     const bounds = targetBounds();
     // Finer tiles where the view is looking, on top of the world cover.
     if (bounds !== WORLD) await dem.ensure(bounds, { maxTiles: 24 });
+    // What this reading needs besides the heights -- the climatology, the
+    // water polygons for this box -- fetched before the grid is sampled.
+    const ctx = spec.prepare ? await spec.prepare(bounds, GRID_W, GRID_H) : null;
     const { band, seen, min, max } = await sampleGridOver(bounds, GRID_W, GRID_H);
     if (!seen) return { ok: false, message: "No elevation was streamed for this view." };
     /**
@@ -305,7 +469,8 @@ async function build(kind, { onStatus = () => {} } = {}) {
      * knows its cell size in metres -- a slope computed on degrees would be
      * wrong by the cosine of the latitude and look plausible everywhere.
      */
-    const bands = spec.derive(makeRaster(band, GRID_W, GRID_H, rasterBounds, NO_DATA));
+    const bands = spec.derive(makeRaster(band, GRID_W, GRID_H, rasterBounds, NO_DATA),
+      { ...(ctx || {}), bounds, world: bounds === WORLD });
     const result = buildRasterLayer(bands, GRID_W, GRID_H, rasterBounds, {
       name: spec.label,
       noData: NO_DATA,
@@ -329,6 +494,25 @@ async function build(kind, { onStatus = () => {} } = {}) {
       const mats = Array.isArray(node.material) ? node.material : [node.material];
       mats.forEach((m) => { if (m && m.depthTest === false) m.depthWrite = false; });
     });
+    /**
+     * A reading with its own FIXED SCALE is repainted onto it and keyed by it.
+     * The builder's own ramp is the elevation one, stretched to the band's own
+     * range — right for heights, and wrong for a temperature, whose colour has
+     * to mean the same number in every view.
+     */
+    if (spec.scale) {
+      const { ramp, reverse, min, max } = spec.scale;
+      result.repaint((v) => {
+        if (!Number.isFinite(v) || v === NO_DATA) return null;
+        return rampColour(ramp, (v - min) / (max - min), { reverse });
+      });
+      result.legendInfo = {
+        palette: [0, 0.25, 0.5, 0.75, 1].map((t) => rampColour(ramp, t, { reverse })
+          .map((c) => c.toString(16).padStart(2, "0")).join("")),
+        min, max, label: "", unit: spec.unit,
+      };
+    }
+    spec.paint?.(result, bands, ctx);
     const previous = sheetLayer(kind);
     const layer = window.GeoIDImportManager?.addDerivedLayer?.(spec.label, result, "tiles");
     if (!layer) return { ok: false, message: "the layer could not be registered" };
@@ -361,19 +545,21 @@ async function build(kind, { onStatus = () => {} } = {}) {
      * card goes.
      */
     if (!spec.unit) layer.legendHidden = true;
+    const credit = spec.credit ? `${spec.credit} Heights: ${dem.TERRARIUM.credit}`
+      : dem.TERRARIUM.credit;
     layer.info = {
-      source: dem.TERRARIUM.credit,
+      source: credit,
       summary: `${spec.summary} Streamed as tiles and sampled onto this grid; the `
         + "cursor readout and the terrain tools read the same source.",
       // Slope and hillshade are arithmetic, not readings. The Workspace row
       // draws an ⓘ for this, so the working travels with the layer.
       maths: mathsFor(spec.id),
-      citation: dem.TERRARIUM.credit,
+      citation: credit,
     };
     layer.metadata = {
       ...(layer.metadata || {}),
-      source: dem.TERRARIUM.credit,
-      citation: dem.TERRARIUM.credit,
+      source: credit,
+      citation: credit,
       crs: "EPSG:4326",
     };
     const posts = Math.round(dem.groundMetresPerPixel(
@@ -398,10 +584,9 @@ async function build(kind, { onStatus = () => {} } = {}) {
       }
       if (Number.isFinite(lo)) range = `${Math.round(lo)} to ${Math.round(hi)}${spec.unit}, `;
     }
-    const message = [
-      spec.label, ": ", range, "about ", posts,
-      " m posts where nothing finer has streamed. ", dem.TERRARIUM.credit,
-    ].join("");
+    const message = spec.status?.(bands, bounds, ctx)
+      || [spec.label, ": ", range, "about ", posts,
+        " m posts where nothing finer has streamed. ", dem.TERRARIUM.credit].join("");
     onStatus(message);
     return { ok: true, layer, message };
   } catch (error) {
@@ -466,3 +651,24 @@ export function removeSheet(kind) {
 /** The elevation sheet's own doors, kept for the callers that named it. */
 export const addDemLayer = (onStatus) => addSheet("elevation", onStatus);
 export const removeDemLayer = () => removeSheet("elevation");
+
+/**
+ * Rebuild a sheet that is on the globe, now — for a reading whose inputs moved
+ * without the view moving (the sea-level control). Waits out a build already
+ * running rather than dropping the request, or the last slider position is the
+ * one that never gets drawn.
+ */
+export async function rebuildSheet(kind, onStatus = () => {}) {
+  if (!sheetLayer(kind)) return { ok: false, message: "not on the globe" };
+  while (busy) {
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise((resolve) => setTimeout(resolve, 60));
+  }
+  return build(kind, { onStatus });
+}
+
+// The catalogue's TILED rows drive these through a seam, as they do every
+// other self-loading layer.
+if (typeof window !== "undefined") {
+  window.GeoIDDemSheets = { addSheet, removeSheet, rebuildSheet, sheetLayer, SHEETS };
+}

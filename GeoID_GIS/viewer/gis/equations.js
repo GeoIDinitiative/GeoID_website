@@ -61,7 +61,71 @@ const CELL = {
     + "resampled picture rather than of the ground.",
 };
 
+/** Carrying a reanalysis cell's mean to another height. */
+const DOWNSCALE_TERMS = [
+  ["T_cell, p_cell", "MERRA-2's 2001–2020 annual mean 2 m temperature and surface "
+    + "pressure, bilinear on its 0.5° × 0.625° grid"],
+  ["z_cell", "the grid cell's own surface height, from the same source"],
+  ["z", "the streamed DEM's height here — or 0 where it reports seabed under "
+    + "open water (a depression inside high ground keeps its own height)"],
+  ["Γ", "6.5 K/km, the standard atmosphere's lapse rate"],
+  ["g, R_d", "9.80665 m/s² and 287.05 J/(kg·K), the dry-air gas constant"],
+];
+
 const EQUATIONS = {
+  "climate-temperature": {
+    kind: PUBLISHED,
+    intro: "A reanalysis mean, carried to the ground. MERRA-2 is NASA's; the "
+      + "carrying is ours, and it is one line.",
+    lines: [
+      { expr: "T(z) = T_cell − Γ · (z − z_cell)",
+        note: "a summit is colder by the height it stands above its cell's mean height" },
+    ],
+    terms: DOWNSCALE_TERMS,
+    note: "The standard lapse rate is an average: inversions in valleys and "
+      + "the steeper lapse of dry air are not in it. At sea it adds nothing, "
+      + "because the sea is at the height the cell describes.",
+  },
+
+  "climate-pressure": {
+    kind: PUBLISHED,
+    intro: "A reanalysis mean, carried to the ground by the hypsometric equation.",
+    lines: [
+      { expr: "T(z) = T_cell − Γ · (z − z_cell)" },
+      { expr: "T̄ = ½ · (T_cell + T(z)) + 273.15", note: "the layer's mean temperature, in kelvin" },
+      { expr: "p(z) = p_cell · exp( −g · (z − z_cell) / (R_d · T̄) )" },
+    ],
+    terms: DOWNSCALE_TERMS,
+    note: "Dry air, hydrostatic, and the layer's temperature taken as its mean: "
+      + "over the few hundred metres a grid cell's mean height differs from the "
+      + "ground in it, that is a fraction of a percent.",
+  },
+
+  "sea-level": {
+    kind: COMPUTED,
+    intro: "A bathtub model with connectivity, on the streamed heights and the "
+      + "real coastline. Nothing moves but the level.",
+    lines: [
+      { expr: "sea(L) ⊇ O", note: "today's sea is the coastline polygons O, whatever the DEM says under them" },
+      { expr: "flooded(L) = { c : h(c) < L, and c is joined to O through cells with h < L }",
+        note: "8-neighbour; a lake cell is crossed only if its SURFACE is below L" },
+      { expr: "depth(c) = L − h(c)", note: "drawn for flooded land, when L ≥ 0" },
+      { expr: "exposed(L) = { c ∈ O : h(c) ≥ L },  height = h(c) − L", note: "drawn when L < 0" },
+    ],
+    terms: [
+      ["L", "the chosen level, in metres against today's"],
+      ["h(c)", "the streamed DEM's height at the cell; inside a lake, the lake's "
+        + "surveyed surface elevation from HydroLAKES instead"],
+      ["O", "the ocean polygons: OpenStreetMap's water polygons from zoom 4, "
+        + "Natural Earth below"],
+    ],
+    note: "Static: no tides, surges or waves, no defences finer than the DEM's "
+      + "posts, no land rising or sinking under the change in load. Ground "
+      + "below L that the sea cannot reach is reported as cut off, not drawn. "
+      + "Away from the world view only ground in view is considered, so the "
+      + "sea has to reach a cell through what the view can see.",
+  },
+
   "cyclone-risk": {
     kind: COMPUTED,
     intro: "How often a tropical cyclone passes, counted from IBTrACS and "

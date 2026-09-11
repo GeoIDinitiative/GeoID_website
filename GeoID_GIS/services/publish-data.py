@@ -32,6 +32,7 @@ configured remote and reads no key of its own.
 from __future__ import annotations
 
 import argparse
+import os
 import gzip
 import hashlib
 import json
@@ -119,7 +120,7 @@ def loose_files() -> list[pathlib.Path]:
                   if p.is_file() and p.name not in KEEP_LOCAL)
 
 
-def upload(paths: list[pathlib.Path], remote: str, dry: bool) -> int:
+def upload(paths: list[pathlib.Path], remote: str, dry: bool, force: bool = False) -> int:
     if not shutil.which("rclone"):
         die("rclone is not installed; it is what talks to the bucket")
     # Every file to publish, by its path relative to data/global. The nested
@@ -131,12 +132,26 @@ def upload(paths: list[pathlib.Path], remote: str, dry: bool) -> int:
     packed = [rel for rel in rels if rel.endswith(GZIP_AT_REST)]
     plain = [rel for rel in rels if not rel.endswith(GZIP_AT_REST)]
 
-    def copy(source: pathlib.Path, names: list[str], headers: list[str]) -> int:
+    def copy(source: pathlib.Path, names: list[str], headers: list[str],
+             force: bool = False) -> int:
         if not names:
             return 0
         args = ["rclone", "copy", str(source), remote,
                 "--header-upload", f"Cache-Control: {CACHE_CONTROL}",
+                # THE HEADERS LIVE ON THE OBJECT, AND RCLONE WILL STRIP THEM.
+                # An object that matches by size and hash but not by mtime is
+                # not re-uploaded: rclone updates its mtime with a server-side
+                # copy that REPLACES the metadata, and Content-Encoding and
+                # Cache-Control go with it. Measured: one publish of one new
+                # file left 41 of 42 JSON files served uncompressed with no
+                # cache header, including the 23 MB cyclone grid the live site
+                # reads. Never touch an identical object's metadata.
+                "--no-update-modtime",
                 "--transfers", "8", "--checkers", "8", "--stats-one-line"]
+        if force:
+            # Re-upload everything named, with its headers -- the repair for
+            # objects that have already lost them.
+            args.append("--ignore-times")
         for h in headers:
             args += ["--header-upload", h]
         # Only the named files: a bare `copy` of data/global would re-upload
@@ -154,7 +169,14 @@ def upload(paths: list[pathlib.Path], remote: str, dry: bool) -> int:
             out = stage_dir / rel
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_bytes(gzipped(GLOBAL / rel))
-        code = copy(stage_dir, packed, ["Content-Encoding: gzip"])
+            # The source's own mtime, so an unchanged file matches what the
+            # bucket holds and is skipped rather than "updated".
+            src = (GLOBAL / rel).stat()
+            os.utime(out, (src.st_atime, src.st_mtime))
+        # Only the gzipped copy is forced: the plain files go up from disk with
+        # their real mtimes, so rclone never "updated" them, and forcing them
+        # would re-send the 800 MB population COG to repair nothing.
+        code = copy(stage_dir, packed, ["Content-Encoding: gzip"], force)
     return code or copy(GLOBAL, plain, [])
 
 
@@ -247,6 +269,8 @@ def main() -> int:
     parser.add_argument("--unpublish", action="store_true")
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--force", action="store_true",
+                        help="re-upload every file with its headers, even if unchanged")
     args = parser.parse_args()
 
     if args.check:
@@ -265,7 +289,7 @@ def main() -> int:
     paths = loose_files()
     if not paths:
         die("no loose files found under data/global")
-    code = upload(paths, args.remote.rstrip("/"), args.dry_run)
+    code = upload(paths, args.remote.rstrip("/"), args.dry_run, args.force)
     if code != 0:
         die(f"rclone exited {code}; sources.json was NOT changed")
     if args.dry_run:

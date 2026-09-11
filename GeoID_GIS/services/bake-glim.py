@@ -51,12 +51,16 @@ the command line, no Python bindings (this machine's segfault on
 
 from __future__ import annotations
 
+import io
 import json
 import pathlib
 import re
 import shutil
 import subprocess
 import sys
+import time
+import urllib.request
+import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 OUT = ROOT / "data" / "global" / "glim"
@@ -68,6 +72,16 @@ WORK = ROOT / "data" / "global" / ".glim-work"
 # unpacked into WORK, and says so if it is not.
 SOURCE_PAGE = ("https://www.geo.uni-hamburg.de/en/geologie/forschung/"
                "aquatische-geochemie/glim.html")
+
+# The geodatabase the project page links to, READ WHERE IT LIES when it is not
+# unpacked locally. GDAL opens a file geodatabase straight out of a remote zip
+# (`/vsizip/{/vsicurl/…}/…`), so the 1.1 GB download never touches the disk —
+# which matters on a machine that cannot hold the zip AND the 3 GB reprojected
+# GeoPackage at once. The PANGAEA store link now answers 404; this is the
+# authors' own Dropbox link from the page above.
+SOURCE_ZIP = ("https://www.dropbox.com/scl/fi/5v00i8op7a9brmn4qeg8b/"
+              "LiMW_GIS-2015.gdb.zip?rlkey=89q1aj8zfpmiv82y41xe6ttmp&dl=1")
+SOURCE_GDB_IN_ZIP = "LiMW_GIS 2015.gdb"
 
 TILE_LAYER = "glim"
 GDB_LAYER = "GLiM_export"
@@ -146,15 +160,71 @@ def run(args: list[str]) -> None:
         sys.exit(f"FAILED: {' '.join(args[:6])}…\n{done.stderr[:2000]}")
 
 
-def find_gdb() -> pathlib.Path:
-    for path in sorted(WORK.glob("*.gdb")):
+def find_gdb():
+    """A local unpacked geodatabase if there is one, else the remote zip.
+
+    The remote form is a GDAL path STRING, never a pathlib.Path: Path collapses
+    the "//" in "https://" and the open fails with "does not exist".
+    """
+    for path in sorted(WORK.glob("*.gdb")) if WORK.exists() else []:
         if path.is_dir():
             return path
-    sys.exit(
-        f"No .gdb under {WORK}.\n"
-        f"GLiM's polygons are a 1.1 GB download and are not fetched here.\n"
-        f"Get 'LiMW_GIS 2015.gdb.zip' from {SOURCE_PAGE}\n"
-        f"and unzip it into {WORK}.")
+    return f"/vsizip/{{/vsicurl/{SOURCE_ZIP}}}/{SOURCE_GDB_IN_ZIP}"
+
+
+class _RangeFile(io.RawIOBase):
+    """A seekable read-only view of a URL by HTTP Range, so `zipfile` can pull
+    one entry out of a 1.1 GB archive without downloading the rest."""
+
+    def __init__(self, url: str):
+        # A one-byte range rather than HEAD: urllib turns a redirected HEAD into
+        # a GET of the whole archive. Content-Range carries the total size.
+        with urllib.request.urlopen(urllib.request.Request(
+                url, headers={"Range": "bytes=0-0"})) as probe:
+            # The ORIGINAL link, never the one it redirects to: Dropbox's
+            # temporary content URL answers 403 to a second request.
+            self.url = url
+            self.size = int(probe.headers["Content-Range"].rsplit("/", 1)[1])
+        self.pos = 0
+
+    def seekable(self): return True
+    def readable(self): return True
+    def tell(self): return self.pos
+
+    def seek(self, offset, whence=0):
+        self.pos = offset if whence == 0 else self.pos + offset if whence == 1 else self.size + offset
+        return self.pos
+
+    def readinto(self, buf):
+        if self.pos >= self.size:
+            return 0
+        end = min(self.pos + len(buf), self.size) - 1
+        req = urllib.request.Request(self.url, headers={"Range": f"bytes={self.pos}-{end}"})
+        for attempt in range(5):
+            try:
+                data = urllib.request.urlopen(req, timeout=60).read()
+                break
+            except OSError:
+                if attempt == 4:
+                    raise
+                time.sleep(3 * (attempt + 1))
+        buf[:len(data)] = data
+        self.pos += len(data)
+        return len(data)
+
+
+def read_lyr(gdb) -> bytes:
+    """The legend file's bytes, from disk or out of the remote zip."""
+    if isinstance(gdb, pathlib.Path):
+        lyr = gdb / "GLiM_v1_1.lyr"
+        if not lyr.exists():
+            sys.exit(f"No GLiM_v1_1.lyr in {gdb} — the class names live in it.")
+        return lyr.read_bytes()
+    with zipfile.ZipFile(io.BufferedReader(_RangeFile(SOURCE_ZIP), 1 << 20)) as zf:
+        entry = next((n for n in zf.namelist() if n.endswith("GLiM_v1_1.lyr")), None)
+        if not entry:
+            sys.exit("No GLiM_v1_1.lyr in the remote geodatabase zip.")
+        return zf.read(entry)
 
 
 def legend_from_lyr(gdb: pathlib.Path) -> dict[str, str]:
@@ -165,13 +235,10 @@ def legend_from_lyr(gdb: pathlib.Path) -> dict[str, str]:
     legend needed two. The codes are upper-case in the legend and lower-case in
     the data, so the key is folded.
     """
-    lyr = gdb / "GLiM_v1_1.lyr"
-    if not lyr.exists():
-        sys.exit(f"No GLiM_v1_1.lyr in {gdb} — the class names live in it.")
     if not shutil.which("strings"):
         sys.exit("`strings` is needed to read the GLiM legend out of the .lyr")
-    raw = subprocess.run(["strings", "-e", "l", str(lyr)],
-                         capture_output=True, text=True).stdout
+    raw = subprocess.run(["strings", "-e", "l"], input=read_lyr(gdb),
+                         capture_output=True).stdout.decode("utf-8", "replace")
     names: dict[str, str] = {}
     for line in raw.splitlines():
         match = re.match(r"^\s*([A-Za-z][A-Za-z .,/-]+?)\s*\(([A-Z]{2})\)\s*$", line)
@@ -190,6 +257,7 @@ def to_wgs84(gdb: pathlib.Path, names: dict[str, str]) -> pathlib.Path:
     polygons is a couple of gigabytes as text, on a machine with single-digit
     gigabytes free, and nothing downstream reads it by hand.
     """
+    WORK.mkdir(parents=True, exist_ok=True)
     gpkg = WORK / "glim.gpkg"
     # REUSED WHEN IT IS ALREADY THERE. Reprojecting 1.2 million polygons out of
     # Eckert IV is the expensive half of this bake by a wide margin, and every
@@ -273,6 +341,11 @@ def bake_tiles(gpkg: pathlib.Path) -> pathlib.Path:
              "-sql", f"SELECT *, name AS lith FROM {TILE_LAYER}",
              "-nln", TILE_LAYER,
              "-simplify", str(tolerance),
+             # Simplification can make a polygon self-touch, and GDAL's MVT
+             # writer then leaves it out of the tile with no error and exit 0.
+             # That lost the ocean's zoom-0 tile in bake-hydrology.py; here it
+             # was a hole wherever it happened. See GeoID_GIS/CLAUDE.md.
+             "-makevalid",
              "-dsco", f"MINZOOM={low}", "-dsco", f"MAXZOOM={high}",
              # Uncompressed: served as files off a static site, and the browser
              # only ungzips what the SERVER declares.
@@ -336,7 +409,7 @@ def install(tiles: pathlib.Path, classes: dict, polygons: int) -> None:
 
 def main() -> int:
     gdb = find_gdb()
-    print(f"Baking GLiM from {gdb.name}…")
+    print(f"Baking GLiM from {gdb.name if isinstance(gdb, pathlib.Path) else 'the remote zip'}…")
     names = legend_from_lyr(gdb)
     print(f"  legend: {len(names)} classes named by GLiM's own .lyr")
     if len(names) < 16:
