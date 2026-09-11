@@ -152,9 +152,19 @@ const src = readFileSync(new URL("./landslide-pipeline.js", import.meta.url), "u
 check("the rainfall is GFS, by date — the ERA5 archive is gone", /fetchGfsNodes\(cover/.test(src) && !/archive-api\.open-meteo/.test(src));
 check("the GFS nodes cover the upslope margin, where water drains in from", /const cover = withMargin\(b, marginKm\(\)\)/.test(src));
 check("a borrowed streaming layer is given back, whatever happens", /finally \{\s*borrowed\.forEach\(\(l\) => \{ try \{ l\.restoreLive\?\.\(\); \}/.test(src));
-check("the routing is multiple-flow-direction on the sink-filled DEM",
-  /const filled = fillSinks\(makeRaster\(grid\.band, grid\.width, grid\.height, grid\.bounds, NaN\)\);/.test(src)
+// The fill is on the STREAM-BURNED band now, and that is the decision this pin
+// guards: a flow network from heights alone parts company with the mapped
+// rivers on a floodplain, and the channel model then reads discharge at cells
+// no water passes through.
+check("the routing is multiple-flow-direction on the sink-filled DEM, with the mapped rivers burned into it",
+  /const routeBand = rivers \? Float32Array\.from\(grid\.band\) : grid\.band;/.test(src)
+  && /routeBand\[i\] -= RIVER_BURN_M;/.test(src)
+  && /const filled = fillSinks\(makeRaster\(routeBand, grid\.width, grid\.height, grid\.bounds, NaN\)\);/.test(src)
   && /const topo = mfdTopology\(filled, \{ exponent: 1\.1 \}\);/.test(src));
+check("and the trench is taken back out of the surface everything else reads",
+  /fillBand\[i\] \+= RIVER_BURN_M;/.test(src) && /filled: fillBand,/.test(src));
+check("the flood model reads the network the topology was burned with, rather than fetching its own",
+  /const rivers = g\.rivers \|\| await riverNetwork\(eb, grid\);/.test(src));
 check("the map is drawn at the DEM's own posts, the budget only coarsening what will not fit",
   /demGridFor\(eb, heightAt, \{ maxCells, minStepM: post \? Math\.max\(5, post\) : 10 \}\)/.test(src)
   && /value="2000000" selected>Full resolution/.test(src));

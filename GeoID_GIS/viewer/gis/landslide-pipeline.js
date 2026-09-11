@@ -31,34 +31,34 @@
  * every card, what it has read.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260912-eacfbab";
-import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260912-eacfbab";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260912-163af0b";
+import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260912-163af0b";
 import {
   columnMaterial, soilColumn, steadyWetness, planeWetness, factorOfSafety, criticalRecharge,
   FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M, LATERAL_FACTOR, FOS_CAP, cellAnswer,
-} from "./slope-hydrology.js?v=20260912-eacfbab";
-import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260912-eacfbab";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260912-eacfbab";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260912-eacfbab";
-import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260912-eacfbab";
-import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainParts, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260912-eacfbab";
-import { mathsFor } from "./equations.js?v=20260912-eacfbab";
-import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260912-eacfbab";
-import { upslopeWeights, stationStep, stationFlood, catchmentTopology, floodScratch, LANDSLIDE_PARAMS, LANDSLIDE_PLOTS, lowestCells } from "./landslide-stations.js?v=20260912-eacfbab";
+} from "./slope-hydrology.js?v=20260912-163af0b";
+import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260912-163af0b";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260912-163af0b";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260912-163af0b";
+import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260912-163af0b";
+import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainParts, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260912-163af0b";
+import { mathsFor } from "./equations.js?v=20260912-163af0b";
+import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260912-163af0b";
+import { upslopeWeights, stationStep, stationFlood, catchmentTopology, floodScratch, LANDSLIDE_PARAMS, LANDSLIDE_PLOTS, lowestCells } from "./landslide-stations.js?v=20260912-163af0b";
 import {
   makeStation, parseStationsCsv, stationsFromFeatures, uniqueName, seriesCsv, seriesFileName, MAX_STATIONS, colourAt,
-} from "./station-series.js?v=20260912-eacfbab";
-import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260912-eacfbab";
-import { planSeries, rendersOf, stepText, rampMaxFor, STEP_CHOICES, NATIVE_STEP, HOUR } from "./rain-steps.js?v=20260912-eacfbab";
-import { mountStationMarkers } from "./station-markers.js?v=20260912-eacfbab";
-import { equivalentMohrCoulomb, culmann, culmannAt, rockCell, localRelief, rockfallReach, velocityOf, criticalHeight } from "./rock-slope.js?v=20260912-eacfbab";
+} from "./station-series.js?v=20260912-163af0b";
+import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260912-163af0b";
+import { planSeries, rendersOf, stepText, rampMaxFor, STEP_CHOICES, NATIVE_STEP, HOUR } from "./rain-steps.js?v=20260912-163af0b";
+import { mountStationMarkers } from "./station-markers.js?v=20260912-163af0b";
+import { equivalentMohrCoulomb, culmann, culmannAt, rockCell, localRelief, rockfallReach, velocityOf, criticalHeight } from "./rock-slope.js?v=20260912-163af0b";
 import {
   bankfullCapacity, partition, residenceTimes, waveStep, floodFos, riseFor,
   FLOOD_CLASSES, RUNOFF_CLASSES, DISCHARGE_CLASSES, BANKFULL_RATIO, HILLSLOPE_V,
-} from "./flood-fos.js?v=20260912-eacfbab";
-import { inundate, sourceFields, DEPTH_CLASSES, DEFAULTS as FLOOD_DEFAULTS, meanFlowFromWidth } from "./inundation.js?v=20260912-eacfbab";
-import { burnRivers } from "./river-zones.js?v=20260912-eacfbab";
-import { waterFeatures, waterMasks } from "./water-mask.js?v=20260912-eacfbab";
+} from "./flood-fos.js?v=20260912-163af0b";
+import { inundate, sourceFields, DEPTH_CLASSES, DEFAULTS as FLOOD_DEFAULTS, meanFlowFromWidth } from "./inundation.js?v=20260912-163af0b";
+import { burnRivers } from "./river-zones.js?v=20260912-163af0b";
+import { waterFeatures, waterMasks } from "./water-mask.js?v=20260912-163af0b";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";
@@ -937,8 +937,42 @@ async function readGround() {
     say("ground", `Routing the water over ${(grid.width * grid.height).toLocaleString()} cells…`);
     await tick();
     const n = grid.width * grid.height;
-    const filled = fillSinks(makeRaster(grid.band, grid.width, grid.height, grid.bounds, NaN));
+    /**
+     * THE WATER IS ROUTED DOWN THE RIVERS THAT ARE THERE, not down the ones a
+     * DEM guesses. GRWL's centrelines are a survey; a flow network derived from
+     * heights alone is an inference, and on a wide floodplain the two part
+     * company — measured on the Rhône at Avignon before this, the 474 m river's
+     * own burned cell had a contributing area of ONE CELL, because the DEM's
+     * drainage line wandered a few posts to the side of it. The channel model
+     * was then reading discharge at cells no water passes through: a peak of
+     * 42 m³/s on a river that carries thousands.
+     *
+     * So the mapped rivers are BURNED INTO THE HEIGHTS before the topology is
+     * built — the standard fix, and the reason the rivers are fetched here
+     * rather than in `buildFlood`, which reuses what this read fetched. The
+     * trench is a uniform drop, so the channel keeps its own downstream
+     * gradient; it is deep enough that no floodplain relief can divert the
+     * flow out of it, and `fillSinks` cannot fill it because it drains off the
+     * grid. Nothing else reads the burned band: the slope comes from the DEM's
+     * own posts and the flood depth from `grid.band`, so the trench is a fact
+     * about where the water goes and about nothing else.
+     */
+    const rivers = await riverNetwork(eb, grid);
+    const routeBand = rivers ? Float32Array.from(grid.band) : grid.band;
+    if (rivers) {
+      for (let i = 0; i < n; i += 1) if (rivers.riverWidth[i] > 0 && Number.isFinite(routeBand[i])) routeBand[i] -= RIVER_BURN_M;
+    }
+    const filled = fillSinks(makeRaster(routeBand, grid.width, grid.height, grid.bounds, NaN));
     const topo = mfdTopology(filled, { exponent: 1.1 });
+    // The trench belongs to the ROUTING and to nothing else. Rockfall reads the
+    // filled surface for its reach angle, and a hundred-metre canyon down every
+    // river would hand a falling block a gorge to run into. The burn is a
+    // uniform drop and `fillSinks` only ever raises, so putting it back at the
+    // cells it was taken from restores the ground exactly.
+    const fillBand = Float32Array.from(filled.band);
+    if (rivers) {
+      for (let i = 0; i < n; i += 1) if (rivers.riverWidth[i] > 0 && Number.isFinite(fillBand[i])) fillBand[i] += RIVER_BURN_M;
+    }
     await tick();
     const area = routeFlux(topo, Float64Array.from(grid.band, (v) => (Number.isFinite(v) ? topo.cellArea : 0)));
 
@@ -1037,7 +1071,7 @@ async function readGround() {
     const sub = { x0, x1, y0, y1, width: x1 - x0 + 1, height: y1 - y0 + 1 };
     const cw = (eb.east - eb.west) / grid.width; const ch = (eb.north - eb.south) / grid.height;
     sub.bounds = { minX: eb.west + x0 * cw, maxX: eb.west + (x1 + 1) * cw, maxY: eb.north - y0 * ch, minY: eb.north - (y1 + 1) * ch };
-    state.ground = { grid, eb, margin, topo, cells, sub, table, rocks, filled: filled.band, demLabel: label, slopeFrom, n, tally, native, post,
+    state.ground = { grid, eb, margin, topo, cells, sub, table, rocks, rivers, filled: fillBand, demLabel: label, slopeFrom, n, tally, native, post,
       maps: { soil: soil?.name || null, superficial: superficial?.name || null, bedrock: bedrock?.name || null } };
     if (state.rain) { state.rain.weights = null; state.rain.geePixels = null; }
     state.run = null;
@@ -1202,6 +1236,34 @@ function buildRock() {
  * costs one pass. Where it is set the discharge is a LOWER BOUND and stands;
  * the factor of safety is not reported at all.
  */
+/**
+ * How deep the mapped rivers are cut into the heights before the flow network
+ * is built. It is a ROUTING device rather than a depth: it only has to exceed
+ * whatever relief could carry water out of the channel across a floodplain,
+ * and nothing downstream reads the burned band.
+ */
+const RIVER_BURN_M = 100;
+
+/**
+ * The mapped river network on the model's own grid, or null where there is
+ * none. Fetched once per ground read: the topology needs it before it can be
+ * built, and `buildFlood` reads the same answer rather than asking twice.
+ */
+async function riverNetwork(eb, grid) {
+  try {
+    const rivers = await waterFeatures("rivers", eb, grid.width);
+    if (!rivers?.features?.length) return null;
+    const { riverWidth } = burnRivers(rivers.features, eb, grid.width, grid.height);
+    let cells = 0;
+    for (let i = 0; i < riverWidth.length; i += 1) if (riverWidth[i] > 0) cells += 1;
+    return cells ? { features: rivers.features, zoom: rivers.zoom, riverWidth, cells } : null;
+  } catch (error) {
+    // A river service that will not answer must not stop the slope model: the
+    // topology is then the DEM's own, which is what it always was.
+    return null;
+  }
+}
+
 export function openCatchments(g) {
   const { cells, n, topo, grid } = g;
   const open = new Uint8Array(n);
@@ -1232,10 +1294,11 @@ async function buildFlood() {
   const pr = state.params;
   try {
     say("fos", "Reading the river network\u2026");
-    const [rivers, water] = await Promise.all([
-      waterFeatures("rivers", eb, grid.width), waterMasks(eb, grid.width, grid.height),
-    ]);
-    const { riverWidth } = burnRivers(rivers.features, eb, grid.width, grid.height);
+    // The network the topology was burned with, so the cells the water is
+    // routed down and the cells the flood is read at are the same cells.
+    const rivers = g.rivers || await riverNetwork(eb, grid);
+    const water = await waterMasks(eb, grid.width, grid.height);
+    const riverWidth = rivers ? rivers.riverWidth : new Float32Array(n);
     const wet = new Uint8Array(n);
     for (let c = 0; c < n; c += 1) wet[c] = (water.ocean[c] || !Number.isNaN(water.lakeLevel[c])) ? 1 : 0;
     const capacity = new Float32Array(n).fill(NaN);
@@ -1255,7 +1318,7 @@ async function buildFlood() {
     for (let m = 0; m < list.length; m += 1) if (cells.model[list[m]] && !open[list[m]]) closed += 1;
     const fields = list.length ? sourceFields(riverWidth, grid.width, grid.height, eb) : [];
     g.flood = { riverWidth, capacity, k, fields, water: wet, cells: Int32Array.from(list), open, closed,
-      zoom: rivers.zoom, inArea, widest, params: { bankfull: pr.bankfull, hillV: pr.hillV } };
+      zoom: rivers?.zoom ?? null, inArea, widest, params: { bankfull: pr.bankfull, hillV: pr.hillV } };
     if (!list.length) {
       say("fos", "No GRWL river reaches this area, so there is no channel to flood \u2014 the slope and rock models still run. "
         + "GRWL maps rivers 30 m wide and more; a headwater stream is not in it.", "");
@@ -1270,7 +1333,7 @@ async function buildFlood() {
       + `(${pr.bankfull}\u00d7 the mean flow from GRWL's width). `
       + `Longest travel time to the outlet ${lag > 48 ? `${(lag / 24).toFixed(1)} days` : `${lag.toFixed(1)} h`} \u2014 `
       + "that is the lag between the rain and the peak. Rivers from GRWL v01.01 at zoom "
-      + `${rivers.zoom}; mean capacity ${Math.round(capSum / Math.max(1, inArea)).toLocaleString()} m\u00b3/s. `
+      + `${rivers?.zoom ?? "?"}; mean capacity ${Math.round(capSum / Math.max(1, inArea)).toLocaleString()} m\u00b3/s. `
       + (closed === inArea
         ? "Every river in the area has its whole catchment inside the mapped ground, so the discharge is the river's own."
         : `${closed.toLocaleString()} of ${inArea.toLocaleString()} river cells have their whole catchment inside the mapped ground. `
