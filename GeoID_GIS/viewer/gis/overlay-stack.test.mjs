@@ -139,6 +139,11 @@ check("with no room to step sideways the slot drops below the clock instead", ()
   const slot = stack.slotFrom(buttons, 1091, 8, [clock], 280, 408);
   ok(slot.right === 1091 - 636, `still right-aligned under the buttons: ${slot.right}`);
   ok(slot.top === 62 + 8, `and below the clock: ${slot.top}`);
+  ok(slot.width === 636 - 408, `and only as wide as the room left of the sidebar: ${slot.width}`);
+  ok(stack.slotFrom(buttons, 1091, 8, [clock], 280, 500).width === 200,
+    "never narrower than it reads");
+  ok(stack.slotFrom([rect(1107, 16, 101, 29)], 1394, 6, [], 280, 408).width === 280,
+    "with room it keeps its own width");
   const narrow = stack.slotFrom([rect(601, 16, 101, 29), rect(708, 16, 104, 29)], 900, 6,
     [rect(774, 89, 119, 47)], 280, 408);
   ok(narrow.right === 900 - (774 - 6), `where there is room it still steps left: ${narrow.right}`);
@@ -180,7 +185,8 @@ check("and with neither up there is no slot to place", () => {
   check("both panels are pinned into the one slot, at one width", () => {
     ok(/setProperty\("position", "fixed", "important"\)/.test(code), "taken out of flow");
     ok(/setProperty\("top",/.test(code) && /setProperty\("right",/.test(code), "placed");
-    ok(/setProperty\("width", SLOT_WIDTH, "important"\)/.test(code), "and one width");
+    ok(/setProperty\("width", slotWidth, "important"\)/.test(code)
+      && /const slotWidth = [^;]*SLOT_WIDTH;/.test(code), "and one width, the slot's");
     // Applied to every card, not to whichever happens to be open.
     ok(/CARDS\.forEach\(\(card\) => \{\s*const panel = byId\(card\.panel\);/.test(code),
       "for both of them");

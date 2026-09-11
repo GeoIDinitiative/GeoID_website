@@ -18130,7 +18130,10 @@ followed the legend, the slot's step-left-of-the-clock rule sent the panel to
 narrow screen, where there is room to step. `slotFrom` now takes a `floor`,
 the sidebar's right edge. It steps left only when the panel then stays clear
 of the floor; otherwise it drops below the obstacle and stays under its own
-buttons.
+buttons. Where the room between the sidebar and the workbench is less than
+the panel's width (243 px for 280 at a 1,091 px viewport), the slot narrows
+to fit, down to 200 px. The rows ellipsise, and a narrower panel beats one
+lying over the sidebar.
 
 ## The website header: the explorers live under About
 

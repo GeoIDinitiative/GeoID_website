@@ -137,8 +137,20 @@ export function slotFrom(rects, viewportWidth, gap = SLOT_GAP, avoid = [], width
     if (leftOf(r) - gap - width >= floor) edge = leftOf(r) - gap;
     else top = Math.max(top, r.bottom + gap);
   }
-  return { top, right: viewportWidth - edge };
+  /**
+   * AND NARROWER RATHER THAN OVER THE SIDEBAR. With a workbench open on a
+   * narrow screen the space between the sidebar and the workbench can be less
+   * than the panel's width -- measured, 243 px for a 280 px panel at 1,091 px
+   * -- and a full-width panel covered the sidebar's right 45 px. The rows
+   * ellipsise, so the panel takes the room there is, down to a floor that
+   * still reads.
+   */
+  const fitted = floor > 0 ? Math.max(MIN_SLOT_WIDTH, Math.min(width, edge - floor)) : width;
+  return { top, right: viewportWidth - edge, width: fitted };
 }
+
+/** Narrower than this and an event's title is two words and an ellipsis. */
+const MIN_SLOT_WIDTH = 200;
 
 /**
  * Pin both panels into that one rectangle.
@@ -167,13 +179,16 @@ function applySlot() {
   const floor = ui && ui.width && ui.right > 0 ? ui.right + SLOT_GAP : 0;
   const slot = slotFrom(rects, window.innerWidth, SLOT_GAP, avoid, 17.5 * rem, floor);
   if (!slot) return;
+  // ONE width for both panels, the slot's: its own 17.5rem, or narrower where
+  // the sidebar leaves less room than that.
+  const slotWidth = slot.width < 17.5 * rem ? `${Math.round(slot.width)}px` : SLOT_WIDTH;
   CARDS.forEach((card) => {
     const panel = byId(card.panel);
     if (!panel) return;
     panel.style.setProperty("position", "fixed", "important");
     panel.style.setProperty("top", `${Math.round(slot.top)}px`, "important");
     panel.style.setProperty("right", `${Math.round(slot.right)}px`, "important");
-    panel.style.setProperty("width", SLOT_WIDTH, "important");
+    panel.style.setProperty("width", slotWidth, "important");
   });
 }
 
