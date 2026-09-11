@@ -22,24 +22,24 @@
  * file only orchestrates them and says, on every card, what it has read.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-e71bb85";
-import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260911-e71bb85";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260911-79b3dcf";
+import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260911-79b3dcf";
 import {
   columnMaterial, soilColumn, steadyWetness, planeWetness, factorOfSafety, criticalRecharge,
   FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M, LATERAL_FACTOR, FOS_CAP, cellAnswer,
-} from "./slope-hydrology.js?v=20260911-e71bb85";
-import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-e71bb85";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-e71bb85";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-e71bb85";
-import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-e71bb85";
-import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainDays, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260911-e71bb85";
-import { mathsFor } from "./equations.js?v=20260911-e71bb85";
-import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260911-e71bb85";
-import { upslopeWeights, stationStep, LANDSLIDE_PARAMS, lowestCells } from "./landslide-stations.js?v=20260911-e71bb85";
+} from "./slope-hydrology.js?v=20260911-79b3dcf";
+import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260911-79b3dcf";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260911-79b3dcf";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-79b3dcf";
+import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260911-79b3dcf";
+import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainDays, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260911-79b3dcf";
+import { mathsFor } from "./equations.js?v=20260911-79b3dcf";
+import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260911-79b3dcf";
+import { upslopeWeights, stationStep, LANDSLIDE_PARAMS, lowestCells } from "./landslide-stations.js?v=20260911-79b3dcf";
 import {
   makeStation, parseStationsCsv, stationsFromFeatures, uniqueName, seriesCsv, seriesFileName, MAX_STATIONS, colourAt,
-} from "./station-series.js?v=20260911-e71bb85";
-import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260911-e71bb85";
+} from "./station-series.js?v=20260911-79b3dcf";
+import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260911-79b3dcf";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";

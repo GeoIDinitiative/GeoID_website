@@ -16377,6 +16377,24 @@ GSMaP and ERA5-Land still answer "Unknown or unsupported dataset" and CHIRPS
 ends 2026-07-31, so 4–11 Sep is GFS's own record until `services/gee-tiles`
 is redeployed (user-gated, billed); then Auto takes IMERG with no code change.
 
+**The rainfall maps are a layer of their own**, put in the Workspace the
+moment they are fetched: "Rainfall maps — landslide forecast (mm)", 55%
+opacity, dry ground (< 0.5 mm) not drawn, on a ~1 km display lattice over the
+fetched cover (study area + upslope margin). Before a run the bar plays the
+rain alone, parked on the wettest map; after a run the layer steps with the
+model's frames (`paintRain` in `showStep`). The model's blocks and the display
+lattice read the rain through ONE function, `rainAtPoints(frame, pts)`, which
+caches its GFS interpolation weights and Earth Engine pixel tables on the
+points per fetch — so what is drawn is what the model is fed. A new fetch, a
+new area and a full clear take the old maps off.
+
+**Station labels wear their dot's colour.** `point-labels`' `legendColour`
+matched on `legend.values`, which a legend built from a DECLARED style does not
+carry (only `labels`), so every station's chip and leader fell back to the
+volcanic theme's red. A categorical legend without `values` now matches on its
+labels, and a feature may name its own `label_colour` (hex only), which
+outranks the legend.
+
 
 
 Hazards-style brief, answered in the GIS page's Model Builder tab: draw the
