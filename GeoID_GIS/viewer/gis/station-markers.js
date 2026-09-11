@@ -9,6 +9,11 @@
  * leader, decluttered across a hemisphere — which is right for place names
  * and wrong for a handful of instruments the reader placed themselves.
  *
+ * Stacked at z-index 5: over the canvas and UNDER every panel (the sidebar is
+ * 10, the Workspace 11, the corner furniture 13). The globe's own markers are
+ * covered by the panels because they are drawn in the canvas; a DOM overlay has
+ * to be put there, or a station behind the sidebar is drawn on top of it.
+ *
  * Screen space, so the mark is the same size at every altitude and the name
  * is never the far side of a leader from its point. Projected every frame
  * through the imported-layer group (which carries the globe's spin), culled at
@@ -18,7 +23,7 @@
  */
 
 const STYLE = `
-.gst-host { position: fixed; inset: 0; pointer-events: none; z-index: 12; }
+.gst-host { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
 .gst-mark { position: fixed; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; pointer-events: auto; cursor: pointer; }
 .gst-mark[hidden] { display: none !important; }
 .gst-name { font: 600 12px "Exo 2", system-ui, sans-serif; letter-spacing: 0.02em; white-space: nowrap; line-height: 1;

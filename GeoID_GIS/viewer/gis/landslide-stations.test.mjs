@@ -272,3 +272,8 @@ const rel = (a, b) => Math.abs(a - b) / Math.max(1e-12, Math.abs(a), Math.abs(b)
   check("the card opens on two plots, factor of safety and rain, and more can be added and popped out",
     /state\.plots = \[newPlot\("fos"\), newPlot\("rain"\)\];/.test(src) && /id="lsp-plot-add"/.test(src) && /data-act="float"/.test(src));
 }
+
+{
+  const mk = readFileSync(new URL("./station-markers.js", import.meta.url), "utf8");
+  check("the markers sit over the globe and under every panel", /\.gst-host \{[^}]*z-index: 5;/.test(mk));
+}
