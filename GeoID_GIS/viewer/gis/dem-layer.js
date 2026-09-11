@@ -18,16 +18,16 @@
  * the displaced surface, and the raster every terrain tool wants as an input.
  */
 
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-63414c2";
-import { mathsFor } from "./equations.js?v=20260911-63414c2";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260911-63414c2";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260911-d3b1021";
+import { mathsFor } from "./equations.js?v=20260911-d3b1021";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260911-d3b1021";
 import { makeRaster, slope as slopeOf, hillshade as hillshadeOf }
-  from "./raster-analysis.js?v=20260911-63414c2";
-import * as dem from "./dem-tiles.js?v=20260911-63414c2";
-import { rampColour } from "./symbology.js?v=20260911-63414c2";
-import * as climate from "./climate-normals.js?v=20260911-63414c2";
+  from "./raster-analysis.js?v=20260911-d3b1021";
+import * as dem from "./dem-tiles.js?v=20260911-d3b1021";
+import { rampColour } from "./symbology.js?v=20260911-d3b1021";
+import * as climate from "./climate-normals.js?v=20260911-d3b1021";
 import { waterMasks, floodFromSea, classAreas, FLOODED, EXPOSED, CUT_OFF, LAKE }
-  from "./water-mask.js?v=20260911-63414c2";
+  from "./water-mask.js?v=20260911-d3b1021";
 
 /**
  * The sea level the sea-level sheet is drawn at, in metres against today's.

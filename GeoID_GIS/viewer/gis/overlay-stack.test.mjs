@@ -292,6 +292,17 @@ check("an ARRIVAL asks before opening the legend; a press never comes through th
     "the reader's own press still goes straight through");
 });
 
+check("an open workbench moves the events button with the legend, and the slot follows", () => {
+  const src = readFileSync(new URL("./events.js", import.meta.url), "utf8");
+  const body = src.slice(src.indexOf("function placeOverlay()"), src.indexOf("const pickRay"));
+  ok(/getPropertyValue\("--workbench-w"\)/.test(body),
+    "the events button reads the workbench offset the legend's stylesheet uses");
+  ok(/Math\.max\(rail > 0 \? rail : 5\.5 \* rem, bench\)/.test(body), "and takes the larger");
+  ok(/GeoIDOverlayStack\?\.reseat\?\.\(\)/.test(body), "then re-seats the shared drop-down");
+  const stack = readFileSync(new URL("./overlay-stack.js", import.meta.url), "utf8");
+  ok(/reseat: applySlot/.test(stack), "reseat places the slot and runs no one-open rule");
+});
+
 if (failures.length) {
   failures.forEach((f) => console.error(`  x ${f}`));
   console.error(`${failures.length} failed, ${passed} passed`);

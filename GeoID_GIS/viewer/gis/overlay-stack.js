@@ -226,7 +226,11 @@ function wire() {
 }
 
 if (typeof window !== "undefined") {
-  window.GeoIDOverlayStack = { showOnly, openCard, apply, slotFrom, claim, mayAutoOpen, releaseClaim };
+  // `reseat` places the slot and nothing else: the events feed calls it every
+  // time it moves its button, and must not run the one-open rule as a side
+  // effect of a poll.
+  window.GeoIDOverlayStack = { showOnly, openCard, apply, reseat: applySlot, slotFrom, claim,
+    mayAutoOpen, releaseClaim };
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", wire);
   } else {

@@ -18111,3 +18111,25 @@ stripped the headers from exactly the files that had not changed.
 Verified: a normal publish after the repair leaves all 42 JSON files stored
 gzipped with their cache header. Last-Modified on an object you did not mean
 to change is the tell.
+
+## The events button steps left of a workbench, like the legend beside it
+
+With Settings open the legend stepped left across the screen and the events
+button stayed where it was. The shared drop-down is placed off both buttons,
+so it stayed over the workbench. `placeOverlay` read the rail's offset and
+nothing else. The legend's stylesheet uses `max(5.5rem, var(--workbench-w))`
+(side-panels.js), and the button now takes the same maximum. It then calls
+`GeoIDOverlayStack.reseat()` so the slot follows. `reseat` places the slot
+and does not run the one-open rule, because `placeOverlay` also runs on a
+one-second poll. Measured before: legend 901 → 534 px, events button 793 px
+both times. There was no transition to wait out (0 s).
+
+## The website header: the explorers live under About
+
+Earth Explorer and Planet Explorer left the top row of the header for the
+About menu, after myGeoID App, on all 18 pages that carry the header. It is
+copied into each page, so a header change is 18 edits. An explorer page keeps
+its own entry's `active` mark inside the menu, and `scripts/site.js` then
+lights the About toggle, as it already does for the About pages. The About
+section's page-jump bar and the footers are separate lists and were not
+changed.

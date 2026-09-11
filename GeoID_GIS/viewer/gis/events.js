@@ -16,7 +16,7 @@ import {
   gdacsPoints, resolveColour,
   MARKER_LIFT_MAX, liftForAltitude, dotSizePx, isQuake, publisherOf, restoreActive,
   stormCategory, stormScale, stormLabel, STORM_BASE_CAP,
-} from "./event-sources.js?v=20260911-63414c2";
+} from "./event-sources.js?v=20260911-d3b1021";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -2000,7 +2000,16 @@ function placeOverlay() {
   const rail = parseFloat(root.getPropertyValue("--hazard-rail-w")) || 0;
   // Left of the readout when the hub is armed; in the tool rail's own slot
   // otherwise, which is what the 5.5rem clears.
-  const base = rail > 0 ? rail : 5.5 * rem;
+  /**
+   * AND LEFT OF AN OPEN WORKBENCH, by the same rule the legend's stylesheet
+   * uses (`max(5.5rem, var(--workbench-w))`, in side-panels.js). This read the
+   * rail and nothing else, so opening Settings stepped the legend left across
+   * the screen and left this button where it was -- and the shared drop-down,
+   * placed off both buttons, stayed over the workbench. Measured: legend
+   * 901 → 534 px, events button 793 px before and after.
+   */
+  const bench = parseFloat(root.getPropertyValue("--workbench-w")) || 0;
+  const base = Math.max(rail > 0 ? rail : 5.5 * rem, bench);
   /**
    * Written with `!important`, and that is a measurement rather than a habit.
    *
@@ -2037,6 +2046,9 @@ function placeOverlay() {
   const shown = legend && !legend.hidden && toggle;
   const width = shown ? toggle.getBoundingClientRect().width : 0;
   setRight(base + (width ? width + 0.45 * rem : 0));
+  // The drop-down's slot is measured off the two buttons, so it has to be
+  // re-seated now that this one has moved, not on the next resize or click.
+  window.GeoIDOverlayStack?.reseat?.();
 }
 
 /**
@@ -2623,8 +2635,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260911-63414c2"),
-    import("./research/dsp.js?v=20260911-63414c2"),
+    import("./seismogram-plot.js?v=20260911-d3b1021"),
+    import("./research/dsp.js?v=20260911-d3b1021"),
   ]);
   if (stale()) return;
 
