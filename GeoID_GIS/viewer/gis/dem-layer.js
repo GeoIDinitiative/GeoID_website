@@ -18,21 +18,21 @@
  * the displaced surface, and the raster every terrain tool wants as an input.
  */
 
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260912-f580f1c";
-import { mathsFor } from "./equations.js?v=20260912-f580f1c";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260912-f580f1c";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260912-2554078";
+import { mathsFor } from "./equations.js?v=20260912-2554078";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260912-2554078";
 import { makeRaster, slope as slopeOf, hillshade as hillshadeOf }
-  from "./raster-analysis.js?v=20260912-f580f1c";
-import * as dem from "./dem-tiles.js?v=20260912-f580f1c";
-import { rampColour } from "./symbology.js?v=20260912-f580f1c";
-import * as climate from "./climate-normals.js?v=20260912-f580f1c";
+  from "./raster-analysis.js?v=20260912-2554078";
+import * as dem from "./dem-tiles.js?v=20260912-2554078";
+import { rampColour } from "./symbology.js?v=20260912-2554078";
+import * as climate from "./climate-normals.js?v=20260912-2554078";
 import { waterMasks, waterFeatures, floodFromSea, classAreas, edgeSeeds, contextBox, WORLD_BOX,
-  FLOODED, EXPOSED, CUT_OFF, LAKE } from "./water-mask.js?v=20260912-f580f1c";
+  FLOODED, EXPOSED, CUT_OFF, LAKE } from "./water-mask.js?v=20260912-2554078";
 import { burnRivers, riverZones, zoneAreas, mergeOuterZones, ZONES }
-  from "./river-zones.js?v=20260912-f580f1c";
+  from "./river-zones.js?v=20260912-2554078";
 import { DEFAULTS as FLOOD_DEFAULTS, sourceFields, inundate, mergeOuterDepth, depthColour,
   floodAreas, DEPTH_CLASSES, selectRiver, riverField, meanFlowFromWidth, flowRatio,
-  stageRise } from "./inundation.js?v=20260912-f580f1c";
+  stageRise } from "./inundation.js?v=20260912-2554078";
 
 /**
  * Which corridor zones are drawn. State, like the sea level, so the drawer's
