@@ -20,7 +20,7 @@
  * longitude 315 and reads as mid-Atlantic downstream, which is the same trap
  * `signedLon` in bridge.js exists for.
  */
-import { ringsFromCollection, maskFromRings } from "./extraction.js?v=20260912-b8e3eef";
+import { ringsFromCollection, maskFromRings } from "./extraction.js?v=20260912-5556e19";
 
 const byId = (id) => document.getElementById(id);
 

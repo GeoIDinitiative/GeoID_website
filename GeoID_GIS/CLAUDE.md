@@ -7104,6 +7104,34 @@ takes `null` for all of them. The desktop app writes the flat layout, so point
 it at `geoid_projects/earth/` (or whichever world) rather than at the root — at
 the root it will list the world folders as though they were projects.
 
+**THE DIRECTORY IS THE FILING, so it is the truth about which world a project
+is.** `project-store.js` had no test at all — it is the spine of the user side
+and the thing the desktop app shares a layout with — and writing one found a
+real fault in the legacy path. A project whose metadata predates the `body`
+field took the world the PAGE was on: `mergeMetadata` spread
+`defaultMetadata(name)` underneath, whose `body` is `currentBodyId()` and is
+never falsy, so the guard meant to catch it (`if (!merged.body) merged.body =
+"earth"`) was DEAD CODE and the fallback it names never ran. It failed in both
+directions and both were measured — a Mars project opened from an Earth page
+read as Earth, and a flat pre-worlds project opened from a Mars page read as
+Mars. `bodyOfDir(dir)` reads the first path segment where it names a world this
+GIS knows and answers Earth where it does not, which is the desktop app's own
+flat layout, and `openProject` passes it into the merge.
+
+Pinned in `project-store.test.mjs` on `memoryAdapter()` — the same code path the
+folder picker takes, which is what the adapter seam is for, since
+`showDirectoryPicker` needs a native dialog and a secure context and node has
+neither: the folder per world, creation stamping it, listing one world and
+`null` for every world, the same name allowed on two worlds and refused twice on
+one, opening restoring it, the legacy case in both directions, the 20-directory
+Qt tree, the metadata schema field for field, and `safeName` leaving no slash to
+escape a world folder with.
+
+**A default underneath is why a `!value` guard can be dead.** Any
+`{ ...defaults, ...payload }` merge whose defaults already fill a field makes
+every later `if (!merged.field)` unreachable; the fallback has to go in the
+defaults themselves.
+
 The store writes through `gis/research/fs-adapter.js` rather than to
 `FileSystemDirectoryHandle` directly, because `showDirectoryPicker` needs a
 native dialog no headless browser can drive. `memoryAdapter()` stands in for

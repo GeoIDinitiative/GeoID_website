@@ -1,6 +1,6 @@
-import { directoryAdapter, memoryAdapter, indexedDbAdapter } from "./fs-adapter.js?v=20260912-b8e3eef";
-import { currentBodyId } from "../bodies.js?v=20260912-b8e3eef";
-import { saveRootHandle, loadRootHandle, clearRootHandle } from "./handles.js?v=20260912-b8e3eef";
+import { directoryAdapter, memoryAdapter, indexedDbAdapter } from "./fs-adapter.js?v=20260912-5556e19";
+import { currentBodyId, getBody } from "../bodies.js?v=20260912-5556e19";
+import { saveRootHandle, loadRootHandle, clearRootHandle } from "./handles.js?v=20260912-5556e19";
 
 /**
  * Projects, on disk, in the layout the Qt Research app uses.
@@ -94,13 +94,32 @@ export function defaultMetadata(name, body = currentBodyId()) {
   };
 }
 
-/** Merge like the Qt loader does: defaults underneath, file on top. */
-function mergeMetadata(name, payload) {
-  const defaults = defaultMetadata(name);
+/**
+ * Which world a project directory is filed under.
+ *
+ * `geoid_projects/<body>/<name>/`, so the first segment is the answer whenever
+ * it names a world this GIS knows. A path with no world in front of it is the
+ * desktop app's own flat layout, which predates the idea, and reads as Earth.
+ */
+export function bodyOfDir(dir) {
+  const first = String(dir || "").split("/").filter(Boolean)[0] || "";
+  return getBody(first.toLowerCase()) ? first.toLowerCase() : "earth";
+}
+
+/**
+ * Merge like the Qt loader does: defaults underneath, file on top.
+ *
+ * `folderBody` is where a project whose metadata predates `body` gets its world
+ * from -- THE DIRECTORY IS THE FILING, so it is the truth. Reading the page's
+ * world instead opened a Mars study as an Earth one whenever somebody happened
+ * to be looking at Earth, and a flat legacy project as Mars whenever they were
+ * not; both were measured.
+ */
+function mergeMetadata(name, payload, folderBody = "earth") {
+  const defaults = { ...defaultMetadata(name), body: folderBody };
   if (!payload || typeof payload !== "object") return defaults;
   const merged = { ...defaults, ...payload };
-  // An older project has no body; it was made before other worlds existed.
-  if (!merged.body) merged.body = "earth";
+  if (!merged.body) merged.body = folderBody;
   merged.study_area = { ...defaults.study_area, ...(payload.study_area || {}) };
   merged.default_import_paths = {
     ...defaults.default_import_paths,
@@ -374,7 +393,7 @@ export async function openProject(dir) {
   }
   const parts = String(dir).split("/").filter(Boolean);
   const leaf = parts[parts.length - 1];
-  const meta = mergeMetadata(leaf, payload);
+  const meta = mergeMetadata(leaf, payload, bodyOfDir(dir));
   active = { name: meta.name, dir, folder: leaf, body: meta.body, meta };
   rememberProject(dir);
   announce();
