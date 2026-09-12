@@ -85,6 +85,42 @@ export const MEMBER_MODELS = [
   "sea-level",
 ];
 
+/**
+ * The paths in our bucket that only a member may read.
+ *
+ * SIX OF THE TEN MODELS ARE NOT HERE, and that is a fact about them rather
+ * than an oversight: sea level, both river floods, the corridor zones and the
+ * two forecast pipelines are computed IN THE BROWSER, from the streamed DEM,
+ * GRWL's rivers, the coastline and HydroLAKES -- other people's open data,
+ * which we redistribute and which is theirs to give away. There is no file of
+ * ours to refuse, so their gate is the courtesy one and always will be.
+ *
+ * What is left is the four baked grids, which really are ours and really are
+ * enforced. `data-gate/worker.js` carries the same list and a test holds the
+ * two equal, because a gate and its enforcement drifting apart is a gate that
+ * has quietly opened.
+ */
+export const MEMBER_DATA = [
+  "cyclone-risk",
+  "seismic-risk",
+  "volcanic-risk",        // covers volcanic-risk-holocene
+];
+
+/**
+ * Is this bucket path behind membership?
+ *
+ * Matched on the path's own first segment against a prefix, so
+ * `volcanic-risk/3/4/5.mvt` and `volcanic-risk.geojson` are both caught while
+ * a future `cyclone-risk-is-open.geojson` would be too -- which is the safe
+ * direction. Leading slashes and a `data/global/` prefix are both tolerated,
+ * because the site says one and the bucket says the other.
+ */
+export function gatedData(path) {
+  const clean = String(path || "").replace(/^\/+/, "").replace(/^data\/global\//, "");
+  return MEMBER_DATA.some((p) => clean === p || clean.startsWith(`${p}.`) || clean.startsWith(`${p}/`)
+    || clean.startsWith(`${p}-`));
+}
+
 /** Is this dataset one of the modelled maps membership unlocks? */
 export function isMemberModel(id) {
   return MEMBER_MODELS.includes(String(id || ""));
@@ -196,13 +232,14 @@ export function accept(raw) {
  * is invisible until something says so. This is that saying.
  */
 export function refresh() {
-  token = null; claims = null;
+  token = null; claims = null; forgetPass();
   announce();
   return state();
 }
 
 export function signOut() {
   claims = null;
+  forgetPass();
   forget();
   token = null;   // uncached, so the next read comes off storage
 
@@ -262,6 +299,60 @@ export function refusal(feature) {
   if (!f) return "That is part of membership.";
   return state().signedIn ? f.notYours : f.signIn;
 }
+
+// ── The bucket pass ─────────────────────────────────────────────────────────
+
+let pass = "";
+let passExp = 0;
+let passInFlight = null;
+
+/**
+ * A short-lived pass for the data bucket, fetched and kept until it nearly runs
+ * out.
+ *
+ * SEPARATE FROM THE SESSION TOKEN, and the reason is where it travels: the
+ * bucket is read by three.js's texture loader and by geotiff's range requests
+ * as well as by `fetch`, and only a query string reaches all three. A query
+ * string is logged, so the thing that goes in one is worth fifteen minutes and
+ * cannot be used to ask who anybody is.
+ *
+ * Answers "" for everything that is not a member holding a live session --
+ * including no service configured -- so a caller never has to ask twice.
+ */
+export async function dataPass() {
+  if (!enforcing()) return "";
+  const live = state();
+  if (!live.member) { pass = ""; passExp = 0; return ""; }
+  // A minute of slack: a pass that expires while a hundred tiles are in flight
+  // is a layer that half loads.
+  if (pass && passExp - 60 > now()) return pass;
+  if (passInFlight) return passInFlight;
+  passInFlight = (async () => {
+    try {
+      const res = await fetch(`${authBase}/auth/data-token`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${bearer()}` },
+      });
+      if (!res.ok) { pass = ""; passExp = 0; return ""; }
+      const body = await res.json();
+      pass = String(body.token || "");
+      passExp = Number(body.expires) || 0;
+      return pass;
+    } catch (error) {
+      // The service being unreachable is not the same as being refused, and
+      // neither is worth throwing over: the bucket answers 402 and the layer
+      // says so.
+      pass = ""; passExp = 0;
+      return "";
+    } finally {
+      passInFlight = null;
+    }
+  })();
+  return passInFlight;
+}
+
+/** Forget the pass — on a sign-out, or when a fetch says it is no longer good. */
+export function forgetPass() { pass = ""; passExp = 0; }
 
 export function onChange(fn) {
   listeners.push(fn);

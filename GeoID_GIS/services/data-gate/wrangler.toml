@@ -1,0 +1,17 @@
+# The gate in front of the data bucket. `npx wrangler deploy` from here.
+#
+# JWT_SECRET must be the SAME value the membership service signs with:
+#   npx wrangler secret put JWT_SECRET
+
+name = "geoid-data-gate"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+[vars]
+# The origins whose requests get a CORS header on a refusal. Without one a 402
+# reaches the page as a bare "Failed to fetch" with no status to read.
+ALLOWED_ORIGINS = "https://geoidinitiative.com https://www.geoidinitiative.com http://localhost:8125"
+
+[[routes]]
+pattern = "data.geoidinitiative.com/*"
+zone_name = "geoidinitiative.com"

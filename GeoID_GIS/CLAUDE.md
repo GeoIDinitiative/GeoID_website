@@ -7046,6 +7046,116 @@ elements it flags come back readable when probed individually — translucent
 controls and headings whose ground the walk resolves optimistically. Compare a
 theme against the DEFAULT's number on the same page, never against zero.
 
+## Membership: what is gated, and which gates are real
+
+The site stays open to LOOK at. What membership unlocks is the work — the risk
+maps this app models itself, and keeping a project — and **nothing of anybody's
+reaches us**: a project is their folder, their browser storage, or their own
+machine through the sidecar. Membership is an entitlement, not a place we put
+somebody's study, which is the whole of what a privacy notice for it has to
+cover.
+
+**TWO KINDS OF GATE, and `gis/membership.js` says which is which rather than
+letting a caller assume.** A gate written in the browser is a COURTESY — the
+site is static on GitHub Pages, and anybody can open devtools and flip it. The
+one place enforcement is possible is a server we own, and there are two: the
+Earth Engine Cloud Function (billed per render, deliberately NOT gated) and the
+R2 bucket.
+
+**SIX OF THE TEN MODELS ARE NOT FILES OF OURS.** Sea level, both river floods,
+the corridor zones and the two forecast pipelines are computed IN THE BROWSER
+from the streamed DEM, GRWL's rivers, the coastline and HydroLAKES — other
+people's open data, which we redistribute and which is theirs to give away.
+There is nothing to refuse, so their gate is the courtesy one and always will
+be. Only the four baked grids (cyclone, seismic, and both volcanic) are ours
+and are enforced, at `services/data-gate`.
+
+**What is behind it comes from `equations.js`'s own division**, rather than a
+list somebody typed: a layer marked "computed here" is one we model, one marked
+"modelled elsewhere" is somebody else's published product (Pelletier's
+thickness, WorldPop, the MERRA-2 normals). The DEM readings are computed here
+and stay open on purpose — looking at the shape of the ground is exploring.
+**Gating somebody else's open data by accident is a licence problem rather than
+a bug**, so `data-gate/worker.test.mjs` pins the OPEN side as hard as the
+closed one.
+
+**UNCONFIGURED MEANS OPEN.** With no auth service named (`configure()`, or a
+`<meta name="geoid-auth">`), `enforcing()` is false and every gate stands open.
+Asking somebody to sign in to a service that does not exist would lock the app
+against everybody including us, and it is what lets all of this ship before the
+Worker is deployed.
+
+### Five chokepoints, chosen so a refusal is a sentence
+
+`addDataset` (every catalogue tick), `addSheet` (the sheets are a MIXTURE, so it
+asks by `spec.id` — which is the same id `equations.js` uses), the forecast
+pipeline's Run (asked BEFORE the rain is fetched: a GEE render is billed and
+refusing after spending one is the wrong order), `downloadText` (every export in
+this app goes through it), and the project-folder doors. Only the CHOOSING of a
+folder is asked, never the restoring: a session already open stays open, because
+taking somebody's own folder away would be punishing and we could not delete it
+anyway.
+
+A gated row wears a chip and its name carries the sentence, because **a tick
+that silently reverts reads as a broken control**, which is the worse failure.
+The tick stays live: pressing it is how somebody finds out what membership is
+for.
+
+### The token, and the three places it could have gone wrong
+
+- **IT COMES BACK IN THE URL FRAGMENT.** A fragment is not sent to any server,
+  does not reach an access log, and does not travel in a `Referer`, all three of
+  which a query string does.
+- **ONE DOCUMENT HANDLES THE HANDOFF.** A fragment belongs to whichever document
+  is on top, so a return straight to `/geohub/` would land the token on the
+  SHELL while the viewer that needs it sits in an iframe. Every sign-in returns
+  to `/sign-in/`, which has no iframe, and forwards from there; by then it is in
+  `localStorage`, which every document on the origin reads. The return is
+  same-origin only, checked at BOTH ends, because either alone is a single point
+  of failure.
+- **THE BUCKET PASS IS A SEPARATE, SHORTER TOKEN.** The bucket is read by
+  three.js's texture loader and by geotiff's range requests as well as by
+  `fetch`, and only a query string reaches all three — so that one is fifteen
+  minutes, has its own audience, and cannot be used to ask who anybody is. The
+  gate STRIPS it before going to the bucket: every object there is immutable for
+  a year against a fingerprint in the path, and a token in the cache key would
+  give each member their own copy of a file that never changes.
+- **A 402 needs a CORS header of its own.** Without one it reaches the page as a
+  bare `TypeError: Failed to fetch` with no status to read — the fault this file
+  already records twice.
+
+### What the tests caught before anything was deployed
+
+- **A malformed token THREW out of `verify()`** rather than being refused:
+  `atob` throws on anything that is not base64, and in a Worker that is a 500
+  where it should be "not signed in".
+- **The base64url decoder replaced `/` with `_`** — the ENCODER's direction.
+- **`load()` in membership.js was a one-shot**, so a token written into storage
+  from outside the module (the sign-in handoff, another tab) was invisible for
+  the life of the page. `refresh()` is the saying.
+- **A refusal templated from a title reads as "Modelled risk maps IS part of
+  membership".** Each feature states both of its own sentences — signed out, and
+  signed in but not a member, which are different things to say.
+
+### Two things found on the way
+
+**A default underneath is why a `!value` guard can be dead.** `project-store`'s
+`mergeMetadata` spread `defaultMetadata()` underneath, whose `body` is always
+`currentBodyId()`, so `if (!merged.body) merged.body = "earth"` was unreachable
+and a project whose metadata predates the field took the world the PAGE was on.
+THE DIRECTORY IS THE FILING, so `bodyOfDir()` reads it. Any
+`{ ...defaults, ...payload }` merge has this shape; the fallback belongs in the
+defaults.
+
+**A test nobody runs is not a test.** `tests/run.mjs` swept `viewer/` alone, and
+`services/gee-tiles/stac.test.mjs` had been sitting there passing and unrun. It
+sweeps `services/` too now.
+
+**Sixteen pages linked to a redirect stub.** Every page's header carried a
+Dashboard item pointing at `/dashboard/`, which bounced the reader back to the
+home page — a dead link on every page of the site, and the natural home for the
+account surface. When a nav item is added, follow it.
+
 ## Running and testing
 
 `python3 serve.py` (repo root) starts the static site *and* the sidecar together

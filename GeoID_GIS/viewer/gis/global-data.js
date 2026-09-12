@@ -26,18 +26,18 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260912-92ace2d";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260912-92ace2d";
-import { mathsFor } from "./equations.js?v=20260912-92ace2d";
+import { runConnector } from "./research/connectors.js?v=20260912-40a7c60";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260912-40a7c60";
+import { mathsFor } from "./equations.js?v=20260912-40a7c60";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260912-92ace2d";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260912-92ace2d";
-import { isMemberModel, may, refusal } from "./membership.js?v=20260912-92ace2d";
-import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260912-92ace2d";
+} from "./cyclone-risk.js?v=20260912-40a7c60";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260912-40a7c60";
+import { isMemberModel, may, refusal } from "./membership.js?v=20260912-40a7c60";
+import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260912-40a7c60";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260912-92ace2d";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260912-40a7c60";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -1039,6 +1039,14 @@ export async function addDataset(id, onStatus = () => {},
       // Resolved through the data base: a published file comes from the
       // bucket with its fingerprint, an unpublished one from the site.
       const response = await fetch(await dataUrl(source));
+      // 402 is the gate in front of the bucket, and it is the one status with
+      // a sentence worth showing: it means the file is one of GeoID's own
+      // modelled maps and this reader is not a member. Anything else stays a
+      // number, because a number is what there is to say about it.
+      if (response.status === 402) {
+        const said = await response.json().catch(() => null);
+        throw new Error(said?.message || refusal("models"));
+      }
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       blob = await response.blob();
     }

@@ -1,3 +1,4 @@
+import { gatedData, dataPass } from "./membership.js?v=20260912-40a7c60";
 /**
  * Where a shipped data file is read from — the site, or the bucket.
  *
@@ -58,7 +59,21 @@ async function dataUrl(path) {
   const rel = local.slice(PREFIX.length);
   const stamp = (body.files || {})[rel];
   if (!stamp) return local;
-  return `${root}/${rel}?v=${stamp}`;
+  /**
+   * A member's pass rides on the four modelled grids and on nothing else.
+   *
+   * In the QUERY STRING because this URL is handed to three.js's texture
+   * loader and to geotiff's range requests as well as to `fetch`, and only a
+   * query string reaches all three — which is why the thing in it is the
+   * fifteen-minute pass rather than the week-long session token.
+   *
+   * Absent, the URL is exactly what it has always been: the gate answers 402
+   * and the layer says why, which beats refusing to build a URL at all.
+   */
+  const url = `${root}/${rel}?v=${stamp}`;
+  if (!gatedData(rel)) return url;
+  const t = await dataPass();
+  return t ? `${url}&t=${encodeURIComponent(t)}` : url;
 }
 
 /** Test seam: forget the fetched table so a fixture can be installed. */
