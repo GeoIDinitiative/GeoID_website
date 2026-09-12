@@ -29,11 +29,11 @@
 
 import {
   HOMES, MIRRORS, grouped, addDataset, layerForDataset, loadLaunchDefaults,
-} from "./global-data.js?v=20260912-9b9d629";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260912-9b9d629";
-import { mathsFor } from "./equations.js?v=20260912-9b9d629";
+} from "./global-data.js?v=20260912-03f0b7a";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260912-03f0b7a";
+import { mathsFor } from "./equations.js?v=20260912-03f0b7a";
 import { bandOf, bandRows, bandSymbology, describeFilter, magOf }
-  from "./seismic-magnitude.js?v=20260912-9b9d629";
+  from "./seismic-magnitude.js?v=20260912-03f0b7a";
 
 const byId = (id) => document.getElementById(id);
 

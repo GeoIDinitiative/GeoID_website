@@ -18815,3 +18815,143 @@ server answers — probe it with a real request before believing a page-level
 failure. And when a structural check reports that a whole page has no seams, no
 styles and no tools, suspect the transport before the code: a change to one
 subtab cannot remove `GeoIDViewer` from a planet nobody touched.
+
+## The flood ran on the wrong cells, and three faults stood between it and a number
+
+The flood model went in complete and untested against real ground, and the
+first live run died on its first frame. Everything below was found by running
+it, not by reading it.
+
+### An answer must carry the input the next stage reads off it
+
+`modelFrame` built the static answer, then called `splitRain(out, frame)` — the
+pass that works out what the ground could not take — and `splitRain` read the
+rainfall map off `out.rainMm`, which `modelFrame` attached only to the object it
+returned afterwards. So **every run died on frame 0** with
+`Cannot read properties of undefined (reading '0')`, and the flood half never
+ran once. `staticStep`'s answer carries the map it was fed now, which is a seam
+a test can hold; the pin fails on the exact fault.
+
+**A caught error has no stack anywhere**, so none of this was visible: the run's
+`catch` prints `error.message` and the object is gone. Two diagnostic traps cost
+most of the hunt:
+
+- **A MutationObserver's callback is a microtask, so it BATCHES.** Watching the
+  status line recorded only the error, and I read that as "it threw before the
+  first `say`" — it means nothing of the kind. Every synchronous mutation up to
+  the first `await` is delivered in one callback.
+- **`clear()` re-renders, so the node being observed is detached** before the
+  run writes to it.
+
+What settled it in one reload: add `console.error(error)` to the catch, confirm
+the DEV SERVER is serving the edited file (`fetch(url, {cache:"reload"})` and
+grep the text — `python3 -m http.server` revalidates on Last-Modified, so an
+edit reaches a reloaded page at the same `?v=`), reload, re-run, read the stack
+off a wrapped `console.error`. Remove it before committing.
+
+### THE WATER IS ROUTED DOWN THE RIVERS THAT ARE THERE
+
+Measured on the Rhône at Avignon, the **474 m river's own burned cell had a
+contributing area of ONE CELL**. GRWL's centrelines are a survey; a flow network
+from heights alone is an inference, and on a floodplain the DEM's drainage line
+wanders a few posts to the side of the channel. The channel model was reading
+discharge at cells no water passes through, and calling 42 m³/s the peak on a
+river that carries thousands — under a bankfull capacity of 20,100 m³/s, so the
+map said "well within bank" whatever the storm did.
+
+The mapped network is **burned into the heights** (a uniform `RIVER_BURN_M`
+drop) before `fillSinks` and `mfdTopology`, which is why the rivers are fetched
+by the ground read rather than by `buildFlood` — that now reuses them. After:
+the same cell drains **206,004 cells**, and the grid's largest catchment is on
+the 474 m river rather than beside it.
+
+**The trench belongs to the routing and to nothing else.** Slope comes from the
+DEM's own posts, the flood depth from the unburned band, and the filled surface
+`rockfallReach` reads has the burn **added straight back** at the cells it was
+taken from — a hundred-metre canyon down every river would otherwise hand a
+falling block a gorge to run into. The burn is uniform so the channel keeps its
+own downstream gradient, and `fillSinks` cannot fill a trench that drains off
+the grid.
+
+### A river cell reports its REACH, by snapping to the thalweg
+
+A 474 m river at 18 m posts is twenty-six cells across and the flow is in one
+line down the trench; the cells beside it drain their own few metres of bank. So
+every river cell takes its discharge and its provenance from the nearest cell of
+its own reach that the ground actually drains through, and a station clicked on
+a river snaps the same way — a click lands anywhere across a burned width.
+
+- **Nearest, not largest.** Accumulation grows downstream, so the window's
+  maximum snaps every cell to the far end of its own window and walks the whole
+  reach's discharge half a width down the river. A bank cell carries a few
+  cells' worth against the channel's thousands, so half the window's maximum
+  separates the two by orders of magnitude and the tie is broken by distance —
+  which leaves a channel cell reporting itself. The test pins both.
+- **Spreading a flag along connected river cells was tried and is WRONG**, and
+  the Ardèche said so: a network is connected all the way to its trunk, so
+  headwaters whose catchment really is inside the area were made open by joining
+  the Rhône twenty kilometres downstream. Openness travels DOWNSTREAM with the
+  water; what the side cells needed was snapping, not spreading.
+
+### A factor of safety is only worth the basin behind it
+
+The model routes only the rain that fell on the ground it mapped, while a brim
+read from a river's WIDTH is the brim of a channel cut by its whole basin.
+Comparing the two where the study area is smaller than the catchment is an
+artefact of where the box was drawn.
+
+`openCatchments` is the exact test: a cell is OPEN when water can reach it from
+outside the mapped ground — seeded on every data cell at the edge of the data
+region and pushed downslope over the same MFD topology the water takes, one
+pass. An open reach keeps its **discharge as a lower bound** and is given **no
+factor of safety**, with a class of its own on the map, a sentence on the
+channel card, a line on the cell card and a column in the station CSV.
+
+**The peak discharge is taken BEFORE the brim is withheld.** It was inside the
+same skip, so the report read "peak discharge 0 m³/s" over a map plainly
+carrying tens.
+
+**What the flag cannot catch is a FRAGMENT** — a reach whose basin lies wholly
+outside the data region, so no inflow crosses into it and it reads as closed.
+Measured near Montélimar, GRWL calls one reach 393 m wide and the model drains
+11 km² to it; against a 14,900 m³/s brim that is "well within bank" for ever.
+There is no relation-free gate for it: a width-to-flow law has an order of
+magnitude of scatter and would withhold the real rivers too. So the number is
+put where a reader can weigh it — every river cell carries **the ground the
+model routes to its reach**, on the cell card beside the discharge and the brim,
+in the station CSV, and on the channel card, which names the widest reach the
+model will answer for with its catchment area.
+
+### What it measures, once it is measuring the right cells
+
+The Ardèche basin, 63 × 83 km at 58 m posts, GFS every 3 h over the October 2024
+Cévennes event (up to 55 mm in 24 h at the model's blocks, 88 mm at a node):
+
+| | |
+| --- | --- |
+| river cells with a whole catchment | **1,216 of 3,480** |
+| over their brim at the worst map | **343**, and 347 at some point |
+| peak discharge | **651 m³/s** |
+| the channel's worst map | **9 h after the wettest** — the catchment's lag |
+| soil / rock-slope cells below FoS 1 | 28 / 0, 49 at some point |
+| rockfall | 27 source cells, 120 within reach |
+| runoff | up to **100%** — the ground is full |
+
+Every key accounts for its cells exactly once (floodfos and minfloodfos both sum
+to 3,480; runoff to the 1,539,615 modelled cells), and a cell card reads
+*"54 m wide (GRWL); 284.0 m³/s arriving from the 616.2 km² the model routes to
+this reach. FoS 0.99 against a 281 m³/s brim"* — 0.46 m³/s per km², which is a
+Cévennes flash flood. The open twin reads *"393 m wide; 50.6 m³/s from 274.9 km²
+… no factor of safety here"*.
+
+**The station and the map agree at the same cell to the digit** (3.4 against
+3.4), which is the closed-under-donors invariant holding live rather than only
+in the suite — and it was how the 393 m fragment was found, because the number
+they agreed on was absurd for the river GRWL had drawn.
+
+**Read a probe's fields before believing its answer.** `station.cell` does not
+exist — a station carries `lat`/`lon` and the cell is looked up — and
+`JSON` drops `undefined`, so the probe returned `sameAsCell: true` from
+`undefined === undefined` and sent the hunt after a phantom for a round. And the
+pipeline's card is `#geo-popup`, not `#scene-popup`: a probe that reads the
+wrong one reports "no card" over a card that is open.
