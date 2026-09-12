@@ -19065,3 +19065,68 @@ iframe's `performance.getEntriesByType("resource")`; the second instance is in
 another realm and leaves no entry there at all. Set a value through the suspect
 copy and see whether the page's pump overwrites it — if it does not, it is not
 the page's copy.
+
+## Explorer Models: a Tour Mode for the other viewers, and the audit's own assumptions
+
+### Everything published IS in R2 — the audit was reporting its assumptions
+
+"Are all datasets being saved and fetched to R2?" `audit-published.py` said no:
+**ice, 2 objects differ from the local copy**. Measured, all three differences
+are expected and the data is intact:
+
+| | why it differs |
+| --- | --- |
+| `manifest.json` | `publish-tiles` stamps `tiles_base` into the LOCAL copy AFTER uploading, and the site reads that one |
+| `names.json`, `thickness.json` | `publish-data` stores them **gzipped at rest** — 5.5 MB on disk against **1.34 MB** in the bucket |
+
+Both sidecars are **byte-identical once decompressed** (md5 equal), served with
+a strong ETag and `content-length`, which is what says STORED gzip rather than
+Cloudflare's on-the-fly slow path. `drifted()` now takes the set `sources.json`
+publishes and skips those inside a pyramid's folder, alongside the manifest it
+already skipped; everything else must still match byte for byte. The audit's
+own header records this trap and it walked into it: *a check that does not know
+what correct looks like reports the difference between its author's assumptions
+and reality.*
+
+**And a probe must ask the way a browser asks.** My first check read no
+`content-encoding` on either sidecar and I read that as "not gzipped" — the
+request had not sent `Accept-Encoding: gzip`, so the edge decompressed the
+stored object on the way out. `publish-data.py --check` had it right all along.
+
+Clean afterwards: **7 pyramids (17,483 tiles), 45 loose files, 11 viewer-asset
+prefixes, 0 dangling local references, 13 metadata files tracked**, all present,
+byte-identical, reachable and CORS-open.
+
+### The subtab
+
+`gis/explorer-models.js` + `#explorer-models-section` in the Explorer tab, built
+to Tour Mode's idiom beside it — a picker, Previous/Next, and a card — except a
+stop is a whole viewer: the nine planetary explorers, the Earth Explorer from
+the ISS, Etna, Everest and the Mars flight simulator, each with the hero shot
+`bake-hero-tiles.py` already renders for the transit page.
+
+- **The link carries `target="_top"`.** The GIS viewer runs inside an iframe, so
+  a bare link loads a second explorer INSIDE it — a viewer in a viewer, wearing
+  the shell's chrome. `transit/index.html` takes the same target on its Return
+  Home link for the same reason.
+- **A planetary model opens through `/transit/?destination=<key>`**, not at its
+  own URL. That page is the site's existing door — it holds the registry, the
+  shots and the flight — so linking past it would be a second way in that
+  drifts from the first. The three with no transit key (Etna, Everest, the
+  flight sim) are linked at their own address, which is the only thing to do.
+- **A second list is how a door comes to point at a page that has moved**, so
+  the test reads `transit/index.html`'s own registry and checks every key in
+  BOTH directions, and every direct link and hero shot against a file this
+  repository serves. A/B'd: renaming a destination or moving a page fails it.
+- **No shot, no gap.** The three without a hero tile collapse to a text-only
+  card rather than reserving 4.6rem for a picture that never comes — and the
+  `<img>` has its `src` REMOVED rather than emptied, since an empty src still
+  paints the alt box.
+- **An `<a>` is inline**, so `width: 100%` on the action did nothing: measured
+  185 px in a 348 px panel, reading as a half-width pill adrift under the
+  stepper. `display: block` is what makes it the row's primary action.
+
+**`elementFromPoint` returns null for a control scrolled out of the panel**, and
+that reads exactly like a control something is covering. Scroll it into view
+before believing a failed hit test — this tree's own rule for checking a control
+over flowing content assumes the control is on screen.
