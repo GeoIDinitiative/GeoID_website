@@ -31,34 +31,34 @@
  * every card, what it has read.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260912-e73f170";
-import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260912-e73f170";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260912-80a7645";
+import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260912-80a7645";
 import {
   columnMaterial, soilColumn, steadyWetness, planeWetness, factorOfSafety, criticalRecharge,
   FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M, LATERAL_FACTOR, FOS_CAP, cellAnswer,
-} from "./slope-hydrology.js?v=20260912-e73f170";
-import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260912-e73f170";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260912-e73f170";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260912-e73f170";
-import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260912-e73f170";
-import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainParts, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260912-e73f170";
-import { mathsFor } from "./equations.js?v=20260912-e73f170";
-import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260912-e73f170";
-import { upslopeWeights, stationStep, stationFlood, catchmentTopology, floodScratch, LANDSLIDE_PARAMS, LANDSLIDE_PLOTS, lowestCells } from "./landslide-stations.js?v=20260912-e73f170";
+} from "./slope-hydrology.js?v=20260912-80a7645";
+import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260912-80a7645";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260912-80a7645";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260912-80a7645";
+import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260912-80a7645";
+import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainParts, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260912-80a7645";
+import { mathsFor } from "./equations.js?v=20260912-80a7645";
+import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260912-80a7645";
+import { upslopeWeights, stationStep, stationFlood, catchmentTopology, floodScratch, LANDSLIDE_PARAMS, LANDSLIDE_PLOTS, lowestCells } from "./landslide-stations.js?v=20260912-80a7645";
 import {
   makeStation, parseStationsCsv, stationsFromFeatures, uniqueName, seriesCsv, seriesFileName, MAX_STATIONS, colourAt,
-} from "./station-series.js?v=20260912-e73f170";
-import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260912-e73f170";
-import { planSeries, rendersOf, stepText, rampMaxFor, STEP_CHOICES, NATIVE_STEP, HOUR } from "./rain-steps.js?v=20260912-e73f170";
-import { mountStationMarkers } from "./station-markers.js?v=20260912-e73f170";
-import { equivalentMohrCoulomb, culmann, culmannAt, rockCell, localRelief, rockfallReach, velocityOf, criticalHeight } from "./rock-slope.js?v=20260912-e73f170";
+} from "./station-series.js?v=20260912-80a7645";
+import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260912-80a7645";
+import { planSeries, rendersOf, stepText, rampMaxFor, STEP_CHOICES, NATIVE_STEP, HOUR } from "./rain-steps.js?v=20260912-80a7645";
+import { mountStationMarkers } from "./station-markers.js?v=20260912-80a7645";
+import { equivalentMohrCoulomb, culmann, culmannAt, rockCell, localRelief, rockfallReach, velocityOf, criticalHeight } from "./rock-slope.js?v=20260912-80a7645";
 import {
   bankfullCapacity, partition, residenceTimes, waveStep, floodFos, riseFor,
   FLOOD_CLASSES, RUNOFF_CLASSES, DISCHARGE_CLASSES, BANKFULL_RATIO, HILLSLOPE_V,
-} from "./flood-fos.js?v=20260912-e73f170";
-import { inundate, sourceFields, DEPTH_CLASSES, DEFAULTS as FLOOD_DEFAULTS, meanFlowFromWidth } from "./inundation.js?v=20260912-e73f170";
-import { burnRivers } from "./river-zones.js?v=20260912-e73f170";
-import { waterFeatures, waterMasks } from "./water-mask.js?v=20260912-e73f170";
+} from "./flood-fos.js?v=20260912-80a7645";
+import { inundate, sourceFields, DEPTH_CLASSES, DEFAULTS as FLOOD_DEFAULTS, meanFlowFromWidth } from "./inundation.js?v=20260912-80a7645";
+import { burnRivers } from "./river-zones.js?v=20260912-80a7645";
+import { waterFeatures, waterMasks } from "./water-mask.js?v=20260912-80a7645";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";
@@ -1716,12 +1716,16 @@ function waveFrame(wave, out, frames, k) {
     const q = wave.q[i];
     wave.series[base + m] = q;
     if (q > wave.peak[m]) wave.peak[m] = q;
-    if (!cells.model[i] || fl.open[i]) continue;
+    if (!cells.model[i]) continue;
+    // The discharge is real wherever the model routed it — a lower bound on an
+    // open reach, the river's own where the catchment is closed — so the peak
+    // is taken before the brim is. Only the FACTOR OF SAFETY is withheld.
+    if (q > peakQ) peakQ = q;
+    if (fl.open[i]) continue;
     const fos = floodFos(fl.capacity[i], q);
     if (fos < wave.minFos[m]) wave.minFos[m] = fos;
     if (fos < 1) over += 1;
     if (fos < worst) worst = fos;
-    if (q > peakQ) peakQ = q;
   }
   return { over, peakQ, worstFos: Number.isFinite(worst) ? worst : NaN, runoffShare: out.runoffShare };
 }

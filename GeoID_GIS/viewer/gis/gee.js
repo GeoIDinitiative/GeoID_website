@@ -10,24 +10,24 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, attachExactReliefAttributes, followRelief } from "./vector-render.js?v=20260912-e73f170";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260912-e73f170";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260912-e73f170";
+import { attachReliefAttributes, attachExactReliefAttributes, followRelief } from "./vector-render.js?v=20260912-80a7645";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260912-80a7645";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260912-80a7645";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260912-e73f170";
+  from "./view-extent.js?v=20260912-80a7645";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260912-e73f170";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260912-e73f170";
+} from "./extent-picker.js?v=20260912-80a7645";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260912-80a7645";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
   freshness, isNewDataset, isExtendedDataset, indexedHrefs, bakedOn,
-} from "./gee-catalogue-index.js?v=20260912-e73f170";
-import { checkCatalogue, describeCheck } from "./gee-watch.js?v=20260912-e73f170";
+} from "./gee-catalogue-index.js?v=20260912-80a7645";
+import { checkCatalogue, describeCheck } from "./gee-watch.js?v=20260912-80a7645";
 
 // The page's own stamp. A dynamic import under any other query is a SECOND
 // module instance with its own state — the trap that made a stopped player
