@@ -12963,10 +12963,40 @@ the most to explain never had a catalogue row in the first place — **GeoID
 mode BUILDS its Factor of Safety layer**, so the one surface on the globe
 carrying an engineering model was the only one with nowhere to say which model.
 
-A layer carrying `info.maths` now draws the same button, opening the same card,
+A layer carrying `info.maths` draws the same button, opening the same card,
 from wherever it is: the FoS layer, the streamed slope and hillshade sheets,
-and the thickness sheet. Only those — an ⓘ on every row would be a column of
-buttons most of which repeat the row.
+and the thickness sheet.
+
+**"Only those" was wrong, and so was excluding a catalogue layer.** The
+reasoning — an ⓘ on every row is a column of buttons most of which repeat the
+row, and a catalogue layer already has one in its nav tab — was about the
+wrong question. A row says a name, a kind and an opacity; it says nothing
+about **where the layer came from, under what licence, in what CRS, or how
+much it holds**, which is what somebody asking "what IS this" of a row wants.
+And a catalogue tab may have been ticked once and never opened again while the
+layer lives in the Workspace for the session. **Every row draws one now**, on
+request.
+
+There is still ONE card: two doors to one card is not the fault, two CARDS
+would be. `provenanceOf(layer)` is the single builder — metadata first, then
+`info` (which is where an ADOPTED layer states its provenance), then the layer
+— and the Metadata tab reads it too, with the citation as a row rather than
+its own line. Pinned by COUNTING: the CRS row may be built exactly once in the
+file, since a second list anywhere is the drift. The card shows the working
+where there is working, the provenance always, the citation where one is
+stated, and `entry.info.rows` is the seam that carries it.
+
+**THE BASEMAP IS A WORKSPACE ENTRY TOO**, drawn by its own path, so the imagery
+every visitor is looking at was the one row without an ⓘ — and the one that
+most needs it, since Esri's World Imagery and EOX's Sentinel-2 mosaic are both
+free only on terms. Its row holds four children rather than eight and takes a
+template of its own, or the stack's gives the slack to the ⓘ and squeezes the
+name to its text. Two traps in its card, both found by reading it live: the
+field on a tile source is **`credit`, not `attribution`**, and `credit` itself
+falls back to the LICENCE — so a plausible `attribution` read gave the card no
+attribution at all and printed the licence twice, once as a row and again as
+the source line under it. Who made it goes on the source line, on what terms
+in the rows.
 
 Two things it needed. The stylesheet is installed by `renderCatalogue`, so an
 ⓘ on a layer row was an unstyled letter until the reader happened to open a
