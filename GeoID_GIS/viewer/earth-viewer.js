@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260912-63bbbc0";
+  from "./gis/geo-utils.js?v=20260912-e3a8639";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260912-63bbbc0";
+  from "./gis/vector-render.js?v=20260912-e3a8639";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260912-63bbbc0";
+  from "./gis/rock-class.js?v=20260912-e3a8639";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260912-63bbbc0";
+  from "./gis/lithology-label.js?v=20260912-e3a8639";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -6061,6 +6061,16 @@ function fmtProp(value) {
       }
     }
 
+    /**
+     * The places on this globe that have a dedicated viewer behind them, by
+     * the curated label they are named at. Read twice: the card draws the
+     * link, and `Explorer Models` tours them.
+     */
+    const EXPLORER_SITES = [
+      { name: "Mount Etna", href: "/earth_explorer/etna/", label: "Open Etna Viewer \u2192" },
+      { name: "Mount Everest", href: "/everest/", label: "Open ASCENT \u2014 Everest \u2192" },
+    ];
+
     function openFeature(feature, isCoreLabel) {
       // Dismiss the geology floating popup when a regular feature popup opens
       closeGeoPopup();
@@ -6143,19 +6153,31 @@ function fmtProp(value) {
           scenePopupDetail.appendChild(row);
         }
       }
-      // Mount Etna → link to the dedicated 3D viewer
-      if (feature.name === "Mount Etna") {
-        const etnaRow = document.createElement("div");
-        etnaRow.className = "scene-popup-actions";
-        const etnaLink = document.createElement("a");
-        etnaLink.href = "/earth_explorer/etna/";
-        etnaLink.target = "_top";
-        etnaLink.rel = "noopener";
-        etnaLink.className = "button scene-popup-action-btn";
-        etnaLink.style.cssText = "display:inline-block;text-decoration:none;text-align:center;";
-        etnaLink.textContent = "Open Etna Viewer →";
-        etnaRow.appendChild(etnaLink);
-        scenePopupDetail.appendChild(etnaRow);
+      /**
+       * A PLACE WITH A VIEWER OF ITS OWN SAYS SO, on the card that names it.
+       *
+       * This was a hard-coded `feature.name === "Mount Etna"` block, which is
+       * how Everest came to have a whole first-person viewer on this site and
+       * no way to reach it from the globe. `EXPLORER_SITES` is the one list
+       * and it is published on the seam, so the Explorer Models tab tours
+       * exactly the stops that can offer a link — a stop with no viewer would
+       * be a jump to nothing.
+       */
+      const explorerSite = EXPLORER_SITES.find((site) => site.name === feature.name);
+      if (explorerSite) {
+        const siteRow = document.createElement("div");
+        siteRow.className = "scene-popup-actions";
+        const siteLink = document.createElement("a");
+        siteLink.href = explorerSite.href;
+        // The whole page: this viewer runs inside the GeoHUB's iframe, and a
+        // bare link would load a second viewer inside it.
+        siteLink.target = "_top";
+        siteLink.rel = "noopener";
+        siteLink.className = "button scene-popup-action-btn";
+        siteLink.style.cssText = "display:inline-block;text-decoration:none;text-align:center;";
+        siteLink.textContent = explorerSite.label;
+        siteRow.appendChild(siteLink);
+        scenePopupDetail.appendChild(siteRow);
       }
 
       if (isUserPinFeature && feature.id) {
@@ -21911,6 +21933,24 @@ uniform float uViewportWidth;`,
          * any group.
          */
         getCutawayPlanes: () => (coreToggle && coreToggle.checked ? [cutawayClipPlane] : []),
+        /**
+         * THE STOPS THE EXPLORER MODELS TAB TOURS, and the jump itself.
+         *
+         * `Explorer Models` is Tour Mode over a different set of stops, and the
+         * machinery that makes a stop a stop lives here: `presentTourFeature`
+         * opens the card FIRST and flies the camera 700 ms later, which is why
+         * the link spawns with the jump rather than after it. Rather than a
+         * second copy of that in a GIS module, the module drives this.
+         *
+         * Copied out, so a caller cannot edit the list the card reads.
+         */
+        explorerSites: () => EXPLORER_SITES.map((site) => ({ ...site })),
+        tourToFeature: (name, { statusPrefix = "Touring" } = {}) => {
+          const feature = labelData.find((item) => item.name === name);
+          if (!feature) return false;
+          presentTourFeature(feature, camera, controls, statusPrefix);
+          return true;
+        },
         elevationSampler,
         manifest,
         /**

@@ -20,6 +20,11 @@
   var MODES = [
     { section: "tour-mode-section", toggle: "tour-mode-toggle", button: "tour-mode-enter" },
     { section: "moon-viewer-section", toggle: "moon-viewer-toggle", button: "moon-viewer-enter" },
+    // Explorer Models is Tour Mode's shape over a different set of stops --
+    // the places on this globe that have a viewer of their own -- so it takes
+    // the same Enter button, the same Exit label and the same armed retint
+    // from this one implementation rather than a copy of it.
+    { section: "explorer-models-section", toggle: "explorer-models-toggle", button: "explorer-models-enter" },
   ];
 
   function ready(fn) {
