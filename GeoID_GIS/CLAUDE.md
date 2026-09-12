@@ -18955,3 +18955,65 @@ exist — a station carries `lat`/`lon` and the cell is looked up — and
 `undefined === undefined` and sent the hunt after a phantom for a round. And the
 pipeline's card is `#geo-popup`, not `#scene-popup`: a probe that reads the
 wrong one reports "no card" over a card that is open.
+
+## "The weather maps still float" — the registration was exact and the facets were not
+
+Reported on a screenshot of the landslide pipeline's rainfall map. Everything
+that usually means "floating" measured clean, and it took all of them to get to
+the one that did not:
+
+| | |
+| --- | --- |
+| drape vertices against `surfacePoint` | **0.01 m** |
+| the drawn layer's box against its own projected bounds | **1–3 px** |
+| `getRenderRelief()` against `getEffectiveRelief()` | **0.11 = 0.11** |
+| facet centres, 500 m posts | mean **1.7 m**, worst 55 m |
+
+**So the pipeline's own maps are tight, and the fault is in the OTHER drape
+path.** `gee.js`'s `drape()` — the weather card, the Earth Engine layers, the
+map-overlay catalogue, the imagery time-lapse, the cyclone estimate — built a
+SQUARE grid at whatever segment count its caller passed: 72 from the weather
+card, 96 by default, 180 for a global shell. None of those numbers knows how
+much ground a quad covers.
+
+Measured over an 8° × 4° box across the Alps at the slider's default relief,
+each facet's centre against the ground under it:
+
+| segments | quad | mean off the ground | worst |
+| --- | --- | --- | --- |
+| **72** — the weather card's | 6.1 km | **555 m** | 9,379 m |
+| 96 — `drape`'s old default | 4.6 km | 336 m | 5,150 m |
+| 192 | 2.3 km | 85 m | 2,000 m |
+| 384 | 1.2 km | 20 m | 910 m |
+
+**The comment that stopped anyone tessellating was measured on the wrong
+quantity.** It said 96 → 384 "only takes the gap from 0.0267 to 0.0234" — true
+of the WORST case, a single peak poking through, and beside the point, because
+the depth test is off and a peak cannot punch a hole. What carries a map away
+from its ground is the MEAN, and that improves seventeenfold over the same
+range. A worst case of a kilometre on one alpine summit is the irreducible part
+and always was.
+
+`patchSegments(box, floor)` sizes the grid from the ground the box covers, **per
+axis** — a wide, shallow box should not spend its vertices where there is no
+ground to follow — against a **vertex budget** rather than a per-axis cap.
+`segments` survives as a floor a caller may raise, never as the answer. 122,000
+vertices cost **149 ms** to place, on a patch whose image took seconds to fetch
+(`surfacePoint` is 1.06 µs a call and dominates; `latLonToVector3` +
+`elevationNormalized`, which is what the exact-relief attach uses, are 0.16).
+
+Measured live on a real 2 m temperature map over the same box: **413 × 295, a
+1.5 km quad, mean 26 m, worst 1,035 m** — against 555 m and 9,379 m before.
+
+**A diagnosis that reads as a dead mechanism and is a REALM.** `getRenderRelief()`
+returned 0 while `getEffectiveRelief()` was 0.11 and the pump was demonstrably
+firing sixty times a second — which is precisely the shape of the fault this
+file already records (the uniform every followed layer is drawn at, left at
+zero). It was not: `await import(...)` inside `javascript_tool` evaluates in the
+TOP document's realm, and a module registry is per realm, so the copy I was
+reading was one nothing drives. `w.eval('import("...")')` reads the page's own
+and it answered 0.11. The tell is that only ONE load of the file appears in the
+iframe's `performance.getEntriesByType("resource")`; the second instance is in
+another realm and leaves no entry there at all. Set a value through the suspect
+copy and see whether the page's pump overwrites it — if it does not, it is not
+the page's copy.
