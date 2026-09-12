@@ -10,17 +10,17 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { bandOf } from "./draw-order.js?v=20260912-b36d596";
-import { paintOpacity } from "./layer-opacity.js?v=20260912-b36d596";
-import { currentBody } from "./bodies.js?v=20260912-b36d596";
-import { samplerToRaster } from "./raster-analysis.js?v=20260912-b36d596";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260912-b36d596";
-import { datasetInfoButton } from "./catalogue-list.js?v=20260912-b36d596";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260912-b36d596";
+import { bandOf } from "./draw-order.js?v=20260912-136b2bf";
+import { paintOpacity } from "./layer-opacity.js?v=20260912-136b2bf";
+import { currentBody } from "./bodies.js?v=20260912-136b2bf";
+import { samplerToRaster } from "./raster-analysis.js?v=20260912-136b2bf";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260912-136b2bf";
+import { datasetInfoButton } from "./catalogue-list.js?v=20260912-136b2bf";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260912-136b2bf";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20260912-b36d596";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260912-b36d596";
+} from "./symbology-dialog.js?v=20260912-136b2bf";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260912-136b2bf";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -964,8 +964,11 @@ function activeBasemap() {
     // The card wants the pieces apart: who made it, and on what terms. A
     // streamed basemap's licence is a CONDITION of using it at all — Esri's
     // and EOX's both are — so it is a row of its own rather than folded into
-    // a credit line nobody can take apart.
-    attribution: tileEntry?.attribution || manifestEntry?.attribution || "",
+    // a credit line nobody can take apart. The field is `credit` on a tile
+    // source; reading a plausible `attribution` instead left the card with no
+    // attribution at all and printed the licence twice, once as a row and
+    // again as the source line under it.
+    attribution: tileEntry?.credit || manifestEntry?.attribution || "",
     licence: tileEntry?.licence || "",
     summary: manifestEntry?.description || tileEntry?.description || "",
     maxZoom: tileEntry?.maxZoom,
@@ -1001,14 +1004,15 @@ function basemapRow() {
   {
     const rows = [
       ["Kind", base.streamed ? "streamed tiles" : "shipped texture"],
-      ["Attribution", base.attribution],
       ["Licence", base.licence],
       ["Deepest zoom", base.maxZoom],
     ].filter(([, v]) => v !== undefined && v !== null && v !== "");
     const info = datasetInfoButton({
       id: `basemap-${base.id || "none"}`,
       label: `Basemap: ${base.label}`,
-      info: { summary: base.summary, rows, citation: base.credit },
+      // Who made it on the source line, on what terms in the rows: said once
+      // each. `credit` falls back to the licence, so it cannot be the source.
+      info: { summary: base.summary, rows, citation: base.attribution },
     });
     info.classList.add("layer-info");
     node.appendChild(info);
