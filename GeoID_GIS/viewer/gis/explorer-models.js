@@ -121,6 +121,21 @@ export function mountExplorerModels(host, toggle) {
       return;
     }
     /**
+     * The floor under the lock.
+     *
+     * `feature-locks.js` does the visible work — the section wears a padlock
+     * and its Enter button is not on screen at all. This is what stops the
+     * mode being entered by anything that reaches the checkbox another way
+     * (the shared tour-enter wiring, a restored state, a script), and it puts
+     * the toggle back rather than leaving it reading Exit over a mode that is
+     * not running.
+     */
+    if (window.GeoIDMembership && !window.GeoIDMembership.may("explorers")) {
+      toggle.checked = false;
+      parts.copy.textContent = window.GeoIDMembership.refusal("explorers");
+      return;
+    }
+    /**
      * ONE MODE AT A TIME. Tour Mode and this one both fly the camera and both
      * claim the card, so two armed at once is two pickers disagreeing about
      * where you are. Stood down through its own checkbox, which is the seam

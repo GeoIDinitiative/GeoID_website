@@ -8,6 +8,8 @@
  * against everybody, and a gate that opens on an expired or forged token is not
  * a gate. Both are pinned, in both directions.
  */
+import { readFileSync } from "node:fs";
+
 const storage = new Map();
 const events = [];
 globalThis.window = {
@@ -72,7 +74,8 @@ m.configure("https://auth.geoidinitiative.com");
 
 m.accept(tokenFor({ email: "r@example.org", name: "Rae", member: true, exp: inHours(24) }));
 eq("a member's state", m.state(), {
-  signedIn: true, member: true, name: "Rae", email: "r@example.org",
+  signedIn: true, member: true, owner: false, plan: "member",
+  name: "Rae", email: "r@example.org",
   until: m.state().until, enforcing: true,
 });
 check("a member may use the models", m.may("models") === true);
@@ -94,8 +97,7 @@ for (const [id, f] of Object.entries(m.FEATURES)) {
   check(`${id} states both of its own refusals`,
     /^[A-Z].*\.$/.test(f.signIn) && /^[A-Z].*\.$/.test(f.notYours),
     `${f.signIn} | ${f.notYours}`);
-  check(`${id}'s refusal is not its title templated in`,
-    !f.notYours.startsWith(f.title + " is"), f.notYours);
+  check(`${id} says something in both`, f.signIn !== f.notYours, f.signIn);
 }
 
 // ── 3. Expired, malformed and absent all mean signed out ───────────────────
@@ -184,6 +186,44 @@ eq("a name outside ASCII signs in", m.state().member, true);
 eq("...with its name intact", m.state().name, "Rae Ó Súilleabháin");
 m.accept(tokenFor({ email: "李@example.org", name: "李雷", member: true, exp: inHours(24) }));
 eq("a name outside Latin-1 signs in too", m.state().name, "李雷");
+
+// The fault this replaced a check for was a TEMPLATE: `${f.title} is part of
+// membership` reads "Modelled risk maps IS". Checking the sentences for it
+// caught a hand-written one that happens to read the same way, so the rule is
+// pinned where it belongs — on the function, which must not build a sentence
+// out of a title at all.
+{
+  const src = readFileSync(new URL("./membership.js", import.meta.url), "utf8");
+  const body = (src.match(/export function refusal\(feature\) \{([\s\S]*?)\n\}/) || [])[1] || "";
+  check("refusal() reads a sentence rather than building one",
+    !/\.title/.test(body) && /notYours|signIn/.test(body), body.trim());
+}
+
+// ── 8. The master account ──────────────────────────────────────────────────
+
+// `plan: "owner"` is for the people who build this, so the site can be worked
+// on with every gate ON — exactly as a visitor sees it — rather than only with
+// membership switched off. It opens every feature INCLUDING ONES ADDED LATER,
+// which is the whole reason it is a flag and not a list.
+reset();
+m.configure("https://auth.geoidinitiative.com");
+m.accept(tokenFor({ email: "owner@geoidinitiative.com", name: "Owner",
+                    member: true, plan: "owner", exp: inHours(24) }));
+eq("an owner is an owner", m.state().owner, true);
+eq("...and a member too, so nothing tests for both", m.state().member, true);
+for (const id of Object.keys(m.FEATURES)) {
+  check(`an owner may use ${id}`, m.may(id) === true);
+}
+check("an owner may use a feature invented after this line",
+  m.may("something-added-next-year") === true);
+
+// An ordinary member is not an owner, and the account page must be able to
+// tell them apart to say which it is showing.
+m.accept(tokenFor({ email: "r@example.org", member: true, exp: inHours(24) }));
+eq("a member is not an owner", m.state().owner, false);
+eq("...and its plan says member", m.state().plan, "member");
+m.accept(tokenFor({ email: "e@example.org", member: false, exp: inHours(24) }));
+eq("an explorer's plan says explorer", m.state().plan, "explorer");
 
 console.log(`\n${failures ? `${failures} failed` : "all passed"}`);
 process.on("exit", () => { process.exitCode = failures ? 1 : 0; });

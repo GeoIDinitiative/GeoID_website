@@ -46,6 +46,19 @@ each step signs in to an account only you hold.
    `until` is epoch seconds. An address that is not in the list signs in as an
    explorer, which is a real state rather than a failure.
 
+   **The master account.** Give an entry `"plan": "owner"` and it opens every
+   feature — including ones added after it was made, which is the whole reason
+   it is a flag rather than a list:
+
+       npx wrangler kv key put --binding=MEMBERS \
+         "member:you@geoidinitiative.com" '{"until": 4102444800, "plan": "owner"}'
+
+   Make one for each person who works on this. It is what lets the site be used
+   with every gate ON — exactly as a visitor sees it — rather than only with
+   membership switched off, which is the state everything is tested in
+   otherwise. It still expires: `until` is far out here, not absent, because a
+   credential that never runs out is one nobody ever revokes.
+
 5. **Deploy, and point the site at it.**
 
        npx wrangler deploy

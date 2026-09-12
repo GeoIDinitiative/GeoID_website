@@ -7085,6 +7085,63 @@ Asking somebody to sign in to a service that does not exist would lock the app
 against everybody including us, and it is what lets all of this ship before the
 Worker is deployed.
 
+### A locked thing is SHOWN, never hidden
+
+`feature-locks.js` is the other half of the gate: making a locked tab LOOK
+locked, so nobody presses a control that is going to refuse them. Hiding it
+would be easier and is worse — **a feature nobody can see is a feature nobody
+knows they could have**, and the tab bar is how somebody finds out what this
+app does. So a locked tab keeps its place, wears a padlock, and opens onto a
+card naming what is behind it. The nav's own Membership button follows the same
+rule: with no service configured it still reads "Membership" and goes to the
+page describing it, rather than vanishing until the thing it advertises runs.
+
+**THE MARKUP IS NEVER REMOVED.** Modules all over this tree read element ids
+unguarded at boot (`geology-structures-toggle` is the one the notes name, and
+there are a dozen more), so a lock hides a tab's contents behind a class and
+puts a card in front of them. Unlocking removes the class. Nothing downstream
+can tell the difference, which is what makes a sign-in mid-session work with no
+reload — and it is why the locks are re-applied on a 900 ms beat as well as on
+the membership event: these panels are rebuilt constantly.
+
+**A FEATURE CAN BE TWO SURFACES, and locking one is locking half of it.** The
+Model Builder is `gis-group-mesh` (the tab: study area → layers → surface →
+domain → conditions → build) AND the MODEL mode button that opens the Meshing
+Studio the package goes to. Locking the tab alone leaves the studio open; the
+mode alone leaves the pipeline usable in a tab that feeds nothing. Before
+locking anything, ask what else reaches it.
+
+**A locked MODE falls back rather than refusing.** The stored view mode is what
+the page boots into, so a member who lapses — or anybody opening a link somebody
+sent them — would land on a page that will not load and has no way back.
+`setMode` drops to `gis`; `feature-locks` explains it at the button, in the
+CAPTURE phase, because mode-manager binds its own handler to the same element.
+Not `disabled`: a disabled button takes no click, so there is nothing to explain
+with, and the point of showing a locked control is that pressing it tells you
+why.
+
+**"Wiped" has to mean wiped.** `gee.js`'s `endpoint()` refused and cleared the
+stored endpoint — but only when something happened to ASK, and on a page where
+nobody opens that tab nothing ever does. It clears at load and on every
+membership change now. This is tidiness rather than a defence: the endpoint has
+never been secret (the module's own header says so, and what protects it is
+`ALLOWED_ORIGINS` on the deployment), but a browser that may not use a billed
+service should not be left holding the address of it.
+
+### The master account
+
+`plan: "owner"` on a KV entry. It opens **every feature including ones added
+later**, which is the whole reason it is a flag and not a list: a gate written
+next year should not need somebody to remember to add the operators to it. An
+owner is a member too, so nothing has to test for both.
+
+It exists so the site can be used with **every gate ON**, exactly as a visitor
+sees it, rather than only with membership switched off — which is the state
+everything is otherwise tested in. The account page names it as itself, because
+shown as an ordinary member there is no way to tell from inside the app whether
+a gate is open because it is unlocked or because of who is asking. It still
+expires: a credential that never runs out is one nobody ever revokes.
+
 ### Five chokepoints, chosen so a refusal is a sentence
 
 `addDataset` (every catalogue tick), `addSheet` (the sheets are a MIXTURE, so it

@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260912-d99fa74";
+  from "./gis/geo-utils.js?v=20260912-e241953";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260912-d99fa74";
+  from "./gis/vector-render.js?v=20260912-e241953";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260912-d99fa74";
+  from "./gis/rock-class.js?v=20260912-e241953";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260912-d99fa74";
+  from "./gis/lithology-label.js?v=20260912-e241953";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -6189,17 +6189,34 @@ function fmtProp(value) {
        */
       const explorerSite = EXPLORER_SITES.find((site) => site.name === feature.name);
       if (explorerSite) {
+        /**
+         * The link is the DOOR to the explorer models, so it wears the lock.
+         *
+         * Asked through the window seam rather than an import: this file is a
+         * plain script with its own stamp, and a stamped import of the module
+         * would be a second instance with its own token. `GeoIDMembership` is
+         * the one thing every realm on the page agrees about, and where it is
+         * absent — a standalone viewer, a planet page — the answer is yes,
+         * which is how this behaved before any of it existed.
+         */
+        const mayOpen = window.GeoIDMembership?.may?.("explorers") ?? true;
         const siteRow = document.createElement("div");
         siteRow.className = "scene-popup-actions";
         const siteLink = document.createElement("a");
-        siteLink.href = explorerSite.href;
+        // A locked link goes to the page that explains it, not to the viewer.
+        siteLink.href = mayOpen ? explorerSite.href : "/membership/";
         // The whole page: this viewer runs inside the GeoHUB's iframe, and a
         // bare link would load a second viewer inside it.
         siteLink.target = "_top";
         siteLink.rel = "noopener";
         siteLink.className = "button scene-popup-action-btn";
         siteLink.style.cssText = "display:inline-block;text-decoration:none;text-align:center;";
-        siteLink.textContent = explorerSite.label;
+        // Still NAMED, so the card says what is there rather than hiding it.
+        siteLink.textContent = mayOpen ? explorerSite.label : `\u{1F512} ${explorerSite.label}`;
+        if (!mayOpen) {
+          siteLink.title = window.GeoIDMembership?.refusal?.("explorers")
+            || "This is part of membership.";
+        }
         siteRow.appendChild(siteLink);
         scenePopupDetail.appendChild(siteRow);
       }

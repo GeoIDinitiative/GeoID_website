@@ -2,9 +2,10 @@
  * Membership: who is signed in, and what that unlocks.
  *
  * The site is open. Everything a reader can LOOK at stays open to everybody --
- * the globes, the imagery, the surveys, the live feeds, the terrain. What
- * membership unlocks is the work: the risk maps this app MODELS itself, and
- * keeping a project on your own disk.
+ * the globes, the imagery, the surveys, the live feeds, the terrain, the
+ * catalogues and the records. What membership unlocks is the WORK: the risk
+ * maps this app models itself, the Hazards tab they live in, the Model Builder,
+ * the explorer models, Earth Engine, and keeping a project on your own disk.
  *
  * NOTHING OF THEIRS REACHES US. A project is a folder the member chose, or
  * their browser's own storage, or their own machine through the sidecar; there
@@ -24,6 +25,11 @@
  * So what is here is the ASKING, kept in one place so a gate reads the same
  * wherever it is drawn, and so the enforcement -- when the Worker is deployed --
  * has exactly one thing to agree with.
+ *
+ * THE MASTER ACCOUNT is `plan: "owner"` on a KV entry, for the people who build
+ * this: it opens every feature including ones added later, so the site can be
+ * worked on with every gate ON -- exactly as a visitor sees it -- rather than
+ * only with membership switched off.
  *
  * UNCONFIGURED MEANS OPEN. Until an auth service is configured (`configure()`,
  * or a `<meta name="geoid-auth">` on the page) nothing is gated at all: asking
@@ -58,6 +64,58 @@ export const FEATURES = {
     signIn: "Sign in as a member to save and export your work.",
     notYours: "Saving and exporting are part of membership — your sign-in does "
       + "not include them yet.",
+  },
+  /** The first-person site viewers, and the tour that jumps between them. */
+  explorers: {
+    id: "explorers",
+    title: "Explorer models",
+    blurb: "The built landscapes — ASCENT on Everest, and the Etna viewer — and "
+      + "the tour that flies between them from the globe.",
+    enforced: false,
+    signIn: "Sign in as a member to open the explorer models.",
+    notYours: "The explorer models are part of membership — your sign-in does "
+      + "not include them yet.",
+  },
+  /** The whole Hazards tab: the risk maps, the pipelines and the buffers. */
+  hazards: {
+    id: "hazards",
+    title: "Hazards",
+    blurb: "Every hazard model in one tab — cyclone, seismic, volcanic, "
+      + "landslide, flood, wildfire and exposure.",
+    enforced: false,
+    signIn: "Sign in as a member to open the Hazards tab.",
+    notYours: "The Hazards tab is part of membership — your sign-in does not "
+      + "include it yet.",
+  },
+  /** The Model Builder and the Meshing Studio behind it. */
+  builder: {
+    id: "builder",
+    title: "Model Builder",
+    blurb: "Sample the ground into a surface, build a domain, set the mesh and "
+      + "package it for a solver.",
+    enforced: false,
+    signIn: "Sign in as a member to open the Model Builder.",
+    notYours: "The Model Builder is part of membership — your sign-in does not "
+      + "include it yet.",
+  },
+  /**
+   * Earth Engine, which is the one thing here that costs money PER USE.
+   *
+   * Every request goes through our own billed Cloud Function, so unlike the
+   * rest of these the refusal can be made where the reader cannot reach — the
+   * function's own allowlist. Until it is, this stands the doorways down and
+   * clears the endpoint out of their storage, so nothing of ours is left
+   * sitting in a browser that may not use it.
+   */
+  gee: {
+    id: "gee",
+    title: "Earth Engine",
+    blurb: "Fetch satellite imagery, rainfall and land-surface data over an "
+      + "area you draw, from Google Earth Engine's whole published catalogue.",
+    enforced: true,
+    signIn: "Sign in as a member to fetch from Earth Engine.",
+    notYours: "Earth Engine is part of membership — your sign-in does not "
+      + "include it yet.",
   },
 };
 
@@ -269,9 +327,22 @@ export function signOut() {
 export function state() {
   load();
   const live = claims && !expired(claims);
+  const plan = (live && claims.plan) || "";
   return {
     signedIn: !!live,
     member: !!(live && claims.member),
+    /**
+     * THE MASTER ACCOUNT. `plan: "owner"` in the KV entry, for the people who
+     * build this — so the site can be worked on with every gate on, exactly as
+     * a visitor sees it, rather than only with membership switched off.
+     *
+     * It opens every feature INCLUDING ONES ADDED LATER, which is the whole
+     * point of it being a separate flag rather than a long list: a gate written
+     * next year should not need somebody to remember to add the operators to
+     * it. An owner is a member too, so nothing has to test for both.
+     */
+    owner: plan === "owner",
+    plan: plan || (live && claims.member ? "member" : "explorer"),
     name: (live && (claims.name || claims.email)) || "",
     email: (live && claims.email) || "",
     until: live && Number.isFinite(Number(claims.exp)) ? Number(claims.exp) : 0,
@@ -295,7 +366,10 @@ export function bearer() {
 export function may(feature) {
   if (!enforcing()) return true;
   if (!FEATURES[feature]) return true;
-  return state().member;
+  const live = state();
+  // An owner is answered before the feature is even looked at, so a gate added
+  // after this line was written opens for them without being told to.
+  return live.owner || live.member;
 }
 
 /**
@@ -401,6 +475,23 @@ try {
       if (event && event.key && event.key !== TOKEN_KEY) return;
       refresh();
     });
+  }
+} catch (error) { /* no window: node, or a test */ }
+
+/**
+ * The seam for code that is not a module.
+ *
+ * `earth-viewer.js` and the nine planet viewers are plain scripts loaded with
+ * their own stamp, so they cannot import this — and a stamped import from one of
+ * them would be a SECOND instance with its own token anyway, which is the
+ * module-identity trap this tree records. A global is the one thing every realm
+ * on the page agrees about.
+ */
+try {
+  if (typeof window !== "undefined") {
+    window.GeoIDMembership = {
+      may, refusal, state, enforcing, signInUrl, onChange, FEATURES,
+    };
   }
 } catch (error) { /* no window: node, or a test */ }
 

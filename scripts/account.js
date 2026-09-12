@@ -49,6 +49,11 @@ function handoff() {
 function describe(state) {
   if (!state.signedIn) return "";
   const who = state.name || state.email;
+  // The master account is named as itself. Shown as an ordinary member it
+  // would be impossible to tell, from inside the app, whether a gate is open
+  // because it is unlocked or because of who is asking — which is the one
+  // thing somebody testing the gates needs to know.
+  if (state.owner) return `Signed in as ${who} — the master account.`;
   if (!state.member) return `Signed in as ${who} — an explorer.`;
   const until = state.until
     ? new Date(state.until * 1000).toLocaleDateString(undefined,
@@ -110,7 +115,7 @@ function accountPage() {
     if (who) who.textContent = state.name || state.email;
     const badge = byId("acct-badge");
     if (badge) {
-      badge.textContent = state.member ? "Member" : "Explorer";
+      badge.textContent = state.owner ? "Master" : state.member ? "Member" : "Explorer";
       badge.className = `account-badge ${state.member ? "is-member" : "is-explorer"}`;
     }
     const says = byId("acct-state");

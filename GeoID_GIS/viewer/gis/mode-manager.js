@@ -448,9 +448,31 @@
     }));
   }
 
+  /**
+   * Modes a membership is needed for, and the feature that says so.
+   *
+   * Asked through the window seam rather than an import: this is an IIFE in a
+   * plain script, and where the seam is absent -- a standalone viewer, a suite
+   * -- the answer is yes, which is how this behaved before membership existed.
+   */
+  const GATED_MODES = { model: "builder" };
+
   function setMode(mode) {
     if (!VALID_MODES.includes(mode)) {
       return;
+    }
+    /**
+     * A locked mode falls back to GIS rather than refusing.
+     *
+     * The stored mode is what the page boots into, so a member who lapses --
+     * or anybody opening a link somebody sent them -- would otherwise land on
+     * a page that will not load and has no way back. Silent here because
+     * feature-locks.js already explains it at the button; this is the floor
+     * under that, for the boot path and for anything calling setMode directly.
+     */
+    const needs = GATED_MODES[mode];
+    if (needs && window.GeoIDMembership && !window.GeoIDMembership.may(needs)) {
+      mode = "gis";
     }
     // The GeoID tab does not swap the layout any more -- it is the GIS page
     // with the location selector armed. Selecting GIS disarms it again. Keeping

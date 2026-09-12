@@ -1,4 +1,4 @@
-import { ready } from "./shell.js?v=20260912-d99fa74";
+import { ready } from "./shell.js?v=20260912-e241953";
 
 /**
  * The GIS layer's entry point on a planet page.
@@ -28,6 +28,10 @@ const MODULES = [
   "./cutaway.js",
   // A card goes when the layer it describes does: hidden, removed, unticked.
   "./card-owner.js",
+  // What a locked part of the app looks like. A locked tab keeps its place and
+  // wears a padlock rather than disappearing: a feature nobody can see is a
+  // feature nobody knows they could have.
+  "./feature-locks.js",
   "./geoid-pipeline.js",
   "./geoid-mode.js",
   "./import-manager.js",
@@ -89,7 +93,7 @@ const MODULES = [
   "./atlas-assistant.js",
 ];
 
-const VERSION = "?v=20260912-d99fa74";
+const VERSION = "?v=20260912-e241953";
 
 async function boot() {
   const shell = await ready;

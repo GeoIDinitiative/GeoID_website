@@ -10,24 +10,25 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, attachExactReliefAttributes, followRelief } from "./vector-render.js?v=20260912-d99fa74";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260912-d99fa74";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260912-d99fa74";
+import { attachReliefAttributes, attachExactReliefAttributes, followRelief } from "./vector-render.js?v=20260912-e241953";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260912-e241953";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260912-e241953";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260912-d99fa74";
+  from "./view-extent.js?v=20260912-e241953";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260912-d99fa74";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260912-d99fa74";
+} from "./extent-picker.js?v=20260912-e241953";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260912-e241953";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
   freshness, isNewDataset, isExtendedDataset, indexedHrefs, bakedOn,
-} from "./gee-catalogue-index.js?v=20260912-d99fa74";
-import { checkCatalogue, describeCheck } from "./gee-watch.js?v=20260912-d99fa74";
+} from "./gee-catalogue-index.js?v=20260912-e241953";
+import { checkCatalogue, describeCheck } from "./gee-watch.js?v=20260912-e241953";
+import { may, refusal } from "./membership.js?v=20260912-e241953";
 
 // The page's own stamp. A dynamic import under any other query is a SECOND
 // module instance with its own state — the trap that made a stopped player
@@ -67,13 +68,48 @@ const cacheUrl = (file) => new URL(file, CACHE_BASE).href;
  * endpoint can be pointed at a local deployment while testing without editing
  * and redeploying the site.
  */
-/** The override if one is set, otherwise the deployed service. */
+/**
+ * The override if one is set, otherwise the deployed service.
+ *
+ * EMPTY FOR A NON-MEMBER, and their stored override is wiped on the way past.
+ * Earth Engine is the one thing here that costs money PER USE — every request
+ * goes through our own billed Cloud Function — so a browser that may not use it
+ * should not be left holding the address of it. That is a tidiness rather than
+ * a defence: the endpoint has never been a secret (the module's own header says
+ * so, and what protects it is ALLOWED_ORIGINS on the deployment), and the real
+ * refusal belongs at the function. This makes the app stop asking.
+ */
 function endpoint() {
+  if (!may("gee")) {
+    try { window.localStorage.removeItem(ENDPOINT_KEY); } catch (error) { /* fine */ }
+    return "";
+  }
   try {
     return window.localStorage.getItem(ENDPOINT_KEY) || DEFAULT_ENDPOINT;
   } catch (error) {
     return DEFAULT_ENDPOINT;
   }
+}
+
+/**
+ * Clear the stored endpoint the moment membership says it may not be used.
+ *
+ * `endpoint()` already refuses and wipes, but only when something happens to
+ * ASK -- and on a page where nobody opens the Earth Engine tab, nothing ever
+ * does. "Wiped" has to mean wiped, so this runs at load and again whenever the
+ * sign-in changes, which is when a membership lapses as well as when somebody
+ * signs out.
+ */
+function wipeEndpointIfLocked() {
+  if (may("gee")) return;
+  try {
+    if (window.localStorage.getItem(ENDPOINT_KEY) !== null) {
+      window.localStorage.removeItem(ENDPOINT_KEY);
+    }
+  } catch (error) { /* storage unavailable: nothing stored to clear */ }
+  // And out of the form, so it is not sitting on screen either.
+  const field = byId("gee-endpoint");
+  if (field) field.value = "";
 }
 
 function setEndpoint(url) {
@@ -538,6 +574,10 @@ export async function fetchDates(dataset) {
 }
 
 async function request() {
+  // Asked here, at the one door every fetch goes through, and BEFORE anything
+  // is spent: a render is billed, and refusing after paying for one is the
+  // wrong order.
+  if (!may("gee")) { status(refusal("gee")); return; }
   const url = endpoint();
   const select = byId("gee-dataset");
   const dataset = select?.value;
@@ -1863,6 +1903,10 @@ if (typeof document !== "undefined" && typeof document.addEventListener === "fun
 }
 
 async function openGeeDialog(homeName) {
+  // Refused at the door: a browser that opens, offers a catalogue of 1,139
+  // datasets and an extent to draw, and then says no, has wasted the whole
+  // decision. The Workspace button that opens it is what a reader presses.
+  if (!may("gee")) { window.alert?.(refusal("gee")); return; }
   ensureGeeDialog();
   // The tab that asked becomes the subject filter — the button on Hazards
   // still means "the Earth Engine data filed under Hazards" — but the chip is
@@ -2380,3 +2424,15 @@ if (typeof document !== "undefined") {
   window.GeoIDEarthEngine = Object.assign(window.GeoIDEarthEngine || {},
     { request, setEndpoint, getEndpoint: endpoint, setRefineOnZoom });
 }
+
+/**
+ * Guarded on the LISTENER, not on `document`: a suite stubs a bare document,
+ * and a module that throws at import takes every suite importing its importer
+ * down with it. This tree has paid for that twice.
+ */
+try {
+  wipeEndpointIfLocked();
+  if (typeof document?.addEventListener === "function") {
+    document.addEventListener("geoid:membership", wipeEndpointIfLocked);
+  }
+} catch (error) { /* no document: a test, or node */ }
