@@ -84,7 +84,17 @@ const STYLE = [
   "  font-size: 0.7rem;",
   "  opacity: 0.75;",
   "}",
-  "#explorer-models .explorer-model-open { width: 100%; text-align: center; text-decoration: none; }",
+  /* An <a> is inline, so `width: 100%` on it does nothing and the action reads
+     as a half-width pill adrift under the stepper. Block, and it is the row's
+     own primary action. */
+  "#explorer-models .explorer-model-open {",
+  "  display: block;",
+  "  width: 100%;",
+  "  box-sizing: border-box;",
+  "  margin-top: 0.35rem;",
+  "  text-align: center;",
+  "  text-decoration: none;",
+  "}",
 ].join("\n");
 
 function installStyle(doc) {
