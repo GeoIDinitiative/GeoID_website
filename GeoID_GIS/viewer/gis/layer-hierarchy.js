@@ -10,17 +10,17 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { bandOf } from "./draw-order.js?v=20260912-4294aa5";
-import { paintOpacity } from "./layer-opacity.js?v=20260912-4294aa5";
-import { currentBody } from "./bodies.js?v=20260912-4294aa5";
-import { samplerToRaster } from "./raster-analysis.js?v=20260912-4294aa5";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260912-4294aa5";
-import { datasetInfoButton } from "./catalogue-list.js?v=20260912-4294aa5";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260912-4294aa5";
+import { bandOf } from "./draw-order.js?v=20260912-b36d596";
+import { paintOpacity } from "./layer-opacity.js?v=20260912-b36d596";
+import { currentBody } from "./bodies.js?v=20260912-b36d596";
+import { samplerToRaster } from "./raster-analysis.js?v=20260912-b36d596";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260912-b36d596";
+import { datasetInfoButton } from "./catalogue-list.js?v=20260912-b36d596";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260912-b36d596";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20260912-4294aa5";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260912-4294aa5";
+} from "./symbology-dialog.js?v=20260912-b36d596";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260912-b36d596";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -103,6 +103,13 @@ const STYLE = `
 /* Seven columns now: grip, disclosure, eye, name, kind, opacity, moves. */
 .layer-stack .layer-row {
   grid-template-columns: auto auto auto 1fr auto 4.5rem auto;
+}
+/* The basemap row is its own shape: a grip, an eye, the name, and the ⓘ at the
+   end. It holds four children, not eight, so the stack's template would give
+   the slack to the wrong one and squeeze the name to its text. */
+.layer-stack .layer-row.layer-row-basemap,
+.layer-stack .layer-row.layer-row-basemap.has-info {
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
 }
 /* One more column, for the ⓘ every layer carries. */
 .layer-stack .layer-row.has-info {
@@ -954,6 +961,14 @@ function activeBasemap() {
     id,
     label: label || `${currentBody()?.name || "Earth"} basemap`,
     credit: tileEntry?.licence || tileEntry?.attribution || manifestEntry?.description || "",
+    // The card wants the pieces apart: who made it, and on what terms. A
+    // streamed basemap's licence is a CONDITION of using it at all — Esri's
+    // and EOX's both are — so it is a row of its own rather than folded into
+    // a credit line nobody can take apart.
+    attribution: tileEntry?.attribution || manifestEntry?.attribution || "",
+    licence: tileEntry?.licence || "",
+    summary: manifestEntry?.description || tileEntry?.description || "",
+    maxZoom: tileEntry?.maxZoom,
     streamed: Boolean(tileEntry),
   };
 }
@@ -977,6 +992,28 @@ function basemapRow() {
       <input type="checkbox" ${visible ? "checked" : ""} data-role="visible">
     </label>
     <span class="layer-name" title="${base.credit || base.label}">Basemap: ${base.label}</span>`;
+  /**
+   * THE BASEMAP IS A WORKSPACE ENTRY TOO, and the one with a condition
+   * attached: Esri's imagery and EOX's Sentinel-2 mosaic are both free only on
+   * terms, and a reader is entitled to read those where the layer is rather
+   * than only in the tab that offers it.
+   */
+  {
+    const rows = [
+      ["Kind", base.streamed ? "streamed tiles" : "shipped texture"],
+      ["Attribution", base.attribution],
+      ["Licence", base.licence],
+      ["Deepest zoom", base.maxZoom],
+    ].filter(([, v]) => v !== undefined && v !== null && v !== "");
+    const info = datasetInfoButton({
+      id: `basemap-${base.id || "none"}`,
+      label: `Basemap: ${base.label}`,
+      info: { summary: base.summary, rows, citation: base.credit },
+    });
+    info.classList.add("layer-info");
+    node.appendChild(info);
+    node.classList.add("has-info");
+  }
   node.querySelector('[data-role="visible"]').addEventListener("change", (e) => {
     // The imported imagery hangs off the globe so it turns with it, which means
     // hiding the globe object would hide the imagery too -- the opposite of
