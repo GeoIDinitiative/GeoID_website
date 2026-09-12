@@ -80,7 +80,17 @@ eq("an explorer is signed in", m.state().signedIn, true);
 eq("...and is not a member", m.state().member, false);
 check("an explorer is refused the models", m.may("models") === false);
 check("the refusal names the membership rather than the sign-in",
-  /does not include it yet/.test(m.refusal("models")), m.refusal("models"));
+  /does not include them yet/.test(m.refusal("models")), m.refusal("models"));
+// Each feature carries its own sentence rather than having its title
+// templated into one: a template gives "Modelled risk maps IS part of
+// membership", which is what this check exists to keep out.
+for (const [id, f] of Object.entries(m.FEATURES)) {
+  check(`${id} states both of its own refusals`,
+    /^[A-Z].*\.$/.test(f.signIn) && /^[A-Z].*\.$/.test(f.notYours),
+    `${f.signIn} | ${f.notYours}`);
+  check(`${id}'s refusal is not its title templated in`,
+    !f.notYours.startsWith(f.title + " is"), f.notYours);
+}
 
 // ── 3. Expired, malformed and absent all mean signed out ───────────────────
 

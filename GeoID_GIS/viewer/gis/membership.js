@@ -41,6 +41,12 @@ export const FEATURES = {
     blurb: "The hazard models GeoID computes itself — cyclone, volcanic, "
       + "seismic, landslide, flood and sea level.",
     enforced: true,
+    // Written out per feature rather than templated from the title: "Modelled
+    // risk maps is part of membership" is what a template gives you, and a
+    // refusal is the one sentence a reader is guaranteed to read.
+    signIn: "Sign in as a member to open the modelled risk maps.",
+    notYours: "The modelled risk maps are part of membership — your sign-in "
+      + "does not include them yet.",
   },
   /** Keeping a project, and writing files out of it. A courtesy, not a lock. */
   save: {
@@ -49,6 +55,9 @@ export const FEATURES = {
     blurb: "Keep a project folder on your own disk, reopen it, and export what "
       + "you make from it.",
     enforced: false,
+    signIn: "Sign in as a member to save and export your work.",
+    notYours: "Saving and exporting are part of membership — your sign-in does "
+      + "not include them yet.",
   },
 };
 
@@ -241,13 +250,17 @@ export function may(feature) {
   return state().member;
 }
 
-/** The sentence to show where `feature` is refused. */
+/**
+ * The sentence to show where `feature` is refused.
+ *
+ * Two of them, because signed-in-and-not-a-member is a different thing to say
+ * than signed-out: one asks somebody to sign in, and the other would be telling
+ * a person who HAS to do it again.
+ */
 export function refusal(feature) {
   const f = FEATURES[feature];
-  const what = f ? f.title.toLowerCase() : "this";
-  return state().signedIn
-    ? `${f ? f.title : "This"} is part of membership — your sign-in does not include it yet.`
-    : `Sign in as a member to use ${what}.`;
+  if (!f) return "That is part of membership.";
+  return state().signedIn ? f.notYours : f.signIn;
 }
 
 export function onChange(fn) {
