@@ -1,11 +1,12 @@
-import { computeBounds2D } from "./geo-utils.js?v=20260912-1833c1f";
+import { computeBounds2D } from "./geo-utils.js?v=20260912-5a97ca4";
 
 // Sampling a polygon on a lat/lon grid: the spacing is expressed in km and
 // converted per-row, because a degree of longitude shrinks toward the poles.
 import {
   clip as clipCollection, featureCollection, feature as makeFeature,
-} from "./geoprocessing.js?v=20260912-1833c1f";
-import { splitLine } from "./delimited.js?v=20260912-1833c1f";
+} from "./geoprocessing.js?v=20260912-5a97ca4";
+import { splitLine } from "./delimited.js?v=20260912-5a97ca4";
+import { may, refusal } from "./membership.js?v=20260912-5a97ca4";
 
 const KM_PER_DEG_LAT = 111.32;
 const MAX_SAMPLES = 250000;
@@ -582,6 +583,16 @@ export function rowsToGeoJson(rows) {
 }
 
 export function downloadText(filename, text, mime = "text/plain", { project = true } = {}) {
+  /**
+   * Every export in this app goes through here, which is why the ask is here.
+   *
+   * It is a COURTESY and the module it asks says so: this is the browser's own
+   * download, in the reader's own browser, and nothing can enforce it. The
+   * refusal is thrown rather than returned because the callers are a dozen
+   * buttons that already report what they caught, and a silent no-op reads as
+   * a broken button.
+   */
+  if (!may("save")) throw new Error(refusal("save"));
   // With a project open the result belongs to it, not to the downloads folder.
   // Still downloaded as well, so the button does what it says either way.
   //

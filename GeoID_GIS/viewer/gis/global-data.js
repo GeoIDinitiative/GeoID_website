@@ -26,17 +26,18 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260912-1833c1f";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260912-1833c1f";
-import { mathsFor } from "./equations.js?v=20260912-1833c1f";
+import { runConnector } from "./research/connectors.js?v=20260912-5a97ca4";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260912-5a97ca4";
+import { mathsFor } from "./equations.js?v=20260912-5a97ca4";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260912-1833c1f";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260912-1833c1f";
-import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260912-1833c1f";
+} from "./cyclone-risk.js?v=20260912-5a97ca4";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260912-5a97ca4";
+import { isMemberModel, may, refusal } from "./membership.js?v=20260912-5a97ca4";
+import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260912-5a97ca4";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260912-1833c1f";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260912-5a97ca4";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -981,6 +982,14 @@ export async function addDataset(id, onStatus = () => {},
   { bbox: bboxArg = null, launch = false, ...connectorOptions } = {}) {
   const entry = datasetById(id);
   if (!entry) return { ok: false, message: `No dataset called "${id}".` };
+  // A map this app MODELS is membership's, and this is the one door every
+  // catalogue tick comes through. The bucket refuses the file as well; this is
+  // so the refusal arrives as a sentence rather than as a failed fetch.
+  if (isMemberModel(id) && !may("models")) {
+    const message = refusal("models");
+    onStatus(message);
+    return { ok: false, member: true, message };
+  }
   const manager = window.GeoIDImportManager;
   if (!manager?.importFileList) {
     return { ok: false, message: "The GIS layer is still starting — try again in a moment." };

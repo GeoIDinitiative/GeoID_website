@@ -18,11 +18,27 @@
  * in extraction and in export without this file knowing anything about them.
  */
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260912-1833c1f";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260912-5a97ca4";
+import { isMemberModel, may, refusal, signInUrl } from "./membership.js?v=20260912-5a97ca4";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
 .gis-catalogue { display: flex; flex-direction: column; gap: 0.12rem; }
+.gis-catalogue-members {
+  font: 600 0.62rem/1 "Exo 2", system-ui, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.16rem 0.36rem;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--nav-accent-rgb, 255, 43, 214), 0.55);
+  color: var(--nav-accent, #ff2bd6);
+  text-decoration: none;
+  white-space: nowrap;
+  align-self: center;
+}
+.gis-catalogue-members:hover { background: rgba(var(--nav-accent-rgb, 255, 43, 214), 0.16); }
+.gis-catalogue-row.is-members .gis-catalogue-name { opacity: 0.72; }
+
 .gis-catalogue-group {
   font-size: 0.6rem;
   font: 500 0.56rem/1.4 'Exo 2', sans-serif;
@@ -295,6 +311,21 @@ export function refreshCatalogues() {
     else drawn.delete(host);
   });
 }
+
+/**
+ * Signing in or out changes which rows are gated, so every list is redrawn.
+ *
+ * On the DOCUMENT, because membership.js announces there and a listener on
+ * `window` would hear nothing -- the same trap `geoid-study-area-edited` cost.
+ * Guarded on the listener rather than on `document`: a suite stubs a bare
+ * document, and a module that throws at import takes every suite importing its
+ * importer down with it.
+ */
+try {
+  if (typeof document?.addEventListener === "function") {
+    document.addEventListener("geoid:membership", refreshCatalogues);
+  }
+} catch (error) { /* no document: a test, or node */ }
 
 /**
  * Draw a catalogue into `host`.
@@ -600,16 +631,40 @@ export function renderCatalogue(host, entries, hooks) {
       window.GeoIDGlobalData?.noteDatasetChoice?.(entry.id, tick.checked);
     });
 
+    /**
+     * A row a reader cannot use says so BEFORE they press it.
+     *
+     * A tick that silently reverts reads as a broken control, which is the
+     * worse of the two failures — so a modelled map that membership has not
+     * unlocked wears a chip, and the row's own title carries the sentence. The
+     * tick is left live rather than disabled: pressing it is how somebody
+     * finds out what membership is for, and the refusal arrives on the panel's
+     * status line where every other answer arrives.
+     */
+    const gated = isMemberModel(entry.id) && !may("models");
+    if (gated) row.classList.add("is-members");
+
     const name = document.createElement("label");
     name.className = "gis-catalogue-name";
     name.htmlFor = tick.id;
     name.textContent = entry.label;
     if (entry.title) name.title = entry.title;
+    if (gated) name.title = refusal("models");
     const info = entry.info ? infoButton(entry) : null;
 
     // Name first, tick LAST: the ticks line up down the row's right edge,
     // the same side every section header keeps its master toggle.
     row.append(name);
+
+    if (gated) {
+      const chip = document.createElement("a");
+      chip.className = "gis-catalogue-members";
+      chip.textContent = "Members";
+      chip.href = signInUrl();
+      chip.target = "_top";   // or a viewer loads inside this viewer
+      chip.title = refusal("models");
+      row.append(chip);
+    }
 
     // There is no Names button any more: a layer whose data ranks its points
     // gets names automatically the moment it is on the globe (point-labels.js

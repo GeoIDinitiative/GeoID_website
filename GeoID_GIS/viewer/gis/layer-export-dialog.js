@@ -12,8 +12,9 @@
  */
 
 import { formatsFor, suggestedFormat, baseName, exportLayer, layerKind, collectionOf }
-  from "./layer-export.js?v=20260912-1833c1f";
-import { pointColumnsOf } from "./vector-formats.js?v=20260912-1833c1f";
+  from "./layer-export.js?v=20260912-5a97ca4";
+import { pointColumnsOf } from "./vector-formats.js?v=20260912-5a97ca4";
+import { may, refusal } from "./membership.js?v=20260912-5a97ca4";
 
 const DIALOG_ID = "geoid-export-dialog";
 
@@ -142,6 +143,9 @@ function describe(layer) {
 }
 
 export function openExportDialog(layer) {
+  // Refused at the door rather than at the save: a window that opens, takes a
+  // format and a filename and then says no has wasted the reader's decision.
+  if (!may("save")) { window.alert?.(refusal("save")); return null; }
   injectStyle();
   close();
 

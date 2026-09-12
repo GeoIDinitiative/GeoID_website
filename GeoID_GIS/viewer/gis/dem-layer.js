@@ -18,21 +18,22 @@
  * the displaced surface, and the raster every terrain tool wants as an input.
  */
 
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260912-1833c1f";
-import { mathsFor } from "./equations.js?v=20260912-1833c1f";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260912-1833c1f";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260912-5a97ca4";
+import { mathsFor } from "./equations.js?v=20260912-5a97ca4";
+import { isMemberModel, may, refusal } from "./membership.js?v=20260912-5a97ca4";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260912-5a97ca4";
 import { makeRaster, slope as slopeOf, hillshade as hillshadeOf }
-  from "./raster-analysis.js?v=20260912-1833c1f";
-import * as dem from "./dem-tiles.js?v=20260912-1833c1f";
-import { rampColour } from "./symbology.js?v=20260912-1833c1f";
-import * as climate from "./climate-normals.js?v=20260912-1833c1f";
+  from "./raster-analysis.js?v=20260912-5a97ca4";
+import * as dem from "./dem-tiles.js?v=20260912-5a97ca4";
+import { rampColour } from "./symbology.js?v=20260912-5a97ca4";
+import * as climate from "./climate-normals.js?v=20260912-5a97ca4";
 import { waterMasks, waterFeatures, floodFromSea, classAreas, edgeSeeds, contextBox, WORLD_BOX,
-  FLOODED, EXPOSED, CUT_OFF, LAKE } from "./water-mask.js?v=20260912-1833c1f";
+  FLOODED, EXPOSED, CUT_OFF, LAKE } from "./water-mask.js?v=20260912-5a97ca4";
 import { burnRivers, riverZones, zoneAreas, mergeOuterZones, ZONES }
-  from "./river-zones.js?v=20260912-1833c1f";
+  from "./river-zones.js?v=20260912-5a97ca4";
 import { DEFAULTS as FLOOD_DEFAULTS, sourceFields, inundate, mergeOuterDepth, depthColour,
   floodAreas, DEPTH_CLASSES, selectRiver, riverField, meanFlowFromWidth, flowRatio,
-  stageRise } from "./inundation.js?v=20260912-1833c1f";
+  stageRise } from "./inundation.js?v=20260912-5a97ca4";
 
 /**
  * Which corridor zones are drawn. State, like the sea level, so the drawer's
@@ -1170,6 +1171,14 @@ function watch() {
 export async function addSheet(kind, onStatus = () => {}) {
   const spec = SHEETS[kind];
   if (!spec) return { ok: false, message: "No such elevation sheet." };
+  // The sheets are a mixture: the terrain readings are exploring and stay open,
+  // the modelled ones (sea level, the floods, the corridor zones) are
+  // membership's. `spec.id` is the same id `equations.js` and the gate use.
+  if (isMemberModel(spec.id) && !may("models")) {
+    const message = refusal("models");
+    onStatus(message);
+    return { ok: false, member: true, message };
+  }
   if (sheetLayer(kind)) return { ok: true, message: `${spec.label} is already on the globe.` };
   if (!three) three = await import("../vendor/three.module.js");
   const out = await build(kind, { onStatus });

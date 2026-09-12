@@ -1,6 +1,7 @@
-import { directoryAdapter, memoryAdapter, indexedDbAdapter } from "./fs-adapter.js?v=20260912-1833c1f";
-import { currentBodyId, getBody } from "../bodies.js?v=20260912-1833c1f";
-import { saveRootHandle, loadRootHandle, clearRootHandle } from "./handles.js?v=20260912-1833c1f";
+import { directoryAdapter, memoryAdapter, indexedDbAdapter } from "./fs-adapter.js?v=20260912-5a97ca4";
+import { currentBodyId, getBody } from "../bodies.js?v=20260912-5a97ca4";
+import { saveRootHandle, loadRootHandle, clearRootHandle } from "./handles.js?v=20260912-5a97ca4";
+import { may, refusal } from "../membership.js?v=20260912-5a97ca4";
 
 /**
  * Projects, on disk, in the layout the Qt Research app uses.
@@ -218,6 +219,7 @@ export function useMemoryAdapter(name) {
  * look like the folder.
  */
 export async function useBrowserStorage() {
+  if (!may("save")) throw new Error(refusal("save"));
   const adapter = await indexedDbAdapter();
   rootAdapter = adapter;
   active = null;
@@ -242,6 +244,10 @@ export function usingBrowserStorage() {
  * pointing the Qt app at its own GUI directory.
  */
 export async function chooseRoot() {
+  // Keeping work is membership's. Only the CHOOSING is asked: a session that
+  // is already open stays open, because taking somebody's own folder away
+  // from them would be punishing and we could not delete it anyway.
+  if (!may("save")) throw new Error(refusal("save"));
   const support = folderSupport();
   if (!support.ok) {
     throw new Error(support.reason === "insecure-origin"
@@ -358,6 +364,7 @@ export async function listProjects(body = currentBodyId()) {
 
 /** Creates the full tree and writes metadata. Returns the active project. */
 export async function createProject(name, overrides = {}) {
+  if (!may("save")) throw new Error(refusal("save"));
   if (!rootAdapter) throw new Error("No projects folder chosen yet.");
   const body = overrides.body || currentBodyId();
   const leaf = safeName(name);
