@@ -72,6 +72,14 @@
     }
     .is-member { color: #58c6b3; }
     .is-explorer { color: #c3a0ff; }
+    .plan-line { display: flex; align-items: baseline; gap: 0.5rem; margin: 0.2rem 0 1rem; }
+    .plan-amount { font-size: 2.1rem; font-weight: 700; letter-spacing: -0.01em; }
+    .plan-period { opacity: 0.72; }
+    .plan-buy {
+      border-color: rgba(88, 198, 179, 0.5);
+      background: rgba(88, 198, 179, 0.14);
+    }
+    .plan-buy:hover { background: rgba(88, 198, 179, 0.24); }
     [hidden] { display: none !important; }
   </style>
   <link rel="stylesheet" href="/styles/v2-site.css">
@@ -102,6 +110,7 @@
       <li><a href="/contact/">Contact</a></li>
     </ul>
     <div class="nav-right-logo">
+      <a class="nav-act nav-act-signin" id="nav-membership" href="/sign-in/">Sign in</a>
       <a class="nav-act nav-act-donate" href="https://buy.stripe.com/dRm3cv1Op4903zb858bV600" target="_blank" rel="noopener noreferrer">Donate</a>
     </div>
     <button class="nav-toggle" type="button" aria-expanded="false" aria-label="Open navigation menu">☰</button>
@@ -182,14 +191,51 @@
         </p>
       </div>
 
-      <div class="account-card">
-        <h2>Getting one</h2>
+      <!-- The plan, and the ONE place the payment link lives. It is Stripe's
+           own hosted checkout: the card is entered on Stripe's page, never on
+           ours, and nothing here ever sees it. -->
+      <div class="account-card" id="plan-card">
+        <h2>GeoID Explorer Annual</h2>
+        <div class="plan-line">
+          <span class="plan-amount">&pound;29.99</span>
+          <span class="plan-period">per year</span>
+        </div>
         <p>
-          Membership is not open for sign-up yet. If you would like one — or think
-          you should already have one — <a href="/contact/">say so</a> and we will
-          sort it out.
+          One membership, everything above, for a year. Cancel whenever you like
+          and it runs to the end of the year you have paid for.
         </p>
-        <p><a class="signin-button" href="/sign-in/">Sign in</a></p>
+        <p id="plan-actions">
+          <a class="signin-button plan-buy" id="plan-buy"
+             href="https://buy.stripe.com/4gM28rboZ9tk8TvetwbV602"
+             target="_blank" rel="noopener noreferrer">Become a member</a>
+        </p>
+        <p class="account-note" id="plan-note">
+          Payment is handled by Stripe. We never see your card — what reaches us
+          is the email address you paid with, which is what the membership is
+          attached to. <strong>Use the same address you sign in with</strong>, or
+          tell us which one to attach it to.
+        </p>
+      </div>
+
+      <!-- Shown instead to somebody who already holds one. -->
+      <div class="account-card" id="manage-card" hidden>
+        <h2>Managing your membership</h2>
+        <p id="manage-state"></p>
+        <p>
+          Your receipt from Stripe carries a link to their billing portal, where
+          you can change your card, download invoices, or cancel. Cancelling
+          stops the renewal and leaves the year you have paid for running to its
+          end.
+        </p>
+        <p>
+          <a class="signin-button" href="/account/">Your account</a>
+          <a class="signin-button" href="/contact/">Ask us about it</a>
+        </p>
+        <p class="account-note">
+          Lost the receipt, or would rather we cancelled it for you? Write to us
+          and we will. See the <a href="/refund/">refunds and cancellation</a>
+          terms.
+        </p>
       </div>
 
     </div>
@@ -248,7 +294,8 @@
       </footer>
   </div>
 
-  <script type="module" src="/scripts/account.js"></script>
+  <script type="module" src="/scripts/membership-page.js"></script>
+  <script type="module" src="/scripts/nav-membership.js"></script>
   <script src="/scripts/site.js"></script>
 </body>
 </html>

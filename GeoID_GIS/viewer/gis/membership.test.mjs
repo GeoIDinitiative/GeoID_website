@@ -34,7 +34,13 @@ const check = (name, ok, detail) => {
 const eq = (name, got, want) =>
   check(name, JSON.stringify(got) === JSON.stringify(want), `got ${JSON.stringify(got)}`);
 
-/** A token in the shape the Worker issues. Unsigned: the browser never checks. */
+/**
+ * A token in the shape the Worker issues. Unsigned: the browser never checks.
+ *
+ * `Buffer.from(string)` is UTF-8, which is what the service's own TextEncoder
+ * produces — so a name outside ASCII is encoded here exactly as it is there,
+ * and the decode is tested rather than sidestepped.
+ */
 const b64 = (obj) => Buffer.from(JSON.stringify(obj)).toString("base64url");
 const tokenFor = (payload) => `${b64({ alg: "HS256" })}.${b64(payload)}.signature`;
 const inHours = (h) => Math.floor(Date.now() / 1000) + h * 3600;
@@ -164,6 +170,20 @@ check("the sign-in url carries where to come back to",
 // which is which rather than letting a caller assume.
 eq("the models gate is enforced at the bucket", m.FEATURES.models.enforced, true);
 eq("the save gate is a courtesy and says so", m.FEATURES.save.enforced, false);
+
+// ── 7. A name outside ASCII survives the decode ────────────────────────────
+
+// The service signs with TextEncoder, so a payload is UTF-8 bytes base64'd.
+// The deprecated `decodeURIComponent(escape(...))` pair this used to use throws
+// on some of them, and a thrown decode reads as "not signed in" — a member
+// whose name has an accent in it silently could not sign in.
+reset();
+m.configure("https://auth.geoidinitiative.com");
+m.accept(tokenFor({ email: "rae@example.org", name: "Rae Ó Súilleabháin", member: true, exp: inHours(24) }));
+eq("a name outside ASCII signs in", m.state().member, true);
+eq("...with its name intact", m.state().name, "Rae Ó Súilleabháin");
+m.accept(tokenFor({ email: "李@example.org", name: "李雷", member: true, exp: inHours(24) }));
+eq("a name outside Latin-1 signs in too", m.state().name, "李雷");
 
 console.log(`\n${failures ? `${failures} failed` : "all passed"}`);
 process.on("exit", () => { process.exitCode = failures ? 1 : 0; });

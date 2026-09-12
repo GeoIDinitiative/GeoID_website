@@ -7151,10 +7151,41 @@ defaults.
 `services/gee-tiles/stac.test.mjs` had been sitting there passing and unrun. It
 sweeps `services/` too now.
 
-**Sixteen pages linked to a redirect stub.** Every page's header carried a
-Dashboard item pointing at `/dashboard/`, which bounced the reader back to the
-home page — a dead link on every page of the site, and the natural home for the
-account surface. When a nav item is added, follow it.
+**A STUB IS NOT A DECISION THAT THE PAGE WAS UNWANTED.** Every page's header
+linked to `/dashboard/`, which was a redirect stub — so I took it for the
+account page, on the reasoning that a dead nav link wanted a destination. It is
+exactly backwards: `/dashboard/` is the site's own welcome deck (the planet
+carousel, the Etna and myGeoID slides, the mission deck, the news strip) and the
+stub is what `726814fa80` left when it removed the ACCOUNT SYSTEM and took the
+dashboard with it. The nav has gone on linking to it ever since because the nav
+was right and the page was missing. Restored from `4ed02cbea5`; the account page
+is `/account/`, which is where it always was.
+
+**Before repurposing a path, read the commit that stubbed it.** The message says
+what went and why — here, that `/account/`, `/sign-in/`, `/membership/` and
+`/membership/welcome/` became stubs so Stripe receipts and bookmarks would not
+404, which is a statement about links to keep rather than pages nobody wanted.
+Two of those are a payment flow, and the classes the sign-in button needs
+(`.nav-act-signin`, `.nav-act-member`) are still in `shared.css` waiting for it.
+
+**A gate's own doorway must not be gated.** The membership button in the nav is
+how somebody FINDS OUT membership exists, so with no sign-in service configured
+it still reads "Membership" and goes to the page describing it, rather than
+vanishing until the thing it advertises is running. Signed in it reads a first
+name and never an email: a nav button is read over somebody's shoulder.
+
+**`decodeURIComponent(escape(...))` THROWS, and a thrown decode reads as "not
+signed in".** `membership.js` decoded a token payload that way; the service signs
+with `TextEncoder`, so the pair is both deprecated and the wrong tool, and a
+member whose name has an accent in it silently could not sign in. `TextDecoder`
+over the bytes, which is what the Worker already used at the other end. Pinned in
+Latin-1 and beyond it.
+
+**And a backtick in a `git commit -m` is command substitution.** Two CSS class
+names in a commit message were executed by the shell and replaced with nothing.
+The same trap this file records six times for CSS-in-JS literals, met in the one
+place nothing checks: write a message with backticks in it to a file and use
+`-F`.
 
 ## Running and testing
 

@@ -29,7 +29,9 @@ function nextUrl() {
     // is a single point of failure.
     if (url.origin === location.origin) return url.toString();
   } catch (error) { /* not a url */ }
-  return "/dashboard/";
+  // The account page, NOT the dashboard: the dashboard is the site's own
+  // welcome deck and is open to everybody, signed in or not.
+  return "/account/";
 }
 
 /** Take a token out of the fragment, if the service just sent one back. */

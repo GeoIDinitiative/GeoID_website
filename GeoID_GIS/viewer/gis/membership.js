@@ -173,8 +173,19 @@ export function readClaims(raw) {
   const parts = String(raw || "").split(".");
   if (parts.length !== 3) return null;
   try {
-    const json = atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"));
-    const payload = JSON.parse(decodeURIComponent(escape(json)));
+    const binary = atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"));
+    /**
+     * TextDecoder, not `decodeURIComponent(escape(...))`.
+     *
+     * The service signs its payload with TextEncoder, so what arrives is UTF-8
+     * bytes base64'd — and `atob` gives those bytes back one per code unit.
+     * `escape` is deprecated and is the wrong tool besides: it throws on a name
+     * that is Latin-1 rather than UTF-8, which is exactly what a hand-made test
+     * token is, and a thrown decode reads as "not signed in" rather than as a
+     * decode fault. This is the same pair the Worker uses at the other end.
+     */
+    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+    const payload = JSON.parse(new TextDecoder().decode(bytes));
     return payload && typeof payload === "object" ? payload : null;
   } catch (error) {
     return null;
