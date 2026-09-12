@@ -36,6 +36,11 @@ const src = readFileSync(new URL("./explorer-models.js", import.meta.url), "utf8
  */
 const code = (text) => text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
+const jumpBody = (() => {
+  const seam = viewer.slice(viewer.indexOf("tourToFeature: (name"));
+  return seam.slice(0, seam.indexOf("},"));
+})();
+
 /* ── the stops ───────────────────────────────────────────────────────────── */
 
 const block = viewer.slice(viewer.indexOf("const EXPLORER_SITES = ["));
@@ -71,9 +76,28 @@ check("and it leaves the whole page, not this viewer's iframe",
 
 check("the seam hands the module the viewer's own tour stop",
   /tourToFeature: \(name, \{ statusPrefix/.test(viewer)
-  && /presentTourFeature\(feature, camera, controls, statusPrefix\)/.test(viewer));
-check("and presentTourFeature still opens the card BEFORE it flies",
-  /openFeature\(feature, false\);[\s\S]{0,260}moveCameraToFeature\(feature, camera, controls/.test(viewer));
+  && /scheduleFeatureFlight\(feature, camera, controls, statusPrefix\)/.test(viewer));
+/**
+ * AND ARMS NOTHING. Borrowing `presentTourFeature` whole armed Tour Mode's own
+ * panel as well: two sections reading Exit at once, with Tour Mode's picker
+ * claiming the stop. The mechanism is shared; the arming belongs to the mode
+ * that was entered.
+ */
+check("the jump does not arm Tour Mode's panel",
+  !/syncTourModeControls|activeTourModeFeature =/.test(jumpBody));
+check("and this mode stands Tour Mode down when it is entered",
+  /getElementById\("tour-mode-toggle"\)/.test(src) && /tour\.checked = false/.test(src));
+/**
+ * THE CARD OPENS BEFORE THE FLIGHT, in both modes, because that ordering is
+ * the whole reason the link is on screen while the camera is still moving.
+ * The delay is what carries it: reverse them and the card arrives after the
+ * jump has finished, which is a different thing to look at.
+ */
+check("the card opens BEFORE the flight is scheduled, in both modes",
+  /openFeature\(feature, false\);\s*syncTourModeControls\(feature\);\s*scheduleFeatureFlight\(/.test(viewer)
+  && /openFeature\(feature, false\);\s*scheduleFeatureFlight\(/.test(jumpBody));
+check("and the flight is the one that waits",
+  /function scheduleFeatureFlight[\s\S]{0,420}moveCameraToFeature\(feature, camera, controls, \{ animate: true, tourHop: true \}\);\s*\}, 700\);/.test(viewer));
 check("the module asks for the jump rather than moving a camera itself",
   /tourToFeature\?\.\(stop\.name/.test(src) && !/camera|controls\./.test(code(src)));
 
@@ -112,9 +136,18 @@ check("and the module drives nothing but the hidden checkbox's change",
     };
     return n;
   };
-  const doc = { createElement: (t) => { const n = node(t); n.ownerDocument = doc; return n; } };
+  // Tour Mode's own checkbox, so the one-mode-at-a-time rule can be measured
+  // rather than read.
+  const tourToggle = { id: "tour-mode-toggle", checked: true, dispatched: 0,
+    dispatchEvent() { this.dispatched += 1; return true; } };
+  const doc = {
+    createElement: (t) => { const n = node(t); n.ownerDocument = doc; return n; },
+    getElementById: (id) => (id === "tour-mode-toggle" ? tourToggle : null),
+  };
+  globalThis.Event = class { constructor(type) { this.type = type; } };
   const host = doc.createElement("div");
   const toggle = doc.createElement("input"); toggle.id = "explorer-models-toggle";
+  toggle.ownerDocument = doc;
   const jumps = [];
   globalThis.window = {
     GeoIDViewer: {
@@ -130,6 +163,8 @@ check("and the module drives nothing but the hidden checkbox's change",
   listeners.get("explorer-models-toggle:change")();
   check("entering jumps to the first stop", jumps.length === 1 && jumps[0][0] === sites[0].name,
     JSON.stringify(jumps));
+  check("and stands Tour Mode down, so only one picker claims the stop",
+    tourToggle.checked === false && tourToggle.dispatched === 1);
   check("and says which mode is doing the jumping", jumps[0][1] === "Explorer model");
   check("the controls appear with it", host.children[0].style.display === "");
 

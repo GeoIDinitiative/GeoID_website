@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260912-e3a8639";
+  from "./gis/geo-utils.js?v=20260912-472df3d";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260912-e3a8639";
+  from "./gis/vector-render.js?v=20260912-472df3d";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260912-e3a8639";
+  from "./gis/rock-class.js?v=20260912-472df3d";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260912-e3a8639";
+  from "./gis/lithology-label.js?v=20260912-472df3d";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -5603,9 +5603,23 @@ function fmtProp(value) {
       clearPendingTourFlight();
       openFeature(feature, false);
       syncTourModeControls(feature);
+      scheduleFeatureFlight(feature, camera, controls, statusPrefix);
+    }
+
+    /**
+     * THE CARD FIRST, THE FLIGHT 700 ms LATER — which is the whole of what
+     * makes a stop a stop, and is deliberately separate from ARMING Tour Mode.
+     *
+     * `Explorer Models` is a second mode over a different stop list, and when
+     * it borrowed `presentTourFeature` whole it armed Tour Mode's panel too:
+     * two sections reading Exit at once, with Tour Mode's own picker claiming
+     * the stop. Seen in one screenshot. The mechanism is here; the arming
+     * stays with the mode that was entered.
+     */
+    function scheduleFeatureFlight(feature, camera, controls, statusPrefix) {
       activeTourFlightTimeout = window.setTimeout(() => {
         activeTourFlightTimeout = null;
-        moveCameraToFeature(feature, camera, controls, { animate: true });
+        moveCameraToFeature(feature, camera, controls, { animate: true, tourHop: true });
       }, 700);
       setStatus(`${statusPrefix} ${feature.name}.`);
     }
@@ -5921,7 +5935,10 @@ function fmtProp(value) {
       // Orbit around the planet centre so minDistance from origin enforces the
       // planet-body boundary cleanly in all directions (no arc-through-planet).
       if (animate) {
-        const isTourHop = Boolean(activeTourModeFeature) && !Array.isArray(feature.ring_anchor);
+        // The tour's own slower arc, for a jump that any mode asked for --
+        // `options.tourHop` is how a mode that is not Tour Mode says so.
+        const isTourHop = (options.tourHop || Boolean(activeTourModeFeature))
+          && !Array.isArray(feature.ring_anchor);
         if (isTourHop) {
           animateTourFlight(camera, controls, cameraPosition, new THREE.Vector3(0, 0, 0), 2800, onComplete);
         } else {
@@ -21948,7 +21965,9 @@ uniform float uViewportWidth;`,
         tourToFeature: (name, { statusPrefix = "Touring" } = {}) => {
           const feature = labelData.find((item) => item.name === name);
           if (!feature) return false;
-          presentTourFeature(feature, camera, controls, statusPrefix);
+          clearPendingTourFlight();
+          openFeature(feature, false);
+          scheduleFeatureFlight(feature, camera, controls, statusPrefix);
           return true;
         },
         elevationSampler,

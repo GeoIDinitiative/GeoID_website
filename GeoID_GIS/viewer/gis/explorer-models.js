@@ -109,6 +109,17 @@ export function mountExplorerModels(host, toggle) {
     const on = toggle.checked;
     parts.wrap.style.display = on ? "" : "none";
     if (!on) { at = -1; return; }
+    /**
+     * ONE MODE AT A TIME. Tour Mode and this one both fly the camera and both
+     * claim the card, so two armed at once is two pickers disagreeing about
+     * where you are. Stood down through its own checkbox, which is the seam
+     * everything else uses to arm and disarm it.
+     */
+    const tour = (toggle.ownerDocument || document).getElementById("tour-mode-toggle");
+    if (tour && tour.checked) {
+      tour.checked = false;
+      tour.dispatchEvent(new Event("change", { bubbles: true }));
+    }
     if (!refresh(parts)) {
       // Said rather than left blank: an armed mode with no stops reads as a
       // mode that failed, and the reason is the viewer not being up yet.
