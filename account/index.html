@@ -23,56 +23,184 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="/styles/shared.css">
   <style>
+    /* ── The membership pages ──────────────────────────────────────────────
+       Built on the site's own tokens and components: .glass-panel for a card,
+       .section-label and .section-title for a heading, .btn-primary/.btn-ghost
+       for an action, .badge for a status. What is here is only what those do
+       not cover — the price, the unlock grid, and the plan panel.
+
+       Every colour is a token. The first version of these pages used literals
+       (rgba(255,255,255,0.04), #58c6b3) and a 0.9rem radius, which is the old
+       palette and the old shape: v2 sets --radius to 2px and folds gold, cyan
+       and green into one --accent, so a literal here is a page that stops
+       following the site the next time the theme moves. */
     .page-wrap { padding-top: var(--nav-h); }
-    .account-wrap {
-      max-width: 46rem; margin: 0 auto; padding: 3rem 1.5rem 4rem;
+    .member-page { max-width: 58rem; margin: 0 auto; padding: 3rem 1.5rem 4.5rem; }
+
+    .member-hero { margin-bottom: 2.5rem; }
+    .member-hero .section-title { margin-bottom: 0.75rem; }
+    .member-lead {
+      color: var(--muted); line-height: 1.7; font-size: 1.02rem;
+      max-width: 42rem; margin: 0;
     }
-    .account-card {
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 0.9rem;
-      padding: 1.6rem 1.5rem;
-      margin-bottom: 1.25rem;
+
+    .member-panel { padding: 1.75rem 1.85rem; margin-bottom: 1.25rem; }
+    /* NAME THE FAMILY, NEVER THE WEIGHT.
+       "Public Sans" is how this site asks for its heading face: the skin
+       re-points that family through its own @font-face, so the name is the
+       request and the glyphs are the theme's answer. .section-title does the
+       same. The WEIGHT is the theme's alone — synthwave.css sets
+       `h1, h2, h3 { font-weight: 400 !important }` for every heading on the
+       site — so setting 700 here only lost to it, which is the cascade doing
+       exactly what it should. */
+    .member-panel h2 {
+      font-family: "Public Sans", sans-serif;
+      font-size: 1.15rem; color: var(--text);
+      margin: 0 0 0.75rem; line-height: 1.3;
     }
-    .account-card h2 {
-      margin: 0 0 0.6rem; font-size: 1.05rem; letter-spacing: 0.02em;
+    .member-panel p { color: var(--muted); line-height: 1.7; margin: 0 0 0.85rem; }
+    .member-panel p:last-child { margin-bottom: 0; }
+    .member-panel strong { color: var(--text); font-weight: 600; }
+    .member-panel a { color: var(--accent); text-decoration: none; }
+    .member-panel a:hover { text-decoration: underline; }
+    .member-fine { font-size: 0.85rem; color: var(--muted); opacity: 0.78; line-height: 1.65; }
+
+    /* What membership adds. A grid rather than a list: these are five separate
+       things somebody is weighing, and a list makes them one paragraph. */
+    /* EACH CARD CARRIES ITS OWN RULE.
+       The first version drew the rules by giving the grid a --line background
+       and a 1px gap, which is neat until the last row is short: five cards in
+       three columns leaves an empty cell, and an empty cell is not a gap -- it
+       showed as a solid block of the rule colour. A border per card has no
+       such cell to fill. */
+    .unlock-grid {
+      display: grid; gap: 0.75rem; margin: 1.15rem 0 0;
+      padding: 0; list-style: none;
+      grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
     }
-    .account-card p { margin: 0 0 0.8rem; line-height: 1.6; opacity: 0.88; }
-    .account-card p:last-child { margin-bottom: 0; }
-    .signin-row { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 1.2rem 0 0.4rem; }
-    .signin-button {
-      display: inline-flex; align-items: center; gap: 0.55rem;
-      padding: 0.7rem 1.15rem; border-radius: 0.6rem;
-      border: 1px solid rgba(255, 255, 255, 0.22);
-      background: rgba(255, 255, 255, 0.07);
-      color: inherit; text-decoration: none; font-weight: 600;
+    .unlock-grid li {
+      background: var(--bg-1);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.15rem;
     }
-    .signin-button:hover { background: rgba(255, 255, 255, 0.13); }
-    .signin-button svg { width: 18px; height: 18px; flex: 0 0 auto; }
-    .unlocks { list-style: none; margin: 0.6rem 0 0; padding: 0; }
-    .unlocks li {
-      padding: 0.55rem 0; border-top: 1px solid rgba(255, 255, 255, 0.08);
-      line-height: 1.55;
+    /* A card's own label is body type, not display: it sits inside a sentence
+       rather than over one, and the site's own .cap-title does the same. */
+    .unlock-title {
+      display: block;
+      font-size: 0.9rem; font-weight: 700; color: var(--text);
+      margin-bottom: 0.4rem;
     }
-    .unlocks li:first-child { border-top: none; }
-    .unlocks strong { display: block; }
-    .unlocks span { opacity: 0.78; font-size: 0.92rem; }
-    .account-note {
-      font-size: 0.88rem; opacity: 0.7; line-height: 1.6;
+    .unlock-copy { display: block; color: var(--muted); font-size: 0.88rem; line-height: 1.6; }
+    .unlock-copy strong { color: var(--text); font-weight: 600; }
+
+    /* The plan. The one panel on the page that is allowed to be loud, and it
+       carries the accent rather than a colour of its own. */
+    .plan-panel {
+      border-color: rgba(var(--accent-rgb), 0.42);
+      background:
+        linear-gradient(180deg, rgba(var(--accent-rgb), 0.07), transparent 62%),
+        var(--panel);
     }
-    .account-state {
-      display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap;
-      margin-bottom: 0.8rem;
+    .plan-line { display: flex; align-items: baseline; gap: 0.55rem; margin: 0.35rem 0 1rem; }
+    /* The price is read as a headline rather than as data, so it takes the
+       heading face — and its weight, since it is a span and the theme's
+       heading rule does not reach it. Tabular figures because it sits beside
+       other numbers on the page and a proportional 4 and 9 do not line up. */
+    .plan-amount {
+      font-family: "Public Sans", sans-serif;
+      font-size: clamp(2.2rem, 5vw, 2.9rem); font-weight: 800;
+      color: var(--text); letter-spacing: -0.01em; line-height: 1;
+      font-variant-numeric: tabular-nums;
     }
-    .account-badge {
-      font: 600 0.7rem/1 "Exo 2", system-ui, sans-serif;
-      text-transform: uppercase; letter-spacing: 0.09em;
-      padding: 0.3rem 0.6rem; border-radius: 999px;
-      border: 1px solid currentColor;
+    .plan-period { color: var(--muted); font-size: 0.95rem; }
+    .plan-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 0 0 1rem; }
+
+    /* Sign-in: the providers, in the site's own button shapes. */
+    .provider-row { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 1.25rem 0 0.5rem; }
+    .provider-row .btn-ghost svg { width: 18px; height: 18px; flex: 0 0 auto; }
+
+    /* Who is signed in. */
+    .member-who {
+      display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap;
+      margin-bottom: 0.85rem;
     }
-    .is-member { color: #58c6b3; }
-    .is-explorer { color: #c3a0ff; }
+    .member-who h2 { margin: 0; }
+    .badge-member { border-color: rgba(var(--accent-rgb), 0.55); color: var(--accent); }
+    .badge-explorer { border-color: var(--line-strong); color: var(--muted); }
+
     [hidden] { display: none !important; }
+
+    /* ── The site footer ───────────────────────────────────────────────────
+       Lifted verbatim from the pages that already carry it. These rules are
+       PAGE-LOCAL on every page of this site rather than living in shared.css,
+       so a page that writes its own <style> block and forgets them renders the
+       footer as a bare list of links -- which is exactly what these four pages
+       did until it was spotted in a screenshot. If the footer is ever moved
+       into a stylesheet, this copy goes with it. */
+    /* ── Footer ── */
+    .site-footer {
+      margin-top: 2.5rem;
+      border-top: 1px solid var(--line);
+      background: rgba(5,10,16,0.7);
+      backdrop-filter: blur(12px);
+      padding: 3rem 0 1.5rem;
+    }
+
+    .footer-inner { max-width: 1840px; margin: 0 auto; padding: 0 1rem; }
+
+    .footer-content {
+      display: grid;
+      grid-template-columns: 2fr repeat(3, 1fr);
+      gap: 3rem;
+      padding-bottom: 2.5rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .footer-brand-logo { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
+    .footer-brand-logo img { height: 32px; width: auto; }
+    .footer-brand p { color: var(--muted); font-size: 0.88rem; line-height: 1.68; }
+    .footer-brand p + p { margin-top: 0.75rem; }
+
+    .footer-section h4 {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1.1rem;
+    }
+
+    .footer-section ul { list-style: none; padding: 0; margin: 0; }
+    .footer-section li { margin-bottom: 0.6rem; }
+    .footer-section a { color: var(--muted); text-decoration: none; font-size: 0.88rem; transition: color 0.18s; }
+    .footer-section a:hover { color: var(--text); }
+
+    .footer-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      padding-top: 1.75rem;
+    }
+
+    .footer-bottom p { color: var(--muted); font-size: 0.82rem; }
+
+    .footer-social-links { display: flex; gap: 0.6rem; }
+
+    .footer-social-link {
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.03);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--muted); text-decoration: none;
+      transition: color 0.18s, background 0.18s;
+    }
+
+    .footer-social-link:hover { color: var(--cyan); background: var(--cyan-soft); }
   </style>
   <link rel="stylesheet" href="/styles/v2-site.css">
   <script src="/scripts/v2-site.js" defer></script>
@@ -108,81 +236,59 @@
     <button class="nav-toggle" type="button" aria-expanded="false" aria-label="Open navigation menu">☰</button>
   </nav>
   <div class="page-wrap">
-    <div class="account-wrap">
+    <div class="member-page">
 
-      <h1 style="margin:0 0 0.4rem">Your GeoID</h1>
-      <p style="opacity:0.8;margin:0 0 2rem;line-height:1.6">
-        Your membership, and where your work is.
-      </p>
+      <header class="member-hero">
+        <span class="section-label">Account</span>
+        <h1 class="section-title">Your GeoID</h1>
+      </header>
 
-      <div class="account-card" id="acct-not-ready" hidden>
-        <h2>There is nothing to sign in to yet</h2>
-        <p>
-          Membership is not switched on, so everything in GeoID is open: the
-          globes, the imagery, the surveys, the modelled risk maps, and saving
-          your work to your own disk. Nothing here is waiting on you.
+      <section class="glass-panel member-panel" id="acct-not-ready" hidden>
+        <h2>Memberships are not open yet</h2>
+        <p>Everything that is free stays free in the meantime.</p>
+        <p class="plan-actions" style="margin-top:1.1rem;">
+          <a class="btn-primary" href="/geohub/">Open GeoHUB &rarr;</a>
+          <a class="btn-ghost" href="/membership/">What membership will be</a>
         </p>
-        <p><a class="signin-button" href="/geohub/">Open GeoHUB</a></p>
-      </div>
+      </section>
 
-      <div class="account-card" id="acct-out" hidden>
+      <section class="glass-panel member-panel" id="acct-out" hidden>
         <h2>You are not signed in</h2>
         <p>
-          GeoID Explorer is open to everyone — the globes, the imagery and the
-          surveys need no account at all. Membership adds the modelled risk maps
-          and keeping your work.
+          GeoID is open to everyone without an account. Membership adds the hazard
+          models, the Model Builder, Earth Engine and saving your work.
         </p>
-        <p>
-          <a class="signin-button" href="/sign-in/">Sign in</a>
-          <a class="signin-button" href="/membership/">What membership is</a>
+        <p class="plan-actions" style="margin-top:1.1rem;">
+          <a class="btn-primary" href="/sign-in/">Sign in &rarr;</a>
+          <a class="btn-ghost" href="/membership/">What membership is</a>
         </p>
-      </div>
+      </section>
 
-      <div class="account-card" id="acct-in" hidden>
-        <div class="account-state">
-          <h2 style="margin:0" id="acct-who"></h2>
-          <span class="account-badge" id="acct-badge"></span>
+      <section class="glass-panel member-panel" id="acct-in" hidden>
+        <div class="member-who">
+          <h2 id="acct-who"></h2>
+          <span class="badge" id="acct-badge"></span>
         </div>
         <p id="acct-state"></p>
-        <p id="acct-project" class="account-note"></p>
-        <p style="margin-top:1.1rem">
-          <a class="signin-button" href="/geohub/">Open GeoHUB</a>
-          <a class="signin-button" href="#" id="acct-signout">Sign out</a>
+        <p class="member-fine" id="acct-project"></p>
+        <p class="plan-actions" style="margin-top:1.1rem;">
+          <a class="btn-primary" href="/geohub/">Open GeoHUB &rarr;</a>
+          <a class="btn-ghost" href="/membership/">Membership</a>
+          <a class="btn-ghost" href="#" id="acct-signout">Sign out</a>
         </p>
-      </div>
+      </section>
 
-      <div class="account-card" id="acct-upgrade" hidden>
+      <section class="glass-panel member-panel" id="acct-upgrade" hidden>
         <h2>What membership would add</h2>
-        <ul class="unlocks">
-          <li><strong>The modelled risk maps</strong>
-            <span>The hazard models GeoID computes itself — cyclone, volcanic,
-            seismic, landslide, flood and sea level.</span></li>
-          <li><strong>Saving and exporting</strong>
-            <span>Keep a project folder on your own disk, reopen it, and export
-            what you make from it.</span></li>
-        </ul>
-        <p style="margin-top:1rem"><a class="signin-button" href="/membership/">Read more</a></p>
-      </div>
-
-      <div class="account-card">
-        <h2>Where your work lives</h2>
         <p>
-          <strong>On your machine, and only there.</strong> A GeoID project is a
-          real folder — the twenty directories the desktop Research app uses,
-          field for field — in a place you chose, or in this browser's own
-          storage, or on your own computer through the sidecar.
+          The hazard models &mdash; landslide, flood, cyclone, seismic, volcanic
+          and sea level &mdash; with rock properties, the Model Builder, Earth
+          Engine, and saving your projects to your own disk.
         </p>
-        <p>
-          There is no server of ours holding anybody's study, which is why this
-          page can tell you the name of your last project and cannot open it: it
-          is yours, on your disk, and the app needs you to point at it.
+        <p class="plan-actions" style="margin-top:1.1rem;">
+          <a class="btn-primary" href="/membership/">&pound;49.99 a year &rarr;</a>
         </p>
-        <p class="account-note">
-          Each project is filed under the world it is about —
-          <code>geoid_projects/mars/…</code> beside <code>geoid_projects/earth/…</code>
-          — so a Mars study and an Earth one of the same name are two studies.
-        </p>
-      </div>
+      </section>
 
     </div>
 

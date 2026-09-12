@@ -106,9 +106,19 @@ function accountPage() {
   const state = membership.state();
   const service = membership.authService();
 
-  show("acct-not-ready", !service);
-  show("acct-out", !!service && !state.signedIn);
-  show("acct-in", !!service && state.signedIn);
+  /**
+   * A HELD TOKEN WINS OVER A MISSING SERVICE.
+   *
+   * Gating the signed-in card on the service being configured meant somebody
+   * whose token outlived a configuration change was greeted by name in the nav
+   * and told "there is nothing to sign in to" on this page, in the same view.
+   * Whether they are signed in is a fact about them; whether a service is named
+   * is a fact about the deployment, and it only decides what to offer somebody
+   * who is NOT.
+   */
+  show("acct-in", state.signedIn);
+  show("acct-not-ready", !state.signedIn && !service);
+  show("acct-out", !state.signedIn && !!service);
 
   if (state.signedIn) {
     const who = byId("acct-who");
@@ -116,7 +126,8 @@ function accountPage() {
     const badge = byId("acct-badge");
     if (badge) {
       badge.textContent = state.owner ? "Master" : state.member ? "Member" : "Explorer";
-      badge.className = `account-badge ${state.member ? "is-member" : "is-explorer"}`;
+      // `.badge` is the site's own pill; the modifier only sets its colour.
+      badge.className = `badge ${state.member ? "badge-member" : "badge-explorer"}`;
     }
     const says = byId("acct-state");
     if (says) says.textContent = describe(state);
