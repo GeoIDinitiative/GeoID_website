@@ -18792,13 +18792,31 @@ guarding a decision that had genuinely changed:
   What the page records is the merge of `stationStep` and `stationFlood`, which
   is what `recordStations` does, so that is what the pin now checks.
 
-### The subtab is no longer a landslide product
+### The subtab is no longer a landslide product — and that was the wrong call
 
-Three failure models from one storm, so the flowchart is its own Hazards subtab
-("Storm hazards") rather than nested under Landslides — a flood forecast filed
-under landslides is the "one dataset, one home" fault. **The host id
-`#landslide-pipeline` is unchanged**: an id is a storage key. Landslides keeps
-the NI prototype.
+Three failure models from one storm, so the flowchart was given its own Hazards
+subtab ("Storm hazards") rather than nesting under Landslides, on the argument
+that a flood forecast filed under landslides is the "one dataset, one home"
+fault.
+
+**Reverted, on report: "why isn't the landslide/rockfall risk mapping procedure
+implemented within the landslide tab? should be there in full."** The argument
+is true of the MODEL and wrong about the READER. The soil slide and the rock
+slope are what this pipeline is FOR — it is `landslide-pipeline.js`, its layer
+is "Landslide risk — forecast" — and the channel flood is what the same
+rainfall and the same water balance also yield on the way. Somebody looking for
+the landslide procedure opens Landslides, finds a worked example of it
+(NI prototype) and concludes the procedure is not built.
+
+So it sits in the Landslides subtab, FIRST, with the NI prototype nested under
+it, and Landslides is collapsed so nothing opens eight cards deep uninvited.
+**The host id `#landslide-pipeline` is unchanged** through both moves: an id is
+a storage key. The "storm hazards" glyph went with the subtab.
+
+The general form, since this file keeps arriving at the taxonomy from the other
+side: **"one dataset, one home" decides where a thing may appear TWICE, not
+which home it gets.** Which home is a question about what a reader came looking
+for, and the answer to that is the product's own name.
 
 ### A long-lived `python3 -m http.server` wedges, and every UI check then lies
 
