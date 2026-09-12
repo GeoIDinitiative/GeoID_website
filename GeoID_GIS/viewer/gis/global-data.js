@@ -26,17 +26,17 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260912-8103bed";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260912-8103bed";
-import { mathsFor } from "./equations.js?v=20260912-8103bed";
+import { runConnector } from "./research/connectors.js?v=20260912-f580f1c";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260912-f580f1c";
+import { mathsFor } from "./equations.js?v=20260912-f580f1c";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260912-8103bed";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260912-8103bed";
-import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260912-8103bed";
+} from "./cyclone-risk.js?v=20260912-f580f1c";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260912-f580f1c";
+import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260912-f580f1c";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260912-8103bed";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260912-f580f1c";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",

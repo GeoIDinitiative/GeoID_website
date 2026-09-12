@@ -80,14 +80,36 @@ def bucket_files(prefix: str) -> set[str]:
     return {l for l in out.stdout.split("\n") if l}
 
 
-def drifted(local: pathlib.Path, prefix: str) -> list[str]:
-    """Byte identity, via the S3 API rather than 3,000 HTTP requests."""
+def drifted(local: pathlib.Path, prefix: str, published: set[str] | None = None) -> list[str]:
+    """
+    Byte identity, via the S3 API rather than 3,000 HTTP requests.
+
+    TWO KINDS OF OBJECT IN A PYRAMID ARE EXPECTED TO DIFFER BY SIZE, and
+    reporting them is the instrument measuring its own assumptions:
+
+      * `manifest.json` — `publish-tiles` stamps `tiles_base` into the LOCAL
+        copy AFTER uploading, and the site reads the local one.
+      * anything `sources.json` publishes that happens to live inside the
+        pyramid's folder (`ice/names.json`, `ice/thickness.json`) —
+        `publish-data` stores those GZIPPED AT REST, so the object is a
+        fraction of the file. Measured: thickness.json 5.5 MB on disk,
+        1.34 MB in the bucket, byte-identical once decompressed. Their
+        content is what `publish-data --check` verifies, over HTTP, asking
+        for gzip the way a browser does.
+
+    Everything else must match byte for byte.
+    """
     if not local.is_dir():
         return []
     out = subprocess.run(["rclone", "check", str(local), f"{REMOTE}/{prefix}",
                           "--one-way", "--combined", "-"],
                          capture_output=True, text=True)
-    return [l[2:] for l in out.stdout.split("\n") if l[:1] in ("*", "-")]
+    names = [l[2:] for l in out.stdout.split("\n") if l[:1] in ("*", "-")]
+    skip = {"manifest.json"}
+    for rel in published or ():
+        if rel.startswith(f"{prefix}/"):
+            skip.add(rel[len(prefix) + 1:])
+    return [n for n in names if n not in skip]
 
 
 def tracked() -> set[str]:
@@ -119,8 +141,20 @@ def published_host() -> str:
     return ""
 
 
+def publishedFiles() -> set[str]:
+    """What `sources.json` publishes, by its own relative path."""
+    src = GLOBAL / "sources.json"
+    if not src.is_file():
+        return set()
+    try:
+        return set((json.loads(src.read_text()).get("files") or {}).keys())
+    except (ValueError, OSError):
+        return set()
+
+
 def audit_pyramids(full: bool) -> None:
     section("Baked pyramids")
+    published = publishedFiles()
     for man in sorted(GLOBAL.glob("*/manifest.json")):
         name = man.parent.name
         body = json.loads(man.read_text())
@@ -137,9 +171,7 @@ def audit_pyramids(full: bool) -> None:
         if missing:
             bad(f"{name}: {len(missing)} of {len(tiles)} tiles absent from the bucket "
                 f"(e.g. {missing[0]})")
-        d = drifted(man.parent, name)
-        # manifest.json differs on purpose: tiles_base is stamped locally after upload
-        d = [x for x in d if x != "manifest.json"]
+        d = drifted(man.parent, name, published)
         if d:
             bad(f"{name}: {len(d)} objects differ from the local copy (e.g. {d[0]})")
         sample = sorted(tiles)
