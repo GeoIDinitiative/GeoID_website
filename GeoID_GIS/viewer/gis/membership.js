@@ -31,11 +31,18 @@
  * worked on with every gate ON -- exactly as a visitor sees it -- rather than
  * only with membership switched off.
  *
- * UNCONFIGURED MEANS OPEN. Until an auth service is configured (`configure()`,
- * or a `<meta name="geoid-auth">` on the page) nothing is gated at all: asking
- * somebody to sign in to a service that does not exist yet would lock the app
- * against everybody including the people who built it. Deploying the Worker and
- * naming it is what turns membership on.
+ * LOCKED IS THE DEFAULT. In the absence of a membership a feature is locked --
+ * that is what the gates are for, and a lock nobody can see is not a lock. It
+ * was the other way round at first, so that a gate could not lock the app
+ * before the sign-in existed; that made every gate invisible on the one machine
+ * where they were being built, which is worse.
+ *
+ * So there are two deliberate ways out rather than an accidental one:
+ * `<meta name="geoid-membership" content="off">` turns every gate off for a
+ * deployment, and `localStorage["geoid:unlock"]` unlocks one browser for
+ * working on the site before the Worker is up. Naming an auth service
+ * (`configure()`, or `<meta name="geoid-auth">`) is what makes SIGNING IN
+ * possible; it is not what makes the gates exist.
  */
 
 /** The capabilities membership unlocks. */
@@ -210,14 +217,53 @@ export function authService() {
 }
 
 /**
- * Is membership being enforced at all?
+ * Is membership being enforced?
  *
- * False with no service configured, and every gate stands open. This is what
- * keeps the app usable before the Worker exists and on any deployment that
- * never wants membership.
+ * ON BY DEFAULT. In the absence of a membership a feature is LOCKED — that is
+ * what the gates are for, and a lock nobody can see is not a lock.
+ *
+ * This was the other way round at first, on the reasoning that asking somebody
+ * to sign in to a service that is not deployed yet locks the app against
+ * everybody. True, and it made every gate invisible on the one machine where
+ * they were being built, which is worse: the locks have to be VISIBLE before
+ * the sign-in exists, or nobody can see what they have built or what a visitor
+ * will meet.
+ *
+ * Two ways out, and both are deliberate rather than accidental:
+ *
+ *   <meta name="geoid-membership" content="off">   a deployment with no gates
+ *   localStorage["geoid:unlock"] = "owner"          this browser, for working
+ *
+ * The second is a development key, and it weakens nothing that was not already
+ * weak: every gate in the browser is a courtesy the module's own header calls
+ * one, and the gate that is actually enforced is at the bucket, which does not
+ * read it. It exists so the site can be worked on before the Worker is up.
  */
 export function enforcing() {
-  return !!authBase;
+  return !disabled;
+}
+
+let disabled = false;
+
+/** Turn every gate off for this deployment. A page says so, or a test does. */
+export function disable(off = true) {
+  disabled = !!off;
+  announce();
+  return disabled;
+}
+
+/**
+ * The development unlock: this browser, until it is cleared.
+ *
+ * Read fresh each time rather than cached, so setting it in a console takes
+ * effect on the next thing that asks rather than on the next reload.
+ */
+function localUnlock() {
+  try {
+    return window.localStorage.getItem("geoid:unlock") || "";
+  } catch (error) {
+    return "";
+  }
 }
 
 /**
@@ -327,10 +373,11 @@ export function signOut() {
 export function state() {
   load();
   const live = claims && !expired(claims);
-  const plan = (live && claims.plan) || "";
+  const unlocked = localUnlock();
+  const plan = (live && claims.plan) || (unlocked ? "owner" : "");
   return {
     signedIn: !!live,
-    member: !!(live && claims.member),
+    member: !!(live && claims.member) || !!unlocked,
     /**
      * THE MASTER ACCOUNT. `plan: "owner"` in the KV entry, for the people who
      * build this — so the site can be worked on with every gate on, exactly as
@@ -342,6 +389,8 @@ export function state() {
      * it. An owner is a member too, so nothing has to test for both.
      */
     owner: plan === "owner",
+    /** True when this browser is unlocked locally rather than by a sign-in. */
+    localUnlock: !!unlocked,
     plan: plan || (live && claims.member ? "member" : "explorer"),
     name: (live && (claims.name || claims.email)) || "",
     email: (live && claims.email) || "",
@@ -365,6 +414,7 @@ export function bearer() {
  */
 export function may(feature) {
   if (!enforcing()) return true;
+  if (localUnlock()) return true;
   if (!FEATURES[feature]) return true;
   const live = state();
   // An owner is answered before the feature is even looked at, so a gate added
@@ -382,6 +432,14 @@ export function may(feature) {
 export function refusal(feature) {
   const f = FEATURES[feature];
   if (!f) return "That is part of membership.";
+  // With no sign-in service yet, "sign in" is an instruction nobody can follow.
+  // Saying membership is not open is the honest form of the same refusal.
+  if (!authBase) {
+    // NOT the title templated in: "Modelled risk maps is part of membership" is
+    // what that gives, which is the fault the two sentences below exist to
+    // avoid. The card beside this one already names what is locked.
+    return "This is part of membership, which is not open for sign-in yet.";
+  }
   return state().signedIn ? f.notYours : f.signIn;
 }
 
@@ -495,8 +553,10 @@ try {
   }
 } catch (error) { /* no window: node, or a test */ }
 
-// Read the page's own configuration, if it states one.
+// Read the page's own configuration, if it states any.
 try {
   const meta = document.querySelector('meta[name="geoid-auth"]');
   if (meta?.content) configure(meta.content);
+  const off = document.querySelector('meta[name="geoid-membership"]');
+  if (off && /^off$/i.test(off.content || "")) disable(true);
 } catch (error) { /* no document: a test, or node */ }

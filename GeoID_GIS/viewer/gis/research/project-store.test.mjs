@@ -20,6 +20,19 @@
 // `window.GeoIDViewer` / `document.body.dataset` when it asks which world this
 // is. Neither exists in node, and neither is what is under test.
 const storage = new Map();
+/**
+ * Saving is behind membership, and these checks are about the STORE.
+ *
+ * Gates are locked by default, so `createProject` and `chooseRoot` refuse
+ * without one -- which is right, and is pinned in membership.test.mjs. Unlocked
+ * through STORAGE rather than by calling `disable()`: project-store imports
+ * `membership.js?v=<stamp>` and a test importing it bare gets a SECOND module
+ * instance with its own flags, so the call would turn the gate off in a copy
+ * nothing reads. Storage is the one thing both instances agree about, and it is
+ * the same development key a browser uses.
+ */
+storage.set("geoid:unlock", "test");
+
 globalThis.window = {
   location: { pathname: "/GeoID_GIS/viewer/" },
   localStorage: {

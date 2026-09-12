@@ -7079,11 +7079,45 @@ and stay open on purpose — looking at the shape of the ground is exploring.
 a bug**, so `data-gate/worker.test.mjs` pins the OPEN side as hard as the
 closed one.
 
-**UNCONFIGURED MEANS OPEN.** With no auth service named (`configure()`, or a
-`<meta name="geoid-auth">`), `enforcing()` is false and every gate stands open.
-Asking somebody to sign in to a service that does not exist would lock the app
-against everybody including us, and it is what lets all of this ship before the
-Worker is deployed.
+**LOCKED IS THE DEFAULT, and the opposite rule was measured to be wrong.**
+"No auth service configured means every gate stands open" shipped first, on the
+reasoning that a gate must not lock the app before the sign-in exists. True —
+and it made every lock INVISIBLE on the one machine where they were being
+built, so the report was "there's no change". In the absence of a membership a
+feature is locked; **a lock nobody can see is not a lock.**
+
+Naming an auth service is what makes SIGNING IN possible. It is not what makes
+the gates exist. Two deliberate ways out rather than an accidental one:
+
+    <meta name="geoid-membership" content="off">   a deployment with no gates
+    localStorage["geoid:unlock"] = "owner"          this browser, for working
+
+The second is a development key and weakens nothing that was not already weak:
+every browser-side gate is a courtesy, and the one that is really enforced is at
+the bucket, which does not read it. It reads as the master account, so the app
+can say which it is.
+
+**A LOCKED TAB GOES GREY.** A padlock alone was too quiet to register. What says
+"you cannot use this" before anything is read is the CONTRAST dropping — the tab
+desaturates and dims to half where its neighbours carry the accent — with the
+lock at full strength inside the dimmed row, which makes it the reason rather
+than the signal. Forced with `!important`: a tab's own state rules (the accent
+border, the filled header when open, the `has-active-data` fill) are written at
+a higher specificity, and a locked tab must not light up underneath the lock.
+
+**A GATE WITH NO DOOR NEEDS DIFFERENT WORDS.** With gates on before the Worker
+exists, "sign in as a member" is an instruction nobody can follow: the nav
+button keys on the auth SERVICE rather than on `enforcing()` and reads
+"Membership", and the refusal says membership is not open for sign-in yet —
+written WITHOUT the feature's title in it, because "Modelled risk maps IS part
+of membership" is what templating one gives. That is the same fault twice; the
+source pin on `refusal()` is what caught the second.
+
+**A TEST UNLOCKS THROUGH STORAGE, NEVER BY CALLING `disable()`.**
+`project-store.js` imports `membership.js?v=<stamp>` and a test importing it
+bare gets a SECOND instance with its own flags, so the call turns the gate off
+in a copy nothing reads. Storage is the one thing both instances agree about —
+the module-identity trap, met from a new direction.
 
 ### A locked thing is SHOWN, never hidden
 

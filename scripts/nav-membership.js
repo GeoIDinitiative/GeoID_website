@@ -24,7 +24,16 @@ const FIRST_NAME = /^[^\s@]+/;
 
 function label(state) {
   if (!state.signedIn) {
-    return membership.enforcing()
+    /**
+     * "Sign in" only where there is somewhere to sign in TO.
+     *
+     * Keyed on the auth SERVICE rather than on whether gates are enforced:
+     * gates are on by default now, so enforcing() is true long before the
+     * Worker exists, and the button read "Sign in" over a door that does not
+     * open yet. Without a service it says Membership and goes to the page that
+     * explains it, which is the honest form of the same invitation.
+     */
+    return membership.authService()
       ? { text: "Sign in", href: `/sign-in/?next=${encodeURIComponent(location.pathname)}`, member: false }
       : { text: "Membership", href: "/membership/", member: false };
   }

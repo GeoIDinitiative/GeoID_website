@@ -47,21 +47,53 @@ const b64 = (obj) => Buffer.from(JSON.stringify(obj)).toString("base64url");
 const tokenFor = (payload) => `${b64({ alg: "HS256" })}.${b64(payload)}.signature`;
 const inHours = (h) => Math.floor(Date.now() / 1000) + h * 3600;
 
-const reset = () => { storage.clear(); m.signOut(); m.configure(null); };
+const reset = () => {
+  storage.clear();
+  m.signOut();
+  m.configure(null);
+  m.disable(false);
+  m.refresh();
+};
 
-// ── 1. Unconfigured is OPEN, and that is the whole safety of shipping this ──
+// ── 1. LOCKED is the default, and the two ways out are deliberate ──────────
 
 reset();
-check("nothing is enforced with no service configured", m.enforcing() === false);
-check("models are open when unconfigured", m.may("models") === true);
-check("saving is open when unconfigured", m.may("save") === true);
+// In the absence of a membership a feature is locked. That is what the gates
+// are for, and a lock nobody can see is not a lock — which is exactly what the
+// old "unconfigured means open" default produced on the machine they were
+// being built on.
+check("membership is enforced by default", m.enforcing() === true);
+check("models are locked out of the box", m.may("models") === false);
+check("saving is locked out of the box", m.may("save") === false);
+check("every feature is locked out of the box",
+  Object.keys(m.FEATURES).every((f) => m.may(f) === false));
+
+// With no sign-in service, "sign in" is an instruction nobody can follow.
+check("the refusal says membership is not open rather than telling them to sign in",
+  /not open for sign-in yet/.test(m.refusal("models")), m.refusal("models"));
+
+// Way out 1: a deployment that wants no gates at all.
+m.disable(true);
+check("disable() opens everything", m.may("models") === true);
 eq("...and the state says so", m.state().enforcing, false);
+m.disable(false);
+check("...and it goes back", m.may("models") === false);
+
+// Way out 2: this browser, for working on the site before the Worker is up.
+storage.set("geoid:unlock", "owner");
+m.refresh();
+check("the local unlock opens everything", m.may("models") === true);
+eq("...and reads as the master account, so the app can say which",
+  m.state().owner, true);
+eq("...and says it is local rather than a sign-in", m.state().localUnlock, true);
+storage.delete("geoid:unlock");
+m.refresh();
+check("...and clearing it locks again", m.may("models") === false);
 
 m.configure("https://auth.geoidinitiative.com/");
-check("configuring turns enforcement on", m.enforcing() === true);
 eq("a trailing slash is trimmed", m.authService(), "https://auth.geoidinitiative.com");
-check("models are gated once configured", m.may("models") === false);
-check("saving is gated once configured", m.may("save") === false);
+check("naming a service does not change whether gates exist", m.enforcing() === true);
+check("models are still gated", m.may("models") === false);
 
 // A capability nobody declared is not a gate. Failing closed on a typo would
 // lock a feature for everybody with nothing on screen to say why.
@@ -74,7 +106,7 @@ m.configure("https://auth.geoidinitiative.com");
 
 m.accept(tokenFor({ email: "r@example.org", name: "Rae", member: true, exp: inHours(24) }));
 eq("a member's state", m.state(), {
-  signedIn: true, member: true, owner: false, plan: "member",
+  signedIn: true, member: true, owner: false, localUnlock: false, plan: "member",
   name: "Rae", email: "r@example.org",
   until: m.state().until, enforcing: true,
 });

@@ -20,7 +20,7 @@
  * downstream can tell the difference, which is what makes a sign-in mid-session
  * work without a reload.
  */
-import { may, refusal, FEATURES, signInUrl } from "./membership.js?v=20260912-e241953";
+import { may, refusal, FEATURES, signInUrl } from "./membership.js?v=20260912-af72246";
 
 /**
  * Which tab or section belongs to which feature.
@@ -48,16 +48,49 @@ const LOCKED_MODES = [
 ];
 
 const STYLE = `
+/*
+ * A LOCKED TAB READS AS LOCKED AT A GLANCE.
+ *
+ * A padlock alone was too quiet -- reported as no change at all. What says
+ * "you cannot use this" before anything is read is the CONTRAST dropping: the
+ * tab goes grey where its neighbours carry the accent, and the lock is the
+ * confirmation rather than the signal.
+ *
+ * The colours are forced with !important because a tab's own state rules --
+ * the accent border, the filled header when it is open, the has-active-data
+ * fill -- are written at a higher specificity by the shared panel sheets, and
+ * a locked tab must not be able to light up underneath this.
+ */
+.gis-locked > summary {
+  opacity: 0.5;
+  filter: grayscale(1);
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: rgba(255, 255, 255, 0.72) !important;
+  box-shadow: none !important;
+}
+.gis-locked > summary * { color: inherit !important; }
+.gis-locked > summary:hover { opacity: 0.66; }
+.gis-locked {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: none !important;
+}
+
+/*
+ * The lock rides at FULL strength inside the dimmed row, so it is the one thing
+ * that has not been faded -- which is what makes it read as the reason.
+ */
 .gis-locked > summary .section-title-row::after {
   content: "";
-  width: 12px; height: 12px;
-  margin-left: 0.4rem;
+  width: 13px; height: 13px;
+  margin-left: 0.45rem;
   flex: 0 0 auto;
   background: currentColor;
-  opacity: 0.8;
+  opacity: 1;
   -webkit-mask: var(--geoid-lock) center/contain no-repeat;
   mask: var(--geoid-lock) center/contain no-repeat;
 }
+
 .gis-locked > .section-body > *:not(.gis-lock-card) { display: none !important; }
 .gis-lock-card {
   border: 1px solid rgba(var(--nav-accent-rgb, 255, 43, 214), 0.4);
@@ -67,10 +100,18 @@ const STYLE = `
 }
 .gis-lock-card h4 {
   margin: 0 0 0.35rem;
+  display: flex; align-items: center; gap: 0.4rem;
   font: 600 0.76rem/1.2 "Exo 2", system-ui, sans-serif;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--nav-accent, #ff2bd6);
+}
+.gis-lock-card h4::before {
+  content: "";
+  width: 13px; height: 13px; flex: 0 0 auto;
+  background: currentColor;
+  -webkit-mask: var(--geoid-lock) center/contain no-repeat;
+  mask: var(--geoid-lock) center/contain no-repeat;
 }
 .gis-lock-card p { margin: 0 0 0.6rem; font-size: 0.82rem; line-height: 1.5; opacity: 0.86; }
 .gis-lock-card p:last-child { margin-bottom: 0; }
@@ -84,7 +125,13 @@ const STYLE = `
   font: 600 0.74rem/1 "Exo 2", system-ui, sans-serif;
 }
 .gis-lock-card .gis-lock-go:hover { background: rgba(var(--nav-accent-rgb, 255, 43, 214), 0.14); }
-.view-mode-btn.is-locked { opacity: 0.55; cursor: not-allowed; }
+
+/* A locked mode button, in the same language as a locked tab. */
+.view-mode-btn.is-locked {
+  opacity: 0.5;
+  filter: grayscale(1);
+  cursor: not-allowed;
+}
 `;
 
 /**
