@@ -20,7 +20,7 @@
  * the viewer already shipped and could only ever show alone.
  */
 
-import { drape } from "./gee.js?v=20260912-03f0b7a";
+import { drape } from "./gee.js?v=20260912-d4224ad";
 
 // In the shape the drape and the layer record both read: this app says
 // west/south/east/north in most places and Earth Engine answers
@@ -29,9 +29,10 @@ import { drape } from "./gee.js?v=20260912-03f0b7a";
 const GLOBAL_BOUNDS = { minX: -180, maxX: 180, minY: -90, maxY: 90 };
 
 /**
- * A shell round the whole planet needs a finer grid than a patch over a study
- * area: at 96 segments each one spans nearly four degrees of longitude, and
- * the seam between flat facets shows against a curved horizon.
+ * A FLOOR, not the answer: `drape` sizes its grid from the ground the box
+ * covers, and for a shell round the whole planet that lands near this anyway.
+ * Kept so a global shell can never be coarser than the horizon it is drawn
+ * against, whatever the vertex budget does.
  */
 const GLOBAL_SEGMENTS = 180;
 

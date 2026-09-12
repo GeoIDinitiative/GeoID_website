@@ -10,24 +10,24 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, attachExactReliefAttributes, followRelief } from "./vector-render.js?v=20260912-03f0b7a";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260912-03f0b7a";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260912-03f0b7a";
+import { attachReliefAttributes, attachExactReliefAttributes, followRelief } from "./vector-render.js?v=20260912-d4224ad";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260912-d4224ad";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260912-d4224ad";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260912-03f0b7a";
+  from "./view-extent.js?v=20260912-d4224ad";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260912-03f0b7a";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260912-03f0b7a";
+} from "./extent-picker.js?v=20260912-d4224ad";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260912-d4224ad";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
   freshness, isNewDataset, isExtendedDataset, indexedHrefs, bakedOn,
-} from "./gee-catalogue-index.js?v=20260912-03f0b7a";
-import { checkCatalogue, describeCheck } from "./gee-watch.js?v=20260912-03f0b7a";
+} from "./gee-catalogue-index.js?v=20260912-d4224ad";
+import { checkCatalogue, describeCheck } from "./gee-watch.js?v=20260912-d4224ad";
 
 // The page's own stamp. A dynamic import under any other query is a SECOND
 // module instance with its own state — the trap that made a stopped player
@@ -256,6 +256,57 @@ function resolutionNote(bounds, image, nativeScale) {
 }
 
 /**
+ * HOW FINE A PATCH HAS TO BE, measured from the ground it covers rather than
+ * guessed at by its caller.
+ *
+ * The comment this replaces said tessellating finer "does not help" — 96 to
+ * 384 segments taking a gap from 0.0267 to 0.0234 — and that was measured on
+ * the WORST CASE, a single peak poking through, where it is true and beside
+ * the point: the depth test is off, so a peak cannot punch a hole. What
+ * matters is the MEAN, because a facet that bridges a valley carries the whole
+ * map away from the ground it describes, and at an oblique view that is the
+ * map sliding off its own terrain.
+ *
+ * Measured over an 8° × 4° box across the Alps at the slider's default relief,
+ * facet centre against the ground under it:
+ *
+ *   segments   quad     mean      worst
+ *   72 (the weather card's)  6.1 km   555 m    9,379 m
+ *   96 (this function's old default)  4.6 km   336 m   5,150 m
+ *   192        2.3 km    85 m    2,000 m
+ *   384        1.2 km    20 m      910 m
+ *
+ * — a seventeenfold improvement in the mean from 96 to 384, on a claim that
+ * tessellating buys nothing. So the grid is chosen per AXIS from the ground
+ * the box covers, which is the only thing that knows how big a quad is: a
+ * study-area patch and a shell round the planet ask for very different numbers
+ * and neither caller should have to know which. `segments` survives as a FLOOR
+ * a caller may raise, never as the answer.
+ *
+ * The budget is vertices rather than a per-axis cap, since a wide, shallow box
+ * should spend them where its ground is. 122,000 vertices cost 149 ms to
+ * place — a one-off on a patch whose image took seconds to fetch.
+ */
+const TARGET_QUAD_KM = 1.5;
+const PATCH_VERTEX_BUDGET = 160000;
+
+export function patchSegments(box, floor = 32) {
+  const midLat = (Number(box.minY) + Number(box.maxY)) / 2;
+  const wKm = Math.abs(Number(box.maxX) - Number(box.minX)) * 111.32 * Math.cos(midLat * Math.PI / 180);
+  const hKm = Math.abs(Number(box.maxY) - Number(box.minY)) * 110.574;
+  const low = Math.max(8, Math.round(Number(floor) || 0) || 8);
+  let sx = Math.max(low, Math.ceil((Number.isFinite(wKm) ? wKm : 0) / TARGET_QUAD_KM));
+  let sy = Math.max(low, Math.ceil((Number.isFinite(hKm) ? hKm : 0) / TARGET_QUAD_KM));
+  const verts = (sx + 1) * (sy + 1);
+  if (verts > PATCH_VERTEX_BUDGET) {
+    const k = Math.sqrt(PATCH_VERTEX_BUDGET / verts);
+    sx = Math.max(8, Math.floor(sx * k));
+    sy = Math.max(8, Math.floor(sy * k));
+  }
+  return { sx, sy };
+}
+
+/**
  * Loads a PNG and drapes it across its bounds on the globe.
  *
  * Exported because it is the ONE place the traps of draping an image on a
@@ -265,11 +316,10 @@ function resolutionNote(bounds, image, nativeScale) {
  * rasters through it rather than keeping a second copy that would drift from
  * this one the first time either was fixed.
  *
- * `segments` is the grid the patch is built on: 96 is right for an Earth
- * Engine snapshot over a study area and too coarse for a shell wrapped round
- * the whole planet, where each segment is nearly four degrees.
+ * The grid it is built on is chosen from the ground the box covers
+ * (`patchSegments`); `segments` is only a floor a caller may raise.
  */
-export async function drape(imageUrl, bounds, { segments = 96 } = {}) {
+export async function drape(imageUrl, bounds, { segments = 32 } = {}) {
   // Loaded here rather than assumed: this module fetches three.js lazily when
   // its own flow first runs, and a caller from outside — the map-overlay
   // catalogue — arrives before any of that has happened. Without this the
@@ -285,8 +335,6 @@ export async function drape(imageUrl, bounds, { segments = 96 } = {}) {
   });
   texture.colorSpace = THREE.SRGBColorSpace;
 
-  // Enough segments to follow the curve without being costly; the patch can
-  // span a hemisphere, where a flat quad would cut through the planet.
   /**
    * The bounds, in whichever of the two shapes the caller has.
    *
@@ -307,7 +355,8 @@ export async function drape(imageUrl, bounds, { segments = 96 } = {}) {
     throw new Error("bounds need minX/minY/maxX/maxY (or west/south/east/north)");
   }
 
-  const geometry = new THREE.PlaneGeometry(1, 1, segments, segments);
+  const { sx, sy } = patchSegments(box, segments);
+  const geometry = new THREE.PlaneGeometry(1, 1, sx, sy);
   const position = geometry.attributes.position;
   // On the terrain, not floating over it. Each vertex sits on the globe's own
   // displaced surface plus a hair of clearance, so the imagery hugs the relief
@@ -323,13 +372,13 @@ export async function drape(imageUrl, bounds, { segments = 96 } = {}) {
   // real answer to the facet-versus-relief problem the clearance never solved.
   const LIFT = 0;
   const vertex = new THREE.Vector3();
-  const lats = new Float64Array((segments + 1) * (segments + 1));
+  const lats = new Float64Array((sx + 1) * (sy + 1));
   const lons = new Float64Array(lats.length);
-  for (let y = 0; y <= segments; y += 1) {
-    const lat = box.maxY - (box.maxY - box.minY) * (y / segments);
-    for (let x = 0; x <= segments; x += 1) {
-      const lon = box.minX + (box.maxX - box.minX) * (x / segments);
-      lats[y * (segments + 1) + x] = lat; lons[y * (segments + 1) + x] = lon;
+  for (let y = 0; y <= sy; y += 1) {
+    const lat = box.maxY - (box.maxY - box.minY) * (y / sy);
+    for (let x = 0; x <= sx; x += 1) {
+      const lon = box.minX + (box.maxX - box.minX) * (x / sx);
+      lats[y * (sx + 1) + x] = lat; lons[y * (sx + 1) + x] = lon;
       vertex.copy(viewer?.surfacePoint
         ? viewer.surfacePoint(lat, lon, LIFT)
         : latLonToVector3(lat, lon, 3.2 + LIFT));
@@ -337,7 +386,7 @@ export async function drape(imageUrl, bounds, { segments = 96 } = {}) {
       // the globe by undoing its rotation less pi, so content that is to ride
       // the globe must bake that pi back in.
       vertex.set(-vertex.x, vertex.y, -vertex.z);
-      position.setXYZ(y * (segments + 1) + x, vertex.x, vertex.y, vertex.z);
+      position.setXYZ(y * (sx + 1) + x, vertex.x, vertex.y, vertex.z);
     }
   }
   position.needsUpdate = true;
@@ -355,7 +404,7 @@ export async function drape(imageUrl, bounds, { segments = 96 } = {}) {
   // leaves the outside facing out depends on details it is not worth reasoning
   // about. Taken from a vertex in the middle of the grid, where the normal is
   // well defined -- at a pole or an edge it need not be.
-  const probe = Math.floor(segments / 2) * (segments + 1) + Math.floor(segments / 2);
+  const probe = Math.floor(sy / 2) * (sx + 1) + Math.floor(sx / 2);
   const normals = geometry.attributes.normal;
   const outward = new THREE.Vector3(
     position.getX(probe), position.getY(probe), position.getZ(probe),
@@ -387,8 +436,10 @@ export async function drape(imageUrl, bounds, { segments = 96 } = {}) {
     // stands 0.0267 above a facet centre where the clearance was 0.005 -- five
     // times too little, and raising it enough to cover the worst case would
     // have lifted the imagery off the ground everywhere else. Tessellating
-    // finer does not help either: 96 to 384 segments only takes the gap from
-    // 0.0267 to 0.0234, because the relief has detail below any grid.
+    // finer does not close that WORST case either (96 to 384 takes it from
+    // 0.0267 to 0.0234, because the relief has detail below any grid) -- but
+    // it closes the MEAN, which is what `patchSegments` is for and what stops
+    // the map sliding off its own ground at an oblique view.
     depthTest: false,
   }), LIFT));
   // A patch can span a hemisphere, where its bounding sphere reaches well past

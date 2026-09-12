@@ -24,14 +24,14 @@
  * registry is the seam, and nothing else here would change.
  */
 
-import { drape } from "./gee.js?v=20260912-03f0b7a";
-import { currentBodyId } from "./bodies.js?v=20260912-03f0b7a";
-import { rectangleVertices } from "./draw-area.js?v=20260912-03f0b7a";
+import { drape } from "./gee.js?v=20260912-d4224ad";
+import { currentBodyId } from "./bodies.js?v=20260912-d4224ad";
+import { rectangleVertices } from "./draw-area.js?v=20260912-d4224ad";
 import {
   signedLon, drawnPolygonLayers, layerBounds, capturedExtentBounds,
   promptDrawTool, hideAreaCard, persistExtent, refreshPolygonOptions,
   resolvePolygonExtent,
-} from "./extent-picker.js?v=20260912-03f0b7a";
+} from "./extent-picker.js?v=20260912-d4224ad";
 
 const byId = (id) => document.getElementById(id);
 
@@ -398,7 +398,10 @@ async function fetchMap() {
     (window.GeoIDImportManager?.getLayers?.() || [])
       .filter((layer) => layer.weatherSource === sourceId)
       .forEach((layer) => window.GeoIDImportManager.removeLayer(layer.id));
-    const object3D = await drape(result.canvas.toDataURL("image/png"), bounds, { segments: 72 });
+    // The grid is `drape`'s to choose from the ground this box covers: 72 was a
+    // guess, and over an 8° × 4° box it stood the map a mean of 555 m off the
+    // terrain between its own posts.
+    const object3D = await drape(result.canvas.toDataURL("image/png"), bounds);
     const layer = window.GeoIDImportManager?.addDerivedLayer?.(name, {
       object3D, bounds, georeferenced: true,
     }, "tiles");
