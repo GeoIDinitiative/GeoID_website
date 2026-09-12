@@ -55,7 +55,9 @@
       line-height: 1.55;
     }
     .unlocks li:first-child { border-top: none; }
-    .unlocks strong { display: block; }
+    /* The item TITLE only: a strong inside the description is emphasis in a
+       sentence, and display:block puts every emphasised word on its own line. */
+    .unlocks li > strong { display: block; }
     .unlocks span { opacity: 0.78; font-size: 0.92rem; }
     .account-note {
       font-size: 0.88rem; opacity: 0.7; line-height: 1.6;
@@ -143,13 +145,27 @@
       <div class="account-card">
         <h2>What membership adds</h2>
         <ul class="unlocks">
-          <li><strong>The modelled risk maps</strong>
-            <span>The hazard models GeoID computes itself, rather than
-            redistributes: tropical cyclone and seismic risk, volcanic ashfall by
-            eruption size, the forecast landslide and flood models, river flood
-            inundation by scenario and by discharge, river corridor zones, and
-            sea level. Each shows its own working — every equation, every
-            assumption and every source is on the layer.</span></li>
+          <li><strong>The hazard models</strong>
+            <span>The ones GeoID computes itself, rather than redistributes:
+            <strong>myGeoID</strong> slope stability, <strong>landslides</strong>
+            and rockfall, <strong>flood</strong> inundation by scenario and by
+            discharge, <strong>tropical cyclone</strong> risk,
+            <strong>seismic</strong> risk by magnitude,
+            <strong>volcanic</strong> ashfall by eruption size, and
+            <strong>sea level</strong>. Each shows its own working — every
+            equation, every assumption and every source is on the layer.</span></li>
+          <li><strong>Rock properties</strong>
+            <span>Strength, permeability and the rest of the geotechnical
+            database, mapped onto the world's geology — and the thing the
+            landslide models read their materials from.</span></li>
+          <li><strong>The Model Builder</strong>
+            <span>Sample real ground into a surface, build a domain, grade the
+            mesh and package it for a solver. (The Meshing Studio itself is free
+            — build and export a mesh without a membership.)</span></li>
+          <li><strong>Earth Engine</strong>
+            <span>Fetch satellite imagery, rainfall and land-surface data over an
+            area you draw, from Google Earth Engine's whole published
+            catalogue.</span></li>
           <li><strong>Saving and exporting</strong>
             <span>Keep a project as a real folder on your own disk — the same
             twenty directories the desktop Research app uses, field for field, so
@@ -193,11 +209,19 @@
 
       <!-- The plan, and the ONE place the payment link lives. It is Stripe's
            own hosted checkout: the card is entered on Stripe's page, never on
-           ours, and nothing here ever sees it. -->
+           ours, and nothing here ever sees it.
+
+           THE PRICE HERE AND THE PRICE IN STRIPE MUST MATCH. The link below was
+           created for the old £29.99 and has NOT been verified against £49.99 —
+           only the Stripe dashboard can say what it charges, and a page that
+           advertises one figure and takes another is the one mistake on this
+           page that reaches somebody's bank. Create or edit the payment link for
+           £49.99/year, paste it here, and point its success URL at
+           /membership/welcome/. Until then the button is held back below. -->
       <div class="account-card" id="plan-card">
         <h2>GeoID Explorer Annual</h2>
         <div class="plan-line">
-          <span class="plan-amount">&pound;29.99</span>
+          <span class="plan-amount">&pound;49.99</span>
           <span class="plan-period">per year</span>
         </div>
         <p>
@@ -205,6 +229,10 @@
           and it runs to the end of the year you have paid for.
         </p>
         <p id="plan-actions">
+          <!-- data-price is the DECLARATION that somebody has opened the Stripe
+               dashboard and confirmed this link charges the figure printed
+               above. It is deliberately absent: nobody has. Set it to 49.99
+               once the link is right, and the button goes live. -->
           <a class="signin-button plan-buy" id="plan-buy"
              href="https://buy.stripe.com/4gM28rboZ9tk8TvetwbV602"
              target="_blank" rel="noopener noreferrer">Become a member</a>

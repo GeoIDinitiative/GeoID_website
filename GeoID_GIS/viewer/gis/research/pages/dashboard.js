@@ -1,8 +1,8 @@
-import { registerPage } from "../stages.js?v=20260912-ba5913f";
-import * as store from "../project-store.js?v=20260912-ba5913f";
-import * as bridge from "../bridge.js?v=20260912-ba5913f";
-import { currentBody } from "../../bodies.js?v=20260912-ba5913f";
-import { el, card, stat, button, statusLine, row } from "./common.js?v=20260912-ba5913f";
+import { registerPage } from "../stages.js?v=20260912-9be8459";
+import * as store from "../project-store.js?v=20260912-9be8459";
+import * as bridge from "../bridge.js?v=20260912-9be8459";
+import { currentBody } from "../../bodies.js?v=20260912-9be8459";
+import { el, card, stat, button, statusLine, row } from "./common.js?v=20260912-9be8459";
 
 /**
  * Dashboard, laid out as the Qt app lays it out (app_qt.py:4160): two columns,

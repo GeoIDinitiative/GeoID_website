@@ -17,6 +17,46 @@ import * as membership from "/GeoID_GIS/viewer/gis/membership.js";
 
 const byId = (id) => document.getElementById(id);
 
+/**
+ * The price on the page and the price in Stripe must be THE SAME NUMBER.
+ *
+ * Everything else here is recoverable: a wrong sentence can be rewritten, a
+ * wrong gate can be unlocked. A page that advertises one figure and takes
+ * another reaches somebody's bank, and no amount of apologising afterwards
+ * undoes it.
+ *
+ * Nothing in a browser can ask Stripe what a payment link charges, so this
+ * cannot be checked — only DECLARED. The link carries `data-price` and it has
+ * to equal the figure printed beside it; until somebody has confirmed that in
+ * the Stripe dashboard and written it on the link, the button does not take
+ * anybody to a checkout.
+ *
+ * To turn it on: create or edit the payment link for the price shown, paste it
+ * into the href, and set `data-price` to that price.
+ */
+function priceAgrees() {
+  const buy = byId("plan-buy");
+  const shown = byId("plan-card")?.querySelector(".plan-amount")?.textContent || "";
+  const asked = shown.replace(/[^0-9.]/g, "");
+  const declared = (buy?.dataset.price || "").replace(/[^0-9.]/g, "");
+  return !!asked && asked === declared;
+}
+
+/** Stand the checkout down, and say why in the reader's terms rather than ours. */
+function holdBackCheckout() {
+  const buy = byId("plan-buy");
+  if (!buy || buy.dataset.heldBack) return;
+  buy.dataset.heldBack = "1";
+  buy.textContent = "Memberships open soon";
+  buy.href = "/contact/";
+  buy.removeAttribute("target");
+  const note = byId("plan-note");
+  if (note) {
+    note.textContent = "Memberships are not open for sign-up quite yet. Tell us "
+      + "you would like one and we will let you know the moment they are.";
+  }
+}
+
 function paint() {
   const state = membership.state();
   const plan = byId("plan-card");
@@ -25,6 +65,10 @@ function paint() {
 
   plan.hidden = state.member;
   manage.hidden = !state.member;
+
+  // Before anything else about the plan is drawn: if the two prices have not
+  // been declared equal, nobody is sent to a checkout.
+  if (!state.member && !priceAgrees()) { holdBackCheckout(); return; }
 
   if (state.member) {
     const until = state.until

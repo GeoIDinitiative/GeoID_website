@@ -145,7 +145,7 @@
         <header class="legal-header">
           <span class="eyebrow">Legal</span>
           <h1>Privacy Policy</h1>
-          <p class="legal-meta">GeoID Initiative · Last updated: May 2026</p>
+          <p class="legal-meta">GeoID Initiative · Last updated: September 2026</p>
         </header>
 
         <div class="legal-body">
@@ -156,14 +156,17 @@
           <h2>What Data We Collect</h2>
           <p>We collect only the data necessary to operate the site and fulfil your requests:</p>
           <ul>
-            <li><strong>Account data:</strong> None. GeoID Explorer requires no account and no sign-in, so we collect no email address, password or authentication token from visitors. If you make a donation, Stripe handles it and all payment data; GeoID does not store card numbers or bank details.</li>
+            <li><strong>Account data &mdash; only if you sign in:</strong> Browsing GeoID needs no account. If you choose to sign in for a membership, we hold the <strong>verified email address</strong> and display name your provider gives us, and the date your membership runs to. <strong>We never hold a password:</strong> sign-in is handled by Google or GitHub, and no password of ours exists to be created, stored or leaked.</li>
+            <li><strong>Your work &mdash; we do not collect it, at all:</strong> A GeoID project is a folder on your own computer, your own browser's storage, or your own machine. There is no server of ours holding anybody&rsquo;s study, and nothing in the application uploads one. Your maps, models, study areas and exports are never sent to us and never leave your device unless you send them somewhere yourself.</li>
+            <li><strong>Payments:</strong> Handled entirely by Stripe. GeoID does not see, receive or store card numbers or bank details. What reaches us from a payment is the email address it was made with, so the membership can be attached to it.</li>
             <li><strong>Contact form submissions:</strong> Name, email address, and the message you send via the contact form. These are forwarded to our email inbox and not stored on GeoID servers.</li>
             <li><strong>Usage data:</strong> Standard server logs (IP address, browser type, referring URL, pages visited) retained for up to 30 days for security and error diagnosis. We do not run behavioural advertising trackers.</li>
           </ul>
 
           <h2>How We Use Your Data</h2>
           <ul>
-            <li>To acknowledge and account for donations processed by Stripe.</li>
+            <li>To tell whether a signed-in person holds a current membership, which is the only thing an account is used for.</li>
+            <li>To acknowledge and account for donations and memberships processed by Stripe.</li>
             <li>To send transactional emails, such as donation receipts, via Stripe.</li>
             <li>To respond to enquiries submitted through the contact form.</li>
             <li>To maintain site security and diagnose technical errors.</li>
@@ -171,10 +174,12 @@
           <p>We do not sell your data, share it with advertisers, or use it for profiling.</p>
 
           <h2>Cookies &amp; Local Storage</h2>
-          <p>GeoID uses a small number of strictly necessary cookies and browser local-storage entries to maintain your signed-in session. No third-party advertising or tracking cookies are set. You can disable cookies in your browser settings; doing so will prevent you from staying signed in.</p>
+          <p>GeoID uses a small number of strictly necessary browser local-storage entries: your membership session if you sign in, and your own settings and preferences &mdash; which layers you had on, your chosen theme, the folder you last opened. Those preferences stay in your browser and are never sent to us. No third-party advertising or tracking cookies are set. Clearing your browser&rsquo;s storage signs you out and forgets your preferences; it does not touch any project you have saved to disk.</p>
 
           <h2>Third-Party Services</h2>
           <ul>
+            <li><strong>Google</strong> and <strong>GitHub</strong> &mdash; sign-in, if you use it. You authenticate with them directly and they tell us your verified email address and display name. <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Privacy Policy</a> &middot; <a href="https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement" target="_blank" rel="noopener">GitHub Privacy Statement</a></li>
+            <li><strong>Cloudflare</strong> &mdash; hosts the small service that handles sign-in and holds the membership record (your email address and its expiry date), and serves the site&rsquo;s map data. <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Cloudflare Privacy Policy</a></li>
             <li><strong>Supabase</strong> — historical only. Used for account authentication while GeoID Explorer briefly required sign-in; no new data is sent to it. <a href="https://supabase.com/privacy" target="_blank" rel="noopener">Supabase Privacy Policy</a></li>
             <li><strong>Stripe</strong> — payment processing. <a href="https://stripe.com/privacy" target="_blank" rel="noopener">Stripe Privacy Policy</a></li>
             <li><strong>Google Fonts</strong> — web fonts loaded from Google's CDN. <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Privacy Policy</a></li>
@@ -185,7 +190,9 @@
           <p>You also have the right to withdraw consent at any time (where processing is based on consent) and to lodge a complaint with the relevant supervisory authority (the ICO in the UK, or your national authority in the EU).</p>
 
           <h2>Data Retention</h2>
-          <p>We hold no account data for current visitors, because no account is required. If you created an account during the period when GeoID Explorer required sign-in, email <a href="mailto:geoid.initiative@gmail.com">geoid.initiative@gmail.com</a> and we will delete it and any associated personal data within 30 days, except where retention is required by law (e.g. tax records associated with a payment are retained for seven years).</p>
+          <p>We hold no account data for visitors who do not sign in, because no account is required to use the site.</p>
+          <p>If you hold a membership, we keep your email address and its expiry date for as long as the membership runs and for a short period afterwards. Ask us to delete it at any time &mdash; email <a href="mailto:geoid.initiative@gmail.com">geoid.initiative@gmail.com</a> and we will remove it within 30 days, except where retention is required by law (tax records associated with a payment are retained for seven years). Deleting your account <strong>does not touch your work</strong>, because we never had it: it is on your own machine either way.</p>
+          <p>If you created an account during an earlier sign-in period, the same applies &mdash; write to us and it will be deleted.</p>
 
           <h2>Changes to This Policy</h2>
           <p>We may update this policy as the platform evolves. Material changes will be flagged on this page with a new "Last updated" date.</p>
