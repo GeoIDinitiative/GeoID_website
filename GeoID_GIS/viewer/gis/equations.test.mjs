@@ -298,31 +298,31 @@ check("the rows that show a model actually pass it to the card", () => {
  * was the one with nowhere to say which model.
  */
 const hierarchy = readFileSync(new URL("./layer-hierarchy.js", import.meta.url), "utf8");
-check("the Workspace row draws an ⓘ for a layer that has working to show", () => {
-  ok(/if \(layer\.info\?\.maths && !isCatalogueLayer\(layer\)\) \{/.test(hierarchy),
-    "gated on the maths being there");
+check("the Workspace row draws an ⓘ for every layer", () => {
+  ok(!/layer\.info\?\.maths &&/.test(hierarchy), "not gated on there being equations");
   ok(/datasetInfoButton\(\{/.test(hierarchy), "and it is the catalogue's own button");
+  ok(/rows: provenanceOf\(layer\)|const rows = provenanceOf\(layer\)/.test(hierarchy),
+    "carrying the layer's provenance, which every layer has");
 });
 
 /**
- * AND NOT WHERE THE CATALOGUE ALREADY DRAWS ONE.
+ * ONE CARD, REACHED FROM WHERE THE LAYER IS.
  *
- * The rule above was written for the layers with nowhere else to say it -- the
- * Factor of Safety layer, the streamed DEM sheets, the thickness sheet, none of
- * which has a catalogue row. A catalogue dataset does: its row in the nav tab
- * has carried the ⓘ all along, so a second in the Workspace is two doors to one
- * card on one screen. It showed up the moment a catalogue dataset first carried
- * `maths`, and it was reported.
+ * The Workspace row used to stand down for a catalogue layer, on the grounds
+ * that its row in the nav tab already carries an ⓘ and a second is two doors
+ * to one card. Two doors to one card is not the fault -- two CARDS would be.
+ * A catalogue tab is ticked once; the layer lives in the Workspace for the
+ * rest of the session, and that is where somebody asks what it is. So the
+ * provenance is built in ONE place and both surfaces read it, which is what
+ * stops them disagreeing about a citation.
  */
-check("but not a second one for a layer whose catalogue row already has it", () => {
-  ok(/!isCatalogueLayer\(layer\)/.test(hierarchy), "the Workspace row stands down");
-  ok(/import \{ isCatalogueLayer \}/.test(hierarchy), "from the catalogue's own test");
-  // The layers the rule exists FOR must keep theirs: none of them is in the
-  // catalogue, so none is excluded by it.
-  const data = readFileSync(new URL("./global-data.js", import.meta.url), "utf8");
-  for (const id of ["geoid-fos", "soil-thickness", "dem-slope"]) {
-    ok(!new RegExp(`id: "${id}"`).test(data), `${id} has no catalogue row to defer to`);
-  }
+check("and the provenance behind it has one implementation", () => {
+  ok(/export function provenanceOf\(layer/.test(hierarchy), "one builder");
+  ok(/provenanceOf\(layer, \{ citation: true \}\)/.test(hierarchy),
+    "the Metadata tab reads it too, with the citation as a row");
+  // Counted, not located: a second list anywhere in the file is the drift.
+  ok((hierarchy.match(/\["CRS", /g) || []).length === 1,
+    "and the CRS row is built exactly once");
 });
 
 /**

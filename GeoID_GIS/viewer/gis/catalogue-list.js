@@ -18,7 +18,7 @@
  * in extraction and in export without this file knowing anything about them.
  */
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260912-288ec98";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260912-4294aa5";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -228,6 +228,27 @@ const STYLE = `
   white-space: nowrap;
 }
 #gis-catalogue-info-pop .info-terms dd { margin: 0; opacity: 0.88; }
+/* The provenance list: a label column that cannot be squeezed, values wrapping. */
+#gis-catalogue-info-pop .info-rows {
+  display: grid;
+  grid-template-columns: fit-content(7.5rem) minmax(0, 1fr);
+  gap: 0.15rem 0.55rem;
+  margin: 0.5rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+#gis-catalogue-info-pop .info-rows dt {
+  margin: 0;
+  font-family: "Exo 2", system-ui, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.64rem;
+  color: rgba(var(--skin-data-rgb, 82, 228, 232), 0.85);
+}
+#gis-catalogue-info-pop .info-rows dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
 #gis-catalogue-info-pop .info-maths-note {
   margin: 0;
   font-size: 0.63rem;
@@ -411,6 +432,22 @@ function infoButton(entry) {
       pop.appendChild(p);
     }
     if (entry.info.maths) pop.appendChild(mathsBlock(entry.info.maths));
+    /**
+     * WHAT THIS LAYER IS AND WHERE IT CAME FROM, for a card that is now drawn
+     * on every Workspace row rather than only on the modelled few. Most layers
+     * have no equations to show and every layer has a provenance, and a reader
+     * asking "what IS this" of a row is asking this.
+     */
+    if ((entry.info.rows || []).length) {
+      const dl = document.createElement("dl");
+      dl.className = "info-rows";
+      for (const [label, value] of entry.info.rows) {
+        const dt = document.createElement("dt"); dt.textContent = label;
+        const dd = document.createElement("dd"); dd.textContent = String(value);
+        dl.append(dt, dd);
+      }
+      pop.appendChild(dl);
+    }
     if (entry.info.citation) {
       const cite = document.createElement("p");
       cite.className = "info-citation";

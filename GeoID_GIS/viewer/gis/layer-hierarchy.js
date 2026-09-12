@@ -10,18 +10,17 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { bandOf } from "./draw-order.js?v=20260912-288ec98";
-import { paintOpacity } from "./layer-opacity.js?v=20260912-288ec98";
-import { currentBody } from "./bodies.js?v=20260912-288ec98";
-import { samplerToRaster } from "./raster-analysis.js?v=20260912-288ec98";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260912-288ec98";
-import { datasetInfoButton } from "./catalogue-list.js?v=20260912-288ec98";
-import { isCatalogueLayer } from "./global-data.js?v=20260912-288ec98";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260912-288ec98";
+import { bandOf } from "./draw-order.js?v=20260912-4294aa5";
+import { paintOpacity } from "./layer-opacity.js?v=20260912-4294aa5";
+import { currentBody } from "./bodies.js?v=20260912-4294aa5";
+import { samplerToRaster } from "./raster-analysis.js?v=20260912-4294aa5";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260912-4294aa5";
+import { datasetInfoButton } from "./catalogue-list.js?v=20260912-4294aa5";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260912-4294aa5";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20260912-288ec98";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260912-288ec98";
+} from "./symbology-dialog.js?v=20260912-4294aa5";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260912-4294aa5";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -105,7 +104,7 @@ const STYLE = `
 .layer-stack .layer-row {
   grid-template-columns: auto auto auto 1fr auto 4.5rem auto;
 }
-/* One more column, for the ⓘ a modelled layer carries. Only those rows. */
+/* One more column, for the ⓘ every layer carries. */
 .layer-stack .layer-row.has-info {
   grid-template-columns: auto auto auto 1fr auto auto 4.5rem auto;
 }
@@ -507,37 +506,46 @@ function row(layer) {
    * rename that touches one of them looks right until the layer is exported.
    */
   /**
-   * THE ⓘ FOLLOWS THE LAYER, not the catalogue row that started it.
+   * THE ⓘ FOLLOWS THE LAYER, not the catalogue row that started it — and now
+   * it is on EVERY row.
    *
-   * A modelled layer states its equations on the catalogue's ⓘ — but the
-   * catalogue is a tab you tick once, and the layer then lives here, in the
-   * Workspace, for the rest of the session. Worse, the layers with the most to
-   * explain never had a catalogue row at all: GeoID mode BUILDS its Factor of
-   * Safety layer, so the one surface on the globe carrying an engineering
-   * model was the one with nowhere to say which model.
+   * It began on the modelled few, on the reasoning that an ⓘ on every row
+   * would be "a column of buttons most of which say what the row already
+   * says", and that a catalogue layer already had one in its nav tab. Both
+   * were wrong about what a reader is asking. A row says a name, a kind and an
+   * opacity; it does not say where the layer came from, under what licence, in
+   * what CRS, or how many features it holds — and that is what somebody asking
+   * "what IS this" of a row wants. The catalogue row is in a tab that may have
+   * been ticked once and never opened again, while the layer lives here for
+   * the rest of the session.
    *
-   * So a layer carrying `info.maths` gets the same button, opening the same
-   * card, from wherever it is. Only those: an ⓘ on every row would be a column
-   * of buttons most of which say what the row already says.
-   *
-   * EXCEPT A CATALOGUE LAYER, WHICH ALREADY HAS ONE. Its row in the nav tab
-   * carries the ⓘ and always has, so drawing a second here is two doors to one
-   * card on one screen -- and the rule above was written for the layers with
-   * NOWHERE else to say it: the Factor of Safety layer GeoID mode builds, the
-   * streamed DEM sheets, the thickness sheet. None of those has a catalogue
-   * row. Reported the moment a catalogue dataset first carried `maths`.
+   * There is still only ONE card. A catalogue layer's is the same card its
+   * catalogue row opens, and every layer's is the same shape: the working
+   * where there is working (`info.maths`), the provenance always, the citation
+   * where one is stated. Two doors to one card is a different thing from two
+   * cards, and it is what a working set deserves.
    */
-  if (layer.info?.maths && !isCatalogueLayer(layer)) {
+  {
+    const rows = provenanceOf(layer);
+    const meta = layer.metadata || {};
+    const summary = layer.info?.summary || meta.description || meta.summary || "";
     const info = datasetInfoButton({
       id: `layer-${layer.id}`,
       label: layer.name || "layer",
-      info: layer.info,
+      info: {
+        ...(layer.info || {}),
+        summary,
+        rows,
+        citation: meta.citation || layer.info?.citation || "",
+      },
     });
     info.classList.add("layer-info");
     node.querySelector(".layer-opacity")?.before(info);
     // The row is a fixed seven-column grid; an eighth child without an eighth
     // column pushes the move buttons into an implicit one and the row grows a
-    // step taller than its neighbours. The class carries the extra column.
+    // step taller than its neighbours. The class carries the extra column --
+    // kept as a class, not folded into the base rule, because the rule and the
+    // button are two edits apart and the class is what ties them together.
     node.classList.add("has-info");
   }
 
@@ -1526,30 +1534,42 @@ function renderMetadata(stack) {
     return;
   }
   host.innerHTML = stack.map((layer) => {
-    const meta = layer.metadata || {};
-    /**
-     * An ADOPTED layer states its provenance on `info` — that is the seam
-     * `adoptLayer` takes and what the live feeds (events, satellites) fill
-     * in. Reading only `metadata` meant the credits existed, were correct,
-     * and were never shown: the Live events row said "Source: user import,
-     * CRS: unstated" over a NASA feed. Both surfaces are read, metadata
-     * first, so an import that states both is unchanged.
-     */
-    const info = layer.info || {};
-    const bits = [
-      ["Format", layer.format || meta.format || info.format || layer.type],
-      ["Source", meta.source || info.source || layer.source || layer.fileName || "user import"],
-      ["CRS", meta.crs || info.crs || layer.crs || "unstated"],
-      ["Features", meta.featureCount ?? layer.featureCount],
-      ["Cells", meta.cellCount ?? layer.cellCount],
-      ["Imported", meta.importedAt || layer.importedAt],
-      ["Citation", meta.citation || info.citation],
-    ].filter(([, v]) => v !== undefined && v !== null && v !== "");
+    const bits = provenanceOf(layer, { citation: true });
     return `<div class="meta-entry"><b>${layer.name || "layer"}</b>`
       + bits.map(([k, v]) => `<span><i>${k}</i> ${v}</span>`).join("")
       + `</div>`;
   }).join("");
   void renderProjectContents(host);
+}
+
+/**
+ * WHERE A LAYER CAME FROM, in one place.
+ *
+ * An ADOPTED layer states its provenance on `info` — that is the seam
+ * `adoptLayer` takes and what the live feeds (events, satellites) fill in.
+ * Reading only `metadata` meant the credits existed, were correct, and were
+ * never shown: the Live events row said "Source: user import, CRS: unstated"
+ * over a NASA feed. Both surfaces are read, metadata first, so an import that
+ * states both is unchanged.
+ *
+ * The Metadata tab and the ⓘ on every Workspace row read THIS, rather than
+ * each building its own list — two lists for one fact is how they come to
+ * disagree about a citation, which is the one thing a provenance may not do.
+ * The citation is a row for the tab and its own line on the card, so the
+ * caller says which it wants.
+ */
+export function provenanceOf(layer, { citation = false } = {}) {
+  const meta = layer?.metadata || {};
+  const info = layer?.info || {};
+  return [
+    ["Format", layer?.format || meta.format || info.format || layer?.type],
+    ["Source", meta.source || info.source || layer?.source || layer?.fileName || "user import"],
+    ["CRS", meta.crs || info.crs || layer?.crs || "unstated"],
+    ["Features", meta.featureCount ?? layer?.featureCount],
+    ["Cells", meta.cellCount ?? layer?.cellCount],
+    ["Imported", meta.importedAt || layer?.importedAt],
+    ...(citation ? [["Citation", meta.citation || info.citation]] : []),
+  ].filter(([, v]) => v !== undefined && v !== null && v !== "");
 }
 
 function copyCitations() {
