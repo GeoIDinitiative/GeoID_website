@@ -27,7 +27,7 @@
  * Pure: arrays in, arrays out.
  */
 
-import { FOS_CAP, WATER_UNIT_WEIGHT } from "./slope-hydrology.js?v=20260912-4b6c6ec";
+import { FOS_CAP, WATER_UNIT_WEIGHT } from "./slope-hydrology.js?v=20260912-b8e3eef";
 
 const RAD = Math.PI / 180;
 

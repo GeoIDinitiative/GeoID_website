@@ -108,7 +108,18 @@ export function mountExplorerModels(host, toggle) {
   const sync = () => {
     const on = toggle.checked;
     parts.wrap.style.display = on ? "" : "none";
-    if (!on) { at = -1; return; }
+    if (!on) {
+      // Leaving leaves nothing of the mode on screen: the stop's card carries
+      // a link into another viewer, and standing there after Exit it belongs
+      // to no mode a reader can see. Guarded by name, so a card the reader
+      // opened themselves while the mode was armed is not taken away.
+      // Only when this mode was actually at a stop. Called on mount too — the
+      // sync runs once to set the initial state — it would clear a pending
+      // flight that ANOTHER mode had just scheduled.
+      if (at >= 0 && stops[at]) viewer()?.endFeatureTour?.(stops[at].name);
+      at = -1;
+      return;
+    }
     /**
      * ONE MODE AT A TIME. Tour Mode and this one both fly the camera and both
      * claim the card, so two armed at once is two pickers disagreeing about

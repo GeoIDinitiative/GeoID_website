@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260912-4b6c6ec";
+  from "./gis/geo-utils.js?v=20260912-b8e3eef";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260912-4b6c6ec";
+  from "./gis/vector-render.js?v=20260912-b8e3eef";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260912-4b6c6ec";
+  from "./gis/rock-class.js?v=20260912-b8e3eef";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260912-4b6c6ec";
+  from "./gis/lithology-label.js?v=20260912-b8e3eef";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -5570,9 +5570,16 @@ function fmtProp(value) {
     }
 
     function deactivateTourMode() {
+      // Its own stop's card goes with it, by the rule `endFeatureTour`
+      // states: leaving a mode leaves nothing of the mode on screen, and a
+      // card the reader opened themselves is not the mode's to close.
+      const leaving = activeTourModeFeature;
       clearPendingTourFlight();
       activeTourModeFeature = null;
       syncTourModeControls(null);
+      if (leaving && activePopupFeature && activePopupFeature.name === leaving.name) {
+        closeScenePopup();
+      }
       resetStatus();
     }
 
@@ -22087,6 +22094,28 @@ uniform float uViewportWidth;`,
         /** Dismiss the scene card — for a click that landed on nothing. */
         closeSceneFeature() {
           closeScenePopup();
+        },
+        /**
+         * A MODE THAT OPENED A CARD CLOSES IT ON THE WAY OUT — and only if it
+         * is still ITS card.
+         *
+         * Reported on Explorer Models: exiting left the stop's card standing
+         * over the globe with a link into a viewer, and nothing on screen
+         * still saying which mode had put it there. Closing unconditionally is
+         * the other half of the same fault, though: a reader who clicked
+         * something else while the mode was armed would lose the card they
+         * opened. So the name is the test.
+         *
+         * The pending flight goes too. A stop schedules its camera 700 ms
+         * after its card, and exiting inside that window otherwise still flies.
+         */
+        endFeatureTour(name) {
+          clearPendingTourFlight();
+          if (name && activePopupFeature && activePopupFeature.name === name) {
+            closeScenePopup();
+            return true;
+          }
+          return false;
         },
         /**
          * Is one of the viewer's own labels under this pixel?

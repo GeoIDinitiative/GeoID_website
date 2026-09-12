@@ -87,6 +87,10 @@ check("the jump does not arm Tour Mode's panel",
   !/syncTourModeControls|activeTourModeFeature =/.test(jumpBody));
 check("and this mode stands Tour Mode down when it is entered",
   /getElementById\("tour-mode-toggle"\)/.test(src) && /tour\.checked = false/.test(src));
+check("the closer is guarded by name, so it can only close its own card",
+  /endFeatureTour\(name\) \{[\s\S]{0,200}activePopupFeature\.name === name/.test(viewer));
+check("and Tour Mode takes its own card with it too",
+  /function deactivateTourMode[\s\S]{0,420}activePopupFeature\.name === leaving\.name[\s\S]{0,80}closeScenePopup\(\);/.test(viewer));
 /**
  * THE CARD OPENS BEFORE THE FLIGHT, in both modes, because that ordering is
  * the whole reason the link is on screen while the camera is still moving.
@@ -149,10 +153,12 @@ check("and the module drives nothing but the hidden checkbox's change",
   const toggle = doc.createElement("input"); toggle.id = "explorer-models-toggle";
   toggle.ownerDocument = doc;
   const jumps = [];
+  const ended = [];
   globalThis.window = {
     GeoIDViewer: {
       explorerSites: () => sites.map((s) => ({ ...s })),
       tourToFeature: (name, opts) => { jumps.push([name, opts?.statusPrefix]); return true; },
+      endFeatureTour: (name) => { ended.push(name); return true; },
     },
   };
   const built = mountExplorerModels(host, toggle);
@@ -179,4 +185,15 @@ check("and the module drives nothing but the hidden checkbox's change",
   listeners.get("explorer-models-toggle:change")();
   check("leaving puts the controls away and jumps nowhere",
     host.children[0].style.display === "none" && jumps.length === 4);
+  /**
+   * AND TAKES ITS CARD WITH IT. Reported: exiting left the stop's card
+   * standing over the globe, carrying a link into another viewer, with nothing
+   * on screen saying which mode had put it there. Named, so a card the reader
+   * opened themselves is never the mode's to close.
+   */
+  check("and closes the card it opened, by name",
+    ended.length === 1 && ended[0] === sites[sites.length - 1].name, JSON.stringify(ended));
+  // Mounting is not leaving: the sync runs once to set the initial state, and
+  // calling the closer there would cancel a flight another mode had scheduled.
+  check("and mounting cleans up after nobody", !ended.includes(null));
 }
