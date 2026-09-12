@@ -2,32 +2,224 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- Former sign-in page. There is no account system: every viewer is open to
-       everyone with no sign-in and no payment. This stub exists so older
-       links (Stripe receipts, saved bookmarks, search results) land on the
-       site rather than a 404. Previous version: git history, commit 4ed02cb. -->
-  <meta name="robots" content="noindex, nofollow">
-  <meta http-equiv="refresh" content="0; url=/">
-  <link rel="canonical" href="https://geoidinitiative.com/">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="Sign in to GeoID. Explorer stays open to everyone; membership opens the modelled risk maps and saving your work.">
+  <title>Sign in — GeoID Initiative</title>
+  <!-- Membership is off until an auth service is named here. With no tag, every
+       gate in the app stands open and this page says so rather than offering a
+       sign-in that cannot complete. -->
+  <!-- <meta name="geoid-auth" content="https://auth.geoidinitiative.com"> -->
+  <link rel="canonical" href="https://geoidinitiative.com/sign-in/">
+  <meta name="robots" content="noindex, follow">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="GeoID Initiative">
+  <meta property="og:url" content="https://geoidinitiative.com/sign-in/">
+  <meta property="og:title" content="Sign in — GeoID Initiative">
+  <meta property="og:description" content="Sign in to GeoID. Explorer stays open to everyone; membership opens the modelled risk maps and saving your work.">
+  <meta property="og:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
+  <meta name="twitter:card" content="summary">
   <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
-  <title>Redirecting — GeoID</title>
-  <script>window.location.replace("/");</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="/styles/shared.css">
   <style>
-    body {
-      margin: 0; min-height: 100dvh;
-      display: flex; align-items: center; justify-content: center;
-      background: #060410; color: #c3d8f5;
-      font-family: system-ui, sans-serif; font-size: 0.95rem;
-      text-align: center; padding: 2rem;
+    .page-wrap { padding-top: var(--nav-h); }
+    .account-wrap {
+      max-width: 46rem; margin: 0 auto; padding: 3rem 1.5rem 4rem;
     }
-    a { color: #58c6b3; }
+    .account-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 0.9rem;
+      padding: 1.6rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .account-card h2 {
+      margin: 0 0 0.6rem; font-size: 1.05rem; letter-spacing: 0.02em;
+    }
+    .account-card p { margin: 0 0 0.8rem; line-height: 1.6; opacity: 0.88; }
+    .account-card p:last-child { margin-bottom: 0; }
+    .signin-row { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 1.2rem 0 0.4rem; }
+    .signin-button {
+      display: inline-flex; align-items: center; gap: 0.55rem;
+      padding: 0.7rem 1.15rem; border-radius: 0.6rem;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      background: rgba(255, 255, 255, 0.07);
+      color: inherit; text-decoration: none; font-weight: 600;
+    }
+    .signin-button:hover { background: rgba(255, 255, 255, 0.13); }
+    .signin-button svg { width: 18px; height: 18px; flex: 0 0 auto; }
+    .unlocks { list-style: none; margin: 0.6rem 0 0; padding: 0; }
+    .unlocks li {
+      padding: 0.55rem 0; border-top: 1px solid rgba(255, 255, 255, 0.08);
+      line-height: 1.55;
+    }
+    .unlocks li:first-child { border-top: none; }
+    .unlocks strong { display: block; }
+    .unlocks span { opacity: 0.78; font-size: 0.92rem; }
+    .account-note {
+      font-size: 0.88rem; opacity: 0.7; line-height: 1.6;
+    }
+    .account-state {
+      display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap;
+      margin-bottom: 0.8rem;
+    }
+    .account-badge {
+      font: 600 0.7rem/1 "Exo 2", system-ui, sans-serif;
+      text-transform: uppercase; letter-spacing: 0.09em;
+      padding: 0.3rem 0.6rem; border-radius: 999px;
+      border: 1px solid currentColor;
+    }
+    .is-member { color: #58c6b3; }
+    .is-explorer { color: #c3a0ff; }
+    [hidden] { display: none !important; }
   </style>
+  <link rel="stylesheet" href="/styles/v2-site.css">
+  <script src="/scripts/v2-site.js" defer></script>
+  <link rel="stylesheet" href="/styles/skins/synthwave.css">
+  <link rel="stylesheet" href="/styles/site-nav.css">
 </head>
 <body>
-  <p>
-    GeoID Explorer is free and open — no account needed.
-    Taking you to the <a href="/">GeoID Initiative</a>…
-  </p>
+  <nav class="site-nav" role="navigation" aria-label="Primary navigation">
+    <a class="nav-wordmark" href="/" aria-label="GeoID Initiative Home">
+      <img class="nav-brand-icon" src="/assets/GeoID_logo_icon.png" alt="">
+      GeoID Initiative
+    </a>
+    <ul class="nav-links">
+      <li><a href="/dashboard/">Dashboard</a></li>      <li class="nav-dropdown">
+        <a class="nav-dropdown-toggle" href="/about/">About</a>
+        <div class="nav-dropdown-menu" aria-label="About pages">
+          <a href="/about/">Overview</a>
+          <a href="/about_myGeoID/">myGeoID App</a>
+          <a href="/earth_explorer/">Earth Explorer</a>
+          <a href="/explorer/">Planet Explorer</a>
+          <a href="/team/">Our Team</a>
+          <a href="/get-involved/" class="active" aria-current="page">Get Involved</a>
+        </div>
+      </li>
+      <li><a href="/geohub/"><span class="geohub-word"><span class="geohub-prefix">Geo</span>HUB</span></a></li>
+
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+    <div class="nav-right-logo">
+      <a class="nav-act nav-act-donate" href="https://buy.stripe.com/dRm3cv1Op4903zb858bV600" target="_blank" rel="noopener noreferrer">Donate</a>
+    </div>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-label="Open navigation menu">☰</button>
+  </nav>
+  <div class="page-wrap">
+    <div class="account-wrap">
+
+      <h1 style="margin:0 0 0.4rem">Sign in</h1>
+      <p style="opacity:0.8;margin:0 0 2rem;line-height:1.6">
+        GeoID Explorer stays open to everyone. Signing in is how a
+        <a href="/membership/">member</a> opens the modelled risk maps and keeps
+        their work.
+      </p>
+
+      <!-- Shown only when no auth service is configured. Offering a sign-in
+           that cannot complete is worse than saying it is not ready. -->
+      <div class="account-card" id="not-ready" hidden>
+        <h2>Sign-in is not switched on yet</h2>
+        <p>
+          Everything in GeoID is open in the meantime — the globes, the imagery,
+          the surveys, the models, and saving your work to your own disk. There
+          is nothing you need to do.
+        </p>
+      </div>
+
+      <!-- Shown when somebody is already signed in. -->
+      <div class="account-card" id="already" hidden>
+        <h2>You are signed in</h2>
+        <p id="already-who"></p>
+        <p><a class="signin-button" href="/dashboard/">Go to your account</a></p>
+      </div>
+
+      <div class="account-card" id="choose" hidden>
+        <h2>Choose how to sign in</h2>
+        <p>
+          We use Google or GitHub so that there is <strong>no password of ours</strong>
+          to hold, to leak, or for you to reset. We are told your name and your
+          verified email address, and nothing else.
+        </p>
+        <div class="signin-row">
+          <a class="signin-button" id="go-google" href="#"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M23 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.2a5.3 5.3 0 0 1-2.3 3.5v2.9h3.7c2.2-2 3.4-5 3.4-8.6z"/><path fill="#34A853" d="M12 24c3.1 0 5.7-1 7.6-2.8l-3.7-2.9c-1 .7-2.3 1.1-3.9 1.1-3 0-5.5-2-6.4-4.7H1.8v3C3.7 21.4 7.6 24 12 24z"/><path fill="#FBBC05" d="M5.6 14.7a7.2 7.2 0 0 1 0-4.6v-3H1.8a12 12 0 0 0 0 10.6l3.8-3z"/><path fill="#EA4335" d="M12 4.8c1.7 0 3.2.6 4.4 1.7l3.3-3.3C17.7 1.2 15.1 0 12 0 7.6 0 3.7 2.6 1.8 6.1l3.8 3C6.5 6.8 9 4.8 12 4.8z"/></svg> Continue with Google</a>
+          <a class="signin-button" id="go-github" href="#"><svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M8 0a8 8 0 0 0-2.5 15.6c.4.07.55-.17.55-.38v-1.3C3.8 14.3 3.3 13 3.3 13c-.36-.9-.88-1.15-.88-1.15-.72-.5.05-.48.05-.48.8.06 1.22.82 1.22.82.7 1.2 1.87.86 2.33.66.07-.52.28-.87.5-1.07-1.78-.2-3.64-.9-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.03 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.06-1.87 3.74-3.65 3.94.29.25.54.73.54 1.48v2.2c0 .21.14.46.55.38A8 8 0 0 0 8 0z"/></svg> Continue with GitHub</a>
+        </div>
+        <p class="account-note" id="auth-error" hidden></p>
+      </div>
+
+      <div class="account-card">
+        <h2>What we hold, and what we do not</h2>
+        <p>
+          <strong>Your work never reaches us.</strong> A GeoID project is a folder
+          on your own disk, your own browser storage, or your own machine through
+          the sidecar. There is no server of ours holding anybody's study, and
+          nothing in the app uploads one.
+        </p>
+        <p>
+          What we keep is your verified email address and the date your membership
+          runs to. That is the whole of it. See the
+          <a href="/privacy/">privacy notice</a>.
+        </p>
+      </div>
+
+    </div>
+
+      <footer class="site-footer">
+        <div class="footer-inner">
+          <div class="footer-content">
+            <div class="footer-brand">
+              <div class="footer-brand-logo">
+                <img src="/assets/GeoID_logo_icon.png" alt="GeoID Logo" loading="lazy" decoding="async">
+              </div>
+              <p>Democratizing geohazard science through physics-based modelling and open data.</p>
+            </div>
+            <div class="footer-section">              <h4>Navigation</h4>
+              <ul>
+                <li><a href="/about/">Overview</a></li>
+                <li><a href="/geohub/">GeoHUB</a></li>
+                <li><a href="/dashboard/">Dashboard</a></li>
+                <li><a href="/earth_explorer/">Earth Explorer</a></li>
+      <li><a href="/explorer/">Planet Explorer</a></li>
+                <li><a href="/get-involved/">Get Involved</a></li>
+                <li><a href="/team/">Our Team</a></li>
+                <li><a href="/contact/">Contact</a></li>
+              </ul>
+            </div>
+            <div class="footer-section">
+              <h4>Resources</h4>
+              <ul>
+                <li><a href="https://www.copernicus.eu/" target="_blank" rel="noopener">Copernicus Programme</a></li>
+                <li><a href="https://earthdata.nasa.gov/" target="_blank" rel="noopener">NASA Earth Data</a></li>
+                <li><a href="https://www.emc.ncep.noaa.gov/emc/pages/numerical_forecast_systems/gfs.php" target="_blank" rel="noopener">GFS NOAA API</a></li>
+              </ul>
+            </div>
+            <div class="footer-section">
+              <h4>Legal</h4>
+              <ul>
+                <li><a href="/privacy/">Privacy Policy</a></li>
+                <li><a href="/terms/">Terms of Service</a></li>
+                <li><a href="/disclaimer/">Disclaimer</a></li>
+                <li><a href="/refund/">Billing &amp; Refunds</a></li>
+              </ul>
+            </div>
+          </div>
+          <div class="footer-bottom">
+            <p>&copy; 2026 GeoID Initiative. Led by Owen McCluskey. All rights reserved.</p>
+            <div class="footer-social-links">
+              <a href="mailto:geoid.initiative@gmail.com" class="footer-social-link" aria-label="Email">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                  <polyline points="22,6 12,13 2,6"></polyline>
+                </svg>
+              </a>
+            </div>
+          </div>
+        </div>
+      </footer>
+  </div>
+
+  <script type="module" src="/scripts/account.js"></script>
+  <script src="/scripts/site.js"></script>
 </body>
 </html>
