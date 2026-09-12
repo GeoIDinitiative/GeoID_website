@@ -26,18 +26,18 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260912-af72246";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260912-af72246";
-import { mathsFor } from "./equations.js?v=20260912-af72246";
+import { runConnector } from "./research/connectors.js?v=20260912-ba5913f";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260912-ba5913f";
+import { mathsFor } from "./equations.js?v=20260912-ba5913f";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260912-af72246";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260912-af72246";
-import { isMemberModel, may, refusal } from "./membership.js?v=20260912-af72246";
-import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260912-af72246";
+} from "./cyclone-risk.js?v=20260912-ba5913f";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260912-ba5913f";
+import { featureForModel, may, refusal } from "./membership.js?v=20260912-ba5913f";
+import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260912-ba5913f";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260912-af72246";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260912-ba5913f";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -985,8 +985,9 @@ export async function addDataset(id, onStatus = () => {},
   // A map this app MODELS is membership's, and this is the one door every
   // catalogue tick comes through. The bucket refuses the file as well; this is
   // so the refusal arrives as a sentence rather than as a failed fetch.
-  if (isMemberModel(id) && !may("models")) {
-    const message = refusal("models");
+  const needs = featureForModel(id);
+  if (needs && !may(needs)) {
+    const message = refusal(needs);
     onStatus(message);
     return { ok: false, member: true, message };
   }
@@ -1045,7 +1046,7 @@ export async function addDataset(id, onStatus = () => {},
       // number, because a number is what there is to say about it.
       if (response.status === 402) {
         const said = await response.json().catch(() => null);
-        throw new Error(said?.message || refusal("models"));
+        throw new Error(said?.message || refusal(featureForModel(id)));
       }
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       blob = await response.blob();

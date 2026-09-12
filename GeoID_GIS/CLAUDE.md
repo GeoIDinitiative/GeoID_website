@@ -7162,6 +7162,57 @@ never been secret (the module's own header says so, and what protects it is
 `ALLOWED_ORIGINS` on the deployment), but a browser that may not use a billed
 service should not be left holding the address of it.
 
+### Locking a SUBTAB, not a tab
+
+Locking Hazards whole shut the wildfire feed, the exposure map and the drought
+rows with it — **none of which is ours to charge for**. The gate is on the nine
+subtabs that hold what GeoID models itself (Rock properties, Sea level, myGeoID
+mode, Landslides, Tropical cyclones, Seismic hazards, Volcanic hazards, Flood,
+and the Model Builder TAB), and everything beside them in the same tab stays
+open. `MEMBER_MODELS` maps a dataset id to its subtab's feature, so the gate on
+a catalogue row and the gate on the subtab holding it are one decision.
+
+**The MODEL PAGE is free; its nav-bar TAB is not.** The Meshing Studio is open
+— build a mesh, boolean it, flag its surfaces, export a package. What is gated
+is the pipeline that samples the REAL ground into a domain. `LOCKED_MODES` is
+empty and says so, or somebody will helpfully refill it.
+
+**A SECTION HEADER IS ONE OF THREE SHAPES**, and a lock hung off the wrong one
+draws on a third of them: a bare `<summary>` on a `gis-tool-section`, a
+`<summary class="section-toggle">` on a toolbox group, and a
+`<div class="section-toggle">` on the myGeoID bar, which is not a `<details>` at
+all. Only the middle one has `.section-title-row`. The mark is a real span
+appended to whichever header is there, which also cannot collide with a pseudo
+the panel sheets already use for a chevron.
+
+**A CONTROL IN THE HEADER IS NOT IN THE BODY.** myGeoID carries its Enter button
+in its header the way Tour Mode does, so hiding the body left the one control
+that arms the mode live behind the lock card. Every control in a locked header
+is disabled and MARKED (`data-lock-disabled`), so unlocking cannot re-enable one
+that was disabled for its own reasons. `setHubArmed` refuses as the floor —
+while standing DOWN is always allowed, or a member who lapses mid-session is
+stuck inside the mode.
+
+**A subtab needs an ID before it can be gated.** Five had none; an id survives a
+panel being rebuilt or re-nested per body, which matching on a title does not.
+
+### Credentials in a browser
+
+Four are stored, and **none is a secret of ours**: the Earth Engine endpoint
+(never secret — `ALLOWED_ORIGINS` on the deployment is what protects it), a
+Google OAuth Client ID, the sidecar's host and its token (minted on the reader's
+own machine), and an Atlas hub address. `credential-wipe.js` clears all four
+when membership goes and at load, and `window.GeoIDCredentials.wipeCredentials
+({ everything: true })` is the explicit form — the one to run on a machine that
+has been used for testing before it goes live.
+
+**The test pins BOTH sides.** A wipe that takes somebody's project, their pins
+or their theme with it is one nobody runs twice, and the damage is silent.
+
+**Nothing secret ships.** Audited: every secret-shaped hit in the tracked tree is
+a form LABEL from the Qt spec, or the sidecar's own password refusal. Both
+Workers read from `env` and neither `wrangler.toml` holds a value.
+
 ### The master account
 
 `plan: "owner"` on a KV entry. It opens **every feature including ones added

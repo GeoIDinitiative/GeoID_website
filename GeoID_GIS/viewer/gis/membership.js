@@ -45,54 +45,97 @@
  * possible; it is not what makes the gates exist.
  */
 
-/** The capabilities membership unlocks. */
+/**
+ * The capabilities membership unlocks.
+ *
+ * ONE ENTRY PER SUBTAB that holds a model GeoID computes itself, rather than
+ * one per tab. Locking Hazards whole shut the wildfire feed, the exposure map
+ * and the drought rows with it — other people's open data, which is not ours to
+ * charge for — so the gate is on the subtabs and everything beside them in the
+ * same tab stays open.
+ */
 export const FEATURES = {
-  /** The risk maps this app models itself. Enforced at the bucket. */
-  models: {
-    id: "models",
-    title: "Modelled risk maps",
-    blurb: "The hazard models GeoID computes itself — cyclone, volcanic, "
-      + "seismic, landslide, flood and sea level.",
+  /** myGeoID: the Factor-of-Safety mode bar and the pipeline behind it. */
+  mygeoid: {
+    id: "mygeoid",
+    title: "myGeoID",
+    blurb: "The Factor-of-Safety hazard model — pick a place and read the "
+      + "slope stability GeoID computes for it.",
+    enforced: false,
+    signIn: "Sign in as a member to use myGeoID.",
+    notYours: "myGeoID is part of membership — your sign-in does not include it "
+      + "yet.",
+  },
+  landslides: {
+    id: "landslides",
+    title: "Landslides",
+    blurb: "The forecast landslide and rockfall model: rainfall, a water "
+      + "balance over the real drainage, and slope stability per cell.",
+    enforced: false,
+    signIn: "Sign in as a member to open the landslide models.",
+    notYours: "The landslide models are part of membership — your sign-in does "
+      + "not include them yet.",
+  },
+  flood: {
+    id: "flood",
+    title: "Flood",
+    blurb: "River flood inundation by scenario and by discharge, on the "
+      + "streamed terrain and the mapped channels.",
+    enforced: false,
+    signIn: "Sign in as a member to open the flood models.",
+    notYours: "The flood models are part of membership — your sign-in does not "
+      + "include them yet.",
+  },
+  /** The three baked risk grids. Each one is a file in our own bucket. */
+  "cyclone-risk": {
+    id: "cyclone-risk",
+    title: "Tropical cyclone risk",
+    blurb: "How often a cyclone passes within 200 km, from every best-track "
+      + "record since 1842.",
     enforced: true,
-    // Written out per feature rather than templated from the title: "Modelled
-    // risk maps is part of membership" is what a template gives you, and a
-    // refusal is the one sentence a reader is guaranteed to read.
-    signIn: "Sign in as a member to open the modelled risk maps.",
-    notYours: "The modelled risk maps are part of membership — your sign-in "
+    signIn: "Sign in as a member to open the cyclone risk map.",
+    notYours: "The cyclone risk map is part of membership — your sign-in does "
+      + "not include it yet.",
+  },
+  "seismic-risk": {
+    id: "seismic-risk",
+    title: "Seismic risk",
+    blurb: "Damaging shaking by magnitude, from the merged USGS, ISC-GEM and "
+      + "GEM historical record.",
+    enforced: true,
+    signIn: "Sign in as a member to open the seismic risk map.",
+    notYours: "The seismic risk map is part of membership — your sign-in does "
+      + "not include it yet.",
+  },
+  "volcanic-risk": {
+    id: "volcanic-risk",
+    title: "Volcanic risk",
+    blurb: "Ashfall of at least a millimetre, by eruption size, over the "
+      + "completeness window and over the whole Holocene record.",
+    enforced: true,
+    signIn: "Sign in as a member to open the volcanic risk maps.",
+    notYours: "The volcanic risk maps are part of membership — your sign-in "
       + "does not include them yet.",
   },
-  /** Keeping a project, and writing files out of it. A courtesy, not a lock. */
-  save: {
-    id: "save",
-    title: "Saving and exporting",
-    blurb: "Keep a project folder on your own disk, reopen it, and export what "
-      + "you make from it.",
+  sealevel: {
+    id: "sealevel",
+    title: "Sea level",
+    blurb: "Where the sea stands at a chosen level, spread from the real "
+      + "coastline through the streamed heights.",
     enforced: false,
-    signIn: "Sign in as a member to save and export your work.",
-    notYours: "Saving and exporting are part of membership — your sign-in does "
-      + "not include them yet.",
+    signIn: "Sign in as a member to open the sea level model.",
+    notYours: "The sea level model is part of membership — your sign-in does "
+      + "not include it yet.",
   },
-  /** The first-person site viewers, and the tour that jumps between them. */
-  explorers: {
-    id: "explorers",
-    title: "Explorer models",
-    blurb: "The built landscapes — ASCENT on Everest, and the Etna viewer — and "
-      + "the tour that flies between them from the globe.",
+  rockprops: {
+    id: "rockprops",
+    title: "Rock properties",
+    blurb: "Strength, permeability and the rest of the geotechnical database, "
+      + "mapped onto the world's geology.",
     enforced: false,
-    signIn: "Sign in as a member to open the explorer models.",
-    notYours: "The explorer models are part of membership — your sign-in does "
-      + "not include them yet.",
-  },
-  /** The whole Hazards tab: the risk maps, the pipelines and the buffers. */
-  hazards: {
-    id: "hazards",
-    title: "Hazards",
-    blurb: "Every hazard model in one tab — cyclone, seismic, volcanic, "
-      + "landslide, flood, wildfire and exposure.",
-    enforced: false,
-    signIn: "Sign in as a member to open the Hazards tab.",
-    notYours: "The Hazards tab is part of membership — your sign-in does not "
-      + "include it yet.",
+    signIn: "Sign in as a member to open the rock property maps.",
+    notYours: "The rock property maps are part of membership — your sign-in "
+      + "does not include them yet.",
   },
   /** The Model Builder and the Meshing Studio behind it. */
   builder: {
@@ -106,13 +149,30 @@ export const FEATURES = {
       + "include it yet.",
   },
   /**
+   * Keeping a project, and writing files out of it.
+   *
+   * NOT a subtab, and kept from the earlier round where it was asked for by
+   * name ("membership should allow them to save their work and folders
+   * locally"). A courtesy gate: this is the browser's own filesystem in the
+   * member's own browser and nothing can enforce it.
+   */
+  save: {
+    id: "save",
+    title: "Saving and exporting",
+    blurb: "Keep a project folder on your own disk, reopen it, and export what "
+      + "you make from it.",
+    enforced: false,
+    signIn: "Sign in as a member to save and export your work.",
+    notYours: "Saving and exporting are part of membership — your sign-in does "
+      + "not include them yet.",
+  },
+  /**
    * Earth Engine, which is the one thing here that costs money PER USE.
    *
-   * Every request goes through our own billed Cloud Function, so unlike the
-   * rest of these the refusal can be made where the reader cannot reach — the
-   * function's own allowlist. Until it is, this stands the doorways down and
-   * clears the endpoint out of their storage, so nothing of ours is left
-   * sitting in a browser that may not use it.
+   * Not a subtab either, and kept for the same reason as `save`: it was asked
+   * for by name, and unlocking it means anybody may spend the account's money.
+   * Every request goes through our own billed Cloud Function, so this is the
+   * one refusal that can be made where the reader cannot reach.
    */
   gee: {
     id: "gee",
@@ -127,28 +187,40 @@ export const FEATURES = {
 };
 
 /**
- * The datasets behind `models`, by their own ids.
+ * Which feature a catalogue dataset or sheet belongs to.
  *
- * Drawn from `equations.js`'s own division: a layer marked "computed here" is
- * one we model, and a layer marked "modelled elsewhere" is somebody else's
- * published product -- Pelletier's soil thickness, WorldPop's population, the
- * MERRA-2 climate normals -- which is theirs to give away and not ours to
- * charge for. The DEM readings (elevation, slope, hillshade) are computed here
- * and are deliberately NOT in this list: looking at the shape of the ground is
- * exploring, and an explorer keeps it.
+ * Keyed by the dataset's OWN id -- the same id `equations.js` uses for its
+ * working -- so the gate on a row and the gate on the subtab holding it are one
+ * decision rather than two lists to keep in step.
+ *
+ * WHAT IS NOT HERE IS FREE, and each absence is deliberate. River corridor
+ * zones are computed here and are open. So are the DEM readings (elevation,
+ * slope, hillshade): looking at the shape of the ground is exploring. So is
+ * everything somebody else published -- Pelletier's soil thickness, WorldPop,
+ * the MERRA-2 normals -- which is theirs to give away and not ours to charge
+ * for.
  */
-export const MEMBER_MODELS = [
-  "cyclone-risk",
-  "volcanic-risk",
-  "volcanic-risk-holocene",
-  "seismic-risk",
-  "landslide-forecast",
-  "geoid-fos",
-  "flood-inundation",
-  "flood-discharge",
-  "river-zones",
-  "sea-level",
-];
+export const MEMBER_MODELS = {
+  "cyclone-risk": "cyclone-risk",
+  "seismic-risk": "seismic-risk",
+  "volcanic-risk": "volcanic-risk",
+  "volcanic-risk-holocene": "volcanic-risk",
+  "landslide-forecast": "landslides",
+  "geoid-fos": "mygeoid",
+  "flood-inundation": "flood",
+  "flood-discharge": "flood",
+  "sea-level": "sealevel",
+};
+
+/** The feature a dataset needs, or "" where it needs none. */
+export function featureForModel(id) {
+  return MEMBER_MODELS[String(id || "")] || "";
+}
+
+/** Is this dataset behind a membership at all? */
+export function isMemberModel(id) {
+  return !!featureForModel(id);
+}
 
 /**
  * The paths in our bucket that only a member may read.
@@ -184,11 +256,6 @@ export function gatedData(path) {
   const clean = String(path || "").replace(/^\/+/, "").replace(/^data\/global\//, "");
   return MEMBER_DATA.some((p) => clean === p || clean.startsWith(`${p}.`) || clean.startsWith(`${p}/`)
     || clean.startsWith(`${p}-`));
-}
-
-/** Is this dataset one of the modelled maps membership unlocks? */
-export function isMemberModel(id) {
-  return MEMBER_MODELS.includes(String(id || ""));
 }
 
 const TOKEN_KEY = "geoid:membership";

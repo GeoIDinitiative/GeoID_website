@@ -419,6 +419,18 @@
   }
 
   function setHubArmed(on) {
+    /**
+     * The floor under the myGeoID lock.
+     *
+     * feature-locks.js greys the bar and disables its Enter button, which is
+     * the visible half. This is what stops the mode being armed by anything
+     * that reaches this function another way — a restored state, the shell's
+     * postMessage bridge, a script — and standing it DOWN is always allowed,
+     * so a member who lapses mid-session is not left stuck inside it.
+     */
+    if (on && window.GeoIDMembership && !window.GeoIDMembership.may("mygeoid")) {
+      return;
+    }
     const was = hubArmed;
     hubArmed = Boolean(on);
     // Leaving the mode takes the pin with it. A marker left behind implies a
@@ -455,7 +467,7 @@
    * plain script, and where the seam is absent -- a standalone viewer, a suite
    * -- the answer is yes, which is how this behaved before membership existed.
    */
-  const GATED_MODES = { model: "builder" };
+  const GATED_MODES = {};   // the MODEL page is free; its nav-bar TAB is not
 
   function setMode(mode) {
     if (!VALID_MODES.includes(mode)) {

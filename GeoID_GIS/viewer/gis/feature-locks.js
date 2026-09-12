@@ -20,7 +20,7 @@
  * downstream can tell the difference, which is what makes a sign-in mid-session
  * work without a reload.
  */
-import { may, refusal, FEATURES, signInUrl } from "./membership.js?v=20260912-af72246";
+import { may, refusal, FEATURES, signInUrl } from "./membership.js?v=20260912-ba5913f";
 
 /**
  * Which tab or section belongs to which feature.
@@ -29,8 +29,20 @@ import { may, refusal, FEATURES, signInUrl } from "./membership.js?v=20260912-af
  * body, or moved onto a rail — all three of which happen here.
  */
 const LOCKED_SECTIONS = [
-  { id: "modelled-data-section", feature: "hazards" },
-  { id: "explorer-models-section", feature: "explorers" },
+  /**
+   * TARGETED, not whole tabs. Locking Hazards shut the wildfire feed, the
+   * exposure map and the drought rows with it -- none of which is ours to
+   * charge for -- so the lock is on the SUBTABS that hold the models GeoID
+   * computes itself, and everything beside them in the same tab stays open.
+   */
+  { id: "gis-group-geoid", feature: "mygeoid" },              // the myGeoID mode bar
+  { id: "hazard-landslides-section", feature: "landslides" },
+  { id: "hazard-flood-section", feature: "flood" },
+  { id: "hazard-cyclones-section", feature: "cyclone-risk" },
+  { id: "hazard-seismic-section", feature: "seismic-risk" },
+  { id: "hazard-volcanic-section", feature: "volcanic-risk" },
+  { id: "hydrology-sea-level", feature: "sealevel" },
+  { id: "rock-properties-section", feature: "rockprops" },
   /**
    * THE MODEL BUILDER IS TWO SURFACES, and locking one is locking half of it.
    *
@@ -42,10 +54,16 @@ const LOCKED_SECTIONS = [
   { id: "gis-group-mesh", feature: "builder" },
 ];
 
-/** Mode buttons that need a membership to press. */
-const LOCKED_MODES = [
-  { id: "view-mode-model", feature: "builder" },
-];
+/**
+ * Mode buttons that need a membership to press.
+ *
+ * EMPTY, and deliberately so. The MODEL page — the Meshing Studio — is free and
+ * open: somebody may build a mesh, boolean it, flag its surfaces and export a
+ * package without a membership. What is gated is the Model Builder TAB in the
+ * nav bar (`gis-group-mesh`), which is the pipeline that samples the REAL
+ * ground into a domain, and that is a section rather than a mode.
+ */
+const LOCKED_MODES = [];
 
 const STYLE = `
 /*
@@ -61,7 +79,8 @@ const STYLE = `
  * fill -- are written at a higher specificity by the shared panel sheets, and
  * a locked tab must not be able to light up underneath this.
  */
-.gis-locked > summary {
+.gis-locked > summary,
+.gis-locked > .section-toggle {
   opacity: 0.5;
   filter: grayscale(1);
   background: rgba(255, 255, 255, 0.03) !important;
@@ -69,8 +88,10 @@ const STYLE = `
   color: rgba(255, 255, 255, 0.72) !important;
   box-shadow: none !important;
 }
-.gis-locked > summary * { color: inherit !important; }
-.gis-locked > summary:hover { opacity: 0.66; }
+.gis-locked > summary *,
+.gis-locked > .section-toggle * { color: inherit !important; }
+.gis-locked > summary:hover,
+.gis-locked > .section-toggle:hover { opacity: 0.66; }
 .gis-locked {
   border-color: rgba(255, 255, 255, 0.12) !important;
   box-shadow: none !important;
@@ -79,12 +100,21 @@ const STYLE = `
 /*
  * The lock rides at FULL strength inside the dimmed row, so it is the one thing
  * that has not been faded -- which is what makes it read as the reason.
+ *
+ * A REAL ELEMENT rather than a pseudo. There are three header shapes here --
+ * a bare summary on a tool section, a summary.section-toggle on a toolbox
+ * group, and a DIV.section-toggle on the myGeoID bar, which is not a details
+ * element at all -- and only the middle one has the .section-title-row the
+ * first version hung the mark off. A span appended to whichever header is
+ * there works for all three and cannot collide with a pseudo the panel sheets
+ * are already using for a chevron.
  */
-.gis-locked > summary .section-title-row::after {
-  content: "";
+.gis-lock-mark {
+  display: inline-block;
   width: 13px; height: 13px;
   margin-left: 0.45rem;
   flex: 0 0 auto;
+  vertical-align: -2px;
   background: currentColor;
   opacity: 1;
   -webkit-mask: var(--geoid-lock) center/contain no-repeat;
@@ -159,6 +189,13 @@ function installStyle() {
   } catch (error) { /* no document: a test */ }
 }
 
+/** What this section calls itself, for the label a screen reader reads. */
+function nameOf(node) {
+  const head = node.querySelector(":scope > summary")
+    || node.querySelector(":scope > .section-toggle");
+  return (head?.textContent || "").replace(/\s+/g, " ").trim() || "This";
+}
+
 /** The card that stands in a locked tab's body. */
 function lockCard(feature) {
   const f = FEATURES[feature];
@@ -189,6 +226,53 @@ function applySection({ id, feature }) {
   if (!node) return;
   const locked = !may(feature);
   node.classList.toggle("gis-locked", locked);
+
+  /**
+   * The header is whichever of the three shapes this section has. `:scope >`
+   * matters: a section holds other sections, and without it the FIRST nested
+   * summary anywhere inside would be marked instead of this one's own.
+   */
+  const head = node.querySelector(":scope > summary")
+    || node.querySelector(":scope > .section-toggle");
+  if (head) {
+    const mark = head.querySelector(":scope > .gis-lock-mark");
+    if (locked && !mark) {
+      const span = document.createElement("span");
+      span.className = "gis-lock-mark";
+      span.setAttribute("aria-hidden", "true");
+      head.appendChild(span);
+    } else if (!locked && mark) {
+      mark.remove();
+    }
+    // Said out loud as well as drawn, for a reader who cannot see the mark.
+    if (locked) head.setAttribute("aria-label", `${nameOf(node)} — members only`);
+    else head.removeAttribute("aria-label");
+
+    /**
+     * A CONTROL IN THE HEADER IS NOT IN THE BODY, and hiding the body leaves it
+     * pressable.
+     *
+     * The myGeoID bar carries its Enter button in its header, the way Tour Mode
+     * does — so with the body hidden behind the lock card, the one control that
+     * actually arms the mode was still sitting there live. Disabled rather than
+     * hidden, so the row still reads as the thing it is; `data-lock-disabled`
+     * marks what this turned off, or unlocking would re-enable a control that
+     * was disabled for some other reason of its own.
+     */
+    head.querySelectorAll("button, input, select").forEach((control) => {
+      if (locked) {
+        if (!control.disabled) {
+          control.disabled = true;
+          control.dataset.lockDisabled = "1";
+          control.title = refusal(feature);
+        }
+      } else if (control.dataset.lockDisabled) {
+        control.disabled = false;
+        delete control.dataset.lockDisabled;
+        control.title = "";
+      }
+    });
+  }
 
   const body = node.querySelector(".section-body") || node;
   const existing = body.querySelector(`:scope > .gis-lock-card[data-lock-for="${feature}"]`);

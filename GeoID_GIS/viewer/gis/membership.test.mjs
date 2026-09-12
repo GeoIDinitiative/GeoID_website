@@ -63,37 +63,37 @@ reset();
 // old "unconfigured means open" default produced on the machine they were
 // being built on.
 check("membership is enforced by default", m.enforcing() === true);
-check("models are locked out of the box", m.may("models") === false);
+check("the cyclone risk map is locked out of the box", m.may("cyclone-risk") === false);
 check("saving is locked out of the box", m.may("save") === false);
 check("every feature is locked out of the box",
   Object.keys(m.FEATURES).every((f) => m.may(f) === false));
 
 // With no sign-in service, "sign in" is an instruction nobody can follow.
 check("the refusal says membership is not open rather than telling them to sign in",
-  /not open for sign-in yet/.test(m.refusal("models")), m.refusal("models"));
+  /not open for sign-in yet/.test(m.refusal("cyclone-risk")), m.refusal("cyclone-risk"));
 
 // Way out 1: a deployment that wants no gates at all.
 m.disable(true);
-check("disable() opens everything", m.may("models") === true);
+check("disable() opens everything", m.may("cyclone-risk") === true);
 eq("...and the state says so", m.state().enforcing, false);
 m.disable(false);
-check("...and it goes back", m.may("models") === false);
+check("...and it goes back", m.may("cyclone-risk") === false);
 
 // Way out 2: this browser, for working on the site before the Worker is up.
 storage.set("geoid:unlock", "owner");
 m.refresh();
-check("the local unlock opens everything", m.may("models") === true);
+check("the local unlock opens everything", m.may("cyclone-risk") === true);
 eq("...and reads as the master account, so the app can say which",
   m.state().owner, true);
 eq("...and says it is local rather than a sign-in", m.state().localUnlock, true);
 storage.delete("geoid:unlock");
 m.refresh();
-check("...and clearing it locks again", m.may("models") === false);
+check("...and clearing it locks again", m.may("cyclone-risk") === false);
 
 m.configure("https://auth.geoidinitiative.com/");
 eq("a trailing slash is trimmed", m.authService(), "https://auth.geoidinitiative.com");
 check("naming a service does not change whether gates exist", m.enforcing() === true);
-check("models are still gated", m.may("models") === false);
+check("the risk maps are still gated", m.may("cyclone-risk") === false);
 
 // A capability nobody declared is not a gate. Failing closed on a typo would
 // lock a feature for everybody with nothing on screen to say why.
@@ -110,7 +110,7 @@ eq("a member's state", m.state(), {
   name: "Rae", email: "r@example.org",
   until: m.state().until, enforcing: true,
 });
-check("a member may use the models", m.may("models") === true);
+check("a member may use the risk maps", m.may("cyclone-risk") === true);
 check("a member may save", m.may("save") === true);
 check("the token is available to a request that must carry it", m.bearer().length > 0);
 
@@ -119,15 +119,18 @@ check("the token is available to a request that must carry it", m.bearer().lengt
 m.accept(tokenFor({ email: "e@example.org", name: "Ex", member: false, exp: inHours(24) }));
 eq("an explorer is signed in", m.state().signedIn, true);
 eq("...and is not a member", m.state().member, false);
-check("an explorer is refused the models", m.may("models") === false);
+check("an explorer is refused the risk maps", m.may("cyclone-risk") === false);
 check("the refusal names the membership rather than the sign-in",
-  /does not include them yet/.test(m.refusal("models")), m.refusal("models"));
+  /does not include it yet/.test(m.refusal("cyclone-risk")), m.refusal("cyclone-risk"));
 // Each feature carries its own sentence rather than having its title
 // templated into one: a template gives "Modelled risk maps IS part of
 // membership", which is what this check exists to keep out.
 for (const [id, f] of Object.entries(m.FEATURES)) {
+  // A sentence, ending in a full stop. NOT required to start with a capital:
+  // "myGeoID is part of membership" starts with the product's own name, and a
+  // check that forces a capital there would be correcting the product.
   check(`${id} states both of its own refusals`,
-    /^[A-Z].*\.$/.test(f.signIn) && /^[A-Z].*\.$/.test(f.notYours),
+    /\.$/.test(f.signIn) && /\.$/.test(f.notYours) && f.signIn.length > 12,
     `${f.signIn} | ${f.notYours}`);
   check(`${id} says something in both`, f.signIn !== f.notYours, f.signIn);
 }
@@ -140,7 +143,7 @@ m.configure("https://auth.geoidinitiative.com");
 m.accept(tokenFor({ email: "old@example.org", member: true, exp: inHours(-1) }));
 eq("an expired token does not sign anybody in", m.state().signedIn, false);
 check("...and is not kept", storage.size === 0, `${storage.size} stored`);
-check("an expired member may not use the models", m.may("models") === false);
+check("an expired member may not use the risk maps", m.may("cyclone-risk") === false);
 
 // A token with no expiry is treated as expired: a bearer token that never runs
 // out is one a revoked member keeps for ever.
@@ -182,16 +185,28 @@ check("the document hears it too", events.some((e) => e.type === "geoid:membersh
 
 // ── 6. What membership unlocks, stated once ───────────────────────────────
 
-check("the modelled maps are the hazard models",
-  m.MEMBER_MODELS.length === 10, m.MEMBER_MODELS.join(", "));
+// Every dataset behind a gate names the feature it belongs to, so the gate on
+// a catalogue row and the gate on the subtab holding it are one decision.
+check("every gated dataset names a feature that exists",
+  Object.values(m.MEMBER_MODELS).every((f) => !!m.FEATURES[f]),
+  JSON.stringify(m.MEMBER_MODELS));
+eq("the two volcanic records share one feature",
+  [m.featureForModel("volcanic-risk"), m.featureForModel("volcanic-risk-holocene")],
+  ["volcanic-risk", "volcanic-risk"]);
+eq("both river floods share one feature",
+  [m.featureForModel("flood-inundation"), m.featureForModel("flood-discharge")],
+  ["flood", "flood"]);
 for (const id of ["cyclone-risk", "seismic-risk", "volcanic-risk", "landslide-forecast",
-                  "flood-inundation", "sea-level"]) {
+                  "flood-inundation", "sea-level", "geoid-fos"]) {
   check(`${id} is behind membership`, m.isMemberModel(id) === true);
 }
 // Somebody else's published product is theirs to give away, and the shape of
 // the ground is exploring. Both stay open.
+// River corridor zones are computed here and are OPEN, by name: narrowing the
+// gates to the listed subtabs took them out, and a check is the only thing that
+// stops them drifting back in.
 for (const id of ["soil-thickness", "worldpop", "climate-temperature",
-                  "dem-elevation", "dem-slope", "dem-hillshade"]) {
+                  "dem-elevation", "dem-slope", "dem-hillshade", "river-zones"]) {
   check(`${id} is NOT behind membership`, m.isMemberModel(id) === false);
 }
 
@@ -202,8 +217,14 @@ check("the sign-in url carries where to come back to",
 
 // The models gate is enforceable and the save gate is not, and the module says
 // which is which rather than letting a caller assume.
-eq("the models gate is enforced at the bucket", m.FEATURES.models.enforced, true);
-eq("the save gate is a courtesy and says so", m.FEATURES.save.enforced, false);
+// The three baked grids are files in our own bucket and are really enforced;
+// everything computed in the browser is a courtesy, and each says which.
+for (const id of ["cyclone-risk", "seismic-risk", "volcanic-risk"]) {
+  eq(`${id} is enforced at the bucket`, m.FEATURES[id].enforced, true);
+}
+for (const id of ["save", "landslides", "flood", "sealevel", "builder"]) {
+  eq(`${id} is a courtesy and says so`, m.FEATURES[id].enforced, false);
+}
 
 // ── 7. A name outside ASCII survives the decode ────────────────────────────
 

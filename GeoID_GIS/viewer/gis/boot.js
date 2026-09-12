@@ -1,4 +1,4 @@
-import { ready } from "./shell.js?v=20260912-af72246";
+import { ready } from "./shell.js?v=20260912-ba5913f";
 
 /**
  * The GIS layer's entry point on a planet page.
@@ -32,6 +32,8 @@ const MODULES = [
   // wears a padlock rather than disappearing: a feature nobody can see is a
   // feature nobody knows they could have.
   "./feature-locks.js",
+  // Every credential a browser holds, cleared when membership goes.
+  "./credential-wipe.js",
   "./geoid-pipeline.js",
   "./geoid-mode.js",
   "./import-manager.js",
@@ -93,7 +95,7 @@ const MODULES = [
   "./atlas-assistant.js",
 ];
 
-const VERSION = "?v=20260912-af72246";
+const VERSION = "?v=20260912-ba5913f";
 
 async function boot() {
   const shell = await ready;

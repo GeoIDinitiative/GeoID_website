@@ -18,8 +18,8 @@
  * in extraction and in export without this file knowing anything about them.
  */
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260912-af72246";
-import { isMemberModel, may, refusal, signInUrl } from "./membership.js?v=20260912-af72246";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260912-ba5913f";
+import { featureForModel, may, refusal, signInUrl } from "./membership.js?v=20260912-ba5913f";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -641,7 +641,8 @@ export function renderCatalogue(host, entries, hooks) {
      * finds out what membership is for, and the refusal arrives on the panel's
      * status line where every other answer arrives.
      */
-    const gated = isMemberModel(entry.id) && !may("models");
+    const needs = featureForModel(entry.id);
+    const gated = !!needs && !may(needs);
     if (gated) row.classList.add("is-members");
 
     const name = document.createElement("label");
@@ -649,7 +650,7 @@ export function renderCatalogue(host, entries, hooks) {
     name.htmlFor = tick.id;
     name.textContent = entry.label;
     if (entry.title) name.title = entry.title;
-    if (gated) name.title = refusal("models");
+    if (gated) name.title = refusal(needs);
     const info = entry.info ? infoButton(entry) : null;
 
     // Name first, tick LAST: the ticks line up down the row's right edge,
@@ -662,7 +663,7 @@ export function renderCatalogue(host, entries, hooks) {
       chip.textContent = "Members";
       chip.href = signInUrl();
       chip.target = "_top";   // or a viewer loads inside this viewer
-      chip.title = refusal("models");
+      chip.title = refusal(needs);
       row.append(chip);
     }
 
