@@ -13,8 +13,8 @@
  * Pure: the height reader is passed in, and every function is checked in Node
  * against a plane and against closed forms for area.
  */
-import { makeLocalFrame } from "./model-build.js?v=20260912-80a7645";
-import { sizeFieldLines } from "./mesh-size-fields.js?v=20260912-80a7645";
+import { makeLocalFrame } from "./model-build.js?v=20260912-e5b0314";
+import { sizeFieldLines } from "./mesh-size-fields.js?v=20260912-e5b0314";
 
 /** Sample the DEM along A–B: `n` points, evenly spaced along the line. */
 export function profileAlong({ a, b, n = 200, heightAt, radiusKm = 6371.0088, frame = null }) {

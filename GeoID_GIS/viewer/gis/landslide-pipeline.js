@@ -31,34 +31,34 @@
  * every card, what it has read.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260912-80a7645";
-import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260912-80a7645";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260912-e5b0314";
+import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260912-e5b0314";
 import {
   columnMaterial, soilColumn, steadyWetness, planeWetness, factorOfSafety, criticalRecharge,
   FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M, LATERAL_FACTOR, FOS_CAP, cellAnswer,
-} from "./slope-hydrology.js?v=20260912-80a7645";
-import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260912-80a7645";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260912-80a7645";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260912-80a7645";
-import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260912-80a7645";
-import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainParts, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260912-80a7645";
-import { mathsFor } from "./equations.js?v=20260912-80a7645";
-import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260912-80a7645";
-import { upslopeWeights, stationStep, stationFlood, catchmentTopology, floodScratch, LANDSLIDE_PARAMS, LANDSLIDE_PLOTS, lowestCells } from "./landslide-stations.js?v=20260912-80a7645";
+} from "./slope-hydrology.js?v=20260912-e5b0314";
+import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260912-e5b0314";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260912-e5b0314";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260912-e5b0314";
+import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260912-e5b0314";
+import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainParts, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260912-e5b0314";
+import { mathsFor } from "./equations.js?v=20260912-e5b0314";
+import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260912-e5b0314";
+import { upslopeWeights, stationStep, stationFlood, catchmentTopology, floodScratch, LANDSLIDE_PARAMS, LANDSLIDE_PLOTS, lowestCells } from "./landslide-stations.js?v=20260912-e5b0314";
 import {
   makeStation, parseStationsCsv, stationsFromFeatures, uniqueName, seriesCsv, seriesFileName, MAX_STATIONS, colourAt,
-} from "./station-series.js?v=20260912-80a7645";
-import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260912-80a7645";
-import { planSeries, rendersOf, stepText, rampMaxFor, STEP_CHOICES, NATIVE_STEP, HOUR } from "./rain-steps.js?v=20260912-80a7645";
-import { mountStationMarkers } from "./station-markers.js?v=20260912-80a7645";
-import { equivalentMohrCoulomb, culmann, culmannAt, rockCell, localRelief, rockfallReach, velocityOf, criticalHeight } from "./rock-slope.js?v=20260912-80a7645";
+} from "./station-series.js?v=20260912-e5b0314";
+import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260912-e5b0314";
+import { planSeries, rendersOf, stepText, rampMaxFor, STEP_CHOICES, NATIVE_STEP, HOUR } from "./rain-steps.js?v=20260912-e5b0314";
+import { mountStationMarkers } from "./station-markers.js?v=20260912-e5b0314";
+import { equivalentMohrCoulomb, culmann, culmannAt, rockCell, localRelief, rockfallReach, velocityOf, criticalHeight } from "./rock-slope.js?v=20260912-e5b0314";
 import {
   bankfullCapacity, partition, residenceTimes, waveStep, floodFos, riseFor,
   FLOOD_CLASSES, RUNOFF_CLASSES, DISCHARGE_CLASSES, BANKFULL_RATIO, HILLSLOPE_V,
-} from "./flood-fos.js?v=20260912-80a7645";
-import { inundate, sourceFields, DEPTH_CLASSES, DEFAULTS as FLOOD_DEFAULTS, meanFlowFromWidth } from "./inundation.js?v=20260912-80a7645";
-import { burnRivers } from "./river-zones.js?v=20260912-80a7645";
-import { waterFeatures, waterMasks } from "./water-mask.js?v=20260912-80a7645";
+} from "./flood-fos.js?v=20260912-e5b0314";
+import { inundate, sourceFields, DEPTH_CLASSES, DEFAULTS as FLOOD_DEFAULTS, meanFlowFromWidth } from "./inundation.js?v=20260912-e5b0314";
+import { burnRivers } from "./river-zones.js?v=20260912-e5b0314";
+import { waterFeatures, waterMasks } from "./water-mask.js?v=20260912-e5b0314";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";
@@ -1265,44 +1265,63 @@ async function riverNetwork(eb, grid) {
 }
 
 /**
- * OPENNESS IS A PROPERTY OF THE REACH, not of the cell. A wide river burned
- * onto a grid is several cells across and the flow concentrates in one of
- * them; the cells beside it sit on the same trench and drain only their own
- * few metres of bank. Measured on the Rhône at Avignon, that left 474 m cells
- * reading as CLOSED beside the open channel — and a closed cell with almost no
- * discharge against a whole basin's brim is the same false comfort this whole
- * flag exists to withhold.
+ * WHERE THE REACH'S WATER ACTUALLY IS. A wide river burned onto a grid is many
+ * cells across — 474 m at 18 m posts is twenty-six — and the flow concentrates
+ * in one line down the trench; the cells beside it drain only their own few
+ * metres of bank. Read cell by cell, those side cells carry almost no water
+ * against a whole basin's brim, which is the same false comfort the open flag
+ * exists to withhold, and they read as CLOSED beside an open channel.
  *
- * So the flag is spread over each connected run of river cells: if water can
- * reach any part of a reach from outside the mapped ground, it can reach the
- * reach. Eight-connected, because a burned centreline steps diagonally.
+ * So every river cell is snapped to its THALWEG: the river cell within half
+ * the river's own width that the most ground drains through. A cell then
+ * reports its reach's discharge and its reach's provenance rather than its own
+ * bank's, which is what a reader means by "the river here".
+ *
+ * Spreading the flag along connected river cells instead was tried and is
+ * wrong: a network is connected all the way to its trunk, so the Ardèche's own
+ * headwaters — whose catchment really is inside the area — were made open by
+ * joining the Rhône twenty kilometres downstream. Openness travels DOWNSTREAM
+ * with the water, which `openCatchments` already has exactly right; what the
+ * side cells needed was not spreading but snapping.
  */
-export function openReaches(open, riverWidth, width, height, list) {
-  const seen = new Uint8Array(open.length);
-  const stack = [];
-  for (const seed of list) {
-    if (seen[seed]) continue;
-    const part = [];
-    let anyOpen = false;
-    stack.length = 0; stack.push(seed); seen[seed] = 1;
-    while (stack.length) {
-      const i = stack.pop();
-      part.push(i);
-      if (open[i]) anyOpen = true;
-      const x = i % width; const y = (i / width) | 0;
-      for (let dy = -1; dy <= 1; dy += 1) {
-        const ny = y + dy; if (ny < 0 || ny >= height) continue;
-        for (let dx = -1; dx <= 1; dx += 1) {
-          const nx = x + dx; if (nx < 0 || nx >= width) continue;
-          const j = ny * width + nx;
-          if (seen[j] || !(riverWidth[j] > 0)) continue;
-          seen[j] = 1; stack.push(j);
-        }
+export function thalwegOf({ riverWidth, acc, width, height, stepM, list }) {
+  const thal = new Int32Array(list.length);
+  const step = Math.max(1, stepM);
+  for (let m = 0; m < list.length; m += 1) {
+    const i = list[m];
+    const x = i % width; const y = (i / width) | 0;
+    const r = Math.max(1, Math.round((riverWidth[i] / 2) / step));
+    let most = acc[i];
+    for (let dy = -r; dy <= r; dy += 1) {
+      const ny = y + dy; if (ny < 0 || ny >= height) continue;
+      for (let dx = -r; dx <= r; dx += 1) {
+        const nx = x + dx; if (nx < 0 || nx >= width) continue;
+        const j = ny * width + nx;
+        if (riverWidth[j] > 0 && acc[j] > most) most = acc[j];
       }
     }
-    if (anyOpen) for (const i of part) open[i] = 1;
+    // THE NEAREST CELL THAT IS IN THE CHANNEL, not the biggest one in reach.
+    // Accumulation grows downstream, so taking the window's maximum snaps every
+    // cell to the far end of its own window and walks the whole reach's
+    // discharge downstream by half a width. A bank cell carries a few cells'
+    // worth against the channel's thousands, so half the window's maximum
+    // separates the two by orders of magnitude and the tie is broken by
+    // distance — which leaves a channel cell reporting itself.
+    const bar = most / 2;
+    let best = i; let bestD = acc[i] >= bar ? 0 : Infinity;
+    for (let dy = -r; dy <= r && bestD; dy += 1) {
+      const ny = y + dy; if (ny < 0 || ny >= height) continue;
+      for (let dx = -r; dx <= r; dx += 1) {
+        const nx = x + dx; if (nx < 0 || nx >= width) continue;
+        const j = ny * width + nx;
+        if (!(riverWidth[j] > 0) || acc[j] < bar) continue;
+        const d = (dx * dx) + (dy * dy);
+        if (d < bestD) { bestD = d; best = j; }
+      }
+    }
+    thal[m] = best;
   }
-  return open;
+  return thal;
 }
 
 export function openCatchments(g) {
@@ -1354,11 +1373,18 @@ async function buildFlood() {
     }
     const k = residenceTimes({ n, slopeRad: cells.slopeRad, capacity, cellM: grid.stepM, hillV: pr.hillV });
     await tick();
-    const open = openReaches(openCatchments(g), riverWidth, grid.width, grid.height, list);
+    const drains = routeFlux(g.topo, Float64Array.from({ length: n }, (v, i) => (cells.data[i] ? 1 : 0)));
+    const thalweg = thalwegOf({ riverWidth, acc: drains, width: grid.width, height: grid.height, stepM: grid.stepM, list });
+    const cellOpen = openCatchments(g);
+    // Read every reach's flag before writing any, or a snapped cell can be
+    // read after it has been overwritten by its own neighbour's answer.
+    const open = new Uint8Array(n);
+    const reachAt = new Int32Array(n).fill(-1);
+    for (let m = 0; m < list.length; m += 1) { open[list[m]] = cellOpen[thalweg[m]]; reachAt[list[m]] = thalweg[m]; }
     let closed = 0;
     for (let m = 0; m < list.length; m += 1) if (cells.model[list[m]] && !open[list[m]]) closed += 1;
     const fields = list.length ? sourceFields(riverWidth, grid.width, grid.height, eb) : [];
-    g.flood = { riverWidth, capacity, k, fields, water: wet, cells: Int32Array.from(list), open, closed,
+    g.flood = { riverWidth, capacity, k, fields, water: wet, cells: Int32Array.from(list), open, closed, thalweg, reachAt,
       zoom: rivers?.zoom ?? null, inArea, widest, params: { bankfull: pr.bankfull, hillV: pr.hillV } };
     if (!list.length) {
       say("fos", "No GRWL river reaches this area, so there is no channel to flood \u2014 the slope and rock models still run. "
@@ -1713,7 +1739,9 @@ function waveFrame(wave, out, frames, k) {
   let over = 0; let peakQ = 0; let worst = Infinity;
   for (let m = 0; m < wave.R; m += 1) {
     const i = fl.cells[m];
-    const q = wave.q[i];
+    // The reach's own water, not this cell's bank: a wide channel's flow is in
+    // one line down the trench and every cell of the reach reports it.
+    const q = wave.q[fl.thalweg[m]];
     wave.series[base + m] = q;
     if (q > wave.peak[m]) wave.peak[m] = q;
     if (!cells.model[i]) continue;
@@ -2116,6 +2144,10 @@ function stationCell(lat, lon) {
   const y = Math.min(g.grid.height - 1, Math.floor(((g.eb.north - lat) / (g.eb.north - g.eb.south)) * g.grid.height));
   const i = y * g.grid.width + x;
   if (!g.cells.data[i] || !g.cells.model[i]) return { cell: -1, note: "no ground under it in the DEM" };
+  // A station put on a river reads THE RIVER: a click lands anywhere across a
+  // wide channel's burned width, and a bank cell's catchment is its own bank.
+  const reach = g.flood?.reachAt?.[i] ?? -1;
+  if (reach >= 0 && reach !== i && g.cells.model[reach]) return { cell: reach, note: "" };
   return { cell: i, note: "" };
 }
 

@@ -6,7 +6,7 @@
 import { readFileSync } from "node:fs";
 import {
   demGridFor, withMargin, autoMarginKm, samplerOver, lithologyOf, groundText, stateOf, textureOf,
-  staticStep, readiness, hornAt, cellSlope, openCatchments, openReaches,
+  staticStep, readiness, hornAt, cellSlope, openCatchments, thalwegOf,
 } from "./landslide-pipeline.js";
 import { mfdTopology, fillSinks } from "./hydrology.js";
 import { makeRaster } from "./raster-analysis.js";
@@ -55,24 +55,28 @@ useRockProperties(JSON.parse(readFileSync(new URL("../../data/global/rock-proper
   check("and the border itself is always open, because the model cannot see past it",
     [...Array(w).keys()].every((x) => dome[x] === 1 && dome[(h - 1) * w + x] === 1));
 
-  // A WIDE RIVER IS SEVERAL CELLS ACROSS and the flow concentrates in one of
-  // them, so the cells beside the channel drain only their own bank. Left as
-  // cells, those read closed beside the open channel and are handed a whole
-  // basin's brim against almost no water — the false comfort the flag exists
-  // to withhold.
+  // A WIDE RIVER IS SEVERAL CELLS ACROSS and the flow concentrates in one line
+  // down the trench, so the cells beside it drain only their own bank. Every
+  // river cell is snapped to the cell of its own reach that the most ground
+  // drains through — which is where the water is, and whose provenance is the
+  // reach's.
   const rw = new Float32Array(n);
   const mid = Math.floor(h / 2);
-  for (let x = 0; x < w; x += 1) { rw[mid * w + x] = 400; rw[(mid + 1) * w + x] = 400; }   // crosses both edges
-  const pond = [(h - 4) * w + 5, (h - 4) * w + 6, (h - 5) * w + 5];                        // wholly inside
-  pond.forEach((i) => { rw[i] = 40; });
+  const channel = mid * w;                       // the line the water is in
+  for (let x = 0; x < w; x += 1) for (let dy = -3; dy <= 3; dy += 1) rw[(mid + dy) * w + x] = 300;
+  const acc = new Float64Array(n);
+  for (let x = 0; x < w; x += 1) { acc[channel + x] = 1000 + x; for (let dy = -3; dy <= 3; dy += 1) if (dy) acc[(mid + dy) * w + x] = 3; }
   const list = [...Array(n).keys()].filter((i) => rw[i] > 0);
-  const flag = new Uint8Array(n);
-  flag[mid * w] = 1;                                                                        // one cell of the stem
-  const spread = openReaches(flag, rw, w, h, list);
-  check("the whole reach is open where any part of it is fed from outside",
-    [...Array(w).keys()].every((x) => spread[mid * w + x] === 1 && spread[(mid + 1) * w + x] === 1));
-  check("and a reach that touches nothing outside keeps its own catchment",
-    pond.every((i) => spread[i] === 0));
+  const thal = thalwegOf({ riverWidth: rw, acc, width: w, height: h, stepM: 30, list });
+  const bank = list.indexOf((mid + 3) * w + 20);
+  check("a cell on the bank of a wide river reports the channel beside it",
+    ((thal[bank] / w) | 0) === mid, `row ${(thal[bank] / w) | 0} against ${mid}`);
+  check("and the channel reports itself", thal[list.indexOf(channel + 20)] === channel + 20);
+  // A NARROW river is one cell wide, so its own cell is its reach.
+  const nw = new Float32Array(n); nw[channel + 5] = 40;
+  const one = [...Array(n).keys()].filter((i) => nw[i] > 0);
+  check("a narrow river is its own reach",
+    thalwegOf({ riverWidth: nw, acc, width: w, height: h, stepM: 30, list: one })[0] === channel + 5);
 }
 
 /* ── the grid, the margin, the maps' words ────────────────────────────────── */
