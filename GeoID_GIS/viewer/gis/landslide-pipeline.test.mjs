@@ -201,11 +201,17 @@ check("lateral flow is a control, with the stated default", /lateral: LATERAL_FA
 check("the drawn sheet is bounded by its cells' edges, not the asked box", /sub\.bounds = \{ minX: eb\.west \+ x0 \* cw/.test(src));
 
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
-// One storm, three failures — so it is its own Hazards subtab rather than a
-// landslide product, and the id it is hosted at is unchanged.
-check("the page hosts the flowchart in its own Hazards subtab and loads the module",
-  /<summary>Storm hazards<\/summary>\s*<div class="gis-tool-body">\s*<div id="landslide-pipeline">/.test(html)
+// The landslide procedure lives in the Landslides subtab, FIRST — before the
+// NI prototype, which is a worked example of this subject rather than a
+// second one. It had a subtab of its own on the argument that three hazards
+// out of one model is no longer a landslide product; that is true of the
+// model and wrong about where a reader goes to find it.
+check("the page hosts the flowchart at the top of the Landslides subtab and loads the module",
+  /<summary>Landslides<\/summary>\s*<div class="gis-tool-body">\s*<div id="landslide-pipeline"><\/div>/.test(html)
+  && html.indexOf('id="landslide-pipeline"') < html.indexOf("<summary>NI prototype</summary>")
   && /gis\/landslide-pipeline\.js\?v=/.test(html));
+check("and no subtab of its own is left behind", !/<summary>Storm hazards<\/summary>/.test(html)
+  && !/"storm hazards":/.test(readFileSync(new URL("./side-panels.js", import.meta.url), "utf8")));
 const popup = readFileSync(new URL("./feature-popup.js", import.meta.url), "utf8");
 check("no cell is left out for its slope or its thin soil", !/MIN_SLOPE_DEG/.test(src) && !/not modelled/.test(src)
   && /cells\.model\[i\] = 1; tally\.model \+= 1;/.test(src));
