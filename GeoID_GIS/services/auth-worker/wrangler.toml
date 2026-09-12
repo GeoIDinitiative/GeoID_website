@@ -1,0 +1,31 @@
+# The membership service. Deploy from this directory with `npx wrangler deploy`.
+#
+# Nothing secret is in this file. The four provider credentials and the signing
+# key are set with `wrangler secret put`, which keeps them in the Worker's own
+# environment where no page can reach them.
+
+name = "geoid-auth"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+# The service's own origin, and the site's. SELF_ORIGIN must match the redirect
+# URI registered with Google and GitHub exactly, or the sign-in is refused by
+# them rather than by us.
+[vars]
+SELF_ORIGIN = "https://auth.geoidinitiative.com"
+SITE_ORIGIN = "https://geoidinitiative.com"
+# Every origin a sign-in may return to, and the only ones CORS answers for.
+# An open redirect is a phishing gift, so this list is the whole allowance --
+# localhost is here so the site can be worked on, and is the first thing to
+# take out if that ever stops being true.
+RETURN_ORIGINS = "https://geoidinitiative.com https://www.geoidinitiative.com http://localhost:8125"
+
+# One entry per member: key `member:<verified email>`, value {"until": <epoch s>}.
+# An address that is not here is an explorer, which is a welcome state.
+[[kv_namespaces]]
+binding = "MEMBERS"
+id = "REPLACE-WITH-YOUR-KV-NAMESPACE-ID"
+
+[[routes]]
+pattern = "auth.geoidinitiative.com/*"
+zone_name = "geoidinitiative.com"

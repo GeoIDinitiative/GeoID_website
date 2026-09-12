@@ -17,14 +17,22 @@
  * with no registration.
  */
 
-import { readdirSync, statSync } from "node:fs";
+import { readdirSync, statSync, existsSync } from "node:fs";
 import { join, dirname, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..");                 // GeoID_GIS
-const SEARCH = join(ROOT, "viewer");           // where the test files live
+/**
+ * Where the test files live.
+ *
+ * `viewer/` is the app. `services/` is the bakes and the Workers beside it, and
+ * it was NOT swept for a long time -- `gee-tiles/stac.test.mjs` sat there
+ * passing and unrun, which is not a test. Anything under either is picked up
+ * with no registration.
+ */
+const SEARCH = [join(ROOT, "viewer"), join(ROOT, "services")];
 
 /** Every *.test.mjs under a directory, recursively. */
 function findTests(dir) {
@@ -39,9 +47,9 @@ function findTests(dir) {
   return out;
 }
 
-const tests = findTests(SEARCH).sort();
+const tests = SEARCH.filter(existsSync).flatMap(findTests).sort();
 if (!tests.length) {
-  console.error("No *.test.mjs found under", relative(process.cwd(), SEARCH));
+  console.error("No *.test.mjs found under", SEARCH.map((d) => relative(process.cwd(), d)).join(" or "));
   process.exit(1);
 }
 
