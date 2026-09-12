@@ -25,7 +25,7 @@
  * pyramids the Hydrology rows stream, straight from their manifests.
  */
 
-import { decodeTile, tilesForBounds } from "./mvt.js?v=20260912-472df3d";
+import { decodeTile, tilesForBounds } from "./mvt.js?v=20260912-4b6c6ec";
 
 /* ── classes a cell can end up in ───────────────────────────────────────── */
 export const DRY = 0;

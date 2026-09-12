@@ -19099,34 +19099,47 @@ byte-identical, reachable and CORS-open.
 
 ### The subtab
 
-`gis/explorer-models.js` + `#explorer-models-section` in the Explorer tab, built
-to Tour Mode's idiom beside it — a picker, Previous/Next, and a card — except a
-stop is a whole viewer: the nine planetary explorers, the Earth Explorer from
-the ISS, Etna, Everest and the Mars flight simulator, each with the hero shot
-`bake-hero-tiles.py` already renders for the transit page.
+**The first version was a list of links with hero tiles, and it was wrong.**
+"It should copy the tour mode tab (Enter) and then jump to the Etna and
+Everest locations — link within the pop-up description, automatically spawns
+with jump." So it is Tour Mode with a different stop list: the places on this
+globe that have a viewer of their own.
 
-- **The link carries `target="_top"`.** The GIS viewer runs inside an iframe, so
-  a bare link loads a second explorer INSIDE it — a viewer in a viewer, wearing
-  the shell's chrome. `transit/index.html` takes the same target on its Return
-  Home link for the same reason.
-- **A planetary model opens through `/transit/?destination=<key>`**, not at its
-  own URL. That page is the site's existing door — it holds the registry, the
-  shots and the flight — so linking past it would be a second way in that
-  drifts from the first. The three with no transit key (Etna, Everest, the
-  flight sim) are linked at their own address, which is the only thing to do.
-- **A second list is how a door comes to point at a page that has moved**, so
-  the test reads `transit/index.html`'s own registry and checks every key in
-  BOTH directions, and every direct link and hero shot against a file this
-  repository serves. A/B'd: renaming a destination or moving a page fails it.
-- **No shot, no gap.** The three without a hero tile collapse to a text-only
-  card rather than reserving 4.6rem for a picture that never comes — and the
-  `<img>` has its `src` REMOVED rather than emptied, since an empty src still
-  paints the alt box.
-- **An `<a>` is inline**, so `width: 100%` on the action did nothing: measured
-  185 px in a 348 px panel, reading as a half-width pill adrift under the
-  stepper. `display: block` is what makes it the row's primary action.
+- **Etna already had the link, hard-coded.** `openFeature` carried
+  `if (feature.name === "Mount Etna")` — which is how Everest came to have a
+  whole first-person viewer on this site and no way to reach it from the
+  globe. `EXPLORER_SITES` is the one list, published on the seam: the CARD
+  reads it to decide whether to draw a link, and the TOUR reads it to decide
+  where to stop, so a stop can never be a jump to nothing.
+- **The link spawns with the jump because `presentTourFeature` opens the card
+  FIRST and flies 700 ms later.** That ordering is the whole mechanism, and it
+  is the viewer's own — the module asks for it through `tourToFeature` and
+  touches no camera. Pinned in both modes; reversing it fails.
+- **The Enter button is `scripts/tour-enter.js`'s**, the one implementation
+  every armed section uses, so the Exit label, the armed retint and the
+  open-the-panel-on-entering all come for free. The module drives only the
+  hidden checkbox behind it.
+- **BORROWING `presentTourFeature` WHOLE BORROWED ITS ARMING.** Seen in one
+  screenshot of the working feature: the globe over the Himalaya with
+  Everest's card and its ASCENT link, and TOUR MODE reading Exit in the
+  sidebar with its own picker claiming the stop. `scheduleFeatureFlight` is
+  now the mechanism and `syncTourModeControls` the arming; the seam jumps
+  without arming anything, entering stands Tour Mode down through its own
+  checkbox, and the jump asks for the tour's slower arc explicitly (`tourHop`)
+  rather than inheriting it from whether Tour Mode happened to be armed.
+- **`tests/ui.py` caught the stop list being filled on ENTER**, which leaves
+  the picker sitting empty in the panel — "a control left empty for its
+  handler". It is a bounded retry now (48 × 250 ms), because this module loads
+  before the viewer does.
+- **The link carries `target="_top"`.** This viewer runs inside the GeoHUB's
+  iframe, and a bare link would load a second viewer inside it.
 
-**`elementFromPoint` returns null for a control scrolled out of the panel**, and
-that reads exactly like a control something is covering. Scroll it into view
-before believing a failed hit test — this tree's own rule for checking a control
-over flowing content assumes the control is on screen.
+**A scanner that reads comments finds the fault it is checking for.** Two pins
+failed on my own prose — the module explains the ordering by saying "flies the
+camera 700 ms later", and the viewer's comment quotes the
+`feature.name === "Mount Etna"` block it replaced. Strip comments first, as
+tool-runner's param scanner already does.
+
+Measured live: Enter → Explorer Models armed and Tour Mode not, camera at
+37.751/14.993 with Etna's card and "Open Etna Viewer →"; Next → 72.6° to
+27.988/86.925 with Everest's card and "Open ASCENT — Everest →".
