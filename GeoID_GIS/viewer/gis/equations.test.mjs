@@ -366,6 +366,33 @@ check("the button styles itself away from the catalogue that owns its CSS", () =
   ok(/installStyle\(\)/.test(fn), "an ⓘ on a layer row is not an unstyled letter");
 });
 
+/**
+ * THE CARD IS WHERE A MODEL SHOWS ITS WORKING, and three of the channel
+ * model's decisions change what its numbers MEAN without appearing as a
+ * control anywhere: the mapped rivers are burnt into the heights before the
+ * flow directions are worked out, a river cell reports its reach rather than
+ * its own bank, and a factor of safety is withheld where the catchment reaches
+ * outside the mapped ground. A reader who cannot see those cannot tell what
+ * the map is claiming.
+ */
+check("the channel card states the decisions that have no control", () => {
+  const m = mathsFor("landslide-forecast");
+  const terms = (m.terms || []).map((t) => `${t[0]} ${t[1]}`).join(" | ");
+  ok(/the network/.test(terms) && /before the flow\s+directions|BEFORE the flow/i.test(terms.replace(/\s+/g, " ")),
+    "the burn into the heights is stated");
+  ok(/the reach/.test(terms) && /own bank/.test(terms), "reporting the reach is stated");
+  ok(/a whole catchment/.test(terms) && /LOWER BOUND/.test(terms), "the withheld factor of safety is stated");
+});
+
+check("and the burn depth it names is the one the pipeline uses", () => {
+  const src = readFileSync(new URL("./landslide-pipeline.js", import.meta.url), "utf8");
+  const m = /const RIVER_BURN_M = (\d+);/.exec(src);
+  ok(m, "the pipeline names a burn depth");
+  const terms = (mathsFor("landslide-forecast").terms || []).map((t) => t[1]).join(" ");
+  ok(new RegExp(`${m[1]} m into the heights`).test(terms),
+    `the card says ${m[1]} m, as the code does`);
+});
+
 if (failures.length) {
   failures.forEach((f) => console.error(`  x ${f}`));
   console.error(`${failures.length} failed, ${passed} passed`);

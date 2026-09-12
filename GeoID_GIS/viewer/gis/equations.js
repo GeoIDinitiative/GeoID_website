@@ -277,6 +277,20 @@ const EQUATIONS = {
         + "face at 50–60°), and the reach angle (default 32°)"],
       ["w", "the river's surveyed width at mean flow, GRWL v01.01 burnt onto the model's own grid; "
         + "a cell no river reaches is hillslope and carries no capacity"],
+      ["the network", "the mapped rivers are cut 100 m into the heights BEFORE the flow "
+        + "directions are worked out, so the water goes down the rivers that are there rather "
+        + "than the ones a DEM infers: on a floodplain the two part company, and the Rhône's own "
+        + "cell had a contributing area of ONE CELL without it. The trench is a routing device "
+        + "and nothing else — the slope comes from the DEM's own posts and the flood depth from "
+        + "the unburnt ground"],
+      ["the reach", "a wide river is many cells across and its flow is in one line down the "
+        + "channel, so every river cell reports the nearest cell of its own reach that the "
+        + "ground actually drains through, rather than its own bank"],
+      ["a whole catchment", "a factor of safety is given only where no water can reach the "
+        + "reach from outside the mapped ground. Elsewhere the model has seen only part of the "
+        + "river's water while the brim read from its width is its whole basin's, so the "
+        + "discharge stands as a LOWER BOUND and no ratio is offered. The ground the model routes "
+        + "to each reach is on its cell card, because a brim is only worth the basin behind it"],
       ["Δt", "the gap between one rainfall map and the one before it — NOT the window each map's "
         + "rain was summed over, which may overlap its neighbours. The wave is driven by the rain "
         + "RATE for that reason"],
