@@ -31,34 +31,34 @@
  * every card, what it has read.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260912-e5b0314";
-import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260912-e5b0314";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260912-9b9d629";
+import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260912-9b9d629";
 import {
   columnMaterial, soilColumn, steadyWetness, planeWetness, factorOfSafety, criticalRecharge,
   FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M, LATERAL_FACTOR, FOS_CAP, cellAnswer,
-} from "./slope-hydrology.js?v=20260912-e5b0314";
-import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260912-e5b0314";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260912-e5b0314";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260912-e5b0314";
-import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260912-e5b0314";
-import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainParts, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260912-e5b0314";
-import { mathsFor } from "./equations.js?v=20260912-e5b0314";
-import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260912-e5b0314";
-import { upslopeWeights, stationStep, stationFlood, catchmentTopology, floodScratch, LANDSLIDE_PARAMS, LANDSLIDE_PLOTS, lowestCells } from "./landslide-stations.js?v=20260912-e5b0314";
+} from "./slope-hydrology.js?v=20260912-9b9d629";
+import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260912-9b9d629";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260912-9b9d629";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260912-9b9d629";
+import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260912-9b9d629";
+import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainParts, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260912-9b9d629";
+import { mathsFor } from "./equations.js?v=20260912-9b9d629";
+import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260912-9b9d629";
+import { upslopeWeights, stationStep, stationFlood, catchmentTopology, floodScratch, LANDSLIDE_PARAMS, LANDSLIDE_PLOTS, lowestCells } from "./landslide-stations.js?v=20260912-9b9d629";
 import {
   makeStation, parseStationsCsv, stationsFromFeatures, uniqueName, seriesCsv, seriesFileName, MAX_STATIONS, colourAt,
-} from "./station-series.js?v=20260912-e5b0314";
-import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260912-e5b0314";
-import { planSeries, rendersOf, stepText, rampMaxFor, STEP_CHOICES, NATIVE_STEP, HOUR } from "./rain-steps.js?v=20260912-e5b0314";
-import { mountStationMarkers } from "./station-markers.js?v=20260912-e5b0314";
-import { equivalentMohrCoulomb, culmann, culmannAt, rockCell, localRelief, rockfallReach, velocityOf, criticalHeight } from "./rock-slope.js?v=20260912-e5b0314";
+} from "./station-series.js?v=20260912-9b9d629";
+import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260912-9b9d629";
+import { planSeries, rendersOf, stepText, rampMaxFor, STEP_CHOICES, NATIVE_STEP, HOUR } from "./rain-steps.js?v=20260912-9b9d629";
+import { mountStationMarkers } from "./station-markers.js?v=20260912-9b9d629";
+import { equivalentMohrCoulomb, culmann, culmannAt, rockCell, localRelief, rockfallReach, velocityOf, criticalHeight } from "./rock-slope.js?v=20260912-9b9d629";
 import {
   bankfullCapacity, partition, residenceTimes, waveStep, floodFos, riseFor,
   FLOOD_CLASSES, RUNOFF_CLASSES, DISCHARGE_CLASSES, BANKFULL_RATIO, HILLSLOPE_V,
-} from "./flood-fos.js?v=20260912-e5b0314";
-import { inundate, sourceFields, DEPTH_CLASSES, DEFAULTS as FLOOD_DEFAULTS, meanFlowFromWidth } from "./inundation.js?v=20260912-e5b0314";
-import { burnRivers } from "./river-zones.js?v=20260912-e5b0314";
-import { waterFeatures, waterMasks } from "./water-mask.js?v=20260912-e5b0314";
+} from "./flood-fos.js?v=20260912-9b9d629";
+import { inundate, sourceFields, DEPTH_CLASSES, DEFAULTS as FLOOD_DEFAULTS, meanFlowFromWidth } from "./inundation.js?v=20260912-9b9d629";
+import { burnRivers } from "./river-zones.js?v=20260912-9b9d629";
+import { waterFeatures, waterMasks } from "./water-mask.js?v=20260912-9b9d629";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";
@@ -1381,10 +1381,18 @@ async function buildFlood() {
     const open = new Uint8Array(n);
     const reachAt = new Int32Array(n).fill(-1);
     for (let m = 0; m < list.length; m += 1) { open[list[m]] = cellOpen[thalweg[m]]; reachAt[list[m]] = thalweg[m]; }
+    // THE GROUND THE MODEL ROUTES TO EACH REACH. A brim read from a satellite
+    // width is the brim of a channel cut by its whole basin, and the only
+    // honest way for a reader to weigh a factor of safety against it is to see
+    // how much of that basin the model actually holds: measured near Montélimar,
+    // GRWL calls one reach 393 m wide and the model drains 12.6 km² to it.
+    const basin = new Float32Array(n).fill(NaN);
+    const perCell = g.topo.cellArea / 1e6;
+    for (let m = 0; m < list.length; m += 1) basin[list[m]] = drains[thalweg[m]] * perCell;
     let closed = 0;
     for (let m = 0; m < list.length; m += 1) if (cells.model[list[m]] && !open[list[m]]) closed += 1;
     const fields = list.length ? sourceFields(riverWidth, grid.width, grid.height, eb) : [];
-    g.flood = { riverWidth, capacity, k, fields, water: wet, cells: Int32Array.from(list), open, closed, thalweg, reachAt,
+    g.flood = { riverWidth, capacity, k, fields, water: wet, cells: Int32Array.from(list), open, closed, thalweg, reachAt, basin,
       zoom: rivers?.zoom ?? null, inArea, widest, params: { bankfull: pr.bankfull, hillV: pr.hillV } };
     if (!list.length) {
       say("fos", "No GRWL river reaches this area, so there is no channel to flood \u2014 the slope and rock models still run. "
@@ -1403,7 +1411,18 @@ async function buildFlood() {
       + `${rivers?.zoom ?? "?"}; mean capacity ${Math.round(capSum / Math.max(1, inArea)).toLocaleString()} m\u00b3/s. `
       + (closed === inArea
         ? "Every river in the area has its whole catchment inside the mapped ground, so the discharge is the river's own."
-        : `${closed.toLocaleString()} of ${inArea.toLocaleString()} river cells have their whole catchment inside the mapped ground. `
+        : `${closed.toLocaleString()} of ${inArea.toLocaleString()} river cells have their whole catchment inside the mapped ground`
+          + (() => {
+            // The widest reach the model will answer for, with the ground it
+            // routes to it — the two numbers that say whether a factor of
+            // safety here is worth anything.
+            let wi = -1; let ww = 0;
+            for (let m = 0; m < list.length; m += 1) {
+              const i = list[m];
+              if (cells.model[i] && !open[i] && riverWidth[i] > ww) { ww = riverWidth[i]; wi = i; }
+            }
+            return wi < 0 ? ". " : ` — the widest is ${Math.round(ww)} m, with ${basin[wi].toFixed(1)} km² draining to it. `;
+          })()
           + "The rest are fed from upstream of the area, so the model sees only part of their water: their discharge is a LOWER BOUND "
           + "and they are given no factor of safety \u2014 a brim read from a river's width is the brim of a channel cut by its whole basin. "
           + "Draw an area that holds the catchment, or read those reaches as discharge alone."));
@@ -2215,6 +2234,7 @@ async function recordStations() {
           // discharge that is a lower bound, so its factor of safety is the
           // map's own — withheld — and the column says which it is.
           catchment_closed: f.open?.[cell] ? "no — fed from upstream of the mapped ground" : "yes",
+          modelled_catchment_km2: w > 0 && Number.isFinite(f.basin?.[cell]) ? +f.basin[cell].toFixed(1) : "",
           river_width_m: w > 0 ? Math.round(w) : "",
           bankfull_capacity_m3_s: w > 0 ? +f.capacity[cell].toFixed(1) : "",
           mean_flow_m3_s: w > 0 ? +(f.capacity[cell] / state.params.bankfull).toFixed(1) : "",
@@ -2773,6 +2793,17 @@ export function probeAt(lat, lon) {
     ["Rockfall", rk?.source[i] ? `a source — bare rock at ${fmt(g.cells.slopeRad[i] * 180 / Math.PI, 0)}°, steeper than ${state.params.sourceDeg}°`
       : Number.isFinite(rk?.energy[i]) ? `within reach — the energy line is ${fmt(rk.energy[i], 0)} m above the ground here: blocks at about ${fmt(velocityOf(rk.energy[i]), 0)} m/s (reach angle ${state.params.reachDeg}°)`
         : "out of reach of any source"],
+    ...(() => {
+      const f = g.flood; const wdt = f?.riverWidth[i];
+      if (!f || !(wdt > 0)) return [];
+      const q = cur.flood?.q[i];
+      const basinKm2 = f.basin[i];
+      const mean = f.capacity[i] / state.params.bankfull;
+      const answer = f.open[i]
+        ? "no factor of safety here — the reach is fed from upstream of the mapped ground, so this discharge is a LOWER BOUND"
+        : `FoS ${shortFos(cur.flood?.fos[i])} against a ${Math.round(f.capacity[i]).toLocaleString()} m³/s brim (${state.params.bankfull}× a ${Math.round(mean).toLocaleString()} m³/s mean flow from the width)`;
+      return [["Channel", `${Math.round(wdt)} m wide (GRWL); ${Number.isFinite(q) ? `${fmt(q, 1)} m³/s` : "—"} arriving from the ${Number.isFinite(basinKm2) ? `${basinKm2.toFixed(1)} km²` : "—"} the model routes to this reach. ${answer}`]];
+    })(),
     ["Rainfall map", `${fmt(cur.rainMm[j], 1)} mm of ${state.rain.sourceLabel(frame)} rain in the ${frame.hours} h to ${frame.time.replace("T", " ")} UTC (${periodOf(frame.time)})`],
     ["Saturation", `h / z_s ${fmt(cur.W[i])}; water on the failure plane m ${fmt(planeWetness(cur.W[i], P.zs[j], P.zf[j]))}`],
     ["Upslope area", `${(g.cells.area[i] / 1e4).toFixed(2)} ha draining through this cell (a = ${(g.cells.area[i] / g.topo.contour).toFixed(0)} m)`],
