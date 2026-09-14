@@ -19508,3 +19508,34 @@ the **Journal**: `updates/index.html` (the membership page's template) plus
   `readingMinutes`) imports without a DOM.
 - "Journal" was added after Get Involved in every About dropdown and About
   sub-nav (22 files, by script). The homepage button reads "The Journal".
+
+## Google Docs and Sheets windows belong to the hub, not to a page
+
+`gis/research/gdoc-windows.js`: floating windows that frame Google files. The
+Docs & Sheets page had a single frame inside itself, so a doc could not sit
+beside the page it described. The shell row's **Docs** button
+(`#research-act-docs`, in `index.html` and `gis/shell.html`) opens a launcher:
+- paste a link
+- the project's attached documents (`metadata/links.json`)
+- recently opened documents
+- New Doc / New Sheet
+- tile the open windows
+
+Every window can drag, resize, snap to a half, minimise to a dock, maximise,
+switch edit/preview, reload and open in a tab. Windows are appended to
+`#research-hub`, so they survive page changes and hide with the hub. State is
+one array in localStorage (`geoid-research:gdoc-windows`), restored at install.
+The seam is `window.GeoIDDocWindows`, and the Docs page's rows gained
+**Window** and **Pop out** buttons.
+
+- **A frame eats the pointer.** A drag across another window's cross-origin
+  frame is lost as soon as the pointer enters it. Every frame is inert while
+  `body.gdoc-busy` is set, and the gesture holds pointer capture on its handle.
+- **The shell row is two lines tall** (79 px at 1400 wide). A constant 56 px
+  top put snapped windows over the Docs button itself, so the top edge is
+  measured from `.workspace-shell` (`topGap()`).
+- **Never serialise a DOM node into saved state.** The first `save()` dropped
+  `node` and `frame` but kept `modeBtn`.
+- Verified with Google's public sample Sheet, which is fully editable in the
+  frame. A nonexistent Doc id renders Google's own "file does not exist" page,
+  which also proves the frame loads.
