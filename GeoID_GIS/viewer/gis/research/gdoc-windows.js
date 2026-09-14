@@ -22,8 +22,8 @@
  * mode is one array, written to localStorage on change; the DOM is drawn from
  * it. A storage that throws only costs the restore.
  */
-import { frameUrl } from "./google-credentials.js?v=20260914-9fe2e4a";
-import * as store from "./project-store.js?v=20260914-9fe2e4a";
+import { frameUrl } from "./google-credentials.js?v=20260914-4b4e967";
+import * as store from "./project-store.js?v=20260914-4b4e967";
 
 const STORAGE_KEY = "geoid-research:gdoc-windows";
 const RECENT_KEY = "geoid-research:gdoc-recent";
@@ -110,6 +110,18 @@ function remember(url, title) {
 
 // ── Windows ────────────────────────────────────────────────────────────────
 
+/**
+ * The top edge a window may reach: under the shell row, MEASURED. The row
+ * wraps to two lines at ordinary widths (79 px measured at 1400), and a
+ * constant put snapped windows over its second line — over the very Docs
+ * button that opens them.
+ */
+function topGap() {
+  const shell = document.querySelector("#research-hub .workspace-shell");
+  const bottom = shell?.getBoundingClientRect().bottom;
+  return Number.isFinite(bottom) && bottom > 0 ? Math.round(bottom) + 6 : TOP_GAP;
+}
+
 function hubVisible() {
   const hub = document.getElementById("research-hub");
   return hub && !hub.hidden;
@@ -155,8 +167,8 @@ function raise(win) {
 
 function place(win) {
   const r = win.max
-    ? snapRect("full", window.innerWidth, window.innerHeight)
-    : clampRect(win, window.innerWidth, window.innerHeight);
+    ? snapRect("full", window.innerWidth, window.innerHeight, topGap())
+    : clampRect(win, window.innerWidth, window.innerHeight, topGap());
   if (!win.max) Object.assign(win, r);
   Object.assign(win.node.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px` });
   win.node.classList.toggle("is-max", Boolean(win.max));
@@ -278,7 +290,7 @@ function build(win) {
 
 function snap(win, side) {
   win.max = false;
-  Object.assign(win, snapRect(side, window.innerWidth, window.innerHeight));
+  Object.assign(win, snapRect(side, window.innerWidth, window.innerHeight, topGap()));
   place(win);
   save();
 }
@@ -303,7 +315,7 @@ export function open(url, { title, mode = "edit" } = {}) {
     raise(existing);
     return { ok: true, id: existing.id, existed: true };
   }
-  const rect = cascadeRect(windows.length, window.innerWidth, window.innerHeight);
+  const rect = cascadeRect(windows.length, window.innerWidth, window.innerHeight, topGap());
   const win = { id: `gdoc-${Date.now().toString(36)}-${seq++}`, url: text, kind,
     title: String(title || "").trim() || titleFor(text), mode, min: false, max: false, ...rect };
   windows.push(win);
@@ -352,10 +364,11 @@ export function tile() {
   const cols = Math.min(open.length, Math.max(1, Math.floor((vw - 16) / MIN_W)));
   const rows = Math.ceil(open.length / cols);
   const cw = Math.floor((vw - 16 - (cols - 1) * 8) / cols);
-  const rh = Math.floor((vh - TOP_GAP - 8 - (rows - 1) * 8) / rows);
+  const top = topGap();
+  const rh = Math.floor((vh - top - 8 - (rows - 1) * 8) / rows);
   open.forEach((win, i) => {
     win.max = false;
-    Object.assign(win, { x: 8 + (i % cols) * (cw + 8), y: TOP_GAP + Math.floor(i / cols) * (rh + 8), w: cw, h: rh });
+    Object.assign(win, { x: 8 + (i % cols) * (cw + 8), y: top + Math.floor(i / cols) * (rh + 8), w: cw, h: rh });
     place(win);
   });
   save();
@@ -474,7 +487,7 @@ function restoreSaved() {
     if (!kind) continue;
     const { node, frame, modeBtn, ...plain } = s;
     const win = { mode: "edit", min: false, max: false, ...plain, kind,
-      ...clampRect(s, window.innerWidth, window.innerHeight) };
+      ...clampRect(s, window.innerWidth, window.innerHeight, topGap()) };
     windows.push(win);
     build(win);
   }
