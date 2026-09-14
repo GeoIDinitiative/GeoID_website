@@ -18,11 +18,11 @@
  * of people per km² and the key reads in people, not in logarithms.
  */
 
-import { buildRasterLayer, loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260914-7778b2c";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260914-7778b2c";
-import { dataUrl } from "./data-base.js?v=20260914-7778b2c";
-import { rampColour } from "./symbology.js?v=20260914-7778b2c";
-import { mathsFor } from "./equations.js?v=20260914-7778b2c";
+import { buildRasterLayer, loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260914-2619c4b";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260914-2619c4b";
+import { dataUrl } from "./data-base.js?v=20260914-2619c4b";
+import { rampColour } from "./symbology.js?v=20260914-2619c4b";
+import { mathsFor } from "./equations.js?v=20260914-2619c4b";
 
 export const LAYER_NAME = "Population density (WorldPop 2020, 1 km)";
 const META_PATH = "/data/global/worldpop/meta.json";
@@ -170,6 +170,45 @@ async function readWindow(bounds) {
   // whole source pixels, and labelling the image with the request slides it
   // by up to a cell -- the thickness sheet's own coastline lesson.
   return { band, width, height, bounds: { west: lon(x0), east: lon(x1), north: lat(y0), south: lat(y1) } };
+}
+
+/**
+ * THE COUNTS THEMSELVES, for integrating people against a hazard.
+ *
+ * `readWindow` is for a picture: it resamples to a width and reads an overview.
+ * An exposure sum must not: an average overview is people per OVERVIEW pixel
+ * averaged, and a resampled read duplicates or drops cells at every seam. This
+ * reads the base image's own cells over the box. Past `maxCells` it reads the
+ * coarsest overview that fits and MULTIPLIES by the overview's cell count, so
+ * the window still sums to the people under it (an average times the number of
+ * cells it averaged) and says it did.
+ */
+export async function readCounts(bounds, { maxCells = 4000000 } = {}) {
+  const img = await open();
+  const info = meta;
+  const { px, py, lon, lat, gw, gh } = pixelOf(info);
+  const west = bounds.west ?? bounds.minX; const east = bounds.east ?? bounds.maxX;
+  const south = bounds.south ?? bounds.minY; const north = bounds.north ?? bounds.maxY;
+  const x0 = Math.max(0, Math.floor(px(west)));
+  const x1 = Math.min(gw, Math.ceil(px(east)));
+  const y0 = Math.max(0, Math.floor(py(north)));
+  const y1 = Math.min(gh, Math.ceil(py(south)));
+  if (x1 <= x0 || y1 <= y0) return null;
+  const cells = (x1 - x0) * (y1 - y0);
+  let level = { img, scale: 1 };
+  if (cells > maxCells) level = await levelFor(x1 - x0, Math.ceil((x1 - x0) / Math.sqrt(cells / maxCells)));
+  const s = level.scale;
+  const wx0 = Math.floor(x0 / s); const wx1 = Math.ceil(x1 / s);
+  const wy0 = Math.floor(y0 / s); const wy1 = Math.ceil(y1 / s);
+  const [band] = await level.img.readRasters({ window: [wx0, wy0, wx1, wy1], fillValue: info.noData });
+  const out = Float32Array.from(band);
+  if (s > 1) for (let i = 0; i < out.length; i += 1) if (!isNoData(out[i], info.noData)) out[i] *= s * s;
+  for (let i = 0; i < out.length; i += 1) if (isNoData(out[i], info.noData)) out[i] = NaN;
+  return {
+    band: out, width: wx1 - wx0, height: wy1 - wy0, scale: s,
+    bounds: { west: lon(wx0 * s), east: lon(wx1 * s), north: lat(wy0 * s), south: lat(wy1 * s) },
+    credit: info.credit,
+  };
 }
 
 /* ── the click ──────────────────────────────────────────────────────────── */
@@ -368,7 +407,7 @@ export function removePopulation() {
 
 if (typeof window !== "undefined") {
   window.GeoIDWorldPop = {
-    LAYER_NAME, populationLayer, sampleAt, probeAt, addPopulation, removePopulation,
+    LAYER_NAME, populationLayer, sampleAt, probeAt, addPopulation, removePopulation, readCounts,
     classOf, colourOf, legendFor, populationCard, cellAreaKm2, DENSITY_EDGES, DENSITY_LABELS,
   };
 }

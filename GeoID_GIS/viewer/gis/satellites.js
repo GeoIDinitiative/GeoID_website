@@ -1486,7 +1486,7 @@ function init() {
       say("Turn the tracker on first — symbology colours the live layer.");
       return;
     }
-    const dialog = await import("./symbology-dialog.js?v=20260914-7778b2c");
+    const dialog = await import("./symbology-dialog.js?v=20260914-2619c4b");
     dialog.openSymbologyDialog(layer);
   });
   // The layer box can remove the layer without asking: the tracker must not
