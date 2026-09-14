@@ -24,8 +24,10 @@ import {
   fill, d8, accumulate, snapOutlet, upstreamMask, touchesEdge, traceOutline, streamNetwork,
   velocities, travelToOutlet, excessSeries, timeAreaHydrograph, catchmentStats, cellMetres, cellOf,
   centreOf, downstream, OVERLAND_K, NEIGHBOURS,
-} from "./catchment.js?v=20260914-b430055";
-import { demGridFor } from "./landslide-pipeline.js?v=20260914-b430055";
+} from "./catchment.js?v=20260914-b7630bb";
+import { demGridFor } from "./landslide-pipeline.js?v=20260914-b7630bb";
+import { waterMasks, waterFeatures } from "./water-mask.js?v=20260914-b7630bb";
+import { burnRivers } from "./river-zones.js?v=20260914-b7630bb";
 
 const search = new URL(import.meta.url).search;
 const byId = (id) => document.getElementById(id);
@@ -37,6 +39,8 @@ const NAMES = {
   particles: "Watershed — runoff (animated)",
 };
 const ORDER_COLOURS = ["#9ad9ff", "#52b6ff", "#2f7dff", "#2a52d9", "#3a2fb8", "#5a1f9e", "#7a1580", "#9e0e5f"];
+/** How far a mapped river is cut into the DEM before routing, in metres. */
+const RIVER_BURN_M = 20;
 const TRAVEL_COLOURS = ["#ffffb2", "#fecc5c", "#fd8d3c", "#f03b20", "#bd0026"];
 
 const state = {
@@ -153,7 +157,32 @@ async function extract() {
       }
       await tick();
       const grid = demGridFor(box, heightAt, { maxCells, minStepM: post ? Math.max(5, post) : 20 });
+      const heights = Float32Array.from(grid.band);
       if (!grid.known) throw new Error("There is no elevation under that outlet.");
+      /**
+       * THE SEA IS NOT GROUND. A coastal outlet at −1 m otherwise takes the flat
+       * sea surface as land, fills it, routes it into the outlet and returns a
+       * catchment several times too big that runs off the edge of every box
+       * (measured on the Shimna at Newcastle: 160 km², clipped, against ~50).
+       * Ocean cells become no-data, so the coast is where water leaves. The
+       * mapped rivers (GRWL) are burned in, so a floodplain's drainage follows
+       * the channel that is really there rather than the DEM's guess beside it.
+       */
+      let seaCells = 0; let burned = 0;
+      try {
+        say("ws-status", `Pass ${pass}: masking the sea and burning in the mapped rivers…`);
+        const [water, rivers] = await Promise.all([
+          waterMasks(box, grid.width, grid.height),
+          waterFeatures("rivers", box, grid.width).catch(() => null),
+        ]);
+        for (let i = 0; i < grid.band.length; i += 1) if (water.ocean[i]) { grid.band[i] = NaN; seaCells += 1; }
+        if (rivers?.features?.length) {
+          const { riverWidth } = burnRivers(rivers.features, box, grid.width, grid.height);
+          for (let i = 0; i < grid.band.length; i += 1) {
+            if (riverWidth[i] > 0 && Number.isFinite(grid.band[i])) { grid.band[i] -= RIVER_BURN_M; burned += 1; }
+          }
+        }
+      } catch (error) { /* no water service: the DEM's own drainage stands */ }
       say("ws-status", `Pass ${pass}: routing the flow on a ${grid.width} × ${grid.height} grid at ${grid.stepM} m…`);
       await tick();
       const cm = cellMetres(grid);
@@ -166,7 +195,7 @@ async function extract() {
       const outlet = snapOutlet(acc, grid.width, grid.height, c.x, c.y, radius);
       const { mask, cells } = upstreamMask(flow, grid.width, grid.height, outlet);
       const edge = touchesEdge(mask, grid.width, grid.height);
-      out = { grid, cm, filled, flow, acc, outlet, mask, cells, edge, halfKm, label, post };
+      out = { grid, heights, cm, filled, flow, acc, outlet, mask, cells, edge, halfKm, label, post, seaCells, burned };
       if (edge && halfKm < maxHalf) { halfKm = Math.min(maxHalf, halfKm * 2); continue; }
       break;
     }
@@ -175,7 +204,9 @@ async function extract() {
     const net = streamNetwork(flow, acc, mask, grid, thresholdCells);
     const vel = velocities(flow, net.isStream, { overlandK: overlandK(), channelV: channelV() });
     const travel = travelToOutlet(flow, mask, grid.width, outlet, vel);
-    const stats = catchmentStats(grid, out.filled, flow, mask, outlet, travel);
+    // Relief and the path's drop are read on the heights as surveyed, not on
+    // the surface with the rivers cut into it.
+    const stats = catchmentStats({ ...grid, band: out.heights }, out.filled, flow, mask, outlet, travel);
     const snapped = centreOf(grid, outlet);
     state.result = { ...out, net, vel, travel, stats, snapped, thresholdCells };
     state.runoff = null;
