@@ -19581,3 +19581,46 @@ hydrograph.
   an A/B with the layer hidden.
 - `GeoIDLayerHierarchy.setVisible` takes the LAYER OBJECT, not its id: passing
   an id throws "Cannot create property 'visible' on number".
+
+## People exposed (Hazards ▸ Exposure)
+
+The pieces:
+- `gis/exposure.js` is the pure half (21 checks).
+- `gis/exposure-panel.js` is the panel.
+- `gis/exposure-annotation.js` is the label over the area.
+- `worldpop.js` gains `readCounts`, the native-resolution counts.
+- The landslide pipeline gains an `exposureSource()` seam.
+
+Pick a study area and any hazard on the globe:
+- **A raster layer** (the factor of safety, flood depth): people by class, the
+  area's people counted on the hazard's own cells, and the part the grid does
+  not reach reported apart.
+- **Any layer whose features carry `p_yr`** (cyclone, seismic and volcanic
+  risk): expected people reached a year (Σ people × p) and people by return
+  period.
+- **"Landslide forecast — every map"**: people on failing and marginal ground
+  map by map, plotted with a CSV. The annotation over the area follows the
+  time-lapse step.
+
+- **A hazard cell takes its AREA SHARE of its population cell's count**, not
+  the count divided by however many hazard cells sit inside it. The second is
+  exact where a grid covers whole cells and INFLATES every edge where it stops
+  part-way. On a 10 km landslide sub-grid it measured 5,956 people against
+  3,117 from the same model's margin grid; with area shares both read 3,094.
+  Pinned: a grid over half a population cell takes half its people.
+- **Counting whole 1 km cells by their centres** read 2,386 for the same
+  box. The panel uses it only for the part of a polygon a hazard grid does
+  not cover.
+- **`fosAt(k)` recomputes a map through `modelFrame`**, which writes the
+  ground's SHARED scratch buffers, the arrays the globe's map is painted
+  from. Callers must `restore()`, which re-shows the step the reader was on.
+- A long series is strided to at most 120 integrated maps, and the panel says
+  so.
+- **A first range read against a cold bucket can fail** with "Request
+  failed" where the same read a moment later succeeds, so `countsUnder`
+  retries once.
+- Verified on Miami's cyclone risk: 2.41 million people in the box, 1.47
+  million reached in an average year (p = 1 − e^−0.95 = 0.61), all in the
+  "more often than 1 in 2 years" class. On a Mournes forecast, 28 maps were
+  integrated in 3.5 s, the step was restored, and the annotation date followed
+  `showStep`.
