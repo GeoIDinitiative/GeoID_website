@@ -19678,3 +19678,68 @@ draws each volume as its own domain with inside-tests.
   STLs. Faults as dip/strike planes and World Stress Map boundary conditions
   remain future work. Volcanic chambers are the studio's existing primitives
   and combine with these volumes as before.
+
+## GALES results in the Meshing Studio
+
+Model page ▸ Results (mesh band): open a GALES simulation folder (or a
+`fem_runs/` run in the open project) and read what the solver wrote — the
+ParaView pass on the page the model was built on. `gis/gales-results.js` is
+the pure half (91 checks, the real Etna run among them when the gitignored
+GALES tree is beside the site), `gis/gales-worker.js` parses and slices off the
+main thread, `gis/gales-results-panel.js` is the panel. Everything below was
+read off the GALES source rather than assumed.
+
+- **The text mesh** (`custom_gales_mesh_reader.hpp`): `MESH! 3D|2D`, counts,
+  bounds rows, then `Node gid x y z flag` — **2D nodes have NO z column**
+  (`gid x y flag`; the reader takes the flag at `result[dim+2]`), `Element gid
+  pid nb n.. flag`, `Side gid pid nb n.. flag`. Ids are 0-based.
+- **A `.msh` maps node gid = tag − 1**, which is `gmsh_to_gales.py`'s own rule
+  (`int(line) - 1`) — not "the order the file lists them". Etna's
+  `mesh_4core.txt` Node 0 is `mesh.msh` node 1 to 1.5e-11. 4.1's side flags are
+  the ENTITY's physical group from `$Entities`, not the entity tag.
+- **Results are `results/<field>/<time>`, raw little-endian float64,
+  `nodes × nb_dofs`, a node's dofs together** (`io.hpp`). `write2` fields
+  (`fluid_mesh`, `sec_dofs/*`) are CONCATENATED BY COMPONENT (all x, then all
+  y) — only the name says which, so `describeField` decides by name and the
+  dofs per node come from the byte count; a count that does not divide the
+  mesh is named "another mesh" (the fluid mesh of an FSI run) rather than read.
+- **Fluid dof order** is p, v…, T (absent isothermal), then mass fractions.
+- **The Side records ARE the boundary**: measured on Etna, 103,074 sides equal
+  the tet faces seen once, exactly. So nothing is derived on a mesh that has
+  them; a mesh without sides has its boundary derived through an
+  open-addressed table of sorted node triples — a Map of strings over four
+  million faces is the machine's memory.
+- **Parse bytes, not text.** An 87 MB mesh as a JS string is twice that before
+  a number is read. The byte cursor reads Etna's 1.4 M tets in 0.4 s in the
+  worker, and a float parse that keeps mantissa and exponent apart agrees with
+  `parseFloat` on survey coordinates (1e-320 included).
+- **A slice is edge interpolants, not positions** — (node a, node b, t) per
+  vertex — so field, step and warp re-colour the same cut. `sliceTets`
+  normalises the normal AND the constant: normalising n alone moves the plane
+  (x+y+z = 1.5 is not x̂·x = 1.5), which the test caught as a corner triangle of
+  area 0.14 where the hexagon is 3√3/4.
+- **A buffer handed to a worker is TRANSFERRED**, so it is detached on this
+  side: the project source reads a mesh `fresh` rather than out of its
+  one-file cache, or a second open of the same mesh reads a zero-length buffer.
+- **A clip keeps the half whose cut faces the studio's own view** — Fit and
+  Iso look from +x, model −y and above, so x ≤ d, y ≥ d, z ≤ d. Kept the other
+  way the cut faces away and the clip looks like the whole model. Three's
+  clipping discards negative distance: keep n·x ≥ d is `Plane(n, −d)`.
+- **Things drawn in the studio's frame that are not solids need their own
+  bounds seam.** The ground lattice cut its hole and let the camera below only
+  from `combinedBounds()` (the solids), so a 50 km-deep result had the lattice
+  ruled across it; but `combinedBounds` is also the mesher's and the
+  atmosphere's model, so the results go through `setExternalBounds` →
+  `sceneBounds()`, read only by the ground hole and the camera floor. A 2D
+  mesh lies IN the ground plane and z-fought every lattice line until its box
+  was given a hair of depth.
+- **The probe never stops `pointerup`** (OrbitControls needs the release) and
+  reads a node's own bytes for its time series (`File.slice`), so a probe
+  through hundreds of 6 MB steps reads 24 bytes each.
+
+Verified live on 8125 with the Etna run opened through the panel's own seam:
+|u| 0–85.41 m on the surface; a y = 50 km clip with 31,316 slice triangles in
+70 ms; a real click on the cut probing node 25018 at (-3.514, -3.262, -80.658) m
+— numpy's values exactly; auto warp ×88.5; the face-on slice showing the
+chamber cavity; and a synthetic 2D run (fluid_dofs p,vx,vy,T; blocked
+fluid_mesh warp) drawn in plan with the lattice cut under it.

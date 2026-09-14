@@ -331,6 +331,28 @@ const triangleArea = (p, k) => {
   check("format: exponent for the very large and very small, digits by the span", formatValue(6.3e9) === "6.300e+9" && formatValue(2e-5) === "2.000e-5" && formatValue(85.41, 85) === "85.4" && formatValue(1234.5, 5000) === "1235");
 }
 
+{
+  check("format: rounding noise against the range reads as zero", formatValue(1.2e-17, 2) === "0" && formatValue(0.5, 2) === "0.50");
+}
+
+// ── The panel's wiring, pinned on the source ───────────────────────────────
+{
+  const panel = readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8");
+  const worker = readFileSync(new URL("./gales-worker.js", import.meta.url), "utf8");
+  const studio = readFileSync(new URL("./model-studio.js", import.meta.url), "utf8");
+  const page = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const shell = readFileSync(new URL("./shell.html", import.meta.url), "utf8");
+  const boot = readFileSync(new URL("./boot.js", import.meta.url), "utf8");
+  check("the worker is loaded under the panel's own stamp, as a module", /new Worker\(new URL\(`\.\/gales-worker\.js\$\{VERSION\}`, import\.meta\.url\), \{ type: "module" \}\)/.test(panel));
+  check("the worker only listens inside a worker", /typeof window === "undefined"/.test(worker) && /self\.addEventListener\("message", handle\)/.test(worker));
+  check("a transferred mesh buffer is read fresh, never out of a cache", /source\.read\(path, \{ fresh: true \}\)/.test(panel) && /if \(!fresh\) last = \{ path, buffer \};/.test(panel));
+  check("the probe never stops the release OrbitControls needs", /canvas\.addEventListener\("pointerup"/.test(panel) && !/stopPropagation|stopImmediatePropagation/.test(panel.replace(/\/\/.*$/gm, "")));
+  check("the results reach the ground's hole and the camera floor, not the mesher's bounds", /function sceneBounds\(\)/.test(studio) && /const b = below \? sceneBounds\(\) : null;/.test(studio) && /setExternalBounds,/.test(studio) && /setExternalBounds\?\.\("gales-results", resultBounds\(\)\)/.test(panel));
+  check("a Results tab in the mesh band, on Earth and on the planets", /data-group="results" data-deck="left" data-band="mesh"/.test(page) && /data-group="results" data-deck="left" data-band="mesh"/.test(shell) && /id="studio-results-host"/.test(page));
+  check("the panel loads on Earth and on every planet", /gis\/gales-results-panel\.js\?v=/.test(page) && /"\.\/gales-results-panel\.js",/.test(boot));
+  check("a clip keeps the half whose cut faces the studio's own view", /const keepAbove = \(S\.sliceAxis === "y"\) !== S\.clipFlip;/.test(panel));
+}
+
 // ── A probe's CSV, and what a folder holds ─────────────────────────────────
 {
   const desc = describeField("solid/u", 3, 3);

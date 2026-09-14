@@ -796,6 +796,9 @@ export function niceTicks(lo, hi, count = 5) {
 /** A number for a legend or a readout, at a precision the range deserves. */
 export function formatValue(v, span = Math.abs(v)) {
   if (!Number.isFinite(v)) return String(v);
+  // Rounding noise against the range is zero: a magnitude of 1e-17 on a
+  // 2 m/s legend is not a value anyone measured.
+  if (span > 0 && Math.abs(v) < span * 1e-9) return "0";
   const a = Math.abs(v);
   if (a !== 0 && (a >= 1e6 || a < 1e-3)) return v.toExponential(3);
   const digits = span >= 100 ? 0 : span >= 10 ? 1 : span >= 1 ? 2 : span >= 0.1 ? 3 : 4;

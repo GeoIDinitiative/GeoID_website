@@ -27,8 +27,8 @@ import {
   planSimulation, describeField, dofsPerNode, float64View, componentOf, magnitudeOf,
   rangeOf, usedNodes, COLORMAPS, colormapTable, colourValues, niceTicks, formatValue,
   interpolateOnSlice, axisPlane, nodeByteRange, probeCsv, parseMesh, sliceTets,
-} from "./gales-results.js?v=20260914-7c9bd7f";
-import { downloadText } from "./extraction.js?v=20260914-7c9bd7f";
+} from "./gales-results.js?v=20260914-cfe1b52";
+import { downloadText } from "./extraction.js?v=20260914-cfe1b52";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -53,6 +53,7 @@ const S = {
   view: "surface",
   sliceAxis: "x",
   slicePos: 0.5,
+  clipFlip: false,
   slice: null,
   sliceKey: "",
   deform: { on: false, field: -1, scale: 1 },
@@ -320,11 +321,27 @@ function studio() { return window.GeoIDMeshStudio; }
 function disposeScene() {
   if (!scene.root) return;
   scene.root.parent?.remove(scene.root);
+  studio()?.setExternalBounds?.("gales-results", null);
   scene.root.traverse((o) => {
     o.geometry?.dispose?.();
     if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m.dispose?.());
   });
   scene.root = null;
+}
+
+/**
+ * The results' box in the studio's frame. A 2D mesh lies IN the ground plane,
+ * so its box is given a hair of depth: the lattice then cuts its hole under
+ * the mesh instead of z-fighting with it along every line.
+ */
+function resultBounds() {
+  const { min, max } = S.mesh.bounds;
+  const flat = S.mesh.dim === 2 || max[2] - min[2] === 0;
+  return {
+    minX: min[0] - scene.centre[0], maxX: max[0] - scene.centre[0],
+    minY: min[1] - scene.centre[1], maxY: max[1] - scene.centre[1],
+    minZ: flat ? Math.min(min[2], -Math.max(1, scene.radius * 1e-3)) : min[2], maxZ: max[2],
+  };
 }
 
 function buildScene() {
@@ -415,6 +432,9 @@ function buildScene() {
   scene.marker = marker;
 
   anchor.add(root);
+  // The ground lattice cuts a hole under the results and the camera may go
+  // below them, as it does under a buried solid.
+  studio()?.setExternalBounds?.("gales-results", resultBounds());
   const viewer = window.GeoIDViewer;
   if (viewer?.renderer) viewer.renderer.localClippingEnabled = true;
 }
@@ -540,9 +560,13 @@ async function refresh({ fit = false } = {}) {
     scene.surface.visible = view !== "slice";
     if (sliced) {
       const n = sliced.plane.normal;
-      // Keep the side the normal points AWAY from: the part of the model
-      // below/behind the slice stays, as a cutaway is read.
-      scene.clipLocal.set(new THREE.Vector3(-n[0], -n[1], -n[2]), sliced.plane.d);
+      // THE CUT FACE TURNS TOWARD THE STUDIO'S OWN VIEW. Fit and Iso look from
+      // +x and from model −y (scene +z is south) and from above, so the half
+      // kept is x ≤ d, y ≥ d and z ≤ d; kept the other way the cut faces
+      // away and the clip reads as the whole model. Flip keeps the other half.
+      const keepAbove = (S.sliceAxis === "y") !== S.clipFlip;
+      const sign = keepAbove ? 1 : -1;
+      scene.clipLocal.set(new THREE.Vector3(sign * n[0], sign * n[1], sign * n[2]), -sign * sliced.plane.d);
     }
     if (scene.outline) scene.outline.visible = view !== "slice";
 
@@ -993,6 +1017,7 @@ function renderControls() {
       pos.addEventListener("input", () => { S.slicePos = Number(pos.value) / 1000; say(); });
       pos.addEventListener("change", () => refresh());
       ds.body.append(row("Position", pos), readout);
+      if (S.view === "clip") ds.body.append(check("Keep the other half", S.clipFlip, (v) => { S.clipFlip = v; refresh(); }));
       const face = el("button", { class: "studio-secondary", type: "button" }, "Look at the slice (2D)");
       face.addEventListener("click", () => studio()?.viewAxis?.({ x: "x", y: "z", z: "y" }[S.sliceAxis], scene.surface));
       ds.body.append(face);
@@ -1012,6 +1037,7 @@ function renderControls() {
   hide.addEventListener("click", () => {
     if (!scene.root) return;
     scene.root.visible = !scene.root.visible;
+    studio()?.setExternalBounds?.("gales-results", scene.root.visible ? resultBounds() : null);
     renderControls();
     refresh();
   });

@@ -1,17 +1,17 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260914-7c9bd7f";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260914-7c9bd7f";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260914-cfe1b52";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260914-cfe1b52";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260914-7c9bd7f";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260914-7c9bd7f";
-import { downloadText } from "./extraction.js?v=20260914-7c9bd7f";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260914-7c9bd7f";
-import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260914-7c9bd7f";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260914-7c9bd7f";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260914-7c9bd7f";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260914-7c9bd7f";
-import { femSpec } from "./model-build.js?v=20260914-7c9bd7f";
+} from "./mesh-volume.js?v=20260914-cfe1b52";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260914-cfe1b52";
+import { downloadText } from "./extraction.js?v=20260914-cfe1b52";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260914-cfe1b52";
+import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260914-cfe1b52";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260914-cfe1b52";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260914-cfe1b52";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260914-cfe1b52";
+import { femSpec } from "./model-build.js?v=20260914-cfe1b52";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -1213,8 +1213,30 @@ function applyOrbitDistanceLimits() {
  * discarded so the rock beneath shows through a grid whose lines still
  * depth-test honestly. A model that sits on the ground keeps every old limit.
  */
+/**
+ * Bounds of things drawn in the studio's frame that are not its solids -- the
+ * GALES results. They must reach the ground and the camera floor, or a 50 km
+ * deep result has the ground lattice ruled straight through it and no way to
+ * look at its underside; they must NOT reach `combinedBounds`, which the
+ * mesher and the atmosphere read as the model.
+ */
+const externalBounds = new Map();
+function setExternalBounds(key, bounds) {
+  if (bounds) externalBounds.set(key, bounds); else externalBounds.delete(key);
+  applyBelowGround();
+}
+function sceneBounds() {
+  const boxes = [combinedBounds(), ...externalBounds.values()].filter(Boolean);
+  if (!boxes.length) return null;
+  return boxes.reduce((acc, b) => ({
+    minX: Math.min(acc.minX, b.minX), maxX: Math.max(acc.maxX, b.maxX),
+    minY: Math.min(acc.minY, b.minY), maxY: Math.max(acc.maxY, b.maxY),
+    minZ: Math.min(acc.minZ, b.minZ), maxZ: Math.max(acc.maxZ, b.maxZ),
+  }), { ...boxes[0] });
+}
+
 function modelBelowGroundM() {
-  const b = combinedBounds();
+  const b = sceneBounds();
   return b && Number.isFinite(b.minZ) ? Math.min(0, b.minZ * studioScale) : 0;
 }
 
@@ -1225,7 +1247,7 @@ function cameraFloorRadius() {
   // the underside's plane and no further, so the underside could never be
   // looked at -- reported as "we cannot navigate the camera to the
   // underside". The floor drops below the base by the model's own diagonal.
-  const b = combinedBounds();
+  const b = sceneBounds();
   const span = b ? Math.hypot(b.maxX - b.minX, b.maxY - b.minY, b.maxZ - b.minZ) * studioScale : 0;
   return groundRadius + below - Math.max(span, 1000);
 }
@@ -1240,7 +1262,7 @@ function applyBelowGround() {
     // Lines only, always: a lattice has no fill. The hole under a buried
     // model is still only cut when there is a model below.
     groundMesh.material.uniforms.uOpen.value = 1;
-    const b = below ? combinedBounds() : null;
+    const b = below ? sceneBounds() : null;
     groundMesh.material.uniforms.uHole.value.set(
       b ? b.minX * studioScale : 0, b ? b.minY * studioScale : 0,
       b ? b.maxX * studioScale : 0, b ? b.maxY * studioScale : 0,
@@ -4602,6 +4624,7 @@ window.GeoIDMeshStudio = {
   // For the GALES results panel, which draws in this frame without being a solid.
   ensureAnchor: () => ensureModelAnchor(),
   fitObject: (object3D) => fitView(object3D),
+  setExternalBounds,
   log,
 };
 
