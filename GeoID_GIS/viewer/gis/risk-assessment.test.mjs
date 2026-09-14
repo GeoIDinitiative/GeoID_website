@@ -148,13 +148,43 @@ process.on("exit", () => {
   check("wind: a storm with no measured peak is not a track, and a seam-crossing segment is skipped", lookup.segments === 2);
 }
 
-// ── The panel reads through this module ────────────────────────────────────
+// ── The engine every door reads through ────────────────────────────────────
 {
+  const reader = readFileSync(new URL("./risk-reader.js", import.meta.url), "utf8");
+  const view = readFileSync(new URL("./risk-reader-view.js", import.meta.url), "utf8");
+  const win = readFileSync(new URL("./risk-reader-window.js", import.meta.url), "utf8");
   const panel = readFileSync(new URL("./exposure-panel.js", import.meta.url), "utf8");
-  check("the exposure panel assesses through the risk module: grids, probability maps and tracks", /assessGrid\(\{ people, values: r\.band/.test(panel) && /assessPopulation\(\{ pop, polys: area\.polys, schemes \}\)/.test(panel) && /windLookup\(/.test(panel));
-  check("cyclone maps add hurricane-force chance and the strongest storm; earthquakes magnitude; volcanoes VEI", /p_hur_yr/.test(panel) && /SCHEMES\.wind/.test(panel) && /SCHEMES\.magnitude/.test(panel) && /SCHEMES\.vei/.test(panel));
-  check("the report opens print-ready, gated like every save, with the CSV and HTML beside it", /\$\{url\}\$\{print \? "#print" : ""\}/.test(panel) && /if \(!may\("save"\)\)/.test(panel) && /assessmentCsv\(a\)/.test(panel) && /reportHtml\(a\)/.test(panel) && /mapGroups,/.test(panel));
-  check("every polygon of a multi-polygon area is assessed on its own", /groupByFeature\(area\.polys\)/.test(panel));
+  const drawer = readFileSync(new URL("./layer-hierarchy.js", import.meta.url), "utf8");
+  const page = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  check("the engine assesses grids, probability maps, zones, tracks and the forecast", /assessGrid\(\{ people, values: band/.test(reader) && /populationBreakdowns\(pop, area, schemes\)/.test(reader) && /windLookup\(/.test(reader) && /VOLCANIC_ZONE_SCHEME/.test(reader) && /async function assessForecast/.test(reader));
+  check("cyclone maps add hurricane-force chance and the strongest storm; earthquakes magnitude; volcanoes VEI", /p_hur_yr/.test(reader) && /SCHEMES\.wind/.test(reader) && /SCHEMES\.magnitude/.test(reader) && /SCHEMES\.vei/.test(reader));
+  check("a flood sheet's and the river zones' no-data is dry ground (not exposed), not unmapped", /const dryIsZero = scheme === SCHEMES\.flood \|\| scheme === RIVER_ZONE_SCHEME;/.test(reader));
+  check("the report opens print-ready, gated like every save, with the CSV and HTML beside it", /\$\{url\}\$\{print \? "#print" : ""\}/.test(view) && /if \(!may\("save"\)\)/.test(view) && /assessmentCsv\(a\)/.test(view) && /reportHtml\(a\)/.test(view));
+  check("every polygon of a multi-polygon area is assessed on its own", /groupByFeature\(area\.polys\)/.test(reader));
+  check("the window reads each map as it is developed: layer changes, sheet builds, study-area edits, forecast steps", /im\.onChange\(\(\) => scheduleScan\(\)\)/.test(win) && /geoid-gis:sheet-built/.test(win) && /geoid-study-area-edited/.test(win) && /tab\.kind !== "forecast"/.test(win));
+  check("the window opens for a NEW map only; an update re-reads in place", /if \(first && tab\.auto\)/.test(win) && /if \(!m\.auto\) continue;/.test(win));
+  check("every readable layer's drawer offers Risk to people", /act\("Risk to people", \(\) => window\.GeoIDRiskReader\.open\(layer\.id\)\)/.test(drawer));
+  check("the Exposure tab is a door onto the same engine, not a copy of it", /assessLayer\(layer, byId\("exp-area"\)\.value/.test(panel) && /renderAssessment\(byId\("exp-result"\)/.test(panel) && !/assessPopulation|assessGrid/.test(panel));
+  check("the window loads on Earth", /gis\/risk-reader-window\.js\?v=/.test(page));
+}
+
+// ── What kind of map, and which ground ─────────────────────────────────────
+{
+  globalThis.window = globalThis.window || {};
+  const { riskMapKind, autoArea, RIVER_ZONE_SCHEME, VOLCANIC_ZONE_SCHEME, OWN_EXTENT_MAX_DEG } = await import("./risk-reader.js");
+  const raster = (name, bounds = { west: 0, east: 1, south: 50, north: 51 }) => ({ name, status: "loaded", raster: { band: new Float32Array(4), width: 2, height: 2, bounds } });
+  check("kind: a flood sheet and a factor of safety are hazard grids read unasked", riskMapKind(raster("Flood inundation (GRWL rivers on the streamed DEM)")).kind === "grid" && riskMapKind(raster("Landslide risk — static")).auto);
+  check("kind: river corridor zones", riskMapKind(raster("River corridor zones (GRWL on the streamed DEM)")).kind === "riverzones");
+  check("kind: a DEM is value bands, read only on request", riskMapKind(raster("Elevation (streamed DEM)")).kind === "bands" && !riskMapKind(raster("Elevation (streamed DEM)")).auto);
+  check("kind: population density is never a risk map, nor is a layer still loading", riskMapKind(raster("Population density (WorldPop 2020, 1 km)")) === null && riskMapKind({ ...raster("Flood x"), status: "loading" }) === null);
+  const feat = (props) => ({ properties: props, geometry: { type: "Polygon", coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] } });
+  check("kind: an annual-chance grid names its hazard", riskMapKind({ name: "Tropical cyclone risk", status: "loaded", features: [feat({ p_yr: 0.3, p_hur_yr: 0.1 })] }).label === "Tropical cyclone" && riskMapKind({ name: "Seismic risk", status: "loaded", features: [feat({ p_yr: 0.01, mag_max: 7 })] }).label === "Earthquake");
+  check("kind: volcanic buffers and storm tracks", riskMapKind({ name: "Volcanic hazard buffers", status: "loaded", features: [feat({ zone: 0, outer_km: 5 })] }).kind === "zones" && riskMapKind({ name: "Tracks", status: "loaded", features: [{ properties: { peak_wind_kts: 90 } }] }).kind === "wind");
+  const local = autoArea(raster("Flood x", { west: 10, east: 11, south: 45, north: 45.5 }), "grid");
+  check("ground: with nothing drawn, a local map is read over its own extent, and says so", local && local.own && local.label === "the map's own extent" && local.polys[0].box.west === 10);
+  check(`ground: a map wider than ${OWN_EXTENT_MAX_DEG}° with nothing drawn is not read at all`, autoArea(raster("Cyclone", { west: -180, east: 180, south: -60, north: 60 }), "risk") === null);
+  check("river zones: the margin is very high, belt high, floodplain moderate, no zone not exposed", [1, 2, 3, 0].map((v) => classIndex(RIVER_ZONE_SCHEME, v)).join() === "0,1,2,-2");
+  check("volcanic zones: 0–5 km very high through 35–50 km very low, outside every zone not exposed", [0, 1, 2, 3, 4, -1].map((v) => classIndex(VOLCANIC_ZONE_SCHEME, v)).join() === "0,1,2,3,4,-2");
 }
 
 // ── The map, and the edge on the population path ───────────────────────────

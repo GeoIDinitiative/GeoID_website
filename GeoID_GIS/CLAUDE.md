@@ -19820,3 +19820,49 @@ by the Browser pane's `navigate`; carry the HTML to a same-origin tab over a
 `BroadcastChannel` and `document.write` it. And a screenshot taken straight
 after `document.write` + scroll can show the previous page's paint: take it
 again before believing a blank or truncated report.
+
+## The risk reader: every risk map is read for people as it is developed
+
+The analytics left the Exposure tab. `gis/risk-reader.js` is the engine,
+`risk-reader-view.js` the one way an assessment is shown, and
+`risk-reader-window.js` a draggable window with a TAB PER MAP. Doors: automatic,
+the Workspace header's shield (badge = maps read), "Risk to people" in any
+readable layer's drawer, and Hazards ▸ Exposure, which is now a thin door plus
+the forecast-as-series it alone holds.
+
+- **What kind of map is read off the map** (`riskMapKind`): the forecast (by
+  name AND a live `exposureSource`), a flood/FoS grid (by name), river corridor
+  zones, any `p_yr` grid (cyclone/seismic/volcanic by columns), volcanic
+  buffers (`zone` + `outer_km`), storm tracks (`peak_wind_kts`) — or VALUE
+  BANDS for any other raster, which is `auto: false`: read from its drawer only,
+  because banding a DEM unasked is noise.
+- **Which ground** (`autoArea`): the drawn area (live overlay, else the last
+  drawn polygon), else the forecast's own area, else a raster's own extent if it
+  is local (≤ 6°), else nothing — the tab says "draw a study area" rather than
+  reading a continent. The report and the view say when the map's own extent
+  was used.
+- **When**: import-manager `onChange`, `geoid-gis:sheet-built`, a 700 ms poll of
+  the forecast's step (it announces nothing), and `geoid-study-area-edited`
+  debounced 1.5 s (a drag announces on every pointermove). A tab re-reads when
+  its signature changes (layer id, band length, feature count, active view,
+  forecast step). The window OPENS for a newly read map only; updates re-read
+  in place. One reading at a time; WorldPop counts cached per box.
+- **A flood sheet and the river zones write no-data for "nothing here"** (dry
+  ground, no zone — `NO_DATA = -32768`). Read as no-data, everyone on dry land
+  inside the sheet is "no reading"; the engine reads it as zero (not exposed)
+  and keeps "no reading" for ground off the sheet. The landslide FoS keeps its
+  no-data as no reading: there it means "not modelled".
+- The forecast tab reads BOTH the map on screen and each cell's lowest FoS over
+  the window, and re-reads as the time-lapse steps.
+- **Cyclone risk is membership-gated**: with no unlock key the tick does
+  nothing visible and no tab ever appears — check the layer list before
+  debugging the reader.
+
+Verified live: a drawn Miami box, cyclone risk ticked → the window opened by
+itself with 2,096,125 people, 100% "p ≥ 0.5"; a flood-depth raster imported →
+a second tab, active, 275,821 / 1,044,473 / 446,650 / 217,640 / 101,167 by
+level; redrawing the area re-read both (852,522 and 875,014 — the probability
+path counts population cell centres, the grid path shares cells by area); a
+zones layer shaped like the volcanic buffers read by zone; the drawer door on
+the flood layer reopened the closed window on its tab and was absent on the
+plate boundaries.

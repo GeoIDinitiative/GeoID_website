@@ -10,17 +10,17 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { bandOf } from "./draw-order.js?v=20260915-2db6686";
-import { paintOpacity } from "./layer-opacity.js?v=20260915-2db6686";
-import { currentBody } from "./bodies.js?v=20260915-2db6686";
-import { samplerToRaster } from "./raster-analysis.js?v=20260915-2db6686";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260915-2db6686";
-import { datasetInfoButton } from "./catalogue-list.js?v=20260915-2db6686";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260915-2db6686";
+import { bandOf } from "./draw-order.js?v=20260915-f3f8fff";
+import { paintOpacity } from "./layer-opacity.js?v=20260915-f3f8fff";
+import { currentBody } from "./bodies.js?v=20260915-f3f8fff";
+import { samplerToRaster } from "./raster-analysis.js?v=20260915-f3f8fff";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260915-f3f8fff";
+import { datasetInfoButton } from "./catalogue-list.js?v=20260915-f3f8fff";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260915-f3f8fff";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20260915-2db6686";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260915-2db6686";
+} from "./symbology-dialog.js?v=20260915-f3f8fff";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260915-f3f8fff";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -803,6 +803,15 @@ function optionsTile(layer) {
    * sampler (no legend to invert) would grid colours pretending to be values,
    * and the source list already tells that layer's user why.
    */
+  /**
+   * PEOPLE AT RISK, read off this map. Offered on every map the risk reader
+   * can read -- a hazard map is also read unasked when it is developed; any
+   * other raster (a DEM, soil thickness) only from here, banded by value.
+   */
+  if (window.GeoIDRiskReader?.canRead?.(layer)) {
+    act("Risk to people", () => window.GeoIDRiskReader.open(layer.id));
+  }
+
   if (layer.sampler && layer.bounds && !layer.raster
     && layer.info?.valueKind !== "colour") {
     act("To raster", () => {
