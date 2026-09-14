@@ -22,8 +22,8 @@
  * mode is one array, written to localStorage on change; the DOM is drawn from
  * it. A storage that throws only costs the restore.
  */
-import { frameUrl } from "./google-credentials.js?v=20260914-0dc7fd3";
-import * as store from "./project-store.js?v=20260914-0dc7fd3";
+import { frameUrl } from "./google-credentials.js?v=20260914-9fe2e4a";
+import * as store from "./project-store.js?v=20260914-9fe2e4a";
 
 const STORAGE_KEY = "geoid-research:gdoc-windows";
 const RECENT_KEY = "geoid-research:gdoc-recent";
@@ -99,7 +99,7 @@ const write = (key, value) => {
 let saveTimer = 0;
 function save() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => write(STORAGE_KEY, windows.map(({ node, frame, ...rest }) => rest)), 150);
+  saveTimer = setTimeout(() => write(STORAGE_KEY, windows.map(({ node, frame, modeBtn, ...rest }) => rest)), 150);
 }
 
 function remember(url, title) {
@@ -472,7 +472,8 @@ function restoreSaved() {
   for (const s of saved) {
     const kind = classifyGoogleUrl(s.url);
     if (!kind) continue;
-    const win = { mode: "edit", min: false, max: false, ...s, kind,
+    const { node, frame, modeBtn, ...plain } = s;
+    const win = { mode: "edit", min: false, max: false, ...plain, kind,
       ...clampRect(s, window.innerWidth, window.innerHeight) };
     windows.push(win);
     build(win);
