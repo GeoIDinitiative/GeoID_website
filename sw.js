@@ -3,7 +3,7 @@
 // key assets change significantly — this forces all clients to discard
 // stale cached copies on their next visit.
 
-const STATIC_CACHE = 'geoid-site-v43';  // v43: header actions differentiated, sub-nav in the header's voice
+const STATIC_CACHE = 'geoid-site-v44';  // v44: the Journal, and its link in every About menu
 
 // Pre-fetched at install time so they are cache-warm on first navigation
 const PRECACHE = [

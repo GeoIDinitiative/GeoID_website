@@ -19481,3 +19481,30 @@ The About section's `.page-jump` sub-nav was teal rounded pills in a
 different face. It now uses the header's face, inks and underline active
 mark. The phone grid in shared.css is untouched. `sw.js` STATIC_CACHE was
 bumped to v43, because site-nav.css is precached.
+
+## The Journal replaced the legacy updates page
+
+`/updates/` was 2,044 lines of legacy "about" CSS around eight cards. It is now
+the **Journal**: `updates/index.html` (the membership page's template) plus
+`scripts/journal.js`, reading two files.
+- **Posts and technical notes** come from `data/journal.json`. A body is
+  structured blocks — `["h"|"p"|"eq", text]` or `["ul", [{lead?, text}]]` —
+  rendered through `textContent`, so a hand-edited file cannot inject markup.
+- **Releases** come from `data/updates.json`, the file `make-updates.py`
+  builds the homepage grid from, so a release is announced in one place.
+
+- **An entry has an address**: `/updates/?p=<slug>` is pushed onto history, and
+  back returns to the list with its filter and search intact. `?p=` on an
+  unknown slug is replaced with the list rather than left as an empty reader.
+- **Technical notes are GeoID's own method write-ups**, marked "Not peer
+  reviewed", with references (real, published) and Copy citation / Copy BibTeX
+  (`@techreport`; a reviewed entry sets `peer_reviewed`, `venue`, `doi` and
+  becomes `@article`).
+- **The four posts come from `posts.txt`**, with two access lines corrected to
+  the current terms (every Explorer is free) and an `edited` note saying so.
+  Their dates are inferred from the git history of the features they announce;
+  edit them in the JSON.
+- The pure half (`citationText`, `bibtex`, `sortEntries`, `matches`,
+  `readingMinutes`) imports without a DOM.
+- "Journal" was added after Get Involved in every About dropdown and About
+  sub-nav (22 files, by script). The homepage button reads "The Journal".

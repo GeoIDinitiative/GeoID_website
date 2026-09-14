@@ -1,0 +1,496 @@
+{
+ "_readme": "The Journal at /updates/. Posts and technical notes live here; releases are read from data/updates.json so the homepage and the Journal share one source. body blocks: ['h', text] | ['p', text] | ['ul', [{lead?, text}]] | ['eq', text]. type: post | paper. A paper that has been peer reviewed sets peer_reviewed true and gives doi/venue.",
+ "entries": [
+  {
+   "slug": "why-i-built-geoid",
+   "type": "post",
+   "date": "2026-05-24",
+   "title": "Why I built GeoID",
+   "author": "Owen McCluskey",
+   "summary": "The science, the models and the data already exist. What has not existed is an honest, no-gatekeeping way for anyone to use them.",
+   "image": "/assets/opt/geohub.webp",
+   "body": [
+    [
+     "p",
+     "I've spent the last few months building something I couldn't find anywhere else — so I built it myself."
+    ],
+    [
+     "p",
+     "GeoID is a geoscience initiative I founded to close the gap between world-class hazard research and the public it's supposed to protect. The science exists. The models exist. The data exists. What hasn't existed is an accessible, honest, no-gatekeeping way for anyone to engage with it."
+    ],
+    [
+     "h",
+     "Two platforms are live today"
+    ],
+    [
+     "ul",
+     [
+      {
+       "lead": "Earth Explorer",
+       "text": "a 3D geological viewer for Mount Etna built from published INGV datasets: 12,000+ earthquakes, magma plumbing architecture, fault planes, geological map overlays, and a subsurface cross-section. The kind of tool a research GIS should have been from the start, running entirely in a browser."
+      },
+      {
+       "lead": "Planet Explorer",
+       "text": "an interactive Solar System environment covering all eight planets plus the Moon and Pluto. Real topographic data, scientific overlays, guided tours. If you've ever wanted to navigate the surface of Mars or cross-section Saturn's ring system, it's there."
+      }
+     ]
+    ],
+    [
+     "p",
+     "The longer-term goal is myGeoID — a real-time flood and landslide risk platform that ingests NOAA global forecast data and runs it through a finite-element slope-stability model to produce a continuously updated Factor of Safety index for any location on Earth. The methodology is defined, the data pipelines are built. What it needs is compute infrastructure and the right collaborators."
+    ],
+    [
+     "p",
+     "I'm a computational geoscientist (PhD, University of Pisa / INGV), and this is the project I wish had existed when I started my research. If you work in hazard science, civil protection, open data, or Earth observation — or you know people who do — I'd genuinely love to talk."
+    ]
+   ],
+   "tags": [
+    "Geoscience",
+    "OpenScience",
+    "NaturalHazards",
+    "EarthObservation",
+    "ClimateResilience",
+    "GeoID"
+   ],
+   "links": [
+    {
+     "label": "Open GeoHUB",
+     "href": "/geohub/"
+    }
+   ]
+  },
+  {
+   "slug": "planet-explorer",
+   "type": "post",
+   "date": "2026-05-15",
+   "title": "Planet Explorer: every world in the Solar System, in your browser",
+   "author": "Owen McCluskey",
+   "summary": "Ten worlds, real topographic data from NASA, USGS and ESA archives, named-feature search, measurement tools and guided tours.",
+   "image": "/assets/opt/planet_explorer.webp",
+   "body": [
+    [
+     "p",
+     "You can now navigate the surface of every planet in the Solar System from your browser. No software. No training. No institutional login."
+    ],
+    [
+     "p",
+     "Planet Explorer is GeoID's interactive Solar System viewer — ten worlds, real scientific data, and the kind of interface that was previously locked behind professional GIS software or watered down into something that taught you nothing."
+    ],
+    [
+     "h",
+     "Here's what it actually does"
+    ],
+    [
+     "ul",
+     [
+      {
+       "lead": "Real topographic data",
+       "text": "elevation maps sourced from NASA, USGS, and ESA mission archives. Not artist impressions. The terrain you're navigating is the terrain that's there."
+      },
+      {
+       "lead": "Named feature search",
+       "text": "find and fly to any named crater, canyon, volcano, or basin across all ten worlds. Olympus Mons, Valles Marineris, Caloris Basin — locate it in seconds."
+      },
+      {
+       "lead": "Distance and elevation tools",
+       "text": "measure surface distances and plot elevation profiles across any path you draw. The same basic function researchers use to characterise terrain."
+      },
+      {
+       "lead": "Every world, free",
+       "text": "all ten environments are open to everyone. No account needed."
+      },
+      {
+       "lead": "Guided tours",
+       "text": "thematic tours for each world walk you through the geology, major features, and scientific significance without requiring a background in planetary science."
+      }
+     ]
+    ],
+    [
+     "p",
+     "The honest case for it: most people will never get access to a university GIS lab. Most educational tools treat curiosity as something to be managed rather than rewarded. Planet Explorer sits in neither category — it gives you the actual data and trusts you to do something interesting with it."
+    ],
+    [
+     "p",
+     "It is free. Worth five minutes."
+    ]
+   ],
+   "tags": [
+    "PlanetExplorer",
+    "PlanetaryScience",
+    "OpenScience",
+    "SpaceEducation",
+    "GIS",
+    "GeoID"
+   ],
+   "links": [
+    {
+     "label": "Open Planet Explorer",
+     "href": "/explorer/"
+    }
+   ],
+   "edited": "Access details updated: every Planet Explorer environment is now free."
+  },
+  {
+   "slug": "earth-explorer-etna",
+   "type": "post",
+   "date": "2026-05-23",
+   "title": "Earth Explorer: Mount Etna, explored properly",
+   "author": "Owen McCluskey",
+   "summary": "12,000+ INGV earthquakes in 3D, the magma plumbing system, fault planes, geological overlays and a live cross-section.",
+   "image": "/assets/opt/etna_subsurface.webp",
+   "body": [
+    [
+     "p",
+     "Mount Etna is Europe's most active volcano. I'm currently completing my PhD on it. And I still couldn't find a single public tool that let you actually explore the geology properly — so I built one."
+    ],
+    [
+     "p",
+     "Earth Explorer is GeoID's regional Earth science platform. Where Planet Explorer surveys the Solar System at scale, Earth Explorer goes deep into specific sites — the geology, the structure, the hazard context — at the resolution those places actually deserve."
+    ],
+    [
+     "h",
+     "The first viewer is Mount Etna. Here's what's inside"
+    ],
+    [
+     "ul",
+     [
+      {
+       "lead": "12,000+ earthquake catalogue",
+       "text": "every INGV-recorded seismic event beneath Etna from 2011 to 2023, plotted in 3D. Filter by depth, magnitude, and time. Watch the seismicity define the fault architecture in real space."
+      },
+      {
+       "lead": "Magma plumbing system",
+       "text": "the conduit network and shallow magma chambers rendered in three dimensions, positioned against the real topography and fault geometry."
+      },
+      {
+       "lead": "Fault planes and tectonic structure",
+       "text": "regional and volcanic fault systems from published INGV datasets. The structures that govern flank instability and eruption dynamics, not a schematic diagram."
+      },
+      {
+       "lead": "Geological map overlays",
+       "text": "surface geology and historical lava flow extents draped over the terrain. Toggle units on and off, compare eruption periods, interrogate the volcanic stratigraphy."
+      },
+      {
+       "lead": "Interactive cross-section",
+       "text": "draw a line anywhere across the domain and generate a live subsurface cross-section with labelled geological layers. A standard research tool, running in a browser."
+      },
+      {
+       "lead": "7 m satellite basemap",
+       "text": "ESRI World Imagery pre-rendered at 7 m resolution across the full Etna domain. Detailed enough to identify individual lava flow fronts and summit craters."
+      }
+     ]
+    ],
+    [
+     "p",
+     "The data is the same data INGV researchers work with. The difference is that you no longer need an institutional login, a GIS licence, or three months of onboarding to do something useful with it."
+    ],
+    [
+     "p",
+     "Etna is the first environment. Campi Flegrei, the Reykjanes Peninsula, and the Aegean arc are under consideration for future development — each selected for scientific significance and open data availability."
+    ],
+    [
+     "p",
+     "Earth Explorer is free to use — no account and no payment."
+    ]
+   ],
+   "tags": [
+    "EarthExplorer",
+    "Volcanology",
+    "Geoscience",
+    "OpenScience",
+    "MountEtna",
+    "GIS",
+    "GeoID",
+    "NaturalHazards"
+   ],
+   "links": [
+    {
+     "label": "Open the Etna viewer",
+     "href": "/earth_explorer/etna/"
+    }
+   ],
+   "edited": "Access details updated: Earth Explorer is now free."
+  },
+  {
+   "slug": "one-step-from-a-live-forecast",
+   "type": "post",
+   "date": "2026-08-25",
+   "title": "One computational step from a live flood and landslide forecast",
+   "author": "Owen McCluskey",
+   "summary": "The GFS pipelines are built and tested. What a continuously running Factor of Safety forecast needs now is servers and compute.",
+   "image": "/assets/opt/hero_flood.webp",
+   "body": [
+    [
+     "p",
+     "Two geoscience platforms are live. A real-time flood and landslide forecasting system is one computational step away. This post is about that step."
+    ],
+    [
+     "p",
+     "GeoID has built and shipped two publicly accessible tools — Planet Explorer and Earth Explorer — from scratch, on no institutional budget. They work. People use them. The scientific data underpinning them is the same data researchers use."
+    ],
+    [
+     "p",
+     "That's the proof of concept. Here's what comes next."
+    ],
+    [
+     "p",
+     "The goal: Ingest NOAA GFS global rainfall forecast data — updated every six hours, 0.25° resolution, freely available — and run it through a finite-element hydrological model to produce a continuously updated Factor of Safety index for flood and landslide risk. A single, interpretable value, publicly accessible, computed before the rainfall arrives."
+    ],
+    [
+     "p",
+     "The science behind this is established in the literature. The GFS data pipelines are already built and tested. The FEM solver lineage (GALES multi-physics) is the same framework my PhD research was built on. This is not a speculative idea — it is a technically defined next step."
+    ],
+    [
+     "p",
+     "The constraint is infrastructure, not science."
+    ],
+    [
+     "h",
+     "Specifically two things"
+    ],
+    [
+     "ul",
+     [
+      {
+       "lead": "Servers",
+       "text": "persistent hosting for continuous GFS ingestion, time-series storage, and a public-facing interface. The pipeline has been tested. It is not yet running continuously."
+      },
+      {
+       "lead": "Compute",
+       "text": "finite-element slope-stability and flood-routing models are computationally demanding at useful spatial resolution. Running them continuously across a pilot domain requires HPC allocation or dedicated cluster time. This is the principal cost."
+      }
+     ]
+    ],
+    [
+     "h",
+     "What I'm looking for"
+    ],
+    [
+     "ul",
+     [
+      {
+       "text": "University or research institution with HPC availability and interest in a live flood/landslide modelling testbed"
+      },
+      {
+       "text": "Co-applicant on a hazard, climate-resilience, or open-science funding call"
+      },
+      {
+       "text": "Civil protection agency, NGO, or foundation wanting physics-based early-warning capability for a pilot region"
+      },
+      {
+       "text": "Cloud or HPC provider with an in-kind credit programme"
+      }
+     ]
+    ],
+    [
+     "p",
+     "The Valencia flooding in October 2024 killed over 200 people. The Chamoli disaster. The Italy floods of 2023. In most of these cases the atmospheric signal was visible hours to days in advance. The gap isn't in the weather forecasting — it's in translating that forecast into ground-level instability in a way that reaches the people who need it."
+    ],
+    [
+     "p",
+     "That is exactly what this system is designed to do."
+    ],
+    [
+     "p",
+     "If any of this is relevant to your work, your institution, or your funding portfolio — I'd welcome a conversation."
+    ]
+   ],
+   "tags": [
+    "Geoscience",
+    "NaturalHazards",
+    "FloodRisk",
+    "Landslides",
+    "OpenScience",
+    "HPC",
+    "ResearchFunding",
+    "ClimateResilience",
+    "GeoID",
+    "EarlyWarning"
+   ],
+   "links": [
+    {
+     "label": "Support the work",
+     "href": "/fund.html"
+    },
+    {
+     "label": "Get involved",
+     "href": "/get-involved/"
+    }
+   ]
+  },
+  {
+   "slug": "forecast-landslide-flood-fos",
+   "type": "paper",
+   "kind": "Technical note",
+   "date": "2026-09-09",
+   "title": "A static hydrogeological model for forecast shallow landslide and channel flood hazard from GFS rainfall",
+   "author": "Owen McCluskey",
+   "image": "/assets/opt/hero_valencia.webp",
+   "summary": "How GeoHUB turns a rainfall map into a Factor of Safety for soil slopes and a discharge-to-bankfull ratio for rivers, from one water balance.",
+   "abstract": "We describe the forecast pipeline in GeoHUB's Landslides tab. Rainfall from NOAA GFS (and Earth Engine archives where they exist) is summed over a window per map. Each map drives a steady-state SHALSTAB/SINMAP model on the streamed DEM: recharge is capped by saturated conductivity, routed by multiple flow directions, and converted to a water table on bedrock, giving an infinite-slope Factor of Safety per cell. The water the ground turns away — infiltration excess plus saturation excess — feeds a linear-reservoir cascade over the same flow topology, and channel discharge is compared with a bankfull capacity from the river's surveyed width. One water balance therefore yields both hazards, so they cannot disagree about the storm.",
+   "body": [
+    [
+     "h",
+     "Rainfall"
+    ],
+    [
+     "p",
+     "Each map is the rain summed over a window (24 h by default), read at the finest step each source provides: GFS hourly, Earth Engine composites daily. A GFS map is a grid, not a scatter — the request lattice is placed at half the model's node spacing, de-duplicated to nodes and interpolated bilinearly."
+    ],
+    [
+     "h",
+     "The slope model"
+    ],
+    [
+     "p",
+     "Recharge is r = min(P/Δt, Ks). It is routed by multiple flow directions (Quinn et al. 1991; Freeman exponent 1.1) over the study area plus an upslope margin, giving a flux q per metre of contour. A steady Darcy water table on bedrock follows as h = q / (b·T·sin β), where T is a lateral transmissivity that allows for macropore flow. The water on the failure plane enters an infinite-slope Factor of Safety:"
+    ],
+    [
+     "eq",
+     "FoS = [c′ + (γ z cos²β − γw m z cos²β) tan φ′] / (γ z sin β cos β)"
+    ],
+    [
+     "p",
+     "Strength parameters come from the mapped superficial deposit where one exists, else the soil map's topsoil texture, else a regolith default — never an intact-rock value. Depth to the failure plane is min(modelled soil thickness, 3 m)."
+    ],
+    [
+     "h",
+     "The flood model"
+    ],
+    [
+     "p",
+     "The rain the ground cannot take is e = (P/Δt − r) + r·W, where W is the fraction of the hillslope already saturated. A linear-reservoir cascade over the same topology routes it as a wave, integrated exactly over each step: S(t+Δt) = S·a + u·k·(1 − a), with a = e^(−Δt/k). A channel's residence time follows from Leopold–Maddock hydraulic geometry, v = 0.514 Q^0.2. The flood Factor of Safety is Q_bankfull / Q, with bankfull set at five times the mean flow inferred from GRWL width."
+    ],
+    [
+     "h",
+     "Limits"
+    ],
+    [
+     "p",
+     "The model is a steady-state screening tool, not a warning service. A reach whose catchment extends outside the modelled ground keeps its discharge as a lower bound and receives no Factor of Safety. Rainfall products under-read some mid-latitude orographic extremes; the pipeline reports the wettest map it saw so a reader can judge the forcing."
+    ]
+   ],
+   "references": [
+    "Montgomery, D. R. & Dietrich, W. E. (1994). A physically based model for the topographic control on shallow landsliding. Water Resources Research, 30(4), 1153–1171.",
+    "Pack, R. T., Tarboton, D. G. & Goodwin, C. N. (1998). The SINMAP approach to terrain stability mapping. 8th Congress of the IAEG.",
+    "Quinn, P., Beven, K., Chevallier, P. & Planchon, O. (1991). The prediction of hillslope flow paths for distributed hydrological modelling using digital terrain models. Hydrological Processes, 5, 59–79.",
+    "Leopold, L. B. & Maddock, T. (1953). The hydraulic geometry of stream channels and some physiographic implications. USGS Professional Paper 252.",
+    "Allen, G. H. & Pavelsky, T. M. (2018). Global extent of rivers and streams. Science, 361, 585–588."
+   ],
+   "links": [
+    {
+     "label": "Open the Landslides tab",
+     "href": "/geohub/"
+    }
+   ],
+   "peer_reviewed": false
+  },
+  {
+   "slug": "probabilistic-volcanic-ashfall",
+   "type": "paper",
+   "kind": "Technical note",
+   "date": "2026-09-10",
+   "title": "Probabilistic ashfall exposure by eruption size from the Smithsonian Holocene record",
+   "author": "Owen McCluskey",
+   "image": "/assets/opt/hero_iceland.webp",
+   "summary": "Per-VEI maps of the annual chance that an eruption deposits at least a millimetre of ash, with completeness windows chosen from the record itself.",
+   "abstract": "GeoHUB's volcanic risk maps give, for each Volcanic Explosivity Index from 1 to 8 and for all sizes together, the expected number of eruptions per year that deposit at least 1 mm of ash at a point. Every confirmed eruption in the Global Volcanism Program catalogue counts, weighted by the probability that its ash reaches that far. The reach comes from Pyle's exponential thinning law solved for 1 mm and treated as log-normal. Rates are divided by completeness windows chosen per size from the record's own counts, so dormant volcanoes with large historical eruptions are represented alongside frequently active ones.",
+   "body": [
+    [
+     "h",
+     "Reach"
+    ],
+    [
+     "p",
+     "Tephra thins as T(d) = T₀·exp(−d/b) (Pyle 1989). Solved for 1 mm, with T₀ and b scaled by eruption size, the median reach is about 5 km at VEI 1, 15 km at VEI 2, 50 km at VEI 3, 150 km at VEI 4, 350 km at VEI 5, 800 km at VEI 6 and 1,800 km at VEI 7. Both parameters vary by roughly a factor of two within a class, so the reach is taken as log-normal (σ = 0.5) and an eruption contributes P(reach ≥ d) = 1 − Φ(ln(d/R)/σ) at distance d."
+    ],
+    [
+     "h",
+     "Completeness"
+    ],
+    [
+     "p",
+     "Counts of confirmed eruptions per fifty years show where the record flattens: VEI ≤ 3 from 1950, VEI 4 from 1900, VEI 5–6 from 1550, VEI 7 over the whole Holocene. Rates use those windows. A second map uses each volcano's own record span where the modern window holds none of its eruptions of that size, which adds dormant volcanoes' ancient eruptions without diluting active ones."
+    ],
+    [
+     "eq",
+     "λ(x) = Σ_eruptions w · P(reach ≥ d(x)) / T_window,   P_annual = 1 − e^(−λ)"
+    ],
+    [
+     "h",
+     "Limits"
+    ],
+    [
+     "p",
+     "The kernel is isotropic. Real ash falls in a wind-driven plume, and the proper probabilistic product is an advection–diffusion model (Tephra2, FALL3D) run over a wind climatology with Monte-Carlo source terms. A catalogue eruption is an episode, so a frequently active volcano's rate counts episodes rather than individual paroxysms. Uncertain eruptions count at half weight, and catalogue volcanoes with no dated eruption carry a stated floor prior."
+    ]
+   ],
+   "references": [
+    "Newhall, C. G. & Self, S. (1982). The Volcanic Explosivity Index (VEI). Journal of Geophysical Research, 87(C2), 1231–1238.",
+    "Pyle, D. M. (1989). The thickness, volume and grainsize of tephra fall deposits. Bulletin of Volcanology, 51, 1–15.",
+    "Global Volcanism Program (2024). Volcanoes of the World, v. 5.2. Smithsonian Institution.",
+    "Jenkins, S. F. et al. (2015). Regional ash fall hazard II: Asia-Pacific modelling results and implications. Bulletin of Volcanology, 77, 23."
+   ],
+   "links": [
+    {
+     "label": "Open Volcanic hazards",
+     "href": "/geohub/"
+    }
+   ],
+   "peer_reviewed": false
+  },
+  {
+   "slug": "merged-seismic-record",
+   "type": "paper",
+   "kind": "Technical note",
+   "date": "2026-09-11",
+   "title": "A merged global earthquake record from ComCat, ISC-GEM and GEM GHEC, and the per-magnitude shaking maps built on it",
+   "author": "Owen McCluskey",
+   "image": "/assets/opt/etna_seismic.webp",
+   "summary": "312,500 events from 1008 to today, joined by identity rather than by space–time matching, with homogenised moment magnitudes where they exist.",
+   "abstract": "No single earthquake catalogue is both complete and current. GeoHUB combines three: USGS ComCat for density and currency (M ≥ 4.5 since 1900), ISC-GEM v12 for homogenised moment magnitudes from 1904 to 2021, and GEM's Global Historical Earthquake Catalogue for large events from 1008 to 1903. ComCat's contributing-id field lets ISC-GEM magnitudes be joined by identity, with no fuzzy matching. Per-magnitude maps give the annual rate of damaging shaking at each point from a global-average attenuation relation, over completeness windows per magnitude band.",
+   "body": [
+    [
+     "h",
+     "The join"
+    ],
+    [
+     "p",
+     "ComCat's ids field lists every contributing identifier of a merged event, including iscgem identifiers, so a homogenised Mw is looked up rather than matched in space and time. GHEC ends in December 1903 and ISC-GEM begins in January 1904, so the historical seam needs no deduplication. Of 312,500 events, 77,659 carry an ISC-GEM Mw."
+    ],
+    [
+     "p",
+     "About 82% of modern ComCat events at this threshold report body-wave mb, which saturates near magnitude 6, so rates are computed on Mw wherever ISC-GEM provides it."
+    ],
+    [
+     "h",
+     "Shaking maps"
+    ],
+    [
+     "p",
+     "Each event counts at a point as the probability that its damaging radius — log₁₀(R/km) = 0.5 M − 1.7, for roughly MMI VI in the global average — reaches that far, treated as log-normal with σ = 0.4. Rates divide by global completeness windows: M5 since 1964, M6 since 1930, M7 and M8+ since 1900. The historical catalogue appears in the timeline but not in the rates, because it has no complete window."
+    ],
+    [
+     "h",
+     "Licence"
+    ],
+    [
+     "p",
+     "ComCat is US Government public domain. ISC-GEM and GEM GHEC are CC BY-SA 3.0, so the derived grids are offered under CC BY-SA 3.0 with these citations."
+    ]
+   ],
+   "references": [
+    "U.S. Geological Survey (2024). Advanced National Seismic System Comprehensive Catalog (ComCat).",
+    "Storchak, D. A. et al. (2013). Public release of the ISC-GEM Global Instrumental Earthquake Catalogue (1900–2009). Seismological Research Letters, 84(5), 810–815.",
+    "Albini, P. et al. (2014). The Global Historical Earthquake Archive and Catalogue (GHEA/GHEC). GEM Foundation."
+   ],
+   "links": [
+    {
+     "label": "Open Seismic hazards",
+     "href": "/geohub/"
+    }
+   ],
+   "peer_reviewed": false
+  }
+ ]
+}
