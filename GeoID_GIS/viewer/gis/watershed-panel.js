@@ -24,10 +24,10 @@ import {
   fill, d8, accumulate, snapOutlet, upstreamMask, touchesEdge, traceOutline, streamNetwork,
   velocities, travelToOutlet, excessSeries, timeAreaHydrograph, catchmentStats, cellMetres, cellOf,
   centreOf, downstream, OVERLAND_K, NEIGHBOURS,
-} from "./catchment.js?v=20260914-b7630bb";
-import { demGridFor } from "./landslide-pipeline.js?v=20260914-b7630bb";
-import { waterMasks, waterFeatures } from "./water-mask.js?v=20260914-b7630bb";
-import { burnRivers } from "./river-zones.js?v=20260914-b7630bb";
+} from "./catchment.js?v=20260914-7778b2c";
+import { demGridFor } from "./landslide-pipeline.js?v=20260914-7778b2c";
+import { waterMasks, waterFeatures } from "./water-mask.js?v=20260914-7778b2c";
+import { burnRivers } from "./river-zones.js?v=20260914-7778b2c";
 
 const search = new URL(import.meta.url).search;
 const byId = (id) => document.getElementById(id);
@@ -212,9 +212,15 @@ async function extract() {
     state.runoff = null;
     await drawLayers();
     renderResult();
+    // A click a little off the channel snaps to whatever drains most within
+    // the radius, which may be a scrap of hillside. Say so rather than present
+    // a tenth of a square kilometre as the river's catchment.
+    const tiny = stats.areaKm2 < Math.max(1, channelKm2 * 2);
     say("ws-status", out.edge
       ? `The basin reaches the edge of the ${fmt(out.halfKm * 2, 0)} km search box, so it is CLIPPED — raise “Search up to” for the whole catchment.`
-      : `Extracted in ${pass} pass${pass === 1 ? "" : "es"} from the ${out.label}.`);
+      : tiny
+        ? `Only ${fmt(stats.areaKm2, 2)} km² drains here — no channel lies within ${fmt(snapM, 0)} m of the click. Click nearer the river, or raise the snap radius.`
+        : `Extracted in ${pass} pass${pass === 1 ? "" : "es"} from the ${out.label}${out.seaCells ? "; the sea masked" : ""}${out.burned ? "; mapped rivers burned in" : ""}.`);
     const run = byId("ws-run");
     if (run) run.disabled = false;
   } catch (error) {
@@ -316,7 +322,9 @@ function travelClasses(r) {
 export function flowVectors(r) {
   const { grid, flow, mask, vel, travel } = r;
   const { width, height } = grid;
-  const target = 2200;
+  // About nine hundred arrows: enough to read the drainage pattern, few enough
+  // that each is still an arrow at the scale a catchment is looked at.
+  const target = 900;
   const stride = Math.max(1, Math.round(Math.sqrt(r.cells / target)));
   const classes = travelClasses(r);
   let vMax = 0;
@@ -486,7 +494,7 @@ async function startSim() {
   geometry.setAttribute("aDisp", new THREE.BufferAttribute(disp, 1));
   geometry.setAttribute("color", new THREE.BufferAttribute(colour, 3));
   const material = new THREE.PointsMaterial({
-    size: 5, sizeAttenuation: false, vertexColors: true, transparent: true,
+    size: 6, sizeAttenuation: false, vertexColors: true, transparent: true,
     depthTest: false, depthWrite: false, map: markerDiscTexture(), alphaTest: 0.2,
   });
   followRelief(material, 0, { lifted: "marker", cullFarSide: true });

@@ -1,12 +1,12 @@
-import * as GP from "./geoprocessing.js?v=20260914-b7630bb";
-import * as RA from "./raster-analysis.js?v=20260914-b7630bb";
-import * as VF from "./vector-formats.js?v=20260914-b7630bb";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260914-b7630bb";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260914-b7630bb";
-import { downloadText } from "./extraction.js?v=20260914-b7630bb";
-import { CRS_OPTIONS } from "./projection.js?v=20260914-b7630bb";
-import { runQuery, QUERY_HELP } from "./query.js?v=20260914-b7630bb";
-import { selection } from "./selection.js?v=20260914-b7630bb";
+import * as GP from "./geoprocessing.js?v=20260914-7778b2c";
+import * as RA from "./raster-analysis.js?v=20260914-7778b2c";
+import * as VF from "./vector-formats.js?v=20260914-7778b2c";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260914-7778b2c";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260914-7778b2c";
+import { downloadText } from "./extraction.js?v=20260914-7778b2c";
+import { CRS_OPTIONS } from "./projection.js?v=20260914-7778b2c";
+import { runQuery, QUERY_HELP } from "./query.js?v=20260914-7778b2c";
+import { selection } from "./selection.js?v=20260914-7778b2c";
 
 // Wiring between the toolbox UI and the geoprocessing / raster engines. Every
 // operation produces a new layer rather than mutating its input, which is how
@@ -675,7 +675,7 @@ async function buildToolCatalogue() {
   if (!host || host.childElementCount) return;
   let runner;
   try {
-    runner = await import("./tool-runner.js?v=20260914-b7630bb");
+    runner = await import("./tool-runner.js?v=20260914-7778b2c");
   } catch {
     host.textContent = "The toolbox is still loading.";
     return;

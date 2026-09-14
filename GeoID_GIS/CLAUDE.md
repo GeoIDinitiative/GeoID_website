@@ -19539,3 +19539,45 @@ The seam is `window.GeoIDDocWindows`, and the Docs page's rows gained
 - Verified with Google's public sample Sheet, which is fully editable in the
   frame. A nonexistent Doc id renders Google's own "file does not exist" page,
   which also proves the frame loads.
+
+## Watershed and runoff (Hazards ▸ Flood)
+
+`gis/catchment.js` holds the pure half, with 27 checks against closed forms;
+`gis/watershed-panel.js` is the subtab. Pick an outlet and the catchment is
+extracted by **D8 on the sink-filled streamed DEM**. D8 rather than MFD,
+because a catchment boundary is hard: a cell drains to the outlet or it does
+not.
+- **The outlet is snapped** to the largest accumulation within a radius, and a
+  basin under 1 km² is reported as a probable miss rather than presented.
+- **The box doubles until the basin no longer touches its edge**, up to "Search
+  up to". A basin still touching the edge is reported CLIPPED.
+
+Four layers:
+- **catchment** — an outline traced along cell edges, so it holds exactly the
+  masked cells
+- **stream network** — Strahler order, reaches cut at junctions
+- **flow vectors** — about 900 arrows, coloured by travel time
+- **runoff (animated)** — an adopted `THREE.Points` in the imported geo group
+
+Runoff is the SCS curve number and a **time–area hydrograph**, linear and
+unrouted, and the panel says so. Velocities are TR-55 shallow concentrated
+flow (`v = K·√S`) on hillslopes and a channel velocity on streams. The
+particles are released at spawn times drawn from the rain excess and carried
+down the D8 paths at each cell's velocity, in step with a marker on the
+hydrograph.
+
+- **The sea is not ground.** A coastal outlet at −1 m routed the flat sea into
+  itself: on the Shimna at Newcastle it returned 160 km², clipped at 30 km.
+  Ocean cells (`water-mask.js`) become no-data, so the coast is where water
+  leaves. GRWL rivers are burned 20 m in before routing, and stats read the
+  unburned heights.
+- **A particle waiting to spawn goes past the far plane**, not to a zero
+  direction: with the depth test off, the planet's centre is drawn.
+- **Measured** on the Shimna (snap 1,200 m): 36.2 km², relief 846 m (Slieve
+  Donard), longest path 15.1 km, Strahler 3, time of concentration 165 min on
+  the model's velocities against Kirpich's 116. A 50 mm / 3 h storm at CN 75
+  gives 9.3 mm of runoff. The hydrograph volume is 336,100 m³, which matches
+  9.3 mm × 36.19 km² = 336,600 m³. Particles drew 7,491 framebuffer pixels in
+  an A/B with the layer hidden.
+- `GeoIDLayerHierarchy.setVisible` takes the LAYER OBJECT, not its id: passing
+  an id throws "Cannot create property 'visible' on number".
