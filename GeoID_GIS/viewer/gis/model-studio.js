@@ -1,17 +1,17 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260914-64d3a3d";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260914-64d3a3d";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260914-7c9bd7f";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260914-7c9bd7f";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260914-64d3a3d";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260914-64d3a3d";
-import { downloadText } from "./extraction.js?v=20260914-64d3a3d";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260914-64d3a3d";
-import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260914-64d3a3d";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260914-64d3a3d";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260914-64d3a3d";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260914-64d3a3d";
-import { femSpec } from "./model-build.js?v=20260914-64d3a3d";
+} from "./mesh-volume.js?v=20260914-7c9bd7f";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260914-7c9bd7f";
+import { downloadText } from "./extraction.js?v=20260914-7c9bd7f";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260914-7c9bd7f";
+import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260914-7c9bd7f";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260914-7c9bd7f";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260914-7c9bd7f";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260914-7c9bd7f";
+import { femSpec } from "./model-build.js?v=20260914-7c9bd7f";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -2590,14 +2590,31 @@ function modelFocus() {
   return sphere;
 }
 
-function viewAxis(axis) {
+/**
+ * The world sphere around one object's geometry, for a caller that draws in
+ * the studio's frame without being one of its solids -- the GALES results.
+ * The geometry's own box, not `setFromObject` over the node: a marker or an
+ * empty slice under it would stretch the box to nothing drawn.
+ */
+function sphereOfObject(object3D) {
+  const geometry = object3D?.geometry;
+  if (!geometry?.attributes?.position) return null;
+  object3D.updateWorldMatrix(true, false);
+  geometry.computeBoundingBox();
+  const box = geometry.boundingBox.clone().applyMatrix4(object3D.matrixWorld);
+  if (box.isEmpty()) return null;
+  const sphere = box.getBoundingSphere(new THREE.Sphere());
+  return Number.isFinite(sphere.radius) && sphere.radius > 0 ? sphere : null;
+}
+
+function viewAxis(axis, object3D = null) {
   const viewer = window.GeoIDViewer;
   if (!viewer?.camera) return;
   const anchor = ensureModelAnchor();
   if (!anchor) return;
   // Frame the user's model, not the surface origin and not the sphere centre.
   // Falling back to the anchor keeps the axis buttons useful on an empty scene.
-  const focus = modelFocus();
+  const focus = (object3D && sphereOfObject(object3D)) || modelFocus();
   const centre = focus ? focus.center : anchor.getWorldPosition(new THREE.Vector3());
   const d = focus
     ? Math.max(focus.radius * 2.6, MODEL_MODE_RADIUS * 0.5)
@@ -2629,9 +2646,9 @@ function viewAxis(axis) {
   refreshGraticuleStep();
 }
 
-function fitView() {
+function fitView(object3D = null) {
   const viewer = window.GeoIDViewer;
-  const sphere = modelFocus();
+  const sphere = (object3D?.isObject3D && sphereOfObject(object3D)) || modelFocus();
   if (!viewer?.camera || !sphere) return;
   const d = Math.max(sphere.radius * 2.6, 0.01);
   // The model sits out on the surface, so the camera is offset from the
@@ -4582,6 +4599,10 @@ window.GeoIDMeshStudio = {
   enuToWgs84, wgs84ToEnu, getGroundInfo,
   getAnchor: () => modelAnchor,
   adoptStudyArea,
+  // For the GALES results panel, which draws in this frame without being a solid.
+  ensureAnchor: () => ensureModelAnchor(),
+  fitObject: (object3D) => fitView(object3D),
+  log,
 };
 
 /**
