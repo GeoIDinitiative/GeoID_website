@@ -27,8 +27,11 @@ import {
   planSimulation, describeField, dofsPerNode, float64View, componentOf, magnitudeOf,
   rangeOf, usedNodes, COLORMAPS, colormapTable, colourValues, niceTicks, formatValue,
   interpolateOnSlice, axisPlane, nodeByteRange, probeCsv, parseMesh, sliceTets,
-} from "./gales-results.js?v=20260914-cfe1b52";
-import { downloadText } from "./extraction.js?v=20260914-cfe1b52";
+  flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
+} from "./gales-results.js?v=20260915-6c71912";
+import { zipStore } from "./shapefile-writer.js?v=20260915-6c71912";
+import { may, refusal } from "./membership.js?v=20260915-6c71912";
+import { downloadText } from "./extraction.js?v=20260915-6c71912";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -64,6 +67,8 @@ const S = {
   busy: false,
   pending: false,
   statusText: "No results open.",
+  stations: [],
+  extract: { fields: null, layout: "station", result: null, plotField: 0, plotComp: "mag", note: "" },
   statusError: false,
   clipOn: null,
 };
@@ -238,6 +243,10 @@ async function loadMesh(path) {
     S.sliceKey = "";
     S.probe = null;
     S.clipOn = null;
+    S.stations = [];
+    S.extract.fields = null;
+    S.extract.result = null;
+    locator = null;
     classifyFields();
     buildScene();
     const secs = ((performance.now() - started) / 1000).toFixed(1);
@@ -365,6 +374,7 @@ function buildScene() {
   root.add(frame);
   scene.root = root;
   scene.frame = frame;
+  scene.stationGroup = null;
 
   const nodes = usedNodes(mesh.surface, mesh.nodeCount);
   const compact = new Int32Array(mesh.nodeCount).fill(-1);
@@ -590,6 +600,7 @@ async function refresh({ fit = false } = {}) {
     } else scene.slice.visible = false;
 
     updateProbeMarker(disp);
+    updateStationMarkers(disp);
     renderLegend(desc, lo, hi, table);
     renderStepReadout();
     if (fit) studio()?.fitObject?.(scene.surface);
@@ -721,6 +732,14 @@ async function renderProbe() {
     downloadText(`gales_${f.field.replace(/\W+/g, "_")}_node${node}.csv`, text, "text/csv");
   });
   clear.addEventListener("click", () => { S.probe = null; scene.marker && (scene.marker.visible = false); renderProbe(); });
+  const keep = el("button", { class: "studio-secondary", type: "button" }, "Add as a point");
+  keep.title = "Keep this node in Points and time series";
+  keep.addEventListener("click", () => {
+    const i = S.probe.node;
+    addStations([{ name: `node${i}`, node: i, x: c[i * 3], y: c[i * 3 + 1], z: c[i * 3 + 2], flag: S.mesh.nodeFlag?.[i] || null, distance: 0, source: "probe" }]);
+    openSection("points");
+  });
+  actions.append(keep);
 }
 
 /** The probe's node through every step, reading only its own bytes where it can. */
@@ -1077,7 +1096,310 @@ function renderControls() {
   ps.body.append(el("div", { id: "gales-probe" }));
   host.append(ps.details);
   renderProbe();
+
+  // Points and time series
+  const pts = section("points", "Points and time series");
+  pts.body.append(el("div", { id: "gales-points" }));
+  host.append(pts.details);
+  renderPoints();
   renderStepReadout();
+}
+
+// ── Points and time series ─────────────────────────────────────────────────
+//
+// A FEM run is read at points: a borehole, a tiltmeter, a GNSS site. The Model
+// Builder embeds them as mesh nodes and gmsh_to_gales.py writes each one's
+// physical flag on its node, so a flag names them; any other point is taken
+// to its nearest node, and the distance is written beside it.
+
+let locator = null;
+const STATION_COLOURS = ["#ff2bd6", "#52e4e8", "#ffd166", "#06d6a0", "#ef476f", "#118ab2", "#f78c6b", "#a78bfa", "#bef264", "#fca5a5"];
+
+function nearest(p) {
+  if (!locator) locator = nodeLocator(S.mesh);
+  return locator.nearest(p);
+}
+
+/** Points into the list: taken to their nearest node, never twice at one node. */
+function addStations(list) {
+  const seen = new Set(S.stations.map((st) => st.node));
+  let added = 0;
+  for (const st of list) {
+    const at = Number.isInteger(st.node) ? { node: st.node, distance: st.distance || 0 } : nearest([st.x, st.y, st.z ?? 0]);
+    if (at.node < 0 || seen.has(at.node)) continue;
+    seen.add(at.node);
+    const i = at.node;
+    const c = S.mesh.coords;
+    S.stations.push({
+      name: st.name || `node${i}`, node: i, x: c[i * 3], y: c[i * 3 + 1], z: c[i * 3 + 2],
+      asked: Number.isInteger(st.node) ? null : [st.x, st.y, st.z ?? 0],
+      flag: S.mesh.nodeFlag?.[i] || st.flag || null, distance: at.distance, source: st.source || "",
+    });
+    added += 1;
+  }
+  S.extract.result = null;
+  renderPoints();
+  updateStationMarkers(null);
+  refresh();
+  return added;
+}
+
+async function readSpec() {
+  const entry = S.source?.entries.find((e) => /(^|\/)spec\.json$/.test(e.path) && e.path.split("/").length <= 2);
+  if (!entry) return null;
+  try { return JSON.parse(await S.source.text(entry.path)); } catch (e) { return null; }
+}
+
+function updateStationMarkers(disp) {
+  if (!scene.frame) return;
+  if (!scene.stationGroup) {
+    scene.stationGroup = new THREE.Group();
+    scene.stationGroup.name = "gales-stations";
+    scene.frame.add(scene.stationGroup);
+  }
+  const group = scene.stationGroup;
+  while (group.children.length > S.stations.length) {
+    const child = group.children.pop();
+    child.geometry.dispose(); child.material.dispose();
+  }
+  S.stations.forEach((st, k) => {
+    let m = group.children[k];
+    if (!m) {
+      m = new THREE.Mesh(new THREE.OctahedronGeometry(1, 0), new THREE.MeshBasicMaterial({ depthTest: false }));
+      m.renderOrder = 11;
+      group.add(m);
+    }
+    m.material.color.set(STATION_COLOURS[k % STATION_COLOURS.length]);
+    m.scale.setScalar(scene.radius * 0.012);
+    const i = st.node;
+    m.position.set(st.x + (disp ? disp[i * 3] : 0), st.y + (disp ? disp[i * 3 + 1] : 0), st.z + (disp ? disp[i * 3 + 2] : 0));
+  });
+}
+
+function renderPoints() {
+  const host = byId("gales-points");
+  if (!host || !S.mesh) return;
+  host.textContent = "";
+  const add = el("div", { class: "gales-subhead" }, "Add points");
+  host.append(add);
+
+  const flags = flagSummary(S.mesh.nodeFlag);
+  if (flags.length) {
+    const pick = select(flags.map((f) => [f.flag, `flag ${f.flag} — ${f.count.toLocaleString()} node${f.count === 1 ? "" : "s"}`]), flags[0].flag, () => {});
+    pick.title = "An embedded point's flag is a small group: the Model Builder gives points flag 20 unless told otherwise.";
+    const go = el("button", { class: "studio-secondary", type: "button" }, "Add the flagged nodes");
+    go.addEventListener("click", () => {
+      const got = stationsForFlag(S.mesh, Number(pick.value), { cap: 200 });
+      const added = addStations(got.stations);
+      status(`Flag ${pick.value}: ${got.found.toLocaleString()} node(s)${got.capped ? ", the first 200 taken" : ""}; ${added} added.`);
+    });
+    host.append(row("Flag", pick), go);
+  } else host.append(el("div", { class: "studio-readout" }, "This mesh carries no node flags."));
+
+  const buttons = el("div", { class: "studio-actions" });
+  const fromSpec = el("button", { class: "studio-secondary", type: "button" }, "Model Builder's points");
+  fromSpec.title = "The embedded points in this run's spec.json";
+  fromSpec.addEventListener("click", async () => {
+    const spec = await readSpec();
+    const list = specPoints(spec);
+    if (!list.length) { status("No spec.json with embedded points in this folder.", true); return; }
+    const added = addStations(list);
+    status(`${added} of ${list.length} embedded point(s) added from spec.json, each at its nearest node.`);
+  });
+  const studioPts = studio()?.state?.points || [];
+  const fromStudio = el("button", { class: "studio-secondary", type: "button" }, "Studio's points");
+  fromStudio.title = "The embedded points placed in this studio";
+  fromStudio.disabled = !studioPts.length;
+  fromStudio.addEventListener("click", () => {
+    const added = addStations(studioPts.map((q) => ({ name: q.name, x: q.x, y: q.y, z: q.z, flag: q.flag, source: "studio" })));
+    status(`${added} studio point(s) added.`);
+  });
+  buttons.append(fromSpec, fromStudio);
+  host.append(buttons);
+
+  const typed = el("textarea", { class: "studio-input gales-typed", rows: "3", placeholder: "name, x, y, z  (metres, the mesh's frame)" });
+  const addTyped = el("button", { class: "studio-secondary", type: "button" }, "Add typed points");
+  addTyped.addEventListener("click", () => {
+    const list = parsePointList(typed.value);
+    if (!list.length) { status("No points read: one per line as name, x, y, z.", true); return; }
+    const added = addStations(list);
+    status(`${added} typed point(s) added.`);
+  });
+  host.append(typed, addTyped);
+
+  // The list
+  host.append(el("div", { class: "gales-subhead" }, `Points · ${S.stations.length}`));
+  if (S.stations.length) {
+    const list = el("div", { class: "gales-stations" });
+    S.stations.forEach((st, k) => {
+      const sw = el("span", { class: "gales-sw" });
+      sw.style.background = STATION_COLOURS[k % STATION_COLOURS.length];
+      const name = el("input", { class: "studio-input", value: st.name, "aria-label": "Point name" });
+      name.addEventListener("keydown", (e) => e.stopPropagation());
+      name.addEventListener("change", () => { st.name = name.value.trim() || st.name; });
+      const info = el("span", { class: "gales-station-info" }, `node ${st.node}${st.flag ? ` · flag ${st.flag}` : ""}${st.distance > 0 ? ` · ${formatValue(st.distance, st.distance)} m off` : ""}`);
+      info.title = `x ${st.x}, y ${st.y}, z ${st.z}${st.asked ? ` — asked for ${st.asked.join(", ")}` : ""}`;
+      const drop = el("button", { class: "studio-secondary gales-x", type: "button", title: "Remove this point" }, "✕");
+      drop.addEventListener("click", () => { S.stations.splice(k, 1); S.extract.result = null; renderPoints(); updateStationMarkers(null); refresh(); });
+      list.append(el("div", { class: "gales-station" }, sw, name, info, drop));
+    });
+    const clearAll = el("button", { class: "studio-secondary", type: "button" }, "Remove all");
+    clearAll.addEventListener("click", () => { S.stations = []; S.extract.result = null; renderPoints(); updateStationMarkers(null); refresh(); });
+    host.append(list, clearAll);
+  }
+
+  // What to extract
+  host.append(el("div", { class: "gales-subhead" }, "Extract"));
+  const okFields = S.fields.map((f, k) => [f, k]).filter(([f]) => f.ok);
+  if (!S.extract.fields) S.extract.fields = new Set(okFields.map(([, k]) => k));
+  okFields.forEach(([f, k]) => {
+    const box = el("input", { type: "checkbox" });
+    box.checked = S.extract.fields.has(k);
+    box.addEventListener("change", () => { if (box.checked) S.extract.fields.add(k); else S.extract.fields.delete(k); });
+    host.append(el("label", { class: "studio-check" }, box, ` ${f.field} · ${f.steps.length} step${f.steps.length === 1 ? "" : "s"}`));
+  });
+  host.append(row("Files", select([["station", "One CSV per point (time series)"], ["step", "One CSV per time step (every point)"], ["tidy", "One CSV (every point, every step)"]], S.extract.layout, (v) => { S.extract.layout = v; })));
+  const run = el("button", { class: "studio-primary", type: "button" }, "Extract to CSV");
+  run.disabled = !S.stations.length || !okFields.length;
+  run.addEventListener("click", () => extractStations().catch((e) => status(e.message, true)));
+  host.append(run);
+  if (S.extract.note) host.append(el("div", { class: "studio-readout" }, S.extract.note));
+
+  // The plot of what was extracted
+  const r = S.extract.result;
+  if (r) {
+    const fieldPick = select(r.fields.map((f, k) => [k, f.desc.field]), S.extract.plotField, (v) => { S.extract.plotField = Number(v); S.extract.plotComp = r.fields[Number(v)].desc.vector ? "mag" : "0"; renderPoints(); });
+    const fd = r.fields[S.extract.plotField] || r.fields[0];
+    const comps = [...(fd.desc.vector ? [["mag", fd.desc.vector.label]] : []), ...fd.desc.components.map((c, j) => [j, c.label])];
+    const compPick = select(comps, S.extract.plotComp, (v) => { S.extract.plotComp = v; renderPoints(); });
+    host.append(row("Plot", fieldPick), row("Component", compPick));
+    const canvas = el("canvas", { class: "gales-plot", width: "600", height: "260" });
+    host.append(canvas);
+    drawStationSeries(canvas, fd, r.stations, S.extract.plotComp);
+    const again = el("button", { class: "studio-secondary", type: "button" }, "Download again");
+    again.addEventListener("click", () => deliver(r.files, r.prefix));
+    host.append(again);
+  }
+}
+
+/** Every chosen field at every point through every step. */
+async function extractStations() {
+  const stations = S.stations.map((st) => ({ ...st }));
+  const chosen = [...S.extract.fields].map((k) => [S.fields[k], k]).filter(([f]) => f?.ok);
+  if (!stations.length || !chosen.length) return;
+  const N = stations.length;
+  const n = S.mesh.nodeCount;
+  const out = [];
+  const started = performance.now();
+  for (const [f, fi] of chosen) {
+    if (!f.desc) await valuesAt(fi, 0);
+    const d = f.desc;
+    const nb = d.nbDofs;
+    const values = new Float64Array(f.steps.length * N * nb);
+    for (let k = 0; k < f.steps.length; k += 1) {
+      const step = f.steps[k];
+      status(`Extracting ${f.field}: step ${k + 1} of ${f.steps.length} at ${N} point(s)…`);
+      // A few points read their own bytes; many read the step once.
+      if (!d.blocked && N <= 24) {
+        for (let si = 0; si < N; si += 1) {
+          const [a, b] = nodeByteRange(stations[si].node, n, nb);
+          const part = float64View(await S.source.readRange(step.path, a, b));
+          for (let j = 0; j < nb; j += 1) values[(k * N + si) * nb + j] = part[j];
+        }
+      } else {
+        const whole = cache.get(step.path) || float64View(await S.source.read(step.path));
+        for (let si = 0; si < N; si += 1) {
+          const node = stations[si].node;
+          for (let j = 0; j < nb; j += 1) values[(k * N + si) * nb + j] = d.blocked ? whole[j * n + node] : whole[node * nb + j];
+        }
+      }
+      if (k % 8 === 7) await new Promise((r) => setTimeout(r, 0));
+    }
+    out.push({ desc: d, times: f.steps.map((s) => s.time), values });
+  }
+  const sim = (S.source?.label || "gales").split("/").pop();
+  const prefix = `${sim.replace(/[^\w.-]+/g, "_")}`;
+  const header = [
+    `GALES results extracted by GeoID GeoHUB, ${new Date().toISOString()}`,
+    `simulation ${S.source?.label || ""} · mesh ${S.meshPath}`,
+    "Values at mesh nodes; a point that was not a node is taken to its nearest node (distance_m).",
+  ];
+  const { files, times } = stationCsvFiles({ stations, fields: out, layout: S.extract.layout, prefix, header });
+  S.extract.result = { fields: out, stations, files, prefix };
+  S.extract.plotField = 0;
+  S.extract.plotComp = out[0].desc.vector ? "mag" : "0";
+  const filed = await fileIntoProject(files);
+  const secs = ((performance.now() - started) / 1000).toFixed(1);
+  S.extract.note = `${N} point(s) × ${times.length} time(s) × ${out.length} field(s) in ${secs} s → ${files.length} CSV file(s)${filed ? `, filed in the project's post_processing/extracted_dofs/ (the Signal pages list them)` : ""}.`;
+  status(S.extract.note);
+  deliver(files, prefix);
+  renderPoints();
+}
+
+/** Into the open project, where the analysis pages look for series. */
+async function fileIntoProject(files) {
+  const store = window.GeoIDResearch?.store;
+  if (!store?.getActive?.() || !store.writeProjectFile) return false;
+  try {
+    for (const f of files) await store.writeProjectFile(`post_processing/extracted_dofs/${f.name}`, f.text);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+/** One file downloads as itself; several arrive as one zip. */
+function deliver(files, prefix) {
+  if (!files.length) return;
+  if (files.length === 1) { downloadText(files[0].name, files[0].text, "text/csv", { project: false }); return; }
+  if (!may("save")) { status(refusal("save"), true); return; }
+  const enc = new TextEncoder();
+  const zip = zipStore(files.map((f) => ({ name: f.name, data: enc.encode(f.text) })));
+  const url = URL.createObjectURL(new Blob([zip], { type: "application/zip" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${prefix}_timeseries.zip`;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+function drawStationSeries(canvas, field, stations, comp) {
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width; const H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  const d = field.desc;
+  const nb = d.nbDofs;
+  const N = stations.length;
+  const ts = field.times;
+  const at = (k, si, j) => field.values[(k * N + si) * nb + j];
+  const valueOf = (k, si) => (comp === "mag" && d.vector ? Math.hypot(...d.vector.from.map((j) => at(k, si, j))) : at(k, si, Number(comp) || 0));
+  const shown = stations.slice(0, STATION_COLOURS.length);
+  let y0 = Infinity; let y1 = -Infinity;
+  shown.forEach((_, si) => ts.forEach((__, k) => { const v = valueOf(k, si); if (Number.isFinite(v)) { y0 = Math.min(y0, v); y1 = Math.max(y1, v); } }));
+  if (!Number.isFinite(y0)) { y0 = 0; y1 = 1; }
+  if (y1 === y0) { y0 -= 1; y1 += 1; }
+  const t0 = Math.min(...ts); const t1 = Math.max(...ts);
+  const L = 70; const R = 12; const T = 12; const B = 38;
+  const X = (t) => L + ((t - t0) / (t1 - t0 || 1)) * (W - L - R);
+  const Y = (v) => T + (1 - (v - y0) / (y1 - y0)) * (H - T - B);
+  ctx.font = "18px 'Exo 2', sans-serif";
+  ctx.fillStyle = getComputedStyle(canvas).color || "#cfe";
+  ctx.strokeStyle = "rgba(160,170,190,0.3)";
+  niceTicks(y0, y1, 5).forEach((v) => { ctx.beginPath(); ctx.moveTo(L, Y(v)); ctx.lineTo(W - R, Y(v)); ctx.stroke(); ctx.fillText(formatValue(v, y1 - y0), 4, Y(v) + 6); });
+  ctx.fillText(`t ${formatValue(t0, t1 - t0 || 1)}`, L, H - 10);
+  const end = `t ${formatValue(t1, t1 - t0 || 1)}`;
+  ctx.fillText(end, W - R - ctx.measureText(end).width, H - 10);
+  shown.forEach((st, si) => {
+    ctx.strokeStyle = STATION_COLOURS[si];
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ts.forEach((t, k) => { const v = valueOf(k, si); if (!Number.isFinite(v)) return; if (k) ctx.lineTo(X(t), Y(v)); else ctx.moveTo(X(t), Y(v)); });
+    ctx.stroke();
+    if (ts.length === 1) { ctx.fillStyle = STATION_COLOURS[si]; ctx.fillRect(X(ts[0]) - 4, Y(valueOf(0, si)) - 4, 8, 8); }
+  });
+  if (stations.length > shown.length) { ctx.fillStyle = "rgba(200,200,210,0.8)"; ctx.fillText(`first ${shown.length} of ${stations.length} points`, L + 6, T + 18); }
 }
 
 async function fitAllSteps() {
@@ -1129,6 +1451,14 @@ const STYLE = `
 .gales-kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.15rem 0.6rem; font-size: 0.72rem; }
 .gales-kv span { opacity: 0.72; }
 .gales-kv b { font-weight: 600; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.gales-subhead { font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.75; margin-top: 0.3rem; }
+.gales-typed { width: 100%; min-height: 3.6rem; resize: vertical; font-family: inherit; }
+.gales-stations { display: grid; gap: 0.25rem; max-height: 14rem; overflow-y: auto; }
+.gales-station { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 0.3rem; align-items: center; }
+.gales-station .studio-input { min-width: 0; width: 100%; }
+.gales-station-info { font-size: 0.62rem; opacity: 0.72; white-space: nowrap; }
+.gales-sw { width: 0.6rem; height: 0.6rem; border-radius: 2px; }
+.gales-x { padding: 0 0.4rem; }
 .gales-plot { width: 100%; height: auto; color: var(--skin-data, #52e4e8); background: rgba(0, 0, 0, 0.25); border-radius: 0.4rem; }
 #gales-status.is-error { color: #ff8a80; }
 #model-studio .gales-legend { position: absolute; right: 1rem; bottom: 4.4rem; z-index: 6; width: 15rem; padding: 0.55rem 0.7rem 0.5rem; border-radius: 0.6rem; border: 1px solid rgba(var(--nav-accent-rgb, 255, 43, 214), 0.34); background: rgb(16, 7, 36); background: var(--skin-card-ground, rgb(16, 7, 36)); color: var(--text, #e8eaf2); font-family: 'Exo 2', sans-serif; pointer-events: none; }

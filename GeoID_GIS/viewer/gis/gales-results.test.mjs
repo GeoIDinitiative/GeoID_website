@@ -13,7 +13,8 @@ import {
   timeOf, groupResultFiles, describeField, dofsPerNode, float64View, componentOf,
   magnitudeOf, nodeByteRange, rangeOf, usedNodes, colormapTable, colourValues,
   niceTicks, formatValue, sliceTets, interpolateOnSlice, axisPlane, nearestNode,
-  probeCsv, planSimulation, COLORMAPS,
+  probeCsv, planSimulation, COLORMAPS, flagSummary, stationsForFlag, nodeLocator, specPoints,
+  parsePointList, stationCsvFiles,
 } from "./gales-results.js";
 
 let pass = 0;
@@ -346,10 +347,14 @@ const triangleArea = (p, k) => {
   check("the worker is loaded under the panel's own stamp, as a module", /new Worker\(new URL\(`\.\/gales-worker\.js\$\{VERSION\}`, import\.meta\.url\), \{ type: "module" \}\)/.test(panel));
   check("the worker only listens inside a worker", /typeof window === "undefined"/.test(worker) && /self\.addEventListener\("message", handle\)/.test(worker));
   check("a transferred mesh buffer is read fresh, never out of a cache", /source\.read\(path, \{ fresh: true \}\)/.test(panel) && /if \(!fresh\) last = \{ path, buffer \};/.test(panel));
-  check("the probe never stops the release OrbitControls needs", /canvas\.addEventListener\("pointerup"/.test(panel) && !/stopPropagation|stopImmediatePropagation/.test(panel.replace(/\/\/.*$/gm, "")));
+  check("the probe never stops the release OrbitControls needs", /canvas\.addEventListener\("pointerup"/.test(panel) && !/addEventListener\("pointerup"[^;]*?\{[\s\S]{0,500}?(stopPropagation|stopImmediatePropagation)/.test(panel.replace(/\/\/.*$/gm, "")));
   check("the results reach the ground's hole and the camera floor, not the mesher's bounds", /function sceneBounds\(\)/.test(studio) && /const b = below \? sceneBounds\(\) : null;/.test(studio) && /setExternalBounds,/.test(studio) && /setExternalBounds\?\.\("gales-results", resultBounds\(\)\)/.test(panel));
   check("a Results tab in the mesh band, on Earth and on the planets", /data-group="results" data-deck="left" data-band="mesh"/.test(page) && /data-group="results" data-deck="left" data-band="mesh"/.test(shell) && /id="studio-results-host"/.test(page));
   check("the panel loads on Earth and on every planet", /gis\/gales-results-panel\.js\?v=/.test(page) && /"\.\/gales-results-panel\.js",/.test(boot));
+  check("points: files go to the project's post_processing/extracted_dofs, where the Signal pages list series", /post_processing\/extracted_dofs\/\$\{f\.name\}/.test(panel) && /stationCsvFiles\(\{ stations, fields: out, layout: S\.extract\.layout, prefix, header \}\)/.test(panel));
+  check("points: several files arrive as one zip, gated like every save", /zipStore\(files\.map/.test(panel) && /if \(!may\("save"\)\)/.test(panel));
+  check("points: the worker hands the node flags over, so a flag can name a point", /nodeFlag \? \[nodeFlag\.buffer\] : \[\]/.test(worker));
+  check("the Model Builder writes each embedded point's flag into spec.json", /lat: p\.lat, lon: p\.lon, flag: p\.flag,/.test(readFileSync(new URL("./model-pipeline.js", import.meta.url), "utf8")));
   check("a clip keeps the half whose cut faces the studio's own view", /const keepAbove = \(S\.sliceAxis === "y"\) !== S\.clipFlip;/.test(panel));
 }
 
@@ -365,6 +370,46 @@ const triangleArea = (p, k) => {
     { path: "sim/input/pointwise_elastic_parameters.txt", size: 4 },
   ], "solid_mesh_file       mesh_4core.txt\ndim 3\n");
   check("plan: the mesh setup.txt names comes first, parameter tables are not meshes", plan.meshes[0].name === "mesh_4core.txt" && plan.meshes.length === 3 && plan.fields[0].field === "solid/u");
+}
+
+// ── Points and their time series ───────────────────────────────────────────
+{
+  const g = parseGalesMesh(TWO_TETS);
+  check("flags: fewest nodes first, zero is no flag", flagSummary(g.nodeFlag).map((f) => `${f.flag}:${f.count}`).join() === "2:1,1:4");
+  const st = stationsForFlag(g, 2);
+  check("stations for a flag: the node, its coordinates, the flag", st.found === 1 && st.stations[0].node === 4 && st.stations[0].x === 1 && st.stations[0].flag === 2);
+  check("stations for a flag are capped and say so", stationsForFlag(g, 1, { cap: 2 }).capped && stationsForFlag(g, 1, { cap: 2 }).stations.length === 2);
+  const withPoint = parseMsh(MSH22.replace("1 15 2 20 1 1", "1 15 2 20 1 5"));
+  check("msh: an embedded point's node carries its physical flag, set last (points over faces)", withPoint.nodeFlag[4] === 20 && withPoint.nodeFlag[0] === 7);
+  // The locator against brute force on the Kuhn cube and a scatter of queries.
+  const loc = nodeLocator(cube);
+  let agree = true;
+  for (let k = 0; k < 200; k += 1) {
+    const q = [Math.sin(k * 1.3) * 1.5 + 0.5, Math.cos(k * 0.7) * 1.5 + 0.5, Math.sin(k * 0.37) * 1.5 + 0.5];
+    const brute = nearestNode(cube.coords, [...Array(8).keys()], q);
+    const got = loc.nearest(q);
+    const d = (i) => Math.hypot(cube.coords[i * 3] - q[0], cube.coords[i * 3 + 1] - q[1], cube.coords[i * 3 + 2] - q[2]);
+    if (Math.abs(d(got.node) - d(brute)) > 1e-12) agree = false;
+  }
+  check("node locator: the nearest node, inside and outside the mesh's box, as brute force finds", agree);
+  const spec = { geoid_model: { embedded_points: [{ name: "BH1", x: 10, y: 20, z: -5, flag: 21 }, { name: "S1", s: 300, z: 40 }, { name: "bad" }] } };
+  const sp = specPoints(spec);
+  check("spec points: x, y, z as given; a section's (s, z) as the 2D mesh's (x, y)", sp.length === 2 && sp[0].flag === 21 && sp[0].z === -5 && sp[1].x === 300 && sp[1].y === 40 && sp[1].z === 0);
+  const typed = parsePointList("name,x,y,z\nBH 1, 1.5, 2, -3\n# a note\n4 5 6\nwell;7;8;9");
+  check("a typed list: a header skipped, names with spaces, bare coordinates numbered, any delimiter", typed.length === 3 && typed[0].name === "BH 1" && typed[0].z === -3 && typed[1].name === "point_2" && typed[1].z === 6 && typed[2].name === "well");
+
+  const stations = [{ name: "A", node: 3, x: 0, y: 0, z: 1, flag: 20, distance: 0 }, { name: "B, deep", node: 4, x: 1, y: 1, z: 1, flag: null, distance: 0.25 }];
+  const u = { desc: describeField("solid/u", 3, 3), times: [0, 1], values: new Float64Array([0, 0, 0, 0, 0, 0, 3, 4, 12, 1, 2, 2]) };
+  const T = { desc: describeField("heat_eq/T", 1, 3), times: [1, 2], values: new Float64Array([300, 301, 310, 311]) };
+  const per = stationCsvFiles({ stations, fields: [u, T], layout: "station", prefix: "etna", header: ["GALES etna"] });
+  check("per point: a file each, named for the point", per.files.map((f) => f.name).join() === "etna_A.csv,etna_B_deep.csv");
+  const aLines = per.files[0].text.trim().split("\n");
+  check("per point: columns with units, the magnitude after its components, times the union of the fields", aLines[2] === "time,solid_u_ux_m,solid_u_uy_m,solid_u_uz_m,solid_u_magnitude_m,heat_eq_T_T_K" && aLines[4] === "1,3,4,12,13,300" && aLines[3] === "0,0,0,0,0," && aLines[5] === "2,,,,,310");
+  check("per point: the header names the node, the flag and how far the node is from the point", /node 3 · x=0 y=0 z=1 · flag 20/.test(per.files[0].text) && /0\.250 m from the point asked for/.test(per.files[1].text));
+  const step = stationCsvFiles({ stations, fields: [u, T], layout: "step", prefix: "etna" });
+  check("per step: a file per time, a row per point, a name with a comma quoted", step.files.length === 3 && step.files[1].name === "etna_t1.csv" && step.files[1].text.trim().split("\n")[3] === '"B, deep",4,1,1,1,,0.25,1,2,2,3,301');
+  const tidy = stationCsvFiles({ stations, fields: [u], layout: "tidy" });
+  check("tidy: one file, a row per point per time", tidy.files.length === 1 && tidy.files[0].text.trim().split("\n").length === 1 + 4);
 }
 
 // ── The real Etna run, when the GALES tree is beside the site ──────────────

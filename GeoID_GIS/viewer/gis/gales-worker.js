@@ -11,7 +11,7 @@
  *   { id, type: "slice", normal, d }       → { id, ok, slice }
  *   progress while parsing                 → { id, type: "progress", fraction }
  */
-import { parseMesh, sliceTets } from "./gales-results.js?v=20260914-cfe1b52";
+import { parseMesh, sliceTets } from "./gales-results.js?v=20260915-6c71912";
 
 let mesh = null;
 
@@ -32,13 +32,14 @@ async function handle(event) {
       const surface = parsed.surface.slice();
       const surfaceFlag = parsed.surfaceFlag.slice();
       const edges = parsed.edges ? parsed.edges.slice() : null;
+      const nodeFlag = parsed.nodeFlag ? parsed.nodeFlag.slice() : null;
       const out = {
         format: parsed.format, dim: parsed.dim, nodeCount: parsed.nodeCount,
         cellCount: parsed.cellCount, sideCount: parsed.sideCount, bounds: parsed.bounds,
-        surfaceFrom: parsed.surfaceFrom, coords, surface, surfaceFlag, edges,
+        surfaceFrom: parsed.surfaceFrom, coords, surface, surfaceFlag, edges, nodeFlag,
         tets: countTets(parsed),
       };
-      reply({ id, ok: true, mesh: out }, [coords.buffer, surface.buffer, surfaceFlag.buffer, ...(edges ? [edges.buffer] : [])]);
+      reply({ id, ok: true, mesh: out }, [coords.buffer, surface.buffer, surfaceFlag.buffer, ...(edges ? [edges.buffer] : []), ...(nodeFlag ? [nodeFlag.buffer] : [])]);
       return;
     }
     if (type === "slice") {

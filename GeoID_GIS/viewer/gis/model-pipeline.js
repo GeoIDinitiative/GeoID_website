@@ -2,23 +2,23 @@ import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
   nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS, atmosphereStl, DEFAULT_MAX_NODES, triangleWriter,
-} from "./model-build.js?v=20260914-cfe1b52";
-import { ringsFromCollection } from "./extraction.js?v=20260914-cfe1b52";
+} from "./model-build.js?v=20260915-6c71912";
+import { ringsFromCollection } from "./extraction.js?v=20260915-6c71912";
 import {
   buildTin, tinHeightAt, tinSurfaceStl, tinShellStl, samplingSizeField,
   extendBoundary, extendedBoundaryLines, gridAsTin, shellFacets,
-} from "./surface-sampling.js?v=20260914-cfe1b52";
-import { renderFeatureCollection } from "./vector-render.js?v=20260914-cfe1b52";
-import { promptDrawTool } from "./extent-picker.js?v=20260914-cfe1b52";
+} from "./surface-sampling.js?v=20260915-6c71912";
+import { renderFeatureCollection } from "./vector-render.js?v=20260915-6c71912";
+import { promptDrawTool } from "./extent-picker.js?v=20260915-6c71912";
 import {
   profileAlong, profileHeightAt, sectionPolygons, sectionPositions, sectionGmshScript, profileCsv,
-} from "./section-model.js?v=20260914-cfe1b52";
-import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260914-cfe1b52";
+} from "./section-model.js?v=20260915-6c71912";
+import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260915-6c71912";
 import {
   layerHeights, layeredVolumes, facetsStlByFace, layeredGmshScript, thinLayerSizeM, tinWith, LAYER_FLAGS, facetsClosed,
-} from "./layered-model.js?v=20260914-cfe1b52";
-import { waterMasks, waterFeatures } from "./water-mask.js?v=20260914-cfe1b52";
-import { burnRivers } from "./river-zones.js?v=20260914-cfe1b52";
+} from "./layered-model.js?v=20260915-6c71912";
+import { waterMasks, waterFeatures } from "./water-mask.js?v=20260915-6c71912";
+import { burnRivers } from "./river-zones.js?v=20260915-6c71912";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -2519,7 +2519,7 @@ async function writeSectionPackage() {
       extend_boundary: { below_m: belowM, base_z_m: polys.baseZ, above_m: aboveM, sky_z_m: polys.skyZ },
       dem: state.demReady ? { zoom: state.demReady.zoom, post_spacing_m: state.demReady.postM } : null,
       flags: { ...state.flags },
-      embedded_points: points.map((q) => ({ name: q.name, lat: q.lat, lon: q.lon, s: q.s, z: q.z, depth_below_surface_m: q.depthM })),
+      embedded_points: points.map((q) => ({ name: q.name, lat: q.lat, lon: q.lon, flag: q.flag, s: q.s, z: q.z, depth_below_surface_m: q.depthM })),
       built_at: new Date().toISOString(),
     },
   });
@@ -2768,7 +2768,7 @@ async function writePackage() {
         size_range_m: [field.minM, field.maxM],
       } : null,
       embedded_points: points.map((p) => ({
-        name: p.name, layer: p.layer, lat: p.lat, lon: p.lon,
+        name: p.name, layer: p.layer, lat: p.lat, lon: p.lon, flag: p.flag,
         x: p.x, y: p.y, z: p.z, ground_z: p.groundZ, depth_below_surface_m: p.depthM,
       })),
       layers: loadedLayers().map((l) => ({

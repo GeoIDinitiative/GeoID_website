@@ -409,9 +409,25 @@ export function parseMsh(input, { onProgress } = {}) {
   const dim = byDim[3].flag.length ? 3 : 2;
   const top = byDim[dim];
   const side = byDim[dim - 1];
-  // A planar mesh written in 3D coordinates with z = 0 everywhere stays 2D.
+  // NODE FLAGS AS gmsh_to_gales.py ASSIGNS THEM: the boundary faces' tags,
+  // then the lines', then the POINTS' last, so an embedded point's node carries
+  // its own physical flag -- which is what makes a flagged point findable.
+  const nodeFlag = new Int32Array(nodeCount);
+  for (let d = dim - 1; d >= 0; d -= 1) {
+    const g = byDim[d];
+    const conn = g.conn.a;
+    const offsets = g.offsets.a;
+    for (let e = 0; e < g.flag.length; e += 1) {
+      const flag = g.flag.a[e];
+      if (!flag) continue;
+      for (let k = offsets[e]; k < offsets[e + 1]; k += 1) {
+        const node = conn[k];
+        if (node >= 0 && node < nodeCount) nodeFlag[node] = flag;
+      }
+    }
+  }
   return finishMesh({
-    format: `msh ${version}`, dim, nodeCount, coords, nodeFlag: null,
+    format: `msh ${version}`, dim, nodeCount, coords, nodeFlag,
     cells: top.conn.done(), cellOffsets: top.offsets.done(), cellFlag: top.flag.done(),
     sides: side.conn.done(), sideOffsets: side.offsets.done(), sideFlag: side.flag.done(),
     declared: {}, lastNode: nodeCount - 1,
@@ -908,6 +924,173 @@ export function probeCsv(series, desc, { node, x, y, z } = {}) {
     lines.push([row.time, ...vals.map((v) => (Number.isFinite(v) ? String(v) : ""))].join(","));
   }
   return `${lines.join("\n")}\n`;
+}
+
+// ── Points: flagged nodes and embedded points, and their time series ───────
+
+/** Node flags in use, fewest nodes first: an embedded point's flag is a small group. */
+export function flagSummary(nodeFlag) {
+  if (!nodeFlag) return [];
+  const counts = new Map();
+  for (let i = 0; i < nodeFlag.length; i += 1) {
+    const f = nodeFlag[i];
+    if (f) counts.set(f, (counts.get(f) || 0) + 1);
+  }
+  return [...counts.entries()].map(([flag, count]) => ({ flag, count })).sort((a, b) => a.count - b.count || a.flag - b.flag);
+}
+
+/** Nodes carrying a flag, as stations, capped. */
+export function stationsForFlag(mesh, flag, { cap = 500 } = {}) {
+  const out = [];
+  let found = 0;
+  for (let i = 0; i < mesh.nodeCount; i += 1) {
+    if (mesh.nodeFlag?.[i] !== flag) continue;
+    found += 1;
+    if (out.length < cap) out.push({ name: `flag${flag}_node${i}`, node: i, x: mesh.coords[i * 3], y: mesh.coords[i * 3 + 1], z: mesh.coords[i * 3 + 2], flag, source: `flag ${flag}`, distance: 0 });
+  }
+  return { stations: out, found, capped: found > cap };
+}
+
+/**
+ * The nearest node to any point, through a bucket grid built once: a thousand
+ * points against a quarter of a million nodes is otherwise a quarter of a
+ * billion distances.
+ */
+export function nodeLocator(mesh, { perBucket = 8 } = {}) {
+  const { coords, nodeCount, bounds } = mesh;
+  const span = [0, 1, 2].map((a) => Math.max(bounds.max[a] - bounds.min[a], 1e-9));
+  const dims = mesh.dim === 2 ? 2 : 3;
+  const cellsWanted = Math.max(1, nodeCount / perBucket);
+  const side = dims === 3 ? Math.cbrt((span[0] * span[1] * span[2]) / cellsWanted) : Math.sqrt((span[0] * span[1]) / cellsWanted);
+  const n = [0, 1, 2].map((a) => (a < dims ? Math.max(1, Math.min(512, Math.ceil(span[a] / side))) : 1));
+  const cellOf = (v, a) => Math.min(n[a] - 1, Math.max(0, Math.floor(((v - bounds.min[a]) / span[a]) * n[a])));
+  const head = new Int32Array(n[0] * n[1] * n[2]).fill(-1);
+  const next = new Int32Array(nodeCount).fill(-1);
+  for (let i = 0; i < nodeCount; i += 1) {
+    const k = (cellOf(coords[i * 3 + 2], 2) * n[1] + cellOf(coords[i * 3 + 1], 1)) * n[0] + cellOf(coords[i * 3], 0);
+    next[i] = head[k];
+    head[k] = i;
+  }
+  const nearest = (p) => {
+    const c = [cellOf(p[0], 0), cellOf(p[1], 1), cellOf(p[2] ?? 0, 2)];
+    let best = -1;
+    let bestD = Infinity;
+    for (let ring = 0; ring <= Math.max(...n); ring += 1) {
+      for (let dz = -ring; dz <= ring; dz += 1) {
+        const z = c[2] + dz; if (z < 0 || z >= n[2]) continue;
+        for (let dy = -ring; dy <= ring; dy += 1) {
+          const y = c[1] + dy; if (y < 0 || y >= n[1]) continue;
+          for (let dx = -ring; dx <= ring; dx += 1) {
+            if (Math.max(Math.abs(dx), Math.abs(dy), Math.abs(dz)) !== ring) continue;
+            const x = c[0] + dx; if (x < 0 || x >= n[0]) continue;
+            for (let i = head[(z * n[1] + y) * n[0] + x]; i >= 0; i = next[i]) {
+              const d = (coords[i * 3] - p[0]) ** 2 + (coords[i * 3 + 1] - p[1]) ** 2 + (coords[i * 3 + 2] - (p[2] ?? 0)) ** 2;
+              if (d < bestD) { bestD = d; best = i; }
+            }
+          }
+        }
+      }
+      // A ring further out cannot hold anything nearer than the best found
+      // once the best is closer than that ring's inner distance.
+      const inner = ring * Math.min(...[0, 1, 2].slice(0, dims).map((a) => span[a] / n[a]));
+      if (best >= 0 && Math.sqrt(bestD) <= inner) break;
+    }
+    return { node: best, distance: Math.sqrt(bestD) };
+  };
+  return { nearest };
+}
+
+/**
+ * The Model Builder's embedded points, from a run's spec.json
+ * (`geoid_model.embedded_points`): x, y, z in the mesh's frame, or s, z for a
+ * cross-section, whose 2D mesh is written in (s, z).
+ */
+export function specPoints(spec) {
+  const list = spec?.geoid_model?.embedded_points || spec?.embedded_points || [];
+  return list.map((p, k) => {
+    const name = String(p.name || `point_${k + 1}`);
+    const flag = Number.isFinite(Number(p.flag)) ? Number(p.flag) : null;
+    if (Number.isFinite(Number(p.x)) && Number.isFinite(Number(p.y))) return { name, x: Number(p.x), y: Number(p.y), z: Number(p.z) || 0, flag, source: "Model Builder" };
+    if (Number.isFinite(Number(p.s)) && Number.isFinite(Number(p.z))) return { name, x: Number(p.s), y: Number(p.z), z: 0, flag, source: "Model Builder section" };
+    return null;
+  }).filter(Boolean);
+}
+
+/** Points typed or pasted: `name, x, y, z` a line, a header optional, any delimiter. */
+export function parsePointList(text) {
+  const out = [];
+  String(text || "").split(/\r?\n/).forEach((line, k) => {
+    const t = line.trim();
+    if (!t || t.startsWith("#")) return;
+    const parts = t.split(/[,;\t]|\s+/).map((x) => x.trim()).filter((x) => x !== "");
+    const nums = parts.map(Number);
+    if (parts.length >= 3 && nums.slice(-3).every(Number.isFinite) && parts.length >= 4) out.push({ name: parts.slice(0, parts.length - 3).join(" "), x: nums[parts.length - 3], y: nums[parts.length - 2], z: nums[parts.length - 1], source: "typed" });
+    else if (parts.length >= 2 && nums.every(Number.isFinite)) out.push({ name: `point_${out.length + 1}`, x: nums[0], y: nums[1], z: nums[2] ?? 0, source: "typed" });
+  });
+  return out;
+}
+
+const slugOf = (s) => String(s).replace(/[^\w.-]+/g, "_").replace(/^_+|_+$/g, "") || "x";
+
+/**
+ * Column heads for the chosen fields: `<field>_<component>_<unit>`, and the
+ * magnitude of a vector after its components.
+ */
+export function seriesColumns(fields) {
+  const cols = [];
+  for (const f of fields) {
+    const base = slugOf(f.desc.field.replace(/\//g, "_"));
+    f.desc.components.forEach((c, j) => cols.push({ field: f, j, head: `${base}_${c.key}${c.unit ? `_${slugOf(c.unit.replace("²", "2").replace("³", "3"))}` : ""}` }));
+    if (f.desc.vector) cols.push({ field: f, j: "mag", head: `${base}_magnitude${f.desc.vector.unit ? `_${slugOf(f.desc.vector.unit.replace("²", "2"))}` : ""}` });
+  }
+  return cols;
+}
+
+/**
+ * The extracted values as CSV files.
+ *
+ * `fields`: [{ desc, times: [t…], values: Float64Array(steps × stations × nbDofs) }].
+ * Times are the union over the fields, each field blank where it has no step.
+ * `layout`: "station" (a file per point, a row per time), "step" (a file per
+ * time, a row per point) or "tidy" (one file, a row per point per time).
+ */
+export function stationCsvFiles({ stations, fields, layout = "station", prefix = "gales", header = [] }) {
+  const cols = seriesColumns(fields);
+  const times = [...new Set(fields.flatMap((f) => f.times))].sort((a, b) => a - b);
+  const stepOf = fields.map((f) => new Map(f.times.map((t, k) => [t, k])));
+  const valueOf = (col, fi, ti, si) => {
+    const f = fields[fi];
+    const k = stepOf[fi].get(times[ti]);
+    if (k === undefined) return "";
+    const nb = f.desc.nbDofs;
+    const at = (j) => f.values[(k * stations.length + si) * nb + j];
+    const v = col.j === "mag" ? Math.hypot(...f.desc.vector.from.map(at)) : at(col.j);
+    return Number.isFinite(v) ? String(v) : "";
+  };
+  const fieldIndex = new Map(fields.map((f, k) => [f, k]));
+  const rowValues = (ti, si) => cols.map((c) => valueOf(c, fieldIndex.get(c.field), ti, si));
+  const meta = (s) => [s.name, s.node, s.x, s.y, s.z, s.flag ?? "", Number.isFinite(s.distance) ? s.distance : ""];
+  const quote = (v) => { const t = String(v ?? ""); return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+  const comment = header.map((h) => `# ${h}`);
+  const files = [];
+  if (layout === "station") {
+    stations.forEach((s, si) => {
+      const lines = [...comment, `# point ${s.name} · node ${s.node} · x=${s.x} y=${s.y} z=${s.z}${s.flag != null ? ` · flag ${s.flag}` : ""}${Number.isFinite(s.distance) && s.distance > 0 ? ` · ${s.distance.toFixed(3)} m from the point asked for` : ""}`, ["time", ...cols.map((c) => c.head)].join(",")];
+      times.forEach((t, ti) => lines.push([t, ...rowValues(ti, si)].join(",")));
+      files.push({ name: `${prefix}_${slugOf(s.name)}.csv`, text: `${lines.join("\n")}\n` });
+    });
+  } else if (layout === "step") {
+    times.forEach((t, ti) => {
+      const lines = [...comment, `# time ${t}`, ["point", "node", "x", "y", "z", "flag", "distance_m", ...cols.map((c) => c.head)].join(",")];
+      stations.forEach((s, si) => lines.push([...meta(s).map(quote), ...rowValues(ti, si)].join(",")));
+      files.push({ name: `${prefix}_t${slugOf(String(t))}.csv`, text: `${lines.join("\n")}\n` });
+    });
+  } else {
+    const lines = [...comment, ["time", "point", "node", "x", "y", "z", "flag", "distance_m", ...cols.map((c) => c.head)].join(",")];
+    times.forEach((t, ti) => stations.forEach((s, si) => lines.push([t, ...meta(s).map(quote), ...rowValues(ti, si)].join(","))));
+    files.push({ name: `${prefix}_points.csv`, text: `${lines.join("\n")}\n` });
+  }
+  return { files, times, columns: cols.map((c) => c.head) };
 }
 
 /**
