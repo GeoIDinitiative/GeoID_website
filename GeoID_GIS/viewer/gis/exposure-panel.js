@@ -17,10 +17,10 @@
 
 import {
   polygonsOf, polygonIndex, peopleOnGrid, polygonMask, gridExposure, riskExposure, formatPeople, seriesCsv,
-} from "./exposure.js?v=20260914-2619c4b";
-import { showAnnotation, removeAnnotation } from "./exposure-annotation.js?v=20260914-2619c4b";
-import { refreshPolygonOptions, resolvePolygonRings, promptDrawTool } from "./extent-picker.js?v=20260914-2619c4b";
-import { drawTimeSeries } from "./time-series-plot.js?v=20260914-2619c4b";
+} from "./exposure.js?v=20260914-3635fdc";
+import { showAnnotation, removeAnnotation } from "./exposure-annotation.js?v=20260914-3635fdc";
+import { refreshPolygonOptions, resolvePolygonRings, promptDrawTool } from "./extent-picker.js?v=20260914-3635fdc";
+import { drawTimeSeries } from "./time-series-plot.js?v=20260914-3635fdc";
 
 const search = new URL(import.meta.url).search;
 const byId = (id) => document.getElementById(id);
@@ -92,7 +92,10 @@ async function countsUnder(box) {
   const { readCounts } = await import(`./worldpop.js${search}`);
   // A cell of margin, so the polygon's edge cells have their population cell.
   const pad = 1 / 120;
-  const read = await readCounts({ west: box.west - pad, east: box.east + pad, south: box.south - pad, north: box.north + pad });
+  const want = { west: box.west - pad, east: box.east + pad, south: box.south - pad, north: box.north + pad };
+  // Once more on failure: the first range request against a cold bucket can
+  // fail ("Request failed") where the same read a moment later succeeds.
+  const read = await readCounts(want).catch(() => new Promise((r) => setTimeout(r, 800)).then(() => readCounts(want)));
   if (!read) throw new Error("WorldPop has no data under that area.");
   return read;
 }
@@ -135,12 +138,32 @@ async function exposeRaster(layer, area) {
       return classes.findIndex((c) => c.test(v));
     },
   });
-  // People in the polygon but outside the hazard's own grid are counted apart,
-  // so "0 exposed" over an area the map does not reach is not read as safe.
-  const all = peopleOnGrid(pop, { width: pop.width, height: pop.height, bounds: pop.bounds });
-  const allMask = polygonMask({ width: pop.width, height: pop.height, bounds: pop.bounds }, area.polys);
-  let inArea = 0; for (let i = 0; i < all.length; i += 1) if (allMask[i]) inArea += all[i];
-  return { kind: "grid", layer: layer.name, classes, ex, inArea, pop };
+  /**
+   * THE AREA'S PEOPLE ARE COUNTED ON THE HAZARD'S OWN CELLS where it has any.
+   * Counting whole 1 km population cells by their centres instead read 2.4
+   * thousand people in a 10 km box where the forecast's 21 m grid read 3.1
+   * thousand in the same box — the centre test misjudges every edge cell of a
+   * small area. Only the part of the polygon the grid does not reach falls
+   * back to the population cells, and is reported apart, so "0 exposed" over
+   * ground the map does not cover is never read as safe.
+   */
+  const gb = { west: r.bounds.minX ?? r.bounds.west, east: r.bounds.maxX ?? r.bounds.east, south: r.bounds.minY ?? r.bounds.south, north: r.bounds.maxY ?? r.bounds.north };
+  const popGrid = { width: pop.width, height: pop.height, bounds: pop.bounds };
+  const popMask = polygonMask(popGrid, area.polys);
+  const pdx = (pop.bounds.east - pop.bounds.west) / pop.width; const pdy = (pop.bounds.north - pop.bounds.south) / pop.height;
+  let outside = 0;
+  for (let y = 0; y < pop.height; y += 1) {
+    const lat = pop.bounds.north - (y + 0.5) * pdy;
+    for (let x = 0; x < pop.width; x += 1) {
+      const i = y * pop.width + x;
+      if (!popMask[i]) continue;
+      const lon = pop.bounds.west + (x + 0.5) * pdx;
+      if (lon >= gb.west && lon <= gb.east && lat >= gb.south && lat <= gb.north) continue;
+      const v = pop.band[i];
+      if (Number.isFinite(v) && v > 0) outside += v;
+    }
+  }
+  return { kind: "grid", layer: layer.name, classes, ex, inArea: ex.total + outside, outside, pop };
 }
 
 async function exposeRisk(layer, area) {
@@ -222,9 +245,8 @@ function show(result, area) {
   stopFollow();
   const ring = result.kind === "series" ? result.ring : area.polys[0].coords[0];
   if (result.kind === "grid") {
-    const { ex, classes, inArea } = result;
+    const { ex, classes, inArea, outside } = result;
     const rows = ex.byClass.map((c, k) => ({ label: c.label, people: c.people, colour: classes[k].colour }));
-    const outside = Math.max(0, inArea - ex.total);
     host.append(
       p(`${formatPeople(inArea)} people live in ${area.label}; ${formatPeople(ex.exposed)} (${(100 * ex.exposed / Math.max(1, inArea)).toFixed(1)}%) are on ground under ${result.layer}.`),
       renderTable(rows, inArea),
@@ -245,7 +267,11 @@ function show(result, area) {
       lines: rows.filter((r) => r.people >= 0.5).slice(0, 3).map((r) => ({ text: `${formatPeople(r.people)} · ${r.label}`, colour: r.colour })) });
   } else {
     const r = result;
-    const peak = r.values[0].reduce((m, v, k) => (v > r.values[0][m] ? k : m), 0);
+    // The worst map is the one with the most people on failing ground, and
+    // among those the most on marginal ground: ranking on failing alone picked
+    // the first map of a dry window, where every map ties at zero.
+    const score = (k) => r.values[0][k] * 1e6 + r.values[1][k];
+    const peak = r.values[0].reduce((m, v, k) => (score(k) > score(m) ? k : m), 0);
     host.append(
       p(`${formatPeople(r.inArea)} people live in the forecast's area. At the worst map (${String(r.times[peak]).replace("T", " ")}) ${formatPeople(r.values[0][peak])} are on failing ground and ${formatPeople(r.values[1][peak])} on marginal ground. Over the whole window ${formatPeople(r.ever.byClass[0].people)} live on ground that fails at some point.`),
     );
