@@ -19743,3 +19743,80 @@ Verified live on 8125 with the Etna run opened through the panel's own seam:
 — numpy's values exactly; auto warp ×88.5; the face-on slice showing the
 chamber cavity; and a synthetic 2D run (fluid_dofs p,vx,vy,T; blocked
 fluid_mesh warp) drawn in plan with the lattice cut under it.
+
+## FEM points to time series, and the risk assessment reader
+
+### GALES results ▸ Points and time series
+
+A run is read at points. Stations come from five doors and all end at a node:
+a **node flag**, the Model Builder's **spec.json** `geoid_model.embedded_points`
+(which now carry their `flag`), the **studio's** points, the **probed** node
+("Add as a point"), or a **typed** list (`name, x, y, z`). Each non-node point
+is taken to its nearest node and the distance is written beside it in the CSV.
+Every chosen field is extracted at every step as one CSV per point, one per
+step, or one tidy file; filed into the open project's
+`post_processing/extracted_dofs/` (flat, because `findTables` does not walk
+into subfolders) and downloaded — several files as one zip, gated like every
+save.
+
+- **An embedded point's flag is ON ITS NODE** because `gmsh_to_gales.py`
+  assigns node flags faces → lines → POINTS, the points last. The `.msh`
+  reader now does the same, so a flag names a point in either format. Etna's
+  mesh carries only boundary flags (4, 5), which is why the flag list is
+  ordered fewest nodes first: a point group is small.
+- **The nearest node is a bucket grid**, not a scan (a thousand points against
+  a quarter of a million nodes). Ring search stops once the best distance is
+  inside the next ring's inner radius; pinned against brute force for queries
+  outside the mesh's box too. Live, all three typed Etna points agreed with a
+  numpy argmin to the millimetre — one of them 3,030 m off, because it asked
+  for a point inside the chamber cavity, and the file says so.
+- **A few points read their own bytes, many read the step once** (≤ 24).
+- Verified: summit node 25018 and chamber-wall node 51462 at t = 1 read
+  (-3.514, -3.262, -80.658) and (-1.684, -2.506, -67.372) m, numpy's values.
+
+**Downloads are membership-gated in development too**: with no unlock key the
+zip is refused with the membership sentence, which reads like a broken button
+until the status line is looked at. Test with `geoid:unlock=owner`, remove it.
+
+### Hazards ▸ Exposure is a risk assessment
+
+`gis/risk-assessment.js` (59 checks) decides what an exposure answer is SAID
+as; `exposure-panel.js` integrates and shows it.
+
+- **A level is a scheme, stated**: every class carries its level AND its
+  threshold in the hazard's own units (FoS < 1; depth ≥ 2 m; p ≥ 0.5; ≥ 113 kt;
+  M ≥ 8; VEI ≥ 6), and the report prints both. A raster whose direction is
+  not known gets VALUE BANDS with no level — calling its top band "Very high"
+  claims more of it is worse.
+- **Not exposed and no reading are two rows, never a class.** Off-grid people
+  inside the polygon enter the grid tally as no reading (`assessGrid`'s
+  `outside`), so ground the map does not cover is never read as safe.
+- **Second readings per risk map**, from columns the bakes already write:
+  cyclone `p_hur_yr` (hurricane-force chance) and, when the tracks layer is on,
+  the strongest storm within 200 km (`windLookup`: segments bucketed by
+  degree, strongest first, so a query stops at the first track in reach —
+  labelled as each storm's LIFETIME peak, which the track file holds, not its
+  strength where it passed); seismic `mag_max`; volcanic `vei_max`, handed
+  over as −1 where `p_yr` is zero so "VEI 0 on record" and "nothing" differ.
+- **People-weighted statistics** (mean, median, p10–p90), the edge share on
+  BOTH paths — the population path had none and printed "0.0% in edge cells"
+  on a 1,784 km² area — and each polygon of a multi-polygon layer on its own
+  (`groupByFeature`, named by its own name field).
+- **The report is one self-contained A4 HTML page** (print CSS, editable title,
+  summary, notes and sign-off) opened as a blob with `#print`, so the browser's
+  Save as PDF is the PDF writer and nothing is vendored. Its map is an SVG of
+  the polygons coloured by share at very high/high, with key, scale bar and
+  north arrow: the globe snapshot it started with showed the whole planet, not
+  the area, and was dropped.
+- Verified on 8125 against three named Miami polygons: cyclone risk 2,704,423
+  people, 1,650,993 reached a year, 100% "p ≥ 0.5", hurricane-force 1 in 2–10,
+  strongest storm Cat 4–5; a synthetic flood-depth `.asc` (the name picks the
+  flood scheme) classed 468,491 / 1,139,834 / 502,929 / 306,068 / 143,403 with
+  93,021 not exposed, summing to the total, and the per-polygon shares 0.90 /
+  0.42 / 0.02 drawn darkest on the coast.
+
+**Two trap-shaped things met while verifying.** A blob URL cannot be opened
+by the Browser pane's `navigate`; carry the HTML to a same-origin tab over a
+`BroadcastChannel` and `document.write` it. And a screenshot taken straight
+after `document.write` + scroll can show the previous page's paint: take it
+again before believing a blank or truncated report.

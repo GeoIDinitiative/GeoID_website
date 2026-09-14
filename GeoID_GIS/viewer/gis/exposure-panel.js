@@ -27,16 +27,16 @@
 
 import {
   polygonsOf, polygonIndex, peopleOnGrid, polygonMask, cellKm2, formatPeople, seriesCsv, boxOf,
-} from "./exposure.js?v=20260915-6c71912";
+} from "./exposure.js?v=20260915-2db6686";
 import {
   SCHEMES, LEVEL_COLOURS, chanceScheme, bandScheme, schemeForLayerName, riskLayerKind, assessGrid,
   assessPopulation, groupByFeature, formatCount, formatShare, formatNumber, returnPeriod,
   stackedBarSvg, assessmentCsv, reportHtml, summarySentence, windLookup, bandColour,
-} from "./risk-assessment.js?v=20260915-6c71912";
-import { showAnnotation, removeAnnotation } from "./exposure-annotation.js?v=20260915-6c71912";
-import { refreshPolygonOptions, resolvePolygonRings, promptDrawTool } from "./extent-picker.js?v=20260915-6c71912";
-import { drawTimeSeries } from "./time-series-plot.js?v=20260915-6c71912";
-import { may, refusal } from "./membership.js?v=20260915-6c71912";
+} from "./risk-assessment.js?v=20260915-2db6686";
+import { showAnnotation, removeAnnotation } from "./exposure-annotation.js?v=20260915-2db6686";
+import { refreshPolygonOptions, resolvePolygonRings, promptDrawTool } from "./extent-picker.js?v=20260915-2db6686";
+import { drawTimeSeries } from "./time-series-plot.js?v=20260915-2db6686";
+import { may, refusal } from "./membership.js?v=20260915-2db6686";
 
 const search = new URL(import.meta.url).search;
 const byId = (id) => document.getElementById(id);
@@ -354,13 +354,23 @@ function fold(title, open, ...content) {
 
 function assessmentOf(r, area) {
   const now = new Date();
+  const pad = (v) => String(v).padStart(2, "0");
+  const localDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  // The map: each polygon of the area with its own share at the top levels.
+  const { groups } = groupByFeature(area.polys);
+  const shareOf = (b) => (b ? (b.total > 0 ? b.veryHighHigh / b.total : null) : null);
+  const mapGroups = groups.map((g, k) => ({
+    name: g.name, rings: g.polys.map((q) => q.coords[0]),
+    value: shareOf(groups.length > 1 ? r.byPolygon?.[k]?.breakdown : r.breakdowns[0]),
+  }));
   const a = {
     area: area.label || "the study area",
     layer: r.layer, hazard: r.hazard, source: r.source, hazardNote: r.hazardNote || null,
     generated: now.toISOString(),
     generatedHuman: now.toLocaleString("en-GB", { dateStyle: "long", timeStyle: "short" }),
-    generatedDate: now.toISOString().slice(0, 10),
-    reference: `RA-${now.toISOString().slice(0, 10).replace(/-/g, "")}-${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`,
+    generatedDate: localDate,
+    reference: `RA-${localDate.replace(/-/g, "")}-${pad(now.getHours())}${pad(now.getMinutes())}`,
+    mapGroups,
     breakdowns: r.breakdowns, byPolygon: r.byPolygon, polygonsTruncated: r.truncated || 0,
     polygonCount: Math.max(1, r.byPolygon?.length || new Set(area.polys.map((q) => q.feature)).size),
   };
@@ -407,24 +417,6 @@ function showAssessment(a, area, host = byId("exp-result")) {
   });
 }
 
-/** The globe as the reader is looking at it, for the report. */
-function mapSnapshot() {
-  try {
-    const v = window.GeoIDViewer;
-    if (!v?.renderer || !v.scene || !v.camera) return null;
-    // Read in the same task as the render, or the drawing buffer is cleared.
-    v.renderer.render(v.scene, v.camera);
-    const src = v.renderer.domElement;
-    const scale = Math.min(1, 1400 / src.width);
-    const c = document.createElement("canvas");
-    c.width = Math.round(src.width * scale); c.height = Math.round(src.height * scale);
-    c.getContext("2d").drawImage(src, 0, 0, c.width, c.height);
-    return c.toDataURL("image/jpeg", 0.85);
-  } catch (e) {
-    return null;
-  }
-}
-
 function slug(text) { return String(text || "area").replace(/[^A-Za-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 40) || "area"; }
 
 function exportAssessmentCsv() {
@@ -439,7 +431,7 @@ function downloadReport() {
   const a = state.assessment;
   if (!a) return;
   void import(`./extraction.js${search}`).then(({ downloadText }) => {
-    try { downloadText(`geoid_risk_report_${slug(a.hazard)}_${slug(a.area)}.html`, reportHtml(a, { mapImage: mapSnapshot() }), "text/html"); } catch (e) { say(e.message); }
+    try { downloadText(`geoid_risk_report_${slug(a.hazard)}_${slug(a.area)}.html`, reportHtml(a), "text/html"); } catch (e) { say(e.message); }
   });
 }
 
@@ -452,7 +444,7 @@ function openReport({ print = false } = {}) {
   const a = state.assessment;
   if (!a) return;
   if (!may("save")) { say(refusal("save")); return; }
-  const html = reportHtml(a, { mapImage: mapSnapshot() });
+  const html = reportHtml(a);
   const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
   const w = window.open(`${url}${print ? "#print" : ""}`, "_blank");
   if (!w) say("The browser blocked the report window: allow pop-ups for this site, or use Report (HTML).");

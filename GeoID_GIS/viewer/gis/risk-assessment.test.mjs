@@ -5,7 +5,7 @@ import {
   SCHEMES, LEVELS, chanceScheme, bandScheme, schemeForLayerName, riskLayerKind, classIndex,
   weightedQuantile, newTally, addCell, finishTally, assessGrid, assessPopulation, groupByFeature,
   featureName, formatCount, formatShare, returnPeriod, stackedBarSvg, classBarsSvg, assessmentCsv,
-  reportHtml, summarySentence, windLookup,
+  reportHtml, summarySentence, windLookup, polygonMapSvg,
 } from "./risk-assessment.js";
 import { polygonsOf } from "./exposure.js";
 import { readFileSync } from "node:fs";
@@ -153,6 +153,25 @@ process.on("exit", () => {
   const panel = readFileSync(new URL("./exposure-panel.js", import.meta.url), "utf8");
   check("the exposure panel assesses through the risk module: grids, probability maps and tracks", /assessGrid\(\{ people, values: r\.band/.test(panel) && /assessPopulation\(\{ pop, polys: area\.polys, schemes \}\)/.test(panel) && /windLookup\(/.test(panel));
   check("cyclone maps add hurricane-force chance and the strongest storm; earthquakes magnitude; volcanoes VEI", /p_hur_yr/.test(panel) && /SCHEMES\.wind/.test(panel) && /SCHEMES\.magnitude/.test(panel) && /SCHEMES\.vei/.test(panel));
-  check("the report opens print-ready, gated like every save, with the CSV and HTML beside it", /\$\{url\}\$\{print \? "#print" : ""\}/.test(panel) && /if \(!may\("save"\)\)/.test(panel) && /assessmentCsv\(a\)/.test(panel) && /reportHtml\(a, \{ mapImage: mapSnapshot\(\) \}\)/.test(panel));
+  check("the report opens print-ready, gated like every save, with the CSV and HTML beside it", /\$\{url\}\$\{print \? "#print" : ""\}/.test(panel) && /if \(!may\("save"\)\)/.test(panel) && /assessmentCsv\(a\)/.test(panel) && /reportHtml\(a\)/.test(panel) && /mapGroups,/.test(panel));
   check("every polygon of a multi-polygon area is assessed on its own", /groupByFeature\(area\.polys\)/.test(panel));
+}
+
+// ── The map, and the edge on the population path ───────────────────────────
+{
+  const groups = [
+    { name: "West", rings: [[[0, 50], [1, 50], [1, 51], [0, 51], [0, 50]]], value: 0.8 },
+    { name: "East <b>", rings: [[[1, 50], [2, 50], [2, 51], [1, 51], [1, 50]]], value: 0 },
+  ];
+  const svg = polygonMapSvg(groups, { width: 640, height: 360 });
+  const d = [...svg.matchAll(/<path d="M([\d.]+),([\d.]+)L([\d.]+),/g)].map((m) => [Number(m[1]), Number(m[2]), Number(m[3])]);
+  check("map: a path per polygon, labelled and escaped", d.length === 2 && /East &lt;b&gt;/.test(svg) && !/East <b>/.test(svg));
+  const ring = svg.match(/<path d="M([\d.]+),([\d.]+)L([\d.]+),([\d.]+)L([\d.]+),([\d.]+)L/).slice(1).map(Number);
+  const ratio = (ring[2] - ring[0]) / (ring[3] - ring[5]);
+  check("map: a degree of longitude drawn cos(latitude) as long as a degree of latitude at 50.5°N", Math.abs(ratio - Math.cos(50.5 * Math.PI / 180)) < 0.01, `ratio ${ratio}`);
+  check("map: the worse polygon is the darker fill, a scale bar in round kilometres, a north arrow", /fill="rgb\(127,0,0\)"|fill="rgb\(215,48,31\)"/.test(svg) && /\d+ km<\/text>/.test(svg) && />N<\/text>/.test(svg));
+  const pop = { width: 3, height: 3, bounds: { west: 0, east: 3, south: 0, north: 3 }, band: new Float32Array(9).fill(10) };
+  const polys = polygonsOf({ type: "FeatureCollection", features: [{ type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [[[0, 0], [3, 0], [3, 3], [0, 3], [0, 0]]] } }] });
+  const [one] = assessPopulation({ pop, polys, schemes: [{ scheme: SCHEMES.magnitude, valueAt: () => 6 }] });
+  check("population path: the edge share is the people in cells with a neighbour outside (8 of 9)", near(one.edgeShare, 8 / 9));
 }

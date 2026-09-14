@@ -20,7 +20,7 @@
  * in, not the median cell), because the question is what happens to people.
  */
 
-import { cellKm2, insideAny, boxOf } from "./exposure.js?v=20260915-6c71912";
+import { cellKm2, insideAny, boxOf } from "./exposure.js?v=20260915-2db6686";
 
 export const LEVELS = ["Very high", "High", "Moderate", "Low", "Very low"];
 export const LEVEL_COLOURS = {
@@ -279,7 +279,9 @@ export function assessPopulation({ pop, polys, schemes }) {
       if (lon < w || lon > e || !insideAny(lon, lat, polys)) continue;
       const v = pop.band[r * pop.width + c];
       const people = Number.isFinite(v) && v > 0 && v < 1e30 ? v : 0;
-      schemes.forEach((sc, k) => addCell(tallies[k], people, km2, sc.valueAt(lon, lat)));
+      // An EDGE cell has a neighbour whose centre is outside: the integral's error bar.
+      const edge = people > 0 && (!insideAny(lon - dx, lat, polys) || !insideAny(lon + dx, lat, polys) || !insideAny(lon, lat - dy, polys) || !insideAny(lon, lat + dy, polys));
+      schemes.forEach((sc, k) => addCell(tallies[k], people, km2, sc.valueAt(lon, lat), { edge }));
     }
   }
   return tallies.map(finishTally);
@@ -363,14 +365,15 @@ export function stackedBarSvg(breakdown, { width = 520, height = 26 } = {}) {
 export function classBarsSvg(breakdown, { width = 520, rowH = 22 } = {}) {
   const rows = breakdown.byClass;
   const max = Math.max(1, ...rows.map((c) => c.people));
-  const label = 200;
-  const barW = width - label - 90;
+  const label = 270;
+  const barW = width - label - 80;
   const h = rows.length * rowH + 4;
   const parts = rows.map((c, k) => {
     const y = k * rowH + 2;
     const w = (c.people / max) * barW;
     const fill = c.level ? LEVEL_COLOURS[c.level] : bandColour(k, rows.length);
-    return `<text x="0" y="${y + rowH * 0.68}" font-size="11" fill="#222">${esc(c.level ? `${c.level} — ${c.label}` : c.label)}</text>`
+    const text = c.level ? `${c.level} — ${c.label}` : c.label;
+    return `<text x="0" y="${y + rowH * 0.68}" font-size="11" fill="#222">${esc(text.length > 44 ? `${text.slice(0, 43)}…` : text)}</text>`
       + `<rect x="${label}" y="${y + 3}" width="${Math.max(0, w).toFixed(2)}" height="${rowH - 7}" fill="${fill}" stroke="#555" stroke-width="0.4"/>`
       + `<text x="${label + Math.max(0, w) + 5}" y="${y + rowH * 0.68}" font-size="11" fill="#222">${formatCount(c.people)}</text>`;
   });
@@ -467,7 +470,7 @@ export function reportHtml(a, { mapImage = null } = {}) {
   const stats = (b) => {
     const s = b.stats;
     const u = b.scheme.unit ? ` ${esc(b.scheme.unit)}` : "";
-    const f = (v) => (v === null ? "—" : `${formatNumber(v, Math.abs((s.max ?? 0) - (s.min ?? 0)) || Math.abs(v) || 1)}${u}`);
+    const f = (v) => (v === null ? "—" : b.scheme.probability ? `p = ${formatNumber(v, 1)} (${returnPeriod(v)})` : `${formatNumber(v, Math.abs((s.max ?? 0) - (s.min ?? 0)) || Math.abs(v) || 1)}${u}`);
     return `<table class="stats"><tbody>
       <tr><th>People-weighted mean ${esc(b.scheme.measure.toLowerCase())}</th><td>${f(s.mean)}</td><th>Median</th><td>${f(s.median)}</td></tr>
       <tr><th>10th percentile</th><td>${f(s.p10)}</td><th>90th percentile</th><td>${f(s.p90)}</td></tr>
@@ -528,7 +531,7 @@ export function reportHtml(a, { mapImage = null } = {}) {
   .sw { display: inline-block; width: 10px; height: 10px; border: 1px solid #777; margin-right: 5px; vertical-align: -1px; }
   .bar { margin: 6px 0 4px; }
   .def { background: #f7f7fa; border-left: 3px solid #999; padding: 4px 8px; margin: 4px 0 6px; font-size: 9pt; }
-  .map img { width: 100%; border: 1px solid #ccc; }
+  .map img, .map svg { width: 100%; border: 1px solid #ccc; display: block; margin-bottom: 6px; }
   .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; margin-top: 6px; }
   .field { border-bottom: 1px solid #999; min-height: 22px; padding: 2px 4px; }
   .field label { display: block; font-size: 8pt; color: #666; }
@@ -564,6 +567,7 @@ export function reportHtml(a, { mapImage = null } = {}) {
 
   <section>
     <h2>2. Study area and hazard</h2>
+    ${a.mapGroups?.length ? `<div class="map">${polygonMapSvg(a.mapGroups, { bands: b0.scheme.bands })}</div>` : ""}
     ${mapImage ? `<div class="map"><img src="${mapImage}" alt="The study area on the globe"></div>` : ""}
     <table class="stats"><tbody>
       <tr><th>Study area</th><td>${esc(a.area)}</td></tr>
@@ -601,6 +605,53 @@ export function reportHtml(a, { mapImage = null } = {}) {
   </section>
 </div>
 </body></html>`;
+}
+
+/**
+ * The study area as a map: every polygon drawn to scale (equirectangular at
+ * the area's own latitude), filled by the share of its people at very high or
+ * high risk — or by the share exposed where the scheme has no levels — with a
+ * key, a scale bar and a north arrow. Vector, so it prints sharp.
+ */
+export function polygonMapSvg(groups, { width = 640, height = 360, bands = false } = {}) {
+  const rings = groups.flatMap((g) => g.rings);
+  if (!rings.length) return "";
+  let w = Infinity; let e = -Infinity; let s = Infinity; let n = -Infinity;
+  for (const ring of rings) for (const [x, y] of ring) { if (x < w) w = x; if (x > e) e = x; if (y < s) s = y; if (y > n) n = y; }
+  const k = Math.cos((((s + n) / 2) * Math.PI) / 180);
+  const pad = 26;
+  const legendH = 44;
+  const spanX = Math.max((e - w) * k, 1e-9);
+  const spanY = Math.max(n - s, 1e-9);
+  const scale = Math.min((width - 2 * pad) / spanX, (height - 2 * pad - legendH) / spanY);
+  const ox = (width - spanX * scale) / 2;
+  const oy = pad;
+  const X = (x) => ox + (x - w) * k * scale;
+  const Y = (y) => oy + (n - y) * scale;
+  const fillFor = (v) => (Number.isFinite(v) ? bandColour(Math.round((1 - Math.max(0, Math.min(1, v))) * 4), 5) : "#dddddd");
+  const paths = groups.map((g) => {
+    const d = g.rings.map((ring) => `M${ring.map(([x, y]) => `${X(x).toFixed(1)},${Y(y).toFixed(1)}`).join("L")}Z`).join("");
+    return `<path d="${d}" fill="${fillFor(g.value)}" fill-rule="evenodd" stroke="#333" stroke-width="0.8"><title>${esc(g.name)}: ${formatShare(g.value)}</title></path>`;
+  }).join("");
+  const labels = groups.length > 1 ? groups.map((g) => {
+    let gw = Infinity; let ge = -Infinity; let gs = Infinity; let gn = -Infinity;
+    for (const ring of g.rings) for (const [x, y] of ring) { if (x < gw) gw = x; if (x > ge) ge = x; if (y < gs) gs = y; if (y > gn) gn = y; }
+    return `<text x="${X((gw + ge) / 2).toFixed(1)}" y="${Y((gs + gn) / 2).toFixed(1)}" font-size="10" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">${esc(g.name.length > 28 ? `${g.name.slice(0, 27)}…` : g.name)}</text>`;
+  }).join("") : "";
+  // A scale bar of a round number of kilometres, about a quarter of the width.
+  const kmPerPx = (1 / (k * scale)) * 111.32 * k;
+  const target = (width / 4) * kmPerPx;
+  const mag = 10 ** Math.floor(Math.log10(target));
+  const km = [1, 2, 5, 10].map((m) => m * mag).filter((v) => v <= target).pop() || mag;
+  const barPx = km / kmPerPx;
+  const by = height - legendH + 8;
+  const legend = [0, 1, 2, 3, 4].map((i) => `<rect x="${pad + i * 34}" y="${by + 14}" width="34" height="10" fill="${bandColour(4 - i, 5)}" stroke="#555" stroke-width="0.4"/>`).join("");
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="100%" role="img" aria-label="The study area">
+<rect x="0" y="0" width="${width}" height="${height}" fill="#f6f7f9"/>${paths}${labels}
+<g font-size="9" fill="#333"><text x="${pad}" y="${by + 8}">${bands ? "Share of people in the top two bands" : "Share of people at very high or high risk"}</text>${legend}<text x="${pad}" y="${by + 36}">0%</text><text x="${pad + 170}" y="${by + 36}" text-anchor="end">100%</text></g>
+<g transform="translate(${width - pad - barPx},${by + 14})"><rect x="0" y="0" width="${barPx.toFixed(1)}" height="5" fill="#333"/><text x="${(barPx / 2).toFixed(1)}" y="18" font-size="9" text-anchor="middle" fill="#333">${km.toLocaleString("en-GB")} km</text></g>
+<g transform="translate(${width - 18},${pad + 6})"><path d="M0,-12 L6,6 L0,2 L-6,6 Z" fill="#333"/><text x="0" y="18" font-size="9" text-anchor="middle" fill="#333">N</text></g>
+</svg>`;
 }
 
 /** The sentence a summary opens with, from the first breakdown. */
