@@ -34,6 +34,14 @@ const pc = peopleOnGrid(pop, coarse);
 ok("a coarser grid sums its population cells", close(pc[0], 1 + 2 + 5 + 6) && close(pc[3], 11 + 12 + 15 + 16));
 ok("and conserves the total", close(pc.reduce((a, b) => a + b, 0), popTotal));
 
+// A grid covering HALF a population cell takes half its people, not all of
+// them: the edge of a hazard grid must not inflate.
+{
+  const edge = { width: 2, height: 4, bounds: { west: 0, east: 0.5, south: 3, north: 4 } };
+  const pe = peopleOnGrid(pop, edge);
+  ok("a grid over half a population cell takes half of it", close(pe.reduce((a, b) => a + b, 0), 1 / 2), `${pe.reduce((a, b) => a + b, 0)}`);
+}
+
 // A misaligned finer grid over half the window takes only what is under it.
 const half = { width: 8, height: 8, bounds: { west: 0, east: 2, south: 2, north: 4 } };
 const ph = peopleOnGrid(pop, half);

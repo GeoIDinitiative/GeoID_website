@@ -7,10 +7,10 @@
  * inside a study polygon, and keeps the arithmetic honest in three ways.
  *
  * PEOPLE ARE CONSERVED, NOT RESAMPLED. WorldPop's file is a COUNT per cell. A
- * hazard grid finer than it (a 27 m landslide map) gets each population cell's
- * count shared among the hazard cells whose centres fall in it — so the grid
- * sums to the population it was read from, and a hazard cell carries people in
- * proportion to its share of the cell's ground. A grid coarser than it (a
+ * hazard grid finer than it (a 27 m landslide map) gives each hazard cell its
+ * population cell's count times its AREA SHARE of that cell — so a grid over
+ * whole cells sums to the population it was read from, and a grid that stops
+ * part-way across a cell takes only that part. A grid coarser than it (a
  * quadtree risk map) gets the population cells whose centres fall inside each
  * of its cells summed. Sampling the density at a centre and multiplying by an
  * area, the obvious shortcut, loses or duplicates people wherever the two grids
@@ -132,28 +132,29 @@ export function peopleOnGrid(pop, grid) {
     return Number.isFinite(v) && v > 0 && v < 1e30 ? v : 0;
   };
   if (gdx * gdy < pdx * pdy) {
-    // FINER hazard grid: share each population cell among the hazard cells
-    // whose centres fall in it. Two passes: how many hazard cells each
-    // population cell holds, then its count divided among them.
-    const holders = new Map();
-    const owner = new Int32Array(grid.width * grid.height).fill(-1);
+    /**
+     * FINER hazard grid: each hazard cell takes its population cell's count
+     * times its AREA SHARE of that cell, (gdx·gdy)/(pdx·pdy).
+     *
+     * The first version divided the count by the number of hazard cells found
+     * inside the population cell, which is exact where the grid covers the
+     * whole cell and INFLATES every cell along a grid edge: a population cell
+     * half-covered by the hazard grid put its whole count into the half that
+     * was there. Measured on a 10 km landslide sub-grid, 5,956 people against
+     * 3,117 from the same model's grid with a margin round it. The area share
+     * is the same answer where the grids align and the right one where they
+     * do not.
+     */
+    const share = (gdx * gdy) / (pdx * pdy);
     for (let y = 0; y < grid.height; y += 1) {
       const lat = gb.north - (y + 0.5) * gdy;
       const r = popRow(lat);
+      if (r < 0 || r >= pop.height) continue;
       for (let x = 0; x < grid.width; x += 1) {
-        const lon = gb.west + (x + 0.5) * gdx;
-        const c = popCol(lon);
-        if (c < 0 || r < 0 || c >= pop.width || r >= pop.height) continue;
-        const k = r * pop.width + c;
-        owner[y * grid.width + x] = k;
-        holders.set(k, (holders.get(k) || 0) + 1);
+        const c = popCol(gb.west + (x + 0.5) * gdx);
+        if (c < 0 || c >= pop.width) continue;
+        out[y * grid.width + x] = count(c, r) * share;
       }
-    }
-    for (let i = 0; i < out.length; i += 1) {
-      const k = owner[i];
-      if (k < 0) continue;
-      const c = k % pop.width; const r = (k - c) / pop.width;
-      out[i] = count(c, r) / holders.get(k);
     }
     return out;
   }

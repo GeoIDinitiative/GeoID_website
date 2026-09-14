@@ -17,10 +17,10 @@
 
 import {
   polygonsOf, polygonIndex, peopleOnGrid, polygonMask, gridExposure, riskExposure, formatPeople, seriesCsv,
-} from "./exposure.js?v=20260914-3635fdc";
-import { showAnnotation, removeAnnotation } from "./exposure-annotation.js?v=20260914-3635fdc";
-import { refreshPolygonOptions, resolvePolygonRings, promptDrawTool } from "./extent-picker.js?v=20260914-3635fdc";
-import { drawTimeSeries } from "./time-series-plot.js?v=20260914-3635fdc";
+} from "./exposure.js?v=20260914-a3436ee";
+import { showAnnotation, removeAnnotation } from "./exposure-annotation.js?v=20260914-a3436ee";
+import { refreshPolygonOptions, resolvePolygonRings, promptDrawTool } from "./extent-picker.js?v=20260914-a3436ee";
+import { drawTimeSeries } from "./time-series-plot.js?v=20260914-a3436ee";
 
 const search = new URL(import.meta.url).search;
 const byId = (id) => document.getElementById(id);
