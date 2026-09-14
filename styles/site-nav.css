@@ -134,10 +134,21 @@
   text-shadow: none;
   border-bottom: none;
 }
-.site-nav .nav-links > li > a.active::after {
-  display: block; content: "";
-  height: 1px; margin-top: 5px;
+/* ABSOLUTE, not a block: a block ::after added 6px to the active link's
+   height, so its label rode 3px above its neighbours' (measured 38px against
+   32px on every page). Drawn inside the padding, it moves nothing. */
+.site-nav .nav-links > li > a { position: relative; }
+.site-nav .nav-links > li > a.active:not(.nav-dropdown-toggle)::after {
+  content: ""; position: absolute;
+  left: 13px; right: 13px; bottom: 4px;
+  height: 1px;
   background: var(--nav-accent);
+}
+/* The dropdown toggle's ::after is its CARET, so its underline is painted
+   as a background instead — an ::after rule replaced the caret with nothing. */
+.site-nav .nav-links > li > a.nav-dropdown-toggle.active {
+  background: linear-gradient(var(--nav-accent), var(--nav-accent))
+    no-repeat left 13px bottom 4px / calc(100% - 26px) 1px;
 }
 .site-nav .geohub-prefix,
 .site-nav .mygeoid-prefix { color: var(--nav-accent); }
@@ -160,24 +171,110 @@
 /* Colour lives here too, not just type. The myGeoID app shell doesn't load
    the site skin, so a typography-only rule left its Donate button on the
    old teal — the header has to be self-sufficient to actually be one
-   definition. */
+   definition.
+
+   THE TWO ACTIONS ARE NOT THE SAME KIND OF THING, so they do not wear the same
+   box. They were two identical solid magenta blocks, which says "two equal
+   calls to action" about a way in and a gift. Membership is the one solid
+   action on the bar; Donate is outlined and carries its heart; a signed-in
+   member's button is quiet ink with a status dot, because it is a place you
+   already belong rather than something being asked of you. One height, one
+   radius, one type for all three, so they still read as one row. */
+.site-nav .nav-right-logo { gap: 8px; align-items: center; }
 .site-nav .nav-act, .site-nav .nav-act-donate {
-  height: 38px; padding: 0 18px;
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 34px; padding: 0 16px;
   border-radius: 2px;
   font-family: "GeoID Nav Body", sans-serif;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.09em;
   text-transform: uppercase;
+  white-space: nowrap;
+  background: transparent;
+  border: 1px solid rgba(255, 62, 200, 0.55);
+  color: var(--nav-accent);
+  box-shadow: none;
+  transform: none;
+  transition: background .2s ease, border-color .2s ease, color .2s ease;
+}
+.site-nav .nav-act.nav-act-signin {
   background: var(--nav-accent);
-  border: 1px solid var(--nav-accent);
+  border-color: var(--nav-accent);
   color: #2b0030;
+}
+/* The synthwave skin paints every .nav-act-donate as a solid neon button
+   with !important; the header's own answer has to say it the same way. */
+.site-nav .nav-act.nav-act-donate {
+  background: transparent !important;
+  border-color: rgba(255, 62, 200, 0.55) !important;
+  color: var(--nav-accent) !important;
+  box-shadow: none !important;
+}
+.site-nav .nav-act.nav-act-donate:hover {
+  background: #ffd319 !important;
+  border-color: #ffd319 !important;
+  color: #2b1e00 !important;
+}
+.site-nav .nav-act.nav-act-donate::before {
+  content: "\2665"; font-size: 12px; line-height: 1; letter-spacing: 0;
+}
+.site-nav .nav-act.nav-act-member {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(226, 210, 255, 0.28);
+  color: var(--nav-ink);
   box-shadow: none;
 }
-.site-nav .nav-act:hover, .site-nav .nav-act-donate:hover {
+.site-nav .nav-act.nav-act-member::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%;
+  background: #52e4e8; box-shadow: 0 0 6px rgba(82, 228, 232, 0.8);
+}
+.site-nav .nav-act:hover, .site-nav .nav-act-donate:hover,
+.site-nav .nav-act.nav-act-signin:hover {
   background: #ffd319;
   border-color: #ffd319;
   color: #2b1e00;
   transform: none;
 }
+.site-nav .nav-act.nav-act-member:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(226, 210, 255, 0.5);
+  color: var(--nav-ink);
+}
 .site-nav .nav-toggle { width: 40px; height: 40px; border-radius: 2px; }
+
+/* ── The section sub-nav under the header ────────────────────────────────
+   The About section's page-jump bar spoke a different language from the bar
+   above it: teal rounded pills in Public Sans against a magenta, squared,
+   Chakra header — two navigations for one site. It takes the header's own
+   voice here: the same face, tracking and inks, and the same active mark (a
+   hairline in the accent under the label) rather than a filled pill, so the
+   second row reads as the first row's children. Loaded after shared.css and
+   v2-site.css, and both paint .page-jump with !important, so this does too.
+   The phone grid in shared.css is untouched: it sizes columns, not colour. */
+.page-jump a {
+  position: relative;
+  font-family: "GeoID Nav Body", sans-serif !important;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: rgba(226, 210, 255, 0.72) !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  border-radius: 2px !important;
+}
+.page-jump a:hover { color: #f8f4ff !important; background: rgba(255, 255, 255, 0.04) !important; }
+.page-jump a.active {
+  color: #f8f4ff !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+.page-jump a.active::after {
+  content: ""; position: absolute;
+  left: 0.72rem; right: 0.72rem; bottom: 2px;
+  height: 1px; background: #ff3ec8;
+}
+@media (max-width: 720px) {
+  .page-jump a.active::after { left: 0.2rem; right: 0.2rem; }
+}

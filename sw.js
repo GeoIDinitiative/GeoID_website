@@ -3,7 +3,7 @@
 // key assets change significantly — this forces all clients to discard
 // stale cached copies on their next visit.
 
-const STATIC_CACHE = 'geoid-site-v42';  // v42: new GeoID brand mark — force stale logo copies out
+const STATIC_CACHE = 'geoid-site-v43';  // v43: header actions differentiated, sub-nav in the header's voice
 
 // Pre-fetched at install time so they are cache-warm on first navigation
 const PRECACHE = [

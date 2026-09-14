@@ -19454,3 +19454,30 @@ tool-runner's param scanner already does.
 Measured live: Enter → Explorer Models armed and Tour Mode not, camera at
 37.751/14.993 with Etna's card and "Open Etna Viewer →"; Next → 72.6° to
 27.988/86.925 with Everest's card and "Open ASCENT — Everest →".
+
+## The website header: one solid action, and an underline that moves nothing
+
+`styles/site-nav.css` is loaded last on every page with the header, so the
+header is fixed THERE and nowhere else. Measured before changing it: on the
+page whose link is active, that link was **38 px tall against its neighbours'
+32**. The active underline was a `display: block` `::after` with a top margin,
+which added height and lifted the label 3 px off the row. The underline is
+absolutely positioned inside the padding now. **The dropdown toggle's
+`::after` is its CARET** (shared.css), so an `::after` underline rule wiped
+the About caret. Its underline is a background gradient instead, and the
+`::after` rule excludes `.nav-dropdown-toggle`.
+
+**Membership and Donate were identical solid magenta boxes**, which made a
+way in and a gift look like equal calls to action:
+- Membership (`nav-act-signin`) is now the only solid action on the bar.
+- Donate is outlined and carries a ♥.
+- A signed-in member (`nav-act-member`) gets quiet ink with a cyan status dot.
+
+`skins/synthwave.css` paints `.nav-act-donate` as a solid neon button with
+`!important`, so the outline had to say `!important` too. Specificity alone
+lost, and the computed background read magenta until it did.
+
+The About section's `.page-jump` sub-nav was teal rounded pills in a
+different face. It now uses the header's face, inks and underline active
+mark. The phone grid in shared.css is untouched. `sw.js` STATIC_CACHE was
+bumped to v43, because site-nav.css is precached.
