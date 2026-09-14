@@ -1,8 +1,9 @@
-import { STAGES, getPage, stageOf } from "./stages.js?v=20260914-c3c2573";
-import { openDrawer, closeDrawer, currentDrawer } from "./drawers.js?v=20260914-c3c2573";
-import { PAGE_BLURBS } from "./page-blurbs.js?v=20260914-c3c2573";
-import * as sidecar from "./sidecar.js?v=20260914-c3c2573";
-import * as store from "./project-store.js?v=20260914-c3c2573";
+import { STAGES, getPage, stageOf } from "./stages.js?v=20260914-0dc7fd3";
+import { openDrawer, closeDrawer, currentDrawer } from "./drawers.js?v=20260914-0dc7fd3";
+import { PAGE_BLURBS } from "./page-blurbs.js?v=20260914-0dc7fd3";
+import * as sidecar from "./sidecar.js?v=20260914-0dc7fd3";
+import * as store from "./project-store.js?v=20260914-0dc7fd3";
+import { install as installDocWindows } from "./gdoc-windows.js?v=20260914-0dc7fd3";
 
 /**
  * The Research Hub shell, laid out as the Qt app lays it out.
@@ -410,6 +411,7 @@ export function init(context = {}) {
     });
   }
   wireActions();
+  installDocWindows();
   // Reconnect to a sidecar configured last session, and make it the store when
   // it answers -- so the hub opens on the same folder the desktop app uses.
   if (sidecar.getConfig().url) {

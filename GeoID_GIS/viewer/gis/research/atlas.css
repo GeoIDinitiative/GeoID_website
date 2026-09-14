@@ -2829,3 +2829,86 @@
   font-size: 0.72rem;
   letter-spacing: 0.03em;
 }
+
+/* ── Floating Google Docs and Sheets windows (gdoc-windows.js) ──────────────
+   They belong to the hub, not to a page, so they float over whatever page is
+   being worked on. The chrome is the hub's own: panel ground, chrome border,
+   the wash for the front window's bar. */
+#research-hub .gdoc-layer { position: fixed; inset: 0; pointer-events: none; z-index: 60; }
+#research-hub .gdoc-win {
+  position: fixed; pointer-events: auto;
+  display: flex; flex-direction: column; min-width: 320px; min-height: 220px;
+  background: var(--atlas-panel); border: 1px solid var(--atlas-border);
+  border-radius: 8px; overflow: hidden;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+}
+#research-hub .gdoc-win[hidden] { display: none !important; }
+#research-hub .gdoc-win.is-front { border-color: var(--atlas-wash-edge); box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55), var(--atlas-glow); }
+#research-hub .gdoc-win.is-max { border-radius: 4px; }
+#research-hub .gdoc-bar {
+  display: flex; align-items: center; gap: 4px; flex: 0 0 auto;
+  height: 32px; padding: 0 4px 0 9px; cursor: grab; user-select: none; touch-action: none;
+  background: var(--atlas-wash-soft); border-bottom: 1px solid var(--atlas-border);
+}
+#research-hub .gdoc-win.is-front .gdoc-bar { background: var(--atlas-wash); }
+#research-hub .gdoc-bar:active { cursor: grabbing; }
+#research-hub .gdoc-title {
+  flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 12px; font-weight: 600; color: var(--atlas-text);
+}
+#research-hub .gdoc-btn {
+  flex: 0 0 auto; height: 24px; min-width: 24px; padding: 0 6px;
+  border: 1px solid transparent; border-radius: 5px; background: transparent;
+  color: var(--atlas-muted); font: inherit; font-size: 12px; line-height: 1; cursor: pointer;
+}
+#research-hub .gdoc-btn:hover { color: var(--atlas-text); border-color: var(--atlas-border); background: var(--atlas-panel-alt); }
+#research-hub .gdoc-btn:focus-visible { outline: 2px solid var(--atlas-chrome); outline-offset: 1px; }
+#research-hub .gdoc-mode { font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; border-color: var(--atlas-border); color: var(--atlas-data); }
+#research-hub .gdoc-win-frame { flex: 1 1 auto; width: 100%; border: 0; background: #fff; }
+#research-hub .gdoc-grip {
+  position: absolute; right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize; touch-action: none;
+  background: linear-gradient(135deg, transparent 50%, var(--atlas-chrome) 50%, var(--atlas-chrome) 58%, transparent 58%, transparent 72%, var(--atlas-chrome) 72%, var(--atlas-chrome) 80%, transparent 80%);
+}
+#research-hub .gdoc-win.is-max .gdoc-grip { display: none; }
+body.gdoc-busy #research-hub .gdoc-win-frame { pointer-events: none; }
+body.gdoc-busy { user-select: none; }
+
+#research-hub .gdoc-glyph { flex: 0 0 auto; width: 10px; height: 12px; border-radius: 2px; background: #4285f4; }
+#research-hub .gdoc-glyph-sheets { background: #0f9d58; }
+#research-hub .gdoc-glyph-slides { background: #f4b400; }
+#research-hub .gdoc-glyph-forms { background: #7248b9; }
+#research-hub .gdoc-glyph-drive { background: var(--atlas-muted); }
+
+#research-hub .gdoc-dock {
+  position: fixed; right: 12px; bottom: 12px; z-index: 61;
+  display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: min(60vw, 42rem);
+}
+#research-hub .gdoc-dock[hidden] { display: none !important; }
+#research-hub .gdoc-dock-chip {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 14rem; height: 28px; padding: 0 10px;
+  border: 1px solid var(--atlas-border); border-radius: 8px; background: var(--atlas-panel);
+  color: var(--atlas-text); font: inherit; font-size: 11.5px; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#research-hub .gdoc-dock-chip:hover { border-color: var(--atlas-chrome); }
+
+#research-hub .gdoc-launcher {
+  position: fixed; z-index: 70; width: min(24rem, calc(100vw - 16px));
+  padding: 12px; display: grid; gap: 8px;
+  background: var(--atlas-panel); border: 1px solid var(--atlas-border); border-radius: 8px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55), var(--atlas-glow);
+}
+#research-hub .gdoc-launcher h4 { margin: 2px 0 0; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--atlas-muted); }
+#research-hub .gdoc-launcher-row { display: flex; gap: 6px; flex-wrap: wrap; }
+#research-hub .gdoc-launcher-row .input { flex: 1 1 12rem; min-width: 0; }
+#research-hub .gdoc-launcher-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 11rem; overflow-y: auto; }
+#research-hub .gdoc-launcher-list button {
+  display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; padding: 5px 6px;
+  border: 0; border-radius: 5px; background: transparent; color: var(--atlas-text);
+  font: inherit; font-size: 12px; text-align: left; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#research-hub .gdoc-launcher-list button:hover { background: var(--atlas-wash-soft); }
+#research-hub .gdoc-launcher-empty { font-size: 12px; color: var(--atlas-muted); padding: 4px 6px; }
+#research-hub .gdoc-launcher-status { margin: 0; font-size: 12px; color: var(--atlas-muted); min-height: 0; }
+#research-hub .gdoc-launcher-status:empty { display: none; }

@@ -1,11 +1,12 @@
-import { registerPage } from "../stages.js?v=20260914-c3c2573";
-import * as store from "../project-store.js?v=20260914-c3c2573";
-import { frameUrl, isConfigured } from "../google-credentials.js?v=20260914-c3c2573";
+import { registerPage } from "../stages.js?v=20260914-0dc7fd3";
+import * as store from "../project-store.js?v=20260914-0dc7fd3";
+import { frameUrl, isConfigured } from "../google-credentials.js?v=20260914-0dc7fd3";
+import { open as openDocWindow } from "../gdoc-windows.js?v=20260914-0dc7fd3";
 import {
   el, input, button, row, statusLine, guard, field, selectOf,
   pageHeader, splitPanes, tabbedPanel, editorCard, findTables, loadTable,
   toolbar,
-} from "./common.js?v=20260914-c3c2573";
+} from "./common.js?v=20260914-0dc7fd3";
 
 /**
  * Docs & Sheets — the Google workspace, ported from `DocsSheetsPage`
@@ -87,6 +88,14 @@ const mountDocs = guard("Docs & Sheets", async (host, ctx) => {
       // must not be handed a window reference back.
       open.rel = "noopener noreferrer";
       line.appendChild(open);
+      // A window rather than a tab: it floats over whichever page is being
+      // worked on, and stays when the page changes.
+      const pop = button("Window", () => {
+        const result = openDocWindow(entry.url, { title: entry.title });
+        if (!result.ok) say(result.error, true);
+      }, { secondary: true });
+      pop.classList.add("small");
+      line.appendChild(pop);
       const drop = button("Unlink", async () => {
         entries.splice(index, 1);
         await save();
@@ -330,6 +339,10 @@ const mountDocs = guard("Docs & Sheets", async (host, ctx) => {
 
     wrap.appendChild(toolbar(picker, modePick,
       button("Reload", () => { frame.src = frame.src; }, { secondary: true }),
+      button("Pop out", () => {
+        const entry = all[picker.selectedIndex] || all[0];
+        openDocWindow(entry.url, { title: entry.title, mode: modePick.value.toLowerCase() });
+      }, { secondary: true }),
       button("Open in a tab", () => {
         const entry = all[picker.selectedIndex] || all[0];
         window.open(entry.url, "_blank", "noopener,noreferrer");
