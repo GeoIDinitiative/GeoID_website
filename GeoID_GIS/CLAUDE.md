@@ -19624,3 +19624,57 @@ Pick a study area and any hazard on the globe:
   "more often than 1 in 2 years" class. On a Mournes forecast, 28 maps were
   integrated in 3.5 s, the step was restored, and the annotation date followed
   `showStep`.
+
+## The layered model: soil over bedrock, and water, on one TIN
+
+`gis/layered-model.js` is the pure half, with 29 checks.
+
+**Heights.** Per surface node:
+- `solid` — the land surface, seabed, lake bed or river bed
+- `water` — 0 m on the sea (ocean mask, z ≤ 0), a lake's surveyed level, or
+  the DEM on a GRWL river
+- `bedrock` — `solid − max(min soil, Pelletier thickness)`
+- `top` — `max(solid, water)`, the air's floor
+
+**Volumes.** Each is a closed shell between two of those arrays on the SAME
+triangulation, so the interfaces conform by construction. `betweenFacets`
+builds top, bottom and rim walls, and a wall collapses where the two
+surfaces meet.
+
+**Wiring.** The Model Builder's domain step gains the "Soil over bedrock" and
+"Water bodies" toggles and "Read the layers" (`readLayers` samples every
+node). The package writes `<name>_{bedrock,soil,water,atmosphere}.stl`, each
+with a `_gmsh.py`, plus `<name>_bedrock_top.stl`, and records them under
+`spec.provenance.layers`. `openInStudio` passes the layers, and the studio
+draws each volume as its own domain with inside-tests.
+
+- **A wall faces away from ITS OWN triangle** (the third vertex), not from
+  the TIN's centre. The centre is right on the outer rim and wrong on a
+  shoreline: a 2,000,000 m³ strip of sea measured 666,667 m³ with one wall
+  wound inward.
+- **Name faces, don't classify them.** A multi-solid STL (one `solid` per face
+  name) makes gmsh create one named discrete surface per block. The script
+  runs `createTopology` + `createGeometry` without `classifySurfaces` and tags
+  faces by `getEntityName`. Classifying by shape files the soil's ground and
+  its bedrock top both as "top".
+- **Points on closed curves have no curve boundary**, so they are tagged
+  through `getAdjacencies`, or GALES refuses them.
+- **Thin volumes need thin elements** (measured, gmsh 4.11.1, 2 km block):
+  - A 2–12 m soil skin failed at 150 m and meshed at 60 m.
+  - Water 1–37 m deep failed at 149 m ("intersections in the 1D mesh") and
+    meshed at 60 m.
+  - Rule: `thinLayerSizeM` = 20 × the tenth-percentile thickness.
+- **Minimum water depth (1 m)**, or shore walls pinch to zero height and
+  gmsh fails. **`minGap` is 1 mm**, the STL's writing precision, or rounding
+  makes zero-area slivers.
+- **Verified live** on a 6 × 6 km box over Belfast Lough (14,036 nodes,
+  −7.7 to 75 m):
+  - 7,934 sea nodes, 412 of them deepened to the 1 m minimum
+  - soil 4.8 m mean where modelled
+  - all four volumes watertight on the real surface: bedrock 17.09 km³,
+    soil 0.088, water 0.068, air 11.79
+  - the studio listing Bedrock / Soil / Water / Atmosphere / Surface
+- **Not done:** gmsh was run only on a synthetic surface, not on the Belfast
+  STLs. Faults as dip/strike planes and World Stress Map boundary conditions
+  remain future work. Volcanic chambers are the studio's existing primitives
+  and combine with these volumes as before.

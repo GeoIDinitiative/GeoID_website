@@ -18,8 +18,8 @@
  * in extraction and in export without this file knowing anything about them.
  */
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260914-8b10d0f";
-import { featureForModel, may, refusal, signInUrl } from "./membership.js?v=20260914-8b10d0f";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260914-64d3a3d";
+import { featureForModel, may, refusal, signInUrl } from "./membership.js?v=20260914-64d3a3d";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
