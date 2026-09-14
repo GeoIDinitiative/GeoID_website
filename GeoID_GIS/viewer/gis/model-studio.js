@@ -1,16 +1,17 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260914-2604560";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260914-2604560";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260914-8b10d0f";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260914-8b10d0f";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260914-2604560";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260914-2604560";
-import { downloadText } from "./extraction.js?v=20260914-2604560";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260914-2604560";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260914-2604560";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260914-2604560";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260914-2604560";
-import { femSpec } from "./model-build.js?v=20260914-2604560";
+} from "./mesh-volume.js?v=20260914-8b10d0f";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260914-8b10d0f";
+import { downloadText } from "./extraction.js?v=20260914-8b10d0f";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260914-8b10d0f";
+import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260914-8b10d0f";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260914-8b10d0f";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260914-8b10d0f";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260914-8b10d0f";
+import { femSpec } from "./model-build.js?v=20260914-8b10d0f";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -3406,10 +3407,10 @@ export function adoptSectionModel({ name = "gis_section", profile, belowM = 0, a
   return gisTerrain;
 }
 
-export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, aboveM = 0, origin = null, points = [], flags = null } = {}) {
+export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, aboveM = 0, origin = null, points = [], flags = null, layers = null } = {}) {
   if (!surface?.tris?.length) { log("GIS terrain: no surface to adopt."); return null; }
   clearTerrain();
-  gisTerrain = { name, surface, belowM: Number(belowM) || 0, aboveM: Number(aboveM) || 0, entries: [], points, flags };
+  gisTerrain = { name, surface, belowM: Number(belowM) || 0, aboveM: Number(aboveM) || 0, entries: [], points, flags, layers };
   /**
    * THE STUDIO'S GROUND IS THE MODEL'S FLOOR. The ground is an opaque sphere
    * tangent to z = 0 and the camera is held above it, so anything under z = 0
@@ -3451,7 +3452,7 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
     minY: surface.y0 * km, maxY: (surface.y0 + surface.heightM) * km,
   };
   gisTerrain.parts = [];
-  gisTerrain.flags = { terrain: 1, base: 2, sky: 4, sides_below: 5, sides_above: 6, subsurface: 10, atmosphere: 11, points: 20, ...(flags || {}) };
+  gisTerrain.flags = { terrain: 1, base: 2, sky: 4, sides_below: 5, sides_above: 6, subsurface: 10, atmosphere: 11, points: 20, bedrock_top: LAYER_FLAGS.bedrock_top, water_surface: LAYER_FLAGS.water_surface, bed: LAYER_FLAGS.bed, water_sides: LAYER_FLAGS.water_sides, bedrock: LAYER_FLAGS.bedrock, soil: LAYER_FLAGS.soil, water: LAYER_FLAGS.water, ...(flags || {}) };
   const F = gisTerrain.flags;
   const extentKm = [(surface.widthM / 1000).toFixed(1), (surface.heightM / 1000).toFixed(1)];
   const addPart = (part) => { gisTerrain.parts.push(part); return part; };
@@ -3521,8 +3522,99 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
     gisTerrain.entries.push(entry);
     record(`union gis terrain ${which}`);
   };
-  if (gisTerrain.belowM > 0) make("subsurface", gisTerrain.belowM);
-  if (gisTerrain.aboveM > 0) make("atmosphere", gisTerrain.aboveM);
+  /**
+   * A LAYERED MODEL: bedrock, soil over it, water over the seabed and the
+   * river beds, and the air over the top of everything, each its own volume
+   * on the one TIN (layered-model.js). The display is drawn from the stand-in
+   * TIN with each layer's heights read off the full surface's layers; the
+   * inside-tests read the full layers.
+   */
+  const makeLayered = () => {
+    const L = layers.heights;
+    const tins = {
+      solid: tinWith(surface, L.solid), bedrock: tinWith(surface, L.bedrock),
+      water: tinWith(surface, L.water), top: tinWith(surface, L.top),
+    };
+    const at = (key, xKm, yKm) => tinHeightAt(tins[key], xKm / km, yKm / km);
+    const sample = (key) => Float64Array.from(display.xs, (x, i) => {
+      const h = tinHeightAt(tins[key], x, display.ys[i]);
+      return h === null ? display.z[i] : h;
+    });
+    const dL = display === surface ? L : {
+      solid: sample("solid"), bedrock: sample("bedrock"), water: sample("water"), top: sample("top"),
+    };
+    if (display !== surface) dL.wet = Uint8Array.from(dL.water, (w, i) => (w - dL.solid[i] > 1e-3 ? 1 : 0));
+    const V = layeredVolumes(display, dL, {
+      belowM: gisTerrain.belowM || 1000, aboveM: gisTerrain.aboveM, soil: layers.soil !== false, water: layers.water !== false,
+    });
+    const STYLE = {
+      bedrock: { colour: 0x8a5a30, opacity: 1, label: layers.soil !== false ? "Bedrock" : "Subsurface" },
+      soil: { colour: 0xc49a6c, opacity: 1, label: "Soil and regolith" },
+      water: { colour: 0x3a8fd9, opacity: 0.5, label: "Water" },
+      atmosphere: { colour: 0x9fd8ff, opacity: 0.22, label: "Atmosphere" },
+    };
+    const FACE_BLURB = {
+      base: "A flat floor under the lowest bedrock", sides: "The lateral boundary, one flag for all four sides",
+      bedrock_top: "The bedrock top: the ground less the soil's modelled thickness, shared by the soil and the bedrock",
+      top: "The ground: the soil's top, or the floor of the air", water_surface: "The water surface: 0 m on the sea, a lake's surveyed level, a river's own DEM",
+      bed: "The water's bed: the bathymetry, a lake bed, or a river bed a channel depth under the water", water_sides: "Where the water meets the model's edge",
+      sky: "A flat lid over the highest ground", sides_above: "The air's lateral boundary",
+    };
+    V.volumes.forEach((vol) => {
+      const style = STYLE[vol.id];
+      const id = state.solids.reduce((m, e) => Math.max(m, e.id), 0) + 1;
+      const group = new THREE.Group();
+      group.name = `${name}_${vol.id}`;
+      [...new Set(vol.facets.map((f) => f.face))].forEach((face) => {
+        // The air's floor and the soil's top are the ground the green skin
+        // already shows; drawing them again is the coplanar pair this studio
+        // removed once.
+        if ((vol.id === "atmosphere" || vol.id === "soil") && face === "top") return;
+        const positions = facetPositions(vol.facets, (f) => f.face === face);
+        const mesh = style.opacity < 1
+          ? displayMesh(positions, `${name}_${vol.id}_${face}`, style.colour, { opacity: style.opacity, renderOrder: 2 })
+          : displayMesh(positions, `${name}_${vol.id}_${face}`, style.colour);
+        group.add(mesh);
+        const flag = F[face] ?? LAYER_FLAGS[face];
+        addPart({
+          id: `${vol.id}:${face}`, name: `${style.label} — ${face.replace(/_/g, " ")}`, kind: "face",
+          which: vol.id, face, flag, mesh, solidId: id, colour: style.colour, domain: vol.id,
+          rows: [
+            ["What", FACE_BLURB[face] || face],
+            ["Physical flag", `${flag} — gmsh physical group "${face}"`],
+            ["Domain", `${style.label} (volume flag ${F[vol.id] ?? LAYER_FLAGS[vol.id]})`],
+            ["Triangles", (positions.length / 9).toLocaleString()],
+          ],
+        });
+      });
+      const anchorNode = ensureModelAnchor();
+      if (anchorNode) anchorNode.add(group);
+      const test = (q) => {
+        if (q[0] < plan.minX || q[0] > plan.maxX || q[1] < plan.minY || q[1] > plan.maxY) return false;
+        const z = q[2];
+        if (vol.id === "bedrock") { const bt = at("bedrock", q[0], q[1]); return bt !== null && z <= bt && z >= V.baseZ; }
+        if (vol.id === "soil") { const bt = at("bedrock", q[0], q[1]); const g = at("solid", q[0], q[1]); return bt !== null && g !== null && z >= bt && z <= g; }
+        if (vol.id === "water") { const g = at("solid", q[0], q[1]); const w = at("water", q[0], q[1]); return g !== null && w !== null && w - g > 1e-3 && z >= g && z <= w; }
+        const t = at("top", q[0], q[1]); return t !== null && V.skyZ !== null && z >= t && z <= V.skyZ;
+      };
+      const entry = {
+        id, kind: "gis_terrain", op: "union", enabled: true,
+        params: { label: `GIS terrain — ${style.label.toLowerCase()}`, which: vol.id, name },
+        test, region: null, object3D: group,
+        bounds: { ...plan, minZ: vol.id === "atmosphere" ? surface.zMin : V.baseZ, maxZ: vol.id === "atmosphere" ? V.skyZ : surface.zMax },
+      };
+      state.solids.push(entry);
+      gisTerrain.entries.push(entry);
+      record(`union gis terrain ${vol.id}`);
+    });
+    gisTerrain.layered = { counts: L.counts, volumes: V.volumes.map((v) => v.id), baseZ: V.baseZ, skyZ: V.skyZ };
+  };
+  if (layers?.heights) {
+    makeLayered();
+  } else {
+    if (gisTerrain.belowM > 0) make("subsurface", gisTerrain.belowM);
+    if (gisTerrain.aboveM > 0) make("atmosphere", gisTerrain.aboveM);
+  }
   // The surface STL, as itself: not a solid (it has no inside), a skin drawn a
   // hair above the interface so it wins the depth fight with the rock's top.
   gisTerrain.skin = displayMesh(lifted(surfacePositions(display, km)), `${name}_surface`, 0x6fbf73);
@@ -3637,7 +3729,10 @@ function domainGroups() {
   const F = gisTerrain?.flags || { subsurface: 10, atmosphere: 11, terrain: 1, points: 20 };
   const domains = [];
   if (gisTerrain?.parts?.length) {
-    domains.push(["subsurface", "Subsurface", F.subsurface], ["atmosphere", "Atmosphere", F.atmosphere],
+    domains.push(["subsurface", "Subsurface", F.subsurface],
+      ["bedrock", gisTerrain.layers?.soil !== false ? "Bedrock" : "Subsurface", F.bedrock ?? 10],
+      ["soil", "Soil and regolith", F.soil ?? 12], ["water", "Water", F.water ?? 13],
+      ["atmosphere", "Atmosphere", F.atmosphere],
       ["surface", "Surface", F.terrain], ["points", "Embedded points", F.points]);
   }
   state.solids.forEach((e) => {

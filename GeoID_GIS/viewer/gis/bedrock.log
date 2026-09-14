@@ -1,0 +1,79 @@
+Info    : Reading 'bedrock.stl'...
+Info    : 800 facets in solid 0 bedrock_top
+Info    : 800 facets in solid 1 base
+Info    : 160 facets in solid 2 sides
+Info    : Done reading 'bedrock.stl'
+Info    : Making discrete regions simply connected...
+Info    : Done making discrete regions simply connected
+Info    : Making discrete faces simply connected...
+Info    : Done making discrete faces simply connected
+Info    : Creating topology from mesh...
+Info    : Done creating topology from mesh (Wall 0.00131312s, CPU 0.001231s)
+Info    : Creating geometry of discrete curves...
+Info    : Done creating geometry of discrete curves (Wall 2.0383e-05s, CPU 1.5e-05s)
+Info    : Creating geometry of discrete surfaces...
+Info    : [ 40%] Discrete surface 2 is planar, simplifying parametrization
+Info    : Done creating geometry of discrete surfaces (Wall 0.00936197s, CPU 0.009361s)
+Info    : Meshing 1D...
+Info    : [  0%] Meshing curve 1 (Discrete curve)
+Info    : [ 50%] Meshing curve 2 (Discrete curve)
+Info    : Done meshing 1D (Wall 0.000367127s, CPU 0.000367s)
+Info    : Meshing 2D...
+Info    : [  0%] Meshing surface 1 (Discrete surface, Frontal-Delaunay)
+Info    : [ 40%] Meshing surface 2 (Discrete surface, Frontal-Delaunay)
+Info    : [ 70%] Meshing surface 3 (Discrete surface, Frontal-Delaunay)
+Info    : [ 70%] Triangle not found for first derivative at uv=(0.645524,-0.741403) on discrete surface 3
+Info    : [ 70%] Triangle not found for first derivative at uv=(-0.645396,0.741397) on discrete surface 3
+Info    : [ 70%] Triangle not found for first derivative at uv=(-0.911545,-0.367346) on discrete surface 3
+Info    : [ 70%] Triangle not found for first derivative at uv=(-0.971183,-0.148171) on discrete surface 3
+Info    : [ 70%] Triangle not found for first derivative at uv=(0.79871,-0.573411) on discrete surface 3
+Info    : [ 70%] Triangle not found for first derivative at uv=(-0.978819,0.0805265) on discrete surface 3
+Info    : [ 70%] Triangle not found for first derivative at uv=(0.909482,-0.373725) on discrete surface 3
+Info    : [ 70%] Triangle not found for first derivative at uv=(0.971146,-0.155888) on discrete surface 3
+Info    : Done meshing 2D (Wall 0.0285015s, CPU 0.0285s)
+Info    : Meshing 3D...
+Info    : 3D Meshing 1 volume with 1 connected component
+Info    : Tetrahedrizing 746 nodes...
+Info    : Done tetrahedrizing 754 nodes (Wall 0.00602822s, CPU 0.006023s)
+Info    : Reconstructing mesh...
+Info    :  - Creating surface mesh
+Info    :  - Identifying boundary edges
+Info    :  - Recovering boundary
+Info    : Done reconstructing mesh (Wall 0.0140586s, CPU 0.014056s)
+Info    : Found volume 1
+Info    : It. 0 - 0 nodes created - worst tet radius 18.986 (nodes removed 0 0)
+Info    : 3D refinement terminated (1009 nodes total):
+Info    :  - 58 Delaunay cavities modified for star shapeness
+Info    :  - 124 nodes could not be inserted
+Info    :  - 3831 tetrahedra created in 0.00997367 sec. (384111 tets/s)
+Info    : Done meshing 3D (Wall 0.0340151s, CPU 0.034013s)
+Info    : Optimizing mesh...
+Info    : Optimizing volume 1
+Info    : Optimization starts (volume = 2.17807e+09) with worst = 5.8289e-05 / average = 0.7167:
+Info    : 0.00 < quality < 0.10 :        43 elements
+Info    : 0.10 < quality < 0.20 :        50 elements
+Info    : 0.20 < quality < 0.30 :        72 elements
+Info    : 0.30 < quality < 0.40 :       136 elements
+Info    : 0.40 < quality < 0.50 :       186 elements
+Info    : 0.50 < quality < 0.60 :       357 elements
+Info    : 0.60 < quality < 0.70 :       529 elements
+Info    : 0.70 < quality < 0.80 :       911 elements
+Info    : 0.80 < quality < 0.90 :      1055 elements
+Info    : 0.90 < quality < 1.00 :       492 elements
+Info    : 105 edge swaps, 27 node relocations (volume = 2.17807e+09): worst = 0.00795131 / average = 0.728194 (Wall 0.00205528s, CPU 0.002044s)
+Info    : 115 edge swaps, 40 node relocations (volume = 2.17807e+09): worst = 0.00795131 / average = 0.729056 (Wall 0.00294573s, CPU 0.002935s)
+Info    : No ill-shaped tets in the mesh :-)
+Info    : 0.00 < quality < 0.10 :        17 elements
+Info    : 0.10 < quality < 0.20 :        22 elements
+Info    : 0.20 < quality < 0.30 :        21 elements
+Info    : 0.30 < quality < 0.40 :       139 elements
+Info    : 0.40 < quality < 0.50 :       199 elements
+Info    : 0.50 < quality < 0.60 :       358 elements
+Info    : 0.60 < quality < 0.70 :       539 elements
+Info    : 0.70 < quality < 0.80 :       916 elements
+Info    : 0.80 < quality < 0.90 :      1047 elements
+Info    : 0.90 < quality < 1.00 :       480 elements
+Info    : Done optimizing mesh (Wall 0.00534804s, CPU 0.005317s)
+Info    : 1009 nodes 5349 elements
+Info    : Writing 'bedrock.msh'...
+Info    : Done writing 'bedrock.msh'

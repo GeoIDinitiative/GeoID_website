@@ -1,0 +1,76 @@
+Info    : Reading 'atmosphere.stl'...
+Info    : 800 facets in solid 0 sky
+Info    : 800 facets in solid 1 top
+Info    : 160 facets in solid 2 sides_above
+Info    : Done reading 'atmosphere.stl'
+Info    : Making discrete regions simply connected...
+Info    : Done making discrete regions simply connected
+Info    : Making discrete faces simply connected...
+Info    : Done making discrete faces simply connected
+Info    : Creating topology from mesh...
+Info    : Done creating topology from mesh (Wall 0.00130832s, CPU 0.00131s)
+Info    : Creating geometry of discrete curves...
+Info    : Done creating geometry of discrete curves (Wall 2.4424e-05s, CPU 2.5e-05s)
+Info    : Creating geometry of discrete surfaces...
+Info    : [  0%] Discrete surface 1 is planar, simplifying parametrization
+Info    : Done creating geometry of discrete surfaces (Wall 0.00979298s, CPU 0.009791s)
+Info    : Meshing 1D...
+Info    : [  0%] Meshing curve 1 (Discrete curve)
+Info    : [ 50%] Meshing curve 2 (Discrete curve)
+Info    : Done meshing 1D (Wall 0.000308806s, CPU 0.00031s)
+Info    : Meshing 2D...
+Info    : [  0%] Meshing surface 1 (Discrete surface, Frontal-Delaunay)
+Info    : [ 40%] Meshing surface 2 (Discrete surface, Frontal-Delaunay)
+Info    : [ 70%] Meshing surface 3 (Discrete surface, Frontal-Delaunay)
+Info    : [ 70%] Triangle not found for first derivative at uv=(0.988394,0.0228154) on discrete surface 3
+Info    : [ 70%] Triangle not found for first derivative at uv=(0.307637,-0.939827) on discrete surface 3
+Info    : [ 70%] Triangle not found for first derivative at uv=(0.379412,-0.913256) on discrete surface 3
+Info    : [ 70%] Triangle not found for first derivative at uv=(-0.579173,0.802778) on discrete surface 3
+Info    : [ 70%] Meshing surface 3 (Discrete surface, MeshAdapt)
+Info    : Done meshing 2D (Wall 0.0678299s, CPU 0.067569s)
+Info    : Meshing 3D...
+Info    : 3D Meshing 1 volume with 1 connected component
+Info    : Tetrahedrizing 662 nodes...
+Info    : Done tetrahedrizing 670 nodes (Wall 0.00564761s, CPU 0.005645s)
+Info    : Reconstructing mesh...
+Info    :  - Creating surface mesh
+Info    :  - Identifying boundary edges
+Info    :  - Recovering boundary
+Info    : Done reconstructing mesh (Wall 0.0119371s, CPU 0.011932s)
+Info    : Found volume 1
+Info    : It. 0 - 0 nodes created - worst tet radius 1.51173 (nodes removed 0 0)
+Info    : 3D refinement terminated (776 nodes total):
+Info    :  - 0 Delaunay cavities modified for star shapeness
+Info    :  - 0 nodes could not be inserted
+Info    :  - 2580 tetrahedra created in 0.00493963 sec. (522306 tets/s)
+Info    : Done meshing 3D (Wall 0.0247943s, CPU 0.024732s)
+Info    : Optimizing mesh...
+Info    : Optimizing volume 1
+Info    : Optimization starts (volume = 1.36041e+09) with worst = 0.0150891 / average = 0.759259:
+Info    : 0.00 < quality < 0.10 :         6 elements
+Info    : 0.10 < quality < 0.20 :        20 elements
+Info    : 0.20 < quality < 0.30 :        28 elements
+Info    : 0.30 < quality < 0.40 :        39 elements
+Info    : 0.40 < quality < 0.50 :        65 elements
+Info    : 0.50 < quality < 0.60 :       137 elements
+Info    : 0.60 < quality < 0.70 :       361 elements
+Info    : 0.70 < quality < 0.80 :       757 elements
+Info    : 0.80 < quality < 0.90 :       815 elements
+Info    : 0.90 < quality < 1.00 :       352 elements
+Info    : 53 edge swaps, 1 node relocations (volume = 1.36041e+09): worst = 0.146084 / average = 0.771882 (Wall 0.000760993s, CPU 0.000762s)
+Info    : 54 edge swaps, 1 node relocations (volume = 1.36041e+09): worst = 0.146084 / average = 0.772154 (Wall 0.000891854s, CPU 0.000894s)
+Info    : No ill-shaped tets in the mesh :-)
+Info    : 0.00 < quality < 0.10 :         0 elements
+Info    : 0.10 < quality < 0.20 :         1 elements
+Info    : 0.20 < quality < 0.30 :         0 elements
+Info    : 0.30 < quality < 0.40 :        40 elements
+Info    : 0.40 < quality < 0.50 :        61 elements
+Info    : 0.50 < quality < 0.60 :       136 elements
+Info    : 0.60 < quality < 0.70 :       351 elements
+Info    : 0.70 < quality < 0.80 :       765 elements
+Info    : 0.80 < quality < 0.90 :       831 elements
+Info    : 0.90 < quality < 1.00 :       347 elements
+Info    : Done optimizing mesh (Wall 0.00262886s, CPU 0.002629s)
+Info    : 776 nodes 3962 elements
+Info    : Writing 'atmosphere.msh'...
+Info    : Done writing 'atmosphere.msh'

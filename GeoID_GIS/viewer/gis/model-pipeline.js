@@ -2,18 +2,23 @@ import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
   nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS, atmosphereStl, DEFAULT_MAX_NODES, triangleWriter,
-} from "./model-build.js?v=20260914-2604560";
-import { ringsFromCollection } from "./extraction.js?v=20260914-2604560";
+} from "./model-build.js?v=20260914-8b10d0f";
+import { ringsFromCollection } from "./extraction.js?v=20260914-8b10d0f";
 import {
   buildTin, tinHeightAt, tinSurfaceStl, tinShellStl, samplingSizeField,
   extendBoundary, extendedBoundaryLines, gridAsTin, shellFacets,
-} from "./surface-sampling.js?v=20260914-2604560";
-import { renderFeatureCollection } from "./vector-render.js?v=20260914-2604560";
-import { promptDrawTool } from "./extent-picker.js?v=20260914-2604560";
+} from "./surface-sampling.js?v=20260914-8b10d0f";
+import { renderFeatureCollection } from "./vector-render.js?v=20260914-8b10d0f";
+import { promptDrawTool } from "./extent-picker.js?v=20260914-8b10d0f";
 import {
   profileAlong, profileHeightAt, sectionPolygons, sectionPositions, sectionGmshScript, profileCsv,
-} from "./section-model.js?v=20260914-2604560";
-import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260914-2604560";
+} from "./section-model.js?v=20260914-8b10d0f";
+import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260914-8b10d0f";
+import {
+  layerHeights, layeredVolumes, facetsStlByFace, layeredGmshScript, thinLayerSizeM, tinWith, LAYER_FLAGS, facetsClosed,
+} from "./layered-model.js?v=20260914-8b10d0f";
+import { waterMasks, waterFeatures } from "./water-mask.js?v=20260914-8b10d0f";
+import { burnRivers } from "./river-zones.js?v=20260914-8b10d0f";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -122,6 +127,13 @@ const state = {
   meshOptions: { combine: "min", sizeMaxM: undefined, sizeMinM: undefined, extendFromBoundary: false, fromPoints: false, fromCurvature: 0, algorithm2d: null, algorithm3d: null },
   /** The air over the ground, as its own closed shell and its own gmsh script. */
   atmosphere: { on: false, heightM: 5000 },
+  /**
+   * THE LAYERS: soil over bedrock (the ground less Pelletier's modelled
+   * thickness) and water bodies (the sea from 0 m to the bathymetry, lakes at
+   * their surveyed level, rivers a channel depth deep). `read` holds the
+   * heights once they have been read onto the surface's nodes.
+   */
+  layers: { soil: false, water: false, minSoilM: 1, minWaterM: 1, read: null, readFor: null },
   /** Layer ids of what this builder draws on the globe, by kind. */
   previews: {},
   conditions: [],
@@ -795,6 +807,98 @@ function clearPreviews() {
 }
 
 /** The surface in one shape whatever it was sampled as. */
+/** What the layers read says, in a line. */
+function layerSummary(read) {
+  const c = read.heights.counts;
+  const parts = [];
+  if (state.layers.soil) {
+    parts.push(`soil from ${read.soilSource}${Number.isFinite(c.meanSoilM) ? `, mean ${c.meanSoilM.toFixed(1)} m where modelled (${c.soilModelled.toLocaleString()} of ${c.nodes.toLocaleString()} nodes)` : ", no modelled thickness here — the default stands"}`);
+  }
+  if (state.layers.water) {
+    parts.push(`water: ${c.sea.toLocaleString()} sea, ${c.lake.toLocaleString()} lake and ${c.river.toLocaleString()} river nodes${c.deepened ? ` (${c.deepened} shallow sea nodes deepened to the minimum)` : ""}`);
+  }
+  return `Layers read — ${parts.join("; ")}.`;
+}
+
+/** A node's lat/lon on whichever kind of surface the model has. */
+function nodeLatLon(t, i) {
+  if (t.lats && t.lons) return { lat: t.lats[i], lon: t.lons[i] };
+  const frame = t.frame || makeLocalFrame({ lat: t.origin.lat, lon: t.origin.lon, radiusKm: bodyRadiusKm() });
+  return frame.fromLocal(t.xs[i], t.ys[i]);
+}
+
+/**
+ * THE LAYERS, READ ONTO THE SURFACE'S OWN NODES.
+ *
+ * The soil thickness comes from Pelletier et al. (2016) at its native cells;
+ * the ocean and lake masks and the GRWL rivers are burned onto a grid over the
+ * study area as fine as the surface's finest spacing allows, and every node
+ * takes the cell it falls in. What cannot be read is said, not invented: a
+ * node with no modelled thickness takes the stated default.
+ */
+async function readLayers() {
+  const t = surfaceLike();
+  if (!t) { report("domain", "Build the surface first."); return null; }
+  const L = state.layers;
+  const n = t.xs.length;
+  const ll = Array.from({ length: n }, (_, i) => nodeLatLon(t, i));
+  let w = Infinity; let e = -Infinity; let so = Infinity; let no = -Infinity;
+  ll.forEach(({ lat, lon }) => { if (lon < w) w = lon; if (lon > e) e = lon; if (lat < so) so = lat; if (lat > no) no = lat; });
+  const box = { west: w, east: e, south: so, north: no };
+  const search = new URL(import.meta.url).search;
+  let thicknessAt = null; let soilSource = "the stated default of 2 m";
+  if (L.soil) {
+    report("domain", "Reading the soil thickness…");
+    try {
+      const mod = await import(`./soil-thickness.js${search}`);
+      const tg = await mod.thicknessGridFor(box);
+      if (tg) {
+        const vals = ll.map(({ lat, lon }) => mod.metresIn(tg, lat, lon));
+        thicknessAt = (i) => vals[i];
+        soilSource = "Pelletier et al. (2016), 1 km";
+      }
+    } catch (error) { /* the default stands, and the summary says so */ }
+  }
+  let oceanAt = null; let lakeAt = null; let riverWidthAt = null;
+  if (L.water) {
+    report("domain", "Reading the sea, the lakes and the rivers…");
+    const spanM = Math.max(t.widthM || 1, t.heightM || 1);
+    const W = Math.max(64, Math.min(2048, Math.round(spanM / Math.max(20, t.spacingMinM || 50))));
+    const H = Math.max(64, Math.min(2048, Math.round(W * ((t.heightM || spanM) / (t.widthM || spanM)))));
+    const cellOf = (lat, lon) => {
+      const x = Math.min(W - 1, Math.max(0, Math.floor(((lon - w) / (e - w)) * W)));
+      const y = Math.min(H - 1, Math.max(0, Math.floor(((no - lat) / (no - so)) * H)));
+      return y * W + x;
+    };
+    const cells = ll.map(({ lat, lon }) => cellOf(lat, lon));
+    try {
+      const masks = await waterMasks(box, W, H);
+      oceanAt = (i) => Boolean(masks.ocean[cells[i]]);
+      lakeAt = (i) => {
+        const level = masks.lakeLevel[cells[i]];
+        if (Number.isNaN(level)) return null;
+        return { level: Number.isFinite(level) ? level : t.z[i] + 2, depth: 2 };
+      };
+    } catch (error) { /* no water service: none */ }
+    try {
+      const rivers = await waterFeatures("rivers", box, W);
+      if (rivers?.features?.length) {
+        const { riverWidth } = burnRivers(rivers.features, box, W, H);
+        riverWidthAt = (i) => (riverWidth[cells[i]] > 0 ? riverWidth[cells[i]] : 0);
+      }
+    } catch (error) { /* none */ }
+  }
+  const heights = layerHeights(t, {
+    thicknessAt, minSoilM: L.minSoilM, defaultSoilM: 2, oceanAt, lakeAt, riverWidthAt,
+    water: L.water, soil: L.soil, minWaterM: L.minWaterM,
+  });
+  L.read = { heights, soilSource, box };
+  L.readFor = t;
+  state.outputs = null;
+  report("domain", layerSummary(L.read));
+  return L.read;
+}
+
 function surfaceLike() {
   const sfc = state.surface;
   if (!sfc) return null;
@@ -1523,6 +1627,34 @@ function stepDomain(body) {
     const height = number("gis-mb-air-height", state.atmosphere.heightM, 100);
     height.addEventListener("input", () => { state.atmosphere.heightM = Number(height.value) || 1000; state.outputs = null; });
     body.appendChild(row("Height above the highest ground (m)", height));
+  }
+  if (state.kind === "3d") {
+    const L = state.layers;
+    const soilOn = el("input", null);
+    soilOn.type = "checkbox"; soilOn.id = "gis-mb-soil"; soilOn.checked = L.soil;
+    soilOn.addEventListener("change", () => { L.soil = soilOn.checked; state.outputs = null; render(); });
+    body.appendChild(row("Soil over bedrock (two volumes, one surface)", soilOn));
+    if (L.soil) {
+      const min = number("gis-mb-soil-min", L.minSoilM, 0.5);
+      min.addEventListener("input", () => { L.minSoilM = Math.max(0.1, Number(min.value) || 1); L.read = null; state.outputs = null; });
+      body.appendChild(row("Thinnest soil kept (m)", min));
+    }
+    const waterOn = el("input", null);
+    waterOn.type = "checkbox"; waterOn.id = "gis-mb-water"; waterOn.checked = L.water;
+    waterOn.addEventListener("change", () => { L.water = waterOn.checked; state.outputs = null; render(); });
+    body.appendChild(row("Water bodies (sea, lakes, rivers)", waterOn));
+    if (L.water) {
+      const min = number("gis-mb-water-min", L.minWaterM, 0.5);
+      min.addEventListener("input", () => { L.minWaterM = Math.max(0.1, Number(min.value) || 1); L.read = null; state.outputs = null; });
+      body.appendChild(row("Shallowest water kept (m)", min));
+    }
+    if (L.soil || L.water) {
+      const readBtn = el("button", "button secondary", L.read ? "Read the layers again" : "Read the layers onto the surface");
+      readBtn.type = "button";
+      readBtn.addEventListener("click", () => { void readLayers().then(() => render()); });
+      body.appendChild(readBtn);
+      if (L.read) body.appendChild(el("div", "gis-metric", layerSummary(L.read)));
+    }
   }
   if (state.kind === "section") {
     const showSec = el("button", "button secondary", state.previews.sectionFaces !== undefined ? "Redraw the section faces" : "Show the section faces on the globe");
@@ -2280,13 +2412,23 @@ async function openInStudio() {
   }
   const studio = window.GeoIDMeshStudio;
   if (!studio?.adoptTerrainSolid) { report("build", "The Meshing Studio did not come up."); return; }
+  const L = state.layers;
+  if (state.kind === "3d" && (L.soil || L.water) && (!L.read || L.readFor !== t)) await readLayers();
   studio.adoptTerrainSolid({
     name: modelName(), surface: t, origin: t.origin,
     belowM: state.kind === "surface" ? 0 : state.domain.depthM,
     aboveM: state.kind !== "surface" && state.atmosphere.on ? state.atmosphere.heightM : 0,
     points: embeddedPoints(),
     flags: { ...state.flags },
+    layers: layersForStudio(t),
   });
+}
+
+/** The layers to hand the studio, reading them first when they are asked for and not yet read. */
+function layersForStudio(t) {
+  const L = state.layers;
+  if (state.kind !== "3d" || !(L.soil || L.water) || !L.read || L.readFor !== t) return null;
+  return { heights: L.read.heights, soil: L.soil, water: L.water };
 }
 
 async function openSectionInStudio() {
@@ -2508,6 +2650,44 @@ async function writePackage() {
     },
   }) : null;
 
+  /**
+   * THE LAYERED VOLUMES, when soil or water is asked for: each its own
+   * multi-solid STL (one named solid per face, so gmsh tags faces by name) and
+   * its own script. A thin volume is meshed at a size its thin end allows
+   * (`thinLayerSizeM`, measured with gmsh on the soil and on shallow water).
+   * The unlayered domain above is still written: it is the model a run that
+   * wants one rock volume reads.
+   */
+  const L = state.layers;
+  let layered = null;
+  if (!surfaceOnly && state.kind === "3d" && (L.soil || L.water)) {
+    const t = surfaceLike();
+    if (!L.read || L.readFor !== t) await readLayers();
+    if (L.read) {
+      const H = L.read.heights;
+      const V = layeredVolumes(t, H, {
+        belowM: state.domain.depthM, aboveM: state.atmosphere.on ? state.atmosphere.heightM : 0, soil: L.soil, water: L.water,
+      });
+      const thick = Array.from(H.solid, (sv, i) => sv - H.bedrock[i]);
+      const depth = Array.from(H.water, (wv, i) => (H.wet[i] ? wv - H.solid[i] : NaN));
+      layered = V.volumes.map((vol) => {
+        const stl = facetsStlByFace(vol.facets, `${name}_${vol.id}`);
+        const size = vol.id === "soil" ? thinLayerSizeM(thick, meshSizeM) : vol.id === "water" ? thinLayerSizeM(depth, meshSizeM) : meshSizeM;
+        const check = facetsClosed(vol.facets);
+        return {
+          id: vol.id, label: vol.label, stl: stl.text, faces: stl.faces, sizeM: size, closed: check.closed, openEdges: check.openEdges,
+          script: layeredGmshScript({
+            name: `${name}_${vol.id}`, stlFile: `${name}_${vol.id}.stl`, meshFile: `${name}_${vol.id}.msh`,
+            meshSizeM: size, minSizeM: Math.min(size / 4, minSizeM || size / 4), faceFlags: LAYER_FLAGS,
+            volumeFlag: LAYER_FLAGS[vol.id], volumeName: vol.id,
+          }),
+        };
+      });
+      layered.bedrockSurface = L.soil ? tinSurfaceStl(tinWith(t, H.bedrock), `${name}_bedrock_top`) : null;
+      layered.baseZ = V.baseZ; layered.skyZ = V.skyZ; layered.counts = H.counts; layered.soilSource = L.read.soilSource;
+    }
+  }
+
   const spec = femSpec({
     run,
     mesh: `${name}.msh`,
@@ -2562,6 +2742,13 @@ async function writePackage() {
         recipe: "etna.py outer_box: rim corners carried to z; the baked skirts conform to any rim",
       },
       atmosphere: air ? { file: `${name}_atmosphere.stl`, triangles: airStats.triangles, watertight: airStats.closed } : null,
+      layers: layered ? {
+        soil: L.soil, water: L.water, min_soil_m: L.minSoilM, min_water_m: L.minWaterM,
+        soil_source: layered.soilSource, counts: layered.counts, base_z_m: layered.baseZ, sky_z_m: layered.skyZ,
+        flags: { ...LAYER_FLAGS },
+        volumes: layered.map((v) => ({ id: v.id, file: `${name}_${v.id}.stl`, script: `${name}_${v.id}_gmsh.py`, mesh: `${name}_${v.id}.msh`, faces: v.faces, element_size_m: Math.round(v.sizeM * 10) / 10, watertight: v.closed })),
+        rule: "soil top = the ground (seabed, lake bed or river bed where wet); bedrock top = ground − max(min soil, Pelletier thickness); sea = 0 m down to the bathymetry (never shallower than the minimum); lakes at their surveyed level; rivers a channel depth (Moody & Troutman) under the DEM",
+      } : null,
       nodes: grid.nodes,
       filled_nodes: grid.filledNodes,
       repaired_nodes: grid.repairedNodes,
@@ -2600,7 +2787,8 @@ async function writePackage() {
   const shells = `${stats.triangles.toLocaleString()} triangles,`
     + ` ${stats.closed ? "watertight" : `${stats.openEdges} OPEN EDGES — gmsh will refuse this`}`
     + (airStats ? `; atmosphere ${airStats.triangles.toLocaleString()} triangles, ${airStats.closed ? "watertight" : `${airStats.openEdges} OPEN EDGES`}` : "")
-    + `. ${points.length} embedded point(s).`;
+    + `. ${points.length} embedded point(s).`
+    + (layered ? ` Layered: ${layered.map((v) => `${v.label.toLowerCase()} ${v.closed ? "watertight" : `${v.openEdges} OPEN EDGES`} at ${Math.round(v.sizeM)} m elements`).join("; ")}.` : "");
 
   const store = window.GeoIDResearch?.store;
   const project = store?.getActive?.();
@@ -2611,6 +2799,8 @@ async function writePackage() {
     if (fieldText) downloadText(fieldFile, fieldText);
     downloadText(`${name}_gmsh.py`, script, "text/x-python");
     if (airScript) downloadText(`${name}_atmosphere_gmsh.py`, airScript, "text/x-python");
+    (layered || []).forEach((v) => { downloadText(`${name}_${v.id}.stl`, v.stl); downloadText(`${name}_${v.id}_gmsh.py`, v.script, "text/x-python"); });
+    if (layered?.bedrockSurface) downloadText(`${name}_bedrock_top.stl`, layered.bedrockSurface);
     downloadText(`${run}_spec.json`, JSON.stringify(spec, null, 2), "application/json");
     state.outputs.files = ["downloads (no project open)"];
     report("build", `${shells} No project open — the package was downloaded instead. Open a`
@@ -2629,6 +2819,11 @@ async function writePackage() {
     if (fieldText) await store.writeProjectFile(`meshes/${fieldFile}`, fieldText);
     await store.writeProjectFile(`meshes/${name}_gmsh.py`, script);
     if (airScript) await store.writeProjectFile(`meshes/${name}_atmosphere_gmsh.py`, airScript);
+    for (const v of layered || []) {
+      await store.writeProjectFile(`meshes/${name}_${v.id}.stl`, v.stl);
+      await store.writeProjectFile(`meshes/${name}_${v.id}_gmsh.py`, v.script);
+    }
+    if (layered?.bedrockSurface) await store.writeProjectFile(`meshes/${name}_bedrock_top.stl`, layered.bedrockSurface);
     await store.writeProjectFile(`fem_runs/${run}/spec.json`, JSON.stringify(spec, null, 2));
     state.outputs.files = [
       `meshes/${name}_surface.stl`,
@@ -2637,6 +2832,8 @@ async function writePackage() {
       ...(fieldText ? [`meshes/${fieldFile}`] : []),
       `meshes/${name}_gmsh.py`,
       ...(airScript ? [`meshes/${name}_atmosphere_gmsh.py`] : []),
+      ...(layered || []).flatMap((v) => [`meshes/${name}_${v.id}.stl`, `meshes/${name}_${v.id}_gmsh.py`]),
+      ...(layered?.bedrockSurface ? [`meshes/${name}_bedrock_top.stl`] : []),
       `fem_runs/${run}/spec.json`,
     ];
     report("build", `${shells} Written into ${project.name}.`);

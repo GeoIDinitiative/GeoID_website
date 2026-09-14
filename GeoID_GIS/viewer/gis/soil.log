@@ -1,0 +1,390 @@
+Info    : Reading 'soil.stl'...
+Info    : 800 facets in solid 0 top
+Info    : 800 facets in solid 1 bedrock_top
+Info    : 160 facets in solid 2 sides
+Info    : Done reading 'soil.stl'
+Info    : Making discrete regions simply connected...
+Info    : Done making discrete regions simply connected
+Info    : Making discrete faces simply connected...
+Info    : Done making discrete faces simply connected
+Info    : Creating topology from mesh...
+Info    : Done creating topology from mesh (Wall 0.00247432s, CPU 0.009112s)
+Info    : Creating geometry of discrete curves...
+Info    : Done creating geometry of discrete curves (Wall 4.828e-05s, CPU 8.5e-05s)
+Info    : Creating geometry of discrete surfaces...
+Info    : Done creating geometry of discrete surfaces (Wall 0.0209965s, CPU 0.085169s)
+Info    : Meshing 1D...
+Info    : [  0%] Meshing curve 1 (Discrete curve)
+Info    : [ 50%] Meshing curve 2 (Discrete curve)
+Info    : Done meshing 1D (Wall 0.00164501s, CPU 0.004542s)
+Info    : Meshing 2D...
+Info    : [  0%] Meshing surface 1 (Discrete surface, Frontal-Delaunay)
+Info    : [ 40%] Meshing surface 2 (Discrete surface, Frontal-Delaunay)
+Info    : [ 70%] Meshing surface 3 (Discrete surface, Frontal-Delaunay)
+Info    : [ 70%] :-( There are 2 intersections in the 1D mesh (curves 2 1)
+Info    : [ 70%] 8-| Splitting those edges and trying again
+Info    : [ 70%] :-( There are 2 intersections in the 1D mesh (curves 2 1)
+Info    : [ 70%] 8-| Splitting those edges and trying again
+Info    : [ 70%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [ 70%] 8-| Splitting those edges and trying again
+Info    : [ 70%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [ 70%] 8-| Splitting those edges and trying again
+Info    : [ 70%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [ 70%] 8-| Splitting those edges and trying again
+Info    : [ 70%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [ 70%] 8-| Splitting those edges and trying again
+Info    : [ 70%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [ 70%] 8-| Splitting those edges and trying again
+Info    : [ 70%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [ 70%] 8-| Splitting those edges and trying again
+Info    : [ 70%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [ 70%] 8-| Splitting those edges and trying again
+Info    : [ 70%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [ 70%] 8-| Splitting those edges and trying again
+Info    : [ 70%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [ 70%] 8-| Splitting those edges and trying again
+Info    : [100%] Meshing surface 1 (Discrete surface, Frontal-Delaunay)
+Info    : [100%] Meshing surface 2 (Discrete surface, Frontal-Delaunay)
+Info    : [100%] Meshing surface 3 (Discrete surface, Frontal-Delaunay)
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 2 1)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] Meshing surface 1 (Discrete surface, Frontal-Delaunay)
+Info    : [100%] Meshing surface 2 (Discrete surface, Frontal-Delaunay)
+Info    : [100%] Meshing surface 3 (Discrete surface, Frontal-Delaunay)
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] Meshing surface 1 (Discrete surface, Frontal-Delaunay)
+Info    : [100%] Meshing surface 2 (Discrete surface, Frontal-Delaunay)
+Info    : [100%] Meshing surface 3 (Discrete surface, Frontal-Delaunay)
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 2 1)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] Meshing surface 1 (Discrete surface, Frontal-Delaunay)
+Info    : [100%] Meshing surface 2 (Discrete surface, Frontal-Delaunay)
+Info    : [100%] Meshing surface 3 (Discrete surface, Frontal-Delaunay)
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] Meshing surface 1 (Discrete surface, Frontal-Delaunay)
+Info    : [100%] Meshing surface 2 (Discrete surface, Frontal-Delaunay)
+Info    : [100%] Meshing surface 3 (Discrete surface, Frontal-Delaunay)
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] Meshing surface 1 (Discrete surface, Frontal-Delaunay)
+Info    : [100%] Meshing surface 2 (Discrete surface, Frontal-Delaunay)
+Info    : [100%] Meshing surface 3 (Discrete surface, Frontal-Delaunay)
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-( There are 2 intersections in the 1D mesh (curves 1 2)
+Info    : [100%] 8-| Splitting those edges and trying again
+Info    : [100%] :-) All edges recovered after 8 iterations
+Info    : [100%] Triangle not found for first derivative at uv=(0.00341974,0.999663) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.0784884,0.996738) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.0723982,0.997052) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.996889,-0.0765861) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.706276,0.707699) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.950752,-0.308762) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.757302,0.652436) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.987093,-0.15794) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.999663,-0.00334833) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.950623,0.308864) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.996745,0.0785168) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.584698,0.810841) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.97259,0.231814) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.971418,0.235966) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.886676,0.461602) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.852735,0.521699) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.923196,0.383452) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.807277,0.589894) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.804605,0.593282) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.952839,0.302445) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.761735,0.647373) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.652403,0.757441) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.810813,-0.584633) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.710584,-0.703041) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.647332,-0.761658) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.151312,0.988145) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.521678,-0.852629) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.383466,-0.923064) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.521586,0.852741) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.236023,-0.971267) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.593113,0.804571) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.157761,-0.986981) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.971141,-0.236163) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.923022,-0.383474) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.852677,-0.5215) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.761817,-0.647038) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.076709,0.996884) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.158063,0.987088) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.452229,-0.891281) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.308727,-0.950633) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.452224,0.891527) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.527379,0.849257) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.308867,0.95075) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.588284,0.808447) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.0828908,-0.996017) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.988154,0.151345) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.996237,0.0827999) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.757402,-0.652341) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.808613,0.588199) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.891517,-0.452144) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.235915,0.971405) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.383369,0.923188) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.986951,0.158056) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.810654,0.584691) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.8914,0.452238) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.710488,0.703138) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.647239,0.76176) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.519704,0.853752) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.300348,0.953248) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.577322,0.815827) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.0635279,0.997414) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.799084,0.600285) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.995226,0.0916337) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.755777,0.654002) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.91954,0.391574) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.986575,0.160095) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.890374,0.454125) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.452511,0.891497) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.971569,0.235725) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.988249,-0.149103) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.244474,0.969043) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.072648,0.997082) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.310765,0.949919) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.584973,0.810743) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.996324,0.0825424) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.923876,-0.381272) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.702915,0.71084) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.923406,0.383238) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.895299,-0.44407) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.529011,0.847881) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.586257,0.809373) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.99708,-0.0719934) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.76302,-0.645418) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.0830291,0.996237) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.71664,-0.69649) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.71651,0.696619) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.762886,0.645544) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.805572,0.591346) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.58638,-0.809232) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.529135,-0.847734) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.895142,0.444197) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.923711,0.381402) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.3109,-0.949745) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.706519,0.707534) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.244616,-0.968861) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.988058,0.149257) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.0745991,-0.996462) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.986302,-0.160489) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.972846,-0.228093) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.996005,0.0806939) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.919323,-0.391569) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.890218,-0.453982) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.233568,-0.971593) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.300135,-0.953098) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.755903,-0.653548) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.459612,-0.88724) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.709034,-0.704112) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.519849,-0.853423) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.650019,0.759512) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.854367,0.518995) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.654761,0.755334) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.851064,0.524384) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.386792,0.921889) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.449403,0.892907) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.970621,0.239007) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.951922,0.305456) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.154979,0.987571) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.161142,0.986564) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.0769588,0.996914) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.00545573,0.999452) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.154407,0.987691) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.763755,0.644938) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.95169,-0.305741) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.949774,-0.311772) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.650237,-0.759056) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.988566,0.148232) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.951517,0.305877) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.949688,0.31184) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.154562,-0.987499) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.850999,-0.524105) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.311842,0.94977) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.380549,-0.924311) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.386365,-0.921779) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.380484,0.924394) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.850768,0.524749) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.386236,0.921944) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.850915,-0.524624) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.812596,-0.582015) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.154567,-0.987426) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.649726,-0.759583) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.808995,-0.587227) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.649601,0.759718) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(-0.644847,0.763771) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.00576553,-0.99925) on discrete surface 3
+Info    : [100%] Triangle not found for first derivative at uv=(0.999608,-0.00649688) on discrete surface 3
+Info    : [100%] Meshing surface 1 (Discrete surface, Frontal-Delaunay)
+Info    : [100%] Meshing surface 2 (Discrete surface, Frontal-Delaunay)
+Info    : Done meshing 2D (Wall 2.93198s, CPU 2.92193s)
+Info    : Meshing 3D...
+Info    : 3D Meshing 1 volume with 1 connected component
+Info    : Tetrahedrizing 12922 nodes...
+Info    : Done tetrahedrizing 12930 nodes (Wall 0.160212s, CPU 0.154205s)
+Info    : Reconstructing mesh...
+Info    :  - Creating surface mesh
+Info    :  - Identifying boundary edges
+Info    :  - Recovering boundary
+Info    : Done reconstructing mesh (Wall 0.42115s, CPU 0.409108s)
+Info    : Found volume 1
+Info    : It. 0 - 0 nodes created - worst tet radius 16.9734 (nodes removed 0 0)
+Info    : It. 500 - 0 nodes created - worst tet radius 1.50542 (nodes removed 0 500)
+Info    : It. 1000 - 0 nodes created - worst tet radius 1.30409 (nodes removed 0 1000)
+Info    : It. 1500 - 0 nodes created - worst tet radius 1.20542 (nodes removed 0 1500)
+Info    : It. 2000 - 0 nodes created - worst tet radius 1.13311 (nodes removed 0 2000)
+Info    : It. 2500 - 0 nodes created - worst tet radius 1.0723 (nodes removed 0 2500)
+Info    : It. 3000 - 0 nodes created - worst tet radius 1.02522 (nodes removed 0 3000)
+Info    : 3D refinement terminated (12922 nodes total):
+Info    :  - 0 Delaunay cavities modified for star shapeness
+Info    :  - 3292 nodes could not be inserted
+Info    :  - 39122 tetrahedra created in 0.0271096 sec. (1443103 tets/s)
+Info    : Done meshing 3D (Wall 0.835787s, CPU 0.821704s)
+Info    : Optimizing mesh...
+Info    : Optimizing volume 1
+Info    : Optimization starts (volume = 2.79955e+07) with worst = 0.000343881 / average = 0.415809:
+Info    : 0.00 < quality < 0.10 :      1229 elements
+Info    : 0.10 < quality < 0.20 :      5007 elements
+Info    : 0.20 < quality < 0.30 :      6537 elements
+Info    : 0.30 < quality < 0.40 :      6494 elements
+Info    : 0.40 < quality < 0.50 :      5995 elements
+Info    : 0.50 < quality < 0.60 :      5584 elements
+Info    : 0.60 < quality < 0.70 :      4932 elements
+Info    : 0.70 < quality < 0.80 :      2724 elements
+Info    : 0.80 < quality < 0.90 :       600 elements
+Info    : 0.90 < quality < 1.00 :        20 elements
+Info    : 1659 edge swaps, 0 node relocations (volume = 2.79955e+07): worst = 0.00260571 / average = 0.421817 (Wall 0.120022s, CPU 0.12002s)
+Info    : 1735 edge swaps, 0 node relocations (volume = 2.79955e+07): worst = 0.00260571 / average = 0.421917 (Wall 0.244668s, CPU 0.244646s)
+Info    : No ill-shaped tets in the mesh :-)
+Info    : 0.00 < quality < 0.10 :       956 elements
+Info    : 0.10 < quality < 0.20 :      4682 elements
+Info    : 0.20 < quality < 0.30 :      6164 elements
+Info    : 0.30 < quality < 0.40 :      6359 elements
+Info    : 0.40 < quality < 0.50 :      5890 elements
+Info    : 0.50 < quality < 0.60 :      5591 elements
+Info    : 0.60 < quality < 0.70 :      4943 elements
+Info    : 0.70 < quality < 0.80 :      2751 elements
+Info    : 0.80 < quality < 0.90 :       593 elements
+Info    : 0.90 < quality < 1.00 :        20 elements
+Info    : Done optimizing mesh (Wall 0.286732s, CPU 0.286711s)
+Info    : 12922 nodes 64440 elements
+Info    : Writing 'soil.msh'...
+Info    : Done writing 'soil.msh'
