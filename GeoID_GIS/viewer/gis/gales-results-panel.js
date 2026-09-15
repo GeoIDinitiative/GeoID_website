@@ -24,20 +24,20 @@
  */
 import * as THREE from "../vendor/three.module.js";
 import {
-  planSimulation, describeField, dofsPerNode, float64View, componentOf, magnitudeOf,
+  planSimulation, describeField, dofsPerNode, float64View, componentOf, magnitudeOf, temporalAccumulator,
   rangeOf, usedNodes, COLORMAPS, colormapTable, colourValues, niceTicks, formatValue, tickLabel,
   interpolateOnSlice, axisPlane, nodeByteRange, probeCsv, parseMesh, sliceTets, isoTets, contourLevels, contourSegments,
   exposedFaces, thresholdKeep, keptTriangles,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
   groupResultFiles, timeOf, referencePlan, differenceOf, DERIVED_DOFS,
-} from "./gales-results.js?v=20260915-6c65033";
-import { zipStore } from "./shapefile-writer.js?v=20260915-6c65033";
-import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-6c65033";
-import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-6c65033";
-import { parseSolidProps } from "./strain-stress.js?v=20260915-6c65033";
-import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-6c65033";
-import { may, refusal } from "./membership.js?v=20260915-6c65033";
-import { downloadText } from "./extraction.js?v=20260915-6c65033";
+} from "./gales-results.js?v=20260915-5945438";
+import { zipStore } from "./shapefile-writer.js?v=20260915-5945438";
+import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-5945438";
+import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-5945438";
+import { parseSolidProps } from "./strain-stress.js?v=20260915-5945438";
+import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-5945438";
+import { may, refusal } from "./membership.js?v=20260915-5945438";
+import { downloadText } from "./extraction.js?v=20260915-5945438";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -90,6 +90,7 @@ const S = {
   threshold: { lo: "", hi: "", flags: [], mode: "all", colourBy: "field", key: "", data: null },
   // Calculated fields: { name, expr, lead } -- a field from an expression over the others.
   calcs: [],
+  temporals: [],
   calcNote: "",
   // Meshes opened by hand, and the field a numbered file picked on its own
   // belongs to (a bare "1" says nothing about which field it is).
@@ -514,6 +515,67 @@ function classifyFields() {
   }
   // CALCULATED fields, after everything they can read.
   appendCalcFields();
+  // TEMPORAL statistics, after the fields they summarise (a calculated one included).
+  appendTemporalFields();
+}
+
+/** One field per temporal summary: a single "all steps" step of six components. */
+function appendTemporalFields() {
+  for (const t of S.temporals) {
+    const src = S.fields.find((f) => f.field === t.source && f.ok && f.desc && !f.temporal);
+    if (!src || src.steps.length < 1) continue;
+    const comp = t.component === "mag" ? src.desc.vector : src.desc.components[Number(t.component)];
+    if (!comp) continue;
+    const unit = comp.unit || "";
+    const label = comp.label.replace(/\s*magnitude$/, " magnitude");
+    const times = src.steps.map((st) => st.time).filter(Number.isFinite);
+    const tUnit = "";
+    S.fields.push({
+      field: `temporal/${t.source}:${t.component}`, temporal: true, from: t.source, component: t.component, ok: true, reason: "", nbDofs: 6,
+      desc: {
+        field: `temporal/${t.source}`, label: `Over time · ${label}`, nbDofs: 6, blocked: false,
+        components: [
+          { key: "tmin", label: `Minimum over time — ${label}`, unit },
+          { key: "tmax", label: `Maximum over time — ${label}`, unit },
+          { key: "tmean", label: `Mean over the steps — ${label}`, unit },
+          { key: "tstd", label: `Standard deviation over the steps — ${label}`, unit },
+          { key: "t_at_min", label: "Time of the minimum", unit: tUnit },
+          { key: "t_at_max", label: "Time of the maximum", unit: tUnit },
+        ],
+        defaultComponent: "1",
+      },
+      steps: [{ name: `all ${src.steps.length} steps`, time: times.length ? Math.max(...times) : 0, path: `temporal:${t.source}:${t.component}:${src.steps.map((st) => st.path).join("|")}`, size: S.mesh.nodeCount * 48 }],
+    });
+  }
+}
+
+/** Build (or replace) a temporal summary of the field and component shown, over every step. */
+export async function addTemporal({ source, component } = {}) {
+  const shown = S.fields[S.field];
+  const src = source ? S.fields.find((f) => f.field === source) : shown;
+  if (!src || src.temporal) { S.temporalNote = "Show a field with steps first (a temporal summary cannot be summarised again)."; renderControls(); return null; }
+  if (!src.desc) await valuesAt(S.fields.indexOf(src), src.steps.length - 1);
+  const comp = component ?? (S.component === "" ? (src.desc?.vector ? "mag" : "0") : (S.component === "los" || S.component === "fringe" ? "mag" : S.component));
+  S.temporals = [...S.temporals.filter((t) => !(t.source === src.field && t.component === comp)), { source: src.field, component: comp }];
+  classifyFields();
+  const index = S.fields.findIndex((f) => f.field === `temporal/${src.field}:${comp}`);
+  if (index < 0) { S.temporalNote = `${src.field} has no such component to summarise.`; renderControls(); return null; }
+  try {
+    const t0 = performance.now();
+    await valuesAt(index, 0);
+    S.field = index; S.step = 0; S.component = "1";
+    S.temporalNote = `${S.fields[index].desc.label}: ${src.steps.length} step${src.steps.length > 1 ? "s" : ""} read in ${Math.round(performance.now() - t0)} ms. The mean is over the steps, each counted once.`;
+    renderControls();
+    await refresh({ fit: false });
+    return S.fields[index];
+  } catch (error) {
+    S.temporals = S.temporals.filter((t) => !(t.source === src.field && t.component === comp));
+    classifyFields();
+    S.field = Math.min(S.field, S.fields.length - 1);
+    S.temporalNote = `Could not summarise: ${error.message}`;
+    renderControls();
+    return null;
+  }
 }
 
 /** One field per calculator definition, stepping with the field it was made on. */
@@ -562,6 +624,22 @@ async function valuesAt(fieldIndex, stepIndex) {
     cache.delete(step.path);
     cache.set(step.path, hit);
     return hit;
+  }
+  if (f.temporal) {
+    const srcIndex = S.fields.findIndex((x) => x.field === f.from);
+    const src = S.fields[srcIndex];
+    if (!src) throw new Error(`${f.from} is no longer open.`);
+    const acc = temporalAccumulator(S.mesh.nodeCount);
+    for (let k = 0; k < src.steps.length; k += 1) {
+      const v = await valuesAt(srcIndex, k);
+      const d = src.desc;
+      const scalar = f.component === "mag" ? magnitudeOf(v, S.mesh.nodeCount, d.nbDofs, d.vector.from, d.blocked) : componentOf(v, S.mesh.nodeCount, d.nbDofs, Number(f.component), d.blocked);
+      acc.add(scalar, Number.isFinite(src.steps[k].time) ? src.steps[k].time : k);
+    }
+    const values = acc.result();
+    cache.set(step.path, values);
+    while (cache.size > CACHE_STEPS) cache.delete(cache.keys().next().value);
+    return values;
   }
   if (f.calc) {
     const values = await calcValues(fieldIndex, step);
@@ -1089,6 +1167,7 @@ function resultsState() {
     iso: { on: S.iso.on, levels: S.iso.levels, opacity: S.iso.opacity },
     threshold: { lo: S.threshold.lo, hi: S.threshold.hi, flags: S.threshold.flags, mode: S.threshold.mode, colourBy: S.threshold.colourBy },
     calcs: S.calcs.map((c) => ({ ...c })),
+    temporals: S.temporals.map((t) => ({ ...t })),
     reference: S.reference ? S.reference.label : null,
     probeNode: S.probe?.node ?? null,
     stations: S.stations.map((st) => ({ name: st.name, node: st.node, x: st.x, y: st.y, z: st.z })),
@@ -1107,6 +1186,7 @@ async function applyResultsState(state) {
   S.iso = { ...S.iso, ...(state.iso || {}), key: "", data: null, used: [] };
   S.threshold = { ...S.threshold, ...(state.threshold || {}), key: "", data: null };
   S.calcs = Array.isArray(state.calcs) ? state.calcs.map((c) => ({ ...c })) : [];
+  S.temporals = Array.isArray(state.temporals) ? state.temporals.filter((t) => t && typeof t.source === "string").map((t) => ({ source: t.source, component: String(t.component) })) : [];
   S.slice = null; S.sliceKey = "";
   classifyFields();
   const fi = state.field ? S.fields.findIndex((x) => x.field === state.field) : -1;
@@ -1135,7 +1215,7 @@ async function applyResultsState(state) {
 
 /** The fields a calculated field may read: every open field before it that has a description. */
 function calcPool(fieldIndex) {
-  return S.fields.map((f, k) => ({ f, k })).filter(({ f, k }) => k !== fieldIndex && f.ok && f.desc && !(f.calc && k > fieldIndex));
+  return S.fields.map((f, k) => ({ f, k })).filter(({ f, k }) => k !== fieldIndex && f.ok && f.desc && !f.temporal && !(f.calc && k > fieldIndex));
 }
 
 /** Per-node values of one component, in double precision. */
@@ -1553,7 +1633,7 @@ async function probeSeries() {
     let values;
     const nb = f.nbDofs;
     // A derived field has no bytes of its own on disk: it is computed per step.
-    const range = nb && !f.desc?.blocked && !f.derived && !f.compare && !f.calc ? nodeByteRange(node, S.mesh.nodeCount, nb) : null;
+    const range = nb && !f.desc?.blocked && !f.derived && !f.compare && !f.calc && !f.temporal ? nodeByteRange(node, S.mesh.nodeCount, nb) : null;
     if (range) {
       const part = float64View(await S.source.readRange(step.path, range[0], range[1]));
       values = [...part];
@@ -1891,9 +1971,31 @@ function renderControls() {
   if (S.calcNote) calcSec.body.append(el("p", { class: "studio-readout" }, S.calcNote));
   host.append(calcSec.details);
 
+  // Temporal statistics
+  const tempSec = section("temporal", "Temporal statistics", Boolean(S.temporals.length));
+  tempSec.body.append(el("p", { class: "studio-readout" }, "Each node's minimum, maximum, mean and standard deviation over every step of the field and component shown, with the time of the minimum and of the maximum — a field of its own, for every view and analysis."));
+  const addTemp = el("button", { class: "studio-primary", type: "button" }, "Summarise over all steps");
+  addTemp.addEventListener("click", () => addTemporal());
+  tempSec.body.append(el("div", { class: "studio-actions" }, addTemp));
+  for (const t of S.temporals) {
+    const rm = el("button", { class: "studio-btn", type: "button", title: "Remove this summary" }, "×");
+    rm.addEventListener("click", () => {
+      const shown = S.fields[S.field]?.field;
+      S.temporals = S.temporals.filter((x) => x !== t);
+      classifyFields();
+      const back = S.fields.findIndex((f) => f.field === shown);
+      S.field = back >= 0 ? back : Math.max(0, S.fields.findIndex((f) => f.ok));
+      S.component = "";
+      renderControls(); refresh({ fit: false });
+    });
+    tempSec.body.append(el("div", { class: "gales-calc-row" }, el("b", {}, t.source), el("code", {}, t.component === "mag" ? "|v|" : `component ${t.component}`), rm));
+  }
+  if (S.temporalNote) tempSec.body.append(el("p", { class: "studio-readout" }, S.temporalNote));
+  host.append(tempSec.details);
+
   // Field
   const fs = section("field", "Field and time");
-  const fieldOptions = S.fields.map((f, k) => [k, f.calc ? `Calculated · ${f.desc.label} = ${f.expr}` : f.compare ? `Difference · ${f.from} − reference (${S.reference?.label}) · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}` : f.derived ? `Stress, strain and tilt · derived from ${f.from} · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}` : `${f.field}${f.nbDofs ? ` · ${f.nbDofs} dof${f.nbDofs > 1 ? "s" : ""}` : ""} · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}${f.ok ? "" : " — other mesh"}`, !f.ok]);
+  const fieldOptions = S.fields.map((f, k) => [k, f.temporal ? `${f.desc.label} · ${f.steps[0].name}` : f.calc ? `Calculated · ${f.desc.label} = ${f.expr}` : f.compare ? `Difference · ${f.from} − reference (${S.reference?.label}) · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}` : f.derived ? `Stress, strain and tilt · derived from ${f.from} · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}` : `${f.field}${f.nbDofs ? ` · ${f.nbDofs} dof${f.nbDofs > 1 ? "s" : ""}` : ""} · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}${f.ok ? "" : " — other mesh"}`, !f.ok]);
   fs.body.append(row("Field", select([[-1, "— geometry only —"], ...fieldOptions], S.field, (v) => {
     S.field = Number(v);
     const f = S.fields[S.field];
@@ -2480,7 +2582,7 @@ async function extractStations() {
       const step = f.steps[k];
       status(`Extracting ${f.field}: step ${k + 1} of ${f.steps.length} at ${N} point(s)…`);
       // A few points read their own bytes; many read the step once.
-      if (!d.blocked && !f.derived && !f.compare && !f.calc && N <= 24) {
+      if (!d.blocked && !f.derived && !f.compare && !f.calc && !f.temporal && N <= 24) {
         for (let si = 0; si < N; si += 1) {
           const [a, b] = nodeByteRange(stations[si].node, n, nb);
           const part = float64View(await S.source.readRange(step.path, a, b));
@@ -2725,6 +2827,7 @@ if (typeof document !== "undefined" && typeof window !== "undefined" && typeof w
     applyState: (state) => applyResultsState(state),
     addCalculated: (name, expr, options) => addCalculated(name, expr, options),
     // Probe a node by number (the spreadsheet's rows).
+    addTemporal: (options) => addTemporal(options),
     probeNode: (node) => {
       if (!S.mesh || !Number.isInteger(node) || node < 0 || node >= S.mesh.nodeCount) return false;
       S.probe = { node, series: null, seriesField: -1 };

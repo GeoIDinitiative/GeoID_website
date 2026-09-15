@@ -20747,3 +20747,24 @@ Verified on Etna, u at t=1: 40 seeds in a 22.7 km sphere about the centre give
 39 lines (one seed sits in the chamber cavity) of 5,284 points in 0.84 s, all
 leaving through the top; at eight lines' midpoints the segment direction against
 the element-interpolated u has a worst |cos| of 0.99999999995.
+
+## Temporal statistics: a run's steps summarised per node, as a field
+
+Results ▸ Temporal statistics adds `temporal/<field>:<component>` — each node's
+minimum, maximum, mean and standard deviation over every step of the field and
+component shown, with the time of the minimum and of the maximum (ParaView's
+Temporal Statistics). `temporalAccumulator` in gales-results.js is the pure half.
+
+- **One step at a time.** The accumulator takes a scalar per step and keeps six
+  running arrays, so a run of hundreds of 6 MB steps is never held at once; the
+  summary's single step ("all N steps") is computed in `valuesAt` like the
+  derived, difference and calculated kinds, and is never byte-read by the probe.
+- **The mean is over STEPS**, each written step counted once, not weighted by
+  the time between steps — as ParaView's filter does, and the note says so.
+- **A tie keeps the earliest time.** A NaN at a node is skipped there; a node
+  NaN at every step stays NaN.
+- **Not fed to the Calculator** (a summary of a calculated field is allowed; a
+  calculation over a summary would step with nothing), and kept in a saved state.
+
+Verified on Etna, u_z at node 25018 (0 at t=0, −80.658 m at t=1): min −80.658
+at t=1, max 0 at t=0, mean −40.329, std 40.329; both steps read in 30 ms.

@@ -26,15 +26,15 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, streamSeeds, streamlinesCsv, formatValue, describeField, float64View, timeOf, stepReading, powerLawSlope } from "./gales-results.js?v=20260915-6c65033";
-import { downloadText } from "./extraction.js?v=20260915-6c65033";
-import { modelReportHtml } from "./model-report.js?v=20260915-6c65033";
-import { makeState, readState, stateFileName } from "./model-state.js?v=20260915-6c65033";
-import { PHYSICS, domainProperties } from "./fem-setup.js?v=20260915-6c65033";
-import { may, refusal } from "./membership.js?v=20260915-6c65033";
-import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-6c65033";
-import { losVector } from "./insar.js?v=20260915-6c65033";
-import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260915-6c65033";
+import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, streamSeeds, streamlinesCsv, formatValue, describeField, float64View, timeOf, stepReading, powerLawSlope } from "./gales-results.js?v=20260915-5945438";
+import { downloadText } from "./extraction.js?v=20260915-5945438";
+import { modelReportHtml } from "./model-report.js?v=20260915-5945438";
+import { makeState, readState, stateFileName } from "./model-state.js?v=20260915-5945438";
+import { PHYSICS, domainProperties } from "./fem-setup.js?v=20260915-5945438";
+import { may, refusal } from "./membership.js?v=20260915-5945438";
+import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-5945438";
+import { losVector } from "./insar.js?v=20260915-5945438";
+import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260915-5945438";
 
 const byId = (id) => document.getElementById(id);
 const R = () => window.GeoIDGalesResults;

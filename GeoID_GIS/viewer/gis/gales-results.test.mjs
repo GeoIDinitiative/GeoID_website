@@ -666,7 +666,7 @@ check("a mesh opened onto a loaded run starts a new run; results join the open o
 }
 {
   const panel = readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8");
-  check("calculator: calculated fields join the reader, computed from the fields they name at the matching step, never byte-read", /function appendCalcFields\(\)/.test(panel) && /if \(f\.calc\) \{[\s\S]{0,120}calcValues\(fieldIndex, step\)/.test(panel) && /!f\.compare && !f\.calc \? nodeByteRange/.test(panel) && !/\beval\(|new Function\(/.test(panel));
+  check("calculator: calculated fields join the reader, computed from the fields they name at the matching step, never byte-read", /function appendCalcFields\(\)/.test(panel) && /if \(f\.calc\) \{[\s\S]{0,120}calcValues\(fieldIndex, step\)/.test(panel) && /!f\.compare && !f\.calc(?: && !f\.\w+)* \? nodeByteRange/.test(panel) && !/\beval\(|new Function\(/.test(panel));
 }
 {
   const analysis = readFileSync(new URL("./results-analysis-panel.js", import.meta.url), "utf8");
@@ -720,4 +720,19 @@ check("a mesh opened onto a loaded run starts a new run; results join the open o
   check("stream: traced in the reader worker (it holds the cells), re-traced when Results moves, and saved in a state",
     /type === "stream"/.test(worker) && /streamlines\(locator, event\.data\.vec/.test(worker) &&
     /L\.stream\.on && sig \+ streamSignature\(\) !== L\.stream\.sig/.test(panel) && /stream: \{ on: L\.stream\.on/.test(panel) && /if \(L\.stream\.on\) await traceStream\(\)/.test(panel));
+}
+
+{
+  const { temporalAccumulator } = await import("./gales-results.js");
+  const acc = temporalAccumulator(3);
+  acc.add(Float64Array.from([1, 5, NaN]), 0);
+  acc.add(Float64Array.from([3, -1, NaN]), 10);
+  acc.add(Float64Array.from([2, 2, NaN]), 20);
+  const r = acc.result();
+  check("temporal: min, max, mean and std over the steps, with the time of each extreme; an all-NaN node stays NaN",
+    r[0] === 1 && r[1] === 3 && r[2] === 2 && Math.abs(r[3] - Math.sqrt(2 / 3)) < 1e-12 && r[4] === 0 && r[5] === 10 &&
+    r[6] === -1 && r[7] === 5 && r[8] === 2 && r[10] === 10 && r[11] === 0 && Number.isNaN(r[12]) && Number.isNaN(r[17]) && acc.steps === 3);
+  const panelSrc = readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8");
+  check("temporal: a summary is never byte-read by the probe, never fed to the calculator, and saved in a state",
+    /!f\.calc && !f\.temporal \? nodeByteRange/.test(panelSrc) && /f\.desc && !f\.temporal && !\(f\.calc/.test(panelSrc) && /temporals: S\.temporals\.map/.test(panelSrc));
 }

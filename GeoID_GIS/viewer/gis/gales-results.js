@@ -1609,6 +1609,51 @@ export function sampleLocated(located, scalar) {
 }
 
 /**
+ * TEMPORAL STATISTICS: each node's minimum, maximum, mean and standard
+ * deviation over the steps of one scalar, with the time of the minimum and of
+ * the maximum — ParaView's Temporal Statistics. Steps are added one at a time
+ * so a long run is never held in memory at once; the mean is over STEPS (each
+ * written step counts once, as ParaView's filter does), not weighted by the
+ * time between them. A non-finite value at a node is skipped at that node.
+ *
+ *   → Float64Array nodes × 6: min, max, mean, std, t_min, t_max
+ */
+export function temporalAccumulator(nodeCount) {
+  const min = new Float64Array(nodeCount).fill(Infinity);
+  const max = new Float64Array(nodeCount).fill(-Infinity);
+  const sum = new Float64Array(nodeCount); const sq = new Float64Array(nodeCount);
+  const count = new Uint32Array(nodeCount);
+  const tmin = new Float64Array(nodeCount).fill(NaN); const tmax = new Float64Array(nodeCount).fill(NaN);
+  let steps = 0;
+  return {
+    add(scalar, time) {
+      steps += 1;
+      for (let i = 0; i < nodeCount; i += 1) {
+        const v = scalar[i];
+        if (!Number.isFinite(v)) continue;
+        if (v < min[i]) { min[i] = v; tmin[i] = time; }
+        if (v > max[i]) { max[i] = v; tmax[i] = time; }
+        sum[i] += v; sq[i] += v * v; count[i] += 1;
+      }
+    },
+    get steps() { return steps; },
+    result() {
+      const out = new Float64Array(nodeCount * 6);
+      for (let i = 0; i < nodeCount; i += 1) {
+        const c = count[i];
+        const o = i * 6;
+        if (!c) { out.fill(NaN, o, o + 6); continue; }
+        const mean = sum[i] / c;
+        out[o] = min[i]; out[o + 1] = max[i]; out[o + 2] = mean;
+        out[o + 3] = Math.sqrt(Math.max(0, sq[i] / c - mean * mean));
+        out[o + 4] = tmin[i]; out[o + 5] = tmax[i];
+      }
+      return out;
+    },
+  };
+}
+
+/**
  * STREAM TRACER: curves everywhere tangent to a vector field, as ParaView's
  * Stream Tracer draws them.
  *
