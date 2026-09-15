@@ -90,12 +90,13 @@ body {
 }
 
 .nav-brand-icon {
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
-  min-height: 36px;
-  max-width: 36px;
-  max-height: 36px;
+  /* THE BRAND IMAGE CARRIES THE NAME NOW, so it is a wordmark and not an icon,
+     and it cannot be pinned to a square. At 3.4:1 a 36px box would have drawn
+     it 36px wide and 11px tall -- `object-fit: contain` keeps the aspect and
+     spends the rest of the box on nothing. Height drives it; width follows. */
+  height: 34px;
+  width: auto;
+  max-width: 200px;
   object-fit: contain;
   flex-shrink: 0;
   display: block;

@@ -262,7 +262,7 @@
   let _geoidLogoTex = null;
   function geoidLogoTexture() {
     if (_geoidLogoTex) return _geoidLogoTex;
-    _geoidLogoTex = new THREE.TextureLoader().load("../../../assets/GeoID_logo_icon.png");
+    _geoidLogoTex = new THREE.TextureLoader().load("../../../assets/GeoID_mark.png");
     _geoidLogoTex.colorSpace = THREE.SRGBColorSpace;
     _geoidLogoTex.anisotropy = 4;
     _geoidLogoTex.userData.shared = true;   // built once — disposeGroup must skip it

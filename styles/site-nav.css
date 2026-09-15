@@ -100,9 +100,15 @@
 }
 
 .site-nav .nav-brand-icon {
-  width: 30px; height: 30px;
-  min-width: 30px; min-height: 30px;
-  max-width: 30px; max-height: 30px;
+  /* Sized against the 72px bar rather than against the old square. The name
+     inside the image sits at roughly half its height, so 34px here puts the
+     cap height a little above the 17px text it replaced. */
+  height: 34px;
+  width: auto;
+  max-width: 210px;
+}
+@media (max-width: 720px) {
+  .site-nav .nav-brand-icon { height: 27px; }   /* the bar is 62px there */
 }
 
 .site-nav .nav-links { gap: 4px; }

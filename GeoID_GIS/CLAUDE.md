@@ -21478,3 +21478,40 @@ address had none. Two doors added to the auth Worker:
 The tests monkeypatch `globalThis.fetch` to stand in for Graph and for the
 mail service and read the link out of the captured message, so the whole
 flow — ask, mail, follow, refuse the second follow — runs in node.
+
+## The brand image became a WORDMARK, and a wide image cannot fill a square slot
+
+The logo gained the name, so `assets/GeoID_logo_icon.png` went from 493x475 to
+715x230 -- 3.4:1 where every slot on the site had been built for 1:1. What that
+breaks is not obvious, because nothing errors:
+
+- **`.nav-brand-icon` was pinned square** at 36px (shared.css) and 30px
+  (site-nav.css), with `min-` and `max-` on both axes. `object-fit: contain`
+  keeps the aspect and spends the rest of the box on nothing, so the lockup
+  would have drawn **36px wide and 11px tall** -- legible as neither a globe
+  nor a word. It is height-driven now and the width follows.
+- **A THIRD copy of that rule is inlined in `index.html`'s own `<style>`**, and
+  being later in the document it won on equal specificity. The computed height
+  read 30px while both stylesheets said 34. When a rule is right in the sheet
+  and wrong in the browser, enumerate the rules that MATCH the element --
+  `sh.cssRules` filtered by selector -- rather than re-reading the file.
+- **54 of the references are favicons and ~25 more are square badges** (the
+  viewer's corner logo, the Atlas rail, the ecosystem and sitemap diagram
+  nodes, a hero watermark, a THREE texture). A 3.4:1 favicon is a sliver. Those
+  point at `assets/GeoID_mark.png` -- the globe cut out of the lockup's own
+  first ink run (x 8..213), squared with a 10% margin -- so the mark is the
+  user's artwork rather than a substitute.
+
+**What stays on the lockup is every slot that was already `width: auto`**: the
+23 headers, the 12 footer brands (`height: 40px`), the About hero, and one
+inline `height:32px`. The rule that sorted them is the CSS, not the markup:
+height-driven takes the lockup, square or width-driven takes the mark.
+
+**`grep -h` STRIPS THE FILENAME, so a `| grep -v page_backups` after it filters
+nothing.** A survey built that way counted 43 header instances where there are
+24, and would have had me editing the backups. Use `-n` without `-h` when the
+next pipe stage filters by path.
+
+The visible `GeoID Initiative` beside the header logo is gone, since the image
+says it. The link's `aria-label` STAYS: the img carries `alt=""`, so without it
+the link would announce as nothing.

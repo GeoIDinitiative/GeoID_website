@@ -43,7 +43,7 @@
   }
   </script>
 
-  <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
+  <link rel="icon" type="image/png" href="/assets/GeoID_mark.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2">
@@ -196,8 +196,9 @@
     gap: 11px;
   }
   .nav-brand-icon {
-    width: 30px; height: 30px;
-    min-width: 30px; min-height: 30px; max-width: 30px; max-height: 30px;
+    /* The brand image is the wordmark now, so it is sized by height and the
+       width follows; the old square box clamped it to 30px of its 3.1:1. */
+    height: 34px; width: auto; max-width: 210px;
   }
   .nav-links { gap: 4px; }
   .nav-links > li > a, .nav-dropdown-toggle {
@@ -704,7 +705,6 @@
   <nav class="site-nav" role="navigation" aria-label="Primary navigation">
     <a class="nav-wordmark" href="/" aria-label="GeoID Initiative Home">
       <img class="nav-brand-icon" src="/assets/GeoID_logo_icon.png" alt="">
-      GeoID
     </a>
     <ul class="nav-links">
       <li><a href="/" class="active" aria-current="page">Dashboard</a></li>
@@ -1060,7 +1060,7 @@
       <div class="foot-grid">
         <div class="foot-brand">
           <div class="foot-brand-row">
-            <img src="/assets/GeoID_logo_icon.png" alt="">
+            <img src="/assets/GeoID_mark.png" alt="">
             <span class="foot-name">GeoID Initiative</span>
           </div>
           <p>An open geoscience initiative turning satellite data into geohazard intelligence — published free.</p>

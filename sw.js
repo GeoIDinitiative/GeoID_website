@@ -3,7 +3,7 @@
 // key assets change significantly — this forces all clients to discard
 // stale cached copies on their next visit.
 
-const STATIC_CACHE = 'geoid-site-v44';  // v44: the Journal, and its link in every About menu
+const STATIC_CACHE = 'geoid-site-v45';  // v45: the lockup in the header, the mark as the icon
 
 // Pre-fetched at install time so they are cache-warm on first navigation
 const PRECACHE = [
@@ -18,6 +18,7 @@ const PRECACHE = [
   '/scripts/v2-site.js',
   '/scripts/ui-sound.js',
   '/assets/GeoID_logo_icon.png',
+  '/assets/GeoID_mark.png',
   '/assets/explorer_logo.png',
   '/assets/mygeoid_logo.png',
   '/earth_explorer/assets/logo.png',
