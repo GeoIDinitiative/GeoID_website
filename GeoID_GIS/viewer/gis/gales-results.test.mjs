@@ -736,3 +736,24 @@ check("a mesh opened onto a loaded run starts a new run; results join the open o
   check("temporal: a summary is never byte-read by the probe, never fed to the calculator, and saved in a state",
     /!f\.calc && !f\.temporal \? nodeByteRange/.test(panelSrc) && /f\.desc && !f\.temporal && !\(f\.calc/.test(panelSrc) && /temporals: S\.temporals\.map/.test(panelSrc));
 }
+
+{
+  const { selectInRect, selectionSummary } = await import("./gales-results.js");
+  const I = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+  const coords = Float64Array.from([0, 0, 0, 0.5, 0.5, 0, -0.9, 0.2, 0, 0.3, 0.3, 2, 0.1, -0.1, 0]);
+  const ids = selectInRect(coords, { matrix: I, viewProjection: I, rect: { x0: 0.6, x1: -0.2, y0: -0.5, y1: 0.6 } });
+  check("selection: nodes inside the rectangle (either corner order), a node past the far plane left out", [...ids].join() === "0,1,4", [...ids].join());
+  const moved = selectInRect(coords, { matrix: I, viewProjection: I, rect: { x0: -1, x1: -0.5, y0: -1, y1: 1 }, disp: Float64Array.from([-0.8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]) });
+  check("selection: the warp moves a node into the box; candidates limit the test", [...moved].join() === "0,2" && [...selectInRect(coords, { matrix: I, viewProjection: I, rect: { x0: -1, x1: 1, y0: -1, y1: 1 }, candidates: Int32Array.from([1, 4]) })].join() === "1,4");
+  const P = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, -1, 0, 0, 0, 0]; // w = -z: behind the camera where z > 0
+  check("selection: a node behind the camera is never selected", [...selectInRect(Float64Array.from([0, 0, -1, 0, 0, 1]), { matrix: I, viewProjection: P, rect: { x0: -1, x1: 1, y0: -1, y1: 1 } })].join() === "0");
+  const sum = selectionSummary(Float64Array.from([1, NaN, 5, 3]), Int32Array.from([0, 1, 2]));
+  check("selection: summary over the finite values of the selected nodes", sum.count === 3 && sum.finite === 2 && sum.min === 1 && sum.max === 5 && sum.mean === 3);
+}
+
+{
+  const analysis = readFileSync(new URL("./results-analysis-panel.js", import.meta.url), "utf8");
+  check("selection: a box drag with the orbit disabled and restored, the ending click swallowed, the spreadsheet able to keep only the selection",
+    /controls\.enabled = false/.test(analysis) && /controls\.enabled = wasEnabled/.test(analysis) && /addEventListener\("click", \(e\) => \{ e\.stopPropagation\(\); e\.preventDefault\(\); \}, \{ capture: true, once: true \}\)/.test(analysis) &&
+    /G\.selectionOnly && L\.sel\.ids\?\.length/.test(analysis) && /disp: results\.disp\?\.\(\)/.test(analysis));
+}

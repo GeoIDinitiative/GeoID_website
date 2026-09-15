@@ -20768,3 +20768,28 @@ Temporal Statistics). `temporalAccumulator` in gales-results.js is the pure half
 
 Verified on Etna, u_z at node 25018 (0 at t=0, −80.658 m at t=1): min −80.658
 at t=1, max 0 at t=0, mean −40.329, std 40.329; both steps read in 30 ms.
+
+## Selection: a box over the view, and what the field does there
+
+Analysis ▸ Selection. "Select in a box" arms a rectangle drag on the studio's
+canvas; the release selects the nodes whose DRAWN position (the frame's world
+matrix, the warp if one is on) projects inside it and in front of the camera —
+the surface nodes in the box, front and back, or every node through the volume
+(ParaView's frustum selection). `selectInRect` and `selectionSummary` in
+gales-results.js are the pure half.
+
+- **The gesture owns the canvas while armed**: OrbitControls is disabled for the
+  drag and restored on release or Escape, and the click the release produces is
+  swallowed once in capture, or the studio's own picker takes it.
+- **Read back**: count, min, max and mean of the Results scalar over the
+  selection (the LOS, not the wrap, for fringes); "Over time" reads every step
+  into a mean line and min–max band; CSV of the selected nodes' values (plus the
+  series); the Spreadsheet can keep only the selected nodes. The selection is
+  re-summarised when the step or field changes.
+- **The highlight is thin on purpose** (2 px at 0.45): thousands of selected
+  nodes at 4 px drew one solid slab over the very values being selected.
+
+Verified on Etna: a centre box of ±0.1 in NDC selected 2,001 surface nodes, the
+same count three.js's own `Vector3.project` gives; over time the mean |u| went
+0 → 15.94 m; a real mouse drag over the summit selected 17,683 nodes in 14 ms,
+mean 76.1 m, with the orbit restored afterwards.

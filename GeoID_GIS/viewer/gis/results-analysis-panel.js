@@ -26,15 +26,15 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, streamSeeds, streamlinesCsv, formatValue, describeField, float64View, timeOf, stepReading, powerLawSlope } from "./gales-results.js?v=20260915-5945438";
-import { downloadText } from "./extraction.js?v=20260915-5945438";
-import { modelReportHtml } from "./model-report.js?v=20260915-5945438";
-import { makeState, readState, stateFileName } from "./model-state.js?v=20260915-5945438";
-import { PHYSICS, domainProperties } from "./fem-setup.js?v=20260915-5945438";
-import { may, refusal } from "./membership.js?v=20260915-5945438";
-import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-5945438";
-import { losVector } from "./insar.js?v=20260915-5945438";
-import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260915-5945438";
+import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, streamSeeds, streamlinesCsv, selectInRect, selectionSummary, formatValue, describeField, float64View, timeOf, stepReading, powerLawSlope } from "./gales-results.js?v=20260915-1257e0b";
+import { downloadText } from "./extraction.js?v=20260915-1257e0b";
+import { modelReportHtml } from "./model-report.js?v=20260915-1257e0b";
+import { makeState, readState, stateFileName } from "./model-state.js?v=20260915-1257e0b";
+import { PHYSICS, domainProperties } from "./fem-setup.js?v=20260915-1257e0b";
+import { may, refusal } from "./membership.js?v=20260915-1257e0b";
+import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-1257e0b";
+import { losVector } from "./insar.js?v=20260915-1257e0b";
+import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260915-1257e0b";
 
 const byId = (id) => document.getElementById(id);
 const R = () => window.GeoIDGalesResults;
@@ -49,6 +49,7 @@ const L = {
   src: { open: false, x0: 0, y0: 0, depth: 5000, dV: 1e6, nu: 0.25, mode: "dV", dP: 1e7, radius: 1000, E: 30e9, fitDV: true, result: null, inversion: null, text: "", busy: false, sig: "", marker: null, surfaceZ: 0 },
   report: { open: false, title: "", text: "", busy: false },
   state: { open: false, text: "", busy: false },
+  sel: { open: false, mode: "surface", ids: null, armed: false, text: "", summary: null, over: null, busy: false, mesh: null, sig: "" },
   stream: { on: false, field: -1, seed: "line", count: 60, radius: 0.1, stepPer: 400, lengthPer: 1.5, direction: "both", lines: null, mesh: null, sig: "", text: "", busy: false },
   media: { open: false, kind: "steps", hold: 1, seconds: 8, width: 1280, busy: false, cancel: false, text: "" },
   sheet: { open: false, surfaceOnly: false, sort: 0, dir: 1, page: 0, size: 50, data: null, key: "", busy: false, text: "" },
@@ -359,6 +360,205 @@ export async function drawGlyphs() {
   L.glyph.said = `${picked.length.toLocaleString()} arrows of ${f.field} at t=${f.steps[step].name}, longest ${formatValue(max, max)}${desc.vector.unit ? ` ${desc.vector.unit}` : ""}${warp ? ", on the warped surface" : ""}.`;
   const said = byId("ra-glyph-status");
   if (said) said.textContent = L.glyph.said;
+}
+
+/* ── selection ──────────────────────────────────────────────────────────── */
+
+function saySel(text) {
+  L.sel.text = text;
+  const node = byId("ra-sel-status");
+  if (node) node.textContent = text;
+}
+
+function disposeSelection() {
+  const mesh = L.sel.mesh;
+  if (!mesh) return;
+  mesh.parent?.remove(mesh);
+  mesh.geometry.dispose(); mesh.material.dispose();
+  L.sel.mesh = null;
+}
+
+/** Arm a rectangle drag on the view; the release selects. Escape stands it down. */
+export function armSelection() {
+  const viewer = window.GeoIDViewer;
+  const canvas = viewer?.renderer?.domElement;
+  const S = R()?.state;
+  if (!canvas || !S?.mesh) { saySel("Open a run in Results first."); return; }
+  if (L.sel.armed) return;
+  L.sel.armed = true;
+  saySel("Drag a box over the view to select nodes. Escape cancels.");
+  const box = document.createElement("div");
+  box.className = "ra-select-box";
+  box.hidden = true;
+  (byId("model-studio") || document.body).append(box);
+  let start = null;
+  const controls = viewer.controls;
+  const wasEnabled = controls ? controls.enabled : true;
+  if (controls) controls.enabled = false;
+  const finish = () => {
+    L.sel.armed = false;
+    box.remove();
+    canvas.removeEventListener("pointerdown", down, true);
+    window.removeEventListener("pointermove", move, true);
+    window.removeEventListener("pointerup", up, true);
+    window.removeEventListener("keydown", key, true);
+    if (controls) controls.enabled = wasEnabled;
+    // The studio picks on a click; the release that ends a box is not one.
+    window.addEventListener("click", (e) => { e.stopPropagation(); e.preventDefault(); }, { capture: true, once: true });
+    setTimeout(() => render(), 0);
+  };
+  const down = (e) => {
+    if (e.button !== 0) return;
+    e.stopPropagation(); e.preventDefault();
+    start = { x: e.clientX, y: e.clientY };
+    Object.assign(box.style, { left: `${e.clientX}px`, top: `${e.clientY}px`, width: "0px", height: "0px" });
+    box.hidden = false;
+  };
+  const move = (e) => {
+    if (!start) return;
+    Object.assign(box.style, { left: `${Math.min(start.x, e.clientX)}px`, top: `${Math.min(start.y, e.clientY)}px`, width: `${Math.abs(e.clientX - start.x)}px`, height: `${Math.abs(e.clientY - start.y)}px` });
+  };
+  const up = (e) => {
+    if (!start) return;
+    e.stopPropagation();
+    const a = start; start = null;
+    finish();
+    if (Math.hypot(e.clientX - a.x, e.clientY - a.y) < 4) { saySel("A box has to be dragged out; nothing was selected."); return; }
+    const rect = canvas.getBoundingClientRect();
+    const ndc = (x, y) => [((x - rect.left) / rect.width) * 2 - 1, -((y - rect.top) / rect.height) * 2 + 1];
+    const [x0, y0] = ndc(a.x, a.y); const [x1, y1] = ndc(e.clientX, e.clientY);
+    selectRect({ x0, x1, y0, y1 });
+  };
+  const key = (e) => { if (e.key === "Escape") { e.stopPropagation(); start = null; finish(); saySel("Selection cancelled."); } };
+  canvas.addEventListener("pointerdown", down, true);
+  window.addEventListener("pointermove", move, true);
+  window.addEventListener("pointerup", up, true);
+  window.addEventListener("keydown", key, true);
+}
+
+/** Select the nodes whose drawn position falls in an NDC rectangle. */
+export async function selectRect(rect) {
+  const results = R();
+  const S = results?.state;
+  const viewer = window.GeoIDViewer;
+  if (!S?.mesh || !viewer?.camera) return null;
+  const frame = results.frame();
+  frame.updateWorldMatrix(true, false);
+  viewer.camera.updateMatrixWorld();
+  const vp = new THREE.Matrix4().multiplyMatrices(viewer.camera.projectionMatrix, viewer.camera.matrixWorldInverse);
+  const candidates = L.sel.mode === "surface" ? usedNodes(S.mesh.surface, S.mesh.nodeCount) : null;
+  const t0 = performance.now();
+  const ids = selectInRect(S.mesh.coords, { disp: results.disp?.() || null, matrix: frame.matrixWorld.elements, viewProjection: vp.elements, rect, candidates });
+  L.sel.ids = ids;
+  L.sel.over = null;
+  L.sel.open = true;
+  await summariseSelection();
+  saySel(`${ids.length.toLocaleString()} ${L.sel.mode === "surface" ? "surface " : ""}nodes selected in ${Math.round(performance.now() - t0)} ms.`);
+  render();
+  return ids;
+}
+
+async function summariseSelection() {
+  const results = R();
+  const S = results?.state;
+  const Z = L.sel;
+  disposeSelection();
+  if (!Z.ids?.length || !S?.mesh) { Z.summary = null; return; }
+  const f = S.fields[S.field];
+  if (f?.ok) {
+    const values = await results.values(S.field, S.step);
+    const scalar = results.samplingScalar(values);
+    Z.summary = { ...selectionSummary(scalar, Z.ids), label: results.statsLabel?.() || f.field, field: f.field, stepName: f.steps[S.step]?.name };
+  } else Z.summary = null;
+  const disp = results.disp?.() || null;
+  const pos = new Float32Array(Z.ids.length * 3);
+  Z.ids.forEach((i, k) => { for (let a = 0; a < 3; a += 1) pos[k * 3 + a] = S.mesh.coords[i * 3 + a] + (disp ? disp[i * 3 + a] : 0); });
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  const mesh = new THREE.Points(geometry, new THREE.PointsMaterial({ color: 0xff2bd6, size: 2, sizeAttenuation: false, depthTest: false, transparent: true, opacity: 0.45 }));
+  mesh.name = "results-analysis-selection";
+  mesh.renderOrder = 31;
+  mesh.frustumCulled = false;
+  results.frame().add(mesh);
+  Z.mesh = mesh;
+  Z.sig = signature();
+}
+
+/** The mean, min and max of the shown scalar over the selection, at every step of the field. */
+export async function selectionOverTime() {
+  const results = R();
+  const S = results?.state;
+  const Z = L.sel;
+  const f = S?.fields?.[S.field];
+  if (!Z.ids?.length || !f?.ok) { saySel("Select nodes and show a field first."); return null; }
+  Z.busy = true;
+  try {
+    const rows = [];
+    for (let k = 0; k < f.steps.length; k += 1) {
+      const sum = selectionSummary(results.samplingScalar(await results.values(S.field, k)), Z.ids);
+      rows.push({ time: timeOf(f.steps[k]), name: f.steps[k].name, ...sum });
+    }
+    Z.over = { rows, field: f.field, label: results.statsLabel?.() || f.field };
+    saySel(`${Z.ids.length.toLocaleString()} nodes over ${rows.length} step${rows.length > 1 ? "s" : ""} of ${f.field}.`);
+    return Z.over;
+  } finally {
+    Z.busy = false;
+    render();
+  }
+}
+
+function exportSelection() {
+  const results = R();
+  const S = results?.state;
+  const Z = L.sel;
+  if (!Z.ids?.length) { saySel("Nothing is selected."); return; }
+  const f = S.fields[S.field];
+  (async () => {
+    const lines = [`# ${Z.ids.length} selected nodes${f?.ok ? ` · ${f.field} at t=${f.steps[S.step]?.name}` : ""}`];
+    if (Z.over) {
+      lines.push("# selection over time", "time,step,min,max,mean,finite");
+      Z.over.rows.forEach((r) => lines.push([r.time, r.name, r.min, r.max, r.mean, r.finite].join(",")));
+      lines.push("");
+    }
+    if (f?.ok) {
+      const values = await results.values(S.field, S.step);
+      const desc = f.desc; const n = S.mesh.nodeCount; const nb = desc.nbDofs || values.length / n;
+      lines.push(["node", "x", "y", "z", ...desc.components.map((c) => c.key)].join(","));
+      for (const i of Z.ids) lines.push([i, S.mesh.coords[i * 3], S.mesh.coords[i * 3 + 1], S.mesh.coords[i * 3 + 2], ...desc.components.map((_, j) => (desc.blocked ? values[j * n + i] : values[i * nb + j]))].join(","));
+    } else {
+      lines.push("node,x,y,z");
+      for (const i of Z.ids) lines.push([i, S.mesh.coords[i * 3], S.mesh.coords[i * 3 + 1], S.mesh.coords[i * 3 + 2]].join(","));
+    }
+    downloadText(`selection_${Z.ids.length}_nodes${f?.ok ? `_${f.field.replace(/[^A-Za-z0-9]+/g, "_")}` : ""}.csv`, `${lines.join("\n")}\n`, "text/csv");
+  })();
+}
+
+function drawSelectionPlot(canvas, over) {
+  const w = canvas.clientWidth || 320; const h = 150;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+  const g = canvas.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, w, h);
+  const rows = over.rows.filter((r) => Number.isFinite(r.mean));
+  if (!rows.length) return;
+  const tx = rows.map((r) => r.time); const lo = Math.min(...rows.map((r) => r.min)); const hi = Math.max(...rows.map((r) => r.max));
+  const t0 = Math.min(...tx); const t1 = Math.max(...tx);
+  const pad = { l: 46, r: 8, t: 8, b: 22 };
+  const X = (t) => pad.l + (t1 > t0 ? (t - t0) / (t1 - t0) : 0.5) * (w - pad.l - pad.r);
+  const Y = (v) => h - pad.b - (hi > lo ? (v - lo) / (hi - lo) : 0.5) * (h - pad.t - pad.b);
+  g.strokeStyle = "rgba(200,210,230,0.25)"; g.beginPath(); g.moveTo(pad.l, pad.t); g.lineTo(pad.l, h - pad.b); g.lineTo(w - pad.r, h - pad.b); g.stroke();
+  g.fillStyle = "rgba(82,228,232,0.18)"; g.beginPath();
+  rows.forEach((r, k) => (k ? g.lineTo(X(r.time), Y(r.max)) : g.moveTo(X(r.time), Y(r.max))));
+  [...rows].reverse().forEach((r) => g.lineTo(X(r.time), Y(r.min)));
+  g.closePath(); g.fill();
+  g.strokeStyle = "#52e4e8"; g.lineWidth = 1.6; g.beginPath();
+  rows.forEach((r, k) => (k ? g.lineTo(X(r.time), Y(r.mean)) : g.moveTo(X(r.time), Y(r.mean))));
+  g.stroke();
+  rows.forEach((r) => { g.fillStyle = "#52e4e8"; g.beginPath(); g.arc(X(r.time), Y(r.mean), 2.5, 0, Math.PI * 2); g.fill(); });
+  g.fillStyle = "rgba(220,225,240,0.8)"; g.font = "10px system-ui, sans-serif";
+  g.fillText(formatValue(hi, hi - lo || 1), 2, pad.t + 8); g.fillText(formatValue(lo, hi - lo || 1), 2, h - pad.b);
+  g.fillText(`t=${rows[0].name}`, pad.l, h - 6); const last = `t=${rows.at(-1).name}`; g.fillText(last, w - pad.r - g.measureText(last).width, h - 6);
 }
 
 /* ── stream tracer ──────────────────────────────────────────────────────── */
@@ -1162,7 +1362,8 @@ export async function buildSheet() {
     const n = S.mesh.nodeCount;
     const nb = desc.nbDofs || values.length / n;
     const at = (i, j) => (desc.blocked ? values[j * n + i] : values[i * nb + j]);
-    const rows = G.surfaceOnly ? usedNodes(S.mesh.surface, n) : Int32Array.from({ length: n }, (_, i) => i);
+    let rows = G.surfaceOnly ? usedNodes(S.mesh.surface, n) : Int32Array.from({ length: n }, (_, i) => i);
+    if (G.selectionOnly && L.sel.ids?.length) { const keep = new Uint8Array(n); L.sel.ids.forEach((i) => { keep[i] = 1; }); rows = rows.filter((i) => keep[i]); }
     const cols = [
       { name: "node", get: (i) => i, int: true },
       { name: "x", get: (i) => S.mesh.coords[i * 3] },
@@ -1175,7 +1376,7 @@ export async function buildSheet() {
     G.data = { cols, rows, order: null, field: f.field, stepName: f.steps[S.step]?.name };
     G.key = signature();
     sortSheet();
-    G.text = `${rows.length.toLocaleString()} ${G.surfaceOnly ? "surface " : ""}nodes of ${f.field} at t=${G.data.stepName}.`;
+    G.text = `${rows.length.toLocaleString()} ${G.selectionOnly && L.sel.ids?.length ? "selected " : ""}${G.surfaceOnly ? "surface " : ""}nodes of ${f.field} at t=${G.data.stepName}.`;
     return G.data;
   } catch (error) {
     G.data = null;
@@ -1918,6 +2119,39 @@ export function render() {
   }
   host.append(glyph.details);
 
+  const ZL = L.sel;
+  const selCard = card("Selection", ZL.open);
+  selCard.details.addEventListener("toggle", () => { ZL.open = selCard.details.open; });
+  selCard.body.append(note("Drag a box over the view to select nodes — on the surface, or every node through the volume behind the box — then read the field over them, plot them over time, or keep only them in the spreadsheet."));
+  const modeSel = el("select", { class: "studio-select" });
+  [["surface", "Surface nodes in the box, front and back"], ["through", "Every node through the volume"]].forEach(([v, t]) => modeSel.append(new Option(t, v, false, v === ZL.mode)));
+  modeSel.addEventListener("change", () => { ZL.mode = modeSel.value; });
+  selCard.body.append(row("Select", modeSel));
+  selCard.body.append(el("div", { class: "studio-actions" },
+    button(ZL.armed ? "Drag a box…" : "Select in a box", "studio-primary", () => armSelection()),
+    button("Over time", "studio-secondary", () => selectionOverTime(), "Mean, min and max of the field shown over the selection at every step"),
+    button("Export CSV", "studio-secondary", exportSelection, "The selected nodes' values at this step, and the selection over time if plotted"),
+    button("Clear", "studio-secondary", () => { ZL.ids = null; ZL.summary = null; ZL.over = null; disposeSelection(); saySel("Selection cleared."); render(); }),
+  ));
+  selCard.body.append(el("div", { id: "ra-sel-status", class: "studio-readout" }, ZL.text));
+  if (ZL.summary) {
+    const u = ZL.summary;
+    const span = u.max - u.min || Math.abs(u.max) || 1;
+    selCard.body.append(el("dl", { class: "st-facts" },
+      el("dt", {}, "Nodes"), el("dd", {}, `${u.count.toLocaleString()}${u.finite < u.count ? ` (${u.finite.toLocaleString()} with a value)` : ""}`),
+      el("dt", {}, "Field"), el("dd", {}, `${u.label} · t=${u.stepName}`),
+      el("dt", {}, "Min"), el("dd", {}, formatValue(u.min, span)),
+      el("dt", {}, "Max"), el("dd", {}, formatValue(u.max, span)),
+      el("dt", {}, "Mean"), el("dd", {}, formatValue(u.mean, span)),
+    ));
+  }
+  if (ZL.over) {
+    const plotCanvas = el("canvas", { class: "fem-profile ra-plot", title: "Mean (line) and range (band) over the selection, by time" });
+    selCard.body.append(plotCanvas);
+    requestAnimationFrame(() => drawSelectionPlot(plotCanvas, ZL.over));
+  }
+  host.append(selCard.details);
+
   const ZS = L.stream;
   const stream = card("Stream tracer", ZS.on);
   const vf = vectorFields();
@@ -2111,6 +2345,12 @@ export function render() {
   surfaceOnly.checked = G.surfaceOnly;
   surfaceOnly.addEventListener("change", () => { G.surfaceOnly = surfaceOnly.checked; buildSheet(); });
   sheet.body.append(el("label", { class: "studio-check" }, surfaceOnly, "Surface nodes only"));
+  if (L.sel.ids?.length) {
+    const selOnly = el("input", { type: "checkbox" });
+    selOnly.checked = Boolean(G.selectionOnly);
+    selOnly.addEventListener("change", () => { G.selectionOnly = selOnly.checked; buildSheet(); });
+    sheet.body.append(el("label", { class: "studio-check" }, selOnly, `Only the ${L.sel.ids.length.toLocaleString()} selected nodes`));
+  }
   sheet.body.append(el("div", { class: "studio-actions" },
     button("Refresh", "studio-secondary", () => buildSheet()),
     button("Export CSV", "studio-secondary", exportSheet, "Every row, in the order shown"),
@@ -2290,6 +2530,7 @@ function follow() {
   const sig = signature();
   if (L.profile && sig !== L.sig && !L.busy) plot();
   if (L.glyph.on && sig !== L.glyph.sig) drawGlyphs();
+  if (L.sel.ids?.length && sig !== L.sel.sig && !L.sel.busy) { L.sel.sig = sig; summariseSelection().then(() => render()); }
   if (L.stream.on && sig + streamSignature() !== L.stream.sig && !L.stream.busy) traceStream();
   if (L.stats.open && L.stats.result && sig !== L.stats.sig && !L.stats.busy) computeStats();
   if (L.obs.result && obsSignature() !== L.obs.sig && !L.obs.busy) compareObservations();
@@ -2306,5 +2547,5 @@ function install() {
 
 if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", install); else install();
-  window.GeoIDResultsAnalysis = { plot, drawGlyphs, traceStream, computeStats, compareObservations, compareSource, invertSource, readSweep, listSweeps, buildSheet, screenshot, recordAnimation, currentState, saveState, loadState, buildModelReport, openModelReport, render, state: L };
+  window.GeoIDResultsAnalysis = { plot, drawGlyphs, traceStream, armSelection, selectRect, selectionOverTime, computeStats, compareObservations, compareSource, invertSource, readSweep, listSweeps, buildSheet, screenshot, recordAnimation, currentState, saveState, loadState, buildModelReport, openModelReport, render, state: L };
 }

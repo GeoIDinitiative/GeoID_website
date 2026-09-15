@@ -30,14 +30,14 @@ import {
   exposedFaces, thresholdKeep, keptTriangles,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
   groupResultFiles, timeOf, referencePlan, differenceOf, DERIVED_DOFS,
-} from "./gales-results.js?v=20260915-5945438";
-import { zipStore } from "./shapefile-writer.js?v=20260915-5945438";
-import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-5945438";
-import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-5945438";
-import { parseSolidProps } from "./strain-stress.js?v=20260915-5945438";
-import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-5945438";
-import { may, refusal } from "./membership.js?v=20260915-5945438";
-import { downloadText } from "./extraction.js?v=20260915-5945438";
+} from "./gales-results.js?v=20260915-1257e0b";
+import { zipStore } from "./shapefile-writer.js?v=20260915-1257e0b";
+import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-1257e0b";
+import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-1257e0b";
+import { parseSolidProps } from "./strain-stress.js?v=20260915-1257e0b";
+import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-1257e0b";
+import { may, refusal } from "./membership.js?v=20260915-1257e0b";
+import { downloadText } from "./extraction.js?v=20260915-1257e0b";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -1036,6 +1036,7 @@ async function refresh({ fit = false } = {}) {
       }
     }
 
+    scene.disp = disp;
     const view = S.mesh.dim === 3 ? S.view : S.view === "threshold" ? "threshold" : "surface";
     const sliced = await sliceFor(view);
 
@@ -2795,6 +2796,7 @@ if (typeof document !== "undefined" && typeof window !== "undefined" && typeof w
     // The results frame, for anything drawn in the mesh's own coordinates
     // (the mesh-quality overlay).
     frame: () => scene.frame,
+    disp: () => scene.disp || null,
     // Element quality of the open mesh, computed in the reader that holds its
     // cells (mesh-quality.js's analysis, arrays by transfer).
     quality: async () => (S.mesh ? (await getReader().call("quality", {})).analysis : null),

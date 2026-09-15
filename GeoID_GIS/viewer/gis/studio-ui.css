@@ -480,3 +480,12 @@
 #model-studio .ra-sheet tbody tr:hover td { background: rgba(82, 228, 232, 0.08); }
 #model-studio .ra-pager { align-items: center; flex-wrap: wrap; }
 #model-studio .ra-pager .studio-secondary { min-width: 1.9rem; padding-inline: 0.4rem; }
+
+/* The selection box drawn while dragging over the view. */
+#model-studio .ra-select-box {
+  position: fixed;
+  z-index: 40;
+  pointer-events: none;
+  border: 1px dashed var(--nav-accent, #ff2bd6);
+  background: rgba(255, 43, 214, 0.08);
+}

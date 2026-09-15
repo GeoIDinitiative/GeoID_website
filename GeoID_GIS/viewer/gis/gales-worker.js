@@ -18,11 +18,11 @@
  *   { id, type: "vtu", part, pointData, time } → { id, ok, blob, bytes, cells } (vtk-export.js; a Blob clones without copying)
  *   progress while parsing                 → { id, type: "progress", fraction }
  */
-import { parseMesh, sliceTets, isoTets, cellLocator, locatePoints, streamlines, domainStats, exposedFaces, thresholdKeep, keptTriangles } from "./gales-results.js?v=20260915-5945438";
-import { analyseMesh } from "./mesh-quality.js?v=20260915-5945438";
-import { derivedFields, materialAt } from "./strain-stress.js?v=20260915-5945438";
-import { parseTable, buildGrid, sampleGrid } from "./tomography.js?v=20260915-5945438";
-import { vtkCells, vtuParts } from "./vtk-export.js?v=20260915-5945438";
+import { parseMesh, sliceTets, isoTets, cellLocator, locatePoints, streamlines, domainStats, exposedFaces, thresholdKeep, keptTriangles } from "./gales-results.js?v=20260915-1257e0b";
+import { analyseMesh } from "./mesh-quality.js?v=20260915-1257e0b";
+import { derivedFields, materialAt } from "./strain-stress.js?v=20260915-1257e0b";
+import { parseTable, buildGrid, sampleGrid } from "./tomography.js?v=20260915-1257e0b";
+import { vtkCells, vtuParts } from "./vtk-export.js?v=20260915-1257e0b";
 
 let mesh = null;
 let locator = null; // built on the first locate, dropped with the mesh

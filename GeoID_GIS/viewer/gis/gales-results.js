@@ -1609,6 +1609,55 @@ export function sampleLocated(located, scalar) {
 }
 
 /**
+ * SELECTION through a screen rectangle — ParaView's frustum selection.
+ *
+ * Every candidate node (warped if `disp` is given) is carried through
+ * `matrix` (the frame's world matrix, column-major 16) and `viewProjection`
+ * (projection × view, column-major 16) to normalised device coordinates, and
+ * kept when it is in front of the camera and inside the rectangle, given in
+ * NDC as { x0, x1, y0, y1 } (either order). `candidates` limits the test to a
+ * set of nodes (the surface's, for "on the surface"); omitted, every node.
+ */
+export function selectInRect(coords, { disp = null, matrix, viewProjection, rect, candidates = null }) {
+  const m = matrix; const P = viewProjection;
+  const x0 = Math.min(rect.x0, rect.x1); const x1 = Math.max(rect.x0, rect.x1);
+  const y0 = Math.min(rect.y0, rect.y1); const y1 = Math.max(rect.y0, rect.y1);
+  const n = candidates ? candidates.length : coords.length / 3;
+  const out = [];
+  for (let k = 0; k < n; k += 1) {
+    const i = candidates ? candidates[k] : k;
+    const px = coords[i * 3] + (disp ? disp[i * 3] : 0);
+    const py = coords[i * 3 + 1] + (disp ? disp[i * 3 + 1] : 0);
+    const pz = coords[i * 3 + 2] + (disp ? disp[i * 3 + 2] : 0);
+    const wx = m[0] * px + m[4] * py + m[8] * pz + m[12];
+    const wy = m[1] * px + m[5] * py + m[9] * pz + m[13];
+    const wz = m[2] * px + m[6] * py + m[10] * pz + m[14];
+    const cw = P[3] * wx + P[7] * wy + P[11] * wz + P[15];
+    if (!(cw > 0)) continue;
+    const nx = (P[0] * wx + P[4] * wy + P[8] * wz + P[12]) / cw;
+    if (nx < x0 || nx > x1) continue;
+    const ny = (P[1] * wx + P[5] * wy + P[9] * wz + P[13]) / cw;
+    if (ny < y0 || ny > y1) continue;
+    const nz = (P[2] * wx + P[6] * wy + P[10] * wz + P[14]) / cw;
+    if (nz < -1 || nz > 1) continue;
+    out.push(i);
+  }
+  return Int32Array.from(out);
+}
+
+/** A scalar over a selection: count, finite count, min, max, mean. */
+export function selectionSummary(scalar, ids) {
+  let lo = Infinity; let hi = -Infinity; let sum = 0; let finite = 0;
+  for (const i of ids) {
+    const v = scalar[i];
+    if (!Number.isFinite(v)) continue;
+    finite += 1; sum += v;
+    if (v < lo) lo = v; if (v > hi) hi = v;
+  }
+  return { count: ids.length, finite, min: finite ? lo : NaN, max: finite ? hi : NaN, mean: finite ? sum / finite : NaN };
+}
+
+/**
  * TEMPORAL STATISTICS: each node's minimum, maximum, mean and standard
  * deviation over the steps of one scalar, with the time of the minimum and of
  * the maximum — ParaView's Temporal Statistics. Steps are added one at a time
