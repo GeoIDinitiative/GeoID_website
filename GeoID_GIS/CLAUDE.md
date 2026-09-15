@@ -20227,3 +20227,35 @@ nodes, subsampled to 500, 2,000 or 8,000.
   field, and they follow the step.
 - **Etna.** Its surface displacement is mostly vertical, so from above the
   arrows read as dots. That is the solution, not a fault.
+
+## Stress and strain, derived from u in the reader
+
+GALES's solid writes `results/solid/u` and nothing else, so the Results reader
+derives stress and strain itself. `gis/strain-stress.js` is the pure half
+(14 checks), the worker's `derive` request runs it, and the panel offers one
+extra field per 3D displacement: "Stress and strain · derived from solid/u".
+It has 16 components: εxx εyy εzz εxy εyz εxz, σxx σyy σzz σxy σyz σxz, von
+Mises, σ₁, σ₃ and volumetric strain. It opens on von Mises.
+
+- **Linear tets have constant strain.** Each element's strain is sym(∇u), its
+  stress is λ tr(ε) I + 2μ ε, and element values go to the nodes as a
+  volume-weighted average. The principal stresses come from the analytic
+  symmetric eigen solution. The checks: uniaxial strain, simple shear, and a
+  rigid rotation reading zero strain. A 2D mesh is refused rather than guessed
+  at (plane strain against plane stress).
+- **The material is the run's own.** `parseSolidProps` reads `props.txt` in all
+  three GALES forms: uniform, `heterogeneous_layers z-wise`, and
+  `heterogeneous_pointwise` with its grid file, sampled through
+  `tomography.sampleGrid`. With no solid props the field is strain only, and
+  its label says so.
+- **A derived step has no bytes on disk.** Its steps carry `source` (the u file)
+  and a `derived:` path. `valuesAt` computes them, and the probe series and
+  station extraction skip the byte-range read for them.
+- **Verified exactly against numpy** on Etna node 25018 (8 incident tets). exx
+  −5.397079965e-4, ezz −1.30540898e-3, sxx −34,785,544.22 Pa, szz −50,099,563.98
+  Pa and ev −2.39913843e-3 agree to all printed digits. Etna's props.txt is
+  uniform (E 25 GPa, ν 0.25). All 1.4M tets take 780 ms in the worker, and von
+  Mises reads 0 to 256 MPa on step 1.
+- **Legend ticks drop the digits they do not need** (`tickLabel`): 5.000e+7
+  beside 1.000e+8 overprinted its neighbours under a 15rem bar, while 5e7 and
+  1e8 do not. The min/max line keeps `formatValue`'s precision.

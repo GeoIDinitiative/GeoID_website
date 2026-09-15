@@ -25,14 +25,15 @@
 import * as THREE from "../vendor/three.module.js";
 import {
   planSimulation, describeField, dofsPerNode, float64View, componentOf, magnitudeOf,
-  rangeOf, usedNodes, COLORMAPS, colormapTable, colourValues, niceTicks, formatValue,
+  rangeOf, usedNodes, COLORMAPS, colormapTable, colourValues, niceTicks, formatValue, tickLabel,
   interpolateOnSlice, axisPlane, nodeByteRange, probeCsv, parseMesh, sliceTets,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
   groupResultFiles, timeOf,
-} from "./gales-results.js?v=20260915-b1aefb2";
-import { zipStore } from "./shapefile-writer.js?v=20260915-b1aefb2";
-import { may, refusal } from "./membership.js?v=20260915-b1aefb2";
-import { downloadText } from "./extraction.js?v=20260915-b1aefb2";
+} from "./gales-results.js?v=20260915-c61e03b";
+import { zipStore } from "./shapefile-writer.js?v=20260915-c61e03b";
+import { parseSolidProps } from "./strain-stress.js?v=20260915-c61e03b";
+import { may, refusal } from "./membership.js?v=20260915-c61e03b";
+import { downloadText } from "./extraction.js?v=20260915-c61e03b";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -121,6 +122,12 @@ function getReader() {
         return Promise.resolve({ ok: true, mesh: { ...local, tets: local.cellCount } });
       }
       if (type === "slice") return Promise.resolve({ ok: true, slice: sliceTets(local, payload.normal, payload.d) });
+      if (type === "derive") return import(`./strain-stress.js${VERSION}`).then(async (ss) => {
+        const t = await import(`./tomography.js${VERSION}`);
+        const spec = payload.material;
+        const grid = spec?.kind === "pointwise" && payload.gridText ? t.buildGrid(t.parseTable(payload.gridText), { dim: spec.dim }) : null;
+        return { ok: true, derived: ss.derivedFields(local, new Float64Array(payload.u), payload.nbDofs, ss.materialAt(spec, grid?.ok ? grid : null, t.sampleGrid)) };
+      });
       if (type === "locate") return import(`./gales-results.js${VERSION}`).then((g) => ({ ok: true, located: g.locatePoints(g.cellLocator(local), payload.points) }));
       if (type === "quality") return import(`./mesh-quality.js${VERSION}`).then((q) => ({ ok: true, analysis: local ? q.analyseMesh(local) : null }));
       return Promise.resolve({ ok: true });
@@ -303,6 +310,7 @@ async function addFiles(fileList, kind) {
   stopPlay();
   if (fresh) cache.clear();
   S.source = source;
+  S.material = undefined;
   S.meshHints = [...new Set([...got.meshes, ...(fresh ? [] : S.meshHints)])];
   const setup = source.entries.find((e) => /(^|\/)setup\.txt$/.test(e.path) && e.path.split("/").length <= 2);
   const setupText = setup ? await source.text(setup.path).catch(() => "") : "";
@@ -369,6 +377,7 @@ async function openSource(source) {
   stopPlay();
   S.source = source;
   S.meshHints = [];
+  S.material = undefined;
   cache.clear();
   const setup = source.entries.find((e) => /(^|\/)setup\.txt$/.test(e.path) && e.path.split("/").length <= 2);
   const setupText = setup ? await source.text(setup.path).catch(() => "") : "";
@@ -438,6 +447,42 @@ function classifyFields() {
       ? { ...f, ok: true, nbDofs: fit.nbDofs, desc: describeField(f.field, fit.nbDofs, S.mesh.dim), reason: "" }
       : { ...f, ok: false, nbDofs: null, desc: null, reason: fit.reason };
   });
+  // STRESS AND STRAIN, derived from the displacement on demand: GALES's solid
+  // writes u and nothing else. One derived field per displacement field, its
+  // steps the displacement's, read through the reader worker.
+  if (S.mesh?.dim === 3) {
+    const u = S.fields.find((f) => f.ok && !f.derived && (f.desc ? f.desc.displacement && f.nbDofs >= 3 && !/fluid_mesh/.test(f.field) : /(^|\/)(solid\/u|u|elastostatic_dofs)$/.test(f.field)));
+    if (u) {
+      S.fields.push({
+        field: "derived/stress", derived: true, from: u.field, ok: true, nbDofs: 16, reason: "",
+        desc: describeField("derived/stress", 16, 3),
+        steps: u.steps.map((st) => ({ ...st, path: `derived:${st.path}`, source: st.path, size: n * 16 * 8 })),
+      });
+    }
+  }
+}
+
+/** The run's material, for the derived stresses: props.txt, and a pointwise grid file. */
+async function runMaterial() {
+  if (S.material !== undefined) return S.material;
+  S.material = null;
+  const src = S.source;
+  const props = src?.entries.find((e) => /(^|\/)props\.txt$/.test(e.path) && !/(^|\/)(results|build)\//.test(e.path));
+  if (!props) return null;
+  try {
+    const spec = parseSolidProps(await src.text(props.path));
+    if (!spec) return null;
+    let gridText = "";
+    if (spec.kind === "pointwise") {
+      const file = src.entries.find((e) => e.path.endsWith(`input/${spec.file}`));
+      if (file) gridText = await src.text(file.path);
+      else if (Number.isFinite(spec.fallback?.E) && Number.isFinite(spec.fallback?.nu)) S.material = { spec: { kind: "uniform", E: spec.fallback.E, nu: spec.fallback.nu }, gridText: "", note: `input/${spec.file} is not in this run: the uniform fallback is used` };
+    }
+    S.material = S.material || { spec, gridText, note: "" };
+  } catch (e) {
+    S.material = null;
+  }
+  return S.material;
 }
 
 async function valuesAt(fieldIndex, stepIndex) {
@@ -449,6 +494,19 @@ async function valuesAt(fieldIndex, stepIndex) {
     cache.delete(step.path);
     cache.set(step.path, hit);
     return hit;
+  }
+  if (f.derived) {
+    const raw = float64View(await S.source.read(step.source));
+    const base = S.fields.find((x) => x.field === f.from);
+    const mat = await runMaterial();
+    const u = Float64Array.from(raw);
+    const { derived } = await getReader().call("derive", { u: u.buffer, nbDofs: raw.length / S.mesh.nodeCount, material: mat?.spec || null, gridText: mat?.gridText || "" }, [u.buffer]);
+    f.stress = derived.stress;
+    if (!derived.stress && !f.desc.label.includes("strain only")) f.desc = { ...f.desc, label: "Stress and strain (strain only: no solid props.txt in this run)" };
+    if (base && !base.desc) { base.nbDofs = raw.length / S.mesh.nodeCount; }
+    cache.set(step.path, derived.values);
+    while (cache.size > CACHE_STEPS) cache.delete(cache.keys().next().value);
+    return derived.values;
   }
   const buffer = await S.source.read(step.path);
   const fit = dofsPerNode(buffer.byteLength, S.mesh.nodeCount);
@@ -732,7 +790,7 @@ async function refresh({ fit = false } = {}) {
       const values = await valuesAt(S.field, S.step);
       desc = f.desc;
       if (!S.component || (S.component === "mag" && !desc.vector) || (S.component !== "mag" && Number(S.component) >= desc.nbDofs)) {
-        S.component = desc.vector ? "mag" : "0";
+        S.component = desc.vector ? "mag" : desc.defaultComponent || "0";
         renderControls();
       }
       scalar = scalarOf(values, desc);
@@ -998,7 +1056,8 @@ async function probeSeries() {
     status(`Reading node ${node} through ${f.field}: ${k + 1} / ${f.steps.length}`);
     let values;
     const nb = f.nbDofs;
-    const range = nb && !f.desc?.blocked ? nodeByteRange(node, S.mesh.nodeCount, nb) : null;
+    // A derived field has no bytes of its own on disk: it is computed per step.
+    const range = nb && !f.desc?.blocked && !f.derived ? nodeByteRange(node, S.mesh.nodeCount, nb) : null;
     if (range) {
       const part = float64View(await S.source.readRange(step.path, range[0], range[1]));
       values = [...part];
@@ -1087,10 +1146,10 @@ function renderLegend(desc, lo, hi, table) {
   const ticks = el("div", { class: "gales-legend-ticks" });
   const span = hi - lo;
   if (S.log && lo > 0) {
-    [lo, Math.sqrt(lo * hi), hi].forEach((v, k) => ticks.append(el("span", { style: `left:${k * 50}%` }, formatValue(v, v))));
+    [lo, Math.sqrt(lo * hi), hi].forEach((v, k) => ticks.append(el("span", { style: `left:${k * 50}%` }, tickLabel(v, v))));
   } else {
     const values = span > 0 ? niceTicks(lo, hi, 5) : [lo];
-    values.forEach((v) => ticks.append(el("span", { style: `left:${span > 0 ? ((v - lo) / span) * 100 : 50}%` }, formatValue(v, span || Math.abs(v) || 1))));
+    values.forEach((v) => ticks.append(el("span", { style: `left:${span > 0 ? ((v - lo) / span) * 100 : 50}%` }, tickLabel(v, span || Math.abs(v) || 1))));
   }
   node.append(ticks);
   node.append(el("div", { class: "gales-legend-ends" }, `min ${formatValue(lo, span || 1)}   max ${formatValue(hi, span || 1)}`));
@@ -1247,7 +1306,7 @@ function renderControls() {
 
   // Field
   const fs = section("field", "Field and time");
-  const fieldOptions = S.fields.map((f, k) => [k, `${f.field}${f.nbDofs ? ` · ${f.nbDofs} dof${f.nbDofs > 1 ? "s" : ""}` : ""} · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}${f.ok ? "" : " — other mesh"}`, !f.ok]);
+  const fieldOptions = S.fields.map((f, k) => [k, f.derived ? `Stress and strain · derived from ${f.from} · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}` : `${f.field}${f.nbDofs ? ` · ${f.nbDofs} dof${f.nbDofs > 1 ? "s" : ""}` : ""} · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}${f.ok ? "" : " — other mesh"}`, !f.ok]);
   fs.body.append(row("Field", select([[-1, "— geometry only —"], ...fieldOptions], S.field, (v) => {
     S.field = Number(v);
     const f = S.fields[S.field];
@@ -1583,14 +1642,14 @@ async function extractStations() {
       const step = f.steps[k];
       status(`Extracting ${f.field}: step ${k + 1} of ${f.steps.length} at ${N} point(s)…`);
       // A few points read their own bytes; many read the step once.
-      if (!d.blocked && N <= 24) {
+      if (!d.blocked && !f.derived && N <= 24) {
         for (let si = 0; si < N; si += 1) {
           const [a, b] = nodeByteRange(stations[si].node, n, nb);
           const part = float64View(await S.source.readRange(step.path, a, b));
           for (let j = 0; j < nb; j += 1) values[(k * N + si) * nb + j] = part[j];
         }
       } else {
-        const whole = cache.get(step.path) || float64View(await S.source.read(step.path));
+        const whole = f.derived ? await valuesAt(fi, k) : cache.get(step.path) || float64View(await S.source.read(step.path));
         for (let si = 0; si < N; si += 1) {
           const node = stations[si].node;
           for (let j = 0; j < nb; j += 1) values[(k * N + si) * nb + j] = d.blocked ? whole[j * n + node] : whole[node * nb + j];

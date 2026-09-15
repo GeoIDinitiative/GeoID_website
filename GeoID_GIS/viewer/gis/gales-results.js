@@ -624,6 +624,16 @@ export function groupResultFiles(entries, { looseField = "" } = {}) {
     .sort((a, b) => a.field.localeCompare(b.field));
 }
 
+/** The components of the derived stress field, in strain-stress.js's order. */
+const DERIVED_LABELS = [
+  ["exx", "Strain εxx", ""], ["eyy", "Strain εyy", ""], ["ezz", "Strain εzz", ""],
+  ["exy", "Strain εxy", ""], ["eyz", "Strain εyz", ""], ["exz", "Strain εxz", ""],
+  ["sxx", "Stress σxx", "Pa"], ["syy", "Stress σyy", "Pa"], ["szz", "Stress σzz", "Pa"],
+  ["sxy", "Stress σxy", "Pa"], ["syz", "Stress σyz", "Pa"], ["sxz", "Stress σxz", "Pa"],
+  ["vm", "Von Mises stress", "Pa"], ["s1", "Max principal stress σ₁", "Pa"], ["s3", "Min principal stress σ₃", "Pa"],
+  ["ev", "Volumetric strain", ""],
+].map(([key, label, unit]) => ({ key, label, unit }));
+
 const VEC = (dim, prefix, unit, label) => ({
   components: ["x", "y", "z"].slice(0, dim).map((c) => ({ key: `${prefix}${c}`, label: `${label} ${c}`, unit })),
 });
@@ -652,7 +662,9 @@ export function describeField(field, nbDofs, dim = 3) {
   if (/(^|\/)u$|elastostatic_dofs$/.test(f)) out = vectorOf("Displacement", "m", "u", { displacement: [...Array(Math.min(dim, nbDofs)).keys()] });
   else if (/(^|\/)v$/.test(f)) out = vectorOf("Velocity", "m/s", "v");
   else if (/(^|\/)a$/.test(f)) out = vectorOf("Acceleration", "m/s²", "a");
-  else if (/fluid_mesh$/.test(f)) out = { ...vectorOf("Mesh displacement", "m", "d", { displacement: [...Array(Math.min(dim, nbDofs)).keys()] }), blocked: true };
+  else if (/^derived\/stress$/.test(f)) {
+    out = { label: "Stress and strain", blocked: false, derived: true, defaultComponent: "12", components: DERIVED_LABELS.slice(0, nbDofs) };
+  } else if (/fluid_mesh$/.test(f)) out = { ...vectorOf("Mesh displacement", "m", "d", { displacement: [...Array(Math.min(dim, nbDofs)).keys()] }), blocked: true };
   else if (/^fluid_(dot_)?dofs$/.test(f)) {
     const dot = /dot/.test(f) ? " rate" : "";
     const comps = [{ key: "p", label: `Pressure${dot}`, unit: dot ? "Pa/s" : "Pa" }];
@@ -840,6 +852,17 @@ export function formatValue(v, span = Math.abs(v)) {
   if (a !== 0 && (a >= 1e6 || a < 1e-3)) return v.toExponential(3);
   const digits = span >= 100 ? 0 : span >= 10 ? 1 : span >= 1 ? 2 : span >= 0.1 ? 3 : 4;
   return v.toFixed(digits);
+}
+
+/**
+ * A tick label is read at a glance under a 15rem bar, so an exponent keeps
+ * only the digits it needs: 5.000e+7 beside 1.000e+8 overprints its
+ * neighbours, where 5e7 and 1e8 do not. The ends line keeps formatValue.
+ */
+export function tickLabel(v, span = Math.abs(v)) {
+  const text = formatValue(v, span);
+  if (!/e/.test(text)) return text;
+  return text.replace(/\.?0+e/, "e").replace("e+", "e");
 }
 
 // ── Slicing ─────────────────────────────────────────────────────────────────

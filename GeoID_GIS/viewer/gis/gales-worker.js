@@ -10,14 +10,18 @@
  *   { id, type: "parse", buffer }          → { id, ok, mesh }
  *   { id, type: "slice", normal, d }       → { id, ok, slice }
  *   { id, type: "locate", points }         → { id, ok, located }  (nodes ×4, weights ×4 per point)
+ *   { id, type: "derive", u, nbDofs, material, gridText } → { id, ok, derived } (strain-stress.js)
  *   { id, type: "quality" }                → { id, ok, analysis }  (mesh-quality.js, by transfer)
  *   progress while parsing                 → { id, type: "progress", fraction }
  */
-import { parseMesh, sliceTets, cellLocator, locatePoints } from "./gales-results.js?v=20260915-b1aefb2";
-import { analyseMesh } from "./mesh-quality.js?v=20260915-b1aefb2";
+import { parseMesh, sliceTets, cellLocator, locatePoints } from "./gales-results.js?v=20260915-c61e03b";
+import { analyseMesh } from "./mesh-quality.js?v=20260915-c61e03b";
+import { derivedFields, materialAt } from "./strain-stress.js?v=20260915-c61e03b";
+import { parseTable, buildGrid, sampleGrid } from "./tomography.js?v=20260915-c61e03b";
 
 let mesh = null;
 let locator = null; // built on the first locate, dropped with the mesh
+let material = { key: "", fn: null }; // the run's E and nu as a function of position
 
 function reply(message, transfer = []) {
   self.postMessage(message, transfer);
@@ -59,6 +63,20 @@ async function handle(event) {
       if (!locator) locator = cellLocator(mesh);
       const located = locatePoints(locator, event.data.points);
       reply({ id, ok: true, located }, [located.nodes.buffer, located.weights.buffer]);
+      return;
+    }
+    if (type === "derive") {
+      // Strain and stress from one displacement step, with the run's own material.
+      if (!mesh) throw new Error("No mesh is loaded in the reader.");
+      const key = JSON.stringify(event.data.material || null) + (event.data.gridText ? `|${event.data.gridText.length}` : "");
+      if (material.key !== key) {
+        const spec = event.data.material;
+        let grid = null;
+        if (spec?.kind === "pointwise" && event.data.gridText) grid = buildGrid(parseTable(event.data.gridText), { dim: spec.dim });
+        material = { key, fn: materialAt(spec, grid?.ok ? grid : null, sampleGrid) };
+      }
+      const out = derivedFields(mesh, new Float64Array(event.data.u), event.data.nbDofs, material.fn);
+      reply({ id, ok: true, derived: out }, [out.values.buffer]);
       return;
     }
     if (type === "quality") {

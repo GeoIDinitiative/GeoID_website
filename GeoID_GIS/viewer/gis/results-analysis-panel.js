@@ -22,8 +22,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, formatValue } from "./gales-results.js?v=20260915-b1aefb2";
-import { downloadText } from "./extraction.js?v=20260915-b1aefb2";
+import { lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, formatValue } from "./gales-results.js?v=20260915-c61e03b";
+import { downloadText } from "./extraction.js?v=20260915-c61e03b";
 
 const byId = (id) => document.getElementById(id);
 const R = () => window.GeoIDGalesResults;

@@ -12,7 +12,7 @@ import {
   ByteCursor, sniffMesh, parseGalesMesh, parseMsh, parseMesh, exposedTetFaces,
   timeOf, groupResultFiles, describeField, dofsPerNode, float64View, componentOf,
   magnitudeOf, nodeByteRange, rangeOf, usedNodes, colormapTable, colourValues,
-  niceTicks, formatValue, sliceTets, interpolateOnSlice, axisPlane, nearestNode,
+  niceTicks, formatValue, tickLabel, sliceTets, interpolateOnSlice, axisPlane, nearestNode,
   probeCsv, planSimulation, COLORMAPS, flagSummary, stationsForFlag, nodeLocator, specPoints,
   parsePointList, stationCsvFiles,
 } from "./gales-results.js";
@@ -494,4 +494,18 @@ check("a mesh opened onto a loaded run starts a new run; results join the open o
   check("analysis: an Analysis tab in the Analyse workspace on both pages, loaded on both", index.includes('data-group="analysis"') && shellHtml.includes('id="studio-analysis-host"') && /src="gis\/results-analysis-panel\.js\?v=/.test(index) && /"\.\/results-analysis-panel\.js",/.test(readFileSync(new URL("./boot.js", import.meta.url), "utf8")));
   check("analysis: the profile is sampled through the located weights, not the nearest node, and follows the Results selection", /sampleLocated\(loc, results\.scalar/.test(analysis) && /if \(L\.profile && sig !== L\.sig && !L\.busy\) plot\(\)/.test(analysis));
   check("analysis: no style block of its own", !analysis.includes("const STYLE = `"));
+}
+{
+  // Derived stress and strain: the worker computes them from u, the panel
+  // offers them as a field of their own, and the legend can read a Pa scale.
+  const worker = readFileSync(new URL("./gales-worker.js", import.meta.url), "utf8");
+  const panel = readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8");
+  check("derived: the worker answers a derive request through strain-stress.js and transfers the values", /type === "derive"/.test(worker) && /derivedFields\(mesh,/.test(worker) && /\[out\.values\.buffer\]/.test(worker));
+  check("derived: a 3D displacement field adds one 16-dof stress field whose steps read the displacement's files", /field: "derived\/stress", derived: true/.test(panel) && /source: st\.path/.test(panel) && /nbDofs: 16/.test(panel));
+  check("derived: valuesAt computes a derived step rather than reading bytes, and says when there is no props.txt", /if \(f\.derived\) \{/.test(panel) && /call\("derive"/.test(panel) && /strain only: no solid props\.txt/.test(panel));
+  check("derived: the probe series never byte-reads a derived field", /!f\.derived \? nodeByteRange/.test(panel));
+  const d = describeField("derived/stress", 16, 3);
+  check("derived: describeField names the stress field and defaults to von Mises", d && d.defaultComponent === "12" && /stress/i.test(d.label || ""), JSON.stringify(d && { label: d.label, def: d.defaultComponent }));
+  check("tickLabel: an exponent keeps only its digits", tickLabel(5e7, 2.5e8) === "5e7" && tickLabel(1.5e8, 2.5e8) === "1.5e8" && tickLabel(2.5, 85) === "2.5");
+  check("tickLabel: the legend ticks use it, the ends line keeps formatValue", /tickLabel\(v, span \|\| Math\.abs\(v\) \|\| 1\)/.test(panel) && /min \$\{formatValue\(lo/.test(panel));
 }
