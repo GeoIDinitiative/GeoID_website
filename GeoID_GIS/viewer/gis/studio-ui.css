@@ -608,3 +608,15 @@
 #model-studio .studio-help-keys { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 0.9rem; font-size: 0.78rem; }
 #model-studio .studio-help-keys dt { font-family: ui-monospace, "JetBrains Mono", monospace; color: var(--nav-accent, #ff2bd6); }
 #model-studio .studio-help-keys dd { margin: 0; opacity: 0.85; }
+
+/* ── The command palette: find a control by name ────────────────────────── */
+#model-studio .studio-finder { position: fixed; inset: 0; z-index: 61; display: flex; align-items: flex-start; justify-content: center; padding-top: 12vh; background: rgba(6, 2, 14, 0.5); }
+#model-studio .studio-finder[hidden] { display: none !important; }
+#model-studio .studio-finder-card { width: min(34rem, calc(100vw - 2rem)); border: 1px solid rgba(var(--st-accent-rgb), 0.5); border-radius: 0.8rem; background: rgb(16, 7, 36); box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.6); overflow: hidden; }
+#model-studio .studio-finder-input { width: 100%; box-sizing: border-box; border: 0; border-bottom: 1px solid rgba(var(--st-accent-rgb), 0.3); border-radius: 0; padding: 0.7rem 0.9rem; font-size: 0.95rem; background: transparent; }
+#model-studio .studio-finder-list { max-height: min(24rem, 60vh); overflow-y: auto; padding: 0.3rem; }
+#model-studio .studio-finder-item { display: flex; gap: 0.6rem; align-items: baseline; width: 100%; padding: 0.4rem 0.6rem; border: 0; border-radius: 0.4rem; background: transparent; color: var(--text, #f0ecff); font: inherit; text-align: left; cursor: pointer; }
+#model-studio .studio-finder-item.is-active { background: rgba(var(--st-accent-rgb), 0.18); }
+#model-studio .studio-finder-label { flex: 1 1 auto; font-size: 0.84rem; }
+#model-studio .studio-finder-path { flex: 0 0 auto; font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.6; }
+#model-studio .studio-finder-empty { padding: 0.8rem; font-size: 0.8rem; opacity: 0.7; }

@@ -21006,3 +21006,18 @@ hub's Signal Processing page.
 - **The deck's tabs are named for what they hold**: Geometry, Domains and faces,
   Labels, Study and solve, Structured mesh, Refinement (ids unchanged; both
   index.html and gis/shell.html, pinned equal by the test).
+
+## The command palette: find a control by name
+
+`gis/studio-palette.js` — Ctrl/⌘-K, or ⌕ in the ribbon — opens a box that finds
+anything on the Model page and goes there: the ribbon's menu actions and view
+buttons, the deck's tabs, the Results panel's sections, the Analysis cards, the
+display views and the analyses' own verbs by seam, the other pages, the help
+and the start page. The list is GATHERED FROM THE PAGE WHEN THE BOX OPENS (the
+buttons and sections that exist), so a control added anywhere is found without
+being registered, and nothing here can name a control that is not there. Every
+word of the query must match; a label hit outranks a keyword hit and a shorter
+label wins a tie (`search` is pure and pinned). Enter runs the highlighted
+entry: a button is clicked, a section or card is opened in its tab and scrolled
+to. The box swallows its own keys, or the studio's Delete and the toolbar's
+`.`/`,` would fire while typing.
