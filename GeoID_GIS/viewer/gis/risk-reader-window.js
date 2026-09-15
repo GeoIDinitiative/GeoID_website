@@ -15,19 +15,19 @@
  *  - the window OPENS for a newly developed map and nothing else: an update
  *    re-reads in place, and a closed window stays closed until the next new map;
  *  - a map that is not a hazard (a DEM, soil thickness) is read only on request,
- *    from its layer drawer — banding an elevation by value unasked is noise;
+ *    on request — banding an elevation by value unasked is noise;
  *  - one reading at a time, debounced, and WorldPop is read once per box.
  *
  * Doors: automatic, the Workspace header's shield, and "Risk to people" in any
- * readable layer's drawer. Hazards ▸ Exposure reads through the same engine.
+ * Workspace shield. Hazards ▸ Exposure reads through the same engine.
  */
 
-import { riskMapKind, riskMaps, assessLayer, hazardKey, hazardTitle, readableMember, chooseFollowed, FOLLOW_REASONS, ringsBox } from "./risk-reader.js?v=20260915-41d940b";
-import { renderAssessment, annotationOf, el } from "./risk-reader-view.js?v=20260915-41d940b";
-import { refreshPolygonOptions, promptDrawTool } from "./extent-picker.js?v=20260915-41d940b";
-import { showAnnotation, removeAnnotation } from "./exposure-annotation.js?v=20260915-41d940b";
-import { formatCount } from "./risk-assessment.js?v=20260915-41d940b";
-import { visibleBounds, onViewSettled } from "./view-extent.js?v=20260915-41d940b";
+import { riskMapKind, riskMaps, assessLayer, hazardKey, hazardTitle, readableMember, chooseFollowed, FOLLOW_REASONS, ringsBox } from "./risk-reader.js?v=20260915-350d02d";
+import { renderAssessment, annotationOf, el } from "./risk-reader-view.js?v=20260915-350d02d";
+import { refreshPolygonOptions, promptDrawTool } from "./extent-picker.js?v=20260915-350d02d";
+import { showAnnotation, removeAnnotation } from "./exposure-annotation.js?v=20260915-350d02d";
+import { formatCount } from "./risk-assessment.js?v=20260915-350d02d";
+import { visibleBounds, onViewSettled } from "./view-extent.js?v=20260915-350d02d";
 
 const NOTE_ID = "risk-reader";
 const POS_KEY = "geoid-gis:risk-reader-pos";
@@ -166,9 +166,14 @@ async function drain() {
     try {
       if (tab === state.active) say(`Reading people under ${tab.title}…`);
       const first = !tab.assessment && !tab.error;
-      const out = await assessLayer(member.layer, state.areaChoice);
+      // The view is read fresh for every read: a settle is what schedules a
+      // re-read, but the box a read uses must be the camera's now, not the
+      // last settle's (or null, before the first).
+      await readView();
+      const out = await assessLayer(member.layer, state.areaChoice, { viewBox: state.viewBox });
       tab.assessment = out.assessment;
       tab.areaBox = out.area?.polys?.length ? ringsBox(out.area.polys) : null;
+      tab.areaFromView = Boolean(out.area?.fromView);
       tab.error = null;
       tab.stale = false;
       tab.readName = member.layer.name;
@@ -287,7 +292,7 @@ function build() {
     renderFrom();
   });
   const area = el("select", { id: "risk-reader-area", class: "input", "aria-label": "Study area" });
-  area.append(el("option", { value: "auto" }, "Automatic — the drawn area, else the map's own"), el("option", { value: "drawn" }, "The drawn area"));
+  area.append(el("option", { value: "auto" }, "Automatic — the drawn area, else the map's own, else the view"), el("option", { value: "drawn" }, "The drawn area"));
   const draw = el("button", { type: "button", class: "button secondary" }, "Draw");
   draw.title = "Draw a study area; every map is read again when it is done";
   draw.addEventListener("click", () => promptDrawTool());
@@ -607,6 +612,14 @@ function install() {
       if (!tabs.size) return;
       await readView();
       refollow();
+      // A map read over THE VIEW is read again where the view has settled,
+      // and one that was too wide to read is tried again now it may not be.
+      // Exposure is a property of the map, so it follows the camera the way
+      // the map's own refine does. Only shown tabs, and only those.
+      tabs.forEach((tab) => {
+        if (tab.hidden || state.areaChoice !== "auto") return;
+        if (tab.areaFromView || /zoom in/.test(tab.error || "")) enqueue(tab);
+      });
     }, { settleMs: 700 });
   };
   watchView();

@@ -10,17 +10,17 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { bandOf } from "./draw-order.js?v=20260915-41d940b";
-import { paintOpacity } from "./layer-opacity.js?v=20260915-41d940b";
-import { currentBody } from "./bodies.js?v=20260915-41d940b";
-import { samplerToRaster } from "./raster-analysis.js?v=20260915-41d940b";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260915-41d940b";
-import { datasetInfoButton } from "./catalogue-list.js?v=20260915-41d940b";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260915-41d940b";
+import { bandOf } from "./draw-order.js?v=20260915-350d02d";
+import { paintOpacity } from "./layer-opacity.js?v=20260915-350d02d";
+import { currentBody } from "./bodies.js?v=20260915-350d02d";
+import { samplerToRaster } from "./raster-analysis.js?v=20260915-350d02d";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260915-350d02d";
+import { datasetInfoButton } from "./catalogue-list.js?v=20260915-350d02d";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260915-350d02d";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20260915-41d940b";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260915-41d940b";
+} from "./symbology-dialog.js?v=20260915-350d02d";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260915-350d02d";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -803,14 +803,11 @@ function optionsTile(layer) {
    * sampler (no legend to invert) would grid colours pretending to be values,
    * and the source list already tells that layer's user why.
    */
-  /**
-   * PEOPLE AT RISK, read off this map. Offered on every map the risk reader
-   * can read -- a hazard map is also read unasked when it is developed; any
-   * other raster (a DEM, soil thickness) only from here, banded by value.
-   */
-  if (window.GeoIDRiskReader?.canRead?.(layer)) {
-    act("Risk to people", () => window.GeoIDRiskReader.open(layer.id));
-  }
+  // PEOPLE AT RISK is not a verb on a layer: every risk map is read for its
+  // people as it is developed (risk-reader.js), over the drawn area, the
+  // map's own extent or the view, and the Workspace shield opens the reading.
+  // The drawer's "Risk to people" button was a second door to a reading that
+  // was already made, and it was removed on request.
 
   if (layer.sampler && layer.bounds && !layer.raster
     && layer.info?.valueKind !== "colour") {

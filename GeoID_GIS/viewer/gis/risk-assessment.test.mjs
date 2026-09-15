@@ -171,7 +171,9 @@ process.on("exit", () => {
   const owner = readFileSync(new URL("./card-owner.js", import.meta.url), "utf8");
   check("a card claiming its layer announces the touch", /new CustomEvent\("geoid-gis:layer-touched"/.test(owner));
   check("the cyclone estimate sheet carries the frame it draws, and the reader reads it", /held\.riskFrame = \{/.test(readFileSync(new URL("./cyclone-risk-raster.js", import.meta.url), "utf8")) && /const frame = layer\.riskFrame\?\.values && !layer\.riskFrame\.last \? layer\.riskFrame : null;/.test(reader));
-  check("every readable layer's drawer offers Risk to people", /act\("Risk to people", \(\) => window\.GeoIDRiskReader\.open\(layer\.id\)\)/.test(drawer));
+  // Exposure is a property of every risk map, read as the map is developed:
+  // a "Risk to people" button on a layer was a second door and is gone.
+  check("no layer drawer offers a Risk to people button", !/act\("Risk to people"/.test(drawer));
   check("the Exposure tab is a door onto the same engine, not a copy of it", /assessLayer\(layer, byId\("exp-area"\)\.value/.test(panel) && /renderAssessment\(byId\("exp-result"\)/.test(panel) && !/assessPopulation|assessGrid/.test(panel));
   check("the window loads on Earth", /gis\/risk-reader-window\.js\?v=/.test(page));
 }
@@ -179,7 +181,7 @@ process.on("exit", () => {
 // ── What kind of map, and which ground ─────────────────────────────────────
 {
   globalThis.window = globalThis.window || {};
-  const { riskMapKind, autoArea, RIVER_ZONE_SCHEME, VOLCANIC_ZONE_SCHEME, OWN_EXTENT_MAX_DEG, hazardKey, frameLabelOf, readableMember, chooseFollowed, FOLLOW_REASONS } = await import("./risk-reader.js");
+  const { riskMapKind, autoArea, viewArea, RIVER_ZONE_SCHEME, VOLCANIC_ZONE_SCHEME, OWN_EXTENT_MAX_DEG, VIEW_EXTENT_MAX_DEG, hazardKey, frameLabelOf, readableMember, chooseFollowed, FOLLOW_REASONS } = await import("./risk-reader.js");
 
   // ── one tab per hazard ──
   globalThis.__geoidRiskSpecs = globalThis.__geoidRiskSpecs || {};
@@ -216,7 +218,16 @@ process.on("exit", () => {
   check("kind: volcanic buffers and storm tracks", riskMapKind({ name: "Volcanic hazard buffers", status: "loaded", features: [feat({ zone: 0, outer_km: 5 })] }).kind === "zones" && riskMapKind({ name: "Tracks", status: "loaded", features: [{ properties: { peak_wind_kts: 90 } }] }).kind === "wind");
   const local = autoArea(raster("Flood x", { west: 10, east: 11, south: 45, north: 45.5 }), "grid");
   check("ground: with nothing drawn, a local map is read over its own extent, and says so", local && local.own && local.label === "the map's own extent" && local.polys[0].box.west === 10);
-  check(`ground: a map wider than ${OWN_EXTENT_MAX_DEG}° with nothing drawn is not read at all`, autoArea(raster("Cyclone", { west: -180, east: 180, south: -60, north: 60 }), "risk") === null);
+  check(`ground: a map wider than ${OWN_EXTENT_MAX_DEG}° with nothing drawn and no view is not read at all`, autoArea(raster("Cyclone", { west: -180, east: 180, south: -60, north: 60 }), "risk") === null);
+  // Exposure is estimated for every risk map: a global grid with nothing
+  // drawn is read over the ground in VIEW, and re-read as the view settles.
+  const inView = autoArea(raster("Cyclone", { west: -180, east: 180, south: -60, north: 60 }), "risk", { viewBox: [-82, -79, 24, 27] });
+  check("ground: a global map with nothing drawn is read over the view, and says so", inView && inView.fromView && inView.label === "the ground in view" && inView.polys[0].box.west === -82 && inView.polys[0].box.north === 27);
+  check(`ground: a view wider than ${VIEW_EXTENT_MAX_DEG}° is a continent, and is not read`, viewArea([-100, -60, 10, 50]) === null && viewArea([-82, -79, 24, 27]).fromView === true && viewArea(null) === null && viewArea([1, 0, 0, 1]) === null);
+  check("ground: the window's own {west, east, south, north} spelling of the view is read too", viewArea({ west: -82, east: -79, south: 24, north: 27 })?.fromView === true && viewArea({ west: -100, east: -60, south: 10, north: 50 }) === null);
+  const winSrc = readFileSync(new URL("./risk-reader-window.js", import.meta.url), "utf8");
+  check("a tab read over the view is read again where the view settles", /tab\.areaFromView = Boolean\(out\.area\?\.fromView\)/.test(winSrc) && /if \(tab\.areaFromView \|\| \/zoom in\/\.test\(tab\.error \|\| ""\)\) enqueue\(tab\)/.test(winSrc) && /assessLayer\(member\.layer, state\.areaChoice, \{ viewBox: state\.viewBox \}\)/.test(winSrc));
+  check("ground: a local map still prefers its own extent to the view", autoArea(raster("Flood x", { west: 10, east: 11, south: 45, north: 45.5 }), "grid", { viewBox: [0, 12, 40, 50] }).label === "the map's own extent");
   check("river zones: the margin is very high, belt high, floodplain moderate, no zone not exposed", [1, 2, 3, 0].map((v) => classIndex(RIVER_ZONE_SCHEME, v)).join() === "0,1,2,-2");
   check("volcanic zones: 0–5 km very high through 35–50 km very low, outside every zone not exposed", [0, 1, 2, 3, 4, -1].map((v) => classIndex(VOLCANIC_ZONE_SCHEME, v)).join() === "0,1,2,3,4,-2");
 }

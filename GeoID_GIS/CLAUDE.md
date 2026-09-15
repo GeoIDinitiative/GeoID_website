@@ -21372,3 +21372,46 @@ emitter (`removeTool`) and set only by a template. A cut's domain row now
 carries a "cavity — no elements inside" tick, and `setVoid` is on the studio
 seam. A Neumann condition reaches boundary sides only, so a pressure on a
 KEPT chamber's wall — a face between two volumes — would act on nothing.
+
+## The master key is a card, and exposure is a property of every risk map
+
+**"To test the live member functions we need a master key for ourselves and
+to store the GEE keys etc."** Membership's development unlock
+(`localStorage["geoid:unlock"] = "owner"`) had always existed and was only
+ever set from a console — and every test stint cleared it, which is what
+"wiped" the Earth Engine endpoint: `credential-wipe.js` and `gee.js` clear
+stored credentials only where `may("gee")` is false, so with the unlock in
+place they keep them. Settings ▸ **Master key** (`gis/master-key.js`, on
+every world) is the door now: the key makes this browser the master account
+until "Lock again", the endpoint, sidecar and hub stay stored, and **"Wipe
+everything before going live"** removes the unlock and every stored
+credential in one press — the only version of that instruction that gets
+followed on the day. The key is the fixed word membership already reads; a
+browser cannot hold a secret and this page is public, so it weakens nothing
+the module's own header does not already call a courtesy. The Earth Engine
+endpoint needs no storing: `gee.js` carries the deployed function's address
+as its default and only refuses it while locked.
+
+**"The Risk to people button shouldn't exist — exposure is always
+estimated."** The drawer's button was a second door to a reading the risk
+reader already made unasked; it is gone, and the reading no longer needs a
+drawn area: `autoArea` falls through drawn → the forecast's box → the map's
+own extent (≤ 6°) → **the ground in view** (≤ 15°), and a tab read over the
+view is read again where the view settles, as the map's own refine is.
+Wider than 15° is a continent and is refused with a sentence that says to
+zoom in or draw. Measured over Miami at 382 km with nothing drawn and the
+cyclone risk ticked: **9,549,751 people in 224,084 km² of view, 6,088,524
+reached in an average year**, read at the layer's arrival and again after
+the camera moved.
+
+Two shapes of one box, again: the window keeps the view as `{west, east,
+south, north}` and `chooseFollowed` takes `[minLon, maxLon, minLat, maxLat]`
+— the first `viewArea` read the array alone and the view never counted.
+And the box a read uses is the camera's NOW (`readView()` inside the read),
+not the last settle's, which before the first settle was null.
+
+**`tests/ui.py` run BESIDE the unit suite fails on Mars, differently each
+time** ("no style tag", then "absent: GeoIDLayerHierarchy") and passes 14 of
+14 alone, twice. Headless Chrome booting a planet page under the suite's
+load is a boot race, not a fault in either seam; run the two in sequence,
+and read a Mars-only structural failure as load before reading it as code.

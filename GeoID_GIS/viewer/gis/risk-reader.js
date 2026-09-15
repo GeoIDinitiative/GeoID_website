@@ -4,7 +4,7 @@
  * A risk map says where and how badly; people are the other half of risk. This
  * module is the engine that every door onto that question uses — the risk
  * reader window (which assesses each map as it is developed), a layer's own
- * drawer, and Hazards ▸ Exposure. It decides three things per map, and each is
+ * shield, and Hazards ▸ Exposure. It decides three things per map, and each is
  * read off the map rather than chosen by whoever asked:
  *
  *  1. WHAT KIND of map it is (`riskMapKind`): a factor of safety, a water
@@ -26,12 +26,12 @@
 
 import {
   polygonsOf, polygonIndex, peopleOnGrid, polygonMask, cellKm2, boxOf,
-} from "./exposure.js?v=20260915-41d940b";
+} from "./exposure.js?v=20260915-350d02d";
 import {
   SCHEMES, chanceScheme, bandScheme, schemeForLayerName, riskLayerKind, assessGrid, assessPopulation,
   groupByFeature, summarySentence, windLookup,
-} from "./risk-assessment.js?v=20260915-41d940b";
-import { resolvePolygonRings } from "./extent-picker.js?v=20260915-41d940b";
+} from "./risk-assessment.js?v=20260915-350d02d";
+import { resolvePolygonRings } from "./extent-picker.js?v=20260915-350d02d";
 
 const search = new URL(import.meta.url).search;
 const FORECAST_NAME = /^Landslide risk — forecast/;
@@ -179,7 +179,7 @@ export const FOLLOW_REASONS = {
   card: "a feature clicked",
   reading: "its reading changed",
   frame: "its frame stepped",
-  drawer: "opened from its drawer",
+  drawer: "opened for it",
   top: "the top map in view",
   severe: "the most severe map shown",
   hidden: "hidden on the globe",
@@ -218,14 +218,20 @@ export function areaFor(choice) {
 
 /** The largest map extent read as "its own area" when nothing is drawn. */
 export const OWN_EXTENT_MAX_DEG = 6;
+/** The widest VIEW read as the area when nothing is drawn and the map is not local. */
+export const VIEW_EXTENT_MAX_DEG = 15;
 
 /**
  * The ground a map is read over when nobody has chosen: what was drawn, else
- * the map's own area where the map is local. A global map with nothing drawn
- * returns null — reading a continent's people against a hazard grid is not a
- * study, and the reader asks for an area instead.
+ * the forecast's own box, else the map's own area where the map is local,
+ * ELSE THE VIEW. Exposure is estimated for every risk map, unasked — that is
+ * what makes it a property of the map rather than a button — so a global grid
+ * with nothing drawn is read over the ground in view, and re-read as the view
+ * settles somewhere else. A view wider than VIEW_EXTENT_MAX_DEG is a
+ * continent, and a continent's people against a hazard grid is not a study:
+ * null, and the reader says to zoom in or draw.
  */
-export function autoArea(layer, kind) {
+export function autoArea(layer, kind, { viewBox = null } = {}) {
   const drawn = resolvePolygonRings("drawn", { arm: false });
   if (drawn && !drawn.error) {
     const area = areaFromRings(drawn);
@@ -240,7 +246,28 @@ export function autoArea(layer, kind) {
   }
   const b = boxOf(layer?.raster?.bounds || layer?.bounds);
   if (b && b.east - b.west <= OWN_EXTENT_MAX_DEG && b.north - b.south <= OWN_EXTENT_MAX_DEG) return boxArea(b, "the map's own extent");
+  const v = viewArea(viewBox);
+  if (v) return v;
   return null;
+}
+
+/**
+ * The view as an area; null where it is too wide or unknown. Two spellings,
+ * because the window keeps `{west, east, south, north}` and `chooseFollowed`
+ * takes `[minLon, maxLon, minLat, maxLat]` — the fourth box vocabulary in
+ * this tree, met again: the first version read the array alone and the
+ * view never counted.
+ */
+export function viewArea(viewBox) {
+  let w; let e; let s; let n;
+  if (Array.isArray(viewBox)) { if (viewBox.length !== 4) return null; [w, e, s, n] = viewBox; }
+  else if (viewBox && typeof viewBox === "object") ({ west: w, east: e, south: s, north: n } = viewBox);
+  else return null;
+  if (![w, e, s, n].every(Number.isFinite)) return null;
+  if (!(e > w) || !(n > s) || e - w > VIEW_EXTENT_MAX_DEG || n - s > VIEW_EXTENT_MAX_DEG) return null;
+  const area = boxArea({ west: w, south: s, east: e, north: n }, "the ground in view");
+  area.fromView = true;
+  return area;
 }
 
 /* ── people ─────────────────────────────────────────────────────────────── */
@@ -499,11 +526,11 @@ export function assessmentOf(r, area) {
  * Read one map over an area. `choice` is "auto" (the reader decides), "drawn",
  * or "layer:<id>". Returns { assessment, area, kind } or throws a sentence.
  */
-export async function assessLayer(layer, choice = "auto") {
+export async function assessLayer(layer, choice = "auto", { viewBox = null } = {}) {
   const k = riskMapKind(layer);
   if (!k) throw new Error(`${layer?.name || "That layer"} is not a map the risk reader can read.`);
-  const area = choice === "auto" ? autoArea(layer, k.kind) : areaFor(choice);
-  if (!area) throw new Error("Draw a study area to read the people at risk on this map.");
+  const area = choice === "auto" ? autoArea(layer, k.kind, { viewBox }) : areaFor(choice);
+  if (!area) throw new Error(`Draw a study area, or zoom in past ${VIEW_EXTENT_MAX_DEG}° of view, to read the people at risk on this map.`);
   const r = k.kind === "forecast" ? await assessForecast(area)
     : k.kind === "risk" ? await assessRisk(layer, area)
       : k.kind === "zones" ? await assessZones(layer, area)
