@@ -54,3 +54,7 @@ check("no atmosphere means no air box", !studioGmshScript({ solids: solids.slice
 }
 
 process.on("exit", () => { console.log(`studio-gmsh: ${passes} passed, ${failures} failed`); if (failures) process.exitCode = 1; });
+
+// A cut tool's wall is a cavity's boundary: it takes its own flag, or a
+// chamber's wall sits under the sides' condition (measured: "surface: 5").
+check("a cavity wall has a default flag of its own, distinct from the sides", DEFAULT_FACE_FLAGS.cavity === 7 && DEFAULT_FACE_FLAGS.cavity !== DEFAULT_FACE_FLAGS.side && DEFAULT_FACE_FLAGS.cavity !== DEFAULT_FACE_FLAGS.surface);

@@ -29,9 +29,10 @@
 import {
   MATERIALS, MATERIAL_PROPS, PHYSICS, defaultSetup, domainProperties, materialsPlan, propsText,
   icBcHeader, studySpec, studyTimes, setupSummary, sweepParameters, sweepValues, sweepSetups, sweepManifest,
-} from "./fem-setup.js?v=20260915-7b1e1b8";
-import { flagCheck } from "./mesh-flags.js?v=20260915-7b1e1b8";
-import { parseTable, guessColumns, buildGrid, pointwiseText, orderCheck } from "./tomography.js?v=20260915-7b1e1b8";
+} from "./fem-setup.js?v=20260915-41d940b";
+import { flagCheck } from "./mesh-flags.js?v=20260915-41d940b";
+import { requirementLines, GENERAL } from "./gales-contract.js?v=20260915-41d940b";
+import { parseTable, guessColumns, buildGrid, pointwiseText, orderCheck } from "./tomography.js?v=20260915-41d940b";
 import * as THREE from "../vendor/three.module.js";
 
 const STORE_KEY = "geoid-studio:fem-setup";
@@ -533,6 +534,21 @@ function renderStudy(host) {
   files.body.append(el("p", { class: "studio-group-title" }, physics.header), el("pre", { class: "fem-pre" }, header));
   host.append(files.details);
 
+  // WHAT GALES NEEDS, from the contract: the solver and reference the sidecar
+  // will clone, what the mesh and the material must carry, what is reserved,
+  // and what bounds the time step — so a study is written against
+  // requirements that are on the page rather than in somebody's memory.
+  const needs = card("study:needs", "What GALES needs", false, physics.family);
+  const dl = el("dl", { class: "st-facts" });
+  for (const line of requirementLines(setup.physics, targets.dim)) dl.append(el("dt", {}, line.head), el("dd", {}, line.text));
+  needs.body.append(dl);
+  const rules = el("details", { class: "studio-fold" }, el("summary", {}, "Every family"));
+  const ul = el("ul", { class: "studio-readout" });
+  GENERAL.forEach((g) => ul.append(el("li", {}, g.text)));
+  rules.append(ul);
+  needs.body.append(rules);
+  host.append(needs.details);
+
   const pipe = card("study:pipeline", "Run", true);
   const blocked = errors > 0;
   const connected = Boolean(sidecar()?.isConnected?.());
@@ -592,7 +608,7 @@ function renderStudy(host) {
     }
     const got = sweepValues(sweep);
     if (got.error) sw.body.append(el("p", { class: "studio-readout is-warning" }, got.error));
-    else sw.body.append(note(`${got.values.length} runs: ${got.values.map(fmt).join(", ")} → ${setup.study.name}_sweep_0 … ${got.values.length - 1}.`));
+    else sw.body.append(note(`${got.values.length} runs: ${got.values.map(fmt).join(", ")} → ${sweep.base || setup.study.name}_sweep_0 … ${got.values.length - 1}.`));
     const b1 = el("button", { class: "studio-secondary", type: "button", title: "Every run's spec, gmsh script and props into fem_runs/, and the manifest" }, "Write sweep");
     b1.disabled = Boolean(got.error) || blocked || !hasProject || sweep.running;
     b1.addEventListener("click", () => writeSweep());
@@ -643,6 +659,10 @@ export async function writeSweep() {
   const param = sweepParameters(setup, targets).find((p) => p.key === sweep.key);
   if (!param) { say("Choose what to vary.", "error"); return null; }
   const runs = sweepSetups(setup, sweep.key, got.values);
+  // The page's setup is swapped for each run's while it is written, and a
+  // `say` mid-write re-renders this card against the run's name; the base
+  // is kept so the preview reads the study's name throughout.
+  sweep.base = setup.study.name;
   sweep.running = true;
   try {
     for (const [k, run] of runs.entries()) {
@@ -659,6 +679,7 @@ export async function writeSweep() {
     return null;
   } finally {
     sweep.running = false;
+    sweep.base = "";
     rerender("study");
   }
 }
@@ -718,9 +739,22 @@ async function meshStudy() {
   const project = store()?.getActive?.();
   const name = setup.study.name;
   const script = studio()?.gmshScriptFor?.(name);
-  if (!script) { say("This model's gmsh script comes from the Model Builder (a GIS terrain). Build its package there, then Prepare.", "warning"); return; }
+  // A GIS terrain's script is the Model Builder's package, already filed in
+  // the project's meshes/ beside the STLs it merges: it is run BY PATH there
+  // (the gmsh job's cwd is meshes/, so the relative merges resolve) and the
+  // mesh it writes is pointed at <study>.msh like any other. A section's
+  // package is <name>_section_gmsh.py.
+  const terrain = !script ? studio()?.terrainName?.() : null;
+  const scriptPath = terrain ? `${project?.dir}/meshes/${terrain}${targets.dim === 2 ? "_section" : ""}_gmsh.py` : "";
+  if (!script && !terrain) { say("Nothing to mesh: add geometry, or open a terrain from the Model Builder.", "warning"); return; }
+  if (terrain) {
+    const rel = `meshes/${terrain}${targets.dim === 2 ? "_section" : ""}_gmsh.py`;
+    let filed = false;
+    try { filed = Boolean(await store().readProjectFile(rel)); } catch (error) { filed = false; }
+    if (!filed) { say(`The terrain's package is not in this project: build it in the Model Builder (Build ▸ step 6) so ${rel} and its STLs are filed here.`, "error"); return; }
+  }
   try {
-    const id = await sidecar().runGmsh({ project: project.dir, script, name, dim: targets.dim });
+    const id = await sidecar().runGmsh(script ? { project: project.dir, script, name, dim: targets.dim } : { project: project.dir, scriptPath, name, dim: targets.dim });
     if (!(await waitFor(id, "Mesh"))) return;
     const text = await store().readProjectFile(`meshes/${name}.msh`);
     await store().writeProjectFile(`${runDir()}/input/${name}.msh`, text);

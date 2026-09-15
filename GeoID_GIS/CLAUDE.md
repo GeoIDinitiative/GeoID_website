@@ -21279,3 +21279,96 @@ re-renders against it — it reads right again the moment the sweep finishes;
 and the pipeline strip's Mesh dot stays unlit through a sweep, since the
 solver mesh is meshed and filed by the sweep without being opened in the
 Mesh tab.
+
+## The GALES contract, and the terrain and section solved through the page
+
+"Confer with the Atlas AI to ensure the GALES code is flexible and its
+requirements are well defined within the model pipeline in the GUI." The
+Atlas brain held no lesson on GALES at all (`brain_search` empty); what
+Atlas holds is its **solver index** (`GeoID_Research/metadata/
+solver_index.json`, scanned from `src/solvers`: dofs, boundary-condition
+markers, setup keys, mesh keys, coupling per family) and the architecture
+note beside it. `gis/gales-contract.js` carries that scan for the six
+families this page could offer — solid_es, heat_conduction, fluid_sc,
+thermoelasticity, solid_ed, fsi — plus what only a solve could teach:
+which side flag is reserved, which property is a NaN at the reader's 0
+default, what bounds the time step, which reference sim is cloned per
+dimension. The checklist reads its reserved flags from it, the Study tab
+draws "What GALES needs" from it, the sidecar's family table is pinned to
+it, and its test checks it against the GALES tree whenever the tree is
+beside the site (solver dirs, reference sims, setup.txt mesh keys, the
+`side_flag == 1` coupling branches, and that no reference header declares a
+Neumann function the contract does not list).
+
+- **`sim/solid_es/mogi_test_2d` cannot be cloned**: it holds an ic_bc.txt
+  and no main.cpp. A 2D solid study clones the 3D reference patched to
+  `dim 2`; the page's header and props.txt (plane strain) replace the
+  reference's. The contract says so rather than naming a sim that would
+  fail at prepare.
+- **A reference header declares only what its dimension calls** (a 2D deck
+  has no tau13, an isothermal fluid no q1), so the engine check runs the
+  other way: nothing a reference declares is outside the contract's list.
+- **Three families are described and not offered**, each with the reason on
+  the card: thermoelasticity needs two conditions per face; solid_ed needs
+  rho_inf/constant_v/zero_a and the damping pair the page does not ask for;
+  FSI needs two meshes on one interface.
+
+**The first GIS terrain solved.** A 4 × 4 km box over Slieve Donard, DEM at
+400 m posts (121 surface nodes), 2 km of rock below, packaged by the Model
+Builder, opened in the studio, granite, base fixed, self-weight: gmsh made
+207 nodes / 1,062 tets from the package's own script, the container target
+solved it in 35 s, and the summit settled **1.33 m against a 1.65 m
+uniaxial-column estimate** on a mesh three elements tall, base at zero, no
+NaN. The Study tab meshes a terrain BY PATH now (`terrainName()` on the
+studio seam → `meshes/<name>_gmsh.py`, run with the gmsh job's cwd in
+meshes/ so the STL merges resolve); it used to say "put its .msh in the
+run's input/" and stop.
+
+**The first 2D section solved.** The same box as a west–east section, 40
+samples over 3.5 km, 2 km of rock: 138 nodes / 316 triangles, plane strain,
+base fixed, sides rollered, self-weight — **1.23 m at the crest against a
+1.35 m uniaxial-strain column**, 34 s. Two things it needed: a section's
+boundaries are its EDGES (profile, base, sides, sky), and `setupTargets`
+listed only faces, so the base could not be given a condition — it lists
+the edges from the section's own flags now; and the 2D deck is the 3D
+reference patched, which worked without a 2D reference of its own.
+
+**The Mesh dot lights for a run open in Results** (a sweep meshes and files
+without opening the Mesh tab), and the sweep preview keeps the study's
+name while the runs are being written.
+
+**ssh is still untested**, and honestly cannot be from this machine: no key
+of this user's is authorised on any host reachable from here (ssh to
+localhost refuses publickey), and adding one is a security setting that is
+not mine to change. The path is exercised up to the point of a real host —
+rsync, the rebuilt command, BatchMode — by `tests/sidecar.py`; the first run
+against a machine with a key is the remaining proof.
+
+**Four ranks give the one-rank answer.** The section re-solved as `section4`
+with ranks 4: prepare wrote `section4_4core.txt`, the container ran
+`mpirun -n 4`, and the displacement field matched the one-rank run to
+**6.9e-11 m** over all 138 nodes — the partition changes the work, not the
+answer.
+
+**The Mogi benchmark, through the page.** A 16 × 16 × 10 km granite box with
+a 500 m sphere CUT at 2 km, 10 MPa on its wall, base fixed, sides and top
+free; a ball size field of 300 m at the chamber, 2 km elsewhere: 1,098 nodes
+/ 6,240 tets, solved in 33 s. The surface uplift has the point source's
+shape and **0.61 of its amplitude** — a 500 m sphere meshed at 300 m is a
+crude polyhedron, and its pressure work is under-resolved; a pipeline
+proof, not a validation. The page's own card then recovered the GEOMETRY
+from the FEM surface: Analysis ▸ Analytical source inverted the 70 surface
+nodes to **2,010 m deep at (−16, −16) m** against the true 2,000 m at the
+origin, 97.4% explained, with ΔV 1.29 × 10⁵ m³ against the nominal
+1.96 × 10⁵ — the same 0.66 as the amplitude. `sim/solid_es/mogi_test_3d`
+itself has no results and is not to be solved on this laptop.
+
+Two things the cavity needed: **a cut tool's faces took the SIDES' flag** (5)
+— measured, "surface: 5" on a sphere cut from a box — so a pressure meant
+for a chamber wall would have landed on the box's sides too;
+`DEFAULT_FACE_FLAGS.cavity` (7) is a cut's own default. And **nothing on the
+page could make a cut a cavity**: `flags.void` was honoured by the gmsh
+emitter (`removeTool`) and set only by a template. A cut's domain row now
+carries a "cavity — no elements inside" tick, and `setVoid` is on the studio
+seam. A Neumann condition reaches boundary sides only, so a pressure on a
+KEPT chamber's wall — a face between two volumes — would act on nothing.

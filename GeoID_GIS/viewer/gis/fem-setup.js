@@ -29,6 +29,9 @@
  * for intact rock; soils are drained secant moduli), and every one is editable
  * where it is assigned. Units: kg/m³, Pa, –, W/(m·K), J/(kg·K), Pa·s.
  */
+// What GALES needs is stated once, in the contract; the checklist reads it.
+import { familyFor } from "./gales-contract.js?v=20260915-41d940b";
+
 export const MATERIALS = [
   { id: "granite", name: "Granite", group: "Rock", rho: 2650, E: 50e9, nu: 0.25, k: 2.9, cp: 790 },
   { id: "basalt", name: "Basalt", group: "Rock", rho: 2900, E: 60e9, nu: 0.25, k: 1.7, cp: 840 },
@@ -369,16 +372,14 @@ export function checkSetup(setup, targets) {
   const faceFlags = new Set((targets.faces || []).map((f) => Number(f.flag)));
   const unknown = Object.keys(setup.conditions || {}).map(Number).filter((f) => (setup.conditions[f]?.type || "free") !== "free" && !faceFlags.has(f));
   if (unknown.length) out.push({ level: "warning", step: "physics", text: `Conditions on flag${unknown.length === 1 ? "" : "s"} ${unknown.join(", ")}, which no face of the model carries now.` });
-  if (setup.physics === "solid" || setup.physics === "heat") {
-    // GALES's solid solvers (solid_es, solid_ed, thermoelasticity) and its
-    // heat conduction treat SIDE FLAG 1 as the interface to a coupled fluid:
-    // for every boundary side carrying it they ask the coupling for a fluid
-    // traction (or heat flux), and with no fluid there the answer is empty
-    // and the solver segfaults at its first step. Measured on the first solve
-    // this page ran — a box whose top was 1. The fluid solver has no such
-    // branch.
-    const reserved = (targets.faces || []).filter((f) => Number(f.flag) === 1);
-    if (reserved.length) out.push({ level: "error", step: "physics", text: `${reserved.map((f) => f.name).join(", ")} ${reserved.length === 1 ? "carries" : "carry"} flag 1, which GALES's ${setup.physics === "heat" ? "heat" : "solid"} solver reserves for the interface to a coupled fluid (it reads a fluid ${setup.physics === "heat" ? "heat flux" : "traction"} there and stops with a segmentation fault when there is none). Give the face another number in Domains and faces.` });
+  // Which side flags a family reserves is the GALES contract's to say
+  // (gales-contract.js): the solid and heat solvers treat SIDE FLAG 1 as the
+  // interface to a coupled fluid and segfault at the first step without one
+  // (measured on the first solve this page ran); the fluid solver has no such
+  // branch. The checklist reads the contract rather than knowing the number.
+  for (const r of familyFor(setup.physics)?.reservedSideFlags || []) {
+    const reserved = (targets.faces || []).filter((f) => Number(f.flag) === r.flag);
+    if (reserved.length) out.push({ level: "error", step: "physics", text: `${reserved.map((f) => f.name).join(", ")} ${reserved.length === 1 ? "carries" : "carry"} flag ${r.flag}, which GALES's ${P.family} solver reserves — ${r.why}. Give the face another number in Domains and faces.` });
   }
   if (setup.physics === "solid") {
     const held = ["ux", "uy", "uz"].filter((d) => dirichlet[d]?.length);

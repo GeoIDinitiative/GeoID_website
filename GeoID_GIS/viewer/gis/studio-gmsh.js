@@ -35,7 +35,10 @@ const DEG = Math.PI / 180;
  * fluid coupled is a segmentation fault at the first step — measured on the
  * first solve this page ever ran. The top is 3.
  */
-export const DEFAULT_FACE_FLAGS = { top: 3, base: 2, north: 5, south: 5, east: 5, west: 5, side: 5, surface: 5, sky: 4, sides_above: 6 };
+// `cavity` is a CUT tool's wall: a chamber's surface is where a pressure acts,
+// and sharing the sides' number (5) put a chamber's wall under the sides'
+// condition — measured, a sphere cut from a box arrived with "surface: 5".
+export const DEFAULT_FACE_FLAGS = { top: 3, base: 2, north: 5, south: 5, east: 5, west: 5, side: 5, surface: 5, sky: 4, sides_above: 6, cavity: 7 };
 
 function triNormal(p, i) {
   const ax = p[i], ay = p[i + 1], az = p[i + 2];

@@ -1,17 +1,17 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260915-7b1e1b8";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260915-7b1e1b8";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260915-41d940b";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260915-41d940b";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260915-7b1e1b8";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260915-7b1e1b8";
-import { downloadText } from "./extraction.js?v=20260915-7b1e1b8";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260915-7b1e1b8";
-import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260915-7b1e1b8";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260915-7b1e1b8";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260915-7b1e1b8";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260915-7b1e1b8";
-import { femSpec } from "./model-build.js?v=20260915-7b1e1b8";
+} from "./mesh-volume.js?v=20260915-41d940b";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260915-41d940b";
+import { downloadText } from "./extraction.js?v=20260915-41d940b";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260915-41d940b";
+import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260915-41d940b";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260915-41d940b";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260915-41d940b";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260915-41d940b";
+import { femSpec } from "./model-build.js?v=20260915-41d940b";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -1462,7 +1462,9 @@ function attachParts(entry, positions, colour, { opacity = 1 } = {}) {
   entry.parts = [];
   const label = PRIMITIVES[entry.kind]?.label ?? entry.params?.label ?? entry.kind;
   faces.forEach((face) => {
-    const flag = Number(entry.flags.faces[face.face]) > 0 ? Number(entry.flags.faces[face.face]) : face.flag;
+    // A cut tool's faces are a cavity's walls, and take the cavity flag rather
+    // than the sides' (see DEFAULT_FACE_FLAGS.cavity).
+    const flag = Number(entry.flags.faces[face.face]) > 0 ? Number(entry.flags.faces[face.face]) : entry.op === "difference" ? DEFAULT_FACE_FLAGS.cavity : face.flag;
     entry.flags.faces[face.face] = flag;
     const mesh = displayMesh(partPositions(positions, face), `${entry.kind}_${entry.id}_${face.face}`, colour, { opacity });
     group.add(mesh);
@@ -3939,6 +3941,26 @@ function renderDomainsPanel() {
           id === "points" ? "Default flag for embedded points" : `Volume flag for the ${title.toLowerCase()}`);
       row.appendChild(swatch); row.appendChild(name); row.appendChild(flagBox);
       list.appendChild(row);
+      /**
+       * A CUT IS KEPT AS A VOLUME OF ITS OWN unless it is a CAVITY: a magma
+       * chamber with a material is a domain, a pressurised chamber is a hole
+       * whose wall is a boundary a pressure can act on (a Neumann condition
+       * reaches boundary sides only, and a face between two volumes is not
+       * one). The tick is the one place `flags.void` is set from the page.
+       */
+      if (solid?.op === "difference") {
+        const cav = document.createElement("label");
+        cav.className = "studio-item";
+        cav.style.cssText = "margin-left:22px;gap:6px;color:#bdb7d3;font-size:0.72rem;cursor:pointer";
+        const tick = document.createElement("input");
+        tick.type = "checkbox";
+        tick.checked = Boolean(solid.flags?.void);
+        tick.title = "No elements inside: the cut's wall is a boundary a condition can act on.";
+        tick.addEventListener("change", () => setVoid(solid, tick.checked));
+        cav.appendChild(tick);
+        cav.appendChild(document.createTextNode("cavity — no elements inside, its wall is a boundary"));
+        list.appendChild(cav);
+      }
     }
     own.forEach((part) => {
       const row = document.createElement("div");
@@ -4092,6 +4114,25 @@ function setupTargets() {
     if (!entry.names.includes(name)) entry.names.push(name);
     entry.parts.push(part);
     faces.set(flag, entry);
+  }
+  /**
+   * A SECTION'S BOUNDARIES ARE ITS EDGES. In 2D the "face" carrying the
+   * volume flag is the domain itself, and a condition on it would hold every
+   * node; what a condition names there is an edge — the profile, the base,
+   * the sides, the sky — each tagged by the 2D gmsh script with the flag the
+   * section carries for it. Listed from those flags rather than from parts,
+   * because an edge has no mesh of its own to be a part.
+   */
+  if (gisTerrain?.kind === "section") {
+    const F = gisTerrain.flags || {};
+    const profilePart = allParts().find((p) => p.kind === "surface");
+    const edges = [
+      { flag: F.terrain, name: "ground surface (profile)", parts: profilePart ? [profilePart] : [] },
+      { flag: F.base, name: "Subsurface — base", parts: [] },
+      { flag: F.sides_below, name: "Subsurface — sides", parts: [] },
+      ...(gisTerrain.aboveM > 0 ? [{ flag: F.sky, name: "Atmosphere — sky", parts: [] }, { flag: F.sides_above, name: "Atmosphere — sides", parts: [] }] : []),
+    ].filter((e) => Number.isFinite(Number(e.flag)));
+    return { dim: 2, source: "gis", domains, faces: edges.sort((a, b) => a.flag - b.flag).map((e) => ({ ...e, flag: Number(e.flag), names: [e.name] })) };
   }
   return {
     dim: gisTerrain?.kind === "section" ? 2 : 3,
@@ -4315,6 +4356,14 @@ function flagKeysOf(part) {
 }
 
 /** Assign a flag to a part (or one of its edges, or a domain's volume) and tell the GIS page. */
+/** A cut tool becomes a cavity (no elements) or a kept volume again. */
+function setVoid(solid, on) {
+  solid.flags = { ...(solid.flags || {}), void: Boolean(on) };
+  renderDomainsPanel();
+  renderModelTree();
+  log(`${PRIMITIVES[solid.kind]?.label ?? solid.kind} ${solid.id}: ${on ? "a cavity — no elements inside" : "kept as a volume of its own"}`);
+}
+
 function assignFlag({ part = null, key = null, point = null, domain = null, solid = null }, value) {
   const n = Math.round(Number(value));
   if (!(n > 0)) { log("A flag is a positive integer."); return false; }
@@ -4802,11 +4851,16 @@ window.GeoIDMeshStudio = {
   setExternalBounds,
   registerVisibility,
   setupTargets,
+  setVoid: (id, on) => { const e = state.solids.find((x) => x.id === Number(id)); if (e) setVoid(e, on); },
   highlightFlag,
   buildStudioGmshScript: () => buildGmshScript(),
   // The gmsh script for a study named `name`, writing `<name>.msh`; null for a
   // GIS terrain, whose script is the Model Builder's package.
   gmshScriptFor: (name) => (gisTerrain || !state.solids.length ? null : studioGmshScript({ ...studioModel(name), meshFile: `${name}.msh` })),
+  // A GIS terrain's mesh comes from the Model Builder's package in the
+  // project's meshes/ (<name>_gmsh.py beside its STLs); the Study tab runs
+  // that script by path rather than a text of its own.
+  terrainName: () => (gisTerrain ? gisTerrain.name : null),
   showGroup: (name) => showGroup(name),
   refreshVisibility: () => renderVisibilityBox(),
   log,

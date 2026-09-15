@@ -189,3 +189,15 @@ const box = (flag, name, zMin, zMax, extra = {}) => ({ flag, name, zMin, zMax, v
   const m = sweepManifest({ base: "etna", parameter: "bc:4:p", label: "chamber wall — pressure", values: [5e6, 2e7], runs, written_at: "t" });
   check("sweep manifest: the parameter, the values and each run's folder", m.kind === "geoid-sweep" && m.runs[1].dir === "fem_runs/etna_sweep_1" && m.values.length === 2);
 }
+
+// ── the studio and the Study tab carry what a terrain, a section and a cavity need ──
+{
+  const { readFileSync } = await import("node:fs");
+  const studio = readFileSync(new URL("./model-studio.js", import.meta.url), "utf8");
+  const panel = readFileSync(new URL("./studio-setup-panel.js", import.meta.url), "utf8");
+  check("the studio names its terrain so the Study tab can mesh its package by path", /terrainName: \(\) => \(gisTerrain \? gisTerrain\.name : null\)/.test(studio));
+  check("meshStudy runs a terrain's package script by path, from the project's meshes/", /const terrain = !script \? studio\(\)\?\.terrainName\?\.\(\) : null;/.test(panel) && /scriptPath, name, dim: targets\.dim/.test(panel));
+  check("a section's boundaries are its edges, listed from its own flags", /if \(gisTerrain\?\.kind === "section"\) \{[\s\S]{0,900}sides_below[\s\S]{0,400}return \{ dim: 2, source: "gis", domains, faces: edges/.test(studio));
+  check("a cut tool's faces take the cavity flag", /entry\.op === "difference" \? DEFAULT_FACE_FLAGS\.cavity : face\.flag/.test(studio));
+  check("a cut can be made a cavity from the page and from the seam", /tick\.addEventListener\("change", \(\) => setVoid\(solid, tick\.checked\)\)/.test(studio) && /setVoid: \(id, on\) =>/.test(studio));
+}

@@ -64,7 +64,9 @@ export function stepStates({ targets, summary, realMesh, latticeMesh, results, f
     geometry: domains ? "ok" : results ? "" : "error",
     materials: domains ? levelOf(summary?.materials?.level) : "",
     physics: domains ? levelOf(summary?.physics?.level) : "",
-    mesh: realMesh ? (realMesh.unflaggedCells ? "error" : realMesh.unflaggedSides ? "warning" : "ok") : latticeMesh ? "warning" : "",
+    // A run open in Results was meshed to be solved: a sweep meshes and files
+    // its mesh without opening it in the Mesh tab, and the dot stayed dark.
+    mesh: realMesh ? (realMesh.unflaggedCells ? "error" : realMesh.unflaggedSides ? "warning" : "ok") : latticeMesh ? "warning" : results ? "ok" : "",
     study: domains ? (summary?.study?.errors ? "error" : "ok") : "",
     results: results ? "ok" : "",
     research: filed ? "ok" : "",
