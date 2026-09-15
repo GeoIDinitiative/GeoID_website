@@ -29,9 +29,9 @@
 import {
   MATERIALS, MATERIAL_PROPS, PHYSICS, defaultSetup, domainProperties, materialsPlan, propsText,
   icBcHeader, studySpec, studyTimes, setupSummary, sweepParameters, sweepValues, sweepSetups, sweepManifest,
-} from "./fem-setup.js?v=20260915-c40de8b";
-import { flagCheck } from "./mesh-flags.js?v=20260915-c40de8b";
-import { parseTable, guessColumns, buildGrid, pointwiseText, orderCheck } from "./tomography.js?v=20260915-c40de8b";
+} from "./fem-setup.js?v=20260915-e0185f7";
+import { flagCheck } from "./mesh-flags.js?v=20260915-e0185f7";
+import { parseTable, guessColumns, buildGrid, pointwiseText, orderCheck } from "./tomography.js?v=20260915-e0185f7";
 import * as THREE from "../vendor/three.module.js";
 
 const STORE_KEY = "geoid-studio:fem-setup";
@@ -460,6 +460,7 @@ function say(text, level = "") {
   job.level = level;
   const node = byId("fem-study-status");
   if (node) { node.textContent = text; node.className = `studio-readout${level ? ` is-${level}` : ""}`; }
+  try { document.dispatchEvent(new CustomEvent("geoid-studio:notice", { detail: { text, level: level === "ok" ? "" : level, source: "study" } })); } catch (e) { /* no toast */ }
 }
 
 async function listTargets() {

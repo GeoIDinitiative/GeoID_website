@@ -30,15 +30,15 @@ import {
   exposedFaces, thresholdKeep, keptTriangles,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
   groupResultFiles, timeOf, referencePlan, differenceOf, DERIVED_DOFS,
-} from "./gales-results.js?v=20260915-c40de8b";
-import { zipStore } from "./shapefile-writer.js?v=20260915-c40de8b";
-import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-c40de8b";
-import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-c40de8b";
-import { parseSolidProps } from "./strain-stress.js?v=20260915-c40de8b";
-import { vtkHead, readVtkGrid, parsePvd, vtkFieldName } from "./vtk-read.js?v=20260915-c40de8b";
-import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-c40de8b";
-import { may, refusal } from "./membership.js?v=20260915-c40de8b";
-import { downloadText } from "./extraction.js?v=20260915-c40de8b";
+} from "./gales-results.js?v=20260915-e0185f7";
+import { zipStore } from "./shapefile-writer.js?v=20260915-e0185f7";
+import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-e0185f7";
+import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-e0185f7";
+import { parseSolidProps } from "./strain-stress.js?v=20260915-e0185f7";
+import { vtkHead, readVtkGrid, parsePvd, vtkFieldName } from "./vtk-read.js?v=20260915-e0185f7";
+import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-e0185f7";
+import { may, refusal } from "./membership.js?v=20260915-e0185f7";
+import { downloadText } from "./extraction.js?v=20260915-e0185f7";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -2075,6 +2075,7 @@ function status(text, error = false) {
     node.classList.toggle("is-error", Boolean(error));
   }
   if (error) studio()?.log?.(`Results: ${text}`);
+  try { document.dispatchEvent(new CustomEvent("geoid-studio:notice", { detail: { text, level: error ? "error" : "", source: "results" } })); } catch (e) { /* no toast */ }
 }
 
 const sections = new Map();

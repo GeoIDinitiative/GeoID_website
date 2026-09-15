@@ -21048,3 +21048,16 @@ projects kilometres off the picture), refresh `camera.matrixWorldInverse` by
 hand (the pane's throttled loop leaves it stale mid-flight), wait for a view
 flight to settle, and remember `new Vector3(undefined)` is the ORIGIN — a
 node id that is not on the surface projects silently to (0, 0, 0).
+
+## Toasts: what just happened, where the eye is
+
+The studio's `log`, the Results panel's `status` and the Study panel's `say`
+each also dispatch `geoid-studio:notice` (their own readouts unchanged), and
+`gis/studio-toast.js` shows the last few at the foot of the viewport, centred
+in the room right of the deck (clear of the Visibility box): ONE toast per
+source, replaced in place (a progress line does not stack forty cards), at most
+four, a few seconds for news and longer for an error, a click to dismiss.
+`worthAToast` decides what is news (progress, a change with a number or a verb,
+every error) against what is furniture. Animated by a class on the next frame,
+because a `@keyframes` rule cannot carry the stylesheet's `#model-studio` scope
+and fails the pin.
