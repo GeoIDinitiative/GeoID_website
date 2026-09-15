@@ -1614,6 +1614,49 @@ export function sampleLocated(located, scalar) {
 }
 
 /**
+ * REFLECT — ParaView's mirror for a half or quarter model solved on its
+ * symmetry. Each axis may be mirrored about its minimum, its maximum or 0;
+ * the copies are every non-empty combination of the mirrored axes (one for a
+ * half model, three for a quarter, seven for an octant), each a column-major
+ * 4 × 4 in the mesh's own frame: translate to the plane, scale −1, back.
+ */
+export function reflectionPlanes(bounds, mirror = {}) {
+  const axes = [];
+  ["x", "y", "z"].forEach((axis, a) => {
+    const at = mirror[axis];
+    if (!at || at === "off") return;
+    const p = at === "min" ? bounds.min[a] : at === "max" ? bounds.max[a] : 0;
+    axes.push({ axis, a, p });
+  });
+  return axes;
+}
+
+export function reflectionMatrices(bounds, mirror = {}) {
+  const axes = reflectionPlanes(bounds, mirror);
+  const out = [];
+  for (let mask = 1; mask < 1 << axes.length; mask += 1) {
+    const m = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+    axes.forEach(({ a, p }, k) => {
+      if (!(mask & (1 << k))) return;
+      m[a * 5] = -1; // diagonal entry (0, 5, 10)
+      m[12 + a] = 2 * p; // x' = 2p − x
+    });
+    out.push({ matrix: m, axes: axes.filter((_, k) => mask & (1 << k)).map((x) => x.axis).join("") });
+  }
+  return out;
+}
+
+/** The box holding the model and all its mirrored copies. */
+export function reflectedBounds(bounds, mirror = {}) {
+  const min = bounds.min.slice(); const max = bounds.max.slice();
+  for (const { a, p } of reflectionPlanes(bounds, mirror)) {
+    const lo = 2 * p - bounds.max[a]; const hi = 2 * p - bounds.min[a];
+    min[a] = Math.min(min[a], lo); max[a] = Math.max(max[a], hi);
+  }
+  return { min, max };
+}
+
+/**
  * SELECTION through a screen rectangle — ParaView's frustum selection.
  *
  * Every candidate node (warped if `disp` is given) is carried through

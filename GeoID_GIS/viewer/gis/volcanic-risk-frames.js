@@ -9,10 +9,10 @@
 
 import {
   registerSpec, play as playAny, framePaint as paintAny, epochsFor as epochsAny, reachedIn,
-} from "./risk-frames.js?v=20260915-fe100ae";
+} from "./risk-frames.js?v=20260915-1049a63";
 import {
   riskEdges, RISK_LABELS, FRAME_VEIS, BANDS, RECORDS, NONE_COLOUR, NONE_LABEL,
-} from "./volcanic-risk.js?v=20260915-fe100ae";
+} from "./volcanic-risk.js?v=20260915-1049a63";
 
 export function noteFor(epoch) {
   if (epoch.all) return `${(epoch.count || 0).toLocaleString()} cells reached, every size`;

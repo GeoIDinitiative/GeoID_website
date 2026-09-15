@@ -771,3 +771,23 @@ check("a mesh opened onto a loaded run starts a new run; results join the open o
   check("warp by scalar: a 2D result lifted by the field shown along z, added to any displacement warp, kept in a state",
     /if \(S\.mesh\.dim === 2 && S\.warpScalar\.on && scalar\)/.test(panelSrc) && /disp\[i \* 3 \+ 2\] \+= Number\.isFinite\(v\) \? v \* k : 0/.test(panelSrc) && /warpScalar: \{ \.\.\.S\.warpScalar \}/.test(panelSrc));
 }
+
+{
+  const { reflectionMatrices, reflectedBounds } = await import("./gales-results.js");
+  const b = { min: [0, -5, -10], max: [4, 5, 0] };
+  const apply = (m, p) => [m[0] * p[0] + m[4] * p[1] + m[8] * p[2] + m[12], m[1] * p[0] + m[5] * p[1] + m[9] * p[2] + m[13], m[2] * p[0] + m[6] * p[1] + m[10] * p[2] + m[14]];
+  const half = reflectionMatrices(b, { x: "min" });
+  const quarter = reflectionMatrices(b, { x: "max", y: "zero" });
+  check("reflect: a half model mirrors once about its plane, a quarter three times, every point the image of itself",
+    half.length === 1 && apply(half[0].matrix, [3, 2, -1]).join() === "-3,2,-1" &&
+    quarter.length === 3 && quarter.map((q) => q.axes).join() === "x,y,xy" && apply(quarter[2].matrix, [1, 2, -1]).join() === "7,-2,-1");
+  const rb = reflectedBounds(b, { x: "max", z: "max" });
+  check("reflect: the box grows to hold the copies", rb.min.join() === "0,-5,-10" && rb.max.join() === "8,5,10" && reflectionMatrices(b, {}).length === 0);
+}
+
+{
+  const panelSrc = readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8");
+  check("reflect: linked copies share geometry and material, read their visibility from the part they copy, are rebuilt each refresh, and the box grows with them",
+    /new THREE\.Mesh\(src\.geometry, src\.material\)/.test(panelSrc) && /Object\.defineProperty\(copy, "visible", \{ get: \(\) => src\.visible/.test(panelSrc) &&
+    /updateStationMarkers\(disp\);\n\s*buildMirrors\(\);/.test(panelSrc) && /reflectedBounds\(S\.mesh\.bounds, S\.mirror\)/.test(panelSrc) && /mirror: \{ \.\.\.S\.mirror \}/.test(panelSrc));
+}

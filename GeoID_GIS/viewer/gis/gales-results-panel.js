@@ -24,21 +24,21 @@
  */
 import * as THREE from "../vendor/three.module.js";
 import {
-  planSimulation, describeField, dofsPerNode, float64View, componentOf, magnitudeOf, temporalAccumulator,
+  planSimulation, describeField, dofsPerNode, float64View, componentOf, magnitudeOf, temporalAccumulator, reflectionMatrices, reflectedBounds,
   rangeOf, usedNodes, COLORMAPS, colormapTable, colourValues, niceTicks, formatValue, tickLabel,
   interpolateOnSlice, axisPlane, nodeByteRange, probeCsv, parseMesh, sliceTets, isoTets, contourLevels, contourSegments,
   exposedFaces, thresholdKeep, keptTriangles,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
   groupResultFiles, timeOf, referencePlan, differenceOf, DERIVED_DOFS,
-} from "./gales-results.js?v=20260915-fe100ae";
-import { zipStore } from "./shapefile-writer.js?v=20260915-fe100ae";
-import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-fe100ae";
-import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-fe100ae";
-import { parseSolidProps } from "./strain-stress.js?v=20260915-fe100ae";
-import { vtkHead, readVtkGrid, parsePvd, vtkFieldName } from "./vtk-read.js?v=20260915-fe100ae";
-import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-fe100ae";
-import { may, refusal } from "./membership.js?v=20260915-fe100ae";
-import { downloadText } from "./extraction.js?v=20260915-fe100ae";
+} from "./gales-results.js?v=20260915-1049a63";
+import { zipStore } from "./shapefile-writer.js?v=20260915-1049a63";
+import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-1049a63";
+import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-1049a63";
+import { parseSolidProps } from "./strain-stress.js?v=20260915-1049a63";
+import { vtkHead, readVtkGrid, parsePvd, vtkFieldName } from "./vtk-read.js?v=20260915-1049a63";
+import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-1049a63";
+import { may, refusal } from "./membership.js?v=20260915-1049a63";
+import { downloadText } from "./extraction.js?v=20260915-1049a63";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -68,6 +68,7 @@ const S = {
   sliceKey: "",
   deform: { on: false, field: -1, scale: 1 },
   warpScalar: { on: false, scale: 1 },
+  mirror: { x: "off", y: "off", z: "off" },
   insar: loadInsar(),
   insarNote: "",
   losRaw: null,
@@ -863,6 +864,7 @@ function disposeScene() {
     if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m.dispose?.());
   });
   scene.root = null;
+  scene.mirrors = null;
   scene.parts = null;
   scene.visKey = "";
   scene.listed = null;
@@ -875,13 +877,57 @@ function disposeScene() {
  * the mesh instead of z-fighting with it along every line.
  */
 function resultBounds() {
-  const { min, max } = S.mesh.bounds;
+  const { min, max } = reflectedBounds(S.mesh.bounds, S.mirror);
   const flat = S.mesh.dim === 2 || max[2] - min[2] === 0;
   return {
     minX: min[0] - scene.centre[0], maxX: max[0] - scene.centre[0],
     minY: min[1] - scene.centre[1], maxY: max[1] - scene.centre[1],
     minZ: flat ? Math.min(min[2], -Math.max(1, scene.radius * 1e-3)) : min[2], maxZ: max[2],
   };
+}
+
+/**
+ * A copy of a part that FOLLOWS it: shared geometry and material, so every
+ * step's colours and positions land in the mirror too, and its visibility read
+ * from the part it copies, so the Visibility box and the display choice govern
+ * both. A mirrored matrix flips the winding, which three.js handles itself
+ * (a negative determinant draws front faces clockwise).
+ */
+function linkedCopy(src) {
+  let copy;
+  if (src.isMesh) copy = new THREE.Mesh(src.geometry, src.material);
+  else if (src.isLineSegments) copy = new THREE.LineSegments(src.geometry, src.material);
+  else if (src.isLine) copy = new THREE.Line(src.geometry, src.material);
+  else if (src.isPoints) copy = new THREE.Points(src.geometry, src.material);
+  else copy = new THREE.Group();
+  copy.name = `${src.name || "part"}-mirror`;
+  copy.position.copy(src.position); copy.quaternion.copy(src.quaternion); copy.scale.copy(src.scale);
+  copy.matrixAutoUpdate = src.matrixAutoUpdate;
+  if (!src.matrixAutoUpdate) copy.matrix.copy(src.matrix);
+  copy.renderOrder = src.renderOrder;
+  copy.frustumCulled = false;
+  Object.defineProperty(copy, "visible", { get: () => src.visible, set: () => {}, configurable: true });
+  for (const child of src.children) copy.add(linkedCopy(child));
+  return copy;
+}
+
+/** Rebuilt after each refresh (contours, isosurfaces and the threshold skin are new meshes each step). */
+function buildMirrors() {
+  if (scene.mirrors) { scene.mirrors.parent?.remove(scene.mirrors); scene.mirrors = null; }
+  const mats = S.mesh ? reflectionMatrices(S.mesh.bounds, S.mirror) : [];
+  if (!mats.length || !scene.frame || !scene.parts) return;
+  const group = new THREE.Group();
+  group.name = "gales-mirrors";
+  for (const { matrix, axes } of mats) {
+    const g = new THREE.Group();
+    g.name = `gales-mirror-${axes}`;
+    g.matrixAutoUpdate = false;
+    g.matrix.fromArray(matrix);
+    for (const key of ["surface", "slice", "edges", "contours", "iso", "threshold"]) if (scene.parts[key]) g.add(linkedCopy(scene.parts[key]));
+    group.add(g);
+  }
+  scene.frame.add(group);
+  scene.mirrors = group;
 }
 
 function buildScene() {
@@ -1284,6 +1330,7 @@ async function refresh({ fit = false } = {}) {
     await drawThreshold({ view, scalar: fringe ? (losHere || scalar) : scalar, colourScalar: scalar, f, disp, lo, hi, table, paint });
     updateProbeMarker(disp);
     updateStationMarkers(disp);
+    buildMirrors();
     // The box names the field and lists the slice once there is one: redraw it
     // when that changes, never on every step of a play.
     const g = visibilityGroup();
@@ -1316,6 +1363,7 @@ function resultsState() {
     field: f?.field || null, stepTime: f?.steps[S.step]?.time ?? null, stepName: f?.steps[S.step]?.name ?? null,
     deform: { on: S.deform.on, field: S.fields[S.deform.field]?.field || null, scale: S.deform.scale },
     warpScalar: { ...S.warpScalar },
+    mirror: { ...S.mirror },
     contours: { on: S.contours.on, count: S.contours.count, colour: S.contours.colour },
     iso: { on: S.iso.on, levels: S.iso.levels, opacity: S.iso.opacity },
     threshold: { lo: S.threshold.lo, hi: S.threshold.hi, flags: S.threshold.flags, mode: S.threshold.mode, colourBy: S.threshold.colourBy },
@@ -1356,6 +1404,7 @@ async function applyResultsState(state) {
   const di = state.deform?.field ? S.fields.findIndex((x) => x.field === state.deform.field) : -1;
   S.deform = { on: Boolean(state.deform?.on && di >= 0), field: di >= 0 ? di : S.deform.field, scale: state.deform?.scale ?? S.deform.scale };
   S.warpScalar = { on: Boolean(state.warpScalar?.on), scale: Number(state.warpScalar?.scale) || 1 };
+  S.mirror = { x: "off", y: "off", z: "off", ...(state.mirror || {}) };
   if (Number.isInteger(state.probeNode) && state.probeNode < S.mesh.nodeCount) S.probe = { node: state.probeNode, series: null, seriesField: -1 };
   if (Array.isArray(state.stations)) {
     S.stations = [];
@@ -2237,6 +2286,22 @@ function renderControls() {
 
   // Display
   const ds = section("display", "Display");
+  {
+    const mirrorRow = el("div", { class: "gales-mirror-row" });
+    const opts = [["off", "—"], ["min", "min"], ["max", "max"], ["zero", "0"]];
+    for (const axis of S.mesh.dim === 3 ? ["x", "y", "z"] : ["x", "y"]) {
+      mirrorRow.append(el("label", {}, `${axis} `, select(opts, S.mirror[axis], (v) => {
+        S.mirror = { ...S.mirror, [axis]: v };
+        buildMirrors();
+        studio()?.setExternalBounds?.("gales-results", anyPartShown() ? resultBounds() : null);
+        const copies = reflectionMatrices(S.mesh.bounds, S.mirror).length;
+        S.mirrorNote = copies ? `${copies} mirrored cop${copies > 1 ? "ies" : "y"} drawn about ${["x", "y", "z"].filter((a) => S.mirror[a] !== "off").map((a) => `${a} = ${S.mirror[a] === "zero" ? 0 : S.mirror[a]}`).join(", ")}. A picture of the symmetric whole: colours are copied, so a vector component normal to a plane is shown with its own sign, and probes, analyses and exports read the half that was solved.` : "";
+        renderControls();
+      })));
+    }
+    ds.body.append(row("Reflect about", mirrorRow));
+    if (S.mirrorNote && reflectionMatrices(S.mesh.bounds, S.mirror).length) ds.body.append(el("div", { class: "studio-readout" }, S.mirrorNote));
+  }
   if (S.mesh.dim === 3) {
     ds.body.append(row("View", select([["surface", "Surface"], ["slice", "Slice"], ["clip", "Clip at the slice"], ["both", "Translucent surface + slice"], ["threshold", "Threshold — a range, or domains"]], S.view, (v) => { S.view = v; renderControls(); refresh(); })));
     if (S.view !== "surface") {

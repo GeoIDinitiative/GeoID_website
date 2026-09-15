@@ -20877,3 +20877,27 @@ draws the largest value as a fifth of the model. 2D only: in a volume the lift
 has no direction that is not an invention. Kept in a saved state. Verified on
 `fixtures/vtk/plane2d.vtu` (a 21 × 11 quad grid, head 0–30 m): at ×10 the drawn
 surface rises to exactly 300 m.
+
+## Reflect: the symmetric whole of a half or quarter model
+
+Results ▸ Display ▸ Reflect about: each axis off, or mirrored about its minimum,
+maximum or 0; the copies are every combination of the mirrored axes (one for a
+half model, three for a quarter). `reflectionMatrices` and `reflectedBounds` in
+gales-results.js are the pure half.
+
+- **A mirror is a LINKED copy, not a copy.** Each part (surface, slice, edges,
+  contours, isosurfaces, threshold) is copied with its geometry and material
+  SHARED, so a step's new colours and positions appear in the mirror with no
+  work, and its `visible` is a getter onto the part it copies, so the display
+  choice and the Visibility box govern both. Copies are rebuilt after each
+  refresh, because contours, isosurfaces and the threshold skin are new meshes
+  every step. three.js flips the winding of a negative-determinant matrix
+  itself.
+- **It is a picture, and it says so**: colours are copied, so a vector component
+  normal to the mirror plane shows its own sign rather than the flipped sign the
+  symmetric field has; probes, analyses and exports read the solved half. A clip
+  plane is not mirrored. The studio's ground hole and camera floor take the
+  grown box.
+
+Verified on Etna mirrored about x = max: one copy beside the model sharing the
+surface's geometry, the slice copy following a change of view.
