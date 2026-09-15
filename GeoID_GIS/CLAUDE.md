@@ -20926,3 +20926,17 @@ cameras. `results-second-view.js`.
 Verified on Etna: |u| in the main view, von Mises in the second (0 to 256 MPa,
 the derived field's known range), the second view's position buffer the main
 surface's own object.
+
+## The Model page opens on a launchpad, not on an empty grid
+
+`gis/studio-launchpad.js` draws a card over the viewport while the studio holds
+no solid and Results no run: four doors (start from the GIS page, build a shape,
+open a results folder, open result files), the Etna example where the gitignored
+GALES tree answers a HEAD, the open project's runs (▶ solved, ○ to prepare) and
+saved states, and a GIS → Model → Research strip whose three steps go there.
+**Every door is a door that exists elsewhere** — `setMode`, `showGroup`,
+`openFolder`, `openProjectRun` — and the test pins that it parses, fetches and
+builds nothing itself. It goes the moment a solid or a run arrives (polled at
+1.5 s and on `geoid-gales:refreshed`), and ✕ stands it down for the session.
+Placed in the room right of the 24rem deck, centred there, never over it
+(measured: 492 px against the deck's 400 on a 1,273 px viewport).

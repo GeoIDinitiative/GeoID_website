@@ -511,3 +511,50 @@
 #model-studio .gales-view2-legend { padding: 0.3rem 0.55rem 0.45rem; font-size: 0.7rem; }
 #model-studio .gales-view2-bar { height: 0.55rem; border-radius: 0.2rem; margin: 0.2rem 0; }
 #model-studio .gales-view2-ticks { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
+
+/* ── The launchpad: the page's way in while it holds nothing ─────────────── */
+#model-studio .studio-launchpad {
+  position: absolute; z-index: 5;
+  /* Centred in the room RIGHT of the deck (24rem wide at 1rem), never over it. */
+  left: calc(26rem + (100vw - 26rem) / 2); top: calc(var(--studio-chrome-h, 5rem) + 3.2rem);
+  transform: translateX(-50%);
+  width: min(44rem, calc(100vw - 28rem));
+  max-height: calc(100% - var(--studio-chrome-h, 5rem) - 6rem);
+  overflow-y: auto;
+  padding: 1.1rem 1.25rem 1rem;
+  border: 1px solid rgba(var(--st-accent-rgb, 255, 43, 214), 0.42);
+  border-radius: 0.9rem;
+  background: rgb(16, 7, 36);
+  box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.4);
+  color: var(--text, #f0ecff);
+}
+#model-studio .studio-launchpad[hidden] { display: none !important; }
+#model-studio .studio-launch-head { display: flex; gap: 1rem; align-items: flex-start; }
+#model-studio .studio-launch-head h2 { margin: 0 0 0.2rem; font: 600 1.05rem/1.2 "Exo 2", system-ui, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: var(--nav-accent, #ff2bd6); }
+#model-studio .studio-launch-head p { margin: 0; font-size: 0.82rem; line-height: 1.45; opacity: 0.82; max-width: 36rem; }
+#model-studio .studio-launch-close { margin-left: auto; flex: 0 0 auto; }
+#model-studio .studio-launch-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 0.55rem; margin-top: 0.9rem; }
+#model-studio .studio-launch-door {
+  display: flex; gap: 0.6rem; align-items: flex-start; text-align: left;
+  padding: 0.65rem 0.7rem; border-radius: 0.6rem; cursor: pointer;
+  border: 1px solid rgba(var(--st-accent-rgb, 255, 43, 214), 0.28);
+  background: rgba(255, 255, 255, 0.035); color: inherit; font: inherit;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+#model-studio .studio-launch-door:hover { background: rgba(var(--st-accent-rgb, 255, 43, 214), 0.12); border-color: rgba(var(--st-accent-rgb, 255, 43, 214), 0.6); transform: translateY(-1px); }
+#model-studio .studio-launch-door.is-primary { border-color: rgba(var(--st-accent-rgb, 255, 43, 214), 0.75); background: rgba(var(--st-accent-rgb, 255, 43, 214), 0.16); }
+#model-studio .studio-launch-icon { flex: 0 0 1.6rem; font-size: 1.25rem; line-height: 1.2; color: var(--nav-accent, #ff2bd6); }
+#model-studio .studio-launch-text { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+#model-studio .studio-launch-text b { font-size: 0.86rem; }
+#model-studio .studio-launch-text span { font-size: 0.74rem; line-height: 1.4; opacity: 0.78; }
+#model-studio .studio-launch-badge { margin-left: auto; align-self: flex-start; font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.15rem 0.4rem; border-radius: 999px; background: var(--nav-accent, #ff2bd6); color: #2b0030; white-space: nowrap; }
+#model-studio .studio-launch-resume { margin-top: 0.9rem; }
+#model-studio .studio-launch-resume h3, #model-studio .studio-launch-note { margin: 0 0 0.35rem; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.75; }
+#model-studio .studio-launch-note { text-transform: none; letter-spacing: 0; font-size: 0.76rem; margin-top: 0.8rem; line-height: 1.4; }
+#model-studio .studio-launch-list { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+#model-studio .studio-launch-map { display: flex; align-items: stretch; gap: 0.4rem; margin-top: 1rem; padding-top: 0.8rem; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+#model-studio .studio-launch-step { flex: 1 1 0; display: flex; flex-direction: column; gap: 0.1rem; align-items: flex-start; text-align: left; padding: 0.45rem 0.6rem; border-radius: 0.5rem; border: 1px solid rgba(255, 255, 255, 0.1); background: transparent; color: inherit; font: inherit; cursor: pointer; }
+#model-studio .studio-launch-step:hover { border-color: rgba(var(--st-accent-rgb, 255, 43, 214), 0.5); }
+#model-studio .studio-launch-step b { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--nav-accent, #ff2bd6); }
+#model-studio .studio-launch-step span { font-size: 0.68rem; opacity: 0.75; line-height: 1.35; }
+#model-studio .studio-launch-arrow { align-self: center; opacity: 0.5; }

@@ -16,9 +16,9 @@
  * their keys.
  */
 
-import { dataUrl } from "./data-base.js?v=20260915-436fbaa";
-import { rampColour } from "./symbology.js?v=20260915-436fbaa";
-import { startPlayer } from "./timelapse-player.js?v=20260915-436fbaa";
+import { dataUrl } from "./data-base.js?v=20260915-80c9928";
+import { rampColour } from "./symbology.js?v=20260915-80c9928";
+import { startPlayer } from "./timelapse-player.js?v=20260915-80c9928";
 
 const search = new URL(import.meta.url).search;
 /**
