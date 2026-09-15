@@ -9,9 +9,11 @@
  *
  *   { id, type: "parse", buffer }          → { id, ok, mesh }
  *   { id, type: "slice", normal, d }       → { id, ok, slice }
+ *   { id, type: "quality" }                → { id, ok, analysis }  (mesh-quality.js, by transfer)
  *   progress while parsing                 → { id, type: "progress", fraction }
  */
-import { parseMesh, sliceTets } from "./gales-results.js?v=20260915-853eed0";
+import { parseMesh, sliceTets } from "./gales-results.js?v=20260915-3643e7a";
+import { analyseMesh } from "./mesh-quality.js?v=20260915-3643e7a";
 
 let mesh = null;
 
@@ -48,6 +50,14 @@ async function handle(event) {
       reply({ id, ok: true, slice }, [slice.a.buffer, slice.b.buffer, slice.t.buffer, slice.cells.buffer]);
       return;
     }
+    if (type === "quality") {
+      // The cells never cross to the page, so the metrics are computed where
+      // they are, off the page's thread, and only the answer crosses back.
+      if (!mesh) throw new Error("No mesh is loaded in the reader.");
+      const analysis = qualityForTransfer(analyseMesh(mesh), mesh);
+      reply({ id, ok: true, analysis }, analysis ? [...Object.values(analysis.metrics).map((m) => m.buffer), analysis.elements.coords.buffer, analysis.elements.conn.buffer] : []);
+      return;
+    }
     if (type === "drop") {
       mesh = null;
       reply({ id, ok: true });
@@ -57,6 +67,21 @@ async function handle(event) {
   } catch (error) {
     reply({ id, ok: false, error: error?.message || String(error) });
   }
+}
+
+/** An analysis whose arrays can be transferred without taking the worker's mesh with them. */
+export function qualityForTransfer(analysis, source) {
+  if (!analysis) return null;
+  const E = analysis.elements;
+  return {
+    count: analysis.count, dim: analysis.dim, per: analysis.per,
+    inverted: analysis.inverted, degenerate: analysis.degenerate, metrics: analysis.metrics,
+    elements: {
+      per: E.per, dim: E.dim,
+      coords: E.coords === source.coords ? E.coords.slice() : E.coords,
+      conn: E.conn === source.cells ? E.conn.slice() : E.conn,
+    },
+  };
 }
 
 function countTets(m) {

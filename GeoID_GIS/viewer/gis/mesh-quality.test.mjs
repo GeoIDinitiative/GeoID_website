@@ -100,3 +100,14 @@ check("every metric names its direction and explains itself", Object.values(METR
   check("overlay: drawn through the model with the depth test off, and taken down when the card closes", /depthTest: false/.test(panel) && /if \(!Q\.open\) \{ removeOverlay\(\); return; \}/.test(panel));
   check("a large mesh is analysed only when asked", /elementCount\(chosen\.mesh\) > AUTO_LIMIT/.test(panel));
 }
+// A GALES mesh is analysed in the results reader, and only the answer crosses back.
+{
+  const { readFileSync } = await import("node:fs");
+  const worker = readFileSync(new URL("./gales-worker.js", import.meta.url), "utf8");
+  const panel = readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8");
+  check("reader: the worker answers a quality request, and the results seam asks it", /type === "quality"/.test(worker) && /quality: async \(\) =>/.test(panel));
+  const { qualityForTransfer } = await import("./gales-worker.js");
+  const gales = { coords: Float64Array.from(cube), cells: Uint32Array.from(six), cellOffsets: Uint32Array.from([0, 4, 8, 12, 16, 20, 24]), dim: 3, nodeCount: 8 };
+  const t = qualityForTransfer(analyseMesh(gales), gales);
+  check("transfer: the reader's own coordinates are copied, never handed over", t.count === 6 && t.elements.coords !== gales.coords && t.elements.coords.length === 24 && t.elements.conn.length === 24);
+}

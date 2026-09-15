@@ -16,15 +16,19 @@
  * the model anchor turned by the same MODEL_TO_SCENE the studio uses, a GALES
  * mesh inside the results frame, which already carries its centring.
  *
- * Nothing is analysed on its own past AUTO_LIMIT elements: the metrics run on
- * the main thread, and a two-million-tetrahedron mesh is seconds of a frozen
- * page that should be asked for rather than imposed.
+ * THE STUDIO MESH IS ANALYSED HERE, A GALES MESH IN ITS READER. The results
+ * panel keeps a GALES mesh's cells in its worker and hands the page only the
+ * coordinates and the boundary, so its quality is asked of the worker
+ * (GeoIDGalesResults.quality()) and only the answer crosses back. The studio's
+ * lattice mesh is on this thread already. Past a size either way the analysis
+ * waits for a press: seconds of a frozen page, or a large transfer, should be
+ * asked for rather than imposed.
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { METRICS, analyseMesh, summarise, verdict, elementFaces, elementCentroid } from "./mesh-quality.js?v=20260915-853eed0";
+import { METRICS, analyseMesh, summarise, verdict, elementFaces, elementCentroid } from "./mesh-quality.js?v=20260915-3643e7a";
 
-const AUTO_LIMIT = 250000;
+const AUTO_LIMIT = { studio: 250000, gales: 1500000 };
 const DRAW_LIMIT = 20000;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
 const POOR = 0xff4d5e;
@@ -97,9 +101,9 @@ function installStyle() {
 export function availableMeshes() {
   const out = [];
   const s = studio()?.state?.mesh;
-  if (s?.tets?.length && s?.nodes?.length) out.push({ id: "studio", label: "Studio mesh", mesh: s });
+  if (s?.tets?.length && s?.nodes?.length) out.push({ id: "studio", label: "Studio mesh", noun: "studio mesh", mesh: s });
   const g = results()?.state?.mesh;
-  if (g?.cells?.length && g?.coords?.length) out.push({ id: "gales", label: "FEM results mesh", mesh: g });
+  if (g?.coords?.length && g.cellCount > 0 && results()?.quality) out.push({ id: "gales", label: "FEM results mesh", noun: "FEM results mesh", mesh: g });
   return out;
 }
 
@@ -271,12 +275,12 @@ function render() {
     row.append(label, select);
     node.append(row);
   } else {
-    node.append(el("p", "mq-says", `Reading the ${chosen.label.toLowerCase()}.`));
+    node.append(el("p", "mq-says", `Reading the ${chosen.noun}.`));
   }
 
   if (!Q.analysis || Q.mesh !== chosen.mesh) {
     const count = elementCount(chosen.mesh);
-    node.append(el("p", "mq-says", `${count.toLocaleString()} elements — larger than ${AUTO_LIMIT.toLocaleString()} is analysed only when asked, since it holds the page for a few seconds.`));
+    node.append(el("p", "mq-says", `${count.toLocaleString()} elements. A mesh past ${AUTO_LIMIT[chosen.id].toLocaleString()} is analysed only when asked.`));
     const actions = el("div", "mq-actions");
     const go = el("button", "studio-btn is-on", "Analyse");
     go.type = "button";
@@ -331,7 +335,7 @@ function render() {
   const stats = el("div", "mq-stats");
   const unit = spec.unit || "";
   const rows = [
-    ["Elements", A.count.toLocaleString()], [A.per === 4 ? "Tetrahedra" : "Triangles", `${A.dim}D`],
+    ["Elements", A.count.toLocaleString()], ["Type", `${A.per === 4 ? "tetrahedra" : "triangles"}, ${A.dim}D`],
     ["Min", fmt(summary.min, unit)], ["Max", fmt(summary.max, unit)],
     ["Mean", fmt(summary.mean, unit)], ["Median", fmt(summary.median, unit)],
     ["5th pct", fmt(summary.p5, unit)], ["95th pct", fmt(summary.p95, unit)],
@@ -384,9 +388,11 @@ function render() {
 }
 
 function elementCount(mesh) {
-  if (mesh?.tets) return mesh.tets.length / 4;
-  if (mesh?.cellOffsets) return Math.max(0, mesh.cellOffsets.length - 1);
-  return 0;
+  if (mesh?.tets?.length) return mesh.tets.length / 4;
+  // A GALES mesh as the results panel holds it: a count of its tetrahedra,
+  // and of all its cells for a 2D mesh, whose elements are triangles.
+  if (mesh?.dim === 3 && Number.isFinite(mesh.tets)) return mesh.tets;
+  return mesh?.cellCount || 0;
 }
 
 function analyse(force = false) {
@@ -394,16 +400,24 @@ function analyse(force = false) {
   const chosen = availableMeshes().find((m) => m.id === Q.source) || availableMeshes()[0];
   if (!chosen) { Q.analysis = null; Q.mesh = null; render(); return; }
   Q.source = chosen.id;
-  if (!force && elementCount(chosen.mesh) > AUTO_LIMIT) { Q.analysis = null; Q.mesh = null; render(); return; }
+  if (!force && elementCount(chosen.mesh) > AUTO_LIMIT[chosen.id]) { Q.analysis = null; Q.mesh = null; render(); return; }
   status("Analysing…");
-  // One frame so "Analysing…" is painted before the page is held.
-  window.requestAnimationFrame(() => setTimeout(() => {
-    const t0 = performance.now();
-    Q.analysis = analyseMesh(chosen.mesh);
+  const ticket = (Q.ticket = (Q.ticket || 0) + 1);
+  const t0 = performance.now();
+  const done = (analysis) => {
+    if (ticket !== Q.ticket) return;
+    Q.analysis = analysis;
     Q.mesh = chosen.mesh;
     render();
-    if (Q.analysis && !(Q.showPoor && Q.overlay)) status(`Analysed ${Q.analysis.count.toLocaleString()} elements in ${Math.round(performance.now() - t0)} ms.`);
-  }, 0));
+    if (!analysis) status("This mesh has no elements to analyse.");
+    else if (!(Q.showPoor && Q.overlay)) status(`Analysed ${analysis.count.toLocaleString()} elements in ${Math.round(performance.now() - t0)} ms${chosen.id === "gales" ? ", in the results reader" : ""}.`);
+  };
+  if (chosen.id === "gales") {
+    results().quality().then(done, (error) => { if (ticket === Q.ticket) status(`Could not analyse: ${error.message}`); });
+    return;
+  }
+  // One frame so "Analysing…" is painted before the page is held.
+  window.requestAnimationFrame(() => setTimeout(() => done(analyseMesh(chosen.mesh)), 0));
 }
 
 /** Follow the page: a re-mesh, a cleared mesh, a results run opened or closed. */

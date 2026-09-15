@@ -19970,8 +19970,15 @@ the studio ribbon's **Quality** toggle and the card it opens.
   `MODEL_TO_SCENE`. A GALES mesh is drawn in the results frame
   (`GeoIDGalesResults.frame()`, which already carries the centring). Zoom to
   worst and the worst-element list fit the camera to one element.
-- **Analysed on the main thread, so a mesh past 250,000 elements waits for a
-  press.** At most 20,000 poor elements are drawn, and the card says so.
+- **The studio mesh is analysed on the page; a GALES mesh in its reader.**
+  The results panel never hands the page its cells. `S.mesh` is `{coords,
+  surface, tets: <a COUNT>}`, not the parsed `cells`/`cellOffsets`. So the
+  worker answers a `quality` request, `GeoIDGalesResults.quality()` is the
+  seam, and only the metrics and a copy of the connectivity cross back
+  (`qualityForTransfer` copies the reader's own coordinates rather than
+  detaching them). A studio mesh past 250,000 elements, or a GALES mesh past
+  1.5 million, waits for a press. At most 20,000 poor elements are drawn, and
+  the card says so.
 - **Follows the page.** The studio dispatches `geoid-studio:mesh-changed` on
   re-mesh and on Clear, and a 1 s identity poll catches a results run opened or
   closed. The overlay goes when the card closes.
