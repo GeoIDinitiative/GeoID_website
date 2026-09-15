@@ -1,7 +1,7 @@
-import { directoryAdapter, memoryAdapter, indexedDbAdapter } from "./fs-adapter.js?v=20260915-e1d7175";
-import { currentBodyId, getBody } from "../bodies.js?v=20260915-e1d7175";
-import { saveRootHandle, loadRootHandle, clearRootHandle } from "./handles.js?v=20260915-e1d7175";
-import { may, refusal } from "../membership.js?v=20260915-e1d7175";
+import { directoryAdapter, memoryAdapter, indexedDbAdapter } from "./fs-adapter.js?v=20260915-2a75eee";
+import { currentBodyId, getBody } from "../bodies.js?v=20260915-2a75eee";
+import { saveRootHandle, loadRootHandle, clearRootHandle } from "./handles.js?v=20260915-2a75eee";
+import { may, refusal } from "../membership.js?v=20260915-2a75eee";
 
 /**
  * Projects, on disk, in the layout the Qt Research app uses.
@@ -198,12 +198,22 @@ export function canStoreProjects() {
   return isSupported() || typeof indexedDB !== "undefined";
 }
 
-/** Swap in a different filesystem — used by the tests, and by nothing else. */
+/**
+ * Swap in a different filesystem: the tests, and the hub when a sidecar
+ * answers. It CLOSES the open project — a project is a folder on the old
+ * filesystem — so a caller that means to keep working asks `adapterKind()`
+ * first rather than swapping in the adapter it already has.
+ */
 export function useAdapter(adapter) {
   rootAdapter = adapter;
   active = null;
   announce();
   return rootAdapter;
+}
+
+/** Which filesystem the store is on: "sidecar", "indexeddb", "memory", "directory", or null. */
+export function adapterKind() {
+  return rootAdapter?.kind || null;
 }
 
 export function useMemoryAdapter(name) {

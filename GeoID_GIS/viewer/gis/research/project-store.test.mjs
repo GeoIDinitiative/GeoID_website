@@ -43,6 +43,7 @@ globalThis.window = {
 };
 globalThis.document = { body: { dataset: {} } };
 
+import { readFileSync } from "node:fs";
 import * as store from "./project-store.js";
 import { memoryAdapter } from "./fs-adapter.js";
 
@@ -232,6 +233,23 @@ eq("safeName keeps words, dashes and dots", store.safeName("Rhone-flood v1.2"),
 eq("safeName has no slashes to escape a world with",
   store.safeName("../../etc/passwd"), ".._.._etc_passwd");
 eq("safeName never answers empty", store.safeName("///"), "_");
+
+// ── the adapter names itself, and the hub does not swap in the one it has ──
+// useAdapter closes the open project (a project is a folder on the OLD
+// filesystem). The hub re-probes the sidecar whenever it installs and used to
+// swap the sidecar adapter in unconditionally — which closed the project the
+// Model page had just filed its series into, the moment the hand-off reached
+// Research. Measured: the Signal page listed nothing a second after
+// post_processing/extracted_dofs/ gained two CSVs.
+{
+  store.useAdapter({ ...memoryAdapter("k"), kind: "sidecar" });
+  eq("adapterKind reports the adapter's own kind", store.adapterKind(), "sidecar");
+  store.useAdapter(memoryAdapter("k2"));
+  const hub = readFileSync(new URL("./hub.js", import.meta.url), "utf8").replace(/\/\/[^\n]*/g, "");
+  const probe = hub.slice(hub.indexOf("sidecar.probe().then"));
+  check("the hub's reprobe leaves a store already on the sidecar alone", /adapterKind\?\.\(\) === "sidecar"\) return;/.test(probe));
+  check("the hub reopens the project it had when it does switch", /openProject\?\.\(open\)/.test(probe));
+}
 
 console.log(`\n${failures ? `${failures} failed` : "all passed"}`);
 process.on("exit", () => { process.exitCode = failures ? 1 : 0; });

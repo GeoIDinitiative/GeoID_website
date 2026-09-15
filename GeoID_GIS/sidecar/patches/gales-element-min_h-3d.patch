@@ -1,0 +1,86 @@
+--- /tmp/claude-1000/-home-owen-GeoID-webpage/6b5b29f2-d32a-46bb-afc7-49d13231f17a/scratchpad/element.hpp.orig	2026-09-15 21:08:09.338397195 +0100
++++ GeoID_GIS/gales/src/fem/mesh/element.hpp	2026-09-15 21:08:09.350397316 +0100
+@@ -692,16 +692,22 @@
+ 
+ 
+ 
++        // GeoID patch: a 3D element's edges are measured in x, y AND z. Written
++    // for the 2D quad and copied, this took a tetrahedron's vertical edge as
++    // length 0, so the GLS stabilisation's 1/alpha was infinite and its
++    // tau_gls NaN on any box mesh — the heat solve aborted in Belos with
++    // "NaN has been detected" at the first step.
+     void compute_min_h()
+     {
+        if(nb_nodes_== 3)
+        {
+          double x0 = get_x(0),  x1 = get_x(1),  x2 = get_x(2); 
+          double y0 = get_y(0),  y1 = get_y(1),  y2 = get_y(2); 
+-         double l1 = std::sqrt((x1 - x0)*(x1 - x0) + (y1 - y0)*(y1 - y0));  
+-         double l2 = std::sqrt((x2 - x1)*(x2 - x1) + (y2 - y1)*(y2 - y1));  
++         double z0 = get_z(0),  z1 = get_z(1),  z2 = get_z(2);
++         double l1 = std::sqrt((x1 - x0)*(x1 - x0) + (y1 - y0)*(y1 - y0) + (z1 - z0)*(z1 - z0));  
++         double l2 = std::sqrt((x2 - x1)*(x2 - x1) + (y2 - y1)*(y2 - y1) + (z2 - z1)*(z2 - z1));  
+ 
+-         double l3 = std::sqrt((x0 - x2)*(x0 - x2) + (y0 - y2)*(y0 - y2));
++         double l3 = std::sqrt((x0 - x2)*(x0 - x2) + (y0 - y2)*(y0 - y2) + (z0 - z2)*(z0 - z2));
+          min_h_ = std::min({l1, l2, l3});  
+        } 
+        
+@@ -709,12 +715,13 @@
+        {
+          double x0 = get_x(0),  x1 = get_x(1),  x2 = get_x(2),  x3 = get_x(3); 
+          double y0 = get_y(0),  y1 = get_y(1),  y2 = get_y(2),  y3 = get_y(3); 
+-         double l1 = std::sqrt((x1 - x0)*(x1 - x0) + (y1 - y0)*(y1 - y0));  
+-         double l2 = std::sqrt((x2 - x1)*(x2 - x1) + (y2 - y1)*(y2 - y1));  
+-         double l3 = std::sqrt((x2 - x0)*(x2 - x0) + (y2 - y0)*(y2 - y0));
+-         double l4 = std::sqrt((x0 - x3)*(x0 - x3) + (y0 - y3)*(y0 - y3));
+-         double l5 = std::sqrt((x2 - x3)*(x2 - x3) + (y2 - y3)*(y2 - y3));
+-         double l6 = std::sqrt((x1 - x3)*(x1 - x3) + (y1 - y3)*(y1 - y3));
++         double z0 = get_z(0),  z1 = get_z(1),  z2 = get_z(2),  z3 = get_z(3);
++         double l1 = std::sqrt((x1 - x0)*(x1 - x0) + (y1 - y0)*(y1 - y0) + (z1 - z0)*(z1 - z0));  
++         double l2 = std::sqrt((x2 - x1)*(x2 - x1) + (y2 - y1)*(y2 - y1) + (z2 - z1)*(z2 - z1));  
++         double l3 = std::sqrt((x2 - x0)*(x2 - x0) + (y2 - y0)*(y2 - y0) + (z2 - z0)*(z2 - z0));
++         double l4 = std::sqrt((x0 - x3)*(x0 - x3) + (y0 - y3)*(y0 - y3) + (z0 - z3)*(z0 - z3));
++         double l5 = std::sqrt((x2 - x3)*(x2 - x3) + (y2 - y3)*(y2 - y3) + (z2 - z3)*(z2 - z3));
++         double l6 = std::sqrt((x1 - x3)*(x1 - x3) + (y1 - y3)*(y1 - y3) + (z1 - z3)*(z1 - z3));
+          min_h_ = std::min({l1, l2, l3, l4, l5, l6});  
+        }
+ 
+@@ -723,22 +730,24 @@
+          double x0 = get_x(0),  x1 = get_x(1),  x2 = get_x(2),  x3 = get_x(3); 
+          double x4 = get_x(4),  x5 = get_x(5),  x6 = get_x(6),  x7 = get_x(7);          
+          double y0 = get_y(0),  y1 = get_y(1),  y2 = get_y(2),  y3 = get_y(3); 
++         double z0 = get_z(0),  z1 = get_z(1),  z2 = get_z(2),  z3 = get_z(3);
+          double y4 = get_y(4),  y5 = get_y(5),  y6 = get_y(6),  y7 = get_y(7); 
++         double z4 = get_z(4),  z5 = get_z(5),  z6 = get_z(6),  z7 = get_z(7);
+ 
+-         double l1 = std::sqrt((x1 - x0)*(x1 - x0) + (y1 - y0)*(y1 - y0));  
+-         double l2 = std::sqrt((x2 - x1)*(x2 - x1) + (y2 - y1)*(y2 - y1));  
+-         double l3 = std::sqrt((x3 - x2)*(x3 - x2) + (y3 - y2)*(y3 - y2));
+-         double l4 = std::sqrt((x0 - x3)*(x0 - x3) + (y0 - y3)*(y0 - y3));
+-
+-         double l5 = std::sqrt((x5 - x4)*(x5 - x4) + (y5 - y4)*(y5 - y4));  
+-         double l6 = std::sqrt((x6 - x5)*(x6 - x5) + (y6 - y5)*(y6 - y5));  
+-         double l7 = std::sqrt((x7 - x6)*(x7 - x6) + (y7 - y6)*(y7 - y6));
+-         double l8 = std::sqrt((x4 - x7)*(x4 - x7) + (y4 - y7)*(y4 - y7));
++         double l1 = std::sqrt((x1 - x0)*(x1 - x0) + (y1 - y0)*(y1 - y0) + (z1 - z0)*(z1 - z0));  
++         double l2 = std::sqrt((x2 - x1)*(x2 - x1) + (y2 - y1)*(y2 - y1) + (z2 - z1)*(z2 - z1));  
++         double l3 = std::sqrt((x3 - x2)*(x3 - x2) + (y3 - y2)*(y3 - y2) + (z3 - z2)*(z3 - z2));
++         double l4 = std::sqrt((x0 - x3)*(x0 - x3) + (y0 - y3)*(y0 - y3) + (z0 - z3)*(z0 - z3));
++
++         double l5 = std::sqrt((x5 - x4)*(x5 - x4) + (y5 - y4)*(y5 - y4) + (z5 - z4)*(z5 - z4));  
++         double l6 = std::sqrt((x6 - x5)*(x6 - x5) + (y6 - y5)*(y6 - y5) + (z6 - z5)*(z6 - z5));  
++         double l7 = std::sqrt((x7 - x6)*(x7 - x6) + (y7 - y6)*(y7 - y6) + (z7 - z6)*(z7 - z6));
++         double l8 = std::sqrt((x4 - x7)*(x4 - x7) + (y4 - y7)*(y4 - y7) + (z4 - z7)*(z4 - z7));
+          
+-         double l9 = std::sqrt((x4 - x0)*(x4 - x0) + (y4 - y0)*(y4 - y0));
+-         double l10 = std::sqrt((x7 - x3)*(x7 - x3) + (y7 - y3)*(y7 - y3));
+-         double l11 = std::sqrt((x2 - x6)*(x2 - x6) + (y2 - y6)*(y2 - y6));
+-         double l12 = std::sqrt((x1 - x5)*(x1 - x5) + (y1 - y5)*(y1 - y5));
++         double l9 = std::sqrt((x4 - x0)*(x4 - x0) + (y4 - y0)*(y4 - y0) + (z4 - z0)*(z4 - z0));
++         double l10 = std::sqrt((x7 - x3)*(x7 - x3) + (y7 - y3)*(y7 - y3) + (z7 - z3)*(z7 - z3));
++         double l11 = std::sqrt((x2 - x6)*(x2 - x6) + (y2 - y6)*(y2 - y6) + (z2 - z6)*(z2 - z6));
++         double l12 = std::sqrt((x1 - x5)*(x1 - x5) + (y1 - y5)*(y1 - y5) + (z1 - z5)*(z1 - z5));
+          
+          min_h_ = std::min({l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11, l12});  
+        }                         

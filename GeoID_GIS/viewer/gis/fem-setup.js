@@ -280,10 +280,19 @@ export function icBcHeader(physics, setup, { title = "GeoID Model page" } = {}) 
     body.push("      return std::make_pair(false, 0.0);", "    }");
   });
   body.push("", "    //------------ neumann (side flag) ----------------------------------");
+  // BOTH OVERLOADS, every time. GALES's base ic_bc declares each Neumann
+  // function twice — over the side's node ids (`std::vector<int>`, what the
+  // solid solvers pass) and over its node pointers (what heat_conduction
+  // passes now) — and a derived class that declares only one HIDES the
+  // other, so the solver's call no longer compiles ("cannot convert
+  // vector<shared_ptr<node>> to const vector<int>&", measured on the first
+  // transient). The reference sim's own header is the stale one.
   F.neumann.forEach((n) => {
-    body.push(`    auto neumann_${n}(const std::vector<int>& bd_nodes, int side_flag) const`, "    {");
-    (neumann[n] || []).forEach(([flag, value]) => body.push(`      if(side_flag == ${flag}) return std::make_pair(true, ${cpp(value)});`));
-    body.push("      return std::make_pair(false, 0.0);", "    }");
+    for (const arg of ["const std::vector<int>& bd_nodes", "const std::vector<std::shared_ptr<nd_type>>& bd_nodes"]) {
+      body.push(`    auto neumann_${n}(${arg}, int side_flag) const`, "    {");
+      (neumann[n] || []).forEach(([flag, value]) => body.push(`      if(side_flag == ${flag}) return std::make_pair(true, ${cpp(value)});`));
+      body.push("      return std::make_pair(false, 0.0);", "    }");
+    }
   });
   const extra = physics === "fluid" ? "    using point_type = point<dim>;\n" : "";
   return `#ifndef ${P.guard}
@@ -348,14 +357,18 @@ export function checkSetup(setup, targets) {
   const faceFlags = new Set((targets.faces || []).map((f) => Number(f.flag)));
   const unknown = Object.keys(setup.conditions || {}).map(Number).filter((f) => (setup.conditions[f]?.type || "free") !== "free" && !faceFlags.has(f));
   if (unknown.length) out.push({ level: "warning", step: "physics", text: `Conditions on flag${unknown.length === 1 ? "" : "s"} ${unknown.join(", ")}, which no face of the model carries now.` });
-  if (setup.physics === "solid") {
-    // GALES's solid solvers (solid_es, solid_ed, thermoelasticity) treat SIDE
-    // FLAG 1 as the fluid–solid interface: for every boundary side carrying
-    // it they ask the coupling for a fluid traction, and with no fluid there
-    // the answer is empty and the solver segfaults at its first step.
-    // Measured on the first solve this page ran — a box whose top was 1.
+  if (setup.physics === "solid" || setup.physics === "heat") {
+    // GALES's solid solvers (solid_es, solid_ed, thermoelasticity) and its
+    // heat conduction treat SIDE FLAG 1 as the interface to a coupled fluid:
+    // for every boundary side carrying it they ask the coupling for a fluid
+    // traction (or heat flux), and with no fluid there the answer is empty
+    // and the solver segfaults at its first step. Measured on the first solve
+    // this page ran — a box whose top was 1. The fluid solver has no such
+    // branch.
     const reserved = (targets.faces || []).filter((f) => Number(f.flag) === 1);
-    if (reserved.length) out.push({ level: "error", step: "physics", text: `${reserved.map((f) => f.name).join(", ")} ${reserved.length === 1 ? "carries" : "carry"} flag 1, which GALES's solid solvers reserve for a fluid–solid interface (they read a fluid traction there and stop with a segmentation fault when there is none). Give the face another number in Domains and faces.` });
+    if (reserved.length) out.push({ level: "error", step: "physics", text: `${reserved.map((f) => f.name).join(", ")} ${reserved.length === 1 ? "carries" : "carry"} flag 1, which GALES's ${setup.physics === "heat" ? "heat" : "solid"} solver reserves for the interface to a coupled fluid (it reads a fluid ${setup.physics === "heat" ? "heat flux" : "traction"} there and stops with a segmentation fault when there is none). Give the face another number in Domains and faces.` });
+  }
+  if (setup.physics === "solid") {
     const held = ["ux", "uy", "uz"].filter((d) => dirichlet[d]?.length);
     if (held.length < 3) out.push({ level: "error", step: "physics", text: `Nothing holds the model in ${["x", "y", "z"].filter((a) => !held.includes(`u${a}`)).join(", ")}: a static solid needs displacement fixed in every direction somewhere, or it moves as a rigid body.` });
   }

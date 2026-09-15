@@ -26,7 +26,7 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { METRICS, analyseMesh, summarise, verdict, elementFaces, elementCentroid } from "./mesh-quality.js?v=20260915-e1d7175";
+import { METRICS, analyseMesh, summarise, verdict, elementFaces, elementCentroid } from "./mesh-quality.js?v=20260915-2a75eee";
 
 const AUTO_LIMIT = { studio: 250000, real: 250000, gales: 1500000 };
 const DRAW_LIMIT = 20000;

@@ -1,9 +1,9 @@
-import { STAGES, getPage, stageOf } from "./stages.js?v=20260915-e1d7175";
-import { openDrawer, closeDrawer, currentDrawer } from "./drawers.js?v=20260915-e1d7175";
-import { PAGE_BLURBS } from "./page-blurbs.js?v=20260915-e1d7175";
-import * as sidecar from "./sidecar.js?v=20260915-e1d7175";
-import * as store from "./project-store.js?v=20260915-e1d7175";
-import { install as installDocWindows } from "./gdoc-windows.js?v=20260915-e1d7175";
+import { STAGES, getPage, stageOf } from "./stages.js?v=20260915-2a75eee";
+import { openDrawer, closeDrawer, currentDrawer } from "./drawers.js?v=20260915-2a75eee";
+import { PAGE_BLURBS } from "./page-blurbs.js?v=20260915-2a75eee";
+import * as sidecar from "./sidecar.js?v=20260915-2a75eee";
+import * as store from "./project-store.js?v=20260915-2a75eee";
+import { install as installDocWindows } from "./gdoc-windows.js?v=20260915-2a75eee";
 
 /**
  * The Research Hub shell, laid out as the Qt app lays it out.
@@ -416,9 +416,17 @@ export function init(context = {}) {
   // it answers -- so the hub opens on the same folder the desktop app uses.
   if (sidecar.getConfig().url) {
     sidecar.probe().then((result) => {
-      if (result.ok) {
-        try { store.useAdapter(sidecar.sidecarAdapter()); } catch (error) { /* */ }
-      }
+      if (!result.ok) return;
+      // Already on the sidecar: swapping the adapter in again would CLOSE the
+      // project open on it — which is what took the Model page's project away
+      // the moment the hand-off strip reached Research, so the Signal page
+      // listed no series a second after they were filed. Measured.
+      if (store.adapterKind?.() === "sidecar") return;
+      const open = store.getActive?.()?.dir || null;
+      try { store.useAdapter(sidecar.sidecarAdapter()); } catch (error) { return; }
+      // A project open on the previous filesystem is reopened by its folder
+      // where the sidecar has it; where it does not, it stays closed and says so.
+      if (open) store.openProject?.(open).catch(() => { /* not on this root */ });
     });
   }
   const rail = document.querySelector(".atlas-rail");

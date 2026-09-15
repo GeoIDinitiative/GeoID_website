@@ -21109,3 +21109,57 @@ use") — `pgrep -f` the python and kill that; a module edited under the same
 `?v=` is served from the browser's cache until `fetch(url, {cache: "reload"})`
 refreshes it; and the run's `execute` frame was named by `addr2line -f -C -e
 executable <offset>` on the host, which needs no debugger and no `-g`.
+
+## The first transient, Study to Research: heat conduction, and what stood in its way
+
+A 1 m granite box, top held at 100, base at 0, ten BDF1 steps of 20,000 s
+(α = κ/ρc = 1.39e-6 m²/s, so L²/α ≈ 7e5 s), run through the page's own
+buttons on the container target and read against the analytic slab series:
+at t = 200,000 s the mesh gives 22.06 / 45.86 / 71.99 at z = 0.25 / 0.5 / 0.75
+against 22.08 / 45.87 / 72.08; the first step is 2–3 °C high, which is
+implicit Euler's own first-step error at that Δt and decays as it should.
+`solid_es` is elastostatic — its time loop is pseudo-time — so heat is the
+honest transient here. Then two points extracted to
+`post_processing/extracted_dofs/` (node 134's series equal to the solver's
+bytes to the last digit), found by the Research hub's `findTables`, offered by
+the CSV Plotter's Browse, plotted, filed into `figures/`; the pipeline strip
+lit Results and Research. Five faults on the way, none reachable by a unit
+test:
+
+- **`sim/heat_equation/test_3d` is stale against its own tree.** Its
+  `main.cpp` includes `src/solvers/heat_equation/solver.hpp`, which is
+  `heat_conduction/` now; prepare maps the include onto the directory that
+  exists (`SOLVER_DIR_RENAMES`). And the current solver passes its Neumann
+  functions NODE POINTERS (`vector<shared_ptr<node<dim>>>`) where the
+  reference header takes `vector<int>` — the base `ic_bc` declares both, and
+  a derived class declaring one HIDES the other. The generated header now
+  emits both overloads for every Neumann function, all physics.
+- **Heat conduction reserves side flag 1 too** (`get_fluid_heat_flux`), so
+  the checklist rule covers solid and heat; the fluid solver has no such branch.
+- **`element<3>::compute_min_h` measured a tetrahedron's edges in x and y
+  only.** A tet with a vertical edge — sixteen of them in a 1 m box — got
+  h = 0, `1/alpha` was infinite and the GLS `csi` was inf − inf: Belos aborted
+  with "NaN has been detected" at the first solve, on 1 rank and on 2, with
+  `n_max_it 1` and with CG — every solver setting was innocent. The fix is in
+  the local GALES source and kept as
+  `sidecar/patches/gales-element-min_h-3d.patch`, because the tree is
+  gitignored; the same element serves thermoelasticity. Found by
+  `addr2line`-free reasoning: read the assembly for a division, then count
+  the mesh's vertical edges.
+- **The hub closed the Model page's project the moment the hand-off reached
+  Research.** Its install re-probes the sidecar and swapped the sidecar
+  adapter in again; `useAdapter` closes the open project (a project is a
+  folder on the old filesystem). It asks `adapterKind()` first now and, when
+  it does switch, reopens the project it had.
+- **A run opened from a project lost its field descriptions on every rebuild
+  of the field list.** The sidecar adapter's listing dropped each entry's
+  size, a field's dofs per node come from its step sizes, and
+  `classifyFields` rebuilds from the plan — so a temporal summary answered
+  "no such component" over a field the view was drawing. The size travels
+  through the adapter, `projectSource` carries it, and a read writes it back
+  onto the plan's step.
+
+Two traps in driving it: clicking the rail's "Plotter" TAB while looking for
+the page's "Plot Selected" BUTTON remounts the page and empties its dataset
+row (search buttons inside `.research-page`); and `R.values()` on the seam is
+not the per-node array — read a value through the probe or the legend range.

@@ -176,7 +176,11 @@ export function sidecarAdapter() {
 
     async list(path = "") {
       const info = await call(`/fs/list?path=${encodeURIComponent(path)}`);
-      return (info.entries || []).map((e) => ({ name: e.name, kind: e.kind }));
+      // The size travels: a results reader tells a field's dofs per node from
+      // its step files' sizes, and a listing that dropped them left every run
+      // opened from a project without a description until a step was read —
+      // and lost it again on the next rebuild of the field list.
+      return (info.entries || []).map((e) => ({ name: e.name, kind: e.kind, size: e.size, modified: e.modified }));
     },
 
     async remove(path) {

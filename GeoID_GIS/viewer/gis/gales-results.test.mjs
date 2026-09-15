@@ -357,6 +357,14 @@ const triangleArea = (p, k) => {
   check("points: the worker hands the node flags over, so a flag can name a point", /nodeFlag \? \[nodeFlag\.buffer\] : \[\]/.test(worker));
   check("the Model Builder writes each embedded point's flag into spec.json", /lat: p\.lat, lon: p\.lon, flag: p\.flag,/.test(readFileSync(new URL("./model-pipeline.js", import.meta.url), "utf8")));
   check("a clip keeps the half whose cut faces the studio's own view", /const keepAbove = \(S\.sliceAxis === "y"\) !== S\.clipFlip;/.test(panel));
+  // A field's dofs per node come from its step files' sizes. A project run's
+  // listing dropped them, so every rebuild of the field list (a temporal
+  // summary, a gradient) lost the description a read had just supplied and
+  // answered "no such component". The size travels, and a read writes it back.
+  const adapter = readFileSync(new URL("./research/sidecar.js", import.meta.url), "utf8");
+  check("the sidecar's listing keeps each entry's size", /kind: e\.kind, size: e\.size/.test(adapter));
+  check("a project run's steps carry the listed size", /entries\.push\(\{ path, size: Number\.isFinite\(item\.size\) \? item\.size : null \}\)/.test(panel));
+  check("a read step teaches the plan its size", /if \(!Number\.isFinite\(step\.size\)\) step\.size = buffer\.byteLength;/.test(panel));
 }
 
 // ── A probe's CSV, and what a folder holds ─────────────────────────────────

@@ -69,6 +69,9 @@ const box = (flag, name, zMin, zMax, extra = {}) => ({ flag, name, zMin, zMax, v
   const setup = { ...defaultSetup(), conditions: { 5: { type: "fixed" }, 4: { type: "pressure", values: { p: 5e7 } } }, options: { gravity: true } };
   const h = icBcHeader("solid", setup);
   check("header: the class GALES's solid main includes, with the engine through GALES_SRC", /class solid_ic_bc : public base_ic_bc<dim>/.test(h) && /#include "GALES_SRC\/src\/fem\/fem\.hpp"/.test(h) && /#ifndef SOLID_IC_BC_HPP/.test(h));
+  // The base class declares each Neumann function over node ids AND over node
+  // pointers; declaring one alone hides the other from the solver that calls it.
+  check("header: every neumann function is declared over node ids and over node pointers", h.includes("neumann_pressure(const std::vector<int>& bd_nodes, int side_flag)") && h.includes("neumann_pressure(const std::vector<std::shared_ptr<nd_type>>& bd_nodes, int side_flag)"));
   check("header: every function the reference defines, dirichlet by node flag and neumann by side flag", ["initial_ux", "initial_uz", "dirichlet_ux", "dirichlet_uy", "dirichlet_uz", "neumann_tau11", "neumann_tau23", "neumann_pressure"].every((f) => h.includes(` ${f}(`)) && /if\(nd\.flag\(\) == 5\) return std::make_pair\(true, 0\.0\);/.test(h) && /if\(side_flag == 4\) return std::make_pair\(true, 50000000\.0\);/.test(h));
   check("header: gravity is a body force", /gravity\[gravity\.size\(\)-1\] = -9\.81;/.test(h));
   check("header: braces balance", (h.match(/\{/g) || []).length === (h.match(/\}/g) || []).length);
@@ -83,9 +86,11 @@ const box = (flag, name, zMin, zMax, extra = {}) => ({ flag, name, zMin, zMax, v
   // it segfaults at its first step, so the checklist refuses it by name.
   const fsi = { domains: targets.domains, faces: [{ flag: 1, name: "top" }, { flag: 2, name: "base" }] };
   const goodOnFsi = { ...defaultSetup(), materials: { 10: { id: "granite" } }, conditions: { 2: { type: "fixed" } } };
-  check("check: a solid face on flag 1 is an error naming the face and the interface", checkSetup(goodOnFsi, fsi).some((i) => i.level === "error" && /^top carries flag 1/.test(i.text) && /fluid–solid interface/.test(i.text)));
+  check("check: a solid face on flag 1 is an error naming the face and the interface", checkSetup(goodOnFsi, fsi).some((i) => i.level === "error" && /^top carries flag 1/.test(i.text) && /coupled fluid/.test(i.text)));
   check("check: the same face on flag 3 is not", !checkSetup(goodOnFsi, targets).some((i) => /flag 1/.test(i.text)));
-  check("check: the heat physics does not reserve flag 1", !checkSetup({ ...goodOnFsi, physics: "heat" }, fsi).some((i) => /flag 1/.test(i.text)));
+  // heat_conduction has the same branch (get_fluid_heat_flux); fluid_sc has none.
+  check("check: the heat physics reserves flag 1 too", checkSetup({ ...goodOnFsi, physics: "heat" }, fsi).some((i) => i.level === "error" && /heat flux/.test(i.text)));
+  check("check: the fluid physics does not", !checkSetup({ ...goodOnFsi, physics: "fluid" }, fsi).some((i) => /flag 1/.test(i.text)));
   check("check: a blank solid setup asks for a material and for the model to be held", blank.some((i) => i.level === "error" && i.step === "materials") && blank.some((i) => i.level === "error" && /rigid body/.test(i.text)));
   const good = { ...defaultSetup(), materials: { 10: { id: "granite" } }, conditions: { 2: { type: "fixed" } } };
   check("check: a material and a fixed base leaves no error", !checkSetup(good, targets).some((i) => i.level === "error"));

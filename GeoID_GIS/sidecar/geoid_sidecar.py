@@ -1336,6 +1336,7 @@ class Handler(BaseHTTPRequestHandler):
             f = run_dir / name
             if f.exists():
                 f.write_text(f.read_text().replace("../../../src/", "GALES_SRC/src/"))
+        self._fix_solver_include(run_dir)
         link = run_dir / "GALES_SRC"
         try:
             if link.is_symlink() or link.exists():
@@ -1553,6 +1554,25 @@ class Handler(BaseHTTPRequestHandler):
             "        for row in series[name]: f.write(','.join(str(v) for v in row)+'\\n')\n"
             "    print(f'[postprocess] wrote {path} ({len(series[name])} rows)')\n"
             "print('[postprocess] done — open Signal Processing to analyse the series.')\n")
+
+    # A reference sim's main.cpp names its solver directory, and GALES's own
+    # tree has renamed one out from under its sim: sim/heat_equation/test_3d
+    # includes src/solvers/heat_equation/solver.hpp, which is
+    # src/solvers/heat_conduction/ now. The include is mapped onto the
+    # directory that exists rather than failing the build with "No such file".
+    SOLVER_DIR_RENAMES = {"heat_equation": "heat_conduction"}
+
+    def _fix_solver_include(self, run_dir: Path) -> None:
+        main = run_dir / "main.cpp"
+        if not main.is_file() or not self.gales_dir:
+            return
+        text = main.read_text()
+        for old, new in self.SOLVER_DIR_RENAMES.items():
+            if (f"src/solvers/{old}/" in text
+                    and not (self.gales_dir / "src" / "solvers" / old).is_dir()
+                    and (self.gales_dir / "src" / "solvers" / new).is_dir()):
+                text = text.replace(f"src/solvers/{old}/", f"src/solvers/{new}/")
+        main.write_text(text)
 
     def _gales_env(self) -> dict:
         """What a built deck needs at RUN time: GALES links Trilinos as shared

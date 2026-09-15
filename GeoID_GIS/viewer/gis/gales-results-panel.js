@@ -30,15 +30,15 @@ import {
   exposedFaces, thresholdKeep, keptTriangles,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
   groupResultFiles, timeOf, referencePlan, differenceOf, DERIVED_DOFS,
-} from "./gales-results.js?v=20260915-e1d7175";
-import { zipStore } from "./shapefile-writer.js?v=20260915-e1d7175";
-import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-e1d7175";
-import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-e1d7175";
-import { parseSolidProps } from "./strain-stress.js?v=20260915-e1d7175";
-import { vtkHead, readVtkGrid, parsePvd, vtkFieldName } from "./vtk-read.js?v=20260915-e1d7175";
-import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-e1d7175";
-import { may, refusal } from "./membership.js?v=20260915-e1d7175";
-import { downloadText } from "./extraction.js?v=20260915-e1d7175";
+} from "./gales-results.js?v=20260915-2a75eee";
+import { zipStore } from "./shapefile-writer.js?v=20260915-2a75eee";
+import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-2a75eee";
+import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-2a75eee";
+import { parseSolidProps } from "./strain-stress.js?v=20260915-2a75eee";
+import { vtkHead, readVtkGrid, parsePvd, vtkFieldName } from "./vtk-read.js?v=20260915-2a75eee";
+import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-2a75eee";
+import { may, refusal } from "./membership.js?v=20260915-2a75eee";
+import { downloadText } from "./extraction.js?v=20260915-2a75eee";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -294,7 +294,7 @@ async function projectSource(runDir) {
       if (item.kind === "directory") {
         if (depth === 0 && !/^(input|results)$/.test(item.name)) continue;
         await walk(path, depth + 1);
-      } else entries.push({ path, size: null });
+      } else entries.push({ path, size: Number.isFinite(item.size) ? item.size : null });
     }
   };
   await walk(runDir, 0);
@@ -830,6 +830,12 @@ async function valuesAt(fieldIndex, stepIndex) {
     f.nbDofs = fit.nbDofs;
     f.desc = describeField(f.field, fit.nbDofs, S.mesh.dim);
   }
+  // A step whose size the listing did not know is known now — written back
+  // onto the PLAN's step, so a rebuild of the field list (a temporal summary,
+  // a gradient, a calculator) keeps the description rather than dropping it
+  // and answering "no such component". Measured on a run opened from a
+  // project through a listing that carried no sizes.
+  if (!Number.isFinite(step.size)) step.size = buffer.byteLength;
   const values = float64View(buffer);
   cache.set(step.path, values);
   while (cache.size > CACHE_STEPS) cache.delete(cache.keys().next().value);
