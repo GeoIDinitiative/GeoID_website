@@ -792,8 +792,8 @@ export const COLORMAPS = {
 };
 
 /** A 256-entry RGB table, 0..1 floats. */
-export function colormapTable(name, { reverse = false, steps = 256 } = {}) {
-  const stops = COLORMAPS[name] || COLORMAPS["Cool to Warm"];
+export function colormapTable(name, { reverse = false, steps = 256, stops: given = null } = {}) {
+  const stops = given || COLORMAPS[name] || COLORMAPS["Cool to Warm"];
   const out = new Float32Array(steps * 3);
   for (let s = 0; s < steps; s += 1) {
     let u = steps > 1 ? s / (steps - 1) : 0;

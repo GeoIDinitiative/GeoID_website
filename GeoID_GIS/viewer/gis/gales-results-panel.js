@@ -29,11 +29,12 @@ import {
   interpolateOnSlice, axisPlane, nodeByteRange, probeCsv, parseMesh, sliceTets,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
   groupResultFiles, timeOf,
-} from "./gales-results.js?v=20260915-c61e03b";
-import { zipStore } from "./shapefile-writer.js?v=20260915-c61e03b";
-import { parseSolidProps } from "./strain-stress.js?v=20260915-c61e03b";
-import { may, refusal } from "./membership.js?v=20260915-c61e03b";
-import { downloadText } from "./extraction.js?v=20260915-c61e03b";
+} from "./gales-results.js?v=20260915-26c7e28";
+import { zipStore } from "./shapefile-writer.js?v=20260915-26c7e28";
+import { parseSolidProps } from "./strain-stress.js?v=20260915-26c7e28";
+import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-26c7e28";
+import { may, refusal } from "./membership.js?v=20260915-26c7e28";
+import { downloadText } from "./extraction.js?v=20260915-26c7e28";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -62,6 +63,9 @@ const S = {
   slice: null,
   sliceKey: "",
   deform: { on: false, field: -1, scale: 1 },
+  insar: loadInsar(),
+  insarNote: "",
+  losRaw: null,
   opacity: 1,
   edges: false,
   probe: null,
@@ -748,12 +752,56 @@ if (typeof window !== "undefined") {
 
 // ── Refresh: field → colours, warp, slice, legend ───────────────────────────
 
+// ── Satellite line of sight ─────────────────────────────────────────────────
+
+const INSAR_KEY = "geoid-studio:insar";
+function loadInsar() {
+  try { return { ...DEFAULT_GEOMETRY, ...JSON.parse(localStorage.getItem(INSAR_KEY) || "{}") }; } catch (e) { return { ...DEFAULT_GEOMETRY }; }
+}
+function saveInsar() { try { localStorage.setItem(INSAR_KEY, JSON.stringify(S.insar)); } catch (e) { /* kept for the session */ } }
+/** A satellite view needs a displacement with at least its two horizontal components, read from the solver rather than blocked. */
+function canLos(desc) { return Boolean(desc?.displacement?.length >= 2 && !desc.blocked); }
+function isSatellite() { return S.component === "los" || S.component === "fringe"; }
+function platformLabel() {
+  const p = PLATFORMS.find((q) => q.id === S.insar.platform);
+  return p ? p.label : `heading ${S.insar.heading}°, incidence ${S.insar.incidence}°`;
+}
+
+/** Fringe count and whether the mesh can draw them: more than one fringe across an edge is aliased. */
+function satelliteNote(los) {
+  const nodes = scene.surfNodes;
+  const idx = scene.surface?.geometry?.index?.array;
+  if (!nodes || !idx) return "";
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (let k = 0; k < nodes.length; k += 1) { const v = los[nodes[k]]; if (v < lo) lo = v; if (v > hi) hi = v; }
+  const [e, n, u] = losVector(S.insar);
+  const vec = `LOS (east, north, up) = ${e.toFixed(3)}, ${n.toFixed(3)}, ${u.toFixed(3)}.`;
+  if (!(hi >= lo)) return vec;
+  const count = fringeCount(lo, hi, S.insar.wavelength);
+  const edges = new Uint32Array(idx.length * 2);
+  for (let t = 0; t < idx.length; t += 3) {
+    for (let c = 0; c < 3; c += 1) { edges[t * 2 + c * 2] = nodes[idx[t + c]]; edges[t * 2 + c * 2 + 1] = nodes[idx[t + (c + 1) % 3]]; }
+  }
+  const per = fringesPerEdge(los, edges, S.insar.wavelength);
+  const range = `LOS ${formatValue(lo, hi - lo || 1)} to ${formatValue(hi, hi - lo || 1)} m on the surface — ${count < 10 ? `${count.toFixed(1)} fringe${count.toFixed(1) === "1.0" ? "" : "s"}` : count < 10000 ? `${Math.round(count).toLocaleString()} fringes` : `${count.toExponential(1)} fringes`}.`;
+  const alias = per > 0.5 ? ` Up to ${per < 100 ? per.toFixed(2) : Math.round(per).toLocaleString()} fringes across one surface edge (more than half a fringe cannot be resolved): the pattern is ALIASED (a picture of the mesh, not the deformation). Use a longer wavelength or a smaller displacement.` : "";
+  return `${vec} ${range}${alias}`;
+}
+
 function currentDesc() { return S.fields[S.field]?.desc || null; }
 
 function scalarOf(values, desc) {
   const n = S.mesh.nodeCount;
   const nb = desc.nbDofs;
   if (S.component === "mag" && desc.vector) return magnitudeOf(values, n, nb, desc.vector.from, desc.blocked);
+  if (isSatellite() && canLos(desc)) {
+    const los = losDisplacement(values, n, nb, desc.displacement, S.insar);
+    const k = Number(S.insar.scale) || 1;
+    if (k !== 1) for (let i = 0; i < los.length; i += 1) los[i] *= k;
+    S.losRaw = los;
+    return S.component === "fringe" ? wrapFringes(los, S.insar.wavelength) : los;
+  }
   const j = Number(S.component);
   return componentOf(values, n, nb, Number.isInteger(j) && j >= 0 && j < nb ? j : 0, desc.blocked);
 }
@@ -761,6 +809,8 @@ function scalarOf(values, desc) {
 function componentLabel(desc) {
   if (!desc) return "";
   if (S.component === "mag" && desc.vector) return `${desc.vector.label}${desc.vector.unit ? ` (${desc.vector.unit})` : ""}`;
+  if (S.component === "los" && canLos(desc)) return `LOS displacement (m, + toward the satellite)${(Number(S.insar.scale) || 1) !== 1 ? ` · solution ×${S.insar.scale}` : ""}`;
+  if (S.component === "fringe" && canLos(desc)) return `Interferogram fringes — one cycle per ${formatValue(S.insar.wavelength * 50, 1)} cm of range`;
   const c = desc.components[Number(S.component)] || desc.components[0];
   return `${c.label}${c.unit ? ` (${c.unit})` : ""}`;
 }
@@ -789,7 +839,7 @@ async function refresh({ fit = false } = {}) {
     if (hasField) {
       const values = await valuesAt(S.field, S.step);
       desc = f.desc;
-      if (!S.component || (S.component === "mag" && !desc.vector) || (S.component !== "mag" && Number(S.component) >= desc.nbDofs)) {
+      if (!S.component || (S.component === "mag" && !desc.vector) || (isSatellite() && !canLos(desc)) || (S.component !== "mag" && !isSatellite() && Number(S.component) >= desc.nbDofs)) {
         S.component = desc.vector ? "mag" : desc.defaultComponent || "0";
         renderControls();
       }
@@ -818,7 +868,10 @@ async function refresh({ fit = false } = {}) {
 
     // Range over what is drawn.
     let sliceValues = null;
-    if (sliced && scalar) sliceValues = interpolateOnSlice(sliced.slice, scalar);
+    const fringe = S.component === "fringe" && canLos(desc);
+    // Fringes are wrapped: interpolate the LOS first and wrap after, or a cut
+    // through a wrap reads a whole rainbow between two neighbouring nodes.
+    if (sliced && scalar) sliceValues = fringe ? wrapFringes(interpolateOnSlice(sliced.slice, S.losRaw), S.insar.wavelength) : interpolateOnSlice(sliced.slice, scalar);
     if (scalar && S.rangeMode === "step") {
       const parts = [];
       if (view !== "slice") parts.push(rangeOf(scalar, scene.surfNodes));
@@ -827,8 +880,10 @@ async function refresh({ fit = false } = {}) {
       const hi = Math.max(...parts.map((p) => p[1]));
       S.range = Number.isFinite(lo) ? [lo, hi] : [0, 0];
     }
-    const [lo, hi] = S.range;
-    const table = colormapTable(S.colormap, { reverse: S.reverse });
+    const [lo, hi] = fringe ? [0, 1] : S.range;
+    const table = fringe ? colormapTable(null, { stops: FRINGE_MAP }) : colormapTable(S.colormap, { reverse: S.reverse });
+    const paint = fringe ? { bands: 0, log: false } : { bands: S.bands, log: S.log };
+    S.insarNote = isSatellite() && S.losRaw ? satelliteNote(S.losRaw) : "";
 
     // Surface.
     const geometry = scene.surface.geometry;
@@ -844,7 +899,7 @@ async function refresh({ fit = false } = {}) {
     if (scalar) {
       const onSurface = new Float32Array(nodes.length);
       for (let k = 0; k < nodes.length; k += 1) onSurface[k] = scalar[nodes[k]];
-      colourValues(onSurface, lo, hi, table, col, { bands: S.bands, log: S.log });
+      colourValues(onSurface, lo, hi, table, col, paint);
     } else col.fill(0.72);
     geometry.attributes.position.needsUpdate = true;
     geometry.attributes.color.needsUpdate = true;
@@ -886,7 +941,7 @@ async function refresh({ fit = false } = {}) {
         for (let k = 0; k < positions.length; k += 1) positions[k] += dOn[k];
       }
       const colours = new Float32Array(s.t.length * 3);
-      if (sliceValues) colourValues(sliceValues, lo, hi, table, colours, { bands: S.bands, log: S.log });
+      if (sliceValues) colourValues(sliceValues, lo, hi, table, colours, paint);
       else colours.fill(0.72);
       const g = scene.slice.geometry;
       g.setAttribute("position", new THREE.BufferAttribute(positions, 3));
@@ -903,7 +958,9 @@ async function refresh({ fit = false } = {}) {
     const g = visibilityGroup();
     const visKey = g ? `${g.title}|${g.parts.map((p) => p.id).join(",")}` : "";
     if (visKey !== scene.visKey) { scene.visKey = visKey; studio()?.refreshVisibility?.(); }
-    renderLegend(desc, lo, hi, table);
+    renderLegend(desc, lo, hi, table, paint);
+    const noteNode = byId("gales-insar-note");
+    if (noteNode) { noteNode.textContent = S.insarNote; noteNode.classList.toggle("is-warning", /ALIASED/.test(S.insarNote)); }
     renderStepReadout();
     if (fit) studio()?.fitObject?.(scene.surface);
     if (S.probe) renderProbe();
@@ -1111,6 +1168,36 @@ function drawSeries(canvas, series, desc) {
   }
 }
 
+// ── Satellite controls ──────────────────────────────────────────────────────
+
+function satelliteControls() {
+  const box = el("div", { class: "gales-satellite" });
+  const set = (patch, { custom = true } = {}) => {
+    S.insar = { ...S.insar, ...patch, ...(custom ? { platform: "custom" } : {}) };
+    saveInsar();
+    renderControls();
+    refresh();
+  };
+  box.append(row("Satellite", select([...PLATFORMS.map((p) => [p.id, p.label]), ["custom", "Custom geometry"]], S.insar.platform, (v) => {
+    const p = PLATFORMS.find((q) => q.id === v);
+    set(p ? { heading: p.heading, incidence: p.incidence, wavelength: p.wavelength, look: "right", platform: p.id } : {}, { custom: !p });
+  })));
+  const num = (label, key, title, stepv = "any") => {
+    const input = el("input", { class: "studio-input", type: "number", step: stepv, value: String(S.insar[key]), title });
+    // The scale is not a geometry: changing it keeps the named satellite.
+    input.addEventListener("change", () => { const v = Number(input.value); if (Number.isFinite(v)) set({ [key]: v }, { custom: key !== "scale" }); });
+    return row(label, input);
+  };
+  box.append(num("Heading (°)", "heading", "The satellite's flight direction, clockwise from north (ascending ≈ −12°, descending ≈ −168°)"));
+  box.append(num("Incidence (°)", "incidence", "The angle at the ground between the vertical and the line of sight"));
+  box.append(num("Wavelength (m)", "wavelength", "C-band 0.0555, L-band 0.2424, X-band 0.0312"));
+  box.append(num("Scale the solution ×", "scale", "A linear elastic solution scales with its source: ×0.001 turns a 1 MPa chamber into 1 kPa. Scaling here changes what the satellite sees, never the field shown elsewhere"));
+  box.append(row("Looks", select([["right", "Right of track"], ["left", "Left of track"]], S.insar.look, (v) => set({ look: v }))));
+  box.append(el("div", { class: "studio-readout" }, "The mesh is read as x east, y north, z up. Positive LOS is toward the satellite, so uplift is positive from either pass."));
+  box.append(el("div", { id: "gales-insar-note", class: `studio-readout${/ALIASED/.test(S.insarNote) ? " is-warning" : ""}` }, S.insarNote));
+  return box;
+}
+
 // ── Legend ──────────────────────────────────────────────────────────────────
 
 function legendNode() {
@@ -1123,7 +1210,7 @@ function legendNode() {
   return node;
 }
 
-function renderLegend(desc, lo, hi, table) {
+function renderLegend(desc, lo, hi, table, paint = { bands: S.bands, log: S.log }) {
   const node = legendNode();
   if (!node) return;
   if (!desc || !scene.root?.visible || !anyPartShown()) { node.hidden = true; return; }
@@ -1131,13 +1218,13 @@ function renderLegend(desc, lo, hi, table) {
   node.textContent = "";
   const f = S.fields[S.field];
   node.append(el("div", { class: "gales-legend-title" }, componentLabel(desc)));
-  node.append(el("div", { class: "gales-legend-sub" }, `${f.field} · t = ${f.steps[S.step]?.name} · ${S.rangeMode === "step" ? "range of this step" : "fixed range"}${S.log ? " · log" : ""}`));
+  node.append(el("div", { class: "gales-legend-sub" }, `${f.field} · t = ${f.steps[S.step]?.name} · ${isSatellite() ? platformLabel() : S.rangeMode === "step" ? "range of this step" : "fixed range"}${paint.log ? " · log" : ""}`));
   const bar = el("canvas", { class: "gales-legend-bar", width: "220", height: "14" });
   const ctx = bar.getContext("2d");
   const steps = table.length / 3;
   for (let x = 0; x < 220; x += 1) {
     let u = x / 219;
-    if (S.bands > 1) u = Math.min(S.bands - 1, Math.floor(u * S.bands)) / (S.bands - 1);
+    if (paint.bands > 1) u = Math.min(paint.bands - 1, Math.floor(u * paint.bands)) / (paint.bands - 1);
     const s = Math.round(u * (steps - 1)) * 3;
     ctx.fillStyle = `rgb(${table[s] * 255 | 0},${table[s + 1] * 255 | 0},${table[s + 2] * 255 | 0})`;
     ctx.fillRect(x, 0, 1, 14);
@@ -1145,7 +1232,15 @@ function renderLegend(desc, lo, hi, table) {
   node.append(bar);
   const ticks = el("div", { class: "gales-legend-ticks" });
   const span = hi - lo;
-  if (S.log && lo > 0) {
+  if (S.component === "fringe") {
+    // A cycle is half a wavelength of range change; say it in centimetres.
+    const half = S.insar.wavelength / 2;
+    [0, 0.5, 1].forEach((v, k) => ticks.append(el("span", { style: `left:${k * 50}%` }, `${formatValue(v * half * 100, 1)} cm`)));
+    node.append(ticks);
+    node.append(el("div", { class: "gales-legend-ends" }, "range change, away from the satellite"));
+    return;
+  }
+  if (paint.log && lo > 0) {
     [lo, Math.sqrt(lo * hi), hi].forEach((v, k) => ticks.append(el("span", { style: `left:${k * 50}%` }, tickLabel(v, v))));
   } else {
     const values = span > 0 ? niceTicks(lo, hi, 5) : [lo];
@@ -1317,8 +1412,9 @@ function renderControls() {
   })));
   const desc = currentDesc();
   if (desc) {
-    const comps = [...(desc.vector ? [["mag", desc.vector.label]] : []), ...desc.components.map((c, j) => [j, c.label])];
-    fs.body.append(row("Component", select(comps, S.component, (v) => { S.component = v; refresh(); })));
+    const comps = [...(desc.vector ? [["mag", desc.vector.label]] : []), ...desc.components.map((c, j) => [j, c.label]), ...(canLos(desc) ? [["los", "Satellite line of sight (InSAR)"], ["fringe", "Interferogram fringes (wrapped)"]] : [])];
+    fs.body.append(row("Component", select(comps, S.component, (v) => { S.component = v; renderControls(); refresh(); })));
+    if (isSatellite() && canLos(desc)) fs.body.append(satelliteControls());
   }
   const f = S.fields[S.field];
   if (f?.steps.length) {

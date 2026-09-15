@@ -20259,3 +20259,41 @@ Mises, σ₁, σ₃ and volumetric strain. It opens on von Mises.
 - **Legend ticks drop the digits they do not need** (`tickLabel`): 5.000e+7
   beside 1.000e+8 overprinted its neighbours under a 15rem bar, while 5e7 and
   1e8 do not. The min/max line keeps `formatValue`'s precision.
+
+## What a radar satellite would see: LOS and fringes in Results
+
+A volcano deformation model is judged against InSAR, and InSAR measures only
+ONE component of the displacement: the range change along the line of sight,
+modulo half a wavelength. A model's |u| cannot be compared with a real
+interferogram until it goes through the same two steps.
+`gis/insar.js` (pure, 13 checks) does both. The Results component list offers
+"Satellite line of sight (InSAR)" and "Interferogram fringes (wrapped)" for
+any displacement field. Their controls are:
+
+- **satellite presets** — Sentinel-1, ALOS-2 and COSMO-SkyMed, each ascending
+  or descending;
+- **custom geometry** — heading, incidence, wavelength and look side;
+- **a solution scale.**
+
+- **Frame and sign.** The mesh is read as x east, y north, z up. The LOS unit
+  vector points from the ground to the satellite, and the satellite is at
+  heading − 90° for a right-looking radar. Positive LOS means toward the
+  satellite, so uplift is positive from either pass. Sentinel-1 ascending gives
+  (−0.615, −0.131, 0.777), the published values. One fringe is λ/2 of range
+  change, drawn on a cyclic map over [0, 1] with no bands and no log scale.
+- **Wrap after interpolating, never before.** A slice interpolates the LOS
+  onto the cut and wraps the result. Interpolating wrapped values puts a
+  whole rainbow between two neighbouring nodes.
+- **Aliasing is measured, not guessed.** The note gives the worst
+  fringes-per-edge over the surface triangles. Above half a fringe per edge it
+  says the pattern is ALIASED, meaning a picture of the mesh. Etna's synthetic
+  run carries 66 m of LOS, which is 2,382 C-band fringes and 334 across a single
+  edge.
+- **The scale is legitimate for linear elasticity**, where u scales with the
+  source. It changes only what the satellite sees. Picking a scale keeps the
+  named platform, while any geometry edit turns it to Custom. Etna ×0.0014 from
+  Sentinel-1 descending gives 95 mm of LOS and 3.4 fringes, concentric on the
+  summit.
+- Settings are kept in `localStorage["geoid-studio:insar"]`, so clear it after
+  testing. The geometry is read when the module loads, so a value written to
+  storage afterwards has no effect until the page reloads.

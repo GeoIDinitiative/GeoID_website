@@ -509,3 +509,12 @@ check("a mesh opened onto a loaded run starts a new run; results join the open o
   check("tickLabel: an exponent keeps only its digits", tickLabel(5e7, 2.5e8) === "5e7" && tickLabel(1.5e8, 2.5e8) === "1.5e8" && tickLabel(2.5, 85) === "2.5");
   check("tickLabel: the legend ticks use it, the ends line keeps formatValue", /tickLabel\(v, span \|\| Math\.abs\(v\) \|\| 1\)/.test(panel) && /min \$\{formatValue\(lo/.test(panel));
 }
+{
+  // The satellite view: LOS and fringes are components of a displacement field.
+  const panel = readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8");
+  check("insar: a displacement offers LOS and wrapped fringes as components", /\["los", "Satellite line of sight \(InSAR\)"\]/.test(panel) && /\["fringe", "Interferogram fringes \(wrapped\)"\]/.test(panel) && /canLos\(desc\)/.test(panel));
+  check("insar: a slice interpolates the LOS and wraps after, never interpolates wrapped values", /wrapFringes\(interpolateOnSlice\(sliced\.slice, S\.losRaw\)/.test(panel));
+  check("insar: fringes paint on the cyclic map over [0, 1] with no bands or log", /fringe \? \[0, 1\] : S\.range/.test(panel) && /stops: FRINGE_MAP/.test(panel) && /fringe \? \{ bands: 0, log: false \}/.test(panel));
+  check("insar: aliasing is measured per surface edge and said", /fringesPerEdge\(los, edges/.test(panel) && /ALIASED/.test(panel));
+  check("insar: the scale changes what the satellite sees and keeps the named satellite", /los\[i\] \*= k/.test(panel) && /custom: key !== "scale"/.test(panel));
+}
