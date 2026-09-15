@@ -297,12 +297,13 @@
 
            THE PRICE HERE AND THE PRICE IN STRIPE MUST MATCH. data-price is the
            DECLARATION that somebody has opened the Stripe dashboard and
-           confirmed this link charges the figure printed above. It is
-           deliberately absent: nobody has. Set it to 49.99 once the link is
-           right, and the button goes live; until then the checkout is held
-           back, because a page that advertises one figure and takes another is
-           the one mistake here that reaches somebody's bank. Point the link's
-           success URL at /membership/welcome/. -->
+           confirmed this link charges the figure printed above. Declared on
+           2026-09-15: the link below was opened and read "Subscribe to GeoID
+           Membership, £49.99 per year, billed annually" before data-price was
+           written. Change the price in Stripe and this declaration is void:
+           remove data-price, and the checkout is held back again until the
+           new link has been read the same way. Point the link's success URL
+           at /membership/welcome/. -->
       <section class="glass-panel member-panel plan-panel" id="plan-card">
         <span class="section-label">Annual</span>
         <h2>GeoID Explorer</h2>
@@ -316,7 +317,8 @@
         </p>
         <p class="plan-actions" id="plan-actions">
           <a class="btn-primary" id="plan-buy"
-             href="https://buy.stripe.com/4gM28rboZ9tk8TvetwbV602"
+             href="https://buy.stripe.com/6oU3cvboZgVM7PretwbV603"
+             data-price="49.99"
              target="_blank" rel="noopener noreferrer">Become a member &rarr;</a>
         </p>
         <p class="member-fine" id="plan-note">
