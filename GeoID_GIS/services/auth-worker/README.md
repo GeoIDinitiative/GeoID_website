@@ -72,6 +72,41 @@ each step signs in to an account only you hold.
    That is deliberate: asking somebody to sign in to a service that does not
    exist would lock the app against everybody, including you.
 
+## Stripe writes the members list
+
+`POST /stripe/webhook` takes Stripe's signed events and writes the same KV
+entries step 4 writes by hand, so a payment becomes a membership with nobody
+at a keyboard. In the Stripe dashboard, Developers → Webhooks → Add endpoint:
+
+    https://auth.geoidinitiative.com/stripe/webhook
+
+with these events selected:
+
+- `checkout.session.completed` — the purchase: a year of membership at once
+- `invoice.paid` — the first payment and every renewal: until the period's
+  end plus a week of grace (Stripe's own retry window for a bounced card)
+- `customer.subscription.deleted` — a cancellation: the paid period keeps
+  running and the renewal does not
+- `charge.refunded` — the 14-day refund the refund page promises: it ends
+  the membership
+
+Stripe shows a signing secret (`whsec_…`) when the endpoint is created; put it
+into the Worker and nowhere else:
+
+    npx wrangler secret put STRIPE_WEBHOOK_SECRET
+
+Every delivery is verified against that secret, refused if older than five
+minutes, and applied once (a retried delivery is a no-op). The address the
+membership attaches to is the one Stripe was given at checkout, which is why
+the membership page says to pay with the address you sign in with. An entry
+with `"plan": "owner"` is never shortened or downgraded by anything Stripe
+sends, so a test purchase against a master account costs it nothing.
+
+To try it before going live: `stripe listen --forward-to
+https://auth.geoidinitiative.com/stripe/webhook` with the Stripe CLI, or
+`stripe trigger checkout.session.completed`, and read the KV entry back with
+`npx wrangler kv key get --binding=MEMBERS "member:<address>"`.
+
 ## What it issues
 
 A session token, HS256, audience `site`, carrying the email, the name and

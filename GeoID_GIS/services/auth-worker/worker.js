@@ -9,6 +9,7 @@
  *   GET  /auth/callback/<provider>                          take them back
  *   GET  /auth/me            (Bearer)                       who is this
  *   POST /auth/data-token    (Bearer)                       a short pass for the bucket
+ *   POST /stripe/webhook     (Stripe-Signature)             a payment became a membership
  *
  * IT HOLDS NO WORK. A project is a folder on the member's own disk, their own
  * browser storage, or their own machine through the sidecar. What is stored
@@ -163,6 +164,142 @@ function allowedReturn(env, wanted) {
   return env.SITE_ORIGIN ? `${env.SITE_ORIGIN}/` : "/";
 }
 
+// ── Stripe: a payment becomes a membership ──────────────────────────────────
+//
+// The members list used to be written by hand (`wrangler kv key put`), which
+// is fine for the first few members and not for the tenth. Stripe tells this
+// Worker what happened -- a checkout completed, an invoice paid, a subscription
+// cancelled, a charge refunded -- signed with a secret only Stripe and this
+// Worker hold, and the Worker writes the entitlement the sign-in reads.
+//
+// WHAT IS STORED: `member:<email>` {until, plan} as before, plus
+// `stripe:customer:<id>` → email (so a cancellation or a refund, which carry
+// the customer id and not always the address, still finds its member) and
+// `stripe:event:<id>` for a month (Stripe retries deliveries; a retry must not
+// be a second grant). Nothing about the card, the amount, or the person
+// beyond the address the sign-in is keyed on.
+//
+// THE UNTIL IS STRIPE'S OWN PERIOD END, plus a week of grace -- Stripe's retry
+// window for a failed renewal -- so a member whose card bounced once is not
+// locked out on the morning of the renewal. An OWNER entry is never lowered
+// or downgraded by anything Stripe says: the master accounts are ours, not
+// Stripe's, and a test purchase against one must not shorten it.
+
+export const STRIPE_GRACE_SECONDS = 7 * 24 * 3600;
+export const STRIPE_TOLERANCE_SECONDS = 300;
+const STRIPE_EVENT_TTL = 30 * 24 * 3600;
+const YEAR_PLUS_GRACE = 366 * 24 * 3600 + STRIPE_GRACE_SECONDS;
+
+const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+
+/**
+ * Stripe's signature: `Stripe-Signature: t=<unix>,v1=<hex>[,v1=<hex>]`, the
+ * hex being HMAC-SHA256 over `<t>.<raw body>` with the endpoint's signing
+ * secret. Verified against the RAW body -- re-serialising the JSON changes
+ * the bytes and fails every genuine delivery -- and refused when the
+ * timestamp is older than the tolerance, or a captured delivery could be
+ * replayed for as long as the secret stands. Compared in constant time.
+ */
+export async function stripeSignatureValid(payload, header, secret, now = Math.floor(Date.now() / 1000)) {
+  if (!secret || !header) return false;
+  const parts = String(header).split(",").map((p) => p.trim().split("="));
+  const t = Number(parts.find(([k]) => k === "t")?.[1]);
+  const sigs = parts.filter(([k]) => k === "v1").map(([, v]) => v || "");
+  if (!Number.isFinite(t) || !sigs.length) return false;
+  if (Math.abs(now - t) > STRIPE_TOLERANCE_SECONDS) return false;
+  const mac = hex(await crypto.subtle.sign("HMAC", await key(secret), enc.encode(`${t}.${payload}`)));
+  return sigs.some((sig) => sig.length === mac.length && timingSafeEqual(sig, mac));
+}
+
+function timingSafeEqual(a, b) {
+  let diff = a.length ^ b.length;
+  for (let i = 0; i < a.length && i < b.length; i += 1) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+async function readMember(env, email) {
+  const raw = await env.MEMBERS.get(`member:${email}`);
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch (e) { return null; }
+}
+
+/** Write a member's until, never lowering an owner and never downgrading one. */
+async function grant(env, email, until, source) {
+  const have = await readMember(env, email);
+  if (have?.plan === "owner") return { action: "kept", email, until: Number(have.until), plan: "owner" };
+  const rec = { until: Math.floor(until), plan: have?.plan === "member" || !have?.plan ? "member" : have.plan, source };
+  await env.MEMBERS.put(`member:${email}`, JSON.stringify(rec));
+  return { action: "granted", email, until: rec.until, plan: rec.plan };
+}
+
+/** Shorten a member's until to `until` (a cancellation or a refund), never an owner's. */
+async function shorten(env, email, until) {
+  const have = await readMember(env, email);
+  if (!have) return { action: "nothing", email };
+  if (have.plan === "owner") return { action: "kept", email, until: Number(have.until), plan: "owner" };
+  const next = Math.min(Number(have.until) || 0, Math.floor(until));
+  await env.MEMBERS.put(`member:${email}`, JSON.stringify({ ...have, until: next }));
+  return { action: "shortened", email, until: next, plan: have.plan || "member" };
+}
+
+async function rememberCustomer(env, customer, email) {
+  if (customer && email) await env.MEMBERS.put(`stripe:customer:${customer}`, email);
+}
+
+async function emailForCustomer(env, customer) {
+  return customer ? (await env.MEMBERS.get(`stripe:customer:${customer}`)) || "" : "";
+}
+
+const emailOf = (v) => String(v || "").trim().toLowerCase();
+
+/**
+ * One Stripe event, applied to the members list. Pure over `env.MEMBERS`, so a
+ * test hands it a Map. Returns what it did, for the log and for the reply.
+ */
+export async function applyStripeEvent(env, event, now = Math.floor(Date.now() / 1000)) {
+  const id = String(event?.id || "");
+  const type = String(event?.type || "");
+  const obj = event?.data?.object || {};
+  if (id) {
+    if (await env.MEMBERS.get(`stripe:event:${id}`)) return { action: "duplicate", type };
+    await env.MEMBERS.put(`stripe:event:${id}`, "1", { expirationTtl: STRIPE_EVENT_TTL });
+  }
+  if (type === "checkout.session.completed") {
+    const email = emailOf(obj.customer_details?.email || obj.customer_email);
+    if (!email) return { action: "no-email", type };
+    await rememberCustomer(env, obj.customer, email);
+    if (obj.mode && obj.mode !== "subscription") return { action: "not-a-subscription", type, email };
+    // The invoice that follows carries the exact period; this grants the year
+    // at once so the welcome page finds a member without waiting for it.
+    return { ...(await grant(env, email, now + YEAR_PLUS_GRACE, "checkout")), type };
+  }
+  if (type === "invoice.paid" || type === "invoice.payment_succeeded") {
+    const email = emailOf(obj.customer_email) || await emailForCustomer(env, obj.customer);
+    if (!email) return { action: "no-email", type };
+    await rememberCustomer(env, obj.customer, email);
+    const ends = (obj.lines?.data || []).map((l) => Number(l?.period?.end)).filter(Number.isFinite);
+    const periodEnd = ends.length ? Math.max(...ends) : now + 366 * 24 * 3600;
+    return { ...(await grant(env, email, periodEnd + STRIPE_GRACE_SECONDS, "invoice")), type };
+  }
+  if (type === "customer.subscription.deleted") {
+    const email = await emailForCustomer(env, obj.customer);
+    if (!email) return { action: "no-email", type };
+    // Cancelling stops the renewal and leaves the paid period running: the
+    // until is at most the period's end plus grace, and no less than it was
+    // if that is already sooner.
+    const end = Number(obj.current_period_end);
+    return { ...(await shorten(env, email, (Number.isFinite(end) ? end : now) + STRIPE_GRACE_SECONDS)), type };
+  }
+  if (type === "charge.refunded" && obj.refunded) {
+    const email = emailOf(obj.billing_details?.email) || await emailForCustomer(env, obj.customer);
+    if (!email) return { action: "no-email", type };
+    // A refund is the 14-day right the refund page states; the membership
+    // ends with it.
+    return { ...(await shorten(env, email, now - 1)), type };
+  }
+  return { action: "ignored", type };
+}
+
 const json = (body, status = 200, extra = {}) => new Response(JSON.stringify(body), {
   status,
   headers: { "content-type": "application/json; charset=utf-8", ...extra },
@@ -297,6 +434,23 @@ export default {
           env.JWT_SECRET),
         expires: now + DATA_TOKEN_SECONDS,
       }, 200, head);
+    }
+
+    // ── Stripe ─────────────────────────────────────────────────────────────
+    if (url.pathname === "/stripe/webhook") {
+      if (request.method !== "POST") return json({ error: "POST only." }, 405);
+      if (!env.STRIPE_WEBHOOK_SECRET) return json({ error: "No webhook secret is set on this service." }, 503);
+      const raw = await request.text();
+      const ok = await stripeSignatureValid(raw, request.headers.get("Stripe-Signature") || "", env.STRIPE_WEBHOOK_SECRET);
+      if (!ok) return json({ error: "Bad signature." }, 400);
+      let event = null;
+      try { event = JSON.parse(raw); } catch (e) { return json({ error: "Not JSON." }, 400); }
+      if (!env.MEMBERS) return json({ error: "No members list is bound." }, 503);
+      const did = await applyStripeEvent(env, event);
+      // Never the address back to the caller: Stripe does not need it and a
+      // log line is not the place for one. The action and the type are enough
+      // to read a delivery's outcome in the Stripe dashboard.
+      return json({ received: true, action: did.action, type: did.type || "" }, 200);
     }
 
     return json({ error: "No such endpoint." }, 404, head);

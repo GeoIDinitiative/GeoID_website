@@ -21415,3 +21415,39 @@ time** ("no style tag", then "absent: GeoIDLayerHierarchy") and passes 14 of
 14 alone, twice. Headless Chrome booting a planet page under the suite's
 load is a boot race, not a fault in either seam; run the two in sequence,
 and read a Mars-only structural failure as load before reading it as code.
+
+## Stripe writes the members list: the auth Worker's webhook
+
+"What about a service worker that manages the memberships and checks the
+credentials?" The auth Worker (`services/auth-worker`) already was that on
+the CHECKING side — it signs in through Google or GitHub, looks the address
+up in KV, and issues the week-long session token and the fifteen-minute
+bucket pass. What it lacked was the WRITING side: the members list was
+`wrangler kv key put` by hand. `POST /stripe/webhook` closes that.
+
+- **Verified against the RAW body**, `t=<unix>,v1=<hex>` as HMAC-SHA256
+  over `<t>.<body>` with the endpoint's `whsec_…`, refused past five
+  minutes (a captured delivery replayed later is refused), compared in
+  constant time, any of several `v1` accepted (a secret being rotated).
+  The test builds the header with node's OWN HMAC, so a pass is two
+  implementations agreeing on Stripe's scheme.
+- **What each event does**: `checkout.session.completed` (mode
+  subscription) grants a year; `invoice.paid` grants to the invoice's
+  latest line-period end; `customer.subscription.deleted` shortens to the
+  period end; `charge.refunded` ends it. All plus a week of grace — Stripe's
+  own retry window for a bounced card. A one-off payment (a donation) is
+  `not-a-subscription`. `stripe:event:<id>` for a month makes a retried
+  delivery a no-op; `stripe:customer:<id>` → address lets a cancellation
+  or refund, which carry the customer and not always the address, find its
+  member.
+- **AN OWNER IS NEVER LOWERED OR DOWNGRADED** by anything Stripe sends: the
+  master accounts are ours, and a test purchase against one must cost it
+  nothing. Pinned for a payment and for a refund.
+- **The reply names the action and the type, never the address** — Stripe
+  does not need it and a log line is not the place for one.
+- **Without `STRIPE_WEBHOOK_SECRET` the route answers 503** and the list
+  is written by hand as before. The Worker is NOT deployed: the KV id in
+  `wrangler.toml` is a placeholder, no page carries the `geoid-auth` meta
+  tag, and the Stripe endpoint has to be registered in the dashboard
+  (Developers ▸ Webhooks, the four events above) — the README's Stripe
+  section is the checklist, and every step of it is the account owner's.

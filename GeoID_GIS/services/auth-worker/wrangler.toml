@@ -20,6 +20,11 @@ SITE_ORIGIN = "https://geoidinitiative.com"
 # take out if that ever stops being true.
 RETURN_ORIGINS = "https://geoidinitiative.com https://www.geoidinitiative.com http://localhost:8125"
 
+# Stripe writes this list through POST /stripe/webhook, signed with the
+# endpoint's secret: `npx wrangler secret put STRIPE_WEBHOOK_SECRET` (the
+# whsec_… value Stripe shows when the endpoint is created). Without it the
+# route answers 503 and members are added by hand, as below.
+#
 # One entry per member: key `member:<verified email>`, value {"until": <epoch s>}.
 # An address that is not here is an explorer, which is a welcome state.
 [[kv_namespaces]]

@@ -1,12 +1,12 @@
-import { registerPage } from "../stages.js?v=20260915-c94db22";
-import * as store from "../project-store.js?v=20260915-c94db22";
-import { frameUrl, isConfigured } from "../google-credentials.js?v=20260915-c94db22";
-import { open as openDocWindow } from "../gdoc-windows.js?v=20260915-c94db22";
+import { registerPage } from "../stages.js?v=20260915-72923b8";
+import * as store from "../project-store.js?v=20260915-72923b8";
+import { frameUrl, isConfigured } from "../google-credentials.js?v=20260915-72923b8";
+import { open as openDocWindow } from "../gdoc-windows.js?v=20260915-72923b8";
 import {
   el, input, button, row, statusLine, guard, field, selectOf,
   pageHeader, splitPanes, tabbedPanel, editorCard, findTables, loadTable,
   toolbar,
-} from "./common.js?v=20260915-c94db22";
+} from "./common.js?v=20260915-72923b8";
 
 /**
  * Docs & Sheets — the Google workspace, ported from `DocsSheetsPage`
