@@ -25,7 +25,7 @@ const SPACE_KEY = "geoid-studio:space";
 const SPACE_OF = {
   add: "build", model: "build", label: "build", history: "build",
   materials: "build", physics: "build", mesh: "build", structured: "build", refine: "build",
-  study: "both", results: "analyse", log: "both",
+  study: "both", results: "analyse", analysis: "analyse", log: "both",
 };
 
 const STEPS = [

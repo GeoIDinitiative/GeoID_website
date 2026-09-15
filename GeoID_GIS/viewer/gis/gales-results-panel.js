@@ -29,10 +29,10 @@ import {
   interpolateOnSlice, axisPlane, nodeByteRange, probeCsv, parseMesh, sliceTets,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
   groupResultFiles, timeOf,
-} from "./gales-results.js?v=20260915-1b58192";
-import { zipStore } from "./shapefile-writer.js?v=20260915-1b58192";
-import { may, refusal } from "./membership.js?v=20260915-1b58192";
-import { downloadText } from "./extraction.js?v=20260915-1b58192";
+} from "./gales-results.js?v=20260915-b1aefb2";
+import { zipStore } from "./shapefile-writer.js?v=20260915-b1aefb2";
+import { may, refusal } from "./membership.js?v=20260915-b1aefb2";
+import { downloadText } from "./extraction.js?v=20260915-b1aefb2";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -121,6 +121,7 @@ function getReader() {
         return Promise.resolve({ ok: true, mesh: { ...local, tets: local.cellCount } });
       }
       if (type === "slice") return Promise.resolve({ ok: true, slice: sliceTets(local, payload.normal, payload.d) });
+      if (type === "locate") return import(`./gales-results.js${VERSION}`).then((g) => ({ ok: true, located: g.locatePoints(g.cellLocator(local), payload.points) }));
       if (type === "quality") return import(`./mesh-quality.js${VERSION}`).then((q) => ({ ok: true, analysis: local ? q.analyseMesh(local) : null }));
       return Promise.resolve({ ok: true });
     } catch (error) {
@@ -1791,5 +1792,12 @@ if (typeof document !== "undefined" && typeof window !== "undefined" && typeof w
     // Element quality of the open mesh, computed in the reader that holds its
     // cells (mesh-quality.js's analysis, arrays by transfer).
     quality: async () => (S.mesh ? (await getReader().call("quality", {})).analysis : null),
+    // For the Analysis tab: the open field's numbers, and where points fall.
+    values: (fieldIndex = S.field, stepIndex = S.step) => valuesAt(fieldIndex, stepIndex),
+    desc: () => currentDesc(),
+    scalar: (values, desc = currentDesc()) => scalarOf(values, desc),
+    componentLabel: () => componentLabel(currentDesc()),
+    locate: async (points) => (S.mesh ? (await getReader().call("locate", { points }, [points.buffer])).located : null),
+    colormap: () => colormapTable(S.colormap, { reverse: S.reverse }),
   };
 }

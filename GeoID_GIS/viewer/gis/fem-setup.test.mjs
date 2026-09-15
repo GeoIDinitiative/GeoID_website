@@ -121,7 +121,7 @@ const box = (flag, name, zMin, zMax, extra = {}) => ({ flag, name, zMin, zMax, v
   const panel = read("./studio-setup-panel.js");
   const block = (s) => s.slice(s.indexOf('data-group="materials"'), s.indexOf('data-group="mesh"'));
   check("tree: Materials, Physics and Study sit between the build tabs and Mesh, identical on both pages", block(index).length > 200 && block(index) === block(shell) && ["materials", "physics", "study"].every((g) => block(index).includes(`id="studio-${g}-host"`)));
-  check("tree: the three share one band, and the studio restores it", /data-group="study" data-deck="left" data-band="physics"/.test(index) && /\["build", "physics", "mesh"\]\.forEach/.test(read("./model-studio.js")));
+  check("tree: the three share one band, and the studio restores it", /data-group="study" data-deck="left" data-band="physics"/.test(index) && /\["build", "physics", "mesh"(, "[a-z]+")*\]\.forEach/.test(read("./model-studio.js")));
   check("loaded on the Earth page and the planets", /mesh-quality-panel\.js\?v=[^"]+"><\/script>\n<script type="module" src="gis\/studio-setup-panel\.js/.test(index) && /"\.\/studio-setup-panel\.js",/.test(read("./boot.js")));
   check("the study's mesh is the model's own gmsh script, named for the study", /gmshScriptFor: \(name\) =>/.test(read("./model-studio.js")) && /gmshScriptFor\?\.\(name\)/.test(panel));
   check("a local solve asks first; a compute target does not", /if \(!target && !window\.confirm\(/.test(panel));

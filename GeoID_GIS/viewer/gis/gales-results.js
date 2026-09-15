@@ -1133,3 +1133,147 @@ export function planSimulation(entries, setupText = "", { meshes: chosen = [], l
     });
   return { meshes, fields: groupResultFiles(entries, { looseField }), setup: named.size ? [...named] : [] };
 }
+
+// ── Sampling inside the mesh: plot over line ────────────────────────────────
+
+/**
+ * WHICH ELEMENT HOLDS A POINT, and its barycentric weights there.
+ *
+ * A field on nodes is linear inside a first-order element, so the value at
+ * any point is the weighted sum of its element's nodal values — exact, not an
+ * approximation of one. That is what makes a line profile through the volume
+ * honest: it reads the solution, rather than the nearest node's value.
+ *
+ * Elements are bucketed by bounding box on a grid sized to a few elements per
+ * cell; a point tests only its own cell's elements. 3D uses tetrahedra, 2D
+ * triangles in the xy plane. Higher-order cells are tested on their corner
+ * nodes (the first 4 or 3), which is linear interpolation of their vertices.
+ */
+export function cellLocator(mesh, { perBucket = 6 } = {}) {
+  const dim = mesh.dim === 2 ? 2 : 3;
+  const need = dim === 3 ? 4 : 3;
+  const { coords, bounds } = mesh;
+  const offsets = mesh.cellOffsets;
+  const cells = [];
+  for (let c = 0; c + 1 < offsets.length; c += 1) if (offsets[c + 1] - offsets[c] >= need) cells.push(c);
+  const span = [0, 1, 2].map((a) => Math.max(bounds.max[a] - bounds.min[a], 1e-12));
+  const volume = dim === 3 ? span[0] * span[1] * span[2] : span[0] * span[1];
+  const side = dim === 3 ? Math.cbrt(volume / Math.max(1, cells.length / perBucket)) : Math.sqrt(volume / Math.max(1, cells.length / perBucket));
+  const n = [0, 1, 2].map((a) => (a < dim ? Math.max(1, Math.min(256, Math.ceil(span[a] / side))) : 1));
+  const cellOf = (v, a) => Math.min(n[a] - 1, Math.max(0, Math.floor(((v - bounds.min[a]) / span[a]) * n[a])));
+  const buckets = Array.from({ length: n[0] * n[1] * n[2] }, () => []);
+  for (const c of cells) {
+    const s = offsets[c];
+    const lo = [Infinity, Infinity, Infinity]; const hi = [-Infinity, -Infinity, -Infinity];
+    for (let k = 0; k < need; k += 1) {
+      const i = mesh.cells[s + k];
+      for (let a = 0; a < 3; a += 1) { const v = coords[i * 3 + a]; if (v < lo[a]) lo[a] = v; if (v > hi[a]) hi[a] = v; }
+    }
+    const a0 = [0, 1, 2].map((a) => cellOf(lo[a], a)); const a1 = [0, 1, 2].map((a) => cellOf(hi[a], a));
+    for (let z = a0[2]; z <= a1[2]; z += 1) for (let y = a0[1]; y <= a1[1]; y += 1) for (let x = a0[0]; x <= a1[0]; x += 1) buckets[(z * n[1] + y) * n[0] + x].push(c);
+  }
+  const P = (i, a) => coords[i * 3 + a];
+  const tol = 1e-9;
+  const inTet = (c, p) => {
+    const s = offsets[c];
+    const [i0, i1, i2, i3] = [mesh.cells[s], mesh.cells[s + 1], mesh.cells[s + 2], mesh.cells[s + 3]];
+    const a = [P(i1, 0) - P(i0, 0), P(i1, 1) - P(i0, 1), P(i1, 2) - P(i0, 2)];
+    const b = [P(i2, 0) - P(i0, 0), P(i2, 1) - P(i0, 1), P(i2, 2) - P(i0, 2)];
+    const d = [P(i3, 0) - P(i0, 0), P(i3, 1) - P(i0, 1), P(i3, 2) - P(i0, 2)];
+    const r = [p[0] - P(i0, 0), p[1] - P(i0, 1), p[2] - P(i0, 2)];
+    const det = a[0] * (b[1] * d[2] - b[2] * d[1]) - b[0] * (a[1] * d[2] - a[2] * d[1]) + d[0] * (a[1] * b[2] - a[2] * b[1]);
+    if (Math.abs(det) < 1e-300) return null;
+    const u = (r[0] * (b[1] * d[2] - b[2] * d[1]) - b[0] * (r[1] * d[2] - r[2] * d[1]) + d[0] * (r[1] * b[2] - r[2] * b[1])) / det;
+    const v = (a[0] * (r[1] * d[2] - r[2] * d[1]) - r[0] * (a[1] * d[2] - a[2] * d[1]) + d[0] * (a[1] * r[2] - a[2] * r[1])) / det;
+    const w = (a[0] * (b[1] * r[2] - b[2] * r[1]) - b[0] * (a[1] * r[2] - a[2] * r[1]) + r[0] * (a[1] * b[2] - a[2] * b[1])) / det;
+    const t = 1 - u - v - w;
+    if (u < -tol || v < -tol || w < -tol || t < -tol) return null;
+    return { nodes: [i0, i1, i2, i3], weights: [t, u, v, w] };
+  };
+  const inTri = (c, p) => {
+    const s = offsets[c];
+    const [i0, i1, i2] = [mesh.cells[s], mesh.cells[s + 1], mesh.cells[s + 2]];
+    const x0 = P(i0, 0); const y0 = P(i0, 1);
+    const ax = P(i1, 0) - x0; const ay = P(i1, 1) - y0; const bx = P(i2, 0) - x0; const by = P(i2, 1) - y0;
+    const det = ax * by - ay * bx;
+    if (Math.abs(det) < 1e-300) return null;
+    const rx = p[0] - x0; const ry = p[1] - y0;
+    const u = (rx * by - ry * bx) / det; const v = (ax * ry - ay * rx) / det; const t = 1 - u - v;
+    if (u < -tol || v < -tol || t < -tol) return null;
+    return { nodes: [i0, i1, i2], weights: [t, u, v] };
+  };
+  return {
+    cells: cells.length,
+    locate(p) {
+      for (let a = 0; a < dim; a += 1) if (p[a] < bounds.min[a] - span[a] * 1e-9 || p[a] > bounds.max[a] + span[a] * 1e-9) return null;
+      const bucket = buckets[(cellOf(dim === 3 ? p[2] : 0, 2) * n[1] + cellOf(p[1], 1)) * n[0] + cellOf(p[0], 0)];
+      for (const c of bucket) {
+        const hit = dim === 3 ? inTet(c, p) : inTri(c, p);
+        if (hit) return { cell: c, ...hit };
+      }
+      return null;
+    },
+  };
+}
+
+/** `count` points evenly from a to b, with their distance along the line. */
+export function lineSamples(a, b, count = 256) {
+  const n = Math.max(2, Math.round(count));
+  const len = Math.hypot(b[0] - a[0], b[1] - a[1], (b[2] ?? 0) - (a[2] ?? 0));
+  const points = new Float64Array(n * 3);
+  const distance = new Float64Array(n);
+  for (let k = 0; k < n; k += 1) {
+    const t = k / (n - 1);
+    points[k * 3] = a[0] + (b[0] - a[0]) * t;
+    points[k * 3 + 1] = a[1] + (b[1] - a[1]) * t;
+    points[k * 3 + 2] = (a[2] ?? 0) + ((b[2] ?? 0) - (a[2] ?? 0)) * t;
+    distance[k] = len * t;
+  }
+  return { points, distance, length: len };
+}
+
+/**
+ * Locate many points at once, packed for a worker to hand back: four node
+ * indices and four weights per point (a triangle's fourth weight is zero),
+ * node −1 where a point is outside the mesh.
+ */
+export function locatePoints(locator, points) {
+  const n = points.length / 3;
+  const nodes = new Int32Array(n * 4).fill(-1);
+  const weights = new Float64Array(n * 4);
+  let inside = 0;
+  for (let k = 0; k < n; k += 1) {
+    const hit = locator.locate([points[k * 3], points[k * 3 + 1], points[k * 3 + 2]]);
+    if (!hit) continue;
+    inside += 1;
+    hit.nodes.forEach((node, j) => { nodes[k * 4 + j] = node; weights[k * 4 + j] = hit.weights[j]; });
+  }
+  return { nodes, weights, inside };
+}
+
+/** A nodal scalar at located points; NaN outside the mesh. */
+export function sampleLocated(located, scalar) {
+  const n = located.nodes.length / 4;
+  const out = new Float64Array(n);
+  for (let k = 0; k < n; k += 1) {
+    if (located.nodes[k * 4] < 0) { out[k] = NaN; continue; }
+    let v = 0;
+    for (let j = 0; j < 4; j += 1) {
+      const node = located.nodes[k * 4 + j];
+      if (node >= 0) v += located.weights[k * 4 + j] * scalar[node];
+    }
+    out[k] = v;
+  }
+  return out;
+}
+
+/** A profile as CSV: distance, x, y, z, then one column per series. */
+export function profileCsv({ distance, points, series, header = [] }) {
+  const cols = ["distance_m", "x", "y", "z", ...series.map((s) => s.name)];
+  const lines = [...header.map((h) => `# ${h}`), cols.join(",")];
+  for (let k = 0; k < distance.length; k += 1) {
+    const row = [distance[k], points[k * 3], points[k * 3 + 1], points[k * 3 + 2], ...series.map((s) => s.values[k])];
+    lines.push(row.map((v) => (Number.isFinite(v) ? String(Number(v.toPrecision(10))) : "")).join(","));
+  }
+  return `${lines.join("\n")}\n`;
+}

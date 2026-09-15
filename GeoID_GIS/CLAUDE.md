@@ -20187,3 +20187,43 @@ now.
 
 Every rule in the file is scoped to `#model-studio`. The pin's selector split
 has to skip commas inside `:is(…)`, or it reports scoped rules as unscoped.
+
+## Analysis: plot over line and vector glyphs, beside Results
+
+`gis/results-analysis-panel.js` is the Analysis tab in the Analyse workspace
+(`data-band="analysis"`, so it can sit open beside Results).
+
+**Plot over line.** The field, component and step shown in Results are
+sampled along a line.
+- **How it samples.** Each point is LOCATED in its element, and the element's
+  nodal values are weighted barycentrically (`cellLocator`, `locatePoints`,
+  `sampleLocated` in gales-results.js). The worker does this, because the
+  cells never cross to the page. It is exact for a first-order mesh, not
+  nearest-node. The test checks that a linear field is reproduced exactly and
+  that a point outside the mesh is NaN.
+- **Controls.** Presets run along x, along y, or vertically through the
+  centre, and either end can be the probed node. A first or previous step can
+  be overlaid. It exports CSV and re-plots when the Results selection changes.
+- **Store the weights as Float64.** Float32 weights cost about 1e-7 of the
+  solution, and the exactness test caught it.
+
+**A break in a profile is the mesh, not the locator.** On Etna, a vertical line
+through the centre has no values from −1.5 to −9.3 km. Brute force in numpy
+found no tet containing those points either: the cavity in `mesh_4core.txt` is
+larger than `gmsh_mesh.py`'s 3 km box parameter suggests. The panel counts
+breaks and says what they are.
+
+Verified against the solver's nodal |u| on Etna at four depths, within the
+spread of the nearest nodes: 58.9 against 57.9–59.7 m, 41.4 against 40.6–42.2,
+and 23.6 against 22.4–25.0, then 0 at the fixed base. 101 samples through
+1.4M tets took 0.8 s, including building the locator.
+
+**Vector glyphs.** One InstancedMesh of shaft-and-head arrows on the surface
+nodes, subsampled to 500, 2,000 or 8,000.
+- **Size and colour.** The longest arrow is 8% of the model's diagonal times
+  a size factor, and arrows are coloured by magnitude on the Results colour
+  map.
+- **Placement.** They sit on the warped surface when the warp uses the same
+  field, and they follow the step.
+- **Etna.** Its surface displacement is mostly vertical, so from above the
+  arrows read as dots. That is the solution, not a fault.

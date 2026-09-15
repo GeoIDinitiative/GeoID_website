@@ -9,13 +9,15 @@
  *
  *   { id, type: "parse", buffer }          → { id, ok, mesh }
  *   { id, type: "slice", normal, d }       → { id, ok, slice }
+ *   { id, type: "locate", points }         → { id, ok, located }  (nodes ×4, weights ×4 per point)
  *   { id, type: "quality" }                → { id, ok, analysis }  (mesh-quality.js, by transfer)
  *   progress while parsing                 → { id, type: "progress", fraction }
  */
-import { parseMesh, sliceTets } from "./gales-results.js?v=20260915-1b58192";
-import { analyseMesh } from "./mesh-quality.js?v=20260915-1b58192";
+import { parseMesh, sliceTets, cellLocator, locatePoints } from "./gales-results.js?v=20260915-b1aefb2";
+import { analyseMesh } from "./mesh-quality.js?v=20260915-b1aefb2";
 
 let mesh = null;
+let locator = null; // built on the first locate, dropped with the mesh
 
 function reply(message, transfer = []) {
   self.postMessage(message, transfer);
@@ -30,6 +32,7 @@ async function handle(event) {
         onProgress: (fraction) => reply({ id, type: "progress", fraction }),
       });
       mesh = parsed;
+      locator = null;
       const coords = parsed.coords.slice();
       const surface = parsed.surface.slice();
       const surfaceFlag = parsed.surfaceFlag.slice();
@@ -48,6 +51,14 @@ async function handle(event) {
       if (!mesh) throw new Error("No mesh is loaded in the reader.");
       const slice = sliceTets(mesh, event.data.normal, event.data.d);
       reply({ id, ok: true, slice }, [slice.a.buffer, slice.b.buffer, slice.t.buffer, slice.cells.buffer]);
+      return;
+    }
+    if (type === "locate") {
+      // Points inside the mesh: their element's nodes and barycentric weights.
+      if (!mesh) throw new Error("No mesh is loaded in the reader.");
+      if (!locator) locator = cellLocator(mesh);
+      const located = locatePoints(locator, event.data.points);
+      reply({ id, ok: true, located }, [located.nodes.buffer, located.weights.buffer]);
       return;
     }
     if (type === "quality") {

@@ -455,3 +455,43 @@ const triangleArea = (p, k) => {
   check("doors: a mesh file, a results folder, result files, and a drop zone", /Open mesh file…/.test(panelSrc) && /Add results folder…/.test(panelSrc) && /Add result files…/.test(panelSrc) && /webkitGetAsEntry/.test(panelSrc) && /composeSources\(S\.source, extra\)/.test(panelSrc));
 }
 check("a mesh opened onto a loaded run starts a new run; results join the open one", /const fresh = kind === "mesh" && Boolean\(S\.mesh\);/.test(readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8")));
+
+// ── plot over line: locating points and reading the solution between nodes ──
+{
+  const { cellLocator, lineSamples, locatePoints, sampleLocated, profileCsv } = await import("./gales-results.js");
+  const loc = cellLocator(cube);
+  check("locator: the Kuhn cube's six tets are indexed", loc.cells === 6);
+  const hit = loc.locate([0.3, 0.6, 0.2]);
+  check("locator: a point inside finds a tet whose weights sum to one and rebuild the point", hit && Math.abs(hit.weights.reduce((a, b) => a + b, 0) - 1) < 1e-12 && [0, 1, 2].every((a) => Math.abs(hit.nodes.reduce((s, node, j) => s + hit.weights[j] * cube.coords[node * 3 + a], 0) - [0.3, 0.6, 0.2][a]) < 1e-12));
+  check("locator: a point outside the mesh is null", loc.locate([1.2, 0.5, 0.5]) === null);
+  const line = lineSamples([-0.5, 0.25, 0.5], [1.5, 0.75, 0.5], 41);
+  const located = locatePoints(loc, line.points);
+  // A linear field is reproduced exactly inside, and NaN outside.
+  const f = new Float64Array(8).map((_, i) => 2 * cube.coords[i * 3] - 3 * cube.coords[i * 3 + 1] + 5 * cube.coords[i * 3 + 2] + 1);
+  const v = sampleLocated(located, f);
+  let exact = true; let outsideNaN = true;
+  for (let k = 0; k < 41; k += 1) {
+    const [x, y, z] = [line.points[k * 3], line.points[k * 3 + 1], line.points[k * 3 + 2]];
+    const inside = x >= 0 && x <= 1;
+    if (inside && Math.abs(v[k] - (2 * x - 3 * y + 5 * z + 1)) > 1e-9) exact = false;
+    if (!inside && x < -1e-9 && !Number.isNaN(v[k])) outsideNaN = false;
+  }
+  check("sample: a linear field is exact along a line through the volume, and NaN where the line leaves it", exact && outsideNaN && located.inside >= 20);
+  check("line: distances run 0 to the length", line.distance[0] === 0 && Math.abs(line.distance[40] - line.length) < 1e-12 && Math.abs(line.length - Math.hypot(2, 0.5)) < 1e-12);
+  const csv = profileCsv({ distance: line.distance, points: line.points, series: [{ name: "f", values: v }], header: ["field f"] });
+  check("csv: header comment, columns, a blank cell outside the mesh", csv.startsWith("# field f\ndistance_m,x,y,z,f\n") && /\n0,-0\.5,0\.25,0\.5,\n/.test(csv));
+  const tri = { dim: 2, nodeCount: 3, coords: Float64Array.from([0, 0, 0, 2, 0, 0, 0, 2, 0]), cells: Uint32Array.from([0, 1, 2]), cellOffsets: Uint32Array.from([0, 3]), bounds: { min: [0, 0, 0], max: [2, 2, 0] } };
+  const t = cellLocator(tri).locate([0.5, 0.5, 0]);
+  check("2D: a triangle in the xy plane, its weights exact", t && Math.abs(t.weights[1] - 0.25) < 1e-12 && Math.abs(t.weights[2] - 0.25) < 1e-12);
+}
+{
+  const worker = readFileSync(new URL("./gales-worker.js", import.meta.url), "utf8");
+  const panel = readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8");
+  const analysis = readFileSync(new URL("./results-analysis-panel.js", import.meta.url), "utf8");
+  const index = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const shellHtml = readFileSync(new URL("./shell.html", import.meta.url), "utf8");
+  check("analysis: the worker locates points in the cells it holds, and the results seam exposes values, the scalar and locate", /type === "locate"/.test(worker) && /locate: async \(points\) =>/.test(panel) && /values: \(fieldIndex = S\.field, stepIndex = S\.step\) => valuesAt/.test(panel) && /scalar: \(values, desc = currentDesc\(\)\) => scalarOf/.test(panel));
+  check("analysis: an Analysis tab in the Analyse workspace on both pages, loaded on both", index.includes('data-group="analysis"') && shellHtml.includes('id="studio-analysis-host"') && /src="gis\/results-analysis-panel\.js\?v=/.test(index) && /"\.\/results-analysis-panel\.js",/.test(readFileSync(new URL("./boot.js", import.meta.url), "utf8")));
+  check("analysis: the profile is sampled through the located weights, not the nearest node, and follows the Results selection", /sampleLocated\(loc, results\.scalar/.test(analysis) && /if \(L\.profile && sig !== L\.sig && !L\.busy\) plot\(\)/.test(analysis));
+  check("analysis: no style block of its own", !analysis.includes("const STYLE = `"));
+}
