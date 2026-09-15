@@ -520,9 +520,19 @@ const TET_FACES = [[0, 2, 1], [0, 1, 3], [1, 2, 3], [0, 3, 2]];
  * million faces, and a Map of strings that size is the machine's memory.
  */
 export function exposedTetFaces(mesh) {
+  return exposedFaces(mesh, null).triangles;
+}
+
+/**
+ * The boundary of a SUBSET of the tetrahedra: the faces seen once among the
+ * cells `keep` admits (a Uint8Array per cell, or null for all), with the cell
+ * each face belongs to -- so a threshold draws a closed skin, and the skin can
+ * be coloured by the cells' own data (their volume flag).
+ */
+export function exposedFaces(mesh, keep) {
   const { cells, cellOffsets, cellCount } = mesh;
   let tets = 0;
-  for (let c = 0; c < cellCount; c += 1) if (cellOffsets[c + 1] - cellOffsets[c] === 4) tets += 1;
+  for (let c = 0; c < cellCount; c += 1) if (cellOffsets[c + 1] - cellOffsets[c] === 4 && (!keep || keep[c])) tets += 1;
   const nFaces = tets * 4;
   let cap = 1;
   while (cap < nFaces * 2) cap <<= 1;
@@ -531,10 +541,11 @@ export function exposedTetFaces(mesh) {
   const slotC = new Int32Array(cap);
   const slotCount = new Uint8Array(cap);
   const slotFace = new Int32Array(cap * 3);
+  const slotCell = new Int32Array(cap);
   const mask = cap - 1;
   for (let c = 0; c < cellCount; c += 1) {
     const s = cellOffsets[c];
-    if (cellOffsets[c + 1] - s !== 4) continue;
+    if (cellOffsets[c + 1] - s !== 4 || (keep && !keep[c])) continue;
     for (const f of TET_FACES) {
       const p = cells[s + f[0]]; const q = cells[s + f[1]]; const r = cells[s + f[2]];
       let a = p; let b = q; let d = r;
@@ -545,7 +556,7 @@ export function exposedTetFaces(mesh) {
       for (;;) {
         if (slotA[h] === -1) {
           slotA[h] = a; slotB[h] = b; slotC[h] = d; slotCount[h] = 1;
-          slotFace[h * 3] = p; slotFace[h * 3 + 1] = q; slotFace[h * 3 + 2] = r;
+          slotFace[h * 3] = p; slotFace[h * 3 + 1] = q; slotFace[h * 3 + 2] = r; slotCell[h] = c;
           break;
         }
         if (slotA[h] === a && slotB[h] === b && slotC[h] === d) { slotCount[h] = 2; break; }
@@ -554,10 +565,54 @@ export function exposedTetFaces(mesh) {
     }
   }
   const out = new IntBuffer();
+  const owner = new IntBuffer();
   for (let h = 0; h < cap; h += 1) {
-    if (slotA[h] !== -1 && slotCount[h] === 1) { out.push(slotFace[h * 3]); out.push(slotFace[h * 3 + 1]); out.push(slotFace[h * 3 + 2]); }
+    if (slotA[h] !== -1 && slotCount[h] === 1) { out.push(slotFace[h * 3]); out.push(slotFace[h * 3 + 1]); out.push(slotFace[h * 3 + 2]); owner.push(slotCell[h]); }
   }
-  return out.done();
+  return { triangles: out.done(), cells: owner.done() };
+}
+
+/**
+ * Which cells a threshold keeps: those of the listed volume flags (all when
+ * none is listed) whose value lies in [lo, hi] -- at every node ("all"), at any
+ * node ("any"), or on average ("mean"). Without a scalar the flags alone decide.
+ */
+export function thresholdKeep(mesh, scalar, { lo = -Infinity, hi = Infinity, flags = null, mode = "all" } = {}) {
+  const { cells, cellOffsets, cellCount } = mesh;
+  const keep = new Uint8Array(cellCount);
+  const flagSet = flags && flags.length ? new Set(flags.map(Number)) : null;
+  let kept = 0;
+  for (let c = 0; c < cellCount; c += 1) {
+    if (flagSet && !flagSet.has(mesh.cellFlag ? mesh.cellFlag[c] : 0)) continue;
+    const s = cellOffsets[c]; const e = cellOffsets[c + 1];
+    let ok = true;
+    if (scalar) {
+      let inside = 0; let sum = 0; let count = 0;
+      for (let k = s; k < e; k += 1) {
+        const v = scalar[cells[k]];
+        if (v !== v) continue;
+        count += 1; sum += v;
+        if (v >= lo && v <= hi) inside += 1;
+      }
+      ok = count > 0 && (mode === "any" ? inside > 0 : mode === "mean" ? sum / count >= lo && sum / count <= hi : inside === e - s);
+    }
+    if (ok) { keep[c] = 1; kept += 1; }
+  }
+  return { keep, kept };
+}
+
+/** A 2D mesh's kept cells as triangles (a quad as two), with each triangle's cell. */
+export function keptTriangles(mesh, keep) {
+  const { cells, cellOffsets, cellCount } = mesh;
+  const out = new IntBuffer();
+  const owner = new IntBuffer();
+  for (let c = 0; c < cellCount; c += 1) {
+    if (keep && !keep[c]) continue;
+    const s = cellOffsets[c]; const n = cellOffsets[c + 1] - s;
+    if (n < 3) continue;
+    for (let k = 1; k + 1 < n; k += 1) { out.push(cells[s]); out.push(cells[s + k]); out.push(cells[s + k + 1]); owner.push(c); }
+  }
+  return { triangles: out.done(), cells: owner.done() };
 }
 
 /** Of a 2D mesh, the edges drawn as its outline: the sides, else none. */

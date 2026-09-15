@@ -27,15 +27,16 @@ import {
   planSimulation, describeField, dofsPerNode, float64View, componentOf, magnitudeOf,
   rangeOf, usedNodes, COLORMAPS, colormapTable, colourValues, niceTicks, formatValue, tickLabel,
   interpolateOnSlice, axisPlane, nodeByteRange, probeCsv, parseMesh, sliceTets, isoTets, contourLevels, contourSegments,
+  exposedFaces, thresholdKeep, keptTriangles,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
   groupResultFiles, timeOf, referencePlan, differenceOf, DERIVED_DOFS,
-} from "./gales-results.js?v=20260915-455ab3c";
-import { zipStore } from "./shapefile-writer.js?v=20260915-455ab3c";
-import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-455ab3c";
-import { parseSolidProps } from "./strain-stress.js?v=20260915-455ab3c";
-import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-455ab3c";
-import { may, refusal } from "./membership.js?v=20260915-455ab3c";
-import { downloadText } from "./extraction.js?v=20260915-455ab3c";
+} from "./gales-results.js?v=20260915-032ad5f";
+import { zipStore } from "./shapefile-writer.js?v=20260915-032ad5f";
+import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-032ad5f";
+import { parseSolidProps } from "./strain-stress.js?v=20260915-032ad5f";
+import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-032ad5f";
+import { may, refusal } from "./membership.js?v=20260915-032ad5f";
+import { downloadText } from "./extraction.js?v=20260915-032ad5f";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -84,6 +85,8 @@ const S = {
   // Contour lines on what is drawn, and isosurfaces through the volume.
   contours: { on: false, count: 10, colour: "dark" },
   iso: { on: false, levels: "", opacity: 0.55, key: "", data: null, used: [] },
+  // Threshold: the cells in a value range and/or of chosen volume flags, as a closed skin.
+  threshold: { lo: "", hi: "", flags: [], mode: "all", colourBy: "field", key: "", data: null },
   // Meshes opened by hand, and the field a numbered file picked on its own
   // belongs to (a bare "1" says nothing about which field it is).
   meshHints: [],
@@ -133,6 +136,12 @@ function getReader() {
         return Promise.resolve({ ok: true, mesh: { ...local, tets: local.cellCount } });
       }
       if (type === "slice") return Promise.resolve({ ok: true, slice: sliceTets(local, payload.normal, payload.d) });
+      if (type === "threshold") {
+        const { keep, kept } = thresholdKeep(local, payload.scalar || null, payload);
+        const got = local.dim === 3 ? exposedFaces(local, keep) : keptTriangles(local, keep);
+        const flags = Int32Array.from(got.cells, (c) => (local.cellFlag ? local.cellFlag[c] : 0));
+        return Promise.resolve({ ok: true, threshold: { triangles: got.triangles, flags, kept, of: local.cellCount } });
+      }
       if (type === "iso") {
         const parts = payload.levels.map((L) => isoTets(local, payload.scalar, L));
         const n = parts.reduce((a, q) => a + q.t.length, 0);
@@ -436,6 +445,9 @@ async function loadMesh(path) {
     S.sliceKey = "";
     S.iso.key = "";
     S.iso.data = null;
+    S.threshold.key = "";
+    S.threshold.data = null;
+    S.threshold.flags = [];
     S.probe = null;
     S.clipOn = null;
     S.stations = [];
@@ -654,7 +666,7 @@ function buildScene() {
    * one. A group above each holds the reader's choice and nothing else.
    */
   const part = (name) => { const g = new THREE.Group(); g.name = `gales-part-${name}`; frame.add(g); return g; };
-  scene.parts = { surface: part("surface"), slice: part("slice"), edges: part("edges"), points: part("points"), contours: part("contours"), iso: part("iso") };
+  scene.parts = { surface: part("surface"), slice: part("slice"), edges: part("edges"), points: part("points"), contours: part("contours"), iso: part("iso"), threshold: part("threshold") };
 
   const nodes = usedNodes(mesh.surface, mesh.nodeCount);
   const compact = new Int32Array(mesh.nodeCount).fill(-1);
@@ -740,6 +752,7 @@ const PART_ROWS = [
   ["points", "Points and probes", 0xffd166],
   ["contours", "Contour lines", 0x222222],
   ["iso", "Isosurfaces", 0x9ad9dd],
+  ["threshold", "Threshold", 0xff9bcd],
 ];
 
 function anyPartShown() {
@@ -774,6 +787,7 @@ function visibilityGroup() {
     points: Boolean(S.stations?.length || S.probe),
     contours: Boolean(S.contours.on),
     iso: Boolean(S.iso.on && S.mesh?.dim === 3),
+    threshold: S.view === "threshold",
   };
   // A part that has just come to be (a slice shown, a first point placed)
   // arrives visible: a "Hide results" pressed before it existed was not about it.
@@ -918,7 +932,7 @@ async function refresh({ fit = false } = {}) {
       }
     }
 
-    const view = S.mesh.dim === 3 ? S.view : "surface";
+    const view = S.mesh.dim === 3 ? S.view : S.view === "threshold" ? "threshold" : "surface";
     const sliced = await sliceFor(view);
 
     // Range over what is drawn.
@@ -975,7 +989,7 @@ async function refresh({ fit = false } = {}) {
     material.opacity = view === "both" ? Math.min(S.opacity, 0.25) : S.opacity;
     material.depthWrite = !translucent;
     if (material.wireframe !== S.edges) { material.wireframe = S.edges; material.needsUpdate = true; }
-    scene.surface.visible = view !== "slice";
+    scene.surface.visible = view !== "slice" && view !== "threshold";
     if (sliced) {
       const n = sliced.plane.normal;
       // THE CUT FACE TURNS TOWARD THE STUDIO'S OWN VIEW. Fit and Iso look from
@@ -986,7 +1000,7 @@ async function refresh({ fit = false } = {}) {
       const sign = keepAbove ? 1 : -1;
       scene.clipLocal.set(new THREE.Vector3(sign * n[0], sign * n[1], sign * n[2]), -sign * sliced.plane.d);
     }
-    if (scene.outline) scene.outline.visible = view !== "slice";
+    if (scene.outline) scene.outline.visible = view !== "slice" && view !== "threshold";
 
     // Slice.
     let slicePositions = null;
@@ -1011,6 +1025,7 @@ async function refresh({ fit = false } = {}) {
 
     drawContours({ scalar: !fringe && scalar, onSurface: !fringe && onSurface, pos, index: geometry.index?.array, view, slicePositions, sliceValues: !fringe && sliceValues, lo, hi, table });
     await drawIsosurfaces({ scalar: fringe ? null : scalar, f, disp, lo, hi, table });
+    await drawThreshold({ view, scalar: fringe ? (losHere || scalar) : scalar, colourScalar: scalar, f, disp, lo, hi, table, paint });
     updateProbeMarker(disp);
     updateStationMarkers(disp);
     // The box names the field and lists the slice once there is one: redraw it
@@ -1018,7 +1033,8 @@ async function refresh({ fit = false } = {}) {
     const g = visibilityGroup();
     const visKey = g ? `${g.title}|${g.parts.map((p) => p.id).join(",")}` : "";
     if (visKey !== scene.visKey) { scene.visKey = visKey; studio()?.refreshVisibility?.(); }
-    renderLegend(desc, lo, hi, table, paint);
+    if (view === "threshold" && S.threshold.colourBy === "flag") renderFlagLegend();
+    else renderLegend(desc, lo, hi, table, paint);
     const noteNode = byId("gales-insar-note");
     if (noteNode) { noteNode.textContent = S.insarNote; noteNode.classList.toggle("is-warning", /ALIASED/.test(S.insarNote)); }
     renderStepReadout();
@@ -1089,6 +1105,88 @@ function drawContours({ scalar, onSurface, pos, index, view, slicePositions, sli
   lines.frustumCulled = false;
   lines.renderOrder = 2;
   group.add(lines);
+}
+
+// ── Threshold ───────────────────────────────────────────────────────────────
+
+const FLAG_COLOURS = ["#52e4e8", "#ff2bd6", "#ffc857", "#7bd88f", "#b48cff", "#ff8a5b", "#e8eaf2", "#5aa9ff", "#f2e85c", "#6ee7b7"];
+const flagColour = (flag) => {
+  const list = (S.mesh?.volumeFlags || []).map((f) => f.flag);
+  const k = Math.max(0, list.indexOf(flag));
+  return FLAG_COLOURS[k % FLAG_COLOURS.length];
+};
+
+/** The threshold's bounds as numbers: a blank end is open. */
+function thresholdRange() {
+  const T = S.threshold;
+  const num = (v, open) => (v === "" || v === null || v === undefined || !Number.isFinite(Number(v)) ? open : Number(v));
+  return { lo: num(T.lo, -Infinity), hi: num(T.hi, Infinity) };
+}
+
+async function drawThreshold({ view, scalar, colourScalar, f, disp, lo, hi, table, paint }) {
+  const group = scene.parts?.threshold;
+  disposeGroup(group);
+  if (!group || view !== "threshold") return;
+  const T = S.threshold;
+  const { lo: tlo, hi: thi } = thresholdRange();
+  const bounded = Number.isFinite(tlo) || Number.isFinite(thi);
+  const key = `${S.meshPath}|${bounded ? `${f?.field}|${S.step}|${S.component}|${tlo}|${thi}|${T.mode}` : "flags"}|${T.flags.join(",")}|${S.reference?.label || ""}`;
+  if (T.key !== key || !T.data) {
+    const copy = bounded && scalar ? Float32Array.from(scalar) : null;
+    T.data = (await getReader().call("threshold", { scalar: copy, lo: tlo, hi: thi, flags: T.flags, mode: T.mode }, copy ? [copy.buffer] : [])).threshold;
+    T.key = key;
+  }
+  const d = T.data;
+  const tris = d.triangles;
+  const nv = tris.length;
+  if (!nv) return;
+  const positions = new Float32Array(nv * 3);
+  const colours = new Float32Array(nv * 3);
+  const c = S.mesh.coords;
+  const values = colourScalar && T.colourBy !== "flag" ? new Float32Array(nv) : null;
+  for (let v = 0; v < nv; v += 1) {
+    const i = tris[v];
+    positions[v * 3] = c[i * 3] + (disp ? disp[i * 3] : 0);
+    positions[v * 3 + 1] = c[i * 3 + 1] + (disp ? disp[i * 3 + 1] : 0);
+    positions[v * 3 + 2] = c[i * 3 + 2] + (disp ? disp[i * 3 + 2] : 0);
+    if (values) values[v] = colourScalar[i];
+  }
+  if (values) colourValues(values, lo, hi, table, colours, paint);
+  else if (T.colourBy === "flag") {
+    const rgb = new Map();
+    for (let face = 0; face < d.flags.length; face += 1) {
+      const flag = d.flags[face];
+      if (!rgb.has(flag)) { const col = new THREE.Color(flagColour(flag)); rgb.set(flag, [col.r, col.g, col.b]); }
+      const [r, g, b] = rgb.get(flag);
+      for (let k = 0; k < 3; k += 1) { colours[(face * 3 + k) * 3] = r; colours[(face * 3 + k) * 3 + 1] = g; colours[(face * 3 + k) * 3 + 2] = b; }
+    }
+  } else colours.fill(0.72);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  g.setAttribute("color", new THREE.BufferAttribute(colours, 3));
+  g.computeVertexNormals();
+  const mesh = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, wireframe: S.edges, transparent: S.opacity < 1, opacity: S.opacity, depthWrite: S.opacity >= 1 }));
+  mesh.name = "gales-threshold";
+  mesh.frustumCulled = false;
+  group.add(mesh);
+}
+
+function renderFlagLegend() {
+  const node = legendNode();
+  if (!node) return;
+  const d = S.threshold.data;
+  if (!d || !scene.root?.visible || !anyPartShown()) { node.hidden = true; return; }
+  node.hidden = false;
+  node.textContent = "";
+  node.append(el("div", { class: "gales-legend-title" }, "Volume flag"));
+  node.append(el("div", { class: "gales-legend-sub" }, `${d.kept.toLocaleString()} of ${d.of.toLocaleString()} elements kept`));
+  const shown = new Set(d.flags);
+  const list = el("div", { class: "gales-legend-flags" });
+  for (const { flag, count } of S.mesh.volumeFlags || []) {
+    if (!shown.has(flag)) continue;
+    list.append(el("span", {}, el("i", { style: `background:${flagColour(flag)}` }), `${flag} · ${count.toLocaleString()}`));
+  }
+  node.append(list);
 }
 
 /** Levels typed as numbers, else three through the middle of the range. */
@@ -1653,7 +1751,7 @@ function renderControls() {
   // Display
   const ds = section("display", "Display");
   if (S.mesh.dim === 3) {
-    ds.body.append(row("View", select([["surface", "Surface"], ["slice", "Slice"], ["clip", "Clip at the slice"], ["both", "Translucent surface + slice"]], S.view, (v) => { S.view = v; renderControls(); refresh(); })));
+    ds.body.append(row("View", select([["surface", "Surface"], ["slice", "Slice"], ["clip", "Clip at the slice"], ["both", "Translucent surface + slice"], ["threshold", "Threshold — a range, or domains"]], S.view, (v) => { S.view = v; renderControls(); refresh(); })));
     if (S.view !== "surface") {
       ds.body.append(row("Slice normal", select([["x", "X"], ["y", "Y"], ["z", "Z (horizontal)"]], S.sliceAxis, (v) => { S.sliceAxis = v; refresh(); })));
       const pos = el("input", { class: "gales-range", type: "range", min: "0", max: "1000", step: "1", value: String(Math.round(S.slicePos * 1000)) });
@@ -1672,9 +1770,41 @@ function renderControls() {
       ds.body.append(face);
     }
   } else {
+    ds.body.append(row("View", select([["surface", "Surface"], ["threshold", "Threshold — a range, or domains"]], S.view === "threshold" ? "threshold" : "surface", (v) => { S.view = v; renderControls(); refresh(); })));
     const top = el("button", { class: "studio-secondary", type: "button" }, "Plan view (2D)");
     top.addEventListener("click", () => studio()?.viewAxis?.("y", scene.surface));
     ds.body.append(top);
+  }
+  if (S.view === "threshold") {
+    const T = S.threshold;
+    const num = (key, placeholder) => {
+      const input = el("input", { class: "studio-input", type: "number", step: "any", placeholder });
+      input.value = T[key];
+      input.addEventListener("keydown", (event) => event.stopPropagation());
+      input.addEventListener("change", () => { T[key] = input.value; refresh(); });
+      return input;
+    };
+    ds.body.append(row("Keep from", num("lo", "no lower bound")), row("to", num("hi", "no upper bound")));
+    ds.body.append(row("A cell is kept when", select([["all", "every node is in range"], ["any", "any node is in range"], ["mean", "its mean is in range"]], T.mode, (v) => { T.mode = v; refresh(); })));
+    const fromRange = el("button", { class: "studio-secondary", type: "button", title: "The colour range shown now" }, "Use the colour range");
+    fromRange.addEventListener("click", () => { T.lo = String(Number(S.range[0].toPrecision(6))); T.hi = String(Number(S.range[1].toPrecision(6))); renderControls(); refresh(); });
+    const clearRange = el("button", { class: "studio-secondary", type: "button" }, "Open range");
+    clearRange.addEventListener("click", () => { T.lo = ""; T.hi = ""; renderControls(); refresh(); });
+    ds.body.append(el("div", { class: "studio-actions" }, fromRange, clearRange));
+    const flags = S.mesh.volumeFlags || [];
+    if (flags.length > 1) {
+      ds.body.append(el("p", { class: "gales-subhead" }, "Domains (volume flags) — none ticked keeps all"));
+      const box = el("div", { class: "gales-flag-list" });
+      for (const { flag, count } of flags) {
+        const tick = el("input", { type: "checkbox" });
+        tick.checked = T.flags.includes(flag);
+        tick.addEventListener("change", () => { T.flags = tick.checked ? [...new Set([...T.flags, flag])].sort((a, b) => a - b) : T.flags.filter((x) => x !== flag); refresh(); });
+        box.append(el("label", { class: "studio-check" }, tick, el("i", { class: "gales-flag-swatch", style: `background:${flagColour(flag)}` }), `${flag} · ${count.toLocaleString()} elements`));
+      }
+      ds.body.append(box);
+    }
+    ds.body.append(row("Colour by", select([["field", "The field"], ["flag", "Volume flag"]], T.colourBy, (v) => { T.colourBy = v; refresh(); })));
+    if (T.data) ds.body.append(el("p", { class: "studio-readout" }, `${T.data.kept.toLocaleString()} of ${T.data.of.toLocaleString()} elements kept · ${(T.data.triangles.length / 3).toLocaleString()} faces drawn.`));
   }
   ds.body.append(check("Wireframe", S.edges, (v) => { S.edges = v; refresh(); }));
   ds.body.append(check("Contour lines", S.contours.on, (v) => { S.contours.on = v; renderControls(); refresh(); }, "Lines of equal value on the surface and the slice, at round levels in the field's units"));
@@ -2315,6 +2445,9 @@ const STYLE = `
 .gales-legend-title { font-size: 0.76rem; font-weight: 600; letter-spacing: 0.04em; }
 .gales-legend-sub { font-size: 0.64rem; opacity: 0.7; margin: 0.1rem 0 0.35rem; overflow-wrap: anywhere; }
 .gales-legend-bar { display: block; width: 100%; height: 0.8rem; border-radius: 0.2rem; }
+.gales-legend-flags { display: flex; flex-wrap: wrap; gap: 0.2rem 0.6rem; font-size: 0.66rem; font-variant-numeric: tabular-nums; margin-top: 0.25rem; }
+.gales-legend-flags i, .gales-flag-swatch { display: inline-block; width: 0.62rem; height: 0.62rem; border-radius: 2px; margin-right: 0.3rem; vertical-align: -0.05rem; }
+.gales-flag-list { display: grid; gap: 0.2rem; max-height: 10rem; overflow-y: auto; }
 .gales-legend-ticks { position: relative; height: 1rem; font-size: 0.62rem; font-variant-numeric: tabular-nums; }
 .gales-legend-ticks span { position: absolute; top: 0.15rem; transform: translateX(-50%); white-space: nowrap; }
 .gales-legend-ticks span:first-child { transform: none; }

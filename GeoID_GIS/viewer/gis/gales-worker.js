@@ -17,11 +17,11 @@
  *   { id, type: "vtu", part, pointData, time } → { id, ok, blob, bytes, cells } (vtk-export.js; a Blob clones without copying)
  *   progress while parsing                 → { id, type: "progress", fraction }
  */
-import { parseMesh, sliceTets, isoTets, cellLocator, locatePoints, domainStats } from "./gales-results.js?v=20260915-455ab3c";
-import { analyseMesh } from "./mesh-quality.js?v=20260915-455ab3c";
-import { derivedFields, materialAt } from "./strain-stress.js?v=20260915-455ab3c";
-import { parseTable, buildGrid, sampleGrid } from "./tomography.js?v=20260915-455ab3c";
-import { vtkCells, vtuParts } from "./vtk-export.js?v=20260915-455ab3c";
+import { parseMesh, sliceTets, isoTets, cellLocator, locatePoints, domainStats, exposedFaces, thresholdKeep, keptTriangles } from "./gales-results.js?v=20260915-032ad5f";
+import { analyseMesh } from "./mesh-quality.js?v=20260915-032ad5f";
+import { derivedFields, materialAt } from "./strain-stress.js?v=20260915-032ad5f";
+import { parseTable, buildGrid, sampleGrid } from "./tomography.js?v=20260915-032ad5f";
+import { vtkCells, vtuParts } from "./vtk-export.js?v=20260915-032ad5f";
 
 let mesh = null;
 let locator = null; // built on the first locate, dropped with the mesh
@@ -53,6 +53,7 @@ async function handle(event) {
         cellCount: parsed.cellCount, sideCount: parsed.sideCount, bounds: parsed.bounds,
         surfaceFrom: parsed.surfaceFrom, coords, surface, surfaceFlag, edges, nodeFlag,
         tets: countTets(parsed),
+        volumeFlags: volumeFlagCounts(parsed),
       };
       reply({ id, ok: true, mesh: out }, [coords.buffer, surface.buffer, surfaceFlag.buffer, ...(edges ? [edges.buffer] : []), ...(nodeFlag ? [nodeFlag.buffer] : [])]);
       return;
@@ -61,6 +62,16 @@ async function handle(event) {
       if (!mesh) throw new Error("No mesh is loaded in the reader.");
       const slice = sliceTets(mesh, event.data.normal, event.data.d);
       reply({ id, ok: true, slice }, [slice.a.buffer, slice.b.buffer, slice.t.buffer, slice.cells.buffer]);
+      return;
+    }
+    if (type === "threshold") {
+      // The skin of the cells a threshold keeps, each face with its cell's flag.
+      if (!mesh) throw new Error("No mesh is loaded in the reader.");
+      const { keep, kept } = thresholdKeep(mesh, event.data.scalar || null, event.data);
+      const got = mesh.dim === 3 ? exposedFaces(mesh, keep) : keptTriangles(mesh, keep);
+      const flags = new Int32Array(got.cells.length);
+      if (mesh.cellFlag) for (let k = 0; k < got.cells.length; k += 1) flags[k] = mesh.cellFlag[got.cells[k]];
+      reply({ id, ok: true, threshold: { triangles: got.triangles, flags, kept, of: mesh.cellCount } }, [got.triangles.buffer, flags.buffer]);
       return;
     }
     if (type === "iso") {
@@ -145,6 +156,17 @@ async function handle(event) {
   } catch (error) {
     reply({ id, ok: false, error: error?.message || String(error) });
   }
+}
+
+/** How many cells carry each volume flag, for the threshold's list of domains. */
+export function volumeFlagCounts(source) {
+  const counts = new Map();
+  const flags = source.cellFlag;
+  for (let c = 0; c < source.cellCount; c += 1) {
+    const f = flags ? flags[c] : 0;
+    counts.set(f, (counts.get(f) || 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => a[0] - b[0]).map(([flag, count]) => ({ flag, count }));
 }
 
 /** Several isosurfaces in one set of arrays, each vertex tagged with its level's index. */

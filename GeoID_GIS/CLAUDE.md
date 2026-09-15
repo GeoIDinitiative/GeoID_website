@@ -20606,3 +20606,26 @@ and `stepReading`/`powerLawSlope` (gales-results.js) are the pure half.
   and a `node:vm` foreign-realm check pins it. Found by writing test results
   from the top document into the iframe's store, which a project adapter or a
   frame can equally do.
+
+## Threshold: the cells in a range, or of chosen domains
+
+Results ▸ Display ▸ View ▸ Threshold draws the closed skin of the cells
+kept. A cell is kept when its value lies in a range (at every node, any node,
+or on average) and/or it carries one of the ticked volume flags. It can be
+coloured by the field or by volume flag, which is also how a model's domains
+are shown on their own. `thresholdKeep`, `exposedFaces` and `keptTriangles`
+are the pure half; the worker builds the skin because it holds the cells.
+
+- **A subset's boundary is not a subset of the boundary.** `exposedTetFaces`
+  became `exposedFaces(mesh, keep)`: faces seen once among the KEPT cells, so
+  a domain carved out of the interior is drawn closed, including the faces it
+  shared with its neighbours. Each face carries its owning cell, for flag
+  colours.
+- **The volume flags are counted at parse** (`volumeFlags` on the mesh), so the
+  domain list and its counts exist before anything is thresholded. Etna:
+  flag 0 1,290,687, flag 1 104,767, the domain statistics' own counts.
+- **Verified on Etna:** flag 1 keeps 104,767 elements (207,600 faces, 0.15 s);
+  |u| ≥ 50 m on every node keeps 281,664 elements, with 0 of the drawn
+  vertices below 50 m (0.22 s). A blank bound is open, and the key ignores the
+  field when only flags are used, so stepping does not rebuild a flag-only
+  threshold.

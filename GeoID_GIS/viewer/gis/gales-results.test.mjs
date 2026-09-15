@@ -15,7 +15,7 @@ import {
   niceTicks, formatValue, tickLabel, sliceTets, domainStats, domainStatsCsv, interpolateOnSlice, axisPlane, nearestNode,
   probeCsv, planSimulation, COLORMAPS, flagSummary, stationsForFlag, nodeLocator, specPoints,
   parsePointList, stationCsvFiles,
-  referencePlan, differenceOf, cutTets, isoTets, contourLevels, contourSegments, stepReading, powerLawSlope,
+  referencePlan, differenceOf, cutTets, isoTets, contourLevels, contourSegments, stepReading, powerLawSlope, exposedFaces, thresholdKeep, keptTriangles,
 } from "./gales-results.js";
 
 let pass = 0;
@@ -643,4 +643,24 @@ check("a mesh opened onto a loaded run starts a new run; results join the open o
   check("sweep: the Study tab writes a run per value with the page's setup swapped back afterwards, and a manifest", /async function withSetup\(next, fn\)[\s\S]{0,120}finally \{ setup = keep; \}/.test(setupPanel) && /sweepManifest\(\{/.test(setupPanel) && /_sweep\.json/.test(setupPanel));
   check("sweep: a local sweep solve asks first, and the geometry is meshed once for every run", /Solve \$\{runs\.length\} runs one after another on THIS machine/.test(setupPanel) && /withSetup\(runs\[0\]\.setup, meshStudy\)/.test(setupPanel));
   check("sweep: the Analysis tab reads each run's last step to one number and fits the sensitivity", /card\("Sweep response"/.test(analysis) && /stepReading\(values, n, desc/.test(analysis) && /powerLawSlope\(/.test(analysis));
+}
+{
+  const m = parseGalesMesh(TWO_TETS);
+  m.cellFlag = new Int32Array([10, 20]);
+  const all = exposedFaces(m, null);
+  check("threshold: all cells kept is the whole boundary, each face owned by its cell", all.triangles.length === 18 && faceKey(all.triangles) === faceKey(exposedTetFaces(m)) && all.cells.length === 6);
+  const byFlag = thresholdKeep(m, null, { flags: [20] });
+  const skin = exposedFaces(m, byFlag.keep);
+  check("threshold: one volume flag keeps its cell, and its skin closes over the face it shared", byFlag.kept === 1 && skin.triangles.length === 12 && [...skin.cells].every((c) => c === 1));
+  const x = new Float64Array([0, 1, 0, 0, 1]); // node 4 at x = 1
+  check("threshold: every node in range, any node, or the mean", thresholdKeep(m, x, { lo: 0, hi: 0.5, mode: "all" }).kept === 0 && thresholdKeep(m, x, { lo: 0, hi: 0.5, mode: "any" }).kept === 2 && thresholdKeep(m, x, { lo: 0.4, hi: 1, mode: "mean" }).kept === 1);
+  check("threshold: a NaN node does not fail a cell whose other nodes are in range when any is enough", thresholdKeep(m, new Float64Array([NaN, 0, 0, 0, 0]), { lo: -1, hi: 1, mode: "any" }).kept === 2);
+  const square = { cells: new Int32Array([0, 1, 2, 3, 2, 3, 4]), cellOffsets: new Int32Array([0, 4, 7]), cellCount: 2 };
+  const tris = keptTriangles(square, new Uint8Array([1, 0]));
+  check("threshold 2D: a kept quad is two triangles, a dropped cell nothing", tris.triangles.length === 6 && [...tris.cells].join() === "0,0");
+}
+{
+  const panel = readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8");
+  const worker = readFileSync(new URL("./gales-worker.js", import.meta.url), "utf8");
+  check("threshold: a view whose skin the worker builds from the kept cells, colourable by volume flag, with the flags counted at parse", /\["threshold", "Threshold — a range, or domains"\]/.test(panel) && /type === "threshold"/.test(worker) && /volumeFlags: volumeFlagCounts\(parsed\)/.test(worker) && /renderFlagLegend\(\)/.test(panel));
 }

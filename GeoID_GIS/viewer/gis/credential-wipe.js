@@ -22,7 +22,7 @@
  * the same events; that stays, because the reader of a value should refuse it
  * whatever else has run. This is the sweep beside it.
  */
-import { may } from "./membership.js?v=20260915-455ab3c";
+import { may } from "./membership.js?v=20260915-032ad5f";
 
 /**
  * Every key, and which feature it belongs to.
