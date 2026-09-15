@@ -20987,3 +20987,22 @@ rest). Geometry is no longer red on a page holding only a run somebody opened
 to read. Verified live in a memory project: one screenshot → figures 1 on the
 card and the Research dot lit on the next poll; the Signal door landed on the
 hub's Signal Processing page.
+
+## Help, provenance and the tabs' names
+
+- **`?` in the ribbon** (`gis/studio-help.js`) opens one overlay: the journey
+  from the GIS page to the Research hub as ten steps each with a "show me" that
+  opens the real door (a mode, a workspace tab, the start page), the mouse and
+  the keys, and where things are filed. It reads the page's seams for its
+  doors, so it cannot describe a page that is not there — the lesson the
+  viewer's own ⓘ modal paid for. `?` toggles it, Escape closes it.
+- **The Geometry tab shows a GIS terrain's provenance** (`renderProvenanceCard`,
+  drawn from `renderDomainsPanel` so it follows every adopt and clear): origin,
+  footprint, nodes and triangles, the sampling range and levels, the relief,
+  DEM holes repaired, what was extended below and above, layers, points, and
+  the terrain's OWN flags (not the twenty defaults the studio knows), with the
+  way back to the Model Builder. Verified through the builder's own controls:
+  a 6 km box on the Mournes → 14,641 nodes at 50 m, 845 m of relief, 5 km below.
+- **The deck's tabs are named for what they hold**: Geometry, Domains and faces,
+  Labels, Study and solve, Structured mesh, Refinement (ids unchanged; both
+  index.html and gis/shell.html, pinned equal by the test).

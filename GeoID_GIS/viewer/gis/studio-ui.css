@@ -80,7 +80,9 @@
 #model-studio .studio-pipeline {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  /* One column per step, however many: the strip gained GIS and Research at its ends. */
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   margin: 0 0 0.5rem;
   padding: 0.35rem 0.1rem 0.3rem;
 }
@@ -588,3 +590,21 @@
 #model-studio .ra-handoff-count span { font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.75; text-align: center; }
 #model-studio .ra-handoff-doors { display: flex; flex-wrap: wrap; gap: 0.3rem; }
 #model-studio .studio-step.is-door .studio-step-label { text-decoration: underline dotted; text-underline-offset: 0.15em; }
+
+/* ── Help: one overlay that walks the page as it is ─────────────────────── */
+#model-studio .studio-help-btn { width: 1.5rem; padding-inline: 0; font-weight: 700; }
+#model-studio .studio-help { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; background: rgba(6, 2, 14, 0.62); backdrop-filter: blur(3px); }
+#model-studio .studio-help[hidden] { display: none !important; }
+#model-studio .studio-help-card { width: min(46rem, calc(100vw - 2rem)); max-height: calc(100vh - 3rem); overflow-y: auto; padding: 1.1rem 1.3rem 1.2rem; border: 1px solid rgba(var(--st-accent-rgb), 0.45); border-radius: 0.9rem; background: rgb(16, 7, 36); color: var(--text, #f0ecff); box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.6); }
+#model-studio .studio-help-head { display: flex; align-items: center; gap: 1rem; }
+#model-studio .studio-help-head h2 { margin: 0; flex: 1 1 auto; font: 600 1rem/1.2 "Exo 2", system-ui, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: var(--nav-accent, #ff2bd6); }
+#model-studio .studio-help-card h3 { margin: 1rem 0 0.4rem; font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.8; }
+#model-studio .studio-help-lead { margin: 0.5rem 0 0; font-size: 0.82rem; line-height: 1.5; opacity: 0.85; }
+#model-studio .studio-help-steps { margin: 0; padding: 0 0 0 1.4rem; display: flex; flex-direction: column; gap: 0.45rem; }
+#model-studio .studio-help-steps li { display: flex; gap: 0.6rem; align-items: flex-start; font-size: 0.78rem; line-height: 1.4; }
+#model-studio .studio-help-steps li > div { flex: 1 1 auto; display: flex; flex-direction: column; gap: 0.1rem; }
+#model-studio .studio-help-steps li span { opacity: 0.78; }
+#model-studio .studio-help-steps li .studio-btn { flex: 0 0 auto; white-space: nowrap; }
+#model-studio .studio-help-keys { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 0.9rem; font-size: 0.78rem; }
+#model-studio .studio-help-keys dt { font-family: ui-monospace, "JetBrains Mono", monospace; color: var(--nav-accent, #ff2bd6); }
+#model-studio .studio-help-keys dd { margin: 0; opacity: 0.85; }

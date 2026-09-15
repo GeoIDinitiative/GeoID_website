@@ -10,12 +10,12 @@
  * exported, the annotation following the time-lapse bar.
  */
 
-import { polygonsOf, peopleOnGrid, formatPeople, seriesCsv } from "./exposure.js?v=20260915-3e86bba";
-import { riskMaps, riskMapKind, assessLayer, countsUnder, ringsBox } from "./risk-reader.js?v=20260915-3e86bba";
-import { renderAssessment, annotationOf, el } from "./risk-reader-view.js?v=20260915-3e86bba";
-import { showAnnotation, removeAnnotation } from "./exposure-annotation.js?v=20260915-3e86bba";
-import { refreshPolygonOptions, promptDrawTool } from "./extent-picker.js?v=20260915-3e86bba";
-import { drawTimeSeries } from "./time-series-plot.js?v=20260915-3e86bba";
+import { polygonsOf, peopleOnGrid, formatPeople, seriesCsv } from "./exposure.js?v=20260915-10e88cf";
+import { riskMaps, riskMapKind, assessLayer, countsUnder, ringsBox } from "./risk-reader.js?v=20260915-10e88cf";
+import { renderAssessment, annotationOf, el } from "./risk-reader-view.js?v=20260915-10e88cf";
+import { showAnnotation, removeAnnotation } from "./exposure-annotation.js?v=20260915-10e88cf";
+import { refreshPolygonOptions, promptDrawTool } from "./extent-picker.js?v=20260915-10e88cf";
+import { drawTimeSeries } from "./time-series-plot.js?v=20260915-10e88cf";
 
 const search = new URL(import.meta.url).search;
 const byId = (id) => document.getElementById(id);

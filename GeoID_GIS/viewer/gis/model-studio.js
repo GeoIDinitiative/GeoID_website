@@ -1,17 +1,17 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260915-3e86bba";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260915-3e86bba";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260915-10e88cf";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260915-10e88cf";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260915-3e86bba";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260915-3e86bba";
-import { downloadText } from "./extraction.js?v=20260915-3e86bba";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260915-3e86bba";
-import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260915-3e86bba";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260915-3e86bba";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260915-3e86bba";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260915-3e86bba";
-import { femSpec } from "./model-build.js?v=20260915-3e86bba";
+} from "./mesh-volume.js?v=20260915-10e88cf";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260915-10e88cf";
+import { downloadText } from "./extraction.js?v=20260915-10e88cf";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260915-10e88cf";
+import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260915-10e88cf";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260915-10e88cf";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260915-10e88cf";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260915-10e88cf";
+import { femSpec } from "./model-build.js?v=20260915-10e88cf";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -3835,7 +3835,14 @@ function renderProvenanceCard() {
   fact("Extended", `${T.belowM > 0 ? `${km(T.belowM)} below the lowest ground` : "no subsurface"}${T.aboveM > 0 ? `, ${km(T.aboveM)} of atmosphere` : ""}`);
   if (T.layers) fact("Layers", [T.layers.soil ? "soil over bedrock" : "", T.layers.water ? "water bodies" : ""].filter(Boolean).join(", ") || null);
   fact("Embedded points", T.points?.length ? String(T.points.length) : "none");
-  if (T.flags) fact("Flags", Object.entries(T.flags).filter(([, v]) => Number.isFinite(v)).map(([k, v]) => `${k} ${v}`).join(" · "));
+  // The terrain's own flags, not every default the studio knows: what the
+  // ground and its faces carry, plus the layers' when there are layers.
+  if (T.flags) {
+    const keys = T.kind === "section"
+      ? ["terrain", "base", "sky", "sides_below", "sides_above", "subsurface", "atmosphere", "points"]
+      : ["terrain", "base", "sky", "sides_below", "sides_above", "subsurface", "atmosphere", "points", ...(T.layers ? ["bedrock", "soil", "water", "bedrock_top", "water_surface"] : [])];
+    fact("Flags", keys.filter((k) => Number.isFinite(T.flags[k]) && (k !== "sky" && k !== "sides_above" && k !== "atmosphere" || T.aboveM > 0)).map((k) => `${k.replace(/_/g, " ")} ${T.flags[k]}`).join(" · "));
+  }
   body.append(note, dl);
   const actions = document.createElement("div"); actions.className = "studio-actions";
   const back = document.createElement("button"); back.type = "button"; back.className = "studio-secondary";
