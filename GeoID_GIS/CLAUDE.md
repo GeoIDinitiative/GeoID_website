@@ -19913,3 +19913,65 @@ Verified live with the Etna run (mesh_4core plus two steps of u, opened through 
 - The surface switched off stayed off through a refresh.
 - The master eye and the Hide/Show button agree.
 - Switching to Both lists "Slice / clip cut", visible.
+
+## The model definition goes to GALES as generated files, and a solve is not run here
+
+`gis/fem-setup.js` (pure, 33 checks) turns the Model page's setup into what a
+GALES sim reads: a material library (18 materials, each with rho/E/nu or
+rho/mu, and k and cp), the physics (solid, heat, fluid) with their
+conditions, `props.txt`, and the `*_ic_bc.hpp` header. `studySpec` returns the
+sidecar's spec shape with `gales: { family, files, setup }`.
+
+- **A boundary condition in GALES is compiled, not read.** `dirichlet_<dof>(nd)`
+  is keyed on the NODE flag and `neumann_<fn>(bd_nodes, side_flag)` on the SIDE
+  flag. The header must define every function the reference sim's does, or
+  the build fails.
+- **Stacked domains of different materials become `heterogeneous_layers
+  z-wise`, bottom first.** Overlapping domains cannot be expressed to GALES.
+  They are made uniform, and the plan names the material that was dropped.
+- **Sidecar prepare writes only `props.txt` or `[a-z_]+_ic_bc.hpp`** from
+  `spec.gales.files`. It removes the reference's other ic_bc headers, rewrites
+  `../../../src/` to `GALES_SRC/src/`, and patches `delta_t`, `final_time`,
+  `print_freq` and `n_max_it`.
+- **`gmsh_to_gales.py` fails on a `$PhysicalNames` block**, so prepare strips it
+  (`_strip_physical_names`). The setup's mesh key is
+  `<mesh stem>_<cores>core.txt`, not a fixed name.
+- **Host cmake could not find Trilinos or gmsh.h**, so `_cmake_hints()` globs
+  the Trilinos dir and adds `-I~/.local/include`. A header generated this way
+  is proven to compile. A real solve is not proven locally.
+- **NEVER RUN A REAL-SIZE SOLVE ON THIS LAPTOP.** A 4-rank Etna solve inside
+  the atlas-build-mesh container rebooted the machine (15 GB RAM). Verify FEM
+  work on tiny meshes (a few hundred nodes, 1 rank), or stop at "compiles" and
+  say so; solves belong on the sidecar's ssh compute targets. Stop processes by
+  PID, never `pkill -f`.
+
+## Mesh quality: a ribbon toggle, and where the poor elements are
+
+`gis/mesh-quality.js` is the arithmetic (pure). `gis/mesh-quality-panel.js` is
+the studio ribbon's **Quality** toggle and the card it opens.
+
+- **Metrics.** Each is normalised so a regular element scores its ideal:
+  - shape quality γ;
+  - radius ratio;
+  - edge aspect ratio;
+  - minimum and maximum dihedral angle (corner angle in 2D);
+  - element size.
+  Each metric carries the direction it gets worse in, a default threshold and
+  the reason for it. A threshold is a control, not a verdict.
+- **Inverted means the MINORITY sign**, because a mesher writes one
+  orientation, whichever sign the file happens to use.
+- **Either mesh on the page.** The card reads the studio's tetrahedra or a
+  GALES mesh opened in Results, and says which. With both present it offers a
+  choice. `elementsOf` keeps only cells of the mesh's own dimension, because a
+  3D GALES mesh's triangles are its boundary.
+- **Where, not just how many.** Poor elements are drawn as their own faces with
+  `depthTest: false`, because the elements a mesher gets wrong are usually
+  inside the volume. The studio mesh is drawn under the model anchor, turned by
+  `MODEL_TO_SCENE`. A GALES mesh is drawn in the results frame
+  (`GeoIDGalesResults.frame()`, which already carries the centring). Zoom to
+  worst and the worst-element list fit the camera to one element.
+- **Analysed on the main thread, so a mesh past 250,000 elements waits for a
+  press.** At most 20,000 poor elements are drawn, and the card says so.
+- **Follows the page.** The studio dispatches `geoid-studio:mesh-changed` on
+  re-mesh and on Clear, and a 1 s identity poll catches a results run opened or
+  closed. The overlay goes when the card closes.

@@ -28,10 +28,10 @@ import {
   rangeOf, usedNodes, COLORMAPS, colormapTable, colourValues, niceTicks, formatValue,
   interpolateOnSlice, axisPlane, nodeByteRange, probeCsv, parseMesh, sliceTets,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
-} from "./gales-results.js?v=20260915-7ae4da7";
-import { zipStore } from "./shapefile-writer.js?v=20260915-7ae4da7";
-import { may, refusal } from "./membership.js?v=20260915-7ae4da7";
-import { downloadText } from "./extraction.js?v=20260915-7ae4da7";
+} from "./gales-results.js?v=20260915-853eed0";
+import { zipStore } from "./shapefile-writer.js?v=20260915-853eed0";
+import { may, refusal } from "./membership.js?v=20260915-853eed0";
+import { downloadText } from "./extraction.js?v=20260915-853eed0";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -1583,5 +1583,8 @@ if (typeof document !== "undefined" && typeof window !== "undefined" && typeof w
     openProjectRun: async (dir) => openSource(await projectSource(dir)),
     state: S,
     refresh,
+    // The results frame, for anything drawn in the mesh's own coordinates
+    // (the mesh-quality overlay).
+    frame: () => scene.frame,
   };
 }

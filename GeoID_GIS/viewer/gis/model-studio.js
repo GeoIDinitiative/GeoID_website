@@ -1,17 +1,17 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260915-7ae4da7";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260915-7ae4da7";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260915-853eed0";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260915-853eed0";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260915-7ae4da7";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260915-7ae4da7";
-import { downloadText } from "./extraction.js?v=20260915-7ae4da7";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260915-7ae4da7";
-import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260915-7ae4da7";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260915-7ae4da7";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260915-7ae4da7";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260915-7ae4da7";
-import { femSpec } from "./model-build.js?v=20260915-7ae4da7";
+} from "./mesh-volume.js?v=20260915-853eed0";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260915-853eed0";
+import { downloadText } from "./extraction.js?v=20260915-853eed0";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260915-853eed0";
+import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260915-853eed0";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260915-853eed0";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260915-853eed0";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260915-853eed0";
+import { femSpec } from "./model-build.js?v=20260915-853eed0";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -2149,6 +2149,7 @@ function meshModel(dim) {
     status(`${counts.tetrahedra.toLocaleString()} elements`);
     log(`Meshed in ${Math.round(performance.now() - t0)} ms`);
     showQuality();
+    document.dispatchEvent(new Event("geoid-studio:mesh-changed"));
     ["studio-exp-msh", "studio-exp-stl", "studio-exp-obj", "studio-exp-ply"]
       .forEach((id) => { const b = byId(id); if (b) b.disabled = false; });
     record(`mesh ${dim}D`);
@@ -2958,6 +2959,7 @@ function init() {
     state.mesh = null;
     byId("studio-mesh-info").textContent = "No mesh.";
     byId("studio-quality").hidden = true;
+    document.dispatchEvent(new Event("geoid-studio:mesh-changed"));
     log("Mesh cleared");
   });
   byId("studio-suggest")?.addEventListener("click", () => {
@@ -3973,6 +3975,71 @@ function registerVisibility(id, provider) {
   renderVisibilityBox();
 }
 
+/**
+ * WHAT THE SETUP PANEL DEFINES THINGS ON: the model's domains (a volume flag,
+ * a name, its z range and rough volume, whether it is a void) and its faces
+ * (a flag and the names of the faces that carry it). A layered halfspace is a
+ * domain per layer; a GIS terrain's volumes take the terrain's own flags.
+ * Read fresh every time, so a flag edited anywhere is the flag used.
+ */
+function setupTargets() {
+  const domains = [];
+  const T = gisTerrain?.flags || {};
+  const terrainFlag = { subsurface: T.subsurface ?? 10, bedrock: T.bedrock ?? 10, soil: T.soil ?? 12, water: T.water ?? 13, atmosphere: T.atmosphere ?? 11 };
+  for (const e of state.solids) {
+    if (e.enabled === false || !e.bounds) continue;
+    const b = e.bounds;
+    const vol = Math.max(0, (b.maxX - b.minX) * (b.maxY - b.minY) * (b.maxZ - b.minZ));
+    if (e.kind === "gis_terrain") {
+      const which = e.params?.which;
+      domains.push({ flag: Number(terrainFlag[which] ?? 10), name: `${which[0].toUpperCase()}${which.slice(1)}`, zMin: b.minZ, zMax: b.maxZ, volume: vol, void: false, key: `gis:${which}` });
+      continue;
+    }
+    const label = e.kind === "atmosphere" ? "Atmosphere" : `${PRIMITIVES[e.kind]?.label ?? e.kind} ${e.id}`;
+    if (e.kind === "layered_halfspace") {
+      const ths = String(e.params?.thicknesses || "").split(/[,\s]+/).map(Number).filter((v) => v > 0);
+      let top = b.maxZ;
+      ths.forEach((th, k) => {
+        const flag = Number(e.flags?.layers?.[k]) > 0 ? Number(e.flags.layers[k]) : (Number(e.flags?.volume) || 10) + k;
+        domains.push({ flag, name: `${label} — layer ${k + 1}`, zMin: top - th, zMax: top, volume: vol * (th / Math.max(1e-9, b.maxZ - b.minZ)), void: false, key: `solid:${e.id}:${k}` });
+        top -= th;
+      });
+      continue;
+    }
+    domains.push({ flag: Number(e.flags?.volume) || 10, name: `${label}${e.op === "difference" ? " (cut)" : ""}`, zMin: b.minZ, zMax: b.maxZ, volume: vol, void: Boolean(e.flags?.void), key: `solid:${e.id}` });
+  }
+  const faces = new Map();
+  for (const part of allParts()) {
+    if (part.kind !== "face" && part.kind !== "surface") continue;
+    const flag = Number(part.flag);
+    if (!Number.isFinite(flag)) continue;
+    const entry = faces.get(flag) || { flag, names: [], parts: [] };
+    const name = part.kind === "surface" ? "ground surface" : `${part.name}`;
+    if (!entry.names.includes(name)) entry.names.push(name);
+    entry.parts.push(part);
+    faces.set(flag, entry);
+  }
+  return {
+    dim: gisTerrain?.kind === "section" ? 2 : 3,
+    source: gisTerrain ? "gis" : "studio",
+    domains,
+    faces: [...faces.values()].sort((a, b) => a.flag - b.flag).map((f) => ({ flag: f.flag, name: f.names.length > 2 ? `${f.names.slice(0, 2).join(", ")} +${f.names.length - 2}` : f.names.join(", "), names: f.names, parts: f.parts })),
+  };
+}
+
+/** Light up the faces carrying one flag (a condition being edited), and nothing else. */
+function highlightFlag(flag) {
+  for (const part of allParts()) {
+    const m = part.mesh?.material;
+    if (!m || !("emissive" in m)) continue;
+    const on = flag !== null && Number(part.flag) === Number(flag) && (part.kind === "face" || part.kind === "surface");
+    m.emissive.setHex(on ? 0x2bd6ff : 0x000000);
+    m.emissiveIntensity = on ? 0.6 : 0;
+    m.needsUpdate = true;
+  }
+  if (flag === null) syncEntityAppearance();
+}
+
 function visibilityGroups() {
   const groups = domainGroups();
   for (const [id, provider] of visibilityProviders) {
@@ -4646,6 +4713,10 @@ window.GeoIDMeshStudio = {
   fitObject: (object3D) => fitView(object3D),
   setExternalBounds,
   registerVisibility,
+  setupTargets,
+  highlightFlag,
+  buildStudioGmshScript: () => buildGmshScript(),
+  showGroup: (name) => showGroup(name),
   refreshVisibility: () => renderVisibilityBox(),
   log,
 };

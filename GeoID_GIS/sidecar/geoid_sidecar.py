@@ -1266,6 +1266,15 @@ class Handler(BaseHTTPRequestHandler):
         except OSError:
             pass
 
+        # The mesh first: its name decides the file gales_mesh.py writes, which
+        # setup.txt must name. It was patched as mesh_<N>core.txt whatever the
+        # mesh was called, so any mesh not named mesh.msh prepared a deck that
+        # pointed at a file that did not exist.
+        input_dir = run_dir / "input"
+        input_dir.mkdir(exist_ok=True)
+        mesh_msh = self._locate_run_mesh(run_dir, input_dir)
+        self._strip_physical_names(mesh_msh)
+
         # Time stepping lives at spec.time (FEM pages) or spec.setup (Build New).
         time = spec.get("time") or {}
         setup = spec.get("setup") or {}
@@ -1277,7 +1286,7 @@ class Handler(BaseHTTPRequestHandler):
         setup_path = run_dir / "setup.txt"
         if setup_path.exists():
             setup_path.write_text(self._patch_lines(setup_path.read_text(), {
-                mesh_key: f"mesh_{cores}core.txt",
+                mesh_key: f"{mesh_msh.stem}_{cores}core.txt",
                 "delta_t": step,
                 "final_time": end,
                 "end_time": end,
@@ -1313,10 +1322,31 @@ class Handler(BaseHTTPRequestHandler):
             # keep the reference defaults, which the user edits.
             props_path.write_text(self._patch_lines(props_path.read_text(), patches))
 
-        # The mesh, then convert + build as one streamed job.
-        input_dir = run_dir / "input"
-        input_dir.mkdir(exist_ok=True)
-        mesh_msh = self._locate_run_mesh(run_dir, input_dir)
+        # THE MODEL PAGE'S OWN DEFINITION. GALES reads its boundary conditions
+        # from a compiled *_ic_bc.hpp and its materials from props.txt, so a
+        # patch to the reference's numbers cannot express "fixed on flag 2,
+        # 50 MPa on flag 4, z-wise layers". A spec written by the Model page
+        # carries both files whole; they replace the reference's, and setup.txt
+        # takes its time stepping. Only those names are accepted: a spec is not
+        # a way to write arbitrary files into a deck.
+        gales = spec.get("gales") if isinstance(spec.get("gales"), dict) else {}
+        written = []
+        for name, text in (gales.get("files") or {}).items():
+            if not isinstance(text, str):
+                continue
+            if name != "props.txt" and not re.fullmatch(r"[a-z_]+_ic_bc\.hpp", str(name)):
+                raise ValueError(f"spec.gales.files may hold props.txt and *_ic_bc.hpp only, not {name!r}")
+            if name.endswith("_ic_bc.hpp"):
+                for old in run_dir.glob("*_ic_bc.hpp"):
+                    if old.name != name:
+                        old.unlink()
+            (run_dir / name).write_text(text.replace("../../../src/", "GALES_SRC/src/"))
+            written.append(name)
+        if gales.get("setup") and setup_path.exists():
+            setup_path.write_text(self._patch_lines(setup_path.read_text(), {
+                k: v for k, v in gales["setup"].items() if k in ("delta_t", "final_time", "print_freq", "n_max_it")}))
+
+        # Convert + build as one streamed job.
         mesh_tool = self.gales_dir / "tpl" / "gales_mesh_preprocessing"
         script = run_dir / "_prepare.sh"
         script.write_text(
@@ -1330,7 +1360,7 @@ class Handler(BaseHTTPRequestHandler):
             # remote solve needs; the build is machine-specific and only matters
             # for running here. Failing the whole prepare because this box has no
             # Trilinos would block preparing a run destined for a server.
-            'if cmake . >/dev/null 2>&1 && make; then\n'
+            f'if cmake {self._cmake_hints()} . >/dev/null 2>&1 && make; then\n'
             '  echo "[prepare] built — Run will solve it here."\n'
             'else\n'
             '  echo "[prepare] local build failed (no Trilinos here?). The deck and"\n'
@@ -1342,7 +1372,7 @@ class Handler(BaseHTTPRequestHandler):
         job = self.runner.start("gales-prepare", f"prepare {Path(rel).name}",
                                 ["bash", str(script)], run_dir, dict(body.get("env") or {}))
         self._send(200, {"job_id": job.id, "family": family, "physics": physics,
-                         "cores": cores, "mesh": mesh_msh.name}, origin)
+                         "cores": cores, "mesh": mesh_msh.name, "generated": written}, origin)
 
     def _start_gales_postprocess(self, body: dict, origin: str):
         """Extract probe time series from a GALES run's results into CSVs the
@@ -1435,6 +1465,52 @@ class Handler(BaseHTTPRequestHandler):
             "        for row in series[name]: f.write(','.join(str(v) for v in row)+'\\n')\n"
             "    print(f'[postprocess] wrote {path} ({len(series[name])} rows)')\n"
             "print('[postprocess] done — open Signal Processing to analyse the series.')\n")
+
+    def _cmake_hints(self) -> str:
+        """Where this machine's GALES dependencies are, for a build in a run
+        folder. A reference sim builds from inside the GALES tree with its own
+        environment; a run folder has neither, so Trilinos (GALES's own tpl
+        install) and gmsh.h (the gmsh SDK a pip install puts in ~/.local) are
+        found and passed rather than hoped for."""
+        import glob
+        import shlex
+        hints = []
+        if self.gales_dir:
+            found = sorted(glob.glob(str(self.gales_dir / "tpl" / "tpl" / "trilinos-*" / "lib" / "cmake" / "Trilinos")))
+            if found:
+                hints.append(f"-DTrilinos_DIR={shlex.quote(found[-1])}")
+        includes = [p for p in (Path.home() / ".local" / "include", Path("/usr/local/include")) if (p / "gmsh.h").exists()]
+        if includes:
+            hints.append(f"-DCMAKE_CXX_FLAGS={shlex.quote('-I' + str(includes[0]))}")
+        return " ".join(hints)
+
+    @staticmethod
+    def _strip_physical_names(msh: Path) -> None:
+        """GALES's gmsh_to_gales reads $Entities straight after $MeshFormat and
+        fails on a $PhysicalNames block, which every named physical group
+        writes. The names are labels, the numbers are the flags, so the block
+        goes from the run's own copy of the mesh and nothing else changes."""
+        try:
+            with open(msh, "r", errors="replace") as fh:
+                head = fh.read(4096)
+        except OSError:
+            return
+        if "$PhysicalNames" not in head:
+            return
+        out = msh.with_suffix(".stripping")
+        skipping = False
+        with open(msh, "r", errors="replace") as src, open(out, "w") as dst:
+            for line in src:
+                tag = line.strip()
+                if tag == "$PhysicalNames":
+                    skipping = True
+                    continue
+                if skipping:
+                    if tag == "$EndPhysicalNames":
+                        skipping = False
+                    continue
+                dst.write(line)
+        out.replace(msh)
 
     def _locate_run_mesh(self, run_dir: Path, input_dir: Path) -> Path:
         """A .msh for this run: one already in the run, else the project mesh."""
