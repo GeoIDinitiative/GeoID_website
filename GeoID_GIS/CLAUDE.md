@@ -21021,3 +21021,30 @@ label wins a tie (`search` is pure and pinned). Enter runs the highlighted
 entry: a button is clicked, a section or card is opened in its tab and scrolled
 to. The box swallows its own keys, or the studio's Delete and the toolbar's
 `.`/`,` would fire while typing.
+
+## Right-click on a result, drop a run anywhere, and the view by key
+
+- **Right-click on a result's surface, slice or threshold skin** opens a menu of
+  the panel's own verbs AT THE POINT: probe the node, slice through here with a
+  normal on each axis (the slider position set from the picked point), clip
+  through here, start or end the profile line here, seed stream lines here (a
+  sphere about the node), add the node as a station, select in a box. `hitAt`
+  is the probe's pick factored out (node, the point in the mesh's frame, the
+  object). The studio's own menu for its solids runs first and preventDefaults
+  when it takes a click, so a right-click on a terrain solid is left to it.
+- **A run dropped anywhere on the Model page** — a GALES folder, a mesh, VTK
+  files — opens in Results, with the whole viewport saying so while the drag
+  is over it; the Results tab's own drop zone is unchanged.
+- **The view by key** (results-toolbar.js, on the Model page whatever is open,
+  never with a modifier): F fit, X Y Z I the axis views, G W E the grid,
+  wireframe and edges toggles — each pressing the ribbon's own button.
+Verified live: a synthetic right-click on Etna's summit listed ten verbs,
+"Slice here, normal y" set the slice view at the picked y (0.589), "Add as a
+station" kept the node under the pixel (25,502), X moved the camera, and a
+`plane2d.vtu` dropped on the page replaced the run. **Probing a drawn surface
+in a test**: read the node's position off the surface geometry's own buffer
+(the surface is auto-warped, ×88 on Etna, so the undeformed coordinate
+projects kilometres off the picture), refresh `camera.matrixWorldInverse` by
+hand (the pane's throttled loop leaves it stale mid-flight), wait for a view
+flight to settle, and remember `new Vector3(undefined)` is the ORIGIN — a
+node id that is not on the surface projects silently to (0, 0, 0).

@@ -44,6 +44,11 @@ export const KEYS = [
   [", or ←", "previous time step"],
   ["Home / End", "first / last step"],
   ["Space", "play through the steps"],
+  ["F · X · Y · Z · I", "fit the view · look along an axis · isometric"],
+  ["G · W · E", "grid · wireframe · edges"],
+  ["Right-click a result", "probe, slice or clip here, profile from/to here, seed stream lines, add a station"],
+  ["Drop a run anywhere", "a GALES folder or VTK files open in Results"],
+  ["Ctrl/⌘-K", "find a control by name"],
   ["?", "this help"],
 ];
 

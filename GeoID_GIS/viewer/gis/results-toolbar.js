@@ -108,9 +108,16 @@ function render() {
 /** Keys that move time, only while a run is open and nothing is being typed. */
 function keys(event) {
   const results = R(); const S = results?.state;
-  if (!S?.mesh || window.GeoIDModeManager?.getMode?.() !== "model") return;
+  if (window.GeoIDModeManager?.getMode?.() !== "model") return;
   const tag = document.activeElement?.tagName;
   if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || document.activeElement?.isContentEditable) return;
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
+  // The view, whatever is open: the ribbon's own buttons, by key.
+  const view = { f: "fit", x: "x", y: "y", z: "z", i: "iso" }[event.key.toLowerCase()];
+  const toggle = { g: "grid", w: "wireframe", e: "edges" }[event.key.toLowerCase()];
+  if (view && !event.shiftKey) { document.querySelector(`#studio-ribbon [data-view="${view}"]`)?.click(); event.preventDefault(); return; }
+  if (toggle && !event.shiftKey) { document.querySelector(`#studio-ribbon [data-toggle="${toggle}"]`)?.click(); event.preventDefault(); return; }
+  if (!S?.mesh) return;
   const f = S.fields[S.field];
   if (!f?.steps.length) return;
   const last = f.steps.length - 1;

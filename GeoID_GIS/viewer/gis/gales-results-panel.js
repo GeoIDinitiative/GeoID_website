@@ -30,15 +30,15 @@ import {
   exposedFaces, thresholdKeep, keptTriangles,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
   groupResultFiles, timeOf, referencePlan, differenceOf, DERIVED_DOFS,
-} from "./gales-results.js?v=20260915-565c668";
-import { zipStore } from "./shapefile-writer.js?v=20260915-565c668";
-import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-565c668";
-import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-565c668";
-import { parseSolidProps } from "./strain-stress.js?v=20260915-565c668";
-import { vtkHead, readVtkGrid, parsePvd, vtkFieldName } from "./vtk-read.js?v=20260915-565c668";
-import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-565c668";
-import { may, refusal } from "./membership.js?v=20260915-565c668";
-import { downloadText } from "./extraction.js?v=20260915-565c668";
+} from "./gales-results.js?v=20260915-c40de8b";
+import { zipStore } from "./shapefile-writer.js?v=20260915-c40de8b";
+import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-c40de8b";
+import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-c40de8b";
+import { parseSolidProps } from "./strain-stress.js?v=20260915-c40de8b";
+import { vtkHead, readVtkGrid, parsePvd, vtkFieldName } from "./vtk-read.js?v=20260915-c40de8b";
+import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-c40de8b";
+import { may, refusal } from "./membership.js?v=20260915-c40de8b";
+import { downloadText } from "./extraction.js?v=20260915-c40de8b";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -1707,6 +1707,35 @@ function installProbe() {
   canvas.addEventListener("pointerdown", (e) => { pressed = { x: e.clientX, y: e.clientY }; });
   // No stopPropagation: OrbitControls needs the release, and the studio's own
   // picker finds nothing of ours to select.
+  canvas.addEventListener("contextmenu", (e) => {
+    // OrbitControls preventDefaults every right-click, so that says nothing;
+    // the studio's own menu, when it took the click, is on the page by now.
+    if (window.GeoIDModeManager?.getMode?.() !== "model" || !scene.root || document.getElementById("studio-context")) return;
+    const hit = hitAt(e.clientX, e.clientY, canvas);
+    if (!hit) return;
+    e.preventDefault();
+    showResultsMenu(e.clientX, e.clientY, hit);
+  });
+  // A run dropped ANYWHERE on the page opens, not only on the tab's drop zone.
+  const page = document.getElementById("model-studio");
+  if (page && !page.dataset.galesDrop) {
+    page.dataset.galesDrop = "1";
+    page.addEventListener("dragover", (e) => { if (e.dataTransfer?.types?.includes("Files")) { e.preventDefault(); page.classList.add("is-drop-target"); } });
+    page.addEventListener("dragleave", (e) => { if (!page.contains(e.relatedTarget)) page.classList.remove("is-drop-target"); });
+    page.addEventListener("drop", async (e) => {
+      if (!e.dataTransfer?.files?.length && !e.dataTransfer?.items?.length) return;
+      e.preventDefault();
+      page.classList.remove("is-drop-target");
+      const files = await droppedFiles(e.dataTransfer).catch(() => [...(e.dataTransfer.files || [])]);
+      if (!files.length) return;
+      window.GeoIDStudioSpaces?.setSpace?.("analyse");
+      studio()?.showGroup?.("results");
+      if (files.some(isVtkFile)) { openVtk(files.filter((f) => /\.(vtu|vtk|pvd)$/i.test(f.name))); return; }
+      const roots = new Set(files.map((f) => relPath(f).split("/")[0]));
+      const wholeRun = roots.size === 1 && files.some((f) => /(^|\/)results\//.test(relPath(f))) && files.some(isMeshFile);
+      if (wholeRun && !S.source) openSource(folderSource(files)); else addFiles(files, "any");
+    });
+  }
   canvas.addEventListener("pointerup", (e) => {
     if (!pressed || window.GeoIDModeManager?.getMode?.() !== "model" || !scene.root) return;
     const moved = Math.hypot(e.clientX - pressed.x, e.clientY - pressed.y);
@@ -1718,6 +1747,15 @@ function installProbe() {
 }
 
 function probeAt(clientX, clientY, canvas) {
+  const hit = hitAt(clientX, clientY, canvas);
+  if (!hit) return;
+  S.probe = { node: hit.node, series: null, seriesField: -1 };
+  openSection("probe");
+  refresh();
+}
+
+/** What is under a pixel: the nearest node of the picked face and the point in the mesh's own frame. */
+function hitAt(clientX, clientY, canvas) {
   const viewer = window.GeoIDViewer;
   // A part switched off in the Visibility box is not there to probe.
   const thresholdMesh = scene.parts?.threshold?.children?.[0] || null;
@@ -1752,9 +1790,46 @@ function probeAt(clientX, clientY, canvas) {
     const d = (S.mesh.coords[node * 3] - local.x) ** 2 + (S.mesh.coords[node * 3 + 1] - local.y) ** 2 + (S.mesh.coords[node * 3 + 2] - local.z) ** 2;
     if (d < bestD) { bestD = d; best = node; }
   }
-  S.probe = { node: best, series: null, seriesField: -1 };
-  openSection("probe");
-  refresh();
+  return { node: best, local: [local.x, local.y, local.z], object: hit.object };
+}
+
+/**
+ * THE VIEWPORT'S RIGHT-CLICK MENU FOR A RESULT: the verbs a reader reaches for
+ * at a place on the model — probe this node, slice or clip through here on an
+ * axis, start or end the profile here, seed stream lines here, keep this node
+ * as a station, select in a box — each of them the panel's own action, at the
+ * point clicked rather than typed in. The studio's own menu (for its solids)
+ * has already had its say when this runs, so a click it took is left alone.
+ */
+function showResultsMenu(x, y, hit) {
+  document.getElementById("gales-context")?.remove();
+  const menu = el("div", { class: "studio-context", id: "gales-context", role: "menu" });
+  const b = S.mesh.bounds;
+  const frac = (k) => Math.min(1, Math.max(0, (hit.local[k] - b.min[k]) / ((b.max[k] - b.min[k]) || 1)));
+  const A = () => window.GeoIDResultsAnalysis;
+  const item = (label, fn, title = "") => {
+    const button = el("button", { type: "button", title }, label);
+    button.addEventListener("click", () => { menu.remove(); fn(); });
+    menu.append(button);
+  };
+  item(`Probe node ${hit.node.toLocaleString()}`, () => { S.probe = { node: hit.node, series: null, seriesField: -1 }; openSection("probe"); refresh(); }, "The value here, and its time series");
+  if (S.mesh.dim === 3) {
+    for (const [axis, k] of [["x", 0], ["y", 1], ["z", 2]]) {
+      item(`Slice here, normal ${axis}`, () => { S.sliceAxis = axis; S.slicePos = frac(k); if (S.view === "surface" || S.view === "threshold") S.view = "slice"; renderControls(); refresh(); }, `${axis} = ${formatValue(hit.local[k], 1e3)} m`);
+    }
+    item("Clip through here", () => { S.slicePos = frac({ x: 0, y: 1, z: 2 }[S.sliceAxis]); S.view = "clip"; renderControls(); refresh(); }, `Keep one side of the ${S.sliceAxis} plane through this point`);
+  }
+  if (A()) {
+    item("Profile from here (A)", () => { A().state.a = hit.local.slice(); A().render?.(); A().plot?.(); }, "The line's start; end it with the same menu elsewhere");
+    item("Profile to here (B)", () => { A().state.b = hit.local.slice(); A().render?.(); A().plot?.(); });
+    if (S.fields[S.field]?.desc?.vector) item("Seed stream lines here", () => { S.probe = { node: hit.node, series: null, seriesField: -1 }; A().state.stream.seed = "sphere"; A().state.stream.on = true; A().traceStream?.(); A().render?.(); }, "A sphere of seeds about this node");
+    item("Add as a station", () => { addStations([{ name: `node ${hit.node}`, node: hit.node }]); openSection("points"); renderControls(); refresh(); }, "Kept in Points and time series, extracted with the others");
+    item("Select nodes in a box…", () => A().armSelection?.(), "Drag a box over the view");
+  }
+  menu.style.left = `${Math.min(x, window.innerWidth - 220)}px`;
+  menu.style.top = `${Math.min(y, window.innerHeight - 320)}px`;
+  document.body.append(menu);
+  setTimeout(() => document.addEventListener("pointerdown", (e) => { if (!menu.contains(e.target)) menu.remove(); }, { once: true }), 0);
 }
 
 function updateProbeMarker(disp) {

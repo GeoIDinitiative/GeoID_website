@@ -620,3 +620,6 @@
 #model-studio .studio-finder-label { flex: 1 1 auto; font-size: 0.84rem; }
 #model-studio .studio-finder-path { flex: 0 0 auto; font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.6; }
 #model-studio .studio-finder-empty { padding: 0.8rem; font-size: 0.8rem; opacity: 0.7; }
+
+/* A run dragged over the page: the whole viewport says it will take it. */
+#model-studio.is-drop-target::after { content: "Drop a run folder, a mesh or VTK files to open them in Results"; position: absolute; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; font: 600 1rem "Exo 2", system-ui, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: var(--nav-accent, #ff2bd6); background: rgba(16, 7, 36, 0.55); border: 2px dashed rgba(var(--st-accent-rgb), 0.7); pointer-events: none; }
