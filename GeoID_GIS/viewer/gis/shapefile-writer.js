@@ -27,7 +27,7 @@
  * not fit.
  */
 
-import { buildQml, buildSld } from "./qgis-style.js?v=20260915-f2af81c";
+import { buildQml, buildSld } from "./qgis-style.js?v=20260915-1b58192";
 
 /* ───────────────────────────── shape types ────────────────────────────── */
 

@@ -20174,8 +20174,11 @@ style blocks, and a test pins that. The rules it states:
   class="st-facts">`.
 - **One control height** (`--st-h`), one label/field split (0.95fr/1.05fr) and
   one button family, primary or secondary.
-- **Header.** One row reading "‹ GIS · Build | Analyse · Research ›", with a
-  six-step stepper on a rule underneath. The exits left the strip.
+- **Header.** The Build | Analyse pills ARE the deck's head row: they took the
+  "Studio" label's place, beside the fold. The six-step stepper sits under
+  them. There are no GIS or Research links in the deck, because the page's
+  mode bar already has both. A copy beside it was reported as a duplicate and
+  removed.
 
 **Moving a style block into a stylesheet moves EVERY rule in it.** The rule
 that hides the other workspace's tabs lived in the removed block. Analyse

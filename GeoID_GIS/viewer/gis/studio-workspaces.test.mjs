@@ -26,7 +26,7 @@ const table = Object.fromEntries([...src.slice(src.indexOf("const SPACE_OF")).ma
 check("every tab on the page is assigned a workspace", groups.length >= 12 && groups.every((g) => table[g]), groups.filter((g) => !table[g]).join(","));
 check("results live in Analyse, geometry and mesh in Build, and Study in both", table.results === "analyse" && table.add === "build" && table.mesh === "build" && table.study === "both");
 check("a tab opened from anywhere brings its workspace forward", /own !== "both" && own !== space\) setSpace\(own\)/.test(src));
-check("the strip's ends leave for the GIS page and the Research hub", /leave: "gis"/.test(src) && /leave: "research"/.test(src));
+check("the switch takes the deck head's row, with no duplicate GIS or Research links (the mode bar has them)", /head\.prepend\(tabs\)/.test(src) && !/leave:/.test(src) && !/studio-exit/.test(src) && !/studio-deck-name">Studio/.test(index));
 check("loaded on the Earth page and in the planets' module list", /src="gis\/studio-workspaces\.js\?v=/.test(index) && /"\.\/studio-workspaces\.js",/.test(readFileSync(new URL("./boot.js", import.meta.url), "utf8")));
 const realSrc = readFileSync(new URL("./real-mesh-panel.js", import.meta.url), "utf8");
 check("solver mesh: drawn under the model anchor in the studio frame, one mesh per face flag, registered in the Visibility box", /anchor\.add\(group\)/.test(realSrc) && /geometry\.applyMatrix4\(MODEL_TO_SCENE\)/.test(realSrc) && /registerVisibility\("real-mesh", visibility\)/.test(realSrc));

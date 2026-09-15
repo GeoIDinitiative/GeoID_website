@@ -9,10 +9,10 @@
  * the tab a reader wants is always among the ones they do not.
  *
  * So the deck carries a switch, and a PIPELINE STRIP under it that is the
- * whole journey in one line — GIS ▸ Geometry ▸ Materials ▸ Physics ▸ Mesh ▸
- * Study ▸ Results ▸ Research — each step with a dot for where it stands and a
- * press that goes there. The ends leave the page: back to the GIS page the
- * ground came from, on to the Research hub the series go to.
+ * whole journey in one line — Geometry ▸ Materials ▸ Physics ▸ Mesh ▸
+ * Study ▸ Results — each step with a dot for where it stands and a press that
+ * goes there. The switch sits in the deck's head, where its name was; the
+ * page's own mode bar is the way to the GIS page and the Research hub.
  *
  * Nothing is moved or rebuilt: every tab keeps its markup, ids and handlers.
  * A tab says which workspace it belongs to and the other workspace's tabs are
@@ -29,14 +29,12 @@ const SPACE_OF = {
 };
 
 const STEPS = [
-  { id: "gis", label: "GIS", title: "Back to the GIS page, where the study area, DEM and layers come from", leave: "gis", space: "build" },
   { id: "geometry", label: "Geometry", group: "add", space: "build" },
   { id: "materials", label: "Materials", group: "materials", space: "build" },
   { id: "physics", label: "Physics", group: "physics", space: "build" },
   { id: "mesh", label: "Mesh", group: "mesh", space: "build" },
   { id: "study", label: "Study", group: "study", space: "both" },
   { id: "results", label: "Results", group: "results", space: "analyse" },
-  { id: "research", label: "Research", title: "On to the Research hub: extracted time series are in the project's post_processing/extracted_dofs for its signal pages", leave: "research", space: "analyse" },
 ];
 
 const byId = (id) => document.getElementById(id);
@@ -83,7 +81,6 @@ function setSpace(next, { remember = true } = {}) {
 }
 
 function goStep(step) {
-  if (step.leave) { window.GeoIDModeManager?.setMode?.(step.leave); return; }
   if (step.space !== "both" && step.space !== space) setSpace(step.space);
   window.GeoIDMeshStudio?.showGroup?.(step.group);
   document.querySelector(`#model-studio .studio-group[data-group="${step.group}"]`)?.scrollIntoView({ block: "nearest" });
@@ -118,27 +115,22 @@ function build() {
   const head = document.querySelector("#model-studio .studio-dock-left .studio-deck-head");
   if (!head || byId("studio-spaces")) return Boolean(byId("studio-spaces"));
   document.querySelectorAll("#model-studio .studio-group[data-group]").forEach((g) => { g.dataset.space = SPACE_OF[g.dataset.group] || "both"; });
-  // One row: where the ground came from, the two workspaces, where the series go.
-  const exit = (step, text) => {
-    const b = el("button", { class: "studio-exit", type: "button", title: step.title }, text);
-    b.addEventListener("click", () => goStep(step));
-    return b;
-  };
+  // The switch IS the deck's head: it takes the row the deck's name had, beside
+  // the fold. The page's own mode bar already leads to GIS and Research.
   const tabs = el("div", { id: "studio-spaces", class: "studio-spaces", role: "tablist", "aria-label": "Workspace" },
     el("button", { class: "studio-space-tab", type: "button", role: "tab", "data-space": "build", title: "Build: geometry, materials, physics, mesh and study" }, "Build"),
     el("button", { class: "studio-space-tab", type: "button", role: "tab", "data-space": "analyse", title: "Analyse: what a solve wrote — fields, points and time series" }, "Analyse"),
   );
   tabs.querySelectorAll(".studio-space-tab").forEach((b) => b.addEventListener("click", () => setSpace(b.dataset.space)));
-  const bar = el("div", { class: "studio-spacebar" },
-    exit(STEPS.find((s) => s.id === "gis"), "‹ GIS"), tabs, exit(STEPS.find((s) => s.id === "research"), "Research ›"));
   const strip = el("div", { id: "studio-pipeline", class: "studio-pipeline", "aria-label": "Model pipeline" });
-  STEPS.filter((step) => !step.leave).forEach((step) => {
+  STEPS.forEach((step) => {
     const b = el("button", { class: "studio-step", type: "button", "data-step": step.id, title: `Go to ${step.label}` },
       el("span", { class: "studio-step-dot", "aria-hidden": "true" }), el("span", { class: "studio-step-label" }, step.label));
     b.addEventListener("click", () => goStep(step));
     strip.append(b);
   });
-  head.after(bar, strip);
+  head.prepend(tabs);
+  head.after(strip);
   // A tab opened by any door brings its own workspace forward.
   new MutationObserver((records) => {
     for (const r of records) {

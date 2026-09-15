@@ -46,29 +46,8 @@
 #model-studio[data-space="build"] .studio-group[data-space="analyse"],
 #model-studio[data-space="analyse"] .studio-group[data-space="build"] { display: none !important; }
 
-#model-studio .studio-spacebar {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.35rem;
-  margin: 0.4rem 0 0.35rem;
-}
-#model-studio .studio-exit {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.2rem;
-  height: var(--st-h);
-  padding: 0 0.45rem;
-  border: 1px solid var(--st-line);
-  border-radius: var(--st-radius);
-  background: transparent;
-  color: var(--st-muted);
-  font: 600 var(--st-fs-small) / 1 "Exo 2", system-ui, sans-serif;
-  letter-spacing: 0.06em;
-  cursor: pointer;
-  white-space: nowrap;
-}
-#model-studio .studio-exit:hover { color: var(--st-ink); border-color: var(--st-line-strong); }
+/* The switch sits in the deck's head row, beside the fold, and takes its width. */
+#model-studio .studio-deck-head > .studio-spaces { flex: 1 1 auto; min-width: 0; }
 #model-studio .studio-spaces {
   display: grid;
   grid-template-columns: 1fr 1fr;
