@@ -28,10 +28,11 @@ import {
   rangeOf, usedNodes, COLORMAPS, colormapTable, colourValues, niceTicks, formatValue,
   interpolateOnSlice, axisPlane, nodeByteRange, probeCsv, parseMesh, sliceTets,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
-} from "./gales-results.js?v=20260915-3643e7a";
-import { zipStore } from "./shapefile-writer.js?v=20260915-3643e7a";
-import { may, refusal } from "./membership.js?v=20260915-3643e7a";
-import { downloadText } from "./extraction.js?v=20260915-3643e7a";
+  groupResultFiles, timeOf,
+} from "./gales-results.js?v=20260915-46b91b3";
+import { zipStore } from "./shapefile-writer.js?v=20260915-46b91b3";
+import { may, refusal } from "./membership.js?v=20260915-46b91b3";
+import { downloadText } from "./extraction.js?v=20260915-46b91b3";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -71,6 +72,10 @@ const S = {
   extract: { fields: null, layout: "station", result: null, plotField: 0, plotComp: "mag", note: "" },
   statusError: false,
   clipOn: null,
+  // Meshes opened by hand, and the field a numbered file picked on its own
+  // belongs to (a bare "1" says nothing about which field it is).
+  meshHints: [],
+  looseField: "solid/u",
 };
 
 const cache = new Map();
@@ -207,17 +212,168 @@ async function projectRuns() {
   }
 }
 
+/**
+ * A source over files the reader handed over one door at a time, under the
+ * paths a whole run would have had: a mesh at input/<name>, a step at
+ * results/<field>/<time>. Planning and every read then work as they do for
+ * a picked run folder.
+ */
+function filesSource(label, pairs) {
+  const files = new Map(pairs);
+  return {
+    label,
+    entries: [...files].map(([path, file]) => ({ path, size: file.size })),
+    read: async (path) => files.get(path).arrayBuffer(),
+    readRange: async (path, start, end) => files.get(path).slice(start, end).arrayBuffer(),
+    text: async (path) => files.get(path).text(),
+  };
+}
+
+/** A run with more files added to it: the added ones win where a path is in both. */
+function composeSources(base, extra) {
+  const mine = new Set(extra.entries.map((e) => e.path));
+  const pick = (path) => (mine.has(path) ? extra : base);
+  return {
+    label: base.label,
+    entries: [...base.entries.filter((e) => !mine.has(e.path)), ...extra.entries],
+    read: (path, options) => pick(path).read(path, options),
+    readRange: (path, start, end) => pick(path).readRange(path, start, end),
+    text: (path) => pick(path).text(path),
+  };
+}
+
+const relPath = (file) => file.webkitRelativePath || file.name;
+const isStep = (file) => timeOf(file.name) !== null;
+const isMeshFile = (file) => /\.msh$/i.test(file.name) || (/\.txt$/i.test(file.name) && !/^setup\.txt$/i.test(file.name));
+
+/**
+ * Files from any door into canonical pairs. `kind` is what the door was for:
+ * "mesh" takes every file as a mesh, "results" every numbered file as a step,
+ * "any" (a drop) sorts them by name.
+ */
+function canonicalPairs(fileList, kind) {
+  const list = [...fileList];
+  const pairs = [];
+  const meshes = [];
+  const meshFiles = kind === "results" ? [] : list.filter((f) => (kind === "mesh" ? true : isMeshFile(f)));
+  for (const file of meshFiles) {
+    const path = `input/${file.name}`;
+    pairs.push([path, file]);
+    meshes.push(path);
+  }
+  if (kind === "any") {
+    const setup = list.find((f) => /^setup\.txt$/i.test(f.name));
+    if (setup) pairs.push(["setup.txt", setup]);
+  }
+  const steps = kind === "mesh" ? [] : list.filter(isStep);
+  const byPath = new Map(steps.map((f) => [relPath(f), f]));
+  const fields = groupResultFiles(steps.map((f) => ({ path: relPath(f), size: f.size })), { looseField: S.looseField });
+  let count = 0;
+  for (const field of fields) {
+    for (const step of field.steps) {
+      pairs.push([`results/${field.field}/${step.name}`, byPath.get(step.path)]);
+      count += 1;
+    }
+  }
+  return { pairs, meshes, fields: fields.map((f) => f.field), steps: count, ignored: steps.length - count };
+}
+
+/**
+ * Add files to the open run, or start one from them. A mesh opened by hand is
+ * read at once; results added to a loaded mesh are classified against it
+ * without reading the mesh again.
+ */
+async function addFiles(fileList, kind) {
+  if (!fileList?.length) return;
+  const got = canonicalPairs(fileList, kind);
+  if (!got.pairs.length) {
+    status(kind === "mesh"
+      ? "Nothing to open as a mesh."
+      : `No step files found: a step is a file named by its time (0, 1, 2.5…) inside a folder named for its field (solid/u, heat_eq/T…).${got.ignored ? ` ${got.ignored} numbered file(s) picked on their own need a field name first.` : ""}`, true);
+    renderControls();
+    return;
+  }
+  const extra = filesSource("added files", got.pairs);
+  // A mesh opened onto a run that already has one is a different run: its
+  // fields would only sit in the list as "another mesh". Results added, or a
+  // mesh opened for results waiting without one, join what is open.
+  const fresh = kind === "mesh" && Boolean(S.mesh);
+  const source = S.source && !fresh ? composeSources(S.source, extra) : { ...extra, label: got.meshes[0]?.split("/").pop() || "added files" };
+  stopPlay();
+  if (fresh) cache.clear();
+  S.source = source;
+  S.meshHints = [...new Set([...got.meshes, ...(fresh ? [] : S.meshHints)])];
+  const setup = source.entries.find((e) => /(^|\/)setup\.txt$/.test(e.path) && e.path.split("/").length <= 2);
+  const setupText = setup ? await source.text(setup.path).catch(() => "") : "";
+  S.plan = planSimulation(source.entries, setupText, { meshes: S.meshHints, looseField: S.looseField });
+  const said = [
+    got.meshes.length ? `${got.meshes.length} mesh${got.meshes.length > 1 ? "es" : ""}` : "",
+    got.steps ? `${got.steps} step${got.steps > 1 ? "s" : ""} of ${got.fields.join(", ")}` : "",
+  ].filter(Boolean).join(" and ");
+  if (got.meshes.length) {
+    await loadMesh(got.meshes[0]);
+    if (!S.statusError) status(`${S.statusText} Added ${said}.`);
+    return;
+  }
+  if (!S.mesh) {
+    status(`Added ${said}. Open the mesh these belong to (Open mesh file…), or they cannot be placed on nodes.`, true);
+    renderControls();
+    return;
+  }
+  const keep = S.fields[S.field]?.field;
+  classifyFields();
+  const added = S.fields.findIndex((f) => f.ok && got.fields.includes(f.field));
+  const kept = S.fields.findIndex((f) => f.field === keep);
+  S.field = added >= 0 ? added : kept;
+  const f = S.fields[S.field];
+  S.step = f ? f.steps.length - 1 : 0;
+  S.component = "";
+  if (S.deform.field < 0) {
+    S.deform.field = S.fields.findIndex((x) => x.ok && (x.desc?.displacement || (!x.desc && /(^|\/)(u|elastostatic_dofs|fluid_mesh)$/.test(x.field))));
+  }
+  const bad = S.fields.filter((x) => got.fields.includes(x.field) && !x.ok);
+  status(`Added ${said}.${bad.length ? ` ${bad.map((x) => `${x.field}: ${x.reason}`).join(" ")}` : ""}`, Boolean(bad.length));
+  openSection("field");
+  renderControls();
+  await refresh({ fit: false });
+}
+
+/** Everything under a dropped folder, with the paths it had inside it. */
+async function droppedFiles(dataTransfer) {
+  const out = [];
+  const walk = async (entry, prefix) => {
+    if (!entry) return;
+    if (entry.isFile) {
+      const file = await new Promise((resolve, reject) => entry.file(resolve, reject));
+      Object.defineProperty(file, "webkitRelativePath", { value: `${prefix}${file.name}` });
+      out.push(file);
+      return;
+    }
+    const reader = entry.createReader();
+    for (;;) {
+      const batch = await new Promise((resolve, reject) => reader.readEntries(resolve, reject));
+      if (!batch.length) break;
+      for (const child of batch) await walk(child, `${prefix}${entry.name}/`);
+    }
+  };
+  const entries = [...(dataTransfer.items || [])].map((item) => item.webkitGetAsEntry?.()).filter(Boolean);
+  if (!entries.length) return [...(dataTransfer.files || [])];
+  for (const entry of entries) await walk(entry, "");
+  return out;
+}
+
 // ── Opening ─────────────────────────────────────────────────────────────────
 
 async function openSource(source) {
   stopPlay();
   S.source = source;
+  S.meshHints = [];
   cache.clear();
   const setup = source.entries.find((e) => /(^|\/)setup\.txt$/.test(e.path) && e.path.split("/").length <= 2);
   const setupText = setup ? await source.text(setup.path).catch(() => "") : "";
-  S.plan = planSimulation(source.entries, setupText);
+  S.plan = planSimulation(source.entries, setupText, { looseField: S.looseField });
   if (!S.plan.fields.length) {
-    status(`No results in ${source.label}: expected results/<field>/<time> files.`, true);
+    status(`No results in ${source.label}: expected results/<field>/<time> files. Add them with Add results….`, true);
   }
   if (!S.plan.meshes.length) {
     status(`No mesh in ${source.label}: expected input/mesh_*.txt or a .msh.`, true);
@@ -259,7 +415,7 @@ async function loadMesh(path) {
     S.component = "";
     // By name as well as by description: a project run's sizes are unknown
     // until a step is read, so its fields have no description yet.
-    const disp = S.fields.findIndex((f) => f.ok && (f.desc?.displacement || (!f.desc && /(^|\/)(solid\/u|elastostatic_dofs|fluid_mesh)$/.test(f.field))));
+    const disp = S.fields.findIndex((f) => f.ok && (f.desc?.displacement || (!f.desc && /(^|\/)(u|elastostatic_dofs|fluid_mesh)$/.test(f.field))));
     S.deform.field = disp;
     renderControls();
     await refresh({ fit: true });
@@ -1028,6 +1184,47 @@ function renderControls() {
   folderBtn.title = "A GALES run folder: input/ with the mesh, results/ with the binary fields, setup.txt";
   folderBtn.addEventListener("click", () => folderInput.click());
   open.body.append(folderBtn, folderInput);
+
+  // The same run a piece at a time: a mesh on its own, then its results as a
+  // folder (results/, results/solid, or just u) or as step files.
+  const picker = (attrs, kind) => {
+    const input = el("input", { type: "file", hidden: true, ...attrs });
+    input.multiple = true;
+    input.addEventListener("change", () => { const files = [...(input.files || [])]; input.value = ""; addFiles(files, kind); });
+    return input;
+  };
+  const meshInput = picker({ accept: ".txt,.msh" }, "mesh");
+  const resultsDir = picker({ webkitdirectory: true, directory: true }, "results");
+  const resultsFiles = picker({}, "results");
+  const door = (label, title, input) => {
+    const b = el("button", { class: "studio-btn", type: "button", title }, label);
+    b.addEventListener("click", () => input.click());
+    return b;
+  };
+  const doors = el("div", { class: "studio-actions gales-doors" },
+    door("Open mesh file…", "A GALES text mesh (mesh_*core.txt) or a gmsh .msh, on its own", meshInput),
+    door("Add results folder…", "Binary dof steps: a results/ folder, results/solid, or one field's folder such as u", resultsDir),
+    door("Add result files…", "Step files picked one by one (0, 1, 2…): they are the field named below", resultsFiles),
+  );
+  open.body.append(doors, meshInput, resultsDir, resultsFiles);
+  const loose = el("input", { class: "studio-input", type: "text", value: S.looseField, spellcheck: "false" });
+  loose.title = "The field a step file picked on its own belongs to: solid/u, solid/v, heat_eq/T, fluid_dofs…";
+  loose.addEventListener("keydown", (event) => event.stopPropagation());
+  loose.addEventListener("change", () => { S.looseField = loose.value.trim() || "solid/u"; loose.value = S.looseField; });
+  open.body.append(row("Loose steps are", loose));
+  const drop = el("div", { class: "gales-drop" }, "…or drop a run folder, a mesh, or result files here");
+  drop.addEventListener("dragover", (event) => { event.preventDefault(); drop.classList.add("is-over"); });
+  drop.addEventListener("dragleave", () => drop.classList.remove("is-over"));
+  drop.addEventListener("drop", async (event) => {
+    event.preventDefault();
+    drop.classList.remove("is-over");
+    const files = await droppedFiles(event.dataTransfer).catch(() => [...(event.dataTransfer.files || [])]);
+    const roots = new Set(files.map((f) => relPath(f).split("/")[0]));
+    const wholeRun = roots.size === 1 && files.some((f) => /(^|\/)results\//.test(relPath(f))) && files.some(isMeshFile);
+    if (wholeRun && !S.source) openSource(folderSource(files));
+    else addFiles(files, "any");
+  });
+  open.body.append(drop);
   const runsHost = el("div", { class: "gales-runs" });
   open.body.append(runsHost);
   projectRuns().then((runs) => {
@@ -1533,6 +1730,10 @@ function stopPlay() {
 const STYLE = `
 .gales-section .gis-tool-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.45rem; }
 .gales-range { width: 100%; accent-color: var(--nav-accent, #ff2bd6); }
+.gales-doors { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.gales-doors .studio-btn { flex: 1 1 auto; }
+.gales-drop { padding: 0.55rem; border: 1px dashed rgba(var(--nav-accent-rgb, 255, 43, 214), 0.45); border-radius: 0.5rem; text-align: center; font-size: 0.68rem; opacity: 0.8; }
+.gales-drop.is-over { background: rgba(var(--nav-accent-rgb, 255, 43, 214), 0.14); opacity: 1; }
 .gales-kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.15rem 0.6rem; font-size: 0.72rem; }
 .gales-kv span { opacity: 0.72; }
 .gales-kv b { font-weight: 600; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }

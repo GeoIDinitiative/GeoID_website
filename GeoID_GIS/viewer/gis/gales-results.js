@@ -584,19 +584,38 @@ export function timeOf(name) {
  * is the directory under the nearest `results/` holding numbered files.
  * Returns [{ field, steps: [{ time, path, size }] }], fields in name order,
  * steps in time order.
+ *
+ * A PICK THAT IS NOT A WHOLE RUN still has fields. Where no path passes
+ * through a results/ directory (the reader chose results/solid, or just the u
+ * folder), a directory of numbered files is a field named by its own path, so
+ * "u/1" is the field "u". Build and input trees are never fields. A numbered
+ * file with no directory at all (steps picked one by one) belongs to
+ * `looseField` when one is given, and is left out when not: a bare "1" says
+ * nothing about which field it is.
  */
-export function groupResultFiles(entries) {
+export function groupResultFiles(entries, { looseField = "" } = {}) {
   const fields = new Map();
+  const pathOf = (entry) => String(typeof entry === "string" ? entry : entry.path);
+  const underResults = entries.some((entry) => pathOf(entry).split("/").slice(0, -1).includes("results"));
   for (const entry of entries) {
-    const path = typeof entry === "string" ? entry : entry.path;
+    const path = pathOf(entry);
     const size = typeof entry === "string" ? null : entry.size ?? null;
-    const parts = String(path).split("/");
+    const parts = path.split("/");
     const name = parts.pop();
     const time = timeOf(name);
     if (time === null) continue;
-    const r = parts.lastIndexOf("results");
-    if (r < 0 || r === parts.length - 1) continue;
-    const field = parts.slice(r + 1).join("/");
+    let field = "";
+    if (underResults) {
+      const r = parts.lastIndexOf("results");
+      if (r < 0 || r === parts.length - 1) continue;
+      field = parts.slice(r + 1).join("/");
+    } else if (parts.length) {
+      if (parts.some((part) => /^(build|input|CMakeFiles|src)$/.test(part))) continue;
+      field = parts.join("/");
+    } else if (looseField) {
+      field = String(looseField).replace(/^\/+|\/+$/g, "");
+    }
+    if (!field) continue;
     if (!fields.has(field)) fields.set(field, []);
     fields.get(field).push({ time, name, path, size });
   }
@@ -628,9 +647,11 @@ export function describeField(field, nbDofs, dim = 3) {
     return { label, blocked: false, components: nbDofs === d ? comps : generic(), vector: nbDofs >= d ? { label: `${label} magnitude`, unit, from: [...Array(d).keys()] } : null, ...extra };
   };
   let out;
-  if (/^solid\/u$|elastostatic_dofs$/.test(f)) out = vectorOf("Displacement", "m", "u", { displacement: [...Array(Math.min(dim, nbDofs)).keys()] });
-  else if (/^solid\/v$/.test(f)) out = vectorOf("Velocity", "m/s", "v");
-  else if (/^solid\/a$/.test(f)) out = vectorOf("Acceleration", "m/s²", "a");
+  // By the LEAF, so a field opened on its own ("u") or under another folder
+  // ("mine/solid/u") is still the displacement GALES writes as solid/u.
+  if (/(^|\/)u$|elastostatic_dofs$/.test(f)) out = vectorOf("Displacement", "m", "u", { displacement: [...Array(Math.min(dim, nbDofs)).keys()] });
+  else if (/(^|\/)v$/.test(f)) out = vectorOf("Velocity", "m/s", "v");
+  else if (/(^|\/)a$/.test(f)) out = vectorOf("Acceleration", "m/s²", "a");
   else if (/fluid_mesh$/.test(f)) out = { ...vectorOf("Mesh displacement", "m", "d", { displacement: [...Array(Math.min(dim, nbDofs)).keys()] }), blocked: true };
   else if (/^fluid_(dot_)?dofs$/.test(f)) {
     const dot = /dot/.test(f) ? " rate" : "";
@@ -1098,16 +1119,17 @@ export function stationCsvFiles({ stations, fields, layout = "station", prefix =
  * `mesh_*.txt`, else any `.msh`, the one `setup.txt` names first) and the
  * result fields. `entries` are { path, size }.
  */
-export function planSimulation(entries, setupText = "") {
+export function planSimulation(entries, setupText = "", { meshes: chosen = [], looseField = "" } = {}) {
   const named = new Set();
   for (const m of String(setupText).matchAll(/^\s*(solid_mesh_file|fluid_mesh_file|mesh_file)\s+(\S+)/gm)) named.add(m[2]);
   const meshes = entries
     .filter((e) => /\.(txt|msh)$/i.test(e.path) && !/(^|\/)results\//.test(e.path))
-    .filter((e) => /\.msh$/i.test(e.path) || /(^|\/)mesh[^/]*\.txt$/i.test(e.path))
+    .filter((e) => chosen.includes(e.path) || /\.msh$/i.test(e.path) || /(^|\/)mesh[^/]*\.txt$/i.test(e.path))
     .map((e) => ({ ...e, name: e.path.split("/").pop() }))
     .sort((a, b) => {
-      const score = (m) => (named.has(m.name) ? 0 : /\.txt$/i.test(m.name) ? 1 : 2);
+      // A mesh the reader opened by hand comes first: it is the one they meant.
+      const score = (m) => (chosen.includes(m.path) ? -1 : named.has(m.name) ? 0 : /\.txt$/i.test(m.name) ? 1 : 2);
       return score(a) - score(b) || a.path.localeCompare(b.path);
     });
-  return { meshes, fields: groupResultFiles(entries), setup: named.size ? [...named] : [] };
+  return { meshes, fields: groupResultFiles(entries, { looseField }), setup: named.size ? [...named] : [] };
 }

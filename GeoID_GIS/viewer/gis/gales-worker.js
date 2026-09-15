@@ -12,8 +12,8 @@
  *   { id, type: "quality" }                → { id, ok, analysis }  (mesh-quality.js, by transfer)
  *   progress while parsing                 → { id, type: "progress", fraction }
  */
-import { parseMesh, sliceTets } from "./gales-results.js?v=20260915-3643e7a";
-import { analyseMesh } from "./mesh-quality.js?v=20260915-3643e7a";
+import { parseMesh, sliceTets } from "./gales-results.js?v=20260915-46b91b3";
+import { analyseMesh } from "./mesh-quality.js?v=20260915-46b91b3";
 
 let mesh = null;
 

@@ -438,3 +438,20 @@ const triangleArea = (p, k) => {
   check("visibility: a part switched off cannot be probed", /o\?\.visible && o\.parent\?\.visible !== false/.test(panel));
   check("visibility: a Workspace layer is switched by its object, not its id", /GeoIDLayerHierarchy\.setVisible\(layer, on\)/.test(studioSrc));
 }
+
+// ── a run opened a piece at a time ──
+{
+  const fields = (entries, options) => groupResultFiles(entries, options).map((f) => `${f.field}:${f.steps.map((s) => s.name).join(",")}`).join(" ");
+  check("a whole run still groups under results/, and build or input files are never fields", fields(["run/results/solid/u/0", "run/results/solid/u/1", "run/input/mesh_4core.txt", "run/build/2"]) === "solid/u:0,1");
+  check("a pick below results/ keeps its fields: the solid folder, or the u folder on its own", fields(["solid/u/0", "solid/u/1"]) === "solid/u:0,1" && fields(["u/1", "u/0"]) === "u:0,1");
+  check("a build tree picked without results/ is not a field", fields(["sim/build/CMakeFiles/3"]) === "");
+  check("step files picked one by one belong to the loose field, and to nothing without one", fields(["0", "1"], { looseField: "solid/u" }) === "solid/u:0,1" && fields(["0", "1"]) === "");
+  const u = describeField("u", 3, 3);
+  check("a bare u (or u under any folder) is displacement, with a magnitude and a warp", u.label === "Displacement" && u.vector && u.displacement?.length === 3 && describeField("mine/solid/u", 3, 3).label === "Displacement");
+  check("the GALES name still reads as before", describeField("solid/u", 3, 3).label === "Displacement" && describeField("solid/v", 3, 3).label === "Velocity");
+  const plan = planSimulation([{ path: "input/etna.txt" }, { path: "input/mesh_1core.txt" }, { path: "results/solid/u/1" }], "", { meshes: ["input/etna.txt"] });
+  check("a mesh opened by hand is planned, whatever its name, and comes first", plan.meshes[0].path === "input/etna.txt" && plan.meshes.length === 2);
+  const panelSrc = readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8");
+  check("doors: a mesh file, a results folder, result files, and a drop zone", /Open mesh file…/.test(panelSrc) && /Add results folder…/.test(panelSrc) && /Add result files…/.test(panelSrc) && /webkitGetAsEntry/.test(panelSrc) && /composeSources\(S\.source, extra\)/.test(panelSrc));
+}
+check("a mesh opened onto a loaded run starts a new run; results join the open one", /const fresh = kind === "mesh" && Boolean\(S\.mesh\);/.test(readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8")));

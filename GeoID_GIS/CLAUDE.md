@@ -19982,3 +19982,37 @@ the studio ribbon's **Quality** toggle and the card it opens.
 - **Follows the page.** The studio dispatches `geoid-studio:mesh-changed` on
   re-mesh and on Clear, and a 1 s identity poll catches a results run opened or
   closed. The overlay goes when the card closes.
+
+## GALES results can be opened a piece at a time
+
+"The u dofs haven't been loaded" had one door behind it. "Open simulation
+folder…" was the only way in, and it wanted the exact GALES layout: the mesh
+in `input/mesh_*.txt` and every step under `results/<field>/<time>`. A pick of
+`results/solid`, or of the `u` folder on its own, matched no `results/`
+directory and was DROPPED WITHOUT A WORD. A mesh not named `mesh*` was never
+offered. There was no way to put dof files onto a mesh already loaded.
+
+- **Three doors beside it, and a drop zone.** Open mesh file… (`.txt`/`.msh`,
+  any name). Add results folder… (`results/`, `results/solid`, or one field's
+  folder). Add result files… (steps picked one by one, filed under the "Loose
+  steps are" field, default `solid/u`). Drop a run folder, a mesh or step
+  files.
+- **Every door maps its files onto the canonical run paths.** A mesh goes to
+  `input/<name>` and a step to `results/<field>/<time>`
+  (`filesSource`/`composeSources`), so planning, reads, the probe and
+  extraction are unchanged. Results added to a loaded mesh are classified
+  against it without re-reading the mesh. Results added before a mesh wait,
+  and the status says to open the mesh. A mesh opened onto a run that already
+  has one starts a NEW run, or the old fields sit there as "another mesh".
+- **`groupResultFiles` falls back only when NO path passes through
+  `results/`.** Then a directory of numbered files is a field named by its own
+  path, while `build`/`input`/`CMakeFiles`/`src` never are. A numbered file with
+  no directory belongs to `looseField` or to nothing, because a bare "1" says
+  nothing about which field it is.
+- **`describeField` reads the LEAF.** `u`, `mine/solid/u` and `solid/u` are all
+  displacement, with a magnitude and a warp. The same goes for `v` and `a`.
+- Verified on the real Etna run: the mesh opened by hand, then only its `u`
+  folder, read Displacement from 0 to 85.41 m on step 1, set as the warp
+  field. Opening the results first and the mesh second gave the same.
+- **STL is not a results mesh.** An STL has no node numbering for dofs to
+  land on, so it is geometry, imported through File ▸ Import CAD.
