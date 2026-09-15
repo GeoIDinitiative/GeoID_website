@@ -502,8 +502,8 @@ check("a mesh opened onto a loaded run starts a new run; results join the open o
   const worker = readFileSync(new URL("./gales-worker.js", import.meta.url), "utf8");
   const panel = readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8");
   check("derived: the worker answers a derive request through strain-stress.js and transfers the values", /type === "derive"/.test(worker) && /derivedFields\(mesh,/.test(worker) && /\[out\.values\.buffer\]/.test(worker));
-  check("derived: a 3D displacement field adds one 16-dof stress field whose steps read the displacement's files", /field: "derived\/stress", derived: true/.test(panel) && /source: st\.path/.test(panel) && /nbDofs: 16/.test(panel));
-  check("derived: valuesAt computes a derived step rather than reading bytes, and says when there is no props.txt", /if \(f\.derived\) \{/.test(panel) && /call\("derive"/.test(panel) && /strain only: no solid props\.txt/.test(panel));
+  check("derived: a 3D displacement field adds one stress-strain-tilt field whose steps read the displacement's files", /field: "derived\/stress", derived: true/.test(panel) && /source: st\.path/.test(panel) && /nbDofs: DERIVED_DOFS,/.test(panel));
+  check("derived: valuesAt computes a derived step rather than reading bytes, and says when there is no props.txt", /if \(f\.derived\) \{/.test(panel) && /call\("derive"/.test(panel) && /strain and tilt only: no solid props\.txt/.test(panel));
   check("derived: the probe series never byte-reads a derived field", /!f\.derived(?: && !f\.compare)? \? nodeByteRange/.test(panel));
   const d = describeField("derived/stress", 16, 3);
   check("derived: describeField names the stress field and defaults to von Mises", d && d.defaultComponent === "12" && /stress/i.test(d.label || ""), JSON.stringify(d && { label: d.label, def: d.defaultComponent }));

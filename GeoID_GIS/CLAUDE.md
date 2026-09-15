@@ -20546,3 +20546,24 @@ component and the warp, and they have rows in the Visibility box.
 
   The 20 and 50 m isosurfaces are broad bowls under the whole top, which is
   the same load-of-the-box shape the Mogi inversion reported.
+
+## Ground tilt joins the derived field
+
+The derived field is now "Stress, strain and tilt", with 19 components.
+Components 16–18 are tilt east ∂u_z/∂x, tilt north ∂u_z/∂y and their
+magnitude, in radians, which is what a volcano's tiltmeters record. They come
+from the same per-tet gradient H = ∇u the strain uses (H[6], H[7]).
+`DERIVED_DOFS` in gales-results.js is the one count the panel reads; a
+hard-coded 16 used to sit in the field, its size and a pin.
+
+- **A magnitude is the length of the averaged components, not an average of
+  lengths.** Averaging each element's |∇u_z| to the node gave 3.2592e-4 rad
+  at Etna node 25018; the length of the node's own tilt is 3.25887e-4. That
+  is what numpy's volume-weighted gradient gives, to every printed digit:
+  (1.5025e-4, 2.8918e-4) over 8 tets. The magnitude is computed after
+  averaging. Von Mises and the principal stresses still average per element,
+  which is the convention they were verified under.
+- **Tilt and strain are independent readings.** A rigid rotation tilts the
+  ground and strains nothing; the test pins both halves. A run without solid
+  props still gets strain and tilt, and its label says "strain and tilt
+  only".

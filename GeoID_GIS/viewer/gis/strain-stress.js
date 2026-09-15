@@ -33,6 +33,10 @@ export const DERIVED_COMPONENTS = [
   ["sxy", "Stress σxy", "Pa"], ["syz", "Stress σyz", "Pa"], ["sxz", "Stress σxz", "Pa"],
   ["vm", "Von Mises stress", "Pa"], ["s1", "Max principal stress σ₁", "Pa"], ["s3", "Min principal stress σ₃", "Pa"],
   ["ev", "Volumetric strain", ""],
+  // Ground tilt, what a tiltmeter records: the slope of the vertical
+  // displacement, + where the ground rises toward east (north). Radians; a
+  // volcano's tilt is quoted in microradians.
+  ["tx", "Tilt east ∂u_z/∂x", "rad"], ["ty", "Tilt north ∂u_z/∂y", "rad"], ["tilt", "Tilt magnitude", "rad"],
 ].map(([key, label, unit]) => ({ key, label, unit }));
 
 /** Lamé parameters from Young's modulus and Poisson's ratio. */
@@ -154,6 +158,7 @@ export function derivedFields(mesh, u, nbDofs, material) {
     const exy = (H[1] + H[3]) / 2; const eyz = (H[5] + H[7]) / 2; const exz = (H[2] + H[6]) / 2;
     const tr = exx + eyy + ezz;
     value[0] = exx; value[1] = eyy; value[2] = ezz; value[3] = exy; value[4] = eyz; value[5] = exz; value[15] = tr;
+    value[16] = H[6]; value[17] = H[7]; value[18] = 0;
     if (material) {
       const cx = (c[i0 * 3] + c[i1 * 3] + c[i2 * 3] + c[i3 * 3]) / 4;
       const cy = (c[i0 * 3 + 1] + c[i1 * 3 + 1] + c[i2 * 3 + 1] + c[i3 * 3 + 1]) / 4;
@@ -177,6 +182,10 @@ export function derivedFields(mesh, u, nbDofs, material) {
   for (let i = 0; i < n; i += 1) {
     const w = weight[i];
     for (let j = 0; j < K; j += 1) acc[i * K + j] = w > 0 ? acc[i * K + j] / w : NaN;
+    // The tilt a station reads is the length of ITS OWN two components: taken
+    // after averaging, not an average of each element's lengths (which is
+    // longer wherever the elements round a node disagree in direction).
+    acc[i * K + 18] = Math.hypot(acc[i * K + 16], acc[i * K + 17]);
   }
   return { values: acc, nbDofs: K, skipped, stress: Boolean(material) };
 }

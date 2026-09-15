@@ -28,14 +28,14 @@ import {
   rangeOf, usedNodes, COLORMAPS, colormapTable, colourValues, niceTicks, formatValue, tickLabel,
   interpolateOnSlice, axisPlane, nodeByteRange, probeCsv, parseMesh, sliceTets, isoTets, contourLevels, contourSegments,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
-  groupResultFiles, timeOf, referencePlan, differenceOf,
-} from "./gales-results.js?v=20260915-a91e36d";
-import { zipStore } from "./shapefile-writer.js?v=20260915-a91e36d";
-import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-a91e36d";
-import { parseSolidProps } from "./strain-stress.js?v=20260915-a91e36d";
-import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-a91e36d";
-import { may, refusal } from "./membership.js?v=20260915-a91e36d";
-import { downloadText } from "./extraction.js?v=20260915-a91e36d";
+  groupResultFiles, timeOf, referencePlan, differenceOf, DERIVED_DOFS,
+} from "./gales-results.js?v=20260915-ce66302";
+import { zipStore } from "./shapefile-writer.js?v=20260915-ce66302";
+import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-ce66302";
+import { parseSolidProps } from "./strain-stress.js?v=20260915-ce66302";
+import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-ce66302";
+import { may, refusal } from "./membership.js?v=20260915-ce66302";
+import { downloadText } from "./extraction.js?v=20260915-ce66302";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -482,9 +482,9 @@ function classifyFields() {
     const u = S.fields.find((f) => f.ok && !f.derived && (f.desc ? f.desc.displacement && f.nbDofs >= 3 && !/fluid_mesh/.test(f.field) : /(^|\/)(solid\/u|u|elastostatic_dofs)$/.test(f.field)));
     if (u) {
       S.fields.push({
-        field: "derived/stress", derived: true, from: u.field, ok: true, nbDofs: 16, reason: "",
-        desc: describeField("derived/stress", 16, 3),
-        steps: u.steps.map((st) => ({ ...st, path: `derived:${st.path}`, source: st.path, size: n * 16 * 8 })),
+        field: "derived/stress", derived: true, from: u.field, ok: true, nbDofs: DERIVED_DOFS, reason: "",
+        desc: describeField("derived/stress", DERIVED_DOFS, 3),
+        steps: u.steps.map((st) => ({ ...st, path: `derived:${st.path}`, source: st.path, size: n * DERIVED_DOFS * 8 })),
       });
     }
   }
@@ -553,7 +553,7 @@ async function valuesAt(fieldIndex, stepIndex) {
     const u = Float64Array.from(raw);
     const { derived } = await getReader().call("derive", { u: u.buffer, nbDofs: raw.length / S.mesh.nodeCount, material: mat?.spec || null, gridText: mat?.gridText || "" }, [u.buffer]);
     f.stress = derived.stress;
-    if (!derived.stress && !f.desc.label.includes("strain only")) f.desc = { ...f.desc, label: "Stress and strain (strain only: no solid props.txt in this run)" };
+    if (!derived.stress && !f.desc.label.includes("tilt only")) f.desc = { ...f.desc, label: "Stress, strain and tilt (strain and tilt only: no solid props.txt in this run)" };
     if (base && !base.desc) { base.nbDofs = raw.length / S.mesh.nodeCount; }
     cache.set(step.path, derived.values);
     while (cache.size > CACHE_STEPS) cache.delete(cache.keys().next().value);
@@ -1590,7 +1590,7 @@ function renderControls() {
 
   // Field
   const fs = section("field", "Field and time");
-  const fieldOptions = S.fields.map((f, k) => [k, f.compare ? `Difference · ${f.from} − reference (${S.reference?.label}) · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}` : f.derived ? `Stress and strain · derived from ${f.from} · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}` : `${f.field}${f.nbDofs ? ` · ${f.nbDofs} dof${f.nbDofs > 1 ? "s" : ""}` : ""} · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}${f.ok ? "" : " — other mesh"}`, !f.ok]);
+  const fieldOptions = S.fields.map((f, k) => [k, f.compare ? `Difference · ${f.from} − reference (${S.reference?.label}) · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}` : f.derived ? `Stress, strain and tilt · derived from ${f.from} · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}` : `${f.field}${f.nbDofs ? ` · ${f.nbDofs} dof${f.nbDofs > 1 ? "s" : ""}` : ""} · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}${f.ok ? "" : " — other mesh"}`, !f.ok]);
   fs.body.append(row("Field", select([[-1, "— geometry only —"], ...fieldOptions], S.field, (v) => {
     S.field = Number(v);
     const f = S.fields[S.field];

@@ -677,7 +677,11 @@ const DERIVED_LABELS = [
   ["sxy", "Stress σxy", "Pa"], ["syz", "Stress σyz", "Pa"], ["sxz", "Stress σxz", "Pa"],
   ["vm", "Von Mises stress", "Pa"], ["s1", "Max principal stress σ₁", "Pa"], ["s3", "Min principal stress σ₃", "Pa"],
   ["ev", "Volumetric strain", ""],
+  ["tx", "Tilt east ∂u_z/∂x", "rad"], ["ty", "Tilt north ∂u_z/∂y", "rad"], ["tilt", "Tilt magnitude", "rad"],
 ].map(([key, label, unit]) => ({ key, label, unit }));
+
+/** How many components the derived stress-strain-tilt field carries (strain-stress.js's DERIVED_COMPONENTS). */
+export const DERIVED_DOFS = DERIVED_LABELS.length;
 
 const VEC = (dim, prefix, unit, label) => ({
   components: ["x", "y", "z"].slice(0, dim).map((c) => ({ key: `${prefix}${c}`, label: `${label} ${c}`, unit })),
@@ -708,7 +712,7 @@ export function describeField(field, nbDofs, dim = 3) {
   else if (/(^|\/)v$/.test(f)) out = vectorOf("Velocity", "m/s", "v");
   else if (/(^|\/)a$/.test(f)) out = vectorOf("Acceleration", "m/s²", "a");
   else if (/^derived\/stress$/.test(f)) {
-    out = { label: "Stress and strain", blocked: false, derived: true, defaultComponent: "12", components: DERIVED_LABELS.slice(0, nbDofs) };
+    out = { label: "Stress, strain and tilt", blocked: false, derived: true, defaultComponent: "12", components: DERIVED_LABELS.slice(0, nbDofs) };
   } else if (/fluid_mesh$/.test(f)) out = { ...vectorOf("Mesh displacement", "m", "d", { displacement: [...Array(Math.min(dim, nbDofs)).keys()] }), blocked: true };
   else if (/^fluid_(dot_)?dofs$/.test(f)) {
     const dot = /dot/.test(f) ? " rate" : "";

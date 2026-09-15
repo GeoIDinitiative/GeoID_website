@@ -26,14 +26,14 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, formatValue } from "./gales-results.js?v=20260915-a91e36d";
-import { downloadText } from "./extraction.js?v=20260915-a91e36d";
-import { modelReportHtml } from "./model-report.js?v=20260915-a91e36d";
-import { PHYSICS, domainProperties } from "./fem-setup.js?v=20260915-a91e36d";
-import { may, refusal } from "./membership.js?v=20260915-a91e36d";
-import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-a91e36d";
-import { losVector } from "./insar.js?v=20260915-a91e36d";
-import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260915-a91e36d";
+import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, formatValue } from "./gales-results.js?v=20260915-ce66302";
+import { downloadText } from "./extraction.js?v=20260915-ce66302";
+import { modelReportHtml } from "./model-report.js?v=20260915-ce66302";
+import { PHYSICS, domainProperties } from "./fem-setup.js?v=20260915-ce66302";
+import { may, refusal } from "./membership.js?v=20260915-ce66302";
+import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-ce66302";
+import { losVector } from "./insar.js?v=20260915-ce66302";
+import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260915-ce66302";
 
 const byId = (id) => document.getElementById(id);
 const R = () => window.GeoIDGalesResults;
@@ -1173,7 +1173,7 @@ export async function buildModelReport({ title } = {}) {
       r.methods.push("The field shown is a DIFFERENCE: this run's step minus the reference run's step at the same time (the latest at or before it), node for node. It is meaningful only when both runs share one mesh and its node numbering.");
     }
     if (/^derived\//.test(f.field)) {
-      r.methods.push("Stress and strain are derived from the displacement: constant strain per linear tetrahedron ε = sym(∇u), σ = λ tr(ε) I + 2μ ε with the run's own props.txt material, element values averaged to nodes by volume.");
+      r.methods.push("Stress, strain and tilt are derived from the displacement: the gradient ∇u is constant in each linear tetrahedron; strain ε = sym(∇u), stress σ = λ tr(ε) I + 2μ ε with the run's own props.txt material, and ground tilt (∂u_z/∂x, ∂u_z/∂y) in radians; element values are averaged to nodes by volume.");
     }
     if (S.component === "los" || S.component === "fringe") {
       r.methods.push("Line of sight is u · ê with ê the unit vector from the ground to the satellite, (sin i sin a, sin i cos a, cos i), a = heading − 90° for a right-looking radar; positive toward the satellite. A fringe is λ/2 of range change, wrapped after interpolation.");

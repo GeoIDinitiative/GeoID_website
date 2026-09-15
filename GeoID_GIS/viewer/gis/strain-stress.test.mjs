@@ -59,3 +59,32 @@ const layers = parseSolidProps("solid\n{\n   E 6e10\n   nu 0.25\n   heterogeneou
 check("props: z-wise layers, each with its bounds and moduli", layers.kind === "layers" && layers.layers.length === 2 && layers.layers[1].E === 5e9 && materialAt(layers)([0, 0, -1]).E === 5e9 && materialAt(layers)([0, 0, -5]).nu === 0.25 && materialAt(layers)([0, 0, -2]).E === 6e10);
 check("props: pointwise names its grid file", JSON.stringify(parseSolidProps("solid\n{\n   material Hookes\n   heterogeneous_pointwise\n   {\n      input_file   3d   pointwise_elasticity_data.txt\n   }\n}\n")).includes('"file":"pointwise_elasticity_data.txt"'));
 check("props: not a solid, no material", parseSolidProps("heat_equation\n{\n custom\n}\n") === null);
+
+{
+  // Tilt: u = (0, 0, a x + b y) over a Kuhn-split cube -- the vertical slope is (a, b) everywhere.
+  const a = 3e-6; const b = -4e-6;
+  const nodes = []; for (let k = 0; k < 8; k += 1) nodes.push([k & 1, (k >> 1) & 1, (k >> 2) & 1]);
+  const tets = [[0, 1, 3, 7], [0, 1, 5, 7], [0, 2, 3, 7], [0, 2, 6, 7], [0, 4, 5, 7], [0, 4, 6, 7]];
+  const mesh = { dim: 3, nodeCount: 8, coords: new Float64Array(nodes.flat()), cells: new Int32Array(tets.flat()), cellOffsets: new Int32Array(tets.map((_, k) => k * 4).concat(24)) };
+  const u = new Float64Array(24);
+  nodes.forEach(([x, y], i) => { u[i * 3 + 2] = a * x + b * y; });
+  const out = derivedFields(mesh, u, 3, null);
+  const K = DERIVED_COMPONENTS.length;
+  const key = (k) => DERIVED_COMPONENTS.findIndex((c) => c.key === k);
+  const every = (k, want) => [...Array(8).keys()].every((i) => Math.abs(out.values[i * K + key(k)] - want) < 1e-15);
+  check("tilt: ∂u_z/∂x and ∂u_z/∂y of a tilted plane are its slopes at every node, and the magnitude their length", K === 19 && every("tx", a) && every("ty", b) && every("tilt", 5e-6));
+  const rigid = new Float64Array(24);
+  nodes.forEach(([x, y, z], i) => { rigid[i * 3] = -1e-6 * z; rigid[i * 3 + 2] = 1e-6 * x; }); // a small rigid rotation about y
+  const r = derivedFields(mesh, rigid, 3, null);
+  check("tilt: a rigid rotation tilts the ground but strains nothing -- the two readings are independent", Math.abs(r.values[key("tx")] - 1e-6) < 1e-15 && Math.abs(r.values[key("exz")]) < 1e-15);
+}
+
+{
+  // Two tets meeting at a node with opposite tilts: the node's tilt is their average, and its magnitude the length of THAT.
+  const mesh = { dim: 3, nodeCount: 5, coords: new Float64Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 0, 0]), cells: new Int32Array([0, 1, 2, 3, 0, 4, 2, 3]), cellOffsets: new Int32Array([0, 4, 8]) };
+  const u = new Float64Array(15);
+  u[1 * 3 + 2] = 1e-6; u[4 * 3 + 2] = 1e-6; // uz = |x| near node 0: +1e-6 east of it, −1e-6 west
+  const out = derivedFields(mesh, u, 3, null);
+  const K = DERIVED_COMPONENTS.length;
+  check("tilt: the magnitude at a node is the length of its averaged components, not the average of lengths", Math.abs(out.values[16]) < 1e-18 && Math.abs(out.values[18] - Math.hypot(out.values[16], out.values[17])) < 1e-18 && out.values[18] < 1e-12);
+}
