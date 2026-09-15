@@ -20901,3 +20901,28 @@ gales-results.js are the pure half.
 
 Verified on Etna mirrored about x = max: one copy beside the model sharing the
 surface's geometry, the slice copy following a change of view.
+
+## A second view: another field, the camera linked
+
+Results ▸ Display ▸ "Open a second view" floats a viewport (draggable, resizable)
+showing a field and component of its own on the SAME geometry, with its camera
+copied from the main one every frame — ParaView's split view with linked
+cameras. `results-second-view.js`.
+
+- **Its own renderer and scene, the main view's buffers.** Its surface and slice
+  meshes share the main meshes' position, index and normal attributes (re-linked
+  whenever the main view replaces one), so the warp, the slice and each step's
+  geometry need no work; only the colour buffers are its own, painted from its
+  field at the main view's time on the Results colour map with a range of its
+  own. The two WebGL contexts each upload the shared buffers once.
+- **Repainted on `geoid-gales:refreshed`**, which the panel dispatches at the end
+  of every refresh. The panel's `scalarFor(values, desc, component)` takes the
+  component from the caller, where `scalar` reads the panel's own.
+- **Same camera, not the same framing**: the viewport's aspect is its own, so a
+  narrower window shows more around the model.
+- Surface and slice only: contours, isosurfaces, the threshold skin and glyphs
+  stay in the main view, and fringes are not offered. Kept in a saved state.
+
+Verified on Etna: |u| in the main view, von Mises in the second (0 to 256 MPa,
+the derived field's known range), the second view's position buffer the main
+surface's own object.

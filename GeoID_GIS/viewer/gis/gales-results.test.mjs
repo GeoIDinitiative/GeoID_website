@@ -791,3 +791,11 @@ check("a mesh opened onto a loaded run starts a new run; results join the open o
     /new THREE\.Mesh\(src\.geometry, src\.material\)/.test(panelSrc) && /Object\.defineProperty\(copy, "visible", \{ get: \(\) => src\.visible/.test(panelSrc) &&
     /updateStationMarkers\(disp\);\n\s*buildMirrors\(\);/.test(panelSrc) && /reflectedBounds\(S\.mesh\.bounds, S\.mirror\)/.test(panelSrc) && /mirror: \{ \.\.\.S\.mirror \}/.test(panelSrc));
 }
+
+{
+  const view = readFileSync(new URL("./results-second-view.js", import.meta.url), "utf8");
+  const panelSrc = readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8");
+  check("second view: its own renderer and colours, the main view's position, index and normal buffers shared, the camera copied every frame, repainted on every refresh",
+    /new THREE\.WebGLRenderer/.test(view) && /dst\.setAttribute\(key, src\.attributes\[key\]\)/.test(view) && /V\.camera\.position\.copy\(main\.position\)/.test(view) &&
+    /addEventListener\("geoid-gales:refreshed"/.test(view) && /new CustomEvent\("geoid-gales:refreshed"\)/.test(panelSrc) && /scalarFor: \(values, desc, component\)/.test(panelSrc));
+}

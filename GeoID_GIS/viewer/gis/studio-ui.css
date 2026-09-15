@@ -494,3 +494,20 @@
 #model-studio .gales-mirror-row { display: flex; flex-wrap: wrap; gap: 0.35rem 0.6rem; align-items: center; }
 #model-studio .gales-mirror-row label { display: inline-flex; gap: 0.25rem; align-items: center; font-size: 0.78rem; }
 #model-studio .gales-mirror-row select { width: auto; min-width: 3.6rem; }
+
+/* The second view: a floating viewport with its own field, camera locked to the main one. */
+#model-studio .gales-view2 {
+  position: fixed; top: 6.5rem; right: 1rem; z-index: 30;
+  width: min(34rem, 42vw); height: min(24rem, 44vh); min-width: 16rem; min-height: 12rem;
+  display: flex; flex-direction: column; resize: both; overflow: hidden;
+  background: rgb(16, 7, 36); border: 1px solid rgba(var(--nav-accent-rgb, 255, 43, 214), 0.45); border-radius: 0.6rem;
+  box-shadow: 0 0.6rem 2rem rgba(0, 0, 0, 0.5);
+}
+#model-studio .gales-view2[hidden] { display: none !important; }
+#model-studio .gales-view2-head { display: flex; gap: 0.35rem; align-items: center; padding: 0.35rem 0.45rem; cursor: move; border-bottom: 1px solid rgba(var(--nav-accent-rgb, 255, 43, 214), 0.25); }
+#model-studio .gales-view2-head b { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
+#model-studio .gales-view2-head select { min-width: 0; flex: 1 1 0; width: auto; }
+#model-studio .gales-view2-canvas { flex: 1 1 auto; min-height: 0; width: 100%; display: block; }
+#model-studio .gales-view2-legend { padding: 0.3rem 0.55rem 0.45rem; font-size: 0.7rem; }
+#model-studio .gales-view2-bar { height: 0.55rem; border-radius: 0.2rem; margin: 0.2rem 0; }
+#model-studio .gales-view2-ticks { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }

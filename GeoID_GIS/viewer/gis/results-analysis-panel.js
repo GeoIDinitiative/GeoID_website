@@ -26,15 +26,15 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, streamSeeds, streamlinesCsv, selectInRect, selectionSummary, formatValue, describeField, float64View, timeOf, stepReading, powerLawSlope } from "./gales-results.js?v=20260915-1049a63";
-import { downloadText } from "./extraction.js?v=20260915-1049a63";
-import { modelReportHtml } from "./model-report.js?v=20260915-1049a63";
-import { makeState, readState, stateFileName } from "./model-state.js?v=20260915-1049a63";
-import { PHYSICS, domainProperties } from "./fem-setup.js?v=20260915-1049a63";
-import { may, refusal } from "./membership.js?v=20260915-1049a63";
-import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-1049a63";
-import { losVector } from "./insar.js?v=20260915-1049a63";
-import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260915-1049a63";
+import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, streamSeeds, streamlinesCsv, selectInRect, selectionSummary, formatValue, describeField, float64View, timeOf, stepReading, powerLawSlope } from "./gales-results.js?v=20260915-436fbaa";
+import { downloadText } from "./extraction.js?v=20260915-436fbaa";
+import { modelReportHtml } from "./model-report.js?v=20260915-436fbaa";
+import { makeState, readState, stateFileName } from "./model-state.js?v=20260915-436fbaa";
+import { PHYSICS, domainProperties } from "./fem-setup.js?v=20260915-436fbaa";
+import { may, refusal } from "./membership.js?v=20260915-436fbaa";
+import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-436fbaa";
+import { losVector } from "./insar.js?v=20260915-436fbaa";
+import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260915-436fbaa";
 
 const byId = (id) => document.getElementById(id);
 const R = () => window.GeoIDGalesResults;
@@ -1560,6 +1560,7 @@ function analysisState() {
     src: { open: L.src.open, x0: L.src.x0, y0: L.src.y0, depth: L.src.depth, dV: L.src.dV, nu: L.src.nu, mode: L.src.mode, dP: L.src.dP, radius: L.src.radius, E: L.src.E, fitDV: L.src.fitDV, compared: Boolean(L.src.result), inverted: L.src.inversion?.what || null },
     sheet: { open: L.sheet.open, surfaceOnly: L.sheet.surfaceOnly, sort: L.sheet.sort, dir: L.sheet.dir, size: L.sheet.size },
     sweep: { open: L.sweep.open, path: L.sweep.path, field: L.sweep.field, component: L.sweep.component, where: L.sweep.where, node: L.sweep.node, read: Boolean(L.sweep.result) },
+    secondView: window.GeoIDSecondView?.isOpen?.() ? { field: window.GeoIDSecondView.state.field, component: window.GeoIDSecondView.state.component } : null,
     stream: { on: L.stream.on, field: fieldName(L.stream.field), seed: L.stream.seed, count: L.stream.count, radius: L.stream.radius, stepPer: L.stream.stepPer, lengthPer: L.stream.lengthPer, direction: L.stream.direction },
     media: { kind: L.media.kind, hold: L.media.hold, seconds: L.media.seconds, width: L.media.width },
     report: { title: L.report.title },
@@ -1647,6 +1648,7 @@ export async function loadState(input) {
     if (a.line?.plotted) await plot();
     if (L.glyph.on) await drawGlyphs();
     if (L.stream.on) await traceStream();
+    if (a.secondView && window.GeoIDSecondView) { window.GeoIDSecondView.open(); await window.GeoIDSecondView.set(a.secondView); } else if (a.secondView === null) window.GeoIDSecondView?.close?.();
     if (a.stats?.computed) await computeStats();
     if (a.obs?.compared) await compareObservations();
     if (a.src?.inverted) await invertSource(a.src.inverted);

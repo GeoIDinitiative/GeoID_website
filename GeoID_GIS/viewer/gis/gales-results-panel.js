@@ -30,15 +30,15 @@ import {
   exposedFaces, thresholdKeep, keptTriangles,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
   groupResultFiles, timeOf, referencePlan, differenceOf, DERIVED_DOFS,
-} from "./gales-results.js?v=20260915-1049a63";
-import { zipStore } from "./shapefile-writer.js?v=20260915-1049a63";
-import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-1049a63";
-import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-1049a63";
-import { parseSolidProps } from "./strain-stress.js?v=20260915-1049a63";
-import { vtkHead, readVtkGrid, parsePvd, vtkFieldName } from "./vtk-read.js?v=20260915-1049a63";
-import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-1049a63";
-import { may, refusal } from "./membership.js?v=20260915-1049a63";
-import { downloadText } from "./extraction.js?v=20260915-1049a63";
+} from "./gales-results.js?v=20260915-436fbaa";
+import { zipStore } from "./shapefile-writer.js?v=20260915-436fbaa";
+import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-436fbaa";
+import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-436fbaa";
+import { parseSolidProps } from "./strain-stress.js?v=20260915-436fbaa";
+import { vtkHead, readVtkGrid, parsePvd, vtkFieldName } from "./vtk-read.js?v=20260915-436fbaa";
+import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-436fbaa";
+import { may, refusal } from "./membership.js?v=20260915-436fbaa";
+import { downloadText } from "./extraction.js?v=20260915-436fbaa";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -1343,6 +1343,7 @@ async function refresh({ fit = false } = {}) {
     renderStepReadout();
     if (fit) studio()?.fitObject?.(scene.surface);
     if (S.probe) renderProbe();
+    if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") window.dispatchEvent(new CustomEvent("geoid-gales:refreshed"));
   } catch (error) {
     status(error.message, true);
   } finally {
@@ -2287,6 +2288,11 @@ function renderControls() {
   // Display
   const ds = section("display", "Display");
   {
+    const second = el("button", { class: "studio-secondary", type: "button", title: "A second viewport showing another field on the same geometry, its camera locked to this one" }, window.GeoIDSecondView?.isOpen?.() ? "Close the second view" : "Open a second view");
+    second.addEventListener("click", () => { window.GeoIDSecondView?.toggle?.(); renderControls(); });
+    ds.body.append(el("div", { class: "studio-actions" }, second));
+  }
+  {
     const mirrorRow = el("div", { class: "gales-mirror-row" });
     const opts = [["off", "—"], ["min", "min"], ["max", "max"], ["zero", "0"]];
     for (const axis of S.mesh.dim === 3 ? ["x", "y", "z"] : ["x", "y"]) {
@@ -3068,6 +3074,10 @@ if (typeof document !== "undefined" && typeof window !== "undefined" && typeof w
     values: (fieldIndex = S.field, stepIndex = S.step) => valuesAt(fieldIndex, stepIndex),
     desc: () => currentDesc(),
     scalar: (values, desc = currentDesc()) => scalarOf(values, desc),
+    // A component chosen by the caller, not by the panel (the second view): a vector's magnitude or one dof.
+    scalarFor: (values, desc, component) => (component === "mag" && desc?.vector ? magnitudeOf(values, S.mesh.nodeCount, desc.nbDofs, desc.vector.from, desc.blocked) : componentOf(values, S.mesh.nodeCount, desc.nbDofs, Number(component) || 0, desc.blocked)),
+    // What is drawn, for a second renderer that shares its buffers.
+    parts: () => ({ surface: scene.surface, slice: scene.slice, frame: scene.frame, surfNodes: scene.surfNodes, sliceData: S.slice, view: S.view, time: S.fields[S.field]?.steps[S.step]?.time ?? null }),
     // Anything that interpolates or averages must not work on wrapped fringes:
     // it takes the LOS and wraps afterwards (afterSampling), as the slice does.
     samplingScalar: (values, desc = currentDesc()) => {
