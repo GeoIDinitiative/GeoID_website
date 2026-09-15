@@ -580,3 +580,11 @@
 }
 #model-studio .studio-visbox .layer-row:hover .studio-vis-gear { opacity: 1; }
 #model-studio .studio-visbox .studio-vis-gear:hover { color: rgb(var(--nav-accent-rgb)); border-color: rgba(var(--nav-accent-rgb), 0.5); }
+
+/* The hand-off card: counts of what the project holds for the Research pages, and doors to them. */
+#model-studio .ra-handoff-counts { display: grid; grid-template-columns: repeat(auto-fit, minmax(4.6rem, 1fr)); gap: 0.35rem; margin: 0.4rem 0; }
+#model-studio .ra-handoff-count { display: flex; flex-direction: column; align-items: center; padding: 0.35rem 0.2rem; border: 1px solid rgba(var(--st-accent-rgb), 0.22); border-radius: 0.45rem; background: rgba(255, 255, 255, 0.03); }
+#model-studio .ra-handoff-count b { font-size: 1rem; font-variant-numeric: tabular-nums; color: var(--nav-accent, #ff2bd6); }
+#model-studio .ra-handoff-count span { font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.75; text-align: center; }
+#model-studio .ra-handoff-doors { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+#model-studio .studio-step.is-door .studio-step-label { text-decoration: underline dotted; text-underline-offset: 0.15em; }

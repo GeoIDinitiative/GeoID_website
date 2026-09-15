@@ -26,15 +26,15 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, streamSeeds, streamlinesCsv, selectInRect, selectionSummary, formatValue, describeField, float64View, timeOf, stepReading, powerLawSlope } from "./gales-results.js?v=20260915-5ecf7d0";
-import { downloadText } from "./extraction.js?v=20260915-5ecf7d0";
-import { modelReportHtml } from "./model-report.js?v=20260915-5ecf7d0";
-import { makeState, readState, stateFileName } from "./model-state.js?v=20260915-5ecf7d0";
-import { PHYSICS, domainProperties } from "./fem-setup.js?v=20260915-5ecf7d0";
-import { may, refusal } from "./membership.js?v=20260915-5ecf7d0";
-import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-5ecf7d0";
-import { losVector } from "./insar.js?v=20260915-5ecf7d0";
-import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260915-5ecf7d0";
+import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, streamSeeds, streamlinesCsv, selectInRect, selectionSummary, formatValue, describeField, float64View, timeOf, stepReading, powerLawSlope } from "./gales-results.js?v=20260915-3e86bba";
+import { downloadText } from "./extraction.js?v=20260915-3e86bba";
+import { modelReportHtml } from "./model-report.js?v=20260915-3e86bba";
+import { makeState, readState, stateFileName } from "./model-state.js?v=20260915-3e86bba";
+import { PHYSICS, domainProperties } from "./fem-setup.js?v=20260915-3e86bba";
+import { may, refusal } from "./membership.js?v=20260915-3e86bba";
+import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-3e86bba";
+import { losVector } from "./insar.js?v=20260915-3e86bba";
+import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260915-3e86bba";
 
 const byId = (id) => document.getElementById(id);
 const R = () => window.GeoIDGalesResults;
@@ -49,6 +49,7 @@ const L = {
   src: { open: false, x0: 0, y0: 0, depth: 5000, dV: 1e6, nu: 0.25, mode: "dV", dP: 1e7, radius: 1000, E: 30e9, fitDV: true, result: null, inversion: null, text: "", busy: false, sig: "", marker: null, surfaceZ: 0 },
   report: { open: false, title: "", text: "", busy: false },
   state: { open: false, text: "", busy: false },
+  handoff: { counts: null, at: 0, busy: false, project: "" },
   sel: { open: false, mode: "surface", ids: null, armed: false, text: "", summary: null, over: null, busy: false, mesh: null, sig: "" },
   stream: { on: false, field: -1, seed: "line", count: 60, radius: 0.1, stepPer: 400, lengthPer: 1.5, direction: "both", lines: null, mesh: null, sig: "", text: "", busy: false },
   media: { open: false, kind: "steps", hold: 1, seconds: 8, width: 1280, busy: false, cancel: false, text: "" },
@@ -1666,6 +1667,83 @@ export async function loadState(input) {
   }
 }
 
+/* ── the hand-off to the Research hub ───────────────────────────────────── */
+
+/**
+ * WHAT THIS PAGE HAS FILED FOR THE RESEARCH HUB, counted from the project:
+ * series in post_processing/extracted_dofs/ (the Signal and Spectral pages
+ * list them), tables in exports/ (every CSV a card writes), figures/ (the
+ * screenshots) and the saved page states. The counts are the bridge made
+ * visible: a reader can see that the profile they exported is a table the
+ * Statistics page will offer, and go there in one press.
+ */
+const HANDOFF_PAGES = [
+  ["Signal Processing", "Signal", "time series: filters, spectra, event detection"],
+  ["Spectral Analysis", "Spectral", "spectrograms and wavelets of a series"],
+  ["Statistics", "Statistics", "tests, PCA and clustering over a table"],
+  ["CSV Plotter", "Plotter", "plot any exported table"],
+  ["Figure Composer", "Figures", "compose the filed screenshots into figures"],
+];
+
+export async function handoffCounts({ force = false } = {}) {
+  const H = L.handoff;
+  const store = window.GeoIDResearch?.store;
+  const active = store?.getActive?.();
+  H.project = active?.meta?.name || active?.name || "";
+  if (!active || !store.listProjectDir) { H.counts = null; return null; }
+  if (!force && H.counts && Date.now() - H.at < 5000) return H.counts;
+  if (H.busy) return H.counts;
+  H.busy = true;
+  try {
+    const count = async (dir, test = () => true) => { try { return (await store.listProjectDir(dir)).filter((e) => e.kind !== "directory" && test(e.name)).length; } catch (e) { return 0; } };
+    H.counts = {
+      series: await count("post_processing/extracted_dofs", (n) => /\.(csv|tsv|txt)$/i.test(n)),
+      tables: await count("exports", (n) => /\.(csv|tsv|txt)$/i.test(n)),
+      figures: await count("figures", (n) => /\.(png|jpe?g|webp|svg)$/i.test(n)),
+      reports: await count("exports", (n) => /\.html?$/i.test(n)),
+      states: await count("post_processing", (n) => /^model_state_.*\.json$/.test(n)),
+    };
+    H.at = Date.now();
+    return H.counts;
+  } finally { H.busy = false; }
+}
+
+/** Filed anything at all: the pipeline strip's Research step lights on it. */
+export function handoffFiled() {
+  const c = L.handoff.counts;
+  return c ? c.series + c.tables + c.figures + c.reports : 0;
+}
+
+export function goResearch(pageId = "") {
+  window.GeoIDModeManager?.setMode?.("research");
+  if (pageId) setTimeout(() => window.GeoIDResearch?.setPage?.(pageId), 350);
+}
+
+function renderHandoff(host) {
+  const H = L.handoff;
+  const cardH = card("Hand-off to Research", true);
+  cardH.details.classList.add("ra-handoff");
+  const c = H.counts;
+  if (!H.project) {
+    cardH.body.append(note("No project is open, so what this page writes goes to the downloads folder only. Open a project on the Research hub's Projects page and every CSV, series, figure and report from here is filed into it, where the Research pages read."));
+  } else {
+    cardH.body.append(note(`Filed in ${H.project} from this page and the GIS page — what the Research pages will offer.`));
+    const facts = el("div", { class: "ra-handoff-counts" });
+    const items = [["series", "time series", "post_processing/extracted_dofs/ — points over time"], ["tables", "tables", "exports/ — profiles, statistics, selections, sweeps"], ["figures", "figures", "figures/ — screenshots and plots"], ["reports", "reports", "exports/ — the model report"], ["states", "saved states", "post_processing/ — the page as it stood"]];
+    for (const [key, label, title] of items) facts.append(el("div", { class: "ra-handoff-count", title }, el("b", {}, c ? String(c[key]) : "…"), el("span", {}, label)));
+    cardH.body.append(facts);
+  }
+  const doors = el("div", { class: "ra-handoff-doors" });
+  for (const [id, label, blurb] of HANDOFF_PAGES) {
+    const b = el("button", { class: "studio-secondary", type: "button", title: `${id}: ${blurb}` }, `${label} →`);
+    b.addEventListener("click", () => goResearch(id));
+    doors.append(b);
+  }
+  cardH.body.append(doors);
+  host.append(cardH.details);
+  handoffCounts().then((counts) => { if (counts !== c) render(); });
+}
+
 /* ── the model report ───────────────────────────────────────────────────── */
 
 const sci = (v) => (Number.isFinite(v) ? (Math.abs(v) >= 1e5 || (Math.abs(v) < 1e-3 && v !== 0) ? v.toExponential(3) : String(Number(v.toPrecision(6)))) : "—");
@@ -1752,9 +1830,23 @@ export async function screenshot({ width = 0, download = true } = {}) {
   const f = S.fields[S.field];
   const name = `results_${(f?.field || "mesh").replace(/[^A-Za-z0-9]+/g, "_")}_t${String(f?.steps[S.step]?.name ?? "").replace(/[^A-Za-z0-9.]+/g, "")}.png`;
   if (download) saveBlob(name, blob);
-  P.text = `${name} — ${canvas.width} × ${canvas.height}.`;
+  // A figure belongs to the project's figures/, where the Storyboard and the
+  // Figure Composer read, not only to the downloads folder.
+  const filed = download ? await fileFigure(name, blob, `Model page — ${f?.field || "mesh"} at t=${f?.steps[S.step]?.name ?? ""}`) : null;
+  P.text = `${name} — ${canvas.width} × ${canvas.height}${filed ? `, filed as ${filed}` : ""}.`;
   render();
   return { blob, width: canvas.width, height: canvas.height, name };
+}
+
+async function fileFigure(name, blob, source) {
+  const store = window.GeoIDResearch?.store;
+  if (!store?.getActive?.()) return null;
+  try {
+    await store.writeProjectFile(`figures/${name}`, blob);
+    await store.registerData?.({ name, kind: "figure", path: `figures/${name}`, source });
+    L.handoff.at = 0;
+    return `figures/${name}`;
+  } catch (error) { return null; }
 }
 
 function saveBlob(name, blob) {
@@ -2064,6 +2156,8 @@ export function render() {
     host.append(note("Open a run in Results to plot a profile or draw vector arrows."));
     return;
   }
+
+  renderHandoff(host);
 
   const line = card("Plot over line");
   line.body.append(note("The field shown in Results, read along a line through the volume — interpolated in each element, not the nearest node."));
@@ -2587,5 +2681,5 @@ function overlayWatch() {
 
 if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", install); else install();
-  window.GeoIDResultsAnalysis = { plot, drawGlyphs, traceStream, armSelection, selectRect, selectionOverTime, computeStats, compareObservations, compareSource, invertSource, readSweep, listSweeps, buildSheet, screenshot, recordAnimation, currentState, saveState, loadState, buildModelReport, openModelReport, render, state: L };
+  window.GeoIDResultsAnalysis = { handoffCounts, handoffFiled, goResearch, plot, drawGlyphs, traceStream, armSelection, selectRect, selectionOverTime, computeStats, compareObservations, compareSource, invertSource, readSweep, listSweeps, buildSheet, screenshot, recordAnimation, currentState, saveState, loadState, buildModelReport, openModelReport, render, state: L };
 }

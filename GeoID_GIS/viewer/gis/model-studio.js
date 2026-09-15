@@ -1,17 +1,17 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260915-5ecf7d0";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260915-5ecf7d0";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260915-3e86bba";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260915-3e86bba";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260915-5ecf7d0";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260915-5ecf7d0";
-import { downloadText } from "./extraction.js?v=20260915-5ecf7d0";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260915-5ecf7d0";
-import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260915-5ecf7d0";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260915-5ecf7d0";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260915-5ecf7d0";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260915-5ecf7d0";
-import { femSpec } from "./model-build.js?v=20260915-5ecf7d0";
+} from "./mesh-volume.js?v=20260915-3e86bba";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260915-3e86bba";
+import { downloadText } from "./extraction.js?v=20260915-3e86bba";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260915-3e86bba";
+import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260915-3e86bba";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260915-3e86bba";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260915-3e86bba";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260915-3e86bba";
+import { femSpec } from "./model-build.js?v=20260915-3e86bba";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -3789,7 +3789,72 @@ function domainGroups() {
     .filter((g) => g.parts.length);
 }
 
+/**
+ * WHERE THE GEOMETRY CAME FROM, on the Geometry tab, while a GIS terrain or
+ * section is adopted: the study's origin and footprint, the sampling the DEM
+ * was read at, the relief, what was extended below and above, the embedded
+ * points and the layers, with the way back to the Model Builder that made it.
+ * A model that arrived from the GIS page otherwise read as a shape somebody
+ * drew; this is its provenance, and it goes when the terrain does.
+ */
+function renderProvenanceCard() {
+  const pane = document.querySelector('.studio-pane[data-pane="add"]');
+  if (!pane) return;
+  let card = byId("studio-gis-card");
+  if (!gisTerrain) { card?.remove(); return; }
+  if (!card) {
+    card = document.createElement("details");
+    card.id = "studio-gis-card"; card.className = "gis-tool-section studio-fold-section studio-gis-card"; card.open = true;
+    card.innerHTML = '<summary data-tool-icon="1">From the GIS page</summary><div class="gis-tool-body"></div>';
+    pane.prepend(card);
+  }
+  const body = card.querySelector(".gis-tool-body");
+  body.textContent = "";
+  const T = gisTerrain;
+  const km = (m) => `${(m / 1000).toFixed(2)} km`;
+  const dl = document.createElement("dl"); dl.className = "st-facts";
+  const fact = (k, v) => { if (v === null || v === undefined || v === "") return; const dt = document.createElement("dt"); dt.textContent = k; const dd = document.createElement("dd"); dd.textContent = v; dl.append(dt, dd); };
+  const note = document.createElement("p"); note.className = "studio-readout";
+  if (T.kind === "section") {
+    const p = T.profile;
+    note.textContent = `${T.name}: a 2D cross-section along a line on the globe, sampled from the streamed DEM in the study's own frame.`;
+    fact("Origin", p.frame?.lat0 !== undefined ? `${Number(p.frame.lat0).toFixed(4)}°, ${Number(p.frame.lon0).toFixed(4)}°` : null);
+    fact("Length", km(p.lengthM));
+    fact("Samples", `${p.n} at ${Math.round(p.stepM)} m`);
+    if (Number.isFinite(p.zMin)) fact("Elevation", `${Math.round(p.zMin)} to ${Math.round(p.zMax)} m`);
+  } else {
+    const t = T.surface;
+    note.textContent = `${T.name}: the study area's ground, sampled from the streamed DEM into a surface at a resolution that varies by place, and packaged as a domain by the Model Builder.`;
+    fact("Origin", t.origin ? `${Number(t.origin.lat).toFixed(4)}°, ${Number(t.origin.lon).toFixed(4)}°` : null);
+    fact("Footprint", Number.isFinite(t.widthM) ? `${km(t.widthM)} × ${km(t.heightM)}` : null);
+    fact("Surface", `${Number(t.nodes || 0).toLocaleString()} nodes, ${Number(t.triangles || t.tris?.length || 0).toLocaleString()} triangles`);
+    if (Number.isFinite(t.spacingMinM)) fact("Sampling", `${Math.round(t.spacingMinM)}–${Math.round(t.spacingMaxM)} m${t.deepest ? ` over ${t.deepest} levels` : ""}${t.capped ? ", coarsened to the node budget" : ""}`);
+    if (Number.isFinite(t.zMin)) fact("Elevation", `${Math.round(t.zMin)} to ${Math.round(t.zMax)} m (${Math.round(t.reliefM ?? t.zMax - t.zMin)} m of relief)`);
+    if (t.repairedNodes) fact("Repaired", `${t.repairedNodes} DEM hole${t.repairedNodes > 1 ? "s" : ""} (worst ${Math.round(t.repairWorstM)} m)`);
+  }
+  fact("Extended", `${T.belowM > 0 ? `${km(T.belowM)} below the lowest ground` : "no subsurface"}${T.aboveM > 0 ? `, ${km(T.aboveM)} of atmosphere` : ""}`);
+  if (T.layers) fact("Layers", [T.layers.soil ? "soil over bedrock" : "", T.layers.water ? "water bodies" : ""].filter(Boolean).join(", ") || null);
+  fact("Embedded points", T.points?.length ? String(T.points.length) : "none");
+  if (T.flags) fact("Flags", Object.entries(T.flags).filter(([, v]) => Number.isFinite(v)).map(([k, v]) => `${k} ${v}`).join(" · "));
+  body.append(note, dl);
+  const actions = document.createElement("div"); actions.className = "studio-actions";
+  const back = document.createElement("button"); back.type = "button"; back.className = "studio-secondary";
+  back.textContent = "Model Builder on the GIS page →";
+  back.title = "Change the study area, the sampling, the points or the layers where they were set, then open the model here again";
+  back.addEventListener("click", () => {
+    window.GeoIDModeManager?.setMode?.("gis");
+    setTimeout(() => { const tab = byId("gis-group-mesh"); if (tab) { tab.open = true; tab.scrollIntoView({ block: "start", behavior: "smooth" }); } }, 250);
+  });
+  const domains = document.createElement("button"); domains.type = "button"; domains.className = "studio-secondary";
+  domains.textContent = "Domains and faces";
+  domains.title = "The volumes and faces this ground became, their flags, and the depth and height to rebuild at";
+  domains.addEventListener("click", () => showGroup("model"));
+  actions.append(back, domains);
+  body.append(actions);
+}
+
 function renderDomainsPanel() {
+  renderProvenanceCard();
   // The visibility box reads the same parts, so it follows every change here.
   renderVisibilityBox();
   const pane = document.querySelector('.studio-pane[data-pane="model"]');

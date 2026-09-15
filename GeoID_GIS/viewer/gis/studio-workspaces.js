@@ -29,12 +29,14 @@ const SPACE_OF = {
 };
 
 const STEPS = [
+  { id: "gis", label: "GIS", space: "both", go: () => window.GeoIDModeManager?.setMode?.("gis") },
   { id: "geometry", label: "Geometry", group: "add", space: "build" },
   { id: "materials", label: "Materials", group: "materials", space: "build" },
   { id: "physics", label: "Physics", group: "physics", space: "build" },
   { id: "mesh", label: "Mesh", group: "mesh", space: "build" },
   { id: "study", label: "Study", group: "study", space: "both" },
   { id: "results", label: "Results", group: "results", space: "analyse" },
+  { id: "research", label: "Research", space: "both", go: () => window.GeoIDResultsAnalysis?.goResearch?.() || window.GeoIDModeManager?.setMode?.("research") },
 ];
 
 const byId = (id) => document.getElementById(id);
@@ -52,18 +54,20 @@ function el(tag, attrs = {}, ...children) {
 }
 
 /** Where each step stands: "ok", "warning", "error", or "" for not begun. */
-export function stepStates({ targets, summary, realMesh, latticeMesh, results } = {}) {
+export function stepStates({ targets, summary, realMesh, latticeMesh, results, filed = 0 } = {}) {
   const domains = targets?.domains?.filter((d) => !d.void).length || 0;
   const levelOf = (l) => (l === "ok" ? "ok" : l || "");
   return {
     gis: targets?.source === "gis" ? "ok" : "",
-    geometry: domains ? "ok" : "error",
+    // No geometry is the thing to fix in a Build — unless the page holds only a
+    // run somebody opened to read, where a red Geometry dot is noise.
+    geometry: domains ? "ok" : results ? "" : "error",
     materials: domains ? levelOf(summary?.materials?.level) : "",
     physics: domains ? levelOf(summary?.physics?.level) : "",
     mesh: realMesh ? (realMesh.unflaggedCells ? "error" : realMesh.unflaggedSides ? "warning" : "ok") : latticeMesh ? "warning" : "",
     study: domains ? (summary?.study?.errors ? "error" : "ok") : "",
     results: results ? "ok" : "",
-    research: "",
+    research: filed ? "ok" : "",
   };
 }
 
@@ -81,6 +85,7 @@ function setSpace(next, { remember = true } = {}) {
 }
 
 function goStep(step) {
+  if (step.go) { step.go(); return; }
   if (step.space !== "both" && step.space !== space) setSpace(step.space);
   window.GeoIDMeshStudio?.showGroup?.(step.group);
   document.querySelector(`#model-studio .studio-group[data-group="${step.group}"]`)?.scrollIntoView({ block: "nearest" });
@@ -100,6 +105,7 @@ export function refresh() {
     realMesh: window.GeoIDRealMesh?.report,
     latticeMesh: window.GeoIDMeshStudio?.state?.mesh,
     results: window.GeoIDGalesResults?.state?.mesh,
+    filed: window.GeoIDResultsAnalysis?.handoffFiled?.() || 0,
   });
   const open = openGroup();
   strip.querySelectorAll(".studio-step").forEach((b) => {
@@ -124,7 +130,7 @@ function build() {
   tabs.querySelectorAll(".studio-space-tab").forEach((b) => b.addEventListener("click", () => setSpace(b.dataset.space)));
   const strip = el("div", { id: "studio-pipeline", class: "studio-pipeline", "aria-label": "Model pipeline" });
   STEPS.forEach((step) => {
-    const b = el("button", { class: "studio-step", type: "button", "data-step": step.id, title: `Go to ${step.label}` },
+    const b = el("button", { class: `studio-step${step.go ? " is-door" : ""}`, type: "button", "data-step": step.id, title: step.go ? `Go to the ${step.label} page` : `Go to ${step.label}` },
       el("span", { class: "studio-step-dot", "aria-hidden": "true" }), el("span", { class: "studio-step-label" }, step.label));
     b.addEventListener("click", () => goStep(step));
     strip.append(b);

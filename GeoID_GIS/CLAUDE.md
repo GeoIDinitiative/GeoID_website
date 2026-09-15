@@ -20969,3 +20969,21 @@ second view's "mesh" is a proxy whose `visible` opens and closes the window. The
 overlay group is redrawn when an overlay comes or goes (a 0.8 s key), never per
 frame. Verified live: two groups, four overlay rows, six gears; the eye hid the
 arrows' mesh; the stream-lines gear opened Analysis on the Stream tracer card.
+
+## The hand-off to Research is visible, and the pipeline strip has both ends
+
+Analysis opens on a **Hand-off to Research** card: what the open project holds
+for the Research pages, counted from its folders — series in
+`post_processing/extracted_dofs/`, tables in `exports/` (every CSV a card
+writes goes there through `downloadText`), figures, reports and saved states —
+and a door per page (Signal, Spectral, Statistics, Plotter, Figures) that sets
+the research mode and `GeoIDResearch.setPage(id)` a beat later. Screenshots are
+now FILED into `figures/` and registered (kind `figure`) as well as downloaded,
+so the Storyboard and the Figure Composer read them. With no project open the
+card says where things go instead. The pipeline strip reads GIS ▸ Geometry …
+Results ▸ Research, the two ends being doors to the other pages (`go` on a
+step), and Research lights on anything filed (`handoffFiled`, polled with the
+rest). Geometry is no longer red on a page holding only a run somebody opened
+to read. Verified live in a memory project: one screenshot → figures 1 on the
+card and the Research dot lit on the next poll; the Signal door landed on the
+hub's Signal Processing page.

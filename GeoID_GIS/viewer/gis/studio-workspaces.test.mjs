@@ -14,7 +14,7 @@ process.on("exit", () => {
 });
 
 const empty = stepStates({});
-check("states: an empty model has no geometry and nothing begun downstream", empty.geometry === "error" && empty.materials === "" && empty.results === "");
+check("states: an empty model has no geometry and nothing begun downstream; a run opened to read is not a geometry error", empty.geometry === "error" && empty.materials === "" && empty.results === "" && stepStates({ results: {} }).geometry === "" && stepStates({ results: {}, filed: 2 }).research === "ok");
 const ready = stepStates({ targets: { source: "gis", domains: [{ flag: 10, void: false }] }, summary: { materials: { level: "ok" }, physics: { level: "warning" }, study: { errors: 0 } }, realMesh: { unflaggedCells: 0, unflaggedSides: 0 }, results: {} });
 check("states: a GIS model, a mesh with every flag, a study with no errors and an open run", ready.gis === "ok" && ready.geometry === "ok" && ready.physics === "warning" && ready.mesh === "ok" && ready.study === "ok" && ready.results === "ok");
 check("states: only a lattice preview is a warning; an untagged solver mesh is an error", stepStates({ targets: { domains: [{}] }, latticeMesh: {} }).mesh === "warning" && stepStates({ realMesh: { unflaggedCells: 2 } }).mesh === "error");
@@ -44,3 +44,10 @@ check("studio-ui.css: braces balance", (bare.match(/\{/g) || []).length === (bar
 check("studio-ui.css: every rule is scoped to the Model page", bare.split("}").map((r) => r.split("{")[0].trim()).filter(Boolean).every((sel) => sel.replace(/\([^)]*\)/g, "()").split(",").every((part) => /#model-studio/.test(part))));
 check("studio-ui.css: a section inside a tab is never filled when open (one loud level)", /details\.gis-tool-section\[open\] > summary[\s\S]*?\{[^}]*color: var\(--st-accent\) !important/.test(bare) && /details\.gis-tool-section > summary[\s\S]*?background: transparent !important/.test(bare));
 check("studio-ui.css: the other workspace's tabs are hidden", /#model-studio\[data-space="build"\] \.studio-group\[data-space="analyse"\],\s*#model-studio\[data-space="analyse"\] \.studio-group\[data-space="build"\] \{ display: none !important; \}/.test(css));
+
+{
+  const analysis = readFileSync(new URL("./results-analysis-panel.js", import.meta.url), "utf8");
+  check("hand-off: the strip has GIS first and Research last as real doors, and Research lights on anything filed", /id: "gis", label: "GIS", space: "both", go:/.test(src) && /id: "research", label: "Research", space: "both", go:/.test(src) && /research: filed \? "ok" : ""/.test(src) && /if \(step\.go\) \{ step\.go\(\); return; \}/.test(src));
+  check("hand-off: the card counts the project's series, tables, figures, reports and states and opens the Research pages by id", /post_processing\/extracted_dofs/.test(analysis) && /HANDOFF_PAGES = \[/.test(analysis) && /\["Signal Processing", "Signal"/.test(analysis) && /window\.GeoIDResearch\?\.setPage\?\.\(pageId\)/.test(analysis) && /renderHandoff\(host\);\n\n  const line = card\("Plot over line"\);/.test(analysis));
+  check("hand-off: a screenshot is filed into figures/ and registered, only with a project open", /await store\.writeProjectFile\(`figures\/\$\{name\}`, blob\)/.test(analysis) && /kind: "figure", path: `figures\/\$\{name\}`/.test(analysis) && /if \(!store\?\.getActive\?\.\(\)\) return null;/.test(analysis));
+}
