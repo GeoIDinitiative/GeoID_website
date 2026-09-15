@@ -120,6 +120,9 @@ class Job:
                 "argv": self.argv, "cwd": self.cwd,
                 "started_at": self.started_at, "ended_at": self.ended_at,
                 "lines": len(self.lines),
+                # The last few lines, so a poller reading the verdict can also
+                # say WHY: a build that failed non-fatally is otherwise "done".
+                "tail": list(self.lines[-3:]),
             }
 
     def wait_for(self, index: int, timeout: float):
@@ -947,8 +950,8 @@ class Handler(BaseHTTPRequestHandler):
         if not name:
             raise ValueError("a target needs a name")
         kind = str(body.get("kind") or "ssh").strip()
-        if kind not in ("local", "ssh"):
-            raise ValueError("a target is either 'local' or 'ssh'")
+        if kind not in ("local", "ssh", "docker"):
+            raise ValueError("a target is 'local', 'ssh' or 'docker'")
         # A password must never reach this service; keys are the only way in.
         if body.get("password"):
             raise ValueError(
@@ -965,6 +968,11 @@ class Handler(BaseHTTPRequestHandler):
             # there — which is the only way it can run there, since a binary
             # built here is tied to this machine's MPI and Trilinos.
             "gales_dir": str(body.get("gales_dir") or "").strip(),
+            # A CONTAINER on this machine: the image that holds the toolchain
+            # GALES's Trilinos was built with. The run folder and the GALES tree
+            # are mounted at their own paths, so the deck's absolute GALES_SRC
+            # link and CMake cache mean the same thing inside.
+            "image": str(body.get("image") or "").strip() or None,
             "ranks": int(body.get("ranks") or 4),
             "mpirun": str(body.get("mpirun") or "mpirun").strip(),
             "gales_bin": str(body.get("gales_bin") or "gales").strip(),
@@ -974,6 +982,8 @@ class Handler(BaseHTTPRequestHandler):
         }
         if kind == "ssh" and not target["host"]:
             raise ValueError("an ssh target needs a host")
+        if kind == "docker" and not target["image"]:
+            raise ValueError("a docker target needs an image")
         targets = self._load_targets()
         targets[name] = target
         self._save_targets(targets)
@@ -995,7 +1005,15 @@ class Handler(BaseHTTPRequestHandler):
             raise ValueError(f"no compute target named {name!r}")
         mpirun_bin = target.get("mpirun") or "mpirun"
         gales_bin = target.get("gales_bin") or "gales"
-        if target.get("kind") == "local":
+        if target.get("kind") == "docker":
+            image = target.get("image") or ""
+            inner = (f'echo "[check] container {image}"; '
+                     f'command -v {shlex.quote(mpirun_bin)} && {shlex.quote(mpirun_bin)} --version | head -1; '
+                     'command -v cmake || echo "NO cmake"; command -v make || echo "NO make"; '
+                     'echo "cores: $(nproc)"')
+            script = (f'command -v docker >/dev/null || {{ echo "docker is not on this machine"; exit 1; }}; '
+                      f'docker run --rm {shlex.quote(image)} bash -lc {shlex.quote(inner)}')
+        elif target.get("kind") == "local":
             script = (
                 'echo "[check] this machine"; '
                 f'command -v {shlex.quote(mpirun_bin)} && {shlex.quote(mpirun_bin)} --version | head -1; '
@@ -1056,10 +1074,20 @@ class Handler(BaseHTTPRequestHandler):
         # it is only a last-resort fallback here.
         explicit = str(body.get("cmd") or "").strip()
         deck = str(body.get("deck", "")).strip()
+        target_name = str(body.get("target") or "").strip()
+        target = self._load_targets().get(target_name) if target_name else None
+        # A server or a container BUILDS WHERE IT RUNS, from the sources: it
+        # needs no executable here, and refusing it for lacking one (as this
+        # once did) made every remote solve of a run that could not build
+        # locally impossible — which is the very run a remote target is for.
+        remote = bool(target and target.get("kind") in ("ssh", "docker"))
         if explicit:
             argv = shlex.split(explicit)
             if not argv:
                 raise ValueError("empty command")
+        elif remote:
+            deck = deck or "executable"
+            argv = []
         elif deck:
             if not (run_dir / deck).is_file():
                 raise FileNotFoundError(f"deck not found in run: {deck}")
@@ -1088,8 +1116,6 @@ class Handler(BaseHTTPRequestHandler):
         # above. An ssh target instead pushes the run folder to the server,
         # solves there, and brings the results back — the same streamed job and
         # the same status.json either way, so nothing downstream has to care.
-        target_name = str(body.get("target") or "").strip()
-        target = self._load_targets().get(target_name) if target_name else None
         if target and target.get("kind") == "ssh":
             ranks = int(body.get("cores") or target.get("ranks") or 4)
             remote_mpirun = target.get("mpirun") or "mpirun"
@@ -1139,6 +1165,57 @@ class Handler(BaseHTTPRequestHandler):
             argv = ["bash", str(script)]
             cmd_str = f"{dest}: {remote_cmd}"
             label = f"GALES {Path(rel).name} @ {target_name}"
+        elif target and target.get("kind") == "docker":
+            # BUILD WHERE IT RUNS, in a container this time. A deck compiles on
+            # this host and fails to LINK against a Trilinos built in another
+            # OS's toolchain (measured: __isoc23_* and GLIBCXX_3.4.32 from a
+            # Debian 13 build against an Ubuntu 22.04 host), so the executable
+            # is made and run inside the image that built the libraries. The
+            # GALES tree and the run folder are mounted AT THEIR OWN PATHS, so
+            # the run's absolute GALES_SRC link and the cmake hints hold; the
+            # host's CMake cache is dropped first, since it names another
+            # compiler. Output lands in the run folder as it does locally.
+            if not shutil.which("docker"):
+                raise ValueError("docker is not on this machine's PATH")
+            image = target.get("image") or ""
+            ranks = int(body.get("cores") or target.get("ranks") or 1)
+            inner_cmd = explicit or f"{target.get('mpirun') or 'mpirun'} -n {ranks} ./executable"
+            mounts = [f"-v {shlex.quote(str(run_dir))}:{shlex.quote(str(run_dir))}"]
+            if self.gales_dir:
+                mounts.append(f"-v {shlex.quote(str(self.gales_dir))}:{shlex.quote(str(self.gales_dir))}:ro")
+            inc = Path.home() / ".local" / "include"
+            if (inc / "gmsh.h").exists():
+                mounts.append(f"-v {shlex.quote(str(inc))}:{shlex.quote(str(inc))}:ro")
+            uid, gid = os.getuid(), os.getgid()
+            inner = (
+                "set -e; "
+                # Whatever happens, what the container wrote belongs to the
+                # user who asked for it, or the page cannot rewrite the run.
+                f"trap 'chown -R {uid}:{gid} . 2>/dev/null' EXIT; "
+                "rm -rf CMakeFiles CMakeCache.txt Makefile cmake_install.cmake; "
+                'echo "[container] building (cmake + make)…"; '
+                f"cmake {self._cmake_hints()} . >/dev/null && make; "
+                f'echo "[container] solving: {inner_cmd}"; {inner_cmd}')
+            script = run_dir / "_container_run.sh"
+            script.write_text(
+                "#!/usr/bin/env bash\nset -e\n"
+                f'echo "[container] {image}: {run_dir}"\n'
+                f"docker run --rm {' '.join(mounts)} -w {shlex.quote(str(run_dir))} "
+                # OpenMPI refuses to run as root without being told twice, and
+                # its shared-memory transport needs CMA, which a container
+                # does not grant.
+                "-e OMPI_ALLOW_RUN_AS_ROOT=1 -e OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1 "
+                "-e OMPI_MCA_btl_vader_single_copy_mechanism=none "
+                # The deck links Trilinos as SHARED libraries with no rpath, so
+                # the loader has to be told where they are — inside as outside.
+                f"-e LD_LIBRARY_PATH={shlex.quote(self._gales_env().get('LD_LIBRARY_PATH', ''))} "
+                f"{shlex.quote(image)} bash -lc {shlex.quote(inner)}\n"
+                'echo "[container] done — results are in this run folder."\n')
+            script.chmod(0o755)
+            argv = ["bash", str(script)]
+            deck = deck or "executable"
+            cmd_str = f"{image}: {inner_cmd}"
+            label = f"GALES {Path(rel).name} @ {target_name}"
 
         status_path = run_dir / "status.json"
         started = time.time()
@@ -1168,7 +1245,8 @@ class Handler(BaseHTTPRequestHandler):
             })
 
         write_status("running", {"started_at": started, "message": "solver started"})
-        job = self.runner.start("gales", label, argv, run_dir, body.get("env"),
+        env = {**self._gales_env(), **dict(body.get("env") or {})}
+        job = self.runner.start("gales", label, argv, run_dir, env,
                                 on_finish=on_finish)
         self._send(200, {"job_id": job.id, "deck": deck, "cmd": cmd_str,
                          "where": target_name or "local"}, origin)
@@ -1373,9 +1451,9 @@ class Handler(BaseHTTPRequestHandler):
             f'if cmake {self._cmake_hints()} . >/dev/null 2>&1 && make; then\n'
             '  echo "[prepare] built — Run will solve it here."\n'
             'else\n'
-            '  echo "[prepare] local build failed (no Trilinos here?). The deck and"\n'
-            '  echo "[prepare] converted mesh are ready — a server with GALES can build"\n'
-            '  echo "[prepare] and run it; set that server\'s GALES path in Where it runs."\n'
+            '  echo "[prepare] local build failed: this machine cannot build GALES (no Trilinos,"\n'
+            '  echo "[prepare] or one built in another OS). The deck and converted mesh are ready;"\n'
+            '  echo "[prepare] a compute target — a server or a container with GALES — builds and runs them."\n'
             'fi\n'
             'echo "[prepare] done."\n')
         script.chmod(0o755)
@@ -1475,6 +1553,22 @@ class Handler(BaseHTTPRequestHandler):
             "        for row in series[name]: f.write(','.join(str(v) for v in row)+'\\n')\n"
             "    print(f'[postprocess] wrote {path} ({len(series[name])} rows)')\n"
             "print('[postprocess] done — open Signal Processing to analyse the series.')\n")
+
+    def _gales_env(self) -> dict:
+        """What a built deck needs at RUN time: GALES links Trilinos as shared
+        libraries and writes no rpath, so `./executable` fails to load
+        `libmuelu.so.14` unless the tpl install's lib folders are on
+        LD_LIBRARY_PATH. Measured on the first solve through a container — the
+        deck built and then exited 127 on the loader. Same paths inside a
+        container, since the tree is mounted at its own path."""
+        import glob
+        if not self.gales_dir:
+            return {}
+        libs = sorted(glob.glob(str(self.gales_dir / "tpl" / "tpl" / "*" / "lib")))
+        if not libs:
+            return {}
+        current = os.environ.get("LD_LIBRARY_PATH", "")
+        return {"LD_LIBRARY_PATH": ":".join(libs + ([current] if current else []))}
 
     def _cmake_hints(self) -> str:
         """Where this machine's GALES dependencies are, for a build in a run

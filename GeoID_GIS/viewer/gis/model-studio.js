@@ -1,17 +1,17 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260915-e0185f7";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260915-e0185f7";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260915-e1d7175";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260915-e1d7175";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260915-e0185f7";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260915-e0185f7";
-import { downloadText } from "./extraction.js?v=20260915-e0185f7";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260915-e0185f7";
-import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260915-e0185f7";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260915-e0185f7";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260915-e0185f7";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260915-e0185f7";
-import { femSpec } from "./model-build.js?v=20260915-e0185f7";
+} from "./mesh-volume.js?v=20260915-e1d7175";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260915-e1d7175";
+import { downloadText } from "./extraction.js?v=20260915-e1d7175";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260915-e1d7175";
+import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260915-e1d7175";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260915-e1d7175";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260915-e1d7175";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260915-e1d7175";
+import { femSpec } from "./model-build.js?v=20260915-e1d7175";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -3403,7 +3403,7 @@ export function adoptSectionModel({ name = "gis_section", profile, belowM = 0, a
   addPart({
     id: "surface", name: "Profile — the ground along A–B", kind: "surface", flag: F.terrain, mesh: gisTerrain.skin, solidId: null, colour: 0x6fbf73, domain: "surface", face: "ground",
     rows: [
-      ["What", "The DEM sampled along the line: the rock face's top edge and the air face's floor, flag 1 on both"],
+      ["What", `The DEM sampled along the line: the rock face's top edge and the air face's floor, flag ${F.terrain} on both`],
       ["Physical flag", `${F.terrain} — "top" curves and their points in the 2D script`],
       ["Samples", `${profile.n.toLocaleString()} (one every ${Math.round(profile.stepM)} m)`],
       ["Elevation", `${Math.round(profile.zMin)} to ${Math.round(profile.zMax)} m (relief ${Math.round(profile.reliefM)} m)`],
@@ -3664,7 +3664,7 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
   addPart({
     id: "surface", name: "Surface — the rock's top, the air's floor", kind: "surface", flag: F.terrain, mesh: gisTerrain.skin, solidId: null, colour: 0x6fbf73, domain: "surface", face: "ground",
     rows: [
-      ["What", "The terrain the GIS page sampled: one mesh, the rock's top and the air's floor, flag 1 on both"],
+      ["What", `The terrain the GIS page sampled: one mesh, the rock's top and the air's floor, flag ${F.terrain} on both`],
       ["Physical flag", `${F.terrain} — "top" on the rock, the floor of the air`],
       ["Nodes", surface.nodes.toLocaleString()],
       ["Triangles", `${surface.triangles.toLocaleString()}${display !== surface ? ` (drawn from a ${display.triangles.toLocaleString()}-triangle stand-in)` : ""}`],

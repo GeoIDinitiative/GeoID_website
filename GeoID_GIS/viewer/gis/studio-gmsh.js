@@ -28,8 +28,14 @@ const PYL = (v) => JSON.stringify(v).replace(/\btrue\b/g, "True").replace(/\bfal
 const f = (v) => Number(v).toFixed(6);
 const DEG = Math.PI / 180;
 
-/** Flags a face takes by where it faces, when the study has not chosen one. */
-export const DEFAULT_FACE_FLAGS = { top: 1, base: 2, north: 5, south: 5, east: 5, west: 5, side: 5, surface: 5, sky: 4, sides_above: 6 };
+/**
+ * Flags a face takes by where it faces, when the study has not chosen one.
+ * NEVER 1 FOR A FACE: GALES's solid solvers read side flag 1 as the
+ * fluid–solid interface and fetch a fluid traction there, which with no
+ * fluid coupled is a segmentation fault at the first step — measured on the
+ * first solve this page ever ran. The top is 3.
+ */
+export const DEFAULT_FACE_FLAGS = { top: 3, base: 2, north: 5, south: 5, east: 5, west: 5, side: 5, surface: 5, sky: 4, sides_above: 6 };
 
 function triNormal(p, i) {
   const ax = p[i], ay = p[i + 1], az = p[i + 2];

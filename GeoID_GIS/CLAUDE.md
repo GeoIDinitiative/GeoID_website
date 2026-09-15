@@ -21061,3 +21061,51 @@ four, a few seconds for news and longer for an error, a click to dismiss.
 every error) against what is furniture. Animated by a class on the next frame,
 because a `@keyframes` rule cannot carry the stylesheet's `#model-studio` scope
 and fails the pin.
+
+## The first solve from Study to Results, and the four things standing in its way
+
+A 1 m box, 144 nodes, granite, base fixed, 1 MPa on the top, one rank — run
+through the page's own buttons (Write study → Mesh with gmsh → Prepare deck →
+Solve → Results opened itself). It reads u_z = −1.963e-5 m at the top against
+the free-column −2.0e-5 m; the container solve takes 15 s. None of the four
+faults below was visible to a unit test, because each is about a process the
+page hands off to.
+
+- **A prepare's build failure was reported as "Prepare: done."** The build is
+  non-fatal by design (a deck bound for a server need not build here), so its
+  failure was only in the streamed log, and `waitFor` read `snap.output ||
+  snap.log`, neither of which a job snapshot carries. The snapshot has a
+  `tail` now (its last three lines) and the Study tab prints it.
+- **This host cannot LINK against GALES's Trilinos.** The compile succeeds; the
+  link fails on `__isoc23_*@GLIBC_2.38` and `GLIBCXX_3.4.32`: the tpl was built
+  inside `atlas-build-mesh` (Debian 13, glibc 2.41, GCC 14) and the host is
+  Ubuntu 22.04. So the sidecar has a third compute target, `docker` — the ssh
+  target's own "build where it runs", with the run folder and the GALES tree
+  mounted AT THEIR OWN PATHS (the run's absolute `GALES_SRC` link and the
+  cmake hints then mean the same thing inside), the host's CMake cache dropped
+  first, `chown` back to the caller on exit, and OpenMPI told it may run as
+  root. `_start_gales` also resolved the command from the run folder BEFORE
+  looking at the target and refused a remote run for having no local
+  executable — which made every remote solve of a run that could not build
+  locally impossible, ssh included. And GALES links Trilinos SHARED with no
+  rpath: `_gales_env()` puts `tpl/tpl/*/lib` on `LD_LIBRARY_PATH` for local
+  and container runs alike (measured: built, then exit 127 on `libmuelu.so.14`).
+- **SIDE FLAG 1 IS GALES'S FLUID–SOLID INTERFACE.** `solid_es`, `solid_ed` and
+  `thermoelasticity` all do `if(side_flag==1) ic_bc_.get_fluid_tr(...)` for
+  every boundary side carrying it; the base `ic_bc` leaves the traction empty
+  and the element loop indexes it — a segfault in `solid::execute` at the first
+  step, on 1 rank and on 2. Etna's own mesh has no side flagged 1 (its free
+  surface is untagged; 61,094 at 4, 41,980 at 5). Every default that put a
+  face on 1 moved to **3** (`DEFAULT_FACE_FLAGS.top`, `DEFAULT_FLAGS.top` and
+  `.terrain`, the section's profile, `LAYER_FLAGS.top`, with the water's sides
+  moved 3 → 14), and `checkSetup` refuses a solid study whose model carries a
+  face on 1, naming the face and the reason.
+- **The Study tab's target list read `Object.values` of a NAME-keyed map**, so
+  every server was offered as "[object Object]". The name is the key.
+
+Traps in driving it: `kill` on the `nohup … &` PID kills the wrapper shell and
+leaves the python serving the OLD code (the new one dies on "address already in
+use") — `pgrep -f` the python and kill that; a module edited under the same
+`?v=` is served from the browser's cache until `fetch(url, {cache: "reload"})`
+refreshes it; and the run's `execute` frame was named by `addr2line -f -C -e
+executable <offset>` on the host, which needs no debugger and no `-g`.

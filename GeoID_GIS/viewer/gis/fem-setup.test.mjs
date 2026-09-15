@@ -77,8 +77,15 @@ const box = (flag, name, zMin, zMax, extra = {}) => ({ flag, name, zMin, zMax, v
 
 // ── the checklist ──
 {
-  const targets = { domains: [box(10, "Crust", -10, 0)], faces: [{ flag: 1, name: "top" }, { flag: 2, name: "base" }, { flag: 5, name: "sides" }] };
+  const targets = { domains: [box(10, "Crust", -10, 0)], faces: [{ flag: 3, name: "top" }, { flag: 2, name: "base" }, { flag: 5, name: "sides" }] };
   const blank = checkSetup(defaultSetup(), targets);
+  // Side flag 1 is GALES's fluid–solid interface: a solid study with a face on
+  // it segfaults at its first step, so the checklist refuses it by name.
+  const fsi = { domains: targets.domains, faces: [{ flag: 1, name: "top" }, { flag: 2, name: "base" }] };
+  const goodOnFsi = { ...defaultSetup(), materials: { 10: { id: "granite" } }, conditions: { 2: { type: "fixed" } } };
+  check("check: a solid face on flag 1 is an error naming the face and the interface", checkSetup(goodOnFsi, fsi).some((i) => i.level === "error" && /^top carries flag 1/.test(i.text) && /fluid–solid interface/.test(i.text)));
+  check("check: the same face on flag 3 is not", !checkSetup(goodOnFsi, targets).some((i) => /flag 1/.test(i.text)));
+  check("check: the heat physics does not reserve flag 1", !checkSetup({ ...goodOnFsi, physics: "heat" }, fsi).some((i) => /flag 1/.test(i.text)));
   check("check: a blank solid setup asks for a material and for the model to be held", blank.some((i) => i.level === "error" && i.step === "materials") && blank.some((i) => i.level === "error" && /rigid body/.test(i.text)));
   const good = { ...defaultSetup(), materials: { 10: { id: "granite" } }, conditions: { 2: { type: "fixed" } } };
   check("check: a material and a fixed base leaves no error", !checkSetup(good, targets).some((i) => i.level === "error"));
@@ -106,10 +113,10 @@ const box = (flag, name, zMin, zMax, extra = {}) => ({ flag, name, zMin, zMax, v
 // ── the tree's badges ──
 {
   const { setupSummary } = await import("./fem-setup.js");
-  const targets = { domains: [box(10, "Crust", -10, 0), box(12, "Chamber", -6, -4, { void: true })], faces: [{ flag: 1, name: "top" }, { flag: 2, name: "base" }] };
+  const targets = { domains: [box(10, "Crust", -10, 0), box(12, "Chamber", -6, -4, { void: true })], faces: [{ flag: 3, name: "top" }, { flag: 2, name: "base" }] };
   const blank = setupSummary(defaultSetup(), targets);
   check("summary: a void domain is not counted as needing a material, and a blank setup is an error", blank.materials.of === 1 && blank.materials.assigned === 0 && blank.materials.level === "error" && blank.study.level === "error");
-  const good = setupSummary({ ...defaultSetup(), materials: { 10: { id: "granite" } }, conditions: { 2: { type: "fixed" }, 1: { type: "free" }, 99: { type: "fixed" } } }, targets);
+  const good = setupSummary({ ...defaultSetup(), materials: { 10: { id: "granite" } }, conditions: { 2: { type: "fixed" }, 3: { type: "free" }, 99: { type: "fixed" } } }, targets);
   check("summary: only a real condition on a face the model carries counts, and a solvable setup has no errors", good.physics.set === 1 && good.physics.of === 2 && good.materials.level === "ok" && good.study.errors === 0 && good.study.warnings >= 1);
 }
 

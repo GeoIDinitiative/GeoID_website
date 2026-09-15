@@ -30,7 +30,7 @@
  *   top[i]    max(solid, water): the floor of the atmosphere
  */
 
-import { channelDepth } from "./inundation.js?v=20260915-e0185f7";
+import { channelDepth } from "./inundation.js?v=20260915-e1d7175";
 
 /** A TIN with a different z array, and its own extremes. */
 export function tinWith(tin, z) {
@@ -367,8 +367,10 @@ export function layeredGmshScript({ name, stlFile, meshFile, meshSizeM, minSizeM
 
 /** The flags a layered model uses, beside the Model Builder's own defaults. */
 export const LAYER_FLAGS = Object.freeze({
-  top: 1, base: 2, sky: 4, sides: 5, sides_above: 6,
-  bedrock_top: 7, water_surface: 8, bed: 9, water_sides: 3,
+  // The ground is 3, not 1: GALES's solid solvers read side flag 1 as the
+  // fluid–solid interface. The water's sides moved to 14 to make room.
+  top: 3, base: 2, sky: 4, sides: 5, sides_above: 6,
+  bedrock_top: 7, water_surface: 8, bed: 9, water_sides: 14,
   bedrock: 10, atmosphere: 11, soil: 12, water: 13,
 });
 

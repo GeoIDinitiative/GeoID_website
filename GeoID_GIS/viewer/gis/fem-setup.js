@@ -349,6 +349,13 @@ export function checkSetup(setup, targets) {
   const unknown = Object.keys(setup.conditions || {}).map(Number).filter((f) => (setup.conditions[f]?.type || "free") !== "free" && !faceFlags.has(f));
   if (unknown.length) out.push({ level: "warning", step: "physics", text: `Conditions on flag${unknown.length === 1 ? "" : "s"} ${unknown.join(", ")}, which no face of the model carries now.` });
   if (setup.physics === "solid") {
+    // GALES's solid solvers (solid_es, solid_ed, thermoelasticity) treat SIDE
+    // FLAG 1 as the fluid–solid interface: for every boundary side carrying
+    // it they ask the coupling for a fluid traction, and with no fluid there
+    // the answer is empty and the solver segfaults at its first step.
+    // Measured on the first solve this page ran — a box whose top was 1.
+    const reserved = (targets.faces || []).filter((f) => Number(f.flag) === 1);
+    if (reserved.length) out.push({ level: "error", step: "physics", text: `${reserved.map((f) => f.name).join(", ")} ${reserved.length === 1 ? "carries" : "carry"} flag 1, which GALES's solid solvers reserve for a fluid–solid interface (they read a fluid traction there and stop with a segmentation fault when there is none). Give the face another number in Domains and faces.` });
     const held = ["ux", "uy", "uz"].filter((d) => dirichlet[d]?.length);
     if (held.length < 3) out.push({ level: "error", step: "physics", text: `Nothing holds the model in ${["x", "y", "z"].filter((a) => !held.includes(`u${a}`)).join(", ")}: a static solid needs displacement fixed in every direction somewhere, or it moves as a rigid body.` });
   }

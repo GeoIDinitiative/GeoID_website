@@ -679,7 +679,9 @@ const PY = (value) => JSON.stringify(value);
  * sides at one number have no ambiguity between them at all.
  */
 export const DEFAULT_FLAGS = {
-  top: 1,
+  // Not 1: GALES's solid solvers reserve side flag 1 for the fluid–solid
+  // interface (see studio-gmsh.js), so a ground flagged 1 crashes a solve.
+  top: 3,
   base: 2,
   north: 5,
   south: 5,
@@ -694,7 +696,7 @@ export const DEFAULT_FLAGS = {
    * are one flag apiece the way etna writes them, above and below kept apart
    * because a boundary condition on the air is not one on the rock.
    */
-  terrain: 1,
+  terrain: 3,
   sky: 4,
   sides_below: 5,
   sides_above: 6,

@@ -1,13 +1,13 @@
-import * as store from "./project-store.js?v=20260915-e0185f7";
-import * as stats from "./stats.js?v=20260915-e0185f7";
-import * as dsp from "./dsp.js?v=20260915-e0185f7";
-import { parseTable, column } from "./table.js?v=20260915-e0185f7";
-import { linePlot, heatmap } from "./plot.js?v=20260915-e0185f7";
-import { el, findTables, saveFigure } from "./pages/common.js?v=20260915-e0185f7";
-import { createMap, BASEMAPS } from "./map2d.js?v=20260915-e0185f7";
-import * as sidecar from "./sidecar.js?v=20260915-e0185f7";
-import * as bridge from "./bridge.js?v=20260915-e0185f7";
-import { runConnector, studyBbox, CONNECTORS } from "./connectors.js?v=20260915-e0185f7";
+import * as store from "./project-store.js?v=20260915-e1d7175";
+import * as stats from "./stats.js?v=20260915-e1d7175";
+import * as dsp from "./dsp.js?v=20260915-e1d7175";
+import { parseTable, column } from "./table.js?v=20260915-e1d7175";
+import { linePlot, heatmap } from "./plot.js?v=20260915-e1d7175";
+import { el, findTables, saveFigure } from "./pages/common.js?v=20260915-e1d7175";
+import { createMap, BASEMAPS } from "./map2d.js?v=20260915-e1d7175";
+import * as sidecar from "./sidecar.js?v=20260915-e1d7175";
+import * as bridge from "./bridge.js?v=20260915-e1d7175";
+import { runConnector, studyBbox, CONNECTORS } from "./connectors.js?v=20260915-e1d7175";
 
 /**
  * The parts of a page the app builds while it runs.
@@ -1370,7 +1370,9 @@ function galesRunner(host, api) {
   let targets = {};
   const labelFor = (name, t) => (t.kind === "local"
     ? `${name} (this machine)`
-    : `${name} — ${t.user ? `${t.user}@` : ""}${t.host}${t.ranks ? ` · ${t.ranks} ranks` : ""}`);
+    : t.kind === "docker"
+      ? `${name} — container ${t.image}${t.ranks ? ` · ${t.ranks} ranks` : ""}`
+      : `${name} — ${t.user ? `${t.user}@` : ""}${t.host}${t.ranks ? ` · ${t.ranks} ranks` : ""}`);
   const chosen = () => {
     const label = targetPick.value;
     if (label === "This machine (mpirun)") return null;   // local, the default
@@ -1424,7 +1426,10 @@ function galesRunner(host, api) {
   [["name", "Name (e.g. hetzner)"], ["host", "Host or IP"], ["user", "SSH user"],
     ["port", "Port (22)"], ["remote_root", "Remote folder (~/geoid_runs)"],
     ["ranks", "MPI ranks"], ["gales_dir", "GALES path on the server (~/gales)"],
-    ["preamble", "Setup command (e.g. module load openmpi)"]]
+    ["preamble", "Setup command (e.g. module load openmpi)"],
+    // A container on THIS machine instead of a server: the image that holds
+    // the toolchain GALES's Trilinos was built with. Leave the host blank.
+    ["image", "Container image instead (e.g. atlas-build-mesh)"]]
     .forEach(([key, label]) => {
       f[key] = textInput(label);
       const wrap = el("label", "research-field");
@@ -1451,11 +1456,14 @@ function galesRunner(host, api) {
   saveBtn.addEventListener("click", async () => {
     if (!sidecar.isConnected()) { say("Connect the sidecar first.", true); return; }
     const name = f.name.value.trim();
-    if (!name || !f.host.value.trim()) {
-      say("A server needs at least a name and a host.", true); return;
+    const image = f.image.value.trim();
+    if (!name || (!f.host.value.trim() && !image)) {
+      say("A target needs a name and either a host or a container image.", true); return;
     }
     try {
-      await sidecar.saveCompute({
+      if (image && !f.host.value.trim()) {
+        await sidecar.saveCompute({ name, kind: "docker", image, ranks: Number(f.ranks.value) || 1 });
+      } else await sidecar.saveCompute({
         name, kind: "ssh", host: f.host.value.trim(), user: f.user.value.trim(),
         port: Number(f.port.value) || 0, remote_root: f.remote_root.value.trim(),
         ranks: Number(f.ranks.value) || 4, gales_dir: f.gales_dir.value.trim(),

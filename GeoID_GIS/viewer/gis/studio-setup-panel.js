@@ -29,9 +29,9 @@
 import {
   MATERIALS, MATERIAL_PROPS, PHYSICS, defaultSetup, domainProperties, materialsPlan, propsText,
   icBcHeader, studySpec, studyTimes, setupSummary, sweepParameters, sweepValues, sweepSetups, sweepManifest,
-} from "./fem-setup.js?v=20260915-e0185f7";
-import { flagCheck } from "./mesh-flags.js?v=20260915-e0185f7";
-import { parseTable, guessColumns, buildGrid, pointwiseText, orderCheck } from "./tomography.js?v=20260915-e0185f7";
+} from "./fem-setup.js?v=20260915-e1d7175";
+import { flagCheck } from "./mesh-flags.js?v=20260915-e1d7175";
+import { parseTable, guessColumns, buildGrid, pointwiseText, orderCheck } from "./tomography.js?v=20260915-e1d7175";
 import * as THREE from "../vendor/three.module.js";
 
 const STORE_KEY = "geoid-studio:fem-setup";
@@ -467,7 +467,9 @@ async function listTargets() {
   if (!sidecar()?.isConnected?.()) return [];
   try { computeTargets = await sidecar().listCompute(); } catch (e) { computeTargets = null; }
   const list = computeTargets?.targets || [];
-  return Array.isArray(list) ? list : Object.values(list);
+  // The sidecar answers a map keyed by NAME; the name is the key, not a field,
+  // so `Object.values` alone offered "[object Object]" as a target.
+  return Array.isArray(list) ? list : Object.entries(list).map(([name, t]) => ({ name, ...(t || {}) }));
 }
 
 function renderStudy(host) {
@@ -494,7 +496,7 @@ function renderStudy(host) {
     for (const t of list) {
       const n = t.name || t;
       if ([...where.options].some((o) => o.value === n)) continue;
-      where.append(el("option", { value: n }, `${n}${t.host ? ` (${t.host})` : ""}`));
+      where.append(el("option", { value: n }, `${n}${t.host ? ` (${t.host})` : t.image ? ` (container ${t.image})` : ""}`));
     }
     where.value = st.target || "local";
   });
@@ -704,7 +706,9 @@ async function waitFor(id, label) {
   const snap = await sidecar().awaitJob(id, { timeoutMs: 6 * 3600 * 1000, everyMs: 1000 });
   job.status = snap.status;
   const ok = snap.status === "done" && !snap.exit_code;
-  const tail = String(snap.output || snap.log || "").trim().split("\n").slice(-3).join(" · ");
+  // The snapshot carries no log; its `tail` is the last few lines, which is
+  // where a prepare says its build failed without failing.
+  const tail = (Array.isArray(snap.tail) ? snap.tail : String(snap.output || snap.log || "").split("\n")).map((s) => String(s).trim()).filter(Boolean).slice(-3).join(" · ");
   say(`${label}: ${ok ? "done" : `${snap.status}${snap.exit_code != null ? ` (exit ${snap.exit_code})` : ""}`}.${tail ? ` ${tail}` : ""}${ok ? "" : " The Jobs drawer has the whole log."}`, ok ? "ok" : "error");
   rerender("study");
   return ok;

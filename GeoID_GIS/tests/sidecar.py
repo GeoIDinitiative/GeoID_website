@@ -200,6 +200,14 @@ def run_tests(root: Path) -> None:
         _, listed = c.call("/compute")
         check("lists the saved target and not the refused one",
               list(listed["targets"]) == ["srv"], str(list(listed["targets"])))
+        # A container is a target too, and it needs an image the way a server
+        # needs a host.
+        status, saved = c.call("/compute/save", {"name": "box", "kind": "docker", "image": "img:1", "ranks": 1})
+        check("saves a docker target with its image",
+              status == 200 and saved["target"]["image"] == "img:1", str(saved)[:60])
+        status, refused = c.call("/compute/save", {"name": "nobox", "kind": "docker"})
+        check("refuses a docker target with no image", status == 400, str(refused)[:60])
+        c.call("/compute/delete", {"name": "box"})
         c.call("/compute/delete", {"name": "srv"})
         _, listed = c.call("/compute")
         check("deletes a target", listed["targets"] == {})
@@ -221,12 +229,25 @@ def run_tests(root: Path) -> None:
             snap = c.wait_job(started["job_id"])
             check("the run executes and reports done", snap.get("status") == "done",
                   f"status={snap.get('status')} exit={snap.get('exit_code')}")
+            check("a job snapshot carries the tail of its log",
+                  isinstance(snap.get("tail"), list), str(snap.get("tail"))[:40])
             st = json.loads((run / "status.json").read_text())
             check("status.json records the outcome and where it ran",
                   st.get("status") == "done" and st.get("where") == "local", str(st)[:80])
 
         bare = root / "earth" / "p" / "fem_runs" / "bare"
         bare.mkdir(parents=True, exist_ok=True)
+        # A remote target builds where it runs, so the bare folder is not
+        # refused for lacking an executable: the job starts, or docker's own
+        # absence is what refuses it.
+        c.call("/compute/save", {"name": "box", "kind": "docker", "image": "img:1"})
+        status, remote = c.call("/jobs/gales", {"dir": "earth/p/fem_runs/bare", "target": "box"})
+        check("a remote target is not refused for lacking a local executable",
+              "nothing to run here" not in str(remote.get("error", "")),
+              f"HTTP {status} {str(remote)[:60]}")
+        if status == 200:
+            c.wait_job(remote["job_id"])
+        c.call("/compute/delete", {"name": "box"})
         status, err = c.call("/jobs/gales", {"dir": "earth/p/fem_runs/bare"})
         check("a run with nothing built names the fix",
               status == 400 and "Generate & build deck" in str(err.get("error", "")),
