@@ -1,17 +1,17 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260915-9faaf35";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260915-9faaf35";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260915-7ae4da7";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260915-7ae4da7";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260915-9faaf35";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260915-9faaf35";
-import { downloadText } from "./extraction.js?v=20260915-9faaf35";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260915-9faaf35";
-import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260915-9faaf35";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260915-9faaf35";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260915-9faaf35";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260915-9faaf35";
-import { femSpec } from "./model-build.js?v=20260915-9faaf35";
+} from "./mesh-volume.js?v=20260915-7ae4da7";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260915-7ae4da7";
+import { downloadText } from "./extraction.js?v=20260915-7ae4da7";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260915-7ae4da7";
+import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260915-7ae4da7";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260915-7ae4da7";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260915-7ae4da7";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260915-7ae4da7";
+import { femSpec } from "./model-build.js?v=20260915-7ae4da7";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -3738,10 +3738,12 @@ function partAt(clientX, clientY) {
 function partVisible(part, on) {
   part.mesh.visible = on;
   part.hidden = !on;
+  // A part another module draws (the FEM results) is told, so its own controls follow.
+  if (typeof part.onVisible === "function") { try { part.onVisible(on); } catch (e) { /* the mesh flag stands */ } }
   // The Workspace row is the other door to the same state.
   const layer = (window.GeoIDImportManager?.getLayers?.() || []).find((l) => l.object3D === part.mesh);
   if (layer && window.GeoIDLayerHierarchy?.setVisible) {
-    try { window.GeoIDLayerHierarchy.setVisible(layer.id, on); } catch (e) { /* the mesh flag stands */ }
+    try { window.GeoIDLayerHierarchy.setVisible(layer, on); } catch (e) { /* the mesh flag stands */ }
   }
 }
 
@@ -3958,8 +3960,26 @@ function watchVisibilityBox(box, root) {
   measure();
 }
 
+/**
+ * WHAT OTHER MODULES DRAW IN THE STUDIO. The domains and the mesh are the
+ * studio's own; the FEM results are the results panel's, which registers a
+ * provider answering a group of parts (or null when nothing is open). Without
+ * it the box listed the model and not the thing on screen over it.
+ */
+const visibilityProviders = new Map();
+
+function registerVisibility(id, provider) {
+  if (provider) visibilityProviders.set(id, provider); else visibilityProviders.delete(id);
+  renderVisibilityBox();
+}
+
 function visibilityGroups() {
   const groups = domainGroups();
+  for (const [id, provider] of visibilityProviders) {
+    let group = null;
+    try { group = provider(); } catch (e) { group = null; }
+    if (group?.parts?.length) groups.push({ ...group, id: group.id || id, external: true });
+  }
   const view = state.meshView;
   if (view?.parent) {
     groups.push({
@@ -4077,7 +4097,7 @@ function renderVisibilityBox() {
       partName.className = "layer-name";
       partName.textContent = label;
       partName.title = part.name;
-      if (!group.mesh) {
+      if (!group.mesh && !group.external) {
         partName.classList.add("is-link");
         partName.tabIndex = 0;
         partName.setAttribute("role", "button");
@@ -4625,6 +4645,8 @@ window.GeoIDMeshStudio = {
   ensureAnchor: () => ensureModelAnchor(),
   fitObject: (object3D) => fitView(object3D),
   setExternalBounds,
+  registerVisibility,
+  refreshVisibility: () => renderVisibilityBox(),
   log,
 };
 

@@ -426,3 +426,15 @@ const triangleArea = (p, k) => {
     check("Etna: u has 3 dofs a node, and its largest displacement is 85.41 m (numpy: 85.412219)", fit.nbDofs === 3 && near(rangeOf(mag)[1], 85.41221901847926, 1e-6));
   } else console.log("SKIP  Etna: the GALES tree is not beside the site");
 }
+
+// ── The results are in the studio's Visibility box ─────────────────────────
+{
+  const panel = readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8");
+  const studioSrc = readFileSync(new URL("./model-studio.js", import.meta.url), "utf8");
+  check("visibility: the studio takes providers, lists their groups, and publishes the seam", /const visibilityProviders = new Map\(\);/.test(studioSrc) && /groups\.push\(\{ \.\.\.group, id: group\.id \|\| id, external: true \}\)/.test(studioSrc) && /registerVisibility,/.test(studioSrc) && /refreshVisibility: \(\) => renderVisibilityBox\(\)/.test(studioSrc));
+  check("visibility: a part's switch tells its owner", /typeof part\.onVisible === "function"/.test(studioSrc));
+  check("visibility: the results register a group and hold each part in its own group, so refresh cannot undo a switch", /registerVisibility\("gales-results", visibilityGroup\)/.test(panel) && /scene\.parts\.surface\.add\(surface\)/.test(panel) && /scene\.parts\.slice\.add\(slice\)/.test(panel) && /scene\.parts\.edges\.add\(scene\.outline\)/.test(panel));
+  check("visibility: the box is redrawn when the results are built or disposed, and when its rows change, not on every step", /anchor\.add\(root\);\s*studio\(\)\?\.refreshVisibility\?\.\(\);/.test(panel) && /if \(visKey !== scene\.visKey\)/.test(panel));
+  check("visibility: a part switched off cannot be probed", /o\?\.visible && o\.parent\?\.visible !== false/.test(panel));
+  check("visibility: a Workspace layer is switched by its object, not its id", /GeoIDLayerHierarchy\.setVisible\(layer, on\)/.test(studioSrc));
+}

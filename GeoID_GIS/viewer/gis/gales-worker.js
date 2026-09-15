@@ -11,7 +11,7 @@
  *   { id, type: "slice", normal, d }       → { id, ok, slice }
  *   progress while parsing                 → { id, type: "progress", fraction }
  */
-import { parseMesh, sliceTets } from "./gales-results.js?v=20260915-9faaf35";
+import { parseMesh, sliceTets } from "./gales-results.js?v=20260915-7ae4da7";
 
 let mesh = null;
 

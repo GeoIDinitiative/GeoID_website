@@ -28,10 +28,10 @@ import {
   rangeOf, usedNodes, COLORMAPS, colormapTable, colourValues, niceTicks, formatValue,
   interpolateOnSlice, axisPlane, nodeByteRange, probeCsv, parseMesh, sliceTets,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
-} from "./gales-results.js?v=20260915-9faaf35";
-import { zipStore } from "./shapefile-writer.js?v=20260915-9faaf35";
-import { may, refusal } from "./membership.js?v=20260915-9faaf35";
-import { downloadText } from "./extraction.js?v=20260915-9faaf35";
+} from "./gales-results.js?v=20260915-7ae4da7";
+import { zipStore } from "./shapefile-writer.js?v=20260915-7ae4da7";
+import { may, refusal } from "./membership.js?v=20260915-7ae4da7";
+import { downloadText } from "./extraction.js?v=20260915-7ae4da7";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -322,6 +322,7 @@ function matchingStep(fieldIndex, time) {
 const scene = {
   root: null, frame: null, surface: null, slice: null, outline: null, marker: null,
   surfNodes: null, compact: null, base: null, centre: [0, 0, 0], radius: 1,
+  parts: null, // what the studio's Visibility box switches: one group per part, so a refresh cannot undo it
   clip: new THREE.Plane(), clipLocal: new THREE.Plane(),
 };
 
@@ -336,6 +337,10 @@ function disposeScene() {
     if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m.dispose?.());
   });
   scene.root = null;
+  scene.parts = null;
+  scene.visKey = "";
+  scene.listed = null;
+  studio()?.refreshVisibility?.();
 }
 
 /**
@@ -375,6 +380,14 @@ function buildScene() {
   scene.root = root;
   scene.frame = frame;
   scene.stationGroup = null;
+  /**
+   * EACH PART IS ITS OWN GROUP. `refresh()` sets the surface, the slice and
+   * the edges visible or not by the display choice on every step; a switch in
+   * the Visibility box written onto those meshes would be undone by the next
+   * one. A group above each holds the reader's choice and nothing else.
+   */
+  const part = (name) => { const g = new THREE.Group(); g.name = `gales-part-${name}`; frame.add(g); return g; };
+  scene.parts = { surface: part("surface"), slice: part("slice"), edges: part("edges"), points: part("points") };
 
   const nodes = usedNodes(mesh.surface, mesh.nodeCount);
   const compact = new Int32Array(mesh.nodeCount).fill(-1);
@@ -407,7 +420,7 @@ function buildScene() {
     if (!material.clippingPlanes?.length) return;
     scene.clip.copy(scene.clipLocal).applyMatrix4(frame.matrixWorld);
   };
-  frame.add(surface);
+  scene.parts.surface.add(surface);
   scene.surface = surface;
 
   const sliceGeometry = new THREE.BufferGeometry();
@@ -415,7 +428,7 @@ function buildScene() {
   slice.name = "gales-slice";
   slice.visible = false;
   slice.frustumCulled = false;
-  frame.add(slice);
+  scene.parts.slice.add(slice);
   scene.slice = slice;
 
   if (mesh.edges?.length) {
@@ -428,7 +441,7 @@ function buildScene() {
     g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
     scene.outline = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0x111111 }));
     scene.outline.frustumCulled = false;
-    frame.add(scene.outline);
+    scene.parts.edges.add(scene.outline);
   } else scene.outline = null;
 
   const marker = new THREE.Mesh(
@@ -438,15 +451,83 @@ function buildScene() {
   marker.renderOrder = 10;
   marker.visible = false;
   marker.scale.setScalar(scene.radius * 0.008);
-  frame.add(marker);
+  scene.parts.points.add(marker);
   scene.marker = marker;
 
   anchor.add(root);
+  studio()?.refreshVisibility?.();
   // The ground lattice cuts a hole under the results and the camera may go
   // below them, as it does under a buried solid.
   studio()?.setExternalBounds?.("gales-results", resultBounds());
   const viewer = window.GeoIDViewer;
   if (viewer?.renderer) viewer.renderer.localClippingEnabled = true;
+}
+
+// ── The studio's Visibility box ─────────────────────────────────────────────
+
+const PART_ROWS = [
+  ["surface", "Boundary surface", 0x8fb8de],
+  ["slice", "Slice / clip cut", 0xe0a458],
+  ["edges", "Mesh edges", 0x444444],
+  ["points", "Points and probes", 0xffd166],
+];
+
+function anyPartShown() {
+  return Boolean(scene.parts) && Object.values(scene.parts).some((g) => g.visible !== false);
+}
+
+/** The results' parts changed visibility: the lattice hole, the legend and the panel follow. */
+function partsChanged() {
+  studio()?.setExternalBounds?.("gales-results", anyPartShown() ? resultBounds() : null);
+  renderControls();
+  refresh();
+}
+
+function setAllParts(on) {
+  if (!scene.parts) return;
+  Object.values(scene.parts).forEach((g) => { g.visible = on; });
+  partsChanged();
+  studio()?.refreshVisibility?.();
+}
+
+/**
+ * The results as a group of the Visibility box, one row per part that has
+ * something in it: the slice only once a slice is shown, the edges only where
+ * the mesh has them, the points only once there are some.
+ */
+function visibilityGroup() {
+  if (!scene.root || !scene.parts) return null;
+  const has = {
+    surface: Boolean(scene.surface),
+    slice: S.view !== "surface",
+    edges: Boolean(scene.outline),
+    points: Boolean(S.stations?.length || S.probe),
+  };
+  // A part that has just come to be (a slice shown, a first point placed)
+  // arrives visible: a "Hide results" pressed before it existed was not about it.
+  const listed = scene.listed || (scene.listed = new Set());
+  for (const key of Object.keys(has)) {
+    if (has[key] && !listed.has(key)) { listed.add(key); if (anyPartShown()) scene.parts[key].visible = true; }
+    else if (!has[key]) listed.delete(key);
+  }
+  const desc = currentDesc();
+  const name = S.fields[S.field]?.field || "";
+  const parts = PART_ROWS.filter(([key]) => has[key]).map(([key, label, colour]) => ({
+    id: `gales-${key}`, name: key === "surface" && name ? `${label} — ${name}` : label, face: label,
+    kind: "results", mesh: scene.parts[key], colour,
+    onVisible: () => { partsChanged(); },
+  }));
+  return { id: "gales-results", title: desc ? `FEM results — ${name}` : "FEM results", parts };
+}
+
+if (typeof window !== "undefined") {
+  let tries = 0;
+  const hook = () => {
+    const st = window.GeoIDMeshStudio;
+    if (st?.registerVisibility) st.registerVisibility("gales-results", visibilityGroup);
+    else if (tries++ < 120) setTimeout(hook, 500);
+  };
+  hook();
 }
 
 // ── Refresh: field → colours, warp, slice, legend ───────────────────────────
@@ -601,6 +682,11 @@ async function refresh({ fit = false } = {}) {
 
     updateProbeMarker(disp);
     updateStationMarkers(disp);
+    // The box names the field and lists the slice once there is one: redraw it
+    // when that changes, never on every step of a play.
+    const g = visibilityGroup();
+    const visKey = g ? `${g.title}|${g.parts.map((p) => p.id).join(",")}` : "";
+    if (visKey !== scene.visKey) { scene.visKey = visKey; studio()?.refreshVisibility?.(); }
     renderLegend(desc, lo, hi, table);
     renderStepReadout();
     if (fit) studio()?.fitObject?.(scene.surface);
@@ -637,7 +723,8 @@ function installProbe() {
 
 function probeAt(clientX, clientY, canvas) {
   const viewer = window.GeoIDViewer;
-  const targets = [scene.surface, scene.slice].filter((o) => o?.visible);
+  // A part switched off in the Visibility box is not there to probe.
+  const targets = [scene.surface, scene.slice].filter((o) => o?.visible && o.parent?.visible !== false);
   if (!targets.length || !viewer?.camera) return;
   const rect = canvas.getBoundingClientRect();
   const pointer = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
@@ -822,7 +909,7 @@ function legendNode() {
 function renderLegend(desc, lo, hi, table) {
   const node = legendNode();
   if (!node) return;
-  if (!desc || !scene.root?.visible) { node.hidden = true; return; }
+  if (!desc || !scene.root?.visible || !anyPartShown()) { node.hidden = true; return; }
   node.hidden = false;
   node.textContent = "";
   const f = S.fields[S.field];
@@ -1052,13 +1139,10 @@ function renderControls() {
   ds.body.append(row("Opacity", opacity));
   const fitBtn = el("button", { class: "studio-secondary", type: "button" }, "Fit the view");
   fitBtn.addEventListener("click", () => studio()?.fitObject?.(scene.surface));
-  const hide = el("button", { class: "studio-secondary", type: "button" }, scene.root?.visible === false ? "Show results" : "Hide results");
+  const hide = el("button", { class: "studio-secondary", type: "button" }, anyPartShown() ? "Hide results" : "Show results");
   hide.addEventListener("click", () => {
     if (!scene.root) return;
-    scene.root.visible = !scene.root.visible;
-    studio()?.setExternalBounds?.("gales-results", scene.root.visible ? resultBounds() : null);
-    renderControls();
-    refresh();
+    setAllParts(!anyPartShown());
   });
   ds.body.append(el("div", { class: "studio-actions" }, fitBtn, hide));
   host.append(ds.details);
@@ -1155,7 +1239,7 @@ function updateStationMarkers(disp) {
   if (!scene.stationGroup) {
     scene.stationGroup = new THREE.Group();
     scene.stationGroup.name = "gales-stations";
-    scene.frame.add(scene.stationGroup);
+    (scene.parts?.points || scene.frame).add(scene.stationGroup);
   }
   const group = scene.stationGroup;
   while (group.children.length > S.stations.length) {

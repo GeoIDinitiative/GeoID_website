@@ -19896,3 +19896,20 @@ A tab per LAYER showed one hazard twice, e.g. the cyclone grid beside the estima
 - **The window opens by itself once per session** (sessionStorage `geoid-gis:risk-reader-opened`). After that, new maps pulse the shield.
 
 Verified live: a Miami box with cyclone risk gave one tab holding both layers and the chooser shown. Stepping the bar to 2006 read "Following Cyclone risk — 2006 — the estimate after 27 seasons · its frame stepped". A flood `.asc` added a tab. Hiding both cyclone layers greyed that tab with its reading kept, and showing it again triggered no re-read. A legend click, a Workspace row click and a tab pin with "Follow the globe" each behaved as designed. A map arriving while the window was shut pulsed the shield and left the window shut.
+
+### The FEM results are in the Model page's Visibility box
+
+The box listed the studio's own domains and mesh, but not the GALES results drawn over them, so there was no way to hide those results from where everything else is hidden.
+
+- **`GeoIDMeshStudio.registerVisibility(id, provider)` is the seam.** A provider returns a group of parts, or null when it has nothing open, and `refreshVisibility()` redraws the box. An external group gets eyes and counts, but no part card.
+- **Each results part sits in its own group:** surface, slice/clip cut, mesh edges, and points/probes. `refresh()` sets the surface, slice and edges meshes visible by the display choice on every step, so a switch written onto the mesh itself was undone by the next step. The group above each mesh holds the reader's choice and nothing else.
+- **A part arrives visible when it first appears** (a slice shown, a first point placed). A "Hide results" pressed before that part existed was not about it.
+- **The legend, the ground lattice's hole, the probe raycast and the panel's Hide/Show button** all read the part groups, so they stay in step with the box.
+- **The box is redrawn when its title or rows change**, never on every step of a play.
+- **Also fixed:** `partVisible` passed a layer id to `GeoIDLayerHierarchy.setVisible`, which takes the layer object.
+
+Verified live with the Etna run (mesh_4core plus two steps of u, opened through `GeoIDGalesResults.openFolder`):
+- The box lists "FEM results — solid/u".
+- The surface switched off stayed off through a refresh.
+- The master eye and the Hide/Show button agree.
+- Switching to Both lists "Slice / clip cut", visible.
