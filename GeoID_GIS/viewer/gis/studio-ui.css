@@ -472,3 +472,4 @@
 #model-studio .ra-stats td { text-align: right; padding: 0.2rem 0.3rem; white-space: nowrap; }
 #model-studio .ra-stats th:first-child, #model-studio .ra-stats td:first-child { text-align: left; }
 #model-studio .ra-stats-swatch { display: inline-block; width: 0.6rem; height: 0.6rem; border-radius: 2px; margin-right: 0.35rem; vertical-align: middle; }
+#model-studio .ra-obs-text { width: 100%; box-sizing: border-box; min-height: 5.5rem; height: auto; resize: vertical; font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: var(--st-fs-small); line-height: 1.35; padding: 0.35rem 0.45rem; white-space: pre; }

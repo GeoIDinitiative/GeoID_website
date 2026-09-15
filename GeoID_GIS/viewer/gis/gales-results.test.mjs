@@ -554,5 +554,9 @@ check("a mesh opened onto a loaded run starts a new run; results join the open o
   check("analysis: profiles and stats read the sampling scalar (LOS, not wrapped fringes) and wrap after", /results\.samplingScalar \|\| results\.scalar/.test(analysis) && /results\.afterSampling \? results\.afterSampling\(samples\)/.test(analysis) && /afterSampling: \(samples/.test(panel));
   check("analysis: a satellite geometry change is part of the selection it follows", /S\.insar\?\.heading/.test(analysis));
   check("analysis: a Statistics by domain card, recomputed when the selection changes, a press during a run queued", /card\("Statistics by domain"/.test(analysis) && /L\.stats\.open && L\.stats\.result && sig !== L\.stats\.sig/.test(analysis) && /T\.pending = true/.test(analysis));
+  check("observations: a Compare card that parses and fits with observations.js, and follows the selection", /card\("Compare with observations"/.test(analysis) && /import \{ parseObservations, fitScale, pairsOf, comparisonCsv \} from "\.\/observations\.js\?v=/.test(analysis) && /L\.obs\.result && obsSignature\(\) !== L\.obs\.sig/.test(analysis));
+  check("observations: a station is interpolated in its element, else read at the ground below it, never at the base", /located\.nodes\[slot \* 4\] >= 0/.test(analysis) && /function groundBelow/.test(analysis) && /bestZ/.test(analysis));
+  check("observations: LOS is modelled with the Results satellite geometry", /losVector\(S\.insar\)/.test(analysis));
+  check("observations: a 2D mesh is refused rather than read as a map", /S\.mesh\.dim === 2\) return refuse/.test(analysis));
   check("refresh keeps its own LOS against the analysis reading the scalar between its awaits", /const losHere = S\.losRaw;/.test(panel) && /interpolateOnSlice\(sliced\.slice, losHere\)/.test(panel));
 }
