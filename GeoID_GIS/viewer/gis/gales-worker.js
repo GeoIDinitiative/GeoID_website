@@ -15,10 +15,10 @@
  *   { id, type: "quality" }                → { id, ok, analysis }  (mesh-quality.js, by transfer)
  *   progress while parsing                 → { id, type: "progress", fraction }
  */
-import { parseMesh, sliceTets, cellLocator, locatePoints, domainStats } from "./gales-results.js?v=20260915-9df0411";
-import { analyseMesh } from "./mesh-quality.js?v=20260915-9df0411";
-import { derivedFields, materialAt } from "./strain-stress.js?v=20260915-9df0411";
-import { parseTable, buildGrid, sampleGrid } from "./tomography.js?v=20260915-9df0411";
+import { parseMesh, sliceTets, cellLocator, locatePoints, domainStats } from "./gales-results.js?v=20260915-43c303e";
+import { analyseMesh } from "./mesh-quality.js?v=20260915-43c303e";
+import { derivedFields, materialAt } from "./strain-stress.js?v=20260915-43c303e";
+import { parseTable, buildGrid, sampleGrid } from "./tomography.js?v=20260915-43c303e";
 
 let mesh = null;
 let locator = null; // built on the first locate, dropped with the mesh

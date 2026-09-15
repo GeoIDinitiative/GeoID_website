@@ -26,10 +26,10 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, formatValue } from "./gales-results.js?v=20260915-9df0411";
-import { downloadText } from "./extraction.js?v=20260915-9df0411";
-import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-9df0411";
-import { losVector } from "./insar.js?v=20260915-9df0411";
+import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, formatValue } from "./gales-results.js?v=20260915-43c303e";
+import { downloadText } from "./extraction.js?v=20260915-43c303e";
+import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-43c303e";
+import { losVector } from "./insar.js?v=20260915-43c303e";
 
 const byId = (id) => document.getElementById(id);
 const R = () => window.GeoIDGalesResults;
@@ -488,7 +488,10 @@ function groundBelow(x, y) {
     d2[k] = d;
     if (d < dmin) dmin = d;
   }
-  const reach = (Math.sqrt(dmin) * 2 + 0.002 * diagonalOf(S.mesh.bounds)) ** 2;
+  // Twice the nearest distance reaches the neighbouring nodes a station between
+  // nodes sits among, and no further: a slack in model units would pass over a
+  // station standing exactly on a node to a higher neighbour hundreds of metres off.
+  const reach = (Math.sqrt(dmin) * 2 + 1e-6 * diagonalOf(S.mesh.bounds)) ** 2;
   let best = -1;
   let bestZ = -Infinity;
   for (let k = 0; k < nodes.length; k += 1) {
@@ -531,7 +534,7 @@ async function placeStations(stations) {
     if (node < 0) { s.placed = "outside the model"; return null; }
     const c = mesh.coords;
     s.px = c[node * 3]; s.py = c[node * 3 + 1]; s.pz = c[node * 3 + 2];
-    s.placed = s.z === null ? "on the surface" : "on the surface (its height is outside the mesh)";
+    s.placed = s.z === null ? "on the surface (nearest node)" : "on the surface (its height is outside the mesh)";
     return { slot: -1, node };
   });
   return { at, located };

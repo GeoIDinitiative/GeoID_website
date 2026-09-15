@@ -20342,3 +20342,40 @@ worker's `stats` request runs it where the cells are; CSV via
   `busy` meant a probe's own `computeStats()` came back holding the previous
   selection's answer, measured as a magnitude result while fringes were
   selected.
+
+## Compare with observations: a model is judged against the ground
+
+Analysis ▸ Compare with observations reads a GNSS or InSAR line-of-sight
+table at its stations in the open displacement. `observations.js` is the pure
+half (15 checks); the placement, arrows and card live in
+`results-analysis-panel.js`.
+
+- **One least-squares number, and why it is enough to start.** For a linear
+  elastic model every displacement scales with the source's strength, so
+  k = Σ w·d·m / Σ w·m² is the best strength for the geometry. The misfit
+  before and after it says whether the SHAPE fits even where the size does
+  not, which is what to ask before changing the geometry. Weights are 1/σ²
+  only when every component carries a sigma. A mix is flagged and fitted
+  unweighted rather than half-weighted.
+- **A header is words past the first cell.** "A 0 0 10 …" is a named data
+  row, not a header. Unheaded rows are read by count: 6+ numbers are GNSS
+  with z, 5 are GNSS without z, and 3–4 are LOS. The status says the columns
+  were read by position.
+- **A station with z is interpolated in its element** (`locate` plus
+  `sampleLocated`, the profile's path). A station without z, or with a height
+  the mesh does not contain, reads THE GROUND BELOW it: the highest surface
+  node among those horizontally nearest. The base and the sides are surface
+  too, so the nearest node alone can sit 50 km under the station.
+- **The reach for "nearest" is twice the nearest distance, not a slack in
+  model units.** With 0.002 of the diagonal (about 280 m on Etna), a station
+  standing exactly on a node was passed to a higher neighbour. Measured: a
+  synthetic 0.4× table came back 0.3995 with 33 mm of residual. With the
+  local reach it came back **0.4000000, residual 5e-7 mm**.
+- **Beyond the mesh's plan extent a station is not placed**, rather than
+  given a distant node's value, and its row says so.
+- **LOS uses the Results satellite geometry** (`losVector(S.insar)`). The
+  Results LOS scale is not applied: the fit finds the scale. Verified on Etna
+  with 40 stations at their node heights (inside the mesh) and a model scaled
+  2.5×, Sentinel-1 ascending: k = 2.5000000, RMS 4 µm.
+- **A 2D mesh is refused.** Its plane could be a map or a section, and
+  guessing which puts every station in the wrong place.
