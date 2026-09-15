@@ -128,3 +128,19 @@ const box = (flag, name, zMin, zMax, extra = {}) => ({ flag, name, zMin, zMax, v
   const style = panel.slice(panel.indexOf("const STYLE = `") + 15, panel.indexOf("`;", panel.indexOf("const STYLE = `")));
   check("style: no backtick or octal escape inside the CSS literal", !style.includes("`") && !/\\[0-9]/.test(style));
 }
+
+// ── a tomography grid in place of the domains' materials ──
+{
+  const { propsText: pt, checkSetup: cs, studySpec: ss } = await import("./fem-setup.js");
+  const pointwise = { file: "pointwise_elasticity_data.txt", dim: 3, bounds: { min: [0, 0, -25000], max: [48000, 48000, 2000] } };
+  const text = pt("solid", { mode: "none" }, { dim: 3, pointwise });
+  check("props: a grid writes GALES's heterogeneous_pointwise block, as the Etna DTGEO deck has it", /heterogeneous_pointwise\n   \{\n      input_file   3d   pointwise_elasticity_data\.txt\n   \}/.test(text) && (text.match(/\{/g) || []).length === (text.match(/\}/g) || []).length);
+  const targets = { dim: 3, domains: [box(10, "Crust", -30000, 3000)], faces: [{ flag: 2, name: "base" }] };
+  const withGrid = { ...defaultSetup(), pointwise, conditions: { 2: { type: "fixed" } } };
+  const issues = cs(withGrid, targets);
+  check("check: a grid stands in for a material, and a model reaching past the grid is said", !issues.some((i) => i.level === "error") && issues.some((i) => /beyond the grid/.test(i.text)));
+  check("check: a grid under heat or fluid physics is an error", cs({ ...withGrid, physics: "heat" }, targets).some((i) => i.level === "error" && /only the solid/.test(i.text)));
+  check("check: a 2D grid on a 3D model is an error", cs({ ...withGrid, pointwise: { ...pointwise, dim: 2 } }, targets).some((i) => i.level === "error" && /2D/.test(i.text)));
+  const spec = ss(withGrid, targets, { mesh: "m.msh" });
+  check("spec: the plan says pointwise and props.txt carries the block", spec.materials.plan === "pointwise" && spec.materials.pointwise.file === pointwise.file && /heterogeneous_pointwise/.test(spec.gales.files["props.txt"]));
+}

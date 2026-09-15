@@ -20064,3 +20064,86 @@ defined in.
   gmsh script writing `study_1.msh` into an in-memory project. Meshing,
   preparing and solving were not run here (no sidecar connected, and no local
   solves).
+
+## Build and Analyse: the Model page's two workspaces, and the pipeline strip
+
+`gis/studio-workspaces.js` puts a Build | Analyse switch at the top of the
+deck, and under it a PIPELINE STRIP: GIS ▸ Geometry ▸ Materials ▸ Physics ▸
+Mesh ▸ Study ▸ Results ▸ Research. Each step shows a state dot and is a button
+to that step.
+- **Build** means model and mesh, and it leads in from the GIS page.
+- **Analyse** means results and dofs, and it leads out to the Research hub.
+- **The strip's ends leave the page**, through `GeoIDModeManager.setMode`.
+
+- **Nothing is moved.** A tab says which workspace it belongs to (`SPACE_OF`,
+  written onto `data-space` at runtime) and CSS hides the other workspace's
+  tabs, so every id and handler survives. Study and Log belong to both, because
+  Study is where one workspace hands over to the other. A test checks that
+  every tab in the markup is assigned.
+- **A tab opened by any door brings its workspace forward.** A
+  MutationObserver on `open` does it, so a checklist line or "Open results"
+  cannot open a tab that stays hidden.
+- **The strip reads the same summary as the Study checklist**
+  (`GeoIDFemSetup.summary()` = `setupSummary` plus the solver mesh's
+  `flagCheck`). When they read different things, the strip showed Study green
+  over a checklist error.
+
+## The solver mesh: what gmsh wrote, on the model and checked
+
+The lattice Mesh 3D is a preview. `gis/real-mesh-panel.js` (in the Mesh pane,
+`#studio-realmesh-host`) opens a gmsh `.msh` or a GALES text mesh, or runs the
+model's own script in the sidecar and opens the result.
+- **Drawing.** It draws one mesh per face flag, each a row in the Visibility
+  box, with optional element edges.
+- **Report.** `mesh-flags.js` gives elements by kind, cells by volume flag,
+  sides by face flag, and flags carried only by nodes.
+- **Check.** `flagCheck` sets the setup against those flags. A condition on a
+  flag the mesh has no face for is an ERROR naming the flags it does have,
+  because GALES builds and runs a deck whose condition reaches nothing.
+- **Quality.** The Quality card offers the mesh as a source.
+
+Verified: a gmsh 1 m box (341 nodes, 1,140 tets, faces 1/2/5 at 90/90/360)
+loaded and drew by flag. A condition on flag 7 turned Physics and Study red.
+
+## Tomography: the material at depth, in the order GALES reads it
+
+GALES's solid takes `heterogeneous_pointwise { input_file 3d <file> }` in
+`props.txt`, and reads `input/<file>` as a count line followed by
+`x y z rho E nu` rows (`solid_properties.hpp`).
+- **Indexing.** It sorts the unique x, y and z and INDEXES THE ROWS BY
+  POSITION: row = iz·nx·ny + iy·nx + ix, every index ascending. Nothing checks
+  the rows really are in that order.
+- **Interpolation.** It is trilinear. A fixed mantle (3300 kg/m³, 125.51 GPa)
+  applies below z = −25 km, hard-coded in the reader.
+
+**THE `etna_3d_atlas` COPY OF THE ETNA GRID IS WRITTEN z-DESCENDING.**
+GALES would read it upside down: 125 GPa at the surface and 14 GPa at 25 km,
+with no error. That sim's `props.txt` is uniform and does not read the file.
+`etna_3D_DTGEO`, which does read its grid, and
+`earth_explorer/etna/input/tomography_elasticity_data.txt` are both in the
+right order. `tomography.test.mjs` pins all three.
+
+`gis/tomography.js` (pure) never passes rows through:
+- **Rebuilds the grid.** It reorders the rows into the reader's order, refuses
+  a grid with a missing node (a gap would shift every row after it), and
+  checks ρ > 0, E > 0 and −1 < ν < 0.5.
+- **Two kinds of input:**
+  - elastic: `x y z rho E nu`, in any order, with or without the count line or
+    a header;
+  - velocity: `x y z Vp [Vs]`, converted by Brocher (2005). Nafe–Drake gives
+    density, Vs comes from Vp when absent, then the dynamic isotropic moduli,
+    with an optional static/dynamic ratio on E.
+- **Frame controls.** Coordinates in m or km, z as elevation or depth, and an
+  offset to subtract (for example a UTM origin).
+
+**In the page.** The Materials card shows ranges, a mean depth profile of E
+and ρ, and the grid nodes on the model coloured by E. `fem-setup.js` writes
+the pointwise block in `props.txt`, lets the grid stand in for domain
+materials (solid only, with dimension and z-extent checks), and records the
+grid in the spec. Write study puts the grid in the run's `input/`. The
+sidecar's prepare refuses a `props.txt` that names an `input_file` the run
+does not have.
+
+The built grid text is kept in `localStorage["geoid-studio:fem-tomography"]`
+and restored with the setup. The raw file is not kept, so changing the frame
+options after a reload means loading the file again.

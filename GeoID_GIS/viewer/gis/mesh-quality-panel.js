@@ -26,9 +26,9 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { METRICS, analyseMesh, summarise, verdict, elementFaces, elementCentroid } from "./mesh-quality.js?v=20260915-247ef13";
+import { METRICS, analyseMesh, summarise, verdict, elementFaces, elementCentroid } from "./mesh-quality.js?v=20260915-1b203d8";
 
-const AUTO_LIMIT = { studio: 250000, gales: 1500000 };
+const AUTO_LIMIT = { studio: 250000, real: 250000, gales: 1500000 };
 const DRAW_LIMIT = 20000;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
 const POOR = 0xff4d5e;
@@ -102,6 +102,8 @@ export function availableMeshes() {
   const out = [];
   const s = studio()?.state?.mesh;
   if (s?.tets?.length && s?.nodes?.length) out.push({ id: "studio", label: "Studio mesh", noun: "studio mesh", mesh: s });
+  const real = window.GeoIDRealMesh?.mesh;
+  if (real?.cellOffsets?.length > 1) out.push({ id: "real", label: "Solver mesh (gmsh)", noun: "solver mesh", mesh: real });
   const g = results()?.state?.mesh;
   if (g?.coords?.length && g.cellCount > 0 && results()?.quality) out.push({ id: "gales", label: "FEM results mesh", noun: "FEM results mesh", mesh: g });
   return out;

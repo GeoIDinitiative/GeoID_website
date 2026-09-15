@@ -1342,6 +1342,16 @@ class Handler(BaseHTTPRequestHandler):
                         old.unlink()
             (run_dir / name).write_text(text.replace("../../../src/", "GALES_SRC/src/"))
             written.append(name)
+        # A pointwise material (a tomography grid) is read by the solver from
+        # input/<file> at run time; a deck that names one it does not have builds
+        # and then stops at the first element. Refuse it here instead.
+        props_file = run_dir / "props.txt"
+        if props_file.is_file():
+            for m in re.finditer(r"input_file\s+(2d|3d)\s+(\S+)", props_file.read_text()):
+                if not (input_dir / m.group(2)).is_file():
+                    raise FileNotFoundError(
+                        f"props.txt reads its material from input/{m.group(2)}, which this run does not have "
+                        "— write the study again with the tomography grid loaded")
         if gales.get("setup") and setup_path.exists():
             setup_path.write_text(self._patch_lines(setup_path.read_text(), {
                 k: v for k, v in gales["setup"].items() if k in ("delta_t", "final_time", "print_freq", "n_max_it")}))

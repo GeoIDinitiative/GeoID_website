@@ -178,7 +178,7 @@ export function materialsPlan(domains, materials) {
 const g = (v) => (Number.isFinite(v) ? Number(v).toPrecision(8).replace(/\.?0+(e|$)/, "$1") : "0");
 
 /** The `props.txt` a family reads, from the plan. */
-export function propsText(physics, plan, { dim = 3, options = {} } = {}) {
+export function propsText(physics, plan, { dim = 3, options = {}, pointwise = null } = {}) {
   const p = plan?.props || {};
   if (physics === "heat") {
     return `heat_equation\n{\n   custom\n   {\n     rho             ${g(p.rho)}\n     cp              ${g(p.cp)}\n     kappa           ${g(p.k)}\n   }\n}\n`;
@@ -190,7 +190,12 @@ export function propsText(physics, plan, { dim = 3, options = {} } = {}) {
   const lines = ["solid", "{", "   material        Hookes", "",
     `   plane_strain    ${dim === 2 ? "T" : "F"}`, "   plane_stress    F", "   axisymmetric    F", "",
     `   rho             ${g(p.rho)}`, `   E               ${g(p.E)}`, `   nu              ${g(p.nu)}`];
-  if (plan?.mode === "layers") {
+  if (pointwise?.file) {
+    // A tomography grid: GALES interpolates rho, E and nu from input/<file> at
+    // every quadrature point, in place of the uniform values above (which
+    // stay as the fallback its reader prints).
+    lines.push("", "   heterogeneous_pointwise", "   {", `      input_file   ${pointwise.dim === 2 ? "2d" : "3d"}   ${pointwise.file}`, "   }");
+  } else if (plan?.mode === "layers") {
     lines.push("", `   heterogeneous_layers ${plan.axis}-wise`, "   {");
     plan.layers.forEach((layer) => {
       lines.push("     layer", "     {", `        bound           ${g(layer.lo)} ${g(layer.hi)}`,
@@ -318,9 +323,19 @@ export function checkSetup(setup, targets) {
   const solids = (targets.domains || []).filter((d) => !d.void);
   if (!solids.length) out.push({ level: "error", step: "geometry", text: "Add geometry: there is no domain to solve on." });
   const plan = materialsPlan(targets.domains || [], setup.materials || {});
-  if (plan.mode === "none") out.push({ level: "error", step: "materials", text: "Give at least one domain a material." });
-  plan.issues?.forEach((text) => out.push({ level: "warning", step: "materials", text }));
-  if (plan.props) {
+  const pointwise = setup.pointwise?.file ? setup.pointwise : null;
+  if (pointwise && setup.physics !== "solid") out.push({ level: "error", step: "materials", text: "A tomography grid sets rho, E and nu, which only the solid mechanics physics reads. Remove it or switch physics." });
+  if (pointwise && setup.physics === "solid") {
+    if (plan.mode !== "none") out.push({ level: "warning", step: "materials", text: "The tomography grid sets the material everywhere: the domains' own materials are written as the fallback only." });
+    if (pointwise.dim !== (targets.dim || 3)) out.push({ level: "error", step: "materials", text: `The tomography grid is ${pointwise.dim}D and the model is ${targets.dim || 3}D.` });
+    if (pointwise.bounds && targets.domains?.length) {
+      const zLo = Math.min(...targets.domains.map((d) => d.zMin)); const zHi = Math.max(...targets.domains.map((d) => d.zMax));
+      const [gLo, gHi] = [pointwise.bounds.min[2], pointwise.bounds.max[2]];
+      if (pointwise.dim === 3 && (zLo < gLo - 1e-6 || zHi > gHi + 1e-6)) out.push({ level: "warning", step: "materials", text: `The model spans z ${Math.round(zLo)} to ${Math.round(zHi)} m and the grid ${Math.round(gLo)} to ${Math.round(gHi)} m: GALES holds the edge values beyond the grid (and its reader sets a fixed mantle below z = −25 km).` });
+    }
+  } else if (plan.mode === "none") out.push({ level: "error", step: "materials", text: "Give at least one domain a material." });
+  if (!pointwise) plan.issues?.forEach((text) => out.push({ level: "warning", step: "materials", text }));
+  if (plan.props && !pointwise) {
     for (const key of P.props) {
       const spec = MATERIAL_PROPS[key];
       const value = plan.props[key];
@@ -390,12 +405,12 @@ export function studySpec(setup, targets, { mesh, dim = 3, provenance = {} } = {
     boundary: Object.entries(setup.conditions || {})
       .filter(([, c]) => c?.type && c.type !== "free")
       .map(([flag, c]) => ({ flag: Number(flag), surface: targets.faces?.find((f) => Number(f.flag) === Number(flag))?.name || `flag ${flag}`, type: c.type, value: c.values || {} })),
-    materials: { plan: plan.mode, domains: Object.fromEntries(Object.entries(setup.materials || {}).map(([flag, a]) => [flag, { material: a.id, properties: domainProperties(a) }])) },
+    materials: { plan: setup.pointwise?.file ? "pointwise" : plan.mode, pointwise: setup.pointwise?.file ? { file: setup.pointwise.file, dim: setup.pointwise.dim, source: setup.pointwise.source, counts: setup.pointwise.counts, bounds: setup.pointwise.bounds } : null, domains: Object.fromEntries(Object.entries(setup.materials || {}).map(([flag, a]) => [flag, { material: a.id, properties: domainProperties(a) }])) },
     gales: {
       family: P.family,
       files: {
         [P.header]: icBcHeader(setup.physics, setup),
-        "props.txt": propsText(setup.physics, plan, { dim, options: setup.options }),
+        "props.txt": propsText(setup.physics, plan, { dim, options: setup.options, pointwise: setup.pointwise?.file ? setup.pointwise : null }),
       },
       setup: { delta_t: times.delta_t, final_time: times.final_time, print_freq: times.print_freq },
     },
@@ -420,7 +435,7 @@ export function setupSummary(setup, targets) {
   const by = (step) => issues.filter((i) => i.step === step);
   const level = (list) => (list.some((i) => i.level === "error") ? "error" : list.length ? "warning" : "ok");
   return {
-    materials: { assigned: solids.filter((d) => setup?.materials?.[d.flag]?.id).length, of: solids.length, level: level(by("materials")) },
+    materials: { assigned: solids.filter((d) => setup?.materials?.[d.flag]?.id).length, of: solids.length, pointwise: Boolean(setup?.pointwise?.file), level: level(by("materials")) },
     physics: { set: conditions.length, of: faceFlags.size, level: level(by("physics")) },
     study: { errors: issues.filter((i) => i.level === "error").length, warnings: issues.filter((i) => i.level === "warning").length, level: level(issues) },
     issues,
