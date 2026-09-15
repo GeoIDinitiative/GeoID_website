@@ -26,10 +26,11 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, formatValue } from "./gales-results.js?v=20260915-0d5c7dc";
-import { downloadText } from "./extraction.js?v=20260915-0d5c7dc";
-import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-0d5c7dc";
-import { losVector } from "./insar.js?v=20260915-0d5c7dc";
+import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, formatValue } from "./gales-results.js?v=20260915-fac5260";
+import { downloadText } from "./extraction.js?v=20260915-fac5260";
+import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-fac5260";
+import { losVector } from "./insar.js?v=20260915-fac5260";
+import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260915-fac5260";
 
 const byId = (id) => document.getElementById(id);
 const R = () => window.GeoIDGalesResults;
@@ -41,6 +42,7 @@ const L = {
   glyph: { on: false, field: -1, count: 2000, scale: 1, mesh: null, sig: "" },
   meshSig: "",
   stats: { open: false, result: null, sig: "", busy: false, text: "", label: "" },
+  src: { open: false, x0: 0, y0: 0, depth: 5000, dV: 1e6, nu: 0.25, mode: "dV", dP: 1e7, radius: 1000, E: 30e9, fitDV: true, result: null, inversion: null, text: "", busy: false, sig: "", marker: null, surfaceZ: 0 },
   obs: { open: false, raw: "", unit: "mm", fit: true, arrows: true, text: "", result: null, sig: "", busy: false, pending: false, mesh: null },
 };
 
@@ -689,6 +691,245 @@ function exportComparison() {
   downloadText(`observations_vs_${res.field.replace(/[^A-Za-z0-9]+/g, "_")}_t${String(res.stepName).replace(/[^A-Za-z0-9.]+/g, "")}.csv`, text, "text/csv");
 }
 
+/* ── analytical source (Mogi) ───────────────────────────────────────────── */
+
+const fmtVol = (v) => {
+  if (!Number.isFinite(v)) return "—";
+  const a = Math.abs(v);
+  const sign = v < 0 ? "−" : "";
+  if (a >= 1e9) return `${sign}${formatValue(a / 1e9, a / 1e9)} km³`;
+  if (a >= 1e6) return `${sign}${formatValue(a / 1e6, a / 1e6)} × 10⁶ m³`;
+  return `${sign}${formatValue(a, a || 1)} m³`;
+};
+const fmtKm = (m) => `${formatValue(m / 1000, Math.abs(m) / 1000 || 1)} km`;
+
+/** The source's ΔV as the card defines it: typed, or from ΔP in a sphere of radius a. */
+function sourceVolume() {
+  const P = L.src;
+  return P.mode === "dP" ? volumeFromPressure(P.dP, P.radius, shearModulus(P.E, P.nu)) : P.dV;
+}
+
+/** The model's free surface, sampled: highest surface nodes away from the walls, with their u. */
+async function modelSurface() {
+  const results = R();
+  const S = results.state;
+  const fieldIndex = displacementField();
+  if (fieldIndex < 0) throw new Error("No displacement field is open: open results/solid/u in Results.");
+  const f = S.fields[fieldIndex];
+  const step = stepMatching(fieldIndex);
+  const values = await results.values(fieldIndex, step);
+  const desc = f.desc;
+  const n = S.mesh.nodeCount;
+  const c = S.mesh.coords;
+  const nodes = topSurfaceNodes(c, usedNodes(S.mesh.surface, n), S.mesh.bounds);
+  const zs = nodes.map((i) => c[i * 3 + 2]).sort((a, b) => a - b);
+  const surfaceZ = zs.length ? zs[Math.floor(zs.length / 2)] : S.mesh.bounds.max[2];
+  const j = desc.displacement;
+  const stations = nodes.map((i) => ({
+    node: i, x: c[i * 3], y: c[i * 3 + 1], z: c[i * 3 + 2],
+    obs: [values[i * desc.nbDofs + j[0]], values[i * desc.nbDofs + j[1]], j[2] !== undefined ? values[i * desc.nbDofs + j[2]] : 0],
+    sigma: null,
+  }));
+  return { stations, surfaceZ, field: f.field, stepName: f.steps[step]?.name, fieldIndex };
+}
+
+/** Mogi against the model's own surface: the benchmark. */
+export async function compareSource(patch = {}) {
+  const P = L.src;
+  Object.assign(P, patch);
+  const S = R()?.state;
+  if (!S?.mesh) { P.text = "Open a run in Results first."; render(); return null; }
+  if (S.mesh.dim !== 3) { P.text = "The Mogi source is a 3D half-space solution."; render(); return null; }
+  if (P.busy) return null;
+  P.busy = true;
+  P.text = "Reading the model surface…";
+  saySource();
+  try {
+    const surf = await modelSurface();
+    P.surfaceZ = surf.surfaceZ;
+    const geometry = { x0: P.x0, y0: P.y0, depth: P.depth, nu: P.nu };
+    let dV = sourceVolume();
+    if (P.fitDV) dV = bestVolume(surf.stations, geometry).dV;
+    const src = { ...geometry, dV };
+    let sse = 0; let ssm = 0; let peakModel = 0; let peakMogi = 0;
+    const points = surf.stations.map((s) => {
+      const m = mogi(src, s.x, s.y);
+      const dx = s.x - P.x0; const dy = s.y - P.y0;
+      const r = Math.hypot(dx, dy) || 1e-9;
+      for (let a = 0; a < 3; a += 1) { sse += (s.obs[a] - m[a]) ** 2; ssm += s.obs[a] ** 2; }
+      peakModel = Math.max(peakModel, Math.hypot(...s.obs));
+      peakMogi = Math.max(peakMogi, Math.hypot(...m));
+      return { r: Math.hypot(dx, dy), uz: s.obs[2], ur: (s.obs[0] * dx + s.obs[1] * dy) / r, mz: m[2], mr: (m[0] * dx + m[1] * dy) / r };
+    });
+    P.result = {
+      points, dV, fitted: P.fitDV, n: points.length, field: surf.field, stepName: surf.stepName,
+      rms: Math.sqrt(sse / Math.max(1, 3 * points.length)), explained: ssm > 0 ? 1 - sse / ssm : NaN, peakModel, peakMogi,
+    };
+    if (P.fitDV) P.dV = dV;
+    P.sig = signature();
+    P.text = `${points.length.toLocaleString()} surface nodes of ${surf.field} at t=${surf.stepName}; the free surface taken at z = ${formatValue(surf.surfaceZ, 1000)} m.`;
+    drawSourceMarker();
+    return P.result;
+  } catch (error) {
+    P.text = `Could not compare: ${error.message}`;
+    P.result = null;
+    return null;
+  } finally {
+    P.busy = false;
+    render();
+  }
+}
+
+/**
+ * Invert for a Mogi source: the model's own surface ("model"), or the
+ * observations compared above ("observations"). The answer becomes the card's
+ * source, and the benchmark is re-drawn against it.
+ */
+export async function invertSource(what = "model") {
+  const P = L.src;
+  const S = R()?.state;
+  if (!S?.mesh) { P.text = "Open a run in Results first."; render(); return null; }
+  if (P.busy) return null;
+  const b = S.mesh.bounds;
+  const box = { minX: b.min[0], maxX: b.max[0], minY: b.min[1], maxY: b.max[1] };
+  let stations; let los = null; let label; let surfaceZ;
+  try {
+    P.busy = true;
+    P.text = what === "model" ? "Searching position and depth against the model surface…" : "Searching position and depth against the observations…";
+    saySource();
+    await new Promise((r) => setTimeout(r, 0));
+    if (what === "observations") {
+      const res = L.obs.result;
+      if (!res) throw new Error("Compare observations first: the inversion reads the stations placed there.");
+      stations = res.stations.filter((s, i) => res.model[i]).map((s) => ({ x: s.x, y: s.y, obs: s.obs, sigma: s.sigma }));
+      if (res.kind === "los") los = res.los;
+      label = `${stations.length} observed stations${los ? " (line of sight)" : ""}`;
+      surfaceZ = (await modelSurface()).surfaceZ;
+    } else {
+      const surf = await modelSurface();
+      stations = surf.stations;
+      surfaceZ = surf.surfaceZ;
+      label = `${stations.length.toLocaleString()} model surface nodes`;
+    }
+    const inv = invertMogi(stations, { bounds: box, depthRange: [Math.max(100, 0.002 * (b.max[2] - b.min[2])), Math.max(1000, surfaceZ - b.min[2])], nu: P.nu, los });
+    if (!inv) throw new Error("At least two stations are needed.");
+    Object.assign(P, { x0: inv.x0, y0: inv.y0, depth: inv.depth, dV: inv.dV, mode: "dV", surfaceZ });
+    P.inversion = { ...inv, what, label };
+    P.busy = false;
+    const keep = P.fitDV;
+    await compareSource({ fitDV: false });
+    P.fitDV = keep;
+    const edge = [inv.atEdge.depth ? "depth" : "", inv.atEdge.position ? "position" : ""].filter(Boolean).join(" and ");
+    P.text = `Best Mogi source for ${label}: ${fmtVol(inv.dV)} at ${fmtKm(inv.depth)} below z = ${formatValue(surfaceZ, 1000)} m, ${(inv.explained * 100).toFixed(1)}% explained.${edge ? ` Its ${edge} sit${inv.atEdge.depth && inv.atEdge.position ? "" : "s"} on the edge of the search: that is where it stopped looking, not a minimum — a point source does not explain this surface.` : ""}`;
+    render();
+    return P.inversion;
+  } catch (error) {
+    P.text = `Could not invert: ${error.message}`;
+    return null;
+  } finally {
+    P.busy = false;
+    render();
+  }
+}
+
+function saySource() {
+  const node = byId("ra-src-status");
+  if (node) node.textContent = L.src.text;
+}
+
+function disposeSourceMarker() {
+  const P = L.src;
+  if (!P.marker) return;
+  P.marker.parent?.remove(P.marker);
+  P.marker.traverse((o) => { o.geometry?.dispose?.(); o.material?.dispose?.(); });
+  P.marker = null;
+}
+
+/** The source in the model: a sphere at its depth, its radius if it has one, and a line up to the surface. */
+function drawSourceMarker() {
+  disposeSourceMarker();
+  const P = L.src;
+  const S = R()?.state;
+  const frame = R()?.frame?.();
+  if (!S?.mesh || !frame || !P.result) return;
+  const diag = diagonalOf(S.mesh.bounds);
+  const z = P.surfaceZ - P.depth;
+  const radius = P.mode === "dP" ? P.radius : 0.012 * diag;
+  const group = new THREE.Group();
+  group.name = "results-analysis-source";
+  const sphere = new THREE.Mesh(new THREE.SphereGeometry(radius, 20, 14), new THREE.MeshBasicMaterial({ color: "#ffd166", wireframe: true, depthTest: false, transparent: true, opacity: 0.9 }));
+  sphere.position.set(P.x0, P.y0, z);
+  const stem = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(P.x0, P.y0, z), new THREE.Vector3(P.x0, P.y0, P.surfaceZ)]), new THREE.LineDashedMaterial({ color: "#ffd166", dashSize: diag * 0.01, gapSize: diag * 0.008, depthTest: false, transparent: true }));
+  stem.computeLineDistances();
+  [sphere, stem].forEach((o) => { o.renderOrder = 958; o.frustumCulled = false; group.add(o); });
+  frame.add(group);
+  P.marker = group;
+}
+
+function drawSourcePlot(canvas, res) {
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.clientWidth || 280;
+  const H = 180;
+  canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  const pts = res.points;
+  if (!pts.length) return;
+  const rMax = Math.max(...pts.map((p) => p.r)) || 1;
+  const vals = pts.flatMap((p) => [p.uz, p.ur, p.mz, p.mr]).filter(Number.isFinite);
+  let lo = Math.min(0, ...vals); let hi = Math.max(0, ...vals);
+  if (hi === lo) hi = lo + 1;
+  const Lp = 44; const Rp = 8; const T = 10; const B = 22;
+  const X = (r) => Lp + (r / rMax) * (W - Lp - Rp);
+  const Y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+  ctx.font = "10px 'Exo 2', sans-serif";
+  ctx.strokeStyle = "rgba(255,255,255,0.08)";
+  ctx.fillStyle = "rgba(232,230,240,0.55)";
+  niceTicks(lo, hi, 4).forEach((v) => { ctx.beginPath(); ctx.moveTo(Lp, Y(v)); ctx.lineTo(W - Rp, Y(v)); ctx.stroke(); ctx.fillText(formatValue(v, hi - lo), 2, Y(v) + 3); });
+  niceTicks(0, rMax / 1000, 4).forEach((km) => { const t = `${formatValue(km, rMax / 1000)}${km === 0 ? " km" : ""}`; const w = ctx.measureText(t).width; ctx.fillText(t, Math.min(W - Rp - w, Math.max(Lp, X(km * 1000) - w / 2)), H - 6); });
+  const dot = (colour, key) => { ctx.fillStyle = colour; pts.forEach((p) => { if (Number.isFinite(p[key])) ctx.fillRect(X(p.r) - 1, Y(p[key]) - 1, 2, 2); }); };
+  dot("rgba(82,228,232,0.55)", "uz");
+  dot("rgba(180,190,210,0.45)", "ur");
+  const sorted = [...pts].sort((a, b) => a.r - b.r);
+  const line = (colour, key, dash) => {
+    ctx.strokeStyle = colour; ctx.lineWidth = 1.6; ctx.setLineDash(dash);
+    ctx.beginPath();
+    sorted.forEach((p, k) => (k ? ctx.lineTo(X(p.r), Y(p[key])) : ctx.moveTo(X(p.r), Y(p[key]))));
+    ctx.stroke();
+  };
+  line("#ff2bd6", "mz", []);
+  line("#ff2bd6", "mr", [4, 3]);
+  ctx.setLineDash([]);
+}
+
+function drawDepthCurve(canvas, inv) {
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.clientWidth || 280;
+  const H = 110;
+  canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  const c = inv.curve;
+  const lx = c.map((p) => Math.log10(p.depth));
+  const m = c.map((p) => p.misfit);
+  const x0 = Math.min(...lx); const x1 = Math.max(...lx);
+  const lo = Math.min(...m); const hi = Math.max(...m) || 1;
+  const Lp = 8; const Rp = 8; const T = 8; const B = 20;
+  const X = (v) => Lp + ((v - x0) / (x1 - x0 || 1)) * (W - Lp - Rp);
+  const Y = (v) => T + (1 - Math.sqrt((v - lo) / (hi - lo || 1))) * (H - T - B);
+  ctx.strokeStyle = "#ffd166"; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  c.forEach((p, k) => (k ? ctx.lineTo(X(lx[k]), Y(m[k])) : ctx.moveTo(X(lx[k]), Y(m[k]))));
+  ctx.stroke();
+  ctx.fillStyle = "rgba(232,230,240,0.7)"; ctx.font = "10px 'Exo 2', sans-serif";
+  ctx.fillText(fmtKm(c[0].depth), Lp, H - 5);
+  const right = fmtKm(c.at(-1).depth);
+  ctx.fillText(right, W - Rp - ctx.measureText(right).width, H - 5);
+  const bx = X(Math.log10(inv.depth));
+  ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.setLineDash([3, 3]);
+  ctx.beginPath(); ctx.moveTo(bx, T); ctx.lineTo(bx, H - B); ctx.stroke(); ctx.setLineDash([]);
+}
+
 /* ── the card ───────────────────────────────────────────────────────────── */
 
 function signature() {
@@ -887,6 +1128,77 @@ export function render() {
     if (res.stations.length > shown.length) cmp.body.append(note(`The first ${shown.length} of ${res.stations.length} stations are listed; the CSV holds them all.`));
   }
   host.append(cmp.details);
+
+  const P = L.src;
+  const srcCard = card("Analytical source (Mogi)", P.open);
+  srcCard.details.addEventListener("toggle", () => { P.open = srcCard.details.open; });
+  const sb = srcCard.body;
+  sb.append(note("A point pressure source in an elastic half-space. Compare it with the model's surface to benchmark the mesh, its walls and its material; or invert for the source that best explains the model or the observations."));
+  const num = (key, step = "any", onChange) => numberInput(P[key], (v) => { if (Number.isFinite(v)) P[key] = v; onChange?.(); }, step);
+  const xy = el("div", { class: "st-xyz" });
+  [["x0", "x"], ["y0", "y"]].forEach(([k, a]) => { const i = num(k); i.setAttribute("aria-label", `source ${a}`); i.title = `Source ${a} (m, the mesh's frame)`; xy.append(i); });
+  sb.append(el("div", { class: "studio-row st-row-wide" }, el("label", {}, "Position"), xy));
+  sb.append(row("Depth (m)", num("depth")));
+  const mode = el("select", { class: "studio-select" });
+  [["dV", "Volume change ΔV"], ["dP", "Pressure in a sphere"]].forEach(([v, t]) => mode.append(new Option(t, v, false, v === P.mode)));
+  mode.addEventListener("change", () => { P.mode = mode.value; render(); });
+  sb.append(row("Strength as", mode));
+  if (P.mode === "dP") {
+    sb.append(row("ΔP (Pa)", num("dP")), row("Radius (m)", num("radius")), row("E (Pa)", num("E")));
+    sb.append(note(`ΔV = π a³ ΔP / G = ${fmtVol(sourceVolume())} — the point-source limit, fair while the radius is well under the depth.`));
+  } else sb.append(row("ΔV (m³)", num("dV")));
+  sb.append(row("Poisson's ratio", num("nu")));
+  const fitDV = el("input", { type: "checkbox" });
+  fitDV.checked = P.fitDV;
+  fitDV.addEventListener("change", () => { P.fitDV = fitDV.checked; });
+  sb.append(el("label", { class: "studio-check", title: "The model's displacement is linear in the source's strength, so the ΔV that best matches its surface is one least-squares number." }, fitDV, "Fit ΔV to the model surface"));
+  const fromProbe = button("Position = probe", "studio-secondary", () => {
+    const S = R()?.state;
+    const node = S?.probe?.node;
+    if (!Number.isInteger(node)) { P.text = "Probe a node in Results first."; saySource(); return; }
+    P.x0 = S.mesh.coords[node * 3]; P.y0 = S.mesh.coords[node * 3 + 1];
+    render();
+  }, "The probed node's x and y");
+  sb.append(el("div", { class: "studio-actions" },
+    button("Compare with model", "studio-primary", () => compareSource()),
+    fromProbe,
+  ));
+  sb.append(el("div", { class: "studio-actions" },
+    button("Invert model surface", "studio-secondary", () => invertSource("model"), "The Mogi source that best explains the model's own surface: its effective depth"),
+    button("Invert observations", "studio-secondary", () => invertSource("observations"), "The Mogi source that best explains the stations compared above"),
+  ));
+  sb.append(el("div", { id: "ra-src-status", class: "studio-readout" }, P.text));
+  if (P.result) {
+    const res = P.result;
+    const dl = el("dl", { class: "st-facts" });
+    const fact = (k, v) => dl.append(el("dt", {}, k), el("dd", {}, v));
+    fact("ΔV", `${fmtVol(res.dV)}${res.fitted ? " (fitted)" : ""}`);
+    fact("Peak |u|", `model ${formatValue(res.peakModel, res.peakModel || 1)} m · Mogi ${formatValue(res.peakMogi, res.peakMogi || 1)} m`);
+    fact("RMS difference", `${formatValue(res.rms, res.rms || 1)} m per component`);
+    if (Number.isFinite(res.explained)) fact("Explained", res.explained > 0.0005 ? `${(res.explained * 100).toFixed(1)}% of the model surface` : "none — no better than no deformation at all");
+    sb.append(el("p", { class: "studio-group-title" }, `Against the model surface · ${res.field} · t=${res.stepName}`), dl);
+    const canvas = el("canvas", { class: "fem-profile ra-plot", title: "Against distance from the source: dots are the model, lines Mogi" });
+    sb.append(el("p", { class: "studio-readout" },
+      el("span", { class: "ra-stats-swatch", style: "background:rgba(82,228,232,0.9)" }), "model u_z  ",
+      el("span", { class: "ra-stats-swatch", style: "background:rgba(180,190,210,0.9)" }), "model u_r  ",
+      el("span", { class: "ra-stats-swatch", style: "background:#ff2bd6" }), "Mogi (dashed: u_r)"), canvas);
+    setTimeout(() => drawSourcePlot(canvas, res), 0);
+  }
+  if (P.inversion) {
+    const inv = P.inversion;
+    const dl = el("dl", { class: "st-facts" });
+    const fact = (k, v) => dl.append(el("dt", {}, k), el("dd", {}, v));
+    fact("Inverted", inv.label);
+    fact("Source", `(${formatValue(inv.x0, 1000)}, ${formatValue(inv.y0, 1000)}) m, ${fmtKm(inv.depth)} deep`);
+    fact("ΔV", fmtVol(inv.dV));
+    fact(inv.weighted ? "√(χ²/n)" : "RMS", inv.weighted ? `${formatValue(inv.rms, inv.rms || 1)} — about 1 when the fit is as good as the sigmas allow` : `${formatValue(inv.rms, inv.rms || 1)} m per component`);
+    if (inv.atEdge.depth || inv.atEdge.position) fact("Caution", `on the edge of the search (${[inv.atEdge.depth ? "depth" : "", inv.atEdge.position ? "position" : ""].filter(Boolean).join(", ")})`);
+    sb.append(el("p", { class: "studio-group-title" }, "Inversion"), dl);
+    const curve = el("canvas", { class: "fem-profile ra-plot", title: "Misfit against depth at the best position: a narrow dip is a well-determined depth" });
+    sb.append(curve, note("Misfit along depth at the best position. A broad trough is the depth–volume trade-off: the data do not pin the depth down."));
+    setTimeout(() => drawDepthCurve(curve, inv), 0);
+  }
+  host.append(srcCard.details);
 }
 
 /* ── following Results ──────────────────────────────────────────────────── */
@@ -899,11 +1211,14 @@ function follow() {
     L.profile = null; L.located = null; L.locatedKey = ""; L.text = "";
     L.stats.result = null; L.stats.text = ""; L.stats.sig = "";
     L.obs.result = null; L.obs.text = ""; L.obs.sig = "";
-    disposeLine(); disposeGlyphs(); disposeObsArrows();
+    L.src.result = null; L.src.inversion = null; L.src.text = ""; L.src.sig = "";
+    disposeLine(); disposeGlyphs(); disposeObsArrows(); disposeSourceMarker();
     if (S?.mesh) {
       const b = S.mesh.bounds;
       const c = [0, 1, 2].map((i) => (b.min[i] + b.max[i]) / 2);
       L.a = [b.min[0], c[1], c[2]]; L.b = [b.max[0], c[1], c[2]];
+      L.src.x0 = c[0]; L.src.y0 = c[1];
+      L.src.depth = Math.round(Math.max(500, 0.1 * (b.max[2] - b.min[2])) / 100) * 100;
       drawLine();
     }
     render();
@@ -915,6 +1230,7 @@ function follow() {
   if (L.glyph.on && sig !== L.glyph.sig) drawGlyphs();
   if (L.stats.open && L.stats.result && sig !== L.stats.sig && !L.stats.busy) computeStats();
   if (L.obs.result && obsSignature() !== L.obs.sig && !L.obs.busy) compareObservations();
+  if (L.src.result && sig !== L.src.sig && !L.src.busy) compareSource();
   if (!L.line && R()?.frame?.()) drawLine();
 }
 
@@ -926,5 +1242,5 @@ function install() {
 
 if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", install); else install();
-  window.GeoIDResultsAnalysis = { plot, drawGlyphs, computeStats, compareObservations, render, state: L };
+  window.GeoIDResultsAnalysis = { plot, drawGlyphs, computeStats, compareObservations, compareSource, invertSource, render, state: L };
 }

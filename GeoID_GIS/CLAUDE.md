@@ -20410,3 +20410,40 @@ worker builds the file, since it holds the cells.
     inverted.
 - **A zip holds its entries in one buffer with 32-bit offsets**, so anything
   over 1.5 GB is refused with the way round it: fewer steps, or the surface.
+
+## The Mogi source: a benchmark for the model, and an inversion for the data
+
+Analysis ▸ Analytical source (Mogi). `analytic-sources.js` is the pure half
+(15 checks). The surface displacement of a point source in an elastic
+half-space is u = (1 − ν) ΔV / π · (dx, dy, d) / R³ (Segall 2010, eq. 7.14),
+with ΔV = π a³ ΔP / G for a sphere under pressure. McTigue's finite-sphere
+correction is not applied, and the note says so.
+
+- **Compare with model.** The model's top surface is sampled as the highest
+  surface node per plan cell, away from the walls (`topSurfaceNodes`, since
+  walls and base are surface too). It is plotted against Mogi by distance from
+  the source, with an optional fitted ΔV: u is linear in ΔV, so the best ΔV
+  for a geometry is one least-squares number.
+- **Invert.** A grid over position and log-spaced depth, refined five rounds,
+  with ΔV solved at every trial. It uses a grid rather than a descent because
+  a point source's misfit has a long depth–ΔV valley. It reports the misfit
+  along depth at the best position, so a broad trough reads as an
+  undetermined depth. It inverts either the model surface (the model's
+  effective source) or the stations compared above (GNSS or LOS).
+- **Refinement must stay inside the search it was given.** A window allowed
+  to grow walked Etna's answer to 99 km deep in a 50 km box. It is clamped
+  now, and a best answer on the edge is reported as the edge rather than a
+  minimum (`atEdge`).
+- **Etna is not a point source, and the card says so.** Its 50 MPa chamber is
+  kilometres across a few kilometres down: the best fit sits on the 50 km
+  depth limit, 88% explained. The page recovered a synthetic source from 121
+  GNSS stations over the Etna mesh in 0.2 s: 43,004 / 56,996 m against
+  43,000 / 57,000 m, depth 6,998 against 7,000 m, and ΔV 29.99 × 10⁶ against
+  30 × 10⁶ m³.
+- **The flat-box FEM benchmark is not done.** `sim/solid_es/mogi_test_3d`
+  (a 1 km sphere at 4 km under 10 MPa) has no results, and it is not to be
+  solved on this laptop. Solve it on a compute target and load it through
+  Results to benchmark.
+- **The inner loop allocates nothing** (`packStations` plus typed arrays).
+  The allocating version took 4 s for 49 stations; this one takes 0.2 s for
+  4,000 nodes.
