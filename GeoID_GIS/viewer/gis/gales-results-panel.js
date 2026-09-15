@@ -28,14 +28,14 @@ import {
   rangeOf, usedNodes, COLORMAPS, colormapTable, colourValues, niceTicks, formatValue, tickLabel,
   interpolateOnSlice, axisPlane, nodeByteRange, probeCsv, parseMesh, sliceTets,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
-  groupResultFiles, timeOf,
-} from "./gales-results.js?v=20260915-611c4ec";
-import { zipStore } from "./shapefile-writer.js?v=20260915-611c4ec";
-import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-611c4ec";
-import { parseSolidProps } from "./strain-stress.js?v=20260915-611c4ec";
-import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-611c4ec";
-import { may, refusal } from "./membership.js?v=20260915-611c4ec";
-import { downloadText } from "./extraction.js?v=20260915-611c4ec";
+  groupResultFiles, timeOf, referencePlan, differenceOf,
+} from "./gales-results.js?v=20260915-9c4a829";
+import { zipStore } from "./shapefile-writer.js?v=20260915-9c4a829";
+import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-9c4a829";
+import { parseSolidProps } from "./strain-stress.js?v=20260915-9c4a829";
+import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-9c4a829";
+import { may, refusal } from "./membership.js?v=20260915-9c4a829";
+import { downloadText } from "./extraction.js?v=20260915-9c4a829";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -78,6 +78,8 @@ const S = {
   extract: { fields: null, layout: "station", result: null, plotField: 0, plotComp: "mag", note: "" },
   statusError: false,
   vtkExport: { part: "volume", steps: "current", fields: null, busy: false, note: "" },
+  // A second run on the same mesh whose fields are subtracted from this one's.
+  reference: null,
   clipOn: null,
   // Meshes opened by hand, and the field a numbered file picked on its own
   // belongs to (a bare "1" says nothing about which field it is).
@@ -388,6 +390,7 @@ async function droppedFiles(dataTransfer) {
 async function openSource(source) {
   stopPlay();
   S.source = source;
+  S.reference = null;
   S.meshHints = [];
   S.material = undefined;
   cache.clear();
@@ -472,6 +475,14 @@ function classifyFields() {
       });
     }
   }
+  // DIFFERENCES from a reference run: this run minus the reference, step by
+  // step, as ordinary fields every view, analysis and export reads.
+  if (S.reference) {
+    for (const c of referencePlan(S.fields.filter((f) => f.ok), S.reference.fields)) {
+      const base = S.fields.find((f) => f.field === c.from);
+      S.fields.push({ ...c, ok: true, reason: "", nbDofs: base?.nbDofs ?? null, desc: base?.desc ? compareDesc(base.desc, c.field) : null });
+    }
+  }
 }
 
 /** The run's material, for the derived stresses: props.txt, and a pointwise grid file. */
@@ -506,6 +517,21 @@ async function valuesAt(fieldIndex, stepIndex) {
     cache.delete(step.path);
     cache.set(step.path, hit);
     return hit;
+  }
+  if (f.compare) {
+    if (!S.reference) throw new Error("The reference run is no longer open.");
+    const a = float64View(await S.source.read(step.base));
+    const b = float64View(await S.reference.source.read(step.ref));
+    const values = differenceOf(a, b);
+    const nb = values.length / S.mesh.nodeCount;
+    if (!Number.isInteger(nb)) throw new Error(`${f.field} @ ${step.name}: ${values.length} values do not divide ${S.mesh.nodeCount} nodes.`);
+    if (!f.desc || f.nbDofs !== nb) {
+      f.nbDofs = nb;
+      f.desc = compareDesc(describeField(f.from, nb, S.mesh.dim), f.field);
+    }
+    cache.set(step.path, values);
+    while (cache.size > CACHE_STEPS) cache.delete(cache.keys().next().value);
+    return values;
   }
   if (f.derived) {
     const raw = float64View(await S.source.read(step.source));
@@ -1125,7 +1151,7 @@ async function probeSeries() {
     let values;
     const nb = f.nbDofs;
     // A derived field has no bytes of its own on disk: it is computed per step.
-    const range = nb && !f.desc?.blocked && !f.derived ? nodeByteRange(node, S.mesh.nodeCount, nb) : null;
+    const range = nb && !f.desc?.blocked && !f.derived && !f.compare ? nodeByteRange(node, S.mesh.nodeCount, nb) : null;
     if (range) {
       const part = float64View(await S.source.readRange(step.path, range[0], range[1]));
       values = [...part];
@@ -1410,9 +1436,29 @@ function renderControls() {
   host.append(open.details);
   if (!S.mesh) return;
 
+  // Compare with another run
+  const cmp = section("compare", "Compare with another run", Boolean(S.reference));
+  const refInput = el("input", { type: "file", hidden: true });
+  refInput.setAttribute("webkitdirectory", "");
+  refInput.setAttribute("directory", "");
+  refInput.multiple = true;
+  refInput.addEventListener("change", () => { const files = [...(refInput.files || [])]; refInput.value = ""; setReference(files); });
+  cmp.body.append(el("p", { class: "studio-readout" }, "A second run on this mesh — with and without topography, two chamber pressures. Its fields are subtracted from this run's step by step, as Difference fields every view and analysis reads."));
+  const refBtn = el("button", { class: "studio-btn", type: "button", title: "The reference run's folder (or its results/ folder)" }, S.reference ? "Change reference…" : "Choose reference run…");
+  refBtn.addEventListener("click", () => refInput.click());
+  const actions = el("div", { class: "studio-actions" }, refBtn, refInput);
+  if (S.reference) {
+    const clear = el("button", { class: "studio-btn", type: "button" }, "Clear");
+    clear.addEventListener("click", () => clearReference());
+    actions.append(clear);
+  }
+  cmp.body.append(actions);
+  if (S.reference) cmp.body.append(el("p", { class: `studio-readout${S.reference.warning ? " is-warning" : ""}` }, S.reference.note));
+  host.append(cmp.details);
+
   // Field
   const fs = section("field", "Field and time");
-  const fieldOptions = S.fields.map((f, k) => [k, f.derived ? `Stress and strain · derived from ${f.from} · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}` : `${f.field}${f.nbDofs ? ` · ${f.nbDofs} dof${f.nbDofs > 1 ? "s" : ""}` : ""} · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}${f.ok ? "" : " — other mesh"}`, !f.ok]);
+  const fieldOptions = S.fields.map((f, k) => [k, f.compare ? `Difference · ${f.from} − reference (${S.reference?.label}) · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}` : f.derived ? `Stress and strain · derived from ${f.from} · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}` : `${f.field}${f.nbDofs ? ` · ${f.nbDofs} dof${f.nbDofs > 1 ? "s" : ""}` : ""} · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}${f.ok ? "" : " — other mesh"}`, !f.ok]);
   fs.body.append(row("Field", select([[-1, "— geometry only —"], ...fieldOptions], S.field, (v) => {
     S.field = Number(v);
     const f = S.fields[S.field];
@@ -1560,6 +1606,72 @@ function renderControls() {
   renderStepReadout();
 }
 
+// ── Compare with another run ───────────────────────────────────────────────
+
+/** A field's description as a difference: every label says so, or a legend reads "Displacement" over a subtraction. */
+function compareDesc(d, field) {
+  return {
+    ...d, field, label: `${d.label} — this run − reference`,
+    components: d.components.map((c) => ({ ...c, label: `Δ ${c.label}` })),
+    vector: d.vector ? { ...d.vector, label: `Δ ${d.vector.label}` } : d.vector,
+  };
+}
+
+const meshEntry = (entries) => entries.filter((e) => /\.msh$/i.test(e.path) || /(^|\/)input\/[^/]*mesh[^/]*\.txt$/i.test(e.path));
+
+export async function setReference(fileList) {
+  if (!S.mesh) { status("Open a run first: the reference is compared with it.", true); return null; }
+  const source = folderSource(fileList);
+  const fields = groupResultFiles(source.entries, { looseField: S.looseField });
+  if (!fields.length) { status(`No result steps in ${source.label}: expected results/<field>/<time>.`, true); renderControls(); return null; }
+  const plan = referencePlan(S.fields.filter((f) => f.ok && !f.derived && !f.compare), fields);
+  if (!plan.length) {
+    status(`Nothing in ${source.label} matches this run's fields (${fields.map((f) => f.field).join(", ")} against ${S.fields.filter((f) => f.ok && !f.derived && !f.compare).map((f) => f.field).join(", ")}).`, true);
+    renderControls();
+    return null;
+  }
+  // Only the node count can be checked from sizes, and a different mesh with
+  // the same count would subtract unrelated nodes: say what was checked.
+  const mine = S.source?.entries.find((e) => e.path === S.meshPath);
+  const theirs = meshEntry(source.entries);
+  const same = theirs.find((e) => e.path.split("/").pop() === mine?.path.split("/").pop());
+  let note;
+  let warning = false;
+  if (!theirs.length) note = "The reference carries no mesh: it is assumed to be on this run's mesh, node for node.";
+  else if (same && mine?.size && same.size === mine.size) note = `The reference's ${same.path.split("/").pop()} is the same size as this run's: the same mesh, as far as sizes can tell.`;
+  else { note = `The reference's mesh (${theirs[0].path.split("/").pop()}, ${theirs[0].size?.toLocaleString() ?? "?"} bytes) is not the same file as this run's — the difference is only meaningful node for node on one mesh.`; warning = true; }
+  for (const key of [...cache.keys()]) if (String(key).startsWith("compare:")) cache.delete(key);
+  S.reference = { source, label: source.label, fields, note: `${source.label}: ${plan.map((c) => `${c.from} (${c.steps.length} step${c.steps.length > 1 ? "s" : ""})`).join(", ")}. ${note}`, warning };
+  const keep = S.fields[S.field]?.field;
+  classifyFields();
+  const pick = S.fields.findIndex((f) => f.field === `compare/${keep}`);
+  if (pick >= 0) {
+    const time = S.fields[S.field]?.steps[S.step]?.time;
+    S.field = pick;
+    const steps = S.fields[pick].steps;
+    S.step = Math.max(0, steps.findIndex((st) => st.time === time));
+    S.component = "";
+  }
+  status(`Comparing with ${source.label}.`, warning);
+  openSection("compare");
+  renderControls();
+  await refresh({ fit: false });
+  return S.reference;
+}
+
+function clearReference() {
+  const keep = S.fields[S.field]?.compare ? S.fields[S.field].from : S.fields[S.field]?.field;
+  S.reference = null;
+  for (const key of [...cache.keys()]) if (String(key).startsWith("compare:")) cache.delete(key);
+  classifyFields();
+  S.field = Math.max(0, S.fields.findIndex((f) => f.field === keep));
+  S.component = "";
+  S.step = Math.min(S.step, (S.fields[S.field]?.steps.length || 1) - 1);
+  status("Reference cleared.");
+  renderControls();
+  refresh({ fit: false });
+}
+
 // ── Export for ParaView ────────────────────────────────────────────────────
 //
 // The reader answers most questions here; ParaView answers the rest. A step
@@ -1657,7 +1769,9 @@ function renderVtkExport() {
   const X = S.vtkExport;
   if (!S.mesh || !S.fields[S.field]?.ok) { box.append(el("p", { class: "studio-readout" }, "Open a run to export it.")); return; }
   const ok = S.fields.map((f, i) => ({ f, i })).filter(({ f }) => f.ok);
-  if (!X.fields || X.fields.some((i) => !S.fields[i]?.ok)) X.fields = [S.field];
+  // Until a field is ticked by hand, the export follows the one shown.
+  if (X.fields?.some((i) => !S.fields[i]?.ok)) X.fields = null;
+  const chosen = X.fields || [S.field];
   const part = el("select", { class: "studio-select" });
   [["volume", "Volume — every element"], ["surface", "Surface — the boundary only"]].forEach(([v, t]) => part.append(new Option(t, v, false, v === X.part)));
   part.disabled = S.mesh.dim !== 3;
@@ -1671,9 +1785,10 @@ function renderVtkExport() {
   const list = el("div", { class: "gales-vtk-fields" });
   for (const { f, i } of ok) {
     const tick = el("input", { type: "checkbox" });
-    tick.checked = X.fields.includes(i);
+    tick.checked = chosen.includes(i);
     tick.addEventListener("change", () => {
-      X.fields = tick.checked ? [...new Set([...X.fields, i])] : X.fields.filter((j) => j !== i);
+      const now = X.fields || [S.field];
+      X.fields = tick.checked ? [...new Set([...now, i])] : now.filter((j) => j !== i);
     });
     list.append(el("label", { class: "studio-check", title: f.field }, tick, f.desc?.label ? `${f.desc.label} (${f.field})` : f.field));
   }
@@ -1880,14 +1995,14 @@ async function extractStations() {
       const step = f.steps[k];
       status(`Extracting ${f.field}: step ${k + 1} of ${f.steps.length} at ${N} point(s)…`);
       // A few points read their own bytes; many read the step once.
-      if (!d.blocked && !f.derived && N <= 24) {
+      if (!d.blocked && !f.derived && !f.compare && N <= 24) {
         for (let si = 0; si < N; si += 1) {
           const [a, b] = nodeByteRange(stations[si].node, n, nb);
           const part = float64View(await S.source.readRange(step.path, a, b));
           for (let j = 0; j < nb; j += 1) values[(k * N + si) * nb + j] = part[j];
         }
       } else {
-        const whole = f.derived ? await valuesAt(fi, k) : cache.get(step.path) || float64View(await S.source.read(step.path));
+        const whole = f.derived || f.compare ? await valuesAt(fi, k) : cache.get(step.path) || float64View(await S.source.read(step.path));
         for (let si = 0; si < N; si += 1) {
           const node = stations[si].node;
           for (let j = 0; j < nb; j += 1) values[(k * N + si) * nb + j] = d.blocked ? whole[j * n + node] : whole[node * nb + j];
@@ -2110,6 +2225,8 @@ if (typeof document !== "undefined" && typeof window !== "undefined" && typeof w
     locate: async (points) => (S.mesh ? (await getReader().call("locate", { points }, [points.buffer])).located : null),
     colormap: () => colormapTable(S.colormap, { reverse: S.reverse }),
     // ParaView: the .vtu files for a selection, and the download.
+    setReference: (files) => setReference(files),
+    clearReference: () => clearReference(),
     vtkFiles: (options) => buildVtkFiles(options),
     exportVtk: (options) => exportVtk(options),
   };

@@ -15,6 +15,7 @@ import {
   niceTicks, formatValue, tickLabel, sliceTets, domainStats, domainStatsCsv, interpolateOnSlice, axisPlane, nearestNode,
   probeCsv, planSimulation, COLORMAPS, flagSummary, stationsForFlag, nodeLocator, specPoints,
   parsePointList, stationCsvFiles,
+  referencePlan, differenceOf,
 } from "./gales-results.js";
 
 let pass = 0;
@@ -503,7 +504,7 @@ check("a mesh opened onto a loaded run starts a new run; results join the open o
   check("derived: the worker answers a derive request through strain-stress.js and transfers the values", /type === "derive"/.test(worker) && /derivedFields\(mesh,/.test(worker) && /\[out\.values\.buffer\]/.test(worker));
   check("derived: a 3D displacement field adds one 16-dof stress field whose steps read the displacement's files", /field: "derived\/stress", derived: true/.test(panel) && /source: st\.path/.test(panel) && /nbDofs: 16/.test(panel));
   check("derived: valuesAt computes a derived step rather than reading bytes, and says when there is no props.txt", /if \(f\.derived\) \{/.test(panel) && /call\("derive"/.test(panel) && /strain only: no solid props\.txt/.test(panel));
-  check("derived: the probe series never byte-reads a derived field", /!f\.derived \? nodeByteRange/.test(panel));
+  check("derived: the probe series never byte-reads a derived field", /!f\.derived(?: && !f\.compare)? \? nodeByteRange/.test(panel));
   const d = describeField("derived/stress", 16, 3);
   check("derived: describeField names the stress field and defaults to von Mises", d && d.defaultComponent === "12" && /stress/i.test(d.label || ""), JSON.stringify(d && { label: d.label, def: d.defaultComponent }));
   check("tickLabel: an exponent keeps only its digits", tickLabel(5e7, 2.5e8) === "5e7" && tickLabel(1.5e8, 2.5e8) === "1.5e8" && tickLabel(2.5, 85) === "2.5");
@@ -564,4 +565,27 @@ check("a mesh opened onto a loaded run starts a new run; results join the open o
   check("mogi: an inversion on the edge of its search says it is not a minimum", /atEdge\.depth/.test(analysis));
   check("report: a Report card building one printable page from the analyses' own facts, gated like every save", /card\("Report"/.test(analysis) && /modelReportHtml\(data\)/.test(analysis) && /async function openModelReport[\s\S]{0,160}may\("save"\)/.test(analysis) && /obsFacts\(res\)\.forEach/.test(analysis) && /\.\.\.obsFacts\(res\)/.test(analysis));
   check("refresh keeps its own LOS against the analysis reading the scalar between its awaits", /const losHere = S\.losRaw;/.test(panel) && /interpolateOnSlice\(sliced\.slice, losHere\)/.test(panel));
+}
+
+{
+  const base = [
+    { field: "solid/u", steps: [{ name: "0", time: 0, path: "a/results/solid/u/0" }, { name: "1", time: 1, path: "a/results/solid/u/1" }, { name: "2", time: 2, path: "a/results/solid/u/2" }] },
+    { field: "derived/stress", derived: true, steps: [{ name: "1", time: 1, path: "derived:x" }] },
+    { field: "heat_eq/T", steps: [{ name: "1", time: 1, path: "a/results/heat_eq/T/1" }] },
+  ];
+  const ref = [{ field: "u", steps: [{ name: "0", time: 0, path: "b/u/0" }, { name: "1.5", time: 1.5, path: "b/u/1.5" }] }];
+  const plan = referencePlan(base, ref);
+  check("compare: a field matched by its unique leaf, derived fields and unmatched ones left out", plan.length === 1 && plan[0].field === "compare/solid/u" && plan[0].from === "solid/u" && plan[0].refField === "u");
+  check("compare: each step pairs with the reference's latest step at or before its time", plan[0].steps.map((s) => `${s.name}<${s.refName}`).join() === "0<0,1<0,2<1.5" && plan[0].steps[2].path === "compare:a/results/solid/u/2|b/u/1.5");
+  const exact = referencePlan([{ field: "solid/u", steps: [{ name: "1", time: 1, path: "p" }] }], [{ field: "x/u", steps: [{ name: "1", time: 1, path: "q1" }] }, { field: "solid/u", steps: [{ name: "1", time: 1, path: "q2" }] }]);
+  check("compare: an exact name beats a leaf, and an ambiguous leaf matches nothing", exact[0].steps[0].ref === "q2" && referencePlan([{ field: "solid/u", steps: [{ name: "1", time: 1, path: "p" }] }], [{ field: "x/u", steps: [{ name: "1", time: 1, path: "q1" }] }, { field: "y/u", steps: [{ name: "1", time: 1, path: "q2" }] }]).length === 0);
+  const later = referencePlan(base.slice(0, 1), [{ field: "solid/u", steps: [{ name: "5", time: 5, path: "late" }] }]);
+  check("compare: a reference that starts later than this run gives no steps before it", later.length === 0);
+  check("compare: the difference is value for value, and a different mesh is refused", differenceOf(new Float64Array([3, 5]), new Float64Array([1, 7])).join() === "2,-2" && (() => { try { differenceOf(new Float64Array(3), new Float64Array(4)); return false; } catch (e) { return /not the same mesh/.test(e.message); } })());
+}
+{
+  const panel = readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8");
+  check("compare: difference fields join the reader as ordinary fields, read value for value, labelled as differences", /referencePlan\(S\.fields\.filter\(\(f\) => f\.ok\), S\.reference\.fields\)/.test(panel) && /if \(f\.compare\) \{[\s\S]{0,300}differenceOf\(a, b\)/.test(panel) && /label: `Δ \$\{c\.label\}`/.test(panel));
+  check("compare: a byte-range read is never used for a difference, which has no bytes of its own", /!f\.derived && !f\.compare \? nodeByteRange/.test(panel));
+  check("compare: opening a new run drops the reference", /S\.source = source;\n  S\.reference = null;/.test(panel));
 }

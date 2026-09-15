@@ -20479,3 +20479,36 @@ filed into the open project.
 - **To look at a blob report in the Browser pane**: open a second tab on the
   same origin, listen on a `BroadcastChannel`, and `document.write` the HTML.
   `navigate` cannot open a blob URL.
+
+## Comparing two runs: the difference is an ordinary field
+
+Results ▸ Compare with another run opens a reference run's folder. For every
+field both runs hold, a `compare/<field>` field is added whose step is this
+run's step minus the reference's step at the same time (the latest at or
+before it). Every view, analysis, probe, report and VTK export reads it as it
+reads any field. `referencePlan` and `differenceOf` in gales-results.js are
+the pure half.
+
+- **Matching:** by exact field name, else by leaf where the leaf is unique on
+  both sides, so a reference opened as its bare `u` folder is still solid/u.
+  An ambiguous leaf matches nothing.
+- **A difference has no bytes of its own.** Like the derived stress it is
+  computed in `valuesAt`, so the probe's byte-range read is skipped for it
+  (`!f.derived && !f.compare`). An old pin matched the exact
+  `!f.derived ? nodeByteRange` shape and had to be loosened; its intent
+  holds.
+- **Only sizes can be checked**, and a different mesh with the same node count
+  would subtract unrelated nodes. So the card says what was checked:
+  - no reference mesh ("assumed the same, node for node");
+  - a mesh file of the same name and size;
+  - or a warning when the mesh file differs.
+- **Every label says it is a difference.** The component and vector labels
+  carry "Δ"; otherwise the legend read "Displacement magnitude" over a
+  subtraction. The report names the reference and adds a methods line.
+- **The VTK export's field ticks follow the field shown until one is ticked
+  by hand.** Before this, the export went on writing `solid_u` after the view
+  had moved to the difference.
+- **Verified on Etna** with a reference whose step 1 is exactly half of u:
+  node 25018 reads (−1.757, −1.631, −40.329), half the solved value, in the
+  reader, in the `compare_solid_u` VTK array and in the report. A reference
+  with a 5 m summit bump reads 0–4.98 m by domain.

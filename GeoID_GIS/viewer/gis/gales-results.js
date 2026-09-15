@@ -624,6 +624,51 @@ export function groupResultFiles(entries, { looseField = "" } = {}) {
     .sort((a, b) => a.field.localeCompare(b.field));
 }
 
+/**
+ * A comparison with a reference run on the same mesh: for every field this
+ * run has and the reference has too, a field whose step is this run's minus
+ * the reference's step at the same time (the latest at or before it). Fields
+ * are matched by name, else by leaf where the leaf is unique on both sides --
+ * a reference opened as its bare "u" folder is still solid/u.
+ *
+ * Answers [{ field: "compare/<name>", compare: true, from, refField,
+ * steps: [{ name, time, path: "compare:<a>|<b>", base, ref, refName }] }].
+ */
+export function referencePlan(baseFields, refFields) {
+  const leaf = (name) => String(name).split("/").pop();
+  const unique = (list) => {
+    const counts = new Map();
+    list.forEach((f) => counts.set(leaf(f.field), (counts.get(leaf(f.field)) || 0) + 1));
+    return (name) => counts.get(leaf(name)) === 1;
+  };
+  const baseUnique = unique(baseFields);
+  const refUnique = unique(refFields);
+  const out = [];
+  for (const base of baseFields) {
+    if (base.derived || base.compare) continue;
+    const ref = refFields.find((r) => r.field === base.field)
+      || (baseUnique(base.field) ? refFields.find((r) => leaf(r.field) === leaf(base.field) && refUnique(r.field)) : null);
+    if (!ref?.steps?.length) continue;
+    const steps = [];
+    for (const st of base.steps) {
+      let pick = null;
+      for (const r of ref.steps) if (r.time <= st.time + 1e-12) pick = r;
+      if (!pick) continue;
+      steps.push({ name: st.name, time: st.time, path: `compare:${st.path}|${pick.path}`, base: st.path, ref: pick.path, refName: pick.name, size: st.size });
+    }
+    if (steps.length) out.push({ field: `compare/${base.field}`, compare: true, from: base.field, refField: ref.field, steps });
+  }
+  return out;
+}
+
+/** This run minus the reference, value for value; refused when the two are not the same length. */
+export function differenceOf(a, b) {
+  if (a.length !== b.length) throw new Error(`The reference step holds ${b.length.toLocaleString()} values and this run's ${a.length.toLocaleString()}: not the same mesh.`);
+  const out = new Float64Array(a.length);
+  for (let i = 0; i < a.length; i += 1) out[i] = a[i] - b[i];
+  return out;
+}
+
 /** The components of the derived stress field, in strain-stress.js's order. */
 const DERIVED_LABELS = [
   ["exx", "Strain εxx", ""], ["eyy", "Strain εyy", ""], ["ezz", "Strain εzz", ""],

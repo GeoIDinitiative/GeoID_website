@@ -26,14 +26,14 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, formatValue } from "./gales-results.js?v=20260915-611c4ec";
-import { downloadText } from "./extraction.js?v=20260915-611c4ec";
-import { modelReportHtml } from "./model-report.js?v=20260915-611c4ec";
-import { PHYSICS, domainProperties } from "./fem-setup.js?v=20260915-611c4ec";
-import { may, refusal } from "./membership.js?v=20260915-611c4ec";
-import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-611c4ec";
-import { losVector } from "./insar.js?v=20260915-611c4ec";
-import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260915-611c4ec";
+import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, formatValue } from "./gales-results.js?v=20260915-9c4a829";
+import { downloadText } from "./extraction.js?v=20260915-9c4a829";
+import { modelReportHtml } from "./model-report.js?v=20260915-9c4a829";
+import { PHYSICS, domainProperties } from "./fem-setup.js?v=20260915-9c4a829";
+import { may, refusal } from "./membership.js?v=20260915-9c4a829";
+import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-9c4a829";
+import { losVector } from "./insar.js?v=20260915-9c4a829";
+import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260915-9c4a829";
 
 const byId = (id) => document.getElementById(id);
 const R = () => window.GeoIDGalesResults;
@@ -1149,6 +1149,7 @@ export async function buildModelReport({ title } = {}) {
     r.view = {
       facts: [
         ["Field", `${f.desc?.label || f.field} (${f.field})`],
+        ...(f.compare && S.reference ? [["Reference run", S.reference.note]] : []),
         ["Shown", label],
         ["Step", `t=${f.steps[S.step]?.name} (${S.step + 1} of ${f.steps.length})`],
         ["Range at this step", `${formatValue(lo, hi - lo || 1)} to ${formatValue(hi, hi - lo || 1)}`],
@@ -1161,6 +1162,9 @@ export async function buildModelReport({ title } = {}) {
       caption: `${label}, t=${f.steps[S.step]?.name}, as drawn on the Model page`,
     };
     r.methods.push("Results are the solver's own binary output (little-endian float64, one value per dof per node), read against the mesh GALES was run on; nothing is re-solved on the page.");
+    if (f.compare) {
+      r.methods.push("The field shown is a DIFFERENCE: this run's step minus the reference run's step at the same time (the latest at or before it), node for node. It is meaningful only when both runs share one mesh and its node numbering.");
+    }
     if (/^derived\//.test(f.field)) {
       r.methods.push("Stress and strain are derived from the displacement: constant strain per linear tetrahedron ε = sym(∇u), σ = λ tr(ε) I + 2μ ε with the run's own props.txt material, element values averaged to nodes by volume.");
     }
