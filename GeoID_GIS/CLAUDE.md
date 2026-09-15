@@ -21163,3 +21163,39 @@ Two traps in driving it: clicking the rail's "Plotter" TAB while looking for
 the page's "Plot Selected" BUTTON remounts the page and empties its dataset
 row (search buttons inside `.research-page`); and `R.values()` on the seam is
 not the per-node array — read a value through the probe or the legend range.
+
+## The first fluid solve: a duct at Re 10, and what the fluid family needed
+
+Water (μ raised to 1 Pa·s) through the 1 m box: inlet v_z = 0.01 m/s on the
+base, p = 0 on the top, no-slip sides, ten BDF1 steps of 0.05 s on the
+container target through the page's own buttons. Mass balance holds — the
+outlet's mean v_z is 0.0102 → 0.0097 against the inlet's 0.0100 from the
+second step on, its interior 0.0122 (a developing profile) — and the inlet
+pressure rings down from the acoustic start (160 Pa) to 12 Pa. Not a
+validation of the flow on 144 nodes; a proof that the family runs and
+conserves. Four things it needed:
+
+- **A 3D spec clones the 3D reference.** The sidecar's fluid family was the
+  2D cylinder (`fixed_cylinder_2d`: a header knowing only the 2D stresses,
+  MueLu and its XML); `GALES_FAMILIES_3D` points a `dim: 3` spec at
+  `pipe_flow_3d` (current header, ILU).
+- **β = 0 IS AN INFINITE SOUND SPEED.** GALES's fluid is weakly compressible
+  (c = 1/√(ρβ)); the page's props wrote rho and mu only, the reader defaults
+  the rest to 0, and the first solve was NaN in Belos. Every fluid material
+  carries `alpha` and `beta` now (water's handbook values, the ideal gas's for
+  air, silicate-melt values for the magmas), the props text writes cp, kappa,
+  alpha and beta, and the checklist requires them.
+- **Δt is bounded by the acoustics, not the flow.** At Δt = 50 s (7×10⁴
+  sound transits of the box) the speeds grew 92 → 14,511 → 5×10¹² and the
+  sixth step was NaN; at 0.05 s (≈ 75 transits, the reference's own order)
+  it is stable. The page does not yet warn about this; the note is here.
+- **`steady_state T` in the cloned deck drops the time term from the
+  stabilisation.** With it the transient's outflow crawled (0.0009 after ten
+  steps); prepare patches it F for a study of more than one step, T otherwise
+  (`_steady_state_flag`), only where the key exists.
+
+And **a re-solve starts from a clean `results/`**: GALES writes a file per
+step and removes none, so a shorter re-run left the exploded attempt's later
+steps beside the new ones — the Results page showed 16 steps with a range of
+5×10¹². What was there is moved to `results_<time>/`, never deleted, and
+`status.json` names it.

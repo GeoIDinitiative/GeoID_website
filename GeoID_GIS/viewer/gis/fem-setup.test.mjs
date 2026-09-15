@@ -51,6 +51,14 @@ const box = (flag, name, zMin, zMax, extra = {}) => ({ flag, name, zMin, zMax, v
   check("props: 2D solid is plane strain", /plane_strain    T/.test(propsText("solid", { mode: "uniform", props: { rho: 1, E: 1, nu: 0.2 } }, { dim: 2 })));
   check("props: heat writes rho, cp and kappa", /heat_equation\n\{\n   custom\n   \{\n     rho             2650\n     cp              790\n     kappa           2.9/.test(propsText("heat", { props: domainProperties({ id: "granite" }) })));
   check("props: fluid writes the isothermal temperature and rho/mu", /Isothermal_T    300/.test(propsText("fluid", { props: domainProperties({ id: "water" }) }, { options: { temperature: 300 } })) && /mu             0\.001/.test(propsText("fluid", { props: domainProperties({ id: "water" }) })));
+  // GALES's fluid is weakly compressible: beta 0 (the reader's default) is an
+  // infinite sound speed and a NaN at the first solve. Every fluid material
+  // carries alpha and beta, the props text writes them, and the checklist
+  // refuses a fluid material without them.
+  const fluidProps = propsText("fluid", { props: domainProperties({ id: "water" }) });
+  check("props: fluid writes cp, kappa, alpha and beta", /cp             4182/.test(fluidProps) && /kappa          0\.6/.test(fluidProps) && /alpha          0\.00021/.test(fluidProps) && /beta           4\.5e-10/.test(fluidProps));
+  check("every fluid material carries alpha and beta", MATERIALS.filter((m) => m.group === "Fluid").every((m) => m.alpha > 0 && m.beta > 0));
+  check("the fluid physics needs beta", PHYSICS.fluid.props.includes("beta") && PHYSICS.fluid.props.includes("alpha"));
 }
 
 // ── conditions ──

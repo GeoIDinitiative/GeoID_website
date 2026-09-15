@@ -44,10 +44,13 @@ export const MATERIALS = [
   { id: "ice", name: "Ice", group: "Other", rho: 917, E: 9e9, nu: 0.33, k: 2.2, cp: 2100 },
   { id: "concrete", name: "Concrete", group: "Engineering", rho: 2400, E: 30e9, nu: 0.2, k: 1.7, cp: 880 },
   { id: "steel", name: "Steel", group: "Engineering", rho: 7850, E: 200e9, nu: 0.3, k: 45, cp: 490 },
-  { id: "water", name: "Water (20 °C)", group: "Fluid", rho: 998, mu: 1.0e-3, k: 0.6, cp: 4182 },
-  { id: "air", name: "Air (15 °C)", group: "Fluid", rho: 1.225, mu: 1.81e-5, k: 0.025, cp: 1005 },
-  { id: "basaltic_magma", name: "Basaltic magma", group: "Fluid", rho: 2700, mu: 100, k: 1.5, cp: 1200 },
-  { id: "rhyolitic_magma", name: "Rhyolitic magma", group: "Fluid", rho: 2300, mu: 1e7, k: 1.3, cp: 1200 },
+  // alpha (1/K) and beta (1/Pa): water's are handbook values (c = 1/√(ρβ) ≈
+  // 1,490 m/s); air's are the ideal gas's at 15 °C and 1 atm; the melts take
+  // typical silicate-melt values (β ~ 1e-10 gives c ~ 1.9 km/s).
+  { id: "water", name: "Water (20 °C)", group: "Fluid", rho: 998, mu: 1.0e-3, k: 0.6, cp: 4182, alpha: 2.1e-4, beta: 4.5e-10 },
+  { id: "air", name: "Air (15 °C)", group: "Fluid", rho: 1.225, mu: 1.81e-5, k: 0.025, cp: 1005, alpha: 3.47e-3, beta: 9.87e-6 },
+  { id: "basaltic_magma", name: "Basaltic magma", group: "Fluid", rho: 2700, mu: 100, k: 1.5, cp: 1200, alpha: 5e-5, beta: 1e-10 },
+  { id: "rhyolitic_magma", name: "Rhyolitic magma", group: "Fluid", rho: 2300, mu: 1e7, k: 1.3, cp: 1200, alpha: 5e-5, beta: 1e-10 },
 ];
 
 export const materialById = (id) => MATERIALS.find((m) => m.id === id) || null;
@@ -60,6 +63,12 @@ export const MATERIAL_PROPS = {
   k: { label: "Thermal conductivity", unit: "W/(m·K)", min: 1e-9 },
   cp: { label: "Specific heat", unit: "J/(kg·K)", min: 1e-9 },
   mu: { label: "Dynamic viscosity", unit: "Pa·s", min: 1e-12 },
+  // GALES's fluid is weakly compressible: its sound speed is 1/√(ρβ) and its
+  // energy terms carry α. Written as zero (the reader's default when a props
+  // file omits them) the sound speed is infinite and the first solve is NaN
+  // — measured on the first fluid run, a duct at Re 10.
+  alpha: { label: "Thermal expansion", unit: "1/K", min: 0 },
+  beta: { label: "Isothermal compressibility", unit: "1/Pa", min: 1e-15 },
 };
 
 /* ── physics ────────────────────────────────────────────────────────────── */
@@ -101,7 +110,7 @@ export const PHYSICS = {
   fluid: {
     label: "Laminar flow (isothermal)",
     family: "fluid_sc", header: "fluid_ic_bc.hpp", guard: "FLUID_IC_BC_HPP", cls: "fluid_ic_bc",
-    props: ["rho", "mu"],
+    props: ["rho", "mu", "cp", "k", "alpha", "beta"],
     fields: "pressure p, velocity v",
     conditions: {
       free: { label: "Open (traction free)", values: [] },
@@ -185,7 +194,10 @@ export function propsText(physics, plan, { dim = 3, options = {}, pointwise = nu
   }
   if (physics === "fluid") {
     const T = Number.isFinite(num(options.temperature)) ? num(options.temperature) : 293.15;
-    return `fluid\n{\n    Isothermal_T    ${g(T)}\n\n    ch\n    {\n       custom\n       rho            ${g(p.rho)}\n       mu             ${g(p.mu)}\n    }\n}\n`;
+    // cp and kappa for the energy terms, alpha and beta for the weakly
+    // compressible ones: the reader's default for any of them is 0, and
+    // beta 0 is an infinite sound speed (NaN at the first solve).
+    return `fluid\n{\n    Isothermal_T    ${g(T)}\n\n    ch\n    {\n       custom\n       rho            ${g(p.rho)}\n       mu             ${g(p.mu)}\n       cp             ${g(p.cp)}\n       kappa          ${g(p.k)}\n       alpha          ${g(p.alpha)}\n       beta           ${g(p.beta)}\n    }\n}\n`;
   }
   const lines = ["solid", "{", "   material        Hookes", "",
     `   plane_strain    ${dim === 2 ? "T" : "F"}`, "   plane_stress    F", "   axisymmetric    F", "",

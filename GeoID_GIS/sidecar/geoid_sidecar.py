@@ -1217,6 +1217,22 @@ class Handler(BaseHTTPRequestHandler):
             cmd_str = f"{image}: {inner_cmd}"
             label = f"GALES {Path(rel).name} @ {target_name}"
 
+        # A SOLVE STARTS FROM A CLEAN results/. GALES writes one file per step
+        # and never removes another's, so a re-solve with fewer steps left the
+        # previous run's later steps beside the new ones — measured: a 10-step
+        # run at Δt 0.05 shown as 16 steps, the last five an exploded earlier
+        # attempt with speeds of 5e12. What was there is moved aside, named by
+        # the time, never deleted.
+        previous = None
+        results_dir = run_dir / "results"
+        if results_dir.is_dir() and any(p.is_file() for p in results_dir.rglob("*")):
+            previous = f"results_{time.strftime('%Y%m%d-%H%M%S')}"
+            attempt = 2
+            while (run_dir / previous).exists():
+                previous = f"results_{time.strftime('%Y%m%d-%H%M%S')}-{attempt}"
+                attempt += 1
+            results_dir.rename(run_dir / previous)
+
         status_path = run_dir / "status.json"
         started = time.time()
 
@@ -1237,6 +1253,7 @@ class Handler(BaseHTTPRequestHandler):
                 str(p.relative_to(run_dir)) for p in run_dir.rglob("*")
                 if p.is_file() and p.name != "status.json")
             write_status(job.status, {
+                **({"previous_results": previous} if previous else {}),
                 "exit_code": job.exit_code, "run_id": job.id,
                 "started_at": started, "ended_at": job.ended_at, "seconds": secs,
                 "message": f"exit {job.exit_code} in {secs}s"
@@ -1244,7 +1261,8 @@ class Handler(BaseHTTPRequestHandler):
                 "files": produced,
             })
 
-        write_status("running", {"started_at": started, "message": "solver started"})
+        write_status("running", {"started_at": started, "message": "solver started",
+                                 **({"previous_results": previous} if previous else {})})
         env = {**self._gales_env(), **dict(body.get("env") or {})}
         job = self.runner.start("gales", label, argv, run_dir, env,
                                 on_finish=on_finish)
@@ -1264,12 +1282,30 @@ class Handler(BaseHTTPRequestHandler):
     # spec.physics → (family, reference sim under sim/, the setup key that names
     # the mesh). Volcano deformation is the domain, so anything not fluid or
     # thermal generates a solid (elastostatic) deck.
+    # A 3D fluid spec clones the 3D reference: the cylinder is a 2D deck whose
+    # header defines the 2D stresses only and whose preconditioner is MueLu
+    # (and its XML); pipe_flow_3d is the current 3D deck under ILU.
+    GALES_FAMILIES_3D = {
+        "fluid":   ("fluid_sc", "fluid_sc/pipe_flow_3d", "fluid_mesh_file"),
+    }
     GALES_FAMILIES = {
         "fluid":   ("fluid_sc", "fluid_sc/fixed_cylinder_2d", "fluid_mesh_file"),
         "thermal": ("heat_equation", "heat_equation/test_3d", "heat_eq_mesh_file"),
         "heat":    ("heat_equation", "heat_equation/test_3d", "heat_eq_mesh_file"),
         "solid":   ("solid_es", "solid_es/mogi_test_3d", "solid_mesh_file"),
     }
+
+    @staticmethod
+    def _steady_state_flag(step, end):
+        """"T" for a study of one step (stationary), "F" for a real transient;
+        None (leave the reference's) where the times cannot be read."""
+        try:
+            s, e = float(step), float(end)
+        except (TypeError, ValueError):
+            return None
+        if not (s > 0 and e > 0):
+            return None
+        return "F" if e / s > 1.5 else "T"
 
     @staticmethod
     def _patch_lines(text: str, patches: dict) -> str:
@@ -1316,7 +1352,12 @@ class Handler(BaseHTTPRequestHandler):
         # the volcano-deformation case.
         physics_raw = spec.get("physics")
         physics = physics_raw.lower() if isinstance(physics_raw, str) else "solid"
-        family, ref_rel, mesh_key = self.GALES_FAMILIES.get(
+        try:
+            spec_dim = int(spec.get("dim") or 0)
+        except (TypeError, ValueError):
+            spec_dim = 0
+        families = {**self.GALES_FAMILIES, **(self.GALES_FAMILIES_3D if spec_dim == 3 else {})}
+        family, ref_rel, mesh_key = families.get(
             physics, self.GALES_FAMILIES["solid"])
         ref_dir = self.gales_dir / "sim" / ref_rel
         if not ref_dir.is_dir():
@@ -1370,6 +1411,10 @@ class Handler(BaseHTTPRequestHandler):
                 "final_time": end,
                 "end_time": end,
                 "dim": spec.get("dim"),
+                # The fluid deck's `steady_state` drops the time term from its
+                # stabilisation; a transient study must not inherit the
+                # reference's T. Only patched where the key exists.
+                "steady_state": self._steady_state_flag(step, end),
             }))
 
         # Patch props.txt with the materials the spec carries for this family.

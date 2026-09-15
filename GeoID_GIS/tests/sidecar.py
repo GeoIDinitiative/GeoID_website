@@ -234,6 +234,18 @@ def run_tests(root: Path) -> None:
             st = json.loads((run / "status.json").read_text())
             check("status.json records the outcome and where it ran",
                   st.get("status") == "done" and st.get("where") == "local", str(st)[:80])
+            # A second solve starts from a clean results/: what the first
+            # wrote is moved aside, named by the time, never deleted.
+            (run / "results" / "solid" / "u" / "9").write_text("stale\n")
+            status, again = c.call("/jobs/gales", {"dir": "earth/p/fem_runs/built", "cores": 1})
+            if status == 200:
+                c.wait_job(again["job_id"])
+            moved = sorted(p.name for p in run.iterdir() if p.name.startswith("results_"))
+            check("a re-solve moves the previous results aside",
+                  len(moved) == 1 and (run / moved[0] / "solid" / "u" / "9").exists()
+                  and not (run / "results" / "solid" / "u" / "9").exists()
+                  and (run / "results" / "solid" / "u" / "0").exists(),
+                  f"{moved} {sorted(p.name for p in (run / 'results' / 'solid' / 'u').iterdir())}")
 
         bare = root / "earth" / "p" / "fem_runs" / "bare"
         bare.mkdir(parents=True, exist_ok=True)
@@ -330,6 +342,18 @@ def run_tests(root: Path) -> None:
                           any(line.split()[:2] == [key, val]
                               for line in props.splitlines() if line.split()),
                           " ".join(props.split()[:8]))
+                if physics == "fluid":
+                    # A 3D spec clones pipe_flow_3d (ILU, no MueLu XML), not the
+                    # 2D cylinder whose header knows only the 2D stresses.
+                    check("prepare(fluid) clones the 3D reference for a 3D spec",
+                          "ILU" in setup and not (d / "mueluOptions.xml").exists(),
+                          " ".join(setup.split()[:12]))
+                    # 28 steps is a transient: the reference's steady_state T
+                    # (which drops the time term from the stabilisation) is off.
+                    check("prepare(fluid) turns steady_state off for a transient",
+                          any(line.split()[:2] == ["steady_state", "F"]
+                              for line in setup.splitlines() if line.split()),
+                          " ".join(l for l in setup.splitlines() if "steady" in l))
         # ── capabilities: probed, never assumed ──────────────────────────────
         status, caps = c.call("/capabilities")
         check("capabilities answers with a version",
