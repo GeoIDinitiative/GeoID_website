@@ -1,7 +1,8 @@
 # The membership service. Deploy from this directory with `npx wrangler deploy`.
 #
-# Nothing secret is in this file. The four provider credentials and the signing
-# key are set with `wrangler secret put`, which keeps them in the Worker's own
+# Nothing secret is in this file. The provider credentials (GOOGLE_*, GITHUB_*,
+# MS_*), the mail key (RESEND_API_KEY), the Stripe secret and the signing key
+# are set with `wrangler secret put`, which keeps them in the Worker's own
 # environment where no page can reach them.
 
 name = "geoid-auth"
@@ -14,6 +15,10 @@ compatibility_date = "2026-01-01"
 [vars]
 SELF_ORIGIN = "https://auth.geoidinitiative.com"
 SITE_ORIGIN = "https://geoidinitiative.com"
+# The sender of the one-time sign-in links, on a domain verified with the mail
+# service (see the README). Without MAIL_FROM and RESEND_API_KEY the email
+# door answers "not set up" and the three providers remain.
+MAIL_FROM = "GeoID <sign-in@geoidinitiative.com>"
 # Every origin a sign-in may return to, and the only ones CORS answers for.
 # An open redirect is a phishing gift, so this list is the whole allowance --
 # localhost is here so the site can be worked on, and is the first thing to

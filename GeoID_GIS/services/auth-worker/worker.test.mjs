@@ -14,7 +14,7 @@
  * Worker runtime gives, so this is the real implementation rather than a copy.
  */
 import worker, {
-  sign, verify, stripeSignatureValid, applyStripeEvent,
+  sign, verify, stripeSignatureValid, applyStripeEvent, PROVIDERS,
   STRIPE_GRACE_SECONDS, STRIPE_TOLERANCE_SECONDS,
 } from "./worker.js";
 import { createHmac } from "node:crypto";
@@ -223,6 +223,97 @@ const YEAR_GRACE = 366 * 86400 + STRIPE_GRACE_SECONDS;
   check("with no webhook secret the route answers 503", unset.status === 503, String(unset.status));
   const get = await worker.fetch(new Request("https://auth.example.org/stripe/webhook"), env);
   check("GET on the webhook is 405", get.status === 405, String(get.status));
+}
+
+// ── 7. Microsoft, and the link for the address on the receipt ──────────────
+
+const realFetch = globalThis.fetch;
+const withFetch = async (handler, fn) => {
+  globalThis.fetch = handler;
+  try { return await fn(); } finally { globalThis.fetch = realFetch; }
+};
+const graph = (me) => async () => new Response(JSON.stringify(me), { status: 200 });
+const baseEnv = () => ({
+  ...kv(), JWT_SECRET: SECRET, SELF_ORIGIN: "https://auth.example.org",
+  SITE_ORIGIN: "https://example.org", RETURN_ORIGINS: "https://example.org",
+  RESEND_API_KEY: "re_test", MAIL_FROM: "sign-in@example.org", MS_CLIENT_ID: "ms-id",
+});
+
+{
+  const r = await worker.fetch(new Request(
+    "https://auth.example.org/auth/start?provider=microsoft&return=https://example.org/sign-in/"), baseEnv());
+  const loc = new URL(r.headers.get("location") || "https://x/");
+  check("microsoft sign-in starts at login.microsoftonline.com/common",
+    r.status === 302 && loc.hostname === "login.microsoftonline.com" && loc.pathname.startsWith("/common/")
+      && loc.searchParams.get("client_id") === "ms-id"
+      && loc.searchParams.get("redirect_uri") === "https://auth.example.org/auth/callback/microsoft",
+    loc.toString().slice(0, 80));
+}
+check("microsoft: a personal account's UPN is its address",
+  (await withFetch(graph({ userPrincipalName: "Some.One@outlook.com", displayName: "S" }),
+    () => PROVIDERS.microsoft.identify("t"))).email === "some.one@outlook.com");
+check("microsoft: a work account's mail wins over its UPN",
+  (await withFetch(graph({ mail: "s@uni.ac.uk", userPrincipalName: "s@tenant.onmicrosoft.com" }),
+    () => PROVIDERS.microsoft.identify("t"))).email === "s@uni.ac.uk");
+check("microsoft: a guest's #EXT# UPN is refused",
+  await withFetch(graph({ userPrincipalName: "x_gmail.com#EXT#@tenant.onmicrosoft.com" }),
+    () => PROVIDERS.microsoft.identify("t").then(() => false, () => true)));
+
+{
+  const env = baseEnv();
+  env.m.set("member:mem@outlook.com", JSON.stringify({ until: now() + 30 * 86400, plan: "member" }));
+  const sent = [];
+  const mailer = async (u, init) => { sent.push({ u, body: JSON.parse(init.body) }); return new Response("{}", { status: 200 }); };
+  const ask = (email, ret = "https://example.org/sign-in/?next=%2Fgeohub%2F") => withFetch(mailer, () =>
+    worker.fetch(new Request("https://auth.example.org/auth/email", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, return: ret }),
+    }), env));
+
+  const r1 = await ask("Mem@Outlook.com");
+  const j1 = await r1.json();
+  check("a member's address gets a link, through the mail service",
+    r1.status === 200 && sent.length === 1 && sent[0].u === "https://api.resend.com/emails"
+      && sent[0].body.to[0] === "mem@outlook.com" && sent[0].body.from === "sign-in@example.org",
+    JSON.stringify(j1).slice(0, 80));
+  const link = (sent[0]?.body.text.match(/https:\S+/) || [""])[0];
+  check("the link is the service's own email callback",
+    link.startsWith("https://auth.example.org/auth/callback/email?token="), link.slice(0, 60));
+  const r2 = await ask("nobody@example.org");
+  const j2 = await r2.json();
+  check("a non-member's address gets the same sentence and no mail",
+    r2.status === 200 && j2.message === j1.message && sent.length === 1);
+  const r3 = await ask("mem@outlook.com");
+  check("a second ask within a minute sends no second mail", r3.status === 200 && sent.length === 1);
+  const r5 = await ask("not-an-address");
+  check("a non-address is refused", r5.status === 400);
+
+  const f1 = await worker.fetch(new Request(link), env);
+  const to = new URL(f1.headers.get("location") || "https://x/");
+  const tok = decodeURIComponent(to.hash.replace(/^#token=/, ""));
+  const claims = await verify(tok, SECRET, { audience: "site" });
+  check("following the link issues a member session at the return address",
+    f1.status === 302 && `${to.origin}${to.pathname}${to.search}` === "https://example.org/sign-in/?next=%2Fgeohub%2F"
+      && claims?.email === "mem@outlook.com" && claims.member === true, to.hash.slice(0, 30));
+  const f2 = await worker.fetch(new Request(link), env);
+  const to2 = new URL(f2.headers.get("location") || "https://x/");
+  check("the link works once", f2.status === 302 && to2.hash.startsWith("#auth-error="), to2.hash.slice(0, 40));
+  check("a link token is not a session",
+    (await verify(new URL(link).searchParams.get("token"), SECRET, { audience: "site" })) === null);
+  const f3 = await worker.fetch(new Request("https://auth.example.org/auth/callback/email?token=nope"), env);
+  check("a bad link is refused", f3.status === 400);
+
+  // A return address off the allowlist is not carried into the link.
+  env.m.delete("link:mem@outlook.com");
+  await ask("mem@outlook.com", "https://evil.example/steal");
+  const evilLink = (sent[1]?.body.text.match(/https:\S+/) || [""])[0];
+  const evilClaims = evilLink ? await verify(new URL(evilLink).searchParams.get("token"), SECRET, { audience: "link" }) : null;
+  check("a return address off the allowlist is not carried into the link",
+    !!evilClaims && new URL(evilClaims.r).origin === "https://example.org", evilClaims?.r);
+
+  const off = baseEnv(); delete off.RESEND_API_KEY;
+  const r4 = await worker.fetch(new Request("https://auth.example.org/auth/email",
+    { method: "POST", body: JSON.stringify({ email: "a@b.co" }) }), off);
+  check("without a mail key the door says it is not set up", r4.status === 503, String(r4.status));
 }
 
 console.log(`\n${failures ? `${failures} failed` : "all passed"}`);

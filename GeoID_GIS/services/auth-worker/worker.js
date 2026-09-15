@@ -5,8 +5,11 @@
  * custom domain, so membership adds no vendor and no new bill. It does three
  * things and deliberately no more:
  *
- *   GET  /auth/start?provider=google|github&return=<url>   send them to sign in
+ *   GET  /auth/start?provider=google|github|microsoft&return=<url>
+ *                                                           send them to sign in
  *   GET  /auth/callback/<provider>                          take them back
+ *   POST /auth/email         {email, return}                a sign-in link by email
+ *   GET  /auth/callback/email?token=                        the link, followed
  *   GET  /auth/me            (Bearer)                       who is this
  *   POST /auth/data-token    (Bearer)                       a short pass for the bucket
  *   POST /stripe/webhook     (Stripe-Signature)             a payment became a membership
@@ -16,8 +19,10 @@
  * here is an entitlement -- an email, and until when -- and nothing else, which
  * is the whole of what a privacy notice for this has to say.
  *
- * NO PASSWORDS EVER. Sign-in is Google's or GitHub's, so there is no password
- * of ours to hold, to leak or to reset. The provider secrets live in the
+ * NO PASSWORDS EVER. Sign-in is Google's, Microsoft's or GitHub's -- or a link
+ * sent to the address on the receipt, for a member whose address is none of
+ * those (an Outlook, an iCloud, a university's) -- so there is no password of
+ * ours to hold, to leak or to reset. The provider secrets live in the
  * Worker's own environment and never reach a page: a browser cannot hold a
  * secret, which is the rule `google-credentials.js` already throws over.
  *
@@ -29,7 +34,7 @@
 const WEEK = 7 * 24 * 3600;
 const DATA_TOKEN_SECONDS = 15 * 60;
 
-const PROVIDERS = {
+export const PROVIDERS = {
   google: {
     authorize: "https://accounts.google.com/o/oauth2/v2/auth",
     token: "https://oauth2.googleapis.com/token",
@@ -72,7 +77,35 @@ const PROVIDERS = {
       return { email: String(email).toLowerCase(), name: who?.name || who?.login || "" };
     },
   },
+  microsoft: {
+    // `common` takes both a personal Microsoft account (an outlook.com, a
+    // hotmail, an msn) and a work or school account in any tenant; the app
+    // registration has to be made for that audience (see the README).
+    authorize: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+    token: "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+    scope: "openid email profile User.Read",
+    idFor: (env) => env.MS_CLIENT_ID,
+    secretFor: (env) => env.MS_CLIENT_SECRET,
+    async identify(access) {
+      const r = await fetch("https://graph.microsoft.com/v1.0/me", {
+        headers: { Authorization: `Bearer ${access}` },
+      });
+      if (!r.ok) throw new Error("Microsoft would not say who that is.");
+      const me = await r.json();
+      // A personal account's address is its userPrincipalName; a work
+      // account's is `mail`, and its UPN can be an alias. A GUEST in a tenant
+      // carries a UPN of the shape `x_gmail.com#EXT#@tenant.onmicrosoft.com`,
+      // which is nobody's mailbox, so it is refused rather than looked up.
+      const email = String(me.mail || me.userPrincipalName || "").toLowerCase();
+      if (!email || email.includes("#ext#") || !looksLikeEmail(email)) {
+        throw new Error("That Microsoft account has no usable email address.");
+      }
+      return { email, name: me.displayName || "" };
+    },
+  },
 };
+
+const looksLikeEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s || ""));
 
 // ── JWT, HS256, hand-rolled because a Worker has WebCrypto and needs no dep ──
 
@@ -318,6 +351,80 @@ function cors(env, request) {
   };
 }
 
+// ── a session, however somebody proved who they are ─────────────────────────
+
+/** The week-long site token, in the FRAGMENT of the return address. */
+async function issueSession(env, who, returnTo) {
+  const holds = await membership(env, who.email);
+  const now = Math.floor(Date.now() / 1000);
+  // A session never outlives the membership behind it, and never runs more
+  // than a week, so a lapsed member's own copy stops working without anybody
+  // having to reach into their browser.
+  const exp = Math.min(now + WEEK, holds ? holds.until : now + WEEK);
+  const token = await sign({
+    sub: who.email, email: who.email, name: who.name || "",
+    member: !!holds, plan: holds?.plan || "explorer",
+    iss: env.SELF_ORIGIN, aud: "site", iat: now, exp,
+  }, env.JWT_SECRET);
+  // In the FRAGMENT: not sent to any server, not logged, not in a Referer.
+  const home = new URL(returnTo);
+  home.hash = `token=${encodeURIComponent(token)}`;
+  return Response.redirect(home.toString(), 302);
+}
+
+function failSession(returnTo, message) {
+  const home = new URL(returnTo);
+  home.hash = `auth-error=${encodeURIComponent(message || "Sign-in failed.")}`;
+  return Response.redirect(home.toString(), 302);
+}
+
+// ── the email link: for the address on the receipt, whatever it is ──────────
+//
+// A member who paid with an Outlook, an iCloud or a university address has
+// no Google and no GitHub to sign in through, and may have no Microsoft
+// account behind that address either. The one thing every member certainly
+// has is the mailbox Stripe sent the receipt to, so a signed, single-use link
+// to that mailbox is the door that always exists. It is sent ONLY where the
+// address holds a membership -- the service must not be a relay that will
+// mail any address it is handed -- and the reply is the same sentence either
+// way, so the endpoint cannot be used to ask which addresses are members.
+
+export const LINK_SECONDS = 15 * 60;
+export const LINK_THROTTLE_SECONDS = 60;
+export const LINK_SENTENCE = "If that address holds a membership, a sign-in link is on its way — "
+  + "check the inbox (and the junk folder) in the next few minutes. "
+  + "Not a member yet? Membership is at /membership/.";
+
+async function sendMail(env, to, subject, text) {
+  const r = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "content-type": "application/json" },
+    body: JSON.stringify({ from: env.MAIL_FROM, to: [to], subject, text }),
+  });
+  if (!r.ok) throw new Error(`The mail service answered ${r.status}.`);
+}
+
+/** Send the link where it may be sent; true when one went. */
+export async function sendSignInLink(env, email, returnTo) {
+  const holds = await membership(env, email);
+  if (!holds) return false;
+  // One link a minute per address: a stranger typing a member's address into
+  // the form must not be able to fill that member's inbox.
+  if (await env.MEMBERS.get(`link:${email}`)) return false;
+  await env.MEMBERS.put(`link:${email}`, "1", { expirationTtl: LINK_THROTTLE_SECONDS });
+  const now = Math.floor(Date.now() / 1000);
+  const token = await sign({
+    e: email, r: returnTo, jti: crypto.randomUUID(),
+    aud: "link", iat: now, exp: now + LINK_SECONDS,
+  }, env.JWT_SECRET);
+  const link = `${env.SELF_ORIGIN}/auth/callback/email?token=${encodeURIComponent(token)}`;
+  await sendMail(env, email, "Your GeoID sign-in link",
+    `Follow this link to sign in to GeoID:\n\n${link}\n\n`
+    + `It works once, for the next ${LINK_SECONDS / 60} minutes, and only in the browser it is opened in. `
+    + "If you did not ask for it, nothing happens unless it is followed.\n");
+  return true;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -344,6 +451,39 @@ export default {
       go.searchParams.set("scope", provider.scope);
       go.searchParams.set("state", state);
       return Response.redirect(go.toString(), 302);
+    }
+
+    // ── the email link ─────────────────────────────────────────────────────
+    if (url.pathname === "/auth/email") {
+      if (request.method !== "POST") return json({ error: "POST only." }, 405, head);
+      if (!env.RESEND_API_KEY || !env.MAIL_FROM) {
+        return json({ error: "Email sign-in is not set up on this service." }, 503, head);
+      }
+      let body = {};
+      try { body = await request.json(); } catch (error) { return json({ error: "Not JSON." }, 400, head); }
+      const email = String(body.email || "").trim().toLowerCase();
+      if (!looksLikeEmail(email)) return json({ error: "That is not an email address." }, 400, head);
+      const returnTo = allowedReturn(env, String(body.return || ""));
+      try {
+        await sendSignInLink(env, email, returnTo);
+      } catch (error) {
+        return json({ error: "The mail service did not accept the message — try again in a minute." }, 502, head);
+      }
+      return json({ ok: true, message: LINK_SENTENCE }, 200, head);
+    }
+    if (url.pathname === "/auth/callback/email") {
+      const claims = await verify(url.searchParams.get("token"), env.JWT_SECRET, { audience: "link" });
+      if (!claims || !claims.e || !claims.r || !claims.jti) {
+        return json({ error: "That sign-in link has expired — ask for another." }, 400, head);
+      }
+      // Single use: the link travels through a mailbox, and a mailbox is
+      // forwarded, synced and backed up. What it can prove once it cannot
+      // prove twice.
+      if (await env.MEMBERS.get(`link-used:${claims.jti}`)) {
+        return failSession(claims.r, "That sign-in link has already been used — ask for another.");
+      }
+      await env.MEMBERS.put(`link-used:${claims.jti}`, "1", { expirationTtl: LINK_SECONDS + 60 });
+      return issueSession(env, { email: claims.e, name: "" }, claims.r);
     }
 
     // ── callback ───────────────────────────────────────────────────────────
@@ -374,26 +514,9 @@ export default {
         if (!grant.access_token) throw new Error("The sign-in was not completed.");
 
         const who = await provider.identify(grant.access_token);
-        const holds = await membership(env, who.email);
-        const now = Math.floor(Date.now() / 1000);
-        // A session never outlives the membership behind it, and never runs
-        // more than a week, so a lapsed member's own copy stops working
-        // without anybody having to reach into their browser.
-        const exp = Math.min(now + WEEK, holds ? holds.until : now + WEEK);
-        const token = await sign({
-          sub: who.email, email: who.email, name: who.name,
-          member: !!holds, plan: holds?.plan || "explorer",
-          iss: env.SELF_ORIGIN, aud: "site", iat: now, exp,
-        }, env.JWT_SECRET);
-
-        // In the FRAGMENT: not sent to any server, not logged, not in a Referer.
-        const home = new URL(state.r);
-        home.hash = `token=${encodeURIComponent(token)}`;
-        return Response.redirect(home.toString(), 302);
+        return issueSession(env, who, state.r);
       } catch (error) {
-        const home = new URL(state.r);
-        home.hash = `auth-error=${encodeURIComponent(error.message || "Sign-in failed.")}`;
-        return Response.redirect(home.toString(), 302);
+        return failSession(state.r, error.message);
       }
     }
 

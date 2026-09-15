@@ -89,7 +89,7 @@ function signInPage() {
   // handoff above has exactly one document to happen in.
   const back = new URL("/sign-in/", location.origin);
   back.searchParams.set("next", nextUrl());
-  for (const [id, provider] of [["go-google", "google"], ["go-github", "github"]]) {
+  for (const [id, provider] of [["go-google", "google"], ["go-github", "github"], ["go-microsoft", "microsoft"]]) {
     const link = byId(id);
     if (!link) continue;
     const go = new URL(`${service}/auth/start`);
@@ -97,6 +97,39 @@ function signInPage() {
     go.searchParams.set("return", back.toString());
     link.href = go.toString();
   }
+  wireEmailLink(service, back);
+}
+
+/**
+ * The one-time link: for the address on the receipt, whatever it is.
+ *
+ * The service answers the same sentence whether or not the address holds a
+ * membership (it must not say which addresses are members), so the sentence
+ * is shown as the service wrote it rather than turned into a verdict here.
+ */
+function wireEmailLink(service, back) {
+  const form = byId("email-form");
+  const input = byId("email-address");
+  const status = byId("email-status");
+  if (!form || !input || !status) return;
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const email = input.value.trim();
+    if (!email) { input.focus(); return; }
+    status.hidden = false;
+    status.textContent = "Sending…";
+    try {
+      const r = await fetch(`${service}/auth/email`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email, return: back.toString() }),
+      });
+      const got = await r.json().catch(() => ({}));
+      status.textContent = got.message || got.error || (r.ok ? "Sent." : "The sign-in service did not answer.");
+    } catch (error) {
+      status.textContent = "The sign-in service could not be reached.";
+    }
+  });
 }
 
 // ── The account page ────────────────────────────────────────────────────────

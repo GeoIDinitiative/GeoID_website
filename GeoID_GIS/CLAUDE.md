@@ -21451,3 +21451,30 @@ bucket pass. What it lacked was the WRITING side: the members list was
   tag, and the Stripe endpoint has to be registered in the dashboard
   (Developers ▸ Webhooks, the four events above) — the README's Stripe
   section is the checklist, and every step of it is the account owner's.
+
+### Sign-ups from Outlook and every other address
+
+"What about sign-ups from Outlook etc.?" Google and GitHub were the only
+doors, so a member who paid with an outlook.com, an iCloud or a university
+address had none. Two doors added to the auth Worker:
+
+- **Microsoft** as a third provider through `login.microsoftonline.com/
+  common` (personal AND work accounts; the app registration must be made for
+  that audience). A personal account's address is its `userPrincipalName`, a
+  work account's is `mail`; a tenant GUEST's UPN is `x_gmail.com#EXT#@…`,
+  which is nobody's mailbox and is refused.
+- **A one-time link by email** (`POST /auth/email`, `GET /auth/callback/
+  email`) for everything else: the one thing every member has is the inbox
+  Stripe sent the receipt to. Signed, `aud: link`, fifteen minutes, single
+  use (`link-used:<jti>` in KV), one a minute per address, sent ONLY where
+  the address holds a membership, and the form answers the same sentence
+  either way — the endpoint is neither a member directory nor a mail relay.
+  The return address goes through `allowedReturn` before it is signed into
+  the link. Sending is Resend's HTTP API (`RESEND_API_KEY`, `MAIL_FROM` on a
+  verified domain); without it the door says so and the providers remain.
+- Session issuance is ONE function now (`issueSession`), so a link and an
+  OAuth callback cannot drift on the week cap or the membership re-read.
+
+The tests monkeypatch `globalThis.fetch` to stand in for Graph and for the
+mail service and read the link out of the captured message, so the whole
+flow — ask, mail, follow, refuse the second follow — runs in node.

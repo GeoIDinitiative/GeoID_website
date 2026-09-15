@@ -34,7 +34,40 @@ each step signs in to an account only you hold.
 
    Then `npx wrangler secret put GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`.
 
-4. **The members list.**
+4. **Microsoft** — for an Outlook, Hotmail or Live address, and for work and
+   school accounts. In the Azure portal (Microsoft Entra ID) → App
+   registrations → New registration. Supported account types must be
+   *Accounts in any organizational directory and personal Microsoft accounts*,
+   or a personal address is refused by Microsoft before it reaches us.
+   Redirect URI, type *Web*:
+
+       https://auth.geoidinitiative.com/auth/callback/microsoft
+
+   Under Certificates & secrets make a client secret (note its expiry —
+   Microsoft caps it at two years). Then `npx wrangler secret put
+   MS_CLIENT_ID` (the *Application (client) ID*) and `MS_CLIENT_SECRET` (the
+   secret's *Value*, not its id).
+
+5. **The one-time link by email** — the door for every other address: an
+   iCloud, a university's, anything without a Google, GitHub or Microsoft
+   account behind it. A member types the address on their receipt, the
+   Worker mails a signed link that works once for fifteen minutes, and
+   following it signs them in. It is sent only where the address holds a
+   membership, and the form answers the same sentence either way, so it
+   cannot be used to find out who is a member or to mail strangers.
+
+   Sending needs a mail service the Worker can call; Resend is the one wired
+   (free tier, an HTTP API, no SMTP). At resend.com: add the domain
+   `geoidinitiative.com` and put the DNS records it gives (SPF, DKIM) into
+   Cloudflare — the sender in `wrangler.toml`'s `MAIL_FROM` has to be on a
+   verified domain or the mail is refused — then make an API key:
+
+       npx wrangler secret put RESEND_API_KEY
+
+   Without the key the form says email sign-in is not set up and the three
+   providers remain.
+
+6. **The members list.**
 
        npx wrangler kv namespace create MEMBERS
 
@@ -59,7 +92,7 @@ each step signs in to an account only you hold.
    otherwise. It still expires: `until` is far out here, not absent, because a
    credential that never runs out is one nobody ever revokes.
 
-5. **Deploy, and point the site at it.**
+7. **Deploy, and point the site at it.**
 
        npx wrangler deploy
 
