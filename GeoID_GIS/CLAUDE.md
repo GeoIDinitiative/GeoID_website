@@ -20512,3 +20512,37 @@ the pure half.
   node 25018 reads (−1.757, −1.631, −40.329), half the solved value, in the
   reader, in the `compare_solid_u` VTK array and in the report. A reference
   with a 5 m summit bump reads 0–4.98 m by domain.
+
+## Contour lines and isosurfaces in Results
+
+Results ▸ Display draws two things:
+- **Contour lines** on the surface and the slice: marching triangles in
+  `contourSegments`, on the page.
+- **Isosurfaces** through the volume: `isoTets` in the worker.
+
+Both are at levels in the field's own units. They follow the step, the
+component and the warp, and they have rows in the Visibility box.
+
+- **An isosurface is a slice of a different function.** `sliceTets` computes
+  signed distance to a plane and hands it to `cutTets`; `isoTets` hands it
+  value minus level. Both answer the same edge interpolants, so positions,
+  the warp and colours go through `interpolateOnSlice` unchanged. A tet
+  touching a NaN node is left out.
+- **Contour levels are round numbers strictly inside the step's range**
+  (`contourLevels` via niceTicks). A value exactly on a level counts as above
+  it, so a line through shared vertices is drawn once per triangle, not twice
+  along the edge. Typed iso levels win; blank means a quarter, half and three
+  quarters of the range.
+- **Not on fringes.** A fringe already is a contour of range, and contouring a
+  wrap draws every jump as a line.
+- **In clip view both are cut by the surface's own clip plane.** Uncut, the
+  isosurfaces floated outside the half taken away. The surface material
+  carries a polygon offset so lines drawn on it are not buried.
+- **Verified on Etna:**
+  - contours at 10…80 m (11,208 vertices);
+  - isosurfaces at 40 and 70 m (214,683 vertices), sampled vertices on their
+    level to 1.3e-7 m;
+  - one refresh in 0.14 s.
+
+  The 20 and 50 m isosurfaces are broad bowls under the whole top, which is
+  the same load-of-the-box shape the Mogi inversion reported.

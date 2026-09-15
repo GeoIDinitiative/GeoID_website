@@ -9,6 +9,7 @@
  *
  *   { id, type: "parse", buffer }          → { id, ok, mesh }
  *   { id, type: "slice", normal, d }       → { id, ok, slice }
+ *   { id, type: "iso", scalar, levels }   → { id, ok, iso }  (edge interpolants, and each vertex's level)
  *   { id, type: "locate", points }         → { id, ok, located }  (nodes ×4, weights ×4 per point)
  *   { id, type: "stats", scalar, bins } → { id, ok, stats } (domainStats, per volume flag)
  *   { id, type: "derive", u, nbDofs, material, gridText } → { id, ok, derived } (strain-stress.js)
@@ -16,11 +17,11 @@
  *   { id, type: "vtu", part, pointData, time } → { id, ok, blob, bytes, cells } (vtk-export.js; a Blob clones without copying)
  *   progress while parsing                 → { id, type: "progress", fraction }
  */
-import { parseMesh, sliceTets, cellLocator, locatePoints, domainStats } from "./gales-results.js?v=20260915-9c4a829";
-import { analyseMesh } from "./mesh-quality.js?v=20260915-9c4a829";
-import { derivedFields, materialAt } from "./strain-stress.js?v=20260915-9c4a829";
-import { parseTable, buildGrid, sampleGrid } from "./tomography.js?v=20260915-9c4a829";
-import { vtkCells, vtuParts } from "./vtk-export.js?v=20260915-9c4a829";
+import { parseMesh, sliceTets, isoTets, cellLocator, locatePoints, domainStats } from "./gales-results.js?v=20260915-a91e36d";
+import { analyseMesh } from "./mesh-quality.js?v=20260915-a91e36d";
+import { derivedFields, materialAt } from "./strain-stress.js?v=20260915-a91e36d";
+import { parseTable, buildGrid, sampleGrid } from "./tomography.js?v=20260915-a91e36d";
+import { vtkCells, vtuParts } from "./vtk-export.js?v=20260915-a91e36d";
 
 let mesh = null;
 let locator = null; // built on the first locate, dropped with the mesh
@@ -60,6 +61,13 @@ async function handle(event) {
       if (!mesh) throw new Error("No mesh is loaded in the reader.");
       const slice = sliceTets(mesh, event.data.normal, event.data.d);
       reply({ id, ok: true, slice }, [slice.a.buffer, slice.b.buffer, slice.t.buffer, slice.cells.buffer]);
+      return;
+    }
+    if (type === "iso") {
+      // Isosurfaces: the same cut as a slice, of value minus level, per level.
+      if (!mesh) throw new Error("No mesh is loaded in the reader.");
+      const iso = isoSet(mesh, event.data.scalar, event.data.levels);
+      reply({ id, ok: true, iso }, [iso.a.buffer, iso.b.buffer, iso.t.buffer, iso.level.buffer]);
       return;
     }
     if (type === "locate") {
@@ -137,6 +145,19 @@ async function handle(event) {
   } catch (error) {
     reply({ id, ok: false, error: error?.message || String(error) });
   }
+}
+
+/** Several isosurfaces in one set of arrays, each vertex tagged with its level's index. */
+export function isoSet(source, scalar, levels) {
+  const parts = levels.map((L) => isoTets(source, scalar, L));
+  const n = parts.reduce((a, p) => a + p.t.length, 0);
+  const out = { a: new Int32Array(n), b: new Int32Array(n), t: new Float32Array(n), level: new Uint16Array(n) };
+  let at = 0;
+  parts.forEach((p, l) => {
+    out.a.set(p.a, at); out.b.set(p.b, at); out.t.set(p.t, at); out.level.fill(l, at, at + p.t.length);
+    at += p.t.length;
+  });
+  return out;
 }
 
 /** An analysis whose arrays can be transferred without taking the worker's mesh with them. */

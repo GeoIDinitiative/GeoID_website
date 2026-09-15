@@ -26,14 +26,14 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, formatValue } from "./gales-results.js?v=20260915-9c4a829";
-import { downloadText } from "./extraction.js?v=20260915-9c4a829";
-import { modelReportHtml } from "./model-report.js?v=20260915-9c4a829";
-import { PHYSICS, domainProperties } from "./fem-setup.js?v=20260915-9c4a829";
-import { may, refusal } from "./membership.js?v=20260915-9c4a829";
-import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-9c4a829";
-import { losVector } from "./insar.js?v=20260915-9c4a829";
-import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260915-9c4a829";
+import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, formatValue } from "./gales-results.js?v=20260915-a91e36d";
+import { downloadText } from "./extraction.js?v=20260915-a91e36d";
+import { modelReportHtml } from "./model-report.js?v=20260915-a91e36d";
+import { PHYSICS, domainProperties } from "./fem-setup.js?v=20260915-a91e36d";
+import { may, refusal } from "./membership.js?v=20260915-a91e36d";
+import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-a91e36d";
+import { losVector } from "./insar.js?v=20260915-a91e36d";
+import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260915-a91e36d";
 
 const byId = (id) => document.getElementById(id);
 const R = () => window.GeoIDGalesResults;
@@ -1150,6 +1150,13 @@ export async function buildModelReport({ title } = {}) {
       facts: [
         ["Field", `${f.desc?.label || f.field} (${f.field})`],
         ...(f.compare && S.reference ? [["Reference run", S.reference.note]] : []),
+        ...(() => {
+          const d = results.display?.() || {};
+          return [
+            ...(d.contours?.length ? [["Contour lines", d.contours.map((v) => formatValue(v, Math.abs(v) || 1)).join(", ")]] : []),
+            ...(d.iso?.length ? [["Isosurfaces", d.iso.map((v) => formatValue(v, Math.abs(v) || 1)).join(", ")]] : []),
+          ];
+        })(),
         ["Shown", label],
         ["Step", `t=${f.steps[S.step]?.name} (${S.step + 1} of ${f.steps.length})`],
         ["Range at this step", `${formatValue(lo, hi - lo || 1)} to ${formatValue(hi, hi - lo || 1)}`],

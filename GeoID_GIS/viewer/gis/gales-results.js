@@ -1033,6 +1033,17 @@ export function sliceTets(mesh, normal, d) {
   const dn = d / len;
   const dist = new Float64Array(nodeCount);
   for (let i = 0; i < nodeCount; i += 1) dist[i] = coords[i * 3] * nx + coords[i * 3 + 1] * ny + coords[i * 3 + 2] * nz - dn;
+  return { ...cutTets(mesh, dist), normal: [nx, ny, nz], d: dn };
+}
+
+/**
+ * The zero set of a per-node function over the tetrahedra, as edge
+ * interpolants: the slice (signed distance to a plane) and the isosurface
+ * (value minus level) are both this. A tet touching a NaN node is left out --
+ * a value that is not there has no level to cross.
+ */
+export function cutTets(mesh, dist) {
+  const { cells, cellOffsets, cellCount } = mesh;
   const A = new IntBuffer();
   const B = new IntBuffer();
   const T = [];
@@ -1050,11 +1061,14 @@ export function sliceTets(mesh, normal, d) {
     if (cellOffsets[c + 1] - s !== 4) continue;
     let np = 0;
     let nn = 0;
+    let gap = false;
     for (let k = 0; k < 4; k += 1) {
       const node = cells[s + k];
-      if (dist[node] >= 0) pos[np++] = node; else neg[nn++] = node;
+      const v = dist[node];
+      if (v !== v) { gap = true; break; }
+      if (v >= 0) pos[np++] = node; else neg[nn++] = node;
     }
-    if (np === 0 || nn === 0) continue;
+    if (gap || np === 0 || nn === 0) continue;
     if (np === 1 || nn === 1) {
       const lone = np === 1 ? pos[0] : neg[0];
       const others = np === 1 ? neg : pos;
@@ -1068,7 +1082,62 @@ export function sliceTets(mesh, normal, d) {
       cellOf.push(c); cellOf.push(c);
     }
   }
-  return { a: A.done(), b: B.done(), t: Float32Array.from(T), cells: cellOf.done(), normal: [nx, ny, nz], d: dn };
+  return { a: A.done(), b: B.done(), t: Float32Array.from(T), cells: cellOf.done() };
+}
+
+/** The isosurface scalar = level, as the same edge interpolants a slice is. */
+export function isoTets(mesh, scalar, level) {
+  const dist = new Float64Array(mesh.nodeCount);
+  for (let i = 0; i < mesh.nodeCount; i += 1) dist[i] = scalar[i] - level;
+  return cutTets(mesh, dist);
+}
+
+/** Contour levels strictly inside a range: round numbers, about `count` of them. */
+export function contourLevels(lo, hi, count = 10) {
+  if (!(hi > lo)) return [];
+  return niceTicks(lo, hi, count).filter((v) => v > lo + (hi - lo) * 1e-9 && v < hi - (hi - lo) * 1e-9);
+}
+
+/**
+ * Contour lines over triangles by marching triangles. `positions` are xyz per
+ * vertex, `values` one per vertex, `index` the triangles (null: every three
+ * vertices in order, as a slice's are). A value equal to the level counts as
+ * above it, as a node on a slice's plane does, so a line is never drawn twice
+ * along a shared edge. Answers segment endpoints (xyz, two per segment) and
+ * each endpoint's level index.
+ */
+export function contourSegments(positions, values, index, levels) {
+  const out = [];
+  const which = [];
+  const tris = index ? index.length / 3 : positions.length / 9;
+  const at = (k) => (index ? index[k] : k);
+  const point = (i, j, L) => {
+    const vi = values[i]; const vj = values[j];
+    const t = vi === vj ? 0.5 : (L - vi) / (vj - vi);
+    out.push(
+      positions[i * 3] + (positions[j * 3] - positions[i * 3]) * t,
+      positions[i * 3 + 1] + (positions[j * 3 + 1] - positions[i * 3 + 1]) * t,
+      positions[i * 3 + 2] + (positions[j * 3 + 2] - positions[i * 3 + 2]) * t,
+    );
+  };
+  for (let tIdx = 0; tIdx < tris; tIdx += 1) {
+    const i0 = at(tIdx * 3); const i1 = at(tIdx * 3 + 1); const i2 = at(tIdx * 3 + 2);
+    const v0 = values[i0]; const v1 = values[i1]; const v2 = values[i2];
+    if (v0 !== v0 || v1 !== v1 || v2 !== v2) continue;
+    const mn = Math.min(v0, v1, v2); const mx = Math.max(v0, v1, v2);
+    for (let l = 0; l < levels.length; l += 1) {
+      const L = levels[l];
+      if (L < mn || L > mx) continue;
+      const a0 = v0 >= L; const a1 = v1 >= L; const a2 = v2 >= L;
+      if (a0 === a1 && a1 === a2) continue;
+      // The lone vertex on its side of the level; the line crosses its two edges.
+      const lone = a0 !== a1 && a0 !== a2 ? 0 : a1 !== a0 && a1 !== a2 ? 1 : 2;
+      const [p, q, r] = lone === 0 ? [i0, i1, i2] : lone === 1 ? [i1, i2, i0] : [i2, i0, i1];
+      point(p, q, L); point(p, r, L);
+      which.push(l, l);
+    }
+  }
+  return { positions: Float32Array.from(out), level: Uint16Array.from(which) };
 }
 
 /** A per-node array interpolated onto slice vertices (or positions, stride 3). */

@@ -26,16 +26,16 @@ import * as THREE from "../vendor/three.module.js";
 import {
   planSimulation, describeField, dofsPerNode, float64View, componentOf, magnitudeOf,
   rangeOf, usedNodes, COLORMAPS, colormapTable, colourValues, niceTicks, formatValue, tickLabel,
-  interpolateOnSlice, axisPlane, nodeByteRange, probeCsv, parseMesh, sliceTets,
+  interpolateOnSlice, axisPlane, nodeByteRange, probeCsv, parseMesh, sliceTets, isoTets, contourLevels, contourSegments,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
   groupResultFiles, timeOf, referencePlan, differenceOf,
-} from "./gales-results.js?v=20260915-9c4a829";
-import { zipStore } from "./shapefile-writer.js?v=20260915-9c4a829";
-import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-9c4a829";
-import { parseSolidProps } from "./strain-stress.js?v=20260915-9c4a829";
-import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-9c4a829";
-import { may, refusal } from "./membership.js?v=20260915-9c4a829";
-import { downloadText } from "./extraction.js?v=20260915-9c4a829";
+} from "./gales-results.js?v=20260915-a91e36d";
+import { zipStore } from "./shapefile-writer.js?v=20260915-a91e36d";
+import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-a91e36d";
+import { parseSolidProps } from "./strain-stress.js?v=20260915-a91e36d";
+import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-a91e36d";
+import { may, refusal } from "./membership.js?v=20260915-a91e36d";
+import { downloadText } from "./extraction.js?v=20260915-a91e36d";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -81,6 +81,9 @@ const S = {
   // A second run on the same mesh whose fields are subtracted from this one's.
   reference: null,
   clipOn: null,
+  // Contour lines on what is drawn, and isosurfaces through the volume.
+  contours: { on: false, count: 10, colour: "dark" },
+  iso: { on: false, levels: "", opacity: 0.55, key: "", data: null, used: [] },
   // Meshes opened by hand, and the field a numbered file picked on its own
   // belongs to (a bare "1" says nothing about which field it is).
   meshHints: [],
@@ -130,6 +133,14 @@ function getReader() {
         return Promise.resolve({ ok: true, mesh: { ...local, tets: local.cellCount } });
       }
       if (type === "slice") return Promise.resolve({ ok: true, slice: sliceTets(local, payload.normal, payload.d) });
+      if (type === "iso") {
+        const parts = payload.levels.map((L) => isoTets(local, payload.scalar, L));
+        const n = parts.reduce((a, q) => a + q.t.length, 0);
+        const iso = { a: new Int32Array(n), b: new Int32Array(n), t: new Float32Array(n), level: new Uint16Array(n) };
+        let at = 0;
+        parts.forEach((q, l) => { iso.a.set(q.a, at); iso.b.set(q.b, at); iso.t.set(q.t, at); iso.level.fill(l, at, at + q.t.length); at += q.t.length; });
+        return Promise.resolve({ ok: true, iso });
+      }
       if (type === "derive") return import(`./strain-stress.js${VERSION}`).then(async (ss) => {
         const t = await import(`./tomography.js${VERSION}`);
         const spec = payload.material;
@@ -423,6 +434,8 @@ async function loadMesh(path) {
     S.meshPath = path;
     S.slice = null;
     S.sliceKey = "";
+    S.iso.key = "";
+    S.iso.data = null;
     S.probe = null;
     S.clipOn = null;
     S.stations = [];
@@ -641,7 +654,7 @@ function buildScene() {
    * one. A group above each holds the reader's choice and nothing else.
    */
   const part = (name) => { const g = new THREE.Group(); g.name = `gales-part-${name}`; frame.add(g); return g; };
-  scene.parts = { surface: part("surface"), slice: part("slice"), edges: part("edges"), points: part("points") };
+  scene.parts = { surface: part("surface"), slice: part("slice"), edges: part("edges"), points: part("points"), contours: part("contours"), iso: part("iso") };
 
   const nodes = usedNodes(mesh.surface, mesh.nodeCount);
   const compact = new Int32Array(mesh.nodeCount).fill(-1);
@@ -664,7 +677,8 @@ function buildScene() {
   geometry.setIndex(new THREE.BufferAttribute(index, 1));
   geometry.computeVertexNormals();
   geometry.computeBoundingSphere();
-  const material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+  // Pushed back a hair in depth, so contour lines drawn on it are not buried in it.
+  const material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
   const surface = new THREE.Mesh(geometry, material);
   surface.name = "gales-surface";
   surface.frustumCulled = false;
@@ -724,6 +738,8 @@ const PART_ROWS = [
   ["slice", "Slice / clip cut", 0xe0a458],
   ["edges", "Mesh edges", 0x444444],
   ["points", "Points and probes", 0xffd166],
+  ["contours", "Contour lines", 0x222222],
+  ["iso", "Isosurfaces", 0x9ad9dd],
 ];
 
 function anyPartShown() {
@@ -756,6 +772,8 @@ function visibilityGroup() {
     slice: S.view !== "surface",
     edges: Boolean(scene.outline),
     points: Boolean(S.stations?.length || S.probe),
+    contours: Boolean(S.contours.on),
+    iso: Boolean(S.iso.on && S.mesh?.dim === 3),
   };
   // A part that has just come to be (a slice shown, a first point placed)
   // arrives visible: a "Hide results" pressed before it existed was not about it.
@@ -933,8 +951,9 @@ async function refresh({ fit = false } = {}) {
       pos[k * 3 + 1] = scene.base[k * 3 + 1] + disp[i * 3 + 1];
       pos[k * 3 + 2] = scene.base[k * 3 + 2] + disp[i * 3 + 2];
     } else pos.set(scene.base);
+    let onSurface = null;
     if (scalar) {
-      const onSurface = new Float32Array(nodes.length);
+      onSurface = new Float32Array(nodes.length);
       for (let k = 0; k < nodes.length; k += 1) onSurface[k] = scalar[nodes[k]];
       colourValues(onSurface, lo, hi, table, col, paint);
     } else col.fill(0.72);
@@ -970,9 +989,11 @@ async function refresh({ fit = false } = {}) {
     if (scene.outline) scene.outline.visible = view !== "slice";
 
     // Slice.
+    let slicePositions = null;
     if (sliced) {
       const s = sliced.slice;
       const positions = interpolateOnSlice(s, S.mesh.coords, 3, new Float32Array(s.t.length * 3));
+      slicePositions = positions;
       if (disp) {
         const dOn = interpolateOnSlice(s, disp, 3);
         for (let k = 0; k < positions.length; k += 1) positions[k] += dOn[k];
@@ -988,6 +1009,8 @@ async function refresh({ fit = false } = {}) {
       scene.slice.visible = true;
     } else scene.slice.visible = false;
 
+    drawContours({ scalar: !fringe && scalar, onSurface: !fringe && onSurface, pos, index: geometry.index?.array, view, slicePositions, sliceValues: !fringe && sliceValues, lo, hi, table });
+    await drawIsosurfaces({ scalar: fringe ? null : scalar, f, disp, lo, hi, table });
     updateProbeMarker(disp);
     updateStationMarkers(disp);
     // The box names the field and lists the slice once there is one: redraw it
@@ -1007,6 +1030,115 @@ async function refresh({ fit = false } = {}) {
     S.busy = false;
     if (S.pending) { S.pending = false; refresh(); }
   }
+}
+
+// ── Contours and isosurfaces ───────────────────────────────────────────────
+//
+// Lines of equal value on what is drawn (the surface, the slice), and surfaces
+// of equal value through the volume. Both are drawn at levels in the field's
+// own units, and follow the step, the component and the warp. Not for wrapped
+// fringes: a fringe already IS a contour of range, and contouring a wrap
+// draws every jump as a line.
+
+function disposeGroup(group) {
+  if (!group) return;
+  for (const child of [...group.children]) {
+    group.remove(child);
+    child.geometry?.dispose?.();
+    child.material?.dispose?.();
+  }
+}
+
+function drawContours({ scalar, onSurface, pos, index, view, slicePositions, sliceValues, lo, hi, table }) {
+  const group = scene.parts?.contours;
+  disposeGroup(group);
+  S.contours.levels = [];
+  if (!group || !S.contours.on || !scalar) return;
+  const levels = contourLevels(lo, hi, S.contours.count);
+  S.contours.levels = levels;
+  if (!levels.length) return;
+  const pieces = [];
+  if (view !== "slice" && onSurface && index) pieces.push(contourSegments(pos, onSurface, index, levels));
+  if (slicePositions && sliceValues) pieces.push(contourSegments(slicePositions, sliceValues, null, levels));
+  const n = pieces.reduce((a, p) => a + p.positions.length, 0);
+  if (!n) return;
+  const positions = new Float32Array(n);
+  const colours = new Float32Array(n);
+  let at = 0;
+  const levelColour = levels.map((L) => {
+    const c = new Float32Array(3);
+    colourValues(new Float32Array([L]), lo, hi, table, c, { bands: 0, log: false });
+    return c;
+  });
+  const fixed = S.contours.colour === "light" ? [0.95, 0.95, 0.95] : [0.07, 0.07, 0.09];
+  for (const p of pieces) {
+    positions.set(p.positions, at);
+    for (let v = 0; v < p.level.length; v += 1) {
+      const c = S.contours.colour === "value" ? levelColour[p.level[v]] : fixed;
+      colours[at + v * 3] = c[0]; colours[at + v * 3 + 1] = c[1]; colours[at + v * 3 + 2] = c[2];
+    }
+    at += p.positions.length;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  g.setAttribute("color", new THREE.BufferAttribute(colours, 3));
+  // In clip view they are cut where the surface is: a line drawn on the half
+  // taken away floats over nothing.
+  const lines = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true, clippingPlanes: view === "clip" ? [scene.clip] : null }));
+  lines.name = "gales-contours";
+  lines.frustumCulled = false;
+  lines.renderOrder = 2;
+  group.add(lines);
+}
+
+/** Levels typed as numbers, else three through the middle of the range. */
+export function isoLevelsFor(text, lo, hi) {
+  const typed = String(text || "").split(/[,;\s]+/).map(Number).filter(Number.isFinite);
+  if (typed.length) return typed.slice(0, 8);
+  if (!(hi > lo)) return [];
+  return [0.25, 0.5, 0.75].map((f) => Number((lo + (hi - lo) * f).toPrecision(3)));
+}
+
+async function drawIsosurfaces({ scalar, f, disp, lo, hi, table }) {
+  const group = scene.parts?.iso;
+  disposeGroup(group);
+  const I = S.iso;
+  I.used = [];
+  if (!group || !I.on || !scalar || S.mesh.dim !== 3) return;
+  const levels = isoLevelsFor(I.levels, lo, hi);
+  I.used = levels;
+  if (!levels.length) return;
+  const key = `${S.meshPath}|${f?.field}|${S.step}|${S.component}|${levels.join(",")}|${S.reference?.label || ""}`;
+  if (I.key !== key || !I.data) {
+    const copy = Float32Array.from(scalar);
+    I.data = (await getReader().call("iso", { scalar: copy, levels }, [copy.buffer])).iso;
+    I.key = key;
+  }
+  const iso = I.data;
+  if (!iso.t.length) return;
+  const positions = interpolateOnSlice(iso, S.mesh.coords, 3, new Float32Array(iso.t.length * 3));
+  if (disp) {
+    const dOn = interpolateOnSlice(iso, disp, 3);
+    for (let k = 0; k < positions.length; k += 1) positions[k] += dOn[k];
+  }
+  const colours = new Float32Array(iso.t.length * 3);
+  const levelColour = levels.map((L) => {
+    const c = new Float32Array(3);
+    colourValues(new Float32Array([L]), lo, hi, table, c, { bands: 0, log: false });
+    return c;
+  });
+  for (let v = 0; v < iso.level.length; v += 1) colours.set(levelColour[iso.level[v]], v * 3);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  g.setAttribute("color", new THREE.BufferAttribute(colours, 3));
+  g.computeVertexNormals();
+  const translucent = I.opacity < 1;
+  const clip = (S.mesh.dim === 3 ? S.view : "surface") === "clip" ? [scene.clip] : null;
+  const mesh = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, transparent: translucent, opacity: I.opacity, depthWrite: !translucent, clippingPlanes: clip }));
+  mesh.name = "gales-isosurfaces";
+  mesh.frustumCulled = false;
+  mesh.renderOrder = 3;
+  group.add(mesh);
 }
 
 // ── Probe ───────────────────────────────────────────────────────────────────
@@ -1545,6 +1677,24 @@ function renderControls() {
     ds.body.append(top);
   }
   ds.body.append(check("Wireframe", S.edges, (v) => { S.edges = v; refresh(); }));
+  ds.body.append(check("Contour lines", S.contours.on, (v) => { S.contours.on = v; renderControls(); refresh(); }, "Lines of equal value on the surface and the slice, at round levels in the field's units"));
+  if (S.contours.on) {
+    ds.body.append(row("Contour levels", select([[5, "About 5"], [10, "About 10"], [20, "About 20"], [40, "About 40"]], S.contours.count, (v) => { S.contours.count = Number(v); refresh(); })));
+    ds.body.append(row("Contour colour", select([["dark", "Dark"], ["light", "Light"], ["value", "By value"]], S.contours.colour, (v) => { S.contours.colour = v; refresh(); })));
+  }
+  if (S.mesh.dim === 3) {
+    ds.body.append(check("Isosurfaces", S.iso.on, (v) => { S.iso.on = v; renderControls(); refresh(); }, "Surfaces of equal value through the volume"));
+    if (S.iso.on) {
+      const lv = el("input", { class: "studio-input", type: "text", value: S.iso.levels, placeholder: "e.g. 10, 40 — blank: a quarter, half, three quarters", spellcheck: "false" });
+      lv.addEventListener("keydown", (event) => event.stopPropagation());
+      lv.addEventListener("change", () => { S.iso.levels = lv.value; refresh(); });
+      ds.body.append(row("Iso levels", lv));
+      const io = el("input", { class: "gales-range", type: "range", min: "0.15", max: "1", step: "0.05", value: String(S.iso.opacity) });
+      io.addEventListener("change", () => { S.iso.opacity = Number(io.value); refresh(); });
+      ds.body.append(row("Iso opacity", io));
+      if (S.iso.used?.length) ds.body.append(el("p", { class: "studio-readout" }, `At ${S.iso.used.map((L) => formatValue(L, Math.abs(L) || 1)).join(", ")} in the field's units.`));
+    }
+  }
   const opacity = el("input", { class: "gales-range", type: "range", min: "0.1", max: "1", step: "0.05", value: String(S.opacity) });
   opacity.addEventListener("input", () => { S.opacity = Number(opacity.value); refresh(); });
   ds.body.append(row("Opacity", opacity));
@@ -2225,6 +2375,8 @@ if (typeof document !== "undefined" && typeof window !== "undefined" && typeof w
     locate: async (points) => (S.mesh ? (await getReader().call("locate", { points }, [points.buffer])).located : null),
     colormap: () => colormapTable(S.colormap, { reverse: S.reverse }),
     // ParaView: the .vtu files for a selection, and the download.
+    // Contour levels and isosurface levels as drawn (for a report, and for tests).
+    display: () => ({ contours: S.contours.on ? S.contours.levels : [], iso: S.iso.on ? S.iso.used : [] }),
     setReference: (files) => setReference(files),
     clearReference: () => clearReference(),
     vtkFiles: (options) => buildVtkFiles(options),

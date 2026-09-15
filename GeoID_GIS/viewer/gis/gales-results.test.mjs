@@ -15,7 +15,7 @@ import {
   niceTicks, formatValue, tickLabel, sliceTets, domainStats, domainStatsCsv, interpolateOnSlice, axisPlane, nearestNode,
   probeCsv, planSimulation, COLORMAPS, flagSummary, stationsForFlag, nodeLocator, specPoints,
   parsePointList, stationCsvFiles,
-  referencePlan, differenceOf,
+  referencePlan, differenceOf, cutTets, isoTets, contourLevels, contourSegments,
 } from "./gales-results.js";
 
 let pass = 0;
@@ -588,4 +588,38 @@ check("a mesh opened onto a loaded run starts a new run; results join the open o
   check("compare: difference fields join the reader as ordinary fields, read value for value, labelled as differences", /referencePlan\(S\.fields\.filter\(\(f\) => f\.ok\), S\.reference\.fields\)/.test(panel) && /if \(f\.compare\) \{[\s\S]{0,300}differenceOf\(a, b\)/.test(panel) && /label: `Δ \$\{c\.label\}`/.test(panel));
   check("compare: a byte-range read is never used for a difference, which has no bytes of its own", /!f\.derived && !f\.compare \? nodeByteRange/.test(panel));
   check("compare: opening a new run drops the reference", /S\.source = source;\n  S\.reference = null;/.test(panel));
+}
+
+{
+  // A unit tet split into a cube's worth is too much; one tet with a linear field says it all.
+  const tet = { nodeCount: 4, coords: new Float64Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1]), cells: new Int32Array([0, 1, 2, 3]), cellOffsets: new Int32Array([0, 4]), cellCount: 1 };
+  const x = new Float64Array([0, 1, 0, 0]); // the field is x
+  const iso = isoTets(tet, x, 0.5);
+  const at = interpolateOnSlice(iso, tet.coords, 3);
+  check("iso: the isosurface x = 0.5 of a linear field is a triangle at x = 0.5 exactly", iso.t.length === 3 && [0, 3, 6].every((k) => Math.abs(at[k] - 0.5) < 1e-7));
+  check("iso: a level outside the field's range cuts nothing", isoTets(tet, x, 2).t.length === 0);
+  check("iso: a tet touching a NaN is left out", isoTets(tet, new Float64Array([0, 1, NaN, 0]), 0.5).t.length === 0);
+  const z = new Float64Array([0, 0, 0, 1]);
+  const mid = interpolateOnSlice(isoTets(tet, z, 0.5), tet.coords, 3);
+  check("iso: a level that splits the tet two-and-two gives a quad (two triangles) on the level", mid.length === 9 && [2, 5, 8].every((k) => Math.abs(mid[k] - 0.5) < 1e-7) && isoTets(tet, new Float64Array([0, 1, 0, 1]), 0.5).t.length === 6);
+  check("slice: still the same cut as before, with its plane", sliceTets(tet, [1, 0, 0], 0.5).t.length === 3 && sliceTets(tet, [2, 0, 0], 1).d === 0.5);
+
+  check("contour levels: round numbers strictly inside the range", contourLevels(0, 85.4, 8).join() === "10,20,30,40,50,60,70,80" && contourLevels(3, 3).length === 0);
+
+  // Two triangles over the unit square, the field is x + y.
+  const pos = new Float32Array([0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0]);
+  const val = new Float32Array([0, 1, 2, 1]);
+  const seg = contourSegments(pos, val, new Uint32Array([0, 1, 2, 0, 2, 3]), [0.5, 1.5]);
+  const onLine = [...Array(seg.positions.length / 3).keys()].every((k) => Math.abs(seg.positions[k * 3] + seg.positions[k * 3 + 1] - [0.5, 1.5][seg.level[k]]) < 1e-6);
+  check("contours: every endpoint lies on its level (x + y = level)", seg.positions.length === 4 * 2 * 3 && onLine);
+  const edge = contourSegments(pos, val, new Uint32Array([0, 1, 2, 0, 2, 3]), [1]);
+  check("contours: a level through shared vertices is drawn once per triangle, not twice along an edge", edge.positions.length / 6 === 2);
+  const unindexed = contourSegments(new Float32Array([0, 0, 0, 1, 0, 0, 1, 1, 0]), new Float32Array([0, 1, 2]), null, [0.5]);
+  check("contours: unindexed triangles (a slice) contour too", unindexed.positions.length === 6);
+}
+{
+  const panel = readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8");
+  const worker = readFileSync(new URL("./gales-worker.js", import.meta.url), "utf8");
+  check("contours/iso: isosurfaces cut in the worker, contours on the page, both parts in the Visibility box, never on fringes", /type === "iso"/.test(worker) && /function drawContours/.test(panel) && /\["iso", "Isosurfaces"/.test(panel) && /drawContours\(\{ scalar: !fringe && scalar/.test(panel));
+  check("contours/iso: cut where the surface is in clip view", /clippingPlanes: view === "clip" \? \[scene\.clip\] : null/.test(panel) && /const clip = \(S\.mesh\.dim === 3 \? S\.view : "surface"\) === "clip"/.test(panel));
 }
