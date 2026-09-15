@@ -1,17 +1,17 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260915-1b203d8";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260915-1b203d8";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260915-f2af81c";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260915-f2af81c";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260915-1b203d8";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260915-1b203d8";
-import { downloadText } from "./extraction.js?v=20260915-1b203d8";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260915-1b203d8";
-import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260915-1b203d8";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260915-1b203d8";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260915-1b203d8";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260915-1b203d8";
-import { femSpec } from "./model-build.js?v=20260915-1b203d8";
+} from "./mesh-volume.js?v=20260915-f2af81c";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260915-f2af81c";
+import { downloadText } from "./extraction.js?v=20260915-f2af81c";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260915-f2af81c";
+import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260915-f2af81c";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260915-f2af81c";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260915-f2af81c";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260915-f2af81c";
+import { femSpec } from "./model-build.js?v=20260915-f2af81c";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -1438,7 +1438,7 @@ function addSolid(kind, op, paramOverrides) {
   // that is a speck the reader has to hunt for. Only the first: a later add
   // must not yank the view away from what is being worked on.
   if (state.solids.length === 1) fitView();
-  status(`${state.solids.length} entities`);
+  status(`${state.solids.length} ${state.solids.length === 1 ? "entity" : "entities"}`);
   log(`${op}: ${PRIMITIVES[kind].label} — ${entry.parts.length} face(s), volume flag ${entry.flags.volume}`);
 }
 
@@ -1595,7 +1595,7 @@ function applyStudioAtmosphere() {
   record(`atmosphere ${a.heightM} m`);
   renderModelTree();
   renderDomainsPanel();
-  status(`${state.solids.length} entities`);
+  status(`${state.solids.length} ${state.solids.length === 1 ? "entity" : "entities"}`);
   log(`Atmosphere: ${Math.round(a.heightM)} m over z = ${Math.round(z0)}, volume flag ${entry.flags.volume}, sky ${entry.flags.faces.sky}, sides ${entry.flags.faces.sides}.`);
   return entry;
 }
@@ -1818,7 +1818,7 @@ function deleteEntities(ids) {
   renderModelTree();
   renderDomainsPanel();
   renderSelection();
-  status(`${state.solids.length} entities`);
+  status(`${state.solids.length} ${state.solids.length === 1 ? "entity" : "entities"}`);
   log(`Deleted ${ids.length} ${ids.length === 1 ? "entity" : "entities"}`);
 }
 
@@ -3429,7 +3429,7 @@ export function adoptSectionModel({ name = "gis_section", profile, belowM = 0, a
     });
   });
   renderModelTree();
-  status(`${state.solids.length} entities`);
+  status(`${state.solids.length} ${state.solids.length === 1 ? "entity" : "entities"}`);
   const lo = byId("studio-size-lo");
   const hi = byId("studio-size-hi");
   const coarse = Math.max(1, Math.round(profile.stepM * 2));
@@ -3695,7 +3695,7 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
     });
   });
   renderModelTree();
-  status(`${state.solids.length} entities`);
+  status(`${state.solids.length} ${state.solids.length === 1 ? "entity" : "entities"}`);
   // Cells the size of the surface's coarse spacing: the mesher's own default
   // (0.5 to 1) is half a metre here.
   const lo = byId("studio-size-lo");

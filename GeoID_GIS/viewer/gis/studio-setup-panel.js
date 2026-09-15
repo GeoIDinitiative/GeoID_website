@@ -29,9 +29,9 @@
 import {
   MATERIALS, MATERIAL_PROPS, PHYSICS, defaultSetup, domainProperties, materialsPlan, propsText,
   icBcHeader, studySpec, studyTimes, setupSummary,
-} from "./fem-setup.js?v=20260915-1b203d8";
-import { flagCheck } from "./mesh-flags.js?v=20260915-1b203d8";
-import { parseTable, guessColumns, buildGrid, pointwiseText, orderCheck } from "./tomography.js?v=20260915-1b203d8";
+} from "./fem-setup.js?v=20260915-f2af81c";
+import { flagCheck } from "./mesh-flags.js?v=20260915-f2af81c";
+import { parseTable, guessColumns, buildGrid, pointwiseText, orderCheck } from "./tomography.js?v=20260915-f2af81c";
 import * as THREE from "../vendor/three.module.js";
 
 const STORE_KEY = "geoid-studio:fem-setup";
@@ -106,16 +106,26 @@ function selectOf(options, value, onChange) {
   return node;
 }
 
-function card(key, title, open = false, badge = "") {
+function card(key, title, open = false, badge = "", level = "") {
   const details = el("details", { class: "gis-tool-section studio-fold-section fem-card" });
   details.open = openCards.has(key) ? openCards.get(key) : open;
   const summary = el("summary", {}, title);
   summary.dataset.toolIcon = "1";
-  if (badge) summary.append(el("span", { class: "fem-chip" }, badge));
+  if (badge) summary.append(el("span", { class: "fem-chip", "data-level": level || null }, badge));
   const body = el("div", { class: "gis-tool-body" });
   details.append(summary, body);
   details.addEventListener("toggle", () => openCards.set(key, details.open));
   return { details, body, summary };
+}
+
+/** A short muted sentence. Prose is a note, never a box. */
+const note = (text) => el("p", { class: "studio-readout" }, text);
+
+/** Aligned facts: [[term, value], …]. */
+function facts(pairs) {
+  const dl = el("dl", { class: "st-facts" });
+  pairs.filter(Boolean).forEach(([k, v]) => dl.append(el("dt", {}, k), el("dd", {}, v)));
+  return dl;
 }
 
 const fmt = (v) => {
@@ -242,8 +252,8 @@ function drawProfile(canvas, g) {
 
 function tomographyCard(host) {
   const pw = setup.pointwise;
-  const c = card("mat:tomography", "Material from a tomography grid", false, pw?.file ? `${pw.counts.nx}×${pw.counts.ny}${pw.dim === 3 ? `×${pw.counts.nz}` : ""}` : "");
-  c.body.append(el("p", { class: "studio-readout" }, "Density, Young's modulus and Poisson's ratio at every point of a rectangular grid — x y z rho E nu, or x y z Vp (Vs) converted by Brocher (2005). GALES interpolates them trilinearly wherever the mesh has a point, in place of the domains' own materials."));
+  const c = card("mat:tomography", "Tomography grid", false, pw?.file ? `${pw.counts.nx}×${pw.counts.ny}${pw.dim === 3 ? `×${pw.counts.nz}` : ""}` : "", pw?.file ? "ok" : "");
+  c.body.append(note("A rectangular grid of x y z rho E nu, or x y z Vp [Vs] (Brocher 2005). It sets the material everywhere, interpolated at depth."));
   const picker = el("input", { type: "file", accept: ".txt,.csv,.dat,.xyz,.tsv", hidden: true });
   picker.addEventListener("change", async () => {
     const file = picker.files?.[0]; picker.value = "";
@@ -253,7 +263,7 @@ function tomographyCard(host) {
     applyGrid();
     changed(true);
   });
-  const load = el("button", { class: "studio-primary", type: "button" }, pw?.file ? "Load another grid…" : "Load a tomography grid…");
+  const load = el("button", { class: pw?.file ? "studio-secondary" : "studio-primary", type: "button" }, pw?.file ? "Replace grid…" : "Load grid…");
   load.addEventListener("click", () => picker.click());
   const actions = el("div", { class: "studio-actions" }, load);
   if (pw?.file) {
@@ -280,15 +290,24 @@ function tomographyCard(host) {
   const g = tomo.grid;
   if (g?.ok && pw?.file) {
     const fmtR = ([a, b], f = (v) => v) => `${Number(f(a).toPrecision(3))}–${Number(f(b).toPrecision(3))}`;
-    c.body.append(el("p", { class: "studio-readout is-ok" }, `${tomo.name}: ${g.counts.nx} × ${g.counts.ny}${g.dim === 3 ? ` × ${g.counts.nz}` : ""} nodes${g.kind === "velocity" ? ", converted from velocities" : ""}. ρ ${fmtR(g.ranges.rho)} kg/m³, E ${fmtR(g.ranges.E, (v) => v / 1e9)} GPa, ν ${fmtR(g.ranges.nu)}.`));
-    c.body.append(el("p", { class: "studio-readout" }, `x ${Math.round(g.bounds.min[0])} to ${Math.round(g.bounds.max[0])} m, y ${Math.round(g.bounds.min[1])} to ${Math.round(g.bounds.max[1])} m${g.dim === 3 ? `, z ${Math.round(g.bounds.min[2])} to ${Math.round(g.bounds.max[2])} m` : ""}.${tomo.reordered ? " The file was not in the order GALES indexes (z, then y, then x, each ascending): it is rewritten in that order, or the solver would read it scrambled." : ""}${g.counts.duplicates ? ` ${g.counts.duplicates} duplicate rows: the last one kept.` : ""}${g.counts.clamped ? ` ${g.counts.clamped} velocities outside Brocher's 1.5–8.5 km/s range.` : ""}`));
+    const span = (i) => `${Math.round(g.bounds.min[i]).toLocaleString()} to ${Math.round(g.bounds.max[i]).toLocaleString()} m`;
+    c.body.append(facts([
+      ["File", tomo.name],
+      ["Nodes", `${g.counts.nx} × ${g.counts.ny}${g.dim === 3 ? ` × ${g.counts.nz}` : ""}${g.kind === "velocity" ? " (from velocities)" : ""}`],
+      ["Density", `${fmtR(g.ranges.rho)} kg/m³`],
+      ["Young's modulus", `${fmtR(g.ranges.E, (v) => v / 1e9)} GPa`],
+      ["Poisson's ratio", fmtR(g.ranges.nu)],
+      ["x", span(0)], ["y", span(1)], g.dim === 3 ? ["z", span(2)] : null,
+    ]));
+    if (tomo.reordered) c.body.append(el("p", { class: "studio-readout is-warning", title: "GALES indexes rows z, then y, then x, each ascending, and does not check" }, "Rows were out of GALES's order — rewritten in order."));
+    if (g.counts.duplicates || g.counts.clamped) c.body.append(note(`${g.counts.duplicates ? `${g.counts.duplicates} duplicate rows (last kept). ` : ""}${g.counts.clamped ? `${g.counts.clamped} velocities outside Brocher's 1.5–8.5 km/s.` : ""}`));
     const canvas = el("canvas", { class: "fem-profile" });
-    c.body.append(el("p", { class: "studio-group-title" }, "Mean profile with depth"), canvas);
+    c.body.append(el("p", { class: "studio-group-title" }, "Mean with depth"), canvas);
     setTimeout(() => drawProfile(canvas, g), 0);
     const show = el("input", { type: "checkbox" });
     show.checked = Boolean(tomo.cloud?.visible);
     show.addEventListener("change", () => { if (!tomo.cloud) drawCloud(); if (tomo.cloud) { tomo.cloud.visible = show.checked; studio()?.refreshVisibility?.(); } });
-    c.body.append(el("label", { class: "studio-check" }, show, " Show the grid nodes on the model (coloured by E)"));
+    c.body.append(el("label", { class: "studio-check" }, show, "Show nodes on the model"));
   }
   host.append(c.details);
 }
@@ -299,31 +318,33 @@ function renderMaterials(host) {
   const P = PHYSICS[setup.physics];
   const solids = targets.domains.filter((d) => !d.void);
   if (!targets.domains.length) {
-    host.append(el("p", { class: "studio-readout" }, "No domains yet. Build the geometry (Add), or bring a terrain from the GIS page — every volume becomes a domain to give a material."));
+    host.append(note("No domains yet. Add geometry, or bring a terrain from the GIS page."));
     return;
   }
   const plan = materialsPlan(targets.domains, setup.materials);
   const said = setup.pointwise?.file ? "The tomography grid above sets the material everywhere; a domain's own material below is written only as the fallback." : plan.mode === "uniform" ? "One material everywhere (uniform)." : plan.mode === "layers" ? `${plan.layers.length} horizontal layers, bottom first — GALES reads them z-wise.` : "No material yet.";
-  host.append(el("p", { class: "studio-readout" }, `${P.label} needs ${P.props.map((k) => MATERIAL_PROPS[k].label.toLowerCase()).join(", ")}. ${said}`));
-  if (!setup.pointwise?.file) (plan.issues || []).forEach((text) => host.append(el("p", { class: "studio-readout is-warning" }, text)));
+  host.append(note(`${P.label.split(" (")[0]} needs ${P.props.map((k) => MATERIAL_PROPS[k].label.toLowerCase()).join(", ")}.`));
+  if (setup.pointwise?.file) host.append(el("p", { class: "studio-readout is-ok" }, "Set by the tomography grid; domain materials are the fallback."));
+  else if (plan.mode === "uniform" || plan.mode === "layers") host.append(el("p", { class: "studio-readout is-ok" }, plan.mode === "uniform" ? "Uniform material." : `${plan.layers.length} z-wise layers.`));
+  if (!setup.pointwise?.file && plan.mode !== "none") (plan.issues || []).forEach((text) => host.append(el("p", { class: "studio-readout is-warning" }, text)));
   const actions = el("div", { class: "studio-actions" });
   const first = solids.find((d) => setup.materials[d.flag]?.id);
-  const all = el("button", { class: "studio-secondary", type: "button", title: "Give every domain the material of the first one that has one" }, "Same material everywhere");
+  const all = el("button", { class: "studio-secondary", type: "button", title: "Give every domain the material of the first one that has one" }, "Copy to all domains");
   all.disabled = !first;
   all.addEventListener("click", () => {
     solids.forEach((d) => { setup.materials[d.flag] = { id: setup.materials[first.flag].id, overrides: { ...(setup.materials[first.flag].overrides || {}) } }; });
     changed();
   });
   actions.append(all);
-  host.append(actions);
+  if (solids.length > 1) host.append(actions);
 
   for (const d of targets.domains) {
     const a = setup.materials[d.flag];
     const name = a?.id ? MATERIALS.find((m) => m.id === a.id)?.name : "";
-    const c = card(`mat:${d.flag}`, `${d.name}`, !a?.id && !d.void, d.void ? "cut" : `flag ${d.flag}`);
+    const c = card(`mat:${d.flag}`, `${d.name}`, !a?.id && !d.void, d.void ? "cut" : name || "no material", d.void ? "" : name ? "ok" : setup.pointwise?.file ? "" : "error");
     c.summary.title = d.void ? "A cut: no material" : name ? `${name}` : "No material yet";
     if (d.void) {
-      c.body.append(el("p", { class: "studio-readout" }, "A cut (void) — nothing is solved inside it, so it needs no material."));
+      c.body.append(note("A cut: nothing is solved inside it."));
       host.append(c.details);
       continue;
     }
@@ -345,7 +366,7 @@ function renderMaterials(host) {
         }, { placeholder: fmt(base[key]) });
         c.body.append(row(`${spec.label}${spec.unit ? ` (${spec.unit})` : ""}`, input, `Library value ${fmt(base[key])}; blank keeps it. In use: ${fmt(props[key])}`));
       }
-      c.body.append(el("p", { class: "studio-readout" }, `z ${fmt(d.zMin)} to ${fmt(d.zMax)} m. Blank fields keep the library's typical value, not a site's.`));
+      c.body.append(note(`Flag ${d.flag} · z ${fmt(d.zMin)} to ${fmt(d.zMax)} m. Blank keeps the library value.`));
     }
     host.append(c.details);
   }
@@ -363,7 +384,7 @@ function renderPhysics(host) {
     setup.options = {};
     changed(true);
   })));
-  host.append(el("p", { class: "studio-readout" }, `Solves for ${P.fields}. A face with no condition is ${P.conditions.free.label.toLowerCase().replace(/ \(.*\)/, "")}.`));
+  host.append(note(`Solves for ${P.fields}. Faces with no condition are ${P.conditions.free.label.toLowerCase().replace(/ \(.*\)/, "")}.`));
 
   if (P.options.length || P.initial.length) {
     const c = card("phys:options", "Options and initial values");
@@ -384,14 +405,15 @@ function renderPhysics(host) {
   }
 
   if (!targets.faces.length) {
-    host.append(el("p", { class: "studio-readout" }, "No flagged faces yet. Every face of the geometry carries a flag (Model ▸ Domains); a condition is set on a flag."));
+    host.append(note("No flagged faces yet. Faces carry flags in Model ▸ Domains."));
     return;
   }
   host.append(el("p", { class: "studio-group-title" }, "Boundary conditions"));
   for (const f of targets.faces) {
     const cond = setup.conditions[f.flag] || { type: "free", values: {} };
     const spec = P.conditions[cond.type] || P.conditions.free;
-    const c = card(`bc:${f.flag}`, `Flag ${f.flag} — ${f.name}`, false, cond.type === "free" ? "" : spec.label.split(" —")[0].split(" (")[0]);
+    const c = card(`bc:${f.flag}`, `${f.flag} · ${f.name}`, false, cond.type === "free" ? "free" : spec.label.split(" —")[0].split(" (")[0], cond.type === "free" ? "" : "ok");
+    c.summary.title = "Hover or open to light these faces on the model";
     c.details.addEventListener("toggle", () => studio()?.highlightFlag?.(c.details.open ? f.flag : null));
     c.summary.addEventListener("mouseenter", () => studio()?.highlightFlag?.(f.flag));
     c.summary.addEventListener("mouseleave", () => studio()?.highlightFlag?.(c.details.open ? f.flag : null));
@@ -417,7 +439,7 @@ function renderPhysics(host) {
         }, { placeholder: x.optional ? "not set" : String(x.def ?? 0) })));
       }
     }
-    c.body.append(el("p", { class: "studio-readout" }, `${f.names.length} face${f.names.length === 1 ? "" : "s"}: ${f.names.join(", ")}. Hover or open this card to light them on the model.`));
+    c.body.append(note(`Faces: ${f.names.join(", ")}.`));
     host.append(c.details);
   }
 }
@@ -449,7 +471,7 @@ function renderStudy(host) {
   host.textContent = "";
   const st = setup.study;
   const summary = setupSummary(setup, targets);
-  const params = card("study:params", "Study", true);
+  const params = card("study:params", "Parameters", true);
   const name = el("input", { class: "studio-input", type: "text", spellcheck: "false" });
   name.value = st.name;
   name.addEventListener("keydown", (event) => event.stopPropagation());
@@ -473,7 +495,7 @@ function renderStudy(host) {
     }
     where.value = st.target || "local";
   });
-  params.body.append(el("p", { class: "studio-readout" }, `${times.steps} step${times.steps === 1 ? "" : "s"}, Δt ${fmt(times.delta_t)}, to t = ${fmt(times.final_time)}. ${targets.dim}D, ${targets.domains.length} domain${targets.domains.length === 1 ? "" : "s"}, ${targets.faces.length} flagged face group${targets.faces.length === 1 ? "" : "s"}.`));
+  params.body.append(note(`${times.steps} step${times.steps === 1 ? "" : "s"} to t = ${fmt(times.final_time)} · ${targets.dim}D · ${targets.domains.length} domain${targets.domains.length === 1 ? "" : "s"} · ${targets.faces.length} face flag${targets.faces.length === 1 ? "" : "s"}`));
   host.append(params.details);
 
   // Against the solver mesh as well, once one is open: a condition on a flag
@@ -483,9 +505,8 @@ function renderStudy(host) {
   const issues = [...summary.issues, ...meshIssues];
   const errors = issues.filter((i) => i.level === "error").length;
   const warnings = issues.length - errors;
-  const check = card("study:check", "Checklist", errors > 0, errors ? `${errors} to fix` : warnings ? `${warnings} note${warnings === 1 ? "" : "s"}` : "ready");
-  check.body.append(el("p", { class: "studio-readout" }, real?.report ? `Checked against the solver mesh ${real.name}.` : "Open or gmsh-mesh the solver mesh (Mesh tab) to check the conditions against the flags it actually carries."));
-  if (!issues.length) check.body.append(el("p", { class: "studio-readout is-ok" }, "Nothing stands between this model and a solve."));
+  const check = card("study:check", "Checklist", errors > 0, errors ? `${errors} to fix` : warnings ? `${warnings} note${warnings === 1 ? "" : "s"}` : "ready", errors ? "error" : warnings ? "warning" : "ok");
+  if (!issues.length) check.body.append(el("p", { class: "studio-readout is-ok" }, "Ready to solve."));
   const list = el("ul", { class: "fem-checklist" });
   for (const issue of issues) {
     const li = el("li", { class: `is-${issue.level}` }, issue.text);
@@ -493,7 +514,8 @@ function renderStudy(host) {
     if (group) { li.title = `Open ${group}`; li.addEventListener("click", () => studio()?.showGroup?.(group)); }
     list.append(li);
   }
-  if (summary.issues.length) check.body.append(list);
+  if (issues.length) check.body.append(list);
+  check.body.append(note(real?.report ? `Checked against the solver mesh ${real.name}.` : "Open the solver mesh (Mesh tab) to check flags against it."));
   host.append(check.details);
 
   const files = card("study:files", "Generated files");
@@ -501,12 +523,12 @@ function renderStudy(host) {
   const plan = materialsPlan(targets.domains, setup.materials);
   let header = "";
   try { header = icBcHeader(setup.physics, setup); } catch (e) { header = String(e.message); }
-  files.body.append(el("p", { class: "studio-readout" }, `GALES family ${physics.family}. These are written into the run and compiled into the solver by Prepare.`));
+  files.body.append(note(`GALES ${physics.family}. Written into the run; Prepare compiles them.`));
   files.body.append(el("p", { class: "studio-group-title" }, "props.txt"), el("pre", { class: "fem-pre" }, propsText(setup.physics, plan, { dim: targets.dim, options: setup.options })));
   files.body.append(el("p", { class: "studio-group-title" }, physics.header), el("pre", { class: "fem-pre" }, header));
   host.append(files.details);
 
-  const pipe = card("study:pipeline", "Run the study", true);
+  const pipe = card("study:pipeline", "Run", true);
   const blocked = errors > 0;
   const connected = Boolean(sidecar()?.isConnected?.());
   const hasProject = Boolean(store()?.getActive?.());
@@ -517,18 +539,18 @@ function renderStudy(host) {
     return b;
   };
   const steps = el("div", { class: "fem-steps" },
-    step("1 · Write study", "spec.json and the gmsh script into fem_runs/<name> of the open project", writeStudy, blocked || !hasProject),
-    step("2 · Mesh with gmsh", "The sidecar runs the model's gmsh script; the mesh is filed in the run", meshStudy, blocked || !hasProject || !connected),
-    step("3 · Prepare deck", "Sidecar: setup.txt, props.txt, the generated header, the mesh for N ranks, and the build", prepareStudy, blocked || !hasProject || !connected),
-    step("4 · Solve", "Run the solver here or on the chosen compute target", solveStudy, blocked || !hasProject || !connected),
-    step("5 · Open results", "Open this run in the Results tab", openResults, !hasProject),
+    step("Write study", "spec.json and the gmsh script into fem_runs/<name> of the open project", writeStudy, blocked || !hasProject),
+    step("Mesh with gmsh", "The sidecar runs the model's gmsh script; the mesh is filed in the run", meshStudy, blocked || !hasProject || !connected),
+    step("Prepare deck", "Sidecar: setup.txt, props.txt, the generated header, the mesh for N ranks, and the build", prepareStudy, blocked || !hasProject || !connected),
+    step("Solve", "Run the solver here or on the chosen compute target", solveStudy, blocked || !hasProject || !connected),
+    step("Open results", "Open this run in the Results tab", openResults, !hasProject),
   );
   pipe.body.append(steps);
-  const why = !hasProject ? "Open a project first (Research ▸ Projects): a study is a folder in it."
-    : !connected ? "Writing the study works now. Meshing, preparing and solving run in the local sidecar — connect it in Settings ▸ Sidecar."
+  const why = !hasProject ? "Open a project (Research ▸ Projects) to write a study."
+    : !connected ? "Meshing, preparing and solving need the sidecar (Settings ▸ Sidecar)."
       : blocked ? "Fix the checklist first." : "";
-  pipe.body.append(el("div", { id: "fem-study-status", class: `studio-readout${job.level ? ` is-${job.level}` : ""}` }, job.text || why || "Ready."));
-  if (job.text && why) pipe.body.append(el("p", { class: "studio-readout" }, why));
+  pipe.body.append(el("div", { id: "fem-study-status", class: `studio-readout${job.level ? ` is-${job.level}` : ""}` }, job.text));
+  if (why) pipe.body.append(note(why));
   host.append(pipe.details);
 }
 
@@ -694,32 +716,8 @@ function poll() {
   Object.keys(RENDER).forEach((w) => rerender(w));
 }
 
-const STYLE = `
-.fem-chip { margin-left: 0.45rem; padding: 0.02rem 0.4rem; border-radius: 999px; font-size: 0.6rem; letter-spacing: 0.04em; border: 1px solid currentColor; opacity: 0.85; white-space: nowrap; }
-.fem-chip[data-level="error"] { color: #ff6b7a; }
-.fem-chip[data-level="warning"] { color: #ffb454; }
-.fem-chip[data-level="ok"] { color: #7ee2a8; }
-.fem-card .gis-tool-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.35rem; }
-.fem-checklist { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.25rem; font-size: 0.7rem; }
-.fem-checklist li { padding-left: 0.5rem; border-left: 3px solid currentColor; cursor: pointer; }
-.fem-checklist .is-error { color: #ff6b7a; }
-.fem-checklist .is-warning { color: #ffb454; }
-.studio-readout.is-error { color: #ff6b7a; }
-.studio-readout.is-warning { color: #ffb454; }
-.studio-readout.is-ok { color: #7ee2a8; }
-.fem-pre { margin: 0; max-height: 14rem; overflow: auto; padding: 0.4rem; border-radius: 0.4rem; background: rgba(0, 0, 0, 0.35); font: 0.62rem/1.35 ui-monospace, monospace; white-space: pre; }
-.fem-profile { display: block; width: 100%; height: 150px; }
-.fem-steps { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.3rem; }
-.fem-steps button { text-align: left; }
-`;
-
 function install() {
   if (!byId("studio-materials-host")) { setTimeout(install, 500); return; }
-  if (!byId("fem-setup-style")) {
-    const tag = el("style", { id: "fem-setup-style" });
-    tag.textContent = STYLE;
-    document.head.append(tag);
-  }
   poll();
   restoreGrid();
   studio()?.registerVisibility?.("tomography", () => (tomo.cloud ? { id: "tomography", title: "Tomography grid", parts: [{ id: "tomography-nodes", name: `${tomo.name} — ${tomo.grid?.counts.total.toLocaleString()} nodes`, face: "grid", kind: "mesh", mesh: tomo.cloud, colour: 0xff6b9d }] } : null));

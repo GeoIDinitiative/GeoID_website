@@ -33,7 +33,14 @@ check("solver mesh: drawn under the model anchor in the studio frame, one mesh p
 check("solver mesh: the Mesh pane hosts it on both pages", index.includes('id="studio-realmesh-host"') && readFileSync(new URL("./shell.html", import.meta.url), "utf8").includes('id="studio-realmesh-host"'));
 const setupSrc = readFileSync(new URL("./studio-setup-panel.js", import.meta.url), "utf8");
 check("tomography: written into the run's input/ in GALES's order, and refused when the grid is not loaded", /writeProjectFile\(`\$\{runDir\(\)\}\/input\/\$\{setup\.pointwise\.file\}`, pointwiseText\(tomo\.grid\)\)/.test(setupSrc) && /not loaded in this session/.test(setupSrc));
-for (const [file, s] of [["studio-workspaces.js", src], ["real-mesh-panel.js", realSrc], ["studio-setup-panel.js", setupSrc]]) {
-  const style = s.slice(s.indexOf("const STYLE = `") + 15, s.indexOf("`;", s.indexOf("const STYLE = `")));
-  check(`style: ${file}'s CSS literal holds no backtick or octal escape`, !style.includes("`") && !/\\[0-9]/.test(style));
+// ONE DESIGN: the runtime panels carry no style blocks; one stylesheet, loaded last.
+for (const [file, text] of [["studio-workspaces.js", src], ["real-mesh-panel.js", realSrc], ["studio-setup-panel.js", setupSrc]]) {
+  check(`style: ${file} injects no style block of its own`, !text.includes("const STYLE = `"));
 }
+const css = readFileSync(new URL("./studio-ui.css", import.meta.url), "utf8");
+const bare = css.replace(/\/\*[\s\S]*?\*\//g, "");
+check("studio-ui.css: loaded by the workspaces module under its own stamp", /studio-ui\.css\$\{new URL\(import\.meta\.url\)\.search\}/.test(src));
+check("studio-ui.css: braces balance", (bare.match(/\{/g) || []).length === (bare.match(/\}/g) || []).length);
+check("studio-ui.css: every rule is scoped to the Model page", bare.split("}").map((r) => r.split("{")[0].trim()).filter(Boolean).every((sel) => sel.replace(/\([^)]*\)/g, "()").split(",").every((part) => /#model-studio/.test(part))));
+check("studio-ui.css: a section inside a tab is never filled when open (one loud level)", /details\.gis-tool-section\[open\] > summary[\s\S]*?\{[^}]*color: var\(--st-accent\) !important/.test(bare) && /details\.gis-tool-section > summary[\s\S]*?background: transparent !important/.test(bare));
+check("studio-ui.css: the other workspace's tabs are hidden", /#model-studio\[data-space="build"\] \.studio-group\[data-space="analyse"\],\s*#model-studio\[data-space="analyse"\] \.studio-group\[data-space="build"\] \{ display: none !important; \}/.test(css));

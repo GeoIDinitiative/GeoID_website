@@ -334,7 +334,8 @@ export function checkSetup(setup, targets) {
       if (pointwise.dim === 3 && (zLo < gLo - 1e-6 || zHi > gHi + 1e-6)) out.push({ level: "warning", step: "materials", text: `The model spans z ${Math.round(zLo)} to ${Math.round(zHi)} m and the grid ${Math.round(gLo)} to ${Math.round(gHi)} m: GALES holds the edge values beyond the grid (and its reader sets a fixed mantle below z = −25 km).` });
     }
   } else if (plan.mode === "none") out.push({ level: "error", step: "materials", text: "Give at least one domain a material." });
-  if (!pointwise) plan.issues?.forEach((text) => out.push({ level: "warning", step: "materials", text }));
+  // With no material at all, the error above says it; the plan's own "none yet" would say it twice.
+  if (!pointwise && plan.mode !== "none") plan.issues?.forEach((text) => out.push({ level: "warning", step: "materials", text }));
   if (plan.props && !pointwise) {
     for (const key of P.props) {
       const spec = MATERIAL_PROPS[key];

@@ -20147,3 +20147,40 @@ does not have.
 The built grid text is kept in `localStorage["geoid-studio:fem-tomography"]`
 and restored with the setup. The raw file is not kept, so changing the frame
 options after a reload means loading the file again.
+
+## The Model page's panels have ONE stylesheet: `gis/studio-ui.css`
+
+The panels the studio builds at runtime had each grown a style block of
+their own, laid over layered `styles.css` rules. The result read as inconsistent
+and generated:
+- a second magenta fill inside an open tab, which made chips vanish
+  pink-on-pink;
+- every sentence in its own bordered box, some of them duplicates;
+- a 6.2rem field column that cut "— no material —" to "— no materi";
+- a two-line ragged pipeline.
+
+The panels are the workspace header, Materials, Physics, Study, the solver
+mesh and the Results reader.
+
+`studio-ui.css` is now the one design source. `studio-workspaces.js` links it
+last, under its own `?v=` stamp, on both pages. The runtime modules carry no
+style blocks, and a test pins that. The rules it states:
+- **One loud level.** A deck tab's head fills when open. A section inside it
+  stays an outline, and gains an accent spine when open. This needs
+  `!important` against side-panels.js's GUI-wide open-is-filled rule.
+- **State is a mark.** Chips and checklist lines carry a coloured dot, and a
+  status line a coloured spine. The text stays ink.
+- **Prose is a note.** Unboxed, muted, short. Facts are an aligned `<dl
+  class="st-facts">`.
+- **One control height** (`--st-h`), one label/field split (0.95fr/1.05fr) and
+  one button family, primary or secondary.
+- **Header.** One row reading "‹ GIS · Build | Analyse · Research ›", with a
+  six-step stepper on a rule underneath. The exits left the strip.
+
+**Moving a style block into a stylesheet moves EVERY rule in it.** The rule
+that hides the other workspace's tabs lived in the removed block. Analyse
+went on showing every Build tab while the switch read Analyse. It is pinned
+now.
+
+Every rule in the file is scoped to `#model-studio`. The pin's selector split
+has to skip commas inside `:is(…)`, or it reports scoped rules as unscoped.

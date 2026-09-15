@@ -125,8 +125,7 @@ const box = (flag, name, zMin, zMax, extra = {}) => ({ flag, name, zMin, zMax, v
   check("loaded on the Earth page and the planets", /mesh-quality-panel\.js\?v=[^"]+"><\/script>\n<script type="module" src="gis\/studio-setup-panel\.js/.test(index) && /"\.\/studio-setup-panel\.js",/.test(read("./boot.js")));
   check("the study's mesh is the model's own gmsh script, named for the study", /gmshScriptFor: \(name\) =>/.test(read("./model-studio.js")) && /gmshScriptFor\?\.\(name\)/.test(panel));
   check("a local solve asks first; a compute target does not", /if \(!target && !window\.confirm\(/.test(panel));
-  const style = panel.slice(panel.indexOf("const STYLE = `") + 15, panel.indexOf("`;", panel.indexOf("const STYLE = `")));
-  check("style: no backtick or octal escape inside the CSS literal", !style.includes("`") && !/\\[0-9]/.test(style));
+  check("style: the tree's look comes from studio-ui.css, not a style block of its own", !panel.includes("const STYLE = `"));
 }
 
 // ── a tomography grid in place of the domains' materials ──

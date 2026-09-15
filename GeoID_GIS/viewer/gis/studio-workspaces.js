@@ -107,6 +107,7 @@ export function refresh() {
   const open = openGroup();
   strip.querySelectorAll(".studio-step").forEach((b) => {
     const step = STEPS.find((s) => s.id === b.dataset.step);
+    if (!step) return;
     b.dataset.state = states[step.id] || "";
     b.classList.toggle("is-current", Boolean(step.group) && step.group === open);
     b.classList.toggle("is-other-space", step.space !== "both" && step.space !== space);
@@ -117,22 +118,27 @@ function build() {
   const head = document.querySelector("#model-studio .studio-dock-left .studio-deck-head");
   if (!head || byId("studio-spaces")) return Boolean(byId("studio-spaces"));
   document.querySelectorAll("#model-studio .studio-group[data-group]").forEach((g) => { g.dataset.space = SPACE_OF[g.dataset.group] || "both"; });
+  // One row: where the ground came from, the two workspaces, where the series go.
+  const exit = (step, text) => {
+    const b = el("button", { class: "studio-exit", type: "button", title: step.title }, text);
+    b.addEventListener("click", () => goStep(step));
+    return b;
+  };
   const tabs = el("div", { id: "studio-spaces", class: "studio-spaces", role: "tablist", "aria-label": "Workspace" },
-    el("button", { class: "studio-space-tab", type: "button", role: "tab", "data-space": "build", title: "Geometry, materials, physics, mesh and study — the model, from the ground the GIS page gave it" },
-      el("span", { class: "studio-space-name" }, "Build"), el("span", { class: "studio-space-sub" }, "model & mesh · from GIS")),
-    el("button", { class: "studio-space-tab", type: "button", role: "tab", "data-space": "analyse", title: "What a solve wrote: fields, points and time series — on to the Research hub" },
-      el("span", { class: "studio-space-name" }, "Analyse"), el("span", { class: "studio-space-sub" }, "results & dofs · to Research")),
+    el("button", { class: "studio-space-tab", type: "button", role: "tab", "data-space": "build", title: "Build: geometry, materials, physics, mesh and study" }, "Build"),
+    el("button", { class: "studio-space-tab", type: "button", role: "tab", "data-space": "analyse", title: "Analyse: what a solve wrote — fields, points and time series" }, "Analyse"),
   );
   tabs.querySelectorAll(".studio-space-tab").forEach((b) => b.addEventListener("click", () => setSpace(b.dataset.space)));
+  const bar = el("div", { class: "studio-spacebar" },
+    exit(STEPS.find((s) => s.id === "gis"), "‹ GIS"), tabs, exit(STEPS.find((s) => s.id === "research"), "Research ›"));
   const strip = el("div", { id: "studio-pipeline", class: "studio-pipeline", "aria-label": "Model pipeline" });
-  STEPS.forEach((step, i) => {
-    if (i) strip.append(el("span", { class: "studio-step-arrow", "aria-hidden": "true" }, "›"));
-    const b = el("button", { class: `studio-step${step.leave ? " is-exit" : ""}`, type: "button", "data-step": step.id, title: step.title || `Go to ${step.label}` },
-      el("span", { class: "studio-step-dot", "aria-hidden": "true" }), step.label);
+  STEPS.filter((step) => !step.leave).forEach((step) => {
+    const b = el("button", { class: "studio-step", type: "button", "data-step": step.id, title: `Go to ${step.label}` },
+      el("span", { class: "studio-step-dot", "aria-hidden": "true" }), el("span", { class: "studio-step-label" }, step.label));
     b.addEventListener("click", () => goStep(step));
     strip.append(b);
   });
-  head.after(tabs, strip);
+  head.after(bar, strip);
   // A tab opened by any door brings its own workspace forward.
   new MutationObserver((records) => {
     for (const r of records) {
@@ -146,36 +152,21 @@ function build() {
   return true;
 }
 
-const STYLE = `
-#model-studio[data-space="build"] .studio-group[data-space="analyse"],
-#model-studio[data-space="analyse"] .studio-group[data-space="build"] { display: none !important; }
-.studio-spaces { display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem; margin: 0.35rem 0 0.3rem; }
-.studio-space-tab { display: grid; gap: 0.05rem; padding: 0.4rem 0.5rem; text-align: left; border-radius: 0.6rem; border: 1px solid rgba(var(--nav-accent-rgb, 255, 43, 214), 0.35); background: transparent; color: inherit; font: inherit; cursor: pointer; }
-.studio-space-tab:hover { background: rgba(var(--nav-accent-rgb, 255, 43, 214), 0.1); }
-.studio-space-tab.is-active { background: var(--nav-accent, #ff2bd6); border-color: var(--nav-accent, #ff2bd6); color: #1a0b1f; }
-.studio-space-name { font-family: "Exo 2", sans-serif; font-weight: 700; font-size: 0.76rem; letter-spacing: 0.12em; text-transform: uppercase; }
-.studio-space-sub { font-size: 0.6rem; opacity: 0.8; }
-.studio-pipeline { display: flex; flex-wrap: wrap; align-items: center; gap: 0.1rem 0.12rem; margin: 0 0 0.45rem; padding: 0.3rem 0.35rem; border-radius: 0.55rem; background: rgba(0, 0, 0, 0.22); font-size: 0.62rem; }
-.studio-step { display: inline-flex; align-items: center; gap: 0.22rem; padding: 0.1rem 0.3rem; border-radius: 999px; border: 1px solid transparent; background: transparent; color: inherit; font: inherit; letter-spacing: 0.04em; cursor: pointer; }
-.studio-step:hover { border-color: rgba(var(--nav-accent-rgb, 255, 43, 214), 0.5); }
-.studio-step.is-current { border-color: var(--nav-accent, #ff2bd6); color: var(--nav-accent, #ff2bd6); }
-.studio-step.is-other-space { opacity: 0.5; }
-.studio-step.is-exit { font-style: italic; }
-.studio-step-dot { width: 0.42rem; height: 0.42rem; border-radius: 50%; border: 1px solid rgba(232, 230, 240, 0.55); }
-.studio-step[data-state="ok"] .studio-step-dot { background: #7ee2a8; border-color: #7ee2a8; }
-.studio-step[data-state="warning"] .studio-step-dot { background: #ffb454; border-color: #ffb454; }
-.studio-step[data-state="error"] .studio-step-dot { background: #ff6b7a; border-color: #ff6b7a; }
-.studio-step.is-exit .studio-step-dot { border-style: dashed; }
-.studio-step-arrow { opacity: 0.45; }
-`;
+/**
+ * The Model page's panels share one stylesheet (studio-ui.css), loaded last
+ * so it settles what older, layered rules left inconsistent. Loaded here
+ * because this module runs on both the Earth page and the planets, and under
+ * this module's own stamp so a change to the sheet is never served stale.
+ */
+function loadStylesheet() {
+  if (byId("studio-ui-css")) return;
+  const link = el("link", { id: "studio-ui-css", rel: "stylesheet", href: new URL(`./studio-ui.css${new URL(import.meta.url).search}`, import.meta.url).href });
+  document.head.append(link);
+}
 
 function install() {
   if (!build()) { setTimeout(install, 400); return; }
-  if (!byId("studio-spaces-style")) {
-    const tag = el("style", { id: "studio-spaces-style" });
-    tag.textContent = STYLE;
-    document.head.append(tag);
-  }
+  loadStylesheet();
   let stored = "build";
   try { stored = localStorage.getItem(SPACE_KEY) || "build"; } catch (e) { /* default */ }
   setSpace(stored, { remember: false });

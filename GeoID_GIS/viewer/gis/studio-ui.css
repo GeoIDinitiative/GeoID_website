@@ -1,0 +1,480 @@
+/*
+ * THE MODEL PAGE'S PANELS, ONE DESIGN.
+ *
+ * Everything the studio builds at runtime -- the workspace header, the model
+ * tree's Materials, Physics and Study tabs, the solver mesh, the results
+ * reader and the quality card -- takes its look from this file, which is
+ * loaded last so it settles what the older layered rules left inconsistent.
+ *
+ * The rules it holds to:
+ *   - ONE LOUD LEVEL. A deck tab's head fills with the accent when open, as a
+ *     GIS tab does. A section inside an open tab is quiet: an outline, a
+ *     chevron and, when open, an accent spine -- never a second fill inside
+ *     the first, which is what made chips vanish pink-on-pink.
+ *   - STATE IS A MARK, NOT A COLOUR OF TEXT. A dot or a spine says ok /
+ *     attention / blocking; text stays readable ink.
+ *   - PROSE IS A NOTE. Unboxed, muted, short. A box is for a value or a status
+ *     a reader acts on.
+ *   - ONE CONTROL HEIGHT, one label/field split, one button family.
+ */
+
+#model-studio {
+  --st-ink: var(--text, #e8e6f0);
+  --st-muted: rgba(232, 230, 240, 0.6);
+  --st-faint: rgba(232, 230, 240, 0.38);
+  --st-data: var(--skin-data, #52e4e8);
+  --st-data-rgb: var(--skin-data-rgb, 82, 228, 232);
+  --st-accent: rgb(var(--nav-accent-rgb, 255, 43, 214));
+  --st-accent-rgb: var(--nav-accent-rgb, 255, 43, 214);
+  --st-line: rgba(255, 255, 255, 0.09);
+  --st-line-strong: rgba(255, 255, 255, 0.16);
+  --st-field: var(--skin-tab-ground, rgb(16, 7, 36));
+  --st-well: rgba(0, 0, 0, 0.22);
+  --st-ok: #6fd6a0;
+  --st-warn: #f2b25c;
+  --st-err: #ff6b7a;
+  --st-radius: 0.45rem;
+  --st-h: 1.72rem;
+  --st-fs: 0.7rem;
+  --st-fs-small: 0.64rem;
+}
+
+/* ── the workspace header ───────────────────────────────────────────────── */
+
+/* A tab belongs to a workspace (studio-workspaces.js writes data-space); the
+   other workspace's tabs are hidden, never removed. */
+#model-studio[data-space="build"] .studio-group[data-space="analyse"],
+#model-studio[data-space="analyse"] .studio-group[data-space="build"] { display: none !important; }
+
+#model-studio .studio-spacebar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.4rem 0 0.35rem;
+}
+#model-studio .studio-exit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  height: var(--st-h);
+  padding: 0 0.45rem;
+  border: 1px solid var(--st-line);
+  border-radius: var(--st-radius);
+  background: transparent;
+  color: var(--st-muted);
+  font: 600 var(--st-fs-small) / 1 "Exo 2", system-ui, sans-serif;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+#model-studio .studio-exit:hover { color: var(--st-ink); border-color: var(--st-line-strong); }
+#model-studio .studio-spaces {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  height: var(--st-h);
+  padding: 0.14rem;
+  border: 1px solid rgba(var(--st-accent-rgb), 0.35);
+  border-radius: calc(var(--st-radius) + 0.14rem);
+  background: var(--st-well);
+}
+#model-studio .studio-space-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 0 0.4rem;
+  border: 0;
+  border-radius: var(--st-radius);
+  background: transparent;
+  color: var(--st-muted);
+  font: 700 var(--st-fs-small) / 1 "Exo 2", system-ui, sans-serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+#model-studio .studio-space-tab:hover { color: var(--st-ink); }
+#model-studio .studio-space-tab.is-active { background: var(--st-accent); color: var(--skin-chrome-ink, #2b0030); }
+
+/* The stepper: six steps on one line, evenly spaced, joined by a rule. */
+#model-studio .studio-pipeline {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  margin: 0 0 0.5rem;
+  padding: 0.35rem 0.1rem 0.3rem;
+}
+#model-studio .studio-pipeline::before {
+  content: "";
+  position: absolute;
+  left: calc(100% / 12);
+  right: calc(100% / 12);
+  top: calc(0.35rem + 0.3rem);
+  height: 1px;
+  background: var(--st-line-strong);
+}
+#model-studio .studio-step {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 0.22rem;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--st-muted);
+  font: 600 0.58rem / 1.1 "Exo 2", system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+#model-studio .studio-step-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#model-studio .studio-step:hover { color: var(--st-ink); }
+#model-studio .studio-step-dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  border: 1.5px solid var(--st-faint);
+  background: var(--skin-card-ground, rgb(24, 13, 47));
+  box-sizing: border-box;
+}
+#model-studio .studio-step[data-state="ok"] .studio-step-dot { border-color: var(--st-ok); background: var(--st-ok); }
+#model-studio .studio-step[data-state="warning"] .studio-step-dot { border-color: var(--st-warn); background: var(--st-warn); }
+#model-studio .studio-step[data-state="error"] .studio-step-dot { border-color: var(--st-err); background: var(--st-err); }
+#model-studio .studio-step.is-current { color: var(--st-accent); }
+#model-studio .studio-step.is-current .studio-step-dot { box-shadow: 0 0 0 2px var(--skin-card-ground, rgb(24, 13, 47)), 0 0 0 3.5px var(--st-accent); }
+#model-studio .studio-step.is-other-space { opacity: 0.45; }
+
+/* ── a deck tab's head: its count sits at the right edge ───────────────── */
+
+#model-studio .studio-group > .section-toggle .section-title-row { display: flex; align-items: center; width: 100%; }
+#model-studio .studio-group > .section-toggle .section-title,
+#model-studio .studio-group > .section-toggle .section-heading,
+#model-studio .studio-group > .section-toggle .section-toggle-main { flex: 1 1 auto; min-width: 0; }
+
+#model-studio .fem-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  margin-left: auto;
+  padding: 0.08rem 0.42rem;
+  border: 1px solid var(--st-line-strong);
+  border-radius: 999px;
+  color: var(--st-muted);
+  font: 600 0.58rem / 1.2 "Exo 2", system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  white-space: nowrap;
+  opacity: 1;
+}
+#model-studio .fem-chip[data-level]::before {
+  content: "";
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--st-faint);
+}
+#model-studio .fem-chip[data-level="ok"]::before { background: var(--st-ok); }
+#model-studio .fem-chip[data-level="warning"]::before { background: var(--st-warn); }
+#model-studio .fem-chip[data-level="error"]::before { background: var(--st-err); }
+/* On an open (filled) tab head the chip takes the head's dark ink. */
+#model-studio .studio-group[open] > .section-toggle .fem-chip { color: inherit; border-color: rgba(0, 0, 0, 0.3); }
+
+/* ── sections inside a tab: quiet ───────────────────────────────────────── */
+
+#model-studio .studio-pane details.gis-tool-section,
+#model-studio .studio-setup-host details.gis-tool-section,
+#model-studio .studio-results-host details.gis-tool-section {
+  margin: 0;
+  border: 1px solid var(--st-line) !important;
+  border-radius: var(--st-radius) !important;
+  background: rgba(255, 255, 255, 0.015) !important;
+  box-shadow: none !important;
+}
+#model-studio .studio-pane details.gis-tool-section > summary,
+#model-studio .studio-setup-host details.gis-tool-section > summary,
+#model-studio .studio-results-host details.gis-tool-section > summary {
+  display: flex !important;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 1.9rem;
+  padding: 0.3rem 0.55rem !important;
+  border: 0 !important;
+  border-radius: var(--st-radius) !important;
+  background: transparent !important;
+  color: var(--st-ink) !important;
+  font: 600 var(--st-fs-small) / 1.2 "Exo 2", system-ui, sans-serif !important;
+  letter-spacing: 0.07em !important;
+  text-transform: uppercase;
+}
+#model-studio .studio-pane details.gis-tool-section > summary *,
+#model-studio .studio-setup-host details.gis-tool-section > summary *,
+#model-studio .studio-results-host details.gis-tool-section > summary * { color: inherit; }
+#model-studio .studio-pane details.gis-tool-section > summary:hover,
+#model-studio .studio-setup-host details.gis-tool-section > summary:hover,
+#model-studio .studio-results-host details.gis-tool-section > summary:hover { background: rgba(255, 255, 255, 0.04) !important; }
+#model-studio .studio-pane details.gis-tool-section[open],
+#model-studio .studio-setup-host details.gis-tool-section[open],
+#model-studio .studio-results-host details.gis-tool-section[open] {
+  border-color: var(--st-line-strong) !important;
+  box-shadow: inset 2px 0 0 var(--st-accent) !important;
+}
+#model-studio .studio-pane details.gis-tool-section[open] > summary,
+#model-studio .studio-setup-host details.gis-tool-section[open] > summary,
+#model-studio .studio-results-host details.gis-tool-section[open] > summary {
+  color: var(--st-accent) !important;
+  border-bottom: 1px solid var(--st-line) !important;
+  border-radius: var(--st-radius) var(--st-radius) 0 0 !important;
+}
+#model-studio .studio-pane details.gis-tool-section > .gis-tool-body,
+#model-studio .studio-setup-host details.gis-tool-section > .gis-tool-body,
+#model-studio .studio-results-host details.gis-tool-section > .gis-tool-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.4rem;
+  padding: 0.5rem 0.55rem 0.55rem !important;
+}
+#model-studio .studio-setup-host,
+#model-studio .studio-results-host { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.4rem; }
+
+/* A section's own label beside its name (a flag, a count). */
+#model-studio .studio-setup-host summary .fem-chip,
+#model-studio .studio-results-host summary .fem-chip { text-transform: none; letter-spacing: 0.02em; }
+
+/* ── rows, fields and buttons ───────────────────────────────────────────── */
+
+#model-studio .studio-setup-host .studio-row,
+#model-studio #studio-realmesh-host .studio-row,
+#model-studio .studio-results-host .studio-row {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  align-items: center;
+  gap: 0.5rem;
+}
+#model-studio .studio-setup-host .studio-row > label,
+#model-studio #studio-realmesh-host .studio-row > label,
+#model-studio .studio-results-host .studio-row > label {
+  color: var(--st-muted);
+  font-size: var(--st-fs);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+#model-studio .studio-setup-host :is(.studio-input, .studio-select),
+#model-studio #studio-realmesh-host :is(.studio-input, .studio-select),
+#model-studio .studio-results-host :is(.studio-input, .studio-select) {
+  width: 100%;
+  min-width: 0;
+  height: var(--st-h);
+  padding: 0 0.45rem;
+  box-sizing: border-box;
+  border: 1px solid rgba(var(--st-data-rgb), 0.32);
+  border-radius: var(--st-radius);
+  background: var(--st-field);
+  color: var(--st-ink);
+  font: 500 var(--st-fs) / 1 "Exo 2", system-ui, sans-serif;
+  text-overflow: ellipsis;
+}
+#model-studio .studio-setup-host textarea.studio-input,
+#model-studio .studio-results-host textarea.studio-input { height: auto; padding: 0.35rem 0.45rem; line-height: 1.35; }
+#model-studio .studio-setup-host :is(.studio-input, .studio-select):focus,
+#model-studio #studio-realmesh-host :is(.studio-input, .studio-select):focus,
+#model-studio .studio-results-host :is(.studio-input, .studio-select):focus {
+  border-color: rgba(var(--st-data-rgb), 0.85);
+  outline: none;
+}
+#model-studio .studio-setup-host input::placeholder { color: var(--st-faint); }
+
+#model-studio .studio-setup-host :is(.studio-primary, .studio-secondary),
+#model-studio #studio-realmesh-host :is(.studio-primary, .studio-secondary),
+#model-studio .studio-results-host :is(.studio-primary, .studio-secondary, .studio-btn) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: var(--st-h);
+  padding: 0 0.65rem;
+  box-sizing: border-box;
+  border-radius: var(--st-radius);
+  font: 600 var(--st-fs) / 1.1 "Exo 2", system-ui, sans-serif;
+  letter-spacing: 0.02em;
+  text-align: center;
+  cursor: pointer;
+}
+#model-studio .studio-setup-host .studio-primary,
+#model-studio #studio-realmesh-host .studio-primary,
+#model-studio .studio-results-host .studio-primary {
+  border: 1px solid rgba(var(--st-accent-rgb), 0.7);
+  background: rgba(var(--st-accent-rgb), 0.16);
+  color: var(--st-ink);
+}
+#model-studio .studio-setup-host .studio-primary:hover:not(:disabled),
+#model-studio #studio-realmesh-host .studio-primary:hover:not(:disabled),
+#model-studio .studio-results-host .studio-primary:hover:not(:disabled) { background: rgba(var(--st-accent-rgb), 0.28); }
+#model-studio .studio-setup-host .studio-secondary,
+#model-studio #studio-realmesh-host .studio-secondary,
+#model-studio .studio-results-host :is(.studio-secondary, .studio-btn) {
+  border: 1px solid var(--st-line-strong);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--st-ink);
+}
+#model-studio .studio-setup-host .studio-secondary:hover:not(:disabled),
+#model-studio #studio-realmesh-host .studio-secondary:hover:not(:disabled),
+#model-studio .studio-results-host :is(.studio-secondary, .studio-btn):hover:not(:disabled) { border-color: rgba(var(--st-data-rgb), 0.6); background: rgba(var(--st-data-rgb), 0.08); }
+#model-studio .studio-setup-host button:disabled,
+#model-studio #studio-realmesh-host button:disabled,
+#model-studio .studio-results-host button:disabled { opacity: 0.38; cursor: not-allowed; }
+#model-studio .studio-setup-host .studio-actions,
+#model-studio #studio-realmesh-host .studio-actions,
+#model-studio .studio-results-host .studio-actions { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 0.35rem; }
+
+#model-studio .studio-setup-host .studio-check,
+#model-studio #studio-realmesh-host .studio-check {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--st-ink);
+  font-size: var(--st-fs);
+}
+#model-studio .studio-setup-host .studio-check input,
+#model-studio #studio-realmesh-host .studio-check input { accent-color: var(--st-accent); margin: 0; }
+
+/* ── prose, values and status ───────────────────────────────────────────── */
+
+#model-studio .studio-setup-host .studio-readout,
+#model-studio #studio-realmesh-host .studio-readout,
+#model-studio .studio-results-host .studio-readout {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--st-muted);
+  font-size: var(--st-fs-small);
+  line-height: 1.45;
+}
+#model-studio .studio-setup-host .studio-readout:empty,
+#model-studio #studio-realmesh-host .studio-readout:empty { display: none; }
+/* A status a reader acts on keeps a spine in its state's colour. */
+#model-studio :is(.studio-setup-host, #studio-realmesh-host, .studio-results-host) .studio-readout:is(.is-ok, .is-warning, .is-error) {
+  padding: 0.3rem 0.5rem;
+  border-left: 2px solid;
+  border-radius: 0 var(--st-radius) var(--st-radius) 0;
+  background: var(--st-well);
+  color: var(--st-ink);
+}
+#model-studio :is(.studio-setup-host, #studio-realmesh-host, .studio-results-host) .studio-readout.is-ok { border-left-color: var(--st-ok); }
+#model-studio :is(.studio-setup-host, #studio-realmesh-host, .studio-results-host) .studio-readout.is-warning { border-left-color: var(--st-warn); }
+#model-studio :is(.studio-setup-host, #studio-realmesh-host, .studio-results-host) .studio-readout.is-error { border-left-color: var(--st-err); }
+
+/* A heading inside a section: a small caption with a hairline, not a banner. */
+#model-studio :is(.studio-setup-host, #studio-realmesh-host) .studio-group-title,
+#model-studio .studio-results-host .gales-subhead {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--st-muted);
+  font: 600 0.58rem / 1 "Exo 2", system-ui, sans-serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 1;
+}
+#model-studio :is(.studio-setup-host, #studio-realmesh-host) .studio-group-title::after,
+#model-studio .studio-results-host .gales-subhead::after { content: ""; flex: 1 1 auto; height: 1px; background: var(--st-line); }
+
+/* Key/value facts, aligned. */
+#model-studio .st-facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.18rem 0.7rem;
+  margin: 0;
+  font-size: var(--st-fs);
+  font-variant-numeric: tabular-nums;
+}
+#model-studio .st-facts dt { color: var(--st-muted); }
+#model-studio .st-facts dd { margin: 0; color: var(--st-ink); overflow-wrap: anywhere; }
+
+/* ── the model tree ─────────────────────────────────────────────────────── */
+
+#model-studio .fem-checklist { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.25rem; }
+#model-studio .fem-checklist li {
+  display: grid;
+  grid-template-columns: 0.45rem minmax(0, 1fr);
+  gap: 0.45rem;
+  align-items: baseline;
+  padding: 0.28rem 0.45rem;
+  border-radius: var(--st-radius);
+  background: var(--st-well);
+  color: var(--st-ink);
+  font-size: var(--st-fs-small);
+  line-height: 1.4;
+  cursor: pointer;
+}
+#model-studio .fem-checklist li::before { content: ""; width: 0.45rem; height: 0.45rem; border-radius: 50%; transform: translateY(-0.05rem); }
+#model-studio .fem-checklist li.is-error::before { background: var(--st-err); }
+#model-studio .fem-checklist li.is-warning::before { background: var(--st-warn); }
+#model-studio .fem-checklist li:hover { background: rgba(255, 255, 255, 0.06); }
+
+#model-studio .fem-pre {
+  margin: 0;
+  max-height: 13rem;
+  overflow: auto;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--st-line);
+  border-radius: var(--st-radius);
+  background: var(--st-well);
+  color: var(--st-ink);
+  font: 0.62rem / 1.4 ui-monospace, "SFMono-Regular", Menlo, monospace;
+  white-space: pre;
+}
+
+/* The run: a numbered sequence, each step a full-width row. */
+#model-studio .fem-steps { display: grid; gap: 0.3rem; counter-reset: femstep; }
+#model-studio .fem-steps > button {
+  display: grid !important;
+  grid-template-columns: 1.3rem minmax(0, 1fr);
+  justify-content: stretch !important;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: left !important;
+  counter-increment: femstep;
+}
+#model-studio .fem-steps > button::before {
+  content: counter(femstep);
+  display: grid;
+  place-items: center;
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 50%;
+  border: 1px solid var(--st-line-strong);
+  color: var(--st-muted);
+  font-size: 0.6rem;
+}
+
+#model-studio .fem-profile { display: block; width: 100%; height: 150px; border-radius: var(--st-radius); background: var(--st-well); }
+
+/* ── the solver mesh ────────────────────────────────────────────────────── */
+
+#model-studio .realmesh-flags { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+#model-studio .realmesh-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  height: 1.45rem;
+  padding: 0 0.5rem 0 0.35rem;
+  border: 1px solid var(--st-line-strong);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--st-ink);
+  font: 600 0.62rem / 1 "Exo 2", system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+#model-studio .realmesh-flag:hover { border-color: rgba(var(--st-data-rgb), 0.6); }
+#model-studio .realmesh-flag.is-off { opacity: 0.4; }
+#model-studio .realmesh-swatch { width: 0.62rem; height: 0.62rem; border-radius: 0.15rem; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35); }
+#model-studio .realmesh-count { color: var(--st-muted); font-weight: 500; }

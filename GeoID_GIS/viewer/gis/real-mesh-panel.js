@@ -22,8 +22,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { parseMesh } from "./gales-results.js?v=20260915-1b203d8";
-import { meshFlagReport } from "./mesh-flags.js?v=20260915-1b203d8";
+import { parseMesh } from "./gales-results.js?v=20260915-f2af81c";
+import { meshFlagReport } from "./mesh-flags.js?v=20260915-f2af81c";
 
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
 const ASK_ABOVE_BYTES = 60e6;
@@ -216,7 +216,7 @@ function flagList(title, rows, unit, host) {
     const part = R.parts.get(r.flag);
     const chip = el("button", { class: `realmesh-flag${part && !part.mesh.visible ? " is-off" : ""}`, type: "button", title: part ? "Show or hide these faces" : "" },
       el("span", { class: "realmesh-swatch", style: `background:#${flagColour(r.flag).toString(16).padStart(6, "0")}` }),
-      `${r.flag}`, el("span", { class: "realmesh-count" }, `${r.count.toLocaleString()} ${unit}`));
+      `${r.flag}`, el("span", { class: "realmesh-count" }, `${r.count.toLocaleString()}${unit ? ` ${unit}` : ""}`));
     if (part) chip.addEventListener("click", () => { part.mesh.visible = !part.mesh.visible; studio()?.refreshVisibility?.(); render(); });
     else chip.disabled = true;
     list.append(chip);
@@ -229,7 +229,7 @@ export function render() {
   if (!host) return;
   host.textContent = "";
   const connected = Boolean(sidecar()?.isConnected?.());
-  host.append(el("p", { class: "studio-readout" }, "Mesh 3D above is a lattice preview. The mesh a solve uses is gmsh's: mesh it here, or open one, to see its elements and the flags the conditions will land on."));
+  host.append(el("p", { class: "studio-readout" }, "Mesh 3D above is a preview. A solve uses gmsh's mesh: make or open it here to see its elements and flags."));
   const name = el("input", { id: "realmesh-name", class: "studio-input", type: "text", value: byId("realmesh-name")?.value || "geoid_studio", spellcheck: "false" });
   name.addEventListener("keydown", (event) => event.stopPropagation());
   host.append(el("div", { class: "studio-row" }, el("label", { for: "realmesh-name" }, "Mesh name"), name));
@@ -243,37 +243,32 @@ export function render() {
   open.addEventListener("click", () => picker.click());
   host.append(el("div", { class: "studio-actions" }, gmsh, open), picker);
 
-  const status = el("div", { id: "realmesh-status", class: `studio-readout${R.level ? ` is-${R.level}` : ""}` }, R.text);
-  if (R.text) host.append(status); else host.append(status);
+  host.append(el("div", { id: "realmesh-status", class: `studio-readout${R.level ? ` is-${R.level}` : ""}` }, R.text));
   const r = R.report;
   if (!r) return;
-  const kinds = r.kinds.map((k) => `${k.count.toLocaleString()} ${k.name}`).join(", ");
-  host.append(el("p", { class: "studio-readout" }, `${r.dim}D · ${r.nodes.toLocaleString()} nodes · ${kinds}${r.sides ? ` · ${r.sides.toLocaleString()} boundary ${r.dim === 3 ? "faces" : "edges"}` : ""}.`));
-  flagList(r.dim === 3 ? "Volume flags" : "Surface flags", r.volumes, "elements", host);
-  flagList("Face flags", r.faces, r.dim === 3 ? "faces" : "edges", host);
-  flagList("Point flags (nodes only)", r.points, "nodes", host);
+  const dl = el("dl", { class: "st-facts" });
+  const fact = (k, v) => dl.append(el("dt", {}, k), el("dd", {}, v));
+  fact("Mesh", R.name);
+  fact("Nodes", r.nodes.toLocaleString());
+  r.kinds.forEach((k) => fact(k.name.replace(/^\w/, (c) => c.toUpperCase()), k.count.toLocaleString()));
+  if (r.sides) fact(`Boundary ${r.dim === 3 ? "faces" : "edges"}`, r.sides.toLocaleString());
+  host.append(dl);
+  flagList(r.dim === 3 ? "Volume flags" : "Surface flags", r.volumes, "", host);
+  flagList("Face flags", r.faces, "", host);
+  flagList("Point flags", r.points, "", host);
   if (r.unflaggedSides || r.unflaggedCells) host.append(el("p", { class: "studio-readout is-warning" }, `${r.unflaggedCells ? `${r.unflaggedCells.toLocaleString()} elements` : ""}${r.unflaggedCells && r.unflaggedSides ? " and " : ""}${r.unflaggedSides ? `${r.unflaggedSides.toLocaleString()} boundary faces` : ""} carry no flag.`));
   const edges = el("input", { type: "checkbox" });
   edges.checked = R.showEdges;
   edges.addEventListener("change", () => { R.showEdges = edges.checked; if (R.edges) R.edges.visible = edges.checked; studio()?.refreshVisibility?.(); });
-  const fit = el("button", { class: "studio-secondary", type: "button" }, "Fit to mesh");
+  const fit = el("button", { class: "studio-secondary", type: "button" }, "Fit view");
   fit.addEventListener("click", () => { const first = [...R.parts.values()][0]; if (first) studio()?.fitObject?.(first.mesh); });
   const clear = el("button", { class: "studio-secondary", type: "button" }, "Clear");
   clear.addEventListener("click", clearMesh);
   host.append(el("label", { class: "studio-check" }, edges, " Element edges"), el("div", { class: "studio-actions" }, fit, clear));
 }
 
-const STYLE = `
-.realmesh-flags { display: flex; flex-wrap: wrap; gap: 0.25rem; }
-.realmesh-flag { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.12rem 0.45rem; border-radius: 999px; border: 1px solid rgba(var(--nav-accent-rgb, 255, 43, 214), 0.35); background: transparent; color: inherit; font: inherit; font-size: 0.68rem; cursor: pointer; }
-.realmesh-flag.is-off { opacity: 0.45; }
-.realmesh-swatch { width: 0.65rem; height: 0.65rem; border-radius: 0.15rem; display: inline-block; }
-.realmesh-count { opacity: 0.7; }
-`;
-
 function install() {
   if (!byId("studio-realmesh-host") || !studio()?.registerVisibility) { setTimeout(install, 500); return; }
-  if (!byId("realmesh-style")) { const tag = el("style", { id: "realmesh-style" }); tag.textContent = STYLE; document.head.append(tag); }
   studio().registerVisibility("real-mesh", visibility);
   render();
 }
