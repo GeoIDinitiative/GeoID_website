@@ -161,8 +161,16 @@ process.on("exit", () => {
   check("a flood sheet's and the river zones' no-data is dry ground (not exposed), not unmapped", /const dryIsZero = scheme === SCHEMES\.flood \|\| scheme === RIVER_ZONE_SCHEME;/.test(reader));
   check("the report opens print-ready, gated like every save, with the CSV and HTML beside it", /\$\{url\}\$\{print \? "#print" : ""\}/.test(view) && /if \(!may\("save"\)\)/.test(view) && /assessmentCsv\(a\)/.test(view) && /reportHtml\(a\)/.test(view));
   check("every polygon of a multi-polygon area is assessed on its own", /groupByFeature\(area\.polys\)/.test(reader));
-  check("the window reads each map as it is developed: layer changes, sheet builds, study-area edits, forecast steps", /im\.onChange\(\(\) => scheduleScan\(\)\)/.test(win) && /geoid-gis:sheet-built/.test(win) && /geoid-study-area-edited/.test(win) && /tab\.kind !== "forecast"/.test(win));
-  check("the window opens for a NEW map only; an update re-reads in place", /if \(first && tab\.auto\)/.test(win) && /if \(!m\.auto\) continue;/.test(win));
+  check("the window reads each map as it is developed: layer changes, sheet builds, study-area edits, frames and views by looking", /im\.onChange\(\(\) => scheduleScan\(\)\)/.test(win) && /geoid-gis:sheet-built/.test(win) && /geoid-study-area-edited/.test(win) && /const parts = partsOf\(member, tab\.readFrom\);/.test(win));
+  check("a map read for the first time opens the window only once a session; after that the shield pulses", /if \(first && tab\.auto\) arrived\(tab\)/.test(win) && /sessionStorage\.getItem\(OPENED_KEY\) === "1"/.test(win) && /pulseLauncher\(\)/.test(win));
+  check("one tab per hazard, not per layer: the tabs are keyed by hazardKey", /const key = hazardKey\(m\.layer\);/.test(win) && /const tabs = new Map\(\); \/\/ hazard key/.test(win));
+  check("a hidden map greys its tab and keeps its reading: nothing is read while hidden, and showing it does not re-read unless something moved", /if \(tab\.hidden\) \{ tab\.stale = true; return; \}/.test(win) && /touch\(tab, "shown"\);\s*if \(tab\.stale\) enqueue\(tab\);/.test(win) && /is-hidden/.test(win));
+  check("touches followed: a card on a feature, a Workspace row, a legend card, a reading chosen, a frame stepped", /geoid-gis:layer-touched/.test(win) && /#layer-dock \[data-layer-id\]/.test(win) && /#map-legend-panel \[data-legend-key\]/.test(win) && /touch\(tab, "reading"\)/.test(win) && /touch\(tab, "frame"\)/.test(win));
+  check("the window says what it is following and why, with a way back from a tab chosen by hand", /"Following"/.test(win) && /FOLLOW_REASONS\[state\.why\]/.test(win) && /Follow the globe/.test(win));
+  check("a hazard carried by several layers offers Reading from", /Reading from/.test(win) && /members\.length < 2/.test(win));
+  const owner = readFileSync(new URL("./card-owner.js", import.meta.url), "utf8");
+  check("a card claiming its layer announces the touch", /new CustomEvent\("geoid-gis:layer-touched"/.test(owner));
+  check("the cyclone estimate sheet carries the frame it draws, and the reader reads it", /held\.riskFrame = \{/.test(readFileSync(new URL("./cyclone-risk-raster.js", import.meta.url), "utf8")) && /const frame = layer\.riskFrame\?\.values && !layer\.riskFrame\.last \? layer\.riskFrame : null;/.test(reader));
   check("every readable layer's drawer offers Risk to people", /act\("Risk to people", \(\) => window\.GeoIDRiskReader\.open\(layer\.id\)\)/.test(drawer));
   check("the Exposure tab is a door onto the same engine, not a copy of it", /assessLayer\(layer, byId\("exp-area"\)\.value/.test(panel) && /renderAssessment\(byId\("exp-result"\)/.test(panel) && !/assessPopulation|assessGrid/.test(panel));
   check("the window loads on Earth", /gis\/risk-reader-window\.js\?v=/.test(page));
@@ -171,7 +179,33 @@ process.on("exit", () => {
 // ── What kind of map, and which ground ─────────────────────────────────────
 {
   globalThis.window = globalThis.window || {};
-  const { riskMapKind, autoArea, RIVER_ZONE_SCHEME, VOLCANIC_ZONE_SCHEME, OWN_EXTENT_MAX_DEG } = await import("./risk-reader.js");
+  const { riskMapKind, autoArea, RIVER_ZONE_SCHEME, VOLCANIC_ZONE_SCHEME, OWN_EXTENT_MAX_DEG, hazardKey, frameLabelOf, readableMember, chooseFollowed, FOLLOW_REASONS } = await import("./risk-reader.js");
+
+  // ── one tab per hazard ──
+  globalThis.__geoidRiskSpecs = globalThis.__geoidRiskSpecs || {};
+  globalThis.__geoidRiskSpecs["test-seismic"] = { name: /seismic risk \(test/i, plotName: "Seismic risk by magnitude (test)", bandLabel: (b) => (b === "m7" ? "M 7" : "all magnitudes") };
+  check("hazard: the cyclone grid and its estimate sheet are one tab", hazardKey({ name: "Tropical cyclone risk (IBTrACS)" }) === "cyclone-risk" && hazardKey({ name: "Cyclone risk — the estimate over time" }) === "cyclone-risk");
+  check("hazard: a record's collective and its frame plot are one tab", hazardKey({ name: "Seismic risk (test grid)" }) === "record:test-seismic" && hazardKey({ name: "Seismic risk by magnitude (test)", riskRecord: "test-seismic" }) === "record:test-seismic" && hazardKey({ name: "Seismic risk by magnitude (test)" }) === "record:test-seismic");
+  check("hazard: the forecast is one tab, anything else its own", hazardKey({ name: "Landslide risk — forecast (Mournes)" }) === "forecast" && hazardKey({ name: "Flood inundation" }) === "layer:Flood inundation");
+  check("frame: a record's plot names its band; the estimate names its year; the last estimate band is the still map", frameLabelOf({ riskRecord: "test-seismic", riskBand: "m7" }, "risk") === "M 7" && frameLabelOf({ riskFrame: { label: "2005 — the estimate after 26 seasons" } }, "risk") === "2005 — the estimate after 26 seasons" && frameLabelOf({ riskFrame: { label: "2026", last: true } }, "risk") === null && frameLabelOf({ name: "grid" }, "grid") === null);
+  const grid = { layer: { id: 1, name: "grid" }, visible: false, kind: "risk" };
+  const sheet = { layer: { id: 2, name: "sheet", riskFrame: { label: "1990" } }, visible: true, kind: "risk" };
+  check("reading from: automatic takes the frame on screen over the still map", readableMember([grid, sheet]) === sheet);
+  check("reading from: a layer chosen by id wins, and a stale choice falls back to automatic", readableMember([grid, sheet], "1") === grid && readableMember([grid, sheet], "99") === sheet);
+  check("reading from: with everything hidden the last member is still read (a reading is kept)", readableMember([{ ...grid }, { ...sheet, visible: false }]).layer.id === 2);
+
+  // ── which tab to follow ──
+  const T = (key, o = {}) => ({ key, hidden: false, touchedAt: 0, touchedHow: "", order: 50, areaBox: null, severity: 0, ...o });
+  const view = { west: 0, east: 10, south: 40, north: 50 };
+  check("follow: a tab chosen by hand wins", chooseFollowed([T("a", { touchedAt: 9 }), T("b")], { explicitKey: "b" }).tab.key === "b" && chooseFollowed([T("a")], { explicitKey: "a" }).why === "chosen");
+  check("follow: otherwise the map touched last, with how it was touched", (() => { const r = chooseFollowed([T("a", { touchedAt: 5, touchedHow: "legend" }), T("b", { touchedAt: 7, touchedHow: "card" })]); return r.tab.key === "b" && r.why === "card"; })());
+  check("follow: a hidden map is not followed for being touched", chooseFollowed([T("a", { touchedAt: 5 }), T("b", { touchedAt: 7, hidden: true })]).tab.key === "a");
+  check("follow: a stale touch gives way to the camera", chooseFollowed([T("a", { touchedAt: 1000, order: 51, areaBox: view }), T("b", { order: 52, areaBox: view })], { now: 200000, freshMs: 90000, viewBox: view }).tab.key === "b");
+  check("follow: with no recent touch, the top map whose area is in view", (() => { const r = chooseFollowed([T("low", { order: 51, areaBox: view }), T("top", { order: 55, areaBox: view }), T("away", { order: 60, areaBox: { west: 100, east: 110, south: 0, north: 10 } })], { viewBox: view }); return r.tab.key === "top" && r.why === "top"; })());
+  check("follow: nothing in view, the most severe shown map", (() => { const r = chooseFollowed([T("a", { severity: 0.2 }), T("b", { severity: 0.7 }), T("c", { severity: 0.9, hidden: true })]); return r.tab.key === "b" && r.why === "severe"; })());
+  check("follow: everything hidden, still a tab to show, said to be hidden", chooseFollowed([T("a", { hidden: true, touchedAt: 3 }), T("b", { hidden: true, touchedAt: 8 })]).why === "hidden");
+  check("follow: every reason the window can give has words", ["chosen", "new", "shown", "workspace", "legend", "card", "reading", "frame", "drawer", "top", "severe", "hidden"].every((w) => FOLLOW_REASONS[w]));
+  check("follow: no tabs, nothing", chooseFollowed([]).tab === null);
   const raster = (name, bounds = { west: 0, east: 1, south: 50, north: 51 }) => ({ name, status: "loaded", raster: { band: new Float32Array(4), width: 2, height: 2, bounds } });
   check("kind: a flood sheet and a factor of safety are hazard grids read unasked", riskMapKind(raster("Flood inundation (GRWL rivers on the streamed DEM)")).kind === "grid" && riskMapKind(raster("Landslide risk — static")).auto);
   check("kind: river corridor zones", riskMapKind(raster("River corridor zones (GRWL on the streamed DEM)")).kind === "riverzones");

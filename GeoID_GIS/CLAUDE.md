@@ -19866,3 +19866,33 @@ path counts population cell centres, the grid path shares cells by area); a
 zones layer shaped like the volcanic buffers read by zone; the drawer door on
 the flood layer reopened the closed window on its tab and was absent on the
 plate boundaries.
+
+### The reader follows the map you touch, and a tab is a hazard, not a layer
+
+A tab per LAYER showed one hazard twice, e.g. the cyclone grid beside the estimate sheet that stands in for it, or a record's collective beside its frame plot. It also left the window on whichever map was read last. So now:
+
+- **Tabs are keyed by `hazardKey`**:
+  - `forecast`;
+  - `record:<spec id>`, matched through `riskRecord` or through the spec's `name`/`plotName` in `globalThis.__geoidRiskSpecs`;
+  - `cyclone-risk`;
+  - otherwise `layer:<name>`.
+- **"Reading from" picks the member.** It appears only when a tab has more than one member. `readableMember` chooses a hand pick first, then a shown framed layer (`riskFrame`/`riskRecord`), then any shown layer.
+- **The follow rule is `chooseFollowed`, which is pure and pinned:**
+  1. a tab chosen by hand;
+  2. otherwise the shown map touched last, while the touch is under 90 s old;
+  3. otherwise the top map in view: the highest `renderOrder` whose read area meets `visibleBounds`, re-evaluated when the view settles;
+  4. otherwise the most severe map.
+- **A hand-chosen tab holds until another map is touched.** "Follow the globe" returns to automatic.
+- **What counts as a touch:**
+  - `geoid-gis:layer-touched` from `card-owner`, when a card claims its layer;
+  - a click inside `#layer-dock [data-layer-id]` or `#map-legend-panel [data-legend-key]`, delegated in capture. Note that a static legend card has no `.legend-entry-head`, so the click is keyed on the card itself;
+  - a layer being shown again;
+  - a new map;
+  - a signature part changing: `view` (a symbology reading) or `frame` (`riskBand`, `riskFrame.label`, the forecast step). A change to the `rebuilt` part re-reads the map without touching it, because a sheet refining is not something a person did.
+- **The estimate sheet carries the band it draws** as `layer.riskFrame {values, width, height, scale: 255, label, last}`. `assessRisk` reads the primary chance from it, and says the secondary readings are the full record.
+- **The indices are 0-based.** The last band is the still map, so its frame label is null.
+- **A hidden map keeps its reading.** `enqueue` refuses a hidden tab and marks it stale. Showing the map again re-reads it only if it is stale.
+- **A tab going grey is not a change of follow**, so `scan` must redraw the tabs itself. The first build only redrew them when the followed tab changed, so a hidden map's chip stayed coloured.
+- **The window opens by itself once per session** (sessionStorage `geoid-gis:risk-reader-opened`). After that, new maps pulse the shield.
+
+Verified live: a Miami box with cyclone risk gave one tab holding both layers and the chooser shown. Stepping the bar to 2006 read "Following Cyclone risk — 2006 — the estimate after 27 seasons · its frame stepped". A flood `.asc` added a tab. Hiding both cyclone layers greyed that tab with its reading kept, and showing it again triggered no re-read. A legend click, a Workspace row click and a tab pin with "Follow the globe" each behaved as designed. A map arriving while the window was shut pulsed the shield and left the window shut.

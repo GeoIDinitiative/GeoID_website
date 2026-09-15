@@ -28,11 +28,11 @@
  * follow.
  */
 
-import { loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260915-f3f8fff";
-import { dataUrl } from "./data-base.js?v=20260915-f3f8fff";
-import { riskEdges, RISK_LABELS } from "./cyclone-risk.js?v=20260915-f3f8fff";
-import { rampColour } from "./symbology.js?v=20260915-f3f8fff";
-import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260915-f3f8fff";
+import { loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260915-9faaf35";
+import { dataUrl } from "./data-base.js?v=20260915-9faaf35";
+import { riskEdges, RISK_LABELS } from "./cyclone-risk.js?v=20260915-9faaf35";
+import { rampColour } from "./symbology.js?v=20260915-9faaf35";
+import { startPlayer, stopPlayer } from "./timelapse-player.js?v=20260915-9faaf35";
 
 const FILE = "/data/global/cyclone-risk-cumulative.hotlink-ok.tif";
 const WORLD = { west: -180, south: -90, east: 180, north: 90 };
@@ -64,6 +64,8 @@ const ESTIMATE_NAME = "Cyclone risk — the estimate over time";
  */
 let opening = false;
 let three = null;
+/** The band last decoded, kept so the frame on screen can be READ, not only drawn. */
+let lastFrame = null;
 
 const byId = (id) => document.getElementById(id);
 
@@ -126,6 +128,7 @@ async function open() {
 /** One band, painted through the shared classes into an RGBA canvas. */
 export async function frameCanvas(band, lut) {
   const [data] = await image.readRasters({ samples: [band] });
+  lastFrame = { band, data, width: image.getWidth(), height: image.getHeight() };
   const w = image.getWidth(), h = image.getHeight();
   const canvas = document.createElement("canvas");
   canvas.width = w; canvas.height = h;
@@ -272,6 +275,22 @@ async function open_() {
      */
     onShow: async (index) => {
       const canvas = await frameCanvas(epochs[index].band, lut);
+      /**
+       * THE FRAME ON SCREEN IS READABLE. The risk reader follows the sheet
+       * frame by frame, so the layer carries the band it is drawing: a byte
+       * per cell, p = v / 255 (the bake's own scale), rows north to south over
+       * the world. Without it the reader could only ever quote the full record
+       * under a bar showing 1990.
+       */
+      const held = (window.GeoIDImportManager?.getLayers?.() || []).find((l) => l.name === ESTIMATE_NAME);
+      if (held && lastFrame?.band === epochs[index].band) {
+        const e = epochs[index];
+        held.riskFrame = {
+          band: e.band, label: `${e.year} — the estimate after ${e.count} season${e.count === 1 ? "" : "s"}`,
+          last: index === epochs.length - 1, thin: e.count < THIN_SEASONS,
+          width: lastFrame.width, height: lastFrame.height, values: lastFrame.data, scale: 255,
+        };
+      }
       const next = new three.CanvasTexture(canvas);
       next.colorSpace = three.SRGBColorSpace;
       mesh.traverse?.((n) => {

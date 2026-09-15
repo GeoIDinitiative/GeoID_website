@@ -26,12 +26,12 @@
 
 import {
   polygonsOf, polygonIndex, peopleOnGrid, polygonMask, cellKm2, boxOf,
-} from "./exposure.js?v=20260915-f3f8fff";
+} from "./exposure.js?v=20260915-9faaf35";
 import {
   SCHEMES, chanceScheme, bandScheme, schemeForLayerName, riskLayerKind, assessGrid, assessPopulation,
   groupByFeature, summarySentence, windLookup,
-} from "./risk-assessment.js?v=20260915-f3f8fff";
-import { resolvePolygonRings } from "./extent-picker.js?v=20260915-f3f8fff";
+} from "./risk-assessment.js?v=20260915-9faaf35";
+import { resolvePolygonRings } from "./extent-picker.js?v=20260915-9faaf35";
 
 const search = new URL(import.meta.url).search;
 const FORECAST_NAME = /^Landslide risk — forecast/;
@@ -63,13 +63,128 @@ export function riskMapKind(layer) {
   return null;
 }
 
-/** Every map on the globe the reader can read, in the order they were added. */
-export function riskMaps() {
+const isShown = (l) => l.visible !== false && l.object3D?.visible !== false;
+
+/**
+ * Every map on the globe the reader can read, in the order they were added.
+ * Hidden ones too, flagged: a reading is kept while its map is switched off.
+ */
+export function riskMaps({ hidden = false } = {}) {
   return (window.GeoIDImportManager?.getLayers?.() || [])
-    .filter((l) => l.visible !== false)
-    .map((layer) => ({ layer, ...(riskMapKind(layer) || {}) }))
-    .filter((m) => m.kind);
+    .map((layer) => ({ layer, visible: isShown(layer), ...(riskMapKind(layer) || {}) }))
+    .filter((m) => m.kind && (hidden || m.visible));
 }
+
+/* ── one tab per hazard, and the frame on screen ────────────────────────── */
+
+const specs = () => Object.entries(globalThis.__geoidRiskSpecs || {});
+
+/**
+ * WHICH HAZARD a layer is, as one key per tab. Several layers can be one map:
+ * the cyclone risk grid and the estimate sheet that stands in for it; a
+ * seismic or volcanic record and the frame plot the time-lapse draws over it.
+ * Reading them as separate tabs showed one hazard twice.
+ */
+export function hazardKey(layer) {
+  const name = String(layer?.name || "");
+  if (FORECAST_NAME.test(name)) return "forecast";
+  if (layer?.riskRecord) return `record:${layer.riskRecord}`;
+  const spec = specs().find(([, sp]) => sp?.plotName === name || (sp?.name instanceof RegExp && sp.name.test(name)));
+  if (spec) return `record:${spec[0]}`;
+  if (/cyclone risk/i.test(name)) return "cyclone-risk";
+  return `layer:${name}`;
+}
+
+/** What a tab is called: the hazard, not whichever layer happens to carry it. */
+export function hazardTitle(key, layer, kindLabel) {
+  if (key === "forecast") return "Landslide forecast";
+  if (key === "cyclone-risk") return "Cyclone risk";
+  if (key.startsWith("record:")) {
+    const spec = globalThis.__geoidRiskSpecs?.[key.slice(7)];
+    const name = spec?.plotName || layer?.name || "";
+    return /seismic/i.test(name) ? "Seismic risk" : /full Holocene/i.test(name) ? "Volcanic risk (full record)" : /volcan/i.test(name) ? "Volcanic risk" : kindLabel || name;
+  }
+  return layer?.name || kindLabel || key;
+}
+
+/** The frame a layer is showing, in words, or null for a still map. */
+export function frameLabelOf(layer, kind) {
+  if (layer?.riskFrame?.label) return layer.riskFrame.last ? null : layer.riskFrame.label;
+  if (layer?.riskRecord && layer.riskBand != null) {
+    const spec = globalThis.__geoidRiskSpecs?.[layer.riskRecord];
+    return spec?.bandLabel ? spec.bandLabel(layer.riskBand) : String(layer.riskBand);
+  }
+  if (kind === "forecast") {
+    const src = window.GeoIDLandslidePipeline?.exposureSource?.();
+    const t = src?.times?.[src.step()];
+    return t ? `map of ${String(t).replace("T", " ")}` : null;
+  }
+  return null;
+}
+
+/**
+ * Which member of a tab to read. A frame on screen beats the still map under
+ * it; a shown layer beats a hidden one; a choice made in the tab beats both.
+ */
+export function readableMember(members, choice = "auto") {
+  const list = members.filter((m) => m.kind);
+  if (choice !== "auto") {
+    const picked = list.find((m) => String(m.layer.id) === String(choice));
+    if (picked) return picked;
+  }
+  const framed = (m) => Boolean(m.layer.riskFrame || m.layer.riskRecord);
+  return list.find((m) => m.visible && framed(m)) || list.find((m) => m.visible) || list[list.length - 1] || null;
+}
+
+const boxesMeet = (a, b) => a && b && !(a.east < b.west || a.west > b.east || a.north < b.south || a.south > b.north);
+
+/**
+ * WHICH TAB TO FOLLOW, as a rule a reader can predict:
+ *
+ *  1. the tab chosen by hand, until something else is touched;
+ *  2. the SHOWN map touched last, while the touch is recent — ticked on, its
+ *     row or legend card opened, one of its features clicked, its reading
+ *     changed, its frame stepped;
+ *  3. else the top shown map in the draw order whose study area is in view;
+ *  4. else the most severe shown map;
+ *  5. else, nothing being shown, the map touched last.
+ *
+ * `tabs`: [{ key, hidden, touchedAt, touchedHow, order, areaBox, severity }].
+ */
+export function chooseFollowed(tabs, { explicitKey = null, viewBox = null, now = null, freshMs = 0 } = {}) {
+  if (!tabs.length) return { tab: null, why: "" };
+  const chosen = explicitKey && tabs.find((t) => t.key === explicitKey);
+  if (chosen) return { tab: chosen, why: "chosen" };
+  const shown = tabs.filter((t) => !t.hidden);
+  // A touch is followed while it is recent: after that the camera decides again.
+  const fresh = (t) => t.touchedAt > 0 && (!freshMs || now === null || now - t.touchedAt <= freshMs);
+  const touched = shown.filter(fresh).sort((a, b) => b.touchedAt - a.touchedAt)[0];
+  if (touched) return { tab: touched, why: touched.touchedHow || "touched" };
+  const inView = viewBox ? shown.filter((t) => boxesMeet(t.areaBox, viewBox)) : shown;
+  const top = [...inView].sort((a, b) => (b.order ?? -Infinity) - (a.order ?? -Infinity))[0];
+  if (top && viewBox) return { tab: top, why: "top" };
+  const severe = [...shown].sort((a, b) => (b.severity ?? -1) - (a.severity ?? -1))[0];
+  if (severe) return { tab: severe, why: "severe" };
+  const last = [...tabs].sort((a, b) => (b.touchedAt || 0) - (a.touchedAt || 0))[0];
+  return { tab: last, why: "hidden" };
+}
+
+/** The reason in words, for the "Following" line. */
+export const FOLLOW_REASONS = {
+  chosen: "chosen here",
+  new: "just developed",
+  shown: "switched on",
+  workspace: "opened in Workspace",
+  legend: "opened in the legend",
+  card: "a feature clicked",
+  reading: "its reading changed",
+  frame: "its frame stepped",
+  drawer: "opened from its drawer",
+  top: "the top map in view",
+  severe: "the most severe map shown",
+  hidden: "hidden on the globe",
+  touched: "last touched",
+};
 
 /* ── which ground ───────────────────────────────────────────────────────── */
 
@@ -281,11 +396,21 @@ async function assessRisk(layer, area) {
   const kind = riskLayerKind(layer.name, near[0]?.properties || {});
   const hazard = { cyclone: "Tropical cyclone", seismic: "Earthquake", volcanic: "Volcanic ashfall", risk: layer.name }[kind];
   const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
+  const frame = layer.riskFrame?.values && !layer.riskFrame.last ? layer.riskFrame : null;
+  const frameName = frameLabelOf(layer, "risk");
   const schemes = [{
-    scheme: chanceScheme(hazard, kind === "cyclone" ? "Annual chance of a storm within 200 km" : "Annual chance of reaching here"),
-    valueAt: (lon, lat) => { const p = propsAt(lon, lat); return p ? (num(p.p_yr) ?? 0) : null; },
+    scheme: chanceScheme(hazard, `${kind === "cyclone" ? "Annual chance of a storm within 200 km" : "Annual chance of reaching here"}${frameName ? ` — ${frameName}` : ""}`),
+    // THE FRAME ON SCREEN, where the layer is drawing one: a byte a cell over
+    // the world, p = v / 255. The full-record grid answers otherwise.
+    valueAt: frame
+      ? (lon, lat) => {
+        const col = Math.min(frame.width - 1, Math.max(0, Math.floor(((lon + 180) / 360) * frame.width)));
+        const row = Math.min(frame.height - 1, Math.max(0, Math.floor(((90 - lat) / 180) * frame.height)));
+        return frame.values[row * frame.width + col] / frame.scale;
+      }
+      : (lon, lat) => { const p = propsAt(lon, lat); return p ? (num(p.p_yr) ?? 0) : null; },
   }];
-  let note = null;
+  let note = frame ? `The first reading is the frame on screen (${frame.label}); the others are the full record 1980–2025.${frame.thin ? " So few seasons are mostly sampling noise." : ""}` : null;
   if (kind === "cyclone") {
     schemes.push({
       scheme: chanceScheme("Tropical cyclone", "Annual chance of hurricane-force winds (≥ 64 kt) within 200 km",
@@ -296,7 +421,7 @@ async function assessRisk(layer, area) {
     if (tracks) {
       const lookup = windLookup(tracks, box, { reachKm: 200 });
       schemes.push({ scheme: SCHEMES.wind, valueAt: (lon, lat) => lookup.at(lon, lat) });
-    } else note = "Tick Tropical cyclone tracks on to add the strongest storm on record, by wind speed.";
+    } else note = [note, "Tick Tropical cyclone tracks on to add the strongest storm on record, by wind speed."].filter(Boolean).join(" ");
   }
   if (kind === "seismic") schemes.push({ scheme: SCHEMES.magnitude, valueAt: (lon, lat) => { const p = propsAt(lon, lat); return p ? (p.none ? 0 : num(p.mag_max) ?? 0) : null; } });
   if (kind === "volcanic") schemes.push({ scheme: SCHEMES.vei, valueAt: (lon, lat) => { const p = propsAt(lon, lat); return p ? ((p.none || !(num(p.p_yr) > 0)) ? -1 : num(p.vei_max) ?? -1) : null; } });
@@ -384,5 +509,7 @@ export async function assessLayer(layer, choice = "auto") {
       : k.kind === "zones" ? await assessZones(layer, area)
         : k.kind === "wind" ? await assessTracks(layer, area)
           : await assessRaster(layer, area, k.kind);
-  return { assessment: assessmentOf(r, area), area, kind: k.kind, step: r.step };
+  const assessment = assessmentOf(r, area);
+  assessment.frame = frameLabelOf(layer, k.kind);
+  return { assessment, area, kind: k.kind, step: r.step };
 }

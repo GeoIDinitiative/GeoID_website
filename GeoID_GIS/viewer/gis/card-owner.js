@@ -66,6 +66,12 @@ export function own(slot, layer, close) {
     try { owner.close(); } catch { /* a closer that throws must not keep this one from opening */ }
   }
   slots.set(slot, { key, close });
+  // A card opened on a map is attention paid to that map: the risk reader
+  // follows the map a reader last touched. Guarded on the method, not on
+  // document -- the tests stub a bare window.
+  if (typeof globalThis.document?.dispatchEvent === "function" && typeof CustomEvent === "function") {
+    globalThis.document.dispatchEvent(new CustomEvent("geoid-gis:layer-touched", { detail: { ...key, how: "card" } }));
+  }
 }
 
 /** The card in this slot closed on its own; forget what it described. */
