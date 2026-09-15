@@ -20016,3 +20016,51 @@ offered. There was no way to put dof files onto a mesh already loaded.
   field. Opening the results first and the mesh second gave the same.
 - **STL is not a results mesh.** An STL has no node numbering for dofs to
   land on, so it is geometry, imported through File ▸ Import CAD.
+
+## The model tree: Materials, Physics and Study between building and meshing
+
+`gis/studio-setup-panel.js` draws `fem-setup.js`'s decisions as three tabs in
+their own deck band (`data-band="physics"`, one tab open per band). They sit
+between the build tabs and Mesh, which is the order a finite-element model is
+defined in.
+
+- **Targets are read off the model, never kept.** `setupTargets()` gives the
+  domains (volume flags) and face groups (face flags), polled every 1.5 s by
+  fingerprint. So a solid added, or a flag changed in Domains, reaches the
+  tabs within a beat. The setup itself is kept in
+  `localStorage["geoid-studio:fem-setup"]`, keyed by flag.
+- **Badges beside each tab** (`setupSummary`): materials assigned of the solid
+  domains, faces with a real condition of the flagged faces, and errors
+  standing between the model and a solve. A tree that only lists steps makes
+  the reader open each one to find the gap.
+- **A condition card lights its faces** (`highlightFlag`) on hover and while
+  open, so a flag number is never the only way to tell which face is meant.
+- **Study runs the pipeline the sidecar already has:**
+  - write `fem_runs/<name>/spec.json` and `input/<name>_gmsh.py`;
+  - gmsh through `/jobs/gmsh`, with the mesh copied into the run's `input/`,
+    because prepare otherwise takes the first `.msh` in the project's
+    `meshes/`;
+  - `/jobs/gales/prepare`;
+  - `/jobs/gales`;
+  - Results on the run.
+  The sidecar gets `dir` as `<project.dir>/fem_runs/<name>`, which is
+  qt-runtime's form. The seam `gmshScriptFor(name)` writes `<name>.msh`, and
+  answers null for a GIS terrain, whose script is the Model Builder's package.
+- **A LOCAL SOLVE ASKS FIRST** (`window.confirm`, naming the risk). A compute
+  target does not. Nothing in this session ran a solve.
+- **A subscription made at install can be made to NOTHING.**
+  `GeoIDResearch.store` and `.sidecar` load after this module on some pages,
+  so `store()?.onChange` subscribed to undefined and the Study tab never saw
+  the project open: "Write study" stayed disabled over an open project. The
+  project dir and the sidecar's connection are in the poll's context string
+  instead.
+- **`createProject` takes a NAME STRING.** Given an object it throws "name.trim
+  is not a function", after the membership gate has already passed (the gate
+  needs `geoid:unlock=owner` in development).
+- Verified live on a box: granite on flag 10, the base (flag 2) fixed, and
+  pressure on the top (flag 1) turned the checklist to "ready". Write study
+  put a spec with both conditions named by their faces, a header with
+  `nd.flag() == 2` dirichlet ×3 and `side_flag == 1` pressure, and an 8.8 kB
+  gmsh script writing `study_1.msh` into an in-memory project. Meshing,
+  preparing and solving were not run here (no sidecar connected, and no local
+  solves).

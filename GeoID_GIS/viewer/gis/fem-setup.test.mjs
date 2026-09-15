@@ -101,3 +101,30 @@ const box = (flag, name, zMin, zMax, extra = {}) => ({ flag, name, zMin, zMax, v
   check("spec: boundary entries carry the flag and the face's name", spec.boundary[0].flag === 2 && spec.boundary[0].surface === "base" && spec.boundary[0].type === "fixed");
   check("spec: heat maps to the sidecar's thermal family", studySpec({ ...setup, physics: "heat" }, { domains: [box(10, "Crust", -10, 0)], faces: [] }).physics === "thermal");
 }
+
+// ── the tree's badges ──
+{
+  const { setupSummary } = await import("./fem-setup.js");
+  const targets = { domains: [box(10, "Crust", -10, 0), box(12, "Chamber", -6, -4, { void: true })], faces: [{ flag: 1, name: "top" }, { flag: 2, name: "base" }] };
+  const blank = setupSummary(defaultSetup(), targets);
+  check("summary: a void domain is not counted as needing a material, and a blank setup is an error", blank.materials.of === 1 && blank.materials.assigned === 0 && blank.materials.level === "error" && blank.study.level === "error");
+  const good = setupSummary({ ...defaultSetup(), materials: { 10: { id: "granite" } }, conditions: { 2: { type: "fixed" }, 1: { type: "free" }, 99: { type: "fixed" } } }, targets);
+  check("summary: only a real condition on a face the model carries counts, and a solvable setup has no errors", good.physics.set === 1 && good.physics.of === 2 && good.materials.level === "ok" && good.study.errors === 0 && good.study.warnings >= 1);
+}
+
+// ── the page half, pinned on the source ──
+{
+  const { readFileSync } = await import("node:fs");
+  const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
+  const index = read("../index.html");
+  const shell = read("./shell.html");
+  const panel = read("./studio-setup-panel.js");
+  const block = (s) => s.slice(s.indexOf('data-group="materials"'), s.indexOf('data-group="mesh"'));
+  check("tree: Materials, Physics and Study sit between the build tabs and Mesh, identical on both pages", block(index).length > 200 && block(index) === block(shell) && ["materials", "physics", "study"].every((g) => block(index).includes(`id="studio-${g}-host"`)));
+  check("tree: the three share one band, and the studio restores it", /data-group="study" data-deck="left" data-band="physics"/.test(index) && /\["build", "physics", "mesh"\]\.forEach/.test(read("./model-studio.js")));
+  check("loaded on the Earth page and the planets", /mesh-quality-panel\.js\?v=[^"]+"><\/script>\n<script type="module" src="gis\/studio-setup-panel\.js/.test(index) && /"\.\/studio-setup-panel\.js",/.test(read("./boot.js")));
+  check("the study's mesh is the model's own gmsh script, named for the study", /gmshScriptFor: \(name\) =>/.test(read("./model-studio.js")) && /gmshScriptFor\?\.\(name\)/.test(panel));
+  check("a local solve asks first; a compute target does not", /if \(!target && !window\.confirm\(/.test(panel));
+  const style = panel.slice(panel.indexOf("const STYLE = `") + 15, panel.indexOf("`;", panel.indexOf("const STYLE = `")));
+  check("style: no backtick or octal escape inside the CSS literal", !style.includes("`") && !/\\[0-9]/.test(style));
+}

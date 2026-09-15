@@ -403,3 +403,26 @@ export function studySpec(setup, targets, { mesh, dim = 3, provenance = {} } = {
     geoid_model: provenance,
   };
 }
+
+/* ── the model tree's badges ────────────────────────────────────────────── */
+
+/**
+ * WHAT EACH STEP OF THE TREE STANDS AT, for the badge beside its name: how
+ * many solid domains have a material, how many faces carry a condition, and
+ * how many errors and warnings stand between the model and a solve. A tree
+ * that only lists steps makes the reader open each one to find the gap.
+ */
+export function setupSummary(setup, targets) {
+  const solids = (targets?.domains || []).filter((d) => !d.void);
+  const faceFlags = new Set((targets?.faces || []).map((f) => Number(f.flag)));
+  const conditions = Object.entries(setup?.conditions || {}).filter(([flag, c]) => c?.type && c.type !== "free" && faceFlags.has(Number(flag)));
+  const issues = checkSetup(setup, targets || {});
+  const by = (step) => issues.filter((i) => i.step === step);
+  const level = (list) => (list.some((i) => i.level === "error") ? "error" : list.length ? "warning" : "ok");
+  return {
+    materials: { assigned: solids.filter((d) => setup?.materials?.[d.flag]?.id).length, of: solids.length, level: level(by("materials")) },
+    physics: { set: conditions.length, of: faceFlags.size, level: level(by("physics")) },
+    study: { errors: issues.filter((i) => i.level === "error").length, warnings: issues.filter((i) => i.level === "warning").length, level: level(issues) },
+    issues,
+  };
+}

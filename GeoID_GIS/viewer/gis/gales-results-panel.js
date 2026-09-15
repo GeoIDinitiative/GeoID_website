@@ -29,10 +29,10 @@ import {
   interpolateOnSlice, axisPlane, nodeByteRange, probeCsv, parseMesh, sliceTets,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
   groupResultFiles, timeOf,
-} from "./gales-results.js?v=20260915-46b91b3";
-import { zipStore } from "./shapefile-writer.js?v=20260915-46b91b3";
-import { may, refusal } from "./membership.js?v=20260915-46b91b3";
-import { downloadText } from "./extraction.js?v=20260915-46b91b3";
+} from "./gales-results.js?v=20260915-247ef13";
+import { zipStore } from "./shapefile-writer.js?v=20260915-247ef13";
+import { may, refusal } from "./membership.js?v=20260915-247ef13";
+import { downloadText } from "./extraction.js?v=20260915-247ef13";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);

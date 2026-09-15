@@ -23,7 +23,7 @@
  */
 
 import { loadDerivedGeologyMap, removeDerivedGeologyMap }
-  from "./geology-panel.js?v=20260915-46b91b3";
+  from "./geology-panel.js?v=20260915-247ef13";
 
 const STAMP = new URL(import.meta.url).search || "";
 const FALLBACK_COLOUR = "#3d8fd1";
