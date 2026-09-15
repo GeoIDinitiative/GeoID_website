@@ -1608,6 +1608,126 @@ export function sampleLocated(located, scalar) {
   return out;
 }
 
+/**
+ * STREAM TRACER: curves everywhere tangent to a vector field, as ParaView's
+ * Stream Tracer draws them.
+ *
+ * The field is interpolated in each element exactly as a profile is (the
+ * element's own nodal values, barycentrically), and the curve is integrated
+ * with classical RK4 on the UNIT field — dx/ds = v/|v| — so a step is a length
+ * in space and the curve's shape does not depend on the field's size. It stops
+ * where it leaves the mesh, where the field vanishes (below `stallFraction` of
+ * the largest nodal magnitude), after `maxSteps`, or past `maxLength`. A seed
+ * traced both ways gives one polyline, backward half reversed onto forward.
+ *
+ *   vec    per-node interleaved (vx, vy, vz)
+ *   seeds  flat xyz
+ *   →      { points (xyz), values (|v| at each point), starts (first point of
+ *            each line), counts, reasons, seeded, traced }
+ */
+export function streamlines(locator, vec, seeds, {
+  step, maxSteps = 2000, maxLength = Infinity, direction = "both", stallFraction = 1e-6,
+} = {}) {
+  const nodeCount = vec.length / 3;
+  let vmax = 0;
+  for (let i = 0; i < nodeCount; i += 1) {
+    const m = Math.hypot(vec[i * 3], vec[i * 3 + 1], vec[i * 3 + 2]);
+    if (m > vmax) vmax = m;
+  }
+  const stall = vmax * stallFraction;
+  const field = (p) => {
+    const hit = locator.locate(p);
+    if (!hit) return null;
+    let x = 0; let y = 0; let z = 0;
+    for (let j = 0; j < hit.nodes.length; j += 1) {
+      const node = hit.nodes[j]; const w = hit.weights[j];
+      x += w * vec[node * 3]; y += w * vec[node * 3 + 1]; z += w * vec[node * 3 + 2];
+    }
+    const m = Math.hypot(x, y, z);
+    return { x, y, z, m };
+  };
+  const unit = (f) => [f.x / f.m, f.y / f.m, f.z / f.m];
+  const trace = (seed, sign) => {
+    const pts = [seed.slice()]; const mags = [];
+    const first = field(seed);
+    if (!first || !(first.m > stall)) return { pts: [], mags: [], reason: first ? "stalled" : "outside" };
+    mags.push(first.m);
+    let p = seed.slice(); let length = 0; let reason = "steps"; let cur = first;
+    for (let k = 0; k < maxSteps; k += 1) {
+      const h = sign * step;
+      const f1 = cur; if (!(f1.m > stall)) { reason = "stalled"; break; }
+      const k1 = unit(f1);
+      const f2 = field([p[0] + 0.5 * h * k1[0], p[1] + 0.5 * h * k1[1], p[2] + 0.5 * h * k1[2]]); if (!f2 || !(f2.m > stall)) { reason = f2 ? "stalled" : "outside"; break; }
+      const k2 = unit(f2);
+      const f3 = field([p[0] + 0.5 * h * k2[0], p[1] + 0.5 * h * k2[1], p[2] + 0.5 * h * k2[2]]); if (!f3 || !(f3.m > stall)) { reason = f3 ? "stalled" : "outside"; break; }
+      const k3 = unit(f3);
+      const f4 = field([p[0] + h * k3[0], p[1] + h * k3[1], p[2] + h * k3[2]]); if (!f4 || !(f4.m > stall)) { reason = f4 ? "stalled" : "outside"; break; }
+      const k4 = unit(f4);
+      const next = [0, 1, 2].map((a) => p[a] + (h / 6) * (k1[a] + 2 * k2[a] + 2 * k3[a] + k4[a]));
+      const fn = field(next);
+      if (!fn) { reason = "outside"; break; }
+      length += Math.abs(h);
+      p = next; cur = fn; pts.push(next); mags.push(fn.m);
+      if (length >= maxLength) { reason = "length"; break; }
+    }
+    return { pts, mags, reason };
+  };
+  const points = []; const values = []; const starts = []; const counts = []; const reasons = [];
+  const n = seeds.length / 3;
+  let traced = 0;
+  for (let s = 0; s < n; s += 1) {
+    const seed = [seeds[s * 3], seeds[s * 3 + 1], seeds[s * 3 + 2]];
+    const fwd = direction === "backward" ? { pts: [], mags: [], reason: "" } : trace(seed, 1);
+    const bwd = direction === "forward" ? { pts: [], mags: [], reason: "" } : trace(seed, -1);
+    // Backward reversed, without repeating the seed, then forward.
+    const line = [...bwd.pts.slice(1).reverse(), ...(fwd.pts.length ? fwd.pts : bwd.pts.slice(0, 1))];
+    const mags = [...bwd.mags.slice(1).reverse(), ...(fwd.pts.length ? fwd.mags : bwd.mags.slice(0, 1))];
+    if (line.length < 2) { reasons.push(fwd.reason || bwd.reason || "outside"); continue; }
+    traced += 1;
+    starts.push(points.length / 3); counts.push(line.length); reasons.push([bwd.reason, fwd.reason].filter(Boolean).join("/"));
+    for (const q of line) points.push(q[0], q[1], q[2]);
+    values.push(...mags);
+  }
+  return { points: Float64Array.from(points), values: Float64Array.from(values), starts: Int32Array.from(starts), counts: Int32Array.from(counts), reasons, seeded: n, traced, vmax };
+}
+
+/** Seeds for a stream tracer: evenly along a line, or spread through a sphere (a Fibonacci shell per radius, deterministic). */
+export function streamSeeds(kind, { a, b, centre, radius, count = 50 } = {}) {
+  const n = Math.max(1, Math.floor(count));
+  const out = new Float64Array(n * 3);
+  if (kind === "line") {
+    for (let k = 0; k < n; k += 1) {
+      const t = n === 1 ? 0.5 : k / (n - 1);
+      for (let ax = 0; ax < 3; ax += 1) out[k * 3 + ax] = a[ax] + t * (b[ax] - a[ax]);
+    }
+    return out;
+  }
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  for (let k = 0; k < n; k += 1) {
+    const r = radius * Math.cbrt((k + 0.5) / n); // uniform in volume
+    const y = 1 - (2 * (k + 0.5)) / n; const ring = Math.sqrt(Math.max(0, 1 - y * y)); const th = golden * k;
+    out[k * 3] = centre[0] + r * ring * Math.cos(th);
+    out[k * 3 + 1] = centre[1] + r * y;
+    out[k * 3 + 2] = centre[2] + r * ring * Math.sin(th);
+  }
+  return out;
+}
+
+/** Stream lines as CSV: line, point, arc length, x, y, z, magnitude. */
+export function streamlinesCsv(lines, { header = [], unit = "" } = {}) {
+  const out = [...header.map((h) => `# ${h}`), `line,point,s_m,x,y,z,magnitude${unit ? `_${unit.replace(/[^A-Za-z0-9]/g, "")}` : ""}`];
+  const P = lines.points;
+  for (let l = 0; l < lines.starts.length; l += 1) {
+    let s = 0;
+    for (let k = 0; k < lines.counts[l]; k += 1) {
+      const i = lines.starts[l] + k;
+      if (k) s += Math.hypot(P[i * 3] - P[(i - 1) * 3], P[i * 3 + 1] - P[(i - 1) * 3 + 1], P[i * 3 + 2] - P[(i - 1) * 3 + 2]);
+      out.push([l, k, s, P[i * 3], P[i * 3 + 1], P[i * 3 + 2], lines.values[i]].map((v) => (Number.isInteger(v) ? String(v) : String(Number(v.toPrecision(10))))).join(","));
+    }
+  }
+  return `${out.join("\n")}\n`;
+}
+
 /** A profile as CSV: distance, x, y, z, then one column per series. */
 export function profileCsv({ distance, points, series, header = [] }) {
   const cols = ["distance_m", "x", "y", "z", ...series.map((s) => s.name)];

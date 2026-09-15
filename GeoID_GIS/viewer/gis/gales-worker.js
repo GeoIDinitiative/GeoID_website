@@ -11,17 +11,18 @@
  *   { id, type: "slice", normal, d }       → { id, ok, slice }
  *   { id, type: "iso", scalar, levels }   → { id, ok, iso }  (edge interpolants, and each vertex's level)
  *   { id, type: "locate", points }         → { id, ok, located }  (nodes ×4, weights ×4 per point)
+ *   { id, type: "stream", vec, seeds, options } → { id, ok, lines } (streamlines, by transfer)
  *   { id, type: "stats", scalar, bins } → { id, ok, stats } (domainStats, per volume flag)
  *   { id, type: "derive", u, nbDofs, material, gridText } → { id, ok, derived } (strain-stress.js)
  *   { id, type: "quality" }                → { id, ok, analysis }  (mesh-quality.js, by transfer)
  *   { id, type: "vtu", part, pointData, time } → { id, ok, blob, bytes, cells } (vtk-export.js; a Blob clones without copying)
  *   progress while parsing                 → { id, type: "progress", fraction }
  */
-import { parseMesh, sliceTets, isoTets, cellLocator, locatePoints, domainStats, exposedFaces, thresholdKeep, keptTriangles } from "./gales-results.js?v=20260915-e41a68d";
-import { analyseMesh } from "./mesh-quality.js?v=20260915-e41a68d";
-import { derivedFields, materialAt } from "./strain-stress.js?v=20260915-e41a68d";
-import { parseTable, buildGrid, sampleGrid } from "./tomography.js?v=20260915-e41a68d";
-import { vtkCells, vtuParts } from "./vtk-export.js?v=20260915-e41a68d";
+import { parseMesh, sliceTets, isoTets, cellLocator, locatePoints, streamlines, domainStats, exposedFaces, thresholdKeep, keptTriangles } from "./gales-results.js?v=20260915-6c65033";
+import { analyseMesh } from "./mesh-quality.js?v=20260915-6c65033";
+import { derivedFields, materialAt } from "./strain-stress.js?v=20260915-6c65033";
+import { parseTable, buildGrid, sampleGrid } from "./tomography.js?v=20260915-6c65033";
+import { vtkCells, vtuParts } from "./vtk-export.js?v=20260915-6c65033";
 
 let mesh = null;
 let locator = null; // built on the first locate, dropped with the mesh
@@ -87,6 +88,14 @@ async function handle(event) {
       if (!locator) locator = cellLocator(mesh);
       const located = locatePoints(locator, event.data.points);
       reply({ id, ok: true, located }, [located.nodes.buffer, located.weights.buffer]);
+      return;
+    }
+    if (type === "stream") {
+      // A stream tracer walks element to element: the cells are here.
+      if (!mesh) throw new Error("No mesh is loaded in the reader.");
+      if (!locator) locator = cellLocator(mesh);
+      const lines = streamlines(locator, event.data.vec, event.data.seeds, event.data.options || {});
+      reply({ id, ok: true, lines }, [lines.points.buffer, lines.values.buffer, lines.starts.buffer, lines.counts.buffer]);
       return;
     }
     if (type === "derive") {

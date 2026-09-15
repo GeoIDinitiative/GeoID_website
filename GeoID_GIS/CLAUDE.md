@@ -20719,3 +20719,31 @@ slice, contours and a plotted profile saved, the page reset, and the state
 loaded back with the field, view, colours, camera (to 1e-6) and profile all
 restored and no notes; a JSON of the wrong kind refused by name; a state filed
 into a memory project and offered back from "From project".
+
+## Stream tracer: tangent curves of a vector field, traced through the tets
+
+Analysis ▸ Stream tracer. `streamlines` and `streamSeeds` in gales-results.js
+are the pure half (a uniform field traces a straight line, a rotation its circle
+to 1e-8, a seed outside is counted, a zero field stalls); the reader worker's
+`stream` request runs it, because the element search needs the cells.
+
+- **RK4 on the UNIT field**, dx/ds = v/|v|, with the field interpolated in each
+  element barycentrically (the profile's own path). A step is therefore a length
+  in space (the diagonal over "steps per diagonal"), and a line's shape does not
+  depend on the field's size. It stops where it leaves the mesh, where |v| falls
+  below 1e-6 of the largest nodal magnitude, at the length asked or the steps.
+- **Both ways from a seed is one polyline**: the backward half reversed onto the
+  forward, the seed once.
+- **Seeds** along the Plot-over-line line, or in a sphere (a Fibonacci set
+  uniform in volume) about the probed node, else the mesh's centre.
+- **The field is looked up at every RK4 stage** — the locator's bucket search,
+  so a line is about four locates a step; the end point's lookup is carried into
+  the next step's first stage.
+- **Drawn through the UNDEFORMED mesh**, depth-test off, coloured by |v| on the
+  Results colour map; re-traced when the step, field or seeds change; saved in a
+  page state; CSV of line, point, arc length, x, y, z, magnitude.
+
+Verified on Etna, u at t=1: 40 seeds in a 22.7 km sphere about the centre give
+39 lines (one seed sits in the chamber cavity) of 5,284 points in 0.84 s, all
+leaving through the top; at eight lines' midpoints the segment direction against
+the element-interpolated u has a worst |cos| of 0.99999999995.

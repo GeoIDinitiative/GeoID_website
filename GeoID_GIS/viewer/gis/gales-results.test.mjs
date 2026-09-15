@@ -675,3 +675,49 @@ check("a mesh opened onto a loaded run starts a new run; results join the open o
   check("media: screenshot and WebM composed with a legend footer, frames pushed by hand, the camera and step put back", /captureStream\(0\)/.test(analysis) && /track\.requestFrame\?\.\(\)/.test(analysis) && /viewer\.camera\.position\.copy\(cam\)/.test(analysis) && /function composeFrame/.test(analysis) && /async function screenshot[\s\S]{0,200}may\("save"\)/.test(analysis));
   check("threshold: the probe picks the threshold skin too", /candidates = \[t\[f\], t\[f \+ 1\], t\[f \+ 2\]\]/.test(panel));
 }
+
+{
+  // Stream tracer on the Kuhn cube: a linear field is interpolated exactly, so
+  // a uniform field traces a straight line and a rotation a circle.
+  const { cellLocator: CL, streamlines, streamSeeds, streamlinesCsv } = await import("./gales-results.js");
+  const kube = (() => {
+    const coords = [];
+    for (let z = 0; z < 2; z += 1) for (let y = 0; y < 2; y += 1) for (let x = 0; x < 2; x += 1) coords.push(x, y, z);
+    const id = (x, y, z) => x + 2 * y + 4 * z;
+    const tets = [[0, 1, 3, 7], [0, 1, 5, 7], [0, 2, 3, 7], [0, 2, 6, 7], [0, 4, 5, 7], [0, 4, 6, 7]].map((t) => t.map((k) => id(k & 1, (k >> 1) & 1, (k >> 2) & 1)));
+    const cells = Int32Array.from(tets.flat()); const cellOffsets = Int32Array.from([0, 4, 8, 12, 16, 20, 24]);
+    return { dim: 3, coords: Float64Array.from(coords), cells, cellOffsets, nodeCount: 8, cellCount: 6, bounds: { min: [0, 0, 0], max: [1, 1, 1] } };
+  })();
+  const loc = CL(kube);
+  const uniform = new Float64Array(24); for (let i = 0; i < 8; i += 1) uniform[i * 3] = 2;
+  const lineA = streamlines(loc, uniform, Float64Array.from([0.3, 0.4, 0.6]), { step: 0.01, direction: "both" });
+  const P = lineA.points; const last = lineA.counts[0] - 1;
+  check("stream: a uniform field traces straight across the cube, both ways from the seed, y and z held",
+    lineA.traced === 1 && P[0] < 0.011 && P[last * 3] > 0.989 && [...Array(lineA.counts[0]).keys()].every((k) => Math.abs(P[k * 3 + 1] - 0.4) < 1e-12 && Math.abs(P[k * 3 + 2] - 0.6) < 1e-12) && lineA.values.every((v) => Math.abs(v - 2) < 1e-12),
+    `x ${P[0]}..${P[last * 3]}`);
+  const rot = new Float64Array(24);
+  for (let i = 0; i < 8; i += 1) { const x = kube.coords[i * 3] - 0.5; const y = kube.coords[i * 3 + 1] - 0.5; rot[i * 3] = -y; rot[i * 3 + 1] = x; }
+  const circ = streamlines(loc, rot, Float64Array.from([0.8, 0.5, 0.5]), { step: 0.005, direction: "forward", maxLength: 2 * Math.PI * 0.3 });
+  let worst = 0;
+  for (let k = 0; k < circ.counts[0]; k += 1) worst = Math.max(worst, Math.abs(Math.hypot(circ.points[k * 3] - 0.5, circ.points[k * 3 + 1] - 0.5) - 0.3));
+  check("stream: a rotation traces its circle (RK4 on the unit field), stopping at the length asked", circ.traced === 1 && worst < 1e-8 && /length/.test(circ.reasons[0]), `radius error ${worst}`);
+  const out = streamlines(loc, uniform, Float64Array.from([2, 2, 2, 0.5, 0.5, 0.5]), { step: 0.01, direction: "forward" });
+  check("stream: a seed outside the mesh is counted and not drawn; forward alone ends at the wall", out.seeded === 2 && out.traced === 1 && out.reasons[0] === "outside" && out.points[(out.counts[0] - 1) * 3] > 0.989);
+  const still = streamlines(loc, new Float64Array(24), Float64Array.from([0.5, 0.5, 0.5]), { step: 0.01 });
+  check("stream: a zero field stalls rather than looping", still.traced === 0 && /stalled/.test(still.reasons[0]));
+  const seedsL = streamSeeds("line", { a: [0, 0, 0], b: [1, 2, 3], count: 3 });
+  const seedsS = streamSeeds("sphere", { centre: [1, 1, 1], radius: 2, count: 200 });
+  let outside = 0; for (let k = 0; k < 200; k += 1) if (Math.hypot(seedsS[k * 3] - 1, seedsS[k * 3 + 1] - 1, seedsS[k * 3 + 2] - 1) > 2 + 1e-12) outside += 1;
+  check("stream: seeds lie on the line end to end, and inside the sphere", [...seedsL].join() === "0,0,0,0.5,1,1.5,1,2,3" && outside === 0);
+  const csv = streamlinesCsv(lineA, { unit: "m/s" });
+  check("stream: CSV carries line, point, arc length and magnitude", /^line,point,s_m,x,y,z,magnitude_ms$/m.test(csv) && csv.trim().split("\n").length === lineA.counts[0] + 1);
+}
+
+{
+  // The stream tracer runs where the cells are, and the page keeps it with the rest of its state.
+  const worker = readFileSync(new URL("./gales-worker.js", import.meta.url), "utf8");
+  const panel = readFileSync(new URL("./results-analysis-panel.js", import.meta.url), "utf8");
+  check("stream: traced in the reader worker (it holds the cells), re-traced when Results moves, and saved in a state",
+    /type === "stream"/.test(worker) && /streamlines\(locator, event\.data\.vec/.test(worker) &&
+    /L\.stream\.on && sig \+ streamSignature\(\) !== L\.stream\.sig/.test(panel) && /stream: \{ on: L\.stream\.on/.test(panel) && /if \(L\.stream\.on\) await traceStream\(\)/.test(panel));
+}

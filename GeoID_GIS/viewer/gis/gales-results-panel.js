@@ -30,14 +30,14 @@ import {
   exposedFaces, thresholdKeep, keptTriangles,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
   groupResultFiles, timeOf, referencePlan, differenceOf, DERIVED_DOFS,
-} from "./gales-results.js?v=20260915-e41a68d";
-import { zipStore } from "./shapefile-writer.js?v=20260915-e41a68d";
-import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-e41a68d";
-import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-e41a68d";
-import { parseSolidProps } from "./strain-stress.js?v=20260915-e41a68d";
-import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-e41a68d";
-import { may, refusal } from "./membership.js?v=20260915-e41a68d";
-import { downloadText } from "./extraction.js?v=20260915-e41a68d";
+} from "./gales-results.js?v=20260915-6c65033";
+import { zipStore } from "./shapefile-writer.js?v=20260915-6c65033";
+import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-6c65033";
+import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-6c65033";
+import { parseSolidProps } from "./strain-stress.js?v=20260915-6c65033";
+import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-6c65033";
+import { may, refusal } from "./membership.js?v=20260915-6c65033";
+import { downloadText } from "./extraction.js?v=20260915-6c65033";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -2714,6 +2714,7 @@ if (typeof document !== "undefined" && typeof window !== "undefined" && typeof w
       return (await getReader().call("stats", { scalar: copy, bins }, [copy.buffer])).stats;
     },
     componentLabel: () => componentLabel(currentDesc()),
+    streamlines: async (vec, seeds, options) => (S.mesh ? (await getReader().call("stream", { vec, seeds, options }, [vec.buffer, seeds.buffer])).lines : null),
     locate: async (points) => (S.mesh ? (await getReader().call("locate", { points }, [points.buffer])).located : null),
     colormap: () => colormapTable(S.colormap, { reverse: S.reverse }),
     // ParaView: the .vtu files for a selection, and the download.

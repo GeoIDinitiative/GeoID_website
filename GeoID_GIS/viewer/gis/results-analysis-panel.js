@@ -26,15 +26,15 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, formatValue, describeField, float64View, timeOf, stepReading, powerLawSlope } from "./gales-results.js?v=20260915-e41a68d";
-import { downloadText } from "./extraction.js?v=20260915-e41a68d";
-import { modelReportHtml } from "./model-report.js?v=20260915-e41a68d";
-import { makeState, readState, stateFileName } from "./model-state.js?v=20260915-e41a68d";
-import { PHYSICS, domainProperties } from "./fem-setup.js?v=20260915-e41a68d";
-import { may, refusal } from "./membership.js?v=20260915-e41a68d";
-import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-e41a68d";
-import { losVector } from "./insar.js?v=20260915-e41a68d";
-import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260915-e41a68d";
+import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, streamSeeds, streamlinesCsv, formatValue, describeField, float64View, timeOf, stepReading, powerLawSlope } from "./gales-results.js?v=20260915-6c65033";
+import { downloadText } from "./extraction.js?v=20260915-6c65033";
+import { modelReportHtml } from "./model-report.js?v=20260915-6c65033";
+import { makeState, readState, stateFileName } from "./model-state.js?v=20260915-6c65033";
+import { PHYSICS, domainProperties } from "./fem-setup.js?v=20260915-6c65033";
+import { may, refusal } from "./membership.js?v=20260915-6c65033";
+import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-6c65033";
+import { losVector } from "./insar.js?v=20260915-6c65033";
+import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260915-6c65033";
 
 const byId = (id) => document.getElementById(id);
 const R = () => window.GeoIDGalesResults;
@@ -49,6 +49,7 @@ const L = {
   src: { open: false, x0: 0, y0: 0, depth: 5000, dV: 1e6, nu: 0.25, mode: "dV", dP: 1e7, radius: 1000, E: 30e9, fitDV: true, result: null, inversion: null, text: "", busy: false, sig: "", marker: null, surfaceZ: 0 },
   report: { open: false, title: "", text: "", busy: false },
   state: { open: false, text: "", busy: false },
+  stream: { on: false, field: -1, seed: "line", count: 60, radius: 0.1, stepPer: 400, lengthPer: 1.5, direction: "both", lines: null, mesh: null, sig: "", text: "", busy: false },
   media: { open: false, kind: "steps", hold: 1, seconds: 8, width: 1280, busy: false, cancel: false, text: "" },
   sheet: { open: false, surfaceOnly: false, sort: 0, dir: 1, page: 0, size: 50, data: null, key: "", busy: false, text: "" },
   sweep: { open: false, manifests: null, path: "", field: "solid/u", component: "mag", where: "peak", node: "", result: null, text: "", busy: false },
@@ -358,6 +359,115 @@ export async function drawGlyphs() {
   L.glyph.said = `${picked.length.toLocaleString()} arrows of ${f.field} at t=${f.steps[step].name}, longest ${formatValue(max, max)}${desc.vector.unit ? ` ${desc.vector.unit}` : ""}${warp ? ", on the warped surface" : ""}.`;
   const said = byId("ra-glyph-status");
   if (said) said.textContent = L.glyph.said;
+}
+
+/* ── stream tracer ──────────────────────────────────────────────────────── */
+
+function disposeStream() {
+  const mesh = L.stream.mesh;
+  if (!mesh) return;
+  mesh.parent?.remove(mesh);
+  mesh.geometry.dispose(); mesh.material.dispose();
+  L.stream.mesh = null;
+}
+
+function sayStream(text) {
+  L.stream.text = text;
+  const node = byId("ra-stream-status");
+  if (node) node.textContent = text;
+}
+
+/** Stream lines of a vector field, traced in the reader from seeds on the profile line or in a sphere. */
+export async function traceStream() {
+  const results = R();
+  const S = results?.state;
+  const Z = L.stream;
+  if (!S?.mesh) return null;
+  if (S.mesh.dim !== 3) { sayStream("Stream lines are traced through a 3D mesh."); return null; }
+  const fields = vectorFields();
+  if (!fields.length) { sayStream("No vector field is open (displacement, velocity)."); return null; }
+  if (!fields.some((x) => x.i === Z.field)) Z.field = fields.some((x) => x.i === S.field) ? S.field : fields[0].i;
+  if (Z.busy) { Z.again = true; return null; }
+  Z.busy = true;
+  try {
+    const f = S.fields[Z.field];
+    const time = S.fields[S.field]?.steps[S.step]?.time ?? f.steps.at(-1).time;
+    let step = f.steps.length - 1;
+    for (let k = 0; k < f.steps.length; k += 1) if (f.steps[k].time <= time) step = k;
+    sayStream("Tracing…");
+    const values = await results.values(Z.field, step);
+    const desc = f.desc;
+    const n = S.mesh.nodeCount;
+    const comps = desc.vector.from.map((j) => componentOf(values, n, desc.nbDofs, j, desc.blocked));
+    const vec = new Float64Array(n * 3);
+    for (let i = 0; i < n; i += 1) for (let a = 0; a < 3; a += 1) vec[i * 3 + a] = comps[a]?.[i] ?? 0;
+    const b = S.mesh.bounds;
+    const diag = Math.hypot(b.max[0] - b.min[0], b.max[1] - b.min[1], b.max[2] - b.min[2]);
+    let seeds;
+    let seedSaid;
+    if (Z.seed === "sphere") {
+      const probe = S.probe?.node;
+      const centre = Number.isInteger(probe) ? [0, 1, 2].map((a) => S.mesh.coords[probe * 3 + a]) : [0, 1, 2].map((a) => (b.min[a] + b.max[a]) / 2);
+      seeds = streamSeeds("sphere", { centre, radius: Z.radius * diag, count: Z.count });
+      seedSaid = `${Z.count} seeds in a ${formatValue(Z.radius * diag, Z.radius * diag)} m sphere about ${Number.isInteger(probe) ? `node ${probe}` : "the centre"}`;
+    } else {
+      seeds = streamSeeds("line", { a: L.a, b: L.b, count: Z.count });
+      seedSaid = `${Z.count} seeds along the profile line`;
+    }
+    const lines = await results.streamlines(vec, seeds, { step: diag / Z.stepPer, maxLength: diag * Z.lengthPer, maxSteps: Math.ceil(Z.stepPer * Z.lengthPer) + 1, direction: Z.direction });
+    if (!lines) return null;
+    disposeStream();
+    Z.lines = { ...lines, field: f.field, stepName: f.steps[step].name, unit: desc.vector.unit || "" };
+    if (!lines.traced) {
+      const why = [...new Set(lines.reasons)].join(", ");
+      sayStream(`None of the ${lines.seeded} seeds gave a line (${why}). Seeds outside the mesh, or in a cavity, trace nothing.`);
+      return Z.lines;
+    }
+    let segs = 0;
+    for (const c of lines.counts) segs += c - 1;
+    const pos = new Float32Array(segs * 6); const col = new Float32Array(segs * 6);
+    const colours = colourValues(lines.values, 0, lines.vmax || 1, results.colormap(), new Float32Array(lines.values.length * 3));
+    let at = 0;
+    for (let l = 0; l < lines.starts.length; l += 1) {
+      for (let k = 0; k + 1 < lines.counts[l]; k += 1) {
+        for (const i of [lines.starts[l] + k, lines.starts[l] + k + 1]) {
+          pos[at * 3] = lines.points[i * 3]; pos[at * 3 + 1] = lines.points[i * 3 + 1]; pos[at * 3 + 2] = lines.points[i * 3 + 2];
+          col[at * 3] = colours[i * 3]; col[at * 3 + 1] = colours[i * 3 + 1]; col[at * 3 + 2] = colours[i * 3 + 2];
+          at += 1;
+        }
+      }
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    geometry.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    const mesh = new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({ vertexColors: true, depthTest: false, transparent: true, opacity: 0.95 }));
+    mesh.name = "results-analysis-streamlines";
+    mesh.renderOrder = 30;
+    mesh.frustumCulled = false;
+    results.frame().add(mesh);
+    Z.mesh = mesh;
+    Z.sig = signature() + streamSignature();
+    const reasons = {};
+    lines.reasons.forEach((r) => r.split("/").forEach((x) => { if (x) reasons[x] = (reasons[x] || 0) + 1; }));
+    const ends = Object.entries(reasons).map(([k, v]) => `${v} ${{ outside: "left the mesh", stalled: "reached still ground", length: "reached the length", steps: "ran out of steps" }[k] || k}`).join(", ");
+    sayStream(`${lines.traced} of ${lines.seeded} lines of ${f.field} at t=${f.steps[step].name} from ${seedSaid}; longest |v| ${formatValue(lines.vmax, lines.vmax)}${Z.lines.unit ? ` ${Z.lines.unit}` : ""}. Ends: ${ends}. Drawn through the undeformed mesh.`);
+    return Z.lines;
+  } catch (error) {
+    sayStream(`Could not trace: ${error.message}`);
+    return null;
+  } finally {
+    Z.busy = false;
+    if (Z.again) { Z.again = false; if (Z.on) traceStream(); }
+  }
+}
+
+const streamSignature = () => { const Z = L.stream; return `|${Z.field}|${Z.seed}|${Z.count}|${Z.radius}|${Z.stepPer}|${Z.lengthPer}|${Z.direction}|${L.a}|${L.b}|${R()?.state?.probe?.node ?? ""}`; };
+
+function exportStream() {
+  const Z = L.stream.lines;
+  if (!Z?.traced) { sayStream("Trace some lines first."); return; }
+  const text = streamlinesCsv(Z, { unit: Z.unit, header: [`Stream lines of ${Z.field} at t=${Z.stepName}`, "RK4 on the unit field, interpolated in each element (GeoID Model page)"] });
+  downloadText(`streamlines_${Z.field.replace(/[^A-Za-z0-9]+/g, "_")}_t${String(Z.stepName).replace(/[^A-Za-z0-9.]+/g, "")}.csv`, text, "text/csv");
 }
 
 /* ── statistics by domain ───────────────────────────────────────────────── */
@@ -1249,6 +1359,7 @@ function analysisState() {
     src: { open: L.src.open, x0: L.src.x0, y0: L.src.y0, depth: L.src.depth, dV: L.src.dV, nu: L.src.nu, mode: L.src.mode, dP: L.src.dP, radius: L.src.radius, E: L.src.E, fitDV: L.src.fitDV, compared: Boolean(L.src.result), inverted: L.src.inversion?.what || null },
     sheet: { open: L.sheet.open, surfaceOnly: L.sheet.surfaceOnly, sort: L.sheet.sort, dir: L.sheet.dir, size: L.sheet.size },
     sweep: { open: L.sweep.open, path: L.sweep.path, field: L.sweep.field, component: L.sweep.component, where: L.sweep.where, node: L.sweep.node, read: Boolean(L.sweep.result) },
+    stream: { on: L.stream.on, field: fieldName(L.stream.field), seed: L.stream.seed, count: L.stream.count, radius: L.stream.radius, stepPer: L.stream.stepPer, lengthPer: L.stream.lengthPer, direction: L.stream.direction },
     media: { kind: L.media.kind, hold: L.media.hold, seconds: L.media.seconds, width: L.media.width },
     report: { title: L.report.title },
   };
@@ -1328,11 +1439,13 @@ export async function loadState(input) {
     if (a.sheet) Object.assign(L.sheet, { open: a.sheet.open, surfaceOnly: a.sheet.surfaceOnly, sort: a.sheet.sort, dir: a.sheet.dir, size: a.sheet.size });
     if (a.sweep) Object.assign(L.sweep, { open: a.sweep.open, path: a.sweep.path, field: a.sweep.field, component: a.sweep.component, where: a.sweep.where, node: a.sweep.node });
     if (a.media) Object.assign(L.media, a.media);
+    if (a.stream) { const si = a.stream.field ? S.fields.findIndex((f) => f.field === a.stream.field) : -1; Object.assign(L.stream, { ...a.stream, field: si }); }
     if (a.report) L.report.title = a.report.title || "";
     if (a.stats) L.stats.open = a.stats.open;
     // Re-run what had a result, in the order the page makes them.
     if (a.line?.plotted) await plot();
     if (L.glyph.on) await drawGlyphs();
+    if (L.stream.on) await traceStream();
     if (a.stats?.computed) await computeStats();
     if (a.obs?.compared) await compareObservations();
     if (a.src?.inverted) await invertSource(a.src.inverted);
@@ -1805,6 +1918,41 @@ export function render() {
   }
   host.append(glyph.details);
 
+  const ZS = L.stream;
+  const stream = card("Stream tracer", ZS.on);
+  const vf = vectorFields();
+  if (!vf.length || S.mesh.dim !== 3) {
+    stream.body.append(note(S.mesh.dim !== 3 ? "Stream lines are traced through a 3D mesh." : "No vector field in this run."));
+  } else {
+    stream.body.append(note("Curves everywhere tangent to a vector field, traced element to element from seeds (RK4 on the field's direction, so a step is a length in space)."));
+    const on = el("input", { type: "checkbox" });
+    on.checked = ZS.on;
+    on.addEventListener("change", () => { ZS.on = on.checked; if (on.checked) traceStream(); else disposeStream(); render(); });
+    stream.body.append(el("label", { class: "studio-check" }, on, "Show stream lines"));
+    const fieldSel = el("select", { class: "studio-select" });
+    vf.forEach(({ f, i }) => fieldSel.append(new Option(f.desc.label ? `${f.desc.label} (${f.field})` : f.field, String(i), false, i === ZS.field)));
+    fieldSel.addEventListener("change", () => { ZS.field = Number(fieldSel.value); if (ZS.on) traceStream(); });
+    stream.body.append(row("Field", fieldSel));
+    const seedSel = el("select", { class: "studio-select" });
+    [["line", "Along the profile line"], ["sphere", "In a sphere (probed node, else centre)"]].forEach(([v, t]) => seedSel.append(new Option(t, v, false, v === ZS.seed)));
+    seedSel.addEventListener("change", () => { ZS.seed = seedSel.value; if (ZS.on) traceStream(); render(); });
+    stream.body.append(row("Seeds", seedSel));
+    stream.body.append(row("Seed count", numberInput(ZS.count, (v) => { ZS.count = Math.max(1, Math.min(2000, Math.round(v) || 60)); if (ZS.on) traceStream(); }, "1")));
+    if (ZS.seed === "sphere") stream.body.append(row("Radius (× diagonal)", numberInput(ZS.radius, (v) => { ZS.radius = v > 0 ? v : 0.1; if (ZS.on) traceStream(); })));
+    const dirSel = el("select", { class: "studio-select" });
+    [["both", "Both ways"], ["forward", "Forward"], ["backward", "Backward"]].forEach(([v, t]) => dirSel.append(new Option(t, v, false, v === ZS.direction)));
+    dirSel.addEventListener("change", () => { ZS.direction = dirSel.value; if (ZS.on) traceStream(); });
+    stream.body.append(row("Direction", dirSel));
+    stream.body.append(row("Steps per diagonal", numberInput(ZS.stepPer, (v) => { ZS.stepPer = Math.max(20, Math.min(5000, Math.round(v) || 400)); if (ZS.on) traceStream(); }, "1")));
+    stream.body.append(row("Max length (× diagonal)", numberInput(ZS.lengthPer, (v) => { ZS.lengthPer = v > 0 ? v : 1.5; if (ZS.on) traceStream(); })));
+    stream.body.append(el("div", { class: "studio-actions" },
+      button("Trace", "studio-primary", () => { ZS.on = true; traceStream().then(() => render()); }),
+      button("Export CSV", "studio-secondary", exportStream, "Line, point, arc length, x, y, z and magnitude"),
+    ));
+    stream.body.append(el("div", { id: "ra-stream-status", class: "studio-readout" }, ZS.text || "Coloured by magnitude on the Results colour map."));
+  }
+  host.append(stream.details);
+
   const T = L.stats;
   const stats = card("Statistics by domain", T.open);
   stats.details.addEventListener("toggle", () => { T.open = stats.details.open; if (T.open && !T.result && !T.busy) computeStats(); });
@@ -2142,6 +2290,7 @@ function follow() {
   const sig = signature();
   if (L.profile && sig !== L.sig && !L.busy) plot();
   if (L.glyph.on && sig !== L.glyph.sig) drawGlyphs();
+  if (L.stream.on && sig + streamSignature() !== L.stream.sig && !L.stream.busy) traceStream();
   if (L.stats.open && L.stats.result && sig !== L.stats.sig && !L.stats.busy) computeStats();
   if (L.obs.result && obsSignature() !== L.obs.sig && !L.obs.busy) compareObservations();
   if (L.sheet.open && L.sheet.data && sig !== L.sheet.key && !L.sheet.busy) buildSheet();
@@ -2157,5 +2306,5 @@ function install() {
 
 if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", install); else install();
-  window.GeoIDResultsAnalysis = { plot, drawGlyphs, computeStats, compareObservations, compareSource, invertSource, readSweep, listSweeps, buildSheet, screenshot, recordAnimation, currentState, saveState, loadState, buildModelReport, openModelReport, render, state: L };
+  window.GeoIDResultsAnalysis = { plot, drawGlyphs, traceStream, computeStats, compareObservations, compareSource, invertSource, readSweep, listSweeps, buildSheet, screenshot, recordAnimation, currentState, saveState, loadState, buildModelReport, openModelReport, render, state: L };
 }
