@@ -20658,3 +20658,30 @@ checks).
 - **Every "not byte-read" test grows a clause per synthetic field kind**
   (`!f.derived && !f.compare && !f.calc`). Two pins matched the exact
   condition and were loosened to `(?: && !f\.\w+)*`; their intent holds.
+
+## Spreadsheet, screenshot and animation
+
+**Analysis ▸ Spreadsheet** shows the field in Results as a table of nodes:
+node, x, y, z, node flag, every component and the vector's length. It sorts
+by any column, with NaN always last whichever way, pages 25–200 rows, can be
+limited to surface nodes, and exports every row in the order shown. A row
+click probes that node through `GeoIDGalesResults.probeNode`. The values are
+the solver's own at the nodes. Etna: 251,147 rows in 35 ms, and |u|
+descending puts node 8292 (85.4122 m) first, the known peak.
+
+**Analysis ▸ Screenshot and animation** composes the view with a footer
+carrying the field, the time and the colour bar, since the page's legend is
+an overlay no canvas capture holds. It exports a PNG, or a WebM (VP9 where
+supported) that either steps through every step or turns once round the
+model.
+
+- **Frames are pushed by hand**: `captureStream(0)` and `requestFrame()`
+  after each composed render. A slow step read therefore does not drop or
+  stretch frames, and the clip holds exactly the frames drawn. Verified: 2
+  steps × 0.5 s × 24 fps = 24 frames, decoding to 1.15 s at 960 × 650.
+- **The camera and the step are put back** in a `finally`. A turn left the
+  camera position identical to 1e-6. A MediaRecorder WebM reports an Infinity
+  duration until it is seeked to the end, so a check must seek before reading
+  it.
+- **The probe also picks the threshold skin now.** It was surface and slice
+  only, so in threshold view nothing could be probed.

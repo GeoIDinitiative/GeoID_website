@@ -668,3 +668,10 @@ check("a mesh opened onto a loaded run starts a new run; results join the open o
   const panel = readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8");
   check("calculator: calculated fields join the reader, computed from the fields they name at the matching step, never byte-read", /function appendCalcFields\(\)/.test(panel) && /if \(f\.calc\) \{[\s\S]{0,120}calcValues\(fieldIndex, step\)/.test(panel) && /!f\.compare && !f\.calc \? nodeByteRange/.test(panel) && !/\beval\(|new Function\(/.test(panel));
 }
+{
+  const analysis = readFileSync(new URL("./results-analysis-panel.js", import.meta.url), "utf8");
+  const panel = readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8");
+  check("spreadsheet: node values sortable with NaN last, paged, a row probes its node", /card\("Spreadsheet"/.test(analysis) && /if \(x !== x\) return y !== y \? 0 : 1;/.test(analysis) && /R\(\)\?\.probeNode\?\.\(i\)/.test(analysis) && /probeNode: \(node\) =>/.test(panel));
+  check("media: screenshot and WebM composed with a legend footer, frames pushed by hand, the camera and step put back", /captureStream\(0\)/.test(analysis) && /track\.requestFrame\?\.\(\)/.test(analysis) && /viewer\.camera\.position\.copy\(cam\)/.test(analysis) && /function composeFrame/.test(analysis) && /async function screenshot[\s\S]{0,200}may\("save"\)/.test(analysis));
+  check("threshold: the probe picks the threshold skin too", /candidates = \[t\[f\], t\[f \+ 1\], t\[f \+ 2\]\]/.test(panel));
+}

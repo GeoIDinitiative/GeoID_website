@@ -30,14 +30,14 @@ import {
   exposedFaces, thresholdKeep, keptTriangles,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
   groupResultFiles, timeOf, referencePlan, differenceOf, DERIVED_DOFS,
-} from "./gales-results.js?v=20260915-94fdb92";
-import { zipStore } from "./shapefile-writer.js?v=20260915-94fdb92";
-import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-94fdb92";
-import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-94fdb92";
-import { parseSolidProps } from "./strain-stress.js?v=20260915-94fdb92";
-import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-94fdb92";
-import { may, refusal } from "./membership.js?v=20260915-94fdb92";
-import { downloadText } from "./extraction.js?v=20260915-94fdb92";
+} from "./gales-results.js?v=20260915-d574d90";
+import { zipStore } from "./shapefile-writer.js?v=20260915-d574d90";
+import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-d574d90";
+import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-d574d90";
+import { parseSolidProps } from "./strain-stress.js?v=20260915-d574d90";
+import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-d574d90";
+import { may, refusal } from "./membership.js?v=20260915-d574d90";
+import { downloadText } from "./extraction.js?v=20260915-d574d90";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -1374,7 +1374,8 @@ function installProbe() {
 function probeAt(clientX, clientY, canvas) {
   const viewer = window.GeoIDViewer;
   // A part switched off in the Visibility box is not there to probe.
-  const targets = [scene.surface, scene.slice].filter((o) => o?.visible && o.parent?.visible !== false);
+  const thresholdMesh = scene.parts?.threshold?.children?.[0] || null;
+  const targets = [scene.surface, scene.slice, thresholdMesh].filter((o) => o?.visible && o.parent?.visible !== false);
   if (!targets.length || !viewer?.camera) return;
   const rect = canvas.getBoundingClientRect();
   const pointer = new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
@@ -1389,6 +1390,10 @@ function probeAt(clientX, clientY, canvas) {
     const idx = scene.surface.geometry.index.array;
     const f = hit.faceIndex * 3;
     candidates = [idx[f], idx[f + 1], idx[f + 2]].map((k) => scene.surfNodes[k]);
+  } else if (hit.object === thresholdMesh && S.threshold.data) {
+    const t = S.threshold.data.triangles;
+    const f = hit.faceIndex * 3;
+    candidates = [t[f], t[f + 1], t[f + 2]];
   } else {
     const s = S.slice;
     const v = hit.faceIndex * 3;
@@ -2658,6 +2663,14 @@ if (typeof document !== "undefined" && typeof window !== "undefined" && typeof w
     // Contour levels and isosurface levels as drawn (for a report, and for tests).
     display: () => ({ contours: S.contours.on ? S.contours.levels : [], iso: S.iso.on ? S.iso.used : [] }),
     addCalculated: (name, expr, options) => addCalculated(name, expr, options),
+    // Probe a node by number (the spreadsheet's rows).
+    probeNode: (node) => {
+      if (!S.mesh || !Number.isInteger(node) || node < 0 || node >= S.mesh.nodeCount) return false;
+      S.probe = { node, series: null, seriesField: -1 };
+      openSection("probe");
+      refresh();
+      return true;
+    },
     setReference: (files) => setReference(files),
     clearReference: () => clearReference(),
     vtkFiles: (options) => buildVtkFiles(options),

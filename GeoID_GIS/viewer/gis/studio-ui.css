@@ -475,3 +475,8 @@
 #model-studio .ra-obs-text { width: 100%; box-sizing: border-box; min-height: 5.5rem; height: auto; resize: vertical; font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: var(--st-fs-small); line-height: 1.35; padding: 0.35rem 0.45rem; white-space: pre; }
 #model-studio .gales-vtk-fields { display: grid; gap: 0.2rem; max-height: 9rem; overflow-y: auto; padding-right: 0.2rem; }
 #model-studio .gales-vtk-fields .studio-check { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#model-studio .ra-sheet th { cursor: pointer; user-select: none; }
+#model-studio .ra-sheet tbody tr { cursor: pointer; }
+#model-studio .ra-sheet tbody tr:hover td { background: rgba(82, 228, 232, 0.08); }
+#model-studio .ra-pager { align-items: center; flex-wrap: wrap; }
+#model-studio .ra-pager .studio-secondary { min-width: 1.9rem; padding-inline: 0.4rem; }

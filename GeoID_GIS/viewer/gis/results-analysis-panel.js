@@ -26,14 +26,14 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, formatValue, describeField, float64View, timeOf, stepReading, powerLawSlope } from "./gales-results.js?v=20260915-94fdb92";
-import { downloadText } from "./extraction.js?v=20260915-94fdb92";
-import { modelReportHtml } from "./model-report.js?v=20260915-94fdb92";
-import { PHYSICS, domainProperties } from "./fem-setup.js?v=20260915-94fdb92";
-import { may, refusal } from "./membership.js?v=20260915-94fdb92";
-import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-94fdb92";
-import { losVector } from "./insar.js?v=20260915-94fdb92";
-import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260915-94fdb92";
+import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, formatValue, describeField, float64View, timeOf, stepReading, powerLawSlope } from "./gales-results.js?v=20260915-d574d90";
+import { downloadText } from "./extraction.js?v=20260915-d574d90";
+import { modelReportHtml } from "./model-report.js?v=20260915-d574d90";
+import { PHYSICS, domainProperties } from "./fem-setup.js?v=20260915-d574d90";
+import { may, refusal } from "./membership.js?v=20260915-d574d90";
+import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-d574d90";
+import { losVector } from "./insar.js?v=20260915-d574d90";
+import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260915-d574d90";
 
 const byId = (id) => document.getElementById(id);
 const R = () => window.GeoIDGalesResults;
@@ -47,6 +47,8 @@ const L = {
   stats: { open: false, result: null, sig: "", busy: false, text: "", label: "" },
   src: { open: false, x0: 0, y0: 0, depth: 5000, dV: 1e6, nu: 0.25, mode: "dV", dP: 1e7, radius: 1000, E: 30e9, fitDV: true, result: null, inversion: null, text: "", busy: false, sig: "", marker: null, surfaceZ: 0 },
   report: { open: false, title: "", text: "", busy: false },
+  media: { open: false, kind: "steps", hold: 1, seconds: 8, width: 1280, busy: false, cancel: false, text: "" },
+  sheet: { open: false, surfaceOnly: false, sort: 0, dir: 1, page: 0, size: 50, data: null, key: "", busy: false, text: "" },
   sweep: { open: false, manifests: null, path: "", field: "solid/u", component: "mag", where: "peak", node: "", result: null, text: "", busy: false },
   obs: { open: false, raw: "", unit: "mm", fit: true, arrows: true, text: "", result: null, sig: "", busy: false, pending: false, mesh: null },
 };
@@ -1026,6 +1028,84 @@ function inversionFacts(inv) {
   return out;
 }
 
+/* ── spreadsheet ────────────────────────────────────────────────────────── */
+
+/**
+ * The field shown in Results as a table of nodes, as ParaView's spreadsheet
+ * view has it: node, coordinates, node flag, every component (and the
+ * vector's length), sortable by any column, a page at a time. The numbers
+ * are the solver's own at the nodes, not interpolated.
+ */
+export async function buildSheet() {
+  const results = R();
+  const S = results?.state;
+  const G = L.sheet;
+  const f = S?.fields?.[S.field];
+  if (!S?.mesh || !f?.ok) { G.data = null; G.text = "Choose a field in Results first."; render(); return null; }
+  if (G.busy) return null;
+  G.busy = true;
+  try {
+    const values = await results.values(S.field, S.step);
+    const desc = f.desc;
+    const n = S.mesh.nodeCount;
+    const nb = desc.nbDofs || values.length / n;
+    const at = (i, j) => (desc.blocked ? values[j * n + i] : values[i * nb + j]);
+    const rows = G.surfaceOnly ? usedNodes(S.mesh.surface, n) : Int32Array.from({ length: n }, (_, i) => i);
+    const cols = [
+      { name: "node", get: (i) => i, int: true },
+      { name: "x", get: (i) => S.mesh.coords[i * 3] },
+      { name: "y", get: (i) => S.mesh.coords[i * 3 + 1] },
+      { name: "z", get: (i) => S.mesh.coords[i * 3 + 2] },
+      ...(S.mesh.nodeFlag ? [{ name: "flag", get: (i) => S.mesh.nodeFlag[i], int: true }] : []),
+      ...desc.components.map((c, j) => ({ name: c.key, title: `${c.label}${c.unit ? ` (${c.unit})` : ""}`, get: (i) => at(i, j) })),
+      ...(desc.vector ? [{ name: `|${desc.vector.label.split(" ")[0].toLowerCase()}|`, title: desc.vector.label, get: (i) => Math.hypot(...desc.vector.from.map((j) => at(i, j))) }] : []),
+    ];
+    G.data = { cols, rows, order: null, field: f.field, stepName: f.steps[S.step]?.name };
+    G.key = signature();
+    sortSheet();
+    G.text = `${rows.length.toLocaleString()} ${G.surfaceOnly ? "surface " : ""}nodes of ${f.field} at t=${G.data.stepName}.`;
+    return G.data;
+  } catch (error) {
+    G.data = null;
+    G.text = `Could not build the table: ${error.message}`;
+    return null;
+  } finally {
+    G.busy = false;
+    render();
+  }
+}
+
+/** Order the rows by a column; NaN always last, whichever way. */
+function sortSheet() {
+  const G = L.sheet;
+  const d = G.data;
+  if (!d) return;
+  const col = d.cols[Math.min(G.sort, d.cols.length - 1)];
+  const keys = new Float64Array(d.rows.length);
+  for (let k = 0; k < d.rows.length; k += 1) keys[k] = col.get(d.rows[k]);
+  const idx = Uint32Array.from({ length: d.rows.length }, (_, k) => k);
+  const dir = G.dir;
+  idx.sort((a, b) => {
+    const x = keys[a]; const y = keys[b];
+    if (x !== x) return y !== y ? 0 : 1;
+    if (y !== y) return -1;
+    return (x - y) * dir || a - b;
+  });
+  d.order = idx;
+  G.page = 0;
+}
+
+function exportSheet() {
+  const d = L.sheet.data;
+  if (!d) return;
+  const lines = [d.cols.map((c) => c.name).join(",")];
+  for (let k = 0; k < d.order.length; k += 1) {
+    const i = d.rows[d.order[k]];
+    lines.push(d.cols.map((c) => { const v = c.get(i); return Number.isFinite(v) ? String(v) : ""; }).join(","));
+  }
+  downloadText(`nodes_${d.field.replace(/[^A-Za-z0-9]+/g, "_")}_t${String(d.stepName).replace(/[^A-Za-z0-9.]+/g, "")}.csv`, `${lines.join("\n")}\n`, "text/csv");
+}
+
 /* ── sweep response ─────────────────────────────────────────────────────── */
 
 const projectStore = () => window.GeoIDResearch?.store;
@@ -1166,30 +1246,170 @@ function figureOf(draw, data, size = { width: 720, height: 240 }) {
 }
 
 /** The colour scale of the view, drawn for print: the page's legend is an overlay the snapshot does not hold. */
+/** A colour bar drawn into a context: the scale, its label and round ticks, in the ink given. */
+function drawColourBar(ctx, { x0, x1, y, table, lo, hi, label, ink = "#222", line = "#666" }) {
+  const steps = table.length / 3;
+  for (let k = 0; k < steps; k += 1) {
+    ctx.fillStyle = `rgb(${Math.round(table[k * 3] * 255)},${Math.round(table[k * 3 + 1] * 255)},${Math.round(table[k * 3 + 2] * 255)})`;
+    ctx.fillRect(x0 + ((x1 - x0) * k) / steps, y + 18, (x1 - x0) / steps + 1, 14);
+  }
+  ctx.strokeStyle = line; ctx.strokeRect(x0, y + 18, x1 - x0, 14);
+  ctx.fillStyle = ink; ctx.font = "12px sans-serif";
+  ctx.fillText(label, x0, y + 13);
+  niceTicks(lo, hi, 6).forEach((v) => {
+    const x = x0 + ((v - lo) / (hi - lo || 1)) * (x1 - x0);
+    if (x < x0 - 0.5 || x > x1 + 0.5) return;
+    const t = formatValue(v, hi - lo || 1);
+    const w = ctx.measureText(t).width;
+    ctx.fillRect(x, y + 32, 1, 4);
+    ctx.fillText(t, Math.min(x1 - w, Math.max(x0, x - w / 2)), y + 48);
+  });
+}
+
+/** The colour scale of the view, drawn for print: the page's legend is an overlay the snapshot does not hold. */
 function colourBar(table, lo, hi, label) {
   const W = 720; const H = 52;
   const c = document.createElement("canvas");
   c.width = W; c.height = H;
   const ctx = c.getContext("2d");
   ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H);
-  const steps = table.length / 3;
-  const x0 = 10; const x1 = W - 10;
-  for (let k = 0; k < steps; k += 1) {
-    ctx.fillStyle = `rgb(${Math.round(table[k * 3] * 255)},${Math.round(table[k * 3 + 1] * 255)},${Math.round(table[k * 3 + 2] * 255)})`;
-    ctx.fillRect(x0 + ((x1 - x0) * k) / steps, 18, (x1 - x0) / steps + 1, 14);
-  }
-  ctx.strokeStyle = "#666"; ctx.strokeRect(x0, 18, x1 - x0, 14);
-  ctx.fillStyle = "#222"; ctx.font = "12px sans-serif";
-  ctx.fillText(label, x0, 13);
-  niceTicks(lo, hi, 6).forEach((v) => {
-    const x = x0 + ((v - lo) / (hi - lo || 1)) * (x1 - x0);
-    if (x < x0 - 0.5 || x > x1 + 0.5) return;
-    const t = formatValue(v, hi - lo || 1);
-    const w = ctx.measureText(t).width;
-    ctx.fillRect(x, 32, 1, 4);
-    ctx.fillText(t, Math.min(x1 - w, Math.max(x0, x - w / 2)), 48);
-  });
+  drawColourBar(ctx, { x0: 10, x1: W - 10, y: 0, table, lo, hi, label });
   return c.toDataURL("image/png");
+}
+
+/* ── screenshot and animation ───────────────────────────────────────────── */
+
+/**
+ * One frame of the view with a footer carrying what a screen legend would:
+ * the field, the time and the colour scale. Drawn into `canvas` (sized here),
+ * straight after a render, since the WebGL buffer is not kept between frames.
+ */
+function composeFrame(canvas, { width = 0, footer = 64 } = {}) {
+  const viewer = window.GeoIDViewer;
+  const results = R();
+  const S = results?.state;
+  if (!viewer?.renderer || !S?.mesh) return false;
+  viewer.renderer.render(viewer.scene, viewer.camera);
+  const src = viewer.renderer.domElement;
+  const scale = width ? width / src.width : 1;
+  const W = Math.round(src.width * scale) & ~1; // even, as a video encoder wants
+  const viewH = Math.round(src.height * scale) & ~1;
+  if (canvas.width !== W || canvas.height !== viewH + footer) { canvas.width = W; canvas.height = viewH + footer; }
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#0d0a1c"; ctx.fillRect(0, 0, W, viewH + footer);
+  ctx.drawImage(src, 0, 0, W, viewH);
+  const f = S.fields[S.field];
+  const label = f?.ok ? results.componentLabel() : "geometry";
+  ctx.fillStyle = "#e8e6f0"; ctx.font = "600 14px sans-serif";
+  const title = f?.ok ? `${f.field} · t = ${f.steps[S.step]?.name}` : S.meshPath;
+  ctx.fillText(title, 12, viewH + 22);
+  if (f?.ok) {
+    const [lo, hi] = S.range;
+    drawColourBar(ctx, { x0: Math.max(W * 0.45, ctx.measureText(title).width + 30), x1: W - 14, y: viewH + 8, table: results.colormap(), lo, hi, label, ink: "#e8e6f0", line: "#888" });
+  }
+  return true;
+}
+
+export async function screenshot({ width = 0, download = true } = {}) {
+  const P = L.media;
+  if (download && !may("save")) { P.text = refusal("save"); render(); return null; }
+  const canvas = document.createElement("canvas");
+  if (!composeFrame(canvas, { width })) { P.text = "Open a run in Results first."; render(); return null; }
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+  const S = R().state;
+  const f = S.fields[S.field];
+  const name = `results_${(f?.field || "mesh").replace(/[^A-Za-z0-9]+/g, "_")}_t${String(f?.steps[S.step]?.name ?? "").replace(/[^A-Za-z0-9.]+/g, "")}.png`;
+  if (download) saveBlob(name, blob);
+  P.text = `${name} — ${canvas.width} × ${canvas.height}.`;
+  render();
+  return { blob, width: canvas.width, height: canvas.height, name };
+}
+
+function saveBlob(name, blob) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name;
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Record the view as a WebM: every step of the field shown, each held for
+ * `hold` seconds ("steps"), or one turn round the model over `seconds`
+ * ("turntable"). Frames are pushed by hand (captureStream(0) + requestFrame)
+ * after each render, so a slow step read does not drop frames or stretch the
+ * clip: what is recorded is exactly the frames drawn.
+ */
+export async function recordAnimation({ kind = L.media.kind, hold = L.media.hold, seconds = L.media.seconds, fps = 24, width = L.media.width, download = true } = {}) {
+  const P = L.media;
+  const results = R();
+  const S = results?.state;
+  const viewer = window.GeoIDViewer;
+  if (!S?.mesh || !viewer?.renderer) { P.text = "Open a run in Results first."; render(); return null; }
+  if (download && !may("save")) { P.text = refusal("save"); render(); return null; }
+  if (typeof MediaRecorder === "undefined") { P.text = "This browser cannot record video (no MediaRecorder)."; render(); return null; }
+  if (P.busy) return null;
+  const mime = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"].find((t) => MediaRecorder.isTypeSupported(t));
+  if (!mime) { P.text = "This browser records no WebM."; render(); return null; }
+  P.busy = true; P.cancel = false;
+  const canvas = document.createElement("canvas");
+  composeFrame(canvas, { width });
+  const stream = canvas.captureStream(0);
+  const track = stream.getVideoTracks()[0];
+  const chunks = [];
+  const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 6e6 });
+  recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+  const done = new Promise((resolve) => { recorder.onstop = resolve; });
+  recorder.start();
+  const frame = async () => { composeFrame(canvas, { width }); track.requestFrame?.(); await wait(1000 / fps); };
+  const keepStep = S.step;
+  const cam = viewer.camera.position.clone();
+  const target = viewer.controls?.target?.clone();
+  let frames = 0;
+  try {
+    const f = S.fields[S.field];
+    if (kind === "steps" && f?.ok) {
+      for (let k = 0; k < f.steps.length && !P.cancel; k += 1) {
+        S.step = k;
+        await results.refresh();
+        P.text = `Recording step ${k + 1} of ${f.steps.length}…`; sayMedia();
+        for (let h = 0; h < Math.max(1, Math.round(hold * fps)) && !P.cancel; h += 1) { await frame(); frames += 1; }
+      }
+    } else {
+      const centre = target || new THREE.Vector3();
+      const rel = cam.clone().sub(centre);
+      const total = Math.max(2, Math.round(seconds * fps));
+      for (let k = 0; k <= total && !P.cancel; k += 1) {
+        const a = (2 * Math.PI * k) / total;
+        viewer.camera.position.set(centre.x + rel.x * Math.cos(a) - rel.z * Math.sin(a), centre.y + rel.y, centre.z + rel.x * Math.sin(a) + rel.z * Math.cos(a));
+        viewer.camera.lookAt(centre);
+        if (k % fps === 0) { P.text = `Recording the turn: ${Math.round((k / total) * 100)}%…`; sayMedia(); }
+        await frame(); frames += 1;
+      }
+    }
+  } finally {
+    recorder.stop();
+    await done;
+    track.stop();
+    viewer.camera.position.copy(cam);
+    if (target) { viewer.controls.target.copy(target); viewer.camera.lookAt(target); viewer.controls.update?.(); }
+    if (S.step !== keepStep) { S.step = keepStep; await results.refresh(); }
+    P.busy = false;
+  }
+  const blob = new Blob(chunks, { type: "video/webm" });
+  const f = S.fields[S.field];
+  const name = `results_${(f?.field || "mesh").replace(/[^A-Za-z0-9]+/g, "_")}_${kind}.webm`;
+  if (download && blob.size) saveBlob(name, blob);
+  P.text = P.cancel ? `Stopped: ${frames} frames kept in ${name}.` : `${name} — ${frames} frames at ${fps} fps, ${(blob.size / 1048576).toFixed(1)} MB, ${canvas.width} × ${canvas.height}.`;
+  render();
+  return { blob, frames, fps, width: canvas.width, height: canvas.height, name, mime };
+}
+
+function sayMedia() {
+  const node = byId("ra-media-status");
+  if (node) node.textContent = L.media.text;
 }
 
 /** The 3D view as it stands, downscaled to print width. */
@@ -1620,6 +1840,52 @@ export function render() {
   }
   host.append(srcCard.details);
 
+  const G = L.sheet;
+  const sheet = card("Spreadsheet", G.open);
+  sheet.details.addEventListener("toggle", () => { G.open = sheet.details.open; if (G.open && !G.data && !G.busy) buildSheet(); });
+  const surfaceOnly = el("input", { type: "checkbox" });
+  surfaceOnly.checked = G.surfaceOnly;
+  surfaceOnly.addEventListener("change", () => { G.surfaceOnly = surfaceOnly.checked; buildSheet(); });
+  sheet.body.append(el("label", { class: "studio-check" }, surfaceOnly, "Surface nodes only"));
+  sheet.body.append(el("div", { class: "studio-actions" },
+    button("Refresh", "studio-secondary", () => buildSheet()),
+    button("Export CSV", "studio-secondary", exportSheet, "Every row, in the order shown"),
+  ));
+  sheet.body.append(el("div", { class: "studio-readout" }, G.text));
+  if (G.data?.order) {
+    const d = G.data;
+    const pages = Math.max(1, Math.ceil(d.order.length / G.size));
+    G.page = Math.min(G.page, pages - 1);
+    const table = el("table", { class: "ra-stats ra-sheet" });
+    const head = el("tr");
+    d.cols.forEach((c, k) => {
+      const th = el("th", { title: `${c.title || c.name} — click to sort` }, `${c.name}${G.sort === k ? (G.dir > 0 ? " ▲" : " ▼") : ""}`);
+      th.addEventListener("click", () => { if (G.sort === k) G.dir = -G.dir; else { G.sort = k; G.dir = k === 0 ? 1 : -1; } sortSheet(); render(); });
+      head.append(th);
+    });
+    table.append(el("thead", {}, head));
+    const tbody = el("tbody");
+    const start = G.page * G.size;
+    for (let k = start; k < Math.min(d.order.length, start + G.size); k += 1) {
+      const i = d.rows[d.order[k]];
+      const tr = el("tr", { title: `Probe node ${i}` }, ...d.cols.map((c) => { const v = c.get(i); return el("td", {}, c.int ? String(v) : Number.isFinite(v) ? Number(v.toPrecision(6)).toString() : "—"); }));
+      tr.addEventListener("click", () => R()?.probeNode?.(i));
+      tbody.append(tr);
+    }
+    table.append(tbody);
+    sheet.body.append(el("div", { class: "ra-stats-wrap" }, table));
+    const size = el("select", { class: "studio-select" });
+    [25, 50, 100, 200].forEach((v) => size.append(new Option(`${v} rows`, String(v), false, v === G.size)));
+    size.addEventListener("change", () => { G.size = Number(size.value); G.page = 0; render(); });
+    const go = (p) => () => { G.page = Math.max(0, Math.min(pages - 1, p)); render(); };
+    sheet.body.append(el("div", { class: "studio-actions ra-pager" },
+      button("«", "studio-secondary", go(0)), button("‹", "studio-secondary", go(G.page - 1)),
+      el("span", { class: "studio-readout" }, `${(start + 1).toLocaleString()}–${Math.min(d.order.length, start + G.size).toLocaleString()} of ${d.order.length.toLocaleString()}`),
+      button("›", "studio-secondary", go(G.page + 1)), button("»", "studio-secondary", go(pages - 1)), size,
+    ));
+  }
+  host.append(sheet.details);
+
   const WS = L.sweep;
   const swc = card("Sweep response", WS.open);
   swc.details.addEventListener("toggle", () => {
@@ -1670,6 +1936,27 @@ export function render() {
   }
   host.append(swc.details);
 
+  const MD = L.media;
+  const media = card("Screenshot and animation", MD.open);
+  media.details.addEventListener("toggle", () => { MD.open = media.details.open; });
+  media.body.append(note("The view with a footer carrying the field, the time and the colour scale — as a PNG, or as a WebM stepping through time or turning round the model."));
+  const widthSel = el("select", { class: "studio-select" });
+  [[0, "As on screen"], [1280, "1280 wide"], [1920, "1920 wide"], [3840, "3840 wide (PNG)"]].forEach(([v, t]) => widthSel.append(new Option(t, String(v), false, v === MD.width)));
+  widthSel.addEventListener("change", () => { MD.width = Number(widthSel.value); });
+  media.body.append(row("Width", widthSel));
+  const kindSel = el("select", { class: "studio-select" });
+  [["steps", "Every step of the field"], ["turntable", "One turn round the model"]].forEach(([v, t]) => kindSel.append(new Option(t, v, false, v === MD.kind)));
+  kindSel.addEventListener("change", () => { MD.kind = kindSel.value; render(); });
+  media.body.append(row("Animate", kindSel));
+  if (MD.kind === "steps") media.body.append(row("Seconds a step", numberInput(MD.hold, (v) => { MD.hold = v > 0 ? v : 1; })));
+  else media.body.append(row("Seconds a turn", numberInput(MD.seconds, (v) => { MD.seconds = v > 0 ? v : 8; })));
+  media.body.append(el("div", { class: "studio-actions" },
+    button("Screenshot (PNG)", "studio-primary", () => screenshot({ width: MD.width })),
+    button(MD.busy ? "Stop" : "Record (WebM)", "studio-secondary", () => { if (MD.busy) { MD.cancel = true; return; } recordAnimation({ width: Math.min(MD.width || 1920, 1920) }); }),
+  ));
+  media.body.append(el("div", { id: "ra-media-status", class: "studio-readout" }, MD.text));
+  host.append(media.details);
+
   const Q = L.report;
   const rep = card("Report", Q.open);
   rep.details.addEventListener("toggle", () => { Q.open = rep.details.open; });
@@ -1698,6 +1985,7 @@ function follow() {
     L.meshSig = meshSig;
     L.profile = null; L.located = null; L.locatedKey = ""; L.text = "";
     L.stats.result = null; L.stats.text = ""; L.stats.sig = "";
+    L.sheet.data = null; L.sheet.text = ""; L.sheet.key = "";
     L.obs.result = null; L.obs.text = ""; L.obs.sig = "";
     L.src.result = null; L.src.inversion = null; L.src.text = ""; L.src.sig = "";
     disposeLine(); disposeGlyphs(); disposeObsArrows(); disposeSourceMarker();
@@ -1718,6 +2006,7 @@ function follow() {
   if (L.glyph.on && sig !== L.glyph.sig) drawGlyphs();
   if (L.stats.open && L.stats.result && sig !== L.stats.sig && !L.stats.busy) computeStats();
   if (L.obs.result && obsSignature() !== L.obs.sig && !L.obs.busy) compareObservations();
+  if (L.sheet.open && L.sheet.data && sig !== L.sheet.key && !L.sheet.busy) buildSheet();
   if (L.src.result && sig !== L.src.sig && !L.src.busy) compareSource();
   if (!L.line && R()?.frame?.()) drawLine();
 }
@@ -1730,5 +2019,5 @@ function install() {
 
 if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", install); else install();
-  window.GeoIDResultsAnalysis = { plot, drawGlyphs, computeStats, compareObservations, compareSource, invertSource, readSweep, listSweeps, buildModelReport, openModelReport, render, state: L };
+  window.GeoIDResultsAnalysis = { plot, drawGlyphs, computeStats, compareObservations, compareSource, invertSource, readSweep, listSweeps, buildSheet, screenshot, recordAnimation, buildModelReport, openModelReport, render, state: L };
 }
