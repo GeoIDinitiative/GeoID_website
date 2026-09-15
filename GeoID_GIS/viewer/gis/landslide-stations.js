@@ -13,9 +13,9 @@
  * say two different things; `landslide-stations.test.mjs` holds them equal.
  */
 
-import { cellAnswer, planeWetness, slopeStresses, steadyWetness } from "./slope-hydrology.js?v=20260915-d574d90";
-import { rockCell } from "./rock-slope.js?v=20260915-d574d90";
-import { partition, waveStep, floodFos, riseFor } from "./flood-fos.js?v=20260915-d574d90";
+import { cellAnswer, planeWetness, slopeStresses, steadyWetness } from "./slope-hydrology.js?v=20260915-e41a68d";
+import { rockCell } from "./rock-slope.js?v=20260915-e41a68d";
+import { partition, waveStep, floodFos, riseFor } from "./flood-fos.js?v=20260915-e41a68d";
 
 /**
  * What fraction of every cell's water reaches cell `s`: 1 at `s`, the

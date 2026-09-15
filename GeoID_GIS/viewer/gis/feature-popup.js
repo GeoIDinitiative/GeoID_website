@@ -20,24 +20,24 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260915-d574d90";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260915-d574d90";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260915-e41a68d";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260915-e41a68d";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20260915-d574d90";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260915-d574d90";
-import { lithologyLabel } from "./lithology-label.js?v=20260915-d574d90";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260915-d574d90";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260915-d574d90";
-import { waterCard, WATER_SAID } from "./water-card.js?v=20260915-d574d90";
-import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260915-d574d90";
-import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20260915-d574d90";
-import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js?v=20260915-d574d90";
-import { isEarthquakeFeature, earthquakeCard } from "./earthquake-card.js?v=20260915-d574d90";
-import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260915-d574d90";
+} from "./vector-render.js?v=20260915-e41a68d";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260915-e41a68d";
+import { lithologyLabel } from "./lithology-label.js?v=20260915-e41a68d";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260915-e41a68d";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260915-e41a68d";
+import { waterCard, WATER_SAID } from "./water-card.js?v=20260915-e41a68d";
+import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260915-e41a68d";
+import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20260915-e41a68d";
+import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js?v=20260915-e41a68d";
+import { isEarthquakeFeature, earthquakeCard } from "./earthquake-card.js?v=20260915-e41a68d";
+import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260915-e41a68d";
 import {
   canEditRow, editableFields, applyRowChange,
-} from "./table-editor.js?v=20260915-d574d90";
+} from "./table-editor.js?v=20260915-e41a68d";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital

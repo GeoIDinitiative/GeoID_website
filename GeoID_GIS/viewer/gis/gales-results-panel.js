@@ -30,14 +30,14 @@ import {
   exposedFaces, thresholdKeep, keptTriangles,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
   groupResultFiles, timeOf, referencePlan, differenceOf, DERIVED_DOFS,
-} from "./gales-results.js?v=20260915-d574d90";
-import { zipStore } from "./shapefile-writer.js?v=20260915-d574d90";
-import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-d574d90";
-import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-d574d90";
-import { parseSolidProps } from "./strain-stress.js?v=20260915-d574d90";
-import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-d574d90";
-import { may, refusal } from "./membership.js?v=20260915-d574d90";
-import { downloadText } from "./extraction.js?v=20260915-d574d90";
+} from "./gales-results.js?v=20260915-e41a68d";
+import { zipStore } from "./shapefile-writer.js?v=20260915-e41a68d";
+import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-e41a68d";
+import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-e41a68d";
+import { parseSolidProps } from "./strain-stress.js?v=20260915-e41a68d";
+import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-e41a68d";
+import { may, refusal } from "./membership.js?v=20260915-e41a68d";
+import { downloadText } from "./extraction.js?v=20260915-e41a68d";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -1072,6 +1072,63 @@ async function refresh({ fit = false } = {}) {
     S.busy = false;
     if (S.pending) { S.pending = false; refresh(); }
   }
+}
+
+// ── State ───────────────────────────────────────────────────────────────────
+
+const STATE_KEYS = ["component", "colormap", "reverse", "bands", "log", "rangeMode", "range", "view", "sliceAxis", "slicePos", "clipFlip", "opacity", "edges", "insar"];
+
+function resultsState() {
+  if (!S.mesh) return null;
+  const f = S.fields[S.field];
+  const out = {
+    run: S.source?.label || "", mesh: S.meshPath, nodes: S.mesh.nodeCount,
+    field: f?.field || null, stepTime: f?.steps[S.step]?.time ?? null, stepName: f?.steps[S.step]?.name ?? null,
+    deform: { on: S.deform.on, field: S.fields[S.deform.field]?.field || null, scale: S.deform.scale },
+    contours: { on: S.contours.on, count: S.contours.count, colour: S.contours.colour },
+    iso: { on: S.iso.on, levels: S.iso.levels, opacity: S.iso.opacity },
+    threshold: { lo: S.threshold.lo, hi: S.threshold.hi, flags: S.threshold.flags, mode: S.threshold.mode, colourBy: S.threshold.colourBy },
+    calcs: S.calcs.map((c) => ({ ...c })),
+    reference: S.reference ? S.reference.label : null,
+    probeNode: S.probe?.node ?? null,
+    stations: S.stations.map((st) => ({ name: st.name, node: st.node, x: st.x, y: st.y, z: st.z })),
+  };
+  for (const k of STATE_KEYS) out[k] = S[k] && typeof S[k] === "object" ? JSON.parse(JSON.stringify(S[k])) : S[k];
+  return out;
+}
+
+/** Apply a saved display to the run that is open; what cannot be matched is listed, not guessed. */
+async function applyResultsState(state) {
+  const notes = [];
+  if (!S.mesh || !state) return { ok: false, notes: ["Open the run first."] };
+  if (state.nodes && state.nodes !== S.mesh.nodeCount) notes.push(`The state was saved on a mesh of ${state.nodes.toLocaleString()} nodes; this one has ${S.mesh.nodeCount.toLocaleString()}.`);
+  for (const k of STATE_KEYS) if (state[k] !== undefined) S[k] = state[k] && typeof state[k] === "object" ? JSON.parse(JSON.stringify(state[k])) : state[k];
+  S.contours = { ...S.contours, ...(state.contours || {}) };
+  S.iso = { ...S.iso, ...(state.iso || {}), key: "", data: null, used: [] };
+  S.threshold = { ...S.threshold, ...(state.threshold || {}), key: "", data: null };
+  S.calcs = Array.isArray(state.calcs) ? state.calcs.map((c) => ({ ...c })) : [];
+  S.slice = null; S.sliceKey = "";
+  classifyFields();
+  const fi = state.field ? S.fields.findIndex((x) => x.field === state.field) : -1;
+  if (state.field && fi < 0) notes.push(`${state.field} is not in this run${state.reference ? ` (it may need the reference run ${state.reference}, which is not saved in a state)` : ""}.`);
+  if (fi >= 0) {
+    S.field = fi;
+    const steps = S.fields[fi].steps;
+    const k = steps.findIndex((st) => st.time === state.stepTime);
+    S.step = k >= 0 ? k : steps.length - 1;
+    if (k < 0 && state.stepTime !== null) notes.push(`No step at t=${state.stepName}; the last step is shown.`);
+  }
+  const di = state.deform?.field ? S.fields.findIndex((x) => x.field === state.deform.field) : -1;
+  S.deform = { on: Boolean(state.deform?.on && di >= 0), field: di >= 0 ? di : S.deform.field, scale: state.deform?.scale ?? S.deform.scale };
+  if (Number.isInteger(state.probeNode) && state.probeNode < S.mesh.nodeCount) S.probe = { node: state.probeNode, series: null, seriesField: -1 };
+  if (Array.isArray(state.stations)) {
+    S.stations = [];
+    const keep = state.stations.filter((st) => Number.isInteger(st.node) && st.node < S.mesh.nodeCount);
+    if (keep.length) addStations(keep.map((st) => ({ name: st.name, node: st.node })));
+  }
+  renderControls();
+  await refresh({ fit: false });
+  return { ok: true, notes };
 }
 
 // ── Calculator ─────────────────────────────────────────────────────────────
@@ -2662,6 +2719,9 @@ if (typeof document !== "undefined" && typeof window !== "undefined" && typeof w
     // ParaView: the .vtu files for a selection, and the download.
     // Contour levels and isosurface levels as drawn (for a report, and for tests).
     display: () => ({ contours: S.contours.on ? S.contours.levels : [], iso: S.iso.on ? S.iso.used : [] }),
+    // The display as a plain object, and back: a saved state names fields by name, never by index.
+    getState: () => resultsState(),
+    applyState: (state) => applyResultsState(state),
     addCalculated: (name, expr, options) => addCalculated(name, expr, options),
     // Probe a node by number (the spreadsheet's rows).
     probeNode: (node) => {

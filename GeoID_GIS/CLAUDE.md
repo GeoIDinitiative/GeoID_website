@@ -20685,3 +20685,37 @@ model.
   it.
 - **The probe also picks the threshold skin now.** It was surface and slice
   only, so in threshold view nothing could be probed.
+
+## Saved state: the page as it stands, applied to a run again later
+
+Analysis ▸ State saves the Model page's post-processing as a JSON file (a
+`.pvsm` in spirit): the Results display (field and step, component, colour map,
+range, view and slice, warp, contours, isosurfaces, threshold, calculated
+fields, probe and points, the satellite geometry), the camera, and every
+analysis card's settings with a flag for which had a result. `model-state.js`
+is the pure half (`makeState`, `readState`, `stateFileName`); Results exposes
+`getState`/`applyState`, Analysis `currentState`/`saveState`/`loadState`.
+Saved through the save gate, downloaded and filed into the open project's
+`post_processing/`; loaded from a file or picked from that folder.
+
+- **The data is not in it.** A state names the run it was saved on and is
+  APPLIED to whatever run is open; what cannot be matched (a field the run does
+  not hold, a step time it lacks, a different node count) is listed in the
+  status rather than guessed. A reference run is not saved, so a `compare/`
+  field needs its reference opened first, and the note says so.
+- **Fields are restored by NAME, never by index** — the field list is rebuilt
+  from what the run holds plus the saved calculated fields (`classifyFields`
+  after restoring `S.calcs`), so an index from another session points at
+  another field.
+- **Analyses are re-run, not deserialised**: a profile, statistics, the
+  observation fit, the Mogi comparison or inversion, the spreadsheet and the
+  sweep reading are recomputed from their saved inputs in the page's own order,
+  so a state cannot carry a number the current run would not produce.
+- **The State card exists only while a run is open**, because loading one means
+  applying it to a run.
+
+Verified on Etna: a calculated field (`sqrt(ux^2+uy^2)`), Viridis, a y = 0.4
+slice, contours and a plotted profile saved, the page reset, and the state
+loaded back with the field, view, colours, camera (to 1e-6) and profile all
+restored and no notes; a JSON of the wrong kind refused by name; a state filed
+into a memory project and offered back from "From project".

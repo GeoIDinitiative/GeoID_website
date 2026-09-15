@@ -26,14 +26,15 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, formatValue, describeField, float64View, timeOf, stepReading, powerLawSlope } from "./gales-results.js?v=20260915-d574d90";
-import { downloadText } from "./extraction.js?v=20260915-d574d90";
-import { modelReportHtml } from "./model-report.js?v=20260915-d574d90";
-import { PHYSICS, domainProperties } from "./fem-setup.js?v=20260915-d574d90";
-import { may, refusal } from "./membership.js?v=20260915-d574d90";
-import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-d574d90";
-import { losVector } from "./insar.js?v=20260915-d574d90";
-import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260915-d574d90";
+import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, formatValue, describeField, float64View, timeOf, stepReading, powerLawSlope } from "./gales-results.js?v=20260915-e41a68d";
+import { downloadText } from "./extraction.js?v=20260915-e41a68d";
+import { modelReportHtml } from "./model-report.js?v=20260915-e41a68d";
+import { makeState, readState, stateFileName } from "./model-state.js?v=20260915-e41a68d";
+import { PHYSICS, domainProperties } from "./fem-setup.js?v=20260915-e41a68d";
+import { may, refusal } from "./membership.js?v=20260915-e41a68d";
+import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-e41a68d";
+import { losVector } from "./insar.js?v=20260915-e41a68d";
+import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260915-e41a68d";
 
 const byId = (id) => document.getElementById(id);
 const R = () => window.GeoIDGalesResults;
@@ -47,6 +48,7 @@ const L = {
   stats: { open: false, result: null, sig: "", busy: false, text: "", label: "" },
   src: { open: false, x0: 0, y0: 0, depth: 5000, dV: 1e6, nu: 0.25, mode: "dV", dP: 1e7, radius: 1000, E: 30e9, fitDV: true, result: null, inversion: null, text: "", busy: false, sig: "", marker: null, surfaceZ: 0 },
   report: { open: false, title: "", text: "", busy: false },
+  state: { open: false, text: "", busy: false },
   media: { open: false, kind: "steps", hold: 1, seconds: 8, width: 1280, busy: false, cancel: false, text: "" },
   sheet: { open: false, surfaceOnly: false, sort: 0, dir: 1, page: 0, size: 50, data: null, key: "", busy: false, text: "" },
   sweep: { open: false, manifests: null, path: "", field: "solid/u", component: "mag", where: "peak", node: "", result: null, text: "", busy: false },
@@ -1234,6 +1236,120 @@ function exportSweep() {
   downloadText(`sweep_${res.manifest.base}_${L.sweep.field.replace(/[^A-Za-z0-9]+/g, "_")}.csv`, `${lines.join("\n")}\n`, "text/csv");
 }
 
+/* ── saved state ────────────────────────────────────────────────────────── */
+
+function analysisState() {
+  const S = R()?.state;
+  const fieldName = (i) => S?.fields?.[i]?.field || null;
+  return {
+    line: { a: L.a, b: L.b, samples: L.samples, compare: L.compare, plotted: Boolean(L.profile) },
+    glyph: { on: L.glyph.on, field: fieldName(L.glyph.field), count: L.glyph.count, scale: L.glyph.scale },
+    stats: { open: L.stats.open, computed: Boolean(L.stats.result) },
+    obs: { open: L.obs.open, raw: L.obs.raw, unit: L.obs.unit, fit: L.obs.fit, arrows: L.obs.arrows, compared: Boolean(L.obs.result) },
+    src: { open: L.src.open, x0: L.src.x0, y0: L.src.y0, depth: L.src.depth, dV: L.src.dV, nu: L.src.nu, mode: L.src.mode, dP: L.src.dP, radius: L.src.radius, E: L.src.E, fitDV: L.src.fitDV, compared: Boolean(L.src.result), inverted: L.src.inversion?.what || null },
+    sheet: { open: L.sheet.open, surfaceOnly: L.sheet.surfaceOnly, sort: L.sheet.sort, dir: L.sheet.dir, size: L.sheet.size },
+    sweep: { open: L.sweep.open, path: L.sweep.path, field: L.sweep.field, component: L.sweep.component, where: L.sweep.where, node: L.sweep.node, read: Boolean(L.sweep.result) },
+    media: { kind: L.media.kind, hold: L.media.hold, seconds: L.media.seconds, width: L.media.width },
+    report: { title: L.report.title },
+  };
+}
+
+function cameraState() {
+  const v = window.GeoIDViewer;
+  if (!v?.camera) return null;
+  return { position: v.camera.position.toArray(), target: v.controls?.target ? v.controls.target.toArray() : [0, 0, 0] };
+}
+
+/** The whole page's state: the Results display, the camera and the analyses. */
+export function currentState(note = "") {
+  return makeState({ results: R()?.getState?.() || null, analysis: analysisState(), camera: cameraState(), note });
+}
+
+export async function saveState({ download = true, project = true } = {}) {
+  const Z = L.state;
+  if (!may("save")) { Z.text = refusal("save"); render(); return null; }
+  const state = currentState();
+  if (!state.results) { Z.text = "Open a run in Results first: a state is applied to a run."; render(); return null; }
+  const text = JSON.stringify(state, null, 2);
+  const name = stateFileName(state);
+  const said = [];
+  const store = window.GeoIDResearch?.store;
+  if (project && store?.getActive?.()) {
+    try { await store.writeProjectFile(`post_processing/${name}`, text); said.push(`post_processing/${name} in the project`); } catch (error) { said.push(`not filed in the project (${error.message})`); }
+  }
+  if (download) { downloadText(name, text, "application/json", { project: false }); said.push("downloaded"); }
+  Z.text = `Saved: ${said.join(", ")}.`;
+  render();
+  return { state, text, name };
+}
+
+async function listProjectStates() {
+  const Z = L.state;
+  const store = window.GeoIDResearch?.store;
+  if (!store?.getActive?.()) { Z.text = "Open a project first: states are filed in its post_processing/."; render(); return; }
+  try {
+    const entries = await store.listProjectDir("post_processing");
+    Z.saved = entries.map((e) => (typeof e === "string" ? e : e.name)).filter((n) => /^model_state_.*\.json$/.test(n)).sort().reverse();
+    Z.text = Z.saved.length ? `${Z.saved.length} saved state${Z.saved.length > 1 ? "s" : ""} in this project.` : "No saved states in this project yet.";
+  } catch (error) { Z.text = `Could not list the project's states: ${error.message}`; }
+  render();
+}
+
+/** Apply a saved state to the run open now: Results first, then the camera, then each analysis that had a result. */
+export async function loadState(input) {
+  const Z = L.state;
+  const got = readState(input);
+  if (got.error) { Z.text = got.error; render(); return null; }
+  const st = got.state;
+  const results = R();
+  if (!results?.state?.mesh) { Z.text = "Open the run the state belongs to first, then load the state."; render(); return null; }
+  Z.busy = true;
+  Z.text = "Applying the state…";
+  render();
+  const notes = [];
+  try {
+    if (st.results) {
+      const applied = await results.applyState(st.results);
+      notes.push(...(applied?.notes || []));
+      if (st.results.run && results.state.source?.label && st.results.run !== results.state.source.label) notes.push(`Saved on ${st.results.run}; applied to ${results.state.source.label}.`);
+    }
+    const v = window.GeoIDViewer;
+    if (st.camera && v?.camera) {
+      v.camera.position.fromArray(st.camera.position);
+      if (v.controls?.target) { v.controls.target.fromArray(st.camera.target); v.controls.update?.(); }
+      v.camera.lookAt(...st.camera.target);
+    }
+    const a = st.analysis || {};
+    const S = results.state;
+    if (a.line) { L.a = a.line.a; L.b = a.line.b; L.samples = a.line.samples; L.compare = a.line.compare; L.locatedKey = ""; drawLine(); }
+    if (a.glyph) { const gi = a.glyph.field ? S.fields.findIndex((f) => f.field === a.glyph.field) : -1; Object.assign(L.glyph, { on: a.glyph.on, field: gi, count: a.glyph.count, scale: a.glyph.scale }); }
+    if (a.obs) Object.assign(L.obs, { open: a.obs.open, raw: a.obs.raw || "", unit: a.obs.unit, fit: a.obs.fit, arrows: a.obs.arrows });
+    if (a.src) Object.assign(L.src, { open: a.src.open, x0: a.src.x0, y0: a.src.y0, depth: a.src.depth, dV: a.src.dV, nu: a.src.nu, mode: a.src.mode, dP: a.src.dP, radius: a.src.radius, E: a.src.E, fitDV: a.src.fitDV });
+    if (a.sheet) Object.assign(L.sheet, { open: a.sheet.open, surfaceOnly: a.sheet.surfaceOnly, sort: a.sheet.sort, dir: a.sheet.dir, size: a.sheet.size });
+    if (a.sweep) Object.assign(L.sweep, { open: a.sweep.open, path: a.sweep.path, field: a.sweep.field, component: a.sweep.component, where: a.sweep.where, node: a.sweep.node });
+    if (a.media) Object.assign(L.media, a.media);
+    if (a.report) L.report.title = a.report.title || "";
+    if (a.stats) L.stats.open = a.stats.open;
+    // Re-run what had a result, in the order the page makes them.
+    if (a.line?.plotted) await plot();
+    if (L.glyph.on) await drawGlyphs();
+    if (a.stats?.computed) await computeStats();
+    if (a.obs?.compared) await compareObservations();
+    if (a.src?.inverted) await invertSource(a.src.inverted);
+    else if (a.src?.compared) await compareSource();
+    if (a.sheet?.open) await buildSheet();
+    if (a.sweep?.read && a.sweep.path) await readSweep(a.sweep.path);
+    Z.text = `State applied (saved ${st.saved_at}).${notes.length ? ` ${notes.join(" ")}` : ""}`;
+    return { state: st, notes };
+  } catch (error) {
+    Z.text = `Could not apply the state: ${error.message}`;
+    return null;
+  } finally {
+    Z.busy = false;
+    render();
+  }
+}
+
 /* ── the model report ───────────────────────────────────────────────────── */
 
 const sci = (v) => (Number.isFinite(v) ? (Math.abs(v) >= 1e5 || (Math.abs(v) < 1e-3 && v !== 0) ? v.toExponential(3) : String(Number(v.toPrecision(6)))) : "—");
@@ -1957,6 +2073,28 @@ export function render() {
   media.body.append(el("div", { id: "ra-media-status", class: "studio-readout" }, MD.text));
   host.append(media.details);
 
+  const Z = L.state;
+  const stateCard = card("State", Z.open);
+  stateCard.details.addEventListener("toggle", () => { Z.open = stateCard.details.open; });
+  stateCard.body.append(note("Save the page as it stands — field, step, colours, slice, contours, isosurfaces, threshold, calculated fields, probe and points, the camera, and every analysis — to apply to the run again later. The data is not in it: open the run, then load the state."));
+  const stateFile = el("input", { type: "file", accept: ".json,application/json", hidden: true });
+  stateFile.addEventListener("change", async () => { const file = stateFile.files?.[0]; stateFile.value = ""; if (file) loadState(await file.text()); });
+  stateCard.body.append(stateFile, el("div", { class: "studio-actions" },
+    button("Save state", "studio-primary", () => saveState(), "Downloaded, and filed in the project's post_processing/ when one is open"),
+    button("Load state…", "studio-secondary", () => stateFile.click()),
+    button("From project", "studio-secondary", () => listProjectStates(), "States saved in this project's post_processing/"),
+  ));
+  if (Z.saved?.length) {
+    const pick = el("select", { class: "input" }, el("option", { value: "" }, "Choose a saved state…"), ...Z.saved.map((name) => el("option", { value: name }, name)));
+    pick.addEventListener("change", async () => {
+      if (!pick.value) return;
+      try { loadState(await window.GeoIDResearch.store.readProjectFile(`post_processing/${pick.value}`)); } catch (error) { Z.text = `Could not read ${pick.value}: ${error.message}`; render(); }
+    });
+    stateCard.body.append(row("Saved states", pick));
+  }
+  stateCard.body.append(el("div", { class: "studio-readout" }, Z.text));
+  host.append(stateCard.details);
+
   const Q = L.report;
   const rep = card("Report", Q.open);
   rep.details.addEventListener("toggle", () => { Q.open = rep.details.open; });
@@ -2019,5 +2157,5 @@ function install() {
 
 if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", install); else install();
-  window.GeoIDResultsAnalysis = { plot, drawGlyphs, computeStats, compareObservations, compareSource, invertSource, readSweep, listSweeps, buildSheet, screenshot, recordAnimation, buildModelReport, openModelReport, render, state: L };
+  window.GeoIDResultsAnalysis = { plot, drawGlyphs, computeStats, compareObservations, compareSource, invertSource, readSweep, listSweeps, buildSheet, screenshot, recordAnimation, currentState, saveState, loadState, buildModelReport, openModelReport, render, state: L };
 }
