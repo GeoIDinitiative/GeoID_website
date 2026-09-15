@@ -21199,3 +21199,83 @@ step and removes none, so a shorter re-run left the exploded attempt's later
 steps beside the new ones — the Results page showed 16 steps with a range of
 5×10¹². What was there is moved to `results_<time>/`, never deleted, and
 `status.json` names it.
+
+## The tab bars, assessed: what was measured and what changed
+
+Asked whether the nav tab bars' style and structure are optimal. Measured on
+the pane (384 px column, 779 px tall) rather than eyed, across all three
+pages. What holds up: one idiom per tier on the GIS page (a filled level-1
+tab, outlined level-2 cards in the sub-tab voice, one chevron on the left
+turning one way), the Model page's deck being the GIS column's own tab in
+the same chrome, and the Research rail's banded dock. Three things did not:
+
+- **OPEN AND CLOSED-WITH-DATA WERE ONE LOOK.** A closed tab holding data
+  took the solid accent fill with dark ink — exactly what an open tab wears.
+  One screenshot: Live Events (closed, armed) and Geology (open) both solid
+  magenta, the chevron's angle the only difference. A column that cannot
+  say where it is has lost the one thing a tab bar is for. A closed tab
+  with data is LIT now (a tint of the accent, a 3 px spine, title and icon
+  and chevron in the accent), and the solid fill means open. One loud level
+  — the rule `studio-ui.css` already states for the Model page, applied to
+  the column it was copied from.
+- **THE OPEN TAB'S HEAD SCROLLED AWAY.** Hazards is nine subtabs; a screen
+  into it the column showed cards with nothing to say which tab they belong
+  to. The open head is `position: sticky` against `#ui-scroll-body`. Two
+  traps: a `.control-section` clips its overflow for its corners, and an
+  overflow that is not visible is a scroll container to sticky — the head
+  stuck inside its own tab, which never scrolls (measured `static` behaviour
+  with the rule applied); the OPEN tab lets its overflow show. And the tabs
+  sit one wrapper down (`#gis-toolbox-panels`), so the child selector
+  matched nothing; descendant. Planets carry the rule in `gis/shell.css`,
+  where the id outranks each planet's own `overflow: hidden`.
+- **THE WORKSPACE BOX TOOK HALF THE HEIGHT.** Its body is capped at
+  `min(42vh, 20rem)`; on a 779 px pane that is 360 px of box against 312 px
+  of tab column — three tabs in view, an open tab's first subtab below the
+  fold. 30vh now (234 px there), and on a tall screen the 20rem cap decides
+  either way. The studio's Visibility box takes the same number, pinned
+  equal across both stylesheets.
+
+What was NOT changed, and why: the tab ORDER (Live, Explorer, Map, Geology,
+Earth Observation, Hazards, Model Builder, Metadata) is argued in
+`toolbox.js` and holds — the case for Explorer first is real (it is "where
+am I") and so is the case for Live first (it is on at launch and is what a
+visitor sees moving); reordering is a decision, not a fix. Metadata as a
+one-subtab tab stays for the reason its comment gives. The Explorer tab's
+level-2 sections are a different class from the other tabs' subtabs and
+wear the same voice by rule, not by class — measured equal.
+
+Also in this pass: the fluid checklist warns when a time step is thousands
+of sound transits of the model (`acousticTransits`: c = 1/√(ρβ) over the
+shortest domain height; 75 ran, 75,000 diverged, warn past 1,000, and the
+sentence carries a suggested step), and a sweep parameter is named once
+("top — Pressure (Pa)", not "Pressure on the face Pressure (Pa)").
+
+## The first sweep, Study to Analysis: three pressures, one slope, and a Blob
+
+A parameter sweep run through the page's own button ("Mesh, prepare and
+solve all"): the 144-node granite box, base fixed, the top's pressure varied
+over 0.5, 1 and 2 MPa, one rank on the container target. The geometry was
+meshed once and filed into each run, each run prepared and solved in turn
+(33–34 s each), and Analysis ▸ Sweep response read the three back: peak |u|
+9.987e-6, 1.997e-5 and 3.995e-5 m, **slope 1.0000, R² 1.0000** — linear
+elasticity holding on real solves, where the same card had only ever been
+checked against scaled copies of Etna's result.
+
+**The sweep reader could not read the sidecar's runs.** "Not a whole number
+of float64 values" over a whole 3,456-byte step: `readProjectFileBytes`
+returned whatever the adapter answered, and the four adapters answer four
+shapes — the sidecar a Blob, the disk a buffer, memory a Uint8Array, a
+fallback a string. The Results reader had grown its own `asArrayBuffer` and
+so never noticed; the sweep reader handed the Blob straight to a float64
+view. `toBytes` in the store is the one conversion now, by tag and shape
+(never `instanceof`, the foreign-realm lesson), and every adapter's answer
+is a Uint8Array to its callers — pinned against a Blob, a buffer, a string
+and a DataView's own window.
+
+Two cosmetic things noticed and left: while a sweep is being written, the
+Study tab's preview line reads `sweep_sweep_0_sweep_0 … 2`, because
+`withSetup` swaps the page's setup for the run's and a `say` mid-write
+re-renders against it — it reads right again the moment the sweep finishes;
+and the pipeline strip's Mesh dot stays unlit through a sweep, since the
+solver mesh is meshed and filed by the sweep without being opened in the
+Mesh tab.

@@ -251,5 +251,27 @@ eq("safeName never answers empty", store.safeName("///"), "_");
   check("the hub reopens the project it had when it does switch", /openProject\?\.\(open\)/.test(probe));
 }
 
+// ── bytes are bytes whichever adapter answers ────────────────────────────────
+// The sidecar adapter answers a Blob, the disk a buffer, memory a Uint8Array;
+// the sweep reader handed a Blob to a float64 view and read "[object Blob]".
+await (async () => {
+  const base = memoryAdapter("bytes");
+  const raw = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
+  let shape = "blob";
+  const adapter = { ...base, readFileBytes: async () => (shape === "blob" ? new Blob([raw]) : shape === "buffer" ? raw.buffer.slice(0) : shape === "string" ? "abc" : raw) };
+  store.useAdapter(adapter);
+  onWorld("earth");
+  await store.createProject("Bytes");
+  for (const s of ["blob", "buffer", "string", "view"]) {
+    shape = s;
+    const got = await store.readProjectFileBytes("any");
+    const want = s === "string" ? [97, 98, 99] : [...raw];
+    check(`readProjectFileBytes answers a Uint8Array from a ${s}`, ArrayBuffer.isView(got) && got.constructor.name === "Uint8Array" && [...got].join() === want.join(), `${Object.prototype.toString.call(got)} ${[...(got || [])].join()}`);
+  }
+  const dv = new DataView(raw.buffer, 2, 4);
+  check("toBytes keeps a view's own window", [...(await store.toBytes(dv))].join() === "3,4,5,6");
+  check("toBytes reads a foreign-realm-shaped buffer by tag, never instanceof", [...(await store.toBytes({ arrayBuffer: async () => raw.buffer.slice(0, 2) }))].join() === "1,2");
+})();
+
 console.log(`\n${failures ? `${failures} failed` : "all passed"}`);
 process.on("exit", () => { process.exitCode = failures ? 1 : 0; });

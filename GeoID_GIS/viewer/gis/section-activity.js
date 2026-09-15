@@ -16,8 +16,8 @@
 
 import {
   grouped as globalGrouped, layerForDataset, HOMES,
-} from "./global-data.js?v=20260915-9de3529";
-import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20260915-9de3529";
+} from "./global-data.js?v=20260915-7b1e1b8";
+import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20260915-7b1e1b8";
 
 /**
  * WHICH HEADER A CATALOGUE HOME LIGHTS, READ FROM THE DOM.
@@ -206,58 +206,63 @@ function refresh() {
 }
 
 /**
- * The active header wears a SOLID accent fill — the strongest thing a
- * collapsed header can do, chosen over a quiet tint because the point is
- * to read across a folded sidebar at a glance. Injected here rather than
- * written into styles.css, because that file is Earth's alone and the
- * planet shells load their own; this module runs on all ten worlds and
- * carries its skin with it. !important throughout: the skin paints
- * section chrome with !important of its own.
+ * A closed header holding data is LIT, not filled.
+ *
+ * It used to take the SOLID accent fill — the strongest thing a collapsed
+ * header can do — and that is exactly the look an OPEN tab has. Measured on
+ * one screenshot: Live Events (closed, armed) and Geology (open) both solid
+ * magenta with dark ink, and nothing but the chevron's angle to say which
+ * one the column was showing. Two states sharing one look is a state
+ * encoding that lies about one of them, and "where am I" is the one a
+ * column cannot afford to lose. One loud level: solid fill means open.
+ *
+ * So a closed tab with data on the globe takes a TINT of the accent, a
+ * three-pixel accent spine, and its title, icon and chevron in the accent's
+ * own colour at full strength — brighter than its dark neighbours, plainly
+ * not the open one. Injected here rather than written into styles.css,
+ * because that file is Earth's alone and the planet shells load their own;
+ * this module runs on all ten worlds and carries its skin with it.
+ * !important throughout: the skin paints section chrome with !important of
+ * its own.
  */
 function installStyle() {
   if (document.getElementById("geoid-section-activity-style")) return;
   const tag = document.createElement("style");
   tag.id = "geoid-section-activity-style";
+  const accent = "rgb(var(--nav-accent-rgb, 255, 43, 214))";
+  const tint = "linear-gradient(180deg, rgba(var(--nav-accent-rgb, 255, 43, 214), 0.28), rgba(var(--nav-accent-rgb, 255, 43, 214), 0.12))";
   tag.textContent = [
     "details.control-section.has-active-data:not([open]) > .section-toggle {",
-    "  background: rgb(var(--nav-accent-rgb, 255, 43, 214)) !important;",
-    "  border-left-color: rgb(var(--nav-accent-rgb, 255, 43, 214)) !important;",
-    "  color: var(--skin-chrome-ink, #2b0030) !important;",
+    `  background: ${tint} !important;`,
+    `  border-left-color: ${accent} !important;`,
+    `  box-shadow: inset 3px 0 0 ${accent} !important;`,
+    `  color: ${accent} !important;`,
     "}",
     "details.gis-tool-section.has-active-data:not([open]) > summary {",
-    "  background: rgb(var(--nav-accent-rgb, 255, 43, 214)) !important;",
-    "  color: var(--skin-chrome-ink, #2b0030) !important;",
+    `  background: ${tint} !important;`,
+    `  box-shadow: inset 3px 0 0 ${accent} !important;`,
+    `  color: ${accent} !important;`,
     "}",
     "details.gis-tool-section.has-active-data:not([open]) > summary * {",
-    "  color: var(--skin-chrome-ink, #2b0030) !important;",
+    `  color: ${accent} !important;`,
     "  text-shadow: none !important;",
     "}",
     "details.control-section.has-active-data:not([open]) > .section-toggle .section-title,",
     "details.control-section.has-active-data:not([open]) > .section-toggle .section-icon {",
-    "  color: var(--skin-chrome-ink, #2b0030) !important;",
+    `  color: ${accent} !important;`,
     "  filter: none !important;",
     "  text-shadow: none !important;",
     "}",
     /**
      * THE CHEVRON TOO — it is a pseudo-element, so `> summary *` never
-     * reached it.
-     *
-     * A tier-1 chevron sets its own colour (the accent at 0.9) rather than
-     * inheriting, and this fill IS the accent: measured, chevron
-     * rgba(var(--skin-chrome-rgb),0.9) on a rgb(255,43,214) header, which is the same
-     * colour and therefore no chevron at all. The title and icon were already
-     * on the dark-ink list and looked right, which is what made the arrow
-     * read as "lost" rather than as the whole header being wrong.
-     *
-     * The sub-tabs never had it: their chevron sets no colour and inherits
-     * the dark ink from the summary (measured rgb(43,0,48)). This is the
-     * same magenta-on-magenta the armed Events header once had.
+     * reached it. On the tinted ground the accent chevron is visible, which
+     * it was not on the solid fill (this was once magenta on magenta).
      */
     "details.control-section.has-active-data:not([open]) > .section-toggle::before,",
     "details.control-section.has-active-data:not([open]) > .section-toggle::after,",
     "details.gis-tool-section.has-active-data:not([open]) > summary::before,",
     "details.gis-tool-section.has-active-data:not([open]) > summary::after {",
-    "  color: var(--skin-chrome-ink, #2b0030) !important;",
+    `  color: ${accent} !important;`,
     "  opacity: 1 !important;",
     "  text-shadow: none !important;",
     "}",

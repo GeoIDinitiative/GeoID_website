@@ -1,7 +1,7 @@
-import { directoryAdapter, memoryAdapter, indexedDbAdapter } from "./fs-adapter.js?v=20260915-9de3529";
-import { currentBodyId, getBody } from "../bodies.js?v=20260915-9de3529";
-import { saveRootHandle, loadRootHandle, clearRootHandle } from "./handles.js?v=20260915-9de3529";
-import { may, refusal } from "../membership.js?v=20260915-9de3529";
+import { directoryAdapter, memoryAdapter, indexedDbAdapter } from "./fs-adapter.js?v=20260915-7b1e1b8";
+import { currentBodyId, getBody } from "../bodies.js?v=20260915-7b1e1b8";
+import { saveRootHandle, loadRootHandle, clearRootHandle } from "./handles.js?v=20260915-7b1e1b8";
+import { may, refusal } from "../membership.js?v=20260915-7b1e1b8";
 
 /**
  * Projects, on disk, in the layout the Qt Research app uses.
@@ -467,12 +467,34 @@ export async function readProjectFile(relPath) {
  * holds (a Blob, ArrayBuffer, or string); the caller normalises. Adapters
  * without a bytes path fall back to their text read.
  */
+/**
+ * A project file as BYTES — always a Uint8Array, whatever the adapter hands
+ * back. The four adapters answer in four shapes (the sidecar a Blob, the disk
+ * a File's buffer, memory a Uint8Array, a fallback a string), and a caller
+ * that read one adapter's shape passed on every other: measured, the sweep
+ * reader handed the sidecar's Blob to a float64 view and got "[object Blob]"
+ * as its bytes — "Not a whole number of float64 values" over a perfectly
+ * whole step file. The Results reader had its own conversion; this is the one
+ * place both go through now.
+ */
 export async function readProjectFileBytes(relPath) {
   const { dir } = requireActive();
   const full = `${dir}/${relPath}`;
-  return rootAdapter.readFileBytes
-    ? rootAdapter.readFileBytes(full)
-    : rootAdapter.readFile(full);
+  const got = rootAdapter.readFileBytes
+    ? await rootAdapter.readFileBytes(full)
+    : await rootAdapter.readFile(full);
+  return toBytes(got);
+}
+
+/** Bytes from any of the shapes an adapter answers with. Realm-safe: by tag and shape, never `instanceof`. */
+export async function toBytes(got) {
+  if (got == null) return new Uint8Array(0);
+  if (ArrayBuffer.isView(got)) return new Uint8Array(got.buffer, got.byteOffset, got.byteLength);
+  const tag = Object.prototype.toString.call(got);
+  if (tag === "[object ArrayBuffer]") return new Uint8Array(got);
+  if (typeof got.arrayBuffer === "function") return new Uint8Array(await got.arrayBuffer());
+  if (typeof got === "string") return new TextEncoder().encode(got);
+  throw new Error(`Cannot read ${tag} as bytes.`);
 }
 
 export async function listProjectDir(relPath = "") {

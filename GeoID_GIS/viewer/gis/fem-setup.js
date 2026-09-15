@@ -388,6 +388,8 @@ export function checkSetup(setup, targets) {
   if (setup.physics === "fluid") {
     if (!dirichlet.p?.length) out.push({ level: "warning", step: "physics", text: "No pressure outlet: pressure has no reference level." });
     if (!dirichlet.vx?.length && !dirichlet.vy?.length && !dirichlet.vz?.length) out.push({ level: "warning", step: "physics", text: "No inlet or wall: nothing drives or holds the flow." });
+    const acoustic = acousticTransits(setup, plan, targets);
+    if (acoustic && acoustic.transits > ACOUSTIC_TRANSITS_WARN) out.push({ level: "warning", step: "study", text: `A time step of ${acoustic.step} s is about ${Math.round(acoustic.transits).toLocaleString()} sound transits of the model per step (c = ${Math.round(acoustic.c)} m/s over ${fmtLength(acoustic.length)}). GALES's fluid is weakly compressible and its time step is bounded by the acoustics, not the flow: the reference sims run near ${ACOUSTIC_TRANSITS_REFERENCE} transits, and a duct solve at ${Math.round(ACOUSTIC_TRANSITS_DIVERGED / 1000).toLocaleString()},000 diverged by its sixth step. Try a step under ${acoustic.suggested} s.` });
   }
   const st = setup.study || {};
   if (!/^[A-Za-z0-9_-]{1,60}$/.test(st.name || "")) out.push({ level: "error", step: "study", text: "Name the study with letters, digits, _ or - (it is a folder name)." });
@@ -398,6 +400,40 @@ export function checkSetup(setup, targets) {
   }
   if (!(num(st.ranks) >= 1)) out.push({ level: "error", step: "study", text: "At least one MPI rank." });
   return out;
+}
+
+/**
+ * HOW MANY SOUND TRANSITS A FLUID TIME STEP IS. GALES's fluid is weakly
+ * compressible (c = 1/√(ρβ)); measured on the first duct solve this page ran,
+ * Δt = 0.05 s (about 75 transits of the 1 m box, the order the reference
+ * sims run at) was stable and Δt = 50 s (75,000) grew 92 → 14,511 → 5×10¹²
+ * and was NaN by the sixth step. The length is the shortest vertical extent
+ * among the solid domains — the model's size, not the element's, so this is
+ * an order-of-magnitude warning and says so. Null where the study is not a
+ * transient or the material has no beta (the checklist already refuses that).
+ */
+export const ACOUSTIC_TRANSITS_WARN = 1000;
+export const ACOUSTIC_TRANSITS_REFERENCE = 75;
+export const ACOUSTIC_TRANSITS_DIVERGED = 75000;
+
+export function acousticTransits(setup, plan, targets) {
+  const st = setup.study || {};
+  if (st.kind !== "transient") return null;
+  const step = num(st.step);
+  const rho = plan?.props?.rho;
+  const beta = plan?.props?.beta;
+  if (!(step > 0) || !(rho > 0) || !(beta > 0)) return null;
+  const solids = (targets.domains || []).filter((d) => !d.void && Number.isFinite(d.zMin) && Number.isFinite(d.zMax) && d.zMax > d.zMin);
+  if (!solids.length) return null;
+  const length = Math.min(...solids.map((d) => d.zMax - d.zMin));
+  const c = 1 / Math.sqrt(rho * beta);
+  const transits = c * step / length;
+  const suggested = Number((ACOUSTIC_TRANSITS_REFERENCE * length / c).toPrecision(2));
+  return { step, c, length, transits, suggested };
+}
+
+function fmtLength(m) {
+  return m >= 1000 ? `${(m / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })} km` : `${m.toLocaleString(undefined, { maximumFractionDigits: 2 })} m`;
 }
 
 /* ── the study ──────────────────────────────────────────────────────────── */
@@ -503,7 +539,12 @@ export function sweepParameters(setup, targets) {
     for (const v of def.values) {
       if (v.choices) continue;
       const base = Number(c.values?.[v.key] ?? v.def);
-      out.push({ key: `bc:${flag}:${v.key}`, label: `${face?.name || `flag ${flag}`} — ${def.label.split(" — ")[0]} ${v.label}`, base: Number.isFinite(base) ? base : NaN });
+      // A condition with one value named as the condition is ("Pressure on
+      // the face" / "Pressure (Pa)") is named once; measured on the Study
+      // tab as "Pressure on the face Pressure (Pa)".
+      const kind = def.label.split(" — ")[0];
+      const same = kind.toLowerCase().split(/\s+/)[0] === v.label.toLowerCase().split(/[\s(]+/)[0];
+      out.push({ key: `bc:${flag}:${v.key}`, label: `${face?.name || `flag ${flag}`} — ${same ? v.label : `${kind}: ${v.label}`}`, base: Number.isFinite(base) ? base : NaN });
     }
   }
   return out;

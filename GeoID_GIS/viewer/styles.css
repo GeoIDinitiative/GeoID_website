@@ -102,6 +102,21 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
          sits outside this scroller, can match that width with a fixed inset. */
       scrollbar-gutter: stable;
     }
+    /* THE OPEN TAB'S HEAD STAYS AT THE TOP WHILE ITS BODY SCROLLS. Hazards is
+       nine subtabs and Geology seven; scrolled a screen into either, the
+       column showed subtab cards with nothing to say which tab they belong
+       to. The head is solid accent, so it is opaque over what slides under
+       it. A `.control-section` clips its overflow for its rounded corners,
+       and an overflow that is not visible is a scroll container to sticky
+       positioning -- the head would stick inside its own tab, which never
+       scrolls. So the OPEN tab lets its overflow show; closed tabs keep the
+       clip. `#ui-scroll-body` is the scroller the head sticks against. */
+    #ui-scroll-body .toolbox-group[open] { overflow: visible; }
+    #ui-scroll-body .toolbox-group[open] > .section-toggle {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+    }
 
     #ui-scroll-body::-webkit-scrollbar {
       width: 0.7rem;
@@ -5264,8 +5279,12 @@ canvas {
     .layer-dock-body {
       padding: 0.45rem 0.65rem 0.55rem;
       /* Grows with what is loaded, then scrolls rather than climbing into the
-         panel's space. */
-      max-height: min(42vh, 20rem);
+         panel's space. 30vh, not 42: the tab column above shares the height
+         with this box, and at 42vh on a 779 px pane the box took 360 px and
+         left the column 312 -- three tabs in view and an open tab's first
+         subtab below the fold. On a tall screen the 20rem cap decides either
+         way; the change is felt only where the height is short. */
+      max-height: min(30vh, 20rem);
       overflow-y: auto;
       scrollbar-width: thin;
       scrollbar-color: rgba(151, 182, 194, 0.32) transparent;
@@ -5893,7 +5912,7 @@ canvas {
   min-height: 0;
   /* Grows with the model, then scrolls -- the Workspace's own cap -- rather
      than climbing into the deck's column. */
-  max-height: min(42vh, 20rem);
+  max-height: min(30vh, 20rem);
   overflow-y: auto;
   padding: 0.45rem 0.55rem 0.55rem;
 }

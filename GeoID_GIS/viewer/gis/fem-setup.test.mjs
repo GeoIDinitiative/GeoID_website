@@ -2,11 +2,7 @@
  * The model definition: materials, conditions and the study, against what
  * GALES reads.
  */
-import {
-  MATERIALS, materialById, PHYSICS, defaultSetup, domainProperties, materialsPlan, propsText,
-  conditionCalls, icBcHeader, checkSetup, studyTimes, studySpec,
-  sweepParameters, sweepValues, sweepSetups, sweepManifest,
-} from "./fem-setup.js";
+import { MATERIALS, materialById, PHYSICS, defaultSetup, domainProperties, materialsPlan, propsText, conditionCalls, icBcHeader, checkSetup, studyTimes, studySpec, sweepParameters, sweepValues, sweepSetups, sweepManifest, acousticTransits } from "./fem-setup.js";
 
 let pass = 0;
 const failures = [];
@@ -110,6 +106,18 @@ const box = (flag, name, zMin, zMax, extra = {}) => ({ flag, name, zMin, zMax, v
   check("check: a study name must be a folder name", checkSetup(badName, targets).some((i) => i.step === "study"));
   const badTime = { ...good, study: { ...good.study, kind: "transient", step: 0 } };
   check("check: a transient study needs a positive step", checkSetup(badTime, targets).some((i) => /time step/.test(i.text)));
+  // The fluid's time step is bounded by the acoustics: measured, 0.05 s on a
+  // 1 m water box (75 transits) ran and 50 s (75,000) was NaN by step six.
+  const duct = { dim: 3, domains: [{ flag: 10, name: "box", zMin: 0, zMax: 1, void: false }], faces: [{ flag: 2, name: "base" }, { flag: 3, name: "top" }, { flag: 5, name: "sides" }] };
+  const flow = (step) => ({ ...defaultSetup(), physics: "fluid", materials: { 10: { id: "water" } }, conditions: { 2: { type: "inlet", values: { vz: 0.01 } }, 3: { type: "pressure", values: { p: 0 } } }, study: { ...defaultSetup().study, kind: "transient", step, end: step * 10 } });
+  const water = materialById("water");
+  const cWater = 1 / Math.sqrt(water.rho * water.beta);
+  const at50 = acousticTransits(flow(50), materialsPlan(duct.domains, flow(50).materials), duct);
+  check("acoustics: transits per step are c·Δt/L with c = 1/√(ρβ)", Math.abs(at50.transits - cWater * 50 / 1) < 1e-9 && Math.abs(at50.c - cWater) < 1e-9, `${at50.transits} ${cWater}`);
+  check("check: a 50 s step on a 1 m water duct is warned about, with the numbers", checkSetup(flow(50), duct).some((i) => i.level === "warning" && i.step === "study" && /sound transits/.test(i.text) && /75,000 diverged/.test(i.text)));
+  check("check: and 0.05 s is not", !checkSetup(flow(0.05), duct).some((i) => /sound transits/.test(i.text)));
+  check("check: a stationary fluid study is never warned", acousticTransits({ ...flow(50), study: { ...flow(50).study, kind: "stationary" } }, materialsPlan(duct.domains, flow(50).materials), duct) === null);
+  check("check: the suggestion lands near the reference's own transits", Math.abs(acousticTransits(flow(50), materialsPlan(duct.domains, flow(50).materials), duct).suggested * cWater / 1 - 75) < 8);
 }
 
 // ── the study ──
@@ -170,6 +178,7 @@ const box = (flag, name, zMin, zMax, extra = {}) => ({ flag, name, zMin, zMax, v
   const targets = { dim: 3, domains: [{ flag: 10, name: "Crust" }, { flag: 11, name: "Chamber", void: true }], faces: [{ flag: 2, name: "base" }, { flag: 4, name: "chamber wall" }] };
   const params = sweepParameters(setup, targets);
   check("sweep: a material's properties and a set condition's numbers are the parameters, not a void or a fixed face", params.map((p) => p.key).join() === "mat:10:rho,mat:10:E,mat:10:nu,bc:4:p" && params.find((p) => p.key === "bc:4:p").base === 1e7 && params.find((p) => p.key === "mat:10:E").base === 60e9);
+  check("sweep: a condition's one value is named once ('chamber wall — Pressure (Pa)'), not 'Pressure on the face Pressure (Pa)'", params.find((p) => p.key === "bc:4:p").label === "chamber wall — Pressure (Pa)", params.find((p) => p.key === "bc:4:p").label);
   check("sweep values: linear ends exactly on its ends", sweepValues({ from: 5e6, to: 2e7, count: 4 }).values.join() === "5000000,10000000,15000000,20000000");
   check("sweep values: log by equal ratios", sweepValues({ from: 1e9, to: 1e11, count: 3, scale: "log" }).values.join() === "1000000000,10000000000,100000000000");
   check("sweep values: a typed list, and refusals said in words", sweepValues({ mode: "list", text: "1, 2.5;4" }).values.join() === "1,2.5,4" && /numbers/.test(sweepValues({ mode: "list", text: "1, x" }).error) && /above zero/.test(sweepValues({ from: 0, to: 1, scale: "log" }).error) && /2 and 50/.test(sweepValues({ from: 0, to: 1, count: 1 }).error));

@@ -282,6 +282,18 @@
       display: none;
     }
 
+/* The open tab's head stays put while its body scrolls -- the rule Earth's
+   styles.css states beside its #ui-scroll-body, here for the nine planets.
+   The id outranks each planet's own `.control-section { overflow: hidden }`,
+   which would otherwise make the tab its own scroll container and the head
+   stick to nothing. */
+#ui-scroll-body .toolbox-group[open] { overflow: visible; }
+#ui-scroll-body .toolbox-group[open] > .section-toggle {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+
 .toolbox-group > .section-toggle .section-title {
       letter-spacing: 0.1em;
       text-transform: uppercase;
@@ -1525,8 +1537,9 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
 .layer-dock-body {
       padding: 0.45rem 0.65rem 0.55rem;
       /* Grows with what is loaded, then scrolls rather than climbing into the
-         panel's space. */
-      max-height: min(42vh, 20rem);
+         panel's space. 30vh, not 42 -- see the same rule in Earth's
+         styles.css: the tab column shares the height with this box. */
+      max-height: min(30vh, 20rem);
       overflow-y: auto;
       scrollbar-width: thin;
       scrollbar-color: rgba(151, 182, 194, 0.32) transparent;
@@ -2398,7 +2411,7 @@ html.gis-arranging #layer-dock {
   min-height: 0;
   /* Grows with the model, then scrolls -- the Workspace's own cap -- rather
      than climbing into the deck's column. */
-  max-height: min(42vh, 20rem);
+  max-height: min(30vh, 20rem);
   overflow-y: auto;
   padding: 0.45rem 0.55rem 0.55rem;
 }
