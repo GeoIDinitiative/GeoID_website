@@ -30,15 +30,15 @@ import {
   exposedFaces, thresholdKeep, keptTriangles,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
   groupResultFiles, timeOf, referencePlan, differenceOf, DERIVED_DOFS,
-} from "./gales-results.js?v=20260915-80c9928";
-import { zipStore } from "./shapefile-writer.js?v=20260915-80c9928";
-import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-80c9928";
-import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-80c9928";
-import { parseSolidProps } from "./strain-stress.js?v=20260915-80c9928";
-import { vtkHead, readVtkGrid, parsePvd, vtkFieldName } from "./vtk-read.js?v=20260915-80c9928";
-import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-80c9928";
-import { may, refusal } from "./membership.js?v=20260915-80c9928";
-import { downloadText } from "./extraction.js?v=20260915-80c9928";
+} from "./gales-results.js?v=20260915-0e63adf";
+import { zipStore } from "./shapefile-writer.js?v=20260915-0e63adf";
+import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-0e63adf";
+import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-0e63adf";
+import { parseSolidProps } from "./strain-stress.js?v=20260915-0e63adf";
+import { vtkHead, readVtkGrid, parsePvd, vtkFieldName } from "./vtk-read.js?v=20260915-0e63adf";
+import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-0e63adf";
+import { may, refusal } from "./membership.js?v=20260915-0e63adf";
+import { downloadText } from "./extraction.js?v=20260915-0e63adf";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -3103,6 +3103,11 @@ if (typeof document !== "undefined" && typeof window !== "undefined" && typeof w
     applyState: (state) => applyResultsState(state),
     addCalculated: (name, expr, options) => addCalculated(name, expr, options),
     // Probe a node by number (the spreadsheet's rows).
+    // The results toolbar in the ribbon is a second face of the panel's sections.
+    renderControls: () => renderControls(),
+    play: () => startPlay(),
+    stop: () => stopPlay(),
+    colormaps: () => COLORMAPS,
     addTemporal: (options) => addTemporal(options),
     addGradient: (options) => addGradient(options),
     probeNode: (node) => {

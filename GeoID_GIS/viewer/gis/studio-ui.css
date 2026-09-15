@@ -558,3 +558,16 @@
 #model-studio .studio-launch-step b { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--nav-accent, #ff2bd6); }
 #model-studio .studio-launch-step span { font-size: 0.68rem; opacity: 0.75; line-height: 1.35; }
 #model-studio .studio-launch-arrow { align-self: center; opacity: 0.5; }
+
+/* ── The results toolbar: field, component, time and colour map, under the ribbon ── */
+#model-studio .studio-results-bar { margin-top: 0.3rem; justify-content: flex-start; gap: 0.3rem; }
+#model-studio .studio-results-bar[hidden] { display: none !important; }
+#model-studio .studio-results-bar.is-folded { display: none !important; }
+#model-studio .studio-results-bar .studio-select { max-width: 15rem; }
+#model-studio .studio-rbar-transport { display: inline-flex; gap: 0.15rem; }
+#model-studio .studio-rbar-transport .studio-btn { padding-inline: 0.42rem; }
+#model-studio .studio-rbar-step { width: 10rem; accent-color: var(--nav-accent, #ff2bd6); }
+#model-studio .studio-rbar-readout { font-variant-numeric: tabular-nums; font-size: 0.7rem; opacity: 0.85; white-space: nowrap; min-width: 8rem; }
+/* The topbar wraps so the results bar takes a row of its own under the ribbon. */
+#model-studio .studio-topbar { flex-wrap: wrap; }
+#model-studio .studio-results-bar { flex: 1 0 100%; }

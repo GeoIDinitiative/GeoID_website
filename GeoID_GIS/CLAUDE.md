@@ -20940,3 +20940,18 @@ builds nothing itself. It goes the moment a solid or a run arrives (polled at
 1.5 s and on `geoid-gales:refreshed`), and ✕ stands it down for the session.
 Placed in the room right of the 24rem deck, centred there, never over it
 (measured: 492 px against the deck's 400 on a 1,273 px viewport).
+
+## The results toolbar: field, component, time and colour in the ribbon's second row
+
+`gis/results-toolbar.js` puts the things changed a hundred times a session —
+the field, the component drawn, the transport and step slider with its readout,
+the colour map, reverse, and auto-range — in a row under the ribbon while a run
+is open (ParaView's arrangement). It is a SECOND FACE of the panel's "Field and
+time" and "Colour map" sections, not a second implementation: every control
+writes `GeoIDGalesResults.state` and calls the panel's own `refresh`, and the
+panel re-renders its sections through `renderControls`, so the two cannot
+disagree; the bar is rebuilt only when what its selects list changes and
+otherwise synced in place on `geoid-gales:refreshed`. Keys while a run is open
+and nothing is being typed: `.`/`→` next step, `,`/`←` previous, Home/End,
+space plays. The topbar wraps and the bar takes a full-width basis, or it lands
+beside the ribbon and squeezes both.
