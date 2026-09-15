@@ -20794,7 +20794,7 @@ same count three.js's own `Vector3.project` gives; over time the mean |u| went
 0 → 15.94 m; a real mouse drag over the summit selected 17,683 nodes in 14 ms,
 mean 76.1 m, with the orbit restored afterwards.
 
-## Results opens VTK: ParaView's own .vtu and .pvd, from any solver
+## Results opens VTK: ParaView's own .vtu, .pvd and legacy .vtk, from any solver
 
 Every Results door (Open simulation folder, Open mesh file, a drop, the
 `openFolder` seam) now takes XML UnstructuredGrid `.vtu` files, one or a series,
@@ -20836,3 +20836,14 @@ Verified live with the fixtures' `.pvd` series (12 hexes, two steps): 36 nodes,
 "material"; displacement at node 17 read 0.2, 0, −0.2 at t = 2.5 (twice t = 0);
 the derived strain read ε_xx 0.01 and ε_zz −0.02 at every node; domain
 statistics of temperature gave 3,000 m³ each at means 302.5 and 307.5.
+
+**Legacy `.vtk` too** (`readLegacyVtk`): UNSTRUCTURED_GRID in ASCII or BINARY —
+and legacy binary is BIG-endian, unlike the XML files — in the 4.2 cell layout
+(a count before each cell's ids) or 5.1's OFFSETS (n + 1 START offsets, turned
+into VTU-style end offsets) and CONNECTIVITY; point and cell data from SCALARS
+(with its LOOKUP_TABLE line), VECTORS, NORMALS, TENSORS and FIELD blocks, which
+is what vtkUnstructuredGridWriter writes for arrays that are not the active
+scalars. LOOKUP_TABLE, COLOR_SCALARS, TEXTURE_COORDINATES and METADATA are read
+past. Verified against python-vtk's own ASCII 5.1, ASCII 4.2 and binary files:
+the binary file's cells equal the XML file's node for node, and it opens in
+Results with the same displacement at node 17.

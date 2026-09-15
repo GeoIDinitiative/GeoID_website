@@ -348,3 +348,142 @@ export function vtkFieldName(name, components) {
   if (components === 3 && /^(v|vel|velocity|velocities)$/i.test(name)) return `${safe}/v`;
   return safe;
 }
+
+// ── Legacy .vtk ─────────────────────────────────────────────────────────────
+
+const LEGACY_TYPES = {
+  bit: [Uint8Array, 1], unsigned_char: [Uint8Array, 1], char: [Int8Array, 1], unsigned_short: [Uint16Array, 2], short: [Int16Array, 2],
+  unsigned_int: [Uint32Array, 4], int: [Int32Array, 4], unsigned_long: [BigUint64Array, 8], long: [BigInt64Array, 8],
+  float: [Float32Array, 4], double: [Float64Array, 8], vtktypeint64: [BigInt64Array, 8], vtktypeuint64: [BigUint64Array, 8],
+  vtkidtype: [Int32Array, 4],
+};
+
+/** True when bytes start like a VTK XML file or a legacy .vtk file. */
+export function isVtkFile(bytes) {
+  const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  const head = latin1(u8, 0, Math.min(u8.length, 512));
+  return /<VTKFile\b/.test(head) || /^# vtk DataFile Version/.test(head);
+}
+
+/**
+ * A legacy .vtk UNSTRUCTURED_GRID, ASCII or BINARY (big-endian), in the 4.2
+ * cell layout (count, ids…) or 5.1's OFFSETS and CONNECTIVITY. Point and cell
+ * data from SCALARS, VECTORS, NORMALS, TENSORS and FIELD blocks. Answers the
+ * same shape as readVtu, so a legacy file is a mesh and a series like any other.
+ */
+export function readLegacyVtk(bytes) {
+  const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  let at = 0;
+  const line = () => {
+    let end = at;
+    while (end < u8.length && u8[end] !== 10) end += 1;
+    const text = latin1(u8, at, end).replace(/\r$/, "");
+    at = Math.min(u8.length, end + 1);
+    return text;
+  };
+  const nextLine = () => { for (;;) { if (at >= u8.length) return null; const l = line().trim(); if (l) return l; } };
+  const version = /Version\s+([\d.]+)/.exec(line())?.[1];
+  if (!version) throw new Error("Not a legacy VTK file (no \"# vtk DataFile Version\").");
+  line(); // title
+  const mode = (nextLine() || "").toUpperCase();
+  if (mode !== "ASCII" && mode !== "BINARY") throw new Error(`A legacy VTK file is ASCII or BINARY, not "${mode}".`);
+  const binary = mode === "BINARY";
+  const dataset = nextLine() || "";
+  if (!/DATASET\s+UNSTRUCTURED_GRID/i.test(dataset)) throw new Error(`${dataset.replace(/^DATASET\s+/i, "") || "This dataset"} is not an unstructured grid: save it as one in ParaView.`);
+  const values = (count, type) => {
+    const def = LEGACY_TYPES[String(type).toLowerCase()];
+    if (!def) throw new Error(`Legacy VTK type ${type} is not read here.`);
+    const [Ctor, size] = def;
+    const out = new Float64Array(count);
+    if (binary) {
+      const dv = new DataView(u8.buffer, u8.byteOffset + at, count * size);
+      for (let i = 0; i < count; i += 1) {
+        const o = i * size;
+        out[i] = Ctor === Float64Array ? dv.getFloat64(o) : Ctor === Float32Array ? dv.getFloat32(o) : Ctor === Int32Array ? dv.getInt32(o) : Ctor === Uint32Array ? dv.getUint32(o)
+          : Ctor === Int16Array ? dv.getInt16(o) : Ctor === Uint16Array ? dv.getUint16(o) : Ctor === Int8Array ? dv.getInt8(o) : Ctor === Uint8Array ? dv.getUint8(o)
+            : Ctor === BigInt64Array ? Number(dv.getBigInt64(o)) : Number(dv.getBigUint64(o));
+      }
+      at += count * size;
+      if (u8[at] === 10) at += 1;
+      return out;
+    }
+    let k = 0;
+    while (k < count) {
+      // Skip whitespace, then read one token.
+      while (at < u8.length && (u8[at] === 32 || u8[at] === 10 || u8[at] === 13 || u8[at] === 9)) at += 1;
+      if (at >= u8.length) throw new Error(`The file ends ${count - k} values short.`);
+      let end = at;
+      while (end < u8.length && u8[end] !== 32 && u8[end] !== 10 && u8[end] !== 13 && u8[end] !== 9) end += 1;
+      const tok = latin1(u8, at, end);
+      at = end;
+      const v = Number(tok);
+      out[k] = Number.isNaN(v) ? (/^-inf/i.test(tok) ? -Infinity : /^\+?inf/i.test(tok) ? Infinity : NaN) : v;
+      k += 1;
+    }
+    return out;
+  };
+  let points = null; let connectivity = null; let offsets = null; let types = null;
+  const pointData = []; const cellData = [];
+  let target = null; let nTarget = 0;
+  const push = (name, components, vals, type) => {
+    if (!target) return;
+    if (target === pointData) pointData.push({ name, components, values: vals });
+    else if (components === 1) cellData.push({ name, type: /int|short|char|long|bit/i.test(type) ? "Int32" : "Float64", values: vals });
+  };
+  for (let l = nextLine(); l !== null; l = nextLine()) {
+    const w = l.split(/\s+/);
+    const key = w[0].toUpperCase();
+    if (key === "POINTS") points = values(Number(w[1]) * 3, w[2]);
+    else if (key === "CELLS") {
+      const n = Number(w[1]); const size = Number(w[2]);
+      if (Number(version) >= 5) {
+        const o = nextLine().split(/\s+/); const starts = values(n, o[1]);
+        const c = nextLine().split(/\s+/); connectivity = values(size, c[1]);
+        offsets = starts.subarray(1);
+      } else {
+        const raw = values(size, "int");
+        const ends = []; const conn = [];
+        let p = 0;
+        while (p < raw.length) { const k = raw[p]; for (let j = 1; j <= k; j += 1) conn.push(raw[p + j]); ends.push(conn.length); p += k + 1; }
+        connectivity = Float64Array.from(conn); offsets = Float64Array.from(ends);
+      }
+    } else if (key === "CELL_TYPES") types = Uint8Array.from(values(Number(w[1]), "int"));
+    else if (key === "POINT_DATA") { target = pointData; nTarget = Number(w[1]); } else if (key === "CELL_DATA") { target = cellData; nTarget = Number(w[1]); } else if (key === "SCALARS") {
+      const comps = Number(w[3] || 1);
+      const lut = nextLine();
+      if (!/^LOOKUP_TABLE/i.test(lut)) throw new Error("SCALARS without a LOOKUP_TABLE line.");
+      push(w[1], comps, values(nTarget * comps, w[2]), w[2]);
+    } else if (key === "VECTORS" || key === "NORMALS") push(w[1], 3, values(nTarget * 3, w[2]), w[2]);
+    else if (key === "TENSORS") push(w[1], 9, values(nTarget * 9, w[2]), w[2]);
+    else if (key === "FIELD") {
+      const count = Number(w[2]);
+      for (let a = 0; a < count; a += 1) {
+        const h = nextLine().split(/\s+/);
+        if (h[0] === "NULL_ARRAY") continue;
+        const comps = Number(h[1]); const tuples = Number(h[2]);
+        const vals = values(comps * tuples, h[3]);
+        if (tuples === nTarget) push(h[0], comps, vals, h[3]);
+      }
+    } else if (key === "LOOKUP_TABLE") values(Number(w[2]) * 4, binary ? "unsigned_char" : "float");
+    else if (key === "COLOR_SCALARS") values(nTarget * Number(w[2]), binary ? "unsigned_char" : "float");
+    else if (key === "TEXTURE_COORDINATES") values(nTarget * Number(w[2]), w[3]);
+    else if (key === "METADATA") { for (let m = line(); at < u8.length && m.trim() !== ""; m = line()); } else if (key === "FIELD_DATA" || key === "DATASET") { /* nothing to read */ } else throw new Error(`Legacy VTK keyword ${w[0]} is not read here.`);
+  }
+  if (!points || !connectivity || !types) throw new Error("The grid needs POINTS, CELLS and CELL_TYPES.");
+  return { head: { legacy: true, points: points.length / 3, cells: types.length, pieces: 1, pointData: pointData.map((a) => ({ name: a.name, components: a.components })), cellData: cellData.map((a) => ({ name: a.name })) }, points, connectivity, offsets, types, pointData, cellData };
+}
+
+/** Either VTK flavour's head: the point count and the point arrays, for listing a series. */
+export async function vtkHead(bytes) {
+  const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  if (isVtkXml(u8)) return vtuHead(u8);
+  return readLegacyVtk(u8).head;
+}
+
+/** Either flavour read as a grid; point arrays by name on request. */
+export async function readVtkGrid(bytes, { pointData = [], cellData = true } = {}) {
+  const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  if (isVtkXml(u8)) return readVtu(u8, { pointData, cellData });
+  const g = readLegacyVtk(u8);
+  return { ...g, pointData: pointData === true ? g.pointData : g.pointData.filter((a) => pointData.includes(a.name)), cellData: cellData ? g.cellData : [] };
+}

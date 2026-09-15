@@ -1469,8 +1469,8 @@ export function planSimulation(entries, setupText = "", { meshes: chosen = [], l
   const named = new Set();
   for (const m of String(setupText).matchAll(/^\s*(solid_mesh_file|fluid_mesh_file|mesh_file)\s+(\S+)/gm)) named.add(m[2]);
   const meshes = entries
-    .filter((e) => /\.(txt|msh|vtu)$/i.test(e.path) && !/(^|\/)results\//.test(e.path))
-    .filter((e) => chosen.includes(e.path) || /\.(msh|vtu)$/i.test(e.path) || /(^|\/)mesh[^/]*\.txt$/i.test(e.path))
+    .filter((e) => /\.(txt|msh|vtu|vtk)$/i.test(e.path) && !/(^|\/)results\//.test(e.path))
+    .filter((e) => chosen.includes(e.path) || /\.(msh|vtu|vtk)$/i.test(e.path) || /(^|\/)mesh[^/]*\.txt$/i.test(e.path))
     .map((e) => ({ ...e, name: e.path.split("/").pop() }))
     .sort((a, b) => {
       // A mesh the reader opened by hand comes first: it is the one they meant.

@@ -18,12 +18,12 @@
  *   { id, type: "vtu", part, pointData, time } → { id, ok, blob, bytes, cells } (vtk-export.js; a Blob clones without copying)
  *   progress while parsing                 → { id, type: "progress", fraction }
  */
-import { readVtu, vtkCellsToRawMesh, isVtkXml } from "./vtk-read.js?v=20260915-fd4006f";
-import { parseMesh, meshFromRaw, sliceTets, isoTets, cellLocator, locatePoints, streamlines, domainStats, exposedFaces, thresholdKeep, keptTriangles } from "./gales-results.js?v=20260915-fd4006f";
-import { analyseMesh } from "./mesh-quality.js?v=20260915-fd4006f";
-import { derivedFields, materialAt } from "./strain-stress.js?v=20260915-fd4006f";
-import { parseTable, buildGrid, sampleGrid } from "./tomography.js?v=20260915-fd4006f";
-import { vtkCells, vtuParts } from "./vtk-export.js?v=20260915-fd4006f";
+import { readVtkGrid, vtkCellsToRawMesh, isVtkFile } from "./vtk-read.js?v=20260915-e0420cc";
+import { parseMesh, meshFromRaw, sliceTets, isoTets, cellLocator, locatePoints, streamlines, domainStats, exposedFaces, thresholdKeep, keptTriangles } from "./gales-results.js?v=20260915-e0420cc";
+import { analyseMesh } from "./mesh-quality.js?v=20260915-e0420cc";
+import { derivedFields, materialAt } from "./strain-stress.js?v=20260915-e0420cc";
+import { parseTable, buildGrid, sampleGrid } from "./tomography.js?v=20260915-e0420cc";
+import { vtkCells, vtuParts } from "./vtk-export.js?v=20260915-e0420cc";
 
 let mesh = null;
 let locator = null; // built on the first locate, dropped with the mesh
@@ -43,9 +43,9 @@ async function handle(event) {
       const bytes = new Uint8Array(event.data.buffer);
       let vtkNote = null;
       let parsed;
-      if (isVtkXml(bytes)) {
+      if (isVtkFile(bytes)) {
         // A VTK grid: its cells reduced to linear simplices, its flag array as the domains.
-        const grid = await readVtu(bytes, { pointData: [], cellData: true });
+        const grid = await readVtkGrid(bytes, { pointData: [], cellData: true });
         const made = vtkCellsToRawMesh(grid);
         parsed = meshFromRaw(made.raw);
         vtkNote = { counts: made.counts, flagArray: made.flagArray };

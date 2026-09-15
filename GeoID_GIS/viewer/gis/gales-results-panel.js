@@ -30,15 +30,15 @@ import {
   exposedFaces, thresholdKeep, keptTriangles,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
   groupResultFiles, timeOf, referencePlan, differenceOf, DERIVED_DOFS,
-} from "./gales-results.js?v=20260915-fd4006f";
-import { zipStore } from "./shapefile-writer.js?v=20260915-fd4006f";
-import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-fd4006f";
-import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-fd4006f";
-import { parseSolidProps } from "./strain-stress.js?v=20260915-fd4006f";
-import { vtuHead, readVtu, parsePvd, vtkFieldName } from "./vtk-read.js?v=20260915-fd4006f";
-import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-fd4006f";
-import { may, refusal } from "./membership.js?v=20260915-fd4006f";
-import { downloadText } from "./extraction.js?v=20260915-fd4006f";
+} from "./gales-results.js?v=20260915-e0420cc";
+import { zipStore } from "./shapefile-writer.js?v=20260915-e0420cc";
+import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-e0420cc";
+import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-e0420cc";
+import { parseSolidProps } from "./strain-stress.js?v=20260915-e0420cc";
+import { vtkHead, readVtkGrid, parsePvd, vtkFieldName } from "./vtk-read.js?v=20260915-e0420cc";
+import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-e0420cc";
+import { may, refusal } from "./membership.js?v=20260915-e0420cc";
+import { downloadText } from "./extraction.js?v=20260915-e0420cc";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -208,7 +208,7 @@ function folderSource(fileList) {
   };
 }
 
-const isVtkFile = (file) => /\.(vtu|pvd)$/i.test(file?.name || "");
+const isVtkFile = (file) => /\.(vtu|vtk|pvd)$/i.test(file?.name || "");
 
 /**
  * A VTK time series as a run: the first .vtu is the mesh (input/<name>), and
@@ -227,15 +227,15 @@ async function vtkSource(fileList) {
     const missing = sets.filter((d, k) => !steps[k].file).map((d) => d.file);
     if (missing.length) throw new Error(`${pvd.name} names ${missing.length} file${missing.length > 1 ? "s" : ""} that were not picked (${missing.slice(0, 3).join(", ")}): pick the folder, or the .pvd with its .vtu files.`);
   } else {
-    const vtus = list.filter((f) => /\.vtu$/i.test(f.name));
-    const numberIn = (name) => { const m = /(-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)(?!.*\d)/.exec(name.replace(/\.vtu$/i, "")); return m ? Number(m[1]) : null; };
+    const vtus = list.filter((f) => /\.(vtu|vtk)$/i.test(f.name));
+    const numberIn = (name) => { const m = /(-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)(?!.*\d)/.exec(name.replace(/\.(vtu|vtk)$/i, "")); return m ? Number(m[1]) : null; };
     steps = vtus.map((file, k) => ({ time: numberIn(file.name), file, k }));
     const distinct = new Set(steps.map((x) => x.time)).size === steps.length && steps.every((x) => x.time !== null);
     steps = steps.map((x) => ({ time: distinct ? x.time : x.k, file: x.file })).sort((a, b) => a.time - b.time);
   }
-  if (!steps.length) throw new Error("No .vtu files to open.");
+  if (!steps.length) throw new Error("No .vtu or .vtk files to open.");
   const first = steps[0].file;
-  const head = vtuHead(new Uint8Array(await first.arrayBuffer()));
+  const head = await vtkHead(new Uint8Array(await first.arrayBuffer()));
   if (head.pieces > 1) throw new Error(`${first.name} holds ${head.pieces} pieces: merge them in ParaView (Merge Blocks) and save one .vtu.`);
   const arrays = head.pointData.filter((a) => a.name);
   const timeName = (t) => String(Number(t.toPrecision(12)));
@@ -250,7 +250,7 @@ async function vtkSource(fileList) {
     const st = m && steps.find((x) => timeName(x.time) === m[2]);
     if (!a || !st) throw new Error(`${path} is not in this VTK series.`);
     if (decoded.has(path)) return decoded.get(path).slice(0);
-    const grid = await readVtu(new Uint8Array(await st.file.arrayBuffer()), { pointData: [a.name], cellData: false });
+    const grid = await readVtkGrid(new Uint8Array(await st.file.arrayBuffer()), { pointData: [a.name], cellData: false });
     const got = grid.pointData[0];
     if (!got) throw new Error(`${st.file.name} has no point array ${a.name}.`);
     const buffer = got.values.buffer.slice(got.values.byteOffset, got.values.byteOffset + got.values.byteLength);
@@ -260,7 +260,7 @@ async function vtkSource(fileList) {
   };
   return {
     label: (pvd || first).name,
-    vtk: { steps: steps.length, arrays: arrays.map((a) => `${a.name} (${a.components})`), cellArrays: head.cellData.map((a) => a.name), points: head.points },
+    vtk: { steps: steps.length, arrays: arrays.map((a) => `${a.name} (${a.components})`), cellArrays: (head.cellData || []).map((a) => a.name), points: head.points },
     entries,
     read,
     readRange: async (path, start, end) => (await read(path)).slice(start, end),
@@ -1941,7 +1941,7 @@ function renderControls() {
     input.addEventListener("change", () => { const files = [...(input.files || [])]; input.value = ""; if (files.some(isVtkFile)) openVtk(files); else addFiles(files, kind); });
     return input;
   };
-  const meshInput = picker({ accept: ".txt,.msh,.vtu,.pvd" }, "mesh");
+  const meshInput = picker({ accept: ".txt,.msh,.vtu,.vtk,.pvd" }, "mesh");
   const resultsDir = picker({ webkitdirectory: true, directory: true }, "results");
   const resultsFiles = picker({}, "results");
   const door = (label, title, input) => {
@@ -1950,7 +1950,7 @@ function renderControls() {
     return b;
   };
   const doors = el("div", { class: "studio-actions gales-doors" },
-    door("Open mesh file…", "A GALES text mesh (mesh_*core.txt) or a gmsh .msh on its own — or VTK: one or more .vtu files, or a .pvd with its .vtu files, opened with every point array as a field", meshInput),
+    door("Open mesh file…", "A GALES text mesh (mesh_*core.txt) or a gmsh .msh on its own — or VTK: one or more .vtu or legacy .vtk files, or a .pvd with its .vtu files, opened with every point array as a field", meshInput),
     door("Add results folder…", "Binary dof steps: a results/ folder, results/solid, or one field's folder such as u", resultsDir),
     door("Add result files…", "Step files picked one by one (0, 1, 2…): they are the field named below", resultsFiles),
   );
@@ -1967,7 +1967,7 @@ function renderControls() {
     event.preventDefault();
     drop.classList.remove("is-over");
     const files = await droppedFiles(event.dataTransfer).catch(() => [...(event.dataTransfer.files || [])]);
-    if (files.some(isVtkFile)) { openVtk(files.filter((f) => /\.(vtu|pvd)$/i.test(f.name))); return; }
+    if (files.some(isVtkFile)) { openVtk(files.filter((f) => /\.(vtu|vtk|pvd)$/i.test(f.name))); return; }
     const roots = new Set(files.map((f) => relPath(f).split("/")[0]));
     const wholeRun = roots.size === 1 && files.some((f) => /(^|\/)results\//.test(relPath(f))) && files.some(isMeshFile);
     if (wholeRun && !S.source) openSource(folderSource(files));

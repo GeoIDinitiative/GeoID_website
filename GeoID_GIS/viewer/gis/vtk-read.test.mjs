@@ -87,6 +87,27 @@ check("refusals say what to do: a PolyData is not an unstructured grid", /not an
   const panel = readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8");
   const results = readFileSync(new URL("./gales-results.js", import.meta.url), "utf8");
   check("wiring: the reader worker reads a VTK grid as a mesh, the plan counts a .vtu as a mesh, and every door opens VTK",
-    /if \(isVtkXml\(bytes\)\)/.test(worker) && /meshFromRaw\(made\.raw\)/.test(worker) && /\\\.\(txt\|msh\|vtu\)\$/.test(results) &&
-    /openFolder: \(files\) => \(\[\.\.\.files\]\.some\(isVtkFile\)/.test(panel) && /accept: "\.txt,\.msh,\.vtu,\.pvd"/.test(panel) && /files\.some\(isVtkFile\)\) \{ openVtk/.test(panel));
+    /if \(isVtkFile\(bytes\)\)/.test(worker) && /meshFromRaw\(made\.raw\)/.test(worker) && /\\\.\(txt\|msh\|vtu\|vtk\)\$/.test(results) &&
+    /openFolder: \(files\) => \(\[\.\.\.files\]\.some\(isVtkFile\)/.test(panel) && /accept: "\.txt,\.msh,\.vtu,\.vtk,\.pvd"/.test(panel) && /files\.some\(isVtkFile\)\) \{ openVtk/.test(panel));
+}
+
+{
+  const { readLegacyVtk, readVtkGrid, isVtkFile } = await import("./vtk-read.js");
+  for (const name of ["legacy_ascii.vtk", "legacy_binary.vtk", "legacy_ascii_42.vtk"]) {
+    const bytes = fixture(name);
+    const g = await readVtkGrid(bytes, { pointData: true });
+    const d = g.pointData.find((a) => a.name === "displacement")?.values;
+    const t = g.pointData.find((a) => a.name === "temperature")?.values;
+    const mat = g.cellData.find((a) => a.name === "material");
+    const ok = isVtkFile(bytes) && g.points.length === 108 && g.types.length === 12 && g.offsets.length === 12 && g.offsets[11] === 96 && g.connectivity.length === 96 &&
+      [...Array(36).keys()].every((i) => Math.abs(d[i * 3] - 0.02 * g.points[i * 3]) < 1e-12 && Math.abs(d[i * 3 + 2] + 0.04 * g.points[i * 3 + 2]) < 1e-12 && Math.abs(t[i] - (300 + g.points[i * 3 + 2])) < 1e-12) &&
+      mat && [...mat.values].join() === "1,1,1,1,1,1,2,2,2,2,2,2";
+    check(`legacy ${name}: points, 12 hexes, the doubled displacement, temperature and material`, ok);
+  }
+  const g = await readVtkGrid(fixture("legacy_binary.vtk"), {});
+  const xml = await readVtkGrid(fixture("s_1.vtu"), {});
+  check("legacy: the binary file's cells are the XML file's cells, node for node", [...g.connectivity].join() === [...xml.connectivity].join() && [...g.offsets].join() === [...xml.offsets].join());
+  let refused = "";
+  try { readLegacyVtk(new TextEncoder().encode("# vtk DataFile Version 3.0\nt\nASCII\nDATASET STRUCTURED_POINTS\n")); } catch (e) { refused = e.message; }
+  check("legacy: a structured dataset is refused by name", /STRUCTURED_POINTS is not an unstructured grid/.test(refused));
 }

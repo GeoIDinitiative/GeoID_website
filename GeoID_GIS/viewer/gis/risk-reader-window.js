@@ -22,12 +22,12 @@
  * readable layer's drawer. Hazards ▸ Exposure reads through the same engine.
  */
 
-import { riskMapKind, riskMaps, assessLayer, hazardKey, hazardTitle, readableMember, chooseFollowed, FOLLOW_REASONS, ringsBox } from "./risk-reader.js?v=20260915-fd4006f";
-import { renderAssessment, annotationOf, el } from "./risk-reader-view.js?v=20260915-fd4006f";
-import { refreshPolygonOptions, promptDrawTool } from "./extent-picker.js?v=20260915-fd4006f";
-import { showAnnotation, removeAnnotation } from "./exposure-annotation.js?v=20260915-fd4006f";
-import { formatCount } from "./risk-assessment.js?v=20260915-fd4006f";
-import { visibleBounds, onViewSettled } from "./view-extent.js?v=20260915-fd4006f";
+import { riskMapKind, riskMaps, assessLayer, hazardKey, hazardTitle, readableMember, chooseFollowed, FOLLOW_REASONS, ringsBox } from "./risk-reader.js?v=20260915-e0420cc";
+import { renderAssessment, annotationOf, el } from "./risk-reader-view.js?v=20260915-e0420cc";
+import { refreshPolygonOptions, promptDrawTool } from "./extent-picker.js?v=20260915-e0420cc";
+import { showAnnotation, removeAnnotation } from "./exposure-annotation.js?v=20260915-e0420cc";
+import { formatCount } from "./risk-assessment.js?v=20260915-e0420cc";
+import { visibleBounds, onViewSettled } from "./view-extent.js?v=20260915-e0420cc";
 
 const NOTE_ID = "risk-reader";
 const POS_KEY = "geoid-gis:risk-reader-pos";
