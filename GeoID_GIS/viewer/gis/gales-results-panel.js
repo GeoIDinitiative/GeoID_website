@@ -30,14 +30,15 @@ import {
   exposedFaces, thresholdKeep, keptTriangles,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
   groupResultFiles, timeOf, referencePlan, differenceOf, DERIVED_DOFS,
-} from "./gales-results.js?v=20260915-1257e0b";
-import { zipStore } from "./shapefile-writer.js?v=20260915-1257e0b";
-import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-1257e0b";
-import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-1257e0b";
-import { parseSolidProps } from "./strain-stress.js?v=20260915-1257e0b";
-import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-1257e0b";
-import { may, refusal } from "./membership.js?v=20260915-1257e0b";
-import { downloadText } from "./extraction.js?v=20260915-1257e0b";
+} from "./gales-results.js?v=20260915-fd4006f";
+import { zipStore } from "./shapefile-writer.js?v=20260915-fd4006f";
+import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-fd4006f";
+import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-fd4006f";
+import { parseSolidProps } from "./strain-stress.js?v=20260915-fd4006f";
+import { vtuHead, readVtu, parsePvd, vtkFieldName } from "./vtk-read.js?v=20260915-fd4006f";
+import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-fd4006f";
+import { may, refusal } from "./membership.js?v=20260915-fd4006f";
+import { downloadText } from "./extraction.js?v=20260915-fd4006f";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -205,6 +206,75 @@ function folderSource(fileList) {
     readRange: async (path, start, end) => files.get(path).slice(start, end).arrayBuffer(),
     text: async (path) => files.get(path).text(),
   };
+}
+
+const isVtkFile = (file) => /\.(vtu|pvd)$/i.test(file?.name || "");
+
+/**
+ * A VTK time series as a run: the first .vtu is the mesh (input/<name>), and
+ * each point-data array of each step is a field step (results/<field>/<time>)
+ * decoded from its own .vtu when read. The steps come from a .pvd's
+ * timesteps, else from the number in each file's name, else their order.
+ */
+async function vtkSource(fileList) {
+  const list = [...fileList];
+  const byName = new Map(list.map((f) => [f.name, f]));
+  const pvd = list.find((f) => /\.pvd$/i.test(f.name));
+  let steps;
+  if (pvd) {
+    const sets = parsePvd(await pvd.text());
+    steps = sets.map((d) => ({ time: d.time, file: byName.get(d.file.split("/").pop()) }));
+    const missing = sets.filter((d, k) => !steps[k].file).map((d) => d.file);
+    if (missing.length) throw new Error(`${pvd.name} names ${missing.length} file${missing.length > 1 ? "s" : ""} that were not picked (${missing.slice(0, 3).join(", ")}): pick the folder, or the .pvd with its .vtu files.`);
+  } else {
+    const vtus = list.filter((f) => /\.vtu$/i.test(f.name));
+    const numberIn = (name) => { const m = /(-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)(?!.*\d)/.exec(name.replace(/\.vtu$/i, "")); return m ? Number(m[1]) : null; };
+    steps = vtus.map((file, k) => ({ time: numberIn(file.name), file, k }));
+    const distinct = new Set(steps.map((x) => x.time)).size === steps.length && steps.every((x) => x.time !== null);
+    steps = steps.map((x) => ({ time: distinct ? x.time : x.k, file: x.file })).sort((a, b) => a.time - b.time);
+  }
+  if (!steps.length) throw new Error("No .vtu files to open.");
+  const first = steps[0].file;
+  const head = vtuHead(new Uint8Array(await first.arrayBuffer()));
+  if (head.pieces > 1) throw new Error(`${first.name} holds ${head.pieces} pieces: merge them in ParaView (Merge Blocks) and save one .vtu.`);
+  const arrays = head.pointData.filter((a) => a.name);
+  const timeName = (t) => String(Number(t.toPrecision(12)));
+  const fieldOf = new Map(arrays.map((a) => [vtkFieldName(a.name, a.components), a]));
+  const entries = [{ path: `input/${first.name}`, size: first.size }];
+  for (const [field, a] of fieldOf) for (const st of steps) entries.push({ path: `results/${field}/${timeName(st.time)}`, size: head.points * a.components * 8 });
+  const decoded = new Map();
+  const read = async (path) => {
+    if (path === `input/${first.name}`) return first.arrayBuffer();
+    const m = /^results\/(.+)\/([^/]+)$/.exec(path);
+    const a = m && fieldOf.get(m[1]);
+    const st = m && steps.find((x) => timeName(x.time) === m[2]);
+    if (!a || !st) throw new Error(`${path} is not in this VTK series.`);
+    if (decoded.has(path)) return decoded.get(path).slice(0);
+    const grid = await readVtu(new Uint8Array(await st.file.arrayBuffer()), { pointData: [a.name], cellData: false });
+    const got = grid.pointData[0];
+    if (!got) throw new Error(`${st.file.name} has no point array ${a.name}.`);
+    const buffer = got.values.buffer.slice(got.values.byteOffset, got.values.byteOffset + got.values.byteLength);
+    decoded.set(path, buffer);
+    while (decoded.size > 6) decoded.delete(decoded.keys().next().value);
+    return buffer.slice(0);
+  };
+  return {
+    label: (pvd || first).name,
+    vtk: { steps: steps.length, arrays: arrays.map((a) => `${a.name} (${a.components})`), cellArrays: head.cellData.map((a) => a.name), points: head.points },
+    entries,
+    read,
+    readRange: async (path, start, end) => (await read(path)).slice(start, end),
+    text: async () => "",
+  };
+}
+
+async function openVtk(fileList) {
+  try {
+    status("Reading the VTK files…");
+    await openSource(await vtkSource(fileList));
+  } catch (error) {
+    status(`Could not open the VTK files: ${error.message}`, true);
+  }
 }
 
 /** A run folder in the open project, walked for input/, results/ and setup.txt. */
@@ -462,7 +532,9 @@ async function loadMesh(path) {
     classifyFields();
     buildScene();
     const secs = ((performance.now() - started) / 1000).toFixed(1);
-    status(`${mesh.dim}D mesh: ${mesh.nodeCount.toLocaleString()} nodes, ${mesh.cellCount.toLocaleString()} elements, ${(mesh.surface.length / 3).toLocaleString()} boundary triangles${mesh.surfaceFrom === "derived" ? " (derived: the file has no sides)" : ""} — ${secs} s.`);
+    const vn = mesh.vtkNote;
+    const vtkSaid = vn ? ` VTK: ${Object.entries(vn.counts).filter(([k, v]) => v && k !== "skipped").map(([k, v]) => `${v.toLocaleString()} ${k}`).join(", ")} read as linear simplices${vn.counts.skipped ? `; ${vn.counts.skipped.toLocaleString()} line/vertex cells skipped` : ""}; domains from ${vn.flagArray ? `cell array "${vn.flagArray}"` : "no cell array (all 0)"}${source.vtk ? `; ${source.vtk.steps} step${source.vtk.steps > 1 ? "s" : ""}, point arrays ${source.vtk.arrays.join(", ") || "none"}` : ""}.` : "";
+    status(`${mesh.dim}D mesh: ${mesh.nodeCount.toLocaleString()} nodes, ${mesh.cellCount.toLocaleString()} elements, ${(mesh.surface.length / 3).toLocaleString()} boundary triangles${mesh.surfaceFrom === "derived" ? " (derived: the file has no sides)" : ""} — ${secs} s.${vtkSaid}`);
     openSection("field");
     const first = S.fields.findIndex((f) => f.ok);
     S.field = first;
@@ -1853,10 +1925,11 @@ function renderControls() {
   folderInput.setAttribute("directory", "");
   folderInput.multiple = true;
   folderInput.addEventListener("change", () => {
-    if (folderInput.files?.length) openSource(folderSource(folderInput.files));
+    if ([...(folderInput.files || [])].some(isVtkFile)) openVtk(folderInput.files);
+    else if (folderInput.files?.length) openSource(folderSource(folderInput.files));
   });
   const folderBtn = el("button", { class: "studio-primary", type: "button" }, "Open simulation folder…");
-  folderBtn.title = "A GALES run folder: input/ with the mesh, results/ with the binary fields, setup.txt";
+  folderBtn.title = "A GALES run folder (input/ with the mesh, results/ with the binary fields, setup.txt), or a folder of VTK .vtu files with or without a .pvd";
   folderBtn.addEventListener("click", () => folderInput.click());
   open.body.append(folderBtn, folderInput);
 
@@ -1865,10 +1938,10 @@ function renderControls() {
   const picker = (attrs, kind) => {
     const input = el("input", { type: "file", hidden: true, ...attrs });
     input.multiple = true;
-    input.addEventListener("change", () => { const files = [...(input.files || [])]; input.value = ""; addFiles(files, kind); });
+    input.addEventListener("change", () => { const files = [...(input.files || [])]; input.value = ""; if (files.some(isVtkFile)) openVtk(files); else addFiles(files, kind); });
     return input;
   };
-  const meshInput = picker({ accept: ".txt,.msh" }, "mesh");
+  const meshInput = picker({ accept: ".txt,.msh,.vtu,.pvd" }, "mesh");
   const resultsDir = picker({ webkitdirectory: true, directory: true }, "results");
   const resultsFiles = picker({}, "results");
   const door = (label, title, input) => {
@@ -1877,7 +1950,7 @@ function renderControls() {
     return b;
   };
   const doors = el("div", { class: "studio-actions gales-doors" },
-    door("Open mesh file…", "A GALES text mesh (mesh_*core.txt) or a gmsh .msh, on its own", meshInput),
+    door("Open mesh file…", "A GALES text mesh (mesh_*core.txt) or a gmsh .msh on its own — or VTK: one or more .vtu files, or a .pvd with its .vtu files, opened with every point array as a field", meshInput),
     door("Add results folder…", "Binary dof steps: a results/ folder, results/solid, or one field's folder such as u", resultsDir),
     door("Add result files…", "Step files picked one by one (0, 1, 2…): they are the field named below", resultsFiles),
   );
@@ -1894,6 +1967,7 @@ function renderControls() {
     event.preventDefault();
     drop.classList.remove("is-over");
     const files = await droppedFiles(event.dataTransfer).catch(() => [...(event.dataTransfer.files || [])]);
+    if (files.some(isVtkFile)) { openVtk(files.filter((f) => /\.(vtu|pvd)$/i.test(f.name))); return; }
     const roots = new Set(files.map((f) => relPath(f).split("/")[0]));
     const wholeRun = roots.size === 1 && files.some((f) => /(^|\/)results\//.test(relPath(f))) && files.some(isMeshFile);
     if (wholeRun && !S.source) openSource(folderSource(files));
@@ -2789,7 +2863,7 @@ if (typeof document !== "undefined" && typeof window !== "undefined" && typeof w
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();
   window.GeoIDGalesResults = {
-    openFolder: (files) => openSource(folderSource(files)),
+    openFolder: (files) => ([...files].some(isVtkFile) ? openVtk(files) : openSource(folderSource(files))),
     openProjectRun: async (dir) => openSource(await projectSource(dir)),
     state: S,
     refresh,

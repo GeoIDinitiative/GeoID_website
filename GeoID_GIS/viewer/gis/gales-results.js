@@ -436,6 +436,11 @@ export function parseMsh(input, { onProgress } = {}) {
   });
 }
 
+/** A mesh assembled elsewhere (a VTK grid reduced to simplices), finished as a parsed one is. */
+export function meshFromRaw(raw) {
+  return finishMesh({ ...raw });
+}
+
 /** Either format, by its first bytes. */
 export function parseMesh(input, options) {
   const kind = sniffMesh(input);
@@ -833,7 +838,7 @@ export function describeField(field, nbDofs, dim = 3) {
     const known = { rho: ["Density", "kg/m³"], E: ["Young's modulus", "Pa"], nu: ["Poisson's ratio", ""], cp: ["Specific heat", "J/(kg·K)"], kappa: ["Thermal conductivity", "W/(m·K)"], mu: ["Viscosity", "Pa·s"] };
     const [label, unit] = known[leaf] || [leaf, ""];
     out = { label, blocked: /sec_dofs/.test(f), components: nbDofs === 1 ? [{ key: leaf, label, unit }] : generic() };
-  } else out = { label: f, components: generic() };
+  } else out = { label: f, components: nbDofs === 1 ? [{ key: leaf.replace(/[^A-Za-z0-9_]/g, "_") || "value", label: leaf, unit: "" }] : generic() };
   out.field = f;
   out.nbDofs = nbDofs;
   if (out.components.length !== nbDofs) out.components = generic();
@@ -1464,8 +1469,8 @@ export function planSimulation(entries, setupText = "", { meshes: chosen = [], l
   const named = new Set();
   for (const m of String(setupText).matchAll(/^\s*(solid_mesh_file|fluid_mesh_file|mesh_file)\s+(\S+)/gm)) named.add(m[2]);
   const meshes = entries
-    .filter((e) => /\.(txt|msh)$/i.test(e.path) && !/(^|\/)results\//.test(e.path))
-    .filter((e) => chosen.includes(e.path) || /\.msh$/i.test(e.path) || /(^|\/)mesh[^/]*\.txt$/i.test(e.path))
+    .filter((e) => /\.(txt|msh|vtu)$/i.test(e.path) && !/(^|\/)results\//.test(e.path))
+    .filter((e) => chosen.includes(e.path) || /\.(msh|vtu)$/i.test(e.path) || /(^|\/)mesh[^/]*\.txt$/i.test(e.path))
     .map((e) => ({ ...e, name: e.path.split("/").pop() }))
     .sort((a, b) => {
       // A mesh the reader opened by hand comes first: it is the one they meant.

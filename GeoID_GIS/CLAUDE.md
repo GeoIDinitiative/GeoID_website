@@ -20793,3 +20793,46 @@ Verified on Etna: a centre box of ±0.1 in NDC selected 2,001 surface nodes, the
 same count three.js's own `Vector3.project` gives; over time the mean |u| went
 0 → 15.94 m; a real mouse drag over the summit selected 17,683 nodes in 14 ms,
 mean 76.1 m, with the orbit restored afterwards.
+
+## Results opens VTK: ParaView's own .vtu and .pvd, from any solver
+
+Every Results door (Open simulation folder, Open mesh file, a drop, the
+`openFolder` seam) now takes XML UnstructuredGrid `.vtu` files, one or a series,
+with or without a `.pvd`. `vtk-read.js` is the reader (pure, 16 checks against
+files python-vtk 9.2 wrote in all six encodings, kept in `fixtures/vtk/`); the
+reader worker builds the mesh from the first file; the panel's `vtkSource`
+presents the series as a run, so every view, filter, analysis and export works
+on it unchanged.
+
+- **Every encoding VTK writes**: ascii; inline base64 ("binary"); appended raw
+  or base64; uncompressed or zlib (`DecompressionStream("deflate")`, block by
+  block); UInt32 or UInt64 headers. No DOMParser (a worker has none): the head
+  is scanned up to `<AppendedData>` and the appended bytes read in place.
+- **A compressed array's header and data are SEPARATE base64 streams**
+  (`…==eF5…`). The header chunk's own padding says which; where the header is a
+  multiple of three bytes the two encodings coincide. And an inline DataArray can
+  carry `<InformationKey>` children after its data — its text stops at the first
+  `<`. Both are in the real writer's output and both broke a naive reader.
+- **Cells are reduced to linear simplices on their corner nodes**: a hex (and a
+  voxel, re-ordered) to 6 tets along its 0–6 diagonal, a wedge to 3, a pyramid to
+  2, quadratic cells to their corners; quads and polygons to triangles; 2D cells
+  in a 3D grid become flagged sides; lines and vertices are skipped and counted.
+  The status line says what was reduced. The 0–6 split is conforming on a
+  consistently ordered structured grid; an arbitrary hex mesh can leave hairline
+  cracks on a slice where neighbours split a shared face differently.
+- **Domains** come from a cell array named like a flag (gmsh:physical, material,
+  MaterialIds, region, block_id…), else the first integer cell array, else 0.
+- **Fields**: each point array is a field, each file a step (a `.pvd`'s
+  timesteps, else the number in the file name, else file order), decoded from its
+  own `.vtu` when read and cached six deep. A 3-component array named like a
+  displacement is read as `<name>/u` (magnitude, warp, derived strain), a
+  velocity as `<name>/v`; a single-component array is labelled by its own name.
+- **Refused by name**: PolyData and other dataset types, multi-piece files
+  (Merge Blocks in ParaView first), big-endian files, LZ4 and LZMA compression.
+  Cell data other than the flag array is not shown.
+
+Verified live with the fixtures' `.pvd` series (12 hexes, two steps): 36 nodes,
+72 tets, 64 boundary triangles (the block's 32 quad faces), domains 1 and 2 from
+"material"; displacement at node 17 read 0.2, 0, −0.2 at t = 2.5 (twice t = 0);
+the derived strain read ε_xx 0.01 and ε_zz −0.02 at every node; domain
+statistics of temperature gave 3,000 m³ each at means 302.5 and 307.5.

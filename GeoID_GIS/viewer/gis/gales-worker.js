@@ -18,11 +18,12 @@
  *   { id, type: "vtu", part, pointData, time } → { id, ok, blob, bytes, cells } (vtk-export.js; a Blob clones without copying)
  *   progress while parsing                 → { id, type: "progress", fraction }
  */
-import { parseMesh, sliceTets, isoTets, cellLocator, locatePoints, streamlines, domainStats, exposedFaces, thresholdKeep, keptTriangles } from "./gales-results.js?v=20260915-1257e0b";
-import { analyseMesh } from "./mesh-quality.js?v=20260915-1257e0b";
-import { derivedFields, materialAt } from "./strain-stress.js?v=20260915-1257e0b";
-import { parseTable, buildGrid, sampleGrid } from "./tomography.js?v=20260915-1257e0b";
-import { vtkCells, vtuParts } from "./vtk-export.js?v=20260915-1257e0b";
+import { readVtu, vtkCellsToRawMesh, isVtkXml } from "./vtk-read.js?v=20260915-fd4006f";
+import { parseMesh, meshFromRaw, sliceTets, isoTets, cellLocator, locatePoints, streamlines, domainStats, exposedFaces, thresholdKeep, keptTriangles } from "./gales-results.js?v=20260915-fd4006f";
+import { analyseMesh } from "./mesh-quality.js?v=20260915-fd4006f";
+import { derivedFields, materialAt } from "./strain-stress.js?v=20260915-fd4006f";
+import { parseTable, buildGrid, sampleGrid } from "./tomography.js?v=20260915-fd4006f";
+import { vtkCells, vtuParts } from "./vtk-export.js?v=20260915-fd4006f";
 
 let mesh = null;
 let locator = null; // built on the first locate, dropped with the mesh
@@ -39,9 +40,18 @@ async function handle(event) {
     if (type === "parse") {
       mesh = null;
       vtk = null;
-      const parsed = parseMesh(new Uint8Array(event.data.buffer), {
-        onProgress: (fraction) => reply({ id, type: "progress", fraction }),
-      });
+      const bytes = new Uint8Array(event.data.buffer);
+      let vtkNote = null;
+      let parsed;
+      if (isVtkXml(bytes)) {
+        // A VTK grid: its cells reduced to linear simplices, its flag array as the domains.
+        const grid = await readVtu(bytes, { pointData: [], cellData: true });
+        const made = vtkCellsToRawMesh(grid);
+        parsed = meshFromRaw(made.raw);
+        vtkNote = { counts: made.counts, flagArray: made.flagArray };
+      } else {
+        parsed = parseMesh(bytes, { onProgress: (fraction) => reply({ id, type: "progress", fraction }) });
+      }
       mesh = parsed;
       locator = null;
       const coords = parsed.coords.slice();
@@ -54,6 +64,7 @@ async function handle(event) {
         cellCount: parsed.cellCount, sideCount: parsed.sideCount, bounds: parsed.bounds,
         surfaceFrom: parsed.surfaceFrom, coords, surface, surfaceFlag, edges, nodeFlag,
         tets: countTets(parsed),
+        vtkNote,
         volumeFlags: volumeFlagCounts(parsed),
       };
       reply({ id, ok: true, mesh: out }, [coords.buffer, surface.buffer, surfaceFlag.buffer, ...(edges ? [edges.buffer] : []), ...(nodeFlag ? [nodeFlag.buffer] : [])]);
