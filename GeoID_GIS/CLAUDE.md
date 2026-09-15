@@ -20629,3 +20629,32 @@ are the pure half; the worker builds the skin because it holds the cells.
   vertices below 50 m (0.22 s). A blank bound is open, and the key ignores the
   field when only flags are used, so stepping does not rebuild a flag-only
   threshold.
+
+## The Calculator: new fields from expressions, parsed, never eval'd
+
+Results ▸ Calculator makes a field from an expression over the open fields,
+for example `sqrt(ux^2 + uy^2)`, `(stress.sxx - stress.szz) / 1e6` or
+`-z / 1000`. It joins the field list as `calc/<name>`, steps with the field it
+was made on, reads each named field at the matching time, and works in every
+view, analysis and export. `field-calculator.js` is the pure half (10
+checks).
+
+- **A parser, not eval.** A saved or shared expression is text somebody else
+  may have written. It is tokenised, parsed by recursive descent and compiled
+  to closures over typed arrays, and a pin asserts the panel has no
+  `eval(`/`new Function(`. `^` is right-associative and binds tighter than
+  unary minus (`-2^2` is −4). Errors name the place.
+- **`in` READS THE PROTOTYPE.** `name in CONSTANTS` was true for
+  `constructor` and `toString`, so those names resolved to Object's own
+  functions rather than being refused, which a test caught. The function and
+  constant tables are null-prototype and tested with `hasOwnProperty`; any
+  lookup table keyed by user text needs the same.
+- **Names:** each component is `<field alias>.<key>` (`u.ux`, `stress.vm`) and
+  bare where the key is unique; `x`, `y`, `z`, `pi`, `e`. A field not yet read
+  has no description and so no names, and the error says so.
+- **Verified on Etna at node 25018:** sqrt(ux²+uy²) = 4.7946 m;
+  (σxx − σzz)/1e6 = 15.314 MPa, against the numpy stresses to 1e-9; an
+  unknown name refused with its reason and the field list restored.
+- **Every "not byte-read" test grows a clause per synthetic field kind**
+  (`!f.derived && !f.compare && !f.calc`). Two pins matched the exact
+  condition and were loosened to `(?: && !f\.\w+)*`; their intent holds.

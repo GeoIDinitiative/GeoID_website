@@ -30,13 +30,14 @@ import {
   exposedFaces, thresholdKeep, keptTriangles,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
   groupResultFiles, timeOf, referencePlan, differenceOf, DERIVED_DOFS,
-} from "./gales-results.js?v=20260915-032ad5f";
-import { zipStore } from "./shapefile-writer.js?v=20260915-032ad5f";
-import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-032ad5f";
-import { parseSolidProps } from "./strain-stress.js?v=20260915-032ad5f";
-import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-032ad5f";
-import { may, refusal } from "./membership.js?v=20260915-032ad5f";
-import { downloadText } from "./extraction.js?v=20260915-032ad5f";
+} from "./gales-results.js?v=20260915-94fdb92";
+import { zipStore } from "./shapefile-writer.js?v=20260915-94fdb92";
+import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-94fdb92";
+import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-94fdb92";
+import { parseSolidProps } from "./strain-stress.js?v=20260915-94fdb92";
+import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-94fdb92";
+import { may, refusal } from "./membership.js?v=20260915-94fdb92";
+import { downloadText } from "./extraction.js?v=20260915-94fdb92";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -87,6 +88,9 @@ const S = {
   iso: { on: false, levels: "", opacity: 0.55, key: "", data: null, used: [] },
   // Threshold: the cells in a value range and/or of chosen volume flags, as a closed skin.
   threshold: { lo: "", hi: "", flags: [], mode: "all", colourBy: "field", key: "", data: null },
+  // Calculated fields: { name, expr, lead } -- a field from an expression over the others.
+  calcs: [],
+  calcNote: "",
   // Meshes opened by hand, and the field a numbered file picked on its own
   // belongs to (a bare "1" says nothing about which field it is).
   meshHints: [],
@@ -508,6 +512,22 @@ function classifyFields() {
       S.fields.push({ ...c, ok: true, reason: "", nbDofs: base?.nbDofs ?? null, desc: base?.desc ? compareDesc(base.desc, c.field) : null });
     }
   }
+  // CALCULATED fields, after everything they can read.
+  appendCalcFields();
+}
+
+/** One field per calculator definition, stepping with the field it was made on. */
+function appendCalcFields() {
+  for (const c of S.calcs) {
+    const lead = S.fields.find((f) => f.field === c.lead && f.ok) || S.fields.find((f) => f.ok && !f.calc);
+    if (!lead) continue;
+    const key = c.name.replace(/[^A-Za-z0-9_]/g, "_");
+    S.fields.push({
+      field: `calc/${c.name}`, calc: true, expr: c.expr, lead: lead.field, ok: true, reason: "", nbDofs: 1,
+      desc: { field: `calc/${c.name}`, label: c.name, nbDofs: 1, blocked: false, components: [{ key, label: `${c.name} = ${c.expr}`, unit: c.unit || "" }] },
+      steps: lead.steps.map((st) => ({ name: st.name, time: st.time, path: `calc:${c.name}:${c.expr}:${st.path}`, size: S.mesh.nodeCount * 8 })),
+    });
+  }
 }
 
 /** The run's material, for the derived stresses: props.txt, and a pointwise grid file. */
@@ -542,6 +562,12 @@ async function valuesAt(fieldIndex, stepIndex) {
     cache.delete(step.path);
     cache.set(step.path, hit);
     return hit;
+  }
+  if (f.calc) {
+    const values = await calcValues(fieldIndex, step);
+    cache.set(step.path, values);
+    while (cache.size > CACHE_STEPS) cache.delete(cache.keys().next().value);
+    return values;
   }
   if (f.compare) {
     if (!S.reference) throw new Error("The reference run is no longer open.");
@@ -1048,6 +1074,90 @@ async function refresh({ fit = false } = {}) {
   }
 }
 
+// ── Calculator ─────────────────────────────────────────────────────────────
+
+/** The fields a calculated field may read: every open field before it that has a description. */
+function calcPool(fieldIndex) {
+  return S.fields.map((f, k) => ({ f, k })).filter(({ f, k }) => k !== fieldIndex && f.ok && f.desc && !(f.calc && k > fieldIndex));
+}
+
+/** Per-node values of one component, in double precision. */
+function columnOf(values, f, j) {
+  const n = S.mesh.nodeCount;
+  const nb = f.nbDofs || f.desc.nbDofs || values.length / n;
+  const out = new Float64Array(n);
+  if (f.desc.blocked) for (let i = 0; i < n; i += 1) out[i] = values[j * n + i];
+  else for (let i = 0; i < n; i += 1) out[i] = values[i * nb + j];
+  return out;
+}
+
+async function calcValues(fieldIndex, step) {
+  const f = S.fields[fieldIndex];
+  const pool = calcPool(fieldIndex);
+  const table = variableTable(pool.map(({ f: x }) => x));
+  const arrays = new Map();
+  for (const name of namesIn(parseExpression(f.expr))) {
+    if (name === "x" || name === "y" || name === "z") continue;
+    const v = table.get(name);
+    if (!v) throw new Error(`unknown name '${name}': a field's components are named in the Calculator (a field not yet read has none listed).`);
+    if (!arrays.has(v.field)) {
+      const k = pool[v.field].k;
+      arrays.set(v.field, await valuesAt(k, matchingStep(k, step.time)));
+    }
+  }
+  return evaluateExpression(f.expr, {
+    table, nodeCount: S.mesh.nodeCount, coords: S.mesh.coords,
+    columns: (pi, j) => columnOf(arrays.get(pi), pool[pi].f, j),
+  });
+}
+
+/** Add (or replace) a calculated field and show it; the expression is tried on the step shown first. */
+export async function addCalculated(name, expr, { unit = "" } = {}) {
+  const clean = String(name || "").trim();
+  if (!/^[A-Za-z][A-Za-z0-9_ -]{0,39}$/.test(clean)) { S.calcNote = "Name it with letters, digits, spaces or underscores (up to 40)."; renderControls(); return null; }
+  try { parseExpression(expr); } catch (error) { S.calcNote = `The expression: ${error.message}.`; renderControls(); return null; }
+  const lead = S.fields[S.field]?.calc ? S.fields[S.field].lead : S.fields[S.field]?.field;
+  const before = S.calcs.slice();
+  S.calcs = [...S.calcs.filter((c) => c.name !== clean), { name: clean, expr: String(expr), lead, unit }];
+  for (const key of [...cache.keys()]) if (String(key).startsWith(`calc:${clean}:`)) cache.delete(key);
+  classifyFields();
+  const index = S.fields.findIndex((f) => f.field === `calc/${clean}`);
+  try {
+    if (index < 0) throw new Error("no field to step with: open a result first.");
+    const time = S.fields[S.field]?.steps[S.step]?.time ?? 0;
+    const step = matchingStep(index, time);
+    const values = await valuesAt(index, step);
+    let lo = Infinity; let hi = -Infinity; let bad = 0;
+    for (let i = 0; i < values.length; i += 1) { const v = values[i]; if (Number.isFinite(v)) { if (v < lo) lo = v; if (v > hi) hi = v; } else bad += 1; }
+    S.field = index;
+    S.step = step;
+    S.component = "0";
+    S.calcNote = `${clean}: ${formatValue(lo, hi - lo || 1)} to ${formatValue(hi, hi - lo || 1)} at t=${S.fields[index].steps[step].name}${bad ? ` — ${bad.toLocaleString()} nodes not finite (a division by zero, a root of a negative)` : ""}.`;
+    renderControls();
+    await refresh({ fit: false });
+    return S.fields[index];
+  } catch (error) {
+    S.calcs = before;
+    classifyFields();
+    S.field = Math.min(S.field, S.fields.length - 1);
+    S.calcNote = `Could not calculate: ${error.message}`;
+    renderControls();
+    return null;
+  }
+}
+
+function removeCalculated(name) {
+  const shown = S.fields[S.field]?.field;
+  S.calcs = S.calcs.filter((c) => c.name !== name);
+  classifyFields();
+  const back = S.fields.findIndex((f) => f.field === shown);
+  S.field = back >= 0 ? back : Math.max(0, S.fields.findIndex((f) => f.ok));
+  S.component = "";
+  S.calcNote = `Removed ${name}.`;
+  renderControls();
+  refresh({ fit: false });
+}
+
 // ── Contours and isosurfaces ───────────────────────────────────────────────
 //
 // Lines of equal value on what is drawn (the surface, the slice), and surfaces
@@ -1381,7 +1491,7 @@ async function probeSeries() {
     let values;
     const nb = f.nbDofs;
     // A derived field has no bytes of its own on disk: it is computed per step.
-    const range = nb && !f.desc?.blocked && !f.derived && !f.compare ? nodeByteRange(node, S.mesh.nodeCount, nb) : null;
+    const range = nb && !f.desc?.blocked && !f.derived && !f.compare && !f.calc ? nodeByteRange(node, S.mesh.nodeCount, nb) : null;
     if (range) {
       const part = float64View(await S.source.readRange(step.path, range[0], range[1]));
       values = [...part];
@@ -1686,9 +1796,42 @@ function renderControls() {
   if (S.reference) cmp.body.append(el("p", { class: `studio-readout${S.reference.warning ? " is-warning" : ""}` }, S.reference.note));
   host.append(cmp.details);
 
+  // Calculator
+  const calcSec = section("calc", "Calculator", Boolean(S.calcs.length));
+  calcSec.body.append(el("p", { class: "studio-readout" }, "A new field from an expression over the open ones: sqrt(ux^2 + uy^2), uz * 1000, stress.sxx - stress.szz. x, y, z are the node's coordinates; sqrt abs exp log log10 sin cos tan asin acos atan atan2 pow min max hypot floor ceil sign, pi and e."));
+  const calcName = el("input", { class: "studio-input", type: "text", placeholder: "horizontal_u", spellcheck: "false" });
+  const calcExpr = el("input", { class: "studio-input gales-calc-expr", type: "text", placeholder: "sqrt(ux^2 + uy^2)", spellcheck: "false" });
+  const calcUnit = el("input", { class: "studio-input", type: "text", placeholder: "m", spellcheck: "false" });
+  [calcName, calcExpr, calcUnit].forEach((input) => input.addEventListener("keydown", (event) => { event.stopPropagation(); if (event.key === "Enter" && input === calcExpr) addCalculated(calcName.value, calcExpr.value, { unit: calcUnit.value }); }));
+  calcSec.body.append(row("Name", calcName), row("Expression", calcExpr), row("Unit", calcUnit));
+  const vars = [...variableTable(calcPool(-1).map(({ f: x }) => x)).keys()];
+  if (vars.length) {
+    const chips = el("div", { class: "gales-calc-vars", title: "Click a name to put it into the expression" });
+    for (const name of [...vars.filter((v) => !v.includes(".")), ...vars.filter((v) => v.includes("."))].slice(0, 60)) {
+      const chip = el("button", { class: "gales-calc-var", type: "button" }, name);
+      chip.addEventListener("click", () => {
+        const at = calcExpr.selectionStart ?? calcExpr.value.length;
+        calcExpr.value = `${calcExpr.value.slice(0, at)}${name}${calcExpr.value.slice(calcExpr.selectionEnd ?? at)}`;
+        calcExpr.focus();
+      });
+      chips.append(chip);
+    }
+    calcSec.body.append(chips);
+  }
+  const addCalc = el("button", { class: "studio-primary", type: "button" }, "Add field");
+  addCalc.addEventListener("click", () => addCalculated(calcName.value, calcExpr.value, { unit: calcUnit.value }));
+  calcSec.body.append(el("div", { class: "studio-actions" }, addCalc));
+  for (const c of S.calcs) {
+    const rm = el("button", { class: "studio-btn", type: "button", title: "Remove this calculated field" }, "×");
+    rm.addEventListener("click", () => removeCalculated(c.name));
+    calcSec.body.append(el("div", { class: "gales-calc-row" }, el("b", {}, c.name), el("code", {}, c.expr), rm));
+  }
+  if (S.calcNote) calcSec.body.append(el("p", { class: "studio-readout" }, S.calcNote));
+  host.append(calcSec.details);
+
   // Field
   const fs = section("field", "Field and time");
-  const fieldOptions = S.fields.map((f, k) => [k, f.compare ? `Difference · ${f.from} − reference (${S.reference?.label}) · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}` : f.derived ? `Stress, strain and tilt · derived from ${f.from} · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}` : `${f.field}${f.nbDofs ? ` · ${f.nbDofs} dof${f.nbDofs > 1 ? "s" : ""}` : ""} · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}${f.ok ? "" : " — other mesh"}`, !f.ok]);
+  const fieldOptions = S.fields.map((f, k) => [k, f.calc ? `Calculated · ${f.desc.label} = ${f.expr}` : f.compare ? `Difference · ${f.from} − reference (${S.reference?.label}) · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}` : f.derived ? `Stress, strain and tilt · derived from ${f.from} · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}` : `${f.field}${f.nbDofs ? ` · ${f.nbDofs} dof${f.nbDofs > 1 ? "s" : ""}` : ""} · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}${f.ok ? "" : " — other mesh"}`, !f.ok]);
   fs.body.append(row("Field", select([[-1, "— geometry only —"], ...fieldOptions], S.field, (v) => {
     S.field = Number(v);
     const f = S.fields[S.field];
@@ -2275,14 +2418,14 @@ async function extractStations() {
       const step = f.steps[k];
       status(`Extracting ${f.field}: step ${k + 1} of ${f.steps.length} at ${N} point(s)…`);
       // A few points read their own bytes; many read the step once.
-      if (!d.blocked && !f.derived && !f.compare && N <= 24) {
+      if (!d.blocked && !f.derived && !f.compare && !f.calc && N <= 24) {
         for (let si = 0; si < N; si += 1) {
           const [a, b] = nodeByteRange(stations[si].node, n, nb);
           const part = float64View(await S.source.readRange(step.path, a, b));
           for (let j = 0; j < nb; j += 1) values[(k * N + si) * nb + j] = part[j];
         }
       } else {
-        const whole = f.derived || f.compare ? await valuesAt(fi, k) : cache.get(step.path) || float64View(await S.source.read(step.path));
+        const whole = f.derived || f.compare || f.calc ? await valuesAt(fi, k) : cache.get(step.path) || float64View(await S.source.read(step.path));
         for (let si = 0; si < N; si += 1) {
           const node = stations[si].node;
           for (let j = 0; j < nb; j += 1) values[(k * N + si) * nb + j] = d.blocked ? whole[j * n + node] : whole[node * nb + j];
@@ -2445,6 +2588,10 @@ const STYLE = `
 .gales-legend-title { font-size: 0.76rem; font-weight: 600; letter-spacing: 0.04em; }
 .gales-legend-sub { font-size: 0.64rem; opacity: 0.7; margin: 0.1rem 0 0.35rem; overflow-wrap: anywhere; }
 .gales-legend-bar { display: block; width: 100%; height: 0.8rem; border-radius: 0.2rem; }
+.gales-calc-vars { display: flex; flex-wrap: wrap; gap: 0.2rem; max-height: 6.5rem; overflow-y: auto; }
+.gales-calc-var { font: 0.64rem ui-monospace, monospace; padding: 0.08rem 0.35rem; border-radius: 0.3rem; border: 1px solid rgba(82, 228, 232, 0.35); background: transparent; color: inherit; cursor: pointer; }
+.gales-calc-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0.4rem; align-items: center; font-size: 0.7rem; }
+.gales-calc-row code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0.8; }
 .gales-legend-flags { display: flex; flex-wrap: wrap; gap: 0.2rem 0.6rem; font-size: 0.66rem; font-variant-numeric: tabular-nums; margin-top: 0.25rem; }
 .gales-legend-flags i, .gales-flag-swatch { display: inline-block; width: 0.62rem; height: 0.62rem; border-radius: 2px; margin-right: 0.3rem; vertical-align: -0.05rem; }
 .gales-flag-list { display: grid; gap: 0.2rem; max-height: 10rem; overflow-y: auto; }
@@ -2510,6 +2657,7 @@ if (typeof document !== "undefined" && typeof window !== "undefined" && typeof w
     // ParaView: the .vtu files for a selection, and the download.
     // Contour levels and isosurface levels as drawn (for a report, and for tests).
     display: () => ({ contours: S.contours.on ? S.contours.levels : [], iso: S.iso.on ? S.iso.used : [] }),
+    addCalculated: (name, expr, options) => addCalculated(name, expr, options),
     setReference: (files) => setReference(files),
     clearReference: () => clearReference(),
     vtkFiles: (options) => buildVtkFiles(options),

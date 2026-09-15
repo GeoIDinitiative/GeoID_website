@@ -504,7 +504,7 @@ check("a mesh opened onto a loaded run starts a new run; results join the open o
   check("derived: the worker answers a derive request through strain-stress.js and transfers the values", /type === "derive"/.test(worker) && /derivedFields\(mesh,/.test(worker) && /\[out\.values\.buffer\]/.test(worker));
   check("derived: a 3D displacement field adds one stress-strain-tilt field whose steps read the displacement's files", /field: "derived\/stress", derived: true/.test(panel) && /source: st\.path/.test(panel) && /nbDofs: DERIVED_DOFS,/.test(panel));
   check("derived: valuesAt computes a derived step rather than reading bytes, and says when there is no props.txt", /if \(f\.derived\) \{/.test(panel) && /call\("derive"/.test(panel) && /strain and tilt only: no solid props\.txt/.test(panel));
-  check("derived: the probe series never byte-reads a derived field", /!f\.derived(?: && !f\.compare)? \? nodeByteRange/.test(panel));
+  check("derived: the probe series never byte-reads a derived field", /!f\.derived(?: && !f\.\w+)* \? nodeByteRange/.test(panel));
   const d = describeField("derived/stress", 16, 3);
   check("derived: describeField names the stress field and defaults to von Mises", d && d.defaultComponent === "12" && /stress/i.test(d.label || ""), JSON.stringify(d && { label: d.label, def: d.defaultComponent }));
   check("tickLabel: an exponent keeps only its digits", tickLabel(5e7, 2.5e8) === "5e7" && tickLabel(1.5e8, 2.5e8) === "1.5e8" && tickLabel(2.5, 85) === "2.5");
@@ -586,7 +586,7 @@ check("a mesh opened onto a loaded run starts a new run; results join the open o
 {
   const panel = readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8");
   check("compare: difference fields join the reader as ordinary fields, read value for value, labelled as differences", /referencePlan\(S\.fields\.filter\(\(f\) => f\.ok\), S\.reference\.fields\)/.test(panel) && /if \(f\.compare\) \{[\s\S]{0,300}differenceOf\(a, b\)/.test(panel) && /label: `Δ \$\{c\.label\}`/.test(panel));
-  check("compare: a byte-range read is never used for a difference, which has no bytes of its own", /!f\.derived && !f\.compare \? nodeByteRange/.test(panel));
+  check("compare: a byte-range read is never used for a difference, which has no bytes of its own", /!f\.derived && !f\.compare(?: && !f\.\w+)* \? nodeByteRange/.test(panel));
   check("compare: opening a new run drops the reference", /S\.source = source;\n  S\.reference = null;/.test(panel));
 }
 
@@ -663,4 +663,8 @@ check("a mesh opened onto a loaded run starts a new run; results join the open o
   const panel = readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8");
   const worker = readFileSync(new URL("./gales-worker.js", import.meta.url), "utf8");
   check("threshold: a view whose skin the worker builds from the kept cells, colourable by volume flag, with the flags counted at parse", /\["threshold", "Threshold — a range, or domains"\]/.test(panel) && /type === "threshold"/.test(worker) && /volumeFlags: volumeFlagCounts\(parsed\)/.test(worker) && /renderFlagLegend\(\)/.test(panel));
+}
+{
+  const panel = readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8");
+  check("calculator: calculated fields join the reader, computed from the fields they name at the matching step, never byte-read", /function appendCalcFields\(\)/.test(panel) && /if \(f\.calc\) \{[\s\S]{0,120}calcValues\(fieldIndex, step\)/.test(panel) && /!f\.compare && !f\.calc \? nodeByteRange/.test(panel) && !/\beval\(|new Function\(/.test(panel));
 }
