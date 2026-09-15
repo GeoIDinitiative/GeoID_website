@@ -10,14 +10,15 @@
  *   { id, type: "parse", buffer }          → { id, ok, mesh }
  *   { id, type: "slice", normal, d }       → { id, ok, slice }
  *   { id, type: "locate", points }         → { id, ok, located }  (nodes ×4, weights ×4 per point)
+ *   { id, type: "stats", scalar, bins } → { id, ok, stats } (domainStats, per volume flag)
  *   { id, type: "derive", u, nbDofs, material, gridText } → { id, ok, derived } (strain-stress.js)
  *   { id, type: "quality" }                → { id, ok, analysis }  (mesh-quality.js, by transfer)
  *   progress while parsing                 → { id, type: "progress", fraction }
  */
-import { parseMesh, sliceTets, cellLocator, locatePoints } from "./gales-results.js?v=20260915-26c7e28";
-import { analyseMesh } from "./mesh-quality.js?v=20260915-26c7e28";
-import { derivedFields, materialAt } from "./strain-stress.js?v=20260915-26c7e28";
-import { parseTable, buildGrid, sampleGrid } from "./tomography.js?v=20260915-26c7e28";
+import { parseMesh, sliceTets, cellLocator, locatePoints, domainStats } from "./gales-results.js?v=20260915-fdefd0f";
+import { analyseMesh } from "./mesh-quality.js?v=20260915-fdefd0f";
+import { derivedFields, materialAt } from "./strain-stress.js?v=20260915-fdefd0f";
+import { parseTable, buildGrid, sampleGrid } from "./tomography.js?v=20260915-fdefd0f";
 
 let mesh = null;
 let locator = null; // built on the first locate, dropped with the mesh
@@ -85,6 +86,13 @@ async function handle(event) {
       if (!mesh) throw new Error("No mesh is loaded in the reader.");
       const analysis = qualityForTransfer(analyseMesh(mesh), mesh);
       reply({ id, ok: true, analysis }, analysis ? [...Object.values(analysis.metrics).map((m) => m.buffer), analysis.elements.coords.buffer, analysis.elements.conn.buffer] : []);
+      return;
+    }
+    if (type === "stats") {
+      // Per volume flag, weighted by element measure: the cells are here.
+      if (!mesh) throw new Error("No mesh is loaded in the reader.");
+      const stats = domainStats(mesh, event.data.scalar, { bins: event.data.bins || 24 });
+      reply({ id, ok: true, stats }, stats.domains.map((d) => d.hist.buffer));
       return;
     }
     if (type === "drop") {

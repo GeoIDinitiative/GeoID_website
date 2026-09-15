@@ -20297,3 +20297,48 @@ any displacement field. Their controls are:
 - Settings are kept in `localStorage["geoid-studio:insar"]`, so clear it after
   testing. The geometry is read when the module loads, so a value written to
   storage afterwards has no effect until the page reloads.
+
+## Statistics by domain, and anything that averages must not average fringes
+
+Analysis ▸ Statistics by domain summarises the field shown in Results over
+each volume flag. For each flag it gives volume (area in 2D), a
+volume-weighted mean and standard deviation, the min and max the field takes
+on that domain's nodes, and a volume histogram. The bins are shared by every
+domain, and each domain's curve is its own share of volume on a square-root
+axis. `domainStats` in gales-results.js is the pure half (10 checks: a
+linear field over a Kuhn-split cube averages to its value at the centre); the
+worker's `stats` request runs it where the cells are; CSV via
+`domainStatsCsv`.
+
+- **Weighted by volume, not by node.** A mesher puts nodes where the geometry
+  is difficult, so a node mean lets a 20 m chamber wall outvote a 2 km
+  crust. Each linear element takes the mean of its nodes, which is exact for
+  a first-order element's integral. Non-simplex elements and elements
+  touching NaN are counted and left out.
+- **Checked against numpy on Etna:**
+
+  | flag | tets | volume | mean \|u\| | std |
+  | --- | --- | --- | --- | --- |
+  | 0 | 1,290,687 | 475,483 km³ | 21.47385533 m | 18.98818200 |
+  | 1 | 104,767 | 24,746 km³ | 7.87809277 m | 18.88961093 |
+
+  Every figure agrees to the digits shown. The worker takes 0.26 s for all
+  1.4M tets.
+- **The seam copies the scalar before transferring it.** A component view can
+  share the cached field's buffer, and transferring that buffer would detach
+  the cache.
+- **Wrapped fringes are never interpolated or averaged.** The seam's
+  `samplingScalar` returns the LOS for the fringe component. Callers
+  interpolate or average that, and `afterSampling` wraps the result: the
+  profile does this, while stats are reported in LOS metres. The slice
+  already worked this way.
+- **`refresh()` keeps its own `losHere`.** The analysis tab calls the scalar
+  between refresh's awaits, and that call overwrites `S.losRaw` for another
+  step.
+- **The analysis follows the satellite geometry.** Heading, incidence,
+  wavelength, look side and scale are in its signature, so changing any of
+  them re-plots and re-summarises.
+- **A press during a run is queued, not dropped.** An early return on
+  `busy` meant a probe's own `computeStats()` came back holding the previous
+  selection's answer, measured as a magnitude result while fringes were
+  selected.

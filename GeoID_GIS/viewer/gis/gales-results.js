@@ -865,6 +865,108 @@ export function tickLabel(v, span = Math.abs(v)) {
   return text.replace(/\.?0+e/, "e").replace("e+", "e");
 }
 
+// ── Statistics by domain ────────────────────────────────────────────────────
+
+/**
+ * A scalar summarised over each volume flag, weighted by element measure.
+ *
+ * A node-by-node mean is a mean over wherever the mesher put nodes, and a
+ * mesher puts them where the geometry is difficult: a chamber wall at 20 m
+ * against a crust at 2 km would be counted a hundred times over. So each
+ * linear element takes the mean of its nodes (exact for a first-order
+ * element's integral) and is weighted by its volume, or its area in 2D.
+ *
+ * Min and max are over the NODES of the domain's elements, which is the range
+ * the field actually takes there; the histogram is volume-weighted over the
+ * element means, on one set of bins for every domain so they can be compared.
+ * Elements that are not simplices, and elements touching a NaN, are counted
+ * and left out rather than guessed at.
+ */
+export function domainStats(mesh, scalar, { bins = 24, lo = null, hi = null } = {}) {
+  const { cells, cellOffsets, coords, dim } = mesh;
+  const flags = mesh.cellFlag || new Int32Array(cellOffsets.length - 1);
+  const count = cellOffsets.length - 1;
+  const means = new Float64Array(count);
+  const measure = new Float64Array(count);
+  const keep = new Uint8Array(count);
+  let skipped = 0;
+  let nanCells = 0;
+  const P = (i, a) => coords[i * 3 + a];
+  for (let c = 0; c < count; c += 1) {
+    const s = cellOffsets[c];
+    const e = cellOffsets[c + 1];
+    const n = e - s;
+    const simplex = dim === 3 ? n === 4 : n === 3;
+    if (!simplex) { skipped += 1; continue; }
+    let sum = 0;
+    let bad = false;
+    for (let k = s; k < e; k += 1) { const v = scalar[cells[k]]; if (v !== v) { bad = true; break; } sum += v; }
+    if (bad) { nanCells += 1; continue; }
+    const a = cells[s];
+    const b = cells[s + 1];
+    const d = cells[s + 2];
+    let m;
+    if (dim === 3) {
+      const f = cells[s + 3];
+      const ux = P(b, 0) - P(a, 0), uy = P(b, 1) - P(a, 1), uz = P(b, 2) - P(a, 2);
+      const vx = P(d, 0) - P(a, 0), vy = P(d, 1) - P(a, 1), vz = P(d, 2) - P(a, 2);
+      const wx = P(f, 0) - P(a, 0), wy = P(f, 1) - P(a, 1), wz = P(f, 2) - P(a, 2);
+      m = Math.abs(ux * (vy * wz - vz * wy) - uy * (vx * wz - vz * wx) + uz * (vx * wy - vy * wx)) / 6;
+    } else {
+      m = Math.abs((P(b, 0) - P(a, 0)) * (P(d, 1) - P(a, 1)) - (P(d, 0) - P(a, 0)) * (P(b, 1) - P(a, 1))) / 2;
+    }
+    means[c] = sum / n;
+    measure[c] = m;
+    keep[c] = 1;
+  }
+  let gLo = lo;
+  let gHi = hi;
+  if (gLo === null || gHi === null) {
+    let a = Infinity;
+    let b = -Infinity;
+    for (let c = 0; c < count; c += 1) if (keep[c]) { if (means[c] < a) a = means[c]; if (means[c] > b) b = means[c]; }
+    if (gLo === null) gLo = Number.isFinite(a) ? a : 0;
+    if (gHi === null) gHi = Number.isFinite(b) ? b : 0;
+  }
+  const span = gHi - gLo;
+  const byFlag = new Map();
+  for (let c = 0; c < count; c += 1) {
+    if (!keep[c]) continue;
+    const flag = flags[c];
+    let g = byFlag.get(flag);
+    if (!g) { g = { flag, cells: 0, measure: 0, wsum: 0, wsq: 0, min: Infinity, max: -Infinity, hist: new Float64Array(bins) }; byFlag.set(flag, g); }
+    const w = measure[c];
+    const v = means[c];
+    g.cells += 1;
+    g.measure += w;
+    g.wsum += w * v;
+    g.wsq += w * v * v;
+    for (let k = cellOffsets[c]; k < cellOffsets[c + 1]; k += 1) { const x = scalar[cells[k]]; if (x < g.min) g.min = x; if (x > g.max) g.max = x; }
+    let bin = span > 0 ? Math.floor(((v - gLo) / span) * bins) : 0;
+    bin = bin < 0 ? 0 : bin >= bins ? bins - 1 : bin;
+    g.hist[bin] += w;
+  }
+  const domains = [...byFlag.values()].sort((a, b) => a.flag - b.flag).map((g) => {
+    const mean = g.measure > 0 ? g.wsum / g.measure : NaN;
+    const variance = g.measure > 0 ? Math.max(0, g.wsq / g.measure - mean * mean) : NaN;
+    return { flag: g.flag, cells: g.cells, measure: g.measure, mean, std: Math.sqrt(variance), min: g.min, max: g.max, hist: g.hist };
+  });
+  return { dim, domains, lo: gLo, hi: gHi, bins, skipped, nanCells };
+}
+
+/** One row per domain, units named by the caller; the histogram's bin edges follow. */
+export function domainStatsCsv(stats, { label = "value", unit = "" } = {}) {
+  const u = unit ? ` (${unit})` : "";
+  const m = stats.dim === 3 ? "volume_m3" : "area_m2";
+  const lines = [`flag,elements,${m},mean ${label}${u},std${u},min${u},max${u}`];
+  for (const d of stats.domains) lines.push([d.flag, d.cells, d.measure, d.mean, d.std, d.min, d.max].join(","));
+  lines.push("");
+  const edges = Array.from({ length: stats.bins }, (_, k) => stats.lo + ((stats.hi - stats.lo) * k) / stats.bins);
+  lines.push(`bin_from${u},${stats.domains.map((d) => `flag ${d.flag} ${stats.dim === 3 ? "volume_m3" : "area_m2"}`).join(",")}`);
+  edges.forEach((e, k) => lines.push([e, ...stats.domains.map((d) => d.hist[k])].join(",")));
+  return `${lines.join("\n")}\n`;
+}
+
 // ── Slicing ─────────────────────────────────────────────────────────────────
 
 /**

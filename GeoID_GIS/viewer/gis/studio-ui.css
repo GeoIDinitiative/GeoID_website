@@ -463,3 +463,12 @@
 #model-studio .studio-setup-host .st-xyz .studio-input { padding: 0 0.3rem; }
 /* A row whose field is several inputs takes the whole width, its label above. */
 #model-studio .studio-setup-host .studio-row.st-row-wide { grid-template-columns: minmax(0, 1fr); gap: 0.2rem; }
+
+/* ── analysis: statistics by domain ─────────────────────────────────────── */
+
+#model-studio .ra-stats-wrap { overflow-x: auto; }
+#model-studio .ra-stats { width: 100%; border-collapse: collapse; font-size: var(--st-fs-small); font-variant-numeric: tabular-nums; }
+#model-studio .ra-stats th { text-align: right; font-weight: 600; color: var(--st-muted); padding: 0.2rem 0.3rem; border-bottom: 1px solid var(--st-line); white-space: nowrap; }
+#model-studio .ra-stats td { text-align: right; padding: 0.2rem 0.3rem; white-space: nowrap; }
+#model-studio .ra-stats th:first-child, #model-studio .ra-stats td:first-child { text-align: left; }
+#model-studio .ra-stats-swatch { display: inline-block; width: 0.6rem; height: 0.6rem; border-radius: 2px; margin-right: 0.35rem; vertical-align: middle; }

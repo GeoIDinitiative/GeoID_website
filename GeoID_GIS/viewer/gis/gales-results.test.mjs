@@ -12,7 +12,7 @@ import {
   ByteCursor, sniffMesh, parseGalesMesh, parseMsh, parseMesh, exposedTetFaces,
   timeOf, groupResultFiles, describeField, dofsPerNode, float64View, componentOf,
   magnitudeOf, nodeByteRange, rangeOf, usedNodes, colormapTable, colourValues,
-  niceTicks, formatValue, tickLabel, sliceTets, interpolateOnSlice, axisPlane, nearestNode,
+  niceTicks, formatValue, tickLabel, sliceTets, domainStats, domainStatsCsv, interpolateOnSlice, axisPlane, nearestNode,
   probeCsv, planSimulation, COLORMAPS, flagSummary, stationsForFlag, nodeLocator, specPoints,
   parsePointList, stationCsvFiles,
 } from "./gales-results.js";
@@ -492,7 +492,7 @@ check("a mesh opened onto a loaded run starts a new run; results join the open o
   const shellHtml = readFileSync(new URL("./shell.html", import.meta.url), "utf8");
   check("analysis: the worker locates points in the cells it holds, and the results seam exposes values, the scalar and locate", /type === "locate"/.test(worker) && /locate: async \(points\) =>/.test(panel) && /values: \(fieldIndex = S\.field, stepIndex = S\.step\) => valuesAt/.test(panel) && /scalar: \(values, desc = currentDesc\(\)\) => scalarOf/.test(panel));
   check("analysis: an Analysis tab in the Analyse workspace on both pages, loaded on both", index.includes('data-group="analysis"') && shellHtml.includes('id="studio-analysis-host"') && /src="gis\/results-analysis-panel\.js\?v=/.test(index) && /"\.\/results-analysis-panel\.js",/.test(readFileSync(new URL("./boot.js", import.meta.url), "utf8")));
-  check("analysis: the profile is sampled through the located weights, not the nearest node, and follows the Results selection", /sampleLocated\(loc, results\.scalar/.test(analysis) && /if \(L\.profile && sig !== L\.sig && !L\.busy\) plot\(\)/.test(analysis));
+  check("analysis: the profile is sampled through the located weights, not the nearest node, and follows the Results selection", /sampleLocated\(loc, scalar\)/.test(analysis) && /if \(L\.profile && sig !== L\.sig && !L\.busy\) plot\(\)/.test(analysis));
   check("analysis: no style block of its own", !analysis.includes("const STYLE = `"));
 }
 {
@@ -513,8 +513,46 @@ check("a mesh opened onto a loaded run starts a new run; results join the open o
   // The satellite view: LOS and fringes are components of a displacement field.
   const panel = readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8");
   check("insar: a displacement offers LOS and wrapped fringes as components", /\["los", "Satellite line of sight \(InSAR\)"\]/.test(panel) && /\["fringe", "Interferogram fringes \(wrapped\)"\]/.test(panel) && /canLos\(desc\)/.test(panel));
-  check("insar: a slice interpolates the LOS and wraps after, never interpolates wrapped values", /wrapFringes\(interpolateOnSlice\(sliced\.slice, S\.losRaw\)/.test(panel));
+  check("insar: a slice interpolates the LOS and wraps after, never interpolates wrapped values", /wrapFringes\(interpolateOnSlice\(sliced\.slice, losHere\)/.test(panel));
   check("insar: fringes paint on the cyclic map over [0, 1] with no bands or log", /fringe \? \[0, 1\] : S\.range/.test(panel) && /stops: FRINGE_MAP/.test(panel) && /fringe \? \{ bands: 0, log: false \}/.test(panel));
   check("insar: aliasing is measured per surface edge and said", /fringesPerEdge\(los, edges/.test(panel) && /ALIASED/.test(panel));
   check("insar: the scale changes what the satellite sees and keeps the named satellite", /los\[i\] \*= k/.test(panel) && /custom: key !== "scale"/.test(panel));
+}
+{
+  // Statistics by domain: a linear field over a cube cut into six tets, whose
+  // volume-weighted mean is exactly the field at the centre.
+  const corner = (i) => [i & 1, (i >> 1) & 1, (i >> 2) & 1];
+  const coords = Float64Array.from([...Array(8).keys()].flatMap(corner));
+  const kuhn = [[0, 1, 3, 7], [0, 1, 5, 7], [0, 2, 3, 7], [0, 2, 6, 7], [0, 4, 5, 7], [0, 4, 6, 7]];
+  const cells = Uint32Array.from(kuhn.flat());
+  const offsets = Uint32Array.from([0, 4, 8, 12, 16, 20, 24]);
+  const flags = Int32Array.from([10, 10, 10, 20, 20, 20]);
+  const f = Float32Array.from([...Array(8).keys()].map((i) => { const [x, y, z] = corner(i); return x + 2 * y + 3 * z; }));
+  const all = domainStats({ dim: 3, coords, cells, cellOffsets: offsets, cellFlag: new Int32Array(6) }, f);
+  check("domain stats: the six tets fill the unit cube", near(all.domains[0].measure, 1, 1e-12));
+  check("domain stats: a linear field's volume-weighted mean is its value at the centre", near(all.domains[0].mean, 3, 1e-12), String(all.domains[0].mean));
+  check("domain stats: min and max are the nodes' own range", all.domains[0].min === 0 && all.domains[0].max === 6);
+  check("domain stats: the histogram carries the whole volume", near(all.domains[0].hist.reduce((a, b) => a + b, 0), 1, 1e-12));
+  const split = domainStats({ dim: 3, coords, cells, cellOffsets: offsets, cellFlag: flags }, f, { bins: 8 });
+  check("domain stats: one row per flag, in flag order, volumes summing to the cube", split.domains.map((d) => d.flag).join() === "10,20" && near(split.domains[0].measure + split.domains[1].measure, 1, 1e-12));
+  check("domain stats: both domains share one set of bins", split.domains.every((d) => d.hist.length === 8) && split.lo === all.lo && split.hi === all.hi);
+  const withNan = Float32Array.from(f); withNan[7] = NaN;
+  check("domain stats: an element touching NaN is counted and left out", domainStats({ dim: 3, coords, cells, cellOffsets: offsets }, withNan).nanCells === 6);
+  const hex = domainStats({ dim: 3, coords, cells: Uint32Array.from([0, 1, 2, 3, 4, 5, 6, 7]), cellOffsets: Uint32Array.from([0, 8]) }, f);
+  check("domain stats: a non-simplex element is skipped, not guessed at", hex.skipped === 1 && hex.domains.length === 0);
+  const tri = domainStats({ dim: 2, coords: Float64Array.from([0, 0, 0, 2, 0, 0, 0, 2, 0]), cells: Uint32Array.from([0, 1, 2]), cellOffsets: Uint32Array.from([0, 3]) }, Float32Array.from([0, 3, 3]));
+  check("domain stats: 2D weights by area", near(tri.domains[0].measure, 2, 1e-12) && near(tri.domains[0].mean, 2, 1e-12));
+  const csv = domainStatsCsv(split, { label: "Displacement", unit: "m" });
+  check("domain stats CSV: a row per flag, then the bins", csv.startsWith("flag,elements,volume_m3,mean Displacement (m)") && csv.split("\n").filter((l) => /^(10|20),/.test(l)).length === 2 && /bin_from \(m\),flag 10 volume_m3,flag 20 volume_m3/.test(csv));
+}
+{
+  const worker = readFileSync(new URL("./gales-worker.js", import.meta.url), "utf8");
+  const panel = readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8");
+  const analysis = readFileSync(new URL("./results-analysis-panel.js", import.meta.url), "utf8");
+  check("stats: the worker summarises by domain where the cells are, transferring the histograms", /type === "stats"/.test(worker) && /domainStats\(mesh, event\.data\.scalar/.test(worker));
+  check("stats: the seam copies the scalar before transferring it, so a cached field is never detached", /const copy = Float32Array\.from\(scalar\);/.test(panel) && /\[copy\.buffer\]/.test(panel));
+  check("analysis: profiles and stats read the sampling scalar (LOS, not wrapped fringes) and wrap after", /results\.samplingScalar \|\| results\.scalar/.test(analysis) && /results\.afterSampling \? results\.afterSampling\(samples\)/.test(analysis) && /afterSampling: \(samples/.test(panel));
+  check("analysis: a satellite geometry change is part of the selection it follows", /S\.insar\?\.heading/.test(analysis));
+  check("analysis: a Statistics by domain card, recomputed when the selection changes, a press during a run queued", /card\("Statistics by domain"/.test(analysis) && /L\.stats\.open && L\.stats\.result && sig !== L\.stats\.sig/.test(analysis) && /T\.pending = true/.test(analysis));
+  check("refresh keeps its own LOS against the analysis reading the scalar between its awaits", /const losHere = S\.losRaw;/.test(panel) && /interpolateOnSlice\(sliced\.slice, losHere\)/.test(panel));
 }

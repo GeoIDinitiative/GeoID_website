@@ -29,12 +29,12 @@ import {
   interpolateOnSlice, axisPlane, nodeByteRange, probeCsv, parseMesh, sliceTets,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
   groupResultFiles, timeOf,
-} from "./gales-results.js?v=20260915-26c7e28";
-import { zipStore } from "./shapefile-writer.js?v=20260915-26c7e28";
-import { parseSolidProps } from "./strain-stress.js?v=20260915-26c7e28";
-import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-26c7e28";
-import { may, refusal } from "./membership.js?v=20260915-26c7e28";
-import { downloadText } from "./extraction.js?v=20260915-26c7e28";
+} from "./gales-results.js?v=20260915-fdefd0f";
+import { zipStore } from "./shapefile-writer.js?v=20260915-fdefd0f";
+import { parseSolidProps } from "./strain-stress.js?v=20260915-fdefd0f";
+import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-fdefd0f";
+import { may, refusal } from "./membership.js?v=20260915-fdefd0f";
+import { downloadText } from "./extraction.js?v=20260915-fdefd0f";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -845,6 +845,9 @@ async function refresh({ fit = false } = {}) {
       }
       scalar = scalarOf(values, desc);
     }
+    // The analysis tab reads the scalar too, between this refresh's awaits:
+    // keep this step's LOS rather than whatever it last left in S.losRaw.
+    const losHere = S.losRaw;
 
     // Warp: a displacement field at the same time, if one is chosen.
     let disp = null;
@@ -871,7 +874,7 @@ async function refresh({ fit = false } = {}) {
     const fringe = S.component === "fringe" && canLos(desc);
     // Fringes are wrapped: interpolate the LOS first and wrap after, or a cut
     // through a wrap reads a whole rainbow between two neighbouring nodes.
-    if (sliced && scalar) sliceValues = fringe ? wrapFringes(interpolateOnSlice(sliced.slice, S.losRaw), S.insar.wavelength) : interpolateOnSlice(sliced.slice, scalar);
+    if (sliced && scalar) sliceValues = fringe ? wrapFringes(interpolateOnSlice(sliced.slice, losHere), S.insar.wavelength) : interpolateOnSlice(sliced.slice, scalar);
     if (scalar && S.rangeMode === "step") {
       const parts = [];
       if (view !== "slice") parts.push(rangeOf(scalar, scene.surfNodes));
@@ -883,7 +886,7 @@ async function refresh({ fit = false } = {}) {
     const [lo, hi] = fringe ? [0, 1] : S.range;
     const table = fringe ? colormapTable(null, { stops: FRINGE_MAP }) : colormapTable(S.colormap, { reverse: S.reverse });
     const paint = fringe ? { bands: 0, log: false } : { bands: S.bands, log: S.log };
-    S.insarNote = isSatellite() && S.losRaw ? satelliteNote(S.losRaw) : "";
+    S.insarNote = isSatellite() && losHere ? satelliteNote(losHere) : "";
 
     // Surface.
     const geometry = scene.surface.geometry;
@@ -1951,6 +1954,19 @@ if (typeof document !== "undefined" && typeof window !== "undefined" && typeof w
     values: (fieldIndex = S.field, stepIndex = S.step) => valuesAt(fieldIndex, stepIndex),
     desc: () => currentDesc(),
     scalar: (values, desc = currentDesc()) => scalarOf(values, desc),
+    // Anything that interpolates or averages must not work on wrapped fringes:
+    // it takes the LOS and wraps afterwards (afterSampling), as the slice does.
+    samplingScalar: (values, desc = currentDesc()) => {
+      const out = scalarOf(values, desc);
+      return S.component === "fringe" && canLos(desc) ? S.losRaw : out;
+    },
+    afterSampling: (samples, desc = currentDesc()) => (S.component === "fringe" && canLos(desc) ? wrapFringes(samples, S.insar.wavelength) : samples),
+    statsLabel: (desc = currentDesc()) => (S.component === "fringe" && canLos(desc) ? "LOS displacement (m, + toward the satellite)" : componentLabel(desc)),
+    domainStats: async (scalar, bins = 24) => {
+      if (!S.mesh) return null;
+      const copy = Float32Array.from(scalar);
+      return (await getReader().call("stats", { scalar: copy, bins }, [copy.buffer])).stats;
+    },
     componentLabel: () => componentLabel(currentDesc()),
     locate: async (points) => (S.mesh ? (await getReader().call("locate", { points }, [points.buffer])).located : null),
     colormap: () => colormapTable(S.colormap, { reverse: S.reverse }),

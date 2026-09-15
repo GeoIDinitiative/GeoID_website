@@ -22,8 +22,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, formatValue } from "./gales-results.js?v=20260915-26c7e28";
-import { downloadText } from "./extraction.js?v=20260915-26c7e28";
+import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, formatValue } from "./gales-results.js?v=20260915-fdefd0f";
+import { downloadText } from "./extraction.js?v=20260915-fdefd0f";
 
 const byId = (id) => document.getElementById(id);
 const R = () => window.GeoIDGalesResults;
@@ -34,7 +34,10 @@ const L = {
   line: null,
   glyph: { on: false, field: -1, count: 2000, scale: 1, mesh: null, sig: "" },
   meshSig: "",
+  stats: { open: false, result: null, sig: "", busy: false, text: "", label: "" },
 };
+
+const STAT_COLOURS = ["#52e4e8", "#ff2bd6", "#ffc857", "#7bd88f", "#b48cff", "#ff8a5b", "#e8eaf2", "#5aa9ff"];
 
 function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
@@ -146,11 +149,18 @@ export async function plot() {
     say("Sampling…");
     const loc = await locate();
     const series = [];
-    const current = sampleLocated(loc, results.scalar(await results.values(S.field, S.step)));
+    // Sample what can be interpolated (a wrapped fringe cannot), then finish it.
+    const sampleAt = async (step) => {
+      const values = await results.values(S.field, step);
+      const scalar = (results.samplingScalar || results.scalar)(values);
+      const samples = sampleLocated(loc, scalar);
+      return results.afterSampling ? results.afterSampling(samples) : samples;
+    };
+    const current = await sampleAt(S.step);
     series.push({ name: `t=${f.steps[S.step].name}`, values: current, time: f.steps[S.step].time });
     const other = L.compare === "first" ? 0 : L.compare === "previous" ? S.step - 1 : -1;
     if (other >= 0 && other !== S.step) {
-      series.push({ name: `t=${f.steps[other].name}`, values: sampleLocated(loc, results.scalar(await results.values(S.field, other))), time: f.steps[other].time });
+      series.push({ name: `t=${f.steps[other].name}`, values: await sampleAt(other), time: f.steps[other].time });
     }
     L.profile = { distance: loc.line.distance, points: loc.line.points, series, label: results.componentLabel(), field: f.field, inside: loc.inside, length: loc.line.length };
     L.sig = signature();
@@ -332,11 +342,104 @@ export async function drawGlyphs() {
   if (said) said.textContent = L.glyph.said;
 }
 
+/* ── statistics by domain ───────────────────────────────────────────────── */
+
+const unitOf = (label) => (/\(([^()]+)\)\s*$/.exec(label || "") || [])[1]?.split(",")[0].trim() || "";
+
+export async function computeStats() {
+  const results = R();
+  const S = results?.state;
+  const f = S?.fields?.[S.field];
+  const T = L.stats;
+  if (!S?.mesh || !f?.ok || !results.domainStats) { T.text = "Choose a field in Results first."; T.result = null; render(); return; }
+  // A press during a run is not dropped: the run in hand may be reading a
+  // selection that has since changed, so one more follows it.
+  if (T.busy) { T.pending = true; return; }
+  T.busy = true;
+  T.text = "Summarising…";
+  sayStats();
+  try {
+    const values = await results.values(S.field, S.step);
+    const scalar = (results.samplingScalar || results.scalar)(values);
+    const t0 = performance.now();
+    const stats = await results.domainStats(scalar, 24);
+    T.result = stats;
+    T.label = results.statsLabel ? results.statsLabel() : results.componentLabel();
+    T.field = f.field;
+    T.stepName = f.steps[S.step]?.name;
+    T.sig = signature();
+    const secs = ((performance.now() - t0) / 1000).toFixed(2);
+    const extra = [stats.skipped ? `${stats.skipped.toLocaleString()} non-simplex elements left out` : "", stats.nanCells ? `${stats.nanCells.toLocaleString()} elements touching no value left out` : ""].filter(Boolean).join("; ");
+    T.text = stats.domains.length ? `${stats.domains.length} domain${stats.domains.length > 1 ? "s" : ""} by volume flag, t=${T.stepName}, ${secs} s${extra ? ` — ${extra}` : ""}.` : "No elements to summarise.";
+  } catch (error) {
+    T.text = `Could not summarise: ${error.message}`;
+  } finally {
+    T.busy = false;
+  }
+  render();
+  if (T.pending) { T.pending = false; computeStats(); }
+}
+
+function sayStats() {
+  const node = byId("ra-stats-status");
+  if (node) node.textContent = L.stats.text;
+}
+
+function formatMeasure(m, dim) {
+  if (dim === 3) return m >= 1e9 ? `${formatValue(m / 1e9, m / 1e9)} km³` : `${formatValue(m, m)} m³`;
+  return m >= 1e6 ? `${formatValue(m / 1e6, m / 1e6)} km²` : `${formatValue(m, m)} m²`;
+}
+
+function drawStatsHistogram(canvas, stats) {
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.clientWidth || 280;
+  const H = canvas.clientHeight || 150;
+  canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  const pad = { l: 8, r: 8, t: 8, b: 20 };
+  const w = W - pad.l - pad.r;
+  const h = H - pad.t - pad.b;
+  // Each domain as the share of ITS OWN volume per bin, so a small chamber is
+  // not flattened against a crust a thousand times its size.
+  const shares = stats.domains.map((d) => [...d.hist].map((v) => (d.measure > 0 ? v / d.measure : 0)));
+  // On a square-root axis: a field's tail is most of what distinguishes two
+  // domains, and a linear axis gives the whole height to one spike near zero.
+  const top = Math.sqrt(Math.max(1e-12, ...shares.flat()));
+  ctx.strokeStyle = "rgba(255,255,255,0.12)"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad.l, pad.t + h + 0.5); ctx.lineTo(pad.l + w, pad.t + h + 0.5); ctx.stroke();
+  shares.forEach((row, n) => {
+    ctx.strokeStyle = STAT_COLOURS[n % STAT_COLOURS.length]; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    row.forEach((v, k) => {
+      const x0 = pad.l + (k / stats.bins) * w;
+      const x1 = pad.l + ((k + 1) / stats.bins) * w;
+      const y = pad.t + h - (Math.sqrt(v) / top) * h;
+      if (k === 0) ctx.moveTo(x0, y); else ctx.lineTo(x0, y);
+      ctx.lineTo(x1, y);
+    });
+    ctx.stroke();
+  });
+  ctx.fillStyle = "rgba(232,234,242,0.7)"; ctx.font = "10px 'Exo 2', sans-serif";
+  ctx.textAlign = "left"; ctx.fillText(formatValue(stats.lo, stats.hi - stats.lo || 1), pad.l, H - 5);
+  ctx.textAlign = "right"; ctx.fillText(formatValue(stats.hi, stats.hi - stats.lo || 1), pad.l + w, H - 5);
+}
+
+function exportStats() {
+  const T = L.stats;
+  if (!T.result) return;
+  const label = T.label.replace(/\s*\([^()]*\)\s*$/, "");
+  const text = domainStatsCsv(T.result, { label, unit: unitOf(T.label) });
+  downloadText(`domain_stats_${(T.field || "field").replace(/[^A-Za-z0-9]+/g, "_")}_t${String(T.stepName).replace(/[^A-Za-z0-9.]+/g, "")}.csv`, text, "text/csv");
+}
+
 /* ── the card ───────────────────────────────────────────────────────────── */
 
 function signature() {
   const S = R()?.state;
-  return S?.mesh ? `${S.meshPath}|${S.field}|${S.step}|${S.component}|${S.colormap}|${S.reverse}|${S.deform?.on}|${S.deform?.scale}` : "";
+  // The satellite geometry changes what LOS and fringes ARE, so it is part of the selection.
+  const sat = S?.component === "los" || S?.component === "fringe" ? `|${S.insar?.heading}|${S.insar?.incidence}|${S.insar?.wavelength}|${S.insar?.look}|${S.insar?.scale}` : "";
+  return S?.mesh ? `${S.meshPath}|${S.field}|${S.step}|${S.component}|${S.colormap}|${S.reverse}|${S.deform?.on}|${S.deform?.scale}${sat}` : "";
 }
 
 export function render() {
@@ -414,6 +517,37 @@ export function render() {
     glyph.body.append(el("div", { id: "ra-glyph-status", class: "studio-readout" }, L.glyph.on ? L.glyph.said || "" : "Coloured by magnitude on the Results colour map; the longest arrow is 8% of the model."));
   }
   host.append(glyph.details);
+
+  const T = L.stats;
+  const stats = card("Statistics by domain", T.open);
+  stats.details.addEventListener("toggle", () => { T.open = stats.details.open; if (T.open && !T.result && !T.busy) computeStats(); });
+  stats.body.append(note("The field shown in Results summarised over each volume flag: means weighted by element volume, so a finely meshed chamber wall does not outvote the crust."));
+  stats.body.append(el("div", { class: "studio-actions" },
+    button("Summarise", "studio-primary", () => computeStats()),
+    button("Export CSV", "studio-secondary", exportStats, "A row per domain, then a volume histogram on shared bins"),
+  ));
+  stats.body.append(el("div", { id: "ra-stats-status", class: "studio-readout" }, T.text));
+  if (T.result?.domains.length) {
+    const res = T.result;
+    const unit = unitOf(T.label);
+    const span = res.hi - res.lo || 1;
+    const fmt = (v) => `${formatValue(v, span)}${unit ? ` ${unit}` : ""}`;
+    stats.body.append(el("p", { class: "studio-group-title" }, `${T.label} · ${T.field} · t=${T.stepName}`));
+    const table = el("table", { class: "ra-stats" });
+    table.append(el("thead", {}, el("tr", {}, ...["Flag", res.dim === 3 ? "Volume" : "Area", "Mean", "Std", "Min", "Max"].map((h) => el("th", {}, h)))));
+    const tbody = el("tbody");
+    res.domains.forEach((d, n) => tbody.append(el("tr", {},
+      el("td", {}, el("span", { class: "ra-stats-swatch", style: `background:${STAT_COLOURS[n % STAT_COLOURS.length]}` }), String(d.flag)),
+      el("td", {}, formatMeasure(d.measure, res.dim)),
+      el("td", {}, fmt(d.mean)), el("td", {}, fmt(d.std)), el("td", {}, fmt(d.min)), el("td", {}, fmt(d.max)),
+    )));
+    table.append(tbody);
+    stats.body.append(el("div", { class: "ra-stats-wrap" }, table));
+    const hist = el("canvas", { class: "fem-profile ra-plot", title: "Share of each domain's volume in each bin, on a square-root axis" });
+    stats.body.append(hist);
+    setTimeout(() => drawStatsHistogram(hist, res), 0);
+  }
+  host.append(stats.details);
 }
 
 /* ── following Results ──────────────────────────────────────────────────── */
@@ -424,6 +558,7 @@ function follow() {
   if (meshSig !== L.meshSig) {
     L.meshSig = meshSig;
     L.profile = null; L.located = null; L.locatedKey = ""; L.text = "";
+    L.stats.result = null; L.stats.text = ""; L.stats.sig = "";
     disposeLine(); disposeGlyphs();
     if (S?.mesh) {
       const b = S.mesh.bounds;
@@ -438,6 +573,7 @@ function follow() {
   const sig = signature();
   if (L.profile && sig !== L.sig && !L.busy) plot();
   if (L.glyph.on && sig !== L.glyph.sig) drawGlyphs();
+  if (L.stats.open && L.stats.result && sig !== L.stats.sig && !L.stats.busy) computeStats();
   if (!L.line && R()?.frame?.()) drawLine();
 }
 
@@ -449,5 +585,5 @@ function install() {
 
 if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", install); else install();
-  window.GeoIDResultsAnalysis = { plot, drawGlyphs, render, state: L };
+  window.GeoIDResultsAnalysis = { plot, drawGlyphs, computeStats, render, state: L };
 }
