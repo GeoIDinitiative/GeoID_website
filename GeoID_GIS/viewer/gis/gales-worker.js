@@ -13,17 +13,18 @@
  *   { id, type: "locate", points }         → { id, ok, located }  (nodes ×4, weights ×4 per point)
  *   { id, type: "stream", vec, seeds, options } → { id, ok, lines } (streamlines, by transfer)
  *   { id, type: "stats", scalar, bins } → { id, ok, stats } (domainStats, per volume flag)
+ *   { id, type: "gradient", scalar } → { id, ok, gradient } (nodalGradient: ∂x, ∂y, ∂z, |∇| per node)
  *   { id, type: "derive", u, nbDofs, material, gridText } → { id, ok, derived } (strain-stress.js)
  *   { id, type: "quality" }                → { id, ok, analysis }  (mesh-quality.js, by transfer)
  *   { id, type: "vtu", part, pointData, time } → { id, ok, blob, bytes, cells } (vtk-export.js; a Blob clones without copying)
  *   progress while parsing                 → { id, type: "progress", fraction }
  */
-import { readVtkGrid, vtkCellsToRawMesh, isVtkFile } from "./vtk-read.js?v=20260915-e0420cc";
-import { parseMesh, meshFromRaw, sliceTets, isoTets, cellLocator, locatePoints, streamlines, domainStats, exposedFaces, thresholdKeep, keptTriangles } from "./gales-results.js?v=20260915-e0420cc";
-import { analyseMesh } from "./mesh-quality.js?v=20260915-e0420cc";
-import { derivedFields, materialAt } from "./strain-stress.js?v=20260915-e0420cc";
-import { parseTable, buildGrid, sampleGrid } from "./tomography.js?v=20260915-e0420cc";
-import { vtkCells, vtuParts } from "./vtk-export.js?v=20260915-e0420cc";
+import { readVtkGrid, vtkCellsToRawMesh, isVtkFile } from "./vtk-read.js?v=20260915-7a4d9b0";
+import { parseMesh, meshFromRaw, sliceTets, isoTets, cellLocator, locatePoints, streamlines, domainStats, exposedFaces, thresholdKeep, keptTriangles } from "./gales-results.js?v=20260915-7a4d9b0";
+import { analyseMesh } from "./mesh-quality.js?v=20260915-7a4d9b0";
+import { derivedFields, materialAt, nodalGradient } from "./strain-stress.js?v=20260915-7a4d9b0";
+import { parseTable, buildGrid, sampleGrid } from "./tomography.js?v=20260915-7a4d9b0";
+import { vtkCells, vtuParts } from "./vtk-export.js?v=20260915-7a4d9b0";
 
 let mesh = null;
 let locator = null; // built on the first locate, dropped with the mesh
@@ -107,6 +108,13 @@ async function handle(event) {
       if (!locator) locator = cellLocator(mesh);
       const lines = streamlines(locator, event.data.vec, event.data.seeds, event.data.options || {});
       reply({ id, ok: true, lines }, [lines.points.buffer, lines.values.buffer, lines.starts.buffer, lines.counts.buffer]);
+      return;
+    }
+    if (type === "gradient") {
+      // A scalar's gradient, per element and averaged to the nodes: the cells are here.
+      if (!mesh) throw new Error("No mesh is loaded in the reader.");
+      const out = nodalGradient(mesh, new Float64Array(event.data.scalar));
+      reply({ id, ok: true, gradient: out }, [out.values.buffer]);
       return;
     }
     if (type === "derive") {

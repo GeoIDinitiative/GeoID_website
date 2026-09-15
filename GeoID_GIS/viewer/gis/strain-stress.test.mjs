@@ -88,3 +88,17 @@ check("props: not a solid, no material", parseSolidProps("heat_equation\n{\n cus
   const K = DERIVED_COMPONENTS.length;
   check("tilt: the magnitude at a node is the length of its averaged components, not the average of lengths", Math.abs(out.values[16]) < 1e-18 && Math.abs(out.values[18] - Math.hypot(out.values[16], out.values[17])) < 1e-18 && out.values[18] < 1e-12);
 }
+
+{
+  const { nodalGradient } = await import("./strain-stress.js");
+  const s = new Float64Array(8);
+  for (let i = 0; i < 8; i += 1) s[i] = 3 * coords[i * 3] - 2 * coords[i * 3 + 1] + 0.5 * coords[i * 3 + 2] + 7;
+  const g = nodalGradient(mesh, s).values;
+  check("gradient: a linear scalar's gradient is exact at every node, and its magnitude", [...Array(8).keys()].every((i) => near(g[i * 4], 3) && near(g[i * 4 + 1], -2) && near(g[i * 4 + 2], 0.5) && near(g[i * 4 + 3], Math.hypot(3, -2, 0.5))));
+  const holed = Float64Array.from(s); holed[7] = NaN;
+  const h = nodalGradient(mesh, holed);
+  check("gradient: every cell touching a NaN node is left out (all six share node 7), so no node has a gradient", h.skipped === 6 && Number.isNaN(h.values[0]));
+  const tri = parseGalesMesh(["MESH! 2D", "nodes 4", "elements 2", "sides 0", "X 0 1", "Y 0 1", "Node 0 0 0 0", "Node 1 1 0 0", "Node 2 1 1 0", "Node 3 0 1 0", "Element 0 0 3 0 1 2 0", "Element 1 0 3 0 2 3 0"].join("\n"));
+  const t = nodalGradient(tri, Float64Array.from([0, 2, 2 + 5, 5])).values; // s = 2x + 5y
+  check("gradient: in 2D the triangles give (∂x, ∂y) and ∂z is 0", [0, 1, 2, 3].every((i) => near(t[i * 4], 2) && near(t[i * 4 + 1], 5) && t[i * 4 + 2] === 0));
+}

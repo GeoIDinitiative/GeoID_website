@@ -734,7 +734,7 @@ check("a mesh opened onto a loaded run starts a new run; results join the open o
     r[6] === -1 && r[7] === 5 && r[8] === 2 && r[10] === 10 && r[11] === 0 && Number.isNaN(r[12]) && Number.isNaN(r[17]) && acc.steps === 3);
   const panelSrc = readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8");
   check("temporal: a summary is never byte-read by the probe, never fed to the calculator, and saved in a state",
-    /!f\.calc && !f\.temporal \? nodeByteRange/.test(panelSrc) && /f\.desc && !f\.temporal && !\(f\.calc/.test(panelSrc) && /temporals: S\.temporals\.map/.test(panelSrc));
+    /!f\.calc && !f\.temporal(?: && !f\.\w+)* \? nodeByteRange/.test(panelSrc) && /f\.desc && !f\.temporal && !\(f\.calc/.test(panelSrc) && /temporals: S\.temporals\.map/.test(panelSrc));
 }
 
 {
@@ -756,4 +756,12 @@ check("a mesh opened onto a loaded run starts a new run; results join the open o
   check("selection: a box drag with the orbit disabled and restored, the ending click swallowed, the spreadsheet able to keep only the selection",
     /controls\.enabled = false/.test(analysis) && /controls\.enabled = wasEnabled/.test(analysis) && /addEventListener\("click", \(e\) => \{ e\.stopPropagation\(\); e\.preventDefault\(\); \}, \{ capture: true, once: true \}\)/.test(analysis) &&
     /G\.selectionOnly && L\.sel\.ids\?\.length/.test(analysis) && /disp: results\.disp\?\.\(\)/.test(analysis));
+}
+
+{
+  const panelSrc = readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8");
+  const worker = readFileSync(new URL("./gales-worker.js", import.meta.url), "utf8");
+  check("gradient: computed in the reader worker, a vector every glyph and stream line can use, never byte-read, saved in a state",
+    /type === "gradient"/.test(worker) && /nodalGradient\(mesh, new Float64Array\(event\.data\.scalar\)\)/.test(worker) &&
+    /vector: \{ label: `\|∇\| of \$\{name\}`, unit, from: \[0, 1, 2\] \}/.test(panelSrc) && /!f\.temporal && !f\.gradient \? nodeByteRange/.test(panelSrc) && /gradients: S\.gradients\.map/.test(panelSrc));
 }

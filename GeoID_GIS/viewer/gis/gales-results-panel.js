@@ -30,15 +30,15 @@ import {
   exposedFaces, thresholdKeep, keptTriangles,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
   groupResultFiles, timeOf, referencePlan, differenceOf, DERIVED_DOFS,
-} from "./gales-results.js?v=20260915-e0420cc";
-import { zipStore } from "./shapefile-writer.js?v=20260915-e0420cc";
-import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-e0420cc";
-import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-e0420cc";
-import { parseSolidProps } from "./strain-stress.js?v=20260915-e0420cc";
-import { vtkHead, readVtkGrid, parsePvd, vtkFieldName } from "./vtk-read.js?v=20260915-e0420cc";
-import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-e0420cc";
-import { may, refusal } from "./membership.js?v=20260915-e0420cc";
-import { downloadText } from "./extraction.js?v=20260915-e0420cc";
+} from "./gales-results.js?v=20260915-7a4d9b0";
+import { zipStore } from "./shapefile-writer.js?v=20260915-7a4d9b0";
+import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-7a4d9b0";
+import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-7a4d9b0";
+import { parseSolidProps } from "./strain-stress.js?v=20260915-7a4d9b0";
+import { vtkHead, readVtkGrid, parsePvd, vtkFieldName } from "./vtk-read.js?v=20260915-7a4d9b0";
+import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-7a4d9b0";
+import { may, refusal } from "./membership.js?v=20260915-7a4d9b0";
+import { downloadText } from "./extraction.js?v=20260915-7a4d9b0";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -92,6 +92,7 @@ const S = {
   // Calculated fields: { name, expr, lead } -- a field from an expression over the others.
   calcs: [],
   temporals: [],
+  gradients: [],
   calcNote: "",
   // Meshes opened by hand, and the field a numbered file picked on its own
   // belongs to (a bare "1" says nothing about which field it is).
@@ -587,8 +588,64 @@ function classifyFields() {
   }
   // CALCULATED fields, after everything they can read.
   appendCalcFields();
+  // GRADIENTS, stepping with the field they differentiate.
+  appendGradientFields();
   // TEMPORAL statistics, after the fields they summarise (a calculated one included).
   appendTemporalFields();
+}
+
+/** One field per gradient: ∂x, ∂y, ∂z and |∇| of a component, at each of its source's steps. */
+function appendGradientFields() {
+  for (const g of S.gradients) {
+    const src = S.fields.find((f) => f.field === g.source && f.ok && f.desc && !f.temporal && !f.gradient);
+    if (!src) continue;
+    const comp = g.component === "mag" ? src.desc.vector : src.desc.components[Number(g.component)];
+    if (!comp) continue;
+    const unit = comp.unit ? `${comp.unit}/m` : "per m";
+    const name = comp.label;
+    S.fields.push({
+      field: `gradient/${g.source}:${g.component}`, gradient: true, from: g.source, component: g.component, ok: true, reason: "", nbDofs: 4,
+      desc: {
+        field: `gradient/${g.source}`, label: `Gradient of ${name}`, nbDofs: 4, blocked: false,
+        components: [
+          { key: "gx", label: `∂/∂x of ${name}`, unit }, { key: "gy", label: `∂/∂y of ${name}`, unit },
+          { key: "gz", label: `∂/∂z of ${name}`, unit }, { key: "gmag", label: `|∇| of ${name}`, unit },
+        ],
+        vector: { label: `|∇| of ${name}`, unit, from: [0, 1, 2] },
+      },
+      steps: src.steps.map((st) => ({ name: st.name, time: st.time, path: `gradient:${g.source}:${g.component}:${st.path}`, size: S.mesh.nodeCount * 32 })),
+    });
+  }
+}
+
+/** Add the gradient of the field and component shown. */
+export async function addGradient({ source, component } = {}) {
+  const shown = S.fields[S.field];
+  const src = source ? S.fields.find((f) => f.field === source) : shown;
+  if (!src || src.temporal || src.gradient) { S.gradientNote = "Show a field first (a gradient of a gradient or of a temporal summary is not offered)."; renderControls(); return null; }
+  if (!src.desc) await valuesAt(S.fields.indexOf(src), src.steps.length - 1);
+  const comp = component ?? (S.component === "" ? (src.desc?.vector ? "mag" : "0") : (S.component === "los" || S.component === "fringe" ? "mag" : S.component));
+  S.gradients = [...S.gradients.filter((g) => !(g.source === src.field && g.component === comp)), { source: src.field, component: comp }];
+  classifyFields();
+  const index = S.fields.findIndex((f) => f.field === `gradient/${src.field}:${comp}`);
+  if (index < 0) { S.gradientNote = `${src.field} has no such component to differentiate.`; renderControls(); return null; }
+  try {
+    const time = shown?.steps[S.step]?.time ?? 0;
+    const step = matchingStep(index, time);
+    await valuesAt(index, step);
+    S.field = index; S.step = step; S.component = "mag";
+    S.gradientNote = `${S.fields[index].desc.label}: per element, volume-weighted to the nodes; the magnitude after averaging.`;
+    renderControls();
+    await refresh({ fit: false });
+    return S.fields[index];
+  } catch (error) {
+    S.gradients = S.gradients.filter((g) => !(g.source === src.field && g.component === comp));
+    classifyFields();
+    S.field = Math.min(S.field, S.fields.length - 1);
+    S.gradientNote = `Could not differentiate: ${error.message}`;
+    renderControls();
+    return null;
+  }
 }
 
 /** One field per temporal summary: a single "all steps" step of six components. */
@@ -696,6 +753,19 @@ async function valuesAt(fieldIndex, stepIndex) {
     cache.delete(step.path);
     cache.set(step.path, hit);
     return hit;
+  }
+  if (f.gradient) {
+    const srcIndex = S.fields.findIndex((x) => x.field === f.from);
+    const src = S.fields[srcIndex];
+    if (!src) throw new Error(`${f.from} is no longer open.`);
+    const sv = await valuesAt(srcIndex, matchingStep(srcIndex, step.time));
+    const d = src.desc;
+    const scalar = f.component === "mag" ? magnitudeOf(sv, S.mesh.nodeCount, d.nbDofs, d.vector.from, d.blocked) : componentOf(sv, S.mesh.nodeCount, d.nbDofs, Number(f.component), d.blocked);
+    const copy = Float64Array.from(scalar);
+    const { gradient } = await getReader().call("gradient", { scalar: copy.buffer }, [copy.buffer]);
+    cache.set(step.path, gradient.values);
+    while (cache.size > CACHE_STEPS) cache.delete(cache.keys().next().value);
+    return gradient.values;
   }
   if (f.temporal) {
     const srcIndex = S.fields.findIndex((x) => x.field === f.from);
@@ -1241,6 +1311,7 @@ function resultsState() {
     threshold: { lo: S.threshold.lo, hi: S.threshold.hi, flags: S.threshold.flags, mode: S.threshold.mode, colourBy: S.threshold.colourBy },
     calcs: S.calcs.map((c) => ({ ...c })),
     temporals: S.temporals.map((t) => ({ ...t })),
+    gradients: S.gradients.map((g) => ({ ...g })),
     reference: S.reference ? S.reference.label : null,
     probeNode: S.probe?.node ?? null,
     stations: S.stations.map((st) => ({ name: st.name, node: st.node, x: st.x, y: st.y, z: st.z })),
@@ -1259,6 +1330,7 @@ async function applyResultsState(state) {
   S.iso = { ...S.iso, ...(state.iso || {}), key: "", data: null, used: [] };
   S.threshold = { ...S.threshold, ...(state.threshold || {}), key: "", data: null };
   S.calcs = Array.isArray(state.calcs) ? state.calcs.map((c) => ({ ...c })) : [];
+  S.gradients = Array.isArray(state.gradients) ? state.gradients.filter((g) => g && typeof g.source === "string").map((g) => ({ source: g.source, component: String(g.component) })) : [];
   S.temporals = Array.isArray(state.temporals) ? state.temporals.filter((t) => t && typeof t.source === "string").map((t) => ({ source: t.source, component: String(t.component) })) : [];
   S.slice = null; S.sliceKey = "";
   classifyFields();
@@ -1706,7 +1778,7 @@ async function probeSeries() {
     let values;
     const nb = f.nbDofs;
     // A derived field has no bytes of its own on disk: it is computed per step.
-    const range = nb && !f.desc?.blocked && !f.derived && !f.compare && !f.calc && !f.temporal ? nodeByteRange(node, S.mesh.nodeCount, nb) : null;
+    const range = nb && !f.desc?.blocked && !f.derived && !f.compare && !f.calc && !f.temporal && !f.gradient ? nodeByteRange(node, S.mesh.nodeCount, nb) : null;
     if (range) {
       const part = float64View(await S.source.readRange(step.path, range[0], range[1]));
       values = [...part];
@@ -2046,6 +2118,28 @@ function renderControls() {
   if (S.calcNote) calcSec.body.append(el("p", { class: "studio-readout" }, S.calcNote));
   host.append(calcSec.details);
 
+  // Gradient
+  const gradSec = section("gradient", "Gradient", Boolean(S.gradients.length));
+  gradSec.body.append(el("p", { class: "studio-readout" }, "The gradient of the field and component shown — ∂/∂x, ∂/∂y, ∂/∂z and its magnitude — per element and volume-weighted to the nodes, at every step: a temperature's gradient is its heat flux direction, a pressure's the force on the fluid."));
+  const addGrad = el("button", { class: "studio-primary", type: "button" }, "Gradient of the field shown");
+  addGrad.addEventListener("click", () => addGradient());
+  gradSec.body.append(el("div", { class: "studio-actions" }, addGrad));
+  for (const g of S.gradients) {
+    const rm = el("button", { class: "studio-btn", type: "button", title: "Remove this gradient" }, "×");
+    rm.addEventListener("click", () => {
+      const shownField = S.fields[S.field]?.field;
+      S.gradients = S.gradients.filter((x) => x !== g);
+      classifyFields();
+      const back = S.fields.findIndex((f) => f.field === shownField);
+      S.field = back >= 0 ? back : Math.max(0, S.fields.findIndex((f) => f.ok));
+      S.component = "";
+      renderControls(); refresh({ fit: false });
+    });
+    gradSec.body.append(el("div", { class: "gales-calc-row" }, el("b", {}, g.source), el("code", {}, g.component === "mag" ? "∇|v|" : `∇ component ${g.component}`), rm));
+  }
+  if (S.gradientNote) gradSec.body.append(el("p", { class: "studio-readout" }, S.gradientNote));
+  host.append(gradSec.details);
+
   // Temporal statistics
   const tempSec = section("temporal", "Temporal statistics", Boolean(S.temporals.length));
   tempSec.body.append(el("p", { class: "studio-readout" }, "Each node's minimum, maximum, mean and standard deviation over every step of the field and component shown, with the time of the minimum and of the maximum — a field of its own, for every view and analysis."));
@@ -2070,7 +2164,7 @@ function renderControls() {
 
   // Field
   const fs = section("field", "Field and time");
-  const fieldOptions = S.fields.map((f, k) => [k, f.temporal ? `${f.desc.label} · ${f.steps[0].name}` : f.calc ? `Calculated · ${f.desc.label} = ${f.expr}` : f.compare ? `Difference · ${f.from} − reference (${S.reference?.label}) · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}` : f.derived ? `Stress, strain and tilt · derived from ${f.from} · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}` : `${f.field}${f.nbDofs ? ` · ${f.nbDofs} dof${f.nbDofs > 1 ? "s" : ""}` : ""} · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}${f.ok ? "" : " — other mesh"}`, !f.ok]);
+  const fieldOptions = S.fields.map((f, k) => [k, f.temporal ? `${f.desc.label} · ${f.steps[0].name}` : f.gradient ? `${f.desc.label} · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}` : f.calc ? `Calculated · ${f.desc.label} = ${f.expr}` : f.compare ? `Difference · ${f.from} − reference (${S.reference?.label}) · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}` : f.derived ? `Stress, strain and tilt · derived from ${f.from} · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}` : `${f.field}${f.nbDofs ? ` · ${f.nbDofs} dof${f.nbDofs > 1 ? "s" : ""}` : ""} · ${f.steps.length} step${f.steps.length > 1 ? "s" : ""}${f.ok ? "" : " — other mesh"}`, !f.ok]);
   fs.body.append(row("Field", select([[-1, "— geometry only —"], ...fieldOptions], S.field, (v) => {
     S.field = Number(v);
     const f = S.fields[S.field];
@@ -2657,7 +2751,7 @@ async function extractStations() {
       const step = f.steps[k];
       status(`Extracting ${f.field}: step ${k + 1} of ${f.steps.length} at ${N} point(s)…`);
       // A few points read their own bytes; many read the step once.
-      if (!d.blocked && !f.derived && !f.compare && !f.calc && !f.temporal && N <= 24) {
+      if (!d.blocked && !f.derived && !f.compare && !f.calc && !f.temporal && !f.gradient && N <= 24) {
         for (let si = 0; si < N; si += 1) {
           const [a, b] = nodeByteRange(stations[si].node, n, nb);
           const part = float64View(await S.source.readRange(step.path, a, b));
@@ -2904,6 +2998,7 @@ if (typeof document !== "undefined" && typeof window !== "undefined" && typeof w
     addCalculated: (name, expr, options) => addCalculated(name, expr, options),
     // Probe a node by number (the spreadsheet's rows).
     addTemporal: (options) => addTemporal(options),
+    addGradient: (options) => addGradient(options),
     probeNode: (node) => {
       if (!S.mesh || !Number.isInteger(node) || node < 0 || node >= S.mesh.nodeCount) return false;
       S.probe = { node, series: null, seriesField: -1 };

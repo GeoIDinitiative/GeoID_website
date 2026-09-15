@@ -189,3 +189,69 @@ export function derivedFields(mesh, u, nbDofs, material) {
   }
   return { values: acc, nbDofs: K, skipped, stress: Boolean(material) };
 }
+
+/**
+ * GRADIENT of a nodal scalar — ParaView's Gradient filter. Each linear
+ * element's gradient is constant (tets in 3D, triangles in 2D, where ∂/∂z is
+ * 0); it is volume- (area-) weighted to the nodes and the magnitude is taken
+ * AFTER averaging, as the tilt is. A cell touching a NaN node is left out.
+ *
+ *   → Float64Array nodes × 4: ∂s/∂x, ∂s/∂y, ∂s/∂z, |∇s|
+ */
+export function nodalGradient(mesh, scalar) {
+  const n = mesh.nodeCount;
+  const acc = new Float64Array(n * 3);
+  const weight = new Float64Array(n);
+  const c = mesh.coords; const conn = mesh.cells; const off = mesh.cellOffsets;
+  const three = mesh.dim === 3;
+  let skipped = 0;
+  for (let e = 0; e + 1 < off.length; e += 1) {
+    const s = off[e];
+    const count = off[e + 1] - s;
+    if (three && count < 4) continue;
+    if (!three && count < 3) continue;
+    if (three) {
+      const i0 = conn[s]; const i1 = conn[s + 1]; const i2 = conn[s + 2]; const i3 = conn[s + 3];
+      const f0 = scalar[i0]; const f1 = scalar[i1]; const f2 = scalar[i2]; const f3 = scalar[i3];
+      if (!(Number.isFinite(f0) && Number.isFinite(f1) && Number.isFinite(f2) && Number.isFinite(f3))) { skipped += 1; continue; }
+      const a = [c[i1 * 3] - c[i0 * 3], c[i2 * 3] - c[i0 * 3], c[i3 * 3] - c[i0 * 3],
+        c[i1 * 3 + 1] - c[i0 * 3 + 1], c[i2 * 3 + 1] - c[i0 * 3 + 1], c[i3 * 3 + 1] - c[i0 * 3 + 1],
+        c[i1 * 3 + 2] - c[i0 * 3 + 2], c[i2 * 3 + 2] - c[i0 * 3 + 2], c[i3 * 3 + 2] - c[i0 * 3 + 2]];
+      const det = a[0] * (a[4] * a[8] - a[5] * a[7]) - a[1] * (a[3] * a[8] - a[5] * a[6]) + a[2] * (a[3] * a[7] - a[4] * a[6]);
+      const vol = Math.abs(det) / 6;
+      if (!(vol > 0)) { skipped += 1; continue; }
+      // J^T ∇f = (f1−f0, f2−f0, f3−f0): the rows of J⁻¹ give ∇f = J⁻ᵀ d.
+      const d1 = f1 - f0; const d2 = f2 - f0; const d3 = f3 - f0;
+      const inv = [
+        (a[4] * a[8] - a[5] * a[7]) / det, (a[2] * a[7] - a[1] * a[8]) / det, (a[1] * a[5] - a[2] * a[4]) / det,
+        (a[5] * a[6] - a[3] * a[8]) / det, (a[0] * a[8] - a[2] * a[6]) / det, (a[2] * a[3] - a[0] * a[5]) / det,
+        (a[3] * a[7] - a[4] * a[6]) / det, (a[1] * a[6] - a[0] * a[7]) / det, (a[0] * a[4] - a[1] * a[3]) / det,
+      ];
+      const gx = inv[0] * d1 + inv[3] * d2 + inv[6] * d3;
+      const gy = inv[1] * d1 + inv[4] * d2 + inv[7] * d3;
+      const gz = inv[2] * d1 + inv[5] * d2 + inv[8] * d3;
+      for (const node of [i0, i1, i2, i3]) { acc[node * 3] += vol * gx; acc[node * 3 + 1] += vol * gy; acc[node * 3 + 2] += vol * gz; weight[node] += vol; }
+    } else {
+      const i0 = conn[s]; const i1 = conn[s + 1]; const i2 = conn[s + 2];
+      const f0 = scalar[i0]; const f1 = scalar[i1]; const f2 = scalar[i2];
+      if (!(Number.isFinite(f0) && Number.isFinite(f1) && Number.isFinite(f2))) { skipped += 1; continue; }
+      const ax = c[i1 * 3] - c[i0 * 3]; const ay = c[i1 * 3 + 1] - c[i0 * 3 + 1];
+      const bx = c[i2 * 3] - c[i0 * 3]; const by = c[i2 * 3 + 1] - c[i0 * 3 + 1];
+      const det = ax * by - ay * bx;
+      const area = Math.abs(det) / 2;
+      if (!(area > 0)) { skipped += 1; continue; }
+      const d1 = f1 - f0; const d2 = f2 - f0;
+      const gx = (by * d1 - ay * d2) / det;
+      const gy = (-bx * d1 + ax * d2) / det;
+      for (const node of [i0, i1, i2]) { acc[node * 3] += area * gx; acc[node * 3 + 1] += area * gy; weight[node] += area; }
+    }
+  }
+  const out = new Float64Array(n * 4);
+  for (let i = 0; i < n; i += 1) {
+    const w = weight[i];
+    if (!(w > 0)) { out.fill(NaN, i * 4, i * 4 + 4); continue; }
+    const gx = acc[i * 3] / w; const gy = acc[i * 3 + 1] / w; const gz = acc[i * 3 + 2] / w;
+    out[i * 4] = gx; out[i * 4 + 1] = gy; out[i * 4 + 2] = gz; out[i * 4 + 3] = Math.hypot(gx, gy, gz);
+  }
+  return { values: out, skipped };
+}

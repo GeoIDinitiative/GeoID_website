@@ -20847,3 +20847,23 @@ scalars. LOOKUP_TABLE, COLOR_SCALARS, TEXTURE_COORDINATES and METADATA are read
 past. Verified against python-vtk's own ASCII 5.1, ASCII 4.2 and binary files:
 the binary file's cells equal the XML file's node for node, and it opens in
 Results with the same displacement at node 17.
+
+## Gradient: ∇ of any field, as a field
+
+Results ▸ Gradient adds `gradient/<field>:<component>` — ∂/∂x, ∂/∂y, ∂/∂z and
+|∇| of the field and component shown, at every one of its steps (ParaView's
+Gradient filter). `nodalGradient` in strain-stress.js is the pure half (a linear
+scalar exact at every node in 3D; a 2D triangle mesh giving ∂z = 0; a cell with a
+NaN node left out); the reader worker's `gradient` request runs it.
+
+- **Per element, volume- (area-) weighted to the nodes, the magnitude after
+  averaging** — the tilt's rule, for the same reason.
+- **It is a vector field** (`desc.vector` over its three components), so the
+  glyphs draw its arrows and the stream tracer its lines: a temperature's
+  gradient lines are the heat-flux paths reversed.
+- Not offered of a gradient or a temporal summary; kept in a saved state; never
+  byte-read by the probe or the station extraction.
+
+Verified on the VTK fixture series: ∇(300 + z) read (0, 0, 1) with |∇| 1 at all
+36 nodes, and ∂u_x/∂x of the displacement at t = 2.5 read 0.02 (to 2e-9, the
+float32 of the display path).
