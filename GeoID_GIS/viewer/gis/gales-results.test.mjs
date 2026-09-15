@@ -562,5 +562,6 @@ check("a mesh opened onto a loaded run starts a new run; results join the open o
   check("vtk: exporting is gated like every save", /async function exportVtk[\s\S]{0,200}may\("save"\)/.test(panel));
   check("mogi: a card that benchmarks the model surface and inverts it or the observations, marking the source", /card\("Analytical source \(Mogi\)"/.test(analysis) && /invertSource\("model"\)/.test(analysis) && /invertSource\("observations"\)/.test(analysis) && /function drawSourceMarker/.test(analysis) && /topSurfaceNodes\(/.test(analysis));
   check("mogi: an inversion on the edge of its search says it is not a minimum", /atEdge\.depth/.test(analysis));
+  check("report: a Report card building one printable page from the analyses' own facts, gated like every save", /card\("Report"/.test(analysis) && /modelReportHtml\(data\)/.test(analysis) && /async function openModelReport[\s\S]{0,160}may\("save"\)/.test(analysis) && /obsFacts\(res\)\.forEach/.test(analysis) && /\.\.\.obsFacts\(res\)/.test(analysis));
   check("refresh keeps its own LOS against the analysis reading the scalar between its awaits", /const losHere = S\.losRaw;/.test(panel) && /interpolateOnSlice\(sliced\.slice, losHere\)/.test(panel));
 }

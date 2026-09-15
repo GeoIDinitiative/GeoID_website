@@ -20447,3 +20447,35 @@ correction is not applied, and the note says so.
 - **The inner loop allocates nothing** (`packStations` plus typed arrays).
   The allocating version took 4 s for 49 stations; this one takes 0.2 s for
   4,000 nodes.
+
+## The model report: one page that leaves with the study
+
+Analysis ▸ Report opens one self-contained A4 HTML page. It prints through
+the browser's own Save as PDF, as the risk assessment report does, and is
+filed into the open project.
+
+- **Contents:** the Model page's setup (materials, conditions and its own
+  checks), the mesh, the view snapshot with a drawn colour bar, and every
+  analysis that has a result, each with its figure and numbers, a methods
+  line and references.
+- **Sign-off:** title, summary, notes and sign-off are editable before
+  printing.
+- **Layout is pure; the facts are the cards' own.** `model-report.js` lays out
+  pre-formatted rows (9 checks). `obsFacts`, `obsTable`, `sourceFacts`,
+  `inversionFacts`, `profileFacts` and `statsTable` are shared by the card and
+  the report, so the two cannot disagree. A section with no data is left out.
+- **Figures are redrawn off screen at print size.** Each draw function takes a
+  size, because a detached canvas has no `clientWidth`. The view is one fresh
+  `renderer.render` followed by `toDataURL`, the studio's own snapshot path.
+- **The page's legend is an overlay, so the snapshot has none.** The report
+  draws the colour bar from `results.colormap()` over the step's own range.
+- **The setup is the PAGE's, and it says so.** Nothing ties the Model page's
+  setup to a run opened from a folder, so the section carries that note.
+  Verified: an empty studio's setup prints its own errors ("Add geometry…")
+  rather than looking ready.
+- **Verified on Etna** with the profile, stats, observations and Mogi cards
+  run: 349 kB, eight sections, five figures. The snapshot is 28% lit (not a
+  black canvas), the colour bar reads 0–80 m, and building it takes 0.1 s.
+- **To look at a blob report in the Browser pane**: open a second tab on the
+  same origin, listen on a `BroadcastChannel`, and `document.write` the HTML.
+  `navigate` cannot open a blob URL.

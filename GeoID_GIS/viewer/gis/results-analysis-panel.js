@@ -26,11 +26,14 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, formatValue } from "./gales-results.js?v=20260915-fac5260";
-import { downloadText } from "./extraction.js?v=20260915-fac5260";
-import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-fac5260";
-import { losVector } from "./insar.js?v=20260915-fac5260";
-import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260915-fac5260";
+import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, formatValue } from "./gales-results.js?v=20260915-611c4ec";
+import { downloadText } from "./extraction.js?v=20260915-611c4ec";
+import { modelReportHtml } from "./model-report.js?v=20260915-611c4ec";
+import { PHYSICS, domainProperties } from "./fem-setup.js?v=20260915-611c4ec";
+import { may, refusal } from "./membership.js?v=20260915-611c4ec";
+import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-611c4ec";
+import { losVector } from "./insar.js?v=20260915-611c4ec";
+import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260915-611c4ec";
 
 const byId = (id) => document.getElementById(id);
 const R = () => window.GeoIDGalesResults;
@@ -43,6 +46,7 @@ const L = {
   meshSig: "",
   stats: { open: false, result: null, sig: "", busy: false, text: "", label: "" },
   src: { open: false, x0: 0, y0: 0, depth: 5000, dV: 1e6, nu: 0.25, mode: "dV", dP: 1e7, radius: 1000, E: 30e9, fitDV: true, result: null, inversion: null, text: "", busy: false, sig: "", marker: null, surfaceZ: 0 },
+  report: { open: false, title: "", text: "", busy: false },
   obs: { open: false, raw: "", unit: "mm", fit: true, arrows: true, text: "", result: null, sig: "", busy: false, pending: false, mesh: null },
 };
 
@@ -182,10 +186,10 @@ export async function plot() {
   }
 }
 
-function drawProfile(canvas, profile) {
+function drawProfile(canvas, profile, size = {}) {
   const ratio = window.devicePixelRatio || 1;
-  const W = Math.max(220, canvas.clientWidth || 300);
-  const H = 170;
+  const W = size.width || Math.max(220, canvas.clientWidth || 300);
+  const H = size.height || 170;
   canvas.width = W * ratio; canvas.height = H * ratio;
   const ctx = canvas.getContext("2d");
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
@@ -399,10 +403,10 @@ function formatMeasure(m, dim) {
   return m >= 1e6 ? `${formatValue(m / 1e6, m / 1e6)} km²` : `${formatValue(m, m)} m²`;
 }
 
-function drawStatsHistogram(canvas, stats) {
+function drawStatsHistogram(canvas, stats, size = {}) {
   const dpr = window.devicePixelRatio || 1;
-  const W = canvas.clientWidth || 280;
-  const H = canvas.clientHeight || 150;
+  const W = size.width || canvas.clientWidth || 280;
+  const H = size.height || canvas.clientHeight || 150;
   canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
   const ctx = canvas.getContext("2d");
   ctx.scale(dpr, dpr);
@@ -866,10 +870,10 @@ function drawSourceMarker() {
   P.marker = group;
 }
 
-function drawSourcePlot(canvas, res) {
+function drawSourcePlot(canvas, res, size = {}) {
   const dpr = window.devicePixelRatio || 1;
-  const W = canvas.clientWidth || 280;
-  const H = 180;
+  const W = size.width || canvas.clientWidth || 280;
+  const H = size.height || 180;
   canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
   const ctx = canvas.getContext("2d");
   ctx.scale(dpr, dpr);
@@ -902,10 +906,10 @@ function drawSourcePlot(canvas, res) {
   ctx.setLineDash([]);
 }
 
-function drawDepthCurve(canvas, inv) {
+function drawDepthCurve(canvas, inv, size = {}) {
   const dpr = window.devicePixelRatio || 1;
-  const W = canvas.clientWidth || 280;
-  const H = 110;
+  const W = size.width || canvas.clientWidth || 280;
+  const H = size.height || 110;
   canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
   const ctx = canvas.getContext("2d");
   ctx.scale(dpr, dpr);
@@ -928,6 +932,315 @@ function drawDepthCurve(canvas, inv) {
   const bx = X(Math.log10(inv.depth));
   ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.setLineDash([3, 3]);
   ctx.beginPath(); ctx.moveTo(bx, T); ctx.lineTo(bx, H - B); ctx.stroke(); ctx.setLineDash([]);
+}
+
+/* ── facts shared by the cards and the report ──────────────────────────── */
+function profileFacts(p) {
+  const finite = [...p.series[0].values].filter(Number.isFinite);
+  const out = [
+    ["Length", p.length >= 5000 ? `${formatValue(p.length / 1000, p.length / 1000)} km` : `${formatValue(p.length, p.length)} m`],
+    ["Inside the mesh", `${p.inside} of ${p.distance.length} samples`],
+  ];
+  // A break in the line is the mesh's own shape: above the ground, or a cavity.
+  let gaps = 0;
+  for (let k = 1; k < p.series[0].values.length; k += 1) if (Number.isFinite(p.series[0].values[k - 1]) && !Number.isFinite(p.series[0].values[k])) gaps += 1;
+  if (gaps) out.push(["Breaks", `${gaps} — where the line leaves the mesh (above the ground, or through a cavity)`]);
+  if (finite.length) {
+    const lo = Math.min(...finite); const hi = Math.max(...finite);
+    out.push(["Min", formatValue(lo, hi - lo)], ["Max", formatValue(hi, hi - lo)]);
+  }
+  out.push(["Lines", p.series.map((s, n) => `${n ? "dashed" : "solid"} ${s.name}`).join(", ")]);
+  return out;
+}
+
+function statsTable(T) {
+  const res = T.result;
+  const unit = unitOf(T.label);
+  const span = res.hi - res.lo || 1;
+  const fmt = (v) => `${formatValue(v, span)}${unit ? ` ${unit}` : ""}`;
+  return {
+    heads: ["Flag", res.dim === 3 ? "Volume" : "Area", "Mean", "Std", "Min", "Max"],
+    rows: res.domains.map((d) => [String(d.flag), formatMeasure(d.measure, res.dim), fmt(d.mean), fmt(d.std), fmt(d.min), fmt(d.max)]),
+  };
+}
+
+
+function obsFacts(res) {
+  const O = L.obs;
+  const toUnit = UNIT_SCALE[O.unit] || 1;
+  const mm = (v) => (Number.isFinite(v) ? `${formatValue(v * toUnit, Math.abs(v * toUnit) || 1)} ${O.unit}` : "—");
+  const f = res.fit;
+  const out = [
+    ["Kind", res.kind === "gnss" ? "GNSS (east, north, up)" : `InSAR line of sight — heading ${res.geometry.heading}°, incidence ${res.geometry.incidence}°`],
+    ["Stations", Object.entries(res.counts).map(([k, v]) => `${v} ${k}`).join(", ")],
+    ["Components", `${f.n}${f.weighted ? ", weighted by their sigmas" : f.mixed ? " — some without a sigma, so none weighted" : ", unweighted"}`],
+  ];
+  if (O.fit) {
+    out.push(["Best source scale", Number.isFinite(f.scale) ? `× ${Number(f.scale.toPrecision(4))}` : "— (the model is zero at every station)"]);
+    out.push(["RMS misfit", `${mm(f.rms)} as solved → ${mm(f.rmsScaled)} scaled`]);
+    if (f.weighted) out.push(["Reduced χ²", Number.isFinite(f.reducedChi2Scaled) ? Number(f.reducedChi2Scaled.toPrecision(3)).toString() : "—"]);
+    if (Number.isFinite(f.explained)) out.push(["Explained", `${(f.explained * 100).toFixed(1)}% of the data${f.weighted ? " (weighted)" : ""}`]);
+  } else out.push(["RMS misfit", `${mm(f.rms)} (as solved, not fitted)`]);
+  return out;
+}
+
+/** The observation table: heads, and a row of cells per station (at most `cap`). */
+function obsTable(res, cap = 200) {
+  const O = L.obs;
+  const toUnit = UNIT_SCALE[O.unit] || 1;
+  const mm = (v) => (Number.isFinite(v) ? `${formatValue(v * toUnit, Math.abs(v * toUnit) || 1)} ${O.unit}` : "—");
+  const heads = res.kind === "gnss" ? ["Station", "|obs|", "|model|", "|resid|", "up resid"] : ["Station", "obs", "model", "resid"];
+  const shown = res.stations.slice(0, cap);
+  const rows = shown.map((s, index) => {
+    const m = res.model[index];
+    if (!m) return { index, cells: [s.name, s.placed] };
+    if (res.kind === "gnss") {
+      const d = s.obs.map((v) => (Number.isFinite(v) ? v : 0));
+      const r = s.obs.map((v, j) => (Number.isFinite(v) ? v - res.k * m[j] : 0));
+      return { index, cells: [s.name, mm(Math.hypot(...d)), mm(Math.hypot(...m) * Math.abs(res.k)), mm(Math.hypot(...r)), Number.isFinite(s.obs[2]) ? mm(r[2]) : "—"] };
+    }
+    return { index, cells: [s.name, mm(s.obs[0]), mm(res.k * m[0]), mm(s.obs[0] - res.k * m[0])] };
+  });
+  return { heads, rows, shown };
+}
+
+function sourceFacts(res) {
+  const out = [
+    ["ΔV", `${fmtVol(res.dV)}${res.fitted ? " (fitted)" : ""}`],
+    ["Peak |u|", `model ${formatValue(res.peakModel, res.peakModel || 1)} m · Mogi ${formatValue(res.peakMogi, res.peakMogi || 1)} m`],
+    ["RMS difference", `${formatValue(res.rms, res.rms || 1)} m per component`],
+  ];
+  if (Number.isFinite(res.explained)) out.push(["Explained", res.explained > 0.0005 ? `${(res.explained * 100).toFixed(1)}% of the model surface` : "none — no better than no deformation at all"]);
+  return out;
+}
+
+function inversionFacts(inv) {
+  const out = [
+    ["Inverted", inv.label],
+    ["Source", `(${formatValue(inv.x0, 1000)}, ${formatValue(inv.y0, 1000)}) m, ${fmtKm(inv.depth)} deep`],
+    ["ΔV", fmtVol(inv.dV)],
+    [inv.weighted ? "√(χ²/n)" : "RMS", inv.weighted ? `${formatValue(inv.rms, inv.rms || 1)} — about 1 when the fit is as good as the sigmas allow` : `${formatValue(inv.rms, inv.rms || 1)} m per component`],
+  ];
+  if (inv.atEdge.depth || inv.atEdge.position) out.push(["Caution", `on the edge of the search (${[inv.atEdge.depth ? "depth" : "", inv.atEdge.position ? "position" : ""].filter(Boolean).join(", ")})`]);
+  return out;
+}
+
+/* ── the model report ───────────────────────────────────────────────────── */
+
+const sci = (v) => (Number.isFinite(v) ? (Math.abs(v) >= 1e5 || (Math.abs(v) < 1e-3 && v !== 0) ? v.toExponential(3) : String(Number(v.toPrecision(6)))) : "—");
+
+/** A figure drawn fresh at print size, off screen, as a PNG data URL. */
+function figureOf(draw, data, size = { width: 720, height: 240 }) {
+  const canvas = document.createElement("canvas");
+  draw(canvas, data, size);
+  return canvas.toDataURL("image/png");
+}
+
+/** The colour scale of the view, drawn for print: the page's legend is an overlay the snapshot does not hold. */
+function colourBar(table, lo, hi, label) {
+  const W = 720; const H = 52;
+  const c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H);
+  const steps = table.length / 3;
+  const x0 = 10; const x1 = W - 10;
+  for (let k = 0; k < steps; k += 1) {
+    ctx.fillStyle = `rgb(${Math.round(table[k * 3] * 255)},${Math.round(table[k * 3 + 1] * 255)},${Math.round(table[k * 3 + 2] * 255)})`;
+    ctx.fillRect(x0 + ((x1 - x0) * k) / steps, 18, (x1 - x0) / steps + 1, 14);
+  }
+  ctx.strokeStyle = "#666"; ctx.strokeRect(x0, 18, x1 - x0, 14);
+  ctx.fillStyle = "#222"; ctx.font = "12px sans-serif";
+  ctx.fillText(label, x0, 13);
+  niceTicks(lo, hi, 6).forEach((v) => {
+    const x = x0 + ((v - lo) / (hi - lo || 1)) * (x1 - x0);
+    if (x < x0 - 0.5 || x > x1 + 0.5) return;
+    const t = formatValue(v, hi - lo || 1);
+    const w = ctx.measureText(t).width;
+    ctx.fillRect(x, 32, 1, 4);
+    ctx.fillText(t, Math.min(x1 - w, Math.max(x0, x - w / 2)), 48);
+  });
+  return c.toDataURL("image/png");
+}
+
+/** The 3D view as it stands, downscaled to print width. */
+function viewSnapshot() {
+  const viewer = window.GeoIDViewer;
+  if (!viewer?.renderer) return null;
+  try {
+    viewer.renderer.render(viewer.scene, viewer.camera);
+    const src = viewer.renderer.domElement;
+    const scale = Math.min(1, 1400 / src.width);
+    const out = document.createElement("canvas");
+    out.width = Math.round(src.width * scale); out.height = Math.round(src.height * scale);
+    out.getContext("2d").drawImage(src, 0, 0, out.width, out.height);
+    return out.toDataURL("image/jpeg", 0.9);
+  } catch (error) {
+    return null;
+  }
+}
+
+/** The report's data: everything formatted as the cards format it. Answers the object modelReportHtml lays out. */
+export async function buildModelReport({ title } = {}) {
+  const results = R();
+  const S = results?.state;
+  if (!S?.mesh) throw new Error("Open a run in Results first.");
+  const f = S.fields[S.field];
+  const mesh = S.mesh;
+  const b = mesh.bounds;
+  const span = (a) => fmtKm(b.max[a] - b.min[a]);
+  const runName = S.meshPath || "run";
+  const r = {
+    title: title || L.report.title || `${runName.split("/").slice(-3, -2)[0] || runName} — ${f?.desc?.label || f?.field || "results"}`,
+    generated: new Date().toLocaleString(undefined, { dateStyle: "long", timeStyle: "short" }),
+    run: `${runName}${f ? ` · ${f.field} · t=${f.steps[S.step]?.name}` : ""}`,
+    methods: [], citations: [],
+  };
+  r.cards = [
+    [mesh.nodeCount.toLocaleString(), "nodes"],
+    [(mesh.cellCount ?? mesh.tets ?? 0).toLocaleString(), "elements"],
+  ];
+
+  // Setup: only where the Model page carries one, and said to be the page's.
+  const FS = window.GeoIDFemSetup;
+  const setup = FS?.setup;
+  const targets = FS?.targets?.();
+  if (setup && (Object.keys(setup.materials || {}).length || Object.keys(setup.conditions || {}).length)) {
+    const P = PHYSICS[setup.physics];
+    const summary = FS.summary?.();
+    const materials = (targets?.domains || []).filter((d) => !d.void).map((d) => {
+      const a = setup.materials?.[d.flag];
+      const props = domainProperties(a);
+      return [String(d.flag), a?.id ? `${d.name} — ${a.id}` : `${d.name} — no material`, sci(props.rho), sci(props.E), sci(props.nu)];
+    });
+    const conditions = Object.entries(setup.conditions || {}).filter(([, c]) => c?.type && c.type !== "free").map(([flag, c]) => {
+      const face = (targets?.faces || []).find((x) => Number(x.flag) === Number(flag));
+      const values = Object.entries(c.values || {}).filter(([, v]) => v !== "" && v !== null && v !== undefined).map(([k, v]) => `${k} = ${v}`).join(", ");
+      return [String(flag), `${P?.conditions?.[c.type]?.label || c.type}${face ? ` (${face.name})` : ""}`, values];
+    });
+    r.setup = {
+      physics: P?.label || setup.physics,
+      study: [["Study", `${setup.study?.name || ""} · ${setup.study?.kind || ""}, end ${setup.study?.end}, step ${setup.study?.step}`], ["Note", "The setup on the Model page when this report was made; confirm it is the one the run was written from."]],
+      materials, conditions,
+      pointwise: setup.pointwise?.file ? `Material read pointwise from ${setup.pointwise.file} (heterogeneous_pointwise).` : "",
+      issues: (summary?.issues || []).map((i) => ({ level: i.level, text: i.text })),
+    };
+  }
+
+  r.mesh = {
+    facts: [
+      ["Format", `${mesh.format || "—"}, ${mesh.dim}D`],
+      ["Nodes", mesh.nodeCount.toLocaleString()],
+      ["Elements", `${(mesh.cellCount ?? 0).toLocaleString()}${mesh.tets ? ` (${mesh.tets.toLocaleString()} tetrahedra)` : ""}`],
+      ["Boundary sides", (mesh.sideCount ?? 0).toLocaleString()],
+      ["Extent", `${span(0)} × ${span(1)} × ${span(2)}`],
+      ["Bounds (m)", `x ${formatValue(b.min[0], 1000)}…${formatValue(b.max[0], 1000)}, y ${formatValue(b.min[1], 1000)}…${formatValue(b.max[1], 1000)}, z ${formatValue(b.min[2], 1000)}…${formatValue(b.max[2], 1000)}`],
+    ],
+    domains: L.stats.result ? L.stats.result.domains.map((d) => [String(d.flag), d.cells.toLocaleString(), formatMeasure(d.measure, L.stats.result.dim)]) : null,
+  };
+
+  if (f?.ok) {
+    const values = await results.values(S.field, S.step);
+    const scalar = (results.samplingScalar || results.scalar)(values);
+    let lo = Infinity; let hi = -Infinity;
+    for (let i = 0; i < scalar.length; i += 1) { const v = scalar[i]; if (v < lo) lo = v; if (v > hi) hi = v; }
+    const label = results.componentLabel();
+    r.cards.push([`${formatValue(lo, hi - lo || 1)} … ${formatValue(hi, hi - lo || 1)}`, label], [String(f.steps[S.step]?.name), `step of ${f.steps.length}`]);
+    r.view = {
+      facts: [
+        ["Field", `${f.desc?.label || f.field} (${f.field})`],
+        ["Shown", label],
+        ["Step", `t=${f.steps[S.step]?.name} (${S.step + 1} of ${f.steps.length})`],
+        ["Range at this step", `${formatValue(lo, hi - lo || 1)} to ${formatValue(hi, hi - lo || 1)}`],
+        ["Colour map", `${S.colormap}${S.reverse ? ", reversed" : ""}`],
+        ...(S.deform?.on ? [["Deformed", `× ${formatValue(S.deform.scale, S.deform.scale)} by ${S.fields[S.deform.field]?.field}`]] : []),
+        ...(S.component === "los" || S.component === "fringe" ? [["Satellite", `heading ${S.insar.heading}°, incidence ${S.insar.incidence}°, λ ${S.insar.wavelength} m, ${S.insar.look}-looking`]] : []),
+      ],
+      image: viewSnapshot(),
+      bar: colourBar(results.colormap(), lo, hi, label),
+      caption: `${label}, t=${f.steps[S.step]?.name}, as drawn on the Model page`,
+    };
+    r.methods.push("Results are the solver's own binary output (little-endian float64, one value per dof per node), read against the mesh GALES was run on; nothing is re-solved on the page.");
+    if (/^derived\//.test(f.field)) {
+      r.methods.push("Stress and strain are derived from the displacement: constant strain per linear tetrahedron ε = sym(∇u), σ = λ tr(ε) I + 2μ ε with the run's own props.txt material, element values averaged to nodes by volume.");
+    }
+    if (S.component === "los" || S.component === "fringe") {
+      r.methods.push("Line of sight is u · ê with ê the unit vector from the ground to the satellite, (sin i sin a, sin i cos a, cos i), a = heading − 90° for a right-looking radar; positive toward the satellite. A fringe is λ/2 of range change, wrapped after interpolation.");
+    }
+  }
+
+  if (L.profile) {
+    r.profile = {
+      facts: [["Line", `(${L.a.map((v) => formatValue(v, 1000)).join(", ")}) → (${L.b.map((v) => formatValue(v, 1000)).join(", ")}) m`], ...profileFacts(L.profile)],
+      image: figureOf(drawProfile, L.profile),
+      caption: `${L.profile.label || L.profile.field} along the line`,
+    };
+    r.methods.push("Plot over line: each sample is located in its element and the element's nodal values weighted barycentrically, exact for a first-order mesh; samples outside the mesh are left blank.");
+  }
+  if (L.stats.result?.domains.length) {
+    const st = statsTable(L.stats);
+    r.stats = { label: `${L.stats.label} · ${L.stats.field} · t=${L.stats.stepName}`, heads: st.heads, rows: st.rows, image: figureOf(drawStatsHistogram, L.stats.result, { width: 720, height: 200 }) };
+    r.methods.push("Statistics by domain: each element takes the mean of its nodes (exact for a linear element's integral), weighted by its volume; min and max are over the domain's nodes.");
+  }
+  if (L.obs.result) {
+    const res = L.obs.result;
+    const { heads, rows } = obsTable(res, 60);
+    r.observations = {
+      facts: [["Compared against", `${res.field} at t=${res.stepName}`], ...obsFacts(res)],
+      heads, rows: rows.map((row) => (row.cells.length === 2 && !res.model[row.index] ? [row.cells[0], row.cells[1], ...Array(heads.length - 2).fill("")] : row.cells)),
+      more: res.stations.length > 60 ? `The first 60 of ${res.stations.length} stations; the CSV export holds them all.` : "",
+    };
+    r.methods.push("Observations: a station with a height is interpolated in its element; one without, or outside the mesh vertically, reads the highest surface node among those horizontally nearest; one beyond the mesh's plan extent is not placed. The source-strength scale is k = Σ w d m / Σ w m², w = 1/σ² when every component carries a sigma.");
+  }
+  if (L.src.result) {
+    r.source = {
+      facts: [["Source", `(${formatValue(L.src.x0, 1000)}, ${formatValue(L.src.y0, 1000)}) m, ${fmtKm(L.src.depth)} below z = ${formatValue(L.src.surfaceZ, 1000)} m, ν = ${L.src.nu}`], ...sourceFacts(L.src.result)],
+      image: figureOf(drawSourcePlot, L.src.result),
+      inversion: L.src.inversion ? inversionFacts(L.src.inversion) : null,
+      curveImage: L.src.inversion ? figureOf(drawDepthCurve, L.src.inversion, { width: 720, height: 160 }) : null,
+    };
+    r.methods.push("Mogi source: surface displacement of a point pressure source in a uniform elastic half-space, u = (1 − ν) ΔV / π · (dx, dy, d) / R³; ΔV = π a³ ΔP / G for a sphere. Inversion by grid search over position and log-spaced depth, refined five times, with ΔV solved by least squares at every trial.");
+    r.citations.push("Mogi, K. (1958). Relations between the eruptions of various volcanoes and the deformations of the ground surfaces around them. Bulletin of the Earthquake Research Institute, 36, 99–134.");
+    r.citations.push("Segall, P. (2010). Earthquake and Volcano Deformation. Princeton University Press.");
+  }
+  return r;
+}
+
+export async function openModelReport({ print = false, download = false } = {}) {
+  const Q = L.report;
+  if (!may("save")) { Q.text = refusal("save"); render(); return null; }
+  Q.busy = true;
+  Q.text = "Gathering the report…";
+  sayReport();
+  try {
+    const data = await buildModelReport();
+    const html = modelReportHtml(data);
+    const name = `model_report_${(data.title || "run").replace(/[^A-Za-z0-9]+/g, "_").slice(0, 60)}.html`;
+    if (download) {
+      downloadText(name, html, "text/html");
+      Q.text = `${name} downloaded — open it in a browser to print.`;
+    } else {
+      const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+      const w = window.open(`${url}${print ? "#print" : ""}`, "_blank");
+      setTimeout(() => URL.revokeObjectURL(url), 120000);
+      try { window.GeoIDResearch?.bridge?.saveExport?.(name, html); } catch (error) { /* no project open */ }
+      Q.text = w ? `Opened: ${reportSectionCount(data)} sections. Print or save as PDF from its toolbar.` : "The browser blocked the report window: allow pop-ups for this site, or download the HTML.";
+    }
+    return { data, html };
+  } catch (error) {
+    Q.text = `Could not make the report: ${error.message}`;
+    return null;
+  } finally {
+    Q.busy = false;
+    render();
+  }
+}
+
+const reportSectionCount = (d) => ["setup", "mesh", "view", "profile", "stats", "observations", "source"].filter((k) => d[k]).length + 1;
+
+function sayReport() {
+  const node = byId("ra-report-status");
+  if (node) node.textContent = L.report.text;
 }
 
 /* ── the card ───────────────────────────────────────────────────────────── */
@@ -977,17 +1290,8 @@ export function render() {
   if (p) {
     const canvas = el("canvas", { class: "fem-profile ra-plot" });
     line.body.append(el("p", { class: "studio-group-title" }, p.label || p.field), canvas);
-    const finite = [...p.series[0].values].filter(Number.isFinite);
     const dl = el("dl", { class: "st-facts" });
-    const fact = (k, v) => dl.append(el("dt", {}, k), el("dd", {}, v));
-    fact("Length", p.length >= 5000 ? `${formatValue(p.length / 1000, p.length / 1000)} km` : `${formatValue(p.length, p.length)} m`);
-    fact("Inside the mesh", `${p.inside} of ${p.distance.length} samples`);
-    // A break in the line is the mesh's own shape: above the ground, or a cavity.
-    let gaps = 0;
-    for (let k = 1; k < p.series[0].values.length; k += 1) if (Number.isFinite(p.series[0].values[k - 1]) && !Number.isFinite(p.series[0].values[k])) gaps += 1;
-    if (gaps) fact("Breaks", `${gaps} — where the line leaves the mesh (above the ground, or through a cavity)`);
-    if (finite.length) { fact("Min", formatValue(Math.min(...finite), Math.max(...finite) - Math.min(...finite))); fact("Max", formatValue(Math.max(...finite), Math.max(...finite) - Math.min(...finite))); }
-    fact("Lines", p.series.map((s, n) => `${n ? "dashed" : "solid"} ${s.name}`).join(", "));
+    profileFacts(p).forEach(([k, v]) => dl.append(el("dt", {}, k), el("dd", {}, v)));
     line.body.append(dl);
     setTimeout(() => drawProfile(canvas, p), 0);
   }
@@ -1026,18 +1330,14 @@ export function render() {
   stats.body.append(el("div", { id: "ra-stats-status", class: "studio-readout" }, T.text));
   if (T.result?.domains.length) {
     const res = T.result;
-    const unit = unitOf(T.label);
-    const span = res.hi - res.lo || 1;
-    const fmt = (v) => `${formatValue(v, span)}${unit ? ` ${unit}` : ""}`;
     stats.body.append(el("p", { class: "studio-group-title" }, `${T.label} · ${T.field} · t=${T.stepName}`));
     const table = el("table", { class: "ra-stats" });
-    table.append(el("thead", {}, el("tr", {}, ...["Flag", res.dim === 3 ? "Volume" : "Area", "Mean", "Std", "Min", "Max"].map((h) => el("th", {}, h)))));
+    const st = statsTable(T);
+    table.append(el("thead", {}, el("tr", {}, ...st.heads.map((h) => el("th", {}, h)))));
     const tbody = el("tbody");
-    res.domains.forEach((d, n) => tbody.append(el("tr", {},
-      el("td", {}, el("span", { class: "ra-stats-swatch", style: `background:${STAT_COLOURS[n % STAT_COLOURS.length]}` }), String(d.flag)),
-      el("td", {}, formatMeasure(d.measure, res.dim)),
-      el("td", {}, fmt(d.mean)), el("td", {}, fmt(d.std)), el("td", {}, fmt(d.min)), el("td", {}, fmt(d.max)),
-    )));
+    st.rows.forEach((cells, n) => tbody.append(el("tr", {},
+      el("td", {}, el("span", { class: "ra-stats-swatch", style: `background:${STAT_COLOURS[n % STAT_COLOURS.length]}` }), cells[0]),
+      ...cells.slice(1).map((c) => el("td", {}, c)))));
     table.append(tbody);
     stats.body.append(el("div", { class: "ra-stats-wrap" }, table));
     const hist = el("canvas", { class: "fem-profile ra-plot", title: "Share of each domain's volume in each bin, on a square-root axis" });
@@ -1084,44 +1384,23 @@ export function render() {
   cmp.body.append(el("div", { id: "ra-obs-status", class: "studio-readout" }, O.text));
   const res = O.result;
   if (res) {
-    const toUnit = UNIT_SCALE[O.unit] || 1;
-    const u = O.unit;
-    const mm = (v) => (Number.isFinite(v) ? `${formatValue(v * toUnit, Math.abs(v * toUnit) || 1)} ${u}` : "—");
-    const fitR = res.fit;
     const dl = el("dl", { class: "st-facts" });
-    const fact = (key, value) => dl.append(el("dt", {}, key), el("dd", {}, value));
-    fact("Kind", res.kind === "gnss" ? "GNSS (east, north, up)" : `InSAR line of sight — heading ${res.geometry.heading}°, incidence ${res.geometry.incidence}°`);
-    fact("Stations", Object.entries(res.counts).map(([k, v]) => `${v} ${k}`).join(", "));
-    fact("Components", `${fitR.n}${fitR.weighted ? ", weighted by their sigmas" : fitR.mixed ? " — some without a sigma, so none weighted" : ", unweighted"}`);
-    if (O.fit) {
-      fact("Best source scale", Number.isFinite(fitR.scale) ? `× ${Number(fitR.scale.toPrecision(4))}` : "— (the model is zero at every station)");
-      fact("RMS misfit", `${mm(fitR.rms)} as solved → ${mm(fitR.rmsScaled)} scaled`);
-      if (fitR.weighted) fact("Reduced χ²", Number.isFinite(fitR.reducedChi2Scaled) ? Number(fitR.reducedChi2Scaled.toPrecision(3)).toString() : "—");
-      if (Number.isFinite(fitR.explained)) fact("Explained", `${(fitR.explained * 100).toFixed(1)}% of the data${fitR.weighted ? " (weighted)" : ""}`);
-    } else {
-      fact("RMS misfit", `${mm(fitR.rms)} (as solved, not fitted)`);
-    }
+    obsFacts(res).forEach(([k, v]) => dl.append(el("dt", {}, k), el("dd", {}, v)));
     cmp.body.append(dl);
     const legend = el("p", { class: "studio-readout" },
       el("span", { class: "ra-stats-swatch", style: `background:${OBS_COLOUR}` }), "observed  ",
       el("span", { class: "ra-stats-swatch", style: `background:${MODEL_COLOUR}` }), res.k === 1 ? "modelled" : "modelled × scale");
     cmp.body.append(legend);
+    const { heads, rows, shown } = obsTable(res);
     const table = el("table", { class: "ra-stats" });
-    const heads = res.kind === "gnss" ? ["Station", "|obs|", "|model|", "|resid|", "up resid"] : ["Station", "obs", "model", "resid"];
     table.append(el("thead", {}, el("tr", {}, ...heads.map((h) => el("th", {}, h)))));
     const tbody = el("tbody");
-    const shown = res.stations.slice(0, 200);
-    shown.forEach((s, i) => {
-      const m = res.model[i];
+    rows.forEach((r) => {
+      const s = res.stations[r.index];
       const title = `${s.name} — ${s.placed}`;
-      if (!m) { tbody.append(el("tr", { title }, el("td", {}, s.name), el("td", { colspan: String(heads.length - 1) }, s.placed))); return; }
-      if (res.kind === "gnss") {
-        const d = s.obs.map((v) => (Number.isFinite(v) ? v : 0));
-        const r = s.obs.map((v, j) => (Number.isFinite(v) ? v - res.k * m[j] : 0));
-        tbody.append(el("tr", { title }, el("td", {}, s.name), el("td", {}, mm(Math.hypot(...d))), el("td", {}, mm(Math.hypot(...m) * Math.abs(res.k))), el("td", {}, mm(Math.hypot(...r))), el("td", {}, Number.isFinite(s.obs[2]) ? mm(r[2]) : "—")));
-      } else {
-        tbody.append(el("tr", { title }, el("td", {}, s.name), el("td", {}, mm(s.obs[0])), el("td", {}, mm(res.k * m[0])), el("td", {}, mm(s.obs[0] - res.k * m[0]))));
-      }
+      tbody.append(r.cells.length === 2 && !res.model[r.index]
+        ? el("tr", { title }, el("td", {}, r.cells[0]), el("td", { colspan: String(heads.length - 1) }, r.cells[1]))
+        : el("tr", { title }, ...r.cells.map((c) => el("td", {}, c))));
     });
     table.append(tbody);
     cmp.body.append(el("div", { class: "ra-stats-wrap" }, table));
@@ -1171,11 +1450,7 @@ export function render() {
   if (P.result) {
     const res = P.result;
     const dl = el("dl", { class: "st-facts" });
-    const fact = (k, v) => dl.append(el("dt", {}, k), el("dd", {}, v));
-    fact("ΔV", `${fmtVol(res.dV)}${res.fitted ? " (fitted)" : ""}`);
-    fact("Peak |u|", `model ${formatValue(res.peakModel, res.peakModel || 1)} m · Mogi ${formatValue(res.peakMogi, res.peakMogi || 1)} m`);
-    fact("RMS difference", `${formatValue(res.rms, res.rms || 1)} m per component`);
-    if (Number.isFinite(res.explained)) fact("Explained", res.explained > 0.0005 ? `${(res.explained * 100).toFixed(1)}% of the model surface` : "none — no better than no deformation at all");
+    sourceFacts(res).forEach(([k, v]) => dl.append(el("dt", {}, k), el("dd", {}, v)));
     sb.append(el("p", { class: "studio-group-title" }, `Against the model surface · ${res.field} · t=${res.stepName}`), dl);
     const canvas = el("canvas", { class: "fem-profile ra-plot", title: "Against distance from the source: dots are the model, lines Mogi" });
     sb.append(el("p", { class: "studio-readout" },
@@ -1187,18 +1462,31 @@ export function render() {
   if (P.inversion) {
     const inv = P.inversion;
     const dl = el("dl", { class: "st-facts" });
-    const fact = (k, v) => dl.append(el("dt", {}, k), el("dd", {}, v));
-    fact("Inverted", inv.label);
-    fact("Source", `(${formatValue(inv.x0, 1000)}, ${formatValue(inv.y0, 1000)}) m, ${fmtKm(inv.depth)} deep`);
-    fact("ΔV", fmtVol(inv.dV));
-    fact(inv.weighted ? "√(χ²/n)" : "RMS", inv.weighted ? `${formatValue(inv.rms, inv.rms || 1)} — about 1 when the fit is as good as the sigmas allow` : `${formatValue(inv.rms, inv.rms || 1)} m per component`);
-    if (inv.atEdge.depth || inv.atEdge.position) fact("Caution", `on the edge of the search (${[inv.atEdge.depth ? "depth" : "", inv.atEdge.position ? "position" : ""].filter(Boolean).join(", ")})`);
+    inversionFacts(inv).forEach(([k, v]) => dl.append(el("dt", {}, k), el("dd", {}, v)));
     sb.append(el("p", { class: "studio-group-title" }, "Inversion"), dl);
     const curve = el("canvas", { class: "fem-profile ra-plot", title: "Misfit against depth at the best position: a narrow dip is a well-determined depth" });
     sb.append(curve, note("Misfit along depth at the best position. A broad trough is the depth–volume trade-off: the data do not pin the depth down."));
     setTimeout(() => drawDepthCurve(curve, inv), 0);
   }
   host.append(srcCard.details);
+
+  const Q = L.report;
+  const rep = card("Report", Q.open);
+  rep.details.addEventListener("toggle", () => { Q.open = rep.details.open; });
+  rep.body.append(note("One printable page: the setup, the mesh, the view as it stands, and every analysis above that has a result — with its figure, its numbers and how each was computed."));
+  const titleInput = el("input", { class: "studio-input", type: "text", placeholder: "Title (defaults to the run and field)" });
+  titleInput.value = Q.title;
+  titleInput.addEventListener("keydown", (event) => event.stopPropagation());
+  titleInput.addEventListener("input", () => { Q.title = titleInput.value; });
+  rep.body.append(row("Title", titleInput));
+  const have = [L.profile && "profile", L.stats.result && "domain statistics", L.obs.result && "observations", L.src.result && "Mogi source"].filter(Boolean);
+  rep.body.append(note(have.length ? `Includes: view and mesh, ${have.join(", ")}.` : "Includes the view and the mesh; run an analysis above to add it."));
+  rep.body.append(el("div", { class: "studio-actions" },
+    button("Open report", "studio-primary", () => openModelReport()),
+    button("Download HTML", "studio-secondary", () => openModelReport({ download: true })),
+  ));
+  rep.body.append(el("div", { id: "ra-report-status", class: "studio-readout" }, Q.text));
+  host.append(rep.details);
 }
 
 /* ── following Results ──────────────────────────────────────────────────── */
@@ -1242,5 +1530,5 @@ function install() {
 
 if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", install); else install();
-  window.GeoIDResultsAnalysis = { plot, drawGlyphs, computeStats, compareObservations, compareSource, invertSource, render, state: L };
+  window.GeoIDResultsAnalysis = { plot, drawGlyphs, computeStats, compareObservations, compareSource, invertSource, buildModelReport, openModelReport, render, state: L };
 }
