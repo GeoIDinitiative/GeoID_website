@@ -2,23 +2,23 @@ import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
   nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS, atmosphereStl, DEFAULT_MAX_NODES, triangleWriter,
-} from "./model-build.js?v=20260915-7a4d9b0";
-import { ringsFromCollection } from "./extraction.js?v=20260915-7a4d9b0";
+} from "./model-build.js?v=20260915-fe100ae";
+import { ringsFromCollection } from "./extraction.js?v=20260915-fe100ae";
 import {
   buildTin, tinHeightAt, tinSurfaceStl, tinShellStl, samplingSizeField,
   extendBoundary, extendedBoundaryLines, gridAsTin, shellFacets,
-} from "./surface-sampling.js?v=20260915-7a4d9b0";
-import { renderFeatureCollection } from "./vector-render.js?v=20260915-7a4d9b0";
-import { promptDrawTool } from "./extent-picker.js?v=20260915-7a4d9b0";
+} from "./surface-sampling.js?v=20260915-fe100ae";
+import { renderFeatureCollection } from "./vector-render.js?v=20260915-fe100ae";
+import { promptDrawTool } from "./extent-picker.js?v=20260915-fe100ae";
 import {
   profileAlong, profileHeightAt, sectionPolygons, sectionPositions, sectionGmshScript, profileCsv,
-} from "./section-model.js?v=20260915-7a4d9b0";
-import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260915-7a4d9b0";
+} from "./section-model.js?v=20260915-fe100ae";
+import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260915-fe100ae";
 import {
   layerHeights, layeredVolumes, facetsStlByFace, layeredGmshScript, thinLayerSizeM, tinWith, LAYER_FLAGS, facetsClosed,
-} from "./layered-model.js?v=20260915-7a4d9b0";
-import { waterMasks, waterFeatures } from "./water-mask.js?v=20260915-7a4d9b0";
-import { burnRivers } from "./river-zones.js?v=20260915-7a4d9b0";
+} from "./layered-model.js?v=20260915-fe100ae";
+import { waterMasks, waterFeatures } from "./water-mask.js?v=20260915-fe100ae";
+import { burnRivers } from "./river-zones.js?v=20260915-fe100ae";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.

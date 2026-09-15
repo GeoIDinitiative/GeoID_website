@@ -30,15 +30,15 @@ import {
   exposedFaces, thresholdKeep, keptTriangles,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
   groupResultFiles, timeOf, referencePlan, differenceOf, DERIVED_DOFS,
-} from "./gales-results.js?v=20260915-7a4d9b0";
-import { zipStore } from "./shapefile-writer.js?v=20260915-7a4d9b0";
-import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-7a4d9b0";
-import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-7a4d9b0";
-import { parseSolidProps } from "./strain-stress.js?v=20260915-7a4d9b0";
-import { vtkHead, readVtkGrid, parsePvd, vtkFieldName } from "./vtk-read.js?v=20260915-7a4d9b0";
-import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-7a4d9b0";
-import { may, refusal } from "./membership.js?v=20260915-7a4d9b0";
-import { downloadText } from "./extraction.js?v=20260915-7a4d9b0";
+} from "./gales-results.js?v=20260915-fe100ae";
+import { zipStore } from "./shapefile-writer.js?v=20260915-fe100ae";
+import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-fe100ae";
+import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-fe100ae";
+import { parseSolidProps } from "./strain-stress.js?v=20260915-fe100ae";
+import { vtkHead, readVtkGrid, parsePvd, vtkFieldName } from "./vtk-read.js?v=20260915-fe100ae";
+import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-fe100ae";
+import { may, refusal } from "./membership.js?v=20260915-fe100ae";
+import { downloadText } from "./extraction.js?v=20260915-fe100ae";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -67,6 +67,7 @@ const S = {
   slice: null,
   sliceKey: "",
   deform: { on: false, field: -1, scale: 1 },
+  warpScalar: { on: false, scale: 1 },
   insar: loadInsar(),
   insarNote: "",
   losRaw: null,
@@ -1178,6 +1179,14 @@ async function refresh({ fit = false } = {}) {
       }
     }
 
+    // Warp by scalar (2D): the field shown as height, a map read as a surface.
+    if (S.mesh.dim === 2 && S.warpScalar.on && scalar) {
+      const lift = (S.component === "fringe" && losHere) ? losHere : scalar;
+      if (!disp) disp = new Float32Array(S.mesh.nodeCount * 3);
+      const k = S.warpScalar.scale;
+      for (let i = 0; i < S.mesh.nodeCount; i += 1) { const v = lift[i]; disp[i * 3 + 2] += Number.isFinite(v) ? v * k : 0; }
+    }
+
     scene.disp = disp;
     const view = S.mesh.dim === 3 ? S.view : S.view === "threshold" ? "threshold" : "surface";
     const sliced = await sliceFor(view);
@@ -1306,6 +1315,7 @@ function resultsState() {
     run: S.source?.label || "", mesh: S.meshPath, nodes: S.mesh.nodeCount,
     field: f?.field || null, stepTime: f?.steps[S.step]?.time ?? null, stepName: f?.steps[S.step]?.name ?? null,
     deform: { on: S.deform.on, field: S.fields[S.deform.field]?.field || null, scale: S.deform.scale },
+    warpScalar: { ...S.warpScalar },
     contours: { on: S.contours.on, count: S.contours.count, colour: S.contours.colour },
     iso: { on: S.iso.on, levels: S.iso.levels, opacity: S.iso.opacity },
     threshold: { lo: S.threshold.lo, hi: S.threshold.hi, flags: S.threshold.flags, mode: S.threshold.mode, colourBy: S.threshold.colourBy },
@@ -1345,6 +1355,7 @@ async function applyResultsState(state) {
   }
   const di = state.deform?.field ? S.fields.findIndex((x) => x.field === state.deform.field) : -1;
   S.deform = { on: Boolean(state.deform?.on && di >= 0), field: di >= 0 ? di : S.deform.field, scale: state.deform?.scale ?? S.deform.scale };
+  S.warpScalar = { on: Boolean(state.warpScalar?.on), scale: Number(state.warpScalar?.scale) || 1 };
   if (Number.isInteger(state.probeNode) && state.probeNode < S.mesh.nodeCount) S.probe = { node: state.probeNode, series: null, seriesField: -1 };
   if (Array.isArray(state.stations)) {
     S.stations = [];
@@ -2340,6 +2351,26 @@ function renderControls() {
     });
     ws.body.append(auto, el("div", { class: "studio-readout" }, "Exaggerated: a scale of 1 is the true displacement."));
   } else ws.body.append(el("div", { class: "studio-readout" }, "No displacement field in this run (solid/u, elastostatic_dofs or fluid_mesh)."));
+  if (S.mesh?.dim === 2) {
+    ws.body.append(check("Warp by the field shown (height)", S.warpScalar.on, (v) => { S.warpScalar.on = v; refresh(); }));
+    const wsScale = el("input", { class: "studio-input", type: "number", step: "any", value: String(S.warpScalar.scale) });
+    wsScale.addEventListener("keydown", (e) => e.stopPropagation());
+    wsScale.addEventListener("change", () => { S.warpScalar.scale = Number(wsScale.value) || 0; refresh(); });
+    ws.body.append(row("Height scale ×", wsScale));
+    const autoH = el("button", { class: "studio-secondary", type: "button" }, "Auto height");
+    autoH.title = "The largest value drawn as a fifth of the model's size";
+    autoH.addEventListener("click", async () => {
+      const f = S.fields[S.field];
+      if (!f?.ok) return;
+      const sc = scalarOf(await valuesAt(S.field, S.step), f.desc);
+      let max = 0;
+      for (const v of sc) if (Number.isFinite(v) && Math.abs(v) > max) max = Math.abs(v);
+      S.warpScalar.scale = max > 0 ? Number(((scene.radius * 2 * 0.2) / max).toPrecision(3)) : 1;
+      S.warpScalar.on = true;
+      renderControls(); refresh();
+    });
+    ws.body.append(autoH, el("div", { class: "studio-readout" }, "A 2D result lifted by its own values along z: the shown component (the LOS for fringes), on top of any warp by displacement."));
+  }
   host.append(ws.details);
 
   // Probe

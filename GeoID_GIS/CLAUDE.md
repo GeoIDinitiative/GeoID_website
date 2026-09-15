@@ -20867,3 +20867,13 @@ NaN node left out); the reader worker's `gradient` request runs it.
 Verified on the VTK fixture series: ∇(300 + z) read (0, 0, 1) with |∇| 1 at all
 36 nodes, and ∂u_x/∂x of the displacement at t = 2.5 read 0.02 (to 2e-9, the
 float32 of the display path).
+
+## Warp by scalar: a 2D result read as a surface
+
+Results ▸ Deformed shape, on a 2D mesh, offers "Warp by the field shown": each
+node lifted along z by the shown component (the LOS for fringes, never the
+wrap) times a height scale, added to any warp by displacement; "Auto height"
+draws the largest value as a fifth of the model. 2D only: in a volume the lift
+has no direction that is not an invention. Kept in a saved state. Verified on
+`fixtures/vtk/plane2d.vtu` (a 21 × 11 quad grid, head 0–30 m): at ×10 the drawn
+surface rises to exactly 300 m.

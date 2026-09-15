@@ -765,3 +765,9 @@ check("a mesh opened onto a loaded run starts a new run; results join the open o
     /type === "gradient"/.test(worker) && /nodalGradient\(mesh, new Float64Array\(event\.data\.scalar\)\)/.test(worker) &&
     /vector: \{ label: `\|∇\| of \$\{name\}`, unit, from: \[0, 1, 2\] \}/.test(panelSrc) && /!f\.temporal && !f\.gradient \? nodeByteRange/.test(panelSrc) && /gradients: S\.gradients\.map/.test(panelSrc));
 }
+
+{
+  const panelSrc = readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8");
+  check("warp by scalar: a 2D result lifted by the field shown along z, added to any displacement warp, kept in a state",
+    /if \(S\.mesh\.dim === 2 && S\.warpScalar\.on && scalar\)/.test(panelSrc) && /disp\[i \* 3 \+ 2\] \+= Number\.isFinite\(v\) \? v \* k : 0/.test(panelSrc) && /warpScalar: \{ \.\.\.S\.warpScalar \}/.test(panelSrc));
+}
