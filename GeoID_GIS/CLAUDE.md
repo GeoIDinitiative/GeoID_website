@@ -20379,3 +20379,34 @@ half (15 checks); the placement, arrows and card live in
   2.5×, Sentinel-1 ascending: k = 2.5000000, RMS 4 µm.
 - **A 2D mesh is refused.** Its plane could be a map or a section, and
   guessing which puts every station in the wrong place.
+
+## Export for ParaView: a run leaves as VTK
+
+Results ▸ Export for ParaView writes the open run as an XML UnstructuredGrid
+(`.vtu`) per step. `vtk-export.js` is the pure half (12 checks); the reader
+worker builds the file, since it holds the cells.
+
+- **One file** for a single step. **Several steps** go in a zip with a `.pvd`
+  naming each step's time, which ParaView opens as one time series.
+- **Appended raw binary with UInt64 headers.** It is never base64 (a third
+  larger, and a string the size of the file on the heap), and the file
+  leaves the worker as Blob PARTS, so a 58 MB volume is never copied into one
+  buffer first.
+- **Every node is a point**, even for the surface-only part, so point data
+  lines up with the solver's node numbering. Only cells of the mesh's own
+  dimension are written: a 3D GALES mesh's triangles are its boundary, and a
+  4-node cell is a tet in 3D and a quad in 2D.
+- **A displacement is ONE three-component array** (`solid_u`), which Warp By
+  Vector and Glyph take directly. Other components (the 16 derived
+  stress/strain readings, fluid pressure, temperature) are scalars. A field
+  written by component is re-interleaved. `node_flag` and `volume_flag` (or
+  `surface_flag`) go with the data.
+- **Float64 for the solution.** Float32 moved Etna's u by 3.8 µm against
+  numpy.
+- **Verified by VTK's own reader** (python vtk 9.2 on the full Etna volume):
+  - 251,147 points and 1,395,454 cells, all type 10;
+  - the flag counts match domain stats (1,290,687 / 104,767);
+  - summed cell volumes total 500,229 km³ = 475,483 + 24,746, with none
+    inverted.
+- **A zip holds its entries in one buffer with 32-bit offsets**, so anything
+  over 1.5 GB is refused with the way round it: fewer steps, or the surface.

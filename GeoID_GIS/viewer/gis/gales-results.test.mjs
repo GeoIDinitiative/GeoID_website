@@ -558,5 +558,7 @@ check("a mesh opened onto a loaded run starts a new run; results join the open o
   check("observations: a station is interpolated in its element, else read at the ground below it, never at the base", /located\.nodes\[slot \* 4\] >= 0/.test(analysis) && /function groundBelow/.test(analysis) && /bestZ/.test(analysis));
   check("observations: LOS is modelled with the Results satellite geometry", /losVector\(S\.insar\)/.test(analysis));
   check("observations: a 2D mesh is refused rather than read as a map", /S\.mesh\.dim === 2\) return refuse/.test(analysis));
+  check("vtk: the worker writes the .vtu where the cells are, as a Blob, and the panel zips steps with a .pvd", /type === "vtu"/.test(worker) && /new Blob\(parts/.test(worker) && /pvdText\(files\.map/.test(panel) && /section\("vtk", "Export for ParaView"\)/.test(panel));
+  check("vtk: exporting is gated like every save", /async function exportVtk[\s\S]{0,200}may\("save"\)/.test(panel));
   check("refresh keeps its own LOS against the analysis reading the scalar between its awaits", /const losHere = S\.losRaw;/.test(panel) && /interpolateOnSlice\(sliced\.slice, losHere\)/.test(panel));
 }

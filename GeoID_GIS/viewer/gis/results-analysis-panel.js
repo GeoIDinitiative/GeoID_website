@@ -26,10 +26,10 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, formatValue } from "./gales-results.js?v=20260915-43c303e";
-import { downloadText } from "./extraction.js?v=20260915-43c303e";
-import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-43c303e";
-import { losVector } from "./insar.js?v=20260915-43c303e";
+import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, formatValue } from "./gales-results.js?v=20260915-0d5c7dc";
+import { downloadText } from "./extraction.js?v=20260915-0d5c7dc";
+import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-0d5c7dc";
+import { losVector } from "./insar.js?v=20260915-0d5c7dc";
 
 const byId = (id) => document.getElementById(id);
 const R = () => window.GeoIDGalesResults;

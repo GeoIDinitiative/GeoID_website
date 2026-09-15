@@ -13,16 +13,19 @@
  *   { id, type: "stats", scalar, bins } → { id, ok, stats } (domainStats, per volume flag)
  *   { id, type: "derive", u, nbDofs, material, gridText } → { id, ok, derived } (strain-stress.js)
  *   { id, type: "quality" }                → { id, ok, analysis }  (mesh-quality.js, by transfer)
+ *   { id, type: "vtu", part, pointData, time } → { id, ok, blob, bytes, cells } (vtk-export.js; a Blob clones without copying)
  *   progress while parsing                 → { id, type: "progress", fraction }
  */
-import { parseMesh, sliceTets, cellLocator, locatePoints, domainStats } from "./gales-results.js?v=20260915-43c303e";
-import { analyseMesh } from "./mesh-quality.js?v=20260915-43c303e";
-import { derivedFields, materialAt } from "./strain-stress.js?v=20260915-43c303e";
-import { parseTable, buildGrid, sampleGrid } from "./tomography.js?v=20260915-43c303e";
+import { parseMesh, sliceTets, cellLocator, locatePoints, domainStats } from "./gales-results.js?v=20260915-0d5c7dc";
+import { analyseMesh } from "./mesh-quality.js?v=20260915-0d5c7dc";
+import { derivedFields, materialAt } from "./strain-stress.js?v=20260915-0d5c7dc";
+import { parseTable, buildGrid, sampleGrid } from "./tomography.js?v=20260915-0d5c7dc";
+import { vtkCells, vtuParts } from "./vtk-export.js?v=20260915-0d5c7dc";
 
 let mesh = null;
 let locator = null; // built on the first locate, dropped with the mesh
 let material = { key: "", fn: null }; // the run's E and nu as a function of position
+let vtk = null; // the mesh's cells in VTK's layout, built once for every step exported
 
 function reply(message, transfer = []) {
   self.postMessage(message, transfer);
@@ -33,6 +36,7 @@ async function handle(event) {
   try {
     if (type === "parse") {
       mesh = null;
+      vtk = null;
       const parsed = parseMesh(new Uint8Array(event.data.buffer), {
         onProgress: (fraction) => reply({ id, type: "progress", fraction }),
       });
@@ -93,6 +97,35 @@ async function handle(event) {
       if (!mesh) throw new Error("No mesh is loaded in the reader.");
       const stats = domainStats(mesh, event.data.scalar, { bins: event.data.bins || 24 });
       reply({ id, ok: true, stats }, stats.domains.map((d) => d.hist.buffer));
+      return;
+    }
+    if (type === "vtu") {
+      // ParaView: every node as a point (so point data aligns with the node
+      // numbering), and the volume's cells or the boundary's triangles.
+      if (!mesh) throw new Error("No mesh is loaded in the reader.");
+      const part = event.data.part === "surface" && mesh.dim === 3 ? "surface" : "volume";
+      if (vtk?.mesh !== mesh || vtk.part !== part) {
+        let cells;
+        let cellData;
+        if (part === "surface") {
+          const n = mesh.surface.length / 3;
+          const offsets = new Int32Array(n);
+          for (let k = 0; k < n; k += 1) offsets[k] = (k + 1) * 3;
+          cells = { connectivity: Int32Array.from(mesh.surface), offsets, types: new Uint8Array(n).fill(5) };
+          cellData = [{ name: "surface_flag", components: 1, values: Int32Array.from(mesh.surfaceFlag) }];
+        } else {
+          cells = vtkCells(mesh.cells, mesh.cellOffsets, mesh.dim);
+          const flags = new Int32Array(cells.count);
+          if (mesh.cellFlag) for (let k = 0; k < cells.count; k += 1) flags[k] = mesh.cellFlag[cells.source[k]];
+          cellData = [{ name: "volume_flag", components: 1, values: flags }];
+        }
+        vtk = { mesh, part, cells, cellData };
+      }
+      const pointData = [...(event.data.pointData || [])];
+      if (mesh.nodeFlag) pointData.push({ name: "node_flag", components: 1, values: Int32Array.from(mesh.nodeFlag) });
+      const { parts, bytes } = vtuParts({ points: mesh.coords, cells: vtk.cells, pointData, cellData: vtk.cellData, time: event.data.time });
+      const blob = new Blob(parts, { type: "application/octet-stream" });
+      reply({ id, ok: true, blob, bytes, cells: vtk.cells.types.length, part });
       return;
     }
     if (type === "drop") {

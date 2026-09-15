@@ -29,12 +29,13 @@ import {
   interpolateOnSlice, axisPlane, nodeByteRange, probeCsv, parseMesh, sliceTets,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
   groupResultFiles, timeOf,
-} from "./gales-results.js?v=20260915-43c303e";
-import { zipStore } from "./shapefile-writer.js?v=20260915-43c303e";
-import { parseSolidProps } from "./strain-stress.js?v=20260915-43c303e";
-import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-43c303e";
-import { may, refusal } from "./membership.js?v=20260915-43c303e";
-import { downloadText } from "./extraction.js?v=20260915-43c303e";
+} from "./gales-results.js?v=20260915-0d5c7dc";
+import { zipStore } from "./shapefile-writer.js?v=20260915-0d5c7dc";
+import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-0d5c7dc";
+import { parseSolidProps } from "./strain-stress.js?v=20260915-0d5c7dc";
+import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-0d5c7dc";
+import { may, refusal } from "./membership.js?v=20260915-0d5c7dc";
+import { downloadText } from "./extraction.js?v=20260915-0d5c7dc";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -76,6 +77,7 @@ const S = {
   stations: [],
   extract: { fields: null, layout: "station", result: null, plotField: 0, plotComp: "mag", note: "" },
   statusError: false,
+  vtkExport: { part: "volume", steps: "current", fields: null, busy: false, note: "" },
   clipOn: null,
   // Meshes opened by hand, and the field a numbered file picked on its own
   // belongs to (a bare "1" says nothing about which field it is).
@@ -134,6 +136,12 @@ function getReader() {
       });
       if (type === "locate") return import(`./gales-results.js${VERSION}`).then((g) => ({ ok: true, located: g.locatePoints(g.cellLocator(local), payload.points) }));
       if (type === "quality") return import(`./mesh-quality.js${VERSION}`).then((q) => ({ ok: true, analysis: local ? q.analyseMesh(local) : null }));
+      if (type === "vtu") {
+        const cells = vtkCells(local.cells, local.cellOffsets, local.dim);
+        const flags = Int32Array.from(cells.source, (c) => local.cellFlag?.[c] ?? 0);
+        const { parts, bytes } = vtuParts({ points: local.coords, cells, pointData: payload.pointData, cellData: [{ name: "volume_flag", components: 1, values: flags }], time: payload.time });
+        return Promise.resolve({ ok: true, blob: new Blob(parts), bytes, cells: cells.count, part: "volume" });
+      }
       return Promise.resolve({ ok: true });
     } catch (error) {
       return Promise.reject(error);
@@ -1543,7 +1551,138 @@ function renderControls() {
   pts.body.append(el("div", { id: "gales-points" }));
   host.append(pts.details);
   renderPoints();
+
+  // Export for ParaView
+  const vx = section("vtk", "Export for ParaView");
+  vx.body.append(el("div", { id: "gales-vtk" }));
+  host.append(vx.details);
+  renderVtkExport();
   renderStepReadout();
+}
+
+// ── Export for ParaView ────────────────────────────────────────────────────
+//
+// The reader answers most questions here; ParaView answers the rest. A step
+// leaves as a .vtu (appended raw binary, vtk-export.js) built in the worker
+// that holds the cells; several steps leave as a zip with a .pvd that opens
+// them as one time series.
+
+const vtkBase = () => `gales_${(S.fields[S.field]?.field || "run").replace(/[^A-Za-z0-9]+/g, "_")}`;
+
+/** The step of another field at (not after) a time, as the glyphs match steps. */
+function stepAtTime(fieldIndex, time) {
+  const f = S.fields[fieldIndex];
+  let step = 0;
+  for (let k = 0; k < f.steps.length; k += 1) if (f.steps[k].time <= time) step = k;
+  return step;
+}
+
+/**
+ * The VTK files for a selection, without downloading them: [{ name, blob, time }].
+ * `fields` are field indices (default: the chosen ones, else the one shown);
+ * `steps` is "current", "all", or an array of the shown field's step indices.
+ */
+export async function buildVtkFiles({ part = S.vtkExport.part, steps = S.vtkExport.steps, fields = null, onProgress } = {}) {
+  if (!S.mesh) throw new Error("Open a run first.");
+  const lead = S.fields[S.field];
+  if (!lead?.ok) throw new Error("Choose a field that fits this mesh.");
+  const chosen = (fields || [...(S.vtkExport.fields || [S.field])]).filter((i) => S.fields[i]?.ok);
+  if (!chosen.length) chosen.push(S.field);
+  const stepList = Array.isArray(steps) ? steps : steps === "all" ? lead.steps.map((_, k) => k) : [S.step];
+  const files = [];
+  const pad = String(Math.max(...stepList)).length;
+  for (const [n, k] of stepList.entries()) {
+    const time = lead.steps[k].time;
+    const pointData = [];
+    for (const fi of chosen) {
+      const values = await valuesAt(fi, fi === S.field ? k : stepAtTime(fi, time));
+      if (!values) continue;
+      pointData.push(...fieldArrays(S.fields[fi].desc, values, S.mesh.nodeCount, S.mesh.dim));
+    }
+    onProgress?.(n, stepList.length);
+    const out = await getReader().call("vtu", { part, pointData, time }, pointData.map((d) => d.values.buffer));
+    files.push({ name: `${vtkBase()}_${part}_${String(k).padStart(pad, "0")}.vtu`, blob: out.blob, bytes: out.bytes, cells: out.cells, time, part: out.part });
+  }
+  return files;
+}
+
+function saveBlob(name, blob) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+export async function exportVtk(options = {}) {
+  const X = S.vtkExport;
+  if (!may("save")) { X.note = refusal("save"); renderVtkExport(); return null; }
+  if (X.busy) return null;
+  X.busy = true;
+  X.note = "Writing…";
+  renderVtkExport();
+  try {
+    const files = await buildVtkFiles({ ...options, onProgress: (n, total) => { X.note = `Writing step ${n + 1} of ${total}…`; const node = byId("gales-vtk-note"); if (node) node.textContent = X.note; } });
+    const bytes = files.reduce((a, f) => a + f.bytes, 0);
+    const mb = (bytes / 1048576).toFixed(1);
+    if (files.length === 1) {
+      saveBlob(files[0].name, files[0].blob);
+      X.note = `${files[0].name} — ${mb} MB, ${files[0].cells.toLocaleString()} cells. ParaView: File ▸ Open.`;
+    } else {
+      // A stored zip holds its entries in one buffer, with 32-bit offsets.
+      if (bytes > 1.5 * 1073741824) throw new Error(`${mb} MB is more than a browser zip can hold; export fewer steps, or the surface.`);
+      const pvdName = `${vtkBase()}_${files[0].part}.pvd`;
+      const entries = [{ name: pvdName, data: new TextEncoder().encode(pvdText(files.map((f) => ({ time: f.time, file: f.name })))) }];
+      for (const f of files) entries.push({ name: f.name, data: new Uint8Array(await f.blob.arrayBuffer()) });
+      saveBlob(`${vtkBase()}_${files[0].part}_vtk.zip`, new Blob([zipStore(entries)], { type: "application/zip" }));
+      X.note = `${files.length} steps, ${mb} MB, with ${pvdName} — unzip and open the .pvd in ParaView as one time series.`;
+    }
+    return files;
+  } catch (error) {
+    X.note = `Could not export: ${error.message}`;
+    return null;
+  } finally {
+    X.busy = false;
+    renderVtkExport();
+  }
+}
+
+function renderVtkExport() {
+  const box = byId("gales-vtk");
+  if (!box) return;
+  box.textContent = "";
+  const X = S.vtkExport;
+  if (!S.mesh || !S.fields[S.field]?.ok) { box.append(el("p", { class: "studio-readout" }, "Open a run to export it.")); return; }
+  const ok = S.fields.map((f, i) => ({ f, i })).filter(({ f }) => f.ok);
+  if (!X.fields || X.fields.some((i) => !S.fields[i]?.ok)) X.fields = [S.field];
+  const part = el("select", { class: "studio-select" });
+  [["volume", "Volume — every element"], ["surface", "Surface — the boundary only"]].forEach(([v, t]) => part.append(new Option(t, v, false, v === X.part)));
+  part.disabled = S.mesh.dim !== 3;
+  part.addEventListener("change", () => { X.part = part.value; });
+  box.append(row("Part", part));
+  const steps = el("select", { class: "studio-select" });
+  const lead = S.fields[S.field];
+  [["current", `This step (t=${lead.steps[S.step]?.name})`], ["all", `All ${lead.steps.length} steps, as a time series`]].forEach(([v, t]) => steps.append(new Option(t, v, false, v === X.steps)));
+  steps.addEventListener("change", () => { X.steps = steps.value; });
+  box.append(row("Steps", steps));
+  const list = el("div", { class: "gales-vtk-fields" });
+  for (const { f, i } of ok) {
+    const tick = el("input", { type: "checkbox" });
+    tick.checked = X.fields.includes(i);
+    tick.addEventListener("change", () => {
+      X.fields = tick.checked ? [...new Set([...X.fields, i])] : X.fields.filter((j) => j !== i);
+    });
+    list.append(el("label", { class: "studio-check", title: f.field }, tick, f.desc?.label ? `${f.desc.label} (${f.field})` : f.field));
+  }
+  box.append(el("p", { class: "studio-group-title" }, "Fields"), list);
+  const go = el("button", { class: "studio-primary", type: "button" }, X.busy ? "Writing…" : "Export VTK");
+  go.disabled = X.busy;
+  go.addEventListener("click", () => exportVtk());
+  box.append(el("div", { class: "studio-actions" }, go));
+  box.append(el("p", { id: "gales-vtk-note", class: "studio-readout" }, X.note || "Node and volume flags travel as data arrays; a displacement is one vector ParaView can warp by."));
 }
 
 // ── Points and time series ─────────────────────────────────────────────────
@@ -1970,5 +2109,8 @@ if (typeof document !== "undefined" && typeof window !== "undefined" && typeof w
     componentLabel: () => componentLabel(currentDesc()),
     locate: async (points) => (S.mesh ? (await getReader().call("locate", { points }, [points.buffer])).located : null),
     colormap: () => colormapTable(S.colormap, { reverse: S.reverse }),
+    // ParaView: the .vtu files for a selection, and the download.
+    vtkFiles: (options) => buildVtkFiles(options),
+    exportVtk: (options) => exportVtk(options),
   };
 }
