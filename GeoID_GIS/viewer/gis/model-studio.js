@@ -1,17 +1,17 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260915-0e63adf";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260915-0e63adf";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260915-5ecf7d0";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260915-5ecf7d0";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260915-0e63adf";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260915-0e63adf";
-import { downloadText } from "./extraction.js?v=20260915-0e63adf";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260915-0e63adf";
-import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260915-0e63adf";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260915-0e63adf";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260915-0e63adf";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260915-0e63adf";
-import { femSpec } from "./model-build.js?v=20260915-0e63adf";
+} from "./mesh-volume.js?v=20260915-5ecf7d0";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260915-5ecf7d0";
+import { downloadText } from "./extraction.js?v=20260915-5ecf7d0";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260915-5ecf7d0";
+import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260915-5ecf7d0";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260915-5ecf7d0";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260915-5ecf7d0";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260915-5ecf7d0";
+import { femSpec } from "./model-build.js?v=20260915-5ecf7d0";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -4118,6 +4118,18 @@ function renderVisibilityBox() {
     s.style.background = hex(colour);
     return s;
   };
+  // THE PIPELINE BROWSER'S OTHER HALF: a row's gear opens the controls that
+  // made the thing, so what is on the globe and where it is set are one list.
+  const gear = (title, onClick) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "studio-vis-gear";
+    b.title = title;
+    b.setAttribute("aria-label", title);
+    b.textContent = "\u2699";
+    b.addEventListener("click", (event) => { event.stopPropagation(); onClick(); });
+    return b;
+  };
   groups.forEach((group) => {
     const own = group.parts;
     const shown = own.filter((p) => p.mesh.visible !== false).length;
@@ -4149,6 +4161,7 @@ function renderVisibilityBox() {
     count.textContent = `${shown}/${own.length}`;
     count.title = `${shown} of ${own.length} part${own.length === 1 ? "" : "s"} shown`;
     row.append(disclose, master, swatch(group.solid ? own[0].colour : own[0].colour), name, count);
+    if (typeof group.onSettings === "function") row.append(gear(group.settingsTitle || `Settings for ${group.title}`, group.onSettings));
     row.classList.toggle("is-off", shown === 0);
     stack.appendChild(row);
     if (!open) return;
@@ -4190,6 +4203,7 @@ function renderVisibilityBox() {
       if (flag.textContent) flag.title = `Physical flag ${part.flag}`;
       child.append(eye(on, `Show or hide ${part.name}`, (v) => { partVisible(part, v); renderDomainsPanel(); }),
         swatch(part.colour), partName, flag);
+      if (typeof part.onSettings === "function") child.append(gear(part.settingsTitle || `Settings for ${part.name}`, part.onSettings));
       kids.appendChild(child);
     });
     stack.appendChild(kids);

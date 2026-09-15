@@ -571,3 +571,12 @@
 /* The topbar wraps so the results bar takes a row of its own under the ribbon. */
 #model-studio .studio-topbar { flex-wrap: wrap; }
 #model-studio .studio-results-bar { flex: 1 0 100%; }
+
+/* The Visibility box as a pipeline browser: a gear per row opens what made it. */
+#model-studio .studio-visbox .studio-vis-gear {
+  flex: 0 0 auto; margin-left: auto; width: 1.25rem; height: 1.25rem; padding: 0;
+  border: 1px solid transparent; border-radius: 0.3rem; background: transparent; color: var(--soft-light);
+  font-size: 0.8rem; line-height: 1; cursor: pointer; opacity: 0.55;
+}
+#model-studio .studio-visbox .layer-row:hover .studio-vis-gear { opacity: 1; }
+#model-studio .studio-visbox .studio-vis-gear:hover { color: rgb(var(--nav-accent-rgb)); border-color: rgba(var(--nav-accent-rgb), 0.5); }

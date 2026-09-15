@@ -799,3 +799,12 @@ check("a mesh opened onto a loaded run starts a new run; results join the open o
     /new THREE\.WebGLRenderer/.test(view) && /dst\.setAttribute\(key, src\.attributes\[key\]\)/.test(view) && /V\.camera\.position\.copy\(main\.position\)/.test(view) &&
     /addEventListener\("geoid-gales:refreshed"/.test(view) && /new CustomEvent\("geoid-gales:refreshed"\)/.test(panelSrc) && /scalarFor: \(values, desc, component\)/.test(panelSrc));
 }
+
+{
+  const studioSrc = readFileSync(new URL("./model-studio.js", import.meta.url), "utf8");
+  const panelSrc = readFileSync(new URL("./gales-results-panel.js", import.meta.url), "utf8");
+  const analysis = readFileSync(new URL("./results-analysis-panel.js", import.meta.url), "utf8");
+  check("pipeline browser: the Visibility box draws a gear where a provider offers one, every results part opens its section, and the analysis overlays are a group with eyes and gears",
+    /typeof part\.onSettings === "function"\) child\.append\(gear/.test(studioSrc) && /typeof group\.onSettings === "function"\) row\.append\(gear/.test(studioSrc) &&
+    /onSettings: goto\(SECTION_OF\[key\] \|\| "display"\)/.test(panelSrc) && /registerVisibility\("ra-overlays", overlayGroup\)/.test(analysis) && /mesh: L\.glyph\.mesh/.test(analysis) && /mesh: L\.stream\.mesh/.test(analysis) && /mesh: L\.sel\.mesh/.test(analysis));
+}

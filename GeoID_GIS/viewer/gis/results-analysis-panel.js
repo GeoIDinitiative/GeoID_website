@@ -26,15 +26,15 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, streamSeeds, streamlinesCsv, selectInRect, selectionSummary, formatValue, describeField, float64View, timeOf, stepReading, powerLawSlope } from "./gales-results.js?v=20260915-0e63adf";
-import { downloadText } from "./extraction.js?v=20260915-0e63adf";
-import { modelReportHtml } from "./model-report.js?v=20260915-0e63adf";
-import { makeState, readState, stateFileName } from "./model-state.js?v=20260915-0e63adf";
-import { PHYSICS, domainProperties } from "./fem-setup.js?v=20260915-0e63adf";
-import { may, refusal } from "./membership.js?v=20260915-0e63adf";
-import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-0e63adf";
-import { losVector } from "./insar.js?v=20260915-0e63adf";
-import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260915-0e63adf";
+import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, streamSeeds, streamlinesCsv, selectInRect, selectionSummary, formatValue, describeField, float64View, timeOf, stepReading, powerLawSlope } from "./gales-results.js?v=20260915-5ecf7d0";
+import { downloadText } from "./extraction.js?v=20260915-5ecf7d0";
+import { modelReportHtml } from "./model-report.js?v=20260915-5ecf7d0";
+import { makeState, readState, stateFileName } from "./model-state.js?v=20260915-5ecf7d0";
+import { PHYSICS, domainProperties } from "./fem-setup.js?v=20260915-5ecf7d0";
+import { may, refusal } from "./membership.js?v=20260915-5ecf7d0";
+import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-5ecf7d0";
+import { losVector } from "./insar.js?v=20260915-5ecf7d0";
+import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260915-5ecf7d0";
 
 const byId = (id) => document.getElementById(id);
 const R = () => window.GeoIDGalesResults;
@@ -2541,10 +2541,48 @@ function follow() {
   if (!L.line && R()?.frame?.()) drawLine();
 }
 
+/**
+ * THE VISIBILITY BOX LISTS THE ANALYSIS OVERLAYS TOO — arrows, stream lines,
+ * the selection, the second view — each with an eye and a gear that opens its
+ * card, so the box is the page's pipeline browser: everything drawn, in one
+ * list, with the controls that made it one press away.
+ */
+function overlayGroup() {
+  const S = R()?.state;
+  if (!S?.mesh) return null;
+  const goto = (open) => () => { window.GeoIDStudioSpaces?.setSpace?.("analyse"); window.GeoIDMeshStudio?.showGroup?.("analysis"); open(); render(); setTimeout(() => byId("studio-analysis-host")?.querySelector("details[open]")?.scrollIntoView?.({ block: "nearest" }), 0); };
+  const parts = [];
+  if (L.glyph.mesh) parts.push({ id: "ra-glyphs", name: "Vector arrows", face: "Vector arrows", kind: "overlay", mesh: L.glyph.mesh, colour: 0xff8a5b, onSettings: goto(() => {}), settingsTitle: "Open Vector glyphs" });
+  if (L.stream.mesh) parts.push({ id: "ra-stream", name: "Stream lines", face: "Stream lines", kind: "overlay", mesh: L.stream.mesh, colour: 0x52e4e8, onSettings: goto(() => { L.stream.on = true; }), settingsTitle: "Open Stream tracer" });
+  if (L.sel.mesh) parts.push({ id: "ra-selection", name: `Selection (${L.sel.ids?.length?.toLocaleString() || 0} nodes)`, face: "Selection", kind: "overlay", mesh: L.sel.mesh, colour: 0xff2bd6, onSettings: goto(() => { L.sel.open = true; }), settingsTitle: "Open Selection" });
+  const view2 = window.GeoIDSecondView;
+  if (view2?.isOpen?.()) {
+    const proxy = { get visible() { return !view2.state.node?.hidden; }, set visible(v) { if (v) view2.open(); else view2.close(); } };
+    parts.push({ id: "ra-view2", name: `Second view — ${view2.state.field || ""}`, face: "Second view", kind: "overlay", mesh: proxy, colour: 0x8fb8de, onSettings: () => { const s = view2.state.node?.querySelector("select"); s?.focus(); }, settingsTitle: "Choose the second view's field" });
+  }
+  if (!parts.length) return null;
+  return { id: "ra-overlays", title: "Analysis overlays", parts, onSettings: goto(() => {}), settingsTitle: "Open Analysis" };
+}
+
 function install() {
   if (!byId("studio-analysis-host")) { setTimeout(install, 500); return; }
   render();
   setInterval(follow, 700);
+  let tries = 0;
+  const hook = () => {
+    const st = window.GeoIDMeshStudio;
+    if (st?.registerVisibility) { st.registerVisibility("ra-overlays", overlayGroup); overlayWatch(); } else if (tries++ < 120) setTimeout(hook, 500);
+  };
+  hook();
+}
+
+/** The box is redrawn when an overlay comes or goes, never on every frame. */
+function overlayWatch() {
+  let key = "";
+  setInterval(() => {
+    const next = [Boolean(L.glyph.mesh), Boolean(L.stream.mesh), L.sel.ids?.length || 0, window.GeoIDSecondView?.isOpen?.() ? window.GeoIDSecondView.state.field : ""].join("|");
+    if (next !== key) { key = next; window.GeoIDMeshStudio?.refreshVisibility?.(); }
+  }, 800);
 }
 
 if (typeof document !== "undefined" && typeof document.addEventListener === "function") {

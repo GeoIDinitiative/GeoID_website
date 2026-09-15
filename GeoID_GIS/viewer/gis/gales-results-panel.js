@@ -30,15 +30,15 @@ import {
   exposedFaces, thresholdKeep, keptTriangles,
   flagSummary, stationsForFlag, nodeLocator, specPoints, parsePointList, stationCsvFiles,
   groupResultFiles, timeOf, referencePlan, differenceOf, DERIVED_DOFS,
-} from "./gales-results.js?v=20260915-0e63adf";
-import { zipStore } from "./shapefile-writer.js?v=20260915-0e63adf";
-import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-0e63adf";
-import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-0e63adf";
-import { parseSolidProps } from "./strain-stress.js?v=20260915-0e63adf";
-import { vtkHead, readVtkGrid, parsePvd, vtkFieldName } from "./vtk-read.js?v=20260915-0e63adf";
-import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-0e63adf";
-import { may, refusal } from "./membership.js?v=20260915-0e63adf";
-import { downloadText } from "./extraction.js?v=20260915-0e63adf";
+} from "./gales-results.js?v=20260915-5ecf7d0";
+import { zipStore } from "./shapefile-writer.js?v=20260915-5ecf7d0";
+import { fieldArrays, pvdText, vtkCells, vtuParts } from "./vtk-export.js?v=20260915-5ecf7d0";
+import { parse as parseExpression, namesIn, variableTable, evaluate as evaluateExpression } from "./field-calculator.js?v=20260915-5ecf7d0";
+import { parseSolidProps } from "./strain-stress.js?v=20260915-5ecf7d0";
+import { vtkHead, readVtkGrid, parsePvd, vtkFieldName } from "./vtk-read.js?v=20260915-5ecf7d0";
+import { PLATFORMS, DEFAULT_GEOMETRY, losVector, losDisplacement, wrapFringes, fringeCount, fringesPerEdge, FRINGE_MAP } from "./insar.js?v=20260915-5ecf7d0";
+import { may, refusal } from "./membership.js?v=20260915-5ecf7d0";
+import { downloadText } from "./extraction.js?v=20260915-5ecf7d0";
 
 const VERSION = new URL(import.meta.url).search;
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
@@ -1091,12 +1091,15 @@ function visibilityGroup() {
   }
   const desc = currentDesc();
   const name = S.fields[S.field]?.field || "";
+  const SECTION_OF = { surface: "display", slice: "display", edges: "display", points: "points", contours: "display", iso: "display", threshold: "display" };
+  const goto = (key) => () => { window.GeoIDStudioSpaces?.setSpace?.("analyse"); studio()?.showGroup?.("results"); openSection(key); document.querySelector(`[data-gales-section="${key}"]`)?.scrollIntoView({ block: "nearest" }); };
   const parts = PART_ROWS.filter(([key]) => has[key]).map(([key, label, colour]) => ({
     id: `gales-${key}`, name: key === "surface" && name ? `${label} — ${name}` : label, face: label,
     kind: "results", mesh: scene.parts[key], colour,
     onVisible: () => { partsChanged(); },
+    onSettings: goto(SECTION_OF[key] || "display"), settingsTitle: `Open the ${SECTION_OF[key] === "points" ? "Points" : "Display"} section`,
   }));
-  return { id: "gales-results", title: desc ? `FEM results — ${name}` : "FEM results", parts };
+  return { id: "gales-results", title: desc ? `FEM results — ${name}` : "FEM results", parts, onSettings: goto("field"), settingsTitle: "Open Field and time" };
 }
 
 if (typeof window !== "undefined") {

@@ -20955,3 +20955,17 @@ otherwise synced in place on `geoid-gales:refreshed`. Keys while a run is open
 and nothing is being typed: `.`/`→` next step, `,`/`←` previous, Home/End,
 space plays. The topbar wraps and the bar takes a full-width basis, or it lands
 beside the ribbon and squeezes both.
+
+## The Visibility box is the page's pipeline browser
+
+A provider's group and parts may carry `onSettings` (and a `settingsTitle`), and
+the Visibility box draws a ⚙ on that row which opens what made the thing — the
+results parts open their Display or Points section, the group its Field and
+time, and a new "Analysis overlays" group (registered by the analysis panel)
+lists the vector arrows, stream lines, the selection and the second view, each
+with an eye on its own mesh and a gear that opens its card. So everything drawn
+is one list, ParaView's pipeline browser, with the controls one press away. The
+second view's "mesh" is a proxy whose `visible` opens and closes the window. The
+overlay group is redrawn when an overlay comes or goes (a 0.8 s key), never per
+frame. Verified live: two groups, four overlay rows, six gears; the eye hid the
+arrows' mesh; the stream-lines gear opened Analysis on the Stream tracer card.
