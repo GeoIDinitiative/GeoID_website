@@ -21,12 +21,13 @@ const full = {
   profile: { facts: [["Length", "100 km"]], image: "data:image/png;base64,BBBB", caption: "|u| along x" },
   stats: { label: "|u| (m)", heads: ["Flag", "Volume", "Mean"], rows: [["0", "475,483 km³", "21.5 m"]], image: null },
   observations: { facts: [["Best source scale", "× 0.4"]], heads: ["Station", "obs", "model"], rows: [["S0", "1 mm", "1 mm"]], more: "" },
+  sweep: { facts: [["Sensitivity", "∝ p^1"]], image: null, heads: ["Run", "Value", "Reading", "Step"], rows: [["s_0", "5e6", "10 m", "1"]] },
   source: { facts: [["ΔV", "30 × 10⁶ m³"]], image: "data:image/png;base64,CCCC", inversion: [["Source", "(1, 2) m"]], curveImage: "data:image/png;base64,DDDD" },
   methods: ["Barycentric interpolation"], citations: ["Segall, P. (2010) Earthquake and Volcano Deformation."],
 };
 const html = modelReportHtml(full);
-check("report: every section given is present, in order", reportSections(full).map((s) => s.id).join() === "setup,mesh,view,profile,stats,observations,source,methods");
-check("report: sections are numbered and the sign-off comes last", /<h2>1\. Model setup<\/h2>/.test(html) && /<h2>9\. Notes and sign-off<\/h2>/.test(html));
+check("report: every section given is present, in order", reportSections(full).map((s) => s.id).join() === "setup,mesh,view,profile,stats,observations,sweep,source,methods");
+check("report: sections are numbered and the sign-off comes last", /<h2>1\. Model setup<\/h2>/.test(html) && /<h2>10\. Notes and sign-off<\/h2>/.test(html));
 check("report: text is escaped, so a name cannot inject markup", html.includes("Etna &lt;chamber&gt; run") && !html.includes("<chamber>") && esc(`"a'<`) === "&quot;a&#39;&lt;");
 check("report: figures are embedded, print-ready, with an editable title and sign-off", /<img src="data:image\/png;base64,AAAA"/.test(html) && /@page \{ size: A4/.test(html) && /<h1 contenteditable="true">/.test(html) && /Prepared by/.test(html));
 check("report: issues keep their level", /<li class="warning">No gravity<\/li>/.test(html));

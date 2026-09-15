@@ -442,3 +442,86 @@ export function setupSummary(setup, targets) {
     issues,
   };
 }
+
+/* ── parameter sweeps ──────────────────────────────────────────────────── */
+
+/**
+ * What a study can be swept over: every property of a domain that has a
+ * material, and every numeric value of a condition that is set. A sweep is
+ * how a model is asked "how sensitive is the answer to this", which one run
+ * cannot say.
+ */
+export function sweepParameters(setup, targets) {
+  const P = PHYSICS[setup?.physics];
+  if (!P) return [];
+  const out = [];
+  for (const d of (targets?.domains || []).filter((x) => !x.void)) {
+    const a = setup.materials?.[d.flag];
+    if (!a?.id) continue;
+    const props = domainProperties(a);
+    for (const key of P.props) {
+      const meta = MATERIAL_PROPS[key];
+      out.push({ key: `mat:${d.flag}:${key}`, label: `${d.name} — ${meta.label}${meta.unit ? ` (${meta.unit})` : ""}`, base: props[key], min: meta.min, max: meta.max });
+    }
+  }
+  for (const [flag, c] of Object.entries(setup.conditions || {})) {
+    const def = P.conditions[c?.type];
+    if (!def) continue;
+    const face = (targets?.faces || []).find((f) => Number(f.flag) === Number(flag));
+    for (const v of def.values) {
+      if (v.choices) continue;
+      const base = Number(c.values?.[v.key] ?? v.def);
+      out.push({ key: `bc:${flag}:${v.key}`, label: `${face?.name || `flag ${flag}`} — ${def.label.split(" — ")[0]} ${v.label}`, base: Number.isFinite(base) ? base : NaN });
+    }
+  }
+  return out;
+}
+
+/**
+ * The values of a sweep: a typed list, or `count` values from `from` to `to`
+ * evenly (linear) or by equal ratios (log, both ends positive). Answers
+ * { values, error }.
+ */
+export function sweepValues({ mode = "range", from, to, count = 5, scale = "linear", text = "" } = {}) {
+  if (mode === "list") {
+    const values = String(text).split(/[,;\s]+/).filter(Boolean).map(Number);
+    if (!values.length || values.some((v) => !Number.isFinite(v))) return { values: [], error: "Type the values as numbers, separated by commas." };
+    return { values, error: "" };
+  }
+  const a = Number(from); const b = Number(to); const n = Math.round(Number(count));
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return { values: [], error: "Give both ends of the range." };
+  if (!(n >= 2 && n <= 50)) return { values: [], error: "Between 2 and 50 runs." };
+  if (scale === "log") {
+    if (!(a > 0 && b > 0)) return { values: [], error: "A log range needs both ends above zero." };
+    return { values: Array.from({ length: n }, (_, k) => Number((a * (b / a) ** (k / (n - 1))).toPrecision(6))), error: "" };
+  }
+  return { values: Array.from({ length: n }, (_, k) => Number((a + ((b - a) * k) / (n - 1)).toPrecision(10))), error: "" };
+}
+
+/** A copy of the setup with one parameter set; the run's name is the study's plus its index. */
+export function sweepSetups(setup, key, values, base = setup?.study?.name || "study") {
+  const [kind, flag, prop] = String(key).split(":");
+  const width = String(values.length - 1).length;
+  return values.map((value, k) => {
+    const next = JSON.parse(JSON.stringify(setup));
+    const name = `${base}_sweep_${String(k).padStart(width, "0")}`;
+    next.study = { ...next.study, name };
+    if (kind === "mat") {
+      const a = next.materials[flag] || (next.materials[flag] = {});
+      a.overrides = { ...(a.overrides || {}), [prop]: value };
+    } else if (kind === "bc") {
+      const c = next.conditions[flag];
+      if (c) c.values = { ...(c.values || {}), [prop]: value };
+    }
+    return { name, value, setup: next };
+  });
+}
+
+/** The sweep's own record, beside its runs: what was varied, over what, and where each run is. */
+export function sweepManifest({ base, parameter, label, values, runs, written_at = new Date().toISOString() }) {
+  return {
+    kind: "geoid-sweep", version: 1, base, parameter, label, values,
+    runs: runs.map((r) => ({ name: r.name, value: r.value, dir: `fem_runs/${r.name}` })),
+    written_at,
+  };
+}

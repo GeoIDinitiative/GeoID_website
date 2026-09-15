@@ -26,14 +26,14 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, formatValue } from "./gales-results.js?v=20260915-ce66302";
-import { downloadText } from "./extraction.js?v=20260915-ce66302";
-import { modelReportHtml } from "./model-report.js?v=20260915-ce66302";
-import { PHYSICS, domainProperties } from "./fem-setup.js?v=20260915-ce66302";
-import { may, refusal } from "./membership.js?v=20260915-ce66302";
-import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-ce66302";
-import { losVector } from "./insar.js?v=20260915-ce66302";
-import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260915-ce66302";
+import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, formatValue, describeField, float64View, timeOf, stepReading, powerLawSlope } from "./gales-results.js?v=20260915-455ab3c";
+import { downloadText } from "./extraction.js?v=20260915-455ab3c";
+import { modelReportHtml } from "./model-report.js?v=20260915-455ab3c";
+import { PHYSICS, domainProperties } from "./fem-setup.js?v=20260915-455ab3c";
+import { may, refusal } from "./membership.js?v=20260915-455ab3c";
+import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260915-455ab3c";
+import { losVector } from "./insar.js?v=20260915-455ab3c";
+import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260915-455ab3c";
 
 const byId = (id) => document.getElementById(id);
 const R = () => window.GeoIDGalesResults;
@@ -47,6 +47,7 @@ const L = {
   stats: { open: false, result: null, sig: "", busy: false, text: "", label: "" },
   src: { open: false, x0: 0, y0: 0, depth: 5000, dV: 1e6, nu: 0.25, mode: "dV", dP: 1e7, radius: 1000, E: 30e9, fitDV: true, result: null, inversion: null, text: "", busy: false, sig: "", marker: null, surfaceZ: 0 },
   report: { open: false, title: "", text: "", busy: false },
+  sweep: { open: false, manifests: null, path: "", field: "solid/u", component: "mag", where: "peak", node: "", result: null, text: "", busy: false },
   obs: { open: false, raw: "", unit: "mm", fit: true, arrows: true, text: "", result: null, sig: "", busy: false, pending: false, mesh: null },
 };
 
@@ -1025,6 +1026,134 @@ function inversionFacts(inv) {
   return out;
 }
 
+/* ── sweep response ─────────────────────────────────────────────────────── */
+
+const projectStore = () => window.GeoIDResearch?.store;
+
+/** The sweep manifests in the open project's fem_runs/. */
+async function listSweeps() {
+  const store = projectStore();
+  if (!store?.getActive?.()) return [];
+  try {
+    const entries = await store.listProjectDir("fem_runs");
+    return entries.filter((e) => e.kind !== "directory" && /_sweep\.json$/.test(e.name)).map((e) => `fem_runs/${e.name}`);
+  } catch (error) {
+    return [];
+  }
+}
+
+/**
+ * Read each run of a sweep at its last written step and reduce it to one
+ * number: the peak over the mesh, or the value at a node. The node count comes
+ * from the run open in Results -- a sweep shares one mesh, and a step file's
+ * size alone cannot say how many dofs a node carries.
+ */
+export async function readSweep(path = L.sweep.path) {
+  const W = L.sweep;
+  const store = projectStore();
+  const S = R()?.state;
+  if (!store?.getActive?.()) { W.text = "Open the project the sweep was written into."; render(); return null; }
+  if (!S?.mesh) { W.text = "Open one of the sweep's runs (or the base run) in Results first: its mesh gives the node count."; render(); return null; }
+  if (W.busy) return null;
+  W.busy = true;
+  W.text = "Reading the runs…";
+  render();
+  try {
+    const manifest = JSON.parse(await store.readProjectFile(path));
+    if (manifest.kind !== "geoid-sweep") throw new Error(`${path} is not a sweep manifest.`);
+    const n = S.mesh.nodeCount;
+    const node = W.where === "probe" ? S.probe?.node : W.where === "node" ? Math.round(Number(W.node)) : null;
+    if (W.where !== "peak" && !Number.isInteger(node)) throw new Error(W.where === "probe" ? "Probe a node in Results first." : "Type a node number.");
+    const rows = [];
+    let desc = null;
+    for (const run of manifest.runs) {
+      const folder = `${run.dir}/results/${W.field}`;
+      let listing = [];
+      try { listing = await store.listProjectDir(folder); } catch (error) { listing = []; }
+      const steps = listing.map((e) => ({ name: e.name, time: timeOf(e.name) })).filter((e) => e.time !== null).sort((a, b) => a.time - b.time);
+      if (!steps.length) { rows.push({ name: run.name, value: run.value, reading: null, note: "not solved" }); continue; }
+      const last = steps.at(-1);
+      const bytes = await store.readProjectFileBytes(`${folder}/${last.name}`);
+      const values = float64View(bytes);
+      const nb = values.length / n;
+      if (!Number.isInteger(nb)) { rows.push({ name: run.name, value: run.value, reading: null, note: `${values.length} values: not this mesh` }); continue; }
+      desc = desc || describeField(W.field, nb, S.mesh.dim);
+      rows.push({ name: run.name, value: run.value, reading: stepReading(values, n, desc, { component: W.component, node }), step: last.name, note: "" });
+    }
+    const got = rows.filter((r) => Number.isFinite(r.reading));
+    const fit = powerLawSlope(got.map((r) => r.value), got.map((r) => r.reading));
+    const compLabel = W.component === "mag" ? (desc?.vector?.label || "magnitude") : (desc?.components?.[Number(W.component)]?.label || `component ${W.component}`);
+    const unit = W.component === "mag" ? desc?.vector?.unit : desc?.components?.[Number(W.component)]?.unit;
+    W.result = {
+      path, manifest, rows, fit, node,
+      reading: `${W.where === "peak" ? "Peak" : `At node ${node}`} · ${compLabel}${unit ? ` (${unit})` : ""} · ${W.field}`,
+    };
+    W.text = `${got.length} of ${rows.length} runs read${got.length < rows.length ? ` — ${rows.length - got.length} not solved or not on this mesh` : ""}.`;
+    return W.result;
+  } catch (error) {
+    W.text = `Could not read the sweep: ${error.message}`;
+    W.result = null;
+    return null;
+  } finally {
+    W.busy = false;
+    render();
+  }
+}
+
+function drawSweep(canvas, res, size = {}) {
+  const dpr = window.devicePixelRatio || 1;
+  const W = size.width || canvas.clientWidth || 280;
+  const H = size.height || 180;
+  canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  const pts = res.rows.filter((r) => Number.isFinite(r.reading));
+  if (!pts.length) return;
+  const xs = pts.map((p) => p.value);
+  const logX = xs.every((x) => x > 0) && Math.max(...xs) / Math.min(...xs) >= 10;
+  const fx = (x) => (logX ? Math.log10(x) : x);
+  let x0 = Math.min(...xs.map(fx)); let x1 = Math.max(...xs.map(fx));
+  if (x1 === x0) { x0 -= 1; x1 += 1; }
+  const ys = pts.map((p) => p.reading);
+  let y0 = Math.min(0, ...ys); let y1 = Math.max(0, ...ys);
+  if (y1 === y0) y1 = y0 + 1;
+  const Lp = 48; const Rp = 10; const T = 10; const B = 24;
+  const X = (x) => Lp + ((fx(x) - x0) / (x1 - x0)) * (W - Lp - Rp);
+  const Y = (v) => T + (1 - (v - y0) / (y1 - y0)) * (H - T - B);
+  ctx.font = "10px 'Exo 2', sans-serif";
+  ctx.strokeStyle = "rgba(255,255,255,0.08)"; ctx.fillStyle = "rgba(232,230,240,0.6)";
+  niceTicks(y0, y1, 4).forEach((v) => { ctx.beginPath(); ctx.moveTo(Lp, Y(v)); ctx.lineTo(W - Rp, Y(v)); ctx.stroke(); ctx.fillText(formatValue(v, y1 - y0), 2, Y(v) + 3); });
+  pts.forEach((p, k) => {
+    const t = formatValue(p.value, Math.abs(p.value) || 1);
+    const w = ctx.measureText(t).width;
+    if (k === 0 || k === pts.length - 1 || pts.length <= 6) ctx.fillText(t, Math.min(W - Rp - w, Math.max(Lp, X(p.value) - w / 2)), H - 6);
+  });
+  ctx.strokeStyle = "#ff2bd6"; ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  pts.forEach((p, k) => (k ? ctx.lineTo(X(p.value), Y(p.reading)) : ctx.moveTo(X(p.value), Y(p.reading))));
+  ctx.stroke();
+  ctx.fillStyle = "#52e4e8";
+  pts.forEach((p) => { ctx.beginPath(); ctx.arc(X(p.value), Y(p.reading), 3, 0, Math.PI * 2); ctx.fill(); });
+}
+
+function sweepFacts(res) {
+  const f = res.fit;
+  return [
+    ["Varied", `${res.manifest.label} (${res.manifest.parameter})`],
+    ["Reading", res.reading],
+    ["Runs", `${res.rows.filter((r) => Number.isFinite(r.reading)).length} of ${res.rows.length} solved`],
+    ["Sensitivity", Number.isFinite(f.slope) ? `response ∝ parameter^${Number(f.slope.toPrecision(3))} (R² ${Number(f.r2.toPrecision(3))}, ${f.n} runs)` : "— (needs two solved runs with a positive parameter)"],
+  ];
+}
+
+function exportSweep() {
+  const res = L.sweep.result;
+  if (!res) return;
+  const lines = [`# ${res.manifest.label} (${res.manifest.parameter})`, `# ${res.reading}`, "run,value,reading,step,note"];
+  res.rows.forEach((r) => lines.push([r.name, r.value, Number.isFinite(r.reading) ? r.reading : "", r.step || "", `"${r.note || ""}"`].join(",")));
+  downloadText(`sweep_${res.manifest.base}_${L.sweep.field.replace(/[^A-Za-z0-9]+/g, "_")}.csv`, `${lines.join("\n")}\n`, "text/csv");
+}
+
 /* ── the model report ───────────────────────────────────────────────────── */
 
 const sci = (v) => (Number.isFinite(v) ? (Math.abs(v) >= 1e5 || (Math.abs(v) < 1e-3 && v !== 0) ? v.toExponential(3) : String(Number(v.toPrecision(6)))) : "—");
@@ -1203,6 +1332,16 @@ export async function buildModelReport({ title } = {}) {
     };
     r.methods.push("Observations: a station with a height is interpolated in its element; one without, or outside the mesh vertically, reads the highest surface node among those horizontally nearest; one beyond the mesh's plan extent is not placed. The source-strength scale is k = Σ w d m / Σ w m², w = 1/σ² when every component carries a sigma.");
   }
+  if (L.sweep.result) {
+    const res = L.sweep.result;
+    r.sweep = {
+      facts: sweepFacts(res),
+      image: figureOf(drawSweep, res),
+      heads: ["Run", "Value", "Reading", "Step"],
+      rows: res.rows.map((x) => [x.name, formatValue(x.value, Math.abs(x.value) || 1), Number.isFinite(x.reading) ? formatValue(x.reading, Math.abs(x.reading) || 1) : x.note, x.step || "—"]),
+    };
+    r.methods.push("Parameter sweep: one study per value of the varied parameter, everything else as set; each run's last written step is reduced to one number (the largest absolute value over the mesh, or the value at a node), and the sensitivity is the least-squares slope of log|reading| on log(value).");
+  }
   if (L.src.result) {
     r.source = {
       facts: [["Source", `(${formatValue(L.src.x0, 1000)}, ${formatValue(L.src.y0, 1000)}) m, ${fmtKm(L.src.depth)} below z = ${formatValue(L.src.surfaceZ, 1000)} m, ν = ${L.src.nu}`], ...sourceFacts(L.src.result)],
@@ -1247,7 +1386,7 @@ export async function openModelReport({ print = false, download = false } = {}) 
   }
 }
 
-const reportSectionCount = (d) => ["setup", "mesh", "view", "profile", "stats", "observations", "source"].filter((k) => d[k]).length + 1;
+const reportSectionCount = (d) => ["setup", "mesh", "view", "profile", "stats", "observations", "sweep", "source"].filter((k) => d[k]).length + 1;
 
 function sayReport() {
   const node = byId("ra-report-status");
@@ -1481,6 +1620,56 @@ export function render() {
   }
   host.append(srcCard.details);
 
+  const WS = L.sweep;
+  const swc = card("Sweep response", WS.open);
+  swc.details.addEventListener("toggle", () => {
+    WS.open = swc.details.open;
+    if (WS.open && WS.manifests === null) listSweeps().then((list) => { WS.manifests = list; if (!WS.path && list.length) WS.path = list[0]; render(); });
+  });
+  swc.body.append(note("A parameter sweep read back: each run's last step reduced to one number, against the value varied. The slope of log response on log parameter is the sensitivity — 1 where displacement scales with pressure, −1 where it scales with 1/E."));
+  const sweeps = WS.manifests || [];
+  if (!sweeps.length) swc.body.append(note(WS.manifests === null ? "Looking for sweeps in the open project…" : "No sweep in this project's fem_runs/: write one from Study ▸ Parameter sweep."));
+  else {
+    const pick = el("select", { class: "studio-select" });
+    sweeps.forEach((path) => pick.append(new Option(path.replace(/^fem_runs\//, ""), path, false, path === WS.path)));
+    pick.addEventListener("change", () => { WS.path = pick.value; });
+    swc.body.append(row("Sweep", pick));
+    const fieldIn = el("input", { class: "studio-input", type: "text", value: WS.field, spellcheck: "false", title: "The results folder read in each run: solid/u, heat_eq/T…" });
+    fieldIn.addEventListener("keydown", (event) => event.stopPropagation());
+    fieldIn.addEventListener("change", () => { WS.field = fieldIn.value.trim() || "solid/u"; });
+    swc.body.append(row("Field", fieldIn));
+    const comp = el("select", { class: "studio-select" });
+    [["mag", "Magnitude"], ["0", "Component x"], ["1", "Component y"], ["2", "Component z"]].forEach(([v, t]) => comp.append(new Option(t, v, false, v === WS.component)));
+    comp.addEventListener("change", () => { WS.component = comp.value; });
+    swc.body.append(row("Component", comp));
+    const where = el("select", { class: "studio-select" });
+    [["peak", "Peak over the mesh"], ["probe", "At the probed node"], ["node", "At a node number"]].forEach(([v, t]) => where.append(new Option(t, v, false, v === WS.where)));
+    where.addEventListener("change", () => { WS.where = where.value; render(); });
+    swc.body.append(row("Where", where));
+    if (WS.where === "node") swc.body.append(row("Node", numberInput(Number(WS.node), (v) => { WS.node = v; }, "1")));
+  }
+  swc.body.append(el("div", { class: "studio-actions" },
+    button("Read responses", "studio-primary", () => readSweep()),
+    button("Refresh list", "studio-secondary", () => listSweeps().then((list) => { WS.manifests = list; if (!list.includes(WS.path)) WS.path = list[0] || ""; render(); })),
+    button("Export CSV", "studio-secondary", exportSweep),
+  ));
+  swc.body.append(el("div", { class: "studio-readout" }, WS.text));
+  if (WS.result) {
+    const dl = el("dl", { class: "st-facts" });
+    sweepFacts(WS.result).forEach(([k, v]) => dl.append(el("dt", {}, k), el("dd", {}, v)));
+    swc.body.append(dl);
+    const canvas = el("canvas", { class: "fem-profile ra-plot", title: "Response against the parameter; log axis where the values span a decade" });
+    swc.body.append(canvas);
+    setTimeout(() => drawSweep(canvas, WS.result), 0);
+    const table = el("table", { class: "ra-stats" });
+    table.append(el("thead", {}, el("tr", {}, ...["Run", "Value", "Reading", "Step"].map((h) => el("th", {}, h)))));
+    const tbody = el("tbody");
+    WS.result.rows.forEach((r) => tbody.append(el("tr", {}, el("td", {}, r.name), el("td", {}, formatValue(r.value, Math.abs(r.value) || 1)), el("td", {}, Number.isFinite(r.reading) ? formatValue(r.reading, Math.abs(r.reading) || 1) : r.note), el("td", {}, r.step || "—"))));
+    table.append(tbody);
+    swc.body.append(el("div", { class: "ra-stats-wrap" }, table));
+  }
+  host.append(swc.details);
+
   const Q = L.report;
   const rep = card("Report", Q.open);
   rep.details.addEventListener("toggle", () => { Q.open = rep.details.open; });
@@ -1541,5 +1730,5 @@ function install() {
 
 if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", install); else install();
-  window.GeoIDResultsAnalysis = { plot, drawGlyphs, computeStats, compareObservations, compareSource, invertSource, buildModelReport, openModelReport, render, state: L };
+  window.GeoIDResultsAnalysis = { plot, drawGlyphs, computeStats, compareObservations, compareSource, invertSource, readSweep, listSweeps, buildModelReport, openModelReport, render, state: L };
 }

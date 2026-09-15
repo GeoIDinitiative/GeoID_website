@@ -5,6 +5,7 @@
 import {
   MATERIALS, materialById, PHYSICS, defaultSetup, domainProperties, materialsPlan, propsText,
   conditionCalls, icBcHeader, checkSetup, studyTimes, studySpec,
+  sweepParameters, sweepValues, sweepSetups, sweepManifest,
 } from "./fem-setup.js";
 
 let pass = 0;
@@ -142,4 +143,20 @@ const box = (flag, name, zMin, zMax, extra = {}) => ({ flag, name, zMin, zMax, v
   check("check: a 2D grid on a 3D model is an error", cs({ ...withGrid, pointwise: { ...pointwise, dim: 2 } }, targets).some((i) => i.level === "error" && /2D/.test(i.text)));
   const spec = ss(withGrid, targets, { mesh: "m.msh" });
   check("spec: the plan says pointwise and props.txt carries the block", spec.materials.plan === "pointwise" && spec.materials.pointwise.file === pointwise.file && /heterogeneous_pointwise/.test(spec.gales.files["props.txt"]));
+}
+
+{
+  const setup = { ...defaultSetup(), materials: { 10: { id: "basalt" } }, conditions: { 2: { type: "fixed", values: {} }, 4: { type: "pressure", values: { p: 1e7 } } } };
+  const targets = { dim: 3, domains: [{ flag: 10, name: "Crust" }, { flag: 11, name: "Chamber", void: true }], faces: [{ flag: 2, name: "base" }, { flag: 4, name: "chamber wall" }] };
+  const params = sweepParameters(setup, targets);
+  check("sweep: a material's properties and a set condition's numbers are the parameters, not a void or a fixed face", params.map((p) => p.key).join() === "mat:10:rho,mat:10:E,mat:10:nu,bc:4:p" && params.find((p) => p.key === "bc:4:p").base === 1e7 && params.find((p) => p.key === "mat:10:E").base === 60e9);
+  check("sweep values: linear ends exactly on its ends", sweepValues({ from: 5e6, to: 2e7, count: 4 }).values.join() === "5000000,10000000,15000000,20000000");
+  check("sweep values: log by equal ratios", sweepValues({ from: 1e9, to: 1e11, count: 3, scale: "log" }).values.join() === "1000000000,10000000000,100000000000");
+  check("sweep values: a typed list, and refusals said in words", sweepValues({ mode: "list", text: "1, 2.5;4" }).values.join() === "1,2.5,4" && /numbers/.test(sweepValues({ mode: "list", text: "1, x" }).error) && /above zero/.test(sweepValues({ from: 0, to: 1, scale: "log" }).error) && /2 and 50/.test(sweepValues({ from: 0, to: 1, count: 1 }).error));
+  const runs = sweepSetups(setup, "bc:4:p", [5e6, 2e7], "etna");
+  check("sweep setups: each run is a copy with one value set and its own name", runs.map((r) => r.name).join() === "etna_sweep_0,etna_sweep_1" && runs[1].setup.conditions[4].values.p === 2e7 && runs[1].setup.study.name === "etna_sweep_1" && setup.conditions[4].values.p === 1e7);
+  const mat = sweepSetups(setup, "mat:10:E", [3e10, 4e10]);
+  check("sweep setups: a material value is an override, and it reaches the generated props", mat[0].setup.materials[10].overrides.E === 3e10 && domainProperties(mat[0].setup.materials[10]).E === 3e10 && /E\s+3\.?0*e\+?10|30000000000/.test(studySpec(mat[0].setup, targets, { mesh: "m.msh" }).gales.files["props.txt"]));
+  const m = sweepManifest({ base: "etna", parameter: "bc:4:p", label: "chamber wall — pressure", values: [5e6, 2e7], runs, written_at: "t" });
+  check("sweep manifest: the parameter, the values and each run's folder", m.kind === "geoid-sweep" && m.runs[1].dir === "fem_runs/etna_sweep_1" && m.values.length === 2);
 }

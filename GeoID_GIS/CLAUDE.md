@@ -20567,3 +20567,42 @@ hard-coded 16 used to sit in the field, its size and a pin.
   ground and strains nothing; the test pins both halves. A run without solid
   props still gets strain and tilt, and its label says "strain and tilt
   only".
+
+## Parameter sweeps: written from Study, read back in Analysis
+
+**Study ▸ Parameter sweep** varies one number, keeps everything else as set,
+and writes one study per value. The parameter can be a domain's property or a
+set condition's value, over a range (linear or log) or a typed list. Runs go
+in `fem_runs/<base>_sweep_NN/`, with a manifest at
+`fem_runs/<base>_sweep.json`. "Mesh, prepare and solve all" meshes the shared
+geometry once, files the mesh into every run, and prepares and solves each in
+turn. Locally it asks first. **Analysis ▸ Sweep response** reads each run's
+last written step down to one number: the peak over the mesh, or the value at
+the probed or a typed node. It plots that against the value, fits the slope
+of log|reading| on log(value), and exports CSV. The report carries it.
+`sweepParameters`/`sweepValues`/`sweepSetups`/`sweepManifest` (fem-setup.js)
+and `stepReading`/`powerLawSlope` (gales-results.js) are the pure half.
+
+- **The sweep writes through the ordinary `writeStudy`**, with the module's
+  `setup` swapped for the run's copy and put back in a `finally`
+  (`withSetup`). One writer, so a sweep run's spec, header, props and gmsh
+  script are what a single study's would be. Verified: the page's pressure is
+  still 1e7 after writing 5e6 / 1.25e7 / 2e7, and each run's header carries
+  its own value.
+- **A material value is an override** on the domain's assignment, so it
+  reaches `domainProperties` and the generated props.txt (pinned).
+- **The slope is a check as well as a sensitivity.** For linear elasticity
+  displacement ∝ pressure (slope 1) and ∝ 1/E (slope −1). Verified on Etna
+  results scaled per run: peak 85.41 m then 213.53 m, node 25018 u_z −80.658
+  m, slope 1.0000000000000009; the unsolved third run is reported as "not
+  solved", not dropped.
+- **The node count comes from the run open in Results.** A step file's size
+  cannot say how many dofs a node carries.
+- **BYTES CAN COME FROM ANOTHER REALM.** `asBytes` used `instanceof
+  Uint8Array` / `instanceof ArrayBuffer`. Bytes written by another document
+  fail both, so the object was encoded as the TEXT "[object Uint8Array]" and
+  failed as "Not a whole number of float64 values" on a perfectly whole file.
+  It now tests `ArrayBuffer.isView` and the object tag, neither realm-bound,
+  and a `node:vm` foreign-realm check pins it. Found by writing test results
+  from the top document into the iframe's store, which a project adapter or a
+  frame can equally do.

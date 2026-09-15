@@ -28,10 +28,10 @@
 
 import {
   MATERIALS, MATERIAL_PROPS, PHYSICS, defaultSetup, domainProperties, materialsPlan, propsText,
-  icBcHeader, studySpec, studyTimes, setupSummary,
-} from "./fem-setup.js?v=20260915-ce66302";
-import { flagCheck } from "./mesh-flags.js?v=20260915-ce66302";
-import { parseTable, guessColumns, buildGrid, pointwiseText, orderCheck } from "./tomography.js?v=20260915-ce66302";
+  icBcHeader, studySpec, studyTimes, setupSummary, sweepParameters, sweepValues, sweepSetups, sweepManifest,
+} from "./fem-setup.js?v=20260915-455ab3c";
+import { flagCheck } from "./mesh-flags.js?v=20260915-455ab3c";
+import { parseTable, guessColumns, buildGrid, pointwiseText, orderCheck } from "./tomography.js?v=20260915-455ab3c";
 import * as THREE from "../vendor/three.module.js";
 
 const STORE_KEY = "geoid-studio:fem-setup";
@@ -46,6 +46,8 @@ let fingerprint = "";
 let saveTimer = 0;
 const openCards = new Map();
 const job = { step: "", id: "", status: "", text: "", runDir: "" };
+// A parameter sweep: one study per value, and the manifest that says so.
+const sweep = { key: "", mode: "range", from: "", to: "", count: 5, scale: "linear", text: "", running: false };
 let computeTargets = null;
 
 function loadSetup() {
@@ -552,6 +554,51 @@ function renderStudy(host) {
   pipe.body.append(el("div", { id: "fem-study-status", class: `studio-readout${job.level ? ` is-${job.level}` : ""}` }, job.text));
   if (why) pipe.body.append(note(why));
   host.append(pipe.details);
+
+  const params2 = sweepParameters(setup, targets);
+  const sw = card("study:sweep", "Parameter sweep", false, sweep.running ? "running" : "");
+  if (!params2.length) {
+    sw.body.append(note("Give a domain a material or set a condition first: a sweep varies one of their numbers."));
+  } else {
+    if (!params2.some((p) => p.key === sweep.key)) {
+      sweep.key = params2[0].key;
+      const b = params2[0].base;
+      sweep.from = Number.isFinite(b) ? b * 0.5 : ""; sweep.to = Number.isFinite(b) ? b * 1.5 : "";
+    }
+    sw.body.append(note("One study per value of one parameter, everything else as set: how sensitive the answer is to what is least known. Each run is written into fem_runs/, with a manifest the Analysis tab reads back as a response curve."));
+    sw.body.append(row("Vary", selectOf(params2.map((p) => [p.key, p.label]), sweep.key, (v) => {
+      sweep.key = v;
+      const b = params2.find((p) => p.key === v)?.base;
+      sweep.from = Number.isFinite(b) ? b * 0.5 : ""; sweep.to = Number.isFinite(b) ? b * 1.5 : "";
+      rerender("study");
+    })));
+    const current = params2.find((p) => p.key === sweep.key);
+    sw.body.append(note(`As set now: ${Number.isFinite(current?.base) ? fmt(current.base) : "—"}.`));
+    sw.body.append(row("Values", selectOf([["range", "A range"], ["list", "A typed list"]], sweep.mode, (v) => { sweep.mode = v; rerender("study"); })));
+    if (sweep.mode === "list") {
+      const t = el("input", { class: "studio-input", type: "text", spellcheck: "false", placeholder: "e.g. 5e6, 1e7, 2e7" });
+      t.value = sweep.text;
+      t.addEventListener("keydown", (event) => event.stopPropagation());
+      t.addEventListener("change", () => { sweep.text = t.value; rerender("study"); });
+      sw.body.append(row("List", t));
+    } else {
+      sw.body.append(row("From", numberInput(sweep.from, (v) => { sweep.from = v; rerender("study"); })));
+      sw.body.append(row("To", numberInput(sweep.to, (v) => { sweep.to = v; rerender("study"); })));
+      sw.body.append(row("Runs", numberInput(sweep.count, (v) => { sweep.count = v; rerender("study"); }, { step: "1" })));
+      sw.body.append(row("Spacing", selectOf([["linear", "Linear"], ["log", "Logarithmic"]], sweep.scale, (v) => { sweep.scale = v; rerender("study"); })));
+    }
+    const got = sweepValues(sweep);
+    if (got.error) sw.body.append(el("p", { class: "studio-readout is-warning" }, got.error));
+    else sw.body.append(note(`${got.values.length} runs: ${got.values.map(fmt).join(", ")} → ${setup.study.name}_sweep_0 … ${got.values.length - 1}.`));
+    const b1 = el("button", { class: "studio-secondary", type: "button", title: "Every run's spec, gmsh script and props into fem_runs/, and the manifest" }, "Write sweep");
+    b1.disabled = Boolean(got.error) || blocked || !hasProject || sweep.running;
+    b1.addEventListener("click", () => writeSweep());
+    const b2 = el("button", { class: "studio-secondary", type: "button", title: "Mesh once, then prepare and solve every run on the chosen compute target" }, "Mesh, prepare and solve all");
+    b2.disabled = Boolean(got.error) || blocked || !hasProject || !connected || sweep.running;
+    b2.addEventListener("click", () => solveSweep());
+    sw.body.append(el("div", { class: "studio-actions" }, b1, b2));
+  }
+  host.append(sw.details);
 }
 
 async function writeStudy() {
@@ -576,6 +623,77 @@ async function writeStudy() {
     say(`Could not write the study: ${error.message}`, "error");
   }
   return spec;
+}
+
+/** Run `fn` with the page's setup swapped for a sweep run's, and put it back whatever happens. */
+async function withSetup(next, fn) {
+  const keep = setup;
+  setup = next;
+  try { return await fn(); } finally { setup = keep; }
+}
+
+export async function writeSweep() {
+  const project = store()?.getActive?.();
+  if (!project) { say("Open a project first.", "error"); return null; }
+  const got = sweepValues(sweep);
+  if (got.error) { say(got.error, "error"); return null; }
+  const param = sweepParameters(setup, targets).find((p) => p.key === sweep.key);
+  if (!param) { say("Choose what to vary.", "error"); return null; }
+  const runs = sweepSetups(setup, sweep.key, got.values);
+  sweep.running = true;
+  try {
+    for (const [k, run] of runs.entries()) {
+      say(`Writing ${run.name} (${k + 1} of ${runs.length})…`);
+      await withSetup(run.setup, writeStudy);
+    }
+    const manifest = sweepManifest({ base: setup.study.name, parameter: sweep.key, label: param.label, values: got.values, runs });
+    const path = `fem_runs/${setup.study.name}_sweep.json`;
+    await store().writeProjectFile(path, JSON.stringify(manifest, null, 2));
+    say(`Written: ${runs.length} runs (${runs[0].name} … ${runs.at(-1).name}) and ${path}.`, "ok");
+    return { manifest, path };
+  } catch (error) {
+    say(`Could not write the sweep: ${error.message}`, "error");
+    return null;
+  } finally {
+    sweep.running = false;
+    rerender("study");
+  }
+}
+
+async function solveSweep() {
+  const project = store()?.getActive?.();
+  const target = setup.study.target && setup.study.target !== "local" ? setup.study.target : "";
+  const written = await writeSweep();
+  if (!written) return;
+  const runs = sweepSetups(setup, sweep.key, written.manifest.values);
+  if (!target && !window.confirm(`Solve ${runs.length} runs one after another on THIS machine with ${setup.study.ranks} MPI rank(s) each?\n\nA real-size model can use all of this computer's memory and stop it responding. A compute target (Runs on) is where sweeps belong. Only continue for a small test mesh.`)) {
+    say("Written, not solved: choose a compute target, or confirm a small local test.", "warning");
+    return;
+  }
+  sweep.running = true;
+  try {
+    // The geometry is the same for every run: mesh once, file it in each.
+    await withSetup(runs[0].setup, meshStudy);
+    const text = await store().readProjectFile(`meshes/${runs[0].name}.msh`);
+    for (const run of runs.slice(1)) await store().writeProjectFile(`fem_runs/${run.name}/input/${run.name}.msh`, text);
+    for (const [k, run] of runs.entries()) {
+      say(`Run ${k + 1} of ${runs.length}: ${run.name} (${fmt(run.value)})…`);
+      const ok = await withSetup(run.setup, async () => {
+        const dir = `${project.dir}/fem_runs/${run.name}`;
+        const prep = await sidecar().prepareGales({ dir, cores: run.setup.study.ranks });
+        if (!(await waitFor(prep, `Prepare ${run.name}`))) return false;
+        const id = await sidecar().runGales(target ? { dir, target, cores: run.setup.study.ranks } : { dir, cores: run.setup.study.ranks });
+        return waitFor(id, `Solve ${run.name}`);
+      });
+      if (!ok) { say(`The sweep stopped at ${run.name}; the runs before it are solved.`, "error"); return; }
+    }
+    say(`All ${runs.length} runs solved. Analysis ▸ Sweep response reads ${written.path}.`, "ok");
+  } catch (error) {
+    say(`The sweep could not continue: ${error.message}`, "error");
+  } finally {
+    sweep.running = false;
+    rerender("study");
+  }
 }
 
 async function waitFor(id, label) {
@@ -737,6 +855,7 @@ if (typeof document !== "undefined" && typeof document.addEventListener === "fun
     // With the solver mesh's own check folded in, so the pipeline strip and
     // the Study checklist can never disagree about whether a study is ready.
     summary: () => fullSummary(),
-    writeStudy, meshStudy, prepareStudy, openResults,
+    writeStudy, meshStudy, prepareStudy, openResults, writeSweep,
+    sweep,
   };
 }

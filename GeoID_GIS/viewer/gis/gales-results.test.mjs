@@ -15,7 +15,7 @@ import {
   niceTicks, formatValue, tickLabel, sliceTets, domainStats, domainStatsCsv, interpolateOnSlice, axisPlane, nearestNode,
   probeCsv, planSimulation, COLORMAPS, flagSummary, stationsForFlag, nodeLocator, specPoints,
   parsePointList, stationCsvFiles,
-  referencePlan, differenceOf, cutTets, isoTets, contourLevels, contourSegments,
+  referencePlan, differenceOf, cutTets, isoTets, contourLevels, contourSegments, stepReading, powerLawSlope,
 } from "./gales-results.js";
 
 let pass = 0;
@@ -622,4 +622,25 @@ check("a mesh opened onto a loaded run starts a new run; results join the open o
   const worker = readFileSync(new URL("./gales-worker.js", import.meta.url), "utf8");
   check("contours/iso: isosurfaces cut in the worker, contours on the page, both parts in the Visibility box, never on fringes", /type === "iso"/.test(worker) && /function drawContours/.test(panel) && /\["iso", "Isosurfaces"/.test(panel) && /drawContours\(\{ scalar: !fringe && scalar/.test(panel));
   check("contours/iso: cut where the surface is in clip view", /clippingPlanes: view === "clip" \? \[scene\.clip\] : null/.test(panel) && /const clip = \(S\.mesh\.dim === 3 \? S\.view : "surface"\) === "clip"/.test(panel));
+}
+{
+  const desc = describeField("solid/u", 3, 3);
+  const v = new Float64Array([0, 0, 1, 3, 4, 0, 0, 0, -7]);
+  check("reading: the peak is the largest absolute value, signed, over every node", stepReading(v, 3, desc, { component: "2" }) === -7 && stepReading(v, 3, desc) === 7);
+  check("reading: at a node, the vector's length or one component", stepReading(v, 3, desc, { node: 1 }) === 5 && stepReading(v, 3, desc, { node: 1, component: "0" }) === 3);
+  const p = [5e6, 1e7, 2e7];
+  check("slope: displacement proportional to pressure is slope 1, to 1/E slope −1, exactly", Math.abs(powerLawSlope(p, p.map((x) => 3e-6 * x)).slope - 1) < 1e-12 && Math.abs(powerLawSlope([3e10, 6e10], [2, 1]).slope + 1) < 1e-12 && powerLawSlope([1, 2], [0, 0]).n === 0);
+}
+{
+  const { runInNewContext } = await import("node:vm");
+  const foreign = runInNewContext("new Float64Array([1.5, -2]).buffer");
+  const foreignView = runInNewContext("new Uint8Array(new Float64Array([3, 4]).buffer)");
+  check("bytes from another realm are read as bytes, not as the text of their name", float64View(foreign).join() === "1.5,-2" && float64View(foreignView).join() === "3,4" && !(foreign instanceof ArrayBuffer));
+}
+{
+  const analysis = readFileSync(new URL("./results-analysis-panel.js", import.meta.url), "utf8");
+  const setupPanel = readFileSync(new URL("./studio-setup-panel.js", import.meta.url), "utf8");
+  check("sweep: the Study tab writes a run per value with the page's setup swapped back afterwards, and a manifest", /async function withSetup\(next, fn\)[\s\S]{0,120}finally \{ setup = keep; \}/.test(setupPanel) && /sweepManifest\(\{/.test(setupPanel) && /_sweep\.json/.test(setupPanel));
+  check("sweep: a local sweep solve asks first, and the geometry is meshed once for every run", /Solve \$\{runs\.length\} runs one after another on THIS machine/.test(setupPanel) && /withSetup\(runs\[0\]\.setup, meshStudy\)/.test(setupPanel));
+  check("sweep: the Analysis tab reads each run's last step to one number and fits the sensitivity", /card\("Sweep response"/.test(analysis) && /stepReading\(values, n, desc/.test(analysis) && /powerLawSlope\(/.test(analysis));
 }

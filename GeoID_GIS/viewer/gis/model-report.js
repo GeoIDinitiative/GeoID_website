@@ -65,6 +65,12 @@ export function reportSections(r) {
       html: `${facts(o.facts)}${table(o.heads, o.rows, { numeric: o.heads.map((_, k) => k).slice(1) })}${o.more ? `<p class="note">${esc(o.more)}</p>` : ""}`,
     });
   }
+  if (r.sweep) {
+    out.push({
+      id: "sweep", title: "Parameter sweep",
+      html: `${facts(r.sweep.facts)}${figure(r.sweep.image, "Response against the varied parameter")}${table(r.sweep.heads, r.sweep.rows, { numeric: [1, 2] })}`,
+    });
+  }
   if (r.source) {
     const s = r.source;
     out.push({
@@ -82,7 +88,7 @@ export function reportSections(r) {
 export function modelReportHtml(r) {
   const sections = reportSections(r);
   const cards = (r.cards || []).map(([v, l]) => `<div class="card"><div class="v">${esc(v)}</div><div class="l">${esc(l)}</div></div>`).join("");
-  const body = sections.map((s, k) => `<section id="${s.id}"${k && ["view", "observations", "source", "methods"].includes(s.id) ? ' class="page"' : ""}><h2>${k + 1}. ${esc(s.title)}</h2>${s.html}</section>`).join("\n");
+  const body = sections.map((s, k) => `<section id="${s.id}"${k && ["view", "observations", "sweep", "source", "methods"].includes(s.id) ? ' class="page"' : ""}><h2>${k + 1}. ${esc(s.title)}</h2>${s.html}</section>`).join("\n");
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <title>${esc(r.title || "Model report")}</title>

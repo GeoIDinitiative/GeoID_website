@@ -180,10 +180,12 @@ class IntBuffer {
   done() { return this.a.slice(0, this.length); }
 }
 
-const asBytes = (input) => (input instanceof Uint8Array ? input
-  : ArrayBuffer.isView(input) ? new Uint8Array(input.buffer, input.byteOffset, input.byteLength)
-    : input instanceof ArrayBuffer ? new Uint8Array(input)
-      : new TextEncoder().encode(String(input)));
+// Realm-safe: bytes handed over by another document (a project store, a
+// frame) fail `instanceof` here and would otherwise be encoded as the TEXT
+// "[object Uint8Array]". ArrayBuffer.isView and the object tag are not realm-bound.
+const asBytes = (input) => (ArrayBuffer.isView(input) ? new Uint8Array(input.buffer, input.byteOffset, input.byteLength)
+  : Object.prototype.toString.call(input) === "[object ArrayBuffer]" ? new Uint8Array(input)
+    : new TextEncoder().encode(String(input)));
 
 // ── Mesh formats ────────────────────────────────────────────────────────────
 
@@ -667,6 +669,47 @@ export function differenceOf(a, b) {
   const out = new Float64Array(a.length);
   for (let i = 0; i < a.length; i += 1) out[i] = a[i] - b[i];
   return out;
+}
+
+/**
+ * One number from a step, for a sweep's response curve: the value at a node
+ * (a component, or the vector's length), or the largest absolute value over
+ * every node when no node is named -- "the peak uplift", "the displacement at
+ * the summit".
+ */
+export function stepReading(values, nodeCount, desc, { component = "mag", node = null } = {}) {
+  const nb = values.length / nodeCount;
+  const at = (i, j) => (desc?.blocked ? values[j * nodeCount + i] : values[i * nb + j]);
+  const from = desc?.vector?.from || desc?.displacement || null;
+  const read = component === "mag" && from
+    ? (i) => Math.hypot(...from.map((j) => at(i, j)))
+    : (i) => at(i, Number(component) || 0);
+  if (Number.isInteger(node) && node >= 0 && node < nodeCount) return read(node);
+  let best = NaN;
+  for (let i = 0; i < nodeCount; i += 1) {
+    const v = read(i);
+    if (v === v && !(Math.abs(v) <= Math.abs(best))) best = v;
+  }
+  return best;
+}
+
+/**
+ * The slope of log|response| against log(parameter): the sensitivity a sweep
+ * measures. For a linear elastic model displacement goes as pressure (slope 1)
+ * and as 1/E (slope −1), so the number is also a check on the runs. Points with
+ * a non-positive parameter or a zero response are left out.
+ */
+export function powerLawSlope(xs, ys) {
+  const pts = xs.map((x, k) => [x, ys[k]]).filter(([x, y]) => x > 0 && Number.isFinite(y) && y !== 0).map(([x, y]) => [Math.log(x), Math.log(Math.abs(y))]);
+  const n = pts.length;
+  if (n < 2) return { slope: NaN, r2: NaN, n };
+  const mx = pts.reduce((a, p) => a + p[0], 0) / n;
+  const my = pts.reduce((a, p) => a + p[1], 0) / n;
+  let sxy = 0; let sxx = 0; let syy = 0;
+  for (const [x, y] of pts) { sxy += (x - mx) * (y - my); sxx += (x - mx) ** 2; syy += (y - my) ** 2; }
+  if (!(sxx > 0)) return { slope: NaN, r2: NaN, n };
+  const slope = sxy / sxx;
+  return { slope, r2: syy > 0 ? (sxy * sxy) / (sxx * syy) : 1, n };
 }
 
 /** The components of the derived stress field, in strain-stress.js's order. */
