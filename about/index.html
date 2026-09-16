@@ -28,7 +28,7 @@
   <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2">
   <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2">
   <!-- font link consolidated by v2 skin -->
-  <link rel="stylesheet" href="/styles/shared.css?v=20260916-bf9edbc">
+  <link rel="stylesheet" href="/styles/shared.css?v=20260916-811a07b">
   <style>
     /* ── Page-level overrides ── */
     /* Overview page: re-tint the cyan accent to royal blue. Every rule
@@ -917,8 +917,8 @@
       .two-tracks-grid { grid-template-columns: 1fr; }
     }
   </style>
-  <link rel="stylesheet" href="/styles/v2-site.css?v=20260916-bf9edbc">
-  <script src="/scripts/v2-site.js?v=20260916-bf9edbc" defer></script>
+  <link rel="stylesheet" href="/styles/v2-site.css?v=20260916-811a07b">
+  <script src="/scripts/v2-site.js?v=20260916-811a07b" defer></script>
   <style id="v2-page-fixes">
     /* Brand mark in the hero. It used to be greyscaled to a white plate
        because the old neon-wireframe logo fought the photo behind it; the
@@ -927,7 +927,7 @@
     .hero-logo-img { filter: drop-shadow(0 2px 24px rgba(0,0,0,0.8)); opacity: 1; }
   </style>
   <link rel="stylesheet" href="/styles/skins/synthwave.css">
-  <link rel="stylesheet" href="/styles/site-nav.css?v=20260916-bf9edbc">
+  <link rel="stylesheet" href="/styles/site-nav.css?v=20260916-811a07b">
 </head>
 <body>
   <nav class="site-nav" role="navigation" aria-label="Primary navigation">
@@ -935,7 +935,7 @@
       <img class="nav-brand-icon" src="/assets/GeoID_logo_icon.png" alt="">
     </a>
     <ul class="nav-links">
-      <li><a href="/">Dashboard</a></li>      <li class="nav-dropdown">
+      <li><a href="/dashboard/">Dashboard</a></li>      <li class="nav-dropdown">
         <a class="nav-dropdown-toggle" href="/about/">About</a>
         <div class="nav-dropdown-menu" aria-label="About pages">
           <a href="/about/" class="active" aria-current="page">Overview</a>
@@ -946,7 +946,7 @@
           <a href="/updates/">Journal</a>
         </div>
       </li>
-      <li><a href="/geohub/"><span class="geohub-word"><span class="geohub-prefix">Geo</span>HUB</span></a></li>
+      <li><a href="/"><span class="geohub-word"><span class="geohub-prefix">Geo</span>HUB</span></a></li>
 
       <li><a href="/contact/">Contact</a></li>
     </ul>
@@ -985,7 +985,7 @@
           <p class="hero-desc"><strong style="color:var(--text);">GeoHUB</strong> is live and free: a hazard GIS on a 3D globe with 312,500 earthquakes, every cyclone track, world geology, live events and ten worlds. <strong style="color:var(--text);">Earth Explorer</strong> adds close-up site models, starting with Etna and Everest. <strong style="color:var(--text);">Membership</strong> opens the six hazard models GeoID computes itself, with the methods published in the Journal.</p>
           <div class="hero-actions">
             <a class="btn-primary" href="#products">The ecosystem</a>
-            <a class="btn-ghost" href="/geohub/">Open GeoHUB</a>
+            <a class="btn-ghost" href="/">Open GeoHUB</a>
             <a class="btn-ghost" href="/membership/">Membership</a>
           </div>
         </div>
@@ -1012,7 +1012,7 @@
               <p><strong style="color:var(--text);">The globe and everything on it.</strong> 312,500 earthquakes back to 1008, 13,513 cyclone tracks since 1842, Macrostrat geology, Smithsonian volcanoes with hazard buffers, live EONET and USGS events, live satellites, weather radar; drawing, measuring, sampling and export; the Meshing Studio and the Research Hub; <strong style="color:rgba(200,220,236,0.8);">ten worlds</strong> on mission data; and <strong style="color:rgba(200,220,236,0.8);">Earth Explorer</strong>'s Etna model and ASCENT.</p>
               <p class="track-card-note">For students, educators, researchers and anyone curious. <strong style="color:rgba(200,220,236,0.7);">Not a hazard warning system.</strong></p>
               <div class="track-card-links">
-                <a href="/geohub/" class="btn-ghost">Open GeoHUB →</a>
+                <a href="/" class="btn-ghost">Open GeoHUB →</a>
                 <a href="/about_geohub/" class="btn-ghost">What's inside →</a>
                 <a href="/earth_explorer/" class="btn-ghost">Earth Explorer →</a>
               </div>
@@ -1201,8 +1201,8 @@
             <div class="footer-section">              <h4>Navigation</h4>
               <ul>
                 <li><a href="/about/">Overview</a></li>
-                <li><a href="/geohub/">GeoHUB</a></li>
-                <li><a href="/">Dashboard</a></li>
+                <li><a href="/">GeoHUB</a></li>
+                <li><a href="/dashboard/">Dashboard</a></li>
                 <li><a href="/earth_explorer/">Earth Explorer</a></li>
                 <li><a href="/about_geohub/#worlds">Ten Worlds</a></li>
                 <li><a href="/membership/">Membership</a></li>
@@ -1263,8 +1263,8 @@
     <div class="status-item">About Overview</div>
   </div>
 
-  <script type="module" src="/scripts/nav-membership.js?v=20260916-bf9edbc"></script>
-  <script src="/scripts/site.js?v=20260916-bf9edbc"></script>
+  <script type="module" src="/scripts/nav-membership.js?v=20260916-811a07b"></script>
+  <script src="/scripts/site.js?v=20260916-811a07b"></script>
   <script>
     (function () {
       const slides = Array.from(document.querySelectorAll('#heroSlides .hero-slide'));
@@ -1277,6 +1277,6 @@
       }, 6000);
     })();
   </script>
-<script src="/styles/nav.js?v=20260916-bf9edbc" defer></script>
+<script src="/styles/nav.js?v=20260916-811a07b" defer></script>
 </body>
 </html>

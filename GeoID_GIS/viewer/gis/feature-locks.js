@@ -20,7 +20,7 @@
  * downstream can tell the difference, which is what makes a sign-in mid-session
  * work without a reload.
  */
-import { may, refusal, FEATURES, signInUrl } from "./membership.js?v=20260916-bf9edbc";
+import { may, refusal, FEATURES, signInUrl } from "./membership.js?v=20260916-811a07b";
 
 /**
  * Which tab or section belongs to which feature.
@@ -327,7 +327,7 @@ function guardModes() {
     if (!entry || may(entry.feature)) return;
     event.preventDefault();
     event.stopPropagation();
-    const where = signInUrl(`${location.origin}/geohub/`);
+    const where = signInUrl(`${location.origin}/`);
     if (window.confirm(`${refusal(entry.feature)}\n\nGo to membership?`)) {
       window.top.location.href = window.GeoIDMembership?.state?.().signedIn
         ? "/membership/" : where;

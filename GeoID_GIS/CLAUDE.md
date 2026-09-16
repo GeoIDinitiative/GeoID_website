@@ -110,7 +110,7 @@ again this session.
 ## The names: GeoHUB, and myGeoID inside it
 
 **GeoHUB is the workspace; myGeoID is a product made in it.** The page at
-`/geohub/` is the whole thing — the GIS globe, the planetary explorers, the
+`/` is the whole thing — the GIS globe, the planetary explorers, the
 Mesh Studio and the Research Hub. **myGeoID** is the risk mapping built on that
 GIS page: the Factor-of-Safety pipeline in `geoid-mode.js` and
 `geoid-pipeline.js`, which is why the sidebar section that arms it is named
@@ -120,12 +120,12 @@ What that means when editing copy: a mention of myGeoID that describes a
 personal hazard dashboard, a Factor of Safety, or the funding case is **the
 product** and keeps its name — `about_myGeoID/` is entirely about that and did
 not move. A mention that names the app, the page or the shell is **GeoHUB**. The
-tell is usually the link: text on an `href="/geohub/"` names the workspace.
+tell is usually the link: text on an `href="/"` names the workspace.
 
 **The old path still answers.** `/myGeoID/` is a stub that redirects to
-`/geohub/`, carries `rel=canonical` to it and `noindex` on itself, because that
+`/`, carries `rel=canonical` to it and `noindex` on itself, because that
 path is in bookmarks, in shared links and in search results. Internal links all
-point at `/geohub/`. The service-worker cache version had to move with it
+point at `/`. The service-worker cache version had to move with it
 (`geoid-site-v40`) or a returning visitor keeps a precached nav that still says
 myGeoID and still links to the old path.
 
@@ -7249,7 +7249,7 @@ for.
   does not reach an access log, and does not travel in a `Referer`, all three of
   which a query string does.
 - **ONE DOCUMENT HANDLES THE HANDOFF.** A fragment belongs to whichever document
-  is on top, so a return straight to `/geohub/` would land the token on the
+  is on top, so a return straight to `/` would land the token on the
   SHELL while the viewer that needs it sits in an iframe. Every sign-in returns
   to `/sign-in/`, which has no iframe, and forwards from there; by then it is in
   `localStorage`, which every document on the origin reads. The return is
@@ -7356,7 +7356,7 @@ Two committed test commands, no dependencies (`GeoID_GIS/tests/`):
 ## Verifying
 
 There is a headless-Chrome + CDP harness (`shoot.py` in the session scratchpad):
-it drives `http://localhost:8125/geohub/`, runs a setup script inside the
+it drives `http://localhost:8125/`, runs a setup script inside the
 iframe, and saves a PNG. Points worth knowing:
 
 - Test the **embedded** page, not the standalone viewer — several code paths
@@ -21822,7 +21822,7 @@ was. The three pills share **one width, 88px — the widest of them measured**,
 so the group cannot resize on a press and walk the bar sideways.
 
 `GeoID_GIS/index.html` is a superseded second copy of this shell (`rel=canonical`
-to `/geohub/`, nothing links to it). It does not claim the bar, so a viewer
+to `/`, nothing links to it). It does not claim the bar, so a viewer
 framed there keeps its own row — correct by construction rather than by a case.
 
 **site-nav.css is PRECACHED by the service worker**, so an edit to it needs

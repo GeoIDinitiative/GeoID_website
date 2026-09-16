@@ -16,7 +16,7 @@
       var WORLDS = ["mercury", "venus", "moon", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto"];
       var dest = "";
       try { dest = (new URLSearchParams(window.location.search).get("destination") || "mars").toLowerCase(); } catch (_e) {}
-      window.location.replace(WORLDS.indexOf(dest) === -1 ? "/geohub/" : "/geohub/?world=" + dest);
+      window.location.replace(WORLDS.indexOf(dest) === -1 ? "/" : "/?world=" + dest);
     })();
   </script>
   <meta charset="UTF-8">

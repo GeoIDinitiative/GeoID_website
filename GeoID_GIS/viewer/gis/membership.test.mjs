@@ -24,7 +24,7 @@ globalThis.document = {
   dispatchEvent: (e) => { events.push(e); return true; },
 };
 globalThis.CustomEvent = class { constructor(type, init) { this.type = type; this.detail = init?.detail; } };
-globalThis.location = { href: "https://geoidinitiative.com/geohub/" };
+globalThis.location = { href: "https://geoidinitiative.com/" };
 
 import * as m from "./membership.js";
 
@@ -211,9 +211,9 @@ for (const id of ["soil-thickness", "worldpop", "climate-temperature",
 }
 
 check("the sign-in url carries where to come back to",
-  m.signInUrl("https://geoidinitiative.com/geohub/")
-    === "/sign-in/?return=https%3A%2F%2Fgeoidinitiative.com%2Fgeohub%2F",
-  m.signInUrl("https://geoidinitiative.com/geohub/"));
+  m.signInUrl("https://geoidinitiative.com/")
+    === "/sign-in/?return=https%3A%2F%2Fgeoidinitiative.com%2F",
+  m.signInUrl("https://geoidinitiative.com/"));
 
 // The models gate is enforceable and the save gate is not, and the module says
 // which is which rather than letting a caller assume.

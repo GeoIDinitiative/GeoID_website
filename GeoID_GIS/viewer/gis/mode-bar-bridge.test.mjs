@@ -136,7 +136,7 @@ function fakeDoc({
   check("it never sets the mode itself — it clicks the control",
     !/GeoIDModeManager|setMode\(/.test(src) && /el\.click\(\);/.test(src));
 
-  const shell = strip(readFileSync(here("../../../geohub/index.html"), "utf8"));
+  const shell = strip(readFileSync(here("../../../index.html"), "utf8"));
   const bar = shell.slice(shell.indexOf("const modeBar ="), shell.indexOf("globeFrame?.addEventListener(\"load\", claimModeBar)"));
   check("the shell's buttons only post a press",
     /toViewer\(\{ type: "geoid:modebar-press", target: btn\.dataset\.modebar \}\)/.test(bar));
@@ -144,14 +144,14 @@ function fakeDoc({
     !/GeoIDModeManager|localStorage|setMode|new Audio/.test(bar));
   check("the shell draws what the viewer reported, and reveals the bar only then",
     /function renderModeBar\(state\)/.test(bar) && /modeBar\.hidden = false;/.test(bar)
-    && /<div class="nav-modebar" id="nav-modebar" hidden>/.test(read("../../../geohub/index.html")));
+    && /<div class="nav-modebar" id="nav-modebar" hidden>/.test(read("../../../index.html")));
 }
 
 // ── The two pages that must KEEP their own row ──────────────────────────────
 {
   // A phone's header has no room, so the stylesheet hides the bar there — and
   // an unconditional claim would then leave no mode switch anywhere at all.
-  const shell = strip(readFileSync(here("../../../geohub/index.html"), "utf8"));
+  const shell = strip(readFileSync(here("../../../index.html"), "utf8"));
   // THE PLAYER IS CLAIMED ON ITS OWN WIDTH. It is one 30px button beside the
   // membership group and does not reach for the centred tab headers, so the
   // 1400px rule that stands the BAR down has nothing to say about it. Coupled

@@ -6,7 +6,7 @@
       "kicker": "Live now",
       "title": "GeoHUB: the hazard record on a 3D globe",
       "desc": "312,500 earthquakes back to 1008 and every cyclone track since 1842, played through time; world geology, live events, satellites, drawing and sampling. Free, no account.",
-      "href": "/geohub/",
+      "href": "/",
       "image": "/assets/opt/geohub-quakes.webp",
       "alt": "The GeoHUB globe with 312,500 earthquakes plotted and a playback timeline"
     },
@@ -33,7 +33,7 @@
       "kicker": "Live now",
       "title": "The Mars Flight Simulator",
       "desc": "MOLA relief with the CTX mosaic streamed beneath you, from an 8 km low pass to 300 km orbit. Launch from anywhere on the planet.",
-      "href": "/geohub/?world=mars",
+      "href": "/?world=mars",
       "image": "/assets/opt/hero_marsflight.webp",
       "alt": "Mars flight simulator"
     },

@@ -96,12 +96,12 @@ ok("no theme filters, tints or blends the GeoID mark",
  * once in the old palette and switch a frame later. The script is a plain one
  * in <head>, and the stamp happens at parse time rather than on DOMContentLoaded.
  */
-ok("the applier is not a module", !/type="module"[^>]*theme\.js/.test(read("geohub/index.html")));
+ok("the applier is not a module", !/type="module"[^>]*theme\.js/.test(read("index.html")));
 ok("and it stamps before the body exists",
   script.indexOf("stamp(stored());") < script.indexOf("addEventListener(\"message\""));
 
 // Every page that loads one has to load the other, in that order.
-const pages = ["geohub/index.html", "GeoID_GIS/viewer/index.html", "GeoID_Earth/viewer/index.html",
+const pages = ["index.html", "GeoID_GIS/viewer/index.html", "GeoID_Earth/viewer/index.html",
   "earth_explorer/etna/viewer/index.html", "everest/index.html",
   ...["mercury","venus","moon","mars","jupiter","saturn","uranus","neptune","pluto"]
     .map((b) => `planet_explorer/${b}/viewer/index.html`)];
@@ -470,7 +470,7 @@ ok("and a received theme is applied without being re-announced",
   // One system, one switch.
   ok("there is no second sound system", !fs.existsSync(path.join(root, "scripts/theme-sound.js")));
   ok("and no page still asks for one",
-    !/theme-sound\.js/.test(read("geohub/index.html"))
+    !/theme-sound\.js/.test(read("index.html"))
     && !/theme-sound\.js/.test(read("GeoID_GIS/viewer/index.html")));
   ok("the switch drives the real one",
     /gis-skin-sound[\s\S]{0,200}GeoIDUiSound\.setEnabled/.test(script));

@@ -1,11 +1,11 @@
-import { wire, wirePattern } from "./spec-page.js?v=20260916-bf9edbc";
-import * as store from "./project-store.js?v=20260916-bf9edbc";
-import * as bridge from "./bridge.js?v=20260916-bf9edbc";
-import * as dsp from "./dsp.js?v=20260916-bf9edbc";
-import * as stats from "./stats.js?v=20260916-bf9edbc";
-import { linePlot } from "./plot.js?v=20260916-bf9edbc";
-import { parseTable, column } from "./table.js?v=20260916-bf9edbc";
-import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260916-bf9edbc";
+import { wire, wirePattern } from "./spec-page.js?v=20260916-811a07b";
+import * as store from "./project-store.js?v=20260916-811a07b";
+import * as bridge from "./bridge.js?v=20260916-811a07b";
+import * as dsp from "./dsp.js?v=20260916-811a07b";
+import * as stats from "./stats.js?v=20260916-811a07b";
+import { linePlot } from "./plot.js?v=20260916-811a07b";
+import { parseTable, column } from "./table.js?v=20260916-811a07b";
+import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260916-811a07b";
 
 /**
  * The rest of the spec's controls.
@@ -760,7 +760,7 @@ wire("Preprocessing Transforms", {
     const { path, table } = await firstTable();
     const { latAt, lonAt } = coordinateColumns(table);
     if (latAt < 0 || lonAt < 0) throw new Error("No latitude/longitude columns to transform.");
-    const projection = await import(`../projection.js?v=20260916-bf9edbc`);
+    const projection = await import(`../projection.js?v=20260916-811a07b`);
     const zones = new Set();
     let projected = 0;
     const rows = table.rows.map((r) => {
@@ -1094,7 +1094,7 @@ wire("Post Processing", {
  */
 wire("Storyboard", {
   "AI Outline": async ({ say }) => {
-    const sidecar = await import("./sidecar.js?v=20260916-bf9edbc");
+    const sidecar = await import("./sidecar.js?v=20260916-811a07b");
     if (!sidecar.isConnected()) {
       throw new Error("This drafts with your own model through the sidecar — "
         + "connect it in Settings ▸ Sidecar first.");

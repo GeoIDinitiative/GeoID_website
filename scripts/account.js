@@ -3,7 +3,7 @@
  *
  * ONE DOCUMENT HANDLES THE HANDOFF. The service sends the token back in the URL
  * fragment, and a fragment belongs to whichever document is at the top -- so a
- * return straight to /geohub/ would land the token on the SHELL while the
+ * return straight to / would land the token on the SHELL while the
  * viewer that needs it is inside an iframe. Every sign-in therefore comes back
  * here, to a page that has no iframe, and this page forwards to wherever the
  * reader started. The token is in localStorage by then, which every document on

@@ -28,7 +28,7 @@
   <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2">
   <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2">
   <!-- font link consolidated by v2 skin -->
-  <link rel="stylesheet" href="/styles/shared.css?v=20260916-bf9edbc">
+  <link rel="stylesheet" href="/styles/shared.css?v=20260916-811a07b">
   <style>
     /* ── Page-level overrides ── */
     .page-wrap {
@@ -792,10 +792,10 @@
       .footer-bottom { flex-direction: column; text-align: center; }
     }
   </style>
-  <link rel="stylesheet" href="/styles/v2-site.css?v=20260916-bf9edbc">
-  <script src="/scripts/v2-site.js?v=20260916-bf9edbc" defer></script>
+  <link rel="stylesheet" href="/styles/v2-site.css?v=20260916-811a07b">
+  <script src="/scripts/v2-site.js?v=20260916-811a07b" defer></script>
   <link rel="stylesheet" href="/styles/skins/synthwave.css">
-  <link rel="stylesheet" href="/styles/site-nav.css?v=20260916-bf9edbc">
+  <link rel="stylesheet" href="/styles/site-nav.css?v=20260916-811a07b">
 </head>
 <body>
   <nav class="site-nav" role="navigation" aria-label="Primary navigation">
@@ -803,7 +803,7 @@
       <img class="nav-brand-icon" src="/assets/GeoID_logo_icon.png" alt="">
     </a>
     <ul class="nav-links">
-      <li><a href="/">Dashboard</a></li>      <li class="nav-dropdown">
+      <li><a href="/dashboard/">Dashboard</a></li>      <li class="nav-dropdown">
         <a class="nav-dropdown-toggle" href="/about/">About</a>
         <div class="nav-dropdown-menu" aria-label="About pages">
           <a href="/about/">Overview</a>
@@ -814,7 +814,7 @@
           <a href="/updates/">Journal</a>
         </div>
       </li>
-      <li><a href="/geohub/"><span class="geohub-word"><span class="geohub-prefix">Geo</span>HUB</span></a></li>
+      <li><a href="/"><span class="geohub-word"><span class="geohub-prefix">Geo</span>HUB</span></a></li>
 
       <li><a href="/contact/">Contact</a></li>
     </ul>
@@ -852,7 +852,7 @@
           <p class="hero-tagline">A hazard GIS on a 3D globe. Free, in your browser, with nothing to install.</p>
           <p class="hero-desc">Open the globe and the whole hazard record is already on it — 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology, live events, live satellites, and ten worlds beyond Earth. Draw an area, sample every layer under it, take the table away. Then mesh it, model it, and write it up in the same window. Membership adds the six hazard models GeoID computes itself.</p>
           <div class="hero-actions">
-            <a class="btn-primary" href="/geohub/">Open GeoHUB</a>
+            <a class="btn-primary" href="/">Open GeoHUB</a>
             <a class="btn-ghost" href="#features">See what's inside</a>
             <a class="btn-ghost" href="#models">The hazard models</a>
             <a class="btn-ghost" href="#worlds">Ten worlds</a>
@@ -1088,8 +1088,8 @@
             <li>Free, no account, and reached from the GeoHUB header or the cards below.</li>
           </ul>
           <div class="hero-actions" style="justify-content:flex-start;margin-top:1.25rem;">
-            <a class="btn-primary" href="/geohub/?world=mars">Launch the Mars flight simulator</a>
-            <a class="btn-ghost" href="/geohub/?world=moon">Open the Moon</a>
+            <a class="btn-primary" href="/?world=mars">Launch the Mars flight simulator</a>
+            <a class="btn-ghost" href="/?world=moon">Open the Moon</a>
           </div>
         </div>
         <div class="feature-shot">
@@ -1104,61 +1104,61 @@
           <h2 class="tile-title">Every Viewer, and What It Is Built From</h2>
           <p class="tile-desc" style="margin:0 auto 0;">Feature counts are IAU-recognised names mapped in each viewer.</p>
           <div class="worlds-grid">
-            <a class="world-card" href="/geohub/?world=mercury">
+            <a class="world-card" href="/?world=mercury">
               <img src="/assets/mercury_icon.png" alt="" loading="lazy" decoding="async">
               <span class="world-name">Mercury</span>
               <span class="world-data">MESSENGER global mosaic</span>
               <span class="world-copy">Named craters, basins and the long lobate scarps left as the planet cooled and shrank.</span>
             </a>
-            <a class="world-card" href="/geohub/?world=venus">
+            <a class="world-card" href="/?world=venus">
               <img src="/assets/venus_icon.png" alt="" loading="lazy" decoding="async">
               <span class="world-name">Venus</span>
               <span class="world-data">Magellan radar</span>
               <span class="world-copy">Volcanic plains, coronae and the deformed highlands under the cloud deck.</span>
             </a>
-            <a class="world-card" href="/geohub/">
+            <a class="world-card" href="/">
               <img src="/assets/earth_icon.png" alt="" loading="lazy" decoding="async">
               <span class="world-name">Earth</span>
               <span class="world-data">GeoHUB itself</span>
               <span class="world-copy">The hazard GIS above: the record, the geology, the live feeds and the models.</span>
             </a>
-            <a class="world-card" href="/geohub/?world=moon">
+            <a class="world-card" href="/?world=moon">
               <img src="/assets/moon_icon.png" alt="" loading="lazy" decoding="async">
               <span class="world-name">Moon</span>
               <span class="world-data">LROC mosaic over LOLA</span>
               <span class="world-copy">2,087 IAU features, the USGS Unified Geologic Map with 12,000+ selectable units, and a core cutaway from Apollo seismology.</span>
             </a>
-            <a class="world-card" href="/geohub/?world=mars">
+            <a class="world-card" href="/?world=mars">
               <img src="/assets/mars_icon.png" alt="" loading="lazy" decoding="async">
               <span class="world-name">Mars</span>
               <span class="world-data">MOLA relief · CTX mosaic</span>
               <span class="world-copy">Sub-metre imagery streamed tile by tile, mapped geology, a raster calculator that floods the northern lowlands — and the flight simulator.</span>
             </a>
-            <a class="world-card" href="/geohub/?world=jupiter">
+            <a class="world-card" href="/?world=jupiter">
               <img src="/assets/jupiter_icon.png" alt="" loading="lazy" decoding="async">
               <span class="world-name">Jupiter</span>
               <span class="world-data">Cloud bands · moon system</span>
               <span class="world-copy">Io 254, Europa 130, Ganymede 203, Callisto 155 and Amalthea 4 mapped surface features.</span>
             </a>
-            <a class="world-card" href="/geohub/?world=saturn">
+            <a class="world-card" href="/?world=saturn">
               <img src="/assets/saturn_icon.png" alt="" loading="lazy" decoding="async">
               <span class="world-name">Saturn</span>
               <span class="world-data">Rings · nine moons</span>
               <span class="world-copy">Titan 310, Rhea 237, Dione 171, Enceladus 87, Iapetus 71, Tethys 60, Mimas 45, Phoebe 25, Hyperion 5.</span>
             </a>
-            <a class="world-card" href="/geohub/?world=uranus">
+            <a class="world-card" href="/?world=uranus">
               <img src="/assets/uranus_icon.png" alt="" loading="lazy" decoding="async">
               <span class="world-name">Uranus</span>
               <span class="world-data">Tilted system · six moons</span>
               <span class="world-copy">Ariel 26, Miranda 18, Titania 18, Umbriel 13, Oberon 10, Puck 3 mapped features.</span>
             </a>
-            <a class="world-card" href="/geohub/?world=neptune">
+            <a class="world-card" href="/?world=neptune">
               <img src="/assets/neptune_icon.png" alt="" loading="lazy" decoding="async">
               <span class="world-name">Neptune</span>
               <span class="world-data">Storms · Triton</span>
               <span class="world-copy">Triton's 64 mapped features in the orbital context of the outermost giant.</span>
             </a>
-            <a class="world-card" href="/geohub/?world=pluto">
+            <a class="world-card" href="/?world=pluto">
               <img src="/assets/pluto_icon.png" alt="" loading="lazy" decoding="async">
               <span class="world-name">Pluto</span>
               <span class="world-data">New Horizons · Charon</span>
@@ -1235,7 +1235,7 @@
           <p class="tile-desc" style="margin:1.5rem auto 0;">Membership also opens <strong style="color:var(--text);">rock properties</strong> — strength, permeability and the rest of the geotechnical database mapped onto the world's geology — the <strong style="color:var(--text);">Model Builder</strong>, which samples the real ground into a domain and packages the mesh for a solver, <strong style="color:var(--text);">Earth Engine</strong> over any area you draw, and <strong style="color:var(--text);">saving and exporting</strong> projects to your own disk. These are screening-level research tools with their methods stated; none is a certified warning service, and the <a href="/disclaimer/" style="color:var(--cyan);">disclaimer</a> applies.</p>
           <div class="hero-actions" style="margin-top:1.25rem;">
             <a class="btn-primary" href="/membership/">Become a member — £49.99 a year</a>
-            <a class="btn-ghost" href="/geohub/">Open the free globe first</a>
+            <a class="btn-ghost" href="/">Open the free globe first</a>
           </div>
         </div>
       </div>
@@ -1332,8 +1332,8 @@
             <div class="footer-section">              <h4>Navigation</h4>
               <ul>
                 <li><a href="/about/">Overview</a></li>
-                <li><a href="/geohub/">GeoHUB</a></li>
-                <li><a href="/">Dashboard</a></li>
+                <li><a href="/">GeoHUB</a></li>
+                <li><a href="/dashboard/">Dashboard</a></li>
                 <li><a href="/earth_explorer/">Earth Explorer</a></li>
                 <li><a href="/about_geohub/#worlds">Ten Worlds</a></li>
                 <li><a href="/membership/">Membership</a></li>
@@ -1387,8 +1387,8 @@
     <div class="status-item">GeoHUB</div>
   </div>
 
-  <script type="module" src="/scripts/nav-membership.js?v=20260916-bf9edbc"></script>
-  <script src="/scripts/site.js?v=20260916-bf9edbc"></script>
-<script src="/styles/nav.js?v=20260916-bf9edbc" defer></script>
+  <script type="module" src="/scripts/nav-membership.js?v=20260916-811a07b"></script>
+  <script src="/scripts/site.js?v=20260916-811a07b"></script>
+<script src="/styles/nav.js?v=20260916-811a07b" defer></script>
 </body>
 </html>
