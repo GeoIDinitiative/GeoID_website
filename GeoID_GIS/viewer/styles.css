@@ -5954,18 +5954,24 @@ canvas {
   margin: 0;
   padding: 0;
   border-bottom: 0;
-  width: max-content;
-  justify-content: flex-start;
-  gap: 0.45rem;
+  /* The SIDEBAR'S OWN CONTENT WIDTH, derived rather than measured: `#ui` is
+     min(24rem, 100vw - 2rem) and spends 0.85rem + 0.75rem of padding and two
+     1px borders on either side of this row. Sized to its content instead, the
+     parked copy came out 34px narrower and every button after the first sat a
+     few pixels left of where the GIS page draws it. */
+  width: calc(min(24rem, 100vw - 2rem) - 1.6rem - 2px);
+  justify-content: space-between;
+  gap: 0.5rem;
 }
-/* The sidebar gives the switcher the width left over in a 24rem panel, which
-   works out at three 76px pills. Sized to content instead, the parked copy
-   came out at 39px each and read as a different control -- so it is given
-   that same width outright and divides it the same way. */
-.brand-toprow.is-parked #view-mode-switch { flex: 0 0 auto; width: 15rem; }
+/* Nothing here overrides the sidebar's own `flex: 1` on the switcher: given
+   the same width and the same gap, that rule divides it into the same three
+   76px pills at the same three x positions. An explicit width was what put
+   the pills 2-4px left of the GIS page's. */
 /* The collapse button folds the globe sidebar, which is not the page on
-   screen. */
-.brand-toprow.is-parked #nav-collapse-btn { display: none; }
+   screen -- but it is part of what the sidebar's `space-between` divides, so
+   removing it from the LAYOUT moves the music button 30px right. It keeps its
+   place and gives up only its ink. */
+.brand-toprow.is-parked #nav-collapse-btn { visibility: hidden; }
 /* Model mode hides the FLOATING music button -- right on the planets, where
    that is the only one there is. Parked, the button is part of this row and
    travels with it, so this has to outrank that rule's `!important`. */

@@ -21674,6 +21674,43 @@ actions row at 106 -- and the rail's top is where the hub puts its own mark.
 Putting the row at 31 there would lay it over that. Aligning it means moving
 the rail, which is a change to the hub's header rather than to this row.
 
+### And then the row had to be the sidebar's WIDTH, or it divides differently
+
+Starting at the same x is not the same as landing at the same x. Measured
+after the ribbon was left-aligned, every button after the first was still 2-4px
+adrift and the row itself 34px short:
+
+| | row | folder | GIS | Model | Research | music |
+| --- | --- | --- | --- | --- | --- | --- |
+| GIS | **356** | 31 | 68 | 150 | 232 | 319 |
+| Model | **322** | 31 | 68 | 148 | 229 | 315 |
+
+Three things, and each is the parked copy overriding a sidebar rule it did not
+have to:
+
+- **`width: max-content`.** The GIS row is the sidebar's CONTENT WIDTH, which
+  falls out of `#ui` being `min(24rem, 100vw - 2rem)` less 0.85rem + 0.75rem of
+  padding and two 1px borders -- 356.4px, derived rather than measured, so the
+  two agree at every viewport rather than at the one they were tuned on.
+- **`gap: 0.45rem` against the sidebar's `0.5rem`**, which is the whole of the
+  2-4px drift: 0.8px a gap, compounding along the row.
+- **`#view-mode-switch { flex: 0 0 auto; width: 15rem }`.** That was written
+  when the parked row sized to its content and the pills came out at 39px. Given
+  the right width and the right gap, the SIDEBAR'S OWN `flex: 1` divides it into
+  the same three 76px pills without being told a number.
+
+**A hidden control is still part of what `space-between` divides.**
+`#nav-collapse-btn` folds the globe sidebar, which is not the page on screen, so
+it was `display: none` -- and removing it from the LAYOUT hands its 24px and its
+gap to the music button, which then sits 30px right of where the GIS page draws
+it. `visibility: hidden` keeps its place and gives up only its ink.
+
+Measured after, Model against GIS: **row 356 = 356**, folder, GIS, Model and
+Research at **0px** of offset, music at 1px (the calc's own 356.4 rounding).
+The ribbon was already two rows tall before this, so the extra 34px cost it
+nothing -- checked by putting the old rules back inline and re-measuring, rather
+than assumed.
+
 The `y` still differs by design: 33 on GIS, 20 on Model. The GIS row sits
 INSIDE the sidebar panel, below its top edge; the studio's bar is the topmost
 thing on its page. Matching it would push the ribbon down and take the deck

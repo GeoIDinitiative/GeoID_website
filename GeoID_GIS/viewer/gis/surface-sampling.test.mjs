@@ -233,7 +233,14 @@ check("the TIN builds", tin.ok, tin.message);
     check("the deck is the GIS nav bar's own dimensions", /#ui \{[^}]*width: min\(24rem, calc\(100vw - 2rem\)\);/.test(css) && /#model-studio \.studio-dock \{ width: min\(24rem, calc\(100vw - 2rem\)\); \}/.test(css) && /#model-studio \.studio-dock-left \{ left: 1rem; \}/.test(css) && !/#model-studio \.studio-dock \{ width: (min\(1[57]rem|12\.5rem)/.test(css));
     check("no BUILD/MESH caption and no gap: one evenly spaced list", !/studio-deck-caption/.test(css) && !/\.studio-group\[data-band="build"\] \+ \.studio-group\[data-band="mesh"\]/.test(css));
     check("EVERY tab and subtab arrives collapsed, and a remembered state still wins", !/data-band="(?:build|mesh)" open>/.test(earth) && /if \(readFolds\(\)\[`band-\$\{band\}`\] === group\.dataset\.group\) writeFold\(`band-\$\{band\}`, ""\);/.test(studio) && /details\.open = Boolean\(folds\[key\]\);/.test(studio) && /details\.open = domainOpen\.get\(id\) \?\? false;/.test(studio) && !/air\.open = true;|pts\.open = true;/.test(studio));
-    check("the mode switch is IN the bar, and the tile it had is gone", /<div class="studio-ribbon" id="studio-ribbon">\n      <span id="studio-mode-slot"><\/span>/.test(earth) && !/studio-brand/.test(earth) && !/studio-modebar/.test(earth) && !/studio-modebar/.test(css) && /\.brand-toprow\.is-parked \{[^}]*justify-content: flex-start;/.test(css) && !/is-in-studio/.test(css));
+    check("the mode switch is IN the bar, and the tile it had is gone", /<div class="studio-ribbon" id="studio-ribbon">\n      <span id="studio-mode-slot"><\/span>/.test(earth) && !/studio-brand/.test(earth) && !/studio-modebar/.test(earth) && !/studio-modebar/.test(css) && /#model-studio \.studio-topbar \{[^}]*left: 1rem;/.test(css) && /#model-studio \.studio-ribbon \{[^}]*justify-content: flex-start;/.test(css) && !/is-in-studio/.test(css));
+    // THE ROW IS THE SIDEBAR'S, so it is given the sidebar's own content width
+    // and its own `space-between`, and the sidebar's `flex: 1` on the switcher
+    // then divides it into the same three pills at the same three x positions.
+    // Sized to its content with the collapse button removed from the layout,
+    // the parked copy measured 322px against 356 and every button after the
+    // first sat 2-4px left of where the GIS page draws it.
+    check("the parked row is the sidebar's own width, divided the sidebar's own way", /\.brand-toprow\.is-parked \{[^}]*width: calc\(min\(24rem, 100vw - 2rem\) - 1\.6rem - 2px\);[^}]*justify-content: space-between;[^}]*gap: 0\.5rem;/.test(css) && /\.brand-toprow \{[^}]*gap: 0\.5rem;/.test(css) && /\.brand-toprow\.is-parked #nav-collapse-btn \{ visibility: hidden; \}/.test(css) && !/\.brand-toprow\.is-parked #view-mode-switch \{ flex: 0 0 auto/.test(css) && !/\.brand-toprow\.is-parked #nav-collapse-btn \{ display: none/.test(css));
     // The row moves, not the pills: parking the switcher alone left the project
     // folder and the music button in a sidebar these pages hide, and restyled
     // the pills per host into three different sizes.
