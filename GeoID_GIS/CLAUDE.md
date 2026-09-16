@@ -19937,6 +19937,59 @@ A tab per LAYER showed one hazard twice, e.g. the cyclone grid beside the estima
 
 Verified live: a Miami box with cyclone risk gave one tab holding both layers and the chooser shown. Stepping the bar to 2006 read "Following Cyclone risk — 2006 — the estimate after 27 seasons · its frame stepped". A flood `.asc` added a tab. Hiding both cyclone layers greyed that tab with its reading kept, and showing it again triggered no re-read. A legend click, a Workspace row click and a tab pin with "Follow the globe" each behaved as designed. A map arriving while the window was shut pulsed the shield and left the window shut.
 
+### A tab per study area, a row per hazard map over it
+
+Reported as "the Risk to people button and pop-up serve no function". Measured
+before the rework: with a drawn Naples study area and a raised sea on the
+globe, the window said "No risk map on the globe yet". Sea level was not a
+hazard the reader knew, and only the LAST drawn polygon was ever read.
+
+The window is now organised by the thing a reader drew:
+
+- **A tab per study area.** `studyAreas()` lists every shown drawn polygon
+  layer (`layer:<id>`), plus the live drawing where its box differs. With
+  nothing drawn, the ground in view is read, as before.
+- **A row per hazard map that reaches it.** `coversBox` is the test, and a
+  global vector map reaches an area only where one of its own features does,
+  never by its whole-world bounds. A map that has moved off an area (a sheet
+  rebuilt over another view) keeps its last reading, marked.
+- **Every row is read through `assessOver(layer, area)`**, the same dispatch
+  `assessLayer` uses.
+
+Sea level gained its own scheme (depth of sea over land dry today), and its
+dry ground is a reading of zero, like the flood sheets. A FALLING sea draws
+seabed, which is nobody's home, so `riskMapKind` refuses it by its legend
+label.
+
+**A map too coarse to see the area says so.** Loading a global dataset zooms
+the camera out, the view-built sheets rebuild at half-degree cells, and a
+20 km area fell between their centres and read "0 people". It now throws
+"Too coarse here … zoom in", and the reading is retried when the sheet
+rebuilds.
+
+**A HAZARD GRID NOT FINER THAN WORLDPOP IS READ AT THE PEOPLE'S CELLS.**
+`peopleOnGrid`'s coarse branch hands each hazard cell the WHOLE population
+cells whose centres fall in it. Masked by hazard-cell centre, a top row of
+hazard cells centred inside the area then takes a whole row of people from
+outside it. Measured on a 22 x 16 km Amalfi coast box, through a sea-level
+sheet only 1.14 times coarser than WorldPop: **170,554 people against 110,233**.
+The densest row of the Sorrento plain, just north of the box, held 103,182 of
+them.
+
+`readsAtPopulation(pop, grid)` decides: at or above half a population cell of
+area, each population cell whose centre is inside the area looks the hazard up
+under that centre (`gridValueAt`). That is exactly how a risk polygon map is
+read, so the rows of one area agree. After: 110,233 on all four rows. Below it,
+the grid's own cells are the better edge. At 330 m cells the same box reads
+119,282, an 8% edge difference rather than whole rows. The forecast's
+worst-map reading goes through the same `readAlso`, so it cannot differ from
+the map-on-screen reading beside it.
+
+**A touched map brings its area forward.** Touching a legend card or a
+Workspace row opens that map's row in every area it reaches. When the area on
+screen is not one of them, the first that is comes forward. A touch that
+changes nothing visible reads as a map with no reading.
+
 ### The FEM results are in the Model page's Visibility box
 
 The box listed the studio's own domains and mesh, but not the GALES results drawn over them, so there was no way to hide those results from where everything else is hidden.
