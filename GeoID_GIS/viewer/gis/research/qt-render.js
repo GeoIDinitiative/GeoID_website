@@ -1,7 +1,7 @@
-import { handlerFor } from "./spec-page.js?v=20260916-1141f5f";
-import * as store from "./project-store.js?v=20260916-1141f5f";
-import { el, persistentStatus } from "./pages/common.js?v=20260916-1141f5f";
-import { install as installRuntime, RUNTIME } from "./qt-runtime.js?v=20260916-1141f5f";
+import { handlerFor } from "./spec-page.js?v=20260916-21dbb7d";
+import * as store from "./project-store.js?v=20260916-21dbb7d";
+import { el, persistentStatus } from "./pages/common.js?v=20260916-21dbb7d";
+import { install as installRuntime, RUNTIME } from "./qt-runtime.js?v=20260916-21dbb7d";
 
 /**
  * Render a page from the Qt app's own layout tree.

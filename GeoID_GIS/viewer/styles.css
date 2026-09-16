@@ -5411,7 +5411,9 @@ canvas {
 #model-studio .studio-topbar {
   position: absolute;
   top: 0.9rem;
-  left: 0.9rem;
+  /* THE SAME INSET THE GIS SIDEBAR AND THE STUDIO DECK BOTH USE, so the row
+     this bar holds lands at the x it holds on the GIS page. */
+  left: 1rem;
   /* clear of the Atlas launcher's column, top-right */
   right: 3.8rem;
   z-index: 4;
@@ -5428,8 +5430,12 @@ canvas {
   align-items: center;
   gap: 0.18rem;
   flex-wrap: wrap;
-  justify-content: center;
-  padding: 0.3rem 0.5rem;
+  /* Left, not centred: centring shared the leftover width out and put the
+     mode row at a different x from the one it has on the GIS page -- which is
+     the whole point of moving the row rather than restyling it. The padding
+     is what the sidebar puts in front of its own copy. */
+  justify-content: flex-start;
+  padding: 0.3rem 0.5rem 0.3rem 0.9rem;
 }
 #model-studio .studio-ribbon.is-folded > :not(.studio-ribbon-fold) { display: none; }
 #model-studio .studio-ribbon.is-folded { padding: 0.2rem 0.35rem; }

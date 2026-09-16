@@ -21645,3 +21645,36 @@ Two things about verifying it:
 sub-pixel source can put the card back on the style-recalculation path every
 frame. The two other placement paths clear that record, or a frame that
 computed the same number would skip a write it needed.
+
+### And the Model bar had to stop centring before the row could line up
+
+Moving the row made the three pages agree on FORMAT; it did not make them
+agree on where the row starts. Measured, `.brand-toprow` left edge:
+
+    GIS 31    MODEL 150    RESEARCH 106
+
+Two things put Model 119px right of GIS, and removing either alone makes it
+worse rather than better:
+
+- **`<span class="studio-brand">Meshing Studio</span>`** led the ribbon, 103px
+  of it, pushing everything after it along. It is gone from both shells.
+- **`#model-studio .studio-ribbon` was `justify-content: center`.** With the
+  brand removed and the run still centred, the leftover width is shared out
+  and the row lands somewhere else again -- further right, not further left.
+  `flex-start` is what makes the ribbon's own padding decide, and the padding
+  is set to what the sidebar puts in front of its own copy.
+
+`.studio-topbar` also moved from `left: 0.9rem` to `1rem`, which is the inset
+`#ui` and `.studio-dock-left` both already use. Measured after: **Model 31,
+GIS 31, offset 0.**
+
+**Research stays at 106 and that is structural, not an oversight.** The hub's
+left rail owns the first 96px -- `.workspace-shell` starts at 96 and its
+actions row at 106 -- and the rail's top is where the hub puts its own mark.
+Putting the row at 31 there would lay it over that. Aligning it means moving
+the rail, which is a change to the hub's header rather than to this row.
+
+The `y` still differs by design: 33 on GIS, 20 on Model. The GIS row sits
+INSIDE the sidebar panel, below its top edge; the studio's bar is the topmost
+thing on its page. Matching it would push the ribbon down and take the deck
+below it along, since the deck is placed from `--studio-chrome-h`.
