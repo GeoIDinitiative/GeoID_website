@@ -134,7 +134,11 @@
 :root[data-skin] .button, :root[data-skin] .tool-button,
 :root[data-skin] .input, :root[data-skin] .mini-select,
 :root[data-skin] .compact-copy, :root[data-skin] .tool-copy,
-:root[data-skin] .gis-catalogue-name, :root[data-skin] .legend-class-label {
+:root[data-skin] .gis-catalogue-name, :root[data-skin] .legend-class-label,
+/* The header's top row -- project, mode switch, music -- kept the page's own
+   face under every theme, on Earth and the planets alike: its buttons carry
+   none of the classes above. Measured under CRT: "Exo 2" beside VT323. */
+:root[data-skin] .brand-toprow button, :root[data-skin] .view-mode-btn {
   font-family: var(--skin-body) !important;
 }
 :root[data-skin] .section-title, :root[data-skin] .section-heading,
