@@ -36,6 +36,30 @@ const TARGETS = {
 };
 
 /**
+ * THE WORLD'S OWN RECORDING -- "Sounds of Mars - NASA InSight" -- which the
+ * nine planet viewers carry and Earth does not.
+ *
+ * It is NOT the music player. The two are different sources with different
+ * credits: the playlist is the app's, and this is the page's, published by
+ * whoever recorded it. It rides on the right of the banner where the page's
+ * own things go, and it is simply absent on a world that has none.
+ *
+ * Playing is read from the SWAPPED ICON rather than a class, because that is
+ * how this button says it -- the music player says it the other way.
+ */
+export function worldAudio(doc = document) {
+  const el = doc.getElementById("audio-play-btn");
+  if (!el) return null;
+  const pause = doc.getElementById("audio-icon-pause");
+  const label = (doc.querySelector(".brand-audio p")?.textContent || "").trim();
+  return {
+    el,
+    playing: Boolean(pause && pause.style && pause.style.display !== "none"),
+    label: label || "Sounds of this world",
+  };
+}
+
+/**
  * THE row -- the one holding the mode switch, not the first element that
  * happens to carry the class. Four workbench panels head themselves with a
  * `.brand-toprow` of their own, and `parkModeRow` moves this one between three
@@ -43,6 +67,32 @@ const TARGETS = {
  */
 function modeRow(doc = document) {
   return doc.getElementById("view-mode-switch")?.closest(".brand-toprow") || null;
+}
+
+/**
+ * Everything in the row the HEADER now draws, the mode buttons included.
+ * Anything else in there belongs to the page.
+ */
+const HEADER_DRAWN = new Set([
+  "project-open-modal", "view-mode-switch",
+  "view-mode-gis", "view-mode-model", "view-mode-research",
+  "music-btn",
+]);
+
+/**
+ * IS THERE ANYTHING OF THE PAGE'S OWN LEFT IN THE ROW?
+ *
+ * Earth keeps its collapse beside the panel's title now, so once the header
+ * draws the other three the row holds nothing -- and an empty bar with a
+ * border under it is furniture for a control that has moved. The nine planet
+ * viewers head the SAME row with their info button and their collapse, so
+ * theirs must stay. Counted rather than guessed, or this is a list of which
+ * worlds are which, kept in step by hand.
+ */
+export function rowIsOnlyModeBar(row) {
+  if (!row) return false;
+  const controls = row.querySelectorAll("button, input, select, a, [role=button]");
+  return [...controls].every((el) => HEADER_DRAWN.has(el.id));
 }
 
 /** The viewer's own control for a name the shell can press. */
@@ -60,15 +110,19 @@ function controlFor(target, doc) {
  */
 export function modeBarState(doc = document) {
   const music = doc.getElementById("music-btn");
-  const project = doc.getElementById("project-open-modal");
+  const audio = worldAudio(doc);
+  const project = Boolean(doc.getElementById("project-open-modal"));
   const modes = ["gis", "model", "research"].filter((m) => doc.getElementById(TARGETS[m]));
   return {
     mode: doc.body?.dataset?.viewMode || "gis",
     modes,
-    project: Boolean(project),
+    project,
     music: music
       ? { present: true, playing: !music.classList.contains("is-paused") }
       : { present: false, playing: false },
+    audio: audio
+      ? { present: true, playing: audio.playing, label: audio.label }
+      : { present: false, playing: false, label: "" },
   };
 }
 
@@ -78,7 +132,7 @@ export function modeBarState(doc = document) {
  * music button still runs the playlist's own error handling.
  */
 export function pressModeBarTarget(target, doc = document) {
-  const el = controlFor(target, doc);
+  const el = target === "audio" ? worldAudio(doc)?.el : controlFor(target, doc);
   if (!el || el.disabled) return false;
   el.click();
   return true;
@@ -120,7 +174,9 @@ function install() {
       // `parkModeRow` has moved it to.
       hosted = msg.hosted !== false;
       document.body.classList.toggle("modebar-hosted", hosted);
-      modeRow()?.classList.toggle("is-modebar-hosted", hosted);
+      const row = modeRow();
+      row?.classList.toggle("is-modebar-hosted", hosted);
+      row?.classList.toggle("is-modebar-empty", hosted && rowIsOnlyModeBar(row));
       report();
       return;
     }
@@ -135,8 +191,12 @@ function install() {
   // class when the audio starts or stops.
   const watch = new MutationObserver(report);
   watch.observe(document.body, { attributes: true, attributeFilter: ["data-view-mode"] });
+  // Each player says it is playing in its own way: a class on the music
+  // button, a swapped icon on a world's own recording.
   const music = document.getElementById("music-btn");
   if (music) watch.observe(music, { attributes: true, attributeFilter: ["class"] });
+  const icon = document.getElementById("audio-icon-pause");
+  if (icon) watch.observe(icon, { attributes: true, attributeFilter: ["style"] });
 
   // The shell may be listening before this module loads or after it; saying so
   // once on load covers the first, and the host message covers the second.

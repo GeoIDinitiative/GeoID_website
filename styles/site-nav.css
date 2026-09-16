@@ -421,3 +421,37 @@
 @media (max-width: 680px) {
   .site-nav .nav-modebar { display: none; }
 }
+
+/* ── The page's audio, between the links and the membership group ─────────
+ *
+ * One control, wearing the header's own icon-button shape. Its NAME comes from
+ * the page (a world's recording keeps its credit in the tooltip), so nothing
+ * here decides what it is playing.
+ */
+.site-nav .nav-music {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  /* First child of the membership group, which packs at the right edge -- so
+     this lands immediately left of Membership and right of the links. The
+     group's own 8px gap is the spacing; a margin here would double it. */
+  flex: 0 0 auto;
+  align-self: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: none;
+  color: var(--nav-ink-2);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color .2s, border-color .2s;
+}
+.site-nav .nav-music[hidden] { display: none; }
+.site-nav .nav-music:hover { color: var(--nav-ink); border-color: rgba(255, 255, 255, 0.28); }
+.site-nav .nav-music:focus-visible { outline: 2px solid var(--nav-accent); outline-offset: 2px; }
+.site-nav .nav-music.is-playing { color: var(--nav-accent); border-color: rgba(255, 62, 200, 0.45); }
+/* On a phone the header is the wordmark and the burger. */
+@media (max-width: 680px) { .site-nav .nav-music { display: none; } }

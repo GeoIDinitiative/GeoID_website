@@ -21939,3 +21939,51 @@ else to lose.
 Verified framed on a PLANET as well as on Earth, which also exercises the
 re-claim on navigation: pointing the frame at Mars gives the same hosted row,
 the same collapse at 363, 33 and the header bar with GIS active.
+
+### The LIVE pill, the collapse, and a world's own recording
+
+Four placements settled by report, and the last one is the interesting one.
+
+**The LIVE pill sits beside the CLOCK.** It sets the rate the clock counts at,
+and the two were a panel apart — the pill in the sidebar's title row, the clock
+in the fixed top cluster. It is in that cluster now, 7px right of the clock,
+which also means it stays put when the panel is folded away. Earth only:
+`#time-rate-toggle` exists on no other viewer.
+
+**The collapse takes its place**, beside the info button in the title row. It
+had been left alone in the row above, which is the mode bar and is drawn in the
+shell's header — and the nine planet viewers headed that same row with their
+info button and their collapse, so all ten now have one shape: the page's own
+controls with the page's own title, and the row purely the bar.
+
+**A row with nothing of its own left goes entirely**, and which rows those are
+is COUNTED rather than listed: `rowIsOnlyModeBar` asks whether every control in
+the row is one the header draws. A list would have said "Earth" yesterday and
+"all ten" today, kept in step by hand.
+
+**THE MUSIC PLAYER AND A WORLD'S RECORDING ARE TWO SOURCES WITH TWO CREDITS.**
+A planet viewer carries both — the app's playlist (`#music-btn`, `position:
+fixed` by default, floating over the globe) and "Sounds of Mars - NASA InSight"
+(`#audio-play-btn` with its own caption). Reported as a duplicate music player,
+and it was: the header drew a music button while the page's own floated beside
+it. Both page-side players stand down while the header draws them, and the
+header draws them in two different places, because they are two different
+things — the playlist in the mode bar on the left where it always was, the
+world's recording on the RIGHT of the banner between the links and the
+membership group, where the page's own things go.
+
+- **The recording's own caption becomes the button's name** (`Play — Sounds of
+  Mars - NASA InSight`), so the credit travels with the control rather than
+  being left behind in a sidebar block that is now hidden.
+- **Each says it is playing in its own way** — a class on the music button, a
+  swapped icon on the recording — so the bridge reads each in its own terms.
+  Reporting one as the other is how two controls come to mean one thing.
+- **A world with no recording reports none**, and the right-hand button stays
+  hidden rather than falling back to the music, which would put the same player
+  in two places on Earth.
+
+**THE TAIL OF BOTH STYLESHEETS IS PINNED EQUAL from the studio block onwards**,
+so anything appended to one must be appended to the other — and anything that is
+NOT the studio's belongs above that marker. The planets' `.brand` rules went to
+the end of `shell.css` and failed that check; they sit before it now, which is
+also where they belong by subject.

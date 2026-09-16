@@ -22,14 +22,19 @@ const here = (p) => new URL(p, import.meta.url);
 const read = (p) => readFileSync(here(p), "utf8");
 const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|\n)\s*\/\/[^\n]*/g, "$1");
 
-const { modeBarState, pressModeBarTarget } = await import("./mode-bar-bridge.js");
+const { modeBarState, pressModeBarTarget, worldAudio, rowIsOnlyModeBar } =
+  await import("./mode-bar-bridge.js");
 
-/** The smallest document the two pure halves read. */
-function fakeDoc({ mode = "gis", playing = false, music = true, project = true, modes = ["gis", "model", "research"] } = {}) {
+/** The smallest document the pure halves read. */
+function fakeDoc({
+  mode = "gis", playing = false, music = true, project = true,
+  modes = ["gis", "model", "research"],
+  own = null, ownPlaying = false, ownLabel = "Sounds of Mars - NASA InSight",
+} = {}) {
   const made = new Map();
   const make = (id, cls = []) => {
     const el = {
-      id, disabled: false, clicks: 0,
+      id, disabled: false, clicks: 0, style: {},
       classList: { _s: new Set(cls), contains(c) { return this._s.has(c); } },
       click() { this.clicks += 1; },
     };
@@ -39,10 +44,17 @@ function fakeDoc({ mode = "gis", playing = false, music = true, project = true, 
   for (const m of modes) make(`view-mode-${m}`);
   if (project) make("project-open-modal");
   if (music) make("music-btn", playing ? [] : ["is-paused"]);
+  // A world's own recording: its own button, and an icon that says whether it
+  // is playing by being swapped rather than by a class.
+  if (own) {
+    make("audio-play-btn");
+    make("audio-icon-pause").style.display = ownPlaying ? "block" : "none";
+  }
   return {
     made,
     body: { dataset: { viewMode: mode } },
     getElementById: (id) => made.get(id) || null,
+    querySelector: (sel) => (sel === ".brand-audio p" && own ? { textContent: ownLabel } : null),
   };
 }
 
@@ -58,6 +70,25 @@ function fakeDoc({ mode = "gis", playing = false, music = true, project = true, 
   const paused = modeBarState(fakeDoc({ playing: false }));
   check("and a paused player reports paused", paused.music.playing === false);
 }
+// ── The world's own recording is NOT the music player ───────────────────────
+// Two sources with two credits: the playlist is the app's and rides in the bar;
+// "Sounds of Mars - NASA InSight" is the page's and rides on the right of the
+// banner. A planet carries both, and reporting one as the other is how two
+// controls come to mean one thing.
+{
+  const mars = modeBarState(fakeDoc({ own: true, ownPlaying: true, playing: false }));
+  check("a world with a recording reports BOTH, separately",
+    mars.music.present && mars.music.playing === false
+    && mars.audio.present && mars.audio.playing === true);
+  check("and the page's own name for it travels with the control",
+    mars.audio.label === "Sounds of Mars - NASA InSight");
+  const earth = modeBarState(fakeDoc({ own: null }));
+  check("a world with none reports none, rather than the music standing in for it",
+    earth.audio.present === false && earth.music.present === true);
+  check("the recording says it is playing by its SWAPPED ICON, not by a class",
+    worldAudio(fakeDoc({ own: true, ownPlaying: false })).playing === false
+    && worldAudio(fakeDoc({ own: true, ownPlaying: true })).playing === true);
+}
 {
   // The nine planet pages have the same row; a page that dropped a control must
   // not have it drawn in the header, greyed or otherwise.
@@ -72,6 +103,13 @@ function fakeDoc({ mode = "gis", playing = false, music = true, project = true, 
   check("a mode press clicks that mode's own button", pressModeBarTarget("model", d) && d.made.get("view-mode-model").clicks === 1);
   check("the folder presses the viewer's own project button", pressModeBarTarget("project", d) && d.made.get("project-open-modal").clicks === 1);
   check("and the player's button is the player's own", pressModeBarTarget("music", d) && d.made.get("music-btn").clicks === 1);
+  const mars = fakeDoc({ own: true });
+  check("a world's recording is pressed through ITS button, never the music's",
+    pressModeBarTarget("audio", mars)
+    && mars.made.get("audio-play-btn").clicks === 1
+    && mars.made.get("music-btn").clicks === 0);
+  check("and on a world with no recording that press does nothing",
+    pressModeBarTarget("audio", fakeDoc({ own: null })) === false);
   check("a name that is not a control presses nothing", pressModeBarTarget("solve", d) === false);
   const gone = fakeDoc({ music: false });
   check("and a control the page lacks cannot be pressed", pressModeBarTarget("music", gone) === false);
@@ -149,7 +187,13 @@ function fakeDoc({ mode = "gis", playing = false, music = true, project = true, 
   const bridge = strip(read("./mode-bar-bridge.js"));
   check("and the row is found by the switch it holds, not by the class or by order",
     /doc\.getElementById\("view-mode-switch"\)\?\.closest\("\.brand-toprow"\)/.test(bridge)
-    && /modeRow\(\)\?\.classList\.toggle\("is-modebar-hosted", hosted\)/.test(bridge));
+    && /const row = modeRow\(\);\s*row\?\.classList\.toggle\("is-modebar-hosted", hosted\);/.test(bridge)
+    && /row\?\.classList\.toggle\("is-modebar-empty", hosted && rowIsOnlyModeBar\(row\)\)/.test(bridge));
+  // The empty-row mark is COUNTED, not a list of which worlds head this row
+  // with something of their own -- all nine planets used to, and now none does.
+  check("and the row's own controls are counted rather than listed",
+    rowIsOnlyModeBar({ querySelectorAll: () => [{ id: "view-mode-gis" }, { id: "music-btn" }] }) === true
+    && rowIsOnlyModeBar({ querySelectorAll: () => [{ id: "info-btn" }] }) === false);
 }
 
 process.on("exit", () => {

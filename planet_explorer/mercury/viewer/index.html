@@ -8,25 +8,25 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260916-f4b2153">
-  <link rel="stylesheet" href="/styles/flightsim.css?v=20260916-f4b2153">
-  <link rel="stylesheet" href="/styles/viewer-skin.css?v=20260916-f4b2153">
-  <link rel="stylesheet" href="/styles/viewer-themes.css?v=20260916-f4b2153">
+  <link rel="stylesheet" href="styles.css?v=20260916-7b3f556">
+  <link rel="stylesheet" href="/styles/flightsim.css?v=20260916-7b3f556">
+  <link rel="stylesheet" href="/styles/viewer-skin.css?v=20260916-7b3f556">
+  <link rel="stylesheet" href="/styles/viewer-themes.css?v=20260916-7b3f556">
   <script src="/scripts/theme.js"></script>
-  <script src="/scripts/tour-enter.js?v=20260916-f4b2153" defer></script>
-  <script src="/scripts/ui-sound.js?v=20260916-f4b2153" defer></script>
+  <script src="/scripts/tour-enter.js?v=20260916-7b3f556" defer></script>
+  <script src="/scripts/ui-sound.js?v=20260916-7b3f556" defer></script>
   <!-- The GIS layer: shared shell markup, styling and modules. -->
-  <link rel="stylesheet" href="/GeoID_GIS/viewer/gis/shell.css?v=20260916-f4b2153">
+  <link rel="stylesheet" href="/GeoID_GIS/viewer/gis/shell.css?v=20260916-7b3f556">
 </head>
 <body class="viewer-page">
   <div id="app"></div>
   <section id="ui">
-    <div class="brand-toprow">
-      <div class="brand-toprow-actions">
-        <button class="info-btn" id="info-btn" aria-label="About this viewer" title="About this viewer">i</button>
-        <button id="nav-collapse-btn" aria-label="Collapse navigation panel" title="Collapse panel">‹</button>
-      </div>
-    </div>
+    <!-- The mode bar's row. The info button and the collapse used to head it;
+         they are the PAGE'S own controls, so they sit with the page's own
+         title now and this row is purely the bar -- which is what lets it go
+         when a shell's header is drawing that. shell.js injects the project
+         button and the mode switch here. -->
+    <div class="brand-toprow"></div>
     <div id="ui-scroll-body">
     <div class="viewer-info" id="viewer-info">
       <p>Drag to orbit, scroll to zoom, and inspect Mercury as a textured 3D globe with topographic relief and an optional enhanced-color geology context overlay.</p>
@@ -37,6 +37,8 @@
           <img class="brand-logo" id="brand-logo" src="../../../assets/mercury_icon.png" alt="Mercury icon">
         </button>
         <h1>Mercury</h1>
+        <button class="info-btn" id="info-btn" aria-label="About this viewer" title="About this viewer">i</button>
+        <button id="nav-collapse-btn" aria-label="Collapse navigation panel" title="Collapse panel">‹</button>
       </div>
       <div class="brand-audio" id="brand-audio" style="display:none">
         <button class="audio-play-btn" id="audio-play-btn" aria-label="Play / pause Mercury sounds">
@@ -1274,7 +1276,7 @@
 </script>
 <script src="ui-controls.js" defer></script>
 <button id="music-btn" class="is-paused" title="Play music">▶ MUSIC</button>
-<script src="music.js?v=20260916-f4b2153" defer></script>
+<script src="music.js?v=20260916-7b3f556" defer></script>
 
 
   <div id="portrait-advisory" role="status" aria-live="polite">
@@ -1295,8 +1297,8 @@
       });
     })();
   </script>
-<script src="/scripts/flightsim.js?v=20260916-f4b2153-atmos2" defer></script>
+<script src="/scripts/flightsim.js?v=20260916-7b3f556-atmos2" defer></script>
   <script>if (window.self !== window.top) document.body.classList.add("is-embedded");</script>
-  <script type="module" src="/GeoID_GIS/viewer/gis/boot.js?v=20260916-f4b2153"></script>
+  <script type="module" src="/GeoID_GIS/viewer/gis/boot.js?v=20260916-7b3f556"></script>
 </body>
 </html>

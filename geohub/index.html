@@ -1428,7 +1428,15 @@
       <li><a href="/geohub/" class="active" aria-current="page"><span class="geohub-word"><span class="geohub-prefix">Geo</span>HUB</span></a></li>
       <li><a href="/contact/">Contact</a></li>
     </ul>
+    <!-- THE WORLD'S OWN RECORDING -- "Sounds of Mars - NASA InSight" -- on the
+         right of the banner, where the page's own things go. Not the music
+         player, which is the app's and stays in the bar on the left: these are
+         two sources with two credits. Absent on a world that has none, which
+         is why it is drawn hidden and revealed by the page's own answer. Its
+         name comes from the page, so the credit travels with the control. -->
     <div class="nav-right-logo">
+      <button type="button" class="nav-music" id="nav-music" data-modebar="audio"
+        title="Play" aria-label="Play" hidden>&#9654;</button>
       <a class="nav-act nav-act-signin" id="nav-membership" href="/sign-in/">Sign in</a>
       <a class="nav-act nav-act-donate" href="https://buy.stripe.com/dRm3cv1Op4903zb858bV600" target="_blank" rel="noopener noreferrer">Donate</a>
     </div>
@@ -1669,17 +1677,26 @@
       // Crossing that width hands the bar back to the page and takes it again.
       narrow.addEventListener?.("change", claimModeBar);
 
+      const navMusic = document.getElementById("nav-music");
+
       function renderModeBar(state) {
         if (!modeBar) return;
         modeBar.hidden = false;
-        for (const btn of modeBar.querySelectorAll("[data-modebar]")) {
+        // The player sits outside the bar -- between the links and the
+        // membership group -- so it is drawn from the same report but found
+        // on its own.
+        for (const btn of [...modeBar.querySelectorAll("[data-modebar]"), navMusic].filter(Boolean)) {
           const target = btn.dataset.modebar;
-          if (target === "music") {
-            const on = Boolean(state.music?.present);
+          if (target === "music" || target === "audio") {
+            const s = target === "music" ? state.music : state.audio;
+            const on = Boolean(s?.present);
             btn.hidden = !on;
-            const playing = Boolean(state.music?.playing);
+            const playing = Boolean(s?.playing);
             btn.textContent = playing ? "\u23F8" : "\u25B6";
-            btn.title = playing ? "Pause music" : "Play music";
+            // A world's recording carries the page's own name for it, so the
+            // credit stays with the control; the music player is the app's.
+            const what = target === "audio" ? ` \u2014 ${s?.label || "sounds"}` : " music";
+            btn.title = `${playing ? "Pause" : "Play"}${what}`;
             btn.setAttribute("aria-label", btn.title);
             btn.classList.toggle("is-playing", playing);
           } else if (target === "project") {
@@ -1695,7 +1712,7 @@
         }
       }
 
-      modeBar?.addEventListener("click", (event) => {
+      document.querySelector(".site-nav")?.addEventListener("click", (event) => {
         const btn = event.target.closest("[data-modebar]");
         if (!btn) return;
         toViewer({ type: "geoid:modebar-press", target: btn.dataset.modebar });

@@ -1882,6 +1882,28 @@ html.gis-arranging #layer-dock {
    symbology dialog and the Research Hub have both paid for. */
 #tool-rail .tool-rail-item[hidden] { display: none !important; }
 
+/* ── The page's own controls, beside the page's own title ─────────────────
+ *
+ * The nine planet viewers headed `.brand-toprow` with their info button and
+ * their collapse. That row is the MODE BAR, drawn in the shell's header now,
+ * so those two sat alone in an otherwise empty bar. They belong with the
+ * title, which is what Earth's page already does -- one shape on all ten
+ * worlds, and the row can then go when nothing of the page's own is in it.
+ */
+.brand .info-btn { margin-left: auto; }
+.brand #nav-collapse-btn {
+  margin-left: 0.35rem;
+  width: 1.45rem;
+  height: 1.45rem;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  box-shadow: none;
+  flex: 0 0 auto;
+}
+
 /* ── Meshing Studio, in the GIS page's own chrome ─────────────────────────
    One RIBBON instead of two toolbars (the actions as four menus, the view
    controls beside them), tab strips in the nav bar's voice (Exo 2, uppercase,
@@ -2473,7 +2495,9 @@ html.gis-arranging #layer-dock {
 /* Model mode hides the FLOATING music button -- right on the planets, where
    that is the only one there is. Parked, the button is part of this row and
    travels with it, so this has to outrank that rule's `!important`. */
-body.studio-open .brand-toprow.is-parked #music-btn { display: inline-flex !important; }
+/* ...but not when the header is drawing the player: that rule is more
+   specific than the hide, so the exception has to be spelled out here. */
+body.studio-open:not(.modebar-hosted) .brand-toprow.is-parked #music-btn { display: inline-flex !important; }
 
 /* ── The row, when the SHELL'S HEADER is drawing it ───────────────────────
  *
@@ -2501,9 +2525,21 @@ body.studio-open .brand-toprow.is-parked #music-btn { display: inline-flex !impo
 .brand-toprow.is-modebar-hosted > #project-open-modal,
 .brand-toprow.is-modebar-hosted > #view-mode-switch,
 .brand-toprow.is-modebar-hosted #music-btn { display: none !important; }
-/* With three of its four children gone, `space-between` would put the collapse
-   at the LEFT of the row. It belongs where it was. */
+/* On a page that still keeps one of its own controls up here -- the nine
+   planet viewers head this row with their info button and their collapse --
+   `space-between` would put what is left at the LEFT. It belongs at the end. */
 .brand-toprow.is-modebar-hosted { justify-content: flex-end; }
+/* AND ON A PAGE WHERE NOTHING OF ITS OWN IS LEFT, the row goes entirely: an
+   empty bar with a border under it is furniture for a control that has moved.
+   Which pages those are is not a guess -- the bridge counts the row's own
+   controls and marks it. */
+.brand-toprow.is-modebar-empty { display: none !important; }
+/* BOTH PLAYERS STAND DOWN while the header draws one. A planet viewer carries
+   two -- the shared music playlist, floating over the globe, and the world's
+   own recording with its own credit -- and that pair is what was reported as a
+   duplicate. The header draws the page's own, and the credit rides on it. */
+body.modebar-hosted #music-btn,
+body.modebar-hosted .brand-audio { display: none !important; }
 /* With the row gone the slots are empty spans, and their host's `gap`
    still spends a step on them. `parkModeRow` goes on moving the hidden row
    between them, because the standalone page needs that and a second rule

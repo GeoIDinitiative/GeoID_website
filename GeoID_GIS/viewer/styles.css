@@ -2291,10 +2291,27 @@ button, input, select, textarea { font-family: "Exo 2", "Segoe UI", sans-serif; 
     /* In the brand row the info button and the pill sit together at the
        right edge: the info takes the auto margin, the pill rides beside it. */
     .brand .info-btn { margin-left: auto; }
-    .brand #time-rate-toggle {
+    /* The pill has left this row for the clock cluster; the panel's own
+       collapse takes its place beside the info button, sized to match it so
+       the two read as a pair rather than as a control that wandered in. */
+    .brand #nav-collapse-btn {
       margin-left: 0.35rem;
+      width: 1.45rem;
+      height: 1.45rem;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.95rem;
+      box-shadow: none;
+    }
+    /* BESIDE THE CLOCK. The cluster aligns its children to the TOP because the
+       clock is a three-line stack; a 46px-tall neighbour would hang off its
+       first line, so the pill centres itself against the clock's own height. */
+    #top-right-controls > #time-rate-toggle {
+      align-self: center;
       height: 1.85rem;
-      padding: 0 0.5rem;
+      padding: 0 0.55rem;
       font-size: 0.6rem;
       box-shadow: none;
     }
@@ -5973,7 +5990,9 @@ canvas {
 /* Model mode hides the FLOATING music button -- right on the planets, where
    that is the only one there is. Parked, the button is part of this row and
    travels with it, so this has to outrank that rule's `!important`. */
-body.studio-open .brand-toprow.is-parked #music-btn { display: inline-flex !important; }
+/* ...but not when the header is drawing the player: that rule is more
+   specific than the hide, so the exception has to be spelled out here. */
+body.studio-open:not(.modebar-hosted) .brand-toprow.is-parked #music-btn { display: inline-flex !important; }
 
 /* ── The row, when the SHELL'S HEADER is drawing it ───────────────────────
  *
@@ -6001,9 +6020,21 @@ body.studio-open .brand-toprow.is-parked #music-btn { display: inline-flex !impo
 .brand-toprow.is-modebar-hosted > #project-open-modal,
 .brand-toprow.is-modebar-hosted > #view-mode-switch,
 .brand-toprow.is-modebar-hosted #music-btn { display: none !important; }
-/* With three of its four children gone, `space-between` would put the collapse
-   at the LEFT of the row. It belongs where it was. */
+/* On a page that still keeps one of its own controls up here -- the nine
+   planet viewers head this row with their info button and their collapse --
+   `space-between` would put what is left at the LEFT. It belongs at the end. */
 .brand-toprow.is-modebar-hosted { justify-content: flex-end; }
+/* AND ON A PAGE WHERE NOTHING OF ITS OWN IS LEFT, the row goes entirely: an
+   empty bar with a border under it is furniture for a control that has moved.
+   Which pages those are is not a guess -- the bridge counts the row's own
+   controls and marks it. */
+.brand-toprow.is-modebar-empty { display: none !important; }
+/* BOTH PLAYERS STAND DOWN while the header draws one. A planet viewer carries
+   two -- the shared music playlist, floating over the globe, and the world's
+   own recording with its own credit -- and that pair is what was reported as a
+   duplicate. The header draws the page's own, and the credit rides on it. */
+body.modebar-hosted #music-btn,
+body.modebar-hosted .brand-audio { display: none !important; }
 /* With the row gone the slots are empty spans, and their host's `gap`
    still spends a step on them. `parkModeRow` goes on moving the hidden row
    between them, because the standalone page needs that and a second rule
