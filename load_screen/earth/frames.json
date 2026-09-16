@@ -1,0 +1,99 @@
+{
+  "_readme": "GeoHUB start-up montage. Frames play in this order from this folder; add a file and a line here. hold_ms is how long a frame holds, fade_ms the dissolve; the shell fetches this file fresh on every start.",
+  "hold_ms": 750,
+  "fade_ms": 450,
+  "opacity": 0.62,
+  "frames": [
+    {
+      "file": "01-blue-marble-2012.webp",
+      "kind": "Satellite composite",
+      "place": "Earth · Blue Marble 2012",
+      "coord": "Western hemisphere · Suomi NPP, VIIRS",
+      "src": "NASA / NOAA"
+    },
+    {
+      "file": "02-aurora-from-orbit.webp",
+      "kind": "Photograph from orbit",
+      "place": "The aurora over the Earth's limb",
+      "coord": "ISS · Expedition 72 · 2024",
+      "src": "NASA, ISS072-E-159172"
+    },
+    {
+      "file": "03-north-atlantic-europe.webp",
+      "kind": "Satellite composite",
+      "place": "North Atlantic and Europe",
+      "coord": "30°N – 72°N · 45°W – 40°E",
+      "src": "NASA Blue Marble, August, 8 km"
+    },
+    {
+      "file": "04-mediterranean-at-night.webp",
+      "kind": "Photograph from orbit",
+      "place": "City lights along the Mediterranean",
+      "coord": "Italy, Sicily and the Adriatic · ISS · 2024",
+      "src": "NASA, ISS072-E-000922"
+    },
+    {
+      "file": "05-etna-eruption.webp",
+      "kind": "Photograph",
+      "place": "Mount Etna, in eruption",
+      "coord": "37.75°N · 14.99°E · 3,357 m",
+      "src": "GeoID archive"
+    },
+    {
+      "file": "06-etna-from-orbit.webp",
+      "kind": "Photograph from orbit",
+      "place": "Etna and Sicily from the station",
+      "coord": "ISS · Expedition 64 · 2021",
+      "src": "NASA, ISS064-E-029306"
+    },
+    {
+      "file": "07-himalaya-glaciers.webp",
+      "kind": "Photograph from orbit",
+      "place": "Glaciers on the Himalaya's northern slopes",
+      "coord": "ISS · Expedition 74 · 2026",
+      "src": "NASA, ISS074-E-0603582"
+    },
+    {
+      "file": "08-hurricane-eye.webp",
+      "kind": "Photograph from orbit",
+      "place": "Hurricane Ida from the Cupola",
+      "coord": "Gulf of Mexico · ISS · 28 August 2021",
+      "src": "NASA, ISS065-E-319500"
+    },
+    {
+      "file": "09-alpine-landslide.webp",
+      "kind": "Satellite image",
+      "place": "Alpine landslide",
+      "coord": "Swiss Alps · debris flow",
+      "src": "GeoID archive"
+    },
+    {
+      "file": "10-saharan-dust.webp",
+      "kind": "Photograph from orbit",
+      "place": "A dust storm over the Red Sea",
+      "coord": "Egypt and the Sudanese coast · ISS · 2013",
+      "src": "NASA, ISS036-E-011050"
+    },
+    {
+      "file": "11-etna-summit-craters.webp",
+      "kind": "Photograph",
+      "place": "Etna, the summit craters",
+      "coord": "37.75°N · 14.99°E · fumaroles",
+      "src": "GeoID fieldwork"
+    },
+    {
+      "file": "12-blue-marble-east.webp",
+      "kind": "Satellite composite",
+      "place": "Earth · Blue Marble 2012",
+      "coord": "Eastern hemisphere · Suomi NPP, VIIRS",
+      "src": "NASA / NOAA"
+    },
+    {
+      "file": "13-global-cloud-cover.webp",
+      "kind": "Satellite composite",
+      "place": "One day of weather",
+      "coord": "Global cloud cover",
+      "src": "NASA GEOS / MODIS"
+    }
+  ]
+}

@@ -36,7 +36,6 @@
       --boot-accent: var(--nav-accent, #ff3ec8);
       --boot-body: var(--skin-body, "Chakra Petch", "Exo 2", "Segoe UI", monospace);
       --boot-display: "GeoID Nav Display", "Audiowide", var(--skin-display, "Orbitron", sans-serif);
-      --r: 0px;
       position: fixed; inset: 0; z-index: 100000;
       font-size: clamp(8px, 1.1vw, 14px);
       color: var(--boot-ink);
@@ -47,19 +46,36 @@
     .boot-field {
       position: absolute; inset: 0;
       background: var(--boot-bg);
-      -webkit-mask-image: radial-gradient(circle at 50% 50%, transparent var(--r), #000 calc(var(--r) + 1px));
-              mask-image: radial-gradient(circle at 50% 50%, transparent var(--r), #000 calc(var(--r) + 1px));
+      will-change: filter, transform, opacity;
     }
+    /* THE MONTAGE: real frames of Earth from /load_screen/earth/, listed in
+       that folder's frames.json, each held briefly and dissolved into the
+       next. Under the grid and the scanlines, dimmed, and darkened top and
+       bottom so the log and the caption stay legible over any frame. */
+    .boot-montage { position: absolute; inset: 0; z-index: 0; opacity: 0.62; }
+    .boot-montage img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.45s ease; will-change: transform, opacity; }
+    .boot-montage img.on { opacity: 1; }
+    .boot-montage::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(3,6,8,0.55) 0%, rgba(3,6,8,0.15) 40%, rgba(3,6,8,0.7) 100%); }
+    .boot-cap {
+      position: absolute; right: 2.2em; top: 2.2em; z-index: 2; text-align: right;
+      font-family: var(--boot-body); font-size: 0.95em; letter-spacing: 0.14em; text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.55); line-height: 1.8; font-variant-numeric: tabular-nums; opacity: 0;
+    }
+    .boot-cap b { display: block; color: var(--boot-ink); font-weight: 600; font-size: 1.25em; letter-spacing: 0.06em; }
+    .boot-cap small { display: block; font-size: 0.75em; color: rgba(255, 255, 255, 0.35); letter-spacing: 0.2em; }
+    .boot-cap .n { display: inline-block; margin-top: 0.7em; padding: 0.25em 0.7em; border: 1px solid var(--boot-bracket); color: var(--boot-bracket); font-size: 0.75em; }
+    .boot-flare { position: absolute; top: 0; bottom: 0; width: 18%; left: -20%; opacity: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent); transform: skewX(-18deg); pointer-events: none; }
     .boot-field::before {
-      content: ""; position: absolute; inset: 0; pointer-events: none;
+      content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
       background-image: linear-gradient(rgba(88, 198, 179, 0.07) 1px, transparent 1px),
                         linear-gradient(90deg, rgba(88, 198, 179, 0.07) 1px, transparent 1px);
       background-size: 4em 4em;
     }
     .boot-field::after {
-      content: ""; position: absolute; inset: 0; pointer-events: none;
+      content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
       background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 3px);
     }
+    .boot-field > .boot-log, .boot-field > .boot-bar, .boot-field > .boot-clip { z-index: 2; }
     .boot-fx { position: absolute; inset: 0; pointer-events: none; }
     .boot-clip { position: absolute; inset: 0; clip-path: inset(50% 0 50% 0); }
     .boot-logo {
@@ -115,6 +131,7 @@
       .boot-log { left: 1.6em; right: 1.6em; bottom: 6.4em; font-size: 1.15em; }
       .boot-ctl { right: 1.2em; bottom: 1.6em; }
       .boot-logo { width: 62vw; }
+      .boot-cap { display: none; }
     }
     @media (prefers-reduced-motion: reduce) {
       .boot-clip { clip-path: none; }
@@ -1381,6 +1398,8 @@
        drawn its first frame. -->
   <div class="boot" id="boot" role="status" aria-live="polite" aria-label="GeoHUB is starting">
     <div class="boot-field">
+      <div class="boot-montage" id="boot-montage"></div>
+      <div class="boot-cap" id="boot-cap"><small class="c-kind">Frame</small><b class="c-place">—</b><small class="c-coord">—</small><small class="c-src">—</small><span class="n c-n">— / —</span></div>
       <div class="boot-log" id="boot-log">
         <div>▸ shell <i>ready</i> <em>✓</em></div>
         <div>▸ terrain tiles <i>streaming</i> <em>✓</em></div>
@@ -1401,6 +1420,7 @@
       </div>
       <div class="boot-br tl"></div><div class="boot-br tr"></div><div class="boot-br bl"></div><div class="boot-br br"></div>
       <div class="boot-scan" id="boot-scan"></div>
+      <div class="boot-flare" id="boot-flare"></div>
       <div class="boot-ctl">
         <button type="button" id="boot-sound" aria-pressed="true">Sound on</button>
         <button type="button" id="boot-skip">Skip · Esc</button>
@@ -1472,7 +1492,7 @@
       function tryStart() {
         var c = audio(); if (!c) return;
         var p = c.resume && c.resume();
-        var mark = function () { audioReady = c.state === "running"; paintSoundBtn(); };
+        var mark = function () { audioReady = c.state === "running"; paintSoundBtn(); if (audioReady && !over) padStart(); };
         if (p && p.then) p.then(mark, mark); else mark();
       }
       function tone(freq, dur, type, gain, at, glideTo) {
@@ -1499,18 +1519,36 @@
         g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
         src.connect(f); f.connect(g); g.connect(master); src.start(now); src.stop(now + dur + 0.02);
       }
+      /* A quiet pad under the whole run -- two detuned low sines through a
+         lowpass -- so the screen has a floor the cues sit on. Faded in over a
+         second, faded out at the hand-over, never louder than the cues. */
+      var pad = null;
+      function padStart() {
+        if (!soundOn || !ctx || ctx.state !== "running" || pad) return;
+        var now = ctx.currentTime, g = ctx.createGain(), f = ctx.createBiquadFilter();
+        f.type = "lowpass"; f.frequency.value = 220;
+        g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(0.045, now + 1.2);
+        var oscs = [55, 82.5, 110.4].map(function (hz, i) { var o = ctx.createOscillator(); o.type = i === 2 ? "triangle" : "sine"; o.frequency.value = hz; o.connect(f); o.start(now); return o; });
+        f.connect(g); g.connect(master); pad = { g: g, oscs: oscs };
+      }
+      function padStop(secs) {
+        if (!pad || !ctx) return;
+        var now = ctx.currentTime; pad.g.gain.cancelScheduledValues(now); pad.g.gain.setValueAtTime(pad.g.gain.value || 0.0001, now); pad.g.gain.exponentialRampToValueAtTime(0.0001, now + secs);
+        pad.oscs.forEach(function (o) { o.stop(now + secs + 0.05); }); pad = null;
+      }
       var cue = {
         tick: function () { tone(1400, 0.035, "square", 0.25); },
         scan: function () { sweep(300, 2600, 0.85 * K, 0.22); },
         line: function (i) { tone(520 + i * 60, 0.045, "triangle", 0.3); },
+        frame: function () { sweep(2200, 500, 0.16, 0.10, 0, "lowpass"); },
         acquired: function () { tone(660, 0.12, "sine", 0.35); tone(990, 0.16, "sine", 0.35, 0.12); },
-        iris: function () { sweep(2400, 180, 0.6, 0.28, 0, "lowpass"); }
+        focus: function () { sweep(2400, 180, 0.7, 0.26, 0, "lowpass"); tone(1320, 0.5, "sine", 0.08, 0.05, 660); }
       };
       soundBtn.addEventListener("click", function (e) {
         e.stopPropagation();
         soundOn = !soundOn;
         try { localStorage.setItem("geoid:boot-sound", soundOn ? "on" : "off"); } catch (_e) {}
-        if (soundOn) tryStart();
+        if (soundOn) tryStart(); else padStop(0.3);
         paintSoundBtn();
       });
       // A browser that refused autoplay allows it after the first gesture.
@@ -1518,6 +1556,56 @@
       function onGesture() { if (soundOn && !audioReady) tryStart(); }
       gestures.forEach(function (ev) { document.addEventListener(ev, onGesture, { passive: true }); });
       if (soundOn) tryStart(); else paintSoundBtn();
+
+      /* ── the montage ─────────────────────────────────────────────────
+         /load_screen/earth/frames.json lists the frames and their captions;
+         add a photograph to that folder and a line to that file and it plays.
+         Fetched fresh (no-cache) so an edit shows on the next start; the
+         signal screen is already on screen while it loads. A frame that
+         fails to load is skipped, and a missing manifest means no montage
+         rather than a broken one. */
+      var FRAMES_URL = "/load_screen/earth/frames.json";
+      var montage = document.getElementById("boot-montage"), capEl = document.getElementById("boot-cap");
+      var montageStop = function () {};
+      var over = false;
+      function runMontage(m) {
+        var frames = (m && m.frames || []).filter(function (f) { return f && f.file; });
+        if (!frames.length || over) return;
+        var hold = Math.max(300, (m.hold_ms || 750) * (quick ? 0.6 : 1)), fade = Math.max(150, m.fade_ms || 450);
+        if (m.opacity) montage.style.opacity = String(m.opacity);
+        montage.style.setProperty("--fade", fade + "ms");
+        // ONE FRAME AHEAD, not all at once. The viewer below is fetching its
+        // modules and tiles on the same connection, and thirteen frames
+        // requested together queued ahead of them -- measured as a hand-over
+        // two seconds later than the run before. Only the frame on screen and
+        // the next one are ever in flight.
+        var imgs = frames.map(function (f) { var im = new Image(); im.alt = ""; im.decoding = "async"; im.style.transitionDuration = fade + "ms"; montage.appendChild(im); return im; });
+        var want = function (n) { var im = imgs[n % imgs.length]; if (!im.getAttribute("src")) im.src = "/load_screen/earth/" + frames[n % frames.length].file; };
+        want(0); want(1);
+        var cap = { kind: capEl.querySelector(".c-kind"), place: capEl.querySelector(".c-place"), coord: capEl.querySelector(".c-coord"), src: capEl.querySelector(".c-src"), n: capEl.querySelector(".c-n") };
+        var i = -1, timer = null, shownOnce = false;
+        function show(n) {
+          if (over) return;
+          i = n % frames.length;
+          if (imgs[i].complete && imgs[i].naturalWidth === 0) { timer = setTimeout(function () { show(i + 1); }, 0); return; }   // a frame that failed to load
+          imgs.forEach(function (im, k) { im.classList.toggle("on", k === i); });
+          want(i + 2);
+          if (!RM) imgs[i].animate([{ transform: "scale(1.06) translate(" + (i % 2 ? 1 : -1) + "%, 0)" }, { transform: "scale(1.14) translate(" + (i % 2 ? -1 : 1) + "%, -1%)" }], { duration: hold + fade + 400, fill: "forwards", easing: "linear" });
+          var f = frames[i];
+          cap.kind.textContent = f.kind || "Frame"; cap.place.textContent = f.place || ""; cap.coord.textContent = f.coord || ""; cap.src.textContent = f.src || "";
+          cap.n.textContent = String(i + 1).padStart(2, "0") + " / " + String(frames.length).padStart(2, "0");
+          if (!shownOnce) { shownOnce = true; capEl.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500, delay: 200, fill: "forwards" }); }
+          else cue.frame();
+          timer = setTimeout(function () { show(i + 1); }, hold + fade);
+        }
+        var first = imgs[0];
+        var begin = function () { show(0); };
+        if (first.complete) begin(); else { first.addEventListener("load", begin, { once: true }); first.addEventListener("error", begin, { once: true }); }
+        montageStop = function () { clearTimeout(timer); };
+      }
+      try {
+        fetch(FRAMES_URL, { cache: "no-cache" }).then(function (r) { return r.ok ? r.json() : null; }).then(runMontage).catch(function () {});
+      } catch (_e) {}
 
       /* ── the beats ───────────────────────────────────────────────────── */
       var EASE = "cubic-bezier(0.16, 0.84, 0.44, 1)";
@@ -1578,11 +1666,14 @@
         } catch (_e) { return false; }
       }
 
-      /* ── the hand-over ───────────────────────────────────────────────── */
-      var over = false;
+      /* ── the hand-over: a focus pull ─────────────────────────────────────
+         The screen softens and swells as it fades, a flare crosses at the
+         moment of hand-over, and the logo travels to the header. The globe
+         beneath is untouched -- it is simply what remains when the screen
+         has gone out of focus. */
       function finish() {
         if (over) return; over = true;
-        timers.forEach(clearTimeout);
+        timers.forEach(clearTimeout); montageStop();
         gestures.forEach(function (ev) { document.removeEventListener(ev, onGesture); });
         document.removeEventListener("keydown", onKey);
         var navIcon = document.querySelector(".site-nav .nav-brand-icon");
@@ -1591,27 +1682,24 @@
           if (ended) return; ended = true;   // reached by the animation AND by the safety timer
           root.classList.remove("is-booting");
           if (boot.parentNode) boot.parentNode.removeChild(boot);
-          if (ctx && ctx.close && ctx.state !== "closed") { ctx.close().catch(function () {}); }
+          if (ctx && ctx.close && ctx.state !== "closed") { setTimeout(function () { try { ctx.close().catch(function () {}); } catch (_e) {} }, 900); }
         };
+        padStop(0.8);
         if (RM) {
           boot.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 500, fill: "forwards" }).onfinish = end;
           return;
         }
-        cue.iris();
+        cue.focus();
         // Brackets to the frame's corners, then away.
         var p = layoutBrackets();
         Object.keys(brackets).forEach(function (k) {
           var b = brackets[k];
           b.animate([{ left: b.style.left, top: b.style.top, opacity: 1 }, { left: p.corner[k][0] + "px", top: p.corner[k][1] + "px", opacity: 1, offset: 0.75 }, { left: p.corner[k][0] + "px", top: p.corner[k][1] + "px", opacity: 0 }], { duration: 900, fill: "forwards", easing: EASE });
         });
-        // The screen opens from its centre; the logo below it stays sharp.
-        var w = boot.clientWidth, h = boot.clientHeight, rMax = Math.hypot(w, h) / 2 + 10, t0 = performance.now();
-        (function iris(now) {
-          var k = Math.min(1, (now - t0) / 750); var e = 1 - Math.pow(1 - k, 3);
-          boot.style.setProperty("--r", (rMax * e) + "px");
-          if (k < 1) requestAnimationFrame(iris);
-        })(t0);
-        field.querySelectorAll(".boot-log, .boot-bar, .boot-clip, .boot-ctl").forEach(function (n) { n.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 350, fill: "forwards" }); });
+        // The flare crosses; the field goes out of focus and away.
+        var flare = document.getElementById("boot-flare");
+        if (flare) flare.animate([{ left: "-20%", opacity: 0 }, { opacity: 0.9, offset: 0.3 }, { left: "110%", opacity: 0 }], { duration: 800, fill: "forwards", easing: "ease-in-out" });
+        field.animate([{ filter: "blur(0px)", transform: "scale(1)", opacity: 1 }, { filter: "blur(14px)", transform: "scale(1.06)", opacity: 0 }], { duration: 900, fill: "forwards", easing: EASE });
         boot.querySelector(".boot-ctl").animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: "forwards" });
         // The logo becomes the header's logo: same image, same box.
         var a = null;
