@@ -1211,7 +1211,10 @@
       display: block;
     }
 
-    /* About: icon is circular so contain keeps it whole */
+    /* About: the logo is a composition rather than a photograph, so `contain`
+       keeps it whole instead of cropping into it. The source reaches pure
+       black at its edges and the slot's own ground is #000, so the bars this
+       leaves at whatever width the grid gives the tile are invisible. */
     .news-tile--about .news-tile-photo img {
       object-fit: contain;
     }
@@ -2019,7 +2022,7 @@
 
         <a class="news-tile news-tile--about" href="/about/">
           <div class="news-tile-photo">
-            <img src="/assets/GeoID_black.png" alt="About GeoID" loading="lazy" decoding="async">
+            <img src="/assets/GeoID_about_tile.png" alt="About GeoID" loading="lazy" decoding="async">
           </div>
           <div class="news-tile-body">
             <span class="news-kicker">About</span>
@@ -2041,7 +2044,7 @@
 
         <a class="news-tile news-tile--etna" href="/earth_explorer/etna/">
           <div class="news-tile-photo">
-            <img src="/earth_explorer/etna/viewer/assets/subsurface.png" alt="Etna subsurface" loading="lazy" decoding="async">
+            <img src="https://data.geoidinitiative.com/assets/hotlink-ok/etna/subsurface.png?v=d24c32924d26" alt="Etna subsurface" loading="lazy" decoding="async">
           </div>
           <div class="news-tile-body">
             <span class="news-kicker">Update</span>

@@ -21515,3 +21515,42 @@ next pipe stage filters by path.
 The visible `GeoID Initiative` beside the header logo is gone, since the image
 says it. The link's `aria-label` STAYS: the img carries `alt=""`, so without it
 the link would announce as nothing.
+
+## A gitignored asset is a broken image on the live site and a perfect one here
+
+"Why does the dashboard not match what is live?" The layout matched exactly.
+What differed was one tile: the Etna card was a broken image on
+geoidinitiative.com and fine on localhost.
+
+**`earth_explorer/etna/viewer/assets/subsurface.png` is gitignored by name**
+(.gitignore, beside the other nine Etna assets), because that viewer's imagery
+was published to `assets/hotlink-ok/etna/` in the bucket. The dashboard tile
+still named the LOCAL path. So the file was never committed, never deployed,
+404 in production -- and invisible to every check made on this machine, where
+the untracked file is still sitting on disk.
+
+That is the whole shape of the fault, and it is worth stating as a rule: **a
+path that is on disk AND untracked will serve locally and 404 in production.**
+It cannot be caught by looking at a page in a dev server. The instrument is
+git: take every asset path the site's HTML and CSS name, and check each against
+`git ls-files`.
+
+`audit-published.py` has a check for this and it did not fire. Its regex
+anchors on a quote followed by `assets/` or `data/global/`, and this path
+begins `/earth_explorer/`, so the `assets/` in it is mid-string and the pattern
+never matched. **Widening it to any path is not the fix** -- tried, and it
+reports 3,988 hits from CMake's own vendored documentation, then 52 more from
+the planet manifests, whose bare filenames (`uranus_body_color.jpg`) are
+resolved against the bucket at runtime and are not references to local files at
+all. A correct check has to know which paths are RESOLVED and which are
+FETCHED; that is a real piece of work rather than a wider regex, and it is not
+done.
+
+**A second breakage from the same migration, found beside it.** The Etna
+landing page carried
+
+    background: url('viewer/https://data.geoidinitiative.com/.../etna.jpg?v=...')
+
+-- the publisher rewrote `viewer/assets/etna.jpg` into an absolute bucket URL
+and left the `viewer/` in front of it. Live since the move. Grep for
+`viewer/https://` after any such rewrite.
