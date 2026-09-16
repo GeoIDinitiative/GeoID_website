@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="GeoID Initiative — turning satellite data and Earth observations into geohazard intelligence, with free interactive planetary and Earth viewers.">
+  <meta name="description" content="GeoID Initiative — GeoHUB, a free hazard GIS on a 3D globe: 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology, live events and ten worlds, with a meshing studio and a research workspace. Membership adds six modelled hazard maps.">
   <title>GeoID Initiative — Open Geoscience &amp; Geohazard Intelligence</title>
   <!-- Social / search preview. Without an og:image, search engines pick an
        arbitrary image off the page — which is why results showed a stray
@@ -12,15 +12,15 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="GeoID Initiative">
   <meta property="og:url" content="https://geoidinitiative.com/">
-  <meta property="og:title" content="GeoID Initiative — Dashboard">
-  <meta property="og:description" content="GeoID Initiative — a public geoscience initiative connecting the GeoID Hazard App, Research Hub product, Explorer, and shared resources.">
+  <meta property="og:title" content="GeoID Initiative — GeoHUB, a hazard GIS on a 3D globe">
+  <meta property="og:description" content="GeoHUB is a free hazard GIS in your browser — the earthquake and cyclone record played through time, world geology, live events and ten worlds. Membership opens six modelled hazard maps, the Model Builder and Earth Engine.">
   <meta property="og:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="1200">
   <meta property="og:image:alt" content="GeoID Initiative logo">
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="GeoID Initiative — Dashboard">
-  <meta name="twitter:description" content="GeoID Initiative — a public geoscience initiative connecting the GeoID Hazard App, Research Hub product, Explorer, and shared resources.">
+  <meta name="twitter:title" content="GeoID Initiative — GeoHUB, a hazard GIS on a 3D globe">
+  <meta name="twitter:description" content="GeoHUB is a free hazard GIS in your browser — the earthquake and cyclone record played through time, world geology, live events and ten worlds. Membership opens six modelled hazard maps, the Model Builder and Earth Engine.">
   <meta name="twitter:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
   <!-- Organization structured data. Gives search engines an explicit logo to
        associate with the site rather than inferring one from page content. -->
@@ -37,7 +37,7 @@
       "height": 1200
     },
     "image": "https://geoidinitiative.com/assets/og_geoid.jpg",
-    "description": "An open geoscience initiative turning satellite data and Earth observations into geohazard intelligence, with free interactive planetary and Earth viewers.",
+    "description": "GeoHUB, a free hazard GIS on a 3D globe, with six modelled hazard maps open to members and the methods behind them published in the open.",
     "email": "geoid.initiative@gmail.com",
     "sameAs": ["https://www.linkedin.com/company/geoid-initiative"]
   }
@@ -50,8 +50,8 @@
   <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2">
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <!-- LCP is the first hero frame; everything else can wait. -->
-  <link rel="preload" as="image" href="/assets/opt/hero_everest_ascent.webp" fetchpriority="high">
-  <link rel="stylesheet" href="/styles/shared.css?v=20260916-013b645">
+  <link rel="preload" as="image" href="/assets/opt/geohub-hero-poster.webp" fetchpriority="high">
+  <link rel="stylesheet" href="/styles/shared.css?v=20260916-eb57f4d">
   <script>
     /* Animation styles are gated on this class so that if scripting is off —
        or the observer never reports — nothing can be stranded invisible. */
@@ -698,7 +698,7 @@
   }
   </style>
   <link rel="stylesheet" href="/styles/skins/synthwave.css">
-  <link rel="stylesheet" href="/styles/site-nav.css?v=20260916-013b645">
+  <link rel="stylesheet" href="/styles/site-nav.css?v=20260916-eb57f4d">
 </head>
 <body>
 
@@ -714,7 +714,6 @@
           <a href="/about/">Overview</a>
           <a href="/about_geohub/">GeoHUB</a>
           <a href="/earth_explorer/">Earth Explorer</a>
-          <a href="/explorer/">Planet Explorer</a>
           <a href="/team/">Our Team</a>
           <a href="/get-involved/">Get Involved</a>
           <a href="/updates/">Journal</a>
@@ -735,13 +734,43 @@
   <!-- ══════════ HERO ══════════ -->
   <section class="hero" id="hero" aria-label="Featured" aria-roledescription="carousel">
 
-    <div class="hs-slide is-active" id="hsp-0" role="tabpanel" aria-roledescription="slide" aria-label="1 of 5: ASCENT — climb Everest">
-      <div class="hs-media"><img src="/assets/opt/hero_everest_ascent.webp" alt="ASCENT — first-person view on the Khumbu Glacier below Everest" fetchpriority="high"></div>
+    <div class="hs-slide is-active" id="hsp-0" role="tabpanel" aria-roledescription="slide" aria-label="1 of 5: GeoHUB is live">
+      <div class="hs-media">
+        <video muted loop playsinline preload="metadata" poster="/assets/opt/geohub-hero-poster.webp" data-src="/assets/opt/geohub-hero.mp4" aria-label="312,500 earthquakes arriving on the GeoHUB globe year by year"></video>
+      </div>
       <div class="hs-scrim"></div>
       <div class="hs-body"><div class="shell"><div class="hs-copy">
-        <span class="hs-tag">New · Earth Explorer</span>
+        <span class="hs-tag">Live · GeoHUB · free</span>
+        <h1 class="hs-title">The hazard record, <em>already on the globe</em>.</h1>
+        <p class="hs-lede">GeoHUB is a hazard GIS in your browser: 312,500 earthquakes back to 1008, every cyclone track since 1842, world geology, live events and satellites. Draw an area, sample every layer under it, mesh it and model it. Nothing to install, no account.</p>
+        <div class="hs-actions">
+          <a class="btn btn-solid" href="/geohub/">Open GeoHUB <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+          <a class="btn btn-line" href="/about_geohub/">What's inside</a>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="hs-slide" id="hsp-1" role="tabpanel" aria-roledescription="slide" aria-label="2 of 5: Membership — the hazard models">
+      <div class="hs-media"><img src="/assets/opt/geohub-gsi.webp" alt="The GeoHUB globe coloured by Geological Strength Index derived from mapped lithology" loading="lazy"></div>
+      <div class="hs-scrim"></div>
+      <div class="hs-body"><div class="shell"><div class="hs-copy">
+        <span class="hs-tag">Membership · £49.99 a year</span>
+        <h1 class="hs-title">Six hazard models, <em>showing their working</em>.</h1>
+        <p class="hs-lede">Landslide and slope stability driven by sixteen days of GFS rainfall, flood inundation by discharge, cyclone, seismic and volcanic ashfall from the full historical record, and sea level — each map on the same globe, each stating its method and sources. With rock properties, the Model Builder, Earth Engine and saving to your own disk.</p>
+        <div class="hs-actions">
+          <a class="btn btn-solid" href="/membership/">Become a member <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+          <a class="btn btn-line" href="/about_geohub/#models">See the models</a>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="hs-slide" id="hsp-2" role="tabpanel" aria-roledescription="slide" aria-label="3 of 5: ASCENT — climb Everest">
+      <div class="hs-media"><img src="/assets/opt/hero_everest_ascent.webp" alt="ASCENT — first-person view on the Khumbu Glacier below Everest" loading="lazy"></div>
+      <div class="hs-scrim"></div>
+      <div class="hs-body"><div class="shell"><div class="hs-copy">
+        <span class="hs-tag">Free · Earth Explorer</span>
         <h1 class="hs-title">Climb <em>Everest</em>.</h1>
-        <p class="hs-lede">The real mountain, first-person: satellite imagery over live elevation data, the South Col route, oxygen and crevasses. Free, in your browser.</p>
+        <p class="hs-lede">The real mountain, first-person: Esri imagery over live elevation data, the South Col route, oxygen, weather and crevasses. Pick a camp and go.</p>
         <div class="hs-actions">
           <a class="btn btn-solid" href="/everest/">Play ASCENT <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
           <a class="btn btn-line" href="/earth_explorer/">Earth Explorer</a>
@@ -749,13 +778,13 @@
       </div></div></div>
     </div>
 
-    <div class="hs-slide" id="hsp-1" role="tabpanel" aria-roledescription="slide" aria-label="2 of 5: Mount Etna">
+    <div class="hs-slide" id="hsp-3" role="tabpanel" aria-roledescription="slide" aria-label="4 of 5: Mount Etna">
       <div class="hs-media"><img src="/assets/opt/hero_etna.webp" alt="Mount Etna erupting at dusk" loading="lazy"></div>
       <div class="hs-scrim"></div>
       <div class="hs-body"><div class="shell"><div class="hs-copy">
-        <span class="hs-tag">Live · Earth Explorer</span>
+        <span class="hs-tag">Free · Earth Explorer</span>
         <h1 class="hs-title">Look inside Europe's <em>most active volcano</em>.</h1>
-        <p class="hs-lede">Twelve thousand earthquakes, magma plumbing and faults — Etna in 3D, open to anyone.</p>
+        <p class="hs-lede">12,000 INGV earthquakes from 2011 to 2023, the magma chambers and conduits beneath them, the regional faults and a live cross-section — Etna in 3D, summit to coastline.</p>
         <div class="hs-actions">
           <a class="btn btn-solid" href="/earth_explorer/etna/">Open the viewer <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
           <a class="btn btn-line" href="/earth_explorer/">Earth Explorer</a>
@@ -763,46 +792,18 @@
       </div></div></div>
     </div>
 
-    <div class="hs-slide" id="hsp-2" role="tabpanel" aria-roledescription="slide" aria-label="3 of 5: Mars Flight Simulator">
+    <div class="hs-slide" id="hsp-4" role="tabpanel" aria-roledescription="slide" aria-label="5 of 5: Mars Flight Simulator">
       <div class="hs-media">
         <video muted loop playsinline preload="none" poster="/assets/opt/hero_marsflight.webp" data-src="/assets/flight_sim_demo_hero.webm" aria-label="Flying over Martian terrain"></video>
       </div>
       <div class="hs-scrim"></div>
       <div class="hs-body"><div class="shell"><div class="hs-copy">
-        <span class="hs-tag">Live · Planet Explorer</span>
-        <h1 class="hs-title">Explore the surface of <em>Mars</em>.</h1>
-        <p class="hs-lede">Real Martian terrain, CTX imagery streaming beneath you. Launch from anywhere on the planet.</p>
+        <span class="hs-tag">Free · GeoHUB worlds</span>
+        <h1 class="hs-title">Fly the surface of <em>Mars</em>.</h1>
+        <p class="hs-lede">MOLA relief with the CTX mosaic streamed beneath you, from an 8 km low pass to 300 km orbit. Pick a launch site and a heading anywhere on the planet.</p>
         <div class="hs-actions">
-          <a class="btn btn-solid" href="/planet_explorer/mars/viewer/">Launch the simulator <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-          <a class="btn btn-line" href="/explorer/">All viewers</a>
-        </div>
-      </div></div></div>
-    </div>
-
-    <div class="hs-slide" id="hsp-3" role="tabpanel" aria-roledescription="slide" aria-label="4 of 5: Our mission">
-      <div class="hs-media"><img src="/assets/opt/hero_flood.webp" alt="Aerial view of a flooded town" loading="lazy"></div>
-      <div class="hs-scrim"></div>
-      <div class="hs-body"><div class="shell"><div class="hs-copy">
-        <span class="eyebrow">Why we exist</span>
-        <h1 class="hs-title">Hazard intelligence should be <em>public</em>.</h1>
-        <p class="hs-lede">We turn satellite data into geohazard intelligence — published free, for anyone who needs it.</p>
-        <div class="hs-actions">
-          <a class="btn btn-solid" href="/get-involved/">Get involved <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-          <a class="btn btn-line" href="/about/">About GeoID</a>
-        </div>
-      </div></div></div>
-    </div>
-
-    <div class="hs-slide" id="hsp-4" role="tabpanel" aria-roledescription="slide" aria-label="5 of 5: myGeoID">
-      <div class="hs-media"><img src="/assets/opt/mygeoid.webp" alt="myGeoID concept dashboard" loading="lazy"></div>
-      <div class="hs-scrim"></div>
-      <div class="hs-body"><div class="shell"><div class="hs-copy">
-        <span class="hs-tag is-dev">In development</span>
-        <h1 class="hs-title">Know the ground <em>beneath your home</em>.</h1>
-        <p class="hs-lede">A personal hazard dashboard: flood, landslide and slope-stability signals for where you live. Designed, costed, waiting on funding.</p>
-        <div class="hs-actions">
-          <a class="btn btn-solid" href="/fund.html">Funding prospectus <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-          <a class="btn btn-line" href="/geohub/">Preview the concept</a>
+          <a class="btn btn-solid" href="/geohub/?world=mars">Launch the simulator <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+          <a class="btn btn-line" href="/about_geohub/#worlds">All ten worlds</a>
         </div>
       </div></div></div>
     </div>
@@ -810,26 +811,27 @@
     <div class="hs-rail" id="hs-rail">
       <div class="shell">
         <div class="hs-rail-inner" role="tablist" aria-label="Featured slides">
-          <button class="hs-tab" role="tab" aria-selected="true"  aria-controls="hsp-0" data-i="0"><span class="hs-num">01</span><span class="hs-label">ASCENT — Everest</span></button>
-          <button class="hs-tab" role="tab" aria-selected="false" aria-controls="hsp-1" data-i="1" tabindex="-1"><span class="hs-num">02</span><span class="hs-label">Mount Etna</span></button>
-          <button class="hs-tab" role="tab" aria-selected="false" aria-controls="hsp-2" data-i="2" tabindex="-1"><span class="hs-num">03</span><span class="hs-label">Mars flight sim</span></button>
-          <button class="hs-tab" role="tab" aria-selected="false" aria-controls="hsp-3" data-i="3" tabindex="-1"><span class="hs-num">04</span><span class="hs-label">Our mission</span></button>
-          <button class="hs-tab" role="tab" aria-selected="false" aria-controls="hsp-4" data-i="4" tabindex="-1"><span class="hs-num">05</span><span class="hs-label">myGeoID</span></button>
+          <button class="hs-tab" role="tab" aria-selected="true"  aria-controls="hsp-0" data-i="0"><span class="hs-num">01</span><span class="hs-label">GeoHUB — live</span></button>
+          <button class="hs-tab" role="tab" aria-selected="false" aria-controls="hsp-1" data-i="1" tabindex="-1"><span class="hs-num">02</span><span class="hs-label">Hazard models</span></button>
+          <button class="hs-tab" role="tab" aria-selected="false" aria-controls="hsp-2" data-i="2" tabindex="-1"><span class="hs-num">03</span><span class="hs-label">ASCENT — Everest</span></button>
+          <button class="hs-tab" role="tab" aria-selected="false" aria-controls="hsp-3" data-i="3" tabindex="-1"><span class="hs-num">04</span><span class="hs-label">Mount Etna</span></button>
+          <button class="hs-tab" role="tab" aria-selected="false" aria-controls="hsp-4" data-i="4" tabindex="-1"><span class="hs-num">05</span><span class="hs-label">Mars flight sim</span></button>
         </div>
       </div>
     </div>
   </section>
 
   <!-- ══════════ WORLDS ══════════ -->
-  <section class="sec worlds" id="worlds" aria-label="Planet Explorer">
+  <section class="sec worlds" id="worlds" aria-label="Ten worlds">
     <div class="worlds-sky" id="worlds-sky" aria-hidden="true"></div>
     <div class="worlds-inner shell">
       <div class="sec-head rise">
         <div class="sec-head-copy">
-          <span class="eyebrow">Planet Explorer · free</span>
-          <h2 class="sec-title">Ten worlds, charted and open.</h2>
+          <span class="eyebrow">GeoHUB · ten worlds · free</span>
+          <h2 class="sec-title">Ten worlds on mission data, one set of tools.</h2>
+          <p class="sec-lede">Mercury to Pluto and the Moon, each on the datasets its missions returned — MOLA relief and the CTX mosaic for Mars, Magellan radar for Venus, MESSENGER for Mercury, LROC and LOLA for the Moon — with geology overlays, named-feature search, distance and elevation profiles and a core cutaway on every one.</p>
         </div>
-        <a class="btn btn-line btn-sm" href="/explorer/#solar-system">Browse all worlds</a>
+        <a class="btn btn-line btn-sm" href="/about_geohub/#worlds">All ten worlds</a>
       </div>
 
       <div class="worlds-stage rise">
@@ -850,7 +852,7 @@
           <h3 class="worlds-name" id="worlds-name">Moon</h3>
           <p class="worlds-copy" id="worlds-copy">Earth's only natural satellite — an airless world preserving four billion years of solar system bombardment.</p>
         </div>
-        <a class="btn btn-solid btn-sm" id="worlds-go" href="/transit/?destination=moon">Open viewer <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        <a class="btn btn-solid btn-sm" id="worlds-go" href="/geohub/?world=moon">Open viewer <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
       </div>
 
       <div class="worlds-rail rise" id="worlds-rail" role="tablist" aria-label="Choose a world"></div>
@@ -858,60 +860,60 @@
   </section>
 
   <!-- ══════════ CAPABILITIES ══════════ -->
-  <section class="sec" id="build" aria-label="What we build">
+  <section class="sec" id="build" aria-label="What is live">
     <div class="shell">
       <div class="sec-head rise">
         <div class="sec-head-copy">
-          <span class="eyebrow">What we build</span>
-          <h2 class="sec-title">Three tools live. One waiting on funding.</h2>
-          <p class="sec-lede">Everything we've shipped is free, no account needed. The next build puts hazard warnings in people's hands.</p>
+          <span class="eyebrow">What's live</span>
+          <h2 class="sec-title">One workspace. Everything in it ships today.</h2>
+          <p class="sec-lede">GeoHUB is free and needs no account. Membership, at £49.99 a year, opens the hazard models GeoID computes itself. Earth Explorer's site models and ASCENT are free.</p>
         </div>
         <a class="btn btn-line btn-sm" href="/about/">Read the overview</a>
       </div>
 
       <div class="cap-grid">
-        <a class="cap rise" style="--d:0ms" href="/explorer/">
-          <div class="cap-media"><img src="/assets/opt/planet_explorer.webp" alt="Planet Explorer" loading="lazy"></div>
+        <a class="cap rise" style="--d:0ms" href="/geohub/">
+          <div class="cap-media"><img src="/assets/opt/geohub.webp" alt="GeoHUB: world geology mapped over the globe, with the layer list and legend beside it" loading="lazy"></div>
           <div class="cap-body">
             <span class="cap-status">Live · free</span>
-            <h3 class="cap-title">Planet Explorer</h3>
-            <p class="cap-desc">Interactive 3D viewers for every world in the solar system.</p>
+            <h3 class="cap-title">GeoHUB</h3>
+            <p class="cap-desc">A hazard GIS on a 3D globe, with the record loaded before you touch it.</p>
             <ul class="cap-list">
-              <li>Geology &amp; palaeo sea-level overlays</li>
-              <li>Surface distance &amp; elevation profiles</li>
-              <li>Search named surface features</li>
+              <li>312,500 earthquakes back to 1008 · 13,513 cyclone tracks since 1842</li>
+              <li>Macrostrat geology, Smithsonian volcanoes, live EONET &amp; USGS events</li>
+              <li>Draw an area, sample every layer, export CSV, GeoJSON or shapefile</li>
             </ul>
-            <span class="cap-go">Open Explorer <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+            <span class="cap-go">Open GeoHUB <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
           </div>
         </a>
 
-        <a class="cap rise" style="--d:110ms" href="/earth_explorer/etna/">
+        <a class="cap rise" style="--d:110ms" href="/membership/">
+          <div class="cap-media"><img src="/assets/opt/geohub-gsi.webp" alt="Rock strength derived from mapped lithology, painted over the GeoHUB globe" loading="lazy"></div>
+          <div class="cap-body">
+            <span class="cap-status">Membership · £49.99 a year</span>
+            <h3 class="cap-title">The hazard models</h3>
+            <p class="cap-desc">Six modelled hazard maps on the same globe, each computed by GeoID and showing its working.</p>
+            <ul class="cap-list">
+              <li>Landslide &amp; slope stability from 16 days of GFS rainfall</li>
+              <li>Flood by discharge · cyclone · seismic · ashfall · sea level</li>
+              <li>Rock properties, the Model Builder, Earth Engine, save to disk</li>
+            </ul>
+            <span class="cap-go">See membership <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          </div>
+        </a>
+
+        <a class="cap rise" style="--d:220ms" href="/earth_explorer/">
           <div class="cap-media"><img src="/assets/opt/etna_seismic.webp" alt="Etna seismicity and faults" loading="lazy"></div>
           <div class="cap-body">
             <span class="cap-status">Live · free</span>
             <h3 class="cap-title">Earth Explorer</h3>
-            <p class="cap-desc">Volcanoes and fault systems in three dimensions, starting with Etna.</p>
+            <p class="cap-desc">Close-up 3D models of single sites, starting with Etna and Everest.</p>
             <ul class="cap-list">
-              <li>12,000+ INGV earthquakes, 2011–2023</li>
-              <li>3D magma chambers &amp; conduits</li>
-              <li>Cross-section with live layer labels</li>
+              <li>12,000+ INGV earthquakes, 2011–2023, over the magma plumbing</li>
+              <li>Regional faults, geology and a live cross-section</li>
+              <li>ASCENT: climb Everest first-person on real imagery and elevation</li>
             </ul>
-            <span class="cap-go">Open Viewer <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
-          </div>
-        </a>
-
-        <a class="cap rise" style="--d:220ms" href="/geohub/">
-          <div class="cap-media"><img src="/assets/opt/mygeoid.webp" alt="myGeoID concept" loading="lazy"></div>
-          <div class="cap-body">
-            <span class="cap-status is-dev">In development</span>
-            <h3 class="cap-title">myGeoID</h3>
-            <p class="cap-desc">A personal hazard dashboard. Architecture and methodology defined; build not yet funded.</p>
-            <ul class="cap-list">
-              <li>Planned: Factor of Safety risk signals</li>
-              <li>Flood, landslide &amp; slope stability</li>
-              <li>Early-warning framework (proposed)</li>
-            </ul>
-            <span class="cap-go">Preview the concept <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+            <span class="cap-go">Open Earth Explorer <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
           </div>
         </a>
       </div>
@@ -924,8 +926,8 @@
       <div class="sec-head rise">
         <div class="sec-head-copy">
           <span class="eyebrow">GeoHUB · free, no account</span>
-          <h2 class="sec-title">One window over the whole planet.</h2>
-          <p class="sec-lede">Every tool we build opens in the same place. Bring your own data or use ours, work on any of ten worlds, and take what you make through to a model and a write-up without leaving the tab.</p>
+          <h2 class="sec-title">A hazard GIS with the record already loaded.</h2>
+          <p class="sec-lede">Open the globe and the catalogues are on it, merged and symbolised: earthquakes, cyclones, volcanoes, geology, live events. Add your own shapefiles, GeoTIFFs and meshes, draw a study area, and take it through to a mesh, a solve and a write-up in the same tab.</p>
         </div>
         <a class="btn btn-line btn-sm" href="/geohub/">Open GeoHUB</a>
       </div>
@@ -935,23 +937,23 @@
           <ul class="hub-panes">
             <li>
               <span class="hub-pane-n">GIS</span>
-              <span class="hub-pane-d">A 3D globe you can load into. World geology, coastlines, rivers and plate boundaries are shipped with it; drop in your own shapefiles, GeoTIFFs and meshes beside them.</span>
+              <span class="hub-pane-d">The globe everything runs on. Earthquakes back to 1008, every cyclone track, Macrostrat geology, active faults, Smithsonian volcanoes with hazard buffers, live radar and satellites — with drawing, measurement, profiles, sampling and export.</span>
             </li>
             <li>
               <span class="hub-pane-n">Explorers</span>
-              <span class="hub-pane-d">Ten worlds in the same window — switch planet from the strip along the bottom and the tools come with you.</span>
+              <span class="hub-pane-d">Ten worlds in the same window, each on its mission data, with the same distance, profile, geology and feature-search tools. Mars adds the flight simulator over the CTX mosaic.</span>
             </li>
             <li>
-              <span class="hub-pane-n">Mesh Studio</span>
-              <span class="hub-pane-d">Turn a study area into a mesh: pull the terrain, build the volume, and hand it to a solver.</span>
+              <span class="hub-pane-n">Meshing Studio</span>
+              <span class="hub-pane-d">Pull the real terrain under a study area, build surface, subsurface and atmosphere as named volumes, mesh them, and set materials and boundary conditions for a finite-element solve.</span>
             </li>
             <li>
               <span class="hub-pane-n">Research Hub</span>
-              <span class="hub-pane-d">A project on disk, with ingest, analysis, figures and notes — the same folder the desktop app reads.</span>
+              <span class="hub-pane-d">A project is a folder on your own disk: ingest, signal processing, statistics, figures and notes, in the layout the desktop app reads. The solver runs on your machine or on a server you point it at.</span>
             </li>
           </ul>
           <p class="hub-note">
-            <span><strong>myGeoID</strong> is built here. The personal hazard maps — the modelled Factor of Safety — are made on the GIS globe, which is why they are a mode of it rather than a separate app. That part is a working prototype on synthetic values, and the interface says so before it shows you anything.</span>
+            <span><strong>Membership</strong> adds the hazard models on the same globe — landslide, flood, cyclone, seismic, volcanic ashfall and sea level, each stating its method and sources — plus rock properties, the Model Builder, Earth Engine and saving projects to disk. £49.99 a year; everything above stays free.</span>
           </p>
           <div class="hs-actions">
             <a class="btn btn-solid" href="/geohub/">Open GeoHUB <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
@@ -981,14 +983,15 @@
       <div class="mission-copy rise">
         <span class="eyebrow">Our mission</span>
         <h2 class="mission-title">The data already exists. <em>Access is the problem.</em></h2>
-        <p class="mission-desc">We build the viewers, publish the methods, and keep it free — because the people most exposed to geohazards are usually the last to see the data.</p>
+        <p class="mission-desc">We put the catalogues on one free globe, publish the methods behind every model in the Journal, and sell the models rather than the data — because the people most exposed to geohazards are usually the last to see it.</p>
         <div class="mission-stats">
-          <div><div class="mstat-n">10</div><div class="mstat-l">Worlds charted</div></div>
-          <div><div class="mstat-n">£0</div><div class="mstat-l">Cost to use</div></div>
+          <div><div class="mstat-n">312,500</div><div class="mstat-l">Earthquakes on the globe</div></div>
+          <div><div class="mstat-n">13,513</div><div class="mstat-l">Cyclone tracks</div></div>
+          <div><div class="mstat-n">£0</div><div class="mstat-l">To open GeoHUB</div></div>
         </div>
         <div class="hs-actions">
           <a class="btn btn-solid" href="/get-involved/">Get involved <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-          <a class="btn btn-line" href="/fund.html">Funding prospectus</a>
+          <a class="btn btn-line" href="/fund.html">Roadmap &amp; partnerships</a>
         </div>
       </div>
     </div></div>
@@ -1007,46 +1010,46 @@
 
       <div class="news">
 <!-- UPDATES:START (generated by scripts/make-updates.py — edit data/updates.json instead) -->
-        <a class="story story--lead story--live rise" style="--d:0ms" href="/everest/">
+        <a class="story story--lead story--live rise" style="--d:0ms" href="/geohub/">
+          <div class="story-media"><img src="/assets/opt/geohub-quakes.webp" alt="The GeoHUB globe with 312,500 earthquakes plotted and a playback timeline" loading="lazy" decoding="async"></div>
+          <span class="story-kicker">Live now</span>
+          <h3 class="story-title">GeoHUB: the hazard record on a 3D globe</h3>
+          <p class="story-desc">312,500 earthquakes back to 1008 and every cyclone track since 1842, played through time; world geology, live events, satellites, drawing and sampling. Free, no account.</p>
+        </a>
+
+        <a class="story story--live rise" style="--d:110ms" href="/membership/">
+          <div class="story-media"><img src="/assets/opt/geohub-gsi.webp" alt="Rock strength derived from mapped lithology on the GeoHUB globe" loading="lazy" decoding="async"></div>
+          <span class="story-kicker">Membership</span>
+          <h3 class="story-title">Six hazard models, open to members</h3>
+          <p class="story-desc">Landslide and slope stability from GFS rainfall, flood by discharge, cyclone, seismic, volcanic ashfall and sea level — with rock properties, the Model Builder and Earth Engine. £49.99 a year.</p>
+        </a>
+
+        <a class="story story--live rise" style="--d:110ms" href="/everest/">
           <div class="story-media"><img src="/assets/opt/everest_ascent.webp" alt="ASCENT — the Everest climbing game" loading="lazy" decoding="async"></div>
           <span class="story-kicker">New release</span>
           <h3 class="story-title">ASCENT — climb Everest in your browser</h3>
           <p class="story-desc">Walk the real mountain: Esri imagery over a live elevation model, the South Col route, oxygen, weather and crevasses. Pick a camp and go.</p>
         </a>
 
-        <a class="story story--live rise" style="--d:110ms" href="/planet_explorer/mars/viewer/">
+        <a class="story story--live rise" style="--d:110ms" href="/geohub/?world=mars">
           <div class="story-media"><img src="/assets/opt/hero_marsflight.webp" alt="Mars flight simulator" loading="lazy" decoding="async"></div>
           <span class="story-kicker">Live now</span>
-          <h3 class="story-title">The Mars Flight Simulator is live</h3>
-          <p class="story-desc">Real Martian terrain, CTX imagery streaming beneath you. Launch from anywhere on the planet.</p>
+          <h3 class="story-title">The Mars Flight Simulator</h3>
+          <p class="story-desc">MOLA relief with the CTX mosaic streamed beneath you, from an 8 km low pass to 300 km orbit. Launch from anywhere on the planet.</p>
         </a>
 
         <a class="story story--live rise" style="--d:110ms" href="/earth_explorer/etna/">
           <div class="story-media"><img src="/assets/opt/etna_subsurface.webp" alt="Etna subsurface model" loading="lazy" decoding="async"></div>
-          <span class="story-kicker">Update</span>
-          <h3 class="story-title">Mt. Etna Volcano Explorer</h3>
-          <p class="story-desc">Geological overlays, regional faults and the subsurface cross-section are now live.</p>
+          <span class="story-kicker">Earth Explorer</span>
+          <h3 class="story-title">Mount Etna in 3D</h3>
+          <p class="story-desc">12,000 INGV earthquakes over the magma plumbing, regional faults, the geological map and a live cross-section, summit to coastline.</p>
         </a>
 
-        <a class="story story--live rise" style="--d:110ms" href="/explorer/">
-          <div class="story-media"><img src="/assets/opt/planet_explorer.webp" alt="Planet Explorer" loading="lazy" decoding="async"></div>
-          <span class="story-kicker">Live now</span>
-          <h3 class="story-title">Planet Explorer</h3>
-          <p class="story-desc">Navigate all ten worlds in interactive 3D.</p>
-        </a>
-
-        <a class="story story--dev rise" style="--d:110ms" href="/geohub/">
-          <div class="story-media"><img src="/assets/opt/mygeoid.webp" alt="myGeoID" loading="lazy" decoding="async"></div>
-          <span class="story-kicker">In development</span>
-          <h3 class="story-title">myGeoID prototype</h3>
-          <p class="story-desc">Personalised dashboards, saved locations and custom alert profiles.</p>
-        </a>
-
-        <a class="story rise" style="--d:110ms" href="/geohub/">
-          <div class="story-media"><img src="/assets/opt/mesh.webp" alt="Research Hub in GeoHUB" loading="lazy" decoding="async"></div>
-          <span class="story-kicker">Research</span>
-          <h3 class="story-title">Research Hub, inside GeoHUB</h3>
-          <p class="story-desc">Projects on disk, ingest, analysis and figures — in the same window as the globe.</p>
+        <a class="story rise" style="--d:110ms" href="/updates/">
+          <div class="story-media"><img src="/assets/opt/geohub-seismogram.webp" alt="An earthquake popup in GeoHUB showing a seismogram and spectrogram" loading="lazy" decoding="async"></div>
+          <span class="story-kicker">Technical notes</span>
+          <h3 class="story-title">The methods behind the models, written up</h3>
+          <p class="story-desc">Three notes in the Journal: the forecast landslide and flood model from GFS rainfall, probabilistic ashfall by eruption size, and the merged global earthquake record.</p>
         </a>
       <!-- UPDATES:END -->
       </div>
@@ -1063,20 +1066,22 @@
             <img src="/assets/GeoID_mark.png" alt="">
             <span class="foot-name">GeoID Initiative</span>
           </div>
-          <p>An open geoscience initiative turning satellite data into geohazard intelligence — published free.</p>
+          <p>GeoHUB, a free hazard GIS on a 3D globe, with the methods behind its models published in the open.</p>
         </div>
         <div class="foot-col">
           <span class="foot-col-t">Explore</span>
-          <a href="/explorer/">Planet Explorer</a>
-          <a href="/earth_explorer/">Earth Explorer</a>
-          <a href="/planet_explorer/mars/viewer/">Mars Flight Sim</a>
           <a href="/geohub/">GeoHUB</a>
+          <a href="/about_geohub/#worlds">Ten worlds</a>
+          <a href="/earth_explorer/">Earth Explorer</a>
+          <a href="/geohub/?world=mars">Mars Flight Sim</a>
+          <a href="/membership/">Membership</a>
         </div>
         <div class="foot-col">
           <span class="foot-col-t">Initiative</span>
           <a href="/about/">About</a>
           <a href="/team/">Our team</a>
           <a href="/get-involved/">Get involved</a>
+          <a href="/updates/">Journal</a>
         </div>
         <div class="foot-col">
           <span class="foot-col-t">Legal</span>
@@ -1088,13 +1093,13 @@
       </div>
       <div class="foot-bot">
         <span>© 2026 GeoID Initiative</span>
-        <span>Data: USGS · NASA · GEBCO · NOAA · INGV</span>
+        <span>Data: USGS · ISC-GEM · GEM · NOAA · Macrostrat · Smithsonian GVP · NASA · GEBCO · INGV</span>
       </div>
     </div>
   </footer>
 
-  <script type="module" src="/scripts/nav-membership.js?v=20260916-013b645"></script>
-  <script src="/scripts/site.js?v=20260916-013b645"></script>
+  <script type="module" src="/scripts/nav-membership.js?v=20260916-eb57f4d"></script>
+  <script src="/scripts/site.js?v=20260916-eb57f4d"></script>
   <script>
   (function () {
     "use strict";
@@ -1164,16 +1169,16 @@
     /* ── Worlds ─────────────────────────────────────────────────────── */
     (function () {
       const worlds = [
-        ["mercury","Mercury","/transit/?destination=mercury","The smallest and innermost planet — a dark, iron-rich world of craters, giant impact basins and long cliffs formed as it cooled and contracted."],
-        ["venus","Venus","/transit/?destination=venus","A dense, cloud-shrouded planet with extreme surface heat, vast volcanic plains and deformed highlands beneath a thick carbon dioxide atmosphere."],
+        ["mercury","Mercury","/geohub/?world=mercury","The smallest and innermost planet — a dark, iron-rich world of craters, giant impact basins and long cliffs formed as it cooled and contracted."],
+        ["venus","Venus","/geohub/?world=venus","A dense, cloud-shrouded planet with extreme surface heat, vast volcanic plains and deformed highlands beneath a thick carbon dioxide atmosphere."],
         ["earth","Earth","/geohub/","A dynamic ocean world with active plate tectonics, liquid surface water and the only known biosphere in the solar system."],
-        ["moon","Moon","/transit/?destination=moon","Earth's only natural satellite — an airless world preserving four billion years of solar system bombardment."],
-        ["mars","Mars","/transit/?destination=mars","A cold desert planet shaped by ancient volcanoes, enormous canyons, polar ice and the long geological record of flowing water."],
-        ["jupiter","Jupiter","/transit/?destination=jupiter","The largest planet in the solar system — turbulent cloud bands, immense storms and a gravity field that dominates its moon system."],
-        ["saturn","Saturn","/transit/?destination=saturn","A gas giant known for its bright ring system, pale banded atmosphere, low density and a complex family of moons."],
-        ["uranus","Uranus","/transit/?destination=uranus","An ice giant tipped dramatically on its side, with a pale blue-green atmosphere, faint rings and seasons unlike any other planet."],
-        ["neptune","Neptune","/transit/?destination=neptune","A distant ice giant with a deep blue atmosphere, powerful winds, dark storms and an energetic weather system."],
-        ["pluto","Pluto","/transit/?destination=pluto","A dwarf planet at the edge of the solar system, with a nitrogen-ice heart, rugged mountains and a surface shaped by exotic ices."],
+        ["moon","Moon","/geohub/?world=moon","Earth's only natural satellite — an airless world preserving four billion years of solar system bombardment."],
+        ["mars","Mars","/geohub/?world=mars","A cold desert planet shaped by ancient volcanoes, enormous canyons, polar ice and the long geological record of flowing water."],
+        ["jupiter","Jupiter","/geohub/?world=jupiter","The largest planet in the solar system — turbulent cloud bands, immense storms and a gravity field that dominates its moon system."],
+        ["saturn","Saturn","/geohub/?world=saturn","A gas giant known for its bright ring system, pale banded atmosphere, low density and a complex family of moons."],
+        ["uranus","Uranus","/geohub/?world=uranus","An ice giant tipped dramatically on its side, with a pale blue-green atmosphere, faint rings and seasons unlike any other planet."],
+        ["neptune","Neptune","/geohub/?world=neptune","A distant ice giant with a deep blue atmosphere, powerful winds, dark storms and an energetic weather system."],
+        ["pluto","Pluto","/geohub/?world=pluto","A dwarf planet at the edge of the solar system, with a nitrogen-ice heart, rugged mountains and a surface shaped by exotic ices."],
       ];
       const rail  = document.getElementById("worlds-rail");
       const stage = document.getElementById("worlds-planet");
@@ -1310,6 +1315,6 @@
     })();
   })();
   </script>
-  <script src="/styles/nav.js?v=20260916-013b645" defer></script>
+  <script src="/styles/nav.js?v=20260916-eb57f4d" defer></script>
 </body>
 </html>

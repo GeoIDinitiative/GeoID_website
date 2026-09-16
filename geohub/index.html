@@ -10,7 +10,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="GeoHUB — the GeoID Initiative workspace: 3D globe GIS, planetary explorers, mesh studio and research hub, with myGeoID risk maps built inside it.">
+  <meta name="description" content="GeoHUB — the GeoID workspace: a hazard GIS on a 3D globe with the earthquake and cyclone record, world geology, live events and ten worlds; the Meshing Studio and Research Hub beside it, and six modelled hazard maps for members.">
   <title>GeoID Initiative — GeoHUB</title>
   <!-- Social / search preview. Without an og:image, search engines pick an
        arbitrary image off the page — which is why results showed a stray
@@ -18,26 +18,26 @@
   <link rel="canonical" href="https://geoidinitiative.com/geohub/">
   <!-- Themes: the stylesheet hangs off data-skin, and theme.js stamps it
        in <head> so the first paint is already in the chosen theme. -->
-  <link rel="stylesheet" href="/styles/viewer-themes.css?v=20260916-013b645">
-  <script src="/scripts/theme.js?v=20260916-013b645"></script>
+  <link rel="stylesheet" href="/styles/viewer-themes.css?v=20260916-eb57f4d">
+  <script src="/scripts/theme.js?v=20260916-eb57f4d"></script>
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="GeoID Initiative">
   <meta property="og:url" content="https://geoidinitiative.com/geohub/">
   <meta property="og:title" content="GeoID Initiative — GeoHUB">
-  <meta property="og:description" content="GeoHUB — the GeoID Initiative workspace: 3D globe GIS, planetary explorers, mesh studio and research hub, with myGeoID risk maps built inside it.">
+  <meta property="og:description" content="GeoHUB — the GeoID workspace: a hazard GIS on a 3D globe with the earthquake and cyclone record, world geology, live events and ten worlds; the Meshing Studio and Research Hub beside it, and six modelled hazard maps for members.">
   <meta property="og:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="1200">
   <meta property="og:image:alt" content="GeoID Initiative logo">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="GeoID Initiative — GeoHUB">
-  <meta name="twitter:description" content="GeoHUB — the GeoID Initiative workspace: 3D globe GIS, planetary explorers, mesh studio and research hub, with myGeoID risk maps built inside it.">
+  <meta name="twitter:description" content="GeoHUB — the GeoID workspace: a hazard GIS on a 3D globe with the earthquake and cyclone record, world geology, live events and ten worlds; the Meshing Studio and Research Hub beside it, and six modelled hazard maps for members.">
   <meta name="twitter:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
   <link rel="icon" type="image/png" href="/assets/GeoID_mark.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700;800&family=Source+Sans+3:wght@300;400;500;600;700&family=Archivo:wght@700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles/shared.css?v=20260916-013b645">
+  <link rel="stylesheet" href="/styles/shared.css?v=20260916-eb57f4d">
   <style>
     /* Scrollable interface shell: globe first, analysis hub below */
     html {
@@ -1263,9 +1263,9 @@
     .demo-disclaimer-backdrop[hidden] { display: none !important; }
   </style>
   <!-- Site header only — the app UI below keeps its own styling -->
-  <link rel="stylesheet" href="/styles/site-nav.css?v=20260916-013b645">
-  <link rel="stylesheet" href="/styles/geohub-shell.css?v=20260916-013b645">
-  <link rel="stylesheet" href="/styles/v2-viewer.css?v=20260916-013b645">
+  <link rel="stylesheet" href="/styles/site-nav.css?v=20260916-eb57f4d">
+  <link rel="stylesheet" href="/styles/geohub-shell.css?v=20260916-eb57f4d">
+  <link rel="stylesheet" href="/styles/v2-viewer.css?v=20260916-eb57f4d">
 </head>
 <body>
 
@@ -1422,7 +1422,6 @@
           <a href="/about/">Overview</a>
           <a href="/about_geohub/">GeoHUB</a>
           <a href="/earth_explorer/">Earth Explorer</a>
-          <a href="/explorer/">Planet Explorer</a>
           <a href="/team/">Our Team</a>
           <a href="/get-involved/">Get Involved</a>
           <a href="/updates/">Journal</a>
@@ -1459,11 +1458,29 @@
       <iframe
         id="globe-iframe"
         class="globe-iframe"
-        src="/GeoID_GIS/viewer/?v=gis-20260916-013b645"
+        src="/GeoID_GIS/viewer/?v=gis-20260916-eb57f4d"
         title="GeoHUB — interactive 3D globe with surface condition modelling"
         allow="fullscreen"
       ></iframe>
     </div>
+    <!-- A WORLD CAN BE ASKED FOR BY URL. `/geohub/?world=mars` opens Mars
+         inside this shell -- the same route the planet strip takes when a
+         world is clicked from the globe: this frame navigates to /transit/,
+         which holds the destination viewer, and every `geoid:` message
+         crosses both hops. The standalone viewers bounce here when opened
+         top-level, so this is the only door a planet has on the live site.
+         Runs synchronously, right after the frame is parsed, so the Earth
+         viewer's navigation is replaced before it has done any work. -->
+    <script>
+      (function () {
+        var WORLDS = ["mercury", "venus", "moon", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto"];
+        var world = null;
+        try { world = (new URLSearchParams(window.location.search).get("world") || "").toLowerCase(); } catch (_e) {}
+        if (!world || WORLDS.indexOf(world) === -1) return;
+        var frame = document.getElementById("globe-iframe");
+        if (frame) frame.src = "/transit/?destination=" + world;
+      })();
+    </script>
 
     <!-- Analysis Hub region: always scrolls below the globe; toggle raises it into view -->
     <div class="hub-drawer" id="hub-drawer" aria-hidden="false">
@@ -2486,8 +2503,8 @@
     })();
   </script>
 
-<script src="/scripts/site.js?v=20260916-013b645"></script>
-<script src="/styles/nav.js?v=20260916-013b645" defer></script>
+<script src="/scripts/site.js?v=20260916-eb57f4d"></script>
+<script src="/styles/nav.js?v=20260916-eb57f4d" defer></script>
 
   <!-- ── Forecast panel ────────────────────────────────────────────────────
        Mapping first, then the location, then the time series. The pin says
@@ -2953,6 +2970,6 @@
       });
     })();
   </script>
-  <script type="module" src="/scripts/nav-membership.js?v=20260916-013b645"></script>
+  <script type="module" src="/scripts/nav-membership.js?v=20260916-eb57f4d"></script>
 </body>
 </html>

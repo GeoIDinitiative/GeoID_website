@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="GeoID for researchers: entry points to the Research Hub product, shared data repository, hazard app context, and supporting documentation.">
+  <meta name="description" content="GeoID for researchers: the Research Hub inside GeoHUB, projects as folders on disk, GALES solves through the local sidecar, the merged catalogues, and the technical notes behind every model.">
   <title>GeoID Initiative — Researchers</title>
   <!-- Social / search preview. Without an og:image, search engines pick an
        arbitrary image off the page — which is why results showed a stray
@@ -13,14 +13,14 @@
   <meta property="og:site_name" content="GeoID Initiative">
   <meta property="og:url" content="https://geoidinitiative.com/researchers/">
   <meta property="og:title" content="GeoID Initiative — Researchers">
-  <meta property="og:description" content="GeoID for researchers: entry points to the Research Hub product, shared data repository, hazard app context, and supporting documentation.">
+  <meta property="og:description" content="GeoID for researchers: the Research Hub inside GeoHUB, projects as folders on disk, GALES solves through the local sidecar, the merged catalogues, and the technical notes behind every model.">
   <meta property="og:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="1200">
   <meta property="og:image:alt" content="GeoID Initiative logo">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="GeoID Initiative — Researchers">
-  <meta name="twitter:description" content="GeoID for researchers: entry points to the Research Hub product, shared data repository, hazard app context, and supporting documentation.">
+  <meta name="twitter:description" content="GeoID for researchers: the Research Hub inside GeoHUB, projects as folders on disk, GALES solves through the local sidecar, the merged catalogues, and the technical notes behind every model.">
   <meta name="twitter:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
   <link rel="icon" type="image/png" href="/assets/GeoID_mark.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -28,7 +28,7 @@
   <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2">
   <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2">
   <!-- font link consolidated by v2 skin -->
-  <link rel="stylesheet" href="/styles/shared.css?v=20260916-013b645">
+  <link rel="stylesheet" href="/styles/shared.css?v=20260916-eb57f4d">
   <style>
     .hero,
     .two-col,
@@ -163,10 +163,10 @@
       }
     }
   </style>
-  <link rel="stylesheet" href="/styles/v2-site.css?v=20260916-013b645">
-  <script src="/scripts/v2-site.js?v=20260916-013b645" defer></script>
+  <link rel="stylesheet" href="/styles/v2-site.css?v=20260916-eb57f4d">
+  <script src="/scripts/v2-site.js?v=20260916-eb57f4d" defer></script>
   <link rel="stylesheet" href="/styles/skins/synthwave.css">
-  <link rel="stylesheet" href="/styles/site-nav.css?v=20260916-013b645">
+  <link rel="stylesheet" href="/styles/site-nav.css?v=20260916-eb57f4d">
 </head>
 <body>
   <nav class="site-nav" role="navigation" aria-label="Primary navigation">
@@ -181,7 +181,6 @@
           <a href="/about/">Overview</a>
           <a href="/about_geohub/">GeoHUB</a>
           <a href="/earth_explorer/">Earth Explorer</a>
-          <a href="/explorer/">Planet Explorer</a>
           <a href="/team/">Our Team</a>
           <a href="/get-involved/">Get Involved</a>
           <a href="/updates/">Journal</a>
@@ -220,7 +219,7 @@
           <span class="eyebrow">About / Researchers</span>
           <h1>GeoID For <span>Researchers</span></h1>
           <p>
-            Your entry point to GeoID's research tools. The Research Hub and the shared data repository are both inside <a href="/geohub/" style="color:inherit;">GeoHUB</a> — a project is a real folder on disk, with ingest, analysis, figures and notes in the same layout our desktop application reads.
+            GeoHUB's three modes are one workflow. In <strong>GIS</strong>, the merged catalogues, terrain and geology are on the globe and a drawn study area samples every layer into a table. In <strong>Model</strong>, that area becomes a meshed domain with materials and boundary conditions. In <strong>Research</strong>, a project is a real folder on disk — ingest, signal processing, statistics, figures and notes — in the layout our desktop application reads, and a GALES solve runs through the local sidecar on your machine or a server you point it at.
           </p>
           <div class="hero-actions">
             <a class="btn-primary" href="/geohub/">Open GeoHUB</a>
@@ -229,23 +228,23 @@
         </article>
 
         <aside class="hero-side">
-          <span class="section-label">Research Position</span>
-          <h2>One Layered System</h2>
+          <span class="section-label">What is on the globe</span>
+          <h2>The Inputs, Already Merged</h2>
           <p>
-            The Hazard App gives monitoring context, Resources provide materials and datasets, and the Research Hub is where project work happens.
+            Every layer keeps its licence and its DOI, so what you derive from it inherits the same terms.
           </p>
           <div class="stack-list">
             <div class="stack-item">
-              <strong>Hazard App for context</strong>
-              Monitored domains, terrain, and public-facing data.
+              <strong>Earthquakes, 1008 to today</strong>
+              312,500 events at M4.5+: USGS ComCat, ISC-GEM and GEM GHEC merged into one record.
             </div>
             <div class="stack-item">
-              <strong>Resources for inputs</strong>
-              Crash courses, reference data, and shared repositories.
+              <strong>Cyclones, 1842 to today</strong>
+              13,513 IBTrACS tracks, coloured by peak wind, playable by season.
             </div>
             <div class="stack-item">
-              <strong>Research Hub for execution</strong>
-              Project definition, preprocessing, solver setup, and outputs.
+              <strong>Geology, terrain, forecast</strong>
+              Macrostrat units with GSI-derived strength, streamed DEM, sixteen days of hourly GFS rainfall, live radar and EONET events.
             </div>
           </div>
         </aside>
@@ -258,26 +257,26 @@
           <article class="action-card">
             <div class="action-icon">🧪</div>
             <h3>Research Hub</h3>
-            <p>The GALES workflow environment for project setup, simulation and outputs — the Research pane of GeoHUB.</p>
+            <p>The Research mode of GeoHUB: project setup, ingest, signal processing, statistics, event correlation, GALES decks and results, figures — as files in a folder you own.</p>
             <a href="/geohub/">Open GeoHUB →</a>
           </article>
           <article class="action-card">
             <div class="action-icon">🗃️</div>
-            <h3>Data Repository</h3>
-            <p>Shared weather, terrain, shapefile, bathymetry and planetary datasets, filed in the open project.</p>
-            <a href="/geohub/">Open GeoHUB →</a>
+            <h3>Study areas and export</h3>
+            <p>Draw a polygon, sample every active layer inside it, and take the table away as CSV, GeoJSON or shapefile — or extract the DEM under it for modelling.</p>
+            <a href="/about_geohub/#study-area">How sampling works →</a>
           </article>
           <article class="action-card">
             <div class="action-icon">🌍</div>
-            <h3>Hazard Context</h3>
-            <p>Monitoring context for floods, landslides, and volcanism.</p>
-            <a href="/data/">Open hazard app →</a>
+            <h3>Data sources</h3>
+            <p>Every catalogue, feed and basemap GeoHUB is built from, with its licence and where to read the original.</p>
+            <a href="/data/">The sources →</a>
           </article>
           <article class="action-card">
             <div class="action-icon">📄</div>
-            <h3>Architecture</h3>
-            <p>What GeoHUB is made of, and where the hazard model sits in it.</p>
-            <a href="/about_geohub/#modes">Read the architecture →</a>
+            <h3>The methods</h3>
+            <p>Technical notes for the landslide and flood model, probabilistic ashfall and the merged seismic record, with citations.</p>
+            <a href="/updates/">Read the Journal →</a>
           </article>
         </div>
       </section>
@@ -289,18 +288,18 @@
           <div class="workflow-grid">
             <article class="workflow-card">
               <div class="workflow-icon">01</div>
-              <h3>Frame The Problem</h3>
-              <p>Establish context with the Hazard App and Explorer.</p>
+              <h3>Frame the problem</h3>
+              <p>Put the record, the geology and the forecast on the globe over your region, and draw the study area.</p>
             </article>
             <article class="workflow-card">
               <div class="workflow-icon">02</div>
-              <h3>Collect Inputs</h3>
-              <p>Gather materials and shared data layers from Resources.</p>
+              <h3>Sample and mesh</h3>
+              <p>Sample every layer into a table, extract the DEM, and build the domain in the Meshing Studio — or the Model Builder, as a member.</p>
             </article>
             <article class="workflow-card">
               <div class="workflow-icon">03</div>
-              <h3>Build In Product Space</h3>
-              <p>Set up, preprocess, configure GALES, and generate outputs in the Research Hub.</p>
+              <h3>Solve and write up</h3>
+              <p>Configure the GALES deck in the Research Hub, run it locally or on a server over SSH, and keep results, figures and notes in the project folder.</p>
             </article>
           </div>
         </article>
@@ -311,11 +310,11 @@
           <div class="stack-list">
             <div class="stack-item">
               <strong>About overview</strong>
-              <a href="/about/">About</a> — initiative framing and platform map.
+              <a href="/about/">About</a> — the ecosystem: GeoHUB, Earth Explorer and membership.
             </div>
             <div class="stack-item">
               <strong>GeoHUB</strong>
-              <a href="/geohub/">GeoHUB</a> — the workspace the Research Hub, the Mesh Studio and the GIS all open in.
+              <a href="/about_geohub/">About GeoHUB</a> — every layer, tool and mode, with a capture behind each claim.
             </div>
           </div>
         </aside>
@@ -324,17 +323,17 @@
   </div>
 
   <div class="status-bar" role="status">
-    <div class="status-item"><span class="status-dot yellow"></span>Researchers Page Live</div>
+    <div class="status-item"><span class="status-dot"></span>Research Hub Live</div>
     <span class="status-sep">·</span>
     <div class="status-item">About Subpage</div>
     <div class="status-spacer"></div>
     <div class="status-item">GeoID Initiative</div>
     <span class="status-sep">·</span>
-    <div class="status-item">Research Hub · Data Repo · Hazard App</div>
+    <div class="status-item">GIS · Model · Research</div>
   </div>
 
-  <script type="module" src="/scripts/nav-membership.js?v=20260916-013b645"></script>
-  <script src="/scripts/site.js?v=20260916-013b645"></script>
-<script src="/styles/nav.js?v=20260916-013b645" defer></script>
+  <script type="module" src="/scripts/nav-membership.js?v=20260916-eb57f4d"></script>
+  <script src="/scripts/site.js?v=20260916-eb57f4d"></script>
+<script src="/styles/nav.js?v=20260916-eb57f4d" defer></script>
 </body>
 </html>

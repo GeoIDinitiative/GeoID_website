@@ -1,6 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- OPENED TOP-LEVEL, THIS PAGE IS AN OLD LINK. The live site reaches every
+       world through the GeoHUB shell, which holds this page in its frame and
+       gives the viewer its header, its mode bar and its theme. A viewer
+       reached without the shell is the same file with none of that -- the
+       "defunct" planet viewer a reader lands in from a stale bookmark or a
+       search result. So a top-level transit goes into the shell with the
+       destination it was asked for, and the shell loads this page again,
+       embedded, where it belongs. First in <head>, so nothing is fetched or
+       painted on the way out. -->
+  <script>
+    (function () {
+      if (window.self !== window.top) return;
+      var WORLDS = ["mercury", "venus", "moon", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto"];
+      var dest = "";
+      try { dest = (new URLSearchParams(window.location.search).get("destination") || "mars").toLowerCase(); } catch (_e) {}
+      window.location.replace(WORLDS.indexOf(dest) === -1 ? "/geohub/" : "/geohub/?world=" + dest);
+    })();
+  </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>GeoID: Explorer | Transit</title>

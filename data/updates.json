@@ -3,6 +3,24 @@
   "updates": [
     {
       "status": "live",
+      "kicker": "Live now",
+      "title": "GeoHUB: the hazard record on a 3D globe",
+      "desc": "312,500 earthquakes back to 1008 and every cyclone track since 1842, played through time; world geology, live events, satellites, drawing and sampling. Free, no account.",
+      "href": "/geohub/",
+      "image": "/assets/opt/geohub-quakes.webp",
+      "alt": "The GeoHUB globe with 312,500 earthquakes plotted and a playback timeline"
+    },
+    {
+      "status": "live",
+      "kicker": "Membership",
+      "title": "Six hazard models, open to members",
+      "desc": "Landslide and slope stability from GFS rainfall, flood by discharge, cyclone, seismic, volcanic ashfall and sea level — with rock properties, the Model Builder and Earth Engine. £49.99 a year.",
+      "href": "/membership/",
+      "image": "/assets/opt/geohub-gsi.webp",
+      "alt": "Rock strength derived from mapped lithology on the GeoHUB globe"
+    },
+    {
+      "status": "live",
       "kicker": "New release",
       "title": "ASCENT — climb Everest in your browser",
       "desc": "Walk the real mountain: Esri imagery over a live elevation model, the South Col route, oxygen, weather and crevasses. Pick a camp and go.",
@@ -13,47 +31,29 @@
     {
       "status": "live",
       "kicker": "Live now",
-      "title": "The Mars Flight Simulator is live",
-      "desc": "Real Martian terrain, CTX imagery streaming beneath you. Launch from anywhere on the planet.",
-      "href": "/planet_explorer/mars/viewer/",
+      "title": "The Mars Flight Simulator",
+      "desc": "MOLA relief with the CTX mosaic streamed beneath you, from an 8 km low pass to 300 km orbit. Launch from anywhere on the planet.",
+      "href": "/geohub/?world=mars",
       "image": "/assets/opt/hero_marsflight.webp",
       "alt": "Mars flight simulator"
     },
     {
       "status": "live",
-      "kicker": "Update",
-      "title": "Mt. Etna Volcano Explorer",
-      "desc": "Geological overlays, regional faults and the subsurface cross-section are now live.",
+      "kicker": "Earth Explorer",
+      "title": "Mount Etna in 3D",
+      "desc": "12,000 INGV earthquakes over the magma plumbing, regional faults, the geological map and a live cross-section, summit to coastline.",
       "href": "/earth_explorer/etna/",
       "image": "/assets/opt/etna_subsurface.webp",
       "alt": "Etna subsurface model"
     },
     {
-      "status": "live",
-      "kicker": "Live now",
-      "title": "Planet Explorer",
-      "desc": "Navigate all ten worlds in interactive 3D.",
-      "href": "/explorer/",
-      "image": "/assets/opt/planet_explorer.webp",
-      "alt": "Planet Explorer"
-    },
-    {
-      "status": "dev",
-      "kicker": "In development",
-      "title": "myGeoID prototype",
-      "desc": "Personalised dashboards, saved locations and custom alert profiles.",
-      "href": "/geohub/",
-      "image": "/assets/opt/mygeoid.webp",
-      "alt": "myGeoID"
-    },
-    {
       "status": "research",
-      "kicker": "Research",
-      "title": "Research Hub, inside GeoHUB",
-      "desc": "Projects on disk, ingest, analysis and figures — in the same window as the globe.",
-      "href": "/geohub/",
-      "image": "/assets/opt/mesh.webp",
-      "alt": "Research Hub in GeoHUB"
+      "kicker": "Technical notes",
+      "title": "The methods behind the models, written up",
+      "desc": "Three notes in the Journal: the forecast landslide and flood model from GFS rainfall, probabilistic ashfall by eruption size, and the merged global earthquake record.",
+      "href": "/updates/",
+      "image": "/assets/opt/geohub-seismogram.webp",
+      "alt": "An earthquake popup in GeoHUB showing a seismogram and spectrogram"
     }
   ]
 }
