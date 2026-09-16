@@ -28,7 +28,7 @@
   <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2">
   <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2">
   <!-- font link consolidated by v2 skin -->
-  <link rel="stylesheet" href="/styles/shared.css?v=20260916-a275e72">
+  <link rel="stylesheet" href="/styles/shared.css?v=20260916-ab8bf4e">
   <style>
     /* ── Page-level overrides ── */
     .page-wrap {
@@ -316,6 +316,20 @@
     }
 
     .solution-card:hover { border-color: var(--cyan); transform: translateY(-4px); }
+
+    /* THE SIX MODELS ARE ONE ROW: they are one offer, and a row of five with
+       one left under it read as five models and an afterthought. Six columns
+       need a tighter card; the row steps down to three, then two, then one. */
+    .cards-grid-3.models-row { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0.85rem; }
+    .cards-grid-3.models-row .solution-card { padding: 1.15rem 1.05rem; }
+    .cards-grid-3.models-row .solution-card-header { gap: 0.6rem; margin-bottom: 0.7rem; }
+    .cards-grid-3.models-row .solution-icon { width: 34px; height: 34px; border-radius: 9px; }
+    .cards-grid-3.models-row .solution-icon svg { width: 18px; height: 18px; }
+    .cards-grid-3.models-row .solution-card h3 { font-size: 0.95rem; line-height: 1.25; }
+    .cards-grid-3.models-row .solution-card p { font-size: 0.84rem; line-height: 1.6; }
+    @media (max-width: 1280px) { .cards-grid-3.models-row { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    @media (max-width: 760px)  { .cards-grid-3.models-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 520px)  { .cards-grid-3.models-row { grid-template-columns: 1fr; } }
 
     .solution-card-header {
       display: flex;
@@ -792,10 +806,10 @@
       .footer-bottom { flex-direction: column; text-align: center; }
     }
   </style>
-  <link rel="stylesheet" href="/styles/v2-site.css?v=20260916-a275e72">
-  <script src="/scripts/v2-site.js?v=20260916-a275e72" defer></script>
+  <link rel="stylesheet" href="/styles/v2-site.css?v=20260916-ab8bf4e">
+  <script src="/scripts/v2-site.js?v=20260916-ab8bf4e" defer></script>
   <link rel="stylesheet" href="/styles/skins/synthwave.css">
-  <link rel="stylesheet" href="/styles/site-nav.css?v=20260916-a275e72">
+  <link rel="stylesheet" href="/styles/site-nav.css?v=20260916-ab8bf4e">
 </head>
 <body>
   <nav class="site-nav" role="navigation" aria-label="Primary navigation">
@@ -897,21 +911,21 @@
       <div class="cyan-tile feature-tile is-flipped" id="study-area">
         <div class="feature-body">
           <span class="tile-label">Study areas</span>
-          <h2 class="tile-title">Draw a Box, Get a Table</h2>
+          <h2 class="tile-title">Draw a Study Area, Pull the Data Inside It</h2>
           <div class="tile-desc">
-            <p>The point of putting the layers on one globe is being able to ask them all the same question at once.</p>
+            <p>A study area is the question every dataset on the globe is asked. Draw a polygon and GeoHUB fetches what lies inside it — live weather, Earth Engine archives and time series — instead of a picture of the whole world.</p>
           </div>
           <ul class="feature-list">
-            <li>Draw a polygon or a box anywhere on Earth; GeoHUB reports its true area on the ellipsoid.</li>
-            <li>Sample <strong>every active layer</strong> inside it into a single table — geology, elevation, strength, rainfall, events.</li>
-            <li>Take it away as CSV, GeoJSON or shapefile, or extract the DEM under it for modelling.</li>
-            <li>Your own shapefiles, GeoTIFFs, meshes and point tables drop in beside the shipped data and sample the same way.</li>
-            <li>Live weather radar, forecast rainfall and cloud composite overlay the same area, refreshed as they publish.</li>
+            <li>Draw a polygon, box or circle anywhere, or use any polygon layer as the study area — your own shapefile included. GeoHUB reports its true area.</li>
+            <li>Fetch the latest <strong>weather maps</strong> inside it: the RainViewer radar composite, and GFS and ICON precipitation, temperature and wind fields.</li>
+            <li>Pull <strong>Earth Engine</strong> datasets over it — rainfall, land surface temperature, vegetation, soil moisture, imagery — as a single map or a time-lapse across a range of dates.</li>
+            <li>Record <strong>time series</strong> at stations inside it: forecast rainfall and every term of the slope and flood models, plotted and exported as CSV.</li>
+            <li>Clip geology, elevation and every other active layer to it, exactly, as CSV, GeoJSON or shapefile, or take the terrain under it into the Meshing Studio.</li>
           </ul>
           <p class="shot-credit">Radar composite: RainViewer. Imagery: Sentinel-2 cloudless 2025 by EOX IT Services GmbH (contains modified Copernicus Sentinel data 2025), CC BY-NC-SA 4.0.</p>
         </div>
         <div class="feature-shot">
-          <img src="/assets/opt/geohub-radar.webp" alt="A drawn study area over the British Isles reporting 1,400,716 square kilometres, with a live radar composite painted inside it" loading="lazy" decoding="async">
+          <img src="/assets/opt/geohub-radar.webp" alt="A study area drawn over the British Isles, 1,400,716 square kilometres, with the live radar composite fetched inside it" loading="lazy" decoding="async">
         </div>
       </div>
 
@@ -943,8 +957,8 @@
         <div class="photo-tile-overlay"></div>
         <div class="photo-tile-content" style="text-align:center;">
           <span class="tile-label">What else is on the globe</span>
-          <h2 class="tile-title">Eight More Things You Can Switch On</h2>
-          <p class="tile-desc" style="margin:0 auto 0;">Every one of these is shipped, live, and one click from the layer catalogue. No account, no install, no quota.</p>
+          <h2 class="tile-title">A Multidisciplinary Workspace</h2>
+          <p class="tile-desc" style="margin:0 auto 0;">Seismology, volcanology, geology, rock mechanics, storms, orbits and the planet's interior, side by side on one globe. Every one is shipped, live and one click from the layer catalogue — no account, no install, no quota.</p>
           <div class="shot-grid">
             <article class="shot-card">
               <img src="/assets/opt/geohub-events.webp" alt="The globe with live wildfire and earthquake markers and an events panel listing them by category" loading="lazy" decoding="async">
@@ -1174,9 +1188,9 @@
         <div class="photo-tile-overlay"></div>
         <div class="photo-tile-content" style="text-align:center;">
           <span class="tile-label">Membership · £49.99 a year</span>
-          <h2 class="tile-title">Six Hazard Models, Computed on the Same Globe</h2>
+          <h2 class="tile-title">Six Ready-to-Use Hazard Models, Computed in the Same Platform</h2>
           <p class="tile-desc" style="margin:0 auto 0;">The reason GeoHUB exists. Each model runs over the area you choose, on the terrain and geology already on the globe, and states its method, assumptions and sources beside the map. The methods are written up in the <a href="/updates/" style="color:var(--cyan);">Journal</a> so they can be checked and cited.</p>
-          <div class="cards-grid-3">
+          <div class="cards-grid-3 models-row">
             <article class="solution-card">
               <div class="solution-card-header">
                 <div class="solution-icon">
@@ -1387,8 +1401,8 @@
     <div class="status-item">GeoHUB</div>
   </div>
 
-  <script type="module" src="/scripts/nav-membership.js?v=20260916-a275e72"></script>
-  <script src="/scripts/site.js?v=20260916-a275e72"></script>
-<script src="/styles/nav.js?v=20260916-a275e72" defer></script>
+  <script type="module" src="/scripts/nav-membership.js?v=20260916-ab8bf4e"></script>
+  <script src="/scripts/site.js?v=20260916-ab8bf4e"></script>
+<script src="/styles/nav.js?v=20260916-ab8bf4e" defer></script>
 </body>
 </html>

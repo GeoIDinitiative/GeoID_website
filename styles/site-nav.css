@@ -164,6 +164,19 @@
 .site-nav .mygeoid-prefix { color: var(--nav-accent); }
 
 .site-nav .nav-dropdown-menu { margin-top: 8px; padding: 8px; border-radius: 2px; min-width: 13rem; }
+/* THE MENU HIDES THE MOMENT ITS ITEM IS NOT HOVERED, and the margin above
+   left 6px of nothing between the two: measured, the About item ends at 60
+   and the open menu starts at 66. Moving the pointer down to a page crossed
+   that strip, the item lost :hover, and the menu went before it was reached.
+   An invisible strip on the menu fills the gap -- it is part of the menu, so
+   hovering it keeps the item hovered. It only takes the pointer while the
+   menu is showing, because the menu's own pointer-events are none when not. */
+.site-nav .nav-dropdown-menu::before {
+  content: "";
+  position: absolute;
+  left: 0; right: 0;
+  top: -16px; height: 16px;
+}
 .site-nav .nav-dropdown-menu a {
   padding: 9px 11px;
   border-radius: 2px;

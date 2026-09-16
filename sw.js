@@ -3,7 +3,7 @@
 // key assets change significantly — this forces all clients to discard
 // stale cached copies on their next visit.
 
-const STATIC_CACHE = 'geoid-site-v55';  // v55: the myGeoID page becomes /about_geohub/ (nav on every page)
+const STATIC_CACHE = 'geoid-site-v56';  // v56: the About dropdown keeps its hover across the gap to its menu
 
 // Pre-fetched at install time so they are cache-warm on first navigation
 const PRECACHE = [

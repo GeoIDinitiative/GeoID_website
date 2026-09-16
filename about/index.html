@@ -28,7 +28,7 @@
   <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2">
   <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2">
   <!-- font link consolidated by v2 skin -->
-  <link rel="stylesheet" href="/styles/shared.css?v=20260916-a275e72">
+  <link rel="stylesheet" href="/styles/shared.css?v=20260916-ab8bf4e">
   <style>
     /* ── Page-level overrides ── */
     /* Overview page: re-tint the cyan accent to royal blue. Every rule
@@ -593,56 +593,74 @@
     .eco-stem {
       width: 2px;
       height: 2rem;
-      background: linear-gradient(to bottom, rgba(var(--accent-rgb),0.20), rgba(var(--accent-rgb),0.62));
+      background: linear-gradient(to bottom, rgba(var(--accent-rgb),0.35), rgba(var(--accent-rgb),0.85));
+      box-shadow: 0 0 10px rgba(var(--accent-rgb),0.45);
     }
-    .eco-children {
-      display: flex;
-      width: 100%;
-      position: relative;
-    }
-    .eco-children::before {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: calc(100% / 6);
-      right: calc(100% / 6);
-      height: 2px;
-      background: rgba(var(--accent-rgb),0.52);
-    }
-    .eco-child {
+    .eco-root {
       display: flex;
       flex-direction: column;
       align-items: center;
-      width: calc(100% / 3);
-      padding-top: 2rem;
-      position: relative;
+      gap: 0.55rem;
+      text-decoration: none;
     }
-    .eco-child::before {
+    .eco-root-name {
+      font-family: "Orbitron", "Public Sans", sans-serif;
+      font-size: clamp(1.2rem, 2.2vw, 1.6rem);
+      letter-spacing: 0.02em;
+      color: var(--text);
+    }
+    /* THE LINES END IN THE TILES. Each facet is a column of the grid with a
+       drop above its card; the bar joins the three drops at the column
+       centres, which sit a sixth in from each side less a gap's share. */
+    .eco-facets {
+      --eco-gap: 1.25rem;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--eco-gap);
+      width: 100%;
+      position: relative;
+      text-align: left;
+    }
+    .eco-facets::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: calc((100% - 2 * var(--eco-gap)) / 6);
+      right: calc((100% - 2 * var(--eco-gap)) / 6);
+      height: 2px;
+      background: rgba(var(--accent-rgb),0.85);
+      box-shadow: 0 0 10px rgba(var(--accent-rgb),0.45);
+    }
+    .eco-facet {
+      position: relative;
+      padding-top: 2rem;
+      display: flex;
+    }
+    .eco-facet::before {
       content: "";
       position: absolute;
       top: 0; left: 50%;
       transform: translateX(-50%);
       width: 2px;
       height: 2rem;
-      background: rgba(var(--accent-rgb),0.42);
+      background: rgba(var(--accent-rgb),0.85);
+      box-shadow: 0 0 10px rgba(var(--accent-rgb),0.45);
     }
-    .eco-child-logo {
-      height: clamp(2.4rem, 4vw, 3.8rem);
-      width: auto;
-      max-width: 100%;
-      object-fit: contain;
-      opacity: 0.88;
-      filter: drop-shadow(0 2px 10px rgba(0,0,0,0.70));
+    .eco-facet > .program-card { flex: 1; }
+    .eco-facet-index {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.66rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 0 0 0.35rem;
     }
-    /* Narrow viewports: each .eco-child is only ~1/3 of the column width.
-       Cap by width (not height) so wide wordmark logos like myGeoID
-       don't overflow their cell and get clipped by neighbours. */
-    @media (max-width: 720px) {
-      .eco-child-logo {
-        height: auto;
-        max-height: 2.6rem;
-        max-width: 92%;
-      }
+    /* Stacked, the bar has nothing to join: each tile keeps its drop, which
+       chains it to the one above and the first to GeoHUB. */
+    @media (max-width: 900px) {
+      .eco-facets { grid-template-columns: 1fr; gap: 0; }
+      .eco-facets::before { display: none; }
     }
 
     /* ── CTA tile ── */
@@ -917,8 +935,8 @@
       .two-tracks-grid { grid-template-columns: 1fr; }
     }
   </style>
-  <link rel="stylesheet" href="/styles/v2-site.css?v=20260916-a275e72">
-  <script src="/scripts/v2-site.js?v=20260916-a275e72" defer></script>
+  <link rel="stylesheet" href="/styles/v2-site.css?v=20260916-ab8bf4e">
+  <script src="/scripts/v2-site.js?v=20260916-ab8bf4e" defer></script>
   <style id="v2-page-fixes">
     /* Brand mark in the hero. It used to be greyscaled to a white plate
        because the old neon-wireframe logo fought the photo behind it; the
@@ -927,7 +945,7 @@
     .hero-logo-img { filter: drop-shadow(0 2px 24px rgba(0,0,0,0.8)); opacity: 1; }
   </style>
   <link rel="stylesheet" href="/styles/skins/synthwave.css">
-  <link rel="stylesheet" href="/styles/site-nav.css?v=20260916-a275e72">
+  <link rel="stylesheet" href="/styles/site-nav.css?v=20260916-ab8bf4e">
 </head>
 <body>
   <nav class="site-nav" role="navigation" aria-label="Primary navigation">
@@ -1076,71 +1094,72 @@
         </div>
       </div>
 
-      <!-- ── Three Products — photo background ── -->
+      <!-- ── The ecosystem: GeoHUB and its three facets ── -->
       <div class="photo-tile" id="products">
         <div class="photo-tile-bg" style="background-image: url('/assets/opt/signal.webp');"></div>
         <div class="photo-tile-overlay"></div>
         <div class="photo-tile-content">
           <span class="tile-label">Our Approach</span>
           <h2 class="tile-title">The GeoID Ecosystem</h2>
-          <p class="tile-desc"><strong>GeoHUB</strong> is the workspace: the globe, the records, the ten worlds, the Meshing Studio and the Research Hub, free. <strong>Earth Explorer</strong> is the close-up: 3D models of single sites in the same lineage. <strong>Membership</strong> is the layer on top: the six hazard models, rock properties, the Model Builder and Earth Engine, computed on GeoHUB&rsquo;s globe.</p>
+          <p class="tile-desc"><strong>GeoHUB</strong> is the platform, and everything GeoID builds is part of it: one window and one project, with three facets working on the same ground. A study area drawn on the globe is the model in the studio and the figure in the write-up, with no export in between. The globe, the studio and the hub are free; <strong>membership</strong> adds the six hazard models, rock properties, the Model Builder and Earth Engine inside it.</p>
 
-          <div class="ecosystem-tree" aria-hidden="true">
-            <img class="eco-root-img" src="/assets/GeoID_mark.png" alt="" loading="lazy" decoding="async">
-            <div class="eco-stem"></div>
-            <div class="eco-children">
-              <div class="eco-child">
-                <img class="eco-child-logo" src="/assets/GeoID_logo_icon.png" alt="GeoHUB" loading="lazy" decoding="async">
+          <div class="ecosystem-tree">
+            <a class="eco-root" href="/" aria-label="Open GeoHUB">
+              <img class="eco-root-img" src="/assets/GeoID_mark.png" alt="" loading="lazy" decoding="async">
+              <span class="eco-root-name"><span class="geohub-prefix">Geo</span>HUB</span>
+            </a>
+            <div class="eco-stem" aria-hidden="true"></div>
+            <div class="eco-facets">
+              <div class="eco-facet">
+                <article class="program-card" onclick="location.href='/about_geohub/'" style="cursor:pointer;">
+                  <div class="program-media">
+                    <img src="/assets/opt/geohub-quakes.webp" alt="The GeoHUB globe with 312,500 earthquakes plotted and a playback timeline" loading="lazy" decoding="async">
+                  </div>
+                  <div class="program-content">
+                    <p class="eco-facet-index">01 · GIS</p>
+                    <div class="product-badges">
+                      <span class="status-live">Live · free</span>
+                      <span class="status-collab">Hazard models · membership</span>
+                    </div>
+                    <h3>Earth &amp; Planet Explorer</h3>
+                    <p>A GIS on a 3D globe, with the same tools on Earth and nine more worlds. Many features on one sphere: the earthquake and cyclone record played through time, world geology, live events and satellites, weather radar, Earth Engine layers and the hazard maps, drawn over study areas you define, clicked into, sampled and exported.</p>
+                    <p>Close-up models of Etna and Everest open from the globe.</p>
+                  </div>
+                </article>
               </div>
-              <div class="eco-child">
-                <img class="eco-child-logo" src="/earth_explorer/assets/logo.png" alt="Earth Explorer" loading="lazy" decoding="async">
+              <div class="eco-facet">
+                <article class="program-card" onclick="location.href='/about_geohub/#studio'" style="cursor:pointer;">
+                  <div class="program-media">
+                    <img src="/assets/opt/geohub-studio.webp" alt="The GeoHUB Meshing Studio with a terrain block built as surface, subsurface and atmosphere volumes" loading="lazy" decoding="async">
+                  </div>
+                  <div class="program-content">
+                    <p class="eco-facet-index">02 · Model</p>
+                    <div class="product-badges">
+                      <span class="status-live">Live · free</span>
+                    </div>
+                    <h3>Meshing Studio</h3>
+                    <p>A study area becomes a finite-element model in the same tab: the terrain sampled into subsurface and atmosphere volumes, or a model built from primitives; faces flagged, meshed with gmsh, materials and boundary conditions set.</p>
+                    <p>Solved with GALES on your machine or a server, and read back as slices, stresses, InSAR fringes and fits to observations.</p>
+                  </div>
+                </article>
               </div>
-              <div class="eco-child">
-                <img class="eco-child-logo" src="/assets/explorer_logo.png" alt="Ten worlds" loading="lazy" decoding="async">
+              <div class="eco-facet">
+                <article class="program-card" onclick="location.href='/about_geohub/#modes'" style="cursor:pointer;">
+                  <div class="program-media">
+                    <img src="/assets/opt/geohub-research.webp" alt="The Research Hub's CSV Plotter drawing earthquakes of magnitude 6 and above per year from the GeoHUB record" loading="lazy" decoding="async">
+                  </div>
+                  <div class="program-content">
+                    <p class="eco-facet-index">03 · Research</p>
+                    <div class="product-badges">
+                      <span class="status-live">Live · free</span>
+                    </div>
+                    <h3>Research Hub</h3>
+                    <p>A project that ingests, analyses and publishes: time series from the globe and the solver, signal processing, spectral analysis and statistics, plots, figures, notes and linked Google Docs and Sheets.</p>
+                    <p>A project is a real folder, in the same layout as the desktop application.</p>
+                  </div>
+                </article>
               </div>
             </div>
-          </div>
-
-          <div class="cards-grid-3" style="margin-top:2rem;">
-            <article class="program-card" onclick="location.href='/about_geohub/'" style="cursor:pointer;">
-              <div class="program-media">
-                <img src="/assets/opt/geohub-quakes.webp" alt="The GeoHUB globe with 312,500 earthquakes plotted and a playback timeline" loading="lazy" decoding="async">
-              </div>
-              <div class="program-content">
-                <div class="product-badges">
-                  <span class="status-live">Live · free</span>
-                </div>
-                <h3>GeoHUB</h3>
-                <p>A hazard GIS on a 3D globe: the earthquake and cyclone record played through time, world geology, live events and satellites, drawn study areas sampled to a table, the Meshing Studio, the Research Hub — and ten worlds, Mercury to Pluto, with the Mars flight simulator.</p>
-                <p>Free for everyone. No account, no install, no GIS expertise required.</p>
-              </div>
-            </article>
-            <article class="program-card" onclick="location.href='/membership/'" style="cursor:pointer;">
-              <div class="program-media">
-                <img src="/assets/opt/geohub-gsi.webp" alt="Rock strength derived from mapped lithology on the GeoHUB globe" loading="lazy" decoding="async">
-              </div>
-              <div class="program-content">
-                <div class="product-badges">
-                  <span class="status-collab">Membership · £49.99 a year</span>
-                </div>
-                <h3>The hazard models</h3>
-                <p>Landslide and slope stability from sixteen days of GFS rainfall, flood inundation by discharge, cyclone, seismic and volcanic ashfall from the full record, and sea level — six modelled maps on the same globe, each showing its <strong>method and sources</strong>.</p>
-                <p>With rock properties, the Model Builder, Earth Engine, and saving projects to your own disk. Cancel any time.</p>
-              </div>
-            </article>
-            <article class="program-card" onclick="location.href='/earth_explorer/'" style="cursor:pointer;">
-              <div class="program-media">
-                <img src="/assets/opt/etna_banner.webp" alt="Earth Explorer" loading="lazy" decoding="async">
-              </div>
-              <div class="program-content">
-                <div class="product-badges">
-                  <span class="status-live">Live · free</span>
-                </div>
-                <h3>Earth Explorer</h3>
-                <p>Close-up 3D models of single sites: Mount Etna with 12,000 INGV earthquakes over its magma plumbing, faults, geology and a live cross-section; and ASCENT, a first-person climb of Everest on real imagery and elevation data.</p>
-                <p>Free, in the browser, on the datasets researchers publish from.</p>
-              </div>
-            </article>
           </div>
         </div>
       </div>
@@ -1263,8 +1282,8 @@
     <div class="status-item">About Overview</div>
   </div>
 
-  <script type="module" src="/scripts/nav-membership.js?v=20260916-a275e72"></script>
-  <script src="/scripts/site.js?v=20260916-a275e72"></script>
+  <script type="module" src="/scripts/nav-membership.js?v=20260916-ab8bf4e"></script>
+  <script src="/scripts/site.js?v=20260916-ab8bf4e"></script>
   <script>
     (function () {
       const slides = Array.from(document.querySelectorAll('#heroSlides .hero-slide'));
@@ -1277,6 +1296,6 @@
       }, 6000);
     })();
   </script>
-<script src="/styles/nav.js?v=20260916-a275e72" defer></script>
+<script src="/styles/nav.js?v=20260916-ab8bf4e" defer></script>
 </body>
 </html>
