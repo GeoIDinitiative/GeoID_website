@@ -26,13 +26,6 @@
       "src": "GeoID fieldwork"
     },
     {
-      "file": "03-north-atlantic-europe.webp",
-      "kind": "Satellite composite",
-      "place": "North Atlantic and Europe",
-      "coord": "30°N – 72°N · 45°W – 40°E",
-      "src": "NASA Blue Marble, August, 8 km"
-    },
-    {
       "file": "04-mediterranean-at-night.webp",
       "kind": "Photograph from orbit",
       "place": "City lights along the Mediterranean",

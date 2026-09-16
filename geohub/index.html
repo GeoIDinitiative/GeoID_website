@@ -108,6 +108,9 @@
     .boot-log div { opacity: 0; white-space: nowrap; }
     .boot-log i { font-style: normal; color: rgba(255, 255, 255, 0.4); margin-left: 1em; }
     .boot-log em { font-style: normal; color: var(--boot-bracket); }
+    .boot-dots b { font-weight: inherit; animation: boot-dot 1.2s infinite; }
+    .boot-dots b:nth-child(2) { animation-delay: 0.2s; } .boot-dots b:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes boot-dot { 0%, 60%, 100% { opacity: 0.2; } 30% { opacity: 1; } }
     /* The bar is the screen's bottom edge, full width, so nothing shares its
        row: the log sits above it on the left, the buttons above it on the
        right. The first cut ran the bar between the two and under the buttons. */
@@ -1407,6 +1410,7 @@
         <div>▸ earthquake record · 312,500 events <i>1008 – today</i> <em>✓</em></div>
         <div>▸ cyclone tracks · 13,513 <i>1842 – today</i> <em>✓</em></div>
         <div>▸ live feeds · EONET, USGS, CelesTrak <i>subscribed</i> <em>✓</em></div>
+        <div id="boot-wait">▸ globe · rendering the first frame <i class="boot-dots"><b>.</b><b>.</b><b>.</b></i></div>
         <div id="boot-final"><em>■ SIGNAL ACQUIRED</em></div>
       </div>
       <div class="boot-bar"><i id="boot-fill"></i></div>
@@ -1457,12 +1461,20 @@
       var quick = false;
       try { quick = sessionStorage.getItem("geoid:booted") === "1"; sessionStorage.setItem("geoid:booted", "1"); } catch (_e) {}
       var K = quick ? 0.4 : 1;                 // time scale for the second start in a session
-      var MIN_HOLD = quick ? 900 : 1600;
-      var CAP = 9000;
+      var CAP = 16000;                         // a cold load on the live site drew its first frame at 8.5 s
 
       var lines = Array.prototype.slice.call(document.querySelectorAll("#boot-log > div"));
-      var finalLine = document.getElementById("boot-final");
-      var stageLines = lines.filter(function (l) { return l !== finalLine; });
+      var finalLine = document.getElementById("boot-final"), waitLine = document.getElementById("boot-wait");
+      var stageLines = lines.filter(function (l) { return l !== finalLine && l !== waitLine; });
+      /* THE SEQUENCE ALWAYS PLAYS ONCE. The first cut handed over as soon as
+         the viewer had drawn and the minimum hold had passed, and fast-forwarded
+         the log to get there -- which, with a warm cache, meant brackets
+         half-drawn, the logo half-revealed and the blur already starting at
+         under three seconds. Measured on the live site. The minimum hold is
+         the length of the beats now; a viewer that is ready early simply meets
+         the screen at its end. */
+      var SEQ_END = (1000 + stageLines.length * 380) * K + 300;
+      var MIN_HOLD = Math.max(1600, SEQ_END);
       var fill = document.getElementById("boot-fill");
       var clips = [document.getElementById("boot-clip"), document.getElementById("boot-clip-logo")];
       var scan = document.getElementById("boot-scan");
@@ -1620,7 +1632,7 @@
       var pos = layoutBrackets();
       Object.keys(brackets).forEach(function (k) { brackets[k].style.left = pos.inner[k][0] + "px"; brackets[k].style.top = pos.inner[k][1] + "px"; });
 
-      var linesDone = false, acquiredShown = false;
+      var linesDone = false, acquiredShown = false, waitShown = false;
       if (RM) {
         // Still: everything in place, the log filling in, a plain fade at the end.
         stageLines.forEach(function (l, i) { l.style.opacity = "0"; t(function () { l.style.opacity = "1"; cue.line(i); }, 200 + i * 220 * K); });
@@ -1718,6 +1730,7 @@
       }
       function showAcquired() {
         if (acquiredShown) return; acquiredShown = true;
+        if (waitShown) waitLine.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 150, fill: "forwards" });
         finalLine.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, fill: "forwards" });
         cue.acquired();
       }
@@ -1732,11 +1745,10 @@
           t(finish, 320);
           return;
         }
-        if (isReady && now >= MIN_HOLD && !linesDone) {
-          // The viewer beat the log: let the remaining lines land quickly rather than wait on decoration.
-          stageLines.forEach(function (l) { var anims = l.getAnimations(); anims.forEach(function (an) { an.finish(); }); });
-          fill.getAnimations().forEach(function (an) { an.finish(); });
-          linesDone = true;
+        if (!isReady && linesDone && now >= MIN_HOLD && !waitShown) {
+          // The beats are done and the globe is still drawing: say so rather than sit silent.
+          waitShown = true;
+          waitLine.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, fill: "forwards" });
         }
         t(poll, 100);
       })();
