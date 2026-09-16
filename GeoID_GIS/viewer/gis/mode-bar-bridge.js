@@ -113,17 +113,48 @@ export function modeBarState(doc = document) {
   const audio = worldAudio(doc);
   const project = Boolean(doc.getElementById("project-open-modal"));
   const modes = ["gis", "model", "research"].filter((m) => doc.getElementById(TARGETS[m]));
+  const mode = doc.body?.dataset?.viewMode || "gis";
   return {
-    mode: doc.body?.dataset?.viewMode || "gis",
+    mode,
     modes,
     project,
     music: music
       ? { present: true, playing: !music.classList.contains("is-paused") }
       : { present: false, playing: false },
-    audio: audio
+    /**
+     * A WORLD'S RECORDING BELONGS TO ITS GLOBE, so it is offered while the
+     * globe is.
+     *
+     * The Meshing Studio and the Research hub take the whole screen; the
+     * planet is not on it, and a control captioned with that planet's credit
+     * is a control for something the reader has left. The playlist above it is
+     * the APP'S and is offered throughout, which is the difference between the
+     * two sources this bar has always kept apart.
+     */
+    audio: audio && mode === "gis"
       ? { present: true, playing: audio.playing, label: audio.label }
       : { present: false, playing: false, label: "" },
   };
+}
+
+/**
+ * Leaving the globe stops the world's recording.
+ *
+ * Hiding the control alone would leave the sound running with nothing on
+ * screen to stop it — measured, "Sounds of Mars" played straight through GIS →
+ * Model → Research → GIS on one document, because a mode change is not a
+ * navigation and nothing had ever told it to stop.
+ *
+ * Its own button is CLICKED rather than the element paused, for the reason
+ * every press here goes through the real control: the page swaps its play and
+ * pause icons on that click, and pausing the element behind its back would
+ * leave the viewer's own button saying it was still playing.
+ */
+export function stopWorldAudio(doc = document) {
+  const audio = worldAudio(doc);
+  if (!audio || !audio.playing) return false;
+  audio.el.click();
+  return true;
 }
 
 /**
@@ -198,7 +229,13 @@ function install() {
   // Every seam that can move the state, rather than a poll: the mode is
   // stamped onto <body> by mode-manager, and the music button rewrites its own
   // class when the audio starts or stops.
-  const watch = new MutationObserver(report);
+  const watch = new MutationObserver(() => {
+    // Read the mode from the body that was just stamped, and stop the world's
+    // recording on the way out of the globe. Before the report, so the header
+    // is told once about a state that has already settled.
+    if ((document.body?.dataset?.viewMode || "gis") !== "gis") stopWorldAudio();
+    report();
+  });
   watch.observe(document.body, { attributes: true, attributeFilter: ["data-view-mode"] });
   // Each player says it is playing in its own way: a class on the music
   // button, a swapped icon on a world's own recording.
@@ -206,6 +243,27 @@ function install() {
   if (music) watch.observe(music, { attributes: true, attributeFilter: ["class"] });
   const icon = document.getElementById("audio-icon-pause");
   if (icon) watch.observe(icon, { attributes: true, attributeFilter: ["style"] });
+
+  /**
+   * THE DOCUMENT THAT IS LEAVING SAYS SO, because nothing else can.
+   *
+   * The worlds strip is ordinary links INSIDE this document, so the shell
+   * never sets the frame's src and has no way to know a navigation has begun.
+   * Left to the frame's own `load` it would only find out when the NEXT world
+   * had finished booting — measured at about twenty seconds, for the whole of
+   * which the header went on offering the previous world's recording by name.
+   *
+   * `pagehide` rather than `unload`: it fires for a page put into the back-
+   * forward cache too, and a page restored from it announces itself again
+   * through the host message, so nothing is lost by saying goodbye early.
+   */
+  window.addEventListener("pagehide", () => {
+    try {
+      window.parent.postMessage({ type: "geoid:modebar-gone" }, "*");
+    } catch (error) {
+      /* cross-origin parent, ignore */
+    }
+  });
 
   // The shell may be listening before this module loads or after it; saying so
   // once on load covers the first, and the host message covers the second.

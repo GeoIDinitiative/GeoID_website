@@ -1746,10 +1746,36 @@
         toViewer({ type: "geoid:modebar-press", target: btn.dataset.modebar });
       });
 
+      /**
+       * The PAGE'S OWN controls, taken down when the page holding them goes.
+       *
+       * The recording and the playlist both live in the viewer's document, so
+       * on a navigation they cease to exist while the header goes on drawing
+       * them — the previous world's credit, over a globe that is no longer
+       * that world. The MODE PILLS are deliberately left up: they are the
+       * shell's own way between GIS, Model and Research, identical on every
+       * world, and blanking them for the twenty seconds a viewer takes to
+       * boot would be a flicker in the one part of the bar that never changes.
+       */
+      function standDownPageControls() {
+        if (navMusic) {
+          navMusic.hidden = true;
+          navMusic.classList.remove("is-playing");
+          const label = navMusic.querySelector(".nav-music-label");
+          if (label) label.textContent = "";
+        }
+        modeBar?.querySelectorAll('[data-modebar="music"], [data-modebar="project"]')
+          .forEach((btn) => { btn.hidden = true; });
+      }
+
       // The frame may load before or after this script runs, so both are
       // covered: the claim on load, and the viewer's own "ready" on the other
-      // side of the listener above.
-      globeFrame?.addEventListener("load", claimModeBar);
+      // side of the listener above. A document that went without saying so --
+      // a crash, a browser that skipped `pagehide` -- is caught here too.
+      globeFrame?.addEventListener("load", () => {
+        standDownPageControls();
+        claimModeBar();
+      });
       claimModeBar();
       const exitSelectionBtn = document.getElementById("hub-exit-selection");
       const plotModal = document.getElementById("plot-modal");
@@ -2391,6 +2417,11 @@
           renderModeBar(msg);
           return;
         }
+
+        // The viewer is navigating away, so its own controls go with it. The
+        // next world says what it has; until it does, the header offers
+        // nothing rather than the last world's recording under its name.
+        if (msg.type === "geoid:modebar-gone") { standDownPageControls(); return; }
 
         // The open project, reported by the viewer. The header is outside the
         // iframe and cannot read the store, so it is told.

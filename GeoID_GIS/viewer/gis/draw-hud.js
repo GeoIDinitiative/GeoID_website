@@ -414,7 +414,28 @@ function build() {
  * it is the one part of that card worth keeping.
  */
 const EXPORT_MODES = ["area", "route", "profile", "points"];
-const exportSelector = (mode) => `[data-measure-actions="${mode}"]`;
+/**
+ * EARTH CALLS THE DISTANCE EXPORT `route` AND EVERY PLANET CALLS IT
+ * `distance` — so the borrow had never once worked on a planet.
+ *
+ * `armedMode()` answers "route" for the Distance tool, which is Earth's own
+ * word; the nine planet markups were written before that rename and say
+ * "distance". Measured: `route` appears once in the tree, in Earth's index,
+ * against `distance` in all nine. So on every planet the bar looked for a node
+ * that is not there, found nothing, and left the button in the rail — visible
+ * and dead where the rail was showing it.
+ *
+ * The names are NOT unified in the markup: the viewer holds a live reference
+ * to that node and renaming the attribute would be a rename of somebody
+ * else's handle. The module accepts both spellings instead, which is one edit
+ * for all ten worlds.
+ */
+const EXPORT_ALIASES = { route: ["route", "distance"] };
+const exportNames = (mode) => EXPORT_ALIASES[mode] || [mode];
+const exportSelector = (mode) =>
+  exportNames(mode).map((name) => `[data-measure-actions="${name}"]`).join(", ");
+const isExportFor = (node, mode) =>
+  Boolean(mode) && exportNames(mode).includes(node?.dataset?.measureActions);
 /**
  * One comment per mode, because each node has its own home to go back to.
  * A single marker would send whichever node was borrowed last back to
@@ -435,7 +456,7 @@ function borrowExport(mode = armedMode()) {
   // Anything already parked that is not this mode's goes back first, or two
   // modes' buttons sit side by side and neither says which it belongs to.
   [...slot.children].forEach((node) => {
-    if (node.dataset?.measureActions !== mode) returnOne(node);
+    if (!isExportFor(node, mode)) returnOne(node);
   });
   if (!mode) return;
   const actions = document.querySelector(exportSelector(mode));
@@ -457,10 +478,15 @@ function borrowExport(mode = armedMode()) {
    * button inside rather than on the row.
    */
   if (actions.parentNode !== slot) {
-    if (!exportHomes.has(mode)) {
-      const marker = document.createComment(`export csv (${mode}) lives on the draw bar`);
+    // KEYED BY THE NODE'S OWN NAME, never by the armed mode: `returnOne` reads
+    // the marker back off the node it is sending home, and on a planet the
+    // mode is "route" while the node says "distance" — keyed by the mode, the
+    // button would be borrowed and could never find its way back.
+    const name = actions.dataset.measureActions;
+    if (!exportHomes.has(name)) {
+      const marker = document.createComment(`export csv (${name}) lives on the draw bar`);
       actions.parentNode?.insertBefore(marker, actions);
-      exportHomes.set(mode, marker);
+      exportHomes.set(name, marker);
     }
     slot.appendChild(actions);
   }
@@ -572,6 +598,15 @@ function refresh() {
   });
   hud.querySelectorAll("[data-mode]").forEach((button) => {
     button.classList.toggle("is-on", button.dataset.mode === mode);
+    /**
+     * A mode button presses its own rail button, so where that button is not
+     * on the page there is nothing for it to press. Points is BUILT AT RUNTIME
+     * by point-tool.js — and never on a gas giant, which has no
+     * `setStudyAreaPolygon` for it either — so this is asked every pass rather
+     * than decided at build, when a late Points would have been read as an
+     * absent one.
+     */
+    button.hidden = !byId(MODE_RAIL_ID[button.dataset.mode]);
   });
   const hint = byId("gis-draw-hint");
   if (hint && !hint.dataset.hold) {
@@ -584,17 +619,79 @@ function refresh() {
 }
 
 /**
- * A world that cannot hold a study area gets no HUD.
+ * Can a STUDY AREA be drawn here? The seam, never the button.
  *
- * The four gas giants carry the Draw button in their markup but have no
- * `activateStudyArea` behind it — there is no surface to draw on, which is
- * a fact about the bodies rather than a gap. Keying on the BUTTON would
- * put Box, Circle, Polygon and Done on Jupiter, all four inert. The seam
- * is the honest test, and it is the same one every drawing path here goes
- * through.
+ * The four gas giants carry the Draw button in their markup and have no
+ * `activateStudyArea` behind it — there is no surface to draw on, which is a
+ * fact about the bodies rather than a gap. Keying on the button would put the
+ * shapes on Jupiter, every one of them inert.
  */
 function canDraw() {
   return typeof window.GeoIDViewer?.setStudyAreaPolygon === "function";
+}
+
+/**
+ * THE BAR IS THE HOME OF EVERY POINTER TOOL, NOT OF THE SHAPES ALONE — and
+ * gating it on `canDraw` withheld three that work.
+ *
+ * It carries Points, Distance and Profile beside the shapes, and all three go
+ * through the ordinary measure path: measured on Jupiter, two points each.
+ * So a gas giant was refused the bar because a FOURTH tool could not run, and
+ * its rail then had to keep Distance and Profile as their only doorway — which
+ * is why the four gas giants showed six rail items against the rocky worlds'
+ * four, and why the Export CSV for a distance had nowhere to be parked and sat
+ * dead in the rail.
+ *
+ * The bar is built wherever one of those tools is on the page; only the half
+ * that needs a surface is stood down. `tool-rail-distance` and
+ * `tool-rail-profile` are in every world's markup, so this is answered at
+ * build time; Points is built at runtime by point-tool.js, which is why the
+ * mode buttons are shown against their rail button on every refresh rather
+ * than decided once here.
+ */
+function canMeasure() {
+  return MODE_RAIL_IDS.some((id) => Boolean(byId(id)));
+}
+
+/** A mode button's own rail button — the one it presses. */
+const MODE_RAIL_ID = {
+  points: "tool-rail-points-btn",
+  distance: "tool-rail-distance",
+  profile: "tool-rail-profile",
+};
+const MODE_RAIL_IDS = Object.values(MODE_RAIL_ID);
+
+const NO_SURFACE = "This world has no surface to draw a study area on. "
+  + "Distance and Profile still work.";
+
+/**
+ * The shapes, Custom and Done need a surface; the measure tools do not.
+ *
+ * Disabled at build rather than hidden: a control that is there and says why
+ * it cannot run tells a reader something about the BODY, where a missing one
+ * reads as a viewer that was never finished. `refresh` only ever toggles
+ * classes, so what is set here stands.
+ */
+function standDownShapes() {
+  const hud = byId("gis-draw-hud");
+  if (!hud) return;
+  hud.querySelectorAll("[data-shape], .is-done").forEach((button) => {
+    if (button.disabled) return;
+    button.disabled = true;
+    button.title = NO_SURFACE;
+    button.setAttribute("aria-disabled", "true");
+  });
+}
+
+/** A seam that turned up late: the shapes come back with the button. */
+function reviveShapes() {
+  const hud = byId("gis-draw-hud");
+  if (!hud) return;
+  hud.querySelectorAll("[data-shape][disabled], .is-done[disabled]").forEach((button) => {
+    button.disabled = false;
+    button.removeAttribute("aria-disabled");
+    if (button.title === NO_SURFACE) button.title = "";
+  });
 }
 
 /**
@@ -615,8 +712,7 @@ function standDownDrawButton() {
   const button = byId("tool-rail-area");
   if (!button || button.disabled) return;
   button.disabled = true;
-  button.title = "This world has no surface to draw a study area on. "
-    + "Distance and Profile still work.";
+  button.title = NO_SURFACE;
   button.setAttribute("aria-disabled", "true");
   button.classList.remove("is-active");
 }
@@ -641,27 +737,48 @@ function reviveDrawButton() {
  */
 const STAND_DOWN_AFTER = 20;
 
+let built = false;
+
 function init() {
-  if (!byId("tool-rail-area") || !canDraw()) {
-    // The viewer boots async, so a missing seam this early is usually just
-    // early. Keep looking, and stop after a minute rather than polling a
-    // gas giant for the life of the page.
-    if (initTries >= STAND_DOWN_AFTER) standDownDrawButton();
+  // Built for the tools that are HERE. A world with no pointer tool at all has
+  // nothing to put on a bar; every one of the ten has at least Distance.
+  if (!byId("tool-rail-area") && !canMeasure()) {
+    // The viewer boots async, so nothing this early usually means early. Keep
+    // looking, and stop after a minute rather than polling for the life of
+    // the page.
     if (initTries < 120) {
       initTries += 1;
       window.setTimeout(init, 500);
     }
     return;
   }
-  // The seam is here, however late: the button is usable again.
-  reviveDrawButton();
-  build();
-  watchExportHome();
-  window.GeoIDDrawShape = shape;
-  // Tool state changes come from rail clicks, key shortcuts and other
-  // modules arming the tool on the user's behalf; a poll keeps the HUD
-  // honest against every one of them without wiring into each.
-  window.setInterval(refresh, 250);
+  if (!built) {
+    built = true;
+    build();
+    watchExportHome();
+    window.GeoIDDrawShape = shape;
+    // Tool state changes come from rail clicks, key shortcuts and other
+    // modules arming the tool on the user's behalf; a poll keeps the HUD
+    // honest against every one of them without wiring into each.
+    window.setInterval(refresh, 250);
+  }
+  if (canDraw()) {
+    // The seam is here, however late: the shapes and their button come back.
+    reviveDrawButton();
+    reviveShapes();
+  } else {
+    // Ten seconds, not sixty: a control must not sit there enabled and lying
+    // for the whole of the watch. Stood down at 20 tries; the watch runs on,
+    // because a seam that does turn up late takes them back.
+    if (initTries >= STAND_DOWN_AFTER) {
+      standDownDrawButton();
+      standDownShapes();
+    }
+    if (initTries < 120) {
+      initTries += 1;
+      window.setTimeout(init, 500);
+    }
+  }
   refresh();
 }
 

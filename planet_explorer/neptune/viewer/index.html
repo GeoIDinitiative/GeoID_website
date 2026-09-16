@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260916-cde4f6a">
+  <link rel="stylesheet" href="styles.css?v=20260916-bdf05b6">
   <style>html,body{background:#000;margin:0}/* GeoID-force-landscape: in portrait, hide the dismiss button and
          the is-dismissed escape so the user must rotate the device. */
       @media (orientation: portrait) and (pointer: coarse) {
@@ -19,13 +19,13 @@
         #portrait-advisory.is-dismissed { display: flex !important; }
       }
     </style>
-  <link rel="stylesheet" href="/styles/viewer-skin.css?v=20260916-cde4f6a">
-  <link rel="stylesheet" href="/styles/viewer-themes.css?v=20260916-cde4f6a">
+  <link rel="stylesheet" href="/styles/viewer-skin.css?v=20260916-bdf05b6">
+  <link rel="stylesheet" href="/styles/viewer-themes.css?v=20260916-bdf05b6">
   <script src="/scripts/theme.js"></script>
-  <script src="/scripts/tour-enter.js?v=20260916-cde4f6a" defer></script>
-  <script src="/scripts/ui-sound.js?v=20260916-cde4f6a" defer></script>
+  <script src="/scripts/tour-enter.js?v=20260916-bdf05b6" defer></script>
+  <script src="/scripts/ui-sound.js?v=20260916-bdf05b6" defer></script>
   <!-- The GIS layer: shared shell markup, styling and modules. -->
-  <link rel="stylesheet" href="/GeoID_GIS/viewer/gis/shell.css?v=20260916-cde4f6a">
+  <link rel="stylesheet" href="/GeoID_GIS/viewer/gis/shell.css?v=20260916-bdf05b6">
 </head>
 <body class="viewer-page">
   <div id="app"></div>
@@ -473,7 +473,12 @@
   </div>
   <div id="scene-popup-anchor" class="scene-popup-anchor" hidden></div>
   <div id="tool-rail" aria-label="Tool launcher">
-    <div class="tool-rail-item" data-measure-item="distance">
+    <!-- On the bar, not the rail: every pointer tool lives on the draw bar,
+         which reads these buttons to know which tool is armed and clicks
+         them to arm one. Draw stays on the rail as the one doorway that
+         raises the bar -- disabled here, because this world has no surface
+         to draw a study area on. -->
+    <div class="tool-rail-item" data-measure-item="distance" hidden>
       <button class="tool-rail-btn" id="tool-rail-distance" type="button" data-measure-mode="distance" aria-label="Activate distance tool" title="Distance">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M5 17.2 18.2 4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
@@ -501,7 +506,12 @@
         <button class="tool-rail-action-btn" type="button" data-measure-export="area" aria-label="Export area CSV" title="Export area CSV">Export CSV</button>
       </div>
     </div>
-    <div class="tool-rail-item" data-measure-item="profile">
+    <!-- On the bar, not the rail: every pointer tool lives on the draw bar,
+         which reads these buttons to know which tool is armed and clicks
+         them to arm one. Draw stays on the rail as the one doorway that
+         raises the bar -- disabled here, because this world has no surface
+         to draw a study area on. -->
+    <div class="tool-rail-item" data-measure-item="profile" hidden>
       <button class="tool-rail-btn" id="tool-rail-profile" type="button" data-measure-mode="profile" aria-label="Activate profile tool" title="Profile">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M4.5 16.5h3.2l2.3-5.4 2.8 2.7 2.2-6.2 2.5 3.1H20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -750,7 +760,7 @@
       </div>
       <div id="metadata-sections"></div>
     </div>
-  </div><script src="neptune-manifest.js?v=20260916-cde4f6a-rings"></script>
+  </div><script src="neptune-manifest.js?v=20260916-bdf05b6-rings"></script>
 <script>
   const statusNode = document.getElementById("status");
   function setBootStatus(message, isError = false) {
@@ -797,7 +807,7 @@
 </script>
 <script src="ui-controls.js" defer></script>
 <button id="music-btn" class="is-paused" title="Play music">▶ MUSIC</button>
-<script src="music.js?v=20260916-cde4f6a-neptune" defer></script>
+<script src="music.js?v=20260916-bdf05b6-neptune" defer></script>
   <div id="portrait-advisory" role="status" aria-live="polite">
     <img src="../../../assets/tilt_phone.png" alt="Rotate device" id="portrait-advisory-icon">
     <p id="portrait-advisory-text">Rotate to landscape for the best experience</p>
@@ -817,6 +827,6 @@
     })();
   </script>
   <script>if (window.self !== window.top) document.body.classList.add("is-embedded");</script>
-  <script type="module" src="/GeoID_GIS/viewer/gis/boot.js?v=20260916-cde4f6a"></script>
+  <script type="module" src="/GeoID_GIS/viewer/gis/boot.js?v=20260916-bdf05b6"></script>
 </body>
 </html>
