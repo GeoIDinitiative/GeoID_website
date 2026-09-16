@@ -21987,3 +21987,52 @@ so anything appended to one must be appended to the other — and anything that 
 NOT the studio's belongs above that marker. The planets' `.brand` rules went to
 the end of `shell.css` and failed that check; they sit before it now, which is
 also where they belong by subject.
+
+### The Map tab on the other nine worlds, and a footer Earth had always hidden
+
+"The GIS tools are not the same as Earth's." Measured rather than eyed: Earth
+reads Live Events · Explorer · **Map** · Geology · Earth Observation · Hazards ·
+Model Builder · Metadata; Mars read Explorer · Geology · Sea Level · Model
+Builder · Metadata. Three of the missing tabs are Earth-only DATA SERVICES
+(EONET, the Earth Engine share, Earth hazards) and are dropped by the body
+registry on purpose. **Map was not** — every world dresses a sphere.
+
+**The section existed on all nine and was nested two levels down**, inside
+Explorer, because the planet viewers were written by hand long before this tab
+bar existed. Each is a `control-section` in its own right; most simply had no
+id, which is the only reason the shared promotion could not see it. Naming it
+`basemap-section` is the whole change — one MOVES entry and one TAB_ORDER
+entry, a no-op on whichever world lacks the id, so Earth's
+`basemap-relief-section` and the planets' `basemap-section` are one list
+serving two markups and no world can end up with two Map tabs.
+
+**A TITLE LIVES IN AS MANY PLACES AS THERE ARE SURFACES THAT SHOW IT**, and
+this one had a second. The four gas giants rewrite the heading at runtime —
+`titleLabel.textContent = "Basemap"` in each viewer's own `configureUi`,
+because a gas giant has no relief — so the markup rename was overwritten and
+the tab still read "Basemap" while the file said "Map". Seven files carry that
+line (each gas-giant folder keeps a stale `saturn-viewer.js` beside its own,
+the documented self-contained-copy trap). The no-relief nuance stays where it
+belongs: the summary copy under the heading already says "Body texture and
+derived atmosphere layers".
+
+**And the copyright in the middle of the column was a rule Earth had and the
+planets did not.** `body[data-view-mode="gis"] #ui-scroll-body > .status` lives
+in Earth's own stylesheet; the planets read `gis/shell.css` and never had it, so
+their viewer footer sat between the tabs and the Workspace box. Ported — as a
+DESCENDANT rather than a child, because Earth's status is a direct child of the
+scroller while the gas giants' markup nests one level differently and lands it
+under `#ui`. Measured on Jupiter: parent `#ui`, still shown under the `>` form.
+One selector for both placements beats restructuring nine hand-written files.
+
+**Two measurement traps, both mine.** A `</div>`-counting heuristic said the
+status was inside the scroller on every world; the DOM said `#ui` on four of
+them — ask the parsed tree, not the bytes. And a live DOM that disagrees with
+the served bytes is not always a cache: here `fetch` returned the new markup
+while the frame showed the old title, and the difference was a script rewriting
+it at runtime. Check for a runtime writer before clearing caches.
+
+Verified on all ten: every world now reads **Map** in Earth's own position, with
+no footer in the column — Mars, Moon, Mercury, Venus and Pluto at six tabs,
+Jupiter, Saturn, Uranus and Neptune at four (no geology, no sea level), Earth at
+eight.

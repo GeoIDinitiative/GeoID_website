@@ -910,9 +910,9 @@
         if (title) {
           const titleLabel = title.querySelector(".section-title-row span:last-child");
           if (titleLabel) {
-            titleLabel.textContent = "Basemap";
+            titleLabel.textContent = "Map";
           } else {
-            title.textContent = "Basemap";
+            title.textContent = "Map";
           }
         }
         if (summary) summary.textContent = "Body texture and derived atmosphere layers.";

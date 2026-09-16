@@ -1904,6 +1904,30 @@ html.gis-arranging #layer-dock {
   flex: 0 0 auto;
 }
 
+/* ── The viewer's footer stands down in the GIS modes ─────────────────────
+ *
+ * The tab list ends against the layer box, so the last thing in it must not be
+ * a sentence -- the copyright was being sliced mid-word by the scroller's
+ * bottom edge. It is a viewer footer rather than a tool, so it stands down and
+ * the list ends on a tab.
+ *
+ * EARTH HAS HAD THIS ALL ALONG, in its own stylesheet, so the nine planet
+ * viewers were the only ones showing a copyright line in the middle of their
+ * tab column. Matching on `> .status` inside the scroller is what decides it,
+ * which is why the element must stay there rather than be pinned under the
+ * panel.
+ */
+/* A DESCENDANT, not a child: Earth's status is a direct child of the scroller
+   and matches its own `>` rule, while the four gas giants' markup nests one
+   level differently and lands it under `#ui` instead. Measured on Jupiter --
+   parent `#ui`, still shown, while Mars was already hidden. One selector for
+   both placements beats restructuring nine hand-written files. */
+body[data-view-mode="gis"] #ui .status,
+body[data-view-mode="model"] #ui .status,
+body[data-view-mode="research"] #ui .status {
+  display: none;
+}
+
 /* ── Meshing Studio, in the GIS page's own chrome ─────────────────────────
    One RIBBON instead of two toolbars (the actions as four menus, the view
    controls beside them), tab strips in the nav bar's voice (Exo 2, uppercase,

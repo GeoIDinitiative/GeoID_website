@@ -1,6 +1,6 @@
-import { CRS_OPTIONS, transform } from "./projection.js?v=20260916-7b3f556";
-import { currentBody } from "./bodies.js?v=20260916-7b3f556";
-import { rowsToCsv, downloadText } from "./extraction.js?v=20260916-7b3f556";
+import { CRS_OPTIONS, transform } from "./projection.js?v=20260916-7c34e7b";
+import { currentBody } from "./bodies.js?v=20260916-7c34e7b";
+import { rowsToCsv, downloadText } from "./extraction.js?v=20260916-7c34e7b";
 
 // GIS mode presents a toolbox rather than a control centre: the whole GeoID
 // control set folds into one group, and the tool groups stack beneath it.
@@ -62,6 +62,16 @@ const MOVES = [
   // its own header, so wrapping it in another section showed the title twice
   // and buried the controls a level deeper than they belong.
   { id: "basemap-relief-section", host: "gis-toolbox-panels", promote: true },
+  /**
+   * THE SAME TAB ON THE OTHER NINE WORLDS. Earth calls its section
+   * `basemap-relief-section`; the planet viewers wrote theirs by hand long
+   * before this bar existed and it sat nested inside Explorer, so Mars had
+   * five tabs where Earth has eight and its basemap was two levels down.
+   * Each is a `control-section` in its own right -- most simply had no id --
+   * so naming it is all the promotion needs. Whichever world lacks the id
+   * skips the entry, which is how one list serves both markups.
+   */
+  { id: "basemap-section", host: "gis-toolbox-panels", promote: true },
   { id: "geology-section", host: "gis-toolbox-panels", promote: true },
   { id: "modelled-data-section", host: "gis-toolbox-panels", promote: true },
   /**
@@ -110,6 +120,8 @@ const TAB_ORDER = [
   "gis-group-events",
   "geoid-controls-group",
   "basemap-relief-section",
+  // The planets' own name for the same tab; only one exists on any world.
+  "basemap-section",
   "geology-section",
   "gis-group-modelled",
   "modelled-data-section",
