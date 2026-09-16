@@ -22156,3 +22156,34 @@ too.
 **A width rule written for one control will be inherited by the next one added
 beside it.** Ask what the new control's own constraint is before reusing the
 gate that happens to be there.
+
+### And the credit is READ, not hovered for
+
+The button was a bare glyph with "Sounds of Mars - NASA InSight" on its
+tooltip. That name is the whole reason the control carries the PAGE's word for
+it rather than the app's, and a credit that exists only on hover is one most
+readers never see. It is a caption beside the glyph now, read off the page's
+own `.brand-audio p`, so what the deck used to say is said where the control
+is.
+
+**THE GLYPH HAS TO BE ITS OWN ELEMENT, and the alternative fails silently.**
+`btn.textContent = "⏸"` on a press replaces every child — so the first
+time anybody played anything the caption would be gone and the button would
+come back a bare glyph, with nothing anywhere to say why. The renderer writes
+the glyph's own span and falls back to `textContent` only where that span is
+absent (a page whose markup predates this).
+
+**THE CAPTION GOES BEFORE THE CONTROL DOES.** Measured between the centred
+links and the membership group: **357px of slot at full width against 229 at
+1300**, with the credit itself 179px over 29 characters. So the caption is
+dropped at 1399 — the width the bar already hands itself back at — and the
+player stays as the 30px glyph it was. Losing the whole control there would
+take the recording with it; losing the caption costs a tooltip. The 32ch cap
+is a guard against a caption nobody has written yet, not something this one
+reaches.
+
+Measured after, on Mars: at 1556 the button 1082–1307 with the credit
+unclipped between Contact and Membership, a press starting the recording with
+the glyph flipping ▶→⏸ and the caption standing; at 1300 the caption
+`display: none`, the button 1021–1051, still between them. On Earth, which
+carries no recording, the button stays absent and the bar stays hosted.

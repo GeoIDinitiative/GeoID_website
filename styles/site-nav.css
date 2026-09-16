@@ -432,9 +432,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
+  gap: 7px;
+  /* Sized by what it holds: a glyph alone where the caption is dropped, the
+     glyph and the caption where there is room for both. */
+  min-width: 30px;
   height: 30px;
-  padding: 0;
+  padding: 0 9px 0 0;
   /* First child of the membership group, which packs at the right edge -- so
      this lands immediately left of Membership and right of the links. The
      group's own 8px gap is the spacing; a margin here would double it. */
@@ -453,5 +456,42 @@
 .site-nav .nav-music:hover { color: var(--nav-ink); border-color: rgba(255, 255, 255, 0.28); }
 .site-nav .nav-music:focus-visible { outline: 2px solid var(--nav-accent); outline-offset: 2px; }
 .site-nav .nav-music.is-playing { color: var(--nav-accent); border-color: rgba(255, 62, 200, 0.45); }
+/* The glyph keeps the square the button used to be, so the control reads the
+   same whether or not its caption is showing. */
+.site-nav .nav-music-glyph {
+  flex: 0 0 auto;
+  width: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+/* THE CREDIT, READ RATHER THAN HOVERED FOR. The header's own body face, so it
+   sits with the links rather than importing the app's type. Ellipsised and
+   allowed to shrink, or a long caption pushes the membership group. */
+.site-nav .nav-music-label {
+  font-family: "GeoID Nav Body", sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  /* Wide enough for the credit it exists to show -- "Sounds of Mars - NASA
+     InSight" measures 179px at 29 characters, in a slot of 357 -- with the
+     ellipsis left as a guard against a caption nobody has written yet. */
+  max-width: 32ch;
+}
+.site-nav .nav-music-label:empty { display: none; }
+.site-nav .nav-music:has(.nav-music-label:empty) { padding-right: 0; }
 /* On a phone the header is the wordmark and the burger. */
 @media (max-width: 680px) { .site-nav .nav-music { display: none; } }
+/* THE CAPTION GOES BEFORE THE CONTROL DOES. Between the centred links and the
+   membership group there is room for both at full width and not at 1300 --
+   measured, 357px of slot against 229 -- so the credit drops to the tooltip
+   there and the player stays, rather than the pair crowding the links. */
+@media (max-width: 1399px) {
+  .site-nav .nav-music-label { display: none; }
+  .site-nav .nav-music { padding-right: 0; }
+}

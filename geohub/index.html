@@ -1436,7 +1436,13 @@
          name comes from the page, so the credit travels with the control. -->
     <div class="nav-right-logo">
       <button type="button" class="nav-music" id="nav-music" data-modebar="audio"
-        title="Play" aria-label="Play" hidden>&#9654;</button>
+        title="Play" aria-label="Play" hidden>
+        <span class="nav-music-glyph" aria-hidden="true">&#9654;</span>
+        <!-- The page's own caption, so the credit is READ rather than hovered
+             for. Filled from the viewer's report; ellipsised, and dropped
+             below the width where it would crowd the links. -->
+        <span class="nav-music-label"></span>
+      </button>
       <a class="nav-act nav-act-signin" id="nav-membership" href="/sign-in/">Sign in</a>
       <a class="nav-act nav-act-donate" href="https://buy.stripe.com/dRm3cv1Op4903zb858bV600" target="_blank" rel="noopener noreferrer">Donate</a>
     </div>
@@ -1707,12 +1713,19 @@
             const on = Boolean(s?.present);
             btn.hidden = !on;
             const playing = Boolean(s?.playing);
-            btn.textContent = playing ? "\u23F8" : "\u25B6";
+            const glyph = btn.querySelector(".nav-music-glyph");
+            // The glyph alone, never the button's own text: the label is a
+            // sibling span and `textContent` would take it with it.
+            if (glyph) glyph.textContent = playing ? "\u23F8" : "\u25B6";
+            else btn.textContent = playing ? "\u23F8" : "\u25B6";
             // A world's recording carries the page's own name for it, so the
             // credit stays with the control; the music player is the app's.
             const what = target === "audio" ? ` \u2014 ${s?.label || "sounds"}` : " music";
             btn.title = `${playing ? "Pause" : "Play"}${what}`;
             btn.setAttribute("aria-label", btn.title);
+            // READ, not hovered for: the recording's credit is its caption.
+            const label = btn.querySelector(".nav-music-label");
+            if (label) label.textContent = target === "audio" ? (s?.label || "") : "";
             btn.classList.toggle("is-playing", playing);
           } else if (target === "project") {
             btn.hidden = !state.project;
