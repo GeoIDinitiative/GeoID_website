@@ -29,10 +29,10 @@
 import {
   MATERIALS, MATERIAL_PROPS, PHYSICS, defaultSetup, domainProperties, materialsPlan, propsText,
   icBcHeader, studySpec, studyTimes, setupSummary, sweepParameters, sweepValues, sweepSetups, sweepManifest,
-} from "./fem-setup.js?v=20260916-85effe3";
-import { flagCheck } from "./mesh-flags.js?v=20260916-85effe3";
-import { requirementLines, GENERAL } from "./gales-contract.js?v=20260916-85effe3";
-import { parseTable, guessColumns, buildGrid, pointwiseText, orderCheck } from "./tomography.js?v=20260916-85effe3";
+} from "./fem-setup.js?v=20260916-a8c37f1";
+import { flagCheck } from "./mesh-flags.js?v=20260916-a8c37f1";
+import { requirementLines, GENERAL } from "./gales-contract.js?v=20260916-a8c37f1";
+import { parseTable, guessColumns, buildGrid, pointwiseText, orderCheck } from "./tomography.js?v=20260916-a8c37f1";
 import * as THREE from "../vendor/three.module.js";
 
 const STORE_KEY = "geoid-studio:fem-setup";
@@ -834,19 +834,16 @@ function rerender(which) {
   if (scroller && scroll != null) scroller.scrollTop = scroll;
 }
 
+/**
+ * NO COUNT BESIDE A TAB'S NAME. The Materials, Physics and Study headings
+ * carried "–", "0/0" and "3 to fix" chips, which were read as clutter rather
+ * than as state; the checklist inside Study and the pipeline strip already say
+ * what is missing. Any chip a previous build drew is taken off.
+ */
 function badges() {
-  const s = fullSummary();
-  const put = (group, text, level) => {
-    const row = document.querySelector(`#model-studio .studio-group[data-group="${group}"] .section-title-row`);
-    if (!row) return;
-    let chip = row.querySelector(".fem-chip");
-    if (!chip) { chip = el("span", { class: "fem-chip" }); row.append(chip); }
-    chip.textContent = text;
-    chip.dataset.level = level;
-  };
-  put("materials", s.materials.pointwise ? "grid" : s.materials.of ? `${s.materials.assigned}/${s.materials.of}` : "—", s.materials.level);
-  put("physics", `${s.physics.set}/${s.physics.of}`, s.physics.level);
-  put("study", s.study.errors ? `${s.study.errors} to fix` : "ready", s.study.level);
+  for (const group of ["materials", "physics", "study"]) {
+    document.querySelector(`#model-studio .studio-group[data-group="${group}"] .section-title-row .fem-chip`)?.remove();
+  }
 }
 
 function changed(all = false) {
