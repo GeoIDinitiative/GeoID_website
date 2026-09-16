@@ -174,6 +174,12 @@
   }
 
   function onClick(e) {
+    // A PERSON'S CLICK ONLY. The GeoHUB header draws the mode bar, the player
+    // and Settings, and presses the viewer's own buttons for them with
+    // .click() -- the header's document has already clicked by then, so the
+    // relayed press would click a second time. Keyboard activation (Enter on a
+    // button) is a trusted click and still sounds.
+    if (e.isTrusted === false) return;
     if (controlFor(e.target)) playClick();
   }
 

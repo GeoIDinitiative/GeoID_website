@@ -476,6 +476,15 @@ ok("and a received theme is applied without being re-announced",
     /gis-skin-sound[\s\S]{0,200}GeoIDUiSound\.setEnabled/.test(script));
   ok("and reads its state back from it",
     /soundBox\.checked = window\.GeoIDUiSound\.isEnabled\(\)/.test(script));
+  // The mode bar, the player and Settings are drawn in the GeoHUB header now,
+  // which is the SHELL's document: without the module there, the controls
+  // people press most were silent.
+  ok("the GeoHUB shell loads the sound, so the header's controls tick and click",
+    /<script src="\/scripts\/ui-sound\.js\?v=[^"]+" defer><\/script>/.test(read("index.html")));
+  // And the header presses the viewer's real buttons for them, so a relayed
+  // press must not click a second time in the frame.
+  ok("a scripted click is silent; a person's click sounds",
+    /if \(e\.isTrusted === false\) return;\s*if \(controlFor\(e\.target\)\) playClick\(\);/.test(sound));
 }
 
 console.log(`${pass} passed`);

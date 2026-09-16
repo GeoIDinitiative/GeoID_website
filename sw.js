@@ -3,7 +3,7 @@
 // key assets change significantly — this forces all clients to discard
 // stale cached copies on their next visit.
 
-const STATIC_CACHE = 'geoid-site-v56';  // v56: the About dropdown keeps its hover across the gap to its menu
+const STATIC_CACHE = 'geoid-site-v57';  // v57: the GeoHUB header's controls click again
 
 // Pre-fetched at install time so they are cache-warm on first navigation
 const PRECACHE = [
