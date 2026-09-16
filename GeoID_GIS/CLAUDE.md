@@ -22036,3 +22036,41 @@ Verified on all ten: every world now reads **Map** in Earth's own position, with
 no footer in the column — Mars, Moon, Mercury, Venus and Pluto at six tabs,
 Jupiter, Saturn, Uranus and Neptune at four (no geology, no sea level), Earth at
 eight.
+
+### The rail: the tools were all there, and three of them were offered twice
+
+"The GIS tools have not been copied from the Earth viewer." Measured, they had
+been — and the difference was the opposite of missing.
+
+| | Earth | Mars |
+| --- | --- | --- |
+| rail items in the page | 7 | 7, same icons byte for byte |
+| Geoprocessing sections | 17 | **17, identical** |
+| Analysis sections | 10 | 8 |
+| rail items SHOWN | **4** | **6** |
+
+The two Analysis sections Earth has alone are "People here (WorldPop)" and
+"Seismograms (FDSN)" — Earth data services, correctly absent elsewhere. The
+47-tool registry, the batch runner and the history are the same list on both.
+
+**What differed is that the planets showed three tools the rail no longer
+owns.** Earth's markup carries `hidden` on the Distance and Profile rail items,
+with the reason beside it: they live on the DRAW BAR now, where everything else
+the pointer does over the globe already is. Verified on both — the bar carries
+Points, Distance and Profile beside the shapes, so on a planet the rail was a
+second doorway to each of them. The buttons stay in the page either way,
+because the bar reads their `is-active` to know which tool is armed and clicks
+them to arm one.
+
+**Hidden on the five ROCKY worlds only.** A gas giant builds no draw bar — it
+has no `setStudyAreaPolygon` and nothing to draw on — so there the rail is the
+ONLY doorway to Distance and Profile, and both work perfectly there. Hiding
+them would have taken away two working tools to tidy a bar that does not exist.
+Verified: Jupiter still shows Distance and Profile with Draw disabled and its
+own reason on the button; Mars now shows Draw, Geoprocessing, Analysis and
+Search at a rail height of 170 — Earth's own.
+
+**When a report says something is missing, measure what is SHOWN against what
+is PRESENT.** Everything here was present on every world; the fault was four
+items visible on one and six on another, which reads as the richer one being
+right.

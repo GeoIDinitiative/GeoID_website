@@ -8,15 +8,15 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260916-7c34e7b">
-  <link rel="stylesheet" href="/styles/flightsim.css?v=20260916-7c34e7b">
-  <link rel="stylesheet" href="/styles/viewer-skin.css?v=20260916-7c34e7b">
-  <link rel="stylesheet" href="/styles/viewer-themes.css?v=20260916-7c34e7b">
+  <link rel="stylesheet" href="styles.css?v=20260916-2870c0f">
+  <link rel="stylesheet" href="/styles/flightsim.css?v=20260916-2870c0f">
+  <link rel="stylesheet" href="/styles/viewer-skin.css?v=20260916-2870c0f">
+  <link rel="stylesheet" href="/styles/viewer-themes.css?v=20260916-2870c0f">
   <script src="/scripts/theme.js"></script>
-  <script src="/scripts/tour-enter.js?v=20260916-7c34e7b" defer></script>
-  <script src="/scripts/ui-sound.js?v=20260916-7c34e7b" defer></script>
+  <script src="/scripts/tour-enter.js?v=20260916-2870c0f" defer></script>
+  <script src="/scripts/ui-sound.js?v=20260916-2870c0f" defer></script>
   <!-- The GIS layer: shared shell markup, styling and modules. -->
-  <link rel="stylesheet" href="/GeoID_GIS/viewer/gis/shell.css?v=20260916-7c34e7b">
+  <link rel="stylesheet" href="/GeoID_GIS/viewer/gis/shell.css?v=20260916-2870c0f">
 </head>
 <body class="viewer-page">
   <div id="app"></div>
@@ -575,7 +575,15 @@
 
   <div id="geo-popup-anchor" class="geo-popup-anchor" hidden></div>
   <div id="tool-rail" aria-label="Tool launcher">
-    <div class="tool-rail-item" data-measure-item="distance">
+    <!-- HIDDEN, NEVER REMOVED, exactly as Earth's page does it. These two
+         live on the draw bar now, where everything else the pointer does
+         over the globe already is -- measured on this world: the bar
+         carries Points, Distance and Profile beside the shapes, so the
+         rail was a second doorway to them. The BUTTONS have to stay in
+         the page: the bar reads their `is-active` to know which tool is
+         armed and clicks them to arm one. Draw stays on the rail as the
+         one doorway that raises the bar. -->
+    <div class="tool-rail-item" data-measure-item="distance" hidden>
       <button class="tool-rail-btn" id="tool-rail-distance" type="button" data-measure-mode="distance" aria-label="Activate distance tool" title="Distance">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M5 17.2 18.2 4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
@@ -603,7 +611,15 @@
         <button class="tool-rail-action-btn" type="button" data-measure-export="area" aria-label="Export area CSV" title="Export area CSV">Export CSV</button>
       </div>
     </div>
-    <div class="tool-rail-item" data-measure-item="profile">
+    <!-- HIDDEN, NEVER REMOVED, exactly as Earth's page does it. These two
+         live on the draw bar now, where everything else the pointer does
+         over the globe already is -- measured on this world: the bar
+         carries Points, Distance and Profile beside the shapes, so the
+         rail was a second doorway to them. The BUTTONS have to stay in
+         the page: the bar reads their `is-active` to know which tool is
+         armed and clicks them to arm one. Draw stays on the rail as the
+         one doorway that raises the bar. -->
+    <div class="tool-rail-item" data-measure-item="profile" hidden>
       <button class="tool-rail-btn" id="tool-rail-profile" type="button" data-measure-mode="profile" aria-label="Activate profile tool" title="Profile">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M4.5 16.5h3.2l2.3-5.4 2.8 2.7 2.2-6.2 2.5 3.1H20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1276,7 +1292,7 @@
 </script>
 <script src="ui-controls.js" defer></script>
 <button id="music-btn" class="is-paused" title="Play music">▶ MUSIC</button>
-<script src="music.js?v=20260916-7c34e7b" defer></script>
+<script src="music.js?v=20260916-2870c0f" defer></script>
 
 
   <div id="portrait-advisory" role="status" aria-live="polite">
@@ -1297,8 +1313,8 @@
       });
     })();
   </script>
-<script src="/scripts/flightsim.js?v=20260916-7c34e7b-atmos2" defer></script>
+<script src="/scripts/flightsim.js?v=20260916-2870c0f-atmos2" defer></script>
   <script>if (window.self !== window.top) document.body.classList.add("is-embedded");</script>
-  <script type="module" src="/GeoID_GIS/viewer/gis/boot.js?v=20260916-7c34e7b"></script>
+  <script type="module" src="/GeoID_GIS/viewer/gis/boot.js?v=20260916-2870c0f"></script>
 </body>
 </html>
