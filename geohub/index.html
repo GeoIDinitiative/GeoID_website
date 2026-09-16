@@ -16,6 +16,109 @@
        arbitrary image off the page — which is why results showed a stray
        Earth icon instead of the GeoID logo. -->
   <link rel="canonical" href="https://geoidinitiative.com/geohub/">
+  <!-- THE START-UP SCREEN. Inline, and ahead of every stylesheet, so it is on
+       screen from the first paint while the viewer below it fetches its
+       modules, its terrain and its catalogues. It is a separate fixed layer
+       over the shell and is REMOVED from the document when it ends: nothing
+       in the shell's own markup or stylesheets changes for it, except that
+       the header's logo is held invisible while the screen's logo is
+       travelling to that exact spot -- the hand-over is the same image
+       arriving where the header already draws it.
+       Colours come from the theme tokens viewer-themes.css defines, with the
+       default palette as the fallback for the instant before that sheet
+       arrives, so the CRT or Workstation theme gets its own start-up. -->
+  <style id="boot-style">
+    .boot {
+      --boot-bg: var(--skin-bg, #030608);
+      --boot-ink: var(--skin-ink, #e8f7f4);
+      --boot-data: var(--skin-data, #7ee7ff);
+      --boot-bracket: #f7bd68;
+      --boot-accent: var(--nav-accent, #ff3ec8);
+      --boot-body: var(--skin-body, "Chakra Petch", "Exo 2", "Segoe UI", monospace);
+      --boot-display: "GeoID Nav Display", "Audiowide", var(--skin-display, "Orbitron", sans-serif);
+      --r: 0px;
+      position: fixed; inset: 0; z-index: 100000;
+      font-size: clamp(8px, 1.1vw, 14px);
+      color: var(--boot-ink);
+      overflow: hidden;
+      cursor: default;
+    }
+    :root[data-skin] .boot { --boot-bracket: var(--skin-clock, #f7bd68); }
+    .boot-field {
+      position: absolute; inset: 0;
+      background: var(--boot-bg);
+      -webkit-mask-image: radial-gradient(circle at 50% 50%, transparent var(--r), #000 calc(var(--r) + 1px));
+              mask-image: radial-gradient(circle at 50% 50%, transparent var(--r), #000 calc(var(--r) + 1px));
+    }
+    .boot-field::before {
+      content: ""; position: absolute; inset: 0; pointer-events: none;
+      background-image: linear-gradient(rgba(88, 198, 179, 0.07) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(88, 198, 179, 0.07) 1px, transparent 1px);
+      background-size: 4em 4em;
+    }
+    .boot-field::after {
+      content: ""; position: absolute; inset: 0; pointer-events: none;
+      background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 3px);
+    }
+    .boot-fx { position: absolute; inset: 0; pointer-events: none; }
+    .boot-clip { position: absolute; inset: 0; clip-path: inset(50% 0 50% 0); }
+    .boot-logo {
+      position: absolute; left: 50%; top: 50%;
+      width: 24em; height: auto; transform: translate(-50%, -62%);
+      transform-origin: 50% 50%;
+      filter: drop-shadow(0 0 1em rgba(126, 231, 255, 0.45));
+      will-change: transform;
+    }
+    .boot-word {
+      position: absolute; left: 50%; top: calc(50% + 4.6em); transform: translateX(-50%);
+      font-family: var(--boot-display); font-size: 2.2em; letter-spacing: 0.08em; color: var(--boot-ink);
+      white-space: nowrap;
+    }
+    .boot-word b { font-weight: 400; color: var(--boot-accent); }
+    .boot-br { position: absolute; width: 2.6em; height: 2.6em; border: 0.18em solid var(--boot-bracket); opacity: 0; }
+    .boot-br.tl { border-right: 0; border-bottom: 0; } .boot-br.tr { border-left: 0; border-bottom: 0; }
+    .boot-br.bl { border-right: 0; border-top: 0; }   .boot-br.br { border-left: 0; border-top: 0; }
+    .boot-scan {
+      position: absolute; left: 0; right: 0; height: 0.3em; top: -1em; opacity: 0;
+      background: linear-gradient(90deg, transparent, var(--boot-data), transparent);
+      box-shadow: 0 0 1.4em var(--boot-data);
+    }
+    .boot-log {
+      position: absolute; left: 4.4em; bottom: 5.4em;
+      font-family: var(--boot-body); font-size: 1em; line-height: 1.7; letter-spacing: 0.06em;
+      color: var(--boot-data);
+    }
+    .boot-log div { opacity: 0; white-space: nowrap; }
+    .boot-log i { font-style: normal; color: rgba(255, 255, 255, 0.4); margin-left: 1em; }
+    .boot-log em { font-style: normal; color: var(--boot-bracket); }
+    .boot-bar { position: absolute; left: 4.4em; right: 4.4em; bottom: 3.8em; height: 0.25em; background: rgba(255, 255, 255, 0.08); }
+    .boot-bar > i { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: var(--boot-data); box-shadow: 0 0 0.8em var(--boot-data); }
+    .boot-ctl {
+      position: absolute; right: 2.2em; bottom: 3.4em; display: flex; gap: 1.4em; pointer-events: auto;
+      font-family: var(--boot-body); font-size: 0.85em; letter-spacing: 0.18em; text-transform: uppercase;
+    }
+    .boot-ctl button {
+      appearance: none; background: transparent; border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 2px;
+      color: rgba(255, 255, 255, 0.55); font: inherit; letter-spacing: inherit; text-transform: inherit;
+      padding: 0.5em 0.9em; cursor: pointer;
+    }
+    .boot-ctl button:hover, .boot-ctl button:focus-visible { color: var(--boot-ink); border-color: var(--boot-data); outline: none; }
+    .boot-ctl button[aria-pressed="true"] { color: var(--boot-data); border-color: var(--boot-data); }
+    /* The header's own logo waits, invisible, until the screen's logo has
+       arrived on it. Visibility rather than opacity: it must keep its box. */
+    html.is-booting .site-nav .nav-brand-icon { visibility: hidden; }
+    @media (max-width: 720px) {
+      .boot-log { left: 1.6em; bottom: 6.6em; font-size: 1.15em; }
+      .boot-bar { left: 1.6em; right: 1.6em; bottom: 5em; }
+      .boot-ctl { right: 1.2em; bottom: 1.4em; }
+      .boot-logo { width: 62vw; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .boot-clip { clip-path: none; }
+      .boot-br { opacity: 1; }
+      .boot-log div { opacity: 1; }
+    }
+  </style>
   <!-- Themes: the stylesheet hangs off data-skin, and theme.js stamps it
        in <head> so the first paint is already in the chosen theme. -->
   <link rel="stylesheet" href="/styles/viewer-themes.css?v=20260916-bf9edbc">
@@ -1268,6 +1371,292 @@
   <link rel="stylesheet" href="/styles/v2-viewer.css?v=20260916-bf9edbc">
 </head>
 <body>
+
+  <!-- ── Start-up screen (see #boot-style in <head>) ─────────────────────
+       Markup first so it is on screen at the first paint; the script that
+       runs it follows immediately and removes both when the viewer below has
+       drawn its first frame. -->
+  <div class="boot" id="boot" role="status" aria-live="polite" aria-label="GeoHUB is starting">
+    <div class="boot-field">
+      <div class="boot-log" id="boot-log">
+        <div>▸ shell <i>ready</i> <em>✓</em></div>
+        <div>▸ terrain tiles <i>streaming</i> <em>✓</em></div>
+        <div>▸ world geology · Macrostrat <i>vector tiles</i> <em>✓</em></div>
+        <div>▸ earthquake record · 312,500 events <i>1008 – today</i> <em>✓</em></div>
+        <div>▸ cyclone tracks · 13,513 <i>1842 – today</i> <em>✓</em></div>
+        <div>▸ live feeds · EONET, USGS, CelesTrak <i>subscribed</i> <em>✓</em></div>
+        <div id="boot-final"><em>■ SIGNAL ACQUIRED</em></div>
+      </div>
+      <div class="boot-bar"><i id="boot-fill"></i></div>
+      <div class="boot-clip" id="boot-clip">
+        <div class="boot-word"><b>Geo</b>HUB</div>
+      </div>
+    </div>
+    <div class="boot-fx">
+      <div class="boot-clip" id="boot-clip-logo">
+        <img class="boot-logo" id="boot-logo" src="/assets/GeoID_logo_icon.png" alt="GeoID">
+      </div>
+      <div class="boot-br tl"></div><div class="boot-br tr"></div><div class="boot-br bl"></div><div class="boot-br br"></div>
+      <div class="boot-scan" id="boot-scan"></div>
+      <div class="boot-ctl">
+        <button type="button" id="boot-sound" aria-pressed="true">Sound on</button>
+        <button type="button" id="boot-skip">Skip · Esc</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    /**
+     * THE START-UP SEQUENCE.
+     *
+     * Runs the screen above while the viewer in the frame below boots, and
+     * ends it on the viewer's own evidence rather than on a timer: the frame
+     * is same-origin, so this can look for a globe with a texture on it and a
+     * rendered frame -- the check the transit page already makes before it
+     * crosses over -- and, for a world reached through transit, for transit's
+     * own hand-over (it sets the viewer frame's opacity to 1). Never shorter
+     * than MIN_HOLD, so a fast machine does not flash it; never longer than
+     * CAP, so a viewer that never draws is still handed over to.
+     *
+     * The second start in a tab session is quick: the same beats, compressed.
+     *
+     * SOUND is synthesised in the page (no file, no fetch) and is optional:
+     * a browser that will not play audio before a click leaves the sequence
+     * silent and the button offers to switch it on; the choice is remembered.
+     */
+    (function () {
+      "use strict";
+      var root = document.documentElement;
+      var boot = document.getElementById("boot");
+      if (!boot) return;
+      root.classList.add("is-booting");
+
+      var RM = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      var quick = false;
+      try { quick = sessionStorage.getItem("geoid:booted") === "1"; sessionStorage.setItem("geoid:booted", "1"); } catch (_e) {}
+      var K = quick ? 0.4 : 1;                 // time scale for the second start in a session
+      var MIN_HOLD = quick ? 900 : 1600;
+      var CAP = 9000;
+
+      var lines = Array.prototype.slice.call(document.querySelectorAll("#boot-log > div"));
+      var finalLine = document.getElementById("boot-final");
+      var stageLines = lines.filter(function (l) { return l !== finalLine; });
+      var fill = document.getElementById("boot-fill");
+      var clips = [document.getElementById("boot-clip"), document.getElementById("boot-clip-logo")];
+      var scan = document.getElementById("boot-scan");
+      var logo = document.getElementById("boot-logo");
+      var field = boot.querySelector(".boot-field");
+      var brackets = { tl: boot.querySelector(".boot-br.tl"), tr: boot.querySelector(".boot-br.tr"), bl: boot.querySelector(".boot-br.bl"), br: boot.querySelector(".boot-br.br") };
+      var timers = [];
+      var t = function (fn, ms) { timers.push(setTimeout(fn, ms)); };
+      var started = performance.now();
+
+      /* ── sound ─────────────────────────────────────────────────────── */
+      var AC = window.AudioContext || window.webkitAudioContext;
+      var ctx = null, master = null, soundOn = true, audioReady = false;
+      try { soundOn = localStorage.getItem("geoid:boot-sound") !== "off"; } catch (_e) {}
+      var soundBtn = document.getElementById("boot-sound");
+      function paintSoundBtn() {
+        soundBtn.setAttribute("aria-pressed", String(soundOn));
+        soundBtn.textContent = !soundOn ? "Sound off" : (audioReady ? "Sound on" : "Sound · tap to enable");
+      }
+      function audio() {
+        if (!AC) return null;
+        if (!ctx) {
+          try { ctx = new AC(); master = ctx.createGain(); master.gain.value = 0.16; master.connect(ctx.destination); } catch (_e) { ctx = null; }
+        }
+        return ctx;
+      }
+      function tryStart() {
+        var c = audio(); if (!c) return;
+        var p = c.resume && c.resume();
+        var mark = function () { audioReady = c.state === "running"; paintSoundBtn(); };
+        if (p && p.then) p.then(mark, mark); else mark();
+      }
+      function tone(freq, dur, type, gain, at, glideTo) {
+        if (!soundOn || !ctx || ctx.state !== "running") return;
+        var now = ctx.currentTime + (at || 0);
+        var o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = type || "sine"; o.frequency.setValueAtTime(freq, now);
+        if (glideTo) o.frequency.exponentialRampToValueAtTime(glideTo, now + dur);
+        g.gain.setValueAtTime(0.0001, now);
+        g.gain.exponentialRampToValueAtTime(gain || 0.3, now + 0.008);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+        o.connect(g); g.connect(master); o.start(now); o.stop(now + dur + 0.02);
+      }
+      function sweep(fromHz, toHz, dur, gain, at, type) {
+        if (!soundOn || !ctx || ctx.state !== "running") return;
+        var now = ctx.currentTime + (at || 0);
+        var len = Math.ceil(ctx.sampleRate * dur), buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
+        for (var i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+        var src = ctx.createBufferSource(); src.buffer = buf;
+        var f = ctx.createBiquadFilter(); f.type = type || "bandpass"; f.Q.value = 6;
+        f.frequency.setValueAtTime(fromHz, now); f.frequency.exponentialRampToValueAtTime(toHz, now + dur);
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(gain || 0.2, now + 0.05);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+        src.connect(f); f.connect(g); g.connect(master); src.start(now); src.stop(now + dur + 0.02);
+      }
+      var cue = {
+        tick: function () { tone(1400, 0.035, "square", 0.25); },
+        scan: function () { sweep(300, 2600, 0.85 * K, 0.22); },
+        line: function (i) { tone(520 + i * 60, 0.045, "triangle", 0.3); },
+        acquired: function () { tone(660, 0.12, "sine", 0.35); tone(990, 0.16, "sine", 0.35, 0.12); },
+        iris: function () { sweep(2400, 180, 0.6, 0.28, 0, "lowpass"); }
+      };
+      soundBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        soundOn = !soundOn;
+        try { localStorage.setItem("geoid:boot-sound", soundOn ? "on" : "off"); } catch (_e) {}
+        if (soundOn) tryStart();
+        paintSoundBtn();
+      });
+      // A browser that refused autoplay allows it after the first gesture.
+      var gestures = ["pointerdown", "keydown", "touchstart"];
+      function onGesture() { if (soundOn && !audioReady) tryStart(); }
+      gestures.forEach(function (ev) { document.addEventListener(ev, onGesture, { passive: true }); });
+      if (soundOn) tryStart(); else paintSoundBtn();
+
+      /* ── the beats ───────────────────────────────────────────────────── */
+      var EASE = "cubic-bezier(0.16, 0.84, 0.44, 1)";
+      function layoutBrackets() {
+        var w = boot.clientWidth, h = boot.clientHeight, em = parseFloat(getComputedStyle(boot).fontSize);
+        var hw = Math.min(15 * em, w * 0.42), hh = Math.min(11 * em, h * 0.34), s = 2.6 * em;
+        return {
+          inner: { tl: [w / 2 - hw, h / 2 - hh], tr: [w / 2 + hw - s, h / 2 - hh], bl: [w / 2 - hw, h / 2 + hh - s], br: [w / 2 + hw - s, h / 2 + hh - s] },
+          corner: { tl: [1.2 * em, 1.2 * em], tr: [w - s - 1.2 * em, 1.2 * em], bl: [1.2 * em, h - s - 1.2 * em], br: [w - s - 1.2 * em, h - s - 1.2 * em] }
+        };
+      }
+      var pos = layoutBrackets();
+      Object.keys(brackets).forEach(function (k) { brackets[k].style.left = pos.inner[k][0] + "px"; brackets[k].style.top = pos.inner[k][1] + "px"; });
+
+      var linesDone = false, acquiredShown = false;
+      if (RM) {
+        // Still: everything in place, the log filling in, a plain fade at the end.
+        stageLines.forEach(function (l, i) { l.style.opacity = "0"; t(function () { l.style.opacity = "1"; cue.line(i); }, 200 + i * 220 * K); });
+        fill.animate([{ width: "0%" }, { width: "100%" }], { duration: 1800 * K, fill: "forwards", delay: 200 });
+        t(function () { linesDone = true; }, 200 + stageLines.length * 220 * K);
+      } else {
+        ["tl", "tr", "bl", "br"].forEach(function (k, i) {
+          brackets[k].animate([{ opacity: 0, transform: "scale(1.6)" }, { opacity: 1, transform: "scale(1)" }], { duration: 450 * K, delay: i * 60 * K, fill: "forwards", easing: EASE });
+          t(function () { cue.tick(); }, i * 60 * K);
+        });
+        t(function () { cue.scan(); }, 400 * K);
+        scan.animate([{ top: "-1em", opacity: 0 }, { opacity: 1, offset: 0.1 }, { opacity: 1, offset: 0.9 }, { top: "100%", opacity: 0 }], { duration: 900 * K, delay: 400 * K, fill: "forwards", easing: "linear" });
+        clips.forEach(function (c) { c.animate([{ clipPath: "inset(50% 0 50% 0)" }, { clipPath: "inset(0 0 0 0)" }], { duration: 700 * K, delay: 600 * K, fill: "forwards", easing: "ease-out" }); });
+        stageLines.forEach(function (l, i) {
+          t(function () { l.animate([{ opacity: 0, transform: "translateX(-0.4em)" }, { opacity: 1, transform: "translateX(0)" }], { duration: 160, fill: "forwards" }); cue.line(i); }, (1000 + i * 380) * K);
+        });
+        fill.animate([{ width: "0%" }, { width: "100%" }], { duration: 2600 * K, delay: 1000 * K, fill: "forwards", easing: "linear" });
+        t(function () { linesDone = true; }, (1000 + stageLines.length * 380) * K);
+      }
+
+      /* ── is the viewer on screen yet? ────────────────────────────────── */
+      // Looked up on each poll, not once: this script runs as soon as the body
+      // opens, and the frame is parsed after it.
+      function viewerDrawn(w) {
+        try {
+          var v = w && w.GeoIDViewer;
+          if (!v || !v.globe || !v.renderer) return false;
+          if (!(v.renderer.info.render.frame > 0)) return false;
+          if (w.GeoIDGisPending) return false;
+          var textured = false;
+          v.globe.traverse(function (o) { var m = o.material; (Array.isArray(m) ? m : [m]).forEach(function (mat) { if (mat && mat.map) textured = true; }); });
+          return textured;
+        } catch (_e) { return true; }   // cannot see in: never hold the page on that
+      }
+      function ready() {
+        try {
+          var frame = document.getElementById("globe-iframe");
+          var w = frame && frame.contentWindow; if (!w) return false;
+          var doc = w.document;
+          var inner = doc && doc.querySelector("#viewer-frame");
+          if (inner) return inner.style.opacity === "1";          // transit has crossed over to the world
+          return viewerDrawn(w);                                     // Earth: the GIS viewer itself
+        } catch (_e) { return false; }
+      }
+
+      /* ── the hand-over ───────────────────────────────────────────────── */
+      var over = false;
+      function finish() {
+        if (over) return; over = true;
+        timers.forEach(clearTimeout);
+        gestures.forEach(function (ev) { document.removeEventListener(ev, onGesture); });
+        document.removeEventListener("keydown", onKey);
+        var navIcon = document.querySelector(".site-nav .nav-brand-icon");
+        var ended = false;
+        var end = function () {
+          if (ended) return; ended = true;   // reached by the animation AND by the safety timer
+          root.classList.remove("is-booting");
+          if (boot.parentNode) boot.parentNode.removeChild(boot);
+          if (ctx && ctx.close && ctx.state !== "closed") { ctx.close().catch(function () {}); }
+        };
+        if (RM) {
+          boot.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 500, fill: "forwards" }).onfinish = end;
+          return;
+        }
+        cue.iris();
+        // Brackets to the frame's corners, then away.
+        var p = layoutBrackets();
+        Object.keys(brackets).forEach(function (k) {
+          var b = brackets[k];
+          b.animate([{ left: b.style.left, top: b.style.top, opacity: 1 }, { left: p.corner[k][0] + "px", top: p.corner[k][1] + "px", opacity: 1, offset: 0.75 }, { left: p.corner[k][0] + "px", top: p.corner[k][1] + "px", opacity: 0 }], { duration: 900, fill: "forwards", easing: EASE });
+        });
+        // The screen opens from its centre; the logo below it stays sharp.
+        var w = boot.clientWidth, h = boot.clientHeight, rMax = Math.hypot(w, h) / 2 + 10, t0 = performance.now();
+        (function iris(now) {
+          var k = Math.min(1, (now - t0) / 750); var e = 1 - Math.pow(1 - k, 3);
+          boot.style.setProperty("--r", (rMax * e) + "px");
+          if (k < 1) requestAnimationFrame(iris);
+        })(t0);
+        field.querySelectorAll(".boot-log, .boot-bar, .boot-clip, .boot-ctl").forEach(function (n) { n.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 350, fill: "forwards" }); });
+        boot.querySelector(".boot-ctl").animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: "forwards" });
+        // The logo becomes the header's logo: same image, same box.
+        var a = null;
+        if (navIcon && navIcon.getBoundingClientRect().width > 0) {
+          var from = logo.getBoundingClientRect(), to = navIcon.getBoundingClientRect();
+          var dx = (to.left + to.width / 2) - (from.left + from.width / 2);
+          var dy = (to.top + to.height / 2) - (from.top + from.height / 2);
+          var k = to.width / from.width;
+          logo.style.filter = "none";
+          a = logo.animate([{ transform: "translate(-50%, -62%) translate(0, 0) scale(1)" }, { transform: "translate(-50%, -62%) translate(" + dx + "px, " + dy + "px) scale(" + k + ")" }], { duration: 720, fill: "forwards", easing: EASE });
+        } else {
+          a = logo.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 500, fill: "forwards" });
+        }
+        a.onfinish = end;
+        setTimeout(end, 1200);   // whatever happens, the screen leaves
+      }
+      function showAcquired() {
+        if (acquiredShown) return; acquiredShown = true;
+        finalLine.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, fill: "forwards" });
+        cue.acquired();
+      }
+      // Hand over when the viewer is drawn, the beats have played and the
+      // minimum hold has passed -- or at the cap, or on a skip.
+      (function poll() {
+        if (over) return;
+        var now = performance.now() - started;
+        var isReady = ready();
+        if ((isReady && linesDone && now >= MIN_HOLD) || now >= CAP) {
+          showAcquired();
+          t(finish, 320);
+          return;
+        }
+        if (isReady && now >= MIN_HOLD && !linesDone) {
+          // The viewer beat the log: let the remaining lines land quickly rather than wait on decoration.
+          stageLines.forEach(function (l) { var anims = l.getAnimations(); anims.forEach(function (an) { an.finish(); }); });
+          fill.getAnimations().forEach(function (an) { an.finish(); });
+          linesDone = true;
+        }
+        t(poll, 100);
+      })();
+      function skip() { if (performance.now() - started > 600) { showAcquired(); t(finish, 200); } }
+      function onKey(e) { if (e.key === "Escape") skip(); }
+      document.addEventListener("keydown", onKey);
+      document.getElementById("boot-skip").addEventListener("click", function (e) { e.stopPropagation(); skip(); });
+      boot.addEventListener("click", function (e) { if (e.target === boot || e.target === field) skip(); });
+      window.addEventListener("resize", function () { if (over) return; pos = layoutBrackets(); Object.keys(brackets).forEach(function (k) { brackets[k].style.left = pos.inner[k][0] + "px"; brackets[k].style.top = pos.inner[k][1] + "px"; }); });
+    })();
+  </script>
 
   <div class="demo-disclaimer-backdrop" id="demo-disclaimer-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="demo-disclaimer-title">
     <div class="demo-disclaimer-modal">
