@@ -61,6 +61,39 @@
   gap: 32px;
 }
 
+/**
+ * THE BAR MUST GROW FOR ITS OWN DRAWER, and this sheet was stopping it.
+ *
+ * `shared.css` already says `height: auto; min-height: var(--nav-h)` below
+ * 980px, because the open menu wraps onto a second row. THIS sheet loads after
+ * it and set `height` unconditionally at the same specificity, so the bar was
+ * pinned to one row at every width -- and with `overflow-y: auto` on it, the
+ * drawer was simply clipped inside the header.
+ *
+ * Measured at 375px on /about/: pressing the button set `is-open`, the links
+ * computed `display: flex` at 167px tall, and the nav stayed 62px -- the menu
+ * invisible and the hamburger itself pushed out of the visible strip, so the
+ * only control that could close it again was gone too. Every page that loads
+ * this sheet had it.
+ */
+@media (max-width: 980px) {
+  .site-nav { height: auto; min-height: var(--nav-h); }
+
+  /**
+   * AND THE BUTTON STAYS ON THE TOP ROW.
+   *
+   * It is the LAST child, which is right while the bar is one row -- and once
+   * the drawer wraps onto rows of its own the button follows them: measured, it
+   * sat at top 420 under 167px of links and 102px of actions, so closing the
+   * menu meant scrolling to the bottom of it. Ordering the drawer AFTER it
+   * leaves the button where it was pressed; the auto margin keeps it at the
+   * right of that row now that nothing else is on it.
+   */
+  .site-nav.is-open .nav-toggle { margin-left: auto; }
+  .site-nav.is-open .nav-links { order: 1; }
+  .site-nav.is-open .nav-right-logo { order: 2; }
+}
+
 .site-nav .nav-wordmark {
   font-family: "GeoID Nav Display", sans-serif;
   font-size: 17px;
