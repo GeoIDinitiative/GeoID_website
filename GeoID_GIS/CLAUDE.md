@@ -21554,3 +21554,51 @@ landing page carried
 -- the publisher rewrote `viewer/assets/etna.jpg` into an absolute bucket URL
 and left the `viewer/` in front of it. Live since the move. Grep for
 `viewer/https://` after any such rewrite.
+
+## The mode bar: move the ROW, not the pills
+
+"The folder, GIS, Model, Research and music buttons should be the same style
+and position across all 3 pages." They were three different rows, and two of
+them were missing half the controls.
+
+`parkModeSwitch` moved `#view-mode-switch` alone into the Model ribbon or the
+Research shell row. Everything ELSE in `.brand-toprow` -- the project folder
+and `#music-btn` -- stayed behind in a sidebar those pages cover, so Model and
+Research had no way to open a project and no player at all. Measured, the
+pills then came out three different ways, because each host restyled them:
+
+| | display | gap | font | padding | pill |
+| --- | --- | --- | --- | --- | --- |
+| GIS | flex | 5.6px | 10.56px | 4.8 / 9.6 | 76x25 |
+| Model | flex | 3.2px | 9.92px | 4.16 / 8.8 | 36x23 |
+| Research | **grid** | 8px | 10.88px | 6.4 / 4.8 | 71x29 |
+
+**`parkModeRow` moves `.brand-toprow` ITSELF.** Same element, same class, same
+children in the same order, so every rule written for the GIS header still
+matches and the three pages are identical BY CONSTRUCTION rather than by three
+sets of numbers kept in step by hand. `is-parked` drops only what is sidebar
+chrome -- the divider, the margins -- and hides `#nav-collapse-btn`, which
+folds a panel that is not on screen.
+
+Two things that bite:
+
+- **`#music-btn` IS `position: fixed` BY DEFAULT.** It only becomes an inline
+  button through `.brand-toprow-actions #music-btn`. So it can never be
+  appended to a slot on its own -- moved out of that container it springs back
+  to floating over the page. Moving the whole row keeps it where its rule can
+  find it.
+- **`body.studio-open #music-btn { display: none !important }`** hides the
+  floating player in Model mode, which is right on the planets, where the
+  floating one is the only one there is. Parked, the button is part of the row
+  and has to survive that, so a more specific `!important` restores it.
+
+**A pill that sizes to content is not the same pill.** Parked, the switcher
+came out at 39px a button against the sidebar's 76, because the sidebar gives
+it `flex: 1` of a 24rem panel. It is given that width outright (`15rem`) and
+divides it the same way. Measured after: 75-76px in all three modes, with
+font, padding and gap equal to the digit.
+
+The four `.view-mode-switch.is-in-studio` rules are gone from both
+stylesheets. A test pinned one of them; its INTENT (a row of pills in the bar,
+not a stacked tile) still holds, so it was re-argued against the new mechanism
+rather than deleted.

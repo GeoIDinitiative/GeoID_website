@@ -4575,19 +4575,7 @@ canvas {
 
     /* In the studio the switcher keeps the GeoHUB pill styling, just sized to
        the mode bar rather than the full sidebar width. */
-    .view-mode-switch.is-in-studio {
-      grid-auto-flow: column;
-      grid-auto-columns: minmax(4.2rem, 1fr);
-      gap: 0.35rem;
-      margin: 0;
-      /* Sized to its buttons rather than to a number of them. */
-      width: max-content;
-    }
 
-    .view-mode-switch.is-in-studio .view-mode-btn {
-      padding: 0.4rem 0.3rem;
-      font-size: 0.68rem;
-    }
 
     /* Model mode has no planet, so the whole globe HUD stands down. */
     /* The scale bar and cursor readout stay in Model mode. They are the same
@@ -5753,24 +5741,7 @@ canvas {
   padding: 0 0.2rem;
 }
 /* Three pills in a row inside the bar, not a stacked block in a tile. */
-#model-studio .view-mode-switch.is-in-studio {
-  display: flex;
-  flex-direction: row;
-  gap: 0.2rem;
-  width: auto;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  box-shadow: none;
-}
-#model-studio .view-mode-switch.is-in-studio .view-mode-btn {
-  width: auto;
-  margin: 0;
-  padding: 0.26rem 0.55rem;
-  font-size: 0.62rem;
-}
-
+#model-studio#model-studio
 /* A NESTED COLUMN NEEDS THE ROOM. The deck holds a tab, its cards and their
    rows -- four levels of padding -- and at the inherited 12.5rem a domain row
    was 186 px of content in 135 px of space, with a scrollbar of its own inside
@@ -5961,3 +5932,35 @@ canvas {
 /* Hidden reads as hidden: the name and swatch fade, the eye says the rest. */
 #model-studio .studio-visbox .is-off .layer-name,
 #model-studio .studio-visbox .is-off .studio-vis-swatch { opacity: 0.45; }
+
+/* ── The sidebar's top row, parked in another page's bar ──────────────────
+ *
+ * `mode-manager` moves `.brand-toprow` ITSELF into the Model ribbon or the
+ * Research shell row, so the project folder, the three mode pills and the
+ * music button all keep every rule written for them in the sidebar and come
+ * out identical on all three pages. Parking the pills alone is what left the
+ * folder and the player behind and gave the pills three different sizes.
+ *
+ * What has to go is the row's own sidebar chrome: a divider across a panel
+ * is right there and wrong inside a toolbar.
+ */
+.brand-toprow.is-parked {
+  margin: 0;
+  padding: 0;
+  border-bottom: 0;
+  width: max-content;
+  justify-content: flex-start;
+  gap: 0.45rem;
+}
+/* The sidebar gives the switcher the width left over in a 24rem panel, which
+   works out at three 76px pills. Sized to content instead, the parked copy
+   came out at 39px each and read as a different control -- so it is given
+   that same width outright and divides it the same way. */
+.brand-toprow.is-parked #view-mode-switch { flex: 0 0 auto; width: 15rem; }
+/* The collapse button folds the globe sidebar, which is not the page on
+   screen. */
+.brand-toprow.is-parked #nav-collapse-btn { display: none; }
+/* Model mode hides the FLOATING music button -- right on the planets, where
+   that is the only one there is. Parked, the button is part of this row and
+   travels with it, so this has to outrank that rule's `!important`. */
+body.studio-open .brand-toprow.is-parked #music-btn { display: inline-flex !important; }

@@ -90,33 +90,43 @@
   // switcher lives in that sidebar, so it is moved into the studio header
   // rather than hidden with it -- otherwise Model mode is a dead end with no
   // way back to GeoID or GIS.
-  let modeSwitchHome = null;
+  let modeRowHome = null;
 
   /**
-   * Parks the mode switcher in whichever full-screen page owns the screen.
+   * Parks the sidebar's whole top row in whichever page owns the screen.
    *
-   * The switcher lives in the globe sidebar, which those pages hide -- so
-   * without this, Model and Research are dead ends with no way back. Takes the
-   * slot id rather than assuming the studio, now that two pages need it.
+   * THE ROW MOVES, NOT THE SWITCHER. Parking the three mode pills alone left
+   * the project folder and the music button behind in a sidebar those pages
+   * hide, so Model and Research had no way to open a project and no player at
+   * all -- and the pills, restyled per host, came out at three different
+   * sizes, gaps and fonts. Moving `.brand-toprow` itself means every rule
+   * written for the GIS header still matches, because it is the same element
+   * with the same class and the same children in the same order. The format
+   * is identical by construction rather than by three sets of numbers kept in
+   * step by hand.
+   *
+   * `is-parked` drops the row's own sidebar chrome -- the divider, the
+   * margins, the switcher stretching to fill a sidebar's width -- and hides
+   * the collapse button, which acts on a panel that is not on screen.
    */
-  function parkModeSwitch(slotId) {
-    const switcher = document.getElementById("view-mode-switch");
-    if (!switcher) return;
+  function parkModeRow(slotId) {
+    const row = document.querySelector(".brand-toprow");
+    if (!row) return;
     const slot = slotId ? document.getElementById(slotId) : null;
     if (slot) {
-      if (!modeSwitchHome) {
-        modeSwitchHome = { parent: switcher.parentNode, next: switcher.nextSibling };
+      if (!modeRowHome) {
+        modeRowHome = { parent: row.parentNode, next: row.nextSibling };
       }
-      switcher.classList.add("is-in-studio");
-      slot.appendChild(switcher);
-    } else if (modeSwitchHome) {
-      switcher.classList.remove("is-in-studio");
-      // Same guard as the toolbox's: the sibling recorded when the switch was
+      row.classList.add("is-parked");
+      slot.appendChild(row);
+    } else if (modeRowHome) {
+      row.classList.remove("is-parked");
+      // Same guard as the toolbox's: the sibling recorded when the row was
       // parked may since have moved, and insertBefore throws rather than
       // ignoring it.
-      const { parent, next } = modeSwitchHome;
-      parent.insertBefore(switcher, next && next.parentNode === parent ? next : null);
-      modeSwitchHome = null;
+      const { parent, next } = modeRowHome;
+      parent.insertBefore(row, next && next.parentNode === parent ? next : null);
+      modeRowHome = null;
     }
   }
 
@@ -274,8 +284,8 @@
     // The studio's part card lives on `body`, so it outlives the studio unless
     // it is put away whenever the Model page is not the one up.
     if (mode !== "model") window.GeoIDMeshStudio?.closePartCard?.();
-    // Whichever full-screen page is up takes the switcher with it.
-    parkModeSwitch(mode === "model" ? "studio-mode-slot"
+    // Whichever full-screen page is up takes the row with it.
+    parkModeRow(mode === "model" ? "studio-mode-slot"
       : mode === "research" ? "research-mode-slot"
       : null);
     if (mode === "research") {
