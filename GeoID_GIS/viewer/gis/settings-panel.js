@@ -27,7 +27,7 @@ const FIELDS = [
   {
     name: "project",
     label: "Earth Engine project",
-    hint: "The Cloud project Earth Engine is enabled on, e.g. geoid-504623.",
+    hint: "The Cloud project Earth Engine is enabled on, e.g. my-project-123456.",
   },
 ];
 
@@ -37,19 +37,15 @@ export function looksSecret(value) {
   return v.startsWith("GOCSPX-") || (/^[A-Za-z0-9_-]{24}$/.test(v) && !v.endsWith(".apps.googleusercontent.com"));
 }
 
-// The project this deployment uses. A project id is not a credential — it
-// appears in every request URL — so it ships as the default and saves a step.
-// The Client ID is NOT here and cannot be: it is per-deployment, it lives in
-// the Google console beside the redirect-origin allowlist that protects it,
-// and inventing one would produce a sign-in that fails with a confusing error
-// rather than an honest empty field.
-// Both ship: a Client ID travels in the sign-in URL of every request that
-// uses it, and a project id is in every REST path. Neither is a secret —
-// what protects this pair is the Authorised JavaScript origins list in the
-// Google console, which is why the app checks the page's origin first.
+// SHIPPED BLANK. A Client ID and a project id are not secrets -- one travels
+// in every sign-in URL, the other in every REST path -- but they are THIS
+// deployment's own, and a published page that fills them in hands every
+// visitor a sign-in wired to somebody else's Cloud project. Each reader enters
+// their own; an empty field that says so beats a filled one that fails with a
+// console error about origins.
 const DEFAULTS = {
-  clientId: "473900633008-n15n9va0orhq6v0f5g83bjbeq6r6jhh9.apps.googleusercontent.com",
-  project: "geoid-504623",
+  clientId: "",
+  project: "",
 };
 
 export function read() {

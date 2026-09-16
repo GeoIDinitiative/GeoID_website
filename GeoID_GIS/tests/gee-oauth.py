@@ -31,8 +31,10 @@ import sys
 # lists, which reads as "the fix did not work" when the fix was never tested.
 # Pass the id as the first argument -- it is public, that is the whole point of
 # a browser client -- or edit Settings and pass what you pasted there.
-DEFAULT_CID = "473900633008-n15n9va0orhq6v0f5g83bjbeq6r6jhh9.apps.googleusercontent.com"
-CID = (sys.argv[1] if len(sys.argv) > 1 else DEFAULT_CID).strip()
+# No default: a real Client ID does not belong in a file the site publishes.
+if len(sys.argv) < 2:
+    sys.exit("usage: gee-oauth.py <client-id>   (the id from Settings or the Google console)")
+CID = sys.argv[1].strip()
 if not CID.endswith(".apps.googleusercontent.com"):
     CID += ".apps.googleusercontent.com"
 print(f"asking about {CID}\n")
