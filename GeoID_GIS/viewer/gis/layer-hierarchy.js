@@ -10,17 +10,17 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { bandOf } from "./draw-order.js?v=20260916-2870c0f";
-import { paintOpacity } from "./layer-opacity.js?v=20260916-2870c0f";
-import { currentBody } from "./bodies.js?v=20260916-2870c0f";
-import { samplerToRaster } from "./raster-analysis.js?v=20260916-2870c0f";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260916-2870c0f";
-import { datasetInfoButton } from "./catalogue-list.js?v=20260916-2870c0f";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260916-2870c0f";
+import { bandOf } from "./draw-order.js?v=20260916-2c5a8ad";
+import { paintOpacity } from "./layer-opacity.js?v=20260916-2c5a8ad";
+import { currentBody } from "./bodies.js?v=20260916-2c5a8ad";
+import { samplerToRaster } from "./raster-analysis.js?v=20260916-2c5a8ad";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260916-2c5a8ad";
+import { datasetInfoButton } from "./catalogue-list.js?v=20260916-2c5a8ad";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260916-2c5a8ad";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20260916-2870c0f";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260916-2870c0f";
+} from "./symbology-dialog.js?v=20260916-2c5a8ad";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260916-2c5a8ad";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -955,8 +955,21 @@ export function render() {
  */
 function activeBasemap() {
   const viewer = window.GeoIDViewer;
-  const id = viewer?.getBaseLayerId?.() || "";
+  /**
+   * THE SELECT IS THE FALLBACK, and on nine of the ten worlds it is the only
+   * answer. `getBaseLayerId` is on Earth's seam and on no planet viewer's
+   * (measured: `typeof` is "undefined" on Mars), so the id came back empty,
+   * no option matched it and no manifest entry was found -- and the row read
+   * "Basemap: Mars basemap" over a card carrying nothing but "shipped
+   * texture", where Earth's names the imagery and states its licence.
+   *
+   * `#base-layer-select` is what earth-viewer, basemap-drape and this file all
+   * already read as the authority for which texture is on, so asking it costs
+   * no new seam and no per-viewer port. Earth is untouched: its seam answers
+   * first.
+   */
   const select = document.getElementById("base-layer-select");
+  const id = viewer?.getBaseLayerId?.() || select?.value || "";
   const option = select ? [...select.options].find((o) => o.value === id) : null;
   const label = option?.textContent?.trim();
   const tiles = window.GeoIDBasemapDrape;
@@ -1698,8 +1711,11 @@ function init() {
   // first and swaps the texture, and this only has to land after it. rAF would
   // do that too until the tab stops compositing, at which point the row silently
   // stops following the dropdown -- which is exactly how it was caught.
-  document.getElementById("base-layer-select")?.addEventListener("change", () => {
-    setTimeout(render, 0);
+  // DELEGATED, because the element may not exist yet: the planet viewers build
+  // their panels after this module runs, so a listener bound to the node here
+  // bound to nothing and the row stopped following the dropdown on nine worlds.
+  document.addEventListener("change", (event) => {
+    if (event.target?.id === "base-layer-select") setTimeout(render, 0);
   });
   // Watched: how many layers there are, which basemap is drawn, and whether a
   // render has managed to land at all. The basemap is in there because the
@@ -1720,7 +1736,18 @@ function init() {
      * moment.
      */
     const built = layers().filter((layer) => layer.object3D).length;
-    const signature = `${layers().length}|${built}|${window.GeoIDViewer?.getBaseLayerId?.() || ""}`;
+    /**
+     * THE SELECT IS IN THE SIGNATURE, and on nine of the ten worlds it is the
+     * only part of it that moves. `getBaseLayerId` is Earth's seam alone, so
+     * on a planet this read "" for ever: the row was drawn once at boot with
+     * the fallback name, and neither the select becoming readable nor the
+     * reader switching texture ever changed the signature that would redraw
+     * it. Measured on Mars -- "Basemap: Mars basemap" until a hand-called
+     * `render()`, which produced "Basemap: Mars Color Map - Viking".
+     */
+    const baseId = window.GeoIDViewer?.getBaseLayerId?.()
+      || document.getElementById("base-layer-select")?.value || "";
+    const signature = `${layers().length}|${built}|${baseId}`;
     if (signature !== lastSignature || !mounted) { lastSignature = signature; render(); }
     window.setTimeout(poll, 700);
   };

@@ -28,7 +28,7 @@
  */
 const SHELL_STAMP = new URL(import.meta.url).search || "";
 const SHELL_URL = `/GeoID_GIS/viewer/gis/shell.html${SHELL_STAMP}`;
-const ATLAS_CSS = "/GeoID_GIS/viewer/gis/research/atlas.css?v=20260916-2870c0f";
+const ATLAS_CSS = "/GeoID_GIS/viewer/gis/research/atlas.css?v=20260916-2c5a8ad";
 
 /**
  * The Research Hub's stylesheet, loaded here rather than from ten <head>s.

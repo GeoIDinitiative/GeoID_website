@@ -22074,3 +22074,50 @@ Search at a rail height of 170 — Earth's own.
 is PRESENT.** Everything here was present on every world; the fault was four
 items visible on one and six on another, which reads as the richer one being
 right.
+
+### The Workspace ⓘ on the planets: present all along, and saying nothing
+
+Asked to ensure the planet viewers have it. Measured first: they do. On Mars,
+Jupiter and standalone Venus every Workspace row carries
+`.gis-catalogue-info-btn`, 16×16, styled (the `installStyle()` in
+`datasetInfoButton` doing its job), hit-testable, and opening its card — an
+imported layer's and the basemap's alike.
+
+**Two of my own probes said otherwise and both were the probe.** The first
+looked for a card by class when the element is `#gis-catalogue-info-pop` by id.
+The second clicked the same button a second time and read the TOGGLE as a
+failure to open. A card that reports `hidden: true` with the right content
+already in it has been opened and closed, not never opened.
+
+**What was genuinely wrong is what the card SAID.** On every planet it read
+`Basemap: <body> basemap` over one row, `Kind: shipped texture`, and nothing
+else — where Earth's names the imagery and states its licence.
+
+`activeBasemap()` reads `viewer.getBaseLayerId()` and looks the option and the
+manifest entry up by it. **That function is on EARTH'S SEAM ALONE** (measured
+on Mars: `typeof` is `"undefined"`), so the id came back empty, no option
+matched, no manifest entry was found, and everything downstream fell back. The
+select already knew — `#base-layer-select` is what earth-viewer, basemap-drape
+and this file all read as the authority for which texture is on — so it is the
+fallback now. No new seam, no per-viewer port, and Earth untouched because its
+seam answers first.
+
+**And the row then had to be redrawn when that answer arrives.** The dock's
+700 ms poll had `getBaseLayerId()` in its signature, which on a planet is `""`
+for ever — so neither the select becoming readable nor the reader switching
+texture ever changed it, and the row sat on the fallback name until something
+else happened to redraw. The select's value is in the signature, and the
+`change` listener is DELEGATED on the document because the planet viewers build
+their panels after this module runs, so one bound to the node bound to nothing.
+
+Measured after: Mars reads **"Basemap: Mars Color Map - Viking"** with
+*"USGS Viking global color mosaic basemap."* on its card, follows the dropdown
+to "TES Albedo" and back, and Earth is unchanged at "Basemap: Sentinel-2
+Cloudless" with its CC BY-NC-SA licence.
+
+**The credits for the planets' other textures are NOT invented.** What the card
+shows comes from each world's own manifest entry; where a texture's manifest
+carries no `attribution`, the card says what it can and no more. Filling those
+in means sourcing each mission's attribution, which is content to be confirmed
+rather than guessed — the rule this file already states for a
+licence-conditional dataset.
