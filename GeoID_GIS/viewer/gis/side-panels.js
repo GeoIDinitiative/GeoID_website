@@ -911,7 +911,9 @@ function setOpen(id, open) {
   let any = false;
   panels.forEach((entry, key) => {
     const on = key === id ? open : false;
-    if (on) any = true;
+    // Re-borrowed on the way open: the sidebar is settled by the time anyone
+    // presses a button, which it may not have been when the panel was built.
+    if (on) { any = true; adoptSidebarShell(entry.panel); }
     entry.panel.hidden = !on;
     entry.button?.classList.toggle("is-open", on);
     entry.button?.setAttribute("aria-expanded", on ? "true" : "false");
@@ -994,7 +996,24 @@ function adoptSidebarShell(panel) {
   const sidebar = document.getElementById("ui");
   if (!sidebar) return;
   const from = getComputedStyle(sidebar);
-  SHELL_PROPS.forEach((prop) => { panel.style[prop] = from[prop]; });
+  /**
+   * NEVER COPY A SIDEBAR THAT HAS NOT BEEN LAID OUT.
+   *
+   * The panels are built as the GIS layer boots, and on the nine planet pages
+   * that is before `#ui` has its shape: the shell injects and rearranges the
+   * sidebar after the page's own markup. A snapshot taken then wrote
+   * `width: 0px` inline, and inline beats every rule -- so Settings, pressed
+   * from the header on Mars, reported itself open (`isOpen: true`,
+   * `display: flex`, its sections all there at 3,203px tall) while being zero
+   * pixels wide at the screen edge. Earth builds its panels from settled
+   * markup, which is why the same press gave it 384px. A zero width is a
+   * sidebar that is not ready, not a width to adopt.
+   */
+  const ready = parseFloat(from.width) > 0;
+  SHELL_PROPS.forEach((prop) => {
+    if (prop === "width" && !ready) return;
+    panel.style[prop] = from[prop];
+  });
 }
 
 /**
