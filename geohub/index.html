@@ -1647,11 +1647,14 @@
         }
       }
 
-      // A PHONE'S HEADER HAS NO ROOM FOR IT, and the stylesheet hides the bar
-      // below 680px -- so the claim has to be conditional, or a narrow screen
-      // would have no mode switch at all: hidden here AND hidden in the viewer
-      // because this side said it had one.
-      const narrow = window.matchMedia("(max-width: 680px)");
+      // A NARROW HEADER HAS NO ROOM FOR IT, and the stylesheet hides the bar
+      // below 1400px -- the width at which the logo and the bar would reach
+      // the centred tab headers, which must not move. So the claim has to be
+      // conditional on the same width, or such a screen would have no mode
+      // switch at all: hidden here AND hidden in the viewer because this side
+      // said it had one. Below it the row goes back to the page, which is
+      // where it lived before.
+      const narrow = window.matchMedia("(max-width: 1399px)");
 
       // Telling the viewer the header has the bar is what makes the viewer
       // hide its own. Said on every answer rather than once, because a

@@ -21827,3 +21827,54 @@ framed there keeps its own row — correct by construction rather than by a case
 
 **site-nav.css is PRECACHED by the service worker**, so an edit to it needs
 `STATIC_CACHE` bumped in `sw.js` or returning visitors keep the old sheet.
+
+### Nestled against the logo, and the tab headers may not move
+
+"Move these buttons closer to left" then "ie the tab headers shouldn't have
+been moved — must always be positioned centrally". Both halves measured before
+either was touched, and the second one is the interesting half.
+
+**The wordmark grew.** `.nav-wordmark` is `flex: 1 1 0` and so is the
+membership group at the other end — **that pair is what centres `.nav-links`** —
+so the anchor stretched to 542px around a 106px image and the bar began
+458px right of the logo's ink.
+
+**AND A BAR IN THAT LINE IS WEIGHT ON ONE SIDE OF THE BALANCE.** Measured with
+the bar removed from the DOM entirely, the links land **dead centre, 0px off**.
+With it in the line they were **194px off**; handing the wordmark's growth to
+the bar improved it to 69 and did not fix it, because the fault is not how the
+slack is shared — it is that there is anything there at all.
+
+| | links off centre |
+| --- | --- |
+| no bar in the DOM | **0** |
+| bar in the line, wordmark growing | 194 |
+| bar in the line, bar growing | 69 |
+| links centred on the BAR | **0** |
+
+So the two are separated rather than balanced: the links are centred on the
+viewport (`position: absolute; left: 50%; translateX(-50%)`) instead of by
+whatever happens to sit either side of them, and the wordmark stops growing so
+the buttons sit 32px from the logo — the header's own gap, with no margin of
+the bar's own on top of it. Nothing added to this header can shift them again.
+
+**BELOW 1400px THE TWO CANNOT BOTH BE HAD, and that is arithmetic.** The logo
+and the bar together reach 518px and a centred 360px link block starts at half
+the width less 180, so they meet at about 1396. Under it the header hands the
+bar back to the page — where it lived before, and a perfectly good place for
+it — and the shell watches the same width, or such a screen would have no mode
+switch anywhere at all. Verified at 1300: the header's bar `display: none`, the
+row back at 31, and the links still 0px off centre.
+
+**Scoped four ways, each a case where the header must be exactly as it was**:
+`:has` for the twenty-one content pages that share this header and have no bar,
+`:not([hidden])` for a shell whose viewer has not answered yet, and the two
+widths. Verified on `/about/`: wordmark still `1 1 0`, links still `static`,
+still 0px off centre. A browser without `:has` drops the rule and gets the
+header it always had, which is the right way to fail.
+
+**A measurement that "proves" a layout is unaffected can be measuring its own
+rule.** The first check hid the bar with `display: none` and read the links at
+162 — because `:has(.nav-modebar:not([hidden]))` still matched an element that
+was merely not drawn, so the wordmark was still held at `0 0 auto`. Remove the
+NODE for a baseline, not its paint.

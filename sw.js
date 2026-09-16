@@ -3,7 +3,7 @@
 // key assets change significantly — this forces all clients to discard
 // stale cached copies on their next visit.
 
-const STATIC_CACHE = 'geoid-site-v46';  // v46: the mode bar in the header (site-nav.css)
+const STATIC_CACHE = 'geoid-site-v47';  // v47: the mode bar nestled against the logo (site-nav.css)
 
 // Pre-fetched at install time so they are cache-warm on first navigation
 const PRECACHE = [

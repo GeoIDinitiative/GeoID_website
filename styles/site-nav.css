@@ -299,10 +299,53 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-left: 22px;
+  /* No margin of its own: the header's own 32px gap is the rhythm between
+     everything in this bar, and 22 on top of it read as the buttons having
+     drifted away from the logo. */
+  margin-left: 0;
   flex: 0 0 auto;
 }
 .site-nav .nav-modebar[hidden] { display: none; }
+
+/* NESTLED AGAINST THE LOGO, and THE TAB HEADERS DO NOT MOVE.
+ *
+ * `.nav-wordmark` and the membership group are both `flex: 1 1 0`, and that
+ * pair is what centres `.nav-links`: measured with no bar at all, the links
+ * land dead centre (542 = 542 either side, 0px off). A bar added to the line
+ * is weight on one side of that balance and the links move with it -- 194px
+ * off centre where it was, 69 with the growth handed over. Either way they
+ * moved, and they are the one thing in this header that must not.
+ *
+ * So the two are separated: the links are centred on the BAR ITSELF rather
+ * than by what happens to sit either side of them, and the wordmark stops
+ * growing so the buttons sit against the logo. Nothing in the flow can move
+ * them again.
+ *
+ * Scoped four ways, each a case where the header must be exactly as it was:
+ * `:has` for the twenty-one content pages with no bar, `:not([hidden])` for a
+ * shell whose viewer has not answered, and the two widths below. A browser
+ * without `:has` drops the rule and gets the header it always had, which is
+ * the right way to fail.
+ */
+@media (min-width: 1400px) {
+  .site-nav:has(.nav-modebar:not([hidden])) .nav-wordmark { flex: 0 0 auto; }
+  .site-nav:has(.nav-modebar:not([hidden])) .nav-links {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
+/* BELOW 1400px THE TWO CANNOT BOTH BE HAD, and that is arithmetic rather than
+ * taste: the logo and the bar together reach 518px, and a centred 360px link
+ * block starts at half the width less 180 -- so they meet at about 1396. Under
+ * it the header hands the bar back to the page, which is where it lived
+ * before and is a perfectly good place for it. The shell watches this same
+ * width, or a screen would have no mode switch anywhere at all.
+ */
+@media (max-width: 1399px) {
+  .site-nav .nav-modebar { display: none; }
+}
 
 .site-nav .nav-modebar-modes {
   display: flex;

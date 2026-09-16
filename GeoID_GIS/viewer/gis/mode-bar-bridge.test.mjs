@@ -104,13 +104,26 @@ function fakeDoc({ mode = "gis", playing = false, music = true, project = true, 
   // A phone's header has no room, so the stylesheet hides the bar there — and
   // an unconditional claim would then leave no mode switch anywhere at all.
   const shell = strip(readFileSync(here("../../../geohub/index.html"), "utf8"));
-  check("a narrow screen hands the bar back to the page",
-    /const narrow = window\.matchMedia\("\(max-width: 680px\)"\);/.test(shell)
+  check("a narrow screen hands the bar back to the page, at the width the links need",
+    /const narrow = window\.matchMedia\("\(max-width: 1399px\)"\);/.test(shell)
     && /hosted: Boolean\(modeBar\) && !narrow\.matches,/.test(shell)
     && /narrow\.addEventListener\?\.\("change", claimModeBar\);/.test(shell));
   const nav = strip(readFileSync(here("../../../styles/site-nav.css"), "utf8"));
   check("and the stylesheet is the other half of that width",
-    /@media \(max-width: 680px\) \{\s*\.site-nav \.nav-modebar \{ display: none; \}/.test(nav));
+    /@media \(max-width: 1399px\) \{\s*\.site-nav \.nav-modebar \{ display: none; \}/.test(nav));
+
+  // THE TAB HEADERS MAY NOT MOVE. The wordmark and the membership group are
+  // both `flex: 1 1 0` and that pair is what centres the links -- measured with
+  // no bar, dead centre; measured with one in the line, 194px off and then 69.
+  // Centring them on the BAR takes them out of that balance for good, so
+  // nothing added to the header can shift them again.
+  check("the tab headers are centred on the bar, not on what sits either side",
+    /\.site-nav:has\(\.nav-modebar:not\(\[hidden\]\)\) \.nav-links \{\s*position: absolute;\s*left: 50%;\s*transform: translateX\(-50%\);/.test(nav)
+    && /\.site-nav:has\(\.nav-modebar:not\(\[hidden\]\)\) \.nav-wordmark \{ flex: 0 0 auto; \}/.test(nav));
+  // Scoped, or the twenty-one content pages that share this header change too.
+  check("and every rule that moves the header is scoped to a bar that is showing",
+    nav.split("\n").filter((l) => /\.nav-wordmark \{ flex|\.nav-links \{$/.test(l))
+      .every((l) => l.includes(":has(.nav-modebar:not([hidden]))")));
 
   // Hidden by a class, never the `hidden` attribute: the row is a flex item in
   // three hosts and every one of them sets `display`, which outranks it.
