@@ -248,10 +248,19 @@
   }
 
   /* ══ HERO — full-bleed cinematic slideshow ══════════════════════════ */
-  .hero { position: relative; height: 100svh; min-height: 620px; overflow: hidden; background: #000; }
+  /* THE HERO IS AS TALL AS ITS TALLEST SLIDE, and never shorter than the
+     viewport. It used to be exactly 100svh with the slides absolute inside
+     it, so a slide whose copy outgrew the viewport -- a four-line title over
+     a five-line lede at 930px wide -- was clipped at the TOP, under the nav,
+     because the copy is bottom-aligned above the rail. Stacking every slide
+     in one grid cell gives the hero the height of the biggest one, so the
+     page does not jump when the slides change and nothing is ever cut off. */
+  .hero { position: relative; display: grid; min-height: 100svh; overflow: hidden; background: #000; }
 
   .hs-slide {
-    position: absolute; inset: 0;
+    position: relative; grid-area: 1 / 1;
+    min-height: 620px;
+    display: flex; flex-direction: column;
     opacity: 0; visibility: hidden;
     transition: opacity 1.1s var(--ease), visibility 1.1s var(--ease);
   }
@@ -286,8 +295,11 @@
 
   .hs-body {
     position: relative; z-index: 3;
-    height: 100%;
+    flex: 1 1 auto;
     display: flex; align-items: flex-end;
+    /* Room for the fixed nav above, so a slide that fills the hero starts
+       its copy below the header rather than under it. */
+    padding-top: calc(var(--nav-h) + 28px);
     padding-bottom: clamp(96px, 16vh, 190px);
   }
   .hs-copy { max-width: 44rem; display: flex; flex-direction: column; align-items: flex-start; gap: 22px; }
@@ -653,7 +665,7 @@
   @media (max-width: 720px) {
     :root { --nav-h: 62px; }
     .hub-panes { grid-template-columns: 1fr; }
-    .hero { height: 100svh; min-height: 560px; }
+    .hs-slide { min-height: 560px; }
     .hs-body { padding-bottom: 150px; }
     .hs-scrim { background: linear-gradient(to top, rgba(4,5,7,0.95) 6%, rgba(4,5,7,0.55) 46%, rgba(4,5,7,0.30) 100%); }
     .hs-actions { width: 100%; }
@@ -755,8 +767,8 @@
       <div class="hs-scrim"></div>
       <div class="hs-body"><div class="shell"><div class="hs-copy">
         <span class="hs-tag">Membership · £49.99 a year</span>
-        <h1 class="hs-title">Become a member for <em>full access</em> to GeoID's hazard maps.</h1>
-        <p class="hs-lede">Landslide and slope stability driven by sixteen days of GFS rainfall, flood inundation by discharge, cyclone, seismic and volcanic ashfall from the full historical record, and sea level — each map on the same globe, each stating its method and sources. With rock properties, the Model Builder, Earth Engine and saving to your own disk.</p>
+        <h1 class="hs-title">Become a member for <em>full access</em>.</h1>
+        <p class="hs-lede">Full access to GeoID's six hazard maps — landslide and slope stability from sixteen days of GFS rainfall, flood by discharge, cyclone, seismic, volcanic ashfall and sea level — plus rock properties, the Model Builder, Earth Engine and saving to your own disk.</p>
         <div class="hs-actions">
           <a class="btn btn-solid" href="/membership/">Become a member <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
           <a class="btn btn-line" href="/about_geohub/#models">See the models</a>
