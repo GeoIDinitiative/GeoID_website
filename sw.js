@@ -3,7 +3,7 @@
 // key assets change significantly — this forces all clients to discard
 // stale cached copies on their next visit.
 
-const STATIC_CACHE = 'geoid-site-v49';  // v49: the recording's caption in the header (site-nav.css)
+const STATIC_CACHE = 'geoid-site-v50';  // v50: the project label moved right of the links (site-nav.css)
 
 // Pre-fetched at install time so they are cache-warm on first navigation
 const PRECACHE = [

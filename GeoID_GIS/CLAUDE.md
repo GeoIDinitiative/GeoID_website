@@ -22298,3 +22298,32 @@ it, not on an id no longer in the markup.
 **`guard()` short-circuits a project-scoped page**, so a probe with no project
 open finds none of that page's controls and reads as a button that failed to
 render. Open a project before measuring one.
+
+### And nothing may grow into the centred links
+
+My own regression, from centring the tab headers on the viewport. **Out of
+flow, the links stopped being PUSHED and started being DRAWN UNDER**: measured
+with a project open, the header's project label ran 568..660 against links
+beginning at 598 — **62px of overlap**, the name drawn through "Dashboard". It
+survived every check because that label is empty until a project is opened.
+
+The label moved to the right-hand group (between the hosted bar at 518 and the
+links at 598 there are 30px, and a project's name is not 30px), and the centre
+is now reserved against the flow either side of it.
+
+**THE CAP ALONE IS WORSE THAN NEITHER.** A `max-width` shrinks the box and
+leaves it ANCHORED WHERE THE FLOW PUT IT — measured, the group went
+550..1532 → **550..1116** and drew its whole contents across the links rather
+than shrinking. `margin-left: auto` takes the free space before `flex-grow`
+can, so the box sits against the right edge and the cap then makes the two
+shrinkable things in it — the label and the recording's caption — ellipsise.
+Both are needed, and the ORDER OF THE FREE-SPACE RULES is why.
+
+Measured at 1556 with a 47-character name and a caption both in the row: group
+974..1532, 16px clear, the label clipped to 100px, no overlap.
+
+**`store.listProjects()` answers `<body>/<name>` entries and `openProject`
+takes one of those** — passing `p.dir || p.name` opened a project called
+"undefined" and left a folder tree under that name in browser storage. There is
+no `deleteProject` on the store, so test projects made this way can only be
+cleared with the site's data.

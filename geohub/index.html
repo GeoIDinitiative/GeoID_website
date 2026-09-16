@@ -1406,11 +1406,6 @@
         title="Play music" aria-label="Play music">&#9654;</button>
     </div>
 
-    <!-- What is open in the viewer: project and world. Filled from the
-         "geoid:context" message the viewer sends; empty until it arrives, so
-         nothing flashes on a page where no viewer is framed. -->
-    <span class="nav-context" id="nav-context" aria-live="polite"></span>
-
     <ul class="nav-links">
       <li><a href="/">Dashboard</a></li>
       <li class="nav-dropdown">
@@ -1435,6 +1430,17 @@
          is why it is drawn hidden and revealed by the page's own answer. Its
          name comes from the page, so the credit travels with the control. -->
     <div class="nav-right-logo">
+      <!-- What is open in the viewer: project and world. Filled from the
+           "geoid:context" message the viewer sends; empty until it arrives, so
+           nothing flashes on a page where no viewer is framed.
+
+           ON THE RIGHT, because the left half has no room. The links are
+           centred on the VIEWPORT and taken out of flow, so a label beside the
+           mode bar no longer pushes them -- it runs UNDER them. Measured with a
+           project open: the label 568..660 against links beginning at 598, 62px
+           of overlap, the project's name drawn through "Dashboard". Truncating
+           cannot help; between the hosted bar and the links there are 30px. -->
+      <span class="nav-context" id="nav-context" aria-live="polite"></span>
       <button type="button" class="nav-music" id="nav-music" data-modebar="audio"
         title="Play" aria-label="Play" hidden>
         <span class="nav-music-glyph" aria-hidden="true">&#9654;</span>

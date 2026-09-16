@@ -79,23 +79,23 @@
   letter-spacing: 0.09em;
   text-transform: uppercase;
   color: rgba(var(--nav-accent-rgb, 120 200 255), 0.92);
-  margin-left: 18px;
-  /* Takes the slack so it stays beside the wordmark instead of drifting to the
-     far right whenever the links collapse into the burger -- which is the
-     width the myGeoID shell is usually seen at. */
-  margin-right: auto;
+  /* In the right-hand group now, ahead of the recording and the membership
+     actions: the links are centred on the viewport and out of flow, so there is
+     no room on the left of them for a label that grows. It keeps its own width
+     rather than taking slack, and gives way before the actions do. */
+  flex: 0 1 auto;
   min-width: 0;
-  max-width: 34ch;
+  max-width: 22ch;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .site-nav .nav-context:empty { display: none; }
 
-@media (max-width: 560px) {
-  /* Only on a phone, where the wordmark and the burger want the whole row.
-     900px was far too eager: the shell is routinely used below that, and this
-     is the one place that says which project and which world are open. */
+@media (max-width: 1099px) {
+  /* Below this the right group is the recording, Membership and Donate, and a
+     fourth thing in it crowds the links it now shares a row with. The hub's
+     own project chip says the same thing on the page itself. */
   .site-nav .nav-context { display: none; }
 }
 
@@ -333,6 +333,31 @@
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
+  }
+  /**
+   * AND THE CENTRE IS RESERVED AGAINST THE FLOW EITHER SIDE OF IT.
+   *
+   * Out of flow, the links no longer PUSH -- so anything that grows in the row
+   * runs underneath them instead, silently, and only once it is long enough.
+   * Measured with a project open: the label at 568..660 against links beginning
+   * at 598, drawn straight through "Dashboard".
+   *
+   * The links are 360px wide, so the right-hand group may reach no further
+   * left than half the viewport plus 180 and a gap. Capped, the one thing in it
+   * that can give way does: the project label and the recording's caption both
+   * ellipsise, and the actions keep their size. One rule, rather than a
+   * breakpoint per combination of what happens to be in the row.
+   */
+  .site-nav:has(.nav-modebar:not([hidden])) .nav-right-logo {
+    /* BOTH, and the cap alone is worse than neither. A max-width shrinks the
+       box and leaves it anchored where the flow put it -- measured, the group
+       went from 550..1532 to 550..1116 and drew its whole contents ACROSS the
+       links rather than shrinking. The auto margin takes the free space first,
+       so the box sits against the right edge and the cap then makes the two
+       things in it that can give way -- this label and the recording's caption
+       -- ellipsise instead. */
+    margin-left: auto;
+    max-width: calc(50vw - 220px);
   }
 }
 
