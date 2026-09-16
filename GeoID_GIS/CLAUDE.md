@@ -22424,3 +22424,40 @@ one bar rather than two looks.
 **Match what a page COMPUTES, not what its source says.** `/team/`'s own rule
 names `"Public Sans"` and the cascade overrides it with `"GeoID Nav Body"` —
 copying the source would have reproduced a declaration that does not win.
+
+## The mobile drawer, and why `site-nav.css` has a media query now
+
+The hamburger failed on **every page of the site** at phone width, and the
+script was never the problem: the click landed, `is-open` went on, and
+`.nav-links` computed `display: flex` at 167px tall. The header stayed 62px.
+
+`shared.css` had the mobile case right — `height: auto`, `min-height:
+var(--nav-h)`, `flex-wrap: wrap`, `overflow-y: auto` — and **`site-nav.css`
+loads after it and sets `height: var(--nav-h)` at the same specificity with no
+media query at all**. The drawer opened inside a box that could not grow and
+was clipped by that box's own `overflow-y: auto`, taking the hamburger out of
+the visible strip with it: a menu that opens invisibly and cannot be dismissed.
+
+The override lives in `site-nav.css`, beside the rule it corrects, so the two
+files cannot drift apart again. Two further rules came from the measurement
+rather than the reading: with the header wrapping, the toggle fell to top 420
+**under** 167px of links and 102px of actions, so the links and the sign-in row
+are ordered after it and the toggle takes the top row's free space.
+
+## `/about_myGeoID/` is now `/about_geohub/`, and the old path must keep forwarding
+
+The page's subject changed — GeoHUB is what it is about, and the hazard model
+is one section of it (`#how`) rather than the whole page. The old URL is in the
+wild, so `about_myGeoID/index.html` stays as a redirect stub: `rel=canonical`
+at the new URL, `noindex, follow`, a meta refresh and a `location.replace`.
+**Do not delete it**, and do not point new links at it.
+
+The rename touched the About dropdown and the About sub-bar in 22 pages. A
+blanket `>myGeoID App<` → `>GeoHUB<` sweep is too broad: it also caught an
+`<h3>` on `/about/` whose card body describes the Factor-of-Safety tracker, not
+the workspace. That heading is restored and the card points at
+`/about_geohub/#how`. The rest of the site still frames myGeoID as its own
+thing, deliberately — the rewrite was scoped to the one page.
+
+**Anchors are part of the rename.** `#geohub` on the old page became `#modes`
+on the new one, and `researchers/index.html` linked straight at it.

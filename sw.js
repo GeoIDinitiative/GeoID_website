@@ -3,7 +3,7 @@
 // key assets change significantly — this forces all clients to discard
 // stale cached copies on their next visit.
 
-const STATIC_CACHE = 'geoid-site-v54';  // v54: the mobile drawer can open again (site-nav.css)
+const STATIC_CACHE = 'geoid-site-v55';  // v55: the myGeoID page becomes /about_geohub/ (nav on every page)
 
 // Pre-fetched at install time so they are cache-warm on first navigation
 const PRECACHE = [

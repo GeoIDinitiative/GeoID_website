@@ -30,7 +30,7 @@
  *   top[i]    max(solid, water): the floor of the atmosphere
  */
 
-import { channelDepth } from "./inundation.js?v=20260916-6ceef95";
+import { channelDepth } from "./inundation.js?v=20260916-e94c613";
 
 /** A TIN with a different z array, and its own extremes. */
 export function tinWith(tin, z) {
