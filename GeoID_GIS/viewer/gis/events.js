@@ -16,7 +16,7 @@ import {
   gdacsPoints, resolveColour,
   MARKER_LIFT_MAX, liftForAltitude, dotSizePx, isQuake, publisherOf, restoreActive,
   stormCategory, stormScale, stormLabel, STORM_BASE_CAP, markerHitGeometry, nearestHit,
-} from "./event-sources.js?v=20260916-b88e8af";
+} from "./event-sources.js?v=20260916-1141f5f";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -1317,8 +1317,18 @@ function trackScale() {
          */
         const cap = points.userData.baseCap;
         const from = cap ? Math.min(size, cap) : size;
-        const want = from * (points.userData.sizeScale || 1)
-          * (pulsing ? 1 + PULSE_SIZE * phase : 1);
+        /**
+         * THE SIZE THE CLOUD WOULD BE WITHOUT THE BREATH, kept beside the one
+         * it is drawn at. Anything that has to MEASURE a marker -- the
+         * selection ring, and through it the card that sits beside the ring --
+         * must read this and not `material.size`, or it inherits the pulse:
+         * the ring's own note says it may not breathe, because it can only
+         * stay on the dot's circumference if it stays that size, and the card
+         * is placed a ring's radius clear of the dot.
+         */
+        const steady = from * (points.userData.sizeScale || 1);
+        points.userData.steadySize = steady;
+        const want = steady * (pulsing ? 1 + PULSE_SIZE * phase : 1);
         if (points.material.size !== want) points.material.size = want;
         if (pulsing) {
           // The glow, which is the bloom baked into the symbol coming up and
@@ -2162,7 +2172,10 @@ function markerSpriteFor(key) {
   if (!markers || !key) return 0;
   let found = 0;
   markers.traverse((node) => {
-    if (node.isPoints && node.name === `eonet-${key}`) found = node.material?.size || 0;
+    if (node.isPoints && node.name === `eonet-${key}`) {
+      // The steady size, never the drawn one: see the note where it is set.
+      found = node.userData.steadySize || node.material?.size || 0;
+    }
   });
   return found;
 }
@@ -2422,8 +2435,17 @@ function trackPopup() {
   let left = at.x + at.reach + gap;
   if (left + rect.width > window.innerWidth - 12) left = at.x - at.reach - gap - rect.width;
   const top = Math.min(Math.max(12, at.y - rect.height / 3), window.innerHeight - rect.height - 12);
-  node.style.left = `${Math.max(12, left)}px`;
-  node.style.top = `${top}px`;
+  /**
+   * WHOLE PIXELS, AND ONLY WHEN THEY CHANGE. This runs every frame, so a
+   * source that wobbles by a fraction of a pixel writes a new `left` sixty
+   * times a second and the card shimmers on a globe that is not moving.
+   * Rounding settles that, and skipping the write keeps the card off the
+   * style recalculation entirely while nothing is actually moving.
+   */
+  const x = Math.round(Math.max(12, left));
+  const y = Math.round(top);
+  if (node.dataset.atX !== String(x)) { node.style.left = `${x}px`; node.dataset.atX = String(x); }
+  if (node.dataset.atY !== String(y)) { node.style.top = `${y}px`; node.dataset.atY = String(y); }
   return true;
 }
 
@@ -2437,7 +2459,12 @@ function markRow(id) {
 function hidePopup() {
   window.GeoIDCardOwner?.release?.("event");
   const node = byId("event-popup");
-  if (node) { node.dataset.tracking = ""; node.style.visibility = ""; }
+  if (node) {
+    node.dataset.tracking = "";
+    node.style.visibility = "";
+    delete node.dataset.atX;
+    delete node.dataset.atY;
+  }
   node?.setAttribute("hidden", "");
   setSelection(null);
   markRow(null);
@@ -2464,6 +2491,11 @@ function placePopup(node, x, y) {
   const top = Math.min(atY + 12, window.innerHeight - rect.height - 12);
   node.style.left = `${Math.max(12, left)}px`;
   node.style.top = `${Math.max(12, top)}px`;
+  // This path writes the position itself, so the tracker's record of where it
+  // last put the card is now wrong. Left stale, a later frame that computed
+  // the same number would SKIP its write and leave this one standing.
+  delete node.dataset.atX;
+  delete node.dataset.atY;
 }
 
 /**
@@ -2655,8 +2687,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260916-b88e8af"),
-    import("./research/dsp.js?v=20260916-b88e8af"),
+    import("./seismogram-plot.js?v=20260916-1141f5f"),
+    import("./research/dsp.js?v=20260916-1141f5f"),
   ]);
   if (stale()) return;
 

@@ -159,6 +159,27 @@ check("under a NEW key, so a cached page mid-deploy cannot read one as the other
 check("and the old key is read once and retired",
   /removeItem\(LEGACY_STORE_KEY\)/.test(eventsSrc), true);
 
+/* ── the selected card does not shimmer on a globe that is not moving ────── */
+// The seismicity and the volcanoes breathe: `material.size` swings 16% every
+// frame. The selection ring is sized from a marker and the card is placed a
+// ring's radius clear of the dot, so reading the DRAWN size put that pulse
+// straight into the card's `left` -- measured at 3.2px of side-to-side travel
+// at 60fps with the spin paused and the camera still. The ring's own note
+// already said it may not breathe; what it read did.
+ok("the cloud keeps the size it would be WITHOUT the breath",
+  /points\.userData\.steadySize = steady;/.test(eventsSrc)
+  && /const want = steady \* \(pulsing \? 1 \+ PULSE_SIZE \* phase : 1\);/.test(eventsSrc));
+ok("and anything measuring a marker reads that, never the drawn size",
+  /found = node\.userData\.steadySize \|\| node\.material\?\.size \|\| 0;/.test(eventsSrc));
+ok("the tracker writes whole pixels, and only when they change",
+  /if \(node\.dataset\.atX !== String\(x\)\)/.test(eventsSrc)
+  && /if \(node\.dataset\.atY !== String\(y\)\)/.test(eventsSrc));
+// The other two placement paths write `left` themselves, so a stale record of
+// where the tracker last put the card would make a later frame skip a write it
+// needed.
+ok("and the record is cleared by every path that places the card another way",
+  (eventsSrc.match(/delete node\.dataset\.atX;/g) || []).length >= 2);
+
 /* ── the USGS conversion ──────────────────────────────────────────────────── */
 
 const source = sourceById("quakes-day");

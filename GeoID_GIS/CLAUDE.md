@@ -21602,3 +21602,46 @@ The four `.view-mode-switch.is-in-studio` rules are gone from both
 stylesheets. A test pinned one of them; its INTENT (a row of pills in the bar,
 not a stacked tile) still holds, so it was re-argued against the new mechanism
 rather than deleted.
+
+## The event card shimmered on a globe that was not moving
+
+"The pop-up moves side to side even when the view is static and rotation is
+paused." Measured on a paused globe with the camera still: the card's `left`
+travelled **3.2 px, sixty times a second, for as long as it was open**.
+
+The chain is four links and every one of them is doing its job:
+
+1. the seismicity and the volcano clouds BREATHE -- `material.size` swings by
+   `PULSE_SIZE` (16%) each frame. Measured live: 26.69 to 30.96 px.
+2. `applyHaloScale` sizes the selection ring from a marker, through
+   `markerSpriteFor`, which read `node.material.size` -- the DRAWN one.
+3. `dotOnScreen` reports `reach` as half the ring.
+4. `trackPopup` places the card at `dot.x + reach + gap`, every frame.
+
+So the pulse reached the card's left edge. **The ring's own comment already
+said it may not breathe** -- "it can only stay on the circumference if it
+stays that size" -- and its pulse loop is careful to vary opacity alone. What
+defeated that was the value it was sized FROM.
+
+The cloud now records `userData.steadySize`, the size it would be without the
+breath, beside the one it is drawn at, and anything MEASURING a marker reads
+that. Measured after: drawn size still swings 4.27 px, steady size and ring
+size spread **0.00**, card `left` spread **0**.
+
+Two things about verifying it:
+
+- **RE-INJECTING THIS FAULT BY DELETING `steadySize` PROVES NOTHING.** The
+  size loop runs every frame and writes it straight back, so the A/B came back
+  clean against a fault that was never restored. What measures it instead is
+  computing the left edge the pulsing reach WOULD have produced, from the two
+  sizes sampled in the same frame.
+- **The spin runs at 15 degrees an HOUR in real time.** Resuming it and
+  watching for 6 s moved the globe 0.0004 rad and the card not at all, which
+  reads as tracking being broken by the fix. `setTimeRate("lapse")` is what
+  exercises it: measured 55 px of travel while turning, 0 px paused either
+  side of it.
+
+`trackPopup` also writes whole pixels and only when they change, so no future
+sub-pixel source can put the card back on the style-recalculation path every
+frame. The two other placement paths clear that record, or a frame that
+computed the same number would skip a write it needed.
