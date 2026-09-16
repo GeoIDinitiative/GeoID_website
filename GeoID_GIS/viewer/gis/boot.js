@@ -1,4 +1,4 @@
-import { ready } from "./shell.js?v=20260916-2222f27";
+import { ready } from "./shell.js?v=20260916-9211f8d";
 
 /**
  * The GIS layer's entry point on a planet page.
@@ -23,6 +23,8 @@ const MODULES = [
   // strength table, so it belongs beside it.
   "./ground-profile.js",
   "./overlay-stack.js",
+  // The mode bar, when a shell's header is hosting it rather than a page.
+  "./mode-bar-bridge.js",
   // Core View cuts the planet in half on all ten worlds, and every layer on
   // the globe has to be cut with it -- including the ones loaded afterwards.
   "./cutaway.js",
@@ -108,7 +110,7 @@ const MODULES = [
   "./atlas-assistant.js",
 ];
 
-const VERSION = "?v=20260916-2222f27";
+const VERSION = "?v=20260916-9211f8d";
 
 async function boot() {
   const shell = await ready;

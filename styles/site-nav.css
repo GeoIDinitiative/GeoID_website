@@ -284,3 +284,97 @@
 @media (max-width: 720px) {
   .page-jump a.active::after { left: 0.2rem; right: 0.2rem; }
 }
+
+/* ── The mode bar, between the wordmark and the links ─────────────────────
+ *
+ * Only the app shell carries `#nav-modebar`, so these rules are inert on the
+ * twenty-one content pages that share this header.
+ *
+ * It speaks the HEADER'S language, not the app's: the nav's own ink, its own
+ * uppercase body face at its own tracking, and its accent for the mode that is
+ * open. The viewer's sidebar look would read as a panel that had escaped its
+ * page -- which is what it was.
+ */
+.site-nav .nav-modebar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 22px;
+  flex: 0 0 auto;
+}
+.site-nav .nav-modebar[hidden] { display: none; }
+
+.site-nav .nav-modebar-modes {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.site-nav .nav-modebar-pill {
+  font-family: "GeoID Nav Body", sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  /* ONE WIDTH FOR THE THREE, so the group cannot resize when a mode is
+     switched -- and the number is the widest of them at this size, measured:
+     RESEARCH is 87px where GIS and MODEL are 74, so a floor under that lets
+     the bar breathe on every press. */
+  min-width: 88px;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--nav-ink-2);
+  cursor: pointer;
+  transition: color .2s cubic-bezier(0.16, 0.84, 0.44, 1),
+              background-color .2s cubic-bezier(0.16, 0.84, 0.44, 1);
+}
+.site-nav .nav-modebar-pill:hover { color: var(--nav-ink); background: rgba(255, 255, 255, 0.06); }
+/* The open mode is the one loud thing in the group: filled in the nav's accent
+   with dark ink, which is how this header already says "you are here". */
+.site-nav .nav-modebar-pill.is-active {
+  color: #12030f;
+  background: var(--nav-accent);
+}
+.site-nav .nav-modebar-pill:focus-visible,
+.site-nav .nav-modebar-icon:focus-visible {
+  outline: 2px solid var(--nav-accent);
+  outline-offset: 2px;
+}
+
+.site-nav .nav-modebar-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: none;
+  color: var(--nav-ink-2);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color .2s, border-color .2s;
+}
+.site-nav .nav-modebar-icon:hover { color: var(--nav-ink); border-color: rgba(255, 255, 255, 0.28); }
+.site-nav .nav-modebar-icon svg { width: 16px; height: 16px; }
+.site-nav .nav-modebar-icon[hidden] { display: none; }
+.site-nav .nav-modebar-music.is-playing { color: var(--nav-accent); border-color: rgba(255, 62, 200, 0.45); }
+
+/* A phone's header is the wordmark and the burger. The mode switch is reachable
+   from the app's own pages there, and three pills plus two icons in a 62px bar
+   is a row that wraps. */
+@media (max-width: 860px) {
+  .site-nav .nav-modebar-pill { min-width: 0; padding: 7px 9px; letter-spacing: 0.04em; }
+  .site-nav .nav-modebar { margin-left: 14px; gap: 6px; }
+}
+@media (max-width: 680px) {
+  .site-nav .nav-modebar { display: none; }
+}

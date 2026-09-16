@@ -1386,6 +1386,26 @@
       <img class="nav-brand-icon" src="/assets/GeoID_logo_icon.png" alt="">
     </a>
 
+    <!-- THE MODE BAR, hosted here rather than by a page of the app. It used to
+         be re-parented into whichever page was on screen and each host then
+         decided where it landed -- which is why it could never be anchored.
+         Drawn empty and revealed only when the framed viewer answers, so a
+         page with no viewer shows nothing. Every button posts a press and does
+         nothing else: the behaviour stays in the viewer's own controls. -->
+    <div class="nav-modebar" id="nav-modebar" hidden>
+      <button type="button" class="nav-modebar-icon" data-modebar="project"
+        title="Projects" aria-label="Projects">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.4 4.2h4.2l1.2 1.5h5.8v6.8H2.4Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="nav-modebar-modes" role="group" aria-label="View mode">
+        <button type="button" class="nav-modebar-pill" data-modebar="gis">GIS</button>
+        <button type="button" class="nav-modebar-pill" data-modebar="model">Model</button>
+        <button type="button" class="nav-modebar-pill" data-modebar="research">Research</button>
+      </div>
+      <button type="button" class="nav-modebar-icon nav-modebar-music" data-modebar="music"
+        title="Play music" aria-label="Play music">&#9654;</button>
+    </div>
+
     <!-- What is open in the viewer: project and world. Filled from the
          "geoid:context" message the viewer sends; empty until it arrives, so
          nothing flashes on a page where no viewer is framed. -->
@@ -1597,6 +1617,92 @@
       const pinDisplay = document.getElementById("hub-pin-display");
       const shell      = document.getElementById("interface-main");
       const globeFrame = document.getElementById("globe-iframe");
+
+      /**
+       * THE MODE BAR LIVES IN THE HEADER, and everything it does happens in
+       * the viewer.
+       *
+       * It was re-parented into whichever page of the app was on screen -- the
+       * GIS sidebar, the Model ribbon, the Research shell row -- and each host
+       * then decided where it landed. Two could be made to agree; the third
+       * could not, because the Research hub's rail owns the first 96px of its
+       * own layout. A bar that moves is a bar whose position is three other
+       * layouts' business.
+       *
+       * A node belongs to one document, so the header cannot hold the viewer's
+       * row and draws its own. What crosses the frame is a PRESS and a STATE:
+       * every button here posts `geoid:modebar-press` and does nothing else,
+       * and the bridge on the other side clicks the viewer's real control --
+       * so a locked mode still refuses, the project dialog still opens its own
+       * way, and the player still runs its own error handling. This side holds
+       * no copy of any of that.
+       */
+      const modeBar = document.getElementById("nav-modebar");
+
+      function toViewer(message) {
+        try {
+          globeFrame?.contentWindow?.postMessage(message, "*");
+        } catch (error) {
+          /* the frame may not be ready yet; the next report re-syncs */
+        }
+      }
+
+      // A PHONE'S HEADER HAS NO ROOM FOR IT, and the stylesheet hides the bar
+      // below 680px -- so the claim has to be conditional, or a narrow screen
+      // would have no mode switch at all: hidden here AND hidden in the viewer
+      // because this side said it had one.
+      const narrow = window.matchMedia("(max-width: 680px)");
+
+      // Telling the viewer the header has the bar is what makes the viewer
+      // hide its own. Said on every answer rather than once, because a
+      // navigation inside the frame is a new document with a new row in it.
+      function claimModeBar() {
+        toViewer({
+          type: "geoid:modebar-host",
+          hosted: Boolean(modeBar) && !narrow.matches,
+        });
+      }
+
+      // Crossing that width hands the bar back to the page and takes it again.
+      narrow.addEventListener?.("change", claimModeBar);
+
+      function renderModeBar(state) {
+        if (!modeBar) return;
+        modeBar.hidden = false;
+        for (const btn of modeBar.querySelectorAll("[data-modebar]")) {
+          const target = btn.dataset.modebar;
+          if (target === "music") {
+            const on = Boolean(state.music?.present);
+            btn.hidden = !on;
+            const playing = Boolean(state.music?.playing);
+            btn.textContent = playing ? "\u23F8" : "\u25B6";
+            btn.title = playing ? "Pause music" : "Play music";
+            btn.setAttribute("aria-label", btn.title);
+            btn.classList.toggle("is-playing", playing);
+          } else if (target === "project") {
+            btn.hidden = !state.project;
+          } else {
+            const known = Array.isArray(state.modes) ? state.modes.includes(target) : true;
+            btn.hidden = !known;
+            const active = state.mode === target
+              || (target === "gis" && state.mode === "geoid");
+            btn.classList.toggle("is-active", active);
+            btn.setAttribute("aria-pressed", active ? "true" : "false");
+          }
+        }
+      }
+
+      modeBar?.addEventListener("click", (event) => {
+        const btn = event.target.closest("[data-modebar]");
+        if (!btn) return;
+        toViewer({ type: "geoid:modebar-press", target: btn.dataset.modebar });
+      });
+
+      // The frame may load before or after this script runs, so both are
+      // covered: the claim on load, and the viewer's own "ready" on the other
+      // side of the listener above.
+      globeFrame?.addEventListener("load", claimModeBar);
+      claimModeBar();
       const exitSelectionBtn = document.getElementById("hub-exit-selection");
       const plotModal = document.getElementById("plot-modal");
       const plotModalTitle = document.getElementById("plot-modal-title");
@@ -2228,6 +2334,15 @@
             setDrawerOpen(false);
           }
         };
+
+        // The mode bar in the header: what the viewer's OWN controls say
+        // about themselves, redrawn here. Nothing about the app's state is
+        // decided on this side.
+        if (msg.type === "geoid:modebar" || msg.type === "geoid:modebar-ready") {
+          if (msg.type === "geoid:modebar-ready") { claimModeBar(); return; }
+          renderModeBar(msg);
+          return;
+        }
 
         // The open project, reported by the viewer. The header is outside the
         // iframe and cannot read the store, so it is told.

@@ -1,0 +1,131 @@
+/**
+ * The mode bar, hosted by the SHELL'S HEADER rather than by a page of the app.
+ *
+ * `.brand-toprow` used to be re-parented into whichever page was on screen --
+ * the GIS sidebar, the Model ribbon, the Research shell row -- and each host
+ * then decided where it landed. Two of the three could be made to agree
+ * (31, 33 and 31, 20); the third could not, because the Research hub's rail
+ * owns the first 96px of its own layout, so the row sat at 106 there. A bar
+ * that moves is a bar whose position is three other layouts' business.
+ *
+ * So when this viewer is FRAMED by a shell that has a header, the header hosts
+ * it: one bar, at one place, that does not move when the page under it does.
+ *
+ * WHAT CROSSES THE FRAME IS A PRESS AND A STATE, NEVER A BEHAVIOUR. The shell
+ * cannot hold the DOM -- a node belongs to one document -- so it draws its own
+ * buttons, and every one of them posts `geoid:modebar-press` and does nothing
+ * else. This module answers by CLICKING THE VIEWER'S OWN CONTROL, so the mode
+ * switch, the project dialog and the music player each keep exactly one
+ * implementation and the shell cannot drift from them. The reverse direction
+ * is the same shape: `geoid:modebar` reports what the viewer's own controls
+ * say about themselves, read off those elements rather than remembered here.
+ *
+ * Standalone -- the viewer opened on its own, and the nine planet pages, none
+ * of which loads the site header -- nothing here applies and the in-page row
+ * is exactly what it always was. That is why the row is HIDDEN rather than
+ * removed: the shell announcing itself is what hides it, so a page with no
+ * shell keeps its own bar with no condition to get wrong.
+ */
+
+const TARGETS = {
+  gis: "view-mode-gis",
+  model: "view-mode-model",
+  research: "view-mode-research",
+  project: "project-open-modal",
+  music: "music-btn",
+};
+
+/** The viewer's own control for a name the shell can press. */
+function controlFor(target, doc) {
+  const id = TARGETS[target];
+  return id ? doc.getElementById(id) : null;
+}
+
+/**
+ * What the shell's copy has to draw, read off the controls THEMSELVES.
+ *
+ * Not from this module's own memory of what it last did: the mode is changed
+ * by a key, by a link, by the studio standing a locked mode down, and a bar
+ * that remembered its own presses would report a mode the page had left.
+ */
+export function modeBarState(doc = document) {
+  const music = doc.getElementById("music-btn");
+  const project = doc.getElementById("project-open-modal");
+  const modes = ["gis", "model", "research"].filter((m) => doc.getElementById(TARGETS[m]));
+  return {
+    mode: doc.body?.dataset?.viewMode || "gis",
+    modes,
+    project: Boolean(project),
+    music: music
+      ? { present: true, playing: !music.classList.contains("is-paused") }
+      : { present: false, playing: false },
+  };
+}
+
+/**
+ * A press is a CLICK ON THE REAL CONTROL, which is the whole point: a locked
+ * mode still refuses, the project dialog still opens its own way, and the
+ * music button still runs the playlist's own error handling.
+ */
+export function pressModeBarTarget(target, doc = document) {
+  const el = controlFor(target, doc);
+  if (!el || el.disabled) return false;
+  el.click();
+  return true;
+}
+
+function install() {
+  if (typeof window === "undefined" || !window.addEventListener) return;
+  // Not framed: this viewer has no shell to host anything, and its own row is
+  // already where it belongs.
+  if (window.self === window.top) return;
+
+  let hosted = false;
+
+  const report = () => {
+    if (!hosted) return;
+    try {
+      window.parent.postMessage({ type: "geoid:modebar", ...modeBarState() }, "*");
+    } catch (error) {
+      /* cross-origin parent, ignore */
+    }
+  };
+
+  window.addEventListener("message", (event) => {
+    const msg = event.data;
+    if (!msg || typeof msg !== "object") return;
+
+    if (msg.type === "geoid:modebar-host") {
+      // The shell is drawing the bar, so this page stops drawing its own. A
+      // class rather than `hidden`: the row is a flex item in three different
+      // hosts and every one of them sets `display`, which outranks the
+      // attribute -- the trap this tree has paid for five times.
+      hosted = msg.hosted !== false;
+      document.body.classList.toggle("modebar-hosted", hosted);
+      report();
+      return;
+    }
+
+    if (msg.type === "geoid:modebar-press") {
+      if (pressModeBarTarget(msg.target)) report();
+    }
+  });
+
+  // Every seam that can move the state, rather than a poll: the mode is
+  // stamped onto <body> by mode-manager, and the music button rewrites its own
+  // class when the audio starts or stops.
+  const watch = new MutationObserver(report);
+  watch.observe(document.body, { attributes: true, attributeFilter: ["data-view-mode"] });
+  const music = document.getElementById("music-btn");
+  if (music) watch.observe(music, { attributes: true, attributeFilter: ["class"] });
+
+  // The shell may be listening before this module loads or after it; saying so
+  // once on load covers the first, and the host message covers the second.
+  try {
+    window.parent.postMessage({ type: "geoid:modebar-ready" }, "*");
+  } catch (error) {
+    /* cross-origin parent, ignore */
+  }
+}
+
+install();

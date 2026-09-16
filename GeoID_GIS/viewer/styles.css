@@ -5974,3 +5974,23 @@ canvas {
    that is the only one there is. Parked, the button is part of this row and
    travels with it, so this has to outrank that rule's `!important`. */
 body.studio-open .brand-toprow.is-parked #music-btn { display: inline-flex !important; }
+
+/* ── The row, when the SHELL'S HEADER is drawing it ───────────────────────
+ *
+ * Framed by a shell that hosts the bar, this page stops drawing its own: one
+ * bar, in one place, that does not move when the page under it does. A class
+ * and `!important`, because the row is a flex item in three hosts and every
+ * one of them sets `display` -- which outranks the `hidden` attribute, the
+ * trap this tree has paid for five times.
+ *
+ * Standalone, and on the nine planet pages, nothing sets this and the row is
+ * exactly what it always was.
+ */
+body.modebar-hosted .brand-toprow { display: none !important; }
+/* With the row gone the slots are empty spans, and their host's `gap`
+   still spends a step on them. `parkModeRow` goes on moving the hidden row
+   between them, because the standalone page needs that and a second rule
+   about when to park is a second rule to get wrong. */
+body.modebar-hosted #studio-mode-slot,
+body.modebar-hosted #research-mode-slot { display: none !important; }
+body.modebar-hosted.studio-open .brand-toprow.is-parked #music-btn { display: none !important; }

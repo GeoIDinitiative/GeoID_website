@@ -21755,3 +21755,75 @@ The `y` still differs by design: 33 on GIS, 20 on Model. The GIS row sits
 INSIDE the sidebar panel, below its top edge; the studio's bar is the topmost
 thing on its page. Matching it would push the ribbon down and take the deck
 below it along, since the deck is placed from `--studio-chrome-h`.
+
+## The mode bar is the SHELL'S HEADER's, and what crosses the frame is a press
+
+The row was re-parented into whichever page was on screen — the GIS sidebar,
+the Model ribbon, the Research shell row — so its position was three other
+layouts' business. Two could be brought into line (31, 33 and 31, 20); the
+third could not, because the Research hub's rail owns the first 96px of its own
+layout and the row sat at 106 there. **A bar that moves is a bar that cannot be
+anchored**, and three rounds of chasing it is what says to stop moving it.
+
+It lives in the site header now, between the wordmark and the links, where
+`.nav-context` already sits. Measured across all three modes: **left 415 in
+every one**, and it does not move when the mode changes.
+
+**A NODE BELONGS TO ONE DOCUMENT.** The header is in the shell
+(`geohub/index.html`, `position: fixed`, 72px, with the iframe starting at
+y=72); the row is in the viewer. So the header cannot hold the row and draws
+its own buttons — and that is a second set of controls, which is exactly the
+drift this file records for the clip button, the extraction dialog and the
+click sound. What keeps it from being a second implementation is that **only a
+PRESS and a STATE cross the frame**:
+
+| | |
+| --- | --- |
+| `geoid:modebar-press` | the shell → the viewer, which **clicks the real control** |
+| `geoid:modebar` | the viewer → the shell, read off those controls' own DOM |
+| `geoid:modebar-host` | the shell saying it has the bar, which is what hides the row |
+
+So a locked mode still refuses (a disabled control is left alone), the project
+dialog still opens its own way, and the player still runs its own playlist
+error handling. `mode-bar-bridge.js` holds no copy of any of it, and the shell
+holds no `setMode`, no storage and no audio — pinned in both directions.
+
+**The state is READ, never remembered.** The mode is changed by a key, by a
+link and by the studio standing a locked mode down; a bar that remembered its
+own presses would report a mode the page had left. `modeBarState` reads
+`body.dataset.viewMode` and the music button's own `is-paused` class, and a
+control the page does not have is not offered at all rather than drawn greyed —
+which is what keeps the nine planet pages honest.
+
+**TWO PAGES MUST KEEP THEIR OWN ROW, and one of them is a width.** The viewer
+opened standalone and the nine planet viewers load no site header at all
+(measured: zero occurrences of `site-nav.css` in either), so the row is
+**hidden by a class the shell sets** rather than removed — a page with no shell
+has nothing to get wrong. And the header has no room on a phone, so the
+stylesheet drops the bar below 680px; the claim is conditional on that same
+width (`matchMedia`, re-claimed on `change`) or a narrow screen would have no
+mode switch anywhere — hidden in the header AND hidden in the viewer because
+this side said it had one. Verified live at 600px: the header's bar `display:
+none`, the viewer's row back at 31, and the handover crossing both ways with no
+reload.
+
+Hidden by a CLASS with `!important`, never the `hidden` attribute: the row is a
+flex item in three hosts and every one of them sets `display`, which outranks
+the attribute — the trap this tree has paid for five times. `parkModeRow` goes
+on moving the hidden row between the slots, because the standalone page needs
+that and a second rule about when to park is a second rule to get wrong; the
+empty slots are hidden so their host's `gap` does not spend a step on them.
+
+**The bar speaks the HEADER's language**, not the app's: the nav's own ink, its
+uppercase body face at its own tracking, and its accent filling the open mode
+in dark ink, which is how this header already says "you are here". The viewer's
+sidebar look would read as a panel that had escaped its page, which is what it
+was. The three pills share **one width, 88px — the widest of them measured**,
+so the group cannot resize on a press and walk the bar sideways.
+
+`GeoID_GIS/index.html` is a superseded second copy of this shell (`rel=canonical`
+to `/geohub/`, nothing links to it). It does not claim the bar, so a viewer
+framed there keeps its own row — correct by construction rather than by a case.
+
+**site-nav.css is PRECACHED by the service worker**, so an edit to it needs
+`STATIC_CACHE` bumped in `sw.js` or returning visitors keep the old sheet.
