@@ -1,17 +1,17 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260916-811a07b";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260916-811a07b";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260916-a275e72";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260916-a275e72";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260916-811a07b";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260916-811a07b";
-import { downloadText } from "./extraction.js?v=20260916-811a07b";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260916-811a07b";
-import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260916-811a07b";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260916-811a07b";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260916-811a07b";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260916-811a07b";
-import { femSpec } from "./model-build.js?v=20260916-811a07b";
+} from "./mesh-volume.js?v=20260916-a275e72";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260916-a275e72";
+import { downloadText } from "./extraction.js?v=20260916-a275e72";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260916-a275e72";
+import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260916-a275e72";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260916-a275e72";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260916-a275e72";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260916-a275e72";
+import { femSpec } from "./model-build.js?v=20260916-a275e72";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //

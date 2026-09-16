@@ -175,6 +175,55 @@ export function peopleOnGrid(pop, grid) {
   return out;
 }
 
+/**
+ * WHETHER A HAZARD GRID IS READ AT POPULATION RESOLUTION.
+ *
+ * A grid FINER than the population cells is read on its own cells, each
+ * taking its area share of the people (peopleOnGrid), which puts a study
+ * area's edge where the hazard grid puts it. A grid that is NOT finer cannot:
+ * peopleOnGrid then hands each hazard cell the WHOLE population cells whose
+ * centres fall in it, and a hazard cell whose centre is inside the area takes
+ * whole rows of people from outside it. Measured on a 22 x 16 km area on the
+ * Amalfi coast, read through a sea-level sheet only 1.14 times coarser than
+ * WorldPop: 170,554 people against 110,233, because the densest row of the
+ * Sorrento plain, just north of the box, fell into the box's top row of
+ * hazard cells.
+ *
+ * So such a grid is read the other way round: every population cell whose
+ * centre is inside the area looks the hazard up under that centre. That is
+ * exactly how a risk polygon map is read, so the two agree about who lives in
+ * the area. Past half a population cell of area the hazard grid is fine
+ * enough that its own cells are the better edge.
+ */
+export function readsAtPopulation(pop, grid) {
+  const pb = boxOf(pop?.bounds); const gb = boxOf(grid?.bounds);
+  if (!pb || !gb || !pop.width || !pop.height || !grid.width || !grid.height) return false;
+  const popCell = ((pb.east - pb.west) / pop.width) * ((pb.north - pb.south) / pop.height);
+  const gridCell = ((gb.east - gb.west) / grid.width) * ((gb.north - gb.south) / grid.height);
+  return gridCell >= popCell / 2;
+}
+
+/**
+ * The hazard value under a point, or null where there is no reading: off the
+ * grid, outside `mask` (cells a model left out), or no data.
+ */
+export function gridValueAt(grid, values, { noData = null, mask = null } = {}) {
+  const b = boxOf(grid?.bounds);
+  if (!b) return () => null;
+  const dx = (b.east - b.west) / grid.width;
+  const dy = (b.north - b.south) / grid.height;
+  return (lon, lat) => {
+    const x = Math.floor((lon - b.west) / dx);
+    const y = Math.floor((b.north - lat) / dy);
+    if (x < 0 || y < 0 || x >= grid.width || y >= grid.height) return null;
+    const i = y * grid.width + x;
+    if (mask && !mask[i]) return null;
+    const v = values[i];
+    if (!Number.isFinite(v) || v <= -1e30 || (noData !== null && v === noData)) return null;
+    return v;
+  };
+}
+
 /** Which cells of a grid have their centre inside the study polygons: 1 inside. */
 export function polygonMask(grid, polys) {
   const gb = boxOf(grid.bounds);

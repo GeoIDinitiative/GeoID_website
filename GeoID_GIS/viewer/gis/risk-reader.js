@@ -25,13 +25,13 @@
  */
 
 import {
-  polygonsOf, polygonIndex, peopleOnGrid, polygonMask, cellKm2, boxOf,
-} from "./exposure.js?v=20260916-811a07b";
+  polygonsOf, polygonIndex, peopleOnGrid, polygonMask, cellKm2, boxOf, readsAtPopulation, gridValueAt,
+} from "./exposure.js?v=20260916-a275e72";
 import {
   SCHEMES, chanceScheme, bandScheme, schemeForLayerName, riskLayerKind, assessGrid, assessPopulation,
   groupByFeature, summarySentence, windLookup,
-} from "./risk-assessment.js?v=20260916-811a07b";
-import { resolvePolygonRings } from "./extent-picker.js?v=20260916-811a07b";
+} from "./risk-assessment.js?v=20260916-a275e72";
+import { resolvePolygonRings, drawnPolygonLayers } from "./extent-picker.js?v=20260916-a275e72";
 
 const search = new URL(import.meta.url).search;
 const FORECAST_NAME = /^Landslide risk — forecast/;
@@ -51,6 +51,9 @@ export function riskMapKind(layer) {
   const feats = featuresOf(layer);
   if (layer.raster?.band && layer.raster.width) {
     if (/river corridor/i.test(name)) return { kind: "riverzones", auto: true, label: "River corridor zones" };
+    // A FALLING sea draws the seabed it exposes, which is nobody's home: only a
+    // rising one is a hazard to people. The sheet says which in its legend.
+    if (/^sea level/i.test(name) && /seabed/i.test(String(layer.legendInfo?.label || ""))) return null;
     const scheme = schemeForLayerName(name);
     if (scheme) return { kind: "grid", auto: true, label: scheme.hazard };
     return { kind: "bands", auto: false, label: "Value bands" };
@@ -207,6 +210,87 @@ function boxArea(box, label) {
   return { label, polys, own: true };
 }
 
+/* ── study areas ────────────────────────────────────────────────────────── */
+
+/** Two boxes the same to a hundredth of a metre's worth of degree. */
+const sameBox = (a, b) => a && b && ["west", "east", "south", "north"].every((k) => Math.abs(a[k] - b[k]) < 1e-4);
+
+/**
+ * EVERY STUDY AREA ON THE GLOBE, as the reader reads them: each drawn polygon
+ * layer that is shown, in the order drawn, and the shape the Draw tool is
+ * holding if it has not become a layer yet. A study area is the unit the risk
+ * reader answers for -- people at risk IN a place, from every hazard map over
+ * it -- so a second area is its own reading, not a replacement for the first.
+ * `{ id, name, layerId, polys, box }`.
+ */
+export function studyAreas() {
+  const out = [];
+  for (const layer of drawnPolygonLayers()) {
+    if (layer.visible === false || layer.object3D?.visible === false) continue;
+    const got = resolvePolygonRings(`layer:${layer.id}`, { arm: false });
+    const area = got && !got.error ? areaFromRings(got) : null;
+    if (!area) continue;
+    out.push({ id: `layer:${layer.id}`, name: layer.name, layerId: String(layer.id), polys: area.polys, box: ringsBox(area.polys) });
+  }
+  const viewer = typeof window !== "undefined" ? window.GeoIDViewer : null;
+  const live = viewer?.getExtractionGeometry?.("study") || viewer?.getExtractionGeometry?.("buffer");
+  if (live?.vertices?.length >= 3) {
+    const area = areaFromRings({ label: "The area being drawn", rings: [{ vertices: live.vertices, holes: [], center: live.center }] });
+    if (area) {
+      const box = ringsBox(area.polys);
+      // Captured already: the overlay and the layer are the same shape.
+      if (!out.some((a) => sameBox(a.box, box))) out.push({ id: "drawing", name: "The area being drawn", layerId: null, polys: area.polys, box });
+    }
+  }
+  return out;
+}
+
+/** The bounding box of any GeoJSON geometry, lines and points included. */
+function geometryBox(g) {
+  let w = Infinity; let e = -Infinity; let s = Infinity; let n = -Infinity;
+  const walk = (c) => {
+    if (!Array.isArray(c)) return;
+    if (typeof c[0] === "number") {
+      const x = unwrap(c[0]); const y = c[1];
+      if (x < w) w = x; if (x > e) e = x; if (y < s) s = y; if (y > n) n = y;
+      return;
+    }
+    c.forEach(walk);
+  };
+  if (g?.type === "GeometryCollection") (g.geometries || []).forEach((q) => walk(q?.coordinates));
+  else walk(g?.coordinates);
+  return Number.isFinite(w) ? { west: w, east: e, south: s, north: n } : null;
+}
+
+const featureBoxes = new WeakMap();
+function boxesOf(feats) {
+  if (!featureBoxes.has(feats)) featureBoxes.set(feats, feats.map((f) => geometryBox(f?.geometry)));
+  return featureBoxes.get(feats);
+}
+
+/**
+ * WHETHER A HAZARD MAP REACHES A STUDY AREA: its grid's bounds, the forecast's
+ * box, or any one of its features, meets the area's box. A sheet built over the
+ * view reaches only the areas in that view; a global record reaches them all.
+ * `member` is `{ layer, kind }` as `riskMaps` gives it.
+ */
+export function coversBox(member, box) {
+  if (!member?.layer || !box) return false;
+  const layer = member.layer;
+  if (member.kind === "forecast") {
+    const ring = (typeof window !== "undefined" ? window.GeoIDLandslidePipeline?.exposureSource?.()?.ring : null);
+    if (!ring) return false;
+    const [[w, s], , [e, n]] = ring;
+    return boxesMeet({ west: w, east: e, south: s, north: n }, box);
+  }
+  if (layer.raster?.band) return boxesMeet(boxOf(layer.raster.bounds || layer.bounds), box);
+  const feats = featuresOf(layer);
+  if (!feats.length) return false;
+  const whole = boxOf(layer.bounds);
+  if (whole && !boxesMeet(whole, box)) return false;
+  return boxesOf(feats).some((b) => boxesMeet(b, box));
+}
+
 /** An explicitly chosen area: "drawn", or "layer:<id>". */
 export function areaFor(choice) {
   const got = resolvePolygonRings(choice, { arm: false });
@@ -291,7 +375,8 @@ export async function countsUnder(box) {
   const read = await readCounts(want).catch(() => new Promise((r) => setTimeout(r, 800)).then(() => readCounts(want)));
   if (!read) throw new Error("WorldPop has no data under that area.");
   popCache.set(key, read);
-  while (popCache.size > 6) popCache.delete(popCache.keys().next().value);
+  // A box per study area (and one for the view), each read against every map over it.
+  while (popCache.size > 24) popCache.delete(popCache.keys().next().value);
   return read;
 }
 
@@ -352,18 +437,36 @@ async function gridBreakdowns(layer, area, scheme, { values = null, grid = null,
   const band = values || r.band;
   const gb = boxOf(g.bounds);
   const pop = await countsUnder(ringsBox(area.polys));
-  const people = peopleOnGrid(pop, g);
   const maskOf = (polys) => {
     const m = polygonMask(g, polys);
     if (mask0) for (let i = 0; i < m.length; i += 1) if (!mask0[i]) m[i] = 0;
     return m;
   };
-  const run = (polys, m) => assessGrid({ people, values: band, mask: m, width: g.width, height: g.height, bounds: g.bounds, scheme, noData, outside: offGrid(pop, gb, polys) });
   const mask = maskOf(area.polys);
-  const main = run(area.polys, mask);
+  /**
+   * A MAP TOO COARSE TO SEE THE AREA is not an area with nobody in it. A sheet
+   * built over the whole globe has cells half a degree across, and a 20 km
+   * study area can fall between their centres: every cell is masked out and
+   * the reading would say "0 people". Say what happened instead, so the answer
+   * is to zoom in -- which rebuilds the sheet finer and reads it again.
+   */
+  if (!mask0 && gb && !mask.some(Boolean)) {
+    const lat = (gb.north + gb.south) / 2;
+    const km = Math.round(((gb.east - gb.west) / g.width) * 111.32 * Math.cos((lat * Math.PI) / 180));
+    throw new Error(`Too coarse here: this map's cells are about ${km.toLocaleString("en-GB")} km across, wider than the study area. Zoom in over the area and it is read again.`);
+  }
+  // A grid not finer than the people is read at THEIR cells (readsAtPopulation
+  // says why): the same people a risk polygon map counts in the same area.
+  const atPopulation = readsAtPopulation(pop, g);
+  const people = atPopulation ? null : peopleOnGrid(pop, g);
+  const read = (polys, vals, sch) => (atPopulation
+    ? assessPopulation({ pop, polys, schemes: [{ scheme: sch, valueAt: gridValueAt(g, vals, { noData, mask: mask0 }) }] })[0]
+    : assessGrid({ people, values: vals, mask: polys === area.polys ? mask : maskOf(polys), width: g.width, height: g.height, bounds: g.bounds, scheme: sch, noData, outside: offGrid(pop, gb, polys) }));
+  const main = read(area.polys, band, scheme);
   const { groups, truncated } = groupByFeature(area.polys);
-  const byPolygon = groups.length > 1 ? groups.map((q) => ({ name: q.name, breakdown: run(q.polys, maskOf(q.polys)) })) : [];
-  return { main, byPolygon, truncated, pop, people, mask, run, maskOf };
+  const byPolygon = groups.length > 1 ? groups.map((q) => ({ name: q.name, breakdown: read(q.polys, band, scheme) })) : [];
+  // Another band over the same grid and the same people (the forecast's worst map).
+  return { main, byPolygon, truncated, atPopulation, readAlso: (vals, sch) => read(area.polys, vals, sch) };
 }
 
 async function assessRaster(layer, area, kind) {
@@ -385,7 +488,7 @@ async function assessRaster(layer, area, kind) {
   // ground, no zone. Inside the sheet that is a reading of zero -- not
   // exposed -- and only ground off the sheet is no reading. Read as no-data,
   // everyone on dry land would be reported as unmapped.
-  const dryIsZero = scheme === SCHEMES.flood || scheme === RIVER_ZONE_SCHEME;
+  const dryIsZero = scheme === SCHEMES.flood || scheme === SCHEMES.sealevel || scheme === RIVER_ZONE_SCHEME;
   let values = r.band;
   if (dryIsZero) {
     values = Float32Array.from(r.band, (v) => (!Number.isFinite(v) || v <= -1e30 || (r.noData != null && v === r.noData) ? 0 : v));
@@ -490,7 +593,7 @@ async function assessForecast(area) {
   try { now = src.fosAt(step); } finally { src.restore(); }
   const time = String(src.times[step] ?? "").replace("T", " ");
   const at = await gridBreakdowns(null, area, { ...SCHEMES.landslide, measure: `Factor of safety at ${time || "this map"}` }, { values: now, grid: src.grid, mask0: src.model });
-  const worst = assessGrid({ people: at.people, values: src.minFos, mask: at.mask, width: src.grid.width, height: src.grid.height, bounds: src.grid.bounds, scheme: { ...SCHEMES.landslide, measure: `Lowest factor of safety over ${src.times.length} maps` } });
+  const worst = at.readAlso(src.minFos, { ...SCHEMES.landslide, measure: `Lowest factor of safety over ${src.times.length} maps` });
   return { breakdowns: [at.main, worst], byPolygon: at.byPolygon, truncated: at.truncated, hazard: "Landslide", layer: src.label,
     source: "GeoID landslide forecast (static hydrogeological model)", hazardNote: `Map ${step + 1} of ${src.times.length}; the second reading is each cell's lowest factor of safety over the whole window.`, step };
 }
@@ -531,6 +634,18 @@ export async function assessLayer(layer, choice = "auto", { viewBox = null } = {
   if (!k) throw new Error(`${layer?.name || "That layer"} is not a map the risk reader can read.`);
   const area = choice === "auto" ? autoArea(layer, k.kind, { viewBox }) : areaFor(choice);
   if (!area) throw new Error(`Draw a study area, or zoom in past ${VIEW_EXTENT_MAX_DEG}° of view, to read the people at risk on this map.`);
+  return assessOver(layer, area);
+}
+
+/**
+ * Read one map over an area already in hand -- a study area from
+ * `studyAreas()`, or the view -- as `{ label, polys }`. Returns
+ * { assessment, area, kind } or throws a sentence.
+ */
+export async function assessOver(layer, area) {
+  const k = riskMapKind(layer);
+  if (!k) throw new Error(`${layer?.name || "That layer"} is not a map the risk reader can read.`);
+  if (!area?.polys?.length) throw new Error("That study area holds no polygon.");
   const r = k.kind === "forecast" ? await assessForecast(area)
     : k.kind === "risk" ? await assessRisk(layer, area)
       : k.kind === "zones" ? await assessZones(layer, area)

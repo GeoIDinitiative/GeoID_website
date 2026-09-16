@@ -33,6 +33,8 @@ process.on("exit", () => {
   check("no reading is −1, never a class", classIndex(fos, NaN) === -1 && classIndex(fos, null) === -1);
   const flood = SCHEMES.flood;
   check("flood: 2.5 m very high, 1.5 high, 0.7 moderate, 0.3 low, 0.05 very low, dry not exposed", [2.5, 1.5, 0.7, 0.3, 0.05, 0].map((v) => classIndex(flood, v)).join() === "0,1,2,3,4,-2");
+  check("sea level: 2.5 m very high, 1.5 high, 0.7 moderate, 0.3 low, 0.05 very low, land still dry not exposed", [2.5, 1.5, 0.7, 0.3, 0.05, 0].map((v) => classIndex(SCHEMES.sealevel, v)).join() === "0,1,2,3,4,-2");
+  check("sea level: the sheet's name finds its scheme, not the flood's", schemeForLayerName("Sea level (streamed DEM and coastline)") === SCHEMES.sealevel);
   const p = SCHEMES.annualChance;
   check("annual chance: 0.6, 0.2, 0.05, 0.005, 0.0005, and zero not exposed", [0.6, 0.2, 0.05, 0.005, 0.0005, 0].map((v) => classIndex(p, v)).join() === "0,1,2,3,4,-2");
   check("wind: Category 5 (140 kt) very high, Cat 3 (100) high, Cat 1 (70) moderate, TS (40) low, TD (25) very low", [140, 100, 70, 40, 25, 0].map((v) => classIndex(SCHEMES.wind, v)).join() === "0,1,2,3,4,-2");
@@ -156,18 +158,20 @@ process.on("exit", () => {
   const panel = readFileSync(new URL("./exposure-panel.js", import.meta.url), "utf8");
   const drawer = readFileSync(new URL("./layer-hierarchy.js", import.meta.url), "utf8");
   const page = readFileSync(new URL("../index.html", import.meta.url), "utf8");
-  check("the engine assesses grids, probability maps, zones, tracks and the forecast", /assessGrid\(\{ people, values: band/.test(reader) && /populationBreakdowns\(pop, area, schemes\)/.test(reader) && /windLookup\(/.test(reader) && /VOLCANIC_ZONE_SCHEME/.test(reader) && /async function assessForecast/.test(reader));
+  check("the engine assesses grids, probability maps, zones, tracks and the forecast", /assessGrid\(\{ people, values: vals/.test(reader) && /populationBreakdowns\(pop, area, schemes\)/.test(reader) && /windLookup\(/.test(reader) && /VOLCANIC_ZONE_SCHEME/.test(reader) && /async function assessForecast/.test(reader));
+  check("a grid not finer than the people is read at their cells, as a risk polygon map is; the forecast's worst map on the same terms", /const atPopulation = readsAtPopulation\(pop, g\);/.test(reader) && /valueAt: gridValueAt\(g, vals, \{ noData, mask: mask0 \}\)/.test(reader) && /const worst = at\.readAlso\(src\.minFos,/.test(reader));
   check("cyclone maps add hurricane-force chance and the strongest storm; earthquakes magnitude; volcanoes VEI", /p_hur_yr/.test(reader) && /SCHEMES\.wind/.test(reader) && /SCHEMES\.magnitude/.test(reader) && /SCHEMES\.vei/.test(reader));
-  check("a flood sheet's and the river zones' no-data is dry ground (not exposed), not unmapped", /const dryIsZero = scheme === SCHEMES\.flood \|\| scheme === RIVER_ZONE_SCHEME;/.test(reader));
+  check("a flood sheet's, the sea level's and the river zones' no-data is dry ground (not exposed), not unmapped", /const dryIsZero = scheme === SCHEMES\.flood \|\| scheme === SCHEMES\.sealevel \|\| scheme === RIVER_ZONE_SCHEME;/.test(reader));
   check("the report opens print-ready, gated like every save, with the CSV and HTML beside it", /\$\{url\}\$\{print \? "#print" : ""\}/.test(view) && /if \(!may\("save"\)\)/.test(view) && /assessmentCsv\(a\)/.test(view) && /reportHtml\(a\)/.test(view));
   check("every polygon of a multi-polygon area is assessed on its own", /groupByFeature\(area\.polys\)/.test(reader));
-  check("the window reads each map as it is developed: layer changes, sheet builds, study-area edits, frames and views by looking", /im\.onChange\(\(\) => scheduleScan\(\)\)/.test(win) && /geoid-gis:sheet-built/.test(win) && /geoid-study-area-edited/.test(win) && /const parts = partsOf\(member, tab\.readFrom\);/.test(win));
-  check("a map read for the first time opens the window only once a session; after that the shield pulses", /if \(first && tab\.auto\) arrived\(tab\)/.test(win) && /sessionStorage\.getItem\(OPENED_KEY\) === "1"/.test(win) && /pulseLauncher\(\)/.test(win));
-  check("one tab per hazard, not per layer: the tabs are keyed by hazardKey", /const key = hazardKey\(m\.layer\);/.test(win) && /const tabs = new Map\(\); \/\/ hazard key/.test(win));
-  check("a hidden map greys its tab and keeps its reading: nothing is read while hidden, and showing it does not re-read unless something moved", /if \(tab\.hidden\) \{ tab\.stale = true; return; \}/.test(win) && /touch\(tab, "shown"\);\s*if \(tab\.stale\) enqueue\(tab\);/.test(win) && /is-hidden/.test(win));
-  check("touches followed: a card on a feature, a Workspace row, a legend card, a reading chosen, a frame stepped", /geoid-gis:layer-touched/.test(win) && /#layer-dock \[data-layer-id\]/.test(win) && /#map-legend-panel \[data-legend-key\]/.test(win) && /touch\(tab, "reading"\)/.test(win) && /touch\(tab, "frame"\)/.test(win));
-  check("the window says what it is following and why, with a way back from a tab chosen by hand", /"Following"/.test(win) && /FOLLOW_REASONS\[state\.why\]/.test(win) && /Follow the globe/.test(win));
-  check("a hazard carried by several layers offers Reading from", /Reading from/.test(win) && /members\.length < 2/.test(win));
+  check("the window reads each map over each area as it is developed: layer changes, sheet builds, study-area edits, frames and views", /im\.onChange\(\(\) => scheduleScan\(\)\)/.test(win) && /geoid-gis:sheet-built/.test(win) && /geoid-study-area-edited/.test(win) && /partsOf\(member, area\) !== reading\.parts/.test(win) && /area\.shape,/.test(win));
+  check("a map read for the first time opens the window only once a session; after that the shield pulses", /if \(first\) arrived\(\)/.test(win) && /sessionStorage\.getItem\(OPENED_KEY\) === "1"/.test(win) && /pulseLauncher\(\)/.test(win));
+  check("a tab per study area and a row per hazard map over it: every area against every map that reaches it", /let list = studyAreas\(\);/.test(win) && /const covers = Boolean\(member\) && coversBox\(member, area\.box\);/.test(win) && /area\.readings\.set\(key, reading\)/.test(win) && /const key = hazardKey\(m\.layer\);/.test(win) && /assessOver\(member\.layer, \{ label: area\.name, polys: area\.polys \}\)/.test(win));
+  check("a hidden map greys its row and keeps its reading: nothing is read while hidden, and showing it does not re-read unless something moved", /if \(reading\.hidden\) \{ reading\.stale = true; return; \}/.test(win) && /\(wasHidden && reading\.stale\) \|\| partsOf\(member, area\) !== reading\.parts/.test(win) && /r\.hidden && "is-hidden"/.test(win));
+  check("touches followed: a card on a feature, a Workspace row, a legend card, a study area drawn or redrawn", /geoid-gis:layer-touched/.test(win) && /#layer-dock \[data-layer-id\]/.test(win) && /#map-legend-panel \[data-legend-key\]/.test(win) && /touchArea\(area, "workspace"\)/.test(win) && /touchArea\(area, "new"\)/.test(win) && /touchArea\(area, "edited"\)/.test(win));
+  check("a map touched under an area not on screen brings that area forward", /if \(!hits\.some\(\(a\) => a\.id === state\.activeId\)\) touchArea\(hits\[0\], "touched"\);/.test(win));
+  check("the window says which area it shows and why, with a way back from an area chosen by hand", /AREA_REASONS\[state\.why\]/.test(win) && /Follow the globe/.test(win) && ["chosen", "new", "edited", "workspace", "map", "touched"].every((w) => new RegExp(`${w}: "`).test(win)));
+  check("a hazard carried by several layers is one row, read from the layer on screen", /const member = readableMember\(members\);/.test(win) && !/Reading from/.test(win));
   const owner = readFileSync(new URL("./card-owner.js", import.meta.url), "utf8");
   check("a card claiming its layer announces the touch", /new CustomEvent\("geoid-gis:layer-touched"/.test(owner));
   check("the cyclone estimate sheet carries the frame it draws, and the reader reads it", /held\.riskFrame = \{/.test(readFileSync(new URL("./cyclone-risk-raster.js", import.meta.url), "utf8")) && /const frame = layer\.riskFrame\?\.values && !layer\.riskFrame\.last \? layer\.riskFrame : null;/.test(reader));
@@ -181,7 +185,7 @@ process.on("exit", () => {
 // ── What kind of map, and which ground ─────────────────────────────────────
 {
   globalThis.window = globalThis.window || {};
-  const { riskMapKind, autoArea, viewArea, RIVER_ZONE_SCHEME, VOLCANIC_ZONE_SCHEME, OWN_EXTENT_MAX_DEG, VIEW_EXTENT_MAX_DEG, hazardKey, frameLabelOf, readableMember, chooseFollowed, FOLLOW_REASONS } = await import("./risk-reader.js");
+  const { riskMapKind, autoArea, viewArea, RIVER_ZONE_SCHEME, VOLCANIC_ZONE_SCHEME, OWN_EXTENT_MAX_DEG, VIEW_EXTENT_MAX_DEG, hazardKey, frameLabelOf, readableMember, chooseFollowed, FOLLOW_REASONS, coversBox } = await import("./risk-reader.js");
 
   // ── one tab per hazard ──
   globalThis.__geoidRiskSpecs = globalThis.__geoidRiskSpecs || {};
@@ -211,6 +215,13 @@ process.on("exit", () => {
   const raster = (name, bounds = { west: 0, east: 1, south: 50, north: 51 }) => ({ name, status: "loaded", raster: { band: new Float32Array(4), width: 2, height: 2, bounds } });
   check("kind: a flood sheet and a factor of safety are hazard grids read unasked", riskMapKind(raster("Flood inundation (GRWL rivers on the streamed DEM)")).kind === "grid" && riskMapKind(raster("Landslide risk — static")).auto);
   check("kind: river corridor zones", riskMapKind(raster("River corridor zones (GRWL on the streamed DEM)")).kind === "riverzones");
+  const sea = (label) => ({ ...raster("Sea level (streamed DEM and coastline)"), legendInfo: { label } });
+  check("kind: a risen sea is a hazard grid read unasked; a fallen sea draws seabed, which is nobody's home", riskMapKind(sea("Depth of sea over land that is dry today"))?.kind === "grid" && riskMapKind(sea("Depth of sea over land that is dry today")).auto && riskMapKind(sea("Height of seabed above the sea")) === null);
+  const box = (west, east, south, north) => ({ west, east, south, north });
+  check("covers: a raster reaches an area its bounds meet, and not one they miss", coversBox({ layer: raster("Flood x", box(10, 11, 45, 46)), kind: "grid" }, box(10.5, 12, 45.5, 47)) && !coversBox({ layer: raster("Flood x", box(10, 11, 45, 46)), kind: "grid" }, box(20, 21, 45, 46)));
+  const zoneLayer = { name: "Volcanic hazard buffers", status: "loaded", bounds: box(-180, 180, -60, 70), features: [{ properties: { zone: 0, outer_km: 5 }, geometry: { type: "Polygon", coordinates: [[[-60, -50], [-59, -50], [-59, -49], [-60, -50]]] } }, { properties: { zone: 1 }, geometry: { type: "Polygon", coordinates: [[[14, 40], [15, 40], [15, 41], [14, 40]]] } }] };
+  check("covers: a global vector map reaches an area only where one of ITS features does, not by its whole-world bounds", coversBox({ layer: zoneLayer, kind: "zones" }, box(14.2, 14.5, 40.5, 40.8)) && !coversBox({ layer: zoneLayer, kind: "zones" }, box(100, 101, 10, 11)));
+  check("covers: nothing to read, or no area, reaches nothing", !coversBox(null, box(0, 1, 0, 1)) && !coversBox({ layer: zoneLayer, kind: "zones" }, null));
   check("kind: a DEM is value bands, read only on request", riskMapKind(raster("Elevation (streamed DEM)")).kind === "bands" && !riskMapKind(raster("Elevation (streamed DEM)")).auto);
   check("kind: population density is never a risk map, nor is a layer still loading", riskMapKind(raster("Population density (WorldPop 2020, 1 km)")) === null && riskMapKind({ ...raster("Flood x"), status: "loading" }) === null);
   const feat = (props) => ({ properties: props, geometry: { type: "Polygon", coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] } });
@@ -226,10 +237,31 @@ process.on("exit", () => {
   check(`ground: a view wider than ${VIEW_EXTENT_MAX_DEG}° is a continent, and is not read`, viewArea([-100, -60, 10, 50]) === null && viewArea([-82, -79, 24, 27]).fromView === true && viewArea(null) === null && viewArea([1, 0, 0, 1]) === null);
   check("ground: the window's own {west, east, south, north} spelling of the view is read too", viewArea({ west: -82, east: -79, south: 24, north: 27 })?.fromView === true && viewArea({ west: -100, east: -60, south: 10, north: 50 }) === null);
   const winSrc = readFileSync(new URL("./risk-reader-window.js", import.meta.url), "utf8");
-  check("a tab read over the view is read again where the view settles", /tab\.areaFromView = Boolean\(out\.area\?\.fromView\)/.test(winSrc) && /if \(tab\.areaFromView \|\| \/zoom in\/\.test\(tab\.error \|\| ""\)\) enqueue\(tab\)/.test(winSrc) && /assessLayer\(member\.layer, state\.areaChoice, \{ viewBox: state\.viewBox \}\)/.test(winSrc));
+  check("with no study area the ground in view is read, and read again where the view settles", /id: VIEW_ID, name: "The ground in view"/.test(winSrc) && /if \(!areas\.size \|\| areas\.has\(VIEW_ID\)\) scan\(\);/.test(winSrc) && /onViewSettled\(window\.GeoIDViewer/.test(winSrc));
   check("ground: a local map still prefers its own extent to the view", autoArea(raster("Flood x", { west: 10, east: 11, south: 45, north: 45.5 }), "grid", { viewBox: [0, 12, 40, 50] }).label === "the map's own extent");
   check("river zones: the margin is very high, belt high, floodplain moderate, no zone not exposed", [1, 2, 3, 0].map((v) => classIndex(RIVER_ZONE_SCHEME, v)).join() === "0,1,2,-2");
   check("volcanic zones: 0–5 km very high through 35–50 km very low, outside every zone not exposed", [0, 1, 2, 3, 4, -1].map((v) => classIndex(VOLCANIC_ZONE_SCHEME, v)).join() === "0,1,2,3,4,-2");
+}
+
+// ── A hazard grid not finer than the people ─────────────────────────────────
+{
+  const { peopleOnGrid, polygonMask, readsAtPopulation, gridValueAt } = await import("./exposure.js");
+  // 10 x 10 people cells of 0.1°, one person each, and a DENSE ROW (1,000 a
+  // cell) just north of the study area -- the Sorrento plain north of the
+  // Amalfi box. The hazard grid is 1.14 times coarser and sits so its top row
+  // of cells is centred inside the area while reaching over that dense row.
+  const pop = { width: 10, height: 10, bounds: { west: 0, east: 1, south: 0, north: 1 }, band: new Float32Array(100).fill(1) };
+  for (let c = 0; c < 10; c += 1) pop.band[c] = 1000;
+  const grid = { width: 10, height: 10, bounds: { minX: 0, maxX: 1.14, minY: 0.952 - 1.14, maxY: 0.952 } };
+  const hazard = new Float32Array(100).fill(1.5);
+  const polys = polygonsOf({ type: "FeatureCollection", features: [{ type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [[[0, 0], [1, 0], [1, 0.9], [0, 0.9], [0, 0]]] } }] });
+  const people = peopleOnGrid(pop, grid);
+  const mask = polygonMask(grid, polys);
+  const onCells = assessGrid({ people, values: hazard, mask, width: 10, height: 10, bounds: grid.bounds, scheme: SCHEMES.flood });
+  check("the fault: a coarser grid read on its own cells takes the dense row from outside the area", onCells.total > 1000, `total ${onCells.total}`);
+  check("so a grid not finer than the people is read at their cells", readsAtPopulation(pop, grid));
+  const [atPeople] = assessPopulation({ pop, polys, schemes: [{ scheme: SCHEMES.flood, valueAt: gridValueAt(grid, hazard) }] });
+  check("read at the people's cells, the area holds exactly the 90 people whose cells are in it, all under 1.5 m of water", atPeople.total === 90 && atPeople.byClass[1].people === 90);
 }
 
 // ── The map, and the edge on the population path ───────────────────────────

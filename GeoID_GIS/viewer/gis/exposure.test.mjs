@@ -2,7 +2,7 @@
 // integrals inside a polygon come to what the arithmetic says they must.
 import {
   boxOf, inPolygon, polygonsOf, polygonIndex, peopleOnGrid, polygonMask, gridExposure,
-  riskExposure, formatPeople, seriesCsv,
+  riskExposure, formatPeople, seriesCsv, readsAtPopulation, gridValueAt,
 } from "./exposure.js";
 
 let pass = 0, fail = 0;
@@ -90,3 +90,23 @@ ok("formatPeople says thousands", formatPeople(12345) === "12 thousand" && forma
 ok("formatPeople says fewer than one", formatPeople(0.3) === "<1");
 const csv = seriesCsv({ times: ["2026-01-01T00:00"], total: 100.4, series: [{ label: "FoS < 1", values: [12.6] }] });
 ok("the CSV has a row per map and a column per class", csv.trim().split("\n")[1] === "2026-01-01T00:00,100,13");
+
+// WHICH SIDE A GRID IS READ ON: a grid not finer than the people is read at
+// their cells. Past half a population cell of area its own cells are finer.
+ok("a grid of the people's own size is read at their cells", readsAtPopulation(pop, { width: 4, height: 4, bounds: pop.bounds }));
+ok("a grid 1.14 times coarser is read at the people's cells", readsAtPopulation(pop, { width: 3, height: 4, bounds: { west: 0, east: 3.42, south: 0, north: 4 } }));
+ok("a grid with a quarter of the people's cell area is read on its own cells", !readsAtPopulation(pop, { width: 8, height: 8, bounds: pop.bounds }));
+ok("no bounds, no answer", !readsAtPopulation(pop, { width: 4, height: 4, bounds: null }));
+
+// The hazard under a point: north-up rows, off the grid null, a mask and no-data null.
+{
+  const g = { width: 4, height: 2, bounds: { minX: 10, maxX: 14, minY: 50, maxY: 52 } };
+  const vals = Float32Array.from([0, 1, 2, 3, 4, 5, NaN, -9999]);
+  const at = gridValueAt(g, vals, { noData: -9999 });
+  ok("a point reads the cell it is in, rows north first", at(10.5, 51.5) === 0 && at(13.5, 51.5) === 3 && at(11.5, 50.5) === 5);
+  ok("off the grid is no reading", at(9.9, 51) === null && at(12, 52.1) === null && at(14.1, 51) === null);
+  ok("NaN and the no-data value are no reading", at(12.5, 50.5) === null && at(13.5, 50.5) === null);
+  const masked = gridValueAt(g, vals, { mask: Uint8Array.from([1, 0, 1, 1, 1, 1, 1, 1]) });
+  ok("a cell the model left out is no reading", masked(11.5, 51.5) === null && masked(10.5, 51.5) === 0);
+  ok("a grid with no bounds reads nothing", gridValueAt({ width: 1, height: 1, bounds: null }, [1])(0, 0) === null);
+}

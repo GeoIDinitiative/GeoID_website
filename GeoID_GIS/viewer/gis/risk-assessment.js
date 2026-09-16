@@ -20,7 +20,7 @@
  * in, not the median cell), because the question is what happens to people.
  */
 
-import { cellKm2, insideAny, boxOf } from "./exposure.js?v=20260916-811a07b";
+import { cellKm2, insideAny, boxOf } from "./exposure.js?v=20260916-a275e72";
 
 export const LEVELS = ["Very high", "High", "Moderate", "Low", "Very low"];
 export const LEVEL_COLOURS = {
@@ -50,6 +50,25 @@ export const SCHEMES = {
     definition: "Depth of water above the ground. Depth alone understates the danger of fast water; 0.5 m of moving water can knock an adult over.",
     classes: [
       { level: "Very high", label: "Over 2 m of water", threshold: "depth ≥ 2 m", test: (v) => v >= 2 },
+      { level: "High", label: "1–2 m", threshold: "1 ≤ depth < 2 m", test: between(1, 2) },
+      { level: "Moderate", label: "0.5–1 m", threshold: "0.5 ≤ depth < 1 m", test: between(0.5, 1) },
+      { level: "Low", label: "0.15–0.5 m", threshold: "0.15 ≤ depth < 0.5 m", test: between(0.15, 0.5) },
+      { level: "Very low", label: "Under 0.15 m", threshold: "0 < depth < 0.15 m", test: (v) => v > 0 && v < 0.15 },
+    ],
+    notExposed: (v) => !(v > 0),
+  },
+  /**
+   * SEA LEVEL is land lost to the sea, not a passing flood: anyone living where
+   * the sea would stand at the chosen level has to move, whatever the depth.
+   * The depth still grades it -- deep water is certain, a few centimetres is
+   * within the heights' own error on a flat coast -- so the classes are the
+   * flood's depths under a sea-level definition.
+   */
+  sealevel: {
+    id: "sealevel", hazard: "Sea level rise", measure: "Depth of sea over land that is dry today", unit: "m",
+    definition: "Where the sea would stand at the chosen level, spread from the real coastline through the streamed heights. Land under it is lost to the sea; shallow depths on a flat coast are within the heights' own error.",
+    classes: [
+      { level: "Very high", label: "Over 2 m of sea", threshold: "depth ≥ 2 m", test: (v) => v >= 2 },
       { level: "High", label: "1–2 m", threshold: "1 ≤ depth < 2 m", test: between(1, 2) },
       { level: "Moderate", label: "0.5–1 m", threshold: "0.5 ≤ depth < 1 m", test: between(0.5, 1) },
       { level: "Low", label: "0.15–0.5 m", threshold: "0.15 ≤ depth < 0.5 m", test: between(0.15, 0.5) },
@@ -137,6 +156,7 @@ export function schemeForLayerName(name) {
   const n = String(name || "");
   if (/landslide risk|factor of safety|\bfos\b/i.test(n)) return SCHEMES.landslide;
   if (/flood|inundation|discharge|water depth/i.test(n)) return SCHEMES.flood;
+  if (/^sea level/i.test(n)) return SCHEMES.sealevel;
   return null;
 }
 
