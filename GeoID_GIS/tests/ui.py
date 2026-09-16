@@ -31,6 +31,12 @@ EARTH = ROOT / "GeoID_GIS/viewer/index.html"
 SHELL = ROOT / "GeoID_GIS/viewer/gis/shell.html"
 BASE = "http://localhost:8125"
 
+# The globals the live page must expose. ONE list, because the boot gate waits
+# for exactly what the checks assert -- see `run()`. Two copies drifted apart
+# once already and turned a slow import into a failing test.
+SEAMS = ("GeoIDViewer", "GeoIDImportManager", "GeoIDToolSearch", "GeoIDLayerHierarchy",
+         "GeoIDDrawnLayers", "GeoIDSymbology", "GeoIDHydrology")
+
 failures = []
 passes = 0
 
@@ -159,9 +165,7 @@ LIVE = r"""
     });
   }
   return JSON.stringify({
-    seams: ["GeoIDViewer", "GeoIDImportManager", "GeoIDToolSearch", "GeoIDLayerHierarchy",
-            "GeoIDDrawnLayers", "GeoIDSymbology", "GeoIDHydrology"]
-      .filter((s) => !w[s]),
+    seams: __SEAMS__.filter((s) => !w[s]),
     catalogueItems: items.length,
     groups: ids("#gis-toolbox-panels > details, #ui > details").length,
     emptySelects: empty,
@@ -173,7 +177,7 @@ LIVE = r"""
 
 
 def live_checks(cdp, evaluate, label, tools_expected):
-    raw = evaluate(LIVE)
+    raw = evaluate(LIVE.replace("__SEAMS__", json.dumps(list(SEAMS))))
     if not raw:
         check(f"{label}: the page answered", False, "no result")
         return
@@ -206,14 +210,30 @@ def main():
         cdp.call("Page.enable")
         cdp.call("Runtime.enable")
 
+        # THE GATE MUST WAIT FOR EVERYTHING THE CHECKS THEN ASSERT.
+        #
+        # It used to open on two seams -- GeoIDViewer and GeoIDImportManager --
+        # and `live_checks` immediately asserted seven. `boot.js` imports its
+        # modules serially and `layer-hierarchy.js` is the 99th of them, so
+        # whether `GeoIDLayerHierarchy` had landed by the time the gate opened
+        # was a race, decided by how fast the machine got through the other 98.
+        # It reported `absent: ['GeoIDLayerHierarchy']` on a page where the seam
+        # was demonstrably present a moment later -- measured in a browser, all
+        # seven there with 49 tools mounted.
+        #
+        # A test that asserts a seam must wait for that seam, so the gate is now
+        # the same list the checks use. Waiting on the real condition is what
+        # makes the result mean something; the 120s ceiling is unchanged, so a
+        # seam that genuinely never arrives still fails.
+        boot_gate = ('Boolean(document.querySelector(".gis-tool-item") && '
+                     + " && ".join(f"window.{s}" for s in SEAMS) + ")")
+
         def run(url, wrap, label):
             cdp.call("Page.navigate", {"url": url})
             for _ in range(60):
                 time.sleep(2)
                 try:
-                    if cdp.evaluate(wrap('Boolean(document.querySelector(".gis-tool-item") '
-                                         '&& window.GeoIDViewer && window.GeoIDImportManager)'),
-                                    await_promise=False, timeout=30):
+                    if cdp.evaluate(wrap(boot_gate), await_promise=False, timeout=30):
                         break
                 except Exception:
                     pass

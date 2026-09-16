@@ -35,7 +35,27 @@ GLOBS = (
     "GeoID_GIS/viewer/**/*.html",
     "planet_explorer/*/viewer/index.html",
     "myGeoID/index.html",
+    # THE SITE'S OWN PAGES, and they were the expensive omission.
+    #
+    # `/styles/site-nav.css` and `/styles/shared.css` are linked with no stamp
+    # at all from all 21 of them, so a deploy changed the file behind a URL
+    # that had not changed. Cloudflare's zone sends `max-age=14400` for static
+    # assets, and the edge went on serving the copy it already had: measured on
+    # the live site, `site-nav.css` came back 11,749 bytes against the 21,860
+    # on the origin -- the whole mode bar and music block missing, so the new
+    # markup rendered unstyled and the header looked reverted. The same URL
+    # with a query string returned the current file, which is the proof.
+    #
+    # The viewer pages never had this problem because they are swept here. The
+    # site pages simply were not.
+    "*.html",
+    "*/index.html",
+    "*/*/index.html",
 )
+
+# Backups keep old stamps on purpose, and sweeping them would make `--check`
+# report a split forever.
+EXCLUDE_PARTS = ("vendor", "page_backups")
 
 # Matches every stamp shape this repo has used: the old hand-written
 # `?v=20260810y`, the shell's `?v=gis-...` variant, and the `?v=<date>-<sha>`
@@ -65,7 +85,11 @@ def files() -> list[Path]:
         found.extend(ROOT.glob(pattern))
     # Never rewrite the vendored three.js: earth-viewer.js imports it
     # unversioned, and a second URL for it breaks class identity outright.
-    return sorted(p for p in found if "vendor" not in p.parts)
+    # The globs overlap (a viewer page matches two of them), so dedupe.
+    return sorted(set(
+        p for p in found
+        if not any(part in EXCLUDE_PARTS for part in p.parts)
+    ))
 
 
 def stamps_in_tree() -> dict[str, int]:

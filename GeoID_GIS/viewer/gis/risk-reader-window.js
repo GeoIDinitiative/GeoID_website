@@ -22,12 +22,12 @@
  * Workspace shield. Hazards ▸ Exposure reads through the same engine.
  */
 
-import { riskMapKind, riskMaps, assessLayer, hazardKey, hazardTitle, readableMember, chooseFollowed, FOLLOW_REASONS, ringsBox } from "./risk-reader.js?v=20260916-e94c613";
-import { renderAssessment, annotationOf, el } from "./risk-reader-view.js?v=20260916-e94c613";
-import { refreshPolygonOptions, promptDrawTool } from "./extent-picker.js?v=20260916-e94c613";
-import { showAnnotation, removeAnnotation } from "./exposure-annotation.js?v=20260916-e94c613";
-import { formatCount } from "./risk-assessment.js?v=20260916-e94c613";
-import { visibleBounds, onViewSettled } from "./view-extent.js?v=20260916-e94c613";
+import { riskMapKind, riskMaps, assessLayer, hazardKey, hazardTitle, readableMember, chooseFollowed, FOLLOW_REASONS, ringsBox } from "./risk-reader.js?v=20260916-4fc380f";
+import { renderAssessment, annotationOf, el } from "./risk-reader-view.js?v=20260916-4fc380f";
+import { refreshPolygonOptions, promptDrawTool } from "./extent-picker.js?v=20260916-4fc380f";
+import { showAnnotation, removeAnnotation } from "./exposure-annotation.js?v=20260916-4fc380f";
+import { formatCount } from "./risk-assessment.js?v=20260916-4fc380f";
+import { visibleBounds, onViewSettled } from "./view-extent.js?v=20260916-4fc380f";
 
 const NOTE_ID = "risk-reader";
 const POS_KEY = "geoid-gis:risk-reader-pos";

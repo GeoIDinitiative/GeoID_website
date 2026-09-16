@@ -41,6 +41,13 @@ GeoID_GIS/gales/
 *.mp4
 *.webm
 *.npy
+# ...and the same bare pattern then swallowed the GeoHUB page's hero, exactly
+# as it did the Moon's tile above: the file was on disk, the page linked it,
+# and it 404'd on the live site because it had never reached a commit. The
+# web-sized encodes under assets/opt/ are the ones the site actually serves --
+# under 1 MB each -- so they are named back in. The originals stay ignored.
+!assets/opt/geohub-hero.mp4
+!assets/opt/etna_demo.webm
 
 # Bake caches: the source data a service script downloads, never served.
 GeoID_GIS/services/.cache/

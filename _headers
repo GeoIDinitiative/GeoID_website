@@ -1,0 +1,26 @@
+# Cloudflare Pages response headers.
+#
+# WHY THIS FILE EXISTS. The zone answers for static assets with
+# `cache-control: max-age=14400`, and the site's stylesheets are linked from 21
+# pages. A deploy therefore changed the bytes behind a URL that had not
+# changed, and the edge went on serving what it already held: measured on the
+# live site, `/styles/site-nav.css` came back 11,749 bytes against the 21,860
+# on the origin, so the new header markup rendered with none of its rules --
+# the mode bar unstyled and the wordmark's sizing gone. The same URL with a
+# query string returned the current file, which is how we knew.
+#
+# The stamps are the real fix (see GeoID_GIS/services/stamp.py, which now
+# sweeps the site's pages too, so every deploy moves these URLs). This is the
+# second line: even an unstamped link revalidates rather than going stale for
+# four hours.
+
+/styles/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+/scripts/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+# The service worker must never be cached, or a released fix cannot reach the
+# browsers holding the previous one.
+/sw.js
+  Cache-Control: no-cache
