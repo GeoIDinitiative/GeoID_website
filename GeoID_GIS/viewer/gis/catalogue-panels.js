@@ -29,11 +29,11 @@
 
 import {
   HOMES, MIRRORS, grouped, addDataset, layerForDataset, loadLaunchDefaults,
-} from "./global-data.js?v=20260916-a4498c0";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260916-a4498c0";
-import { mathsFor } from "./equations.js?v=20260916-a4498c0";
+} from "./global-data.js?v=20260916-dacf706";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260916-dacf706";
+import { mathsFor } from "./equations.js?v=20260916-dacf706";
 import { bandOf, bandRows, bandSymbology, describeFilter, magOf }
-  from "./seismic-magnitude.js?v=20260916-a4498c0";
+  from "./seismic-magnitude.js?v=20260916-dacf706";
 
 const byId = (id) => document.getElementById(id);
 
@@ -843,7 +843,17 @@ function init() {
       window.setTimeout(arm, 300);
       return;
     }
-    void loadLaunchDefaults();
+    /**
+     * ASKED AT THE MOMENT OF LOADING, and per dataset.
+     *
+     * The old gate above gates the MODULE ("does this page have any catalogue
+     * at all"), and it is evaluated at DOMContentLoaded — before the body
+     * registry has pruned the sections a world does not get. `panels.js`
+     * renders one MARKUP string for all ten worlds, so every host is in the
+     * DOM at that moment and every world passed. Asked here, after the retry
+     * has waited for the viewer, the hosts are the ones this world kept.
+     */
+    void loadLaunchDefaults((entry) => Boolean(entry && byId(HOMES[entry.home])));
   };
   arm();
 }

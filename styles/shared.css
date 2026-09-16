@@ -466,9 +466,12 @@ body {
   border: 1px solid transparent;
   background: transparent;
   color: rgba(154,184,189,0.60);
-  font-size: 0.70rem;
+  /* THE SUB-BAR IS A CHILD OF THE HEADER, so it wears the header's own type:
+     12px, uppercase, 0.08em -- measured off `.nav-links a`. It was 11.2px at
+     0.07em, close enough to look like a mistake rather than a choice. */
+  font-size: 12px;
   font-family: "Public Sans", sans-serif;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   transition: color 0.16s, background 0.16s, box-shadow 0.16s;
 }

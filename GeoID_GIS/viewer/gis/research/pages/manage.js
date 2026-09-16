@@ -1,11 +1,11 @@
-import { registerPage } from "../stages.js?v=20260916-a4498c0";
-import * as store from "../project-store.js?v=20260916-a4498c0";
-import { STAGES, getPage } from "../stages.js?v=20260916-a4498c0";
+import { registerPage } from "../stages.js?v=20260916-dacf706";
+import * as store from "../project-store.js?v=20260916-dacf706";
+import { STAGES, getPage } from "../stages.js?v=20260916-dacf706";
 import {
   el, card, field, input, textarea, selectOf, button, row, statGrid, statusLine,
   guard, crossPage, findTables, saveTable,
   pageHeader, toolbar, inlineLabel, collapsible, dataTable, console_,
-} from "./common.js?v=20260916-a4498c0";
+} from "./common.js?v=20260916-dacf706";
 
 /**
  * Dashboard, Project Manager, Pipeline and Data Hub.
@@ -257,10 +257,11 @@ const mountDataHub = guard("Data Hub", async (host, ctx) => {
   const active = store.getActive();
   let selected = null;                       // relative path of the picked file
 
+  // No project pill: the shell row's chip already names the open project on
+  // every page, and this repeated it one line below at the same x.
   const header = pageHeader("Data Hub",
     "Browse all project artefacts — figures, signals, exports and analysis "
-    + "outputs.", active.name);
-  header.pill.classList.add("is-open");
+    + "outputs.");
 
   const redraw = () => { host.textContent = ""; void mountDataHub(host, ctx); };
 

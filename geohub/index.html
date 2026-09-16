@@ -1397,13 +1397,21 @@
         title="Projects" aria-label="Projects">
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.4 4.2h4.2l1.2 1.5h5.8v6.8H2.4Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
       </button>
+      <!-- BESIDE THE PROJECT BUTTON, because these three are the APP'S own:
+           the project dialog, the playlist and the settings. The three mode
+           pills after them are where you are, which is a different question,
+           and the group reads as one row of tools and one row of places. -->
+      <button type="button" class="nav-modebar-icon nav-modebar-music" data-modebar="music"
+        title="Play music" aria-label="Play music">&#9654;</button>
+      <button type="button" class="nav-modebar-icon" data-modebar="settings"
+        title="Settings" aria-label="Settings">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="2.1" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M8 2.3v1.6M8 12.1v1.6M13.7 8h-1.6M3.9 8H2.3M12 4l-1.1 1.1M5.1 10.9 4 12M12 12l-1.1-1.1M5.1 5.1 4 4" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+      </button>
       <div class="nav-modebar-modes" role="group" aria-label="View mode">
         <button type="button" class="nav-modebar-pill" data-modebar="gis">GIS</button>
         <button type="button" class="nav-modebar-pill" data-modebar="model">Model</button>
         <button type="button" class="nav-modebar-pill" data-modebar="research">Research</button>
       </div>
-      <button type="button" class="nav-modebar-icon nav-modebar-music" data-modebar="music"
-        title="Play music" aria-label="Play music">&#9654;</button>
     </div>
 
     <ul class="nav-links">
@@ -1430,17 +1438,6 @@
          is why it is drawn hidden and revealed by the page's own answer. Its
          name comes from the page, so the credit travels with the control. -->
     <div class="nav-right-logo">
-      <!-- What is open in the viewer: project and world. Filled from the
-           "geoid:context" message the viewer sends; empty until it arrives, so
-           nothing flashes on a page where no viewer is framed.
-
-           ON THE RIGHT, because the left half has no room. The links are
-           centred on the VIEWPORT and taken out of flow, so a label beside the
-           mode bar no longer pushes them -- it runs UNDER them. Measured with a
-           project open: the label 568..660 against links beginning at 598, 62px
-           of overlap, the project's name drawn through "Dashboard". Truncating
-           cannot help; between the hosted bar and the links there are 30px. -->
-      <span class="nav-context" id="nav-context" aria-live="polite"></span>
       <button type="button" class="nav-music" id="nav-music" data-modebar="audio"
         title="Play" aria-label="Play" hidden>
         <span class="nav-music-glyph" aria-hidden="true">&#9654;</span>
@@ -1735,6 +1732,11 @@
             btn.classList.toggle("is-playing", playing);
           } else if (target === "project") {
             btn.hidden = !state.project;
+          } else if (target === "settings") {
+            // Offered only where the page has the control to press. A world
+            // whose Workspace never built a gear gets no button rather than a
+            // dead one.
+            btn.hidden = !state.settings;
           } else {
             const known = Array.isArray(state.modes) ? state.modes.includes(target) : true;
             btn.hidden = !known;
@@ -2429,23 +2431,10 @@
         // nothing rather than the last world's recording under its name.
         if (msg.type === "geoid:modebar-gone") { standDownPageControls(); return; }
 
-        // The open project, reported by the viewer. The header is outside the
-        // iframe and cannot read the store, so it is told.
-        //
-        // The project only -- the world is already unmistakable from the globe
-        // filling the page, and naming it here just repeated what the eye had
-        // already been told. When no project is open this is empty, and the
-        // stylesheet collapses it rather than leaving a gap.
-        if (msg.type === "geoid:context") {
-          const node = document.getElementById("nav-context");
-          if (node) {
-            node.textContent = msg.project || "";
-            node.title = msg.project
-              ? `Working in "${msg.project}"${msg.world ? ` on ${msg.world}` : ""}`
-              : "";
-          }
-          return;
-        }
+        // THE PROJECT IS NOT NAMED IN THIS HEADER. It was, and with the hub's
+        // own chip and the Projects page it was the THIRD copy of one string on
+        // one screen. The viewer still sends `geoid:context`; the header has
+        // nothing to do with it.
 
         // The FoS run posts its series; the Forecast tab shows the same
         // numbers the globe is drawn from rather than computing its own.

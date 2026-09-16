@@ -26,18 +26,18 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260916-a4498c0";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260916-a4498c0";
-import { mathsFor } from "./equations.js?v=20260916-a4498c0";
+import { runConnector } from "./research/connectors.js?v=20260916-dacf706";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260916-dacf706";
+import { mathsFor } from "./equations.js?v=20260916-dacf706";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260916-a4498c0";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260916-a4498c0";
-import { featureForModel, may, refusal } from "./membership.js?v=20260916-a4498c0";
-import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260916-a4498c0";
+} from "./cyclone-risk.js?v=20260916-dacf706";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260916-dacf706";
+import { featureForModel, may, refusal } from "./membership.js?v=20260916-dacf706";
+import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260916-dacf706";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260916-a4498c0";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260916-dacf706";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -1299,8 +1299,25 @@ export function launchDatasets() {
  * an error in front of somebody who did not ask for it, and the row is still
  * there to be ticked by hand.
  */
-export async function loadLaunchDefaults() {
+export async function loadLaunchDefaults(offered = () => true) {
   for (const id of launchDatasets()) {
+    /**
+     * A WORLD LOADS ONLY WHAT IT OFFERS.
+     *
+     * Measured on Mars: Earth's plate boundaries on the globe at launch, 241
+     * segments of Bird (2003) over a planet that has none — and the catalogue
+     * was right throughout, the row is offered nowhere on that page. The
+     * default reached past the offer by asking for the dataset BY ID.
+     *
+     * The caller answers whether this page offers it, because the answer is
+     * "is its home's list mounted here", which is the panel's business and not
+     * this file's. Anything given a `defaultOn` later is gated by the same
+     * question without being told about it.
+     */
+    if (!offered(datasetById(id))) continue;
+    // Already on the globe: a second pass must not draw it twice. Measured on
+    // Mars, two identical layers of the same 241 segments.
+    if (layerForDataset(id)) continue;
     try {
       await addDataset(id, () => {}, { launch: true });
       /**

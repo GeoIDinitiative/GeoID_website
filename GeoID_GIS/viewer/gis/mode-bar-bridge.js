@@ -33,6 +33,11 @@ const TARGETS = {
   research: "view-mode-research",
   project: "project-open-modal",
   music: "music-btn",
+  // The Workspace box's gear. It is the app's own settings, not the page's --
+  // the same standing as the project dialog and the playlist beside it -- so
+  // it belongs in the bar with them rather than in the box that holds a
+  // reader's layers.
+  settings: "gis-settings-btn",
 };
 
 /**
@@ -76,7 +81,7 @@ function modeRow(doc = document) {
 const HEADER_DRAWN = new Set([
   "project-open-modal", "view-mode-switch",
   "view-mode-gis", "view-mode-model", "view-mode-research",
-  "music-btn",
+  "music-btn", "gis-settings-btn",
 ]);
 
 /**
@@ -112,12 +117,14 @@ export function modeBarState(doc = document) {
   const music = doc.getElementById("music-btn");
   const audio = worldAudio(doc);
   const project = Boolean(doc.getElementById("project-open-modal"));
+  const settings = Boolean(doc.getElementById(TARGETS.settings));
   const modes = ["gis", "model", "research"].filter((m) => doc.getElementById(TARGETS[m]));
   const mode = doc.body?.dataset?.viewMode || "gis";
   return {
     mode,
     modes,
     project,
+    settings,
     music: music
       ? { present: true, playing: !music.classList.contains("is-paused") }
       : { present: false, playing: false },

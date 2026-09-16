@@ -1,12 +1,12 @@
-import { registerPage } from "../stages.js?v=20260916-a4498c0";
-import * as store from "../project-store.js?v=20260916-a4498c0";
-import * as bridge from "../bridge.js?v=20260916-a4498c0";
-import { currentBody, currentBodyId } from "../../bodies.js?v=20260916-a4498c0";
+import { registerPage } from "../stages.js?v=20260916-dacf706";
+import * as store from "../project-store.js?v=20260916-dacf706";
+import * as bridge from "../bridge.js?v=20260916-dacf706";
+import { currentBody, currentBodyId } from "../../bodies.js?v=20260916-dacf706";
 import {
   el, card, field, input, textarea, selectOf, button, row, statusLine,
   pageHeader, splitPanes, tabbedPanel, editorCard, editorHero, fieldGrid,
   slider, editTable,
-} from "./common.js?v=20260916-a4498c0";
+} from "./common.js?v=20260916-dacf706";
 
 /**
  * Projects, laid out as `GeoIDProjectsPage` lays it out (app_qt.py:4570):
@@ -558,10 +558,11 @@ async function mount(host, ctx) {
   save.disabled = !draft;
 
   host.append(
+    // No project pill: the shell row's chip names it, and this page's own list
+    // marks the open one as selected besides.
     pageHeader("Projects",
       "Every study this workspace holds, and everything the open one records "
-      + "about itself.",
-      store.getActive()?.name || "No project"),
+      + "about itself."),
     splitPanes(workspace, editor),
     row(save),
     status,

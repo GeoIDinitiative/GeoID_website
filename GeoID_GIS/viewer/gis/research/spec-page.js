@@ -1,10 +1,10 @@
-import { getPage, registerPage } from "./stages.js?v=20260916-a4498c0";
-import { qtMount, loadLayouts } from "./qt-render.js?v=20260916-a4498c0";
-import * as store from "./project-store.js?v=20260916-a4498c0";
+import { getPage, registerPage } from "./stages.js?v=20260916-dacf706";
+import { qtMount, loadLayouts } from "./qt-render.js?v=20260916-dacf706";
+import * as store from "./project-store.js?v=20260916-dacf706";
 import {
   el, button, row, field, input, selectOf, persistentStatus, needProject,
   pageHeader, toolbar, collapsible, tabbedPanel, editorCard, dataTable,
-} from "./pages/common.js?v=20260916-a4498c0";
+} from "./pages/common.js?v=20260916-dacf706";
 
 /**
  * Build a page from `qt-spec.json` — the structure the Qt app actually has,
@@ -192,8 +192,14 @@ export function specMount(pageId, { requireProject = true, handoff = null } = {}
       return makeFields(pairs);
     }
 
-    host.appendChild(pageHeader(spec.title || pageId, spec.subtitle,
-      store.getActive()?.name));
+    /**
+     * NO PROJECT PILL. The shell row's chip says which project this surface is
+     * bound to, on every page and in the same corner -- so a pill in the page
+     * header printed the same string a line below it, at the same x. Measured
+     * with a project open: the chip at top 6 and the pill at top 49, both at
+     * left 1130.
+     */
+    host.appendChild(pageHeader(spec.title || pageId, spec.subtitle));
 
     const tabNames = spec.tabs || [];
     const byTab = spec.by_tab || {};

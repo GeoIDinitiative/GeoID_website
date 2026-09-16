@@ -22307,9 +22307,13 @@ with a project open, the header's project label ran 568..660 against links
 beginning at 598 — **62px of overlap**, the name drawn through "Dashboard". It
 survived every check because that label is empty until a project is opened.
 
-The label moved to the right-hand group (between the hosted bar at 518 and the
-links at 598 there are 30px, and a project's name is not 30px), and the centre
-is now reserved against the flow either side of it.
+**THE LABEL IS GONE FROM THIS HEADER ALTOGETHER.** It was moved to the
+right-hand group first (between the hosted bar at 518 and the links at 598
+there are 30px, and a project's name is not 30px) — and then removed, because
+with the hub's own chip and the Projects page it was the THIRD copy of one
+string on one screen. The viewer still sends `geoid:context`; the header has
+no consumer for it. What remains is the rule below, which now holds only the
+recording's caption back.
 
 **THE CAP ALONE IS WORSE THAN NEITHER.** A `max-width` shrinks the box and
 leaves it ANCHORED WHERE THE FLOW PUT IT — measured, the group went
@@ -22319,11 +22323,104 @@ can, so the box sits against the right edge and the cap then makes the two
 shrinkable things in it — the label and the recording's caption — ellipsise.
 Both are needed, and the ORDER OF THE FREE-SPACE RULES is why.
 
-Measured at 1556 with a 47-character name and a caption both in the row: group
-974..1532, 16px clear, the label clipped to 100px, no overlap.
+Measured at 1556 while the label still existed, with a 47-character name and a
+caption both in the row: group 974..1532, 16px clear, the label clipped to
+100px, no overlap. The cap stays for the caption, which can be 32ch.
 
 **`store.listProjects()` answers `<body>/<name>` entries and `openProject`
 takes one of those** — passing `p.dir || p.name` opened a project called
 "undefined" and left a folder tree under that name in browser storage. There is
 no `deleteProject` on the store, so test projects made this way can only be
 cleared with the site's data.
+
+## A world loads only what it OFFERS
+
+Earth's plate boundaries were drawn on Mars at launch — 241 segments of Bird
+(2003) over a planet that has none, loaded **twice**, one of them still wearing
+its `.geojson` filename.
+
+**The catalogue was right throughout.** That row is offered nowhere on Mars and
+none of its hosts exists there. The launch defaults reached past the offer by
+asking for the dataset **by id**, and the gate meant to stop them asked the
+wrong question in the wrong place: *"does this page have any catalogue at
+all"*, evaluated at `DOMContentLoaded`. **`panels.js` renders ONE MARKUP STRING
+for all ten worlds**, so every host is in the DOM at that moment and every world
+passed; the body registry prunes them a moment later.
+
+The question is per dataset and asked at load time now — does this world offer
+this one — and the PANEL answers it, because "is its home's list mounted here"
+is the panel's business and not `global-data.js`'s. Anything given a
+`defaultOn` later is gated by the same question without being told about it. A
+second guard skips a dataset already on the globe, which is what killed the
+duplicate.
+
+Measured: Mars 2 → **0**, Jupiter and the Moon 0, Earth **1** with its name
+tidied. **Earth keeping one is the control** — without it the fix is a switch
+turned off.
+
+## One name, one place: the project was on screen three times
+
+The header, the hub's shell chip, and the page header's pill. The header's is
+gone outright (the viewer still sends `geoid:context`; nothing draws it), and
+the pill went with it: **`pageHeader`'s third argument is a STATUS pill**, and
+three callers were passing the open project into it — `spec-page.js`, which is
+all 53 tree-rendered pages, plus Data Hub and Projects. Measured with a project
+open: the chip at top 6 and the pill at top 49, **both at left 1130**.
+
+What remains is the chip, and on the Projects page its own list row — that
+page's whole subject is the list of projects, so the open one being in it is
+not a duplicate label.
+
+## The app's own tools sit together in the bar
+
+The project dialog, the playlist and the settings are the APP'S; the three mode
+pills after them are WHERE YOU ARE, which is a different question. So the music
+and the gear join the project button, and the gear leaves the Workspace box —
+which holds a reader's LAYERS — standing down there exactly as the playlist
+does. It keeps its place in the page: a standalone viewer draws no header, and
+that gear is then the only doorway to Settings. Pressed through the REAL
+control, so Settings keeps one implementation.
+
+Measured on **all ten worlds**: the bar reads project, music, settings, modes;
+the page's own row, music, audio caption and gear are all hidden; the ⓘ and the
+collapse sit with the title; the draw bar is built; the rail is four items —
+**one shape, ten worlds**. The only per-world differences left are facts about
+the bodies (no recording on Earth or the Moon; no Geology or Sea Level on a gas
+giant).
+
+### And an open tab's corners: the CHILD carries the radius
+
+A closed tab clips its children, so its square summary is cut neatly into the
+rounded corners. The **open** one cannot — its head is sticky, and a sticky
+element inside a clipping box sticks to THAT BOX rather than to the column, so
+it was set to `overflow: visible`. With nothing clipping, the summary's square
+magenta fill painted over the 11.2px arcs while the 2px border curved around
+it. The children round themselves to the parent's **inner** radius instead
+(11.2 − 2 = 9.2px, the head taking the top two and the body the bottom two), so
+nothing needs clipping and the sticky head is untouched.
+
+## The explorer pages carry the About bar, and it wears the header's type
+
+Earth Explorer had no bar; Planet Explorer had the styles and no markup. Two
+mistakes getting there, both worth keeping:
+
+- **`.page-wrap` carries `min-height: 100vh`**, so the bar's first container
+  took the whole viewport and pushed the hero **843px below the fold**. Its own
+  container mirrors `.page` instead.
+- **`.fs-hero { height: auto }` overrides `.explorer-hero`**, so the real sizer
+  on that page is `.fs-panel`'s `min-height` — subtracting the bar anywhere
+  else reached nothing, and the hero still overflowed by 48px.
+
+The bar's height is one number (`--explorer-jump-h`), measured at 43px plus its
+20px gap.
+
+**THE SUB-BAR IS A CHILD OF THE HEADER, so it wears the header's type.** The
+family already matched; the size, the case and the tracking did not — the
+shared base was 11.2px at 0.07em against the header's 12px at 0.08em, close
+enough to read as a mistake rather than a choice. Aligned in `shared.css` and
+in the six pages that override it, so a reader moving between About pages sees
+one bar rather than two looks.
+
+**Match what a page COMPUTES, not what its source says.** `/team/`'s own rule
+names `"Public Sans"` and the cascade overrides it with `"GeoID Nav Body"` —
+copying the source would have reproduced a declaration that does not win.

@@ -5399,6 +5399,41 @@ canvas {
    symbology dialog and the Research Hub have both paid for. */
 #tool-rail .tool-rail-item[hidden] { display: none !important; }
 
+/* THE APP'S OWN CONTROLS LEAVE THE PAGE WHEN THE HEADER DRAWS THEM.
+ *
+ * The Workspace box holds a reader's layers; the gear beside its + Data and
+ * Export is the APP'S settings, which is the same standing as the project
+ * dialog and the playlist. It rides in the header's bar with them now, so the
+ * box's own copy stands down exactly as `#music-btn` does -- and stays in the
+ * page, because a standalone viewer draws no header and that gear is then the
+ * only doorway to Settings. */
+body.modebar-hosted #gis-settings-btn { display: none !important; }
+
+/* ── An open tab's corners: the CHILD carries the radius ──────────────────
+ *
+ * A closed tab clips its children (`overflow: hidden`), so its square summary
+ * is cut neatly into the rounded corners. The OPEN one cannot: its head is
+ * sticky, and a sticky element inside a clipping box sticks to that box rather
+ * than to the column — which is why the open tab lets its overflow show.
+ *
+ * With nothing clipping, the summary's square magenta fill paints straight
+ * over the corner arcs while the 2px border curves around it: measured, tab
+ * radius 11.2px with a summary and a body both at radius 0, flush to the
+ * border on both edges. That is the broken corner.
+ *
+ * So the children round themselves to the parent's INNER radius -- the outer
+ * radius less its border -- and nothing has to be clipped. The head takes the
+ * top two, the body the bottom two, and stickiness is untouched.
+ */
+#gis-toolbox-panels > details.toolbox-group[open] > summary.section-toggle {
+  border-top-left-radius: calc(0.7rem - 2px);
+  border-top-right-radius: calc(0.7rem - 2px);
+}
+#gis-toolbox-panels > details.toolbox-group[open] > .toolbox-group-body {
+  border-bottom-left-radius: calc(0.7rem - 2px);
+  border-bottom-right-radius: calc(0.7rem - 2px);
+}
+
 /* ── Meshing Studio, in the GIS page's own chrome ─────────────────────────
    One RIBBON instead of two toolbars (the actions as four menus, the view
    controls beside them), tab strips in the nav bar's voice (Exo 2, uppercase,

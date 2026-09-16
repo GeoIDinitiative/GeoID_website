@@ -88,10 +88,54 @@
       background: rgba(255,255,255,0.04);
     }
 
+    /* THE ABOUT BAR SITS ABOVE THE HERO, so the hero gives up exactly its
+       height. Measured on the page rather than guessed: the bar is 43px and
+       its own gap 20px -- the About pages' own values -- so 4rem with a hair
+       of slack, and a change to the bar is a change to this one number.
+
+       Its own container mirrors `.page` rather than reusing `.page-wrap`,
+       which carries `min-height: 100vh` -- measured, the wrap took the whole
+       viewport and pushed the hero 843px below the fold. The bar clears the
+       header, so `.page` below it no longer has to. */
+    :root { --explorer-jump-h: 4rem; }
+
+    .explorer-jump-wrap {
+      position: relative;
+      z-index: 1;
+      width: min(1840px, calc(100vw - 1rem));
+      margin: 0 auto;
+      padding-top: calc(var(--nav-h) + 0.5rem);
+    }
+    .page { padding-top: 0; }
+
     .explorer-hero {
       display: block;
       margin-bottom: 0;
-      height: calc(100dvh - var(--nav-h) - 1rem);
+      height: calc(100dvh - var(--nav-h) - 1rem - var(--explorer-jump-h));
+    }
+
+    /* THE ABOUT BAR LOOKS THE SAME ON EVERY ABOUT PAGE, and the shared base in
+       shared.css is not that look -- it is right-aligned, 11.2px and uppercase,
+       which is what this bar inherited. These are the values /team/ actually
+       COMPUTES, read off the page rather than copied from its source (its own
+       source names a font the cascade overrides): centred, 14px, sentence case.
+       A reader moving between About pages should not see the bar change. */
+    .explorer-jump-wrap .page-utility {
+      justify-content: center;
+      padding: 0.45rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .explorer-jump-wrap .page-jump {
+      justify-content: center;
+      width: 100%;
+    }
+    .explorer-jump-wrap .page-jump a {
+      border: none;
+      background: none;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 0.34rem 0.68rem;
     }
 
     .space-panel,
@@ -1986,7 +2030,10 @@
 
     .fs-panel {
       background: #04020a;
-      min-height: calc(100dvh - var(--nav-h) - 1rem);
+      /* `.fs-hero` sets `height: auto`, so THIS is what sizes the tile -- the
+         `.explorer-hero` rule above never reaches it, which is why subtracting
+         the bar there alone left the hero 48px past the fold. */
+      min-height: calc(100dvh - var(--nav-h) - 1rem - var(--explorer-jump-h));
     }
 
     .fs-tile-bg {
@@ -2331,6 +2378,48 @@
     </div>
     <button class="nav-toggle" type="button" aria-expanded="false" aria-label="Open navigation menu">☰</button>
   </nav>
+
+  <div class="explorer-jump-wrap">
+    <section class="page-utility" aria-label="About page links">
+      <div class="page-jump">
+        <a href="/about/">Overview</a>
+        <a href="/about_myGeoID/">myGeoID App</a>
+        <a href="/earth_explorer/">Earth Explorer</a>
+        <a href="/explorer/" class="active" aria-current="page">Planet Explorer</a>
+        <a href="/team/">Our Team</a>
+        <a href="/get-involved/">Get Involved</a>
+        <a href="/updates/">Journal</a>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    /**
+     * THE BAR PUBLISHES ITS OWN HEIGHT, because it WRAPS.
+     *
+     * The hero is sized by subtracting the bar from the viewport, and a
+     * constant cannot describe a row of seven links that becomes two rows on a
+     * narrow screen -- measured at 760px, the bar is 111px against the 64px the
+     * constant claimed, and the hero ran 72px past the fold. Published as a
+     * length and consumed by the stylesheet, which is how `--workbench-w` and
+     * `--atlas-launcher-w` already work in this tree.
+     *
+     * The CSS keeps its own 4rem fallback, so a page with no JS is right at the
+     * width the bar does not wrap at, rather than broken everywhere.
+     */
+    (function () {
+      var bar = document.querySelector(".explorer-jump-wrap .page-utility");
+      if (!bar) return;
+      var publish = function () {
+        var style = getComputedStyle(bar);
+        var h = bar.getBoundingClientRect().height + parseFloat(style.marginBottom || 0);
+        document.documentElement.style.setProperty("--explorer-jump-h", Math.round(h) + "px");
+      };
+      publish();
+      addEventListener("resize", publish);
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(publish);
+    })();
+  </script>
 
   <main class="page">
     <!-- ── Flight simulator hero ───────────────────────────────────────── -->

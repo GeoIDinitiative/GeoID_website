@@ -69,35 +69,6 @@
   color: var(--nav-ink);
   gap: 11px;
 }
-/* What is open in the viewer, between the wordmark and the links.
-   Only the myGeoID shells carry this element, so the rule is inert elsewhere.
-   It is a label rather than a heading: quieter than the wordmark, and it must
-   never push the nav links out of place, so it truncates instead of wrapping. */
-.site-nav .nav-context {
-  font-family: "Exo 2", system-ui, sans-serif;
-  font-size: 12px;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: rgba(var(--nav-accent-rgb, 120 200 255), 0.92);
-  /* In the right-hand group now, ahead of the recording and the membership
-     actions: the links are centred on the viewport and out of flow, so there is
-     no room on the left of them for a label that grows. It keeps its own width
-     rather than taking slack, and gives way before the actions do. */
-  flex: 0 1 auto;
-  min-width: 0;
-  max-width: 22ch;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.site-nav .nav-context:empty { display: none; }
-
-@media (max-width: 1099px) {
-  /* Below this the right group is the recording, Membership and Donate, and a
-     fourth thing in it crowds the links it now shares a row with. The hub's
-     own project chip says the same thing on the page itself. */
-  .site-nav .nav-context { display: none; }
-}
 
 .site-nav .nav-brand-icon {
   /* Sized against the 72px bar rather than against the old square. The name
@@ -353,9 +324,9 @@
        box and leaves it anchored where the flow put it -- measured, the group
        went from 550..1532 to 550..1116 and drew its whole contents ACROSS the
        links rather than shrinking. The auto margin takes the free space first,
-       so the box sits against the right edge and the cap then makes the two
-       things in it that can give way -- this label and the recording's caption
-       -- ellipsise instead. */
+       so the box sits against the right edge and the cap then makes the one
+       thing in it that can give way -- the recording's caption -- ellipsise
+       instead. */
     margin-left: auto;
     max-width: calc(50vw - 220px);
   }
