@@ -5746,8 +5746,6 @@ canvas {
   white-space: nowrap;
   padding: 0 0.2rem;
 }
-/* Three pills in a row inside the bar, not a stacked block in a tile. */
-#model-studio#model-studio
 /* A NESTED COLUMN NEEDS THE ROOM. The deck holds a tab, its cards and their
    rows -- four levels of padding -- and at the inherited 12.5rem a domain row
    was 186 px of content in 135 px of space, with a scrollbar of its own inside

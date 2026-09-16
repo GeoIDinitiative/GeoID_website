@@ -14,9 +14,9 @@
  */
 
 import { floodState, dischargeState, dischargeMean, rebuildSheet, sheetLayer }
-  from "./dem-layer.js?v=20260916-2dc072a";
+  from "./dem-layer.js?v=20260916-2222f27";
 import { SCENARIOS, DEFAULTS, stageRise, meanFlowFromWidth, flowRatio }
-  from "./inundation.js?v=20260916-2dc072a";
+  from "./inundation.js?v=20260916-2222f27";
 
 const byId = (id) => document.getElementById(id);
 const say = (message) => { const n = byId("flood-status"); if (n) n.textContent = message || ""; };

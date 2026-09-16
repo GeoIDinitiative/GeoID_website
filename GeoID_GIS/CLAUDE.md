@@ -17635,6 +17635,46 @@ left 16**. The top and bottom are still the model page's own — the deck hangs
 under the studio's top bar and clears the worlds strip — because those are
 facts about that page rather than about the column.
 
+**AND THEN IT SILENTLY WENT BACK TO 16rem FOR TWO COMMITS.** Reported as "the
+model nav bar is much skinnier than the GIS page one", and measured at 256px
+against 384 while every grep of the file still said 24rem.
+
+Deleting the `.view-mode-switch.is-in-studio` rules left the last one's
+selector PREFIX behind — `#model-studio#model-studio`, the doubled id that was
+its specificity trick — with no `{` after it. **That is not a parse error.**
+CSS reads the fragment and the next rule's selector as ONE selector with a
+descendant combinator between them, so
+
+    #model-studio .studio-dock { width: min(24rem, calc(100vw - 2rem)); }
+
+was parsed as `#model-studio#model-studio #model-studio .studio-dock` — a
+`#model-studio` inside a `#model-studio`, which cannot exist. The rule was in
+the sheet, matched nothing, and the older unscoped `.studio-dock { width:
+16rem }` won by default.
+
+**A TEXT PIN CANNOT SEE THIS, and one was passing throughout.** What settles it
+is the browser's own parse: `dock.matches("#model-studio .studio-dock")` was
+TRUE while no rule with that `selectorText` existed in `document.styleSheets` —
+that disagreement is the whole diagnosis, and it takes one measurement.
+`theme.test.mjs` now checks the SOURCE invariant instead: in a multi-line
+selector list every line but the last ends with a comma, so a dangling fragment
+(or a descendant combinator split across lines, which is legal and has now cost
+this tree once) fails. The check is asserted against the fault itself before it
+is trusted.
+
+**It found a second one, older and live.** `gis/shell.css` carried a comment
+whose opening `/*` and first line and a half had been eaten — the backtick trap
+this file records six times, here in a plain stylesheet rather than a template
+literal. The surviving tail was read as a selector and swallowed the rule after
+it, so `.row[hidden], .toolbox-group-body [hidden] { display: none !important }`
+— the override the `[hidden]` note exists for — has never applied on any of the
+nine planet pages. Earth's copy of the comment is intact, which is what it was
+restored from.
+
+**When a stylesheet's rule is right in the file and absent from the page, the
+fault is usually ABOVE it.** CSS error recovery swallows forward, so the
+damaged line and the dead rule are never the same line.
+
 **A computed border that disagrees with the rule that set it is an
 `!important` you have not found yet.** Enumerating `document.styleSheets` for
 rules the element matches listed mine and no other border rule, and the

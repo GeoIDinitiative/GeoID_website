@@ -139,6 +139,66 @@ for (const p of ["GeoID_GIS/viewer/styles.css", "GeoID_GIS/viewer/gis/shell.css"
   ok(`${p.split("/").pop()} has no data-colour literal left`,
     !/#52e4e8|82,\s*228,\s*232/.test(read(p)));
 }
+/**
+ * AN ORPHANED SELECTOR SWALLOWS THE NEXT RULE, and a text pin cannot see it.
+ *
+ * Deleting a rule and leaving its selector behind -- `#model-studio#model-studio`
+ * with no `{` -- does not fail to parse. CSS reads the fragment and the NEXT
+ * rule's selector as one descendant selector, so
+ * `#model-studio .studio-dock { width: min(24rem, ...) }` became
+ * `#model-studio#model-studio #model-studio .studio-dock`, which asks for a
+ * `#model-studio` inside a `#model-studio` and can never match. The deck sat at
+ * the older unscoped `.studio-dock { width: 16rem }` for two commits while
+ * every grep of the file said 24rem, and the pin that read the file's TEXT
+ * passed the whole time.
+ *
+ * The invariant is about the SOURCE rather than about any one rule: in a
+ * multi-line selector list every line but the last ends with a comma. A line
+ * that does not is either a dangling fragment or a descendant combinator split
+ * across lines, and this file has now paid for one of those.
+ */
+function orphanSelectors(text) {
+  const src = text.replace(/\/\*[\s\S]*?\*\//g, "");
+  const bad = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < src.length; i += 1) {
+    const c = src[i];
+    if (c === "{") {
+      const prelude = src.slice(start, i).trim();
+      if (prelude && !prelude.startsWith("@")) {
+        const lines = prelude.split("\n").map((l) => l.trim()).filter(Boolean);
+        for (let k = 0; k < lines.length - 1; k += 1) {
+          if (!lines[k].endsWith(",")) bad.push(lines[k]);
+        }
+      }
+      depth += 1;
+      start = i + 1;
+    } else if (c === "}") {
+      depth -= 1;
+      start = i + 1;
+    }
+  }
+  return bad;
+}
+// The check earns its place only if it fails on the fault it was written for.
+ok("the orphan check catches a selector left behind by a deleted rule",
+  orphanSelectors("#a#a\n#a .b { width: 1rem; }").length === 1
+  && orphanSelectors("#a .b,\n#a .c { width: 1rem; }").length === 0
+  && orphanSelectors("@media (min-width: 10px) {\n  .b { width: 1rem; }\n}").length === 0);
+for (const p of ["GeoID_GIS/viewer/styles.css", "GeoID_GIS/viewer/gis/shell.css"]) {
+  const bad = orphanSelectors(read(p));
+  ok(`${p.split("/").pop()} has no orphaned selector swallowing the rule after it`,
+    bad.length === 0, bad.slice(0, 3).join(" | "));
+}
+// And the deck's width is the one that fault hid: the GIS nav bar's own.
+for (const p of ["GeoID_GIS/viewer/styles.css", "GeoID_GIS/viewer/gis/shell.css"]) {
+  const css = read(p).replace(/\/\*[\s\S]*?\*\//g, "");
+  ok(`${p.split("/").pop()}: the deck is the nav bar's width, and nothing earlier outranks it`,
+    /#model-studio \.studio-dock \{ width: min\(24rem, calc\(100vw - 2rem\)\); \}/.test(css)
+    && !/#model-studio[^\n{,]*\n\s*#model-studio \.studio-dock/.test(css));
+}
+
 // And the two opaque grounds were literals in seven MODULES, which is why a
 // light theme still had a purple-black card in it.
 for (const p of ["gis/legend-dock.js", "gis/side-panels.js", "gis/table-editor.js",
