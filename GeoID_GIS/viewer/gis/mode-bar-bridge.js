@@ -55,12 +55,29 @@ const TARGETS = {
 export function worldAudio(doc = document) {
   const el = doc.getElementById("audio-play-btn");
   if (!el) return null;
+  /**
+   * A WORLD WITHOUT ITS OWN RECORDING HAS NO AUDIO CONTROL, NOT A PLACEHOLDER.
+   *
+   * Mercury, Venus and Pluto carry the same markup as Mars, but the player
+   * points at a generic `space_ambient.wav` and the page hides its box
+   * (`style="display:none"` on `.brand-audio`) -- they have no recording of
+   * their own. This read the button regardless, so the header showed
+   * "▶ SOUNDS OF SPACE" on those worlds, a filler caption for a sound that is
+   * not theirs. The page's own hide is the answer. It is read from the
+   * AUTHORED style, not the computed one: once hosted, `body.audio-hosted`
+   * hides every world's box -- Mars's included -- so computed display would
+   * report no recording anywhere.
+   */
+  const box = el.closest?.(".brand-audio");
+  if (box && (box.hidden || box.style.display === "none")) return null;
   const pause = doc.getElementById("audio-icon-pause");
   const label = (doc.querySelector(".brand-audio p")?.textContent || "").trim();
   return {
     el,
     playing: Boolean(pause && pause.style && pause.style.display !== "none"),
-    label: label || "Sounds of this world",
+    // No invented caption either: a recording without a credit shows the
+    // control alone rather than "Sounds of this world".
+    label,
   };
 }
 

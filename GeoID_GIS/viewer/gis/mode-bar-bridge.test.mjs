@@ -29,7 +29,7 @@ const { modeBarState, pressModeBarTarget, worldAudio, rowIsOnlyModeBar } =
 function fakeDoc({
   mode = "gis", playing = false, music = true, project = true,
   modes = ["gis", "model", "research"],
-  own = null, ownPlaying = false, ownLabel = "Sounds of Mars - NASA InSight",
+  own = null, ownPlaying = false, ownLabel = "Sounds of Mars - NASA InSight", ownHidden = false,
 } = {}) {
   const made = new Map();
   const make = (id, cls = []) => {
@@ -47,7 +47,9 @@ function fakeDoc({
   // A world's own recording: its own button, and an icon that says whether it
   // is playing by being swapped rather than by a class.
   if (own) {
-    make("audio-play-btn");
+    // Its box, as the page wrote it: Mercury, Venus and Pluto hide theirs.
+    const box = { hidden: false, style: { display: ownHidden ? "none" : "" } };
+    make("audio-play-btn").closest = (sel) => (sel === ".brand-audio" ? box : null);
     make("audio-icon-pause").style.display = ownPlaying ? "block" : "none";
   }
   return {
@@ -85,6 +87,14 @@ function fakeDoc({
   const earth = modeBarState(fakeDoc({ own: null }));
   check("a world with none reports none, rather than the music standing in for it",
     earth.audio.present === false && earth.music.present === true);
+  // Mercury, Venus and Pluto: the same markup, a generic ambient file, and the
+  // box hidden by the page. The header drew "SOUNDS OF SPACE" for them.
+  const placeholder = modeBarState(fakeDoc({ own: true, ownHidden: true, ownLabel: "Sounds of Space" }));
+  check("a world whose page hides its audio box has NO recording, not a placeholder",
+    placeholder.audio.present === false && placeholder.audio.label === ""
+    && worldAudio(fakeDoc({ own: true, ownHidden: true })) === null);
+  check("and a recording with no credit shows no invented caption",
+    worldAudio(fakeDoc({ own: true, ownLabel: "" })).label === "");
   check("the recording says it is playing by its SWAPPED ICON, not by a class",
     worldAudio(fakeDoc({ own: true, ownPlaying: false })).playing === false
     && worldAudio(fakeDoc({ own: true, ownPlaying: true })).playing === true);
