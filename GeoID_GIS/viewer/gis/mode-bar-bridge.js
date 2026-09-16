@@ -145,9 +145,14 @@ function install() {
   if (window.self === window.top) return;
 
   let hosted = false;
+  let audioHosted = false;
 
   const report = () => {
-    if (!hosted) return;
+    // EITHER claim is reason to report. Gated on the bar alone, a window too
+    // narrow for the bar stopped telling the header anything -- so the header
+    // never learned there was a recording to draw, the deck had already stood
+    // its own player down, and the player was reachable from nowhere.
+    if (!hosted && !audioHosted) return;
     try {
       window.parent.postMessage({ type: "geoid:modebar", ...modeBarState() }, "*");
     } catch (error) {
@@ -174,6 +179,10 @@ function install() {
       // `parkModeRow` has moved it to.
       hosted = msg.hosted !== false;
       document.body.classList.toggle("modebar-hosted", hosted);
+      // The world's own recording is claimed on its own width -- the header
+      // keeps drawing that one long after the bar has stood down.
+      audioHosted = msg.audio !== false;
+      document.body.classList.toggle("audio-hosted", audioHosted);
       const row = modeRow();
       row?.classList.toggle("is-modebar-hosted", hosted);
       row?.classList.toggle("is-modebar-empty", hosted && rowIsOnlyModeBar(row));

@@ -2562,8 +2562,10 @@ body.studio-open:not(.modebar-hosted) .brand-toprow.is-parked #music-btn { displ
    two -- the shared music playlist, floating over the globe, and the world's
    own recording with its own credit -- and that pair is what was reported as a
    duplicate. The header draws the page's own, and the credit rides on it. */
-body.modebar-hosted #music-btn,
-body.modebar-hosted .brand-audio { display: none !important; }
+body.modebar-hosted #music-btn { display: none !important; }
+/* The world's own recording answers to its OWN claim: the header draws that
+   one at any width down to the burger, where the bar has long stood down. */
+body.audio-hosted .brand-audio { display: none !important; }
 /* With the row gone the slots are empty spans, and their host's `gap`
    still spends a step on them. `parkModeRow` goes on moving the hidden row
    between them, because the standalone page needs that and a second rule

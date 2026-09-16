@@ -142,6 +142,24 @@ function fakeDoc({
   // A phone's header has no room, so the stylesheet hides the bar there — and
   // an unconditional claim would then leave no mode switch anywhere at all.
   const shell = strip(readFileSync(here("../../../geohub/index.html"), "utf8"));
+  // THE PLAYER IS CLAIMED ON ITS OWN WIDTH. It is one 30px button beside the
+  // membership group and does not reach for the centred tab headers, so the
+  // 1400px rule that stands the BAR down has nothing to say about it. Coupled
+  // to that rule it stood down at 1399 while the header went on drawing it:
+  // measured at 1300, the header's button showing AND the world's own player
+  // back in the deck -- the duplicate this whole arrangement removes.
+  check("the player follows the width at which the header actually hides it",
+    /const phone = window\.matchMedia\("\(max-width: 680px\)"\);/.test(shell)
+    && /audio: Boolean\(navMusic\) && !phone\.matches,/.test(shell)
+    && /phone\.addEventListener\?\.\("change", claimModeBar\);/.test(shell));
+  check("and either claim is reason to report, or the header is never told",
+    /if \(!hosted && !audioHosted\) return;/.test(read("./mode-bar-bridge.js")));
+  for (const p of ["../styles.css", "./shell.css"]) {
+    const css = strip(read(p));
+    check(`${p.split("/").pop()}: the deck's player answers the AUDIO claim`,
+      /body\.audio-hosted \.brand-audio \{ display: none !important; \}/.test(css)
+      && !/body\.modebar-hosted \.brand-audio/.test(css));
+  }
   check("a narrow screen hands the bar back to the page, at the width the links need",
     /const narrow = window\.matchMedia\("\(max-width: 1399px\)"\);/.test(shell)
     && /hosted: Boolean\(modeBar\) && !narrow\.matches,/.test(shell)

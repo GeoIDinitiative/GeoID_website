@@ -1663,6 +1663,19 @@
       // said it had one. Below it the row goes back to the page, which is
       // where it lived before.
       const narrow = window.matchMedia("(max-width: 1399px)");
+      /**
+       * THE PLAYER IS CLAIMED ON ITS OWN WIDTH, and it is a different width.
+       *
+       * It is one 30px button tucked against the membership group -- it does
+       * not reach for the centred tab headers the way a 356px bar does, so the
+       * 1400px rule that stands the BAR down has nothing to say about it.
+       * Coupled to that rule it stood down at 1399 while the header went on
+       * drawing it: measured at 1300, the header's button showing AND the
+       * world's own player back in the deck, which is the duplicate this was
+       * meant to remove. It follows the width at which the stylesheet actually
+       * hides it instead.
+       */
+      const phone = window.matchMedia("(max-width: 680px)");
 
       // Telling the viewer the header has the bar is what makes the viewer
       // hide its own. Said on every answer rather than once, because a
@@ -1671,11 +1684,13 @@
         toViewer({
           type: "geoid:modebar-host",
           hosted: Boolean(modeBar) && !narrow.matches,
+          audio: Boolean(navMusic) && !phone.matches,
         });
       }
 
       // Crossing that width hands the bar back to the page and takes it again.
       narrow.addEventListener?.("change", claimModeBar);
+      phone.addEventListener?.("change", claimModeBar);
 
       const navMusic = document.getElementById("nav-music");
 

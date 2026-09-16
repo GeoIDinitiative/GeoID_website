@@ -22121,3 +22121,38 @@ carries no `attribution`, the card says what it can and no more. Filling those
 in means sourcing each mission's attribution, which is content to be confirmed
 rather than guessed — the rule this file already states for a
 licence-conditional dataset.
+
+### The player is claimed on its OWN width, and the bar's rule was hiding it
+
+Reported with a screenshot of Mars's deck still carrying "Sounds of Mars — NASA
+InSight" beside the title. At full width it was already gone; **at 1300px it was
+not**, and worse — measured there, the header's button was showing AND the
+deck's player was back, which is the duplicate the whole arrangement exists to
+remove.
+
+**One claim was doing two jobs.** `modebar-hosted` is gated at 1400px, the
+width below which the logo and a 356px bar would reach the centred tab headers.
+The player is one 30px button tucked against the membership group and reaches
+for nothing — the only width that matters to it is the 680px at which the
+stylesheet hides it. Tied to the bar's rule it stood down at 1399 while the
+header went on drawing it.
+
+So there are two claims: `hosted` for the row's three controls at 1400, and
+`audio` for the world's recording at 680. The shell watches both media queries
+and re-claims on either.
+
+**AND THE REPORT WAS GATED ON THE BAR ALONE.** With the split in and the bar
+stood down, `report()` returned early, the header was never told there was a
+recording to draw, the deck had already hidden its own player, and the player
+was reachable from nowhere — measured at 1300 as `hidden: true` on a button
+whose title was still the default "Play". Either claim is reason to report now.
+
+Measured after, on Mars: at 1556 the bar hosted, the deck clear, the player at
+1277–1307 between Contact and Membership; at 1300 the bar handed back to the
+page (its own row and floating playlist returning, as designed) with the deck
+still clear and the player at 1021–1051, between Contact and Membership there
+too.
+
+**A width rule written for one control will be inherited by the next one added
+beside it.** Ask what the new control's own constraint is before reusing the
+gate that happens to be there.
