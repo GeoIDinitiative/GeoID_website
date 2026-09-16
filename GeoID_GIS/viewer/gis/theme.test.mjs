@@ -483,6 +483,18 @@ ok("and a received theme is applied without being re-announced",
     /<script src="\/scripts\/ui-sound\.js\?v=[^"]+" defer><\/script>/.test(read("index.html")));
   // And the header presses the viewer's real buttons for them, so a relayed
   // press must not click a second time in the frame.
+  // Reinstated: an "off" saved against the label-wrapped box is read past
+  // once, and the switch is one state across the header and the viewer.
+  ok("the switch moved to a new key and the old one is removed, so a stale off does not silence the site",
+    /ENABLED_KEY = "geoid_ui_sounds_v2"/.test(sound) && /localStorage\.removeItem\(LEGACY_ENABLED_KEY\)/.test(sound));
+  ok("the header and the viewer share the switch through the storage event",
+    /event\.key === ENABLED_KEY\) enabled = event\.newValue !== "false"/.test(sound)
+    && /event\.key !== "geoid_ui_sounds_v2"/.test(script));
+  ok("audio starts inside the first press, and a hover before any press creates nothing",
+    /\["pointerdown", "keydown", "touchstart"\]\.forEach[\s\S]{0,120}unlock/.test(sound)
+    && /if \(!ctx && !fromGesture && !activated\(\)\) return null;/.test(sound));
+  ok("a blip into a context still waking plays once it runs",
+    /ac\.state !== "running"\) \{\s*ac\.resume\(\)\.then\(function \(\) \{ schedule\(/.test(sound));
   ok("a scripted click is silent; a person's click sounds",
     /if \(e\.isTrusted === false\) return;\s*if \(controlFor\(e\.target\)\) playClick\(\);/.test(sound));
 }

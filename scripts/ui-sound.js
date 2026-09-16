@@ -10,7 +10,17 @@
 
   if (window.GeoIDUiSound) return; // already installed
 
-  var ENABLED_KEY = "geoid_ui_sounds";
+  /**
+   * THE SWITCH'S KEY MOVED, ON PURPOSE. "Theme sounds" in Settings is a
+   * label-wrapped tick box, so a press anywhere along its row flips it, and
+   * the header and the viewer each read the old key once at load and never
+   * again. Sounds went off in real browsers while a clean one played them
+   * perfectly. Reinstating them means not honouring an "off" that the
+   * control made too easy to set, so the old key is read past once and
+   * removed; the new one is kept in step across documents below.
+   */
+  var ENABLED_KEY = "geoid_ui_sounds_v2";
+  var LEGACY_ENABLED_KEY = "geoid_ui_sounds";
   var VOLUME_KEY = "geoid_ui_sound_volume";
 
   // Single source of truth -- the initialiser at the bottom reads this too, so
@@ -45,7 +55,26 @@
     }
   }
 
-  function getCtx() {
+  /**
+   * AUDIO STARTS INSIDE A GESTURE. A browser refuses to start an
+   * AudioContext before the page has been pressed, and one created on a
+   * hover stays suspended: the first click then schedules into a stopped
+   * clock. So nothing is created until the page has been activated, and the
+   * first press anywhere creates and resumes it in that press.
+   */
+  function activated() {
+    var ua = navigator.userActivation;
+    return !ua || ua.hasBeenActive;
+  }
+
+  function unlock() {
+    if (!enabled) return;
+    var ac = getCtx(true);
+    if (ac && ac.state === "suspended") ac.resume();
+  }
+
+  function getCtx(fromGesture) {
+    if (!ctx && !fromGesture && !activated()) return null;
     if (!ctx) {
       var Ctor = window.AudioContext || window.webkitAudioContext;
       if (!Ctor) return null;
@@ -65,6 +94,16 @@
     if (!enabled || volume <= 0) return;
     var ac = getCtx();
     if (!ac) return;
+    // A context still waking from the gesture that resumed it plays the blip
+    // once it runs, rather than scheduling into a clock that is not moving.
+    if (ac.state !== "running") {
+      ac.resume().then(function () { schedule(ac, freq, durSec, peak, type); }, function () {});
+      return;
+    }
+    schedule(ac, freq, durSec, peak, type);
+  }
+
+  function schedule(ac, freq, durSec, peak, type) {
     var osc = ac.createOscillator();
     var g = ac.createGain();
     osc.type = type;
@@ -185,9 +224,23 @@
 
   enabled = readBool(ENABLED_KEY, true);
   volume = readNum(VOLUME_KEY, DEFAULT_VOLUME);
+  try { localStorage.removeItem(LEGACY_ENABLED_KEY); } catch (e) { /* storage unavailable */ }
 
   document.addEventListener("pointerover", onOver, { passive: true });
   document.addEventListener("click", onClick, { passive: true, capture: true });
+  ["pointerdown", "keydown", "touchstart"].forEach(function (type) {
+    document.addEventListener(type, unlock, { passive: true, capture: true });
+  });
+
+  // ONE SWITCH, EVERY DOCUMENT. The GeoHUB header and the viewer under it are
+  // two documents, each with its own copy of this module; a change made in
+  // one reaches the other through the storage event, so switching sounds on
+  // in Settings is heard in the header without a reload.
+  window.addEventListener("storage", function (event) {
+    if (!event) return;
+    if (event.key === ENABLED_KEY) enabled = event.newValue !== "false";
+    if (event.key === VOLUME_KEY) volume = readNum(VOLUME_KEY, DEFAULT_VOLUME);
+  });
 
   // Exposed so a settings toggle can be wired up later without touching this file.
   window.GeoIDUiSound = {

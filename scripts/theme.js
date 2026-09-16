@@ -220,6 +220,14 @@
     window.GeoIDUiSound.setEnabled(event.target.checked);
     if (event.target.checked) window.GeoIDUiSound.playClick();
   });
+  // The switch set in another document (the header, or another tab) moves
+  // this box too. Read from the event, not from the module, whose own storage
+  // listener may run after this one.
+  window.addEventListener("storage", function (event) {
+    if (!event || event.key !== "geoid_ui_sounds_v2") return;
+    var box = document.getElementById("gis-skin-sound");
+    if (box) box.checked = event.newValue !== "false";
+  });
   // A theme chosen in the shell, or in another tab, moves this select too.
   window.addEventListener("geoid:skin-changed", function (event) {
     var select = document.getElementById("gis-skin");
