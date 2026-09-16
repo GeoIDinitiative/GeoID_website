@@ -21878,3 +21878,45 @@ rule.** The first check hid the bar with `display: none` and read the links at
 162 — because `:has(.nav-modebar:not([hidden]))` still matched an element that
 was merely not drawn, so the wordmark was still held at `0 0 auto`. Remove the
 NODE for a baseline, not its paint.
+
+### `.brand-toprow` IS NOT ONE ELEMENT, and a class-wide hide took four panels' ✕
+
+Reported as the major windows losing their close icons, with the Settings
+window as the example. Measured: **five `.brand-toprow` elements on the page**,
+and `body.modebar-hosted .brand-toprow { display: none !important }` — written
+an hour earlier to hide the mode row once the header took it over — hid every
+one of them.
+
+| row's parent | what it is |
+| --- | --- |
+| `#ui` | the mode row, the one that should be hidden |
+| `gis-side-panel-preprocess` | **Geoprocessing**'s head |
+| `gis-side-panel-analysis` | **Analysis**'s head |
+| `gis-side-panel-export` | **Export**'s head |
+| `gis-side-panel-settings` | **Settings**'s head |
+
+The workbench panels **ARE the sidebar** — `adoptSidebarShell` reads `#ui`'s
+own computed style rather than imitating it, which is the note this file
+already records — so each one heads itself with a `.brand-toprow` carrying its
+title, its collapse `‹` and its close `✕`. Hiding the class hid all four heads,
+and with them the only way to close those panels with the mouse.
+
+**The mark goes on the ROW, and the row is found by the switch it holds.**
+Neither the class nor document order identifies it: the class is on five
+elements, and `parkModeRow` moves this one between three hosts.
+`getElementById("view-mode-switch").closest(".brand-toprow")` is true wherever
+it has been parked. `.brand-toprow.is-modebar-hosted` is the rule now, and the
+test pins that the body-scoped form is gone as well as that the new one is
+there.
+
+**The symptom was invisible to every property the buttons carry.** The ✕ read
+`display: flex`, `visibility: visible` and its own `✕` as text — because it was
+the PARENT that was hidden, and a child of a `display: none` box still reports
+its own computed display. What said so was the BOX: 0×0 at 0,0. When a control
+is present, styled and not on screen, measure its rect and then walk up.
+
+Verified after, on all four panels: the head `display: flex`, the `‹` and `✕`
+at 25×25, `elementFromPoint` at the ✕'s centre returning the button itself (the
+hit test the geology card's own ✕ already cost a round), the close closing and
+the collapse collapsing. A sweep of every other dialog, modal and floating
+window on the page found none missing a closer.

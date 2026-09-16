@@ -35,6 +35,16 @@ const TARGETS = {
   music: "music-btn",
 };
 
+/**
+ * THE row -- the one holding the mode switch, not the first element that
+ * happens to carry the class. Four workbench panels head themselves with a
+ * `.brand-toprow` of their own, and `parkModeRow` moves this one between three
+ * hosts, so neither the class nor document order identifies it.
+ */
+function modeRow(doc = document) {
+  return doc.getElementById("view-mode-switch")?.closest(".brand-toprow") || null;
+}
+
 /** The viewer's own control for a name the shell can press. */
 function controlFor(target, doc) {
   const id = TARGETS[target];
@@ -100,8 +110,17 @@ function install() {
       // class rather than `hidden`: the row is a flex item in three different
       // hosts and every one of them sets `display`, which outranks the
       // attribute -- the trap this tree has paid for five times.
+      //
+      // MARKED ON THE ROW, NEVER ON THE BODY. `.brand-toprow` is not one
+      // element: the workbench panels ARE the sidebar (`adoptSidebarShell`),
+      // so Geoprocessing, Analysis, Export and Settings each head themselves
+      // with one too -- five on the page, and a `body.x .brand-toprow` rule
+      // took the title, the collapse and the CLOSE off all four of them.
+      // The row is the one holding the mode switch, which is true wherever
+      // `parkModeRow` has moved it to.
       hosted = msg.hosted !== false;
       document.body.classList.toggle("modebar-hosted", hosted);
+      modeRow()?.classList.toggle("is-modebar-hosted", hosted);
       report();
       return;
     }

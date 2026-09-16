@@ -5986,7 +5986,12 @@ body.studio-open .brand-toprow.is-parked #music-btn { display: inline-flex !impo
  * Standalone, and on the nine planet pages, nothing sets this and the row is
  * exactly what it always was.
  */
-body.modebar-hosted .brand-toprow { display: none !important; }
+.brand-toprow.is-modebar-hosted { display: none !important; }
+/* NOT `body.modebar-hosted .brand-toprow`: the workbench panels ARE the
+   sidebar, so Geoprocessing, Analysis, Export and Settings each head
+   themselves with a `.brand-toprow` too -- five on the page -- and that rule
+   took the title, the collapse and the CLOSE off all four of them. The mark
+   goes on the one row that holds the mode switch. */
 /* With the row gone the slots are empty spans, and their host's `gap`
    still spends a step on them. `parkModeRow` goes on moving the hidden row
    between them, because the standalone page needs that and a second rule

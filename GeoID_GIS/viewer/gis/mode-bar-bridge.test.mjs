@@ -127,11 +127,22 @@ function fakeDoc({ mode = "gis", playing = false, music = true, project = true, 
 
   // Hidden by a class, never the `hidden` attribute: the row is a flex item in
   // three hosts and every one of them sets `display`, which outranks it.
+  //
+  // AND THE MARK GOES ON THE ROW. `.brand-toprow` is not one element: the
+  // workbench panels ARE the sidebar (`adoptSidebarShell`), so Geoprocessing,
+  // Analysis, Export and Settings each head themselves with one too. Measured
+  // on the live page, `body.modebar-hosted .brand-toprow` hid all five and took
+  // the title, the collapse and the CLOSE off all four panels.
   for (const p of ["../styles.css", "./shell.css"]) {
     const css = strip(read(p));
-    check(`${p.split("/").pop()}: the row is hidden only when the shell says it has the bar`,
-      /body\.modebar-hosted \.brand-toprow \{ display: none !important; \}/.test(css));
+    check(`${p.split("/").pop()}: only the row that holds the switch is hidden`,
+      /\.brand-toprow\.is-modebar-hosted \{ display: none !important; \}/.test(css)
+      && !/body\.modebar-hosted \.brand-toprow \{/.test(css));
   }
+  const bridge = strip(read("./mode-bar-bridge.js"));
+  check("and the row is found by the switch it holds, not by the class or by order",
+    /doc\.getElementById\("view-mode-switch"\)\?\.closest\("\.brand-toprow"\)/.test(bridge)
+    && /modeRow\(\)\?\.classList\.toggle\("is-modebar-hosted", hosted\)/.test(bridge));
 }
 
 process.on("exit", () => {
