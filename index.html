@@ -100,7 +100,7 @@
       box-shadow: 0 0 1.4em var(--boot-data);
     }
     .boot-log {
-      position: absolute; left: 4.4em; bottom: 4.2em; right: 16em;
+      position: absolute; left: 4.4em; bottom: 4.2em; right: 4.4em;
       overflow: hidden;
       font-family: var(--boot-body); font-size: 1em; line-height: 1.7; letter-spacing: 0.06em;
       color: var(--boot-data);
@@ -116,23 +116,11 @@
        right. The first cut ran the bar between the two and under the buttons. */
     .boot-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 0.3em; background: rgba(255, 255, 255, 0.08); }
     .boot-bar > i { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: var(--boot-data); box-shadow: 0 0 0.8em var(--boot-data); }
-    .boot-ctl {
-      position: absolute; right: 2.2em; bottom: 4.2em; display: flex; gap: 1em; pointer-events: auto;
-      font-family: var(--boot-body); font-size: 0.85em; letter-spacing: 0.18em; text-transform: uppercase;
-    }
-    .boot-ctl button {
-      appearance: none; background: transparent; border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 2px;
-      color: rgba(255, 255, 255, 0.55); font: inherit; letter-spacing: inherit; text-transform: inherit;
-      padding: 0.5em 0.9em; cursor: pointer;
-    }
-    .boot-ctl button:hover, .boot-ctl button:focus-visible { color: var(--boot-ink); border-color: var(--boot-data); outline: none; }
-    .boot-ctl button[aria-pressed="true"] { color: var(--boot-data); border-color: var(--boot-data); }
     /* The header's own logo waits, invisible, until the screen's logo has
        arrived on it. Visibility rather than opacity: it must keep its box. */
     html.is-booting .site-nav .nav-brand-icon { visibility: hidden; }
     @media (max-width: 720px) {
       .boot-log { left: 1.6em; right: 1.6em; bottom: 6.4em; font-size: 1.15em; }
-      .boot-ctl { right: 1.2em; bottom: 1.6em; }
       .boot-logo { width: 62vw; }
       .boot-cap { display: none; }
     }
@@ -1425,10 +1413,6 @@
       <div class="boot-br tl"></div><div class="boot-br tr"></div><div class="boot-br bl"></div><div class="boot-br br"></div>
       <div class="boot-scan" id="boot-scan"></div>
       <div class="boot-flare" id="boot-flare"></div>
-      <div class="boot-ctl">
-        <button type="button" id="boot-sound" aria-pressed="true">Sound on</button>
-        <button type="button" id="boot-skip">Skip · Esc</button>
-      </div>
     </div>
   </div>
   <script>
@@ -1446,9 +1430,10 @@
      *
      * The second start in a tab session is quick: the same beats, compressed.
      *
-     * SOUND is synthesised in the page (no file, no fetch) and is optional:
-     * a browser that will not play audio before a click leaves the sequence
-     * silent and the button offers to switch it on; the choice is remembered.
+     * SOUND is synthesised in the page (no file, no fetch). A browser that
+     * will not play audio before a gesture leaves the sequence silent until
+     * the first click or key. There is no control on the screen; setting
+     * localStorage "geoid:boot-sound" to "off" mutes it.
      */
     (function () {
       "use strict";
@@ -1489,11 +1474,6 @@
       var AC = window.AudioContext || window.webkitAudioContext;
       var ctx = null, master = null, soundOn = true, audioReady = false;
       try { soundOn = localStorage.getItem("geoid:boot-sound") !== "off"; } catch (_e) {}
-      var soundBtn = document.getElementById("boot-sound");
-      function paintSoundBtn() {
-        soundBtn.setAttribute("aria-pressed", String(soundOn));
-        soundBtn.textContent = !soundOn ? "Sound off" : (audioReady ? "Sound on" : "Sound · tap to enable");
-      }
       function audio() {
         if (!AC) return null;
         if (!ctx) {
@@ -1504,7 +1484,7 @@
       function tryStart() {
         var c = audio(); if (!c) return;
         var p = c.resume && c.resume();
-        var mark = function () { audioReady = c.state === "running"; paintSoundBtn(); if (audioReady && !over) padStart(); };
+        var mark = function () { audioReady = c.state === "running"; if (audioReady && !over) padStart(); };
         if (p && p.then) p.then(mark, mark); else mark();
       }
       function tone(freq, dur, type, gain, at, glideTo) {
@@ -1556,18 +1536,11 @@
         acquired: function () { tone(660, 0.12, "sine", 0.35); tone(990, 0.16, "sine", 0.35, 0.12); },
         focus: function () { sweep(2400, 180, 0.7, 0.26, 0, "lowpass"); tone(1320, 0.5, "sine", 0.08, 0.05, 660); }
       };
-      soundBtn.addEventListener("click", function (e) {
-        e.stopPropagation();
-        soundOn = !soundOn;
-        try { localStorage.setItem("geoid:boot-sound", soundOn ? "on" : "off"); } catch (_e) {}
-        if (soundOn) tryStart(); else padStop(0.3);
-        paintSoundBtn();
-      });
       // A browser that refused autoplay allows it after the first gesture.
       var gestures = ["pointerdown", "keydown", "touchstart"];
       function onGesture() { if (soundOn && !audioReady) tryStart(); }
       gestures.forEach(function (ev) { document.addEventListener(ev, onGesture, { passive: true }); });
-      if (soundOn) tryStart(); else paintSoundBtn();
+      if (soundOn) tryStart();
 
       /* ── the montage ─────────────────────────────────────────────────
          /load_screen/earth/frames.json lists the frames and their captions;
@@ -1712,7 +1685,6 @@
         var flare = document.getElementById("boot-flare");
         if (flare) flare.animate([{ left: "-20%", opacity: 0 }, { opacity: 0.9, offset: 0.3 }, { left: "110%", opacity: 0 }], { duration: 800, fill: "forwards", easing: "ease-in-out" });
         field.animate([{ filter: "blur(0px)", transform: "scale(1)", opacity: 1 }, { filter: "blur(14px)", transform: "scale(1.06)", opacity: 0 }], { duration: 900, fill: "forwards", easing: EASE });
-        boot.querySelector(".boot-ctl").animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: "forwards" });
         // The logo becomes the header's logo: same image, same box.
         var a = null;
         if (navIcon && navIcon.getBoundingClientRect().width > 0) {
@@ -1755,7 +1727,6 @@
       function skip() { if (performance.now() - started > 600) { showAcquired(); t(finish, 200); } }
       function onKey(e) { if (e.key === "Escape") skip(); }
       document.addEventListener("keydown", onKey);
-      document.getElementById("boot-skip").addEventListener("click", function (e) { e.stopPropagation(); skip(); });
       boot.addEventListener("click", function (e) { if (e.target === boot || e.target === field) skip(); });
       window.addEventListener("resize", function () { if (over) return; pos = layoutBrackets(); Object.keys(brackets).forEach(function (k) { brackets[k].style.left = pos.inner[k][0] + "px"; brackets[k].style.top = pos.inner[k][1] + "px"; }); });
     })();
