@@ -37,7 +37,7 @@ function announce() {
 }
 
 export function unlock(key) {
-  if (String(key || "").trim() !== MASTER) return { ok: false, text: "That is not the master key." };
+  if (String(key || "").trim() !== MASTER) return { ok: false, text: "That is not the GeoID Membership Key." };
   try { window.localStorage.setItem(KEY, MASTER); } catch (error) { return { ok: false, text: "This browser refuses storage: the unlock cannot be kept." }; }
   announce();
   return { ok: true, text: "Unlocked: this browser is the master account until it is locked again. The Earth Engine endpoint, the sidecar and the hub stay stored." };
@@ -75,18 +75,18 @@ function render() {
   host.replaceChildren();
   const state = el("p", { class: "compact-copy", id: "gis-master-key-state" },
     on ? "This browser is the MASTER ACCOUNT: every member function is open, and stored credentials are kept."
-      : service ? "Signed in through the membership service; the master key is not needed."
+      : service ? "Signed in through the membership service; the GeoID Membership Key is not needed."
         : "Locked: this browser meets every gate as a visitor does.");
   host.append(state);
   const status = el("p", { class: "compact-copy", id: "gis-master-key-status", "aria-live": "polite" });
   if (!on) {
-    const input = el("input", { id: "gis-master-key-input", class: "input", type: "password", autocomplete: "off", placeholder: "master key", "aria-label": "Master key" });
+    const input = el("input", { id: "gis-master-key-input", class: "input", type: "password", autocomplete: "off", placeholder: "GeoID Membership Key", "aria-label": "GeoID Membership Key" });
     const go = el("button", { type: "button", class: "button primary" }, "Unlock this browser");
     // render() replaces the status node, so the sentence is written after it.
     const act = () => { const r = unlock(input.value); if (r.ok) render(); const n = byId("gis-master-key-status"); if (n) n.textContent = r.text; };
     go.addEventListener("click", act);
     input.addEventListener("keydown", (e) => { if (e.key === "Enter") act(); e.stopPropagation(); });
-    host.append(el("div", { class: "row" }, el("label", { for: "gis-master-key-input" }, "Master key"), input), el("div", { class: "gis-btn-row" }, go));
+    host.append(el("div", { class: "row" }, el("label", { for: "gis-master-key-input" }, "GeoID Membership Key"), input), el("div", { class: "gis-btn-row" }, go));
   } else {
     const off = el("button", { type: "button", class: "button secondary" }, "Lock again");
     off.addEventListener("click", () => { const r = lock(); render(); const n = byId("gis-master-key-status"); if (n) n.textContent = r.text; });
@@ -104,10 +104,15 @@ function render() {
  * so this runs wherever Settings does.
  */
 function mount() {
+  // NAMED FOR WHAT IT UNLOCKS. Settings also holds the Earth Engine project and
+  // the Google OAuth client, and "Master key" sat directly above them reading
+  // like one more of those credentials. This one is GeoID's own membership
+  // unlock and has nothing to do with Earth Engine, so it says so. The ids stay
+  // `gis-master-key-*`: styles and tests address them, and no reader sees them.
   const keys = byId("gis-settings-keys");
   if (!keys || byId("gis-master-key")) return Boolean(byId("gis-master-key"));
   const section = el("details", { id: "gis-master-key-section", class: "gis-tool-section", open: "" },
-    el("summary", {}, "Master key"),
+    el("summary", {}, "GeoID Membership Key"),
     el("div", { class: "gis-tool-body", id: "gis-master-key" }));
   keys.parentElement.insertBefore(section, keys);
   render();
