@@ -19,6 +19,13 @@
       "src": "NASA, ISS072-E-159172"
     },
     {
+      "file": "14-fimmvorduhals.webp",
+      "kind": "Photograph",
+      "place": "Fimmvörðuháls, Iceland",
+      "coord": "63.63°N · 19.44°W · between Eyjafjallajökull and Mýrdalsjökull",
+      "src": "GeoID fieldwork"
+    },
+    {
       "file": "03-north-atlantic-europe.webp",
       "kind": "Satellite composite",
       "place": "North Atlantic and Europe",
