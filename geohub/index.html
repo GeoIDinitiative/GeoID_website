@@ -84,17 +84,21 @@
       box-shadow: 0 0 1.4em var(--boot-data);
     }
     .boot-log {
-      position: absolute; left: 4.4em; bottom: 5.4em;
+      position: absolute; left: 4.4em; bottom: 4.2em; right: 16em;
+      overflow: hidden;
       font-family: var(--boot-body); font-size: 1em; line-height: 1.7; letter-spacing: 0.06em;
       color: var(--boot-data);
     }
     .boot-log div { opacity: 0; white-space: nowrap; }
     .boot-log i { font-style: normal; color: rgba(255, 255, 255, 0.4); margin-left: 1em; }
     .boot-log em { font-style: normal; color: var(--boot-bracket); }
-    .boot-bar { position: absolute; left: 4.4em; right: 4.4em; bottom: 3.8em; height: 0.25em; background: rgba(255, 255, 255, 0.08); }
+    /* The bar is the screen's bottom edge, full width, so nothing shares its
+       row: the log sits above it on the left, the buttons above it on the
+       right. The first cut ran the bar between the two and under the buttons. */
+    .boot-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 0.3em; background: rgba(255, 255, 255, 0.08); }
     .boot-bar > i { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: var(--boot-data); box-shadow: 0 0 0.8em var(--boot-data); }
     .boot-ctl {
-      position: absolute; right: 2.2em; bottom: 3.4em; display: flex; gap: 1.4em; pointer-events: auto;
+      position: absolute; right: 2.2em; bottom: 4.2em; display: flex; gap: 1em; pointer-events: auto;
       font-family: var(--boot-body); font-size: 0.85em; letter-spacing: 0.18em; text-transform: uppercase;
     }
     .boot-ctl button {
@@ -108,9 +112,8 @@
        arrived on it. Visibility rather than opacity: it must keep its box. */
     html.is-booting .site-nav .nav-brand-icon { visibility: hidden; }
     @media (max-width: 720px) {
-      .boot-log { left: 1.6em; bottom: 6.6em; font-size: 1.15em; }
-      .boot-bar { left: 1.6em; right: 1.6em; bottom: 5em; }
-      .boot-ctl { right: 1.2em; bottom: 1.4em; }
+      .boot-log { left: 1.6em; right: 1.6em; bottom: 6.4em; font-size: 1.15em; }
+      .boot-ctl { right: 1.2em; bottom: 1.6em; }
       .boot-logo { width: 62vw; }
     }
     @media (prefers-reduced-motion: reduce) {
