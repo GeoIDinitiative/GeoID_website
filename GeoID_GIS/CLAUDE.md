@@ -22461,3 +22461,39 @@ thing, deliberately — the rewrite was scoped to the one page.
 
 **Anchors are part of the rename.** `#geohub` on the old page became `#modes`
 on the new one, and `researchers/index.html` linked straight at it.
+
+## The planets are built like Earth, and GeoHUB can reach and wake them
+
+**The rule: a planet's deck is Earth's markup, not a lookalike.** Every planet
+`viewer/index.html` carries Earth's row verbatim —
+`.brand-toprow > .brand-toprow-actions > #music-btn` (glyph `▶`, `aria-label`).
+`shell.js` fills the project button and the mode switch into that row and
+already inserts the switch *before* an existing actions container, so the row
+reads project · modes · music exactly as Earth's does. The planets used to ship
+an EMPTY `.brand-toprow` and a loose body-level `#music-btn` reading
+"▶ MUSIC" — the floating pill that made every planet look a version behind
+whenever the page drew its own deck. Three forks had to move together:
+the markup, `shell.css` (Earth's in-row rule, BOTH selectors — the bare one is
+out-ranked by `body.is-embedded #music-btn`), and the nine `music.js` copies
+(glyph-only labels). Verify with computed style, not by eye: Earth and the Moon
+match on all sixteen properties and both put the button at 348,35.
+
+**Transit is a wire.** Inside GeoHUB the frames nest shell → `/transit/` →
+viewer, and the shell posts to its DIRECT child. `transit/index.html` relays
+anything `geoid:`-prefixed down from the shell and up from the viewer, and
+answers nothing itself. Without it the viewer never gets `modebar-hosted` and
+draws a second deck under the header. Standalone transit relays nothing.
+
+**Never gate a render loop with `{ once: true }` on `message`.** It fires on the
+first message of ANY kind and removes itself; the shell's host message always
+beats transit's `geoid-reveal`, so the gas giants rendered 0 frames through
+GeoHUB. Wait for your own message and remove the listener when it arrives.
+
+**`_headers` does not beat the zone.** Cloudflare's Browser Cache TTL raises
+anything shorter to `max-age=14400` for JS and CSS (HTML gets 600), so a
+deploy is only visible if the URL changes. Every same-origin `<script src>`
+and stylesheet on a page `stamp.py` sweeps now carries `?v=` and moves on
+every commit. **Consequence: never look a script up by its exact URL.**
+`querySelector('script[src="moon-manifest.js"]')` stopped matching the moment
+the tag was stamped and would have failed Mercury, Venus, the Moon and Pluto
+at boot; those lookups are prefix matches (`src^=`) now.
