@@ -5986,12 +5986,24 @@ body.studio-open .brand-toprow.is-parked #music-btn { display: inline-flex !impo
  * Standalone, and on the nine planet pages, nothing sets this and the row is
  * exactly what it always was.
  */
-.brand-toprow.is-modebar-hosted { display: none !important; }
 /* NOT `body.modebar-hosted .brand-toprow`: the workbench panels ARE the
    sidebar, so Geoprocessing, Analysis, Export and Settings each head
    themselves with a `.brand-toprow` too -- five on the page -- and that rule
    took the title, the collapse and the CLOSE off all four of them. The mark
-   goes on the one row that holds the mode switch. */
+   goes on the one row that holds the mode switch.
+
+   AND THE ROW ITSELF STAYS, because it is not only the mode bar: it is the
+   SIDEBAR'S OWN TOP ROW, and `#nav-collapse-btn` -- the control that folds
+   that panel into the margin -- is in it. Hiding the row took the deck's
+   collapse with it. Only the three things the header now draws are hidden, so
+   the panel keeps its own control where it has always been, at the right-hand
+   end of its header. */
+.brand-toprow.is-modebar-hosted > #project-open-modal,
+.brand-toprow.is-modebar-hosted > #view-mode-switch,
+.brand-toprow.is-modebar-hosted #music-btn { display: none !important; }
+/* With three of its four children gone, `space-between` would put the collapse
+   at the LEFT of the row. It belongs where it was. */
+.brand-toprow.is-modebar-hosted { justify-content: flex-end; }
 /* With the row gone the slots are empty spans, and their host's `gap`
    still spends a step on them. `parkModeRow` goes on moving the hidden row
    between them, because the standalone page needs that and a second rule

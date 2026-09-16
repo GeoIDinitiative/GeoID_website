@@ -21920,3 +21920,22 @@ at 25×25, `elementFromPoint` at the ✕'s centre returning the button itself (t
 hit test the geology card's own ✕ already cost a round), the close closing and
 the collapse collapsing. A sweep of every other dialog, modal and floating
 window on the page found none missing a closer.
+
+**AND THE ROW IS NOT ONLY THE MODE BAR.** Hiding it whole then took
+`#nav-collapse-btn` with it — the control that folds the sidebar into the
+margin — because that button is one of the row's four children, not a thing of
+the mode bar's. Measured at 0x0 with the same signature as the panels' ✕: its
+own `display: block` and `visibility: visible`, a parent that was gone.
+
+Only the three controls the header now draws are hidden — the folder, the
+switch and the player — and with three of four children gone the row's own
+`space-between` would have put the collapse at the LEFT, so it takes
+`justify-content: flex-end` and the button stays where it has always been.
+Measured after: 363, 33 at 24x25, hit-testable, folding the panel to -384 and
+reopening from the edge tab. The Model deck's own fold was never affected
+(24x22 throughout); the row holds exactly four children, so there was nothing
+else to lose.
+
+Verified framed on a PLANET as well as on Earth, which also exercises the
+re-claim on navigation: pointing the frame at Mars gives the same hosted row,
+the same collapse at 363, 33 and the header bar with GIS active.

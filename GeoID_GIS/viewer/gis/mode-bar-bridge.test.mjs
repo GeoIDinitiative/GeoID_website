@@ -133,11 +133,18 @@ function fakeDoc({ mode = "gis", playing = false, music = true, project = true, 
   // Analysis, Export and Settings each head themselves with one too. Measured
   // on the live page, `body.modebar-hosted .brand-toprow` hid all five and took
   // the title, the collapse and the CLOSE off all four panels.
+  //
+  // AND THE ROW ITSELF STAYS. It is not only the mode bar -- it is the
+  // sidebar's own top row, and `#nav-collapse-btn`, which folds that panel
+  // into the margin, is in it. Hiding the row took the deck's collapse with
+  // it, measured at 0x0. Only the three controls the header now draws go.
   for (const p of ["../styles.css", "./shell.css"]) {
     const css = strip(read(p));
-    check(`${p.split("/").pop()}: only the row that holds the switch is hidden`,
-      /\.brand-toprow\.is-modebar-hosted \{ display: none !important; \}/.test(css)
-      && !/body\.modebar-hosted \.brand-toprow \{/.test(css));
+    check(`${p.split("/").pop()}: the header's three controls go, the row and its collapse stay`,
+      /\.brand-toprow\.is-modebar-hosted > #project-open-modal,\s*\.brand-toprow\.is-modebar-hosted > #view-mode-switch,\s*\.brand-toprow\.is-modebar-hosted #music-btn \{ display: none !important; \}/.test(css)
+      && !/\.brand-toprow\.is-modebar-hosted \{ display: none/.test(css)
+      && !/body\.modebar-hosted \.brand-toprow \{/.test(css)
+      && !/is-modebar-hosted[^{]*#nav-collapse-btn/.test(css));
   }
   const bridge = strip(read("./mode-bar-bridge.js"));
   check("and the row is found by the switch it holds, not by the class or by order",
