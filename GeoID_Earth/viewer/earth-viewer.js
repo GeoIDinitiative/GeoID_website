@@ -19775,7 +19775,22 @@ ${error && error.message ? error.message : error}`;
         };
         try {
           if (window.parent._geoidReveal) { _startLoop(); }
-          else { window.addEventListener('message', e => { if (e.data === 'geoid-reveal') _startLoop(); }, { once: true }); }
+          else {
+            // NOT `{ once: true }`: that fires on the FIRST message of any kind
+            // and then removes itself, so any other message arriving first ate
+            // the only chance this loop had to start. Inside GeoHUB the shell
+            // always sends `geoid:modebar-host` before transit sends the
+            // reveal, so the globe stayed black for good -- measured on
+            // Jupiter, 0 frames rendered against 1099 when reached directly,
+            // and re-posting the reveal by hand did nothing because the
+            // listener was already gone. It waits for its OWN message now.
+            const onReveal = (e) => {
+              if (e.data !== 'geoid-reveal') return;
+              window.removeEventListener('message', onReveal);
+              _startLoop();
+            };
+            window.addEventListener('message', onReveal);
+          }
         } catch (_) { render(); }
       } else {
         render();

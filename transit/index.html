@@ -890,6 +890,43 @@
     const viewerFrame  = document.getElementById("viewer-frame");
     const transitShell = document.getElementById("transit-shell");
     const CROSSFADE_MS = 400;
+
+    /**
+     * THE HOST HANDSHAKE HAS TO PASS THROUGH THIS PAGE.
+     *
+     * Inside GeoHUB the frames nest twice: the shell holds this page, and this
+     * page holds the destination viewer. The shell posts `geoid:modebar-host`
+     * to its DIRECT child -- which is this page, not the viewer -- so the
+     * viewer never heard it and never set `modebar-hosted`. Measured on Mars
+     * through this route: `viewer-page is-embedded` with the hosted class
+     * absent, so the page drew its own project/music/settings row and its
+     * audio credit while the shell's header drew the same controls above it.
+     * Two decks, which is what a reader sees as the viewer being broken.
+     * Reached directly the same viewer is `viewer-page is-embedded
+     * modebar-hosted audio-hosted` and correct, which is what isolated it.
+     *
+     * So this page is a wire, not a participant: anything `geoid:`-prefixed
+     * from the shell goes down to the viewer, and anything from the viewer
+     * goes up to the shell. It never answers a message itself, so there is no
+     * loop -- each direction posts only to the opposite window -- and it does
+     * not need to know the protocol, which is the point: `-host`, `-press`,
+     * `-ready`, `-gone`, `geoid:resize` and whatever is added next all cross
+     * without this file being touched again.
+     */
+    (function relayGeoIDMessages() {
+      const hosted = window.parent && window.parent !== window;
+      window.addEventListener("message", (event) => {
+        const data = event.data;
+        const type = data && data.type;
+        if (typeof type !== "string" || !type.startsWith("geoid:")) return;
+        const inner = viewerFrame.contentWindow;
+        if (hosted && event.source === window.parent) {
+          try { inner?.postMessage(data, "*"); } catch (_e) {}
+        } else if (inner && event.source === inner && hosted) {
+          try { window.parent.postMessage(data, "*"); } catch (_e) {}
+        }
+      });
+    })();
     const targetUrl = dest.target + (dest.target.includes("?") ? "&" : "?") + "transit=1";
 
     // Start preloading the viewer — but NOT while the rotate advisory is up.

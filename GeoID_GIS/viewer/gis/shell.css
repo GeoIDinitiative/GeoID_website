@@ -1602,6 +1602,45 @@ body.is-embedded #ui.is-collapsed ~ #music-btn {
   left: 1rem;
 }
 
+/* ── Music lives in the deck row, as it does on Earth ─────────────────────
+ *
+ * THE PLANETS WERE NEVER GIVEN EARTH'S DECK. Earth's markup has
+ * `.brand-toprow > .brand-toprow-actions > #music-btn`, and `styles.css`
+ * carries this rule to take the button out of its old fixed corner. The nine
+ * planet pages shipped an EMPTY `.brand-toprow` (shell.js fills the project
+ * button and the mode switch into it) and a loose `#music-btn` at the end of
+ * <body> reading "▶ MUSIC" -- measured on the Moon, parented by `body` at
+ * 412,58 while Earth's sits in the row at 348,35. Whenever the page drew its
+ * own deck, which is every time the header was not hosting it, that floating
+ * pill came back and the planets looked a version behind.
+ *
+ * The markup is Earth's now, element for element, and this is Earth's rule for
+ * it: the same two selectors, because `body.is-embedded #music-btn` above
+ * (and each planet's own `#music-btn` block in its styles.css) would
+ * otherwise out-rank a bare `.brand-toprow-actions #music-btn`.
+ */
+.brand-toprow-actions #music-btn,
+body.is-embedded .brand-toprow-actions #music-btn {
+  position: static;
+  top: auto;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  height: auto;
+  width: auto;
+  justify-content: center;
+  background: none;
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.48);
+  border-radius: 0.5rem;
+  color: #a7f3fb;
+  padding: 0.28rem 0.55rem;
+  font-size: 0.9rem;
+  line-height: 1;
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--nav-accent-rgb), 0.08),
+    0 0 12px rgba(var(--nav-accent-rgb), 0.12);
+}
+
 @media (max-width: 720px) {
   body.is-embedded #top-right-controls {
     top: 0.85rem;

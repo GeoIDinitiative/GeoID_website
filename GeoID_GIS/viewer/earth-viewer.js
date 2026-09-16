@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260916-4fc380f";
+  from "./gis/geo-utils.js?v=20260916-c7465b7";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260916-4fc380f";
+  from "./gis/vector-render.js?v=20260916-c7465b7";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260916-4fc380f";
+  from "./gis/rock-class.js?v=20260916-c7465b7";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260916-4fc380f";
+  from "./gis/lithology-label.js?v=20260916-c7465b7";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -23700,7 +23700,22 @@ ${error && error.message ? error.message : error}`;
         };
         try {
           if (window.parent._geoidReveal) { _startLoop(); }
-          else { window.addEventListener('message', e => { if (e.data === 'geoid-reveal') _startLoop(); }, { once: true }); }
+          else {
+            // NOT `{ once: true }`: that fires on the FIRST message of any kind
+            // and then removes itself, so any other message arriving first ate
+            // the only chance this loop had to start. Inside GeoHUB the shell
+            // always sends `geoid:modebar-host` before transit sends the
+            // reveal, so the globe stayed black for good -- measured on
+            // Jupiter, 0 frames rendered against 1099 when reached directly,
+            // and re-posting the reveal by hand did nothing because the
+            // listener was already gone. It waits for its OWN message now.
+            const onReveal = (e) => {
+              if (e.data !== 'geoid-reveal') return;
+              window.removeEventListener('message', onReveal);
+              _startLoop();
+            };
+            window.addEventListener('message', onReveal);
+          }
         } catch (_) { render(); }
       } else {
         render();
