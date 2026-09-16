@@ -144,13 +144,6 @@
     transparent 0, #000 26px, #000 calc(100% - 26px), transparent 100%);
 }
 
-.atlas-rail-logo {
-  width: 44px;
-  height: 44px;
-  object-fit: contain;
-  margin-bottom: 4px;
-  flex: none;
-}
 .atlas-rail-buttons {
   display: flex;
   flex-direction: column;
@@ -176,11 +169,13 @@
   color: rgba(var(--skin-muted), 0.65);
   user-select: none;
 }
-.atlas-rail-band.is-first {
-  margin-top: 0;
-  padding-top: 0.05rem;
-  border-top: none;
-}
+/* THE FIRST BAND IS NOT LABELLED. A band header separates one group from the
+   one above it; at the top of the rail there is nothing above, so the label sat
+   where a title would and read as a heading for the whole column -- which is
+   what made "WORKSPACE" clutter over the Dashboard button. The rest earn their
+   place as separators, and the rule that used to strip this one's border now
+   strips the whole thing. */
+.atlas-rail-band.is-first { display: none; }
 
 .atlas-rail-btn {
   display: flex;
@@ -249,23 +244,23 @@
    * left-aligned tab row is unaffected by it.
    */
   padding: 6px 10px;
-  padding-right: calc(var(--atlas-launcher-w, 78px) + 4px);
   background: var(--atlas-panel-soft);
   border-bottom: 1px solid var(--atlas-border);
 }
 
 /* Page tabs: underline-selected, no boxes. Qt's SectionTabs. */
+/* ONE LINE, NOT TWO. The tabs and the actions each took a full-width row,
+   which was right when the actions were a wall of words; with the quick-access
+   header gone the second row held one chip and a rule above it. The tabs take
+   the line and the chip rides at its right end. */
 .shell-tabs {
-  order: 2;
-  flex: 1 1 100%;
+  order: 1;
+  flex: 1 1 auto;
   min-width: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 3px 4px;
-  padding-top: 2px;
-  border-top: 1px solid var(--atlas-border);
-  margin-top: 2px;
 }
 .shell-tab { flex: none; }
 .shell-tab {
@@ -314,8 +309,9 @@
 }
 
 .shell-actions {
-  order: 1;
-  flex: 1 1 100%;
+  order: 2;
+  flex: 0 0 auto;
+  margin-left: auto;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -334,19 +330,6 @@
   white-space: nowrap;
 }
 
-.shell-filter {
-  width: 170px;
-  height: 28px;
-  padding: 4px 10px;
-  border: 1px solid var(--atlas-border);
-  border-radius: 8px;
-  background: var(--atlas-panel-alt);
-  color: var(--atlas-text);
-  font: inherit;
-  font-size: 11.5px;
-}
-.shell-filter::placeholder { color: var(--atlas-muted); }
-.shell-filter:focus { outline: none; border-color: var(--atlas-chrome); }
 
 /* The magenta pill is the cross-facet grammar: this surface is bound to a
    project. Same shape on every Atlas surface. */
@@ -2912,3 +2895,98 @@ body.gdoc-busy { user-select: none; }
 #research-hub .gdoc-launcher-empty { font-size: 12px; color: var(--atlas-muted); padding: 4px 6px; }
 #research-hub .gdoc-launcher-status { margin: 0; font-size: 12px; color: var(--atlas-muted); min-height: 0; }
 #research-hub .gdoc-launcher-status:empty { display: none; }
+
+/* ── The workspace tools, down the right margin ───────────────────────────
+ *
+ * They were words in the shell row -- Jobs, Alerts, + New Note, Data Shelf,
+ * beside a page filter, an Atlas button and a Docs button -- a quick-access
+ * header that grew until it was most of the row, in a shape this app uses
+ * nowhere else. The globe already has one answer for "the tools that act on
+ * what is open": a column of icon buttons down the right margin. This is that
+ * column, at the GIS tool rail's own measurements (2.4rem square, 0.62rem
+ * radius, the accent hairline, the label in the title), so a reader who knows
+ * one knows the other.
+ *
+ * `position: fixed` and NOT in the flow: the drawer these open slides up from
+ * the foot of the page, and a rail that was part of the page column would be
+ * pushed by it.
+ */
+.research-tools {
+  position: fixed;
+  /* Clear of the Atlas launcher, which takes this corner first and sits at
+     16px with a 2.4rem mark. Measured against it rather than guessed. */
+  top: 4.25rem;
+  right: 1rem;
+  z-index: 14;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: stretch;
+  pointer-events: auto;
+}
+
+#research-hub .research-tool {
+  width: 2.4rem;
+  min-height: 2.4rem;
+  padding: 0.3rem;
+  border-radius: 0.62rem;
+  border: 1px solid rgba(var(--atlas-chrome-rgb), 0.52);
+  background: rgba(10, 8, 20, 0.96);
+  color: rgba(222, 234, 240, 0.88);
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  cursor: pointer;
+  box-shadow:
+    0 10px 22px rgba(0, 0, 0, 0.26),
+    inset 0 0 0 1px rgba(var(--atlas-chrome-rgb), 0.12),
+    0 0 24px rgba(var(--atlas-chrome-rgb), 0.16);
+  transition: transform 0.15s, border-color 0.15s, background 0.15s, color 0.15s;
+}
+#research-hub .research-tool svg { width: 1.15rem; height: 1.15rem; display: block; }
+#research-hub .research-tool:hover {
+  transform: translateX(-0.06rem);
+  border-color: rgba(var(--atlas-chrome-rgb), 0.82);
+  color: #effcff;
+  box-shadow:
+    0 12px 24px rgba(0, 0, 0, 0.28),
+    inset 0 0 0 1px rgba(var(--atlas-chrome-rgb), 0.16),
+    0 0 32px rgba(var(--atlas-chrome-rgb), 0.24);
+}
+/* Open is the accent filled, in dark ink -- the app's own way of saying which
+   of a set is showing, on the tabs, the rail and the workbenches alike. */
+#research-hub .research-tool.is-active {
+  border-color: rgba(var(--atlas-chrome-rgb), 0.94);
+  background: var(--atlas-chrome);
+  color: var(--atlas-bg);
+  box-shadow:
+    0 12px 24px rgba(0, 0, 0, 0.28),
+    0 0 36px rgba(var(--atlas-chrome-rgb), 0.3);
+}
+#research-hub .research-tool:focus-visible {
+  outline: 2px solid var(--atlas-chrome);
+  outline-offset: 2px;
+}
+
+/* The page keeps its own margin clear of that column, or a full-width table
+   runs under the buttons. */
+/* ONE RESERVE for the whole column: the Atlas mark says how much of the corner
+   it needs (`--atlas-launcher-w`, published by `placeLauncher`) and the tools
+   rail is narrower than that, so clearing the mark clears both. The shell row
+   used to reserve it separately; with the column doing it, the row's own
+   padding would have been a second helping of the same gap. */
+#research-hub .research-main { padding-right: calc(var(--atlas-launcher-w, 78px) + 6px); }
+
+@media (max-width: 720px) {
+  /* No room for a margin rail beside the page: the tools lie along the foot,
+     which is where a phone puts a toolbar anyway. */
+  .research-tools {
+    top: auto;
+    bottom: 0.6rem;
+    right: 0.6rem;
+    left: 0.6rem;
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+  #research-hub .research-main { padding-right: 0; padding-bottom: 3.4rem; }
+}

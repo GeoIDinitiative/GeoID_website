@@ -1,13 +1,13 @@
-import * as store from "./project-store.js?v=20260916-bdf05b6";
-import * as stats from "./stats.js?v=20260916-bdf05b6";
-import * as dsp from "./dsp.js?v=20260916-bdf05b6";
-import { parseTable, column } from "./table.js?v=20260916-bdf05b6";
-import { linePlot, heatmap } from "./plot.js?v=20260916-bdf05b6";
-import { el, findTables, saveFigure } from "./pages/common.js?v=20260916-bdf05b6";
-import { createMap, BASEMAPS } from "./map2d.js?v=20260916-bdf05b6";
-import * as sidecar from "./sidecar.js?v=20260916-bdf05b6";
-import * as bridge from "./bridge.js?v=20260916-bdf05b6";
-import { runConnector, studyBbox, CONNECTORS } from "./connectors.js?v=20260916-bdf05b6";
+import * as store from "./project-store.js?v=20260916-24452db";
+import * as stats from "./stats.js?v=20260916-24452db";
+import * as dsp from "./dsp.js?v=20260916-24452db";
+import { parseTable, column } from "./table.js?v=20260916-24452db";
+import { linePlot, heatmap } from "./plot.js?v=20260916-24452db";
+import { el, findTables, saveFigure } from "./pages/common.js?v=20260916-24452db";
+import { createMap, BASEMAPS } from "./map2d.js?v=20260916-24452db";
+import * as sidecar from "./sidecar.js?v=20260916-24452db";
+import * as bridge from "./bridge.js?v=20260916-24452db";
+import { runConnector, studyBbox, CONNECTORS } from "./connectors.js?v=20260916-24452db";
 
 /**
  * The parts of a page the app builds while it runs.
@@ -965,6 +965,34 @@ const externalRunner = makeRunner("Signal Processing", {
 function settingsSidecar(host, api) {
   const say = logger(api);
   const page = host.querySelector(".qt-page") || host;
+
+  /**
+   * ATLAS AND THE MODEL KEYS, which used to hang off an "Atlas" button in the
+   * shell row.
+   *
+   * That row is a rail of four icons now, and this is where the form belongs
+   * anyway: a subscription key is configuration, and the GIS page keeps its own
+   * Earth Engine endpoint in Settings for the same reason. The DRAWER is still
+   * the one implementation -- this is a door to it, not a second copy -- so the
+   * key is still set into the sidecar at mode 0600 and never held by the page.
+   */
+  const atlas = el("section", "qt-groupbox");
+  atlas.appendChild(el("h3", "qt-groupbox-title", "Atlas assistant and model keys"));
+  atlas.appendChild(el("p", "qt-card-desc",
+    "Atlas is the \u25c6 button in the bottom-right corner. It answers from this "
+    + "workspace with no model at all; a Claude, ChatGPT or Gemini key of your "
+    + "own adds open-ended questions."));
+  const atlasRow = el("div", "qt-h");
+  const atlasBtn = document.createElement("button");
+  atlasBtn.type = "button";
+  atlasBtn.className = "button";
+  atlasBtn.textContent = "Open Atlas settings";
+  atlasBtn.addEventListener("click", () => {
+    window.GeoIDResearch?.openDrawer?.("copilot");
+  });
+  atlasRow.appendChild(atlasBtn);
+  atlas.appendChild(atlasRow);
+  page.appendChild(atlas);
   const card = el("section", "qt-groupbox sidecar-card");
   card.appendChild(el("h3", "qt-groupbox-title", "Local Sidecar — run Python here"));
   card.appendChild(el("p", "qt-card-desc",

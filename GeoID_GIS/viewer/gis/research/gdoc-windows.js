@@ -22,8 +22,8 @@
  * mode is one array, written to localStorage on change; the DOM is drawn from
  * it. A storage that throws only costs the restore.
  */
-import { frameUrl } from "./google-credentials.js?v=20260916-bdf05b6";
-import * as store from "./project-store.js?v=20260916-bdf05b6";
+import { frameUrl } from "./google-credentials.js?v=20260916-24452db";
+import * as store from "./project-store.js?v=20260916-24452db";
 
 const STORAGE_KEY = "geoid-research:gdoc-windows";
 const RECENT_KEY = "geoid-research:gdoc-recent";
@@ -86,6 +86,8 @@ let windows = [];
 let layer = null;
 let dock = null;
 let launcher = null;
+let launcherAnchor = null;
+let installed = false;
 let zTop = 40;
 let seq = 0;
 
@@ -391,12 +393,16 @@ async function projectLinks() {
 function closeLauncher() {
   launcher?.remove();
   launcher = null;
-  document.getElementById("research-act-docs")?.setAttribute("aria-pressed", "false");
-  document.getElementById("research-act-docs")?.classList.remove("is-active");
+  // The button that OPENED it, whichever surface that was. Named by id, this
+  // went on clearing the shell row's old Docs button and left the page's own
+  // button sitting lit over a launcher that had closed.
+  launcherAnchor?.setAttribute?.("aria-pressed", "false");
+  launcherAnchor?.classList?.remove?.("is-active");
 }
 
 async function openLauncher(anchor) {
   if (launcher) { closeLauncher(); return; }
+  launcherAnchor = anchor;
   launcher = document.createElement("div");
   launcher.className = "gdoc-launcher";
   launcher.setAttribute("role", "dialog");
@@ -467,10 +473,26 @@ async function openLauncher(anchor) {
   launcher.append(heading("Open a document"), row, make, linked,
     heading("Recently opened"), listOf(read(RECENT_KEY, []), "Nothing opened yet."), say);
 
+  /**
+   * PLACED FROM ITS OWN MEASURED WIDTH, not right-anchored to the corner.
+   *
+   * It used to pin its RIGHT edge to the anchor's right edge, which was exact
+   * while the only anchor was the Docs button at the far end of the shell row.
+   * Opened from a button on the left of a page header the same arithmetic put
+   * it at left -177 of a 384-wide panel — off the screen, open, and unreachable.
+   *
+   * So it is appended first and then placed: aligned under the anchor's left
+   * edge, clamped to the viewport at both ends, which is right wherever the
+   * next surface decides to offer it.
+   */
   const box = anchor.getBoundingClientRect();
-  launcher.style.top = `${Math.round(box.bottom + 6)}px`;
-  launcher.style.right = `${Math.max(8, Math.round(window.innerWidth - box.right))}px`;
   document.getElementById("research-hub").append(launcher);
+  const width = launcher.getBoundingClientRect().width || 384;
+  const left = Math.min(Math.max(8, Math.round(box.left)),
+    Math.max(8, Math.round(window.innerWidth - width - 8)));
+  launcher.style.top = `${Math.round(box.bottom + 6)}px`;
+  launcher.style.left = `${left}px`;
+  launcher.style.right = "auto";
   url.focus();
 
   const links = await projectLinks();
@@ -494,16 +516,43 @@ function restoreSaved() {
   renderDock();
 }
 
+/**
+ * THE SEAM AND THE SAVED WINDOWS DO NOT DEPEND ON A BUTTON.
+ *
+ * This used to return early when `#research-act-docs` was absent — so taking
+ * that button off the shell row would have stopped `restoreSaved()` and never
+ * published `GeoIDDocWindows`, and the Docs & Sheets page's own Window and
+ * Pop out buttons, which call that seam, would have gone with it. A doorway is
+ * a doorway; the feature is not one of its doors.
+ */
 export function install() {
   if (typeof document === "undefined") return;
-  const anchor = document.getElementById("research-act-docs");
-  if (!anchor || anchor.dataset.wired) return;
-  anchor.dataset.wired = "1";
-  anchor.addEventListener("click", () => openLauncher(anchor));
+  if (installed) return;
+  installed = true;
   document.addEventListener("pointerdown", (event) => {
-    if (launcher && !launcher.contains(event.target) && event.target !== anchor) closeLauncher();
+    if (launcher && !launcher.contains(event.target)
+      && !launcherAnchor?.contains?.(event.target)) closeLauncher();
   });
   document.addEventListener("keydown", (event) => { if (event.key === "Escape" && launcher) closeLauncher(); });
   restoreSaved();
-  window.GeoIDDocWindows = { open, close, minimise, restore, tile, list, hubVisible };
+  window.GeoIDDocWindows = {
+    open, close, minimise, restore, tile, list, hubVisible,
+    // The launcher, for whichever surface offers it: the Docs & Sheets page's
+    // own toolbar now that the shell row is a rail of four.
+    launcher: (anchor) => (launcher ? closeLauncher() : openLauncher(anchor)),
+  };
+  wireLauncherAnchor(document.getElementById("research-act-docs"));
+}
+
+
+/** Wire a button to the launcher, wherever one is offered. */
+export function wireLauncherAnchor(anchor) {
+  if (!anchor || anchor.dataset.wired) return;
+  anchor.dataset.wired = "1";
+  launcherAnchor = anchor;
+  anchor.addEventListener("click", () => {
+    launcherAnchor = anchor;
+    if (launcher) closeLauncher();
+    else openLauncher(anchor);
+  });
 }

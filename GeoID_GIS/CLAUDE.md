@@ -22187,3 +22187,114 @@ unclipped between Contact and Membership, a press starting the recording with
 the glyph flipping ▶→⏸ and the caption standing; at 1300 the caption
 `display: none`, the button 1021–1051, still between them. On Earth, which
 carries no recording, the button stays absent and the bar stays hosted.
+
+## The bar is the home of every pointer tool, and two exports that never met
+
+Reported as the other planet viewers not being up to speed with Earth and
+Mars. Measured across all ten worlds in the shell: **four rail items on Earth
+and the five rocky worlds, SIX on the four gas giants** — Distance and Profile
+extra.
+
+**`draw-hud.js` keyed the WHOLE BAR on `setStudyAreaPolygon`.** The bar carries
+Points, Distance and Profile beside the shapes, and all three go through the
+ordinary measure path — a real two-click distance on Jupiter reads **54,991.6
+km**, a quarter of that planet's own circumference to 0.2%. So a gas giant was
+refused the bar because a FOURTH tool could not run, and its rail had to keep
+Distance and Profile as their only doorway. It is built wherever one of those
+tools is on the page now, and only the half that needs a surface stands down:
+the shapes, Custom and Done disabled with the reason, the rail's own Draw
+button as before. A mode button is shown against its rail button **on every
+refresh** rather than decided at build, because Points is built at runtime and
+never on a gas giant.
+
+**EARTH CALLS THE DISTANCE EXPORT `route` AND EVERY PLANET CALLS IT
+`distance`** — one occurrence in the tree against nine — so `borrowExport`
+looked for a node that is not there and the button stayed in the rail. The
+module accepts both spellings rather than the markup being renamed, because
+the viewer holds a live reference to that node. **The home marker is keyed by
+the NODE'S OWN name**: keyed by the armed mode, a planet's button would be
+borrowed and could never find its way back.
+
+**A probe that reads a control before its retry has run reports a fault that
+is not there.** `standDownDrawButton` stands the Draw button down at 20 tries
+(ten seconds); read at four, it is still enabled with its original title, which
+looks exactly like the stand-down never happening.
+
+## A world's recording belongs to its globe
+
+"Sounds of Mars lingers as we jump from page to page." Measured: it played
+straight through GIS → Model → Research → GIS, because **those three are ONE
+DOCUMENT** and a mode change is not a navigation. Viewer to viewer it really
+does stop — the element dies with the document (measured, paused and reset
+within 1.2 s) — so the two halves of the report were different faults.
+
+The Meshing Studio and the Research hub take the whole screen; the planet is
+not on it, and a control captioned with that planet's credit is a control for
+something the reader has left. So `modeBarState` offers the recording only in
+GIS mode and `stopWorldAudio` stops it on the way out, **by clicking the page's
+own button** — pausing the element behind its back leaves the viewer's own
+control showing a pause icon over silence. The app's PLAYLIST is untouched,
+which is the difference between the two sources this bar has always kept apart.
+
+**THE DOCUMENT THAT IS LEAVING SAYS SO, because nothing else can.** The worlds
+strip is ordinary links INSIDE the viewer, so the shell never sets the frame's
+src and would only learn of a navigation when the NEXT world had finished
+booting — for the whole of which the header went on offering the previous
+world's recording by name. `pagehide` posts `geoid:modebar-gone`; the frame's
+own `load` catches a document that went without saying anything. The MODE PILLS
+stay up: they are the shell's own way between the three modes and are identical
+on every world, so blanking them for a boot would be a flicker in the one part
+of the bar that never changes.
+
+Measured: Model and Research stop the sound and hide the button, back to GIS
+restores the control without restarting the sound; Mars → Jupiter drops the
+button at **+400 ms** and returns it at **+1.6 s** with Jupiter's own credit;
+the Moon, which has no recording, keeps it down.
+
+**A VERIFICATION THAT SHOWS NO CHANGE IS THE SERVICE WORKER FIRST.** The first
+run of this fix appeared to do nothing, and the served module plainly contained
+it — `fetch` returned the new text while the loader ran the old. The `?v=` is
+the git sha, so an uncommitted edit re-stamps to the SAME value and the SW's
+precache answers. Unregister it and clear caches before believing a null
+result; or commit first, which changes the stamp.
+
+## The hub's quick-access header becomes a rail in the right margin
+
+The shell row had grown into a second navigation — a page filter, the project
+chip and six word buttons — in a shape this app uses nowhere else. The four
+that act on the workspace are a column of icon buttons down the right margin
+now, at the GIS tool rail's own measurements, keeping `shell-action` and their
+`data-drawer` so `wireActions` finds them exactly as it found the words.
+
+- **The mark and the FIRST band's label go.** The GeoID logo is in the banner
+  directly above that column. A band header separates one group from the one
+  above it; at the top there is nothing above, so it sat where a title would.
+  The rest stay.
+- **One line, one reserve.** Tabs and actions each took a full-width row —
+  right for a wall of words, and with one chip left the second row held a chip
+  and a rule. The column reserves the corner once, from the length the Atlas
+  mark publishes; the row had been reserving it again on top.
+
+**A DOORWAY IS A DOORWAY; THE FEATURE IS NOT ONE OF ITS DOORS.** Two of the
+removals were the only way to something real:
+
+- **Atlas** held the model-subscription form — the only place a Claude,
+  ChatGPT or Gemini key can be set. It opens from Settings now.
+- **Docs** was the window launcher's anchor, and `install()` RETURNED EARLY
+  without it: removing the button would have stopped `restoreSaved()` and never
+  published `GeoIDDocWindows`, taking the Docs & Sheets page's own Window and
+  Pop out buttons with it. The launcher opens from that page's header — on the
+  HEADER rather than in the document pane, which returns early when nothing is
+  linked and the first thing the launcher offers is somewhere to paste a link.
+
+**A POPOVER PINNED TO A CORNER IS PINNED TO THAT CORNER.** The launcher set its
+RIGHT edge from its anchor's right edge, exact while the only anchor was at the
+far end of the shell row; from a button on the left of a page header the same
+arithmetic put it at **left -177** of a 384-wide panel — open, correct, and off
+the screen. Appended, measured, then placed under its anchor's left edge and
+clamped at both ends. Its pressed state is cleared on the button that OPENED
+it, not on an id no longer in the markup.
+
+**`guard()` short-circuits a project-scoped page**, so a probe with no project
+open finds none of that page's controls and reads as a button that failed to
+render. Open a project before measuring one.

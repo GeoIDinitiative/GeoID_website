@@ -1,12 +1,12 @@
-import { registerPage } from "../stages.js?v=20260916-bdf05b6";
-import * as store from "../project-store.js?v=20260916-bdf05b6";
-import { frameUrl, isConfigured } from "../google-credentials.js?v=20260916-bdf05b6";
-import { open as openDocWindow } from "../gdoc-windows.js?v=20260916-bdf05b6";
+import { registerPage } from "../stages.js?v=20260916-24452db";
+import * as store from "../project-store.js?v=20260916-24452db";
+import { frameUrl, isConfigured } from "../google-credentials.js?v=20260916-24452db";
+import { open as openDocWindow, wireLauncherAnchor } from "../gdoc-windows.js?v=20260916-24452db";
 import {
   el, input, button, row, statusLine, guard, field, selectOf,
   pageHeader, splitPanes, tabbedPanel, editorCard, findTables, loadTable,
   toolbar,
-} from "./common.js?v=20260916-bdf05b6";
+} from "./common.js?v=20260916-24452db";
 
 /**
  * Docs & Sheets — the Google workspace, ported from `DocsSheetsPage`
@@ -367,10 +367,28 @@ const mountDocs = guard("Docs & Sheets", async (host, ctx) => {
     "Signing in": aboutSignIn,
   });
 
+  /**
+   * THE WINDOW LAUNCHER'S OWN PAGE, on the page's own header.
+   *
+   * It used to hang off a "Docs" button in the shell row; that row is a rail of
+   * four icons now, and this is the page the launcher is about -- paste a link,
+   * the project's attached documents, recently opened, a new Doc or Sheet, tile
+   * what is open. On the HEADER rather than in the document pane's toolbar,
+   * because that pane returns early when nothing is linked yet and the first
+   * thing the launcher offers is somewhere to paste a link.
+   *
+   * Wired through the same anchor seam the shell button used, so there is one
+   * launcher and one implementation of it.
+   */
+  const launcherBtn = button("Windows…", () => {}, { secondary: true });
+  launcherBtn.title = "Open documents in floating windows";
+  wireLauncherAnchor(launcherBtn);
+
   host.append(
     pageHeader("Docs & Sheets",
       "Project-linked Google documents — write up results without leaving the "
       + "study, and pull a sheet back in as data."),
+    toolbar(launcherBtn),
     splitPanes(left, right, "1fr 1fr"), status);
 });
 
