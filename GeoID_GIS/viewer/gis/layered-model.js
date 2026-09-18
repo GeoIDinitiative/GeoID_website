@@ -30,9 +30,11 @@
  *   top[i]    max(solid, water): the floor of the atmosphere
  */
 
-import { channelDepth } from "./inundation.js?v=20260916-a8c37f1";
+import { channelDepth } from "./inundation.js?v=20260918-d5e8fd5";
 
 /** A TIN with a different z array, and its own extremes. */
+import { faultScriptLines } from "./fault-planes.js?v=20260918-d5e8fd5";
+
 export function tinWith(tin, z) {
   let zMin = Infinity; let zMax = -Infinity;
   for (let i = 0; i < z.length; i += 1) { if (z[i] < zMin) zMin = z[i]; if (z[i] > zMax) zMax = z[i]; }
@@ -300,7 +302,48 @@ const PY = (v) => JSON.stringify(v);
  * volume". Measured on a 2–12 m skin over 2 km: 150 m failed, 40 m meshed in
  * 5 s. So `meshSizeM` here is the caller's already capped for thickness.
  */
-export function layeredGmshScript({ name, stlFile, meshFile, meshSizeM, minSizeM = 0, faceFlags = {}, volumeFlag = 10, volumeName = "domain" }) {
+export function layeredGmshScript({
+  name, stlFile, meshFile, meshSizeM, minSizeM = 0, faceFlags = {}, volumeFlag = 10, volumeName = "domain",
+  embedPoints = [], faults = [],
+}) {
+  /**
+   * WHAT IS INSIDE THE VOLUME. A layered model used to lose the two things a
+   * study puts inside the ground: the embedded points went into the unlayered
+   * domain's script only, and a fault had nowhere to go at all. Each volume's
+   * script now takes the points that lie in IT and, for the rock, the fault
+   * planes -- embedded in the built-in kernel after the volume exists, filed
+   * under their own flags with the named faces, so the one owner pass tags
+   * their edges and corners too.
+   */
+  const faultFlags = {};
+  (faults || []).forEach((f) => { faultFlags[`fault:${f.name}`] = Math.round(Number(f.flag)) || 30; });
+  const points = (embedPoints || []).map((p) => [Number(p.x) || 0, Number(p.y) || 0, Number(p.z) || 0,
+    Number(p.sizeM) > 0 ? Number(p.sizeM) : meshSizeM / 2, String(p.name || "point"), Math.round(Number(p.flag)) || 20]);
+  const faultBlock = faults?.length ? [
+    "groups = {}",
+    ...faultScriptLines(faults),
+    `fault_flags = ${PY(faultFlags)}`,
+  ] : [];
+  const faultFaces = faults?.length ? [
+    "for gname, stags in groups.items():",
+    "    faces.setdefault(fault_flags[gname], []).extend(stags)",
+    "    labels.setdefault(fault_flags[gname], set()).add(gname)",
+  ] : [];
+  const pointBlock = points.length ? [
+    "",
+    "# Points the study asks the mesh to pass through, the ones inside THIS volume.",
+    `embedded = ${PY(points)}`,
+    "ptags = []",
+    "for (px, py, pz, psize, pname, pflag) in embedded:",
+    "    ptags.append((gmsh.model.geo.addPoint(px, py, pz, psize), pflag, pname))",
+    "gmsh.model.geo.synchronize()",
+    "gmsh.model.mesh.embed(0, [t for (t, _, _) in ptags], 3, volume)",
+    "pgroups = {}",
+    "for (t, pflag, pname) in ptags:",
+    "    pgroups.setdefault(pflag, []).append((t, pname))",
+    "for pflag, members in sorted(pgroups.items()):",
+    "    gmsh.model.addPhysicalGroup(0, [t for (t, _) in members], pflag, name='+'.join(n for (_, n) in members)[:120])",
+  ] : [];
   return [
     `# GeoID Model Builder — the ${volumeName} volume of a layered model.`,
     "# Run: python3 this_script.py   (or through the sidecar's /jobs/gmsh)",
@@ -317,6 +360,7 @@ export function layeredGmshScript({ name, stlFile, meshFile, meshSizeM, minSizeM
     "loop = gmsh.model.geo.addSurfaceLoop(surfaces)",
     "volume = gmsh.model.geo.addVolume([loop])",
     "gmsh.model.geo.synchronize()",
+    ...faultBlock,
     "",
     "# Faces by NAME, grouped by flag: one flag is one boundary.",
     `face_flags = ${PY(faceFlags)}`,
@@ -329,6 +373,7 @@ export function layeredGmshScript({ name, stlFile, meshFile, meshSizeM, minSizeM
     "        continue",
     "    faces.setdefault(value, []).append(t)",
     "    labels.setdefault(value, set()).add(label)",
+    ...faultFaces,
     "for value, tags in sorted(faces.items()):",
     "    gmsh.model.addPhysicalGroup(2, sorted(tags), value, name='+'.join(sorted(labels[value])))",
     `gmsh.model.addPhysicalGroup(3, [volume], ${Number(volumeFlag)}, name=${PY(volumeName)})`,
@@ -355,6 +400,7 @@ export function layeredGmshScript({ name, stlFile, meshFile, meshSizeM, minSizeM
     "    by_flag.setdefault((dim, value), []).append(tag)",
     "for (dim, value), tags in sorted(by_flag.items()):",
     "    gmsh.model.addPhysicalGroup(dim, sorted(tags), value)",
+    ...pointBlock,
     "",
     `gmsh.option.setNumber("Mesh.MeshSizeMax", ${Number(meshSizeM).toFixed(3)})`,
     `gmsh.option.setNumber("Mesh.MeshSizeMin", ${Number(minSizeM).toFixed(3)})`,

@@ -280,6 +280,24 @@ check("the TIN builds", tin.ok, tin.message);
   check("the studio's tree survives a kind it has no primitive for", !/PRIMITIVES\[entry\.kind\]\.label/.test(studio) && !/PRIMITIVES\[e\.kind\]\.label/.test(studio));
 }
 
+// ── A field on the TIN: a layer's values, read where the display needs them ──
+{
+  const { tinValueAt } = await import("./surface-sampling.js");
+  const tin = { xs: Float64Array.from([0, 10, 0, 10]), ys: Float64Array.from([0, 0, 10, 10]), z: Float64Array.from([0, 0, 0, 0]), tris: [[0, 1, 2], [1, 3, 2]] };
+  const plane = Float64Array.from([0, 10, 20, 30]); // v = x + 2y
+  near("a linear field is reproduced exactly inside a triangle", tinValueAt(tin, plane, 2, 3), 2 + 2 * 3, 1e-9);
+  check("off the TIN is null", tinValueAt(tin, plane, 50, 50) === null);
+  const holed = Float64Array.from([NaN, 10, 20, 30]);
+  near("a corner with no value is left out and the rest renormalised", tinValueAt(tin, holed, 1, 1), (0.1 * 10 + 0.1 * 20) / 0.2, 1e-9);
+  check("no corner with a value is NaN, never zero", Number.isNaN(tinValueAt(tin, Float64Array.from([NaN, NaN, NaN, 5]), 1, 1)));
+  const classes = Float64Array.from([2, 5, 2, 5]);
+  check("a class takes its heaviest corner: halfway between 2 and 5 is not 3.5",
+    tinValueAt(tin, classes, 1, 1, { nearest: true }) === 2 && tinValueAt(tin, classes, 9, 1, { nearest: true }) === 5);
+  const studio = (await import("node:fs")).readFileSync(new URL("./model-studio.js", import.meta.url), "utf8");
+  check("the studio colours the surface through that reader, nearest for a class", /tinValueAt\(surface, field\.values, display\.xs\[i\], display\.ys\[i\], \{ nearest \}\)/.test(studio));
+  check("and draws every fault through the rock, as a part with its own flag", /kind: "fault", flag: f\.flag/.test(studio) && /mesh\.material\.depthTest = false/.test(studio));
+}
+
 process.on("exit", () => {
   console.log(`surface-sampling: ${passes} passed, ${failures} failed`);
   if (failures) process.exitCode = 1;

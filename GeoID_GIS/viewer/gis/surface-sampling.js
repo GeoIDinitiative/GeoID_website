@@ -17,8 +17,8 @@
  * checked in Node against a plane (which a TIN must reproduce exactly) and
  * against the closed-surface invariant (no open edges).
  */
-import { delaunay } from "./interpolation.js?v=20260916-a8c37f1";
-import { makeLocalFrame, triangleWriter, sizeField } from "./model-build.js?v=20260916-a8c37f1";
+import { delaunay } from "./interpolation.js?v=20260918-d5e8fd5";
+import { makeLocalFrame, triangleWriter, sizeField } from "./model-build.js?v=20260918-d5e8fd5";
 
 /* ── The spacing function ────────────────────────────────────────────────── */
 
@@ -387,6 +387,42 @@ export function tinHeightAt(tin, x, y) {
     const l2 = ((ys[c] - ys[a]) * (x - xs[c]) + (xs[a] - xs[c]) * (y - ys[c])) / d;
     const l3 = 1 - l1 - l2;
     if (l1 >= -eps && l2 >= -eps && l3 >= -eps) return l1 * z[a] + l2 * z[b] + l3 * z[c];
+  }
+  return null;
+}
+
+/**
+ * A FIELD'S value at a local (x, y), where the field is a number per node of
+ * this TIN: barycentric on the triangle, over the corners that HAVE a value
+ * (a NaN corner is left out and the rest renormalised, so a field does not
+ * vanish a whole triangle in from where its coverage ends). `nearest` takes
+ * the heaviest corner's value instead, which is what a CLASS needs: halfway
+ * between granite (2) and basalt (5) is not class 3.5. Null off the TIN, NaN
+ * where no corner has a value.
+ */
+export function tinValueAt(tin, values, x, y, { nearest = false } = {}) {
+  const idx = tinIndex(tin);
+  const [ci, cj] = idx.cellOf(x, y);
+  const list = idx.buckets[cj * idx.across + ci];
+  const { xs, ys, tris } = tin;
+  const eps = 1e-9;
+  for (let k = 0; k < list.length; k += 1) {
+    const [a, b, c] = tris[list[k]];
+    const d = (ys[b] - ys[c]) * (xs[a] - xs[c]) + (xs[c] - xs[b]) * (ys[a] - ys[c]);
+    if (Math.abs(d) < 1e-12) continue;
+    const l1 = ((ys[b] - ys[c]) * (x - xs[c]) + (xs[c] - xs[b]) * (y - ys[c])) / d;
+    const l2 = ((ys[c] - ys[a]) * (x - xs[c]) + (xs[a] - xs[c]) * (y - ys[c])) / d;
+    const l3 = 1 - l1 - l2;
+    if (l1 < -eps || l2 < -eps || l3 < -eps) continue;
+    const w = [l1, l2, l3]; const v = [values[a], values[b], values[c]];
+    let sum = 0; let weight = 0; let best = -Infinity; let bestValue = NaN;
+    for (let m = 0; m < 3; m += 1) {
+      if (!Number.isFinite(v[m])) continue;
+      sum += w[m] * v[m]; weight += w[m];
+      if (w[m] > best) { best = w[m]; bestValue = v[m]; }
+    }
+    if (!(weight > 0)) return NaN;
+    return nearest ? bestValue : sum / weight;
   }
   return null;
 }

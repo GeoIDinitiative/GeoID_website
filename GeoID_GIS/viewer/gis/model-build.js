@@ -1,4 +1,5 @@
 import { sizeFieldLines } from "./mesh-size-fields.js";
+import { faultScriptLines } from "./fault-planes.js?v=20260918-d5e8fd5";
 /**
  * The Model Builder's arithmetic: a study area and its layers into a meshable
  * domain, a gmsh script and a GALES run spec.
@@ -946,8 +947,12 @@ export function gmshScript({
   meshOptions = null,
   flags = {},
   extend = null,
+  faults = [],
 } = {}) {
   const flag = { ...DEFAULT_FLAGS, ...flags };
+  // A fault's flag rides in the same table as every face's, under
+  // `fault:<name>`, so the one physical-group pass makes its group too.
+  (faults || []).forEach((f) => { flag[`fault:${f.name}`] = Math.round(Number(f.flag)) || 30; });
   const points = embedPoints.map((p, index) => ({
     x: Number(p.x) || 0,
     y: Number(p.y) || 0,
@@ -975,6 +980,8 @@ export function gmshScript({
     "# a point whose tag is 0 — so every group is created with the number the",
     "# study chose, and keeps its name beside it for anyone reading the file.",
     `flags = ${PY(flag)}`,
+    ...faultScriptLines(faults || []),
+    "",
     "# ONE FLAG IS ONE GROUP. Faces given the same number are the same boundary",
     "# as far as gmsh and the solver are concerned -- asking for a second group",
     "# at a number already used is an error, not a merge -- so they are gathered",

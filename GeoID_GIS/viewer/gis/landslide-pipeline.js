@@ -31,35 +31,36 @@
  * every card, what it has read.
  */
 
-import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260916-a8c37f1";
-import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260916-a8c37f1";
+import { samplerOver } from "./layer-query.js?v=20260918-d5e8fd5";
+import { refreshPolygonOptions, resolvePolygonExtent, promptDrawTool } from "./extent-picker.js?v=20260918-d5e8fd5";
+import { fetchWindow, fetchGfsNodes, rainfallFrames, interpolatorFor, dayHours, GFS_CREDIT, GFS_ARCHIVE_START } from "./gfs-rain.js?v=20260918-d5e8fd5";
 import {
   columnMaterial, soilColumn, steadyWetness, planeWetness, factorOfSafety, criticalRecharge,
   FOS_CLASSES, fosClass, SHALLOW_FAILURE_CAP_M, LATERAL_FACTOR, FOS_CAP, cellAnswer,
-} from "./slope-hydrology.js?v=20260916-a8c37f1";
-import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260916-a8c37f1";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260916-a8c37f1";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260916-a8c37f1";
-import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260916-a8c37f1";
-import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainParts, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260916-a8c37f1";
-import { mathsFor } from "./equations.js?v=20260916-a8c37f1";
-import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260916-a8c37f1";
-import { upslopeWeights, stationStep, stationFlood, catchmentTopology, floodScratch, LANDSLIDE_PARAMS, LANDSLIDE_PLOTS, lowestCells } from "./landslide-stations.js?v=20260916-a8c37f1";
+} from "./slope-hydrology.js?v=20260918-d5e8fd5";
+import { fillSinks, mfdTopology, routeFlux } from "./hydrology.js?v=20260918-d5e8fd5";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260918-d5e8fd5";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260918-d5e8fd5";
+import { loadRockProperties, parameterValue, resolveLithology } from "./rock-properties.js?v=20260918-d5e8fd5";
+import { GEE_RAIN_SOURCES, coversBox, daysBetween, geeRainDates, fetchGeeRainParts, pixelIndex, isoDay as dayOf } from "./gee-rain.js?v=20260918-d5e8fd5";
+import { mathsFor } from "./equations.js?v=20260918-d5e8fd5";
+import { startPlayer, stopPlayer, seekPlayer } from "./timelapse-player.js?v=20260918-d5e8fd5";
+import { upslopeWeights, stationStep, stationFlood, catchmentTopology, floodScratch, LANDSLIDE_PARAMS, LANDSLIDE_PLOTS, lowestCells } from "./landslide-stations.js?v=20260918-d5e8fd5";
 import {
   makeStation, parseStationsCsv, stationsFromFeatures, uniqueName, seriesCsv, seriesFileName, MAX_STATIONS, colourAt,
-} from "./station-series.js?v=20260916-a8c37f1";
-import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260916-a8c37f1";
-import { planSeries, rendersOf, stepText, rampMaxFor, STEP_CHOICES, NATIVE_STEP, HOUR } from "./rain-steps.js?v=20260916-a8c37f1";
-import { mountStationMarkers } from "./station-markers.js?v=20260916-a8c37f1";
-import { equivalentMohrCoulomb, culmann, culmannAt, rockCell, localRelief, rockfallReach, velocityOf, criticalHeight } from "./rock-slope.js?v=20260916-a8c37f1";
+} from "./station-series.js?v=20260918-d5e8fd5";
+import { drawTimeSeries, yRangeOf } from "./time-series-plot.js?v=20260918-d5e8fd5";
+import { planSeries, rendersOf, stepText, rampMaxFor, STEP_CHOICES, NATIVE_STEP, HOUR } from "./rain-steps.js?v=20260918-d5e8fd5";
+import { mountStationMarkers } from "./station-markers.js?v=20260918-d5e8fd5";
+import { equivalentMohrCoulomb, culmann, culmannAt, rockCell, localRelief, rockfallReach, velocityOf, criticalHeight } from "./rock-slope.js?v=20260918-d5e8fd5";
 import {
   bankfullCapacity, partition, residenceTimes, waveStep, floodFos, riseFor,
   FLOOD_CLASSES, RUNOFF_CLASSES, DISCHARGE_CLASSES, BANKFULL_RATIO, HILLSLOPE_V,
-} from "./flood-fos.js?v=20260916-a8c37f1";
-import { inundate, sourceFields, DEPTH_CLASSES, DEFAULTS as FLOOD_DEFAULTS, meanFlowFromWidth } from "./inundation.js?v=20260916-a8c37f1";
-import { burnRivers } from "./river-zones.js?v=20260916-a8c37f1";
-import { waterFeatures, waterMasks } from "./water-mask.js?v=20260916-a8c37f1";
-import { may, refusal } from "./membership.js?v=20260916-a8c37f1";
+} from "./flood-fos.js?v=20260918-d5e8fd5";
+import { inundate, sourceFields, DEPTH_CLASSES, DEFAULTS as FLOOD_DEFAULTS, meanFlowFromWidth } from "./inundation.js?v=20260918-d5e8fd5";
+import { burnRivers } from "./river-zones.js?v=20260918-d5e8fd5";
+import { waterFeatures, waterMasks } from "./water-mask.js?v=20260918-d5e8fd5";
+import { may, refusal } from "./membership.js?v=20260918-d5e8fd5";
 
 const search = new URL(import.meta.url).search;
 export const LAYER_NAME = "Landslide risk — forecast (factor of safety)";
@@ -109,45 +110,12 @@ export function autoMarginKm(bounds) {
   return Math.max(1, Math.min(5, 0.1 * Math.max(w, h)));
 }
 
-/** A point-in-polygon sampler over a layer's GeoJSON features (bbox first). */
-export function samplerOver(features, pick = (p) => p) {
-  const list = (features || []).map((f) => {
-    const polys = polygonsOf(f.geometry);
-    if (!polys.length) return null;
-    let minX = Infinity; let minY = Infinity; let maxX = -Infinity; let maxY = -Infinity;
-    polys.forEach((rings) => rings[0].forEach(([x, y]) => {
-      if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y;
-    }));
-    return { props: f.properties || {}, polys, minX, minY, maxX, maxY };
-  }).filter(Boolean);
-  return (lat, lon) => {
-    for (const e of list) {
-      if (lon < e.minX || lon > e.maxX || lat < e.minY || lat > e.maxY) continue;
-      for (const rings of e.polys) {
-        if (!inRing(rings[0], lon, lat)) continue;
-        if (rings.slice(1).some((h) => inRing(h, lon, lat))) continue;
-        return pick(e.props);
-      }
-    }
-    return null;
-  };
-}
-
-function polygonsOf(geometry) {
-  if (!geometry) return [];
-  if (geometry.type === "Polygon") return [geometry.coordinates];
-  if (geometry.type === "MultiPolygon") return geometry.coordinates;
-  return [];
-}
-
-function inRing(ring, x, y) {
-  let inside = false;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
-    const [xi, yi] = ring[i]; const [xj, yj] = ring[j];
-    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
-  }
-  return inside;
-}
+/**
+ * The point-in-polygon sampler lives in layer-query.js now, which is the one
+ * reader over every kind of layer; it is re-exported here because this is
+ * where it was first written and where its callers look for it.
+ */
+export { samplerOver };
 
 /** The text the material is read from, whichever map answered. */
 export function lithologyOf(props = {}) {

@@ -1,17 +1,18 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260916-a8c37f1";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260916-a8c37f1";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260918-d5e8fd5";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260918-d5e8fd5";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260916-a8c37f1";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260916-a8c37f1";
-import { downloadText } from "./extraction.js?v=20260916-a8c37f1";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin } from "./surface-sampling.js?v=20260916-a8c37f1";
-import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260916-a8c37f1";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260916-a8c37f1";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260916-a8c37f1";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260916-a8c37f1";
-import { femSpec } from "./model-build.js?v=20260916-a8c37f1";
+} from "./mesh-volume.js?v=20260918-d5e8fd5";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260918-d5e8fd5";
+import { downloadText } from "./extraction.js?v=20260918-d5e8fd5";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin, tinValueAt } from "./surface-sampling.js?v=20260918-d5e8fd5";
+import { rampColour } from "./symbology.js?v=20260918-d5e8fd5";
+import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260918-d5e8fd5";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260918-d5e8fd5";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260918-d5e8fd5";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260918-d5e8fd5";
+import { femSpec } from "./model-build.js?v=20260918-d5e8fd5";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -3452,10 +3453,10 @@ export function adoptSectionModel({ name = "gis_section", profile, belowM = 0, a
   return gisTerrain;
 }
 
-export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, aboveM = 0, origin = null, points = [], flags = null, layers = null } = {}) {
+export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, aboveM = 0, origin = null, points = [], flags = null, layers = null, faults = [], fields = [] } = {}) {
   if (!surface?.tris?.length) { log("GIS terrain: no surface to adopt."); return null; }
   clearTerrain();
-  gisTerrain = { name, surface, belowM: Number(belowM) || 0, aboveM: Number(aboveM) || 0, entries: [], points, flags, layers };
+  gisTerrain = { name, surface, belowM: Number(belowM) || 0, aboveM: Number(aboveM) || 0, entries: [], points, flags, layers, faults, fields, colourBy: null };
   /**
    * THE STUDIO'S GROUND IS THE MODEL'S FLOOR. The ground is an opaque sphere
    * tangent to z = 0 and the camera is held above it, so anything under z = 0
@@ -3663,6 +3664,7 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
   // The surface STL, as itself: not a solid (it has no inside), a skin drawn a
   // hair above the interface so it wins the depth fight with the rock's top.
   gisTerrain.skin = displayMesh(lifted(surfacePositions(display, km)), `${name}_surface`, 0x6fbf73);
+  gisTerrain.display = display;
   addPart({
     id: "surface", name: "Surface — the rock's top, the air's floor", kind: "surface", flag: F.terrain, mesh: gisTerrain.skin, solidId: null, colour: 0x6fbf73, domain: "surface", face: "ground",
     rows: [
@@ -3698,6 +3700,36 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
       ],
     });
   });
+  /**
+   * THE FAULT PLANES, as things: each a surface INSIDE the rock the mesh will
+   * conform to, with its own flag. They are inside an opaque solid, so they
+   * are drawn through it (no depth test, last) -- a fault nobody can see is a
+   * fault nobody can check -- and each is a part like any face: a row, an eye,
+   * a flag to edit and a card that says its strike, dip and reach.
+   */
+  (faults || []).forEach((f, i) => {
+    const positions = new Float32Array(f.tris.length * 9);
+    f.tris.forEach((ix, k) => ix.forEach((v, m) => {
+      const q = f.points[v];
+      positions.set([q[0] * km, q[1] * km, (q[2] + zShift) * km], k * 9 + m * 3);
+    }));
+    const mesh = displayMesh(positions, `${name}_fault_${String(f.name).replace(/[^A-Za-z0-9]+/g, "_")}`, 0xff4d3d, { opacity: 0.62, renderOrder: 4 });
+    mesh.material.depthTest = false;
+    mesh.material.emissive?.setHex?.(0x5a1208);
+    addPart({
+      id: `fault:${i}`, name: `Fault — ${f.name}`, kind: "fault", flag: f.flag, mesh, solidId: null, colour: 0xff4d3d, domain: "faults", face: f.name,
+      rows: [
+        ["What", `A fault plane embedded in the rock: the mesh conforms to it, and its faces, edges and corners carry its flag (from ${f.layer || "the study"})`],
+        ["Strike", `${Math.round(f.strikeDeg)}° — the trace's own bearing`],
+        ["Dip", `${Math.round(f.dipDeg)}° towards the ${f.compass}${Math.abs((f.trueDipDeg ?? f.dipDeg) - f.dipDeg) > 0.5 ? ` (${Number(f.trueDipDeg).toFixed(1)}° true, where the trace climbs)` : ""}`],
+        ["Length", `${(f.lengthM / 1000).toFixed(2)} km along the trace`],
+        ["Depth", `${Math.round(f.depthM)} m: from ${Math.round(f.zTopMin)} m down to ${Math.round(f.zBottom)} m`],
+        ["Area", `${(f.areaM2 / 1e6).toFixed(2)} km²`],
+        ["Physical flag", `${f.flag} — gmsh physical group "fault:${f.name}"`],
+        ...((f.notes || []).length ? [["Note", f.notes.join("; ")]] : []),
+      ],
+    });
+  });
   renderModelTree();
   status(`${state.solids.length} ${state.solids.length === 1 ? "entity" : "entities"}`);
   // Cells the size of the surface's coarse spacing: the mesher's own default
@@ -3712,7 +3744,9 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
     + ` Brown is the rock, green the surface STL, translucent blue the air${display !== surface ? ` (drawn from a ${display.triangles.toLocaleString()}-triangle stand-in; the volumes test the full surface)` : ""}.`
     + ` z is metres above sea level; the base is at ${Math.round(baseZ)} m. Coordinates are the GIS frame's own: local east/north metres about ${origin ? `${origin.lat.toFixed(5)}, ${origin.lon.toFixed(5)}` : "the study centre"}.`
     + ` Subsurface ${gisTerrain.belowM} m below the lowest ground${gisTerrain.aboveM > 0 ? `, atmosphere ${gisTerrain.aboveM} m above the highest` : ""}.`
-    + `${points?.length ? ` ${points.length} embedded point(s) carried.` : ""}`);
+    + `${points?.length ? ` ${points.length} embedded point(s) carried.` : ""}`
+    + `${faults?.length ? ` ${faults.length} fault plane(s) in the rock (red, drawn through it).` : ""}`
+    + `${fields?.length ? ` ${fields.length} layer field(s) on the surface nodes — colour the surface by one in the terrain card.` : ""}`);
   ensureTerrainCard();
   renderDomainsPanel();
   // The domains live in the Model tab; bring it up so the toggles are seen.
@@ -3780,7 +3814,7 @@ function domainGroups() {
       ["bedrock", gisTerrain.layers?.soil !== false ? "Bedrock" : "Subsurface", F.bedrock ?? 10],
       ["soil", "Soil and regolith", F.soil ?? 12], ["water", "Water", F.water ?? 13],
       ["atmosphere", "Atmosphere", F.atmosphere],
-      ["surface", "Surface", F.terrain], ["points", "Embedded points", F.points]);
+      ["surface", "Surface", F.terrain], ["faults", "Fault planes", gisTerrain.faults?.[0]?.flag ?? 30], ["points", "Embedded points", F.points]);
   }
   state.solids.forEach((e) => {
     if (!e.parts?.length) return;
@@ -3926,7 +3960,7 @@ function renderDomainsPanel() {
      * head first, where a 3.4rem box left "Subsurface" three letters wide in
      * the studio's narrow deck; a row has the room and reads like the rest.
      */
-    if (id !== "surface" && id !== "spoints") {
+    if (id !== "surface" && id !== "spoints" && id !== "faults") {
       const domainKey = id === "points" ? "points" : id;
       const row = document.createElement("div");
       row.className = "studio-item";
@@ -4342,6 +4376,7 @@ function flagKeysOf(part) {
   if (!part) return { own: null, edges: [] };
   if (part.studio) return { own: null, studio: true, edges: [], point: part.kind === "point" ? part.face : null };
   if (part.kind === "point") return { own: null, point: part.face, edges: [] };
+  if (part.kind === "fault") return { own: null, fault: part.face, edges: [] };
   if (part.kind === "surface") return { own: "terrain", edges: [] };
   const section = gisTerrain?.kind === "section";
   if (section) {
@@ -4368,6 +4403,15 @@ function assignFlag({ part = null, key = null, point = null, domain = null, soli
   const n = Math.round(Number(value));
   if (!(n > 0)) { log("A flag is a positive integer."); return false; }
   const pipeline = window.GeoIDModelPipeline;
+  if (part?.kind === "fault") {
+    part.flag = n;
+    (gisTerrain?.faults || []).filter((f) => f.name === part.face).forEach((f) => { f.flag = n; });
+    pipeline?.setFaultFlag?.(part.face, n);
+    refreshPartRows(part);
+    log(`Fault "${part.face}" → flag ${n}${pipeline?.setFaultFlag ? " (the GIS package will carry it)" : ""}.`);
+    renderDomainsPanel();
+    return true;
+  }
   // THE STUDIO'S OWN: a primitive's face, its volume, or a point placed here.
   if (solid) {
     solid.flags.volume = n;
@@ -4612,6 +4656,103 @@ export function extendTerrain({ belowM, aboveM } = {}) {
   return adoptTerrainSolid({ ...gisTerrain, belowM: belowM ?? gisTerrain.belowM, aboveM: aboveM ?? gisTerrain.aboveM, origin: null });
 }
 
+/**
+ * A LAYER READ ONTO THE MESH IS SHOWN ON THE MESH. The GIS page samples every
+ * field-role layer at the surface's nodes; here the surface wears one of them
+ * -- a rainfall map, a soil moisture, a lithology -- so what went into the
+ * package can be looked at where it landed. Numbers take a ramp over their
+ * own range; classes one hue each (golden-angle, so neighbours differ); a node
+ * the layer did not reach keeps a dim grey, which is not a value.
+ */
+const CLASS_HUE = (id) => { const c = new THREE.Color(); c.setHSL(((id * 137.508) % 360) / 360, 0.62, 0.56); return c; };
+
+function colourSurfaceBy(index) {
+  const T = gisTerrain;
+  const skin = T?.skin;
+  if (!skin) return null;
+  const field = index === null || index === undefined || index === "" ? null : T.fields?.[Number(index)];
+  T.colourBy = field ? Number(index) : null;
+  const material = skin.material;
+  if (!field) {
+    skin.geometry.deleteAttribute("color");
+    material.vertexColors = false; material.color.setHex(0x6fbf73); material.needsUpdate = true;
+    return null;
+  }
+  const display = T.display; const surface = T.surface;
+  const nearest = field.kind !== "number";
+  const at = display === surface
+    ? (i) => field.values[i]
+    : (i) => tinValueAt(surface, field.values, display.xs[i], display.ys[i], { nearest });
+  const span = (field.max - field.min) || 1;
+  const blank = new THREE.Color(0x3a3a44);
+  const colours = new Float32Array(display.tris.length * 9);
+  const c = new THREE.Color();
+  display.tris.forEach((tri, k) => tri.forEach((node, m) => {
+    const v = at(node);
+    if (!Number.isFinite(v)) c.copy(blank);
+    else if (nearest) c.copy(CLASS_HUE(v));
+    else { const [r, g, b] = rampColour("viridis", (v - field.min) / span); c.setRGB(r / 255, g / 255, b / 255, THREE.SRGBColorSpace); }
+    colours.set([c.r, c.g, c.b], k * 9 + m * 3);
+  }));
+  skin.geometry.setAttribute("color", new THREE.BufferAttribute(colours, 3));
+  material.vertexColors = true; material.color.setHex(0xffffff); material.needsUpdate = true;
+  return field;
+}
+
+function fieldColourControl(card) {
+  const fields = gisTerrain?.fields || [];
+  if (!fields.length) return;
+  const row = document.createElement("div");
+  row.className = "studio-row";
+  const lab = document.createElement("label");
+  lab.textContent = "Colour the surface by";
+  const pick = document.createElement("select");
+  pick.className = "studio-input";
+  pick.id = "studio-surface-field";
+  [["", "the surface itself"], ...fields.map((f, i) => [String(i), `${f.name}${f.column ? ` · ${f.column}` : ""}`])].forEach(([value, text]) => {
+    const o = document.createElement("option"); o.value = value; o.textContent = text; pick.appendChild(o);
+  });
+  pick.value = gisTerrain.colourBy === null ? "" : String(gisTerrain.colourBy);
+  row.appendChild(lab); row.appendChild(pick);
+  card.appendChild(row);
+  const key = document.createElement("div");
+  key.className = "studio-row";
+  key.id = "studio-surface-field-key";
+  key.style.cssText = "display:block;font-size:0.7rem;line-height:1.35";
+  card.appendChild(key);
+  const drawKey = (f) => {
+    key.innerHTML = "";
+    if (!f) return;
+    const says = document.createElement("div");
+    says.textContent = `${f.role} · read as ${f.how}${f.note ? ` — ${f.note}` : ""} · ${(f.coverage * 100).toFixed(0)}% of the surface's nodes`;
+    key.appendChild(says);
+    if (f.kind === "number") {
+      const bar = document.createElement("div");
+      const stops = Array.from({ length: 9 }, (_, i) => { const [r, g, b] = rampColour("viridis", i / 8); return `rgb(${r},${g},${b})`; });
+      bar.style.cssText = `height:9px;border-radius:3px;margin:4px 0 2px;background:linear-gradient(90deg,${stops.join(",")})`;
+      key.appendChild(bar);
+      const ends = document.createElement("div");
+      ends.style.cssText = "display:flex;justify-content:space-between";
+      const fmtv = (v) => (Math.abs(v) >= 100 ? v.toFixed(0) : Math.abs(v) >= 1 ? v.toFixed(1) : v.toPrecision(2));
+      ends.innerHTML = `<span>${fmtv(f.min)}${f.unit ? ` ${f.unit}` : ""}</span><span>${fmtv(f.max)}${f.unit ? ` ${f.unit}` : ""}</span>`;
+      key.appendChild(ends);
+    } else {
+      const present = new Set(Array.from(f.values).filter(Number.isFinite));
+      (f.classes || []).filter((cl) => present.has(cl.id)).slice(0, 10).forEach((cl) => {
+        const line = document.createElement("div");
+        line.style.cssText = "display:flex;align-items:center;gap:6px";
+        const sw = document.createElement("span");
+        sw.style.cssText = `display:inline-block;width:10px;height:10px;border-radius:2px;flex:0 0 auto;background:#${CLASS_HUE(cl.id).getHexString()}`;
+        const nm = document.createElement("span"); nm.textContent = cl.name;
+        line.appendChild(sw); line.appendChild(nm); key.appendChild(line);
+      });
+      if (present.size > 10) { const more = document.createElement("div"); more.textContent = `… and ${present.size - 10} more class(es)`; key.appendChild(more); }
+    }
+  };
+  pick.addEventListener("change", () => drawKey(colourSurfaceBy(pick.value)));
+  drawKey(gisTerrain.colourBy === null ? null : fields[gisTerrain.colourBy]);
+}
+
 function ensureTerrainCard() {
   const params = byId("studio-params");
   if (!params?.parentElement) return;
@@ -4653,6 +4794,7 @@ function ensureTerrainCard() {
     extendTerrain({ belowM: Number(below.value) || 0, aboveM: Number(above.value) || 0 });
   });
   card.appendChild(button);
+  fieldColourControl(card);
   const note = document.createElement("div");
   note.className = "studio-row";
   note.textContent = "The rim's corners carried down to a base and up to a sky — etna.py's outer_box. 1 unit = 1 m, z above sea level, in the GIS study's own local frame.";
@@ -4861,6 +5003,8 @@ window.GeoIDMeshStudio = {
   // project's meshes/ (<name>_gmsh.py beside its STLs); the Study tab runs
   // that script by path rather than a text of its own.
   terrainName: () => (gisTerrain ? gisTerrain.name : null),
+  colourSurfaceBy: (index) => { const f = colourSurfaceBy(index); const pick = byId("studio-surface-field"); if (pick) { pick.value = index === null || index === undefined ? "" : String(index); pick.dispatchEvent(new Event("change")); } return f ? f.name : null; },
+  terrainParts: () => (gisTerrain?.parts || []).map((p) => ({ id: p.id, name: p.name, kind: p.kind, domain: p.domain, flag: p.flag, visible: p.mesh?.visible !== false })),
   showGroup: (name) => showGroup(name),
   refreshVisibility: () => renderVisibilityBox(),
   log,

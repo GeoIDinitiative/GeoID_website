@@ -2,23 +2,28 @@ import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
   nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS, atmosphereStl, DEFAULT_MAX_NODES, triangleWriter,
-} from "./model-build.js?v=20260916-a8c37f1";
-import { ringsFromCollection } from "./extraction.js?v=20260916-a8c37f1";
+} from "./model-build.js?v=20260918-d5e8fd5";
+import { ringsFromCollection } from "./extraction.js?v=20260918-d5e8fd5";
 import {
   buildTin, tinHeightAt, tinSurfaceStl, tinShellStl, samplingSizeField,
   extendBoundary, extendedBoundaryLines, gridAsTin, shellFacets,
-} from "./surface-sampling.js?v=20260916-a8c37f1";
-import { renderFeatureCollection } from "./vector-render.js?v=20260916-a8c37f1";
-import { promptDrawTool } from "./extent-picker.js?v=20260916-a8c37f1";
+} from "./surface-sampling.js?v=20260918-d5e8fd5";
+import { renderFeatureCollection } from "./vector-render.js?v=20260918-d5e8fd5";
+import { promptDrawTool } from "./extent-picker.js?v=20260918-d5e8fd5";
 import {
   profileAlong, profileHeightAt, sectionPolygons, sectionPositions, sectionGmshScript, profileCsv,
-} from "./section-model.js?v=20260916-a8c37f1";
-import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260916-a8c37f1";
+} from "./section-model.js?v=20260918-d5e8fd5";
+import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260918-d5e8fd5";
 import {
   layerHeights, layeredVolumes, facetsStlByFace, layeredGmshScript, thinLayerSizeM, tinWith, LAYER_FLAGS, facetsClosed,
-} from "./layered-model.js?v=20260916-a8c37f1";
-import { waterMasks, waterFeatures } from "./water-mask.js?v=20260916-a8c37f1";
-import { burnRivers } from "./river-zones.js?v=20260916-a8c37f1";
+} from "./layered-model.js?v=20260918-d5e8fd5";
+import { waterMasks, waterFeatures } from "./water-mask.js?v=20260918-d5e8fd5";
+import { burnRivers } from "./river-zones.js?v=20260918-d5e8fd5";
+import {
+  linesFromCollection, hasLines, faultPlane, faultDefaultsFrom, nonCrossing, faultsStl, bearingDeg, traceLength,
+  clipTraceToBox, FAULT_FLAG_BASE, slug as faultSlug,
+} from "./fault-planes.js?v=20260918-d5e8fd5";
+import { describeQuery, openReader, sampleAtNodes, fieldCsv, slugOf, syncReader } from "./layer-query.js?v=20260918-d5e8fd5";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -66,9 +71,15 @@ const ROLE_OPTIONS = [
   { id: "initial", label: "Initial condition" },
   { id: "boundary", label: "Boundary condition" },
   { id: "material", label: "Material region" },
+  { id: "thickness", label: "Soil thickness (m) → the bedrock surface" },
   { id: "points", label: "Embedded points" },
+  { id: "fault", label: "Fault traces → planes in the rock" },
   { id: "refine", label: "Refine the mesh here" },
 ];
+
+/** The roles whose layer is READ AT THE NODES, and the kind of column each prefers. */
+const FIELD_ROLES = { initial: "number", boundary: "number", material: "class" };
+
 
 // "top" is the GROUND in both shells; "base" is a subsurface lid and "sky"
 // an atmosphere one, so a package that has both keeps them apart.
@@ -134,6 +145,24 @@ const state = {
    * heights once they have been read onto the surface's nodes.
    */
   layers: { soil: false, water: false, minSoilM: 1, minWaterM: 1, read: null, readFor: null },
+  /**
+   * FAULTS: traces from layers given the fault role, and ones picked on the
+   * globe, each a plane in the rock with its own flag (fault-planes.js). The
+   * three numbers here are what a trace opens on when its own layer says
+   * nothing; `byKey` holds what was changed for one trace; `built` is the
+   * planes as last computed against `builtFor`, the surface they hang from.
+   */
+  faults: { dipDeg: 60, side: "right", depthM: 2000, byKey: new Map(), custom: [], built: null, builtFor: null },
+  /**
+   * LAYERS READ ONTO THE MESH: every layer given the initial, boundary or
+   * material role, sampled at the surface's own nodes (layer-query.js).
+   * `fieldColumn` is the column chosen for a polygon layer; `columnsSeen` the
+   * columns a streamed map turned out to have once it was fetched.
+   */
+  fieldColumn: new Map(),
+  columnsSeen: new Map(),
+  fields: null,
+  fieldsFor: null,
   /** Layer ids of what this builder draws on the globe, by kind. */
   previews: {},
   conditions: [],
@@ -171,15 +200,16 @@ function loadedLayers() {
  * this tree has to answer for.
  */
 function elevationReader() {
-  const chosen = loadedLayers().find((layer) =>
-    state.roles.get(String(layer.id)) === "surface" && layer.sampler);
+  // A sampler OR a grid: a tool's raster has no sampler of its own to find,
+  // and was passed over for the role it is most obviously for.
+  const chosen = loadedLayers().map((layer) =>
+    (state.roles.get(String(layer.id)) === "surface" ? { layer, read: syncReader(layer) } : null)).find((c) => c?.read);
   if (chosen) {
     return {
-      name: chosen.name,
+      name: chosen.layer.name,
       read: (lat, lon) => {
-        const value = chosen.sampler(lat, lon);
-        return Number.isFinite(value?.value) ? value.value
-          : (Number.isFinite(value) ? value : NaN);
+        const value = chosen.read(lat, lon);
+        return Number.isFinite(value) ? value : NaN;
       },
     };
   }
@@ -488,6 +518,7 @@ const PREVIEW_NAMES = {
   sampling: "Model Builder — surface sampling",
   points: "Model Builder — embedded points",
   extend: "Model Builder — extended boundary",
+  faults: "Model Builder — fault planes",
   model: "Model Builder — full model (surface, subsurface, atmosphere)",
 };
 const UNITS_PER_METRE = 3.2 / 6371008.8;
@@ -847,6 +878,27 @@ async function readLayers() {
   const box = { west: w, east: e, south: so, north: no };
   const search = new URL(import.meta.url).search;
   let thicknessAt = null; let soilSource = "the stated default of 2 m";
+  /**
+   * A LAYER CAN BE THE THICKNESS. Pelletier's global model is the default, at
+   * a kilometre; a study that has its own -- a regolith survey, a GPR grid, an
+   * Earth Engine product -- gives that layer the thickness role in step 2 and
+   * the bedrock surface is the ground less ITS metres. Where it has no value
+   * the global model (then the stated default) still answers, and the source
+   * line says both.
+   */
+  let ownThickness = null;
+  const thickLayer = L.soil ? loadedLayers().find((layer) => state.roles.get(String(layer.id)) === "thickness") : null;
+  if (thickLayer) {
+    report("domain", `Reading the soil thickness from "${thickLayer.name}"…`);
+    const reader = await openReader(thickLayer, box, { field: state.fieldColumn.get(String(thickLayer.id)) || null, prefer: "number" });
+    if (reader.ok) {
+      try {
+        const vals = ll.map(({ lat, lon }) => reader.read(lat, lon));
+        const got = vals.filter((v) => Number.isFinite(v) && v >= 0).length;
+        if (got) ownThickness = { vals, got, name: thickLayer.name };
+      } finally { reader.close(); }
+    }
+  }
   if (L.soil) {
     report("domain", "Reading the soil thickness…");
     try {
@@ -858,6 +910,11 @@ async function readLayers() {
         soilSource = "Pelletier et al. (2016), 1 km";
       }
     } catch (error) { /* the default stands, and the summary says so */ }
+    if (ownThickness) {
+      const under = thicknessAt;
+      thicknessAt = (i) => (Number.isFinite(ownThickness.vals[i]) && ownThickness.vals[i] >= 0 ? ownThickness.vals[i] : (under ? under(i) : null));
+      soilSource = `the layer "${ownThickness.name}" (${ownThickness.got.toLocaleString()} of ${n.toLocaleString()} nodes)${under ? ", Pelletier et al. (2016) elsewhere" : ""}`;
+    }
   }
   let oceanAt = null; let lakeAt = null; let riverWidthAt = null;
   if (L.water) {
@@ -894,6 +951,7 @@ async function readLayers() {
   });
   L.read = { heights, soilSource, box };
   L.readFor = t;
+  state.faults.built = null;
   state.outputs = null;
   report("domain", layerSummary(L.read));
   return L.read;
@@ -1138,13 +1196,54 @@ function stepLayers(body) {
   layers.forEach((layer) => {
     const id = String(layer.id);
     if (!state.roles.has(id)) state.roles.set(id, defaultRole(layer));
-    const picker = select(`gis-mb-role-${id}`, ROLE_OPTIONS, state.roles.get(id));
+    /**
+     * A LAYER IS OFFERED ONLY WHAT IT CAN BE. Every role used to be offered
+     * to every layer, so a point cloud could be "the surface elevation" and a
+     * picture a "boundary condition", and the build took the name and did
+     * nothing. What a layer can be asked decides what it can be: a value at a
+     * place (a drape, a grid, polygons) makes it a field or an interface;
+     * points embed; lines are faults; and a layer that can be none of them
+     * says why under its name.
+     */
+    const q = describeQuery(layer);
+    const feats = layer.collection?.features || layer.features || [];
+    const can = {
+      field: q.how !== "none",
+      points: feats.some((f) => f?.geometry?.type === "Point"),
+      fault: hasLines({ features: feats }),
+      refine: feats.some((f) => /Polygon/.test(f?.geometry?.type || "")),
+    };
+    const offered = ROLE_OPTIONS.filter((o) => o.id === "ignore"
+      || (["surface", "initial", "boundary", "material", "thickness"].includes(o.id) && can.field)
+      || (o.id === "points" && can.points) || (o.id === "fault" && can.fault) || (o.id === "refine" && can.refine));
+    if (!offered.some((o) => o.id === state.roles.get(id))) state.roles.set(id, "ignore");
+    const picker = select(`gis-mb-role-${id}`, offered, state.roles.get(id));
+    picker.disabled = offered.length < 2;
     picker.addEventListener("change", () => {
       state.roles.set(id, picker.value);
-      state.surface = null;
+      // Only the ground itself invalidates the surface; a field or a fault hangs from it.
+      if (picker.value === "surface" || picker.dataset.was === "surface") state.surface = null;
+      state.fields = null; state.faults.built = null; state.layers.read = null; state.outputs = null;
       render();
     });
+    picker.dataset.was = state.roles.get(id);
     body.appendChild(row(layer.name, picker));
+    const role = state.roles.get(id);
+    if (role === "ignore" && offered.length < 2) {
+      body.appendChild(el("div", "gis-metric", `  ↳ ${q.why}`));
+    } else if (["surface", "initial", "boundary", "material", "thickness"].includes(role)) {
+      const cols = q.fields?.length ? q.fields : (state.columnsSeen.get(id) || []);
+      if (cols.length) {
+        const chosen = state.fieldColumn.get(id) || "";
+        const colPick = select(`gis-mb-col-${id}`, [{ id: "", label: `auto — a ${FIELD_ROLES[role] === "class" ? "class" : "number"}` },
+          ...cols.map((c) => ({ id: c.name, label: `${c.name} (${c.kind === "number" ? "number" : `${c.distinct} classes`})` }))], chosen);
+        colPick.addEventListener("change", () => { state.fieldColumn.set(id, colPick.value); state.fields = null; state.outputs = null; });
+        body.appendChild(row("  ↳ read by column", colPick));
+      }
+      body.appendChild(el("div", "gis-metric", `  ↳ asked as ${q.why}${q.unit ? ` — ${q.unit}` : ""}.`));
+    } else if (role === "fault") {
+      body.appendChild(el("div", "gis-metric", "  ↳ its lines become planes in the rock — dip, side and depth in step 4."));
+    }
     if (state.roles.get(id) === "points") {
       const depth = number(`gis-mb-depth-${id}`, state.pointDepth.get(id) ?? 0, 10);
       depth.addEventListener("input", () => {
@@ -1589,6 +1688,328 @@ function buildVariable(source, best) {
   render();
 }
 
+
+/* ── Faults: lines into planes in the rock ───────────────────────────────── */
+
+/** More planes than this and the volume is mostly constraints; the longest are kept and the rest counted. */
+const MAX_FAULTS = 16;
+
+/** A trace's bearing from its ends, in degrees, good enough to say which way it dips before a surface exists. */
+function traceStrikeDeg(coords) {
+  const [lon0, lat0] = coords[0]; const [lon1, lat1] = coords[coords.length - 1];
+  return bearingDeg([0, 0], [(lon1 - lon0) * Math.cos((((lat0 + lat1) / 2) * Math.PI) / 180), lat1 - lat0]);
+}
+
+/**
+ * EVERY TRACE THAT COULD BE A FAULT: the lines of each layer given the fault
+ * role that ENTER the study box, and the ones picked on the globe. A global
+ * catalogue is thirteen thousand lines; what matters here is the handful that
+ * cross this ground, the longest first, and the count of what was left out.
+ * Names are made unique, because a fault's name is its physical group's.
+ */
+function faultCandidates() {
+  const b = state.bounds?.bbox;
+  if (!b) return { list: [], leftOut: 0 };
+  const llBox = { xMin: b.west, xMax: b.east, yMin: b.south, yMax: b.north };
+  const out = [];
+  loadedLayers().forEach((layer) => {
+    if (state.roles.get(String(layer.id)) !== "fault") return;
+    linesFromCollection(layer.collection || { features: layer.features || [] }).forEach((line) => {
+      const inside = clipTraceToBox(line.coords, llBox);
+      if (!inside.length) return;
+      out.push({
+        key: `${layer.id}:${line.key}`, name: line.name, coords: line.coords, properties: line.properties,
+        layer: layer.name, lenDeg: inside.reduce((sum, piece) => sum + traceLength(piece), 0),
+      });
+    });
+  });
+  state.faults.custom.forEach((c, i) => out.push({
+    key: `custom:${c.id}`, name: c.name || `picked fault ${i + 1}`, coords: [[c.a.lon, c.a.lat], [c.b.lon, c.b.lat]],
+    properties: {}, layer: "picked on the globe", lenDeg: Infinity, custom: c,
+  }));
+  out.sort((p, q) => q.lenDeg - p.lenDeg);
+  const seen = new Map();
+  out.forEach((c) => {
+    const n = (seen.get(c.name) || 0) + 1;
+    seen.set(c.name, n);
+    if (n > 1) c.name = `${c.name} (${n})`;
+  });
+  return { list: out.slice(0, MAX_FAULTS), leftOut: Math.max(0, out.length - MAX_FAULTS) };
+}
+
+/** What one trace is built with: its own change, else what its catalogue states, else the study's default. */
+function faultSettings(c, index) {
+  const own = state.faults.byKey.get(c.key) || {};
+  const cat = faultDefaultsFrom(c.properties, traceStrikeDeg(c.coords));
+  return {
+    on: own.on !== false,
+    dipDeg: own.dipDeg ?? cat.dipDeg ?? state.faults.dipDeg,
+    side: own.side ?? cat.side ?? state.faults.side,
+    depthM: own.depthM ?? cat.depthM ?? state.faults.depthM,
+    flag: own.flag ?? FAULT_FLAG_BASE + index,
+    fromCatalogue: cat.from,
+  };
+}
+
+function setFault(key, patch) {
+  state.faults.byKey.set(key, { ...(state.faults.byKey.get(key) || {}), ...patch });
+  state.faults.built = null;
+  state.outputs = null;
+}
+
+/**
+ * THE PLANES, hung from the surface. With soil on, the rock's top is the
+ * BEDROCK surface and a fault is a surface in the rock, so its top edge hangs
+ * from that rather than from the ground; with water and no soil, from the bed.
+ * The base it must clear is the unlayered domain's, which is the higher of the
+ * two, so one plane is inside every volume it is embedded in. Planes that
+ * cross are found and the shorter left out by name: gmsh refuses intersecting
+ * embedded surfaces, and says so as a failure to recover a boundary.
+ */
+function buildFaults() {
+  const t = surfaceLike();
+  if (!t) return null;
+  const F = state.faults;
+  if (F.built && F.builtFor === t) return F.built;
+  const { list, leftOut } = faultCandidates();
+  const L = state.layers;
+  const H = (L.soil || L.water) && L.read && L.readFor === t ? L.read.heights : null;
+  const ceiling = H ? tinWith(t, L.soil ? H.bedrock : H.solid) : t;
+  const ceilingName = H ? (L.soil ? "the bedrock surface" : "the bed under the water") : "the ground";
+  const meshSize = Number(state.meshSizeM) || defaultMeshSizeM();
+  const marginM = Math.max(25, meshSize / 4);
+  const box = { xMin: t.x0, xMax: t.x0 + t.widthM, yMin: t.y0, yMax: t.y0 + t.heightM };
+  const baseZ = t.zMin - Math.max(state.domain.depthM, 1);
+  const built = []; const failed = [];
+  list.forEach((c, index) => {
+    const set = faultSettings(c, index);
+    if (!set.on) return;
+    const trace = c.coords.map(([lon, lat]) => { const l = t.frame.toLocal(lat, lon); return [l.x, l.y]; });
+    const plane = faultPlane({
+      trace, groundAt: (x, y) => tinHeightAt(ceiling, x, y), dipDeg: set.dipDeg, side: set.side, depthM: set.depthM,
+      topOffsetM: Math.max(5, meshSize / 8), box, baseZ, marginM, simplifyM: meshSize / 4,
+    });
+    if (!plane.ok) { failed.push({ name: c.name, why: plane.message }); return; }
+    built.push({ ...plane, key: c.key, name: c.name, layer: c.layer, flag: set.flag, sizeM: Math.max(meshSize / 2, 1), fromCatalogue: set.fromCatalogue });
+  });
+  built.sort((p, q) => q.lengthM - p.lengthM);
+  const { kept, dropped } = nonCrossing(built);
+  F.built = { planes: kept, dropped, failed, leftOut, ceilingName, marginM, candidates: list.length };
+  F.builtFor = t;
+  return F.built;
+}
+
+/** The faults as the gmsh scripts and the studio take them. */
+function faultsForScript() {
+  return (buildFaults()?.planes || []).map((f) => ({ name: f.name, flag: f.flag, sizeM: f.sizeM, points: f.points, tris: f.tris }));
+}
+
+function faultSummary(B) {
+  if (!B) return "";
+  const parts = [`${B.planes.length} fault plane(s) hung from ${B.ceilingName}, kept ${fmt(B.marginM, 0)} m clear of the walls and the base`];
+  if (B.planes.length) parts.push(B.planes.slice(0, 4).map((f) => `${f.name}: strike ${fmt(f.strikeDeg, 0)}°, dips ${fmt(f.dipDeg, 0)}° ${f.compass}, ${fmt(f.lengthM / 1000, 1)} km × ${fmt(f.depthM, 0)} m, flag ${f.flag}`).join("; "));
+  if (B.dropped.length) parts.push(`left out for crossing another: ${B.dropped.map((d) => `${d.name} (crosses ${d.crosses})`).join(", ")}`);
+  if (B.failed.length) parts.push(`could not be placed: ${B.failed.map((d) => `${d.name} — ${d.why}`).join("; ")}`);
+  if (B.leftOut) parts.push(`${B.leftOut} shorter trace(s) beyond the ${MAX_FAULTS} longest were not used`);
+  return `${parts.join(". ")}.`;
+}
+
+/** The planes on the globe, through the ground at true vertical scale, as the extended boundary is. */
+async function drawFaults() {
+  removePreview("faults");
+  const t = surfaceLike();
+  const B = buildFaults();
+  if (!t || !B?.planes.length) return;
+  if (!three) three = await import("../vendor/three.module.js");
+  const viewer = window.GeoIDViewer;
+  if (!viewer?.surfacePoint) return;
+  const at = (x, y, z) => {
+    const ll = t.frame.fromLocal(x, y);
+    const ground = tinHeightAt(t, x, y);
+    const p = viewer.surfacePoint(ll.lat, ll.lon, (z - (Number.isFinite(ground) ? ground : z)) * UNITS_PER_METRE);
+    return [p.x, p.y, p.z];
+  };
+  const group = new three.Group();
+  group.name = "GeoID-ModelBuilder-Faults";
+  const tri = []; const line = [];
+  B.planes.forEach((f) => {
+    f.tris.forEach((ix) => ix.forEach((i) => tri.push(...at(...f.points[i]))));
+    f.edges.forEach(([a, c]) => line.push(...at(...f.points[a]), ...at(...f.points[c])));
+  });
+  const fill = new three.BufferGeometry();
+  fill.setAttribute("position", new three.Float32BufferAttribute(tri, 3));
+  const mesh = new three.Mesh(fill, new three.MeshBasicMaterial({ color: 0xff4d3d, transparent: true, opacity: 0.28, side: three.DoubleSide, depthTest: false, depthWrite: false }));
+  mesh.renderOrder = 238; mesh.frustumCulled = false;
+  const rim = new three.BufferGeometry();
+  rim.setAttribute("position", new three.Float32BufferAttribute(line, 3));
+  const segs = new three.LineSegments(rim, new three.LineBasicMaterial({ color: 0xff6a4d, depthTest: false, transparent: true, opacity: 0.95 }));
+  segs.renderOrder = 239; segs.frustumCulled = false;
+  group.add(mesh, segs);
+  const b = t.bounds;
+  const layer = window.GeoIDImportManager?.addDerivedLayer?.(PREVIEW_NAMES.faults, {
+    object3D: group, georeferenced: true,
+    bounds: { minX: b.west, minY: b.south, maxX: b.east, maxY: b.north },
+    legendInfo: {
+      palette: B.planes.slice(0, 8).map(() => "ff4d3d"),
+      labels: B.planes.slice(0, 8).map((f) => `${f.name} — ${fmt(f.dipDeg, 0)}° ${f.compass}, to ${fmt(f.zBottom, 0)} m (flag ${f.flag})`),
+      label: "Fault planes (true vertical scale)", classed: true, categorical: true, unit: null,
+    },
+    home: "model",
+    metadata: { source: "GeoHUB Model Builder", dataType: "model", description: "Fault planes embedded in the rock volume: the trace on the ground, dropped a little under the rock's top, dipping to its stated side down to its depth. Drawn through the ground at true vertical scale." },
+  }, "derived");
+  if (layer) state.previews.faults = layer.id;
+}
+
+function faultControls(body) {
+  const { list, leftOut } = faultCandidates();
+  const fold = el("details", "gis-tool-fold");
+  fold.open = list.length > 0;
+  fold.appendChild(el("summary", null, `Faults — planes in the rock${list.length ? ` (${list.length})` : ""}`));
+  const F = state.faults;
+  fold.appendChild(el("p", "tool-copy", "A line becomes a surface the mesh conforms to, with its own flag: give a line layer the fault role in step 2, or pick a trace here. Dip is measured across the trace; the side is right or left of it walked from its first point."));
+  const dip = number("gis-mb-fault-dip", F.dipDeg, 1);
+  dip.addEventListener("input", () => { F.dipDeg = Math.max(5, Math.min(90, Number(dip.value) || 60)); F.built = null; state.outputs = null; });
+  fold.appendChild(row("Default dip (°)", dip));
+  const side = select("gis-mb-fault-side", [{ id: "right", label: "to the right of the trace" }, { id: "left", label: "to the left of the trace" }], F.side);
+  side.addEventListener("change", () => { F.side = side.value; F.built = null; state.outputs = null; });
+  fold.appendChild(row("Default side", side));
+  const depth = number("gis-mb-fault-depth", F.depthM, 100);
+  depth.addEventListener("input", () => { F.depthM = Math.max(10, Number(depth.value) || 2000); F.built = null; state.outputs = null; });
+  fold.appendChild(row("Default depth (m)", depth));
+  list.forEach((c, index) => {
+    const set = faultSettings(c, index);
+    const card = el("details", "gis-tool-fold");
+    const strike = traceStrikeDeg(c.coords);
+    card.appendChild(el("summary", null, `${set.on ? "●" : "○"} ${c.name} — strike ${fmt(strike, 0)}°, ${fmt(set.dipDeg, 0)}° ${set.side}`));
+    const on = el("input", null); on.type = "checkbox"; on.checked = set.on;
+    on.addEventListener("change", () => { setFault(c.key, { on: on.checked }); render(); });
+    card.appendChild(row("In the model", on));
+    const d = number(`gis-mb-fault-dip-${index}`, set.dipDeg, 1);
+    d.addEventListener("change", () => { setFault(c.key, { dipDeg: Math.max(5, Math.min(90, Number(d.value) || 60)) }); render(); });
+    card.appendChild(row("Dip (°)", d));
+    const sd = select(`gis-mb-fault-side-${index}`, [{ id: "right", label: "right of the trace" }, { id: "left", label: "left of the trace" }], set.side);
+    sd.addEventListener("change", () => { setFault(c.key, { side: sd.value }); render(); });
+    card.appendChild(row("Dips to the", sd));
+    const dp = number(`gis-mb-fault-depth-${index}`, set.depthM, 100);
+    dp.addEventListener("change", () => { setFault(c.key, { depthM: Math.max(10, Number(dp.value) || 2000) }); render(); });
+    card.appendChild(row("Depth (m)", dp));
+    const fl = number(`gis-mb-fault-flag-${index}`, set.flag, 1);
+    fl.addEventListener("change", () => { const v = Math.round(Number(fl.value)); if (v > 0) { setFault(c.key, { flag: v }); render(); } });
+    card.appendChild(row("Physical flag", fl));
+    card.appendChild(el("div", "gis-metric", `From ${c.layer}.${set.fromCatalogue.length ? ` Its ${set.fromCatalogue.join(", ")} ${set.fromCatalogue.length > 1 ? "are" : "is"} the catalogue's own.` : ""}`));
+    if (c.custom) {
+      const rm = el("button", "button secondary", "Remove this trace"); rm.type = "button";
+      rm.addEventListener("click", () => { F.custom = F.custom.filter((x) => x !== c.custom); F.built = null; state.outputs = null; removePreview("faults"); render(); });
+      card.appendChild(rm);
+    }
+    fold.appendChild(card);
+  });
+  if (leftOut) fold.appendChild(el("div", "gis-metric", `${leftOut} shorter trace(s) cross this ground too; the ${MAX_FAULTS} longest are used.`));
+  const pick = el("button", "button secondary", "Pick a fault trace on the globe (two clicks)");
+  pick.type = "button";
+  pick.addEventListener("click", async () => {
+    const a = await pickPoint("domain"); if (!a) return;
+    report("domain", "First end placed — click the other end of the trace.");
+    const b2 = await pickPoint("domain"); if (!b2) return;
+    F.custom.push({ id: Date.now(), name: `picked fault ${F.custom.length + 1}`, a, b: b2 });
+    F.built = null; state.outputs = null;
+    report("domain", "Trace added. Build the planes to see it.");
+    render();
+  });
+  fold.appendChild(pick);
+  const build = el("button", "button secondary", state.previews.faults !== undefined ? "Rebuild the fault planes" : "Build the fault planes and show them");
+  build.type = "button";
+  build.addEventListener("click", async () => {
+    if (!surfaceLike()) { report("domain", "Build the surface first: a fault hangs from it."); return; }
+    const L = state.layers;
+    if ((L.soil || L.water) && (!L.read || L.readFor !== surfaceLike())) await readLayers();
+    F.built = null;
+    const B = buildFaults();
+    await drawFaults();
+    report("domain", B.planes.length || B.failed.length || B.dropped.length ? faultSummary(B) : "No fault trace crosses this study area — give a line layer the fault role, or pick one.");
+    render();
+  });
+  fold.appendChild(build);
+  if (F.built && F.builtFor === surfaceLike()) fold.appendChild(el("div", "gis-metric", faultSummary(F.built)));
+  body.appendChild(fold);
+}
+
+/* ── Layers read onto the mesh ───────────────────────────────────────────── */
+
+/** The layers whose values go onto the nodes, with the role each has. */
+function fieldLayers() {
+  return loadedLayers().filter((layer) => FIELD_ROLES[state.roles.get(String(layer.id))]);
+}
+
+/**
+ * EVERY FIELD-ROLE LAYER, READ AT THE SURFACE'S OWN NODES. A drape is read
+ * back through its palette, a grid bilinearly, polygons by a column, a
+ * streamed map after its polygons are fetched for this ground -- one reader
+ * (layer-query.js), so what reaches the mesh does not depend on how the layer
+ * happened to arrive. A node the layer does not reach is NaN, never 0, and the
+ * coverage is the number that says whether the layer reaches this ground.
+ */
+async function readFields() {
+  const t = surfaceLike();
+  if (!t) return null;
+  if (state.fields && state.fieldsFor === t) return state.fields;
+  const n = t.xs.length;
+  const lats = new Float64Array(n); const lons = new Float64Array(n);
+  for (let i = 0; i < n; i += 1) { const ll = nodeLatLon(t, i); lats[i] = ll.lat; lons[i] = ll.lon; }
+  const out = [];
+  for (const layer of fieldLayers()) {
+    const id = String(layer.id);
+    const role = state.roles.get(id);
+    report("conditions", `Reading "${layer.name}" onto ${n.toLocaleString()} nodes…`);
+    await sleep(0);
+    const reader = await openReader(layer, t.bounds, { field: state.fieldColumn.get(id) || null, prefer: FIELD_ROLES[role] });
+    if (!reader.ok) { out.push({ layerId: id, name: layer.name, role, ok: false, why: reader.message }); continue; }
+    try {
+      if (reader.fields?.length) state.columnsSeen.set(id, reader.fields);
+      const sampled = sampleAtNodes(reader, lats, lons);
+      out.push({
+        layerId: id, name: layer.name, role, ok: true, how: reader.how, kind: reader.kind, unit: reader.unit || "",
+        column: reader.field || null, classes: reader.classes || null, note: reader.note, ...sampled,
+        source: layer.metadata?.source || layer.info?.source || null,
+      });
+    } finally { reader.close(); }
+  }
+  state.fields = out; state.fieldsFor = t; state._fieldLatLon = { lats, lons };
+  return out;
+}
+
+function fieldSummary(f) {
+  if (!f.ok) return `${f.name}: not read — ${f.why}.`;
+  const pct = `${(f.coverage * 100).toFixed(f.coverage > 0.995 || f.coverage < 0.005 ? 0 : 1)}% of nodes`;
+  if (f.kind === "class") {
+    const present = new Set(Array.from(f.values).filter(Number.isFinite));
+    return `${f.name} (${f.role}): ${present.size} class(es) of "${f.column}" over ${pct} — ${(f.classes || []).filter((c) => present.has(c.id)).slice(0, 5).map((c) => c.name).join(", ")}${present.size > 5 ? "…" : ""}.`;
+  }
+  return `${f.name} (${f.role}): ${f.withValue ? `${fmt(f.min, 2)} to ${fmt(f.max, 2)}${f.unit ? ` ${f.unit}` : ""}, mean ${fmt(f.mean, 2)}` : "no value"} over ${pct}${f.column ? `, by "${f.column}"` : ""}.`;
+}
+
+function fieldControls(body) {
+  const layers = fieldLayers();
+  const fold = el("details", "gis-tool-fold");
+  fold.open = layers.length > 0;
+  fold.appendChild(el("summary", null, `Layers read onto the mesh${layers.length ? ` (${layers.length})` : ""}`));
+  fold.appendChild(el("p", "tool-copy", "Every layer given the initial, boundary or material role in step 2 is sampled at the surface's own nodes and written beside the mesh as a field — an Earth Engine product, a raster, a geological map."));
+  if (!layers.length) fold.appendChild(el("div", "gis-metric", "No layer has one of those roles yet."));
+  const read = el("button", "button secondary", state.fields && state.fieldsFor === surfaceLike() ? "Read them again" : "Read them onto the surface nodes");
+  read.type = "button";
+  read.disabled = !layers.length;
+  read.addEventListener("click", async () => {
+    if (!surfaceLike()) { report("conditions", "Build the surface first."); return; }
+    state.fields = null;
+    const out = await readFields();
+    report("conditions", out.map(fieldSummary).join(" "));
+    render();
+  });
+  fold.appendChild(read);
+  if (state.fields && state.fieldsFor === surfaceLike()) state.fields.forEach((f) => fold.appendChild(el("div", "gis-metric", fieldSummary(f))));
+  body.appendChild(fold);
+}
+
 function stepDomain(body) {
   const kinds = [
     { id: "solid", label: "Solid (elastostatic — deformation)" },
@@ -1664,6 +2085,7 @@ function stepDomain(body) {
     return;
   }
   if (state.kind === "surface") return;
+  if (state.kind === "3d") faultControls(body);
   const showExt = el("button", "button secondary", state.previews.extend !== undefined ? "Hide the extended boundary" : "Show the extended boundary on the globe");
   showExt.type = "button";
   showExt.addEventListener("click", () => {
@@ -1853,6 +2275,7 @@ function stepConditions(body) {
   }
   drawList();
 
+  fieldControls(body);
   pointControls(body);
   const points = embeddedPoints();
   body.appendChild(el("div", "gis-metric", points.length
@@ -2414,6 +2837,7 @@ async function openInStudio() {
   if (!studio?.adoptTerrainSolid) { report("build", "The Meshing Studio did not come up."); return; }
   const L = state.layers;
   if (state.kind === "3d" && (L.soil || L.water) && (!L.read || L.readFor !== t)) await readLayers();
+  const fields = fieldLayers().length ? await readFields() : [];
   studio.adoptTerrainSolid({
     name: modelName(), surface: t, origin: t.origin,
     belowM: state.kind === "surface" ? 0 : state.domain.depthM,
@@ -2421,6 +2845,14 @@ async function openInStudio() {
     points: embeddedPoints(),
     flags: { ...state.flags },
     layers: layersForStudio(t),
+    faults: state.kind === "3d" ? (buildFaults()?.planes || []).map((f) => ({
+      name: f.name, flag: f.flag, points: f.points, tris: f.tris, strikeDeg: f.strikeDeg, dipDeg: f.dipDeg, trueDipDeg: f.trueDipDeg,
+      compass: f.compass, lengthM: f.lengthM, depthM: f.depthM, zTopMin: f.zTopMin, zBottom: f.zBottom, areaM2: f.areaM2, layer: f.layer, notes: f.notes,
+    })) : [],
+    fields: (fields || []).filter((f) => f.ok && f.withValue).map((f) => ({
+      name: f.name, role: f.role, kind: f.kind, unit: f.unit, column: f.column, classes: f.classes, values: f.values,
+      min: f.min, max: f.max, coverage: f.coverage, how: f.how, note: f.note,
+    })),
   });
 }
 
@@ -2580,6 +3012,19 @@ async function writePackage() {
   const airStats = air ? stlStats(air.text) : null;
   const points = embeddedPoints();
   /**
+   * WHAT IS INSIDE THE ROCK AND WHAT IS READ ONTO IT. The layers are read
+   * first because a fault hangs from the bedrock surface when there is soil;
+   * the faults then go into every script whose volume holds them, and each
+   * field-role layer is sampled at the surface's nodes and written beside the
+   * mesh. Both used to be absent from a package: a fault had no way in, and a
+   * "boundary condition" layer was a name in the provenance.
+   */
+  const Lpre = state.layers;
+  if (!surfaceOnly && state.kind === "3d" && (Lpre.soil || Lpre.water) && (!Lpre.read || Lpre.readFor !== surfaceLike())) await readLayers();
+  const faultBuild = surfaceOnly ? null : buildFaults();
+  const faults = surfaceOnly ? [] : faultsForScript();
+  const fields = fieldLayers().length ? (await readFields()) || [] : [];
+  /**
    * THE SIZE FIELD, on the same lattice the terrain was sampled on -- or, for
    * a TIN, on a lattice laid over it and taken to the minimum with the
    * sampling spacing, so a buffer drawn fine stays fine in the volume.
@@ -2622,6 +3067,7 @@ async function writePackage() {
     sizeFields: resolvedRock.fields,
     meshOptions,
     flags: state.flags,
+    faults,
     extend: {
       which: "subsurface", zBd: domain.baseZ, h: meshSizeM,
       surfaceFile: `${name}_surface.stl`, belowM: state.domain.depthM, aboveM: 0,
@@ -2670,6 +3116,21 @@ async function writePackage() {
       });
       const thick = Array.from(H.solid, (sv, i) => sv - H.bedrock[i]);
       const depth = Array.from(H.water, (wv, i) => (H.wet[i] ? wv - H.solid[i] : NaN));
+      /**
+       * EACH POINT GOES INTO THE VOLUME IT IS IN: above the bedrock surface it
+       * is a node of the soil, below it of the rock. (With no soil the rock's
+       * top is the ground and every point is the rock's.) A point in the wrong
+       * script is embedded in a volume that does not contain it, which gmsh
+       * reports as a failure to recover it.
+       */
+      const bedTin = L.soil ? tinWith(t, H.bedrock) : null;
+      const volumeOf = (pt) => {
+        if (!bedTin) return "bedrock";
+        const zb = tinHeightAt(bedTin, pt.x, pt.y);
+        return Number.isFinite(zb) && pt.z > zb ? "soil" : "bedrock";
+      };
+      const pointsIn = { bedrock: [], soil: [] };
+      points.forEach((pt) => pointsIn[volumeOf(pt)].push(pt));
       layered = V.volumes.map((vol) => {
         const stl = facetsStlByFace(vol.facets, `${name}_${vol.id}`);
         const size = vol.id === "soil" ? thinLayerSizeM(thick, meshSizeM) : vol.id === "water" ? thinLayerSizeM(depth, meshSizeM) : meshSizeM;
@@ -2680,7 +3141,9 @@ async function writePackage() {
             name: `${name}_${vol.id}`, stlFile: `${name}_${vol.id}.stl`, meshFile: `${name}_${vol.id}.msh`,
             meshSizeM: size, minSizeM: Math.min(size / 4, minSizeM || size / 4), faceFlags: LAYER_FLAGS,
             volumeFlag: LAYER_FLAGS[vol.id], volumeName: vol.id,
+            embedPoints: pointsIn[vol.id] || [], faults: vol.id === "bedrock" ? faults : [],
           }),
+          points: (pointsIn[vol.id] || []).map((pt) => pt.name),
         };
       });
       layered.bedrockSurface = L.soil ? tinSurfaceStl(tinWith(t, H.bedrock), `${name}_bedrock_top`) : null;
@@ -2749,6 +3212,22 @@ async function writePackage() {
         volumes: layered.map((v) => ({ id: v.id, file: `${name}_${v.id}.stl`, script: `${name}_${v.id}_gmsh.py`, mesh: `${name}_${v.id}.msh`, faces: v.faces, element_size_m: Math.round(v.sizeM * 10) / 10, watertight: v.closed })),
         rule: "soil top = the ground (seabed, lake bed or river bed where wet); bedrock top = ground − max(min soil, Pelletier thickness); sea = 0 m down to the bathymetry (never shallower than the minimum); lakes at their surveyed level; rivers a channel depth (Moody & Troutman) under the DEM",
       } : null,
+      faults: faultBuild ? {
+        hung_from: faultBuild.ceilingName, clear_of_boundary_m: faultBuild.marginM, file: faults.length ? `${name}_faults.stl` : null,
+        planes: faultBuild.planes.map((f) => ({
+          name: f.name, flag: f.flag, from: f.layer, strike_deg: Math.round(f.strikeDeg * 10) / 10, dip_deg: f.dipDeg, true_dip_deg: Math.round(f.trueDipDeg * 10) / 10,
+          dips_towards: f.compass, side: f.side, length_m: Math.round(f.lengthM), depth_m: Math.round(f.depthM), top_offset_m: f.topOffsetM,
+          z_top_min_m: Math.round(f.zTopMin), z_bottom_m: Math.round(f.zBottom), area_m2: Math.round(f.areaM2), element_size_m: f.sizeM,
+          from_catalogue: f.fromCatalogue, notes: f.notes,
+        })),
+        left_out_for_crossing: faultBuild.dropped, could_not_be_placed: faultBuild.failed, shorter_traces_not_used: faultBuild.leftOut,
+        rule: "trace at the rock's top less an offset; strike from the trace; dip across it to the stated side; kept clear of the walls and the base because an embedded surface may not touch the boundary",
+      } : null,
+      surface_fields: fields.map((f) => (f.ok ? {
+        layer: f.name, role: f.role, asked_as: f.how, column: f.column, kind: f.kind, unit: f.unit || null,
+        file: f.withValue ? `${name}_field_${slugOf(f.name)}.csv` : null, nodes_with_value: f.withValue, coverage: Math.round(f.coverage * 1000) / 1000,
+        range: f.kind === "number" ? [f.min, f.max] : null, classes: f.classes, note: f.note, source: f.source,
+      } : { layer: f.name, role: f.role, read: false, why: f.why })),
       nodes: grid.nodes,
       filled_nodes: grid.filledNodes,
       repaired_nodes: grid.repairedNodes,
@@ -2779,8 +3258,24 @@ async function writePackage() {
   });
 
   const fieldText = field ? structuredFieldText(field) : null;
+  const tNodes = surfaceLike();
+  const latLon = state._fieldLatLon;
+  const fieldFiles = fields.filter((f) => f.ok && f.withValue && latLon).map((f) => ({
+    file: `${name}_field_${slugOf(f.name)}.csv`,
+    text: fieldCsv({ name: f.column || f.name, unit: f.unit, xs: tNodes.xs, ys: tNodes.ys, zs: tNodes.z, lats: latLon.lats, lons: latLon.lons, values: f.values, classes: f.classes }),
+    field: f,
+  }));
+  const faultsText = faults.length ? faultsStl(faults, `${name}_faults`) : null;
+  // A field given the boundary role IS a condition on the ground, and one given
+  // the initial role a starting state: the spec names the file that holds it.
+  fieldFiles.forEach(({ file, field: f }) => {
+    const entry = { file: `meshes/${file}`, layer: f.name, column: f.column, unit: f.unit || null, kind: f.kind, on: "surface nodes", range: f.kind === "number" ? [f.min, f.max] : null, coverage: Math.round(f.coverage * 1000) / 1000 };
+    if (f.role === "boundary") spec.boundary.push({ surface: "top", type: "field", value: null, source: entry.file, field: f.column || f.name });
+    if (f.role === "initial") { spec.initial.fields = spec.initial.fields || []; spec.initial.fields.push(entry); }
+    if (f.role === "material") { spec.properties.regions = spec.properties.regions || []; spec.properties.regions.push({ ...entry, classes: f.classes }); }
+  });
   state.outputs = {
-    script, airScript, spec, surfaceText, domainText: domain.text,
+    script, airScript, spec, surfaceText, domainText: domain.text, layered, faultsText, fieldFiles,
     atmosphereText: air ? air.text : null, fieldText, fieldFile, files: [],
   };
 
@@ -2788,6 +3283,8 @@ async function writePackage() {
     + ` ${stats.closed ? "watertight" : `${stats.openEdges} OPEN EDGES — gmsh will refuse this`}`
     + (airStats ? `; atmosphere ${airStats.triangles.toLocaleString()} triangles, ${airStats.closed ? "watertight" : `${airStats.openEdges} OPEN EDGES`}` : "")
     + `. ${points.length} embedded point(s).`
+    + (faults.length ? ` ${faults.length} fault plane(s) embedded (flags ${faults.map((f) => f.flag).join(", ")}).` : "")
+    + (fieldFiles.length ? ` ${fieldFiles.length} layer(s) read onto the ${tNodes.xs.length.toLocaleString()} surface nodes.` : "")
     + (layered ? ` Layered: ${layered.map((v) => `${v.label.toLowerCase()} ${v.closed ? "watertight" : `${v.openEdges} OPEN EDGES`} at ${Math.round(v.sizeM)} m elements`).join("; ")}.` : "");
 
   const store = window.GeoIDResearch?.store;
@@ -2801,6 +3298,8 @@ async function writePackage() {
     if (airScript) downloadText(`${name}_atmosphere_gmsh.py`, airScript, "text/x-python");
     (layered || []).forEach((v) => { downloadText(`${name}_${v.id}.stl`, v.stl); downloadText(`${name}_${v.id}_gmsh.py`, v.script, "text/x-python"); });
     if (layered?.bedrockSurface) downloadText(`${name}_bedrock_top.stl`, layered.bedrockSurface);
+    if (faultsText) downloadText(`${name}_faults.stl`, faultsText);
+    fieldFiles.forEach((f) => downloadText(f.file, f.text, "text/csv"));
     downloadText(`${run}_spec.json`, JSON.stringify(spec, null, 2), "application/json");
     state.outputs.files = ["downloads (no project open)"];
     report("build", `${shells} No project open — the package was downloaded instead. Open a`
@@ -2824,6 +3323,8 @@ async function writePackage() {
       await store.writeProjectFile(`meshes/${name}_${v.id}_gmsh.py`, v.script);
     }
     if (layered?.bedrockSurface) await store.writeProjectFile(`meshes/${name}_bedrock_top.stl`, layered.bedrockSurface);
+    if (faultsText) await store.writeProjectFile(`meshes/${name}_faults.stl`, faultsText);
+    for (const f of fieldFiles) await store.writeProjectFile(`meshes/${f.file}`, f.text);
     await store.writeProjectFile(`fem_runs/${run}/spec.json`, JSON.stringify(spec, null, 2));
     state.outputs.files = [
       `meshes/${name}_surface.stl`,
@@ -2834,6 +3335,8 @@ async function writePackage() {
       ...(airScript ? [`meshes/${name}_atmosphere_gmsh.py`] : []),
       ...(layered || []).flatMap((v) => [`meshes/${name}_${v.id}.stl`, `meshes/${name}_${v.id}_gmsh.py`]),
       ...(layered?.bedrockSurface ? [`meshes/${name}_bedrock_top.stl`] : []),
+      ...(faultsText ? [`meshes/${name}_faults.stl`] : []),
+      ...fieldFiles.map((f) => `meshes/${f.file}`),
       `fem_runs/${run}/spec.json`,
     ];
     report("build", `${shells} Written into ${project.name}.`);
@@ -2996,6 +3499,11 @@ window.GeoIDModelPipeline = {
   drawSampling,
   drawPoints,
   drawFullModel,
+  drawFaults,
+  buildFaults,
+  faultCandidates,
+  readFields,
+  readLayers,
   clearPreviews,
   openInStudio,
   /**
@@ -3044,6 +3552,15 @@ window.GeoIDModelPipeline = {
     if (!name || !(v > 0)) return false;
     state.pointSizeByName.set(String(name), v);
     state.outputs = null;
+    render();
+    return true;
+  },
+  /** A fault's flag, edited on the model page's card; the package written here carries it. */
+  setFaultFlag: (name, value) => {
+    const n = Math.round(Number(value));
+    const hit = faultCandidates().list.find((c) => c.name === name);
+    if (!hit || !(n > 0)) return false;
+    setFault(hit.key, { flag: n });
     render();
     return true;
   },
