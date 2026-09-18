@@ -2,28 +2,28 @@ import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
   nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS, atmosphereStl, DEFAULT_MAX_NODES, triangleWriter,
-} from "./model-build.js?v=20260918-002dd28";
-import { ringsFromCollection } from "./extraction.js?v=20260918-002dd28";
+} from "./model-build.js?v=20260918-dcbe0e5";
+import { ringsFromCollection } from "./extraction.js?v=20260918-dcbe0e5";
 import {
   buildTin, tinHeightAt, tinSurfaceStl, tinShellStl, samplingSizeField,
   extendBoundary, extendedBoundaryLines, gridAsTin, shellFacets,
-} from "./surface-sampling.js?v=20260918-002dd28";
-import { renderFeatureCollection } from "./vector-render.js?v=20260918-002dd28";
-import { promptDrawTool } from "./extent-picker.js?v=20260918-002dd28";
+} from "./surface-sampling.js?v=20260918-dcbe0e5";
+import { renderFeatureCollection } from "./vector-render.js?v=20260918-dcbe0e5";
+import { promptDrawTool } from "./extent-picker.js?v=20260918-dcbe0e5";
 import {
   profileAlong, profileHeightAt, sectionPolygons, sectionPositions, sectionGmshScript, profileCsv,
-} from "./section-model.js?v=20260918-002dd28";
-import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260918-002dd28";
+} from "./section-model.js?v=20260918-dcbe0e5";
+import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260918-dcbe0e5";
 import {
   layerHeights, layeredVolumes, facetsStlByFace, layeredGmshScript, thinLayerSizeM, tinWith, LAYER_FLAGS, facetsClosed,
-} from "./layered-model.js?v=20260918-002dd28";
-import { waterMasks, waterFeatures } from "./water-mask.js?v=20260918-002dd28";
-import { burnRivers } from "./river-zones.js?v=20260918-002dd28";
+} from "./layered-model.js?v=20260918-dcbe0e5";
+import { waterMasks, waterFeatures } from "./water-mask.js?v=20260918-dcbe0e5";
+import { burnRivers } from "./river-zones.js?v=20260918-dcbe0e5";
 import {
   linesFromCollection, hasLines, faultPlane, faultDefaultsFrom, nonCrossing, faultsStl, bearingDeg, traceLength,
   clipTraceToBox, FAULT_FLAG_BASE, slug as faultSlug,
-} from "./fault-planes.js?v=20260918-002dd28";
-import { describeQuery, openReader, sampleAtNodes, fieldCsv, slugOf, syncReader } from "./layer-query.js?v=20260918-002dd28";
+} from "./fault-planes.js?v=20260918-dcbe0e5";
+import { describeQuery, openReader, sampleAtNodes, fieldCsv, slugOf, syncReader } from "./layer-query.js?v=20260918-dcbe0e5";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -1967,9 +1967,27 @@ async function readFields() {
     try {
       if (reader.fields?.length) state.columnsSeen.set(id, reader.fields);
       const sampled = sampleAtNodes(reader, lats, lons);
+      /**
+       * A DRAPE READ THROUGH ITS PALETTE CANNOT SAY MORE THAN ITS RAMP. Earth
+       * Engine renders 0-300 mm; a three-month rainfall sum over a wet coast
+       * is more than that, every such pixel is painted the top colour, and it
+       * reads back as exactly 300 -- a ceiling that looks like a measurement.
+       * Counted here and said in the summary, with what to do about it.
+       */
+      const top = Number(layer.legendInfo?.max);
+      const bottom = Number(layer.legendInfo?.min);
+      let atTop = 0;
+      if (reader.how === "sampler" && layer.info?.recoveredFromPalette && Number.isFinite(top) && Number.isFinite(bottom) && top > bottom) {
+        const edge = top - (top - bottom) * 0.004;
+        for (let i = 0; i < sampled.values.length; i += 1) if (sampled.values[i] >= edge) atTop += 1;
+      }
+      // The class table is this study's: the classes a node actually took.
+      let classes = reader.classes || null;
+      if (classes) { const present = new Set(Array.from(sampled.values).filter(Number.isFinite)); classes = classes.filter((c) => present.has(c.id)); }
       out.push({
         layerId: id, name: layer.name, role, ok: true, how: reader.how, kind: reader.kind, unit: reader.unit || "",
-        column: reader.field || null, classes: reader.classes || null, note: reader.note, ...sampled,
+        column: reader.field || null, classes, note: reader.note, ...sampled,
+        atRampTop: atTop, rampMax: atTop ? top : null,
         source: layer.metadata?.source || layer.info?.source || null,
       });
     } finally { reader.close(); }
@@ -1985,7 +2003,8 @@ function fieldSummary(f) {
     const present = new Set(Array.from(f.values).filter(Number.isFinite));
     return `${f.name} (${f.role}): ${present.size} class(es) of "${f.column}" over ${pct} — ${(f.classes || []).filter((c) => present.has(c.id)).slice(0, 5).map((c) => c.name).join(", ")}${present.size > 5 ? "…" : ""}.`;
   }
-  return `${f.name} (${f.role}): ${f.withValue ? `${fmt(f.min, 2)} to ${fmt(f.max, 2)}${f.unit ? ` ${f.unit}` : ""}, mean ${fmt(f.mean, 2)}` : "no value"} over ${pct}${f.column ? `, by "${f.column}"` : ""}.`;
+  const capped = f.atRampTop ? ` ${f.atRampTop.toLocaleString()} node(s) read the ramp's top (${fmt(f.rampMax, 0)}${f.unit ? ` ${f.unit}` : ""}): the render runs off its scale there, so those are AT LEAST that — fetch a shorter window, or a dataset whose range fits.` : "";
+  return `${f.name} (${f.role}): ${f.withValue ? `${fmt(f.min, 2)} to ${fmt(f.max, 2)}${f.unit ? ` ${f.unit}` : ""}, mean ${fmt(f.mean, 2)}` : "no value"} over ${pct}${f.column ? `, by "${f.column}"` : ""}.${capped}`;
 }
 
 function fieldControls(body) {
@@ -3227,6 +3246,7 @@ async function writePackage() {
         layer: f.name, role: f.role, asked_as: f.how, column: f.column, kind: f.kind, unit: f.unit || null,
         file: f.withValue ? `${name}_field_${slugOf(f.name)}.csv` : null, nodes_with_value: f.withValue, coverage: Math.round(f.coverage * 1000) / 1000,
         range: f.kind === "number" ? [f.min, f.max] : null, classes: f.classes, note: f.note, source: f.source,
+        nodes_at_ramp_top: f.atRampTop || 0,
       } : { layer: f.name, role: f.role, read: false, why: f.why })),
       nodes: grid.nodes,
       filled_nodes: grid.filledNodes,
@@ -3250,7 +3270,10 @@ async function writePackage() {
         name: p.name, layer: p.layer, lat: p.lat, lon: p.lon, flag: p.flag,
         x: p.x, y: p.y, z: p.z, ground_z: p.groundZ, depth_below_surface_m: p.depthM,
       })),
-      layers: loadedLayers().map((l) => ({
+      // NOT `layers`: that key is the layered volumes above, and a second key of
+      // the same name in one literal silently replaced it -- the record of the
+      // bedrock, soil and water files was never in a spec that had them.
+      layer_roles: loadedLayers().map((l) => ({
         name: l.name, role: state.roles.get(String(l.id)) || "ignore",
       })).filter((l) => l.role !== "ignore"),
       built_at: new Date().toISOString(),

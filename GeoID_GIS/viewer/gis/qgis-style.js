@@ -20,7 +20,7 @@
  * for a categorised fill it is exact.
  */
 
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260918-002dd28";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260918-dcbe0e5";
 
 /** `#RRGGBB` to the `R,G,B,A` triple-plus-alpha QGIS wants. */
 function rgba(hex, alpha = 255) {

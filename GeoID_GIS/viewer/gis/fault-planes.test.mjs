@@ -167,3 +167,35 @@ const close = (a, b, tol = 1e-6) => Math.abs(a - b) <= tol * Math.max(1, Math.ab
   ok("the first of a crossing pair is kept and the second named with what it crossed",
     sorted.kept.map((k) => k.name).join() === "north-south,far" && sorted.dropped[0].name === "east-west" && sorted.dropped[0].crosses === "north-south");
 }
+
+// ── The wiring: a fault reaches every script whose volume holds it ───────────
+{
+  const { readFileSync } = await import("node:fs");
+  const strip = (t) => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const pipe = strip(readFileSync(new URL("./model-pipeline.js", import.meta.url), "utf8"));
+  ok("a line layer is offered the fault role, and only a line layer", /id: "fault"/.test(pipe) && /o\.id === "fault" && can\.fault/.test(pipe) && /fault: hasLines\(/.test(pipe));
+  ok("the planes go into the unlayered domain's script", /flags: state\.flags,\s*faults,/.test(pipe));
+  ok("and into the layered BEDROCK's, with the points that lie in each volume", /faults: vol\.id === "bedrock" \? faults : \[\]/.test(pipe) && /embedPoints: pointsIn\[vol\.id\]/.test(pipe));
+  ok("with soil on, a fault hangs from the bedrock surface, not the ground", /tinWith\(t, L\.soil \? H\.bedrock : H\.solid\)/.test(pipe));
+  ok("the base a plane clears is the unlayered domain's, the higher of the two", /const baseZ = t\.zMin - Math\.max\(state\.domain\.depthM, 1\)/.test(pipe));
+  ok("crossing planes are left out before gmsh meets them", /nonCrossing\(built\)/.test(pipe));
+  ok("a catalogue's own dip, direction and depth open a trace", /faultDefaultsFrom\(c\.properties, traceStrikeDeg\(c\.coords\)\)/.test(pipe));
+  ok("the studio is handed the planes and the model page's flag edit comes back", /faults: state\.kind === "3d" \?/.test(pipe) && /setFaultFlag:/.test(pipe));
+  const provAt = pipe.indexOf("provenance: {", pipe.indexOf("async function writePackage"));
+  const provenance = pipe.slice(provAt, pipe.indexOf("built_at:", provAt));
+  const topKeys = (provenance.match(/^      [a-z_]+:/gm) || []).map((k) => k.trim());
+  ok("the pin is reading the provenance, not an empty slice", topKeys.length > 15 && topKeys.includes("faults:") && topKeys.includes("layer_roles:"));
+  ok("no key is written twice into the spec's provenance (a second `layers` replaced the layered volumes)",
+    new Set(topKeys).size === topKeys.length, topKeys.filter((k, i) => topKeys.indexOf(k) !== i).join(" "));
+
+  const { layeredGmshScript } = await import("./layered-model.js");
+  const plane = faultPlane({ trace: [[0, -500], [0, 500]], groundAt: () => 0, dipDeg: 70, depthM: 800, topOffsetM: 20 });
+  const script = layeredGmshScript({ name: "b", stlFile: "b.stl", meshFile: "b.msh", meshSizeM: 200, faceFlags: { base: 2 }, volumeFlag: 10, volumeName: "bedrock",
+    embedPoints: [{ x: 1, y: 2, z: -300, sizeM: 50, name: "borehole", flag: 21 }], faults: [{ name: "F1", flag: 33, sizeM: 100, points: plane.points, tris: plane.tris }] });
+  ok("a layered volume's script embeds its faults after the volume exists and files them under their flag",
+    script.indexOf("addVolume") < script.indexOf("FAULTS =") && /fault_flags = \{"fault:F1":33\}/.test(script) && /faces\.setdefault\(fault_flags\[gname\], \[\]\)\.extend\(stags\)/.test(script)
+    && script.indexOf("fault_flags[gname]") < script.indexOf("addPhysicalGroup(2"));
+  ok("and its points, tagged with their own flag", /mesh\.embed\(0, \[t for \(t, _, _\) in ptags\], 3, volume\)/.test(script) && /"borehole",21\]/.test(script));
+  const bare = layeredGmshScript({ name: "s", stlFile: "s.stl", meshFile: "s.msh", meshSizeM: 40, faceFlags: {}, volumeFlag: 12, volumeName: "soil" });
+  ok("a volume with nothing inside it gets neither block", !/FAULTS|embedded =/.test(bare));
+}
