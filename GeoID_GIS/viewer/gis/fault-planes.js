@@ -65,7 +65,10 @@ export function linesFromCollection(fc) {
   (fc?.features || []).forEach((f, index) => {
     const g = f?.geometry;
     if (!g) return;
-    const base = String(f.properties?.name || f.properties?.NAME || f.properties?.Name || f.properties?.id || f.properties?.fault || `line ${index + 1}`);
+    // GEM's catalogue names few of its faults and numbers all of them
+    // (catalog_id "ME_TRCS009"); a catalogue's own id beats "line 8842".
+    const base = String(f.properties?.name || f.properties?.NAME || f.properties?.Name || f.properties?.fs_name || f.properties?.fault
+      || f.properties?.catalog_id || f.properties?.id || `line ${index + 1}`);
     const parts = g.type === "LineString" ? [g.coordinates] : g.type === "MultiLineString" ? g.coordinates : [];
     parts.forEach((coords, part) => {
       const clean = (coords || []).filter((c) => Array.isArray(c) && Number.isFinite(Number(c[0])) && Number.isFinite(Number(c[1])))

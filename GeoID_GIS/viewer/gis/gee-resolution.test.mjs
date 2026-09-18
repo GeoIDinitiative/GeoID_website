@@ -71,5 +71,20 @@ check("sub-10 m keeps a decimal", formatResolution(0.6) === "0.6 m/px", formatRe
 check("nonsense is named, not printed", formatResolution(NaN) === "unknown resolution");
 check("zero is named too", formatResolution(0) === "unknown resolution");
 
+// ── A snapshot answers the question it was taken for, and no other ───────────
+// (Above the summary: this file ends in process.exit, so anything after it is
+// run and thrown away.)
+{
+  const { readFileSync } = await import("node:fs");
+  const gee = readFileSync(new URL("./gee.js", import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const body = gee.slice(gee.indexOf("function servedFromCache"), gee.indexOf("async function request()"));
+  check("a cached dataset the live service offers goes LIVE over a chosen extent",
+    /liveDatasets\.some\(\(d\) => d\.id === option\.value\)/.test(body) && /extent !== "global"/.test(body));
+  check("every cache decision goes through that one rule",
+    (gee.match(/servedFromCache\(select\)/g) || []).length >= 3
+    && !/if \(select\??\.selectedOptions\?\.\[0\]\?\.dataset\.source === "cache"\) \{\s*return requestFromCache/.test(gee));
+  check("moving the extent re-asks a cached dataset's dates", /byId\("gee-extent"\)\?\.addEventListener\("change"/.test(gee));
+}
+
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");
 process.exit(failures ? 1 : 0);

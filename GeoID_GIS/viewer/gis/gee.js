@@ -10,25 +10,25 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, attachExactReliefAttributes, followRelief } from "./vector-render.js?v=20260918-d5e8fd5";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260918-d5e8fd5";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260918-d5e8fd5";
+import { attachReliefAttributes, attachExactReliefAttributes, followRelief } from "./vector-render.js?v=20260918-002dd28";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260918-002dd28";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260918-002dd28";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260918-d5e8fd5";
+  from "./view-extent.js?v=20260918-002dd28";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
   persistExtent,
-} from "./extent-picker.js?v=20260918-d5e8fd5";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260918-d5e8fd5";
+} from "./extent-picker.js?v=20260918-002dd28";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260918-002dd28";
 import {
   // Aliased: this module already has a `loadCatalogue`, which fills the
   // dropdown from the SERVICE. Two catalogues, and the names have to say so.
   loadCatalogue as loadGeeCatalogue,
   catalogueReady, searchCatalogue, categories, datasetById, describeDataset,
   freshness, isNewDataset, isExtendedDataset, indexedHrefs, bakedOn,
-} from "./gee-catalogue-index.js?v=20260918-d5e8fd5";
-import { checkCatalogue, describeCheck } from "./gee-watch.js?v=20260918-d5e8fd5";
-import { may, refusal } from "./membership.js?v=20260918-d5e8fd5";
+} from "./gee-catalogue-index.js?v=20260918-002dd28";
+import { checkCatalogue, describeCheck } from "./gee-watch.js?v=20260918-002dd28";
+import { may, refusal } from "./membership.js?v=20260918-002dd28";
 
 // The page's own stamp. A dynamic import under any other query is a SECOND
 // module instance with its own state — the trap that made a stopped player
@@ -573,6 +573,30 @@ export async function fetchDates(dataset) {
   return data;
 }
 
+/**
+ * A SNAPSHOT IS THE ANSWER ONLY TO THE QUESTION IT WAS TAKEN FOR.
+ *
+ * A dataset with a snapshot on disk was listed under "Available offline" and
+ * LEFT OUT of the live list, so choosing it draped the snapshot whatever
+ * extent was asked for -- and a snapshot is one 1024 px picture of the whole
+ * world, 39 km a pixel. Measured with the service connected and a 46 x 21 km
+ * study area chosen: "Added Rainfall (CHIRPS) from cache -- 39 km/px", which
+ * is the entire study in about one pixel, and eight of the thirteen live
+ * datasets behaved that way. Nothing downstream can recover from that: a model
+ * reading rainfall off that layer reads one number.
+ *
+ * So the snapshot serves the GLOBAL extent (what it is a picture of) and any
+ * session where the service is not answering; an extent somebody chose, over
+ * a dataset the connected service offers, is a live render of that ground.
+ */
+function servedFromCache(select) {
+  const option = select?.selectedOptions?.[0];
+  if (option?.dataset.source !== "cache") return false;
+  const live = liveDatasets.some((d) => d.id === option.value);
+  const extent = byId("gee-extent")?.value || "global";
+  return !(live && extent !== "global");
+}
+
 async function request() {
   // Asked here, at the one door every fetch goes through, and BEFORE anything
   // is spent: a render is billed, and refusing after paying for one is the
@@ -586,7 +610,7 @@ async function request() {
     return;
   }
   // A cached snapshot drapes from disk; only a live dataset goes to the service.
-  if (select?.selectedOptions?.[0]?.dataset.source === "cache") {
+  if (servedFromCache(select)) {
     return requestFromCache(dataset);
   }
   status("Requesting…");
@@ -2112,7 +2136,7 @@ export function setRefineOnZoom(on) {
     if (!select?.value || !THREE) return;
     // A cached snapshot is one global PNG on disk; there is nothing finer to ask
     // for, and re-draping it every time the camera stops would be pure churn.
-    if (select.selectedOptions?.[0]?.dataset.source === "cache") return;
+    if (servedFromCache(select)) return;
     if (byId("gee-extent")?.value !== "view") return;
     const bounds = visibleBounds(viewer, THREE);
     if (!viewChangedEnough(lastRefineBounds, bounds)) return;
@@ -2345,11 +2369,20 @@ function init() {
   byId("gee-dataset")?.addEventListener("change", (e) => {
     datesProbe = probeDataset(e.target);
   });
+  // The extent decides whether a snapshot or the service answers (see
+  // `servedFromCache`), so moving it re-asks what the dataset holds: a live
+  // pull sent with no dates takes the last sixty days, and CHIRPS -- which
+  // runs six weeks behind -- then answers "no imagery" for a dataset that has
+  // forty years of it.
+  byId("gee-extent")?.addEventListener("change", () => {
+    const select = byId("gee-dataset");
+    if (select?.value && select.selectedOptions?.[0]?.dataset.source === "cache") datesProbe = probeDataset(select);
+  });
   async function probeDataset(select) {
     const id = select.value;
     if (!id) return;
     // A cached snapshot carries its own fixed window; no availability call.
-    if (select.selectedOptions?.[0]?.dataset.source === "cache") {
+    if (servedFromCache(select)) {
       const entry = cacheEntries.find((c) => c.dataset === id);
       status(entry ? `Cached snapshot · ${entry.from} to ${entry.to}. Draped from disk.`
         : "Cached snapshot.");
