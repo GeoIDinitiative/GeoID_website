@@ -22550,3 +22550,110 @@ every commit. **Consequence: never look a script up by its exact URL.**
 `querySelector('script[src="moon-manifest.js"]')` stopped matching the moment
 the tag was stamped and would have failed Mercury, Venus, the Moon and Pluto
 at boot; those lookups are prefix matches (`src^=`) now.
+
+## Any layer onto the mesh, and faults into the rock: the pipeline audited end to end
+
+Audited live on one study (Izmit–Sapanca, 46 × 21 km, 966 km²): GEE fetch →
+layers → stations → Model Builder → package → Meshing Studio. Three defects
+found by running it, each silent:
+
+- **Earth Engine: a cached dataset was never rendered live.** A dataset with a
+  shipped snapshot was excluded from the live list, so a chosen extent over
+  CHIRPS draped the 39 km world PNG. `servedFromCache(select)` in `gee.js` is
+  the one rule now: cached AND NOT (the live service offers it AND the extent
+  is not global). Measured after: 45 m/px delivered over the study area.
+- **`spec.geoid_model` had two `layers` keys.** The roles list overwrote the
+  layered-volume record (an object literal keeps the last). The roles are
+  `layer_roles`; `layers` is the volumes. Pinned in `fault-planes.test.mjs`
+  — the pin must search from the provenance block's own start, because
+  `indexOf("built_at:")` finds an earlier occurrence and reads an empty slice.
+- **Fields and faults never reached the mesh.** Roles were recorded and nothing
+  was sampled. Both are below.
+
+### `layer-query.js`: one way to ask any layer for a value at a place
+
+A layer's capabilities are `sampler`, `raster`, `collection`, or a tiled map's
+`featuresIn`. `describeQuery(layer)` says which (`how`) and WHY in a sentence
+the Layers step prints; `openReader(layer, bounds, { field, prefer })` answers
+`read(lat, lon)` for all of them; `sampleAtNodes` writes **NaN, never zero**,
+where there is no value.
+
+- **A colour-only drape is refused by name** (`info.valueKind === "colour"`):
+  the NASADEM render has no legend, so it is a picture, and the role select
+  does not offer it as a value source.
+- **A tiled map is asked about the GROUND** in `minX/maxX/minY/maxY`, and
+  `close()` calls `restoreLive` — the borrow-and-give-back rule. Measured:
+  the world geology holds the same 109 live features before and after a read.
+- **Class ids are in NAME order over the box's features**, not read order, or
+  the same unit gets a different id depending on where the first node fell.
+  Classes are trimmed to those present on the nodes.
+- **A palette-recovered value at the top of its ramp is counted**
+  (`atRampTop`). A three-month CHIRPS sum saturated the 0–300 mm ramp (max
+  exactly 300); the status line and the spec (`nodes_at_ramp_top`) say so. A
+  one-month window read 68–105 mm with 0 nodes at the top.
+- `samplerOver` moved here from `landslide-pipeline.js`, which re-exports it.
+
+The Conditions step's "Read them onto the surface nodes" writes one
+`<name>_field_<slug>.csv` per field-role layer (node, x, y, z, lat, lon, value
+with the unit in the column name, class name quoted), and the spec gains
+`boundary[] {surface: "top", type: "field", source}`, `initial.fields`,
+`properties.regions` and `geoid_model.surface_fields`. The studio's terrain
+card colours the surface by any of them (`colourSurfaceBy`, viridis for
+numbers, golden-angle hues for classes, grey for no value; `tinValueAt` when
+the display TIN is a stand-in).
+
+### `fault-planes.js`: a trace becomes a surface embedded in the rock
+
+A layer given the `fault` role (offered only where `hasLines`) has its traces
+clipped to the box, simplified, and swept down-dip into a plane.
+
+- **Defaults come from the catalogue where it has them**: `faultDefaultsFrom`
+  reads GEM's `average_dip`, `dip_dir` and `lower_seis_depth` TUPLES
+  ("(84,,)"). GEM gives no dip direction for these two faults, so the side
+  defaulted to right of the trace (S) and the card says which parts came from
+  the catalogue.
+- **gmsh's embedded surfaces must not touch the boundary or each other.** The
+  trace is pulled in by `max(25 m, size/4)`, the top sits `max(5 m, size/8)`
+  below its ceiling, the depth is capped above the base, and `nonCrossing`
+  (Möller–Trumbore both ways, bbox reject first) drops the shorter of any
+  crossing pair and reports it.
+- **With soil present the plane hangs from the BEDROCK surface** and is embedded
+  in the bedrock volume only; embedded points go to the volume that contains
+  them (`volumeOf`: above the bedrock surface → soil).
+- **HXT ignores embedded surfaces**, so a script with faults sets
+  `Algorithm3D = 1`. Every fault is a physical group `fault:<name>` with its
+  own flag (30, 31, …), and its curves and points inherit it — GALES reads
+  integer tags on every entity.
+- In the studio a fault is a part (`kind: "fault"`, domain "Fault planes"),
+  drawn x-ray (`depthTest: false`) so it reads through the rock, with a card
+  (strike, dip, length, depth, area, editable flag → `setFaultFlag`).
+
+Verified with gmsh 4.11.1 on the REAL Izmit bedrock volume, coarsened for the
+laptop (MeshSizeMax 2000): 5.5 s, 1,640 nodes, 10,082 elements, 0 untagged
+entities, `fault:ME_TRCS012` 744 triangles at flag 30, `fault:ME_TRCS009` 49 at
+31, and the four bedrock stations exact nodes (0.000000 m).
+
+**Thin layers were NOT meshed here, and that is a limit, not a pass.** The
+water volume ran to 601,044 nodes and the 240 s timeout; the soil script asks
+20 m elements over 966 km² (`thinLayerSizeM` = 20 × the tenth-percentile
+thickness). Those are compute-target jobs. `facetsVolume` and `thinLayerSizeM`
+are exported so the package can estimate the element count before anybody
+presses Mesh — not done yet.
+
+### The clean run, on the committed stamp
+
+Run twice through the page's own controls (the Browser pane and the headless
+harness): 13,696 GEM faults loaded, 2 crossing the box; CHIRPS 2025-12 and SMAP
+2025-05 live at 45 m/px; role gating per capability (faults → fault only,
+stations → points only); surface 154 × 71 = 10,934 nodes at 300 m in 7 s, −0.8
+to 1,579 m; layers read in 1 s (sea 188, lake 518, river 119 nodes, soil mean
+12.1 m, Pelletier); ME_TRCS012 strike 90° dip 84° S, 45.9 km × 5,760 m;
+fields in 1.7 s; 17 package files in 2.8 s; the studio shows 20 parts over
+Bedrock, Soil and regolith, Water, Atmosphere, Surface, Fault planes and
+Embedded points, with no page errors.
+
+**Driving this from the Browser pane: every `javascript_tool` call has a ~45 s
+window**, so a stage that waits (a GEE render, the fault load) is split into
+"start it" and "poll it", with anything carried between calls stashed on the
+iframe's `window`. And the page reopens in whatever mode it was left in —
+set GIS mode before driving the sidebar.

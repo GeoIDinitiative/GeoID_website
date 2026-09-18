@@ -30,10 +30,10 @@
  *   top[i]    max(solid, water): the floor of the atmosphere
  */
 
-import { channelDepth } from "./inundation.js?v=20260918-dcbe0e5";
+import { channelDepth } from "./inundation.js?v=20260918-58f29c4";
 
 /** A TIN with a different z array, and its own extremes. */
-import { faultScriptLines } from "./fault-planes.js?v=20260918-dcbe0e5";
+import { faultScriptLines } from "./fault-planes.js?v=20260918-58f29c4";
 
 export function tinWith(tin, z) {
   let zMin = Infinity; let zMax = -Infinity;
