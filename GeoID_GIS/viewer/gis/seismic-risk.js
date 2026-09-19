@@ -8,13 +8,13 @@
  * scale the volcanic frames use, through the same driver.
  */
 
-import { registerSpec } from "./risk-frames.js?v=20260919-14763da";
-import { riskEdges, RISK_LABELS } from "./volcanic-risk.js?v=20260919-14763da";
+import { registerSpec } from "./risk-frames.js?v=20260919-4bf29ee";
+import { riskEdges, RISK_LABELS } from "./volcanic-risk.js?v=20260919-4bf29ee";
 
 export const NONE_COLOUR = "2f3b46";
 export const NONE_LABEL = "no earthquake's shaking on record — not drawn";
 
-import { BANDS, FRAME_BANDS, colourRange } from "./seismic-bands.js?v=20260919-14763da";
+import { BANDS, FRAME_BANDS, colourRange } from "./seismic-bands.js?v=20260919-4bf29ee";
 export { BANDS, FRAME_BANDS, colourRange };
 
 export const RECORD = {

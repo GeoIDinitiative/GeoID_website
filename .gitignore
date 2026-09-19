@@ -276,3 +276,7 @@ data/global/.*-work/
 
 # WorldPop COG: 870 MB, published to the bucket; meta.json stays with the site
 data/global/worldpop/*.tif
+
+# IAU nomenclature outline bake: source zips (bake-nomenclature.py)
+data/global/.nomenclature-work/
+data/global/nomenclature/*.geojson

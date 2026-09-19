@@ -1,5 +1,5 @@
 import { sizeFieldLines } from "./mesh-size-fields.js";
-import { faultScriptLines } from "./fault-planes.js?v=20260919-14763da";
+import { faultScriptLines } from "./fault-planes.js?v=20260919-4bf29ee";
 /**
  * The Model Builder's arithmetic: a study area and its layers into a meshable
  * domain, a gmsh script and a GALES run spec.

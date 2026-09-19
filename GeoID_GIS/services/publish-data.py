@@ -67,6 +67,11 @@ NESTED_FILES = (
     "ice/thickness.json",
     "soil-thickness/soil_thickness_1km.hotlink-ok.tif",
     "worldpop/ppp_2020_1km.hotlink-ok.tif",
+    # IAU named-feature outlines, one per planet viewer (bake-nomenclature.py)
+    "nomenclature/moon.geojson",
+    "nomenclature/mercury.geojson",
+    "nomenclature/venus.geojson",
+    "nomenclature/pluto.geojson",
 )
 
 # STORED GZIPPED, and this is what made the hazard risk maps load at all.
