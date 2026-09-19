@@ -10,17 +10,17 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { bandOf } from "./draw-order.js?v=20260919-a6338fd";
-import { paintOpacity } from "./layer-opacity.js?v=20260919-a6338fd";
-import { currentBody } from "./bodies.js?v=20260919-a6338fd";
-import { samplerToRaster } from "./raster-analysis.js?v=20260919-a6338fd";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260919-a6338fd";
-import { datasetInfoButton } from "./catalogue-list.js?v=20260919-a6338fd";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260919-a6338fd";
+import { bandOf } from "./draw-order.js?v=20260919-9a38a72";
+import { paintOpacity } from "./layer-opacity.js?v=20260919-9a38a72";
+import { currentBody } from "./bodies.js?v=20260919-9a38a72";
+import { samplerToRaster } from "./raster-analysis.js?v=20260919-9a38a72";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260919-9a38a72";
+import { datasetInfoButton } from "./catalogue-list.js?v=20260919-9a38a72";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260919-9a38a72";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20260919-a6338fd";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260919-a6338fd";
+} from "./symbology-dialog.js?v=20260919-9a38a72";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260919-9a38a72";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -1018,7 +1018,8 @@ function activeBasemap() {
  * which rows were on and unticks them through their own boxes; switching it on
  * puts back exactly those rows (all of them if nothing was recorded).
  */
-const LOCATION_BOXES = "#locations-section input[type=checkbox]:not(#locations-master-toggle)";
+// The Moons row is not a label: it shows the Moon itself, and it opens on.
+const LOCATION_BOXES = "#locations-section input[type=checkbox]:not(#locations-master-toggle):not(#moon-toggle)";
 let locationsOnBeforeOff = null;
 function locationBoxes() {
   return [...document.querySelectorAll(LOCATION_BOXES)]

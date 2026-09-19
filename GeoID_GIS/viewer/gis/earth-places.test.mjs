@@ -13,7 +13,7 @@ process.on("exit", () => {
   else console.log(`✓  earth-places.test.mjs  —  ${pass} passed`);
 });
 
-const { isCuratedDuplicate, toItem, readOff } = await import("./earth-places.js");
+const { isCuratedDuplicate, toItem, readOn } = await import("./earth-places.js");
 
 // ---- curated duplicates ---------------------------------------------------
 const curated = [
@@ -40,9 +40,9 @@ ok(item.elevation_m === 4478 && item.label_backing === 2, "height rides on the i
 
 // ---- stored exceptions ----------------------------------------------------
 globalThis.localStorage = { getItem: () => { throw new Error("private window"); } };
-ok(readOff().size === 0, "a storage that throws means nothing is switched off");
+ok(readOn().size === 0, "a storage that throws means nothing is switched on: the names open off");
 globalThis.localStorage = { getItem: () => JSON.stringify(["place-city", 3]) };
-ok(readOff().has("place-city") && readOff().size === 1, "the off-list keeps strings only");
+ok(readOn().has("place-city") && readOn().size === 1, "the on-list keeps strings only");
 delete globalThis.localStorage;
 
 // ---- the baked file, where it is on disk ----------------------------------
@@ -82,7 +82,10 @@ ok(/setPlaceCategoryFilter\(fn\)/.test(viewer) && /placeCategoryEnabled\(entry\.
 const html = readFileSync(join(HERE, "..", "index.html"), "utf-8");
 ok(/id="place-category-rows"/.test(html) && /gis\/earth-places\.js/.test(html), "the Earth page hosts the rows and loads the module");
 for (const id of ["volcanic-labels-toggle", "landing-labels-toggle", "habitation-labels-toggle", "labels-toggle"]) {
-  ok(new RegExp(`id="${id}" type="checkbox" checked`).test(html), `${id} is on at launch`);
+  ok(new RegExp(`id="${id}" type="checkbox">`).test(html), `${id} is OFF at launch on Earth`);
+}
+ok(/id="moon-toggle" type="checkbox" checked/.test(html), "the Moons row (the Moon itself, not a label) stays on");
+{
 }
 const data = readFileSync(join(HERE, "global-data.js"), "utf-8");
 const rivers = data.slice(data.indexOf('id: "rivers-10m"'), data.indexOf('id: "marine-areas"'));

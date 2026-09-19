@@ -22909,7 +22909,17 @@ Verified: Phobos at 90 m with the Viking grooves under the ship; Charon at
 unimaged north with no slab; Io's markers as small dots under readable
 labels; a Mars planet flight unchanged (pre-flight cap 14.4, 80 restored).
 
-## Earth's gazetteer: ~2,900 named places, ranked, lazy, on at launch
+## Earth's gazetteer: ~2,900 named places, ranked, lazy, OFF at launch
+
+**Superseded default (2026-09-19): the place names and the curated Volcanic /
+Mission / Storm / Moon-surface rows open OFF on Earth** (the planets keep their
+labels on). What is stored is now the rows switched ON
+(`geoid-gis:earth-places-on`); the old off-list key is no longer read. The
+Moons row is the Moon itself, not a label, and stays on. The labels are one
+row in the Workspace, "Location labels", pinned at the top with an eye only —
+it records which rows were on when it switches them off and restores exactly
+those. The notes below describe the ranking and engine and still hold; read
+"ON when the page opens" in them as the old default.
 
 Explorer ▸ Locations now carries eight category rows — Oceans & seas,
 Landforms, Islands, Mountains, Rivers, Lakes, Faults & plates, Cities — over
@@ -23046,3 +23056,37 @@ Measured on the headless software renderer, warm: at hand-over the mosaic,
 plates, borders, rivers, all 2,903 place names and the live events are already
 on the globe; the holds settle at ~7 s (viewer boot is ~4.6 s of it there),
 where before the names alone landed at 10.6 s AFTER the screen had gone.
+
+## Transit: plot, lock, run — and the arrival IS the viewer
+
+`transit/transit-sequence.js` replaced the card and the warp worker
+(`transit-worker.js` is gone). It is mock-up D: the navigation chart with the
+destination's name decoded and a ring LOCKING onto it; then Earth falling away
+in the corner, the starfield to warp and the worlds between Earth and the
+destination sweeping past (at most three, the giants first — Pluto passes
+Jupiter, Saturn and Neptune); then the arrival.
+
+- **The planet that grows in is the preloaded viewer**, scaled from 0.004 to 1
+  about its centre with a blur and a circular mask. The viewers draw their
+  globe at the frame's centre, so it lands exactly where the viewer draws it,
+  whatever the world, the window or the spin. `globeFraction()` reads the
+  globe's radius off the viewer's own camera (Saturn 0.2114 against a hand
+  measurement of 0.2115) and the brackets close on that.
+- **The mask is the planet plus its rings** (`RINGS`: Saturn 2.35 R, Uranus
+  1.7 R), and the viewer's panels are hidden by a class in its own document
+  (`tx-arriving`) while it arrives: a ringed planet's circle otherwise takes
+  in the sidebar's edge. The mask opens like an iris at the end, which is when
+  the panels arrive.
+- **The clock HOLDS at the gate (6.6 s)** until the viewer has drawn a textured
+  frame (capped 9 s after the reveal), stars still streaming. The arrival
+  sound is scheduled when the gate opens, so it lands on the planet however
+  long the hold. `GeoIDTransitSequence.current.state()` reads the clock.
+- **The shell reads `#viewer-frame[data-crossed="1"]`** as the hand-over now:
+  the approach sets opacity 1 on the frame before it has crossed.
+- **Under the GeoHUB start screen (`html.is-booting`) or with reduced motion
+  the sequence is skipped**: nobody can see it under the start screen, and a
+  cold `/?world=` would otherwise hold that screen for nine more seconds.
+- **Sound** is synthesised through a 5.5 s hall reverb; it starts on the first
+  gesture if the browser will not play before one, from wherever the
+  sequence has got to. `geoid:transit-sound` = "off" (or the start screen's
+  `geoid:boot-sound`) mutes it.

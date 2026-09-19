@@ -13,29 +13,30 @@
  *
  * Earth only: the page's own script tag loads it, the planets never do.
  */
-import { dataUrl } from "./data-base.js?v=20260919-a6338fd";
-import { holdLaunch } from "./launch-ready.js?v=20260919-a6338fd";
+import { dataUrl } from "./data-base.js?v=20260919-9a38a72";
+import { holdLaunch } from "./launch-ready.js?v=20260919-9a38a72";
 
 const PATH = "/data/global/earth-places.json";
-const OFF_KEY = "geoid-gis:earth-places-off";   // what was switched OFF — see note
+const ON_KEY = "geoid-gis:earth-places-on";   // what was switched ON — see note
 const BATCH = 320;
 
 /**
- * Which rows are OFF is what is stored, never which are on: a stored on-list
- * is a record of the categories that existed when it was written, and one
- * added later would read as switched off for ever (the events feed paid for
- * exactly that). A storage that throws answers "nothing off".
+ * THE PLACE NAMES ARE OFF WHEN THE PAGE OPENS, so what is stored is which
+ * rows somebody switched ON: the exceptions to the default, never the default
+ * itself (a stored list of the default goes stale the moment a category is
+ * added). This replaced an off-list from when the names opened on; that key
+ * is simply no longer read. A storage that throws answers "nothing on".
  */
-export function readOff() {
+export function readOn() {
   try {
-    const raw = JSON.parse(localStorage.getItem(OFF_KEY) || "[]");
+    const raw = JSON.parse(localStorage.getItem(ON_KEY) || "[]");
     return new Set(Array.isArray(raw) ? raw.filter((x) => typeof x === "string") : []);
   } catch (_error) {
     return new Set();
   }
 }
-function writeOff(off) {
-  try { localStorage.setItem(OFF_KEY, JSON.stringify([...off])); } catch (_error) { /* per-browser nicety */ }
+function writeOn(on) {
+  try { localStorage.setItem(ON_KEY, JSON.stringify([...on])); } catch (_error) { /* per-browser nicety */ }
 }
 
 const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
@@ -88,7 +89,7 @@ export function toItem(row, rank) {
 }
 
 let loaded = null;
-let offSet = readOff();
+let onSet = readOn();
 
 /**
  * Rows the Locations list shows as ONE entry. Oceans and seas, rivers and
@@ -133,10 +134,10 @@ function drawRows(viewer) {
     box.type = "checkbox";
     box.id = id;
     box.dataset.placeCategory = entry.ids.join(" ");
-    box.checked = entry.ids.some((cid) => !offSet.has(cid));
+    box.checked = entry.ids.some((cid) => onSet.has(cid));
     box.addEventListener("change", () => {
-      for (const cid of entry.ids) { if (box.checked) offSet.delete(cid); else offSet.add(cid); }
-      writeOff(offSet);
+      for (const cid of entry.ids) { if (box.checked) onSet.add(cid); else onSet.delete(cid); }
+      writeOn(onSet);
       syncMaster();
     });
     wrap.appendChild(box);
@@ -161,10 +162,10 @@ function wireMaster() {
     for (const box of document.querySelectorAll("#place-category-rows input[type=checkbox]")) {
       box.checked = master.checked;
       for (const cid of box.dataset.placeCategory.split(" ")) {
-        if (master.checked) offSet.delete(cid); else offSet.add(cid);
+        if (master.checked) onSet.add(cid); else onSet.delete(cid);
       }
     }
-    writeOff(offSet);
+    writeOn(onSet);
   });
 }
 
@@ -189,7 +190,7 @@ async function load(viewer) {
   const places = (doc.places || []).filter((p) => !isCuratedDuplicate(p, curated));
   drawRows(viewer);
   wireMaster();
-  viewer.setPlaceCategoryFilter((category) => !offSet.has(category));
+  viewer.setPlaceCategoryFilter((category) => onSet.has(category));
   // Most significant first, in batches across frames: 2,900 entries built in
   // one task is a visible stall on the page's opening seconds.
   places.sort((a, b) => a.lod - b.lod);
@@ -230,7 +231,7 @@ function start(tries = 0) {
 if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
   window.GeoIDEarthPlaces = {
     loaded: () => loaded,
-    isOn: (category) => !offSet.has(category),
+    isOn: (category) => onSet.has(category),
   };
   // The start-up screen waits for the names (gis/launch-ready.js).
   const releasePlaces = holdLaunch("places", 14000);

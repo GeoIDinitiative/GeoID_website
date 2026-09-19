@@ -53,511 +53,45 @@
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    /* Space is black, and the page is a screen, not a document. */
+    body { overflow: hidden; background: #030608; color: var(--text); font-family: "Exo 2", "Trebuchet MS", sans-serif; }
 
-    body {
-      min-height: 100dvh;
-      overflow: hidden;
-      /* Space is black. This was #0d0221, a dark purple carried over from the
-         site skin, which the starfield then sat on top of -- so the "sky" read
-         as violet rather than as sky. The card keeps the purple palette; only
-         the field behind it is neutral. */
-      background: #000;
-      color: var(--text);
-      font-family: "Exo 2", "Trebuchet MS", sans-serif;
-    }
-
-    /* ── CRT: scanlines, vignette and a slow roll ────────────────────────
-       Same treatment as the dashboard hero and the viewers, so the transit
-       screen reads as part of the same machine rather than a gap between
-       two of them. Overlays never intercept clicks. */
-    body::after {
-      content: "";
-      position: fixed; inset: 0;
-      z-index: 9999; pointer-events: none;
-      background:
-        repeating-linear-gradient(180deg, rgba(0,0,0,0.13) 0 1px, transparent 1px 3px),
-        radial-gradient(125% 125% at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
-    }
-
-
-    /* ── Starfield canvas ─────────────────────────────── */
-    .warp-canvas {
-      position: fixed;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 0;
-      pointer-events: none;
-    }
-
-    /* ── Shell ───────────────────────────────────────── */
-    .shell {
-      position: relative;
-      z-index: 1;
-      min-height: 100dvh;
-      display: grid;
-      place-items: center;
-      padding: 1rem;
-    }
-
-    /* ── Card ────────────────────────────────────────── */
-    /* THE WHOLE CARD IS THE TILE. The photograph used to sit in the hero band
-       alone, so it stopped at the stats and the lower half of the card was
-       flat panel. It is the card's own background now — behind the stats, the
-       journey track, the countdown and the Return Home button — with the fade
-       below carrying the legibility that the flat panel used to.
-       The card's old near-opaque `linear-gradient(170deg, …0.94 … 0.92)` is
-       gone: a 92% fill over a photograph is a panel with a rumour of a picture
-       under it. The cyan wash stays, over the shot rather than over nothing. */
-    .card {
-      position: relative;
-      width: min(840px, 100%);
-      border-radius: 1.5rem;
-      border: 2px solid rgba(255, 43, 214,0.55);
-      background:
-        radial-gradient(ellipse 70% 40% at 50% 0%, rgba(0, 229, 255,0.06) 0%, transparent 60%),
-        var(--hero-shot, none) center / cover no-repeat,
-        linear-gradient(170deg, rgba(9,17,34,0.94) 0%, rgba(4,9,18,0.92) 100%);
-      backdrop-filter: blur(28px);
-      box-shadow:
-        0 50px 140px rgba(0,0,0,0.65),
-        0 0 0 1px rgba(255, 43, 214,0.35),
-        0 0 36px rgba(255, 43, 214,0.22),
-        inset 0 1px 0 rgba(255,255,255,0.07);
-      overflow: hidden;
-    }
-
-    /* ── Logo — fixed to viewport top-right, outside card ── */
-    .logo-img {
-      position: fixed;
-      top: 1.2rem;
-      right: 1.4rem;
-      /* The GeoID wordmark (715 x 230), not the old square Planet Explorer
-         badge: WIDTH decides and the height follows, or a 3.1:1 image in a
-         square slot draws a third of its box and floats in the middle. */
-      width: 13.5rem;
-      height: auto;
-      object-fit: contain;
-      filter: drop-shadow(0 4px 24px rgba(0,0,0,0.55));
-      z-index: 100;
-      pointer-events: none;
-    }
-
-    /* ── Arrival info (embedded in hero) ─────────────── */
-    /* In flow, not absolute. Absolute took it out of the layout entirely, so
-       nothing stopped the destination title running underneath it — at the
-       top of its clamp a long name like MERCURY is wide enough to reach the
-       date and collide. On its own line the two can never meet, whatever the
-       destination is called. */
-    .arrival-block {
-      text-align: right;
-      padding: 0;
-      position: relative;
-      z-index: 2;
-      align-self: start;
-      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 6px 20px rgba(0, 0, 0, 0.6);
-    }
-    .arrival-label {
-      font-family: "Public Sans", sans-serif;
-      font-size: 0.6rem;
-      font-weight: 700;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: rgba(255, 255, 255, 0.94);
-    }
-    .arrival-value {
-      font-size: 1rem;
-      font-weight: 600;
-      color: #ffffff;
-      margin-top: 0.14rem;
-    }
-
-    /* ── Hero ────────────────────────────────────────── */
-    /* THE TILE IS THE DESTINATION. It used to be a round icon beside the name —
-       a badge of the very world the journey is toward, at a size that could
-       show nothing of it. The tile now carries an oblique of that body's own
-       surface, rendered from that body's own viewer by
-       GeoID_GIS/services/bake-hero-tiles.py, with the name on it. One column
-       now that the icon has gone. */
-    .hero {
-      position: relative;
-      isolation: isolate;
-      display: grid;
-      grid-template-columns: 1fr;
-      /* Two rows: the arrival line at the top, the name pushed to the bottom
-         of whatever height is left. The arrival line USED TO SIT ABOVE the
-         hero, so the picture started below it and the card carried a dark
-         strip across its top — the tile did not reach its own edge. Inside,
-         the photograph runs to the top of the card and the date sits on it. */
-      grid-template-rows: auto 1fr;
-      align-items: end;
-      gap: 0.5rem;
-      min-height: clamp(9rem, 19vw, 13rem);
-      padding: 1.1rem clamp(1.25rem, 3vw, 2rem) clamp(1.2rem, 3vw, 1.8rem);
-    }
-
-    /* THE FADE, darkest at the tile's border — and it must stay a FADE.
-       An earlier version ended on `rgba(..., 1)`, and the corners of a box lie
-       outside the ellipse that reaches its edges, so all four of them clamped
-       to solid black: the picture survived only as a lozenge through the
-       middle and the tile read as not filled.
-       Two layers, answering different questions. The ELLIPSE is the fade
-       itself. It stops at 0.80 rather than at 1, which is the whole difference
-       between a dark border and a black one — the photograph is still there in
-       every corner, just well down.
-       ITS RADII ARE THE THING TO GET RIGHT, and they are easy to get wrong in
-       a way that looks deliberate. `ellipse 58% 60%` are radii AS A FRACTION
-       OF THE BOX, so the last stop lands a little outside the mid-edges and
-       well outside the corners. An earlier 94% x 106% put the last stop far
-       beyond the card: measured on the real 836x436 box, the top edge reached
-       only 34% of the gradient — an alpha of 0.05 — and the vignette was
-       invisible while every value in it read as strong. If this is ever
-       retuned, compute where each edge lands before trusting the numbers.
-       The LINEAR eased off as the ellipse took over: the two MULTIPLY, so a
-       heavy bottom under a heavy vignette makes the lower corners solid. The LINEAR is for the
-       reading matter. It leaves the top third alone, where the shot is the
-       whole point, and comes on over the stats — its steepest run is at 44-56%
-       of the card, which is exactly where that row sits. Those labels are
-       0.58rem tracked capitals: over the bright half of a planet a halo alone
-       does not save them, because there is barely any glyph for it to hug.
-       On ::after with the children lifted above it, so it covers the picture
-       and nothing else. */
-    .card::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      z-index: 0;
-      background:
-        radial-gradient(ellipse 58% 60% at 50% 44%,
-          rgba(4, 7, 16, 0) 0%,
-          rgba(4, 7, 16, 0.05) 38%,
-          rgba(4, 7, 16, 0.26) 64%,
-          rgba(4, 7, 16, 0.58) 86%,
-          rgba(4, 7, 16, 0.80) 100%),
-        linear-gradient(to bottom,
-          rgba(4, 7, 16, 0.02) 0%,
-          rgba(4, 7, 16, 0.08) 32%,
-          rgba(4, 7, 16, 0.30) 44%,
-          rgba(4, 7, 16, 0.50) 56%,
-          rgba(4, 7, 16, 0.56) 100%);
-    }
-
-    /* Above the fade. Without this the ::after paints over the words. */
-    .card > * { position: relative; z-index: 1; }
-
-    /* The reading matter carries its own shadow, so the fade under it does not
-       have to be heavy enough to blot the photograph out. Every one of these
-       used to sit on a flat panel where none was needed. */
-    .stats, .journey, .footer, .hero-text, .arrival-block {
-      /* A TIGHT halo first, then the soft drop. The small text here sits on a
-         photograph, and a soft shadow alone only greys the area behind a
-         hairline glyph — it does not separate it. The 0/2px pass hugs the
-         letterforms; the rest gives them a ground to sit on. */
-      text-shadow:
-        0 0 2px rgba(0, 0, 0, 0.95),
-        0 1px 3px rgba(0, 0, 0, 0.9),
-        0 3px 12px rgba(0, 0, 0, 0.7);
-    }
-
-    /* Hero text */
-    .hero-text {
-      min-width: 0;
-      position: relative;
-      z-index: 1;
-      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85), 0 8px 26px rgba(0, 0, 0, 0.6);
-    }
-
-    .dest-tag { display: none; }
-
-    .dest-title {
-      font-family: "Orbitron", sans-serif;
-      font-size: clamp(3rem, 9vw, 5.5rem);
-      font-weight: 800;
-      line-height: 0.88;
-      text-transform: uppercase;
-      letter-spacing: -0.02em;
-      background: linear-gradient(130deg, #ffffff 20%, rgba(220,235,255,0.72) 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      /* A DROP-SHADOW, not a text-shadow. The fill is a gradient clipped to the
-         glyphs with `-webkit-text-fill-color: transparent`, so a text-shadow
-         paints a solid slab of the letter shapes behind them; `filter` follows
-         the rendered alpha instead. It is needed now the name sits on a
-         photograph — Saturn's cloud deck is nearly as light as the title. */
-      text-shadow: none;
-      filter:
-        drop-shadow(0 2px 3px rgba(0, 0, 0, 0.9))
-        drop-shadow(0 10px 28px rgba(0, 0, 0, 0.55));
-    }
-
-    .dest-sub {
-      margin-top: 0.65rem;
-      /* NOT `--muted`, which is a grey chosen for a dark panel. Both this and
-         the arrival label are on a PHOTOGRAPH now, and against Saturn's rings
-         a muted grey is invisible. Near-white at 82%, which still reads as
-         secondary next to the name without depending on what is behind it. */
-      color: rgba(255, 255, 255, 0.95);
-      font-size: 0.92rem;
-      line-height: 1.55;
-      max-width: 34rem;
-    }
-
-    /* ── Stats ───────────────────────────────────────── */
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      border-top: 1px solid rgba(255,255,255,0.05);
-    }
-
-    .stat {
-      padding: 0.85rem 1.5rem;
-      border-right: 1px solid rgba(255,255,255,0.05);
-      position: relative;
-      text-align: center;
-    }
-    .stat:last-child { border-right: none; }
-
-    .stat-label {
-      font-family: "Courier New", monospace;
-      font-size: 0.62rem;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: rgba(255, 255, 255, 0.94);
-    }
-
-    .stat-value {
-      display: block;
-      margin-top: 0.28rem;
-      font-size: clamp(1rem, 2.2vw, 1.22rem);
-      font-weight: 700;
-      color: #ffffff;
-      font-variant-numeric: tabular-nums;
-    }
-
-    /* ── Journey track ───────────────────────────────── */
-    .journey {
-      padding: 0.9rem clamp(1.25rem, 3vw, 2rem) 1.1rem;
-      border-top: 1px solid rgba(255,255,255,0.05);
-    }
-
-    .journey-row {
-      display: grid;
-      grid-template-columns: 2.8rem 1fr 2.8rem;
-      align-items: center;
-      gap: 0.85rem;
-    }
-
-    .journey-node {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.28rem;
-    }
-
-    .journey-node-icon {
-      width: 2.8rem;
-      height: 2.8rem;
-      border-radius: 50%;
-      overflow: hidden;
-      border: 1px solid rgba(255,255,255,0.1);
-      background: rgba(255,255,255,0.03);
-    }
-    .journey-node-icon img {
-      display: block;
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-    }
-
-    .journey-node-label {
-      font-family: "Orbitron", sans-serif;
-      font-size: 0.58rem;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: rgba(255, 255, 255, 0.94);
-      white-space: nowrap;
-    }
-
-    /* Track */
-    .track-wrap {
-      position: relative;
-      padding: 0.5rem 0;
-    }
-
-    .track-rail {
-      position: relative;
-      height: 2px;
-      border-radius: 1px;
-      background: linear-gradient(90deg, rgba(0, 229, 255,0.18), rgba(255, 43, 214,0.18));
-      overflow: visible;
-    }
-
-    /* Fill — initial state; WAAPI drives the animation from JS */
-    .track-fill {
-      position: absolute;
-      top: 0; left: 0; bottom: 0;
-      width: 100%;
-      transform-origin: left;
-      transform: scaleX(0);
-      border-radius: 1px;
-      background: linear-gradient(90deg, #00e5ff, #ff2bd6);
-      box-shadow: 0 0 14px rgba(255, 43, 214,0.45);
-    }
-
-    /* Ship dot — initial state; WAAPI drives the animation from JS */
-    .track-ship {
-      position: absolute;
-      top: 50%;
-      left: 0;
-      width: 11px;
-      height: 11px;
-      border-radius: 50%;
-      background: radial-gradient(circle at 35% 30%, #fff, #ffd319 68%, #ff6ad5);
-      box-shadow:
-        0 0 14px rgba(255, 211, 25,0.8),
-        0 0 28px rgba(0, 229, 255,0.3);
-      transform: translate(-5.5px, -50%);
-      z-index: 2;
-    }
-
-    /* Exhaust trail */
-    .track-ship::before {
-      content: "";
-      position: absolute;
-      right: 46%;
-      top: 50%;
-      width: 2.2rem;
-      height: 0.2rem;
-      transform: translateY(-50%);
-      border-radius: 999px;
-      background: linear-gradient(90deg, transparent, rgba(170,228,255,0.28), rgba(255, 211, 25,0.75));
-      filter: blur(0.8px);
-    }
-
-    /* ── Footer ──────────────────────────────────────── */
-    .footer {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      padding: 0.8rem clamp(1.25rem, 3vw, 2rem);
-      border-top: 1px solid rgba(255,255,255,0.05);
-      background: rgba(255,255,255,0.015);
-    }
-
-    .home-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      padding: 0.58rem 1.05rem;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,0.14);
-      background: rgba(255,255,255,0.04);
-      color: var(--text);
-      font-size: 0.88rem;
-      text-decoration: none;
-      transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
-      white-space: nowrap;
-    }
-    .home-btn:hover {
-      border-color: rgba(255,255,255,0.28);
-      background: rgba(255,255,255,0.08);
-      transform: translateY(-1px);
-    }
-
-    .countdown {
-      font-family: "Public Sans", sans-serif;
-      font-size: 0.78rem;
-      font-weight: 700;
-      color: var(--muted);
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-      text-align: right;
-    }
-
-    /* ── Responsive ──────────────────────────────────── */
-    @media (max-width: 580px) {
-      .shell { padding: 0.5rem; align-items: flex-start; padding-top: max(1rem, env(safe-area-inset-top)); }
-      .card { border-radius: 1rem; }
-
-      /* Logo: slightly smaller on mobile, stays fixed top-right */
-      .logo-img { width: 7.5rem; height: auto; top: 0.6rem; right: 0.75rem; }
-
-      /* Hero: stack planet above text */
-      .hero {
-        gap: 0.5rem;
-        padding: 0.9rem 1rem 1rem;
-        padding-right: 1rem;
-        min-height: 8rem;
-      }
-
-      /* Stats: 2-col then full-width third */
-      .stats { grid-template-columns: 1fr 1fr; }
-      .stat { padding: 0.65rem 1rem; }
-      .stat:nth-child(2) { border-right: none; }
-      .stat:last-child { grid-column: 1 / -1; border-top: 1px solid rgba(255,255,255,0.05); }
-
-      /* Journey track: tighter nodes */
-      .journey { padding: 0.65rem 0.9rem 0.75rem; }
-      .journey-row { grid-template-columns: 2.2rem 1fr 2.2rem; gap: 0.5rem; }
-      .journey-node-icon { width: 2.2rem; height: 2.2rem; }
-      .journey-node-label { font-size: 0.46rem; }
-
-      /* Footer */
-      .footer { flex-direction: column; align-items: flex-start; gap: 0.5rem;
-                padding: 0.65rem 1rem; padding-bottom: max(0.65rem, env(safe-area-inset-bottom)); }
-      .countdown { text-align: left; }
-
-      /* Arrival date: slightly smaller */
-      .arrival-value { font-size: 0.88rem; }
-      .dest-title { font-size: clamp(2.2rem, 14vw, 3.5rem); }
-    }
-
-    @media (max-width: 380px) {
-      .logo-img { width: 6.75rem; height: auto; }
-      .stats { grid-template-columns: 1fr; }
-      .stat { border-right: none; border-top: 1px solid rgba(255,255,255,0.05); }
-      .stat:first-child { border-top: none; }
-    }
-
-    /* Phone landscape: shrink everything so the card fits a ~420px tall
-       viewport without the Begin Journey button overflowing. */
-    @media (max-height: 560px) and (orientation: landscape) {
-      .shell { padding: 0.4rem; align-items: center; padding-top: max(0.4rem, env(safe-area-inset-top)); }
-      .card {
-        border-radius: 0.85rem;
-        width: min(560px, 100%) !important;
-        max-width: min(560px, calc(100vw - 0.8rem)) !important;
-        margin: 0 auto;
-      }
-      .logo-img { width: 5.5rem !important; height: auto !important; top: 0.4rem; right: 0.5rem; }
-      .hero {
-        gap: 0.35rem;
-        padding: 0.6rem 0.8rem 0.6rem !important;
-        min-height: 0 !important;
-      }
-      .dest-title { font-size: clamp(1.6rem, 7vw, 2.4rem) !important; line-height: 1 !important; }
-      .hero-eyebrow, .arrival-eyebrow { font-size: 0.55rem !important; }
-      .arrival-value { font-size: 0.75rem !important; }
-      .hero-subtitle { font-size: 0.7rem !important; line-height: 1.3 !important; }
-      .stats { grid-template-columns: repeat(3, 1fr) !important; }
-      .stat { padding: 0.45rem 0.7rem !important; }
-      .stat-label { font-size: 0.5rem !important; margin: 0 0 0.18rem !important; }
-      .stat-value { font-size: 0.85rem !important; }
-      .journey { padding: 0.4rem 0.7rem 0.5rem !important; }
-      .journey-row { grid-template-columns: 1.8rem 1fr 1.8rem !important; gap: 0.4rem !important; }
-      .journey-node-icon { width: 1.8rem !important; height: 1.8rem !important; }
-      .journey-node-label { font-size: 0.42rem !important; }
-      .footer {
-        padding: 0.5rem 0.8rem !important;
-        padding-bottom: max(0.5rem, env(safe-area-inset-bottom)) !important;
-        flex-direction: row !important;
-        align-items: center !important;
-      }
-      .countdown { font-size: 0.6rem !important; }
-      .begin-btn, .footer .begin-btn { padding: 0.45rem 1rem !important; font-size: 0.7rem !important; }
+    /* THE LAYERS, back to front: the chart, stars, Earth and flybys; the
+       destination viewer (scaled up from a point for the arrival); the flare
+       that crosses it; the words. */
+    #tx-back, #tx-front { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    #tx-back { z-index: 0; }
+    #viewer-frame { z-index: 1; }
+    #tx-front { z-index: 3; }
+    #tx-hud { position: fixed; inset: 0; z-index: 4; pointer-events: none; --u: 1; }
+    #tx-hud::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(rgba(88,198,179,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(88,198,179,.05) 1px, transparent 1px); background-size: 56px 56px; }
+    #tx-hud::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0 1px, transparent 1px 3px); }
+    .tx-br { position: absolute; width: calc(42px * max(0.6, var(--u))); height: calc(42px * max(0.6, var(--u))); border: 3px solid #f7bd68; opacity: 0; }
+    #tx-br-tl { border-right: 0; border-bottom: 0; } #tx-br-tr { border-left: 0; border-bottom: 0; }
+    #tx-br-bl { border-right: 0; border-top: 0; }    #tx-br-br { border-left: 0; border-top: 0; }
+    #tx-label { position: absolute; left: 34px; top: 28px; font-size: 12px; letter-spacing: .3em; text-transform: uppercase; color: rgba(255,255,255,.45); }
+    #tx-label b { color: #f7bd68; font-weight: 600; }
+    #tx-cap { position: absolute; right: 34px; top: 28px; text-align: right; font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.55); line-height: 1.8; font-variant-numeric: tabular-nums; }
+    #tx-cap b { display: block; color: var(--text); font-weight: 600; font-size: 17px; letter-spacing: .06em; }
+    #tx-cap .n { display: inline-block; margin-top: 8px; padding: 3px 9px; border: 1px solid #f7bd68; color: #f7bd68; font-size: 11px; }
+    #tx-name { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-60%); font-family: "Orbitron", sans-serif; font-size: calc(112px * max(0.55, var(--u))); letter-spacing: .1em; white-space: nowrap; text-shadow: 0 0 28px rgba(126,231,255,.35); }
+    #tx-sub { position: absolute; left: 50%; top: 50%; transform: translate(-50%,58px); font-size: calc(16px * max(0.7, var(--u))); letter-spacing: .34em; text-transform: uppercase; color: #7ee7ff; white-space: nowrap; }
+    #tx-tag { position: absolute; left: 50%; top: 50%; transform: translate(-50%,calc(-150px * max(0.6, var(--u)))); font-size: 13px; letter-spacing: .5em; color: #f7bd68; text-transform: uppercase; white-space: nowrap; }
+    #tx-log { position: absolute; left: 62px; bottom: 58px; font-size: calc(15px * max(0.75, var(--u))); line-height: 1.75; letter-spacing: .06em; color: #7ee7ff; }
+    #tx-log div { opacity: 0; white-space: nowrap; }
+    #tx-log i { font-style: normal; color: rgba(255,255,255,.42); margin-left: 14px; }
+    #tx-log em { font-style: normal; color: #f7bd68; }
+    #tx-barwrap { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(255,255,255,.08); }
+    #tx-bar { height: 100%; width: 0; background: #7ee7ff; box-shadow: 0 0 12px #7ee7ff; }
+    /* The two things a reader can do: go home, or get there now. */
+    #tx-actions { position: fixed; right: 34px; bottom: 22px; z-index: 5; display: flex; gap: 10px; transition: opacity .4s; }
+    #tx-actions a, #tx-actions button { font: 500 11px "Exo 2", sans-serif; letter-spacing: .2em; text-transform: uppercase; color: rgba(255,255,255,.6); background: rgba(3,6,8,.5); border: 1px solid rgba(255,255,255,.18); padding: 6px 12px; cursor: pointer; text-decoration: none; }
+    #tx-actions a:hover, #tx-actions button:hover, #tx-actions a:focus-visible, #tx-actions button:focus-visible { color: #fff; border-color: #f7bd68; outline: none; }
+    @media (max-width: 760px) {
+      #tx-log { left: 20px; bottom: 44px; }
+      #tx-label, #tx-cap { top: 16px; } #tx-label { left: 18px; } #tx-cap { right: 18px; }
+      #tx-actions { right: 18px; bottom: 14px; }
     }
 
     /* ── Portrait orientation advisory ───────────────────────────────── */
@@ -625,78 +159,32 @@
         #portrait-advisory-dismiss { display: none !important; }
         #portrait-advisory.is-dismissed { display: flex !important; }
       }
-    </style>
+        </style>
 </head>
 <body>
+  <canvas id="tx-back" aria-hidden="true"></canvas>
   <iframe id="viewer-frame" src=""
-    style="position:fixed;inset:0;width:100%;height:100%;border:none;opacity:0;pointer-events:none;z-index:0;background:#000;display:none;"
+    style="position:fixed;inset:0;width:100%;height:100%;border:none;opacity:0;pointer-events:none;background:#000;display:none;"
     allow="fullscreen"></iframe>
+  <canvas id="tx-front" aria-hidden="true"></canvas>
 
-  <canvas class="warp-canvas" id="warp-canvas" aria-hidden="true"></canvas>
+  <div id="tx-hud" aria-live="polite">
+    <div id="tx-label">GeoHUB · <b>Transit</b></div>
+    <div id="tx-cap"></div>
+    <div id="tx-tag">Plotting course</div>
+    <h1 id="tx-name"></h1>
+    <div id="tx-sub"></div>
+    <div id="tx-log"></div>
+    <div class="tx-br" id="tx-br-tl"></div><div class="tx-br" id="tx-br-tr"></div>
+    <div class="tx-br" id="tx-br-bl"></div><div class="tx-br" id="tx-br-br"></div>
+    <div id="tx-barwrap"><div id="tx-bar"></div></div>
+  </div>
+  <div id="tx-actions">
+    <a href="/" target="_top" rel="home">← Home</a>
+    <button type="button" id="tx-skip">Skip ›</button>
+  </div>
 
-  <main class="shell" id="transit-shell">
-
-  <img class="logo-img" id="logo-img" src="/assets/GeoID_logo_icon.png" alt="GeoID">
-    <article class="card">
-
-      <div class="hero">
-        <div class="arrival-block">
-          <div class="arrival-label">Estimated Date of Arrival</div>
-          <div class="arrival-value" id="eta-top">—</div>
-        </div>
-        <div class="hero-text">
-          <div class="dest-tag">Destination</div>
-          <h1 class="dest-title" id="dest-title">—</h1>
-          <p class="dest-sub" id="dest-sub">Destination viewer initializing.</p>
-        </div>
-      </div>
-
-      <div class="stats">
-        <div class="stat">
-          <p class="stat-label">Distance</p>
-          <span class="stat-value" id="stat-km">—</span>
-        </div>
-        <div class="stat">
-          <p class="stat-label">Light-year equivalent</p>
-          <span class="stat-value" id="stat-ly">—</span>
-        </div>
-        <div class="stat">
-          <p class="stat-label">Transit duration</p>
-          <span class="stat-value" id="stat-eta">—</span>
-        </div>
-      </div>
-
-      <div class="journey">
-        <div class="journey-row">
-          <div class="journey-node">
-            <div class="journey-node-icon">
-              <img src="/assets/earth_icon.png" alt="Earth" id="origin-img" loading="lazy" decoding="async">
-            </div>
-            <span class="journey-node-label" id="origin-label">Earth</span>
-          </div>
-          <div class="track-wrap">
-            <div class="track-rail">
-              <div class="track-fill"></div>
-              <div class="track-ship"></div>
-            </div>
-          </div>
-          <div class="journey-node">
-            <div class="journey-node-icon">
-              <img id="dest-icon" src="" alt="" loading="lazy" decoding="async">
-            </div>
-            <span class="journey-node-label" id="dest-label">—</span>
-          </div>
-        </div>
-      </div>
-
-      <footer class="footer">
-        <a class="home-btn" href="/" target="_top" rel="home">← Return Home</a>
-        <span class="countdown" id="countdown">Launching viewer…</span>
-      </footer>
-
-    </article>
-  </main>
-
+  <script src="transit-sequence.js?v=20260919-9a38a72"></script>
   <script>
     const destinations = {
       mercury: {
@@ -764,149 +252,12 @@
 
     const params = new URLSearchParams(window.location.search);
     const destKey = (params.get("destination") || "mars").toLowerCase();
-    const dest  = destinations[destKey] || destinations.mars;
+    const dest = destinations[destKey] || destinations.mars;
+    const key = destinations[destKey] ? destKey : "mars";
+    document.title = `GeoID: Transit · ${dest.name}`;
 
-    // No gate of any kind: every destination is open to anyone, with no
-    // account and no payment. /account/ still exists so people who signed up
-    // while an account was required can manage or delete theirs.
-
-    // Populate text
-    const arrivalDate = new Date(Date.now() + dest.etaDays * 86400000);
-    const arrivalText = dest.etaDays < 1
-      ? arrivalDate.toLocaleString(undefined, { month:"long", day:"numeric", hour:"2-digit", minute:"2-digit" })
-      : arrivalDate.toLocaleDateString(undefined, { year:"numeric", month:"long", day:"numeric" });
-
-    document.getElementById("eta-top").textContent   = arrivalText;
-    document.getElementById("dest-title").textContent = dest.name;
-    document.getElementById("dest-sub").textContent   = dest.subtitle || "Destination viewer initializing.";
-    document.getElementById("stat-km").textContent    = `${new Intl.NumberFormat("en-US").format(dest.km)} km`;
-    document.getElementById("stat-ly").textContent    = `${dest.lightYears.toFixed(6)} ly`;
-    document.getElementById("stat-eta").textContent   = formatEta(dest.etaDays);
-    document.getElementById("dest-label").textContent = dest.name;
-    document.getElementById("dest-icon").src          = dest.icon;
-    if (dest.originLabel) document.getElementById("origin-label").textContent = dest.originLabel;
-
-    // The tile IS the destination now: an oblique of the body you are on your
-    // way to, rendered from that body's own viewer.
-    document.querySelector(".card").style.setProperty(
-      "--hero-shot", `url("${dest.shot}")`);
-
-    // The logo is GeoID's own wordmark on every destination. It used to be
-    // swapped for each world's Planet Explorer badge here, which is the old
-    // product name on a page that is now GeoHUB's.
-
-    // ── Track animations + countdown ─────────────────────────────────────────
-    // Both fill (scaleX) and ship (translateX) are compositor-threaded transforms
-    // started together via WAAPI in a double-rAF, so the browser has finished
-    // its initial heavy work before the clock starts — no first-frame jump.
-    const transitMs   = 4200;
-    const countdownEl = document.getElementById("countdown");
-    let animStartedAt = null;
-
-    function tickCountdown(now) {
-      const elapsed     = Math.min(now - animStartedAt, transitMs);
-      const secondsLeft = Math.max(0, Math.ceil((transitMs - elapsed) / 1000));
-      countdownEl.textContent = secondsLeft > 0
-        ? `Viewer opens in ${secondsLeft}s`
-        : "Launching viewer…";
-      if (elapsed < transitMs) requestAnimationFrame(tickCountdown);
-    }
-
-    // ── Warp animation (worker / fallback) ───────────────────────────────────
-    const canvas = document.getElementById("warp-canvas");
-    const supportsOffscreen =
-      typeof OffscreenCanvas !== "undefined" &&
-      typeof canvas.transferControlToOffscreen === "function";
-
-    let stopAnimation;
-
-    if (supportsOffscreen) {
-      const offscreen = canvas.transferControlToOffscreen();
-      const worker = new Worker("transit-worker.js");
-      worker.postMessage(
-        { type: "start", canvas: offscreen,
-          width: window.innerWidth, height: window.innerHeight,
-          dpr: Math.min(window.devicePixelRatio || 1, 2), transitMs },
-        [offscreen]
-      );
-      window.addEventListener("resize", () => {
-        worker.postMessage({ type: "resize",
-          width: window.innerWidth, height: window.innerHeight,
-          dpr: Math.min(window.devicePixelRatio || 1, 2) });
-      });
-      stopAnimation = () => { worker.postMessage({ type:"stop" }); setTimeout(() => worker.terminate(), 100); };
-    } else {
-      const ctx = canvas.getContext("2d");
-      let raf = 0;
-      const s = { w: 0, h: 0, cx: 0, cy: 0, stars: [] };
-
-      function resizeCanvas() {
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
-        s.w = window.innerWidth; s.h = window.innerHeight;
-        s.cx = s.w / 2; s.cy = s.h / 2;
-        canvas.width  = Math.floor(s.w * dpr);
-        canvas.height = Math.floor(s.h * dpr);
-        canvas.style.width  = `${s.w}px`; canvas.style.height = `${s.h}px`;
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        const count = Math.round((s.w * s.h) / 2600);
-        // Same seeding as transit-worker.js, and it must stay that way -- see
-        // the comment there for why the old distribution hid half the field
-        // under the core disc. This branch only runs without OffscreenCanvas.
-        s.coreR  = Math.max(s.w, s.h) * 0.14;
-        s.fieldR = Math.hypot(s.w, s.h) / 2;
-        const seedRadius = () => Math.sqrt(
-          Math.random() * (s.fieldR * s.fieldR - s.coreR * s.coreR) + s.coreR * s.coreR);
-        s.seedRadius = seedRadius;
-        s.stars = Array.from({ length: count }, () => ({
-          angle: Math.random() * Math.PI * 2,
-          radius: seedRadius(),
-          speed: 0.9 + Math.random() * 1.9, depth: 0.25 + Math.random() * 0.75,
-          size: 0.6 + Math.random() * 1.8, drift: (Math.random() - 0.5) * 0.002,
-          glow: 0.35 + Math.random() * 0.65,
-        }));
-      }
-
-      function renderWarp(now) {
-        const progress = Math.min(now - startedAt, transitMs) / transitMs;
-        const accel = 4.2 + progress * 9.0;
-        const { w, h, cx, cy, stars } = s;
-        ctx.clearRect(0, 0, w, h);
-        const vig = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.85);
-        vig.addColorStop(0, "rgba(0,0,0,0.10)"); vig.addColorStop(0.18, "rgba(0,0,0,0)"); vig.addColorStop(1, "rgba(0,0,0,0.92)");
-        ctx.fillStyle = vig; ctx.fillRect(0, 0, w, h);
-        for (const st of stars) {
-          st.angle += st.drift;
-          const pr = st.radius;
-          st.radius += st.speed * accel * (0.55 + st.depth);
-          const x1 = cx + Math.cos(st.angle) * pr,   y1 = cy + Math.sin(st.angle) * pr;
-          const x2 = cx + Math.cos(st.angle) * st.radius, y2 = cy + Math.sin(st.angle) * st.radius;
-          if (x2 < -120 || x2 > w + 120 || y2 < -120 || y2 > h + 120) {
-            Object.assign(st, { angle: Math.random()*Math.PI*2, radius: s.coreR * (1 + Math.random() * 0.25), speed: 0.9+Math.random()*1.9, depth: 0.25+Math.random()*0.75, size: 0.6+Math.random()*1.8, drift:(Math.random()-0.5)*0.002, glow:0.35+Math.random()*0.65 });
-            continue;
-          }
-          const alpha = Math.min(0.98, 0.45 + progress * 0.35 + st.depth * 0.4);
-          const lw = Math.max(0.9, st.size * (0.75 + progress * 1.85));
-          const g = ctx.createLinearGradient(x1, y1, x2, y2);
-          g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(0.35, `rgba(255,255,255,${Math.round(alpha*45)/100})`); g.addColorStop(1, `rgba(255,255,255,${Math.round(alpha*100)/100})`);
-          ctx.strokeStyle = g; ctx.lineWidth = lw; ctx.lineCap = "round";
-          ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-          if (Math.hypot(x2-x1, y2-y1) > 4) { ctx.fillStyle = `rgba(235,244,255,${Math.round(alpha*st.glow*100)/100})`; ctx.beginPath(); ctx.arc(x2, y2, Math.max(0.4, lw*0.42), 0, Math.PI*2); ctx.fill(); }
-        }
-        const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.12);
-        core.addColorStop(0, "rgba(0,0,0,0.98)"); core.addColorStop(0.18, "rgba(0,0,0,0.88)"); core.addColorStop(0.55, "rgba(0,0,0,0.06)"); core.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.fillStyle = core; ctx.beginPath(); ctx.arc(cx, cy, Math.max(w, h) * 0.13, 0, Math.PI*2); ctx.fill();
-        raf = requestAnimationFrame(renderWarp);
-      }
-
-      resizeCanvas();
-      window.addEventListener("resize", resizeCanvas);
-      raf = requestAnimationFrame(renderWarp);
-      stopAnimation = () => cancelAnimationFrame(raf);
-    }
-
-    // ── Viewer preload + crossfade ────────────────────────────────────────────
-    const viewerFrame  = document.getElementById("viewer-frame");
-    const transitShell = document.getElementById("transit-shell");
+    const viewerFrame = document.getElementById("viewer-frame");
+    const actions = document.getElementById("tx-actions");
     const CROSSFADE_MS = 400;
 
     /**
@@ -980,114 +331,148 @@
         () => setTimeout(startViewerPreload, 60));
     }
 
-    // Double-rAF: wait until browser has painted at least one frame before
-    // starting the clock, so the first animation frame is never skipped.
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      animStartedAt = performance.now();
-
-      // Both transforms run on the compositor — guaranteed smooth + in sync
-      const fill   = document.querySelector('.track-fill');
-      const ship   = document.querySelector('.track-ship');
-      const railW  = document.querySelector('.track-rail').getBoundingClientRect().width;
-      const half   = 5.5; // ship radius px
-      const timing = { duration: transitMs, easing: 'linear', fill: 'forwards' };
-
-      fill.animate([{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], timing);
-      ship.animate([
-        { transform: `translate(${-half}px, -50%)` },
-        { transform: `translate(${railW - half}px, -50%)` }
-      ], timing);
-
-      requestAnimationFrame(tickCountdown);
-
-      // Crossfade fires exactly when animation completes
-      setTimeout(() => {
-        stopAnimation();
-        viewerFrame.style.display = "block";
-        // The flag as well as the message. A message is heard only by a
-        // listener that already exists, and a viewer still loading its
-        // textures when the countdown ends has not registered one yet — it
-        // then waited for a reveal that had already been sent, and the globe
-        // stayed black for good (measured on Neptune: 0 frames, the card
-        // handed over by the 9 s cap). The viewers read this flag first.
-        window._geoidReveal = true;
-        try { viewerFrame.contentWindow.postMessage("geoid-reveal", "*"); } catch (_) {}
-        // A viewer that initialised while this frame was display:none sized
-        // its renderer from a zero viewport, and showing the frame does not
-        // reliably announce a resize to it — measured, Neptune drawing into a
-        // 0 x 0 canvas inside a 1600 x 785 window. Tell it once the frame
-        // has a layout.
-        const nudgeResize = () => requestAnimationFrame(() => {
-          try { viewerFrame.contentWindow.dispatchEvent(new Event("resize")); } catch (_) {}
-        });
+    function revealViewer() {
+      startViewerPreload();
+      viewerFrame.style.display = "block";
+      // The flag as well as the message. A message is heard only by a
+      // listener that already exists, and a viewer still loading its textures
+      // at the reveal has not registered one yet -- it then waited for a
+      // reveal that had already been sent, and the globe stayed black for good
+      // (measured on Neptune). The viewers read this flag first.
+      window._geoidReveal = true;
+      try { viewerFrame.contentWindow.postMessage("geoid-reveal", "*"); } catch (_) {}
+      // A viewer that initialised while this frame was display:none sized its
+      // renderer from a zero viewport; tell it once the frame has a layout,
+      // and again when its loop says it has started.
+      const nudgeResize = () => requestAnimationFrame(() => {
+        try { viewerFrame.contentWindow.dispatchEvent(new Event("resize")); } catch (_) {}
+      });
+      nudgeResize();
+      window.addEventListener("message", function onReady(event) {
+        if (event.data !== "geoid-ready" || event.source !== viewerFrame.contentWindow) return;
+        window.removeEventListener("message", onReady);
         nudgeResize();
-        // And again when the viewer says its loop has started: one still
-        // initialising at the reveal has no resize listener yet, so the first
-        // nudge reaches nobody (measured on Uranus: a 0 x 0 canvas after it).
-        window.addEventListener("message", function onReady(event) {
-          if (event.data !== "geoid-ready" || event.source !== viewerFrame.contentWindow) return;
-          window.removeEventListener("message", onReady);
-          nudgeResize();
+      });
+    }
+
+    // WAIT FOR A DRAWN FRAME, not for "geoid-ready": that message means
+    // "about to draw". The frame is same-origin, so this can look: a globe, a
+    // texture on it, and at least one frame rendered.
+    function viewerHasDrawn() {
+      try {
+        const w = viewerFrame.contentWindow;
+        const v = w && w.GeoIDViewer;
+        if (!v || !v.globe || !v.renderer) return false;
+        if (!(v.renderer.info.render.frame > 0)) return false;
+        // And the GIS layer has to have stopped rearranging itself, or the
+        // card lifts on a panel that is about to reshuffle three times.
+        // A destination that never runs that bootstrap — Earth loads its
+        // modules as its own script tags — leaves the flag undefined,
+        // which is not pending and so does not hold anything up.
+        if (w.GeoIDGisPending) return false;
+        let textured = false;
+        v.globe.traverse((o) => {
+          const m = o.material;
+          for (const mat of Array.isArray(m) ? m : [m]) if (mat && mat.map) textured = true;
         });
+        return textured;
+      } catch (_e) {
+        return true;   // cannot see in; never hold the page on that
+      }
+    }
 
-        let crossed = false;
-        function doCrossfade() {
-          if (crossed) return; crossed = true;
-          transitShell.style.transition = `opacity ${CROSSFADE_MS}ms ease`;
-          transitShell.style.opacity = "0";
-          viewerFrame.style.transition = `opacity ${CROSSFADE_MS}ms ease`;
-          viewerFrame.style.opacity = "1";
-          viewerFrame.style.zIndex = "2";
-          setTimeout(() => { viewerFrame.style.pointerEvents = "auto"; }, CROSSFADE_MS);
+    /**
+     * The globe's radius as a fraction of the frame's height, read off the
+     * viewer's own camera: the brackets close onto the planet at the size the
+     * viewer draws it. Measured fallbacks where the camera is not reachable.
+     */
+    function globeFraction() {
+      try {
+        const w = viewerFrame.contentWindow, v = w.GeoIDViewer;
+        const cam = v.camera || (w.__flightSimHooks && w.__flightSimHooks.camera);
+        const globe = v.globe;
+        if (cam && cam.isPerspectiveCamera && globe) {
+          if (!globe.geometry.boundingSphere) globe.geometry.computeBoundingSphere();
+          const c = globe.getWorldPosition(new globe.position.constructor());
+          const scale = globe.getWorldScale(new globe.position.constructor()).x;
+          const R = globe.geometry.boundingSphere.radius * scale, d = cam.position.distanceTo(c);
+          if (d > R) return Math.tan(Math.asin(R / d)) / Math.tan((cam.fov * Math.PI / 180) / 2) / 2;
         }
+      } catch (_e) {}
+      return { mars: 0.3465, saturn: 0.2115 }[key] || 0.3;
+    }
 
-        // WAIT FOR A DRAWN FRAME, not for "geoid-ready".
-        //
-        // The viewers hold their render loop until this page sends
-        // `geoid-reveal`, and then post `geoid-ready` and start rendering — so
-        // that message means "about to draw", not "drawn". Crossfading on it,
-        // or on the blind 600 ms fallback that used to sit beside it, hands
-        // over to a viewer that is still black: the transit completes, the
-        // card fades, and the destination looks like it failed to load. It is
-        // worst on the bodies with most to fetch.
-        //
-        // The frame is same-origin, so this can simply look: a globe, a
-        // texture on it, and at least one frame rendered. Capped, because a
-        // viewer that never draws must still be handed over to rather than
-        // leaving somebody on a countdown that has finished.
-        const READY_CAP_MS = 9000;
-        const readyDeadline = performance.now() + READY_CAP_MS;
-        function viewerHasDrawn() {
-          try {
-            const w = viewerFrame.contentWindow;
-            const v = w && w.GeoIDViewer;
-            if (!v || !v.globe || !v.renderer) return false;
-            if (!(v.renderer.info.render.frame > 0)) return false;
-            // And the GIS layer has to have stopped rearranging itself, or the
-            // card lifts on a panel that is about to reshuffle three times.
-            // A destination that never runs that bootstrap — Earth loads its
-            // modules as its own script tags — leaves the flag undefined,
-            // which is not pending and so does not hold anything up.
-            if (w.GeoIDGisPending) return false;
-            let textured = false;
-            v.globe.traverse((o) => {
-              const m = o.material;
-              for (const mat of Array.isArray(m) ? m : [m]) if (mat && mat.map) textured = true;
-            });
-            return textured;
-          } catch (_e) {
-            return true;   // cannot see in; never hold the page on that
-          }
+    /**
+     * THE VIEWER'S PANELS WAIT FOR THE ARRIVAL. The approach shows the
+     * viewer through a circle about its globe, and a ringed planet's circle
+     * is wide enough to take in the edge of the viewer's sidebar. So while it
+     * arrives, everything on its page that does not hold the globe's canvas
+     * is hidden, and it comes back as the circle opens.
+     */
+    function viewerChrome(show) {
+      try {
+        const d = viewerFrame.contentDocument;
+        if (!d || !d.body) return;
+        if (!d.getElementById("tx-arriving-style")) {
+          const st = d.createElement("style");
+          st.id = "tx-arriving-style";
+          st.textContent = "body.tx-arriving > *:not(:has(canvas)):not(script):not(style) { visibility: hidden !important; }";
+          d.head.appendChild(st);
         }
-        (function waitForFirstFrame() {
-          if (crossed) return;
-          if (viewerHasDrawn() || performance.now() > readyDeadline) { doCrossfade(); return; }
-          requestAnimationFrame(waitForFirstFrame);
-        })();
-      }, transitMs);
-    }));
+        d.body.classList.toggle("tx-arriving", !show);
+      } catch (_e) {}
+    }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    let crossed = false;
+    function crossover() {
+      if (crossed) return; crossed = true;
+      viewerChrome(true);
+      viewerFrame.style.transition = `opacity ${CROSSFADE_MS}ms ease`;
+      viewerFrame.style.opacity = "1";
+      // What the GeoHUB shell reads as "transit has handed over".
+      viewerFrame.dataset.crossed = "1";
+      viewerFrame.style.zIndex = "6";
+      for (const id of ["tx-back", "tx-front", "tx-hud"]) {
+        const el = document.getElementById(id);
+        el.style.transition = `opacity ${CROSSFADE_MS}ms ease`; el.style.opacity = "0";
+      }
+      actions.style.opacity = "0"; actions.style.pointerEvents = "none";
+      setTimeout(() => { viewerFrame.style.pointerEvents = "auto"; }, CROSSFADE_MS);
+    }
+
+    /**
+     * THE SHORT WAY IN. Under the GeoHUB start screen (a cold `/?world=`),
+     * nobody can see a sequence, and with reduced motion nobody wants one:
+     * the viewer is revealed at once and handed over the moment it has drawn.
+     */
+    function booting() {
+      try { return window.parent !== window && window.parent.document.documentElement.classList.contains("is-booting"); }
+      catch (_e) { return false; }
+    }
+    const reduced = (() => { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (_e) { return false; } })();
+
+    const arrival = new Date(Date.now() + dest.etaDays * 86400000);
+    const arrivalText = dest.etaDays < 1
+      ? arrival.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+      : arrival.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+
+    if (booting() || reduced) {
+      revealViewer();
+      viewerFrame.style.opacity = "0";
+      const deadline = performance.now() + 9000;
+      (function wait() {
+        if (viewerHasDrawn() || performance.now() > deadline) { crossover(); return; }
+        requestAnimationFrame(wait);
+      })();
+    } else {
+      window.GeoIDTransitSequence.start({
+        key, name: dest.name, km: dest.km, etaDays: dest.etaDays, etaText: formatEta(dest.etaDays).replace(/, /g, " · "),
+        arrivalText,
+        icons: Object.fromEntries(Object.entries(destinations).map(([k, d]) => [k, d.icon])),
+        hooks: { frame: viewerFrame, reveal: revealViewer, viewerDrawn: viewerHasDrawn, globeFraction, crossover, chrome: viewerChrome },
+      });
+    }
+
     function formatEta(totalDays) {
       if (totalDays < 1) {
         const h = Math.round(totalDays * 24);
