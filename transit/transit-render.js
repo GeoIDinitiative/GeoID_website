@@ -324,25 +324,34 @@
       bctx.fillStyle = "#030608"; bctx.fillRect(0, 0, W, H);
       drawStars(bctx, stars, dist, speed(c), 1 - 0.55 * seg(c, 7.6, 8.6), W, H, u);
       drawChart(bctx, c);
+      /*
+       * A PLANET IS NEVER SEE-THROUGH. The stars are infinitely far off, so a
+       * planet always hides them -- and a planet faded in or out lets the
+       * streaks behind it show, which reads as stars passing IN FRONT of it.
+       * So nothing here fades: Earth slides in from the corner and falls away
+       * off the bottom of the frame, and each world on the way arrives as a
+       * speck in the distance, opaque from its first pixel.
+       */
       // Earth, falling away behind and below as the warp engages
-      const ek = ease.in(seg(c, REVEAL - 0.05, 5.2));
-      const ea = seg(c, REVEAL - 0.1, REVEAL + 0.3) * (1 - seg(c, 4.6, 5.2));
-      if (!isIss && ea > 0 && bitmaps.earth) {
+      if (!isIss && bitmaps.earth && c > REVEAL - 0.1 && c < 5.25) {
+        const slide = 1 - ease.out(seg(c, REVEAL - 0.1, REVEAL + 0.45));   // in from off-frame
+        const ek = ease.in(seg(c, REVEAL - 0.05, 5.2));
         const r = lerp(H * 1.05, H * 0.05, ek);
-        bctx.globalAlpha = ea;
-        bctx.drawImage(bitmaps.earth, lerp(-0.18 * W, -0.4 * W, ek) - r + W * 0.12, lerp(H * 0.72, H * 1.35, ek) - r * 0.2, r * 2, r * 2);
-        bctx.globalAlpha = 1;
+        const x = lerp(-0.18 * W, -0.4 * W, ek) - r + W * 0.12 - slide * 0.6 * W;
+        const y = lerp(H * 0.72, H * 1.45, ek) - r * 0.2 + slide * 0.5 * H;
+        bctx.drawImage(bitmaps.earth, x, y, r * 2, r * 2);
       }
       // the worlds on the way, on the real clock
       for (const fb of flybys) {
         const p = seg(t, fb.at - 1.3, fb.at + 0.1), img = bitmaps[fb.key];
         if (p <= 0 || p >= 1 || !img) continue;
-        const z = lerp(7, 0.12, ease.in(p));
+        // Far and small for most of the pass, then close and fast, as an
+        // approach at a steady speed looks.
+        const z = lerp(24, 0.12, Math.pow(p, 1.6));
         const r = (FLY_R[fb.key] * H) / z, x = CX + (fb.ox * W * 0.5) / z, y = CY + (fb.oy * H * 0.5) / z;
-        bctx.globalAlpha = seg(p, 0, 0.25);
+        if (r < 0.6) continue;
         bctx.save(); bctx.translate(x, y); bctx.rotate(Math.atan2(y - CY, x - CX)); bctx.scale(1 + 0.35 * seg(p, 0.75, 1), 1);
         drawFit(bctx, img, r); bctx.restore();
-        bctx.globalAlpha = 1;
       }
       // the back steps aside as the viewer takes the whole frame
       const fade = seg(c, SHARP, HAND);
