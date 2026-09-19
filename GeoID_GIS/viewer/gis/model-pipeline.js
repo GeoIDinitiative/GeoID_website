@@ -2,30 +2,31 @@ import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
   nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS, atmosphereStl, DEFAULT_MAX_NODES, triangleWriter,
-} from "./model-build.js?v=20260919-8289c1a";
-import { ringsFromCollection } from "./extraction.js?v=20260919-8289c1a";
+} from "./model-build.js?v=20260919-74e90b8";
+import { ringsFromCollection } from "./extraction.js?v=20260919-74e90b8";
 import {
   buildTin, tinHeightAt, tinSurfaceStl, tinShellStl, samplingSizeField,
   extendBoundary, extendedBoundaryLines, gridAsTin, shellFacets,
-} from "./surface-sampling.js?v=20260919-8289c1a";
-import { renderFeatureCollection } from "./vector-render.js?v=20260919-8289c1a";
-import { promptDrawTool } from "./extent-picker.js?v=20260919-8289c1a";
+} from "./surface-sampling.js?v=20260919-74e90b8";
+import { renderFeatureCollection } from "./vector-render.js?v=20260919-74e90b8";
+import { promptDrawTool } from "./extent-picker.js?v=20260919-74e90b8";
 import {
   profileAlong, profileHeightAt, sectionPolygons, sectionPositions, sectionGmshScript, profileCsv,
-} from "./section-model.js?v=20260919-8289c1a";
-import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260919-8289c1a";
+} from "./section-model.js?v=20260919-74e90b8";
+import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260919-74e90b8";
 import {
-  layerHeights, layeredVolumes, facetsStlByFace, layeredGmshScript, thinLayerSizeM, tinWith, LAYER_FLAGS, facetsClosed,
+  layerHeights, layeredVolumes, REGOLITH_ON_ROCK_M, facetsStlByFace, layeredGmshScript, thinLayerSizeM, tinWith, LAYER_FLAGS, facetsClosed,
   facetsVolume, facetsArea, estimateElements, estimateSentence,
-} from "./layered-model.js?v=20260919-8289c1a";
-import { waterMasks, waterFeatures } from "./water-mask.js?v=20260919-8289c1a";
-import { bathymetryGrid, gridAt } from "./bathymetry.js?v=20260919-8289c1a";
-import { burnRivers } from "./river-zones.js?v=20260919-8289c1a";
+} from "./layered-model.js?v=20260919-74e90b8";
+import { waterMasks, waterFeatures } from "./water-mask.js?v=20260919-74e90b8";
+import { bathymetryGrid, gridAt } from "./bathymetry.js?v=20260919-74e90b8";
+import { burnRivers } from "./river-zones.js?v=20260919-74e90b8";
 import {
   linesFromCollection, hasLines, faultPlane, faultDefaultsFrom, nonCrossing, faultsStl, bearingDeg, traceLength,
   clipTraceToBox, FAULT_FLAG_BASE, slug as faultSlug,
-} from "./fault-planes.js?v=20260919-8289c1a";
-import { describeQuery, openReader, sampleAtNodes, fieldCsv, slugOf, syncReader } from "./layer-query.js?v=20260919-8289c1a";
+} from "./fault-planes.js?v=20260919-74e90b8";
+import { describeQuery, openReader, sampleAtNodes, fieldCsv, slugOf, syncReader } from "./layer-query.js?v=20260919-74e90b8";
+import { loadRockProperties, resolveLithology } from "./rock-properties.js?v=20260919-74e90b8";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -846,6 +847,8 @@ function layerSummary(read) {
   const parts = [];
   if (state.layers.soil) {
     parts.push(`soil from ${read.soilSource}${Number.isFinite(c.meanSoilM) ? `, mean ${c.meanSoilM.toFixed(1)} m where modelled (${c.soilModelled.toLocaleString()} of ${c.nodes.toLocaleString()} nodes)` : ", no modelled thickness here — the default stands"}`);
+    if (read.geologySource) parts.push(`the bedrock map ("${read.geologySource}") puts ${c.onDeposit.toLocaleString()} nodes on loose deposits (full thickness) and ${c.onRock.toLocaleString()} on rock (thickness capped at ${REGOLITH_ON_ROCK_M} m, ${c.cappedOnRock.toLocaleString()} capped)`);
+    else parts.push("no bedrock map on the globe, so the modelled thickness stands everywhere — load the world geology or GLiM to separate deposits from rock");
   }
   if (state.layers.water) {
     const m = (v) => `${Math.round(v).toLocaleString()} m`;
@@ -967,16 +970,49 @@ async function readLayers() {
       }
     } catch (error) { /* none */ }
   }
+  const gate = L.soil ? await readGroundState(box, ll) : null;
   const heights = layerHeights(t, {
     thicknessAt, minSoilM: L.minSoilM, defaultSoilM: 2, oceanAt, seaBedAt, lakeAt, riverWidthAt,
+    groundStateAt: gate ? (i) => gate.states[i] : null,
     water: L.water, soil: L.soil, minWaterM: L.minWaterM,
   });
-  L.read = { heights, soilSource, bathySource, box };
+  L.read = { heights, soilSource, bathySource, box, geologySource: gate?.name || null };
   L.readFor = t;
   state.faults.built = null;
   state.outputs = null;
   report("domain", layerSummary(L.read));
   return L.read;
+}
+
+/** A bedrock map on the globe: the world geology, GLiM, or any layer named for its geology. */
+const BEDROCK_MAP = /world geology|macrostrat|glim|surface lithology|geolog|lithology|bedrock/i;
+
+/**
+ * SOIL OR ROCK AT EVERY SURFACE NODE, from the bedrock map's own lithology.
+ * Each polygon's words go through the rock-properties database, which knows
+ * whether a material is a loose deposit ("soil" — alluvium, till, sand, an
+ * unconsolidated sediment) or rock; a polygon it cannot resolve says nothing.
+ * Null when no bedrock map is on the globe, and the summary says so.
+ */
+async function readGroundState(box, ll) {
+  const layer = loadedLayers().find((l) => BEDROCK_MAP.test(l.name || "")
+    && !/risk|forecast|factor of safety|model builder|soils of the world/i.test(l.name || ""));
+  if (!layer) return null;
+  report("domain", `Reading soil or rock from "${layer.name}"…`);
+  try { await loadRockProperties(); } catch (error) { return null; }
+  const reader = await openReader(layer, box, { field: "lith", prefer: "class" });
+  if (!reader.ok || reader.kind !== "class") { reader.close?.(); return null; }
+  try {
+    const byClass = new Map();
+    for (const c of reader.classes || []) {
+      const text = /unconsolidated sediments?/i.test(c.name) ? "alluvium" : c.name;
+      const rows = text ? resolveLithology(text) : [];
+      const soilShare = rows.reduce((a, r) => a + (r.entry?.state === "soil" ? r.fraction : 0), 0);
+      byClass.set(c.id, rows.length ? (soilShare >= 0.5 ? "soil" : "rock") : null);
+    }
+    const states = ll.map(({ lat, lon }) => byClass.get(reader.read(lat, lon)) ?? null);
+    return { states, name: layer.name };
+  } finally { reader.close?.(); }
 }
 
 function surfaceLike() {

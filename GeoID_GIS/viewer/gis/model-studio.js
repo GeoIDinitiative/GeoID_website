@@ -1,18 +1,18 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260919-8289c1a";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260919-8289c1a";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260919-74e90b8";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260919-74e90b8";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260919-8289c1a";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260919-8289c1a";
-import { downloadText } from "./extraction.js?v=20260919-8289c1a";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin, tinValueAt } from "./surface-sampling.js?v=20260919-8289c1a";
-import { rampColour } from "./symbology.js?v=20260919-8289c1a";
-import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260919-8289c1a";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260919-8289c1a";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260919-8289c1a";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260919-8289c1a";
-import { femSpec } from "./model-build.js?v=20260919-8289c1a";
+} from "./mesh-volume.js?v=20260919-74e90b8";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260919-74e90b8";
+import { downloadText } from "./extraction.js?v=20260919-74e90b8";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin, tinValueAt } from "./surface-sampling.js?v=20260919-74e90b8";
+import { rampColour } from "./symbology.js?v=20260919-74e90b8";
+import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260919-74e90b8";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260919-74e90b8";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260919-74e90b8";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260919-74e90b8";
+import { femSpec } from "./model-build.js?v=20260919-74e90b8";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -382,7 +382,9 @@ function layerViewDefaults(L, heightM) {
   return {
     soilX: stretch(soilSum, soilN),
     waterX: Math.min(50, stretch(waterSum, waterN)),
-    gapM: Math.min(3000, Math.round((0.1 * H) / 50) * 50),
+    // The domains TOUCH: water on the soil, soil on the bedrock. A gap is a
+    // way to inspect one body alone, never how the model opens.
+    gapM: 0,
   };
 }
 
@@ -464,7 +466,7 @@ function appendLayerView(body) {
   if (!gisTerrain?.layerColumns) return;
   const wrap = document.createElement("div");
   wrap.className = "studio-layer-view";
-  wrap.innerHTML = `<div class="studio-layer-view-head">LAYER VIEW <span>soil and water exaggerated and lifted apart so they can be seen — display only, the mesh keeps true heights</span></div>`;
+  wrap.innerHTML = `<div class="studio-layer-view-head">LAYER VIEW <span>soil and water thickness exaggerated so they can be seen — display only, the mesh keeps true heights</span></div>`;
   const slider = (label, key, min, max, step, unit) => {
     const row = document.createElement("label");
     row.className = "studio-layer-view-row";
@@ -3799,9 +3801,9 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
     gisTerrain.layered = { counts: L.counts, volumes: V.volumes.map((v) => v.id), baseZ: V.baseZ, skyZ: V.skyZ };
     // A layered model opens with its thin layers READABLE: at true scale a
     // 12 m soil over a 6 km block is a coat of paint and nobody can see it is
-    // there. Each is stretched to about 4% of the model's height and the
-    // bodies are lifted apart by a tenth of it — display only, and the
-    // sliders say so. The Layer view reads the TRUE columns.
+    // there. Each is stretched to about 4% of the model's height, stretched
+    // DOWNWARD from its own top so every contact still touches — display
+    // only, and the sliders say so. The Layer view reads the TRUE columns.
     gisTerrain.layerColumns = { at, plan, baseZ: V.baseZ };
     Object.assign(layerView, layerViewDefaults(L, surface.zMax - V.baseZ));
     setTimeout(() => { applyLayerView(); renderVisibilityBox(); }, 0);

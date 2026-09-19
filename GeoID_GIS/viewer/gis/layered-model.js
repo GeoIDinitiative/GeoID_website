@@ -30,10 +30,13 @@
  *   top[i]    max(solid, water): the floor of the atmosphere
  */
 
-import { channelDepth } from "./inundation.js?v=20260919-8289c1a";
+import { channelDepth } from "./inundation.js?v=20260919-74e90b8";
 
 /** A TIN with a different z array, and its own extremes. */
-import { faultScriptLines } from "./fault-planes.js?v=20260919-8289c1a";
+import { faultScriptLines } from "./fault-planes.js?v=20260919-74e90b8";
+
+/** The weathered skin allowed over rock the bedrock map shows at the surface, in metres. */
+export const REGOLITH_ON_ROCK_M = 2;
 
 export function tinWith(tin, z) {
   let zMin = Infinity; let zMax = -Infinity;
@@ -53,7 +56,7 @@ export function tinWith(tin, z) {
 export function layerHeights(tin, {
   thicknessAt = null, minSoilM = 1, defaultSoilM = 2, offshoreSoilM = null,
   oceanAt = null, seaBedAt = null, lakeAt = null, riverWidthAt = null, seaLevel = 0, water = true, soil = true,
-  minWaterM = 1,
+  minWaterM = 1, groundStateAt = null, regolithOnRockM = REGOLITH_ON_ROCK_M,
 } = {}) {
   const n = tin.z.length;
   const solid = Float64Array.from(tin.z);
@@ -100,10 +103,20 @@ export function layerHeights(tin, {
     }
   }
   const basins = lake && tin.tris ? lakeBasins(tin, wet, lakeMean, lakeFromDem, waterTop, solid, minWaterM) : [];
+  // THE BEDROCK MAP DECIDES HOW MUCH OF THE MODELLED THICKNESS IS SOIL.
+  // Pelletier's grid is a kilometre and knows nothing of what the survey
+  // mapped: where the geology polygon is a loose deposit (alluvium, till,
+  // sand, an unconsolidated sediment) the whole modelled column is soil; where
+  // it is rock at the surface only a weathered skin is, so the modelled
+  // thickness is capped at `regolithOnRockM`. Unmapped ground keeps the model.
+  let onDeposit = 0; let onRock = 0; let capped = 0;
   for (let i = 0; i < n; i += 1) {
     let t = thicknessAt ? thicknessAt(i) : null;
     if (Number.isFinite(t)) { modelled += 1; thickSum += t; }
     else t = wet[i] === 1 && Number.isFinite(offshoreSoilM) ? offshoreSoilM : defaultSoilM;
+    const g = groundStateAt ? groundStateAt(i) : null;
+    if (g === "soil") onDeposit += 1;
+    else if (g === "rock") { onRock += 1; if (t > regolithOnRockM) { t = regolithOnRockM; capped += 1; } }
     bedrock[i] = soil ? solid[i] - Math.max(minSoilM, t) : solid[i];
   }
   const top = new Float64Array(n);
@@ -118,6 +131,7 @@ export function layerHeights(tin, {
     counts: {
       nodes: n, sea, lake, river, deepened, bathy, seaMaxDepthM: seaMax, riverMaxDepthM: riverMax, lakes: basins,
       soilModelled: modelled, meanSoilM: modelled ? thickSum / modelled : null,
+      onDeposit, onRock, cappedOnRock: capped,
     },
   };
 }

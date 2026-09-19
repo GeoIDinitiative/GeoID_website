@@ -229,3 +229,19 @@ import { facetsArea, estimateElements, estimateSentence, ELEMENT_BANDS } from ".
   const c = 5 * 11 + 5;
   ok("a DEM just under the lake's level is its surface, and the basin is shaped", H.water[c] - H.solid[c] > 20 && H.counts.lakes[0].maxDepthM > 20, JSON.stringify(H.counts.lakes));
 }
+
+// THE BEDROCK MAP GATES THE SOIL: a loose deposit keeps the whole modelled
+// thickness, rock at the surface keeps only a weathered skin, unmapped ground
+// keeps the model.
+{
+  const tin = gridTin(6, 1, 100, () => 100);
+  const states = ["soil", "rock", null, "rock", "soil", "rock"];
+  const H = layerHeights(tin, { thicknessAt: () => 12, groundStateAt: (i) => states[i], water: false });
+  const thick = (i) => H.solid[i] - H.bedrock[i];
+  ok("a loose deposit keeps the modelled 12 m", thick(0) === 12 && thick(4) === 12, `${thick(0)} ${thick(4)}`);
+  ok("rock at the surface is capped at the regolith skin", thick(1) === 2 && thick(3) === 2 && thick(5) === 2, `${thick(1)}`);
+  ok("unmapped ground keeps the model", thick(2) === 12, String(thick(2)));
+  ok("the counts say which is which", H.counts.onDeposit === 2 && H.counts.onRock === 3 && H.counts.cappedOnRock === 3, JSON.stringify(H.counts));
+  const thin = layerHeights(tin, { thicknessAt: () => 1.5, groundStateAt: () => "rock", water: false });
+  ok("rock thinner than the cap is left alone", thin.solid[0] - thin.bedrock[0] === 1.5 && thin.counts.cappedOnRock === 0);
+}
