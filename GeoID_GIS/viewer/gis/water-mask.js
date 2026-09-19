@@ -25,7 +25,7 @@
  * pyramids the Hydrology rows stream, straight from their manifests.
  */
 
-import { decodeTile, tilesForBounds } from "./mvt.js?v=20260919-b9c31a5";
+import { decodeTile, tilesForBounds } from "./mvt.js?v=20260919-d3176b1";
 
 /* ── classes a cell can end up in ───────────────────────────────────────── */
 export const DRY = 0;
@@ -359,5 +359,12 @@ export async function waterMasks(bounds, width, height) {
       const z = Number(f.properties?.elevation_m);
       return Number.isFinite(z) ? z : -Infinity;
     });
-  return { ocean: oceanMask, lakeLevel, oceanZoom: ocean.zoom, lakeZoom: lakes.zoom };
+  // HydroLAKES' mean depth (Depth_avg), for the Model Builder's lake beds.
+  const lakeDepth = burnPolygons(lakes.features, bounds, width, height,
+    new Float32Array(width * height).fill(NaN),
+    (f) => {
+      const d = Number(f.properties?.depth_avg_m);
+      return Number.isFinite(d) && d > 0 ? d : NaN;
+    });
+  return { ocean: oceanMask, lakeLevel, lakeDepth, oceanZoom: ocean.zoom, lakeZoom: lakes.zoom };
 }

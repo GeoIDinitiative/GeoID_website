@@ -1,18 +1,18 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260919-b9c31a5";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260919-b9c31a5";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260919-d3176b1";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260919-d3176b1";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260919-b9c31a5";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260919-b9c31a5";
-import { downloadText } from "./extraction.js?v=20260919-b9c31a5";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin, tinValueAt } from "./surface-sampling.js?v=20260919-b9c31a5";
-import { rampColour } from "./symbology.js?v=20260919-b9c31a5";
-import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260919-b9c31a5";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260919-b9c31a5";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260919-b9c31a5";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260919-b9c31a5";
-import { femSpec } from "./model-build.js?v=20260919-b9c31a5";
+} from "./mesh-volume.js?v=20260919-d3176b1";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260919-d3176b1";
+import { downloadText } from "./extraction.js?v=20260919-d3176b1";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin, tinValueAt } from "./surface-sampling.js?v=20260919-d3176b1";
+import { rampColour } from "./symbology.js?v=20260919-d3176b1";
+import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260919-d3176b1";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260919-d3176b1";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260919-d3176b1";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260919-d3176b1";
+import { femSpec } from "./model-build.js?v=20260919-d3176b1";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -350,6 +350,131 @@ function readParams() {
 // three.js is Y-up. Converting on display keeps "up" actually up and makes a
 // z = 0 ground plane meaningful.
 const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
+const SCENE_TO_MODEL = MODEL_TO_SCENE.clone().invert();
+
+/**
+ * THE LAYER VIEW: soil and water as bodies of their own. At true scale a 12 m
+ * soil over a 6 km block is a coat of paint and a 20 m sea is a film, so the
+ * layered model read as one lump with coloured skins. This is DISPLAY ONLY —
+ * the package, the inside-tests and the mesh keep the true heights:
+ *
+ *  - `soilX` / `waterX` stretch the soil's thickness and the water's depth
+ *    downward from the water surface, each column mapped piecewise-linearly
+ *    through base → bedrock top → ground → water surface, so the bedrock under
+ *    them (and the faults and points in it) follows and nothing tears.
+ *  - `gapM` lifts each body off the one under it: bedrock (with the faults and
+ *    points), then soil (with the ground skin), then water, then the air.
+ */
+const layerView = { soilX: 1, waterX: 1, gapM: 0 };
+const LAYER_VIEW_TIER = { bedrock: 0, faults: 0, points: 0, soil: 1, surface: 1, water: 2, atmosphere: 3 };
+
+function layerViewColumns(part, cols) {
+  const mesh = part.mesh;
+  const attr = mesh?.geometry?.getAttribute?.("position");
+  if (!attr) return null;
+  if (mesh.userData.layerView) return mesh.userData.layerView;
+  const { at, plan } = cols;
+  const v = new THREE.Vector3();
+  const base = new Float32Array(attr.count * 3);
+  for (let i = 0; i < attr.count; i += 1) { v.fromBufferAttribute(attr, i).applyMatrix4(SCENE_TO_MODEL); base[i * 3] = v.x; base[i * 3 + 1] = v.y; base[i * 3 + 2] = v.z; }
+  // A point marker moves rigidly with the column under its centre.
+  const rigid = part.kind === "point";
+  const columnAt = (x, y) => {
+    const cx = Math.min(plan.maxX, Math.max(plan.minX, x));
+    const cy = Math.min(plan.maxY, Math.max(plan.minY, y));
+    return [at("bedrock", cx, cy), at("solid", cx, cy), at("water", cx, cy)];
+  };
+  const count = rigid ? 1 : attr.count;
+  const column = new Float32Array(count * 3).fill(NaN);
+  let centre = null;
+  if (rigid) {
+    centre = [0, 0, 0];
+    for (let i = 0; i < attr.count; i += 1) for (let k = 0; k < 3; k += 1) centre[k] += base[i * 3 + k] / attr.count;
+    const c = columnAt(centre[0], centre[1]);
+    if (c.every((h) => h !== null)) column.set(c);
+  } else {
+    for (let i = 0; i < attr.count; i += 1) {
+      const c = columnAt(base[i * 3], base[i * 3 + 1]);
+      if (c.every((h) => h !== null)) column.set(c, i * 3);
+    }
+  }
+  mesh.userData.layerView = { base, column, rigid, centre };
+  return mesh.userData.layerView;
+}
+
+/** A height through the stretched column: base → bedrock top → ground → water surface. */
+function layerViewZ(z, b, s, w, baseZ) {
+  if (!Number.isFinite(b)) return z;
+  const w2 = w;
+  const s2 = w - layerView.waterX * Math.max(0, w - s);
+  const b2 = s2 - layerView.soilX * Math.max(0, s - b);
+  const lerp = (z0, z1, y0, y1) => (z1 - z0 < 1e-6 ? y1 : y0 + ((z - z0) * (y1 - y0)) / (z1 - z0));
+  if (z >= w) return z;
+  if (z >= s) return lerp(s, w, s2, w2);
+  if (z >= b) return lerp(b, s, b2, s2);
+  return lerp(baseZ, b, baseZ, b2);
+}
+
+function applyLayerView() {
+  const cols = gisTerrain?.layerColumns;
+  if (!cols) return;
+  const v = new THREE.Vector3();
+  for (const part of gisTerrain.parts || []) {
+    const tier = LAYER_VIEW_TIER[part.domain];
+    if (tier === undefined) continue;
+    const lv = layerViewColumns(part, cols);
+    if (!lv) continue;
+    const attr = part.mesh.geometry.getAttribute("position");
+    const lift = tier * layerView.gapM;
+    const shift = lv.rigid
+      ? layerViewZ(lv.centre[2], lv.column[0], lv.column[1], lv.column[2], cols.baseZ) - lv.centre[2] : 0;
+    for (let i = 0; i < attr.count; i += 1) {
+      const z = lv.base[i * 3 + 2];
+      const z2 = lv.rigid ? z + shift : layerViewZ(z, lv.column[i * 3], lv.column[i * 3 + 1], lv.column[i * 3 + 2], cols.baseZ);
+      v.set(lv.base[i * 3], lv.base[i * 3 + 1], z2 + lift).applyMatrix4(MODEL_TO_SCENE);
+      attr.setXYZ(i, v.x, v.y, v.z);
+    }
+    attr.needsUpdate = true;
+    part.mesh.geometry.computeVertexNormals();
+    part.mesh.geometry.computeBoundingSphere();
+    part.mesh.geometry.computeBoundingBox();
+  }
+}
+
+/** The Layer view's three sliders, under the Visibility list when a layered model is open. */
+function appendLayerView(body) {
+  if (!gisTerrain?.layerColumns) return;
+  const wrap = document.createElement("div");
+  wrap.className = "studio-layer-view";
+  wrap.innerHTML = `<div class="studio-layer-view-head">LAYER VIEW <span>display only — the mesh keeps true heights</span></div>`;
+  const slider = (label, key, min, max, step, unit) => {
+    const row = document.createElement("label");
+    row.className = "studio-layer-view-row";
+    const name = document.createElement("span");
+    name.textContent = label;
+    const input = document.createElement("input");
+    input.type = "range"; input.min = String(min); input.max = String(max); input.step = String(step);
+    input.value = String(layerView[key]);
+    input.dataset.layerView = key;
+    const out = document.createElement("output");
+    const show = () => { out.textContent = unit === "×" ? `${layerView[key]}×` : `${Number(layerView[key]).toLocaleString()} m`; };
+    show();
+    let queued = false;
+    input.addEventListener("input", () => {
+      layerView[key] = Number(input.value);
+      show();
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(() => { queued = false; applyLayerView(); });
+    });
+    row.append(name, input, out);
+    wrap.appendChild(row);
+  };
+  slider("Soil thickness", "soilX", 1, 100, 1, "×");
+  slider("Water depth", "waterX", 1, 50, 1, "×");
+  slider("Separate the layers", "gapM", 0, 3000, 50, "m");
+  body.appendChild(wrap);
+}
 
 // One scale for the whole model, not per-object. Normalising each solid
 // separately made a 1 m sphere and a 100 m box render the same size, which
@@ -3654,6 +3779,9 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
       record(`union gis terrain ${vol.id}`);
     });
     gisTerrain.layered = { counts: L.counts, volumes: V.volumes.map((v) => v.id), baseZ: V.baseZ, skyZ: V.skyZ };
+    // A new model opens at true scale; the Layer view reads the TRUE columns.
+    Object.assign(layerView, { soilX: 1, waterX: 1, gapM: 0 });
+    gisTerrain.layerColumns = { at, plan, baseZ: V.baseZ };
   };
   if (layers?.heights) {
     makeLayered();
@@ -4358,6 +4486,7 @@ function renderVisibilityBox() {
     stack.appendChild(kids);
   });
   body.appendChild(stack);
+  appendLayerView(body);
 }
 
 /**

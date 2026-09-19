@@ -183,3 +183,49 @@ import { facetsArea, estimateElements, estimateSentence, ELEMENT_BANDS } from ".
   // A non-pinched region is left alone.
   ok("unpinch leaves an ordinary region untouched", unpinch(tin.tris, [0, 1, 2, 3]).length === 4);
 }
+
+// THE SEABED FROM BATHYMETRY: a land DEM reads 0 m over the sea, so the bed
+// comes from `seaBedAt` where it is deeper, and the minimum still holds.
+{
+  const tin = gridTin(6, 6, 100, (i) => (i < 3 ? 0 : 20));
+  const H = layerHeights(tin, {
+    oceanAt: (k) => k % 6 < 3, seaBedAt: (k) => (k % 6 === 0 ? -30 : k % 6 === 1 ? -12 : -0.2),
+    soil: false, minWaterM: 1,
+  });
+  ok("the sea bed is the bathymetry, not the DEM's 0 m", H.solid[0] === -30 && H.solid[1] === -12, `${H.solid[0]} ${H.solid[1]}`);
+  ok("bathymetry shallower than the minimum is deepened to it", H.solid[2] === -1 && H.counts.deepened === 6, `${H.solid[2]} ${H.counts.deepened}`);
+  ok("the counts say how many nodes took the bathymetry, and the deepest sea", H.counts.bathy === 18 && H.counts.seaMaxDepthM === 30, JSON.stringify(H.counts));
+  const V = layeredVolumes(tin, H, { soil: false, belowM: 100 });
+  const water = V.volumes.find((v) => v.id === "water");
+  ok("the sea is a volume with depth", water && facetsVolume(water.facets) > 100 * 100 * 5, water ? String(facetsVolume(water.facets)) : "none");
+}
+
+// A LAKE IS A BASIN: deepest in the middle, shallowest at the shore, and its
+// mean over the nodes is the published mean depth.
+{
+  const tin = gridTin(11, 11, 100, () => 40);
+  const inLake = (k) => { const i = k % 11, j = Math.floor(k / 11); return i >= 2 && i <= 8 && j >= 2 && j <= 8; };
+  const H = layerHeights(tin, { lakeAt: (k) => (inLake(k) ? { level: 40, depth: 12 } : null), soil: false });
+  const lakeNodes = [...Array(121).keys()].filter(inLake);
+  const depths = lakeNodes.map((k) => H.water[k] - H.solid[k]);
+  const mean = depths.reduce((a, d) => a + d, 0) / depths.length;
+  ok("the lake's mean depth is the published mean", close(mean, 12, 1e-9), String(mean));
+  const centre = 5 * 11 + 5; const shore = 2 * 11 + 5;
+  ok("the lake is deepest in the middle and shallow at its shore",
+    H.water[centre] - H.solid[centre] > 2 * (H.water[shore] - H.solid[shore]), `${H.water[centre] - H.solid[centre]} vs ${H.water[shore] - H.solid[shore]}`);
+  ok("the lake's summary gives its mean and deepest", H.counts.lakes.length === 1 && H.counts.lakes[0].maxDepthM > 12 && H.counts.lakes[0].meanDepthM === 12, JSON.stringify(H.counts.lakes));
+  // A DEM already below the level is surveyed bathymetry and is kept.
+  const tin2 = gridTin(11, 11, 100, (i, j) => (i === 5 && j === 5 ? 3 : 40));
+  const H2 = layerHeights(tin2, { lakeAt: (k) => (inLake(k) ? { level: 40, depth: 12 } : null), soil: false });
+  ok("a DEM below the lake's level is kept as its bed", H2.solid[centre] === 3, String(H2.solid[centre]));
+}
+
+// A land DEM reads a lake's SURFACE a metre off its surveyed level; that is
+// not a bed, and the basin is still shaped.
+{
+  const tin = gridTin(11, 11, 100, () => 29.1);
+  const inLake = (k) => { const i = k % 11, j = Math.floor(k / 11); return i >= 2 && i <= 8 && j >= 2 && j <= 8; };
+  const H = layerHeights(tin, { lakeAt: (k) => (inLake(k) ? { level: 30, depth: 13 } : null), soil: false });
+  const c = 5 * 11 + 5;
+  ok("a DEM just under the lake's level is its surface, and the basin is shaped", H.water[c] - H.solid[c] > 20 && H.counts.lakes[0].maxDepthM > 20, JSON.stringify(H.counts.lakes));
+}

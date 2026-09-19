@@ -583,6 +583,14 @@
 #model-studio .studio-visbox .layer-row:hover .studio-vis-gear { opacity: 1; }
 #model-studio .studio-visbox .studio-vis-gear:hover { color: rgb(var(--nav-accent-rgb)); border-color: rgba(var(--nav-accent-rgb), 0.5); }
 
+/* The Layer view: soil and water stretched and lifted apart, display only. */
+#model-studio .studio-layer-view { margin-top: 0.5rem; padding-top: 0.45rem; border-top: 1px solid rgba(var(--nav-accent-rgb), 0.25); display: grid; gap: 0.3rem; }
+#model-studio .studio-layer-view-head { font-size: 0.66rem; letter-spacing: 0.1em; color: var(--nav-accent, #ff2bd6); }
+#model-studio .studio-layer-view-head span { letter-spacing: 0.02em; text-transform: none; color: var(--soft-light); opacity: 0.7; margin-left: 0.3rem; }
+#model-studio .studio-layer-view-row { display: grid; grid-template-columns: 7.5rem 1fr 3.6rem; align-items: center; gap: 0.4rem; font-size: 0.7rem; }
+#model-studio .studio-layer-view-row input { width: 100%; accent-color: var(--nav-accent, #ff2bd6); }
+#model-studio .studio-layer-view-row output { text-align: right; font-variant-numeric: tabular-nums; opacity: 0.85; }
+
 /* The hand-off card: counts of what the project holds for the Research pages, and doors to them. */
 #model-studio .ra-handoff-counts { display: grid; grid-template-columns: repeat(auto-fit, minmax(4.6rem, 1fr)); gap: 0.35rem; margin: 0.4rem 0; }
 #model-studio .ra-handoff-count { display: flex; flex-direction: column; align-items: center; padding: 0.35rem 0.2rem; border: 1px solid rgba(var(--st-accent-rgb), 0.22); border-radius: 0.45rem; background: rgba(255, 255, 255, 0.03); }

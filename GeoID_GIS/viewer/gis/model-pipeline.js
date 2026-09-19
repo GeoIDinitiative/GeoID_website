@@ -2,29 +2,30 @@ import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
   nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS, atmosphereStl, DEFAULT_MAX_NODES, triangleWriter,
-} from "./model-build.js?v=20260919-b9c31a5";
-import { ringsFromCollection } from "./extraction.js?v=20260919-b9c31a5";
+} from "./model-build.js?v=20260919-d3176b1";
+import { ringsFromCollection } from "./extraction.js?v=20260919-d3176b1";
 import {
   buildTin, tinHeightAt, tinSurfaceStl, tinShellStl, samplingSizeField,
   extendBoundary, extendedBoundaryLines, gridAsTin, shellFacets,
-} from "./surface-sampling.js?v=20260919-b9c31a5";
-import { renderFeatureCollection } from "./vector-render.js?v=20260919-b9c31a5";
-import { promptDrawTool } from "./extent-picker.js?v=20260919-b9c31a5";
+} from "./surface-sampling.js?v=20260919-d3176b1";
+import { renderFeatureCollection } from "./vector-render.js?v=20260919-d3176b1";
+import { promptDrawTool } from "./extent-picker.js?v=20260919-d3176b1";
 import {
   profileAlong, profileHeightAt, sectionPolygons, sectionPositions, sectionGmshScript, profileCsv,
-} from "./section-model.js?v=20260919-b9c31a5";
-import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260919-b9c31a5";
+} from "./section-model.js?v=20260919-d3176b1";
+import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260919-d3176b1";
 import {
   layerHeights, layeredVolumes, facetsStlByFace, layeredGmshScript, thinLayerSizeM, tinWith, LAYER_FLAGS, facetsClosed,
   facetsVolume, facetsArea, estimateElements, estimateSentence,
-} from "./layered-model.js?v=20260919-b9c31a5";
-import { waterMasks, waterFeatures } from "./water-mask.js?v=20260919-b9c31a5";
-import { burnRivers } from "./river-zones.js?v=20260919-b9c31a5";
+} from "./layered-model.js?v=20260919-d3176b1";
+import { waterMasks, waterFeatures } from "./water-mask.js?v=20260919-d3176b1";
+import { bathymetryGrid, gridAt } from "./bathymetry.js?v=20260919-d3176b1";
+import { burnRivers } from "./river-zones.js?v=20260919-d3176b1";
 import {
   linesFromCollection, hasLines, faultPlane, faultDefaultsFrom, nonCrossing, faultsStl, bearingDeg, traceLength,
   clipTraceToBox, FAULT_FLAG_BASE, slug as faultSlug,
-} from "./fault-planes.js?v=20260919-b9c31a5";
-import { describeQuery, openReader, sampleAtNodes, fieldCsv, slugOf, syncReader } from "./layer-query.js?v=20260919-b9c31a5";
+} from "./fault-planes.js?v=20260919-d3176b1";
+import { describeQuery, openReader, sampleAtNodes, fieldCsv, slugOf, syncReader } from "./layer-query.js?v=20260919-d3176b1";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -847,7 +848,13 @@ function layerSummary(read) {
     parts.push(`soil from ${read.soilSource}${Number.isFinite(c.meanSoilM) ? `, mean ${c.meanSoilM.toFixed(1)} m where modelled (${c.soilModelled.toLocaleString()} of ${c.nodes.toLocaleString()} nodes)` : ", no modelled thickness here — the default stands"}`);
   }
   if (state.layers.water) {
-    parts.push(`water: ${c.sea.toLocaleString()} sea, ${c.lake.toLocaleString()} lake and ${c.river.toLocaleString()} river nodes${c.deepened ? ` (${c.deepened} shallow sea nodes deepened to the minimum)` : ""}`);
+    const m = (v) => `${Math.round(v).toLocaleString()} m`;
+    const lakes = (c.lakes || []).filter((k) => k.nodes >= 3);
+    parts.push(`water: ${c.sea.toLocaleString()} sea, ${c.lake.toLocaleString()} lake and ${c.river.toLocaleString()} river nodes`
+      + (c.sea ? ` — the sea to ${m(c.seaMaxDepthM)} deep, ${c.bathy ? `seabed from ${read.bathySource} at ${c.bathy.toLocaleString()} nodes` : "no bathymetry reached here, so the land DEM stands"}` : "")
+      + (c.deepened ? ` (${c.deepened} shallow sea nodes deepened to the minimum)` : "")
+      + (lakes.length ? `; ${lakes.map((k) => `a lake at ${m(k.level)}, ${m(k.meanDepthM)} mean depth (HydroLAKES), ${m(k.maxDepthM)} deepest`).join("; ")}` : "")
+      + (c.river ? `; rivers to ${c.riverMaxDepthM.toFixed(1)} m deep` : ""));
   }
   return `Layers read — ${parts.join("; ")}.`;
 }
@@ -917,7 +924,7 @@ async function readLayers() {
       soilSource = `the layer "${ownThickness.name}" (${ownThickness.got.toLocaleString()} of ${n.toLocaleString()} nodes)${under ? ", Pelletier et al. (2016) elsewhere" : ""}`;
     }
   }
-  let oceanAt = null; let lakeAt = null; let riverWidthAt = null;
+  let oceanAt = null; let seaBedAt = null; let lakeAt = null; let riverWidthAt = null; let bathySource = null;
   if (L.water) {
     report("domain", "Reading the sea, the lakes and the rivers…");
     const spanM = Math.max(t.widthM || 1, t.heightM || 1);
@@ -935,8 +942,22 @@ async function readLayers() {
       lakeAt = (i) => {
         const level = masks.lakeLevel[cells[i]];
         if (Number.isNaN(level)) return null;
-        return { level: Number.isFinite(level) ? level : t.z[i] + 2, depth: 2 };
+        const depth = masks.lakeDepth?.[cells[i]];
+        return { level: Number.isFinite(level) ? level : t.z[i] + 2, depth: Number.isFinite(depth) ? depth : 2 };
       };
+      // THE SEABED: a land DEM reads ~0 m over the sea, so the bed is read
+      // from a bathymetry grid wherever the box touches the ocean.
+      if (ll.some((_, i) => oceanAt(i))) {
+        report("domain", "Reading the seabed (EMODnet bathymetry)…");
+        try {
+          const grid = await bathymetryGrid(box);
+          if (grid) {
+            const beds = ll.map(({ lat, lon }, i) => (oceanAt(i) ? gridAt(grid, lat, lon) : NaN));
+            seaBedAt = (i) => beds[i];
+            bathySource = grid.credit;
+          }
+        } catch (error) { /* no bathymetry: the DEM and the minimum stand, and the summary says so */ }
+      }
     } catch (error) { /* no water service: none */ }
     try {
       const rivers = await waterFeatures("rivers", box, W);
@@ -947,10 +968,10 @@ async function readLayers() {
     } catch (error) { /* none */ }
   }
   const heights = layerHeights(t, {
-    thicknessAt, minSoilM: L.minSoilM, defaultSoilM: 2, oceanAt, lakeAt, riverWidthAt,
+    thicknessAt, minSoilM: L.minSoilM, defaultSoilM: 2, oceanAt, seaBedAt, lakeAt, riverWidthAt,
     water: L.water, soil: L.soil, minWaterM: L.minWaterM,
   });
-  L.read = { heights, soilSource, box };
+  L.read = { heights, soilSource, bathySource, box };
   L.readFor = t;
   state.faults.built = null;
   state.outputs = null;
@@ -3234,10 +3255,10 @@ async function writePackage() {
       atmosphere: air ? { file: `${name}_atmosphere.stl`, triangles: airStats.triangles, watertight: airStats.closed } : null,
       layers: layered ? {
         soil: L.soil, water: L.water, min_soil_m: L.minSoilM, min_water_m: L.minWaterM,
-        soil_source: layered.soilSource, counts: layered.counts, base_z_m: layered.baseZ, sky_z_m: layered.skyZ,
+        soil_source: layered.soilSource, bathymetry_source: L.read?.bathySource || null, counts: layered.counts, base_z_m: layered.baseZ, sky_z_m: layered.skyZ,
         flags: { ...LAYER_FLAGS },
         volumes: layered.map((v) => ({ id: v.id, file: `${name}_${v.id}.stl`, script: `${name}_${v.id}_gmsh.py`, mesh: `${name}_${v.id}.msh`, faces: v.faces, element_size_m: Math.round(v.sizeM * 10) / 10, watertight: v.closed, estimated_tets: v.estimate.tets, estimated_nodes: v.estimate.nodes, estimate_basis: v.estimate.by, run_on: v.estimate.verdict })),
-        rule: "soil top = the ground (seabed, lake bed or river bed where wet); bedrock top = ground − max(min soil, Pelletier thickness); sea = 0 m down to the bathymetry (never shallower than the minimum); lakes at their surveyed level; rivers a channel depth (Moody & Troutman) under the DEM",
+        rule: "soil top = the ground (seabed, lake bed or river bed where wet); bedrock top = ground − max(min soil, Pelletier thickness); sea = 0 m down to the seabed (EMODnet bathymetry, never shallower than the minimum); lakes at their surveyed level over a basin shaped to the HydroLAKES mean depth; rivers a channel depth (Moody & Troutman) under the DEM",
       } : null,
       faults: faultBuild ? {
         hung_from: faultBuild.ceilingName, clear_of_boundary_m: faultBuild.marginM, file: faults.length ? `${name}_faults.stl` : null,

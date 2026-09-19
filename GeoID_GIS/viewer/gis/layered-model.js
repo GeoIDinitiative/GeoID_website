@@ -30,10 +30,10 @@
  *   top[i]    max(solid, water): the floor of the atmosphere
  */
 
-import { channelDepth } from "./inundation.js?v=20260919-b9c31a5";
+import { channelDepth } from "./inundation.js?v=20260919-d3176b1";
 
 /** A TIN with a different z array, and its own extremes. */
-import { faultScriptLines } from "./fault-planes.js?v=20260919-b9c31a5";
+import { faultScriptLines } from "./fault-planes.js?v=20260919-d3176b1";
 
 export function tinWith(tin, z) {
   let zMin = Infinity; let zMax = -Infinity;
@@ -52,7 +52,7 @@ export function tinWith(tin, z) {
  */
 export function layerHeights(tin, {
   thicknessAt = null, minSoilM = 1, defaultSoilM = 2, offshoreSoilM = null,
-  oceanAt = null, lakeAt = null, riverWidthAt = null, seaLevel = 0, water = true, soil = true,
+  oceanAt = null, seaBedAt = null, lakeAt = null, riverWidthAt = null, seaLevel = 0, water = true, soil = true,
   minWaterM = 1,
 } = {}) {
   const n = tin.z.length;
@@ -60,43 +60,150 @@ export function layerHeights(tin, {
   const waterTop = Float64Array.from(tin.z);
   const wet = new Uint8Array(n);      // 0 dry, 1 sea, 2 lake, 3 river
   const bedrock = new Float64Array(n);
-  let sea = 0; let lake = 0; let river = 0; let modelled = 0; let thickSum = 0; let deepened = 0;
+  const lakeMean = new Float64Array(n).fill(NaN);
+  const lakeFromDem = new Uint8Array(n);
+  let sea = 0; let lake = 0; let river = 0; let modelled = 0; let thickSum = 0; let deepened = 0; let bathy = 0;
   for (let i = 0; i < n; i += 1) {
     const z = tin.z[i];
     if (water) {
       const lk = lakeAt ? lakeAt(i) : null;
       const rw = riverWidthAt ? Number(riverWidthAt(i)) || 0 : 0;
       if (oceanAt && oceanAt(i) && z <= seaLevel) {
-        // THE SEA: 0 m down to the bathymetry the DEM already carries — but
-        // never shallower than `minWaterM`. Water that thins to nothing along
-        // the shore pinches its side walls to zero height, the wall's top and
-        // bottom rims touch, and gmsh reports "intersections in the 1D mesh"
-        // and then "No elements in volume". The minimum lowers the bed by at
-        // most that much in the shallowest water, and the count says where.
+        // THE SEA: 0 m down to the seabed. A land DEM reads ~0 m over the
+        // sea (measured: Mapzen gives 0.0 m in the Gulf of Izmit from z11 up),
+        // so the bed comes from a bathymetry grid (`seaBedAt`) where there is
+        // one, and from the DEM only where the DEM is itself below it. Never
+        // shallower than `minWaterM`: water that thins to nothing along the
+        // shore pinches its side walls to zero height, the wall's rims touch,
+        // and gmsh reports "intersections in the 1D mesh" and then "No
+        // elements in volume". The count says how many were deepened.
         wet[i] = 1; waterTop[i] = seaLevel; sea += 1;
+        const sb = seaBedAt ? Number(seaBedAt(i)) : NaN;
+        if (Number.isFinite(sb) && sb < solid[i]) { solid[i] = sb; bathy += 1; }
         if (solid[i] > seaLevel - minWaterM) { solid[i] = seaLevel - minWaterM; deepened += 1; }
       } else if (lk && Number.isFinite(lk.level)) {
-        // A LAKE stands at its surveyed surface; its bed is the DEM where the
-        // DEM is below it, else the surface less the lake's mean depth.
-        const bed = z < lk.level - 0.5 ? z : lk.level - Math.max(0.5, Number(lk.depth) || 2);
-        wet[i] = 2; waterTop[i] = lk.level; solid[i] = Math.min(bed, lk.level - Math.max(0.5, minWaterM)); lake += 1;
+        // A LAKE stands at its surveyed surface. Where the DEM is WELL below
+        // that it is the lake's own bathymetry and is kept; elsewhere the bed
+        // is shaped from the lake's MEAN depth after this loop (`lakeBasins`).
+        // "Well below": a land DEM reads a lake's water surface, a metre or
+        // two off the surveyed level (Sapanca: 29.1 m against HydroLAKES'
+        // 30 m), and a 0.5 m test took that surface for a 1 m deep bed.
+        wet[i] = 2; waterTop[i] = lk.level; lake += 1;
+        lakeMean[i] = Math.max(0.5, Number(lk.depth) || 2);
+        if (z < lk.level - Math.max(3, 0.25 * lakeMean[i])) { lakeFromDem[i] = 1; solid[i] = Math.min(z, lk.level - Math.max(0.5, minWaterM)); }
+        else solid[i] = lk.level - lakeMean[i];
       } else if (rw > 0) {
         // A RIVER: the DEM reads the water surface; the bed is a channel
         // depth below it.
         wet[i] = 3; waterTop[i] = z; solid[i] = z - channelDepth(rw); river += 1;
       }
     }
+  }
+  const basins = lake && tin.tris ? lakeBasins(tin, wet, lakeMean, lakeFromDem, waterTop, solid, minWaterM) : [];
+  for (let i = 0; i < n; i += 1) {
     let t = thicknessAt ? thicknessAt(i) : null;
     if (Number.isFinite(t)) { modelled += 1; thickSum += t; }
     else t = wet[i] === 1 && Number.isFinite(offshoreSoilM) ? offshoreSoilM : defaultSoilM;
     bedrock[i] = soil ? solid[i] - Math.max(minSoilM, t) : solid[i];
   }
   const top = new Float64Array(n);
-  for (let i = 0; i < n; i += 1) top[i] = Math.max(solid[i], waterTop[i]);
+  let seaMax = 0; let riverMax = 0;
+  for (let i = 0; i < n; i += 1) {
+    top[i] = Math.max(solid[i], waterTop[i]);
+    if (wet[i] === 1) seaMax = Math.max(seaMax, waterTop[i] - solid[i]);
+    if (wet[i] === 3) riverMax = Math.max(riverMax, waterTop[i] - solid[i]);
+  }
   return {
     solid, water: waterTop, bedrock, top, wet,
-    counts: { nodes: n, sea, lake, river, deepened, soilModelled: modelled, meanSoilM: modelled ? thickSum / modelled : null },
+    counts: {
+      nodes: n, sea, lake, river, deepened, bathy, seaMaxDepthM: seaMax, riverMaxDepthM: riverMax, lakes: basins,
+      soilModelled: modelled, meanSoilM: modelled ? thickSum / modelled : null,
+    },
   };
+}
+
+/**
+ * A LAKE IS A BASIN, not a slab. HydroLAKES publishes each lake's MEAN depth
+ * and no shape, and a flat bed at that depth everywhere makes a lake a
+ * uniform sheet with vertical walls at its shore. So each connected lake is
+ * given a bed that deepens with distance from its shore — a cone in plan,
+ * depth ∝ the shortest path through the lake to a dry node — scaled so the
+ * mean over its nodes IS the published mean. A lake's deepest point comes out
+ * two to three times its mean, the usual order for real lakes. It is a
+ * stand-in for a surveyed bed. Nodes whose DEM was already below the lake's level keep it:
+ * that is surveyed bathymetry, not a guess.
+ */
+export function lakeBasins(tin, wet, lakeMean, fromDem, waterTop, solid, minWaterM = 1) {
+  const n = wet.length;
+  const nbrs = Array.from({ length: n }, () => []);
+  const link = (a, b) => {
+    const d = Math.hypot(tin.xs[a] - tin.xs[b], tin.ys[a] - tin.ys[b]);
+    nbrs[a].push(b, d); nbrs[b].push(a, d);
+  };
+  for (const [a, b, c] of tin.tris) { link(a, b); link(b, c); link(c, a); }
+  // Distance to the shore, Dijkstra from every dry node's lake neighbours.
+  const dist = new Float64Array(n).fill(Infinity);
+  const heap = [];
+  const push = (d, i) => {
+    heap.push([d, i]);
+    for (let k = heap.length - 1; k > 0;) { const p = (k - 1) >> 1; if (heap[p][0] <= heap[k][0]) break; [heap[p], heap[k]] = [heap[k], heap[p]]; k = p; }
+  };
+  const pop = () => {
+    const top = heap[0]; const last = heap.pop();
+    if (heap.length) {
+      heap[0] = last;
+      for (let k = 0; ;) {
+        const l = 2 * k + 1; const r = l + 1; let m = k;
+        if (l < heap.length && heap[l][0] < heap[m][0]) m = l;
+        if (r < heap.length && heap[r][0] < heap[m][0]) m = r;
+        if (m === k) break;
+        [heap[m], heap[k]] = [heap[k], heap[m]]; k = m;
+      }
+    }
+    return top;
+  };
+  for (let i = 0; i < n; i += 1) {
+    if (wet[i] !== 2) continue;
+    const nb = nbrs[i];
+    for (let k = 0; k < nb.length; k += 2) {
+      if (wet[nb[k]] !== 2) { const d = nb[k + 1] / 2; if (d < dist[i]) { dist[i] = d; push(d, i); } }
+    }
+  }
+  while (heap.length) {
+    const [d, i] = pop();
+    if (d > dist[i]) continue;
+    const nb = nbrs[i];
+    for (let k = 0; k < nb.length; k += 2) {
+      const j = nb[k];
+      if (wet[j] !== 2) continue;
+      const nd = d + nb[k + 1];
+      if (nd < dist[j]) { dist[j] = nd; push(nd, j); }
+    }
+  }
+  // One basin per connected lake.
+  const comp = new Int32Array(n).fill(-1);
+  const out = [];
+  for (let s = 0; s < n; s += 1) {
+    if (wet[s] !== 2 || comp[s] >= 0) continue;
+    const members = [s]; comp[s] = out.length;
+    for (let q = 0; q < members.length; q += 1) {
+      const nb = nbrs[members[q]];
+      for (let k = 0; k < nb.length; k += 2) { const j = nb[k]; if (wet[j] === 2 && comp[j] < 0) { comp[j] = out.length; members.push(j); } }
+    }
+    const shaped = members.filter((i) => !fromDem[i] && Number.isFinite(dist[i]));
+    // An enclosed lake (no dry node reaches it inside the box) is flat at its mean.
+    const meanD = shaped.length ? shaped.reduce((a, i) => a + dist[i], 0) / shaped.length : 0;
+    const mean = lakeMean[s];
+    let deepest = 0;
+    for (const i of shaped) {
+      const depth = Math.max(Math.max(0.5, minWaterM), meanD > 0 ? mean * (dist[i] / meanD) : mean);
+      solid[i] = waterTop[i] - depth;
+      deepest = Math.max(deepest, depth);
+    }
+    for (const i of members) if (fromDem[i]) deepest = Math.max(deepest, waterTop[i] - solid[i]);
+    out.push({ nodes: members.length, level: waterTop[s], meanDepthM: mean, maxDepthM: deepest });
+  }
+  return out;
 }
 
 function edgeKey(a, b) { return a < b ? `${a},${b}` : `${b},${a}`; }

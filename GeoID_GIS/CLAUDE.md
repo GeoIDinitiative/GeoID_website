@@ -19719,6 +19719,44 @@ draws each volume as its own domain with inside-tests.
   remain future work. Volcanic chambers are the studio's existing primitives
   and combine with these volumes as before.
 
+### "Water bodies have no depth" — the bed came from a land DEM
+
+Measured on Izmit–Sapanca: all 188 sea nodes had been deepened to the 1 m
+minimum, because a land DEM reads ~0 m over the sea (Mapzen: 0.0 m in the gulf
+from z11 up, −3.6 m at z9–10 from ETOPO1). Every lake was hard-coded 2 m deep.
+
+- **Sea: `bathymetry.js` reads the EMODnet Bathymetry WCS.** It is keyless and
+  CORS `*`, and returns a GeoTIFF of metres at about 115 m, filled from GEBCO
+  outside EMODnet's seas. `seaBedAt` takes it wherever it is deeper than the
+  DEM. After the fix: the gulf goes to 29 m, and 105 of 120 sea nodes take
+  their bed from bathymetry.
+- **Lakes: HydroLAKES `depth_avg_m` was already baked into the pyramid and
+  never read.** `waterMasks` now also returns `lakeDepth`. `lakeBasins` shapes
+  each connected lake as a cone: depth ∝ shortest path to a dry node, scaled so
+  the mean over its nodes IS the published mean. Sapanca: 13 m mean, 35 m
+  deepest.
+- **A DEM only counts as lake bathymetry when it is WELL below the level**:
+  max(3 m, a quarter of the mean depth). The land DEM reads Sapanca's surface
+  at 29.1 m against HydroLAKES' 30 m, and the old 0.5 m test took that surface
+  for a 1 m bed.
+
+### The Layer view: soil and water as bodies, display only
+
+At true scale 12 m of soil over a 6 km block is a coat of paint. The studio's
+Visibility box ends in three sliders: soil thickness ×, water depth ×, and a
+gap that lifts soil (with the ground skin), water and air off the bedrock
+(`applyLayerView`). Each vertex is mapped through its own column (base →
+bedrock top → ground → water surface), read from the TRUE layers, so the
+bedrock, the faults and the points follow, and no wall tears. The package, the
+inside-tests and the mesh keep true heights. The soil's top IS the ground skin
+(drawn once, to avoid a coplanar pair), so hiding "Surface" leaves the soil
+open on top.
+
+**The site must be served on localhost:8125.** The data bucket
+(data.geoidinitiative.com) sends CORS for that origin only. On any other port
+the soil, lake and ocean pyramids fail silently, and the layers read as "0 sea,
+0 lake, 0 river, default soil".
+
 ## GALES results in the Meshing Studio
 
 Model page ▸ Results (mesh band): open a GALES simulation folder (or a
