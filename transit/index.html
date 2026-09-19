@@ -70,9 +70,13 @@
     .tx-br { position: absolute; width: calc(42px * max(0.6, var(--u))); height: calc(42px * max(0.6, var(--u))); border: 3px solid #f7bd68; opacity: 0; }
     #tx-br-tl { border-right: 0; border-bottom: 0; } #tx-br-tr { border-left: 0; border-bottom: 0; }
     #tx-br-bl { border-right: 0; border-top: 0; }    #tx-br-br { border-left: 0; border-top: 0; }
-    #tx-label { position: absolute; left: 34px; top: 28px; font-size: 12px; letter-spacing: .3em; text-transform: uppercase; color: rgba(255,255,255,.45); }
+    /* The corner words sit INSIDE the brackets, clear of their 3px arms: the
+       brackets start at 34px x the page scale, so the words are offset from
+       that, not from the edge. */
+    #tx-hud { --tx-in: calc(34px * max(0.6, var(--u)) + 20px); }
+    #tx-label { position: absolute; left: var(--tx-in); top: calc(var(--tx-in) - 4px); font-size: 12px; letter-spacing: .3em; text-transform: uppercase; color: rgba(255,255,255,.45); }
     #tx-label b { color: #f7bd68; font-weight: 600; }
-    #tx-cap { position: absolute; right: 34px; top: 28px; text-align: right; font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.55); line-height: 1.8; font-variant-numeric: tabular-nums; }
+    #tx-cap { position: absolute; right: var(--tx-in); top: calc(var(--tx-in) - 4px); text-align: right; font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.55); line-height: 1.8; font-variant-numeric: tabular-nums; }
     #tx-cap b { display: block; color: var(--text); font-weight: 600; font-size: 17px; letter-spacing: .06em; }
     #tx-cap .n { display: inline-block; margin-top: 8px; padding: 3px 9px; border: 1px solid #f7bd68; color: #f7bd68; font-size: 11px; }
     #tx-name { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-60%); font-family: "Orbitron", sans-serif; font-size: calc(112px * max(0.55, var(--u))); letter-spacing: .1em; white-space: nowrap; text-shadow: 0 0 28px rgba(126,231,255,.35); }
@@ -85,13 +89,11 @@
     #tx-barwrap { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(255,255,255,.08); }
     #tx-bar { height: 100%; width: 0; background: #7ee7ff; box-shadow: 0 0 12px #7ee7ff; }
     /* The two things a reader can do: go home, or get there now. */
-    #tx-actions { position: fixed; right: 34px; bottom: 22px; z-index: 5; display: flex; gap: 10px; transition: opacity .4s; }
+    #tx-actions { position: fixed; right: calc(34px * max(0.6, var(--u, 1)) + 20px); bottom: calc(34px * max(0.6, var(--u, 1)) + 14px); z-index: 5; display: flex; gap: 10px; transition: opacity .4s; }
     #tx-actions a, #tx-actions button { font: 500 11px "Exo 2", sans-serif; letter-spacing: .2em; text-transform: uppercase; color: rgba(255,255,255,.6); background: rgba(3,6,8,.5); border: 1px solid rgba(255,255,255,.18); padding: 6px 12px; cursor: pointer; text-decoration: none; }
     #tx-actions a:hover, #tx-actions button:hover, #tx-actions a:focus-visible, #tx-actions button:focus-visible { color: #fff; border-color: #f7bd68; outline: none; }
     @media (max-width: 760px) {
       #tx-log { left: 20px; bottom: 44px; }
-      #tx-label, #tx-cap { top: 16px; } #tx-label { left: 18px; } #tx-cap { right: 18px; }
-      #tx-actions { right: 18px; bottom: 14px; }
     }
 
     /* ── Portrait orientation advisory ───────────────────────────────── */
@@ -184,7 +186,7 @@
     <button type="button" id="tx-skip">Skip ›</button>
   </div>
 
-  <script src="transit-sequence.js?v=20260919-9a38a72"></script>
+  <script src="transit-sequence.js?v=20260919-b0ce896"></script>
   <script>
     const destinations = {
       mercury: {

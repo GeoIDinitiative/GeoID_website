@@ -346,6 +346,7 @@
       }
       stars = makeStars(Math.round(clamp((W * H) / (1600 * 785), 0.35, 1.6) * 1150), 11);
       hud.style.setProperty("--u", String(Math.max(0.55, u)));
+      document.documentElement.style.setProperty("--u", String(Math.max(0.55, u)));
     }
     resize();
     window.addEventListener("resize", resize);
