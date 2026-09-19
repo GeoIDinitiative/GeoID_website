@@ -13,8 +13,8 @@
  * you can operate on, and it should not have to be captured twice.
  */
 
-import { buildVectorLayerResult } from "./vector-render.js?v=20260919-d4689ee";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260919-d4689ee";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260919-8fc6833";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260919-8fc6833";
 
 let counter = 0;
 
@@ -110,7 +110,15 @@ export function captureDrawn({ name = null, stampedAt = null } = {}) {
   const viewer = window.GeoIDViewer;
   const geometry = viewer?.getExtractionGeometry?.("study")
     || viewer?.getExtractionGeometry?.("buffer");
-  if (!geometry) return { ok: false, message: "Draw an area first — the Draw tool, or the box preset." };
+  if (!geometry) {
+    // Every body is its own CRS, and the Workspace holds the PLANET's layers:
+    // a shape drawn on a moon would land on the planet at the same numbers.
+    const other = viewer?.studyAreaOtherBody?.();
+    if (other) {
+      return { ok: false, message: `That shape is on ${other}. The Workspace holds this planet's layers, so it can be measured there but not saved — draw it on the planet to keep it.` };
+    }
+    return { ok: false, message: "Draw an area first — the Draw tool, or the box preset." };
+  }
   const feature = drawnFeature(geometry, { name });
   if (!feature) return { ok: false, message: "That shape has too few points to be a polygon." };
   feature.properties.drawn_at = stampedAt || new Date().toISOString();

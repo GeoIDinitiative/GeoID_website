@@ -22785,3 +22785,33 @@ Explorer tab, itself a `.control-section`, and a parent's opacity cannot be
 undone by its child. The rule now also excludes any section that
 `:has(#moon-viewer-section)` or `:has(#locations-section)`, in all seven
 planet stylesheets that carry it.
+
+## Every body is its own CRS: a moon's shape stays on the moon
+
+Reported as a polygon drawn on Jupiter appearing on Io: "STUDY AREA 1,
+1,102,920,913 km², 42,251 × 38,928 km" over a moon 3,600 km across. Four
+faults, one principle — a coordinate means nothing off the body it was taken
+on, and nothing may carry it across:
+
+- **The saved shape's LABEL was projected with the ACTIVE measuring body.**
+  `window.GeoIDProjectLatLon` (what `area-labels.js` writes saved shapes'
+  annotations through) used `getActiveMeasureContext()`, which is the moon
+  while a moon viewer is open. Workspace layers are the planet's; the seam
+  projects with `planetMeasureContext()` now.
+- **`measureFrameGroup` read "a moon viewer is open" as "this is a moon
+  shape"** (`|| activeMoonViewerFeature`). The shape's own context decides.
+- **Kilometres were always the planet's** (the porter turns 111.32 into the
+  planet's `DRAW_KM_PER_DEG`). `studyKmPerDeg(context)` reads the shape's own
+  radius; a box on Io reads 799 × 918 km, not Jupiter-sized.
+- **A moon point's handles skipped the moon mesh's rotation**, so they stood
+  a quarter of the moon from their box. `moonMeshWorldPoint` (gas prelude)
+  places them through the mesh — which has to be found from the POINTS,
+  because a stored context is a clone without its mesh.
+
+And the rules around them: a live, unsaved shape is PUT AWAY when the viewer
+turns to another body (`putAwayShapeFromAnotherBody`), with the tool left
+armed so the next drag draws on the body in view; a drag ignores hits on any
+body but the one it started on; the seam places GIS extents on the planet
+whichever moon is open; a moon shape is not an extraction geometry, and
+saving it says why (`studyAreaOtherBody`). Uranus's planet context was named
+"Saturn" — a clone's leftover — and is "Uranus".

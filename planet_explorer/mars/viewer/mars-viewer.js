@@ -17306,6 +17306,8 @@ uniform float uViewportWidth;`,
         studyDragLast = now;
         const hit = intersectMeasurementSurface(event.clientX, event.clientY);
         if (!hit) return;
+        // An edit moves the shape on ITS body; a hit on any other is ignored.
+        if (hit.context && !sameBody(hit.context, measurePoints[0]?.context || hit.context)) return;
         const o = studyDrag.orig;
         if (studyDrag.kind === "move") {
           const dLat = hit.lat - studyDrag.start.lat;
@@ -17381,8 +17383,8 @@ uniform float uViewportWidth;`,
       function showSizeChip(clientX, clientY, bounds) {
         const chip = studySizeChip();
         const midLat = (bounds.south + bounds.north) / 2;
-        const heightKm = (bounds.north - bounds.south) * DRAW_KM_PER_DEG;
-        const widthKm = (bounds.east - bounds.west) * DRAW_KM_PER_DEG
+        const heightKm = (bounds.north - bounds.south) * studyKmPerDeg();
+        const widthKm = (bounds.east - bounds.west) * studyKmPerDeg()
           * Math.cos((midLat * Math.PI) / 180);
         chip.textContent = `${Math.round(widthKm)} × ${Math.round(heightKm)} km`;
         chip.style.left = `${clientX + 16}px`;
@@ -17443,14 +17445,64 @@ uniform float uViewportWidth;`,
        * go into `moonMeasureGroup`, which is turned by its own rule.
        */
       function measureFrameGroup(context) {
-        const isMoon = context?.kind === "moon" || Boolean(activeMoonViewerFeature);
+        // The SHAPE's body decides, never which viewer is open: reading
+        // "a moon viewer is open" as "this is a moon shape" projected a shape
+        // drawn on Jupiter through Io's frame, so a 42,000 km study area was
+        // annotated over a moon 3,600 km across.
+        const isMoon = context?.kind === "moon";
         return (isMoon && moonMeasureGroup) ? moonMeasureGroup : measureGroup;
       }
 
+      /**
+       * Every body is its own CRS. A latitude on Jupiter and the same number
+       * on Io name places 20 times apart, so nothing here may carry a shape's
+       * coordinates to a body it was not drawn on, or measure it in another
+       * body's kilometres.
+       */
+      function sameBody(a, b) {
+        return Boolean(a && b) && a.kind === b.kind && a.bodyName === b.bodyName;
+      }
+
+      /** Kilometres in a degree of THIS body — the shape's, not the planet's. */
+      function studyKmPerDeg(context = measurePoints[0]?.context || getActiveMeasureContext()) {
+        const r = Number(context?.radiusKm);
+        return r > 0 ? (2 * Math.PI * r) / 360 : DRAW_KM_PER_DEG;
+      }
+
+      /**
+       * A live shape belongs to the body it was drawn on. When the viewer
+       * turns to another body (a moon viewer opened or closed) the shape is
+       * PUT AWAY rather than laid over the new body: its coordinates mean
+       * nothing there. A shape already saved is a layer in its own body's
+       * frame and is untouched by this.
+       */
+      function putAwayShapeFromAnotherBody() {
+        const owner = measurePoints[0]?.context;
+        if (!owner || measureMode !== "area") return;
+        const active = getActiveMeasureContext();
+        if (!active || sameBody(owner, active)) return;
+        measurePoints = [];
+        studyDrag = null;
+        pendingBox = null;
+        boxDraw = null;
+        // The tool is still in hand: the next drag draws on the body now in
+        // view. A standing shape switches drawing off (it has handles
+        // instead), so putting it away has to switch it back on.
+        measureDrawActive = true;
+        updateMeasureVisualization();
+      }
+
       function studyRectScreenPoint(lat, lon, context) {
-        const local = sampleMeasureSurfacePoint(lat, lon,
-          getMeasureDisplayLift(context), context);
-        const world = measureFrameGroup(context).localToWorld(local.clone());
+        // A point on a moon is where the MOON MESH puts it — the mesh carries
+        // the moon's own (tidally locked) rotation, which no group here does.
+        // Placed any other way the handles and annotation stood a quarter of
+        // the moon away from the box they belong to. Only a world that can
+        // measure on a moon defines `moonMeshWorldPoint`.
+        const world = (context?.kind === "moon" && typeof moonMeshWorldPoint === "function")
+          ? moonMeshWorldPoint(lat, lon, context, getMeasureDisplayLift(context))
+          : measureFrameGroup(context).localToWorld(sampleMeasureSurfacePoint(lat, lon,
+            getMeasureDisplayLift(context), context).clone());
+        if (!world) return null;
         const projected = world.project(camera);
         if (projected.z > 1) return null;
         const box = renderer.domElement.getBoundingClientRect();
@@ -17592,8 +17644,8 @@ uniform float uViewportWidth;`,
         let second;
         if (bounds) {
           const midLat = (bounds.south + bounds.north) / 2;
-          const heightKm = (bounds.north - bounds.south) * DRAW_KM_PER_DEG;
-          const widthKm = (bounds.east - bounds.west) * DRAW_KM_PER_DEG
+          const heightKm = (bounds.north - bounds.south) * studyKmPerDeg(context);
+          const widthKm = (bounds.east - bounds.west) * studyKmPerDeg(context)
             * Math.cos((midLat * Math.PI) / 180);
           second = `${Math.round(widthKm)} × ${Math.round(heightKm)} km`;
         } else {
@@ -17611,8 +17663,8 @@ uniform float uViewportWidth;`,
           let lonSpan = Math.max(...lons) - Math.min(...lons);
           if (lonSpan > 180) lonSpan = 360 - lonSpan;
           const midLat = (south + north) / 2;
-          const heightKm = (north - south) * DRAW_KM_PER_DEG;
-          const widthKm = lonSpan * DRAW_KM_PER_DEG * Math.cos((midLat * Math.PI) / 180);
+          const heightKm = (north - south) * studyKmPerDeg(context);
+          const widthKm = lonSpan * studyKmPerDeg(context) * Math.cos((midLat * Math.PI) / 180);
           second = (Number.isFinite(widthKm) && Number.isFinite(heightKm))
             ? `${Math.round(widthKm)} × ${Math.round(heightKm)} km` : "";
         }
@@ -17738,6 +17790,7 @@ uniform float uViewportWidth;`,
       }
 
       (function handleLoop() {
+        putAwayShapeFromAnotherBody();
         updateRectHandles();
         updateAreaLabel();
         updateRouteLabels();
@@ -17818,6 +17871,9 @@ uniform float uViewportWidth;`,
         pendingBox = {
           x: event.clientX, y: event.clientY,
           anchor: { lat: hit.lat, lon: hit.lon },
+          // The body the gesture STARTED on. A later hit on any other body is
+          // not part of this shape.
+          context: hit.context || getActiveMeasureContext(),
         };
         if (viewerControls) viewerControls.enabled = false;
       }
@@ -17837,6 +17893,7 @@ uniform float uViewportWidth;`,
           studyDragLast = now;
           const hit = intersectMeasurementSurface(event.clientX, event.clientY);
           if (!hit) return;
+          if (boxDraw.context && hit.context && !sameBody(hit.context, boxDraw.context)) return;
           const a = boxDraw.anchor;
           const hitLon = a.lon + (((hit.lon - a.lon + 540) % 360) - 180);
           /**
@@ -17857,15 +17914,18 @@ uniform float uViewportWidth;`,
           if (ringSides) {
             const dLat = hit.lat - a.lat;
             const dLon = (hitLon - a.lon) * Math.cos((a.lat * Math.PI) / 180);
-            const radiusKm = Math.hypot(dLat, dLon) * DRAW_KM_PER_DEG;
+            // The body being drawn on — a ring on Io is sized in Io's
+            // kilometres, not Jupiter's.
+            const kmPerDeg = studyKmPerDeg(boxDraw.context || getActiveMeasureContext());
+            const radiusKm = Math.hypot(dLat, dLon) * kmPerDeg;
             if (radiusKm > 2) {
               const spin = (window.GeoIDDrawShape === "square") ? 45 : 0;
               const ring = [];
               for (let k = 0; k < ringSides; k += 1) {
                 const t = ((spin + (k * 360) / ringSides) * Math.PI) / 180;
-                const lat = a.lat + (radiusKm * Math.cos(t)) / DRAW_KM_PER_DEG;
+                const lat = a.lat + (radiusKm * Math.cos(t)) / kmPerDeg;
                 const lon = a.lon + (radiusKm * Math.sin(t))
-                  / (DRAW_KM_PER_DEG * Math.max(0.05, Math.cos((lat * Math.PI) / 180)));
+                  / (kmPerDeg * Math.max(0.05, Math.cos((lat * Math.PI) / 180)));
                 ring.push({ lat: Math.max(-85, Math.min(85, lat)), lon });
               }
               activateStudyArea(ring);
@@ -17984,7 +18044,15 @@ uniform float uViewportWidth;`,
       window.GeoIDProjectLatLon = (lat, lon) => {
         if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
         try {
-          return studyRectScreenPoint(lat, lon, getActiveMeasureContext());
+          // THE PLANET's frame, always. Everything that projects through here
+          // is a Workspace layer, and Workspace layers are in the planet's
+          // coordinates; the ACTIVE measuring body is a moon whenever a moon
+          // viewer is open, and reading it put a saved Jupiter area's label
+          // on Io. `planetMeasureContext` is the giants'; on a world that
+          // measures only on itself the active context already is the planet.
+          const planet = typeof planetMeasureContext === "function"
+            ? planetMeasureContext() : getActiveMeasureContext();
+          return studyRectScreenPoint(lat, lon, planet);
         } catch (error) {
           return null;
         }

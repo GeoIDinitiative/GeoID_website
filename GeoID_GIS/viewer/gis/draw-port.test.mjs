@@ -120,6 +120,34 @@ for (const folder of ["jupiter", "saturn", "uranus", "neptune"]) {
   check(`${folder} takes none of the rocky worlds' rewrites`, text.includes("surfaceAnchor"), false);
 }
 
+// EVERY BODY IS ITS OWN CRS. A shape drawn on Jupiter was annotated on Io
+// with Jupiter's kilometres: the projection chose the moon's frame whenever a
+// moon viewer was open, and the Workspace-label seam projected with the
+// active measuring body. Pinned on the source every world is generated from.
+{
+  const start = earth.indexOf("      /* ── Study-area rectangle editing");
+  const blk = earth.slice(start, earth.indexOf('window.addEventListener("pointerup", drawPointerUp, true);', start));
+  const frame = blk.slice(blk.indexOf("function measureFrameGroup"), blk.indexOf("function sameBody"));
+  check("the frame is the SHAPE's body, never whether a moon viewer is open",
+    /activeMoonViewerFeature/.test(frame), false);
+  check("kilometres come from the shape's own body", blk.includes("function studyKmPerDeg"), true);
+  check("no Earth kilometre literal outside that helper",
+    (blk.match(/111\.32/g) || []).length, 1);
+  check("a live shape is put away when the viewer turns to another body",
+    blk.includes("putAwayShapeFromAnotherBody();"), true);
+  check("saved layers are projected in the PLANET's frame",
+    /GeoIDProjectLatLon[\s\S]{0,1200}planetMeasureContext/.test(blk), true);
+  check("a moon point is placed through the moon mesh",
+    blk.includes("moonMeshWorldPoint(lat, lon, context"), true);
+}
+for (const folder of ["jupiter", "saturn", "uranus", "neptune"]) {
+  const text = readFileSync(join(ROOT, "planet_explorer", folder, "viewer", `${folder}-viewer.js`), "utf-8");
+  check(`${folder}: GIS extents are placed on the planet, not on the moon in view`,
+    text.includes("activateStudyArea(vertices, planetMeasureContext())"), true);
+  check(`${folder}: a moon shape is not handed to the planet's GIS`,
+    text.includes('measurePoints[0].bodyKind !== "moon"'), true);
+}
+
 // The porter's body list is the authority; this file's copy must match it,
 // or a world added there is silently untested here.
 const porter = readFileSync(join(ROOT, "GeoID_GIS", "services", "port-draw-tools.py"), "utf-8");
