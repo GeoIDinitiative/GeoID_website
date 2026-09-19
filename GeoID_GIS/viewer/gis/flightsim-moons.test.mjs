@@ -51,6 +51,27 @@ for (const w of ["jupiter", "saturn", "uranus", "neptune"]) {
     `${w}'s moon marker and label caps read the frame's scale`);
 }
 
+/**
+ * THE SIM MUST NOT LOOK UNAVAILABLE OVER THE ONE BODY IT IS FLYING.
+ *
+ * Moon mode dims every sidebar section but Locations and the Moon viewer --
+ * written before the sim could fly a moon at all, and since then it has been
+ * greying the only control on screen that acts on the moon in view. It was
+ * never disabled, only faded, which is worse: a control that looks dead and
+ * works is a control nobody presses.
+ *
+ * Pinned on the SOURCE across every stylesheet that carries the rule, because
+ * seven hand-maintained copies is exactly where an exemption goes missing.
+ */
+for (const w of ["moon", "mars", "pluto", "jupiter", "saturn", "uranus", "neptune"]) {
+  const css = readFileSync(join(ROOT, "planet_explorer", w, "viewer", "styles.css"), "utf-8");
+  const dimRules = css.split("\n").filter((l) => /\[data-mode="moon"\]/.test(l) && /\.control-section/.test(l));
+  ok(dimRules.length > 0, `${w}: the moon-mode dim rule is still there to be exempted from`);
+  ok(dimRules.every((l) => l.includes(":not(#flightsim-section)")
+    && l.includes(":not(:has(#flightsim-section))")),
+    `${w}: every moon-mode dim rule exempts the flight simulator (${dimRules.length} rule(s))`);
+}
+
 process.on("exit", () => {
   if (failures.length) { console.log(`\n${failures.length} failed, ${pass} passed`); failures.forEach((f) => console.log(`   ${f}`)); process.exitCode = 1; }
   else console.log(`✓  flightsim-moons.test.mjs  —  ${pass} passed`);

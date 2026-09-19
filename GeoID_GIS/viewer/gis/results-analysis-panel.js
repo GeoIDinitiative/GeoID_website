@@ -26,15 +26,15 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, streamSeeds, streamlinesCsv, selectInRect, selectionSummary, formatValue, describeField, float64View, timeOf, stepReading, powerLawSlope } from "./gales-results.js?v=20260920-817c7fc";
-import { downloadText } from "./extraction.js?v=20260920-817c7fc";
-import { modelReportHtml } from "./model-report.js?v=20260920-817c7fc";
-import { makeState, readState, stateFileName } from "./model-state.js?v=20260920-817c7fc";
-import { PHYSICS, domainProperties } from "./fem-setup.js?v=20260920-817c7fc";
-import { may, refusal } from "./membership.js?v=20260920-817c7fc";
-import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260920-817c7fc";
-import { losVector } from "./insar.js?v=20260920-817c7fc";
-import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260920-817c7fc";
+import { domainStatsCsv, lineSamples, sampleLocated, profileCsv, usedNodes, componentOf, colourValues, niceTicks, streamSeeds, streamlinesCsv, selectInRect, selectionSummary, formatValue, describeField, float64View, timeOf, stepReading, powerLawSlope } from "./gales-results.js?v=20260920-1e7b58d";
+import { downloadText } from "./extraction.js?v=20260920-1e7b58d";
+import { modelReportHtml } from "./model-report.js?v=20260920-1e7b58d";
+import { makeState, readState, stateFileName } from "./model-state.js?v=20260920-1e7b58d";
+import { PHYSICS, domainProperties } from "./fem-setup.js?v=20260920-1e7b58d";
+import { may, refusal } from "./membership.js?v=20260920-1e7b58d";
+import { parseObservations, fitScale, pairsOf, comparisonCsv } from "./observations.js?v=20260920-1e7b58d";
+import { losVector } from "./insar.js?v=20260920-1e7b58d";
+import { mogi, bestVolume, invertMogi, topSurfaceNodes, volumeFromPressure, shearModulus } from "./analytic-sources.js?v=20260920-1e7b58d";
 
 const byId = (id) => document.getElementById(id);
 const R = () => window.GeoIDGalesResults;

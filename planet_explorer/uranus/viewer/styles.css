@@ -3142,7 +3142,7 @@
     #ui .control-section {
       transition: opacity 0.35s ease;
     }
-    [data-mode="moon"] #ui .control-section:not(#moon-viewer-section):not(#locations-section):not(:has(#moon-viewer-section)):not(:has(#locations-section)) {
+    [data-mode="moon"] #ui .control-section:not(#moon-viewer-section):not(#locations-section):not(:has(#moon-viewer-section)):not(:has(#locations-section)):not(#flightsim-section):not(:has(#flightsim-section)) {
       opacity: 0.38;
     }
 
@@ -3336,13 +3336,16 @@ canvas {
     }
 
 
-    /* Dim all sidebar tabs when moon viewer is active, except Locations and Moon viewer. */
-    :root[data-mode="moon"] .control-section:not(#locations-section):not(#moon-viewer-section):not(:has(#moon-viewer-section)):not(:has(#locations-section)) {
+    /* Dim all sidebar tabs when moon viewer is active -- except Locations, Moon viewer,
+       and the FLIGHT SIMULATOR, which flies the moon in view. The sim reads the open
+       moon through getFlightMoon and binds to it, so dimming it said the one thing on
+       screen that acts on this moon was unavailable. It was never disabled, only greyed. */
+    :root[data-mode="moon"] .control-section:not(#locations-section):not(#moon-viewer-section):not(:has(#moon-viewer-section)):not(:has(#locations-section)):not(#flightsim-section):not(:has(#flightsim-section)) {
       opacity: 0.32;
       filter: saturate(0.5);
       transition: opacity 0.2s ease, filter 0.2s ease;
     }
-    :root[data-mode="moon"] .control-section:not(#locations-section):not(#moon-viewer-section):not(:has(#moon-viewer-section)):not(:has(#locations-section)) summary {
+    :root[data-mode="moon"] .control-section:not(#locations-section):not(#moon-viewer-section):not(:has(#moon-viewer-section)):not(:has(#locations-section)):not(#flightsim-section):not(:has(#flightsim-section)) summary {
       cursor: default;
     }
 
