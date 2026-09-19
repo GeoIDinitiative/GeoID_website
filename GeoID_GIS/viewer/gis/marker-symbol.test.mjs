@@ -26,7 +26,16 @@ check("a marker's clearance is a constant 30 m of ground, not 2% of the altitude
 check("the symbol rides from the catalogue entry to the renderer", () => {
   ok(/pointSymbol: entry\.pointSymbol \|\| "disc"/.test(gd), "addDataset passes it");
   ok(/pointSymbol: ctx\?\.pointSymbol \|\| "disc"/.test(im), "the geojson parser carries it");
-  ok(/pointSymbol = "disc",\n  rankOf = null,/.test(render) && (render.match(/pointStyle, pointSymbol, rankOf/g) || []).length === 2, "and buildVectorLayerResult forwards it on both paint paths");
+  /**
+   * Scoped to buildVectorLayerResult's OWN parameter list, not to what happens
+   * to sit under it. This read `pointSymbol = "disc",\n  rankOf = null,` and
+   * broke the day a `flat` option (a moon's outlines, drawn on a plain sphere)
+   * was declared between them -- a pin that names its neighbour is a pin that
+   * fails on the next neighbour, which this tree has now paid for twice.
+   */
+  const params = render.slice(render.indexOf("export function buildVectorLayerResult"));
+  ok(/pointSymbol = "disc",/.test(params.slice(0, params.indexOf("} = {}"))), "buildVectorLayerResult declares it with its default");
+  ok((render.match(/pointStyle, pointSymbol, rankOf/g) || []).length === 2, "and forwards it on both paint paths");
   ok(/id: "volcanoes",[\s\S]{0,2000}pointSymbol: "triangle"/.test(gd), "the volcanoes name it");
 });
 

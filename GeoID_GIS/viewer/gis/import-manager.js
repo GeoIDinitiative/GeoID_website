@@ -60,7 +60,9 @@ const PARSERS = {
    */
   geojson: async (file, ctx) => buildVectorLayerResult(
     parseGeoJson(await file.text()),
-    { name: file.name, pointStyle: ctx?.pointStyle || "auto", pointSymbol: ctx?.pointSymbol || "disc" },
+    { name: file.name, pointStyle: ctx?.pointStyle || "auto", pointSymbol: ctx?.pointSymbol || "disc",
+      // a layer drawn on ANOTHER body (a moon) takes none of this world's relief
+      flat: Boolean(ctx?.flat) },
   ),
   kml: async (file) => buildVectorLayerResult(parseKml(await file.text()), { name: file.name }),
   gpx: async (file) => buildVectorLayerResult(parseGpx(await file.text()), { name: file.name }),

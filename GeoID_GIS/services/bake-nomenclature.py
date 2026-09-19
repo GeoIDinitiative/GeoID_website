@@ -28,8 +28,18 @@ the bucket gzipped. What it does to the source, and why:
 - Only the columns a reader wants are kept: name, type, diameter, origin,
   approval date, quadrangle and the gazetteer link.
 
-Mars is absent on purpose: the gazetteer publishes no outlines for Mars, only
-its centre points.
+WHICH BODIES HAVE OUTLINES AT ALL is a fact about the bucket, not a guess.
+Listed, it holds a `_geometries[_internal].zip` for every world below and for
+nothing else the viewers show: the nine moons whose only file is a `.kmz`
+(Deimos, Phoebe, Janus, Epimetheus, Puck, Proteus, Nix, Amalthea, Thebe) carry
+POINTS ONLY -- 2 placemarks for Deimos, 25 for Phoebe, all of them `<Point>`
+-- so the gazetteer has drawn no outline for them and there is nothing to
+fetch. The gas giants have no surface to draw one on.
+
+MARS WAS LEFT OUT OF THIS FILE ON A CLAIM THAT IS FALSE: the note here said
+the gazetteer publishes no Mars outlines, and `MARS_nomenclature_geometries.zip`
+is in the bucket with 1,720 polygons and 203 lines. Check the listing before
+believing a body has none.
 """
 import io, json, math, os, subprocess, sys, urllib.request, zipfile
 
@@ -41,7 +51,15 @@ OUT = os.path.join(ROOT, "data", "global", "nomenclature")
 WORK = os.path.join(ROOT, "data", "global", ".nomenclature-work")
 BASE = "https://asc-planetarynames-data.s3.us-west-2.amazonaws.com/"
 # the bodies with a viewer of their own and a surface to draw on
-BODIES = {"moon": "MOON", "mercury": "MERCURY", "venus": "VENUS", "pluto": "PLUTO"}
+BODIES = {"moon": "MOON", "mars": "MARS", "mercury": "MERCURY",
+          "venus": "VENUS", "pluto": "PLUTO"}
+# the moons the planet viewers open in their moon viewer, every one the bucket
+# holds a shapefile for (the rest are points-only .kmz; see the header)
+MOONS = {m.lower(): m for m in (
+    "PHOBOS", "CHARON", "IO", "EUROPA", "GANYMEDE", "CALLISTO",
+    "MIMAS", "ENCELADUS", "TETHYS", "DIONE", "RHEA", "TITAN", "HYPERION", "IAPETUS",
+    "MIRANDA", "ARIEL", "UMBRIEL", "TITANIA", "OBERON", "TRITON")}
+BODIES.update(MOONS)
 KEEP = ("name", "type", "diameter", "origin", "approvaldt", "quad_name", "link")
 
 

@@ -36,6 +36,8 @@ const MAX_LINE_VERTICES = 6000000;
  * pair because the decoder already rounds coordinates to six decimals.
  */
 let surfaceMemo = null;
+// Set for the length of one flat render (renderFeatureCollection's `flat`).
+let surfaceFlat = false;
 let surfaceHits = 0;
 let surfaceCalls = 0;
 
@@ -253,7 +255,9 @@ function surfaceAt(lat, lon, drape) {
   }
   const viewer = window.GeoIDViewer;
   let point;
-  if (typeof viewer?.elevationNormalized === "function") {
+  if (surfaceFlat) {
+    point = latLonToVector3(lat, lon, drapedRadius(drape));
+  } else if (typeof viewer?.elevationNormalized === "function") {
     const displaced = viewer.elevationNormalized(lat, lon) * REFERENCE_RELIEF;
     point = latLonToVector3(lat, lon, drapedRadius(drape) + displaced);
   } else if (typeof viewer?.surfacePoint === "function") {
@@ -1026,10 +1030,18 @@ export function renderFeatureCollection(fc, {
   pointStyle = "auto",
   // "disc" or "triangle": what a marker is drawn as. A catalogue names it.
   pointSymbol = "disc",
+  /**
+   * FLAT: a plain sphere of the globe's radius, no relief, no displacement
+   * for the shader to scale. For a layer that belongs to another body -- a
+   * moon's IAU outlines, hung on the moon's own mesh and scaled to it -- where
+   * this world's terrain and its exaggeration mean nothing.
+   */
+  flat = false,
   // Uniforms for the backdrop's window; null for an ordinary layer.
   hole = null,
 } = {}) {
   surfaceMemo = new Map();
+  surfaceFlat = Boolean(flat);
   surfaceHits = 0;
   surfaceCalls = 0;
   const linePositions = [];
@@ -1343,7 +1355,7 @@ export function renderFeatureCollection(fc, {
   // and re-apply whatever the globe is drawn at now.
   // The reference the vertices above were built at -- NOT the live value, which
   // may be zero and would throw the terrain away.
-  const builtRelief = typeof window.GeoIDViewer?.elevationNormalized === "function"
+  const builtRelief = flat ? 0 : typeof window.GeoIDViewer?.elevationNormalized === "function"
     ? REFERENCE_RELIEF
     : Number(window.GeoIDViewer?.getEffectiveRelief?.() ?? 0);
   if (fill.positions.length) {
@@ -1626,6 +1638,7 @@ export function renderFeatureCollection(fc, {
 
   const memo = { calls: surfaceCalls, distinct: surfaceMemo.size, hits: surfaceHits };
   surfaceMemo = null;
+  surfaceFlat = false;
   return { object3D: group, truncated, memo };
 }
 
@@ -1891,6 +1904,9 @@ function publishedSymbology(fc, key) {
 export function buildVectorLayerResult(fc, {
   name, fields = [], drape = 0.006, outlineOnly = false, pointStyle = "auto",
   pointSymbol = "disc",
+  // Drawn on a plain sphere, with none of this world's relief: for a layer
+  // hung on another body (a moon). Rides through every repaint.
+  flat = false,
   rankOf = null,
   // How wide an outline is stroked, in seals. Held on the layer for the reason
   // `fillMode` is: every repaint rebuilds the materials.
@@ -1986,7 +2002,7 @@ export function buildVectorLayerResult(fc, {
   const firstPaint = outlineOnly && symbology ? (f) => symbology.colourOf(f) : null;
   const { object3D, truncated } = renderFeatureCollection(fc, {
     name, drape, pointStyle, pointSymbol, rankOf, contacts: contactStyle,
-    outlineOnly, colourFor: firstPaint, strokeScale,
+    outlineOnly, colourFor: firstPaint, strokeScale, flat,
   });
   let lastColourFor = null;
   /**
@@ -2021,7 +2037,7 @@ export function buildVectorLayerResult(fc, {
       // survey precedence, or the coarse boundaries come back on the next
       // symbology change.
       name, drape, colourFor, pointStyle, pointSymbol, rankOf, outlineOnly: fillMode === "outline",
-      strokeScale,
+      strokeScale, flat,
       // Rides through every repaint for `rankOf`'s reason: a recolour must not
       // quietly return the contacts to invisible.
       contacts: contactStyle,
