@@ -22998,6 +22998,28 @@ row simply sat unticked in Earth Observation ▸ Hydrology.
 Cost, measured on the software renderer at level 5: 360 ms a frame against
 342 with every category off, 357 draw calls against 45.
 
+### 13,000 places, and Wikidata's units
+
+The gazetteer is ~13,200 places now: Wikidata summits by prominence and
+islands by area, every Smithsonian Holocene volcano ranked into the same
+tiers (recency, lifted by height), more cities, lakes and rivers. Batches of
+one (tier, category) are detached from the scene while ruled out, so 13,000
+names cost nothing a frame (measured 417 ms on the software renderer with
+every category on and with every category off).
+
+- **Read Wikidata quantities through `psn:`, never `wdt:`.** `wdt:` is the
+  value as typed, in the editor's unit: half the American summits are in
+  FEET, and a 13,000 ft hill filled tier 2 as an "8,000 m" peak (530 of
+  them, 48 after). `psn:` is normalised to SI -- metres, and square METRES
+  for an area.
+- **An island's two catalogues anchor it far apart** (Greenland 2.4 deg), so
+  the name-clash reach grows with the land's area; longitude is shrunk by
+  cos(lat), not divided by it. The clash check is indexed by name stem.
+- Workspace > Location labels has a size slider (`setLabelSizeScale`); a
+  change clears `_globalVisible`, or the global view's anti-flicker hold keeps
+  chips that now overlap. Curated labels are still forced and may overlap at
+  large sizes.
+
 ## A warm launch is warm now: one root service worker, and a start-up screen that waits
 
 "Even with the loading screen, not all layers are loaded — five to ten seconds

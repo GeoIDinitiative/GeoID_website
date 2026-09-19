@@ -10,17 +10,17 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { bandOf } from "./draw-order.js?v=20260919-78b90bb";
-import { paintOpacity } from "./layer-opacity.js?v=20260919-78b90bb";
-import { currentBody } from "./bodies.js?v=20260919-78b90bb";
-import { samplerToRaster } from "./raster-analysis.js?v=20260919-78b90bb";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260919-78b90bb";
-import { datasetInfoButton } from "./catalogue-list.js?v=20260919-78b90bb";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260919-78b90bb";
+import { bandOf } from "./draw-order.js?v=20260919-ed12082";
+import { paintOpacity } from "./layer-opacity.js?v=20260919-ed12082";
+import { currentBody } from "./bodies.js?v=20260919-ed12082";
+import { samplerToRaster } from "./raster-analysis.js?v=20260919-ed12082";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260919-ed12082";
+import { datasetInfoButton } from "./catalogue-list.js?v=20260919-ed12082";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260919-ed12082";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20260919-78b90bb";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260919-78b90bb";
+} from "./symbology-dialog.js?v=20260919-ed12082";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260919-ed12082";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -111,10 +111,17 @@ const STYLE = `
 .layer-stack .layer-row.layer-row-basemap.has-info {
   grid-template-columns: auto auto minmax(0, 1fr) auto;
 }
-/* The pinned Location labels row: the basemap row's shape, less the info button. */
+/* The pinned Location labels row: the basemap row's shape, less the info
+   button, plus the size slider when the viewer offers one. */
 .layer-stack .layer-row.layer-row-basemap.layer-row-labels {
   grid-template-columns: auto auto minmax(0, 1fr);
 }
+.layer-stack .layer-row.layer-row-basemap.layer-row-labels.has-size {
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+}
+.layer-label-size { display: inline-flex; align-items: center; gap: 0.35rem; cursor: default; }
+.layer-label-size input { width: 5.5rem; accent-color: rgb(var(--nav-accent-rgb)); }
+.layer-label-size span { min-width: 2.6rem; text-align: right; font-size: 0.72rem; opacity: 0.8; font-variant-numeric: tabular-nums; }
 /* One more column, for the ⓘ every layer carries. */
 .layer-stack .layer-row.has-info {
   grid-template-columns: auto auto auto 1fr auto auto 4.5rem auto;
@@ -1042,6 +1049,29 @@ function locationLabelsRow() {
       <input type="checkbox" ${on ? "checked" : ""} data-role="visible">
     </label>
     <span class="layer-name" title="Place names on the globe — set per category in Explorer ▸ Locations">Location labels</span>`;
+  /**
+   * ONE SIZE FOR EVERY LABEL. The viewer multiplies what its scale pass would
+   * draw by this, so the tiers keep their hierarchy while all of them grow or
+   * shrink together; it is remembered per browser. Offered only where the
+   * viewer's label engine exposes it.
+   */
+  const viewer = window.GeoIDViewer;
+  if (typeof viewer?.setLabelSizeScale === "function") {
+    node.classList.add("has-size");
+    const wrap = document.createElement("label");
+    wrap.className = "layer-label-size";
+    wrap.title = "Label size";
+    const k = viewer.getLabelSizeScale?.() || 1;
+    wrap.innerHTML = `<input type="range" min="0.5" max="2.5" step="0.05" value="${k}" aria-label="Label size"><span>${Math.round(k * 100)}%</span>`;
+    const range = wrap.querySelector("input"), out = wrap.querySelector("span");
+    // Held here, never re-rendered while dragged: a render rebuilds the row.
+    for (const type of ["pointerdown", "mousedown", "click", "dragstart"]) range.addEventListener(type, (e) => e.stopPropagation());
+    range.addEventListener("input", () => {
+      const v = viewer.setLabelSizeScale(parseFloat(range.value));
+      out.textContent = `${Math.round(v * 100)}%`;
+    });
+    node.appendChild(wrap);
+  }
   node.querySelector('[data-role="visible"]').addEventListener("change", (e) => {
     const all = locationBoxes();
     if (e.target.checked) {

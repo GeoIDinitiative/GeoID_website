@@ -50,8 +50,13 @@ const baked = join(ROOT, "data", "global", "earth-places.json");
 if (existsSync(baked)) {
   const doc = JSON.parse(readFileSync(baked, "utf-8"));
   const P = doc.places || [];
-  const CATS = new Set(["marine", "landform", "island", "mountain", "river", "lake", "tectonic", "city"]);
-  ok(P.length >= 2000 && P.length <= 3100, `2,000–3,000 places (${P.length})`);
+  const CATS = new Set(["marine", "landform", "island", "mountain", "river", "lake", "tectonic", "city", "volcano"]);
+  ok(P.length >= 10000 && P.length <= 16000, `10,000–16,000 places (${P.length})`);
+  // Wikidata's summit heights come NORMALISED to metres (psn:): read as
+  // typed, a 13,000 ft hill was an 8,000 m tier-2 peak.
+  ok(P.filter((p) => p.category === "mountain" && p.lod <= 2).length < 120, "the top mountain tiers are the great peaks and ranges, not feet read as metres");
+  ok(P.filter((p) => p.name === "Greenland").length === 1, "one Greenland: an island's two catalogues meet however far apart they anchor it");
+  ok(P.some((p) => p.category === "volcano" && /Smithsonian/.test(p.source)), "the Smithsonian volcanoes are ranked among the names");
   ok(P.every((p) => CATS.has(p.category)), "every place is in a known category");
   ok(P.every((p) => p.lod >= 1 && p.lod <= 5), "every place carries a tier 1–5");
   ok(P.every((p) => p.lat >= -90 && p.lat <= 90 && p.lon >= 0 && p.lon < 360), "coordinates are lat and east 0–360");

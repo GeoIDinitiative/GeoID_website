@@ -10,6 +10,11 @@ Sources, all open:
       regions, capes/islands/waterfalls, peaks and cities.
   GEM Global Active Faults (CC BY-SA 4.0) — named faults, grouped by name.
   Bird (2003) PB2002 plates, via fraxen/tectonicplates — plate names.
+  Smithsonian GVP, Volcanoes of the World v5 — every Holocene volcano, from
+      the site's own baked data/global/volcanoes.geojson, with its summary.
+  Wikidata (CC0) — summits with 1,000 m or more of topographic prominence and
+      islands of 100 km² or more, the two things Natural Earth maps thinly
+      (644 named peaks, a few hundred islands).
   Wikipedia (CC BY-SA 4.0) — the description's opening sentences, found
       through each Natural Earth feature's own Wikidata id (CC0).
 
@@ -42,10 +47,62 @@ FAULTS = ("https://raw.githubusercontent.com/GEMScienceTools/gem-global-active-f
 PLATES = "https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_plates.json"
 UA = "GeoID-Initiative-gazetteer-bake/1.0 (https://geoidinitiative.com)"
 
-# How many of each category survive, most significant first. The totals are
-# what a globe can carry: ~2,800 names, at most a few hundred on screen.
-BUDGET = {"river": 500, "lake": 290, "marine": 300, "mountain": 520, "landform": 450,
-          "island": 270, "tectonic": 300, "city": 320}
+# How many of each category survive, most significant first. The viewer
+# hands each (tier, category) to the label engine as its own batch and
+# DETACHES a batch the density slider, the zoom or its category toggle rules
+# out, so the names a view cannot show cost nothing per frame -- which is what
+# lets this be most of Natural Earth rather than a sample of it.
+BUDGET = {"volcano": 2700, "river": 1200, "lake": 800, "marine": 300, "mountain": 3200, "landform": 1200,
+          "island": 2600, "tectonic": 1200, "city": 3200}
+WIKIDATA = "https://query.wikidata.org/sparql"
+SPARQL = {
+    # Prominence is the significance of a summit: how far you must descend
+    # to reach a higher one. Elevation alone ranks a shoulder of Everest
+    # above Denali.
+    # psn: is Wikidata's value NORMALISED to SI. wdt: is the value as typed,
+    # in whatever unit the editor used -- half the American summits are in
+    # FEET, which put 13,000 ft hills in the 8,000 m tier.
+    "peaks": """SELECT ?item ?itemLabel ?prom ?elev ?coord WHERE {
+      ?item p:P2660/psn:P2660/wikibase:quantityAmount ?prom . FILTER(?prom >= 1000)
+      ?item wdt:P625 ?coord .
+      OPTIONAL { ?item p:P2044/psn:P2044/wikibase:quantityAmount ?elev }
+      SERVICE wikibase:label { bd:serviceParam wikibase:language "en". } }""",
+    "islands": """SELECT ?item ?itemLabel ?area ?coord WHERE {
+      VALUES ?cls { wd:Q23442 wd:Q33837 wd:Q1640628 wd:Q12806 wd:Q34763 }
+      ?item wdt:P31 ?cls ; wdt:P625 ?coord ;
+            p:P2046/psn:P2046/wikibase:quantityAmount ?area .
+      FILTER(?area >= 1e8)
+      SERVICE wikibase:label { bd:serviceParam wikibase:language "en". } }""",
+}
+
+
+def wikidata_rows(work, key, offline=False):
+    """One row per item (Wikidata returns an item once per coordinate)."""
+    path = os.path.join(work, f"wikidata-{key}.json")
+    if not os.path.exists(path):
+        if offline:
+            return []
+        url = WIKIDATA + "?" + urllib.parse.urlencode({"query": SPARQL[key], "format": "json"})
+        req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/sparql-results+json"})
+        with urllib.request.urlopen(req, timeout=300) as r:
+            data = json.load(r)
+        json.dump(data, open(path, "w"))
+    data = json.load(open(path))
+    rows = {}
+    for b in data["results"]["bindings"]:
+        qid = b["item"]["value"].rsplit("/", 1)[-1]
+        name = (b.get("itemLabel") or {}).get("value", "")
+        if qid in rows or not name or name == qid:
+            continue
+        try:
+            lon, lat = map(float, b["coord"]["value"].split("(")[1].rstrip(")").split()[:2])
+        except (KeyError, ValueError, IndexError):
+            continue
+        num = lambda k: float(b[k]["value"]) if k in b else None
+        area = num("area")  # normalised to m²
+        rows[qid] = {"qid": qid, "name": name, "lon": lon, "lat": lat,
+                     "prom": num("prom"), "elev": num("elev"), "area": area / 1e6 if area else None}
+    return list(rows.values())
 
 
 def lower(props):
@@ -242,6 +299,16 @@ def clean(text):
 
 # ---- the layers -----------------------------------------------------------
 
+def stem(name):
+    """A name without the words that differ between two catalogues of one
+    place: "Mount Etna", "Etna" and "Etna volcano" are the same summit."""
+    import re
+    n = name.lower()
+    n = re.sub(r"^(mount|mt\.?|monte|mont|volcán|volcan|cerro|pico)\s+", "", n)
+    n = re.sub(r"\s+(volcano|volcanic field|mountain|peak)$", "", n)
+    return re.sub(r"[^a-z0-9]", "", n)
+
+
 def fmt_int(n):
     return f"{int(round(n)):,}"
 
@@ -367,10 +434,10 @@ def main():
         cla = p.get("featurecla") or ""
         capital = cla.startswith("Admin-0 capital")
         mz = float(p.get("min_zoom") or 9)
-        if not (capital or mz <= 4.0 or p.get("megacity") == 1):
+        if not (capital or mz <= 7.0 or p.get("megacity") == 1):
             continue
-        lod = 2 if mz <= 2 else 3 if mz <= 3.5 else 4 if capital or mz <= 4 else 5
-        pop = p.get("pop_max") or 0
+        lod = 2 if mz <= 2 else 3 if mz <= 3.5 else 4 if capital or mz <= 4.7 else 5
+        pop = max(0, p.get("pop_max") or 0)   # Natural Earth writes -99 for "unknown"
         typ = "Capital city" if capital else "City"
         where = ", ".join(x for x in (p.get("adm1name") if not capital else None, p.get("adm0name")) if x)
         facts = f"{typ} of {p.get('adm0name')}." if capital else (f"City in {where}." if where else "")
@@ -379,6 +446,58 @@ def main():
         add("city", p.get("nameascii") or p.get("name"), typ, p.get("longitude"), p.get("latitude"), lod,
             math.log10(pop + 1) - mz + (3 if capital else 0), p.get("wikidataid"), facts.strip(),
             extra={"population": pop} if pop else None)
+
+    # Wikidata summits by prominence. Natural Earth's own peaks come first
+    # (same Wikidata id = the same place, and the dedupe below keeps one).
+    for r in wikidata_rows(args.work, "peaks", args.offline):
+        prom, elev = r["prom"] or 0, r["elev"]
+        lod = 2 if prom >= 4000 else 3 if prom >= 2500 else 4 if prom >= 1500 else 5
+        if isinstance(elev, (int, float)) and elev >= 8000:
+            lod = min(lod, 2)
+        add("mountain", r["name"], "Mountain summit", r["lon"], r["lat"], lod, prom / 1000, r["qid"],
+            f"Topographic prominence about {fmt_int(prom)} m.", source="Wikidata (CC0)",
+            extra={"elevation_m": round(elev)} if isinstance(elev, (int, float)) else None)
+
+    # Wikidata islands by area (km²).
+    for r in wikidata_rows(args.work, "islands", args.offline):
+        area = r["area"] or 0
+        lod = 2 if area >= 100000 else 3 if area >= 10000 else 4 if area >= 1000 else 5
+        add("island", r["name"], "Island", r["lon"], r["lat"], lod, math.log10(area + 1), r["qid"],
+            f"About {fmt_int(area)} km².", source="Wikidata (CC0)", extra={"area_km2": round(area)})
+
+    # Volcanoes: the Smithsonian's Holocene catalogue, the SAME records the
+    # volcano layer draws, reframed as names and ranked into the one
+    # hierarchy: recency is the catalogue's own label_rank (5 = erupted since
+    # 2000) and height lifts a great volcano a tier. A volcano that is also a
+    # famous mountain meets its mountain entry in the dedupe below and the
+    # more significant tier keeps the name.
+    vpath = os.path.join(ROOT, "data", "global", "volcanoes.geojson")
+    for f in (json.load(open(vpath))["features"] if os.path.exists(vpath) else []):
+        p = f["properties"]
+        name = (p.get("name") or "").strip()
+        if not name or not f.get("geometry"):
+            continue
+        lon, lat = f["geometry"]["coordinates"][:2]
+        rank = int(float(p.get("label_rank") or 1))
+        try:
+            elev = float(p.get("elevation_m"))
+        except (TypeError, ValueError):
+            elev = None
+        tall = elev or 0
+        lod = (2 if rank >= 5 and tall >= 4500 else 3 if rank >= 5 or (rank >= 4 and tall >= 3000)
+               else 4 if rank >= 4 else 5)
+        last = p.get("last_eruption")
+        try:
+            yr = int(float(last))
+            when = f"Last known eruption {yr if yr > 0 else str(-yr) + ' BCE'}."
+        except (TypeError, ValueError):
+            when = f"{p.get('activity') or 'Holocene'}."
+        summary = (p.get("summary") or "").strip()
+        add("volcano", name, p.get("volcano_type") or "Volcano", lon, lat, lod, rank + tall / 5000, None,
+            (summary + " " + when).strip() if summary else when,
+            source="Smithsonian GVP, Volcanoes of the World v5",
+            extra={k: v for k, v in (("elevation_m", round(elev) if elev is not None else None),
+                                      ("region", p.get("country"))) if v is not None})
 
     # Faults: GEM's traces grouped by name, ranked by mapped length. A name
     # given to many unrelated little segments ("unnamed", "Fault 12") is not
@@ -451,17 +570,24 @@ def main():
         chosen += keep
     # the same place in two layers (an island as polygon and point) keeps the
     # first, most significant, entry
-    final, taken, qids = [], [], set()
+    final, taken, qids = [], {}, set()  # taken: by name stem
     for it in sorted(chosen, key=lambda it: it["lod"]):
         # the same Wikidata item in two layers (a river and its estuary as a
         # "marine" polygon, a range as polygon and as peak cluster) is one place
         if it["_qid"] and it["_qid"] in qids:
             continue
-        clash = any(o["name"].lower() == it["name"].lower() and abs(o["lat"] - it["lat"]) < 1.5
-                    and abs(((o["lon"] - it["lon"] + 180) % 360) - 180) < 1.5 for o in taken)
+        # an island's two catalogues anchor it differently, and on Greenland
+        # "differently" is 2.4° apart: the reach grows with the land's size
+        def reach(a, b):
+            km = max((a.get("area_km2") or 0), (b.get("area_km2") or 0))
+            return max(1.5, math.sqrt(km) / 111 / 2)
+        st = stem(it["name"])
+        clash = any(abs(o["lat"] - it["lat"]) < reach(o, it)
+                    and abs(((o["lon"] - it["lon"] + 180) % 360) - 180) * max(0.2, math.cos(math.radians(it["lat"]))) < reach(o, it)
+                    for o in taken.get(st, ()))
         if clash:
             continue
-        taken.append(it)
+        taken.setdefault(st, []).append(it)
         final.append(it)
         if it["_qid"]:
             qids.add(it["_qid"])
@@ -502,7 +628,8 @@ def main():
     tiers = [sum(1 for r in places if r["lod"] == k) for k in range(1, 6)]
     doc = {
         "_source": ("Natural Earth 1:10m (public domain); GEM Global Active Faults (CC BY-SA 4.0); "
-                    "Bird (2003) PB2002 plates; descriptions from Wikipedia (CC BY-SA 4.0) via Wikidata (CC0)."),
+                    "Bird (2003) PB2002 plates; Smithsonian GVP volcanoes; summits and islands from Wikidata (CC0); "
+                    "descriptions from Wikipedia (CC BY-SA 4.0) via Wikidata (CC0)."),
         "baked": time.strftime("%Y-%m-%d"),
         "counts": counts, "lod_counts": tiers,
         "places": places,

@@ -413,11 +413,30 @@
         txt += c >= settle ? NAME[i] : c < 0.15 ? " " : GLYPHS[Math.floor((c * 23 + i * 7) % GLYPHS.length)];
       }
       const up = ease.inOut(seg(c, plot ? 3.0 : 1.6, plot ? 4.0 : 2.6));
-      const fs = 112 * Math.max(0.55, u);
+      // While the chart is up the name stands in the free room RIGHT of it,
+      // not over it: centred it lay across the orbits and the target's own
+      // label. It moves to the centre as it rises, when the chart has gone.
+      // The chart's right edge is its widest orbit about its centre, in the
+      // same units drawChart scales by u.
+      // The target's name and the delta-v line are drawn to the RIGHT of the
+      // target, and an outer planet's target sits near that edge, so they count.
+      const chartRight = CX + Math.max(centre.x + Math.max(...orbitKeys.map(radiusOf), rT) + 24, target.x + 210) * u;
+      const slotL = chartRight + 24 * u, slotR = W - inset - 12;
+      const side = plot && !small && slotR - slotL >= 260;
+      const sideX = side ? (slotL + slotR) / 2 : CX;
+      let fs = 112 * Math.max(0.55, u);
+      if (side) {
+        // a long name is set smaller to fit the slot rather than run into the chart
+        ctx.save(); ctx.font = `${fs}px 'Orbitron', sans-serif`;
+        const wNow = ctx.measureText(NAME).width * (1 + 0.1 * 0.9);
+        ctx.restore();
+        if (wNow > slotR - slotL) fs *= (slotR - slotL) / wNow;
+      }
+      const nameX = lerp(sideX, CX, up);
       const nameA = 1 - seg(c, 8.0, 8.5);
       if (nameA > 0) {
         ctx.save();
-        ctx.translate(CX, CY - 0.12 * fs - 300 * up * k6); ctx.scale(lerp(1, 0.42, up), lerp(1, 0.42, up));
+        ctx.translate(nameX, CY - 0.12 * fs - 300 * up * k6); ctx.scale(lerp(1, 0.42, up), lerp(1, 0.42, up));
         ctx.shadowColor = "rgba(126,231,255,.35)"; ctx.shadowBlur = 28;
         text(ctx, txt, 0, 0, { font: `${fs}px 'Orbitron', sans-serif`, colour: INK, spacing: "0.1em", align: "center", base: "middle", alpha: A(nameA) });
         ctx.restore();
@@ -433,9 +452,9 @@
       if (!released && c >= GATE) line = `${sys} · viewer loading`;
       if (c > 7.5) line = "orbit insertion";
       const subA = seg(c, 0.3, 0.8) * (1 - seg(c, 8.0, 8.5));
-      if (subA > 0) text(ctx, line.toUpperCase(), CX, CY + 58 - 338 * up * k6, { font: `500 ${16 * Math.max(0.7, u)}px 'Exo 2', sans-serif`, colour: DATA, spacing: "0.34em", align: "center", base: "top", alpha: A(subA) });
+      if (subA > 0) text(ctx, line.toUpperCase(), nameX, CY + 58 - 338 * up * k6, { font: `500 ${16 * Math.max(0.7, u)}px 'Exo 2', sans-serif`, colour: DATA, spacing: "0.34em", align: "center", base: "top", alpha: A(subA) });
       const tagA = seg(c, 0.2, 0.6) * (1 - up);
-      if (tagA > 0) text(ctx, plot && c < 2.9 ? "PLOTTING COURSE" : "TRAJECTORY LOCKED", CX, CY - 150 * k6, { font: "500 13px 'Exo 2', sans-serif", colour: GOLD, spacing: "0.5em", align: "center", base: "top", alpha: A(tagA) });
+      if (tagA > 0) text(ctx, plot && c < 2.9 ? "PLOTTING COURSE" : "TRAJECTORY LOCKED", nameX, CY - 150 * k6, { font: "500 13px 'Exo 2', sans-serif", colour: GOLD, spacing: "0.5em", align: "center", base: "top", alpha: A(tagA) });
 
       // the log, bottom left, one beat a line
       const lf = 15 * Math.max(0.75, u), lh = lf * 1.75, lx = small ? 20 : 62, lb = H - (small ? 44 : 58);

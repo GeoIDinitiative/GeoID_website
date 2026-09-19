@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260919-78b90bb";
+  from "./gis/geo-utils.js?v=20260919-ed12082";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260919-78b90bb";
+  from "./gis/vector-render.js?v=20260919-ed12082";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260919-78b90bb";
+  from "./gis/rock-class.js?v=20260919-ed12082";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260919-78b90bb";
+  from "./gis/lithology-label.js?v=20260919-ed12082";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -95,6 +95,25 @@ function fmtProp(value) {
     // Which gazetteer categories are ticked: gis/earth-places.js owns the
     // tick boxes and installs the reader. Until it does, every category is on.
     let placeCategoryFilter = null;
+    /**
+     * THE GAZETTEER'S BATCHES, one per (tier, category). earth-places.js hands
+     * each over as its own addSurfaceLabels call, and a batch the density
+     * slider, the zoom or its category toggle rules out is DETACHED from the
+     * scene: three.js recomputes every object's world matrix each frame
+     * whether or not it is visible, because the label group spins with the
+     * globe, so ~10,000 hidden names would otherwise cost every frame.
+     */
+    const placeBatches = [];
+    /**
+     * ONE SIZE FOR EVERY LABEL, set by the Workspace's Location labels row.
+     * A multiplier on what the scale pass would otherwise draw, so the tier
+     * hierarchy, the pixel caps and the close layout all keep their shape.
+     */
+    const LABEL_SIZE_KEY = "geoid-gis:label-size";
+    let labelSizeFactor = (() => {
+      try { const v = parseFloat(localStorage.getItem(LABEL_SIZE_KEY)); return v >= 0.5 && v <= 2.5 ? v : 1; }
+      catch (_e) { return 1; }
+    })();
     function placeCategoryEnabled(category) {
       return placeCategoryFilter ? placeCategoryFilter(category) : true;
     }
@@ -274,6 +293,7 @@ function fmtProp(value) {
       { id: "place-landform", label: "Landforms", colour: "#e3b46a" },
       { id: "place-island", label: "Islands", colour: "#8fd67a" },
       { id: "place-mountain", label: "Mountains", colour: "#d9c6a0" },
+      { id: "place-volcano", label: "Volcanoes", colour: "#ff6f55" },
       { id: "place-river", label: "Rivers", colour: "#5fd0ff" },
       { id: "place-lake", label: "Lakes", colour: "#8ee6e0" },
       { id: "place-tectonic", label: "Tectonic", colour: "#ff8a5c" },
@@ -324,8 +344,11 @@ function fmtProp(value) {
       "Mid-Atlantic Ridge": [1, "place-tectonic"], "East Pacific Rise": [2, "place-tectonic"],
       "Great Rift Valley": [2, "place-tectonic"],
       "Nile River Basin": [2, "place-river"], "Mississippi River Basin": [2, "place-river"],
-      "Mauna Loa": [2], "Mauna Kea": [3], "Mount Etna": [2], "Mount Fuji": [2], "Kilauea": [2],
-      "Piton de la Fournaise": [3], "Popocatépetl": [3], "Yellowstone Caldera": [2], "Iceland": [2],
+      // The hand-written volcanoes join the Smithsonian's in one Volcanoes
+      // row (their text wins over the catalogue's where both name one place).
+      "Mauna Loa": [2, "place-volcano"], "Mauna Kea": [3, "place-volcano"], "Mount Etna": [2, "place-volcano"],
+      "Mount Fuji": [2, "place-volcano"], "Kilauea": [2, "place-volcano"], "Piton de la Fournaise": [3, "place-volcano"],
+      "Popocatépetl": [3, "place-volcano"], "Yellowstone Caldera": [2, "place-volcano"], "Iceland": [2, "place-island"],
     };
     for (const item of labelData) {
       const [lod, category] = CURATED_PLACE_RANKS[item.name]
@@ -9060,6 +9083,26 @@ function fmtProp(value) {
       }
     }
 
+    function hideLabelEntry(entry) {
+      if (entry.marker.visible) entry.marker.visible = false;
+      if (entry.hitTarget.visible) entry.hitTarget.visible = false;
+      if (entry.sprite.visible) entry.sprite.visible = false;
+      if (entry.line && entry.line.visible) entry.line.visible = false;
+    }
+
+    function syncPlaceBatches(allowedLod) {
+      for (const b of placeBatches) {
+        let keep = b.lod <= allowedLod && placeCategoryEnabled(b.category);
+        // The place whose card is open stays, whatever its tier.
+        if (!keep && activePopupFeature) keep = b.entries.some((e) => e.item?.name === activePopupFeature.name);
+        if (keep && !b.group.parent) b.home.add(b.group);
+        else if (!keep && b.group.parent) {
+          b.home.remove(b.group);
+          for (const e of b.entries) hideLabelEntry(e);
+        }
+      }
+    }
+
     function updateLabelVisibility(
       entries,
       marsGroup,
@@ -9342,7 +9385,21 @@ function fmtProp(value) {
         return best.rect;
       };
 
+      syncPlaceBatches(currentLodLevel + zoomLodBonus);
       for (const entry of entries) {
+        // A detached batch is out of the scene altogether (syncPlaceBatches).
+        if (entry.batchGroup && !entry.batchGroup.parent) continue;
+        /*
+         * THE CHEAP GATES FIRST. Category and density need no geometry, and a
+         * name they rule out used to pay for its world position, its normal
+         * and a camera direction before being hidden -- per name, per frame.
+         */
+        if (entry.item?.lod != null && typeof entry.category === "string" && entry.category.startsWith("place-")) {
+          const allowed = placeCategoryEnabled(entry.category)
+            && (entry.item.lod <= currentLodLevel + zoomLodBonus
+              || Boolean(activePopupFeature && entry.item?.name === activePopupFeature.name));
+          if (!allowed) { hideLabelEntry(entry); continue; }
+        }
         const isUserPinEntry = entry.item?.type === "User pin" || entry.item?.type === "Imported pin";
         entry.marker.getWorldPosition(surfaceWorldPosition);
         const normal = surfaceWorldPosition.clone().sub(groupWorldPosition).normalize();
@@ -9430,7 +9487,7 @@ function fmtProp(value) {
             labelScale = standardLabelPx / Math.max(baseScale.y * pixelsPerWorldUnit, 1e-6);
             scaleFactor = standardMarkerPx / Math.max((entry.markerRadiusWorld || 1) * (entry.markerBaseScale?.x || 1) * pixelsPerWorldUnit, 1e-6);
           }
-          entry.sprite.scale.set(baseScale.x * labelScale, baseScale.y * labelScale, 1);
+          entry.sprite.scale.set(baseScale.x * labelScale * labelSizeFactor, baseScale.y * labelScale * labelSizeFactor, 1);
           if (entry.markerBaseScale) {
             let markerScale = clamp(scaleFactor, useMosaicCloseLayout ? 0.003 : 0.12, useMosaicCloseLayout ? 0.3 : 1.4);
             if (useMosaicCloseLayout && isUserPinEntry) {
@@ -14597,6 +14654,9 @@ uniform float uViewportWidth;`,
         new Promise((resolve) => window.setTimeout(resolve, 1500)),
       ]);
       const labelLayer = buildLabelLayer(3.2, elevationSampler, labelElevationCache, getTerrainRelief);
+      /** The label hit objects on screen now: the pickers ask only these, not every
+       *  hidden name's hit sphere, marker and sprite on every pointer move. */
+      const liveLabelTargets = () => labelLayer.interactiveObjects.filter((o) => o.visible && o.parent && o.parent.parent);
       labelLayer.group.visible = true;
       /**
        * GROUP order, because groupOrder beats renderOrder.
@@ -16051,7 +16111,7 @@ uniform float uViewportWidth;`,
 	          ? getMicroScaleUserPinInteractiveObjects()
 	          : userPinLayer.interactiveObjects;
 	        const intersections = [
-	          ...raycaster.intersectObjects(labelLayer.interactiveObjects, false),
+	          ...raycaster.intersectObjects(liveLabelTargets(), false),
 	          ...raycaster.intersectObjects(userPinInteractiveObjects, false),
 	          ...raycaster.intersectObjects(baseSiteLayer.interactiveObjects, false),
 	          ...raycaster.intersectObjects(moonLayer.interactiveObjects, false),
@@ -21753,7 +21813,7 @@ uniform float uViewportWidth;`,
             ...(coreLabelsToggle && coreLabelsToggle.checked
               ? raycaster.intersectObjects(cutawayResult.interactiveObjects, false)
               : []),
-            ...raycaster.intersectObjects(labelLayer.interactiveObjects, false),
+            ...raycaster.intersectObjects(liveLabelTargets(), false),
             ...raycaster.intersectObjects(baseSiteLayer.interactiveObjects, false),
           ];
           const hit = hits.find((e) => e.object.visible && e.object.userData.feature);
@@ -21838,7 +21898,7 @@ uniform float uViewportWidth;`,
           ? getMicroScaleUserPinInteractiveObjects()
           : userPinLayer.interactiveObjects;
         const priorityIntersections = [
-          ...raycaster.intersectObjects(labelLayer.interactiveObjects, false),
+          ...raycaster.intersectObjects(liveLabelTargets(), false),
           ...raycaster.intersectObjects(userPinInteractiveObjects, false),
           ...raycaster.intersectObjects(baseSiteLayer.interactiveObjects, false),
           ...raycaster.intersectObjects(moonLayer.interactiveObjects, false),
@@ -21943,7 +22003,7 @@ uniform float uViewportWidth;`,
             ...(coreLabelsToggle && coreLabelsToggle.checked
               ? raycaster.intersectObjects(cutawayResult.interactiveObjects, false)
               : []),
-            ...raycaster.intersectObjects(labelLayer.interactiveObjects, false),
+            ...raycaster.intersectObjects(liveLabelTargets(), false),
             ...raycaster.intersectObjects(userPinLayer.interactiveObjects, false),
             ...raycaster.intersectObjects(baseSiteLayer.interactiveObjects, false),
           ];
@@ -21966,7 +22026,7 @@ uniform float uViewportWidth;`,
           ? getMicroScaleUserPinInteractiveObjects()
           : userPinLayer.interactiveObjects;
         const priorityIntersections = [
-          ...raycaster.intersectObjects(labelLayer.interactiveObjects, false),
+          ...raycaster.intersectObjects(liveLabelTargets(), false),
           ...raycaster.intersectObjects(userPinInteractiveObjects, false),
           ...raycaster.intersectObjects(baseSiteLayer.interactiveObjects, false),
           ...raycaster.intersectObjects(moonLayer.interactiveObjects, false),
@@ -22133,7 +22193,7 @@ uniform float uViewportWidth;`,
         pointer.y = -(((clientY - rect.top) / rect.height) * 2 - 1);
         raycaster.setFromCamera(pointer, camera);
         const intersections = [
-          ...raycaster.intersectObjects(labelLayer.interactiveObjects, false),
+          ...raycaster.intersectObjects(liveLabelTargets(), false),
           ...raycaster.intersectObjects(baseSiteLayer.interactiveObjects, false),
           ...raycaster.intersectObjects(geologyStructureLayer.interactiveObjects, false),
           ...raycaster.intersectObjects(geologyContactLayer.interactiveObjects, false),
@@ -22307,6 +22367,20 @@ uniform float uViewportWidth;`,
         getLabelDensity() {
           return currentLodLevel;
         },
+        /** Every label's size, one factor (Workspace ▸ Location labels). */
+        setLabelSizeScale(k) {
+          const v = Math.min(2.5, Math.max(0.5, Number(k) || 1));
+          if (v !== labelSizeFactor && labelLayer?.entries) {
+            // A global view keeps the names it showed last frame to stop
+            // them flickering; after a resize that hold would keep chips
+            // that now overlap, so the declutter starts again.
+            for (const entry of labelLayer.entries) entry._globalVisible = false;
+          }
+          labelSizeFactor = v;
+          try { localStorage.setItem(LABEL_SIZE_KEY, String(v)); } catch (_e) { /* per-browser nicety */ }
+          return v;
+        },
+        getLabelSizeScale() { return labelSizeFactor; },
         addSurfaceLabels(items) {
           if (!Array.isArray(items) || !items.length) return null;
           const extra = buildLabelLayer(3.2, elevationSampler, labelElevationCache, getTerrainRelief, items);
@@ -22326,9 +22400,20 @@ uniform float uViewportWidth;`,
           labelLayer.group.add(extra.group);
           labelLayer.entries.push(...extra.entries);
           labelLayer.interactiveObjects.push(...extra.interactiveObjects);
+          // One tier and one category of the gazetteer: a batch that can be
+          // detached as a whole while it is ruled out (syncPlaceBatches).
+          const first = items[0];
+          const batch = first.place && first.lod != null && items.every((it) => it.place && it.lod === first.lod && it.category === first.category)
+            ? { group: extra.group, home: labelLayer.group, lod: first.lod, category: first.category, entries: extra.entries }
+            : null;
+          if (batch) {
+            placeBatches.push(batch);
+            for (const e of extra.entries) e.batchGroup = extra.group;
+          }
           return {
             count: extra.entries.length,
             remove() {
+              if (batch) placeBatches.splice(placeBatches.indexOf(batch), 1);
               labelLayer.group.remove(extra.group);
               const gone = new Set(extra.entries);
               labelLayer.entries = labelLayer.entries.filter((e) => !gone.has(e));

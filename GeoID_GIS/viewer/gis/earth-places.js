@@ -1,6 +1,7 @@
 /**
- * Earth's gazetteer on the globe: ~2,900 named places — seas, landforms,
- * islands, mountains, rivers, lakes, faults and plates, cities — ranked 1–5 by
+ * Earth's gazetteer on the globe: many thousands of named places — seas,
+ * landforms, islands, mountains, volcanoes, rivers, lakes, faults and plates,
+ * cities — ranked 1–5 by
  * significance and drawn through the viewer's OWN label engine, so every name
  * wears the same chip, declutters with the curated ones and opens the same
  * card.
@@ -13,8 +14,8 @@
  *
  * Earth only: the page's own script tag loads it, the planets never do.
  */
-import { dataUrl } from "./data-base.js?v=20260919-78b90bb";
-import { holdLaunch } from "./launch-ready.js?v=20260919-78b90bb";
+import { dataUrl } from "./data-base.js?v=20260919-ed12082";
+import { holdLaunch } from "./launch-ready.js?v=20260919-ed12082";
 
 const PATH = "/data/global/earth-places.json";
 const ON_KEY = "geoid-gis:earth-places-on";   // what was switched ON — see note
@@ -191,14 +192,24 @@ async function load(viewer) {
   drawRows(viewer);
   wireMaster();
   viewer.setPlaceCategoryFilter((category) => onSet.has(category));
-  // Most significant first, in batches across frames: 2,900 entries built in
-  // one task is a visible stall on the page's opening seconds.
-  places.sort((a, b) => a.lod - b.lod);
+  // ONE TIER AND ONE CATEGORY PER BATCH, most significant first, built across
+  // frames. The viewer detaches a whole batch while the density slider, the
+  // zoom or its category toggle rules it out (syncPlaceBatches), which is what
+  // lets the gazetteer run to thousands of names without costing a frame.
+  const byBatch = new Map();
+  for (const row of places) {
+    const k = `${row.lod}|${row.category}`;
+    if (!byBatch.has(k)) byBatch.set(k, []);
+    byBatch.get(k).push(row);
+  }
+  const keys = [...byBatch.keys()].sort((a, b) => Number(a.split("|")[0]) - Number(b.split("|")[0]));
   const handles = [];
-  for (let i = 0; i < places.length; i += BATCH) {
-    const items = places.slice(i, i + BATCH).map((row) => toItem(row, rank));
-    handles.push(viewer.addSurfaceLabels(items));
-    await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+  for (const k of keys) {
+    const rows = byBatch.get(k);
+    for (let i = 0; i < rows.length; i += BATCH) {
+      handles.push(viewer.addSurfaceLabels(rows.slice(i, i + BATCH).map((row) => toItem(row, rank))));
+      await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+    }
   }
   return { count: places.length, baked: doc.baked, handles };
 }
