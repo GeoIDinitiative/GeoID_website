@@ -1,11 +1,11 @@
 import * as THREE from "../vendor/three.module.js";
 import { latLonToVector3, drapedRadius, looksLikeGeographic, sphericalPolygonAreaKm2 }
-  from "./geo-utils.js?v=20260919-84293b8";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260919-84293b8";
-import { pointInPolygon } from "./geometry.js?v=20260919-84293b8";
-import { paintOpacity } from "./layer-opacity.js?v=20260919-84293b8";
-import { applyCutaway } from "./cutaway.js?v=20260919-84293b8";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260919-84293b8";
+  from "./geo-utils.js?v=20260919-d4689ee";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260919-d4689ee";
+import { pointInPolygon } from "./geometry.js?v=20260919-d4689ee";
+import { paintOpacity } from "./layer-opacity.js?v=20260919-d4689ee";
+import { applyCutaway } from "./cutaway.js?v=20260919-d4689ee";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260919-d4689ee";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -590,6 +590,14 @@ function ribbonFromSegments(positions, colours) {
  */
 export function followRelief(material, drape, {
   lifted = false, cullFarSide = false, hole = null, ribbon = false,
+  /**
+   * How many seals wide this ribbon is drawn. The seal is sized to cover a
+   * seam between neighbouring polygons -- a pixel and a half -- which is right
+   * for geology and invisible for an outline that IS the information: a drawn
+   * study area at 1.5 px in dark blue could not be found on Mercury's grey or
+   * Pluto's brown at all. A per-material uniform, so the program is shared.
+   */
+  ribbonScale = 1,
 } = {}) {
   // Following the relief is what installs the thing that drives it.
   ensureReliefSync();
@@ -603,7 +611,10 @@ export function followRelief(material, drape, {
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uRelief = RELIEF_UNIFORM;
     shader.uniforms.uDrape = drapeUniform;
-    if (ribbon) shader.uniforms.uRibbon = SEAL_RIBBON_UNIFORM;
+    if (ribbon) {
+      shader.uniforms.uRibbon = SEAL_RIBBON_UNIFORM;
+      shader.uniforms.uRibbonScale = { value: Number(ribbonScale) > 0 ? Number(ribbonScale) : 1 };
+    }
     if (hole) {
       shader.uniforms.uHoleOn = hole.on;
       shader.uniforms.uHoleY = hole.y;
@@ -614,7 +625,7 @@ export function followRelief(material, drape, {
 attribute float aDisp;
 uniform float uRelief;
 uniform float uDrape;
-${ribbon ? "attribute vec3 aPerp;\nattribute float aSide;\nuniform float uRibbon;" : ""}
+${ribbon ? "attribute vec3 aPerp;\nattribute float aSide;\nuniform float uRibbon;\nuniform float uRibbonScale;" : ""}
 ${cullFarSide ? "varying float vFacing;" : ""}
 ${hole ? "varying vec3 vDir;" : ""}
 ${shader.vertexShader}`.replace(
@@ -622,7 +633,7 @@ ${shader.vertexShader}`.replace(
       `vec3 transformed = aDir * (${base.toFixed(4)} + aDisp * uRelief + uDrape);`
       // The ribbon is laid in the TANGENT plane, so widening it never lifts a
       // vertex off the surface however wide the view makes it.
-      + (ribbon ? "\n  transformed += aPerp * (aSide * uRibbon);" : "")
+      + (ribbon ? "\n  transformed += aPerp * (aSide * uRibbon * uRibbonScale);" : "")
       + (hole ? "\n  vDir = normalize(aDir);" : "")
       + (cullFarSide
         ? `
@@ -928,6 +939,12 @@ export function renderFeatureCollection(fc, {
    * them there is nothing for the seal's coplanar trick to seal against.
    */
   outlineOnly = false,
+  /**
+   * How many seals wide an OUTLINE is stroked. 1 is the seam-covering hairline
+   * a filled map wants; a drawn study area passes more, because its edge is the
+   * whole of what it shows.
+   */
+  strokeScale = 1,
   /**
    * CONTACTS: whether a polygon's boundary is DRAWN, and in what.
    *
@@ -1387,7 +1404,10 @@ export function renderFeatureCollection(fc, {
     const sealMaterial = followRelief(new THREE.MeshBasicMaterial({
       vertexColors: true, transparent: true, opacity: sealOpacity,
       depthTest: false, depthWrite: false, side: THREE.DoubleSide,
-    }), FILL_DRAPE, { cullFarSide: true, hole, ribbon: true });
+    }), FILL_DRAPE, { cullFarSide: true, hole, ribbon: true,
+      // Only an outline-only layer widens: a filled map's seal must stay the
+      // hairline that covers seams, or every contact would thicken with it.
+      ribbonScale: outlineOnly ? strokeScale : 1 });
     // The stroke's OWN weight. `setOpacity` multiplies by this instead of
     // overwriting it, or the layer slider would promote a 25% contact to 40%
     // on its way to fading the sheet.
@@ -1872,6 +1892,9 @@ export function buildVectorLayerResult(fc, {
   name, fields = [], drape = 0.006, outlineOnly = false, pointStyle = "auto",
   pointSymbol = "disc",
   rankOf = null,
+  // How wide an outline is stroked, in seals. Held on the layer for the reason
+  // `fillMode` is: every repaint rebuilds the materials.
+  strokeScale = 1,
   /**
    * How this layer's contacts are stroked — the same object the tiled geology
    * layers take. Held on the LAYER rather than passed per paint, for the
@@ -1963,7 +1986,7 @@ export function buildVectorLayerResult(fc, {
   const firstPaint = outlineOnly && symbology ? (f) => symbology.colourOf(f) : null;
   const { object3D, truncated } = renderFeatureCollection(fc, {
     name, drape, pointStyle, pointSymbol, rankOf, contacts: contactStyle,
-    outlineOnly, colourFor: firstPaint,
+    outlineOnly, colourFor: firstPaint, strokeScale,
   });
   let lastColourFor = null;
   /**
@@ -1998,6 +2021,7 @@ export function buildVectorLayerResult(fc, {
       // survey precedence, or the coarse boundaries come back on the next
       // symbology change.
       name, drape, colourFor, pointStyle, pointSymbol, rankOf, outlineOnly: fillMode === "outline",
+      strokeScale,
       // Rides through every repaint for `rankOf`'s reason: a recolour must not
       // quietly return the contacts to invisible.
       contacts: contactStyle,

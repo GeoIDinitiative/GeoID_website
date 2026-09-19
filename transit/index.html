@@ -132,8 +132,11 @@
       position: fixed;
       top: 1.2rem;
       right: 1.4rem;
+      /* The GeoID wordmark (715 x 230), not the old square Planet Explorer
+         badge: WIDTH decides and the height follows, or a 3.1:1 image in a
+         square slot draws a third of its box and floats in the middle. */
       width: 13.5rem;
-      height: 13.5rem;
+      height: auto;
       object-fit: contain;
       filter: drop-shadow(0 4px 24px rgba(0,0,0,0.55));
       z-index: 100;
@@ -480,7 +483,7 @@
       .card { border-radius: 1rem; }
 
       /* Logo: slightly smaller on mobile, stays fixed top-right */
-      .logo-img { width: 7.5rem; height: 7.5rem; top: 0.6rem; right: 0.75rem; }
+      .logo-img { width: 7.5rem; height: auto; top: 0.6rem; right: 0.75rem; }
 
       /* Hero: stack planet above text */
       .hero {
@@ -513,7 +516,7 @@
     }
 
     @media (max-width: 380px) {
-      .logo-img { width: 6.75rem; height: 6.75rem; }
+      .logo-img { width: 6.75rem; height: auto; }
       .stats { grid-template-columns: 1fr; }
       .stat { border-right: none; border-top: 1px solid rgba(255,255,255,0.05); }
       .stat:first-child { border-top: none; }
@@ -529,7 +532,7 @@
         max-width: min(560px, calc(100vw - 0.8rem)) !important;
         margin: 0 auto;
       }
-      .logo-img { width: 5.5rem !important; height: 5.5rem !important; top: 0.4rem; right: 0.5rem; }
+      .logo-img { width: 5.5rem !important; height: auto !important; top: 0.4rem; right: 0.5rem; }
       .hero {
         gap: 0.35rem;
         padding: 0.6rem 0.8rem 0.6rem !important;
@@ -633,7 +636,7 @@
 
   <main class="shell" id="transit-shell">
 
-  <img class="logo-img" id="logo-img" src="/planet_explorer/mars/viewer/assets/logo.png" alt="GeoID logo">
+  <img class="logo-img" id="logo-img" src="/assets/GeoID_logo_icon.png" alt="GeoID">
     <article class="card">
 
       <div class="hero">
@@ -788,12 +791,9 @@
     document.querySelector(".card").style.setProperty(
       "--hero-shot", `url("${dest.shot}")`);
 
-    // Logo path: derive from destination if a planet viewer exists, else Mars fallback
-    const logoViewers = { mars:"mars", saturn:"saturn", jupiter:"jupiter", mercury:"mercury", venus:"venus", uranus:"uranus", neptune:"neptune", pluto:"pluto" };
-    const logoKey = params.get("destination");
-    if (logoViewers[logoKey]) {
-      document.getElementById("logo-img").src = `/planet_explorer/${logoViewers[logoKey]}/viewer/assets/logo.png`;
-    }
+    // The logo is GeoID's own wordmark on every destination. It used to be
+    // swapped for each world's Planet Explorer badge here, which is the old
+    // product name on a page that is now GeoHUB's.
 
     // ── Track animations + countdown ─────────────────────────────────────────
     // Both fill (scaleX) and ship (translateX) are compositor-threaded transforms
@@ -1004,7 +1004,31 @@
       setTimeout(() => {
         stopAnimation();
         viewerFrame.style.display = "block";
+        // The flag as well as the message. A message is heard only by a
+        // listener that already exists, and a viewer still loading its
+        // textures when the countdown ends has not registered one yet — it
+        // then waited for a reveal that had already been sent, and the globe
+        // stayed black for good (measured on Neptune: 0 frames, the card
+        // handed over by the 9 s cap). The viewers read this flag first.
+        window._geoidReveal = true;
         try { viewerFrame.contentWindow.postMessage("geoid-reveal", "*"); } catch (_) {}
+        // A viewer that initialised while this frame was display:none sized
+        // its renderer from a zero viewport, and showing the frame does not
+        // reliably announce a resize to it — measured, Neptune drawing into a
+        // 0 x 0 canvas inside a 1600 x 785 window. Tell it once the frame
+        // has a layout.
+        const nudgeResize = () => requestAnimationFrame(() => {
+          try { viewerFrame.contentWindow.dispatchEvent(new Event("resize")); } catch (_) {}
+        });
+        nudgeResize();
+        // And again when the viewer says its loop has started: one still
+        // initialising at the reveal has no resize listener yet, so the first
+        // nudge reaches nobody (measured on Uranus: a 0 x 0 canvas after it).
+        window.addEventListener("message", function onReady(event) {
+          if (event.data !== "geoid-ready" || event.source !== viewerFrame.contentWindow) return;
+          window.removeEventListener("message", onReady);
+          nudgeResize();
+        });
 
         let crossed = false;
         function doCrossfade() {

@@ -61,7 +61,11 @@
       const btn = document.getElementById("music-btn");
       audio.addEventListener("play",  () => { btn.textContent = "⏸"; btn.title = "Pause music"; btn.classList.remove("is-paused"); });
       audio.addEventListener("pause", () => { btn.textContent = "▶"; btn.title = "Play music";  btn.classList.add("is-paused"); });
-      audio.play().catch(() => {
+      // TEMPORARY (2026-09-19): autoplay switched OFF while the site is being worked on.
+      // Set GEOID_MUSIC_AUTOPLAY back to true in all ten music.js files BEFORE PUSHING.
+      // The button still plays on demand; only the start-on-first-gesture is held back.
+      const GEOID_MUSIC_AUTOPLAY = false;
+      if (GEOID_MUSIC_AUTOPLAY) audio.play().catch(() => {
         // Browser blocked autoplay (no prior interaction). Retry on the first user gesture —
         // which happens almost immediately as the user starts exploring the 3D scene.
         const unlock = () => {

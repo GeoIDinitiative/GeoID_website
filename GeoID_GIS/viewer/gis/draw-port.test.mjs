@@ -99,19 +99,25 @@ for (const [folder, viewer, group, radiusConst] of BODIES) {
     text.includes('new Event("geoid-study-area-edited")'), true);
 }
 
-// The gas giants must NOT have it: no surface to draw on, and a HUD there
-// would be four inert buttons. This is the check that keeps a future
-// "port it everywhere" from quietly shipping them.
+// The gas giants carry it too, now. They were left out on the grounds that a
+// giant has no surface to draw on — true of rock and wrong of the question:
+// a study area over a cloud band or on one of its moons is a real request,
+// and leaving the draw tools out made these four the worlds where "the draw
+// tool" silently did something different. The 1-bar deck is the surface
+// (the radius every viewer draws), and a moon point is kept in the moon
+// mesh's own frame by the measurement code port-gas-measure.py lifts from
+// Saturn. What they must NOT take is the rocky worlds' rewrites, which name
+// locals (surfaceAnchor and the rest) a giant's viewer does not have.
 for (const folder of ["jupiter", "saturn", "uranus", "neptune"]) {
-  const dir = join(ROOT, "planet_explorer", folder, "viewer");
-  const names = ["saturn-viewer.js", `${folder}-viewer.js`];
-  let carries = false;
-  for (const name of names) {
-    try {
-      if (readFileSync(join(dir, name), "utf-8").includes(OPEN_MARK)) carries = true;
-    } catch { /* that lineage has no such file */ }
-  }
-  check(`${folder} is left alone — a gas giant has no surface to draw on`, carries, false);
+  const text = readFileSync(join(ROOT, "planet_explorer", folder, "viewer", `${folder}-viewer.js`), "utf-8");
+  check(`${folder} carries the generated drawing block`, text.includes(OPEN_MARK), true);
+  check(`${folder} carries the giant's own study-area prelude`,
+    text.includes("// >>> GEOID-GAS-STUDY-AREA") && text.includes("// <<< GEOID-GAS-STUDY-AREA"), true);
+  check(`${folder} exposes setStudyAreaPolygon and clearStudyArea`,
+    text.includes("setStudyAreaPolygon") && text.includes("clearStudyArea"), true);
+  check(`${folder} announces an edited study area`,
+    text.includes('"geoid-study-area-edited"'), true);
+  check(`${folder} takes none of the rocky worlds' rewrites`, text.includes("surfaceAnchor"), false);
 }
 
 // The porter's body list is the authority; this file's copy must match it,

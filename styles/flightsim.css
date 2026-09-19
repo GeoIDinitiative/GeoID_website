@@ -56,6 +56,24 @@ body.fs-preflight .gis-planet-dock { display: none !important; }
    the bottom are the instrumentation that matters here. */
 body.fs-flying #map-legend,
 body.fs-preflight #map-legend { display: none !important; }
+/* THE WORKSPACE BOX, the Draw bar, the zoom pill and any open workbench go
+   too. The Workspace is fixed to the bottom-left corner, which is exactly
+   where the throttle and boost bars are: reopening the control centre in the
+   air put the layer list straight across them (measured, 16..400 x 685..769
+   over a throttle at 17..225 x 780..850). The panel keeps the layer TABS, which
+   is what "layers stay controllable in the air" means; the box is the working
+   set of an analyst on the ground. The Draw bar and a workbench belong to the
+   rail this sheet already stands down, so one left open before launch would
+   otherwise float over the heading tape with no way to reach its own controls;
+   and the zoom pill drives an orbit camera the pilot is not flying. */
+body.fs-flying #layer-dock,
+body.fs-preflight #layer-dock,
+body.fs-flying #gis-draw-hud,
+body.fs-preflight #gis-draw-hud,
+body.fs-flying #geoid-zoom-step,
+body.fs-preflight #geoid-zoom-step,
+body.fs-flying .gis-side-panel,
+body.fs-preflight .gis-side-panel { display: none !important; }
 /* MUSIC GOES UP INTO THE CORNER — again only when the viewer is framed. Its
    3.6rem top is clearance for Return Home, which sits at y=20 directly above
    it; standalone that link is still there in flight and moving the button up

@@ -22702,3 +22702,86 @@ window**, so a stage that waits (a GEE render, the fault load) is split into
 "start it" and "poll it", with anything carried between calls stashed on the
 iframe's `window`. And the page reopens in whatever mode it was left in —
 set GIS mode before driving the sidebar.
+
+## The planets draw, measure and fly like Earth — and what that took
+
+**Supersedes** the notes above that say a gas giant "gets no HUD", "is left
+alone", or that "drawing is the only per-body gate". All ten worlds now draw.
+
+**A drawn area was invisible on half the planets.** The captured outline went
+through the SEAL at 1.5 px in the default dark navy, which on Mercury's grey or
+Pluto's brown is not there. `drawn-layers.js` declares its colour (cyan
+`#5fe1ff`) and passes `strokeScale: 3`; `followRelief`'s `ribbonScale` widens
+ONLY an outline-only layer, so a filled map's seam cover stays a hairline.
+
+**Imported layers on Pluto sat on the far side** (facing −0.995). `syncSpin`
+assumed the globe is `π + spin`; Pluto's globe carries no half-turn. The seam
+answers the frame directly now — `getSpinDeltaRadians: () =>
+measureGroup.rotation.y` on all nine planets (`port-viewer-seam.py`), and
+`import-manager` prefers it to `globeY − π`.
+
+**The gas giants draw.** `port-draw-tools.py` writes the Earth block into them
+too, behind a GAS prelude (`// >>> GEOID-GAS-STUDY-AREA`) that supplies what
+the block reads and a giant's viewer lacks: `activateStudyArea`, a vertex
+builder that rebuilds a moon point in the MOON MESH's frame, the seam's
+`setStudyAreaPolygon`/`clearStudyArea`/`getExtractionGeometry`. The rocky
+REWRITES are never applied to a giant (they name `surfaceAnchor` and other
+locals a giant does not have) — `draw-port.test.mjs` pins that, and pins that
+all four carry the block. `port-gas-measure.py` first lifts Saturn's
+measurement functions (the moon tidal-locking fix) into Jupiter and Neptune,
+which forked before it; they are lifted by BRACE-MATCHED spans — an indent rule
+cut Neptune's `updateMeasureVisualization` short, which `node --check` on a
+`.js` passes and the same file as `.mjs` refuses.
+
+### Flight
+
+- **The Workspace, draw bar, zoom pill and workbenches hide in flight**
+  (`styles/flightsim.css`, on `body.fs-flying`/`.fs-preflight`), and an armed
+  draw tool stands down on `flightsim:engaged` (draw-hud.js).
+- **Below 900 km a world with one global texture gets a DETAIL PATCH**: one
+  image under the ship from USGS Astrogeology's planetary WMS (CORS-open,
+  simple cylindrical), re-fetched as the ship moves (flightsim.js
+  `updateDetailPatch`). Venus's texture is 9.3 km a pixel, so below ~50 km the
+  view was a handful of texels and nothing moved — reported as "we never
+  descend". **The first cut drew a fully transparent image**: the edge feather
+  used `destination-in`, an UNBOUNDED composite that clears everything outside
+  the rect being drawn, so four edge strips left zero opaque pixels and the
+  coarse globe showed straight through. `destination-out` is bounded.
+  Measure a canvas texture's opaque count before blaming the scene.
+- **The sim speaks the VIEWER's longitude.** `worldToLatLon` read the scene
+  angle, which equals the viewer's longitude on every world but Mercury
+  (west-positive, scene = 180 − W). On Mercury the HUD, the ground under the
+  ship, the launch site and the patch were all mirrored — the patch landed
+  4,300 km away. Mercury's hooks give `sceneLonToViewerLon` and
+  `lonWestPositive`; the HUD reads °W there and the gazetteer is fed east.
+- **The giants fly.** Each carries a `__flightSimHooks` block (no elevation, no
+  relief: the floor is the 1-bar deck at the drawn radius) and **its render
+  loop calls `__flightSim.update(camera)`** — the call the rocky viewers
+  always had; without it the sim engages and never moves. Launch altitudes,
+  the ceiling and the warp roof scale with the planet
+  (`GAS_LAUNCH_FACTORS`, default 0.7 R: Jupiter 49,000 km, Neptune 17,000);
+  the atmosphere is `giantAtmosphere` (1-bar temperature, dry adiabat to the
+  tropopause, scale-height pressure); the gazetteer names latitude bands only,
+  because a storm drifts against any fixed longitude system.
+
+### Transit, reveal and a 0 x 0 canvas
+
+The giants hold their render loop until transit sends `geoid-reveal`, which it
+posts ONCE — a viewer still loading then missed it and stayed black for good.
+The viewers already read `window.parent._geoidReveal` first; transit never set
+it. It does now. And a viewer that initialised while its frame was
+`display:none` sized its renderer from a zero viewport and was never told
+otherwise (Neptune drew into 0 x 0 inside 1600 x 785): transit dispatches a
+resize into the frame at the reveal AND again on the viewer's `geoid-ready`,
+because a viewer still initialising at the reveal has no listener yet.
+
+The transit logo is the GeoID wordmark on every destination (it was each
+world's Planet Explorer badge), sized by width with the height following.
+
+### The Moon viewer does not grey itself
+
+The moon-mode dim rule excluded `#moon-viewer-section` — which sits INSIDE the
+Explorer tab, itself a `.control-section`, and a parent's opacity cannot be
+undone by its child. The rule now also excludes any section that
+`:has(#moon-viewer-section)` or `:has(#locations-section)`, in all seven
+planet stylesheets that carry it.

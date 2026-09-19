@@ -3209,7 +3209,7 @@
       opacity: 0.7;
     }
 
-    [data-mode="moon"] #ui .control-section:not(#moon-viewer-section):not(#locations-section) {
+    [data-mode="moon"] #ui .control-section:not(#moon-viewer-section):not(#locations-section):not(:has(#moon-viewer-section)):not(:has(#locations-section)) {
       opacity: 0.38;
     }
 

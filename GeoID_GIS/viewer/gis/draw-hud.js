@@ -786,3 +786,23 @@ if (typeof document !== "undefined") {
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
 }
+
+/**
+ * Flight puts the drawing tools away rather than only hiding their bar.
+ *
+ * flightsim.css hides the bar, but an armed tool is still armed underneath it:
+ * a click on the canvas mid-flight would place a polygon vertex, and the
+ * shape would be waiting on the globe when the pilot landed. Cancel is the
+ * bar's own ✕ — it clears the overlay and presses the rail button back out.
+ * The event is dispatched on `window` by the flight sim at preflight and at
+ * launch, so both are covered.
+ */
+if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+  window.addEventListener("flightsim:engaged", () => {
+    if (areaArmed() || lineArmed()) cancel();
+    // Cancel is the shapes' and the line's; the other two pointer tools are
+    // put away the way their own rail buttons put them away.
+    if (profileArmed()) byId("tool-rail-profile")?.click();
+    if (pointsArmed()) byId("tool-rail-points-btn")?.click();
+  });
+}

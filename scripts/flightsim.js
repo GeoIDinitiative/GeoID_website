@@ -623,7 +623,25 @@
     const lat = Math.asin(Math.max(-1, Math.min(1, q.y / r))) * 180 / Math.PI;
     const sceneLon = Math.atan2(q.z, -q.x) * 180 / Math.PI;
     const lonE = ((sceneLon % 360) + 360) % 360;
-    return { lat, lon: lonE };
+    // The VIEWER's own longitude, because that is what latLonToWorld, the
+    // elevation sampler and the launch picker all take. On every world but
+    // Mercury that is the scene angle itself; Mercury's CRS is west-positive
+    // (scene = 180 − W), and reading the scene angle there mirrored the HUD
+    // position, the ground under the ship and the detail patch across the
+    // planet.
+    const lon = hooks.sceneLonToViewerLon ? hooks.sceneLonToViewerLon(lonE) : lonE;
+    return { lat, lon };
+  }
+
+  // A viewer longitude as east-positive 0–360, for anything keyed that way
+  // (the region gazetteer), and as the readout the viewer itself shows.
+  function eastLonOf(lon) {
+    const e = hooks.lonWestPositive ? 360 - lon : lon;
+    return ((e % 360) + 360) % 360;
+  }
+  function lonLabel(lon, digits) {
+    const v = ((lon % 360) + 360) % 360;
+    return v.toFixed(digits) + (hooks.lonWestPositive ? "°W" : "°E");
   }
 
   function latLonToWorld(lat, lonE, radius) {
@@ -673,6 +691,217 @@
         + Math.max(0, relief) * hooks.ctxDetailStreamer.surfaceLiftReliefFactor;
     }
     return GLOBE_R + norm * relief + lift;
+  }
+
+  // ---- low-altitude surface detail, for worlds with no streamed tiles ----
+  //
+  // Mars streams CTX at a few metres a pixel as you descend. Venus, Mercury,
+  // the Moon and Pluto each ship ONE global texture — Venus's is 4,096 px
+  // across, 9.3 km a pixel — so below ~50 km the whole view is a handful of
+  // texels and NOTHING on screen moves as the ship flies. Reported on Venus as
+  // "we never actually descend — we can only travel along an orbiting line":
+  // the sim was descending at 850 m/s the whole time (measured) and the ground
+  // gave no sign of it.
+  //
+  // So the sim drapes ONE image of the ground under the ship and fetches a new
+  // one as it moves. The source is USGS Astrogeology's planetary WMS, which is
+  // CORS-open and answers in simple cylindrical — linear in latitude, so the
+  // image lies on a lat/lon grid with no reprojection. It is built in the
+  // viewer's OWN longitude convention (hooks.latLonToVector3's), converted to
+  // east-positive only for the request: Mercury's viewer is west-positive.
+  //
+  // It sits on surfaceRadiusAt, the sim's exact ground. The globe is 128
+  // segments round, so its drawn surface is a chord that sags UNDER that
+  // everywhere between its vertices — the patch therefore lies over the globe
+  // without fighting it, and the ship's own floor is the same number.
+  const DETAIL_MAX_ALT_KM = 900;      // above this the global texture is the view
+  const DETAIL_GRID = 72;             // vertices per side of the draped patch
+  const DETAIL_PX = 1024;             // requested image, per side
+  const detailPatch = { mesh: null, box: null, halfKm: 0, loading: false, gen: 0, failed: 0 };
+
+  function detailEastOf(lonViewer, d) {
+    const e = d.westPositive ? 360 - lonViewer : lonViewer;
+    return ((e + 540) % 360) - 180;                 // signed, -180..180
+  }
+
+  function disposeDetailPatch() {
+    detailPatch.gen += 1;                           // strands any fetch in flight
+    detailPatch.loading = false;
+    detailPatch.box = null;
+    if (detailPatch.mesh) {
+      detailPatch.mesh.parent?.remove(detailPatch.mesh);
+      detailPatch.mesh.geometry.dispose();
+      detailPatch.mesh.material.map?.dispose();
+      detailPatch.mesh.material.dispose();
+      detailPatch.mesh = null;
+    }
+  }
+
+  // One WMS GetMap over [west, east] x [south, north], east-positive. A box
+  // across the antimeridian is fetched as two and composed side by side.
+  function fetchDetailImage(d, south, north, westE, eastE) {
+    const url = (w, e, px) => "https://planetarymaps.usgs.gov/cgi-bin/mapserv?map=/maps/"
+      + d.map + ".map&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=" + d.layer
+      + "&STYLES=&SRS=EPSG:4326&FORMAT=image/jpeg&WIDTH=" + px + "&HEIGHT=" + DETAIL_PX
+      + "&BBOX=" + w.toFixed(5) + "," + south.toFixed(5) + "," + e.toFixed(5) + "," + north.toFixed(5);
+    const load = (src) => new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";               // a canvas it taints cannot be a texture
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("detail image failed"));
+      img.src = src;
+    });
+    const span = eastE - westE;
+    const parts = [];
+    if (westE >= -180 && eastE <= 180) parts.push([westE, eastE]);
+    else if (westE < -180) parts.push([westE + 360, 180], [-180, eastE]);
+    else parts.push([westE, 180], [-180, eastE - 360]);
+    return Promise.all(parts.map(([w, e]) => {
+      const px = Math.max(8, Math.round(DETAIL_PX * (e - w) / span));
+      return load(url(w, e, px)).then((img) => ({ img, px }));
+    })).then((got) => {
+      const canvas = document.createElement("canvas");
+      canvas.width = DETAIL_PX; canvas.height = DETAIL_PX;
+      const ctx = canvas.getContext("2d");
+      let x = 0;
+      for (const { img, px } of got) { ctx.drawImage(img, x, 0, px, DETAIL_PX); x += px; }
+      // Feather the edge into transparency, so the patch fades into the
+      // global texture rather than ending on a hard line across the view.
+      // destination-OUT, never destination-in: "in" is an unbounded
+      // composite, so each strip also cleared everything OUTSIDE itself and
+      // four strips left the whole image transparent — the patch drew, and
+      // the coarse globe showed straight through it.
+      const f = Math.round(DETAIL_PX * 0.12);
+      ctx.globalCompositeOperation = "destination-out";
+      const edges = [
+        [0, 0, f, 0, 0, 0, f, DETAIL_PX],
+        [DETAIL_PX, 0, DETAIL_PX - f, 0, DETAIL_PX - f, 0, f, DETAIL_PX],
+        [0, 0, 0, f, 0, 0, DETAIL_PX, f],
+        [0, DETAIL_PX, 0, DETAIL_PX - f, 0, DETAIL_PX - f, DETAIL_PX, f],
+      ];
+      for (const [x0, y0, x1, y1, rx, ry, rw, rh] of edges) {
+        const g = ctx.createLinearGradient(x0, y0, x1, y1);
+        g.addColorStop(0, "rgba(0,0,0,1)");      // the edge itself removed
+        g.addColorStop(1, "rgba(0,0,0,0)");      // untouched a strip inward
+        ctx.fillStyle = g;
+        ctx.fillRect(rx, ry, rw, rh);
+      }
+      ctx.globalCompositeOperation = "source-over";
+      return canvas;
+    });
+  }
+
+  function buildDetailPatch(d, box, canvas) {
+    const n = DETAIL_GRID;
+    const pos = new Float32Array((n + 1) * (n + 1) * 3);
+    const uv = new Float32Array((n + 1) * (n + 1) * 2);
+    const eW = box.westE, eSpan = box.eastE - box.westE;
+    const lift = Math.max(20 / METERS_PER_UNIT, 0);
+    let k = 0, t = 0;
+    for (let j = 0; j <= n; j += 1) {
+      const lat = box.north - (box.north - box.south) * (j / n);
+      for (let i = 0; i <= n; i += 1) {
+        const lon = box.west + (box.east - box.west) * (i / n);
+        const r = surfaceRadiusAt(lat, ((lon % 360) + 360) % 360) + lift;
+        const p = hooks.latLonToVector3(lat, ((lon % 360) + 360) % 360, r);
+        pos[k++] = p.x; pos[k++] = p.y; pos[k++] = p.z;
+        // u from the EAST longitude of this vertex, so a west-positive
+        // viewer (Mercury) reads the image the right way round.
+        let e = detailEastOf(lon, d);
+        while (e < eW - 180) e += 360;
+        while (e > eW + 180) e -= 360;
+        uv[t++] = (e - eW) / eSpan;
+        uv[t++] = 1 - j / n;
+      }
+    }
+    const idx = [];
+    for (let j = 0; j < n; j += 1) {
+      for (let i = 0; i < n; i += 1) {
+        const a = j * (n + 1) + i, b = a + 1, c = a + (n + 1), e = c + 1;
+        idx.push(a, c, b, b, c, e);
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+    geo.setIndex(idx);
+    geo.computeVertexNormals();
+    const tex = new THREE.CanvasTexture(canvas);
+    if ("colorSpace" in tex && THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    const mat = new THREE.MeshStandardMaterial({
+      map: tex, color: d.tint ?? 0xffffff, roughness: 1, metalness: 0,
+      transparent: true, depthWrite: false, side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.name = "GeoID-FlightDetail";
+    mesh.renderOrder = 3;
+    mesh.frustumCulled = false;
+    return mesh;
+  }
+
+  function updateDetailPatch(ll, altKm) {
+    const d = bodyProfile().detail;
+    if (!d || ctxModeActive() || !(altKm < DETAIL_MAX_ALT_KM)) {
+      if (detailPatch.mesh || detailPatch.loading) disposeDetailPatch();
+      return;
+    }
+    // Keep the patch in the frame the ship flies in: the body group, turned
+    // by the spin — latLonToWorld's own composition.
+    if (detailPatch.mesh) detailPatch.mesh.rotation.y = spinDelta();
+    if (detailPatch.loading || detailPatch.failed > 3) return;
+
+    // Half-width in km: wide enough to reach the horizon the chase camera
+    // sees, fine enough that the pixels are worth the fetch. 1024 px over
+    // 2 x 45 km is ~90 m a pixel at 5 km up; at 200 km up it is ~1.6 km,
+    // still six times the global texture.
+    const halfKm = Math.max(45, Math.min(800, altKm * 4 + 25));
+    const kmPerDeg = (METERS_PER_UNIT * GLOBE_R / 1000) * Math.PI / 180;
+    const box = detailPatch.box;
+    if (box) {
+      const dLat = (ll.lat - box.lat) * kmPerDeg;
+      let dLon = ll.lon - box.lon;
+      dLon = ((dLon + 540) % 360) - 180;
+      const off = Math.hypot(dLat, dLon * kmPerDeg * Math.cos(ll.lat * Math.PI / 180));
+      const ratio = halfKm / detailPatch.halfKm;
+      if (off < detailPatch.halfKm * 0.3 && ratio < 1.7 && ratio > 1 / 1.7) return;
+    }
+    const latHalf = halfKm / kmPerDeg;
+    const south = Math.max(-89.5, ll.lat - latHalf);
+    const north = Math.min(89.5, ll.lat + latHalf);
+    const cosLat = Math.max(0.05, Math.cos(ll.lat * Math.PI / 180));
+    const lonHalf = Math.min(60, halfKm / (kmPerDeg * cosLat));
+    const west = ll.lon - lonHalf, east = ll.lon + lonHalf;
+    const eA = detailEastOf(west, d), eB = detailEastOf(east, d);
+    // East-positive span, unwrapped round the ship.
+    const eC = detailEastOf(ll.lon, d);
+    let westE = Math.min(eA, eB), eastE = Math.max(eA, eB);
+    if (eastE - westE > 180) { westE = eC - lonHalf; eastE = eC + lonHalf; }
+    const next = { lat: ll.lat, lon: ll.lon, south, north, west, east, westE, eastE };
+    const gen = ++detailPatch.gen;
+    detailPatch.loading = true;
+    fetchDetailImage(d, south, north, westE, eastE).then((canvas) => {
+      if (gen !== detailPatch.gen || !fs.active) return;
+      const mesh = buildDetailPatch(d, next, canvas);
+      const parent = hooks.bodyGroup || hooks.marsGroup;
+      mesh.rotation.y = spinDelta();
+      if (detailPatch.mesh) {
+        detailPatch.mesh.parent?.remove(detailPatch.mesh);
+        detailPatch.mesh.geometry.dispose();
+        detailPatch.mesh.material.map?.dispose();
+        detailPatch.mesh.material.dispose();
+      }
+      parent.add(mesh);
+      detailPatch.mesh = mesh;
+      detailPatch.box = next;
+      detailPatch.halfKm = halfKm;
+      detailPatch.loading = false;
+      detailPatch.failed = 0;
+    }).catch(() => {
+      if (gen !== detailPatch.gen) return;
+      detailPatch.loading = false;
+      detailPatch.failed += 1;                    // the service is down: stop asking
+    });
   }
 
   // ---- named regions for the HUD (east-positive longitude, 0-360) ----
@@ -762,6 +991,47 @@
         { n: "PIONEER TERRA",     lat: [30, 60],  lon: [55, 95] },
         { n: "BURNEY BASIN",      lat: [40, 60],  lon: [225, 250] },
         { n: "LOWELL REGIO",      lat: [55, 90] },
+      ],
+    },
+    // The giants' cloud bands are latitude features: a longitude-bound storm
+    // (the Great Red Spot, the Great Dark Spot) drifts against any fixed
+    // system, so naming one here would be a confident wrong answer.
+    jupiter: {
+      north: "NORTH TEMPERATE REGION", south: "SOUTH TEMPERATE REGION",
+      list: [
+        { n: "NORTH POLAR REGION",      lat: [60, 90] },
+        { n: "NORTH TEMPERATE BELT",    lat: [24, 31] },
+        { n: "NORTH TROPICAL ZONE",     lat: [18, 24] },
+        { n: "NORTH EQUATORIAL BELT",   lat: [7, 18] },
+        { n: "EQUATORIAL ZONE",         lat: [-7, 7] },
+        { n: "SOUTH EQUATORIAL BELT",   lat: [-20, -7] },
+        { n: "SOUTH TROPICAL ZONE",     lat: [-27, -20] },
+        { n: "SOUTH TEMPERATE BELT",    lat: [-33, -27] },
+        { n: "SOUTH POLAR REGION",      lat: [-90, -60] },
+      ],
+    },
+    saturn: {
+      north: "NORTHERN TEMPERATE BANDS", south: "SOUTHERN TEMPERATE BANDS",
+      list: [
+        { n: "NORTH POLAR HEXAGON",     lat: [75, 90] },
+        { n: "EQUATORIAL ZONE",         lat: [-20, 20] },
+        { n: "SOUTH POLAR VORTEX",      lat: [-90, -75] },
+      ],
+    },
+    uranus: {
+      north: "NORTHERN MID-LATITUDES", south: "SOUTHERN MID-LATITUDES",
+      list: [
+        { n: "NORTH POLAR CAP",         lat: [60, 90] },
+        { n: "EQUATORIAL REGION",       lat: [-20, 20] },
+        { n: "SOUTH POLAR CAP",         lat: [-90, -60] },
+      ],
+    },
+    neptune: {
+      north: "NORTHERN MID-LATITUDES", south: "SOUTHERN MID-LATITUDES",
+      list: [
+        { n: "NORTH POLAR REGION",      lat: [60, 90] },
+        { n: "EQUATORIAL JET",          lat: [-20, 20] },
+        { n: "SOUTH POLAR REGION",      lat: [-90, -60] },
       ],
     },
   };
@@ -2196,6 +2466,8 @@
     }
     if (ship) ship.visible = false;
     if (hud) hud.hidden = true;
+    disposeDetailPatch();
+    detailPatch.failed = 0;
     syncToggle(false);
 
     // Return the camera to OrbitControls: restore up-vector, back away from
@@ -2397,6 +2669,24 @@
     };
   }
 
+  // A giant planet has no ground: "altitude" is height above the 1-bar level,
+  // the conventional datum for these worlds and the radius every viewer here
+  // draws. Below the tropopause the air cools along the dry adiabat (g/cp);
+  // above it the stratosphere is held isothermal. Pressure is exponential in
+  // the scale height. Sources: NASA planetary fact sheets (1-bar temperature,
+  // scale height, gravity); tropopause minima from Voyager/Cassini radio
+  // occultations. Enough for an instrument readout, not a model.
+  function giantAtmosphere(oneBarK, tropopauseK, lapseKPerKm, scaleHKm) {
+    return (hMeters) => {
+      const h = Math.max(0, hMeters || 0);
+      const tK = Math.max(tropopauseK, oneBarK - lapseKPerKm * (h / 1000));
+      return {
+        tempC: tK - 273.15,
+        pressurePa: Math.max(SPACE_FLOOR_PA, 1.0e5 * Math.exp(-h / (scaleHKm * 1000))),
+      };
+    };
+  }
+
   function marsAtmosphere(hMeters) {
     const h = Math.max(0, hMeters);
     // The Glenn fit is only quoted to ~30 km, and its LINEAR upper-layer term
@@ -2423,15 +2713,59 @@
     // them the streamer has nothing finer to fetch, so the sim leaves it
     // alone and the globe simply keeps its mapped basemap.
     mars:    { gravity: 3.71, atmosphere: marsAtmosphere,  domain: "Mars atmosphere", streamedTiles: true },
-    mercury: { gravity: 3.70, atmosphere: exosphere(430, 164, 1.0e-10, 550000), domain: "Mercury exosphere" },
-    venus:   { gravity: 8.87, atmosphere: venusAtmosphere, domain: "Venus atmosphere" },
-    moon:    { gravity: 1.62, atmosphere: exosphere(120, -3, 3.0e-10, 510000), domain: "Lunar exosphere" },
+    mercury: { gravity: 3.70, atmosphere: exosphere(430, 164, 1.0e-10, 550000), domain: "Mercury exosphere",
+               detail: { map: "mercury/mercury_simp_cyl", layer: "MESSENGER", westPositive: true,
+                         credit: "MESSENGER MDIS global mosaic — NASA/JHUAPL/CIW, served by USGS Astrogeology" } },
+    venus:   { gravity: 8.87, atmosphere: venusAtmosphere, domain: "Venus atmosphere",
+               // Grey radar, tinted to the colourised globe it lies on, or it
+               // reads as a hole cut in the planet.
+               detail: { map: "venus/venus_simp_cyl", layer: "MAGELLAN", tint: 0xffc792,
+                         credit: "Magellan FMAP left-look SAR mosaic — NASA/JPL, served by USGS Astrogeology" } },
+    moon:    { gravity: 1.62, atmosphere: exosphere(120, -3, 3.0e-10, 510000), domain: "Lunar exosphere",
+               detail: { map: "earth/moon_simp_cyl", layer: "LROC_WAC",
+                         credit: "LRO WAC global mosaic — NASA/GSFC/ASU, served by USGS Astrogeology" } },
     // Pluto has an atmosphere, but a thin one: ~1 Pa of nitrogen at the
     // surface, and it is warmer aloft than at the ground — a genuine inversion
     // off methane heating — so the lapse runs the other way here, climbing to
     // about -173 C before levelling.
-    pluto:   { gravity: 0.62, atmosphere: plutoAtmosphere, domain: "Pluto atmosphere" },
+    pluto:   { gravity: 0.62, atmosphere: plutoAtmosphere, domain: "Pluto atmosphere",
+               detail: { map: "pluto/pluto_simp_cyl", layer: "NEWHORIZONS_PLUTO_MOSAIC",
+                         credit: "New Horizons LORRI/MVIC mosaic — NASA/JHUAPL/SwRI, served by USGS Astrogeology" } },
+    // The giants. `gas` means there is no surface to land on — the floor is
+    // the 1-bar cloud deck — and the launch altitudes and the ceiling scale
+    // with the planet (launchFactors are fractions of its radius), because
+    // a Mars-sized 1,000 km start over Jupiter is skimming the cloud tops of
+    // a world 70,000 km across.
+    jupiter: { gravity: 24.79, gas: true, atmosphere: giantAtmosphere(165, 110, 2.0, 27),
+               domain: "Jupiter atmosphere" },
+    saturn:  { gravity: 10.44, gas: true, atmosphere: giantAtmosphere(134, 84, 0.75, 59.5),
+               domain: "Saturn atmosphere" },
+    uranus:  { gravity: 8.69, gas: true, atmosphere: giantAtmosphere(76, 53, 0.67, 27.7),
+               domain: "Uranus atmosphere" },
+    neptune: { gravity: 11.15, gas: true, atmosphere: giantAtmosphere(72, 55, 0.85, 19.7),
+               domain: "Neptune atmosphere" },
   };
+  // Launch altitudes for a giant, as fractions of its radius; the default is
+  // the one marked. High on purpose: the planet should fill the view on
+  // arrival, and the clouds are there to dive towards rather than start in.
+  const GAS_LAUNCH_FACTORS = [0.02, 0.1, 0.3, 0.7, 1.5, 3];
+  const GAS_LAUNCH_DEFAULT = 0.7;
+  const niceKm = (km) => {
+    const p = Math.pow(10, Math.floor(Math.log10(km)) - 1);
+    return Math.round(km / p) * p;
+  };
+  // The ceiling: the tallest launch option with headroom, on every world.
+  function maxAltM() {
+    if (!bodyProfile().gas) return MAX_ALT_M;
+    const rKm = (hooks?.bodyRadiusMeters || 0) / 1000;
+    return niceKm(rKm * GAS_LAUNCH_FACTORS[GAS_LAUNCH_FACTORS.length - 1]) * 1000 * 1.1;
+  }
+  // Warp is sized to circle Mars in ~50 s; a giant gets the same crossing
+  // time, or crossing Jupiter at Mars's warp takes seventeen minutes.
+  function warpRoofKmS() {
+    const rM = hooks?.bodyRadiusMeters || 3389500;
+    return WARP_ROOF_KMS * Math.max(1, rM / 3389500);
+  }
   // Falls back to Mars so an unrecognised host still flies rather than throwing.
   const bodyProfile = () => BODY_PROFILES[hooks?.bodyId] || BODY_PROFILES.mars;
 
@@ -2657,7 +2991,7 @@
       document.body.classList.toggle("fs-warping", warpActive);
     }
     s.warpEligible = warpEligible;
-    const ceilKmS = warpActive ? WARP_ROOF_KMS : speedCeilingKmS(altKmForSpeed);
+    const ceilKmS = warpActive ? warpRoofKmS() : speedCeilingKmS(altKmForSpeed);
     // In warp the throttle commands the WHOLE range. Interpolating from a
     // cruise floor the way the normal regime does would have left warp
     // capped at 12 km/s unless boost was also held — measured, and not what
@@ -2763,6 +3097,7 @@
       fs.shipWorldPos = s.pos;
     }
     const surfR = surfaceRadiusAt(ll.lat, ll.lon);
+    updateDetailPatch(ll, Math.max(0, s.pos.length() - surfR) * METERS_PER_UNIT / 1000);
     // Publish the SHIP's height above terrain (scene units) so the tile streamer
     // sizes the finest LOD level to where the pilot is — not to the chase
     // camera, which trails tens of km higher and would force coarse tiles even
@@ -2777,7 +3112,7 @@
     fs.shipSpeedDegPerSec = (s.speed / Math.max(s.pos.length(), 1e-6)) * (180 / Math.PI);
     prefetchAhead(s, fwd); // Phase 4: warm fine tiles ahead into the disk cache
     const floorR = surfR + minClearanceUnits();
-    const ceilR = GLOBE_R + MAX_ALT_M / METERS_PER_UNIT;
+    const ceilR = GLOBE_R + maxAltM() / METERS_PER_UNIT;
     let r = s.pos.length();
     if (r < floorR) {
       const n = s.pos.clone().normalize();
@@ -3035,8 +3370,8 @@
       `${pitchWhole > 0 ? "+" : ""}${pitchWhole}°`;
     updateFlightAtmosphere(datumAltitudeM(altM, ll.lat, ll.lon));
     if (hudCoord) hudCoord.textContent =
-      Math.abs(ll.lat).toFixed(1) + "°" + (ll.lat >= 0 ? "N" : "S") + " " + ll.lon.toFixed(1) + "°E";
-    if (hudRegion) hudRegion.textContent = regionName(ll.lat, ll.lon);
+      Math.abs(ll.lat).toFixed(1) + "°" + (ll.lat >= 0 ? "N" : "S") + " " + lonLabel(ll.lon, 1);
+    if (hudRegion) hudRegion.textContent = regionName(ll.lat, eastLonOf(ll.lon));
     if (hudThr) hudThr.textContent = Math.round(s.throttle * 100) + "%";
     if (hudThrottleFill) hudThrottleFill.style.width = (s.throttle * 100) + "%";
     if (hudBoostFill) {
@@ -3316,7 +3651,7 @@
   mainLod?.addEventListener("input", syncLodFromMain);
 
   const fmtSite = (lat, lon) =>
-    `${Math.abs(lat).toFixed(2)}°${lat >= 0 ? "N" : "S"}  ${lon.toFixed(2)}°E`;
+    `${Math.abs(lat).toFixed(2)}°${lat >= 0 ? "N" : "S"}  ${lonLabel(lon, 2)}`;
 
   function setHeading(deg, fromDial) {
     preflight.heading = ((Math.round(deg) % 360) + 360) % 360;
@@ -3790,6 +4125,19 @@
     // whichever world was underneath. Set it from the profile.
     const domainNode = document.getElementById("fs-domain");
     if (domainNode) domainNode.textContent = bodyProfile().domain || "Atmosphere";
+    // A giant's launch list is in its own radii (see GAS_LAUNCH_FACTORS).
+    if (bodyProfile().gas && startAltSelect) {
+      const rKm = (hooks.bodyRadiusMeters || 0) / 1000;
+      startAltSelect.textContent = "";
+      for (const f of GAS_LAUNCH_FACTORS) {
+        const km = niceKm(rKm * f);
+        const opt = document.createElement("option");
+        opt.value = String(km * 1000);
+        opt.textContent = km.toLocaleString("en-GB") + " km above the cloud tops";
+        if (f === GAS_LAUNCH_DEFAULT) opt.selected = true;
+        startAltSelect.appendChild(opt);
+      }
+    }
     // NO WARMING ON BOOT. This used to fire 4 s after the viewer loaded, on
     // every visit. It exists purely to make FLIGHTS smooth, but it ran for every
     // Mars viewer visitor: 10,922 tiles (~0.4 GB) across levels 0-6 at two

@@ -13,10 +13,14 @@
  * you can operate on, and it should not have to be captured twice.
  */
 
-import { buildVectorLayerResult } from "./vector-render.js?v=20260919-84293b8";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260919-84293b8";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260919-d4689ee";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260919-d4689ee";
 
 let counter = 0;
+
+/** A drawn area's edge: the draw tool's own cyan, three seals (~4.5 px) wide. */
+const DRAWN_STROKE = "#5fe1ff";
+const DRAWN_STROKE_SEALS = 3;
 
 /**
  * The name the next drawn shape will take.
@@ -129,7 +133,22 @@ export function captureDrawn({ name = null, stampedAt = null } = {}) {
    * dialog switches it, and that choice survives every later recolour because
    * the mode lives on the layer rather than on a paint call.
    */
-  const built = buildVectorLayerResult(fc, { name: layerName, outlineOnly: true });
+  const built = buildVectorLayerResult(fc, {
+    name: layerName,
+    outlineOnly: true,
+    /**
+     * SEEN ON EVERY WORLD, not only on Earth's dark sea.
+     *
+     * Left to the default paint, a drawn area took the first ramp colour — a
+     * dark navy — at the 1.5 px width that seals seams between geology
+     * polygons. Over Earth's ocean that reads; over Mercury's grey and Pluto's
+     * brown it measured as nothing at all, and "no shapefile of the drawn area
+     * is visible" was that. A declared style is the path a file's own colours
+     * take, so the Symbology dialog still opens on it and can recolour it.
+     */
+    style: { field: "kind", categories: [{ value: "drawn", label: "Drawn area", colour: DRAWN_STROKE }] },
+    strokeScale: DRAWN_STROKE_SEALS,
+  });
   const layer = window.GeoIDImportManager?.addDerivedLayer?.(layerName, built, "drawn");
   if (!layer) return { ok: false, message: "The layer could not be added — is the globe ready?" };
   // A shape somebody drew is their own input: it keeps an editable

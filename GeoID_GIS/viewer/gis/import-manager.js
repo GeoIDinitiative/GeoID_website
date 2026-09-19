@@ -1,18 +1,18 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260919-84293b8";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260919-84293b8";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260919-84293b8";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260919-84293b8";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260919-d4689ee";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260919-d4689ee";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260919-d4689ee";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260919-d4689ee";
 import {
   buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude, setSealWidthFromAltitude,
   getRenderRelief,
   setMarkerSizeFromAltitude,
-} from "./vector-render.js?v=20260919-84293b8";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260919-84293b8";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260919-84293b8";
-import { loadMshFile } from "./msh-adapter.js?v=20260919-84293b8";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260919-84293b8";
-import { defaultOpacityFor } from "./layer-opacity.js?v=20260919-84293b8";
+} from "./vector-render.js?v=20260919-d4689ee";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260919-d4689ee";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260919-d4689ee";
+import { loadMshFile } from "./msh-adapter.js?v=20260919-d4689ee";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260919-d4689ee";
+import { defaultOpacityFor } from "./layer-opacity.js?v=20260919-d4689ee";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -140,8 +140,16 @@ function syncSpin(scene) {
     // clock: the globe carries a half-turn on top of the spin, and two
     // parallel derivations of the same angle are two things that can drift
     // apart. This way the layers use whatever the planet is actually at.
+    //
+    // The viewer's own answer comes first: `getSpinDeltaRadians` is the frame
+    // it draws its own study areas in. "Globe minus a half-turn" is Earth's
+    // rule and most planets', but not Pluto's, whose globe carries no half-turn
+    // -- read that way, every layer on Pluto sat on the far side.
+    const seam = viewer?.getSpinDeltaRadians?.();
     const globeY = viewer?.globe?.rotation?.y;
-    if (geoGroup && Number.isFinite(globeY)) {
+    if (geoGroup && Number.isFinite(seam)) {
+      geoGroup.rotation.y = seam;
+    } else if (geoGroup && Number.isFinite(globeY)) {
       geoGroup.rotation.y = globeY - Math.PI;
     }
     // The globe's terrain exaggeration eases off as the camera lands, so a
