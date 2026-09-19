@@ -1,18 +1,18 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260919-74e90b8";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260919-74e90b8";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260919-84293b8";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260919-84293b8";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260919-74e90b8";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260919-74e90b8";
-import { downloadText } from "./extraction.js?v=20260919-74e90b8";
-import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin, tinValueAt } from "./surface-sampling.js?v=20260919-74e90b8";
-import { rampColour } from "./symbology.js?v=20260919-74e90b8";
-import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260919-74e90b8";
-import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260919-74e90b8";
-import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260919-74e90b8";
-import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260919-74e90b8";
-import { femSpec } from "./model-build.js?v=20260919-74e90b8";
+} from "./mesh-volume.js?v=20260919-84293b8";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260919-84293b8";
+import { downloadText } from "./extraction.js?v=20260919-84293b8";
+import { shellPositions, surfacePositions, tinHeightAt, tinToGrid, gridAsTin, tinValueAt } from "./surface-sampling.js?v=20260919-84293b8";
+import { rampColour } from "./symbology.js?v=20260919-84293b8";
+import { layeredVolumes, facetPositions, tinWith, LAYER_FLAGS } from "./layered-model.js?v=20260919-84293b8";
+import { sectionPolygons, sectionPositions, profileHeightAt } from "./section-model.js?v=20260919-84293b8";
+import { faceParts, partPositions, studioGmshScript, DEFAULT_FACE_FLAGS } from "./studio-gmsh.js?v=20260919-84293b8";
+import { describeField, FIELD_TYPES } from "./mesh-size-fields.js?v=20260919-84293b8";
+import { femSpec } from "./model-build.js?v=20260919-84293b8";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -3757,14 +3757,20 @@ export function adoptTerrainSolid({ name = "gis_terrain", surface, belowM = 0, a
       const group = new THREE.Group();
       group.name = `${name}_${vol.id}`;
       [...new Set(vol.facets.map((f) => f.face))].forEach((face) => {
-        // The air's floor and the soil's top are the ground the green skin
-        // already shows; drawing them again is the coplanar pair this studio
-        // removed once.
-        if ((vol.id === "atmosphere" || vol.id === "soil") && face === "top") return;
+        // The air's floor is the ground the green skin already shows. The
+        // SOIL's top is drawn too, pushed just behind the skin in depth, so the
+        // soil is a closed body with its own lid when the skin is hidden and
+        // the two never fight when both are on.
+        if (vol.id === "atmosphere" && face === "top") return;
         const positions = facetPositions(vol.facets, (f) => f.face === face);
         const mesh = style.opacity < 1
           ? displayMesh(positions, `${name}_${vol.id}_${face}`, style.colour, { opacity: style.opacity, renderOrder: 2 })
           : displayMesh(positions, `${name}_${vol.id}_${face}`, style.colour);
+        if (vol.id === "soil" && face === "top") {
+          mesh.material.polygonOffset = true;
+          mesh.material.polygonOffsetFactor = 2;
+          mesh.material.polygonOffsetUnits = 2;
+        }
         group.add(mesh);
         const flag = F[face] ?? LAYER_FLAGS[face];
         addPart({

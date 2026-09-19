@@ -2,31 +2,31 @@ import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
   nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS, atmosphereStl, DEFAULT_MAX_NODES, triangleWriter,
-} from "./model-build.js?v=20260919-74e90b8";
-import { ringsFromCollection } from "./extraction.js?v=20260919-74e90b8";
+} from "./model-build.js?v=20260919-84293b8";
+import { ringsFromCollection } from "./extraction.js?v=20260919-84293b8";
 import {
   buildTin, tinHeightAt, tinSurfaceStl, tinShellStl, samplingSizeField,
   extendBoundary, extendedBoundaryLines, gridAsTin, shellFacets,
-} from "./surface-sampling.js?v=20260919-74e90b8";
-import { renderFeatureCollection } from "./vector-render.js?v=20260919-74e90b8";
-import { promptDrawTool } from "./extent-picker.js?v=20260919-74e90b8";
+} from "./surface-sampling.js?v=20260919-84293b8";
+import { renderFeatureCollection } from "./vector-render.js?v=20260919-84293b8";
+import { promptDrawTool } from "./extent-picker.js?v=20260919-84293b8";
 import {
   profileAlong, profileHeightAt, sectionPolygons, sectionPositions, sectionGmshScript, profileCsv,
-} from "./section-model.js?v=20260919-74e90b8";
-import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260919-74e90b8";
+} from "./section-model.js?v=20260919-84293b8";
+import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260919-84293b8";
 import {
   layerHeights, layeredVolumes, REGOLITH_ON_ROCK_M, facetsStlByFace, layeredGmshScript, thinLayerSizeM, tinWith, LAYER_FLAGS, facetsClosed,
   facetsVolume, facetsArea, estimateElements, estimateSentence,
-} from "./layered-model.js?v=20260919-74e90b8";
-import { waterMasks, waterFeatures } from "./water-mask.js?v=20260919-74e90b8";
-import { bathymetryGrid, gridAt } from "./bathymetry.js?v=20260919-74e90b8";
-import { burnRivers } from "./river-zones.js?v=20260919-74e90b8";
+} from "./layered-model.js?v=20260919-84293b8";
+import { waterMasks, waterFeatures } from "./water-mask.js?v=20260919-84293b8";
+import { bathymetryGrid, gridAt } from "./bathymetry.js?v=20260919-84293b8";
+import { burnRivers } from "./river-zones.js?v=20260919-84293b8";
 import {
   linesFromCollection, hasLines, faultPlane, faultDefaultsFrom, nonCrossing, faultsStl, bearingDeg, traceLength,
   clipTraceToBox, FAULT_FLAG_BASE, slug as faultSlug,
-} from "./fault-planes.js?v=20260919-74e90b8";
-import { describeQuery, openReader, sampleAtNodes, fieldCsv, slugOf, syncReader } from "./layer-query.js?v=20260919-74e90b8";
-import { loadRockProperties, resolveLithology } from "./rock-properties.js?v=20260919-74e90b8";
+} from "./fault-planes.js?v=20260919-84293b8";
+import { describeQuery, openReader, sampleAtNodes, fieldCsv, slugOf, syncReader } from "./layer-query.js?v=20260919-84293b8";
+import { loadRockProperties, resolveLithology } from "./rock-properties.js?v=20260919-84293b8";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -995,8 +995,13 @@ const BEDROCK_MAP = /world geology|macrostrat|glim|surface lithology|geolog|lith
  * Null when no bedrock map is on the globe, and the summary says so.
  */
 async function readGroundState(box, ll) {
-  const layer = loadedLayers().find((l) => BEDROCK_MAP.test(l.name || "")
+  // GLiM first where both are on: it maps UNCONSOLIDATED SEDIMENTS as a class
+  // of its own, everywhere, where the world geology's global units say
+  // "sedimentary rocks" over an alluvial plain (measured at Izmit: every node
+  // rock under Macrostrat, 2,409 deposit nodes under GLiM).
+  const maps = loadedLayers().filter((l) => BEDROCK_MAP.test(l.name || "")
     && !/risk|forecast|factor of safety|model builder|soils of the world/i.test(l.name || ""));
+  const layer = maps.find((l) => /glim|surface lithology/i.test(l.name || "")) || maps[0];
   if (!layer) return null;
   report("domain", `Reading soil or rock from "${layer.name}"…`);
   try { await loadRockProperties(); } catch (error) { return null; }
