@@ -21,9 +21,9 @@
  * Earth is not here (its names are its own gazetteer), nor Mars: the IAU
  * publishes no outlines for Mars, only centre points.
  */
-import { dataUrl } from "./data-base.js?v=20260919-efed63d";
-import { currentBodyId, getBody } from "./bodies.js?v=20260919-efed63d";
-import { paintByField } from "./symbology-dialog.js?v=20260919-efed63d";
+import { dataUrl } from "./data-base.js?v=20260919-79b5f54";
+import { currentBodyId, getBody } from "./bodies.js?v=20260919-79b5f54";
+import { paintByField } from "./symbology-dialog.js?v=20260919-79b5f54";
 
 export const OUTLINE_BODIES = {
   moon: { path: "/data/global/nomenclature/moon.geojson", name: "Moon" },
@@ -57,6 +57,35 @@ export function toWestPositive(fc) {
     ? { ...f, geometry: { ...f.geometry, coordinates: flip(f.geometry.coordinates) } } : f)) };
 }
 
+/**
+ * The item the viewer's own card reads, for a feature it does not already
+ * label (where it does, the viewer opens its own entry by name). Longitude as
+ * the viewer's labels store it: 0-360, west on a west-positive world -- which
+ * is what the layer's coordinates already are there, since they were negated.
+ */
+export function sceneItem(feature) {
+  const p = feature?.properties || {};
+  if (!p.name) return null;
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  const walk = (c) => {
+    if (typeof c[0] === "number") {
+      minX = Math.min(minX, c[0]); maxX = Math.max(maxX, c[0]);
+      minY = Math.min(minY, c[1]); maxY = Math.max(maxY, c[1]);
+    } else c.forEach(walk);
+  };
+  if (feature.geometry?.coordinates) walk(feature.geometry.coordinates);
+  if (!Number.isFinite(minX)) return null;
+  // a feature cut at 180 spans the whole range: its centre is across the seam
+  let lon = (maxX - minX > 180) ? 180 : (minX + maxX) / 2;
+  lon = ((lon % 360) + 360) % 360;
+  const bits = [];
+  if (p.origin) bits.push(`Named for ${String(p.origin).replace(/\.$/, "")}.`);
+  if (p.diameter_km) bits.push(`About ${Math.round(p.diameter_km).toLocaleString()} km across.`);
+  if (p.approved) bits.push(`Name approved by the IAU in ${p.approved}.`);
+  return { name: p.name, type: String(p.type || "").split(",")[0] || "Named feature",
+    lat: +((minY + maxY) / 2).toFixed(2), lon: +lon.toFixed(2), description: bits.join(" "), theme: "standard" };
+}
+
 let busy = false;
 
 async function load(body, say) {
@@ -83,6 +112,8 @@ async function load(body, say) {
     // a regio holds the planitia that holds the crater: the name the pointer
     // means is the smallest one under it (feature-popup honours the flag)
     layer.pickSmallest = true;
+    // a click opens the VIEWER's card for the place (feature-popup)
+    layer.sceneItemFor = (feature) => sceneItem(feature);
     // one colour per feature type, the question an outline map is read for
     paintByField(layer, "type");
     say(`${layer.features?.length?.toLocaleString?.() || ""} named features outlined. Source: ${CREDIT}.`);

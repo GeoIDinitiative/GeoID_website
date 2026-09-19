@@ -20,24 +20,24 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260919-efed63d";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260919-efed63d";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260919-79b5f54";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260919-79b5f54";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20260919-efed63d";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260919-efed63d";
-import { lithologyLabel } from "./lithology-label.js?v=20260919-efed63d";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260919-efed63d";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260919-efed63d";
-import { waterCard, WATER_SAID } from "./water-card.js?v=20260919-efed63d";
-import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260919-efed63d";
-import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20260919-efed63d";
-import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js?v=20260919-efed63d";
-import { isEarthquakeFeature, earthquakeCard } from "./earthquake-card.js?v=20260919-efed63d";
-import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260919-efed63d";
+} from "./vector-render.js?v=20260919-79b5f54";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260919-79b5f54";
+import { lithologyLabel } from "./lithology-label.js?v=20260919-79b5f54";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260919-79b5f54";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260919-79b5f54";
+import { waterCard, WATER_SAID } from "./water-card.js?v=20260919-79b5f54";
+import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260919-79b5f54";
+import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20260919-79b5f54";
+import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js?v=20260919-79b5f54";
+import { isEarthquakeFeature, earthquakeCard } from "./earthquake-card.js?v=20260919-79b5f54";
+import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260919-79b5f54";
 import {
   canEditRow, editableFields, applyRowChange,
-} from "./table-editor.js?v=20260919-efed63d";
+} from "./table-editor.js?v=20260919-79b5f54";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -1236,6 +1236,29 @@ function showStack(x, y, hits, at) {
    * mapping is `point-labels.js`'s own (`sceneItemFor`), so both clicks build
    * the same item and read the same card.
    */
+  /**
+   * A LAYER THAT NAMES PLACES answers with the viewer's own card, and keeps
+   * its outline: the IAU outlines. Their click raised BOTH cards -- this
+   * module's stack card beside the click and the viewer's corner card, which
+   * says the same thing with the hand-written description. One card; the gold
+   * outline says which shape answered, and goes when that card closes.
+   */
+  const named = top.layer?.sceneItemFor?.(top.feature);
+  if (named && window.GeoIDViewer?.openSceneFeature?.(named)) {
+    hidePopup({ keepOutline: true });
+    window.GeoIDCardOwner?.own?.("viewer", top.layer, () => window.GeoIDViewer?.closeCards?.());
+    if (at) void showOutline(top.feature, { layer: top.layer });
+    const card = document.getElementById("scene-popup");
+    if (card) {
+      const watch = new MutationObserver(() => {
+        if (!card.hidden) return;
+        watch.disconnect();
+        hidePopup({ keepOutline: false });
+      });
+      watch.observe(card, { attributes: true, attributeFilter: ["hidden"] });
+    }
+    return;
+  }
   const item = window.GeoIDPointLabels?.sceneItemFor?.(top.layer, top.feature);
   if (item && window.GeoIDViewer?.openSceneFeature?.(item)) {
     hidePopup({ keepOutline: false });

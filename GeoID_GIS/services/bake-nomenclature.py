@@ -158,6 +158,12 @@ def bake(key):
         props["body"] = key
         out.append({"type": "Feature", "properties": props,
                     "geometry": {"type": g.geom_type, "coordinates": rounded(mapping(g)["coordinates"])}})
+    # DRAW ORDER: largest first, lines last. The outlines nest (a regio holds
+    # the planitia that holds a crater) and the renderer paints in array
+    # order, so a small feature drawn first was washed under the region
+    # around it.
+    out.sort(key=lambda f: (f["geometry"]["type"].endswith("LineString"),
+                            -shape(f["geometry"]).area))
     os.makedirs(OUT, exist_ok=True)
     doc = {"type": "FeatureCollection",
            "_source": (f"IAU Gazetteer of Planetary Nomenclature, USGS Astrogeology Science Center: "
