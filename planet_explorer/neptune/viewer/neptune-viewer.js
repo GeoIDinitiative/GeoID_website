@@ -5164,6 +5164,16 @@
     function buildMoonFeatureLabelLayer(moonMeshMap) {
       const group = new THREE.Group();
       const MOON_LABEL_RENDER_ORDER = 221;
+    /**
+     * THE GROUP'S OWN ORDER DECIDES THIS, never the children's.
+     * reversePainterSortStable compares groupOrder FIRST, and projectObject
+     * takes groupOrder from the nearest Group ancestor -- so a bare Group leaves
+     * every label sorting at 0, while an imported vector layer's object3D is
+     * itself a Group carrying its band (51 and up) and paints straight over
+     * them. Earth's own copy has set 200 here all along; the planets never did,
+     * so ticking any polygon layer buried every label on a moon's surface on them.
+     */
+      group.renderOrder = 200;
       const entries = [];
       const interactiveObjects = [];
       const markerGeometry = new THREE.SphereGeometry(0.0005, 8, 8);

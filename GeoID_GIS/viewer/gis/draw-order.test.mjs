@@ -147,6 +147,62 @@ check("an empty layer is ordinary too", () =>
 check("geology keeps its own band", () =>
   eq(bandOf({ geologyDataset: "x", collection: pointsFc }), 1, "geology"));
 
+/**
+ * A LABEL GROUP MUST OUTRANK THE IMPORTED BAND, and its own children cannot
+ * say so for it. reversePainterSortStable compares groupOrder FIRST, and
+ * projectObject takes groupOrder from the nearest Group ancestor -- so a label
+ * apparatus built into a bare Group sorts at 0 however high its sprites are
+ * stamped, while a vector layer's object3D is itself a Group carrying its band
+ * (IMPORTED_BASE is 50). Measured: ticking the IAU outlines on Mars buried
+ * every surface label on the planet. Earth had set 200 since it was written;
+ * the nine planet viewers never did.
+ *
+ * Checked on the SOURCE because these are nine hand-written viewers with no
+ * shared module between them -- the one thing a unit test can hold.
+ */
+const IMPORTED_CEILING = 60;   // IMPORTED_BASE 50, plus room for the bands
+const strip = (t) => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+const labelGroupOrder = (text, builder) => {
+  const body = strip(text);
+  const at = body.indexOf(builder);
+  if (at < 0) return null;
+  const made = body.indexOf("const group = new THREE.Group();", at);
+  if (made < 0) return null;
+  // the band may sit a statement or two below the group it bands
+  const m = /group\.renderOrder = (\d+);/.exec(body.slice(made, made + 600));
+  return m ? Number(m[1]) : null;
+};
+
+const ROCKY = ["mars", "mercury", "moon", "pluto", "venus"];
+const GIANTS = ["jupiter", "saturn", "uranus", "neptune"];
+
+for (const body of ROCKY) {
+  const text = readFileSync(`planet_explorer/${body}/viewer/label-layer.js`, "utf8");
+  for (const builder of ["function buildLabelLayer", "function buildMoonFeatureLabelLayer"]) {
+    check(`${body}: ${builder.slice(9)} bands its group above the imported layers`, () => {
+      const order = labelGroupOrder(text, builder);
+      ok(order !== null, "the group is built and never given a renderOrder");
+      ok(order > IMPORTED_CEILING, `groupOrder ${order} is inside the imported band`);
+    });
+  }
+}
+
+for (const body of GIANTS) {
+  const text = readFileSync(`planet_explorer/${body}/viewer/${body}-viewer.js`, "utf8");
+  check(`${body}: its moon feature labels band above the imported layers`, () => {
+    const order = labelGroupOrder(text, "function buildMoonFeatureLabelLayer");
+    ok(order !== null, "the group is built and never given a renderOrder");
+    ok(order > IMPORTED_CEILING, `groupOrder ${order} is inside the imported band`);
+  });
+}
+
+check("Earth, which had it right, still does", () => {
+  const text = strip(readFileSync("GeoID_GIS/viewer/earth-viewer.js", "utf8"));
+  const m = /labelLayer\.group\.renderOrder = (\d+);/.exec(text);
+  ok(m, "earth-viewer no longer bands its label group");
+  ok(Number(m[1]) > IMPORTED_CEILING, `groupOrder ${m && m[1]} is inside the imported band`);
+});
+
 if (failures.length) {
   failures.forEach((f) => console.error(`  x ${f}`));
   console.error(`${failures.length} failed, ${passed} passed`);

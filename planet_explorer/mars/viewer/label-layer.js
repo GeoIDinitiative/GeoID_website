@@ -359,6 +359,16 @@ export function getMoonFeatureConnectorStart(markerPoint, labelPoint, moonRadius
 
 export function buildMoonFeatureLabelLayer(moonData, moonFeatureData) {
   const group = new THREE.Group();
+  /**
+   * THE GROUP'S OWN ORDER DECIDES THIS, never the children's.
+   * reversePainterSortStable compares groupOrder FIRST, and projectObject
+   * takes groupOrder from the nearest Group ancestor -- so a bare Group leaves
+   * every label sorting at 0, while an imported vector layer's object3D is
+   * itself a Group carrying its band (51 and up) and paints straight over
+   * them. Earth's own copy has set 200 here all along; the planets never did,
+   * so ticking any polygon layer buried every label on a moon's surface on them.
+   */
+  group.renderOrder = 200;
   const entries = [];
   const interactiveObjects = [];
   const hitMaterial = new THREE.MeshBasicMaterial({
@@ -732,6 +742,16 @@ export function updateMoonVisibility(entries, marsGroup, camera, renderer, moons
 
 export function buildLabelLayer(radius, elevationSampler, elevationCache, getTerrainRelief, getReliefPoint, labelData) {
   const group = new THREE.Group();
+  /**
+   * THE GROUP'S OWN ORDER DECIDES THIS, never the children's.
+   * reversePainterSortStable compares groupOrder FIRST, and projectObject
+   * takes groupOrder from the nearest Group ancestor -- so a bare Group leaves
+   * every label sorting at 0, while an imported vector layer's object3D is
+   * itself a Group carrying its band (51 and up) and paints straight over
+   * them. Earth's own copy has set 200 here all along; the planets never did,
+   * so ticking any polygon layer buried every surface label on them.
+   */
+  group.renderOrder = 200;
   const markerGeometry = new THREE.SphereGeometry(0.011, 10, 10);
   const hitGeometry = new THREE.SphereGeometry(0.18, 14, 14);
   const hitMaterial = new THREE.MeshBasicMaterial({
