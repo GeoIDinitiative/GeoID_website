@@ -118,3 +118,41 @@ import { thinLayerSizeM, facetsStlByFace, layeredGmshScript, LAYER_FLAGS } from 
   ok("the script tags points reached only through adjacencies", py.includes("getAdjacencies(0, point)"));
   ok("the soil and the bedrock share the interface's flag", LAYER_FLAGS.bedrock_top !== LAYER_FLAGS.top && py.includes(`"bedrock_top":${LAYER_FLAGS.bedrock_top}`));
 }
+
+import { facetsArea, estimateElements, estimateSentence, ELEMENT_BANDS } from "./layered-model.js";
+{
+  const tin = gridTin();
+  const L = layerHeights(tin, { thicknessAt: () => 10, water: false });
+  const V = layeredVolumes(tin, L, { belowM: 1000, water: false });
+  const soil = V.volumes.find((v) => v.id === "soil");
+  ok("a flat top's area is its plan area", close(facetsArea(soil.facets, "top"), 500 * 500), `${facetsArea(soil.facets, "top")}`);
+  ok("a closed slab's whole area is its six sides", close(facetsArea(soil.facets), 2 * 500 * 500 + 4 * 500 * 10));
+
+  // A thick block: volume decides. 1 km³ at 100 m is 1e9 / (0.11785e6).
+  const block = estimateElements({ volumeM3: 1e9, topAreaM2: 1e6, sizeM: 100 });
+  ok("a thick block is counted by its volume", block.by === "volume" && close(block.tets, 1e9 / 0.11785e6, 1e-3), JSON.stringify(block));
+  // A skin: 10 m of soil over 1,000 km² at 20 m — the top surface decides.
+  const skin = estimateElements({ volumeM3: 1e9 * 10, topAreaM2: 1e9, sizeM: 20 });
+  ok("a thin skin is counted by its surface", skin.by === "skin" && close(skin.tets, 3 * 1e9 / (0.43301 * 400), 1e-3), JSON.stringify(skin));
+  ok("and is a compute-target job", skin.verdict === "compute" && skin.tets > ELEMENT_BANDS.compute);
+  ok("which the sentence says", /compute-target/.test(estimateSentence(skin)) && /million/.test(estimateSentence(skin)));
+  ok("the Izmit bedrock at 2 km is a laptop job of the measured order", (() => {
+    const e = estimateElements({ volumeM3: 5.8e12, topAreaM2: 966e6, sizeM: 2000 });
+    return e.verdict === "laptop" && e.tets > 3000 && e.tets < 15000;
+  })());
+  ok("halving the size costs eight times a block and four times a skin",
+    close(estimateElements({ volumeM3: 1e9, sizeM: 50 }).tets / block.tets, 8, 1e-3)
+    // 1 m over 1,000 km²: still a skin at both sizes, so the surface decides both.
+    && close(estimateElements({ volumeM3: 1e9, topAreaM2: 1e9, sizeM: 10 }).tets / estimateElements({ volumeM3: 1e9, topAreaM2: 1e9, sizeM: 20 }).tets, 4, 1e-3));
+  ok("a layer stops being a skin once its elements are as thin as it is",
+    estimateElements({ volumeM3: 1e10, topAreaM2: 1e9, sizeM: 10 }).by === "volume" && skin.by === "skin");
+  ok("nodes are about a fifth of the tetrahedra", close(block.nodes, block.tets / 5, 1e-3));
+  ok("no volume, no size: nothing, not NaN", estimateElements({ volumeM3: 0, sizeM: 20 }).verdict === "empty" && estimateElements({ volumeM3: 1e6, sizeM: 0 }).tets === 0);
+}
+{
+  const e = estimateElements({ volumeM3: 1e10, topAreaM2: 1e9, sizeM: 20 });
+  const args = { name: "m", stlFile: "m.stl", meshFile: "m.msh", meshSizeM: 20, faceFlags: LAYER_FLAGS, volumeFlag: 12, volumeName: "soil" };
+  const py = layeredGmshScript({ ...args, estimate: e });
+  ok("the script says how big it is before it is run", /# Estimated before meshing: about 17\.3 million elements/.test(py) && py.includes("compute target, not on a laptop"));
+  ok("and says nothing where no estimate was made", !layeredGmshScript(args).includes("Estimated before meshing"));
+}

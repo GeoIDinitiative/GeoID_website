@@ -2,28 +2,29 @@ import {
   buildSurface, planGrid, surfaceStl, domainStl, stlStats,
   gmshScript, femSpec, makeLocalFrame, DEFAULT_MATERIALS,
   nativeStepM, sizeField, structuredFieldText, DEFAULT_FLAGS, atmosphereStl, DEFAULT_MAX_NODES, triangleWriter,
-} from "./model-build.js?v=20260918-58f29c4";
-import { ringsFromCollection } from "./extraction.js?v=20260918-58f29c4";
+} from "./model-build.js?v=20260919-aace79d";
+import { ringsFromCollection } from "./extraction.js?v=20260919-aace79d";
 import {
   buildTin, tinHeightAt, tinSurfaceStl, tinShellStl, samplingSizeField,
   extendBoundary, extendedBoundaryLines, gridAsTin, shellFacets,
-} from "./surface-sampling.js?v=20260918-58f29c4";
-import { renderFeatureCollection } from "./vector-render.js?v=20260918-58f29c4";
-import { promptDrawTool } from "./extent-picker.js?v=20260918-58f29c4";
+} from "./surface-sampling.js?v=20260919-aace79d";
+import { renderFeatureCollection } from "./vector-render.js?v=20260919-aace79d";
+import { promptDrawTool } from "./extent-picker.js?v=20260919-aace79d";
 import {
   profileAlong, profileHeightAt, sectionPolygons, sectionPositions, sectionGmshScript, profileCsv,
-} from "./section-model.js?v=20260918-58f29c4";
-import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260918-58f29c4";
+} from "./section-model.js?v=20260919-aace79d";
+import { defaultField, describeField, FIELD_TYPES, smallestSize } from "./mesh-size-fields.js?v=20260919-aace79d";
 import {
   layerHeights, layeredVolumes, facetsStlByFace, layeredGmshScript, thinLayerSizeM, tinWith, LAYER_FLAGS, facetsClosed,
-} from "./layered-model.js?v=20260918-58f29c4";
-import { waterMasks, waterFeatures } from "./water-mask.js?v=20260918-58f29c4";
-import { burnRivers } from "./river-zones.js?v=20260918-58f29c4";
+  facetsVolume, facetsArea, estimateElements, estimateSentence,
+} from "./layered-model.js?v=20260919-aace79d";
+import { waterMasks, waterFeatures } from "./water-mask.js?v=20260919-aace79d";
+import { burnRivers } from "./river-zones.js?v=20260919-aace79d";
 import {
   linesFromCollection, hasLines, faultPlane, faultDefaultsFrom, nonCrossing, faultsStl, bearingDeg, traceLength,
   clipTraceToBox, FAULT_FLAG_BASE, slug as faultSlug,
-} from "./fault-planes.js?v=20260918-58f29c4";
-import { describeQuery, openReader, sampleAtNodes, fieldCsv, slugOf, syncReader } from "./layer-query.js?v=20260918-58f29c4";
+} from "./fault-planes.js?v=20260919-aace79d";
+import { describeQuery, openReader, sampleAtNodes, fieldCsv, slugOf, syncReader } from "./layer-query.js?v=20260919-aace79d";
 
 /**
  * The Model Builder tab: the GIS study area becomes a meshable domain.
@@ -3154,13 +3155,20 @@ async function writePackage() {
         const stl = facetsStlByFace(vol.facets, `${name}_${vol.id}`);
         const size = vol.id === "soil" ? thinLayerSizeM(thick, meshSizeM) : vol.id === "water" ? thinLayerSizeM(depth, meshSizeM) : meshSizeM;
         const check = facetsClosed(vol.facets);
+        // How big a job this is, said BEFORE anybody presses Mesh: the plan
+        // face is whichever of the volume's flat-lying faces is largest.
+        const estimate = estimateElements({
+          volumeM3: facetsVolume(vol.facets),
+          topAreaM2: Math.max(...["top", "bedrock_top", "water_surface", "sky"].map((face) => facetsArea(vol.facets, face))),
+          sizeM: size,
+        });
         return {
-          id: vol.id, label: vol.label, stl: stl.text, faces: stl.faces, sizeM: size, closed: check.closed, openEdges: check.openEdges,
+          id: vol.id, label: vol.label, stl: stl.text, faces: stl.faces, sizeM: size, closed: check.closed, openEdges: check.openEdges, estimate,
           script: layeredGmshScript({
             name: `${name}_${vol.id}`, stlFile: `${name}_${vol.id}.stl`, meshFile: `${name}_${vol.id}.msh`,
             meshSizeM: size, minSizeM: Math.min(size / 4, minSizeM || size / 4), faceFlags: LAYER_FLAGS,
             volumeFlag: LAYER_FLAGS[vol.id], volumeName: vol.id,
-            embedPoints: pointsIn[vol.id] || [], faults: vol.id === "bedrock" ? faults : [],
+            embedPoints: pointsIn[vol.id] || [], faults: vol.id === "bedrock" ? faults : [], estimate,
           }),
           points: (pointsIn[vol.id] || []).map((pt) => pt.name),
         };
@@ -3228,7 +3236,7 @@ async function writePackage() {
         soil: L.soil, water: L.water, min_soil_m: L.minSoilM, min_water_m: L.minWaterM,
         soil_source: layered.soilSource, counts: layered.counts, base_z_m: layered.baseZ, sky_z_m: layered.skyZ,
         flags: { ...LAYER_FLAGS },
-        volumes: layered.map((v) => ({ id: v.id, file: `${name}_${v.id}.stl`, script: `${name}_${v.id}_gmsh.py`, mesh: `${name}_${v.id}.msh`, faces: v.faces, element_size_m: Math.round(v.sizeM * 10) / 10, watertight: v.closed })),
+        volumes: layered.map((v) => ({ id: v.id, file: `${name}_${v.id}.stl`, script: `${name}_${v.id}_gmsh.py`, mesh: `${name}_${v.id}.msh`, faces: v.faces, element_size_m: Math.round(v.sizeM * 10) / 10, watertight: v.closed, estimated_tets: v.estimate.tets, estimated_nodes: v.estimate.nodes, estimate_basis: v.estimate.by, run_on: v.estimate.verdict })),
         rule: "soil top = the ground (seabed, lake bed or river bed where wet); bedrock top = ground − max(min soil, Pelletier thickness); sea = 0 m down to the bathymetry (never shallower than the minimum); lakes at their surveyed level; rivers a channel depth (Moody & Troutman) under the DEM",
       } : null,
       faults: faultBuild ? {
@@ -3308,7 +3316,7 @@ async function writePackage() {
     + `. ${points.length} embedded point(s).`
     + (faults.length ? ` ${faults.length} fault plane(s) embedded (flags ${faults.map((f) => f.flag).join(", ")}).` : "")
     + (fieldFiles.length ? ` ${fieldFiles.length} layer(s) read onto the ${tNodes.xs.length.toLocaleString()} surface nodes.` : "")
-    + (layered ? ` Layered: ${layered.map((v) => `${v.label.toLowerCase()} ${v.closed ? "watertight" : `${v.openEdges} OPEN EDGES`} at ${Math.round(v.sizeM)} m elements`).join("; ")}.` : "");
+    + (layered ? ` Layered: ${layered.map((v) => `${v.label.toLowerCase()} ${v.closed ? "watertight" : `${v.openEdges} OPEN EDGES`} at ${Math.round(v.sizeM)} m elements, ${estimateSentence(v.estimate)}`).join("; ")}.` : "");
 
   const store = window.GeoIDResearch?.store;
   const project = store?.getActive?.();

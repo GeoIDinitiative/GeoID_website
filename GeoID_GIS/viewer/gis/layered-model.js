@@ -30,10 +30,10 @@
  *   top[i]    max(solid, water): the floor of the atmosphere
  */
 
-import { channelDepth } from "./inundation.js?v=20260918-58f29c4";
+import { channelDepth } from "./inundation.js?v=20260919-aace79d";
 
 /** A TIN with a different z array, and its own extremes. */
-import { faultScriptLines } from "./fault-planes.js?v=20260918-58f29c4";
+import { faultScriptLines } from "./fault-planes.js?v=20260919-aace79d";
 
 export function tinWith(tin, z) {
   let zMin = Infinity; let zMax = -Infinity;
@@ -304,7 +304,7 @@ const PY = (v) => JSON.stringify(v);
  */
 export function layeredGmshScript({
   name, stlFile, meshFile, meshSizeM, minSizeM = 0, faceFlags = {}, volumeFlag = 10, volumeName = "domain",
-  embedPoints = [], faults = [],
+  embedPoints = [], faults = [], estimate = null,
 }) {
   /**
    * WHAT IS INSIDE THE VOLUME. A layered model used to lose the two things a
@@ -347,6 +347,11 @@ export function layeredGmshScript({
   return [
     `# GeoID Model Builder — the ${volumeName} volume of a layered model.`,
     "# Run: python3 this_script.py   (or through the sidecar's /jobs/gmsh)",
+    ...(estimate ? [
+      `# Estimated before meshing: ${estimateSentence(estimate)} at ${Math.round(meshSizeM)} m`,
+      `# (~${estimate.nodes.toLocaleString("en-GB")} nodes; counted by ${estimate.by === "skin" ? "its surface - a thin layer" : "its volume"}). An order of magnitude, not a promise.`,
+      ...(estimate.verdict === "compute" ? ["# Run this one on a compute target, not on a laptop."] : []),
+    ] : []),
     "import gmsh",
     "",
     "gmsh.initialize()",
@@ -434,4 +439,56 @@ export function thinLayerSizeM(thicknesses, meshSizeM) {
   const p10 = quantile(thicknesses, 0.1);
   if (!Number.isFinite(p10)) return meshSizeM;
   return Math.max(5, Math.min(meshSizeM, 20 * p10));
+}
+
+/** The true area of the facets carrying one face name (all of them if none is named). */
+export function facetsArea(facets, face = null) {
+  let area = 0;
+  for (const f of facets) {
+    if (face && f.face !== face) continue;
+    const ux = f.b[0] - f.a[0], uy = f.b[1] - f.a[1], uz = f.b[2] - f.a[2];
+    const vx = f.c[0] - f.a[0], vy = f.c[1] - f.a[1], vz = f.c[2] - f.a[2];
+    const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    area += 0.5 * Math.hypot(nx, ny, nz);
+  }
+  return area;
+}
+
+/** Where an estimate stops being a laptop job. Tetrahedra, not nodes. */
+export const ELEMENT_BANDS = Object.freeze({ slow: 300_000, compute: 2_000_000 });
+
+/**
+ * How many elements a volume will mesh to at one element size, BEFORE anybody
+ * presses Mesh.
+ *
+ * Two floors, and the larger decides. A thick volume fills with tetrahedra of
+ * about the regular one's volume, a³/(6√2) = 0.1178 a³. A THIN one cannot: its
+ * top surface alone is meshed at the element size — A / (√3/4 · a²) triangles —
+ * and a layer of prisms under them is three tetrahedra each, however little
+ * volume there is to fill. That second floor is what makes a soil skin over a
+ * thousand square kilometres a compute-target job while the rock under it is
+ * nothing.
+ *
+ * An order-of-magnitude figure, and it says so: measured on the Izmit bedrock
+ * at 2 km elements it gave 6,150 against gmsh's 7,505, and for the water at
+ * 20 m about 1.3 million where gmsh had reached 601,044 NODES at a timeout.
+ */
+export function estimateElements({ volumeM3, topAreaM2 = 0, sizeM }) {
+  const a = Number(sizeM);
+  if (!(a > 0) || !(Math.abs(volumeM3) > 0)) return { tets: 0, nodes: 0, verdict: "empty", by: "none" };
+  const byVolume = Math.abs(volumeM3) / (0.11785 * a * a * a);
+  const bySkin = (3 * Math.max(0, topAreaM2)) / (0.43301 * a * a);
+  const tets = Math.round(Math.max(byVolume, bySkin));
+  const verdict = tets > ELEMENT_BANDS.compute ? "compute" : tets > ELEMENT_BANDS.slow ? "slow" : "laptop";
+  return { tets, nodes: Math.round(tets / 5), verdict, by: bySkin > byVolume ? "skin" : "volume" };
+}
+
+/** The sentence a verdict is said as. */
+export function estimateSentence(estimate) {
+  const n = estimate.tets;
+  const count = n >= 1e6 ? `${(n / 1e6).toFixed(1)} million` : n >= 1e3 ? `${Math.round(n / 1e3)} thousand` : `${n}`;
+  if (estimate.verdict === "compute") return `about ${count} elements — a compute-target job, not a laptop one`;
+  if (estimate.verdict === "slow") return `about ${count} elements — minutes of gmsh on a laptop`;
+  if (estimate.verdict === "empty") return "nothing to mesh";
+  return `about ${count} elements`;
 }

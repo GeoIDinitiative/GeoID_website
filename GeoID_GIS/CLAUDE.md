@@ -22636,9 +22636,16 @@ entities, `fault:ME_TRCS012` 744 triangles at flag 30, `fault:ME_TRCS009` 49 at
 **Thin layers were NOT meshed here, and that is a limit, not a pass.** The
 water volume ran to 601,044 nodes and the 240 s timeout; the soil script asks
 20 m elements over 966 km² (`thinLayerSizeM` = 20 × the tenth-percentile
-thickness). Those are compute-target jobs. `facetsVolume` and `thinLayerSizeM`
-are exported so the package can estimate the element count before anybody
-presses Mesh — not done yet.
+thickness). Those are compute-target jobs, and the package now SAYS so before
+anybody presses Mesh: `estimateElements` (layered-model.js) takes the larger of
+two floors — volume / 0.1178 a³ (a regular tet), and 3 tets per top-surface
+triangle, A / (0.433 a²) — because a thin layer cannot be counted by its
+volume. Each volume's estimate is in the spec (`estimated_tets`,
+`estimated_nodes`, `estimate_basis`, `run_on`: laptop / slow > 300k / compute
+> 2M), in the build status line, and as comment lines heading its `_gmsh.py`.
+A layer stops being a skin once its elements are as thin as it is (10 m of soil
+at 10 m elements is counted by volume), which the test pins. An order of
+magnitude: 6,150 against gmsh's 7,505 on the Izmit bedrock at 2 km.
 
 ### The clean run, on the committed stamp
 
