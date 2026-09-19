@@ -21,9 +21,9 @@
  * Earth is not here (its names are its own gazetteer), nor Mars: the IAU
  * publishes no outlines for Mars, only centre points.
  */
-import { dataUrl } from "./data-base.js?v=20260919-4bf29ee";
-import { currentBodyId, getBody } from "./bodies.js?v=20260919-4bf29ee";
-import { paintByField } from "./symbology-dialog.js?v=20260919-4bf29ee";
+import { dataUrl } from "./data-base.js?v=20260919-6aa21d5";
+import { currentBodyId, getBody } from "./bodies.js?v=20260919-6aa21d5";
+import { paintByField } from "./symbology-dialog.js?v=20260919-6aa21d5";
 
 export const OUTLINE_BODIES = {
   moon: { path: "/data/global/nomenclature/moon.geojson", name: "Moon" },
@@ -80,6 +80,9 @@ async function load(body, say) {
     }
     layer.metadata = { ...(layer.metadata || {}), source: CREDIT, citation: CREDIT,
       crs: `${OUTLINE_BODIES[body].name} 2000 geographic, longitude ${west ? "WEST-positive (this viewer's convention)" : "east"}` };
+    // a regio holds the planitia that holds the crater: the name the pointer
+    // means is the smallest one under it (feature-popup honours the flag)
+    layer.pickSmallest = true;
     // one colour per feature type, the question an outline map is read for
     paintByField(layer, "type");
     say(`${layer.features?.length?.toLocaleString?.() || ""} named features outlined. Source: ${CREDIT}.`);

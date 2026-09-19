@@ -23020,6 +23020,32 @@ every category on and with every category off).
   chips that now overlap. Curated labels are still forced and may overlap at
   large sizes.
 
+## IAU feature outlines on the planets, and the planets' missing pick
+
+Explorer > Locations > Feature outlines (IAU) on the Moon, Mercury, Venus and
+Pluto (`gis/nomenclature-outlines.js`, baked by
+`services/bake-nomenclature.py`). The gazetteer's outline files are
+`<BODY>_nomenclature_geometries[_internal].zip` in its public S3 bucket; the
+download page links only the centre points. Mars has none.
+
+- **Mercury's viewer reads longitude WEST-positive**, so its outlines are
+  negated before import (`toWestPositive`), measured ~100 deg off before.
+  The file on disk stays signed east; the layer's CRS says which it is.
+- **No planet viewer published `surfaceLatLonAt`**, so a click on ANY imported
+  layer on a planet never opened its card. `port-viewer-seam.py` now writes it
+  into all nine: the hit is read back in `GeoID-ImportedGeoLayers`' own frame
+  with the viewer's own `vectorToLatLon`, the exact inverse of how the
+  vertices were placed, walked onto the relief, answered signed -180..180.
+- **Nested outlines pick the smallest** (`layer.pickSmallest`, opt-in in
+  `featureInLayer`): a regio holds the planitia that holds the crater, and the
+  first containing polygon named Tombaugh Regio for a click on Sputnik.
+- **The 180 deg cut is not an edge**: the selection outline skips a segment
+  running along +-180, which drew a line across Sputnik Planitia.
+- Shapefile export is refused for this layer (it mixes polygons and lines);
+  GeoJSON, KML, CSV and GPX work.
+- Verify on Pluto (71 features). Looping headless loads of planet viewers
+  with the Moon's 9,060 outlines crashed the laptop.
+
 ## A warm launch is warm now: one root service worker, and a start-up screen that waits
 
 "Even with the loading screen, not all layers are loaded — five to ten seconds

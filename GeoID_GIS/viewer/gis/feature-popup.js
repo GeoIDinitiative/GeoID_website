@@ -20,24 +20,24 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260919-4bf29ee";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260919-4bf29ee";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260919-6aa21d5";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260919-6aa21d5";
 import {
   attachReliefAttributes, followRelief, markerRingTexture,
-} from "./vector-render.js?v=20260919-4bf29ee";
-import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260919-4bf29ee";
-import { lithologyLabel } from "./lithology-label.js?v=20260919-4bf29ee";
-import { isIceFeature, iceCard } from "./ice-card.js?v=20260919-4bf29ee";
-import { isSoilFeature, soilCard } from "./soil-card.js?v=20260919-4bf29ee";
-import { waterCard, WATER_SAID } from "./water-card.js?v=20260919-4bf29ee";
-import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260919-4bf29ee";
-import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20260919-4bf29ee";
-import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js?v=20260919-4bf29ee";
-import { isEarthquakeFeature, earthquakeCard } from "./earthquake-card.js?v=20260919-4bf29ee";
-import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260919-4bf29ee";
+} from "./vector-render.js?v=20260919-6aa21d5";
+import { rockClass, crustalSetting, rockClassLabel } from "./rock-class.js?v=20260919-6aa21d5";
+import { lithologyLabel } from "./lithology-label.js?v=20260919-6aa21d5";
+import { isIceFeature, iceCard } from "./ice-card.js?v=20260919-6aa21d5";
+import { isSoilFeature, soilCard } from "./soil-card.js?v=20260919-6aa21d5";
+import { waterCard, WATER_SAID } from "./water-card.js?v=20260919-6aa21d5";
+import { isRiskFeature, riskCard } from "./cyclone-risk-card.js?v=20260919-6aa21d5";
+import { isVolcanicRiskFeature, volcanicRiskCard } from "./volcanic-risk-card.js?v=20260919-6aa21d5";
+import { isSeismicRiskFeature, seismicRiskCard } from "./seismic-risk-card.js?v=20260919-6aa21d5";
+import { isEarthquakeFeature, earthquakeCard } from "./earthquake-card.js?v=20260919-6aa21d5";
+import { isZoneFeature, zoneCard } from "./volcanic-zone-card.js?v=20260919-6aa21d5";
 import {
   canEditRow, editableFields, applyRowChange,
-} from "./table-editor.js?v=20260919-4bf29ee";
+} from "./table-editor.js?v=20260919-6aa21d5";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -1469,7 +1469,31 @@ function buildHighlight(THREE, feature, { colour, opacity, width = 1, lift = 0, 
   const coords = geometry?.coordinates;
   if (!type || !coords) return nodes;
 
+  /**
+   * THE 180° MERIDIAN IS NOT AN EDGE. A polygon that crosses it arrives as two
+   * rings cut along it, and outlining those rings drew a line straight across
+   * the feature where the cut is -- measured on Sputnik Planitia, a pale arc
+   * through the middle of the plain. A closed ring with a segment running
+   * ALONG ±180 is outlined as the open runs either side of it.
+   */
+  const onCut = (a, b) => Math.abs(a[0]) === 180 && a[0] === b[0];
   const walk = (path, close) => {
+    if (close && path.length > 2) {
+      const n = path.length;
+      const cut = [];
+      for (let i = 0; i < n; i += 1) if (onCut(path[i], path[(i + 1) % n])) cut.push(i);
+      if (cut.length) {
+        // runs start just after a cut segment and end at the next one
+        for (let c = 0; c < cut.length; c += 1) {
+          const from = (cut[c] + 1) % n;
+          const to = cut[(c + 1) % cut.length];
+          const run = [];
+          for (let k = from; ; k = (k + 1) % n) { run.push(path[k]); if (k === to) break; }
+          if (run.length > 1) walk(run, false);
+        }
+        return;
+      }
+    }
     const points = [];
     const last = close ? path.length : path.length - 1;
     for (let i = 0; i < last; i += 1) {
@@ -2042,13 +2066,26 @@ export function featuresAt(lat, lon) {
  */
 function featureInLayer(layer, point, tolerance, pointTolerance = tolerance) {
   let nearest = null;
+  /**
+   * A layer of NESTED outlines -- the IAU's named features, where a regio
+   * contains the planitia that contains a crater -- asks for the SMALLEST
+   * polygon under the pointer (`pickSmallest`): the most specific name is the
+   * one somebody pointing means. Opt-in, because elsewhere the first hit is
+   * deliberate (a geology layer orders its surveys finest-first).
+   */
+  let smallest = null;
   for (const feature of layer.features || []) {
     const geometry = feature?.geometry;
     const polys = polygonsOf(geometry);
     for (const poly of polys) {
       if (!poly?.length || !inBounds(point, poly[0])) continue;
-      if (pointInPolygon(point, poly)) return feature;
+      if (!pointInPolygon(point, poly)) continue;
+      if (!layer.pickSmallest) return feature;
+      const b = boundsOf(poly[0]);
+      const size = (b.maxX - b.minX) * (b.maxY - b.minY);
+      if (!smallest || size < smallest.size) smallest = { size, feature };
     }
+    if (layer.pickSmallest && polys.length) continue;
     if (polys.length) continue;
     /**
      * POINTS ARE CLICKABLE TOO, and they were not.
@@ -2076,7 +2113,8 @@ function featureInLayer(layer, point, tolerance, pointTolerance = tolerance) {
       if (d <= tolerance && (!nearest || d < nearest.d)) nearest = { d, feature };
     }
   }
-  return nearest ? nearest.feature : null;
+  // a line the pointer is ON is what it means, over any area around it
+  return nearest ? nearest.feature : (smallest ? smallest.feature : null);
 }
 
 /** Every coordinate of a Point or MultiPoint geometry; nothing for the rest. */
