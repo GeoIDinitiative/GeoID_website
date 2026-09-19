@@ -21,9 +21,9 @@
  * Earth is not here (its names are its own gazetteer), nor Mars: the IAU
  * publishes no outlines for Mars, only centre points.
  */
-import { dataUrl } from "./data-base.js?v=20260919-79b5f54";
-import { currentBodyId, getBody } from "./bodies.js?v=20260919-79b5f54";
-import { paintByField } from "./symbology-dialog.js?v=20260919-79b5f54";
+import { dataUrl } from "./data-base.js?v=20260919-6c76717";
+import { currentBodyId, getBody } from "./bodies.js?v=20260919-6c76717";
+import { paintByField } from "./symbology-dialog.js?v=20260919-6c76717";
 
 export const OUTLINE_BODIES = {
   moon: { path: "/data/global/nomenclature/moon.geojson", name: "Moon" },
