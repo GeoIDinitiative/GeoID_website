@@ -601,3 +601,22 @@
   mix-blend-mode: normal !important;
   opacity: 1 !important;
 }
+
+/* Each skin's tab radius, read by the open tab's head and body so their
+   fill's corners follow the outline's (styles.css, gis/shell.css). The
+   values are the .control-section radii each skin sets above. */
+:root[data-skin="crt"] { --tab-r: 0.2rem; }
+:root[data-skin="pixel"], :root[data-skin="beige"] { --tab-r: 0rem; }
+:root[data-skin="vector"] { --tab-r: 0.15rem; }
+:root[data-skin="outrun"] { --tab-r: 0.55rem; }
+:root[data-skin="hud"] { --tab-r: 0.1rem; }
+
+/* The scale bar's numbers are placed at fixed tick positions a few rem
+   apart, so they keep the default face in every skin: Orbitron with the
+   vector skin's added tracking ran "2500" into "5000". A theme dresses the
+   chrome; it must not break a measurement. */
+:root[data-skin] #scale-readout .scale-labels,
+:root[data-skin] #scale-readout .scale-labels span {
+  font-family: "Exo 2", sans-serif !important;
+  letter-spacing: 0 !important;
+}

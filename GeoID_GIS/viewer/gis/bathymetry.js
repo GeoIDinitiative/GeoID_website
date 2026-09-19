@@ -14,7 +14,7 @@
  * it has nothing the answer is NaN, and the caller keeps the DEM.
  */
 
-import { loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260919-ed12082";
+import { loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260919-14763da";
 
 export const EMODNET_WCS = "https://ows.emodnet-bathymetry.eu/wcs";
 export const BATHYMETRY_CREDIT = "EMODnet Bathymetry Consortium — EMODnet Digital Bathymetry (DTM), GEBCO elsewhere";

@@ -5425,13 +5425,19 @@ body.modebar-hosted #gis-settings-btn { display: none !important; }
  * radius less its border -- and nothing has to be clipped. The head takes the
  * top two, the body the bottom two, and stickiness is untouched.
  */
+/* The radius is the THEME's (--tab-r, set per skin in viewer-themes.css):
+   a square theme rounding its head to the default's 9.2px showed the fill's
+   curve inside the outline's square corner. And the body is matched by
+   position, not class -- Earth's is .section-body alone, so a rule on
+   .toolbox-group-body never reached it and its bottom corners stayed
+   broken. */
 #gis-toolbox-panels > details.toolbox-group[open] > summary.section-toggle {
-  border-top-left-radius: calc(0.7rem - 2px);
-  border-top-right-radius: calc(0.7rem - 2px);
+  border-top-left-radius: max(0px, calc(var(--tab-r, 0.7rem) - 2px));
+  border-top-right-radius: max(0px, calc(var(--tab-r, 0.7rem) - 2px));
 }
-#gis-toolbox-panels > details.toolbox-group[open] > .toolbox-group-body {
-  border-bottom-left-radius: calc(0.7rem - 2px);
-  border-bottom-right-radius: calc(0.7rem - 2px);
+#gis-toolbox-panels > details.toolbox-group[open] > :is(.section-body, .toolbox-group-body) {
+  border-bottom-left-radius: max(0px, calc(var(--tab-r, 0.7rem) - 2px));
+  border-bottom-right-radius: max(0px, calc(var(--tab-r, 0.7rem) - 2px));
 }
 
 /* Explorer ▸ Locations: ONE list, one spacing, one row shape.

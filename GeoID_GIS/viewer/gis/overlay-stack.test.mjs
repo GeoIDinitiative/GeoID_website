@@ -322,6 +322,18 @@ check("an open workbench moves the events button with the legend, and the slot f
   ok(/reseat: applySlot/.test(stack), "reseat places the slot and runs no one-open rule");
 });
 
+check("an open card under the slot shortens it to the card's top", () => {
+  const slot = { top: 60, left: 1100, right: 1380 };
+  const card = { left: 1040, right: 1390, top: 380, bottom: 720, width: 350, height: 340 };
+  ok(stack.heightAbove(slot, []) === null, "no card, no cap");
+  ok(stack.heightAbove(slot, [card], 8) === 312, "cut at the card's top less the gap");
+  ok(stack.heightAbove(slot, [{ ...card, left: 400, right: 700 }], 8) === null, "a card off the column is ignored");
+  ok(stack.heightAbove(slot, [{ ...card, top: 20, bottom: 50 }], 8) === null, "a card above the slot is ignored");
+  ok(stack.heightAbove(slot, [{ ...card, top: 100 }], 8, 140) === 140, "never shorter than a heading and a few rows");
+  ok(stack.heightAbove(slot, [card, { ...card, top: 300 }], 8) === 232, "the highest card decides");
+  ok(stack.heightAbove(slot, [{ ...card, width: 0 }], 8) === null, "a card with no box is not up");
+});
+
 if (failures.length) {
   failures.forEach((f) => console.error(`  x ${f}`));
   console.error(`${failures.length} failed, ${passed} passed`);

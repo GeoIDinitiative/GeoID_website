@@ -149,6 +149,45 @@ export function slotFrom(rects, viewportWidth, gap = SLOT_GAP, avoid = [], width
   return { top, right: viewportWidth - edge, width: fitted };
 }
 
+/**
+ * HOW TALL THE SLOT MAY BE while a description card is up.
+ *
+ * The cards (a place's, a feature's, an event's) open at the bottom right,
+ * which is the column this slot hangs down, and the panels are drawn at up to
+ * 60vh -- so an open drop-down ran behind the card and its lower rows could not
+ * be read or pressed. A card whose box meets the slot's column and starts
+ * below the slot's top cuts the slot short at the card's top, less the gap.
+ * Nothing is capped when no card is in the way, and the panel never gets
+ * shorter than `min`, which still shows a heading and a few rows to scroll.
+ * Pure, like `slotFrom`, because this is the arithmetic worth pinning.
+ */
+export function heightAbove(slot, cards, gap = SLOT_GAP, min = 140) {
+  if (!slot) return null;
+  const leftOf = (r) => r.left ?? r.x;
+  let cap = null;
+  for (const r of cards || []) {
+    if (!r || !(r.width > 0) || !(r.height > 0)) continue;
+    const across = leftOf(r) < slot.right && r.right > slot.left;
+    if (!across || r.bottom <= slot.top) continue;
+    const room = Math.max(min, (r.top ?? r.y) - gap - slot.top);
+    cap = cap == null ? room : Math.min(cap, room);
+  }
+  return cap;
+}
+
+/** The description cards that open in the slot's column. */
+const DESCRIPTION_CARDS = ["scene-popup", "geo-popup", "event-popup", "gis-feature-popup"];
+
+function cardRects() {
+  return DESCRIPTION_CARDS.map((id) => {
+    const node = byId(id);
+    if (!node || node.hidden) return null;
+    const style = window.getComputedStyle(node);
+    if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return null;
+    return node.getBoundingClientRect();
+  }).filter(Boolean);
+}
+
 /** Narrower than this and an event's title is two words and an ellipsis. */
 const MIN_SLOT_WIDTH = 200;
 
@@ -182,9 +221,27 @@ function applySlot() {
   // ONE width for both panels, the slot's: its own 17.5rem, or narrower where
   // the sidebar leaves less room than that.
   const slotWidth = slot.width < 17.5 * rem ? `${Math.round(slot.width)}px` : SLOT_WIDTH;
+  const width = slot.width < 17.5 * rem ? slot.width : 17.5 * rem;
+  const cap = heightAbove({ top: slot.top, right: window.innerWidth - slot.right,
+    left: window.innerWidth - slot.right - width }, cardRects());
   CARDS.forEach((card) => {
     const panel = byId(card.panel);
     if (!panel) return;
+    // Only ever LOWERED from the panel's own max-height, and handed back the
+    // moment the card goes; the panels scroll themselves, so a shorter one
+    // is still every row.
+    if (!panel.dataset.cardCap) {
+      // the panel's own limit, read while no cap of ours is on it
+      const own = parseFloat(window.getComputedStyle(panel).maxHeight);
+      if (Number.isFinite(own)) panel.dataset.ownMax = String(own);
+    }
+    const own = Number(panel.dataset.ownMax) || Infinity;
+    const want = cap == null || cap >= own ? "" : `${Math.round(cap)}px`;
+    if ((panel.dataset.cardCap || "") !== want) {
+      panel.dataset.cardCap = want;
+      if (want) panel.style.setProperty("max-height", want, "important");
+      else panel.style.removeProperty("max-height");
+    }
     panel.style.setProperty("position", "fixed", "important");
     panel.style.setProperty("top", `${Math.round(slot.top)}px`, "important");
     panel.style.setProperty("right", `${Math.round(slot.right)}px`, "important");
@@ -275,5 +332,9 @@ if (typeof window !== "undefined") {
   // The row moves with the viewport and with the hub's own rail, and the slot
   // is measured off the row.
   window.addEventListener("resize", applySlot);
+  // A card opens, closes and -- for an event -- follows its dot, and none of
+  // them announces it; a quarter-second look is what keeps the slot clear of
+  // it. It writes nothing unless the cap has changed.
+  window.setInterval(() => { if (CARDS.some((card) => byId(card.id) && isOpen(card))) applySlot(); }, 250);
   window.addEventListener("geoid-gis:mode-change", () => window.setTimeout(apply, 0));
 }
