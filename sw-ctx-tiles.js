@@ -250,7 +250,11 @@ self.addEventListener('fetch', event => {
           if (response.ok) cache.put(request, response.clone());
           return response;
         }).catch(() => null);
-        return cached || networkFetch;
+        // A failed revalidation resolves null, and respondWith(null) reaches the
+        // page as a bare "Failed to fetch" -- every local JSON dead with no
+        // cached copy to fall back on. Ask the network once more instead, so a
+        // real failure surfaces as itself and a transient one simply succeeds.
+        return cached || (await networkFetch) || fetch(request);
       })
     );
   }
