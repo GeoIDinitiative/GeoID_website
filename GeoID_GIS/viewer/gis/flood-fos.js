@@ -68,8 +68,8 @@
  * Pure: arrays in, arrays out.
  */
 
-import { FOS_CAP } from "./slope-hydrology.js?v=20260919-6aa21d5";
-import { meanFlowFromWidth, stageRise, channelDepth } from "./inundation.js?v=20260919-6aa21d5";
+import { FOS_CAP } from "./slope-hydrology.js?v=20260919-efed63d";
+import { meanFlowFromWidth, stageRise, channelDepth } from "./inundation.js?v=20260919-efed63d";
 
 /**
  * The annual flood as a multiple of the mean flow — bankfull, by the usual

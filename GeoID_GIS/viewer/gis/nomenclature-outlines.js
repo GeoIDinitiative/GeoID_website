@@ -21,9 +21,9 @@
  * Earth is not here (its names are its own gazetteer), nor Mars: the IAU
  * publishes no outlines for Mars, only centre points.
  */
-import { dataUrl } from "./data-base.js?v=20260919-6aa21d5";
-import { currentBodyId, getBody } from "./bodies.js?v=20260919-6aa21d5";
-import { paintByField } from "./symbology-dialog.js?v=20260919-6aa21d5";
+import { dataUrl } from "./data-base.js?v=20260919-efed63d";
+import { currentBodyId, getBody } from "./bodies.js?v=20260919-efed63d";
+import { paintByField } from "./symbology-dialog.js?v=20260919-efed63d";
 
 export const OUTLINE_BODIES = {
   moon: { path: "/data/global/nomenclature/moon.geojson", name: "Moon" },
@@ -103,23 +103,32 @@ function install(body, tries = 0) {
     return;
   }
   if (byId("nomenclature-outlines")) return;
-  // Its own subsection, after the list: the labels are points, this is a
-  // layer, and a tick among the label rows would read as a sixth label type.
+  // Its own card, straight after the label rows and before the density
+  // slider: the labels are points, this is a layer, and a tick among the label
+  // rows would read as one more label type. The TICK IS ON THE CARD'S HEADER,
+  // as the Locations master is on its own: folded at the foot of the list with
+  // its tick inside, it was measured on screen and still reported missing.
   const wrap = document.createElement("details");
   wrap.id = "nomenclature-outlines";
   wrap.className = "gis-tool-section";
+  wrap.dataset.toolIcon = "1";
   wrap.innerHTML = `
-    <summary>Feature outlines (IAU)</summary>
+    <summary style="display:flex;align-items:center;gap:0.5rem;">
+      <span style="flex:1 1 auto;min-width:0;">Feature outlines (IAU)</span>
+      <input id="nomenclature-outlines-toggle" type="checkbox"
+        aria-label="Show the named feature outlines" title="Show the named feature outlines">
+    </summary>
     <div class="gis-tool-body">
-      <div class="row">
-        <label for="nomenclature-outlines-toggle">Named feature outlines</label>
-        <span class="checkbox-wrap"><input id="nomenclature-outlines-toggle" type="checkbox"></span>
-      </div>
       <p class="compact-copy">The extent of each named feature -- craters, plains, ridges -- as the IAU
         gazetteer draws it. A layer: it joins the Workspace, where it can be recoloured and exported.</p>
       <p class="compact-copy" id="nomenclature-outlines-status" aria-live="polite"></p>
     </div>`;
-  body_.appendChild(wrap);
+  const stack = body_.querySelector(".control-stack") || body_;
+  const before = stack.querySelector(":scope > .lod-slider-row");
+  if (before) stack.insertBefore(wrap, before); else stack.appendChild(wrap);
+  // a press on the tick is a tick, not a fold of the card it sits on
+  const tickEl = byId("nomenclature-outlines-toggle");
+  ["click", "pointerdown"].forEach((type) => tickEl.addEventListener(type, (event) => event.stopPropagation()));
   const tick = byId("nomenclature-outlines-toggle");
   const status = byId("nomenclature-outlines-status");
   const say = (m) => { if (status) status.textContent = m; };

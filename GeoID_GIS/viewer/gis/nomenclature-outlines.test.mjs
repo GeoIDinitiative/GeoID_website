@@ -33,7 +33,8 @@ ok(w.features[1].geometry === null, "a feature with no geometry passes through")
 
 const src = readFileSync(join(HERE, "nomenclature-outlines.js"), "utf8");
 ok(/frame: false, hold: false/.test(src), "loading does not throw the camera or stop the globe");
-ok(/<input id="nomenclature-outlines-toggle" type="checkbox">/.test(src), "the tick opens OFF");
+ok(/<input id="nomenclature-outlines-toggle" type="checkbox"\n/.test(src) && !/nomenclature-outlines-toggle" type="checkbox" checked/.test(src), "the tick opens OFF");
+ok(/<summary[^>]*>[\s\S]*nomenclature-outlines-toggle[\s\S]*<\/summary>/.test(src), "the tick is on the card header, visible while folded");
 ok(/importFileList/.test(src), "it goes in through the importer, so it is an ordinary Workspace layer");
 ok(/"\.\/nomenclature-outlines\.js"/.test(readFileSync(join(HERE, "boot.js"), "utf8")), "the planet pages load it");
 
