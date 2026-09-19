@@ -167,6 +167,33 @@ ok(fitAt > 0 && ruleAt > 0 && fitAt < ruleAt,
 ok(/const toMesh = fitted \|\| eastToMeshLon/.test(hang),
   "and the rule is only ever the fallback");
 
+/* ── Extents: the gazetteer's box, not the feature's shape ────────────── */
+
+ok(m.isExtent({ properties: { extent: true } }), "a flagged feature is an extent");
+ok(!m.isExtent({ properties: { name: "Copernicus" } }), "an outline is not");
+ok(!m.isExtent({}) && !m.isExtent(null), "and neither is nothing");
+
+ok(m.outlineSummary([{ properties: {} }, { properties: {} }]) === "2 named features outlined",
+  "a world with no extents says so plainly");
+const mixed = m.outlineSummary([{ properties: { extent: true } }, { properties: {} }]);
+ok(/1 of them the gazetteer's EXTENT/.test(mixed) && /drawn unfilled/.test(mixed),
+  "a world with extents says how many, and what is done about them");
+ok(!/outlined/.test(mixed), "and does not call them outlined");
+
+/**
+ * THE PREDICATE MUST REACH THE RENDERER, on BOTH paint paths. A layer that is
+ * filled on load and unfilled after its first recolour is worse than either.
+ */
+const renderSrc = readFileSync(join(HERE, "vector-render.js"), "utf8");
+ok(/unfilled = null,/.test(renderSrc), "renderFeatureCollection takes the predicate");
+ok((renderSrc.match(/strokeScale, flat, unfilled,/g) || []).length === 2,
+  "and buildVectorLayerResult forwards it on the build AND the repaint");
+ok(/const asOutline = outlineOnly \|\| \(unfilled \?/.test(renderSrc),
+  "the fill is decided per feature, not per layer");
+ok(/unfilled: typeof ctx\?\.unfilled === "function"/.test(readFileSync(join(HERE, "import-manager.js"), "utf8")),
+  "and the importer carries it from the caller");
+ok(/unfilled: isExtent/.test(src), "the outlines layer asks for it");
+
 /* ── The bake on disk ─────────────────────────────────────────────────── */
 
 const checkFile = (key, name, minFeatures) => {

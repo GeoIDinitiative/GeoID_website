@@ -944,6 +944,18 @@ export function renderFeatureCollection(fc, {
    */
   outlineOnly = false,
   /**
+   * UNFILLED: a predicate asked of EACH feature, for a layer that is filled
+   * in general and holds some features that must not be. `outlineOnly` is the
+   * layer's own mode and the symbology dialog owns it; this is a fact about
+   * the individual feature that no repaint may undo.
+   *
+   * Written for the IAU gazetteer, which publishes two kinds of polygon under
+   * one name: a digitised outline, and -- on Venus, Europa, Callisto, Titan
+   * and most of the mapped moons -- the BOUNDING BOX instead. A filled
+   * rectangle 166 degrees wide claims to be the shape of Aphrodite Terra.
+   */
+  unfilled = null,
+  /**
    * How many seals wide an OUTLINE is stroked. 1 is the seam-covering hairline
    * a filled map wants; a drawn study area passes more, because its edge is the
    * whole of what it shows.
@@ -1256,7 +1268,9 @@ export function renderFeatureCollection(fc, {
       scratch.set(css);
       colour = { r: scratch.r, g: scratch.g, b: scratch.b };
     }
-    if (colour && !outlineOnly) {
+    // the layer's mode, or this one feature's own answer
+    const asOutline = outlineOnly || (unfilled ? unfilled(feature) === true : false);
+    if (colour && !asOutline) {
       polygons.forEach((polygon) => fillTriangles(polygon, FILL_DRAPE, fill, colour));
       // The seam, at the fill's own height. See the note on `seal` above.
       rings.forEach((coords) => {
@@ -1303,7 +1317,7 @@ export function renderFeatureCollection(fc, {
      * in its own right, not the edge of something, and it has always been
      * drawn that way.
      */
-    if (colour && outlineOnly) {
+    if (colour && asOutline) {
       rings.forEach((coords) => {
         const before = seal.positions.length;
         for (let i = 0; i + 1 < coords.length; i += 1) {
@@ -1907,6 +1921,10 @@ export function buildVectorLayerResult(fc, {
   // Drawn on a plain sphere, with none of this world's relief: for a layer
   // hung on another body (a moon). Rides through every repaint.
   flat = false,
+  // Per-feature: which features are drawn as an outline in a filled layer.
+  // Rides through every repaint for the reason `rankOf` does -- a recolour
+  // must not quietly fill in a bounding box the gazetteer never outlined.
+  unfilled = null,
   rankOf = null,
   // How wide an outline is stroked, in seals. Held on the layer for the reason
   // `fillMode` is: every repaint rebuilds the materials.
@@ -2002,7 +2020,7 @@ export function buildVectorLayerResult(fc, {
   const firstPaint = outlineOnly && symbology ? (f) => symbology.colourOf(f) : null;
   const { object3D, truncated } = renderFeatureCollection(fc, {
     name, drape, pointStyle, pointSymbol, rankOf, contacts: contactStyle,
-    outlineOnly, colourFor: firstPaint, strokeScale, flat,
+    outlineOnly, colourFor: firstPaint, strokeScale, flat, unfilled,
   });
   let lastColourFor = null;
   /**
@@ -2037,7 +2055,7 @@ export function buildVectorLayerResult(fc, {
       // survey precedence, or the coarse boundaries come back on the next
       // symbology change.
       name, drape, colourFor, pointStyle, pointSymbol, rankOf, outlineOnly: fillMode === "outline",
-      strokeScale, flat,
+      strokeScale, flat, unfilled,
       // Rides through every repaint for `rankOf`'s reason: a recolour must not
       // quietly return the contacts to invisible.
       contacts: contactStyle,

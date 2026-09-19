@@ -62,7 +62,9 @@ const PARSERS = {
     parseGeoJson(await file.text()),
     { name: file.name, pointStyle: ctx?.pointStyle || "auto", pointSymbol: ctx?.pointSymbol || "disc",
       // a layer drawn on ANOTHER body (a moon) takes none of this world's relief
-      flat: Boolean(ctx?.flat) },
+      flat: Boolean(ctx?.flat),
+      // which of this layer's features are drawn as an outline rather than filled
+      unfilled: typeof ctx?.unfilled === "function" ? ctx.unfilled : null },
   ),
   kml: async (file) => buildVectorLayerResult(parseKml(await file.text()), { name: file.name }),
   gpx: async (file) => buildVectorLayerResult(parseGpx(await file.text()), { name: file.name }),

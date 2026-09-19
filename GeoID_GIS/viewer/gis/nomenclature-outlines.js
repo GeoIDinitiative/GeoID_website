@@ -84,6 +84,36 @@ export const OUTLINE_MOONS = {
 // its own to outline and is here for its moons alone.
 export const MOON_HOSTS = new Set(["mars", "pluto", "jupiter", "saturn", "uranus", "neptune"]);
 
+/**
+ * THE GAZETTEER DRAWS TWO KINDS OF POLYGON AND CALLS THEM ONE THING.
+ *
+ * Most are digitised outlines. Many are the feature's BOUNDING BOX instead --
+ * a five-point axis-aligned rectangle -- and the file says which
+ * (`bake-nomenclature.py`, `is_extent`). Measured at the bake: Venus 373 of
+ * 414, Mimas 93%, Tethys 96%, Dione 95%, Titania and Oberon 100%; the Moon,
+ * Mars, Mercury, Io, Pluto, Charon and Triton have none at all.
+ *
+ * It matters because a FILLED rectangle claims to be the feature's shape.
+ * Aphrodite Terra's box is 166 degrees wide; painted solid over the imagery
+ * it reads as a map of Aphrodite Terra, and it is a map of the smallest box
+ * that holds it. So an extent is drawn unfilled and its card says so.
+ */
+export const isExtent = (feature) => feature?.properties?.extent === true;
+
+/**
+ * What a layer HOLDS, said before anybody clicks a feature to find out. On a
+ * world that is mostly boxes, "414 named features outlined" is the sentence a
+ * reader would otherwise take away, and it would be wrong about 373 of them.
+ */
+export function outlineSummary(features) {
+  const total = (features || []).length;
+  const boxes = (features || []).filter(isExtent).length;
+  const n = total.toLocaleString();
+  if (!boxes) return `${n} named features outlined`;
+  return `${n} named features, ${boxes.toLocaleString()} of them the gazetteer's `
+    + "EXTENT (the box around the feature) rather than an outline -- those are drawn unfilled";
+}
+
 export const layerNameFor = (body) => `Named feature outlines — ${OUTLINE_BODIES[body]?.name || body} (IAU)`;
 export const moonLayerNameFor = (key) => `Named feature outlines — ${OUTLINE_MOONS[key] || key} (IAU)`;
 const moonPath = (key) => `/data/global/nomenclature/${key}.geojson`;
@@ -145,6 +175,11 @@ export function sceneItem(feature, extra = null) {
   const c = bboxCentre(feature.geometry);
   if (!c) return null;
   const bits = [];
+  // FIRST, because it qualifies every other number on the card: a diameter
+  // read off a bounding box is the box's, not the feature's.
+  if (p.extent) {
+    bits.push("The gazetteer publishes this feature's EXTENT -- the box around it -- rather than a digitised outline, so the shape drawn is a bounding box.");
+  }
   if (p.origin) bits.push(`Named for ${String(p.origin).replace(/\.$/, "")}.`);
   if (p.diameter_km) bits.push(`About ${Math.round(p.diameter_km).toLocaleString()} km across.`);
   if (p.approved) bits.push(`Name approved by the IAU in ${p.approved}.`);
@@ -485,7 +520,7 @@ async function importOutlines(path, name, { west = false, flat = false } = {}) {
   let blob = await response.blob();
   if (west) blob = new Blob([JSON.stringify(toWestPositive(JSON.parse(await blob.text())))]);
   await manager.importFileList([new File([blob], `${name}.geojson`, { type: "application/geo+json" })],
-    { name, frame: false, hold: false, flat });
+    { name, frame: false, hold: false, flat, unfilled: isExtent });
   const layer = namedLayer(name);
   if (!layer || layer.status === "error") {
     if (layer) manager.removeLayer(layer.id);
@@ -512,7 +547,7 @@ async function load(body, say) {
     layer.sceneItemFor = (feature) => sceneItem(feature);
     // one colour per feature type, the question an outline map is read for
     paintByField(layer, "type");
-    say(`${layer.features?.length?.toLocaleString?.() || ""} named features outlined. Source: ${CREDIT}.`);
+    say(`${outlineSummary(layer.features)}. Source: ${CREDIT}.`);
     return true;
   } catch (error) {
     say(`The outlines did not load (${error.message || error}).`);
@@ -566,7 +601,7 @@ async function loadMoon(target, say) {
     layer.sceneItemFor = (feature) => sceneItem(feature, { moon_name: target.name });
     paintByField(layer, "type");
     if (!hangOnMoon(layer, target, say)) { manager.removeLayer(layer.id); return false; }
-    say(`${layer.features?.length?.toLocaleString?.() || ""} named features outlined on ${target.name}. Source: ${CREDIT}.`);
+    say(`${outlineSummary(layer.features)} on ${target.name}. Source: ${CREDIT}.`);
     return true;
   } catch (error) {
     say(`${target.name}'s outlines did not load (${error.message || error}).`);
@@ -747,6 +782,9 @@ function install(body, tries = 0) {
     <div class="gis-tool-body">
       <p class="compact-copy">The extent of each named feature -- craters, plains, ridges -- as the IAU
         gazetteer draws it. A layer: it joins the Workspace, where it can be recoloured and exported.</p>
+      <p class="compact-copy">Where the gazetteer has drawn no outline it publishes the feature's
+        BOUNDING BOX instead -- most of Venus, Europa, Callisto, Titan and the mapped moons. Those are
+        drawn unfilled, because a filled rectangle claims to be the shape of what it only encloses.</p>
       ${moonLine}
       <p class="compact-copy" id="nomenclature-outlines-status" aria-live="polite"></p>
     </div>`;

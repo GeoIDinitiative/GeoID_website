@@ -149,6 +149,46 @@ def rounded(obj):
     return obj
 
 
+def is_extent(geom):
+    """
+    IS THIS THE FEATURE'S SHAPE, OR JUST THE BOX AROUND IT?
+
+    The gazetteer publishes two kinds of polygon under one name, and says so
+    nowhere. Most worlds are digitised outlines; on others it has drawn the
+    BOUNDING BOX instead -- a five-point axis-aligned rectangle whose every
+    vertex is at a bbox extreme. Measured against the source shapefiles:
+    Venus 385 of 399, Europa 90%, Callisto 60%, Titan 53%, and Phobos, Mimas,
+    Tethys, Dione, Rhea, Iapetus, Hyperion and all five Uranian moons at 100%.
+    The Moon, Mars, Mercury, Io, Pluto, Charon and Triton have none.
+
+    A 166-degree rectangle filled over Aphrodite Terra claims to be the shape
+    of Aphrodite Terra, which it is not, so an extent is flagged here and the
+    viewer draws it unfilled and says what it is on the card.
+
+    Read off the geometry as PUBLISHED, because that is what anything
+    downstream will see; measured, it gives the same answer as the source
+    (the simplify caps at 0.02 degrees and cannot flatten an outline into a
+    box, nor does it move a box's own corners).
+    """
+    if geom["type"] == "Polygon":
+        ring = geom["coordinates"][0]
+    elif geom["type"] == "MultiPolygon":
+        # one part only: a multipart feature is not a single box
+        if len(geom["coordinates"]) != 1:
+            return False
+        ring = geom["coordinates"][0][0]
+    else:
+        return False
+    if len(ring) != 5:
+        return False
+    xs = [c[0] for c in ring]
+    ys = [c[1] for c in ring]
+    x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+    if x1 == x0 or y1 == y0:
+        return False          # a degenerate sliver is not an extent box
+    return all(x in (x0, x1) and y in (y0, y1) for x, y in ring)
+
+
 def bake(key):
     body = BODIES[key]
     zpath, suffix = fetch(body)
@@ -174,8 +214,12 @@ def bake(key):
         if "quad_name" in props:
             props["quadrangle"] = props.pop("quad_name")
         props["body"] = key
-        out.append({"type": "Feature", "properties": props,
-                    "geometry": {"type": g.geom_type, "coordinates": rounded(mapping(g)["coordinates"])}})
+        geom = {"type": g.geom_type, "coordinates": rounded(mapping(g)["coordinates"])}
+        # absent unless it IS one: a flag on every feature of the Moon's 8,870
+        # would be 140 kB of "false"
+        if is_extent(geom):
+            props["extent"] = True
+        out.append({"type": "Feature", "properties": props, "geometry": geom})
     # DRAW ORDER: largest first, lines last. The outlines nest (a regio holds
     # the planitia that holds a crater) and the renderer paints in array
     # order, so a small feature drawn first was washed under the region
@@ -186,15 +230,18 @@ def bake(key):
     doc = {"type": "FeatureCollection",
            "_source": (f"IAU Gazetteer of Planetary Nomenclature, USGS Astrogeology Science Center: "
                        f"{body}_nomenclature_geometries{suffix}.zip. Public domain (US Government work); "
-                       f"longitudes signed east, rings cut at 180 and simplified to 1/100 of each feature's span."),
+                       f"longitudes signed east, rings cut at 180 and simplified to 1/100 of each feature's span. "
+                       f"A feature marked `extent` is the gazetteer's BOUNDING BOX, not a digitised outline."),
            "features": out}
     path = os.path.join(OUT, f"{key}.geojson")
     json.dump(doc, open(path, "w"), separators=(",", ":"))
     kinds = {}
     for f in out:
         kinds[f["geometry"]["type"]] = kinds.get(f["geometry"]["type"], 0) + 1
-    xs = [c for f in out for c in json.dumps(f["geometry"]["coordinates"]).split(",")]
-    print(f"{key}: {len(out)} of {len(src)} features {kinds}, {os.path.getsize(path) / 1e6:.2f} MB ({body}{suffix})")
+    boxes = sum(1 for f in out if f["properties"].get("extent"))
+    share = f", {boxes} EXTENTS ({100 * boxes / len(out):.0f}%)" if boxes else ""
+    print(f"{key}: {len(out)} of {len(src)} features {kinds}{share}, "
+          f"{os.path.getsize(path) / 1e6:.2f} MB ({body}{suffix})")
 
 
 if __name__ == "__main__":
