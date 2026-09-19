@@ -401,6 +401,197 @@
   };
 
   let hooks = null;
+  // The viewer's own hooks object. `hooks` is a view of it that answers for
+  // the body being flown: the planet, or — when a moon viewer is open — that
+  // moon (see moonHooks). Everything below reads `hooks`, so a moon is flown
+  // by exactly the code that flies a planet.
+  let baseHooks = null;
+  // The moon a flight is BOUND to, fixed at engage. A flight belongs to one
+  // body for its whole length: opening or leaving a moon viewer mid-flight
+  // ends it rather than carrying the ship's coordinates to another body.
+  let flightMoon = null;
+
+  // The moon being flown, or the moon a pre-flight is aiming at. Bound for
+  // the whole flight; live while choosing a site.
+  function moonNow() {
+    if (fs?.active) return flightMoon;
+    return baseHooks?.getFlightMoon?.() || null;
+  }
+
+  // What a moon answers in place of the planet. Latitude and longitude are
+  // the moon MESH's own frame (the frame its texture and its features are
+  // placed in), the datum is the mesh surface, and there is no spin to
+  // undo: the mesh already carries the moon's rotation.
+  function moonGeomRadius(mesh) {
+    if (!mesh.geometry.boundingSphere) mesh.geometry.computeBoundingSphere();
+    return mesh.geometry.boundingSphere.radius;
+  }
+  function moonHooks(m) {
+    const T = baseHooks.THREE;
+    const r = moonGeomRadius(m.mesh);
+    return {
+      bodyId: "moon-" + String(m.name).toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      bodyGroup: m.mesh,
+      marsGroup: m.mesh,
+      globe: m.mesh,
+      bodyRadiusMeters: m.radiusMeters,
+      latLonToVector3: (lat, lon, radius) => {
+        const phi = T.MathUtils.degToRad(lat);
+        const lam = T.MathUtils.degToRad(lon);
+        const k = (radius / GLOBE_R) * r;       // GLOBE_R on the sim's scale is the mesh surface
+        return new T.Vector3(-k * Math.cos(phi) * Math.cos(lam), k * Math.sin(phi), k * Math.cos(phi) * Math.sin(lam));
+      },
+      getSpinDelta: () => 0,
+      sceneLonToViewerLon: undefined,
+      lonWestPositive: false,
+      displayLon: m.displayLon || undefined,
+      elevationSampler: null,
+      sampleElevationNormalized: () => 0.5,
+      getEffectiveTerrainRelief: () => 0,
+      getRequestedTerrainRelief: () => 0,
+      syncTerrainReliefState: () => {},
+      // The planet's basemap and relief are the planet's: flying a moon must
+      // not switch or stretch them.
+      terrainScale: null,
+      baseLayerSelect: null,
+      streamedLayer: null,
+      ctxDetailStreamer: null,
+      manifest: { elevation: null },
+      isMoonViewerActive: () => false,
+      pickSurfaceLatLon: (clientX, clientY) => {
+        const el = baseHooks.renderer.domElement;
+        const rect = el.getBoundingClientRect();
+        const ray = new T.Raycaster();
+        ray.setFromCamera(new T.Vector2(
+          ((clientX - rect.left) / rect.width) * 2 - 1,
+          -((clientY - rect.top) / rect.height) * 2 + 1), baseHooks.camera);
+        const hit = ray.intersectObject(m.mesh, false)[0];
+        if (!hit) return null;
+        const q = m.mesh.worldToLocal(hit.point.clone()).normalize();
+        const lat = T.MathUtils.radToDeg(Math.asin(Math.max(-1, Math.min(1, q.y))));
+        const lon = ((T.MathUtils.radToDeg(Math.atan2(q.z, -q.x)) % 360) + 360) % 360;
+        return { lat, lon };
+      },
+    };
+  }
+  function bodyHooks(base) {
+    let cache = null, cacheKey = null;
+    return new Proxy(base, {
+      get(target, key) {
+        const m = moonNow();
+        if (m) {
+          if (cacheKey !== m) { cache = moonHooks(m); cacheKey = m; }
+          if (Object.prototype.hasOwnProperty.call(cache, key)) return cache[key];
+        }
+        return target[key];
+      },
+    });
+  }
+
+  // ---- flying a body that is not at the world origin ----
+  // Every radial computation in this file (clamps, gravity, altitude, the
+  // near plane) takes the flown body to be centred on the WORLD ORIGIN with
+  // its datum at GLOBE_R. A moon is neither: Io is ~0.1 units across and
+  // orbits Jupiter. So for the flight the world's content goes into one
+  // group that is scaled and moved to put the moon there — the similarity
+  // keeps every angle and relative size, so the view is the same view — and
+  // it is re-centred each frame in case the moon moves. LIGHTS stay out
+  // (a directional light aims at the origin, which is now the moon, so its
+  // direction is unchanged), and so do the sim's own ship and explosion,
+  // which are placed in world units already.
+  const moonFrame = { root: null, k: 1, c: null, far: null, simOwned: new Set() };
+  function enterMoonFrame(m) {
+    const T = baseHooks.THREE;
+    const scene = baseHooks.scene;
+    scene.updateMatrixWorld(true);
+    const centre = m.mesh.getWorldPosition(new T.Vector3());
+    const worldR = moonGeomRadius(m.mesh) * m.mesh.getWorldScale(new T.Vector3()).x;
+    const root = new T.Group();
+    root.name = "GeoID-FlightMoonFrame";
+    for (const child of [...scene.children]) {
+      if (child.isLight || moonFrame.simOwned.has(child)) continue;
+      root.add(child);
+    }
+    scene.add(root);
+    moonFrame.root = root;
+    moonFrame.k = GLOBE_R / worldR;
+    moonFrame.c = centre;
+    applyMoonFrame();
+    // The camera and the orbit target are world objects: carry them in.
+    const cam = baseHooks.camera;
+    cam.position.sub(centre).multiplyScalar(moonFrame.k);
+    baseHooks.controls?.target?.sub(centre).multiplyScalar(moonFrame.k);
+    // The viewer's own scale bar measures in the PLANET's units and knows
+    // nothing of this frame (it read "500 km" over Phobos); it stands down.
+    document.body.classList.add("fs-moon-flight");
+    moonFrame.far = cam.far;
+    cam.far = cam.far * moonFrame.k;
+    cam.updateProjectionMatrix();
+  }
+  function applyMoonFrame() {
+    const f = moonFrame;
+    f.root.scale.setScalar(f.k);
+    f.root.position.copy(f.c).multiplyScalar(-f.k);
+    f.root.updateMatrixWorld(true);
+  }
+  function stepMoonFrame() {
+    if (!moonFrame.root || !flightMoon) return;
+    moonFrame.root.updateMatrixWorld(true);
+    const p = flightMoon.mesh.getWorldPosition(new baseHooks.THREE.Vector3());
+    // Where the moon is in the untransformed scene: undo this frame's move.
+    moonFrame.c.copy(p.sub(moonFrame.root.position).multiplyScalar(1 / moonFrame.k));
+    applyMoonFrame();
+  }
+  function exitMoonFrame() {
+    const f = moonFrame;
+    if (!f.root) return;
+    const scene = baseHooks.scene;
+    const cam = baseHooks.camera;
+    stepMoonFrame();
+    const back = (v) => v.multiplyScalar(1 / f.k).add(f.c);
+    back(cam.position);
+    for (const child of [...f.root.children]) scene.add(child);
+    scene.remove(f.root);
+    f.root = null;
+    document.body.classList.remove("fs-moon-flight");
+    cam.far = f.far ?? cam.far;
+    cam.updateProjectionMatrix();
+    // Back in the moon viewer, looking at the moon where it now is.
+    const target = baseHooks.controls?.target;
+    if (target) target.copy(f.c);
+    cam.lookAt(f.c);
+    scene.updateMatrixWorld(true);
+  }
+
+  // The launch list is in the flown body's own radii where the body is not a
+  // rocky planet (a Mars-sized list over Phobos starts 90 radii out).
+  let rockyLaunchHtml = null;
+  function applyLaunchOptions() {
+    if (!startAltSelect) return;
+    if (rockyLaunchHtml === null) rockyLaunchHtml = startAltSelect.innerHTML;
+    const moon = moonNow();
+    const gas = !moon && bodyProfile().gas;
+    if (!moon && !gas) {
+      if (startAltSelect.innerHTML !== rockyLaunchHtml) startAltSelect.innerHTML = rockyLaunchHtml;
+      return;
+    }
+    const factors = moon ? MOON_LAUNCH_FACTORS : GAS_LAUNCH_FACTORS;
+    const def = moon ? MOON_LAUNCH_DEFAULT : GAS_LAUNCH_DEFAULT;
+    const rKm = (hooks.bodyRadiusMeters || 0) / 1000;
+    const words = moon ? " above " + moon.name : " above the cloud tops";
+    startAltSelect.textContent = "";
+    for (const f of factors) {
+      const km = niceKm(rKm * f);
+      const opt = document.createElement("option");
+      opt.value = String(km * 1000);
+      opt.textContent = km.toLocaleString("en-GB") + " km" + words;
+      if (f === def) opt.selected = true;
+      startAltSelect.appendChild(opt);
+    }
+  }
+  function refreshBodyScale() {
+    METERS_PER_UNIT = (hooks.bodyRadiusMeters ?? hooks.MARS_RADIUS_METERS) / GLOBE_R;
+  }
   let THREE = null;
 
   // ---- constants (filled in once hooks arrive) ----
@@ -541,7 +732,16 @@
   const WARP_ROOF_KMS = 400;         // ~50 s to circle Mars
   function speedCeilingKmS(altKm) {
     const byView = VIEW_KM_PER_ALT_KM * Math.max(0, altKm);
-    return Math.min(SPEED_ROOF_KMS, Math.max(SPEED_FLOOR_KMS, byView));
+    // 0.8 km/s is a flyable crawl over a planet and a lap of Phobos (11 km
+    // across) every minute and a half; the floor shrinks with a small body.
+    const rKm = (hooks?.bodyRadiusMeters || 3389500) / 1000;
+    // And a lap takes no less than five minutes: the view-based ceiling is
+    // sized to how much GROUND is in view, which says nothing about how
+    // small the body is — 1.2 km/s from 2 km up is a gentle drift over a
+    // planet and a lap of Phobos every minute. Binds only below ~570 km.
+    const lapCap = (2 * Math.PI * rKm) / 300;
+    const floor = Math.min(SPEED_FLOOR_KMS, Math.max(0.02, rKm / 40), lapCap);
+    return Math.min(SPEED_ROOF_KMS, lapCap, Math.max(floor, byView));
   }
 
   // ---- flight state ----
@@ -640,6 +840,11 @@
     return ((e % 360) + 360) % 360;
   }
   function lonLabel(lon, digits) {
+    // A moon reads its longitude the way the viewer's own cursor readout
+    // does for that moon (°W where the viewer shows °W), not in the mesh's
+    // internal frame.
+    const shown = hooks.displayLon?.(lon);
+    if (shown && Number.isFinite(shown.value)) return shown.value.toFixed(digits) + shown.suffix;
     const v = ((lon % 360) + 360) % 360;
     return v.toFixed(digits) + (hooks.lonWestPositive ? "°W" : "°E");
   }
@@ -1036,10 +1241,19 @@
     },
   };
 
+  const MOON_REGIONS = {
+    north: "NORTHERN HEMISPHERE", south: "SOUTHERN HEMISPHERE",
+    list: [
+      { n: "NORTH POLAR REGION", lat: [70, 90] },
+      { n: "SOUTH POLAR REGION", lat: [-90, -70] },
+    ],
+  };
   const inLonRange = (lon, [a, b]) => (a <= b ? (lon >= a && lon <= b)
                                               : (lon >= a || lon <= b));
   function regionName(lat, lon) {
-    const set = REGION_SETS[hooks?.bodyId] || REGION_SETS.mars;
+    // A moon has no gazetteer here; Mars's region names over Io would be a
+    // confident wrong answer.
+    const set = REGION_SETS[hooks?.bodyId] || (moonNow() ? MOON_REGIONS : REGION_SETS.mars);
     const L = ((lon % 360) + 360) % 360;
     for (const r of set.list) {
       if (lat < r.lat[0] || lat > r.lat[1]) continue;
@@ -2045,6 +2259,7 @@
     group.renderOrder = 400;
     group.traverse(applyShipDepthOrder);
     hooks.scene.add(group);
+    moonFrame.simOwned.add(group);
     return group;
   }
 
@@ -2147,6 +2362,7 @@
     sprite.visible = false;
     sprite.raycast = () => {};
     hooks.scene.add(sprite);
+    moonFrame.simOwned.add(sprite);
     return sprite;
   }
 
@@ -2338,7 +2554,18 @@
     // radial computation below lands on the right body.
     window.dispatchEvent(new CustomEvent("flightsim:engaged"));
     if (!hooks || fs.active) return;
-    if (hooks.isMoonViewerActive()) { flash("EXIT MOON VIEWER FIRST"); syncToggle(false); return; }
+    // A moon viewer is open: fly THAT moon, if the viewer can say which.
+    flightMoon = baseHooks.getFlightMoon?.() || null;
+    if (!flightMoon && hooks.isMoonViewerActive()) { flash("EXIT MOON VIEWER FIRST"); syncToggle(false); return; }
+    refreshBodyScale();
+    if (flightMoon) enterMoonFrame(flightMoon);
+    // The instrument caption names the air the ship is in — the moon's, when
+    // a moon is flown, not the planet's it was set to at boot.
+    const domainNode = document.getElementById("fs-domain");
+    if (domainNode) domainNode.textContent = bodyProfile().domain || "Atmosphere";
+    // A moon viewer opens on the moon's info card; in the cockpit it sits
+    // over the instruments. Put it away through the viewer's own closer.
+    if (flightMoon) { try { window.GeoIDViewer?.closeCards?.(); } catch (_e) {} }
     installContextLossRecovery();
     repairBaseTexture();
     // The amber flight palette belongs to BEING IN FLIGHT, not to having passed
@@ -2474,11 +2701,21 @@
     // the surface so the orbit floor doesn't fight, aim at the planet.
     const cam = hooks.camera;
     cam.up.set(0, 1, 0);
-    const minLen = GLOBE_R + Math.max(0.03, hooks.getEffectiveTerrainRelief() + 0.005);
-    if (cam.position.length() < minLen) cam.position.setLength(minLen);
-    cam.near = 0.1;
-    cam.updateProjectionMatrix();
-    cam.lookAt(0, 0, 0);
+    if (flightMoon) {
+      // Back to the moon viewer, the scene where it was and the camera just
+      // off the moon, looking at it.
+      exitMoonFrame();
+      cam.near = Math.max(0.0005, cam.near);
+      cam.updateProjectionMatrix();
+      flightMoon = null;
+    } else {
+      const minLen = GLOBE_R + Math.max(0.03, hooks.getEffectiveTerrainRelief() + 0.005);
+      if (cam.position.length() < minLen) cam.position.setLength(minLen);
+      cam.near = 0.1;
+      cam.updateProjectionMatrix();
+      cam.lookAt(0, 0, 0);
+    }
+    refreshBodyScale();
     hooks.controls.enabled = true;
     hooks.controls.update();
     hooks.setStatus?.("Flight mode disengaged.");
@@ -2676,13 +2913,13 @@
   // the scale height. Sources: NASA planetary fact sheets (1-bar temperature,
   // scale height, gravity); tropopause minima from Voyager/Cassini radio
   // occultations. Enough for an instrument readout, not a model.
-  function giantAtmosphere(oneBarK, tropopauseK, lapseKPerKm, scaleHKm) {
+  function giantAtmosphere(oneBarK, tropopauseK, lapseKPerKm, scaleHKm, surfacePa = 1.0e5) {
     return (hMeters) => {
       const h = Math.max(0, hMeters || 0);
       const tK = Math.max(tropopauseK, oneBarK - lapseKPerKm * (h / 1000));
       return {
         tempC: tK - 273.15,
-        pressurePa: Math.max(SPACE_FLOOR_PA, 1.0e5 * Math.exp(-h / (scaleHKm * 1000))),
+        pressurePa: Math.max(SPACE_FLOOR_PA, surfacePa * Math.exp(-h / (scaleHKm * 1000))),
       };
     };
   }
@@ -2756,6 +2993,10 @@
   };
   // The ceiling: the tallest launch option with headroom, on every world.
   function maxAltM() {
+    if (moonNow()) {
+      const rKm = (hooks?.bodyRadiusMeters || 0) / 1000;
+      return niceKm(rKm * MOON_LAUNCH_FACTORS[MOON_LAUNCH_FACTORS.length - 1]) * 1000 * 1.1;
+    }
     if (!bodyProfile().gas) return MAX_ALT_M;
     const rKm = (hooks?.bodyRadiusMeters || 0) / 1000;
     return niceKm(rKm * GAS_LAUNCH_FACTORS[GAS_LAUNCH_FACTORS.length - 1]) * 1000 * 1.1;
@@ -2764,10 +3005,51 @@
   // time, or crossing Jupiter at Mars's warp takes seventeen minutes.
   function warpRoofKmS() {
     const rM = hooks?.bodyRadiusMeters || 3389500;
+    // A moon keeps the same ~50 s crossing, which on a small one is slower.
+    if (moonNow()) return WARP_ROOF_KMS * Math.max(0.005, rM / 3389500);
     return WARP_ROOF_KMS * Math.max(1, rM / 3389500);
   }
   // Falls back to Mars so an unrecognised host still flies rather than throwing.
-  const bodyProfile = () => BODY_PROFILES[hooks?.bodyId] || BODY_PROFILES.mars;
+  const bodyProfile = () => {
+    const m = moonNow();
+    if (m) return moonProfile(m);
+    return BODY_PROFILES[baseHooks?.bodyId] || BODY_PROFILES.mars;
+  };
+
+  // ---- the moons ----
+  // Surface gravity in m/s² where it is known (NASA fact sheets); anything
+  // else from its radius at an icy-rock density, which is the right order
+  // for every small moon in these systems.
+  const MOON_GRAVITY = {
+    Phobos: 0.0057, Deimos: 0.003, Io: 1.796, Europa: 1.315, Ganymede: 1.428,
+    Callisto: 1.235, Mimas: 0.064, Enceladus: 0.113, Tethys: 0.146, Dione: 0.232,
+    Rhea: 0.264, Titan: 1.352, Iapetus: 0.223, Miranda: 0.079, Ariel: 0.269,
+    Umbriel: 0.2, Titania: 0.379, Oberon: 0.346, Triton: 0.779, Charon: 0.288,
+  };
+  // The few with an atmosphere worth reading. Titan's is thicker than
+  // Earth's; Triton's and Io's are a whisper; the rest are vacuum.
+  const MOON_AIR = {
+    Titan:  () => giantAtmosphere(94, 70, 0.55, 21, 146700),
+    Triton: () => exosphere(-235, -250, 1.4, 14000),
+    Io:     () => exosphere(-143, -160, 1.0e-4, 12000),
+  };
+  const MOON_LAUNCH_FACTORS = [0.01, 0.05, 0.2, 0.5, 1, 2];
+  const MOON_LAUNCH_DEFAULT = 0.2;
+  const moonProfileCache = new Map();
+  function moonProfile(m) {
+    if (moonProfileCache.has(m.name)) return moonProfileCache.get(m.name);
+    const R = m.radiusMeters || 1e6;
+    const gravity = MOON_GRAVITY[m.name] ?? (6.674e-11 * 1500 * (4 / 3) * Math.PI * R);
+    const air = MOON_AIR[m.name];
+    const profile = {
+      gravity,
+      moon: true,
+      atmosphere: air ? air() : exosphere(-170, -270, SPACE_FLOOR_PA, 10000),
+      domain: `${m.name} ${air ? "atmosphere" : "surface"}`,
+    };
+    moonProfileCache.set(m.name, profile);
+    return profile;
+  }
 
   // Colour ramps for the two environment readouts, running the CONVENTIONAL
   // direction: cold/low = blue, hot/high = red. This deliberately overrides the
@@ -2899,7 +3181,14 @@
   // ---- per-frame update (called from the viewer render loop) ----
   function update(camera) {
     if (!fs.active) return;
-    if (hooks.isMoonViewerActive()) { disengage(); return; }
+    // One body per flight. The moon viewer opening (flying a planet) or
+    // closing / switching moon (flying a moon) ends it.
+    {
+      const live = baseHooks.getFlightMoon?.() || null;
+      const liveName = live ? live.name : (baseHooks.isMoonViewerActive?.() ? "?" : null);
+      if (liveName !== (flightMoon ? flightMoon.name : null)) { disengage(); return; }
+    }
+    stepMoonFrame();
 
     const now = performance.now();
     let dt = state.lastT ? (now - state.lastT) / 1000 : 0;
@@ -3790,6 +4079,9 @@
 
   let preflightMaxDist = null;
   function enterPreflight() {
+    // The body being aimed at — the planet, or the moon whose viewer is open
+    // — decides the scale and the launch list before anything is shown.
+    if (hooks && !fs.active) { refreshBodyScale(); applyLaunchOptions(); }
     // The vista swap fires here, not just at engage: on the Moon the Earth
     // prop otherwise sits between the camera and the site you are aiming at.
     window.dispatchEvent(new CustomEvent("flightsim:engaged"));
@@ -4116,8 +4408,9 @@
 
   // ---- boot: wait for the forked viewer to expose its hooks ----
   function adoptHooks() {
-    hooks = window.__flightSimHooks;
-    if (!hooks) return false;
+    baseHooks = window.__flightSimHooks;
+    if (!baseHooks) return false;
+    hooks = bodyHooks(baseHooks);
     THREE = hooks.THREE;
     METERS_PER_UNIT = (hooks.bodyRadiusMeters ?? hooks.MARS_RADIUS_METERS) / GLOBE_R;
     prefetchShip(shipModelSelect?.value);   // warm the default ship early
@@ -4125,19 +4418,7 @@
     // whichever world was underneath. Set it from the profile.
     const domainNode = document.getElementById("fs-domain");
     if (domainNode) domainNode.textContent = bodyProfile().domain || "Atmosphere";
-    // A giant's launch list is in its own radii (see GAS_LAUNCH_FACTORS).
-    if (bodyProfile().gas && startAltSelect) {
-      const rKm = (hooks.bodyRadiusMeters || 0) / 1000;
-      startAltSelect.textContent = "";
-      for (const f of GAS_LAUNCH_FACTORS) {
-        const km = niceKm(rKm * f);
-        const opt = document.createElement("option");
-        opt.value = String(km * 1000);
-        opt.textContent = km.toLocaleString("en-GB") + " km above the cloud tops";
-        if (f === GAS_LAUNCH_DEFAULT) opt.selected = true;
-        startAltSelect.appendChild(opt);
-      }
-    }
+    applyLaunchOptions();
     // NO WARMING ON BOOT. This used to fire 4 s after the viewer loaded, on
     // every visit. It exists purely to make FLIGHTS smooth, but it ran for every
     // Mars viewer visitor: 10,922 tiles (~0.4 GB) across levels 0-6 at two

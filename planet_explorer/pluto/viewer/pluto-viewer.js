@@ -18186,6 +18186,23 @@ uniform float uViewportWidth;`,
         bodyId: "pluto",
         bodyGroup: plutoGroup,
         bodyRadiusMeters: PLUTO_RADIUS_METERS,
+        // FLIGHT-SIM: the moon whose viewer is open, if any — the sim flies it
+        // in its own frame (scripts/flightsim.js, moonHooks). Its longitude is
+        // shown as this viewer's own cursor readout shows it for that moon.
+        getFlightMoon: () => {
+          const c = typeof getMoonMeasureContext === "function" ? getMoonMeasureContext() : null;
+          if (!c || !c.mesh) return null;
+          const km = Number(c.radiusKm);
+          if (!(km > 0)) return null;
+          return {
+            name: c.bodyName,
+            mesh: c.mesh,
+            radiusMeters: km * 1000,
+            displayLon: typeof moonSceneLonToW === "function"
+              ? (lon) => ({ value: moonSceneLonToW(lon, c.bodyName), suffix: "°W" })
+              : null,
+          };
+        },
         globe,
         // Screen point -> surface lat/lon. Reuses intersectAnySurface (the same
         // pick that drives the cursor readout and the measure tools) and the

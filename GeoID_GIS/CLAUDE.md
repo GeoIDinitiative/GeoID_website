@@ -22815,3 +22815,46 @@ body but the one it started on; the seam places GIS extents on the planet
 whichever moon is open; a moon shape is not an extraction geometry, and
 saving it says why (`studyAreaOtherBody`). Uranus's planet context was named
 "Saturn" — a clone's leftover — and is "Uranus".
+
+## Flying a moon: the planet's flight code, answering for another body
+
+Open a moon viewer, press Enter on the Flight Simulator and the sim flies
+THAT moon — no new tab. One implementation, in `scripts/flightsim.js`; each
+moon-carrying viewer (Mars, Pluto, the four giants) adds one hook,
+`getFlightMoon()`, built on its own `getMoonMeasureContext()`.
+
+- **`hooks` is a Proxy over the viewer's hooks** (`bodyHooks`). While a moon
+  is in view (pre-flight) or bound (flight) it answers from `moonHooks`: the
+  moon mesh as the body frame, lat/lon in the mesh's own frame (the inverse
+  of `vectorToLatLon`, the frame its texture and features use), the moon's
+  radius, no spin, no elevation — and `terrainScale`, `baseLayerSelect`,
+  `ctxDetailStreamer` null, so flying Io never switches or stretches
+  Jupiter's basemap or relief. Every line of the sim then reads the moon
+  without being told.
+- **The flight is BOUND to one body at engage** (`flightMoon`). Opening,
+  closing or switching a moon viewer mid-flight ends it — the separation
+  rule the drawing tools follow — rather than carrying coordinates across.
+- **The moon frame.** The sim's radial arithmetic assumes its body at the
+  WORLD ORIGIN with a 3.2 datum; Io is ~0.1 units and orbits Jupiter. For
+  the flight the world's content goes into one group scaled and moved to put
+  the moon there (a similarity, so every angle and relative size — the view —
+  is unchanged), re-centred each frame. LIGHTS stay out (a directional light
+  aims at the origin, now the moon, so its direction is kept) and so do the
+  sim's ship and explosion (`simOwned`), which are placed in world units.
+  Scaling the SCENE itself would have rescaled those too. `camera.far` scales
+  with it; on exit everything goes back and the camera is left beside the
+  moon, looking at it, in the moon viewer.
+- **What differs per moon**: gravity from NASA's figures (else from radius
+  at an icy-rock density), Titan's thick air, Triton's and Io's whispers,
+  vacuum otherwise; launch altitudes in the moon's radii; hemisphere names
+  rather than Mars's gazetteer; the HUD longitude through the viewer's own
+  `moonSceneLonToW` where it has one (°W as the cursor readout shows).
+- **Speed has a size cap**: the ceiling was sized to how much ground is in
+  view, which says nothing about the body — a lap of Phobos a minute. A lap
+  now takes at least five minutes; binds only below ~570 km radius.
+- **The scale bar stands down** (`body.fs-moon-flight`): it measures in the
+  planet's units and read "500 km" over Phobos.
+
+Measured: Io from 360 km (°W, "Io atmosphere"), Phobos (0.11–23 km list,
+236 m/s), Charon, Mimas, Triton (7.9e-9 Pa aloft); each disengage restores
+the scene with no frame group left; Jupiter and Venus fly as before.

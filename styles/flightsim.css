@@ -780,3 +780,8 @@ body.fs-warping #fs-spd {
   color: #4ff0ff;
   text-shadow: 0 0 12px rgba(79, 240, 255, 0.55);
 }
+
+/* Flying a moon: the viewer's scale bar measures in the planet's units, and
+   the moon frame (scripts/flightsim.js) rescales the scene, so it would read
+   a planet-sized number over a 22 km moon. */
+body.fs-moon-flight #scale-readout { display: none !important; }
