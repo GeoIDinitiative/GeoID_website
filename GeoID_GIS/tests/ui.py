@@ -255,8 +255,21 @@ def main():
             return ("(()=>{const w=document.querySelector('iframe').contentWindow;"
                     "return w.eval(" + json.dumps(js) + ");})()")
         run(f"{BASE}/myGeoID/", in_iframe, "earth")
-        # The planet page is a top-level document, so the same script runs as-is.
-        run(f"{BASE}/planet_explorer/mars/viewer/", lambda js: js, "mars")
+        # A planet's standalone URL now BOUNCES to the shell (/?world=mars),
+        # which frames transit, which frames the viewer. Evaluated in the top
+        # document every seam reads absent and 0 of 49 tools show -- a fault
+        # in the test that looks exactly like a planet that failed to boot.
+        # Reach the viewer's realm, and fall back to the page itself so the
+        # check still works wherever the viewer is loaded directly.
+        def in_viewer(js):
+            return ("(()=>{let w=window;"
+                    "for(const f of document.querySelectorAll('iframe')){try{"
+                    "const t=f.contentWindow;"
+                    "const v=t.document.getElementById('viewer-frame');"
+                    "if(v&&v.contentWindow){w=v.contentWindow;break;}"
+                    "}catch(e){}}"
+                    "return w.eval(" + json.dumps(js) + ");})()")
+        run(f"{BASE}/planet_explorer/mars/viewer/", in_viewer, "mars")
     finally:
         proc.terminate()
 
