@@ -1,7 +1,7 @@
 // The layered model: soil over bedrock over one surface, water from the sea
 // surface to the bathymetry, each volume a closed shell whose volume is what
 // the heights say it must be.
-import { layerHeights, layeredVolumes, betweenFacets, facetsVolume, facetsClosed, facetsStl, tinWith } from "./layered-model.js";
+import { layerHeights, layeredVolumes, betweenFacets, facetsVolume, facetsClosed, facetsStl, tinWith, unpinch } from "./layered-model.js";
 import { channelDepth } from "./inundation.js";
 
 let pass = 0, fail = 0;
@@ -155,4 +155,31 @@ import { facetsArea, estimateElements, estimateSentence, ELEMENT_BANDS } from ".
   const py = layeredGmshScript({ ...args, estimate: e });
   ok("the script says how big it is before it is run", /# Estimated before meshing: about 17\.3 million elements/.test(py) && py.includes("compute target, not on a laptop"));
   ok("and says nothing where no estimate was made", !layeredGmshScript(args).includes("Estimated before meshing"));
+}
+
+// Two wet triangles touching at ONE vertex: each would stand its own rim walls
+// on that vertex, and the vertical edge there would be shared by four
+// triangles — gmsh refuses it. unpinch drops one so the shell stays a manifold.
+{
+  const tin = gridTin();
+  const top = Float64Array.from(tin.z, (v) => v + 10);
+  const bottom = Float64Array.from(tin.z);
+  // cell (0,0) triangle [0,1,7] and cell (1,1) triangle [7,8,14]: vertex 7 only.
+  const keep = (tri, k) => k === 0 || k === 12;
+  ok("the pinch fixture shares exactly one vertex",
+    tin.tris[0].filter((v) => tin.tris[12].includes(v)).length === 1);
+  const facets = betweenFacets(tin, { top, bottom, keep });
+  const shut = facetsClosed(facets);
+  ok("a pinched pair still comes out closed", shut.closed, JSON.stringify(shut));
+  const kept = unpinch(tin.tris, [0, 12]);
+  ok("unpinch returns a subset of what was admitted", kept.every((k) => k === 0 || k === 12) && kept.length === 1, JSON.stringify(kept));
+  // No vertex left with more than two rim edges.
+  const count = new Map();
+  for (const k of kept) { const [a, b, c] = tin.tris[k];
+    for (const [u, v] of [[a, b], [b, c], [c, a]]) { const key = u < v ? `${u},${v}` : `${v},${u}`; count.set(key, (count.get(key) || 0) + 1); } }
+  const rim = new Map();
+  for (const [key, n] of count) if (n === 1) for (const s of key.split(",")) rim.set(s, (rim.get(s) || 0) + 1);
+  ok("no vertex keeps more than two rim edges", [...rim.values()].every((n) => n <= 2));
+  // A non-pinched region is left alone.
+  ok("unpinch leaves an ordinary region untouched", unpinch(tin.tris, [0, 1, 2, 3]).length === 4);
 }

@@ -30,10 +30,10 @@
  *   top[i]    max(solid, water): the floor of the atmosphere
  */
 
-import { channelDepth } from "./inundation.js?v=20260919-aace79d";
+import { channelDepth } from "./inundation.js?v=20260919-b9c31a5";
 
 /** A TIN with a different z array, and its own extremes. */
-import { faultScriptLines } from "./fault-planes.js?v=20260919-aace79d";
+import { faultScriptLines } from "./fault-planes.js?v=20260919-b9c31a5";
 
 export function tinWith(tin, z) {
   let zMin = Infinity; let zMax = -Infinity;
@@ -102,6 +102,52 @@ export function layerHeights(tin, {
 function edgeKey(a, b) { return a < b ? `${a},${b}` : `${b},${a}`; }
 
 /**
+ * Drop admitted triangles until no node is a PINCH. Where two parts of a
+ * region touch at a single node, that node carries four rim edges, and the
+ * wall column standing on it is shared by four wall triangles — an edge gmsh
+ * refuses ("wrong topology"). Measured on the Izmit water: one such edge in
+ * 3,068 triangles. Removing a triangle at the pinch separates the two parts;
+ * the one with the fewest interior (shared) edges goes first, so the region
+ * loses as little as possible. Repeats until no node has more than two.
+ */
+export function unpinch(tris, admitted) {
+  const keep = new Set(admitted);
+  for (let pass = 0; pass < 64; pass += 1) {
+    const count = new Map();
+    for (const k of keep) {
+      const [a, b, c] = tris[k];
+      for (const [u, v] of [[a, b], [b, c], [c, a]]) {
+        const key = edgeKey(u, v);
+        count.set(key, (count.get(key) || 0) + 1);
+      }
+    }
+    const rim = new Map();
+    for (const [key, n] of count) {
+      if (n !== 1) continue;
+      for (const s of key.split(",")) rim.set(+s, (rim.get(+s) || 0) + 1);
+    }
+    const pinched = new Set([...rim].filter(([, n]) => n > 2).map(([v]) => v));
+    if (!pinched.size) break;
+    const drop = new Set();
+    for (const v of pinched) {
+      let best = -1; let bestShared = Infinity;
+      for (const k of keep) {
+        if (drop.has(k)) continue;
+        const [a, b, c] = tris[k];
+        if (a !== v && b !== v && c !== v) continue;
+        let shared = 0;
+        for (const [u, w] of [[a, b], [b, c], [c, a]]) if (count.get(edgeKey(u, w)) > 1) shared += 1;
+        if (shared < bestShared) { bestShared = shared; best = k; }
+      }
+      if (best >= 0) drop.add(best);
+    }
+    if (!drop.size) break;
+    for (const k of drop) keep.delete(k);
+  }
+  return admitted.filter((k) => keep.has(k));
+}
+
+/**
  * A closed shell between two surfaces on the same TIN: `top` and `bottom` are
  * z arrays (or `bottom` a flat lid height), over the triangles `keep` admits.
  * Walls stand on every rim edge of the admitted triangles — the model's outer
@@ -121,12 +167,17 @@ export function betweenFacets(tin, { top, bottom, keep = null, topFace = "top", 
   const P = (i, z) => [tin.xs[i], tin.ys[i], z];
   const facets = [];
   const edges = new Map();
+  const admitted = [];
   tin.tris.forEach((tri, k) => {
     if (keep && !keep(tri, k)) return;
     const [a, b, c] = tri;
     // Skip a triangle whose top and bottom coincide at all three nodes: it
     // holds no volume and would be two coplanar faces back to back.
     if (top[a] - zb(a) <= minGap && top[b] - zb(b) <= minGap && top[c] - zb(c) <= minGap) return;
+    admitted.push(k);
+  });
+  for (const k of unpinch(tin.tris, admitted)) {
+    const [a, b, c] = tin.tris[k];
     facets.push({ a: P(a, top[a]), b: P(b, top[b]), c: P(c, top[c]), hint: [0, 0, 1], face: topFace });
     facets.push({ a: P(a, zb(a)), b: P(c, zb(c)), c: P(b, zb(b)), hint: [0, 0, -1], face: bottomFace });
     [[a, b, c], [b, c, a], [c, a, b]].forEach(([u, v, w]) => {
@@ -134,7 +185,7 @@ export function betweenFacets(tin, { top, bottom, keep = null, topFace = "top", 
       const e = edges.get(key);
       if (e) e.count += 1; else edges.set(key, { u, v, w, count: 1 });
     });
-  });
+  }
   /**
    * Rim edges are used by one admitted triangle, and the wall faces AWAY FROM
    * THAT TRIANGLE — its third vertex says which side is inside. Pointing the
