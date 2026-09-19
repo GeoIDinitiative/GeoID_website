@@ -86,6 +86,14 @@ for (const webPath of paths) {
   // licence to ship coordinates off the map.
   check(`${label} stays inside ±180 / ±90`,
     minX >= -180 && maxX <= 180 && minY >= -90 && maxY <= 90, span);
+  // A LINE dataset holds lines and nothing else. Written at 4 decimal places,
+  // a border segment shorter than ~11 m rounds to one coordinate and GDAL
+  // writes it as a Point, which a line layer then draws as a marker -- two
+  // dots on Cyprus, one on the Date Line. services/strip-stray-points.py.
+  const types = new Set((fc.features || []).map((f) => f.geometry && f.geometry.type));
+  const lines = [...types].some((t) => /LineString/.test(t || ""));
+  const stray = [...types].filter((t) => !/LineString/.test(t || ""));
+  if (lines) check(`${label} holds lines only`, stray.length === 0, stray.join(", "));
 }
 
 console.log(failures ? `\n${failures} failed` : "\nall passed");

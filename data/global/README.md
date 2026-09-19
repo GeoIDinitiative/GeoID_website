@@ -67,6 +67,11 @@ ogr2ogr -f GeoJSON -lco RFC7946=YES -lco COORDINATE_PRECISION=4 \
   -sql "SELECT featurecla AS kind, name, adm0_left AS side_a, adm0_right AS side_b \
         FROM ne_10m_admin_0_boundary_lines_land"
 
+# The two line files above pick up stray Points where a segment shorter than
+# the 4-decimal precision rounds to one coordinate (two on Cyprus, one on the
+# Date Line); strip them, or a line layer draws them as dots:
+python3 GeoID_GIS/services/strip-stray-points.py boundaries_10m.geojson graticule_lines.geojson
+
 ogr2ogr -f GeoJSON -lco RFC7946=YES -lco COORDINATE_PRECISION=4 \
   countries_50m.geojson /vsizip/./ne_50m_admin_0_countries.zip \
   -sql "SELECT NAME AS name, ADMIN AS admin, ISO_A3 AS iso_a3, CONTINENT AS continent, \
