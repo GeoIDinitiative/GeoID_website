@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260919-b978060";
+  from "./gis/geo-utils.js?v=20260919-d704be8";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260919-b978060";
+  from "./gis/vector-render.js?v=20260919-d704be8";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260919-b978060";
+  from "./gis/rock-class.js?v=20260919-d704be8";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260919-b978060";
+  from "./gis/lithology-label.js?v=20260919-d704be8";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -24052,8 +24052,10 @@ ${error && error.message ? error.message : error}`;
     // After the first visit, tiles are served from disk (Cache API) instead of
     // the network — reducing per-tile latency from ~300ms to <5ms on revisit.
     if ('serviceWorker' in navigator) {
-      const ctxServiceWorkerUrl = new URL("../../sw-ctx-tiles.js", window.location.href);
-      navigator.serviceWorker.register(ctxServiceWorkerUrl.href).catch(() => {});
+      // THE site worker, the same URL the site nav registers: two different
+      // scripts at one scope replace each other on every load and each wiped
+      // the other's caches (see the header of /sw.js).
+      navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
     }
 
     init().catch((error) => {

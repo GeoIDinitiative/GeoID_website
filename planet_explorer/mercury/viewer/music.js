@@ -64,7 +64,7 @@
       // TEMPORARY (2026-09-19): autoplay switched OFF while the site is being worked on.
       // Set GEOID_MUSIC_AUTOPLAY back to true in all ten music.js files BEFORE PUSHING.
       // The button still plays on demand; only the start-on-first-gesture is held back.
-      const GEOID_MUSIC_AUTOPLAY = false;
+      const GEOID_MUSIC_AUTOPLAY = true;
       if (GEOID_MUSIC_AUTOPLAY) audio.play().catch(() => {
         // Browser blocked autoplay (no prior interaction). Retry on the first user gesture —
         // which happens almost immediately as the user starts exploring the 3D scene.

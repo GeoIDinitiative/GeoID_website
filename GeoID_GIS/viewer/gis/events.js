@@ -16,7 +16,8 @@ import {
   gdacsPoints, resolveColour,
   MARKER_LIFT_MAX, liftForAltitude, dotSizePx, isQuake, publisherOf, restoreActive,
   stormCategory, stormScale, stormLabel, STORM_BASE_CAP, markerHitGeometry, nearestHit,
-} from "./event-sources.js?v=20260919-b978060";
+} from "./event-sources.js?v=20260919-d704be8";
+import { holdLaunch } from "./launch-ready.js?v=20260919-d704be8";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -2687,8 +2688,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260919-b978060"),
-    import("./research/dsp.js?v=20260919-b978060"),
+    import("./seismogram-plot.js?v=20260919-d704be8"),
+    import("./research/dsp.js?v=20260919-d704be8"),
   ]);
   if (stale()) return;
 
@@ -2906,20 +2907,28 @@ function init() {
  * life of the tab to arm something is worse than an unarmed feature.
  */
 let armTries = 0;
+// The start-up screen waits for the first round of feeds (gis/launch-ready.js),
+// capped short: these are live services, and a slow one must not hold the page.
+let releaseEvents = null;
+function eventsSettled() {
+  releaseEvents?.();
+  releaseEvents = null;
+}
 function armOnLaunch() {
-  if (active || !wantedActive()) return;
+  if (active || !wantedActive()) { eventsSettled(); return; }
   // Only over a globe. The page restores whatever mode it was left in, and
   // arming a globe overlay while the Model studio is up puts markers on
   // nothing and fetches sixteen feeds for a page that cannot show them.
   const mode = window.GeoIDModeManager?.getMode?.();
-  if (mode && mode !== "gis") return;
+  if (mode && mode !== "gis") { eventsSettled(); return; }
+  if (!releaseEvents && !armTries) releaseEvents = holdLaunch("events", 9000);
   if (!window.GeoIDViewer) {
-    if (armTries >= 40) return;
+    if (armTries >= 40) { eventsSettled(); return; }
     armTries += 1;
     window.setTimeout(armOnLaunch, 300);
     return;
   }
-  void setActive(true, { remember: false, launch: true });
+  void setActive(true, { remember: false, launch: true }).finally(eventsSettled);
 }
 
 if (document.readyState === "loading") {

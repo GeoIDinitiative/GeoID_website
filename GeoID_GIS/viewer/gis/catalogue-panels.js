@@ -29,11 +29,12 @@
 
 import {
   HOMES, MIRRORS, grouped, addDataset, layerForDataset, loadLaunchDefaults,
-} from "./global-data.js?v=20260919-b978060";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260919-b978060";
-import { mathsFor } from "./equations.js?v=20260919-b978060";
+} from "./global-data.js?v=20260919-d704be8";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260919-d704be8";
+import { holdLaunch } from "./launch-ready.js?v=20260919-d704be8";
+import { mathsFor } from "./equations.js?v=20260919-d704be8";
 import { bandOf, bandRows, bandSymbology, describeFilter, magOf }
-  from "./seismic-magnitude.js?v=20260919-b978060";
+  from "./seismic-magnitude.js?v=20260919-d704be8";
 
 const byId = (id) => document.getElementById(id);
 
@@ -838,7 +839,7 @@ function init() {
   let tries = 0;
   const arm = () => {
     if (!window.GeoIDImportManager?.importFileList || !window.GeoIDViewer?.scene) {
-      if (tries >= 40) return;
+      if (tries >= 40) { releaseDefaults(); return; }
       tries += 1;
       window.setTimeout(arm, 300);
       return;
@@ -853,8 +854,13 @@ function init() {
      * DOM at that moment and every world passed. Asked here, after the retry
      * has waited for the viewer, the hosts are the ones this world kept.
      */
-    void loadLaunchDefaults((entry) => Boolean(entry && byId(HOMES[entry.home])));
+    // A dataset with no home is offered by the Map tab's Overlays list
+    // (polygons.js), which only Earth's page carries.
+    void loadLaunchDefaults((entry) => Boolean(entry && byId(entry.home ? HOMES[entry.home] : "polygon-catalogue")))
+      .finally(releaseDefaults);
   };
+  // The start-up screen waits for these (gis/launch-ready.js).
+  const releaseDefaults = holdLaunch("launch-defaults", 14000);
   arm();
 }
 

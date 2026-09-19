@@ -26,18 +26,18 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260919-b978060";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260919-b978060";
-import { mathsFor } from "./equations.js?v=20260919-b978060";
+import { runConnector } from "./research/connectors.js?v=20260919-d704be8";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260919-d704be8";
+import { mathsFor } from "./equations.js?v=20260919-d704be8";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260919-b978060";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260919-b978060";
-import { featureForModel, may, refusal } from "./membership.js?v=20260919-b978060";
-import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260919-b978060";
+} from "./cyclone-risk.js?v=20260919-d704be8";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260919-d704be8";
+import { featureForModel, may, refusal } from "./membership.js?v=20260919-d704be8";
+import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260919-d704be8";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260919-b978060";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260919-d704be8";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -189,6 +189,14 @@ export const DATASETS = [
     name: "Country borders (Natural Earth 10m).geojson",
     summary: "515 lines",
     licence: "Natural Earth — public domain",
+    /**
+     * ON WHEN THE PAGE OPENS, faint: a fifth of full strength, so the borders
+     * say where a place is without ruling a political map over the physical
+     * one. The LINES, not the country polygons — a filled country at 20% is a
+     * tint over the whole planet, a border is only where one country ends.
+     */
+    defaultOn: true,
+    opacity: 0.2,
   },
   {
     id: "countries-50m",
@@ -1309,7 +1317,13 @@ export function launchDatasets() {
  * there to be ticked by hand.
  */
 export async function loadLaunchDefaults(offered = () => true) {
-  for (const id of launchDatasets()) {
+  // IN PARALLEL: one after another, the rivers waited on nothing but the
+  // plate boundaries' fetch, and the borders on both.
+  await Promise.all(launchDatasets().map((id) => loadLaunchDefault(id, offered)));
+}
+
+async function loadLaunchDefault(id, offered) {
+  {
     /**
      * A WORLD LOADS ONLY WHAT IT OFFERS.
      *
@@ -1323,10 +1337,10 @@ export async function loadLaunchDefaults(offered = () => true) {
      * this file's. Anything given a `defaultOn` later is gated by the same
      * question without being told about it.
      */
-    if (!offered(datasetById(id))) continue;
+    if (!offered(datasetById(id))) return;
     // Already on the globe: a second pass must not draw it twice. Measured on
     // Mars, two identical layers of the same 241 segments.
-    if (layerForDataset(id)) continue;
+    if (layerForDataset(id)) return;
     try {
       await addDataset(id, () => {}, { launch: true });
       /**

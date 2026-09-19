@@ -729,7 +729,8 @@ check("no timestamp gets a sensible middle", recencyOpacity(null, now, day), 0.8
   check("it waits for the viewer rather than assuming one",
     /if \(!window\.GeoIDViewer\) \{/.test(code) && /armTries >= 40/.test(code), true);
   check("and only arms over a globe",
-    /if \(mode && mode !== "gis"\) return;/.test(code), true);
+    // (it may also release the start-up screen's hold on the way out)
+    /if \(mode && mode !== "gis"\) (return;|\{ eventsSettled\(\); return; \})/.test(code), true);
   /* Leaving GIS is the app moving, not a choice about the feed: stored, it
      would switch the feed off for good the first time somebody opened the
      Model page. */
@@ -738,7 +739,7 @@ check("no timestamp gets a sensible middle", recencyOpacity(null, now, day), 0.8
   check("and coming back brings it with you",
     /if \(event\.detail\?\.mode === "gis" && !active\) armOnLaunch\(\);/.test(code), true);
   check("the launch arm itself is not remembered as a choice either",
-    /setActive\(true, \{ remember: false, launch: true \}\);/.test(code), true);
+    /setActive\(true, \{ remember: false, launch: true \}\)(\.finally\(eventsSettled\))?;/.test(code), true);
   /* The gestures ARE remembered, and they go through the same default. */
   check("a gesture is remembered", /if \(remember\) rememberActive\(active\);/.test(code), true);
 }

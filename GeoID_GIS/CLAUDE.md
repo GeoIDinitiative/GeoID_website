@@ -22987,3 +22987,62 @@ row simply sat unticked in Earth Observation ▸ Hydrology.
 
 Cost, measured on the software renderer at level 5: 360 ms a frame against
 342 with every category off, 357 draw calls against 45.
+
+## A warm launch is warm now: one root service worker, and a start-up screen that waits
+
+"Even with the loading screen, not all layers are loaded — five to ten seconds
+to fully load." Two faults, and the first is why no cache ever helped.
+
+**TWO WORKERS AT ONE SCOPE, EACH DELETING THE OTHER'S CACHES.** The site nav
+registered `/sw.js` and the Earth viewer registered `/sw-ctx-tiles.js`, both at
+scope `/`. A registration with a different script URL REPLACES the worker, so
+every GeoHUB load swapped them — and Cache Storage is ORIGIN-WIDE, while each
+worker's activate deleted every `geoid-*` cache that was not its own version.
+The tile worker also re-downloaded ~50 planet textures on each install. The
+net effect was a cache wiped on every visit. The planets' and flight sim's own
+workers (scopes `/planet_explorer/`, `/flight_sim/`) had the same blanket
+delete and would wipe the root caches whenever they activated.
+
+- **`/sw.js` is the only root worker.** Both Earth viewers register it; the
+  root `/sw-ctx-tiles.js` is a one-line `importScripts('/sw.js')` for pages
+  cached from before. The CTX proxy and ArcGIS tile handling moved into it.
+- **Activate deletes only old versions of its own families**
+  (`geoid-site-`, `-data-`, `-basemap-tiles-`, `-remote-`, `-root-`) plus the
+  two legacy names. The planet and flight workers got families of their own
+  (`geoid-planets-*`, `geoid-flight-*`) and the same rule.
+- **What is cached:** fingerprinted bucket data (`?v=`) cache-first — rivers,
+  borders, places, tile pyramids; the Sentinel-2 / GIBS / OSM tiles
+  cache-first (trimmed at 4,000); the plate boundaries and GEM faults from
+  GitHub stale-while-revalidate (GitHub sends max-age=300); STAMPED code
+  (stamp.py's `v=YYYYMMDD-sha7`) cache-first, because a stamped URL never
+  changes content — two hundred modules that used to be refetched every visit
+  with `cache:'reload'`. Unstamped code stays network-first (epoch-stamped
+  planet modules do not move, so they are excluded by the pattern), and on
+  localhost stamped code stays network-first too, because an uncommitted edit
+  re-stamps to the same value. Range requests (COG reads) are never cached.
+- **The finished opening mosaic is cached whole** (`geoid-mosaic-v1`, written
+  by basemap-drape.js from the page, never touched by the worker): the
+  reprojected 4096×2048 Sentinel-2 image as one WebP, 30 days, only when at
+  least 97% of its tiles drew. A warm launch paints one image instead of
+  fetching, decoding, compositing and reprojecting 256 tiles.
+
+**THE START-UP SCREEN HANDED OVER ON ONE TEXTURED FRAME**, and then the
+mosaic, the plates, the rivers and three thousand names arrived in front of
+the reader. `gis/launch-ready.js` is a list of holds: the opening basemap, the
+catalogue's launch defaults, the place names and the first round of live feeds
+each hold while they load, and the shell's `ready()` waits until none are
+held. Every hold times out by itself (9–15 s) and the shell's 16 s CAP still
+stands. Also: the launch defaults load in PARALLEL (they were awaited one
+after another), and the gazetteer's fetch starts when its module loads rather
+than when the viewer is ready.
+
+**Country borders are a launch default** at 20% — the LINES
+(`boundaries-10m`), not the country polygons, which at 20% would tint the
+whole planet. A homeless dataset is offered by the Map tab's Overlays list,
+so the launch-default gate asks for `#polygon-catalogue` when an entry has no
+home (before, a homeless `defaultOn` would never have loaded).
+
+Measured on the headless software renderer, warm: at hand-over the mosaic,
+plates, borders, rivers, all 2,903 place names and the live events are already
+on the globe; the holds settle at ~7 s (viewer boot is ~4.6 s of it there),
+where before the names alone landed at 10.6 s AFTER the screen had gone.

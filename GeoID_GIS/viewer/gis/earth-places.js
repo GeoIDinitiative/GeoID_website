@@ -13,7 +13,8 @@
  *
  * Earth only: the page's own script tag loads it, the planets never do.
  */
-import { dataUrl } from "./data-base.js?v=20260919-b978060";
+import { dataUrl } from "./data-base.js?v=20260919-d704be8";
+import { holdLaunch } from "./launch-ready.js?v=20260919-d704be8";
 
 const PATH = "/data/global/earth-places.json";
 const OFF_KEY = "geoid-gis:earth-places-off";   // what was switched OFF — see note
@@ -158,10 +159,22 @@ function wireMaster() {
   });
 }
 
+/**
+ * The fetch starts when this module LOADS, not when the viewer is ready: the
+ * viewer takes seconds to boot and the file has nothing to wait for. The
+ * labels are still added once there is a globe to add them to.
+ */
+let docPromise = null;
+function fetchDoc() {
+  docPromise ||= dataUrl(PATH).then((url) => fetch(url)).then((response) => {
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  });
+  return docPromise;
+}
+
 async function load(viewer) {
-  const response = await fetch(await dataUrl(PATH));
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const doc = await response.json();
+  const doc = await fetchDoc();
   const curated = viewer.curatedPlaces();
   const rank = (item, lod, category) => viewer.rankPlace(item, lod, category);
   const places = (doc.places || []).filter((p) => !isCuratedDuplicate(p, curated));
@@ -184,6 +197,7 @@ function start(tries = 0) {
   const viewer = window.GeoIDViewer;
   if (!viewer?.addSurfaceLabels || !viewer.placeCategories || !viewer.rankPlace) {
     if (tries < 160) setTimeout(() => start(tries + 1), 250);
+    else window.dispatchEvent(new CustomEvent("geoid-gis:places-failed"));
     return;
   }
   if (loaded) return;
@@ -192,6 +206,7 @@ function start(tries = 0) {
     return result;
   }).catch((error) => {
     console.warn("[earth-places] gazetteer did not load:", error);
+    window.dispatchEvent(new CustomEvent("geoid-gis:places-failed"));
     const host = document.getElementById("place-category-rows");
     if (host) {
       const note = document.createElement("p");
@@ -208,6 +223,11 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
     loaded: () => loaded,
     isOn: (category) => !offSet.has(category),
   };
+  // The start-up screen waits for the names (gis/launch-ready.js).
+  const releasePlaces = holdLaunch("places", 14000);
+  fetchDoc().catch(() => {});
+  window.addEventListener("geoid-gis:places-loaded", releasePlaces, { once: true });
+  window.addEventListener("geoid-gis:places-failed", releasePlaces, { once: true });
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", () => start());
   else start();
 }

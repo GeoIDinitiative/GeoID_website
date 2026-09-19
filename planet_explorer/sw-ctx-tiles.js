@@ -13,9 +13,11 @@
 // v134: the default assets moved to the bucket, so this list names
 // absolute bucket URLs now. The version moves with the list or a
 // returning visitor keeps a cache full of paths that no longer exist.
-const CACHE_VERSION = 'v134';
-const TILE_CACHE  = `geoid-ctx-tiles-${CACHE_VERSION}`;
-const ASSET_CACHE = `geoid-assets-${CACHE_VERSION}`;
+const CACHE_VERSION = 'v135';
+// OWN family names: Cache Storage is origin-wide, and the root worker and
+// this one used to share (and delete) each other's caches.
+const TILE_CACHE  = `geoid-planets-ctx-tiles-${CACHE_VERSION}`;
+const ASSET_CACHE = `geoid-planets-assets-${CACHE_VERSION}`;
 
 // Default layers loaded on every first render — pre-cached at install time.
 const DEFAULT_ASSETS = [
@@ -91,7 +93,7 @@ self.addEventListener('activate', event => {
     caches.keys()
       .then(keys => Promise.all(
         keys
-          .filter(k => (k.startsWith('geoid-') && !k.endsWith(CACHE_VERSION)))
+          .filter(k => (k.startsWith('geoid-planets-') && !k.endsWith(CACHE_VERSION)))
           .map(k => caches.delete(k))
       ))
       .then(() => self.clients.claim())

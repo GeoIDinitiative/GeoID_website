@@ -37,12 +37,13 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260919-b978060";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260919-b978060";
-import { isEarth } from "./bodies.js?v=20260919-b978060";
-import { streamRings, cacheStats } from "./tile-streamer.js?v=20260919-b978060";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260919-d704be8";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260919-d704be8";
+import { isEarth } from "./bodies.js?v=20260919-d704be8";
+import { holdLaunch } from "./launch-ready.js?v=20260919-d704be8";
+import { streamRings, cacheStats } from "./tile-streamer.js?v=20260919-d704be8";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260919-b978060";
+  from "./view-extent.js?v=20260919-d704be8";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -330,8 +331,17 @@ export async function installBaseLayer(sourceName = DEFAULT_SOURCE, { onProgress
     throw new Error("This viewer does not accept extra basemaps.");
   }
   const bbox = wholeGlobe();
-  const result = await composite(bbox, sourceName, { onProgress, credit: false });
-  const equirect = toEquirectangular(result.canvas, bbox);
+  // A mosaic already made, from this browser's cache: one image to decode
+  // instead of 256 tiles to fetch, decode, composite and reproject.
+  let result = await readMosaic(sourceName);
+  let equirect = result?.equirect;
+  if (!equirect) {
+    result = await composite(bbox, sourceName, { onProgress, credit: false });
+    equirect = toEquirectangular(result.canvas, bbox);
+    // Only a WHOLE mosaic is kept: one with holes would be the opening for a
+    // month, holes and all.
+    if (result.drawn >= result.tiles * 0.97) void saveMosaic(sourceName, equirect, result);
+  }
 
   const texture = new THREE.CanvasTexture(equirect);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -343,6 +353,56 @@ export async function installBaseLayer(sourceName = DEFAULT_SOURCE, { onProgress
   const id = baseLayerIdFor(sourceName);
   viewer.registerBaseLayer({ id, label: sourceName, texture });
   return { id, ...result, equirect };
+}
+
+/**
+ * THE FINISHED MOSAIC IS CACHED, not only its tiles.
+ *
+ * Warm, the launch basemap still cost 256 tile decodes, a composite and a
+ * row-by-row reprojection — measured as the slowest single thing on a warm
+ * GeoHUB start (8.5 s on the software renderer, after everything else). The
+ * reprojected 4096×2048 image goes into Cache Storage as one WebP (~2-3 MB)
+ * and a later launch paints it straight onto the sphere. Thirty days, then it
+ * is made again: Sentinel-2 cloudless is an annual product, so a month-old
+ * copy is the same picture. The cache is the page's own ("geoid-mosaic-*");
+ * the service worker never deletes it.
+ */
+const MOSAIC_CACHE = "geoid-mosaic-v1";
+const MOSAIC_MAX_AGE_MS = 30 * 86400e3;
+const mosaicKey = (sourceName) => `${location.origin}/__geoid/mosaic/${baseLayerIdFor(sourceName)}.webp`;
+
+async function readMosaic(sourceName) {
+  try {
+    if (typeof caches === "undefined") return null;
+    const cache = await caches.open(MOSAIC_CACHE);
+    const hit = await cache.match(mosaicKey(sourceName));
+    if (!hit) return null;
+    const meta = JSON.parse(hit.headers.get("x-geoid-mosaic") || "{}");
+    if (!meta.made || Date.now() - meta.made > MOSAIC_MAX_AGE_MS) return null;
+    const bitmap = await createImageBitmap(await hit.blob());
+    const equirect = document.createElement("canvas");
+    equirect.width = bitmap.width;
+    equirect.height = bitmap.height;
+    equirect.getContext("2d").drawImage(bitmap, 0, 0);
+    bitmap.close?.();
+    return { ...meta, cached: true, equirect };
+  } catch (_error) {
+    return null;   // a cache that cannot answer is a cache miss
+  }
+}
+
+async function saveMosaic(sourceName, equirect, result) {
+  try {
+    if (typeof caches === "undefined") return;
+    const blob = await new Promise((resolve) => equirect.toBlob(resolve, "image/webp", 0.9));
+    if (!blob) return;
+    const meta = { made: Date.now(), zoom: result.zoom, tiles: result.tiles, drawn: result.drawn,
+      metresPerPixel: result.metresPerPixel, source: sourceName };
+    const cache = await caches.open(MOSAIC_CACHE);
+    await cache.put(mosaicKey(sourceName), new Response(blob, {
+      headers: { "Content-Type": "image/webp", "x-geoid-mosaic": JSON.stringify(meta) },
+    }));
+  } catch (_error) { /* a mosaic that cannot be kept is simply made again next time */ }
 }
 
 // ── The mesh ─────────────────────────────────────────────────────────────────
@@ -747,6 +807,12 @@ const OPENING_DARK = 0x0a0f16;
 const OPENING_GRACE_MS = 12000;
 
 let openingSwap = false;
+// The start-up screen waits for the opening mosaic (gis/launch-ready.js).
+let releaseOpening = (typeof document !== "undefined" && isEarth()) ? holdLaunch("basemap", 15000) : null;
+function openingDone() {
+  releaseOpening?.();
+  releaseOpening = null;
+}
 
 function darkenGlobe() {
   const material = window.GeoIDViewer?.globe?.material;
@@ -769,7 +835,7 @@ function applyDefaultBasemap() {
    * this test would have matched nothing, leaving the globe on the shipped
    * texture forever and the mosaic never applied.
    */
-  if (select.value !== SHIPPED_DEFAULT_ID) { defaultApplied = true; return; }
+  if (select.value !== SHIPPED_DEFAULT_ID) { defaultApplied = true; openingDone(); return; }
   defaultApplied = true;
   // Marked so the watcher below knows this swap is the app's own opening and
   // not somebody choosing a service, which are owed opposite things: the
@@ -813,7 +879,10 @@ function initWhenReady() {
     // listening for is how the planet goes bare.
     if (selectionWatched) applyDefaultBasemap();
     const inDropdown = document.querySelector('#base-layer-select option[value^="tiles-"]');
-    if ((selectionWatched && inDropdown) || (tries += 1) > 40) return;
+    if ((selectionWatched && inDropdown) || (tries += 1) > 40) {
+      if (!selectionWatched || !inDropdown) openingDone();   // gave up: never hold the screen on it
+      return;
+    }
     /**
      * FAST WHILE IT MATTERS, then patient.
      *
@@ -1257,6 +1326,7 @@ export function watchBaseLayerSelection({ onStatus } = {}) {
       if (opening) select.dispatchEvent(new Event("change", { bubbles: true }));
       onStatus?.(`${source} could not be loaded: ${error.message}`);
     } finally {
+      if (opening) openingDone();
       if (rescue) clearTimeout(rescue);
       loading = false;
     }

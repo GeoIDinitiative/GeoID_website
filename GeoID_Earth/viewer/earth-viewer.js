@@ -19817,8 +19817,10 @@ ${error && error.message ? error.message : error}`;
     // After the first visit, tiles are served from disk (Cache API) instead of
     // the network — reducing per-tile latency from ~300ms to <5ms on revisit.
     if ('serviceWorker' in navigator) {
-      const ctxServiceWorkerUrl = new URL("../../sw-ctx-tiles.js", window.location.href);
-      navigator.serviceWorker.register(ctxServiceWorkerUrl.href).catch(() => {});
+      // THE site worker, the same URL the site nav registers: two different
+      // scripts at one scope replace each other on every load and each wiped
+      // the other's caches (see the header of /sw.js).
+      navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
     }
 
     init().catch((error) => {
