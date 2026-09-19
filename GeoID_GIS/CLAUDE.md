@@ -22858,3 +22858,53 @@ moon-carrying viewer (Mars, Pluto, the four giants) adds one hook,
 Measured: Io from 360 km (°W, "Io atmosphere"), Phobos (0.11–23 km list,
 236 m/s), Charon, Mimas, Triton (7.9e-9 Pa aloft); each disengage restores
 the scene with no frame group left; Jupiter and Venus fly as before.
+
+### What a moon flight needed after the first cut
+
+- **Detail imagery.** `MOON_DETAIL` names each moon's USGS WMS mosaic
+  (Viking for Phobos and Deimos, Galileo/Voyager for the Galilean moons,
+  Cassini for Saturn's, Voyager 2 for Triton, New Horizons for Charon; the
+  Uranian moons have none). The WMS is EAST longitude (measured at Io's Loki
+  Patera, 51°E), and the patch is placed through the moon's own °W rule
+  (`eastOf = 360 − W`). With no such rule a moon gets NO patch rather than a
+  misplaced one. The patch's reach is body-sized (`halfKm`), or over Phobos
+  it covered the moon several times over.
+- **A moon mosaic has HOLES, and a JPEG fills them with opaque white.**
+  Voyager 2 imaged Triton's southern half: the first patch drew the
+  unimaged north as a pale slab across the ground. A moon's patch is a
+  transparent PNG — 8-bit for a grey mosaic (a third of the bytes), full
+  colour for Io's `SSI_VGR_color` — and a planet's whole mosaics stay JPEG.
+  Measured: the server takes ~1.2 s for either; the PNG is 0.5–1.9 MB
+  against 50–220 KB.
+- **The texture correlation was right to be doubted and wrong to be
+  trusted.** Triton (r 0.986) and Charon (0.975) correlate at identity with
+  their WMS mosaics; Phobos read r ≈ 0.18, and that was the LIGHTING, not an
+  offset — Stickney sits on the −49°E line in both images, and so do the big
+  craters beside it. Check a weak correlation by eye before calling it a
+  misregistration.
+- **A moon's °W is FITTED from its own feature markers** (`flightMoonLonRule`
+  in each of the six viewers): W = ±meshLon + b over the markers, via the
+  viewer's `moonLonToW` where it has one, accepted only under 1° of worst
+  error. The first-guess rules were up to 180° off on Mars, Pluto and
+  Neptune. Verified 0° on Io, Mimas, Miranda, Phobos and Charon.
+- **The gas giants' moon marker caps read the frame's scale**
+  (`marsGroup.getWorldScale(…).x`). The moon frame SCALES the world round
+  the moon by k = 3.2 / its radius; a pixel cap computed in unscaled units
+  drew every feature marker as a huge red disc.
+- **Pre-flight never loosens a zoom cap the viewer holds.** It set
+  `maxDistance` to 4.5 planet radii, which over a moon viewer's 0.58 unit cap
+  let the camera back out over Mars while aiming at Phobos; it takes the
+  minimum now.
+
+**A 0 × 0 canvas in the harness looks like a broken moon flight.** The
+transit frame can boot before it is sized; `camera.aspect` is then NaN, the
+aim ray is NaN, pre-flight reads "Aim at the surface" and the launch is
+disabled. Dispatch a `resize` into the viewer before entering flight.
+Also: the viewer's own `__flightSimHooks.pickSurfaceLatLon` is the PLANET's
+pick — the sim reads its moon pick through the `hooks` Proxy, so calling
+the base hook over a moon reads null and proves nothing.
+
+Verified: Phobos at 90 m with the Viking grooves under the ship; Charon at
+75 km on New Horizons' mosaic with Pluto in the sky; Triton over its unlit,
+unimaged north with no slab; Io's markers as small dots under readable
+labels; a Mars planet flight unchanged (pre-flight cap 14.4, 80 restored).

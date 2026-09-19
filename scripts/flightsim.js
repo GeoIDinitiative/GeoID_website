@@ -925,7 +925,9 @@
   const detailPatch = { mesh: null, box: null, halfKm: 0, loading: false, gen: 0, failed: 0 };
 
   function detailEastOf(lonViewer, d) {
-    const e = d.westPositive ? 360 - lonViewer : lonViewer;
+    // A moon hands over its own rule (mesh frame -> east); a planet says only
+    // whether its viewer is west-positive.
+    const e = d.eastOf ? d.eastOf(lonViewer) : (d.westPositive ? 360 - lonViewer : lonViewer);
     return ((e + 540) % 360) - 180;                 // signed, -180..180
   }
 
@@ -947,7 +949,7 @@
   function fetchDetailImage(d, south, north, westE, eastE) {
     const url = (w, e, px) => "https://planetarymaps.usgs.gov/cgi-bin/mapserv?map=/maps/"
       + d.map + ".map&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=" + d.layer
-      + "&STYLES=&SRS=EPSG:4326&FORMAT=image/jpeg&WIDTH=" + px + "&HEIGHT=" + DETAIL_PX
+      + "&STYLES=&SRS=EPSG:4326&FORMAT=" + (d.format || "image/jpeg") + "&WIDTH=" + px + "&HEIGHT=" + DETAIL_PX
       + "&BBOX=" + w.toFixed(5) + "," + south.toFixed(5) + "," + e.toFixed(5) + "," + north.toFixed(5);
     const load = (src) => new Promise((resolve, reject) => {
       const img = new Image();
@@ -1060,7 +1062,10 @@
     // sees, fine enough that the pixels are worth the fetch. 1024 px over
     // 2 x 45 km is ~90 m a pixel at 5 km up; at 200 km up it is ~1.6 km,
     // still six times the global texture.
-    const halfKm = Math.max(45, Math.min(800, altKm * 4 + 25));
+    // Sized to the body as well as the altitude: a planet's 45 km minimum is
+    // four times the whole of Phobos.
+    const bodyKm = (hooks.bodyRadiusMeters || 3.4e6) / 1000;
+    const halfKm = Math.max(Math.min(45, bodyKm * 0.15), Math.min(800, bodyKm * 1.2, altKm * 4 + 25));
     const kmPerDeg = (METERS_PER_UNIT * GLOBE_R / 1000) * Math.PI / 180;
     const box = detailPatch.box;
     if (box) {
@@ -3033,6 +3038,48 @@
     Triton: () => exosphere(-235, -250, 1.4, 14000),
     Io:     () => exosphere(-143, -160, 1.0e-4, 12000),
   };
+  // USGS Astrogeology's planetary WMS carries a mosaic for most of these
+  // moons (the Uranian ones have none), in EAST longitude — measured against
+  // Io's Loki Patera, which sits at 51°E in the 40–62° box and nowhere in
+  // the -62–-40° one. The viewer's own °W rule for the moon turns the mesh
+  // frame into IAU west, and east is 360 − W.
+  const MOON_DETAIL = {
+    Phobos:   ["mars/phobos_simp_cyl", "VIKING", "Viking Orbiter"],
+    Deimos:   ["mars/deimos_simp_cyl", "VIKING", "Viking Orbiter"],
+    Io:       ["jupiter/io_simp_cyl", "SSI_VGR_color", "Galileo SSI and Voyager", "colour"],
+    Europa:   ["jupiter/europa_simp_cyl", "GALILEO_VOYAGER", "Galileo and Voyager"],
+    Ganymede: ["jupiter/ganymede_simp_cyl", "GALILEO_VOYAGER", "Galileo and Voyager"],
+    Callisto: ["jupiter/callisto_simp_cyl", "GALILEO_VOYAGER", "Galileo and Voyager"],
+    Mimas:    ["saturn/mimas_simp_cyl", "CASSINI_MIMAS_MOSAIC", "Cassini ISS"],
+    Enceladus:["saturn/enceladus_simp_cyl", "CASSINI", "Cassini ISS"],
+    Tethys:   ["saturn/tethys_simp_cyl", "CASSINI", "Cassini ISS"],
+    Dione:    ["saturn/dione_simp_cyl", "CASSINI_VOYAGER", "Cassini and Voyager"],
+    Rhea:     ["saturn/rhea_simp_cyl", "CASSINI_VOYAGER", "Cassini and Voyager"],
+    Titan:    ["saturn/titan_simp_cyl", "Titan_ISS_Controlled_Mosaic", "Cassini ISS"],
+    Iapetus:  ["saturn/iapetus_simp_cyl", "CASSINI_VOYAGER", "Cassini and Voyager"],
+    Triton:   ["neptune/triton_simp_cyl", "TRITON_VOYAGER2", "Voyager 2"],
+    Charon:   ["pluto/charon_simp_cyl", "NEWHORIZONS_CHARON_MOSAIC", "New Horizons"],
+  };
+  function moonDetail(m) {
+    const row = MOON_DETAIL[m.name];
+    // Without the viewer's own °W rule there is no honest way to line the
+    // image up with the mesh, so no patch rather than a misplaced one.
+    if (!row || typeof m.displayLon !== "function") return null;
+    return {
+      map: row[0], layer: row[1],
+      // A moon's mosaic has holes — Voyager 2 saw Triton's southern half,
+      // New Horizons one face of Charon — and a JPEG fills them with the
+      // server's white, which drew as an opaque pale slab over the ground
+      // nobody imaged. A transparent PNG leaves them to the globe beneath:
+      // 8-bit where the mosaic is grey (a third of the bytes, 256 greys is
+      // all it has), full colour for Io. A planet's mosaics are whole and
+      // stay JPEG. Measured, the server takes ~1.2 s either way.
+      format: row[3] === "colour" ? "image/png&TRANSPARENT=TRUE"
+        : "image/png%3B%20mode%3D8bit&TRANSPARENT=TRUE",
+      eastOf: (lon) => 360 - m.displayLon(lon).value,
+      credit: `${row[2]} mosaic of ${m.name} — NASA, served by USGS Astrogeology`,
+    };
+  }
   const MOON_LAUNCH_FACTORS = [0.01, 0.05, 0.2, 0.5, 1, 2];
   const MOON_LAUNCH_DEFAULT = 0.2;
   const moonProfileCache = new Map();
@@ -3046,6 +3093,7 @@
       moon: true,
       atmosphere: air ? air() : exosphere(-170, -270, SPACE_FLOOR_PA, 10000),
       domain: `${m.name} ${air ? "atmosphere" : "surface"}`,
+      detail: moonDetail(m),
     };
     moonProfileCache.set(m.name, profile);
     return profile;
@@ -4090,7 +4138,10 @@
     // (Earth, on the Moon) intercepted the view entirely.
     if (hooks.controls && preflightMaxDist === null) {
       preflightMaxDist = hooks.controls.maxDistance;
-      hooks.controls.maxDistance = GLOBE_R * 4.5;
+      // Never LOOSEN a cap the viewer already holds: a moon viewer keeps the
+      // camera within ~0.6 units of its moon, and 4.5 planet radii let it back
+      // out over Mars while aiming at Phobos.
+      hooks.controls.maxDistance = Math.min(preflightMaxDist ?? Infinity, GLOBE_R * 4.5);
       if (hooks.controls.object && hooks.controls.target) {
         const d = hooks.controls.object.position.distanceTo(hooks.controls.target);
         if (d > GLOBE_R * 4.5) {

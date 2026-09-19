@@ -18176,6 +18176,52 @@ uniform float uViewportWidth;`,
       // FLIGHT-SIM: expose the viewer internals the shared flight simulator
       // needs (/scripts/flightsim.js). Read-only. Mirrors the Mars viewer's
       // block; only bodyId, bodyGroup and bodyRadiusMeters differ per world.
+      // FLIGHT-SIM: how a moon's MESH longitude reads in °W, derived from this
+      // viewer's own feature placements rather than from a remembered rule.
+      // Each feature's marker sits on the mesh where the viewer placed it, and
+      // its popup shows its °W; fitting W = ±mesh + b over all of them gives
+      // the rule the viewer itself uses. Three of six viewers' conversion
+      // helpers turned out NOT to describe their moon meshes (up to 180° out),
+      // which is what this replaces. Refused unless the fit is exact to a
+      // degree: a moon with no rule gets no detail image rather than a
+      // misplaced one.
+      const _flightMoonLonRules = new Map();
+      function flightMoonLonRule(c) {
+        if (_flightMoonLonRules.has(c.bodyName)) return _flightMoonLonRules.get(c.bodyName);
+        const shownW = (f) => (typeof moonLonToW === "function" ? moonLonToW(f.lon, c.bodyName) : f.lon);
+        const pairs = [];
+        const v = new THREE.Vector3();
+        scene.traverse((o) => {
+          const f = o.userData && o.userData.feature;
+          if (!f || o.isSprite || f.moon_name !== c.bodyName || !Number.isFinite(f.lon)) return;
+          const q = c.mesh.worldToLocal(o.getWorldPosition(v)).normalize();
+          const meshLon = THREE.MathUtils.radToDeg(Math.atan2(q.z, -q.x));
+          pairs.push([meshLon, Number(shownW(f))]);
+        });
+        let rule = null;
+        if (pairs.length >= 3) {
+          const wrap = (d) => ((((d + 180) % 360) + 360) % 360) - 180;
+          for (const sgn of [1, -1]) {
+            let sx = 0, sy = 0;
+            for (const [m, w] of pairs) {
+              const d = THREE.MathUtils.degToRad(w - sgn * m);
+              sx += Math.cos(d); sy += Math.sin(d);
+            }
+            const b = THREE.MathUtils.radToDeg(Math.atan2(sy, sx));
+            let worst = 0;
+            for (const [m, w] of pairs) worst = Math.max(worst, Math.abs(wrap(w - (sgn * m + b))));
+            if (worst < 1) {
+              rule = (lon) => ({ value: ((((sgn * lon + b) % 360) + 360) % 360), suffix: "°W" });
+              break;
+            }
+          }
+        }
+        // Only a FOUND rule is kept: features that have not loaded yet are not
+        // evidence that there is none.
+        if (rule) _flightMoonLonRules.set(c.bodyName, rule);
+        return rule;
+      }
+
       window.__flightSimHooks = {
         THREE,
         scene,
@@ -18198,9 +18244,7 @@ uniform float uViewportWidth;`,
             name: c.bodyName,
             mesh: c.mesh,
             radiusMeters: km * 1000,
-            displayLon: typeof moonSceneLonToW === "function"
-              ? (lon) => ({ value: moonSceneLonToW(lon, c.bodyName), suffix: "°W" })
-              : null,
+            displayLon: flightMoonLonRule(c),
           };
         },
         globe,
