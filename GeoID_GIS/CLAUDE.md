@@ -23059,7 +23059,30 @@ where before the names alone landed at 10.6 s AFTER the screen had gone.
 
 ## Transit: plot, lock, run — and the arrival IS the viewer
 
-`transit/transit-sequence.js` replaced the card and the warp worker
+`transit/transit-render.js` draws it and `transit/transit-sequence.js` runs the
+page's half (reveal, gate, arrival, sound, hand-over).
+
+**THE PICTURE IS DRAWN IN A WORKER, and that is the whole of "it glitches".**
+The destination viewer loads in a SAME-ORIGIN iframe, which shares the transit
+page's main thread; its boot blocks that thread in long stretches (measured on
+Saturn: 3.7 s, then 0.8, 0.85 and 0.5 s, all during the chart and the start of
+the warp). The first build drew on the main thread and froze with every one.
+Now `transit-render-worker.js` draws stars, chart, Earth, flybys, flare AND the
+words, brackets and bar on two OffscreenCanvases (the DOM HUD is gone; a
+screen-reader line stays), with the worker's own rAF. Measured: the worker kept
+producing frames through a 6.2 s main-thread block. The arrival's growth (scale,
+fade, blur) is a Web Animation sampled from `approachAt`, so the compositor runs
+it through the viewer's second burst of work (1.2–1.6 s tasks as it starts
+drawing); only the mask, which opens at the very end, is written per tick. No
+OffscreenCanvas: the same renderer runs on the main thread (verified on Mars).
+The worker loads its own copies of the page's faces by URL (a worker cannot
+see `@font-face`), and takes the page's `?v=` from the script's own src.
+
+A headless screenshot takes seconds here, so it shows a LATER state than the
+one read just before it -- that read as a full-size viewer mid-warp, and was
+not.
+
+The first version replaced the card and the old warp worker
 (`transit-worker.js` is gone). It is mock-up D: the navigation chart with the
 destination's name decoded and a ring LOCKING onto it; then Earth falling away
 in the corner, the starfield to warp and the worlds between Earth and the

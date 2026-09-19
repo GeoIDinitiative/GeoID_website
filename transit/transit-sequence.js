@@ -1,79 +1,33 @@
 /**
- * THE TRANSIT SEQUENCE: plot, lock, run.
+ * THE TRANSIT SEQUENCE, the page's half: plot, lock, run.
  *
- * Built from mock-up D, which put three earlier mock-ups together. It runs in
- * three acts:
+ * The picture is drawn by transit-render.js, in a worker wherever the browser
+ * has OffscreenCanvas (see that file for why: the destination viewer boots on
+ * this page's main thread, in long blocking stretches, and nothing drawn here
+ * could move while it did). This half owns what only the page can do:
  *
- *   0-3 s    the navigation chart: orbits drawn out, the transfer arc traced by
- *            the ship, the destination's name decoded letter by letter, and a
- *            ring closing onto the target -- LOCKED.
- *   3-6.6 s  the run: the chart falls away, Earth drops out of the corner, the
- *            starfield goes to warp and the worlds on the way sweep past.
- *   6.7-9 s  the arrival: the destination grows in out of focus and pulls
- *            sharp, and it IS the destination viewer -- the preloaded frame
- *            scaled up from a point, with a blur on it -- so the planet lands
- *            exactly where the viewer draws its globe, whatever the world, the
- *            window or the moment in its spin. Nothing is swapped at the end.
+ *   - the reveal: the viewer is shown, scaled to nothing, and told to draw;
+ *   - the gate: the picture's clock holds at the end of the cruise until the
+ *     viewer has drawn a textured frame (capped 9 s after the reveal), and is
+ *     then released with the globe's measured size;
+ *   - the arrival: the viewer frame is scaled up from a point, blurred and
+ *     masked to the planet, on the picture's own clock (its `tick`);
+ *   - the sound, synthesised through a hall reverb and scheduled up front,
+ *     so a busy main thread cannot make it stutter either;
+ *   - the hand-over.
  *
- * THE RUN WAITS FOR THE VIEWER. The clock holds at the end of the cruise
- * (GATE) until the viewer has drawn a textured frame, the stars still
- * streaming, so a slow viewer means a longer cruise rather than an arrival at
- * a black frame. Capped, so a viewer that never draws is still handed over to.
- *
- * SOUND is synthesised here (no files): a deep pad and sub under the chart,
- * sonar on the lock, a boom and a roar into warp, a Doppler whoosh per flyby
- * and an impact and a wide chord on arrival, all through a long hall reverb.
- * The arrival is scheduled when the gate opens, so it lands on the planet
- * however long the hold was. localStorage "geoid:transit-sound" = "off" (or
- * the start screen's "geoid:boot-sound" = "off") mutes it.
- *
- * The page supplies the destination and the viewer hooks; this file owns the
- * picture, the words and the sound.
+ * localStorage "geoid:transit-sound" = "off" (or the start screen's
+ * "geoid:boot-sound" = "off") mutes it.
  */
 (function () {
   "use strict";
 
-  const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
-  const lerp = (a, b, t) => a + (b - a) * t;
-  const seg = (t, a, b) => clamp((t - a) / (b - a));
-  const ease = {
-    inOut: (x) => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2,
-    out: (x) => 1 - Math.pow(1 - x, 3),
-    outExpo: (x) => x >= 1 ? 1 : 1 - Math.pow(2, -10 * x),
-    in: (x) => x * x * x,
-  };
-
-  // Semi-major axes (AU), the order the worlds are passed in.
-  const AU = { mercury: 0.387, venus: 0.723, earth: 1, mars: 1.524, jupiter: 5.203,
-    saturn: 9.537, uranus: 19.19, neptune: 30.07, pluto: 39.48 };
-  // Flyby size (fraction of the frame's height at the passing distance).
-  const FLY_R = { mercury: 0.1, venus: 0.15, mars: 0.14, jupiter: 0.42, saturn: 0.38,
-    uranus: 0.26, neptune: 0.26 };
-
-  // How far a ringed planet's rings reach, in globe radii (Saturn's A ring
-  // edge is 2.27 R; Uranus's rings are narrow and faint).
-  const RINGS = { saturn: 2.35, uranus: 1.7 };
-
-  // THE ACTS. GATE is where the cruise holds for the viewer.
-  const REVEAL = 3.2, GATE = 6.6, APPROACH = 6.75, SHARP = 8.2, HAND = 8.9;
-
-  /** Hohmann transfer Δv (km/s) between two circular heliocentric orbits. */
-  function hohmannDv(r1au, r2au) {
-    const mu = 1.32712e11, au = 1.495979e8, r1 = r1au * au, r2 = r2au * au;
-    const dv1 = Math.sqrt(mu / r1) * (Math.sqrt(2 * r2 / (r1 + r2)) - 1);
-    const dv2 = Math.sqrt(mu / r2) * (1 - Math.sqrt(2 * r1 / (r1 + r2)));
-    return Math.abs(dv1) + Math.abs(dv2);
-  }
-
-  /** Every world strictly between Earth and the destination, in the order passed. */
-  function flybysFor(key) {
-    const to = AU[key];
-    if (!to || key === "moon" || key === "earth") return [];
-    const lo = Math.min(1, to), hi = Math.max(1, to);
-    let between = Object.keys(FLY_R).filter((k) => AU[k] > lo && AU[k] < hi)
-      .sort((a, b) => to > 1 ? AU[a] - AU[b] : AU[b] - AU[a]);
-    return between;
-  }
+  const R = window.GeoIDTransitRender;
+  const { GATE, REVEAL, HAND } = R;
+  // This file's own stamp, carried to the worker and its import.
+  const STAMP = (() => {
+    try { return new URL(document.currentScript.src).search; } catch (_e) { return ""; }
+  })();
 
   // ── the sound engine ──────────────────────────────────────────────────
   function Sound(ctx, shift) {
@@ -196,7 +150,7 @@
     s.noise(5.0, GATE + X - 5.0 + 0.6, { f0: 2200, f1: 1600, q: 0.8, gain: 0.32, attack: 0.3, release: 0.6, wet: 0.8 });
     [1318.5, 1975.5, 2637].forEach((f, i) => s.tone(3.8 + i * 0.25, GATE + X - 3.8, { f0: f, gain: 0.018, attack: 1.2, release: 1.0, vib: 8, vibRate: 5 + i, wet: 0.95 }));
     plan.flybys.forEach((fb) => {
-      const side = fb.ox < 0 ? -1 : 1, big = FLY_R[fb.key] > 0.3;
+      const side = fb.ox < 0 ? -1 : 1, big = fb.big;
       s.noise(fb.at - 1.15, 1.4, { f0: big ? 380 : 500, f1: big ? 2200 : 2600, q: 2.2, gain: big ? 0.55 : 0.5, attack: 1.05, release: 0.3, pan0: 0, pan1: side, wet: 0.6 });
       s.tone(fb.at - 0.45, big ? 1.1 : 0.9, { type: "triangle", f0: big ? 120 : 190, f1: big ? 52 : 95, gain: big ? 0.14 : 0.09, attack: 0.3, pan0: side * 0.3, pan1: side, wet: 0.5 });
     });
@@ -226,388 +180,204 @@
     } catch (_e) { return true; }
   }
 
-  // ── the starfield: points in a tube, flown through ────────────────────
-  function makeStars(n, seed) {
-    let s = seed; const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
-    return Array.from({ length: n }, () => {
-      const a = rnd() * Math.PI * 2, r = 0.08 + Math.sqrt(rnd()) * 1.6;
-      return { x: Math.cos(a) * r, y: Math.sin(a) * r * 0.7, z: rnd(), b: 0.35 + rnd() * 0.65, s: 0.5 + rnd() * 1.4 };
-    });
-  }
-  function drawStars(ctx, stars, dist, v, alpha, W, H, u) {
-    const CX = W / 2, CY = H / 2, f = 260 * u;
-    for (const st of stars) {
-      const z = 1 - (((st.z + dist) % 1) + 1) % 1 + 0.02;
-      const zt = Math.min(1.02, z + v * 0.05);
-      const x = CX + st.x / z * f, y = CY + st.y / z * f;
-      if (x < -40 || x > W + 40 || y < -40 || y > H + 40) continue;
-      const x0 = CX + st.x / zt * f, y0 = CY + st.y / zt * f;
-      const near = clamp(1 - z);
-      const a = st.b * clamp(0.25 + near * 1.1) * alpha;
-      const lw = Math.max(0.6, st.s * (0.5 + near * 1.8) * Math.max(0.8, u));
-      if (Math.hypot(x - x0, y - y0) > 1.5) {
-        const g = ctx.createLinearGradient(x0, y0, x, y);
-        g.addColorStop(0, "rgba(235,244,255,0)"); g.addColorStop(1, `rgba(235,244,255,${a})`);
-        ctx.strokeStyle = g; ctx.lineWidth = lw; ctx.lineCap = "round";
-        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x, y); ctx.stroke();
-      } else {
-        ctx.fillStyle = `rgba(235,244,255,${a})`;
-        ctx.beginPath(); ctx.arc(x, y, lw * 0.6, 0, Math.PI * 2); ctx.fill();
-      }
-    }
-  }
-
-  function loadImg(src) {
-    const i = new Image(); i.decoding = "async"; i.src = src; return i;
-  }
-  const ready = (img) => img && img.complete && img.naturalWidth > 0;
-
-  /**
-   * start(config)
-   *   key, name, km, etaDays, arrivalText, icons {key: url}
-   *   hooks.reveal()          the viewer may start drawing (called once)
-   *   hooks.viewerDrawn()     true once it has drawn a textured frame
-   *   hooks.globeFraction()   the globe's radius as a fraction of frame height
-   *   hooks.frame             the viewer iframe (scaled for the approach)
-   *   hooks.crossover()       hand the page to the viewer
-   */
   function start(config) {
     const { hooks } = config;
     const $ = (id) => document.getElementById(id);
-    const back = $("tx-back"), front = $("tx-front"), hud = $("tx-hud");
-    const bctx = back.getContext("2d"), fctx = front.getContext("2d");
-    const key = config.key;
-    const isMoon = key === "moon", isIss = key === "earth";
-    const plot = !isIss;
-    const destAu = isMoon ? null : AU[key];
-    const flyKeys = flybysFor(key);
-    // Spread over the cruise, alternating sides, the last clear of the gate.
-    const flybys = flyKeys.map((k, i) => {
-      // Up to three fit the cruise as it is; more are spaced 0.8 s apart and
-      // the cruise lengthens to hold them (Pluto passes five: +1.8 s).
-      const n = flyKeys.length, at = n === 1 ? 5.6 : n <= 3 ? lerp(4.95, 6.35, i / (n - 1)) : 4.95 + 0.8 * i;
-      const left = i % 2 === 0;
-      return { key: k, at, ox: left ? -0.95 : 1.05, oy: left ? 0.28 : -0.22, img: loadImg(config.icons[k]) };
-    });
-    const earthImg = loadImg("/assets/earth_icon.png");
-    // THE CRUISE STRETCHES FOR THE WORLDS ON THE WAY. Everything but the
-    // flybys runs on a canonical clock that pauses at CRUISE for EXTRA
-    // seconds, mid-warp, when nothing but the stars and the flybys is moving.
-    const CRUISE = 5.3;
-    const EXTRA = Math.max(0, (flybys.length ? flybys[flybys.length - 1].at : 0) - 6.35);
-    const canon = (x) => x < CRUISE ? x : x < CRUISE + EXTRA ? CRUISE : x - EXTRA;
-
-    // ── words ──
-    const NAME = config.name.toUpperCase();
-    const fmt = (n) => new Intl.NumberFormat("en-US").format(n);
-    const dv = isMoon ? 3.1 : isIss ? 7.8 : hohmannDv(1, destAu);
-    const logs = [];
-    if (plot) {
-      logs.push(["Reading ephemeris", "J2000"]);
-      logs.push([`Solving transfer <em>Earth → ${config.name}</em>`, ""]);
-      logs.push(["Δv budget", `${dv.toFixed(1)} km/s`]);
-      logs.push(["Tracing arc", `${fmt(Math.round(config.etaDays))} days`]);
-      logs.push([`Target locked <em>${config.name}</em>`, ""]);
-    }
-    logs.push(["Warp engaged", "OK"]);
-    flybys.forEach((fb) => logs.push([`${fb.key[0].toUpperCase()}${fb.key.slice(1)} flyby`, `${AU[fb.key]} AU`]));
-    logs.push(["Orbit insertion · handing over", ""]);
-    const logAt = plot ? [0.2, 0.7, 1.3, 2.2, 2.95, 3.4] : [0.4];
-    flybys.forEach((fb) => logAt.push(fb.at - 0.15));
-    logAt.push(7.3 + EXTRA);
-    const logEl = $("tx-log");
-    logEl.innerHTML = logs.map(([a, b]) => `<div>${a}${b ? ` <i>${b}</i>` : ""}</div>`).join("");
-    const logLines = [...logEl.children];
-    $("tx-cap").innerHTML = `<b>Transit · ${config.name}</b>${fmt(config.km)} km · ${config.etaText}<br><span class="n">Arrival · ${config.arrivalText}</span>`;
-    const nameEl = $("tx-name"), subEl = $("tx-sub"), tagEl = $("tx-tag"), barEl = $("tx-bar");
-    const brs = { tl: $("tx-br-tl"), tr: $("tx-br-tr"), bl: $("tx-br-bl"), br: $("tx-br-br") };
-    const GLYPHS = "ABCDEFGHJKLMNPRSTUVWXYZ0123456789#/%";
-
-    // ── the chart, in the mock-up's units about the frame centre ──
-    const SUN = { x: -240, y: 40 }, K = 0.38, TH0 = Math.PI - 0.35, RMAX = 452;
-    const orbitKeys = isMoon ? ["moon"] : Object.keys(AU).filter((k) => AU[k] <= Math.max(1, destAu || 1) + 1e-9);
-    const auMax = isMoon ? 1 : Math.max(1, destAu);
-    const radiusOf = (k) => isMoon ? (k === "moon" ? RMAX * 0.62 : 0) : RMAX * Math.sqrt(AU[k] / auMax);
-    const centre = isMoon ? { x: -120, y: 40 } : SUN;
-    const pt = (r, th) => ({ x: centre.x + r * Math.cos(th), y: centre.y + r * Math.sin(th) * K });
-    const rE = isMoon ? 0 : radiusOf("earth"), rT = isMoon ? radiusOf("moon") : radiusOf(key);
-    const target = pt(rT, TH0 + Math.PI);
-    const arc = (u) => {
-      if (isMoon) { const r = lerp(18, rT, ease.inOut(u)); return pt(r, TH0 + Math.PI * u); }
-      const a = (rE + rT) / 2, e = Math.abs(rT - rE) / (rT + rE), ph = Math.PI * u;
-      const r = a * (1 - e * e) / (1 + (rT >= rE ? 1 : -1) * e * Math.cos(ph));
-      return pt(r, TH0 + ph);
-    };
-
-    // ── the run ──
-    const speed = (t) => t < REVEAL ? (plot ? 0.07 : 0.4) : t < 4.3 ? lerp(plot ? 0.07 : 0.4, 1.7, ease.in(seg(t, REVEAL, 4.3)))
-      : t < 6.9 ? 1.7 : lerp(1.7, 0.02, ease.out(seg(t, 6.9, 8.0)));
-    let W = 0, H = 0, u = 1, stars = [];
-    function resize() {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      W = window.innerWidth; H = window.innerHeight; u = Math.min(W / 1600, H / 785);
-      for (const c of [back, front]) {
-        c.width = Math.floor(W * dpr); c.height = Math.floor(H * dpr);
-        c.style.width = `${W}px`; c.style.height = `${H}px`;
-        c.getContext("2d").setTransform(dpr, 0, 0, dpr, 0, 0);
-      }
-      stars = makeStars(Math.round(clamp((W * H) / (1600 * 785), 0.35, 1.6) * 1150), 11);
-      hud.style.setProperty("--u", String(Math.max(0.55, u)));
-      document.documentElement.style.setProperty("--u", String(Math.max(0.55, u)));
-    }
-    resize();
-    window.addEventListener("resize", resize);
-
-    let frac = 0.3;             // the viewer's globe radius / frame height
-    const planetR = (s) => frac * H * s;
-
-    // ── the clock ──
-    let t = 0, dist = 0, last = null, revealed = false, released = false, holdFrom = null;
-    const holdCap = 9;          // seconds after the reveal, at most, to wait for a drawn frame
-    let revealedAt = 0, done = false, raf = 0;
-    let snd = null, sndHold = false, chromeShown = null;
+    const back = $("tx-back"), front = $("tx-front");
+    const plan = R.planFor(config);
+    const canon = R.canonFor(plan.extra);
+    let H = window.innerHeight;
+    let frac = 0.3, lastT = 0, lastC = 0, released = false, revealed = false, done = false, chromeShown = null;
+    let revealedAt = 0, snd = null, sndHold = false, worker = null, main = null;
+    const state = { t: 0, released: false, revealed: false, done: false, frac: 0.3, sound: false, worker: false };
 
     // ── sound ──
-    function soundAt(tNow) {
+    function soundStart() {
       if (!soundAllowed() || snd) return;
       let ctx;
       try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (_e) { return; }
       const go = () => {
         if (snd || done) return;
-        snd = { ctx, run: Sound(ctx, tNow) };
-        soundRun(snd.run, { plot, logAt, flybys, extra: EXTRA });
+        snd = { ctx, run: Sound(ctx, lastT) };
+        soundRun(snd.run, plan);
       };
       if (ctx.state === "running") { go(); return; }
-      // A browser that will not play before a gesture: start on the first one,
-      // from wherever the sequence has got to.
       ctx.resume().then(() => { if (ctx.state === "running") go(); }).catch(() => {});
+      // A browser that will not play before a gesture: start on the first
+      // one, from wherever the sequence has got to.
       const onGesture = () => {
         window.removeEventListener("pointerdown", onGesture, true);
         window.removeEventListener("keydown", onGesture, true);
         ctx.resume().then(() => {
           if (snd || done || ctx.state !== "running") return;
-          snd = { ctx, run: Sound(ctx, t) };
-          if (!released) soundRun(snd.run, { plot, logAt, flybys, extra: EXTRA });
-          else { snd.run = Sound(ctx, canon(t)); soundArrive(snd.run); }
+          if (!released) { snd = { ctx, run: Sound(ctx, lastT) }; soundRun(snd.run, plan); }
+          else { snd = { ctx, run: Sound(ctx, canon(lastT)) }; soundArrive(snd.run); }
         }).catch(() => {});
       };
       window.addEventListener("pointerdown", onGesture, true);
       window.addEventListener("keydown", onGesture, true);
     }
 
-    function approachStyle(frame, s, blurScreen, maskOpen, opacity) {
+    // ── the viewer's frame, for the arrival ──
+    /**
+     * THE GROWTH RUNS ON THE COMPOSITOR. The viewer does another burst of
+     * main-thread work as it starts drawing in earnest -- 1.2-1.6 s tasks,
+     * measured, exactly during the arrival -- so a scale written on each tick
+     * would jump. At the release the scale, fade and blur are handed to a Web
+     * Animation sampled from the same curve (approachAt), which the browser
+     * runs off the main thread; only the mask, which opens at the very end,
+     * is still written per tick.
+     */
+    let growth = null;
+    function startGrowth(frame, c0) {
+      const { APPROACH, SHARP } = R, N = 40, keys = [];
+      for (let i = 0; i <= N; i += 1) {
+        const a = R.approachAt(APPROACH + (i / N) * (SHARP - APPROACH));
+        const blurLocal = a.blur > 0.3 ? Math.min(60, a.blur / Math.max(a.scale, 0.02)) : 0;
+        keys.push({ offset: i / N, transform: `scale(${a.scale})`, opacity: a.opacity, filter: `blur(${blurLocal.toFixed(1)}px)` });
+      }
       frame.style.transformOrigin = "50% 50%";
+      frame.style.willChange = "transform, filter, opacity";
+      try {
+        growth = frame.animate(keys, { duration: (SHARP - APPROACH) * 1000, delay: Math.max(0, (APPROACH - c0) * 1000), fill: "both", easing: "linear" });
+      } catch (_e) { growth = null; }
+    }
+    function maskStyle(frame, maskOpen) {
+      const inner = frac * H * (R.RINGS[plan.key] || 1.1) * (1 + maskOpen * 4);
+      const outer = inner + H * (0.06 + maskOpen * 2);
+      const m = maskOpen >= 1 ? "none" : `radial-gradient(circle at 50% 50%, #000 ${inner.toFixed(0)}px, transparent ${outer.toFixed(0)}px)`;
+      if (frame.style.maskImage !== m) { frame.style.webkitMaskImage = m; frame.style.maskImage = m; }
+    }
+    function approachStyle(frame, a) {
+      const s = a.scale;
+      frame.style.transformOrigin = "50% 50%";
+      frame.style.willChange = "transform, filter, opacity";
       frame.style.transform = `scale(${s})`;
-      const blurLocal = blurScreen > 0.3 ? Math.min(60, blurScreen / Math.max(s, 0.02)) : 0;
+      const blurLocal = a.blur > 0.3 ? Math.min(60, a.blur / Math.max(s, 0.02)) : 0;
       frame.style.filter = blurLocal ? `blur(${blurLocal.toFixed(1)}px)` : "none";
       // A circle about the globe, in the frame's own pixels: the planet (and a
       // ringed planet's rings) and no more, so the viewer's own panels do not
       // show at the edge of the arrival. It opens like an iris at the end,
       // which is when the panels are meant to arrive.
-      const inner = frac * H * (RINGS[key] || 1.1) * (1 + maskOpen * 4);
-      const outer = inner + H * (0.06 + maskOpen * 2);
-      const m = maskOpen >= 1 ? "none" : `radial-gradient(circle at 50% 50%, #000 ${inner.toFixed(0)}px, transparent ${outer.toFixed(0)}px)`;
+      const inner = frac * H * (R.RINGS[plan.key] || 1.1) * (1 + a.maskOpen * 4);
+      const outer = inner + H * (0.06 + a.maskOpen * 2);
+      const m = a.maskOpen >= 1 ? "none" : `radial-gradient(circle at 50% 50%, #000 ${inner.toFixed(0)}px, transparent ${outer.toFixed(0)}px)`;
       frame.style.webkitMaskImage = m; frame.style.maskImage = m;
-      frame.style.opacity = String(opacity);
+      frame.style.opacity = String(a.opacity);
     }
 
-    function frameStep(now) {
-      if (done) return;
-      const dt = last == null ? 0 : Math.min(0.1, (now - last) / 1000); last = now;
-      let next = t + dt;
-      // the reveal: the viewer is put in place (scaled to nothing) and told to draw
-      if (!revealed && canon(next) >= REVEAL) { revealed = true; revealedAt = now; hooks.reveal(); approachStyle(hooks.frame, 0.004, 0, 0, 0); }
-      // the gate: the cruise holds until the viewer has drawn
-      if (!released && canon(next) >= GATE) {
-        const ok = hooks.viewerDrawn() || (now - revealedAt) / 1000 > holdCap;
-        if (!ok) {
-          next = GATE + EXTRA;
-          if (holdFrom == null) holdFrom = now;
-          if (snd && !sndHold) { sndHold = true; soundHold(snd.run, t, 30); }
-        } else {
-          released = true;
-          const f = hooks.globeFraction();
-          if (f > 0.02 && f < 0.6) frac = f;
-          if (snd) {
-            if (sndHold) snd.run.silence(0.5);
-            const again = Sound(snd.ctx, GATE); soundArrive(again); snd.run = again;
-          }
-        }
+    function release() {
+      if (released || done) return;
+      released = true; state.released = true;
+      const f = hooks.globeFraction();
+      if (f > 0.02 && f < 0.6) frac = f;
+      state.frac = frac;
+      send({ type: "release", frac });
+      maskStyle(hooks.frame, 0);
+      startGrowth(hooks.frame, Math.max(lastC, GATE));
+      if (snd) {
+        if (sndHold) snd.run.silence(0.5);
+        const again = Sound(snd.ctx, GATE); soundArrive(again); snd.run = again;
       }
-      dist += speed(canon(Math.min(next, released ? next : GATE + EXTRA))) * dt * 0.55;
-      t = next;
-      draw(t);
-      if (t >= HAND + EXTRA) { finish(); return; }
-      raf = requestAnimationFrame(frameStep);
+    }
+
+    function waitForViewer() {
+      if (released || done) return;
+      if (hooks.viewerDrawn() || (performance.now() - revealedAt) / 1000 > 9) { release(); return; }
+      if (snd && !sndHold) { sndHold = true; soundHold(snd.run, lastT, 30); }
+      setTimeout(waitForViewer, 100);
     }
 
     function finish() {
-      if (done) return; done = true;
-      cancelAnimationFrame(raf);
-      window.removeEventListener("resize", resize);
+      if (done) return; done = true; state.done = true;
+      window.removeEventListener("resize", onResize);
       const f = hooks.frame;
-      f.style.transform = ""; f.style.filter = ""; f.style.webkitMaskImage = ""; f.style.maskImage = "";
+      if (growth) { try { growth.cancel(); } catch (_e) {} growth = null; }
+      f.style.transform = ""; f.style.filter = ""; f.style.webkitMaskImage = ""; f.style.maskImage = ""; f.style.willChange = "";
       hooks.crossover();
+      if (worker) setTimeout(() => worker.terminate(), 1000);
       if (snd && snd.ctx) setTimeout(() => { try { snd.ctx.close(); } catch (_e) {} }, 6000);
     }
+
+    // What the picture says, whichever thread it is on.
+    function on(m) {
+      if (m.type === "tick") {
+        lastT = m.t; lastC = m.c; state.t = m.t;
+        if (m.approach) {
+          if (hooks.chrome && m.approach.chrome !== chromeShown) { chromeShown = m.approach.chrome; hooks.chrome(chromeShown); }
+          if (growth) maskStyle(hooks.frame, m.approach.maskOpen);
+          else approachStyle(hooks.frame, m.approach);
+        }
+      } else if (m.type === "reveal") {
+        if (revealed) return;
+        revealed = true; state.revealed = true; revealedAt = performance.now();
+        hooks.reveal();
+        approachStyle(hooks.frame, { scale: 0.004, blur: 0, maskOpen: 0, opacity: 0 });
+      } else if (m.type === "gate") {
+        waitForViewer();
+      } else if (m.type === "done") {
+        finish();
+      } else if (m.type === "started") {
+        soundStart();
+      }
+    }
+    function send(m) {
+      if (worker) worker.postMessage(m);
+      else if (main) {
+        if (m.type === "release") main.release(m.frac);
+        else if (m.type === "skip") main.skip();
+        else if (m.type === "resize") main.resize(m.width, m.height, m.dpr);
+      }
+    }
+    const dprNow = () => Math.min(window.devicePixelRatio || 1, 2);
+    // The corner buttons sit inside the drawn brackets, which scale with this.
+    const setScale = () => document.documentElement.style.setProperty("--u",
+      String(Math.max(0.55, Math.min(window.innerWidth / 1600, window.innerHeight / 785))));
+    setScale();
+    const sr = $("tx-sr");
+    if (sr) sr.textContent = `Transit to ${config.name}, ${config.km.toLocaleString("en-US")} km. Arrival ${config.arrivalText}.`;
+    function onResize() {
+      H = window.innerHeight; setScale();
+      send({ type: "resize", width: window.innerWidth, height: window.innerHeight, dpr: dprNow() });
+    }
+
+    // ── the picture: in a worker where it can be ──
+    const cfg = { key: config.key, name: config.name, km: config.km, etaDays: config.etaDays,
+      etaText: config.etaText, arrivalText: config.arrivalText, icons: config.icons };
+    const offscreen = typeof OffscreenCanvas !== "undefined" && typeof back.transferControlToOffscreen === "function";
+    if (offscreen) {
+      try {
+        worker = new Worker(`transit-render-worker.js${STAMP}`);
+        const b = back.transferControlToOffscreen(), f = front.transferControlToOffscreen();
+        worker.onmessage = (e) => on(e.data);
+        worker.onerror = () => {};
+        worker.postMessage({ type: "init", back: b, front: f, config: cfg,
+          width: window.innerWidth, height: window.innerHeight, dpr: dprNow() }, [b, f]);
+        state.worker = true;
+      } catch (_e) { worker = null; }
+    }
+    if (!worker) {
+      main = R.createRenderer({ back, front, config: cfg, emit: (type, data) => on({ type, ...data }) });
+      main.resize(window.innerWidth, window.innerHeight, dprNow());
+      const loop = (now) => { main.step(now); if (!main.state().done) requestAnimationFrame(loop); };
+      const fonts = document.fonts && document.fonts.ready ? Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 900))]) : Promise.resolve();
+      fonts.then(() => { on({ type: "started" }); requestAnimationFrame(loop); });
+    }
+    window.addEventListener("resize", onResize);
 
     /** Jump to the gate (the Skip button). */
     function skip() {
       if (done) return;
-      if (t < GATE + EXTRA - 0.2) { t = GATE + EXTRA - 0.2; if (snd) snd.run.silence(0.3); }
+      send({ type: "skip" });
+      if (snd && !released) snd.run.silence(0.3);
     }
-
-    function drawChart(ctx) {
-      const chartA = seg(t, 0.0, 0.5) * (1 - seg(t, 3.05, 3.6));
-      if (!plot || chartA <= 0) return;
-      ctx.save(); ctx.translate(W / 2, H / 2);
-      const zoom = u * (1 + 0.25 * ease.in(seg(t, 3.05, 3.6)));
-      ctx.scale(zoom, zoom); ctx.globalAlpha = chartA;
-      const drawn = ease.out(seg(t, 0.05, 0.9));
-      ctx.lineWidth = 1.2 / zoom;
-      if (isMoon) {
-        const g = ctx.createRadialGradient(centre.x, centre.y, 0, centre.x, centre.y, 18);
-        g.addColorStop(0, "rgba(120,200,255,1)"); g.addColorStop(1, "rgba(60,140,255,0)"); ctx.fillStyle = g;
-        ctx.beginPath(); ctx.arc(centre.x, centre.y, 18, 0, Math.PI * 2); ctx.fill();
-      }
-      for (const k of orbitKeys) {
-        const r = radiusOf(k);
-        ctx.strokeStyle = k === key || (isMoon && k === "moon") ? "rgba(247,189,104,.75)" : k === "earth" ? "rgba(126,231,255,.7)" : "rgba(126,231,255,.22)";
-        ctx.beginPath();
-        for (let i = 0; i <= 180 * drawn; i += 1) { const q = pt(r, TH0 + (i / 180) * Math.PI * 2); i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); }
-        ctx.stroke();
-      }
-      if (!isMoon) {
-        const g = ctx.createRadialGradient(centre.x, centre.y, 0, centre.x, centre.y, 26);
-        g.addColorStop(0, "rgba(255,230,170,1)"); g.addColorStop(1, "rgba(255,190,90,0)"); ctx.fillStyle = g;
-        ctx.beginPath(); ctx.arc(centre.x, centre.y, 26, 0, Math.PI * 2); ctx.fill();
-      }
-      const p = ease.inOut(seg(t, 0.7, 2.9));
-      ctx.setLineDash([6, 6]); ctx.strokeStyle = "rgba(255,62,200,.35)"; ctx.beginPath();
-      for (let i = 0; i <= 120; i += 1) { const q = arc(i / 120); i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); } ctx.stroke(); ctx.setLineDash([]);
-      ctx.strokeStyle = "rgba(255,62,200,.95)"; ctx.lineWidth = 2.2; ctx.beginPath();
-      for (let i = 0; i <= 120 * p; i += 1) { const q = arc(i / 120); i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); } ctx.stroke();
-      const sp = arc(p); ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(sp.x, sp.y, 4, 0, Math.PI * 2); ctx.fill();
-      ctx.font = "500 13px 'Exo 2', sans-serif"; ctx.fillStyle = "rgba(126,231,255,.9)";
-      const ep = isMoon ? centre : pt(rE, TH0); ctx.fillText("EARTH", ep.x - 58, ep.y + 4);
-      ctx.fillStyle = "rgba(247,189,104,.95)"; ctx.fillText(NAME, target.x + 14, target.y - 10);
-      ctx.fillStyle = "rgba(255,255,255,.45)";
-      ctx.fillText(`Δv ${dv.toFixed(1)} km/s · ${fmt(Math.round(p * config.etaDays))} / ${fmt(Math.round(config.etaDays))} d`, sp.x + 12, sp.y + 22);
-      ctx.fillStyle = "rgba(247,189,104,1)"; ctx.beginPath(); ctx.arc(target.x, target.y, 5, 0, Math.PI * 2); ctx.fill();
-      const close = seg(t, 2.5, 2.9), pulse = seg(t, 2.9, 3.4);
-      if (close > 0 && close < 1) { ctx.strokeStyle = `rgba(247,189,104,${close})`; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(target.x, target.y, lerp(60, 10, ease.out(close)), 0, Math.PI * 2); ctx.stroke(); }
-      if (pulse > 0 && pulse < 1) { ctx.strokeStyle = `rgba(247,189,104,${1 - pulse})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(target.x, target.y, 10 + pulse * 60, 0, Math.PI * 2); ctx.stroke(); }
-      if (t > 2.9) {
-        ctx.strokeStyle = "rgba(247,189,104,.9)"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(target.x, target.y, 10, 0, Math.PI * 2); ctx.stroke();
-        ctx.font = "600 11px 'Exo 2', sans-serif"; ctx.fillStyle = "rgba(247,189,104,.95)"; ctx.fillText("LOCKED", target.x + 14, target.y + 14);
-      }
-      ctx.restore();
-    }
-
-    function drawImageFit(ctx, img, cx, cy, r) {
-      // A planet image is r across at its WIDTH; a ringed or flattened icon
-      // keeps its own aspect.
-      const w = r * 2, h = w * (img.naturalHeight / img.naturalWidth);
-      ctx.drawImage(img, cx - w / 2, cy - h / 2, w, h);
-    }
-
-    function draw(tr) {
-      const t = canon(tr);   // the flybys below run on the real clock, tr
-      const CX = W / 2, CY = H / 2, v = speed(t);
-      bctx.fillStyle = "#030608"; bctx.fillRect(0, 0, W, H);
-      drawStars(bctx, stars, dist, v, 1 - 0.55 * seg(t, 7.6, 8.6), W, H, u);
-      drawChart(bctx);
-      // Earth, falling away behind and below as the warp engages
-      const ek = ease.in(seg(t, REVEAL - 0.05, 5.2));
-      const ea = seg(t, REVEAL - 0.1, REVEAL + 0.3) * (1 - seg(t, 4.6, 5.2));
-      if (!isIss && ea > 0 && ready(earthImg)) {
-        const r = lerp(H * 1.05, H * 0.05, ek);
-        bctx.globalAlpha = ea;
-        bctx.drawImage(earthImg, lerp(-0.18 * W, -0.4 * W, ek) - r + W * 0.12, lerp(H * 0.72, H * 1.35, ek) - r * 0.2, r * 2, r * 2);
-        bctx.globalAlpha = 1;
-      }
-      // the worlds on the way
-      for (const fb of flybys) {
-        const p = seg(tr, fb.at - 1.3, fb.at + 0.1);
-        if (p <= 0 || p >= 1 || !ready(fb.img)) continue;
-        const z = lerp(7, 0.12, ease.in(p));
-        const r = (FLY_R[fb.key] * H) / z, x = CX + (fb.ox * W * 0.5) / z, y = CY + (fb.oy * H * 0.5) / z;
-        bctx.globalAlpha = seg(p, 0, 0.25);
-        const st = 1 + 0.35 * seg(p, 0.75, 1);
-        bctx.save(); bctx.translate(x, y); bctx.rotate(Math.atan2(y - CY, x - CX)); bctx.scale(st, 1);
-        drawImageFit(bctx, fb.img, 0, 0, r); bctx.restore();
-        bctx.globalAlpha = 1;
-      }
-      // the destination: the viewer itself, grown in and pulled sharp
-      const s = lerp(0.004, 1, ease.outExpo(seg(t, APPROACH, SHARP)));
-      if (released && hooks.chrome) {
-        const show = t >= SHARP;
-        if (show !== chromeShown) { chromeShown = show; hooks.chrome(show); }
-      }
-      if (released && hooks.frame) {
-        const blur = lerp(16, 0, ease.inOut(seg(t, 7.35, SHARP)));
-        approachStyle(hooks.frame, s, blur, ease.inOut(seg(t, SHARP, HAND)), seg(t, 6.7, 7.1));
-      }
-      // the flare crossing at the moment of focus, over the planet
-      fctx.clearRect(0, 0, W, H);
-      const fl = seg(t, 7.9, 8.55);
-      if (fl > 0 && fl < 1) {
-        const x = lerp(-0.25 * W, 1.15 * W, fl), al = Math.sin(fl * Math.PI) * 0.35;
-        fctx.save(); fctx.transform(1, 0, -0.32, 1, 0, 0);
-        const g = fctx.createLinearGradient(x - 160, 0, x + 160, 0);
-        g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(0.5, `rgba(255,255,255,${al})`); g.addColorStop(1, "rgba(255,255,255,0)");
-        fctx.fillStyle = g; fctx.fillRect(x - 160 + 0.32 * CY, 0, 320, H); fctx.restore();
-      }
-      // the back canvas steps aside as the viewer takes the whole frame
-      back.style.opacity = String(1 - seg(t, SHARP, HAND));
-      drawHud(tr, s);
-    }
-
-    function drawHud(tr, s) {
-      const t = canon(tr);
-      const hudA = 1 - seg(t, 8.3, HAND);
-      hud.style.opacity = String(hudA);
-      logLines.forEach((el, i) => { el.style.opacity = String(clamp((tr - (logAt[i] ?? 99)) / 0.15)); });
-      barEl.style.width = `${clamp(tr / (HAND + EXTRA)) * 100}%`;
-      // brackets: from the frame's corners onto the planet
-      const m = 34 * Math.max(0.6, u), k = ease.inOut(seg(t, 7.2, SHARP)), R = planetR(s) + 20;
-      const box = { x0: lerp(m, W / 2 - R, k), y0: lerp(m, H / 2 - R, k), x1: lerp(W - m, W / 2 + R, k), y1: lerp(H - m, H / 2 + R, k) };
-      const S = 42 * Math.max(0.6, u), ba = seg(t, 0.05, 0.4) * (1 - seg(t, 8.35, 8.85));
-      const set = (el, x, y) => { el.style.left = `${x}px`; el.style.top = `${y}px`; el.style.opacity = String(ba); };
-      set(brs.tl, box.x0, box.y0); set(brs.tr, box.x1 - S, box.y0); set(brs.bl, box.x0, box.y1 - S); set(brs.br, box.x1 - S, box.y1 - S);
-      // the name: decoded, then up and out of the way of the run
-      let txt = "";
-      for (let i = 0; i < NAME.length; i += 1) {
-        const settle = 0.35 + i * (1.8 / Math.max(6, NAME.length));
-        txt += t >= settle ? NAME[i] : t < 0.15 ? " " : GLYPHS[Math.floor((t * 23 + i * 7) % GLYPHS.length)];
-      }
-      nameEl.textContent = txt;
-      const up = ease.inOut(seg(t, plot ? 3.0 : 1.6, plot ? 4.0 : 2.6));
-      nameEl.style.transform = `translate(-50%,-60%) translateY(${-300 * up * Math.max(0.6, u)}px) scale(${lerp(1, 0.42, up)})`;
-      nameEl.style.opacity = String(1 - seg(t, 8.0, 8.5));
-      let line = plot ? `${isMoon ? "Translunar injection" : "Hohmann transfer"} · ${Math.round(ease.inOut(seg(t, 0.7, 2.9)) * 100)}%` : "orbit 408 km";
-      if (plot && t > 2.9) line = "target locked";
-      if (t > REVEAL) line = "engaging warp";
-      if (t > 3.9 && !isIss) line = "departing Earth";
-      for (const fb of flybys) if (tr > fb.at - 0.9) line = `passing ${fb.key[0].toUpperCase()}${fb.key.slice(1)}`;
-      if (t > 6.7) line = `${config.name} ${isMoon || isIss ? "approach" : "system"}`;
-      if (!released && t >= GATE) line = `${config.name} ${isMoon || isIss ? "approach" : "system"} · viewer loading`;
-      if (t > 7.5) line = "orbit insertion";
-      subEl.textContent = line;
-      subEl.style.transform = `translate(-50%,58px) translateY(${-338 * up * Math.max(0.6, u)}px)`;
-      subEl.style.opacity = String(seg(t, 0.3, 0.8) * (1 - seg(t, 8.0, 8.5)));
-      tagEl.textContent = plot && t < 2.9 ? "Plotting course" : "Trajectory locked";
-      tagEl.style.opacity = String(seg(t, 0.2, 0.6) * (1 - up));
-    }
-
-    soundAt(0);
     const skipBtn = $("tx-skip");
     if (skipBtn) skipBtn.addEventListener("click", skip);
-    raf = requestAnimationFrame(frameStep);
-    const handle = { skip, state: () => ({ t, released, revealed, done, held: holdFrom != null, frac, sound: Boolean(snd) }) };
+
+    const handle = { skip, state: () => ({ ...state, sound: Boolean(snd), c: lastC, held: revealed && !released && canon(lastT) >= GATE }) };
     window.GeoIDTransitSequence.current = handle;
     return handle;
   }
 
-  window.GeoIDTransitSequence = { start, flybysFor, hohmannDv };
+  window.GeoIDTransitSequence = { start, flybysFor: R.flybysFor, hohmannDv: R.hohmannDv };
 })();

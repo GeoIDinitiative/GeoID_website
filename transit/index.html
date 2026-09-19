@@ -64,38 +64,13 @@
     #tx-back { z-index: 0; }
     #viewer-frame { z-index: 1; }
     #tx-front { z-index: 3; }
-    #tx-hud { position: fixed; inset: 0; z-index: 4; pointer-events: none; --u: 1; }
-    #tx-hud::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(rgba(88,198,179,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(88,198,179,.05) 1px, transparent 1px); background-size: 56px 56px; }
-    #tx-hud::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0 1px, transparent 1px 3px); }
-    .tx-br { position: absolute; width: calc(42px * max(0.6, var(--u))); height: calc(42px * max(0.6, var(--u))); border: 3px solid #f7bd68; opacity: 0; }
-    #tx-br-tl { border-right: 0; border-bottom: 0; } #tx-br-tr { border-left: 0; border-bottom: 0; }
-    #tx-br-bl { border-right: 0; border-top: 0; }    #tx-br-br { border-left: 0; border-top: 0; }
-    /* The corner words sit INSIDE the brackets, clear of their 3px arms: the
-       brackets start at 34px x the page scale, so the words are offset from
-       that, not from the edge. */
-    #tx-hud { --tx-in: calc(34px * max(0.6, var(--u)) + 20px); }
-    #tx-label { position: absolute; left: var(--tx-in); top: calc(var(--tx-in) - 4px); font-size: 12px; letter-spacing: .3em; text-transform: uppercase; color: rgba(255,255,255,.45); }
-    #tx-label b { color: #f7bd68; font-weight: 600; }
-    #tx-cap { position: absolute; right: var(--tx-in); top: calc(var(--tx-in) - 4px); text-align: right; font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.55); line-height: 1.8; font-variant-numeric: tabular-nums; }
-    #tx-cap b { display: block; color: var(--text); font-weight: 600; font-size: 17px; letter-spacing: .06em; }
-    #tx-cap .n { display: inline-block; margin-top: 8px; padding: 3px 9px; border: 1px solid #f7bd68; color: #f7bd68; font-size: 11px; }
-    #tx-name { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-60%); font-family: "Orbitron", sans-serif; font-size: calc(112px * max(0.55, var(--u))); letter-spacing: .1em; white-space: nowrap; text-shadow: 0 0 28px rgba(126,231,255,.35); }
-    #tx-sub { position: absolute; left: 50%; top: 50%; transform: translate(-50%,58px); font-size: calc(16px * max(0.7, var(--u))); letter-spacing: .34em; text-transform: uppercase; color: #7ee7ff; white-space: nowrap; }
-    #tx-tag { position: absolute; left: 50%; top: 50%; transform: translate(-50%,calc(-150px * max(0.6, var(--u)))); font-size: 13px; letter-spacing: .5em; color: #f7bd68; text-transform: uppercase; white-space: nowrap; }
-    #tx-log { position: absolute; left: 62px; bottom: 58px; font-size: calc(15px * max(0.75, var(--u))); line-height: 1.75; letter-spacing: .06em; color: #7ee7ff; }
-    #tx-log div { opacity: 0; white-space: nowrap; }
-    #tx-log i { font-style: normal; color: rgba(255,255,255,.42); margin-left: 14px; }
-    #tx-log em { font-style: normal; color: #f7bd68; }
-    #tx-barwrap { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(255,255,255,.08); }
-    #tx-bar { height: 100%; width: 0; background: #7ee7ff; box-shadow: 0 0 12px #7ee7ff; }
+    /* The words, brackets and bar are drawn on #tx-front by transit-render.js
+       (off the main thread); this line is what a screen reader hears. */
+    .tx-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
     /* The two things a reader can do: go home, or get there now. */
     #tx-actions { position: fixed; right: calc(34px * max(0.6, var(--u, 1)) + 20px); bottom: calc(34px * max(0.6, var(--u, 1)) + 14px); z-index: 5; display: flex; gap: 10px; transition: opacity .4s; }
     #tx-actions a, #tx-actions button { font: 500 11px "Exo 2", sans-serif; letter-spacing: .2em; text-transform: uppercase; color: rgba(255,255,255,.6); background: rgba(3,6,8,.5); border: 1px solid rgba(255,255,255,.18); padding: 6px 12px; cursor: pointer; text-decoration: none; }
     #tx-actions a:hover, #tx-actions button:hover, #tx-actions a:focus-visible, #tx-actions button:focus-visible { color: #fff; border-color: #f7bd68; outline: none; }
-    @media (max-width: 760px) {
-      #tx-log { left: 20px; bottom: 44px; }
-    }
-
     /* ── Portrait orientation advisory ───────────────────────────────── */
     #portrait-advisory { display: none; }
 
@@ -170,23 +145,14 @@
     allow="fullscreen"></iframe>
   <canvas id="tx-front" aria-hidden="true"></canvas>
 
-  <div id="tx-hud" aria-live="polite">
-    <div id="tx-label">GeoHUB · <b>Transit</b></div>
-    <div id="tx-cap"></div>
-    <div id="tx-tag">Plotting course</div>
-    <h1 id="tx-name"></h1>
-    <div id="tx-sub"></div>
-    <div id="tx-log"></div>
-    <div class="tx-br" id="tx-br-tl"></div><div class="tx-br" id="tx-br-tr"></div>
-    <div class="tx-br" id="tx-br-bl"></div><div class="tx-br" id="tx-br-br"></div>
-    <div id="tx-barwrap"><div id="tx-bar"></div></div>
-  </div>
+  <p id="tx-sr" class="tx-sr" aria-live="polite"></p>
   <div id="tx-actions">
     <a href="/" target="_top" rel="home">← Home</a>
     <button type="button" id="tx-skip">Skip ›</button>
   </div>
 
-  <script src="transit-sequence.js?v=20260919-792c7c5"></script>
+  <script src="transit-render.js?v=20260919-344c3f1"></script>
+  <script src="transit-sequence.js?v=20260919-344c3f1"></script>
   <script>
     const destinations = {
       mercury: {
@@ -434,8 +400,9 @@
       // What the GeoHUB shell reads as "transit has handed over".
       viewerFrame.dataset.crossed = "1";
       viewerFrame.style.zIndex = "6";
-      for (const id of ["tx-back", "tx-front", "tx-hud"]) {
+      for (const id of ["tx-back", "tx-front"]) {
         const el = document.getElementById(id);
+        if (!el) continue;
         el.style.transition = `opacity ${CROSSFADE_MS}ms ease`; el.style.opacity = "0";
       }
       actions.style.opacity = "0"; actions.style.pointerEvents = "none";
