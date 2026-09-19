@@ -5434,6 +5434,30 @@ body.modebar-hosted #gis-settings-btn { display: none !important; }
   border-bottom-right-radius: calc(0.7rem - 2px);
 }
 
+/* Explorer ▸ Locations: ONE list, one spacing, one row shape.
+   The gazetteer's rows sat inside their own host div, so they were packed
+   tight while the curated rows below took the stack's gap; and the general
+   row's 8-11rem control column squeezed "Volcanic features" onto two lines
+   beside a lone tick box. The host takes no box of its own, every row is the
+   same height and the tick box column is only as wide as the box. */
+#locations-section #place-category-rows { display: contents; }
+#locations-section .control-stack { gap: 0.4rem; }
+#locations-section .control-stack > .row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 1.45rem;
+  gap: 0.75rem;
+}
+#locations-section .control-stack > .row > label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+#locations-section .control-stack > .row > .checkbox-wrap {
+  display: inline-flex;
+  justify-content: flex-end;
+}
+
 /* ── Meshing Studio, in the GIS page's own chrome ─────────────────────────
    One RIBBON instead of two toolbars (the actions as four menus, the view
    controls beside them), tab strips in the nav bar's voice (Exo 2, uppercase,

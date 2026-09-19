@@ -26,18 +26,18 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260919-d704be8";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260919-d704be8";
-import { mathsFor } from "./equations.js?v=20260919-d704be8";
+import { runConnector } from "./research/connectors.js?v=20260919-2de9a83";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260919-2de9a83";
+import { mathsFor } from "./equations.js?v=20260919-2de9a83";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260919-d704be8";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260919-d704be8";
-import { featureForModel, may, refusal } from "./membership.js?v=20260919-d704be8";
-import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260919-d704be8";
+} from "./cyclone-risk.js?v=20260919-2de9a83";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260919-2de9a83";
+import { featureForModel, may, refusal } from "./membership.js?v=20260919-2de9a83";
+import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260919-2de9a83";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260919-d704be8";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260919-2de9a83";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -144,7 +144,8 @@ export const DATASETS = [
      * explicit untick is remembered, as for every launch default.
      */
     defaultOn: true,
-    opacity: 0.5,
+    colour: "#2f6fd6",
+    opacity: 0.1,
   },
   /**
    * The Natural Earth LAKES row went when HydroLAKES arrived: 1,355 lakes at
@@ -196,7 +197,7 @@ export const DATASETS = [
      * tint over the whole planet, a border is only where one country ends.
      */
     defaultOn: true,
-    opacity: 0.2,
+    opacity: 1,
   },
   {
     id: "countries-50m",
@@ -1241,6 +1242,14 @@ export async function addDataset(id, onStatus = () => {},
     } catch (error) {
       /* the layer stands in its default colours */
     }
+  } else if (layer && entry.colour) {
+    // One flat colour the entry names (the rivers read as WATER — blue — not
+    // the default line cyan, which is the app's data colour).
+    try {
+      const { paintSingle } = await import(
+        `./symbology-dialog.js${new URL(import.meta.url).search}`);
+      paintSingle(layer, entry.colour);
+    } catch (error) { /* the layer stands in its default colour */ }
   } else if (layer && entry.colourBy) {
     try {
       const { paintByField } = await import(

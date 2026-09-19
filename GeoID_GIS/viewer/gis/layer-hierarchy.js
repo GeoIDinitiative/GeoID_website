@@ -10,17 +10,17 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { bandOf } from "./draw-order.js?v=20260919-d704be8";
-import { paintOpacity } from "./layer-opacity.js?v=20260919-d704be8";
-import { currentBody } from "./bodies.js?v=20260919-d704be8";
-import { samplerToRaster } from "./raster-analysis.js?v=20260919-d704be8";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260919-d704be8";
-import { datasetInfoButton } from "./catalogue-list.js?v=20260919-d704be8";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260919-d704be8";
+import { bandOf } from "./draw-order.js?v=20260919-2de9a83";
+import { paintOpacity } from "./layer-opacity.js?v=20260919-2de9a83";
+import { currentBody } from "./bodies.js?v=20260919-2de9a83";
+import { samplerToRaster } from "./raster-analysis.js?v=20260919-2de9a83";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260919-2de9a83";
+import { datasetInfoButton } from "./catalogue-list.js?v=20260919-2de9a83";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260919-2de9a83";
 import {
   openSymbologyDialog, geometrySummary, geometryKind,
-} from "./symbology-dialog.js?v=20260919-d704be8";
-import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260919-d704be8";
+} from "./symbology-dialog.js?v=20260919-2de9a83";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260919-2de9a83";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -110,6 +110,10 @@ const STYLE = `
 .layer-stack .layer-row.layer-row-basemap,
 .layer-stack .layer-row.layer-row-basemap.has-info {
   grid-template-columns: auto auto minmax(0, 1fr) auto;
+}
+/* The pinned Location labels row: the basemap row's shape, less the info button. */
+.layer-stack .layer-row.layer-row-basemap.layer-row-labels {
+  grid-template-columns: auto auto minmax(0, 1fr);
 }
 /* One more column, for the ⓘ every layer carries. */
 .layer-stack .layer-row.has-info {
@@ -919,6 +923,8 @@ export function render() {
     host.prepend(panel);
   }
   panel.textContent = "";
+  const labels = locationLabelsRow();
+  if (labels) panel.appendChild(labels);
   const stack = ordered();
   // No empty-state text: the basemap row below already shows the dock is alive,
   // and two lines saying nothing is loaded said it twice.
@@ -1002,6 +1008,62 @@ function activeBasemap() {
  * every world now, and a Mars page listing an "Earth basemap" is telling the
  * user the wrong thing about what they are looking at.
  */
+/**
+ * THE PLACE LABELS ARE POINT DATA ON THE GLOBE, so they are a Workspace entry.
+ *
+ * They are drawn by the viewer, not imported, so there is nothing to style,
+ * reorder, fade, export or clip: the row is an eye and a name, pinned to the
+ * TOP because the labels always draw over every map layer. The eye is a second
+ * face of Explorer ▸ Locations, not a second state: switching it off records
+ * which rows were on and unticks them through their own boxes; switching it on
+ * puts back exactly those rows (all of them if nothing was recorded).
+ */
+const LOCATION_BOXES = "#locations-section input[type=checkbox]:not(#locations-master-toggle)";
+let locationsOnBeforeOff = null;
+function locationBoxes() {
+  return [...document.querySelectorAll(LOCATION_BOXES)]
+    .filter((box) => !box.closest(".row")?.style.display?.includes("none"));
+}
+function setLocationBox(box, on) {
+  if (box.checked === on) return;
+  box.checked = on;
+  box.dispatchEvent(new Event("change", { bubbles: true }));
+}
+function locationLabelsRow() {
+  const boxes = locationBoxes();
+  if (!boxes.length) return null;
+  const on = boxes.some((box) => box.checked);
+  const node = document.createElement("div");
+  node.className = "layer-row layer-row-basemap layer-row-labels";
+  node.innerHTML = `
+    <span class="layer-grip" aria-hidden="true"></span>
+    <label class="layer-eye" title="Visible">
+      <input type="checkbox" ${on ? "checked" : ""} data-role="visible">
+    </label>
+    <span class="layer-name" title="Place names on the globe — set per category in Explorer ▸ Locations">Location labels</span>`;
+  node.querySelector('[data-role="visible"]').addEventListener("change", (e) => {
+    const all = locationBoxes();
+    if (e.target.checked) {
+      const back = locationsOnBeforeOff?.size ? locationsOnBeforeOff : null;
+      all.forEach((box) => setLocationBox(box, back ? back.has(box.id) : true));
+      locationsOnBeforeOff = null;
+    } else {
+      locationsOnBeforeOff = new Set(all.filter((box) => box.checked).map((box) => box.id));
+      all.forEach((box) => setLocationBox(box, false));
+    }
+    const master = document.getElementById("locations-master-toggle");
+    if (master) master.checked = e.target.checked;
+    render();
+  });
+  return node;
+}
+if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
+  // A tick in Locations is a change to what this row says.
+  document.addEventListener("change", (e) => {
+    if (e.target?.closest?.("#locations-section")) queueMicrotask(() => { if (mounted) render(); });
+  });
+}
+
 function basemapRow() {
   const viewer = window.GeoIDViewer;
   const node = document.createElement("div");

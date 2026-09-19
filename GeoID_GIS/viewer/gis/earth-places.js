@@ -13,8 +13,8 @@
  *
  * Earth only: the page's own script tag loads it, the planets never do.
  */
-import { dataUrl } from "./data-base.js?v=20260919-d704be8";
-import { holdLaunch } from "./launch-ready.js?v=20260919-d704be8";
+import { dataUrl } from "./data-base.js?v=20260919-2de9a83";
+import { holdLaunch } from "./launch-ready.js?v=20260919-2de9a83";
 
 const PATH = "/data/global/earth-places.json";
 const OFF_KEY = "geoid-gis:earth-places-off";   // what was switched OFF — see note
@@ -90,45 +90,52 @@ export function toItem(row, rank) {
 let loaded = null;
 let offSet = readOff();
 
-function counts(places) {
-  const out = {};
-  for (const p of places) out[p.category] = (out[p.category] || 0) + 1;
-  return out;
+/**
+ * Rows the Locations list shows as ONE entry. Oceans and seas, rivers and
+ * lakes are one subject to somebody deciding what to read on the globe; the
+ * categories stay separate underneath, because each keeps its own label
+ * colour. A group's box turns every member on or off together.
+ */
+export const PLACE_GROUPS = [
+  { key: "water", label: "Water bodies", ids: ["place-marine", "place-river", "place-lake"] },
+];
+
+/** The list's rows, in the viewer's category order, a group at its first member. */
+export function placeRows(categories) {
+  const rows = [];
+  const grouped = new Map();
+  for (const g of PLACE_GROUPS) for (const id of g.ids) grouped.set(id, g);
+  for (const cat of categories) {
+    const g = grouped.get(cat.id);
+    if (!g) { rows.push({ key: cat.id.replace(/^place-/, ""), label: cat.label, colour: cat.colour, ids: [cat.id] }); continue; }
+    if (rows.some((r) => r.group === g.key)) continue;
+    rows.push({ key: g.key, group: g.key, label: g.label, colour: cat.colour,
+      ids: g.ids.filter((id) => categories.some((c) => c.id === id)) });
+  }
+  return rows;
 }
 
-function drawRows(viewer, placeCounts) {
+function drawRows(viewer) {
   const host = document.getElementById("place-category-rows");
   if (!host) return;
   host.textContent = "";
-  for (const cat of viewer.placeCategories()) {
-    const key = cat.id.replace(/^place-/, "");
+  for (const entry of placeRows(viewer.placeCategories())) {
     const row = document.createElement("div");
     row.className = "row";
-    const id = `place-toggle-${key}`;
+    const id = `place-toggle-${entry.key}`;
     const label = document.createElement("label");
     label.htmlFor = id;
-    label.style.color = cat.colour;
-    label.textContent = cat.label;
+    label.style.color = entry.colour;
+    label.textContent = entry.label;
     const wrap = document.createElement("span");
     wrap.className = "checkbox-wrap";
-    // The count sits beside the box, not in the name: in the label column it
-    // wrapped every longer category onto two lines.
-    const n = placeCounts[key];
-    if (n) {
-      const count = document.createElement("span");
-      count.className = "place-count";
-      count.textContent = n.toLocaleString();
-      count.title = `${n.toLocaleString()} named places`;
-      count.style.cssText = "opacity:0.55;font-size:0.8em;margin-right:0.5rem;font-variant-numeric:tabular-nums;";
-      wrap.appendChild(count);
-    }
     const box = document.createElement("input");
     box.type = "checkbox";
     box.id = id;
-    box.dataset.placeCategory = cat.id;
-    box.checked = !offSet.has(cat.id);
+    box.dataset.placeCategory = entry.ids.join(" ");
+    box.checked = entry.ids.some((cid) => !offSet.has(cid));
     box.addEventListener("change", () => {
-      if (box.checked) offSet.delete(cat.id); else offSet.add(cat.id);
+      for (const cid of entry.ids) { if (box.checked) offSet.delete(cid); else offSet.add(cid); }
       writeOff(offSet);
       syncMaster();
     });
@@ -153,7 +160,9 @@ function wireMaster() {
   master.addEventListener("change", () => {
     for (const box of document.querySelectorAll("#place-category-rows input[type=checkbox]")) {
       box.checked = master.checked;
-      if (master.checked) offSet.delete(box.dataset.placeCategory); else offSet.add(box.dataset.placeCategory);
+      for (const cid of box.dataset.placeCategory.split(" ")) {
+        if (master.checked) offSet.delete(cid); else offSet.add(cid);
+      }
     }
     writeOff(offSet);
   });
@@ -178,7 +187,7 @@ async function load(viewer) {
   const curated = viewer.curatedPlaces();
   const rank = (item, lod, category) => viewer.rankPlace(item, lod, category);
   const places = (doc.places || []).filter((p) => !isCuratedDuplicate(p, curated));
-  drawRows(viewer, counts(places));
+  drawRows(viewer);
   wireMaster();
   viewer.setPlaceCategoryFilter((category) => !offSet.has(category));
   // Most significant first, in batches across frames: 2,900 entries built in

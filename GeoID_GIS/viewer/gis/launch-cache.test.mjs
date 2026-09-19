@@ -55,7 +55,7 @@ ok(/holdLaunch\("events"/.test(read("GeoID_GIS", "viewer", "gis", "events.js")),
 const data = read("GeoID_GIS", "viewer", "gis", "global-data.js");
 ok(/Promise\.all\(launchDatasets\(\)\.map/.test(data), "launch defaults load in parallel");
 const borders = data.slice(data.indexOf('id: "boundaries-10m"'), data.indexOf('id: "countries-50m"'));
-ok(/defaultOn: true/.test(borders) && /opacity: 0\.2\b/.test(borders), "country borders are on at launch at 20%");
+ok(/defaultOn: true/.test(borders) && /opacity: 1\b/.test(borders), "country borders are on at launch at full strength");
 
 // ---- the registry itself -----------------------------------------------------
 globalThis.window = {};

@@ -25,8 +25,8 @@
  * disc stays its own feature, so a click still names its volcano.
  */
 
-import { renderFeatureCollection } from "./vector-render.js?v=20260919-d704be8";
-import { layerForDataset } from "./global-data.js?v=20260919-d704be8";
+import { renderFeatureCollection } from "./vector-render.js?v=20260919-2de9a83";
+import { layerForDataset } from "./global-data.js?v=20260919-2de9a83";
 
 const search = new URL(import.meta.url).search;
 
