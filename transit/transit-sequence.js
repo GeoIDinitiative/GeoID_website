@@ -65,15 +65,13 @@
     return Math.abs(dv1) + Math.abs(dv2);
   }
 
-  /** The worlds strictly between Earth and the destination, at most three. */
+  /** Every world strictly between Earth and the destination, in the order passed. */
   function flybysFor(key) {
     const to = AU[key];
     if (!to || key === "moon" || key === "earth") return [];
     const lo = Math.min(1, to), hi = Math.max(1, to);
     let between = Object.keys(FLY_R).filter((k) => AU[k] > lo && AU[k] < hi)
       .sort((a, b) => to > 1 ? AU[a] - AU[b] : AU[b] - AU[a]);
-    // Pluto passes five worlds; three is what reads, so the giants win.
-    if (between.length > 3) between = between.filter((k) => k !== "mars").slice(-3);
     return between;
   }
 
@@ -179,8 +177,9 @@
 
   /** The chart, the lock and the run -- everything up to the gate. */
   function soundRun(s, plan) {
-    s.pad(0, GATE + 1.6, { freqs: [55, 82.41, 110, 130.81], gain: 0.17, attack: 0.9, release: 1.6, lp0: 260, lp1: 1100, wet: 0.7 });
-    s.tone(0, GATE + 1.4, { f0: 41.2, gain: 0.2, attack: 1.0, release: 1.2, wet: 0.2 });
+    const X = plan.extra || 0;
+    s.pad(0, GATE + X + 1.6, { freqs: [55, 82.41, 110, 130.81], gain: 0.17, attack: 0.9, release: 1.6, lp0: 260, lp1: 1100, wet: 0.7 });
+    s.tone(0, GATE + X + 1.4, { f0: 41.2, gain: 0.2, attack: 1.0, release: 1.2, wet: 0.2 });
     if (plan.plot) {
       s.noise(0, 3.4, { type: "highpass", f0: 3000, f1: 4500, q: 0.5, gain: 0.05, attack: 0.5, release: 0.8, wet: 0.6 });
       for (let k = 0; k < 22; k += 1) s.blip(0.15 + k * 0.065, 1400 + ((k * 397) % 1200), 0.03, 0.5);
@@ -191,11 +190,11 @@
       s.impact(2.9, { f0: 95, f1: 45, gain: 0.35, dur: 1.6, wet: 0.8 });
     }
     s.impact(REVEAL + 0.05, { f0: 62, f1: 24, gain: 0.85, dur: 3.2, wet: 0.6 });
-    s.noise(REVEAL, GATE - REVEAL + 0.6, { type: "lowpass", f0: 70, f1: 240, q: 0.7, gain: 0.55, attack: 0.6, release: 0.8, wet: 0.3 });
-    s.pad(3.3, GATE - 3.3 + 1.2, { freqs: [220, 329.63, 440, 659.25], gain: 0.07, attack: 1.4, release: 1.2, lp0: 500, lp1: 3200, wet: 0.9, spread: 18 });
+    s.noise(REVEAL, GATE + X - REVEAL + 0.6, { type: "lowpass", f0: 70, f1: 240, q: 0.7, gain: 0.55, attack: 0.6, release: 0.8, wet: 0.3 });
+    s.pad(3.3, GATE + X - 3.3 + 1.2, { freqs: [220, 329.63, 440, 659.25], gain: 0.07, attack: 1.4, release: 1.2, lp0: 500, lp1: 3200, wet: 0.9, spread: 18 });
     s.noise(3.3, 1.8, { f0: 180, f1: 3800, q: 0.9, gain: 0.4, attack: 1.5, release: 0.3, wet: 0.7 });
-    s.noise(5.0, GATE - 5.0 + 0.6, { f0: 2200, f1: 1600, q: 0.8, gain: 0.32, attack: 0.3, release: 0.6, wet: 0.8 });
-    [1318.5, 1975.5, 2637].forEach((f, i) => s.tone(3.8 + i * 0.25, GATE - 3.8, { f0: f, gain: 0.018, attack: 1.2, release: 1.0, vib: 8, vibRate: 5 + i, wet: 0.95 }));
+    s.noise(5.0, GATE + X - 5.0 + 0.6, { f0: 2200, f1: 1600, q: 0.8, gain: 0.32, attack: 0.3, release: 0.6, wet: 0.8 });
+    [1318.5, 1975.5, 2637].forEach((f, i) => s.tone(3.8 + i * 0.25, GATE + X - 3.8, { f0: f, gain: 0.018, attack: 1.2, release: 1.0, vib: 8, vibRate: 5 + i, wet: 0.95 }));
     plan.flybys.forEach((fb) => {
       const side = fb.ox < 0 ? -1 : 1, big = FLY_R[fb.key] > 0.3;
       s.noise(fb.at - 1.15, 1.4, { f0: big ? 380 : 500, f1: big ? 2200 : 2600, q: 2.2, gain: big ? 0.55 : 0.5, attack: 1.05, release: 0.3, pan0: 0, pan1: side, wet: 0.6 });
@@ -284,11 +283,19 @@
     const flyKeys = flybysFor(key);
     // Spread over the cruise, alternating sides, the last clear of the gate.
     const flybys = flyKeys.map((k, i) => {
-      const n = flyKeys.length, at = n === 1 ? 5.6 : lerp(4.95, 6.35, i / (n - 1));
+      // Up to three fit the cruise as it is; more are spaced 0.8 s apart and
+      // the cruise lengthens to hold them (Pluto passes five: +1.8 s).
+      const n = flyKeys.length, at = n === 1 ? 5.6 : n <= 3 ? lerp(4.95, 6.35, i / (n - 1)) : 4.95 + 0.8 * i;
       const left = i % 2 === 0;
       return { key: k, at, ox: left ? -0.95 : 1.05, oy: left ? 0.28 : -0.22, img: loadImg(config.icons[k]) };
     });
     const earthImg = loadImg("/assets/earth_icon.png");
+    // THE CRUISE STRETCHES FOR THE WORLDS ON THE WAY. Everything but the
+    // flybys runs on a canonical clock that pauses at CRUISE for EXTRA
+    // seconds, mid-warp, when nothing but the stars and the flybys is moving.
+    const CRUISE = 5.3;
+    const EXTRA = Math.max(0, (flybys.length ? flybys[flybys.length - 1].at : 0) - 6.35);
+    const canon = (x) => x < CRUISE ? x : x < CRUISE + EXTRA ? CRUISE : x - EXTRA;
 
     // ── words ──
     const NAME = config.name.toUpperCase();
@@ -307,7 +314,7 @@
     logs.push(["Orbit insertion · handing over", ""]);
     const logAt = plot ? [0.2, 0.7, 1.3, 2.2, 2.95, 3.4] : [0.4];
     flybys.forEach((fb) => logAt.push(fb.at - 0.15));
-    logAt.push(7.3);
+    logAt.push(7.3 + EXTRA);
     const logEl = $("tx-log");
     logEl.innerHTML = logs.map(([a, b]) => `<div>${a}${b ? ` <i>${b}</i>` : ""}</div>`).join("");
     const logLines = [...logEl.children];
@@ -368,7 +375,7 @@
       const go = () => {
         if (snd || done) return;
         snd = { ctx, run: Sound(ctx, tNow) };
-        soundRun(snd.run, { plot, logAt, flybys });
+        soundRun(snd.run, { plot, logAt, flybys, extra: EXTRA });
       };
       if (ctx.state === "running") { go(); return; }
       // A browser that will not play before a gesture: start on the first one,
@@ -380,8 +387,8 @@
         ctx.resume().then(() => {
           if (snd || done || ctx.state !== "running") return;
           snd = { ctx, run: Sound(ctx, t) };
-          if (!released) soundRun(snd.run, { plot, logAt, flybys });
-          else soundArrive(snd.run);
+          if (!released) soundRun(snd.run, { plot, logAt, flybys, extra: EXTRA });
+          else { snd.run = Sound(ctx, canon(t)); soundArrive(snd.run); }
         }).catch(() => {});
       };
       window.addEventListener("pointerdown", onGesture, true);
@@ -409,12 +416,12 @@
       const dt = last == null ? 0 : Math.min(0.1, (now - last) / 1000); last = now;
       let next = t + dt;
       // the reveal: the viewer is put in place (scaled to nothing) and told to draw
-      if (!revealed && next >= REVEAL) { revealed = true; revealedAt = now; hooks.reveal(); approachStyle(hooks.frame, 0.004, 0, 0, 0); }
+      if (!revealed && canon(next) >= REVEAL) { revealed = true; revealedAt = now; hooks.reveal(); approachStyle(hooks.frame, 0.004, 0, 0, 0); }
       // the gate: the cruise holds until the viewer has drawn
-      if (!released && next >= GATE) {
+      if (!released && canon(next) >= GATE) {
         const ok = hooks.viewerDrawn() || (now - revealedAt) / 1000 > holdCap;
         if (!ok) {
-          next = GATE;
+          next = GATE + EXTRA;
           if (holdFrom == null) holdFrom = now;
           if (snd && !sndHold) { sndHold = true; soundHold(snd.run, t, 30); }
         } else {
@@ -427,10 +434,10 @@
           }
         }
       }
-      dist += speed(Math.min(next, released ? next : GATE)) * dt * 0.55;
+      dist += speed(canon(Math.min(next, released ? next : GATE + EXTRA))) * dt * 0.55;
       t = next;
       draw(t);
-      if (t >= HAND) { finish(); return; }
+      if (t >= HAND + EXTRA) { finish(); return; }
       raf = requestAnimationFrame(frameStep);
     }
 
@@ -447,7 +454,7 @@
     /** Jump to the gate (the Skip button). */
     function skip() {
       if (done) return;
-      if (t < GATE - 0.2) { t = GATE - 0.2; if (snd) snd.run.silence(0.3); }
+      if (t < GATE + EXTRA - 0.2) { t = GATE + EXTRA - 0.2; if (snd) snd.run.silence(0.3); }
     }
 
     function drawChart(ctx) {
@@ -504,8 +511,9 @@
       ctx.drawImage(img, cx - w / 2, cy - h / 2, w, h);
     }
 
-    function draw(t) {
-      const CX = W / 2, CY = H / 2, v = speed(released ? t : Math.min(t, GATE));
+    function draw(tr) {
+      const t = canon(tr);   // the flybys below run on the real clock, tr
+      const CX = W / 2, CY = H / 2, v = speed(t);
       bctx.fillStyle = "#030608"; bctx.fillRect(0, 0, W, H);
       drawStars(bctx, stars, dist, v, 1 - 0.55 * seg(t, 7.6, 8.6), W, H, u);
       drawChart(bctx);
@@ -520,7 +528,7 @@
       }
       // the worlds on the way
       for (const fb of flybys) {
-        const p = seg(t, fb.at - 1.3, fb.at + 0.1);
+        const p = seg(tr, fb.at - 1.3, fb.at + 0.1);
         if (p <= 0 || p >= 1 || !ready(fb.img)) continue;
         const z = lerp(7, 0.12, ease.in(p));
         const r = (FLY_R[fb.key] * H) / z, x = CX + (fb.ox * W * 0.5) / z, y = CY + (fb.oy * H * 0.5) / z;
@@ -552,14 +560,15 @@
       }
       // the back canvas steps aside as the viewer takes the whole frame
       back.style.opacity = String(1 - seg(t, SHARP, HAND));
-      drawHud(t, s);
+      drawHud(tr, s);
     }
 
-    function drawHud(t, s) {
+    function drawHud(tr, s) {
+      const t = canon(tr);
       const hudA = 1 - seg(t, 8.3, HAND);
       hud.style.opacity = String(hudA);
-      logLines.forEach((el, i) => { el.style.opacity = String(clamp((t - (logAt[i] ?? 99)) / 0.15)); });
-      barEl.style.width = `${clamp(t / HAND) * 100}%`;
+      logLines.forEach((el, i) => { el.style.opacity = String(clamp((tr - (logAt[i] ?? 99)) / 0.15)); });
+      barEl.style.width = `${clamp(tr / (HAND + EXTRA)) * 100}%`;
       // brackets: from the frame's corners onto the planet
       const m = 34 * Math.max(0.6, u), k = ease.inOut(seg(t, 7.2, SHARP)), R = planetR(s) + 20;
       const box = { x0: lerp(m, W / 2 - R, k), y0: lerp(m, H / 2 - R, k), x1: lerp(W - m, W / 2 + R, k), y1: lerp(H - m, H / 2 + R, k) };
@@ -580,7 +589,7 @@
       if (plot && t > 2.9) line = "target locked";
       if (t > REVEAL) line = "engaging warp";
       if (t > 3.9 && !isIss) line = "departing Earth";
-      for (const fb of flybys) if (t > fb.at - 0.9) line = `passing ${fb.key[0].toUpperCase()}${fb.key.slice(1)}`;
+      for (const fb of flybys) if (tr > fb.at - 0.9) line = `passing ${fb.key[0].toUpperCase()}${fb.key.slice(1)}`;
       if (t > 6.7) line = `${config.name} ${isMoon || isIss ? "approach" : "system"}`;
       if (!released && t >= GATE) line = `${config.name} ${isMoon || isIss ? "approach" : "system"} · viewer loading`;
       if (t > 7.5) line = "orbit insertion";

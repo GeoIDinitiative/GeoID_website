@@ -23063,8 +23063,12 @@ where before the names alone landed at 10.6 s AFTER the screen had gone.
 (`transit-worker.js` is gone). It is mock-up D: the navigation chart with the
 destination's name decoded and a ring LOCKING onto it; then Earth falling away
 in the corner, the starfield to warp and the worlds between Earth and the
-destination sweeping past (at most three, the giants first — Pluto passes
-Jupiter, Saturn and Neptune); then the arrival.
+destination sweeping past — every one of them, in order; then the arrival.
+Up to three fit the fixed cruise; past that they are spaced 0.8 s apart and
+the cruise lengthens to hold them (Pluto passes Mars, Jupiter, Saturn, Uranus
+and Neptune, +1.8 s). Everything but the flybys runs on a canonical clock
+(`canon()`) that pauses mid-warp for that extra time, so the chart, the
+approach and the arrival sound keep their timings.
 
 - **The planet that grows in is the preloaded viewer**, scaled from 0.004 to 1
   about its centre with a blur and a circular mask. The viewers draw their
