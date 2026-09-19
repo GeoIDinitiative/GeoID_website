@@ -2,13 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260919-62d77fb";
+  from "./gis/geo-utils.js?v=20260919-b978060";
 import { attachReliefAttributes, followRelief }
-  from "./gis/vector-render.js?v=20260919-62d77fb";
+  from "./gis/vector-render.js?v=20260919-b978060";
 import { rockClass, crustalSetting, rockClassLabel, classificationBasis }
-  from "./gis/rock-class.js?v=20260919-62d77fb";
+  from "./gis/rock-class.js?v=20260919-b978060";
 import { lithologyLabel }
-  from "./gis/lithology-label.js?v=20260919-62d77fb";
+  from "./gis/lithology-label.js?v=20260919-b978060";
 
 /**
  * This module's own cache stamp, read off its own URL.
@@ -92,6 +92,12 @@ function fmtProp(value) {
     const coreToggle = document.getElementById("core-toggle");
     const lodSlider = document.getElementById("lod-slider");
     let currentLodLevel = 3;
+    // Which gazetteer categories are ticked: gis/earth-places.js owns the
+    // tick boxes and installs the reader. Until it does, every category is on.
+    let placeCategoryFilter = null;
+    function placeCategoryEnabled(category) {
+      return placeCategoryFilter ? placeCategoryFilter(category) : true;
+    }
     const regionMaskSelect = document.getElementById("region-mask-select");
     const regionMaskOpacity = document.getElementById("region-mask-opacity");
     const mineralSelect = document.getElementById("mineral-select");
@@ -251,6 +257,82 @@ function fmtProp(value) {
     const MOON_ORBIT_VISUAL_TIME_SCALE = 720;
     const MOON_ORBIT_SESSION_START_UTC_MS = Date.now();
     const moonFeatureData = [{"name":"Tycho Crater","type": "Impact crater","moon_name":"Moon","lat":-43.31,"lon":348.68,"description":"Young, geologically recent (109 Ma) impact crater with an extensive bright ray system spanning nearly half the lunar surface. The rays are among the most prominent telescopic features of the Moon.","dimension":"~85 km diameter","theme":"moon"},{"name":"Mare Imbrium","type": "Lunar mare","moon_name":"Moon","lat":32.8,"lon":344.6,"description":"Largest lava-flooded circular basin on the lunar near side (~1,145 km across). Formed ~3.9 Ga by a giant impact that left the Imbrium Basin, subsequently flooded by basaltic lava between 3.5 and 3.0 Ga.","dimension":"~1,145 km across","theme":"moon"},{"name":"Oceanus Procellarum","type": "Lunar mare","moon_name":"Moon","lat":18,"lon":313,"description":"Largest mare on the Moon, covering most of the western near side. Unlike most circular maria, it lacks a clear impact basin rim, suggesting it may overlie a region of concentrated heat-producing elements called the Procellarum KREEP Terrane.","dimension":"~2,500 km across","theme":"moon"},{"name":"South Pole-Aitken Basin","type": "Impact basin","moon_name":"Moon","lat":-53,"lon":191,"description":"One of the largest and oldest impact basins in the Solar System, on the lunar far side. With a diameter of ~2,500 km and depth of ~8 km, it exposes the deepest crustal (and possibly mantle) material accessible for future sample return.","dimension":"~2,500 km across","theme":"moon"},{"name":"Copernicus Crater","type": "Impact crater","moon_name":"Moon","lat":9.62,"lon":339.9,"description":"A prominent 93 km impact crater with well-preserved terraced walls, a central peak complex, and a young bright ray system. Often called the Monarch of the Moon for its visual dominance of the near side.","dimension":"~93 km diameter","theme":"moon"},{"name":"Shackleton Crater","type": "Impact crater","moon_name":"Moon","lat":-89.9,"lon":0,"description":"Permanently shadowed crater at the lunar south pole with permanently frozen water ice confirmed in its shadow. A primary candidate for a future lunar base due to nearby solar-illuminated peaks and confirmed ice resources.","dimension":"~21 km diameter","theme":"moon"},{"name":"Mare Tranquillitatis","type": "Lunar mare","moon_name":"Moon","lat":8.5,"lon":31.4,"description":"Apollo 11 landing site. A relatively smooth, low-albedo basalt plain where astronauts Neil Armstrong and Buzz Aldrin first walked on the Moon on 20 July 1969.","dimension":"~873 km across","theme":"moon"},{"name":"Aristarchus Crater","type": "Impact crater","moon_name":"Moon","lat":23.7,"lon":312.5,"description":"The brightest large crater on the Moon and an active spectral anomaly site showing transient lunar phenomena. Surrounded by pyroclastic deposits from the nearby Aristarchus Plateau volcanic complex.","dimension":"~40 km diameter","theme":"moon"}];
+    /**
+     * THE GAZETTEER'S CATEGORIES AND TIERS — one table the curated places, the
+     * baked gazetteer (gis/earth-places.js, data/global/earth-places.json) and
+     * the Locations toggles all read, so a sea is the same colour and the same
+     * row whichever of them named it.
+     *
+     * `lod` is significance, 1 (continent-scale) to 5 (local), exactly as on
+     * Mars: the density slider at level L shows every name of lod <= L, and
+     * the tier sets the SIZE — `label_scale` at range, PLACE_MOSAIC_TIER once
+     * the close layout (which targets an absolute pixel height and cancels
+     * label_scale) takes over. Mars's own ramps, so the two worlds read alike.
+     */
+    const PLACE_CATEGORIES = [
+      { id: "place-marine", label: "Oceans & seas", colour: "#4fa8e8" },
+      { id: "place-landform", label: "Landforms", colour: "#e3b46a" },
+      { id: "place-island", label: "Islands", colour: "#8fd67a" },
+      { id: "place-mountain", label: "Mountains", colour: "#d9c6a0" },
+      { id: "place-river", label: "Rivers", colour: "#5fd0ff" },
+      { id: "place-lake", label: "Lakes", colour: "#8ee6e0" },
+      { id: "place-tectonic", label: "Faults & plates", colour: "#ff8a5c" },
+      { id: "place-city", label: "Cities", colour: "#f0eef4" },
+    ];
+    const PLACE_LABEL_SCALE = [1, 1.42, 1.2, 1.05, 0.93, 0.82];
+    // Gentler than Mars's [1, .88, .77, .67, .58]: Earth's close layout draws
+    // a 20-30 px chip where Mars's draws 36, and Mars's floor left a tier-5
+    // name at 13 px — measured, "Monte Rosa Massif" was unreadable.
+    const PLACE_MOSAIC_TIER = [1, 1, 0.93, 0.86, 0.79, 0.73];
+    function placePalette(hex) {
+      const n = parseInt(String(hex).slice(1), 16);
+      const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+      return {
+        bg: "rgba(9, 14, 24, 0.66)",
+        stroke: `rgba(${r}, ${g}, ${b}, 0.42)`,
+        accent: `rgba(${r}, ${g}, ${b}, 0.95)`,
+        title: "rgba(244, 247, 250, 0.96)",
+      };
+    }
+    // Rank an item and, where it names a gazetteer category, dress it in that
+    // category's colour. Curated volcanic / mission / storm items keep their
+    // own theme and toggle; they take a tier only.
+    function rankPlace(item, lod, category = null) {
+      item.lod = lod;
+      item.priority = 6 - lod;
+      item.label_scale = PLACE_LABEL_SCALE[lod] || 1;
+      const cat = category && PLACE_CATEGORIES.find((c) => c.id === category);
+      if (cat) {
+        item.category = cat.id;
+        item.label_colour = cat.colour;
+        item.label_palette = placePalette(cat.colour);
+      }
+      return item;
+    }
+    const CURATED_PLACE_RANKS = {
+      "Mount Everest": [1, "place-mountain"], "K2": [2, "place-mountain"],
+      "Mariana Trench": [2, "place-tectonic"], "Challenger Deep": [3, "place-tectonic"],
+      "Philippine Trench": [3, "place-tectonic"], "Tonga Trench": [3, "place-tectonic"],
+      "Pacific Ocean": [1, "place-marine"], "Atlantic Ocean": [1, "place-marine"],
+      "Indian Ocean": [1, "place-marine"], "Arctic Ocean": [1, "place-marine"],
+      "Southern Ocean": [1, "place-marine"],
+      "Himalaya": [1, "place-mountain"], "Andes": [1, "place-mountain"], "Alps": [1, "place-mountain"],
+      "Rocky Mountains": [1, "place-mountain"],
+      "Amazon Basin": [1, "place-landform"], "Congo Basin": [1, "place-landform"],
+      "Sahara": [1, "place-landform"], "Antarctic Ice Sheet": [1, "place-landform"],
+      "Greenland Ice Sheet": [1, "place-landform"], "Grand Canyon": [3, "place-landform"],
+      "Mid-Atlantic Ridge": [1, "place-tectonic"], "East Pacific Rise": [2, "place-tectonic"],
+      "Great Rift Valley": [2, "place-tectonic"],
+      "Nile River Basin": [2, "place-river"], "Mississippi River Basin": [2, "place-river"],
+      "Mauna Loa": [2], "Mauna Kea": [3], "Mount Etna": [2], "Mount Fuji": [2], "Kilauea": [2],
+      "Piton de la Fournaise": [3], "Popocatépetl": [3], "Yellowstone Caldera": [2], "Iceland": [2],
+    };
+    for (const item of labelData) {
+      const [lod, category] = CURATED_PLACE_RANKS[item.name]
+        || [item.theme === "storm" ? 2 : 3, null];
+      rankPlace(item, lod, category);
+    }
+
     const allFeatureData = [...labelData, ...ringLabelData, ...moonData, ...moonFeatureData];
     const TOUR_MODE_FACETS = [
       {
@@ -6164,6 +6246,9 @@ function fmtProp(value) {
         feature.event_time  ? ["Event time",  feature.event_time]  : null,
         feature.length_km   ? ["Mapped length", `${feature.length_km.toLocaleString()} km`] : null,
         feature.mapped_area_km2 ? ["Mapped area", `${feature.mapped_area_km2.toLocaleString()} km²`] : null,
+        feature.population  ? ["Population",  `about ${Number(feature.population).toLocaleString()}`] : null,
+        feature.place && feature.lod ? ["Significance", ["", "Tier 1 · continent-scale", "Tier 2 · major", "Tier 3 · regional", "Tier 4 · local", "Tier 5 · detail"][feature.lod] || ""] : null,
+        feature.place && feature.source ? ["Source", feature.source] : null,
         feature.depth       ? ["Depth",       feature.depth]       : null,
         feature.composition ? ["Composition", feature.composition] : null,
         feature.temperature ? ["Temperature", feature.temperature] : null,
@@ -6172,8 +6257,15 @@ function fmtProp(value) {
         for (const [key, val] of extraFields) {
           const row = document.createElement("div");
           row.className = "scene-popup-detail-row";
-          row.innerHTML = `<span class="scene-popup-detail-key">${key}</span>`
-                        + `<span class="scene-popup-detail-val">${val}</span>`;
+          // Text, never markup: the gazetteer's values come from Wikipedia
+          // and Natural Earth, and a stray "<" in a name is not a tag.
+          const keyEl = document.createElement("span");
+          keyEl.className = "scene-popup-detail-key";
+          keyEl.textContent = key;
+          const valEl = document.createElement("span");
+          valEl.className = "scene-popup-detail-val";
+          valEl.textContent = String(val);
+          row.append(keyEl, valEl);
           scenePopupDetail.appendChild(row);
         }
       }
@@ -7703,6 +7795,91 @@ function fmtProp(value) {
       return `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, ${alpha})`;
     }
 
+    // One measuring context for every chip, drawn or not: the lazy gazetteer
+    // chips need their SIZE for placement long before they need their pixels.
+    let labelMeasureContext = null;
+    function labelTextWidth(text, titleFont) {
+      if (!labelMeasureContext) labelMeasureContext = document.createElement("canvas").getContext("2d");
+      labelMeasureContext.font = titleFont;
+      return Math.ceil(labelMeasureContext.measureText(text).width);
+    }
+    const LABEL_TITLE_FONT = "600 15px Orbitron, 'Exo 2', Aldrich, 'Trebuchet MS', sans-serif";
+    function labelChipSize(text, options = {}) {
+      const textWidth = labelTextWidth(text, options.titleFont || LABEL_TITLE_FONT);
+      return { width: Math.max(options.minWidth ?? 110, textWidth + 14 + 6 + 7 + 14), height: 34 };
+    }
+    /**
+     * LAZY CHIPS. A chip is a canvas texture at 2-4x its drawn size, and the
+     * gazetteer is ~3,000 names: built up front that is well over a gigabyte
+     * of texture for names the declutter will never show. A lazy entry keeps
+     * a shared transparent placeholder and its measured size; the texture is
+     * drawn the first frame the entry is actually placed, and released again
+     * when too many are held (LAZY_LABEL_MAX), longest-hidden first.
+     */
+    let lazyLabelPlaceholder = null;
+    function getLazyLabelPlaceholder() {
+      if (!lazyLabelPlaceholder) {
+        const c = document.createElement("canvas");
+        c.width = c.height = 1;
+        lazyLabelPlaceholder = new THREE.CanvasTexture(c);
+        lazyLabelPlaceholder.userData = { shared: true };
+      }
+      return lazyLabelPlaceholder;
+    }
+    const LAZY_LABEL_MAX = 420;
+    const LAZY_LABEL_BUDGET_PER_FRAME = 36;
+    let lazyLabelsHeld = 0;
+    let lazyLabelFrame = 0;
+    function lazyLabelOptions(item) {
+      return {
+        theme: item.theme === "landing" ? "landing" : item.theme,
+        customPalette: item.label_palette || undefined,
+        backingScale: item.label_backing || 2,
+      };
+    }
+    function materialiseLazyLabel(entry) {
+      const label = makeLabelTexture(entry.item, lazyLabelOptions(entry.item));
+      entry.sprite.material.map = label.texture;
+      entry.sprite.material.needsUpdate = true;
+      entry.labelTextureReady = true;
+      lazyLabelsHeld += 1;
+    }
+    function releaseLazyLabel(entry) {
+      const map = entry.sprite.material.map;
+      if (map && !map.userData?.shared) map.dispose();
+      entry.sprite.material.map = getLazyLabelPlaceholder();
+      entry.sprite.material.needsUpdate = true;
+      entry.labelTextureReady = false;
+      lazyLabelsHeld = Math.max(0, lazyLabelsHeld - 1);
+    }
+    function settleLazyLabels(entries) {
+      lazyLabelFrame += 1;
+      let budget = LAZY_LABEL_BUDGET_PER_FRAME;
+      let any = false;
+      for (const entry of entries) {
+        if (!entry.lazyLabel) continue;
+        any = true;
+        if (!entry.sprite.visible) continue;
+        entry._lazyShownFrame = lazyLabelFrame;
+        if (entry.labelTextureReady) continue;
+        if (budget > 0) {
+          materialiseLazyLabel(entry);
+          budget -= 1;
+        } else {
+          // an empty chip would read as a broken label: wait a frame instead
+          entry.sprite.visible = false;
+          if (entry.line) entry.line.visible = false;
+        }
+      }
+      if (!any || lazyLabelsHeld <= LAZY_LABEL_MAX + 40) return;
+      const held = entries.filter((e) => e.lazyLabel && e.labelTextureReady && !e.sprite.visible);
+      held.sort((a, b) => (a._lazyShownFrame || 0) - (b._lazyShownFrame || 0));
+      for (const entry of held) {
+        if (lazyLabelsHeld <= LAZY_LABEL_MAX) break;
+        releaseLazyLabel(entry);
+      }
+    }
+
     function makeLabelTexture(labelInput, options = {}) {
       const isObject = typeof labelInput === "object" && labelInput !== null;
       const text = isObject ? (labelInput.name || "") : String(labelInput);
@@ -7721,8 +7898,7 @@ function fmtProp(value) {
       // drawn size may bring a face that survives it.
       const titleFont = options.titleFont
         || "600 15px Orbitron, 'Exo 2', Aldrich, 'Trebuchet MS', sans-serif";
-      context.font = titleFont;
-      const textWidth = Math.ceil(context.measureText(text).width);
+      const textWidth = labelTextWidth(text, titleFont);
       /**
        * The 110 px floor suits the curated place names it was set for and
        * swamps a three-letter satellite name — "HST" sat in a chip mostly
@@ -8459,7 +8635,11 @@ function fmtProp(value) {
           hitTarget.scale.setScalar(0.28);
         }
 
-        const label = makeLabelTexture(item, {
+        // A gazetteer place is one of thousands: its chip is drawn when it is
+        // first placed (settleLazyLabels), and its hit sphere is a dataset's.
+        const lazy = Boolean(item.lazy_label);
+        if (item.place) hitTarget.scale.setScalar(0.28);
+        const label = lazy ? labelChipSize(item.name || "") : makeLabelTexture(item, {
           theme: item.theme === "landing" ? "landing" : item.theme,
           // Same seam makeLabelTexture already offers: a dataset item brings
           // the palette for its chip, so the accent bar matches its marker.
@@ -8467,7 +8647,7 @@ function fmtProp(value) {
           backingScale: item.label_backing || undefined,
         });
         const spriteMaterial = new THREE.SpriteMaterial({
-          map: label.texture,
+          map: lazy ? getLazyLabelPlaceholder() : label.texture,
           transparent: true,
           opacity: style.spriteOpacity,
           depthTest: false,
@@ -8522,6 +8702,8 @@ function fmtProp(value) {
           // curated items keep their theme's priority.
           priority: item.priority ?? style.priority,
           category: item.category || style.category,
+          lazyLabel: lazy,
+          labelTextureReady: !lazy,
           baseScale: baseSpriteScale,
           labelDistance,
           labelPushUp: item.label_push_up || 0,
@@ -8852,8 +9034,14 @@ function fmtProp(value) {
         return;
       }
       for (const entry of labelLayer.entries) {
+        if (entry.lazyLabel) {
+          if (entry.labelTextureReady) releaseLazyLabel(entry);
+          continue;
+        }
         const nextLabel = makeLabelTexture(entry.item, {
           theme: entry.item.theme,
+          customPalette: entry.item.label_palette || undefined,
+          backingScale: entry.item.label_backing || undefined,
         });
         const style = entry.item.theme === "volcanic"
           ? { opacity: 0.92 }
@@ -8865,7 +9053,9 @@ function fmtProp(value) {
                 entry.sprite.material.map.dispose();
         entry.sprite.material.map = nextLabel.texture;
         entry.sprite.material.opacity = style.opacity;
-        entry.sprite.scale.set((nextLabel.width / 200) * 0.66, (nextLabel.height / 200) * 0.66, 1);
+        const rankScale = entry.item.label_scale || 1;
+        entry.sprite.scale.set((nextLabel.width / 200) * 0.66 * rankScale, (nextLabel.height / 200) * 0.66 * rankScale, 1);
+        entry.baseScale = entry.sprite.scale.clone();
         entry.sprite.material.needsUpdate = true;
       }
     }
@@ -8922,6 +9112,14 @@ function fmtProp(value) {
        */
       const useMosaicCloseLayout = hasScaleBar && scaleBarMeters <= 200000;
       const baseViewportPadding = 12;
+      /**
+       * Flying in REVEALS detail. The slider sets how dense the names are at
+       * a given scale; the scale itself adds tiers — one below a 500 km bar,
+       * two below 100 km — so a peak or a local river appears as you come down
+       * to it instead of only when somebody finds the slider. The declutter
+       * still decides which of them fit.
+       */
+      const zoomLodBonus = !hasScaleBar ? 0 : scaleBarMeters <= 100000 ? 2 : scaleBarMeters <= 500000 ? 1 : 0;
 
       const overlapsRect = (a, b, gapX = 3, gapY = 2) => (
         a.left - gapX < b.right &&
@@ -9149,8 +9347,11 @@ function fmtProp(value) {
         entry.marker.getWorldPosition(surfaceWorldPosition);
         const normal = surfaceWorldPosition.clone().sub(groupWorldPosition).normalize();
         cameraDirection.copy(camera.position).sub(surfaceWorldPosition).normalize();
+        const isPlaceEntry = typeof entry.category === "string" && entry.category.startsWith("place-");
         const categoryEnabled = entry.category === "dataset"
           ? true
+          : isPlaceEntry
+          ? placeCategoryEnabled(entry.category)
           : entry.category === "volcanic"
           ? volcanicLabelsEnabled
           : entry.category === "landing" || entry.category === "mission"
@@ -9160,7 +9361,11 @@ function fmtProp(value) {
           : surfaceLabelsEnabled;
         const survivesCut = !cutawayModeEnabled || (activeCutClipPlane ? activeCutClipPlane.distanceToPoint(surfaceWorldPosition) : surfaceWorldPosition.x) >= -0.02;
         const facingThreshold = useMosaicCloseLayout ? -0.14 : 0.02;
-        const isVisible = categoryEnabled && survivesCut && normal.dot(cameraDirection) > facingThreshold;
+        // Mars's density rule for a ranked place: the slider at level L shows
+        // every name of lod <= L. The card's own place is always shown.
+        const lodOk = entry.item?.lod == null || entry.item.lod <= currentLodLevel + zoomLodBonus
+          || Boolean(activePopupFeature && entry.item?.name === activePopupFeature.name);
+        const isVisible = categoryEnabled && lodOk && survivesCut && normal.dot(cameraDirection) > facingThreshold;
         entry.marker.visible = isVisible;
         entry.hitTarget.visible = isVisible;
         if (useMosaicCloseLayout) {
@@ -9216,7 +9421,10 @@ function fmtProp(value) {
           const standardMarkerPx = ((entry.markerRadiusWorld || 1) * (entry.markerBaseScale?.x || 1) * pixelsPerWorldUnit) * scaleFactor;
           if (useMosaicCloseLayout) {
             mosaicMetrics = buildMosaicMetrics(entry, distanceToSurface, pixelsPerWorldUnit);
-            labelScale = mosaicMetrics.labelPx / Math.max(baseScale.y * pixelsPerWorldUnit, 1e-6);
+            // The close layout targets a pixel height and so cancels
+            // label_scale; the tier has to be restated here, as on Mars.
+            const mosaicTier = entry.item?.lod != null ? (PLACE_MOSAIC_TIER[entry.item.lod] || 1) : 1;
+            labelScale = (mosaicMetrics.labelPx * mosaicTier) / Math.max(baseScale.y * pixelsPerWorldUnit, 1e-6);
             scaleFactor = mosaicMetrics.markerPx / Math.max((entry.markerRadiusWorld || 1) * (entry.markerBaseScale?.x || 1) * pixelsPerWorldUnit, 1e-6);
           } else {
             labelScale = standardLabelPx / Math.max(baseScale.y * pixelsPerWorldUnit, 1e-6);
@@ -9401,7 +9609,7 @@ function fmtProp(value) {
         for (let i = candidates.length - 1; i >= 0; i--) {
           const c = candidates[i];
           const isPinned = Boolean(activePopupFeature && c.entry.item?.name === activePopupFeature.name);
-          if (!isPinned && (c.entry.priority || 1) < lodPriorityMin) {
+          if (!isPinned && c.entry.item?.lod == null && (c.entry.priority || 1) < lodPriorityMin) {
             candidates.splice(i, 1);
           }
         }
@@ -9502,7 +9710,9 @@ function fmtProp(value) {
           occupiedRects.push(candidate.rect);
           continue;
         }
-        const forceLabel = candidate.entry.category !== "dataset"
+        // "Force" is for the curated few: a gazetteer name that cannot be
+        // placed cleanly is skipped, or thousands of chips pile on one arc.
+        const forceLabel = candidate.entry.category !== "dataset" && !candidate.entry.item?.place
           && candidate.entry.marker?.visible && candidate.entry.hitTarget?.visible;
         if (!globalView) {
           const outOfBounds = candidate.rect.left < baseViewportPadding
@@ -9541,6 +9751,17 @@ function fmtProp(value) {
           candidate.entry.line.visible = true;
         }
         occupiedRects.push(candidate.rect);
+      }
+      settleLazyLabels(entries);
+      // A gazetteer place draws its dot only with its name: a thousand
+      // anonymous dots is noise, and the card for one is a click away.
+      for (const entry of entries) {
+        if (!entry.item?.place || !entry.marker.visible) continue;
+        const pinned = Boolean(activePopupFeature && entry.item?.name === activePopupFeature.name);
+        if (!entry.sprite.visible && !pinned) {
+          entry.marker.visible = false;
+          entry.hitTarget.visible = false;
+        }
       }
       if (globalView) {
         for (const entry of entries) {
@@ -20475,7 +20696,8 @@ uniform float uViewportWidth;`,
           volcanicLabelsToggle.checked ||
           landingLabelsToggle.checked ||
           habitationLabelsToggle.checked ||
-          (baseLabelsToggle && baseLabelsToggle.checked)
+          (baseLabelsToggle && baseLabelsToggle.checked) ||
+          Boolean(document.querySelector("#place-category-rows input:checked"))
         );
       }
 
@@ -22065,6 +22287,26 @@ uniform float uViewportWidth;`,
          * disposes what they own. The caller keeps the handle; the viewer
          * does not track datasets.
          */
+        /**
+         * The gazetteer seam (gis/earth-places.js). The categories and the
+         * rank-to-size rule live HERE, beside the curated places that use
+         * them, so a baked sea and a curated ocean cannot be dressed apart.
+         */
+        placeCategories() {
+          return PLACE_CATEGORIES.map((c) => ({ ...c }));
+        },
+        rankPlace(item, lod, category) {
+          return rankPlace(item, lod, category);
+        },
+        curatedPlaces() {
+          return labelData.map((item) => ({ name: item.name, lat: item.lat, lon: item.lon }));
+        },
+        setPlaceCategoryFilter(fn) {
+          placeCategoryFilter = typeof fn === "function" ? fn : null;
+        },
+        getLabelDensity() {
+          return currentLodLevel;
+        },
         addSurfaceLabels(items) {
           if (!Array.isArray(items) || !items.length) return null;
           const extra = buildLabelLayer(3.2, elevationSampler, labelElevationCache, getTerrainRelief, items);

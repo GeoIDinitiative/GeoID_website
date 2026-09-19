@@ -1,0 +1,213 @@
+/**
+ * Earth's gazetteer on the globe: ~2,900 named places — seas, landforms,
+ * islands, mountains, rivers, lakes, faults and plates, cities — ranked 1–5 by
+ * significance and drawn through the viewer's OWN label engine, so every name
+ * wears the same chip, declutters with the curated ones and opens the same
+ * card.
+ *
+ * The data is baked (services/bake-earth-places.py → data/global/earth-places
+ * .json); this module only turns it into label items and owns the per-category
+ * tick boxes in Explorer ▸ Locations. What a category LOOKS like and how a
+ * rank becomes a size live in the viewer (placeCategories / rankPlace), beside
+ * the curated places that use them.
+ *
+ * Earth only: the page's own script tag loads it, the planets never do.
+ */
+import { dataUrl } from "./data-base.js?v=20260919-b978060";
+
+const PATH = "/data/global/earth-places.json";
+const OFF_KEY = "geoid-gis:earth-places-off";   // what was switched OFF — see note
+const BATCH = 320;
+
+/**
+ * Which rows are OFF is what is stored, never which are on: a stored on-list
+ * is a record of the categories that existed when it was written, and one
+ * added later would read as switched off for ever (the events feed paid for
+ * exactly that). A storage that throws answers "nothing off".
+ */
+export function readOff() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(OFF_KEY) || "[]");
+    return new Set(Array.isArray(raw) ? raw.filter((x) => typeof x === "string") : []);
+  } catch (_error) {
+    return new Set();
+  }
+}
+function writeOff(off) {
+  try { localStorage.setItem(OFF_KEY, JSON.stringify([...off])); } catch (_error) { /* per-browser nicety */ }
+}
+
+const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+  .replace(/^(the|mount|mt\.?|lake|gulf of|sea of)\s+/, "").replace(/[^a-z0-9]/g, "");
+
+/**
+ * A curated place and a baked one naming the same feature: the curated one
+ * wins (it has the hand-written description), matched on a name stem and
+ * three degrees of distance so "Himalaya" meets "Himalayas" and "Amazon
+ * Basin" meets "Amazon basin", but two Sierra Nevadas do not.
+ */
+export function isCuratedDuplicate(place, curated) {
+  const a = norm(place.name);
+  if (!a) return false;
+  return curated.some((c) => {
+    const b = norm(c.name);
+    // An ocean or a continent is one feature however far apart the two
+    // anchors sit (the curated Atlantic is on the equator, Natural Earth's in
+    // the North Atlantic): the same name at tier 1–2 is the same place.
+    if (a === b && place.lod <= 2) return true;
+    if (!b || !(a.startsWith(b.slice(0, 6)) || b.startsWith(a.slice(0, 6)))) return false;
+    const dLat = Math.abs(place.lat - c.lat);
+    const dLon = Math.abs((((place.lon - c.lon) % 360) + 540) % 360 - 180);
+    return dLat < 3 && dLon < 3;
+  });
+}
+
+/** The baked row as a label item the viewer's engine reads. */
+export function toItem(row, rank) {
+  const item = {
+    name: row.name,
+    type: row.type,
+    lat: row.lat,
+    lon: row.lon,
+    theme: "standard",
+    description: row.description,
+    source: row.source,
+    region: row.region,
+    population: row.population,
+    elevation_m: typeof row.elevation_m === "number" ? row.elevation_m : undefined,
+    length_km: row.length_km || row.geometry_km || undefined,
+    place: true,
+    lazy_label: true,
+    label_backing: 2,
+    // a gazetteer chip sits closer to its anchor than a curated landmark's:
+    // thousands of long leaders would cross each other everywhere
+    label_distance: 0.22,
+  };
+  return rank(item, row.lod, `place-${row.category}`);
+}
+
+let loaded = null;
+let offSet = readOff();
+
+function counts(places) {
+  const out = {};
+  for (const p of places) out[p.category] = (out[p.category] || 0) + 1;
+  return out;
+}
+
+function drawRows(viewer, placeCounts) {
+  const host = document.getElementById("place-category-rows");
+  if (!host) return;
+  host.textContent = "";
+  for (const cat of viewer.placeCategories()) {
+    const key = cat.id.replace(/^place-/, "");
+    const row = document.createElement("div");
+    row.className = "row";
+    const id = `place-toggle-${key}`;
+    const label = document.createElement("label");
+    label.htmlFor = id;
+    label.style.color = cat.colour;
+    label.textContent = cat.label;
+    const wrap = document.createElement("span");
+    wrap.className = "checkbox-wrap";
+    // The count sits beside the box, not in the name: in the label column it
+    // wrapped every longer category onto two lines.
+    const n = placeCounts[key];
+    if (n) {
+      const count = document.createElement("span");
+      count.className = "place-count";
+      count.textContent = n.toLocaleString();
+      count.title = `${n.toLocaleString()} named places`;
+      count.style.cssText = "opacity:0.55;font-size:0.8em;margin-right:0.5rem;font-variant-numeric:tabular-nums;";
+      wrap.appendChild(count);
+    }
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.id = id;
+    box.dataset.placeCategory = cat.id;
+    box.checked = !offSet.has(cat.id);
+    box.addEventListener("change", () => {
+      if (box.checked) offSet.delete(cat.id); else offSet.add(cat.id);
+      writeOff(offSet);
+      syncMaster();
+    });
+    wrap.appendChild(box);
+    row.append(label, wrap);
+    host.appendChild(row);
+  }
+}
+
+// The Locations master counts these rows too: a master reading off over a
+// globe full of place names is the lie its own sync note warns about.
+function syncMaster() {
+  const master = document.getElementById("locations-master-toggle");
+  if (!master) return;
+  if (document.querySelector("#place-category-rows input:checked")) master.checked = true;
+}
+
+function wireMaster() {
+  const master = document.getElementById("locations-master-toggle");
+  if (!master || master.dataset.placesWired) return;
+  master.dataset.placesWired = "1";
+  master.addEventListener("change", () => {
+    for (const box of document.querySelectorAll("#place-category-rows input[type=checkbox]")) {
+      box.checked = master.checked;
+      if (master.checked) offSet.delete(box.dataset.placeCategory); else offSet.add(box.dataset.placeCategory);
+    }
+    writeOff(offSet);
+  });
+}
+
+async function load(viewer) {
+  const response = await fetch(await dataUrl(PATH));
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const doc = await response.json();
+  const curated = viewer.curatedPlaces();
+  const rank = (item, lod, category) => viewer.rankPlace(item, lod, category);
+  const places = (doc.places || []).filter((p) => !isCuratedDuplicate(p, curated));
+  drawRows(viewer, counts(places));
+  wireMaster();
+  viewer.setPlaceCategoryFilter((category) => !offSet.has(category));
+  // Most significant first, in batches across frames: 2,900 entries built in
+  // one task is a visible stall on the page's opening seconds.
+  places.sort((a, b) => a.lod - b.lod);
+  const handles = [];
+  for (let i = 0; i < places.length; i += BATCH) {
+    const items = places.slice(i, i + BATCH).map((row) => toItem(row, rank));
+    handles.push(viewer.addSurfaceLabels(items));
+    await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+  }
+  return { count: places.length, baked: doc.baked, handles };
+}
+
+function start(tries = 0) {
+  const viewer = window.GeoIDViewer;
+  if (!viewer?.addSurfaceLabels || !viewer.placeCategories || !viewer.rankPlace) {
+    if (tries < 160) setTimeout(() => start(tries + 1), 250);
+    return;
+  }
+  if (loaded) return;
+  loaded = load(viewer).then((result) => {
+    window.dispatchEvent(new CustomEvent("geoid-gis:places-loaded", { detail: { count: result.count } }));
+    return result;
+  }).catch((error) => {
+    console.warn("[earth-places] gazetteer did not load:", error);
+    const host = document.getElementById("place-category-rows");
+    if (host) {
+      const note = document.createElement("p");
+      note.className = "compact-copy";
+      note.textContent = `Place names did not load (${error.message || error}).`;
+      host.appendChild(note);
+    }
+    return null;
+  });
+}
+
+if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+  window.GeoIDEarthPlaces = {
+    loaded: () => loaded,
+    isOn: (category) => !offSet.has(category),
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", () => start());
+  else start();
+}

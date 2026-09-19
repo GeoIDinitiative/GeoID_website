@@ -22908,3 +22908,82 @@ Verified: Phobos at 90 m with the Viking grooves under the ship; Charon at
 75 km on New Horizons' mosaic with Pluto in the sky; Triton over its unlit,
 unimaged north with no slab; Io's markers as small dots under readable
 labels; a Mars planet flight unchanged (pre-flight cap 14.4, 80 restored).
+
+## Earth's gazetteer: ~2,900 named places, ranked, lazy, on at launch
+
+Explorer ▸ Locations now carries eight category rows — Oceans & seas,
+Landforms, Islands, Mountains, Rivers, Lakes, Faults & plates, Cities — over
+the curated Volcanic / Mission / Storm rows, and every one is ON when the page
+opens. `services/bake-earth-places.py` writes `data/global/earth-places.json`
+(2,929 places, 293 KB gzipped, published to the bucket, gitignored);
+`gis/earth-places.js` turns it into label items and hands them to the viewer's
+OWN engine through `addSurfaceLabels`, so every name wears the same chip,
+declutters with the curated ones and opens the same card.
+
+- **The rank is Natural Earth's `min_label`** — the zoom at which its
+  cartographers first label a feature, one judgement on one scale for seas,
+  rivers, deserts and cities alike. Mapped to lod 1–5 (≤2, ≤3.7, ≤5, ≤6.5,
+  else). Two corrections where it is wrong: a river under 250 km cannot be
+  above tier 4 (NE labels some delta branches at zoom 3), and a peak's height
+  lifts it (8,000 m → tier ≤2, 6,000 m → ≤3). Faults rank by grouped GEM
+  trace length, plates by area. Tiers: 69 / 175 / 585 / 1,694 / 406.
+- **Anchors sit ON the feature**: a line's point half way along its longest
+  part (by LENGTH, not by vertex index), a polygon's representative point
+  (inside, never a crescent's centroid in the sea), a plate's mean of unit
+  vectors (plates cross the antimeridian).
+- **Descriptions** are the opening two sentences of the English Wikipedia
+  article found through each feature's own Wikidata id (2,394 of 2,929), else
+  the Wikidata gloss if it is a real sentence (a one-word "mountain" is not),
+  else a line from the type. Every row names its source and licence
+  (Wikipedia CC BY-SA 4.0, GEM CC BY-SA 4.0, NE public domain) and the card
+  shows it. Every Wikipedia answer is cached in `.places-work/wiki-cache.json`,
+  so `--offline` rebakes without the network.
+- **One label per feature**: deduped by Wikidata id across categories (a river
+  and its estuary polygon, an ocean cut at the antimeridian) and against the
+  curated places (name stem within 3°, or the same name at tier 1–2 anywhere —
+  the curated Atlantic is on the equator, Natural Earth's at 34°N).
+
+### The engine changes, and why each one was needed
+
+- **Chips are LAZY.** Built up front, ~3,000 chips at 2x backing is over a
+  gigabyte of texture. A lazy entry keeps a shared 1×1 placeholder and a size
+  measured without drawing (`labelChipSize`, the same arithmetic
+  `makeLabelTexture` uses); `settleLazyLabels` draws a chip the frame it is
+  first placed (36 a frame, a chip that misses the budget waits a frame
+  rather than showing empty) and releases the longest-hidden past 420.
+  `rebuildLabelTextures` (theme change) drops lazy chips back to the
+  placeholder instead of drawing all of them.
+- **Density is Mars's rule plus the zoom.** A ranked item shows when
+  `lod <= slider level + zoomLodBonus` (+1 below a 500 km scale bar, +2 below
+  100 km): flying in REVEALS peaks and local rivers instead of only the slider
+  doing it. The old priority filter now skips ranked items. Measured at the
+  global view: level 1 shows 24 names, 3 shows 64, 5 shows 81 (the declutter
+  decides the rest); over the Alps at 450 km the Matterhorn, Monte Rosa,
+  Finsteraarhorn, Bern and the Po appear with the slider still at 3.
+- **Size is the tier**, as on Mars: `label_scale` 1.42 / 1.2 / 1.05 / 0.93 /
+  0.82 at range (measured 21.7 → 18.2 → 16.8 → 15.9 → 10.9 px), and
+  `PLACE_MOSAIC_TIER` in the close layout, which targets an absolute pixel
+  height and would otherwise cancel it. Gentler than Mars's close ramp:
+  Earth's close chip is 20–30 px against Mars's 36, and Mars's floor left a
+  tier-5 name at 13 px.
+- **A gazetteer name is never forced** onto the screen (force is for the
+  curated few), its hit sphere is a dataset's, and its dot is drawn only
+  with its name — a thousand anonymous dots is noise.
+- **The card's detail rows are text, not markup** now (they carry Wikipedia
+  and Natural Earth strings), and gained Population, Significance and Source.
+- **Categories and the rank→size rule live in the viewer** (`PLACE_CATEGORIES`,
+  `rankPlace`, exposed as `placeCategories` / `rankPlace` / `curatedPlaces` /
+  `setPlaceCategoryFilter`), because the curated places use them too: the
+  curated oceans, ranges, trenches and ridges were recategorised so a curated
+  ocean and a baked sea are one colour and one row. The old "General" row now
+  gates only the Moon's surface features and says so.
+- **What a reader switches OFF is stored** (`geoid-gis:earth-places-off`),
+  never what is on, for the reason the events feed paid for.
+
+**Global rivers are a launch default** (`defaultOn`, half strength) beside the
+plate boundaries: a river's name over imagery that does not show the river
+reads as a label in the wrong place. They were never behind membership — the
+row simply sat unticked in Earth Observation ▸ Hydrology.
+
+Cost, measured on the software renderer at level 5: 360 ms a frame against
+342 with every category off, 357 draw calls against 45.

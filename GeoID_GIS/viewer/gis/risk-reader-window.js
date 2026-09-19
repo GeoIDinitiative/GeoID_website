@@ -21,12 +21,12 @@
  * shield pulses), the Workspace header's shield, and Hazards ▸ Exposure.
  */
 
-import { riskMaps, assessOver, hazardKey, hazardTitle, readableMember, chooseFollowed, ringsBox, studyAreas, coversBox, viewArea, riskMapKind } from "./risk-reader.js?v=20260919-62d77fb";
-import { renderAssessment, annotationOf, el } from "./risk-reader-view.js?v=20260919-62d77fb";
-import { promptDrawTool } from "./extent-picker.js?v=20260919-62d77fb";
-import { showAnnotation, removeAnnotation } from "./exposure-annotation.js?v=20260919-62d77fb";
-import { formatCount, formatNumber, LEVEL_COLOURS } from "./risk-assessment.js?v=20260919-62d77fb";
-import { visibleBounds, onViewSettled } from "./view-extent.js?v=20260919-62d77fb";
+import { riskMaps, assessOver, hazardKey, hazardTitle, readableMember, chooseFollowed, ringsBox, studyAreas, coversBox, viewArea, riskMapKind } from "./risk-reader.js?v=20260919-b978060";
+import { renderAssessment, annotationOf, el } from "./risk-reader-view.js?v=20260919-b978060";
+import { promptDrawTool } from "./extent-picker.js?v=20260919-b978060";
+import { showAnnotation, removeAnnotation } from "./exposure-annotation.js?v=20260919-b978060";
+import { formatCount, formatNumber, LEVEL_COLOURS } from "./risk-assessment.js?v=20260919-b978060";
+import { visibleBounds, onViewSettled } from "./view-extent.js?v=20260919-b978060";
 
 const NOTE_ID = "risk-reader";
 const POS_KEY = "geoid-gis:risk-reader-pos";

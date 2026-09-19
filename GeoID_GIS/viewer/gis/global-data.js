@@ -26,18 +26,18 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260919-62d77fb";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260919-62d77fb";
-import { mathsFor } from "./equations.js?v=20260919-62d77fb";
+import { runConnector } from "./research/connectors.js?v=20260919-b978060";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260919-b978060";
+import { mathsFor } from "./equations.js?v=20260919-b978060";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260919-62d77fb";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260919-62d77fb";
-import { featureForModel, may, refusal } from "./membership.js?v=20260919-62d77fb";
-import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260919-62d77fb";
+} from "./cyclone-risk.js?v=20260919-b978060";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260919-b978060";
+import { featureForModel, may, refusal } from "./membership.js?v=20260919-b978060";
+import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260919-b978060";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260919-62d77fb";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260919-b978060";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -136,6 +136,15 @@ export const DATASETS = [
     name: "Global rivers (Natural Earth 10m).geojson",
     summary: "4,224 lines, 260,393 vertices",
     licence: "Natural Earth — public domain",
+    /**
+     * ON WHEN THE PAGE OPENS, like the plate boundaries: the gazetteer names
+     * ~500 rivers, and a river's name floating over imagery that does not
+     * show the river reads as a label in the wrong place. Half strength, so
+     * the network is context under the map rather than a net over it. An
+     * explicit untick is remembered, as for every launch default.
+     */
+    defaultOn: true,
+    opacity: 0.5,
   },
   /**
    * The Natural Earth LAKES row went when HydroLAKES arrived: 1,355 lakes at
