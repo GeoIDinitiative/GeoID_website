@@ -26,18 +26,18 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260920-f6aad18";
-import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260920-f6aad18";
-import { mathsFor } from "./equations.js?v=20260920-f6aad18";
+import { runConnector } from "./research/connectors.js?v=20260920-52de73f";
+import { explainFetchFailure, dataUrl } from "./data-base.js?v=20260920-52de73f";
+import { mathsFor } from "./equations.js?v=20260920-52de73f";
 import {
   riskEdges, RISK_LABELS,
-} from "./cyclone-risk.js?v=20260920-f6aad18";
-import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260920-f6aad18";
-import { featureForModel, may, refusal } from "./membership.js?v=20260920-f6aad18";
-import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260920-f6aad18";
+} from "./cyclone-risk.js?v=20260920-52de73f";
+import { colourRange as volcanicColourRange } from "./volcanic-risk.js?v=20260920-52de73f";
+import { featureForModel, may, refusal } from "./membership.js?v=20260920-52de73f";
+import { colourRange as seismicColourRange } from "./seismic-bands.js?v=20260920-52de73f";
 // The cyclone tracks are classed on the same scale the live storm markers
 // band by, so the archive and the feed cut intensity at the same knots.
-import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260920-f6aad18";
+import { SAFFIR_SIMPSON_KTS } from "./event-sources.js?v=20260920-52de73f";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -204,7 +204,10 @@ export const DATASETS = [
      */
     defaultOn: true,
     colour: "#ffffff",
-    opacity: 1,
+    // A fifth of full strength was the note here and 1 was the number; 30% is
+    // the one asked for. White at full strength rules a political map over the
+    // physical one it is meant to locate.
+    opacity: 0.3,
   },
   {
     id: "countries-50m",

@@ -55,7 +55,16 @@ ok(/holdLaunch\("events"/.test(read("GeoID_GIS", "viewer", "gis", "events.js")),
 const data = read("GeoID_GIS", "viewer", "gis", "global-data.js");
 ok(/Promise\.all\(launchDatasets\(\)\.map/.test(data), "launch defaults load in parallel");
 const borders = data.slice(data.indexOf('id: "boundaries-10m"'), data.indexOf('id: "countries-50m"'));
-ok(/defaultOn: true/.test(borders) && /opacity: 1\b/.test(borders), "country borders are on at launch at full strength");
+/**
+ * ON AT LAUNCH, WHITE, AND FAINT. The strength is the part that moved: full
+ * white on every border ruled a political map over the physical one it is
+ * there to locate. What the pin holds is that all three are stated -- a
+ * border left to the renderer takes `lineColor`, the app's own data cyan, and
+ * reads as a measured layer.
+ */
+ok(/defaultOn: true/.test(borders), "country borders are on at launch");
+ok(/colour: "#ffffff"/.test(borders), "and white, not the renderer's data cyan");
+ok(/opacity: 0\.3\b/.test(borders), "and faint enough to locate rather than rule");
 
 // ---- the registry itself -----------------------------------------------------
 globalThis.window = {};

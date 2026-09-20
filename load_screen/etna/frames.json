@@ -1,0 +1,44 @@
+{
+  "_readme": "Mount Etna start-up montage, the same mechanism as /load_screen/earth: frames play in this order from this folder, and adding a photograph plus a line here is the whole change. hold_ms is how long a frame holds, fade_ms the dissolve; the page fetches this file fresh on every start, so an edit shows on the next load.",
+  "_sources": "01, 02 and 04, 05 are GeoID's own; 03 is NASA and is credited as such. Esri's World Imagery is deliberately NOT here even though the viewer draws it: it is licence-conditional, and a start-up screen is shown to every visitor rather than chosen by one.",
+  "hold_ms": 750,
+  "fade_ms": 450,
+  "opacity": 0.72,
+  "frames": [
+    {
+      "file": "01-etna-eruption.webp",
+      "kind": "Photograph",
+      "place": "Mount Etna, in eruption",
+      "coord": "37.75°N · 14.99°E · 3,357 m",
+      "src": "GeoID archive"
+    },
+    {
+      "file": "04-etna-flank.webp",
+      "kind": "Photograph",
+      "place": "Lava on the snow-covered flank",
+      "coord": "37.75°N · 14.99°E · summit cone",
+      "src": "GeoID archive"
+    },
+    {
+      "file": "02-etna-summit-craters.webp",
+      "kind": "Photograph",
+      "place": "Etna, the summit craters",
+      "coord": "37.75°N · 14.99°E · fumaroles",
+      "src": "GeoID fieldwork"
+    },
+    {
+      "file": "05-etna-massif.webp",
+      "kind": "Photograph",
+      "place": "Ash plume over the summit snowfield",
+      "coord": "37.75°N · 14.99°E · upper flank",
+      "src": "GeoID archive"
+    },
+    {
+      "file": "03-etna-from-orbit.webp",
+      "kind": "Photograph from orbit",
+      "place": "Etna and Sicily from the station",
+      "coord": "ISS · Expedition 64 · 2021",
+      "src": "NASA, ISS064-E-029306"
+    }
+  ]
+}

@@ -60,13 +60,30 @@
         radial-gradient(125% 125% at 50% 50%, transparent 55%, rgba(12, 5, 1, 0.48) 100%);
     }
 
-    /* ── Background image ─────────────────────────────── */
+    /* ── Background: the montage ───────────────────────
+       The same mechanism the GeoHUB and the planet start screens use --
+       /load_screen/etna/frames.json lists the frames and their captions, so
+       adding a photograph is a file in that folder and a line in that file.
+       The still image stays as the FALLBACK and is what a page that cannot
+       reach the manifest shows, which is exactly what this page showed
+       before. It is cleared once a frame is actually on screen, or a frame at
+       the manifest's own opacity would be a blend of two photographs. */
     .bg {
       position: fixed;
       inset: 0;
       background: url('https://data.geoidinitiative.com/assets/hotlink-ok/etna/etna.jpg?v=dc76c4684896') center / cover no-repeat;
       z-index: 0;
     }
+    .bg img {
+      position: absolute;
+      inset: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      opacity: 0;
+      transition: opacity var(--fade, 500ms) ease;
+      will-change: opacity, transform;
+    }
+    .bg img.on { opacity: var(--shot-opacity, 1); }
     .bg::after {
       content: '';
       position: absolute;
@@ -76,6 +93,43 @@
           rgba(6,2,0,0.72) 0%,
           rgba(6,2,0,0.48) 40%,
           rgba(6,2,0,0.68) 100%);
+    }
+
+    /* ── What the frame is ─────────────────────────────
+       Bottom-left: the card is centred and the mark is top-right, so this is
+       the one corner a caption can hold without crossing either. A photograph
+       shown without saying what it is is a decoration; with a place and a
+       source it is a frame of the mountain the page is about. */
+    .bg-cap {
+      position: fixed;
+      left: 1.6rem;
+      bottom: 1.3rem;
+      z-index: 2;
+      max-width: min(24rem, 42vw);
+      font-family: "Exo 2", "Trebuchet MS", sans-serif;
+      font-size: 0.72rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.9);
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      pointer-events: none;
+    }
+    .bg-cap.on { opacity: 1; }
+    .bg-cap b {
+      display: block;
+      margin: 0.15em 0 0.1em;
+      font-weight: 600; font-size: 1.3em;
+      letter-spacing: 0.04em; text-transform: none;
+      color: var(--text);
+    }
+    .bg-cap small { display: block; font-size: 0.9em; color: rgba(232, 197, 160, 0.5); }
+    .bg-cap .n {
+      display: inline-block;
+      margin-top: 0.6em; padding: 0.2em 0.65em;
+      border: 1px solid var(--border);
+      color: var(--accent); font-size: 0.9em;
     }
 
     /* ── Shell ───────────────────────────────────────── */
@@ -90,13 +144,15 @@
     }
 
     /* ── Logo ────────────────────────────────────────── */
+    /* THE WORDMARK IS 3.4:1, so it is sized by WIDTH and its height follows.
+       Pinned square it would draw at a seventh of the box and read as a
+       mistake -- the lockup is a name, not an icon. */
     .logo-img {
       position: fixed;
       top: 1.2rem;
       right: 1.4rem;
       width: 13.5rem;
-      height: 13.5rem;
-      object-fit: contain;
+      height: auto;
       filter: drop-shadow(0 4px 24px rgba(0,0,0,0.6));
       z-index: 100;
       pointer-events: none;
@@ -279,7 +335,8 @@
     /* ── Landscape / constrained-height ─────────────────── */
     @media (max-height: 560px) and (pointer: coarse) {
       .shell { padding: 0.4rem; }
-      .logo-img { width: 6.5rem; height: 6.5rem; top: 0.5rem; right: 0.7rem; }
+      .logo-img { width: 8rem; height: auto; top: 0.5rem; right: 0.7rem; }
+      .bg-cap { display: none; }
       .card { border-radius: 1rem; width: min(520px, 76%); }
       .arrival-block { display: none; }
       .hero { padding: 0.8rem 1rem 0.6rem; gap: 0.8rem; }
@@ -296,7 +353,7 @@
     @media (max-width: 560px) {
       .shell { padding: 0.5rem; align-items: flex-start; padding-top: max(1rem, env(safe-area-inset-top)); }
       .card { border-radius: 1rem; }
-      .logo-img { width: 7rem; height: 7rem; top: 0.6rem; right: 0.75rem; }
+      .logo-img { width: 9rem; height: auto; top: 0.6rem; right: 0.75rem; }
       .hero { grid-template-columns: 1fr; gap: 0.6rem; padding: 1rem; }
       .etna-icon { width: 5rem; height: 5rem; margin: 0 auto; }
       .footer { flex-direction: column; align-items: flex-start; gap: 0.4rem;
@@ -363,7 +420,7 @@
       #portrait-advisory.is-dismissed { display: flex !important; }
     }
   </style>
-  <link rel="stylesheet" href="/styles/v2-viewer.css?v=20260920-1e7b58d">
+  <link rel="stylesheet" href="/styles/v2-viewer.css?v=20260920-52de73f">
 </head>
 <body>
 
@@ -371,9 +428,10 @@
     style="position:fixed;inset:0;width:100%;height:100%;border:none;opacity:0;pointer-events:none;z-index:0;background:#0a0502;"
     allow="fullscreen"></iframe>
 
-  <div class="bg" aria-hidden="true"></div>
+  <div class="bg" id="bg" aria-hidden="true"></div>
+  <div class="bg-cap" id="bg-cap" aria-hidden="true"><small class="c-kind">Frame</small><b class="c-place">—</b><small class="c-coord">—</small><small class="c-src">—</small><span class="n c-n">— / —</span></div>
 
-  <img class="logo-img" src="../assets/logo.png" alt="GeoID logo" onerror="this.src='/planet_explorer/mars/viewer/assets/logo.png'">
+  <img class="logo-img" src="/assets/GeoID_logo_icon.png" alt="GeoID">
 
   <main class="shell" id="transit-shell">
     <article class="card">
@@ -437,6 +495,86 @@
     const idx = Math.floor(Math.random() * FACTS.length);
     document.getElementById('fact-text').textContent = FACTS[idx];
 
+    // ── Background montage ────────────────────────────────────────────────────
+    // /load_screen/etna/frames.json lists the frames and their captions -- the
+    // same file and the same mechanism the GeoHUB and the planet start screens
+    // use, so adding a photograph here is a file in that folder and a line in
+    // that manifest, and nothing in this page changes.
+    //
+    // ONE FRAME AHEAD, never all at once. The viewer below is fetching its
+    // modules, its DEM and its tiles on the same connection; a montage that
+    // asks for every frame at the start queues in front of them and the
+    // hand-over lands later. Only the frame on screen and the next one are
+    // ever in flight.
+    var stopMontage = function () {};
+    (function () {
+      var bg = document.getElementById('bg'), capEl = document.getElementById('bg-cap');
+      if (!bg || !capEl || !window.fetch) return;
+      var RM = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      fetch('/load_screen/etna/frames.json', { cache: 'no-cache' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (m) {
+          var frames = (m && m.frames || []).filter(function (f) { return f && f.file; });
+          if (!frames.length) return;   // no manifest means the still image, not a broken page
+          var hold = Math.max(300, m.hold_ms || 900), fade = Math.max(150, m.fade_ms || 500);
+          bg.style.setProperty('--fade', fade + 'ms');
+          if (m.opacity) bg.style.setProperty('--shot-opacity', String(m.opacity));
+          var imgs = frames.map(function () {
+            var im = new Image();
+            im.alt = ''; im.decoding = 'async';
+            im.style.transitionDuration = fade + 'ms';
+            bg.appendChild(im);
+            return im;
+          });
+          var want = function (n) {
+            var im = imgs[n % imgs.length];
+            if (!im.getAttribute('src')) im.src = '/load_screen/etna/' + frames[n % frames.length].file;
+          };
+          want(0); want(1);
+          var cap = {
+            kind: capEl.querySelector('.c-kind'), place: capEl.querySelector('.c-place'),
+            coord: capEl.querySelector('.c-coord'), src: capEl.querySelector('.c-src'),
+            n: capEl.querySelector('.c-n')
+          };
+          var i = -1, timer = null, cleared = false, stopped = false;
+          function show(n) {
+            if (stopped) return;
+            i = ((n % frames.length) + frames.length) % frames.length;
+            // A frame that failed to load is SKIPPED rather than shown blank.
+            if (imgs[i].complete && imgs[i].naturalWidth === 0) {
+              timer = setTimeout(function () { show(i + 1); }, 0);
+              return;
+            }
+            imgs.forEach(function (im, k) { im.classList.toggle('on', k === i); });
+            if (!cleared) { cleared = true; bg.style.backgroundImage = 'none'; }
+            want(i + 2);
+            if (!RM && imgs[i].animate) {
+              imgs[i].animate(
+                [{ transform: 'scale(1.06) translate(' + (i % 2 ? 1 : -1) + '%, 0)' },
+                 { transform: 'scale(1.14) translate(' + (i % 2 ? -1 : 1) + '%, -1%)' }],
+                { duration: hold + fade + 400, fill: 'forwards', easing: 'linear' });
+            }
+            var f = frames[i];
+            cap.kind.textContent = f.kind || 'Frame';
+            cap.place.textContent = f.place || '';
+            cap.coord.textContent = f.coord || '';
+            cap.src.textContent = f.src || '';
+            cap.n.textContent = String(i + 1).padStart(2, '0') + ' / ' + String(frames.length).padStart(2, '0');
+            capEl.classList.add('on');
+            timer = setTimeout(function () { show(i + 1); }, hold + fade);
+          }
+          var first = imgs[0];
+          var begin = function () { show(0); };
+          if (first.complete) begin();
+          else {
+            first.addEventListener('load', begin, { once: true });
+            first.addEventListener('error', begin, { once: true });
+          }
+          stopMontage = function () { stopped = true; clearTimeout(timer); };
+        })
+        .catch(function () { /* the still image is already behind it */ });
+    })();
+
     // ── Viewer preload + crossfade ────────────────────────────────────────────
     const TRANSIT_MS   = 5000;
     const viewerFrame  = document.getElementById('viewer-frame');
@@ -453,6 +591,11 @@
       let crossed = false;
       function doCrossfade() {
         if (crossed) return; crossed = true;
+        // The montage has done its job; leaving it cycling behind the viewer
+        // is work nobody can see.
+        stopMontage();
+        const capEl = document.getElementById('bg-cap');
+        if (capEl) capEl.classList.remove('on');
         const logoImg = document.querySelector('.logo-img');
         transitShell.style.transition = `opacity ${CROSSFADE_MS}ms ease`;
         transitShell.style.opacity = '0';

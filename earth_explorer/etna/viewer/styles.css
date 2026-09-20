@@ -200,6 +200,72 @@
       transition: color 0.15s, border-color 0.15s, background 0.15s;
     }
 
+    /* The gear is the ⓘ's twin -- same circle, same size, same hover -- so the
+       two read as one pair of doors rather than two kinds of control. Only the
+       mark inside differs, and a glyph needs a size where a letter takes the
+       font's. */
+    .settings-btn svg { width: 0.92rem; height: 0.92rem; display: block; }
+    .settings-btn[aria-expanded="true"] {
+      color: #fff0e8;
+      border-color: rgba(var(--nav-accent-rgb), 0.9);
+      background: rgba(var(--nav-accent-rgb), 0.2);
+    }
+
+    /* SETTINGS, under the gear that opens it. Anchored to `#ui`, which is
+       fixed, so it hangs off the header strip rather than scrolling away with
+       the panel body beneath it. */
+    .settings-pop {
+      position: absolute;
+      top: 2.95rem;
+      right: 0.75rem;
+      z-index: 40;
+      width: min(17rem, calc(100vw - 3rem));
+      padding: 0.7rem 0.8rem 0.6rem;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.55);
+      border-radius: 0.6rem;
+      background: rgba(14, 6, 2, 0.97);
+      box-shadow: 0 12px 34px rgba(0, 0, 0, 0.6);
+    }
+    .settings-pop[hidden] { display: none; }
+    .settings-pop-title {
+      margin: 0 0 0.5rem;
+      font-family: "Exo 2", "Segoe UI", sans-serif;
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--nav-accent);
+    }
+    .settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.6rem;
+      margin: 0.35rem 0;
+      font-size: 0.8rem;
+      color: var(--text, #fff4e8);
+    }
+    .settings-row select {
+      flex: 0 1 8.5rem;
+      min-width: 0;
+      padding: 0.2rem 0.35rem;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.4);
+      border-radius: 0.3rem;
+      background: rgba(255, 255, 255, 0.06);
+      color: inherit;
+      font: inherit;
+    }
+    /* A select's POPUP is painted from opaque colours: translucent here is a
+       dark control on a dark panel and a WHITE list when the browser opens it,
+       because the popup has no card behind it. */
+    .settings-row select option { background-color: #140802; color: #fff4e8; }
+    .settings-note {
+      margin: 0 0 0.45rem;
+      font-size: 0.7rem;
+      line-height: 1.35;
+      opacity: 0.62;
+    }
+
     .info-btn:hover {
       color: #fff0e8;
       border-color: rgba(var(--nav-accent-rgb), 0.82);
@@ -688,6 +754,12 @@
       color: var(--nav-accent);
       font-size: 0.82rem;
     }
+
+    /* An empty paragraph keeps its margin, so an idle status line is 0.9rem of
+       nothing between the controls and the foot of the panel. The moment
+       `setStatus` writes a word the rule stops matching and the line returns
+       at full height. */
+    .status:empty { display: none; }
 
     .status.is-error { color: #ff6b6b; }
 

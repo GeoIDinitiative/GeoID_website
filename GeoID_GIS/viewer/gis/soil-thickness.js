@@ -23,13 +23,13 @@
  * valley bottoms whatever fraction of the ground they are. The card says so.
  */
 
-import { buildRasterLayer, loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260920-f6aad18";
-import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260920-f6aad18";
-import { dataUrl } from "./data-base.js?v=20260920-f6aad18";
+import { buildRasterLayer, loadGeoTiffLibrary } from "./geotiff-adapter.js?v=20260920-52de73f";
+import { visibleBounds, viewChangedEnough, onViewSettled } from "./view-extent.js?v=20260920-52de73f";
+import { dataUrl } from "./data-base.js?v=20260920-52de73f";
 import {
   cellAt, metresIn, thicknessCard, waitingCard,
-} from "./thickness-probe.js?v=20260920-f6aad18";
-import { mathsFor } from "./equations.js?v=20260920-f6aad18";
+} from "./thickness-probe.js?v=20260920-52de73f";
+import { mathsFor } from "./equations.js?v=20260920-52de73f";
 
 export const LAYER_NAME = "Soil and sediment thickness (Pelletier)";
 

@@ -39,8 +39,24 @@
       <p class="eyebrow">GeoID: Earth Explorer</p>
       <div class="brand-toprow-actions">
         <button class="info-btn" id="info-btn" aria-label="About this viewer" title="About this viewer">i</button>
+        <button class="info-btn settings-btn" id="settings-btn" type="button" aria-label="Settings" title="Settings — theme and sound" aria-expanded="false" aria-controls="settings-pop"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="2.4" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M8 1.6v1.9M8 12.5v1.9M14.4 8h-1.9M3.5 8H1.6M12.5 3.5l-1.3 1.3M4.8 11.2l-1.3 1.3M12.5 12.5l-1.3-1.3M4.8 4.8 3.5 3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></button>
         <button id="nav-collapse-btn" aria-label="Collapse navigation panel" title="Collapse panel">‹</button>
       </div>
+    </div>
+
+    <!-- SETTINGS: what this page LOOKS like, and nothing else.
+         Deliberately not a home for data or service settings -- there is no
+         Earth Engine endpoint here and no key to hold. `theme.js` wires
+         `#gis-skin`, `#gis-skin-note` and `#gis-skin-sound` itself, by
+         document-level listeners and a poll, so this is markup only: the same
+         three controls the GIS page's own Settings group carries, and one
+         implementation behind both. -->
+    <div class="settings-pop" id="settings-pop" role="dialog" aria-label="Settings" hidden>
+      <p class="settings-pop-title">Settings</p>
+      <label class="settings-row" for="gis-skin"><span>Theme</span><select id="gis-skin" class="input"></select></label>
+      <p class="settings-note" id="gis-skin-note"></p>
+      <label class="settings-row" for="gis-skin-sound"><span>Theme sounds</span><input id="gis-skin-sound" type="checkbox"></label>
+      <p class="settings-note">Hover and click feedback, in the voice of the theme.</p>
     </div>
 
     <div id="ui-scroll-body">
@@ -836,7 +852,7 @@
 
       </div><!-- .controls -->
 
-      <p class="status" id="status">© 2026 GeoID: Explorer. The GeoID Initiative, led by Owen McCluskey. All rights reserved.</p>
+      <p class="status" id="status"></p>
     </div><!-- #ui-scroll-body -->
   </section>
 
@@ -911,7 +927,11 @@
     </button>
   </div>
   <a id="top-right-logo-link" href="/earth_explorer/" target="_top" aria-label="Back to Earth Explorer">
-    <img id="top-right-logo" src="../../assets/logo.png" alt="GeoID logo">
+    <!-- The GeoID mark, as on the landing page this viewer is handed off from.
+         Height-driven already, and the wordmark is 3.11:1 against the old
+         2.35:1 -- 15.9rem wide at this height, which still clears
+         `#top-right-controls` at 18.5rem and the rail below it. -->
+    <img id="top-right-logo" src="/assets/GeoID_logo_icon.png" alt="GeoID">
   </a>
 
   <!-- ─── Bottom-left HUD: compass inset + surface readers ───────────────────── -->

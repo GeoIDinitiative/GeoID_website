@@ -4701,7 +4701,10 @@ function updateContextHUD() {
 function setStatus(msg, isError = false) {
   const el = document.getElementById('status');
   if (!el) return;
-  el.textContent = msg || '© 2026 GeoID: Explorer. The GeoID Initiative, led by Owen McCluskey. All rights reserved.';
+  // IDLE IS EMPTY. A status line's job is to report; standing a copyright
+  // in it made every quiet moment look like a message, and the rule below
+  // collapses the line when there is nothing to say.
+  el.textContent = msg || '';
   el.classList.toggle('is-error', isError);
 }
 
@@ -5393,6 +5396,37 @@ function setupUI() {
   if (videoOverlay) {
     videoOverlay.addEventListener('click', (e) => {
       if (e.target === videoOverlay) _closeVideoOverlay();
+    });
+  }
+
+  /**
+   * SETTINGS — a door that TOGGLES, and closes the way everything else does.
+   *
+   * It holds what this page LOOKS like and nothing else: the theme, and the
+   * sound that comes with it. There is no Earth Engine endpoint here and no
+   * key to hold, so there is nothing for a settings panel to keep.
+   *
+   * The controls themselves are wired by `scripts/theme.js`, which listens on
+   * the document for `#gis-skin` and `#gis-skin-sound` wherever they are. So
+   * this is the door and nothing more -- one implementation of the theme
+   * behind both this panel and the GIS page's own Settings group.
+   */
+  const settingsBtn = document.getElementById('settings-btn');
+  const settingsPop = document.getElementById('settings-pop');
+  if (settingsBtn && settingsPop) {
+    const setSettings = (open) => {
+      settingsPop.hidden = !open;
+      settingsBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    };
+    settingsBtn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      setSettings(settingsPop.hidden);
+    });
+    // A press inside is a press on a control, never a dismissal.
+    settingsPop.addEventListener('click', (event) => event.stopPropagation());
+    document.addEventListener('click', () => { if (!settingsPop.hidden) setSettings(false); });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !settingsPop.hidden) setSettings(false);
     });
   }
 
