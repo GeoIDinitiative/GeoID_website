@@ -26,7 +26,7 @@
 const search = new URL(import.meta.url).search;
 
 import { startPlayer, stopPlayer, datasetForYear, seasonFor, IMAGERY_SOURCES }
-  from "./timelapse-player.js?v=20260920-d349e3c";
+  from "./timelapse-player.js?v=20260920-701060b";
 
 // Re-exported rather than re-implemented: the panel, the tests and this file
 // must be talking about the SAME rule for which satellite covers which year.

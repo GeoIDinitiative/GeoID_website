@@ -254,12 +254,18 @@
       .boot-log div { opacity: 1; }
     }
   </style>
-  <link rel="stylesheet" href="/styles/v2-viewer.css?v=20260920-d349e3c">
+  <link rel="stylesheet" href="/styles/v2-viewer.css?v=20260920-701060b">
 </head>
 <body>
 
+  <!-- VISIBLE FROM THE START, under the screen. At opacity 0 the viewer's
+       canvas was first PRESENTED at the hand-over, and that first presentation
+       is native work on the main thread -- 12 s of it on a software renderer,
+       inside the fade, with no JavaScript on the profile at all. Opaque and
+       covered, it is paid for during the warm frames instead, where nothing
+       anybody can see depends on the main thread. -->
   <iframe id="viewer-frame" src=""
-    style="position:fixed;inset:0;width:100%;height:100%;border:none;opacity:0;pointer-events:none;z-index:0;background:#0a0502;"
+    style="position:fixed;inset:0;width:100%;height:100%;border:none;opacity:1;pointer-events:none;z-index:2;background:#0a0502;"
     allow="fullscreen"></iframe>
 
   <!-- ── Start-up screen (see #boot-style in <head>) ────────────────────
@@ -701,11 +707,11 @@
          that has to be smooth. So: released while the screen is still in its
          steady state, where everything moving is on the compositor and a
          blocked main thread changes nothing anybody can see; the viewer
-         answers geoid-drawn after three frames; it is HELD again for the
+         answers geoid-drawn after two frames; it is HELD again for the
          length of the fade, so the fade has the thread to itself over a
          viewer that is already a picture; and released for good when the
          screen has gone. WARM_CAP covers a viewer that never answers. */
-      var warming = false, WARM_CAP = 9000;
+      var warming = false, WARM_CAP = 20000;
       function handOver(delay) {
         if (over || warming) return; warming = true;
         var go = function () {

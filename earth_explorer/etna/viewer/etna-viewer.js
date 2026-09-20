@@ -2013,7 +2013,7 @@ function buildFaultOverlays() {
   faultRootGroup.visible = _fMaster ? _fMaster.checked : true;
   scene.add(faultRootGroup);
 
-  fetch('./etna-faults.json')
+  _bootTrack(fetch('./etna-faults.json')
     .then(r => r.json())
     .then(data => {
       for (const fs of data.faultSystems) {
@@ -2046,7 +2046,7 @@ function buildFaultOverlays() {
       }
       updateClipPlanes(); // register fault materials with cross-section plane
     })
-    .catch(e => console.warn('[faults] Failed to load etna-faults.json', e));
+    .catch(e => console.warn('[faults] Failed to load etna-faults.json', e)));
 }
 
 
@@ -2153,7 +2153,7 @@ function buildGeologyOverlays(geo) {
   regCanvas.width = HI; regCanvas.height = HI;
   const regCtx = regCanvas.getContext('2d');
 
-  fetch('./etna-regional-geology.json').then(r => r.json()).then(geoData => {
+  _bootTrack(fetch('./etna-regional-geology.json').then(r => r.json()).then(geoData => {
     _egdiGeoFeats = geoData.features;
 
     // Pass 1 — stroke each polygon outward with its own color to bleed into adjacent gaps.
@@ -2204,7 +2204,7 @@ function buildGeologyOverlays(geo) {
     // lost when the canvas is blanked.
     renderer.initTexture(regionalGeologyMesh.material.map);
     setTimeout(() => { regCanvas.width = 1; regCanvas.height = 1; }, 200);
-  }).catch(e => console.warn('[geology] EGDI load failed:', e));
+  }).catch(e => console.warn('[geology] EGDI load failed:', e)));
 
   // ── Etna geology — INGV EtnaGeoMap verbatim from WMS KML ─────────────────────
   // 3,907 polygon features with per-feature WMS colours, names, ages and lithology
@@ -2215,7 +2215,7 @@ function buildGeologyOverlays(geo) {
   const etnaCtx = etnaCanvas.getContext('2d');
   const etnaGeoTog = document.getElementById('etna-geology-master-toggle');
 
-  fetch('./etna-geology-ingv.json').then(r => r.json()).then(geoData => {
+  _bootTrack(fetch('./etna-geology-ingv.json').then(r => r.json()).then(geoData => {
     _ingvGeoFeats = geoData.features;
 
     for (const feat of _ingvGeoFeats) {
@@ -2241,7 +2241,7 @@ function buildGeologyOverlays(geo) {
     updateClipPlanes();
     renderer.initTexture(etnaGeologyMesh.material.map);
     setTimeout(() => { etnaCanvas.width = 1; etnaCanvas.height = 1; }, 200);
-  }).catch(e => console.warn('[geology] Failed to load etna-geology-ingv.json:', e));
+  }).catch(e => console.warn('[geology] Failed to load etna-geology-ingv.json:', e)));
 }
 
 // ─── Regional tectonic faults ─────────────────────────────────────────────────
@@ -2400,7 +2400,7 @@ function buildTectonicFaults() {
     _tecSubGroups[key] = g;
   }
 
-  fetch('./etna-tectonic-faults.json')
+  _bootTrack(fetch('./etna-tectonic-faults.json')
     .then(r => r.json())
     .then(data => {
       for (const feat of data.features) {
@@ -2486,7 +2486,7 @@ function buildTectonicFaults() {
       _buildFaultSideFaceLines();
       _updateFaultCapLines();
     })
-    .catch(e => console.warn('[tectonic] Failed to load etna-tectonic-faults.json:', e));
+    .catch(e => console.warn('[tectonic] Failed to load etna-tectonic-faults.json:', e)));
 }
 
 // ─── Fault face intersection lines ───────────────────────────────────────────
@@ -2654,7 +2654,7 @@ function _seismicRadius(ml) {
 }
 
 function buildSeismicOverlay() {
-  fetch('./etna-seismicity.json')
+  _bootTrack(fetch('./etna-seismicity.json')
     .then(r => r.json())
     .then(data => {
       _seismicEvents = data.events; // [[x, z, y, ml, year], …]
@@ -2681,7 +2681,7 @@ function buildSeismicOverlay() {
       updateSeismicDisplay();
       updateClipPlanes(); // register with cross-section plane
     })
-    .catch(e => console.warn('[seismicity] Failed to load etna-seismicity.json', e));
+    .catch(e => console.warn('[seismicity] Failed to load etna-seismicity.json', e)));
 }
 
 function updateSeismicDisplay() {
@@ -4719,12 +4719,35 @@ const _VL_START  = performance.now();
  * Standalone, nothing listens to the message at all. */
 const _VL_MIN_MS = 0;
 
+/* READY MEANS THE OVERLAYS TOO, not the terrain alone. The five JSON layers
+ * (faults, both geologies, tectonics, seismicity) are fetched and BUILT after
+ * the terrain, and the INGV sheet alone rasterises 3,907 polygons onto a
+ * canvas -- measured as a 12 s task on a software renderer. Reported ready on
+ * the terrain, that task fell inside the start screen's fade, after the warm
+ * frames that were meant to have cleared the thread. Every boot fetch is
+ * tracked to the END of its chain, builders included, and ready waits for
+ * them; _BOOT_WAIT_MS is the ceiling for a layer that never answers. */
+let _bootPending = 0, _bootIdle = null;
+const _BOOT_WAIT_MS = 20000;
+function _bootTrack(promise) {
+  _bootPending++;
+  const done = () => { if (--_bootPending === 0 && _bootIdle) { const f = _bootIdle; _bootIdle = null; f(); } };
+  promise.then(done, done);
+  return promise;
+}
+
 function _dismissLoadingScreen() {
   const elapsed = performance.now() - _VL_START;
   const delay   = Math.max(0, _VL_MIN_MS - elapsed);
-  setTimeout(() => {
-    try { window.parent.postMessage('geoid-ready', '*'); } catch (_) {}
-  }, delay);
+  let sent = false;
+  const send = () => {
+    if (sent) return; sent = true;
+    setTimeout(() => {
+      try { window.parent.postMessage('geoid-ready', '*'); } catch (_) {}
+    }, delay);
+  };
+  if (_bootPending === 0) send();
+  else { _bootIdle = send; setTimeout(send, _BOOT_WAIT_MS); }
 }
 
 // ─── Panel collapse ───────────────────────────────────────────────────────────
@@ -5874,7 +5897,7 @@ window.addEventListener('message', (e) => {
  * compositor), waits for geoid-drawn, holds the loop again for the length of
  * its fade, and releases it for good when it has gone. */
 let _warmFrames = 0;
-const _WARM_FRAMES = 3;
+const _WARM_FRAMES = 2;
 if (window.__etnaHoldRender) setTimeout(() => { window.__etnaHoldRender = false; }, 30000);
 
 function animate() {
