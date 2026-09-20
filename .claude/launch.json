@@ -15,6 +15,12 @@
       "autoPort": false
     },
     {
+      "name": "geoid-site-attached",
+      "url": "http://localhost:8125",
+      "port": 8125,
+      "autoPort": false
+    },
+    {
       "name": "geoid-sidecar",
       "runtimeExecutable": "python3",
       "runtimeArgs": [

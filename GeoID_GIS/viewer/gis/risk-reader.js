@@ -26,12 +26,12 @@
 
 import {
   polygonsOf, polygonIndex, peopleOnGrid, polygonMask, cellKm2, boxOf, readsAtPopulation, gridValueAt,
-} from "./exposure.js?v=20260920-8955db3";
+} from "./exposure.js?v=20260920-0b6704c";
 import {
   SCHEMES, chanceScheme, bandScheme, schemeForLayerName, riskLayerKind, assessGrid, assessPopulation,
   groupByFeature, summarySentence, windLookup,
-} from "./risk-assessment.js?v=20260920-8955db3";
-import { resolvePolygonRings, drawnPolygonLayers } from "./extent-picker.js?v=20260920-8955db3";
+} from "./risk-assessment.js?v=20260920-0b6704c";
+import { resolvePolygonRings, drawnPolygonLayers } from "./extent-picker.js?v=20260920-0b6704c";
 
 const search = new URL(import.meta.url).search;
 const FORECAST_NAME = /^Landslide risk — forecast/;

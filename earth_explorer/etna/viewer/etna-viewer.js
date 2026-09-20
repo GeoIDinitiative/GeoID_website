@@ -4711,7 +4711,13 @@ function setStatus(msg, isError = false) {
 // Signal the transit page to crossfade once terrain is ready.
 // Mirrors the Mars viewer pattern — no in-viewer overlay, transit page is the loading screen.
 const _VL_START  = performance.now();
-const _VL_MIN_MS = 4500;
+/* THE SCREEN ABOVE DECIDES HOW LONG IT STAYS, not this. This floor existed to
+ * hold the old five-second transit card up; the start screen has a minimum of
+ * its own (the length of its beats) and waits for this message on top of it,
+ * so a floor here is a second wait for one decision -- and on a machine that
+ * builds the terrain quickly it was the only thing still holding the reader.
+ * Standalone, nothing listens to the message at all. */
+const _VL_MIN_MS = 0;
 
 function _dismissLoadingScreen() {
   const elapsed = performance.now() - _VL_START;
@@ -5838,8 +5844,31 @@ function buildCompass() {
   compassScene.add(nSprite);
 }
 
+/* THE START SCREEN OWNS THE THREAD UNTIL IT HANDS OVER.
+ *
+ * This viewer loads in a same-origin frame under /earth_explorer/etna/, so
+ * this loop and that screen share one main thread -- and one frame of this
+ * scene costs more than the screen's entire animation budget (measured at
+ * about 900 ms a frame on a software renderer, 36.6 s of long tasks across a
+ * boot). The screen therefore asks for the loop to be HELD, with ?hold=1, and
+ * releases it with a geoid-release message when it has faded out.
+ *
+ * Only DRAWING is held. Everything that makes the viewer ready runs outside
+ * this loop -- _dismissLoadingScreen() is called at the end of the terrain
+ * build -- so the hand-over still arrives on the viewer's own evidence.
+ *
+ * The release is also on a timer of its own: a viewer opened with ?hold=1 and
+ * no screen above it must not sit frozen for ever.
+ */
+window.__etnaHoldRender = new URLSearchParams(location.search).has('hold');
+window.addEventListener('message', (e) => {
+  if (e.data === 'geoid-release') window.__etnaHoldRender = false;
+});
+if (window.__etnaHoldRender) setTimeout(() => { window.__etnaHoldRender = false; }, 30000);
+
 function animate() {
   requestAnimationFrame(animate);
+  if (window.__etnaHoldRender) return;
   controls.update();
 
   // Update view-space sun/up direction for live hillshade + slope shaders

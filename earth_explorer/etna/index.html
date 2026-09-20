@@ -252,7 +252,7 @@
       .boot-log div { opacity: 1; }
     }
   </style>
-  <link rel="stylesheet" href="/styles/v2-viewer.css?v=20260920-8955db3">
+  <link rel="stylesheet" href="/styles/v2-viewer.css?v=20260920-0b6704c">
 </head>
 <body>
 
@@ -389,7 +389,7 @@
          floor before it reports, so this costs the reader nothing they were
          not already waiting for. */
       var VIEWER_AT = RM ? 0 : SEQ_END;
-      t(function () { viewerFrame.src = "viewer/?transit=1"; }, VIEWER_AT);
+      t(function () { viewerFrame.src = "viewer/?transit=1&hold=1"; }, VIEWER_AT);
 
       /* ── sound ─────────────────────────────────────────────────────── */
       var AC = window.AudioContext || window.webkitAudioContext;
@@ -632,7 +632,7 @@
       var linesDone = false, acquiredShown = false, waitShown = false;
       if (RM) {
         stageLines.forEach(function (l, i) { l.style.opacity = "0"; t(function () { l.style.opacity = "1"; cue.line(i); }, 200 + i * 220 * K); });
-        fill.animate([{ transform: "scaleX(0)" }, { transform: "scaleX(1)" }], { duration: 1800 * K, fill: "forwards", delay: 200 });
+        fill.animate([{ transform: "scaleX(0)" }, { transform: "scaleX(0.62)" }], { duration: 1600 * K, fill: "forwards", delay: 200 });
         fact.style.opacity = "1"; home.style.opacity = "1";
         t(function () { linesDone = true; }, 200 + stageLines.length * 220 * K);
       } else {
@@ -648,7 +648,24 @@
         stageLines.forEach(function (l, i) {
           t(function () { l.animate([{ opacity: 0, transform: "translateX(-0.4em)" }, { opacity: 1, transform: "translateX(0)" }], { duration: 160, fill: "forwards" }); cue.line(i); }, (1000 + i * 380) * K);
         });
-        fill.animate([{ transform: "scaleX(0)" }, { transform: "scaleX(1)" }], { duration: 2600 * K, delay: 1000 * K, fill: "forwards", easing: "linear" });
+        /* THE BAR TRACKS THE WAIT. A fixed fill finished at 3.6 s and the
+           screen then sat for another five seconds with a full bar on it,
+           which is what "the slideshow and the loading bar are not in unison"
+           is: the bar had said done while the montage was still turning and
+           the viewer was still building. It fills through the beats, creeps
+           while the viewer is the only thing left to wait for, and closes on
+           SUMMIT ACQUIRED -- so it finishes when the screen does. */
+        fill.animate([{ transform: "scaleX(0)" }, { transform: "scaleX(0.62)" }],
+                     { duration: (SEQ_END - 1000 * K), delay: 1000 * K, fill: "forwards", easing: "linear" });
+        t(function () {
+          if (!over && !acquiredShown) {
+            // LINEAR, and long. An eased creep reaches its end in the first
+            // second and sits there, which is the fault this replaced wearing
+            // a smaller number: measured at 0.94 one second in.
+            fill.animate([{ transform: "scaleX(0.62)" }, { transform: "scaleX(0.93)" }],
+                         { duration: 16000, fill: "forwards", easing: "linear" });
+          }
+        }, SEQ_END);
         t(function () { linesDone = true; }, (1000 + stageLines.length * 380) * K);
       }
 
@@ -683,6 +700,9 @@
            and never gets its first style recalculation, and it sits
            "running" with fill backwards holding the frame at 0 -- measured
            four seconds after the hand-over, on a viewer that had drawn. */
+        // and it may draw again: one frame of that scene costs more than
+        // this screen's whole budget, and the two share a main thread.
+        try { viewerFrame.contentWindow.postMessage("geoid-release", "*"); } catch (_e) {}
         viewerFrame.style.transition = "none";
         viewerFrame.style.opacity = "1";
         viewerFrame.style.zIndex = "2";
@@ -727,6 +747,8 @@
       }
       function showAcquired() {
         if (acquiredShown) return; acquiredShown = true;
+        fill.animate([{ transform: getComputedStyle(fill).transform }, { transform: "scaleX(1)" }],
+                     { duration: 280, fill: "forwards", easing: "ease-out" });
         if (waitShown) waitLine.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 150, fill: "forwards" });
         finalLine.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, fill: "forwards" });
         cue.acquired();
