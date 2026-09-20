@@ -14,7 +14,7 @@
  * REFLECTION and a reflection is orthogonal. So the mapping is fitted to the
  * moon's own markers, and these checks hold it there.
  */
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join, dirname } from "node:path";
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -32,25 +32,37 @@ const src = readFileSync(join(HERE, "nomenclature-outlines.js"), "utf8");
 
 /* ── Which worlds ─────────────────────────────────────────────────────── */
 
-ok(Object.keys(m.OUTLINE_BODIES).sort().join() === "mars,mercury,moon,pluto,venus",
-  "the five surfaced worlds the gazetteer outlines");
-ok(Object.keys(m.OUTLINE_MOONS).length === 20, "twenty moons carry outlines");
+ok(Object.keys(m.OUTLINE_BODIES).sort().join() === "mars,mercury,moon,pluto",
+  "the four surfaced worlds the gazetteer OUTLINED -- Venus is boxes and is withheld");
+ok(Object.keys(m.OUTLINE_MOONS).sort().join() === "charon,enceladus,ganymede,io,triton",
+  "the five moons it outlined most of");
 ok(m.MOON_HOSTS.has("jupiter") && m.MOON_HOSTS.has("saturn") && !m.MOON_HOSTS.has("earth"),
   "a gas giant hosts moons; Earth is not here at all");
+ok(m.MOON_HOSTS.has("saturn") && !Object.keys(m.OUTLINE_MOONS).includes("titan"),
+  "Saturn stays for Enceladus alone, not for Titan");
 
 /**
- * THE BAKE AND THE VIEWER NAME ONE LIST. A world in one and not the other is
- * either a tick that can only fail or a published file nothing offers.
+ * THE BAKE KEEPS EVERY WORLD; THE VIEWER OFFERS THE ONES IT OUTLINED.
+ *
+ * These lists deliberately differ now. The bake's job is the file -- withheld
+ * bodies are still baked and still published, so re-offering one is a key in
+ * `BOX_ONLY` rather than a download. What must hold is that nothing is offered
+ * that is not baked (a tick that can only fail) and nothing baked is
+ * unaccounted for (a published file nobody decided about).
  */
 const bake = readFileSync(join(ROOT, "GeoID_GIS", "services", "bake-nomenclature.py"), "utf8");
 const bakedMoons = (bake.match(/MOONS = \{m\.lower\(\): m for m in \(([\s\S]*?)\)\}/) || [, ""])[1]
   .match(/"([A-Z]+)"/g)?.map((s) => s.replace(/"/g, "").toLowerCase()).sort() || [];
-ok(bakedMoons.join() === Object.keys(m.OUTLINE_MOONS).sort().join(),
-  `the bake and the viewer offer the same moons (${bakedMoons.length} baked)`);
 const bakedBodies = (bake.match(/BODIES = \{([\s\S]*?)\}/) || [, ""])[1]
   .match(/"([a-z]+)":/g)?.map((s) => s.slice(1, -2)).sort() || [];
-ok(bakedBodies.join() === Object.keys(m.OUTLINE_BODIES).sort().join(),
-  "the bake and the viewer offer the same planets");
+const baked = new Set([...bakedMoons, ...bakedBodies]);
+const offeredKeys = [...Object.keys(m.OUTLINE_BODIES), ...Object.keys(m.OUTLINE_MOONS)];
+ok(offeredKeys.every((k) => baked.has(k)),
+  `everything offered is baked (${baked.size} baked, ${offeredKeys.length} offered)`);
+ok([...baked].every((k) => offeredKeys.includes(k) || m.BOX_ONLY.has(k)),
+  "every baked world is either offered or named in BOX_ONLY");
+ok([...m.BOX_ONLY].every((k) => !offeredKeys.includes(k)),
+  "nothing is both offered and withheld");
 
 /* ── The west-positive flip ───────────────────────────────────────────── */
 
@@ -222,18 +234,102 @@ for (const [key, body] of Object.entries(m.OUTLINE_BODIES)) checkFile(key, body.
 // a moon may honestly have one: Hyperion's gazetteer holds a single dorsum
 for (const [key, name] of Object.entries(m.OUTLINE_MOONS)) checkFile(key, name, 1);
 
-/* ── The boxes are held back ──────────────────────────────────────────────
+/* ── A body is offered only if the gazetteer actually drew it ─────────────
  *
- * The gazetteer splits in two and the map has to say so. Seven bodies are
- * digitised outlines with no box among them; eighteen are mostly or entirely
- * the feature's BOUNDING BOX -- Venus 373 of 414, Titania and Oberon every
- * one. A box drawn is a claim about a shape nobody drew, so the default is
- * the features somebody outlined and the boxes are one tick away.
+ * The gazetteer publishes two kinds of polygon under one name, and a BOX drawn
+ * is a claim about a shape nobody drew. Three rounds of "they are still
+ * rectangles" is what a box looks like filled, unfilled, and held back, so the
+ * rule is now that a body carrying any box is not offered at all.
  *
- * Pinned on the SOURCE as well as the arithmetic: the filter is one line in
- * the fetch, and a later edit that drops it would leave every check below
- * passing while the map went back to rectangles.
+ * These pins are computed FROM THE BAKED FILES rather than from a list, in
+ * both directions: nothing offered may carry a box, and nothing in BOX_ONLY
+ * may be box-free. A re-baked file that changed character would fail here
+ * rather than on somebody's screen.
  */
+const isBoxRing = (ring) => {
+  if (!Array.isArray(ring) || ring.length !== 5) return false;
+  const xs = ring.map((c) => c[0]), ys = ring.map((c) => c[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs);
+  const y0 = Math.min(...ys), y1 = Math.max(...ys);
+  if (x0 === x1 || y0 === y1) return false;           // a sliver is not a box
+  return ring.every(([x, y]) => (x === x0 || x === x1) && (y === y0 || y === y1));
+};
+/**
+ * SEAM-CUT BOXES COUNT. The bake cuts a ring at 180, so a box across the
+ * antimeridian arrives as a two-part MultiPolygon -- which the bake's own
+ * `is_extent` refuses, missing 12 on Venus, 26 on Europa and 7 of Phobos's 20.
+ * A feature is a box when EVERY part of it is one, however it was cut.
+ */
+const isBoxFeature = (f) => {
+  const g = f.geometry;
+  if (!g) return false;
+  const parts = g.type === "Polygon" ? [g.coordinates]
+    : g.type === "MultiPolygon" ? g.coordinates : null;
+  if (!parts || !parts.length) return false;
+  return parts.every((rings) => isBoxRing(rings[0]));
+};
+
+{
+  const dir = join(HERE, "..", "..", "..", "data", "global", "nomenclature");
+  const offered = { ...m.OUTLINE_BODIES, ...m.OUTLINE_MOONS };
+  const read = (key) => {
+    const file = join(dir, `${key}.geojson`);
+    return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : null;
+  };
+
+  let checked = 0;
+  for (const key of Object.keys(offered)) {
+    const d = read(key);
+    if (!d) continue;
+    checked += 1;
+    const boxes = d.features.filter(isBoxFeature).length;
+    const share = boxes / d.features.length;
+    ok(share < 0.5,
+       `${key} is offered because it is mostly outlines (${boxes} boxes of ${d.features.length})`);
+    // and whatever minority it does carry never reaches the globe
+    const left = m.withoutExtents(d).features.filter(isBoxFeature).length;
+    ok(left === 0, `${key}: the guard leaves no box to draw (${left} survived)`);
+  }
+
+  for (const key of m.BOX_ONLY) {
+    const d = read(key);
+    if (!d) continue;
+    const boxes = d.features.filter(isBoxFeature).length;
+    ok(boxes / d.features.length >= 0.5,
+       `${key} is withheld because most of it is boxes (${boxes} of ${d.features.length})`);
+    ok(!offered[key], `${key} is withheld, so nothing offers it`);
+  }
+
+  // Nothing may fall between the two lists: a baked file is either offered or
+  // named as withheld, or it is a body nobody decided about.
+  if (checked) {
+    const baked = readdirSync(dir).filter((f) => f.endsWith(".geojson"))
+      .map((f) => f.slice(0, -".geojson".length));
+    const unaccounted = baked.filter((k) => !offered[k] && !m.BOX_ONLY.has(k));
+    ok(unaccounted.length === 0,
+       `every baked body is offered or named as withheld (stray: ${unaccounted.join() || "none"})`);
+  }
+
+  // The hosts follow from the moons, and a host with none left builds no row.
+  ok(!m.MOON_HOSTS.has("uranus"),
+     "Uranus hosts only box moons, so it builds no row at all");
+  ok(!m.MOON_HOSTS.has("mars"),
+     "Mars hosts only Phobos, which is all boxes, so it no longer follows its moons");
+  ok(Boolean(m.OUTLINE_BODIES.mars),
+     "Mars keeps its own row: its 1,923 features carry no box");
+  ok(!m.OUTLINE_BODIES.venus,
+     "Venus is not offered: 385 of its 414 features are the gazetteer's box");
+  for (const host of m.MOON_HOSTS) {
+    const mine = Object.keys(m.OUTLINE_MOONS).some((k) => {
+      const d = read(k);
+      return d && d.features.length > 0;
+    });
+    ok(mine, `${host} has an outlined moon to follow`);
+  }
+}
+
+/* The filter that stays behind it: a guard, so a re-baked file that grew a box
+ * is not drawn as a shape before anybody notices. */
 {
   const box = (name) => ({ type: "Feature", properties: { name, extent: true },
     geometry: { type: "Polygon", coordinates: [[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]] } });
@@ -247,70 +343,31 @@ for (const [key, name] of Object.entries(m.OUTLINE_MOONS)) checkFile(key, name, 
      "withoutExtents keeps only what was outlined");
   ok(cut.features.map((f) => f.properties.name).join() === "b,d",
      "withoutExtents keeps them in file order");
-  ok(fc.features.length === 4,
-     "withoutExtents does not mutate the collection it was given");
-  ok(cut._source === "kept",
-     "withoutExtents carries the file's own _source through");
+  ok(fc.features.length === 4, "withoutExtents does not mutate what it was given");
+  ok(cut._source === "kept", "withoutExtents carries the file's own _source through");
   ok(m.withoutExtents({ type: "FeatureCollection", features: [] }).features.length === 0
      && m.withoutExtents({}).features.length === 0,
      "withoutExtents survives an empty or shapeless collection");
 
-  // The sentence is the only thing that says why a world is emptier than its
-  // feature count. All three cases have to be distinguishable.
   const held = m.outlineSummary([drawn("b"), drawn("d")], 373);
-  ok(/\b2\b/.test(held) && /373/.test(held) && /held back/i.test(held),
-     "the summary names what is drawn AND what is held back");
+  ok(/\b2\b/.test(held) && /373/.test(held) && /not drawn/i.test(held),
+     "the summary names what is drawn AND what the guard held back");
+  ok(!/tick|Show bounding/i.test(held),
+     "the summary points at no control, because there is none");
   const none = m.outlineSummary([], 16);
-  ok(/outlined none/i.test(none) && /16/.test(none) && !/^0\b/.test(none),
-     "a body of nothing but boxes says the gazetteer outlined none of them");
-  ok(!/held back/i.test(m.outlineSummary([drawn("b")], 0)),
+  ok(/outlined none/i.test(none) && /16/.test(none),
+     "a file of nothing but boxes says the gazetteer outlined none of them");
+  ok(!/not drawn/i.test(m.outlineSummary([drawn("b")], 0)),
      "a body with no boxes says nothing about boxes");
-  ok(/unfilled/.test(m.outlineSummary([box("a"), drawn("b")], 0)),
-     "with the boxes shown, the summary still says they are drawn unfilled");
 
-  // Source: comments stripped first, because the prose above the code names
-  // every one of these strings -- the scanner would otherwise pass on its own
-  // explanation, which this tree has paid for before.
   const src = readFileSync(join(HERE, "nomenclature-outlines.js"), "utf8")
     .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-  ok(/showExtents\(\)\s*\?\s*all\s*:\s*withoutExtents\(all\)/.test(src),
-     "the fetch filters the boxes out unless they are asked for");
+  ok(/let fc = withoutExtents\(all\);/.test(src),
+     "the fetch filters unconditionally -- the guard has no mode");
   ok(/unfilled:\s*isExtent/.test(src),
-     "a box that IS drawn is still drawn unfilled");
-  ok(/id="nomenclature-extents-toggle"/.test(src),
-     "the panel offers the tick that draws them");
-  ok(/localStorage\?\.setItem\(EXTENTS_KEY/.test(src)
-     && /localStorage\?\.getItem\(EXTENTS_KEY\)/.test(src),
-     "the choice is remembered per browser");
-  ok(/catch\s*\{\s*return false;\s*\}/.test(src),
-     "a storage that throws answers 'hidden' rather than throwing");
-}
-
-/* What each baked body would DRAW with the boxes held back, from the files
- * themselves. The three that draw nothing are the reason the empty case is a
- * sentence rather than a failed import. */
-{
-  const dir = join(HERE, "..", "..", "..", "data", "global", "nomenclature");
-  const names = { ...m.OUTLINE_BODIES, ...m.OUTLINE_MOONS };
-  let checked = 0, allBoxes = [];
-  for (const key of Object.keys(names)) {
-    const file = join(dir, `${key}.geojson`);
-    if (!existsSync(file)) continue;
-    checked += 1;
-    const d = JSON.parse(readFileSync(file, "utf8"));
-    const kept = m.withoutExtents(d).features.length;
-    ok(kept + d.features.filter(m.isExtent).length === d.features.length,
-       `${key}: every feature is either an outline or a box`);
-    if (!kept) allBoxes.push(key);
-  }
-  if (checked) {
-    ok(allBoxes.sort().join() === "hyperion,oberon,titania",
-       `only Titania, Oberon and Hyperion are nothing but boxes (got ${allBoxes.join() || "none"})`);
-    const venus = join(dir, "venus.geojson");
-    if (existsSync(venus)) {
-      const d = JSON.parse(readFileSync(venus, "utf8"));
-      ok(m.withoutExtents(d).features.length === 41 && d.features.length === 414,
-         `Venus draws 41 of its 414 (got ${m.withoutExtents(d).features.length} of ${d.features.length})`);
-    }
-  }
+     "a box that somehow reached the renderer is still not filled");
+  ok(!/extents-toggle/.test(src),
+     "no tick offers the boxes, because no offered body has one");
+  ok(!/localStorage/.test(src),
+     "nothing about the boxes is remembered per browser any more");
 }

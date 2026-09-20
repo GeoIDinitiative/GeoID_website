@@ -46,19 +46,54 @@
  *     a crater on Io. The satellites' own seam, for the same reason.
  */
 import * as THREE from "../vendor/three.module.js";
-import { dataUrl } from "./data-base.js?v=20260920-4149ca7";
-import { currentBodyId, getBody } from "./bodies.js?v=20260920-4149ca7";
-import { latLonToVector3 } from "./geo-utils.js?v=20260920-4149ca7";
-import { pointInPolygon } from "./geometry.js?v=20260920-4149ca7";
-import { paintByField } from "./symbology-dialog.js?v=20260920-4149ca7";
+import { dataUrl } from "./data-base.js?v=20260920-f4b4954";
+import { currentBodyId, getBody } from "./bodies.js?v=20260920-f4b4954";
+import { latLonToVector3 } from "./geo-utils.js?v=20260920-f4b4954";
+import { pointInPolygon } from "./geometry.js?v=20260920-f4b4954";
+import { paintByField } from "./symbology-dialog.js?v=20260920-f4b4954";
 
 export const OUTLINE_BODIES = {
   moon: { path: "/data/global/nomenclature/moon.geojson", name: "Moon" },
   mars: { path: "/data/global/nomenclature/mars.geojson", name: "Mars" },
   mercury: { path: "/data/global/nomenclature/mercury.geojson", name: "Mercury" },
-  venus: { path: "/data/global/nomenclature/venus.geojson", name: "Venus" },
   pluto: { path: "/data/global/nomenclature/pluto.geojson", name: "Pluto" },
 };
+
+/**
+ * THE WORLDS WITH NO ROW, AND THE COUNT THAT DECIDED EACH ONE.
+ *
+ * The gazetteer publishes two kinds of polygon under one name: a digitised
+ * OUTLINE, and the feature's BOUNDING BOX -- a five-point axis-aligned
+ * rectangle round it. A box drawn is a claim about a shape nobody drew, and
+ * unfilled it makes the claim more quietly and still makes it.
+ *
+ * So a body is offered when the gazetteer outlined MOST of it, and withheld
+ * when most of what it publishes for that body is boxes. Counted from the
+ * baked files as boxes/features, the split falls in a real gap rather than on
+ * a number somebody picked -- 1.5%, then 36.5%, then 52.2%:
+ *
+ *   OFFERED   moon 0/9060      mars 0/1923     mercury 0/581   io 0/254
+ *             pluto 0/71       charon 0/15     triton 0/2
+ *             ganymede 3/196   enceladus 31/85
+ *   WITHHELD  titan 145/278    callisto 90/154 iapetus 20/30   europa 96/114
+ *             rhea 40/44       venus 385/414   ariel 24/25     mimas 40/41
+ *             dione 96/98      tethys 53/53    phobos 20/20    umbriel 11/11
+ *             titania 16/16    miranda 13/13   oberon 8/8      hyperion 1/1
+ *
+ * WHAT THIS COSTS IS REAL: Titan's 133 digitised outlines go with its 145
+ * boxes, Callisto's 64, Venus's 29. A body cannot offer half a map without the
+ * reader having to know which half they are looking at. The files are
+ * unchanged -- a key moved out of this set brings its row back.
+ *
+ * The MINORITY boxes on the two mixed bodies are not drawn either: the guard
+ * on `withoutExtents` removes Ganymede's 3 and Enceladus's 31 before the
+ * importer sees them, so no box reaches the globe on any world.
+ */
+export const BOX_ONLY = new Set([
+  "venus", "europa", "callisto", "titan", "iapetus", "phobos",
+  "mimas", "tethys", "dione", "rhea", "hyperion",
+  "miranda", "ariel", "umbriel", "titania", "oberon",
+]);
 
 /**
  * EVERY MOON THE GAZETTEER HAS DRAWN AN OUTLINE FOR, which is a fact about the
@@ -70,19 +105,23 @@ export const OUTLINE_BODIES = {
  * only fail.
  */
 export const OUTLINE_MOONS = {
-  phobos: "Phobos",
   charon: "Charon",
-  io: "Io", europa: "Europa", ganymede: "Ganymede", callisto: "Callisto",
-  mimas: "Mimas", enceladus: "Enceladus", tethys: "Tethys", dione: "Dione",
-  rhea: "Rhea", titan: "Titan", hyperion: "Hyperion", iapetus: "Iapetus",
-  miranda: "Miranda", ariel: "Ariel", umbriel: "Umbriel", titania: "Titania",
-  oberon: "Oberon",
+  io: "Io", ganymede: "Ganymede",
+  enceladus: "Enceladus",
   triton: "Triton",
 };
 
-// The worlds that open a moon in a moon viewer. A gas giant has no surface of
-// its own to outline and is here for its moons alone.
-export const MOON_HOSTS = new Set(["mars", "pluto", "jupiter", "saturn", "uranus", "neptune"]);
+/**
+ * The worlds that open a moon in a moon viewer. A gas giant has no surface of
+ * its own to outline and is here for its moons alone.
+ *
+ * URANUS IS GONE and MARS NO LONGER FOLLOWS ITS MOONS, because every moon they
+ * host is boxes -- Miranda, Ariel, Umbriel, Titania and Oberon; Phobos, whose
+ * 20 features are 20 boxes. Mars keeps its row for the PLANET, whose 1,923
+ * features carry none. Saturn stays for Enceladus alone: Mimas, Tethys, Dione,
+ * Rhea, Titan, Hyperion and Iapetus are all withheld.
+ */
+export const MOON_HOSTS = new Set(["pluto", "jupiter", "saturn", "neptune"]);
 
 /**
  * THE GAZETTEER DRAWS TWO KINDS OF POLYGON AND CALLS THEM ONE THING.
@@ -98,7 +137,41 @@ export const MOON_HOSTS = new Set(["mars", "pluto", "jupiter", "saturn", "uranus
  * it reads as a map of Aphrodite Terra, and it is a map of the smallest box
  * that holds it. So an extent is drawn unfilled and its card says so.
  */
-export const isExtent = (feature) => feature?.properties?.extent === true;
+const boxRing = (ring) => {
+  if (!Array.isArray(ring) || ring.length !== 5) return false;
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const c of ring) {
+    if (!Array.isArray(c)) return false;
+    x0 = Math.min(x0, c[0]); x1 = Math.max(x1, c[0]);
+    y0 = Math.min(y0, c[1]); y1 = Math.max(y1, c[1]);
+  }
+  if (x0 === x1 || y0 === y1) return false;   // a degenerate sliver is not a box
+  return ring.every(([x, y]) => (x === x0 || x === x1) && (y === y0 || y === y1));
+};
+
+/**
+ * A FEATURE WHOSE EVERY PART IS AN AXIS-ALIGNED RECTANGLE, read off the
+ * geometry rather than off the flag.
+ *
+ * The bake sets `extent` and MISSES the ones it cut: `to_signed` splits a ring
+ * at 180, so a box across the antimeridian arrives as a two-part MultiPolygon
+ * and `is_extent` refuses it for having more than one part. Measured on the
+ * shipped files -- 12 of Venus's, 26 of Europa's, 7 of Phobos's 20, 4 of
+ * Enceladus's -- and every one of them was drawn FILLED, which is what "they
+ * are still blocky rectangles" was.
+ *
+ * Judging the geometry needs no re-bake and cannot be missed the same way: a
+ * box cut into two boxes is still two boxes.
+ */
+export const isBoxGeometry = (geometry) => {
+  const parts = geometry?.type === "Polygon" ? [geometry.coordinates]
+    : geometry?.type === "MultiPolygon" ? geometry.coordinates : null;
+  if (!parts || !parts.length) return false;
+  return parts.every((rings) => boxRing(rings?.[0]));
+};
+
+export const isExtent = (feature) =>
+  feature?.properties?.extent === true || isBoxGeometry(feature?.geometry);
 
 /**
  * What a layer HOLDS, said before anybody clicks a feature to find out. On a
@@ -116,11 +189,11 @@ export function outlineSummary(features, hidden = 0) {
   // fetch; what is true is that the gazetteer has outlined none of them.
   if (held && !drawn) {
     return `The gazetteer has outlined none of this body's ${h} named features -- every one is `
-      + "its BOUNDING BOX. Nothing is drawn; tick 'Show bounding boxes' to draw them";
+      + "its BOUNDING BOX, so none is drawn";
   }
   if (held) {
     return `${n} outlined features. ${h} more are the gazetteer's BOUNDING BOX rather than an `
-      + "outline and are held back -- tick 'Show bounding boxes' to draw them";
+      + "outline and are not drawn";
   }
   if (!boxes) return `${n} named features outlined`;
   return `${n} named features, ${boxes.toLocaleString()} of them the gazetteer's `
@@ -149,16 +222,19 @@ export function withoutExtents(fc) {
   return { ...(fc || {}), type: "FeatureCollection", features };
 }
 
-const EXTENTS_KEY = "geoid-gis:iau-extents";
-
-/** Remembered per browser; a storage that throws answers "hidden". */
-export function showExtents() {
-  try { return window.localStorage?.getItem(EXTENTS_KEY) === "1"; } catch { return false; }
-}
-
-function setShowExtents(on) {
-  try { window.localStorage?.setItem(EXTENTS_KEY, on ? "1" : "0"); } catch { /* private window */ }
-}
+/**
+ * A GUARD, not a mode. No body that still offers a row carries a box, so on
+ * today's files this filter never removes anything -- `BOX_ONLY` is what keeps
+ * the boxes off the globe, by not offering their body at all.
+ *
+ * It stays because the FILE can change under us: the gazetteer revises these
+ * products, and a Mars re-issue that swapped an outline for a box would
+ * otherwise be drawn as Mars's shape without anybody pressing anything. If it
+ * ever fires, the status line says how many it held back.
+ *
+ * There is deliberately no tick to draw them: a control that can do nothing on
+ * every body that offers it is worse than no control.
+ */
 
 export const layerNameFor = (body) => `Named feature outlines — ${OUTLINE_BODIES[body]?.name || body} (IAU)`;
 export const moonLayerNameFor = (key) => `Named feature outlines — ${OUTLINE_MOONS[key] || key} (IAU)`;
@@ -564,7 +640,7 @@ async function fetchOutlines(path, { west = false } = {}) {
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const all = await response.json();
   const total = (all.features || []).length;
-  let fc = showExtents() ? all : withoutExtents(all);
+  let fc = withoutExtents(all);
   const hidden = total - (fc.features || []).length;
   if (west) fc = toWestPositive(fc);
   return { fc, total, hidden };
@@ -850,13 +926,10 @@ function install(body, tries = 0) {
     <div class="gis-tool-body">
       <p class="compact-copy">The extent of each named feature -- craters, plains, ridges -- as the IAU
         gazetteer draws it. A layer: it joins the Workspace, where it can be recoloured and exported.</p>
-      <p class="compact-copy">Where the gazetteer has drawn no outline it publishes the feature's
-        BOUNDING BOX instead -- every named feature on Titania, Oberon and Hyperion, 373 of Venus's 414,
-        and most of Europa, Callisto, Titan and the mapped moons. A box is the smallest rectangle that
-        holds a feature, not its shape, so those are held back. Drawn, they are drawn unfilled.</p>
-      <div class="row"><label for="nomenclature-extents-toggle"
-        title="The gazetteer's bounding boxes rather than digitised outlines. Held back by default; drawn unfilled.">Show bounding boxes</label><span class="checkbox-wrap"><input
-        id="nomenclature-extents-toggle" type="checkbox"></span></div>
+      <p class="compact-copy">Only the worlds the gazetteer has actually drawn are offered here.
+        Where it has published the feature's BOUNDING BOX instead -- Venus, Europa, Callisto, Titan and
+        most of the mapped moons -- there is no row, because a rectangle is the smallest box that holds
+        a feature and not its shape.</p>
       ${moonLine}
       <p class="compact-copy" id="nomenclature-outlines-status" aria-live="polite"></p>
     </div>`;
@@ -868,31 +941,7 @@ function install(body, tries = 0) {
   ["click", "pointerdown"].forEach((type) => tick.addEventListener(type, (event) => event.stopPropagation()));
   const status = byId("nomenclature-outlines-status");
   const say = (m) => { if (status) status.textContent = m; };
-  /**
-   * The boxes are a SECOND question -- "is this feature drawn" against "is its
-   * shape known" -- so they get a second tick rather than a mode on the first.
-   *
-   * Changing it REBUILDS whatever is on the globe. `renderFeatureCollection`
-   * merges every feature into one fill mesh, one seal and one line buffer, so
-   * there is no per-feature visibility to flip; the tiled geology's own
-   * Boundaries select rebuilds for the same reason.
-   */
-  const extents = byId("nomenclature-extents-toggle");
-  if (extents) {
-    extents.checked = showExtents();
-    extents.addEventListener("change", async () => {
-      setShowExtents(extents.checked);
-      if (!tick.checked || busy) return;   // nothing on the globe to rebuild
-      busy = true;
-      try {
-        const layer = hasPlanet ? layerOf(body) : null;
-        if (layer) window.GeoIDImportManager.removeLayer(layer.id);
-        if (moon) dropMoon();
-      } finally { busy = false; }
-      if (hasPlanet) await load(body, say);
-      if (hasMoons) await followMoon(say);
-    });
-  }
+  // no boxes tick: see the guard above `withoutExtents`
   tick.addEventListener("change", async () => {
     if (tick.checked) {
       let ok = true;

@@ -169,16 +169,26 @@ def is_extent(geom):
     downstream will see; measured, it gives the same answer as the source
     (the simplify caps at 0.02 degrees and cannot flatten an outline into a
     box, nor does it move a box's own corners).
+
+    A MULTIPART FEATURE IS NOT AUTOMATICALLY NOT-A-BOX, and refusing one here
+    was wrong. `to_signed` cuts a ring at 180, so a box across the antimeridian
+    leaves this bake as a two-part MultiPolygon of two boxes -- and the old
+    "one part only" test called it an outline. Measured on the shipped files:
+    12 missed on Venus, 26 on Europa, 4 on Enceladus, and 7 of Phobos's 20,
+    every one of them drawn FILLED because only a flagged extent is drawn
+    unfilled. A box cut into two boxes is still a box, so every part is tested.
     """
     if geom["type"] == "Polygon":
-        ring = geom["coordinates"][0]
+        parts = [geom["coordinates"]]
     elif geom["type"] == "MultiPolygon":
-        # one part only: a multipart feature is not a single box
-        if len(geom["coordinates"]) != 1:
-            return False
-        ring = geom["coordinates"][0][0]
+        parts = geom["coordinates"]
     else:
         return False
+    return bool(parts) and all(_is_box_ring(p[0]) for p in parts)
+
+
+def _is_box_ring(ring):
+    """A five-point ring whose every vertex is at a corner of its own bbox."""
     if len(ring) != 5:
         return False
     xs = [c[0] for c in ring]
